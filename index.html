@@ -2990,6 +2990,18 @@ if (typeof window.doLogin === 'undefined') {
 
 
 <script>
+
+// ── NOTIFY (toast) ──
+var notifT;
+function notify(msg) {
+  var n = document.getElementById('notif');
+  if (!n) return;
+  n.innerHTML = '<i class="ti ti-check" style="font-size:15px"></i> ' + String(msg || '');
+  n.classList.add('show');
+  clearTimeout(notifT);
+  notifT = setTimeout(function() { n.classList.remove('show'); }, 2500);
+}
+
 // ── APPLY ROLE ──
 function applyRole() {
   var isAdmin = currentRole === 'admin';
@@ -3507,8 +3519,17 @@ function doLogin() {
         var nombre = currentRole === 'admin' ? 'Gonzalo S.' : cred.user.email.split('@')[0];
         _completarLogin(nombre);
       })
-      .catch(function() {
-        var demo = APP_CONFIG.DEMO_USERS[u.toLowerCase()];
+      .catch(function(fbError) {
+        // Si el error es de credenciales, mostrar error directo
+        var code = fbError ? fbError.code : '';
+        if (code === 'auth/wrong-password' || code === 'auth/user-not-found' || 
+            code === 'auth/invalid-credential' || code === 'auth/invalid-email') {
+          if(err) err.style.display = 'block';
+          return;
+        }
+        // Para otros errores (red, config), intentar fallback demo
+        var uSimple = u.toLowerCase().split('@')[0];
+        var demo = APP_CONFIG.DEMO_USERS[uSimple] || APP_CONFIG.DEMO_USERS[u.toLowerCase()];
         if (demo && demo.password === p) {
           if(err) err.style.display = 'none';
           isAuthenticated = true;
@@ -6425,7 +6446,4 @@ window.onerror = function(msg, src, line, col) {
   <button class="fab-main" id="fab-main" onclick="toggleFab()">
     <i class="ti ti-plus" style="font-size:22px" id="fab-icon"></i>
   </button>
-</div>
-
-</body>
-              </html>
+</html>
