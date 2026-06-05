@@ -738,6 +738,91 @@ function fbMostrarEstadoConexion() {
 
 document.addEventListener('firebase-ready', fbMostrarEstadoConexion);
 
+
+// ── SUGERENCIAS DE LOGIN ──
+var LOGIN_USUARIOS = [
+  { email: 'admin@sistemanixa.com',   nombre: 'Gonzalo S.',    rol: 'Admin'    },
+  { email: 'mlopez@sistemanixa.com',  nombre: 'López, Marcos', rol: 'Vendedor' },
+  { email: 'pgomez@sistemanixa.com',  nombre: 'Gómez, Paula',  rol: 'Vendedor' },
+  { email: 'rtorres@sistemanixa.com', nombre: 'Torres, Roberto',rol: 'Vendedor' },
+];
+
+function mostrarSugerenciasLogin(inp) {
+  var drop = document.getElementById('login-sugerencias');
+  var lista = document.getElementById('login-sug-lista');
+  if (!drop || !lista) return;
+  var v = inp.value.toLowerCase();
+  var matches = v
+    ? LOGIN_USUARIOS.filter(function(u) {
+        return u.email.includes(v) || u.nombre.toLowerCase().includes(v);
+      })
+    : LOGIN_USUARIOS;
+  if (!matches.length) { drop.style.display = 'none'; return; }
+  lista.innerHTML = matches.map(function(u) {
+    return '<div onclick="selUsuarioLogin(\''+u.email+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">'+
+      '<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0">'+u.nombre.charAt(0)+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13px;font-weight:500;color:var(--text)">'+u.nombre+'</div>'+
+        '<div style="font-size:11px;color:var(--text3)">'+u.email+'</div>'+
+      '</div>'+
+      '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg4);color:var(--text3)">'+u.rol+'</span>'+
+    '</div>';
+  }).join('');
+  drop.style.display = 'block';
+}
+
+function selUsuarioLogin(email) {
+  var inp = document.getElementById('l-user');
+  var drop = document.getElementById('login-sugerencias');
+  if (inp) inp.value = email;
+  if (drop) drop.style.display = 'none';
+  setTimeout(function() { document.getElementById('l-pass').focus(); }, 50);
+}
+
+// Cerrar sugerencias al hacer click fuera
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#login-sugerencias') && e.target.id !== 'l-user') {
+    var d = document.getElementById('login-sugerencias');
+    if (d) d.style.display = 'none';
+  }
+});
+
+// Abrir sugerencias al hacer focus en el campo vacío
+document.addEventListener('DOMContentLoaded', function() {
+  var inp = document.getElementById('l-user');
+  if (inp) {
+    inp.addEventListener('focus', function() {
+      mostrarSugerenciasLogin(inp);
+    });
+  }
+});
+
+
+// ── MOSTRAR/OCULTAR CONTRASEÑA ──
+function togglePassVis() {
+  var inp = document.getElementById('l-pass');
+  var ico = document.getElementById('ico-show-pass');
+  if (!inp) return;
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    if (ico) ico.className = 'ti ti-eye-off';
+  } else {
+    inp.type = 'password';
+    if (ico) ico.className = 'ti ti-eye';
+  }
+}
+
+// ── ASEGURAR doLogin GLOBAL ──
+// Por si el orden de carga causa problemas
+if (typeof window.doLogin === 'undefined') {
+  window.doLogin = function() {
+    // Intentar llamar cuando esté disponible
+    setTimeout(function() {
+      if (typeof doLogin === 'function') doLogin();
+    }, 100);
+  };
+}
+
 </script>
 </head>
 <body>
@@ -754,27 +839,36 @@ document.addEventListener('firebase-ready', fbMostrarEstadoConexion);
     <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
     <div class="login-field">
       <label>Usuario</label>
-      <input type="text" id="l-user" placeholder="Ingresá tu usuario" autocomplete="off" value="admin">
+      <div style="position:relative">
+        <input type="email" id="l-user" placeholder="usuario@sistemanixa.com"
+          autocomplete="email" value=""
+          oninput="mostrarSugerenciasLogin(this)"
+          onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()"
+          style="width:100%;padding-right:36px;box-sizing:border-box">
+        <i class="ti ti-at" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:15px;pointer-events:none"></i>
+        <div id="login-sugerencias" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:8px;z-index:50;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12)">
+          <div style="padding:6px 12px;font-size:11px;color:var(--text3);border-bottom:0.5px solid var(--border)">Usuarios recientes</div>
+          <div id="login-sug-lista"></div>
+        </div>
+      </div>
     </div>
     <div class="login-field">
       <label>Contraseña</label>
-      <input type="password" id="l-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" value="1234">
-    </div>
-    <div style="margin-bottom:6px">
-      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Rol</div>
-      <div class="login-role">
-        <button class="role-btn selected" id="rb-admin" onclick="selectRole('admin')">
-          <i class="ti ti-shield" style="font-size:15px"></i> Administrador
-        </button>
-        <button class="role-btn" id="rb-vendedor" onclick="selectRole('vendedor')">
-          <i class="ti ti-tag" style="font-size:15px"></i> Vendedor
+      <div style="position:relative">
+        <input type="password" id="l-pass" placeholder="Contraseña" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter')iniciarLogin()"
+          style="width:100%;padding-right:40px;box-sizing:border-box">
+        <button type="button" onclick="togglePassVis()" 
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:4px"
+          id="btn-show-pass">
+          <i class="ti ti-eye" style="font-size:16px" id="ico-show-pass"></i>
         </button>
       </div>
     </div>
-    <button class="login-btn" onclick="doLogin()">
+    <button class="login-btn" onclick="iniciarLogin()">
       <i class="ti ti-login" style="font-size:16px"></i> Ingresar
     </button>
-    <div class="login-hint">Demo: admin / 1234 &nbsp;·&nbsp; vendedor / 1234</div>
+    
   </div>
 </div>
 
@@ -2958,6 +3052,42 @@ document.addEventListener('firebase-ready', fbMostrarEstadoConexion);
 
 
 <script>
+
+// ── WRAPPER SEGURO PARA LOGIN ──
+function iniciarLogin() {
+  // Si doLogin ya existe, llamarla directamente
+  if (typeof doLogin === 'function') {
+    doLogin();
+  } else {
+    // Esperar hasta 3 segundos a que el script cargue
+    var intentos = 0;
+    var intervalo = setInterval(function() {
+      intentos++;
+      if (typeof doLogin === 'function') {
+        clearInterval(intervalo);
+        doLogin();
+      } else if (intentos > 30) {
+        clearInterval(intervalo);
+        // Fallback: login demo directo
+        var u = document.getElementById('l-user').value.trim().toLowerCase().replace('@sistemanixa.com','').replace('@gmail.com','');
+        var p = document.getElementById('l-pass').value;
+        var demo = APP_CONFIG ? APP_CONFIG.DEMO_USERS[u] : null;
+        if (demo && demo.password === p) {
+          isAuthenticated = true;
+          currentRole = demo.role;
+          if (typeof _completarLogin === 'function') _completarLogin(demo.name);
+          else {
+            document.getElementById('screen-login').style.display = 'none';
+            document.getElementById('screen-app').classList.add('visible');
+          }
+        } else {
+          var err = document.getElementById('login-error');
+          if (err) err.style.display = 'block';
+        }
+      }
+    }, 100);
+  }
+}
 // ── Seguridad base para maqueta ──
 // IMPORTANTE: esto NO reemplaza validaciones del backend. Cuando conectes SQL Server,
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
@@ -6242,4 +6372,4 @@ window.onerror = function(msg, src, line, col) {
 </div>
 
 </body>
-</html>
+                                                                                                                                                                                                                                                                                   </html>
