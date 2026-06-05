@@ -740,77 +740,14 @@ document.addEventListener('firebase-ready', fbMostrarEstadoConexion);
 
 
 // ── SUGERENCIAS DE LOGIN ──
-var LOGIN_USUARIOS = [
-  { email: 'admin@sistemanixa.com',   nombre: 'Gonzalo S.',    rol: 'Admin'    },
-  { email: 'mlopez@sistemanixa.com',  nombre: 'López, Marcos', rol: 'Vendedor' },
-  { email: 'pgomez@sistemanixa.com',  nombre: 'Gómez, Paula',  rol: 'Vendedor' },
-  { email: 'rtorres@sistemanixa.com', nombre: 'Torres, Roberto',rol: 'Vendedor' },
-];
+// LOGIN_USUARIOS movido al script principal
 
-function mostrarSugerenciasLogin(inp) {
-  var drop = document.getElementById('login-sugerencias');
-  var lista = document.getElementById('login-sug-lista');
-  if (!drop || !lista) return;
-  var v = inp.value.toLowerCase();
-  var matches = v
-    ? LOGIN_USUARIOS.filter(function(u) {
-        return u.email.includes(v) || u.nombre.toLowerCase().includes(v);
-      })
-    : LOGIN_USUARIOS;
-  if (!matches.length) { drop.style.display = 'none'; return; }
-  lista.innerHTML = matches.map(function(u) {
-    return '<div onclick="selUsuarioLogin(\''+u.email+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">'+
-      '<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0">'+u.nombre.charAt(0)+'</div>'+
-      '<div style="flex:1;min-width:0">'+
-        '<div style="font-size:13px;font-weight:500;color:var(--text)">'+u.nombre+'</div>'+
-        '<div style="font-size:11px;color:var(--text3)">'+u.email+'</div>'+
-      '</div>'+
-      '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg4);color:var(--text3)">'+u.rol+'</span>'+
-    '</div>';
-  }).join('');
-  drop.style.display = 'block';
-}
+// mostrarSugerenciasLogin movido al script principal
 
-function selUsuarioLogin(email) {
-  var inp = document.getElementById('l-user');
-  var drop = document.getElementById('login-sugerencias');
-  if (inp) inp.value = email;
-  if (drop) drop.style.display = 'none';
-  setTimeout(function() { document.getElementById('l-pass').focus(); }, 50);
-}
-
-// Cerrar sugerencias al hacer click fuera
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('#login-sugerencias') && e.target.id !== 'l-user') {
-    var d = document.getElementById('login-sugerencias');
-    if (d) d.style.display = 'none';
-  }
-});
-
-// Abrir sugerencias al hacer focus en el campo vacío
-document.addEventListener('DOMContentLoaded', function() {
-  var inp = document.getElementById('l-user');
-  if (inp) {
-    inp.addEventListener('focus', function() {
-      mostrarSugerenciasLogin(inp);
-    });
-  }
-});
-
+// selUsuarioLogin movido al script principal
 
 // ── MOSTRAR/OCULTAR CONTRASEÑA ──
-function togglePassVis() {
-  var inp = document.getElementById('l-pass');
-  var ico = document.getElementById('ico-show-pass');
-  if (!inp) return;
-  if (inp.type === 'password') {
-    inp.type = 'text';
-    if (ico) ico.className = 'ti ti-eye-off';
-  } else {
-    inp.type = 'password';
-    if (ico) ico.className = 'ti ti-eye';
-  }
-}
+// togglePassVis movido al script principal
 
 // ── ASEGURAR doLogin GLOBAL ──
 // Por si el orden de carga causa problemas
@@ -3052,6 +2989,122 @@ if (typeof window.doLogin === 'undefined') {
 
 
 <script>
+// ── APPLY ROLE ──
+function applyRole() {
+  var isAdmin = currentRole === 'admin';
+  // Mostrar/ocultar elementos admin-only
+  document.querySelectorAll('.admin-only').forEach(function(el) {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+  // Actualizar badge de rol en el topbar
+  var badge = document.getElementById('role-badge-el');
+  if (badge) {
+    badge.textContent = isAdmin ? 'Admin' : 'Vendedor';
+    badge.className = 'role-badge ' + (isAdmin ? 'admin' : 'vendedor');
+  }
+  // Actualizar avatar del sidebar
+  var av = document.getElementById('s-avatar-el');
+  if (av) av.textContent = isAdmin ? 'GS' : 'V';
+  var sname = document.getElementById('s-name-el');
+  if (sname) sname.textContent = isAdmin ? 'Gonzalo S.' : 'Vendedor';
+  var srole = document.getElementById('s-role-el');
+  if (srole) srole.textContent = isAdmin ? 'Administrador' : 'Vendedor';
+}
+
+
+// ── LOGIN JS (movido desde módulo) ──
+var LOGIN_USUARIOS = [
+  { email: 'admin@sistemanixa.com',   nombre: 'Gonzalo S.',    rol: 'Admin'    },
+  { email: 'mlopez@sistemanixa.com',  nombre: 'López, Marcos', rol: 'Vendedor' },
+  { email: 'pgomez@sistemanixa.com',  nombre: 'Gómez, Paula',  rol: 'Vendedor' },
+  { email: 'rtorres@sistemanixa.com', nombre: 'Torres, Roberto',rol: 'Vendedor' },
+];
+
+
+function mostrarSugerenciasLogin(inp) {
+  var drop = document.getElementById('login-sugerencias');
+  var lista = document.getElementById('login-sug-lista');
+  if (!drop || !lista) return;
+  var v = inp.value.toLowerCase();
+  var matches = v
+    ? LOGIN_USUARIOS.filter(function(u) {
+        return u.email.toLowerCase().includes(v) || u.nombre.toLowerCase().includes(v);
+      })
+    : LOGIN_USUARIOS;
+
+  // Si escribió texto sin @ ofrecer autocompletar dominio
+  var sugerenciaDominio = '';
+  if (v && !v.includes('@')) {
+    sugerenciaDominio = '<div onclick="selUsuarioLogin(\''+v+'@sistemanixa.com\')" '+
+      'style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);background:var(--bg3)" '+
+      'onmouseenter="this.style.background=\'var(--bg4)\'" onmouseleave="this.style.background=\'var(--bg3)\'">'+
+      '<i class="ti ti-at" style="font-size:16px;color:var(--text3);width:32px;text-align:center"></i>'+
+      '<span style="font-size:13px;color:var(--text2)">'+v+'<strong>@sistemanixa.com</strong></span>'+
+    '</div>';
+  }
+
+  if (!matches.length && !sugerenciaDominio) { drop.style.display = 'none'; return; }
+
+  lista.innerHTML = sugerenciaDominio + matches.map(function(u) {
+    return '<div onclick="selUsuarioLogin(\''+u.email+'\')" '+
+      'style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)" '+
+      'onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">'+
+      '<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--text);flex-shrink:0">'+
+        u.nombre.charAt(0)+
+      '</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13px;font-weight:500;color:var(--text)">'+u.nombre+'</div>'+
+        '<div style="font-size:11px;color:var(--text3)">'+u.email+'</div>'+
+      '</div>'+
+      '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg4);color:var(--text3)">'+u.rol+'</span>'+
+    '</div>';
+  }).join('');
+  drop.style.display = 'block';
+}
+
+
+function selUsuarioLogin(email) {
+  var inp = document.getElementById('l-user');
+  var drop = document.getElementById('login-sugerencias');
+  if (inp) inp.value = email;
+  if (drop) drop.style.display = 'none';
+  setTimeout(function() { document.getElementById('l-pass').focus(); }, 50);
+}
+
+// Cerrar sugerencias al hacer click fuera
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#login-sugerencias') && e.target.id !== 'l-user') {
+    var d = document.getElementById('login-sugerencias');
+    if (d) d.style.display = 'none';
+  }
+});
+
+// Abrir sugerencias al hacer focus en el campo vacío
+document.addEventListener('DOMContentLoaded', function() {
+  var inp = document.getElementById('l-user');
+  if (inp) {
+    inp.addEventListener('focus', function() {
+      mostrarSugerenciasLogin(inp);
+    });
+  }
+});
+
+
+
+function togglePassVis() {
+  var inp = document.getElementById('l-pass');
+  var ico = document.getElementById('ico-show-pass');
+  if (!inp) return;
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    if (ico) ico.className = 'ti ti-eye-off';
+  } else {
+    inp.type = 'password';
+    if (ico) ico.className = 'ti ti-eye';
+  }
+}
+
+
 
 // ── WRAPPER SEGURO PARA LOGIN ──
 function iniciarLogin() {
@@ -3444,11 +3497,14 @@ function doLogin() {
   if (window.fbAuth && window.fbSignIn) {
     var email = u.includes('@') ? u : u + '@sistemanixa.com';
     window.fbSignIn(window.fbAuth, email, p)
-      .then(function() {
+      .then(function(cred) {
         if(err) err.style.display = 'none';
         isAuthenticated = true;
-        currentRole = u.toLowerCase() === 'admin' ? 'admin' : 'vendedor';
-        _completarLogin(u.toLowerCase() === 'admin' ? 'Gonzalo S.' : u);
+        // Determinar rol y nombre desde el email
+        var emailLower = cred.user.email.toLowerCase();
+        currentRole = emailLower.includes('admin') || emailLower.startsWith('nixa') ? 'admin' : 'vendedor';
+        var nombre = currentRole === 'admin' ? 'Gonzalo S.' : cred.user.email.split('@')[0];
+        _completarLogin(nombre);
       })
       .catch(function() {
         var demo = APP_CONFIG.DEMO_USERS[u.toLowerCase()];
@@ -3485,8 +3541,7 @@ function _completarLogin(nombre) {
   if (typeof actualizarFabYHome === 'function') setTimeout(function(){ actualizarFabYHome('dashboard'); }, 100);
   setTimeout(function() { notify('Bienvenido, ' + nombre + '!'); }, 500);
 }
-  d.style.display = any ? 'block' : 'none';
-}
+
 function selCli(id, nombre) {
   document.getElementById('cli-inp').value = nombre;
   document.getElementById('id-cli').value = String(id).padStart(4, '0');
@@ -6372,4 +6427,4 @@ window.onerror = function(msg, src, line, col) {
 </div>
 
 </body>
-                                                                                                                                                                                                                                                                                   </html>
+  </html>
