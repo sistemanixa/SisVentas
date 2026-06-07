@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
 <title>SisVentas</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
@@ -760,6 +760,38 @@ if (typeof window.doLogin === 'undefined') {
   };
 }
 
+
+// ── LOGOUT ──
+function doLogout() {
+  // Cerrar sesión en Firebase si está disponible
+  if (window.fbAuth && window.fbSignOut) {
+    window.fbSignOut(window.fbAuth)
+      .then(function() { console.log('[Firebase] Sesión cerrada'); })
+      .catch(function(e) { console.log('[Firebase] Error logout:', e); });
+  }
+  // Limpiar estado local
+  isAuthenticated = false;
+  currentRole = 'admin';
+  if (typeof stopSessionTimer === 'function') stopSessionTimer();
+  if (typeof cerrarUserPanel === 'function') cerrarUserPanel();
+  // Volver al login
+  document.getElementById('screen-app').classList.remove('visible');
+  document.getElementById('screen-login').style.display = '';
+  // Limpiar campos
+  var lu = document.getElementById('l-user');
+  var lp = document.getElementById('l-pass');
+  if (lu) lu.value = '';
+  if (lp) lp.value = '';
+  var err = document.getElementById('login-error');
+  if (err) err.style.display = 'none';
+  notify('Sesión cerrada');
+}
+
+// ── ABRIR PANEL USUARIO ──
+function abrirUserPanel() {
+  if (typeof toggleUserPanel === 'function') toggleUserPanel();
+}
+
 </script>
 </head>
 <body>
@@ -772,7 +804,7 @@ if (typeof window.doLogin === 'undefined') {
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v2.2 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v2.5 · Firebase</div>
     </div>
     <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
     <div class="login-field">
@@ -2991,8 +3023,66 @@ if (typeof window.doLogin === 'undefined') {
 
 <script>
 
+// ── PROTECCIÓN GLOBAL CONTRA NULL ──
+// Interceptar errores de getContext en elementos null
+window.addEventListener('error', function(e) {
+  if (e.message && e.message.includes('getContext')) {
+    e.preventDefault(); // Suprimir el error
+    return true;
+  }
+});
+
 // ── NOTIFY (toast) ──
 var notifT;
+
+// ── SHOW PAGE (navegación principal) ──
+function showPage(id, el) {
+  if (!isAuthenticated) { notify('Primero iniciá sesión'); return; }
+  var page = document.getElementById('page-' + id);
+  if (!page) { notify('Módulo no disponible'); return; }
+  if (APP_CONFIG.ADMIN_PAGES.has(id) && currentRole !== 'admin') {
+    notify('Acceso restringido — solo administradores'); return;
+  }
+  // Ocultar todas las páginas
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  page.classList.add('active');
+  if (el && el.classList) el.classList.add('active');
+
+  // Actualizar título
+  var _titulo = titles[id] || 'SisVentas';
+  var _setTitulo = function() {
+    var titleEl = document.getElementById('page-title');
+    if (titleEl) titleEl.textContent = _titulo;
+  };
+  _setTitulo();
+  setTimeout(_setTitulo, 50);
+  setTimeout(_setTitulo, 200);
+
+  // Lógica por módulo
+  if (id === 'empleados')      { if(typeof volverlista==='function') volverlista(); }
+  if (id === 'presupuesto')    { setTimeout(function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }, 50); }
+  if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
+  if (id === 'venta')          { setTimeout(function(){ if(typeof inicializarFilasVenta==='function') inicializarFilasVenta(); }, 50); }
+  if (id === 'dashboard')      { setTimeout(function(){ if(typeof renderKPIsDashboard==='function') renderKPIsDashboard(); }, 100); }
+  if (id === 'notificaciones') { setTimeout(function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 50); }
+  if (id === 'detalle')        { setTimeout(function(){ if(typeof volverListaVentas==='function'){volverListaVentas();renderVentasTabla();} }, 50); }
+  if (id === 'productos')      {
+    try { if(typeof mostrarAlertasStock==='function') mostrarAlertasStock(); } catch(e){}
+    var plv=document.getElementById('prod-list-view');
+    var pfv=document.getElementById('prod-form-view');
+    var pdv=document.getElementById('prod-detail-view');
+    if(plv) plv.style.display='block';
+    if(pfv) pfv.style.display='none';
+    if(pdv) pdv.style.display='none';
+  }
+
+  // FAB y Home en mobile
+  if (typeof actualizarFabYHome === 'function') actualizarFabYHome(id);
+  // Cerrar sidebar en mobile
+  if (window.innerWidth <= 768 && typeof closeSidebarMobile === 'function') closeSidebarMobile();
+}
+
 function notify(msg) {
   var n = document.getElementById('notif');
   if (!n) return;
@@ -6449,4 +6539,4 @@ window.onerror = function(msg, src, line, col) {
 </div>
 
 </body>
-</html>
+ </html>
