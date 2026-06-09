@@ -862,7 +862,7 @@ body.modal-open{overflow:hidden;}
 
     <div id="admin-pass-wrap">
       <label class="lbl">Clave de administrador</label>
-      <input class="linput" id="admin-pass" type="password" placeholder="••••••" autocomplete="off" style="margin-bottom:0" onkeydown="if(event.key==='Enter') doLogin()"/>
+      <input class="linput" id="admin-pass" type="password" inputmode="text" placeholder="••••••" autocomplete="off" style="margin-bottom:0" onkeydown="if(event.key==='Enter') doLogin()"/>
     </div>
 
     <div style="height:1.1rem"></div>
@@ -7817,8 +7817,8 @@ function closeDrawer(){
     <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:800;color:var(--text);margin-bottom:.5rem;">Cambio de clave requerido</div>
     <div style="font-size:.75rem;color:var(--muted);line-height:1.7;margin-bottom:1.25rem;">El proyecto ha finalizado. Por seguridad debés actualizar la clave de administrador antes de continuar.</div>
     <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.75rem;">
-      <input id="fpass-new" type="password" placeholder="Nueva clave" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;padding:.45rem .6rem;outline:none;width:100%;"/>
-      <input id="fpass-confirm" type="password" placeholder="Confirmar clave" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;padding:.45rem .6rem;outline:none;width:100%;"/>
+      <input id="fpass-new" type="password" inputmode="text" placeholder="Nueva clave" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;padding:.45rem .6rem;outline:none;width:100%;"/>
+      <input id="fpass-confirm" type="password" inputmode="text" placeholder="Confirmar clave" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;padding:.45rem .6rem;outline:none;width:100%;"/>
     </div>
     <div id="fpass-err" style="font-family:'DM Mono',monospace;font-size:.52rem;color:var(--red);margin-bottom:.5rem;min-height:.8rem;"></div>
     <button onclick="submitForcedPass()" style="background:var(--accent);border:none;color:var(--bg);font-family:'DM Mono',monospace;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.55rem;cursor:pointer;width:100%;">Guardar nueva clave</button>
@@ -7905,9 +7905,9 @@ function closeDrawer(){
     <button onclick="closePasswdPanel()" style="position:absolute;top:.75rem;right:.75rem;background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;">✕</button>
     <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:800;color:var(--text);margin-bottom:1rem;"> Cambiar clave</div>
     <div style="display:flex;flex-direction:column;gap:.5rem;">
-      <input id="pass-current" type="password" placeholder="Clave actual" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;padding:.45rem .6rem;outline:none;width:100%;"/>
-      <input id="pass-new" type="password" placeholder="Nueva clave" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;padding:.45rem .6rem;outline:none;width:100%;"/>
-      <input id="pass-confirm" type="password" placeholder="Confirmar nueva clave" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;padding:.45rem .6rem;outline:none;width:100%;"/>
+      <input id="pass-current" type="password" inputmode="text" placeholder="Clave actual" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;padding:.45rem .6rem;outline:none;width:100%;"/>
+      <input id="pass-new" type="password" inputmode="text" placeholder="Nueva clave" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;padding:.45rem .6rem;outline:none;width:100%;"/>
+      <input id="pass-confirm" type="password" inputmode="text" placeholder="Confirmar nueva clave" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;padding:.45rem .6rem;outline:none;width:100%;"/>
       <button onclick="changePassword()" style="background:var(--accent);border:none;color:var(--bg);font-family:'DM Mono',monospace;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.5rem;cursor:pointer;margin-top:.25rem;">Guardar nueva clave</button>
     </div>
   </div>
