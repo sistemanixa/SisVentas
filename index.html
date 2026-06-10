@@ -465,13 +465,12 @@ tr:hover td{color:var(--text)}
     const fbDB   = getDatabase(fbApp);
     const fbAuth = getAuth(fbApp);
 
-    // Exponer globalmente para el script principal
-    window.fbDB   = fbDB;
-    window.fbAuth = fbAuth;
-    window.fbRef  = ref;
-    window.fbSet  = set;
-    window.fbGet  = get;
-    window.fbPush = push;
+    window.fbDB       = fbDB;
+    window.fbAuth     = fbAuth;
+    window.fbRef      = ref;
+    window.fbSet      = set;
+    window.fbGet      = get;
+    window.fbPush     = push;
     window.fbOnValue  = onValue;
     window.fbUpdate   = update;
     window.fbRemove   = remove;
@@ -479,530 +478,8 @@ tr:hover td{color:var(--text)}
     window.fbSignOut  = signOut;
     window.fbOnAuth   = onAuthStateChanged;
 
-    // Notificar cuando Firebase esté listo
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));
-  
-// ══════════════════════════════════════════════
-// CAPA DE DATOS FIREBASE
-// ══════════════════════════════════════════════
-
-// Estado de conexión
-var fbConectado = false;
-var fbEsperandoReady = [];
-
-document.addEventListener('firebase-ready', function() {
-  fbConectado = true;
-  console.log('[Firebase] Conectado a nixa-sisventas');
-  // Ejecutar callbacks pendientes
-  fbEsperandoReady.forEach(function(fn) { try { fn(); } catch(e) {} });
-  fbEsperandoReady = [];
-  // Cargar datos iniciales
-  fbCargarTodo();
-});
-
-function fbListo(fn) {
-  if (fbConectado) fn();
-  else fbEsperandoReady.push(fn);
-}
-
-// ── PATHS de la base de datos ──
-var FB_PATHS = {
-  clientes:      'sisventas/clientes',
-  productos:     'sisventas/productos',
-  ventas:        'sisventas/ventas',
-  presupuestos:  'sisventas/presupuestos',
-  ordenesTrabajo:'sisventas/ordenes_trabajo',
-  gastos:        'sisventas/gastos',
-  cobranzas:     'sisventas/cobranzas',
-  config:        'sisventas/config',
-};
-
-// ── CARGAR TODO al iniciar ──
-function fbCargarTodo() {
-  fbCargarClientes();
-  fbCargarProductos();
-  fbCargarVentas();
-  fbCargarPresupuestos();
-  fbCargarOTs();
-}
-
-// ── CLIENTES ──
-function fbCargarClientes() {
-  if (!window.fbDB) return;
-  var r = window.fbRef(window.fbDB, FB_PATHS.clientes);
-  window.fbOnValue(r, function(snap) {
-    var data = snap.val();
-    if (data) {
-      clientesData = Object.entries(data).map(function(e) {
-        return Object.assign({ fbKey: e[0] }, e[1]);
-      });
-      // Actualizar tabla de clientes si está visible
-      if (document.getElementById('page-clientes')?.classList.contains('active')) {
-        renderTablaClientes();
-      }
-    }
-  });
-}
-
-function fbGuardarCliente(cli) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
-  var r = window.fbRef(window.fbDB, FB_PATHS.clientes);
-  if (cli.fbKey) {
-    // Actualizar existente
-    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey), cli)
-      .then(function() { notify('Cliente actualizado ✓'); })
-      .catch(function(e) { notify('Error: ' + e.message); });
-  } else {
-    // Nuevo cliente
-    window.fbPush(r, cli)
-      .then(function() { notify('Cliente guardado ✓'); })
-      .catch(function(e) { notify('Error: ' + e.message); });
-  }
-}
-
-function fbEliminarCliente(fbKey) {
-  if (!window.fbDB || !fbKey) return;
-  window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + fbKey))
-    .then(function() { notify('Cliente eliminado'); })
-    .catch(function(e) { notify('Error: ' + e.message); });
-}
-
-// ── PRODUCTOS ──
-function fbCargarProductos() {
-  if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.productos), function(snap) {
-    var data = snap.val();
-    if (data) {
-      // Convertir a formato de prodData
-      prodData = {};
-      Object.entries(data).forEach(function(e, i) {
-        var p = Object.assign({ fbKey: e[0] }, e[1]);
-        prodData[i+1] = p;
-        // Actualizar stockData también
-        if (!stockData[p.codigo]) {
-          stockData[p.codigo] = { desc: p.descripcion, real: p.stock||0, reservado: 0, stockMin: p.stockMin||5 };
-        }
-      });
-    }
-  });
-}
-
-function fbGuardarProducto(prod) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
-  var r = window.fbRef(window.fbDB, FB_PATHS.productos);
-  if (prod.fbKey) {
-    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + prod.fbKey), prod)
-      .then(function() { notify('Producto actualizado ✓'); });
-  } else {
-    window.fbPush(r, prod)
-      .then(function() { notify('Producto guardado ✓'); });
-  }
-}
-
-// ── VENTAS ──
-function fbCargarVentas() {
-  if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.ventas), function(snap) {
-    var data = snap.val();
-    if (data) {
-      ventasList = Object.entries(data).map(function(e) {
-        return Object.assign({ fbKey: e[0] }, e[1]);
-      }).sort(function(a,b) { return (b.id||'').localeCompare(a.id||''); });
-    }
-  });
-}
-
-function fbGuardarVenta(venta) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
-  var r = window.fbRef(window.fbDB, FB_PATHS.ventas);
-  if (venta.fbKey) {
-    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), venta)
-      .then(function() { notify('Venta guardada ✓'); });
-  } else {
-    return window.fbPush(r, venta)
-      .then(function(ref) {
-        notify('Venta confirmada ✓');
-        return ref.key;
-      });
-  }
-}
-
-// ── PRESUPUESTOS ──
-function fbCargarPresupuestos() {
-  if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.presupuestos), function(snap) {
-    var data = snap.val();
-    if (data) {
-      pptoData = Object.entries(data).map(function(e) {
-        return Object.assign({ fbKey: e[0] }, e[1]);
-      }).sort(function(a,b) { return (b.id||'').localeCompare(a.id||''); });
-      // Actualizar tabla si está visible
-      if (document.getElementById('page-presupuesto')?.classList.contains('active')) {
-        if (typeof renderPptoTabla === 'function') renderPptoTabla();
-      }
-    }
-  });
-}
-
-function fbGuardarPresupuesto(ppto) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
-  var r = window.fbRef(window.fbDB, FB_PATHS.presupuestos);
-  if (ppto.fbKey) {
-    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + ppto.fbKey), ppto)
-      .then(function() { notify('Presupuesto guardado ✓'); });
-  } else {
-    return window.fbPush(r, ppto)
-      .then(function() { notify('Presupuesto guardado ✓'); });
-  }
-}
-
-// ── ÓRDENES DE TRABAJO ──
-function fbCargarOTs() {
-  if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), function(snap) {
-    var data = snap.val();
-    if (data) {
-      otData = Object.entries(data).map(function(e) {
-        return Object.assign({ fbKey: e[0] }, e[1]);
-      });
-    }
-  });
-}
-
-function fbGuardarOT(ot) {
-  if (!window.fbDB) return Promise.resolve();
-  var r = window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo);
-  if (ot.fbKey) {
-    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), ot);
-  } else {
-    return window.fbPush(r, ot).then(function(ref) { return ref.key; });
-  }
-}
-
-// ── SEED: cargar datos demo a Firebase (solo primera vez) ──
-function fbSeedDatos() {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
-  notify('Cargando datos demo a Firebase...');
-
-  // Seed clientes
-  clientesData.forEach(function(c) {
-    var copia = Object.assign({}, c);
-    delete copia.fbKey;
-    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.clientes), copia);
-  });
-
-  // Seed productos
-  Object.values(prodData).forEach(function(p) {
-    var copia = Object.assign({}, p);
-    delete copia.fbKey;
-    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.productos), copia);
-  });
-
-  // Seed presupuestos
-  pptoData.forEach(function(p) {
-    var copia = Object.assign({}, p);
-    delete copia.fbKey;
-    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.presupuestos), copia);
-  });
-
-  // Seed ventas
-  ventasList.forEach(function(v) {
-    var copia = Object.assign({}, v);
-    delete copia.fbKey;
-    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), copia);
-  });
-
-  // Seed OTs
-  otData.forEach(function(o) {
-    var copia = Object.assign({}, o);
-    delete copia.fbKey;
-    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), copia);
-  });
-
-  setTimeout(function() { notify('✓ Datos demo cargados en Firebase'); }, 2000);
-}
-
-// ── INDICADOR DE CONEXIÓN ──
-function fbMostrarEstadoConexion() {
-  var badge = document.getElementById('fb-status');
-  if (!badge) return;
-  if (fbConectado) {
-    badge.innerHTML = '<i class="ti ti-wifi" style="font-size:11px"></i> Online';
-    badge.style.color = 'var(--green)';
-  } else {
-    badge.innerHTML = '<i class="ti ti-wifi-off" style="font-size:11px"></i> Offline';
-    badge.style.color = 'var(--amber)';
-  }
-}
-
-document.addEventListener('firebase-ready', fbMostrarEstadoConexion);
-
-
-// ── SUGERENCIAS DE LOGIN ──
-// LOGIN_USUARIOS movido al script principal
-
-// mostrarSugerenciasLogin movido al script principal
-
-// selUsuarioLogin movido al script principal
-
-// ── MOSTRAR/OCULTAR CONTRASEÑA ──
-// togglePassVis movido al script principal
-
-// ── ASEGURAR doLogin GLOBAL ──
-// Por si el orden de carga causa problemas
-if (typeof window.doLogin === 'undefined') {
-  window.doLogin = function() {
-    // Intentar llamar cuando esté disponible
-    setTimeout(function() {
-      if (typeof doLogin === 'function') doLogin();
-    }, 100);
-  };
-}
-
-
-// doLogout y abrirUserPanel → movidos al script principal
- USUARIO ──
-function abrirUserPanel() {
-  if (typeof toggleUserPanel === 'function') toggleUserPanel();
-}
-
-
-// ══════════════════════════════════════════════
-// TUSfacturas APP — FACTURACIÓN ELECTRÓNICA AFIP
-// ══════════════════════════════════════════════
-var TFAPP_CONFIG = {
-  usertoken:  'TU_USERTOKEN',   // Reemplazar con token de TusFacturasApp
-  apitoken:   'TU_APITOKEN',    // Reemplazar con API token
-  apikey:     'TU_APIKEY',      // Reemplazar con API key
-  endpoint:   'https://www.tusfacturas.app/app/api/v2/facturas/nuevo',
-  punto_venta: 1,
-  activo: false  // Cambiar a true cuando tengas los tokens
-};
-
-// Emitir factura desde una venta
-async function emitirFactura(venta, tipoComprobante) {
-  if (!TFAPP_CONFIG.activo) {
-    notify('Configurá TusFacturasApp en Configuración → Facturación');
-    return null;
-  }
-  if (!venta.clienteCuit) {
-    notify('El cliente no tiene CUIT cargado');
-    return null;
-  }
-
-  notify('Emitiendo factura en AFIP...');
-
-  var body = {
-    usertoken: TFAPP_CONFIG.usertoken,
-    apitoken:  TFAPP_CONFIG.apitoken,
-    apikey:    TFAPP_CONFIG.apikey,
-    cliente: {
-      documento_tipo:  'CUIT',
-      documento_nro:   venta.clienteCuit,
-      razon_social:    venta.cliente,
-      email:           venta.clienteEmail || '',
-      domicilio:       venta.clienteDir   || '',
-      provincia:       '1',
-      condicion_iva:   tipoComprobante === 'FACTURA A' ? 'RI' : 'CF',
-      condicion_pago:  '214',
-    },
-    comprobante: {
-      fecha:            new Date().toLocaleDateString('es-AR'),
-      tipo_comprobante: tipoComprobante,
-      punto_venta:      TFAPP_CONFIG.punto_venta,
-      moneda:           'PES',
-      cotizacion:       1,
-      concepto:         'Productos y Servicios',
-      detalle: venta.items.map(function(i) {
-        return {
-          cantidad:                   i.qty,
-          producto:                   i.desc,
-          unidad_bulto:               1,
-          lista_precios:              'standard',
-          codigo:                     i.cod,
-          precio_unitario_sin_iva:    parseFloat((i.punit / 1.21).toFixed(2)),
-          alicuota:                   21,
-          bonificacion_porcentaje:    0
-        };
-      })
-    }
-  };
-
-  try {
-    var resp = await fetch(TFAPP_CONFIG.endpoint, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(body)
-    });
-    var data = await resp.json();
-
-    if (data.error === 'N') {
-      var resultado = {
-        cae:                data.cae,
-        cae_vencimiento:    data.cae_vencimiento,
-        numero_comprobante: data.numero_comprobante,
-        tipo:               tipoComprobante,
-        pdf_url:            data.comprobante_pdf_url,
-        fecha:              new Date().toLocaleDateString('es-AR')
-      };
-      // Guardar en Firebase junto con la venta
-      if (venta.fbKey && typeof fbUpdate === 'function') {
-        window.fbUpdate(
-          window.fbRef(window.fbDB, 'sisventas/ventas/' + venta.fbKey),
-          { factura: resultado }
-        );
-      }
-      notify('Factura emitida — CAE: ' + data.cae);
-      // Abrir PDF
-      if (data.comprobante_pdf_url) {
-        window.open(data.comprobante_pdf_url, '_blank');
-      }
-      return resultado;
-    } else {
-      var errores = Array.isArray(data.errores) ? data.errores.join(', ') : 'Error desconocido';
-      notify('Error AFIP: ' + errores);
-      return null;
-    }
-  } catch(e) {
-    notify('Error de conexión con TusFacturasApp');
-    console.error('[TusFacturasApp]', e);
-    return null;
-  }
-}
-
-// Abrir modal para elegir tipo de factura
-function abrirModalFactura(ventaId) {
-  var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
-  if (!venta) { notify('Venta no encontrada'); return; }
-
-  // Crear modal dinámico
-  var overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px';
-  overlay.id = 'modal-factura';
-
-  var cli = clientesData ? clientesData.find(function(c){ return c.nombre === venta.cliente; }) : null;
-  var tieneCuit = cli && cli.cuit;
-
-  overlay.innerHTML = '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.15)">' +
-    '<div style="font-size:16px;font-weight:600;margin-bottom:16px">Emitir factura — ' + venta.id + '</div>' +
-    '<div style="font-size:13px;color:var(--text2);margin-bottom:6px">Cliente: ' + venta.cliente + '</div>' +
-    '<div style="font-size:13px;color:var(--text2);margin-bottom:' + (tieneCuit ? '16' : '4') + 'px">Total: $' + (venta.total||0).toLocaleString('es-AR') + '</div>' +
-    (!tieneCuit ? '<div style="font-size:12px;color:var(--amber);margin-bottom:16px;padding:8px;background:var(--amber-bg);border-radius:6px">⚠️ El cliente no tiene CUIT — solo podés emitir Factura B</div>' : '') +
-    '<div style="font-size:12px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Tipo de comprobante</div>' +
-    '<div style="display:flex;gap:8px;margin-bottom:20px">' +
-      '<button onclick="selTipoFactura(this,'FACTURA A')" class="btn btn-sm" style="flex:1;' + (!tieneCuit ? 'opacity:.4;pointer-events:none' : '') + '">Factura A</button>' +
-      '<button onclick="selTipoFactura(this,'FACTURA B')" class="btn btn-sm btn-primary" style="flex:1" id="btn-fact-b">Factura B</button>' +
-    '</div>' +
-    '<div style="display:flex;gap:8px">' +
-      '<button onclick="document.getElementById('modal-factura').remove()" class="btn" style="flex:1">Cancelar</button>' +
-      '<button onclick="confirmarEmisionFactura('' + ventaId + '')" class="btn btn-primary" style="flex:1" id="btn-emitir-factura">Emitir</button>' +
-    '</div>' +
-  '</div>';
-
-  document.body.appendChild(overlay);
-  overlay._ventaId = ventaId;
-  overlay._tipo = 'FACTURA B';
-}
-
-var _facturaSelTipo = 'FACTURA B';
-function selTipoFactura(btn, tipo) {
-  _facturaSelTipo = tipo;
-  document.querySelectorAll('#modal-factura .btn').forEach(function(b) {
-    b.classList.remove('btn-primary');
-  });
-  btn.classList.add('btn-primary');
-}
-
-function confirmarEmisionFactura(ventaId) {
-  var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
-  if (!venta) return;
-  var cli = clientesData ? clientesData.find(function(c){ return c.nombre === venta.cliente; }) : null;
-  if (cli) {
-    venta.clienteCuit  = cli.cuit  || '';
-    venta.clienteEmail = cli.email || '';
-    venta.clienteDir   = cli.dir   || '';
-  }
-  document.getElementById('modal-factura').remove();
-  emitirFactura(venta, _facturaSelTipo);
-}
-
-// ── CONFIG TUSACTURAS APP ──
-function guardarConfigTFApp() {
-  var ut = document.getElementById('cfg-tfapp-usertoken');
-  var at = document.getElementById('cfg-tfapp-apitoken');
-  var ak = document.getElementById('cfg-tfapp-apikey');
-  var pv = document.getElementById('cfg-tfapp-pv');
-  if (ut) TFAPP_CONFIG.usertoken  = ut.value;
-  if (at) TFAPP_CONFIG.apitoken   = at.value;
-  if (ak) TFAPP_CONFIG.apikey     = ak.value;
-  if (pv) TFAPP_CONFIG.punto_venta = parseInt(pv.value) || 1;
-  TFAPP_CONFIG.activo = !!(ut && ut.value && at && at.value && ak && ak.value);
-  var status = document.getElementById('tfapp-status');
-  if (status) {
-    status.textContent = TFAPP_CONFIG.activo ? '✓ Configurado' : 'Incompleto';
-    status.style.color = TFAPP_CONFIG.activo ? 'var(--green)' : 'var(--amber)';
-  }
-  // Guardar en Firebase para persistir
-  if (window.fbDB && TFAPP_CONFIG.activo) {
-    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/config/tfapp'), {
-      usertoken:   TFAPP_CONFIG.usertoken,
-      apitoken:    TFAPP_CONFIG.apitoken,
-      apikey:      TFAPP_CONFIG.apikey,
-      punto_venta: TFAPP_CONFIG.punto_venta
-    });
-  }
-}
-
-async function testTFApp() {
-  if (!TFAPP_CONFIG.usertoken) { notify('Completá los tokens primero'); return; }
-  notify('Probando conexión...');
-  try {
-    var resp = await fetch('https://www.tusfacturas.app/app/api/v2/facturas/nuevo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        usertoken: TFAPP_CONFIG.usertoken,
-        apitoken:  TFAPP_CONFIG.apitoken,
-        apikey:    TFAPP_CONFIG.apikey
-      })
-    });
-    var data = await resp.json();
-    // Si responde con error de datos (no de auth), la conexión funciona
-    if (data.error === 'S' && data.errores) {
-      notify('✓ Conexión OK — credenciales válidas');
-    } else {
-      notify('Error: ' + (data.errores ? data.errores[0] : 'Verificá los tokens'));
-    }
-  } catch(e) {
-    notify('Error de red — verificá la conexión');
-  }
-}
-
-// Cargar config de Firebase al iniciar
-document.addEventListener('firebase-ready', function() {
-  if (!window.fbDB) return;
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tfapp'))
-    .then(function(snap) {
-      var cfg = snap.val();
-      if (!cfg) return;
-      TFAPP_CONFIG.usertoken   = cfg.usertoken   || '';
-      TFAPP_CONFIG.apitoken    = cfg.apitoken    || '';
-      TFAPP_CONFIG.apikey      = cfg.apikey      || '';
-      TFAPP_CONFIG.punto_venta = cfg.punto_venta || 1;
-      TFAPP_CONFIG.activo = !!(cfg.usertoken && cfg.apitoken && cfg.apikey);
-      // Rellenar los inputs si están visibles
-      var ut = document.getElementById('cfg-tfapp-usertoken');
-      var at = document.getElementById('cfg-tfapp-apitoken');
-      var ak = document.getElementById('cfg-tfapp-apikey');
-      var pv = document.getElementById('cfg-tfapp-pv');
-      if (ut) ut.value = cfg.usertoken   || '';
-      if (at) at.value = cfg.apitoken    || '';
-      if (ak) ak.value = cfg.apikey      || '';
-      if (pv) pv.value = cfg.punto_venta || 1;
-    });
-});
-
 </script>
 </head>
 <body>
@@ -1015,7 +492,7 @@ document.addEventListener('firebase-ready', function() {
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v2.7 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v3.0 · Firebase</div>
     </div>
     <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
     <div class="login-field">
@@ -3267,6 +2744,528 @@ document.addEventListener('firebase-ready', function() {
 
 
 <script>
+// ══════════════════════════════════════════════
+// CAPA DE DATOS FIREBASE
+// ══════════════════════════════════════════════
+
+// Estado de conexión
+var fbConectado = false;
+var fbEsperandoReady = [];
+
+document.addEventListener('firebase-ready', function() {
+  fbConectado = true;
+  console.log('[Firebase] Conectado a nixa-sisventas');
+  // Ejecutar callbacks pendientes
+  fbEsperandoReady.forEach(function(fn) { try { fn(); } catch(e) {} });
+  fbEsperandoReady = [];
+  // Cargar datos iniciales
+  fbCargarTodo();
+});
+
+function fbListo(fn) {
+  if (fbConectado) fn();
+  else fbEsperandoReady.push(fn);
+}
+
+// ── PATHS de la base de datos ──
+var FB_PATHS = {
+  clientes:      'sisventas/clientes',
+  productos:     'sisventas/productos',
+  ventas:        'sisventas/ventas',
+  presupuestos:  'sisventas/presupuestos',
+  ordenesTrabajo:'sisventas/ordenes_trabajo',
+  gastos:        'sisventas/gastos',
+  cobranzas:     'sisventas/cobranzas',
+  config:        'sisventas/config',
+};
+
+// ── CARGAR TODO al iniciar ──
+function fbCargarTodo() {
+  fbCargarClientes();
+  fbCargarProductos();
+  fbCargarVentas();
+  fbCargarPresupuestos();
+  fbCargarOTs();
+}
+
+// ── CLIENTES ──
+function fbCargarClientes() {
+  if (!window.fbDB) return;
+  var r = window.fbRef(window.fbDB, FB_PATHS.clientes);
+  window.fbOnValue(r, function(snap) {
+    var data = snap.val();
+    if (data) {
+      clientesData = Object.entries(data).map(function(e) {
+        return Object.assign({ fbKey: e[0] }, e[1]);
+      });
+      // Actualizar tabla de clientes si está visible
+      if (document.getElementById('page-clientes')?.classList.contains('active')) {
+        renderTablaClientes();
+      }
+    }
+  });
+}
+
+function fbGuardarCliente(cli) {
+  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
+  var r = window.fbRef(window.fbDB, FB_PATHS.clientes);
+  if (cli.fbKey) {
+    // Actualizar existente
+    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey), cli)
+      .then(function() { notify('Cliente actualizado ✓'); })
+      .catch(function(e) { notify('Error: ' + e.message); });
+  } else {
+    // Nuevo cliente
+    window.fbPush(r, cli)
+      .then(function() { notify('Cliente guardado ✓'); })
+      .catch(function(e) { notify('Error: ' + e.message); });
+  }
+}
+
+function fbEliminarCliente(fbKey) {
+  if (!window.fbDB || !fbKey) return;
+  window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + fbKey))
+    .then(function() { notify('Cliente eliminado'); })
+    .catch(function(e) { notify('Error: ' + e.message); });
+}
+
+// ── PRODUCTOS ──
+function fbCargarProductos() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.productos), function(snap) {
+    var data = snap.val();
+    if (data) {
+      // Convertir a formato de prodData
+      prodData = {};
+      Object.entries(data).forEach(function(e, i) {
+        var p = Object.assign({ fbKey: e[0] }, e[1]);
+        prodData[i+1] = p;
+        // Actualizar stockData también
+        if (!stockData[p.codigo]) {
+          stockData[p.codigo] = { desc: p.descripcion, real: p.stock||0, reservado: 0, stockMin: p.stockMin||5 };
+        }
+      });
+    }
+  });
+}
+
+function fbGuardarProducto(prod) {
+  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
+  var r = window.fbRef(window.fbDB, FB_PATHS.productos);
+  if (prod.fbKey) {
+    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + prod.fbKey), prod)
+      .then(function() { notify('Producto actualizado ✓'); });
+  } else {
+    window.fbPush(r, prod)
+      .then(function() { notify('Producto guardado ✓'); });
+  }
+}
+
+// ── VENTAS ──
+function fbCargarVentas() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.ventas), function(snap) {
+    var data = snap.val();
+    if (data) {
+      ventasList = Object.entries(data).map(function(e) {
+        return Object.assign({ fbKey: e[0] }, e[1]);
+      }).sort(function(a,b) { return (b.id||'').localeCompare(a.id||''); });
+    }
+  });
+}
+
+function fbGuardarVenta(venta) {
+  if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
+  var r = window.fbRef(window.fbDB, FB_PATHS.ventas);
+  if (venta.fbKey) {
+    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), venta)
+      .then(function() { notify('Venta guardada ✓'); });
+  } else {
+    return window.fbPush(r, venta)
+      .then(function(ref) {
+        notify('Venta confirmada ✓');
+        return ref.key;
+      });
+  }
+}
+
+// ── PRESUPUESTOS ──
+function fbCargarPresupuestos() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.presupuestos), function(snap) {
+    var data = snap.val();
+    if (data) {
+      pptoData = Object.entries(data).map(function(e) {
+        return Object.assign({ fbKey: e[0] }, e[1]);
+      }).sort(function(a,b) { return (b.id||'').localeCompare(a.id||''); });
+      // Actualizar tabla si está visible
+      if (document.getElementById('page-presupuesto')?.classList.contains('active')) {
+        if (typeof renderPptoTabla === 'function') renderPptoTabla();
+      }
+    }
+  });
+}
+
+function fbGuardarPresupuesto(ppto) {
+  if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
+  var r = window.fbRef(window.fbDB, FB_PATHS.presupuestos);
+  if (ppto.fbKey) {
+    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + ppto.fbKey), ppto)
+      .then(function() { notify('Presupuesto guardado ✓'); });
+  } else {
+    return window.fbPush(r, ppto)
+      .then(function() { notify('Presupuesto guardado ✓'); });
+  }
+}
+
+// ── ÓRDENES DE TRABAJO ──
+function fbCargarOTs() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), function(snap) {
+    var data = snap.val();
+    if (data) {
+      otData = Object.entries(data).map(function(e) {
+        return Object.assign({ fbKey: e[0] }, e[1]);
+      });
+    }
+  });
+}
+
+function fbGuardarOT(ot) {
+  if (!window.fbDB) return Promise.resolve();
+  var r = window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo);
+  if (ot.fbKey) {
+    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), ot);
+  } else {
+    return window.fbPush(r, ot).then(function(ref) { return ref.key; });
+  }
+}
+
+// ── SEED: cargar datos demo a Firebase (solo primera vez) ──
+function fbSeedDatos() {
+  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
+  notify('Cargando datos demo a Firebase...');
+
+  // Seed clientes
+  clientesData.forEach(function(c) {
+    var copia = Object.assign({}, c);
+    delete copia.fbKey;
+    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.clientes), copia);
+  });
+
+  // Seed productos
+  Object.values(prodData).forEach(function(p) {
+    var copia = Object.assign({}, p);
+    delete copia.fbKey;
+    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.productos), copia);
+  });
+
+  // Seed presupuestos
+  pptoData.forEach(function(p) {
+    var copia = Object.assign({}, p);
+    delete copia.fbKey;
+    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.presupuestos), copia);
+  });
+
+  // Seed ventas
+  ventasList.forEach(function(v) {
+    var copia = Object.assign({}, v);
+    delete copia.fbKey;
+    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), copia);
+  });
+
+  // Seed OTs
+  otData.forEach(function(o) {
+    var copia = Object.assign({}, o);
+    delete copia.fbKey;
+    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), copia);
+  });
+
+  setTimeout(function() { notify('✓ Datos demo cargados en Firebase'); }, 2000);
+}
+
+// ── INDICADOR DE CONEXIÓN ──
+function fbMostrarEstadoConexion() {
+  var badge = document.getElementById('fb-status');
+  if (!badge) return;
+  if (fbConectado) {
+    badge.innerHTML = '<i class="ti ti-wifi" style="font-size:11px"></i> Online';
+    badge.style.color = 'var(--green)';
+  } else {
+    badge.innerHTML = '<i class="ti ti-wifi-off" style="font-size:11px"></i> Offline';
+    badge.style.color = 'var(--amber)';
+  }
+}
+
+document.addEventListener('firebase-ready', fbMostrarEstadoConexion);
+
+
+// ── SUGERENCIAS DE LOGIN ──
+// LOGIN_USUARIOS movido al script principal
+
+// mostrarSugerenciasLogin movido al script principal
+
+// selUsuarioLogin movido al script principal
+
+// ── MOSTRAR/OCULTAR CONTRASEÑA ──
+// togglePassVis movido al script principal
+
+// ── ASEGURAR doLogin GLOBAL ──
+// Por si el orden de carga causa problemas
+if (typeof window.doLogin === 'undefined') {
+  window.doLogin = function() {
+    // Intentar llamar cuando esté disponible
+    setTimeout(function() {
+      if (typeof doLogin === 'function') doLogin();
+    }, 100);
+  };
+}
+
+
+// doLogout y abrirUserPanel → movidos al script principal
+function abrirUserPanel() {
+  if (typeof toggleUserPanel === 'function') toggleUserPanel();
+}
+
+
+// ══════════════════════════════════════════════
+// TUSfacturas APP — FACTURACIÓN ELECTRÓNICA AFIP
+// ══════════════════════════════════════════════
+var TFAPP_CONFIG = {
+  usertoken:  'TU_USERTOKEN',   // Reemplazar con token de TusFacturasApp
+  apitoken:   'TU_APITOKEN',    // Reemplazar con API token
+  apikey:     'TU_APIKEY',      // Reemplazar con API key
+  endpoint:   'https://www.tusfacturas.app/app/api/v2/facturas/nuevo',
+  punto_venta: 1,
+  activo: false  // Cambiar a true cuando tengas los tokens
+};
+
+// Emitir factura desde una venta
+async function emitirFactura(venta, tipoComprobante) {
+  if (!TFAPP_CONFIG.activo) {
+    notify('Configurá TusFacturasApp en Configuración → Facturación');
+    return null;
+  }
+  if (!venta.clienteCuit) {
+    notify('El cliente no tiene CUIT cargado');
+    return null;
+  }
+
+  notify('Emitiendo factura en AFIP...');
+
+  var body = {
+    usertoken: TFAPP_CONFIG.usertoken,
+    apitoken:  TFAPP_CONFIG.apitoken,
+    apikey:    TFAPP_CONFIG.apikey,
+    cliente: {
+      documento_tipo:  'CUIT',
+      documento_nro:   venta.clienteCuit,
+      razon_social:    venta.cliente,
+      email:           venta.clienteEmail || '',
+      domicilio:       venta.clienteDir   || '',
+      provincia:       '1',
+      condicion_iva:   tipoComprobante === 'FACTURA A' ? 'RI' : 'CF',
+      condicion_pago:  '214',
+    },
+    comprobante: {
+      fecha:            new Date().toLocaleDateString('es-AR'),
+      tipo_comprobante: tipoComprobante,
+      punto_venta:      TFAPP_CONFIG.punto_venta,
+      moneda:           'PES',
+      cotizacion:       1,
+      concepto:         'Productos y Servicios',
+      detalle: venta.items.map(function(i) {
+        return {
+          cantidad:                   i.qty,
+          producto:                   i.desc,
+          unidad_bulto:               1,
+          lista_precios:              'standard',
+          codigo:                     i.cod,
+          precio_unitario_sin_iva:    parseFloat((i.punit / 1.21).toFixed(2)),
+          alicuota:                   21,
+          bonificacion_porcentaje:    0
+        };
+      })
+    }
+  };
+
+  try {
+    var resp = await fetch(TFAPP_CONFIG.endpoint, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body)
+    });
+    var data = await resp.json();
+
+    if (data.error === 'N') {
+      var resultado = {
+        cae:                data.cae,
+        cae_vencimiento:    data.cae_vencimiento,
+        numero_comprobante: data.numero_comprobante,
+        tipo:               tipoComprobante,
+        pdf_url:            data.comprobante_pdf_url,
+        fecha:              new Date().toLocaleDateString('es-AR')
+      };
+      // Guardar en Firebase junto con la venta
+      if (venta.fbKey && typeof fbUpdate === 'function') {
+        window.fbUpdate(
+          window.fbRef(window.fbDB, 'sisventas/ventas/' + venta.fbKey),
+          { factura: resultado }
+        );
+      }
+      notify('Factura emitida — CAE: ' + data.cae);
+      // Abrir PDF
+      if (data.comprobante_pdf_url) {
+        window.open(data.comprobante_pdf_url, '_blank');
+      }
+      return resultado;
+    } else {
+      var errores = Array.isArray(data.errores) ? data.errores.join(', ') : 'Error desconocido';
+      notify('Error AFIP: ' + errores);
+      return null;
+    }
+  } catch(e) {
+    notify('Error de conexión con TusFacturasApp');
+    console.error('[TusFacturasApp]', e);
+    return null;
+  }
+}
+
+// Abrir modal para elegir tipo de factura
+function abrirModalFactura(ventaId) {
+  var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
+  if (!venta) { notify('Venta no encontrada'); return; }
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.id = 'modal-factura';
+
+  var cli = clientesData ? clientesData.find(function(c){ return c.nombre === venta.cliente; }) : null;
+  var tieneCuit = !!(cli && cli.cuit);
+  var totalFmt = '$' + (venta.total||0).toLocaleString('es-AR');
+
+  var html = '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.15)">';
+  html += '<div style="font-size:16px;font-weight:600;margin-bottom:16px">Emitir factura — ' + venta.id + '</div>';
+  html += '<div style="font-size:13px;color:var(--text2);margin-bottom:6px">Cliente: ' + venta.cliente + '</div>';
+  html += '<div style="font-size:13px;color:var(--text2);margin-bottom:' + (tieneCuit ? '16' : '4') + 'px">Total: ' + totalFmt + '</div>';
+  if (!tieneCuit) {
+    html += '<div style="font-size:12px;color:var(--amber);margin-bottom:16px;padding:8px;background:var(--amber-bg);border-radius:6px">⚠️ El cliente no tiene CUIT — solo podés emitir Factura B</div>';
+  }
+  html += '<div style="font-size:12px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Tipo de comprobante</div>';
+  html += '<div style="display:flex;gap:8px;margin-bottom:20px">';
+  html += '<button onclick="selTipoFactura(this,this.dataset.tipo)" data-tipo="FACTURA A" class="btn btn-sm" style="flex:1;' + (!tieneCuit ? 'opacity:.4;pointer-events:none' : '') + '">Factura A</button>';
+  html += '<button onclick="selTipoFactura(this,this.dataset.tipo)" data-tipo="FACTURA B" class="btn btn-sm btn-primary" style="flex:1" id="btn-fact-b">Factura B</button>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:8px">';
+  html += '<button onclick="document.getElementById(&quot;modal-factura&quot;).remove()" class="btn" style="flex:1">Cancelar</button>';
+  html += '<button onclick="confirmarEmisionFactura(&quot;' + ventaId + '&quot;)" class="btn btn-primary" style="flex:1" id="btn-emitir-factura">Emitir</button>';
+  html += '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+  _facturaSelTipo = 'FACTURA B';
+}
+
+
+var _facturaSelTipo = 'FACTURA B';
+function selTipoFactura(btn, tipo) {
+  _facturaSelTipo = tipo;
+  document.querySelectorAll('#modal-factura .btn').forEach(function(b) {
+    b.classList.remove('btn-primary');
+  });
+  btn.classList.add('btn-primary');
+}
+
+function confirmarEmisionFactura(ventaId) {
+  var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
+  if (!venta) return;
+  var cli = clientesData ? clientesData.find(function(c){ return c.nombre === venta.cliente; }) : null;
+  if (cli) {
+    venta.clienteCuit  = cli.cuit  || '';
+    venta.clienteEmail = cli.email || '';
+    venta.clienteDir   = cli.dir   || '';
+  }
+  document.getElementById('modal-factura').remove();
+  emitirFactura(venta, _facturaSelTipo);
+}
+
+// ── CONFIG TUSACTURAS APP ──
+function guardarConfigTFApp() {
+  var ut = document.getElementById('cfg-tfapp-usertoken');
+  var at = document.getElementById('cfg-tfapp-apitoken');
+  var ak = document.getElementById('cfg-tfapp-apikey');
+  var pv = document.getElementById('cfg-tfapp-pv');
+  if (ut) TFAPP_CONFIG.usertoken  = ut.value;
+  if (at) TFAPP_CONFIG.apitoken   = at.value;
+  if (ak) TFAPP_CONFIG.apikey     = ak.value;
+  if (pv) TFAPP_CONFIG.punto_venta = parseInt(pv.value) || 1;
+  TFAPP_CONFIG.activo = !!(ut && ut.value && at && at.value && ak && ak.value);
+  var status = document.getElementById('tfapp-status');
+  if (status) {
+    status.textContent = TFAPP_CONFIG.activo ? '✓ Configurado' : 'Incompleto';
+    status.style.color = TFAPP_CONFIG.activo ? 'var(--green)' : 'var(--amber)';
+  }
+  // Guardar en Firebase para persistir
+  if (window.fbDB && TFAPP_CONFIG.activo) {
+    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/config/tfapp'), {
+      usertoken:   TFAPP_CONFIG.usertoken,
+      apitoken:    TFAPP_CONFIG.apitoken,
+      apikey:      TFAPP_CONFIG.apikey,
+      punto_venta: TFAPP_CONFIG.punto_venta
+    });
+  }
+}
+
+async function testTFApp() {
+  if (!TFAPP_CONFIG.usertoken) { notify('Completá los tokens primero'); return; }
+  notify('Probando conexión...');
+  try {
+    var resp = await fetch('https://www.tusfacturas.app/app/api/v2/facturas/nuevo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        usertoken: TFAPP_CONFIG.usertoken,
+        apitoken:  TFAPP_CONFIG.apitoken,
+        apikey:    TFAPP_CONFIG.apikey
+      })
+    });
+    var data = await resp.json();
+    // Si responde con error de datos (no de auth), la conexión funciona
+    if (data.error === 'S' && data.errores) {
+      notify('✓ Conexión OK — credenciales válidas');
+    } else {
+      notify('Error: ' + (data.errores ? data.errores[0] : 'Verificá los tokens'));
+    }
+  } catch(e) {
+    notify('Error de red — verificá la conexión');
+  }
+}
+
+// Cargar config de Firebase al iniciar
+document.addEventListener('firebase-ready', function() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tfapp'))
+    .then(function(snap) {
+      var cfg = snap.val();
+      if (!cfg) return;
+      TFAPP_CONFIG.usertoken   = cfg.usertoken   || '';
+      TFAPP_CONFIG.apitoken    = cfg.apitoken    || '';
+      TFAPP_CONFIG.apikey      = cfg.apikey      || '';
+      TFAPP_CONFIG.punto_venta = cfg.punto_venta || 1;
+      TFAPP_CONFIG.activo = !!(cfg.usertoken && cfg.apitoken && cfg.apikey);
+      // Rellenar los inputs si están visibles
+      var ut = document.getElementById('cfg-tfapp-usertoken');
+      var at = document.getElementById('cfg-tfapp-apitoken');
+      var ak = document.getElementById('cfg-tfapp-apikey');
+      var pv = document.getElementById('cfg-tfapp-pv');
+      if (ut) ut.value = cfg.usertoken   || '';
+      if (at) at.value = cfg.apitoken    || '';
+      if (ak) ak.value = cfg.apikey      || '';
+      if (pv) pv.value = cfg.punto_venta || 1;
+    });
+});
+
+
 // ── LOGOUT ──
 function doLogout() {
   // Cerrar sesión en Firebase si está disponible
@@ -6818,4 +6817,4 @@ window.onerror = function(msg, src, line, col) {
 </div>
 
 </body>
-</html>
+                                                                                    </html>
