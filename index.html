@@ -492,7 +492,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v4.0 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v4.1 · Firebase</div>
     </div>
     <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
     <div class="login-field">
@@ -606,7 +606,7 @@ tr:hover td{color:var(--text)}
         <i class="ti ti-cpu"></i>Equipos instalados
       </div>
       <div class="s-section admin-only">Finanzas</div>
-      <div class="nav-item admin-only" onclick="showPage('caja',this)"><i class="ti ti-cash-register"></i>Caja diaria</div>
+      <div class="nav-item admin-only" onclick="showPage('caja',this)"><i class="ti ti-cash-register"></i> Caja diaria</div>
       <div class="nav-item admin-only" onclick="showPage('gastos',this)"><i class="ti ti-receipt"></i>Gastos</div>
       <div class="nav-item admin-only" onclick="showPage('rentabilidad',this)"><i class="ti ti-trending-up"></i>Rentabilidad</div>
       <div class="s-section admin-only">Compras</div>
@@ -665,23 +665,23 @@ tr:hover td{color:var(--text)}
         <div class="metrics">
           <div class="metric">
             <div class="m-label">Ventas hoy</div>
-            <div class="m-value">$84.200</div>
-            <div class="m-sub m-up"><i class="ti ti-arrow-up" style="font-size:11px"></i> +12% vs ayer</div>
+            <div class="m-value" id="kpi-ventas-hoy">$0</div>
+            <div class="m-sub" id="kpi-ventas-diff" style="color:var(--text3)">sin datos aún</div>
           </div>
           <div class="metric">
             <div class="m-label">Deuda clientes</div>
-            <div class="m-value" style="color:var(--amber)">$87.540</div>
-            <div class="m-sub m-warn">5 clientes con saldo</div>
+            <div class="m-value" id="kpi-deuda" style="color:var(--amber)">$0</div>
+            <div class="m-sub m-warn" id="kpi-deuda-sub">cargando...</div>
           </div>
           <div class="metric">
             <div class="m-label">Presupuestos</div>
-            <div class="m-value">4</div>
-            <div class="m-sub m-warn">2 vencen esta semana</div>
+            <div class="m-value" id="kpi-pptos">0</div>
+            <div class="m-sub m-warn"><span id="kpi-pptos-sub">cargando...</span></div>
           </div>
           <div class="metric">
             <div class="m-label">IVA acumulado</div>
-            <div class="m-value">$17.682</div>
-            <div class="m-sub">mayo 2026</div>
+            <div class="m-value" id="kpi-iva">$0</div>
+            <div class="m-sub" id="kpi-iva-mes">cargando...</div>
           </div>
         </div>
         <div class="row2">
