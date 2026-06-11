@@ -481,278 +481,41 @@ tr:hover td{color:var(--text)}
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));
 
-// ── RENDER TABLA CLIENTES ──
-function renderTablaClientes(filtro) {
-  var tbody = document.getElementById('cli-tbody');
-  if (!tbody) return;
-  var lista = clientesData || [];
-  if (filtro) {
-    var f = filtro.toLowerCase();
-    lista = lista.filter(function(c) {
-      return (c.nombre||'').toLowerCase().includes(f) ||
-             (c.apellidos||'').toLowerCase().includes(f) ||
-             (c.id||'').includes(f) ||
-             (c.empresa||'').toLowerCase().includes(f);
-    });
-  }
-  if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados</td></tr>';
-    return;
-  }
-  tbody.innerHTML = lista.map(function(c) {
-    var nombre = c.nombre || '';
-    var partes = nombre.split(' ');
-    var apellido = partes.length > 1 ? partes.slice(1).join(' ') : '';
-    var pnombre  = partes[0] || nombre;
-    var idFmt = String(c.id || '').padStart(4, '0');
-    var activo = c.activo !== false;
-    return '<tr class="cr" onclick="verHistorialCliente(' + JSON.stringify(c.id) + ')" style="cursor:pointer">' +
-      '<td>' + idFmt + '</td>' +
-      '<td>' + (apellido || apellido) + '</td>' +
-      '<td>' + pnombre + '</td>' +
-      '<td class="hide-mobile">' + (c.dir || c.direccion || '') + '</td>' +
-      '<td class="hide-mobile">' + (c.telefono || '') + '</td>' +
-      '<td style="text-align:right">' +
-        '<span class="badge ' + (activo ? 'badge-green' : 'badge-gray') + '">' + (activo ? 'Activo' : 'Inactivo') + '</span>' +
-      '</td>' +
-      '<td style="text-align:right;white-space:nowrap">' +
-        '<button class="icon-btn" onclick="event.stopPropagation();verHistorialCliente(' + JSON.stringify(c.id) + ')" title="Historial"><i class="ti ti-clock-history" style="font-size:15px"></i></button>' +
-        '<button class="icon-btn" onclick="event.stopPropagation();editarCliente(' + JSON.stringify(c.id) + ')" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
-      '</td>' +
-    '</tr>';
-  }).join('');
-}
-
-function buscarCliente(val) {
-  renderTablaClientes(val);
-}
+// renderTablaClientes → script principal
 
 
-// ── RENDER TABLA PRODUCTOS ──
-function renderTablaProductos(filtro) {
-  var tbody = document.getElementById('prod-tbody');
-  if (!tbody) return;
-  var lista = prodData ? Object.values(prodData) : [];
-  if (filtro) {
-    var f = filtro.toLowerCase();
-    lista = lista.filter(function(p) {
-      return (p.nombre||'').toLowerCase().includes(f) ||
-             (p.codigo||'').toLowerCase().includes(f) ||
-             (p.descripcion||'').toLowerCase().includes(f) ||
-             (p.marca||'').toLowerCase().includes(f);
-    });
-  }
-  lista.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
-  if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados</td></tr>';
-    return;
-  }
-  tbody.innerHTML = lista.map(function(p) {
-    var stk = parseInt(p.stock) || 0;
-    var stkColor = stk <= 0 ? 'var(--red)' : stk <= (p.stockMin||2) ? 'var(--amber)' : 'var(--green)';
-    var margen = p.margen ? p.margen.toFixed(1) + '%' : '—';
-    var pv = p.venta || p.precio_venta || 0;
-    var pc = p.compra || p.precio_compra || 0;
-    return '<tr class="cr" style="cursor:pointer" onclick="verProducto(' + JSON.stringify(p.id||p.idproducto) + ')">' +
-      '<td><span style="font-family:monospace;font-size:12px">' + (p.codigo||'P-'+String(p.id||'').padStart(4,'0')) + '</span></td>' +
-      '<td style="font-weight:500">' + (p.nombre||'') + '</td>' +
-      '<td class="hide-mobile" style="font-size:12px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.descripcion||'') + '</td>' +
-      '<td style="text-align:right;font-weight:600;color:' + stkColor + '">' + stk + '</td>' +
-      '<td style="text-align:right">$' + (pv).toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right;color:var(--text3)">$' + (pc).toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right;color:var(--green)">' + margen + '</td>' +
-      '<td><button class="icon-btn" onclick="event.stopPropagation();editarProducto(' + JSON.stringify(p.id||p.idproducto) + ')"><i class="ti ti-pencil" style="font-size:15px"></i></button></td>' +
-    '</tr>';
-  }).join('');
-}
+// buscarCliente → script principal
 
-function buscarProducto(val) {
-  renderTablaProductos(val);
-}
+// renderTablaProductos → script principal
 
 
-// ── RENDER TABLA VENTAS ──
-function renderVentasTabla(filtro) {
-  var tbody = document.getElementById('ven-tbody');
-  if (!tbody) return;
-  var lista = ventasList || [];
-  if (filtro) {
-    var f = filtro.toLowerCase();
-    lista = lista.filter(function(v) {
-      return (v.id||'').toLowerCase().includes(f) ||
-             (v.cliente||'').toLowerCase().includes(f);
-    });
-  }
-  if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Sin ventas</td></tr>';
-    return;
-  }
-  var ESTADO_PAGO = {
-    'pendiente_pago': ['Pendiente', 'var(--amber)'],
-    'seniado':        ['Señado',    'var(--blue)'],
-    'pago_total':     ['Pagado',    'var(--green)'],
-  };
-  var ESTADO_INST = {
-    'pendiente_pago': ['Pendiente', 'var(--text3)'],
-    'en_instalacion': ['Instalando','var(--blue)'],
-    'instalado':      ['Instalado', 'var(--green)'],
-    'con_garantia':   ['Garantía',  'var(--purple)'],
-  };
-  tbody.innerHTML = lista.map(function(v) {
-    var ep = ESTADO_PAGO[v.estadoPago] || ['—','var(--text3)'];
-    var ei = ESTADO_INST[v.estadoInst] || ['—','var(--text3)'];
-    var total = parseFloat(v.total) || 0;
-    return '<tr class="cr" onclick="verDetalleVenta(' + JSON.stringify(v.id) + ')" style="cursor:pointer">' +
-      '<td style="font-family:monospace;font-size:12px">' + (v.id||'') + '</td>' +
-      '<td style="font-weight:500">' + (v.cliente||'') + '</td>' +
-      '<td class="hide-mobile" style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
-      '<td style="text-align:right;font-weight:600">$' + total.toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right"><span style="font-size:12px;color:' + ep[1] + '">' + ep[0] + '</span></td>' +
-      '<td class="hide-mobile" style="text-align:right"><span style="font-size:12px;color:' + ei[1] + '">' + ei[0] + '</span></td>' +
-    '</tr>';
-  }).join('');
-}
+// buscarProducto → script principal
 
-function volverListaVentas() {
-  var dv = document.getElementById('venta-detalle-view');
-  var lv = document.getElementById('venta-list-view');
-  if (dv) dv.style.display = 'none';
-  if (lv) lv.style.display = 'block';
-  renderVentasTabla();
-}
+// renderVentasTabla → script principal
 
 
-// ── SELECTOR DE CLIENTE (usa clientesData de Firebase) ──
-function actualizarSugerenciasCliente() {
-  // Los datos ya están en clientesData — solo necesitamos asegurar que
-  // el filterCli funcione con los datos reales
-}
+// volverListaVentas → script principal
 
-function filterCli(inp) {
-  var drop = document.getElementById('cli-drop');
-  if (!drop) return;
-  var v = (inp.value || '').trim().toLowerCase();
-  var lista = clientesData || [];
-  var matches = v
-    ? lista.filter(function(c) {
-        var n = (c.nombre||'').toLowerCase();
-        var e = (c.empresa||'').toLowerCase();
-        return n.includes(v) || e.includes(v) || String(c.id||'').includes(v);
-      })
-    : lista.slice(0, 8);
-
-  if (!matches.length) { drop.style.display='none'; return; }
-
-  drop.innerHTML = matches.slice(0,10).map(function(c) {
-    var empresa = c.empresa ? ' <span style="font-size:11px;color:var(--text3)">· ' + c.empresa + '</span>' : '';
-    return '<div class="drop-item" onmousedown="selCli(\''+c.id+'\',\''+c.nombre.replace(/'/g,"\'")+'\',\''+( c.dir||'').replace(/'/g,"\'")+'\')">' +
-      '<div style="font-weight:500;font-size:13px">' + c.nombre + empresa + '</div>' +
-      '<div style="font-size:11px;color:var(--text3)">' + (c.dir||'') + (c.telefono ? ' · ' + c.telefono : '') + '</div>' +
-    '</div>';
-  }).join('');
-  drop.style.display = 'block';
-}
-
-function selCli(id, nombre, dir) {
-  var inp = document.getElementById('cli-inp');
-  var idEl= document.getElementById('id-cli');
-  var dirEl= document.getElementById('cli-dir-hidden');
-  if (inp) inp.value = nombre;
-  if (idEl) idEl.value = String(id).padStart(4,'0');
-  if (dirEl) dirEl.value = dir || '';
-  var drop = document.getElementById('cli-drop');
-  if (drop) drop.style.display = 'none';
-}
+// actualizarSugerenciasCliente → script principal
 
 
-// ── ACCESO RÁPIDO (credenciales ofuscadas) ──
-function _dx(s, k) {
-  k = k || 'NIXASYS26';
-  var b = atob(s), r = '';
-  for (var i = 0; i < b.length; i++) r += String.fromCharCode(b.charCodeAt(i) ^ k.charCodeAt(i % k.length));
-  return r;
-}
-
-function accesoRapido() {
-  var inp = document.getElementById('l-user');
-  var pass = document.getElementById('l-pass');
-  if (inp)  inp.value  = _dx('ICAgIBMqOkFCKyQ5LzohMhxVISQ=');
-  if (pass) pass.value = _dx('f35rdR0wK1MYYGc=');
-  iniciarLogin();
-}
+// filterCli → script principal
 
 
-// ── CARGAR EMPLEADOS ──
-function fbCargarEmpleados() {
-  if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/empleados'), function(snap) {
-    var data = snap.val();
-    if (data) {
-      empData = {};
-      Object.entries(data).forEach(function(e, i) {
-        var emp = Object.assign({ fbKey: e[0] }, e[1]);
-        empData[i+1] = emp;
-      });
-      if (typeof renderTablaEmpleados === 'function') renderTablaEmpleados();
-      if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
-    }
-  });
-}
+// selCli → script principal
 
-// ── CARGAR CATEGORÍAS ──
-function fbCargarCategorias() {
-  if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/categorias'), function(snap) {
-    var data = snap.val();
-    if (data) {
-      window.categoriasData = Object.values(data).map(function(c){ return c.nombre; });
-      // Actualizar selector de categorías en formulario de producto
-      var selCat = document.getElementById('np-cat');
-      if (selCat && window.categoriasData) {
-        selCat.innerHTML = window.categoriasData.map(function(c){
-          return '<option value="'+c+'">'+c+'</option>';
-        }).join('');
-      }
-    }
-  });
-}
-
-// ── CARGAR USUARIOS ──
-function fbCargarUsuarios() {
-  if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/usuarios'), function(snap) {
-    var data = snap.val();
-    if (data) {
-      window.usuariosData = Object.entries(data).map(function(e){
-        return Object.assign({ fbKey: e[0] }, e[1]);
-      });
-      // Actualizar sugerencias de login
-      if (window.usuariosData) {
-        LOGIN_USUARIOS = window.usuariosData
-          .filter(function(u){ return u.activo !== false; })
-          .map(function(u){
-            return {
-              email: u.mail || (u.login + '@sistemanixa.com'),
-              nombre: u.nombre,
-              rol: u.rol === 'admin' ? 'Admin' : 'Vendedor'
-            };
-          });
-      }
-    }
-  });
-}
+// _dx → script principal
 
 
-// Actualizar select de empleados en nueva venta
-function actualizarSelectEmpleados() {
-  var sel = document.getElementById('emp-sel');
-  if (!sel || !empData) return;
-  var activos = Object.values(empData).filter(function(e){ return e.activo !== false; });
-  sel.innerHTML = '<option value="">Seleccionar empleado...</option>' +
-    activos.map(function(e){
-      return '<option value="'+e.id+'">'+e.nombre+' — '+e.cargo+'</option>';
-    }).join('');
-}
+// accesoRapido → script principal
+
+// fbCargarEmpleados → script principal
+
+// fbCargarCategorias → script principal
+
+// fbCargarUsuarios → script principal
+
+// actualizarSelectEmpleados → script principal
 
 </script>
 </head>
@@ -766,7 +529,7 @@ function actualizarSelectEmpleados() {
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v3.8 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v3.9 · Firebase</div>
     </div>
     <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
     <div class="login-field">
@@ -2949,6 +2712,289 @@ function actualizarSelectEmpleados() {
 
 
 <script>
+
+// ── RENDER TABLA CLIENTES ──
+function renderTablaClientes(filtro) {
+  var tbody = document.getElementById('cli-tbody');
+  if (!tbody) return;
+  var lista = clientesData || [];
+  if (filtro) {
+    var f = filtro.toLowerCase();
+    lista = lista.filter(function(c) {
+      return (c.nombre||'').toLowerCase().includes(f) ||
+             (c.apellidos||'').toLowerCase().includes(f) ||
+             (c.id||'').includes(f) ||
+             (c.empresa||'').toLowerCase().includes(f);
+    });
+  }
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(function(c) {
+    var nombre = c.nombre || '';
+    var partes = nombre.split(' ');
+    var apellido = partes.length > 1 ? partes.slice(1).join(' ') : '';
+    var pnombre  = partes[0] || nombre;
+    var idFmt = String(c.id || '').padStart(4, '0');
+    var activo = c.activo !== false;
+    return '<tr class="cr" onclick="verHistorialCliente(' + JSON.stringify(c.id) + ')" style="cursor:pointer">' +
+      '<td>' + idFmt + '</td>' +
+      '<td>' + (apellido || apellido) + '</td>' +
+      '<td>' + pnombre + '</td>' +
+      '<td class="hide-mobile">' + (c.dir || c.direccion || '') + '</td>' +
+      '<td class="hide-mobile">' + (c.telefono || '') + '</td>' +
+      '<td style="text-align:right">' +
+        '<span class="badge ' + (activo ? 'badge-green' : 'badge-gray') + '">' + (activo ? 'Activo' : 'Inactivo') + '</span>' +
+      '</td>' +
+      '<td style="text-align:right;white-space:nowrap">' +
+        '<button class="icon-btn" onclick="event.stopPropagation();verHistorialCliente(' + JSON.stringify(c.id) + ')" title="Historial"><i class="ti ti-clock-history" style="font-size:15px"></i></button>' +
+        '<button class="icon-btn" onclick="event.stopPropagation();editarCliente(' + JSON.stringify(c.id) + ')" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function buscarCliente(val) {
+  renderTablaClientes(val);
+}
+
+
+
+// ── RENDER TABLA PRODUCTOS ──
+function renderTablaProductos(filtro) {
+  var tbody = document.getElementById('prod-tbody');
+  if (!tbody) return;
+  var lista = prodData ? Object.values(prodData) : [];
+  if (filtro) {
+    var f = filtro.toLowerCase();
+    lista = lista.filter(function(p) {
+      return (p.nombre||'').toLowerCase().includes(f) ||
+             (p.codigo||'').toLowerCase().includes(f) ||
+             (p.descripcion||'').toLowerCase().includes(f) ||
+             (p.marca||'').toLowerCase().includes(f);
+    });
+  }
+  lista.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(function(p) {
+    var stk = parseInt(p.stock) || 0;
+    var stkColor = stk <= 0 ? 'var(--red)' : stk <= (p.stockMin||2) ? 'var(--amber)' : 'var(--green)';
+    var margen = p.margen ? p.margen.toFixed(1) + '%' : '—';
+    var pv = p.venta || p.precio_venta || 0;
+    var pc = p.compra || p.precio_compra || 0;
+    return '<tr class="cr" style="cursor:pointer" onclick="verProducto(' + JSON.stringify(p.id||p.idproducto) + ')">' +
+      '<td><span style="font-family:monospace;font-size:12px">' + (p.codigo||'P-'+String(p.id||'').padStart(4,'0')) + '</span></td>' +
+      '<td style="font-weight:500">' + (p.nombre||'') + '</td>' +
+      '<td class="hide-mobile" style="font-size:12px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.descripcion||'') + '</td>' +
+      '<td style="text-align:right;font-weight:600;color:' + stkColor + '">' + stk + '</td>' +
+      '<td style="text-align:right">$' + (pv).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right;color:var(--text3)">$' + (pc).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right;color:var(--green)">' + margen + '</td>' +
+      '<td><button class="icon-btn" onclick="event.stopPropagation();editarProducto(' + JSON.stringify(p.id||p.idproducto) + ')"><i class="ti ti-pencil" style="font-size:15px"></i></button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function buscarProducto(val) {
+  renderTablaProductos(val);
+}
+
+
+
+// ── RENDER TABLA VENTAS ──
+function renderVentasTabla(filtro) {
+  var tbody = document.getElementById('ven-tbody');
+  if (!tbody) return;
+  var lista = ventasList || [];
+  if (filtro) {
+    var f = filtro.toLowerCase();
+    lista = lista.filter(function(v) {
+      return (v.id||'').toLowerCase().includes(f) ||
+             (v.cliente||'').toLowerCase().includes(f);
+    });
+  }
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Sin ventas</td></tr>';
+    return;
+  }
+  var ESTADO_PAGO = {
+    'pendiente_pago': ['Pendiente', 'var(--amber)'],
+    'seniado':        ['Señado',    'var(--blue)'],
+    'pago_total':     ['Pagado',    'var(--green)'],
+  };
+  var ESTADO_INST = {
+    'pendiente_pago': ['Pendiente', 'var(--text3)'],
+    'en_instalacion': ['Instalando','var(--blue)'],
+    'instalado':      ['Instalado', 'var(--green)'],
+    'con_garantia':   ['Garantía',  'var(--purple)'],
+  };
+  tbody.innerHTML = lista.map(function(v) {
+    var ep = ESTADO_PAGO[v.estadoPago] || ['—','var(--text3)'];
+    var ei = ESTADO_INST[v.estadoInst] || ['—','var(--text3)'];
+    var total = parseFloat(v.total) || 0;
+    return '<tr class="cr" onclick="verDetalleVenta(' + JSON.stringify(v.id) + ')" style="cursor:pointer">' +
+      '<td style="font-family:monospace;font-size:12px">' + (v.id||'') + '</td>' +
+      '<td style="font-weight:500">' + (v.cliente||'') + '</td>' +
+      '<td class="hide-mobile" style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
+      '<td style="text-align:right;font-weight:600">$' + total.toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right"><span style="font-size:12px;color:' + ep[1] + '">' + ep[0] + '</span></td>' +
+      '<td class="hide-mobile" style="text-align:right"><span style="font-size:12px;color:' + ei[1] + '">' + ei[0] + '</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function volverListaVentas() {
+  var dv = document.getElementById('venta-detalle-view');
+  var lv = document.getElementById('venta-list-view');
+  if (dv) dv.style.display = 'none';
+  if (lv) lv.style.display = 'block';
+  renderVentasTabla();
+}
+
+
+
+// ── SELECTOR DE CLIENTE (usa clientesData de Firebase) ──
+function actualizarSugerenciasCliente() {
+  // Los datos ya están en clientesData — solo necesitamos asegurar que
+  // el filterCli funcione con los datos reales
+}
+
+function filterCli(inp) {
+  var drop = document.getElementById('cli-drop');
+  if (!drop) return;
+  var v = (inp.value || '').trim().toLowerCase();
+  var lista = clientesData || [];
+  var matches = v
+    ? lista.filter(function(c) {
+        var n = (c.nombre||'').toLowerCase();
+        var e = (c.empresa||'').toLowerCase();
+        return n.includes(v) || e.includes(v) || String(c.id||'').includes(v);
+      })
+    : lista.slice(0, 8);
+
+  if (!matches.length) { drop.style.display='none'; return; }
+
+  drop.innerHTML = matches.slice(0,10).map(function(c) {
+    var empresa = c.empresa ? ' <span style="font-size:11px;color:var(--text3)">· ' + c.empresa + '</span>' : '';
+    return '<div class="drop-item" onmousedown="selCli(\''+c.id+'\',\''+c.nombre.replace(/'/g,"\'")+'\',\''+( c.dir||'').replace(/'/g,"\'")+'\')">' +
+      '<div style="font-weight:500;font-size:13px">' + c.nombre + empresa + '</div>' +
+      '<div style="font-size:11px;color:var(--text3)">' + (c.dir||'') + (c.telefono ? ' · ' + c.telefono : '') + '</div>' +
+    '</div>';
+  }).join('');
+  drop.style.display = 'block';
+}
+
+function selCli(id, nombre, dir) {
+  var inp = document.getElementById('cli-inp');
+  var idEl= document.getElementById('id-cli');
+  var dirEl= document.getElementById('cli-dir-hidden');
+  if (inp) inp.value = nombre;
+  if (idEl) idEl.value = String(id).padStart(4,'0');
+  if (dirEl) dirEl.value = dir || '';
+  var drop = document.getElementById('cli-drop');
+  if (drop) drop.style.display = 'none';
+}
+
+
+
+// ── ACCESO RÁPIDO (credenciales ofuscadas) ──
+function _dx(s, k) {
+  k = k || 'NIXASYS26';
+  var b = atob(s), r = '';
+  for (var i = 0; i < b.length; i++) r += String.fromCharCode(b.charCodeAt(i) ^ k.charCodeAt(i % k.length));
+  return r;
+}
+
+function accesoRapido() {
+  var inp = document.getElementById('l-user');
+  var pass = document.getElementById('l-pass');
+  if (inp)  inp.value  = _dx('ICAgIBMqOkFCKyQ5LzohMhxVISQ=');
+  if (pass) pass.value = _dx('f35rdR0wK1MYYGc=');
+  iniciarLogin();
+}
+
+
+
+// ── CARGAR EMPLEADOS ──
+function fbCargarEmpleados() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/empleados'), function(snap) {
+    var data = snap.val();
+    if (data) {
+      empData = {};
+      Object.entries(data).forEach(function(e, i) {
+        var emp = Object.assign({ fbKey: e[0] }, e[1]);
+        empData[i+1] = emp;
+      });
+      if (typeof renderTablaEmpleados === 'function') renderTablaEmpleados();
+      if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
+    }
+  });
+}
+
+
+// ── CARGAR CATEGORÍAS ──
+function fbCargarCategorias() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/categorias'), function(snap) {
+    var data = snap.val();
+    if (data) {
+      window.categoriasData = Object.values(data).map(function(c){ return c.nombre; });
+      // Actualizar selector de categorías en formulario de producto
+      var selCat = document.getElementById('np-cat');
+      if (selCat && window.categoriasData) {
+        selCat.innerHTML = window.categoriasData.map(function(c){
+          return '<option value="'+c+'">'+c+'</option>';
+        }).join('');
+      }
+    }
+  });
+}
+
+
+// ── CARGAR USUARIOS ──
+function fbCargarUsuarios() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/usuarios'), function(snap) {
+    var data = snap.val();
+    if (data) {
+      window.usuariosData = Object.entries(data).map(function(e){
+        return Object.assign({ fbKey: e[0] }, e[1]);
+      });
+      // Actualizar sugerencias de login
+      if (window.usuariosData) {
+        LOGIN_USUARIOS = window.usuariosData
+          .filter(function(u){ return u.activo !== false; })
+          .map(function(u){
+            return {
+              email: u.mail || (u.login + '@sistemanixa.com'),
+              nombre: u.nombre,
+              rol: u.rol === 'admin' ? 'Admin' : 'Vendedor'
+            };
+          });
+      }
+    }
+  });
+}
+
+
+
+// Actualizar select de empleados en nueva venta
+function actualizarSelectEmpleados() {
+  var sel = document.getElementById('emp-sel');
+  if (!sel || !empData) return;
+  var activos = Object.values(empData).filter(function(e){ return e.activo !== false; });
+  sel.innerHTML = '<option value="">Seleccionar empleado...</option>' +
+    activos.map(function(e){
+      return '<option value="'+e.id+'">'+e.nombre+' — '+e.cargo+'</option>';
+    }).join('');
+}
+
+
 // ══════════════════════════════════════════════
 // CAPA DE DATOS FIREBASE
 // ══════════════════════════════════════════════
