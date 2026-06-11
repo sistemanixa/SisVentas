@@ -480,43 +480,6 @@ tr:hover td{color:var(--text)}
 
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));
-
-// renderTablaClientes → script principal
-
-
-// buscarCliente → script principal
-
-// renderTablaProductos → script principal
-
-
-// buscarProducto → script principal
-
-// renderVentasTabla → script principal
-
-
-// volverListaVentas → script principal
-
-// actualizarSugerenciasCliente → script principal
-
-
-// filterCli → script principal
-
-
-// selCli → script principal
-
-// _dx → script principal
-
-
-// accesoRapido → script principal
-
-// fbCargarEmpleados → script principal
-
-// fbCargarCategorias → script principal
-
-// fbCargarUsuarios → script principal
-
-// actualizarSelectEmpleados → script principal
-
 </script>
 </head>
 <body>
@@ -529,7 +492,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v3.9 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v4.0 · Firebase</div>
     </div>
     <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
     <div class="login-field">
@@ -3054,7 +3017,12 @@ function fbCargarClientes() {
       // Ordenar por nombre
       clientesData.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
       // Siempre actualizar la tabla
-      if (typeof renderTablaClientes === 'function') renderTablaClientes();
+      console.log('[Firebase] Clientes cargados:', clientesData ? clientesData.length : 0);
+      if (typeof renderTablaClientes === 'function') {
+        renderTablaClientes();
+      } else {
+        console.error('[Firebase] renderTablaClientes NO disponible');
+      }
       // Actualizar dropdown de clientes en ventas/presupuestos
       if (typeof actualizarSugerenciasCliente === 'function') actualizarSugerenciasCliente();
     }
@@ -3600,6 +3568,7 @@ function showPage(id, el) {
 
   // Lógica por módulo
   if (id === 'empleados')      { if(typeof volverlista==='function') volverlista(); }
+  if (id === 'clientes')      { setTimeout(function(){ if(typeof renderTablaClientes==='function') renderTablaClientes(); }, 100); }
   if (id === 'presupuesto')    { setTimeout(function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }, 50); }
   if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
   if (id === 'venta')          { setTimeout(function(){ if(typeof inicializarFilasVenta==='function') inicializarFilasVenta(); }, 50); }
