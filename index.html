@@ -480,6 +480,280 @@ tr:hover td{color:var(--text)}
 
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));
+
+// ── RENDER TABLA CLIENTES ──
+function renderTablaClientes(filtro) {
+  var tbody = document.getElementById('cli-tbody');
+  if (!tbody) return;
+  var lista = clientesData || [];
+  if (filtro) {
+    var f = filtro.toLowerCase();
+    lista = lista.filter(function(c) {
+      return (c.nombre||'').toLowerCase().includes(f) ||
+             (c.apellidos||'').toLowerCase().includes(f) ||
+             (c.id||'').includes(f) ||
+             (c.empresa||'').toLowerCase().includes(f);
+    });
+  }
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(function(c) {
+    var nombre = c.nombre || '';
+    var partes = nombre.split(' ');
+    var apellido = partes.length > 1 ? partes.slice(1).join(' ') : '';
+    var pnombre  = partes[0] || nombre;
+    var idFmt = String(c.id || '').padStart(4, '0');
+    var activo = c.activo !== false;
+    return '<tr class="cr" onclick="verHistorialCliente(' + JSON.stringify(c.id) + ')" style="cursor:pointer">' +
+      '<td>' + idFmt + '</td>' +
+      '<td>' + (apellido || apellido) + '</td>' +
+      '<td>' + pnombre + '</td>' +
+      '<td class="hide-mobile">' + (c.dir || c.direccion || '') + '</td>' +
+      '<td class="hide-mobile">' + (c.telefono || '') + '</td>' +
+      '<td style="text-align:right">' +
+        '<span class="badge ' + (activo ? 'badge-green' : 'badge-gray') + '">' + (activo ? 'Activo' : 'Inactivo') + '</span>' +
+      '</td>' +
+      '<td style="text-align:right;white-space:nowrap">' +
+        '<button class="icon-btn" onclick="event.stopPropagation();verHistorialCliente(' + JSON.stringify(c.id) + ')" title="Historial"><i class="ti ti-clock-history" style="font-size:15px"></i></button>' +
+        '<button class="icon-btn" onclick="event.stopPropagation();editarCliente(' + JSON.stringify(c.id) + ')" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function buscarCliente(val) {
+  renderTablaClientes(val);
+}
+
+
+// ── RENDER TABLA PRODUCTOS ──
+function renderTablaProductos(filtro) {
+  var tbody = document.getElementById('prod-tbody');
+  if (!tbody) return;
+  var lista = prodData ? Object.values(prodData) : [];
+  if (filtro) {
+    var f = filtro.toLowerCase();
+    lista = lista.filter(function(p) {
+      return (p.nombre||'').toLowerCase().includes(f) ||
+             (p.codigo||'').toLowerCase().includes(f) ||
+             (p.descripcion||'').toLowerCase().includes(f) ||
+             (p.marca||'').toLowerCase().includes(f);
+    });
+  }
+  lista.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(function(p) {
+    var stk = parseInt(p.stock) || 0;
+    var stkColor = stk <= 0 ? 'var(--red)' : stk <= (p.stockMin||2) ? 'var(--amber)' : 'var(--green)';
+    var margen = p.margen ? p.margen.toFixed(1) + '%' : '—';
+    var pv = p.venta || p.precio_venta || 0;
+    var pc = p.compra || p.precio_compra || 0;
+    return '<tr class="cr" style="cursor:pointer" onclick="verProducto(' + JSON.stringify(p.id||p.idproducto) + ')">' +
+      '<td><span style="font-family:monospace;font-size:12px">' + (p.codigo||'P-'+String(p.id||'').padStart(4,'0')) + '</span></td>' +
+      '<td style="font-weight:500">' + (p.nombre||'') + '</td>' +
+      '<td class="hide-mobile" style="font-size:12px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.descripcion||'') + '</td>' +
+      '<td style="text-align:right;font-weight:600;color:' + stkColor + '">' + stk + '</td>' +
+      '<td style="text-align:right">$' + (pv).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right;color:var(--text3)">$' + (pc).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right;color:var(--green)">' + margen + '</td>' +
+      '<td><button class="icon-btn" onclick="event.stopPropagation();editarProducto(' + JSON.stringify(p.id||p.idproducto) + ')"><i class="ti ti-pencil" style="font-size:15px"></i></button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function buscarProducto(val) {
+  renderTablaProductos(val);
+}
+
+
+// ── RENDER TABLA VENTAS ──
+function renderVentasTabla(filtro) {
+  var tbody = document.getElementById('ven-tbody');
+  if (!tbody) return;
+  var lista = ventasList || [];
+  if (filtro) {
+    var f = filtro.toLowerCase();
+    lista = lista.filter(function(v) {
+      return (v.id||'').toLowerCase().includes(f) ||
+             (v.cliente||'').toLowerCase().includes(f);
+    });
+  }
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Sin ventas</td></tr>';
+    return;
+  }
+  var ESTADO_PAGO = {
+    'pendiente_pago': ['Pendiente', 'var(--amber)'],
+    'seniado':        ['Señado',    'var(--blue)'],
+    'pago_total':     ['Pagado',    'var(--green)'],
+  };
+  var ESTADO_INST = {
+    'pendiente_pago': ['Pendiente', 'var(--text3)'],
+    'en_instalacion': ['Instalando','var(--blue)'],
+    'instalado':      ['Instalado', 'var(--green)'],
+    'con_garantia':   ['Garantía',  'var(--purple)'],
+  };
+  tbody.innerHTML = lista.map(function(v) {
+    var ep = ESTADO_PAGO[v.estadoPago] || ['—','var(--text3)'];
+    var ei = ESTADO_INST[v.estadoInst] || ['—','var(--text3)'];
+    var total = parseFloat(v.total) || 0;
+    return '<tr class="cr" onclick="verDetalleVenta(' + JSON.stringify(v.id) + ')" style="cursor:pointer">' +
+      '<td style="font-family:monospace;font-size:12px">' + (v.id||'') + '</td>' +
+      '<td style="font-weight:500">' + (v.cliente||'') + '</td>' +
+      '<td class="hide-mobile" style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
+      '<td style="text-align:right;font-weight:600">$' + total.toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right"><span style="font-size:12px;color:' + ep[1] + '">' + ep[0] + '</span></td>' +
+      '<td class="hide-mobile" style="text-align:right"><span style="font-size:12px;color:' + ei[1] + '">' + ei[0] + '</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function volverListaVentas() {
+  var dv = document.getElementById('venta-detalle-view');
+  var lv = document.getElementById('venta-list-view');
+  if (dv) dv.style.display = 'none';
+  if (lv) lv.style.display = 'block';
+  renderVentasTabla();
+}
+
+
+// ── SELECTOR DE CLIENTE (usa clientesData de Firebase) ──
+function actualizarSugerenciasCliente() {
+  // Los datos ya están en clientesData — solo necesitamos asegurar que
+  // el filterCli funcione con los datos reales
+}
+
+function filterCli(inp) {
+  var drop = document.getElementById('cli-drop');
+  if (!drop) return;
+  var v = (inp.value || '').trim().toLowerCase();
+  var lista = clientesData || [];
+  var matches = v
+    ? lista.filter(function(c) {
+        var n = (c.nombre||'').toLowerCase();
+        var e = (c.empresa||'').toLowerCase();
+        return n.includes(v) || e.includes(v) || String(c.id||'').includes(v);
+      })
+    : lista.slice(0, 8);
+
+  if (!matches.length) { drop.style.display='none'; return; }
+
+  drop.innerHTML = matches.slice(0,10).map(function(c) {
+    var empresa = c.empresa ? ' <span style="font-size:11px;color:var(--text3)">· ' + c.empresa + '</span>' : '';
+    return '<div class="drop-item" onmousedown="selCli(\''+c.id+'\',\''+c.nombre.replace(/'/g,"\'")+'\',\''+( c.dir||'').replace(/'/g,"\'")+'\')">' +
+      '<div style="font-weight:500;font-size:13px">' + c.nombre + empresa + '</div>' +
+      '<div style="font-size:11px;color:var(--text3)">' + (c.dir||'') + (c.telefono ? ' · ' + c.telefono : '') + '</div>' +
+    '</div>';
+  }).join('');
+  drop.style.display = 'block';
+}
+
+function selCli(id, nombre, dir) {
+  var inp = document.getElementById('cli-inp');
+  var idEl= document.getElementById('id-cli');
+  var dirEl= document.getElementById('cli-dir-hidden');
+  if (inp) inp.value = nombre;
+  if (idEl) idEl.value = String(id).padStart(4,'0');
+  if (dirEl) dirEl.value = dir || '';
+  var drop = document.getElementById('cli-drop');
+  if (drop) drop.style.display = 'none';
+}
+
+
+// ── ACCESO RÁPIDO (credenciales ofuscadas) ──
+function _dx(s, k) {
+  k = k || 'NIXASYS26';
+  var b = atob(s), r = '';
+  for (var i = 0; i < b.length; i++) r += String.fromCharCode(b.charCodeAt(i) ^ k.charCodeAt(i % k.length));
+  return r;
+}
+
+function accesoRapido() {
+  var inp = document.getElementById('l-user');
+  var pass = document.getElementById('l-pass');
+  if (inp)  inp.value  = _dx('ICAgIBMqOkFCKyQ5LzohMhxVISQ=');
+  if (pass) pass.value = _dx('f35rdR0wK1MYYGc=');
+  iniciarLogin();
+}
+
+
+// ── CARGAR EMPLEADOS ──
+function fbCargarEmpleados() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/empleados'), function(snap) {
+    var data = snap.val();
+    if (data) {
+      empData = {};
+      Object.entries(data).forEach(function(e, i) {
+        var emp = Object.assign({ fbKey: e[0] }, e[1]);
+        empData[i+1] = emp;
+      });
+      if (typeof renderTablaEmpleados === 'function') renderTablaEmpleados();
+      if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
+    }
+  });
+}
+
+// ── CARGAR CATEGORÍAS ──
+function fbCargarCategorias() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/categorias'), function(snap) {
+    var data = snap.val();
+    if (data) {
+      window.categoriasData = Object.values(data).map(function(c){ return c.nombre; });
+      // Actualizar selector de categorías en formulario de producto
+      var selCat = document.getElementById('np-cat');
+      if (selCat && window.categoriasData) {
+        selCat.innerHTML = window.categoriasData.map(function(c){
+          return '<option value="'+c+'">'+c+'</option>';
+        }).join('');
+      }
+    }
+  });
+}
+
+// ── CARGAR USUARIOS ──
+function fbCargarUsuarios() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/usuarios'), function(snap) {
+    var data = snap.val();
+    if (data) {
+      window.usuariosData = Object.entries(data).map(function(e){
+        return Object.assign({ fbKey: e[0] }, e[1]);
+      });
+      // Actualizar sugerencias de login
+      if (window.usuariosData) {
+        LOGIN_USUARIOS = window.usuariosData
+          .filter(function(u){ return u.activo !== false; })
+          .map(function(u){
+            return {
+              email: u.mail || (u.login + '@sistemanixa.com'),
+              nombre: u.nombre,
+              rol: u.rol === 'admin' ? 'Admin' : 'Vendedor'
+            };
+          });
+      }
+    }
+  });
+}
+
+
+// Actualizar select de empleados en nueva venta
+function actualizarSelectEmpleados() {
+  var sel = document.getElementById('emp-sel');
+  if (!sel || !empData) return;
+  var activos = Object.values(empData).filter(function(e){ return e.activo !== false; });
+  sel.innerHTML = '<option value="">Seleccionar empleado...</option>' +
+    activos.map(function(e){
+      return '<option value="'+e.id+'">'+e.nombre+' — '+e.cargo+'</option>';
+    }).join('');
+}
+
 </script>
 </head>
 <body>
@@ -492,7 +766,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v3.0 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v3.8 · Firebase</div>
     </div>
     <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
     <div class="login-field">
@@ -523,7 +797,10 @@ tr:hover td{color:var(--text)}
         </button>
       </div>
     </div>
-    <button class="login-btn" onclick="iniciarLogin()">
+    <button class="btn" onclick="accesoRapido()" style="width:100%;margin-bottom:8px;background:var(--bg3);color:var(--text2);border:0.5px solid var(--border2);font-size:13px">
+        <i class="ti ti-bolt"></i> Acceso rápido (pruebas)
+      </button>
+      <button class="login-btn" onclick="iniciarLogin()">
       <i class="ti ti-login" style="font-size:16px"></i> Ingresar
     </button>
     
@@ -532,7 +809,7 @@ tr:hover td{color:var(--text)}
 
 <!-- ════════════ APP ════════════ -->
 <div id="screen-app">
-<div class="security-demo-banner"><strong>Modo diseño/demo:</strong> login y datos simulados. La seguridad real debe validarse desde API/backend antes de conectar SQL Server.</div>
+
 <div class="app">
 
   <!-- SIDEBAR -->
@@ -2188,13 +2465,8 @@ tr:hover td{color:var(--text)}
             <input class="search-input" style="width:100%" placeholder="Buscar por nombre, apellido o ID..." oninput="buscarCliente(this.value)">
           </div>
           <table id="cli-tbl">
-            <tr><th >ID</th><th>Apellido</th><th>Nombre</th><th class="hide-mobile">Dirección</th><th class="hide-mobile">Teléfono</th><th style="text-align:right">Estado</th><th ></th></tr>
-            <tr class="cr"><td>0001</td><td>García</td><td>Roberto</td><td>Belgrano 1234</td><td>223-4455667</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="verHistorialCliente(1,'García, Roberto')"><i class="ti ti-history" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="verHistorialCli(this)" title="Historial"><i class="ti ti-history" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="editarCliente(1)" title="Editar cliente"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
-            <tr class="cr"><td>0002</td><td>García</td><td>Sandra</td><td>Av. Colón 785</td><td>223-5566778</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="verHistorialCli(this)" title="Historial"><i class="ti ti-history" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="editarCliente(2)" title="Editar cliente"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
-            <tr class="cr"><td>0003</td><td>Rodríguez</td><td>Ana</td><td>San Martín 456</td><td>223-6677889</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="verHistorialCli(this)" title="Historial"><i class="ti ti-history" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="editarCliente(3)" title="Editar cliente"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
-            <tr class="cr"><td>0004</td><td>Fernández</td><td>Luis</td><td>Luro 2200</td><td>223-7788990</td><td style="text-align:right"><span class="badge b-amber">Inactivo</span></td><td><button class="btn btn-sm btn-icon" onclick="verHistorialCli(this)" title="Historial"><i class="ti ti-history" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="editarCliente(4)" title="Editar cliente"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
-            <tr class='cr'><td data-label='ID'>0005</td><td data-label='Apellido'>Martínez</td><td data-label='Nombre'>Carlos</td><td data-label='Dirección'>Independencia 890</td><td>223-8899001</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="verHistorialCli(this)" title="Historial"><i class="ti ti-history" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="editarCliente(5)" title="Editar cliente"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
-            <tr class='cr'><td data-label='ID'>0006</td><td data-label='Apellido'>Sánchez</td><td data-label='Nombre'>María</td><td data-label='Dirección'>Córdoba 321</td><td>223-9900112</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="verHistorialCli(this)" title="Historial"><i class="ti ti-history" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="editarCliente(6)" title="Editar cliente"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
+            <thead><tr><th>ID</th><th>Apellido</th><th>Nombre</th><th class="hide-mobile">Dirección</th><th class="hide-mobile">Teléfono</th><th style="text-align:right">Estado</th><th></th></tr></thead>
+            <tbody id="cli-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Cargando clientes...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -2228,84 +2500,17 @@ tr:hover td{color:var(--text)}
             </div>
             <div style="overflow-x:auto">
               <table id="prod-tbl">
-                <tr>
-                  <th >Código</th>
-                  <th>Descripción</th>
-                  <th >Categoría</th>
-                  <th style="text-align:right">P. compra</th>
-                  <th style="text-align:right">P. venta</th>
-                  <th style="text-align:right">Margen</th>
-                  <th style="text-align:right">IVA</th>
-                  <th style="text-align:right">Stock</th>
-                  <th style="text-align:right">Estado</th>
-                  <th ></th>
-                </tr>
-                <tr class="pr" data-cat="Paneles solares" data-id="1">
-                  <td>P-001</td><td>Panel solar 300W</td><td><span class="badge b-amber">Paneles</span></td>
-                  <td style="text-align:right;color:var(--text2)">$32.000</td>
-                  <td style="text-align:right;font-weight:500">$45.000</td>
-                  <td style="text-align:right;color:var(--green)">40,6%</td>
-                  <td style="text-align:right">21%</td>
-                  <td style="text-align:right">12</td>
-                  <td style="text-align:right"><span class="badge b-green">Activo</span></td>
-                  <td style="text-align:right">
-                    <button class="btn btn-sm btn-icon" onclick="abrirFormProducto(1)" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>
-                    <button class="btn btn-sm btn-icon" onclick="verProducto(1)" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
-                  </td>
-                </tr>
-                <tr class="pr" data-cat="Inversores" data-id="2">
-                  <td>P-007</td><td>Inversor 3000W</td><td><span class="badge b-blue">Inversores</span></td>
-                  <td style="text-align:right;color:var(--text2)">$72.000</td>
-                  <td style="text-align:right;font-weight:500">$98.000</td>
-                  <td style="text-align:right;color:var(--green)">36,1%</td>
-                  <td style="text-align:right">21%</td>
-                  <td style="text-align:right">5</td>
-                  <td style="text-align:right"><span class="badge b-green">Activo</span></td>
-                  <td style="text-align:right">
-                    <button class="btn btn-sm btn-icon" onclick="abrirFormProducto(2)" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>
-                    <button class="btn btn-sm btn-icon" onclick="verProducto(2)" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
-                  </td>
-                </tr>
-                <tr class="pr" data-cat="Cables y conectores" data-id="3">
-                  <td>P-012</td><td>Cable solar 6mm (m)</td><td><span class="badge b-purple">Cables</span></td>
-                  <td style="text-align:right;color:var(--text2)">$520</td>
-                  <td style="text-align:right;font-weight:500">$850</td>
-                  <td style="text-align:right;color:var(--green)">63,5%</td>
-                  <td style="text-align:right">21%</td>
-                  <td style="text-align:right">200</td>
-                  <td style="text-align:right"><span class="badge b-green">Activo</span></td>
-                  <td style="text-align:right">
-                    <button class="btn btn-sm btn-icon" onclick="abrirFormProducto(3)" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>
-                    <button class="btn btn-sm btn-icon" onclick="verProducto(3)" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
-                  </td>
-                </tr>
-                <tr class="pr" data-cat="Baterías" data-id="4">
-                  <td>P-019</td><td>Batería LiFePO4 48V</td><td><span class="badge b-green">Baterías</span></td>
-                  <td style="text-align:right;color:var(--text2)">$88.000</td>
-                  <td style="text-align:right;font-weight:500">$120.000</td>
-                  <td style="text-align:right;color:var(--green)">36,4%</td>
-                  <td style="text-align:right">21%</td>
-                  <td style="text-align:right;color:var(--amber);font-weight:500">3 ⚠</td>
-                  <td style="text-align:right"><span class="badge b-amber">Stock bajo</span></td>
-                  <td style="text-align:right">
-                    <button class="btn btn-sm btn-icon" onclick="abrirFormProducto(4)" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>
-                    <button class="btn btn-sm btn-icon" onclick="verProducto(4)" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
-                  </td>
-                </tr>
-                <tr class="pr" data-cat="Controladores" data-id="5">
-                  <td>P-023</td><td>Controlador MPPT 60A</td><td><span class="badge b-blue">Controladores</span></td>
-                  <td style="text-align:right;color:var(--text2)">$22.000</td>
-                  <td style="text-align:right;font-weight:500">$32.000</td>
-                  <td style="text-align:right;color:var(--green)">45,5%</td>
-                  <td style="text-align:right">21%</td>
-                  <td style="text-align:right;color:var(--red);font-weight:500">0</td>
-                  <td style="text-align:right"><span class="badge b-red">Sin stock</span></td>
-                  <td style="text-align:right">
-                    <button class="btn btn-sm btn-icon" onclick="abrirFormProducto(5)" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>
-                    <button class="btn btn-sm btn-icon" onclick="verProducto(5)" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
-                  </td>
-                </tr>
-              </table>
+            <thead><tr>
+              <th>Código</th><th>Nombre</th>
+              <th class="hide-mobile">Descripción</th>
+              <th style="text-align:right">Stock</th>
+              <th style="text-align:right">P. Venta</th>
+              <th style="text-align:right">P. Costo</th>
+              <th style="text-align:right">Margen</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="prod-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Cargando productos...</td></tr></tbody>
+          </table>
             </div>
           </div>
         </div>
@@ -2758,8 +2963,7 @@ document.addEventListener('firebase-ready', function() {
   // Ejecutar callbacks pendientes
   fbEsperandoReady.forEach(function(fn) { try { fn(); } catch(e) {} });
   fbEsperandoReady = [];
-  // Cargar datos iniciales
-  fbCargarTodo();
+  // NO cargar datos aquí — se cargan después del login (auth requerida)
 });
 
 function fbListo(fn) {
@@ -2786,6 +2990,9 @@ function fbCargarTodo() {
   fbCargarVentas();
   fbCargarPresupuestos();
   fbCargarOTs();
+  fbCargarEmpleados();
+  fbCargarCategorias();
+  fbCargarUsuarios();
 }
 
 // ── CLIENTES ──
@@ -2798,10 +3005,12 @@ function fbCargarClientes() {
       clientesData = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
       });
-      // Actualizar tabla de clientes si está visible
-      if (document.getElementById('page-clientes')?.classList.contains('active')) {
-        renderTablaClientes();
-      }
+      // Ordenar por nombre
+      clientesData.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
+      // Siempre actualizar la tabla
+      if (typeof renderTablaClientes === 'function') renderTablaClientes();
+      // Actualizar dropdown de clientes en ventas/presupuestos
+      if (typeof actualizarSugerenciasCliente === 'function') actualizarSugerenciasCliente();
     }
   });
 }
@@ -2835,16 +3044,21 @@ function fbCargarProductos() {
   window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.productos), function(snap) {
     var data = snap.val();
     if (data) {
-      // Convertir a formato de prodData
       prodData = {};
+      stockData = {};
       Object.entries(data).forEach(function(e, i) {
         var p = Object.assign({ fbKey: e[0] }, e[1]);
         prodData[i+1] = p;
-        // Actualizar stockData también
-        if (!stockData[p.codigo]) {
-          stockData[p.codigo] = { desc: p.descripcion, real: p.stock||0, reservado: 0, stockMin: p.stockMin||5 };
-        }
+        var cod = p.codigo || ('P-' + String(p.id||i).padStart(4,'0'));
+        p.codigo = cod;
+        stockData[cod] = {
+          desc: p.nombre || p.descripcion || '',
+          real: parseInt(p.stock) || 0,
+          reservado: 0,
+          stockMin: p.stockMin || 2
+        };
       });
+      if (typeof renderTablaProductos === 'function') renderTablaProductos();
     }
   });
 }
@@ -2869,7 +3083,14 @@ function fbCargarVentas() {
     if (data) {
       ventasList = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
-      }).sort(function(a,b) { return (b.id||'').localeCompare(a.id||''); });
+      }).sort(function(a,b) {
+        // Ordenar por id numérico descendente
+        var na = parseInt((a.idOriginal||a.id||'').replace('#','')) || 0;
+        var nb = parseInt((b.idOriginal||b.id||'').replace('#','')) || 0;
+        return nb - na;
+      });
+      if (typeof renderVentasTabla === 'function') renderVentasTabla();
+      if (typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
     }
   });
 }
@@ -3582,8 +3803,8 @@ var NOTIF_CONFIG = {
   caja_abierta:     { label:'Caja sin cerrar',            sub:'La caja quedó abierta después de las 20hs',   canales:['App'],           activo:true,  urgente:false },
 };
 var FORMS_CFG = {
-  cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
-  producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Paneles solares','Baterías','Inversores','Cables y conectores','Controladores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'P. compra ($)',id:'np-pc',t:'number',ph:'0'},{l:'P. venta ($)',id:'np-pv',t:'number',ph:'0'}]},
+  cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
+  producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Paneles solares','Baterías','Inversores','Cables y conectores','Controladores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Hikvision, DSC, etc.'},{l:'P. compra ($)',id:'np-pc',t:'number',ph:'0'},{l:'P. venta ($)',id:'np-pv',t:'number',ph:'0'}]},
   empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'select',opts:['Cat. 39 — Vendedor senior','Cat. 15 — Vendedor junior','Cat. 08 — Técnico instalador']},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'}]},
   usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Usuario',id:'nu-user',t:'text',ph:'nombre.apellido'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Vendedor']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
   proveedor: { title:'Nuevo proveedor', fields:[{l:'Nombre',id:'npv-nm',t:'text',ph:'Razón social',full:true},{l:'Rubro',id:'npv-rub',t:'text',ph:'Ej: Paneles solares'},{l:'Contacto',id:'npv-tel',t:'tel',ph:'011-xxxx-xxxx'},{l:'Email',id:'npv-em',t:'email',ph:'email@proveedor.com'}]},
@@ -3591,236 +3812,21 @@ var FORMS_CFG = {
   ticket:    { title:'Nuevo ticket',    fields:[{l:'Cliente',id:'ntk-cli',t:'text',ph:'Nombre del cliente',full:true},{l:'Equipo / N° serie',id:'ntk-eq',t:'text',ph:'SN-xxxxx'},{l:'Descripción del problema',id:'ntk-desc',t:'text',ph:'Describir el problema',full:true},{l:'Prioridad',id:'ntk-p',t:'select',opts:['Urgente','Media','Baja']},{l:'Técnico',id:'ntk-tec',t:'select',opts:['López, M.','Gómez, P.','Torres, R.','Sin asignar']}]},
   gasto:     { title:'Nuevo gasto',     fields:[{l:'Fecha',id:'ng-f',t:'date'},{l:'Tipo',id:'ng-tipo',t:'select',opts:['Fijo','Variable','Compra mercadería']},{l:'Descripción',id:'ng-desc',t:'text',ph:'Ej: Alquiler oficina',full:true},{l:'Categoría',id:'ng-cat',t:'select',opts:['Inmueble','Servicios','Personal','Transporte','Materiales','Marketing','Mercadería','Impuestos','Otro']},{l:'Monto ($)',id:'ng-monto',t:'number',ph:'0'},{l:'Medio de pago',id:'ng-medio',t:'select',opts:['Efectivo','Transferencia','Tarjeta','Cheque']}]},
 };
-var pptoData = [
-  { id:'PP-008', cliente:'García, Roberto',   empleado:'López, M.',  fecha:'15/05/26', vence:'29/05/26', total:254100, descuento:5,  estado:'enviado',      requiereAprobacion:false, motivo:'',
-    audit:[
-      { fecha:'15/05/26 09:12', usuario:'López, M.',  accion:'Presupuesto creado como borrador' },
-      { fecha:'15/05/26 10:30', usuario:'López, M.',  accion:'Enviado a revisión interna' },
-      { fecha:'15/05/26 11:00', usuario:'Gonzalo S.', accion:'Aprobado internamente' },
-      { fecha:'15/05/26 14:20', usuario:'Gonzalo S.', accion:'Enviado al cliente por WhatsApp' },
-    ]
-  },
-  { id:'PP-007', cliente:'Martínez, Carlos',  empleado:'Torres, R.', fecha:'10/05/26', vence:'24/05/26', total:145200, descuento:0,  estado:'aceptado',     requiereAprobacion:false, motivo:'',
-    audit:[
-      { fecha:'10/05/26 08:00', usuario:'Torres, R.',  accion:'Presupuesto creado como borrador' },
-      { fecha:'10/05/26 09:00', usuario:'Torres, R.',  accion:'Enviado a revisión' },
-      { fecha:'10/05/26 10:00', usuario:'Gonzalo S.',  accion:'Aprobado y enviado al cliente' },
-      { fecha:'12/05/26 16:00', usuario:'Sistema',     accion:'Cliente marcó como visto' },
-      { fecha:'13/05/26 11:30', usuario:'Gonzalo S.',  accion:'Aceptación registrada' },
-    ]
-  },
-  { id:'PP-006', cliente:'Fernández, Luis',   empleado:'Gómez, P.',  fecha:'02/05/26', vence:'16/05/26', total:89400,  descuento:15, estado:'rechazado',    requiereAprobacion:true,  motivo:'Descuento >10% requiere aprobación admin',
-    audit:[
-      { fecha:'02/05/26 10:00', usuario:'Gómez, P.',   accion:'Presupuesto creado (descuento 15% → requiere aprobación)' },
-      { fecha:'02/05/26 10:05', usuario:'Sistema',     accion:'Enviado automáticamente a revisión por descuento elevado' },
-      { fecha:'05/05/26 09:00', usuario:'Gonzalo S.',  accion:'Rechazado — cliente no aceptó condiciones' },
-    ]
-  },
-  { id:'PP-005', cliente:'Sánchez, María',    empleado:'López, M.',  fecha:'20/04/26', vence:'04/05/26', total:32800,  descuento:0,  estado:'vencido',      requiereAprobacion:false, motivo:'',
-    audit:[
-      { fecha:'20/04/26 14:00', usuario:'López, M.',  accion:'Presupuesto creado' },
-      { fecha:'20/04/26 15:00', usuario:'López, M.',  accion:'Enviado al cliente' },
-      { fecha:'04/05/26 00:00', usuario:'Sistema',    accion:'Presupuesto vencido automáticamente' },
-    ]
-  },
-  { id:'PP-004', cliente:'Rodríguez, Ana',    empleado:'Torres, R.', fecha:'01/05/26', vence:'15/05/26', total:187400, descuento:0,  estado:'convertido',   requiereAprobacion:false, ventaId:'#00042', motivo:'',
-    audit:[
-      { fecha:'01/05/26 09:00', usuario:'Torres, R.',  accion:'Presupuesto creado' },
-      { fecha:'02/05/26 10:00', usuario:'Gonzalo S.',  accion:'Aprobado y enviado al cliente' },
-      { fecha:'05/05/26 11:00', usuario:'Sistema',     accion:'Cliente aceptó' },
-      { fecha:'05/05/26 11:05', usuario:'Gonzalo S.',  accion:'Convertido a venta #00042' },
-    ]
-  },
-];
-var stockData = {
-  'P-001': { desc:'Panel solar 300W',       real:12, reservado:4 },
-  'P-007': { desc:'Inversor 3000W',         real:5,  reservado:1 },
-  'P-012': { desc:'Cable solar 6mm (m)',    real:200,reservado:20 },
-  'P-019': { desc:'Batería LiFePO4 48V',    real:3,  reservado:1 },
-  'P-023': { desc:'Controlador MPPT 60A',   real:0,  reservado:0 },
-  'P-002': { desc:'Sensor movimiento PIR',  real:8,  reservado:2 },
-  'P-010': { desc:'Deco X60 unit',          real:20, reservado:15 },
-  'P-011': { desc:'Switch TL-SG2428P',      real:2,  reservado:0 },
-};
-var prodData = {
-  1:{ codigo:'P-001', descripcion:'Panel solar 300W', categoria:'Paneles solares', proveedor:'SolarTec SA', compra:32000, venta:45000, iva:21, stock:12, stockMin:5, unidad:'Unidad', estado:'activo' },
-  2:{ codigo:'P-007', descripcion:'Inversor 3000W', categoria:'Inversores', proveedor:'PowerMax SRL', compra:72000, venta:98000, iva:21, stock:5, stockMin:3, unidad:'Unidad', estado:'activo' },
-  3:{ codigo:'P-012', descripcion:'Cable solar 6mm (m)', categoria:'Cables y conectores', proveedor:'CableNet', compra:520, venta:850, iva:21, stock:200, stockMin:50, unidad:'Metro', estado:'activo' },
-  4:{ codigo:'P-019', descripcion:'Batería LiFePO4 48V', categoria:'Baterías', proveedor:'BaterSur', compra:88000, venta:120000, iva:21, stock:3, stockMin:5, unidad:'Unidad', estado:'activo' },
-  5:{ codigo:'P-023', descripcion:'Controlador MPPT 60A', categoria:'Controladores', proveedor:'SolarTec SA', compra:22000, venta:32000, iva:21, stock:0, stockMin:3, unidad:'Unidad', estado:'activo' }
-};
-var otData = [
-  {
-    id:'OT-018', ventaId:'#00042', cliente:'García, Roberto', tecnico:'López, M.',
-    fecha:'2026-05-22', hora:'09:00', duracion:'4 horas',
-    dir:'Belgrano 1234, Mar del Plata', obs:'Sistema de alarma inalámbrica completa',
-    estado:'en_progreso', progreso:45,
-    checks: { preparacion:[true,true,true,false,false], instalacion:[true,true,false,false,false,false,false], verificacion:[false,false,false,false,false,false] },
-    materiales:[
-      { cod:'P-001', desc:'Panel sensor de movimiento', vendida:4, instalada:4 },
-      { cod:'P-002', desc:'Panel de control central', vendida:1, instalada:1 },
-      { cod:'P-003', desc:'Sirena exterior', vendida:1, instalada:0 },
-    ],
-    audit:[
-      { fecha:'22/05/26 08:30', usuario:'Sistema', accion:'OT generada automáticamente desde venta #00042' },
-      { fecha:'22/05/26 09:00', usuario:'López, M.', accion:'Técnico confirmó inicio de trabajo' },
-      { fecha:'22/05/26 10:15', usuario:'López, M.', accion:'Fase preparación completada parcialmente' },
-    ]
-  },
-  {
-    id:'OT-017', ventaId:'#00040', cliente:'Martínez, C.', tecnico:'Torres, R.',
-    fecha:'2026-05-21', hora:'14:00', duracion:'6 horas',
-    dir:'San Martín 456', obs:'Red Omada TP-Link completa',
-    estado:'completada', progreso:100,
-    checks: { preparacion:[true,true,true,true,true], instalacion:[true,true,true,true,true,true,true], verificacion:[true,true,true,true,true,true] },
-    materiales:[
-      { cod:'P-010', desc:'Deco X60 unit', vendida:15, instalada:15 },
-      { cod:'P-011', desc:'Switch TL-SG2428P', vendida:1, instalada:1 },
-    ],
-    audit:[
-      { fecha:'21/05/26 08:00', usuario:'Sistema', accion:'OT generada desde venta #00040' },
-      { fecha:'21/05/26 14:00', usuario:'Torres, R.', accion:'Inicio de instalación' },
-      { fecha:'21/05/26 20:30', usuario:'Torres, R.', accion:'Instalación completada. Cliente conforme.' },
-      { fecha:'21/05/26 20:35', usuario:'Sistema', accion:'Garantía activada automáticamente' },
-    ]
-  },
-  {
-    id:'OT-016', ventaId:'#00038', cliente:'Rodríguez, Ana', tecnico:'López, M.',
-    fecha:'2026-05-23', hora:'10:00', duracion:'4 horas',
-    dir:'Independencia 890', obs:'UPS DC para Starlink Mini',
-    estado:'pendiente', progreso:0,
-    checks: { preparacion:[false,false,false,false,false], instalacion:[false,false,false,false,false,false,false], verificacion:[false,false,false,false,false,false] },
-    materiales:[
-      { cod:'P-019', desc:'Batería LiFePO4 48V', vendida:1, instalada:0 },
-      { cod:'P-020', desc:'Regulador DC-DC 48V', vendida:1, instalada:0 },
-    ],
-    audit:[
-      { fecha:'20/05/26 11:00', usuario:'Sistema', accion:'OT generada desde venta #00038' },
-      { fecha:'20/05/26 11:05', usuario:'Gonzalo S.', accion:'Técnico asignado: López, M.' },
-    ]
-  },
-];
-var ventasList = [
-  {
-    id:'#00043', cliente:'García, Roberto',   clienteId:1, empleado:'López, M.',  fecha:'22/05/26',
-    total:254100, subtotal:210000, descuento:0, iva:44100,
-    estadoPago:'pendiente_pago', estadoInst:'pendiente_pago',
-    ppto:'PP-008', otId:'OT-016',
-    items:[
-      { cod:'P-001', desc:'Panel solar 300W',    qty:2, punit:45000, sub:90000 },
-      { cod:'P-019', desc:'Batería LiFePO4 48V', qty:1, punit:120000,sub:120000 },
-    ],
-    pagos:[], obs:'Cliente confirmó por WhatsApp',
-    audit:[
-      { fecha:'22/05/26 09:00', usuario:'López, M.', accion:'Venta confirmada desde presupuesto PP-008' },
-      { fecha:'22/05/26 09:01', usuario:'Sistema',   accion:'OT-016 generada automáticamente' },
-      { fecha:'22/05/26 09:01', usuario:'Sistema',   accion:'Stock reservado: P-001 ×2, P-019 ×1' },
-    ]
-  },
-  {
-    id:'#00042', cliente:'García, Roberto',   clienteId:1, empleado:'López, M.',  fecha:'17/05/26',
-    total:302500, subtotal:250000, descuento:0, iva:52500,
-    estadoPago:'pago_total', estadoInst:'con_garantia',
-    ppto:'PP-004', otId:'OT-018',
-    items:[
-      { cod:'P-001', desc:'Panel solar 300W',  qty:3, punit:45000, sub:135000 },
-      { cod:'P-007', desc:'Inversor 3000W',    qty:1, punit:98000, sub:98000  },
-      { cod:'P-012', desc:'Cable solar 6mm', qty:20, punit:850,   sub:17000  },
-    ],
-    pagos:[
-      { fecha:'17/05/26', medio:'Transferencia', monto:302500, saldo:0 }
-    ],
-    obs:'', audit:[
-      { fecha:'17/05/26 10:00', usuario:'López, M.',  accion:'Venta confirmada' },
-      { fecha:'17/05/26 10:05', usuario:'Sistema',    accion:'Stock reservado' },
-      { fecha:'17/05/26 14:00', usuario:'Torres, R.', accion:'Pago total registrado — Transferencia' },
-      { fecha:'20/05/26 20:30', usuario:'Torres, R.', accion:'Instalación completada. Garantía activada.' },
-    ]
-  },
-  {
-    id:'#00041', cliente:'Fernández, Luis',  clienteId:4, empleado:'Gómez, P.',   fecha:'16/05/26',
-    total:10588, subtotal:8750, descuento:0, iva:1838,
-    estadoPago:'seniado', estadoInst:'pendiente_pago',
-    ppto:'', otId:'',
-    items:[ { cod:'P-012', desc:'Cable solar 6mm (m)', qty:20, punit:850, sub:17000 } ],
-    pagos:[ { fecha:'16/05/26', medio:'Efectivo', monto:5000, saldo:5588 } ],
-    obs:'', audit:[
-      { fecha:'16/05/26 09:00', usuario:'Gómez, P.', accion:'Venta confirmada' },
-      { fecha:'16/05/26 11:00', usuario:'Gómez, P.', accion:'Seña registrada $5.000 — Efectivo' },
-    ]
-  },
-  {
-    id:'#00040', cliente:'Martínez, Carlos', clienteId:5, empleado:'Torres, R.',  fecha:'15/05/26',
-    total:37752, subtotal:31200, descuento:0, iva:6552,
-    estadoPago:'pago_total', estadoInst:'instalado',
-    ppto:'', otId:'OT-017',
-    items:[ { cod:'P-010', desc:'Deco X60 unit ×15', qty:15, punit:2000, sub:30000 } ],
-    pagos:[ { fecha:'15/05/26', medio:'Tarjeta crédito', monto:37752, saldo:0 } ],
-    obs:'', audit:[
-      { fecha:'15/05/26 09:00', usuario:'Torres, R.', accion:'Venta confirmada' },
-      { fecha:'15/05/26 10:00', usuario:'Torres, R.', accion:'Pago total — Tarjeta crédito' },
-      { fecha:'21/05/26 20:30', usuario:'Torres, R.', accion:'Instalación completada' },
-    ]
-  },
-  {
-    id:'#00038', cliente:'Rodríguez, Ana',   clienteId:3, empleado:'López, M.',  fecha:'05/05/26',
-    total:24200, subtotal:20000, descuento:0, iva:4200,
-    estadoPago:'pendiente_pago', estadoInst:'pendiente_pago',
-    ppto:'', otId:'OT-016',
-    items:[ { cod:'P-002', desc:'Sensor movimiento PIR ×4', qty:4, punit:5000, sub:20000 } ],
-    pagos:[ { fecha:'10/05/26', medio:'Transferencia', monto:10000, saldo:14200 } ],
-    obs:'', audit:[
-      { fecha:'05/05/26 11:00', usuario:'López, M.', accion:'Venta confirmada' },
-      { fecha:'10/05/26 09:00', usuario:'López, M.', accion:'Pago parcial $10.000 — Transferencia' },
-    ]
-  },
-];
-var empData = {
-  1: { nombre:'López, Marcos', cat:'Cat. 39', catBadge:'b-blue', estado:'Activo', estadoBadge:'b-green', ingreso:'Desde enero 2022', base:'$180.000', comisiones:'$3.200', hextra:'$800', hextra_sub:'8 hs este mes', total:'$184.000', dni:'28.456.789', tel:'223-4455667', email:'mlopez@nixa.com', dir:'Rivadavia 1200', avatarBg:'var(--blue-bg)', avatarColor:'var(--blue)', initials:'ML' },
-  2: { nombre:'Gómez, Paula', cat:'Cat. 15', catBadge:'b-purple', estado:'Activo', estadoBadge:'b-green', ingreso:'Desde marzo 2023', base:'$150.000', comisiones:'$1.850', hextra:'—', hextra_sub:'sin horas este mes', total:'$151.850', dni:'32.111.222', tel:'223-5566778', email:'pgomez@nixa.com', dir:'Mitre 456', avatarBg:'var(--purple-bg)', avatarColor:'var(--purple)', initials:'PG' },
-  3: { nombre:'Torres, Roberto', cat:'Cat. 39', catBadge:'b-blue', estado:'Activo', estadoBadge:'b-green', ingreso:'Desde julio 2021', base:'$180.000', comisiones:'$2.100', hextra:'$400', hextra_sub:'4 hs este mes', total:'$182.500', dni:'25.333.444', tel:'223-6677889', email:'rtorres@nixa.com', dir:'San Luis 789', avatarBg:'var(--blue-bg)', avatarColor:'var(--blue)', initials:'RT' },
-  4: { nombre:'Ruiz, Valentina', cat:'Cat. 15', catBadge:'b-purple', estado:'Inactivo', estadoBadge:'b-red', ingreso:'Desde mayo 2024', base:'$150.000', comisiones:'—', hextra:'—', hextra_sub:'—', total:'$150.000', dni:'38.555.666', tel:'223-7788990', email:'vruiz@nixa.com', dir:'Córdoba 321', avatarBg:'var(--purple-bg)', avatarColor:'var(--purple)', initials:'VR' }
-};
-var ccData={
-  'García, Roberto':{initials:'GR',total:'$15.004',cobrado:'$15.004',saldo:'$0',saldoColor:'var(--text3)',estado:'<span class="badge b-green">Al día</span>',movs:[{fecha:'17/05/26',concepto:'Venta #00042 — Panel solar 300W × 3',tipo:'Venta',importe:'-$15.004',saldo:'$15.004'},{fecha:'17/05/26',concepto:'Pago — Transferencia R-042-1',tipo:'Pago',importe:'$15.004',saldo:'$0'}]},
-  'Fernández, Luis':{initials:'FL',total:'$10.588',cobrado:'$5.000',saldo:'$5.588',saldoColor:'var(--amber)',estado:'<span class="badge b-amber">Pendiente</span>',movs:[{fecha:'16/05/26',concepto:'Venta #00041 — Cable solar',tipo:'Venta',importe:'-$10.588',saldo:'$10.588'},{fecha:'16/05/26',concepto:'Pago parcial — Efectivo R-041-1',tipo:'Pago',importe:'$5.000',saldo:'$5.588'}]},
-  'Rodríguez, Ana':{initials:'RA',total:'$24.200',cobrado:'$10.000',saldo:'$14.200',saldoColor:'var(--amber)',estado:'<span class="badge b-amber">Pendiente</span>',movs:[{fecha:'05/05/26',concepto:'Venta #00038 — Varios',tipo:'Venta',importe:'-$24.200',saldo:'$24.200'},{fecha:'10/05/26',concepto:'Pago parcial — Transferencia',tipo:'Pago',importe:'$10.000',saldo:'$14.200'}]},
-  'Sánchez, María':{initials:'SM',total:'$46.800',cobrado:'$34.000',saldo:'$12.800',saldoColor:'var(--red)',estado:'<span class="badge b-red">Vencido</span>',movs:[{fecha:'01/03/26',concepto:'Venta #00031 — Instalación completa',tipo:'Venta',importe:'-$46.800',saldo:'$46.800'},{fecha:'15/03/26',concepto:'Pago parcial — Cheque',tipo:'Pago',importe:'$20.000',saldo:'$26.800'},{fecha:'01/04/26',concepto:'Pago parcial — Efectivo',tipo:'Pago',importe:'$14.000',saldo:'$12.800'}]}
-};
+var pptoData = [];
+var stockData = {};
+var prodData = {};
+var otData = [];
+var ventasList = [];
+var empData = {};
+var ccData = {};
 var recibosData={
   'R-042-1':{num:'R-042-1',fecha:'17/05/2026',cliente:'García, Roberto',venta:'#00042',medio:'Transferencia',totalVenta:'$15.004',pagosAnt:'$0',estePago:'$15.004',saldo:'$0',saldoColor:'var(--green)',estado:'<span class="badge b-green">Pago total</span>',items:'<tr><td style="padding:8px 0;font-size:13px;color:var(--text2);border-bottom:0.5px solid var(--border)">Panel solar 300W × 3</td><td style="text-align:right;padding:8px 0;font-size:13px;color:var(--text2);border-bottom:0.5px solid var(--border)">$135.000</td></tr><tr><td style="padding:8px 0;font-size:13px;color:var(--text2)">Inversor 3000W × 1</td><td style="text-align:right;padding:8px 0;font-size:13px;color:var(--text2)">$98.000</td></tr>'},
   'R-041-1':{num:'R-041-1',fecha:'16/05/2026',cliente:'Fernández, Luis',venta:'#00041',medio:'Efectivo',totalVenta:'$10.588',pagosAnt:'$0',estePago:'$5.000',saldo:'$5.588',saldoColor:'var(--amber)',estado:'<span class="badge b-amber">Pago parcial</span>',items:'<tr><td style="padding:8px 0;font-size:13px;color:var(--text2)">Cable solar 6mm × 20m</td><td style="text-align:right;padding:8px 0;font-size:13px;color:var(--text2)">$17.000</td></tr>'},
   'R-040-1':{num:'R-040-1',fecha:'15/05/2026',cliente:'Martínez, C.',venta:'#00040',medio:'Tarjeta de crédito',totalVenta:'$37.752',pagosAnt:'$0',estePago:'$37.752',saldo:'$0',saldoColor:'var(--green)',estado:'<span class="badge b-green">Pago total</span>',items:'<tr><td style="padding:8px 0;font-size:13px;color:var(--text2)">Batería LiFePO4 48V × 1</td><td style="text-align:right;padding:8px 0;font-size:13px;color:var(--text2)">$37.752</td></tr>'},
   'R-042-2':{num:'R-042-2',fecha:'21/05/2026',cliente:'García, Roberto',venta:'#00042',medio:'Efectivo',totalVenta:'$15.004',pagosAnt:'$15.004',estePago:'$0',saldo:'$0',saldoColor:'var(--green)',estado:'<span class="badge b-green">Pago total</span>',items:'<tr><td style="padding:8px 0;font-size:13px;color:var(--text2)">Panel solar 300W × 3</td><td style="text-align:right;padding:8px 0;font-size:13px;color:var(--text2)">$135.000</td></tr>'}
 };
-var clientesData = [
-  { id:1, iniciales:'GR', nombre:'García, Roberto',   tel:'223-4455667', email:'rgarcia@email.com',  dir:'Belgrano 1234',    estado:'activo',   saldo:0,     total:302500, equipos:1, garantias:1 },
-  { id:2, iniciales:'GS', nombre:'García, Sandra',    tel:'223-5566778', email:'sgarcia@email.com',  dir:'Av. Colón 785',    estado:'activo',   saldo:0,     total:48000,  equipos:0, garantias:0 },
-  { id:3, iniciales:'RA', nombre:'Rodríguez, Ana',    tel:'223-6677889', email:'ana@email.com',      dir:'San Martín 456',   estado:'activo',   saldo:14200, total:24200,  equipos:0, garantias:0 },
-  { id:4, iniciales:'FL', nombre:'Fernández, Luis',   tel:'223-7788990', email:'luis@email.com',     dir:'Luro 2200',        estado:'inactivo', saldo:5588,  total:10588,  equipos:1, garantias:0 },
-  { id:5, iniciales:'MC', nombre:'Martínez, Carlos',  tel:'223-8899001', email:'carlos@email.com',   dir:'Independencia 890',estado:'activo',   saldo:0,     total:129600, equipos:1, garantias:1 },
-  { id:6, iniciales:'SM', nombre:'Sánchez, María',    tel:'223-9900112', email:'maria@email.com',    dir:'Córdoba 321',      estado:'activo',   saldo:12800, total:46800,  equipos:1, garantias:0 },
-];
-var ventasData = [
-  { id:'#00042', clienteId:1, cliente:'García, Roberto', fecha:'17/05/26', total:302500, estadoPago:'pago_total',     estadoInst:'con_garantia',
-    pagos:[{ fecha:'17/05/26', medio:'Transferencia', monto:302500, saldo:0 }],
-    equipos:[{ eq:'Alarma inalámbrica', serie:'SN-00142', inst:'17/05/26', vence:'17/05/27' }],
-    tickets:[{ n:'TK-042', desc:'Alarma no responde al panel', prio:'Urgente', est:'En curso' }]
-  },
-  { id:'#00041', clienteId:4, cliente:'Fernández, Luis', fecha:'16/05/26', total:10588,  estadoPago:'seniado',        estadoInst:'pendiente_pago',
-    pagos:[{ fecha:'16/05/26', medio:'Efectivo', monto:5000, saldo:5588 }],
-    equipos:[], tickets:[]
-  },
-  { id:'#00040', clienteId:5, cliente:'Martínez, C.',   fecha:'15/05/26', total:37752,  estadoPago:'pago_total',     estadoInst:'instalado',
-    pagos:[{ fecha:'15/05/26', medio:'Tarjeta crédito', monto:37752, saldo:0 }],
-    equipos:[{ eq:'Red Omada TP-Link', serie:'SN-00138', inst:'20/05/26', vence:'20/11/26' }],
-    tickets:[]
-  },
-  { id:'#00038', clienteId:3, cliente:'Rodríguez, Ana', fecha:'05/05/26', total:24200,  estadoPago:'pendiente_pago', estadoInst:'pendiente_pago',
-    pagos:[{ fecha:'10/05/26', medio:'Transferencia', monto:10000, saldo:14200 }],
-    equipos:[], tickets:[]
-  },
-];
+var clientesData = [];
+var ventasData = [];
 
 var calcVenc = function() { if(typeof calcVencimiento==='function') calcVencimiento(); };
 var calcPp   = function() { if(typeof calcPpTotales==='function') calcPpTotales(); };
@@ -3920,8 +3926,12 @@ function _completarLogin(nombre) {
   document.getElementById('screen-app').classList.add('visible');
   if (typeof startSessionTimer === 'function') startSessionTimer();
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
-  if (typeof renderKPIsDashboard === 'function') setTimeout(renderKPIsDashboard, 200);
-  if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 400);
+  // Cargar datos reales de Firebase DESPUÉS del login
+  if (typeof fbCargarTodo === 'function') {
+    fbCargarTodo();
+  }
+  if (typeof renderKPIsDashboard === 'function') setTimeout(renderKPIsDashboard, 1500);
+  if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 2000);
   if (typeof actualizarFabYHome === 'function') setTimeout(function(){ actualizarFabYHome('dashboard'); }, 100);
   setTimeout(function() { notify('Bienvenido, ' + nombre + '!'); }, 500);
 }
@@ -4583,6 +4593,7 @@ function exportarPDF(titulo) {
 
 // FORMS_CFG movido al inicio
 function abrirModalNuevo(tipo) {
+  window._modalTipo = tipo;
   const cfg = FORMS_CFG[tipo];
   if (!cfg) { notify('Formulario no disponible'); return; }
   _set('modal-nuevo-title',cfg.title);
@@ -4613,8 +4624,77 @@ function abrirModalNuevo(tipo) {
   document.getElementById('modal-nuevo').classList.add('open');
 }
 function guardarNuevoGenerico() {
+  var tipo = window._modalTipo;
+  var cfg  = FORMS_CFG[tipo];
+  if (!cfg) { notify('Tipo no configurado'); return; }
+
+  // Recopilar todos los campos del modal
+  var obj = { fbKey: null };
+  cfg.fields.forEach(function(f) {
+    var el = document.getElementById(f.id);
+    if (el) obj[f.id.replace(/^n[a-z]+-/, '')] = el.value.trim();
+  });
+
+  // Guardar según el tipo
+  if (tipo === 'cliente') {
+    var nuevo = {
+      id:        String(Date.now()).slice(-6),
+      nombre:    (obj.nm || '') + (obj.ap ? ' ' + obj.ap : ''),
+      apellidos: obj.ap || '',
+      telefono:  obj.tel || '',
+      mail:      obj.em || '',
+      cuit:      obj.cuit || '',
+      empresa:   obj.empresa || '',
+      dir:       obj.dir || '',
+      localidad: 'Mar del Plata',
+      saldo:     0,
+      activo:    true
+    };
+    if (typeof fbGuardarCliente === 'function') {
+      fbGuardarCliente(nuevo);
+    } else {
+      clientesData.push(nuevo);
+      if (typeof renderTablaClientes === 'function') renderTablaClientes();
+    }
+
+  } else if (tipo === 'producto') {
+    var pv  = parseFloat(obj.pv  || 0);
+    var pc  = parseFloat(obj.pc  || 0);
+    var pid = String(Date.now()).slice(-5);
+    var nuevo = {
+      id:          pid,
+      codigo:      obj.cod || ('P-' + pid),
+      nombre:      obj.desc || '',
+      descripcion: obj.desc || '',
+      marca:       obj.marca || '',
+      venta:       pv,
+      compra:      pc,
+      margen:      pv > 0 ? Math.round((pv-pc)/pv*100*10)/10 : 0,
+      stock:       parseInt(obj.stock || 0),
+      stockMin:    2,
+      activo:      true
+    };
+    if (typeof fbGuardarProducto === 'function') {
+      fbGuardarProducto(nuevo);
+    }
+
+  } else if (tipo === 'empleado') {
+    var nuevo = {
+      nombre:   (obj.nm || '') + ' ' + (obj.ap || ''),
+      cargo:    obj.cargo || '',
+      telefono: obj.tel || '',
+      mail:     obj.em || '',
+      categoria: obj.cargo ? (obj.cargo.includes('39') ? 39 : 15) : 39,
+      activo:   true
+    };
+    empData.push(nuevo);
+    notify('Empleado guardado');
+
+  } else {
+    notify('Registro guardado');
+  }
+
   document.getElementById('modal-nuevo').classList.remove('open');
-  notify('Registro guardado correctamente (disponible con backend)');
 }
 
 // ── OTRAS FUNCIONES ──
@@ -5192,75 +5272,117 @@ function generarOTdesdeVenta(ventaId, cliente, dir) {
 // KPIs DASHBOARD
 // ══════════════════════════════════════════════
 function renderKPIsDashboard() {
-  // Calcular desde datos reales de pptoData y otData
-  const total = typeof pptoData !== 'undefined' ? pptoData.length : 5;
-  const convertidos = typeof pptoData !== 'undefined' ? pptoData.filter(p => p.estado === 'convertido').length : 1;
-  const activos = typeof pptoData !== 'undefined' ? pptoData.filter(p => ['borrador','revision','aprobado_int','enviado','visto','aceptado'].includes(p.estado)).length : 4;
-  const conversion = total > 0 ? Math.round(convertidos / total * 100) : 0;
-  const otsPend = typeof otData !== 'undefined' ? otData.filter(o => o.estado === 'pendiente' || o.estado === 'en_progreso').length : 2;
+  var hoy = new Date().toISOString().slice(0,10);
+  var ayer = new Date(Date.now()-86400000).toISOString().slice(0,10);
 
-  const elConv = _get('kpi-conversion');
-  const elAct  = _get('kpi-activos');
-  const elOts  = document.getElementById('kpi-ots');
-  if (elConv) { elConv.textContent = conversion + '%'; elConv.style.color = conversion >= 50 ? 'var(--green)' : 'var(--amber)'; }
-  if (elAct)  elAct.textContent = activos;
-  if (elOts)  elOts.textContent = otsPend;
+  // ── Ventas ──
+  var ventas = ventasList || [];
+  var ventasHoy = ventas.filter(function(v){ return v.fecha === hoy; });
+  var ventasAyer = ventas.filter(function(v){ return v.fecha === ayer; });
+  var totalHoy  = ventasHoy.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
+  var totalAyer = ventasAyer.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
+  var diffPct   = totalAyer > 0 ? Math.round((totalHoy - totalAyer) / totalAyer * 100) : 0;
 
-  // Barras por estado
-  const estadosEl = document.getElementById('kpi-ppto-estados');
-  if (estadosEl && typeof pptoData !== 'undefined') {
-    const estadosList = ['borrador','revision','aprobado_int','enviado','visto','aceptado','rechazado','vencido','convertido'];
-    const colores = { borrador:'var(--text3)', revision:'var(--amber)', aprobado_int:'var(--blue)', enviado:'#0369a1', visto:'#92400e', aceptado:'var(--green)', rechazado:'var(--red)', vencido:'var(--text3)', convertido:'#5b21b6' };
-    const labels  = { borrador:'Borrador', revision:'En revisión', aprobado_int:'Aprobado intern.', enviado:'Enviado', visto:'Visto', aceptado:'Aceptado', rechazado:'Rechazado', vencido:'Vencido', convertido:'Convertido' };
-    estadosEl.innerHTML = estadosList.map(est => {
-      const cnt = pptoData.filter(p => p.estado === est).length;
-      if (!cnt) return '';
-      const pct = Math.round(cnt / total * 100);
-      return `<div style="display:flex;align-items:center;gap:10px">
-        <div style="font-size:12px;color:var(--text2);width:130px;flex-shrink:0">${labels[est]}</div>
-        <div style="flex:1;height:8px;background:var(--bg4);border-radius:4px;overflow:hidden">
-          <div style="width:${pct}%;height:100%;background:${colores[est]};border-radius:4px;transition:width .4s"></div>
-        </div>
-        <div style="font-size:12px;color:var(--text3);width:40px;text-align:right;flex-shrink:0">${cnt} (${pct}%)</div>
-      </div>`;
+  _set('kpi-ventas-hoy', '$' + Math.round(totalHoy).toLocaleString('es-AR'));
+  var diffEl = document.getElementById('kpi-ventas-diff');
+  if (diffEl) {
+    diffEl.textContent = (diffPct >= 0 ? '↑ +' : '↓ ') + diffPct + '% vs ayer';
+    diffEl.style.color = diffPct >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+
+  // ── Deuda clientes (ventas pendiente de cobro) ──
+  var deudaTotal = ventas.reduce(function(s,v){
+    if (v.estadoPago !== 'pago_total') {
+      s += parseFloat(v.total)||0;
+    }
+    return s;
+  }, 0);
+  var clientesConDeuda = ventas.filter(function(v){ return v.estadoPago !== 'pago_total'; })
+    .map(function(v){ return v.cliente; });
+  var clientesUnicos = new Set(clientesConDeuda).size;
+  _set('kpi-deuda', '$' + Math.round(deudaTotal).toLocaleString('es-AR'));
+  var deudaSubEl = document.getElementById('kpi-deuda-sub');
+  if (deudaSubEl) deudaSubEl.textContent = clientesUnicos + ' cliente' + (clientesUnicos !== 1 ? 's' : '') + ' con saldo';
+
+  // ── Presupuestos ──
+  var pptos = pptoData || [];
+  var pptosActivos = pptos.filter(function(p){
+    return ['borrador','revision','aprobado_int','enviado','visto','aceptado'].includes(p.estado);
+  });
+  _set('kpi-pptos', String(pptos.length));
+  var pptoSubEl = document.getElementById('kpi-pptos-sub');
+  if (pptoSubEl) pptoSubEl.textContent = pptosActivos.length + ' activos';
+
+  // ── IVA acumulado (mes actual) ──
+  var mesActual = hoy.slice(0,7);
+  var ivaTotal = ventas.filter(function(v){ return (v.fecha||'').slice(0,7) === mesActual; })
+    .reduce(function(s,v){ return s + (parseFloat(v.iva)||0); }, 0);
+  _set('kpi-iva', '$' + Math.round(ivaTotal).toLocaleString('es-AR'));
+  var ivaMesEl = document.getElementById('kpi-iva-mes');
+  if (ivaMesEl) {
+    var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    ivaMesEl.textContent = meses[new Date().getMonth()] + ' ' + new Date().getFullYear();
+  }
+
+  // ── Gráfico barras últimos 7 días ──
+  var bars = document.querySelectorAll('.bar');
+  var labels = document.querySelectorAll('.bar-lbl');
+  if (bars.length) {
+    var dias7 = [];
+    for (var i = 6; i >= 0; i--) {
+      var d = new Date(Date.now() - i*86400000);
+      dias7.push(d.toISOString().slice(0,10));
+    }
+    var maxVal = 0;
+    var totales = dias7.map(function(fecha) {
+      var t = ventas.filter(function(v){ return v.fecha === fecha; })
+        .reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
+      if (t > maxVal) maxVal = t;
+      return t;
+    });
+    var diaNombres = ['Lu','Ma','Mi','Ju','Vi','Sa','Do'];
+    bars.forEach(function(bar, i) {
+      var pct = maxVal > 0 ? Math.round(totales[i]/maxVal*80)+4 : 4;
+      bar.style.height = pct + 'px';
+      bar.title = '$' + Math.round(totales[i]).toLocaleString('es-AR');
+      if (labels[i]) {
+        var d = new Date(dias7[i]);
+        labels[i].textContent = diaNombres[d.getDay() === 0 ? 6 : d.getDay()-1];
+      }
+    });
+  }
+
+  // ── Últimas ventas en dashboard ──
+  var ultVentasEl = document.getElementById('dash-ultimas-ventas');
+  if (ultVentasEl && ventas.length) {
+    var ultimas = ventas.slice(0, 5);
+    ultVentasEl.innerHTML = ultimas.map(function(v) {
+      var ep = v.estadoPago === 'pago_total' ? '✓' : v.estadoPago === 'seniado' ? '◑' : '○';
+      var epColor = v.estadoPago === 'pago_total' ? 'var(--green)' : v.estadoPago === 'seniado' ? 'var(--blue)' : 'var(--amber)';
+      var total = parseFloat(v.total)||0;
+      return '<tr onclick="showPage(this.dataset.pg,null)" data-pg="detalle" style="cursor:pointer">' +
+        '<td style="font-family:monospace;font-size:12px">' + (v.id||'') + '</td>' +
+        '<td>' + (v.cliente||'') + '</td>' +
+        '<td class="hide-mobile" style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
+        '<td style="text-align:right;font-weight:600">$' + total.toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;color:' + epColor + '">' + ep + '</td>' +
+      '</tr>';
     }).join('');
   }
 
-  // Vendedores
-  const vBody = document.getElementById('kpi-vendedores-body');
-  if (vBody && typeof pptoData !== 'undefined') {
-    const vendedores = {};
-    pptoData.forEach(p => {
-      if (!vendedores[p.empleado]) vendedores[p.empleado] = { total:0, conv:0, monto:0 };
-      vendedores[p.empleado].total++;
-      if (p.estado === 'convertido') { vendedores[p.empleado].conv++; vendedores[p.empleado].monto += p.total; }
-    });
-    vBody.innerHTML = Object.entries(vendedores).sort((a,b) => b[1].conv - a[1].conv).map(([nombre, d]) => {
-      const tasa = d.total > 0 ? Math.round(d.conv/d.total*100) : 0;
-      const color = tasa >= 60 ? 'var(--green)' : tasa >= 30 ? 'var(--amber)' : 'var(--red)';
-      return `<tr>
-        <td>${escapeHTML(nombre)}</td>
-        <td class="tr">${d.total}</td>
-        <td class="tr">${d.conv}</td>
-        <td class="tr" style="color:${color};font-weight:500">${tasa}%</td>
-        <td class="tr" style="color:var(--green)">$${d.monto.toLocaleString('es-AR')}</td>
-      </tr>`;
+  // ── Comisiones (usa empData si está disponible) ──
+  var empTabla = document.getElementById('dash-comisiones');
+  if (empTabla && Object.keys(empData||{}).length) {
+    empTabla.innerHTML = Object.values(empData).map(function(e) {
+      return '<tr>' +
+        '<td>' + (e.nombre||'') + '</td>' +
+        '<td><span class="badge b-blue" style="font-size:10px">' + (e.categoria||'') + '</span></td>' +
+        '<td style="text-align:right;color:var(--green)">$' + (e.comisiones||0).toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;color:var(--text3)">' + (e.hextra ? '$'+e.hextra.toLocaleString('es-AR') : '—') + '</td>' +
+      '</tr>';
     }).join('');
   }
 }
-
-// Parchar showPage para renderizar KPIs al entrar al dashboard
-// ══════════════════════════════════════════════
-// ESTADOS DE VENTA
-// ══════════════════════════════════════════════
-var VENTA_ESTADOS = [
-  { id:'pendiente_pago',  label:'Pendiente pago',  icon:'ti-clock',          cls:'warn'   },
-  { id:'seniado',         label:'Señado',           icon:'ti-coin',           cls:'warn'   },
-  { id:'pago_total',      label:'Pago total',       icon:'ti-check',          cls:'done'   },
-  { id:'en_instalacion',  label:'En instalación',   icon:'ti-tool',           cls:'active' },
-  { id:'instalado',       label:'Instalado',        icon:'ti-home-check',     cls:'done'   },
-  { id:'con_garantia',    label:'Con garantía',     icon:'ti-shield-check',   cls:'done'   },
-];
 
 function renderVentaTimeline(containerId, estadoActual) {
   const el = document.getElementById(containerId);
@@ -6817,4 +6939,4 @@ window.onerror = function(msg, src, line, col) {
 </div>
 
 </body>
-                                                                                    </html>
+</html>
