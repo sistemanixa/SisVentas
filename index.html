@@ -483,6 +483,98 @@ tr:hover td{color:var(--text)}
 
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));
+
+// ── MÉTRICAS DEL MÓDULO DETALLE VENTAS ──
+function renderMetricasVentas() {
+  var hoy = new Date();
+  var mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
+  var ventas = ventasList || [];
+  var ventasMes = ventas.filter(function(v){ return (v.fecha||'').slice(0,7) === mesActual || (v.fecha||'').includes('/'+String(hoy.getFullYear())); });
+  var totalMes  = ventas.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var cobrado   = ventas.filter(function(v){ return v.estadoPago==='pago_total'; })
+                        .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var pendiente = ventas.filter(function(v){ return v.estadoPago!=='pago_total'; })
+                        .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var ivaMes    = ventas.reduce(function(s,v){ return s+(parseFloat(v.iva)||0); }, 0);
+  var clisPend  = new Set(ventas.filter(function(v){ return v.estadoPago!=='pago_total'; }).map(function(v){ return v.cliente; })).size;
+
+  _set('vm-total-mes', '$' + Math.round(totalMes).toLocaleString('es-AR'));
+  _set('vm-cobrado',   '$' + Math.round(cobrado).toLocaleString('es-AR'));
+  _set('vm-pendiente', '$' + Math.round(pendiente).toLocaleString('es-AR'));
+  _set('vm-iva',       '$' + Math.round(ivaMes).toLocaleString('es-AR'));
+  var subPend = document.getElementById('vm-pendiente-sub');
+  if (subPend) subPend.textContent = clisPend + ' cliente' + (clisPend!==1?'s':'');
+}
+
+
+// ══════════════════════════════════════════════
+// SISTEMA DE ORDENAMIENTO DE TABLAS
+// ══════════════════════════════════════════════
+var _sortState = {};  // { tablaId: { col: 'nombre', dir: 'asc' } }
+
+function sortTabla(tablaId, col, tipo) {
+  var estado = _sortState[tablaId] || { col: null, dir: 'asc' };
+  // Si es la misma columna, invertir dirección
+  if (estado.col === col) {
+    estado.dir = estado.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    estado.col = col;
+    estado.dir = 'asc';
+  }
+  _sortState[tablaId] = estado;
+
+  // Actualizar íconos de los headers
+  document.querySelectorAll('#' + tablaId + ' th[data-sort]').forEach(function(th) {
+    var icon = th.querySelector('.sort-icon');
+    if (!icon) return;
+    if (th.dataset.sort === col) {
+      icon.className = 'sort-icon ti ' + (estado.dir === 'asc' ? 'ti-chevron-up' : 'ti-chevron-down');
+      icon.style.color = 'var(--text)';
+    } else {
+      icon.className = 'sort-icon ti ti-chevrons-up-down';
+      icon.style.color = 'var(--text3)';
+    }
+  });
+
+  // Llamar la función de render correspondiente
+  var renders = {
+    'cli-tbl':  function() { renderTablaClientes(); },
+    'prod-tbl': function() { renderTablaProductos(); },
+    'ven-tbl':  function() { renderVentasTabla(); },
+  };
+  if (renders[tablaId]) renders[tablaId]();
+}
+
+function sortData(lista, tablaId, defaultCol, defaultDir) {
+  var estado = _sortState[tablaId];
+  var col = estado ? estado.col : defaultCol;
+  var dir = estado ? estado.dir : (defaultDir || 'asc');
+  if (!col) return lista;
+
+  return lista.slice().sort(function(a, b) {
+    var va = a[col];
+    var vb = b[col];
+    // Numérico
+    if (!isNaN(parseFloat(va)) && !isNaN(parseFloat(vb))) {
+      return dir === 'asc' ? parseFloat(va) - parseFloat(vb) : parseFloat(vb) - parseFloat(va);
+    }
+    // Texto
+    va = String(va || '').toLowerCase();
+    vb = String(vb || '').toLowerCase();
+    if (va < vb) return dir === 'asc' ? -1 : 1;
+    if (va > vb) return dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+}
+
+// Helper para generar un th ordenable
+function thSort(tablaId, col, label, tipo) {
+  return '<th data-sort="' + col + '" onclick="sortTabla(\''+tablaId+'\',\''+col+'\',\''+tipo+'\')" ' +
+    'style="cursor:pointer;user-select:none;white-space:nowrap">' +
+    label + ' <i class="sort-icon ti ti-chevrons-up-down" style="font-size:11px;color:var(--text3)"></i>' +
+  '</th>';
+}
+
 </script>
 </head>
 <body>
@@ -495,7 +587,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v4.1 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v4.3 · Firebase</div>
     </div>
     <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
     <div class="login-field">
@@ -815,7 +907,7 @@ tr:hover td{color:var(--text)}
     <div class="metrics">
       <div class="metric">
         <div class="m-label">Ventas este mes</div>
-        <div class="m-value" id="vm-total-mes">$312.400</div>
+        <div class="m-value" id="vm-total-mes">$0</div>
         <div class="m-sub m-up">47 ventas</div>
       </div>
       <div class="metric">
@@ -830,7 +922,7 @@ tr:hover td{color:var(--text)}
       </div>
       <div class="metric">
         <div class="m-label">IVA del mes</div>
-        <div class="m-value" id="vm-iva">$65.604</div>
+        <div class="m-value" id="vm-iva">$0</div>
         <div class="m-sub">vence 20/06</div>
       </div>
     </div>
@@ -889,6 +981,10 @@ tr:hover td{color:var(--text)}
       </div>
     </div>
   </div>
+
+  <!-- Vista detalle de una venta -->
+  <div id="venta-detalle-view" style="display:none;padding:0 4px"></div>
+
 
   <!-- Vista detalle de una venta -->
   <div id="ventas-detalle-view" style="display:none">
@@ -1326,7 +1422,7 @@ tr:hover td{color:var(--text)}
         <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
           <div class="metric">
             <div class="m-label">Cobrado este mes</div>
-            <div class="m-value">$248.300</div>
+            <div class="m-value" id="vm-cobrado">$0</div>
             <div class="m-sub m-up">28 pagos registrados</div>
           </div>
           <div class="metric">
@@ -2194,7 +2290,13 @@ tr:hover td{color:var(--text)}
             <input class="search-input" style="width:100%" placeholder="Buscar por nombre, apellido o ID..." oninput="buscarCliente(this.value)">
           </div>
           <table id="cli-tbl">
-            <thead><tr><th>ID</th><th>Apellido</th><th>Nombre</th><th class="hide-mobile">Dirección</th><th class="hide-mobile">Teléfono</th><th style="text-align:right">Estado</th><th></th></tr></thead>
+            <thead id="cli-thead"><tr>
+              <th data-sort="id" onclick="sortTabla('cli-tbl','id','num')" style="cursor:pointer;user-select:none">ID <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th data-sort="nombre" onclick="sortTabla('cli-tbl','nombre','str')" style="cursor:pointer;user-select:none">Nombre <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th class="hide-mobile" data-sort="dir" onclick="sortTabla('cli-tbl','dir','str')" style="cursor:pointer;user-select:none">Dirección <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th class="hide-mobile" data-sort="telefono" onclick="sortTabla('cli-tbl','telefono','str')" style="cursor:pointer;user-select:none">Teléfono <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th style="text-align:right">Estado</th><th></th>
+            </tr></thead>
             <tbody id="cli-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Cargando clientes...</td></tr></tbody>
           </table>
         </div>
@@ -2230,12 +2332,13 @@ tr:hover td{color:var(--text)}
             <div style="overflow-x:auto">
               <table id="prod-tbl">
             <thead><tr>
-              <th>Código</th><th>Nombre</th>
+              <th data-sort="codigo" onclick="sortTabla('prod-tbl','codigo','str')" style="cursor:pointer;user-select:none">Código <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th data-sort="nombre" onclick="sortTabla('prod-tbl','nombre','str')" style="cursor:pointer;user-select:none">Nombre <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
               <th class="hide-mobile">Descripción</th>
-              <th style="text-align:right">Stock</th>
-              <th style="text-align:right">P. Venta</th>
-              <th style="text-align:right">P. Costo</th>
-              <th style="text-align:right">Margen</th>
+              <th data-sort="stock" onclick="sortTabla('prod-tbl','stock','num')" style="cursor:pointer;user-select:none;text-align:right">Stock <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th data-sort="venta" onclick="sortTabla('prod-tbl','venta','num')" style="cursor:pointer;user-select:none;text-align:right">P. Venta <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th data-sort="compra" onclick="sortTabla('prod-tbl','compra','num')" style="cursor:pointer;user-select:none;text-align:right">P. Costo <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th data-sort="margen" onclick="sortTabla('prod-tbl','margen','num')" style="cursor:pointer;user-select:none;text-align:right">Margen <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
               <th></th>
             </tr></thead>
             <tbody id="prod-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Cargando productos...</td></tr></tbody>
@@ -2693,6 +2796,7 @@ function renderTablaClientes(filtro) {
              (c.empresa||'').toLowerCase().includes(f);
     });
   }
+  lista = sortData(lista, 'cli-tbl', 'nombre', 'asc');
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados</td></tr>';
     return;
@@ -2741,7 +2845,7 @@ function renderTablaProductos(filtro) {
              (p.marca||'').toLowerCase().includes(f);
     });
   }
-  lista.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
+  lista = sortData(lista, 'prod-tbl', 'nombre', 'asc');
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados</td></tr>';
     return;
@@ -2783,6 +2887,7 @@ function renderVentasTabla(filtro) {
              (v.cliente||'').toLowerCase().includes(f);
     });
   }
+  lista = sortData(lista, 'ven-tbl', 'idOriginal', 'desc');
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Sin ventas</td></tr>';
     return;
@@ -2802,7 +2907,7 @@ function renderVentasTabla(filtro) {
     var ep = ESTADO_PAGO[v.estadoPago] || ['—','var(--text3)'];
     var ei = ESTADO_INST[v.estadoInst] || ['—','var(--text3)'];
     var total = parseFloat(v.total) || 0;
-    return '<tr class="cr" onclick="verDetalleVenta(' + JSON.stringify(v.id) + ')" style="cursor:pointer">' +
+    return '<tr class="cr" onclick="verDetalleVenta(this.dataset.vid)" data-vid="' + (v.id||'') + '" style="cursor:pointer">' +
       '<td style="font-family:monospace;font-size:12px">' + (v.id||'') + '</td>' +
       '<td style="font-weight:500">' + (v.cliente||'') + '</td>' +
       '<td class="hide-mobile" style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
@@ -3572,6 +3677,7 @@ function showPage(id, el) {
   // Lógica por módulo
   if (id === 'empleados')      { if(typeof volverlista==='function') volverlista(); }
   if (id === 'clientes')      { setTimeout(function(){ if(typeof renderTablaClientes==='function') renderTablaClientes(); }, 100); }
+  if (id === 'detalle')       { setTimeout(function(){ if(typeof renderVentasTabla==='function'){renderVentasTabla();renderMetricasVentas();} }, 100); }
   if (id === 'presupuesto')    { setTimeout(function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }, 50); }
   if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
   if (id === 'venta')          { setTimeout(function(){ if(typeof inicializarFilasVenta==='function') inicializarFilasVenta(); }, 50); }
@@ -5543,10 +5649,199 @@ function switchHistTab(tab, btn) {
   if (btn) btn.classList.add('active');
 }
 
-function verDetalleVenta(id) {
-  showPage('detalle', document.querySelector('[onclick*=detalle]'));
-  notify('Cargando venta ' + id);
+function verDetalleVenta(ventaId) {
+  var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
+  if (!venta) { notify('Venta no encontrada'); return; }
+
+  var lv = document.getElementById('ventas-list-view');
+  var dv = document.getElementById('venta-detalle-view');
+  if (lv) lv.style.display = 'none';
+  if (dv) {
+    dv.style.display = 'block';
+    renderDetalleVenta(venta);
+  } else {
+    // Crear vista detalle si no existe
+    crearVistaDetalleVenta(venta);
+  }
 }
+
+function renderDetalleVenta(v) {
+  var dv = document.getElementById('venta-detalle-view');
+  if (!dv) return;
+
+  var ESTADO_PAGO = {
+    'pendiente_pago': { label:'Pendiente de pago', color:'var(--amber)', icon:'ti-clock' },
+    'seniado':        { label:'Señado',             color:'var(--blue)',  icon:'ti-coin' },
+    'pago_total':     { label:'Pago total',         color:'var(--green)', icon:'ti-check' },
+  };
+  var ESTADO_INST = {
+    'pendiente_pago': { label:'Pendiente',      color:'var(--text3)', icon:'ti-clock' },
+    'en_instalacion': { label:'En instalación', color:'var(--blue)',  icon:'ti-tools' },
+    'instalado':      { label:'Instalado',      color:'var(--green)', icon:'ti-check' },
+    'con_garantia':   { label:'Con garantía',   color:'var(--purple)',icon:'ti-shield-check' },
+  };
+
+  var ep = ESTADO_PAGO[v.estadoPago] || { label: v.estadoPago||'—', color:'var(--text3)', icon:'ti-minus' };
+  var ei = ESTADO_INST[v.estadoInst] || { label: v.estadoInst||'—', color:'var(--text3)', icon:'ti-minus' };
+  var total = parseFloat(v.total) || 0;
+  var subtotal = parseFloat(v.subtotal) || total;
+  var iva = parseFloat(v.iva) || 0;
+  var descuento = parseFloat(v.descuento) || 0;
+  var items = v.items || [];
+  var pagos = v.pagos || [];
+  var pagado = pagos.reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
+  var saldo = total - pagado;
+
+  dv.innerHTML =
+    // Header
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">' +
+      '<button class="btn btn-sm" onclick="volverListaVentas()">' +
+        '<i class="ti ti-arrow-left"></i> Volver' +
+      '</button>' +
+      '<div style="flex:1">' +
+        '<div style="font-size:18px;font-weight:700">Venta ' + v.id + '</div>' +
+        '<div style="font-size:13px;color:var(--text3)">' + v.fecha + ' · ' + (v.usuario||'Sistema') + '</div>' +
+      '</div>' +
+      (v.factura
+        ? '<a href="'+v.factura.pdf_url+'" target="_blank" class="btn btn-sm" style="color:var(--green);border-color:var(--green)"><i class="ti ti-file-check"></i> CAE: '+v.factura.cae+'</a>'
+        : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
+      ) +
+    '</div>' +
+
+    // Cliente y estados
+    '<div class="card" style="margin-bottom:12px">' +
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">' +
+        '<div style="flex:1;min-width:200px">' +
+          '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Cliente</div>' +
+          '<div style="font-size:16px;font-weight:600">' + (v.cliente||'—') + '</div>' +
+          (v.descripcion ? '<div style="font-size:12px;color:var(--text3);margin-top:4px">' + v.descripcion + '</div>' : '') +
+        '</div>' +
+        '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
+          '<div style="text-align:center;padding:8px 16px;background:var(--bg3);border-radius:8px">' +
+            '<i class="ti ' + ep.icon + '" style="color:' + ep.color + ';font-size:20px;display:block;margin-bottom:4px"></i>' +
+            '<div style="font-size:11px;color:var(--text3)">Pago</div>' +
+            '<div style="font-size:13px;font-weight:600;color:' + ep.color + '">' + ep.label + '</div>' +
+          '</div>' +
+          '<div style="text-align:center;padding:8px 16px;background:var(--bg3);border-radius:8px">' +
+            '<i class="ti ' + ei.icon + '" style="color:' + ei.color + ';font-size:20px;display:block;margin-bottom:4px"></i>' +
+            '<div style="font-size:11px;color:var(--text3)">Instalación</div>' +
+            '<div style="font-size:13px;font-weight:600;color:' + ei.color + '">' + ei.label + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    // Productos
+    '<div class="card" style="margin-bottom:12px">' +
+      '<div style="font-weight:600;margin-bottom:12px">Productos / Servicios</div>' +
+      (items.length
+        ? '<table style="width:100%;border-collapse:collapse">' +
+            '<thead><tr>' +
+              '<th style="text-align:left;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Descripción</th>' +
+              '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 4px;border-bottom:1px solid var(--border2)">Cant.</th>' +
+              '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">P. Unit.</th>' +
+              '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Subtotal</th>' +
+            '</tr></thead><tbody>' +
+            items.map(function(it) {
+              var sub = it.sub || (it.qty * it.punit);
+              return '<tr>' +
+                '<td style="padding:8px 0;border-bottom:.5px solid var(--border)">' +
+                  (it.cod ? '<span style="font-family:monospace;font-size:11px;color:var(--text3);margin-right:6px">' + it.cod + '</span>' : '') +
+                  '<span style="font-size:13px">' + (it.desc||'') + '</span>' +
+                '</td>' +
+                '<td style="text-align:right;padding:8px 4px;border-bottom:.5px solid var(--border);font-size:13px">' + (it.qty||1) + '</td>' +
+                '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px">$' + (it.punit||0).toLocaleString('es-AR') + '</td>' +
+                '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">$' + (sub||0).toLocaleString('es-AR') + '</td>' +
+              '</tr>';
+            }).join('') +
+          '</tbody></table>' +
+          // Totales
+          '<div style="margin-top:12px;display:flex;justify-content:flex-end">' +
+            '<div style="min-width:220px">' +
+              (descuento > 0
+                ? '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--text2)"><span>Subtotal</span><span>$' + subtotal.toLocaleString('es-AR') + '</span></div>' +
+                  '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--red)"><span>Descuento</span><span>-$' + descuento.toLocaleString('es-AR') + '</span></div>'
+                : '') +
+              (iva > 0
+                ? '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--amber)"><span>IVA 21%</span><span>$' + iva.toLocaleString('es-AR') + '</span></div>'
+                : '') +
+              '<div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;padding:8px 0;border-top:1.5px solid var(--border2);margin-top:4px"><span>Total</span><span>$' + total.toLocaleString('es-AR') + '</span></div>' +
+            '</div>' +
+          '</div>'
+        : '<div style="text-align:center;padding:20px;color:var(--text3)">Sin ítems registrados</div>'
+      ) +
+    '</div>' +
+
+    // Pagos
+    '<div class="card" style="margin-bottom:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+        '<span style="font-weight:600">Historial de pagos</span>' +
+        (saldo > 0
+          ? '<button class="btn btn-sm btn-primary" onclick="registrarPagoVenta(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-plus"></i> Registrar pago</button>'
+          : '<span style="font-size:12px;color:var(--green)"><i class="ti ti-check"></i> Saldo cancelado</span>'
+        ) +
+      '</div>' +
+      (pagos.length
+        ? pagos.map(function(p) {
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid var(--border)">' +
+              '<div>' +
+                '<div style="font-size:13px;font-weight:500">$' + (parseFloat(p.monto)||0).toLocaleString('es-AR') + '</div>' +
+                '<div style="font-size:11px;color:var(--text3)">' + (p.fecha||'') + ' · ' + (p.medio||'Efectivo') + (p.nota?' · '+p.nota:'') + '</div>' +
+              '</div>' +
+              '<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:var(--green-bg);color:var(--green)">✓</span>' +
+            '</div>';
+          }).join('') +
+          (saldo > 0
+            ? '<div style="margin-top:10px;padding:10px;background:var(--amber-bg);border-radius:8px;font-size:13px;color:var(--amber);font-weight:500">Saldo pendiente: $' + saldo.toLocaleString('es-AR') + '</div>'
+            : '')
+        : '<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">Sin pagos registrados</div>'
+      ) +
+    '</div>' +
+
+    // Auditoría
+    (v.audit && v.audit.length
+      ? '<div class="card">' +
+          '<div style="font-weight:600;margin-bottom:10px;font-size:13px;color:var(--text2)">Auditoría</div>' +
+          v.audit.map(function(a) {
+            return '<div style="font-size:12px;color:var(--text3);padding:4px 0;border-bottom:.5px solid var(--border)">' +
+              (a.fecha||'') + ' · ' + (a.usuario||'') + ' — ' + (a.accion||'') +
+            '</div>';
+          }).join('') +
+        '</div>'
+      : '');
+}
+
+function registrarPagoVenta(ventaId) {
+  var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
+  if (!venta) return;
+  var monto = prompt('Monto a registrar ($):');
+  if (!monto || isNaN(parseFloat(monto))) return;
+  var medio = prompt('Medio de pago (Efectivo/Transferencia/Tarjeta):') || 'Efectivo';
+  var pago = {
+    fecha: new Date().toLocaleDateString('es-AR'),
+    monto: parseFloat(monto),
+    medio: medio,
+    nota: ''
+  };
+  if (!venta.pagos) venta.pagos = [];
+  venta.pagos.push(pago);
+  var pagado = venta.pagos.reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
+  var total  = parseFloat(venta.total) || 0;
+  if (pagado >= total) {
+    venta.estadoPago = 'pago_total';
+  } else if (pagado > 0) {
+    venta.estadoPago = 'seniado';
+  }
+  if (!venta.audit) venta.audit = [];
+  venta.audit.push({ fecha: new Date().toLocaleDateString('es-AR'), usuario: 'Admin', accion: 'Pago registrado: $' + parseFloat(monto).toLocaleString('es-AR') });
+  if (typeof fbGuardarVenta === 'function') {
+    fbGuardarVenta(venta).then(function() {
+      renderDetalleVenta(venta);
+      notify('Pago registrado ✓');
+    });
+  }
+}
+
 
 // ══════════════════════════════════════════════
 // STOCK DISPONIBLE VS RESERVADO
