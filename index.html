@@ -583,31 +583,31 @@ tr:hover td{color:var(--text)}
         <i class="ti ti-layout-dashboard"></i>Dashboard
       </div>
       <div class="s-section">Ventas</div>
-      <div class="nav-item" onclick="showPage('presupuesto',this)">
+      <div class="s-section no-tecnico">Ventas</div>
+      <div class="nav-item no-tecnico" onclick="showPage('presupuesto',this)">
         <i class="ti ti-file-description"></i>Presupuestos
       </div>
-      <div class="nav-item" onclick="showPage('venta',this)">
+      <div class="nav-item no-tecnico" onclick="showPage('venta',this)">
         <i class="ti ti-plus"></i>Nueva venta
       </div>
-      <div class="nav-item" onclick="showPage('detalle',this)">
+      <div class="nav-item no-tecnico" onclick="showPage('detalle',this)">
         <i class="ti ti-list-details"></i>Detalle ventas
       </div>
-      <div class="nav-item" onclick="showPage('cobranzas',this)">
+      <div class="nav-item no-tecnico" onclick="showPage('cobranzas',this)">
         <i class="ti ti-cash"></i>Cobranzas
       </div>
-      <div class="nav-item" onclick="showPage('cuentacorriente',this)">
+      <div class="nav-item no-tecnico" onclick="showPage('cuentacorriente',this)">
         <i class="ti ti-wallet"></i>Cta. corriente
       </div>
       <div class="s-section">Maestros</div>
-      <div class="nav-item" onclick="showPage('clientes',this)">
+      <div class="nav-item no-tecnico" onclick="showPage('clientes',this)">
         <i class="ti ti-users"></i>Clientes
       </div>
-      <div class="nav-item" onclick="showPage('productos',this)">
+      <div class="nav-item no-tecnico" onclick="showPage('productos',this)">
         <i class="ti ti-package"></i>Productos
       </div>
       <div class="nav-item admin-only" onclick="showPage('empleados',this)">
         <i class="ti ti-id-badge"></i>Empleados
-        <span class="badge-role" style="display:none" id="emp-lock"><i class="ti ti-lock" style="font-size:10px"></i></span>
       </div>
       <div class="nav-item" onclick="showPage('ctaemp',this)">
         <i class="ti ti-wallet"></i>Mi cuenta
@@ -616,20 +616,20 @@ tr:hover td{color:var(--text)}
       <div class="nav-item admin-only" onclick="showPage('usuarios',this)">
         <i class="ti ti-users-group"></i>Usuarios
       </div>
-      <div class="nav-item admin-only" onclick="showPage('reportes',this)">
+      <div class="nav-item no-tecnico admin-only" onclick="showPage('reportes',this)">
         <i class="ti ti-chart-bar"></i>Reportes
       </div>
-      <div class="nav-item admin-only" onclick="showPage('estadisticas',this)">
+      <div class="nav-item no-tecnico admin-only" onclick="showPage('estadisticas',this)">
         <i class="ti ti-chart-line"></i>Estadísticas
       </div>
-      <div class="s-section admin-only">Operaciones</div>
+      <div class="s-section">Operaciones</div>
       <div class="nav-item" onclick="showPage('agenda',this)">
         <i class="ti ti-calendar"></i>Agenda
       </div>
       <div class="nav-item" onclick="showPage('servicios',this)">
         <i class="ti ti-tool"></i>Servicios
       </div>
-      <div class="nav-item" onclick="showPage('remitos',this)">
+      <div class="nav-item no-tecnico" onclick="showPage('remitos',this)">
         <i class="ti ti-file-export"></i>Remitos
       </div>
       <div class="nav-item" onclick="showPage('garantias',this)">
@@ -644,20 +644,23 @@ tr:hover td{color:var(--text)}
       <div class="nav-item" onclick="showPage('informes',this)">
         <i class="ti ti-file-report"></i>Informes técnicos
       </div>
-      <div class="s-section admin-only">Finanzas</div>
-      <div class="nav-item admin-only" onclick="showPage('caja',this)"><i class="ti ti-cash"></i> Caja diaria</div>
-      <div class="nav-item admin-only" onclick="showPage('gastos',this)"><i class="ti ti-receipt"></i>Gastos</div>
-      <div class="nav-item admin-only" onclick="showPage('rentabilidad',this)"><i class="ti ti-trending-up"></i>Rentabilidad</div>
-      <div class="s-section admin-only">Compras</div>
-      <div class="nav-item admin-only" onclick="showPage('proveedores',this)">
+      <div class="nav-item" onclick="showPage('ordentrabajo',this)">
+        <i class="ti ti-clipboard-list"></i>Órdenes de trabajo
+      </div>
+      <div class="s-section no-tecnico">Finanzas</div>
+      <div class="nav-item no-tecnico admin-only" onclick="showPage('caja',this)"><i class="ti ti-cash"></i> Caja diaria</div>
+      <div class="nav-item no-tecnico" onclick="showPage('gastos',this)"><i class="ti ti-receipt"></i>Gastos</div>
+      <div class="nav-item no-tecnico admin-only" onclick="showPage('rentabilidad',this)"><i class="ti ti-trending-up"></i>Rentabilidad</div>
+      <div class="s-section no-tecnico admin-only">Compras</div>
+      <div class="nav-item no-tecnico admin-only" onclick="showPage('proveedores',this)">
         <i class="ti ti-building-store"></i>Proveedores
       </div>
-      <div class="nav-item admin-only" onclick="showPage('ordenes',this)">
+      <div class="nav-item no-tecnico admin-only" onclick="showPage('ordenes',this)">
         <i class="ti ti-shopping-cart"></i>Órdenes de compra
       </div>
       <div class="s-section admin-only">Sistema</div>
       <div class="nav-item admin-only" onclick="showPage('notificaciones',this)">
-        <i class="ti ti-bell"></i>Notificaciones <span style="margin-left:auto;background:var(--red);color:#fff;font-size:10px;padding:1px 6px;border-radius:20px">5</span>
+        <i class="ti ti-bell"></i>Notificaciones
       </div>
       <div class="nav-item admin-only" onclick="showPage('configuracion',this)">
         <i class="ti ti-settings"></i>Configuración
@@ -3346,10 +3349,11 @@ function renderTablaClientes(filtro) {
       '<td style="font-weight:500">' + nombre + empresa + '</td>' +
       '<td class="hide-mobile" style="color:var(--text2)">' + dir + '</td>' +
       '<td class="hide-mobile" style="color:var(--text2)">' + tel + '</td>' +
-      '<td style="text-align:right"><span class="badge ' + (activo ? 'b-green' : 'b-amber') + '">' + (activo ? 'Activo' : 'Inactivo') + '</span></td>' +
+      '<td style="text-align:right"><span class="badge ' + (activo ? 'b-green' : 'b-amber') + '" style="cursor:pointer" title="Clic para cambiar estado" onclick="event.stopPropagation();toggleActivoCliente(\'' + cid + '\')">' + (activo ? 'Activo' : 'Inactivo') + '</span></td>' +
       '<td style="text-align:right;white-space:nowrap">' +
         '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();verClienteById(this)" title="Historial"><i class="ti ti-clock-history" style="font-size:15px"></i></button>' +
         '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();editarClienteById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
+        '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();eliminarCliente(this)" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:15px"></i></button>' +
       '</td>' +
     '</tr>';
   }).join('');
@@ -3403,7 +3407,8 @@ function renderTablaProductos(filtro) {
       '<td style="text-align:right;font-weight:600;color:' + stkColor + '">' + stk + '</td>' +
       '<td style="text-align:right">$' + (parseFloat(pv)||0).toLocaleString('es-AR') + '</td>' +
       '<td style="text-align:right;color:var(--green)">' + margen + '</td>' +
-      '<td><button class="icon-btn" data-pid="' + pid + '" onclick="event.stopPropagation();editarProductoById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button></td>' +
+      '<td><button class="icon-btn" data-pid="' + pid + '" onclick="event.stopPropagation();editarProductoById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
+           '<button class="icon-btn" data-pid="' + pid + '" onclick="event.stopPropagation();eliminarProducto(this)" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:15px"></i></button></td>' +
     '</tr>';
   }).join('');
 }
@@ -3584,8 +3589,8 @@ function renderTablaEmpleados() {
   tbody.innerHTML = lista.map(function(e) {
     var catColor = e.categoria == 39 ? 'b-blue' : 'b-purple';
     var estadoBadge = e.activo !== false
-      ? '<span class="badge b-green">Activo</span>'
-      : '<span class="badge b-red">Inactivo</span>';
+      ? '<span class="badge b-green" style="cursor:pointer" title="Clic para dar de baja" onclick="event.stopPropagation();toggleActivoEmpleado(\'' + (e.fbKey||e.id) + '\',' + (e.activo !== false) + ')">Activo</span>'
+      : '<span class="badge b-red" style="cursor:pointer" title="Clic para reactivar" onclick="event.stopPropagation();toggleActivoEmpleado(\'' + (e.fbKey||e.id) + '\',' + (e.activo !== false) + ')">Inactivo</span>';
     return '<tr class="er" onclick="verEmpleado(' + (e.id||e.fbKey) + ')" style="cursor:pointer">' +
       '<td>' + (e.id || '—') + '</td>' +
       '<td>' + escapeHTML(e.nombre || '—') + '</td>' +
@@ -3595,7 +3600,11 @@ function renderTablaEmpleados() {
       '<td style="text-align:right;color:var(--amber)">' + (e.hextra ? '$'+(parseFloat(e.hextra)||0).toLocaleString('es-AR') : '—') + '</td>' +
       '<td style="text-align:right;font-weight:500">$' + ((parseFloat(e.sueldoBase)||0)+(parseFloat(e.comisiones)||0)+(parseFloat(e.hextra)||0)).toLocaleString('es-AR') + '</td>' +
       '<td style="text-align:right">' + estadoBadge + '</td>' +
-      '<td><button class="btn btn-sm btn-icon" onclick="event.stopPropagation();verEmpleado(' + (e.id||e.fbKey) + ')"><i class="ti ti-eye" style="font-size:14px"></i></button></td>' +
+      '<td style="white-space:nowrap">' +
+        '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();editarEmpleado(\'' + (e.fbKey||e.id) + '\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();verEmpleado(' + (e.id||e.fbKey) + ')" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();eliminarEmpleado(\'' + (e.fbKey||e.id) + '\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
+      '</td>' +
     '</tr>';
   }).join('');
 }
@@ -3654,12 +3663,14 @@ function renderTablaUsuarios() {
     return;
   }
   tbody.innerHTML = lista.map(function(u, i) {
-    var rolBadge = u.rol === 'admin'
+    var rolBadge = u.rol === 'admin' || u.rol === 'Administrador'
       ? '<span class="badge b-blue">Admin</span>'
-      : '<span class="badge b-purple">Vendedor</span>';
+      : u.rol === 'tecnico' || u.rol === 'Técnico'
+      ? '<span class="badge b-amber">Técnico</span>'
+      : '<span class="badge b-purple">Administrativo</span>';
     var estadoBadge = u.activo !== false
-      ? '<span class="badge b-green">Activo</span>'
-      : '<span class="badge b-amber">Inactivo</span>';
+      ? '<span class="badge b-green" style="cursor:pointer" title="Clic para desactivar" onclick="toggleActivoUsuario(\'' + u.fbKey + '\',' + (u.activo !== false) + ')">Activo</span>'
+      : '<span class="badge b-amber" style="cursor:pointer" title="Clic para activar" onclick="toggleActivoUsuario(\'' + u.fbKey + '\',' + (u.activo !== false) + ')">Inactivo</span>';
     var ultimoAcceso = u.ultimoAcceso || '—';
     return '<tr>' +
       '<td>' + (i + 1) + '</td>' +
@@ -3668,7 +3679,10 @@ function renderTablaUsuarios() {
       '<td>' + rolBadge + '</td>' +
       '<td style="text-align:right;color:var(--text3)">' + escapeHTML(ultimoAcceso) + '</td>' +
       '<td style="text-align:right">' + estadoBadge + '</td>' +
-      '<td style="text-align:right"><button class="btn btn-sm btn-icon" onclick="abrirModalNuevo(\'usuario\')" title="Editar usuario"><i class="ti ti-edit" style="font-size:14px"></i></button></td>' +
+      '<td style="text-align:right;white-space:nowrap">' +
+        '<button class="btn btn-sm btn-icon" onclick="editarUsuario(\'' + u.fbKey + '\')" title="Editar usuario"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'usuarios\',\'' + u.fbKey + '\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
+      '</td>' +
     '</tr>';
   }).join('');
 }
@@ -4287,6 +4301,15 @@ function showPage(id, el) {
   if (APP_CONFIG.ADMIN_PAGES.has(id) && currentRole !== 'admin') {
     notify('Acceso restringido — solo administradores'); return;
   }
+  if (APP_CONFIG.TECNICO_BLOCKED && APP_CONFIG.TECNICO_BLOCKED.has(id) && currentRole === 'tecnico') {
+    notify('Acceso restringido para técnicos'); return;
+  }
+  if (APP_CONFIG.ADMINISTRATIVO_BLOCKED && APP_CONFIG.ADMINISTRATIVO_BLOCKED.has(id) && currentRole === 'administrativo') {
+    notify('Acceso restringido para administrativos'); return;
+  }
+  if (APP_CONFIG.VENDEDOR_BLOCKED && APP_CONFIG.VENDEDOR_BLOCKED.has(id) && currentRole === 'vendedor') {
+    notify('Acceso restringido para vendedores'); return;
+  }
   // Ocultar todas las páginas
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
@@ -4344,24 +4367,35 @@ function notify(msg) {
 
 // ── APPLY ROLE ──
 function applyRole() {
-  var isAdmin = currentRole === 'admin';
-  // Mostrar/ocultar elementos admin-only
-  document.querySelectorAll('.admin-only').forEach(function(el) {
-    el.style.display = isAdmin ? '' : 'none';
-  });
-  // Actualizar badge de rol en el topbar
+  var isAdmin         = currentRole === 'admin';
+  var isTecnico       = currentRole === 'tecnico';
+  var isAdministrativo= currentRole === 'administrativo';
+  var isVendedor      = currentRole === 'vendedor';
+
+  var rolLabels = { admin:'Admin', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var rolClases = { admin:'admin', administrativo:'vendedor', vendedor:'vendedor', tecnico:'vendedor' };
+
   var badge = document.getElementById('role-badge-el');
   if (badge) {
-    badge.textContent = isAdmin ? 'Admin' : 'Vendedor';
-    badge.className = 'role-badge ' + (isAdmin ? 'admin' : 'vendedor');
+    badge.textContent = rolLabels[currentRole] || currentRole;
+    badge.className   = 'role-badge ' + (rolClases[currentRole] || 'vendedor');
   }
-  // Actualizar avatar del sidebar
-  var av = document.getElementById('s-avatar-el');
-  if (av) av.textContent = isAdmin ? 'GS' : 'V';
-  var sname = document.getElementById('s-name-el');
-  if (sname) sname.textContent = currentUser || (isAdmin ? 'Admin' : 'Vendedor');
-  var srole = document.getElementById('s-role-el');
-  if (srole) srole.textContent = isAdmin ? 'Administrador' : 'Vendedor';
+
+  document.querySelectorAll('.admin-only').forEach(function(el){
+    el.style.display = isAdmin ? '' : 'none';
+  });
+  document.querySelectorAll('.no-tecnico').forEach(function(el){
+    el.style.display = isTecnico ? 'none' : '';
+  });
+  document.querySelectorAll('.no-administrativo').forEach(function(el){
+    el.style.display = isAdministrativo ? 'none' : '';
+  });
+  document.querySelectorAll('.no-vendedor').forEach(function(el){
+    el.style.display = isVendedor ? 'none' : '';
+  });
+  document.querySelectorAll('.tecnico-only').forEach(function(el){
+    el.style.display = isTecnico ? '' : 'none';
+  });
 }
 
 
@@ -4496,10 +4530,15 @@ const APP_CONFIG = Object.freeze({
   DEMO_MODE: true,
   VERSION: 'demo-seguridad-frontend',
   DEMO_USERS: Object.freeze({
-    admin: Object.freeze({ password: '1234', role: 'admin', name: 'Admin' }),
-    vendedor: Object.freeze({ password: '1234', role: 'vendedor', name: 'Vendedor' })
+    admin:          Object.freeze({ password: '1234', role: 'admin',          name: 'Admin' }),
+    administrativo: Object.freeze({ password: '1234', role: 'administrativo', name: 'Administrativo' }),
+    vendedor:       Object.freeze({ password: '1234', role: 'vendedor',        name: 'Vendedor' }),
+    tecnico:        Object.freeze({ password: '1234', role: 'tecnico',         name: 'Técnico' })
   }),
-  ADMIN_PAGES: new Set(['usuarios','reportes','empleados','configuracion','proveedores','ordenes','estadisticas','gastos','rentabilidad','caja','notificaciones'])
+  ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
+  TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
+  ADMINISTRATIVO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados']),
+  VENDEDOR_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados','proveedores','ordenes','gastos','reportes','estadisticas'])
 });
 let isAuthenticated = false;
 function escapeHTML(value) {
@@ -4557,8 +4596,8 @@ var NOTIF_CONFIG = {
 var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
   producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'P. compra ($)',id:'np-pc',t:'number',ph:'0'},{l:'P. venta ($)',id:'np-pv',t:'number',ph:'0'}]},
-  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'select',opts:['Cat. 39 — Vendedor senior','Cat. 15 — Vendedor junior','Cat. 08 — Técnico instalador']},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'}]},
-  usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Usuario',id:'nu-user',t:'text',ph:'nombre.apellido'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Vendedor']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
+  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'select',opts:['Cat. 39 — Vendedor senior','Cat. 15 — Vendedor junior','Cat. 08 — Técnico instalador']},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
+  usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Usuario / Email',id:'nu-user',t:'text',ph:'nombre.apellido'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
   proveedor: { title:'Nuevo proveedor', fields:[
     {l:'Nombre / Razón social',id:'npv-nm',t:'text',ph:'Razón social',full:true},
     {l:'Rubro',id:'npv-rub',t:'text',ph:'Ej: Alarmas, cámaras, domótica'},
@@ -4650,8 +4689,20 @@ function doLogin() {
         // Determinar rol y nombre desde usuariosData o email
         var emailLower = cred.user.email.toLowerCase();
         var usuarioEncontrado = (window.usuariosData||[]).find(function(u){ return (u.mail||u.login+'@sistemanixa.com').toLowerCase() === emailLower; });
-        currentRole = usuarioEncontrado ? (usuarioEncontrado.rol === 'admin' ? 'admin' : 'vendedor')
-                    : (emailLower.includes('admin') || emailLower.startsWith('nixa') ? 'admin' : 'vendedor');
+        var rolMapeado = 'administrativo';
+        if (usuarioEncontrado) {
+          var r = (usuarioEncontrado.rol||'').toLowerCase();
+          rolMapeado = (r === 'admin' || r === 'administrador') ? 'admin'
+                     : (r === 'tecnico' || r === 'técnico')     ? 'tecnico'
+                     : (r === 'vendedor')                        ? 'vendedor'
+                     : 'administrativo';
+        } else {
+          rolMapeado = (emailLower.includes('admin') || emailLower.startsWith('nixa')) ? 'admin'
+                     : emailLower.includes('tecnico') ? 'tecnico'
+                     : emailLower.includes('vendedor') ? 'vendedor'
+                     : 'administrativo';
+        }
+        currentRole = rolMapeado;
         var nombre = usuarioEncontrado ? usuarioEncontrado.nombre : cred.user.email.split('@')[0];
         _completarLogin(nombre);
       })
@@ -5474,16 +5525,24 @@ function guardarNuevoGenerico() {
     }
 
   } else if (tipo === 'empleado') {
-    var nuevo = {
-      nombre:   (obj.nm || '') + ' ' + (obj.ap || ''),
-      cargo:    obj.cargo || '',
-      telefono: obj.tel || '',
-      mail:     obj.em || '',
-      categoria: obj.cargo ? (obj.cargo.includes('39') ? 39 : 15) : 39,
-      activo:   true
+    var fbKeyEmp = window._modalFbKey;
+    var datosEmp = {
+      nombre:    ((obj.nm || '') + ' ' + (obj.ap || '')).trim(),
+      cargo:     obj.cargo || '',
+      telefono:  obj.tel || '',
+      mail:      obj.em || '',
+      dni:       obj.dni || '',
+      categoria: obj.cargo ? (obj.cargo.includes('39') ? 39 : obj.cargo.includes('15') ? 15 : 8) : 39,
+      activo:    (obj.activo || 'Activo') !== 'Inactivo'
     };
-    empData.push(nuevo);
-    notify('Empleado guardado');
+    if (!datosEmp.nombre.trim()) { notify('Ingresá nombre y apellido'); return; }
+    if (window.fbDB) {
+      var promesaEmp = fbKeyEmp
+        ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKeyEmp), datosEmp)
+        : (datosEmp.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/empleados'), datosEmp));
+      promesaEmp.then(function(){ notify(fbKeyEmp ? 'Empleado actualizado' : 'Empleado guardado'); })
+               .catch(function(e){ notify('Error: '+e.message); });
+    } else { notify('Sin conexión'); }
 
   } else if (tipo === 'gasto') {
     var fbKey = window._modalFbKey;
@@ -5524,6 +5583,25 @@ function guardarNuevoGenerico() {
         : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/proveedores'), datos));
       promesa.then(function() { notify(fbKey ? 'Proveedor actualizado' : 'Proveedor guardado'); })
              .catch(function(e) { notify('Error: ' + e.message); });
+    } else { notify('Sin conexión'); }
+
+  } else if (tipo === 'usuario') {
+    var fbKeyUsu = window._modalFbKey;
+    var rolMap = {'Administrador':'admin','Administrativo':'administrativo','Vendedor':'vendedor','Técnico':'tecnico'};
+    var datosUsu = {
+      nombre: obj.nm || '',
+      login:  obj.user || '',
+      mail:   obj.user && obj.user.includes('@') ? obj.user : (obj.user||'')+'@sistemanixa.com',
+      rol:    rolMap[obj.rol] || 'administrativo',
+      activo: (obj.activo||'Activo') !== 'Inactivo'
+    };
+    if (!datosUsu.nombre) { notify('Ingresá el nombre'); return; }
+    if (window.fbDB) {
+      var promesaUsu = fbKeyUsu
+        ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/usuarios/' + fbKeyUsu), datosUsu)
+        : (datosUsu.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/usuarios'), datosUsu));
+      promesaUsu.then(function(){ notify(fbKeyUsu ? 'Usuario actualizado' : 'Usuario creado'); })
+               .catch(function(e){ notify('Error: '+e.message); });
     } else { notify('Sin conexión'); }
 
   } else if (tipo === 'ordencompra') {
@@ -5755,7 +5833,8 @@ function renderOrdenesFiltradas() {
       '<td class="tr;font-weight:500">$' + (parseFloat(o.monto)||0).toLocaleString('es-AR') + '</td>' +
       '<td style="color:var(--text3);font-size:12px">' + fecha + '</td>' +
       '<td class="tr">' + estBadge + '</td>' +
-      '<td><button class="btn btn-sm btn-icon" onclick="editarOrden(\''+o.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button></td>' +
+      '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="editarOrden(\''+o.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+           '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'ordenes\',\''+o.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>' +
     '</tr>';
   }).join('');
 }
@@ -5982,10 +6061,11 @@ function renderEquiposCards() {
           '<span style="width:8px;height:8px;border-radius:50%;background:var(--'+est.cls+');display:inline-block"></span>' +
           '<span style="color:var(--'+est.cls+')">'+est.txt+'</span>' +
         '</div>' +
-        '<div style="display:flex;gap:10px">' +
+        '<div style="display:flex;gap:10px;align-items:center">' +
           (cantInterv ? '<span style="font-size:11px;color:var(--text3)"><i class="ti ti-history" style="font-size:11px"></i> '+cantInterv+'</span>' : '') +
           (cantFotos ? '<span style="font-size:11px;color:var(--text3)"><i class="ti ti-photo" style="font-size:11px"></i> '+cantFotos+'</span>' : '') +
           '<span style="font-size:11px;color:var(--text3)">'+garTxt+'</span>' +
+          '<button onclick="event.stopPropagation();eliminarRegistro(\'equipos\',\''+e.fbKey+'\')" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 4px;margin-left:4px" title="Eliminar" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:13px"></i></button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -6468,7 +6548,10 @@ function renderMovsEmp() {
         '<td class="tr" style="font-weight:500;color:'+montoColor+'">'+(esEgreso?'-':'')+'$'+(parseFloat(m.monto)||0).toLocaleString('es-AR')+'</td>' +
         '<td class="tr">'+ estBadge +'</td>' +
         '<td class="tr">'+ fotoBtn +'</td>' +
-        '<td><button class="btn btn-sm btn-icon" onclick="aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar" style="'+(m.estado==='pendiente'?'':'display:none')+'"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>' +
+        '<td style="white-space:nowrap">' +
+          '<button class="btn btn-sm btn-icon" onclick="aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar" style="'+(m.estado==='pendiente'?'':'display:none')+'"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button>' +
+          '<button class="btn btn-sm btn-icon" onclick="eliminarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
+        '</td>' +
       '</tr>';
     }).join('');
   }
@@ -6569,6 +6652,128 @@ function aprobarMovEmp(movKey, empKey) {
     .then(function(){ notify('Movimiento aprobado'); });
 }
 
+function eliminarMovEmp(movKey, empKey) {
+  if (!confirm('¿Eliminar este movimiento?')) return;
+  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey))
+    .then(function(){ notify('Movimiento eliminado'); });
+}
+
+// ── TOGGLE ACTIVO/INACTIVO ──
+function toggleActivoRegistro(coleccion, fbKey, estadoActual) {
+  if (!window.fbDB) return;
+  var nuevoEstado = !estadoActual;
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/' + coleccion + '/' + fbKey), { activo: nuevoEstado })
+    .then(function(){ notify(nuevoEstado ? 'Marcado como activo' : 'Marcado como inactivo'); });
+}
+
+function toggleActivoCliente(cid) {
+  var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid); });
+  if (!cli || !cli.fbKey || !window.fbDB) return;
+  var nuevoEstado = cli.activo === false;
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey), { activo: nuevoEstado })
+    .then(function(){ notify(nuevoEstado ? 'Cliente activado' : 'Cliente dado de baja'); });
+}
+
+function toggleActivoEmpleado(fbKey, estadoActual) {
+  if (!window.fbDB) return;
+  var nuevoEstado = !estadoActual;
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKey), { activo: nuevoEstado })
+    .then(function(){ notify(nuevoEstado ? 'Empleado reactivado' : 'Empleado dado de baja'); });
+}
+
+function editarEmpleado(fbKey) {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKey), function(snap) {
+    var e = snap.val();
+    if (!e) { notify('Empleado no encontrado'); return; }
+    var partes = (e.nombre||'').split(' ');
+    var datos = {
+      ap:     partes.slice(1).join(' ') || '',
+      nm:     partes[0] || '',
+      dni:    e.dni || '',
+      cargo:  e.cargo || '',
+      tel:    e.telefono || '',
+      em:     e.mail || '',
+      activo: e.activo !== false ? 'Activo' : 'Inactivo'
+    };
+    abrirModalNuevo('empleado', datos, fbKey);
+  }, { onlyOnce: true });
+}
+
+function toggleActivoUsuario(fbKey, estadoActual) {
+  if (!window.fbDB) return;
+  var nuevoEstado = !estadoActual;
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/usuarios/' + fbKey), { activo: nuevoEstado })
+    .then(function(){ notify(nuevoEstado ? 'Usuario activado' : 'Usuario desactivado'); });
+}
+
+function editarUsuario(fbKey) {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/usuarios/' + fbKey), function(snap) {
+    var u = snap.val();
+    if (!u) { notify('Usuario no encontrado'); return; }
+    var rolInverso = {admin:'Administrador',administrativo:'Administrativo',vendedor:'Vendedor',tecnico:'Técnico'};
+    var datos = {
+      nm:     u.nombre || '',
+      user:   u.login || u.mail || '',
+      rol:    rolInverso[u.rol] || 'Administrativo',
+      activo: u.activo !== false ? 'Activo' : 'Inactivo',
+      pass:   ''
+    };
+    abrirModalNuevo('usuario', datos, fbKey);
+  }, { onlyOnce: true });
+}
+
+// ── FUNCIÓN GENÉRICA DE ELIMINACIÓN ──
+function eliminarRegistro(coleccion, fbKey) {
+  var nombres = {
+    gastos:'este gasto', proveedores:'este proveedor', ordenes:'esta orden',
+    informes:'este informe', equipos:'este equipo', usuarios:'este usuario'
+  };
+  var nombre = nombres[coleccion] || 'este registro';
+  if (!confirm('¿Eliminar ' + nombre + '? Esta acción no se puede deshacer.')) return;
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/' + coleccion + '/' + fbKey))
+    .then(function(){ notify('Eliminado correctamente'); })
+    .catch(function(e){ notify('Error al eliminar: ' + e.message); });
+}
+
+function eliminarCliente(el) {
+  var cid = el.dataset.cid;
+  var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid); });
+  if (!cli) return;
+  if (!confirm('¿Eliminar cliente "' + (cli.nombre||'') + '"? Esta acción no se puede deshacer.')) return;
+  if (cli.fbKey && window.fbDB) {
+    window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey))
+      .then(function(){ notify('Cliente eliminado'); })
+      .catch(function(e){ notify('Error: ' + e.message); });
+  } else {
+    clientesData = (clientesData||[]).filter(function(c){ return String(c.id) !== String(cid); });
+    renderTablaClientes();
+    notify('Cliente eliminado');
+  }
+}
+
+function eliminarProducto(el) {
+  var pid = el.dataset.pid;
+  var prod = prodData ? Object.values(prodData).find(function(p){ return String(p.id||p.idproducto) === String(pid); }) : null;
+  if (!prod) return;
+  if (!confirm('¿Eliminar producto "' + (prod.nombre||prod.descripcion||'') + '"?')) return;
+  if (prod.fbKey && window.fbDB) {
+    window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + prod.fbKey))
+      .then(function(){ notify('Producto eliminado'); })
+      .catch(function(e){ notify('Error: ' + e.message); });
+  } else { notify('No se pudo identificar el producto en Firebase'); }
+}
+
+function eliminarEmpleado(fbKey) {
+  var emp = Object.values(empData||{}).find(function(e){ return (e.fbKey||String(e.id)) === String(fbKey); });
+  if (!confirm('¿Eliminar empleado "' + ((emp||{}).nombre||'') + '"?')) return;
+  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKey))
+    .then(function(){ notify('Empleado eliminado'); })
+    .catch(function(e){ notify('Error: ' + e.message); });
+}
+
 // ══════════════════════════════════════════════
 // INFORMES TÉCNICOS
 // ══════════════════════════════════════════════
@@ -6610,7 +6815,8 @@ function renderTablaInformes() {
       '<td style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(inf.tecnico||'—') +'</td>' +
       '<td class="tr">'+ tipoBadge +'</td>' +
       '<td class="tr">'+ estBadge +'</td>' +
-      '<td onclick="event.stopPropagation()"><button class="btn btn-sm btn-icon" onclick="editarInforme(\''+inf.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button></td>' +
+      '<td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="editarInforme(\''+inf.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+           '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'informes\',\''+inf.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>' +
     '</tr>';
   }).join('');
 }
@@ -6764,7 +6970,8 @@ function fbCargarGastos() {
             '<td>'+ tipoBadge +'</td>' +
             '<td class="tr" style="color:var(--red);font-weight:500">$'+ (parseFloat(g.monto)||0).toLocaleString('es-AR') +'</td>' +
             '<td class="tr"><span class="badge b-green">'+ (g.estado||'Pagado') +'</span></td>' +
-            '<td><button class="btn btn-sm btn-icon" onclick="editarGasto(\''+g.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button></td>' +
+            '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="editarGasto(\''+g.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+             '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'gastos\',\''+g.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>' +
           '</tr>';
         }).join('');
       }
@@ -6795,7 +7002,9 @@ function fbCargarProveedores() {
       tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin proveedores registrados</td></tr>';
     } else {
       tbody.innerHTML = lista.map(function(p) {
-        var estadoBadge = p.activo !== false ? '<span class="badge b-green">Activo</span>' : '<span class="badge b-red">Inactivo</span>';
+        var estadoBadge = p.activo !== false
+          ? '<span class="badge b-green" style="cursor:pointer" title="Clic para desactivar" onclick="toggleActivoRegistro(\'proveedores\',\''+p.fbKey+'\',true)">Activo</span>'
+          : '<span class="badge b-red" style="cursor:pointer" title="Clic para activar" onclick="toggleActivoRegistro(\'proveedores\',\''+p.fbKey+'\',false)">Inactivo</span>';
         var tel = (p.telefono || p.tel || '').replace(/[\s\-\(\)]/g,'');
         var waBtn = tel ? '<a href="https://wa.me/549'+tel+'" target="_blank" class="btn btn-sm btn-icon" title="WhatsApp"><i class="ti ti-brand-whatsapp" style="font-size:14px;color:#25d366"></i></a>' : '<span style="color:var(--text3);font-size:12px">—</span>';
         var webBtn = p.web ? '<a href="'+(p.web.startsWith('http')?p.web:'https://'+p.web)+'" target="_blank" class="btn btn-sm btn-icon" title="Abrir web"><i class="ti ti-external-link" style="font-size:14px"></i></a>' : '<span style="color:var(--text3);font-size:12px">—</span>';
@@ -6808,7 +7017,8 @@ function fbCargarProveedores() {
           '<td style="text-align:center">'+ waBtn +'</td>' +
           '<td style="text-align:center">'+ webBtn + credBtn +'</td>' +
           '<td style="text-align:right">'+ estadoBadge +'</td>' +
-          '<td><button class="btn btn-sm btn-icon" onclick="editarProveedor(\''+p.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button></td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="editarProveedor(\''+p.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+           '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'proveedores\',\''+p.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>' +
         '</tr>';
       }).join('');
     }
@@ -7466,17 +7676,22 @@ function renderKPIsDashboard() {
     }).join('');
   }
 
-  // ── Comisiones (usa empData si está disponible) ──
+  // ── Comisiones (solo empleados activos) ──
   var empTabla = document.getElementById('dash-comisiones');
   if (empTabla && Object.keys(empData||{}).length) {
-    empTabla.innerHTML = Object.values(empData).map(function(e) {
-      return '<tr>' +
-        '<td>' + (e.nombre||'') + '</td>' +
-        '<td><span class="badge b-blue" style="font-size:10px">' + (e.categoria||'') + '</span></td>' +
-        '<td style="text-align:right;color:var(--green)">$' + (e.comisiones||0).toLocaleString('es-AR') + '</td>' +
-        '<td style="text-align:right;color:var(--text3)">' + (e.hextra ? '$'+(parseFloat(e.hextra)||0).toLocaleString('es-AR') : '—') + '</td>' +
-      '</tr>';
-    }).join('');
+    var empActivos = Object.values(empData).filter(function(e){ return e.activo !== false; });
+    if (!empActivos.length) {
+      empTabla.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sin empleados activos</td></tr>';
+    } else {
+      empTabla.innerHTML = empActivos.map(function(e) {
+        return '<tr>' +
+          '<td>' + escapeHTML(e.nombre||'') + '</td>' +
+          '<td><span class="badge b-blue" style="font-size:10px">' + (e.categoria||'') + '</span></td>' +
+          '<td style="text-align:right;color:var(--green)">$' + (parseFloat(e.comisiones)||0).toLocaleString('es-AR') + '</td>' +
+          '<td style="text-align:right;color:var(--text3)">' + (e.hextra ? '$'+(parseFloat(e.hextra)||0).toLocaleString('es-AR') : '—') + '</td>' +
+        '</tr>';
+      }).join('');
+    }
   }
 }
 
