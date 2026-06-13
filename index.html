@@ -444,6 +444,24 @@ tr:hover td{color:var(--text)}
 .prod-drop-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)}
 .prod-drop-item:last-child{border-bottom:none}
 .prod-drop-item:hover{background:var(--bg3)}
+/* ── EQUIPOS INSTALADOS ── */
+.eq-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-xl);padding:14px;cursor:pointer;transition:box-shadow .15s,border-color .15s;position:relative}
+.eq-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.12);border-color:var(--border2)}
+.eq-cat-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.eq-card-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eq-card-row i{font-size:13px;color:var(--text3);flex-shrink:0}
+.eq-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)}
+.eq-estado-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.eq-estado-operativo .eq-estado-dot{background:var(--green)}
+.eq-estado-alerta .eq-estado-dot{background:var(--amber)}
+.eq-estado-mantenimiento .eq-estado-dot{background:var(--blue)}
+.eq-estado-baja .eq-estado-dot{background:var(--red)}
+.btn-tipo-rel{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:13px;cursor:pointer;text-align:left;color:var(--text);transition:all .15s}
+.btn-tipo-rel.activo{background:var(--text);color:var(--bg2);border-color:var(--text)}
+.check-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius);font-size:13px;cursor:pointer;border:1px solid transparent;transition:border-color .15s,background .15s}
+.check-item.checked{background:rgba(34,197,94,.08);border-color:var(--green)}
+.check-item input[type=checkbox]{width:18px;height:18px;flex-shrink:0;cursor:pointer;accent-color:var(--green)}
+.rel-foto-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--radius);cursor:pointer}
 </style>
 
   <!-- Firebase SDK -->
@@ -2039,31 +2057,247 @@ tr:hover td{color:var(--text)}
 
       <!-- ── EQUIPOS INSTALADOS ── -->
       <div id="page-equipos" class="page">
-        <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
-          <div class="metric"><div class="m-label">Equipos registrados</div><div class="m-value" id="eq-total">0</div><div class="m-sub">—</div></div>
-          <div class="metric"><div class="m-label">Con garantía activa</div><div class="m-value" id="eq-garantia">0</div><div class="m-sub">—</div></div>
-          <div class="metric"><div class="m-label">Con soporte abierto</div><div class="m-value" id="eq-soporte">0</div><div class="m-sub">—</div></div>
+
+        <!-- ── VISTA LISTA ── -->
+        <div id="eq-lista-view">
+          <!-- Métricas -->
+          <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">
+            <div class="metric"><div class="m-label">Equipos registrados</div><div class="m-value" id="eq-total">0</div><div class="m-sub" id="eq-total-sub">—</div></div>
+            <div class="metric"><div class="m-label">Con garantía activa</div><div class="m-value" id="eq-garantia" style="color:var(--green)">0</div><div class="m-sub">—</div></div>
+            <div class="metric"><div class="m-label">Relevamientos hoy</div><div class="m-value" id="eq-hoy">0</div><div class="m-sub">intervenciones</div></div>
+            <div class="metric"><div class="m-label">Con soporte abierto</div><div class="m-value" id="eq-soporte" style="color:var(--amber)">0</div><div class="m-sub">—</div></div>
+          </div>
+
+          <!-- Buscador y filtros -->
+          <div class="card" style="margin-bottom:12px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <input class="search-input" style="flex:1;min-width:200px" id="eq-search" placeholder="Buscar cliente, equipo, N° serie, dirección..." oninput="filtrarEquipos()">
+              <select class="search-input" style="width:140px" id="eq-filtro-cat" onchange="filtrarEquipos()">
+                <option value="">Todas las categorías</option>
+                <option>Alarmas Garnet</option>
+                <option>Cámaras Hikvision</option>
+                <option>Cámaras Ezvis</option>
+                <option>Domótica Sonoff</option>
+                <option>Redes TP-Link Omada</option>
+                <option>Control de acceso</option>
+                <option>Otro</option>
+              </select>
+              <select class="search-input" style="width:130px" id="eq-filtro-estado" onchange="filtrarEquipos()">
+                <option value="">Todos los estados</option>
+                <option value="operativo">Operativo</option>
+                <option value="alerta">Con alerta</option>
+                <option value="mantenimiento">En mantenimiento</option>
+                <option value="baja">De baja</option>
+              </select>
+              <button class="btn btn-sm btn-primary" onclick="abrirNuevoEquipo()"><i class="ti ti-plus"></i> Registrar equipo</button>
+            </div>
+          </div>
+
+          <!-- Tarjetas de equipos (mobile-first) -->
+          <div id="eq-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:12px">
+            <div style="text-align:center;color:var(--text3);padding:40px;grid-column:1/-1">Sin equipos registrados</div>
+          </div>
         </div>
-        <div class="card">
-          <div class="card-head">
-            <span class="card-title">Equipos instalados</span>
-            <button class="btn btn-sm btn-primary" onclick="abrirModalNuevo('equipo')"><i class="ti ti-plus"></i> Registrar equipo</button>
+
+        <!-- ── FICHA EQUIPO ── -->
+        <div id="eq-ficha-view" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+            <button class="btn btn-sm" onclick="volverListaEquipos()"><i class="ti ti-arrow-left"></i> Volver</button>
+            <span style="font-size:14px;font-weight:600" id="eq-ficha-titulo">Ficha de equipo</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="abrirRelevamiento()"><i class="ti ti-clipboard-check"></i> Relevamiento</button>
+              <button class="btn btn-sm btn-primary" onclick="guardarEquipo()"><i class="ti ti-check"></i> Guardar</button>
+            </div>
           </div>
-          <div style="display:flex;gap:8px;margin-bottom:14px">
-            <input class="search-input" style="flex:1" placeholder="Buscar por cliente, equipo o N° serie...">
-            <select class="search-input">
-              <option value="">Todas las categorías</option>
-              <option>Alarmas</option>
-              <option>Cámaras</option>
-              <option>Domótica</option>
-              <option>Solar</option>
-              <option>Redes</option>
-            </select>
+
+          <!-- Datos del equipo -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">Datos del equipo</span></div>
+            <div class="form-grid">
+              <div class="fg"><label>Categoría</label>
+                <select id="eq-f-cat">
+                  <option>Alarmas Garnet</option>
+                  <option>Cámaras Hikvision</option>
+                  <option>Cámaras Ezvis</option>
+                  <option>Domótica Sonoff</option>
+                  <option>Redes TP-Link Omada</option>
+                  <option>Control de acceso</option>
+                  <option>Otro</option>
+                </select>
+              </div>
+              <div class="fg"><label>Marca / Modelo</label><input type="text" id="eq-f-modelo" placeholder="Ej: Hikvision DS-2CD2143G2 o Garnet PG-380"></div>
+              <div class="fg full"><label>Descripción del sistema</label><input type="text" id="eq-f-desc" placeholder="Ej: Alarma inalámbrica Garnet con 6 sensores y panel táctil"></div>
+
+              <!-- N° serie con scanner -->
+              <div class="fg">
+                <label>N° de serie</label>
+                <div style="display:flex;gap:6px">
+                  <input type="text" id="eq-f-serie" placeholder="Escanear o escribir..." style="flex:1">
+                  <button class="btn btn-sm" onclick="abrirScannerSerie()" title="Escanear con cámara" style="padding:0 10px;flex-shrink:0">
+                    <i class="ti ti-camera" style="font-size:16px"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="fg"><label>N° de serie 2 (opcional)</label>
+                <div style="display:flex;gap:6px">
+                  <input type="text" id="eq-f-serie2" placeholder="Segundo equipo..." style="flex:1">
+                  <button class="btn btn-sm" onclick="abrirScannerSerie('eq-f-serie2')" style="padding:0 10px;flex-shrink:0"><i class="ti ti-camera" style="font-size:16px"></i></button>
+                </div>
+              </div>
+
+              <div class="fg"><label>Cliente</label>
+                <div class="sw">
+                  <input type="text" id="eq-f-cliente" placeholder="Buscar cliente..." oninput="filterDrop('eq-f-cliente','eq-cli-drop')" autocomplete="off">
+                  <div class="drop" id="eq-cli-drop" style="display:none"></div>
+                </div>
+              </div>
+              <div class="fg"><label>Dirección instalación</label><input type="text" id="eq-f-dir" placeholder="Calle y número"></div>
+              <div class="fg"><label>Técnico instalador</label>
+                <select id="eq-f-tecnico"><option value="">— Seleccionar —</option></select>
+              </div>
+              <div class="fg"><label>Fecha instalación</label><input type="date" id="eq-f-fecha"></div>
+              <div class="fg"><label>Garantía (meses)</label>
+                <select id="eq-f-garantia">
+                  <option value="0">Sin garantía</option><option value="3">3 meses</option>
+                  <option value="6">6 meses</option><option value="12" selected>12 meses</option>
+                  <option value="24">24 meses</option><option value="36">36 meses</option>
+                </select>
+              </div>
+              <div class="fg"><label>Estado</label>
+                <select id="eq-f-estado">
+                  <option value="operativo">Operativo</option>
+                  <option value="alerta">Con alerta</option>
+                  <option value="mantenimiento">En mantenimiento</option>
+                  <option value="baja">De baja</option>
+                </select>
+              </div>
+              <div class="fg"><label>Venta / OT vinculada</label><input type="text" id="eq-f-venta" placeholder="Ej: #109696"></div>
+              <div class="fg full"><label>Observaciones</label><textarea id="eq-f-obs" rows="2" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Detalles adicionales, contraseñas de panel, configuración especial..."></textarea></div>
+            </div>
           </div>
-          <table>
-            <thead><tr><th>Equipo</th><th>N° serie</th><th>Cliente</th><th>Categoría</th><th>Instalación</th><th style="text-align:right">Garantía</th><th style="text-align:right">Estado</th><th></th></tr></thead>
-            <tbody><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin equipos registrados</td></tr></tbody>
-          </table>
+
+          <!-- Fotos del equipo -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">Fotos del equipo</span>
+              <button class="btn btn-sm" onclick="document.getElementById('eq-foto-input').click()"><i class="ti ti-camera-plus"></i> Agregar foto</button>
+            </div>
+            <input type="file" id="eq-foto-input" accept="image/*" capture="environment" multiple style="display:none" onchange="agregarFotosEquipo(this)">
+            <div id="eq-fotos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;min-height:60px">
+              <div style="color:var(--text3);font-size:12px;text-align:center;padding:20px;grid-column:1/-1">Sin fotos. Tocá el botón para agregar.</div>
+            </div>
+          </div>
+
+          <!-- Historial de intervenciones -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">Historial de intervenciones</span>
+              <span id="eq-historial-count" style="font-size:12px;color:var(--text3)"></span>
+            </div>
+            <div id="eq-historial-lista" style="display:flex;flex-direction:column;gap:0">
+              <div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Sin intervenciones registradas</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── MODAL RELEVAMIENTO EN CAMPO ── -->
+        <div id="modal-relevamiento" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:700;overflow-y:auto">
+          <div style="background:var(--bg2);min-height:100vh;max-width:600px;margin:0 auto;padding:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;position:sticky;top:0;background:var(--bg2);padding-bottom:12px;border-bottom:0.5px solid var(--border)">
+              <span style="font-size:15px;font-weight:600"><i class="ti ti-clipboard-check" style="margin-right:8px"></i>Relevamiento en campo</span>
+              <button class="btn btn-sm" onclick="cerrarRelevamiento()"><i class="ti ti-x"></i></button>
+            </div>
+
+            <!-- Info equipo -->
+            <div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px">
+              <div style="font-weight:600" id="rel-equipo-nombre">—</div>
+              <div style="color:var(--text3);margin-top:2px" id="rel-equipo-cliente">—</div>
+              <div style="color:var(--text3);font-size:12px;margin-top:2px" id="rel-equipo-serie">—</div>
+            </div>
+
+            <!-- Tipo de intervención -->
+            <div style="margin-bottom:16px">
+              <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Tipo de intervención</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <button class="btn-tipo-rel" data-tipo="instalacion" onclick="selTipoRel(this)">📦 Instalación</button>
+                <button class="btn-tipo-rel" data-tipo="mantenimiento" onclick="selTipoRel(this)">🔧 Mantenimiento</button>
+                <button class="btn-tipo-rel" data-tipo="reparacion" onclick="selTipoRel(this)">🛠️ Reparación</button>
+                <button class="btn-tipo-rel" data-tipo="relevamiento" onclick="selTipoRel(this)">🔍 Relevamiento</button>
+                <button class="btn-tipo-rel" data-tipo="garantia" onclick="selTipoRel(this)">🛡️ Garantía</button>
+                <button class="btn-tipo-rel" data-tipo="otro" onclick="selTipoRel(this)">📋 Otro</button>
+              </div>
+            </div>
+
+            <!-- Checklist dinámico según tipo -->
+            <div style="margin-bottom:16px">
+              <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Checklist de verificación</label>
+              <div id="rel-checklist" style="display:flex;flex-direction:column;gap:6px"></div>
+            </div>
+
+            <!-- Estado resultante -->
+            <div style="margin-bottom:16px">
+              <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Estado del equipo tras la visita</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn-estado-rel" data-est="operativo" onclick="selEstadoRel(this)" style="background:var(--green);color:#fff;border:none;border-radius:var(--radius);padding:7px 14px;font-size:13px;cursor:pointer">✅ Operativo</button>
+                <button class="btn-estado-rel" data-est="alerta" onclick="selEstadoRel(this)" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;font-size:13px;cursor:pointer">⚠️ Con alerta</button>
+                <button class="btn-estado-rel" data-est="mantenimiento" onclick="selEstadoRel(this)" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;font-size:13px;cursor:pointer">🔧 En mantenimiento</button>
+                <button class="btn-estado-rel" data-est="baja" onclick="selEstadoRel(this)" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;font-size:13px;cursor:pointer">❌ De baja</button>
+              </div>
+            </div>
+
+            <!-- Descripción trabajo realizado -->
+            <div style="margin-bottom:16px">
+              <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Trabajo realizado</label>
+              <textarea id="rel-trabajo" rows="4" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);box-sizing:border-box" placeholder="Describí qué se hizo, qué se reemplazó, cómo quedó configurado..."></textarea>
+            </div>
+
+            <!-- Próxima visita -->
+            <div style="margin-bottom:16px">
+              <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Próximo mantenimiento sugerido</label>
+              <input type="date" id="rel-prox-visita" style="width:100%;padding:8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-family:inherit;font-size:13px;box-sizing:border-box">
+            </div>
+
+            <!-- Fotos de la intervención -->
+            <div style="margin-bottom:20px">
+              <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Fotos de la intervención</label>
+              <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('rel-foto-input').click()">
+                <i class="ti ti-camera-plus" style="font-size:28px;color:var(--text3)"></i>
+                <div style="font-size:12px;color:var(--text3);margin-top:6px">Tocá para tomar/subir foto</div>
+              </div>
+              <input type="file" id="rel-foto-input" accept="image/*" capture="environment" multiple style="display:none" onchange="agregarFotosRel(this)">
+              <div id="rel-fotos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-top:8px"></div>
+            </div>
+
+            <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px" onclick="guardarRelevamiento()">
+              <i class="ti ti-check" style="margin-right:8px"></i>Guardar relevamiento
+            </button>
+          </div>
+        </div>
+
+        <!-- MODAL SCANNER N° SERIE -->
+        <div id="modal-scanner" style="display:none;position:fixed;inset:0;background:#000;z-index:800;flex-direction:column">
+          <div style="position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:16px;background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent)">
+            <span style="color:#fff;font-size:15px;font-weight:600"><i class="ti ti-scan" style="margin-right:8px"></i>Escanear N° de serie</span>
+            <button onclick="cerrarScanner()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer"><i class="ti ti-x"></i> Cerrar</button>
+          </div>
+          <video id="scanner-video" style="width:100%;height:100%;object-fit:cover" playsinline autoplay muted></video>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+            <div style="width:280px;height:120px;border:2px solid #fff;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.5)">
+              <div style="position:absolute;top:-1px;left:-1px;width:24px;height:24px;border-top:3px solid #4ade80;border-left:3px solid #4ade80;border-radius:2px 0 0 0"></div>
+              <div style="position:absolute;top:-1px;right:-1px;width:24px;height:24px;border-top:3px solid #4ade80;border-right:3px solid #4ade80;border-radius:0 2px 0 0"></div>
+              <div style="position:absolute;bottom:-1px;left:-1px;width:24px;height:24px;border-bottom:3px solid #4ade80;border-left:3px solid #4ade80;border-radius:0 0 0 2px"></div>
+              <div style="position:absolute;bottom:-1px;right:-1px;width:24px;height:24px;border-bottom:3px solid #4ade80;border-right:3px solid #4ade80;border-radius:0 0 2px 0"></div>
+            </div>
+          </div>
+          <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.9),transparent);padding:24px;text-align:center">
+            <div style="color:rgba(255,255,255,.7);font-size:13px;margin-bottom:16px">Apuntá la cámara al código de barras o N° de serie</div>
+            <div style="display:flex;gap:10px;justify-content:center">
+              <button onclick="capturarManual()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;cursor:pointer"><i class="ti ti-keyboard"></i> Ingresar manual</button>
+              <button id="scanner-captura-btn" onclick="capturarFrame()" style="background:#4ade80;border:none;color:#000;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer"><i class="ti ti-camera"></i> Capturar</button>
+            </div>
+            <div id="scanner-resultado" style="color:#4ade80;font-size:14px;font-weight:600;margin-top:12px;min-height:20px"></div>
+          </div>
+          <canvas id="scanner-canvas" style="display:none"></canvas>
         </div>
       </div>
 
@@ -2750,7 +2984,7 @@ tr:hover td{color:var(--text)}
           </div>
         </div>
         <div class="fg full"><label>Dirección del servicio</label><input type="text" id="inf-dir" placeholder="Calle y número"></div>
-        <div class="fg full"><label>Equipo / Sistema intervenido</label><input type="text" id="inf-equipo" placeholder="Ej: Sistema de alarma DSC, cámaras Hikvision..."></div>
+        <div class="fg full"><label>Equipo / Sistema intervenido</label><input type="text" id="inf-equipo" placeholder="Ej: Alarma Garnet PG-380, cámaras Hikvision, Sonoff iHost..."></div>
         <div class="fg"><label>N° serie / Modelo</label><input type="text" id="inf-serie" placeholder="SN-XXXXX"></div>
         <div class="fg"><label>Venta / OT vinculada</label><input type="text" id="inf-venta" placeholder="Ej: #109696"></div>
       </div>
@@ -3501,6 +3735,7 @@ function fbCargarTodo() {
   fbCargarProveedores();
   fbCargarInformes();
   fbCargarOrdenes();
+  fbCargarEquipos();
 }
 
 // ── CLIENTES ──
@@ -4080,6 +4315,7 @@ function showPage(id, el) {
   if (id === 'detalle')        { setTimeout(function(){ if(typeof volverListaVentas==='function'){volverListaVentas();renderVentasTabla();} }, 50); }
   if (id === 'ctaemp')         { setTimeout(function(){ if(typeof iniciarCtaEmp==='function') iniciarCtaEmp(); }, 50); }
   if (id === 'informes')       { setTimeout(function(){ renderTablaInformes(); }, 50); }
+  if (id === 'equipos')        { setTimeout(function(){ renderEquiposCards(); actualizarMetricasEquipos(); }, 50); }
   if (id === 'ordenes')        { setTimeout(function(){ renderDashOrdenes(); }, 50); }
   if (id === 'productos')      {
     try { if(typeof mostrarAlertasStock==='function') mostrarAlertasStock(); } catch(e){}
@@ -4320,7 +4556,7 @@ var NOTIF_CONFIG = {
 };
 var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
-  producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Paneles solares','Baterías','Inversores','Cables y conectores','Controladores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Hikvision, DSC, etc.'},{l:'P. compra ($)',id:'np-pc',t:'number',ph:'0'},{l:'P. venta ($)',id:'np-pv',t:'number',ph:'0'}]},
+  producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'P. compra ($)',id:'np-pc',t:'number',ph:'0'},{l:'P. venta ($)',id:'np-pv',t:'number',ph:'0'}]},
   empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'select',opts:['Cat. 39 — Vendedor senior','Cat. 15 — Vendedor junior','Cat. 08 — Técnico instalador']},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'}]},
   usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Usuario',id:'nu-user',t:'text',ph:'nombre.apellido'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Vendedor']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
   proveedor: { title:'Nuevo proveedor', fields:[
@@ -4340,7 +4576,7 @@ var FORMS_CFG = {
   ordencompra: { title:'Nueva orden de compra', fields:[
     {l:'N° orden',id:'noc-num',t:'text',ph:'OC-0001'},
     {l:'Proveedor',id:'noc-prov',t:'text',ph:'Nombre del proveedor'},
-    {l:'Descripción / Producto',id:'noc-desc',t:'text',ph:'Ej: Cámara Hikvision 4MP x5',full:true},
+    {l:'Descripción / Producto',id:'noc-desc',t:'text',ph:'Ej: Cámara Hikvision 4MP x5 o Garnet PG-380',full:true},
     {l:'Cantidad',id:'noc-cant',t:'number',ph:'1'},
     {l:'Monto estimado ($)',id:'noc-monto',t:'number',ph:'0'},
     {l:'Fecha',id:'noc-fecha',t:'date'},
@@ -5350,33 +5586,57 @@ function previewLogo(input) {
 function guardarLogoEmpresa() {
   if (!_logoFileEmpresa) return;
   var status = document.getElementById('cfg-logo-status');
-  if (status) status.textContent = 'Subiendo...';
-  if (window.fbStorage && window.fbStorageRef && window.fbUploadBytes && window.fbGetDownloadURL) {
-    var ref = window.fbStorageRef(window.fbStorage, 'sisventas/config/logo_empresa');
-    window.fbUploadBytes(ref, _logoFileEmpresa).then(function(snap) {
-      return window.fbGetDownloadURL(snap.ref);
-    }).then(function(url) {
-      // Guardar URL en Firebase Realtime Database
-      window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/logoUrl'), url);
-      window.logoEmpresaUrl = url;
-      if (status) status.textContent = 'Logo guardado correctamente';
-      document.getElementById('cfg-logo-save-btn').style.display = 'none';
-      document.getElementById('cfg-logo-delete-btn').style.display = '';
-      notify('Logo guardado');
-    }).catch(function(e) { if (status) status.textContent = 'Error: ' + e.message; });
-  } else {
-    // Fallback: guardar en localStorage como base64
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      try { localStorage.setItem('nixa_logo', e.target.result); } catch(ex) {}
-      window.logoEmpresaUrl = e.target.result;
-      if (status) status.textContent = 'Logo guardado localmente';
-      document.getElementById('cfg-logo-save-btn').style.display = 'none';
-      document.getElementById('cfg-logo-delete-btn').style.display = '';
-      notify('Logo guardado');
+  if (status) status.textContent = 'Guardando...';
+  // Siempre convertir a base64 — más confiable que Storage para un logo pequeño
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result;
+    window.logoEmpresaUrl = base64;
+    // Guardar en Realtime DB (base64, max 500KB está bien)
+    var guardarEnDB = function() {
+      if (window.fbDB) {
+        window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/logoUrl'), base64)
+          .then(function() {
+            if (status) status.textContent = 'Logo guardado correctamente';
+            document.getElementById('cfg-logo-save-btn').style.display = 'none';
+            document.getElementById('cfg-logo-delete-btn').style.display = '';
+            if (document.getElementById('cfg-logo-img')) {
+              document.getElementById('cfg-logo-img').style.opacity = '1';
+            }
+            notify('Logo guardado ✓');
+          })
+          .catch(function(err) {
+            // Si falla Realtime DB, guardar en localStorage como backup
+            try { localStorage.setItem('nixa_logo', base64); } catch(ex) {}
+            if (status) status.textContent = 'Guardado localmente (sin conexión a DB)';
+            document.getElementById('cfg-logo-save-btn').style.display = 'none';
+            document.getElementById('cfg-logo-delete-btn').style.display = '';
+            notify('Logo guardado localmente');
+          });
+      } else {
+        // Sin Firebase, solo localStorage
+        try { localStorage.setItem('nixa_logo', base64); } catch(ex) {}
+        if (status) status.textContent = 'Guardado localmente';
+        document.getElementById('cfg-logo-save-btn').style.display = 'none';
+        document.getElementById('cfg-logo-delete-btn').style.display = '';
+        notify('Logo guardado');
+      }
     };
-    reader.readAsDataURL(_logoFileEmpresa);
-  }
+    // Intentar también subir a Storage para tenerlo como respaldo
+    if (window.fbStorage && window.fbStorageRef && window.fbUploadBytes) {
+      var storRef = window.fbStorageRef(window.fbStorage, 'sisventas/config/logo_empresa');
+      window.fbUploadBytes(storRef, _logoFileEmpresa)
+        .then(function() { guardarEnDB(); })
+        .catch(function() { guardarEnDB(); }); // Si falla Storage igual guarda en DB
+    } else {
+      guardarEnDB();
+    }
+  };
+  reader.onerror = function() {
+    if (status) status.textContent = 'Error al leer el archivo';
+    notify('Error al leer el archivo');
+  };
+  reader.readAsDataURL(_logoFileEmpresa);
 }
 
 function eliminarLogoEmpresa() {
@@ -5577,6 +5837,512 @@ function editarOrden(fbKey) {
       cant: o.cantidad, monto: o.monto, fecha: o.fecha, est: o.estado
     }, fbKey);
   }, { onlyOnce: true });
+}
+
+// ══════════════════════════════════════════════
+// MÓDULO EQUIPOS INSTALADOS
+// ══════════════════════════════════════════════
+
+var equiposData   = [];
+var equipoActual  = null;  // fbKey del equipo en edición
+var relFotosTemp  = [];    // fotos del relevamiento pendientes de subir
+var eqFotosTemp   = [];    // fotos del equipo pendientes de subir
+var scannerStream = null;
+var scannerTargetField = 'eq-f-serie';
+var relEstadoSel  = 'operativo';
+var relTipoSel    = '';
+
+var CHECKLISTS_EQ = {
+  instalacion: [
+    'Equipo encendido y probado',
+    'Sensores/cámaras correctamente posicionados',
+    'Cableado ordenado y seguro',
+    'Zona de cobertura verificada',
+    'Comunicación con central OK',
+    'App/acceso remoto configurado',
+    'Usuario y contraseña entregados al cliente',
+    'Cliente capacitado en el uso',
+  ],
+  mantenimiento: [
+    'Limpieza de equipo realizada',
+    'Batería/alimentación verificada',
+    'Firmware actualizado',
+    'Sensores testeados',
+    'Comunicaciones verificadas',
+    'Log de eventos revisado',
+    'Sin fallas activas',
+  ],
+  reparacion: [
+    'Falla identificada y documentada',
+    'Repuesto instalado / reparación realizada',
+    'Equipo probado post-reparación',
+    'Causas de la falla evaluadas',
+    'Medidas preventivas aplicadas',
+  ],
+  relevamiento: [
+    'Fotos del estado actual tomadas',
+    'N° de serie registrado',
+    'Instalación inspeccionada',
+    'Observaciones anotadas',
+    'Próximo mantenimiento sugerido',
+  ],
+  garantia: [
+    'Falla cubierta por garantía confirmada',
+    'Reposición / reparación realizada',
+    'Equipo funcionando correctamente',
+    'Cliente conforme',
+  ],
+  otro: [
+    'Tarea realizada',
+    'Estado del equipo verificado',
+  ],
+};
+
+// Cargar equipos desde Firebase
+function fbCargarEquipos() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/equipos'), function(snap) {
+    var data = snap.val();
+    equiposData = data ? Object.entries(data).map(function(e){
+      return Object.assign({ fbKey: e[0] }, e[1]);
+    }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
+    renderEquiposCards();
+    actualizarMetricasEquipos();
+  });
+}
+
+// Métricas
+function actualizarMetricasEquipos() {
+  var hoy = new Date().toISOString().split('T')[0];
+  var conGar = equiposData.filter(function(e){
+    if (!e.fechaInstalacion || !e.garantiaMeses) return false;
+    var venc = new Date(e.fechaInstalacion);
+    venc.setMonth(venc.getMonth() + parseInt(e.garantiaMeses));
+    return venc >= new Date();
+  }).length;
+  var intervsHoy = 0;
+  equiposData.forEach(function(e){
+    if (e.intervenciones) {
+      Object.values(e.intervenciones).forEach(function(iv){
+        if ((iv.fecha||'').slice(0,10) === hoy) intervsHoy++;
+      });
+    }
+  });
+  var _el = function(id){ return document.getElementById(id); };
+  if (_el('eq-total'))    _el('eq-total').textContent    = equiposData.length;
+  if (_el('eq-garantia')) _el('eq-garantia').textContent = conGar;
+  if (_el('eq-hoy'))      _el('eq-hoy').textContent      = intervsHoy;
+  if (_el('eq-soporte'))  _el('eq-soporte').textContent  = equiposData.filter(function(e){ return e.estado === 'alerta' || e.estado === 'mantenimiento'; }).length;
+}
+
+// Render tarjetas
+function renderEquiposCards() {
+  var busq  = ((document.getElementById('eq-search')||{}).value||'').toLowerCase();
+  var cat   = (document.getElementById('eq-filtro-cat')||{}).value||'';
+  var est   = (document.getElementById('eq-filtro-estado')||{}).value||'';
+  var lista = equiposData.filter(function(e){
+    var texto = ((e.descripcion||'')+(e.modelo||'')+(e.cliente||'')+(e.serie||'')+(e.dir||'')).toLowerCase();
+    return (!busq||texto.includes(busq)) && (!cat||e.categoria===cat) && (!est||e.estado===est);
+  });
+  var grid = document.getElementById('eq-cards');
+  if (!grid) return;
+  if (!lista.length) {
+    grid.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px;grid-column:1/-1;font-size:13px">' +
+      (busq||cat||est ? 'Sin resultados para la búsqueda' : 'Sin equipos registrados. Tocá + Registrar equipo para comenzar.') + '</div>';
+    return;
+  }
+  var catColors = {Alarmas:'#ef4444',Cámaras:'#3b82f6',Domótica:'#8b5cf6',Redes:'#06b6d4','UPS / Solar':'#f59e0b','Control de acceso':'#10b981',Otro:'#6b7280'};
+  grid.innerHTML = lista.map(function(e) {
+    var color  = catColors[e.categoria] || '#6b7280';
+    var estMap = {operativo:{txt:'Operativo',cls:'green'},alerta:{txt:'Con alerta',cls:'amber'},mantenimiento:{txt:'En mant.',cls:'blue'},baja:{txt:'De baja',cls:'red'}};
+    var est    = estMap[e.estado] || {txt:'—',cls:'text3'};
+    // Fecha vencimiento garantía
+    var garTxt = '—';
+    if (e.fechaInstalacion && e.garantiaMeses && parseInt(e.garantiaMeses) > 0) {
+      var v = new Date(e.fechaInstalacion);
+      v.setMonth(v.getMonth() + parseInt(e.garantiaMeses));
+      var diasRest = Math.round((v - new Date()) / 86400000);
+      garTxt = diasRest > 0 ? 'Gar. ' + diasRest + 'd restantes' : 'Vencida';
+    }
+    var cantFotos = e.fotos ? Object.keys(e.fotos).length : 0;
+    var cantInterv = e.intervenciones ? Object.keys(e.intervenciones).length : 0;
+    return '<div class="eq-card" onclick="abrirFichaEquipo(\''+e.fbKey+'\')">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px">' +
+        '<div>' +
+          '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px">'+escapeHTML(e.descripcion||e.modelo||'Sin nombre')+'</div>' +
+          '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(e.modelo||'')+'</div>' +
+        '</div>' +
+        '<span class="eq-cat-badge" style="background:'+color+'22;color:'+color+'">'+escapeHTML(e.categoria||'—')+'</span>' +
+      '</div>' +
+      '<div class="eq-card-row"><i class="ti ti-user"></i>'+escapeHTML(e.cliente||'Sin cliente')+'</div>' +
+      '<div class="eq-card-row"><i class="ti ti-map-pin"></i>'+escapeHTML(e.dir||'Sin dirección')+'</div>' +
+      (e.serie ? '<div class="eq-card-row"><i class="ti ti-barcode"></i>'+escapeHTML(e.serie)+'</div>' : '') +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border)">' +
+        '<div style="display:flex;align-items:center;gap:5px;font-size:12px">' +
+          '<span style="width:8px;height:8px;border-radius:50%;background:var(--'+est.cls+');display:inline-block"></span>' +
+          '<span style="color:var(--'+est.cls+')">'+est.txt+'</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px">' +
+          (cantInterv ? '<span style="font-size:11px;color:var(--text3)"><i class="ti ti-history" style="font-size:11px"></i> '+cantInterv+'</span>' : '') +
+          (cantFotos ? '<span style="font-size:11px;color:var(--text3)"><i class="ti ti-photo" style="font-size:11px"></i> '+cantFotos+'</span>' : '') +
+          '<span style="font-size:11px;color:var(--text3)">'+garTxt+'</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function filtrarEquipos() { renderEquiposCards(); }
+
+// Abrir ficha
+function abrirFichaEquipo(fbKey) {
+  var eq = equiposData.find(function(e){ return e.fbKey === fbKey; });
+  if (!eq) return;
+  equipoActual = fbKey;
+  eqFotosTemp = [];
+  document.getElementById('eq-ficha-titulo').textContent = eq.descripcion || 'Ficha de equipo';
+  // Llenar campos
+  var _v = function(id, val){ var el=document.getElementById(id); if(el) el.value=val||''; };
+  _v('eq-f-cat',       eq.categoria||'Alarmas');
+  _v('eq-f-modelo',    eq.modelo||'');
+  _v('eq-f-desc',      eq.descripcion||'');
+  _v('eq-f-serie',     eq.serie||'');
+  _v('eq-f-serie2',    eq.serie2||'');
+  _v('eq-f-cliente',   eq.cliente||'');
+  _v('eq-f-dir',       eq.dir||'');
+  _v('eq-f-fecha',     eq.fechaInstalacion||'');
+  _v('eq-f-garantia',  eq.garantiaMeses||'12');
+  _v('eq-f-estado',    eq.estado||'operativo');
+  _v('eq-f-venta',     eq.venta||'');
+  _v('eq-f-obs',       eq.obs||'');
+  // Llenar select técnico
+  var selTec = document.getElementById('eq-f-tecnico');
+  if (selTec) {
+    var opts = '<option value="">— Seleccionar —</option>';
+    Object.values(empData||{}).forEach(function(e){ if(e.activo!==false) opts+='<option value="'+escapeHTML(e.nombre)+'">'+escapeHTML(e.nombre)+'</option>'; });
+    selTec.innerHTML = opts;
+    selTec.value = eq.tecnico||'';
+  }
+  // Fotos
+  renderFotosEquipo(eq.fotos||{});
+  // Historial intervenciones
+  renderHistorialEquipo(eq.intervenciones||{});
+  // Mostrar ficha
+  document.getElementById('eq-lista-view').style.display = 'none';
+  document.getElementById('eq-ficha-view').style.display = '';
+}
+
+function abrirNuevoEquipo() {
+  equipoActual = null;
+  eqFotosTemp = [];
+  var _c = function(id){ var el=document.getElementById(id); if(el) el.value=''; };
+  ['eq-f-cat','eq-f-modelo','eq-f-desc','eq-f-serie','eq-f-serie2','eq-f-cliente','eq-f-dir','eq-f-fecha','eq-f-venta','eq-f-obs'].forEach(_c);
+  document.getElementById('eq-f-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('eq-f-garantia').value = '12';
+  document.getElementById('eq-f-estado').value = 'operativo';
+  document.getElementById('eq-ficha-titulo').textContent = 'Nuevo equipo';
+  renderFotosEquipo({});
+  renderHistorialEquipo({});
+  var selTec = document.getElementById('eq-f-tecnico');
+  if (selTec) {
+    var opts = '<option value="">— Seleccionar —</option>';
+    Object.values(empData||{}).forEach(function(e){ if(e.activo!==false) opts+='<option>'+escapeHTML(e.nombre)+'</option>'; });
+    selTec.innerHTML = opts;
+  }
+  document.getElementById('eq-lista-view').style.display = 'none';
+  document.getElementById('eq-ficha-view').style.display = '';
+}
+
+function volverListaEquipos() {
+  document.getElementById('eq-ficha-view').style.display = 'none';
+  document.getElementById('eq-lista-view').style.display = '';
+  equipoActual = null;
+}
+
+// Guardar equipo
+function guardarEquipo() {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var g = function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
+  var datos = {
+    categoria:       g('eq-f-cat'),
+    modelo:          g('eq-f-modelo'),
+    descripcion:     g('eq-f-desc'),
+    serie:           g('eq-f-serie'),
+    serie2:          g('eq-f-serie2'),
+    cliente:         g('eq-f-cliente'),
+    dir:             g('eq-f-dir'),
+    tecnico:         g('eq-f-tecnico'),
+    fechaInstalacion:g('eq-f-fecha'),
+    garantiaMeses:   g('eq-f-garantia'),
+    estado:          g('eq-f-estado'),
+    venta:           g('eq-f-venta'),
+    obs:             g('eq-f-obs'),
+  };
+  if (!datos.descripcion && !datos.modelo) { notify('Ingresá descripción o modelo'); return; }
+  var promesa = equipoActual
+    ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/equipos/'+equipoActual), datos)
+    : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/equipos'), datos).then(function(ref){ equipoActual = ref.key; return ref; }));
+  promesa.then(function(){
+    // Subir fotos pendientes
+    if (eqFotosTemp.length && window.fbStorage) subirFotosEquipo();
+    else { notify(equipoActual ? 'Equipo actualizado' : 'Equipo guardado'); volverListaEquipos(); }
+  }).catch(function(e){ notify('Error: '+e.message); });
+}
+
+// Fotos del equipo
+function agregarFotosEquipo(input) {
+  var files = Array.from(input.files||[]);
+  files.forEach(function(file){
+    eqFotosTemp.push(file);
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var grid = document.getElementById('eq-fotos-grid');
+      if (!grid) return;
+      // Quitar placeholder
+      grid.querySelectorAll('.foto-placeholder').forEach(function(el){ el.remove(); });
+      var img = document.createElement('img');
+      img.src = e.target.result;
+      img.className = 'rel-foto-thumb';
+      img.title = 'Foto pendiente de guardar';
+      img.style.opacity = '.6';
+      grid.appendChild(img);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderFotosEquipo(fotosObj) {
+  var grid = document.getElementById('eq-fotos-grid');
+  if (!grid) return;
+  var fotos = Object.values(fotosObj||{});
+  if (!fotos.length) {
+    grid.innerHTML = '<div class="foto-placeholder" style="color:var(--text3);font-size:12px;text-align:center;padding:20px;grid-column:1/-1">Sin fotos. Tocá el botón para agregar.</div>';
+    return;
+  }
+  grid.innerHTML = fotos.map(function(f){
+    return '<img src="'+f.url+'" class="rel-foto-thumb" onclick="window.open(\''+f.url+'\',\'_blank\')" title="'+(f.fecha||'')+'">';
+  }).join('');
+}
+
+function subirFotosEquipo() {
+  if (!equipoActual || !eqFotosTemp.length || !window.fbStorage) return;
+  var pendientes = eqFotosTemp.length;
+  eqFotosTemp.forEach(function(file) {
+    var path = 'sisventas/equipos/'+equipoActual+'/fotos/'+Date.now()+'_'+file.name;
+    var ref = window.fbStorageRef(window.fbStorage, path);
+    window.fbUploadBytes(ref, file).then(function(snap){ return window.fbGetDownloadURL(snap.ref); })
+    .then(function(url){
+      window.fbPush(window.fbRef(window.fbDB, 'sisventas/equipos/'+equipoActual+'/fotos'), {
+        url: url, fecha: new Date().toLocaleDateString('es-AR'), tecnico: currentUser||''
+      });
+      pendientes--;
+      if (pendientes === 0) { notify('Equipo y fotos guardados'); eqFotosTemp = []; volverListaEquipos(); }
+    }).catch(function(){ pendientes--; if(pendientes===0){ notify('Equipo guardado (error en algunas fotos)'); volverListaEquipos(); } });
+  });
+}
+
+// ── RELEVAMIENTO EN CAMPO ──
+function abrirRelevamiento() {
+  if (!equipoActual) { notify('Guardá el equipo primero'); return; }
+  var eq = equiposData.find(function(e){ return e.fbKey === equipoActual; });
+  relFotosTemp = [];
+  relTipoSel   = '';
+  relEstadoSel = eq ? (eq.estado||'operativo') : 'operativo';
+  document.getElementById('rel-equipo-nombre').textContent  = eq ? (eq.descripcion||eq.modelo||'—') : '—';
+  document.getElementById('rel-equipo-cliente').textContent = eq ? (eq.cliente||'—') : '—';
+  document.getElementById('rel-equipo-serie').textContent   = eq ? ('N° serie: '+(eq.serie||'—')) : '—';
+  document.getElementById('rel-trabajo').value = '';
+  document.getElementById('rel-prox-visita').value = '';
+  document.getElementById('rel-fotos-grid').innerHTML = '';
+  document.getElementById('rel-checklist').innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:12px">Seleccioná un tipo de intervención</div>';
+  // Resetear botones tipo
+  document.querySelectorAll('.btn-tipo-rel').forEach(function(b){ b.classList.remove('activo'); });
+  // Resetear estado
+  document.querySelectorAll('.btn-estado-rel').forEach(function(b){
+    b.style.background = 'var(--bg3)'; b.style.border = '1px solid var(--border)'; b.style.color = 'var(--text)';
+  });
+  document.getElementById('modal-relevamiento').style.display = 'block';
+}
+
+function cerrarRelevamiento() { document.getElementById('modal-relevamiento').style.display = 'none'; }
+
+function selTipoRel(btn) {
+  document.querySelectorAll('.btn-tipo-rel').forEach(function(b){ b.classList.remove('activo'); });
+  btn.classList.add('activo');
+  relTipoSel = btn.dataset.tipo;
+  var items = CHECKLISTS_EQ[relTipoSel] || [];
+  document.getElementById('rel-checklist').innerHTML = items.map(function(item, i){
+    return '<div class="check-item" onclick="toggleCheck(this)" id="chk-'+i+'">' +
+      '<input type="checkbox" onclick="event.stopPropagation();this.closest(\'.check-item\').classList.toggle(\'checked\',this.checked)">' +
+      '<span>'+escapeHTML(item)+'</span></div>';
+  }).join('');
+}
+
+function toggleCheck(el) {
+  var chk = el.querySelector('input[type=checkbox]');
+  if (chk) { chk.checked = !chk.checked; el.classList.toggle('checked', chk.checked); }
+}
+
+function selEstadoRel(btn) {
+  document.querySelectorAll('.btn-estado-rel').forEach(function(b){
+    b.style.background='var(--bg3)'; b.style.border='1px solid var(--border)'; b.style.color='var(--text)';
+  });
+  btn.style.background = 'var(--text)'; btn.style.color = 'var(--bg2)'; btn.style.border = '1px solid var(--text)';
+  relEstadoSel = btn.dataset.est;
+}
+
+function agregarFotosRel(input) {
+  var files = Array.from(input.files||[]);
+  files.forEach(function(file){
+    relFotosTemp.push(file);
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var grid = document.getElementById('rel-fotos-grid');
+      var img = document.createElement('img');
+      img.src = e.target.result; img.className = 'rel-foto-thumb'; img.style.opacity='.7';
+      grid.appendChild(img);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function guardarRelevamiento() {
+  if (!equipoActual || !window.fbDB) { notify('Sin conexión'); return; }
+  if (!relTipoSel) { notify('Seleccioná el tipo de intervención'); return; }
+  var trabajo = document.getElementById('rel-trabajo').value.trim();
+  if (!trabajo) { notify('Describí el trabajo realizado'); return; }
+  // Recopilar checklist
+  var checks = {};
+  document.querySelectorAll('#rel-checklist .check-item').forEach(function(el, i){
+    checks[i] = { texto: el.querySelector('span').textContent, ok: el.querySelector('input').checked };
+  });
+  var intervencion = {
+    tipo:       relTipoSel,
+    fecha:      new Date().toISOString(),
+    tecnico:    currentUser || '',
+    trabajo:    trabajo,
+    estado:     relEstadoSel,
+    proxVisita: document.getElementById('rel-prox-visita').value || '',
+    checks:     checks,
+    fotos:      {}
+  };
+  var path = 'sisventas/equipos/'+equipoActual+'/intervenciones';
+  // Actualizar estado del equipo
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/equipos/'+equipoActual), { estado: relEstadoSel });
+  window.fbPush(window.fbRef(window.fbDB, path), intervencion).then(function(refNuevo){
+    var keyRel = refNuevo.key;
+    // Subir fotos si hay
+    if (relFotosTemp.length && window.fbStorage) {
+      relFotosTemp.forEach(function(file){
+        var fRef = window.fbStorageRef(window.fbStorage, 'sisventas/equipos/'+equipoActual+'/relevamientos/'+keyRel+'/'+Date.now()+'_'+file.name);
+        window.fbUploadBytes(fRef, file).then(function(snap){ return window.fbGetDownloadURL(snap.ref); })
+        .then(function(url){
+          window.fbPush(window.fbRef(window.fbDB, path+'/'+keyRel+'/fotos'), { url:url, ts:Date.now() });
+        });
+      });
+    }
+    notify('Relevamiento guardado ✓');
+    cerrarRelevamiento();
+    // Recargar ficha
+    setTimeout(function(){ abrirFichaEquipo(equipoActual); }, 800);
+  }).catch(function(e){ notify('Error: '+e.message); });
+}
+
+function renderHistorialEquipo(intervObj) {
+  var lista = Object.entries(intervObj||{}).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); })
+    .sort(function(a,b){ return new Date(b.fecha)-new Date(a.fecha); });
+  var cont = document.getElementById('eq-historial-lista');
+  var cnt  = document.getElementById('eq-historial-count');
+  if (cnt) cnt.textContent = lista.length ? lista.length + ' registro' + (lista.length>1?'s':'') : '';
+  if (!cont) return;
+  if (!lista.length) {
+    cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Sin intervenciones registradas</div>';
+    return;
+  }
+  var tipoIcon = {instalacion:'📦',mantenimiento:'🔧',reparacion:'🛠️',relevamiento:'🔍',garantia:'🛡️',otro:'📋'};
+  var estClr   = {operativo:'var(--green)',alerta:'var(--amber)',mantenimiento:'var(--blue)',baja:'var(--red)'};
+  cont.innerHTML = lista.map(function(iv){
+    var fecha = iv.fecha ? new Date(iv.fecha).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    var checks = iv.checks ? Object.values(iv.checks) : [];
+    var ok = checks.filter(function(c){ return c.ok; }).length;
+    var cantFotos = iv.fotos ? Object.keys(iv.fotos).length : 0;
+    return '<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="font-size:18px">'+(tipoIcon[iv.tipo]||'📋')+'</span>' +
+          '<div>' +
+            '<div style="font-size:13px;font-weight:500">'+(iv.tipo?iv.tipo.charAt(0).toUpperCase()+iv.tipo.slice(1):'—')+'</div>' +
+            '<div style="font-size:11px;color:var(--text3)">'+(iv.tecnico||'—')+' · '+fecha+'</div>' +
+          '</div>' +
+        '</div>' +
+        '<span style="font-size:11px;font-weight:600;color:'+(estClr[iv.estado]||'var(--text3)')+'">'+((iv.estado||'').charAt(0).toUpperCase()+(iv.estado||'').slice(1))+'</span>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">'+escapeHTML(iv.trabajo||'')+'</div>' +
+      '<div style="display:flex;gap:12px;font-size:11px;color:var(--text3)">' +
+        (checks.length ? '<span>✓ '+ok+'/'+checks.length+' checks</span>' : '') +
+        (cantFotos ? '<span>📷 '+cantFotos+' foto'+(cantFotos>1?'s':'')+'</span>' : '') +
+        (iv.proxVisita ? '<span>📅 Próx: '+iv.proxVisita.split('-').reverse().join('/')+'</span>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── SCANNER DE N° SERIE ──
+function abrirScannerSerie(targetField) {
+  scannerTargetField = targetField || 'eq-f-serie';
+  var modal = document.getElementById('modal-scanner');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  // Pedir acceso a cámara
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} } })
+    .then(function(stream) {
+      scannerStream = stream;
+      var video = document.getElementById('scanner-video');
+      video.srcObject = stream;
+    })
+    .catch(function(err) {
+      notify('No se pudo acceder a la cámara: ' + err.message);
+      cerrarScanner();
+      // Fallback: prompt manual
+      capturarManual();
+    });
+}
+
+function cerrarScanner() {
+  if (scannerStream) { scannerStream.getTracks().forEach(function(t){ t.stop(); }); scannerStream = null; }
+  document.getElementById('modal-scanner').style.display = 'none';
+}
+
+function capturarFrame() {
+  var video  = document.getElementById('scanner-video');
+  var canvas = document.getElementById('scanner-canvas');
+  if (!video || !canvas) return;
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0);
+  // Recortar zona central (el rectángulo de escaneo)
+  var x = Math.floor(canvas.width/2 - 140);
+  var y = Math.floor(canvas.height/2 - 60);
+  var imgData = ctx.getImageData(x, y, 280, 120);
+  // Mostrar la imagen capturada brevemente
+  var resultado = document.getElementById('scanner-resultado');
+  resultado.textContent = '📸 Imagen capturada. Usá la entrada manual para escribir el N° de serie visto.';
+  // Como el scanner óptico requiere librerías externas (ZXing etc.),
+  // ofrecemos el resultado visual para que el técnico lo tipee
+  setTimeout(function() {
+    capturarManual();
+  }, 1500);
+}
+
+function capturarManual() {
+  cerrarScanner();
+  var serie = prompt('Ingresá el N° de serie:');
+  if (serie && serie.trim()) {
+    var campo = document.getElementById(scannerTargetField);
+    if (campo) { campo.value = serie.trim(); campo.focus(); }
+    notify('N° de serie cargado: ' + serie.trim());
+  }
 }
 
 function editarGasto(fbKey) {
