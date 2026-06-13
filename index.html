@@ -9,6 +9,94 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
 <title>SisVentas</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+<!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
+<script>
+window.LOGIN_USUARIOS = [];
+
+window.togglePassVis = function() {
+  var inp = document.getElementById('l-pass');
+  var ico = document.getElementById('ico-show-pass');
+  if (!inp) return;
+  if (inp.type === 'password') { inp.type = 'text'; if (ico) ico.className = 'ti ti-eye-off'; }
+  else { inp.type = 'password'; if (ico) ico.className = 'ti ti-eye'; }
+};
+
+window.selUsuarioLogin = function(email) {
+  var inp = document.getElementById('l-user');
+  var drop = document.getElementById('login-sugerencias');
+  if (inp) inp.value = email;
+  if (drop) drop.style.display = 'none';
+  setTimeout(function(){ var p = document.getElementById('l-pass'); if (p) p.focus(); }, 50);
+};
+
+window.mostrarSugerenciasLogin = function(inp) {
+  var drop = document.getElementById('login-sugerencias');
+  var lista = document.getElementById('login-sug-lista');
+  if (!drop || !lista) return;
+  var v = (inp ? inp.value : '').toLowerCase();
+  var usuarios = window.LOGIN_USUARIOS || [];
+
+  if (!usuarios.length) {
+    // Reintentar cuando carguen
+    setTimeout(function() {
+      var el = document.getElementById('l-user');
+      if (el && document.activeElement === el) window.mostrarSugerenciasLogin(el);
+    }, 1000);
+    drop.style.display = 'none';
+    return;
+  }
+
+  var matches = v
+    ? usuarios.filter(function(u){ return (u.email||'').toLowerCase().includes(v) || (u.nombre||'').toLowerCase().includes(v); })
+    : usuarios;
+
+  var extra = '';
+  if (v && !v.includes('@')) {
+    extra = '<div onclick="selUsuarioLogin(\''+v+'@sistemanixa.com\')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid #e0e0e0;background:#f5f5f5">' +
+      '<i class="ti ti-at" style="font-size:15px;color:#999;width:28px;text-align:center"></i>' +
+      '<span style="font-size:13px;color:#555">'+v+'<strong>@sistemanixa.com</strong></span></div>';
+  }
+
+  if (!matches.length && !extra) { drop.style.display = 'none'; return; }
+
+  lista.innerHTML = extra + matches.map(function(u){
+    var ini = (u.nombre || '?').charAt(0).toUpperCase();
+    return '<div onclick="selUsuarioLogin(\''+u.email+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:0.5px solid #eee" onmouseenter="this.style.background=\'#f5f5f5\'" onmouseleave="this.style.background=\'\'">' +
+      '<div style="width:30px;height:30px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">'+ini+'</div>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">'+u.nombre+'</div><div style="font-size:11px;color:#999">'+u.email+'</div></div>' +
+      '<span style="font-size:11px;padding:2px 7px;border-radius:10px;background:#eee;color:#777">'+u.rol+'</span>' +
+    '</div>';
+  }).join('');
+  drop.style.display = 'block';
+};
+
+window.iniciarLogin = function() {
+  if (typeof window.doLogin === 'function') { window.doLogin(); return; }
+  var intentos = 0;
+  var iv = setInterval(function() {
+    intentos++;
+    if (typeof window.doLogin === 'function') { clearInterval(iv); window.doLogin(); }
+    else if (intentos > 50) {
+      clearInterval(iv);
+      // Mostrar error en pantalla, nunca alert
+      var err = document.getElementById('login-error');
+      if (err) {
+        err.textContent = 'Error al cargar Firebase. Verificá tu conexión a internet.';
+        err.style.display = 'block';
+      }
+    }
+  }, 100);
+};
+
+// Cerrar dropdown al click fuera
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#login-sugerencias') && e.target.id !== 'l-user') {
+    var d = document.getElementById('login-sugerencias');
+    if (d) d.style.display = 'none';
+  }
+});
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -3061,6 +3149,9 @@ tr:hover td{color:var(--text)}
 <script id="app-main">
 var fabOpen = false;
 
+// ── FUNCIONES DE LOGIN — definidas en <head> para disponibilidad inmediata ──
+// togglePassVis, iniciarLogin, mostrarSugerenciasLogin, selUsuarioLogin
+
 
 // ── SEARCHABLE SELECT ──
 function initSearchableSelect(selectId, placeholder) {
@@ -3615,18 +3706,17 @@ function fbCargarUsuarios() {
       window.usuariosData = Object.entries(data).map(function(e){
         return Object.assign({ fbKey: e[0] }, e[1]);
       });
-      // Actualizar sugerencias de login
-      if (window.usuariosData) {
-        LOGIN_USUARIOS = window.usuariosData
-          .filter(function(u){ return u.activo !== false; })
-          .map(function(u){
-            return {
-              email: u.mail || (u.login + '@sistemanixa.com'),
-              nombre: u.nombre,
-              rol: u.rol === 'admin' ? 'Admin' : 'Vendedor'
-            };
-          });
-      }
+      // Actualizar sugerencias de login usando window. para reactivo
+      var rolLabels = {admin:'Admin',administrativo:'Administrativo',vendedor:'Vendedor',tecnico:'Técnico'};
+      window.LOGIN_USUARIOS = window.usuariosData
+        .filter(function(u){ return u.activo !== false; })
+        .map(function(u){
+          return {
+            email:  u.mail || ((u.login||'').includes('@') ? u.login : (u.login||'')+'@sistemanixa.com'),
+            nombre: u.nombre || u.login || '',
+            rol:    rolLabels[(u.rol||'').toLowerCase()] || (u.rol||'Vendedor')
+          };
+        });
       renderTablaUsuarios();
     }
   });
@@ -4399,7 +4489,8 @@ function cargarUsuariosLogin() {
     var data = snap.val();
     if (!data) return;
     var rolLabels = {admin:'Admin',administrativo:'Administrativo',vendedor:'Vendedor',tecnico:'Técnico'};
-    LOGIN_USUARIOS = Object.values(data)
+    // Asignar a window.LOGIN_USUARIOS dispara el setter que actualiza el dropdown
+    window.LOGIN_USUARIOS = Object.values(data)
       .filter(function(u){ return u.activo !== false; })
       .map(function(u){
         return {
@@ -4408,132 +4499,16 @@ function cargarUsuariosLogin() {
           rol:    rolLabels[(u.rol||'').toLowerCase()] || (u.rol||'')
         };
       });
-  }).catch(function(){});
+  }).catch(function(){
+    // Si falla Firebase (sin conexión), dejar el campo libre para tipear
+  });
 }
 // Ejecutar apenas Firebase esté disponible
-setTimeout(cargarUsuariosLogin, 800);
+setTimeout(cargarUsuariosLogin, 600);
 
 
-function mostrarSugerenciasLogin(inp) {
-  var drop = document.getElementById('login-sugerencias');
-  var lista = document.getElementById('login-sug-lista');
-  if (!drop || !lista) return;
-  var v = inp.value.toLowerCase();
-  var matches = v
-    ? LOGIN_USUARIOS.filter(function(u) {
-        return u.email.toLowerCase().includes(v) || u.nombre.toLowerCase().includes(v);
-      })
-    : LOGIN_USUARIOS;
+// ── SUGERENCIAS DE LOGIN — definidas al inicio del script ──
 
-  // Si escribió texto sin @ ofrecer autocompletar dominio
-  var sugerenciaDominio = '';
-  if (v && !v.includes('@')) {
-    sugerenciaDominio = '<div onclick="selUsuarioLogin(\''+v+'@sistemanixa.com\')" '+
-      'style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);background:var(--bg3)" '+
-      'onmouseenter="this.style.background=\'var(--bg4)\'" onmouseleave="this.style.background=\'var(--bg3)\'">'+
-      '<i class="ti ti-at" style="font-size:16px;color:var(--text3);width:32px;text-align:center"></i>'+
-      '<span style="font-size:13px;color:var(--text2)">'+v+'<strong>@sistemanixa.com</strong></span>'+
-    '</div>';
-  }
-
-  if (!matches.length && !sugerenciaDominio) { drop.style.display = 'none'; return; }
-
-  lista.innerHTML = sugerenciaDominio + matches.map(function(u) {
-    return '<div onclick="selUsuarioLogin(\''+u.email+'\')" '+
-      'style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)" '+
-      'onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">'+
-      '<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--text);flex-shrink:0">'+
-        u.nombre.charAt(0)+
-      '</div>'+
-      '<div style="flex:1;min-width:0">'+
-        '<div style="font-size:13px;font-weight:500;color:var(--text)">'+u.nombre+'</div>'+
-        '<div style="font-size:11px;color:var(--text3)">'+u.email+'</div>'+
-      '</div>'+
-      '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg4);color:var(--text3)">'+u.rol+'</span>'+
-    '</div>';
-  }).join('');
-  drop.style.display = 'block';
-}
-
-
-function selUsuarioLogin(email) {
-  var inp = document.getElementById('l-user');
-  var drop = document.getElementById('login-sugerencias');
-  if (inp) inp.value = email;
-  if (drop) drop.style.display = 'none';
-  setTimeout(function() { document.getElementById('l-pass').focus(); }, 50);
-}
-
-// Cerrar sugerencias al hacer click fuera
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('#login-sugerencias') && e.target.id !== 'l-user') {
-    var d = document.getElementById('login-sugerencias');
-    if (d) d.style.display = 'none';
-  }
-});
-
-// Abrir sugerencias al hacer focus en el campo vacío
-document.addEventListener('DOMContentLoaded', function() {
-  var inp = document.getElementById('l-user');
-  if (inp) {
-    inp.addEventListener('focus', function() {
-      mostrarSugerenciasLogin(inp);
-    });
-  }
-});
-
-
-
-function togglePassVis() {
-  var inp = document.getElementById('l-pass');
-  var ico = document.getElementById('ico-show-pass');
-  if (!inp) return;
-  if (inp.type === 'password') {
-    inp.type = 'text';
-    if (ico) ico.className = 'ti ti-eye-off';
-  } else {
-    inp.type = 'password';
-    if (ico) ico.className = 'ti ti-eye';
-  }
-}
-
-
-
-// ── WRAPPER SEGURO PARA LOGIN ──
-function iniciarLogin() {
-  // Si doLogin ya existe, llamarla directamente
-  if (typeof doLogin === 'function') {
-    doLogin();
-  } else {
-    // Esperar hasta 3 segundos a que el script cargue
-    var intentos = 0;
-    var intervalo = setInterval(function() {
-      intentos++;
-      if (typeof doLogin === 'function') {
-        clearInterval(intervalo);
-        doLogin();
-      } else if (intentos > 30) {
-        clearInterval(intervalo);
-        // Fallback: login demo directo
-        var u = document.getElementById('l-user').value.trim().toLowerCase().replace('@sistemanixa.com','').replace('@gmail.com','');
-        var p = document.getElementById('l-pass').value;
-        var demo = APP_CONFIG ? APP_CONFIG.DEMO_USERS[u] : null;
-        if (demo && demo.password === p) {
-          isAuthenticated = true;
-          currentRole = demo.role;
-          if (typeof _completarLogin === 'function') _completarLogin(demo.name);
-          else {
-            document.getElementById('screen-login').style.display = 'none';
-            document.getElementById('screen-app').classList.add('visible');
-          }
-        } else {
-          var err = document.getElementById('login-error');
-          if (err) err.style.display = 'block';
-        }
-      }
-    }, 100);
-  }
-}
 // ── Seguridad base para maqueta ──
 // IMPORTANTE: esto NO reemplaza validaciones del backend. Cuando conectes SQL Server,
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
