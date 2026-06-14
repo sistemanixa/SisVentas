@@ -620,7 +620,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v8.5 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v8.7 · Firebase</div>
     </div>
     <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
     <div class="login-field">
@@ -4071,14 +4071,7 @@ document.addEventListener('firebase-ready', fbMostrarEstadoConexion);
 
 // ── ASEGURAR doLogin GLOBAL ──
 // Por si el orden de carga causa problemas
-if (typeof window.doLogin === 'undefined') {
-  window.doLogin = function() {
-    // Intentar llamar cuando esté disponible
-    setTimeout(function() {
-      if (typeof doLogin === 'function') doLogin();
-    }, 100);
-  };
-}
+// doLogin definida abajo y expuesta en window
 
 
 // doLogout y abrirUserPanel → movidos al script principal
@@ -4514,7 +4507,7 @@ setTimeout(cargarUsuariosLogin, 600);
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v8.5-firebase',
+  VERSION: 'v8.7-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4658,7 +4651,7 @@ function selectRole(r) {
   document.getElementById('rb-admin').classList.toggle('selected', r === 'admin');
   document.getElementById('rb-vendedor').classList.toggle('selected', r === 'vendedor');
 }
-function doLogin() {
+window.doLogin = function doLogin() {
   var u = document.getElementById('l-user').value.trim();
   var p = document.getElementById('l-pass').value;
   var err = document.getElementById('login-error');
