@@ -72,21 +72,43 @@ window.mostrarSugerenciasLogin = function(inp) {
 };
 
 window.iniciarLogin = function() {
+  // Ocultar error previo
+  var err = document.getElementById('login-error');
+  if (err) err.style.display = 'none';
+
+  // Si doLogin ya está lista, llamarla
   if (typeof window.doLogin === 'function') { window.doLogin(); return; }
+
+  // Escuchar el evento firebase-ready
+  var fired = false;
+  var onReady = function() {
+    if (fired) return;
+    fired = true;
+    document.removeEventListener('firebase-ready', onReady);
+    clearTimeout(fallback);
+    if (typeof window.doLogin === 'function') window.doLogin();
+  };
+  document.addEventListener('firebase-ready', onReady);
+
+  // Fallback: reintentar hasta 15 segundos (mobile puede ser lento)
   var intentos = 0;
   var iv = setInterval(function() {
     intentos++;
-    if (typeof window.doLogin === 'function') { clearInterval(iv); window.doLogin(); }
-    else if (intentos > 50) {
+    if (typeof window.doLogin === 'function') {
       clearInterval(iv);
-      // Mostrar error en pantalla, nunca alert
-      var err = document.getElementById('login-error');
-      if (err) {
-        err.textContent = 'Error al cargar Firebase. Verificá tu conexión a internet.';
-        err.style.display = 'block';
+      if (!fired) { fired = true; document.removeEventListener('firebase-ready', onReady); window.doLogin(); }
+    } else if (intentos > 150) { // 150 × 100ms = 15 segundos
+      clearInterval(iv);
+      if (!fired) {
+        fired = true;
+        if (err) {
+          err.textContent = 'No se pudo conectar con Firebase. Verificá tu conexión e intentá de nuevo.';
+          err.style.display = 'block';
+        }
       }
     }
   }, 100);
+  var fallback = setTimeout(function(){}, 15000); // placeholder
 };
 
 // Cerrar dropdown al click fuera
@@ -620,9 +642,9 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v8.7 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v8.9 · Firebase</div>
     </div>
-    <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
+    <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
       <label>Usuario</label>
       <div style="position:relative">
@@ -4507,7 +4529,7 @@ setTimeout(cargarUsuariosLogin, 600);
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v8.7-firebase',
+  VERSION: 'v8.9-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4710,23 +4732,12 @@ window.doLogin = function doLogin() {
         }
       })
       .catch(function(fbError) {
-        // Si el error es de credenciales, mostrar error directo
-        var code = fbError ? fbError.code : '';
-        if (code === 'auth/wrong-password' || code === 'auth/user-not-found' || 
-            code === 'auth/invalid-credential' || code === 'auth/invalid-email') {
-          if(err) err.style.display = 'block';
-          return;
-        }
-        // Para otros errores (red, config), intentar fallback demo
-        var uSimple = u.toLowerCase().split('@')[0];
-        var demo = APP_CONFIG.DEMO_USERS[uSimple] || APP_CONFIG.DEMO_USERS[u.toLowerCase()];
-        if (demo && demo.password === p) {
-          if(err) err.style.display = 'none';
-          isAuthenticated = true;
-          currentRole = demo.role;
-          _completarLogin(demo.name);
-        } else {
-          if(err) err.style.display = 'block';
+        var code = fbError ? fbError.code : 'desconocido';
+        var msg  = fbError ? fbError.message : '';
+        // Mostrar código de error para diagnóstico
+        if(err) {
+          err.textContent = 'Error: ' + code + (msg ? ' — ' + msg.slice(0,80) : '');
+          err.style.display = 'block';
         }
       });
   } else {
