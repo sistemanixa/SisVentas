@@ -843,7 +843,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v11.7 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v11.8 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5278,16 +5278,16 @@ function applyRole() {
 // ── Seguridad base para maqueta ──
 // IMPORTANTE: esto NO reemplaza validaciones del backend. Cuando conectes SQL Server,
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
-const APP_CONFIG = Object.freeze({
+var APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v11.7-firebase',
+  VERSION: 'v11.8-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
   ADMINISTRATIVO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados']),
   VENDEDOR_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados','proveedores','ordenes','gastos','reportes','estadisticas'])
 });
-let isAuthenticated = false;
+var isAuthenticated = false;
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
@@ -5298,21 +5298,21 @@ function setChildren(el, children) {
   el.replaceChildren(...children);
 }
 function makeIcon(className) {
-  const i = document.createElement('i');
+  var i = document.createElement('i');
   i.className = className;
   return i;
 }
 function makeBadge(text, className) {
-  const span = document.createElement('span');
+  var span = document.createElement('span');
   span.className = 'badge ' + safeClass(className, ['b-green','b-amber','b-red','b-blue','b-purple'], 'b-blue');
   span.textContent = text;
   return span;
 }
 function appendAlert(container, type, iconClass, main, detail) {
-  const div = document.createElement('div');
+  var div = document.createElement('div');
   div.style.cssText = `background:var(--${type}-bg);border:0.5px solid var(--${type});border-radius:var(--radius);padding:9px 14px;font-size:13px;color:var(--${type});display:flex;align-items:center;gap:8px`;
-  const icon = makeIcon(iconClass); icon.style.fontSize = '16px';
-  const strong = document.createElement('strong'); strong.textContent = main;
+  var icon = makeIcon(iconClass); icon.style.fontSize = '16px';
+  var strong = document.createElement('strong'); strong.textContent = main;
   div.append(icon, strong, document.createTextNode(' — ' + detail));
   container.appendChild(div);
 }
@@ -5322,10 +5322,10 @@ function secureLog(message) {
 
 // ── Estado global ──
 
-const SESSION_TIMEOUT = 30 * 60 * 1000;
-const titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos'};
+var SESSION_TIMEOUT = 30 * 60 * 1000;
+var titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos'};
 
-let sessionTimer = null, sessionStart = null, tiempoUI = null;
+var sessionTimer = null, sessionStart = null, tiempoUI = null;
 
 var NOTIF_CONFIG = {
   stock_critico:    { label:'Stock sin existencia',      sub:'Cuando un producto llega a 0',                 canales:['App','WhatsApp'], activo:true,  urgente:true  },
@@ -5410,13 +5410,14 @@ var PPTO_ESTADOS = {
   vencido:        { label:'Vencido',              badge:'badge-vencido',     icon:'ti-calendar-off',   orden:8 },
   convertido:     { label:'Convertido a venta',   badge:'badge-convertido',  icon:'ti-arrow-right',    orden:9 },
 };
-let currentRole = 'admin';
+var currentRole = 'admin';
 var notifLeidas = new Set();
 var todasNotifs = [];
-const now = new Date();
-_set('topbar-date',now.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}));
-document.getElementById('venta-fecha').value = now.toISOString().split('T')[0];
-_get('det-fecha').value = now.toISOString().split('T')[0];
+var now = new Date();
+// Protegido: solo ejecutar cuando el DOM esté listo
+try { _set('topbar-date', now.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'})); } catch(e){}
+try { var _vf = document.getElementById('venta-fecha'); if(_vf) _vf.value = now.toISOString().split('T')[0]; } catch(e){}
+try { var _df = document.getElementById('det-fecha'); if(_df) _df.value = now.toISOString().split('T')[0]; } catch(e){}
 
 // ── LOGIN ──
 function selectRole(r) {
@@ -5592,16 +5593,16 @@ document.addEventListener('click', e => { if (!e.target.closest('.sw')) _hide('c
 
 // ── CÁLCULOS VENTA ──
 function calcRow(inp) {
-  const tr = inp.closest('tr');
-  const q = parseFloat(tr.querySelector('.qty').value) || 0;
-  const p = parseFloat(tr.querySelector('.price').value) || 0;
+  var tr = inp.closest('tr');
+  var q = parseFloat(tr.querySelector('.qty').value) || 0;
+  var p = parseFloat(tr.querySelector('.price').value) || 0;
   tr.querySelector('.sub').textContent = '$' + Math.round(q * p).toLocaleString('es-AR');
   calcTotals();
 }
 function calcTotals() {
-  let s = 0;
+  var s = 0;
   document.querySelectorAll('#det-body .sub').forEach(td => s += parseFloat(td.textContent.replace(/\$|\./g,'').replace(',','.')) || 0);
-  const iva = s * 0.21;
+  var iva = s * 0.21;
   _set('t-sub','$' + Math.round(s).toLocaleString('es-AR'));
   _set('t-iva','$' + Math.round(iva).toLocaleString('es-AR'));
   _set('t-tot','$' + Math.round(s + iva).toLocaleString('es-AR'));
@@ -5612,7 +5613,7 @@ var rc = 20;
 
 function addRow() {
   rc++;
-  const tr = crearFilaProducto('P-0'+rc, 'Nuevo producto', 0, 1);
+  var tr = crearFilaProducto('P-0'+rc, 'Nuevo producto', 0, 1);
   document.getElementById('det-body').appendChild(tr);
   document.addEventListener('click', e => { if (!e.target.closest('.prod-search-drop') && !e.target.classList.contains('cod-inp')) document.querySelectorAll('.prod-search-drop').forEach(d => d.style.display='none'); }, {once:true});
 }
@@ -5699,7 +5700,7 @@ function confirmarVenta() {
 
 // Inicializar filas al cargar nueva venta
 function inicializarFilasVenta() {
-  const body = document.getElementById('det-body');
+  var body = document.getElementById('det-body');
   if (!body) return;
   body.innerHTML = '';
   body.appendChild(crearFilaProducto('','',0,1));
@@ -5720,7 +5721,7 @@ var editingProdId = null;
 
 // Alertas de stock al entrar al módulo
 function mostrarAlertasStock() {
-  const cont = document.getElementById('stock-alerts');
+  var cont = document.getElementById('stock-alerts');
   cont.replaceChildren();
   Object.values(prodData).forEach(p => {
     if (p.stock === 0) {
@@ -5737,7 +5738,7 @@ function abrirFormProducto(id) {
   _hide('prod-detail-view');
   _block('prod-form-view');
   _set('prod-form-title',id ? 'Editar producto' : 'Nuevo producto');
-  const p = id ? prodData[id] : {};
+  var p = id ? prodData[id] : {};
   document.getElementById('pf-codigo').value = p.codigo || '';
   document.getElementById('pf-descripcion').value = p.descripcion || '';
   document.getElementById('pf-categoria').value = p.categoria || '';
@@ -5759,11 +5760,11 @@ function cerrarFormProducto() {
 }
 
 function calcMargen() {
-  const c = parseFloat(document.getElementById('pf-compra').value) || 0;
-  const v = parseFloat(document.getElementById('pf-venta').value) || 0;
-  const iva = parseFloat(document.getElementById('pf-iva').value) || 0;
+  var c = parseFloat(document.getElementById('pf-compra').value) || 0;
+  var v = parseFloat(document.getElementById('pf-venta').value) || 0;
+  var iva = parseFloat(document.getElementById('pf-iva').value) || 0;
   if (c > 0 && v > 0) {
-    const margen = ((v - c) / c * 100).toFixed(1);
+    var margen = ((v - c) / c * 100).toFixed(1);
     document.getElementById('pf-margen').value = margen + '%';
     document.getElementById('pf-margen').style.color = margen >= 0 ? 'var(--green)' : 'var(--red)';
   } else {
@@ -5777,8 +5778,8 @@ function calcMargen() {
 }
 
 function guardarProducto() {
-  const cod = document.getElementById('pf-codigo').value.trim();
-  const desc = document.getElementById('pf-descripcion').value.trim();
+  var cod = document.getElementById('pf-codigo').value.trim();
+  var desc = document.getElementById('pf-descripcion').value.trim();
   if (!cod || !desc) { notify('Completá al menos código y descripción'); return; }
   notify(editingProdId ? 'Producto actualizado correctamente' : 'Producto guardado correctamente');
   cerrarFormProducto();
@@ -5834,7 +5835,7 @@ function buscarEmpleado(v) { document.querySelectorAll('.er').forEach(tr => tr.s
 function abrirFormPresupuesto() {
   document.querySelector('#page-presupuesto .card').style.display='none';
   _block('ppto-form');
-  const d=new Date(); document.getElementById('pp-fecha').value=d.toISOString().split('T')[0];
+  var d=new Date(); document.getElementById('pp-fecha').value=d.toISOString().split('T')[0];
   // Generar número automático
   var numEl = document.getElementById('pp-numero');
   if (numEl && !numEl.value) {
@@ -5848,19 +5849,19 @@ function cerrarFormPresupuesto() {
   _hide('ppto-form');
 }
 function calcVencimiento() {
-  const fEl = document.getElementById('pp-fecha');
-  const diasEl = _get('pp-validez') || document.getElementById('pp-dias');
-  const vencEl = _get('pp-vencimiento') || document.getElementById('pp-venc');
+  var fEl = document.getElementById('pp-fecha');
+  var diasEl = _get('pp-validez') || document.getElementById('pp-dias');
+  var vencEl = _get('pp-vencimiento') || document.getElementById('pp-venc');
   if (!fEl || !fEl.value) return;
-  const dias = parseInt(diasEl ? diasEl.value : 14) || 14;
-  const venc = new Date(fEl.value);
+  var dias = parseInt(diasEl ? diasEl.value : 14) || 14;
+  var venc = new Date(fEl.value);
   venc.setDate(venc.getDate() + dias);
   if (vencEl) vencEl.value = venc.toLocaleDateString('es-AR');
 }
 function filterPpCli(v) {
-  const d=_get('pp-cli-drop');
+  var d=_get('pp-cli-drop');
   if(!v){d.style.display='none';return;}
-  let any=false;
+  var any=false;
   d.querySelectorAll('.di').forEach(i=>{const s=i.textContent.toLowerCase().includes(v.toLowerCase());i.style.display=s?'':'none';if(s)any=true;});
   d.style.display=any?'block':'none';
 }
@@ -5870,15 +5871,15 @@ function selPpCli(nombre,dir) {
 }
 document.addEventListener('click', e=>{if(!e.target.closest('#page-presupuesto .sw'))_hide('pp-cli-drop');});
 function calcPpTotales() {
-  let s=0;
+  var s=0;
   document.querySelectorAll('#pp-body tr').forEach(tr=>{
-    const q=parseFloat(tr.querySelector('.ppqty')?.value)||0;
-    const p=parseFloat(tr.querySelector('.ppprice')?.value)||0;
-    const sub=q*p; s+=sub;
-    const el=tr.querySelector('.ppsub'); if(el) el.textContent='$'+Math.round(sub).toLocaleString('es-AR');
+    var q=parseFloat(tr.querySelector('.ppqty')?.value)||0;
+    var p=parseFloat(tr.querySelector('.ppprice')?.value)||0;
+    var sub=q*p; s+=sub;
+    var el=tr.querySelector('.ppsub'); if(el) el.textContent='$'+Math.round(sub).toLocaleString('es-AR');
   });
-  const desc=parseFloat(document.getElementById('pp-descuento')?.value)||0;
-  const descAmt=s*desc/100; const base=s-descAmt; const iva=base*0.21;
+  var desc=parseFloat(document.getElementById('pp-descuento')?.value)||0;
+  var descAmt=s*desc/100; const base=s-descAmt; const iva=base*0.21;
   _set('pp-sub','$'+Math.round(s).toLocaleString('es-AR'));
   _set('pp-desc-amt','-$'+Math.round(descAmt).toLocaleString('es-AR'));
   _set('pp-iva','$'+Math.round(iva).toLocaleString('es-AR'));
@@ -5894,9 +5895,9 @@ function filtrarEstadoPpto(v) { document.querySelectorAll('.pprow').forEach(tr=>
 // ── COBRANZAS ──
 document.addEventListener('DOMContentLoaded',()=>{ const f=document.getElementById('cob-fecha'); if(f)f.value=new Date().toISOString().split('T')[0]; });
 function buscarVentaCob(v) {
-  const d=document.getElementById('cob-drop');
+  var d=document.getElementById('cob-drop');
   if(!v){d.style.display='none';return;}
-  let any=false;
+  var any=false;
   d.querySelectorAll('.di').forEach(i=>{const s=i.textContent.toLowerCase().includes(v.toLowerCase());i.style.display=s?'':'none';if(s)any=true;});
   d.style.display=any?'block':'none';
 }
@@ -5912,25 +5913,25 @@ function selVentaCob(venta,cliente,total,cobrado,saldo) {
   document.getElementById('cob-nuevo-saldo').value='';
 }
 function calcSaldoTrasCobranza() {
-  const saldoStr=document.getElementById('cob-saldo').value.replace(/\$|\./g,'').replace(',','.');
-  const saldo=parseFloat(saldoStr)||0;
-  const monto=parseFloat(document.getElementById('cob-monto').value)||0;
-  const nuevo=Math.max(0,saldo-monto);
-  const el=document.getElementById('cob-nuevo-saldo');
+  var saldoStr=document.getElementById('cob-saldo').value.replace(/\$|\./g,'').replace(',','.');
+  var saldo=parseFloat(saldoStr)||0;
+  var monto=parseFloat(document.getElementById('cob-monto').value)||0;
+  var nuevo=Math.max(0,saldo-monto);
+  var el=document.getElementById('cob-nuevo-saldo');
   el.value='$'+Math.round(nuevo).toLocaleString('es-AR');
   el.style.color=nuevo===0?'var(--green)':'var(--amber)';
 }
 function registrarPago() {
-  const venta=document.getElementById('cob-venta').value;
-  const monto=document.getElementById('cob-monto').value;
-  const medio=document.getElementById('cob-medio').value;
+  var venta=document.getElementById('cob-venta').value;
+  var monto=document.getElementById('cob-monto').value;
+  var medio=document.getElementById('cob-medio').value;
   if(!venta||!monto){notify('Completá venta y monto');return;}
   notify('Pago registrado correctamente');
   // El recibo se mostrará cuando se implemente la integración con Firebase
 }
 // recibosData movido al inicio
 function verRecibo(id) {
-  const r=recibosData[id];
+  var r=recibosData[id];
   if (!r) { notify('Recibo no encontrado'); return; }
   _set('rec-num','Recibo '+r.num);
   _set('rec-fecha',r.fecha);
@@ -5944,7 +5945,7 @@ function verRecibo(id) {
   _set('rec-saldo-final',r.saldo);
   document.getElementById('rec-saldo-final').style.color=r.saldoColor;
   document.getElementById('rec-items').innerHTML = r.items;
-  const ov=document.getElementById('recibo-overlay');
+  var ov=document.getElementById('recibo-overlay');
   ov.style.display='flex';
 }
 
@@ -5960,15 +5961,15 @@ function showCfgTab(id, el) {
 
 // ── CUENTA CORRIENTE ──
 function toggleSidebar() {
-  const sb = document.querySelector('.sidebar');
-  const ov = document.getElementById('mob-overlay');
-  const open = sb.classList.toggle('open');
+  var sb = document.querySelector('.sidebar');
+  var ov = document.getElementById('mob-overlay');
+  var open = sb.classList.toggle('open');
   ov.style.display = open ? 'block' : 'none';
   document.body.style.overflow = open ? 'hidden' : '';
 }
 function closeSidebarMobile() {
-  const sb = document.querySelector('.sidebar');
-  const ov = document.getElementById('mob-overlay');
+  var sb = document.querySelector('.sidebar');
+  var ov = document.getElementById('mob-overlay');
   sb.classList.remove('open');
   ov.style.display = 'none';
   document.body.style.overflow = '';
@@ -5980,9 +5981,9 @@ function closeSidebarMobile() {
 function buscarCC(v) { document.querySelectorAll('.ccrow').forEach(tr=>tr.style.display=tr.textContent.toLowerCase().includes(v.toLowerCase())?'':'none'); }
 // ccData movido al inicio
 function verCuentaCliente(nombre) {
-  const d=ccData[nombre]; if(!d)return;
-  const card=document.querySelector('#page-cuentacorriente .card');
-  const metrics=document.querySelector('#page-cuentacorriente .metrics');
+  var d=ccData[nombre]; if(!d)return;
+  var card=document.querySelector('#page-cuentacorriente .card');
+  var metrics=document.querySelector('#page-cuentacorriente .metrics');
   card.style.display='none'; metrics.style.display='none';
   _block('cc-detail');
   _set('cc-avatar',d.initials);
@@ -5991,20 +5992,20 @@ function verCuentaCliente(nombre) {
   _set('cc-saldo-lbl','Saldo: '+d.saldo);
   _set('cc-total',d.total);
   _set('cc-cobrado',d.cobrado);
-  const saldoEl=document.getElementById('cc-saldo'); saldoEl.textContent=d.saldo; saldoEl.style.color=d.saldoColor;
-  const card2=document.getElementById('cc-saldo-card'); card2.style.background=d.saldoColor==='var(--red)'?'var(--red-bg)':d.saldoColor==='var(--amber)'?'var(--amber-bg)':'var(--bg3)';
-  const tbody=document.getElementById('cc-movimientos').querySelector('tbody')||document.getElementById('cc-movimientos');
-  const rows=d.movs.map(m=>`<tr><td >${m.fecha}</td><td>${m.concepto}</td><td><span class="badge ${m.tipo==='Pago'?'b-green':'b-blue'}">${m.tipo}</span></td><td style="text-align:right;color:${m.tipo==='Pago'?'var(--green)':'var(--text2)'};font-weight:${m.tipo==='Pago'?'500':'400'}">${m.importe}</td><td style="text-align:right;font-weight:500">${m.saldo}</td></tr>`).join('');
+  var saldoEl=document.getElementById('cc-saldo'); saldoEl.textContent=d.saldo; saldoEl.style.color=d.saldoColor;
+  var card2=document.getElementById('cc-saldo-card'); card2.style.background=d.saldoColor==='var(--red)'?'var(--red-bg)':d.saldoColor==='var(--amber)'?'var(--amber-bg)':'var(--bg3)';
+  var tbody=document.getElementById('cc-movimientos').querySelector('tbody')||document.getElementById('cc-movimientos');
+  var rows=d.movs.map(m=>`<tr><td >${m.fecha}</td><td>${m.concepto}</td><td><span class="badge ${m.tipo==='Pago'?'b-green':'b-blue'}">${m.tipo}</span></td><td style="text-align:right;color:${m.tipo==='Pago'?'var(--green)':'var(--text2)'};font-weight:${m.tipo==='Pago'?'500':'400'}">${m.importe}</td><td style="text-align:right;font-weight:500">${m.saldo}</td></tr>`).join('');
   document.getElementById('cc-movimientos').innerHTML = `<tr><th >Fecha</th><th>Concepto</th><th >Tipo</th><th style="text-align:right">Importe</th><th style="text-align:right">Saldo</th></tr>${rows}`;
 }
 
 // ── EMPLEADOS ──
 // empData movido al inicio
 function verEmpleado(id) {
-  const e = empData[id];
+  var e = empData[id];
   _hide('emp-list-view');
   _block('emp-detail-view');
-  const av = document.getElementById('det-avatar');
+  var av = document.getElementById('det-avatar');
   av.textContent = e.initials;
   av.style.background = e.avatarBg;
   av.style.color = e.avatarColor;
@@ -6066,16 +6067,16 @@ function volverlista() {
 
 // ── PANEL USUARIO ──
 function toggleUserPanel() {
-  const panel = document.getElementById('user-panel');
-  const overlay = document.getElementById('user-panel-overlay');
+  var panel = document.getElementById('user-panel');
+  var overlay = document.getElementById('user-panel-overlay');
   if (!panel) return;
-  const isOpen = panel.style.display === 'block';
+  var isOpen = panel.style.display === 'block';
   panel.style.display = isOpen ? 'none' : 'block';
   overlay.style.display = isOpen ? 'none' : 'block';
 }
 function cerrarUserPanel() {
-  const panel = document.getElementById('user-panel');
-  const overlay = document.getElementById('user-panel-overlay');
+  var panel = document.getElementById('user-panel');
+  var overlay = document.getElementById('user-panel-overlay');
   if (panel) panel.style.display = 'none';
   if (overlay) overlay.style.display = 'none';
 }
@@ -6096,30 +6097,30 @@ function actualizarPanelUsuario() {
 function abrirCambiarPassword() {
   cerrarUserPanel();
   ['pwd-actual','pwd-nueva','pwd-confirm'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  const bar = document.getElementById('pwd-strength');
-  const lbl = document.getElementById('pwd-strength-label');
+  var bar = document.getElementById('pwd-strength');
+  var lbl = document.getElementById('pwd-strength-label');
   if (bar) bar.style.background = 'var(--border2)';
   if (lbl) lbl.textContent = '';
-  const modal = document.getElementById('modal-password');
+  var modal = document.getElementById('modal-password');
   if (modal) modal.classList.add('open');
 }
 function checkPwdStrength(pwd) {
-  let score = 0;
+  var score = 0;
   if (pwd.length >= 8) score++;
   if (/[A-Z]/.test(pwd)) score++;
   if (/[0-9]/.test(pwd)) score++;
   if (/[^A-Za-z0-9]/.test(pwd)) score++;
-  const colors = ['var(--border2)','var(--red)','var(--amber)','var(--green)','var(--green)'];
-  const labels = ['','Muy débil','Débil','Aceptable','Fuerte'];
-  const bar = document.getElementById('pwd-strength');
-  const lbl = document.getElementById('pwd-strength-label');
+  var colors = ['var(--border2)','var(--red)','var(--amber)','var(--green)','var(--green)'];
+  var labels = ['','Muy débil','Débil','Aceptable','Fuerte'];
+  var bar = document.getElementById('pwd-strength');
+  var lbl = document.getElementById('pwd-strength-label');
   if (bar) { bar.style.background = colors[score]; bar.style.width = (score*25)+'%'; }
   if (lbl) { lbl.textContent = labels[score]||''; lbl.style.color = colors[score]; }
 }
 function cambiarPassword() {
-  const actual = document.getElementById('pwd-actual')?.value;
-  const nueva  = document.getElementById('pwd-nueva')?.value;
-  const confirm= document.getElementById('pwd-confirm')?.value;
+  var actual = document.getElementById('pwd-actual')?.value;
+  var nueva  = document.getElementById('pwd-nueva')?.value;
+  var confirm= document.getElementById('pwd-confirm')?.value;
   if (!actual||!nueva||!confirm) { notify('Completá todos los campos'); return; }
   if (nueva !== confirm) { notify('Las contraseñas no coinciden'); return; }
   if (nueva.length < 6) { notify('Mínimo 6 caracteres'); return; }
@@ -6143,10 +6144,10 @@ function startSessionTimer() {
   clearInterval(tiempoUI);
   tiempoUI = setInterval(() => {
     if (!isAuthenticated) { clearInterval(tiempoUI); return; }
-    const mins = Math.floor((Date.now() - sessionStart) / 60000);
-    const rest = SESSION_TIMEOUT/60000 - mins;
-    const et = document.getElementById('up-tiempo');
-    const er = document.getElementById('up-timeout');
+    var mins = Math.floor((Date.now() - sessionStart) / 60000);
+    var rest = SESSION_TIMEOUT/60000 - mins;
+    var et = document.getElementById('up-tiempo');
+    var er = document.getElementById('up-timeout');
     if (et) et.textContent = mins + ' min';
     if (er) { er.textContent = rest + ' min'; er.style.color = rest <= 5 ? 'var(--red)' : 'var(--amber)'; }
   }, 60000);
@@ -6165,8 +6166,8 @@ function stopSessionTimer() {
 
 // ── IMPRIMIR / EXPORTAR ──
 function abrirModalImprimir(context, titulo) {
-  const title = document.getElementById('modal-print-title');
-  const body  = document.getElementById('modal-print-body');
+  var title = document.getElementById('modal-print-title');
+  var body  = document.getElementById('modal-print-body');
   if (!title || !body) { notify('Preparando impresión...'); return; }
   title.textContent = titulo || 'Imprimir';
   body.innerHTML = `
@@ -6638,20 +6639,20 @@ function copiarSeleccion() {
 function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
   window._modalTipo = tipo;
   window._modalFbKey = fbKeyExistente || null;
-  const cfg = FORMS_CFG[tipo];
+  var cfg = FORMS_CFG[tipo];
   if (!cfg) { notify('Formulario no disponible'); return; }
   _set('modal-nuevo-title', fbKeyExistente ? cfg.title.replace('Nuevo','Editar') : cfg.title);
-  const body = document.getElementById('modal-nuevo-body');
+  var body = document.getElementById('modal-nuevo-body');
   body.innerHTML = '';
-  const grid = document.createElement('div');
+  var grid = document.createElement('div');
   grid.className = 'form-grid';
   cfg.fields.forEach(f => {
-    const fg = document.createElement('div');
+    var fg = document.createElement('div');
     fg.className = 'fg' + (f.full ? ' full' : '');
-    const lbl = document.createElement('label');
+    var lbl = document.createElement('label');
     lbl.textContent = f.l;
     fg.appendChild(lbl);
-    let inp;
+    var inp;
     if (f.t === 'select') {
       inp = document.createElement('select');
       (f.opts||[]).forEach(o => { const opt=document.createElement('option'); opt.value=o; opt.textContent=o; inp.appendChild(opt); });
@@ -6916,7 +6917,7 @@ function guardarNuevoGenerico() {
 
 // ── OTRAS FUNCIONES ──
 function guardarConfiguracion(btn) {
-  const orig = btn.innerHTML;
+  var orig = btn.innerHTML;
   btn.innerHTML = '<i class="ti ti-check"></i> Guardado';
   btn.disabled = true;
   setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2000);
@@ -7744,10 +7745,10 @@ function editarProveedor(fbKey) {
   }, { onlyOnce: true });
 }
 function cerrarCaja() {
-  const saldo = prompt('Ingresá el saldo real en caja ($):');
+  var saldo = prompt('Ingresá el saldo real en caja ($):');
   if (saldo === null) return;
-  const real = parseFloat(saldo.replace(/[^0-9.]/g,'')) || 0;
-  const diff = real - 86800;
+  var real = parseFloat(saldo.replace(/[^0-9.]/g,'')) || 0;
+  var diff = real - 86800;
   if (diff === 0) notify('Caja cerrada sin diferencias');
   else notify('Caja cerrada. ' + (diff > 0 ? 'Sobrante' : 'Faltante') + ': $' + Math.abs(diff).toLocaleString('es-AR'));
 }
@@ -10467,12 +10468,12 @@ var pptoActualId = null;
 
 
 function checkAprobacion() {
-  const total = parseFloat(document.getElementById('pp-total')?.textContent?.replace(/[\$\.]/g,'').replace(',','.')) || 0;
-  const desc  = parseFloat(document.getElementById('pp-descuento')?.value) || 0;
-  const alerta = document.getElementById('form-alerta-aprobacion');
-  const txt    = document.getElementById('form-alerta-txt');
+  var total = parseFloat(document.getElementById('pp-total')?.textContent?.replace(/[\$\.]/g,'').replace(',','.')) || 0;
+  var desc  = parseFloat(document.getElementById('pp-descuento')?.value) || 0;
+  var alerta = document.getElementById('form-alerta-aprobacion');
+  var txt    = document.getElementById('form-alerta-txt');
   if (!alerta) return;
-  let motivo = '';
+  var motivo = '';
   if (total > APROBACION_CONFIG.montoLimite) motivo = `Total $${Math.round(total).toLocaleString('es-AR')} supera el límite de aprobación ($${(parseFloat(APROBACION_CONFIG.montoLimite)||0).toLocaleString('es-AR')}).`;
   if (desc > APROBACION_CONFIG.descuentoLimite) motivo = `Descuento ${desc}% supera el máximo permitido sin aprobación (${APROBACION_CONFIG.descuentoLimite}%).`;
   alerta.style.display = motivo ? 'flex' : 'none';
@@ -10481,24 +10482,24 @@ function checkAprobacion() {
 
 // Renderizar badge de estado
 function pptoStateBadge(estado) {
-  const e = PPTO_ESTADOS[estado] || { label: estado, badge: 'badge-borrador' };
+  var e = PPTO_ESTADOS[estado] || { label: estado, badge: 'badge-borrador' };
   return `<span class="badge ${e.badge}">${e.label}</span>`;
 }
 
 // Renderizar tabla principal
 function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
-  const tbody = document.getElementById('ppto-tbody-main');
+  var tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
-  let rows = pptoData;
+  var rows = pptoData;
   if (filtroEstado) rows = rows.filter(p => p.estado === filtroEstado);
   if (filtroTexto)  rows = rows.filter(p => (p.cliente + p.id).toLowerCase().includes(filtroTexto.toLowerCase()));
   tbody.innerHTML = rows.map(p => {
-    const e = PPTO_ESTADOS[p.estado] || {};
-    const totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
-    const accBtns = currentRole === 'admin' || p.estado === 'borrador'
+    var e = PPTO_ESTADOS[p.estado] || {};
+    var totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
+    var accBtns = currentRole === 'admin' || p.estado === 'borrador'
       ? `<button class="btn btn-sm btn-icon" onclick="verPpto('${p.id}')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>`
       : `<button class="btn btn-sm btn-icon" onclick="verPpto('${p.id}')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>`;
-    const alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
+    var alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
     return `<tr>
       <td style="font-weight:500">${escapeHTML(p.id)}${alerta}</td>
       <td>${escapeHTML(p.cliente)}</td>
@@ -10513,7 +10514,7 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
 
 // Ver detalle de un presupuesto
 function verPpto(id) {
-  const p = pptoData.find(x => x.id === id);
+  var p = pptoData.find(x => x.id === id);
   if (!p) return;
   pptoActualId = id;
   _hide('ppto-list-view');
@@ -10532,8 +10533,8 @@ function verPpto(id) {
   document.getElementById('ppto-det-desc').value = p.descuento + '%';
 
   // Alerta aprobación
-  const alertaEl = document.getElementById('ppto-alerta-aprobacion');
-  const motivoEl = document.getElementById('ppto-alerta-motivo');
+  var alertaEl = document.getElementById('ppto-alerta-aprobacion');
+  var motivoEl = document.getElementById('ppto-alerta-motivo');
   if (p.requiereAprobacion) {
     alertaEl.style.display = 'flex';
     motivoEl.textContent = p.motivo;
@@ -10553,17 +10554,17 @@ function verPpto(id) {
 
 // Renderizar timeline
 function renderTimeline(p) {
-  const tl = document.getElementById('ppto-timeline');
+  var tl = document.getElementById('ppto-timeline');
   if (!tl) return;
-  const flujo = ['borrador','revision','aprobado_int','enviado','visto','aceptado','convertido'];
-  const estadoOrden = PPTO_ESTADOS[p.estado]?.orden || 1;
-  const esRechazado = p.estado === 'rechazado';
-  const esVencido   = p.estado === 'vencido';
+  var flujo = ['borrador','revision','aprobado_int','enviado','visto','aceptado','convertido'];
+  var estadoOrden = PPTO_ESTADOS[p.estado]?.orden || 1;
+  var esRechazado = p.estado === 'rechazado';
+  var esVencido   = p.estado === 'vencido';
 
   tl.innerHTML = flujo.map(est => {
-    const cfg = PPTO_ESTADOS[est];
-    const eOrden = cfg.orden;
-    let clase = '';
+    var cfg = PPTO_ESTADOS[est];
+    var eOrden = cfg.orden;
+    var clase = '';
     if (esRechazado && est === 'aceptado') { clase = 'rejected'; }
     else if (esVencido && eOrden > estadoOrden) { clase = ''; }
     else if (eOrden < estadoOrden) { clase = 'done'; }
@@ -10575,7 +10576,7 @@ function renderTimeline(p) {
   }).join('');
 
   if (esRechazado || esVencido) {
-    const extra = esRechazado ? PPTO_ESTADOS.rechazado : PPTO_ESTADOS.vencido;
+    var extra = esRechazado ? PPTO_ESTADOS.rechazado : PPTO_ESTADOS.vencido;
     tl.innerHTML += `<div class="tl-step ${esRechazado?'rejected':''}">
       <div class="tl-dot"><i class="ti ${extra.icon}" style="font-size:13px"></i></div>
       <div class="tl-label">${extra.label}</div>
@@ -10585,18 +10586,18 @@ function renderTimeline(p) {
 
 // Renderizar acciones disponibles
 function renderAcciones(p) {
-  const lista = document.getElementById('ppto-acciones-lista');
+  var lista = document.getElementById('ppto-acciones-lista');
   if (!lista) return;
-  const accionesRol = PPTO_ACCIONES[currentRole] || {};
-  const acciones = accionesRol[p.estado] || [];
+  var accionesRol = PPTO_ACCIONES[currentRole] || {};
+  var acciones = accionesRol[p.estado] || [];
   if (!acciones.length) {
     lista.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:8px 0">Sin acciones disponibles para tu rol en este estado.</div>';
     return;
   }
   lista.innerHTML = acciones.map(key => {
-    const cfg = ACCIONES_CONFIG[key];
+    var cfg = ACCIONES_CONFIG[key];
     if (!cfg) return '';
-    const style = cfg.style ? ` style="${cfg.style}"` : '';
+    var style = cfg.style ? ` style="${cfg.style}"` : '';
     return `<div class="accion-card">
       <div>
         <div style="font-size:13px;font-weight:500;color:var(--text)">${cfg.label}</div>
@@ -10608,7 +10609,7 @@ function renderAcciones(p) {
 
 // Renderizar audit log
 function renderAudit(p) {
-  const log = document.getElementById('ppto-audit-log');
+  var log = document.getElementById('ppto-audit-log');
   if (!log) return;
   log.innerHTML = (p.audit || []).reverse().map(e => `
     <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
@@ -10625,12 +10626,12 @@ function renderAudit(p) {
 
 // Ejecutar una acción sobre el presupuesto actual
 function pptoAccion(accion) {
-  const p = pptoData.find(x => x.id === pptoActualId);
+  var p = pptoData.find(x => x.id === pptoActualId);
   if (!p) return;
-  const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-  const usuario = currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor');
+  var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  var usuario = currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor');
 
-  const transiciones = {
+  var transiciones = {
     enviar_revision:  { nuevoEstado:'revision',     msg:'Enviado a revisión interna',      auditMsg:'Enviado a revisión interna' },
     aprobar_directo:  { nuevoEstado:'aprobado_int', msg:'Presupuesto aprobado',            auditMsg:'Aprobado directamente por admin' },
     aprobar:          { nuevoEstado:'aprobado_int', msg:'Presupuesto aprobado',            auditMsg:'Aprobado internamente' },
@@ -10664,7 +10665,7 @@ function pptoAccion(accion) {
     return;
   }
 
-  const t = transiciones[accion];
+  var t = transiciones[accion];
   if (!t) return;
 
   p.estado = t.nuevoEstado;
@@ -10676,15 +10677,15 @@ function pptoAccion(accion) {
 
 // Guardar presupuesto nuevo
 function guardarPresupuesto(modo) {
-  const cli = document.getElementById('pp-cli')?.value?.trim();
+  var cli = document.getElementById('pp-cli')?.value?.trim();
   if (!cli) { notify('Seleccioná un cliente'); return; }
-  const desc = parseFloat(document.getElementById('pp-descuento')?.value) || 0;
-  const totalTxt = document.getElementById('pp-total')?.textContent || '$0';
-  const total = parseFloat(totalTxt.replace(/[\$\.]/g,'').replace(',','.')) || 0;
-  const reqAprobacion = (total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite);
-  const estadoFinal = reqAprobacion ? 'revision' : modo;
-  const motivo = reqAprobacion ? (desc > APROBACION_CONFIG.descuentoLimite ? `Descuento ${desc}% supera el límite` : `Total supera el límite de aprobación`) : '';
-  const nuevo = {
+  var desc = parseFloat(document.getElementById('pp-descuento')?.value) || 0;
+  var totalTxt = document.getElementById('pp-total')?.textContent || '$0';
+  var total = parseFloat(totalTxt.replace(/[\$\.]/g,'').replace(',','.')) || 0;
+  var reqAprobacion = (total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite);
+  var estadoFinal = reqAprobacion ? 'revision' : modo;
+  var motivo = reqAprobacion ? (desc > APROBACION_CONFIG.descuentoLimite ? `Descuento ${desc}% supera el límite` : `Total supera el límite de aprobación`) : '';
+  var nuevo = {
     id: 'PP-00' + (pptoData.length + 10),
     cliente: cli, empleado: currentUser || '',
     fecha: new Date().toLocaleDateString('es-AR'),
@@ -10714,8 +10715,8 @@ function abrirNuevoPresupuesto() {
   _hide('ppto-list-view');
   _hide('ppto-detalle-view');
   _block('ppto-form-view');
-  const d = new Date();
-  const fi = document.getElementById('pp-fecha');
+  var d = new Date();
+  var fi = document.getElementById('pp-fecha');
   if (fi) { fi.value = d.toISOString().split('T')[0]; calcVenc(); }
   calcPp();
 }
@@ -10724,7 +10725,7 @@ function filtrarPptoEstado(v) { renderPptoTabla(v); }
 function tabPpto(tipo, btn) {
   document.querySelectorAll('[id^=tab-]').forEach(b => { b.style.background=''; b.style.color=''; b.style.borderColor=''; });
   btn.style.background='var(--text)'; btn.style.color='var(--bg2)'; btn.style.borderColor='var(--text)';
-  const mapa = { todos:'', pendientes:'revision', aprobados:'aprobado_int', convertidos:'convertido' };
+  var mapa = { todos:'', pendientes:'revision', aprobados:'aprobado_int', convertidos:'convertido' };
   renderPptoTabla(mapa[tipo] || '');
 }
 
@@ -10768,22 +10769,22 @@ var otActualId = null;
 
 // Badge de estado OT
 function otBadge(estado) {
-  const map = {
+  var map = {
     pendiente:        ['badge b-amber','Pendiente'],
     en_progreso:      ['badge b-blue','En progreso'],
     completada:       ['badge b-green','Completada'],
     con_observaciones:['badge b-amber','Con observaciones'],
   };
-  const [cls, label] = map[estado] || ['badge','—'];
+  var [cls, label] = map[estado] || ['badge','—'];
   return `<span class="${cls}">${label}</span>`;
 }
 
 // Renderizar tabla de OTs
 function renderOTTabla(filtro='') {
-  const tbody = document.getElementById('ot-tbody');
+  var tbody = document.getElementById('ot-tbody');
   if (!tbody) return;
   var busq = (document.getElementById('ot-busq')||{}).value||'';
-  const rows = otData.filter(function(o){
+  var rows = otData.filter(function(o){
     var matchFiltro = !filtro || o.estado === filtro;
     var matchBusq   = !busq   || (o.id||'').toLowerCase().includes(busq.toLowerCase()) || (o.cliente||'').toLowerCase().includes(busq.toLowerCase());
     return matchFiltro && matchBusq;
@@ -10819,7 +10820,7 @@ function buscarOT(v)  { renderOTTabla(); }
 
 // Ver detalle de una OT
 function verOT(id) {
-  const ot = otData.find(o => o.id === id);
+  var ot = otData.find(o => o.id === id);
   if (!ot) return;
   otActualId = id;
   _hide('ot-list-view');
@@ -10841,10 +10842,10 @@ function verOT(id) {
   actualizarProgreso(ot);
 
   // Materiales
-  const mat = document.getElementById('ot-materiales');
+  var mat = document.getElementById('ot-materiales');
   if (mat) mat.innerHTML = ot.materiales.map(m => {
-    const ok = m.instalada >= m.vendida;
-    const parcial = m.instalada > 0 && m.instalada < m.vendida;
+    var ok = m.instalada >= m.vendida;
+    var parcial = m.instalada > 0 && m.instalada < m.vendida;
     return `<tr>
       <td>${escapeHTML(m.cod)}</td>
       <td>${escapeHTML(m.desc)}</td>
@@ -10855,7 +10856,7 @@ function verOT(id) {
   }).join('');
 
   // Audit
-  const auditEl = document.getElementById('ot-audit');
+  var auditEl = document.getElementById('ot-audit');
   if (auditEl) auditEl.innerHTML = [...ot.audit].reverse().map(e => `
     <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
@@ -10870,7 +10871,7 @@ function verOT(id) {
 
 // Renderizar checklist de una fase
 function renderChecklist(containerId, checks, labels, otId, fase) {
-  const el = document.getElementById(containerId);
+  var el = document.getElementById(containerId);
   if (!el) return;
   el.innerHTML = labels.map((lbl, i) => `
     <div class="checklist-item ${checks[i] ? 'checked' : ''}" onclick="toggleCheckOT('${otId}','${fase}',${i})">
@@ -10882,10 +10883,10 @@ function renderChecklist(containerId, checks, labels, otId, fase) {
 
 // Toggle un ítem del checklist
 function toggleCheckOT(otId, fase, idx) {
-  const ot = otData.find(o => o.id === otId);
+  var ot = otData.find(o => o.id === otId);
   if (!ot || ot.estado === 'completada') return;
   ot.checks[fase][idx] = !ot.checks[fase][idx];
-  const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: (ot.checks[fase][idx] ? '✓ ' : '✗ ') + CHECKLISTS[fase][idx] });
   actualizarProgreso(ot);
   renderChecklist(`checklist-${fase}`, ot.checks[fase], CHECKLISTS[fase], otId, fase);
@@ -10893,12 +10894,12 @@ function toggleCheckOT(otId, fase, idx) {
 
 // Calcular y mostrar progreso
 function actualizarProgreso(ot) {
-  const total = Object.values(ot.checks).flat().length;
-  const done  = Object.values(ot.checks).flat().filter(Boolean).length;
-  const pct   = total > 0 ? Math.round(done/total*100) : 0;
+  var total = Object.values(ot.checks).flat().length;
+  var done  = Object.values(ot.checks).flat().filter(Boolean).length;
+  var pct   = total > 0 ? Math.round(done/total*100) : 0;
   ot.progreso = pct;
-  const fill  = document.getElementById('ot-progress-fill');
-  const pctEl = document.getElementById('ot-progreso-pct');
+  var fill  = document.getElementById('ot-progress-fill');
+  var pctEl = document.getElementById('ot-progreso-pct');
   if (fill) fill.style.width = pct + '%';
   if (pctEl) { pctEl.textContent = pct + '%'; pctEl.style.color = pct === 100 ? 'var(--green)' : 'var(--blue)'; }
   if (pct === 100 && ot.estado === 'en_progreso') {
@@ -10910,11 +10911,11 @@ function actualizarProgreso(ot) {
 
 // Completar OT
 function completarOT() {
-  const ot = otData.find(o => o.id === otActualId);
+  var ot = otData.find(o => o.id === otActualId);
   if (!ot) return;
-  const conf = document.getElementById('ot-acta-conf')?.value;
+  var conf = document.getElementById('ot-acta-conf')?.value;
   if (!conf) { notify('Seleccioná la conformidad del cliente'); return; }
-  const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.estado = 'completada';
   ot.progreso = 100;
   ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: 'OT marcada como completada. Conformidad: ' + conf });
@@ -10924,9 +10925,9 @@ function completarOT() {
 }
 
 function actualizarOT() {
-  const ot = otData.find(o => o.id === otActualId);
+  var ot = otData.find(o => o.id === otActualId);
   if (!ot) return;
-  const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor'), accion: 'Datos de la OT actualizados' });
   notify('OT actualizada');
 }
@@ -10942,7 +10943,7 @@ function volverListaOT() {
 
 // Generar OT desde una venta (llamada al confirmar venta)
 function generarOTdesdeVenta(ventaId, cliente, dir) {
-  const nuevo = {
+  var nuevo = {
     id: 'OT-0' + (otData.length + 19),
     ventaId, cliente, tecnico: 'Sin asignar',
     fecha: '', hora: '09:00', duracion: '4 horas',
@@ -11123,11 +11124,11 @@ function abrirDetalleVentaDashboard(ventaId) {
 }
 
 function renderVentaTimeline(containerId, estadoActual) {
-  const el = document.getElementById(containerId);
+  var el = document.getElementById(containerId);
   if (!el) return;
-  const idx = VENTA_ESTADOS.findIndex(e => e.id === estadoActual);
+  var idx = VENTA_ESTADOS.findIndex(e => e.id === estadoActual);
   el.innerHTML = '<div class="venta-timeline">' + VENTA_ESTADOS.map((e, i) => {
-    let cls = '';
+    var cls = '';
     if (i < idx) cls = 'done';
     else if (i === idx) cls = e.cls;
     return `<div class="vt-step ${cls}">
@@ -11143,7 +11144,7 @@ function renderVentaTimeline(containerId, estadoActual) {
 // ventasData movido al inicio
 
 function ventaEstadoBadge(est) {
-  const map = {
+  var map = {
     pendiente_pago: ['badge b-amber','Pendiente pago'],
     seniado:        ['badge b-blue', 'Señado'],
     pago_total:     ['badge b-green','Pago total'],
@@ -11151,7 +11152,7 @@ function ventaEstadoBadge(est) {
     instalado:      ['badge b-green','Instalado'],
     con_garantia:   ['badge b-green','Con garantía'],
   };
-  const [cls, lbl] = map[est] || ['badge','—'];
+  var [cls, lbl] = map[est] || ['badge','—'];
   return `<span class="${cls}">${lbl}</span>`;
 }
 
@@ -11164,10 +11165,10 @@ var clienteActualId = null;
 
 function verHistorialCli(btn) {
   // Obtener datos del cliente desde la fila
-  const tr = btn.closest('tr');
-  const celdas = tr.querySelectorAll('td');
-  const id = parseInt(celdas[0].textContent) || 1;
-  const nombre = (celdas[1].textContent + ', ' + celdas[2].textContent).trim();
+  var tr = btn.closest('tr');
+  var celdas = tr.querySelectorAll('td');
+  var id = parseInt(celdas[0].textContent) || 1;
+  var nombre = (celdas[1].textContent + ', ' + celdas[2].textContent).trim();
   verHistorialCliente(id, nombre);
 }
 
@@ -11215,7 +11216,7 @@ function verHistorialCliente(id, nombre) {
   var ventasCliente = (ventasList || []).filter(function(v) {
     return String(v.idClienteOriginal) === String(id) || v.cliente === cli.nombre;
   });
-  const ventas = ventasCliente.length ? ventasCliente : [];
+  var ventas = ventasCliente.length ? ventasCliente : [];
   var vBody = document.getElementById('hc-ventas-body');
   if (vBody) {
     vBody.innerHTML = ventas.length ? ventas.map(function(v) {
@@ -11232,8 +11233,8 @@ function verHistorialCliente(id, nombre) {
   }
 
   // Tab pagos
-  const pBody = document.getElementById('hc-pagos-body');
-  const todosLosPagos = ventas.flatMap(v => v.pagos.map(p => ({...p, ventaId:v.id})));
+  var pBody = document.getElementById('hc-pagos-body');
+  var todosLosPagos = ventas.flatMap(v => v.pagos.map(p => ({...p, ventaId:v.id})));
   pBody.innerHTML = todosLosPagos.length ? todosLosPagos.map(p => `<tr>
     <td>${escapeHTML(p.fecha)}</td>
     <td style="font-weight:500">${escapeHTML(p.ventaId)}</td>
@@ -11243,8 +11244,8 @@ function verHistorialCliente(id, nombre) {
   </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin pagos registrados</td></tr>';
 
   // Tab presupuestos
-  const pptos = typeof pptoData !== 'undefined' ? pptoData.filter(p => p.cliente === cli.nombre) : [];
-  const ppBody = document.getElementById('hc-ppto-body');
+  var pptos = typeof pptoData !== 'undefined' ? pptoData.filter(p => p.cliente === cli.nombre) : [];
+  var ppBody = document.getElementById('hc-ppto-body');
   ppBody.innerHTML = pptos.length ? pptos.map(p => `<tr>
     <td style="font-weight:500">${escapeHTML(p.id)}</td>
     <td>${escapeHTML(p.fecha)}</td>
@@ -11254,8 +11255,8 @@ function verHistorialCliente(id, nombre) {
   </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin presupuestos</td></tr>';
 
   // Tab tickets
-  const tickets = ventas.flatMap(v => v.tickets);
-  const tBody = document.getElementById('hc-tickets-body');
+  var tickets = ventas.flatMap(v => v.tickets);
+  var tBody = document.getElementById('hc-tickets-body');
   tBody.innerHTML = tickets.length ? tickets.map(t => `<tr>
     <td style="font-weight:500">${escapeHTML(t.n)}</td>
     <td>${escapeHTML(t.desc)}</td>
@@ -11264,8 +11265,8 @@ function verHistorialCliente(id, nombre) {
   </tr>`).join('') : '<tr><td colspan="4" style="color:var(--text3);text-align:center;padding:16px">Sin tickets</td></tr>';
 
   // Tab equipos
-  const equipos = ventas.flatMap(v => v.equipos.map(e => ({...e, ventaId:v.id})));
-  const eBody = document.getElementById('hc-eq-body');
+  var equipos = ventas.flatMap(v => v.equipos.map(e => ({...e, ventaId:v.id})));
+  var eBody = document.getElementById('hc-eq-body');
   eBody.innerHTML = equipos.length ? equipos.map(e => `<tr>
     <td>${escapeHTML(e.eq)}</td>
     <td style="color:var(--text3)">${escapeHTML(e.serie)}</td>
@@ -11281,7 +11282,7 @@ function verHistorialCliente(id, nombre) {
 function switchHistTab(tab, btn) {
   document.querySelectorAll('.hist-sec').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.hist-tab-btn').forEach(b => b.classList.remove('active'));
-  const sec = document.getElementById('hist-' + tab);
+  var sec = document.getElementById('hist-' + tab);
   if (sec) sec.classList.add('active');
   if (btn) btn.classList.add('active');
 }
@@ -11633,14 +11634,14 @@ function registrarPagoVenta(ventaId) {
 // stockData movido al inicio
 
 function getStockDisponible(cod) {
-  const s = stockData[cod];
+  var s = stockData[cod];
   if (!s) return null;
   return { real:s.real, reservado:s.reservado, disponible: s.real - s.reservado };
 }
 
 function reservarStock(cod, cantidad) {
   if (!stockData[cod]) return false;
-  const disp = stockData[cod].real - stockData[cod].reservado;
+  var disp = stockData[cod].real - stockData[cod].reservado;
   if (cantidad > disp) { notify('Sin stock suficiente para ' + cod); return false; }
   stockData[cod].reservado += cantidad;
   notify('Stock reservado: ' + cod + ' × ' + cantidad);
@@ -11662,12 +11663,12 @@ function reservarStock(cod, cantidad) {
 // Generar notificaciones desde el estado actual del sistema
 function generarNotificaciones() {
   todasNotifs = [];
-  const ahora = new Date();
-  const hoy   = ahora.toLocaleDateString('es-AR');
+  var ahora = new Date();
+  var hoy   = ahora.toLocaleDateString('es-AR');
 
   // ── STOCK ──
   Object.entries(stockData || {}).forEach(([cod, s]) => {
-    const disp = s.real - s.reservado;
+    var disp = s.real - s.reservado;
     if (disp <= 0 && NOTIF_CONFIG.stock_critico.activo) {
       todasNotifs.push({
         id: 'stock_crit_' + cod, tipo:'stock', urgente:true,
@@ -11694,10 +11695,10 @@ function generarNotificaciones() {
     pptoData.forEach(p => {
       if (['rechazado','vencido','convertido'].includes(p.estado)) return;
       // Calcular días hasta vencimiento
-      const partes = p.vence.split('/');
+      var partes = p.vence.split('/');
       if (partes.length < 3) return;
-      const venc = new Date(partes[2] < 100 ? 2000 + parseInt(partes[2]) : partes[2], partes[1]-1, partes[0]);
-      const dias = Math.round((venc - ahora) / 86400000);
+      var venc = new Date(partes[2] < 100 ? 2000 + parseInt(partes[2]) : partes[2], partes[1]-1, partes[0]);
+      var dias = Math.round((venc - ahora) / 86400000);
 
       if (dias <= 2 && dias >= 0 && NOTIF_CONFIG.ppto_vence_2.activo) {
         todasNotifs.push({
@@ -11746,8 +11747,8 @@ function generarNotificaciones() {
   }
 
   // ── DEUDAS ──
-  const deudas30 = [];
-  const deudas15 = [];
+  var deudas30 = [];
+  var deudas15 = [];
 
   if (NOTIF_CONFIG.deuda_30.activo) {
     deudas30.forEach(d => {
@@ -11793,8 +11794,8 @@ function generarNotificaciones() {
       }
 
       // OT programada para hoy
-      const fechaOT = ot.fecha ? new Date(ot.fecha) : null;
-      const esHoy = fechaOT && fechaOT.toDateString() === ahora.toDateString();
+      var fechaOT = ot.fecha ? new Date(ot.fecha) : null;
+      var esHoy = fechaOT && fechaOT.toDateString() === ahora.toDateString();
       if (esHoy && ot.estado === 'pendiente' && NOTIF_CONFIG.ot_hoy.activo) {
         todasNotifs.push({
           id: 'ot_hoy_' + ot.id, tipo:'ot', urgente:false,
@@ -11831,18 +11832,18 @@ function generarNotificaciones() {
 }
 
 function pptoEstadoLabel(est) {
-  const m = { borrador:'Borrador', revision:'En revisión', aprobado_int:'Aprobado internamente', enviado:'Enviado al cliente', visto:'Visto', aceptado:'Aceptado', rechazado:'Rechazado', vencido:'Vencido', convertido:'Convertido' };
+  var m = { borrador:'Borrador', revision:'En revisión', aprobado_int:'Aprobado internamente', enviado:'Enviado al cliente', visto:'Visto', aceptado:'Aceptado', rechazado:'Rechazado', vencido:'Vencido', convertido:'Convertido' };
   return m[est] || est;
 }
 
 // Renderizar la lista de notificaciones
 function renderNotificaciones(filtro) {
-  const lista = document.getElementById('notif-lista');
-  const lbl   = document.getElementById('notif-count-label');
+  var lista = document.getElementById('notif-lista');
+  var lbl   = document.getElementById('notif-count-label');
   if (!lista) return;
 
-  const rows = filtro ? todasNotifs.filter(n => n.tipo === filtro) : todasNotifs;
-  const sinLeer = rows.filter(n => !notifLeidas.has(n.id)).length;
+  var rows = filtro ? todasNotifs.filter(n => n.tipo === filtro) : todasNotifs;
+  var sinLeer = rows.filter(n => !notifLeidas.has(n.id)).length;
 
   if (lbl) lbl.textContent = sinLeer > 0
     ? sinLeer + ' notificación' + (sinLeer > 1 ? 'es' : '') + ' sin leer'
@@ -11857,13 +11858,13 @@ function renderNotificaciones(filtro) {
     return;
   }
 
-  const colorMap = { red:'var(--red)', amber:'var(--amber)', blue:'var(--blue)', green:'var(--green)' };
-  const bgMap    = { red:'var(--red-bg)', amber:'var(--amber-bg)', blue:'var(--blue-bg)', green:'var(--green-bg)' };
+  var colorMap = { red:'var(--red)', amber:'var(--amber)', blue:'var(--blue)', green:'var(--green)' };
+  var bgMap    = { red:'var(--red-bg)', amber:'var(--amber-bg)', blue:'var(--blue-bg)', green:'var(--green-bg)' };
 
   lista.innerHTML = rows.map(n => {
-    const leida = notifLeidas.has(n.id);
-    const c = colorMap[n.color] || 'var(--text2)';
-    const bg = bgMap[n.color] || 'var(--bg3)';
+    var leida = notifLeidas.has(n.id);
+    var c = colorMap[n.color] || 'var(--text2)';
+    var bg = bgMap[n.color] || 'var(--bg3)';
     return `<div style="background:${leida ? 'var(--bg3)' : bg};border:0.5px solid ${leida ? 'var(--border)' : c};border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;opacity:${leida ? '.6' : '1'};transition:opacity .2s" id="ncard-${n.id}">
       <i class="ti ${n.icono}" style="font-size:20px;color:${c};flex-shrink:0;margin-top:1px"></i>
       <div style="flex:1;min-width:0">
@@ -11886,7 +11887,7 @@ function renderNotificaciones(filtro) {
 }
 
 function renderConfigAlertas() {
-  const el = document.getElementById('notif-config-lista');
+  var el = document.getElementById('notif-config-lista');
   if (!el) return;
   el.innerHTML = Object.entries(NOTIF_CONFIG).map(([key, cfg], i, arr) => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;${i < arr.length-1 ? 'border-bottom:0.5px solid var(--border)' : ''}">
@@ -11912,15 +11913,15 @@ function toggleNotifConfig(key, val) {
 
 function marcarLeida(id) {
   notifLeidas.add(id);
-  const card = document.getElementById('ncard-' + id);
+  var card = document.getElementById('ncard-' + id);
   if (card) {
     card.style.opacity = '.6';
     card.style.background = 'var(--bg3)';
     card.style.border = '0.5px solid var(--border)';
   }
   actualizarBadgeNotif();
-  const sinLeer = todasNotifs.filter(n => !notifLeidas.has(n.id)).length;
-  const lbl = document.getElementById('notif-count-label');
+  var sinLeer = todasNotifs.filter(n => !notifLeidas.has(n.id)).length;
+  var lbl = document.getElementById('notif-count-label');
   if (lbl) lbl.textContent = sinLeer > 0 ? sinLeer + ' notificación' + (sinLeer > 1 ? 'es' : '') + ' sin leer' : 'Todo al día ✓';
 }
 
@@ -11936,15 +11937,15 @@ function filtrarNotifs(tipo) {
 }
 
 function actualizarBadgeNotif() {
-  const sinLeer = todasNotifs.filter(n => !notifLeidas.has(n.id)).length;
-  const badge = document.getElementById('notif-badge');
+  var sinLeer = todasNotifs.filter(n => !notifLeidas.has(n.id)).length;
+  var badge = document.getElementById('notif-badge');
   if (badge) badge.style.display = sinLeer > 0 ? 'block' : 'none';
   // Actualizar el número en el sidebar
-  const sidebarBadge = document.querySelector('.nav-item [onclick*=notificaciones] ~ span, .nav-item span[style*="red"]');
+  var sidebarBadge = document.querySelector('.nav-item [onclick*=notificaciones] ~ span, .nav-item span[style*="red"]');
   if (sinLeer === 0) {
     document.querySelectorAll('.nav-item').forEach(el => {
       if (el.textContent.includes('Notificaciones')) {
-        const sp = el.querySelector('span[style*="red"]');
+        var sp = el.querySelector('span[style*="red"]');
         if (sp) sp.style.display = 'none';
       }
     });
@@ -11965,10 +11966,10 @@ var ventasFiltroActual = '';
 // Renderizar la tabla de ventas
 function renderVentasTabla(lista) {
   window._renderVentasTbodyFn = renderVentasTabla; // Registrar para la versión temprana
-  const tbody = document.getElementById('ventas-tbody');
-  const count = document.getElementById('ventas-count');
+  var tbody = document.getElementById('ventas-tbody');
+  var count = document.getElementById('ventas-count');
   if (!tbody) return;
-  const rows = lista || ventasList;
+  var rows = lista || ventasList;
   if (count) count.textContent = rows.length + ' venta' + (rows.length !== 1 ? 's' : '');
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin ventas para mostrar</td></tr>';
@@ -11989,7 +11990,7 @@ function renderVentasTabla(lista) {
 
 // Filtros
 function filtrarVentas(v) {
-  const f = v.toLowerCase();
+  var f = v.toLowerCase();
   renderVentasTabla(ventasList.filter(x => x.id.toLowerCase().includes(f) || x.cliente.toLowerCase().includes(f)));
 }
 function filtrarVentasEstado(est) {
@@ -11997,9 +11998,9 @@ function filtrarVentasEstado(est) {
 }
 function filtrarVentasMes(mes) {
   if (!mes) { renderVentasTabla(); return; }
-  const [y,m] = mes.split('-');
+  var [y,m] = mes.split('-');
   renderVentasTabla(ventasList.filter(v => {
-    const [d,mv,yv] = v.fecha.split('/');
+    var [d,mv,yv] = v.fecha.split('/');
     return mv === m && ('20'+yv) === y;
   }));
 }
@@ -12008,8 +12009,8 @@ function tabVentas(tipo, btn) {
     b.style.background=''; b.style.color=''; b.style.borderColor='';
   });
   btn.style.background='var(--text)'; btn.style.color='var(--bg2)'; btn.style.borderColor='var(--text)';
-  const hoy = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'2-digit'}).replace(/\//g,'/');
-  const mapas = {
+  var hoy = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'2-digit'}).replace(/\//g,'/');
+  var mapas = {
     todas:    ventasList,
     cobrar:   ventasList.filter(v => ['pendiente_pago','seniado'].includes(v.estadoPago)),
     instalar: ventasList.filter(v => ['pendiente_pago','en_instalacion'].includes(v.estadoInst)),
@@ -12020,7 +12021,7 @@ function tabVentas(tipo, btn) {
 
 // Ver detalle de una venta
 function verVenta(id) {
-  const v = ventasList.find(x => x.id === id);
+  var v = ventasList.find(x => x.id === id);
   if (!v) return;
   ventaActualId = id;
   window._ventaActualFbKey = v.fbKey || id;
@@ -12042,7 +12043,7 @@ function verVenta(id) {
   renderVentaTimeline('vd-timeline', v.estadoPago === 'pago_total' && v.estadoInst !== 'pendiente_pago' ? v.estadoInst : v.estadoPago);
 
   // Items
-  const tbody = document.getElementById('vd-items');
+  var tbody = document.getElementById('vd-items');
   tbody.innerHTML = v.items.map(it => `<tr>
     <td style="overflow:hidden"><input type="checkbox"></td>
     <td style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(it.cod)}</td>
@@ -12059,7 +12060,7 @@ function verVenta(id) {
   _set('vd-total','$' + (parseFloat(v.total)||0).toLocaleString('es-AR'));
 
   // Pagos
-  const pagosEl = document.getElementById('vd-pagos-lista');
+  var pagosEl = document.getElementById('vd-pagos-lista');
   if (v.pagos.length) {
     pagosEl.innerHTML = v.pagos.map(p => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">
@@ -12077,11 +12078,11 @@ function verVenta(id) {
   }
 
   // OT vinculada
-  const otCard = document.getElementById('vd-ot-card');
+  var otCard = document.getElementById('vd-ot-card');
   if (v.otId) {
     otCard.style.display = 'block';
-    const ot = typeof otData !== 'undefined' ? otData.find(o => o.id === v.otId) : null;
-    const otInfo = document.getElementById('vd-ot-info');
+    var ot = typeof otData !== 'undefined' ? otData.find(o => o.id === v.otId) : null;
+    var otInfo = document.getElementById('vd-ot-info');
     if (ot && otInfo) {
       otInfo.innerHTML = `
         <span><strong>${escapeHTML(ot.id)}</strong></span>
@@ -12095,9 +12096,9 @@ function verVenta(id) {
   }
 
   // Acciones
-  const accs = document.getElementById('venta-det-acciones');
-  const esPendPago = ['pendiente_pago','seniado'].includes(v.estadoPago);
-  let accsHTML = '';
+  var accs = document.getElementById('venta-det-acciones');
+  var esPendPago = ['pendiente_pago','seniado'].includes(v.estadoPago);
+  var accsHTML = '';
   if (esPendPago) accsHTML += '<button class="btn btn-sm btn-primary" onclick="showPage(\'cobranzas\',document.querySelector(\'[onclick*=cobranzas]\'))"><i class="ti ti-cash"></i> Registrar pago</button>';
   if (v.otId)     accsHTML += '<button class="btn btn-sm" onclick="verOTdesdeVenta()"><i class="ti ti-clipboard-list"></i> Ver OT</button>';
   accsHTML += '<button class="btn btn-sm" onclick="abrirModalImprimir(\'venta\',\'Venta ' + v.id + '\')"><i class="ti ti-printer"></i> Imprimir</button>';
@@ -12110,7 +12111,7 @@ function verVenta(id) {
   accs.innerHTML = accsHTML;
 
   // Audit
-  const auditEl = document.getElementById('vd-audit');
+  var auditEl = document.getElementById('vd-audit');
   auditEl.innerHTML = [...v.audit].reverse().map(e => `
     <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
@@ -12124,7 +12125,7 @@ function verVenta(id) {
 }
 
 function verOTdesdeVenta() {
-  const v = ventasList.find(x => x.id === ventaActualId);
+  var v = ventasList.find(x => x.id === ventaActualId);
   if (!v || !v.otId) return;
   showPage('ordentrabajo', document.querySelector('[onclick*=ordentrabajo]'));
   setTimeout(() => verOT(v.otId), 100);
@@ -12222,9 +12223,9 @@ function calcularComisionEmpleado(emp, mesAMM) {
 
 // Editar alícuota IVA
 function editarIVA(btn) {
-  const tr = btn.closest('tr');
-  const inp = tr.querySelector('input[type=number]');
-  const nombre = tr.querySelector('td')?.textContent || 'alícuota';
+  var tr = btn.closest('tr');
+  var inp = tr.querySelector('input[type=number]');
+  var nombre = tr.querySelector('td')?.textContent || 'alícuota';
   if (inp) {
     inp.focus();
     inp.select();
@@ -12241,7 +12242,7 @@ function editarIVA(btn) {
 // Ver equipo instalado
 function verEquipo(serie, cliente) {
   // Navegar a historial del cliente
-  const cli = clientesData ? clientesData.find(c => c.nombre.includes(cliente.split(',')[0])) : null;
+  var cli = clientesData ? clientesData.find(c => c.nombre.includes(cliente.split(',')[0])) : null;
   if (cli) {
     verHistorialCliente(cli.id, cli.nombre);
     setTimeout(() => switchHistTab('equipos', document.querySelectorAll('.hist-tab-btn')[4]), 200);
@@ -12385,9 +12386,9 @@ document.addEventListener('click', function(e) {
 // ── FILA DE PRODUCTO CON SELECTOR ──
 // prodData tiene todos los productos disponibles
 function crearFilaProducto(cod, desc, precio, qty) {
-  const tr = document.createElement('tr');
-  const stk = stockData[cod] || { real:0, reservado:0 };
-  const stockBadge = stockBadgeHTML(cod, qty || 1);
+  var tr = document.createElement('tr');
+  var stk = stockData[cod] || { real:0, reservado:0 };
+  var stockBadge = stockBadgeHTML(cod, qty || 1);
   // El código muestra un botón selector, no un input editable
   tr.innerHTML = `
     <td><input type="checkbox"></td>
@@ -12419,11 +12420,11 @@ function abrirSelectorProducto(selectorEl) {
   document.querySelectorAll('.prod-search-drop').forEach(d => {
     if (d !== selectorEl.nextElementSibling) d.style.display = 'none';
   });
-  const drop = selectorEl.nextElementSibling;
-  const isOpen = drop.style.display === 'block';
+  var drop = selectorEl.nextElementSibling;
+  var isOpen = drop.style.display === 'block';
   drop.style.display = isOpen ? 'none' : 'block';
   if (!isOpen) {
-    const inp = drop.querySelector('.prod-search-inp');
+    var inp = drop.querySelector('.prod-search-inp');
     if (inp) { inp.value = ''; inp.focus(); }
     renderDropProductos(drop.querySelector('.prod-drop-list'), '');
   }
@@ -12432,14 +12433,14 @@ function abrirSelectorProducto(selectorEl) {
 // Renderizar la lista de productos en el dropdown
 function renderDropProductos(listEl, filtro) {
   if (!listEl || !prodData) return;
-  const f = filtro.toLowerCase();
-  const items = Object.values(prodData).filter(p =>
+  var f = filtro.toLowerCase();
+  var items = Object.values(prodData).filter(p =>
     !f || p.codigo.toLowerCase().includes(f) || p.descripcion.toLowerCase().includes(f)
   );
   listEl.innerHTML = items.length ? items.map(p => {
-    const stk = stockData[p.codigo] || { real:0, reservado:0 };
-    const disp = stk.real - stk.reservado;
-    const stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--text3)';
+    var stk = stockData[p.codigo] || { real:0, reservado:0 };
+    var disp = stk.real - stk.reservado;
+    var stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--text3)';
     return `<div class="prod-drop-item" onmousedown="selProductoEnFila(this,'${p.codigo}','${p.descripcion.replace(/'/g,"\'")}',${p.venta||0})">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;color:var(--text)">${escapeHTML(p.codigo)} — ${escapeHTML(p.descripcion)}</div>
@@ -12451,27 +12452,27 @@ function renderDropProductos(listEl, filtro) {
 
 // Filtrar al escribir en el buscador del dropdown
 function filtrarSelectorProducto(inp) {
-  const listEl = inp.closest('.prod-search-drop').querySelector('.prod-drop-list');
+  var listEl = inp.closest('.prod-search-drop').querySelector('.prod-drop-list');
   renderDropProductos(listEl, inp.value);
 }
 
 // Seleccionar un producto desde el dropdown
 function selProductoEnFila(item, cod, desc, precio) {
-  const tr = item.closest('tr');
-  const drop = item.closest('.prod-search-drop');
+  var tr = item.closest('tr');
+  var drop = item.closest('.prod-search-drop');
   // Actualizar el selector visual
-  const selCod = tr.querySelector('.prod-sel-cod');
+  var selCod = tr.querySelector('.prod-sel-cod');
   if (selCod) selCod.textContent = cod;
   // Actualizar descripción
-  const descTxt = tr.querySelector('.desc-txt');
+  var descTxt = tr.querySelector('.desc-txt');
   if (descTxt) descTxt.textContent = desc;
   // Actualizar precio
-  const priceInp = tr.querySelector('.price');
+  var priceInp = tr.querySelector('.price');
   if (priceInp) { priceInp.value = precio; }
   // Cerrar dropdown
   if (drop) drop.style.display = 'none';
   // Recalcular
-  const qtyInp = tr.querySelector('.qty');
+  var qtyInp = tr.querySelector('.qty');
   if (qtyInp) { calcRow(qtyInp); actualizarStockFila(qtyInp); }
 }
 
@@ -12488,7 +12489,7 @@ document.addEventListener('click', function(e) {
 // Presupuesto: addPpRow con selector
 function addPpRow() {
   ppRowCount++;
-  const tr = document.createElement('tr');
+  var tr = document.createElement('tr');
   tr.innerHTML = `
     <td style="position:relative;min-width:100px">
       <div class="prod-selector" onclick="abrirSelectorProducto(this)">
@@ -12513,14 +12514,14 @@ function addPpRow() {
       <i class="ti ti-trash" style="font-size:14px"></i></button></td>`;
   // Al seleccionar producto en presupuesto, actualizar precio del presupuesto
   tr.querySelector('.prod-search-drop').addEventListener('mousedown', function(e) {
-    const item = e.target.closest('.prod-drop-item');
+    var item = e.target.closest('.prod-drop-item');
     if (!item) return;
     // El precio se actualizará via selProductoEnFila pero también update ppprice
     setTimeout(() => {
-      const priceInp = tr.querySelector('.ppprice');
-      const sel = tr.querySelector('.prod-sel-cod');
+      var priceInp = tr.querySelector('.ppprice');
+      var sel = tr.querySelector('.prod-sel-cod');
       if (sel && priceInp && prodData) {
-        const p = Object.values(prodData).find(x => x.codigo === sel.textContent);
+        var p = Object.values(prodData).find(x => x.codigo === sel.textContent);
         if (p) { priceInp.value = p.venta || 0; calcPpTotales(); }
       }
     }, 50);
