@@ -244,11 +244,11 @@ tr:hover td{color:var(--text)}
 .b-purple{background:var(--purple-bg);color:var(--purple)}
 
 /* ── BAR CHART ── */
-.bar-area{display:flex;align-items:flex-end;gap:6px;height:110px;margin-top:16px;padding:0 4px}
-.bc{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;flex:1;min-width:0;height:100%}
+.bar-area{display:flex;align-items:flex-end;gap:6px;height:100px;margin-top:16px;padding:0 4px 0 4px}
+.bc{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
 .bar{width:100%;background:var(--bg4);border-radius:3px 3px 0 0;cursor:pointer;transition:background .15s;min-height:4px}
 .bar:hover,.bar.today{background:var(--text)}
-.bar-lbl{font-size:10px;color:var(--text3);white-space:nowrap;line-height:1.4}
+.bar-lbl{font-size:10px;color:var(--text3);white-space:nowrap}
 .bar-lbl.today{color:var(--text);font-weight:600}
 
 /* ── BUTTONS ── */
@@ -396,8 +396,6 @@ tr:hover td{color:var(--text)}
   /* Extra pequeño — celular */
   .metrics{grid-template-columns:1fr 1fr!important}
   .m-value{font-size:16px}
-  .m-label{font-size:10px}
-  .m-sub{font-size:10px}
   .content{padding:8px}
   .card{padding:10px}
   .topbar{height:48px}
@@ -405,11 +403,6 @@ tr:hover td{color:var(--text)}
   .asist-rubro-ico{width:44px;height:44px;font-size:18px}
   /* Modales full screen en celular */
   .modal{width:100vw!important;border-radius:var(--radius-xl) var(--radius-xl) 0 0!important}
-  /* Dashboard: gráfico y resumen apilados */
-  .row2{grid-template-columns:1fr!important}
-  /* Tabla últimas ventas: ocultar fecha en muy pequeño */
-  #dash-ultimas-ventas td:nth-child(3){display:none}
-  #dash-ultimas-ventas th:nth-child(3){display:none}
 }
 
 @media (min-width:901px){
@@ -787,7 +780,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v11.4 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v11.2 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1004,30 +997,11 @@ tr:hover td{color:var(--text)}
               <div class="bc"><div class="bar today" style="height:4px" id="bar-6"></div><span class="bar-lbl today" id="blbl-6">Hoy</span></div>
             </div>
           </div>
-          <!-- COMISIONES DEL MES — comentado, se puede restaurar en el futuro
           <div class="card" style="margin-bottom:0">
             <div class="card-head"><span class="card-title">Comisiones del mes</span></div>
             <table class="comisiones-tbl">
               <tr><th>Empleado</th><th>Cat.</th><th style="text-align:right">Comisiones</th><th style="text-align:right">H. Extra</th></tr>
-              <tbody id="dash-comisiones"><tr><td colspan="4" style="text-align:center;padding:12px;color:var(--text3)">Cargando...</td></tr></tbody>
-            </table>
-          </div>
-          -->
-          <div class="card" style="margin-bottom:0">
-            <div class="card-head"><span class="card-title" id="dash-mis-ventas-title">Mis ventas del mes</span></div>
-            <div class="metrics" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0">
-              <div class="metric" style="background:var(--bg3)">
-                <div class="m-label">Total vendido</div>
-                <div class="m-value" id="dash-mv-total" style="font-size:18px">$0</div>
-                <div class="m-sub" id="dash-mv-cant">0 ventas</div>
-              </div>
-              <div class="metric" style="background:var(--bg3)">
-                <div class="m-label">Presupuestos activos</div>
-                <div class="m-value" id="dash-mv-pptos" style="font-size:18px">0</div>
-                <div class="m-sub" id="dash-mv-pptos-sub">pendientes</div>
-              </div>
-            </div>
-            <div style="margin-top:12px;font-size:12px;color:var(--text3);border-top:0.5px solid var(--border);padding-top:10px" id="dash-mv-ultimas"></div>
+<tbody id="dash-comisiones"><tr><td colspan="4" style="text-align:center;padding:12px;color:var(--text3)">Cargando...</td></tr></tbody></table>
           </div>
         </div>
         <div class="card">
@@ -1037,8 +1011,8 @@ tr:hover td{color:var(--text)}
           </div>
           <!-- Tabla desktop -->
           <table class="hide-mobile-block">
-            <tr><th>#</th><th>Cliente</th><th>Fecha</th><th style="text-align:right">Total</th><th style="text-align:right">Estado</th></tr>
-<tbody id="dash-ultimas-ventas"><tr><td colspan="5" style="text-align:center;padding:12px;color:var(--text3)">Cargando ventas...</td></tr></tbody></table>
+            <tr><th >#</th><th>Cliente</th><th>Fecha</th><th style="text-align:right">Subtotal</th><th style="text-align:right">IVA</th><th style="text-align:right">Total</th><th style="text-align:right">Estado</th></tr>
+<tbody id="dash-ultimas-ventas"><tr><td colspan="7" style="text-align:center;padding:12px;color:var(--text3)">Cargando ventas...</td></tr></tbody></table>
           <!-- Mobile: divs flex -->
           <div class="show-mobile-only" id="dash-ventas-mobile" style="width:100%;box-sizing:border-box">
             <div style="display:flex;padding:4px 0 8px;border-bottom:0.5px solid var(--border);font-size:11px;color:var(--text3)"><span style="flex:1">Cliente</span><span style="flex-shrink:0;margin-left:12px">Total</span><span style="flex-shrink:0;margin-left:8px;min-width:68px">Estado</span></div>
@@ -5213,7 +5187,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v11.4-firebase',
+  VERSION: 'v11.2-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5964,36 +5938,34 @@ function volverlista() {
 
 // ── SWIPE PARA ABRIR/CERRAR SIDEBAR (cualquier parte de la pantalla) ──
 (function(){
-  var x0=null, y0=null, t0=null, startEdge=false;
-  document.addEventListener('touchstart', function(e){
+  let x0=null, y0=null, t0=null;
+  document.addEventListener('touchstart', e=>{
     x0 = e.touches[0].clientX;
     y0 = e.touches[0].clientY;
     t0 = Date.now();
-    // Solo marcar como "desde el borde" si el toque empieza en los primeros 30px
-    startEdge = x0 <= 30;
   }, {passive:true});
-  document.addEventListener('touchend', function(e){
+  document.addEventListener('touchend', e=>{
     if(x0===null) return;
-    var dx = e.changedTouches[0].clientX - x0;
-    var dy = e.changedTouches[0].clientY - y0;
-    var dt = Date.now() - t0;
-    // Ignorar si es más vertical que horizontal, o demasiado lento
-    if(Math.abs(dx) < Math.abs(dy)*1.5 || dt > 500) { x0=null; return; }
-    // Necesita al menos 50px de desplazamiento
-    if(Math.abs(dx) < 50) { x0=null; return; }
-    var sidebar = document.querySelector('.sidebar');
+    const dx = e.changedTouches[0].clientX - x0;
+    const dy = e.changedTouches[0].clientY - y0;
+    const dt = Date.now() - t0;
+    // Ignorar si es más vertical que horizontal, o si duró más de 400ms (scroll lento)
+    if(Math.abs(dx) < Math.abs(dy) * 1.2 || dt > 400) { x0=null; return; }
+    // Necesita al menos 60px de desplazamiento horizontal
+    if(Math.abs(dx) < 60) { x0=null; return; }
+    const sidebar = document.querySelector('.sidebar');
     if(!sidebar) { x0=null; return; }
-    var isOpen = sidebar.classList.contains('open');
-    // Swipe derecha → abrir SOLO si empezó desde el borde izquierdo (≤30px)
-    if(dx > 0 && !isOpen && startEdge) {
+    const isOpen = sidebar.classList.contains('open');
+    // Swipe derecha → abrir (desde cualquier parte)
+    if(dx > 0 && !isOpen) {
       if(typeof toggleSidebar === 'function') toggleSidebar();
     }
-    // Swipe izquierda → cerrar desde cualquier parte
+    // Swipe izquierda → cerrar
     if(dx < 0 && isOpen) {
       if(typeof closeSidebar === 'function') closeSidebar();
-      else if(typeof toggleSidebar === 'function') toggleSidebar();
+      else if(typeof closeSidebarMobile === 'function') closeSidebarMobile();
     }
-    x0=null; y0=null; t0=null; startEdge=false;
+    x0=null; y0=null; t0=null;
   }, {passive:true});
 })();
 
@@ -10815,78 +10787,41 @@ function renderKPIsDashboard() {
     }
   }
 
-  // ── Últimas ventas en dashboard — click abre detalle ──
+  // ── Últimas ventas en dashboard ──
   var ultVentasEl = document.getElementById('dash-ultimas-ventas');
-  if (ultVentasEl) {
-    var ultimas = ventas.slice(0, 6);
-    if (ultimas.length) {
-      ultVentasEl.innerHTML = ultimas.map(function(v) {
-        var ep = v.estadoPago==='pago_total' ? '<span class="badge b-green">Cobrado</span>'
-               : v.estadoPago==='seniado'    ? '<span class="badge b-blue">Seña</span>'
-               : '<span class="badge b-amber">Pendiente</span>';
-        return '<tr style="cursor:pointer" onclick="abrirDetalleVentaDashboard(\''+escapeHTML(v.id||v.fbKey||'')+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
-          '<td style="font-family:monospace;font-size:12px;color:var(--text3)">'+(v.id||'—')+'</td>' +
-          '<td style="font-weight:500">'+escapeHTML(v.cliente||'—')+'</td>' +
-          '<td style="color:var(--text3);font-size:12px">'+escapeHTML(v.fecha||'—')+'</td>' +
-          '<td style="text-align:right;font-weight:600">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
-          '<td style="text-align:right">'+ep+'</td>' +
+  if (ultVentasEl && ventas.length) {
+    var ultimas = ventas.slice(0, 5);
+    ultVentasEl.innerHTML = ultimas.map(function(v) {
+      var ep = v.estadoPago === 'pago_total' ? '✓' : v.estadoPago === 'seniado' ? '◑' : '○';
+      var epColor = v.estadoPago === 'pago_total' ? 'var(--green)' : v.estadoPago === 'seniado' ? 'var(--blue)' : 'var(--amber)';
+      var total = parseFloat(v.total)||0;
+      return '<tr onclick="showPage(this.dataset.pg,null)" data-pg="detalle" style="cursor:pointer">' +
+        '<td style="font-family:monospace;font-size:12px">' + (v.id||'') + '</td>' +
+        '<td>' + (v.cliente||'') + '</td>' +
+        '<td class="hide-mobile" style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
+        '<td style="text-align:right;font-weight:600">$' + (parseFloat(total)||0).toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;color:' + epColor + '">' + ep + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // ── Comisiones (solo empleados activos) ──
+  var empTabla = document.getElementById('dash-comisiones');
+  if (empTabla && Object.keys(empData||{}).length) {
+    var empActivos = Object.values(empData).filter(function(e){ return e.activo !== false; });
+    if (!empActivos.length) {
+      empTabla.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sin empleados activos</td></tr>';
+    } else {
+      empTabla.innerHTML = empActivos.map(function(e) {
+        return '<tr>' +
+          '<td>' + escapeHTML(e.nombre||'') + '</td>' +
+          '<td><span class="badge b-blue" style="font-size:10px">' + (e.categoria||'') + '</span></td>' +
+          '<td style="text-align:right;color:var(--green)">$' + (parseFloat(e.comisiones)||0).toLocaleString('es-AR') + '</td>' +
+          '<td style="text-align:right;color:var(--text3)">' + (e.hextra ? '$'+(parseFloat(e.hextra)||0).toLocaleString('es-AR') : '—') + '</td>' +
         '</tr>';
       }).join('');
-    } else {
-      ultVentasEl.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text3)">Sin ventas recientes</td></tr>';
     }
   }
-
-  // ── Card resumen "Mis ventas del mes" ──
-  var mesActualMV = hoy.slice(0,7);
-  var ventasMes   = ventas.filter(function(v){ return (v.fecha||'').slice(0,7)===mesActualMV; });
-  var totalMes    = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
-  var pptosMios   = (filtrarPorUsuario(pptoData||[])).filter(function(p){ return ['borrador','enviado','aceptado'].includes(p.estado); });
-  var tituloCard  = document.getElementById('dash-mis-ventas-title');
-  if (tituloCard) tituloCard.textContent = esAdmin ? 'Ventas del mes' : 'Mis ventas del mes';
-  var _d = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
-  _d('dash-mv-total',    '$'+Math.round(totalMes).toLocaleString('es-AR'));
-  _d('dash-mv-cant',     ventasMes.length+' venta'+(ventasMes.length!==1?'s':''));
-  _d('dash-mv-pptos',    pptosMios.length);
-  _d('dash-mv-pptos-sub','pendiente'+(pptosMios.length!==1?'s':''));
-  // Últimas 3 ventas en el mini-resumen
-  var ultMini = document.getElementById('dash-mv-ultimas');
-  if (ultMini) {
-    var ult3 = ventasMes.slice(0,3);
-    ultMini.innerHTML = ult3.length
-      ? ult3.map(function(v){
-          return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="abrirDetalleVentaDashboard(\''+escapeHTML(v.id||v.fbKey||'')+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
-            '<span>'+escapeHTML(v.cliente||'—')+'</span>' +
-            '<span style="font-weight:500;color:var(--green)">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</span>' +
-          '</div>';
-        }).join('')
-      : '<div style="text-align:center;color:var(--text3);padding:8px">Sin ventas este mes</div>';
-  }
-
-  // ── Mobile: ventas recientes ──
-  var mobEl = document.getElementById('dash-ventas-mobile');
-  if (mobEl) {
-    var ult5mob = ventas.slice(0,5);
-    mobEl.innerHTML = ult5mob.length
-      ? ult5mob.map(function(v){
-          var ep = v.estadoPago==='pago_total'?'b-green':v.estadoPago==='seniado'?'b-blue':'b-amber';
-          return '<div style="display:flex;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer;gap:8px" onclick="abrirDetalleVentaDashboard(\''+escapeHTML(v.id||v.fbKey||'')+'\')">' +
-            '<div style="flex:1;min-width:0"><div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHTML(v.cliente||'—')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(v.fecha||'')+'</div></div>' +
-            '<div style="font-weight:600;white-space:nowrap">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</div>' +
-            '<span class="badge '+ep+'" style="flex-shrink:0">'+(v.estadoPago==='pago_total'?'✓':v.estadoPago==='seniado'?'◑':'○')+'</span>' +
-          '</div>';
-        }).join('')
-      : '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin ventas recientes</div>';
-  }
-}
-
-function abrirDetalleVentaDashboard(ventaId) {
-  if (!ventaId) return;
-  // Navegar al módulo detalle y cargar la venta
-  showPage('detalle', document.querySelector('[onclick*="detalle"]'));
-  setTimeout(function() {
-    if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaId);
-  }, 150);
 }
 
 function renderVentaTimeline(containerId, estadoActual) {
