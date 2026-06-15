@@ -122,9 +122,18 @@ html{overflow-x:hidden;max-width:100vw}body{background:var(--bg);color:var(--tex
 .login-tagline{font-size:12px;color:var(--text3);margin-top:4px;letter-spacing:.5px}
 .login-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
 .login-field label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px}
-.login-field input{background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border .12s}
+.login-field input{background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border .12s;width:100%;box-sizing:border-box}
 .login-field input:focus{border-color:var(--border3);background:var(--bg3)}
 .login-field input::placeholder{color:var(--text3)}
+/* Override autofill del browser en modo oscuro */
+.login-field input:-webkit-autofill,
+.login-field input:-webkit-autofill:hover,
+.login-field input:-webkit-autofill:focus{
+  -webkit-box-shadow:0 0 0 1000px var(--bg3) inset !important;
+  -webkit-text-fill-color:var(--text) !important;
+  border-color:var(--border2) !important;
+  transition:background-color 5000s ease-in-out 0s;
+}
 .login-role{display:flex;gap:8px;margin-bottom:20px}
 .role-btn{flex:1;padding:9px;border-radius:var(--radius);border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-size:13px;font-family:inherit;cursor:pointer;transition:all .12s;display:flex;align-items:center;justify-content:center;gap:6px}
 .role-btn:hover{background:var(--bg3)}
@@ -643,7 +652,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.0 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.1 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4524,7 +4533,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v10.0-firebase',
+  VERSION: 'v10.1-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
