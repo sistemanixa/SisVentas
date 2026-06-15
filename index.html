@@ -50,6 +50,56 @@ window._resetLoginBtn = function() {
   if (txt) txt.textContent = ' Ingresar';
 };
 
+// Fallback doLogin en el head — se sobreescribe con la versión real del app-main
+// pero si app-main falla, esta versión básica funciona con Firebase
+window._doLoginFallback = function() {
+  var u   = document.getElementById('l-user');
+  var p   = document.getElementById('l-pass');
+  var err = document.getElementById('login-error');
+  if (!u || !p) return;
+  var email = u.value.trim();
+  var pass  = p.value;
+  if (!email || !pass) {
+    if (err) { err.textContent = 'Ingresá usuario y contraseña'; err.style.display = 'block'; }
+    window._resetLoginBtn();
+    return;
+  }
+  email = email.includes('@') ? email : email + '@sistemanixa.com';
+  // Esperar a que Firebase Auth esté disponible
+  var intentos = 0;
+  var iv = setInterval(function() {
+    intentos++;
+    if (window.fbAuth && window.fbSignIn) {
+      clearInterval(iv);
+      window.fbSignIn(window.fbAuth, email, pass)
+        .then(function(cred) {
+          // Leer rol de DB
+          if (window.fbDB && window.fbGet && window.fbRef) {
+            window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios')).then(function(snap) {
+              var data = snap.val() || {};
+              var emailLow = cred.user.email.toLowerCase();
+              var usuario = Object.values(data).find(function(u){
+                return (u.mail||'').toLowerCase()===emailLow || (u.login||'').toLowerCase()===emailLow.split('@')[0];
+              });
+              window.currentRole = usuario ? (usuario.rol||'vendedor') : (emailLow==='nixa@sistemanixa.com'?'admin':'vendedor');
+              window.currentUser = usuario ? (usuario.nombre||cred.user.email.split('@')[0]) : cred.user.email.split('@')[0];
+              if (typeof _completarLogin === 'function') _completarLogin(window.currentUser);
+              else { window._resetLoginBtn(); if(err) err.style.display='none'; }
+            });
+          }
+        })
+        .catch(function(e) {
+          window._resetLoginBtn();
+          if (err) { err.textContent = 'Usuario o contraseña incorrectos'; err.style.display = 'block'; }
+        });
+    } else if (intentos > 100) {
+      clearInterval(iv);
+      window._resetLoginBtn();
+      if (err) { err.textContent = 'Firebase no disponible. Recargá la página.'; err.style.display = 'block'; }
+    }
+  }, 100);
+};
+
 window.iniciarLogin = function() {
   var err = document.getElementById('login-error');
   if (typeof window.doLogin === 'function') {
@@ -71,12 +121,18 @@ window.iniciarLogin = function() {
     if (typeof window.doLogin === 'function') {
       clearInterval(iv);
       if (!fired) { fired = true; document.removeEventListener('firebase-ready', onReady); window.doLogin(); }
-    } else if (intentos > 150) {
+    } else if (intentos > 50) {
+      // Después de 5 segundos intentar con el fallback directo
       clearInterval(iv);
       if (!fired) {
         fired = true;
-        window._resetLoginBtn();
-        if (err) { err.textContent = 'No se pudo conectar. Recargá la página.'; err.style.display = 'block'; }
+        document.removeEventListener('firebase-ready', onReady);
+        if (typeof window._doLoginFallback === 'function') {
+          window._doLoginFallback();
+        } else {
+          window._resetLoginBtn();
+          if (err) { err.textContent = 'Error al cargar. Recargá la página.'; err.style.display = 'block'; }
+        }
       }
     }
   }, 100);
@@ -787,7 +843,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v11.6 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v11.7 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5224,7 +5280,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v11.6-firebase',
+  VERSION: 'v11.7-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
