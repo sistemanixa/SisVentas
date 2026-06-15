@@ -244,11 +244,11 @@ tr:hover td{color:var(--text)}
 .b-purple{background:var(--purple-bg);color:var(--purple)}
 
 /* ── BAR CHART ── */
-.bar-area{display:flex;align-items:flex-end;gap:6px;height:100px;margin-top:16px;padding:0 4px 0 4px}
-.bc{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
+.bar-area{display:flex;align-items:flex-end;gap:6px;height:110px;margin-top:16px;padding:0 4px}
+.bc{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;flex:1;min-width:0;height:100%}
 .bar{width:100%;background:var(--bg4);border-radius:3px 3px 0 0;cursor:pointer;transition:background .15s;min-height:4px}
 .bar:hover,.bar.today{background:var(--text)}
-.bar-lbl{font-size:10px;color:var(--text3);white-space:nowrap}
+.bar-lbl{font-size:10px;color:var(--text3);white-space:nowrap;line-height:1.4}
 .bar-lbl.today{color:var(--text);font-weight:600}
 
 /* ── BUTTONS ── */
@@ -396,6 +396,8 @@ tr:hover td{color:var(--text)}
   /* Extra pequeño — celular */
   .metrics{grid-template-columns:1fr 1fr!important}
   .m-value{font-size:16px}
+  .m-label{font-size:10px}
+  .m-sub{font-size:10px}
   .content{padding:8px}
   .card{padding:10px}
   .topbar{height:48px}
@@ -403,6 +405,11 @@ tr:hover td{color:var(--text)}
   .asist-rubro-ico{width:44px;height:44px;font-size:18px}
   /* Modales full screen en celular */
   .modal{width:100vw!important;border-radius:var(--radius-xl) var(--radius-xl) 0 0!important}
+  /* Dashboard: gráfico y resumen apilados */
+  .row2{grid-template-columns:1fr!important}
+  /* Tabla últimas ventas: ocultar fecha en muy pequeño */
+  #dash-ultimas-ventas td:nth-child(3){display:none}
+  #dash-ultimas-ventas th:nth-child(3){display:none}
 }
 
 @media (min-width:901px){
@@ -670,7 +677,9 @@ tr:hover td{color:var(--text)}
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getDatabase, ref, set, get, push, onValue, update, remove }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+             createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
+             signInWithEmailAndPassword as reSignIn }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getStorage, ref as storageRef, uploadBytes, getDownloadURL }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -702,6 +711,9 @@ tr:hover td{color:var(--text)}
     window.fbSignIn      = signInWithEmailAndPassword;
     window.fbSignOut     = signOut;
     window.fbOnAuth      = onAuthStateChanged;
+    window.fbCreateUser  = createUserWithEmailAndPassword;
+    window.fbResetPass   = sendPasswordResetEmail;
+    window.fbUpdatePass  = updatePassword;
     window.fbStorage     = fbStorage;
     window.fbStorageRef  = storageRef;
     window.fbUploadBytes = uploadBytes;
@@ -709,6 +721,45 @@ tr:hover td{color:var(--text)}
 
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));
+
+    // ── RESTAURAR SESIÓN AL RECARGAR ──
+    onAuthStateChanged(fbAuth, function(user) {
+      if (user && !window._sessionRestored) {
+        window._sessionRestored = true;
+        // Leer rol desde Firebase DB
+        get(ref(fbDB, 'sisventas/usuarios')).then(function(snap) {
+          var data = snap.val() || {};
+          var emailLower = user.email.toLowerCase();
+          var usuario = Object.values(data).find(function(u){
+            return (u.mail||'').toLowerCase() === emailLower ||
+                   (u.login||'').toLowerCase() === emailLower.split('@')[0];
+          });
+          if (usuario) {
+            window.currentRole = usuario.rol || 'vendedor';
+            window.currentUser = usuario.nombre || user.email.split('@')[0];
+            window.currentUserFbKey = Object.keys(data).find(function(k){ return data[k]===usuario; }) || '';
+          } else if (emailLower === 'nixa@sistemanixa.com') {
+            window.currentRole = 'admin';
+            window.currentUser = 'Gonzalo Severiens';
+          } else {
+            window.currentRole = 'vendedor';
+            window.currentUser = user.email.split('@')[0];
+          }
+          // Restaurar sesión automáticamente si Firebase detecta usuario logueado
+          var loginScreen = document.getElementById('screen-login');
+          var appScreen   = document.getElementById('screen-app');
+          var loadingScreen = document.getElementById('screen-loading');
+          // Si la app no está visible → restaurar sesión directamente
+          if (appScreen && !appScreen.classList.contains('visible')) {
+            window.isAuthenticated = true;
+            if (typeof applyRole === 'function') applyRole();
+            if (typeof _completarLogin === 'function') _completarLogin(window.currentUser);
+          }
+        });
+      } else if (!user) {
+        window._sessionRestored = false;
+      }
+    });
 
 /* ═══════════════════════════════════════════════════
    FIN DEL MÓDULO FIREBASE — NO AGREGAR CÓDIGO AQUÍ
@@ -736,7 +787,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.8 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v11.6 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -953,11 +1004,30 @@ tr:hover td{color:var(--text)}
               <div class="bc"><div class="bar today" style="height:4px" id="bar-6"></div><span class="bar-lbl today" id="blbl-6">Hoy</span></div>
             </div>
           </div>
+          <!-- COMISIONES DEL MES — comentado, se puede restaurar en el futuro
           <div class="card" style="margin-bottom:0">
             <div class="card-head"><span class="card-title">Comisiones del mes</span></div>
             <table class="comisiones-tbl">
               <tr><th>Empleado</th><th>Cat.</th><th style="text-align:right">Comisiones</th><th style="text-align:right">H. Extra</th></tr>
-<tbody id="dash-comisiones"><tr><td colspan="4" style="text-align:center;padding:12px;color:var(--text3)">Cargando...</td></tr></tbody></table>
+              <tbody id="dash-comisiones"><tr><td colspan="4" style="text-align:center;padding:12px;color:var(--text3)">Cargando...</td></tr></tbody>
+            </table>
+          </div>
+          -->
+          <div class="card" style="margin-bottom:0">
+            <div class="card-head"><span class="card-title" id="dash-mis-ventas-title">Mis ventas del mes</span></div>
+            <div class="metrics" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0">
+              <div class="metric" style="background:var(--bg3)">
+                <div class="m-label">Total vendido</div>
+                <div class="m-value" id="dash-mv-total" style="font-size:18px">$0</div>
+                <div class="m-sub" id="dash-mv-cant">0 ventas</div>
+              </div>
+              <div class="metric" style="background:var(--bg3)">
+                <div class="m-label">Presupuestos activos</div>
+                <div class="m-value" id="dash-mv-pptos" style="font-size:18px">0</div>
+                <div class="m-sub" id="dash-mv-pptos-sub">pendientes</div>
+              </div>
+            </div>
+            <div style="margin-top:12px;font-size:12px;color:var(--text3);border-top:0.5px solid var(--border);padding-top:10px" id="dash-mv-ultimas"></div>
           </div>
         </div>
         <div class="card">
@@ -967,8 +1037,8 @@ tr:hover td{color:var(--text)}
           </div>
           <!-- Tabla desktop -->
           <table class="hide-mobile-block">
-            <tr><th >#</th><th>Cliente</th><th>Fecha</th><th style="text-align:right">Subtotal</th><th style="text-align:right">IVA</th><th style="text-align:right">Total</th><th style="text-align:right">Estado</th></tr>
-<tbody id="dash-ultimas-ventas"><tr><td colspan="7" style="text-align:center;padding:12px;color:var(--text3)">Cargando ventas...</td></tr></tbody></table>
+            <tr><th>#</th><th>Cliente</th><th>Fecha</th><th style="text-align:right">Total</th><th style="text-align:right">Estado</th></tr>
+<tbody id="dash-ultimas-ventas"><tr><td colspan="5" style="text-align:center;padding:12px;color:var(--text3)">Cargando ventas...</td></tr></tbody></table>
           <!-- Mobile: divs flex -->
           <div class="show-mobile-only" id="dash-ventas-mobile" style="width:100%;box-sizing:border-box">
             <div style="display:flex;padding:4px 0 8px;border-bottom:0.5px solid var(--border);font-size:11px;color:var(--text3)"><span style="flex:1">Cliente</span><span style="flex-shrink:0;margin-left:12px">Total</span><span style="flex-shrink:0;margin-left:8px;min-width:68px">Estado</span></div>
@@ -1759,6 +1829,8 @@ tr:hover td{color:var(--text)}
           <button class="cfg-tab" onclick="showCfgTab('comisiones',this)">Comisiones</button>
           <button class="cfg-tab" onclick="showCfgTab('sueldos',this)">Sueldos base</button>
           <button class="cfg-tab" onclick="showCfgTab('impuestos',this)">Impuestos</button>
+          <button class="cfg-tab" onclick="showCfgTab('roles',this)">Roles</button>
+          <button class="cfg-tab" onclick="showCfgTab('facturacion',this)">Facturación</button>
         </div>
 
         <!-- TAB: GENERAL -->
@@ -1852,6 +1924,10 @@ tr:hover td{color:var(--text)}
           <div class="card">
             <div class="card-head"><span class="card-title">Preferencias del sistema</span></div>
             <div class="form-grid">
+              <div class="fg"><label>Días de vencimiento de presupuestos</label>
+                <input type="number" id="cfg-dias-venc" value="10" min="1" max="90" style="width:100%">
+                <div style="font-size:11px;color:var(--text3);margin-top:4px">Los presupuestos se archivan automáticamente al vencer</div>
+              </div>
               <div class="fg"><label>IVA por defecto (%)</label><input type="number" value="21"></div>
               <div class="fg"><label>Validez de presupuestos (días)</label><input type="number" value="14"></div>
               <div class="fg"><label>Stock mínimo por defecto</label><input type="number" value="5"></div>
@@ -1859,9 +1935,14 @@ tr:hover td{color:var(--text)}
             </div>
             <div class="flex-end"><button class="btn btn-primary" onclick="guardarConfiguracion(this)"><i class="ti ti-check"></i> Guardar cambios</button></div>
           </div>
-        </div>
-
-        <!-- TAB: CARGOS -->
+          <div class="card">
+            <div class="card-head"><span class="card-title" style="color:var(--amber)"><i class="ti ti-tools"></i> Corrección de datos importados</span></div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Herramientas para corregir datos migrados del sistema VB.NET anterior.</div>
+            <button class="btn btn-sm" onclick="fixIVADesdeConfig()" style="color:var(--amber);border-color:var(--amber)">
+              <i class="ti ti-receipt-off"></i> Poner IVA = 0 en ventas importadas sin factura
+            </button>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">⚠️ Ejecutar solo una vez. Afecta todas las ventas con ID original que no tengan factura emitida.</div>
+          </div>
         <div id="cfg-cargos" class="cfg-panel" style="display:none">
           <div class="card">
             <div class="card-head">
@@ -1986,61 +2067,56 @@ tr:hover td{color:var(--text)}
             <div class="flex-end"><button class="btn btn-primary" onclick="guardarConfiguracion(this)"><i class="ti ti-check"></i> Guardar</button></div>
           </div>
         </div>
-      
-  
-  <!-- Facturación TusFacturasApp -->
-  <div class="card">
-    <div class="card-head"><span class="card-title">Facturación electrónica — AFIP</span></div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
-      Proveedor: <strong>TusFacturasApp</strong>
-      <span id="tfapp-status" style="margin-left:8px;font-size:12px;color:var(--text3)">No configurado</span>
-    </div>
-    <div class="form-grid">
-      <div class="fg"><label>User Token</label>
-        <input id="cfg-tfapp-usertoken" placeholder="Tu usertoken de TusFacturasApp" 
-          oninput="guardarConfigTFApp()"></div>
-      <div class="fg"><label>API Token</label>
-        <input id="cfg-tfapp-apitoken" placeholder="Tu apitoken"
-          oninput="guardarConfigTFApp()"></div>
-      <div class="fg"><label>API Key</label>
-        <input id="cfg-tfapp-apikey" placeholder="Tu apikey"
-          oninput="guardarConfigTFApp()"></div>
-      <div class="fg"><label>Punto de venta</label>
-        <input id="cfg-tfapp-pv" type="number" value="1" min="1"
-          oninput="guardarConfigTFApp()"></div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-      <button class="btn btn-sm btn-primary" onclick="testTFApp()">
-        <i class="ti ti-plug"></i> Probar conexión
-      </button>
-      <a href="https://www.tusfacturas.app" target="_blank" class="btn btn-sm">
-        <i class="ti ti-external-link"></i> Ir a TusFacturasApp
-      </a>
-    </div>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px">
-      Necesitás cuenta en TusFacturasApp y certificado digital AFIP activo.
-    </div>
-  </div>
-<!-- Firebase -->
-  <div class="card">
-    <div class="card-head"><span class="card-title">Base de datos Firebase</span></div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
-      Conectado a: <strong>nixa-sisventas</strong>
-      <span id="fb-status-cfg" style="margin-left:8px;font-size:12px"></span>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-sm btn-primary" onclick="fbSeedDatos()">
-        <i class="ti ti-database-import"></i> Cargar datos demo a Firebase
-      </button>
-      <button class="btn btn-sm" onclick="fbCargarTodo();notify('Datos actualizados desde Firebase')">
-        <i class="ti ti-refresh"></i> Sincronizar ahora
-      </button>
-    </div>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px">
-      ⚠️ "Cargar datos demo" solo usarlo una vez la primera vez.
-    </div>
-  </div>
-</div>
+
+        <!-- TAB: ROLES Y PERMISOS -->
+        <div id="cfg-roles" class="cfg-panel" style="display:none">
+          <div class="card">
+            <div class="card-head"><span class="card-title">Permisos por rol</span></div>
+            <div style="font-size:13px;color:var(--text3);margin-bottom:16px">
+              <i class="ti ti-info-circle"></i> Definí qué módulos puede ver cada rol. Los cambios aplican al próximo inicio de sesión.
+            </div>
+            <div id="cfg-roles-tabla"></div>
+            <div class="flex-end" style="margin-top:16px">
+              <button class="btn btn-primary" onclick="guardarPermisosRoles()"><i class="ti ti-check"></i> Guardar permisos</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: FACTURACIÓN -->
+        <div id="cfg-facturacion" class="cfg-panel" style="display:none">
+          <div class="card">
+            <div class="card-head"><span class="card-title">Facturación electrónica — AFIP</span></div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
+              Proveedor: <strong>TusFacturasApp</strong>
+              <span id="tfapp-status" style="margin-left:8px;font-size:12px;color:var(--text3)">No configurado</span>
+            </div>
+            <div class="form-grid">
+              <div class="fg"><label>User Token</label><input id="cfg-tfapp-usertoken" placeholder="Tu usertoken de TusFacturasApp" oninput="guardarConfigTFApp()"></div>
+              <div class="fg"><label>API Token</label><input id="cfg-tfapp-apitoken" placeholder="Tu apitoken" oninput="guardarConfigTFApp()"></div>
+              <div class="fg"><label>API Key</label><input id="cfg-tfapp-apikey" placeholder="Tu apikey" oninput="guardarConfigTFApp()"></div>
+              <div class="fg"><label>Punto de venta</label><input id="cfg-tfapp-pv" type="number" value="1" min="1" oninput="guardarConfigTFApp()"></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+              <button class="btn btn-sm btn-primary" onclick="testTFApp()"><i class="ti ti-plug"></i> Probar conexión</button>
+              <a href="https://www.tusfacturas.app" target="_blank" class="btn btn-sm"><i class="ti ti-external-link"></i> Ir a TusFacturasApp</a>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">Necesitás cuenta en TusFacturasApp y certificado digital AFIP activo.</div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title">Base de datos Firebase</span></div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
+              Conectado a: <strong>nixa-sisventas</strong>
+              <span id="fb-status-cfg" style="margin-left:8px;font-size:12px"></span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-sm btn-primary" onclick="fbSeedDatos()"><i class="ti ti-database-import"></i> Cargar datos demo a Firebase</button>
+              <button class="btn btn-sm" onclick="fbCargarTodo();notify('Datos actualizados desde Firebase')"><i class="ti ti-refresh"></i> Sincronizar ahora</button>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">⚠️ "Cargar datos demo" solo usarlo una vez la primera vez.</div>
+          </div>
+        </div>
+
+      </div><!-- /page-configuracion -->
 
       <!-- ── AGENDA ── -->
       <div id="page-agenda" class="page">
@@ -3131,6 +3207,12 @@ tr:hover td{color:var(--text)}
         <div class="asist-rubro-marca">By Hikvision</div>
       </button>
 
+      <button class="asist-rubro-btn" onclick="iniciarAsistente('domotica')">
+        <div class="asist-rubro-ico" style="background:#fdf2f8;color:#be185d">🏠</div>
+        <div class="asist-rubro-label">Domótica</div>
+        <div class="asist-rubro-marca">By Sonoff</div>
+      </button>
+
       <button class="asist-rubro-btn" onclick="iniciarAsistente('redes')">
         <div class="asist-rubro-ico" style="background:#eff6ff;color:#0369a1">📡</div>
         <div class="asist-rubro-label">Redes</div>
@@ -3266,6 +3348,7 @@ tr:hover td{color:var(--text)}
           <th class="tr">Val. jornada</th>
           <th class="tr" style="min-width:70px">Hs extra</th>
           <th class="tr">Val. Hs ext</th>
+          <th class="tr" style="color:var(--green)">Comisión</th>
           <th class="tr">Entrega</th>
           <th class="tr">Descuentos</th>
           <th class="tr">Adelantos</th>
@@ -4296,6 +4379,7 @@ function renderTablaUsuarios() {
       '<td style="text-align:right">' + estadoBadge + '</td>' +
       '<td style="text-align:right;white-space:nowrap">' +
         '<button class="btn btn-sm btn-icon" onclick="editarUsuario(\'' + u.fbKey + '\')" title="Editar usuario"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="resetPasswordUsuario(\'' + u.mail + '\')" title="Resetear contraseña" style="color:var(--amber)"><i class="ti ti-key" style="font-size:14px"></i></button>' +
         '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'usuarios\',\'' + u.fbKey + '\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
       '</td>' +
     '</tr>';
@@ -4506,6 +4590,8 @@ function fbCargarPresupuestos() {
       pptoData = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
       }).sort(function(a,b) { return (b.id||'').localeCompare(a.id||''); });
+      // Verificar vencimientos automáticamente
+      setTimeout(verificarVencimientosPptos, 800);
       // Actualizar tabla si está visible
       if (document.getElementById('page-presupuesto')?.classList.contains('active')) {
         if (typeof renderPptoTabla === 'function') renderPptoTabla();
@@ -4995,36 +5081,135 @@ function notify(msg) {
 }
 
 // ── APPLY ROLE ──
-function applyRole() {
-  var isAdmin         = currentRole === 'admin';
-  var isTecnico       = currentRole === 'tecnico';
-  var isAdministrativo= currentRole === 'administrativo';
-  var isVendedor      = currentRole === 'vendedor';
+// ── PERMISOS POR ROL ── (cargados desde Firebase o defaults)
+var PERMISOS_DEFAULT = {
+  admin:         { bloqueados: [] },
+  administrativo:{ bloqueados: ['usuarios','configuracion','rentabilidad','caja','sueldos','vacaciones'] },
+  vendedor:      { bloqueados: ['usuarios','configuracion','rentabilidad','caja','empleados','vacaciones','sueldos','gastos','reportes','estadisticas','proveedores','ordenes','cuentacorriente'] },
+  tecnico:       { bloqueados: ['usuarios','configuracion','rentabilidad','caja','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas'] }
+};
+var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 
+var TODOS_MODULOS = [
+  { id:'dashboard',      label:'Dashboard' },
+  { id:'asistente',      label:'Asistente de ventas' },
+  { id:'presupuesto',    label:'Presupuestos' },
+  { id:'venta',          label:'Nueva venta' },
+  { id:'detalle',        label:'Detalle venta' },
+  { id:'cobranzas',      label:'Cobranzas' },
+  { id:'cuentacorriente',label:'Cuenta corriente' },
+  { id:'clientes',       label:'Clientes' },
+  { id:'productos',      label:'Productos' },
+  { id:'empleados',      label:'Empleados' },
+  { id:'vacaciones',     label:'Vacaciones' },
+  { id:'sueldos',        label:'Sueldos' },
+  { id:'usuarios',       label:'Usuarios' },
+  { id:'reportes',       label:'Reportes' },
+  { id:'estadisticas',   label:'Estadísticas' },
+  { id:'gastos',         label:'Gastos' },
+  { id:'caja',           label:'Caja diaria' },
+  { id:'rentabilidad',   label:'Rentabilidad' },
+  { id:'proveedores',    label:'Proveedores' },
+  { id:'ordenes',        label:'Órdenes de compra' },
+  { id:'garantias',      label:'Garantías' },
+  { id:'soporte',        label:'Soporte' },
+  { id:'remitos',        label:'Remitos' },
+  { id:'agenda',         label:'Agenda' },
+  { id:'servicios',      label:'Servicios' },
+  { id:'informes',       label:'Informes' },
+  { id:'equipos',        label:'Equipos' },
+  { id:'configuracion',  label:'Configuración' }
+];
+
+function cargarPermisosRoles() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/permisos')).then(function(snap) {
+    var data = snap.val();
+    if (data) Object.assign(PERMISOS_ROLES, data);
+  });
+}
+
+function renderTablaRoles() {
+  var cont = document.getElementById('cfg-roles-tabla');
+  if (!cont) return;
+  var roles = ['admin','administrativo','vendedor','tecnico'];
+  var rolLabels = { admin:'Admin', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var html = '<div style="overflow-x:auto"><table style="width:100%;font-size:13px">';
+  html += '<thead><tr><th style="text-align:left;padding:8px 12px;font-weight:600">Módulo</th>';
+  roles.forEach(function(r){ html += '<th style="text-align:center;padding:8px 12px;font-weight:600">'+rolLabels[r]+'</th>'; });
+  html += '</tr></thead><tbody>';
+  TODOS_MODULOS.forEach(function(mod) {
+    html += '<tr style="border-bottom:0.5px solid var(--border)">';
+    html += '<td style="padding:8px 12px;font-weight:500">'+mod.label+'</td>';
+    roles.forEach(function(r) {
+      var bloq = (PERMISOS_ROLES[r]||{bloqueados:[]}).bloqueados||[];
+      var checked = !bloq.includes(mod.id);
+      var disabled = (r === 'admin' || mod.id === 'dashboard') ? 'disabled title="Siempre visible"' : '';
+      html += '<td style="text-align:center;padding:8px">';
+      html += '<input type="checkbox" data-rol="'+r+'" data-mod="'+mod.id+'" '+(checked?'checked':'')+' '+disabled+' style="width:16px;height:16px;cursor:pointer;accent-color:var(--green)">';
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  cont.innerHTML = html;
+}
+
+function guardarPermisosRoles() {
+  var checks = document.querySelectorAll('#cfg-roles-tabla input[type=checkbox]');
+  var roles = ['admin','administrativo','vendedor','tecnico'];
+  var nuevos = {};
+  roles.forEach(function(r){ nuevos[r] = { bloqueados:[] }; });
+  checks.forEach(function(chk) {
+    if (chk.disabled) return;
+    if (!chk.checked) {
+      var rol = chk.dataset.rol, mod = chk.dataset.mod;
+      if (rol && mod) nuevos[rol].bloqueados.push(mod);
+    }
+  });
+  Object.assign(PERMISOS_ROLES, nuevos);
+  if (window.fbDB) {
+    window.fbSet(window.fbRef(window.fbDB,'sisventas/config/permisos'), nuevos)
+      .then(function(){ notify('✓ Permisos guardados — aplican al próximo login'); });
+  }
+}
+
+function applyRole() {
+  var isAdmin = currentRole === 'admin';
+  var isTecnico = currentRole === 'tecnico';
   var rolLabels = { admin:'Admin', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
   var rolClases = { admin:'admin', administrativo:'vendedor', vendedor:'vendedor', tecnico:'vendedor' };
 
   var badge = document.getElementById('role-badge-el');
-  if (badge) {
-    badge.textContent = rolLabels[currentRole] || currentRole;
-    badge.className   = 'role-badge ' + (rolClases[currentRole] || 'vendedor');
-  }
+  if (badge) { badge.textContent = rolLabels[currentRole]||currentRole; badge.className='role-badge '+(rolClases[currentRole]||'vendedor'); }
 
-  document.querySelectorAll('.admin-only').forEach(function(el){
-    el.style.display = isAdmin ? '' : 'none';
+  // Obtener lista de módulos bloqueados para este rol
+  var bloqueados = (PERMISOS_ROLES[currentRole]||PERMISOS_DEFAULT[currentRole]||{bloqueados:[]}).bloqueados||[];
+
+  // Ocultar/mostrar items del menú según permisos
+  document.querySelectorAll('.nav-item[onclick]').forEach(function(el) {
+    var onclick = el.getAttribute('onclick')||'';
+    var match = onclick.match(/showPage\('([^']+)'/);
+    if (match) {
+      var pageId = match[1];
+      el.style.display = bloqueados.includes(pageId) ? 'none' : '';
+    }
   });
-  document.querySelectorAll('.no-tecnico').forEach(function(el){
-    el.style.display = isTecnico ? 'none' : '';
+
+  // Ocultar secciones del menú que queden vacías
+  document.querySelectorAll('.s-section').forEach(function(sec) {
+    var next = sec.nextElementSibling;
+    var visible = false;
+    while (next && !next.classList.contains('s-section')) {
+      if (next.classList.contains('nav-item') && next.style.display !== 'none') visible = true;
+      next = next.nextElementSibling;
+    }
+    sec.style.display = visible ? '' : 'none';
   });
-  document.querySelectorAll('.no-administrativo').forEach(function(el){
-    el.style.display = isAdministrativo ? 'none' : '';
-  });
-  document.querySelectorAll('.no-vendedor').forEach(function(el){
-    el.style.display = isVendedor ? 'none' : '';
-  });
-  document.querySelectorAll('.tecnico-only').forEach(function(el){
-    el.style.display = isTecnico ? '' : 'none';
-  });
+
+  // Clases legacy para compatibilidad
+  document.querySelectorAll('.admin-only').forEach(function(el){ el.style.display = isAdmin ? '' : 'none'; });
+  document.querySelectorAll('.tecnico-only').forEach(function(el){ el.style.display = isTecnico ? '' : 'none'; });
 }
 
 
@@ -5039,7 +5224,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v10.8-firebase',
+  VERSION: 'v11.6-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5227,6 +5412,11 @@ window.doLogin = function doLogin() {
                       : (r==='tecnico'||r==='técnico')     ? 'tecnico'
                       : (r==='vendedor')                   ? 'vendedor'
                       : 'administrativo';
+          // Guardar fbKey del usuario para filtrado por usuario
+          if (data) {
+            var fbKeyU = Object.keys(data).find(function(k){ return (data[k].mail||'').toLowerCase()===emailLower || (data[k].login||'').toLowerCase()===emailLower.split('@')[0]; });
+            window.currentUserFbKey = fbKeyU || '';
+          }
           _completarLogin(usuario.nombre || cred.user.email.split('@')[0]);
         }
         // Si ya tenemos usuariosData cargado lo usamos, sino lo leemos de DB
@@ -5322,6 +5512,8 @@ function _completarLogin(nombre) {
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
   if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 300);
   if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
+  if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
+  if (typeof cargarPermisosRoles === 'function') setTimeout(cargarPermisosRoles, 700);
 
   // Mostrar app después de ~2.5 segundos (tiempo de carga de Firebase)
   setTimeout(function() {
@@ -5702,10 +5894,12 @@ function verRecibo(id) {
 
 // ── CONFIGURACIÓN TABS ──
 function showCfgTab(id, el) {
-  document.querySelectorAll('.cfg-panel').forEach(p => p.style.display = 'none');
-  document.querySelectorAll('.cfg-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('cfg-' + id).style.display = 'block';
-  el.classList.add('active');
+  document.querySelectorAll('.cfg-panel').forEach(function(p){ p.style.display='none'; });
+  document.querySelectorAll('.cfg-tab').forEach(function(t){ t.classList.remove('active'); });
+  var panel = document.getElementById('cfg-'+id);
+  if (panel) panel.style.display='';
+  if (el) el.classList.add('active');
+  if (id === 'roles') renderTablaRoles();
 }
 
 // ── CUENTA CORRIENTE ──
@@ -5781,34 +5975,36 @@ function volverlista() {
 
 // ── SWIPE PARA ABRIR/CERRAR SIDEBAR (cualquier parte de la pantalla) ──
 (function(){
-  let x0=null, y0=null, t0=null;
-  document.addEventListener('touchstart', e=>{
+  var x0=null, y0=null, t0=null, startEdge=false;
+  document.addEventListener('touchstart', function(e){
     x0 = e.touches[0].clientX;
     y0 = e.touches[0].clientY;
     t0 = Date.now();
+    // Solo marcar como "desde el borde" si el toque empieza en los primeros 30px
+    startEdge = x0 <= 30;
   }, {passive:true});
-  document.addEventListener('touchend', e=>{
+  document.addEventListener('touchend', function(e){
     if(x0===null) return;
-    const dx = e.changedTouches[0].clientX - x0;
-    const dy = e.changedTouches[0].clientY - y0;
-    const dt = Date.now() - t0;
-    // Ignorar si es más vertical que horizontal, o si duró más de 400ms (scroll lento)
-    if(Math.abs(dx) < Math.abs(dy) * 1.2 || dt > 400) { x0=null; return; }
-    // Necesita al menos 60px de desplazamiento horizontal
-    if(Math.abs(dx) < 60) { x0=null; return; }
-    const sidebar = document.querySelector('.sidebar');
+    var dx = e.changedTouches[0].clientX - x0;
+    var dy = e.changedTouches[0].clientY - y0;
+    var dt = Date.now() - t0;
+    // Ignorar si es más vertical que horizontal, o demasiado lento
+    if(Math.abs(dx) < Math.abs(dy)*1.5 || dt > 500) { x0=null; return; }
+    // Necesita al menos 50px de desplazamiento
+    if(Math.abs(dx) < 50) { x0=null; return; }
+    var sidebar = document.querySelector('.sidebar');
     if(!sidebar) { x0=null; return; }
-    const isOpen = sidebar.classList.contains('open');
-    // Swipe derecha → abrir (desde cualquier parte)
-    if(dx > 0 && !isOpen) {
+    var isOpen = sidebar.classList.contains('open');
+    // Swipe derecha → abrir SOLO si empezó desde el borde izquierdo (≤30px)
+    if(dx > 0 && !isOpen && startEdge) {
       if(typeof toggleSidebar === 'function') toggleSidebar();
     }
-    // Swipe izquierda → cerrar
+    // Swipe izquierda → cerrar desde cualquier parte
     if(dx < 0 && isOpen) {
       if(typeof closeSidebar === 'function') closeSidebar();
-      else if(typeof closeSidebarMobile === 'function') closeSidebarMobile();
+      else if(typeof toggleSidebar === 'function') toggleSidebar();
     }
-    x0=null; y0=null; t0=null;
+    x0=null; y0=null; t0=null; startEdge=false;
   }, {passive:true});
 })();
 
@@ -6551,30 +6747,75 @@ function guardarNuevoGenerico() {
 
   } else if (tipo === 'usuario') {
     var fbKeyUsu = window._modalFbKey;
-    var rolRaw = (obj.rol||'').trim();
-    var rolMap = {
+    var rolRaw   = (obj.rol||'').trim();
+    var rolMap   = {
       'Administrador':'admin','administrador':'admin',
       'Administrativo':'administrativo','administrativo':'administrativo',
       'Vendedor':'vendedor','vendedor':'vendedor',
       'Técnico':'tecnico','Tecnico':'tecnico','técnico':'tecnico','tecnico':'tecnico'
     };
-    var rolFinal = rolMap[rolRaw] || rolRaw.toLowerCase().replace(/[áéíóú]/g, function(c){ return {á:'a',é:'e',í:'i',ó:'o',ú:'u'}[c]; }) || 'administrativo';
-    var login = (obj.user||'').replace('@sistemanixa.com','').replace(/\s/g,'').toLowerCase();
+    var rolFinal = rolMap[rolRaw] || rolRaw.toLowerCase().replace(/[áéíóú]/g,function(c){return{á:'a',é:'e',í:'i',ó:'o',ú:'u'}[c];}) || 'administrativo';
+    var login    = (obj.user||'').replace('@sistemanixa.com','').replace(/\s/g,'').toLowerCase();
+    var email    = login + '@sistemanixa.com';
+    var pass     = (obj.pass||'').trim();
     var datosUsu = {
       nombre: obj.nm || '',
       login:  login,
-      mail:   login + '@sistemanixa.com',
+      mail:   email,
       rol:    rolFinal,
-      activo: (obj.activo||'Activo') !== 'Inactivo'
+      activo: (obj.activo||'Activo') !== 'Inactivo',
+      ts:     Date.now()
     };
-    if (!datosUsu.nombre) { notify('Ingresá el nombre'); return; }
-    if (window.fbDB) {
-      var promesaUsu = fbKeyUsu
-        ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/usuarios/' + fbKeyUsu), datosUsu)
-        : (datosUsu.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/usuarios'), datosUsu));
-      promesaUsu.then(function(){ notify(fbKeyUsu ? 'Usuario actualizado' : 'Usuario creado'); })
-               .catch(function(e){ notify('Error: '+e.message); });
-    } else { notify('Sin conexión'); }
+    if (!datosUsu.nombre) { notify('Ingresá el nombre completo'); return; }
+    if (!login)           { notify('Ingresá el nombre de usuario'); return; }
+
+    if (fbKeyUsu) {
+      // ── EDITAR usuario existente ── solo actualiza DB
+      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/usuarios/'+fbKeyUsu), datosUsu)
+        .then(function(){ notify('✓ Usuario actualizado'); })
+        .catch(function(e){ notify('Error: '+e.message); });
+
+    } else {
+      // ── NUEVO usuario ── crear en Firebase Auth primero
+      if (!pass) { notify('Ingresá una contraseña inicial para el usuario'); return; }
+      if (pass.length < 6) { notify('La contraseña debe tener al menos 6 caracteres'); return; }
+
+      // Guardamos las credenciales del admin actual para restaurar la sesión
+      var adminEmail = window.fbAuth.currentUser ? window.fbAuth.currentUser.email : null;
+      var adminPass  = null; // no podemos recuperarla, usamos re-autenticación
+
+      notify('Creando usuario en Firebase Auth...');
+
+      window.fbCreateUser(window.fbAuth, email, pass)
+        .then(function(cred) {
+          var nuevoUid = cred.user.uid;
+          // Guardar en DB con el UID de Auth como referencia
+          datosUsu.uid = nuevoUid;
+          return window.fbPush(window.fbRef(window.fbDB, 'sisventas/usuarios'), datosUsu);
+        })
+        .then(function() {
+          notify('✓ Usuario ' + email + ' creado correctamente');
+          // Volver a loguear al admin automáticamente
+          // Firebase Auth cambió la sesión al nuevo usuario — necesitamos restaurar
+          // Lo hacemos cerrando sesión del nuevo y pidiendo al admin que reingrese
+          // O mejor: usamos una segunda instancia de Auth (no disponible fácilmente)
+          // Solución práctica: avisar y cerrar sesión para que el admin reingrese
+          setTimeout(function() {
+            var msg = 'Usuario creado. Por seguridad de Firebase, necesitás volver a ingresar con tu cuenta de admin.';
+            if (confirm(msg + '\n\n¿Cerrar sesión ahora?')) {
+              doLogout();
+            }
+          }, 800);
+        })
+        .catch(function(e) {
+          var msg = e.code === 'auth/email-already-in-use'
+            ? 'Ese email ya existe en Firebase Auth. El usuario puede usar "Olvidé mi contraseña" para acceder.'
+            : e.code === 'auth/weak-password'
+            ? 'La contraseña es muy débil. Usá al menos 6 caracteres.'
+            : 'Error al crear usuario: ' + (e.message||e.code);
+          notify(msg);
+        });
+    }
 
   } else if (tipo === 'garantia') {
     var venc = new Date(obj.inst||Date.now());
@@ -8333,6 +8574,58 @@ var ASIST_RUBROS = {
     calcularProductos: calcularProductosAcceso
   },
 
+  domotica: {
+    nombre: 'Domótica Sonoff',
+    color: '#be185d',
+    pasos: [
+      {
+        id: 'tipo_control',
+        titulo: '¿Qué quiere controlar?',
+        desc: 'Podés seleccionar más de una opción',
+        tipo: 'multi',
+        opciones: [
+          { id:'luces',      ico:'💡', titulo:'Iluminación',         desc:'Encender/apagar y regular luces' },
+          { id:'persianas',  ico:'🪟', titulo:'Persianas / cortinas', desc:'Control motorizado de aberturas' },
+          { id:'enchufes',   ico:'🔌', titulo:'Enchufes inteligentes', desc:'Control de aparatos por app' },
+          { id:'clima',      ico:'❄️',  titulo:'Aire acondicionado',  desc:'Control remoto del AC' },
+          { id:'puertas',    ico:'🚪', titulo:'Puertas / cerraduras', desc:'Apertura remota' },
+          { id:'sensores',   ico:'👁️',  titulo:'Sensores ambiente',   desc:'Temperatura, humedad, movimiento' }
+        ]
+      },
+      {
+        id: 'cant_puntos',
+        titulo: '¿Cuántos puntos de control necesita?',
+        desc: 'Por ejemplo: 4 luces + 2 enchufes = 6 puntos',
+        tipo: 'numero',
+        min: 1, max: 100, default: 6,
+        label: 'puntos de control'
+      },
+      {
+        id: 'conexion',
+        titulo: '¿Cómo se va a controlar?',
+        desc: '',
+        tipo: 'opciones',
+        opciones: [
+          { id:'wifi',  ico:'📱', titulo:'Solo por app (eWeLink)',     desc:'Control desde el celular' },
+          { id:'voz',   ico:'🗣️', titulo:'App + voz (Alexa/Google)', desc:'Con asistente de voz' },
+          { id:'local', ico:'🖥️', titulo:'App + control local (iHost)', desc:'Funciona sin internet con Sonoff iHost' }
+        ]
+      },
+      {
+        id: 'instalacion',
+        titulo: '¿Dónde va instalado?',
+        desc: '',
+        tipo: 'opciones',
+        opciones: [
+          { id:'residencial', ico:'🏠', titulo:'Residencial',  desc:'Casa, departamento' },
+          { id:'comercial',   ico:'🏢', titulo:'Comercial',    desc:'Local u oficina' },
+          { id:'nuevo',       ico:'🔨', titulo:'Construcción nueva', desc:'Con obra en curso, cableado nuevo' }
+        ]
+      }
+    ],
+    calcularProductos: calcularProductosDomotica
+  },
+
   redes: {
     nombre: 'Redes TP-Link Omada',
     color: '#0369a1',
@@ -8718,6 +9011,53 @@ function calcularProductosAcceso(r) {
   return lista;
 }
 
+function calcularProductosDomotica(r) {
+  var lista = [];
+  var ctrl  = r.tipo_control || ['luces'];
+  var puntos = parseInt(r.cant_puntos)||6;
+  var con   = r.conexion;
+
+  // Módulos según tipo de control
+  if (ctrl.includes('luces')) {
+    // Sonoff MINI R2 (1 canal) o MINI DIM (regulable)
+    var cantLuces = Math.ceil(puntos * 0.5);
+    lista.push(prod('Sonoff MINI R2 relay inteligente', 'MINI-R2', 18500, cantLuces));
+  }
+  if (ctrl.includes('persianas')) {
+    var cantPers = Math.max(1, Math.floor(puntos * 0.2));
+    lista.push(prod('Sonoff DUAL R3 control persianas', 'DUAL-R3', 28000, cantPers));
+  }
+  if (ctrl.includes('enchufes')) {
+    var cantEnch = Math.ceil(puntos * 0.3);
+    lista.push(prod('Sonoff S26R2 enchufe inteligente', 'S26R2', 12500, cantEnch));
+  }
+  if (ctrl.includes('clima')) {
+    lista.push(prod('Sonoff IRHVAC control AC por IR', 'IRHVAC', 22000, 1));
+  }
+  if (ctrl.includes('puertas')) {
+    lista.push(prod('Sonoff SV 5-24V control puerta', 'SV', 14500, 1));
+  }
+  if (ctrl.includes('sensores')) {
+    lista.push(prod('Sonoff SNZB-02 sensor temp/humedad Zigbee', 'SNZB-02', 15000, 2));
+    lista.push(prod('Sonoff SNZB-03 sensor movimiento Zigbee', 'SNZB-03', 17500, 1));
+  }
+
+  // Hub / Gateway según conexión
+  if (con === 'local') {
+    lista.push(prod('Sonoff iHost Smart Home Hub local', 'IHOST', 95000, 1));
+  } else if (ctrl.includes('sensores') || puntos > 8) {
+    // Zigbee Bridge para sensores o muchos dispositivos
+    lista.push(prod('Sonoff Zigbee Bridge Pro', 'ZBBRIDGE-P', 38000, 1));
+  }
+
+  // Alexa / Google si elige voz
+  if (con === 'voz') {
+    lista.push(prod('Amazon Echo Dot (4ta gen) Alexa', 'ECHO-DOT4', 45000, 1));
+  }
+
+  return lista;
+}
+
 function calcularProductosRedes(r) {
   var lista = [];
   var cantAP = r.superficie==='hasta150'?1:r.superficie==='hasta300'?2:r.superficie==='hasta600'?4:6;
@@ -8801,8 +9141,11 @@ function renderTablaSueldos(guardada) {
     var sueldoBase = diasTrab * catCfg.hs8;
     var hsExtra    = parseFloat(g.hsExtra)||0;
     var valHsExt   = hsExtra * catCfg.valHora * 1.5;
+    // Comisión calculada del mes
+    var comCalc    = calcularComisionEmpleado(emp, suelMesActual);
+    var comision   = g.comision !== undefined ? parseFloat(g.comision) : comCalc.comision;
     var descCuotas = calcDescuentosCuotasMes(emp.fbKey);
-    var entrega    = g.entrega  !==undefined ? parseFloat(g.entrega)   : sueldoBase+valHsExt;
+    var entrega    = g.entrega  !==undefined ? parseFloat(g.entrega)   : sueldoBase+valHsExt+comision;
     var descuento  = g.descuento!==undefined ? parseFloat(g.descuento) : descCuotas;
     var adelanto   = parseFloat(g.adelanto)||0;
     var aPagar     = entrega - descuento - adelanto;
@@ -8817,6 +9160,7 @@ function renderTablaSueldos(guardada) {
       '<td class="tr" style="color:var(--text3);font-size:12px">$'+catCfg.hs8.toLocaleString('es-AR')+'</td>'+
       '<td class="tr">'+inp('hsExtra',hsExtra,45)+'</td>'+
       '<td class="tr" style="color:var(--amber);font-size:12px">$'+Math.round(valHsExt).toLocaleString('es-AR')+'</td>'+
+      '<td class="tr" title="Ventas del mes: $'+Math.round(comCalc.totalVentas).toLocaleString('es-AR')+' ('+comCalc.pct+'%)">'+inp('comision',comision,85)+'</td>'+
       '<td class="tr">'+inp('entrega',entrega,85)+'</td>'+
       '<td class="tr"><div style="display:flex;align-items:center;gap:2px;justify-content:flex-end">'+inp('descuento',descuento,75)+
         '<button class="btn btn-sm btn-icon" onclick="abrirModalCuotas(\''+fkey+'\')" title="Cuotas" style="padding:2px 3px"><i class="ti ti-credit-card" style="font-size:11px"></i></button></div></td>'+
@@ -9191,6 +9535,20 @@ function toggleActivoUsuario(fbKey, estadoActual) {
   var nuevoEstado = !estadoActual;
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/usuarios/' + fbKey), { activo: nuevoEstado })
     .then(function(){ notify(nuevoEstado ? 'Usuario activado' : 'Usuario desactivado'); });
+}
+
+function resetPasswordUsuario(email) {
+  if (!email) { notify('Sin email registrado'); return; }
+  if (!confirm('¿Enviar email de reseteo de contraseña a ' + email + '?')) return;
+  if (!window.fbResetPass || !window.fbAuth) { notify('Sin conexión a Firebase Auth'); return; }
+  window.fbResetPass(window.fbAuth, email)
+    .then(function() { notify('✓ Email de reseteo enviado a ' + email); })
+    .catch(function(e) {
+      var msg = e.code === 'auth/user-not-found'
+        ? 'Este email no existe en Firebase Auth — el usuario nunca fue creado desde el sistema'
+        : 'Error: ' + e.message;
+      notify(msg);
+    });
 }
 
 function editarUsuario(fbKey) {
@@ -9780,6 +10138,172 @@ function confirmarPagoGasto() {
 
 function editarGasto(fbKey) { abrirFormGasto(fbKey); }
 
+// ── CONVERTIR PRESUPUESTO → VENTA (real, Firebase) ──
+function convertirPptoAVentaReal(ppto) {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var numVenta = '#V-' + String(Date.now()).slice(-6);
+  var ahora    = new Date().toISOString().split('T')[0];
+  var venta = {
+    id:           numVenta,
+    cliente:      ppto.cliente || '',
+    fecha:        ahora,
+    empleado:     ppto.empleado || currentUser || '',
+    usuario:      currentUser || '',
+    items:        ppto.items   || [],
+    subtotal:     parseFloat(ppto.subtotal || ppto.total) || 0,
+    descuento:    parseFloat(ppto.descuento) || 0,
+    iva:          0, // Sin IVA hasta que se facture
+    total:        parseFloat(ppto.total) || 0,
+    estadoPago:   'pendiente_pago',
+    estadoInst:   'pendiente_pago',
+    pptoOrigen:   ppto.id || '',
+    observaciones: 'Generado desde presupuesto ' + (ppto.id||''),
+    ts:           Date.now()
+  };
+  // Guardar venta en Firebase
+  window.fbPush(window.fbRef(window.fbDB, 'sisventas/ventas'), venta)
+    .then(function() {
+      // Actualizar presupuesto → convertido
+      var fbKey = ppto.fbKey;
+      if (fbKey) {
+        window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+fbKey), {
+          estado:  'convertido',
+          ventaId: numVenta,
+          audit:   (ppto.audit||[]).concat([{ fecha:ahora, usuario:currentUser||'', accion:'Convertido a venta '+numVenta }])
+        });
+      }
+      notify('✓ Venta '+numVenta+' creada desde presupuesto '+ppto.id);
+      // Navegar al detalle de la venta nueva
+      setTimeout(function() {
+        showPage('detalle', document.querySelector('[onclick*=detalle]'));
+        setTimeout(function(){ if(typeof verDetalleVenta==='function') verDetalleVenta(numVenta); }, 200);
+      }, 500);
+    })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+// ── MOVER VENTA → PRESUPUESTO ──
+function moverVentaAPresupuesto(ventaId) {
+  var v = (ventasList||[]).find(function(x){ return x.id===ventaId||x.fbKey===ventaId; });
+  if (!v) { notify('Venta no encontrada'); return; }
+  if (!confirm('¿Mover la venta '+ventaId+' a Presupuestos?\nEl presupuesto quedará en estado "Enviado" y vencerá en 10 días.')) return;
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var ahora   = new Date().toISOString().split('T')[0];
+  var vence   = new Date(Date.now() + 10*86400000).toISOString().split('T')[0];
+  var numPpto = 'PP-' + String(Date.now()).slice(-5);
+  var ppto = {
+    id:       numPpto,
+    cliente:  v.cliente || '',
+    empleado: v.empleado || v.usuario || currentUser || '',
+    usuario:  currentUser || '',
+    fecha:    ahora,
+    vence:    vence,
+    items:    v.items   || [],
+    subtotal: parseFloat(v.subtotal||v.total) || 0,
+    descuento:parseFloat(v.descuento) || 0,
+    iva:      0,
+    total:    parseFloat(v.total) || 0,
+    estado:   'enviado',
+    ventaOrigenId: ventaId,
+    observaciones: 'Movido desde venta '+ventaId,
+    audit: [{ fecha:ahora, usuario:currentUser||'', accion:'Creado desde venta '+ventaId }],
+    ts: Date.now()
+  };
+  window.fbPush(window.fbRef(window.fbDB, 'sisventas/presupuestos'), ppto)
+    .then(function() {
+      // Archivar la venta original marcándola como "movida a presupuesto"
+      if (v.fbKey) {
+        window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/'+v.fbKey), {
+          estadoPago: 'movido_a_ppto',
+          pptoDestino: numPpto
+        });
+      }
+      notify('✓ Venta movida a Presupuesto '+numPpto+' · Vence '+vence);
+      showPage('presupuesto', document.querySelector('[onclick*=presupuesto]'));
+    })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+// ── FIX IVA MASIVO (datos importados) ──
+function fixIVADatosImportados() {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!confirm('¿Poner IVA = 0 en todas las ventas importadas (con idOriginal) que no tienen factura?\nEsto afecta el cálculo de totales — verificá que sea correcto.')) return;
+  var ventas = (ventasList||[]).filter(function(v){ return v.idOriginal && !v.factura && v.fbKey; });
+  if (!ventas.length) { notify('No hay ventas importadas para corregir'); return; }
+  var count = 0;
+  ventas.forEach(function(v) {
+    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/'+v.fbKey), { iva: 0 })
+      .then(function(){ count++; if(count===ventas.length) notify('✓ IVA corregido en '+count+' ventas importadas'); });
+  });
+}
+
+// ── VENCIMIENTO DE PRESUPUESTOS (se ejecuta al cargar) ──
+function verificarVencimientosPptos() {
+  if (!window.fbDB) return;
+  var hoy    = new Date().toISOString().split('T')[0];
+  var pptos  = pptoData || [];
+  var activos = ['borrador','revision','aprobado_int','enviado','visto','aceptado'];
+  pptos.forEach(function(p) {
+    if (!activos.includes(p.estado)) return;
+    if (!p.vence) return;
+    if (p.vence < hoy && p.fbKey) {
+      // Archivar automáticamente
+      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+p.fbKey), {
+        estado: 'vencido',
+        audit:  (p.audit||[]).concat([{ fecha:hoy, usuario:'Sistema', accion:'Vencido automáticamente' }])
+      });
+    }
+  });
+}
+
+// ── RECOTIZAR PRESUPUESTO VENCIDO ──
+function abrirModalRecotizarPpto(ppto) {
+  var modal = document.getElementById('modal-nuevo');
+  var title = document.getElementById('modal-nuevo-title');
+  var body  = document.getElementById('modal-nuevo-body');
+  if (!modal) return;
+  title.textContent = 'Re-cotizar presupuesto '+ppto.id;
+  // Calcular nueva fecha de vencimiento
+  var nuevaVence = new Date(Date.now() + 10*86400000).toISOString().split('T')[0];
+  body.innerHTML =
+    '<div style="background:var(--amber-bg);border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px;color:var(--amber)">' +
+    '<i class="ti ti-alert-triangle"></i> Los precios pueden haber cambiado. Verificá cada ítem antes de reenviar.' +
+    '</div>' +
+    '<div class="form-grid">' +
+    '<div class="fg full"><label>Nueva fecha de vencimiento</label><input type="date" id="recot-vence" value="'+nuevaVence+'" style="width:100%"></div>' +
+    '<div class="fg full"><label>Nota de re-cotización</label><input type="text" id="recot-nota" placeholder="Ej: Precios actualizados a junio 2026" style="width:100%"></div>' +
+    '</div>' +
+    '<div style="font-size:13px;color:var(--text2);margin-top:8px">Items del presupuesto original:</div>' +
+    '<div style="margin-top:8px;font-size:12px;color:var(--text3)">' +
+    (ppto.items||[]).map(function(it){ return '<div style="padding:4px 0;border-bottom:0.5px solid var(--border)">'+escapeHTML(it.desc||it.descripcion||'—')+' × '+(it.qty||1)+' = $'+(parseFloat(it.sub)||0).toLocaleString('es-AR')+'</div>'; }).join('') +
+    '</div>';
+  var btn = modal.querySelector('button.btn-primary');
+  if (btn) {
+    btn.textContent = 'Reenviar presupuesto';
+    btn.onclick = function() {
+      var vence = document.getElementById('recot-vence').value;
+      var nota  = document.getElementById('recot-nota').value;
+      if (!vence) { notify('Ingresá la nueva fecha de vencimiento'); return; }
+      if (!ppto.fbKey) { notify('Error: sin clave Firebase'); return; }
+      var hoy = new Date().toISOString().split('T')[0];
+      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+ppto.fbKey), {
+        estado: 'enviado',
+        vence:  vence,
+        audit:  (ppto.audit||[]).concat([{ fecha:hoy, usuario:currentUser||'', accion:'Re-cotizado. '+nota }])
+      }).then(function(){
+        notify('✓ Presupuesto re-cotizado — nuevo vencimiento: '+vence);
+        modal.classList.remove('open');
+      });
+    };
+  }
+  modal.classList.add('open');
+}
+
+// ── FIX MASIVO IVA — botón en configuración ──
+function fixIVADesdeConfig() {
+  fixIVADatosImportados();
+}
+
 function fbCargarProveedores() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/proveedores'), function(snap) {
@@ -10063,24 +10587,24 @@ function pptoAccion(accion) {
   };
 
   if (accion === 'convertir_venta') {
-    if (confirm('¿Confirmar conversión a venta? Se generará la venta automáticamente.')) {
-      p.estado = 'convertido';
-      p.ventaId = '#0004' + Math.floor(Math.random()*9+3);
-      p.audit.push({ fecha:ahora, usuario, accion:`Convertido a venta ${p.ventaId}` });
-      notify('Venta ' + p.ventaId + ' generada desde ' + p.id);
-      verPpto(p.id);
+    if (confirm('¿Convertir este presupuesto en venta? El estado de pago inicial será Pendiente de pago.')) {
+      convertirPptoAVentaReal(p);
     }
     return;
   }
 
   if (accion === 'ver_venta') {
-    notify('Navegando a venta ' + (p.ventaId || ''));
-    showPage('detalle', document.querySelector('[onclick*=detalle]'));
+    if (p.ventaId) {
+      showPage('detalle', document.querySelector('[onclick*=detalle]'));
+      setTimeout(function(){ if(typeof verDetalleVenta==='function') verDetalleVenta(p.ventaId); }, 150);
+    } else {
+      notify('Esta venta no tiene ID vinculado');
+    }
     return;
   }
 
   if (accion === 'modificar_precio') {
-    notify('Edición de precios disponible con backend conectado');
+    abrirModalRecotizarPpto(p);
     return;
   }
 
@@ -10385,123 +10909,161 @@ function generarOTdesdeVenta(ventaId, cliente, dir) {
 // KPIs DASHBOARD
 // ══════════════════════════════════════════════
 function renderKPIsDashboard() {
-  var hoy = new Date().toISOString().slice(0,10);
+  var hoy  = new Date().toISOString().slice(0,10);
   var ayer = new Date(Date.now()-86400000).toISOString().slice(0,10);
+  var esAdmin = currentRole === 'admin' || currentRole === 'administrativo';
 
-  // ── Ventas ──
-  var ventas = ventasList || [];
-  var ventasHoy = ventas.filter(function(v){ return v.fecha === hoy; });
-  var ventasAyer = ventas.filter(function(v){ return v.fecha === ayer; });
-  var totalHoy  = ventasHoy.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
-  var totalAyer = ventasAyer.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
-  var diffPct   = totalAyer > 0 ? Math.round((totalHoy - totalAyer) / totalAyer * 100) : 0;
+  // Filtrar por usuario si no es admin
+  function filtrarPorUsuario(lista) {
+    if (esAdmin) return lista;
+    return lista.filter(function(v) {
+      return (v.empleado||v.vendedor||v.usuario||'').toLowerCase() === (currentUser||'').toLowerCase() ||
+             (v.empleadoId === (window.currentUserFbKey||''));
+    });
+  }
 
-  _set('kpi-ventas-hoy', '$' + Math.round(totalHoy).toLocaleString('es-AR'));
+  var ventas      = filtrarPorUsuario(ventasList || []);
+  var ventasHoy   = ventas.filter(function(v){ return v.fecha === hoy; });
+  var ventasAyer  = ventas.filter(function(v){ return v.fecha === ayer; });
+  var totalHoy    = ventasHoy.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var totalAyer   = ventasAyer.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var diffPct     = totalAyer > 0 ? Math.round((totalHoy-totalAyer)/totalAyer*100) : 0;
+
+  _set('kpi-ventas-hoy', '$'+Math.round(totalHoy).toLocaleString('es-AR'));
   var diffEl = document.getElementById('kpi-ventas-diff');
   if (diffEl) {
-    diffEl.textContent = (diffPct >= 0 ? '↑ +' : '↓ ') + diffPct + '% vs ayer';
-    diffEl.style.color = diffPct >= 0 ? 'var(--green)' : 'var(--red)';
+    diffEl.textContent = (diffPct>=0?'↑ +':'↓ ')+diffPct+'% vs ayer';
+    diffEl.style.color = diffPct>=0?'var(--green)':'var(--red)';
   }
 
-  // ── Deuda clientes (ventas pendiente de cobro) ──
-  var deudaTotal = ventas.reduce(function(s,v){
-    if (v.estadoPago !== 'pago_total') {
-      s += parseFloat(v.total)||0;
-    }
-    return s;
-  }, 0);
-  var clientesConDeuda = ventas.filter(function(v){ return v.estadoPago !== 'pago_total'; })
-    .map(function(v){ return v.cliente; });
-  var clientesUnicos = new Set(clientesConDeuda).size;
-  _set('kpi-deuda', '$' + Math.round(deudaTotal).toLocaleString('es-AR'));
-  var deudaSubEl = document.getElementById('kpi-deuda-sub');
-  if (deudaSubEl) deudaSubEl.textContent = clientesUnicos + ' cliente' + (clientesUnicos !== 1 ? 's' : '') + ' con saldo';
+  // Deuda — solo admin ve el total de todos
+  if (esAdmin) {
+    var todasVentas = ventasList || [];
+    var deudaTotal  = todasVentas.filter(function(v){ return v.estadoPago!=='pago_total'; })
+      .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+    var clientesDeuda = new Set(todasVentas.filter(function(v){ return v.estadoPago!=='pago_total'; }).map(function(v){ return v.cliente; })).size;
+    _set('kpi-deuda', '$'+Math.round(deudaTotal).toLocaleString('es-AR'));
+    var deudaSubEl = document.getElementById('kpi-deuda-sub');
+    if (deudaSubEl) deudaSubEl.textContent = clientesDeuda+' cliente'+(clientesDeuda!==1?'s':'')+' con saldo';
+  } else {
+    // Vendedor ve sus ventas pendientes propias
+    var miDeuda = ventas.filter(function(v){ return v.estadoPago!=='pago_total'; })
+      .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+    _set('kpi-deuda', '$'+Math.round(miDeuda).toLocaleString('es-AR'));
+    var deudaSubEl2 = document.getElementById('kpi-deuda-sub');
+    if (deudaSubEl2) deudaSubEl2.textContent = 'mis ventas pendientes';
+  }
 
-  // ── Presupuestos ──
-  var pptos = pptoData || [];
-  var pptosActivos = pptos.filter(function(p){
-    return ['borrador','revision','aprobado_int','enviado','visto','aceptado'].includes(p.estado);
-  });
+  // Presupuestos — filtrados por usuario
+  var pptos       = filtrarPorUsuario(pptoData || []);
+  var pptosActivos = pptos.filter(function(p){ return ['borrador','revision','aprobado_int','enviado','visto','aceptado'].includes(p.estado); });
   _set('kpi-pptos', String(pptos.length));
   var pptoSubEl = document.getElementById('kpi-pptos-sub');
-  if (pptoSubEl) pptoSubEl.textContent = pptosActivos.length + ' activos';
+  if (pptoSubEl) pptoSubEl.textContent = pptosActivos.length+' activos';
 
-  // ── IVA acumulado (mes actual) ──
+  // IVA — solo admin
   var mesActual = hoy.slice(0,7);
-  var ivaTotal = ventas.filter(function(v){ return (v.fecha||'').slice(0,7) === mesActual && v.factura; })
-    .reduce(function(s,v){ return s + (parseFloat(v.iva)||0); }, 0);
-  _set('kpi-iva', '$' + Math.round(ivaTotal).toLocaleString('es-AR'));
+  var ivaTotal = (ventasList||[]).filter(function(v){ return (v.fecha||'').slice(0,7)===mesActual&&v.factura; })
+    .reduce(function(s,v){ return s+(parseFloat(v.iva)||0); }, 0);
+  _set('kpi-iva', '$'+Math.round(ivaTotal).toLocaleString('es-AR'));
   var ivaMesEl = document.getElementById('kpi-iva-mes');
-  if (ivaMesEl) {
-    var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-    ivaMesEl.textContent = meses[new Date().getMonth()] + ' ' + new Date().getFullYear();
-  }
+  if (ivaMesEl) { var meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']; ivaMesEl.textContent=meses[new Date().getMonth()]+' '+new Date().getFullYear(); }
+
+  // Tabla de ventas recientes — filtrada por usuario
+  var tablaVentas = ventasHoy.concat(
+    ventas.filter(function(v){ return v.fecha!==hoy; }).slice(0,5)
+  ).slice(0,8);
 
   // ── Gráfico barras últimos 7 días ──
-  var dias7 = [];
-  for (var i = 6; i >= 0; i--) {
-    var d = new Date(Date.now() - i*86400000);
-    dias7.push(d.toISOString().slice(0,10));
+  var dias7=[]; for(var i=6;i>=0;i--){ var d=new Date(Date.now()-i*86400000); dias7.push(d.toISOString().slice(0,10)); }
+  var maxVal=0;
+  var totales=dias7.map(function(fecha){ var t=ventas.filter(function(v){return v.fecha===fecha;}).reduce(function(s,v){return s+(parseFloat(v.total)||0);},0); if(t>maxVal)maxVal=t; return t; });
+  var diaNombres=['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
+  var maxPx=88;
+  for(var j=0;j<7;j++){
+    var barEl=document.getElementById('bar-'+j); var lblEl=document.getElementById('blbl-'+j);
+    var alto=maxVal>0?Math.max(4,Math.round(totales[j]/maxVal*maxPx)):4;
+    var diaSem=new Date(dias7[j]).getDay(); var esHoy2=j===6;
+    if(barEl){barEl.style.height=alto+'px';barEl.title='$'+Math.round(totales[j]).toLocaleString('es-AR');}
+    if(lblEl){lblEl.textContent=esHoy2?'Hoy':diaNombres[diaSem];}
   }
-  var maxVal = 0;
-  var totales = dias7.map(function(fecha) {
-    var t = ventas.filter(function(v){ return v.fecha === fecha; })
-      .reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
-    if (t > maxVal) maxVal = t;
-    return t;
-  });
-  var diaNombres = ['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
-  var maxPx = 88; // altura máxima de barra en px (dentro de 100px del área)
-  for (var j = 0; j < 7; j++) {
-    var barEl  = document.getElementById('bar-' + j);
-    var lblEl  = document.getElementById('blbl-' + j);
-    var alto   = maxVal > 0 ? Math.max(4, Math.round(totales[j]/maxVal*maxPx)) : 4;
-    var diaSem = new Date(dias7[j]).getDay();
-    var esHoy  = j === 6;
-    if (barEl) {
-      barEl.style.height = alto + 'px';
-      barEl.title = '$' + Math.round(totales[j]).toLocaleString('es-AR');
-    }
     if (lblEl) {
       lblEl.textContent = esHoy ? 'Hoy' : diaNombres[diaSem];
     }
   }
 
-  // ── Últimas ventas en dashboard ──
+  // ── Últimas ventas en dashboard — click abre detalle ──
   var ultVentasEl = document.getElementById('dash-ultimas-ventas');
-  if (ultVentasEl && ventas.length) {
-    var ultimas = ventas.slice(0, 5);
-    ultVentasEl.innerHTML = ultimas.map(function(v) {
-      var ep = v.estadoPago === 'pago_total' ? '✓' : v.estadoPago === 'seniado' ? '◑' : '○';
-      var epColor = v.estadoPago === 'pago_total' ? 'var(--green)' : v.estadoPago === 'seniado' ? 'var(--blue)' : 'var(--amber)';
-      var total = parseFloat(v.total)||0;
-      return '<tr onclick="showPage(this.dataset.pg,null)" data-pg="detalle" style="cursor:pointer">' +
-        '<td style="font-family:monospace;font-size:12px">' + (v.id||'') + '</td>' +
-        '<td>' + (v.cliente||'') + '</td>' +
-        '<td class="hide-mobile" style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
-        '<td style="text-align:right;font-weight:600">$' + (parseFloat(total)||0).toLocaleString('es-AR') + '</td>' +
-        '<td style="text-align:right;color:' + epColor + '">' + ep + '</td>' +
-      '</tr>';
-    }).join('');
-  }
-
-  // ── Comisiones (solo empleados activos) ──
-  var empTabla = document.getElementById('dash-comisiones');
-  if (empTabla && Object.keys(empData||{}).length) {
-    var empActivos = Object.values(empData).filter(function(e){ return e.activo !== false; });
-    if (!empActivos.length) {
-      empTabla.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sin empleados activos</td></tr>';
-    } else {
-      empTabla.innerHTML = empActivos.map(function(e) {
-        return '<tr>' +
-          '<td>' + escapeHTML(e.nombre||'') + '</td>' +
-          '<td><span class="badge b-blue" style="font-size:10px">' + (e.categoria||'') + '</span></td>' +
-          '<td style="text-align:right;color:var(--green)">$' + (parseFloat(e.comisiones)||0).toLocaleString('es-AR') + '</td>' +
-          '<td style="text-align:right;color:var(--text3)">' + (e.hextra ? '$'+(parseFloat(e.hextra)||0).toLocaleString('es-AR') : '—') + '</td>' +
+  if (ultVentasEl) {
+    var ultimas = ventas.slice(0, 6);
+    if (ultimas.length) {
+      ultVentasEl.innerHTML = ultimas.map(function(v) {
+        var ep = v.estadoPago==='pago_total' ? '<span class="badge b-green">Cobrado</span>'
+               : v.estadoPago==='seniado'    ? '<span class="badge b-blue">Seña</span>'
+               : '<span class="badge b-amber">Pendiente</span>';
+        return '<tr style="cursor:pointer" onclick="abrirDetalleVentaDashboard(\''+escapeHTML(v.id||v.fbKey||'')+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
+          '<td style="font-family:monospace;font-size:12px;color:var(--text3)">'+(v.id||'—')+'</td>' +
+          '<td style="font-weight:500">'+escapeHTML(v.cliente||'—')+'</td>' +
+          '<td style="color:var(--text3);font-size:12px">'+escapeHTML(v.fecha||'—')+'</td>' +
+          '<td style="text-align:right;font-weight:600">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
+          '<td style="text-align:right">'+ep+'</td>' +
         '</tr>';
       }).join('');
+    } else {
+      ultVentasEl.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text3)">Sin ventas recientes</td></tr>';
     }
   }
+
+  // ── Card resumen "Mis ventas del mes" ──
+  var mesActualMV = hoy.slice(0,7);
+  var ventasMes   = ventas.filter(function(v){ return (v.fecha||'').slice(0,7)===mesActualMV; });
+  var totalMes    = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var pptosMios   = (filtrarPorUsuario(pptoData||[])).filter(function(p){ return ['borrador','enviado','aceptado'].includes(p.estado); });
+  var tituloCard  = document.getElementById('dash-mis-ventas-title');
+  if (tituloCard) tituloCard.textContent = esAdmin ? 'Ventas del mes' : 'Mis ventas del mes';
+  var _d = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+  _d('dash-mv-total',    '$'+Math.round(totalMes).toLocaleString('es-AR'));
+  _d('dash-mv-cant',     ventasMes.length+' venta'+(ventasMes.length!==1?'s':''));
+  _d('dash-mv-pptos',    pptosMios.length);
+  _d('dash-mv-pptos-sub','pendiente'+(pptosMios.length!==1?'s':''));
+  // Últimas 3 ventas en el mini-resumen
+  var ultMini = document.getElementById('dash-mv-ultimas');
+  if (ultMini) {
+    var ult3 = ventasMes.slice(0,3);
+    ultMini.innerHTML = ult3.length
+      ? ult3.map(function(v){
+          return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="abrirDetalleVentaDashboard(\''+escapeHTML(v.id||v.fbKey||'')+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
+            '<span>'+escapeHTML(v.cliente||'—')+'</span>' +
+            '<span style="font-weight:500;color:var(--green)">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</span>' +
+          '</div>';
+        }).join('')
+      : '<div style="text-align:center;color:var(--text3);padding:8px">Sin ventas este mes</div>';
+  }
+
+  // ── Mobile: ventas recientes ──
+  var mobEl = document.getElementById('dash-ventas-mobile');
+  if (mobEl) {
+    var ult5mob = ventas.slice(0,5);
+    mobEl.innerHTML = ult5mob.length
+      ? ult5mob.map(function(v){
+          var ep = v.estadoPago==='pago_total'?'b-green':v.estadoPago==='seniado'?'b-blue':'b-amber';
+          return '<div style="display:flex;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer;gap:8px" onclick="abrirDetalleVentaDashboard(\''+escapeHTML(v.id||v.fbKey||'')+'\')">' +
+            '<div style="flex:1;min-width:0"><div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHTML(v.cliente||'—')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(v.fecha||'')+'</div></div>' +
+            '<div style="font-weight:600;white-space:nowrap">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</div>' +
+            '<span class="badge '+ep+'" style="flex-shrink:0">'+(v.estadoPago==='pago_total'?'✓':v.estadoPago==='seniado'?'◑':'○')+'</span>' +
+          '</div>';
+        }).join('')
+      : '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin ventas recientes</div>';
+  }
+}
+
+function abrirDetalleVentaDashboard(ventaId) {
+  if (!ventaId) return;
+  // Navegar al módulo detalle y cargar la venta
+  showPage('detalle', document.querySelector('[onclick*="detalle"]'));
+  setTimeout(function() {
+    if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaId);
+  }, 150);
 }
 
 function renderVentaTimeline(containerId, estadoActual) {
@@ -10688,9 +11250,23 @@ function renderDetalleVenta(v) {
   var dv = document.getElementById('venta-detalle-view');
   if (!dv) return;
 
+  // ── Normalizar estado de pago desde datos importados ──
+  // Los datos viejos pueden tener: seña, seniado, pago_total, pendiente_pago, o vacío
+  var total      = parseFloat(v.total) || 0;
+  var seña       = parseFloat(v.seña || v.senia || v.totalPagado || 0);
+  var estadoPago = v.estadoPago || '';
+
+  // Normalizar variantes del campo
+  if (estadoPago === 'seña' || estadoPago === 'senia') estadoPago = 'seniado';
+  if (!estadoPago && seña > 0 && seña >= total) estadoPago = 'pago_total';
+  if (!estadoPago && seña > 0 && seña < total)  estadoPago = 'seniado';
+  if (!estadoPago) estadoPago = 'pendiente_pago';
+  // Si la seña cubre el total → pago total
+  if (seña >= total && total > 0) estadoPago = 'pago_total';
+
   var ESTADO_PAGO = {
     'pendiente_pago': { label:'Pendiente de pago', color:'var(--amber)', icon:'ti-clock' },
-    'seniado':        { label:'Señado',             color:'var(--blue)',  icon:'ti-coin' },
+    'seniado':        { label:'Señado',             color:'var(--blue)',  icon:'ti-coin'  },
     'pago_total':     { label:'Pago total',         color:'var(--green)', icon:'ti-check' },
   };
   var ESTADO_INST = {
@@ -10700,16 +11276,149 @@ function renderDetalleVenta(v) {
     'con_garantia':   { label:'Con garantía',   color:'var(--purple)',icon:'ti-shield-check' },
   };
 
-  var ep = ESTADO_PAGO[v.estadoPago] || { label: v.estadoPago||'—', color:'var(--text3)', icon:'ti-minus' };
-  var ei = ESTADO_INST[v.estadoInst] || { label: v.estadoInst||'—', color:'var(--text3)', icon:'ti-minus' };
-  var total = parseFloat(v.total) || 0;
+  var ep       = ESTADO_PAGO[estadoPago] || { label: estadoPago||'—', color:'var(--text3)', icon:'ti-minus' };
+  var ei       = ESTADO_INST[v.estadoInst] || { label: v.estadoInst||'—', color:'var(--text3)', icon:'ti-minus' };
   var subtotal = parseFloat(v.subtotal) || total;
-  var iva = parseFloat(v.iva) || 0;
-  var descuento = parseFloat(v.descuento) || 0;
-  var items = v.items || [];
-  var pagos = v.pagos || [];
-  var pagado = pagos.reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
-  var saldo = total - pagado;
+  var descuento= parseFloat(v.descuento) || 0;
+  // IVA solo se muestra si hay factura emitida
+  var tieneFactura = !!(v.factura && (v.factura.cae || v.factura.pdf_url));
+  var iva      = tieneFactura ? (parseFloat(v.iva) || 0) : 0;
+  var items    = v.items || [];
+  var pagos    = v.pagos || [];
+  // Calcular pagado: sumar pagos registrados + seña importada
+  var pagosReg = pagos.reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
+  var pagado   = pagosReg > 0 ? pagosReg : seña;
+  var saldo    = estadoPago === 'pago_total' ? 0 : Math.max(0, total - pagado);
+
+  dv.innerHTML =
+    // Header
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">' +
+      '<button class="btn btn-sm" onclick="volverListaVentas()">' +
+        '<i class="ti ti-arrow-left"></i> Volver' +
+      '</button>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:18px;font-weight:700">Venta ' + escapeHTML(v.id||'—') + '</div>' +
+        '<div style="font-size:13px;color:var(--text3)">' + escapeHTML(v.fecha||'—') + ' · ' + escapeHTML(v.usuario||v.empleado||'Sistema') + '</div>' +
+      '</div>' +
+      (tieneFactura
+        ? '<a href="'+v.factura.pdf_url+'" target="_blank" class="btn btn-sm" style="color:var(--green);border-color:var(--green)"><i class="ti ti-file-check"></i> CAE: '+v.factura.cae+'</a>'
+        : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(\''+v.id+'\')"><i class="ti ti-file-invoice"></i> Facturar</button>'
+      ) +
+      '<button class="btn btn-sm" onclick="moverVentaAPresupuesto(\''+escapeHTML(v.id||v.fbKey||'')+'\')" style="color:var(--amber);border-color:var(--amber)" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' +
+    '</div>' +
+
+    // Cliente y estados
+    '<div class="card" style="margin-bottom:12px">' +
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">' +
+        '<div style="flex:1;min-width:200px">' +
+          '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Cliente</div>' +
+          '<div style="font-size:16px;font-weight:600">' + escapeHTML(v.cliente||'—') + '</div>' +
+          (v.descripcion ? '<div style="font-size:12px;color:var(--text3);margin-top:4px">' + escapeHTML(v.descripcion) + '</div>' : '') +
+        '</div>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+          '<div style="text-align:center;padding:8px 14px;background:var(--bg3);border-radius:8px;min-width:90px">' +
+            '<i class="ti ' + ep.icon + '" style="color:' + ep.color + ';font-size:20px;display:block;margin-bottom:4px"></i>' +
+            '<div style="font-size:11px;color:var(--text3)">Pago</div>' +
+            '<div style="font-size:12px;font-weight:600;color:' + ep.color + '">' + ep.label + '</div>' +
+          '</div>' +
+          '<div style="text-align:center;padding:8px 14px;background:var(--bg3);border-radius:8px;min-width:90px">' +
+            '<i class="ti ' + ei.icon + '" style="color:' + ei.color + ';font-size:20px;display:block;margin-bottom:4px"></i>' +
+            '<div style="font-size:11px;color:var(--text3)">Instalación</div>' +
+            '<div style="font-size:12px;font-weight:600;color:' + ei.color + '">' + ei.label + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    // Productos
+    '<div class="card" style="margin-bottom:12px">' +
+      '<div style="font-size:14px;font-weight:600;margin-bottom:14px;padding-bottom:10px;border-bottom:0.5px solid var(--border)">Productos / Servicios</div>' +
+      (items.length
+        ? '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">' +
+            '<thead><tr>' +
+              '<th style="text-align:left;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Descripción</th>' +
+              '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 4px;border-bottom:1px solid var(--border2)">Cant.</th>' +
+              '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">P. Unit.</th>' +
+              '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Subtotal</th>' +
+            '</tr></thead><tbody>' +
+            items.map(function(it) {
+              var sub = parseFloat(it.sub) || ((parseFloat(it.qty)||1) * (parseFloat(it.punit)||0));
+              return '<tr>' +
+                '<td style="padding:8px 0;border-bottom:.5px solid var(--border)">' +
+                  (it.cod ? '<span style="font-family:monospace;font-size:11px;color:var(--text3);margin-right:6px">' + escapeHTML(it.cod) + '</span>' : '') +
+                  '<span style="font-size:13px">' + escapeHTML(it.desc||it.descripcion||'—') + '</span>' +
+                '</td>' +
+                '<td style="text-align:right;padding:8px 4px;border-bottom:.5px solid var(--border);font-size:13px">' + (it.qty||1) + '</td>' +
+                '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px">$' + (parseFloat(it.punit)||0).toLocaleString('es-AR') + '</td>' +
+                '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">$' + sub.toLocaleString('es-AR') + '</td>' +
+              '</tr>';
+            }).join('') +
+          '</tbody></table></div>' +
+          '<div style="margin-top:14px;display:flex;justify-content:flex-end">' +
+            '<div style="min-width:220px">' +
+              (descuento > 0
+                ? '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--text2)"><span>Subtotal</span><span>$' + subtotal.toLocaleString('es-AR') + '</span></div>' +
+                  '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--red)"><span>Descuento</span><span>-$' + descuento.toLocaleString('es-AR') + '</span></div>'
+                : '') +
+              (iva > 0
+                ? '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--amber)"><span>IVA 21%</span><span>$' + iva.toLocaleString('es-AR') + '</span></div>'
+                : '') +
+              '<div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;padding:8px 0;border-top:1.5px solid var(--border2);margin-top:4px"><span>Total</span><span>$' + total.toLocaleString('es-AR') + '</span></div>' +
+            '</div>' +
+          '</div>'
+        : '<div style="text-align:center;padding:20px;color:var(--text3)">Sin ítems registrados</div>'
+      ) +
+    '</div>' +
+
+    // Pagos / Seña
+    '<div class="card" style="margin-bottom:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+        '<span style="font-weight:600">Historial de pagos</span>' +
+        (saldo > 0
+          ? '<button class="btn btn-sm btn-primary" onclick="registrarPagoVenta(\''+v.id+'\')"><i class="ti ti-plus"></i> Registrar pago</button>'
+          : '<span style="font-size:12px;color:var(--green)"><i class="ti ti-check"></i> Saldo cancelado</span>'
+        ) +
+      '</div>' +
+      // Mostrar seña importada si no hay pagos registrados
+      (pagos.length === 0 && seña > 0
+        ? '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid var(--border)">' +
+            '<div>' +
+              '<div style="font-size:13px;font-weight:500">$' + seña.toLocaleString('es-AR') + '</div>' +
+              '<div style="font-size:11px;color:var(--text3)">Seña / pago importado del sistema anterior</div>' +
+            '</div>' +
+            '<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:var(--green-bg);color:var(--green)">✓</span>' +
+          '</div>'
+        : ''
+      ) +
+      (pagos.length > 0
+        ? pagos.map(function(p) {
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid var(--border)">' +
+              '<div>' +
+                '<div style="font-size:13px;font-weight:500">$' + (parseFloat(p.monto)||0).toLocaleString('es-AR') + '</div>' +
+                '<div style="font-size:11px;color:var(--text3)">' + (p.fecha||'') + ' · ' + (p.medio||'Efectivo') + (p.nota?' · '+p.nota:'') + '</div>' +
+              '</div>' +
+              '<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:var(--green-bg);color:var(--green)">✓</span>' +
+            '</div>';
+          }).join('')
+        : (seña === 0 ? '<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">Sin pagos registrados</div>' : '')
+      ) +
+      (saldo > 0
+        ? '<div style="margin-top:10px;padding:10px;background:var(--amber-bg);border-radius:8px;font-size:13px;color:var(--amber);font-weight:500">Saldo pendiente: $' + saldo.toLocaleString('es-AR') + '</div>'
+        : '') +
+    '</div>' +
+
+    // Auditoría
+    (v.audit && v.audit.length
+      ? '<div class="card">' +
+          '<div style="font-weight:600;margin-bottom:10px;font-size:13px;color:var(--text2)">Auditoría</div>' +
+          v.audit.map(function(a) {
+            return '<div style="font-size:12px;color:var(--text3);padding:4px 0;border-bottom:.5px solid var(--border)">' +
+              (a.fecha||'') + ' · ' + (a.usuario||'') + ' — ' + (a.accion||'') +
+            '</div>';
+          }).join('') +
+        '</div>'
+      : '');
+}
 
   dv.innerHTML =
     // Header
@@ -11371,15 +12080,88 @@ function verOTdesdeVenta() {
 // ── FUNCIONES CONECTADAS A BOTONES ──
 
 // Guardar fila individual en config (comisiones, sueldos)
+var CONFIG_COMISIONES = {
+  'Cat. 39': { pct: 2.5, min: 0, max: 999999 },
+  'Cat. 15': { pct: 1.5, min: 0, max: 999999 },
+  'Cat. 08': { pct: 1.0, min: 0, max: 999999 }
+};
+
 function guardarFilaConfig(btn) {
-  const tr = btn.closest('tr');
-  const inputs = tr.querySelectorAll('input[type=number]');
-  let vals = [];
-  inputs.forEach(inp => vals.push(inp.value));
-  const icon = btn.querySelector('i');
-  if (icon) { icon.className = 'ti ti-check'; btn.style.color = 'var(--green)'; }
-  setTimeout(() => { if (icon) btn.style.color = ''; }, 1500);
-  notify('Valor guardado correctamente');
+  var tr     = btn.closest('tr');
+  var inputs = tr.querySelectorAll('input[type=number]');
+  var cargo  = tr.querySelector('td') ? tr.querySelector('td').textContent.trim() : '';
+  var vals   = Array.from(inputs).map(function(i){ return parseFloat(i.value)||0; });
+
+  // Detectar si es fila de comisión (3 inputs: %, mínimo, tope)
+  var esComision = inputs.length >= 2 && tr.closest('table').querySelector('th') &&
+    tr.closest('table').querySelector('th').textContent.includes('Cargo');
+
+  if (esComision && window.fbDB) {
+    // Determinar clave de categoría
+    var cat = cargo.includes('39') ? 'Cat. 39' : cargo.includes('15') ? 'Cat. 15' : 'Cat. 08';
+    CONFIG_COMISIONES[cat] = { pct: vals[0]||0, min: vals[1]||0, max: vals[2]||0 };
+    window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/comisiones'), CONFIG_COMISIONES)
+      .then(function(){ notify('✓ Comisión guardada en Firebase'); })
+      .catch(function(e){ notify('Error: '+e.message); });
+  } else {
+    notify('Valor guardado');
+  }
+
+  var icon = btn.querySelector('i');
+  if (icon) { icon.className = 'ti ti-check-circle'; btn.style.color='var(--green)'; }
+  setTimeout(function(){ if(icon){ icon.className='ti ti-check'; btn.style.color=''; } }, 2000);
+}
+
+function cargarConfigComisiones() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/comisiones')).then(function(snap) {
+    var data = snap.val();
+    if (data) {
+      Object.assign(CONFIG_COMISIONES, data);
+      // Actualizar inputs de configuración si la pantalla está visible
+      actualizarInputsComisiones();
+    }
+  });
+}
+
+function actualizarInputsComisiones() {
+  var tabla = document.querySelector('.comisiones-tbl, #cfg-comisiones table');
+  if (!tabla) return;
+  var filas = tabla.querySelectorAll('tbody tr, tr:not(:first-child)');
+  var cats  = ['Cat. 39', 'Cat. 15', 'Cat. 08'];
+  filas.forEach(function(tr, i) {
+    var cat = cats[i];
+    if (!cat || !CONFIG_COMISIONES[cat]) return;
+    var inputs = tr.querySelectorAll('input[type=number]');
+    if (inputs[0]) inputs[0].value = CONFIG_COMISIONES[cat].pct;
+    if (inputs[1]) inputs[1].value = CONFIG_COMISIONES[cat].min;
+    if (inputs[2]) inputs[2].value = CONFIG_COMISIONES[cat].max;
+  });
+}
+
+function calcularComisionEmpleado(emp, mesAMM) {
+  // Calcular comisión del empleado según ventas del mes
+  var cat = obtenerCategoriaEmpleado ? obtenerCategoriaEmpleado(emp) : '';
+  var cfgCat = cat.includes('C')||cat.includes('B') ? CONFIG_COMISIONES['Cat. 39']
+             : cat.includes('A')                    ? CONFIG_COMISIONES['Cat. 15']
+             : CONFIG_COMISIONES['Cat. 08'];
+
+  var ventas = (ventasList||[]).filter(function(v){
+    return (v.empleado===emp.nombre||v.empleadoId===emp.fbKey) &&
+           (v.fecha||'').slice(0,7) === (mesAMM||new Date().toISOString().slice(0,7));
+  });
+
+  var totalVentas = ventas.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var comision    = totalVentas * (cfgCat.pct||0) / 100;
+  var comisionFinal = Math.max(cfgCat.min||0, Math.min(cfgCat.max||999999, comision));
+
+  return {
+    totalVentas: totalVentas,
+    cantVentas:  ventas.length,
+    pct:         cfgCat.pct||0,
+    comision:    comisionFinal,
+    sinTope:     comision
+  };
 }
 
 // Editar alícuota IVA
