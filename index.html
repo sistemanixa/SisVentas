@@ -652,7 +652,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.4 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.6 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -729,6 +729,9 @@ tr:hover td{color:var(--text)}
       <div class="nav-item admin-only" onclick="showPage('empleados',this)">
         <i class="ti ti-id-badge"></i>Empleados
       </div>
+      <div class="nav-item admin-only" onclick="showPage('vacaciones',this)">
+        <i class="ti ti-beach"></i>Vacaciones
+      </div>
       <div class="nav-item" onclick="showPage('ctaemp',this)">
         <i class="ti ti-wallet"></i>Mi cuenta
       </div>
@@ -742,7 +745,10 @@ tr:hover td{color:var(--text)}
       <div class="nav-item no-tecnico admin-only" onclick="showPage('estadisticas',this)">
         <i class="ti ti-chart-line"></i>Estadísticas
       </div>
-      <div class="s-section">Operaciones</div>
+      <div class="s-section tecnico-only">Acceso rápido</div>
+      <div class="nav-item tecnico-only" onclick="showPage('gastos',this);setTimeout(function(){abrirFormGasto(null);},300)" style="background:var(--amber-bg);color:var(--amber);border-radius:var(--radius);margin:0 4px">
+        <i class="ti ti-receipt"></i> Cargar gasto de empresa
+      </div>
       <div class="nav-item" onclick="showPage('agenda',this)">
         <i class="ti ti-calendar"></i>Agenda
       </div>
@@ -770,6 +776,7 @@ tr:hover td{color:var(--text)}
       <div class="s-section no-tecnico">Finanzas</div>
       <div class="nav-item no-tecnico admin-only" onclick="showPage('caja',this)"><i class="ti ti-cash"></i> Caja diaria</div>
       <div class="nav-item no-tecnico" onclick="showPage('gastos',this)"><i class="ti ti-receipt"></i>Gastos</div>
+      <div class="nav-item no-tecnico admin-only" onclick="showPage('sueldos',this)"><i class="ti ti-wallet"></i>Sueldos</div>
       <div class="nav-item no-tecnico admin-only" onclick="showPage('rentabilidad',this)"><i class="ti ti-trending-up"></i>Rentabilidad</div>
       <div class="s-section no-tecnico admin-only">Compras</div>
       <div class="nav-item no-tecnico admin-only" onclick="showPage('proveedores',this)">
@@ -2858,55 +2865,301 @@ tr:hover td{color:var(--text)}
 
 <!-- GASTOS -->
 <div id="page-gastos" class="page">
-  <div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-    <div class="metric"><div class="m-label">Gastos del mes</div><div class="m-value" id="gas-total" style="color:var(--red)">$0</div><div class="m-sub" id="gas-total-sub">—</div></div>
-    <div class="metric"><div class="m-label">Gastos fijos</div><div class="m-value" id="gas-fijos">$0</div><div class="m-sub">—</div></div>
-    <div class="metric"><div class="m-label">Gastos variables</div><div class="m-value" id="gas-variables">$0</div><div class="m-sub">—</div></div>
+
+  <!-- MÉTRICAS -->
+  <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
+    <div class="metric"><div class="m-label">Gastos del mes</div><div class="m-value" id="gas-total" style="color:var(--red)">$0</div><div class="m-sub" id="gas-total-sub">— pagados</div></div>
+    <div class="metric"><div class="m-label">Pendiente de pago</div><div class="m-value" id="gas-pendiente" style="color:var(--amber)">$0</div><div class="m-sub" id="gas-pend-cant">0 gastos</div></div>
+    <div class="metric"><div class="m-label">Vencen esta semana</div><div class="m-value" id="gas-vencen" style="color:var(--red)">$0</div><div class="m-sub" id="gas-vencen-cant">—</div></div>
+    <div class="metric"><div class="m-label">A reembolsar a técnicos</div><div class="m-value" id="gas-reembolso" style="color:var(--blue)">$0</div><div class="m-sub" id="gas-reembolso-cant">—</div></div>
   </div>
+
+  <!-- ALERTAS DE VENCIMIENTO -->
+  <div id="gas-alertas-box" style="display:none;margin-bottom:12px"></div>
+
+  <!-- LISTA -->
   <div class="card" id="gasto-list">
     <div class="card-head">
-      <span class="card-title">Registro de gastos</span>
-      <button class="btn btn-sm btn-primary" onclick="abrirModalNuevo('gasto')"><i class="ti ti-plus"></i> Nuevo gasto</button>
-    </div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-      <input class="search-input" style="flex:1;min-width:160px" placeholder="Buscar gasto..." oninput="document.querySelectorAll('.grow').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(this.value.toLowerCase())?'':'none')">
-      <select class="search-input" style="width:150px" onchange="const v=this.value;document.querySelectorAll('.grow').forEach(r=>r.style.display=(!v||r.dataset.tipo===v)?'':'none')">
-        <option value="">Todos los tipos</option>
-        <option>Fijo</option><option>Variable</option><option>Compra mercaderia</option>
-      </select>
+      <span class="card-title">Gastos</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <input class="search-input" style="width:180px" placeholder="Buscar..." oninput="filtrarGastos()">
+        <select class="search-input" style="width:130px" id="gas-f-tipo" onchange="filtrarGastos()">
+          <option value="">Todos los tipos</option>
+          <option value="Fijo">Fijo</option>
+          <option value="Variable">Variable</option>
+          <option value="Compra">Compra</option>
+        </select>
+        <select class="search-input" style="width:140px" id="gas-f-estado" onchange="filtrarGastos()">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="pagado_parcial">Pago parcial</option>
+          <option value="pagado">Pagado</option>
+        </select>
+        <button class="btn btn-sm btn-primary" onclick="abrirFormGasto(null)"><i class="ti ti-plus"></i> Nuevo gasto</button>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Fecha</th><th>Descripcion</th><th>Categoria</th><th>Tipo</th><th class="tr">Monto</th><th class="tr">Estado</th><th></th></tr></thead>
-        <tbody id="gastos-tbody"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr></tbody>
+        <thead><tr>
+          <th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Tipo</th>
+          <th class="tr">Monto</th><th class="tr">Pagado</th><th class="tr">Vencimiento</th>
+          <th class="tr">Estado</th><th class="tr">Pagó</th><th></th>
+        </tr></thead>
+        <tbody id="gastos-tbody"><tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr></tbody>
       </table>
     </div>
-    <div style="display:flex;justify-content:flex-end;margin-top:14px">
-      <button class="btn btn-sm" onclick="exportarExcel('Gastos del período')"><i class="ti ti-download"></i> Exportar</button>
+    <div class="flex-end" style="margin-top:12px">
+      <button class="btn btn-sm" onclick="exportarExcel('Gastos del período')"><i class="ti ti-download"></i> Exportar Excel</button>
     </div>
   </div>
-  <div id="gasto-form" style="display:none">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <button class="btn btn-sm" onclick="document.getElementById('gasto-list').style.display='';document.getElementById('gasto-form').style.display='none'"><i class="ti ti-arrow-left"></i> Volver</button>
-      <span style="font-size:13px;font-weight:500">Nuevo gasto</span><div style="width:80px"></div>
+
+  <!-- FORMULARIO NUEVO/EDITAR GASTO -->
+  <div class="card" id="gasto-form" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <button class="btn btn-sm" onclick="cerrarFormGasto()"><i class="ti ti-arrow-left"></i> Volver</button>
+      <span style="font-size:14px;font-weight:600" id="gasto-form-titulo">Nuevo gasto</span>
+      <div style="width:80px"></div>
     </div>
-    <div class="card">
-      <div class="card-head"><span class="card-title">Datos del gasto</span></div>
+
+    <div class="form-grid">
+      <div class="fg"><label>Fecha</label><input type="date" id="g-fecha"></div>
+      <div class="fg"><label>Vencimiento / Fecha límite de pago</label><input type="date" id="g-vencimiento"></div>
+      <div class="fg"><label>Tipo</label>
+        <select id="g-tipo" onchange="onChangeTipoGasto()">
+          <option value="Variable">Variable</option>
+          <option value="Fijo">Fijo — se repite mensualmente</option>
+          <option value="Compra">Compra de mercadería</option>
+        </select>
+      </div>
+      <div class="fg"><label>Categoría</label>
+        <select id="g-categoria">
+          <option>Inmueble</option><option>Servicios</option><option>Personal</option>
+          <option>Transporte</option><option>Materiales</option><option>Marketing</option>
+          <option>Mercadería</option><option>Impuestos</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="fg full"><label>Descripción</label>
+        <input type="text" id="g-descripcion" placeholder="Ej: Alquiler oficina junio">
+      </div>
+      <div class="fg"><label>Monto total ($)</label><input type="number" id="g-monto" placeholder="0" oninput="calcRestoGasto()"></div>
+      <div class="fg"><label>Monto ya pagado ($)</label><input type="number" id="g-monto-pagado" placeholder="0" value="0" oninput="calcRestoGasto()"></div>
+      <div class="fg"><label>Resta pagar</label>
+        <input type="text" id="g-resta" readonly style="background:var(--bg4);font-weight:600">
+      </div>
+      <div class="fg"><label>Medio de pago</label>
+        <select id="g-medio">
+          <option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option><option>QR</option>
+        </select>
+      </div>
+      <div class="fg"><label>Proveedor / A quién se paga</label><input type="text" id="g-proveedor" placeholder="Opcional"></div>
+      <div class="fg"><label>N° comprobante</label><input type="text" id="g-comprobante" placeholder="Opcional"></div>
+
+      <!-- Pagado por técnico -->
+      <div class="fg full" style="background:var(--bg3);border-radius:var(--radius);padding:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+          <input type="checkbox" id="g-pagado-tecnico" onchange="togglePagadoTecnico(this.checked)" style="width:16px;height:16px;accent-color:var(--blue)">
+          <span style="font-size:13px;font-weight:500">Este gasto lo pagó un técnico — reembolsar al empleado</span>
+        </label>
+        <div id="g-tecnico-box" style="display:none;margin-top:10px">
+          <select id="g-tecnico-id" style="width:100%">
+            <option value="">— Seleccionar empleado —</option>
+          </select>
+          <div style="font-size:12px;color:var(--blue);margin-top:6px"><i class="ti ti-info-circle"></i> Se acreditará automáticamente en la cuenta corriente del empleado</div>
+        </div>
+      </div>
+
+      <!-- Foto del comprobante -->
+      <div class="fg full">
+        <label>Foto del ticket / comprobante</label>
+        <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:14px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('g-foto-input').click()">
+          <i class="ti ti-camera-plus" style="font-size:24px;color:var(--text3)"></i>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">Tocá para agregar foto del comprobante</div>
+        </div>
+        <input type="file" id="g-foto-input" accept="image/*" capture="environment" style="display:none" onchange="previewFotoGasto(this)">
+        <div id="g-foto-preview" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div class="flex-end" style="margin-top:16px;gap:8px">
+      <button class="btn" onclick="cerrarFormGasto()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarGastoCompleto()"><i class="ti ti-check"></i> Guardar gasto</button>
+    </div>
+  </div>
+
+  <!-- MODAL PAGO PARCIAL -->
+  <div id="modal-pago-gasto" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px" id="mpg-titulo">Registrar pago</div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Monto a pagar ahora ($)</label>
+        <input type="number" id="mpg-monto" placeholder="0" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Medio de pago</label>
+        <select id="mpg-medio" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-family:inherit">
+          <option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option><option>QR</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" style="flex:1" onclick="document.getElementById('modal-pago-gasto').style.display='none'">Cancelar</button>
+        <button class="btn btn-primary" style="flex:1" onclick="confirmarPagoGasto()">Confirmar pago</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- SUELDOS -->
+<div id="page-sueldos" class="page">
+
+  <!-- Selector de mes -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-sm" onclick="cambiarMesSueldos(-1)"><i class="ti ti-chevron-left"></i></button>
+      <span style="font-size:15px;font-weight:600;min-width:160px;text-align:center" id="suel-mes-label">Junio 2026</span>
+      <button class="btn btn-sm" onclick="cambiarMesSueldos(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" onclick="exportarExcel('Planilla de sueldos')"><i class="ti ti-download"></i> Exportar</button>
+      <button class="btn btn-sm btn-primary" onclick="guardarLiquidacion()"><i class="ti ti-check"></i> Guardar liquidación</button>
+    </div>
+  </div>
+
+  <!-- Métricas -->
+  <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
+    <div class="metric"><div class="m-label">Total sueldos</div><div class="m-value" id="suel-total" style="color:var(--red)">$0</div><div class="m-sub" id="suel-total-sub">—</div></div>
+    <div class="metric"><div class="m-label">Hs extra</div><div class="m-value" id="suel-hextra" style="color:var(--amber)">$0</div><div class="m-sub">—</div></div>
+    <div class="metric"><div class="m-label">Descuentos</div><div class="m-value" id="suel-desc" style="color:var(--blue)">$0</div><div class="m-sub">cuotas + adelantos</div></div>
+    <div class="metric"><div class="m-label">A pagar total</div><div class="m-value" id="suel-apagar" style="color:var(--green)">$0</div><div class="m-sub">—</div></div>
+  </div>
+
+  <!-- Tabla de liquidación -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-head">
+      <span class="card-title">Liquidación mensual</span>
+      <button class="btn btn-sm" onclick="abrirConfigCategoriasModal()"><i class="ti ti-settings"></i> Categorías</button>
+    </div>
+    <div class="table-wrap">
+      <table id="suel-tabla">
+        <thead><tr>
+          <th>Empleado</th><th>Categoría</th>
+          <th class="tr">Sueldo base</th>
+          <th class="tr" style="min-width:80px">Días trab.</th>
+          <th class="tr">Val. jornada</th>
+          <th class="tr" style="min-width:70px">Hs extra</th>
+          <th class="tr">Val. Hs ext</th>
+          <th class="tr">Entrega</th>
+          <th class="tr">Descuentos</th>
+          <th class="tr">Adelantos</th>
+          <th class="tr" style="font-weight:700">A pagar</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="suel-tbody"></tbody>
+        <tfoot>
+          <tr style="font-weight:600;border-top:2px solid var(--border)">
+            <td colspan="2">TOTALES</td>
+            <td class="tr" id="suel-f-base">$0</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td class="tr" id="suel-f-hextra">$0</td>
+            <td class="tr" id="suel-f-entrega">$0</td>
+            <td class="tr" id="suel-f-desc">$0</td>
+            <td class="tr" id="suel-f-adel">$0</td>
+            <td class="tr" id="suel-f-apagar" style="color:var(--green)">$0</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- Gastos del mes y resumen -->
+  <div class="row2">
+    <div class="card" style="margin-bottom:0">
+      <div class="card-head">
+        <span class="card-title">Gastos del mes</span>
+        <button class="btn btn-sm" onclick="showPage('gastos',null)"><i class="ti ti-external-link"></i> Ver todos</button>
+      </div>
+      <div id="suel-gastos-lista" style="display:flex;flex-direction:column;gap:0">
+        <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin gastos del mes</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:12px 0 0;border-top:0.5px solid var(--border);margin-top:8px;font-weight:600">
+        <span>Total gastos</span><span id="suel-gastos-total" style="color:var(--red)">$0</span>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="card-head"><span class="card-title">Resumen del mes</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)"><span style="color:var(--text2)">Sub total sueldos</span><span id="suel-res-sueldos" style="font-weight:500">$0</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)"><span style="color:var(--text2)">Total gastos</span><span id="suel-res-gastos" style="font-weight:500;color:var(--red)">$0</span></div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700"><span>Total a erogar</span><span id="suel-res-total" style="color:var(--red)">$0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal descuento en cuotas -->
+  <div id="modal-cuota" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px">Agregar descuento en cuotas</div>
       <div class="form-grid">
-        <div class="fg"><label>Fecha</label><input type="date" id="g-fecha"></div>
-        <div class="fg"><label>Tipo</label><select><option>Fijo</option><option>Variable</option><option>Compra mercaderia</option></select></div>
-        <div class="fg full"><label>Descripcion</label><input placeholder="Ej: Alquiler oficina mayo"></div>
-        <div class="fg"><label>Categoria</label><select><option>Inmueble</option><option>Servicios</option><option>Personal</option><option>Transporte</option><option>Materiales</option><option>Marketing</option><option>Mercaderia</option><option>Impuestos</option><option>Otro</option></select></div>
-        <div class="fg"><label>Monto ($)</label><input type="number" placeholder="0"></div>
-        <div class="fg"><label>Medio de pago</label><select><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option></select></div>
-        <div class="fg"><label>Proveedor</label><input placeholder="Opcional"></div>
-        <div class="fg"><label>N comprobante</label><input placeholder="Opcional"></div>
+        <div class="fg full"><label>Descripción</label><input type="text" id="cuota-desc" placeholder="Ej: Moto — tarjeta empresa"></div>
+        <div class="fg"><label>Monto total ($)</label><input type="number" id="cuota-monto" placeholder="0" oninput="calcCuota()"></div>
+        <div class="fg"><label>Cant. cuotas</label><input type="number" id="cuota-cant" placeholder="12" min="1" oninput="calcCuota()"></div>
+        <div class="fg full"><label>Valor por cuota</label><input type="text" id="cuota-val" readonly style="background:var(--bg4);font-weight:600"></div>
+        <div class="fg full"><label>Desde (mes)</label><input type="month" id="cuota-desde"></div>
       </div>
-      <div class="flex-end">
-        <button class="btn" onclick="document.getElementById('gasto-list').style.display='';document.getElementById('gasto-form').style.display='none'">Cancelar</button>
-        <button class="btn btn-primary" onclick="registrarGasto()"><i class="ti ti-check"></i> Registrar gasto</button>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn" style="flex:1" onclick="document.getElementById('modal-cuota').style.display='none'">Cancelar</button>
+        <button class="btn btn-primary" style="flex:1" onclick="guardarCuotas()">Guardar</button>
       </div>
     </div>
+  </div>
+
+  <!-- Modal categorías -->
+  <div id="modal-categorias-suel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:500px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px">Valores de categorías</div>
+      <table style="width:100%;font-size:13px">
+        <thead><tr><th>Categoría</th><th class="tr">Val. hora</th><th class="tr">8hs/día</th><th class="tr">4hs/día</th><th class="tr">Días/mes</th></tr></thead>
+        <tbody id="cat-suel-tbody"></tbody>
+      </table>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px">
+        <button class="btn btn-primary" onclick="guardarCategoriasSuel()"><i class="ti ti-check"></i> Guardar</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- VACACIONES -->
+<div id="page-vacaciones" class="page">
+  <div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px">
+    <div class="metric"><div class="m-label">Empleados activos</div><div class="m-value" id="vac-total">0</div><div class="m-sub">—</div></div>
+    <div class="metric"><div class="m-label">Con vacaciones pendientes</div><div class="m-value" id="vac-pendientes" style="color:var(--amber)">0</div><div class="m-sub">días sin tomar</div></div>
+    <div class="metric"><div class="m-label">De licencia ahora</div><div class="m-value" id="vac-activas" style="color:var(--blue)">0</div><div class="m-sub">—</div></div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Vacaciones por empleado</span>
+      <button class="btn btn-sm btn-primary" onclick="abrirModalVacaciones(null)"><i class="ti ti-plus"></i> Registrar período</button>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Legajo</th><th>Empleado</th><th>Antigüedad</th>
+        <th class="tr">Días corresponden</th><th class="tr">Días tomados</th>
+        <th class="tr">Días disponibles</th><th>Próximo período</th><th></th>
+      </tr></thead>
+      <tbody id="vac-tbody"></tbody>
+    </table>
+  </div>
+  <!-- Historial de períodos -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-head"><span class="card-title">Períodos registrados</span></div>
+    <table>
+      <thead><tr><th>Empleado</th><th>Desde</th><th>Hasta</th><th class="tr">Días</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="vac-periodos-tbody"></tbody>
+    </table>
   </div>
 </div>
 
@@ -4491,7 +4744,8 @@ function showPage(id, el) {
   if (id === 'remitos')        { setTimeout(function(){ fbCargarRemitos(); }, 50); }
   if (id === 'agenda')         { setTimeout(function(){ fbCargarAgenda(); }, 50); }
   if (id === 'servicios')      { setTimeout(function(){ fbCargarServicios(); }, 50); }
-  if (id === 'estadisticas')   { setTimeout(function(){ renderEstadisticas(); }, 100); }
+  if (id === 'sueldos')        { setTimeout(function(){ renderModuloSueldos(); }, 100); }
+  if (id === 'vacaciones')     { setTimeout(function(){ renderModuloVacaciones(); }, 100); }
   if (id === 'reportes')       { setTimeout(function(){ renderReportes(); }, 100); }
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
   if (id === 'cobranzas')      { setTimeout(function(){ fbCargarPagos(); }, 50); }
@@ -4566,7 +4820,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v10.4-firebase',
+  VERSION: 'v10.6-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4848,6 +5102,7 @@ function _completarLogin(nombre) {
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
   if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 300);
+  if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
 
   // Mostrar app después de ~2.5 segundos (tiempo de carga de Firebase)
   setTimeout(function() {
@@ -7648,6 +7903,331 @@ function buscarGarantia(val) {
   });
 }
 
+// ══════════════════════════════════════════════
+// MÓDULO SUELDOS
+// ══════════════════════════════════════════════
+
+var CATEGORIAS_SUEL = {
+  'TECNICO C': { valHora:6450, hs8:51600, hs4:25800, diasMes:23 },
+  'TECNICO B': { valHora:6450, hs8:51600, hs4:25800, diasMes:23 },
+  'TECNICO A': { valHora:5000, hs8:40000, hs4:20000, diasMes:23 },
+  'ADMINIS':   { valHora:5800, hs8:46400, hs4:23200, diasMes:23 },
+  'INICIAL':   { valHora:4500, hs8:36000, hs4:18000, diasMes:0  },
+  'A-TEMP':    { valHora:4800, hs8:38400, hs4:19200, diasMes:0  }
+};
+
+var suelMesActual = new Date().toISOString().slice(0,7);
+var liquidacionData = {};
+
+function cambiarMesSueldos(delta) {
+  var d = new Date(suelMesActual + '-01');
+  d.setMonth(d.getMonth() + delta);
+  suelMesActual = d.toISOString().slice(0,7);
+  renderModuloSueldos();
+}
+
+function renderModuloSueldos() {
+  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var d = new Date(suelMesActual + '-01');
+  var lbl = document.getElementById('suel-mes-label');
+  if (lbl) lbl.textContent = meses[d.getMonth()] + ' ' + d.getFullYear();
+  cargarLiquidacionMes();
+  renderGastosMesSueldos();
+}
+
+function cargarLiquidacionMes() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/sueldos/'+suelMesActual)).then(function(snap) {
+    renderTablaSueldos(snap.val() || {});
+  });
+}
+
+function obtenerCategoriaEmpleado(emp) {
+  var cargo = (emp.cargo||'').toUpperCase();
+  if (cargo.includes('TECNICO C')||cargo.includes('TÉCNICO C')) return 'TECNICO C';
+  if (cargo.includes('TECNICO B')||cargo.includes('TÉCNICO B')) return 'TECNICO B';
+  if (cargo.includes('TECNICO A')||cargo.includes('TÉCNICO A')) return 'TECNICO A';
+  if (cargo.includes('ADMIN'))   return 'ADMINIS';
+  if (cargo.includes('INICIAL')) return 'INICIAL';
+  if (cargo.includes('TEMP'))    return 'A-TEMP';
+  if (emp.categoria==39) return 'TECNICO C';
+  if (emp.categoria==15) return 'TECNICO B';
+  return 'TECNICO A';
+}
+
+function calcDescuentosCuotasMes(empFbKey) {
+  var total = 0;
+  (gastosData||[]).filter(function(g){
+    return g.empleadoId===empFbKey && g.esCuota && (g.cuotaMes||'')===suelMesActual;
+  }).forEach(function(g){ total += parseFloat(g.monto)||0; });
+  return total;
+}
+
+function renderTablaSueldos(guardada) {
+  var tbody = document.getElementById('suel-tbody');
+  if (!tbody) return;
+  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false; });
+  if (!empleados.length) { tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:24px">Sin empleados activos</td></tr>'; return; }
+  var totBase=0,totHext=0,totEntrega=0,totDesc=0,totAdel=0,totPagar=0;
+  tbody.innerHTML = empleados.map(function(emp) {
+    var cat    = obtenerCategoriaEmpleado(emp);
+    var catCfg = CATEGORIAS_SUEL[cat] || {valHora:0,hs8:0,diasMes:0};
+    var g      = guardada[emp.fbKey] || {};
+    var diasTrab   = g.diasTrab!==undefined ? g.diasTrab : catCfg.diasMes;
+    var sueldoBase = diasTrab * catCfg.hs8;
+    var hsExtra    = parseFloat(g.hsExtra)||0;
+    var valHsExt   = hsExtra * catCfg.valHora * 1.5;
+    var descCuotas = calcDescuentosCuotasMes(emp.fbKey);
+    var entrega    = g.entrega  !==undefined ? parseFloat(g.entrega)   : sueldoBase+valHsExt;
+    var descuento  = g.descuento!==undefined ? parseFloat(g.descuento) : descCuotas;
+    var adelanto   = parseFloat(g.adelanto)||0;
+    var aPagar     = entrega - descuento - adelanto;
+    totBase+=sueldoBase; totHext+=valHsExt; totEntrega+=entrega; totDesc+=descuento; totAdel+=adelanto; totPagar+=aPagar;
+    var fkey = emp.fbKey;
+    var inp = function(campo,val,w){ return '<input type="number" value="'+Math.round(val)+'" style="width:'+w+'px;text-align:right;background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:3px 5px;font-size:12px" onchange="onEditSueldo(\''+fkey+'\',\''+campo+'\',this.value)">'; };
+    return '<tr>'+
+      '<td style="font-weight:500">'+escapeHTML(emp.nombre||'—')+'</td>'+
+      '<td><span class="badge b-blue" style="font-size:10px">'+cat+'</span></td>'+
+      '<td class="tr" style="color:var(--text3);font-size:12px">$'+Math.round(sueldoBase).toLocaleString('es-AR')+'</td>'+
+      '<td class="tr">'+inp('diasTrab',diasTrab,50)+'</td>'+
+      '<td class="tr" style="color:var(--text3);font-size:12px">$'+catCfg.hs8.toLocaleString('es-AR')+'</td>'+
+      '<td class="tr">'+inp('hsExtra',hsExtra,45)+'</td>'+
+      '<td class="tr" style="color:var(--amber);font-size:12px">$'+Math.round(valHsExt).toLocaleString('es-AR')+'</td>'+
+      '<td class="tr">'+inp('entrega',entrega,85)+'</td>'+
+      '<td class="tr"><div style="display:flex;align-items:center;gap:2px;justify-content:flex-end">'+inp('descuento',descuento,75)+
+        '<button class="btn btn-sm btn-icon" onclick="abrirModalCuotas(\''+fkey+'\')" title="Cuotas" style="padding:2px 3px"><i class="ti ti-credit-card" style="font-size:11px"></i></button></div></td>'+
+      '<td class="tr">'+inp('adelanto',adelanto,75)+'</td>'+
+      '<td class="tr" style="font-weight:700;color:'+(aPagar>=0?'var(--green)':'var(--red)')+'">$'+Math.round(aPagar).toLocaleString('es-AR')+'</td>'+
+      '<td></td>'+
+    '</tr>';
+  }).join('');
+  var _e=function(id,v){var el=document.getElementById(id);if(el)el.textContent='$'+Math.round(v).toLocaleString('es-AR');};
+  _e('suel-f-base',totBase);_e('suel-f-hextra',totHext);_e('suel-f-entrega',totEntrega);
+  _e('suel-f-desc',totDesc);_e('suel-f-adel',totAdel);_e('suel-f-apagar',totPagar);
+  _e('suel-total',totBase+totHext);_e('suel-hextra',totHext);_e('suel-desc',totDesc+totAdel);_e('suel-apagar',totPagar);
+  _e('suel-res-sueldos',totPagar);
+  actualizarResumenSueldos(totPagar, null);
+}
+
+function onEditSueldo(empFbKey, campo, valor) {
+  if (!liquidacionData[empFbKey]) liquidacionData[empFbKey]={};
+  liquidacionData[empFbKey][campo] = parseFloat(valor)||0;
+}
+
+function guardarLiquidacion() {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var tbody = document.getElementById('suel-tbody');
+  if (!tbody) return;
+  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false; });
+  var datos = {};
+  empleados.forEach(function(emp, i) {
+    var fila = tbody.rows[i]; if (!fila) return;
+    var inputs = fila.querySelectorAll('input[type=number]');
+    var vals = Array.from(inputs).map(function(inp){ return parseFloat(inp.value)||0; });
+    datos[emp.fbKey] = { nombre:emp.nombre, diasTrab:vals[0], hsExtra:vals[1], entrega:vals[2], descuento:vals[3], adelanto:vals[4] };
+    datos[emp.fbKey].aPagar = datos[emp.fbKey].entrega - datos[emp.fbKey].descuento - datos[emp.fbKey].adelanto;
+  });
+  window.fbSet(window.fbRef(window.fbDB,'sisventas/sueldos/'+suelMesActual), datos)
+    .then(function(){ notify('✓ Liquidación de '+suelMesActual+' guardada'); });
+}
+
+var _cuotaEmpFbKey = null;
+function abrirModalCuotas(empFbKey) {
+  _cuotaEmpFbKey = empFbKey;
+  ['cuota-desc','cuota-monto','cuota-val'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('cuota-cant').value  = '12';
+  document.getElementById('cuota-desde').value = suelMesActual;
+  document.getElementById('modal-cuota').style.display = 'flex';
+}
+
+function calcCuota() {
+  var monto = parseFloat(document.getElementById('cuota-monto').value)||0;
+  var cant  = parseInt(document.getElementById('cuota-cant').value)||1;
+  document.getElementById('cuota-val').value = '$'+Math.round(monto/cant).toLocaleString('es-AR');
+}
+
+function guardarCuotas() {
+  if (!window.fbDB||!_cuotaEmpFbKey) return;
+  var emp   = Object.values(empData||{}).find(function(e){ return e.fbKey===_cuotaEmpFbKey; });
+  var desc  = document.getElementById('cuota-desc').value.trim();
+  var monto = parseFloat(document.getElementById('cuota-monto').value)||0;
+  var cant  = parseInt(document.getElementById('cuota-cant').value)||1;
+  var desde = document.getElementById('cuota-desde').value;
+  if (!desc||!monto||!desde) { notify('Completá todos los campos'); return; }
+  var valCuota = Math.round(monto/cant);
+  var batch = [];
+  for (var i=0; i<cant; i++) {
+    var d = new Date(desde+'-01'); d.setMonth(d.getMonth()+i);
+    var mes = d.toISOString().slice(0,7);
+    batch.push(window.fbPush(window.fbRef(window.fbDB,'sisventas/gastos'), {
+      descripcion:desc+' (cuota '+(i+1)+'/'+cant+')', categoria:'Personal', tipo:'Fijo',
+      monto:valCuota, montoPagado:0, estado:'pendiente', fecha:mes+'-01',
+      empleadoId:_cuotaEmpFbKey, empleadoNombre:emp?emp.nombre:'',
+      esCuota:true, cuotaMes:mes, cuotaNum:i+1, cuotaTotal:cant, reembolsado:false, ts:Date.now()+i
+    }));
+  }
+  Promise.all(batch).then(function(){
+    notify('✓ '+cant+' cuotas de $'+valCuota.toLocaleString('es-AR')+' creadas');
+    document.getElementById('modal-cuota').style.display = 'none';
+  });
+}
+
+function abrirConfigCategoriasModal() {
+  var tbody = document.getElementById('cat-suel-tbody'); if (!tbody) return;
+  tbody.innerHTML = Object.entries(CATEGORIAS_SUEL).map(function(e){
+    var k=e[0],v=e[1];
+    return '<tr><td style="font-weight:500">'+k+'</td>'+
+      '<td class="tr"><input type="number" data-cat="'+k+'" data-campo="valHora" value="'+v.valHora+'" style="width:80px;text-align:right;background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:4px 6px;font-size:12px"></td>'+
+      '<td class="tr" style="color:var(--text3)">$'+(v.valHora*8).toLocaleString('es-AR')+'</td>'+
+      '<td class="tr" style="color:var(--text3)">$'+(v.valHora*4).toLocaleString('es-AR')+'</td>'+
+      '<td class="tr"><input type="number" data-cat="'+k+'" data-campo="diasMes" value="'+v.diasMes+'" style="width:50px;text-align:right;background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:4px 6px;font-size:12px"></td></tr>';
+  }).join('');
+  document.getElementById('modal-categorias-suel').style.display = 'flex';
+}
+
+function guardarCategoriasSuel() {
+  document.querySelectorAll('#cat-suel-tbody input').forEach(function(inp){
+    var cat=inp.dataset.cat, campo=inp.dataset.campo;
+    if (CATEGORIAS_SUEL[cat]) { CATEGORIAS_SUEL[cat][campo]=parseFloat(inp.value)||0; CATEGORIAS_SUEL[cat].hs8=CATEGORIAS_SUEL[cat].valHora*8; CATEGORIAS_SUEL[cat].hs4=CATEGORIAS_SUEL[cat].valHora*4; }
+  });
+  if (window.fbDB) window.fbSet(window.fbRef(window.fbDB,'sisventas/config/categoriasSuel'), CATEGORIAS_SUEL);
+  document.getElementById('modal-categorias-suel').style.display = 'none';
+  renderModuloSueldos(); notify('✓ Categorías actualizadas');
+}
+
+function renderGastosMesSueldos() {
+  var lista = (gastosData||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===suelMesActual&&!g.esCuota; });
+  var cont  = document.getElementById('suel-gastos-lista');
+  var tot   = lista.reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
+  if (cont) cont.innerHTML = lista.length ? lista.map(function(g){
+    return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:13px">'+
+      '<span style="color:var(--text2)">'+escapeHTML(g.descripcion||'—')+(g.empleadoNombre?' <span style="font-size:11px;color:var(--blue)">('+escapeHTML(g.empleadoNombre)+')</span>':'')+'</span>'+
+      '<span style="font-weight:500;color:var(--red)">$'+(parseFloat(g.monto)||0).toLocaleString('es-AR')+'</span></div>';
+  }).join('') : '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin gastos del mes</div>';
+  var _e=function(id,v){var el=document.getElementById(id);if(el)el.textContent='$'+Math.round(v).toLocaleString('es-AR');};
+  _e('suel-gastos-total',tot); _e('suel-res-gastos',tot);
+  actualizarResumenSueldos(null,tot);
+}
+
+var _lastSuelTotal=0, _lastGasTotal=0;
+function actualizarResumenSueldos(s,g) {
+  if (s!=null) _lastSuelTotal=s; if (g!=null) _lastGasTotal=g;
+  var el=document.getElementById('suel-res-total');
+  if (el) el.textContent='$'+Math.round(_lastSuelTotal+_lastGasTotal).toLocaleString('es-AR');
+}
+
+// ══════════════════════════════════════════════
+// MÓDULO VACACIONES
+// ══════════════════════════════════════════════
+
+function diasVacPorAntiguedad(fechaIngreso) {
+  if (!fechaIngreso) return 14;
+  var años = (new Date()-new Date(fechaIngreso))/(365.25*86400000);
+  if (años<5)  return 14;
+  if (años<10) return 21;
+  if (años<20) return 28;
+  return 35;
+}
+
+function renderModuloVacaciones() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB,'sisventas/vacaciones')).then(function(snap){
+    var data = snap.val()||{};
+    var periodos = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); });
+    renderTablaVacaciones(periodos);
+    renderPeriodosVacaciones(periodos);
+  });
+}
+
+function renderTablaVacaciones(periodos) {
+  var tbody = document.getElementById('vac-tbody'); if (!tbody) return;
+  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false; });
+  var hoy = new Date().toISOString().split('T')[0];
+  var enLicencia=0, conPendientes=0;
+  tbody.innerHTML = empleados.map(function(emp){
+    var ingreso = emp.fechaIngreso || (emp.historial ? Object.values(emp.historial).sort(function(a,b){return (a.fecha||'').localeCompare(b.fecha||'');})[0] ? Object.values(emp.historial).sort(function(a,b){return a.fecha.localeCompare(b.fecha);})[0].fecha : null : null);
+    var diasCorr = diasVacPorAntiguedad(ingreso);
+    var año = new Date().getFullYear();
+    var periEmp = periodos.filter(function(p){ return p.empleadoId===emp.fbKey&&new Date(p.desde).getFullYear()===año; });
+    var tomados = periEmp.reduce(function(s,p){ return s+(parseInt(p.dias)||0); },0);
+    var disp    = diasCorr-tomados;
+    var activo  = periEmp.some(function(p){ return p.desde<=hoy&&p.hasta>=hoy; });
+    if (activo) enLicencia++;
+    if (disp>0) conPendientes++;
+    var años    = ingreso ? Math.floor((new Date()-new Date(ingreso))/(365.25*86400000)) : null;
+    var antiguedad = años===null?'—':años<1?'< 1 año':años+' año'+(años!==1?'s':'');
+    return '<tr>'+
+      '<td style="font-family:monospace;color:var(--text3)">'+String(emp.legajo||'—').padStart(4,'0')+'</td>'+
+      '<td style="font-weight:500">'+escapeHTML(emp.nombre||'—')+'</td>'+
+      '<td style="font-size:12px;color:var(--text3)">'+antiguedad+'</td>'+
+      '<td class="tr" style="font-weight:500">'+diasCorr+' d.</td>'+
+      '<td class="tr" style="color:var(--text3)">'+tomados+' d.</td>'+
+      '<td class="tr"><span style="font-weight:700;color:'+(disp>0?'var(--green)':disp===0?'var(--text3)':'var(--red)')+'">'+disp+' d.</span></td>'+
+      '<td style="font-size:12px">'+(activo?'<span class="badge b-blue">En licencia</span>':periEmp.length?escapeHTML(periEmp[periEmp.length-1].desde):'—')+'</td>'+
+      '<td><button class="btn btn-sm btn-icon" onclick="abrirModalVacaciones(\''+emp.fbKey+'\')" title="Registrar"><i class="ti ti-plus" style="font-size:14px"></i></button></td>'+
+    '</tr>';
+  }).join('');
+  var _e=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
+  _e('vac-total',empleados.length);_e('vac-pendientes',conPendientes);_e('vac-activas',enLicencia);
+}
+
+function renderPeriodosVacaciones(periodos) {
+  var tbody = document.getElementById('vac-periodos-tbody'); if (!tbody) return;
+  var hoy = new Date().toISOString().split('T')[0];
+  if (!periodos.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Sin períodos registrados</td></tr>'; return; }
+  tbody.innerHTML = periodos.sort(function(a,b){ return (b.desde||'').localeCompare(a.desde||''); }).map(function(p){
+    var badge = p.hasta<hoy?'<span class="badge b-green">Finalizado</span>':p.desde<=hoy?'<span class="badge b-blue">En curso</span>':'<span class="badge b-amber">Programado</span>';
+    return '<tr>'+
+      '<td style="font-weight:500">'+escapeHTML(p.empleadoNombre||'—')+'</td>'+
+      '<td>'+escapeHTML(p.desde||'—')+'</td>'+
+      '<td>'+escapeHTML(p.hasta||'—')+'</td>'+
+      '<td class="tr" style="font-weight:500">'+p.dias+' d.</td>'+
+      '<td class="tr">'+badge+'</td>'+
+      '<td><button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'vacaciones\',\''+p.fbKey+'\')" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:13px"></i></button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function abrirModalVacaciones(empFbKey) {
+  window._modalVacEmpKey = empFbKey;
+  var emp = empFbKey ? Object.values(empData||{}).find(function(e){ return e.fbKey===empFbKey; }) : null;
+  var modal=document.getElementById('modal-nuevo'), modalTitle=document.getElementById('modal-nuevo-title'), modalBody=document.getElementById('modal-nuevo-body');
+  if (!modal) return;
+  modalTitle.textContent = emp?'Vacaciones — '+emp.nombre:'Registrar período';
+  var selEmp = !empFbKey ? '<div class="fg full"><label>Empleado</label><select id="vac-emp-sel" style="width:100%"><option value="">— Seleccionar —</option>'+Object.values(empData||{}).filter(function(e){return e.activo!==false;}).map(function(e){return '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+'</option>';}).join('')+'</select></div>' : '';
+  modalBody.innerHTML = '<div class="form-grid">'+selEmp+
+    '<div class="fg"><label>Desde</label><input type="date" id="vac-desde" style="width:100%" oninput="calcDiasVac()"></div>'+
+    '<div class="fg"><label>Hasta</label><input type="date" id="vac-hasta" style="width:100%" oninput="calcDiasVac()"></div>'+
+    '<div class="fg full"><label>Días</label><input type="number" id="vac-dias" style="width:100%"></div>'+
+    '<div class="fg full"><label>Observaciones</label><input type="text" id="vac-obs" placeholder="Opcional" style="width:100%"></div>'+
+  '</div>';
+  var btn=modal.querySelector('button.btn-primary');
+  if (btn) { btn.textContent='Guardar período'; btn.onclick=guardarPeriodoVac; }
+  modal.classList.add('open');
+}
+
+function calcDiasVac() {
+  var d1=document.getElementById('vac-desde'), d2=document.getElementById('vac-hasta');
+  if (d1&&d2&&d1.value&&d2.value) { var el=document.getElementById('vac-dias'); if(el) el.value=Math.max(0,Math.round((new Date(d2.value)-new Date(d1.value))/86400000)+1); }
+}
+
+function guardarPeriodoVac() {
+  var fkey = window._modalVacEmpKey || (document.getElementById('vac-emp-sel')?document.getElementById('vac-emp-sel').value:'');
+  var desde=document.getElementById('vac-desde').value, hasta=document.getElementById('vac-hasta').value;
+  var dias=parseInt(document.getElementById('vac-dias').value)||0;
+  if (!fkey||!desde||!hasta) { notify('Completá los datos'); return; }
+  var emp=Object.values(empData||{}).find(function(e){return e.fbKey===fkey;});
+  window.fbPush(window.fbRef(window.fbDB,'sisventas/vacaciones'), {
+    empleadoId:fkey, empleadoNombre:emp?emp.nombre:'', desde:desde, hasta:hasta, dias:dias,
+    obs:document.getElementById('vac-obs').value, ts:Date.now()
+  }).then(function(){ notify('✓ Período registrado'); document.getElementById('modal-nuevo').classList.remove('open'); renderModuloVacaciones(); });
+}
+
+function cargarCategoriasSuelDB() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB,'sisventas/config/categoriasSuel')).then(function(snap){ var d=snap.val(); if(d) Object.assign(CATEGORIAS_SUEL,d); });
+}
+
 function toggleActivoCliente(cid) {
   var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid); });
   if (!cli || !cli.fbKey || !window.fbDB) return;
@@ -8027,49 +8607,354 @@ function imprimirInforme() {
   setTimeout(function(){ w.print(); }, 500);
 }
 
+// ══════════════════════════════════════════════
+// MÓDULO GASTOS — lógica completa
+// ══════════════════════════════════════════════
+
+var gastosData = [];
+var gastoActualFbKey = null;
+var gastoFotoBase64 = null;
+
 function fbCargarGastos() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/gastos'), function(snap) {
     var data = snap.val();
-    var lista = data ? Object.entries(data).map(function(e) {
+    gastosData = data ? Object.entries(data).map(function(e){
       return Object.assign({ fbKey: e[0] }, e[1]);
     }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
-    // Render tabla
-    var tbody = document.getElementById('gastos-tbody');
-    if (tbody) {
-      if (!lista.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr>';
-      } else {
-        tbody.innerHTML = lista.map(function(g) {
-          var tipoBadge = g.tipo === 'Fijo' ? '<span class="badge b-blue">Fijo</span>'
-            : g.tipo === 'Compra mercadería' ? '<span class="badge b-purple">Compra</span>'
-            : '<span class="badge b-amber">Variable</span>';
-          var fecha = g.fecha ? g.fecha.split('-').reverse().join('/') : '—';
-          return '<tr class="grow" data-tipo="'+(g.tipo||'')+'">' +
-            '<td>'+ fecha +'</td>' +
-            '<td>'+ escapeHTML(g.descripcion||'') +'</td>' +
-            '<td style="color:var(--text3)">'+ escapeHTML(g.categoria||'') +'</td>' +
-            '<td>'+ tipoBadge +'</td>' +
-            '<td class="tr" style="color:var(--red);font-weight:500">$'+ (parseFloat(g.monto)||0).toLocaleString('es-AR') +'</td>' +
-            '<td class="tr"><span class="badge b-green">'+ (g.estado||'Pagado') +'</span></td>' +
-            '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="editarGasto(\''+g.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
-             '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'gastos\',\''+g.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>' +
-          '</tr>';
-        }).join('');
-      }
-    }
-    // Actualizar métricas
-    var total = lista.reduce(function(s,g){ return s+(parseFloat(g.monto)||0); }, 0);
-    var fijos = lista.filter(function(g){ return g.tipo==='Fijo'; }).reduce(function(s,g){ return s+(parseFloat(g.monto)||0); }, 0);
-    var variables = lista.filter(function(g){ return g.tipo==='Variable'; }).reduce(function(s,g){ return s+(parseFloat(g.monto)||0); }, 0);
-    var gasTotalEl = document.getElementById('gas-total');
-    var gasFijosEl = document.getElementById('gas-fijos');
-    var gasVarEl   = document.getElementById('gas-variables');
-    if (gasTotalEl) gasTotalEl.textContent = '$' + Math.round(total).toLocaleString('es-AR');
-    if (gasFijosEl) gasFijosEl.textContent = '$' + Math.round(fijos).toLocaleString('es-AR');
-    if (gasVarEl)   gasVarEl.textContent   = '$' + Math.round(variables).toLocaleString('es-AR');
+    // Generar gastos fijos del mes si no existen
+    generarGastosFijosMes();
+    renderTablaGastos();
+    actualizarMetricasGastos();
   });
 }
+
+function generarGastosFijosMes() {
+  // Por cada gasto fijo, si no hay copia del mes actual → crearla como pendiente
+  var mesActual = new Date().toISOString().slice(0,7);
+  var fijosMes = gastosData.filter(function(g){ return g.tipo==='Fijo' && (g.fecha||'').slice(0,7)===mesActual; });
+  var nombresYaMes = fijosMes.map(function(g){ return (g.descripcion||'').toLowerCase().split(' ').slice(0,-1).join(' '); });
+  // Buscar fijos de meses anteriores que no tienen copia este mes
+  gastosData.filter(function(g){ return g.tipo==='Fijo' && (g.fecha||'').slice(0,7) < mesActual && g.esFijoBase; })
+    .forEach(function(g) {
+      var desc = (g.descripcion||'').toLowerCase().split(' ').slice(0,-1).join(' ');
+      if (!nombresYaMes.includes(desc)) {
+        var fecha = mesActual + '-01';
+        var venc  = g.diaVencimiento ? mesActual + '-' + String(g.diaVencimiento).padStart(2,'0') : '';
+        var nuevo = {
+          descripcion:  g.descripcion.replace(/\b(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b.*/i,'').trim() + ' — ' + mesLabel(),
+          categoria:    g.categoria,
+          tipo:         'Fijo',
+          monto:        g.monto,
+          montoPagado:  0,
+          estado:       'pendiente',
+          fecha:        fecha,
+          vencimiento:  venc,
+          esFijoBase:   false,
+          ts:           Date.now()
+        };
+        window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), nuevo);
+      }
+    });
+}
+
+function mesLabel() {
+  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var d = new Date();
+  return meses[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+function actualizarMetricasGastos() {
+  var hoy    = new Date();
+  var mesActual = hoy.toISOString().slice(0,7);
+  var enUnaSemana = new Date(hoy.getTime() + 7*86400000).toISOString().split('T')[0];
+  var gasMes = gastosData.filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; });
+  var pagados    = gasMes.filter(function(g){ return g.estado==='pagado'; }).reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
+  var pendientes = gastosData.filter(function(g){ return g.estado==='pendiente'||g.estado==='pagado_parcial'; });
+  var pendTotal  = pendientes.reduce(function(s,g){ return s+(parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0); },0);
+  var vencenProx = pendientes.filter(function(g){ return g.vencimiento && g.vencimiento<=enUnaSemana; });
+  var vencTotal  = vencenProx.reduce(function(s,g){ return s+(parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0); },0);
+  var reembolso  = gastosData.filter(function(g){ return g.empleadoId && !g.reembolsado; });
+  var reembTotal = reembolso.reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
+
+  var _e = function(id){ return document.getElementById(id); };
+  if (_e('gas-total'))          _e('gas-total').textContent          = '$'+Math.round(pagados).toLocaleString('es-AR');
+  if (_e('gas-total-sub'))      _e('gas-total-sub').textContent      = gasMes.filter(function(g){return g.estado==='pagado';}).length+' pagados este mes';
+  if (_e('gas-pendiente'))      _e('gas-pendiente').textContent      = '$'+Math.round(pendTotal).toLocaleString('es-AR');
+  if (_e('gas-pend-cant'))      _e('gas-pend-cant').textContent      = pendientes.length+' gasto'+(pendientes.length!==1?'s':'');
+  if (_e('gas-vencen'))         _e('gas-vencen').textContent         = '$'+Math.round(vencTotal).toLocaleString('es-AR');
+  if (_e('gas-vencen-cant'))    _e('gas-vencen-cant').textContent    = vencenProx.length+' vence'+(vencenProx.length!==1?'n':'')+ ' esta semana';
+  if (_e('gas-reembolso'))      _e('gas-reembolso').textContent      = '$'+Math.round(reembTotal).toLocaleString('es-AR');
+  if (_e('gas-reembolso-cant')) _e('gas-reembolso-cant').textContent = reembolso.length+' sin reembolsar';
+
+  // Alertas de vencimiento
+  var alertasBox = _e('gas-alertas-box');
+  if (alertasBox) {
+    if (vencenProx.length) {
+      alertasBox.style.display = '';
+      alertasBox.innerHTML = '<div style="background:var(--red-bg);border:0.5px solid var(--red);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--red)">' +
+        '<i class="ti ti-alert-circle" style="margin-right:8px"></i>' +
+        '<strong>'+vencenProx.length+' gasto'+(vencenProx.length!==1?'s vencen':'vence')+' en los próximos 7 días:</strong> ' +
+        vencenProx.map(function(g){ return escapeHTML(g.descripcion||'—')+' ('+escapeHTML(g.vencimiento||'')+',$'+Math.round((parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0)).toLocaleString('es-AR')+')'; }).join(' · ') +
+      '</div>';
+    } else {
+      alertasBox.style.display = 'none';
+    }
+  }
+}
+
+function renderTablaGastos() {
+  var tbody = document.getElementById('gastos-tbody');
+  if (!tbody) return;
+  var busq    = ((document.getElementById('gas-f-tipo')||{}).parentElement ? '' : '');
+  var fTipo   = (document.getElementById('gas-f-tipo')||{}).value   || '';
+  var fEstado = (document.getElementById('gas-f-estado')||{}).value || '';
+  var fBusq   = '';
+  // buscar el input de búsqueda en el card-head
+  var inp = document.querySelector('#gasto-list input.search-input');
+  if (inp) fBusq = inp.value.toLowerCase();
+
+  var lista = gastosData.filter(function(g){
+    var matchTipo   = !fTipo   || g.tipo   === fTipo;
+    var matchEstado = !fEstado || g.estado === fEstado;
+    var matchBusq   = !fBusq  || (g.descripcion||'').toLowerCase().includes(fBusq) || (g.categoria||'').toLowerCase().includes(fBusq);
+    return matchTipo && matchEstado && matchBusq;
+  });
+
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr>';
+    return;
+  }
+
+  var estBadge = function(g) {
+    var resta = (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0);
+    if (g.estado==='pagado')         return '<span class="badge b-green">Pagado</span>';
+    if (g.estado==='pagado_parcial') return '<span class="badge b-amber">Parcial</span>';
+    // Verificar si está vencido
+    var hoy = new Date().toISOString().split('T')[0];
+    if (g.vencimiento && g.vencimiento < hoy) return '<span class="badge b-red">Vencido</span>';
+    return '<span class="badge b-blue">Pendiente</span>';
+  };
+
+  tbody.innerHTML = lista.map(function(g) {
+    var fecha = (g.fecha||'').split('-').reverse().join('/');
+    var venc  = g.vencimiento ? g.vencimiento.split('-').reverse().join('/') : '—';
+    var resta = (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0);
+    var tipoBadge = g.tipo==='Fijo' ? '<span class="badge b-blue">Fijo</span>'
+                  : g.tipo==='Compra' ? '<span class="badge b-purple">Compra</span>'
+                  : '<span class="badge b-amber">Variable</span>';
+    var pagoPor = g.empleadoId
+      ? '<span title="Pagó: '+escapeHTML(g.empleadoNombre||'Técnico')+'" style="color:var(--blue);font-size:12px"><i class="ti ti-user"></i> '+escapeHTML((g.empleadoNombre||'').split(' ')[0])+'</span>'
+      : '<span style="color:var(--text3);font-size:12px">Empresa</span>';
+    var btnPagar = g.estado!=='pagado'
+      ? '<button class="btn btn-sm btn-icon" onclick="abrirPagoGasto(\''+g.fbKey+'\')" title="Registrar pago" style="color:var(--green)"><i class="ti ti-cash" style="font-size:14px"></i></button>'
+      : '';
+    return '<tr>' +
+      '<td style="color:var(--text3);font-size:12px">'+fecha+'</td>' +
+      '<td style="font-weight:500">'+escapeHTML(g.descripcion||'—')+'</td>' +
+      '<td style="color:var(--text3);font-size:12px">'+escapeHTML(g.categoria||'—')+'</td>' +
+      '<td>'+tipoBadge+'</td>' +
+      '<td class="tr" style="font-weight:500">$'+(parseFloat(g.monto)||0).toLocaleString('es-AR')+'</td>' +
+      '<td class="tr" style="color:var(--green)">$'+(parseFloat(g.montoPagado)||0).toLocaleString('es-AR')+'</td>' +
+      '<td class="tr" style="font-size:12px;color:'+(g.vencimiento&&g.vencimiento<new Date().toISOString().split('T')[0]?'var(--red)':'var(--text3)')+'">'+venc+'</td>' +
+      '<td class="tr">'+estBadge(g)+'</td>' +
+      '<td class="tr">'+pagoPor+'</td>' +
+      '<td style="white-space:nowrap">'+btnPagar+
+        '<button class="btn btn-sm btn-icon" onclick="abrirFormGasto(\''+g.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>'+
+        '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'gastos\',\''+g.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>'+
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function filtrarGastos() { renderTablaGastos(); }
+
+function abrirFormGasto(fbKey) {
+  gastoActualFbKey = fbKey;
+  gastoFotoBase64  = null;
+  var hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('g-fecha').value     = hoy;
+  document.getElementById('g-vencimiento').value = '';
+  document.getElementById('g-tipo').value      = 'Variable';
+  document.getElementById('g-categoria').value = 'Otro';
+  document.getElementById('g-descripcion').value = '';
+  document.getElementById('g-monto').value     = '';
+  document.getElementById('g-monto-pagado').value = '0';
+  document.getElementById('g-resta').value     = '';
+  document.getElementById('g-medio').value     = 'Efectivo';
+  document.getElementById('g-proveedor').value = '';
+  document.getElementById('g-comprobante').value = '';
+  document.getElementById('g-pagado-tecnico').checked = false;
+  document.getElementById('g-tecnico-box').style.display = 'none';
+  document.getElementById('g-foto-preview').innerHTML = '';
+  // Llenar select de empleados
+  var sel = document.getElementById('g-tecnico-id');
+  if (sel) {
+    var opts = '<option value="">— Seleccionar empleado —</option>';
+    Object.values(empData||{}).filter(function(e){ return e.activo!==false; }).forEach(function(e){
+      opts += '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+'</option>';
+    });
+    sel.innerHTML = opts;
+  }
+  if (fbKey) {
+    var g = gastosData.find(function(x){ return x.fbKey===fbKey; });
+    if (g) {
+      document.getElementById('g-fecha').value       = g.fecha||hoy;
+      document.getElementById('g-vencimiento').value = g.vencimiento||'';
+      document.getElementById('g-tipo').value        = g.tipo||'Variable';
+      document.getElementById('g-categoria').value   = g.categoria||'Otro';
+      document.getElementById('g-descripcion').value = g.descripcion||'';
+      document.getElementById('g-monto').value       = g.monto||'';
+      document.getElementById('g-monto-pagado').value= g.montoPagado||0;
+      document.getElementById('g-medio').value       = g.medio||'Efectivo';
+      document.getElementById('g-proveedor').value   = g.proveedor||'';
+      document.getElementById('g-comprobante').value = g.comprobante||'';
+      calcRestoGasto();
+      if (g.empleadoId) {
+        document.getElementById('g-pagado-tecnico').checked = true;
+        document.getElementById('g-tecnico-box').style.display = '';
+        document.getElementById('g-tecnico-id').value = g.empleadoId;
+      }
+      if (g.fotoBase64) {
+        document.getElementById('g-foto-preview').innerHTML = '<img src="'+g.fotoBase64+'" style="max-width:100%;border-radius:var(--radius);margin-top:6px;cursor:pointer" onclick="window.open(this.src)">';
+        gastoFotoBase64 = g.fotoBase64;
+      }
+    }
+    document.getElementById('gasto-form-titulo').textContent = 'Editar gasto';
+  } else {
+    document.getElementById('gasto-form-titulo').textContent = 'Nuevo gasto';
+  }
+  document.getElementById('gasto-list').style.display = 'none';
+  document.getElementById('gasto-form').style.display = '';
+}
+
+function cerrarFormGasto() {
+  document.getElementById('gasto-form').style.display = 'none';
+  document.getElementById('gasto-list').style.display = '';
+}
+
+function calcRestoGasto() {
+  var monto  = parseFloat(document.getElementById('g-monto').value)||0;
+  var pagado = parseFloat(document.getElementById('g-monto-pagado').value)||0;
+  var resta  = Math.max(0, monto-pagado);
+  document.getElementById('g-resta').value = resta > 0 ? '$'+resta.toLocaleString('es-AR') : 'Pagado completo';
+}
+
+function onChangeTipoGasto() {
+  var tipo = document.getElementById('g-tipo').value;
+  // Si es Fijo, sugerir vencimiento al final del mes
+  if (tipo === 'Fijo') {
+    var d = new Date(); d.setMonth(d.getMonth()+1); d.setDate(0);
+    document.getElementById('g-vencimiento').value = d.toISOString().split('T')[0];
+  }
+}
+
+function togglePagadoTecnico(on) {
+  document.getElementById('g-tecnico-box').style.display = on ? '' : 'none';
+}
+
+function previewFotoGasto(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    gastoFotoBase64 = e.target.result;
+    document.getElementById('g-foto-preview').innerHTML =
+      '<img src="'+e.target.result+'" style="max-width:100%;border-radius:var(--radius);margin-top:6px">';
+  };
+  reader.readAsDataURL(file);
+}
+
+function guardarGastoCompleto() {
+  var monto  = parseFloat(document.getElementById('g-monto').value)||0;
+  var pagado = parseFloat(document.getElementById('g-monto-pagado').value)||0;
+  var desc   = document.getElementById('g-descripcion').value.trim();
+  if (!desc)  { notify('Ingresá una descripción'); return; }
+  if (!monto) { notify('Ingresá el monto'); return; }
+  var estado = pagado >= monto ? 'pagado' : pagado > 0 ? 'pagado_parcial' : 'pendiente';
+  var pagoTecnico = document.getElementById('g-pagado-tecnico').checked;
+  var tecnicoId   = pagoTecnico ? document.getElementById('g-tecnico-id').value : null;
+  var tecnicoNom  = '';
+  if (tecnicoId) {
+    var emp = Object.values(empData||{}).find(function(e){ return e.fbKey===tecnicoId; });
+    tecnicoNom = emp ? emp.nombre : '';
+  }
+  var tipo = document.getElementById('g-tipo').value.split('—')[0].trim();
+  var datos = {
+    fecha:         document.getElementById('g-fecha').value,
+    vencimiento:   document.getElementById('g-vencimiento').value,
+    tipo:          tipo,
+    categoria:     document.getElementById('g-categoria').value,
+    descripcion:   desc,
+    monto:         monto,
+    montoPagado:   pagado,
+    estado:        estado,
+    medio:         document.getElementById('g-medio').value,
+    proveedor:     document.getElementById('g-proveedor').value,
+    comprobante:   document.getElementById('g-comprobante').value,
+    empleadoId:    tecnicoId || null,
+    empleadoNombre:tecnicoNom || null,
+    reembolsado:   false,
+    esFijoBase:    tipo === 'Fijo',
+    fotoBase64:    gastoFotoBase64 || null,
+    usuario:       currentUser || ''
+  };
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var promesa = gastoActualFbKey
+    ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+gastoActualFbKey), datos)
+    : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), datos));
+  promesa.then(function() {
+    notify(gastoActualFbKey ? 'Gasto actualizado' : 'Gasto registrado');
+    // Si lo pagó un técnico → acreditar en su cuenta corriente
+    if (tecnicoId && !gastoActualFbKey) {
+      var mov = {
+        tipo:      'gasto_empresa',
+        monto:     monto,
+        desc:      'Gasto empresa: '+desc,
+        fecha:     datos.fecha,
+        estado:    'aprobado',
+        ts:        Date.now(),
+        usuario:   currentUser||''
+      };
+      window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/'+tecnicoId), mov);
+      notify('✓ Acreditado $'+monto.toLocaleString('es-AR')+' a '+tecnicoNom);
+    }
+    cerrarFormGasto();
+  }).catch(function(e){ notify('Error: '+e.message); });
+}
+
+// Registrar pago parcial o total
+var _gastoFbKeyPago = null;
+function abrirPagoGasto(fbKey) {
+  var g = gastosData.find(function(x){ return x.fbKey===fbKey; });
+  if (!g) return;
+  _gastoFbKeyPago = fbKey;
+  var resta = (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0);
+  document.getElementById('mpg-titulo').textContent = 'Pagar: '+escapeHTML(g.descripcion||'')+'  (resta $'+resta.toLocaleString('es-AR')+')';
+  document.getElementById('mpg-monto').value = resta;
+  document.getElementById('modal-pago-gasto').style.display = 'flex';
+}
+
+function confirmarPagoGasto() {
+  var g = gastosData.find(function(x){ return x.fbKey===_gastoFbKeyPago; });
+  if (!g) return;
+  var montoNuevo = parseFloat(document.getElementById('mpg-monto').value)||0;
+  var medio = document.getElementById('mpg-medio').value;
+  var nuevoPagado = (parseFloat(g.montoPagado)||0) + montoNuevo;
+  var nuevoEstado = nuevoPagado >= (parseFloat(g.monto)||0) ? 'pagado' : 'pagado_parcial';
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+_gastoFbKeyPago), {
+    montoPagado: nuevoPagado, estado: nuevoEstado, medio: medio
+  }).then(function(){
+    notify('✓ Pago registrado');
+    document.getElementById('modal-pago-gasto').style.display = 'none';
+    // Si lo pagó un técnico y se pagó completo, marcar reembolsado
+    if (nuevoEstado==='pagado' && g.empleadoId) {
+      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+_gastoFbKeyPago), { reembolsado: true });
+    }
+  });
+}
+
+function editarGasto(fbKey) { abrirFormGasto(fbKey); }
 
 function fbCargarProveedores() {
   if (!window.fbDB) return;
