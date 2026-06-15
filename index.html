@@ -902,7 +902,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v12.0 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v12.1 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -3844,7 +3844,6 @@ tr:hover td{color:var(--text)}
 
 
 <script id="app-main">
-try {
 
 var fabOpen = false;
 
@@ -5341,7 +5340,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 var APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v12.0-firebase',
+  VERSION: 'v12.1-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5371,7 +5370,7 @@ function makeBadge(text, className) {
 }
 function appendAlert(container, type, iconClass, main, detail) {
   var div = document.createElement('div');
-  div.style.cssText = `background:var(--${type}-bg);border:0.5px solid var(--${type});border-radius:var(--radius);padding:9px 14px;font-size:13px;color:var(--${type});display:flex;align-items:center;gap:8px`;
+  div.style.cssText = 'background:var(--' + (type) + '-bg);border:0.5px solid var(--' + (type) + ');border-radius:var(--radius);padding:9px 14px;font-size:13px;color:var(--' + (type) + ');display:flex;align-items:center;gap:8px';
   var icon = makeIcon(iconClass); icon.style.fontSize = '16px';
   var strong = document.createElement('strong'); strong.textContent = main;
   div.append(icon, strong, document.createTextNode(' — ' + detail));
@@ -5487,7 +5486,6 @@ function selectRole(r) {
   document.getElementById('rb-vendedor').classList.toggle('selected', r === 'vendedor');
 }
 
-} catch(_initErr) { console.error("[SisVentas] Error en init:", _initErr); }
 window.doLogin = function doLogin() {
   var u = document.getElementById('l-user').value.trim();
   var p = document.getElementById('l-pass').value;
@@ -5788,9 +5786,9 @@ function mostrarAlertasStock() {
   cont.replaceChildren();
   Object.values(prodData).forEach(p => {
     if (p.stock === 0) {
-      appendAlert(cont, 'red', 'ti ti-alert-circle', p.descripcion, `sin stock (mín: ${p.stockMin})`);
+      appendAlert(cont, 'red', 'ti ti-alert-circle', p.descripcion, 'sin stock (mín: ' + (p.stockMin) + ')');
     } else if (p.stock < p.stockMin) {
-      appendAlert(cont, 'amber', 'ti ti-alert-triangle', p.descripcion, `stock bajo: ${p.stock} unidades (mín: ${p.stockMin})`);
+      appendAlert(cont, 'amber', 'ti ti-alert-triangle', p.descripcion, 'stock bajo: ' + (p.stock) + ' unidades (mín: ' + (p.stockMin) + ')');
     }
   });
 }
@@ -6058,8 +6056,8 @@ function verCuentaCliente(nombre) {
   var saldoEl=document.getElementById('cc-saldo'); saldoEl.textContent=d.saldo; saldoEl.style.color=d.saldoColor;
   var card2=document.getElementById('cc-saldo-card'); card2.style.background=d.saldoColor==='var(--red)'?'var(--red-bg)':d.saldoColor==='var(--amber)'?'var(--amber-bg)':'var(--bg3)';
   var tbody=document.getElementById('cc-movimientos').querySelector('tbody')||document.getElementById('cc-movimientos');
-  var rows=d.movs.map(m=>`<tr><td >${m.fecha}</td><td>${m.concepto}</td><td><span class="badge ${m.tipo==='Pago'?'b-green':'b-blue'}">${m.tipo}</span></td><td style="text-align:right;color:${m.tipo==='Pago'?'var(--green)':'var(--text2)'};font-weight:${m.tipo==='Pago'?'500':'400'}">${m.importe}</td><td style="text-align:right;font-weight:500">${m.saldo}</td></tr>`).join('');
-  document.getElementById('cc-movimientos').innerHTML = `<tr><th >Fecha</th><th>Concepto</th><th >Tipo</th><th style="text-align:right">Importe</th><th style="text-align:right">Saldo</th></tr>${rows}`;
+  var rows=d.movs.map(m=>'<tr><td >' + (m.fecha) + '</td><td>' + (m.concepto) + '</td><td><span class="badge ' + (m.tipo==='Pago'?'b-green':'b-blue') + '">' + (m.tipo) + '</span></td><td style="text-align:right;color:' + (m.tipo==='Pago'?'var(--green)':'var(--text2)') + ';font-weight:' + (m.tipo==='Pago'?'500':'400') + '">' + (m.importe) + '</td><td style="text-align:right;font-weight:500">' + (m.saldo) + '</td></tr>').join('');
+  document.getElementById('cc-movimientos').innerHTML = '<tr><th >Fecha</th><th>Concepto</th><th >Tipo</th><th style="text-align:right">Importe</th><th style="text-align:right">Saldo</th></tr>' + (rows) + '';
 }
 
 // ── EMPLEADOS ──
@@ -6233,10 +6231,10 @@ function abrirModalImprimir(context, titulo) {
   var body  = document.getElementById('modal-print-body');
   if (!title || !body) { notify('Preparando impresión...'); return; }
   title.textContent = titulo || 'Imprimir';
-  body.innerHTML = `
+  body.innerHTML = '
     <div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:14px;font-size:13px;color:var(--text2)">
       <i class="ti ti-printer" style="font-size:16px;margin-right:8px;color:var(--text3)"></i>
-      <strong>${escapeHTML(titulo||'')}</strong><br>
+      <strong>' + (escapeHTML(titulo||'')) + '</strong><br>
       <span style="font-size:12px;color:var(--text3)">Se enviará a la impresora predeterminada.</span>
     </div>
     <div class="form-grid" style="margin-bottom:0">
@@ -6246,7 +6244,7 @@ function abrirModalImprimir(context, titulo) {
       <div class="fg"><label>Copias</label>
         <input type="number" value="1" min="1" max="10">
       </div>
-    </div>`;
+    </div>';
   document.getElementById('modal-print').classList.add('open');
 }
 // ── ejecutarImpresion: llama a la función correcta según contexto ──
@@ -10537,8 +10535,8 @@ function checkAprobacion() {
   var txt    = document.getElementById('form-alerta-txt');
   if (!alerta) return;
   var motivo = '';
-  if (total > APROBACION_CONFIG.montoLimite) motivo = `Total $${Math.round(total).toLocaleString('es-AR')} supera el límite de aprobación ($${(parseFloat(APROBACION_CONFIG.montoLimite)||0).toLocaleString('es-AR')}).`;
-  if (desc > APROBACION_CONFIG.descuentoLimite) motivo = `Descuento ${desc}% supera el máximo permitido sin aprobación (${APROBACION_CONFIG.descuentoLimite}%).`;
+  if (total > APROBACION_CONFIG.montoLimite) motivo = 'Total $' + (Math.round(total).toLocaleString('es-AR')) + ' supera el límite de aprobación ($' + ((parseFloat(APROBACION_CONFIG.montoLimite)||0).toLocaleString('es-AR')) + ').';
+  if (desc > APROBACION_CONFIG.descuentoLimite) motivo = 'Descuento ' + (desc) + '% supera el máximo permitido sin aprobación (' + (APROBACION_CONFIG.descuentoLimite) + '%).';
   alerta.style.display = motivo ? 'flex' : 'none';
   if (txt) txt.textContent = motivo + ' Al guardar se enviará a revisión del administrador.';
 }
@@ -10546,7 +10544,7 @@ function checkAprobacion() {
 // Renderizar badge de estado
 function pptoStateBadge(estado) {
   var e = PPTO_ESTADOS[estado] || { label: estado, badge: 'badge-borrador' };
-  return `<span class="badge ${e.badge}">${e.label}</span>`;
+  return '<span class="badge ' + (e.badge) + '">' + (e.label) + '</span>';
 }
 
 // Renderizar tabla principal
@@ -10560,17 +10558,17 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
     var e = PPTO_ESTADOS[p.estado] || {};
     var totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
     var accBtns = currentRole === 'admin' || p.estado === 'borrador'
-      ? `<button class="btn btn-sm btn-icon" onclick="verPpto('${p.id}')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>`
-      : `<button class="btn btn-sm btn-icon" onclick="verPpto('${p.id}')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>`;
+      ? '<button class="btn btn-sm btn-icon" onclick="verPpto('' + (p.id) + '')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>'
+      : '<button class="btn btn-sm btn-icon" onclick="verPpto('' + (p.id) + '')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>';
     var alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
-    return `<tr>
-      <td style="font-weight:500">${escapeHTML(p.id)}${alerta}</td>
-      <td>${escapeHTML(p.cliente)}</td>
-      <td class="tr" style="font-weight:500">${totalFmt}</td>
-      <td>${escapeHTML(p.vence)}</td>
-      <td>${pptoStateBadge(p.estado)}</td>
-      <td>${accBtns}</td>
-    </tr>`;
+    return '<tr>
+      <td style="font-weight:500">' + (escapeHTML(p.id)) + (alerta) + '</td>
+      <td>' + (escapeHTML(p.cliente)) + '</td>
+      <td class="tr" style="font-weight:500">' + (totalFmt) + '</td>
+      <td>' + (escapeHTML(p.vence)) + '</td>
+      <td>' + (pptoStateBadge(p.estado)) + '</td>
+      <td>' + (accBtns) + '</td>
+    </tr>';
   }).join('');
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sin resultados</td></tr>';
 }
@@ -10632,18 +10630,18 @@ function renderTimeline(p) {
     else if (esVencido && eOrden > estadoOrden) { clase = ''; }
     else if (eOrden < estadoOrden) { clase = 'done'; }
     else if (eOrden === estadoOrden) { clase = 'active'; }
-    return `<div class="tl-step ${clase}">
-      <div class="tl-dot"><i class="ti ${cfg.icon}" style="font-size:13px"></i></div>
-      <div class="tl-label">${cfg.label}</div>
-    </div>`;
+    return '<div class="tl-step ' + (clase) + '">
+      <div class="tl-dot"><i class="ti ' + (cfg.icon) + '" style="font-size:13px"></i></div>
+      <div class="tl-label">' + (cfg.label) + '</div>
+    </div>';
   }).join('');
 
   if (esRechazado || esVencido) {
     var extra = esRechazado ? PPTO_ESTADOS.rechazado : PPTO_ESTADOS.vencido;
-    tl.innerHTML += `<div class="tl-step ${esRechazado?'rejected':''}">
-      <div class="tl-dot"><i class="ti ${extra.icon}" style="font-size:13px"></i></div>
-      <div class="tl-label">${extra.label}</div>
-    </div>`;
+    tl.innerHTML += '<div class="tl-step ' + (esRechazado?'rejected':'') + '">
+      <div class="tl-dot"><i class="ti ' + (extra.icon) + '" style="font-size:13px"></i></div>
+      <div class="tl-label">' + (extra.label) + '</div>
+    </div>';
   }
 }
 
@@ -10660,13 +10658,13 @@ function renderAcciones(p) {
   lista.innerHTML = acciones.map(key => {
     var cfg = ACCIONES_CONFIG[key];
     if (!cfg) return '';
-    var style = cfg.style ? ` style="${cfg.style}"` : '';
-    return `<div class="accion-card">
+    var style = cfg.style ? ' style="' + (cfg.style) + '"' : '';
+    return '<div class="accion-card">
       <div>
-        <div style="font-size:13px;font-weight:500;color:var(--text)">${cfg.label}</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text)">' + (cfg.label) + '</div>
       </div>
-      <button class="${cfg.cls}"${style} onclick="${cfg.fn}"><i class="ti ${cfg.icon}"></i> ${cfg.label}</button>
-    </div>`;
+      <button class="' + (cfg.cls) + '"' + (style) + ' onclick="' + (cfg.fn) + '"><i class="ti ' + (cfg.icon) + '"></i> ' + (cfg.label) + '</button>
+    </div>';
   }).join('');
 }
 
@@ -10674,16 +10672,16 @@ function renderAcciones(p) {
 function renderAudit(p) {
   var log = document.getElementById('ppto-audit-log');
   if (!log) return;
-  log.innerHTML = (p.audit || []).reverse().map(e => `
+  log.innerHTML = (p.audit || []).reverse().map(e => '
     <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <i class="ti ti-history" style="font-size:12px;color:var(--text3)"></i>
       </div>
       <div>
-        <div style="font-size:13px;color:var(--text)">${escapeHTML(e.accion)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHTML(e.usuario)} · ${escapeHTML(e.fecha)}</div>
+        <div style="font-size:13px;color:var(--text)">' + (escapeHTML(e.accion)) + '</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">' + (escapeHTML(e.usuario)) + ' · ' + (escapeHTML(e.fecha)) + '</div>
       </div>
-    </div>`).join('');
+    </div>').join('');
   (p.audit || []).reverse(); // restaurar orden original
 }
 
@@ -10747,7 +10745,7 @@ function guardarPresupuesto(modo) {
   var total = parseFloat(totalTxt.replace(/[\$\.]/g,'').replace(',','.')) || 0;
   var reqAprobacion = (total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite);
   var estadoFinal = reqAprobacion ? 'revision' : modo;
-  var motivo = reqAprobacion ? (desc > APROBACION_CONFIG.descuentoLimite ? `Descuento ${desc}% supera el límite` : `Total supera el límite de aprobación`) : '';
+  var motivo = reqAprobacion ? (desc > APROBACION_CONFIG.descuentoLimite ? 'Descuento ' + (desc) + '% supera el límite' : 'Total supera el límite de aprobación') : '';
   var nuevo = {
     id: 'PP-00' + (pptoData.length + 10),
     cliente: cli, empleado: currentUser || '',
@@ -10839,7 +10837,7 @@ function otBadge(estado) {
     con_observaciones:['badge b-amber','Con observaciones'],
   };
   var [cls, label] = map[estado] || ['badge','—'];
-  return `<span class="${cls}">${label}</span>`;
+  return '<span class="' + (cls) + '">' + (label) + '</span>';
 }
 
 // Renderizar tabla de OTs
@@ -10852,22 +10850,22 @@ function renderOTTabla(filtro='') {
     var matchBusq   = !busq   || (o.id||'').toLowerCase().includes(busq.toLowerCase()) || (o.cliente||'').toLowerCase().includes(busq.toLowerCase());
     return matchFiltro && matchBusq;
   });
-  tbody.innerHTML = rows.map(o => `<tr>
-    <td style="font-weight:500">${escapeHTML(o.id)}</td>
-    <td>${escapeHTML(o.ventaId||'—')}</td>
-    <td>${escapeHTML(o.cliente||'—')}</td>
-    <td>${escapeHTML(o.tecnico||'Sin asignar')}</td>
-    <td style="color:var(--text3)">${escapeHTML(o.fecha||'—')}</td>
+  tbody.innerHTML = rows.map(o => '<tr>
+    <td style="font-weight:500">' + (escapeHTML(o.id)) + '</td>
+    <td>' + (escapeHTML(o.ventaId||'—')) + '</td>
+    <td>' + (escapeHTML(o.cliente||'—')) + '</td>
+    <td>' + (escapeHTML(o.tecnico||'Sin asignar')) + '</td>
+    <td style="color:var(--text3)">' + (escapeHTML(o.fecha||'—')) + '</td>
     <td style="min-width:100px">
-      <div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:${o.progreso||0}%"></div></div>
-      <div style="font-size:11px;color:var(--text3);margin-top:3px">${o.progreso||0}%</div>
+      <div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:' + (o.progreso||0) + '%"></div></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">' + (o.progreso||0) + '%</div>
     </td>
-    <td>${otBadge(o.estado)}</td>
+    <td>' + (otBadge(o.estado)) + '</td>
     <td style="white-space:nowrap">
-      <button class="btn btn-sm btn-icon" onclick="verOT('${o.id}')" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>
-      <button class="btn btn-sm btn-icon" onclick="eliminarOT('${o.fbKey||o.id}')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button>
+      <button class="btn btn-sm btn-icon" onclick="verOT((o.id))" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>
+      <button class="btn btn-sm btn-icon" onclick="eliminarOT((o.fbKey||o.id))" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button>
     </td>
-  </tr>`).join('');
+  </tr>').join('');
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
   // Actualizar métricas
   var hoy = new Date().toISOString().split('T')[0];
@@ -10909,39 +10907,39 @@ function verOT(id) {
   if (mat) mat.innerHTML = ot.materiales.map(m => {
     var ok = m.instalada >= m.vendida;
     var parcial = m.instalada > 0 && m.instalada < m.vendida;
-    return `<tr>
-      <td>${escapeHTML(m.cod)}</td>
-      <td>${escapeHTML(m.desc)}</td>
-      <td class="tr">${m.vendida}</td>
-      <td class="tr"><input type="number" value="${m.instalada}" min="0" max="${m.vendida}" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:3px 6px;text-align:right;font-size:13px;font-family:inherit"></td>
-      <td class="tr">${ok ? '<span class="badge b-green">Completo</span>' : parcial ? '<span class="badge b-amber">Parcial</span>' : '<span class="badge b-red">Pendiente</span>'}</td>
-    </tr>`;
+    return '<tr>
+      <td>' + (escapeHTML(m.cod)) + '</td>
+      <td>' + (escapeHTML(m.desc)) + '</td>
+      <td class="tr">' + (m.vendida) + '</td>
+      <td class="tr"><input type="number" value="' + (m.instalada) + '" min="0" max="' + (m.vendida) + '" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:3px 6px;text-align:right;font-size:13px;font-family:inherit"></td>
+      <td class="tr">' + (ok ? '<span class="badge b-green">Completo</span>' : parcial ? '<span class="badge b-amber">Parcial</span>' : '<span class="badge b-red">Pendiente</span>') + '</td>
+    </tr>';
   }).join('');
 
   // Audit
   var auditEl = document.getElementById('ot-audit');
-  if (auditEl) auditEl.innerHTML = [...ot.audit].reverse().map(e => `
+  if (auditEl) auditEl.innerHTML = [...ot.audit].reverse().map(e => '
     <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <i class="ti ti-history" style="font-size:12px;color:var(--text3)"></i>
       </div>
       <div>
-        <div style="font-size:13px;color:var(--text)">${escapeHTML(e.accion)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHTML(e.usuario)} · ${escapeHTML(e.fecha)}</div>
+        <div style="font-size:13px;color:var(--text)">' + (escapeHTML(e.accion)) + '</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">' + (escapeHTML(e.usuario)) + ' · ' + (escapeHTML(e.fecha)) + '</div>
       </div>
-    </div>`).join('');
+    </div>').join('');
 }
 
 // Renderizar checklist de una fase
 function renderChecklist(containerId, checks, labels, otId, fase) {
   var el = document.getElementById(containerId);
   if (!el) return;
-  el.innerHTML = labels.map((lbl, i) => `
-    <div class="checklist-item ${checks[i] ? 'checked' : ''}" onclick="toggleCheckOT('${otId}','${fase}',${i})">
-      <input type="checkbox" ${checks[i] ? 'checked' : ''} onclick="event.stopPropagation();toggleCheckOT('${otId}','${fase}',${i})">
-      <label>${escapeHTML(lbl)}</label>
-      ${checks[i] ? '<i class="ti ti-check" style="color:var(--green);font-size:14px;flex-shrink:0"></i>' : ''}
-    </div>`).join('');
+  el.innerHTML = labels.map((lbl, i) => '
+    <div class="checklist-item ' + (checks[i] ? 'checked' : '') + '" onclick="toggleCheckOT((otId),(fase),' + (i) + ')">
+      <input type="checkbox" ' + (checks[i] ? 'checked' : '') + ' onclick="event.stopPropagation();toggleCheckOT((otId),(fase),' + (i) + ')">
+      <label>' + (escapeHTML(lbl)) + '</label>
+      ' + (checks[i] ? '<i class="ti ti-check" style="color:var(--green);font-size:14px;flex-shrink:0"></i>' : '') + '
+    </div>').join('');
 }
 
 // Toggle un ítem del checklist
@@ -10952,7 +10950,7 @@ function toggleCheckOT(otId, fase, idx) {
   var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: (ot.checks[fase][idx] ? '✓ ' : '✗ ') + CHECKLISTS[fase][idx] });
   actualizarProgreso(ot);
-  renderChecklist(`checklist-${fase}`, ot.checks[fase], CHECKLISTS[fase], otId, fase);
+  renderChecklist('checklist-' + (fase) + '', ot.checks[fase], CHECKLISTS[fase], otId, fase);
 }
 
 // Calcular y mostrar progreso
@@ -11194,10 +11192,10 @@ function renderVentaTimeline(containerId, estadoActual) {
     var cls = '';
     if (i < idx) cls = 'done';
     else if (i === idx) cls = e.cls;
-    return `<div class="vt-step ${cls}">
-      <div class="vt-dot"><i class="ti ${e.icon}" style="font-size:11px"></i></div>
-      <div class="vt-label">${e.label}</div>
-    </div>`;
+    return '<div class="vt-step ' + (cls) + '">
+      <div class="vt-dot"><i class="ti ' + (e.icon) + '" style="font-size:11px"></i></div>
+      <div class="vt-label">' + (e.label) + '</div>
+    </div>';
   }).join('') + '</div>';
 }
 
@@ -11216,7 +11214,7 @@ function ventaEstadoBadge(est) {
     con_garantia:   ['badge b-green','Con garantía'],
   };
   var [cls, lbl] = map[est] || ['badge','—'];
-  return `<span class="${cls}">${lbl}</span>`;
+  return '<span class="' + (cls) + '">' + (lbl) + '</span>';
 }
 
 // ══════════════════════════════════════════════
@@ -11298,45 +11296,45 @@ function verHistorialCliente(id, nombre) {
   // Tab pagos
   var pBody = document.getElementById('hc-pagos-body');
   var todosLosPagos = ventas.flatMap(v => v.pagos.map(p => ({...p, ventaId:v.id})));
-  pBody.innerHTML = todosLosPagos.length ? todosLosPagos.map(p => `<tr>
-    <td>${escapeHTML(p.fecha)}</td>
-    <td style="font-weight:500">${escapeHTML(p.ventaId)}</td>
-    <td>${escapeHTML(p.medio)}</td>
-    <td class="tr" style="color:var(--green);font-weight:500">$${(parseFloat(p.monto)||0).toLocaleString('es-AR')}</td>
-    <td class="tr" style="color:${p.saldo>0?'var(--amber)':'var(--text3)'}">$${(parseFloat(p.saldo)||0).toLocaleString('es-AR')}</td>
-  </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin pagos registrados</td></tr>';
+  pBody.innerHTML = todosLosPagos.length ? todosLosPagos.map(p => '<tr>
+    <td>' + (escapeHTML(p.fecha)) + '</td>
+    <td style="font-weight:500">' + (escapeHTML(p.ventaId)) + '</td>
+    <td>' + (escapeHTML(p.medio)) + '</td>
+    <td class="tr" style="color:var(--green);font-weight:500">$' + ((parseFloat(p.monto)||0).toLocaleString('es-AR')) + '</td>
+    <td class="tr" style="color:' + (p.saldo>0?'var(--amber)':'var(--text3)') + '">$' + ((parseFloat(p.saldo)||0).toLocaleString('es-AR')) + '</td>
+  </tr>').join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin pagos registrados</td></tr>';
 
   // Tab presupuestos
   var pptos = typeof pptoData !== 'undefined' ? pptoData.filter(p => p.cliente === cli.nombre) : [];
   var ppBody = document.getElementById('hc-ppto-body');
-  ppBody.innerHTML = pptos.length ? pptos.map(p => `<tr>
-    <td style="font-weight:500">${escapeHTML(p.id)}</td>
-    <td>${escapeHTML(p.fecha)}</td>
-    <td class="tr" style="font-weight:500">$${(parseFloat(p.total)||0).toLocaleString('es-AR')}</td>
-    <td class="tr">${pptoStateBadge ? pptoStateBadge(p.estado) : p.estado}</td>
-    <td><button class="btn btn-sm btn-icon" onclick="verPpto('${p.id}')"><i class="ti ti-eye" style="font-size:13px"></i></button></td>
-  </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin presupuestos</td></tr>';
+  ppBody.innerHTML = pptos.length ? pptos.map(p => '<tr>
+    <td style="font-weight:500">' + (escapeHTML(p.id)) + '</td>
+    <td>' + (escapeHTML(p.fecha)) + '</td>
+    <td class="tr" style="font-weight:500">$' + ((parseFloat(p.total)||0).toLocaleString('es-AR')) + '</td>
+    <td class="tr">' + (pptoStateBadge ? pptoStateBadge(p.estado) : p.estado) + '</td>
+    <td><button class="btn btn-sm btn-icon" onclick="verPpto((p.id))"><i class="ti ti-eye" style="font-size:13px"></i></button></td>
+  </tr>').join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin presupuestos</td></tr>';
 
   // Tab tickets
   var tickets = ventas.flatMap(v => v.tickets);
   var tBody = document.getElementById('hc-tickets-body');
-  tBody.innerHTML = tickets.length ? tickets.map(t => `<tr>
-    <td style="font-weight:500">${escapeHTML(t.n)}</td>
-    <td>${escapeHTML(t.desc)}</td>
-    <td class="tr"><span class="badge b-red">${escapeHTML(t.prio)}</span></td>
-    <td class="tr"><span class="badge b-amber">${escapeHTML(t.est)}</span></td>
-  </tr>`).join('') : '<tr><td colspan="4" style="color:var(--text3);text-align:center;padding:16px">Sin tickets</td></tr>';
+  tBody.innerHTML = tickets.length ? tickets.map(t => '<tr>
+    <td style="font-weight:500">' + (escapeHTML(t.n)) + '</td>
+    <td>' + (escapeHTML(t.desc)) + '</td>
+    <td class="tr"><span class="badge b-red">' + (escapeHTML(t.prio)) + '</span></td>
+    <td class="tr"><span class="badge b-amber">' + (escapeHTML(t.est)) + '</span></td>
+  </tr>').join('') : '<tr><td colspan="4" style="color:var(--text3);text-align:center;padding:16px">Sin tickets</td></tr>';
 
   // Tab equipos
   var equipos = ventas.flatMap(v => v.equipos.map(e => ({...e, ventaId:v.id})));
   var eBody = document.getElementById('hc-eq-body');
-  eBody.innerHTML = equipos.length ? equipos.map(e => `<tr>
-    <td>${escapeHTML(e.eq)}</td>
-    <td style="color:var(--text3)">${escapeHTML(e.serie)}</td>
-    <td>${escapeHTML(e.inst)}</td>
-    <td class="tr">${escapeHTML(e.vence)}</td>
+  eBody.innerHTML = equipos.length ? equipos.map(e => '<tr>
+    <td>' + (escapeHTML(e.eq)) + '</td>
+    <td style="color:var(--text3)">' + (escapeHTML(e.serie)) + '</td>
+    <td>' + (escapeHTML(e.inst)) + '</td>
+    <td class="tr">' + (escapeHTML(e.vence)) + '</td>
     <td class="tr"><span class="badge b-green">Vigente</span></td>
-  </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin equipos registrados</td></tr>';
+  </tr>').join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin equipos registrados</td></tr>';
 
   // Activar tab ventas por defecto
   switchHistTab('ventas', document.querySelector('.hist-tab-btn'));
@@ -11913,11 +11911,11 @@ function renderNotificaciones(filtro) {
     : 'Todo al día ✓';
 
   if (!rows.length) {
-    lista.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text3)">
+    lista.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text3)">
       <i class="ti ti-checks" style="font-size:32px;display:block;margin-bottom:10px"></i>
-      <div style="font-size:14px;font-weight:500">Sin notificaciones${filtro ? ' de este tipo' : ''}</div>
+      <div style="font-size:14px;font-weight:500">Sin notificaciones' + (filtro ? ' de este tipo' : '') + '</div>
       <div style="font-size:12px;margin-top:4px">Todo está en orden</div>
-    </div>`;
+    </div>';
     return;
   }
 
@@ -11928,21 +11926,21 @@ function renderNotificaciones(filtro) {
     var leida = notifLeidas.has(n.id);
     var c = colorMap[n.color] || 'var(--text2)';
     var bg = bgMap[n.color] || 'var(--bg3)';
-    return `<div style="background:${leida ? 'var(--bg3)' : bg};border:0.5px solid ${leida ? 'var(--border)' : c};border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;opacity:${leida ? '.6' : '1'};transition:opacity .2s" id="ncard-${n.id}">
-      <i class="ti ${n.icono}" style="font-size:20px;color:${c};flex-shrink:0;margin-top:1px"></i>
+    return '<div style="background:' + (leida ? 'var(--bg3)' : bg) + ';border:0.5px solid ' + (leida ? 'var(--border)' : c) + ';border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;opacity:' + (leida ? '.6' : '1') + ';transition:opacity .2s" id="ncard-' + (n.id) + '">
+      <i class="ti ' + (n.icono) + '" style="font-size:20px;color:' + (c) + ';flex-shrink:0;margin-top:1px"></i>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;color:${c};margin-bottom:3px;display:flex;align-items:center;gap:6px">
-          ${escapeHTML(n.titulo)}
-          ${n.urgente && !leida ? '<span style="font-size:10px;background:'+c+';color:#fff;padding:1px 6px;border-radius:10px">URGENTE</span>' : ''}
+        <div style="font-size:13px;font-weight:500;color:' + (c) + ';margin-bottom:3px;display:flex;align-items:center;gap:6px">
+          ' + (escapeHTML(n.titulo)) + '
+          ' + (n.urgente && !leida ? '<span style="font-size:10px;background:'+c+';color:#fff;padding:1px 6px;border-radius:10px">URGENTE</span>' : '') + '
         </div>
-        <div style="font-size:12px;color:${c};opacity:.8;line-height:1.4">${escapeHTML(n.sub)}</div>
-        <div style="font-size:11px;color:${c};opacity:.5;margin-top:6px;display:flex;align-items:center;gap:8px">
-          ${escapeHTML(n.tiempo)}
-          ${!leida ? '<span style="cursor:pointer;text-decoration:underline" onclick="marcarLeida(\''+n.id+'\')">Marcar leída</span>' : '<span>✓ Leída</span>'}
+        <div style="font-size:12px;color:' + (c) + ';opacity:.8;line-height:1.4">' + (escapeHTML(n.sub)) + '</div>
+        <div style="font-size:11px;color:' + (c) + ';opacity:.5;margin-top:6px;display:flex;align-items:center;gap:8px">
+          ' + (escapeHTML(n.tiempo)) + '
+          ' + (!leida ? '<span style="cursor:pointer;text-decoration:underline" onclick="marcarLeida(\''+n.id+'\')">Marcar leída</span>' : '<span>✓ Leída</span>') + '
         </div>
       </div>
-      <button class="btn btn-sm" style="color:${c};border-color:${bg};flex-shrink:0;white-space:nowrap" onclick="${n.accion.fn}">${escapeHTML(n.accion.label)}</button>
-    </div>`;
+      <button class="btn btn-sm" style="color:' + (c) + ';border-color:' + (bg) + ';flex-shrink:0;white-space:nowrap" onclick="' + (n.accion.fn) + '">' + (escapeHTML(n.accion.label)) + '</button>
+    </div>';
   }).join('');
 
   // Renderizar config
@@ -11952,20 +11950,20 @@ function renderNotificaciones(filtro) {
 function renderConfigAlertas() {
   var el = document.getElementById('notif-config-lista');
   if (!el) return;
-  el.innerHTML = Object.entries(NOTIF_CONFIG).map(([key, cfg], i, arr) => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;${i < arr.length-1 ? 'border-bottom:0.5px solid var(--border)' : ''}">
+  el.innerHTML = Object.entries(NOTIF_CONFIG).map(([key, cfg], i, arr) => '
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;' + (i < arr.length-1 ? 'border-bottom:0.5px solid var(--border)' : '') + '">
       <div>
-        <div style="font-size:13px;color:var(--text);font-weight:${cfg.urgente?'500':'400'}">${cfg.label}${cfg.urgente ? ' <span style="font-size:10px;background:var(--red-bg);color:var(--red);padding:1px 6px;border-radius:10px">URGENTE</span>' : ''}</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:2px">${cfg.sub}</div>
+        <div style="font-size:13px;color:var(--text);font-weight:' + (cfg.urgente?'500':'400') + '">' + (cfg.label) + (cfg.urgente ? ' <span style="font-size:10px;background:var(--red-bg);color:var(--red);padding:1px 6px;border-radius:10px">URGENTE</span>' : '') + '</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">' + (cfg.sub) + '</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:12px">
-        <div style="display:flex;gap:4px">${cfg.canales.map(c => `<span class="badge b-${c==='WhatsApp'?'green':c==='Email'?'blue':'purple'}">${c}</span>`).join('')}</div>
+        <div style="display:flex;gap:4px">' + (cfg.canales.map(c => '<span class="badge b-' + (c==='WhatsApp'?'green':c==='Email'?'blue':'purple') + '">' + (c) + '</span>').join('')) + '</div>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2)">
-          <input type="checkbox" ${cfg.activo ? 'checked' : ''} onchange="toggleNotifConfig('${key}',this.checked)" style="accent-color:var(--green)">
+          <input type="checkbox" ' + (cfg.activo ? 'checked' : '') + ' onchange="toggleNotifConfig((key),this.checked)" style="accent-color:var(--green)">
           Activo
         </label>
       </div>
-    </div>`).join('');
+    </div>').join('');
 }
 
 function toggleNotifConfig(key, val) {
@@ -12038,17 +12036,17 @@ function renderVentasTabla(lista) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin ventas para mostrar</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map(v => `<tr style="cursor:pointer" onclick="verVenta('${v.id}')">
-    <td style="font-weight:500;color:var(--text);font-family:monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(v.id)}</td>
-    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(v.cliente)}</td>
-    <td style="color:var(--text3);white-space:nowrap">${escapeHTML(v.fecha)}</td>
-    <td class="tr" style="font-weight:500;white-space:nowrap">$${(parseFloat(v.total)||0).toLocaleString('es-AR')}</td>
-    <td class="tr" style="white-space:nowrap">${ventaEstadoBadge(v.estadoPago)}</td>
-    <td class="tr" style="white-space:nowrap">${ventaEstadoBadge(v.estadoInst)}</td>
+  tbody.innerHTML = rows.map(v => '<tr style="cursor:pointer" onclick="verVenta((v.id))">
+    <td style="font-weight:500;color:var(--text);font-family:monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (escapeHTML(v.id)) + '</td>
+    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (escapeHTML(v.cliente)) + '</td>
+    <td style="color:var(--text3);white-space:nowrap">' + (escapeHTML(v.fecha)) + '</td>
+    <td class="tr" style="font-weight:500;white-space:nowrap">$' + ((parseFloat(v.total)||0).toLocaleString('es-AR')) + '</td>
+    <td class="tr" style="white-space:nowrap">' + (ventaEstadoBadge(v.estadoPago)) + '</td>
+    <td class="tr" style="white-space:nowrap">' + (ventaEstadoBadge(v.estadoInst)) + '</td>
     <td onclick="event.stopPropagation()" style="text-align:center">
-      <button class="btn btn-sm btn-icon" onclick="verVenta('${v.id}')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
+      <button class="btn btn-sm btn-icon" onclick="verVenta((v.id))" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
     </td>
-  </tr>`).join('');
+  </tr>').join('');
 }
 
 // Filtros
@@ -12107,14 +12105,14 @@ function verVenta(id) {
 
   // Items
   var tbody = document.getElementById('vd-items');
-  tbody.innerHTML = v.items.map(it => `<tr>
+  tbody.innerHTML = v.items.map(it => '<tr>
     <td style="overflow:hidden"><input type="checkbox"></td>
-    <td style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(it.cod)}</td>
-    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(it.desc)}</td>
-    <td class="tr" style="white-space:nowrap">${it.qty}</td>
-    <td class="tr" style="white-space:nowrap">$${(parseFloat(it.punit)||0).toLocaleString('es-AR')}</td>
-    <td class="tr" style="font-weight:500;white-space:nowrap">$${(parseFloat(it.sub)||0).toLocaleString('es-AR')}</td>
-  </tr>`).join('');
+    <td style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (escapeHTML(it.cod)) + '</td>
+    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (escapeHTML(it.desc)) + '</td>
+    <td class="tr" style="white-space:nowrap">' + (it.qty) + '</td>
+    <td class="tr" style="white-space:nowrap">$' + ((parseFloat(it.punit)||0).toLocaleString('es-AR')) + '</td>
+    <td class="tr" style="font-weight:500;white-space:nowrap">$' + ((parseFloat(it.sub)||0).toLocaleString('es-AR')) + '</td>
+  </tr>').join('');
 
   // Totales
   _set('vd-sub','$' + (parseFloat(v.subtotal)||0).toLocaleString('es-AR'));
@@ -12125,17 +12123,17 @@ function verVenta(id) {
   // Pagos
   var pagosEl = document.getElementById('vd-pagos-lista');
   if (v.pagos.length) {
-    pagosEl.innerHTML = v.pagos.map(p => `
+    pagosEl.innerHTML = v.pagos.map(p => '
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">
         <div>
-          <div style="font-size:13px;color:var(--text)">${escapeHTML(p.medio)}</div>
-          <div style="font-size:11px;color:var(--text3)">${escapeHTML(p.fecha)}</div>
+          <div style="font-size:13px;color:var(--text)">' + (escapeHTML(p.medio)) + '</div>
+          <div style="font-size:11px;color:var(--text3)">' + (escapeHTML(p.fecha)) + '</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:13px;font-weight:500;color:var(--green)">$${(parseFloat(p.monto)||0).toLocaleString('es-AR')}</div>
-          <div style="font-size:11px;color:${p.saldo>0?'var(--amber)':'var(--text3)'}">Saldo: $${(parseFloat(p.saldo)||0).toLocaleString('es-AR')}</div>
+          <div style="font-size:13px;font-weight:500;color:var(--green)">$' + ((parseFloat(p.monto)||0).toLocaleString('es-AR')) + '</div>
+          <div style="font-size:11px;color:' + (p.saldo>0?'var(--amber)':'var(--text3)') + '">Saldo: $' + ((parseFloat(p.saldo)||0).toLocaleString('es-AR')) + '</div>
         </div>
-      </div>`).join('');
+      </div>').join('');
   } else {
     pagosEl.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:16px">Sin pagos registrados</div>';
   }
@@ -12147,12 +12145,12 @@ function verVenta(id) {
     var ot = typeof otData !== 'undefined' ? otData.find(o => o.id === v.otId) : null;
     var otInfo = document.getElementById('vd-ot-info');
     if (ot && otInfo) {
-      otInfo.innerHTML = `
-        <span><strong>${escapeHTML(ot.id)}</strong></span>
-        <span>Técnico: ${escapeHTML(ot.tecnico)}</span>
-        <span>Fecha: ${escapeHTML(ot.fecha || 'Sin fecha')}</span>
-        <span>Estado: ${otBadge ? otBadge(ot.estado) : ot.estado}</span>
-        <span>Progreso: ${ot.progreso}%</span>`;
+      otInfo.innerHTML = '
+        <span><strong>' + (escapeHTML(ot.id)) + '</strong></span>
+        <span>Técnico: ' + (escapeHTML(ot.tecnico)) + '</span>
+        <span>Fecha: ' + (escapeHTML(ot.fecha || 'Sin fecha')) + '</span>
+        <span>Estado: ' + (otBadge ? otBadge(ot.estado) : ot.estado) + '</span>
+        <span>Progreso: ' + (ot.progreso) + '%</span>';
     }
   } else {
     otCard.style.display = 'none';
@@ -12175,16 +12173,16 @@ function verVenta(id) {
 
   // Audit
   var auditEl = document.getElementById('vd-audit');
-  auditEl.innerHTML = [...v.audit].reverse().map(e => `
+  auditEl.innerHTML = [...v.audit].reverse().map(e => '
     <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <i class="ti ti-history" style="font-size:12px;color:var(--text3)"></i>
       </div>
       <div>
-        <div style="font-size:13px;color:var(--text)">${escapeHTML(e.accion)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHTML(e.usuario)} · ${escapeHTML(e.fecha)}</div>
+        <div style="font-size:13px;color:var(--text)">' + (escapeHTML(e.accion)) + '</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">' + (escapeHTML(e.usuario)) + ' · ' + (escapeHTML(e.fecha)) + '</div>
       </div>
-    </div>`).join('');
+    </div>').join('');
 }
 
 function verOTdesdeVenta() {
@@ -12453,11 +12451,11 @@ function crearFilaProducto(cod, desc, precio, qty) {
   var stk = stockData[cod] || { real:0, reservado:0 };
   var stockBadge = stockBadgeHTML(cod, qty || 1);
   // El código muestra un botón selector, no un input editable
-  tr.innerHTML = `
+  tr.innerHTML = '
     <td><input type="checkbox"></td>
     <td style="position:relative;min-width:100px">
       <div class="prod-selector" onclick="abrirSelectorProducto(this)">
-        <span class="prod-sel-cod">${escapeHTML(cod)}</span>
+        <span class="prod-sel-cod">' + (escapeHTML(cod)) + '</span>
         <i class="ti ti-chevron-down" style="font-size:11px;color:var(--text3);margin-left:4px;flex-shrink:0"></i>
       </div>
       <div class="prod-search-drop" style="display:none">
@@ -12468,12 +12466,12 @@ function crearFilaProducto(cod, desc, precio, qty) {
         <div class="prod-drop-list"></div>
       </div>
     </td>
-    <td><span class="desc-txt" style="font-size:13px;color:var(--text2)">${escapeHTML(desc)}</span></td>
-    <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right"></td>
-    <td class="stock-cell" style="text-align:right"><span class="stock-ind">${stockBadge}</span></td>
-    <td><input type="number" value="${precio||0}" class="price" oninput="calcRow(this)" min="0" style="width:80px;text-align:right"></td>
-    <td class="sub" style="text-align:right;color:var(--text);font-weight:500">$${Math.round((qty||1)*(precio||0)).toLocaleString('es-AR')}</td>
-    <td><button class="btn btn-sm btn-danger" onclick="delRow(this)" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>`;
+    <td><span class="desc-txt" style="font-size:13px;color:var(--text2)">' + (escapeHTML(desc)) + '</span></td>
+    <td><input type="number" value="' + (qty||1) + '" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right"></td>
+    <td class="stock-cell" style="text-align:right"><span class="stock-ind">' + (stockBadge) + '</span></td>
+    <td><input type="number" value="' + (precio||0) + '" class="price" oninput="calcRow(this)" min="0" style="width:80px;text-align:right"></td>
+    <td class="sub" style="text-align:right;color:var(--text);font-weight:500">$' + (Math.round((qty||1)*(precio||0)).toLocaleString('es-AR')) + '</td>
+    <td><button class="btn btn-sm btn-danger" onclick="delRow(this)" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>';
   return tr;
 }
 
@@ -12504,12 +12502,12 @@ function renderDropProductos(listEl, filtro) {
     var stk = stockData[p.codigo] || { real:0, reservado:0 };
     var disp = stk.real - stk.reservado;
     var stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--text3)';
-    return `<div class="prod-drop-item" onmousedown="selProductoEnFila(this,'${p.codigo}','${p.descripcion.replace(/'/g,"\'")}',${p.venta||0})">
+    return '<div class="prod-drop-item" onmousedown="selProductoEnFila(this,(p.codigo),(p.descripcion.replace(/'/g,"\'")),' + (p.venta||0) + ')">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;color:var(--text)">${escapeHTML(p.codigo)} — ${escapeHTML(p.descripcion)}</div>
-        <div style="font-size:11px;color:var(--text3)">$${(p.venta||0).toLocaleString('es-AR')} · <span style="color:${stkColor}">${disp} disp.</span></div>
+        <div style="font-size:13px;font-weight:500;color:var(--text)">' + (escapeHTML(p.codigo)) + ' — ' + (escapeHTML(p.descripcion)) + '</div>
+        <div style="font-size:11px;color:var(--text3)">$' + ((p.venta||0).toLocaleString('es-AR')) + ' · <span style="color:' + (stkColor) + '">' + (disp) + ' disp.</span></div>
       </div>
-    </div>`;
+    </div>';
   }).join('') : '<div style="padding:12px;font-size:12px;color:var(--text3);text-align:center">Sin resultados</div>';
 }
 
@@ -12553,7 +12551,7 @@ document.addEventListener('click', function(e) {
 function addPpRow() {
   ppRowCount++;
   var tr = document.createElement('tr');
-  tr.innerHTML = `
+  tr.innerHTML = '
     <td style="position:relative;min-width:100px">
       <div class="prod-selector" onclick="abrirSelectorProducto(this)">
         <span class="prod-sel-cod">—</span>
@@ -12574,7 +12572,7 @@ function addPpRow() {
     <td><button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();calcPpTotales()"
       style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px"
       onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'">
-      <i class="ti ti-trash" style="font-size:14px"></i></button></td>`;
+      <i class="ti ti-trash" style="font-size:14px"></i></button></td>';
   // Al seleccionar producto en presupuesto, actualizar precio del presupuesto
   tr.querySelector('.prod-search-drop').addEventListener('mousedown', function(e) {
     var item = e.target.closest('.prod-drop-item');
