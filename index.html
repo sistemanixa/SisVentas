@@ -633,7 +633,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v9.6 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v9.7 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4514,7 +4514,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v9.6-firebase',
+  VERSION: 'v9.7-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5876,7 +5876,7 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
     let inp;
     if (f.t === 'select') {
       inp = document.createElement('select');
-      (f.opts||[]).forEach(o => { const opt=document.createElement('option'); opt.textContent=o; inp.appendChild(opt); });
+      (f.opts||[]).forEach(o => { const opt=document.createElement('option'); opt.value=o; opt.textContent=o; inp.appendChild(opt); });
     } else {
       inp = document.createElement('input');
       inp.type = f.t;
@@ -6020,13 +6020,20 @@ function guardarNuevoGenerico() {
 
   } else if (tipo === 'usuario') {
     var fbKeyUsu = window._modalFbKey;
-    var rolMap = {'Administrador':'admin','Administrativo':'administrativo','Vendedor':'vendedor','Técnico':'tecnico'};
+    var rolRaw = (obj.rol||'').trim();
+    var rolMap = {
+      'Administrador':'admin','administrador':'admin',
+      'Administrativo':'administrativo','administrativo':'administrativo',
+      'Vendedor':'vendedor','vendedor':'vendedor',
+      'Técnico':'tecnico','Tecnico':'tecnico','técnico':'tecnico','tecnico':'tecnico'
+    };
+    var rolFinal = rolMap[rolRaw] || rolRaw.toLowerCase().replace(/[áéíóú]/g, function(c){ return {á:'a',é:'e',í:'i',ó:'o',ú:'u'}[c]; }) || 'administrativo';
     var login = (obj.user||'').replace('@sistemanixa.com','').replace(/\s/g,'').toLowerCase();
     var datosUsu = {
       nombre: obj.nm || '',
       login:  login,
       mail:   login + '@sistemanixa.com',
-      rol:    rolMap[obj.rol] || 'administrativo',
+      rol:    rolFinal,
       activo: (obj.activo||'Activo') !== 'Inactivo'
     };
     if (!datosUsu.nombre) { notify('Ingresá el nombre'); return; }
