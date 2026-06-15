@@ -188,7 +188,7 @@ html{overflow-x:hidden;max-width:100vw}body{background:var(--bg);color:var(--tex
 .role-badge.vendedor{background:var(--purple-bg);color:var(--purple)}
 
 /* ── CONTENT ── */
-.content{flex:1;overflow-y:auto;padding:24px}
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px;box-sizing:border-box;width:100%}
 .content::-webkit-scrollbar{width:4px}
 .content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 /* Scrollbar sidebar */
@@ -201,7 +201,7 @@ body.dark-mode ::-webkit-scrollbar{width:4px;height:4px}
 body.dark-mode ::-webkit-scrollbar-track{background:transparent}
 body.dark-mode ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:4px}
 body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)}
-.page{display:none}
+.page{display:none;width:100%;box-sizing:border-box;overflow-x:hidden}
 .page.active{display:block}
 
 /* ── METRICS ── */
@@ -215,9 +215,9 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 
 /* ── CARDS ── */
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;min-width:0}
-.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px}
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;box-sizing:border-box;min-width:0;max-width:100%}
 .card:last-child{margin-bottom:0}
-.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px;flex-wrap:wrap}
 .card-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:400}
 
 /* ── TABLES ── */
@@ -302,7 +302,7 @@ tr:hover td{color:var(--text)}
 .sueldo-sub{font-size:11px;color:var(--text3);margin-top:3px}
 
 /* ── SEARCH INPUT ── */
-.search-input{background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 11px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .12s}
+.search-input{background:var(--bg3);max-width:100%;box-sizing:border-box;border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 11px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .12s}
 .search-input:focus{border-color:var(--border3);background:var(--bg2)}
 .search-input::placeholder{color:var(--text3)}
 
@@ -315,34 +315,97 @@ tr:hover td{color:var(--text)}
 .no-access p{font-size:14px}
 
 /* ── RESPONSIVE MOBILE ── */
-@media (max-width: 768px) {
-  /* Sidebar drawer */
-  body{overflow:auto}
+@media (max-width: 900px) {
+  /* ── SIDEBAR ── */
   .sidebar{display:flex;position:fixed;top:0;left:-280px;bottom:0;z-index:300;background:var(--bg2);flex-direction:column;overflow-y:auto;border-right:0.5px solid var(--border);width:260px;height:100vh;transition:left .25s ease}
   .sidebar.open{left:0;box-shadow:4px 0 20px rgba(0,0,0,.15)}
-  .main{min-width:0;flex:1}
-  .topbar{padding:0 14px}
-  .content{padding:12px}
-  .topbar-date{display:none}
   .hamburger{display:flex!important}
-  /* Layout */
+  .main{min-width:0;flex:1}
+  body{overflow:auto}
+
+  /* ── TOPBAR ── */
+  .topbar{padding:0 14px}
+  .topbar-date{display:none}
+  .topbar-right{gap:4px}
+
+  /* ── CONTENIDO ── */
+  .content{padding:10px;overflow-x:hidden}
+  .page{overflow-x:hidden}
+  .card{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:12px}
+
+  /* ── GRIDS ── */
   .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .row2{grid-template-columns:1fr!important}
   .form-grid,.form-grid.cols3{grid-template-columns:1fr!important}
   .fg.full{grid-column:1!important}
-  .emp-sueldo-grid{grid-template-columns:repeat(2,1fr)!important}
-  .emp-header{flex-wrap:wrap;gap:10px}
-  .card{padding:12px}
+
+  /* ── FLEX HEADERS (card-head, filtros) ── */
+  .card-head{flex-wrap:wrap;gap:8px}
+  .card-head > div{flex-wrap:wrap;gap:6px}
+
+  /* ── TABLAS ── */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;width:100%}
+  table{white-space:nowrap;font-size:12px;min-width:auto}
+  th{padding:6px 8px;font-size:11px}
+  td{padding:6px 8px}
+
+  /* ── BOTONES ── */
   .btn{font-size:12px;padding:6px 10px}
+  .btn-sm{font-size:11px;padding:5px 8px}
+
+  /* ── MÉTRICAS ── */
   .m-value{font-size:18px}
+  .m-label{font-size:11px}
+
+  /* ── INPUTS DE BÚSQUEDA ── */
+  .search-input{font-size:12px}
+  input[type=text],input[type=email],input[type=number],input[type=date],input[type=month],input[type=time],input[type=password],select,textarea{font-size:16px!important} /* Evita zoom en iOS */
+
+  /* ── MODALES ── */
+  .modal{width:95vw!important;max-width:95vw!important;padding:20px 16px}
+  .modal-overlay{align-items:flex-end!important}
+  .modal{border-radius:var(--radius-xl) var(--radius-xl) 0 0!important;max-height:90vh;overflow-y:auto}
+
+  /* ── ASISTENTE ── */
+  .asist-rubro-btn{padding:18px 12px}
+  .asist-rubro-ico{width:52px;height:52px;font-size:22px}
+  .asist-rubro-label{font-size:14px}
+  .asist-opcion-btn{padding:14px 16px}
+  .asist-opcion-titulo{font-size:14px}
+  #asist-preguntas,#asist-resumen{max-width:100%}
+
+  /* ── EQUIPOS (cards) ── */
+  #eq-cards{grid-template-columns:1fr!important}
+
+  /* ── MÓDULO OT ── */
+  #ot-list-view .card-head{flex-direction:column;align-items:flex-start}
+
+  /* ── SUELDO TABLA ── */
+  #suel-tabla{font-size:11px}
+  #suel-tabla input{width:45px!important;font-size:11px!important}
+
+  /* ── MISC ── */
   .page-title{font-size:13px}
-  /* Tablas: scroll horizontal natural */
-  .card{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table{white-space:nowrap;font-size:12px}
-  th{padding:0 8px 8px;font-size:11px}
-  td{padding:7px 8px}
+  .badge{font-size:10px;padding:2px 6px}
+  .toggle-knob{width:32px;height:18px}
+  .toggle-sw input:checked + .toggle-knob::after{transform:translateX(14px)}
+  .toggle-knob::after{width:12px;height:12px}
 }
-@media (min-width:769px){
+
+@media (max-width: 480px) {
+  /* Extra pequeño — celular */
+  .metrics{grid-template-columns:1fr 1fr!important}
+  .m-value{font-size:16px}
+  .content{padding:8px}
+  .card{padding:10px}
+  .topbar{height:48px}
+  .asist-rubro-btn{padding:14px 8px}
+  .asist-rubro-ico{width:44px;height:44px;font-size:18px}
+  /* Modales full screen en celular */
+  .modal{width:100vw!important;border-radius:var(--radius-xl) var(--radius-xl) 0 0!important}
+}
+
+@media (min-width:901px){
   .hamburger{display:none!important}
   .sidebar{display:flex!important}
   .overlay-mobile{display:none!important}
@@ -561,7 +624,28 @@ tr:hover td{color:var(--text)}
 .toggle-knob::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .toggle-sw input:checked + .toggle-knob{background:var(--green)}
 .toggle-sw input:checked + .toggle-knob::after{transform:translateX(16px)}
-/* ── EQUIPOS INSTALADOS ── */
+/* ── ASISTENTE DE VENTAS ── */
+.asist-rubro-btn{background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius-xl);padding:24px 16px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.asist-rubro-btn:hover{border-color:var(--green);box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-2px)}
+.asist-rubro-ico{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px}
+.asist-rubro-label{font-size:15px;font-weight:600;color:var(--text)}
+.asist-rubro-marca{font-size:11px;color:var(--text3)}
+.asist-opcion-btn{background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:14px;text-align:left;width:100%}
+.asist-opcion-btn:hover,.asist-opcion-btn.selected{border-color:var(--green);background:var(--green-bg)}
+.asist-opcion-btn.selected .asist-opcion-check{opacity:1}
+.asist-opcion-ico{font-size:24px;flex-shrink:0;width:36px;text-align:center}
+.asist-opcion-titulo{font-size:15px;font-weight:600;color:var(--text)}
+.asist-opcion-desc{font-size:12px;color:var(--text3);margin-top:2px}
+.asist-opcion-check{width:22px;height:22px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;margin-left:auto;opacity:0;flex-shrink:0;font-size:13px}
+.asist-prod-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:0.5px solid var(--border)}
+.asist-prod-row:last-child{border-bottom:none}
+.asist-prod-info{flex:1;min-width:0}
+.asist-prod-nombre{font-size:13px;font-weight:500}
+.asist-prod-sku{font-size:11px;color:var(--text3);margin-top:1px}
+.asist-prod-precio{font-size:13px;font-weight:600;color:var(--green);white-space:nowrap}
+.asist-qty{display:flex;align-items:center;gap:6px}
+.asist-qty button{width:28px;height:28px;border-radius:50%;border:1px solid var(--border2);background:var(--bg3);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--text)}
+.asist-qty input{width:40px;text-align:center;border:1px solid var(--border2);border-radius:4px;background:var(--bg3);color:var(--text);font-size:13px;padding:3px}
 .eq-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-xl);padding:14px;cursor:pointer;transition:box-shadow .15s,border-color .15s;position:relative}
 .eq-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.12);border-color:var(--border2)}
 .eq-cat-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
@@ -652,7 +736,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.6 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.8 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -703,6 +787,9 @@ tr:hover td{color:var(--text)}
         <i class="ti ti-layout-dashboard"></i>Dashboard
       </div>
       <div class="s-section">Ventas</div>
+      <div class="nav-item" onclick="showPage('asistente',this)" style="background:var(--green-bg);color:var(--green);border-radius:var(--radius);margin:0 4px;font-weight:600">
+        <i class="ti ti-wand"></i> Asistente de ventas
+      </div>
       <div class="s-section no-tecnico">Ventas</div>
       <div class="nav-item no-tecnico" onclick="showPage('presupuesto',this)">
         <i class="ti ti-file-description"></i>Presupuestos
@@ -3009,7 +3096,138 @@ tr:hover td{color:var(--text)}
 
 </div>
 
-<!-- SUELDOS -->
+<!-- ASISTENTE DE VENTAS -->
+<div id="page-asistente" class="page">
+
+  <!-- PANTALLA: ELEGIR RUBRO -->
+  <div id="asist-inicio">
+    <div style="text-align:center;padding:24px 0 32px">
+      <div style="font-size:22px;font-weight:700;margin-bottom:6px">¿Qué sistema vas a cotizar?</div>
+      <div style="font-size:14px;color:var(--text3)">Seleccioná el rubro para comenzar</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;max-width:700px;margin:0 auto">
+
+      <button class="asist-rubro-btn" onclick="iniciarAsistente('alarmas')">
+        <div class="asist-rubro-ico" style="background:#fef3c7;color:#d97706">🚨</div>
+        <div class="asist-rubro-label">Alarmas</div>
+        <div class="asist-rubro-marca">By Garnet</div>
+      </button>
+
+      <button class="asist-rubro-btn" onclick="iniciarAsistente('camaras')">
+        <div class="asist-rubro-ico" style="background:#dbeafe;color:#1d4ed8">📷</div>
+        <div class="asist-rubro-label">Cámaras</div>
+        <div class="asist-rubro-marca">By Hikvision</div>
+      </button>
+
+      <button class="asist-rubro-btn" onclick="iniciarAsistente('videoportero')">
+        <div class="asist-rubro-ico" style="background:#f0fdf4;color:#16a34a">🔔</div>
+        <div class="asist-rubro-label">Video portero</div>
+        <div class="asist-rubro-marca">By Hikvision</div>
+      </button>
+
+      <button class="asist-rubro-btn" onclick="iniciarAsistente('acceso')">
+        <div class="asist-rubro-ico" style="background:#fdf4ff;color:#9333ea">🔐</div>
+        <div class="asist-rubro-label">Control acceso</div>
+        <div class="asist-rubro-marca">By Hikvision</div>
+      </button>
+
+      <button class="asist-rubro-btn" onclick="iniciarAsistente('redes')">
+        <div class="asist-rubro-ico" style="background:#eff6ff;color:#0369a1">📡</div>
+        <div class="asist-rubro-label">Redes</div>
+        <div class="asist-rubro-marca">By TP-Link Omada</div>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- PANTALLA: ÁRBOL DE PREGUNTAS -->
+  <div id="asist-preguntas" style="display:none;max-width:600px;margin:0 auto">
+
+    <!-- Header con progreso -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px">
+      <button class="btn btn-sm" onclick="asistVolver()" id="asist-btn-volver">
+        <i class="ti ti-arrow-left"></i>
+      </button>
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;color:var(--text3)" id="asist-paso-label">Paso 1 de 5</span>
+          <span style="font-size:12px;color:var(--text3)" id="asist-rubro-label">Alarmas</span>
+        </div>
+        <div style="height:4px;background:var(--border);border-radius:2px">
+          <div id="asist-progress-bar" style="height:4px;background:var(--green);border-radius:2px;transition:width .3s ease;width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pregunta actual -->
+    <div style="margin-bottom:28px">
+      <div style="font-size:20px;font-weight:700;margin-bottom:8px;line-height:1.3" id="asist-pregunta-titulo"></div>
+      <div style="font-size:14px;color:var(--text3)" id="asist-pregunta-desc"></div>
+    </div>
+
+    <!-- Opciones -->
+    <div id="asist-opciones" style="display:flex;flex-direction:column;gap:10px"></div>
+
+    <!-- Input numérico (para cantidades) -->
+    <div id="asist-input-num" style="display:none;margin-top:8px">
+      <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+        <button onclick="asistAjustarNum(-1)" style="width:48px;height:48px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg3);font-size:20px;cursor:pointer;color:var(--text)">−</button>
+        <input type="number" id="asist-num-val" min="1" max="200" value="1"
+          style="flex:1;text-align:center;font-size:28px;font-weight:700;padding:12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-family:inherit">
+        <button onclick="asistAjustarNum(1)" style="width:48px;height:48px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg3);font-size:20px;cursor:pointer;color:var(--text)">+</button>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:14px;font-size:16px" onclick="asistConfirmarNum()">
+        Continuar <i class="ti ti-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- PANTALLA: RESUMEN Y PRODUCTOS -->
+  <div id="asist-resumen" style="display:none;max-width:680px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <button class="btn btn-sm" onclick="asistVolverAPreguntas()"><i class="ti ti-arrow-left"></i> Volver</button>
+      <div>
+        <div style="font-size:18px;font-weight:700" id="asist-res-titulo">Sistema recomendado</div>
+        <div style="font-size:13px;color:var(--text3)" id="asist-res-sub"></div>
+      </div>
+    </div>
+
+    <!-- Productos recomendados -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-head"><span class="card-title">Productos del sistema</span></div>
+      <div id="asist-productos-lista" style="display:flex;flex-direction:column;gap:0"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0 0;border-top:0.5px solid var(--border);margin-top:8px">
+        <span style="font-size:14px;font-weight:600">Total estimado</span>
+        <span style="font-size:20px;font-weight:700;color:var(--green)" id="asist-total">$0</span>
+      </div>
+    </div>
+
+    <!-- Seleccionar cliente y generar presupuesto -->
+    <div class="card">
+      <div class="card-head"><span class="card-title">Generar presupuesto</span></div>
+      <div class="form-grid">
+        <div class="fg full">
+          <label>Cliente</label>
+          <div class="sw">
+            <input type="text" id="asist-cli-inp" placeholder="Buscar cliente..."
+              oninput="filterDrop('asist-cli-inp','asist-cli-drop')" autocomplete="off">
+            <div class="drop" id="asist-cli-drop" style="display:none"></div>
+          </div>
+        </div>
+        <div class="fg full">
+          <label>Observaciones</label>
+          <input type="text" id="asist-obs" placeholder="Notas adicionales para el presupuesto">
+        </div>
+      </div>
+      <div class="flex-end" style="margin-top:8px">
+        <button class="btn btn-primary" style="padding:12px 28px;font-size:15px" onclick="asistGenerarPresupuesto()">
+          <i class="ti ti-file-description"></i> Generar presupuesto
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
 <div id="page-sueldos" class="page">
 
   <!-- Selector de mes -->
@@ -4744,6 +4962,7 @@ function showPage(id, el) {
   if (id === 'remitos')        { setTimeout(function(){ fbCargarRemitos(); }, 50); }
   if (id === 'agenda')         { setTimeout(function(){ fbCargarAgenda(); }, 50); }
   if (id === 'servicios')      { setTimeout(function(){ fbCargarServicios(); }, 50); }
+  if (id === 'asistente')      { setTimeout(function(){ document.getElementById('asist-inicio').style.display='';document.getElementById('asist-preguntas').style.display='none';document.getElementById('asist-resumen').style.display='none'; }, 50); }
   if (id === 'sueldos')        { setTimeout(function(){ renderModuloSueldos(); }, 100); }
   if (id === 'vacaciones')     { setTimeout(function(){ renderModuloVacaciones(); }, 100); }
   if (id === 'reportes')       { setTimeout(function(){ renderReportes(); }, 100); }
@@ -4820,7 +5039,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v10.6-firebase',
+  VERSION: 'v10.8-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6008,7 +6227,7 @@ function imprimirSeccion(pageId, titulo) {
   var w = window.open('','_blank','width=900,height=700');
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+titulo+'</title>' +
     '<style>body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:32px}' +
-    'table{border-collapse:collapse;width:100%}th,td{border:0.5px solid #ddd;padding:6px 10px;text-align:left}' +
+    'table{border-collapse:collapse;width:100%;max-width:100%;box-sizing:border-box}th,td{border:0.5px solid #ddd;padding:6px 10px;text-align:left}' +
     'th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}' +
     '.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #000}' +
     '.badge{padding:2px 8px;border-radius:10px;font-size:11px}h2{margin:0 0 4px}' +
@@ -7904,7 +8123,612 @@ function buscarGarantia(val) {
 }
 
 // ══════════════════════════════════════════════
-// MÓDULO SUELDOS
+// ASISTENTE DE VENTAS
+// ══════════════════════════════════════════════
+
+var ASIST_RUBROS = {
+  alarmas: {
+    nombre: 'Alarmas Garnet',
+    color:  '#d97706',
+    pasos: [
+      {
+        id: 'tipo_prop',
+        titulo: '¿Qué tipo de propiedad es?',
+        desc: 'Esto determina el panel más adecuado',
+        tipo: 'opciones',
+        opciones: [
+          { id:'residencial', ico:'🏠', titulo:'Residencial', desc:'Casa, departamento, PH' },
+          { id:'comercial',   ico:'🏢', titulo:'Comercial',   desc:'Local, oficina, negocio' },
+          { id:'industrial',  ico:'🏭', titulo:'Industrial',  desc:'Galpón, fábrica, depósito' }
+        ]
+      },
+      {
+        id: 'zonas',
+        titulo: '¿Cuántas zonas necesita proteger?',
+        desc: 'Cada zona es un sector independiente (habitación, local, puerta, etc.)',
+        tipo: 'numero',
+        min: 1, max: 64, default: 4,
+        label: 'zonas'
+      },
+      {
+        id: 'comunicacion',
+        titulo: '¿Cómo quiere recibir alertas?',
+        desc: 'El sistema puede avisar al celular cuando se activa la alarma',
+        tipo: 'opciones',
+        opciones: [
+          { id:'solo_sirena', ico:'🔊', titulo:'Solo sirena local',     desc:'Sin aviso remoto' },
+          { id:'gsm',         ico:'📱', titulo:'Por GSM / celular',     desc:'Llamadas o SMS al activarse' },
+          { id:'ip',          ico:'🌐', titulo:'Por App / Internet',    desc:'Notificación a la app' },
+          { id:'gsm_ip',      ico:'📡', titulo:'GSM + App combinado',  desc:'Máxima cobertura' }
+        ]
+      },
+      {
+        id: 'sensores',
+        titulo: '¿Qué tipo de detección necesita?',
+        desc: 'Podés combinar tipos según las áreas a proteger',
+        tipo: 'multi',
+        opciones: [
+          { id:'pir',      ico:'👁️',  titulo:'Movimiento PIR',         desc:'Detecta movimiento en interiores' },
+          { id:'mag',      ico:'🚪', titulo:'Magnéticos',              desc:'Puertas y ventanas' },
+          { id:'doble',    ico:'⚡', titulo:'Doble tecnología PIR+MW', desc:'Mayor precisión, menos falsas alarmas' },
+          { id:'exterior', ico:'🌳', titulo:'Detector exterior',       desc:'Perímetro, patio, jardín' }
+        ]
+      },
+      {
+        id: 'accesorios',
+        titulo: '¿Qué accesorios necesita?',
+        desc: 'Seleccioná los que apliquen',
+        tipo: 'multi',
+        opciones: [
+          { id:'sirena_ext',  ico:'📢', titulo:'Sirena exterior',    desc:'Visible desde la calle' },
+          { id:'sirena_int',  ico:'🔔', titulo:'Sirena interior',    desc:'Bocina interna' },
+          { id:'teclado',     ico:'⌨️',  titulo:'Teclado adicional', desc:'Segundo punto de control' },
+          { id:'bateria',     ico:'🔋', titulo:'Batería extra',      desc:'Mayor autonomía ante corte de luz' }
+        ]
+      }
+    ],
+    calcularProductos: calcularProductosAlarma
+  },
+
+  camaras: {
+    nombre: 'Cámaras Hikvision',
+    color: '#1d4ed8',
+    pasos: [
+      {
+        id: 'tipo_cam',
+        titulo: '¿Dónde van las cámaras?',
+        desc: 'Determina el tipo de cámara más adecuado',
+        tipo: 'opciones',
+        opciones: [
+          { id:'interior',  ico:'🏠', titulo:'Solo interiores',    desc:'Pasillos, halls, oficinas' },
+          { id:'exterior',  ico:'🌧️', titulo:'Solo exteriores',    desc:'Entradas, estacionamientos' },
+          { id:'mixto',     ico:'🔄', titulo:'Interior y exterior', desc:'Combinación de ambos' }
+        ]
+      },
+      {
+        id: 'cantidad_cam',
+        titulo: '¿Cuántas cámaras necesita?',
+        desc: 'Podés ajustar la cantidad después',
+        tipo: 'numero',
+        min: 1, max: 64, default: 4,
+        label: 'cámaras'
+      },
+      {
+        id: 'resolucion',
+        titulo: '¿Qué resolución necesita?',
+        desc: 'A mayor resolución, mejor imagen pero mayor almacenamiento',
+        tipo: 'opciones',
+        opciones: [
+          { id:'2mp',  ico:'📷', titulo:'2 MP — Full HD',    desc:'Ideal para uso residencial' },
+          { id:'4mp',  ico:'🔍', titulo:'4 MP — Ultra HD',   desc:'Comercios y oficinas' },
+          { id:'8mp',  ico:'🎯', titulo:'8 MP — 4K',         desc:'Máxima definición, uso profesional' }
+        ]
+      },
+      {
+        id: 'grabacion',
+        titulo: '¿Cuántos días de grabación necesita?',
+        desc: 'Determina el tamaño del disco duro del NVR/DVR',
+        tipo: 'opciones',
+        opciones: [
+          { id:'7dias',  ico:'📅', titulo:'7 días',  desc:'Uso básico residencial' },
+          { id:'15dias', ico:'🗓️', titulo:'15 días', desc:'Recomendado para comercios' },
+          { id:'30dias', ico:'📆', titulo:'30 días', desc:'Máxima cobertura' }
+        ]
+      },
+      {
+        id: 'acceso_remoto',
+        titulo: '¿Necesita ver las cámaras desde el celular?',
+        desc: 'Acceso remoto por app Hik-Connect',
+        tipo: 'opciones',
+        opciones: [
+          { id:'si',  ico:'📱', titulo:'Sí, desde el celular', desc:'App gratuita Hik-Connect' },
+          { id:'no',  ico:'🖥️', titulo:'Solo desde el monitor local', desc:'Sin acceso remoto' }
+        ]
+      }
+    ],
+    calcularProductos: calcularProductosCamaras
+  },
+
+  videoportero: {
+    nombre: 'Video portero Hikvision',
+    color: '#16a34a',
+    pasos: [
+      {
+        id: 'tipo_edif',
+        titulo: '¿Qué tipo de edificio es?',
+        desc: '',
+        tipo: 'opciones',
+        opciones: [
+          { id:'casa',      ico:'🏠', titulo:'Casa o PH',          desc:'1 unidad' },
+          { id:'edificio',  ico:'🏢', titulo:'Edificio',           desc:'Múltiples departamentos' },
+          { id:'countries', ico:'🏘️', titulo:'Barrio / Countries', desc:'Múltiples accesos' }
+        ]
+      },
+      {
+        id: 'cant_monitor',
+        titulo: '¿Cuántos monitores interiores necesita?',
+        desc: 'Un monitor por unidad o habitación donde atender el llamado',
+        tipo: 'numero',
+        min: 1, max: 32, default: 1,
+        label: 'monitores'
+      },
+      {
+        id: 'cant_panel',
+        titulo: '¿Cuántos paneles exteriores (botoneras) necesita?',
+        desc: 'Uno por puerta de acceso',
+        tipo: 'numero',
+        min: 1, max: 8, default: 1,
+        label: 'paneles exteriores'
+      },
+      {
+        id: 'apertura',
+        titulo: '¿Necesita abrir la puerta desde el monitor?',
+        desc: '',
+        tipo: 'opciones',
+        opciones: [
+          { id:'si',  ico:'🔓', titulo:'Sí, con cerradura eléctrica', desc:'Se incluye chapa eléctrica' },
+          { id:'no',  ico:'🚪', titulo:'Solo video y audio',           desc:'Sin apertura remota' }
+        ]
+      }
+    ],
+    calcularProductos: calcularProductosVideoportero
+  },
+
+  acceso: {
+    nombre: 'Control de acceso Hikvision',
+    color: '#9333ea',
+    pasos: [
+      {
+        id: 'tipo_acceso',
+        titulo: '¿Qué tipo de identificación necesita?',
+        desc: '',
+        tipo: 'opciones',
+        opciones: [
+          { id:'tarjeta',    ico:'💳', titulo:'Tarjeta / llavero RFID', desc:'Acceso con tarjeta de proximidad' },
+          { id:'huella',     ico:'👆', titulo:'Huella digital',          desc:'Acceso biométrico' },
+          { id:'facial',     ico:'😊', titulo:'Reconocimiento facial',   desc:'Máxima seguridad' },
+          { id:'combinado',  ico:'🔐', titulo:'Combinado',               desc:'Tarjeta + huella o PIN' }
+        ]
+      },
+      {
+        id: 'cant_lectores',
+        titulo: '¿Cuántos puntos de acceso necesita controlar?',
+        desc: 'Puertas, torniquetes, barreras',
+        tipo: 'numero',
+        min: 1, max: 32, default: 1,
+        label: 'lectores'
+      },
+      {
+        id: 'cant_usuarios',
+        titulo: '¿Cuántas personas van a usar el sistema?',
+        desc: 'Determina la capacidad del controlador',
+        tipo: 'opciones',
+        opciones: [
+          { id:'hasta50',    ico:'👥', titulo:'Hasta 50 personas',   desc:'Pequeña empresa' },
+          { id:'hasta200',   ico:'👨‍👩‍👧‍👦', titulo:'50 a 200 personas', desc:'Empresa mediana' },
+          { id:'mas200',     ico:'🏢', titulo:'Más de 200',          desc:'Gran empresa o edificio' }
+        ]
+      }
+    ],
+    calcularProductos: calcularProductosAcceso
+  },
+
+  redes: {
+    nombre: 'Redes TP-Link Omada',
+    color: '#0369a1',
+    pasos: [
+      {
+        id: 'tipo_red',
+        titulo: '¿Para qué es la red?',
+        desc: '',
+        tipo: 'opciones',
+        opciones: [
+          { id:'hogar',    ico:'🏠', titulo:'Hogar / residencial', desc:'Cobertura WiFi en la vivienda' },
+          { id:'empresa',  ico:'🏢', titulo:'Empresa / oficina',   desc:'Red corporativa con gestión' },
+          { id:'hotel',    ico:'🏨', titulo:'Hotel / alquiler',    desc:'Con portal cautivo y gestión de huéspedes' }
+        ]
+      },
+      {
+        id: 'superficie',
+        titulo: '¿Cuántos m² necesita cubrir?',
+        desc: 'Calculamos la cantidad de access points necesarios',
+        tipo: 'opciones',
+        opciones: [
+          { id:'hasta150',  ico:'🏠', titulo:'Hasta 150 m²',  desc:'1-2 access points' },
+          { id:'hasta300',  ico:'🏡', titulo:'150 a 300 m²',  desc:'2-3 access points' },
+          { id:'hasta600',  ico:'🏢', titulo:'300 a 600 m²',  desc:'3-5 access points' },
+          { id:'mas600',    ico:'🏭', titulo:'Más de 600 m²', desc:'6 o más — cotización especial' }
+        ]
+      },
+      {
+        id: 'usuarios_red',
+        titulo: '¿Cuántos dispositivos se conectan simultáneamente?',
+        desc: 'Celulares, computadoras, cámaras, etc.',
+        tipo: 'opciones',
+        opciones: [
+          { id:'hasta20',  ico:'📱', titulo:'Hasta 20',  desc:'Hogar o pequeña oficina' },
+          { id:'hasta50',  ico:'💻', titulo:'20 a 50',   desc:'Empresa mediana' },
+          { id:'mas50',    ico:'🖥️', titulo:'Más de 50', desc:'Red densa — equipos enterprise' }
+        ]
+      },
+      {
+        id: 'gestion',
+        titulo: '¿Necesita gestión centralizada?',
+        desc: 'Controller Omada para gestionar toda la red desde una sola pantalla',
+        tipo: 'opciones',
+        opciones: [
+          { id:'si',  ico:'🖥️', titulo:'Sí, con controller', desc:'Control centralizado de la red' },
+          { id:'no',  ico:'📡', titulo:'Solo access points',  desc:'Configuración independiente' }
+        ]
+      }
+    ],
+    calcularProductos: calcularProductosRedes
+  }
+};
+
+// ── Estado del asistente ──
+var asistState = {
+  rubro:    null,
+  paso:     0,
+  respuestas: {},
+  multiSel: []
+};
+
+function iniciarAsistente(rubro) {
+  asistState = { rubro: rubro, paso: 0, respuestas: {}, multiSel: [] };
+  document.getElementById('asist-inicio').style.display     = 'none';
+  document.getElementById('asist-preguntas').style.display  = '';
+  document.getElementById('asist-resumen').style.display    = 'none';
+  mostrarPaso();
+}
+
+function mostrarPaso() {
+  var cfg  = ASIST_RUBROS[asistState.rubro];
+  var paso = cfg.pasos[asistState.paso];
+  var total = cfg.pasos.length;
+
+  document.getElementById('asist-paso-label').textContent = 'Paso '+(asistState.paso+1)+' de '+total;
+  document.getElementById('asist-rubro-label').textContent = cfg.nombre;
+  document.getElementById('asist-progress-bar').style.width = ((asistState.paso)/total*100)+'%';
+  document.getElementById('asist-pregunta-titulo').textContent = paso.titulo;
+  document.getElementById('asist-pregunta-desc').textContent   = paso.desc||'';
+  document.getElementById('asist-input-num').style.display     = 'none';
+  document.getElementById('asist-opciones').style.display      = '';
+
+  if (paso.tipo === 'numero') {
+    document.getElementById('asist-opciones').style.display  = 'none';
+    document.getElementById('asist-input-num').style.display = '';
+    document.getElementById('asist-num-val').value = asistState.respuestas[paso.id] || paso.default || 1;
+    return;
+  }
+
+  asistState.multiSel = asistState.respuestas[paso.id] || [];
+  var html = paso.opciones.map(function(op) {
+    var sel = Array.isArray(asistState.multiSel) && asistState.multiSel.includes(op.id);
+    return '<button class="asist-opcion-btn'+(sel?' selected':'')+'" onclick="seleccionarOpcion(\''+op.id+'\',\''+paso.tipo+'\')">' +
+      '<span class="asist-opcion-ico">'+op.ico+'</span>' +
+      '<div style="flex:1"><div class="asist-opcion-titulo">'+op.titulo+'</div><div class="asist-opcion-desc">'+op.desc+'</div></div>' +
+      '<span class="asist-opcion-check"><i class="ti ti-check"></i></span>' +
+    '</button>';
+  }).join('');
+
+  if (paso.tipo === 'multi') {
+    html += '<button class="btn btn-primary" style="width:100%;margin-top:12px;padding:14px;font-size:15px" onclick="asistConfirmarMulti()">Continuar <i class="ti ti-arrow-right"></i></button>';
+  }
+  document.getElementById('asist-opciones').innerHTML = html;
+}
+
+function seleccionarOpcion(id, tipo) {
+  if (tipo === 'multi') {
+    var idx = asistState.multiSel.indexOf(id);
+    if (idx >= 0) asistState.multiSel.splice(idx,1);
+    else asistState.multiSel.push(id);
+    // Actualizar visual
+    document.querySelectorAll('.asist-opcion-btn').forEach(function(btn, i) {
+      var cfg  = ASIST_RUBROS[asistState.rubro];
+      var paso = cfg.pasos[asistState.paso];
+      var opId = paso.opciones[i] ? paso.opciones[i].id : null;
+      btn.classList.toggle('selected', asistState.multiSel.includes(opId));
+    });
+  } else {
+    // Selección única → avanza automáticamente
+    var cfg  = ASIST_RUBROS[asistState.rubro];
+    var paso = cfg.pasos[asistState.paso];
+    asistState.respuestas[paso.id] = id;
+    asistAvanzar();
+  }
+}
+
+function asistConfirmarMulti() {
+  var cfg  = ASIST_RUBROS[asistState.rubro];
+  var paso = cfg.pasos[asistState.paso];
+  if (!asistState.multiSel.length) { notify('Seleccioná al menos una opción'); return; }
+  asistState.respuestas[paso.id] = asistState.multiSel.slice();
+  asistAvanzar();
+}
+
+function asistAjustarNum(delta) {
+  var inp = document.getElementById('asist-num-val');
+  inp.value = Math.max(1, (parseInt(inp.value)||1) + delta);
+}
+
+function asistConfirmarNum() {
+  var cfg  = ASIST_RUBROS[asistState.rubro];
+  var paso = cfg.pasos[asistState.paso];
+  var val  = parseInt(document.getElementById('asist-num-val').value)||1;
+  asistState.respuestas[paso.id] = val;
+  asistAvanzar();
+}
+
+function asistAvanzar() {
+  var cfg = ASIST_RUBROS[asistState.rubro];
+  asistState.paso++;
+  if (asistState.paso >= cfg.pasos.length) {
+    mostrarResumenAsistente();
+  } else {
+    mostrarPaso();
+  }
+}
+
+function asistVolver() {
+  if (asistState.paso === 0) {
+    // Volver al inicio
+    document.getElementById('asist-inicio').style.display    = '';
+    document.getElementById('asist-preguntas').style.display = 'none';
+  } else {
+    asistState.paso--;
+    mostrarPaso();
+  }
+}
+
+function asistVolverAPreguntas() {
+  asistState.paso = ASIST_RUBROS[asistState.rubro].pasos.length - 1;
+  document.getElementById('asist-resumen').style.display    = 'none';
+  document.getElementById('asist-preguntas').style.display  = '';
+  mostrarPaso();
+}
+
+// ── CÁLCULO DE PRODUCTOS ──
+var asistProductosSel = [];
+
+function mostrarResumenAsistente() {
+  document.getElementById('asist-preguntas').style.display = 'none';
+  document.getElementById('asist-resumen').style.display   = '';
+  var cfg = ASIST_RUBROS[asistState.rubro];
+  document.getElementById('asist-res-titulo').textContent  = 'Sistema recomendado — '+cfg.nombre;
+  document.getElementById('asist-res-sub').textContent     = resumirRespuestas();
+  asistProductosSel = cfg.calcularProductos(asistState.respuestas);
+  renderProductosAsistente();
+}
+
+function resumirRespuestas() {
+  var partes = [];
+  Object.entries(asistState.respuestas).forEach(function(e) {
+    var v = Array.isArray(e[1]) ? e[1].join(', ') : e[1];
+    partes.push(v);
+  });
+  return partes.join(' · ');
+}
+
+function renderProductosAsistente() {
+  var cont  = document.getElementById('asist-productos-lista');
+  var total = 0;
+  cont.innerHTML = asistProductosSel.map(function(p, i) {
+    var sub = p.precio * p.qty;
+    total += sub;
+    return '<div class="asist-prod-row">' +
+      '<div class="asist-prod-info">' +
+        '<div class="asist-prod-nombre">'+escapeHTML(p.nombre)+'</div>' +
+        '<div class="asist-prod-sku">'+escapeHTML(p.sku||'')+'</div>' +
+      '</div>' +
+      '<div class="asist-qty">' +
+        '<button onclick="asistCambiarQty('+i+',-1)">−</button>' +
+        '<input type="number" value="'+p.qty+'" min="0" onchange="asistSetQty('+i+',this.value)" class="asist-qty-inp-'+i+'">' +
+        '<button onclick="asistCambiarQty('+i+',1)">+</button>' +
+      '</div>' +
+      '<div class="asist-prod-precio" style="margin-left:12px;min-width:80px;text-align:right">' +
+        '<div style="font-weight:600">$'+sub.toLocaleString('es-AR')+'</div>' +
+        '<div style="font-size:11px;color:var(--text3)">$'+p.precio.toLocaleString('es-AR')+' c/u</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('asist-total').textContent = '$'+total.toLocaleString('es-AR');
+}
+
+function asistCambiarQty(idx, delta) {
+  asistProductosSel[idx].qty = Math.max(0, (asistProductosSel[idx].qty||0) + delta);
+  renderProductosAsistente();
+}
+function asistSetQty(idx, val) {
+  asistProductosSel[idx].qty = Math.max(0, parseInt(val)||0);
+  renderProductosAsistente();
+}
+
+function asistGenerarPresupuesto() {
+  var cli    = document.getElementById('asist-cli-inp').value.trim();
+  var obs    = document.getElementById('asist-obs').value.trim();
+  var prods  = asistProductosSel.filter(function(p){ return p.qty>0; });
+  if (!prods.length) { notify('No hay productos en el sistema'); return; }
+
+  var total  = prods.reduce(function(s,p){ return s+p.precio*p.qty; },0);
+  var cfg    = ASIST_RUBROS[asistState.rubro];
+  var numPpto = 'PP-' + String((pptoData||[]).length + 1).padStart(4,'0');
+
+  var ppto = {
+    numero:      numPpto,
+    cliente:     cli || 'Sin especificar',
+    fecha:       new Date().toISOString().split('T')[0],
+    estado:      'borrador',
+    observaciones: obs || ('Generado por asistente: '+cfg.nombre),
+    items:       prods.map(function(p){ return { descripcion:p.nombre, qty:p.qty, precio:p.precio, sub:p.precio*p.qty }; }),
+    subtotal:    total,
+    total:       total,
+    ts:          Date.now(),
+    usuario:     currentUser||''
+  };
+
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  window.fbPush(window.fbRef(window.fbDB, FB_PATHS.presupuestos), ppto)
+    .then(function() {
+      notify('✓ Presupuesto '+numPpto+' creado — $'+total.toLocaleString('es-AR'));
+      // Volver al inicio del asistente
+      setTimeout(function() {
+        document.getElementById('asist-resumen').style.display  = 'none';
+        document.getElementById('asist-inicio').style.display   = '';
+        // Ir a ver el presupuesto
+        showPage('presupuesto', document.querySelector('[onclick*=presupuesto]'));
+      }, 1000);
+    })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+// ── LÓGICA DE PRODUCTOS POR RUBRO ──
+
+function buscarProductoEnDB(palabrasClave, qty) {
+  // Busca en prodData el producto que mejor coincida
+  var prods = prodData ? Object.values(prodData) : [];
+  var claves = palabrasClave.toLowerCase().split(' ');
+  var mejor = prods.find(function(p) {
+    var desc = (p.descripcion||p.nombre||'').toLowerCase();
+    return claves.every(function(c){ return desc.includes(c); });
+  });
+  if (mejor) {
+    return { nombre: mejor.descripcion||mejor.nombre, sku: mejor.codigo||mejor.id, precio: parseFloat(mejor.precioVenta||mejor.pv)||0, qty: qty };
+  }
+  return null;
+}
+
+function prod(nombre, sku, precio, qty) {
+  // Primero busca en la base de datos real, sino usa los valores de referencia
+  var enDB = buscarProductoEnDB(nombre, qty);
+  return enDB || { nombre: nombre, sku: sku, precio: precio, qty: qty };
+}
+
+function calcularProductosAlarma(r) {
+  var zonas = r.zonas || 4;
+  var lista = [];
+  // Panel según zonas
+  if (zonas <= 8)       lista.push(prod('Panel Garnet PG-380', 'PG-380',  85000, 1));
+  else if (zonas <= 16) lista.push(prod('Panel Garnet PG-380 A', 'PG-380A', 110000, 1));
+  else if (zonas <= 32) lista.push(prod('Panel Garnet PG-396', 'PG-396',  185000, 1));
+  else                  lista.push(prod('Panel Garnet PG-396 Plus', 'PG-396+', 220000, 1));
+  // Teclado
+  lista.push(prod('Teclado LCD Garnet KP-140', 'KP-140', 45000, 1));
+  // Comunicación
+  var com = r.comunicacion;
+  if (com==='gsm'||com==='gsm_ip')   lista.push(prod('Módulo GSM Garnet', 'GSM-MOD', 35000, 1));
+  if (com==='ip'||com==='gsm_ip')    lista.push(prod('Módulo IP Garnet', 'IP-MOD', 28000, 1));
+  // Sensores
+  var sens = r.sensores || ['pir'];
+  var cantPIR = 0, cantMag = 0;
+  if (sens.includes('pir'))      { cantPIR = Math.ceil(zonas*0.6); lista.push(prod('Sensor PIR Garnet 426i', '426i', 18000, Math.max(1,cantPIR))); }
+  if (sens.includes('mag'))      { cantMag = Math.ceil(zonas*0.4); lista.push(prod('Contacto magnético Garnet', 'MAG-01', 5500, Math.max(1,cantMag))); }
+  if (sens.includes('doble'))    lista.push(prod('Detector doble tec. Garnet DT', 'DT-200', 28000, Math.ceil(zonas*0.5)));
+  if (sens.includes('exterior')) lista.push(prod('Detector exterior Garnet', 'EXT-100', 35000, 2));
+  // Accesorios
+  var acc = r.accesorios || [];
+  if (acc.includes('sirena_ext')) lista.push(prod('Sirena exterior Garnet', 'SIR-EXT', 22000, 1));
+  if (acc.includes('sirena_int')) lista.push(prod('Sirena interior Garnet', 'SIR-INT', 12000, 1));
+  if (acc.includes('teclado'))    lista.push(prod('Teclado adicional KP-140', 'KP-140B', 45000, 1));
+  if (acc.includes('bateria'))    lista.push(prod('Batería 12V 7Ah', 'BAT-7A', 18000, 1));
+  // Fuente siempre
+  lista.push(prod('Fuente switching 2A Garnet', 'FTE-2A', 12000, 1));
+  return lista;
+}
+
+function calcularProductosCamaras(r) {
+  var cant = r.cantidad_cam || 4;
+  var lista = [];
+  // Cámara según resolución y lugar
+  var donde = r.tipo_cam;
+  var res   = r.resolucion;
+  if (res==='2mp') {
+    if (donde==='interior')  lista.push(prod('Cámara Hikvision DS-2CD2123G2-I 2MP domo', 'DS-2CD2123G2', 55000, cant));
+    else if (donde==='exterior') lista.push(prod('Cámara Hikvision DS-2CD2143G2-I 2MP bullet', 'DS-2CD2143G2', 65000, cant));
+    else { // mixto
+      lista.push(prod('Cámara Hikvision 2MP domo interior', 'DS-2CD2123G2', 55000, Math.ceil(cant/2)));
+      lista.push(prod('Cámara Hikvision 2MP bullet exterior', 'DS-2CD2143G2', 65000, Math.floor(cant/2)));
+    }
+  } else if (res==='4mp') {
+    lista.push(prod('Cámara Hikvision DS-2CD2143G2 4MP', 'DS-2CD2143G2-4', 85000, cant));
+  } else {
+    lista.push(prod('Cámara Hikvision DS-2CD2083G2 8MP 4K', 'DS-2CD2083G2', 135000, cant));
+  }
+  // NVR según cantidad
+  var chNVR = cant<=4?4:cant<=8?8:cant<=16?16:32;
+  // Disco según días
+  var gbPorCam = res==='8mp'?60:res==='4mp'?40:25;
+  var gbTotal  = gbPorCam * cant * (r.grabacion==='30dias'?30:r.grabacion==='15dias'?15:7);
+  var disco = gbTotal<=1000?'1TB':gbTotal<=2000?'2TB':'4TB';
+  lista.push(prod('NVR Hikvision '+chNVR+'ch DS-7'+chNVR+'NI-K1', 'NVR-'+chNVR, chNVR<=4?95000:chNVR<=8?130000:185000, 1));
+  lista.push(prod('Disco duro '+disco+' Seagate Skyhawk', 'HDD-'+disco, disco==='1TB'?45000:disco==='2TB'?75000:130000, 1));
+  if (r.acceso_remoto==='si') lista.push(prod('Switch PoE para cámaras 8 puertos', 'SW-POE8', 55000, 1));
+  lista.push(prod('Mouse USB', 'MOUSE-USB', 3500, 1));
+  return lista;
+}
+
+function calcularProductosVideoportero(r) {
+  var lista = [];
+  var monit = r.cant_monitor || 1;
+  var panel = r.cant_panel  || 1;
+  lista.push(prod('Panel exterior Hikvision DS-KD8003-IME1', 'DS-KD8003', 145000, panel));
+  lista.push(prod('Monitor interior Hikvision DS-KH6320-WTE1', 'DS-KH6320', 95000, monit));
+  if (r.apertura==='si') lista.push(prod('Chapa eléctrica 12V', 'CHAPA-12V', 28000, panel));
+  if (monit > 1 || panel > 1) lista.push(prod('Switch Hikvision PoE 4 puertos', 'SW-POE4', 35000, 1));
+  lista.push(prod('Fuente switching 2A', 'FTE-2A', 12000, 1));
+  return lista;
+}
+
+function calcularProductosAcceso(r) {
+  var lista = [];
+  var lectores = r.cant_lectores || 1;
+  var tipo = r.tipo_acceso;
+  if (tipo==='tarjeta')   lista.push(prod('Lector RFID Hikvision DS-K1T804MF', 'DS-K1T804MF', 65000, lectores));
+  else if (tipo==='huella') lista.push(prod('Lector huella Hikvision DS-K1T805MF', 'DS-K1T805MF', 95000, lectores));
+  else if (tipo==='facial') lista.push(prod('Terminal facial Hikvision DS-K1T341BMF', 'DS-K1T341', 280000, lectores));
+  else lista.push(prod('Terminal multi Hikvision DS-K1T805BMF', 'DS-K1T805BMF', 120000, lectores));
+  // Controlador
+  lista.push(prod('Controlador de acceso Hikvision DS-K2602G', 'DS-K2602G', 135000, Math.ceil(lectores/2)));
+  lista.push(prod('Chapa eléctrica 12V', 'CHAPA-12V', 28000, lectores));
+  lista.push(prod('Botón de salida', 'BOTON-SAL', 5500, lectores));
+  lista.push(prod('Fuente switching 3A', 'FTE-3A', 18000, Math.ceil(lectores/2)));
+  // Tarjetas o llaveros
+  var usuarios = r.cant_usuarios==='hasta50'?30:r.cant_usuarios==='hasta200'?100:200;
+  if (tipo==='tarjeta'||tipo==='combinado') lista.push(prod('Tarjetas RFID Mifare (pack x10)', 'RFID-10', 8500, Math.ceil(usuarios/10)));
+  return lista;
+}
+
+function calcularProductosRedes(r) {
+  var lista = [];
+  var cantAP = r.superficie==='hasta150'?1:r.superficie==='hasta300'?2:r.superficie==='hasta600'?4:6;
+  lista.push(prod('Access Point Omada EAP670 WiFi 6', 'EAP670', 95000, cantAP));
+  if (r.gestion==='si') {
+    lista.push(prod('Controller Omada OC200', 'OC200', 85000, 1));
+    lista.push(prod('Router Omada ER605', 'ER605', 110000, 1));
+  }
+  if (cantAP > 1) lista.push(prod('Switch PoE Omada TL-SG2210P 8 puertos', 'TL-SG2210P', 78000, Math.ceil(cantAP/8)));
+  return lista;
+}
 // ══════════════════════════════════════════════
 
 var CATEGORIAS_SUEL = {
