@@ -182,6 +182,16 @@ html{overflow-x:hidden;max-width:100vw}body{background:var(--bg);color:var(--tex
 .content{flex:1;overflow-y:auto;padding:24px}
 .content::-webkit-scrollbar{width:4px}
 .content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+/* Scrollbar sidebar */
+.s-nav::-webkit-scrollbar{width:3px}
+.s-nav::-webkit-scrollbar-track{background:transparent}
+.s-nav::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.s-nav::-webkit-scrollbar-thumb:hover{background:var(--border3)}
+/* Scrollbar global modo oscuro */
+body.dark-mode ::-webkit-scrollbar{width:4px;height:4px}
+body.dark-mode ::-webkit-scrollbar-track{background:transparent}
+body.dark-mode ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:4px}
+body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)}
 .page{display:none}
 .page.active{display:block}
 
@@ -225,12 +235,12 @@ tr:hover td{color:var(--text)}
 .b-purple{background:var(--purple-bg);color:var(--purple)}
 
 /* ── BAR CHART ── */
-.bar-area{display:flex;align-items:flex-end;gap:6px;height:80px;margin-top:4px}
-.bc{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1}
-.bar{width:100%;background:var(--bg4);border-radius:2px 2px 0 0;cursor:pointer;transition:background .12s}
+.bar-area{display:flex;align-items:flex-end;gap:6px;height:100px;margin-top:16px;padding:0 4px 0 4px}
+.bc{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
+.bar{width:100%;background:var(--bg4);border-radius:3px 3px 0 0;cursor:pointer;transition:background .15s;min-height:4px}
 .bar:hover,.bar.today{background:var(--text)}
-.bar-lbl{font-size:10px;color:var(--text3)}
-.bar-lbl.today{color:var(--text);font-weight:500}
+.bar-lbl{font-size:10px;color:var(--text3);white-space:nowrap}
+.bar-lbl.today{color:var(--text);font-weight:600}
 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--radius);font-size:13px;cursor:pointer;border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-family:inherit;transition:all .12s}
@@ -633,7 +643,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v9.7 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v9.9 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -830,14 +840,14 @@ tr:hover td{color:var(--text)}
         <div class="row2">
           <div class="card" style="margin-bottom:0">
             <div class="card-head"><span class="card-title">Ventas — últimos 7 días</span></div>
-            <div class="bar-area">
-              <div class="bc"><div class="bar" style="height:38px"></div><span class="bar-lbl">Lu</span></div>
-              <div class="bc"><div class="bar" style="height:52px"></div><span class="bar-lbl">Ma</span></div>
-              <div class="bc"><div class="bar" style="height:28px"></div><span class="bar-lbl">Mi</span></div>
-              <div class="bc"><div class="bar" style="height:62px"></div><span class="bar-lbl">Ju</span></div>
-              <div class="bc"><div class="bar" style="height:44px"></div><span class="bar-lbl">Vi</span></div>
-              <div class="bc"><div class="bar" style="height:18px"></div><span class="bar-lbl">Sa</span></div>
-              <div class="bc"><div class="bar today" style="height:60px"></div><span class="bar-lbl today">Hoy</span></div>
+            <div class="bar-area" id="dash-bar-area">
+              <div class="bc"><div class="bar" style="height:4px" id="bar-0"></div><span class="bar-lbl" id="blbl-0">—</span></div>
+              <div class="bc"><div class="bar" style="height:4px" id="bar-1"></div><span class="bar-lbl" id="blbl-1">—</span></div>
+              <div class="bc"><div class="bar" style="height:4px" id="bar-2"></div><span class="bar-lbl" id="blbl-2">—</span></div>
+              <div class="bc"><div class="bar" style="height:4px" id="bar-3"></div><span class="bar-lbl" id="blbl-3">—</span></div>
+              <div class="bc"><div class="bar" style="height:4px" id="bar-4"></div><span class="bar-lbl" id="blbl-4">—</span></div>
+              <div class="bc"><div class="bar" style="height:4px" id="bar-5"></div><span class="bar-lbl" id="blbl-5">—</span></div>
+              <div class="bc"><div class="bar today" style="height:4px" id="bar-6"></div><span class="bar-lbl today" id="blbl-6">Hoy</span></div>
             </div>
           </div>
           <div class="card" style="margin-bottom:0">
@@ -4514,7 +4524,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v9.7-firebase',
+  VERSION: 'v9.9-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8585,31 +8595,33 @@ function renderKPIsDashboard() {
   }
 
   // ── Gráfico barras últimos 7 días ──
-  var bars = document.querySelectorAll('.bar');
-  var labels = document.querySelectorAll('.bar-lbl');
-  if (bars.length) {
-    var dias7 = [];
-    for (var i = 6; i >= 0; i--) {
-      var d = new Date(Date.now() - i*86400000);
-      dias7.push(d.toISOString().slice(0,10));
+  var dias7 = [];
+  for (var i = 6; i >= 0; i--) {
+    var d = new Date(Date.now() - i*86400000);
+    dias7.push(d.toISOString().slice(0,10));
+  }
+  var maxVal = 0;
+  var totales = dias7.map(function(fecha) {
+    var t = ventas.filter(function(v){ return v.fecha === fecha; })
+      .reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
+    if (t > maxVal) maxVal = t;
+    return t;
+  });
+  var diaNombres = ['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
+  var maxPx = 88; // altura máxima de barra en px (dentro de 100px del área)
+  for (var j = 0; j < 7; j++) {
+    var barEl  = document.getElementById('bar-' + j);
+    var lblEl  = document.getElementById('blbl-' + j);
+    var alto   = maxVal > 0 ? Math.max(4, Math.round(totales[j]/maxVal*maxPx)) : 4;
+    var diaSem = new Date(dias7[j]).getDay();
+    var esHoy  = j === 6;
+    if (barEl) {
+      barEl.style.height = alto + 'px';
+      barEl.title = '$' + Math.round(totales[j]).toLocaleString('es-AR');
     }
-    var maxVal = 0;
-    var totales = dias7.map(function(fecha) {
-      var t = ventas.filter(function(v){ return v.fecha === fecha; })
-        .reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
-      if (t > maxVal) maxVal = t;
-      return t;
-    });
-    var diaNombres = ['Lu','Ma','Mi','Ju','Vi','Sa','Do'];
-    bars.forEach(function(bar, i) {
-      var pct = maxVal > 0 ? Math.round(totales[i]/maxVal*80)+4 : 4;
-      bar.style.height = pct + 'px';
-      bar.title = '$' + Math.round(totales[i]).toLocaleString('es-AR');
-      if (labels[i]) {
-        var d = new Date(dias7[i]);
-        labels[i].textContent = diaNombres[d.getDay() === 0 ? 6 : d.getDay()-1];
-      }
-    });
+    if (lblEl) {
+      lblEl.textContent = esHoy ? 'Hoy' : diaNombres[diaSem];
+    }
   }
 
   // ── Últimas ventas en dashboard ──
