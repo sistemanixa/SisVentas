@@ -12,112 +12,80 @@
 
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script>
-window.LOGIN_USUARIOS = [];
+// ══════════════════════════════════════════════
+// FUNCIONES DE LOGIN — ejecutan ANTES del HTML
+// ══════════════════════════════════════════════
 
 window.togglePassVis = function() {
   var inp = document.getElementById('l-pass');
   var ico = document.getElementById('ico-show-pass');
   if (!inp) return;
-  if (inp.type === 'password') { inp.type = 'text'; if (ico) ico.className = 'ti ti-eye-off'; }
-  else { inp.type = 'password'; if (ico) ico.className = 'ti ti-eye'; }
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    if (ico) ico.className = 'ti ti-eye-off';
+  } else {
+    inp.type = 'password';
+    if (ico) ico.className = 'ti ti-eye';
+  }
 };
 
-window.selUsuarioLogin = function(email) {
-  var inp = document.getElementById('l-user');
-  var drop = document.getElementById('login-sugerencias');
-  if (inp) inp.value = email;
-  if (drop) drop.style.display = 'none';
-  setTimeout(function(){ var p = document.getElementById('l-pass'); if (p) p.focus(); }, 50);
+window.iniciarLoginConFeedback = function() {
+  var btn = document.getElementById('btn-login');
+  var ico = document.getElementById('ico-login-btn');
+  var txt = document.getElementById('txt-login-btn');
+  var err = document.getElementById('login-error');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.8'; }
+  if (ico) { ico.className = 'ti ti-loader-2'; ico.style.animation = 'spin 1s linear infinite'; }
+  if (txt) txt.textContent = ' Verificando...';
+  if (err) err.style.display = 'none';
+  window.iniciarLogin();
 };
 
-window.mostrarSugerenciasLogin = function(inp) {
-  var drop = document.getElementById('login-sugerencias');
-  var lista = document.getElementById('login-sug-lista');
-  if (!drop || !lista) return;
-  var v = (inp ? inp.value : '').toLowerCase();
-  var usuarios = window.LOGIN_USUARIOS || [];
-
-  if (!usuarios.length) {
-    // Reintentar cuando carguen
-    setTimeout(function() {
-      var el = document.getElementById('l-user');
-      if (el && document.activeElement === el) window.mostrarSugerenciasLogin(el);
-    }, 1000);
-    drop.style.display = 'none';
-    return;
-  }
-
-  var matches = v
-    ? usuarios.filter(function(u){ return (u.email||'').toLowerCase().includes(v) || (u.nombre||'').toLowerCase().includes(v); })
-    : usuarios;
-
-  var extra = '';
-  if (v && !v.includes('@')) {
-    extra = '<div onclick="selUsuarioLogin(\''+v+'@sistemanixa.com\')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid #e0e0e0;background:#f5f5f5">' +
-      '<i class="ti ti-at" style="font-size:15px;color:#999;width:28px;text-align:center"></i>' +
-      '<span style="font-size:13px;color:#555">'+v+'<strong>@sistemanixa.com</strong></span></div>';
-  }
-
-  if (!matches.length && !extra) { drop.style.display = 'none'; return; }
-
-  lista.innerHTML = extra + matches.map(function(u){
-    var ini = (u.nombre || '?').charAt(0).toUpperCase();
-    return '<div onclick="selUsuarioLogin(\''+u.email+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:0.5px solid #eee" onmouseenter="this.style.background=\'#f5f5f5\'" onmouseleave="this.style.background=\'\'">' +
-      '<div style="width:30px;height:30px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">'+ini+'</div>' +
-      '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">'+u.nombre+'</div><div style="font-size:11px;color:#999">'+u.email+'</div></div>' +
-      '<span style="font-size:11px;padding:2px 7px;border-radius:10px;background:#eee;color:#777">'+u.rol+'</span>' +
-    '</div>';
-  }).join('');
-  drop.style.display = 'block';
+window._resetLoginBtn = function() {
+  var btn = document.getElementById('btn-login');
+  var ico = document.getElementById('ico-login-btn');
+  var txt = document.getElementById('txt-login-btn');
+  if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  if (ico) { ico.className = 'ti ti-login'; ico.style.animation = ''; }
+  if (txt) txt.textContent = ' Ingresar';
 };
 
 window.iniciarLogin = function() {
-  // Ocultar error previo
   var err = document.getElementById('login-error');
-  if (err) err.style.display = 'none';
-
-  // Si doLogin ya está lista, llamarla
-  if (typeof window.doLogin === 'function') { window.doLogin(); return; }
-
-  // Escuchar el evento firebase-ready
+  if (typeof window.doLogin === 'function') {
+    window.doLogin();
+    return;
+  }
+  var intentos = 0;
   var fired = false;
   var onReady = function() {
     if (fired) return;
     fired = true;
     document.removeEventListener('firebase-ready', onReady);
-    clearTimeout(fallback);
+    clearInterval(iv);
     if (typeof window.doLogin === 'function') window.doLogin();
   };
   document.addEventListener('firebase-ready', onReady);
-
-  // Fallback: reintentar hasta 15 segundos (mobile puede ser lento)
-  var intentos = 0;
   var iv = setInterval(function() {
     intentos++;
     if (typeof window.doLogin === 'function') {
       clearInterval(iv);
       if (!fired) { fired = true; document.removeEventListener('firebase-ready', onReady); window.doLogin(); }
-    } else if (intentos > 150) { // 150 × 100ms = 15 segundos
+    } else if (intentos > 150) {
       clearInterval(iv);
       if (!fired) {
         fired = true;
-        if (err) {
-          err.textContent = 'No se pudo conectar con Firebase. Verificá tu conexión e intentá de nuevo.';
-          err.style.display = 'block';
-        }
+        window._resetLoginBtn();
+        if (err) { err.textContent = 'No se pudo conectar. Recargá la página.'; err.style.display = 'block'; }
       }
     }
   }, 100);
-  var fallback = setTimeout(function(){}, 15000); // placeholder
 };
 
-// Cerrar dropdown al click fuera
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('#login-sugerencias') && e.target.id !== 'l-user') {
-    var d = document.getElementById('login-sugerencias');
-    if (d) d.style.display = 'none';
-  }
-});
+// Restaurar modo oscuro guardado
+try {
+  if (localStorage.getItem('nixa_dark') === '1') document.documentElement.classList.add('dark-mode');
+} catch(e) {}
 </script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -131,6 +99,17 @@ document.addEventListener('click', function(e) {
   --blue:#185fa5;--blue-bg:#e6f1fb;
   --purple:#4a3ab0;--purple-bg:#eeedfe;
   --radius:8px;--radius-lg:12px;--radius-xl:16px;
+}
+/* ── MODO OSCURO ── */
+body.dark-mode{
+  --bg:#0f1117;--bg2:#1a1d27;--bg3:#22263a;--bg4:#2c3148;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--border3:rgba(255,255,255,0.22);
+  --text:#e8e8e6;--text2:#9a9aa0;--text3:#5a5a65;
+  --green:#4ade80;--green-bg:rgba(74,222,128,0.12);
+  --amber:#fbbf24;--amber-bg:rgba(251,191,36,0.12);
+  --red:#f87171;--red-bg:rgba(248,113,113,0.12);
+  --blue:#60a5fa;--blue-bg:rgba(96,165,250,0.12);
+  --purple:#a78bfa;--purple-bg:rgba(167,139,250,0.12);
 }
 html{overflow-x:hidden;max-width:100vw}body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;height:100vh;overflow:hidden;max-width:100vw}
 
@@ -151,6 +130,8 @@ html{overflow-x:hidden;max-width:100vw}body{background:var(--bg);color:var(--tex
 .role-btn:hover{background:var(--bg3)}
 .role-btn.selected{background:var(--text);color:var(--bg2);border-color:var(--text)}
 .login-btn{width:100%;padding:11px;border-radius:var(--radius);border:none;background:var(--text);color:var(--bg2);font-size:14px;font-family:inherit;font-weight:500;cursor:pointer;transition:opacity .12s;display:flex;align-items:center;justify-content:center;gap:7px}
+.login-btn:disabled{cursor:not-allowed}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .login-btn:hover{opacity:.85}
 .login-hint{font-size:11px;color:var(--text3);text-align:center;margin-top:14px}
 .login-error{font-size:12px;color:var(--red);background:var(--red-bg);padding:8px 12px;border-radius:var(--radius);margin-bottom:14px;display:none}
@@ -636,13 +617,23 @@ tr:hover td{color:var(--text)}
 
 <div class="notif" id="notif"></div>
 
-<!-- ════════════ LOGIN ════════════ -->
+<!-- ════════ PANTALLA DE CARGA ════════ -->
+<div id="screen-loading" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:998;flex-direction:column;align-items:center;justify-content:center;gap:20px">
+  <div id="loading-logo" style="font-size:28px;font-weight:700;color:var(--text);letter-spacing:-1px">SisVentas</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+    <!-- Barra de progreso -->
+    <div style="width:200px;height:3px;background:var(--border);border-radius:3px;overflow:hidden">
+      <div id="loading-bar" style="height:3px;background:var(--green);border-radius:3px;width:0%;transition:width .4s ease"></div>
+    </div>
+    <div id="loading-msg" style="font-size:13px;color:var(--text3)">Conectando con Firebase...</div>
+  </div>
+</div>
 <div id="screen-login">
   <div class="login-box">
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v8.9 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v9.6 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -650,31 +641,27 @@ tr:hover td{color:var(--text)}
       <div style="position:relative">
         <input type="email" id="l-user" placeholder="usuario@sistemanixa.com"
           autocomplete="email" value=""
-          oninput="mostrarSugerenciasLogin(this)"
           onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()"
           style="width:100%;padding-right:36px;box-sizing:border-box">
         <i class="ti ti-at" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:15px;pointer-events:none"></i>
-        <div id="login-sugerencias" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:8px;z-index:50;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12)">
-          <div style="padding:6px 12px;font-size:11px;color:var(--text3);border-bottom:0.5px solid var(--border)">Usuarios del sistema</div>
-          <div id="login-sug-lista"></div>
-        </div>
       </div>
     </div>
     <div class="login-field">
       <label>Contraseña</label>
       <div style="position:relative">
         <input type="password" id="l-pass" placeholder="Contraseña" autocomplete="current-password"
-          onkeydown="if(event.key==='Enter')iniciarLogin()"
+          onkeydown="if(event.key==='Enter')window.iniciarLoginConFeedback()"
           style="width:100%;padding-right:40px;box-sizing:border-box">
-        <button type="button" onclick="togglePassVis()" 
+        <button type="button" onclick="window.togglePassVis()" 
           style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:4px"
           id="btn-show-pass">
           <i class="ti ti-eye" style="font-size:16px" id="ico-show-pass"></i>
         </button>
       </div>
     </div>
-    <button class="login-btn" onclick="iniciarLogin()">
-      <i class="ti ti-login" style="font-size:16px"></i> Ingresar
+    <button class="login-btn" id="btn-login" onclick="window.iniciarLoginConFeedback()">
+      <i class="ti ti-login" style="font-size:16px" id="ico-login-btn"></i>
+      <span id="txt-login-btn"> Ingresar</span>
     </button>
     
   </div>
@@ -3171,8 +3158,27 @@ tr:hover td{color:var(--text)}
 <script id="app-main">
 var fabOpen = false;
 
-// ── FUNCIONES DE LOGIN — definidas en <head> para disponibilidad inmediata ──
-// togglePassVis, iniciarLogin, mostrarSugerenciasLogin, selUsuarioLogin
+// ── MODO OSCURO ──
+function toggleDarkMode(on) {
+  document.body.classList.toggle('dark-mode', on);
+  try { localStorage.setItem('nixa_dark', on ? '1' : '0'); } catch(e){}
+  var ico = document.querySelector('#dark-mode-toggle');
+  if (ico) ico.checked = on;
+  // Actualizar ícono en topbar si existe
+  var tonicono = document.getElementById('dark-mode-icon');
+  if (tonicono) tonicono.className = on ? 'ti ti-sun' : 'ti ti-moon';
+}
+
+// Aplicar preferencia guardada al cargar
+(function() {
+  try {
+    var saved = localStorage.getItem('nixa_dark');
+    if (saved === '1') {
+      document.body.classList.add('dark-mode');
+      // El toggle se actualiza cuando el panel se abre
+    }
+  } catch(e) {}
+})();
 
 
 // ── SEARCHABLE SELECT ──
@@ -4498,28 +4504,7 @@ function applyRole() {
 
 
 // ── CARGAR USUARIOS PARA AUTOCOMPLETE DEL LOGIN (sin autenticación) ──
-function cargarUsuariosLogin() {
-  if (!window.fbDB) { setTimeout(cargarUsuariosLogin, 500); return; }
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios')).then(function(snap) {
-    var data = snap.val();
-    if (!data) return;
-    var rolLabels = {admin:'Admin',administrativo:'Administrativo',vendedor:'Vendedor',tecnico:'Técnico'};
-    // Asignar a window.LOGIN_USUARIOS dispara el setter que actualiza el dropdown
-    window.LOGIN_USUARIOS = Object.values(data)
-      .filter(function(u){ return u.activo !== false; })
-      .map(function(u){
-        return {
-          email:  u.mail || ((u.login||'').includes('@') ? u.login : (u.login||'')+'@sistemanixa.com'),
-          nombre: u.nombre || u.login || '',
-          rol:    rolLabels[(u.rol||'').toLowerCase()] || (u.rol||'')
-        };
-      });
-  }).catch(function(){
-    // Si falla Firebase (sin conexión), dejar el campo libre para tipear
-  });
-}
-// Ejecutar apenas Firebase esté disponible
-setTimeout(cargarUsuariosLogin, 600);
+// cargarUsuariosLogin eliminada
 
 
 // ── SUGERENCIAS DE LOGIN — definidas al inicio del script ──
@@ -4529,7 +4514,7 @@ setTimeout(cargarUsuariosLogin, 600);
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v8.9-firebase',
+  VERSION: 'v9.6-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4593,7 +4578,7 @@ var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
   producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'P. compra ($)',id:'np-pc',t:'number',ph:'0'},{l:'P. venta ($)',id:'np-pv',t:'number',ph:'0'}]},
   empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'select',opts:['Cat. 39 — Vendedor senior','Cat. 15 — Vendedor junior','Cat. 08 — Técnico instalador']},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
-  usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Usuario / Email',id:'nu-user',t:'text',ph:'nombre.apellido'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
+  usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
   proveedor: { title:'Nuevo proveedor', fields:[
     {l:'Nombre / Razón social',id:'npv-nm',t:'text',ph:'Razón social',full:true},
     {l:'Rubro',id:'npv-rub',t:'text',ph:'Ej: Alarmas, cámaras, domótica'},
@@ -4693,10 +4678,16 @@ window.doLogin = function doLogin() {
             return mailDB === emailLower;
           });
           if (!usuario) {
-            // No encontrado en DB: rol mínimo por defecto + aviso
-            currentRole = 'vendedor';
-            notify('⚠️ Usuario no encontrado en DB — contactá al administrador');
-            _completarLogin(cred.user.email.split('@')[0]);
+            // Verificar si es el email administrador principal del sistema
+            var esAdmin = emailLower === 'nixa@sistemanixa.com' ||
+                          emailLower.startsWith('admin@');
+            currentRole = esAdmin ? 'admin' : 'vendedor';
+            if (esAdmin) {
+              notify('⚠️ Ingresaste como Admin. Creá tu usuario en Usuarios → Nuevo usuario para quitar este aviso.');
+            } else {
+              notify('⚠️ Usuario no registrado en el sistema — rol limitado. Pedile al admin que te agregue.');
+            }
+            _completarLogin(cred.user.displayName || cred.user.email.split('@')[0]);
             return;
           }
           if (usuario.activo === false) {
@@ -4732,9 +4723,9 @@ window.doLogin = function doLogin() {
         }
       })
       .catch(function(fbError) {
+        if (typeof window._resetLoginBtn === 'function') window._resetLoginBtn();
         var code = fbError ? fbError.code : 'desconocido';
         var msg  = fbError ? fbError.message : '';
-        // Mostrar código de error para diagnóstico
         if(err) {
           err.textContent = 'Error: ' + code + (msg ? ' — ' + msg.slice(0,80) : '');
           err.style.display = 'block';
@@ -4756,8 +4747,18 @@ window.doLogin = function doLogin() {
 function _completarLogin(nombre) {
   currentUser = nombre;
   applyRole();
+
+  // Ocultar login, mostrar pantalla de carga
   document.getElementById('screen-login').style.display = 'none';
-  document.getElementById('screen-app').classList.add('visible');
+  var loadingEl = document.getElementById('screen-loading');
+  var bar       = document.getElementById('loading-bar');
+  var msg       = document.getElementById('loading-msg');
+  var logoEl    = document.getElementById('loading-logo');
+  if (loadingEl) loadingEl.style.display = 'flex';
+  if (logoEl && window.logoEmpresaUrl) {
+    logoEl.innerHTML = '<img src="'+window.logoEmpresaUrl+'" style="height:48px;object-fit:contain">';
+  }
+
   // Actualizar sidebar con nombre real
   var sname = document.getElementById('s-uname-el');
   if (sname) sname.textContent = nombre;
@@ -4769,14 +4770,47 @@ function _completarLogin(nombre) {
     var partes = nombre.split(' ');
     av.textContent = partes.length >= 2 ? (partes[0][0]+(partes[1][0]||'')).toUpperCase() : nombre.slice(0,2).toUpperCase();
   }
+
+  // Secuencia de carga con progreso
+  var pasos = [
+    { pct: 15, txt: 'Cargando clientes y productos...' },
+    { pct: 35, txt: 'Cargando ventas y presupuestos...' },
+    { pct: 55, txt: 'Cargando empleados y usuarios...' },
+    { pct: 75, txt: 'Cargando equipos e informes...' },
+    { pct: 90, txt: 'Preparando el dashboard...' },
+    { pct: 100, txt: '¡Listo!' },
+  ];
+  var paso = 0;
+  var iv = setInterval(function() {
+    if (paso < pasos.length) {
+      if (bar) bar.style.width = pasos[paso].pct + '%';
+      if (msg) msg.textContent = pasos[paso].txt;
+      paso++;
+    } else {
+      clearInterval(iv);
+    }
+  }, 400);
+
+  // Iniciar carga de datos
   if (typeof startSessionTimer === 'function') startSessionTimer();
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
-  if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 500);
-  if (typeof renderKPIsDashboard === 'function') setTimeout(renderKPIsDashboard, 1500);
-  if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 2000);
-  if (typeof actualizarFabYHome === 'function') setTimeout(function(){ actualizarFabYHome('dashboard'); }, 100);
-  setTimeout(function() { notify('Bienvenido, ' + nombre + '!'); }, 500);
+  if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 300);
+
+  // Mostrar app después de ~2.5 segundos (tiempo de carga de Firebase)
+  setTimeout(function() {
+    clearInterval(iv);
+    if (bar) bar.style.width = '100%';
+    if (msg) msg.textContent = '¡Listo!';
+    setTimeout(function() {
+      if (loadingEl) loadingEl.style.display = 'none';
+      document.getElementById('screen-app').classList.add('visible');
+      if (typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
+      if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 500);
+      if (typeof actualizarFabYHome === 'function') actualizarFabYHome('dashboard');
+      notify('Bienvenido, ' + nombre + '!');
+    }, 400);
+  }, 2600);
 }
 
 // selCli definida arriba con parámetros (id, nombre, dir)
@@ -5268,13 +5302,18 @@ function cerrarUserPanel() {
   if (overlay) overlay.style.display = 'none';
 }
 function actualizarPanelUsuario() {
-  const isAdmin = currentRole === 'admin';
-  const av = document.getElementById('up-avatar');
-  const nm = document.getElementById('up-name');
-  const rl = document.getElementById('up-role');
-  if (av) { av.className = 's-avatar ' + (isAdmin ? 'admin' : 'vendedor'); av.textContent = isAdmin ? 'GS' : 'VE'; }
+  var isAdmin = currentRole === 'admin';
+  var av = document.getElementById('up-avatar');
+  var nm = document.getElementById('up-name');
+  var rl = document.getElementById('up-role');
+  var iniciales = (currentUser||'Admin').split(' ').map(function(p){ return p[0]||''; }).slice(0,2).join('').toUpperCase() || 'AD';
+  if (av) { av.className = 's-avatar ' + (isAdmin ? 'admin' : 'vendedor'); av.textContent = iniciales; }
   if (nm) nm.textContent = currentUser || (isAdmin ? 'Admin' : 'Vendedor');
-  if (rl) rl.textContent = isAdmin ? 'Administrador' : 'Vendedor';
+  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  if (rl) rl.textContent = rolLabels[currentRole] || currentRole;
+  // Sincronizar toggle de modo oscuro
+  var toggle = document.getElementById('dark-mode-toggle');
+  if (toggle) toggle.checked = document.body.classList.contains('dark-mode');
 }
 function abrirCambiarPassword() {
   cerrarUserPanel();
@@ -5502,18 +5541,39 @@ function renderReportes() {
 function fbCargarServicios() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB,'sisventas/servicios'),function(snap){
-    var data=snap.val(); var lista=data?Object.entries(data).map(function(e){return Object.assign({fbKey:e[0]},e[1]);}).sort(function(a,b){return (b.ts||0)-(a.ts||0);}):[];
+    var data=snap.val();
+    var lista=data?Object.entries(data).map(function(e){return Object.assign({fbKey:e[0]},e[1]);}).sort(function(a,b){return (b.ts||0)-(a.ts||0);}):[];
     var tbody=document.querySelector('#page-servicios tbody');
     if(!tbody) return;
     var estCls={Finalizado:'b-green','En curso':'b-blue',Pendiente:'b-amber'};
-    tbody.innerHTML=lista.length?lista.map(function(s){return '<tr><td style="font-family:monospace;font-size:12px">'+escapeHTML(s.numero||'—')+'</td><td>'+escapeHTML(s.descripcion||'—')+'</td><td>'+escapeHTML(s.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(s.fecha||'—')+'</td><td>'+escapeHTML(s.tecnico||'—')+'</td><td style="text-align:right">'+escapeHTML(s.garantia||'—')+'</td><td style="text-align:right"><span class="badge '+(estCls[s.estado]||'b-blue')+'">'+escapeHTML(s.estado||'—')+'</span><button class="btn btn-sm btn-icon" onclick="eliminarRegistro('servicios',''+s.fbKey+'')" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:12px"></i></button></td></tr>';}).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin órdenes de servicio</td></tr>';
+    if (!lista.length) {
+      tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin órdenes de servicio</td></tr>';
+    } else {
+      var html = '';
+      lista.forEach(function(s) {
+        var cls = estCls[s.estado] || 'b-blue';
+        var fkey = s.fbKey || '';
+        html += '<tr>';
+        html += '<td style="font-family:monospace;font-size:12px">' + escapeHTML(s.numero||'—') + '</td>';
+        html += '<td>' + escapeHTML(s.descripcion||'—') + '</td>';
+        html += '<td>' + escapeHTML(s.cliente||'—') + '</td>';
+        html += '<td style="color:var(--text3)">' + escapeHTML(s.fecha||'—') + '</td>';
+        html += '<td>' + escapeHTML(s.tecnico||'—') + '</td>';
+        html += '<td style="text-align:right">' + escapeHTML(s.garantia||'—') + '</td>';
+        html += '<td style="text-align:right">';
+        html += '<span class="badge ' + cls + '">' + escapeHTML(s.estado||'—') + '</span>';
+        html += '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(' + "'" + 'servicios' + "'" + ',' + "'" + fkey + "'" + ')" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:12px"></i></button>';
+        html += '</td></tr>';
+      });
+      tbody.innerHTML = html;
+    }
     var _e=function(id){return document.getElementById(id);};
     if(_e('sv-encurso')) _e('sv-encurso').textContent=lista.filter(function(s){return s.estado==='En curso';}).length;
     if(_e('sv-fin')) _e('sv-fin').textContent=lista.filter(function(s){return s.estado==='Finalizado';}).length;
   });
 }
 
-// ── CAJA DIARIA desde Firebase ──
+
 function fbCargarCaja() {
   if (!window.fbDB) return;
   var hoy=new Date().toISOString().split('T')[0];
@@ -5704,11 +5764,9 @@ function imprimirVentaActual() {
     '</div></div>' +
 
     // Info cliente y estado
-    var estadoPago = document.querySelector('.vd-estado-pago, #vd-estado-badges .badge') ? 
-      (document.querySelector('.vd-estado-pago, #vd-estado-badges .badge')||{}).textContent || '—' : '—';
     '<div class="info-grid">' +
     '<div class="info-box"><div class="info-label">Cliente</div><div style="font-weight:600;font-size:14px">'+g('vd-cliente')+'</div></div>' +
-    '<div class="info-box"><div class="info-label">Estado pago</div><div style="font-weight:500">'+estadoPago+'</div></div>' +
+    '<div class="info-box"><div class="info-label">Estado pago</div><div style="font-weight:500">'+(document.querySelector('.vd-estado-pago, #vd-estado-badges .badge')||{}).textContent+'</div></div>' +
     '</div>' +
 
     // Tabla de productos
@@ -5963,10 +6021,11 @@ function guardarNuevoGenerico() {
   } else if (tipo === 'usuario') {
     var fbKeyUsu = window._modalFbKey;
     var rolMap = {'Administrador':'admin','Administrativo':'administrativo','Vendedor':'vendedor','Técnico':'tecnico'};
+    var login = (obj.user||'').replace('@sistemanixa.com','').replace(/\s/g,'').toLowerCase();
     var datosUsu = {
       nombre: obj.nm || '',
-      login:  obj.user || '',
-      mail:   obj.user && obj.user.includes('@') ? obj.user : (obj.user||'')+'@sistemanixa.com',
+      login:  login,
+      mail:   login + '@sistemanixa.com',
       rol:    rolMap[obj.rol] || 'administrativo',
       activo: (obj.activo||'Activo') !== 'Inactivo'
     };
@@ -9846,6 +9905,17 @@ function actualizarResumenStock() {
     <div class="up-item" onclick="abrirCambiarPassword()"><i class="ti ti-lock" style="font-size:15px"></i> Cambiar contraseña</div>
     <div class="up-item" onclick="showPage('usuarios',document.querySelector('[onclick*=usuarios]'));cerrarUserPanel()"><i class="ti ti-users-group" style="font-size:15px"></i> Gestión de usuarios</div>
     <div class="up-item" onclick="showPage('configuracion',document.querySelector('[onclick*=configuracion]'));cerrarUserPanel()"><i class="ti ti-settings" style="font-size:15px"></i> Configuración del sistema</div>
+    <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
+    <!-- Modo oscuro -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:var(--radius)">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)">
+        <i class="ti ti-moon" style="font-size:15px"></i> Modo oscuro
+      </div>
+      <label class="toggle-sw" title="Activar/desactivar modo oscuro">
+        <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode(this.checked)">
+        <span class="toggle-knob"></span>
+      </label>
+    </div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
     <div style="padding:6px 10px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Sesión</div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
