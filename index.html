@@ -652,7 +652,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.3 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.4 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -3673,53 +3673,84 @@ function fbCargarEmpleados() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/empleados'), function(snap) {
     var data = snap.val();
-    if (data) {
-      empData = {};
-      Object.entries(data).forEach(function(e, i) {
-        var emp = Object.assign({ fbKey: e[0] }, e[1]);
-        empData[i+1] = emp;
+    if (!data) { empData = {}; renderTablaEmpleados(); return; }
+
+    var todos = Object.entries(data).map(function(e) {
+      return Object.assign({ fbKey: e[0] }, e[1]);
+    });
+
+    // ── MIGRACIÓN: asignar legajo a empleados que no tienen ──
+    var conLegajo    = todos.filter(function(e){ return e.legajo; });
+    var sinLegajo    = todos.filter(function(e){ return !e.legajo; });
+    var maxLeg       = conLegajo.length ? Math.max.apply(null, conLegajo.map(function(e){ return parseInt(e.legajo)||0; })) : 0;
+    sinLegajo.sort(function(a,b){ return (a.ts||0)-(b.ts||0); }).forEach(function(e) {
+      maxLeg++;
+      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/'+e.fbKey), { legajo: maxLeg });
+      e.legajo = maxLeg;
+    });
+
+    // ── DEDUPLICAR: conservar solo el de legajo más bajo por nombre ──
+    var porNombre = {};
+    todos.forEach(function(e) {
+      var clave = (e.nombre||'').toLowerCase().trim().replace(/\s+/g,' ');
+      if (!porNombre[clave]) porNombre[clave] = [];
+      porNombre[clave].push(e);
+    });
+
+    empData = {};
+    Object.values(porNombre).forEach(function(grupo) {
+      grupo.sort(function(a,b){ return (parseInt(a.legajo)||99999)-(parseInt(b.legajo)||99999); });
+      var principal = grupo[0];
+      empData[principal.fbKey] = principal;
+    });
+
+    renderTablaEmpleados();
+
+    // Select empleados en venta
+    var selEmp = document.getElementById('venta-empleado');
+    if (selEmp) {
+      var opts = '<option value="">— Seleccionar empleado —</option>';
+      Object.values(empData).forEach(function(e) {
+        if (e.activo !== false) {
+          opts += '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+' (Leg. '+e.legajo+')</option>';
+        }
       });
-      renderTablaEmpleados();
-      // Llenar select de empleados en nueva venta
-      var selEmp = document.getElementById('venta-empleado');
-      if (selEmp) {
-        var opts = '<option value="">— Seleccionar empleado —</option>';
-        Object.values(empData).forEach(function(e) {
-          if (e.activo !== false) {
-            opts += '<option value="'+(e.id||e.fbKey)+'">'+e.nombre+' — Cat. '+e.categoria+'</option>';
-          }
-        });
-        selEmp.innerHTML = opts;
-      }
-      if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
+      selEmp.innerHTML = opts;
     }
+    if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
   });
 }
 
 function renderTablaEmpleados() {
   var tbody = document.getElementById('emp-tbody');
   if (!tbody) return;
-  var lista = Object.values(empData || {});
+  var busq = ((document.getElementById('emp-buscar')||{}).value||'').toLowerCase();
+  var lista = Object.values(empData||{}).filter(function(e){
+    return !busq || (e.nombre||'').toLowerCase().includes(busq) || String(e.legajo||'').includes(busq);
+  }).sort(function(a,b){ return (a.legajo||0)-(b.legajo||0); });
+
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(e) {
-    var catColor = e.categoria == 39 ? 'b-blue' : 'b-purple';
-    var estadoBadge = '<label class="toggle-sw" onclick="event.stopPropagation()" title="' + (e.activo !== false ? 'Activo' : 'Inactivo') + '"><input type="checkbox" ' + (e.activo !== false ? 'checked' : '') + ' onchange="event.stopPropagation();toggleActivoEmpleado(\'' + (e.fbKey||e.id) + '\',' + (e.activo !== false) + ')"><span class="toggle-knob"></span></label>';
-    return '<tr class="er" onclick="verEmpleado(' + (e.id||e.fbKey) + ')" style="cursor:pointer">' +
-      '<td>' + (e.id || '—') + '</td>' +
-      '<td>' + escapeHTML(e.nombre || '—') + '</td>' +
-      '<td><span class="badge ' + catColor + '">Cat. ' + (e.categoria||'—') + '</span></td>' +
-      '<td style="text-align:right">$' + (parseFloat(e.sueldoBase)||0).toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right;color:var(--green)">$' + (parseFloat(e.comisiones)||0).toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right;color:var(--amber)">' + (e.hextra ? '$'+(parseFloat(e.hextra)||0).toLocaleString('es-AR') : '—') + '</td>' +
-      '<td style="text-align:right;font-weight:500">$' + ((parseFloat(e.sueldoBase)||0)+(parseFloat(e.comisiones)||0)+(parseFloat(e.hextra)||0)).toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right">' + estadoBadge + '</td>' +
-      '<td style="white-space:nowrap">' +
-        '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();editarEmpleado(\'' + (e.fbKey||e.id) + '\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
-        '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();verEmpleado(' + (e.id||e.fbKey) + ')" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
-        '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();eliminarEmpleado(\'' + (e.fbKey||e.id) + '\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
+    var catLabel = e.cargo ? e.cargo.split('—')[0].trim() : ('Cat. '+(e.categoria||'—'));
+    var catColor = (e.categoria==39||String(e.cargo||'').includes('39')) ? 'b-blue' : (e.categoria==15||String(e.cargo||'').includes('15')) ? 'b-purple' : 'b-amber';
+    var estadoBadge = '<label class="toggle-sw" onclick="event.stopPropagation()" title="'+(e.activo!==false?'Activo — clic para dar de baja':'Inactivo — clic para reactivar')+'"><input type="checkbox" '+(e.activo!==false?'checked':'')+' onchange="event.stopPropagation();abrirModalEstadoEmpleado(\''+e.fbKey+'\','+(e.activo!==false)+')"><span class="toggle-knob"></span></label>';
+    var totalMes = (parseFloat(e.sueldoBase)||0)+(parseFloat(e.comisiones)||0)+(parseFloat(e.hextra)||0);
+    return '<tr class="er" style="cursor:pointer" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')">' +
+      '<td style="font-family:monospace;font-weight:600;color:var(--text3)">'+String(e.legajo||'—').padStart(4,'0')+'</td>' +
+      '<td style="font-weight:500">'+escapeHTML(e.nombre||'—')+'</td>' +
+      '<td><span class="badge '+catColor+'">'+escapeHTML(catLabel)+'</span></td>' +
+      '<td style="text-align:right">$'+(parseFloat(e.sueldoBase)||0).toLocaleString('es-AR')+'</td>' +
+      '<td style="text-align:right;color:var(--green)">$'+(parseFloat(e.comisiones)||0).toLocaleString('es-AR')+'</td>' +
+      '<td style="text-align:right;color:var(--amber)">'+(e.hextra?'$'+(parseFloat(e.hextra)||0).toLocaleString('es-AR'):'—')+'</td>' +
+      '<td style="text-align:right;font-weight:500">$'+totalMes.toLocaleString('es-AR')+'</td>' +
+      '<td style="text-align:right">'+estadoBadge+'</td>' +
+      '<td style="white-space:nowrap" onclick="event.stopPropagation()">' +
+        '<button class="btn btn-sm btn-icon" onclick="editarEmpleado(\''+e.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')" title="Ver legajo"><i class="ti ti-id-badge" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="eliminarEmpleado(\''+e.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
       '</td>' +
     '</tr>';
   }).join('');
@@ -4535,7 +4566,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v10.3-firebase',
+  VERSION: 'v10.4-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5987,14 +6018,19 @@ function guardarNuevoGenerico() {
       mail:      obj.em || '',
       dni:       obj.dni || '',
       categoria: obj.cargo ? (obj.cargo.includes('39') ? 39 : obj.cargo.includes('15') ? 15 : 8) : 39,
-      activo:    (obj.activo || 'Activo') !== 'Inactivo'
+      activo:    (obj.activo || 'Activo') !== 'Inactivo',
+      historial: [{ tipo:'alta', motivo:'Ingreso', fecha: new Date().toISOString().split('T')[0], usuario: currentUser||'' }]
     };
     if (!datosEmp.nombre.trim()) { notify('Ingresá nombre y apellido'); return; }
     if (window.fbDB) {
+      // Calcular próximo número de legajo
+      var legajos = Object.values(empData||{}).map(function(e){ return parseInt(e.legajo)||0; });
+      var maxLeg = legajos.length ? Math.max.apply(null, legajos) : 0;
+      datosEmp.legajo = maxLeg + 1;
       var promesaEmp = fbKeyEmp
         ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKeyEmp), datosEmp)
         : (datosEmp.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/empleados'), datosEmp));
-      promesaEmp.then(function(){ notify(fbKeyEmp ? 'Empleado actualizado' : 'Empleado guardado'); })
+      promesaEmp.then(function(){ notify(fbKeyEmp ? 'Empleado actualizado' : 'Empleado guardado — Legajo N° '+datosEmp.legajo); })
                .catch(function(e){ notify('Error: '+e.message); });
     } else { notify('Sin conexión'); }
 
@@ -7620,11 +7656,111 @@ function toggleActivoCliente(cid) {
     .then(function(){ notify(nuevoEstado ? 'Cliente activado' : 'Cliente dado de baja'); });
 }
 
-function toggleActivoEmpleado(fbKey, estadoActual) {
+function abrirModalEstadoEmpleado(fbKey, estadoActual) {
+  var emp = Object.values(empData||{}).find(function(e){ return e.fbKey===fbKey; });
+  if (!emp) return;
+  var estaActivo = estadoActual;
+  var titulo = estaActivo ? 'Dar de baja: '+escapeHTML(emp.nombre) : 'Reactivar: '+escapeHTML(emp.nombre);
+  var motivos = estaActivo
+    ? ['Renuncia','Despido','Licencia','Suspensión','Jubilación','Fin de contrato','Otro']
+    : ['Reingreso','Fin de licencia','Recontratación','Otro'];
+
+  var html = '<div style="display:flex;flex-direction:column;gap:14px">' +
+    '<div class="fg"><label>Motivo</label><select id="emp-estado-motivo" style="width:100%">' +
+    motivos.map(function(m){ return '<option>'+m+'</option>'; }).join('') +
+    '</select></div>' +
+    '<div class="fg"><label>Fecha</label><input type="date" id="emp-estado-fecha" value="'+new Date().toISOString().split('T')[0]+'" style="width:100%"></div>' +
+    '<div class="fg"><label>Observaciones (opcional)</label><textarea id="emp-estado-obs" rows="2" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);box-sizing:border-box"></textarea></div>' +
+  '</div>';
+
+  // Usar modal genérico de confirmación
+  var modal = document.getElementById('modal-nuevo');
+  var modalTitle = document.getElementById('modal-nuevo-title');
+  var modalBody  = document.getElementById('modal-nuevo-body');
+  if (!modal || !modalTitle || !modalBody) return;
+  modalTitle.textContent = titulo;
+  modalBody.innerHTML = html;
+  // Cambiar el botón guardar
+  var btnGuardar = modal.querySelector('.btn-primary');
+  if (btnGuardar) {
+    btnGuardar.textContent = estaActivo ? 'Confirmar baja' : 'Confirmar alta';
+    btnGuardar.onclick = function() {
+      var motivo = document.getElementById('emp-estado-motivo').value;
+      var fecha  = document.getElementById('emp-estado-fecha').value;
+      var obs    = document.getElementById('emp-estado-obs').value;
+      confirmarEstadoEmpleado(fbKey, !estaActivo, motivo, fecha, obs);
+      modal.classList.remove('open');
+    };
+  }
+  modal.classList.add('open');
+}
+
+function confirmarEstadoEmpleado(fbKey, nuevoEstado, motivo, fecha, obs) {
   if (!window.fbDB) return;
-  var nuevoEstado = !estadoActual;
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKey), { activo: nuevoEstado })
-    .then(function(){ notify(nuevoEstado ? 'Empleado reactivado' : 'Empleado dado de baja'); });
+  var emp = Object.values(empData||{}).find(function(e){ return e.fbKey===fbKey; });
+  if (!emp) return;
+  var entrada = {
+    tipo:   nuevoEstado ? 'alta' : 'baja',
+    motivo: motivo,
+    fecha:  fecha,
+    obs:    obs || '',
+    usuario: currentUser || ''
+  };
+  var historial = emp.historial ? Object.values(emp.historial) : [];
+  historial.push(entrada);
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/'+fbKey), {
+    activo:    nuevoEstado,
+    historial: historial
+  }).then(function(){
+    notify(nuevoEstado ? '✓ '+emp.nombre+' reactivado' : '✓ '+emp.nombre+' dado de baja ('+motivo+')');
+  });
+}
+
+function toggleActivoEmpleado(fbKey, estadoActual) {
+  abrirModalEstadoEmpleado(fbKey, estadoActual);
+}
+
+function abrirLegajoEmpleado(fbKey) {
+  var emp = Object.values(empData||{}).find(function(e){ return e.fbKey===fbKey; });
+  if (!emp) return;
+  var historial = emp.historial ? Object.values(emp.historial).sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); }) : [];
+  var tipoIcon = { alta:'🟢', baja:'🔴', licencia:'🟡' };
+  var htmlHist = historial.length
+    ? historial.map(function(h){
+        return '<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border)">' +
+          '<span style="font-size:16px">'+(tipoIcon[h.tipo]||'📋')+'</span>' +
+          '<div><div style="font-size:13px;font-weight:500;text-transform:capitalize">'+escapeHTML(h.tipo)+'</div>' +
+          '<div style="font-size:12px;color:var(--text3)">'+escapeHTML(h.fecha||'—')+' · '+escapeHTML(h.motivo||'—')+'</div>' +
+          (h.obs?'<div style="font-size:12px;color:var(--text3);margin-top:2px">'+escapeHTML(h.obs)+'</div>':'') +
+          '<div style="font-size:11px;color:var(--text3);margin-top:2px">Registrado por: '+escapeHTML(h.usuario||'Sistema')+'</div>' +
+          '</div></div>';
+      }).join('')
+    : '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin movimientos registrados</div>';
+
+  var estadoColor = emp.activo !== false ? 'var(--green)' : 'var(--red)';
+  var estadoTxt   = emp.activo !== false ? 'Activo' : 'Inactivo';
+  var modal = document.getElementById('modal-nuevo');
+  var modalTitle = document.getElementById('modal-nuevo-title');
+  var modalBody  = document.getElementById('modal-nuevo-body');
+  if (!modal) return;
+  modalTitle.textContent = 'Legajo N° ' + String(emp.legajo||'—').padStart(4,'0') + ' — ' + emp.nombre;
+  modalBody.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">DNI</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.dni||'—')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Cargo</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.cargo||'—')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Teléfono</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.telefono||emp.tel||'—')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Estado</div><div style="font-size:14px;font-weight:600;margin-top:2px;color:'+estadoColor+'">'+estadoTxt+'</div></div>' +
+    '</div>' +
+    '<div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Historial de altas y bajas</div>' +
+    htmlHist +
+    '<div style="margin-top:16px;display:flex;gap:8px">' +
+      '<button class="btn btn-sm btn-primary" onclick="editarEmpleado(\''+fbKey+'\');document.getElementById(\'modal-nuevo\').classList.remove(\'open\')"><i class="ti ti-edit"></i> Editar datos</button>' +
+      '<button class="btn btn-sm" onclick="abrirModalEstadoEmpleado(\''+fbKey+'\','+(emp.activo!==false)+');"><i class="ti ti-refresh"></i> Cambiar estado</button>' +
+    '</div>';
+  // Ocultar botón guardar genérico
+  var btnGuardar = modal.querySelector('.btn-primary[onclick*="guardarNuevo"]');
+  if (btnGuardar) btnGuardar.style.display = 'none';
+  modal.classList.add('open');
 }
 
 function editarEmpleado(fbKey) {
