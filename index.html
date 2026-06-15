@@ -652,7 +652,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.1 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v10.3 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4367,17 +4367,17 @@ document.addEventListener('firebase-ready', function() {
 
 // ── LOGOUT ──
 function doLogout() {
-  // Cerrar sesión en Firebase si está disponible
+  if (!confirm('¿Cerrar sesión?')) return;
   if (window.fbAuth && window.fbSignOut) {
-    window.fbSignOut(window.fbAuth)
-      .then(function() { console.log('[Firebase] Sesión cerrada'); })
-      .catch(function(e) { console.log('[Firebase] Error logout:', e); });
+    window.fbSignOut(window.fbAuth).catch(function(){});
   }
-  // Limpiar estado local
   isAuthenticated = false;
   currentRole = 'admin';
   if (typeof stopSessionTimer === 'function') stopSessionTimer();
   if (typeof cerrarUserPanel === 'function') cerrarUserPanel();
+  // Ocultar pantalla de carga si quedó visible
+  var loading = document.getElementById('screen-loading');
+  if (loading) loading.style.display = 'none';
   // Volver al login
   document.getElementById('screen-app').classList.remove('visible');
   document.getElementById('screen-login').style.display = '';
@@ -4388,6 +4388,8 @@ function doLogout() {
   if (lp) lp.value = '';
   var err = document.getElementById('login-error');
   if (err) err.style.display = 'none';
+  // Restablecer botón Ingresar
+  if (typeof window._resetLoginBtn === 'function') window._resetLoginBtn();
   notify('Sesión cerrada');
 }
 
@@ -4533,7 +4535,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v10.1-firebase',
+  VERSION: 'v10.3-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6140,54 +6142,41 @@ function guardarLogoEmpresa() {
   if (!_logoFileEmpresa) return;
   var status = document.getElementById('cfg-logo-status');
   if (status) status.textContent = 'Guardando...';
-  // Siempre convertir a base64 — más confiable que Storage para un logo pequeño
+
   var reader = new FileReader();
   reader.onload = function(e) {
     var base64 = e.target.result;
     window.logoEmpresaUrl = base64;
-    // Guardar en Realtime DB (base64, max 500KB está bien)
-    var guardarEnDB = function() {
-      if (window.fbDB) {
-        window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/logoUrl'), base64)
-          .then(function() {
-            if (status) status.textContent = 'Logo guardado correctamente';
-            document.getElementById('cfg-logo-save-btn').style.display = 'none';
-            document.getElementById('cfg-logo-delete-btn').style.display = '';
-            if (document.getElementById('cfg-logo-img')) {
-              document.getElementById('cfg-logo-img').style.opacity = '1';
-            }
-            notify('Logo guardado ✓');
-          })
-          .catch(function(err) {
-            // Si falla Realtime DB, guardar en localStorage como backup
-            try { localStorage.setItem('nixa_logo', base64); } catch(ex) {}
-            if (status) status.textContent = 'Guardado localmente (sin conexión a DB)';
-            document.getElementById('cfg-logo-save-btn').style.display = 'none';
-            document.getElementById('cfg-logo-delete-btn').style.display = '';
-            notify('Logo guardado localmente');
-          });
-      } else {
-        // Sin Firebase, solo localStorage
-        try { localStorage.setItem('nixa_logo', base64); } catch(ex) {}
-        if (status) status.textContent = 'Guardado localmente';
-        document.getElementById('cfg-logo-save-btn').style.display = 'none';
-        document.getElementById('cfg-logo-delete-btn').style.display = '';
-        notify('Logo guardado');
-      }
+
+    var onOk = function() {
+      if (status) status.textContent = 'Logo guardado ✓';
+      var saveBtn = document.getElementById('cfg-logo-save-btn');
+      var delBtn  = document.getElementById('cfg-logo-delete-btn');
+      var img     = document.getElementById('cfg-logo-img');
+      if (saveBtn) saveBtn.style.display = 'none';
+      if (delBtn)  delBtn.style.display  = '';
+      if (img)     img.style.opacity     = '1';
+      notify('Logo guardado ✓');
     };
-    // Intentar también subir a Storage para tenerlo como respaldo
-    if (window.fbStorage && window.fbStorageRef && window.fbUploadBytes) {
-      var storRef = window.fbStorageRef(window.fbStorage, 'sisventas/config/logo_empresa');
-      window.fbUploadBytes(storRef, _logoFileEmpresa)
-        .then(function() { guardarEnDB(); })
-        .catch(function() { guardarEnDB(); }); // Si falla Storage igual guarda en DB
+
+    // Guardar en Realtime DB directamente — sin Storage
+    if (window.fbDB && window.fbSet && window.fbRef) {
+      window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/logoUrl'), base64)
+        .then(onOk)
+        .catch(function(err) {
+          // Fallback localStorage
+          try { localStorage.setItem('nixa_logo', base64); } catch(ex) {}
+          if (status) status.textContent = 'Guardado localmente';
+          onOk();
+        });
     } else {
-      guardarEnDB();
+      // Sin Firebase
+      try { localStorage.setItem('nixa_logo', base64); } catch(ex) {}
+      onOk();
     }
   };
   reader.onerror = function() {
     if (status) status.textContent = 'Error al leer el archivo';
-    notify('Error al leer el archivo');
   };
   reader.readAsDataURL(_logoFileEmpresa);
 }
