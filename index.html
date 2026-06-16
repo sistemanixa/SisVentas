@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v15.4 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v15.6 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1760,7 +1760,7 @@ tr:hover td{color:var(--text)}
           <div class="card">
             <div class="card-head"><span class="card-title">Historial de movimientos</span></div>
             <table id="cc-movimientos">
-              <tr><th >Fecha</th><th>Concepto</th><th >Tipo</th><th style="text-align:right">Importe</th><th style="text-align:right">Saldo</th></tr>
+              <tr><th>Fecha</th><th>Concepto</th><th style="text-align:right">Debe</th><th style="text-align:right">Haber</th><th style="text-align:right">Saldo</th></tr>
             </table>
           </div>
         </div>
@@ -3178,37 +3178,37 @@ tr:hover td{color:var(--text)}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;max-width:700px;margin:0 auto">
 
       <button class="asist-rubro-btn" onclick="iniciarAsistente('alarmas')">
-        <div class="asist-rubro-ico" style="background:#fef3c7;color:#d97706">🚨</div>
+        <div class="asist-rubro-ico" style="background:#fef3c7;color:#d97706"><i class="ti ti-shield-check"></i></div>
         <div class="asist-rubro-label">Alarmas</div>
         <div class="asist-rubro-marca">By Garnet</div>
       </button>
 
       <button class="asist-rubro-btn" onclick="iniciarAsistente('camaras')">
-        <div class="asist-rubro-ico" style="background:#dbeafe;color:#1d4ed8">📷</div>
+        <div class="asist-rubro-ico" style="background:#dbeafe;color:#1d4ed8"><i class="ti ti-camera"></i></div>
         <div class="asist-rubro-label">Cámaras</div>
         <div class="asist-rubro-marca">By Hikvision</div>
       </button>
 
       <button class="asist-rubro-btn" onclick="iniciarAsistente('videoportero')">
-        <div class="asist-rubro-ico" style="background:#f0fdf4;color:#16a34a">🔔</div>
+        <div class="asist-rubro-ico" style="background:#f0fdf4;color:#16a34a"><i class="ti ti-door"></i></div>
         <div class="asist-rubro-label">Video portero</div>
         <div class="asist-rubro-marca">By Hikvision</div>
       </button>
 
       <button class="asist-rubro-btn" onclick="iniciarAsistente('acceso')">
-        <div class="asist-rubro-ico" style="background:#fdf4ff;color:#9333ea">🔐</div>
+        <div class="asist-rubro-ico" style="background:#fdf4ff;color:#9333ea"><i class="ti ti-fingerprint"></i></div>
         <div class="asist-rubro-label">Control acceso</div>
         <div class="asist-rubro-marca">By Hikvision</div>
       </button>
 
       <button class="asist-rubro-btn" onclick="iniciarAsistente('domotica')">
-        <div class="asist-rubro-ico" style="background:#fdf2f8;color:#be185d">🏠</div>
+        <div class="asist-rubro-ico" style="background:#fdf2f8;color:#be185d"><i class="ti ti-smart-home"></i></div>
         <div class="asist-rubro-label">Domótica</div>
         <div class="asist-rubro-marca">By Sonoff</div>
       </button>
 
       <button class="asist-rubro-btn" onclick="iniciarAsistente('redes')">
-        <div class="asist-rubro-ico" style="background:#eff6ff;color:#0369a1">📡</div>
+        <div class="asist-rubro-ico" style="background:#eff6ff;color:#0369a1"><i class="ti ti-router"></i></div>
         <div class="asist-rubro-label">Redes</div>
         <div class="asist-rubro-marca">By TP-Link Omada</div>
       </button>
@@ -5036,7 +5036,7 @@ var notifT;
 // ── SHOW PAGE (navegación principal) ──
 var PERMISOS_DEFAULT = {
   admin:          { bloqueados: [] },
-  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad'] },
+  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad','sueldos'] },
   vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','cuentacorriente'] },
   tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas'] }
 };
@@ -5208,7 +5208,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v15.4-firebase',
+  VERSION: 'v15.6-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6131,23 +6131,73 @@ function closeSidebarMobile() {
 
 function buscarCC(v) { document.querySelectorAll('.ccrow').forEach(tr=>tr.style.display=tr.textContent.toLowerCase().includes(v.toLowerCase())?'':'none'); }
 // ccData movido al inicio
-function verCuentaCliente(nombre) {
-  const d=ccData[nombre]; if(!d)return;
-  const card=document.querySelector('#page-cuentacorriente .card');
-  const metrics=document.querySelector('#page-cuentacorriente .metrics');
-  card.style.display='none'; metrics.style.display='none';
+function verCuentaClienteReal(nombre) {
+  var d = (window._ccMapActual || {})[nombre];
+  if (!d) { notify('Cliente sin datos de cuenta corriente'); return; }
+  var card = document.querySelector('#page-cuentacorriente .card');
+  var metrics = document.querySelector('#page-cuentacorriente .metrics');
+  if (card) card.style.display = 'none';
+  if (metrics) metrics.style.display = 'none';
   _block('cc-detail');
-  _set('cc-avatar',d.initials);
-  _set('cc-nombre',nombre);
-  document.getElementById('cc-estado-lbl').innerHTML = d.estado;
-  _set('cc-saldo-lbl','Saldo: '+d.saldo);
-  _set('cc-total',d.total);
-  _set('cc-cobrado',d.cobrado);
-  const saldoEl=document.getElementById('cc-saldo'); saldoEl.textContent=d.saldo; saldoEl.style.color=d.saldoColor;
-  const card2=document.getElementById('cc-saldo-card'); card2.style.background=d.saldoColor==='var(--red)'?'var(--red-bg)':d.saldoColor==='var(--amber)'?'var(--amber-bg)':'var(--bg3)';
-  const tbody=document.getElementById('cc-movimientos').querySelector('tbody')||document.getElementById('cc-movimientos');
-  const rows=d.movs.map(m=>`<tr><td >${m.fecha}</td><td>${m.concepto}</td><td><span class="badge ${m.tipo==='Pago'?'b-green':'b-blue'}">${m.tipo}</span></td><td style="text-align:right;color:${m.tipo==='Pago'?'var(--green)':'var(--text2)'};font-weight:${m.tipo==='Pago'?'500':'400'}">${m.importe}</td><td style="text-align:right;font-weight:500">${m.saldo}</td></tr>`).join('');
-  document.getElementById('cc-movimientos').innerHTML = `<tr><th >Fecha</th><th>Concepto</th><th >Tipo</th><th style="text-align:right">Importe</th><th style="text-align:right">Saldo</th></tr>${rows}`;
+
+  var saldo = d.total - d.cobrado;
+  var initials = nombre.split(' ').filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase() || '—';
+  _set('cc-avatar', initials);
+  _set('cc-nombre', nombre);
+  document.getElementById('cc-estado-lbl').innerHTML = saldo > 0 ? '<span class="badge b-amber">Pendiente</span>' : '<span class="badge b-green">Al día</span>';
+  _set('cc-saldo-lbl', 'Saldo: $' + Math.round(saldo).toLocaleString('es-AR'));
+  _set('cc-total', '$' + Math.round(d.total).toLocaleString('es-AR'));
+  _set('cc-cobrado', '$' + Math.round(d.cobrado).toLocaleString('es-AR'));
+  var saldoEl = document.getElementById('cc-saldo');
+  saldoEl.textContent = '$' + Math.round(saldo).toLocaleString('es-AR');
+  saldoEl.style.color = saldo > 0 ? 'var(--amber)' : 'var(--text3)';
+  var card2 = document.getElementById('cc-saldo-card');
+  card2.style.background = saldo > 0 ? 'var(--amber-bg)' : 'var(--bg3)';
+
+  // ── Armar extracto cronológico: ventas (Debe) + pagos (Haber), ordenado por fecha, saldo corrido ──
+  var movs = [];
+  (ventasList||[]).filter(function(v){ return v.cliente === nombre; }).forEach(function(v) {
+    movs.push({
+      fecha: v.fecha || '',
+      concepto: 'Venta ' + (v.id||v.fbKey||''),
+      tipo: 'Venta',
+      debe: parseFloat(v.total)||0,
+      haber: 0,
+      ts: v.ts || new Date(v.fecha||0).getTime() || 0
+    });
+  });
+  (window._pagosListaActual||[]).filter(function(p){ return p.cliente === nombre; }).forEach(function(p) {
+    movs.push({
+      fecha: p.fecha || '',
+      concepto: 'Pago' + (p.venta ? ' — ' + p.venta : '') + (p.medio ? ' (' + p.medio + ')' : ''),
+      tipo: 'Pago',
+      debe: 0,
+      haber: parseFloat(p.monto)||0,
+      ts: p.ts || new Date(p.fecha||0).getTime() || 0
+    });
+  });
+  movs.sort(function(a,b){ return a.ts - b.ts; });
+
+  var saldoCorrido = 0;
+  var rows = movs.map(function(m) {
+    saldoCorrido += m.debe - m.haber;
+    return '<tr>' +
+      '<td>' + escapeHTML(m.fecha) + '</td>' +
+      '<td>' + escapeHTML(m.concepto) + '</td>' +
+      '<td style="text-align:right">' + (m.debe ? '$'+Math.round(m.debe).toLocaleString('es-AR') : '—') + '</td>' +
+      '<td style="text-align:right;color:var(--green)">' + (m.haber ? '$'+Math.round(m.haber).toLocaleString('es-AR') : '—') + '</td>' +
+      '<td style="text-align:right;font-weight:500">$' + Math.round(saldoCorrido).toLocaleString('es-AR') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  document.getElementById('cc-movimientos').innerHTML =
+    '<tr><th>Fecha</th><th>Concepto</th><th style="text-align:right">Debe</th><th style="text-align:right">Haber</th><th style="text-align:right">Saldo</th></tr>' +
+    (rows || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sin movimientos registrados</td></tr>');
+}
+
+// Mantenida por compatibilidad si algo viejo todavía la referencia
+function verCuentaCliente(nombre) {
+  verCuentaClienteReal(nombre);
 }
 
 // ── EMPLEADOS ──
@@ -6405,12 +6455,14 @@ function fbCargarPagos() {
       else ccMap[v.cliente].cobrado += parseFloat(v.totalPagado||0);
     });
     lista.forEach(function(p){ if(ccMap[p.cliente]) ccMap[p.cliente].ultimoPago=p.fecha||'—'; });
+    window._ccMapActual = ccMap;
+    window._pagosListaActual = lista;
     var ccTbody = document.getElementById('cc-tbody');
     if (ccTbody) {
       var ccLista = Object.entries(ccMap).filter(function(e){ return e[1].total>0; }).sort(function(a,b){ return (b[1].total-b[1].cobrado)-(a[1].total-a[1].cobrado); });
       ccTbody.innerHTML = ccLista.length ? ccLista.map(function(e){
         var nom=e[0],d=e[1]; var saldo=d.total-d.cobrado;
-        return '<tr><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td></td></tr>';
+        return '<tr class="ccrow" style="cursor:pointer" onclick="verCuentaClienteReal(\''+escapeHTML(nom).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
       var totalDeuda=ccLista.reduce(function(s,e){return s+(e[1].total-e[1].cobrado>0?e[1].total-e[1].cobrado:0);},0);
       var conSaldo=ccLista.filter(function(e){return e[1].total-e[1].cobrado>0;}).length;
@@ -8775,9 +8827,9 @@ var ASIST_RUBROS = {
         desc: 'Esto determina el panel más adecuado',
         tipo: 'opciones',
         opciones: [
-          { id:'residencial', ico:'🏠', titulo:'Residencial', desc:'Casa, departamento, PH' },
-          { id:'comercial',   ico:'🏢', titulo:'Comercial',   desc:'Local, oficina, negocio' },
-          { id:'industrial',  ico:'🏭', titulo:'Industrial',  desc:'Galpón, fábrica, depósito' }
+          { id:'residencial', ico:'ti-home', titulo:'Residencial', desc:'Casa, departamento, PH' },
+          { id:'comercial',   ico:'ti-building', titulo:'Comercial',   desc:'Local, oficina, negocio' },
+          { id:'industrial',  ico:'ti-building-factory-2', titulo:'Industrial',  desc:'Galpón, fábrica, depósito' }
         ]
       },
       {
@@ -8794,10 +8846,10 @@ var ASIST_RUBROS = {
         desc: 'El sistema puede avisar al celular cuando se activa la alarma',
         tipo: 'opciones',
         opciones: [
-          { id:'solo_sirena', ico:'🔊', titulo:'Solo sirena local',     desc:'Sin aviso remoto' },
-          { id:'gsm',         ico:'📱', titulo:'Por GSM / celular',     desc:'Llamadas o SMS al activarse' },
-          { id:'ip',          ico:'🌐', titulo:'Por App / Internet',    desc:'Notificación a la app' },
-          { id:'gsm_ip',      ico:'📡', titulo:'GSM + App combinado',  desc:'Máxima cobertura' }
+          { id:'solo_sirena', ico:'ti-volume', titulo:'Solo sirena local',     desc:'Sin aviso remoto' },
+          { id:'gsm',         ico:'ti-device-mobile', titulo:'Por GSM / celular',     desc:'Llamadas o SMS al activarse' },
+          { id:'ip',          ico:'ti-world', titulo:'Por App / Internet',    desc:'Notificación a la app' },
+          { id:'gsm_ip',      ico:'ti-broadcast', titulo:'GSM + App combinado',  desc:'Máxima cobertura' }
         ]
       },
       {
@@ -8806,10 +8858,10 @@ var ASIST_RUBROS = {
         desc: 'Podés combinar tipos según las áreas a proteger',
         tipo: 'multi',
         opciones: [
-          { id:'pir',      ico:'👁️',  titulo:'Movimiento PIR',         desc:'Detecta movimiento en interiores' },
-          { id:'mag',      ico:'🚪', titulo:'Magnéticos',              desc:'Puertas y ventanas' },
-          { id:'doble',    ico:'⚡', titulo:'Doble tecnología PIR+MW', desc:'Mayor precisión, menos falsas alarmas' },
-          { id:'exterior', ico:'🌳', titulo:'Detector exterior',       desc:'Perímetro, patio, jardín' }
+          { id:'pir',      ico:'ti-eye',  titulo:'Movimiento PIR',         desc:'Detecta movimiento en interiores' },
+          { id:'mag',      ico:'ti-door', titulo:'Magnéticos',              desc:'Puertas y ventanas' },
+          { id:'doble',    ico:'ti-bolt', titulo:'Doble tecnología PIR+MW', desc:'Mayor precisión, menos falsas alarmas' },
+          { id:'exterior', ico:'ti-tree', titulo:'Detector exterior',       desc:'Perímetro, patio, jardín' }
         ]
       },
       {
@@ -8818,10 +8870,10 @@ var ASIST_RUBROS = {
         desc: 'Seleccioná los que apliquen',
         tipo: 'multi',
         opciones: [
-          { id:'sirena_ext',  ico:'📢', titulo:'Sirena exterior',    desc:'Visible desde la calle' },
-          { id:'sirena_int',  ico:'🔔', titulo:'Sirena interior',    desc:'Bocina interna' },
-          { id:'teclado',     ico:'⌨️',  titulo:'Teclado adicional', desc:'Segundo punto de control' },
-          { id:'bateria',     ico:'🔋', titulo:'Batería extra',      desc:'Mayor autonomía ante corte de luz' }
+          { id:'sirena_ext',  ico:'ti-speakerphone', titulo:'Sirena exterior',    desc:'Visible desde la calle' },
+          { id:'sirena_int',  ico:'ti-bell', titulo:'Sirena interior',    desc:'Bocina interna' },
+          { id:'teclado',     ico:'ti-keyboard',  titulo:'Teclado adicional', desc:'Segundo punto de control' },
+          { id:'bateria',     ico:'ti-battery', titulo:'Batería extra',      desc:'Mayor autonomía ante corte de luz' }
         ]
       }
     ],
@@ -8838,9 +8890,9 @@ var ASIST_RUBROS = {
         desc: 'Determina el tipo de cámara más adecuado',
         tipo: 'opciones',
         opciones: [
-          { id:'interior',  ico:'🏠', titulo:'Solo interiores',    desc:'Pasillos, halls, oficinas' },
-          { id:'exterior',  ico:'🌧️', titulo:'Solo exteriores',    desc:'Entradas, estacionamientos' },
-          { id:'mixto',     ico:'🔄', titulo:'Interior y exterior', desc:'Combinación de ambos' }
+          { id:'interior',  ico:'ti-home', titulo:'Solo interiores',    desc:'Pasillos, halls, oficinas' },
+          { id:'exterior',  ico:'ti-cloud-rain', titulo:'Solo exteriores',    desc:'Entradas, estacionamientos' },
+          { id:'mixto',     ico:'ti-refresh', titulo:'Interior y exterior', desc:'Combinación de ambos' }
         ]
       },
       {
@@ -8857,9 +8909,9 @@ var ASIST_RUBROS = {
         desc: 'A mayor resolución, mejor imagen pero mayor almacenamiento',
         tipo: 'opciones',
         opciones: [
-          { id:'2mp',  ico:'📷', titulo:'2 MP — Full HD',    desc:'Ideal para uso residencial' },
-          { id:'4mp',  ico:'🔍', titulo:'4 MP — Ultra HD',   desc:'Comercios y oficinas' },
-          { id:'8mp',  ico:'🎯', titulo:'8 MP — 4K',         desc:'Máxima definición, uso profesional' }
+          { id:'2mp',  ico:'ti-camera', titulo:'2 MP — Full HD',    desc:'Ideal para uso residencial' },
+          { id:'4mp',  ico:'ti-search', titulo:'4 MP — Ultra HD',   desc:'Comercios y oficinas' },
+          { id:'8mp',  ico:'ti-target', titulo:'8 MP — 4K',         desc:'Máxima definición, uso profesional' }
         ]
       },
       {
@@ -8868,9 +8920,9 @@ var ASIST_RUBROS = {
         desc: 'Determina el tamaño del disco duro del NVR/DVR',
         tipo: 'opciones',
         opciones: [
-          { id:'7dias',  ico:'📅', titulo:'7 días',  desc:'Uso básico residencial' },
-          { id:'15dias', ico:'🗓️', titulo:'15 días', desc:'Recomendado para comercios' },
-          { id:'30dias', ico:'📆', titulo:'30 días', desc:'Máxima cobertura' }
+          { id:'7dias',  ico:'ti-calendar', titulo:'7 días',  desc:'Uso básico residencial' },
+          { id:'15dias', ico:'ti-calendar-stats', titulo:'15 días', desc:'Recomendado para comercios' },
+          { id:'30dias', ico:'ti-calendar-event', titulo:'30 días', desc:'Máxima cobertura' }
         ]
       },
       {
@@ -8879,8 +8931,8 @@ var ASIST_RUBROS = {
         desc: 'Acceso remoto por app Hik-Connect',
         tipo: 'opciones',
         opciones: [
-          { id:'si',  ico:'📱', titulo:'Sí, desde el celular', desc:'App gratuita Hik-Connect' },
-          { id:'no',  ico:'🖥️', titulo:'Solo desde el monitor local', desc:'Sin acceso remoto' }
+          { id:'si',  ico:'ti-device-mobile', titulo:'Sí, desde el celular', desc:'App gratuita Hik-Connect' },
+          { id:'no',  ico:'ti-device-desktop', titulo:'Solo desde el monitor local', desc:'Sin acceso remoto' }
         ]
       }
     ],
@@ -8897,9 +8949,9 @@ var ASIST_RUBROS = {
         desc: '',
         tipo: 'opciones',
         opciones: [
-          { id:'casa',      ico:'🏠', titulo:'Casa o PH',          desc:'1 unidad' },
-          { id:'edificio',  ico:'🏢', titulo:'Edificio',           desc:'Múltiples departamentos' },
-          { id:'countries', ico:'🏘️', titulo:'Barrio / Countries', desc:'Múltiples accesos' }
+          { id:'casa',      ico:'ti-home', titulo:'Casa o PH',          desc:'1 unidad' },
+          { id:'edificio',  ico:'ti-building', titulo:'Edificio',           desc:'Múltiples departamentos' },
+          { id:'countries', ico:'ti-buildings', titulo:'Barrio / Countries', desc:'Múltiples accesos' }
         ]
       },
       {
@@ -8924,8 +8976,8 @@ var ASIST_RUBROS = {
         desc: '',
         tipo: 'opciones',
         opciones: [
-          { id:'si',  ico:'🔓', titulo:'Sí, con cerradura eléctrica', desc:'Se incluye chapa eléctrica' },
-          { id:'no',  ico:'🚪', titulo:'Solo video y audio',           desc:'Sin apertura remota' }
+          { id:'si',  ico:'ti-lock-open', titulo:'Sí, con cerradura eléctrica', desc:'Se incluye chapa eléctrica' },
+          { id:'no',  ico:'ti-door', titulo:'Solo video y audio',           desc:'Sin apertura remota' }
         ]
       }
     ],
@@ -8942,10 +8994,10 @@ var ASIST_RUBROS = {
         desc: '',
         tipo: 'opciones',
         opciones: [
-          { id:'tarjeta',    ico:'💳', titulo:'Tarjeta / llavero RFID', desc:'Acceso con tarjeta de proximidad' },
-          { id:'huella',     ico:'👆', titulo:'Huella digital',          desc:'Acceso biométrico' },
-          { id:'facial',     ico:'😊', titulo:'Reconocimiento facial',   desc:'Máxima seguridad' },
-          { id:'combinado',  ico:'🔐', titulo:'Combinado',               desc:'Tarjeta + huella o PIN' }
+          { id:'tarjeta',    ico:'ti-credit-card', titulo:'Tarjeta / llavero RFID', desc:'Acceso con tarjeta de proximidad' },
+          { id:'huella',     ico:'ti-hand-click', titulo:'Huella digital',          desc:'Acceso biométrico' },
+          { id:'facial',     ico:'ti-mood-smile', titulo:'Reconocimiento facial',   desc:'Máxima seguridad' },
+          { id:'combinado',  ico:'ti-lock', titulo:'Combinado',               desc:'Tarjeta + huella o PIN' }
         ]
       },
       {
@@ -8962,9 +9014,9 @@ var ASIST_RUBROS = {
         desc: 'Determina la capacidad del controlador',
         tipo: 'opciones',
         opciones: [
-          { id:'hasta50',    ico:'👥', titulo:'Hasta 50 personas',   desc:'Pequeña empresa' },
-          { id:'hasta200',   ico:'👨‍👩‍👧‍👦', titulo:'50 a 200 personas', desc:'Empresa mediana' },
-          { id:'mas200',     ico:'🏢', titulo:'Más de 200',          desc:'Gran empresa o edificio' }
+          { id:'hasta50',    ico:'ti-users', titulo:'Hasta 50 personas',   desc:'Pequeña empresa' },
+          { id:'hasta200',   ico:'ti-users-group', titulo:'50 a 200 personas', desc:'Empresa mediana' },
+          { id:'mas200',     ico:'ti-building', titulo:'Más de 200',          desc:'Gran empresa o edificio' }
         ]
       }
     ],
@@ -8981,12 +9033,12 @@ var ASIST_RUBROS = {
         desc: 'Podés seleccionar más de una opción',
         tipo: 'multi',
         opciones: [
-          { id:'luces',      ico:'💡', titulo:'Iluminación',         desc:'Encender/apagar y regular luces' },
-          { id:'persianas',  ico:'🪟', titulo:'Persianas / cortinas', desc:'Control motorizado de aberturas' },
-          { id:'enchufes',   ico:'🔌', titulo:'Enchufes inteligentes', desc:'Control de aparatos por app' },
-          { id:'clima',      ico:'❄️',  titulo:'Aire acondicionado',  desc:'Control remoto del AC' },
-          { id:'puertas',    ico:'🚪', titulo:'Puertas / cerraduras', desc:'Apertura remota' },
-          { id:'sensores',   ico:'👁️',  titulo:'Sensores ambiente',   desc:'Temperatura, humedad, movimiento' }
+          { id:'luces',      ico:'ti-bulb', titulo:'Iluminación',         desc:'Encender/apagar y regular luces' },
+          { id:'persianas',  ico:'ti-window', titulo:'Persianas / cortinas', desc:'Control motorizado de aberturas' },
+          { id:'enchufes',   ico:'ti-plug', titulo:'Enchufes inteligentes', desc:'Control de aparatos por app' },
+          { id:'clima',      ico:'ti-snowflake',  titulo:'Aire acondicionado',  desc:'Control remoto del AC' },
+          { id:'puertas',    ico:'ti-door', titulo:'Puertas / cerraduras', desc:'Apertura remota' },
+          { id:'sensores',   ico:'ti-eye',  titulo:'Sensores ambiente',   desc:'Temperatura, humedad, movimiento' }
         ]
       },
       {
@@ -9003,9 +9055,9 @@ var ASIST_RUBROS = {
         desc: '',
         tipo: 'opciones',
         opciones: [
-          { id:'wifi',  ico:'📱', titulo:'Solo por app (eWeLink)',     desc:'Control desde el celular' },
-          { id:'voz',   ico:'🗣️', titulo:'App + voz (Alexa/Google)', desc:'Con asistente de voz' },
-          { id:'local', ico:'🖥️', titulo:'App + control local (iHost)', desc:'Funciona sin internet con Sonoff iHost' }
+          { id:'wifi',  ico:'ti-device-mobile', titulo:'Solo por app (eWeLink)',     desc:'Control desde el celular' },
+          { id:'voz',   ico:'ti-microphone', titulo:'App + voz (Alexa/Google)', desc:'Con asistente de voz' },
+          { id:'local', ico:'ti-device-desktop', titulo:'App + control local (iHost)', desc:'Funciona sin internet con Sonoff iHost' }
         ]
       },
       {
@@ -9014,9 +9066,9 @@ var ASIST_RUBROS = {
         desc: '',
         tipo: 'opciones',
         opciones: [
-          { id:'residencial', ico:'🏠', titulo:'Residencial',  desc:'Casa, departamento' },
-          { id:'comercial',   ico:'🏢', titulo:'Comercial',    desc:'Local u oficina' },
-          { id:'nuevo',       ico:'🔨', titulo:'Construcción nueva', desc:'Con obra en curso, cableado nuevo' }
+          { id:'residencial', ico:'ti-home', titulo:'Residencial',  desc:'Casa, departamento' },
+          { id:'comercial',   ico:'ti-building', titulo:'Comercial',    desc:'Local u oficina' },
+          { id:'nuevo',       ico:'ti-hammer', titulo:'Construcción nueva', desc:'Con obra en curso, cableado nuevo' }
         ]
       }
     ],
@@ -9033,9 +9085,9 @@ var ASIST_RUBROS = {
         desc: '',
         tipo: 'opciones',
         opciones: [
-          { id:'hogar',    ico:'🏠', titulo:'Hogar / residencial', desc:'Cobertura WiFi en la vivienda' },
-          { id:'empresa',  ico:'🏢', titulo:'Empresa / oficina',   desc:'Red corporativa con gestión' },
-          { id:'hotel',    ico:'🏨', titulo:'Hotel / alquiler',    desc:'Con portal cautivo y gestión de huéspedes' }
+          { id:'hogar',    ico:'ti-home', titulo:'Hogar / residencial', desc:'Cobertura WiFi en la vivienda' },
+          { id:'empresa',  ico:'ti-building', titulo:'Empresa / oficina',   desc:'Red corporativa con gestión' },
+          { id:'hotel',    ico:'ti-building-skyscraper', titulo:'Hotel / alquiler',    desc:'Con portal cautivo y gestión de huéspedes' }
         ]
       },
       {
@@ -9044,10 +9096,10 @@ var ASIST_RUBROS = {
         desc: 'Calculamos la cantidad de access points necesarios',
         tipo: 'opciones',
         opciones: [
-          { id:'hasta150',  ico:'🏠', titulo:'Hasta 150 m²',  desc:'1-2 access points' },
-          { id:'hasta300',  ico:'🏡', titulo:'150 a 300 m²',  desc:'2-3 access points' },
-          { id:'hasta600',  ico:'🏢', titulo:'300 a 600 m²',  desc:'3-5 access points' },
-          { id:'mas600',    ico:'🏭', titulo:'Más de 600 m²', desc:'6 o más — cotización especial' }
+          { id:'hasta150',  ico:'ti-home', titulo:'Hasta 150 m²',  desc:'1-2 access points' },
+          { id:'hasta300',  ico:'ti-home-2', titulo:'150 a 300 m²',  desc:'2-3 access points' },
+          { id:'hasta600',  ico:'ti-building', titulo:'300 a 600 m²',  desc:'3-5 access points' },
+          { id:'mas600',    ico:'ti-building-factory-2', titulo:'Más de 600 m²', desc:'6 o más — cotización especial' }
         ]
       },
       {
@@ -9056,9 +9108,9 @@ var ASIST_RUBROS = {
         desc: 'Celulares, computadoras, cámaras, etc.',
         tipo: 'opciones',
         opciones: [
-          { id:'hasta20',  ico:'📱', titulo:'Hasta 20',  desc:'Hogar o pequeña oficina' },
-          { id:'hasta50',  ico:'💻', titulo:'20 a 50',   desc:'Empresa mediana' },
-          { id:'mas50',    ico:'🖥️', titulo:'Más de 50', desc:'Red densa — equipos enterprise' }
+          { id:'hasta20',  ico:'ti-device-mobile', titulo:'Hasta 20',  desc:'Hogar o pequeña oficina' },
+          { id:'hasta50',  ico:'ti-device-laptop', titulo:'20 a 50',   desc:'Empresa mediana' },
+          { id:'mas50',    ico:'ti-device-desktop', titulo:'Más de 50', desc:'Red densa — equipos enterprise' }
         ]
       },
       {
@@ -9067,8 +9119,8 @@ var ASIST_RUBROS = {
         desc: 'Controller Omada para gestionar toda la red desde una sola pantalla',
         tipo: 'opciones',
         opciones: [
-          { id:'si',  ico:'🖥️', titulo:'Sí, con controller', desc:'Control centralizado de la red' },
-          { id:'no',  ico:'📡', titulo:'Solo access points',  desc:'Configuración independiente' }
+          { id:'si',  ico:'ti-device-desktop', titulo:'Sí, con controller', desc:'Control centralizado de la red' },
+          { id:'no',  ico:'ti-broadcast', titulo:'Solo access points',  desc:'Configuración independiente' }
         ]
       }
     ],
@@ -9116,7 +9168,7 @@ function mostrarPaso() {
   var html = paso.opciones.map(function(op) {
     var sel = Array.isArray(asistState.multiSel) && asistState.multiSel.includes(op.id);
     return '<button class="asist-opcion-btn'+(sel?' selected':'')+'" onclick="seleccionarOpcion(\''+op.id+'\',\''+paso.tipo+'\')">' +
-      '<span class="asist-opcion-ico">'+op.ico+'</span>' +
+      '<span class="asist-opcion-ico"><i class="ti '+op.ico+'"></i></span>' +
       '<div style="flex:1"><div class="asist-opcion-titulo">'+op.titulo+'</div><div class="asist-opcion-desc">'+op.desc+'</div></div>' +
       '<span class="asist-opcion-check"><i class="ti ti-check"></i></span>' +
     '</button>';
@@ -11276,7 +11328,7 @@ function renderKPIsDashboard() {
   // ── Últimas ventas — click abre detalle ──
   var ultVentasEl = document.getElementById('dash-ultimas-ventas');
   if (ultVentasEl) {
-    var ultimas = ventas.slice(0, 5);
+    var ultimas = ventas.slice(0, 10);
     if (ultimas.length) {
       ultVentasEl.innerHTML = ultimas.map(function(v) {
         var ep = v.estadoPago === 'pago_total' ? '✓' : v.estadoPago === 'seniado' ? '◑' : '○';
