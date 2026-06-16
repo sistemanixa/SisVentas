@@ -741,7 +741,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.2 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.3 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1860,6 +1860,10 @@ tr:hover td{color:var(--text)}
           <div class="card">
             <div class="card-head"><span class="card-title">Preferencias del sistema</span></div>
             <div class="form-grid">
+              <div class="fg"><label>Días de vencimiento de presupuestos</label>
+                <input type="number" id="cfg-dias-venc" value="10" min="1" max="90">
+                <div style="font-size:11px;color:var(--text3);margin-top:4px">Se archivan automáticamente al vencer</div>
+              </div>
               <div class="fg"><label>IVA por defecto (%)</label><input type="number" value="21"></div>
               <div class="fg"><label>Validez de presupuestos (días)</label><input type="number" value="14"></div>
               <div class="fg"><label>Stock mínimo por defecto</label><input type="number" value="5"></div>
@@ -4522,10 +4526,28 @@ function fbCargarPresupuestos() {
       pptoData = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
       }).sort(function(a,b) { return (b.id||'').localeCompare(a.id||''); });
+      // Verificar vencimientos automáticamente
+      setTimeout(verificarVencimientosPptos, 800);
       // Actualizar tabla si está visible
-      if (document.getElementById('page-presupuesto')?.classList.contains('active')) {
+      var pagPpto = document.getElementById('page-presupuesto');
+      if (pagPpto && pagPpto.classList.contains('active')) {
         if (typeof renderPptoTabla === 'function') renderPptoTabla();
       }
+    }
+  });
+}
+
+function verificarVencimientosPptos() {
+  if (!window.fbDB) return;
+  var hoy = new Date().toISOString().split('T')[0];
+  var activos = ['borrador','revision','aprobado_int','enviado','visto','aceptado'];
+  (pptoData||[]).forEach(function(p) {
+    if (!activos.includes(p.estado)) return;
+    if (!p.vence) return;
+    if (p.vence < hoy && p.fbKey) {
+      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+p.fbKey), {
+        estado: 'vencido'
+      });
     }
   });
 }
@@ -5055,7 +5077,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v13.2-firebase',
+  VERSION: 'v13.3-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5641,12 +5663,12 @@ document.addEventListener('click', e=>{if(!e.target.closest('#page-presupuesto .
 function calcPpTotales() {
   let s=0;
   document.querySelectorAll('#pp-body tr').forEach(tr=>{
-    const q=parseFloat(tr.querySelector('.ppqty')?.value)||0;
-    const p=parseFloat(tr.querySelector('.ppprice')?.value)||0;
+    var _q1=tr.querySelector('.ppqty'); const q=parseFloat(_q1?_q1.value:0)||0;
+    var _p1=tr.querySelector('.ppprice'); const p=parseFloat(_p1?_p1.value:0)||0;
     const sub=q*p; s+=sub;
     const el=tr.querySelector('.ppsub'); if(el) el.textContent='$'+Math.round(sub).toLocaleString('es-AR');
   });
-  const desc=parseFloat(document.getElementById('pp-descuento')?.value)||0;
+  var _d1=document.getElementById('pp-descuento'); const desc=parseFloat(_d1?_d1.value:0)||0;
   const descAmt=s*desc/100; const base=s-descAmt; const iva=base*0.21;
   _set('pp-sub','$'+Math.round(s).toLocaleString('es-AR'));
   _set('pp-desc-amt','-$'+Math.round(descAmt).toLocaleString('es-AR'));
@@ -5882,9 +5904,9 @@ function checkPwdStrength(pwd) {
   if (lbl) { lbl.textContent = labels[score]||''; lbl.style.color = colors[score]; }
 }
 function cambiarPassword() {
-  const actual = document.getElementById('pwd-actual')?.value;
-  const nueva  = document.getElementById('pwd-nueva')?.value;
-  const confirm= document.getElementById('pwd-confirm')?.value;
+  var _pa=document.getElementById('pwd-actual'); const actual = _pa?_pa.value:'';
+  var _pn=document.getElementById('pwd-nueva'); const nueva = _pn?_pn.value:'';
+  var _pc=document.getElementById('pwd-confirm'); const confirm = _pc?_pc.value:'';
   if (!actual||!nueva||!confirm) { notify('Completá todos los campos'); return; }
   if (nueva !== confirm) { notify('Las contraseñas no coinciden'); return; }
   if (nueva.length < 6) { notify('Mínimo 6 caracteres'); return; }
@@ -10066,8 +10088,8 @@ var pptoActualId = null;
 
 
 function checkAprobacion() {
-  const total = parseFloat(document.getElementById('pp-total')?.textContent?.replace(/[\$\.]/g,'').replace(',','.')) || 0;
-  const desc  = parseFloat(document.getElementById('pp-descuento')?.value) || 0;
+  var _ptt=document.getElementById('pp-total'); const total = parseFloat((_ptt?_ptt.textContent:'0').replace(/[\$\.]/g,'').replace(',','.')) || 0;
+  var _d2=document.getElementById('pp-descuento'); const desc  = parseFloat(_d2?_d2.value:0) || 0;
   const alerta = document.getElementById('form-alerta-aprobacion');
   const txt    = document.getElementById('form-alerta-txt');
   if (!alerta) return;
@@ -10155,7 +10177,7 @@ function renderTimeline(p) {
   const tl = document.getElementById('ppto-timeline');
   if (!tl) return;
   const flujo = ['borrador','revision','aprobado_int','enviado','visto','aceptado','convertido'];
-  const estadoOrden = PPTO_ESTADOS[p.estado]?.orden || 1;
+  var _eo=PPTO_ESTADOS[p.estado]; const estadoOrden = (_eo?_eo.orden:1) || 1;
   const esRechazado = p.estado === 'rechazado';
   const esVencido   = p.estado === 'vencido';
 
@@ -10310,10 +10332,10 @@ function pptoAccion(accion) {
 
 // Guardar presupuesto nuevo
 function guardarPresupuesto(modo) {
-  const cli = document.getElementById('pp-cli')?.value?.trim();
+  var _cli=document.getElementById('pp-cli'); const cli = _cli?_cli.value.trim():'';
   if (!cli) { notify('Seleccioná un cliente'); return; }
-  const desc = parseFloat(document.getElementById('pp-descuento')?.value) || 0;
-  const totalTxt = document.getElementById('pp-total')?.textContent || '$0';
+  var _d3=document.getElementById('pp-descuento'); const desc = parseFloat(_d3?_d3.value:0) || 0;
+  var _tt=document.getElementById('pp-total'); const totalTxt = (_tt?_tt.textContent:'') || '$0';
   const total = parseFloat(totalTxt.replace(/[\$\.]/g,'').replace(',','.')) || 0;
   const reqAprobacion = (total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite);
   const estadoFinal = reqAprobacion ? 'revision' : modo;
@@ -10322,7 +10344,7 @@ function guardarPresupuesto(modo) {
     id: 'PP-00' + (pptoData.length + 10),
     cliente: cli, empleado: currentUser || '',
     fecha: new Date().toLocaleDateString('es-AR'),
-    vence: document.getElementById('pp-venc')?.value || '',
+    vence: (function(){var _v=document.getElementById('pp-venc');return _v?_v.value:'';})() || '',
     total, descuento: desc,
     estado: estadoFinal,
     requiereAprobacion: reqAprobacion,
@@ -10546,7 +10568,7 @@ function actualizarProgreso(ot) {
 function completarOT() {
   const ot = otData.find(o => o.id === otActualId);
   if (!ot) return;
-  const conf = document.getElementById('ot-acta-conf')?.value;
+  var _oc=document.getElementById('ot-acta-conf'); const conf = _oc?_oc.value:'';
   if (!conf) { notify('Seleccioná la conformidad del cliente'); return; }
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.estado = 'completada';
@@ -10739,8 +10761,10 @@ function moverVentaAPresupuesto(ventaId) {
   if (!v) { notify('Venta no encontrada'); return; }
   if (!confirm('¿Mover la venta ' + ventaId + ' a Presupuestos?\nVencerá en 10 días.')) return;
   if (!window.fbDB) { notify('Sin conexión'); return; }
+  var diasVencInput = document.getElementById('cfg-dias-venc');
+  var diasVenc = diasVencInput ? (parseInt(diasVencInput.value)||10) : 10;
   var ahora   = new Date().toISOString().split('T')[0];
-  var vence   = new Date(Date.now() + 10*86400000).toISOString().split('T')[0];
+  var vence   = new Date(Date.now() + diasVenc*86400000).toISOString().split('T')[0];
   var numPpto = 'PP-' + String(Date.now()).slice(-5);
   var ppto = {
     id: numPpto, cliente: v.cliente||'', empleado: v.empleado||v.usuario||currentUser||'',
@@ -11418,7 +11442,7 @@ function marcarLeida(id) {
 
 function marcarTodasLeidas() {
   todasNotifs.forEach(n => notifLeidas.add(n.id));
-  renderNotificaciones(document.getElementById('notif-filtro')?.value || '');
+  (function(){var _nf=document.getElementById('notif-filtro');renderNotificaciones((_nf?_nf.value:'')||'');})();
   actualizarBadgeNotif();
   notify('Todas las notificaciones marcadas como leídas');
 }
@@ -11716,7 +11740,7 @@ function calcularComisionEmpleado(emp, mesAMM) {
 function editarIVA(btn) {
   const tr = btn.closest('tr');
   const inp = tr.querySelector('input[type=number]');
-  const nombre = tr.querySelector('td')?.textContent || 'alícuota';
+  var _td=tr.querySelector('td'); const nombre = (_td?_td.textContent:'') || 'alícuota';
   if (inp) {
     inp.focus();
     inp.select();
