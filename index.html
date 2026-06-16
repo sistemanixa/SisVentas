@@ -741,7 +741,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.3 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.4 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1870,6 +1870,14 @@ tr:hover td{color:var(--text)}
               <div class="fg"><label>Descuento máximo permitido (%)</label><input type="number" value="20"></div>
             </div>
             <div class="flex-end"><button class="btn btn-primary" onclick="guardarConfiguracion(this)"><i class="ti ti-check"></i> Guardar cambios</button></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title" style="color:var(--amber)"><i class="ti ti-tools"></i> Corrección de datos importados</span></div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Herramientas para corregir datos migrados del sistema VB.NET anterior.</div>
+            <button class="btn btn-sm" onclick="fixIVADatosImportados()" style="color:var(--amber);border-color:var(--amber)">
+              <i class="ti ti-receipt-off"></i> Poner IVA = 0 en ventas importadas sin factura
+            </button>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">⚠️ Ejecutar solo una vez. Afecta ventas con ID original que no tengan factura emitida.</div>
           </div>
         </div>
 
@@ -5077,7 +5085,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v13.3-firebase',
+  VERSION: 'v13.4-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10754,6 +10762,21 @@ function verDetalleVentaDesdeId(ventaId) {
   setTimeout(function() {
     if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaId);
   }, 150);
+}
+
+function fixIVADatosImportados() {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!confirm('¿Poner IVA = 0 en todas las ventas importadas (con idOriginal) que no tienen factura?\nVerificá que sea correcto antes de continuar.')) return;
+  var ventas = (ventasList||[]).filter(function(v){ return v.idOriginal && !v.factura && v.fbKey; });
+  if (!ventas.length) { notify('No hay ventas importadas para corregir'); return; }
+  var count = 0;
+  ventas.forEach(function(v) {
+    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/'+v.fbKey), { iva: 0 })
+      .then(function(){
+        count++;
+        if (count === ventas.length) notify('✓ IVA corregido en ' + count + ' ventas importadas');
+      });
+  });
 }
 
 function moverVentaAPresupuesto(ventaId) {
