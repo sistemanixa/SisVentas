@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v14.7 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v14.9 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2029,7 +2029,8 @@ tr:hover td{color:var(--text)}
               <i class="ti ti-info-circle"></i> Definí qué módulos puede ver cada rol. Los cambios aplican al próximo inicio de sesión.
             </div>
             <div id="cfg-roles-tabla"></div>
-            <div class="flex-end" style="margin-top:16px">
+            <div class="flex-end" style="margin-top:16px;gap:8px">
+              <button class="btn" onclick="restaurarPermisosDefault()" style="color:var(--text3)"><i class="ti ti-rotate-clockwise"></i> Restaurar valores por defecto</button>
               <button class="btn btn-primary" onclick="guardarPermisosRoles()"><i class="ti ti-check"></i> Guardar permisos</button>
             </div>
           </div>
@@ -5034,9 +5035,9 @@ var notifT;
 // ── SHOW PAGE (navegación principal) ──
 var PERMISOS_DEFAULT = {
   admin:          { bloqueados: [] },
-  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad','caja'] },
-  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','caja','empleados','vacaciones','sueldos','gastos','reportes','estadisticas','proveedores','ordenes','cuentacorriente'] },
-  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','caja','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas'] }
+  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad'] },
+  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','sueldos','gastos','reportes','estadisticas','proveedores','ordenes','cuentacorriente'] },
+  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas'] }
 };
 var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 
@@ -5176,6 +5177,12 @@ function applyRole() {
   });
 
   // ── Permisos dinámicos por módulo (desde Configuración → Roles) ──
+  // Primero restaurar TODOS los nav-items a visible, luego ocultar solo los bloqueados
+  // del rol actual. Esto evita que queden ocultos ítems de una sesión anterior con
+  // un rol más restrictivo (ej: cerrar sesión de vendedor y entrar como admin).
+  document.querySelectorAll('.nav-item[onclick]').forEach(function(el) {
+    el.style.display = '';
+  });
   var bloqueados = (PERMISOS_ROLES[currentRole]||PERMISOS_DEFAULT[currentRole]||{bloqueados:[]}).bloqueados||[];
   if (bloqueados.length) {
     document.querySelectorAll('.nav-item[onclick]').forEach(function(el) {
@@ -5200,7 +5207,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v14.7-firebase',
+  VERSION: 'v14.9-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5408,58 +5415,7 @@ window.doLogin = function doLogin() {
       .then(function(cred) {
         if(err) err.style.display = 'none';
         isAuthenticated = true;
-        // El rol viene SOLO de Firebase DB — buscar en usuariosData
-        var emailLower = cred.user.email.toLowerCase();
-        function aplicarRolYNombre(usuariosSnap) {
-          var lista = usuariosSnap ? Object.values(usuariosSnap) : (window.usuariosData || []);
-          var usuario = lista.find(function(u) {
-            var mailDB = (u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com')).toLowerCase();
-            return mailDB === emailLower;
-          });
-          if (!usuario) {
-            // Verificar si es el email administrador principal del sistema
-            var esAdmin = emailLower === 'nixa@sistemanixa.com' ||
-                          emailLower.startsWith('admin@');
-            currentRole = esAdmin ? 'admin' : 'vendedor';
-            if (esAdmin) {
-              notify('⚠️ Ingresaste como Admin. Creá tu usuario en Usuarios → Nuevo usuario para quitar este aviso.');
-            } else {
-              notify('⚠️ Usuario no registrado en el sistema — rol limitado. Pedile al admin que te agregue.');
-            }
-            _completarLogin(cred.user.displayName || cred.user.email.split('@')[0]);
-            return;
-          }
-          if (usuario.activo === false) {
-            // Usuario desactivado
-            window.fbSignOut(window.fbAuth);
-            isAuthenticated = false;
-            if(err) { err.textContent = 'Tu cuenta está desactivada. Contactá al administrador.'; err.style.display = 'block'; }
-            return;
-          }
-          var r = (usuario.rol||'').toLowerCase();
-          currentRole = (r==='admin'||r==='administrador') ? 'admin'
-                      : (r==='tecnico'||r==='técnico')     ? 'tecnico'
-                      : (r==='vendedor')                   ? 'vendedor'
-                      : 'administrativo';
-          _completarLogin(usuario.nombre || cred.user.email.split('@')[0]);
-        }
-        // Si ya tenemos usuariosData cargado lo usamos, sino lo leemos de DB
-        if (window.usuariosData && window.usuariosData.length) {
-          aplicarRolYNombre(null);
-        } else {
-          // Leer directamente de DB para no depender de la carga asíncrona
-          window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios')).then(function(snap) {
-            var data = snap.val();
-            var lista = data ? Object.values(data).map(function(v){ return v; }) : [];
-            window.usuariosData = lista;
-            aplicarRolYNombre(lista);
-          }).catch(function() {
-            // Sin acceso a DB: acceso denegado
-            window.fbSignOut(window.fbAuth);
-            isAuthenticated = false;
-            if(err) { err.textContent = 'No se pudo verificar el rol. Verificá tu conexión.'; err.style.display = 'block'; }
-          });
-        }
+        _resolverRolYCompletarLogin(cred.user, err);
       })
       .catch(function(fbError) {
         if (typeof window._resetLoginBtn === 'function') window._resetLoginBtn();
@@ -5482,6 +5438,76 @@ window.doLogin = function doLogin() {
     _completarLogin(demo.name);
   }
 }
+
+// Lógica compartida de resolución de rol — usada tanto por login manual como por restauración de sesión
+function _resolverRolYCompletarLogin(user, err) {
+  var emailLower = user.email.toLowerCase();
+  function aplicarRolYNombre(usuariosSnap) {
+    var lista = usuariosSnap ? Object.values(usuariosSnap) : (window.usuariosData || []);
+    var usuario = lista.find(function(u) {
+      var mailDB = (u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com')).toLowerCase();
+      return mailDB === emailLower;
+    });
+    if (!usuario) {
+      var esAdmin = emailLower === 'nixa@sistemanixa.com' || emailLower.startsWith('admin@');
+      currentRole = esAdmin ? 'admin' : 'vendedor';
+      if (esAdmin) {
+        notify('⚠️ Ingresaste como Admin. Creá tu usuario en Usuarios → Nuevo usuario para quitar este aviso.');
+      } else {
+        notify('⚠️ Usuario no registrado en el sistema — rol limitado. Pedile al admin que te agregue.');
+      }
+      _completarLogin(user.displayName || user.email.split('@')[0]);
+      return;
+    }
+    if (usuario.activo === false) {
+      window.fbSignOut(window.fbAuth);
+      isAuthenticated = false;
+      if(err) { err.textContent = 'Tu cuenta está desactivada. Contactá al administrador.'; err.style.display = 'block'; }
+      return;
+    }
+    var r = (usuario.rol||'').toLowerCase();
+    currentRole = (r==='admin'||r==='administrador') ? 'admin'
+                : (r==='tecnico'||r==='técnico')     ? 'tecnico'
+                : (r==='vendedor')                   ? 'vendedor'
+                : 'administrativo';
+    _completarLogin(usuario.nombre || user.email.split('@')[0]);
+  }
+  if (window.usuariosData && window.usuariosData.length) {
+    aplicarRolYNombre(null);
+  } else {
+    window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios')).then(function(snap) {
+      var data = snap.val();
+      var lista = data ? Object.values(data).map(function(v){ return v; }) : [];
+      window.usuariosData = lista;
+      aplicarRolYNombre(lista);
+    }).catch(function() {
+      window.fbSignOut(window.fbAuth);
+      isAuthenticated = false;
+      if(err) { err.textContent = 'No se pudo verificar el rol. Verificá tu conexión.'; err.style.display = 'block'; }
+    });
+  }
+}
+
+// ── RESTAURAR SESIÓN AL RECARGAR (F5) ──
+// Aislado del flujo de login manual. Si Firebase detecta una sesión ya activa
+// al cargar la página, restaura directamente sin pedir credenciales de nuevo.
+var _sesionYaRestaurada = false;
+document.addEventListener('firebase-ready', function() {
+  if (!window.fbOnAuth || !window.fbAuth) return;
+  window.fbOnAuth(window.fbAuth, function(user) {
+    if (user && !_sesionYaRestaurada && !isAuthenticated) {
+      _sesionYaRestaurada = true;
+      var appScreen = document.getElementById('screen-app');
+      // Solo restaurar si la app no está ya visible (evita interferir con login manual en curso)
+      if (appScreen && !appScreen.classList.contains('visible')) {
+        isAuthenticated = true;
+        _resolverRolYCompletarLogin(user, null);
+      }
+    } else if (!user) {
+      _sesionYaRestaurada = false;
+    }
+  });
+});
 
 function _completarLogin(nombre) {
   currentUser = nombre;
@@ -6037,6 +6063,18 @@ function guardarPermisosRoles() {
   }
 }
 
+function restaurarPermisosDefault() {
+  if (!confirm('¿Restaurar los permisos de todos los roles a los valores por defecto del sistema?\nEsto descarta cualquier personalización guardada.')) return;
+  PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
+  renderTablaRoles();
+  if (window.fbDB) {
+    window.fbSet(window.fbRef(window.fbDB,'sisventas/config/permisos'), PERMISOS_ROLES)
+      .then(function(){ notify('✓ Permisos restaurados a los valores por defecto'); });
+  } else {
+    notify('✓ Permisos restaurados (sin conexión, no se guardó)');
+  }
+}
+
 // ── CUENTA CORRIENTE ──
 function toggleSidebar() {
   const sb = document.querySelector('.sidebar');
@@ -6437,17 +6475,48 @@ function fbCargarServicios() {
 
 function fbCargarCaja() {
   if (!window.fbDB) return;
-  var hoy=new Date().toISOString().split('T')[0];
-  window.fbOnValue(window.fbRef(window.fbDB,'sisventas/caja/'+hoy),function(snap){
-    var data=snap.val()||{};
-    var apertura=parseFloat(data.apertura)||0, ingresos=parseFloat(data.ingresos)||0, egresos=parseFloat(data.egresos)||0;
-    var saldo=apertura+ingresos-egresos;
-    var _e=function(id){return document.getElementById(id);};
-    if(_e('caja-apertura')) _e('caja-apertura').textContent='$'+Math.round(apertura).toLocaleString('es-AR');
-    if(_e('caja-ingresos')) _e('caja-ingresos').textContent='$'+Math.round(ingresos).toLocaleString('es-AR');
-    if(_e('caja-egresos'))  _e('caja-egresos').textContent='$'+Math.round(egresos).toLocaleString('es-AR');
-    if(_e('caja-saldo'))    _e('caja-saldo').textContent='$'+Math.round(saldo).toLocaleString('es-AR');
-  });
+  var hoy = new Date().toISOString().split('T')[0];
+  var esAdmin = (currentRole === 'admin' || currentRole === 'administrativo');
+  var scopeEl = document.getElementById('caja-scope-label');
+  if (scopeEl) {
+    scopeEl.innerHTML = esAdmin
+      ? '<i class="ti ti-users" style="font-size:13px"></i> Viendo caja consolidada de todos los usuarios'
+      : '<i class="ti ti-user" style="font-size:13px"></i> Viendo tu caja personal del día';
+  }
+
+  if (esAdmin) {
+    // Admin/administrativo ve la caja consolidada de todos los usuarios del día
+    window.fbOnValue(window.fbRef(window.fbDB,'sisventas/caja/'+hoy),function(snap){
+      var data = snap.val()||{};
+      var apertura=0, ingresos=0, egresos=0;
+      Object.keys(data).forEach(function(k) {
+        // Soporta tanto estructura plana (legacy) como por usuario
+        var d = data[k];
+        if (d && typeof d === 'object' && (d.apertura !== undefined || d.ingresos !== undefined)) {
+          apertura += parseFloat(d.apertura)||0;
+          ingresos += parseFloat(d.ingresos)||0;
+          egresos  += parseFloat(d.egresos)||0;
+        }
+      });
+      _renderCajaUI(apertura, ingresos, egresos);
+    });
+  } else {
+    // Vendedor/técnico ve solo su propia caja del día
+    var usuarioKey = (currentUser||'sinusuario').replace(/[.\#\$\[\]\/]/g,'_');
+    window.fbOnValue(window.fbRef(window.fbDB,'sisventas/caja/'+hoy+'/'+usuarioKey),function(snap){
+      var d = snap.val()||{};
+      _renderCajaUI(parseFloat(d.apertura)||0, parseFloat(d.ingresos)||0, parseFloat(d.egresos)||0);
+    });
+  }
+}
+
+function _renderCajaUI(apertura, ingresos, egresos) {
+  var saldo = apertura + ingresos - egresos;
+  var _e = function(id){ return document.getElementById(id); };
+  if(_e('caja-apertura')) _e('caja-apertura').textContent='$'+Math.round(apertura).toLocaleString('es-AR');
+  if(_e('caja-ingresos')) _e('caja-ingresos').textContent='$'+Math.round(ingresos).toLocaleString('es-AR');
+  if(_e('caja-egresos'))  _e('caja-egresos').textContent='$'+Math.round(egresos).toLocaleString('es-AR');
+  if(_e('caja-saldo'))    _e('caja-saldo').textContent='$'+Math.round(saldo).toLocaleString('es-AR');
 }
 
 // ══════════════════════════════════════════════
@@ -12664,6 +12733,7 @@ function actualizarResumenStock() {
 
 <!-- CAJA DIARIA -->
 <div id="page-caja" class="page">
+  <div id="caja-scope-label" style="font-size:12px;color:var(--text3);margin-bottom:10px"></div>
   <div class="metrics">
     <div class="metric">
       <div class="metric-label">Saldo apertura</div>
