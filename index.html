@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.9 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v14.0 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1864,6 +1864,7 @@ tr:hover td{color:var(--text)}
               <i class="ti ti-info-circle" style="font-size:14px;margin-right:6px"></i>
               El tipo de cambio se usa para convertir precios en USD a ARS en presupuestos y ventas.
             </div>
+            <div class="flex-end" style="margin-top:10px"><button class="btn btn-primary" onclick="guardarTipoCambio(this)"><i class="ti ti-check"></i> Guardar tipo de cambio</button></div>
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title">Preferencias del sistema</span></div>
@@ -1877,7 +1878,8 @@ tr:hover td{color:var(--text)}
               <div class="fg"><label>Stock mínimo por defecto</label><input type="number" value="5"></div>
               <div class="fg"><label>Descuento máximo permitido (%)</label><input type="number" value="20"></div>
             </div>
-            <div class="flex-end"><button class="btn btn-primary" onclick="guardarConfiguracion(this)"><i class="ti ti-check"></i> Guardar cambios</button></div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">⚠️ Solo "Días de vencimiento" se guarda en base de datos por ahora. El resto de campos son de referencia visual.</div>
+            <div class="flex-end"><button class="btn btn-primary" onclick="guardarPreferenciasSistema(this)"><i class="ti ti-check"></i> Guardar cambios</button></div>
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title" style="color:var(--amber)"><i class="ti ti-tools"></i> Corrección de datos importados</span></div>
@@ -1937,7 +1939,7 @@ tr:hover td{color:var(--text)}
                 <td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar esta fila"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>
               </tr>
             </table>
-            <div class="flex-end"><button class="btn btn-primary" onclick="guardarConfiguracion(this)"><i class="ti ti-check"></i> Guardar</button></div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">💡 Usá el ✓ de cada fila para guardar esa comisión individualmente.</div>
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title">Valor hora extra</span></div>
@@ -1946,7 +1948,7 @@ tr:hover td{color:var(--text)}
               <div class="fg"><label>Vendedor junior — hora extra ($)</label><input type="number" value="900"></div>
               <div class="fg"><label>Técnico instalador — hora extra ($)</label><input type="number" value="1100"></div>
             </div>
-            <div class="flex-end"><button class="btn btn-primary" onclick="guardarConfiguracion(this)"><i class="ti ti-check"></i> Guardar</button></div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">⚠️ Estos valores de hora extra todavía no se guardan en base de datos — próximamente.</div>
           </div>
         </div>
 
@@ -1981,8 +1983,8 @@ tr:hover td{color:var(--text)}
             </table>
             <div class="flex-end">
               <button class="btn" onclick="exportarExcel('Planilla de sueldos')"><i class="ti ti-download"></i> Exportar planilla</button>
-              <button class="btn btn-primary" onclick="guardarConfiguracion(this)"><i class="ti ti-check"></i> Guardar</button>
             </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">💡 Usá el ✓ de cada fila para guardar ese sueldo individualmente.</div>
           </div>
         </div>
 
@@ -2011,7 +2013,8 @@ tr:hover td{color:var(--text)}
                 </select>
               </div>
             </div>
-            <div class="flex-end"><button class="btn btn-primary" onclick="guardarConfiguracion(this)"><i class="ti ti-check"></i> Guardar</button></div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">⚠️ Esta sección todavía no se guarda en base de datos — próximamente.</div>
+            <div class="flex-end"><button class="btn" disabled style="opacity:0.5;cursor:not-allowed"><i class="ti ti-check"></i> Guardar</button></div>
           </div>
         </div>
 
@@ -5193,7 +5196,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v13.9-firebase',
+  VERSION: 'v14.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5475,6 +5478,8 @@ function _completarLogin(nombre) {
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
   if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 300);
+  if (typeof cargarConfigGeneral === 'function') setTimeout(cargarConfigGeneral, 350);
+  if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); setTimeout(applyRole, 400); }, 400);
   if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
@@ -6084,6 +6089,12 @@ function toggleUserPanel() {
   const isOpen = panel.style.display === 'block';
   panel.style.display = isOpen ? 'none' : 'block';
   overlay.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    var vEl = document.getElementById('up-version');
+    if (vEl && APP_CONFIG && APP_CONFIG.VERSION) {
+      vEl.textContent = APP_CONFIG.VERSION.replace('-firebase','');
+    }
+  }
 }
 function cerrarUserPanel() {
   const panel = document.getElementById('user-panel');
@@ -6947,12 +6958,58 @@ function guardarNuevoGenerico() {
 }
 
 // ── OTRAS FUNCIONES ──
+function guardarTipoCambio(btn) {
+  var datos = {
+    oficial: parseFloat((document.getElementById('cfg-dolar-oficial')||{}).value) || 0,
+    blue:    parseFloat((document.getElementById('cfg-dolar-blue')||{}).value)    || 0,
+    mep:     parseFloat((document.getElementById('cfg-dolar-mep')||{}).value)     || 0
+  };
+  if (window.fbDB) {
+    window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos)
+      .then(function(){ notify('✓ Tipo de cambio guardado'); });
+  } else { notify('Sin conexión'); }
+  var orig = btn.innerHTML;
+  btn.innerHTML = '<i class="ti ti-check"></i> Guardado'; btn.disabled=true;
+  setTimeout(function(){ btn.innerHTML=orig; btn.disabled=false; }, 2000);
+}
+
+function guardarPreferenciasSistema(btn) {
+  var diasVencEl = document.getElementById('cfg-dias-venc');
+  var datos = {
+    diasVencimiento: parseInt((diasVencEl||{}).value) || 10
+  };
+  if (window.fbDB) {
+    window.fbSet(window.fbRef(window.fbDB,'sisventas/config/preferencias'), datos)
+      .then(function(){ notify('✓ Preferencias guardadas'); });
+  } else { notify('Sin conexión'); }
+  var orig = btn.innerHTML;
+  btn.innerHTML = '<i class="ti ti-check"></i> Guardado'; btn.disabled=true;
+  setTimeout(function(){ btn.innerHTML=orig; btn.disabled=false; }, 2000);
+}
+
 function guardarConfiguracion(btn) {
+  // Mantenido por compatibilidad — usar guardarTipoCambio/guardarPreferenciasSistema en su lugar
   const orig = btn.innerHTML;
   btn.innerHTML = '<i class="ti ti-check"></i> Guardado';
   btn.disabled = true;
   setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2000);
   notify('Configuración guardada');
+}
+
+function cargarConfigGeneral() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tipoCambio')).then(function(snap) {
+    var d = snap.val(); if (!d) return;
+    var o=document.getElementById('cfg-dolar-oficial'), b=document.getElementById('cfg-dolar-blue'), m=document.getElementById('cfg-dolar-mep');
+    if (o && d.oficial) o.value = d.oficial;
+    if (b && d.blue)    b.value = d.blue;
+    if (m && d.mep)     m.value = d.mep;
+  });
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/preferencias')).then(function(snap) {
+    var d = snap.val(); if (!d) return;
+    var dv = document.getElementById('cfg-dias-venc');
+    if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
+  });
 }
 
 // ── LOGO EMPRESA ──
@@ -11929,20 +11986,25 @@ function guardarFilaConfig(btn) {
   var inputs = tr.querySelectorAll('input[type=number]');
   var cargo  = tr.querySelector('td') ? tr.querySelector('td').textContent.trim() : '';
   var vals   = Array.from(inputs).map(function(i){ return parseFloat(i.value)||0; });
+  var thText = tr.closest('table').querySelector('th') ? tr.closest('table').querySelector('th').textContent : '';
 
-  // Detectar si es fila de comisión (3 inputs: %, mínimo, tope)
-  var esComision = inputs.length >= 2 && tr.closest('table').querySelector('th') &&
-    tr.closest('table').querySelector('th').textContent.includes('Cargo');
+  var esComision = thText.includes('% sobre venta');
+  var esSueldo   = thText.includes('Sueldo base');
+  var cat = cargo.includes('39') ? 'Cat. 39' : cargo.includes('15') ? 'Cat. 15' : 'Cat. 08';
 
   if (esComision && window.fbDB) {
-    // Determinar clave de categoría
-    var cat = cargo.includes('39') ? 'Cat. 39' : cargo.includes('15') ? 'Cat. 15' : 'Cat. 08';
     CONFIG_COMISIONES[cat] = { pct: vals[0]||0, min: vals[1]||0, max: vals[2]||0 };
     window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/comisiones'), CONFIG_COMISIONES)
       .then(function(){ notify('✓ Comisión guardada en Firebase'); })
       .catch(function(e){ notify('Error: '+e.message); });
+  } else if (esSueldo && window.fbDB) {
+    if (typeof CONFIG_SUELDOS === 'undefined') window.CONFIG_SUELDOS = {};
+    window.CONFIG_SUELDOS[cat] = { base: vals[0]||0, actualizado: new Date().toISOString().split('T')[0] };
+    window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/categoriasSuel'), window.CONFIG_SUELDOS)
+      .then(function(){ notify('✓ Sueldo base guardado en Firebase'); })
+      .catch(function(e){ notify('Error: '+e.message); });
   } else {
-    notify('Valor guardado');
+    notify('Sin conexión a Firebase');
   }
 
   var icon = btn.querySelector('i');
@@ -11959,6 +12021,29 @@ function cargarConfigComisiones() {
       // Actualizar inputs de configuración si la pantalla está visible
       actualizarInputsComisiones();
     }
+  });
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/categoriasSuel')).then(function(snap) {
+    var data = snap.val();
+    if (data) {
+      if (typeof window.CONFIG_SUELDOS === 'undefined') window.CONFIG_SUELDOS = {};
+      Object.assign(window.CONFIG_SUELDOS, data);
+      actualizarInputsSueldos();
+    }
+  });
+}
+
+function actualizarInputsSueldos() {
+  var tabla = document.querySelector('#cfg-sueldos table');
+  if (!tabla || !window.CONFIG_SUELDOS) return;
+  var filas = tabla.querySelectorAll('tr:not(:first-child)');
+  var cats  = ['Cat. 39', 'Cat. 15', 'Cat. 08'];
+  filas.forEach(function(tr, i) {
+    var cat = cats[i];
+    if (!cat || !window.CONFIG_SUELDOS[cat]) return;
+    var input = tr.querySelector('input[type=number]');
+    if (input) input.value = window.CONFIG_SUELDOS[cat].base;
+    var tds = tr.querySelectorAll('td');
+    if (tds[2] && window.CONFIG_SUELDOS[cat].actualizado) tds[2].textContent = window.CONFIG_SUELDOS[cat].actualizado;
   });
 }
 
@@ -12419,6 +12504,8 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Sesión</div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
+    <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
+    <div style="padding:6px 10px;font-size:11px;color:var(--text3);text-align:center">SisVentas <span id="up-version">v13.9</span> · Firebase</div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
     <div class="up-item" style="color:var(--red)" onclick="doLogout()"><i class="ti ti-logout" style="font-size:15px"></i> Cerrar sesión</div>
   </div>
