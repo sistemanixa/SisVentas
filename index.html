@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v14.4 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v14.5 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5199,7 +5199,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v14.4-firebase',
+  VERSION: 'v14.5-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11579,6 +11579,7 @@ function reservarStock(cod, cantidad) {
 
 // Generar notificaciones desde el estado actual del sistema
 function generarNotificaciones() {
+  try {
   todasNotifs = [];
   const ahora = new Date();
   const hoy   = ahora.toLocaleDateString('es-AR');
@@ -11609,13 +11610,24 @@ function generarNotificaciones() {
 
   // ── PRESUPUESTOS ──
   if (typeof pptoData !== 'undefined') {
-    pptoData.forEach(p => {
+    pptoData.forEach(function(p) {
       if (['rechazado','vencido','convertido'].includes(p.estado)) return;
-      // Calcular días hasta vencimiento
-      const partes = p.vence.split('/');
-      if (partes.length < 3) return;
-      const venc = new Date(partes[2] < 100 ? 2000 + parseInt(partes[2]) : partes[2], partes[1]-1, partes[0]);
-      const dias = Math.round((venc - ahora) / 86400000);
+      if (!p.vence) return;
+      // Calcular días hasta vencimiento — soporta formato DD/MM/YYYY y YYYY-MM-DD
+      var venc;
+      if (p.vence.indexOf('/') !== -1) {
+        var partes = p.vence.split('/');
+        if (partes.length < 3) return;
+        venc = new Date(partes[2] < 100 ? 2000 + parseInt(partes[2]) : partes[2], partes[1]-1, partes[0]);
+      } else if (p.vence.indexOf('-') !== -1) {
+        var partesISO = p.vence.split('-');
+        if (partesISO.length < 3) return;
+        venc = new Date(partesISO[0], partesISO[1]-1, partesISO[2]);
+      } else {
+        return;
+      }
+      if (isNaN(venc.getTime())) return;
+      var dias = Math.round((venc - ahora) / 86400000);
 
       if (dias <= 2 && dias >= 0 && NOTIF_CONFIG.ppto_vence_2.activo) {
         todasNotifs.push({
@@ -11746,6 +11758,11 @@ function generarNotificaciones() {
 
   renderNotificaciones();
   actualizarBadgeNotif();
+  } catch(errNotif) {
+    console.error('[Notificaciones] Error generando:', errNotif);
+    todasNotifs = [];
+    if (typeof renderNotificaciones === 'function') renderNotificaciones();
+  }
 }
 
 function pptoEstadoLabel(est) {
