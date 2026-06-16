@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v15.2 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v15.4 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -792,13 +792,14 @@ tr:hover td{color:var(--text)}
     <div class="s-logo" onclick="showPage('dashboard', document.querySelector('[onclick*=dashboard]'))" style="cursor:pointer">
       <div class="s-brand">SisVentas</div>
       <div class="s-sub">powered by Nixa</div>
+      <div class="s-sub" id="s-version-el" style="font-size:10px;opacity:.7"></div>
     </div>
     <div class="s-nav">
       <div class="s-section">General</div>
       <div class="nav-item active" onclick="showPage('dashboard',this)">
         <i class="ti ti-layout-dashboard"></i>Dashboard
       </div>
-      <div class="nav-item" onclick="showPage('gastos',this);setTimeout(function(){abrirFormGasto(null);},300)" style="background:var(--amber-bg);color:var(--amber);border-radius:var(--radius);margin:0 4px;font-weight:600">
+      <div class="nav-item" onclick="abrirGastoRapido()" style="background:var(--amber-bg);color:var(--amber);border-radius:var(--radius);margin:0 4px;font-weight:600">
         <i class="ti ti-receipt"></i> Cargar gasto rápido
       </div>
       <div class="s-section">Ventas</div>
@@ -5207,7 +5208,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v15.2-firebase',
+  VERSION: 'v15.4-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5540,6 +5541,12 @@ setTimeout(function() {
 function _completarLogin(nombre) {
   currentUser = nombre;
   applyRole();
+
+  // Mostrar versión en el sidebar
+  var vSidebar = document.getElementById('s-version-el');
+  if (vSidebar && APP_CONFIG && APP_CONFIG.VERSION) {
+    vSidebar.textContent = APP_CONFIG.VERSION.replace('-firebase','') + ' · Firebase';
+  }
 
   // Ocultar login, mostrar pantalla de carga
   document.getElementById('screen-login').style.display = 'none';
@@ -8004,6 +8011,91 @@ function registrarMovCaja() {
   _hide('caja-mov-form');
   notify('Movimiento de caja registrado');
 }
+// ── GASTO RÁPIDO (modal flotante, no navega) ──
+var gastoRapidoFotoBase64 = null;
+
+function abrirGastoRapido() {
+  gastoRapidoFotoBase64 = null;
+  document.getElementById('gr-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('gr-monto').value = '';
+  document.getElementById('gr-descripcion').value = '';
+  document.getElementById('gr-categoria').value = 'Transporte';
+  document.getElementById('gr-medio').value = 'Efectivo';
+  document.getElementById('gr-pagado-yo').checked = false;
+  document.getElementById('gr-reembolso-info').style.display = 'none';
+  document.getElementById('gr-foto-preview').innerHTML = '';
+  document.getElementById('modal-gasto-rapido').classList.add('open');
+}
+
+function cerrarGastoRapido() {
+  document.getElementById('modal-gasto-rapido').classList.remove('open');
+}
+
+function previewFotoGastoRapido(input) {
+  var file = input.files[0];
+  if (!file) return;
+  if (file.size > 800 * 1024) { notify('La foto no puede superar 800KB'); input.value=''; return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    gastoRapidoFotoBase64 = e.target.result;
+    document.getElementById('gr-foto-preview').innerHTML = '<img src="'+e.target.result+'" style="max-width:100%;border-radius:var(--radius);margin-top:6px">';
+  };
+  reader.readAsDataURL(file);
+}
+
+function guardarGastoRapido() {
+  var monto = parseFloat(document.getElementById('gr-monto').value) || 0;
+  var desc  = document.getElementById('gr-descripcion').value.trim();
+  if (!desc)  { notify('Ingresá una descripción'); return; }
+  if (!monto) { notify('Ingresá el monto'); return; }
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+
+  var pagueYo = document.getElementById('gr-pagado-yo').checked;
+  var miEmpleado = null;
+  if (pagueYo) {
+    miEmpleado = Object.values(empData||{}).find(function(e) {
+      return (e.mail||'').toLowerCase() === (currentUser||'').toLowerCase() || e.nombre === currentUser;
+    });
+  }
+
+  var datos = {
+    fecha:          document.getElementById('gr-fecha').value,
+    vencimiento:    '',
+    tipo:           'Variable',
+    categoria:      document.getElementById('gr-categoria').value,
+    descripcion:    desc,
+    monto:          monto,
+    montoPagado:    pagueYo ? 0 : monto,  // si lo pagó un técnico, queda pendiente hasta reembolso
+    estado:         pagueYo ? 'pendiente' : 'pagado',
+    medio:          document.getElementById('gr-medio').value,
+    proveedor:      '',
+    comprobante:    '',
+    empleadoId:     miEmpleado ? miEmpleado.fbKey : null,
+    empleadoNombre: miEmpleado ? miEmpleado.nombre : null,
+    reembolsado:    false,
+    esFijoBase:     false,
+    fotoBase64:     gastoRapidoFotoBase64 || null,
+    usuario:        currentUser || '',
+    ts:             Date.now()
+  };
+
+  window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), datos)
+    .then(function() {
+      if (miEmpleado) {
+        var mov = {
+          tipo: 'gasto_empresa', monto: monto, desc: 'Gasto empresa: '+desc,
+          fecha: datos.fecha, estado: 'aprobado', ts: Date.now(), usuario: currentUser||''
+        };
+        window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/'+miEmpleado.fbKey), mov);
+        notify('✓ Gasto cargado · $'+monto.toLocaleString('es-AR')+' acreditado a tu cuenta corriente');
+      } else {
+        notify('✓ Gasto cargado correctamente');
+      }
+      cerrarGastoRapido();
+    })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
 function registrarGasto() {
   document.getElementById('modal-nuevo').classList.remove('open');
   notify('Gasto registrado correctamente');
@@ -12715,6 +12807,53 @@ function actualizarResumenStock() {
 </div>
 
 <!-- MODAL CAMBIAR PASSWORD -->
+<!-- MODAL GASTO RÁPIDO -->
+<div id="modal-gasto-rapido" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" style="color:var(--amber)"><i class="ti ti-receipt"></i> Cargar gasto rápido</span>
+      <button class="icon-btn" onclick="cerrarGastoRapido()"><i class="ti ti-x" style="font-size:16px"></i></button>
+    </div>
+    <div class="form-grid">
+      <div class="fg"><label>Fecha</label><input type="date" id="gr-fecha"></div>
+      <div class="fg"><label>Monto ($)</label><input type="number" id="gr-monto" placeholder="0"></div>
+      <div class="fg full"><label>Descripción</label><input type="text" id="gr-descripcion" placeholder="Ej: Nafta, materiales, almuerzo..."></div>
+      <div class="fg"><label>Categoría</label>
+        <select id="gr-categoria">
+          <option>Transporte</option><option>Materiales</option><option>Servicios</option>
+          <option>Personal</option><option>Inmueble</option><option>Marketing</option>
+          <option>Mercadería</option><option>Impuestos</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="fg"><label>Medio de pago</label>
+        <select id="gr-medio">
+          <option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>QR</option><option>Cheque</option>
+        </select>
+      </div>
+      <div class="fg full" style="background:var(--bg3);border-radius:var(--radius);padding:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+          <input type="checkbox" id="gr-pagado-yo" onchange="document.getElementById('gr-reembolso-info').style.display=this.checked?'':'none'" style="width:16px;height:16px;accent-color:var(--blue)">
+          <span style="font-size:13px;font-weight:500">Lo pagué yo — reembolsarme</span>
+        </label>
+        <div id="gr-reembolso-info" style="display:none;font-size:12px;color:var(--blue);margin-top:8px"><i class="ti ti-info-circle"></i> Se acreditará automáticamente en tu cuenta corriente</div>
+      </div>
+      <div class="fg full">
+        <label>Foto del ticket (opcional)</label>
+        <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:12px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('gr-foto-input').click()">
+          <i class="ti ti-camera-plus" style="font-size:20px;color:var(--text3)"></i>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">Tocá para sacar foto o subir</div>
+        </div>
+        <input type="file" id="gr-foto-input" accept="image/*" capture="environment" style="display:none" onchange="previewFotoGastoRapido(this)">
+        <div id="gr-foto-preview" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="flex-end" style="margin-top:16px">
+      <button class="btn" onclick="cerrarGastoRapido()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarGastoRapido()" style="background:var(--amber);border-color:var(--amber)"><i class="ti ti-check"></i> Guardar gasto</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-password" class="modal-overlay">
   <div class="modal">
     <div class="modal-head">
