@@ -741,7 +741,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.1 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.2 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5055,7 +5055,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v13.1-firebase',
+  VERSION: 'v13.2-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10242,24 +10242,59 @@ function pptoAccion(accion) {
   };
 
   if (accion === 'convertir_venta') {
-    if (confirm('¿Confirmar conversión a venta? Se generará la venta automáticamente.')) {
-      p.estado = 'convertido';
-      p.ventaId = '#0004' + Math.floor(Math.random()*9+3);
-      p.audit.push({ fecha:ahora, usuario, accion:`Convertido a venta ${p.ventaId}` });
-      notify('Venta ' + p.ventaId + ' generada desde ' + p.id);
-      verPpto(p.id);
-    }
+    if (!confirm('¿Convertir este presupuesto en venta? El estado de pago inicial será Pendiente de pago.')) return;
+    if (!window.fbDB) { notify('Sin conexión'); return; }
+    var numVenta = '#V-' + String(Date.now()).slice(-6);
+    var venta = {
+      id:           numVenta,
+      cliente:      p.cliente || '',
+      fecha:        ahora,
+      empleado:     p.empleado || currentUser || '',
+      usuario:      currentUser || '',
+      items:        p.items   || [],
+      subtotal:     parseFloat(p.subtotal || p.total) || 0,
+      descuento:    parseFloat(p.descuento) || 0,
+      iva:          0,
+      total:        parseFloat(p.total) || 0,
+      estadoPago:   'pendiente_pago',
+      estadoInst:   'pendiente_pago',
+      pptoOrigen:   p.id || '',
+      observaciones: 'Generado desde presupuesto ' + (p.id||''),
+      ts:           Date.now()
+    };
+    window.fbPush(window.fbRef(window.fbDB, 'sisventas/ventas'), venta)
+      .then(function() {
+        // Marcar presupuesto como convertido
+        if (p.fbKey) {
+          window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+p.fbKey), {
+            estado: 'convertido',
+            ventaId: numVenta
+          });
+        }
+        notify('✓ Venta ' + numVenta + ' creada desde ' + p.id);
+        showPage('detalle', document.querySelector('[onclick*=detalle]'));
+        setTimeout(function() {
+          if (typeof verDetalleVenta === 'function') verDetalleVenta(numVenta);
+        }, 300);
+      })
+      .catch(function(e){ notify('Error: '+e.message); });
     return;
   }
 
   if (accion === 'ver_venta') {
-    notify('Navegando a venta ' + (p.ventaId || ''));
-    showPage('detalle', document.querySelector('[onclick*=detalle]'));
+    if (p.ventaId) {
+      showPage('detalle', document.querySelector('[onclick*=detalle]'));
+      setTimeout(function() {
+        if (typeof verDetalleVenta === 'function') verDetalleVenta(p.ventaId);
+      }, 150);
+    } else {
+      notify('Esta presupuesto no tiene venta vinculada');
+    }
     return;
   }
 
   if (accion === 'modificar_precio') {
-    notify('Edición de precios disponible con backend conectado');
+    notify('Edición de precios disponible próximamente');
     return;
   }
 
