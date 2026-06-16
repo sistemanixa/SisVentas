@@ -8,6 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
 <title>SisVentas</title>
+<link rel="icon" id="favicon-link" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
@@ -741,7 +742,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.4 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.5 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1767,6 +1768,7 @@ tr:hover td{color:var(--text)}
           <button class="cfg-tab" onclick="showCfgTab('comisiones',this)">Comisiones</button>
           <button class="cfg-tab" onclick="showCfgTab('sueldos',this)">Sueldos base</button>
           <button class="cfg-tab" onclick="showCfgTab('impuestos',this)">Impuestos</button>
+          <button class="cfg-tab" onclick="showCfgTab('roles',this)">Roles</button>
         </div>
 
         <!-- TAB: GENERAL -->
@@ -2004,6 +2006,20 @@ tr:hover td{color:var(--text)}
               </div>
             </div>
             <div class="flex-end"><button class="btn btn-primary" onclick="guardarConfiguracion(this)"><i class="ti ti-check"></i> Guardar</button></div>
+          </div>
+        </div>
+
+        <!-- TAB: ROLES Y PERMISOS -->
+        <div id="cfg-roles" class="cfg-panel" style="display:none">
+          <div class="card">
+            <div class="card-head"><span class="card-title">Permisos por rol</span></div>
+            <div style="font-size:13px;color:var(--text3);margin-bottom:16px">
+              <i class="ti ti-info-circle"></i> Definí qué módulos puede ver cada rol. Los cambios aplican al próximo inicio de sesión.
+            </div>
+            <div id="cfg-roles-tabla"></div>
+            <div class="flex-end" style="margin-top:16px">
+              <button class="btn btn-primary" onclick="guardarPermisosRoles()"><i class="ti ti-check"></i> Guardar permisos</button>
+            </div>
           </div>
         </div>
       
@@ -5071,6 +5087,18 @@ function applyRole() {
   document.querySelectorAll('.tecnico-only').forEach(function(el){
     el.style.display = isTecnico ? '' : 'none';
   });
+
+  // ── Permisos dinámicos por módulo (desde Configuración → Roles) ──
+  var bloqueados = (PERMISOS_ROLES[currentRole]||PERMISOS_DEFAULT[currentRole]||{bloqueados:[]}).bloqueados||[];
+  if (bloqueados.length) {
+    document.querySelectorAll('.nav-item[onclick]').forEach(function(el) {
+      var onclick = el.getAttribute('onclick')||'';
+      var match = onclick.match(/showPage\('([^']+)'/);
+      if (match && bloqueados.includes(match[1])) {
+        el.style.display = 'none';
+      }
+    });
+  }
 }
 
 
@@ -5085,7 +5113,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v13.4-firebase',
+  VERSION: 'v13.5-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5367,6 +5395,7 @@ function _completarLogin(nombre) {
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
   if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 300);
+  if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); setTimeout(applyRole, 400); }, 400);
   if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
 
@@ -5749,10 +5778,101 @@ function verRecibo(id) {
 
 // ── CONFIGURACIÓN TABS ──
 function showCfgTab(id, el) {
-  document.querySelectorAll('.cfg-panel').forEach(p => p.style.display = 'none');
-  document.querySelectorAll('.cfg-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.cfg-panel').forEach(function(p){ p.style.display = 'none'; });
+  document.querySelectorAll('.cfg-tab').forEach(function(t){ t.classList.remove('active'); });
   document.getElementById('cfg-' + id).style.display = 'block';
   el.classList.add('active');
+  if (id === 'roles') renderTablaRoles();
+}
+
+// ── PERMISOS POR ROL ──
+var PERMISOS_DEFAULT = {
+  admin:          { bloqueados: [] },
+  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad','caja'] },
+  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','caja','empleados','gastos','reportes','estadisticas','proveedores','ordenes','cuentacorriente'] },
+  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','caja','empleados','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas'] }
+};
+var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
+
+var TODOS_MODULOS = [
+  { id:'dashboard',      label:'Dashboard' },
+  { id:'presupuesto',    label:'Presupuestos' },
+  { id:'venta',          label:'Nueva venta' },
+  { id:'detalle',        label:'Detalle venta' },
+  { id:'cobranzas',      label:'Cobranzas' },
+  { id:'cuentacorriente',label:'Cuenta corriente' },
+  { id:'clientes',       label:'Clientes' },
+  { id:'productos',      label:'Productos' },
+  { id:'empleados',      label:'Empleados' },
+  { id:'usuarios',       label:'Usuarios' },
+  { id:'reportes',       label:'Reportes' },
+  { id:'estadisticas',   label:'Estadísticas' },
+  { id:'gastos',         label:'Gastos' },
+  { id:'caja',           label:'Caja diaria' },
+  { id:'rentabilidad',   label:'Rentabilidad' },
+  { id:'proveedores',    label:'Proveedores' },
+  { id:'ordenes',        label:'Órdenes de compra' },
+  { id:'garantias',      label:'Garantías' },
+  { id:'soporte',        label:'Soporte' },
+  { id:'remitos',        label:'Remitos' },
+  { id:'agenda',         label:'Agenda' },
+  { id:'servicios',      label:'Servicios' },
+  { id:'informes',       label:'Informes' },
+  { id:'equipos',        label:'Equipos' },
+  { id:'configuracion',  label:'Configuración' }
+];
+
+function cargarPermisosRoles() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/permisos')).then(function(snap) {
+    var data = snap.val();
+    if (data) Object.assign(PERMISOS_ROLES, data);
+  });
+}
+
+function renderTablaRoles() {
+  var cont = document.getElementById('cfg-roles-tabla');
+  if (!cont) return;
+  var roles = ['admin','administrativo','vendedor','tecnico'];
+  var rolLabels = { admin:'Admin', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var html = '<div style="overflow-x:auto"><table style="width:100%;font-size:13px">';
+  html += '<thead><tr><th style="text-align:left;padding:8px 12px;font-weight:600">Módulo</th>';
+  roles.forEach(function(r){ html += '<th style="text-align:center;padding:8px 12px;font-weight:600">'+rolLabels[r]+'</th>'; });
+  html += '</tr></thead><tbody>';
+  TODOS_MODULOS.forEach(function(mod) {
+    html += '<tr style="border-bottom:0.5px solid var(--border)">';
+    html += '<td style="padding:8px 12px;font-weight:500">'+mod.label+'</td>';
+    roles.forEach(function(r) {
+      var bloq = (PERMISOS_ROLES[r]||{bloqueados:[]}).bloqueados||[];
+      var checked = !bloq.includes(mod.id);
+      var disabled = (r === 'admin' || mod.id === 'dashboard') ? 'disabled title="Siempre visible"' : '';
+      html += '<td style="text-align:center;padding:8px">';
+      html += '<input type="checkbox" data-rol="'+r+'" data-mod="'+mod.id+'" '+(checked?'checked':'')+' '+disabled+' style="width:16px;height:16px;cursor:pointer">';
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  cont.innerHTML = html;
+}
+
+function guardarPermisosRoles() {
+  var checks = document.querySelectorAll('#cfg-roles-tabla input[type=checkbox]');
+  var roles = ['admin','administrativo','vendedor','tecnico'];
+  var nuevos = {};
+  roles.forEach(function(r){ nuevos[r] = { bloqueados:[] }; });
+  checks.forEach(function(chk) {
+    if (chk.disabled) return;
+    if (!chk.checked) {
+      var rol = chk.dataset.rol, mod = chk.dataset.mod;
+      if (rol && mod) nuevos[rol].bloqueados.push(mod);
+    }
+  });
+  Object.assign(PERMISOS_ROLES, nuevos);
+  if (window.fbDB) {
+    window.fbSet(window.fbRef(window.fbDB,'sisventas/config/permisos'), nuevos)
+      .then(function(){ notify('✓ Permisos guardados — aplican al próximo login'); });
+  }
 }
 
 // ── CUENTA CORRIENTE ──
@@ -6821,6 +6941,9 @@ function aplicarLogo(url) {
   if (img) { img.src = url; img.style.display = 'block'; }
   if (ph)  ph.style.display = 'none';
   if (db)  db.style.display = '';
+  // Actualizar favicon de la pestaña con el logo de la empresa
+  var fav = document.getElementById('favicon-link');
+  if (fav) fav.href = url;
 }
 
 function guardarDatosEmpresa(btn) {
