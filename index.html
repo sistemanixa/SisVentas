@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.6 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.8 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -803,45 +803,46 @@ tr:hover td{color:var(--text)}
         <i class="ti ti-wand"></i> Asistente de ventas
       </div>
       <div class="s-section no-tecnico">Ventas</div>
-      <div class="nav-item no-tecnico" onclick="showPage('presupuesto',this)">
+      <div class="nav-item" onclick="showPage('presupuesto',this)">
         <i class="ti ti-file-description"></i>Presupuestos
       </div>
-      <div class="nav-item no-tecnico" onclick="showPage('venta',this)">
+      <div class="nav-item" onclick="showPage('venta',this)">
         <i class="ti ti-plus"></i>Nueva venta
       </div>
-      <div class="nav-item no-tecnico" onclick="showPage('detalle',this)">
+      <div class="nav-item" onclick="showPage('detalle',this)">
         <i class="ti ti-list-details"></i>Detalle ventas
       </div>
-      <div class="nav-item no-tecnico" onclick="showPage('cobranzas',this)">
+      <div class="nav-item" onclick="showPage('cobranzas',this)">
         <i class="ti ti-cash"></i>Cobranzas
       </div>
-      <div class="nav-item no-tecnico" onclick="showPage('cuentacorriente',this)">
+      <div class="nav-item" onclick="showPage('cuentacorriente',this)">
         <i class="ti ti-wallet"></i>Cta. corriente
       </div>
       <div class="s-section">Maestros</div>
-      <div class="nav-item no-tecnico" onclick="showPage('clientes',this)">
+      <div class="nav-item" onclick="showPage('clientes',this)">
         <i class="ti ti-users"></i>Clientes
       </div>
-      <div class="nav-item no-tecnico" onclick="showPage('productos',this)">
+      <div class="nav-item" onclick="showPage('productos',this)">
         <i class="ti ti-package"></i>Productos
       </div>
-      <div class="nav-item admin-only" onclick="showPage('empleados',this)">
+      <div class="s-section">Personal</div>
+      <div class="nav-item" onclick="showPage('empleados',this)">
         <i class="ti ti-id-badge"></i>Empleados
       </div>
-      <div class="nav-item admin-only" onclick="showPage('vacaciones',this)">
+      <div class="nav-item" onclick="showPage('vacaciones',this)">
         <i class="ti ti-beach"></i>Vacaciones
       </div>
       <div class="nav-item" onclick="showPage('ctaemp',this)">
         <i class="ti ti-wallet"></i>Mi cuenta
       </div>
       <div class="s-section admin-only">Administración</div>
-      <div class="nav-item admin-only" onclick="showPage('usuarios',this)">
+      <div class="nav-item" onclick="showPage('usuarios',this)">
         <i class="ti ti-users-group"></i>Usuarios
       </div>
-      <div class="nav-item no-tecnico admin-only" onclick="showPage('reportes',this)">
+      <div class="nav-item" onclick="showPage('reportes',this)">
         <i class="ti ti-chart-bar"></i>Reportes
       </div>
-      <div class="nav-item no-tecnico admin-only" onclick="showPage('estadisticas',this)">
+      <div class="nav-item" onclick="showPage('estadisticas',this)">
         <i class="ti ti-chart-line"></i>Estadísticas
       </div>
       <div class="s-section tecnico-only">Acceso rápido</div>
@@ -854,7 +855,7 @@ tr:hover td{color:var(--text)}
       <div class="nav-item" onclick="showPage('servicios',this)">
         <i class="ti ti-tool"></i>Servicios
       </div>
-      <div class="nav-item no-tecnico" onclick="showPage('remitos',this)">
+      <div class="nav-item" onclick="showPage('remitos',this)">
         <i class="ti ti-file-export"></i>Remitos
       </div>
       <div class="nav-item" onclick="showPage('garantias',this)">
@@ -873,22 +874,22 @@ tr:hover td{color:var(--text)}
         <i class="ti ti-clipboard-list"></i>Órdenes de trabajo
       </div>
       <div class="s-section no-tecnico">Finanzas</div>
-      <div class="nav-item no-tecnico admin-only" onclick="showPage('caja',this)"><i class="ti ti-cash"></i> Caja diaria</div>
-      <div class="nav-item no-tecnico" onclick="showPage('gastos',this)"><i class="ti ti-receipt"></i>Gastos</div>
-      <div class="nav-item no-tecnico admin-only" onclick="showPage('sueldos',this)"><i class="ti ti-wallet"></i>Sueldos</div>
-      <div class="nav-item no-tecnico admin-only" onclick="showPage('rentabilidad',this)"><i class="ti ti-trending-up"></i>Rentabilidad</div>
+      <div class="nav-item" onclick="showPage('caja',this)"><i class="ti ti-cash"></i> Caja diaria</div>
+      <div class="nav-item" onclick="showPage('gastos',this)"><i class="ti ti-receipt"></i>Gastos</div>
+      <div class="nav-item" onclick="showPage('sueldos',this)"><i class="ti ti-wallet"></i>Sueldos</div>
+      <div class="nav-item" onclick="showPage('rentabilidad',this)"><i class="ti ti-trending-up"></i>Rentabilidad</div>
       <div class="s-section no-tecnico admin-only">Compras</div>
-      <div class="nav-item no-tecnico admin-only" onclick="showPage('proveedores',this)">
+      <div class="nav-item" onclick="showPage('proveedores',this)">
         <i class="ti ti-building-store"></i>Proveedores
       </div>
-      <div class="nav-item no-tecnico admin-only" onclick="showPage('ordenes',this)">
+      <div class="nav-item" onclick="showPage('ordenes',this)">
         <i class="ti ti-shopping-cart"></i>Órdenes de compra
       </div>
       <div class="s-section admin-only">Sistema</div>
-      <div class="nav-item admin-only" onclick="showPage('notificaciones',this)">
+      <div class="nav-item" onclick="showPage('notificaciones',this)">
         <i class="ti ti-bell"></i>Notificaciones
       </div>
-      <div class="nav-item admin-only" onclick="showPage('configuracion',this)">
+      <div class="nav-item" onclick="showPage('configuracion',this)">
         <i class="ti ti-settings"></i>Configuración
       </div>
     </div>
@@ -920,7 +921,7 @@ tr:hover td{color:var(--text)}
         <span class="topbar-date" id="topbar-date"></span>
         <span id="fb-status" style="font-size:11px;color:var(--text3)"></span>
         <span class="role-badge" id="role-badge-el">Admin</span>
-        <button class="icon-btn" title="Notificaciones" onclick="showPage('notificaciones',document.querySelector('[onclick*=notificaciones]') || this)" style="position:relative"><i class="ti ti-bell" style="font-size:16px"></i><span id="notif-badge" style="position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--red);border-radius:50%;border:1.5px solid var(--bg2)"></span></button>
+        <button class="icon-btn" title="Notificaciones" onclick="toggleNotificacionesPanel()" style="position:relative"><i class="ti ti-bell" style="font-size:16px"></i><span id="notif-badge" style="position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--red);border-radius:50%;border:1.5px solid var(--bg2)"></span></button>
         <button class="icon-btn" title="Mi cuenta" onclick="toggleUserPanel()" id="btn-gear"><i class="ti ti-settings" style="font-size:16px"></i></button>
       </div>
     </div>
@@ -4935,6 +4936,15 @@ document.addEventListener('firebase-ready', function() {
 // ── LOGOUT ──
 function doLogout() {
   if (!confirm('¿Cerrar sesión?')) return;
+  _ejecutarLogout();
+}
+
+function doLogoutAutomatico() {
+  // Cierre por inactividad — sin pedir confirmación
+  _ejecutarLogout();
+}
+
+function _ejecutarLogout() {
   if (window.fbAuth && window.fbSignOut) {
     window.fbSignOut(window.fbAuth).catch(function(){});
   }
@@ -4976,21 +4986,49 @@ window.addEventListener('error', function(e) {
 var notifT;
 
 // ── SHOW PAGE (navegación principal) ──
+var PERMISOS_DEFAULT = {
+  admin:          { bloqueados: [] },
+  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad','caja'] },
+  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','caja','empleados','vacaciones','sueldos','gastos','reportes','estadisticas','proveedores','ordenes','cuentacorriente'] },
+  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','caja','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas'] }
+};
+var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
+
+var _paginaAntesDeNotif = null;
+
+function toggleNotificacionesPanel() {
+  var pagNotif = document.getElementById('page-notificaciones');
+  var estaAbierta = pagNotif && pagNotif.classList.contains('active');
+
+  if (estaAbierta) {
+    // Volver a la página anterior
+    if (_paginaAntesDeNotif) {
+      showPage(_paginaAntesDeNotif.id, _paginaAntesDeNotif.el);
+    } else {
+      showPage('dashboard', document.querySelector('[onclick*="dashboard"]'));
+    }
+    _paginaAntesDeNotif = null;
+  } else {
+    // Guardar la página actual antes de ir a notificaciones
+    var actual = document.querySelector('.page.active');
+    var actualId = actual ? actual.id.replace('page-','') : 'dashboard';
+    var actualNav = document.querySelector('.nav-item.active');
+    _paginaAntesDeNotif = { id: actualId, el: actualNav };
+    showPage('notificaciones', document.querySelector('[onclick*="notificaciones"]'));
+  }
+}
+
 function showPage(id, el) {
   if (!isAuthenticated) { notify('Primero iniciá sesión'); return; }
   var page = document.getElementById('page-' + id);
   if (!page) { notify('Módulo no disponible'); return; }
-  if (APP_CONFIG.ADMIN_PAGES.has(id) && currentRole !== 'admin') {
-    notify('Acceso restringido — solo administradores'); return;
-  }
-  if (APP_CONFIG.TECNICO_BLOCKED && APP_CONFIG.TECNICO_BLOCKED.has(id) && currentRole === 'tecnico') {
-    notify('Acceso restringido para técnicos'); return;
-  }
-  if (APP_CONFIG.ADMINISTRATIVO_BLOCKED && APP_CONFIG.ADMINISTRATIVO_BLOCKED.has(id) && currentRole === 'administrativo') {
-    notify('Acceso restringido para administrativos'); return;
-  }
-  if (APP_CONFIG.VENDEDOR_BLOCKED && APP_CONFIG.VENDEDOR_BLOCKED.has(id) && currentRole === 'vendedor') {
-    notify('Acceso restringido para vendedores'); return;
+  // Validar permisos dinámicos (Configuración → Roles)
+  if (currentRole !== 'admin') {
+    var bloqueadosSP = (PERMISOS_ROLES[currentRole]||PERMISOS_DEFAULT[currentRole]||{bloqueados:[]}).bloqueados||[];
+    if (bloqueadosSP.includes(id)) {
+      notify('Acceso restringido para tu rol');
+      return;
+    }
   }
   // Ocultar todas las páginas
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
@@ -5116,7 +5154,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v13.6-firebase',
+  VERSION: 'v13.8-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5789,13 +5827,7 @@ function showCfgTab(id, el) {
 }
 
 // ── PERMISOS POR ROL ──
-var PERMISOS_DEFAULT = {
-  admin:          { bloqueados: [] },
-  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad','caja'] },
-  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','caja','empleados','gastos','reportes','estadisticas','proveedores','ordenes','cuentacorriente'] },
-  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','caja','empleados','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas'] }
-};
-var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
+
 
 var TODOS_MODULOS = [
   { id:'dashboard',      label:'Dashboard' },
@@ -6047,36 +6079,36 @@ function cambiarPassword() {
 
 // ── TIMEOUT DE SESIÓN ──
 
-
 function resetSessionTimer() {
   clearTimeout(sessionTimer);
-  sessionTimer = setTimeout(() => {
+  sessionStart = Date.now(); // reiniciar el contador visual también
+  sessionTimer = setTimeout(function() {
     notify('Sesión expirada por inactividad');
-    setTimeout(doLogout, 2000);
+    setTimeout(doLogoutAutomatico, 2000);
   }, SESSION_TIMEOUT);
 }
 function startSessionTimer() {
   sessionStart = Date.now();
   resetSessionTimer();
   clearInterval(tiempoUI);
-  tiempoUI = setInterval(() => {
+  tiempoUI = setInterval(function() {
     if (!isAuthenticated) { clearInterval(tiempoUI); return; }
-    const mins = Math.floor((Date.now() - sessionStart) / 60000);
-    const rest = SESSION_TIMEOUT/60000 - mins;
-    const et = document.getElementById('up-tiempo');
-    const er = document.getElementById('up-timeout');
+    var mins = Math.floor((Date.now() - sessionStart) / 60000);
+    var rest = SESSION_TIMEOUT/60000 - mins;
+    var et = document.getElementById('up-tiempo');
+    var er = document.getElementById('up-timeout');
     if (et) et.textContent = mins + ' min';
-    if (er) { er.textContent = rest + ' min'; er.style.color = rest <= 5 ? 'var(--red)' : 'var(--amber)'; }
-  }, 60000);
+    if (er) { er.textContent = Math.max(0,rest) + ' min'; er.style.color = rest <= 5 ? 'var(--red)' : 'var(--amber)'; }
+  }, 10000); // actualizar cada 10 seg para que se vea más responsivo
 }
 function stopSessionTimer() {
   clearTimeout(sessionTimer);
   clearInterval(tiempoUI);
   sessionStart = null;
 }
-['click','keydown','touchstart','scroll'].forEach(ev =>
-  document.addEventListener(ev, () => { if (typeof isAuthenticated !== 'undefined' && isAuthenticated) resetSessionTimer(); }, {passive:true})
-);
+['click','keydown','touchstart','scroll'].forEach(function(ev) {
+  document.addEventListener(ev, function() { if (typeof isAuthenticated !== 'undefined' && isAuthenticated) resetSessionTimer(); }, {passive:true});
+});
 
 // Parchar doLogin y doLogout para integrar panel y timer
 // session timer y panel: integrados en doLogin/doLogout directamente
@@ -12308,8 +12340,8 @@ function actualizarResumenStock() {
   <!-- Opciones -->
   <div style="padding:8px">
     <div class="up-item" onclick="abrirCambiarPassword()"><i class="ti ti-lock" style="font-size:15px"></i> Cambiar contraseña</div>
-    <div class="up-item" onclick="showPage('usuarios',document.querySelector('[onclick*=usuarios]'));cerrarUserPanel()"><i class="ti ti-users-group" style="font-size:15px"></i> Gestión de usuarios</div>
-    <div class="up-item" onclick="showPage('configuracion',document.querySelector('[onclick*=configuracion]'));cerrarUserPanel()"><i class="ti ti-settings" style="font-size:15px"></i> Configuración del sistema</div>
+    <div class="up-item admin-only" onclick="showPage('usuarios',document.querySelector('[onclick*=usuarios]'));cerrarUserPanel()"><i class="ti ti-users-group" style="font-size:15px"></i> Gestión de usuarios</div>
+    <div class="up-item admin-only" onclick="showPage('configuracion',document.querySelector('[onclick*=configuracion]'));cerrarUserPanel()"><i class="ti ti-settings" style="font-size:15px"></i> Configuración del sistema</div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
     <!-- Modo oscuro -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:var(--radius)">
