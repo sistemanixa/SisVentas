@@ -13,24 +13,20 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script>
 // ══════════════════════════════════════════════
-// LOGIN — autónomo, no depende de app-main
+// FUNCIONES DE LOGIN — ejecutan ANTES del HTML
 // ══════════════════════════════════════════════
 
 window.togglePassVis = function() {
   var inp = document.getElementById('l-pass');
   var ico = document.getElementById('ico-show-pass');
   if (!inp) return;
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  if (ico) ico.className = inp.type === 'text' ? 'ti ti-eye-off' : 'ti ti-eye';
-};
-
-window._resetLoginBtn = function() {
-  var btn = document.getElementById('btn-login');
-  var ico = document.getElementById('ico-login-btn');
-  var txt = document.getElementById('txt-login-btn');
-  if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
-  if (ico) { ico.className = 'ti ti-login'; ico.style.animation = ''; }
-  if (txt) txt.textContent = ' Ingresar';
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    if (ico) ico.className = 'ti ti-eye-off';
+  } else {
+    inp.type = 'password';
+    if (ico) ico.className = 'ti ti-eye';
+  }
 };
 
 window.iniciarLoginConFeedback = function() {
@@ -42,168 +38,54 @@ window.iniciarLoginConFeedback = function() {
   if (ico) { ico.className = 'ti ti-loader-2'; ico.style.animation = 'spin 1s linear infinite'; }
   if (txt) txt.textContent = ' Verificando...';
   if (err) err.style.display = 'none';
-  window.ejecutarLogin();
+  window.iniciarLogin();
 };
 
-// También asignar a iniciarLogin por compatibilidad
-window.iniciarLogin = window.iniciarLoginConFeedback;
+window._resetLoginBtn = function() {
+  var btn = document.getElementById('btn-login');
+  var ico = document.getElementById('ico-login-btn');
+  var txt = document.getElementById('txt-login-btn');
+  if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  if (ico) { ico.className = 'ti ti-login'; ico.style.animation = ''; }
+  if (txt) txt.textContent = ' Ingresar';
+};
 
-window.ejecutarLogin = function() {
-  var uEl  = document.getElementById('l-user');
-  var pEl  = document.getElementById('l-pass');
-  var err  = document.getElementById('login-error');
-
-  var email = (uEl ? uEl.value.trim() : '');
-  var pass  = (pEl ? pEl.value : '');
-
-  if (!email || !pass) {
-    if (err) { err.textContent = 'Ingresá usuario y contraseña'; err.style.display = 'block'; }
-    window._resetLoginBtn();
+window.iniciarLogin = function() {
+  var err = document.getElementById('login-error');
+  if (typeof window.doLogin === 'function') {
+    window.doLogin();
     return;
   }
-  if (!email.includes('@')) email = email + '@sistemanixa.com';
-
-  // Esperar a que Firebase esté listo (máx 10 seg)
   var intentos = 0;
+  var fired = false;
+  var onReady = function() {
+    if (fired) return;
+    fired = true;
+    document.removeEventListener('firebase-ready', onReady);
+    clearInterval(iv);
+    if (typeof window.doLogin === 'function') window.doLogin();
+  };
+  document.addEventListener('firebase-ready', onReady);
   var iv = setInterval(function() {
     intentos++;
-    if (window.fbAuth && window.fbSignIn && window.fbDB && window.fbGet && window.fbRef) {
+    if (typeof window.doLogin === 'function') {
       clearInterval(iv);
-      window._hacerLogin(email, pass);
-    } else if (intentos > 100) {
+      if (!fired) { fired = true; document.removeEventListener('firebase-ready', onReady); window.doLogin(); }
+    } else if (intentos > 150) {
       clearInterval(iv);
-      window._resetLoginBtn();
-      if (err) { err.textContent = 'No se pudo conectar con Firebase. Recargá la página.'; err.style.display = 'block'; }
+      if (!fired) {
+        fired = true;
+        window._resetLoginBtn();
+        if (err) { err.textContent = 'No se pudo conectar. Recargá la página.'; err.style.display = 'block'; }
+      }
     }
   }, 100);
 };
 
-window._hacerLogin = function(email, pass) {
-  var err = document.getElementById('login-error');
-
-  window.fbSignIn(window.fbAuth, email, pass)
-    .then(function(cred) {
-      if (err) err.style.display = 'none';
-      // Leer rol desde DB
-      window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios'))
-        .then(function(snap) {
-          var data = snap.val() || {};
-          var emailLow = cred.user.email.toLowerCase();
-          var usuario = null;
-          Object.values(data).forEach(function(u) {
-            if ((u.mail||'').toLowerCase() === emailLow ||
-                (u.login||'').toLowerCase() === emailLow.split('@')[0]) {
-              usuario = u;
-            }
-          });
-          var rol    = usuario ? (usuario.rol || 'vendedor') : (emailLow === 'nixa@sistemanixa.com' ? 'admin' : 'vendedor');
-          var nombre = usuario ? (usuario.nombre || emailLow.split('@')[0]) : emailLow.split('@')[0];
-          window._entrarAlSistema(nombre, rol);
-        })
-        .catch(function() {
-          // Si falla leer DB, entrar igual con rol básico
-          var rol = email === 'nixa@sistemanixa.com' ? 'admin' : 'vendedor';
-          window._entrarAlSistema(email.split('@')[0], rol);
-        });
-    })
-    .catch(function(e) {
-      window._resetLoginBtn();
-      if (err) {
-        var code = e ? (e.code || '') : '';
-        if (code.includes('wrong-password') || code.includes('invalid-credential') || code.includes('user-not-found') || code.includes('invalid-email')) {
-          err.textContent = 'Usuario o contraseña incorrectos';
-        } else if (code.includes('too-many-requests')) {
-          err.textContent = 'Demasiados intentos. Esperá unos minutos.';
-        } else {
-          err.textContent = 'Error: ' + (e.message || code || 'desconocido');
-        }
-        err.style.display = 'block';
-      }
-    });
-};
-
-window._entrarAlSistema = function(nombre, rol) {
-  // Guardar estado global
-  window.currentUser = nombre;
-  window.currentRole = rol;
-  window.isAuthenticated = true;
-
-  // Ocultar login, mostrar loading
-  var loginEl   = document.getElementById('screen-login');
-  var loadingEl = document.getElementById('screen-loading');
-  var barEl     = document.getElementById('loading-bar');
-  var msgEl     = document.getElementById('loading-msg');
-  var appEl     = document.getElementById('screen-app');
-
-  if (loginEl)   loginEl.style.display = 'none';
-  if (loadingEl) loadingEl.style.display = 'flex';
-  if (barEl)     barEl.style.width = '20%';
-  if (msgEl)     msgEl.textContent = 'Cargando datos...';
-
-  // Esperar que app-main esté disponible
-  var prog = 20;
-  var intentos = 0;
-  var chk = setInterval(function() {
-    intentos++;
-    prog = Math.min(90, prog + 4);
-    if (barEl) barEl.style.width = prog + '%';
-
-    var listo = typeof window._completarLogin === 'function';
-
-    if (listo) {
-      clearInterval(chk);
-      if (barEl) barEl.style.width = '100%';
-      if (msgEl) msgEl.textContent = 'Bienvenido, ' + nombre + '!';
-      // Sincronizar currentRole con app-main antes de llamar _completarLogin
-      try { currentRole = rol; } catch(e) {}
-      window._completarLogin(nombre);
-      setTimeout(function() { window._resetLoginBtn(); }, 500);
-    } else if (intentos > 50) {
-      // Forzar entrada aunque app-main no cargó
-      clearInterval(chk);
-      if (loadingEl) loadingEl.style.display = 'none';
-      if (appEl)     appEl.classList.add('visible');
-      window._resetLoginBtn();
-      if (typeof window.fbCargarTodo === 'function') window.fbCargarTodo();
-    }
-  }, 200);
-};
-
-// Restaurar sesión al recargar (onAuthStateChanged)
-// Se ejecuta cuando Firebase inicializa
-window._onFirebaseReady = function() {
-  if (!window.fbOnAuth || !window.fbAuth) return;
-  window.fbOnAuth(window.fbAuth, function(user) {
-    if (user && !window._sessionRestored) {
-      window._sessionRestored = true;
-      var appEl = document.getElementById('screen-app');
-      if (appEl && !appEl.classList.contains('visible')) {
-        // Hay sesión activa — restaurar sin pedir contraseña
-        window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios'))
-          .then(function(snap) {
-            var data = snap.val() || {};
-            var emailLow = user.email.toLowerCase();
-            var usuario = null;
-            Object.values(data).forEach(function(u) {
-              if ((u.mail||'').toLowerCase() === emailLow ||
-                  (u.login||'').toLowerCase() === emailLow.split('@')[0]) {
-                usuario = u;
-              }
-            });
-            var rol    = usuario ? (usuario.rol||'vendedor') : (emailLow==='nixa@sistemanixa.com'?'admin':'vendedor');
-            var nombre = usuario ? (usuario.nombre||user.email.split('@')[0]) : user.email.split('@')[0];
-            window._entrarAlSistema(nombre, rol);
-          })
-          .catch(function() {
-            window._entrarAlSistema(user.email.split('@')[0], emailLow==='nixa@sistemanixa.com'?'admin':'vendedor');
-          });
-      }
-    } else if (!user) {
-      window._sessionRestored = false;
-    }
-  });
-};
-
+// Restaurar modo oscuro guardado
+try {
+  if (localStorage.getItem('nixa_dark') === '1') document.documentElement.classList.add('dark-mode');
+} catch(e) {}
 </script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -907,7 +789,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v12.4 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v12.6 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4336,8 +4218,8 @@ function _dx(s, k) {
 function accesoRapido() {
   var inp = document.getElementById('l-user');
   var pass = document.getElementById('l-pass');
-  if (inp)  inp.value  = _dx('ICAgIBMqOkFCKyQ5LzohMhxVISQ=');
-  if (pass) pass.value = _dx('f35rdR0wK1MYYGc=');
+  if (inp)  inp.value  = 'nixa@sistemanixa.com';
+  if (pass) pass.value = '1734Nixa...';
   iniciarLogin();
 }
 
@@ -4714,7 +4596,7 @@ function fbCargarPresupuestos() {
       // Verificar vencimientos automáticamente
       setTimeout(verificarVencimientosPptos, 800);
       // Actualizar tabla si está visible
-      if (document.getElementById('page-presupuesto')?.classList.contains('active')) {
+      if (document.getElementById('page-presupuesto') && document.getElementById('page-presupuesto').classList.contains('active')) {
         if (typeof renderPptoTabla === 'function') renderPptoTabla();
       }
     }
@@ -5345,7 +5227,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 var APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v12.4-firebase',
+  VERSION: 'v12.6-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5491,8 +5373,91 @@ function selectRole(r) {
   document.getElementById('rb-vendedor').classList.toggle('selected', r === 'vendedor');
 }
 
-// doLogin delegado al sistema de login del head
-window.doLogin = window.ejecutarLogin;
+window.doLogin = function doLogin() {
+  var u = document.getElementById('l-user').value.trim();
+  var p = document.getElementById('l-pass').value;
+  var err = document.getElementById('login-error');
+
+  if (window.fbAuth && window.fbSignIn) {
+    var email = u.includes('@') ? u : u + '@sistemanixa.com';
+    window.fbSignIn(window.fbAuth, email, p)
+      .then(function(cred) {
+        if(err) err.style.display = 'none';
+        isAuthenticated = true;
+        // El rol viene SOLO de Firebase DB — buscar en usuariosData
+        var emailLower = cred.user.email.toLowerCase();
+        function aplicarRolYNombre(usuariosSnap) {
+          var lista = usuariosSnap ? Object.values(usuariosSnap) : (window.usuariosData || []);
+          var usuario = lista.find(function(u) {
+            var mailDB = (u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com')).toLowerCase();
+            return mailDB === emailLower;
+          });
+          if (!usuario) {
+            // Verificar si es el email administrador principal del sistema
+            var esAdmin = emailLower === 'nixa@sistemanixa.com' ||
+                          emailLower.startsWith('admin@');
+            currentRole = esAdmin ? 'admin' : 'vendedor';
+            if (esAdmin) {
+              notify('⚠️ Ingresaste como Admin. Creá tu usuario en Usuarios → Nuevo usuario para quitar este aviso.');
+            } else {
+              notify('⚠️ Usuario no registrado en el sistema — rol limitado. Pedile al admin que te agregue.');
+            }
+            _completarLogin(cred.user.displayName || cred.user.email.split('@')[0]);
+            return;
+          }
+          if (usuario.activo === false) {
+            // Usuario desactivado
+            window.fbSignOut(window.fbAuth);
+            isAuthenticated = false;
+            if(err) { err.textContent = 'Tu cuenta está desactivada. Contactá al administrador.'; err.style.display = 'block'; }
+            return;
+          }
+          var r = (usuario.rol||'').toLowerCase();
+          currentRole = (r==='admin'||r==='administrador') ? 'admin'
+                      : (r==='tecnico'||r==='técnico')     ? 'tecnico'
+                      : (r==='vendedor')                   ? 'vendedor'
+                      : 'administrativo';
+          _completarLogin(usuario.nombre || cred.user.email.split('@')[0]);
+        }
+        // Si ya tenemos usuariosData cargado lo usamos, sino lo leemos de DB
+        if (window.usuariosData && window.usuariosData.length) {
+          aplicarRolYNombre(null);
+        } else {
+          // Leer directamente de DB para no depender de la carga asíncrona
+          window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios')).then(function(snap) {
+            var data = snap.val();
+            var lista = data ? Object.values(data).map(function(v){ return v; }) : [];
+            window.usuariosData = lista;
+            aplicarRolYNombre(lista);
+          }).catch(function() {
+            // Sin acceso a DB: acceso denegado
+            window.fbSignOut(window.fbAuth);
+            isAuthenticated = false;
+            if(err) { err.textContent = 'No se pudo verificar el rol. Verificá tu conexión.'; err.style.display = 'block'; }
+          });
+        }
+      })
+      .catch(function(fbError) {
+        if (typeof window._resetLoginBtn === 'function') window._resetLoginBtn();
+        var code = fbError ? fbError.code : 'desconocido';
+        var msg  = fbError ? fbError.message : '';
+        if(err) {
+          err.textContent = 'Error: ' + code + (msg ? ' — ' + msg.slice(0,80) : '');
+          err.style.display = 'block';
+        }
+      });
+  } else {
+    var demo = APP_CONFIG.DEMO_USERS[u.toLowerCase()];
+    if (!demo || demo.password !== p) {
+      if(err) err.style.display = 'block';
+      return;
+    }
+    if(err) err.style.display = 'none';
+    isAuthenticated = true;
+    currentRole = demo.role;
+    _completarLogin(demo.name);
+  }
+}
 
 function _completarLogin(nombre) {
   currentUser = nombre;
@@ -5851,12 +5816,12 @@ document.addEventListener('click', function(e) {if(!e.target.closest('#page-pres
 function calcPpTotales() {
   var s=0;
   document.querySelectorAll('#pp-body tr').forEach(function(tr) {
-    var q=parseFloat(tr.querySelector('.ppqty')?.value)||0;
-    var p=parseFloat(tr.querySelector('.ppprice')?.value)||0;
+    var q=parseFloat((tr.querySelector('.ppqty') ? tr.querySelector('.ppqty').value : 0))||0;
+    var p=parseFloat((tr.querySelector('.ppprice') ? tr.querySelector('.ppprice').value : 0))||0;
     var sub=q*p; s+=sub;
     var el=tr.querySelector('.ppsub'); if(el) el.textContent='$'+Math.round(sub).toLocaleString('es-AR');
   });
-  var desc=parseFloat(document.getElementById('pp-descuento')?.value)||0;
+  var desc=parseFloat((document.getElementById('pp-descuento') ? document.getElementById('pp-descuento').value : 0)||0;
   var descAmt=s*desc/100; const base=s-descAmt; const iva=base*0.21;
   _set('pp-sub','$'+Math.round(s).toLocaleString('es-AR'));
   _set('pp-desc-amt','-$'+Math.round(descAmt).toLocaleString('es-AR'));
@@ -6096,9 +6061,9 @@ function checkPwdStrength(pwd) {
   if (lbl) { lbl.textContent = labels[score]||''; lbl.style.color = colors[score]; }
 }
 function cambiarPassword() {
-  var actual = document.getElementById('pwd-actual')?.value;
-  var nueva  = document.getElementById('pwd-nueva')?.value;
-  var confirm= document.getElementById('pwd-confirm')?.value;
+  var actual = (document.getElementById('pwd-actual') ? document.getElementById('pwd-actual').value : '');
+  var nueva  = (document.getElementById('pwd-nueva') ? document.getElementById('pwd-nueva').value : '');
+  var confirm= (document.getElementById('pwd-confirm') ? document.getElementById('pwd-confirm').value : '');
   if (!actual||!nueva||!confirm) { notify('Completá todos los campos'); return; }
   if (nueva !== confirm) { notify('Las contraseñas no coinciden'); return; }
   if (nueva.length < 6) { notify('Mínimo 6 caracteres'); return; }
@@ -10445,8 +10410,8 @@ var pptoActualId = null;
 
 
 function checkAprobacion() {
-  var total = parseFloat(document.getElementById('pp-total')?.(textContent && textContent.replace)(/[\$\.]/g,'').replace(',','.')) || 0;
-  var desc  = parseFloat(document.getElementById('pp-descuento')?.value) || 0;
+  var _pptot = document.getElementById('pp-total'); var total = parseFloat(_pptot ? _pptot.textContent.replace(/[\$\.]/g,'').replace(',','.')) || 0;
+  var desc  = parseFloat((document.getElementById('pp-descuento') ? document.getElementById('pp-descuento').value : 0) || 0;
   var alerta = document.getElementById('form-alerta-aprobacion');
   var txt    = document.getElementById('form-alerta-txt');
   if (!alerta) return;
@@ -10534,7 +10499,7 @@ function renderTimeline(p) {
   var tl = document.getElementById('ppto-timeline');
   if (!tl) return;
   var flujo = ['borrador','revision','aprobado_int','enviado','visto','aceptado','convertido'];
-  var estadoOrden = PPTO_ESTADOS[p.estado]?.orden || 1;
+  var estadoOrden = (PPTO_ESTADOS[p.estado] ? PPTO_ESTADOS[p.estado].orden : 1);
   var esRechazado = p.estado === 'rechazado';
   var esVencido   = p.estado === 'vencido';
 
@@ -10654,10 +10619,10 @@ function pptoAccion(accion) {
 
 // Guardar presupuesto nuevo
 function guardarPresupuesto(modo) {
-  var cli = document.getElementById('pp-cli')?.(value && value.trim)();
+  var _ppcli = document.getElementById('pp-cli'); var cli = _ppcli ? _ppcli.value.trim() : '';
   if (!cli) { notify('Seleccioná un cliente'); return; }
-  var desc = parseFloat(document.getElementById('pp-descuento')?.value) || 0;
-  var totalTxt = document.getElementById('pp-total')?.textContent || '$0';
+  var desc = parseFloat((document.getElementById('pp-descuento') ? document.getElementById('pp-descuento').value : 0) || 0;
+  var totalTxt = (document.getElementById('pp-total') ? document.getElementById('pp-total').textContent : '$0');
   var total = parseFloat(totalTxt.replace(/[\$\.]/g,'').replace(',','.')) || 0;
   var reqAprobacion = (total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite);
   var estadoFinal = reqAprobacion ? 'revision' : modo;
@@ -10666,7 +10631,7 @@ function guardarPresupuesto(modo) {
     id: 'PP-00' + (pptoData.length + 10),
     cliente: cli, empleado: currentUser || '',
     fecha: new Date().toLocaleDateString('es-AR'),
-    vence: document.getElementById('pp-venc')?.value || '',
+    vence: (document.getElementById('pp-venc') ? document.getElementById('pp-venc').value : ''),
     total, descuento: desc,
     estado: estadoFinal,
     requiereAprobacion: reqAprobacion,
@@ -10890,7 +10855,7 @@ function actualizarProgreso(ot) {
 function completarOT() {
   var ot = otData.find(function(o) { return o.id === otActualId; });
   if (!ot) return;
-  var conf = document.getElementById('ot-acta-conf')?.value;
+  var conf = (document.getElementById('ot-acta-conf') ? document.getElementById('ot-acta-conf').value : '');
   if (!conf) { notify('Seleccioná la conformidad del cliente'); return; }
   var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.estado = 'completada';
@@ -11904,7 +11869,7 @@ function marcarLeida(id) {
 
 function marcarTodasLeidas() {
   todasNotifs.forEach(function(n) { return notifLeidas.add(n.id; }));
-  renderNotificaciones(document.getElementById('notif-filtro')?.value || '');
+  renderNotificaciones((document.getElementById('notif-filtro') ? document.getElementById('notif-filtro').value : ''));
   actualizarBadgeNotif();
   notify('Todas las notificaciones marcadas como leídas');
 }
@@ -12202,7 +12167,7 @@ function calcularComisionEmpleado(emp, mesAMM) {
 function editarIVA(btn) {
   var tr = btn.closest('tr');
   var inp = tr.querySelector('input[type=number]');
-  var nombre = tr.querySelector('td')?.textContent || 'alícuota';
+  var nombre = (tr.querySelector('td') ? tr.querySelector('td').textContent : 'alícuota');
   if (inp) {
     inp.focus();
     inp.select();
