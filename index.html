@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v14.3 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v14.4 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -932,22 +932,22 @@ tr:hover td{color:var(--text)}
       <!-- ── DASHBOARD ── -->
       <div id="page-dashboard" class="page active">
         <div class="metrics">
-          <div class="metric">
+          <div class="metric" style="cursor:pointer" onclick="kpiNavegar('ventasHoy')" title="Ver detalle de ventas">
             <div class="m-label">Ventas hoy</div>
             <div class="m-value" id="kpi-ventas-hoy">$0</div>
             <div class="m-sub" id="kpi-ventas-diff" style="color:var(--text3)">sin datos aún</div>
           </div>
-          <div class="metric">
+          <div class="metric" style="cursor:pointer" onclick="kpiNavegar('deuda')" title="Ver cobranzas">
             <div class="m-label">Deuda clientes</div>
             <div class="m-value" id="kpi-deuda" style="color:var(--amber)">$0</div>
             <div class="m-sub m-warn" id="kpi-deuda-sub">cargando...</div>
           </div>
-          <div class="metric">
+          <div class="metric" style="cursor:pointer" onclick="kpiNavegar('presupuestos')" title="Ver presupuestos">
             <div class="m-label">Presupuestos</div>
             <div class="m-value" id="kpi-pptos">0</div>
             <div class="m-sub m-warn"><span id="kpi-pptos-sub">cargando...</span></div>
           </div>
-          <div class="metric">
+          <div class="metric" style="cursor:pointer" onclick="kpiNavegar('iva')" title="Ver reportes">
             <div class="m-label">IVA acumulado</div>
             <div class="m-value" id="kpi-iva">$0</div>
             <div class="m-sub" id="kpi-iva-mes">cargando...</div>
@@ -967,15 +967,18 @@ tr:hover td{color:var(--text)}
             </div>
           </div>
           <div class="card" style="margin-bottom:0">
-            <div class="card-head"><span class="card-title">Comisiones del mes</span></div>
-            <table class="comisiones-tbl">
-              <tr><th>Empleado</th><th>Cat.</th><th style="text-align:right">Comisiones</th><th style="text-align:right">H. Extra</th></tr>
-<tbody id="dash-comisiones"><tr><td colspan="4" style="text-align:center;padding:12px;color:var(--text3)">Cargando...</td></tr></tbody></table>
+            <div class="card-head">
+              <span class="card-title">Órdenes de trabajo pendientes</span>
+              <button class="btn btn-sm" onclick="showPage('ordentrabajo',document.querySelector('[onclick*=ordentrabajo]'))"><i class="ti ti-external-link"></i> Ver todas</button>
+            </div>
+            <table>
+              <tr><th>Cliente</th><th>Técnico</th><th style="text-align:right">Estado</th></tr>
+<tbody id="dash-ot-pendientes"><tr><td colspan="3" style="text-align:center;padding:12px;color:var(--text3)">Cargando...</td></tr></tbody></table>
           </div>
         </div>
         <div class="card">
           <div class="card-head">
-            <span class="card-title">Últimas ventas</span>
+            <span class="card-title" style="cursor:pointer" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver todas las ventas">Últimas ventas</span>
             <button class="btn btn-sm" onclick="showPage('venta',document.querySelectorAll('.nav-item')[1])"><i class="ti ti-plus"></i> Nueva venta</button>
           </div>
           <!-- Tabla desktop -->
@@ -5196,7 +5199,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v14.3-firebase',
+  VERSION: 'v14.4-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10835,6 +10838,13 @@ function filtrarOT(v) { renderOTTabla(v); }
 function buscarOT(v)  { renderOTTabla(); }
 
 // Ver detalle de una OT
+function abrirOTDesdeId(otId) {
+  showPage('ordentrabajo', document.querySelector('[onclick*="ordentrabajo"]'));
+  setTimeout(function() {
+    if (typeof verOT === 'function') verOT(otId);
+  }, 200);
+}
+
 function verOT(id) {
   const ot = otData.find(o => o.id === id);
   if (!ot) return;
@@ -11092,30 +11102,38 @@ function renderKPIsDashboard() {
     }
   }
 
-  // ── Comisiones (solo empleados activos) ──
-  var empTabla = document.getElementById('dash-comisiones');
-  if (empTabla && Object.keys(empData||{}).length) {
-    var empActivos = Object.values(empData).filter(function(e){ return e.activo !== false; });
-    if (!empActivos.length) {
-      empTabla.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sin empleados activos</td></tr>';
+  // ── Órdenes de trabajo pendientes ──
+  var otTabla = document.getElementById('dash-ot-pendientes');
+  if (otTabla) {
+    var otsPend = (otData||[]).filter(function(o){ return o.estado !== 'completada'; });
+    if (!esAdmin) {
+      otsPend = otsPend.filter(function(o){ return (o.tecnico||'').toLowerCase() === (currentUser||'').toLowerCase(); });
+    }
+    if (!otsPend.length) {
+      otTabla.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:12px">Sin OTs pendientes</td></tr>';
     } else {
-      empTabla.innerHTML = empActivos.map(function(e) {
-        return '<tr>' +
-          '<td>' + escapeHTML(e.nombre||'') + '</td>' +
-          '<td><span class="badge b-blue" style="font-size:10px">' + (e.categoria||'') + '</span></td>' +
-          '<td style="text-align:right;color:var(--green)">$' + (parseFloat(e.comisiones)||0).toLocaleString('es-AR') + '</td>' +
-          '<td style="text-align:right;color:var(--text3)">' + (e.hextra ? '$'+(parseFloat(e.hextra)||0).toLocaleString('es-AR') : '—') + '</td>' +
+      otTabla.innerHTML = otsPend.slice(0,6).map(function(o) {
+        var badge = o.estado === 'en_progreso' ? '<span class="badge b-blue">En progreso</span>' : '<span class="badge b-amber">Pendiente</span>';
+        return '<tr style="cursor:pointer" onclick="abrirOTDesdeId(\'' + escapeHTML(o.id||o.fbKey||'') + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
+          '<td>' + escapeHTML(o.cliente||'') + '</td>' +
+          '<td style="color:var(--text3)">' + escapeHTML(o.tecnico||'Sin asignar') + '</td>' +
+          '<td style="text-align:right">' + badge + '</td>' +
         '</tr>';
       }).join('');
     }
   }
 }
 
-function verDetalleVentaDesdeId(ventaId) {
-  showPage('detalle', document.querySelector('[onclick*="detalle"]'));
-  setTimeout(function() {
-    if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaId);
-  }, 150);
+function kpiNavegar(tipo) {
+  if (tipo === 'ventasHoy') {
+    showPage('detalle', document.querySelector('[onclick*="detalle"]'));
+  } else if (tipo === 'deuda') {
+    showPage('cobranzas', document.querySelector('[onclick*="cobranzas"]'));
+  } else if (tipo === 'presupuestos') {
+    showPage('presupuesto', document.querySelector('[onclick*="presupuesto"]'));
+  } else if (tipo === 'iva') {
+    showPage('reportes', document.querySelector('[onclick*="reportes"]'));
+  }
 }
 
 function verDetalleVentaDesdeId(ventaId) {
@@ -12831,8 +12849,9 @@ function actualizarResumenStock() {
   </div>
   <div id="debug-log"></div>
 </div>
+<!-- Botón DEBUG oculto — cambiar display:none a display:block para reactivar -->
 <button onclick="document.getElementById('debug-panel').style.display='block'" 
-  style="position:fixed;bottom:10px;left:10px;z-index:9998;background:#333;color:#0f0;border:1px solid #0f0;padding:4px 8px;font-size:10px;font-family:monospace;border-radius:4px;cursor:pointer">
+  style="display:none;position:fixed;bottom:10px;left:10px;z-index:9998;background:#333;color:#0f0;border:1px solid #0f0;padding:4px 8px;font-size:10px;font-family:monospace;border-radius:4px;cursor:pointer">
   DEBUG
 </button>
 <script>
@@ -12841,7 +12860,7 @@ window.onerror = function(msg, src, line, col) {
   const log = document.getElementById('debug-log');
   if(log) {
     log.innerHTML += '<div style="color:red;border-bottom:1px solid #333;padding:2px 0">❌ '+msg+'<br><span style="color:#888">L'+line+':'+col+'</span></div>';
-    document.getElementById('debug-panel').style.display = 'block';
+    // Panel oculto por defecto — activar manualmente si se necesita debug
   }
 };
 </script>
