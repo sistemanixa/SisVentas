@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v15.1 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v15.2 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -798,6 +798,9 @@ tr:hover td{color:var(--text)}
       <div class="nav-item active" onclick="showPage('dashboard',this)">
         <i class="ti ti-layout-dashboard"></i>Dashboard
       </div>
+      <div class="nav-item" onclick="showPage('gastos',this);setTimeout(function(){abrirFormGasto(null);},300)" style="background:var(--amber-bg);color:var(--amber);border-radius:var(--radius);margin:0 4px;font-weight:600">
+        <i class="ti ti-receipt"></i> Cargar gasto rápido
+      </div>
       <div class="s-section">Ventas</div>
       <div class="nav-item" onclick="showPage('asistente',this)" style="background:var(--green-bg);color:var(--green);border-radius:var(--radius);margin:0 4px;font-weight:600">
         <i class="ti ti-wand"></i> Asistente de ventas
@@ -846,9 +849,6 @@ tr:hover td{color:var(--text)}
         <i class="ti ti-chart-line"></i>Estadísticas
       </div>
       <div class="s-section tecnico-only">Acceso rápido</div>
-      <div class="nav-item tecnico-only" onclick="showPage('gastos',this);setTimeout(function(){abrirFormGasto(null);},300)" style="background:var(--amber-bg);color:var(--amber);border-radius:var(--radius);margin:0 4px">
-        <i class="ti ti-receipt"></i> Cargar gasto de empresa
-      </div>
       <div class="nav-item" onclick="showPage('agenda',this)">
         <i class="ti ti-calendar"></i>Agenda
       </div>
@@ -5036,8 +5036,8 @@ var notifT;
 var PERMISOS_DEFAULT = {
   admin:          { bloqueados: [] },
   administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad'] },
-  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','sueldos','gastos','reportes','estadisticas','proveedores','ordenes','cuentacorriente'] },
-  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas'] }
+  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','cuentacorriente'] },
+  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas'] }
 };
 var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 
@@ -5207,7 +5207,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v15.1-firebase',
+  VERSION: 'v15.2-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
