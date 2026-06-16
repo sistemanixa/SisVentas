@@ -730,22 +730,22 @@ tr:hover td{color:var(--text)}
 <div class="notif" id="notif"></div>
 
 <!-- ════════ PANTALLA DE CARGA ════════ -->
-<div id="screen-loading" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:998;flex-direction:column;align-items:center;justify-content:center;gap:20px">
+<div id="screen-loading" style="display:flex;position:fixed;inset:0;background:var(--bg);z-index:998;flex-direction:column;align-items:center;justify-content:center;gap:20px">
   <div id="loading-logo" style="font-size:28px;font-weight:700;color:var(--text);letter-spacing:-1px">SisVentas</div>
   <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
     <!-- Barra de progreso -->
     <div style="width:200px;height:3px;background:var(--border);border-radius:3px;overflow:hidden">
       <div id="loading-bar" style="height:3px;background:var(--green);border-radius:3px;width:0%;transition:width .4s ease"></div>
     </div>
-    <div id="loading-msg" style="font-size:13px;color:var(--text3)">Conectando con Firebase...</div>
+    <div id="loading-msg" style="font-size:13px;color:var(--text3)">Verificando sesión...</div>
   </div>
 </div>
-<div id="screen-login">
+<div id="screen-login" style="display:none">
   <div class="login-box">
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v14.9 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v15.1 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5207,7 +5207,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v14.9-firebase',
+  VERSION: 'v15.1-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5491,12 +5491,19 @@ function _resolverRolYCompletarLogin(user, err) {
 // ── RESTAURAR SESIÓN AL RECARGAR (F5) ──
 // Aislado del flujo de login manual. Si Firebase detecta una sesión ya activa
 // al cargar la página, restaura directamente sin pedir credenciales de nuevo.
+// Si NO hay sesión, recién ahí se muestra la pantalla de login (evita el parpadeo).
 var _sesionYaRestaurada = false;
+var _primeraVerificacionAuth = true;
 document.addEventListener('firebase-ready', function() {
-  if (!window.fbOnAuth || !window.fbAuth) return;
+  if (!window.fbOnAuth || !window.fbAuth) {
+    // Sin Firebase Auth disponible — mostrar login directamente
+    _mostrarLoginSinSesion();
+    return;
+  }
   window.fbOnAuth(window.fbAuth, function(user) {
     if (user && !_sesionYaRestaurada && !isAuthenticated) {
       _sesionYaRestaurada = true;
+      _primeraVerificacionAuth = false;
       var appScreen = document.getElementById('screen-app');
       // Solo restaurar si la app no está ya visible (evita interferir con login manual en curso)
       if (appScreen && !appScreen.classList.contains('visible')) {
@@ -5505,9 +5512,30 @@ document.addEventListener('firebase-ready', function() {
       }
     } else if (!user) {
       _sesionYaRestaurada = false;
+      if (_primeraVerificacionAuth) {
+        _primeraVerificacionAuth = false;
+        _mostrarLoginSinSesion();
+      }
     }
   });
 });
+
+function _mostrarLoginSinSesion() {
+  var loadingEl = document.getElementById('screen-loading');
+  var loginEl   = document.getElementById('screen-login');
+  if (loadingEl) loadingEl.style.display = 'none';
+  if (loginEl)   loginEl.style.display = '';
+}
+
+// Red de seguridad: si después de 6 segundos Firebase nunca respondió
+// (sin internet, error de configuración, etc.), mostrar el login igual
+// para no dejar al usuario trabado en la pantalla de carga indefinidamente.
+setTimeout(function() {
+  if (_primeraVerificacionAuth && !isAuthenticated) {
+    _primeraVerificacionAuth = false;
+    _mostrarLoginSinSesion();
+  }
+}, 6000);
 
 function _completarLogin(nombre) {
   currentUser = nombre;
@@ -11234,10 +11262,10 @@ function fixIVADatosImportados() {
 function moverVentaAPresupuesto(ventaId) {
   var v = (ventasList||[]).find(function(x){ return x.id===ventaId || x.fbKey===ventaId; });
   if (!v) { notify('Venta no encontrada'); return; }
-  if (!confirm('¿Mover la venta ' + ventaId + ' a Presupuestos?\nVencerá en 10 días.')) return;
-  if (!window.fbDB) { notify('Sin conexión'); return; }
   var diasVencInput = document.getElementById('cfg-dias-venc');
   var diasVenc = diasVencInput ? (parseInt(diasVencInput.value)||10) : 10;
+  if (!confirm('¿Mover la venta ' + ventaId + ' a Presupuestos?\n\nSe creará un presupuesto que vence en ' + diasVenc + ' día' + (diasVenc !== 1 ? 's' : '') + ', y la venta original se ELIMINARÁ del listado de ventas.\n\nEsta acción no se puede deshacer.')) return;
+  if (!window.fbDB) { notify('Sin conexión'); return; }
   var ahora   = new Date().toISOString().split('T')[0];
   var vence   = new Date(Date.now() + diasVenc*86400000).toISOString().split('T')[0];
   var numPpto = 'PP-' + String(Date.now()).slice(-5);
@@ -11253,7 +11281,13 @@ function moverVentaAPresupuesto(ventaId) {
   };
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/presupuestos'), ppto)
     .then(function() {
-      notify('✓ Presupuesto ' + numPpto + ' creado · Vence ' + vence);
+      // Eliminar la venta original — ya está movida a presupuestos
+      if (v.fbKey) {
+        return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/ventas/' + v.fbKey));
+      }
+    })
+    .then(function() {
+      notify('✓ Presupuesto ' + numPpto + ' creado · Venta original eliminada · Vence ' + vence);
       showPage('presupuesto', document.querySelector('[onclick*="presupuesto"]'));
     })
     .catch(function(e){ notify('Error: '+e.message); });
