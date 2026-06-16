@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.8 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.9 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1773,6 +1773,8 @@ tr:hover td{color:var(--text)}
           <button class="cfg-tab" onclick="showCfgTab('sueldos',this)">Sueldos base</button>
           <button class="cfg-tab" onclick="showCfgTab('impuestos',this)">Impuestos</button>
           <button class="cfg-tab" onclick="showCfgTab('roles',this)">Roles</button>
+          <button class="cfg-tab" onclick="showCfgTab('facturacion',this)">Facturación</button>
+          <button class="cfg-tab" onclick="showCfgTab('basedatos',this)">Base de datos</button>
         </div>
 
         <!-- TAB: GENERAL -->
@@ -2026,61 +2028,80 @@ tr:hover td{color:var(--text)}
             </div>
           </div>
         </div>
-      
-  
-  <!-- Facturación TusFacturasApp -->
-  <div class="card">
-    <div class="card-head"><span class="card-title">Facturación electrónica — AFIP</span></div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
-      Proveedor: <strong>TusFacturasApp</strong>
-      <span id="tfapp-status" style="margin-left:8px;font-size:12px;color:var(--text3)">No configurado</span>
-    </div>
-    <div class="form-grid">
-      <div class="fg"><label>User Token</label>
-        <input id="cfg-tfapp-usertoken" placeholder="Tu usertoken de TusFacturasApp" 
-          oninput="guardarConfigTFApp()"></div>
-      <div class="fg"><label>API Token</label>
-        <input id="cfg-tfapp-apitoken" placeholder="Tu apitoken"
-          oninput="guardarConfigTFApp()"></div>
-      <div class="fg"><label>API Key</label>
-        <input id="cfg-tfapp-apikey" placeholder="Tu apikey"
-          oninput="guardarConfigTFApp()"></div>
-      <div class="fg"><label>Punto de venta</label>
-        <input id="cfg-tfapp-pv" type="number" value="1" min="1"
-          oninput="guardarConfigTFApp()"></div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-      <button class="btn btn-sm btn-primary" onclick="testTFApp()">
-        <i class="ti ti-plug"></i> Probar conexión
-      </button>
-      <a href="https://www.tusfacturas.app" target="_blank" class="btn btn-sm">
-        <i class="ti ti-external-link"></i> Ir a TusFacturasApp
-      </a>
-    </div>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px">
-      Necesitás cuenta en TusFacturasApp y certificado digital AFIP activo.
-    </div>
-  </div>
-<!-- Firebase -->
-  <div class="card">
-    <div class="card-head"><span class="card-title">Base de datos Firebase</span></div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
-      Conectado a: <strong>nixa-sisventas</strong>
-      <span id="fb-status-cfg" style="margin-left:8px;font-size:12px"></span>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-sm btn-primary" onclick="fbSeedDatos()">
-        <i class="ti ti-database-import"></i> Cargar datos demo a Firebase
-      </button>
-      <button class="btn btn-sm" onclick="fbCargarTodo();notify('Datos actualizados desde Firebase')">
-        <i class="ti ti-refresh"></i> Sincronizar ahora
-      </button>
-    </div>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px">
-      ⚠️ "Cargar datos demo" solo usarlo una vez la primera vez.
-    </div>
-  </div>
-</div>
+
+        <!-- TAB: FACTURACIÓN -->
+        <div id="cfg-facturacion" class="cfg-panel" style="display:none">
+          <div class="card">
+            <div class="card-head"><span class="card-title">Datos del emisor — ARCA/AFIP</span></div>
+            <div class="form-grid">
+              <div class="fg"><label>CUIT</label>
+                <input id="cfg-cuit-emisor" placeholder="20-12345678-9" oninput="guardarConfigTFApp()"></div>
+              <div class="fg"><label>Razón social</label>
+                <input id="cfg-razon-social" placeholder="Nixa SRL" oninput="guardarConfigTFApp()"></div>
+              <div class="fg full"><label>Condición frente al IVA</label>
+                <select id="cfg-cond-iva" onchange="guardarConfigTFApp()">
+                  <option>Responsable inscripto</option>
+                  <option>Monotributista</option>
+                  <option>Exento</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title">Facturación electrónica — AFIP</span></div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
+              Proveedor: <strong>TusFacturasApp</strong>
+              <span id="tfapp-status" style="margin-left:8px;font-size:12px;color:var(--text3)">No configurado</span>
+            </div>
+            <div class="form-grid">
+              <div class="fg"><label>User Token</label>
+                <input id="cfg-tfapp-usertoken" placeholder="Tu usertoken de TusFacturasApp"
+                  oninput="guardarConfigTFApp()"></div>
+              <div class="fg"><label>API Token</label>
+                <input id="cfg-tfapp-apitoken" placeholder="Tu apitoken"
+                  oninput="guardarConfigTFApp()"></div>
+              <div class="fg"><label>API Key</label>
+                <input id="cfg-tfapp-apikey" placeholder="Tu apikey"
+                  oninput="guardarConfigTFApp()"></div>
+              <div class="fg"><label>Punto de venta</label>
+                <input id="cfg-tfapp-pv" type="number" value="1" min="1"
+                  oninput="guardarConfigTFApp()"></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+              <button class="btn btn-sm btn-primary" onclick="testTFApp()">
+                <i class="ti ti-plug"></i> Probar conexión
+              </button>
+              <a href="https://www.tusfacturas.app" target="_blank" class="btn btn-sm">
+                <i class="ti ti-external-link"></i> Ir a TusFacturasApp
+              </a>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">
+              Necesitás cuenta en TusFacturasApp y certificado digital AFIP activo.
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: BASE DE DATOS -->
+        <div id="cfg-basedatos" class="cfg-panel" style="display:none">
+          <div class="card">
+            <div class="card-head"><span class="card-title">Base de datos Firebase</span></div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
+              Conectado a: <strong>nixa-sisventas</strong>
+              <span id="fb-status-cfg" style="margin-left:8px;font-size:12px"></span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-sm btn-primary" onclick="fbSeedDatos()">
+                <i class="ti ti-database-import"></i> Cargar datos demo a Firebase
+              </button>
+              <button class="btn btn-sm" onclick="fbCargarTodo();notify('Datos actualizados desde Firebase')">
+                <i class="ti ti-refresh"></i> Sincronizar ahora
+              </button>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">
+              ⚠️ "Cargar datos demo" solo usarlo una vez la primera vez.
+            </div>
+          </div>
+        </div>
 
       <!-- ── AGENDA ── -->
       <div id="page-agenda" class="page">
@@ -4862,10 +4883,16 @@ function guardarConfigTFApp() {
   var at = document.getElementById('cfg-tfapp-apitoken');
   var ak = document.getElementById('cfg-tfapp-apikey');
   var pv = document.getElementById('cfg-tfapp-pv');
+  var cuit = document.getElementById('cfg-cuit-emisor');
+  var rs   = document.getElementById('cfg-razon-social');
+  var ci   = document.getElementById('cfg-cond-iva');
   if (ut) TFAPP_CONFIG.usertoken  = ut.value;
   if (at) TFAPP_CONFIG.apitoken   = at.value;
   if (ak) TFAPP_CONFIG.apikey     = ak.value;
   if (pv) TFAPP_CONFIG.punto_venta = parseInt(pv.value) || 1;
+  if (cuit) TFAPP_CONFIG.cuit          = cuit.value;
+  if (rs)   TFAPP_CONFIG.razonSocial   = rs.value;
+  if (ci)   TFAPP_CONFIG.condicionIva  = ci.value;
   TFAPP_CONFIG.activo = !!(ut && ut.value && at && at.value && ak && ak.value);
   var status = document.getElementById('tfapp-status');
   if (status) {
@@ -4873,12 +4900,15 @@ function guardarConfigTFApp() {
     status.style.color = TFAPP_CONFIG.activo ? 'var(--green)' : 'var(--amber)';
   }
   // Guardar en Firebase para persistir
-  if (window.fbDB && TFAPP_CONFIG.activo) {
+  if (window.fbDB) {
     window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/config/tfapp'), {
-      usertoken:   TFAPP_CONFIG.usertoken,
-      apitoken:    TFAPP_CONFIG.apitoken,
-      apikey:      TFAPP_CONFIG.apikey,
-      punto_venta: TFAPP_CONFIG.punto_venta
+      usertoken:    TFAPP_CONFIG.usertoken,
+      apitoken:     TFAPP_CONFIG.apitoken,
+      apikey:       TFAPP_CONFIG.apikey,
+      punto_venta:  TFAPP_CONFIG.punto_venta,
+      cuit:         TFAPP_CONFIG.cuit || '',
+      razonSocial:  TFAPP_CONFIG.razonSocial || '',
+      condicionIva: TFAPP_CONFIG.condicionIva || ''
     });
   }
 }
@@ -4919,16 +4949,25 @@ document.addEventListener('firebase-ready', function() {
       TFAPP_CONFIG.apitoken    = cfg.apitoken    || '';
       TFAPP_CONFIG.apikey      = cfg.apikey      || '';
       TFAPP_CONFIG.punto_venta = cfg.punto_venta || 1;
+      TFAPP_CONFIG.cuit          = cfg.cuit          || '';
+      TFAPP_CONFIG.razonSocial   = cfg.razonSocial   || '';
+      TFAPP_CONFIG.condicionIva  = cfg.condicionIva  || '';
       TFAPP_CONFIG.activo = !!(cfg.usertoken && cfg.apitoken && cfg.apikey);
       // Rellenar los inputs si están visibles
       var ut = document.getElementById('cfg-tfapp-usertoken');
       var at = document.getElementById('cfg-tfapp-apitoken');
       var ak = document.getElementById('cfg-tfapp-apikey');
       var pv = document.getElementById('cfg-tfapp-pv');
+      var cuit = document.getElementById('cfg-cuit-emisor');
+      var rs   = document.getElementById('cfg-razon-social');
+      var ci   = document.getElementById('cfg-cond-iva');
       if (ut) ut.value = cfg.usertoken   || '';
       if (at) at.value = cfg.apitoken    || '';
       if (ak) ak.value = cfg.apikey      || '';
       if (pv) pv.value = cfg.punto_venta || 1;
+      if (cuit) cuit.value = cfg.cuit         || '';
+      if (rs)   rs.value   = cfg.razonSocial  || '';
+      if (ci && cfg.condicionIva) ci.value = cfg.condicionIva;
     });
 });
 
@@ -5154,7 +5193,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v13.8-firebase',
+  VERSION: 'v13.9-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5824,6 +5863,29 @@ function showCfgTab(id, el) {
   document.getElementById('cfg-' + id).style.display = 'block';
   el.classList.add('active');
   if (id === 'roles') renderTablaRoles();
+  if (id === 'facturacion' && typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
+}
+
+function recargarConfigTFAppEnUI() {
+  var ut = document.getElementById('cfg-tfapp-usertoken');
+  var at = document.getElementById('cfg-tfapp-apitoken');
+  var ak = document.getElementById('cfg-tfapp-apikey');
+  var pv = document.getElementById('cfg-tfapp-pv');
+  var cuit = document.getElementById('cfg-cuit-emisor');
+  var rs   = document.getElementById('cfg-razon-social');
+  var ci   = document.getElementById('cfg-cond-iva');
+  if (ut) ut.value = TFAPP_CONFIG.usertoken   || '';
+  if (at) at.value = TFAPP_CONFIG.apitoken    || '';
+  if (ak) ak.value = TFAPP_CONFIG.apikey      || '';
+  if (pv) pv.value = TFAPP_CONFIG.punto_venta || 1;
+  if (cuit) cuit.value = TFAPP_CONFIG.cuit        || '';
+  if (rs)   rs.value   = TFAPP_CONFIG.razonSocial || '';
+  if (ci && TFAPP_CONFIG.condicionIva) ci.value = TFAPP_CONFIG.condicionIva;
+  var status = document.getElementById('tfapp-status');
+  if (status) {
+    status.textContent = TFAPP_CONFIG.activo ? '✓ Configurado' : 'No configurado';
+    status.style.color = TFAPP_CONFIG.activo ? 'var(--green)' : 'var(--text3)';
+  }
 }
 
 // ── PERMISOS POR ROL ──
