@@ -9,6 +9,9 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" id="apple-icon-link" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<link rel="manifest" id="manifest-link" href="data:application/json,%7B%22name%22%3A%22SisVentas%22%2C%22short_name%22%3A%22SisVentas%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23080e1a%22%2C%22theme_color%22%3A%22%23080e1a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%25270%25200%2520100%2520100%2527%253E%253Crect%2520width%3D%2527100%2527%2520height%3D%2527100%2527%2520rx%3D%252720%2527%2520fill%3D%2527%2523080e1a%2527%2F%253E%253Cpath%2520d%3D%2527M30%252065%2520L50%252030%2520L70%252065%2520M38%252050%2520L62%252050%2527%2520stroke%3D%2527%25233ddc84%2527%2520stroke-width%3D%25278%2527%2520stroke-linecap%3D%2527round%2527%2520stroke-linejoin%3D%2527round%2527%2520fill%3D%2527none%2527%2F%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<meta name="theme-color" content="#080e1a">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
@@ -742,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.5 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v13.6 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -786,7 +789,7 @@ tr:hover td{color:var(--text)}
 
   <!-- SIDEBAR -->
   <div class="sidebar">
-    <div class="s-logo">
+    <div class="s-logo" onclick="showPage('dashboard', document.querySelector('[onclick*=dashboard]'))" style="cursor:pointer">
       <div class="s-brand">SisVentas</div>
       <div class="s-sub">powered by Nixa</div>
     </div>
@@ -5113,7 +5116,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v13.5-firebase',
+  VERSION: 'v13.6-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5196,7 +5199,7 @@ var FORMS_CFG = {
   gasto:     { title:'Nuevo gasto',     fields:[{l:'Fecha',id:'ng-f',t:'date'},{l:'Tipo',id:'ng-tipo',t:'select',opts:['Fijo','Variable','Compra mercadería']},{l:'Descripción',id:'ng-desc',t:'text',ph:'Ej: Alquiler oficina',full:true},{l:'Categoría',id:'ng-cat',t:'select',opts:['Inmueble','Servicios','Personal','Transporte','Materiales','Marketing','Mercadería','Impuestos','Otro']},{l:'Monto ($)',id:'ng-monto',t:'number',ph:'0'},{l:'Medio de pago',id:'ng-medio',t:'select',opts:['Efectivo','Transferencia','Tarjeta','Cheque']}]},
   ordencompra: { title:'Nueva orden de compra', fields:[
     {l:'N° orden',id:'noc-num',t:'text',ph:'OC-0001'},
-    {l:'Proveedor',id:'noc-prov',t:'text',ph:'Nombre del proveedor'},
+    {l:'Proveedor',id:'noc-prov',t:'autocomplete-prov',ph:'Buscar proveedor...'},
     {l:'Descripción / Producto',id:'noc-desc',t:'text',ph:'Ej: Cámara Hikvision 4MP x5 o Garnet PG-380',full:true},
     {l:'Cantidad',id:'noc-cant',t:'number',ph:'1'},
     {l:'Monto estimado ($)',id:'noc-monto',t:'number',ph:'0'},
@@ -6570,27 +6573,47 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
     if (f.t === 'select') {
       inp = document.createElement('select');
       (f.opts||[]).forEach(o => { const opt=document.createElement('option'); opt.value=o; opt.textContent=o; inp.appendChild(opt); });
+      inp.id = f.id;
+      fg.appendChild(inp);
+      grid.appendChild(fg);
+    } else if (f.t === 'autocomplete-prov') {
+      inp = document.createElement('input');
+      inp.type = 'text';
+      inp.id = f.id;
+      if (f.ph) inp.placeholder = f.ph;
+      inp.setAttribute('autocomplete', 'off');
+      inp.setAttribute('oninput', "filterDropProv(this)");
+      inp.setAttribute('onfocus', "filterDropProv(this)");
+      if (datosExistentes) {
+        var campoP = f.id.replace(/^n[a-z]+-/, '');
+        var valorP = datosExistentes[campoP] || datosExistentes[f.id] || '';
+        if (valorP) inp.value = valorP;
+      }
+      var swDiv = document.createElement('div');
+      swDiv.className = 'sw';
+      swDiv.style.position = 'relative';
+      var dropDiv = document.createElement('div');
+      dropDiv.className = 'drop';
+      dropDiv.id = f.id + '-drop';
+      dropDiv.style.display = 'none';
+      swDiv.appendChild(inp);
+      swDiv.appendChild(dropDiv);
+      fg.appendChild(swDiv);
+      grid.appendChild(fg);
     } else {
       inp = document.createElement('input');
       inp.type = f.t;
       if (f.ph) inp.placeholder = f.ph;
-    }
-    inp.id = f.id;
-    // Precargar datos existentes si se pasaron
-    if (datosExistentes) {
-      var campo = f.id.replace(/^n[a-z]+-/, '');
-      var valor = datosExistentes[campo] || datosExistentes[f.id] || '';
-      if (valor) {
-        if (inp.tagName === 'SELECT') {
-          // Buscar opción que coincida
-          Array.from(inp.options).forEach(function(opt){ if(opt.value===valor||opt.textContent===valor) inp.value=opt.value; });
-        } else {
-          inp.value = valor;
-        }
+      inp.id = f.id;
+      if (datosExistentes) {
+        var campo = f.id.replace(/^n[a-z]+-/, '');
+        var valor = datosExistentes[campo] || datosExistentes[f.id] || '';
+        if (valor) inp.value = valor;
       }
+      fg.appendChild(inp);
+      grid.appendChild(fg);
     }
-    fg.appendChild(inp);
-    grid.appendChild(fg);
+    return;
   });
   body.appendChild(grid);
   document.getElementById('modal-nuevo').classList.add('open');
@@ -10112,6 +10135,8 @@ function confirmarPagoGasto() {
 
 function editarGasto(fbKey) { abrirFormGasto(fbKey); }
 
+var proveedoresData = [];
+
 function fbCargarProveedores() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/proveedores'), function(snap) {
@@ -10119,6 +10144,7 @@ function fbCargarProveedores() {
     var lista = data ? Object.entries(data).map(function(e) {
       return Object.assign({ fbKey: e[0] }, e[1]);
     }) : [];
+    proveedoresData = lista;
     var tbody = document.querySelector('#page-proveedores tbody');
     if (!tbody) return;
     if (!lista.length) {
@@ -11999,6 +12025,23 @@ function actualizarFabYHome(id) {
 
 
 // Autocomplete de cliente para presupuesto
+function filterDropProv(inp) {
+  var drop = document.getElementById(inp.id + '-drop');
+  if (!drop) return;
+  var v = inp.value.trim().toLowerCase();
+  var lista = proveedoresData || [];
+  var matches = v ? lista.filter(function(p){ return (p.nombre||'').toLowerCase().includes(v); }) : lista;
+  if (!matches.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = matches.slice(0,8).map(function(p) {
+    return '<div style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px" ' +
+      'onmousedown="event.preventDefault();document.getElementById(\''+inp.id+'\').value=\''+escapeHTML(p.nombre).replace(/'/g,"\\'")+'\';document.getElementById(\''+drop.id+'\').style.display=\'none\';">' +
+      escapeHTML(p.nombre) +
+      (p.rubro ? ' <span style="color:var(--text3);font-size:11px">· '+escapeHTML(p.rubro)+'</span>' : '') +
+    '</div>';
+  }).join('');
+  drop.style.display = 'block';
+}
+
 function filterDrop(inputId, dropId) {
   var inp = document.getElementById(inputId);
   var drop = document.getElementById(dropId);
