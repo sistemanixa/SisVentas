@@ -248,7 +248,7 @@ tr:hover td{color:var(--text)}
 .b-purple{background:var(--purple-bg);color:var(--purple)}
 
 /* ── BAR CHART ── */
-.bar-area{display:flex;align-items:flex-end;gap:6px;height:100px;margin-top:16px;padding:0 4px 0 4px}
+.bar-area{display:flex;align-items:flex-end;gap:6px;height:100px;margin-top:16px;padding:12px 4px 0 4px;box-sizing:border-box}
 .bc{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
 .bar{width:100%;background:var(--bg4);border-radius:3px 3px 0 0;cursor:pointer;transition:background .15s;min-height:4px}
 .bar:hover,.bar.today{background:var(--text)}
@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v14.0 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v14.3 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5196,7 +5196,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v14.0-firebase',
+  VERSION: 'v14.3-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5204,6 +5204,59 @@ const APP_CONFIG = Object.freeze({
   VENDEDOR_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados','proveedores','ordenes','gastos','reportes','estadisticas'])
 });
 let isAuthenticated = false;
+// ── NORMALIZAR PEGADO DE NÚMEROS DESDE EXCEL ──
+// Excel copia montos como "1,234.56" (coma=miles, punto=decimal) o "1.234,56" (formato AR)
+// según la configuración regional. Esta función detecta el formato y lo limpia
+// para que los inputs type="number" (que solo aceptan formato JS: punto decimal) lo acepten.
+function normalizarNumeroExcel(texto) {
+  if (!texto) return '';
+  var t = String(texto).trim();
+  // Quitar símbolos de moneda y espacios
+  t = t.replace(/[$\s]/g, '');
+  var tieneComa  = t.indexOf(',') !== -1;
+  var tienePunto = t.indexOf('.') !== -1;
+  if (tieneComa && tienePunto) {
+    // Ambos presentes: el último símbolo es el decimal
+    var posComa  = t.lastIndexOf(',');
+    var posPunto = t.lastIndexOf('.');
+    if (posComa > posPunto) {
+      // Formato AR: 1.234,56 → punto=miles, coma=decimal
+      t = t.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Formato US: 1,234.56 → coma=miles, punto=decimal
+      t = t.replace(/,/g, '');
+    }
+  } else if (tieneComa && !tienePunto) {
+    // Solo coma: puede ser miles (1,234) o decimal (1234,56)
+    var partesComa = t.split(',');
+    if (partesComa[partesComa.length-1].length === 2) {
+      // 2 dígitos después de la coma → es decimal
+      t = t.replace(',', '.');
+    } else {
+      // Es separador de miles
+      t = t.replace(/,/g, '');
+    }
+  }
+  // Si solo tiene punto, ya es válido para JS (sea miles o decimal, parseFloat lo toma bien si no hay ambigüedad)
+  var num = parseFloat(t);
+  return isNaN(num) ? '' : String(num);
+}
+
+// Interceptar pegado en todos los inputs numéricos del sistema
+document.addEventListener('paste', function(e) {
+  var target = e.target;
+  if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+  var pasted = (e.clipboardData || window.clipboardData).getData('text');
+  if (!pasted) return;
+  // Si el navegador lo aceptaría tal cual, no intervenir
+  if (/^-?\d+(\.\d+)?$/.test(pasted.trim())) return;
+  var limpio = normalizarNumeroExcel(pasted);
+  if (limpio === '') return;
+  e.preventDefault();
+  target.value = limpio;
+  target.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
@@ -10955,11 +11008,19 @@ function renderKPIsDashboard() {
 
   // ── Deuda clientes (solo admin ve total) ──
   var ventasDeuda = esAdmin ? todasVentas : ventas;
-  var deudaTotal = ventasDeuda.reduce(function(s,v){
-    if (v.estadoPago !== 'pago_total') s += parseFloat(v.total)||0;
-    return s;
+  var ventasConDeuda = ventasDeuda.filter(function(v) {
+    var total = parseFloat(v.total) || 0;
+    var pagado = parseFloat(v.pagado || v.montoCobrado) || 0;
+    var saldoPendiente = total - pagado;
+    // Solo cuenta como deuda si tiene saldo real pendiente mayor a 0
+    return v.estadoPago !== 'pago_total' && total > 0 && saldoPendiente > 0;
+  });
+  var deudaTotal = ventasConDeuda.reduce(function(s,v){
+    var total = parseFloat(v.total) || 0;
+    var pagado = parseFloat(v.pagado || v.montoCobrado) || 0;
+    return s + (total - pagado);
   }, 0);
-  var clientesUnicos = new Set(ventasDeuda.filter(function(v){ return v.estadoPago !== 'pago_total'; }).map(function(v){ return v.cliente; })).size;
+  var clientesUnicos = new Set(ventasConDeuda.map(function(v){ return v.cliente; })).size;
   _set('kpi-deuda', '$' + Math.round(deudaTotal).toLocaleString('es-AR'));
   var deudaSubEl = document.getElementById('kpi-deuda-sub');
   if (deudaSubEl) deudaSubEl.textContent = esAdmin ? (clientesUnicos + ' cliente' + (clientesUnicos !== 1 ? 's' : '') + ' con saldo') : 'mis ventas pendientes';
@@ -10998,7 +11059,7 @@ function renderKPIsDashboard() {
     return t;
   });
   var diaNombres = ['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
-  var maxPx = 88;
+  var maxPx = 72; // deja aire arriba dentro del contenedor de 100px
   for (var j = 0; j < 7; j++) {
     var barEl  = document.getElementById('bar-' + j);
     var lblEl  = document.getElementById('blbl-' + j);
