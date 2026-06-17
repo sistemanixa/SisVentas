@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v15.6 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v16.2 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -799,7 +799,7 @@ tr:hover td{color:var(--text)}
       <div class="nav-item active" onclick="showPage('dashboard',this)">
         <i class="ti ti-layout-dashboard"></i>Dashboard
       </div>
-      <div class="nav-item" onclick="abrirGastoRapido()" style="background:var(--amber-bg);color:var(--amber);border-radius:var(--radius);margin:0 4px;font-weight:600">
+      <div class="nav-item" onclick="abrirGastoRapido()" style="background:var(--amber-bg);color:var(--amber);border-radius:var(--radius);margin:10px 4px 4px;font-weight:600">
         <i class="ti ti-receipt"></i> Cargar gasto rápido
       </div>
       <div class="s-section">Ventas</div>
@@ -977,6 +977,34 @@ tr:hover td{color:var(--text)}
 <tbody id="dash-ot-pendientes"><tr><td colspan="3" style="text-align:center;padding:12px;color:var(--text3)">Cargando...</td></tr></tbody></table>
           </div>
         </div>
+        <div class="card admin-only" id="dash-rentabilidad-card" style="display:none">
+          <div class="card-head">
+            <span class="card-title"><i class="ti ti-chart-line"></i> Rentabilidad del mes</span>
+            <button class="btn btn-sm" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))"><i class="ti ti-external-link"></i> Ver reporte completo</button>
+          </div>
+          <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+            <div class="metric"><div class="m-label">Ingresos del mes</div><div class="m-value" id="dash-rent-ingresos" style="color:var(--green)">$0</div><div class="m-sub">total facturado</div></div>
+            <div class="metric"><div class="m-label">Gastos del mes</div><div class="m-value" id="dash-rent-gastos" style="color:var(--red)">$0</div><div class="m-sub">gastos cargados</div></div>
+            <div class="metric"><div class="m-label">Utilidad estimada</div><div class="m-value" id="dash-rent-utilidad">$0</div><div class="m-sub">ingresos − gastos</div></div>
+            <div class="metric"><div class="m-label">Margen</div><div class="m-value" id="dash-rent-margen">—</div><div class="m-sub" id="dash-rent-margen-sub">—</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px">
+                <span>Ingresos</span><span id="dash-rent-bar-ing-lbl">$0</span>
+              </div>
+              <div style="height:10px;background:var(--bg3);border-radius:6px;overflow:hidden">
+                <div id="dash-rent-bar-ing" style="height:100%;background:var(--green);border-radius:6px;width:0%;transition:width .4s ease"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin:8px 0 4px">
+                <span>Gastos</span><span id="dash-rent-bar-gas-lbl">$0</span>
+              </div>
+              <div style="height:10px;background:var(--bg3);border-radius:6px;overflow:hidden">
+                <div id="dash-rent-bar-gas" style="height:100%;background:var(--red);border-radius:6px;width:0%;transition:width .4s ease"></div>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-head">
             <span class="card-title" style="cursor:pointer" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver todas las ventas">Últimas ventas</span>
@@ -1021,7 +1049,7 @@ tr:hover td{color:var(--text)}
             <span class="card-title">Productos</span>
             <button class="btn btn-sm" onclick="addRow()"><i class="ti ti-plus"></i> Agregar fila</button>
           </div>
-          <div style="overflow-x:auto">
+          <div style="overflow-x:auto;overflow-y:visible">
             <table class="tbl-sheet" style="table-layout:fixed;width:100%">
               <colgroup>
                 <col style="width:32px">
@@ -1059,6 +1087,14 @@ tr:hover td{color:var(--text)}
               <div class="tl"><span>Subtotal</span><span id="t-sub">$0</span></div>
               <div class="tl iva"><span>IVA 21%</span><span id="t-iva">$0</span></div>
               <div class="tl final"><span>Total</span><span id="t-tot">$0</span></div>
+            </div>
+            <div id="margen-ganancia-box" class="admin-only" style="margin-top:10px;padding:12px 14px;border-radius:var(--radius);display:none">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Margen de ganancia</span>
+                <span id="margen-ganancia-pct" style="font-size:18px;font-weight:700">—</span>
+              </div>
+              <div id="margen-ganancia-label" style="font-size:12px;margin-top:4px">—</div>
+              <div id="margen-ganancia-costo" style="font-size:11px;color:var(--text3);margin-top:6px">Costo: $0 (productos + mano de obra)</div>
             </div>
           </div>
           <div class="flex-end">
@@ -1527,6 +1563,18 @@ tr:hover td{color:var(--text)}
                 <select id="ot-det-duracion">
                   <option>2 horas</option><option>4 horas</option><option>6 horas</option><option>Día completo</option>
                 </select>
+              </div>
+              <div class="fg"><label>Tipo de visita</label>
+                <select id="ot-det-tipovisita" onchange="actualizarOT()">
+                  <option>Instalación nueva</option>
+                  <option>Mantenimiento</option>
+                  <option>Devolución</option>
+                  <option>Reclamo post-venta</option>
+                </select>
+              </div>
+              <div class="fg" id="ot-det-repetida-box" style="display:none">
+                <label>Historial en esta instalación</label>
+                <div style="padding:8px 10px;background:var(--amber-bg);color:var(--amber);border-radius:var(--radius);font-size:12px;font-weight:500" id="ot-det-repetida-lbl"></div>
               </div>
               <div class="fg full"><label>Dirección de instalación</label><input id="ot-det-dir" readonly></div>
               <div class="fg full"><label>Observaciones / notas</label><input id="ot-det-obs" placeholder="Notas para el técnico..."></div>
@@ -2782,13 +2830,25 @@ tr:hover td{color:var(--text)}
                 </select>
               </div>
               <div class="fg full"><label>Descripción</label><input type="text" id="pf-descripcion" placeholder="Nombre completo del producto"></div>
-              <div class="fg full"><label>Proveedor</label><input type="text" id="pf-proveedor" placeholder="Nombre del proveedor"></div>
             </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">Proveedores y precios de costo</span>
+              <button class="btn btn-sm" onclick="agregarFilaProveedor()"><i class="ti ti-plus"></i> Agregar proveedor</button>
+            </div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:10px">
+              <i class="ti ti-info-circle"></i> Cargá el precio de cada proveedor. El sistema marca automáticamente el más económico.
+            </div>
+            <table id="pf-proveedores-tbl" style="width:100%">
+              <tr><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio de costo ($)</th><th style="text-align:right">Actualizado</th><th></th></tr>
+            </table>
+            <div id="pf-proveedores-vacio" style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Sin proveedores cargados — agregá al menos uno</div>
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title">Precios</span></div>
             <div class="form-grid cols3">
-              <div class="fg"><label>Precio de compra ($)</label><input type="number" id="pf-compra" placeholder="0" oninput="calcMargen()" min="0"></div>
+              <div class="fg"><label>Precio de compra ($)</label><input type="number" id="pf-compra" placeholder="0" oninput="calcMargen()" min="0"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
               <div class="fg"><label>Precio de venta ($)</label><input type="number" id="pf-venta" placeholder="0" oninput="calcMargen()" min="0"></div>
               <div class="fg"><label>Margen calculado</label><input type="text" id="pf-margen" readonly placeholder="—" style="color:var(--green);font-weight:500"></div>
               <div class="fg"><label>IVA</label>
@@ -2820,6 +2880,13 @@ tr:hover td{color:var(--text)}
                   <option>Litro</option>
                   <option>Caja</option>
                 </select>
+              </div>
+              <div class="fg full" style="background:var(--bg3);border-radius:var(--radius);padding:12px">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+                  <input type="checkbox" id="pf-es-mano-obra" style="width:16px;height:16px;accent-color:var(--blue)">
+                  <span style="font-size:13px;font-weight:500"><i class="ti ti-tool" style="font-size:14px;vertical-align:-2px"></i> Es mano de obra</span>
+                </label>
+                <div style="font-size:11px;color:var(--text3);margin-top:6px">Marcá esto si el ítem representa el costo de instalación/trabajo del técnico, no un producto físico. Se incluye igual en el cálculo de costo de la venta.</div>
               </div>
             </div>
           </div>
@@ -2871,6 +2938,10 @@ tr:hover td{color:var(--text)}
               <div class="sueldo-value" id="pd-stock">12</div>
               <div class="sueldo-sub" id="pd-stock-sub">mín: 5 unidades</div>
             </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title">Proveedores y comparación de precios</span></div>
+            <div id="pd-proveedores-box"></div>
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title">Datos completos</span></div>
@@ -3463,7 +3534,10 @@ tr:hover td{color:var(--text)}
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
     <span style="font-size:13px;color:var(--text2)">Periodo:</span>
     <select class="search-input" id="rent-periodo" style="width:160px" onchange="calcRentabilidad()">
-      <option>Cargando...</option>
+      <option value="mes_actual">Este mes</option>
+      <option value="mes_anterior">Mes anterior</option>
+      <option value="ult_3_meses">Últimos 3 meses</option>
+      <option value="anio_actual">Año actual</option>
     </select>
     <button class="btn btn-sm" onclick="exportarPDF('Reporte de rentabilidad')"><i class="ti ti-download"></i> Exportar PDF</button>
   </div>
@@ -3494,6 +3568,16 @@ tr:hover td{color:var(--text)}
         <option value="">— Seleccionar —</option>
       </select>
       <button class="btn btn-sm btn-primary" onclick="abrirNuevoMovEmp()" style="margin-left:auto"><i class="ti ti-plus"></i> Nuevo movimiento</button>
+    </div>
+  </div>
+
+  <!-- Resumen de comisiones del mes (solo visible si es Vendedor a comisión) -->
+  <div class="card" id="ctaemp-comision-card" style="display:none;margin-bottom:12px">
+    <div class="card-head"><span class="card-title"><i class="ti ti-percentage"></i> Comisiones de este mes</span></div>
+    <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+      <div class="metric"><div class="m-label">Total generado</div><div class="m-value" id="ctaemp-com-total" style="color:var(--blue)">$0</div><div class="m-sub" id="ctaemp-com-cant">0 ventas</div></div>
+      <div class="metric"><div class="m-label">Ya cobrado</div><div class="m-value" id="ctaemp-com-cobrado" style="color:var(--green)">$0</div><div class="m-sub">acreditado en cta. cte.</div></div>
+      <div class="metric"><div class="m-label">Pendiente de cobro</div><div class="m-value" id="ctaemp-com-pendiente" style="color:var(--amber)">$0</div><div class="m-sub">ventas aún no cobradas</div></div>
     </div>
   </div>
 
@@ -4093,12 +4177,20 @@ function renderTablaProductos(filtro) {
     var pc = parseFloat(p.compra || p.precio_compra || 0) || 0;
     var margen = pv > 0 && pc > 0 ? ((pv-pc)/pv*100).toFixed(1) + '%' : '—';
     var pid = String(p.id || p.idproducto || '').replace(/"/g,'');
+    var provLista = Array.isArray(p.proveedores) ? p.proveedores : [];
+    var costoLbl = '$' + Math.round(pc).toLocaleString('es-AR');
+    if (provLista.length > 1) {
+      costoLbl += ' <span class="badge b-green" style="font-size:9px" title="' + provLista.length + ' proveedores cargados">' + provLista.length + ' prov.</span>';
+    } else if (provLista.length === 1) {
+      costoLbl += ' <span style="font-size:10px;color:var(--text3)">' + escapeHTML(provLista[0].nombre||'') + '</span>';
+    }
     return '<tr class="cr" data-pid="' + pid + '" onclick="verProductoById(this)" style="cursor:pointer">' +
       '<td style="font-family:monospace;font-size:12px">' + (p.codigo||'') + '</td>' +
-      '<td style="font-weight:500">' + (p.nombre||'') + '</td>' +
-      '<td class="hide-mobile" style="font-size:12px;color:var(--text3)">' + (p.categoria||'—') + '</td>' +
+      '<td style="font-weight:500">' + (p.esManoDeObra ? '<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px" title="Mano de obra"></i>' : '') + (p.nombre||'') + '</td>' +
+      '<td class="hide-mobile" style="font-size:12px;color:var(--text3)">' + (p.descripcion||p.categoria||'—') + '</td>' +
       '<td style="text-align:right;font-weight:600;color:' + stkColor + '">' + stk + '</td>' +
       '<td style="text-align:right">$' + (parseFloat(pv)||0).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right">' + costoLbl + '</td>' +
       '<td style="text-align:right;color:var(--green)">' + margen + '</td>' +
       '<td><button class="icon-btn" data-pid="' + pid + '" onclick="event.stopPropagation();editarProductoById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
            '<button class="icon-btn" data-pid="' + pid + '" onclick="event.stopPropagation();eliminarProducto(this)" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:15px"></i></button></td>' +
@@ -5105,6 +5197,7 @@ function showPage(id, el) {
   if (id === 'notificaciones') { setTimeout(function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 50); }
   if (id === 'detalle')        { setTimeout(function(){ if(typeof volverListaVentas==='function'){volverListaVentas();renderVentasTabla();} }, 50); }
   if (id === 'ctaemp')         { setTimeout(function(){ if(typeof iniciarCtaEmp==='function') iniciarCtaEmp(); }, 50); }
+  if (id === 'rentabilidad')   { setTimeout(function(){ if(typeof calcRentabilidad==='function') calcRentabilidad(); }, 100); }
   if (id === 'informes')       { setTimeout(function(){ renderTablaInformes(); }, 50); }
   if (id === 'equipos')        { setTimeout(function(){ renderEquiposCards(); actualizarMetricasEquipos(); }, 50); }
   if (id === 'ordenes')        { setTimeout(function(){ renderDashOrdenes(); }, 50); }
@@ -5208,7 +5301,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v15.6-firebase',
+  VERSION: 'v16.2-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5324,7 +5417,7 @@ var NOTIF_CONFIG = {
 var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
   producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'P. compra ($)',id:'np-pc',t:'number',ph:'0'},{l:'P. venta ($)',id:'np-pv',t:'number',ph:'0'}]},
-  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'select',opts:['Cat. 39 — Vendedor senior','Cat. 15 — Vendedor junior','Cat. 08 — Técnico instalador']},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
+  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'select',opts:['Cat. 39 — Vendedor senior','Cat. 15 — Vendedor junior','Cat. 08 — Técnico instalador']},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
   usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
   proveedor: { title:'Nuevo proveedor', fields:[
     {l:'Nombre / Razón social',id:'npv-nm',t:'text',ph:'Razón social',full:true},
@@ -5636,6 +5729,70 @@ function calcTotals() {
   _set('t-sub','$' + Math.round(s).toLocaleString('es-AR'));
   _set('t-iva','$' + Math.round(iva).toLocaleString('es-AR'));
   _set('t-tot','$' + Math.round(s + iva).toLocaleString('es-AR'));
+  calcMargenGanancia();
+}
+
+// ── CONTROLADOR DE GANANCIA ──
+// Costo = suma de precio de costo de cada ítem de la venta (incluye productos y mano de obra,
+// la mano de obra NO se excluye porque representa un egreso real para el técnico).
+// Margen % = (Total venta - Costo) / Total venta * 100
+// Rojo (<15%): requiere autorización del admin para confirmar. Amarillo (15-20%): regular. Verde (>20%): ganancia perfecta.
+var ventaRequiereAutorizacion = false;
+var ventaAutorizadaPorAdmin = false;
+
+function calcMargenGanancia() {
+  var box = document.getElementById('margen-ganancia-box');
+  if (!box) return;
+
+  var totalTxt = (document.getElementById('t-tot')||{}).textContent || '$0';
+  var total = parseFloat(totalTxt.replace(/[\$\.]/g,'').replace(',','.')) || 0;
+
+  var costoTotal = 0;
+  var filas = Array.from(document.querySelectorAll('#det-body tr'));
+  filas.forEach(function(tr) {
+    var selCod = tr.querySelector('.prod-sel-cod');
+    var cod = selCod ? selCod.textContent.trim() : '';
+    var qty = parseInt((tr.querySelector('.qty')||{}).value) || 0;
+    var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod; });
+    var costoUnit = prod ? (parseFloat(prod.compra)||0) : 0;
+    costoTotal += costoUnit * qty;
+  });
+
+  if (total <= 0) {
+    box.style.display = 'none';
+    ventaRequiereAutorizacion = false;
+    return;
+  }
+  box.style.display = '';
+
+  var margenPct = ((total - costoTotal) / total) * 100;
+  var pctEl = document.getElementById('margen-ganancia-pct');
+  var lblEl = document.getElementById('margen-ganancia-label');
+  var costoEl = document.getElementById('margen-ganancia-costo');
+
+  pctEl.textContent = margenPct.toFixed(1) + '%';
+  costoEl.textContent = 'Costo: $' + Math.round(costoTotal).toLocaleString('es-AR') + ' (productos + mano de obra)';
+
+  if (margenPct < 15) {
+    box.style.background = 'var(--red-bg)';
+    pctEl.style.color = 'var(--red)';
+    lblEl.style.color = 'var(--red)';
+    lblEl.innerHTML = '<i class="ti ti-alert-triangle"></i> Margen bajo — requiere autorización del admin para confirmar';
+    ventaRequiereAutorizacion = true;
+  } else if (margenPct <= 20) {
+    box.style.background = 'var(--amber-bg)';
+    pctEl.style.color = 'var(--amber)';
+    lblEl.style.color = 'var(--amber)';
+    lblEl.innerHTML = '<i class="ti ti-info-circle"></i> Margen regular';
+    ventaRequiereAutorizacion = false;
+  } else {
+    box.style.background = 'var(--green-bg)';
+    pctEl.style.color = 'var(--green)';
+    lblEl.style.color = 'var(--green)';
+    lblEl.innerHTML = '<i class="ti ti-check"></i> Ganancia perfecta';
+    ventaRequiereAutorizacion = false;
+  }
+  if (margenPct >= 15) ventaAutorizadaPorAdmin = false; // reset si vuelve a estar en rango normal
 }
 var rc = 20;
 
@@ -5656,6 +5813,17 @@ function toggleAll(cb) { document.querySelectorAll('#det-body input[type=checkbo
 
 function confirmarVenta() {
   if (!document.getElementById('cli-inp').value) { notify('Seleccioná un cliente primero'); return; }
+
+  // ── Controlador de ganancia: bloquear si el margen es rojo y no fue autorizado ──
+  if (ventaRequiereAutorizacion && !ventaAutorizadaPorAdmin) {
+    if (currentRole === 'admin') {
+      if (!confirm('⚠️ El margen de ganancia de esta venta está por debajo del 15% (rojo).\n\n¿Autorizás confirmar la venta igual?')) return;
+      ventaAutorizadaPorAdmin = true;
+    } else {
+      notify('⚠️ El margen de esta venta es muy bajo (rojo). Necesitás autorización del admin para confirmarla.');
+      return;
+    }
+  }
 
   // Verificar stock
   var filas = Array.from(document.querySelectorAll('#det-body tr'));
@@ -5706,6 +5874,16 @@ function confirmarVenta() {
   nuevaVenta.iva = Math.round(nuevaVenta.subtotal * 0.21);
   nuevaVenta.total = nuevaVenta.subtotal + nuevaVenta.iva;
 
+  // Costo y margen calculados al momento de la venta (controlador de ganancia)
+  var costoTotalVenta = nuevaVenta.items.reduce(function(s, item) {
+    var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === item.cod; });
+    var costoUnit = prod ? (parseFloat(prod.compra)||0) : 0;
+    return s + costoUnit * item.qty;
+  }, 0);
+  nuevaVenta.costoTotal = costoTotalVenta;
+  nuevaVenta.margenPct = nuevaVenta.total > 0 ? ((nuevaVenta.total - costoTotalVenta) / nuevaVenta.total) * 100 : 0;
+  nuevaVenta.margenAutorizadoPorAdmin = ventaAutorizadaPorAdmin;
+
   // Guardar en Firebase
   if (typeof fbGuardarVenta === 'function') {
     fbGuardarVenta(nuevaVenta);
@@ -5724,6 +5902,8 @@ function confirmarVenta() {
     document.getElementById('id-cli').value = '';
     _hide('venta-stock-resumen');
     ['t-sub','t-iva','t-tot'].forEach(function(id){ _set(id,'$0'); });
+    ventaAutorizadaPorAdmin = false;
+    ventaRequiereAutorizacion = false;
     if (typeof inicializarFilasVenta === 'function') inicializarFilasVenta();
   }, 1000);
 }
@@ -5762,6 +5942,8 @@ function mostrarAlertasStock() {
   });
 }
 
+var prodProveedoresActuales = [];
+
 function abrirFormProducto(id) {
   editingProdId = id;
   _hide('prod-list-view');
@@ -5772,16 +5954,87 @@ function abrirFormProducto(id) {
   document.getElementById('pf-codigo').value = p.codigo || '';
   document.getElementById('pf-descripcion').value = p.descripcion || '';
   document.getElementById('pf-categoria').value = p.categoria || '';
-  document.getElementById('pf-proveedor').value = p.proveedor || '';
-  document.getElementById('pf-compra').value = p.compra || '';
   document.getElementById('pf-venta').value = p.venta || '';
   document.getElementById('pf-iva').value = p.iva || 21;
   document.getElementById('pf-stock').value = p.stock !== undefined ? p.stock : '';
   document.getElementById('pf-stock-min').value = p.stockMin || '';
   document.getElementById('pf-estado').value = p.estado || 'activo';
   document.getElementById('pf-unidad').value = p.unidad || 'Unidad';
+  document.getElementById('pf-es-mano-obra').checked = !!p.esManoDeObra;
+
+  // Cargar proveedores existentes, o migrar el proveedor único viejo si no hay lista nueva
+  if (Array.isArray(p.proveedores) && p.proveedores.length) {
+    prodProveedoresActuales = p.proveedores.slice();
+  } else if (p.proveedor) {
+    prodProveedoresActuales = [{ nombre: p.proveedor, precio: parseFloat(p.compra)||0, actualizado: p.fechaActualizacionPrecio || '' }];
+  } else {
+    prodProveedoresActuales = [];
+  }
+  renderTablaProveedoresProducto();
+  recalcularCompraDesdeProveedores();
   calcMargen();
   setTimeout(function(){ initSearchableSelect("pf-categoria","Seleccionar categoría..."); },50);
+}
+
+function renderTablaProveedoresProducto() {
+  var tbl = document.getElementById('pf-proveedores-tbl');
+  var vacioEl = document.getElementById('pf-proveedores-vacio');
+  if (!tbl) return;
+  if (!prodProveedoresActuales.length) {
+    tbl.querySelectorAll('tr:not(:first-child)').forEach(function(tr){ tr.remove(); });
+    if (vacioEl) vacioEl.style.display = '';
+    return;
+  }
+  if (vacioEl) vacioEl.style.display = 'none';
+
+  var masBaratoIdx = 0;
+  prodProveedoresActuales.forEach(function(pv, i) {
+    if ((parseFloat(pv.precio)||Infinity) < (parseFloat(prodProveedoresActuales[masBaratoIdx].precio)||Infinity)) masBaratoIdx = i;
+  });
+
+  tbl.querySelectorAll('tr:not(:first-child)').forEach(function(tr){ tr.remove(); });
+  prodProveedoresActuales.forEach(function(pv, i) {
+    var esMasBarato = i === masBaratoIdx && prodProveedoresActuales.length > 1;
+    var tr = document.createElement('tr');
+    if (esMasBarato) tr.style.background = 'var(--green-bg)';
+    tr.innerHTML =
+      '<td style="padding:6px 4px"><input type="text" value="'+escapeHTML(pv.nombre||'')+'" placeholder="Ej: Biosegur" oninput="actualizarProveedorProducto('+i+',\'nombre\',this.value)" style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:13px;font-family:inherit"></td>' +
+      '<td style="padding:6px 4px;text-align:right"><input type="number" value="'+(pv.precio||'')+'" placeholder="0" oninput="actualizarProveedorProducto('+i+',\'precio\',this.value)" style="width:110px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;text-align:right;font-size:13px;font-family:inherit"></td>' +
+      '<td style="padding:6px 4px;text-align:right;font-size:11px;color:var(--text3)">' + (pv.actualizado ? escapeHTML(pv.actualizado) : 'sin fecha') + (esMasBarato ? ' <span class="badge b-green" style="font-size:9px;margin-left:4px">Más económico</span>' : '') + '</td>' +
+      '<td style="padding:6px 4px;text-align:right"><button class="btn btn-sm btn-icon" onclick="quitarFilaProveedor('+i+')" title="Quitar"><i class="ti ti-trash" style="font-size:14px;color:var(--red)"></i></button></td>';
+    tbl.appendChild(tr);
+  });
+}
+
+function agregarFilaProveedor() {
+  prodProveedoresActuales.push({ nombre:'', precio:0, actualizado: new Date().toISOString().split('T')[0] });
+  renderTablaProveedoresProducto();
+}
+
+function quitarFilaProveedor(idx) {
+  prodProveedoresActuales.splice(idx,1);
+  renderTablaProveedoresProducto();
+  recalcularCompraDesdeProveedores();
+  calcMargen();
+}
+
+function actualizarProveedorProducto(idx, campo, valor) {
+  if (!prodProveedoresActuales[idx]) return;
+  prodProveedoresActuales[idx][campo] = campo === 'precio' ? (parseFloat(valor)||0) : valor;
+  if (campo === 'precio') prodProveedoresActuales[idx].actualizado = new Date().toISOString().split('T')[0];
+  recalcularCompraDesdeProveedores();
+  calcMargen();
+  // Re-renderizar solo para actualizar el badge de "más económico" sin perder foco mientras se escribe el nombre
+  if (campo === 'precio') renderTablaProveedoresProducto();
+}
+
+function recalcularCompraDesdeProveedores() {
+  if (!prodProveedoresActuales.length) return;
+  var masBarato = prodProveedoresActuales.reduce(function(min, pv) {
+    return (parseFloat(pv.precio)||Infinity) < (parseFloat(min.precio)||Infinity) ? pv : min;
+  }, prodProveedoresActuales[0]);
+  var compraEl = document.getElementById('pf-compra');
+  if (compraEl) compraEl.value = parseFloat(masBarato.precio)||0;
 }
 
 function cerrarFormProducto() {
@@ -5811,7 +6064,37 @@ function guardarProducto() {
   const cod = document.getElementById('pf-codigo').value.trim();
   const desc = document.getElementById('pf-descripcion').value.trim();
   if (!cod || !desc) { notify('Completá al menos código y descripción'); return; }
-  notify(editingProdId ? 'Producto actualizado correctamente' : 'Producto guardado correctamente');
+
+  // Limpiar proveedores sin nombre o sin precio antes de guardar
+  var proveedoresValidos = prodProveedoresActuales.filter(function(pv) {
+    return (pv.nombre||'').trim() && parseFloat(pv.precio) > 0;
+  });
+  var proveedorPrincipal = proveedoresValidos.length
+    ? proveedoresValidos.reduce(function(min, pv){ return (parseFloat(pv.precio)) < (parseFloat(min.precio)) ? pv : min; }, proveedoresValidos[0])
+    : null;
+
+  var datos = {
+    codigo:       cod,
+    descripcion:  desc,
+    nombre:       desc,
+    categoria:    document.getElementById('pf-categoria').value,
+    proveedores:  proveedoresValidos,
+    proveedor:    proveedorPrincipal ? proveedorPrincipal.nombre : '',
+    compra:       parseFloat(document.getElementById('pf-compra').value) || 0,
+    venta:        parseFloat(document.getElementById('pf-venta').value) || 0,
+    iva:          parseFloat(document.getElementById('pf-iva').value) || 21,
+    stock:        parseInt(document.getElementById('pf-stock').value) || 0,
+    stockMin:     parseInt(document.getElementById('pf-stock-min').value) || 5,
+    estado:       document.getElementById('pf-estado').value,
+    unidad:       document.getElementById('pf-unidad').value,
+    esManoDeObra: document.getElementById('pf-es-mano-obra').checked
+  };
+
+  if (editingProdId && prodData[editingProdId] && prodData[editingProdId].fbKey) {
+    datos.fbKey = prodData[editingProdId].fbKey;
+  }
+
+  fbGuardarProducto(datos);
   cerrarFormProducto();
 }
 
@@ -5847,6 +6130,30 @@ function verProducto(id) {
     sc.style.background = stk <= 0 ? 'var(--red-bg)' : stk < stkMin ? 'var(--amber-bg)' : 'var(--bg3)';
     se.style.color = stk <= 0 ? 'var(--red)' : stk < stkMin ? 'var(--amber)' : 'var(--text)';
   }
+
+  // ── Proveedores y comparación de precios ──
+  var provBox = document.getElementById('pd-proveedores-box');
+  if (provBox) {
+    var lista = Array.isArray(p.proveedores) ? p.proveedores : [];
+    if (!lista.length) {
+      provBox.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Sin proveedores cargados para este producto</div>';
+    } else {
+      var masBaratoIdx = 0;
+      lista.forEach(function(pv, i) {
+        if ((parseFloat(pv.precio)||Infinity) < (parseFloat(lista[masBaratoIdx].precio)||Infinity)) masBaratoIdx = i;
+      });
+      var rows = lista.map(function(pv, i) {
+        var esMasBarato = i === masBaratoIdx && lista.length > 1;
+        return '<tr' + (esMasBarato ? ' style="background:var(--green-bg)"' : '') + '>' +
+          '<td style="padding:8px 4px">' + escapeHTML(pv.nombre||'—') + (esMasBarato ? ' <span class="badge b-green" style="font-size:9px;margin-left:4px"><i class="ti ti-check"></i> Más económico</span>' : '') + '</td>' +
+          '<td style="padding:8px 4px;text-align:right;font-weight:500">$' + Math.round(parseFloat(pv.precio)||0).toLocaleString('es-AR') + '</td>' +
+          '<td style="padding:8px 4px;text-align:right;color:var(--text3);font-size:12px">' + escapeHTML(pv.actualizado||'—') + '</td>' +
+        '</tr>';
+      }).join('');
+      provBox.innerHTML = '<table style="width:100%;font-size:13px"><tr><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio costo</th><th style="text-align:right">Actualizado</th></tr>' + rows + '</table>';
+    }
+  }
+
   editingProdId = id;
 }
 
@@ -6128,6 +6435,99 @@ function closeSidebarMobile() {
 
 // Cerrar sidebar al navegar en mobile
 // closeSidebarMobile integrado en showPage directamente
+
+// ── REPORTE DE RENTABILIDAD (módulo completo) ──
+function _rangoFechasPeriodo(periodo) {
+  var hoy = new Date();
+  var desde, hasta;
+  if (periodo === 'mes_actual') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    hasta = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0, 23,59,59);
+  } else if (periodo === 'mes_anterior') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth()-1, 1);
+    hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0, 23,59,59);
+  } else if (periodo === 'ult_3_meses') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth()-2, 1);
+    hasta = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0, 23,59,59);
+  } else { // anio_actual
+    desde = new Date(hoy.getFullYear(), 0, 1);
+    hasta = new Date(hoy.getFullYear(), 11, 31, 23,59,59);
+  }
+  return { desde: desde, hasta: hasta };
+}
+
+function _parsearFechaFlexible(f) {
+  if (!f) return null;
+  var partes;
+  if (f.indexOf('-') !== -1) { // YYYY-MM-DD
+    partes = f.split('-');
+    return new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
+  } else if (f.indexOf('/') !== -1) { // DD/MM/YYYY
+    partes = f.split('/');
+    return new Date(parseInt(partes[2]), parseInt(partes[1])-1, parseInt(partes[0]));
+  }
+  return null;
+}
+
+function calcRentabilidad() {
+  var selEl = document.getElementById('rent-periodo');
+  var periodo = selEl ? selEl.value : 'mes_actual';
+  var rango = _rangoFechasPeriodo(periodo);
+
+  var ventasPeriodo = (ventasList||[]).filter(function(v) {
+    var f = _parsearFechaFlexible(v.fecha);
+    return f && f >= rango.desde && f <= rango.hasta;
+  });
+  var ingresos = ventasPeriodo.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
+  var costoProductos = ventasPeriodo.reduce(function(s,v){ return s + (parseFloat(v.costoTotal)||0); }, 0);
+
+  var gastosPeriodo = (gastosData||[]).filter(function(g) {
+    var f = _parsearFechaFlexible(g.fecha);
+    return f && f >= rango.desde && f <= rango.hasta;
+  });
+  var totalGastos = gastosPeriodo.reduce(function(s,g){ return s + (parseFloat(g.monto)||0); }, 0);
+
+  var egresos = costoProductos + totalGastos;
+  var utilidad = ingresos - egresos;
+  var margen = ingresos > 0 ? (utilidad / ingresos * 100) : 0;
+
+  _set('rent-ingresos', '$' + Math.round(ingresos).toLocaleString('es-AR'));
+  _set('rent-ingresos-sub', ventasPeriodo.length + ' venta' + (ventasPeriodo.length !== 1 ? 's' : ''));
+  _set('rent-egresos', '$' + Math.round(egresos).toLocaleString('es-AR'));
+  var utilEl = document.getElementById('rent-utilidad');
+  utilEl.textContent = '$' + Math.round(utilidad).toLocaleString('es-AR');
+  utilEl.style.color = utilidad >= 0 ? 'var(--green)' : 'var(--red)';
+  var margenEl = document.getElementById('rent-margen');
+  var margenSubEl = document.getElementById('rent-margen-sub');
+  margenEl.textContent = margen.toFixed(1) + '%';
+  if (margen < 15) { margenEl.style.color='var(--red)'; margenSubEl.textContent='margen bajo'; }
+  else if (margen <= 20) { margenEl.style.color='var(--amber)'; margenSubEl.textContent='margen regular'; }
+  else { margenEl.style.color='var(--green)'; margenSubEl.textContent='ganancia perfecta'; }
+
+  // Desglose de gastos por categoría para el estado de resultados
+  var gastosPorCategoria = {};
+  gastosPeriodo.forEach(function(g) {
+    var cat = g.categoria || 'Otro';
+    gastosPorCategoria[cat] = (gastosPorCategoria[cat]||0) + (parseFloat(g.monto)||0);
+  });
+
+  var filas = [];
+  filas.push({ concepto: 'Ingresos por ventas', monto: ingresos, esTotal:false, signo:1 });
+  filas.push({ concepto: 'Costo de productos y mano de obra vendidos', monto: -costoProductos, esTotal:false, signo:-1 });
+  Object.keys(gastosPorCategoria).forEach(function(cat) {
+    filas.push({ concepto: 'Gastos — ' + cat, monto: -gastosPorCategoria[cat], esTotal:false, signo:-1 });
+  });
+  filas.push({ concepto: 'Utilidad neta', monto: utilidad, esTotal:true, signo: utilidad>=0?1:-1 });
+
+  var tbody = document.getElementById('rent-tbody');
+  if (tbody) {
+    tbody.innerHTML = filas.map(function(f) {
+      var color = f.signo > 0 ? 'var(--green)' : 'var(--red)';
+      var estilo = f.esTotal ? 'font-weight:700;border-top:1.5px solid var(--border2)' : '';
+      return '<tr style="' + estilo + '"><td>' + escapeHTML(f.concepto) + '</td><td class="tr" style="color:' + color + ';font-weight:' + (f.esTotal?'700':'500') + '">$' + Math.round(f.monto).toLocaleString('es-AR') + '</td></tr>';
+    }).join('');
+  }
+}
 
 function buscarCC(v) { document.querySelectorAll('.ccrow').forEach(tr=>tr.style.display=tr.textContent.toLowerCase().includes(v.toLowerCase())?'':'none'); }
 // ccData movido al inicio
@@ -7003,6 +7403,8 @@ function guardarNuevoGenerico() {
       mail:      obj.em || '',
       dni:       obj.dni || '',
       categoria: obj.cargo ? (obj.cargo.includes('39') ? 39 : obj.cargo.includes('15') ? 15 : 8) : 39,
+      tipoEmpleado:    obj.tipo || 'Empleado',
+      pctComisionPropio: parseFloat(obj['pct-comision']) || 0,
       activo:    (obj.activo || 'Activo') !== 'Inactivo',
       historial: [{ tipo:'alta', motivo:'Ingreso', fecha: new Date().toISOString().split('T')[0], usuario: currentUser||'' }]
     };
@@ -8165,15 +8567,28 @@ function iniciarCtaEmp() {
   var sel = document.getElementById('ctaemp-sel');
   if (!sel) return;
   var lista = Object.values(empData || {}).filter(function(e){ return e.activo !== false; });
-  var opts  = '<option value="">— Seleccionar —</option>';
-  lista.forEach(function(e) {
-    opts += '<option value="'+(e.fbKey||e.id)+'">'+escapeHTML(e.nombre)+'</option>';
-  });
-  sel.innerHTML = opts;
-  // Si el usuario logueado es técnico, pre-seleccionar su propio perfil
-  if (currentRole !== 'admin') {
+  var esAdmin = (currentRole === 'admin' || currentRole === 'administrativo');
+
+  if (esAdmin) {
+    var opts  = '<option value="">— Seleccionar —</option>';
+    lista.forEach(function(e) {
+      opts += '<option value="'+(e.fbKey||e.id)+'">'+escapeHTML(e.nombre)+'</option>';
+    });
+    sel.innerHTML = opts;
+    sel.disabled = false;
+    sel.style.display = '';
+  } else {
+    // Vendedor/técnico: solo su propia cuenta, sin poder elegir otra
     var propio = lista.find(function(e){ return e.mail === currentUser || e.nombre === currentUser; });
-    if (propio) { sel.value = propio.fbKey || propio.id; cargarCtaEmp(sel.value); }
+    if (propio) {
+      sel.innerHTML = '<option value="'+(propio.fbKey||propio.id)+'">'+escapeHTML(propio.nombre)+'</option>';
+      sel.value = propio.fbKey || propio.id;
+      sel.disabled = true; // bloqueado: no puede ver la cuenta de otro
+      cargarCtaEmp(sel.value);
+    } else {
+      sel.innerHTML = '<option value="">Sin perfil de empleado asociado</option>';
+      sel.disabled = true;
+    }
   }
 }
 
@@ -8185,6 +8600,7 @@ function cargarCtaEmp(empFbKey) {
   if (emp) {
     var base = parseFloat(emp.sueldoBase) || 0;
     document.getElementById('ctaemp-base').textContent = '$' + Math.round(base).toLocaleString('es-AR');
+    renderComisionesDelMes(emp);
   }
   // Cargar movimientos desde Firebase
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey), function(snap) {
@@ -8193,6 +8609,47 @@ function cargarCtaEmp(empFbKey) {
                         .sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
     renderMovsEmp();
   });
+}
+
+// ── Comisiones del mes para Vendedor a comisión ──
+function renderComisionesDelMes(emp) {
+  var card = document.getElementById('ctaemp-comision-card');
+  if (!card) return;
+  if (emp.tipoEmpleado !== 'Vendedor a comisión') {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+
+  var pct = parseFloat(emp.pctComisionPropio) || 0;
+  var hoy = new Date();
+  var mesActual = hoy.getMonth();
+  var añoActual = hoy.getFullYear();
+
+  var ventasDelVendedor = (ventasList||[]).filter(function(v) {
+    if (v.empleado !== emp.nombre) return false;
+    var partesFecha = (v.fecha||'').split('/'); // DD/MM/YYYY
+    if (partesFecha.length < 3) return false;
+    var mesVenta = parseInt(partesFecha[1]) - 1;
+    var añoVenta = parseInt(partesFecha[2]);
+    return mesVenta === mesActual && añoVenta === añoActual;
+  });
+
+  var totalGenerado = 0, totalCobrado = 0, totalPendiente = 0;
+  ventasDelVendedor.forEach(function(v) {
+    var comisionVenta = (parseFloat(v.total)||0) * (pct/100);
+    totalGenerado += comisionVenta;
+    if (v.estadoPago === 'pago_total') {
+      totalCobrado += comisionVenta;
+    } else {
+      totalPendiente += comisionVenta;
+    }
+  });
+
+  document.getElementById('ctaemp-com-total').textContent = '$' + Math.round(totalGenerado).toLocaleString('es-AR');
+  document.getElementById('ctaemp-com-cant').textContent = ventasDelVendedor.length + ' venta' + (ventasDelVendedor.length !== 1 ? 's' : '') + ' este mes · ' + pct + '% de comisión';
+  document.getElementById('ctaemp-com-cobrado').textContent = '$' + Math.round(totalCobrado).toLocaleString('es-AR');
+  document.getElementById('ctaemp-com-pendiente').textContent = '$' + Math.round(totalPendiente).toLocaleString('es-AR');
 }
 
 function renderMovsEmp() {
@@ -9579,7 +10036,7 @@ function calcDescuentosCuotasMes(empFbKey) {
 function renderTablaSueldos(guardada) {
   var tbody = document.getElementById('suel-tbody');
   if (!tbody) return;
-  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false; });
+  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false && e.tipoEmpleado !== 'Vendedor a comisión'; });
   if (!empleados.length) { tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:24px">Sin empleados activos</td></tr>'; return; }
   var totBase=0,totHext=0,totEntrega=0,totDesc=0,totAdel=0,totPagar=0;
   tbody.innerHTML = empleados.map(function(emp) {
@@ -9635,7 +10092,7 @@ function guardarLiquidacion() {
   if (!window.fbDB) { notify('Sin conexión'); return; }
   var tbody = document.getElementById('suel-tbody');
   if (!tbody) return;
-  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false; });
+  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false && e.tipoEmpleado !== 'Vendedor a comisión'; });
   var datos = {};
   empleados.forEach(function(emp, i) {
     var fila = tbody.rows[i]; if (!fila) return;
@@ -9758,7 +10215,7 @@ function renderModuloVacaciones() {
 
 function renderTablaVacaciones(periodos) {
   var tbody = document.getElementById('vac-tbody'); if (!tbody) return;
-  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false; });
+  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false && e.tipoEmpleado !== 'Vendedor a comisión'; });
   var hoy = new Date().toISOString().split('T')[0];
   var enLicencia=0, conPendientes=0;
   tbody.innerHTML = empleados.map(function(emp){
@@ -11053,8 +11510,11 @@ function renderOTTabla(filtro='') {
     var matchBusq   = !busq   || (o.id||'').toLowerCase().includes(busq.toLowerCase()) || (o.cliente||'').toLowerCase().includes(busq.toLowerCase());
     return matchFiltro && matchBusq;
   });
-  tbody.innerHTML = rows.map(o => `<tr>
-    <td style="font-weight:500">${escapeHTML(o.id)}</td>
+  tbody.innerHTML = rows.map(o => {
+    var visitasPreviasReales = _contarVisitasPrevias(o.cliente, o.dir, o.id);
+    var iconoRepetida = visitasPreviasReales > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N° '+(visitasPreviasReales+1)+' a esta instalación"></i>' : '';
+    return `<tr>
+    <td style="font-weight:500">${iconoRepetida}${escapeHTML(o.id)}</td>
     <td>${escapeHTML(o.ventaId||'—')}</td>
     <td>${escapeHTML(o.cliente||'—')}</td>
     <td>${escapeHTML(o.tecnico||'Sin asignar')}</td>
@@ -11068,7 +11528,8 @@ function renderOTTabla(filtro='') {
       <button class="btn btn-sm btn-icon" onclick="verOT('${o.id}')" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>
       <button class="btn btn-sm btn-icon" onclick="eliminarOT('${o.fbKey||o.id}')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button>
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
   // Actualizar métricas
   var hoy = new Date().toISOString().split('T')[0];
@@ -11106,6 +11567,17 @@ function verOT(id) {
   document.getElementById('ot-det-hora').value = ot.hora;
   document.getElementById('ot-det-dir').value = ot.dir;
   document.getElementById('ot-det-obs').value = ot.obs;
+  document.getElementById('ot-det-tipovisita').value = ot.tipoVisita || 'Instalación nueva';
+
+  var visitasPreviasReales = _contarVisitasPrevias(ot.cliente, ot.dir, ot.id);
+  var repetidaBox = document.getElementById('ot-det-repetida-box');
+  var repetidaLbl = document.getElementById('ot-det-repetida-lbl');
+  if (visitasPreviasReales > 0 && repetidaBox && repetidaLbl) {
+    repetidaBox.style.display = '';
+    repetidaLbl.innerHTML = '<i class="ti ti-alert-triangle"></i> Visita N° ' + (visitasPreviasReales+1) + ' a esta instalación — ya se registraron ' + visitasPreviasReales + ' visita' + (visitasPreviasReales!==1?'s':'') + ' previa' + (visitasPreviasReales!==1?'s':'') + '.';
+  } else if (repetidaBox) {
+    repetidaBox.style.display = 'none';
+  }
 
   renderChecklist('checklist-preparacion', ot.checks.preparacion, CHECKLISTS.preparacion, id, 'preparacion');
   renderChecklist('checklist-instalacion', ot.checks.instalacion, CHECKLISTS.instalacion, id, 'instalacion');
@@ -11198,8 +11670,18 @@ function completarOT() {
 function actualizarOT() {
   const ot = otData.find(o => o.id === otActualId);
   if (!ot) return;
+
+  ot.tecnico    = document.getElementById('ot-det-tecnico').value;
+  ot.fecha      = document.getElementById('ot-det-fecha').value;
+  ot.hora       = document.getElementById('ot-det-hora').value;
+  ot.duracion   = document.getElementById('ot-det-duracion').value;
+  ot.tipoVisita = document.getElementById('ot-det-tipovisita').value;
+  ot.obs        = document.getElementById('ot-det-obs').value;
+
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor'), accion: 'Datos de la OT actualizados' });
+
+  if (typeof fbGuardarOT === 'function') fbGuardarOT(ot);
   notify('OT actualizada');
 }
 
@@ -11213,22 +11695,49 @@ function volverListaOT() {
 }
 
 // Generar OT desde una venta (llamada al confirmar venta)
+// Normaliza cliente+dirección para detectar si es la misma instalación,
+// tolerando diferencias menores de mayúsculas/espacios/tildes simples.
+function _claveInstalacion(cliente, dir) {
+  function limpiar(s) {
+    return (s||'').toLowerCase().trim()
+      .replace(/\s+/g,' ')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // quita tildes
+  }
+  return limpiar(cliente) + '|' + limpiar(dir);
+}
+
+// Cuenta cuántas OTs previas existen ya para la misma instalación (cliente+dirección),
+// sin contar la OT actual. Sirve para marcar automáticamente cuándo una visita es una repetición.
+function _contarVisitasPrevias(cliente, dir, otIdExcluir) {
+  var clave = _claveInstalacion(cliente, dir);
+  return (otData||[]).filter(function(o) {
+    return o.id !== otIdExcluir && _claveInstalacion(o.cliente, o.dir) === clave;
+  }).length;
+}
+
 function generarOTdesdeVenta(ventaId, cliente, dir) {
+  var visitasPrevias = _contarVisitasPrevias(cliente, dir, null);
   const nuevo = {
     id: 'OT-0' + (otData.length + 19),
     ventaId, cliente, tecnico: 'Sin asignar',
     fecha: '', hora: '09:00', duracion: '4 horas',
     dir: dir || 'Sin definir', obs: 'Generada automáticamente desde ' + ventaId,
     estado: 'pendiente', progreso: 0,
+    tipoVisita: visitasPrevias > 0 ? 'Mantenimiento' : 'Instalación nueva',
+    esRepetida: visitasPrevias > 0,
+    visitaNro: visitasPrevias + 1,
     checks: {
       preparacion: CHECKLISTS.preparacion.map(() => false),
       instalacion: CHECKLISTS.instalacion.map(() => false),
       verificacion: CHECKLISTS.verificacion.map(() => false),
     },
     materiales: [],
-    audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: 'Sistema', accion: 'OT generada automáticamente desde venta ' + ventaId }]
+    audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: 'Sistema', accion: 'OT generada automáticamente desde venta ' + ventaId + (visitasPrevias > 0 ? ' (visita Nº ' + (visitasPrevias+1) + ' a esta instalación)' : '') }]
   };
   otData.unshift(nuevo);
+  if (typeof fbGuardarOT === 'function') {
+    fbGuardarOT(nuevo).then(function(fbKey) { if (fbKey) nuevo.fbKey = fbKey; });
+  }
   return nuevo.id;
 }
 
@@ -11331,19 +11840,25 @@ function renderKPIsDashboard() {
     var ultimas = ventas.slice(0, 10);
     if (ultimas.length) {
       ultVentasEl.innerHTML = ultimas.map(function(v) {
-        var ep = v.estadoPago === 'pago_total' ? '✓' : v.estadoPago === 'seniado' ? '◑' : '○';
-        var epColor = v.estadoPago === 'pago_total' ? 'var(--green)' : v.estadoPago === 'seniado' ? 'var(--blue)' : 'var(--amber)';
+        var estadoLbl = v.estadoPago === 'pago_total' ? '<span class="badge b-green">Pagado</span>'
+                       : v.estadoPago === 'seniado' ? '<span class="badge b-blue">Señado</span>'
+                       : '<span class="badge b-amber">Pendiente</span>';
+        var subtotal = parseFloat(v.subtotal) || 0;
+        var iva = parseFloat(v.iva) || 0;
+        var total = parseFloat(v.total) || 0;
         var vid = escapeHTML(v.id||'');
         return '<tr style="cursor:pointer" onclick="verDetalleVentaDesdeId(\'' + vid + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
           '<td style="font-family:monospace;font-size:12px">' + vid + '</td>' +
           '<td>' + escapeHTML(v.cliente||'') + '</td>' +
           '<td class="hide-mobile" style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
-          '<td style="text-align:right;font-weight:600">$' + (parseFloat(v.total)||0).toLocaleString('es-AR') + '</td>' +
-          '<td style="text-align:right;color:' + epColor + '">' + ep + '</td>' +
+          '<td style="text-align:right">$' + subtotal.toLocaleString('es-AR') + '</td>' +
+          '<td style="text-align:right;color:var(--text3)">$' + iva.toLocaleString('es-AR') + '</td>' +
+          '<td style="text-align:right;font-weight:600">$' + total.toLocaleString('es-AR') + '</td>' +
+          '<td style="text-align:right">' + estadoLbl + '</td>' +
         '</tr>';
       }).join('');
     } else {
-      ultVentasEl.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text3)">Sin ventas recientes</td></tr>';
+      ultVentasEl.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text3)">Sin ventas recientes</td></tr>';
     }
   }
 
@@ -11367,6 +11882,70 @@ function renderKPIsDashboard() {
       }).join('');
     }
   }
+
+  if (esAdmin) renderRentabilidadDashboard(todasVentas);
+}
+
+// ── Rentabilidad del mes (solo admin) ──
+function renderRentabilidadDashboard(todasVentas) {
+  var card = document.getElementById('dash-rentabilidad-card');
+  if (!card) return;
+  card.style.display = '';
+
+  var hoy = new Date();
+  var mesActual = hoy.getMonth();
+  var añoActual = hoy.getFullYear();
+
+  var ventasDelMes = (todasVentas||[]).filter(function(v) {
+    var f = v.fecha || '';
+    var partes;
+    if (f.indexOf('-') !== -1) { // YYYY-MM-DD
+      partes = f.split('-');
+      return parseInt(partes[1])-1 === mesActual && parseInt(partes[0]) === añoActual;
+    } else if (f.indexOf('/') !== -1) { // DD/MM/YYYY
+      partes = f.split('/');
+      return parseInt(partes[1])-1 === mesActual && parseInt(partes[2]) === añoActual;
+    }
+    return false;
+  });
+  var ingresosMes = ventasDelMes.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
+
+  var gastosDelMes = (gastosData||[]).filter(function(g) {
+    var f = g.fecha || '';
+    if (f.indexOf('-') === -1) return false;
+    var partes = f.split('-');
+    return parseInt(partes[1])-1 === mesActual && parseInt(partes[0]) === añoActual;
+  });
+  var gastosMes = gastosDelMes.reduce(function(s,g){ return s + (parseFloat(g.monto)||0); }, 0);
+
+  var utilidad = ingresosMes - gastosMes;
+  var margenPct = ingresosMes > 0 ? (utilidad / ingresosMes * 100) : 0;
+
+  _set('dash-rent-ingresos', '$' + Math.round(ingresosMes).toLocaleString('es-AR'));
+  _set('dash-rent-gastos', '$' + Math.round(gastosMes).toLocaleString('es-AR'));
+  var utilEl = document.getElementById('dash-rent-utilidad');
+  utilEl.textContent = '$' + Math.round(utilidad).toLocaleString('es-AR');
+  utilEl.style.color = utilidad >= 0 ? 'var(--green)' : 'var(--red)';
+
+  var margenEl = document.getElementById('dash-rent-margen');
+  var margenSubEl = document.getElementById('dash-rent-margen-sub');
+  margenEl.textContent = margenPct.toFixed(1) + '%';
+  if (margenPct < 15) {
+    margenEl.style.color = 'var(--red)'; margenSubEl.textContent = 'margen bajo';
+  } else if (margenPct <= 20) {
+    margenEl.style.color = 'var(--amber)'; margenSubEl.textContent = 'margen regular';
+  } else {
+    margenEl.style.color = 'var(--green)'; margenSubEl.textContent = 'ganancia perfecta';
+  }
+
+  // Barras comparativas, escaladas contra el mayor de los dos valores
+  var maxVal = Math.max(ingresosMes, gastosMes, 1);
+  var pctIng = Math.round(ingresosMes / maxVal * 100);
+  var pctGas = Math.round(gastosMes / maxVal * 100);
+  document.getElementById('dash-rent-bar-ing').style.width = pctIng + '%';
+  document.getElementById('dash-rent-bar-gas').style.width = pctGas + '%';
+  document.getElementById('dash-rent-bar-ing-lbl').textContent = '$' + Math.round(ingresosMes).toLocaleString('es-AR');
+  document.getElementById('dash-rent-bar-gas-lbl').textContent = '$' + Math.round(gastosMes).toLocaleString('es-AR');
 }
 
 function kpiNavegar(tipo) {
@@ -12833,6 +13412,7 @@ function actualizarResumenStock() {
   </div>
   <!-- Opciones -->
   <div style="padding:8px">
+    <div class="up-item" onclick="showPage('ctaemp',document.querySelector('[onclick*=ctaemp]'));cerrarUserPanel()"><i class="ti ti-wallet" style="font-size:15px"></i> Mi cuenta</div>
     <div class="up-item" onclick="abrirCambiarPassword()"><i class="ti ti-lock" style="font-size:15px"></i> Cambiar contraseña</div>
     <div class="up-item admin-only" onclick="showPage('usuarios',document.querySelector('[onclick*=usuarios]'));cerrarUserPanel()"><i class="ti ti-users-group" style="font-size:15px"></i> Gestión de usuarios</div>
     <div class="up-item admin-only" onclick="showPage('configuracion',document.querySelector('[onclick*=configuracion]'));cerrarUserPanel()"><i class="ti ti-settings" style="font-size:15px"></i> Configuración del sistema</div>
