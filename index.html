@@ -745,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v16.2 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v16.3 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -983,10 +983,18 @@ tr:hover td{color:var(--text)}
             <button class="btn btn-sm" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))"><i class="ti ti-external-link"></i> Ver reporte completo</button>
           </div>
           <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
-            <div class="metric"><div class="m-label">Ingresos del mes</div><div class="m-value" id="dash-rent-ingresos" style="color:var(--green)">$0</div><div class="m-sub">total facturado</div></div>
-            <div class="metric"><div class="m-label">Gastos del mes</div><div class="m-value" id="dash-rent-gastos" style="color:var(--red)">$0</div><div class="m-sub">gastos cargados</div></div>
-            <div class="metric"><div class="m-label">Utilidad estimada</div><div class="m-value" id="dash-rent-utilidad">$0</div><div class="m-sub">ingresos − gastos</div></div>
-            <div class="metric"><div class="m-label">Margen</div><div class="m-value" id="dash-rent-margen">—</div><div class="m-sub" id="dash-rent-margen-sub">—</div></div>
+            <div class="metric" style="cursor:pointer" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver detalle de ventas">
+              <div class="m-label">Ingresos del mes</div><div class="m-value" id="dash-rent-ingresos" style="color:var(--green)">$0</div><div class="m-sub">total facturado</div>
+            </div>
+            <div class="metric" style="cursor:pointer" onclick="showPage('gastos',document.querySelector('[onclick*=gastos]'))" title="Ver módulo de gastos">
+              <div class="m-label">Gastos del mes</div><div class="m-value" id="dash-rent-gastos" style="color:var(--red)">$0</div><div class="m-sub">gastos cargados</div>
+            </div>
+            <div class="metric" style="cursor:pointer" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))" title="Ver reporte completo">
+              <div class="m-label">Utilidad estimada</div><div class="m-value" id="dash-rent-utilidad">$0</div><div class="m-sub">ingresos − gastos</div>
+            </div>
+            <div class="metric" style="cursor:pointer" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))" title="Ver reporte completo">
+              <div class="m-label">Margen</div><div class="m-value" id="dash-rent-margen">—</div><div class="m-sub" id="dash-rent-margen-sub">—</div>
+            </div>
           </div>
           <div style="display:flex;align-items:center;gap:12px">
             <div style="flex:1">
@@ -1012,7 +1020,7 @@ tr:hover td{color:var(--text)}
           </div>
           <!-- Tabla desktop -->
           <table class="hide-mobile-block">
-            <tr><th >#</th><th>Cliente</th><th>Fecha</th><th style="text-align:right">Subtotal</th><th style="text-align:right">IVA</th><th style="text-align:right">Total</th><th style="text-align:right">Estado</th></tr>
+            <tr><th >#</th><th>Cliente</th><th>Fecha</th><th style="text-align:right">Subtotal</th><th style="text-align:right">IVA</th><th style="text-align:right">Total</th><th style="text-align:right">Estado</th><th></th></tr>
 <tbody id="dash-ultimas-ventas"><tr><td colspan="7" style="text-align:center;padding:12px;color:var(--text3)">Cargando ventas...</td></tr></tbody></table>
           <!-- Mobile: divs flex -->
           <div class="show-mobile-only" id="dash-ventas-mobile" style="width:100%;box-sizing:border-box">
@@ -5301,7 +5309,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v16.2-firebase',
+  VERSION: 'v16.3-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11855,10 +11863,11 @@ function renderKPIsDashboard() {
           '<td style="text-align:right;color:var(--text3)">$' + iva.toLocaleString('es-AR') + '</td>' +
           '<td style="text-align:right;font-weight:600">$' + total.toLocaleString('es-AR') + '</td>' +
           '<td style="text-align:right">' + estadoLbl + '</td>' +
+          '<td><button class="btn btn-sm btn-icon" onclick="event.stopPropagation();verDetalleVentaDesdeId(\'' + vid + '\')" title="Ver detalle completo"><i class="ti ti-arrow-right" style="font-size:14px"></i></button></td>' +
         '</tr>';
       }).join('');
     } else {
-      ultVentasEl.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text3)">Sin ventas recientes</td></tr>';
+      ultVentasEl.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:16px;color:var(--text3)">Sin ventas recientes</td></tr>';
     }
   }
 
@@ -11883,13 +11892,15 @@ function renderKPIsDashboard() {
     }
   }
 
-  if (esAdmin) renderRentabilidadDashboard(todasVentas);
+  if (currentRole === 'admin') renderRentabilidadDashboard(todasVentas);
+  else { var rc = document.getElementById('dash-rentabilidad-card'); if (rc) rc.style.display = 'none'; }
 }
 
 // ── Rentabilidad del mes (solo admin) ──
 function renderRentabilidadDashboard(todasVentas) {
   var card = document.getElementById('dash-rentabilidad-card');
   if (!card) return;
+  if (currentRole !== 'admin') { card.style.display = 'none'; return; }
   card.style.display = '';
 
   var hoy = new Date();
