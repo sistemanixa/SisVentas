@@ -219,7 +219,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 
 /* ── CARDS ── */
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;min-width:0}
-.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;box-sizing:border-box;min-width:0;max-width:100%}
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;box-sizing:border-box;min-width:0;max-width:100%}
 .card:last-child{margin-bottom:0}
 .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px;flex-wrap:wrap}
 .card-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:400}
@@ -286,7 +286,7 @@ tr:hover td{color:var(--text)}
 .di-addr{font-size:11px;color:var(--text3)}
 
 /* ── TOTALS ── */
-.totals{display:flex;justify-content:flex-end;padding-top:14px}
+.totals{display:flex;flex-direction:column;align-items:flex-end;padding-top:14px;gap:0}
 .tbox{min-width:210px}
 .tl{display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:7px;gap:24px}
 .tl.iva{color:var(--amber)}
@@ -516,7 +516,11 @@ tr:hover td{color:var(--text)}
 .cli-avatar{width:46px;height:46px;border-radius:50%;background:var(--blue-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;flex-shrink:0}
 
 /* ── STOCK INLINE EN NUEVA VENTA ── */
-.stock-indicator{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 6px;border-radius:10px;white-space:nowrap;margin-top:2px}
+.stock-indicator{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 6px;border-radius:10px;white-space:nowrap;margin-top:2px;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:900px){
+  .stock-indicator{font-size:9px;padding:2px 4px;gap:2px}
+  .stock-indicator i{display:none}
+}
 .stock-ok{background:var(--green-bg);color:var(--green)}
 .stock-warn{background:var(--amber-bg);color:var(--amber)}
 .stock-error{background:var(--red-bg);color:var(--red)}
@@ -745,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v16.3 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v16.6 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1096,7 +1100,7 @@ tr:hover td{color:var(--text)}
               <div class="tl iva"><span>IVA 21%</span><span id="t-iva">$0</span></div>
               <div class="tl final"><span>Total</span><span id="t-tot">$0</span></div>
             </div>
-            <div id="margen-ganancia-box" class="admin-only" style="margin-top:10px;padding:12px 14px;border-radius:var(--radius);display:none">
+            <div id="margen-ganancia-box" class="admin-only" style="margin-top:10px;padding:12px 14px;border-radius:var(--radius);display:none;width:100%;max-width:320px;box-sizing:border-box">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Margen de ganancia</span>
                 <span id="margen-ganancia-pct" style="font-size:18px;font-weight:700">—</span>
@@ -1452,8 +1456,8 @@ tr:hover td{color:var(--text)}
       <div class="card-head"><span class="card-title">Datos</span></div>
       <div class="form-grid">
         <div class="fg"><label>N° presupuesto</label><input id="pp-numero" readonly placeholder="Auto"></div>
-        <div class="fg"><label>Fecha</label><input type="date" id="pp-fecha" oninput="calcVenc()"></div>
-        <div class="fg"><label>Válido (días)</label><input type="number" id="pp-dias" value="14" oninput="calcVenc()"></div>
+        <div class="fg"><label>Fecha</label><input type="date" id="pp-fecha" oninput="calcVencimiento()"></div>
+        <div class="fg"><label>Válido (días)</label><input type="number" id="pp-dias" value="14" oninput="calcVencimiento()"></div>
         <div class="fg"><label>Vence el</label><input id="pp-venc" readonly style="color:var(--amber)"></div>
         <div class="fg full"><label>Cliente</label>
           <div class="sw">
@@ -1461,7 +1465,7 @@ tr:hover td{color:var(--text)}
             <div class="drop" id="pp-drop" style="display:none"></div>
           </div>
         </div>
-        <div class="fg"><label>Descuento (%)</label><input type="number" id="pp-descuento" value="0" min="0" max="100" oninput="checkAprobacion();calcPp()"></div>
+        <div class="fg"><label>Descuento (%)</label><input type="number" id="pp-descuento" value="0" min="0" max="100" oninput="checkAprobacion();calcPpTotales()"></div>
         <div class="fg"><label>Observaciones</label><input placeholder="Condiciones, notas..."></div>
       </div>
       <!-- Alerta si requiere aprobación -->
@@ -1476,21 +1480,13 @@ tr:hover td{color:var(--text)}
         <table>
           <thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th><th class="tr">P. unit.</th><th class="tr">Subtotal</th><th></th></tr></thead>
           <tbody id="pp-body">
-            <tr>
-              <td><input class="inpcel" value="P-001" style="width:60px"></td>
-              <td><input class="inpcel" value="Panel solar 300W" style="width:160px"></td>
-              <td><input class="inpcel" type="number" value="2" oninput="calcPp();checkAprobacion()" style="width:50px;text-align:right"></td>
-              <td><input class="inpcel" type="number" value="45000" oninput="calcPp();checkAprobacion()" style="width:80px;text-align:right"></td>
-              <td class="ppsub tr" style="font-weight:500">$90.000</td>
-              <td><button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();calcPp();checkAprobacion()"><i class="ti ti-trash" style="font-size:13px"></i></button></td>
-            </tr>
           </tbody>
         </table>
       </div>
       <div class="totals"><div class="tbox">
-        <div class="tl"><span>Subtotal</span><span id="pp-sub">$90.000</span></div>
+        <div class="tl"><span>Subtotal</span><span id="pp-sub">$0</span></div>
         <div class="tl" style="color:var(--green)"><span>Descuento</span><span id="pp-damt">$0</span></div>
-        <div class="tl iva"><span>IVA 21%</span><span id="pp-iva">$18.900</span></div>
+        <div class="tl iva"><span>IVA 21%</span><span id="pp-iva">$0</span></div>
         <div class="tl final"><span>Total</span><span id="pp-total">$0</span></div>
       </div></div>
       <div class="flex-end">
@@ -2054,27 +2050,26 @@ tr:hover td{color:var(--text)}
             <div class="card-head"><span class="card-title">Alícuotas de IVA</span></div>
             <table>
               <tr><th>Nombre</th><th style="text-align:right">Porcentaje</th><th style="text-align:right">Estado</th><th ></th></tr>
-              <tr><td>IVA general</td><td style="text-align:right"><input type="number" value="21" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">%</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="editarIVA(this)" title="Editar alícuota"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
-              <tr><td>IVA reducido</td><td style="text-align:right"><input type="number" value="10.5" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">%</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="editarIVA(this)" title="Editar alícuota"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
-              <tr><td>Exento</td><td style="text-align:right"><input type="number" value="0" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">%</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="editarIVA(this)" title="Editar alícuota"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
+              <tr><td>IVA general</td><td style="text-align:right"><input type="number" id="imp-iva-general" value="21" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">%</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="guardarAlicuotaIVA('imp-iva-general','ivaGeneral')" title="Guardar alícuota"><i class="ti ti-check" style="font-size:14px"></i></button></td></tr>
+              <tr><td>IVA reducido</td><td style="text-align:right"><input type="number" id="imp-iva-reducido" value="10.5" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">%</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="guardarAlicuotaIVA('imp-iva-reducido','ivaReducido')" title="Guardar alícuota"><i class="ti ti-check" style="font-size:14px"></i></button></td></tr>
+              <tr><td>Exento</td><td style="text-align:right"><input type="number" id="imp-iva-exento" value="0" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">%</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon" onclick="guardarAlicuotaIVA('imp-iva-exento','ivaExento')" title="Guardar alícuota"><i class="ti ti-check" style="font-size:14px"></i></button></td></tr>
             </table>
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title">Otros impuestos y retenciones</span></div>
             <div class="form-grid">
-              <div class="fg"><label>Ingresos brutos (%)</label><input type="number" value="3.5"></div>
-              <div class="fg"><label>Percepción IVA (%)</label><input type="number" value="3"></div>
-              <div class="fg"><label>Retención ganancias (%)</label><input type="number" value="6"></div>
+              <div class="fg"><label>Ingresos brutos (%)</label><input type="number" id="imp-ingbrutos" value="3.5"></div>
+              <div class="fg"><label>Percepción IVA (%)</label><input type="number" id="imp-percepcion" value="3"></div>
+              <div class="fg"><label>Retención ganancias (%)</label><input type="number" id="imp-retencion" value="6"></div>
               <div class="fg"><label>Condición fiscal</label>
-                <select>
+                <select id="imp-condicion">
                   <option>Responsable inscripto</option>
                   <option>Monotributista</option>
                   <option>Exento</option>
                 </select>
               </div>
             </div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px">⚠️ Esta sección todavía no se guarda en base de datos — próximamente.</div>
-            <div class="flex-end"><button class="btn" disabled style="opacity:0.5;cursor:not-allowed"><i class="ti ti-check"></i> Guardar</button></div>
+            <div class="flex-end"><button class="btn btn-primary" onclick="guardarImpuestosGenerales()"><i class="ti ti-check"></i> Guardar</button></div>
           </div>
         </div>
 
@@ -2197,7 +2192,7 @@ tr:hover td{color:var(--text)}
         <div class="card">
           <div class="card-head">
             <span class="card-title">Órdenes de servicio</span>
-            <button class="btn btn-sm btn-primary"><i class="ti ti-plus"></i> Nueva orden</button>
+            <button class="btn btn-sm btn-primary" onclick="abrirModalNuevo('servicio')"><i class="ti ti-plus"></i> Nueva orden</button>
           </div>
           <table>
             <thead><tr><th>N°</th><th>Descripción</th><th>Cliente</th><th>Fecha</th><th>Técnico</th><th style="text-align:right">Garantía</th><th style="text-align:right">Estado</th></tr></thead>
@@ -2798,8 +2793,20 @@ tr:hover td{color:var(--text)}
               <input class="search-input" style="width:100%" placeholder="Buscar por código, descripción o proveedor..." oninput="buscarProducto(this.value)">
             </div>
             <div style="overflow-x:auto">
-              <table id="prod-tbl">
+              <table id="prod-tbl" style="table-layout:fixed;width:100%">
+            <colgroup>
+              <col style="width:52px">
+              <col style="width:90px">
+              <col style="width:200px">
+              <col>
+              <col style="width:70px">
+              <col style="width:90px">
+              <col style="width:90px">
+              <col style="width:70px">
+              <col style="width:70px">
+            </colgroup>
             <thead><tr>
+              <th></th>
               <th data-sort="codigo" onclick="sortTabla('prod-tbl','codigo','str')" style="cursor:pointer;user-select:none">Código <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
               <th data-sort="nombre" onclick="sortTabla('prod-tbl','nombre','str')" style="cursor:pointer;user-select:none">Nombre <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
               <th class="hide-mobile">Descripción</th>
@@ -2809,7 +2816,7 @@ tr:hover td{color:var(--text)}
               <th data-sort="margen" onclick="sortTabla('prod-tbl','margen','num')" style="cursor:pointer;user-select:none;text-align:right">Margen <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
               <th></th>
             </tr></thead>
-            <tbody id="prod-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Cargando productos...</td></tr></tbody>
+            <tbody id="prod-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Cargando productos...</td></tr></tbody>
           </table>
             </div>
           </div>
@@ -2838,6 +2845,26 @@ tr:hover td{color:var(--text)}
                 </select>
               </div>
               <div class="fg full"><label>Descripción</label><input type="text" id="pf-descripcion" placeholder="Nombre completo del producto"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title">Imagen del producto</span></div>
+            <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+              <div id="pf-imagen-preview-box" style="width:96px;height:96px;border-radius:var(--radius);background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;border:0.5px solid var(--border)">
+                <i class="ti ti-photo" style="font-size:28px;color:var(--text3)" id="pf-imagen-placeholder-icon"></i>
+                <img id="pf-imagen-preview-img" style="display:none;width:100%;height:100%;object-fit:cover">
+              </div>
+              <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:8px">
+                <div>
+                  <button class="btn btn-sm" onclick="document.getElementById('pf-imagen-input').click()"><i class="ti ti-upload"></i> Subir foto desde el dispositivo</button>
+                  <input type="file" id="pf-imagen-input" accept="image/*" style="display:none" onchange="previewImagenProducto(this)">
+                </div>
+                <div class="fg" style="margin-bottom:0">
+                  <label>O pegar URL de imagen</label>
+                  <input type="text" id="pf-imagen-url" placeholder="https://..." oninput="actualizarPreviewImagenURL(this.value)">
+                </div>
+                <button class="btn btn-sm" onclick="quitarImagenProducto()" style="color:var(--red);align-self:flex-start"><i class="ti ti-trash"></i> Quitar imagen</button>
+              </div>
             </div>
           </div>
           <div class="card">
@@ -2910,8 +2937,9 @@ tr:hover td{color:var(--text)}
             <button class="btn btn-sm" onclick="cerrarDetalleProducto()"><i class="ti ti-arrow-left"></i> Volver</button>
           </div>
           <div class="emp-header">
-            <div style="width:48px;height:48px;border-radius:var(--radius-lg);background:var(--amber-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <i class="ti ti-package" style="font-size:22px;color:var(--amber)"></i>
+            <div id="pd-imagen-box" style="width:48px;height:48px;border-radius:var(--radius-lg);background:var(--amber-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden">
+              <i class="ti ti-package" style="font-size:22px;color:var(--amber)" id="pd-imagen-placeholder"></i>
+              <img id="pd-imagen-img" style="display:none;width:100%;height:100%;object-fit:cover">
             </div>
             <div class="emp-info">
               <div class="emp-name" id="pd-nombre">Panel solar 300W</div>
@@ -4193,9 +4221,10 @@ function renderTablaProductos(filtro) {
       costoLbl += ' <span style="font-size:10px;color:var(--text3)">' + escapeHTML(provLista[0].nombre||'') + '</span>';
     }
     return '<tr class="cr" data-pid="' + pid + '" onclick="verProductoById(this)" style="cursor:pointer">' +
+      '<td>' + (p.imagenUrl ? '<img src="'+escapeHTML(p.imagenUrl)+'" style="width:36px;height:36px;border-radius:6px;object-fit:cover" onerror="this.style.display=\'none\'">' : '<div style="width:36px;height:36px;border-radius:6px;background:var(--bg3);display:flex;align-items:center;justify-content:center"><i class="ti ti-photo" style="font-size:16px;color:var(--text3)"></i></div>') + '</td>' +
       '<td style="font-family:monospace;font-size:12px">' + (p.codigo||'') + '</td>' +
-      '<td style="font-weight:500">' + (p.esManoDeObra ? '<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px" title="Mano de obra"></i>' : '') + (p.nombre||'') + '</td>' +
-      '<td class="hide-mobile" style="font-size:12px;color:var(--text3)">' + (p.descripcion||p.categoria||'—') + '</td>' +
+      '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.esManoDeObra ? '<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px" title="Mano de obra"></i>' : '') + (p.nombre||'') + '</td>' +
+      '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.descripcion||p.categoria||'—') + '</td>' +
       '<td style="text-align:right;font-weight:600;color:' + stkColor + '">' + stk + '</td>' +
       '<td style="text-align:right">$' + (parseFloat(pv)||0).toLocaleString('es-AR') + '</td>' +
       '<td style="text-align:right">' + costoLbl + '</td>' +
@@ -5309,7 +5338,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v16.3-firebase',
+  VERSION: 'v16.6-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5441,6 +5470,7 @@ var FORMS_CFG = {
   evento:    { title:'Nuevo evento',    fields:[{l:'Fecha',id:'nev-f',t:'date'},{l:'Hora',id:'nev-h',t:'time'},{l:'Descripción',id:'nev-desc',t:'text',ph:'Ej: Instalación sistema alarma',full:true},{l:'Cliente',id:'nev-cli',t:'text',ph:'Nombre del cliente'},{l:'Empleado',id:'nev-emp',t:'select',opts:['— Seleccionar —']},{l:'Tipo',id:'nev-tipo',t:'select',opts:['Instalación','Mantenimiento','Visita técnica','Capacitación']}]},
   ticket:    { title:'Nuevo ticket',    fields:[{l:'N° ticket',id:'ntk-num',t:'text',ph:'TK-0001'},{l:'Cliente',id:'ntk-cli',t:'text',ph:'Nombre del cliente',full:true},{l:'Equipo / N° serie',id:'ntk-eq',t:'text',ph:'SN-xxxxx'},{l:'Descripción del problema',id:'ntk-desc',t:'text',ph:'Describir el problema',full:true},{l:'Prioridad',id:'ntk-p',t:'select',opts:['Urgente','Media','Baja']},{l:'Estado',id:'ntk-est',t:'select',opts:['Abierto','En curso','Cerrado']},{l:'Técnico',id:'ntk-tec',t:'select',opts:['Sin asignar']}]},
   garantia:  { title:'Nueva garantía',  fields:[{l:'Equipo',id:'ng2-eq',t:'text',ph:'Ej: Alarma Garnet PG-380',full:true},{l:'N° serie',id:'ng2-serie',t:'text',ph:'SN-xxxxx'},{l:'Cliente',id:'ng2-cli',t:'text',ph:'Nombre del cliente'},{l:'Fecha instalación',id:'ng2-inst',t:'date'},{l:'Duración (meses)',id:'ng2-meses',t:'select',opts:['3','6','12','24','36']},{l:'Venta vinculada',id:'ng2-venta',t:'text',ph:'Ej: #109696'}]},
+  servicio:  { title:'Nueva orden de servicio', fields:[{l:'N° de orden',id:'ns-num',t:'text',ph:'SV-0001'},{l:'Cliente',id:'ns-cli',t:'text',ph:'Nombre del cliente',full:true},{l:'Descripción',id:'ns-desc',t:'text',ph:'Qué se va a hacer',full:true},{l:'Técnico asignado',id:'ns-tec',t:'text',ph:'Nombre del técnico'},{l:'Fecha',id:'ns-fecha',t:'date'},{l:'Garantía',id:'ns-garantia',t:'text',ph:'Ej: 6 meses'},{l:'Estado',id:'ns-estado',t:'select',opts:['En curso','Finalizado','Pendiente']}]},
   remito:    { title:'Nuevo remito',    fields:[{l:'N° remito',id:'nr-num',t:'text',ph:'R-0001'},{l:'Cliente',id:'nr-cli',t:'text',ph:'Nombre del cliente',full:true},{l:'Fecha',id:'nr-fecha',t:'date'},{l:'Venta vinculada',id:'nr-venta',t:'text',ph:'Ej: #109696'},{l:'Descripción',id:'nr-desc',t:'text',ph:'Descripción de lo entregado',full:true}]},
   gasto:     { title:'Nuevo gasto',     fields:[{l:'Fecha',id:'ng-f',t:'date'},{l:'Tipo',id:'ng-tipo',t:'select',opts:['Fijo','Variable','Compra mercadería']},{l:'Descripción',id:'ng-desc',t:'text',ph:'Ej: Alquiler oficina',full:true},{l:'Categoría',id:'ng-cat',t:'select',opts:['Inmueble','Servicios','Personal','Transporte','Materiales','Marketing','Mercadería','Impuestos','Otro']},{l:'Monto ($)',id:'ng-monto',t:'number',ph:'0'},{l:'Medio de pago',id:'ng-medio',t:'select',opts:['Efectivo','Transferencia','Tarjeta','Cheque']}]},
   ordencompra: { title:'Nueva orden de compra', fields:[
@@ -5698,6 +5728,7 @@ function _completarLogin(nombre) {
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
   if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 300);
   if (typeof cargarConfigGeneral === 'function') setTimeout(cargarConfigGeneral, 350);
+  if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); setTimeout(applyRole, 400); }, 400);
   if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
@@ -5951,6 +5982,57 @@ function mostrarAlertasStock() {
 }
 
 var prodProveedoresActuales = [];
+var prodImagenArchivoTemp = null; // File pendiente de subir a Storage al guardar
+var prodImagenBase64Temp = null;  // Preview local mientras no se guardó
+var prodImagenUrlActual = '';     // URL final (sea de Storage o pegada a mano)
+
+function previewImagenProducto(input) {
+  var file = input.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { notify('La imagen no puede superar 3MB'); input.value=''; return; }
+  prodImagenArchivoTemp = file;
+  document.getElementById('pf-imagen-url').value = ''; // si sube archivo, prioriza eso sobre la URL pegada
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    prodImagenBase64Temp = e.target.result;
+    _mostrarPreviewImagenProducto(e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+function actualizarPreviewImagenURL(url) {
+  url = url.trim();
+  if (!url) return;
+  prodImagenArchivoTemp = null;
+  prodImagenBase64Temp = null;
+  prodImagenUrlActual = url;
+  _mostrarPreviewImagenProducto(url);
+}
+
+function _mostrarPreviewImagenProducto(src) {
+  var img = document.getElementById('pf-imagen-preview-img');
+  var icon = document.getElementById('pf-imagen-placeholder-icon');
+  if (!img || !icon) return;
+  img.src = src;
+  img.style.display = '';
+  icon.style.display = 'none';
+  img.onerror = function() {
+    notify('No se pudo cargar la imagen de esa URL');
+    img.style.display = 'none';
+    icon.style.display = '';
+  };
+}
+
+function quitarImagenProducto() {
+  prodImagenArchivoTemp = null;
+  prodImagenBase64Temp = null;
+  prodImagenUrlActual = '';
+  document.getElementById('pf-imagen-url').value = '';
+  var img = document.getElementById('pf-imagen-preview-img');
+  var icon = document.getElementById('pf-imagen-placeholder-icon');
+  if (img) { img.style.display = 'none'; img.src=''; }
+  if (icon) icon.style.display = '';
+}
 
 function abrirFormProducto(id) {
   editingProdId = id;
@@ -5969,6 +6051,14 @@ function abrirFormProducto(id) {
   document.getElementById('pf-estado').value = p.estado || 'activo';
   document.getElementById('pf-unidad').value = p.unidad || 'Unidad';
   document.getElementById('pf-es-mano-obra').checked = !!p.esManoDeObra;
+
+  // Imagen del producto
+  quitarImagenProducto();
+  if (p.imagenUrl) {
+    prodImagenUrlActual = p.imagenUrl;
+    document.getElementById('pf-imagen-url').value = p.imagenUrl;
+    _mostrarPreviewImagenProducto(p.imagenUrl);
+  }
 
   // Cargar proveedores existentes, o migrar el proveedor único viejo si no hay lista nueva
   if (Array.isArray(p.proveedores) && p.proveedores.length) {
@@ -6102,6 +6192,30 @@ function guardarProducto() {
     datos.fbKey = prodData[editingProdId].fbKey;
   }
 
+  // ── Imagen: archivo subido a Storage, URL pegada, o ninguna ──
+  if (prodImagenArchivoTemp && window.fbStorage) {
+    var path = 'productos/' + cod.replace(/[^a-zA-Z0-9_-]/g,'_') + '/imagen_' + Date.now() + '.jpg';
+    var sRef = window.fbStorageRef(window.fbStorage, path);
+    window.fbUploadBytes(sRef, prodImagenArchivoTemp).then(function() {
+      return window.fbGetDownloadURL(sRef);
+    }).then(function(url) {
+      datos.imagenUrl = url;
+      fbGuardarProducto(datos);
+      cerrarFormProducto();
+    }).catch(function(e) {
+      notify('No se pudo subir la imagen: ' + e.message + ' — se guardó el producto sin imagen');
+      fbGuardarProducto(datos);
+      cerrarFormProducto();
+    });
+    return; // el guardado continúa async arriba
+  }
+
+  if (prodImagenUrlActual) {
+    datos.imagenUrl = prodImagenUrlActual;
+  } else if (editingProdId && prodData[editingProdId] && !document.getElementById('pf-imagen-url').value.trim()) {
+    datos.imagenUrl = null; // se quitó explícitamente
+  }
+
   fbGuardarProducto(datos);
   cerrarFormProducto();
 }
@@ -6124,6 +6238,13 @@ function verProducto(id) {
   var catEl = document.getElementById('pd-cat-lbl');
   if (catEl) catEl.innerHTML = '<span class="badge b-amber">' + (p.categoria||p.idcategoria||'—') + '</span>';
   _set('pd-prov-lbl', (p.proveedor||p.nom_prov||'—') + (p.marca ? ' · '+p.marca : ''));
+
+  var pdImg = document.getElementById('pd-imagen-img');
+  var pdIcon = document.getElementById('pd-imagen-placeholder');
+  if (pdImg && pdIcon) {
+    if (p.imagenUrl) { pdImg.src = p.imagenUrl; pdImg.style.display=''; pdIcon.style.display='none'; pdImg.onerror=function(){ pdImg.style.display='none'; pdIcon.style.display=''; }; }
+    else { pdImg.style.display='none'; pdIcon.style.display=''; }
+  }
   _set('pd-compra', '$' + (parseFloat(pc)||0).toLocaleString('es-AR'));
   _set('pd-venta',  '$' + (parseFloat(pv)||0).toLocaleString('es-AR'));
   _set('pd-venta-iva-lbl', 'c/IVA: $' + Math.round(pv*(1+iva/100)).toLocaleString('es-AR'));
@@ -6984,6 +7105,7 @@ function fbCargarCaja() {
     window.fbOnValue(window.fbRef(window.fbDB,'sisventas/caja/'+hoy),function(snap){
       var data = snap.val()||{};
       var apertura=0, ingresos=0, egresos=0;
+      var todosLosMovs = [];
       Object.keys(data).forEach(function(k) {
         // Soporta tanto estructura plana (legacy) como por usuario
         var d = data[k];
@@ -6992,8 +7114,12 @@ function fbCargarCaja() {
           ingresos += parseFloat(d.ingresos)||0;
           egresos  += parseFloat(d.egresos)||0;
         }
+        if (k.endsWith('_movs') && d) {
+          Object.values(d).forEach(function(m){ todosLosMovs.push(m); });
+        }
       });
       _renderCajaUI(apertura, ingresos, egresos);
+      _renderMovimientosCaja(todosLosMovs);
     });
   } else {
     // Vendedor/técnico ve solo su propia caja del día
@@ -7002,7 +7128,31 @@ function fbCargarCaja() {
       var d = snap.val()||{};
       _renderCajaUI(parseFloat(d.apertura)||0, parseFloat(d.ingresos)||0, parseFloat(d.egresos)||0);
     });
+    window.fbOnValue(window.fbRef(window.fbDB,'sisventas/caja/'+hoy+'/'+usuarioKey+'_movs'),function(snap){
+      var data = snap.val();
+      var lista = data ? Object.values(data) : [];
+      _renderMovimientosCaja(lista);
+    });
   }
+}
+
+function _renderMovimientosCaja(lista) {
+  var cont = document.getElementById('caja-movimientos');
+  if (!cont) return;
+  if (!lista.length) {
+    cont.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin movimientos registrados hoy</div>';
+    return;
+  }
+  lista.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+  cont.innerHTML = lista.map(function(m) {
+    var color = m.tipo === 'Ingreso' ? 'var(--green)' : 'var(--red)';
+    var signo = m.tipo === 'Ingreso' ? '+' : '−';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">' +
+      '<div><div style="font-size:13px;font-weight:500">' + escapeHTML(m.concepto||'') + '</div>' +
+      '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(m.medio||'') + ' · ' + escapeHTML(m.hora||'') + ' · ' + escapeHTML(m.usuario||'') + '</div></div>' +
+      '<div style="font-weight:600;color:' + color + '">' + signo + '$' + Math.round(m.monto||0).toLocaleString('es-AR') + '</div>' +
+    '</div>';
+  }).join('');
 }
 
 function _renderCajaUI(apertura, ingresos, egresos) {
@@ -7550,6 +7700,10 @@ function guardarNuevoGenerico() {
   } else if (tipo === 'remito') {
     guardarRemito({ numero:obj.num, cliente:obj.cli, fecha:obj.fecha||new Date().toISOString().split('T')[0], venta:obj.venta, descripcion:obj.desc, estado:'pendiente' });
 
+  } else if (tipo === 'servicio') {
+    var numSv = obj.num || ('SV-' + String((window._servData||[]).length + 1).padStart(4,'0'));
+    guardarServicio({ numero:numSv, cliente:obj.cli, descripcion:obj.desc, tecnico:obj.tec||'Sin asignar', fecha:obj.fecha||new Date().toISOString().split('T')[0], garantia:obj.garantia||'—', estado:obj.estado||'En curso' });
+
   } else if (tipo === 'evento') {
     guardarEvento({ fecha:obj.f, hora:obj.h, descripcion:obj.desc, cliente:obj.cli, empleado:obj.emp, tipo:obj.tipo, estado:'pendiente' });
 
@@ -7613,6 +7767,51 @@ function guardarPreferenciasSistema(btn) {
   setTimeout(function(){ btn.innerHTML=orig; btn.disabled=false; }, 2000);
 }
 
+// ── IMPUESTOS ──
+function guardarAlicuotaIVA(inputId, clave) {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var valor = parseFloat((document.getElementById(inputId)||{}).value) || 0;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/impuestos')).then(function(snap) {
+    var actual = snap.val() || {};
+    actual[clave] = valor;
+    window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/impuestos'), actual)
+      .then(function(){ notify('✓ Alícuota guardada: ' + valor + '%'); })
+      .catch(function(e){ notify('Error: '+e.message); });
+  });
+}
+
+function guardarImpuestosGenerales() {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var datos = {
+    ingresosBrutos:      parseFloat((document.getElementById('imp-ingbrutos')||{}).value) || 0,
+    percepcionIva:       parseFloat((document.getElementById('imp-percepcion')||{}).value) || 0,
+    retencionGanancias:  parseFloat((document.getElementById('imp-retencion')||{}).value) || 0,
+    condicionFiscal:     (document.getElementById('imp-condicion')||{}).value || 'Responsable inscripto'
+  };
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/impuestos')).then(function(snap) {
+    var actual = snap.val() || {};
+    Object.assign(actual, datos);
+    window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/impuestos'), actual)
+      .then(function(){ notify('✓ Impuestos guardados'); })
+      .catch(function(e){ notify('Error: '+e.message); });
+  });
+}
+
+function cargarConfigImpuestos() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/impuestos')).then(function(snap) {
+    var d = snap.val(); if (!d) return;
+    var _v = function(id, val) { var el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+    _v('imp-iva-general', d.ivaGeneral);
+    _v('imp-iva-reducido', d.ivaReducido);
+    _v('imp-iva-exento', d.ivaExento);
+    _v('imp-ingbrutos', d.ingresosBrutos);
+    _v('imp-percepcion', d.percepcionIva);
+    _v('imp-retencion', d.retencionGanancias);
+    if (d.condicionFiscal) _v('imp-condicion', d.condicionFiscal);
+  });
+}
+
 function guardarConfiguracion(btn) {
   // Mantenido por compatibilidad — usar guardarTipoCambio/guardarPreferenciasSistema en su lugar
   const orig = btn.innerHTML;
@@ -7635,6 +7834,7 @@ function cargarConfigGeneral() {
     var d = snap.val(); if (!d) return;
     var dv = document.getElementById('cfg-dias-venc');
     if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
+    window._diasVencimientoConfig = d.diasVencimiento || 10;
   });
 }
 
@@ -8462,16 +8662,67 @@ function editarProveedor(fbKey) {
   }, { onlyOnce: true });
 }
 function cerrarCaja() {
-  const saldo = prompt('Ingresá el saldo real en caja ($):');
+  var saldoTexto = (document.getElementById('caja-saldo')||{}).textContent || '$0';
+  var saldoCalculado = parseFloat(saldoTexto.replace(/[\$\.]/g,'').replace(',','.')) || 0;
+  const saldo = prompt('Saldo calculado por el sistema: $' + Math.round(saldoCalculado).toLocaleString('es-AR') + '\n\nIngresá el saldo real contado en caja ($):');
   if (saldo === null) return;
   const real = parseFloat(saldo.replace(/[^0-9.]/g,'')) || 0;
-  const diff = real - 86800;
-  if (diff === 0) notify('Caja cerrada sin diferencias');
+  const diff = real - saldoCalculado;
+  if (diff === 0) notify('✓ Caja cerrada sin diferencias');
   else notify('Caja cerrada. ' + (diff > 0 ? 'Sobrante' : 'Faltante') + ': $' + Math.abs(diff).toLocaleString('es-AR'));
+
+  if (window.fbDB) {
+    var hoy = new Date().toISOString().split('T')[0];
+    var usuarioKey = (currentUser||'sinusuario').replace(/[.\#\$\[\]\/]/g,'_');
+    window.fbPush(window.fbRef(window.fbDB, 'sisventas/caja/'+hoy+'/cierres'), {
+      usuario: currentUser||'', usuarioKey, saldoCalculado, saldoReal: real, diferencia: diff, ts: Date.now()
+    });
+  }
 }
 function registrarMovCaja() {
-  _hide('caja-mov-form');
-  notify('Movimiento de caja registrado');
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var tipo = document.getElementById('cm-tipo').value;
+  var monto = parseFloat(document.getElementById('cm-monto').value) || 0;
+  var concepto = document.getElementById('cm-concepto').value.trim();
+  var medio = document.getElementById('cm-medio').value;
+
+  if (!monto) { notify('Ingresá el monto'); return; }
+  if (!concepto) { notify('Ingresá el concepto'); return; }
+
+  var hoy = new Date().toISOString().split('T')[0];
+  var esAdmin = (currentRole === 'admin' || currentRole === 'administrativo');
+  var usuarioKey = (currentUser||'sinusuario').replace(/[.\#\$\[\]\/]/g,'_');
+  // Mismo criterio de scope que fbCargarCaja: admin/administrativo a la caja
+  // consolidada bajo su propia clave de usuario (se suma con los demás al leer);
+  // vendedor/técnico siempre a su propia sub-rama.
+  var basePath = 'sisventas/caja/' + hoy + '/' + usuarioKey;
+
+  window.fbGet(window.fbRef(window.fbDB, basePath)).then(function(snap) {
+    var actual = snap.val() || { apertura:0, ingresos:0, egresos:0 };
+    var nuevoIngresos = parseFloat(actual.ingresos)||0;
+    var nuevoEgresos = parseFloat(actual.egresos)||0;
+
+    if (tipo === 'Ingreso') nuevoIngresos += monto;
+    else nuevoEgresos += monto; // Egreso y Retiro restan de la misma forma
+
+    var actualizado = {
+      apertura: parseFloat(actual.apertura)||0,
+      ingresos: nuevoIngresos,
+      egresos: nuevoEgresos
+    };
+
+    window.fbSet(window.fbRef(window.fbDB, basePath), actualizado).then(function() {
+      // Guardar el detalle del movimiento para el historial visual
+      var mov = { tipo, monto, concepto, medio, usuario: currentUser||'', ts: Date.now(), hora: new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) };
+      window.fbPush(window.fbRef(window.fbDB, basePath + '_movs'), mov);
+
+      notify('✓ Movimiento de caja registrado');
+      _hide('caja-mov-form');
+      document.getElementById('cm-monto').value = '';
+      document.getElementById('cm-concepto').value = '';
+      fbCargarCaja();
+    }).catch(function(e){ notify('Error: '+e.message); });
+  });
 }
 // ── GASTO RÁPIDO (modal flotante, no navega) ──
 var gastoRapidoFotoBase64 = null;
@@ -11446,8 +11697,27 @@ function abrirNuevoPresupuesto() {
   _block('ppto-form-view');
   const d = new Date();
   const fi = document.getElementById('pp-fecha');
-  if (fi) { fi.value = d.toISOString().split('T')[0]; calcVenc(); }
-  calcPp();
+
+  // Días de validez: tomar el configurado en Configuración → General (cfg-dias-venc),
+  // no un valor fijo hardcodeado en el HTML.
+  var diasEl = document.getElementById('pp-dias');
+  if (diasEl) {
+    var diasConfig = window._diasVencimientoConfig || 10;
+    diasEl.value = diasConfig;
+  }
+
+  // Limpiar campos que quedaron con datos de ejemplo hardcodeados en el HTML
+  document.getElementById('pp-numero').value = '';
+  document.getElementById('pp-cli').value = '';
+  document.getElementById('pp-descuento').value = 0;
+  var obsEl = document.querySelector('#ppto-form-view .fg input[placeholder="Condiciones, notas..."]');
+  if (obsEl) obsEl.value = '';
+  var tbody = document.getElementById('pp-body');
+  if (tbody) tbody.innerHTML = '';
+  addPpRow();
+
+  if (fi) { fi.value = d.toISOString().split('T')[0]; calcVencimiento(); }
+  calcPpTotales();
 }
 function filtrarPptoTexto(v) { renderPptoTabla('', v); }
 function filtrarPptoEstado(v) { renderPptoTabla(v); }
@@ -13227,7 +13497,7 @@ function crearFilaProducto(cod, desc, precio, qty) {
     </td>
     <td><span class="desc-txt" style="font-size:13px;color:var(--text2)">${escapeHTML(desc)}</span></td>
     <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right"></td>
-    <td class="stock-cell" style="text-align:right"><span class="stock-ind">${stockBadge}</span></td>
+    <td class="stock-cell" style="text-align:right;overflow:hidden;white-space:nowrap;max-width:90px"><span class="stock-ind" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis">${stockBadge}</span></td>
     <td><input type="number" value="${precio||0}" class="price" oninput="calcRow(this)" min="0" style="width:80px;text-align:right"></td>
     <td class="sub" style="text-align:right;color:var(--text);font-weight:500">$${Math.round((qty||1)*(precio||0)).toLocaleString('es-AR')}</td>
     <td><button class="btn btn-sm btn-danger" onclick="delRow(this)" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>`;
@@ -13585,12 +13855,12 @@ function actualizarResumenStock() {
       <div id="caja-mov-form" style="display:none;background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:14px">
         <div class="form-grid">
           <div class="fg"><label>Tipo</label>
-            <select><option>Ingreso</option><option>Egreso</option><option>Retiro</option></select>
+            <select id="cm-tipo"><option>Ingreso</option><option>Egreso</option><option>Retiro</option></select>
           </div>
-          <div class="fg"><label>Monto ($)</label><input type="number" placeholder="0"></div>
-          <div class="fg"><label>Concepto</label><input placeholder="Ej: Cobro venta #00042"></div>
+          <div class="fg"><label>Monto ($)</label><input type="number" id="cm-monto" placeholder="0"></div>
+          <div class="fg"><label>Concepto</label><input id="cm-concepto" placeholder="Ej: Cobro venta #00042"></div>
           <div class="fg"><label>Medio</label>
-            <select><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>
+            <select id="cm-medio"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>
           </div>
         </div>
         <div class="flex-end"><button class="btn btn-sm btn-primary" onclick="registrarMovCaja()"><i class="ti ti-check"></i> Registrar</button></div>
