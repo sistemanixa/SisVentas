@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v16.6 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v17.0 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1952,14 +1952,15 @@ tr:hover td{color:var(--text)}
           <div class="card">
             <div class="card-head">
               <span class="card-title">Cargos de empleados</span>
-              <button class="btn btn-sm btn-primary" onclick="abrirModalNuevo('usuario')"><i class="ti ti-plus"></i> Nuevo cargo</button>
+            </div>
+            <div style="margin-bottom:14px;padding:10px 14px;background:var(--blue-bg);border-radius:var(--radius);font-size:12px;color:var(--blue)">
+              <i class="ti ti-info-circle" style="font-size:14px;margin-right:6px"></i>
+              El cargo, sueldo base y valor de hora extra de cada empleado se gestionan directamente desde su ficha en el módulo Empleados. Esta vista es solo de referencia, muestra los cargos que existen hoy entre los empleados activos.
             </div>
             <table id="cargos-tbl">
-              <tr><th>Código</th><th>Nombre del cargo</th><th>Descripción</th><th style="text-align:right">Estado</th><th ></th></tr>
-              <tr><td><span class="badge b-blue">Cat. 39</span></td><td>Vendedor senior</td><td>Ventas directas + instalación</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
-              <tr><td><span class="badge b-purple">Cat. 15</span></td><td>Vendedor junior</td><td>Ventas internas y soporte</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
-              <tr><td><span class="badge b-amber">Cat. 08</span></td><td>Técnico instalador</td><td>Instalación y mantenimiento</td><td style="text-align:right"><span class="badge b-green">Activo</span></td><td><button class="btn btn-sm btn-icon"><i class="ti ti-edit" style="font-size:14px"></i></button></td></tr>
+              <tr><th>Cargo</th><th style="text-align:right">Empleados</th><th style="text-align:right">Sueldo base prom.</th><th></th></tr>
             </table>
+            <div id="cargos-vacio" style="text-align:center;color:var(--text3);padding:24px;font-size:13px;display:none">Sin empleados cargados todavía</div>
           </div>
         </div>
 
@@ -2000,11 +2001,11 @@ tr:hover td{color:var(--text)}
           <div class="card">
             <div class="card-head"><span class="card-title">Valor hora extra</span></div>
             <div class="form-grid">
-              <div class="fg"><label>Vendedor senior — hora extra ($)</label><input type="number" value="1200"></div>
-              <div class="fg"><label>Vendedor junior — hora extra ($)</label><input type="number" value="900"></div>
-              <div class="fg"><label>Técnico instalador — hora extra ($)</label><input type="number" value="1100"></div>
+              <div class="fg"><label>Vendedor senior — hora extra ($)</label><input type="number" id="cfg-hextra-39" value="1200"></div>
+              <div class="fg"><label>Vendedor junior — hora extra ($)</label><input type="number" id="cfg-hextra-15" value="900"></div>
+              <div class="fg"><label>Técnico instalador — hora extra ($)</label><input type="number" id="cfg-hextra-08" value="1100"></div>
             </div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px">⚠️ Estos valores de hora extra todavía no se guardan en base de datos — próximamente.</div>
+            <div class="flex-end"><button class="btn btn-primary" onclick="guardarHorasExtra(this)"><i class="ti ti-check"></i> Guardar</button></div>
           </div>
         </div>
 
@@ -2795,15 +2796,15 @@ tr:hover td{color:var(--text)}
             <div style="overflow-x:auto">
               <table id="prod-tbl" style="table-layout:fixed;width:100%">
             <colgroup>
-              <col style="width:52px">
+              <col style="width:64px">
               <col style="width:90px">
-              <col style="width:200px">
+              <col style="width:190px">
               <col>
-              <col style="width:70px">
+              <col style="width:65px">
+              <col style="width:85px">
+              <col style="width:85px">
+              <col style="width:65px">
               <col style="width:90px">
-              <col style="width:90px">
-              <col style="width:70px">
-              <col style="width:70px">
             </colgroup>
             <thead><tr>
               <th></th>
@@ -3379,6 +3380,10 @@ tr:hover td{color:var(--text)}
     <div class="card" style="margin-bottom:12px">
       <div class="card-head"><span class="card-title">Productos del sistema</span></div>
       <div id="asist-productos-lista" style="display:flex;flex-direction:column;gap:0"></div>
+      <div id="asist-aviso-sin-precio" style="display:none;margin-top:10px;padding:10px 14px;background:var(--red-bg);color:var(--red);border-radius:var(--radius);font-size:12px">
+        <i class="ti ti-alert-triangle" style="font-size:14px;margin-right:6px"></i>
+        Hay ítems sin precio cargado en el sistema. Cargá el precio en Productos antes de generar el presupuesto.
+      </div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0 0;border-top:0.5px solid var(--border);margin-top:8px">
         <span style="font-size:14px;font-weight:600">Total estimado</span>
         <span style="font-size:20px;font-weight:700;color:var(--green)" id="asist-total">$0</span>
@@ -3443,10 +3448,10 @@ tr:hover td{color:var(--text)}
     <div class="table-wrap">
       <table id="suel-tabla">
         <thead><tr>
-          <th>Empleado</th><th>Categoría</th>
+          <th>Empleado</th><th>Cargo</th>
           <th class="tr">Sueldo base</th>
-          <th class="tr" style="min-width:80px">Días trab.</th>
-          <th class="tr">Val. jornada</th>
+          <th class="tr" style="min-width:60px"></th>
+          <th class="tr">Val. hora extra</th>
           <th class="tr" style="min-width:70px">Hs extra</th>
           <th class="tr">Val. Hs ext</th>
           <th class="tr" style="color:var(--green)">Comisión</th>
@@ -4212,7 +4217,7 @@ function renderTablaProductos(filtro) {
     var pv = parseFloat(p.venta || p.precio_venta || 0) || 0;
     var pc = parseFloat(p.compra || p.precio_compra || 0) || 0;
     var margen = pv > 0 && pc > 0 ? ((pv-pc)/pv*100).toFixed(1) + '%' : '—';
-    var pid = String(p.id || p.idproducto || '').replace(/"/g,'');
+    var pid = String(p.fbKey || '').replace(/"/g,'');
     var provLista = Array.isArray(p.proveedores) ? p.proveedores : [];
     var costoLbl = '$' + Math.round(pc).toLocaleString('es-AR');
     if (provLista.length > 1) {
@@ -4221,7 +4226,7 @@ function renderTablaProductos(filtro) {
       costoLbl += ' <span style="font-size:10px;color:var(--text3)">' + escapeHTML(provLista[0].nombre||'') + '</span>';
     }
     return '<tr class="cr" data-pid="' + pid + '" onclick="verProductoById(this)" style="cursor:pointer">' +
-      '<td>' + (p.imagenUrl ? '<img src="'+escapeHTML(p.imagenUrl)+'" style="width:36px;height:36px;border-radius:6px;object-fit:cover" onerror="this.style.display=\'none\'">' : '<div style="width:36px;height:36px;border-radius:6px;background:var(--bg3);display:flex;align-items:center;justify-content:center"><i class="ti ti-photo" style="font-size:16px;color:var(--text3)"></i></div>') + '</td>' +
+      '<td>' + (p.imagenUrl ? '<img src="'+escapeHTML(p.imagenUrl)+'" style="width:44px;height:44px;border-radius:6px;object-fit:cover" onerror="this.style.display=\'none\'">' : '<div style="width:44px;height:44px;border-radius:6px;background:var(--bg3);display:flex;align-items:center;justify-content:center"><i class="ti ti-photo" style="font-size:18px;color:var(--text3)"></i></div>') + '</td>' +
       '<td style="font-family:monospace;font-size:12px">' + (p.codigo||'') + '</td>' +
       '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.esManoDeObra ? '<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px" title="Mano de obra"></i>' : '') + (p.nombre||'') + '</td>' +
       '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.descripcion||p.categoria||'—') + '</td>' +
@@ -4229,7 +4234,7 @@ function renderTablaProductos(filtro) {
       '<td style="text-align:right">$' + (parseFloat(pv)||0).toLocaleString('es-AR') + '</td>' +
       '<td style="text-align:right">' + costoLbl + '</td>' +
       '<td style="text-align:right;color:var(--green)">' + margen + '</td>' +
-      '<td><button class="icon-btn" data-pid="' + pid + '" onclick="event.stopPropagation();editarProductoById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
+      '<td style="padding-left:12px"><button class="icon-btn" data-pid="' + pid + '" onclick="event.stopPropagation();editarProductoById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
            '<button class="icon-btn" data-pid="' + pid + '" onclick="event.stopPropagation();eliminarProducto(this)" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:15px"></i></button></td>' +
     '</tr>';
   }).join('');
@@ -4237,13 +4242,13 @@ function renderTablaProductos(filtro) {
 function buscarProducto(val) { renderTablaProductos(val); }
 function verProductoById(el) {
   var pid = el.dataset.pid;
-  var p = prodData ? Object.values(prodData).find(function(x){ return String(x.id||x.idproducto) === String(pid); }) : null;
-  if (p) verProducto(p.id || p.idproducto);
+  var p = prodData ? Object.values(prodData).find(function(x){ return String(x.fbKey) === String(pid); }) : null;
+  if (p) verProducto(p.fbKey);
 }
 function editarProductoById(el) {
   var pid = el.dataset.pid;
-  var p = prodData ? Object.values(prodData).find(function(x){ return String(x.id||x.idproducto) === String(pid); }) : null;
-  if (p) editarProducto(p.id || p.idproducto);
+  var p = prodData ? Object.values(prodData).find(function(x){ return String(x.fbKey) === String(pid); }) : null;
+  if (p) editarProducto(p.fbKey);
 }
 function editarProducto(id) { abrirFormProducto(id); }
 
@@ -4411,8 +4416,8 @@ function renderTablaEmpleados() {
     return;
   }
   tbody.innerHTML = lista.map(function(e) {
-    var catLabel = e.cargo ? e.cargo.split('—')[0].trim() : ('Cat. '+(e.categoria||'—'));
-    var catColor = (e.categoria==39||String(e.cargo||'').includes('39')) ? 'b-blue' : (e.categoria==15||String(e.cargo||'').includes('15')) ? 'b-purple' : 'b-amber';
+    var catLabel = e.cargo || 'Sin cargo';
+    var catColor = String(e.cargo||'').toLowerCase().includes('técnico') ? 'b-amber' : String(e.cargo||'').toLowerCase().includes('junior') ? 'b-purple' : 'b-blue';
     var estadoBadge = '<label class="toggle-sw" onclick="event.stopPropagation()" title="'+(e.activo!==false?'Activo — clic para dar de baja':'Inactivo — clic para reactivar')+'"><input type="checkbox" '+(e.activo!==false?'checked':'')+' onchange="event.stopPropagation();abrirModalEstadoEmpleado(\''+e.fbKey+'\','+(e.activo!==false)+')"><span class="toggle-knob"></span></label>';
     var totalMes = (parseFloat(e.sueldoBase)||0)+(parseFloat(e.comisiones)||0)+(parseFloat(e.hextra)||0);
     return '<tr class="er" style="cursor:pointer" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')">' +
@@ -5338,7 +5343,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v16.6-firebase',
+  VERSION: 'v17.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5454,7 +5459,7 @@ var NOTIF_CONFIG = {
 var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
   producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'P. compra ($)',id:'np-pc',t:'number',ph:'0'},{l:'P. venta ($)',id:'np-pv',t:'number',ph:'0'}]},
-  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'select',opts:['Cat. 39 — Vendedor senior','Cat. 15 — Vendedor junior','Cat. 08 — Técnico instalador']},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
+  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'text',ph:'Ej: Vendedor senior',list:'lista-cargos'},{l:'Sueldo base ($)',id:'ne-sueldo-base',t:'text',ph:'Ej: 180000'},{l:'Valor hora extra ($)',id:'ne-hora-extra',t:'text',ph:'Ej: 1200'},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
   usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
   proveedor: { title:'Nuevo proveedor', fields:[
     {l:'Nombre / Razón social',id:'npv-nm',t:'text',ph:'Razón social',full:true},
@@ -5729,6 +5734,7 @@ function _completarLogin(nombre) {
   if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 300);
   if (typeof cargarConfigGeneral === 'function') setTimeout(cargarConfigGeneral, 350);
   if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
+  if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); setTimeout(applyRole, 400); }, 400);
   if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
@@ -6040,7 +6046,7 @@ function abrirFormProducto(id) {
   _hide('prod-detail-view');
   _block('prod-form-view');
   _set('prod-form-title',id ? 'Editar producto' : 'Nuevo producto');
-  const p = id ? prodData[id] : {};
+  const p = id ? (Object.values(prodData||{}).find(function(x){ return String(x.fbKey) === String(id); }) || {}) : {};
   document.getElementById('pf-codigo').value = p.codigo || '';
   document.getElementById('pf-descripcion').value = p.descripcion || '';
   document.getElementById('pf-categoria').value = p.categoria || '';
@@ -6188,8 +6194,8 @@ function guardarProducto() {
     esManoDeObra: document.getElementById('pf-es-mano-obra').checked
   };
 
-  if (editingProdId && prodData[editingProdId] && prodData[editingProdId].fbKey) {
-    datos.fbKey = prodData[editingProdId].fbKey;
+  if (editingProdId) {
+    datos.fbKey = editingProdId;
   }
 
   // ── Imagen: archivo subido a Storage, URL pegada, o ninguna ──
@@ -6212,7 +6218,7 @@ function guardarProducto() {
 
   if (prodImagenUrlActual) {
     datos.imagenUrl = prodImagenUrlActual;
-  } else if (editingProdId && prodData[editingProdId] && !document.getElementById('pf-imagen-url').value.trim()) {
+  } else if (editingProdId && !document.getElementById('pf-imagen-url').value.trim()) {
     datos.imagenUrl = null; // se quitó explícitamente
   }
 
@@ -6223,8 +6229,7 @@ function guardarProducto() {
 function verProducto(id) {
   var p = null;
   if (prodData) {
-    p = prodData[id];
-    if (!p) p = Object.values(prodData).find(function(x){ return String(x.id||x.idproducto||'') === String(id); });
+    p = Object.values(prodData).find(function(x){ return String(x.fbKey) === String(id); });
   }
   if (!p) { notify('Producto no encontrado'); return; }
   _hide('prod-list-view'); _hide('prod-form-view'); _block('prod-detail-view');
@@ -6423,6 +6428,42 @@ function showCfgTab(id, el) {
   el.classList.add('active');
   if (id === 'roles') renderTablaRoles();
   if (id === 'facturacion' && typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
+  if (id === 'cargos') renderCargosConfig();
+}
+
+function renderCargosConfig() {
+  var tbl = document.getElementById('cargos-tbl');
+  var vacioEl = document.getElementById('cargos-vacio');
+  if (!tbl) return;
+
+  var empleadosActivos = Object.values(empData||{}).filter(function(e){ return e.activo !== false; });
+  var porCargo = {};
+  empleadosActivos.forEach(function(e) {
+    var cargo = e.cargo || 'Sin cargo asignado';
+    if (!porCargo[cargo]) porCargo[cargo] = [];
+    porCargo[cargo].push(e);
+  });
+
+  var cargos = Object.keys(porCargo);
+  tbl.querySelectorAll('tr:not(:first-child)').forEach(function(tr){ tr.remove(); });
+
+  if (!cargos.length) {
+    if (vacioEl) vacioEl.style.display = '';
+    return;
+  }
+  if (vacioEl) vacioEl.style.display = 'none';
+
+  cargos.sort().forEach(function(cargo) {
+    var lista = porCargo[cargo];
+    var sueldoProm = lista.reduce(function(s,e){ return s+(parseFloat(e.sueldoBase)||0); }, 0) / lista.length;
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td style="font-weight:500">' + escapeHTML(cargo) + '</td>' +
+      '<td style="text-align:right">' + lista.length + '</td>' +
+      '<td style="text-align:right">$' + Math.round(sueldoProm).toLocaleString('es-AR') + '</td>' +
+      '<td><button class="btn btn-sm btn-icon" onclick="showPage(\'empleados\',document.querySelector(\'[onclick*=empleados]\'))" title="Ver empleados de este cargo"><i class="ti ti-arrow-right" style="font-size:14px"></i></button></td>';
+    tbl.appendChild(tr);
+  });
 }
 
 function recargarConfigTFAppEnUI() {
@@ -7190,12 +7231,12 @@ function exportarExcel(titulo) {
       });
 
     } else if (titulo === 'Planilla de sueldos' || titulo === 'Reporte de empleados') {
-      rows = [['Empleado','Categoría','Sueldo base','Comisiones','H. extra','Total']];
+      rows = [['Empleado','Cargo','Sueldo base','Comisiones','H. extra','Total']];
       Object.values(empData||{}).filter(function(e){ return e.activo !== false; }).forEach(function(e) {
         var base = parseFloat(e.sueldoBase)||0;
         var com  = parseFloat(e.comisiones)||0;
         var hex  = parseFloat(e.hextra)||0;
-        rows.push([e.nombre||'', e.categoria||'', base, com, hex, base+com+hex]);
+        rows.push([e.nombre||'', e.cargo||'', base, com, hex, base+com+hex]);
       });
 
     } else if (titulo === 'Gastos del período') {
@@ -7484,6 +7525,10 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
       inp.type = f.t;
       if (f.ph) inp.placeholder = f.ph;
       inp.id = f.id;
+      if (f.list) {
+        inp.setAttribute('list', f.list);
+        inp.setAttribute('autocomplete', 'off');
+      }
       if (datosExistentes) {
         var campo = f.id.replace(/^n[a-z]+-/, '');
         var valor = datosExistentes[campo] || datosExistentes[f.id] || '';
@@ -7495,6 +7540,20 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
     return;
   });
   body.appendChild(grid);
+
+  // Datalists de sugerencias (ej: cargos ya usados entre los empleados existentes)
+  cfg.fields.forEach(f => {
+    if (!f.list) return;
+    if (document.getElementById(f.list)) return; // ya existe, no duplicar
+    var dl = document.createElement('datalist');
+    dl.id = f.list;
+    if (f.list === 'lista-cargos') {
+      var cargosUnicos = Array.from(new Set(Object.values(empData||{}).map(function(e){ return e.cargo; }).filter(Boolean)));
+      cargosUnicos.forEach(function(c) { var opt=document.createElement('option'); opt.value=c; dl.appendChild(opt); });
+    }
+    body.appendChild(dl);
+  });
+
   document.getElementById('modal-nuevo').classList.add('open');
 }
 function guardarNuevoGenerico() {
@@ -7557,10 +7616,11 @@ function guardarNuevoGenerico() {
     var datosEmp = {
       nombre:    ((obj.nm || '') + ' ' + (obj.ap || '')).trim(),
       cargo:     obj.cargo || '',
+      sueldoBase: parseFloat(obj['sueldo-base']) || 0,
+      horaExtra:  parseFloat(obj['hora-extra']) || 0,
       telefono:  obj.tel || '',
       mail:      obj.em || '',
       dni:       obj.dni || '',
-      categoria: obj.cargo ? (obj.cargo.includes('39') ? 39 : obj.cargo.includes('15') ? 15 : 8) : 39,
       tipoEmpleado:    obj.tipo || 'Empleado',
       pctComisionPropio: parseFloat(obj['pct-comision']) || 0,
       activo:    (obj.activo || 'Activo') !== 'Inactivo',
@@ -7823,6 +7883,16 @@ function guardarConfiguracion(btn) {
 
 function cargarConfigGeneral() {
   if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/empresa')).then(function(snap) {
+    var d = snap.val(); if (!d) return;
+    var _v = function(id, val) { var el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+    _v('cfg-empresa-nombre', d.nombre);
+    _v('cfg-empresa-cuit', d.cuit);
+    _v('cfg-empresa-dir', d.dir);
+    _v('cfg-empresa-tel', d.tel);
+    _v('cfg-empresa-email', d.email);
+    _v('cfg-empresa-web', d.web);
+  });
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tipoCambio')).then(function(snap) {
     var d = snap.val(); if (!d) return;
     var o=document.getElementById('cfg-dolar-oficial'), b=document.getElementById('cfg-dolar-blue'), m=document.getElementById('cfg-dolar-mep');
@@ -9612,6 +9682,17 @@ var ASIST_RUBROS = {
         ]
       },
       {
+        id: 'marca_linea',
+        titulo: '¿Qué marca y tipo de cámara?',
+        desc: 'EZVIZ PTZ permite mover y seguir movimiento a control remoto',
+        tipo: 'opciones',
+        opciones: [
+          { id:'hikvision',   ico:'ti-camera', titulo:'Hikvision',        desc:'Línea estándar de cámaras fijas' },
+          { id:'ezviz_fija',  ico:'ti-video',  titulo:'EZVIZ fija',       desc:'Cámara IP fija, sin movimiento' },
+          { id:'ezviz_ptz',   ico:'ti-rotate-2', titulo:'EZVIZ domo PTZ',   desc:'Domo motorizado, gira y sigue movimiento' }
+        ]
+      },
+      {
         id: 'cantidad_cam',
         titulo: '¿Cuántas cámaras necesita?',
         desc: 'Podés ajustar la cantidad después',
@@ -9992,33 +10073,44 @@ function renderProductosAsistente() {
   var cont  = document.getElementById('asist-productos-lista');
   var total = 0;
   cont.innerHTML = asistProductosSel.map(function(p, i) {
+    var sinPrecio = !p.precio || p.precio <= 0;
     var sub = p.precio * p.qty;
     total += sub;
     return '<div class="asist-prod-row">' +
       '<div class="asist-prod-info">' +
-        '<div class="asist-prod-nombre">'+escapeHTML(p.nombre)+'</div>' +
+        '<div class="asist-prod-nombre">'+escapeHTML(p.nombre)+(sinPrecio ? ' <span class="badge b-red" style="font-size:9px" title="Sin precio cargado en el sistema — no se puede cotizar hasta corregirlo">Sin precio</span>' : '')+'</div>' +
         '<div class="asist-prod-sku">'+escapeHTML(p.sku||'')+'</div>' +
       '</div>' +
       '<div class="asist-qty">' +
-        '<button onclick="asistCambiarQty('+i+',-1)">−</button>' +
-        '<input type="number" value="'+p.qty+'" min="0" onchange="asistSetQty('+i+',this.value)" class="asist-qty-inp-'+i+'">' +
-        '<button onclick="asistCambiarQty('+i+',1)">+</button>' +
+        '<button onclick="asistCambiarQty('+i+',-1)" '+(sinPrecio?'disabled':'')+'>−</button>' +
+        '<input type="number" value="'+p.qty+'" min="0" max="200" onchange="asistSetQty('+i+',this.value)" class="asist-qty-inp-'+i+'" '+(sinPrecio?'disabled title="Sin precio cargado, no se puede modificar la cantidad"':'')+'>' +
+        '<button onclick="asistCambiarQty('+i+',1)" '+(sinPrecio?'disabled':'')+'>+</button>' +
       '</div>' +
       '<div class="asist-prod-precio" style="margin-left:12px;min-width:80px;text-align:right">' +
-        '<div style="font-weight:600">$'+sub.toLocaleString('es-AR')+'</div>' +
+        '<div style="font-weight:600;color:'+(sinPrecio?'var(--red)':'')+'">$'+sub.toLocaleString('es-AR')+'</div>' +
         '<div style="font-size:11px;color:var(--text3)">$'+p.precio.toLocaleString('es-AR')+' c/u</div>' +
       '</div>' +
     '</div>';
   }).join('');
   document.getElementById('asist-total').textContent = '$'+total.toLocaleString('es-AR');
+
+  var hayItemsSinPrecio = asistProductosSel.some(function(p){ return !p.precio || p.precio <= 0; });
+  var avisoEl = document.getElementById('asist-aviso-sin-precio');
+  if (avisoEl) avisoEl.style.display = hayItemsSinPrecio ? '' : 'none';
 }
 
 function asistCambiarQty(idx, delta) {
-  asistProductosSel[idx].qty = Math.max(0, (asistProductosSel[idx].qty||0) + delta);
+  var p = asistProductosSel[idx];
+  if (!p.precio || p.precio <= 0) { notify('Este ítem no tiene precio cargado, no se puede modificar la cantidad'); return; }
+  var nuevaQty = Math.max(0, Math.min(200, (p.qty||0) + delta));
+  p.qty = nuevaQty;
   renderProductosAsistente();
 }
 function asistSetQty(idx, val) {
-  asistProductosSel[idx].qty = Math.max(0, parseInt(val)||0);
+  var p = asistProductosSel[idx];
+  if (!p.precio || p.precio <= 0) { notify('Este ítem no tiene precio cargado, no se puede modificar la cantidad'); renderProductosAsistente(); return; }
+  var nuevaQty = Math.max(0, Math.min(200, parseInt(val)||0));
+  p.qty = nuevaQty;
   renderProductosAsistente();
 }
 
@@ -10027,6 +10119,9 @@ function asistGenerarPresupuesto() {
   var obs    = document.getElementById('asist-obs').value.trim();
   var prods  = asistProductosSel.filter(function(p){ return p.qty>0; });
   if (!prods.length) { notify('No hay productos en el sistema'); return; }
+
+  var itemSinPrecio = prods.find(function(p){ return !p.precio || p.precio <= 0; });
+  if (itemSinPrecio) { notify('No se puede generar el presupuesto: "'+itemSinPrecio.nombre+'" no tiene precio cargado'); return; }
 
   var total  = prods.reduce(function(s,p){ return s+p.precio*p.qty; },0);
   var cfg    = ASIST_RUBROS[asistState.rubro];
@@ -10071,7 +10166,9 @@ function buscarProductoEnDB(palabrasClave, qty) {
     return claves.every(function(c){ return desc.includes(c); });
   });
   if (mejor) {
-    return { nombre: mejor.descripcion||mejor.nombre, sku: mejor.codigo||mejor.id, precio: parseFloat(mejor.precioVenta||mejor.pv)||0, qty: qty };
+    var precioReal = parseFloat(mejor.venta) || 0;
+    if (precioReal <= 0) return null; // sin precio de venta válido, usar el de referencia en vez de cotizar gratis
+    return { nombre: mejor.descripcion||mejor.nombre, sku: mejor.codigo, precio: precioReal, qty: qty };
   }
   return null;
 }
@@ -10120,7 +10217,18 @@ function calcularProductosCamaras(r) {
   // Cámara según resolución y lugar
   var donde = r.tipo_cam;
   var res   = r.resolucion;
-  if (res==='2mp') {
+  var marca = r.marca_linea || 'hikvision';
+
+  if (marca === 'ezviz_ptz') {
+    // Busca en la base de datos real un producto EZVIZ domo/PTZ; si no hay coincidencia,
+    // se muestra un ítem marcado "sin precio" (no se inventa un precio de referencia,
+    // porque el catálogo real cargado en Productos es el que manda en este caso).
+    var ezvizPtz = buscarProductoEnDB('ezviz ptz', cant) || buscarProductoEnDB('ezviz domo', cant);
+    lista.push(ezvizPtz || { nombre: 'Cámara EZVIZ domo PTZ (no encontrada en Productos)', sku: '', precio: 0, qty: cant });
+  } else if (marca === 'ezviz_fija') {
+    var ezvizFija = buscarProductoEnDB('ezviz fija', cant) || buscarProductoEnDB('ezviz ip', cant);
+    lista.push(ezvizFija || { nombre: 'Cámara EZVIZ fija (no encontrada en Productos)', sku: '', precio: 0, qty: cant });
+  } else if (res==='2mp') {
     if (donde==='interior')  lista.push(prod('Cámara Hikvision DS-2CD2123G2-I 2MP domo', 'DS-2CD2123G2', 55000, cant));
     else if (donde==='exterior') lista.push(prod('Cámara Hikvision DS-2CD2143G2-I 2MP bullet', 'DS-2CD2143G2', 65000, cant));
     else { // mixto
@@ -10141,7 +10249,6 @@ function calcularProductosCamaras(r) {
   lista.push(prod('NVR Hikvision '+chNVR+'ch DS-7'+chNVR+'NI-K1', 'NVR-'+chNVR, chNVR<=4?95000:chNVR<=8?130000:185000, 1));
   lista.push(prod('Disco duro '+disco+' Seagate Skyhawk', 'HDD-'+disco, disco==='1TB'?45000:disco==='2TB'?75000:130000, 1));
   if (r.acceso_remoto==='si') lista.push(prod('Switch PoE para cámaras 8 puertos', 'SW-POE8', 55000, 1));
-  lista.push(prod('Mouse USB', 'MOUSE-USB', 3500, 1));
   return lista;
 }
 
@@ -10299,13 +10406,13 @@ function renderTablaSueldos(guardada) {
   if (!empleados.length) { tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:24px">Sin empleados activos</td></tr>'; return; }
   var totBase=0,totHext=0,totEntrega=0,totDesc=0,totAdel=0,totPagar=0;
   tbody.innerHTML = empleados.map(function(emp) {
-    var cat    = obtenerCategoriaEmpleado(emp);
-    var catCfg = CATEGORIAS_SUEL[cat] || {valHora:0,hs8:0,diasMes:0};
     var g      = guardada[emp.fbKey] || {};
-    var diasTrab   = g.diasTrab!==undefined ? g.diasTrab : catCfg.diasMes;
-    var sueldoBase = diasTrab * catCfg.hs8;
-    var hsExtra    = parseFloat(g.hsExtra)||0;
-    var valHsExt   = hsExtra * catCfg.valHora * 1.5;
+    // Sueldo base y valor de hora extra: vienen directo de la ficha del empleado,
+    // ya no de una tabla central de categorías.
+    var sueldoBase  = parseFloat(emp.sueldoBase) || 0;
+    var valHoraExtra = parseFloat(emp.horaExtra) || 0;
+    var hsExtra    = g.hsExtra!==undefined ? parseFloat(g.hsExtra) : 0;
+    var valHsExt   = hsExtra * valHoraExtra * 1.5;
     // Comisión calculada del mes
     var comCalc    = calcularComisionEmpleado(emp, suelMesActual);
     var comision   = g.comision !== undefined ? parseFloat(g.comision) : comCalc.comision;
@@ -10319,10 +10426,10 @@ function renderTablaSueldos(guardada) {
     var inp = function(campo,val,w){ return '<input type="number" value="'+Math.round(val)+'" style="width:'+w+'px;text-align:right;background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:3px 5px;font-size:12px" onchange="onEditSueldo(\''+fkey+'\',\''+campo+'\',this.value)">'; };
     return '<tr>'+
       '<td style="font-weight:500">'+escapeHTML(emp.nombre||'—')+'</td>'+
-      '<td><span class="badge b-blue" style="font-size:10px">'+cat+'</span></td>'+
+      '<td><span class="badge b-blue" style="font-size:10px">'+escapeHTML(emp.cargo||'Sin cargo')+'</span></td>'+
       '<td class="tr" style="color:var(--text3);font-size:12px">$'+Math.round(sueldoBase).toLocaleString('es-AR')+'</td>'+
-      '<td class="tr">'+inp('diasTrab',diasTrab,50)+'</td>'+
-      '<td class="tr" style="color:var(--text3);font-size:12px">$'+catCfg.hs8.toLocaleString('es-AR')+'</td>'+
+      '<td class="tr" style="color:var(--text3);font-size:11px">fijo</td>'+
+      '<td class="tr" style="color:var(--text3);font-size:12px">$'+valHoraExtra.toLocaleString('es-AR')+'</td>'+
       '<td class="tr">'+inp('hsExtra',hsExtra,45)+'</td>'+
       '<td class="tr" style="color:var(--amber);font-size:12px">$'+Math.round(valHsExt).toLocaleString('es-AR')+'</td>'+
       '<td class="tr" title="Ventas del mes: $'+Math.round(comCalc.totalVentas).toLocaleString('es-AR')+' ('+comCalc.pct+'%)">'+inp('comision',comision,85)+'</td>'+
@@ -10357,7 +10464,7 @@ function guardarLiquidacion() {
     var fila = tbody.rows[i]; if (!fila) return;
     var inputs = fila.querySelectorAll('input[type=number]');
     var vals = Array.from(inputs).map(function(inp){ return parseFloat(inp.value)||0; });
-    datos[emp.fbKey] = { nombre:emp.nombre, diasTrab:vals[0], hsExtra:vals[1], entrega:vals[2], descuento:vals[3], adelanto:vals[4] };
+    datos[emp.fbKey] = { nombre:emp.nombre, hsExtra:vals[0], comision:vals[1], entrega:vals[2], descuento:vals[3], adelanto:vals[4] };
     datos[emp.fbKey].aPagar = datos[emp.fbKey].entrega - datos[emp.fbKey].descuento - datos[emp.fbKey].adelanto;
   });
   window.fbSet(window.fbRef(window.fbDB,'sisventas/sueldos/'+suelMesActual), datos)
@@ -10663,6 +10770,8 @@ function abrirLegajoEmpleado(fbKey) {
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Cargo</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.cargo||'—')+'</div></div>' +
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Teléfono</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.telefono||emp.tel||'—')+'</div></div>' +
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Estado</div><div style="font-size:14px;font-weight:600;margin-top:2px;color:'+estadoColor+'">'+estadoTxt+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Sueldo base</div><div style="font-size:14px;font-weight:500;margin-top:2px">$'+Math.round(parseFloat(emp.sueldoBase)||0).toLocaleString('es-AR')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Valor hora extra</div><div style="font-size:14px;font-weight:500;margin-top:2px">$'+Math.round(parseFloat(emp.horaExtra)||0).toLocaleString('es-AR')+'</div></div>' +
     '</div>' +
     '<div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Historial de altas y bajas</div>' +
     htmlHist +
@@ -10765,7 +10874,7 @@ function eliminarCliente(el) {
 
 function eliminarProducto(el) {
   var pid = el.dataset.pid;
-  var prod = prodData ? Object.values(prodData).find(function(p){ return String(p.id||p.idproducto) === String(pid); }) : null;
+  var prod = prodData ? Object.values(prodData).find(function(p){ return String(p.fbKey) === String(pid); }) : null;
   if (!prod) return;
   if (!confirm('¿Eliminar producto "' + (prod.nombre||prod.descripcion||'') + '"?')) return;
   if (prod.fbKey && window.fbDB) {
@@ -13237,6 +13346,28 @@ function cargarConfigComisiones() {
       actualizarInputsSueldos();
     }
   });
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/horasExtra')).then(function(snap) {
+    var d = snap.val(); if (!d) return;
+    var _v = function(id, val) { var el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+    _v('cfg-hextra-39', d['Cat. 39']);
+    _v('cfg-hextra-15', d['Cat. 15']);
+    _v('cfg-hextra-08', d['Cat. 08']);
+  });
+}
+
+function guardarHorasExtra(btn) {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var datos = {
+    'Cat. 39': parseFloat((document.getElementById('cfg-hextra-39')||{}).value) || 0,
+    'Cat. 15': parseFloat((document.getElementById('cfg-hextra-15')||{}).value) || 0,
+    'Cat. 08': parseFloat((document.getElementById('cfg-hextra-08')||{}).value) || 0
+  };
+  window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/horasExtra'), datos)
+    .then(function(){ notify('✓ Valores de hora extra guardados'); })
+    .catch(function(e){ notify('Error: '+e.message); });
+  var orig = btn.innerHTML;
+  btn.innerHTML = '<i class="ti ti-check"></i> Guardado'; btn.disabled=true;
+  setTimeout(function(){ btn.innerHTML=orig; btn.disabled=false; }, 2000);
 }
 
 function actualizarInputsSueldos() {
