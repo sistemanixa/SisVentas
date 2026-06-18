@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v17.0 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v17.3 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -894,7 +894,7 @@ tr:hover td{color:var(--text)}
       <div class="nav-item" onclick="showPage('notificaciones',this)">
         <i class="ti ti-bell"></i>Notificaciones
       </div>
-      <div class="nav-item" onclick="showPage('configuracion',this)">
+      <div class="nav-item" onclick="showPage('configuracion',this)" id="nav-item-configuracion">
         <i class="ti ti-settings"></i>Configuración
       </div>
     </div>
@@ -1831,6 +1831,7 @@ tr:hover td{color:var(--text)}
           <button class="cfg-tab" onclick="showCfgTab('roles',this)">Roles</button>
           <button class="cfg-tab" onclick="showCfgTab('facturacion',this)">Facturación</button>
           <button class="cfg-tab" onclick="showCfgTab('basedatos',this)">Base de datos</button>
+          <button class="cfg-tab admin-o-administrativo" onclick="showCfgTab('asistente',this)">Asistente de ventas</button>
         </div>
 
         <!-- TAB: GENERAL -->
@@ -1951,16 +1952,17 @@ tr:hover td{color:var(--text)}
         <div id="cfg-cargos" class="cfg-panel" style="display:none">
           <div class="card">
             <div class="card-head">
-              <span class="card-title">Cargos de empleados</span>
+              <span class="card-title">Cargos</span>
+              <button class="btn btn-sm btn-primary" onclick="cargosAbrirNuevo()"><i class="ti ti-plus"></i> Nuevo cargo</button>
             </div>
             <div style="margin-bottom:14px;padding:10px 14px;background:var(--blue-bg);border-radius:var(--radius);font-size:12px;color:var(--blue)">
               <i class="ti ti-info-circle" style="font-size:14px;margin-right:6px"></i>
-              El cargo, sueldo base y valor de hora extra de cada empleado se gestionan directamente desde su ficha en el módulo Empleados. Esta vista es solo de referencia, muestra los cargos que existen hoy entre los empleados activos.
+              Cada cargo define el valor hora, los días a contar en el mes, y el valor de hora extra. En la ficha de cada empleado solo se elige el cargo y las horas diarias que trabaja — el sueldo se calcula solo a partir de estos datos.
             </div>
             <table id="cargos-tbl">
-              <tr><th>Cargo</th><th style="text-align:right">Empleados</th><th style="text-align:right">Sueldo base prom.</th><th></th></tr>
+              <tr><th>Cargo</th><th style="text-align:right">Valor hora</th><th style="text-align:right">Días/mes</th><th style="text-align:right">Sueldo (8hs)</th><th style="text-align:right">Valor hora extra</th><th style="text-align:right">Empleados</th><th></th></tr>
             </table>
-            <div id="cargos-vacio" style="text-align:center;color:var(--text3);padding:24px;font-size:13px;display:none">Sin empleados cargados todavía</div>
+            <div id="cargos-vacio" style="text-align:center;color:var(--text3);padding:24px;font-size:13px;display:none">Sin cargos creados todavía</div>
           </div>
         </div>
 
@@ -2161,6 +2163,180 @@ tr:hover td{color:var(--text)}
               ⚠️ "Cargar datos demo" solo usarlo una vez la primera vez.
             </div>
           </div>
+        </div>
+
+        <!-- TAB: ASISTENTE DE VENTAS — configuración -->
+        <div id="cfg-asistente" class="cfg-panel" style="display:none">
+
+          <!-- PANTALLA 1: Lista de rubros -->
+          <div id="aacfg-pantalla-lista">
+            <div class="card">
+              <div class="card-head">
+                <span class="card-title">Rubros del asistente de ventas</span>
+                <button class="btn btn-sm btn-primary" onclick="aacfgAbrirNuevoRubro()"><i class="ti ti-plus"></i> Nuevo rubro</button>
+              </div>
+              <div style="font-size:12px;color:var(--text3);margin-bottom:14px">
+                Acá podés editar las preguntas que hace el asistente y qué producto corresponde a cada combinación de respuestas, sin tocar código.
+              </div>
+              <div id="aacfg-rubros-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
+            </div>
+          </div>
+
+          <!-- PANTALLA 2: Editor de preguntas -->
+          <div id="aacfg-pantalla-preguntas" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <button class="btn btn-sm" onclick="aacfgVolverALista()"><i class="ti ti-arrow-left"></i> Volver</button>
+              <span style="font-size:13px;font-weight:500" id="aacfg-preguntas-titulo">Preguntas</span>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-sm" onclick="aacfgIrAReglas()"><i class="ti ti-list-check"></i> Ver reglas de productos</button>
+                <button class="btn btn-sm" onclick="aacfgAbrirPreview()"><i class="ti ti-eye"></i> Vista previa</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head">
+                <span class="card-title">Datos del rubro</span>
+              </div>
+              <div class="form-grid">
+                <div class="fg"><label>Nombre</label><input type="text" id="aacfg-rubro-nombre"></div>
+                <div class="fg"><label>Color</label><input type="color" id="aacfg-rubro-color" style="height:36px;padding:2px"></div>
+                <div class="fg"><label>Ícono (Tabler, ej: ti-camera)</label><input type="text" id="aacfg-rubro-icono"></div>
+                <div class="fg"><label>Estado</label>
+                  <select id="aacfg-rubro-activo">
+                    <option value="true">Activo — visible para vendedores</option>
+                    <option value="false">Inactivo — oculto</option>
+                  </select>
+                </div>
+              </div>
+              <div class="flex-end"><button class="btn btn-sm btn-primary" onclick="aacfgGuardarDatosRubro()"><i class="ti ti-check"></i> Guardar datos del rubro</button></div>
+            </div>
+            <div class="card">
+              <div class="card-head">
+                <span class="card-title">Preguntas (en orden)</span>
+                <button class="btn btn-sm" onclick="aacfgAbrirEditorPaso(null)"><i class="ti ti-plus"></i> Agregar pregunta</button>
+              </div>
+              <div id="aacfg-pasos-lista" style="display:flex;flex-direction:column;gap:8px"></div>
+            </div>
+          </div>
+
+          <!-- PANTALLA 2b: Editor de un paso individual (modal simple inline) -->
+          <div id="aacfg-editor-paso" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <button class="btn btn-sm" onclick="aacfgCerrarEditorPaso()"><i class="ti ti-arrow-left"></i> Volver a preguntas</button>
+              <span style="font-size:13px;font-weight:500" id="aacfg-paso-titulo-header">Editar pregunta</span>
+              <div></div>
+            </div>
+            <div class="card">
+              <div class="form-grid">
+                <div class="fg full"><label>Título de la pregunta</label><input type="text" id="aacfg-paso-titulo"></div>
+                <div class="fg full"><label>Descripción / ayuda</label><input type="text" id="aacfg-paso-desc"></div>
+                <div class="fg"><label>Tipo de respuesta</label>
+                  <select id="aacfg-paso-tipo" onchange="aacfgCambiarTipoPaso()">
+                    <option value="opciones">Opciones (elegir una)</option>
+                    <option value="multi">Múltiple (elegir varias)</option>
+                    <option value="numero">Número</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="aacfg-paso-config-numero" style="display:none">
+                <div class="form-grid">
+                  <div class="fg"><label>Mínimo</label><input type="number" id="aacfg-paso-num-min" value="1"></div>
+                  <div class="fg"><label>Máximo</label><input type="number" id="aacfg-paso-num-max" value="64"></div>
+                  <div class="fg"><label>Valor por defecto</label><input type="number" id="aacfg-paso-num-default" value="4"></div>
+                  <div class="fg"><label>Etiqueta (ej: "zonas")</label><input type="text" id="aacfg-paso-num-label"></div>
+                </div>
+              </div>
+
+              <div id="aacfg-paso-config-opciones" style="display:none">
+                <div class="card-head" style="padding:0;margin-bottom:8px"><span class="card-title">Opciones de respuesta</span><button class="btn btn-sm" onclick="aacfgAgregarOpcionPaso()"><i class="ti ti-plus"></i> Agregar opción</button></div>
+                <div id="aacfg-paso-opciones-lista" style="display:flex;flex-direction:column;gap:8px"></div>
+              </div>
+
+              <div class="flex-end" style="margin-top:14px;gap:8px">
+                <button class="btn btn-sm" id="aacfg-paso-btn-eliminar" onclick="aacfgEliminarPaso()" style="color:var(--red)"><i class="ti ti-trash"></i> Eliminar pregunta</button>
+                <button class="btn btn-sm btn-primary" onclick="aacfgGuardarPaso()"><i class="ti ti-check"></i> Guardar pregunta</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANTALLA 3: Editor de reglas de productos -->
+          <div id="aacfg-pantalla-reglas" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <button class="btn btn-sm" onclick="aacfgVolverAPreguntas()"><i class="ti ti-arrow-left"></i> Volver a preguntas</button>
+              <span style="font-size:13px;font-weight:500" id="aacfg-reglas-titulo">Reglas de productos</span>
+              <button class="btn btn-sm" onclick="aacfgAbrirPreview()"><i class="ti ti-eye"></i> Vista previa</button>
+            </div>
+            <div class="card">
+              <div class="card-head">
+                <span class="card-title">Reglas — qué producto agregar según las respuestas</span>
+                <button class="btn btn-sm btn-primary" onclick="aacfgAbrirEditorRegla(null)"><i class="ti ti-plus"></i> Nueva regla</button>
+              </div>
+              <div style="font-size:12px;color:var(--text3);margin-bottom:10px">
+                Todas las reglas se evalúan siempre. Las que cumplan sus condiciones se agregan al presupuesto.
+              </div>
+              <div id="aacfg-reglas-lista" style="display:flex;flex-direction:column;gap:0"></div>
+            </div>
+          </div>
+
+          <!-- PANTALLA 3b: Editor de una regla individual -->
+          <div id="aacfg-editor-regla" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <button class="btn btn-sm" onclick="aacfgCerrarEditorRegla()"><i class="ti ti-arrow-left"></i> Volver a reglas</button>
+              <span style="font-size:13px;font-weight:500">Editar regla</span>
+              <div></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><span class="card-title">Condiciones (todas deben cumplirse)</span><button class="btn btn-sm" onclick="aacfgAgregarCondicion()"><i class="ti ti-plus"></i> Agregar condición</button></div>
+              <div id="aacfg-regla-condiciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+              <div style="font-size:11px;color:var(--text3)">Sin condiciones = se aplica siempre (ej: la fuente que siempre va en toda alarma)</div>
+            </div>
+            <div class="card">
+              <div class="card-head"><span class="card-title">Producto a agregar</span></div>
+              <div class="form-grid">
+                <div class="fg full"><label>Buscar en el catálogo de Productos por palabra clave</label><input type="text" id="aacfg-regla-clave" placeholder="Ej: Panel Garnet PG-380"></div>
+                <div class="fg"><label>Nombre de referencia (si no se encuentra en Productos)</label><input type="text" id="aacfg-regla-ref-nombre"></div>
+                <div class="fg"><label>Precio de referencia ($)</label><input type="number" id="aacfg-regla-ref-precio"></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><span class="card-title">Cantidad</span></div>
+              <div class="form-grid">
+                <div class="fg"><label>Modo</label>
+                  <select id="aacfg-regla-cant-modo" onchange="aacfgCambiarModoCantidad()">
+                    <option value="fija">Cantidad fija</option>
+                    <option value="igual_variable">Igual a una respuesta numérica</option>
+                    <option value="proporcional">Proporcional a una respuesta (× multiplicador)</option>
+                    <option value="dividido_entre">Una respuesta ÷ divisor</option>
+                  </select>
+                </div>
+                <div class="fg" id="aacfg-regla-cant-fija-box"><label>Cantidad</label><input type="number" id="aacfg-regla-cant-fija" value="1"></div>
+                <div class="fg" id="aacfg-regla-cant-variable-box" style="display:none"><label>Variable (pregunta numérica)</label><select id="aacfg-regla-cant-variable"></select></div>
+                <div class="fg" id="aacfg-regla-cant-mult-box" style="display:none"><label>Multiplicador</label><input type="number" id="aacfg-regla-cant-mult" step="0.1" value="1"></div>
+                <div class="fg" id="aacfg-regla-cant-div-box" style="display:none"><label>Divisor</label><input type="number" id="aacfg-regla-cant-div" value="2"></div>
+                <div class="fg" id="aacfg-regla-cant-redondeo-box" style="display:none"><label>Redondeo</label>
+                  <select id="aacfg-regla-cant-redondeo">
+                    <option value="arriba">Hacia arriba</option>
+                    <option value="abajo">Hacia abajo</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="flex-end" style="gap:8px">
+              <button class="btn btn-sm" id="aacfg-regla-btn-eliminar" onclick="aacfgEliminarRegla()" style="color:var(--red)"><i class="ti ti-trash"></i> Eliminar regla</button>
+              <button class="btn btn-sm btn-primary" onclick="aacfgGuardarRegla()"><i class="ti ti-check"></i> Guardar regla</button>
+            </div>
+          </div>
+
+          <!-- PANTALLA 4: Vista previa -->
+          <div id="aacfg-pantalla-preview" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <button class="btn btn-sm" onclick="aacfgCerrarPreview()"><i class="ti ti-arrow-left"></i> Cerrar vista previa</button>
+              <span style="font-size:13px;font-weight:500">Vista previa — probar con la configuración actual</span>
+              <div></div>
+            </div>
+            <div id="aacfg-preview-cont"></div>
+          </div>
+
         </div>
       </div>
 
@@ -5299,6 +5475,9 @@ function applyRole() {
   document.querySelectorAll('.admin-only').forEach(function(el){
     el.style.display = isAdmin ? '' : 'none';
   });
+  document.querySelectorAll('.admin-o-administrativo').forEach(function(el){
+    el.style.display = (isAdmin || isAdministrativo) ? '' : 'none';
+  });
   document.querySelectorAll('.no-tecnico').forEach(function(el){
     el.style.display = isTecnico ? 'none' : '';
   });
@@ -5343,7 +5522,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v17.0-firebase',
+  VERSION: 'v17.3-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5735,7 +5914,7 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigGeneral === 'function') setTimeout(cargarConfigGeneral, 350);
   if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
-  if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
+  if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); setTimeout(applyRole, 400); }, 400);
   if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
@@ -6422,6 +6601,10 @@ function verRecibo(id) {
 
 // ── CONFIGURACIÓN TABS ──
 function showCfgTab(id, el) {
+  if (id === 'asistente' && currentRole !== 'admin' && currentRole !== 'administrativo') {
+    notify('Acceso restringido para tu rol');
+    return;
+  }
   document.querySelectorAll('.cfg-panel').forEach(function(p){ p.style.display = 'none'; });
   document.querySelectorAll('.cfg-tab').forEach(function(t){ t.classList.remove('active'); });
   document.getElementById('cfg-' + id).style.display = 'block';
@@ -6429,6 +6612,524 @@ function showCfgTab(id, el) {
   if (id === 'roles') renderTablaRoles();
   if (id === 'facturacion' && typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
   if (id === 'cargos') renderCargosConfig();
+  if (id === 'asistente') aacfgInicializar();
+}
+
+// ══════════════════════════════════════════════
+// CONFIGURACIÓN DEL ASISTENTE DE VENTAS — editor visual
+// ══════════════════════════════════════════════
+var AACFG_RUBROS = {};       // Estado en memoria, espejo de Firebase
+var AACFG_RUBRO_ACTUAL = null;   // id del rubro que se está editando
+var AACFG_PASO_ACTUAL = null;    // índice del paso en edición, o null si es nuevo
+var AACFG_REGLA_ACTUAL = null;   // índice de la regla en edición, o null si es nueva
+var AACFG_CARGADO = false;
+
+function aacfgInicializar() {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (AACFG_CARGADO) { aacfgVolverALista(); return; }
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/asistente/rubros')).then(function(snap) {
+    var data = snap.val();
+    if (data && Object.keys(data).length) {
+      AACFG_RUBROS = data;
+    } else {
+      // Firebase vacío todavía: usar la semilla migrada como punto de partida
+      AACFG_RUBROS = JSON.parse(JSON.stringify(AACFG_SEMILLA_RUBROS));
+      window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/asistente/rubros'), AACFG_RUBROS);
+    }
+    AACFG_CARGADO = true;
+    aacfgVolverALista();
+  }).catch(function(e){ notify('Error al cargar: '+e.message); });
+}
+
+function aacfgGuardarTodo() {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/asistente/rubros'), AACFG_RUBROS)
+    .then(function(){ notify('✓ Guardado'); })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+// ── PANTALLA 1: Lista de rubros ──
+function aacfgVolverALista() {
+  document.getElementById('aacfg-pantalla-lista').style.display = '';
+  document.getElementById('aacfg-pantalla-preguntas').style.display = 'none';
+  document.getElementById('aacfg-editor-paso').style.display = 'none';
+  document.getElementById('aacfg-pantalla-reglas').style.display = 'none';
+  document.getElementById('aacfg-editor-regla').style.display = 'none';
+  document.getElementById('aacfg-pantalla-preview').style.display = 'none';
+  aacfgRenderListaRubros();
+}
+
+function aacfgRenderListaRubros() {
+  var grid = document.getElementById('aacfg-rubros-grid');
+  if (!grid) return;
+  var ids = Object.keys(AACFG_RUBROS);
+  if (!ids.length) { grid.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Sin rubros configurados</div>'; return; }
+  ids.sort(function(a,b){ return (AACFG_RUBROS[a].orden||99) - (AACFG_RUBROS[b].orden||99); });
+  grid.innerHTML = ids.map(function(id) {
+    var r = AACFG_RUBROS[id];
+    var activo = r.activo !== false;
+    return '<div class="card" style="margin-bottom:0">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
+        '<div style="width:36px;height:36px;border-radius:8px;background:'+(r.color||'#888')+'22;color:'+(r.color||'#888')+';display:flex;align-items:center;justify-content:center"><i class="ti '+(r.icono||'ti-box')+'"></i></div>' +
+        '<div style="flex:1"><div style="font-weight:500;font-size:14px">'+escapeHTML(r.nombre||id)+'</div>' +
+        '<div style="font-size:11px;color:var(--text3)">'+(r.pasos||[]).length+' preguntas · '+(r.reglas||[]).length+' reglas</div></div>' +
+        '<span class="badge '+(activo?'b-green':'b-amber')+'" style="font-size:10px">'+(activo?'Activo':'Inactivo')+'</span>' +
+      '</div>' +
+      '<button class="btn btn-sm" style="width:100%" onclick="aacfgAbrirRubro(\''+id+'\')"><i class="ti ti-settings"></i> Configurar</button>' +
+    '</div>';
+  }).join('');
+}
+
+function aacfgAbrirNuevoRubro() {
+  var nombre = prompt('Nombre del rubro nuevo (ej: "Cercos eléctricos"):');
+  if (!nombre || !nombre.trim()) return;
+  var id = nombre.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  if (AACFG_RUBROS[id]) { notify('Ya existe un rubro con ese nombre'); return; }
+  var maxOrden = Object.values(AACFG_RUBROS).reduce(function(m,r){ return Math.max(m, r.orden||0); }, 0);
+  AACFG_RUBROS[id] = { nombre: nombre.trim(), color:'#1d4ed8', icono:'ti-box', activo:true, orden:maxOrden+1, pasos:[], reglas:[] };
+  aacfgGuardarTodo();
+  aacfgAbrirRubro(id);
+}
+
+// ── PANTALLA 2: Editor de preguntas de un rubro ──
+function aacfgAbrirRubro(id) {
+  AACFG_RUBRO_ACTUAL = id;
+  document.getElementById('aacfg-pantalla-lista').style.display = 'none';
+  document.getElementById('aacfg-pantalla-preguntas').style.display = '';
+  document.getElementById('aacfg-editor-paso').style.display = 'none';
+  document.getElementById('aacfg-pantalla-reglas').style.display = 'none';
+  document.getElementById('aacfg-pantalla-preview').style.display = 'none';
+
+  var r = AACFG_RUBROS[id];
+  document.getElementById('aacfg-preguntas-titulo').textContent = r.nombre;
+  document.getElementById('aacfg-rubro-nombre').value = r.nombre || '';
+  document.getElementById('aacfg-rubro-color').value = r.color || '#1d4ed8';
+  document.getElementById('aacfg-rubro-icono').value = r.icono || 'ti-box';
+  document.getElementById('aacfg-rubro-activo').value = String(r.activo !== false);
+  aacfgRenderPasos();
+}
+
+function aacfgGuardarDatosRubro() {
+  var r = AACFG_RUBROS[AACFG_RUBRO_ACTUAL];
+  r.nombre = document.getElementById('aacfg-rubro-nombre').value.trim() || r.nombre;
+  r.color = document.getElementById('aacfg-rubro-color').value;
+  r.icono = document.getElementById('aacfg-rubro-icono').value.trim() || 'ti-box';
+  r.activo = document.getElementById('aacfg-rubro-activo').value === 'true';
+  aacfgGuardarTodo();
+  document.getElementById('aacfg-preguntas-titulo').textContent = r.nombre;
+}
+
+function aacfgRenderPasos() {
+  var cont = document.getElementById('aacfg-pasos-lista');
+  var r = AACFG_RUBROS[AACFG_RUBRO_ACTUAL];
+  var pasos = r.pasos || [];
+  if (!pasos.length) { cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Sin preguntas todavía</div>'; return; }
+  var tipoLbl = { opciones:'Opción única', multi:'Múltiple', numero:'Número' };
+  cont.innerHTML = pasos.map(function(p, i) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius)">' +
+      '<span style="font-size:11px;color:var(--text3);min-width:18px">'+(i+1)+'</span>' +
+      '<div style="flex:1"><div style="font-size:13px;font-weight:500">'+escapeHTML(p.titulo||'(sin título)')+'</div>' +
+      '<div style="font-size:11px;color:var(--text3)">'+tipoLbl[p.tipo]+' · campo: '+escapeHTML(p.id||'')+'</div></div>' +
+      '<button class="btn btn-sm btn-icon" onclick="aacfgMoverPaso('+i+',-1)" title="Subir" '+(i===0?'disabled':'')+'><i class="ti ti-arrow-up" style="font-size:13px"></i></button>' +
+      '<button class="btn btn-sm btn-icon" onclick="aacfgMoverPaso('+i+',1)" title="Bajar" '+(i===pasos.length-1?'disabled':'')+'><i class="ti ti-arrow-down" style="font-size:13px"></i></button>' +
+      '<button class="btn btn-sm btn-icon" onclick="aacfgAbrirEditorPaso('+i+')" title="Editar"><i class="ti ti-edit" style="font-size:13px"></i></button>' +
+    '</div>';
+  }).join('');
+}
+
+function aacfgMoverPaso(idx, delta) {
+  var pasos = AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos;
+  var nuevoIdx = idx + delta;
+  if (nuevoIdx < 0 || nuevoIdx >= pasos.length) return;
+  var tmp = pasos[idx]; pasos[idx] = pasos[nuevoIdx]; pasos[nuevoIdx] = tmp;
+  aacfgGuardarTodo();
+  aacfgRenderPasos();
+}
+
+function aacfgIrAReglas() { aacfgAbrirReglas(AACFG_RUBRO_ACTUAL); }
+function aacfgVolverAPreguntas() { aacfgAbrirRubro(AACFG_RUBRO_ACTUAL); }
+
+// ── PANTALLA 2b: Editor de un paso individual ──
+var AACFG_OPCIONES_TEMP = [];
+
+function aacfgAbrirEditorPaso(idx) {
+  AACFG_PASO_ACTUAL = idx;
+  document.getElementById('aacfg-pantalla-preguntas').style.display = 'none';
+  document.getElementById('aacfg-editor-paso').style.display = '';
+
+  var paso = (idx !== null) ? AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos[idx] : null;
+  document.getElementById('aacfg-paso-titulo-header').textContent = idx !== null ? 'Editar pregunta' : 'Nueva pregunta';
+  document.getElementById('aacfg-paso-titulo').value = paso ? paso.titulo||'' : '';
+  document.getElementById('aacfg-paso-desc').value = paso ? paso.desc||'' : '';
+  document.getElementById('aacfg-paso-tipo').value = paso ? paso.tipo||'opciones' : 'opciones';
+  document.getElementById('aacfg-paso-num-min').value = paso ? (paso.min!==undefined?paso.min:1) : 1;
+  document.getElementById('aacfg-paso-num-max').value = paso ? (paso.max!==undefined?paso.max:64) : 64;
+  document.getElementById('aacfg-paso-num-default').value = paso ? (paso.default!==undefined?paso.default:4) : 4;
+  document.getElementById('aacfg-paso-num-label').value = paso ? paso.label||'' : '';
+  document.getElementById('aacfg-paso-btn-eliminar').style.display = idx !== null ? '' : 'none';
+
+  AACFG_OPCIONES_TEMP = paso && Array.isArray(paso.opciones) ? JSON.parse(JSON.stringify(paso.opciones)) : [];
+  aacfgCambiarTipoPaso();
+  aacfgRenderOpcionesPaso();
+}
+
+function aacfgCerrarEditorPaso() {
+  document.getElementById('aacfg-editor-paso').style.display = 'none';
+  document.getElementById('aacfg-pantalla-preguntas').style.display = '';
+}
+
+function aacfgCambiarTipoPaso() {
+  var tipo = document.getElementById('aacfg-paso-tipo').value;
+  document.getElementById('aacfg-paso-config-numero').style.display = tipo === 'numero' ? '' : 'none';
+  document.getElementById('aacfg-paso-config-opciones').style.display = tipo !== 'numero' ? '' : 'none';
+}
+
+function aacfgRenderOpcionesPaso() {
+  var cont = document.getElementById('aacfg-paso-opciones-lista');
+  if (!AACFG_OPCIONES_TEMP.length) { cont.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text3);font-size:12px">Sin opciones — agregá al menos una</div>'; return; }
+  cont.innerHTML = AACFG_OPCIONES_TEMP.map(function(o, i) {
+    return '<div style="display:flex;gap:8px;align-items:center">' +
+      '<input type="text" placeholder="id (ej: residencial)" value="'+escapeHTML(o.id||'')+'" style="width:120px" onchange="aacfgOpcionCambio('+i+',\'id\',this.value)">' +
+      '<input type="text" placeholder="Título visible" value="'+escapeHTML(o.titulo||'')+'" style="flex:1" onchange="aacfgOpcionCambio('+i+',\'titulo\',this.value)">' +
+      '<input type="text" placeholder="Descripción" value="'+escapeHTML(o.desc||'')+'" style="flex:1" onchange="aacfgOpcionCambio('+i+',\'desc\',this.value)">' +
+      '<input type="text" placeholder="ti-icono" value="'+escapeHTML(o.ico||'')+'" style="width:110px" onchange="aacfgOpcionCambio('+i+',\'ico\',this.value)">' +
+      '<button class="btn btn-sm btn-icon" onclick="aacfgEliminarOpcionPaso('+i+')" style="color:var(--red)"><i class="ti ti-trash" style="font-size:13px"></i></button>' +
+    '</div>';
+  }).join('');
+}
+
+function aacfgOpcionCambio(idx, campo, val) { AACFG_OPCIONES_TEMP[idx][campo] = val; }
+function aacfgAgregarOpcionPaso() { AACFG_OPCIONES_TEMP.push({id:'',titulo:'',desc:'',ico:'ti-circle'}); aacfgRenderOpcionesPaso(); }
+function aacfgEliminarOpcionPaso(idx) { AACFG_OPCIONES_TEMP.splice(idx,1); aacfgRenderOpcionesPaso(); }
+
+function aacfgGuardarPaso() {
+  var titulo = document.getElementById('aacfg-paso-titulo').value.trim();
+  if (!titulo) { notify('Ingresá el título de la pregunta'); return; }
+  var tipo = document.getElementById('aacfg-paso-tipo').value;
+
+  var paso;
+  if (AACFG_PASO_ACTUAL !== null) {
+    paso = AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos[AACFG_PASO_ACTUAL];
+  } else {
+    paso = { id: titulo.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'') };
+  }
+  paso.titulo = titulo;
+  paso.desc = document.getElementById('aacfg-paso-desc').value.trim();
+  paso.tipo = tipo;
+
+  if (tipo === 'numero') {
+    paso.min = parseInt(document.getElementById('aacfg-paso-num-min').value)||1;
+    paso.max = parseInt(document.getElementById('aacfg-paso-num-max').value)||64;
+    paso.default = parseInt(document.getElementById('aacfg-paso-num-default').value)||1;
+    paso.label = document.getElementById('aacfg-paso-num-label').value.trim();
+    delete paso.opciones;
+  } else {
+    var opcionesValidas = AACFG_OPCIONES_TEMP.filter(function(o){ return (o.id||'').trim() && (o.titulo||'').trim(); });
+    if (!opcionesValidas.length) { notify('Agregá al menos una opción válida (con id y título)'); return; }
+    paso.opciones = opcionesValidas;
+  }
+
+  if (AACFG_PASO_ACTUAL === null) {
+    if (!AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos) AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos = [];
+    AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos.push(paso);
+  }
+  aacfgGuardarTodo();
+  aacfgCerrarEditorPaso();
+  aacfgRenderPasos();
+}
+
+function aacfgEliminarPaso() {
+  if (AACFG_PASO_ACTUAL === null) return;
+  if (!confirm('¿Eliminar esta pregunta?')) return;
+  AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos.splice(AACFG_PASO_ACTUAL, 1);
+  aacfgGuardarTodo();
+  aacfgCerrarEditorPaso();
+  aacfgRenderPasos();
+}
+
+// ── PANTALLA 3: Lista de reglas de productos ──
+var AACFG_OP_LABELS = { eq:'es igual a', neq:'no es', gt:'es mayor que', lte:'es menor o igual a', in:'es alguna de', incluye:'incluye' };
+var AACFG_MODO_LABELS = { fija:'Cantidad fija', igual_variable:'Igual a', proporcional:'Proporcional a', dividido_entre:'Dividido entre' };
+
+function aacfgAbrirReglas(id) {
+  AACFG_RUBRO_ACTUAL = id;
+  document.getElementById('aacfg-pantalla-preguntas').style.display = 'none';
+  document.getElementById('aacfg-pantalla-reglas').style.display = '';
+  document.getElementById('aacfg-reglas-titulo').textContent = 'Reglas — ' + AACFG_RUBROS[id].nombre;
+  aacfgRenderReglas();
+}
+
+function aacfgRenderReglas() {
+  var cont = document.getElementById('aacfg-reglas-lista');
+  var reglas = AACFG_RUBROS[AACFG_RUBRO_ACTUAL].reglas || [];
+  if (!reglas.length) { cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Sin reglas todavía</div>'; return; }
+  cont.innerHTML = reglas.map(function(reg, i) {
+    var condTxt = reg.condiciones && reg.condiciones.length
+      ? reg.condiciones.map(function(c){ return escapeHTML(c.campo) + ' ' + (AACFG_OP_LABELS[c.op]||c.op) + ' ' + escapeHTML(Array.isArray(c.valor)?c.valor.join('/'):String(c.valor)); }).join(' y ')
+      : 'Siempre';
+    var cantTxt = aacfgDescribirCantidad(reg.cantidad);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">' +
+      '<div style="flex:1;font-size:13px"><span style="color:var(--text3)">Si</span> <b>'+condTxt+'</b><br>' +
+      '<span style="color:var(--text3)">→ Buscar:</span> '+escapeHTML(reg.accion?(reg.accion.clave||''):'')+' <span style="color:var(--text3)">· Cant:</span> '+cantTxt+'</div>' +
+      '<button class="btn btn-sm btn-icon" onclick="aacfgAbrirEditorRegla('+i+')"><i class="ti ti-edit" style="font-size:13px"></i></button>' +
+    '</div>';
+  }).join('');
+}
+
+function aacfgDescribirCantidad(c) {
+  if (!c) return '—';
+  if (c.modo === 'fija') return 'fija: '+c.valor;
+  if (c.modo === 'igual_variable') return 'igual a "'+c.variable+'"';
+  if (c.modo === 'proporcional') return '"'+c.variable+'" × '+c.multiplicador+' ('+c.redondeo+')';
+  if (c.modo === 'dividido_entre') return '"'+c.variable+'" ÷ '+c.divisor+' ('+c.redondeo+')';
+  return '—';
+}
+
+// ── PANTALLA 3b: Editor de una regla individual ──
+var AACFG_CONDICIONES_TEMP = [];
+
+function aacfgAbrirEditorRegla(idx) {
+  AACFG_REGLA_ACTUAL = idx;
+  document.getElementById('aacfg-pantalla-reglas').style.display = 'none';
+  document.getElementById('aacfg-editor-regla').style.display = '';
+
+  var reg = (idx !== null) ? AACFG_RUBROS[AACFG_RUBRO_ACTUAL].reglas[idx] : null;
+  AACFG_CONDICIONES_TEMP = reg && reg.condiciones ? JSON.parse(JSON.stringify(reg.condiciones)) : [];
+  document.getElementById('aacfg-regla-clave').value = reg ? (reg.accion?reg.accion.clave||'':'') : '';
+  document.getElementById('aacfg-regla-ref-nombre').value = reg ? reg.refNombre||'' : '';
+  document.getElementById('aacfg-regla-ref-precio').value = reg ? reg.refPrecio||0 : 0;
+  document.getElementById('aacfg-regla-btn-eliminar').style.display = idx !== null ? '' : 'none';
+
+  aacfgPoblarSelectVariables();
+  var cant = reg ? reg.cantidad : { modo:'fija', valor:1 };
+  document.getElementById('aacfg-regla-cant-modo').value = cant.modo || 'fija';
+  document.getElementById('aacfg-regla-cant-fija').value = cant.valor!==undefined?cant.valor:1;
+  document.getElementById('aacfg-regla-cant-variable').value = cant.variable||'';
+  document.getElementById('aacfg-regla-cant-mult').value = cant.multiplicador!==undefined?cant.multiplicador:1;
+  document.getElementById('aacfg-regla-cant-div').value = cant.divisor!==undefined?cant.divisor:2;
+  document.getElementById('aacfg-regla-cant-redondeo').value = cant.redondeo||'arriba';
+  aacfgCambiarModoCantidad();
+  aacfgRenderCondiciones();
+}
+
+function aacfgCerrarEditorRegla() {
+  document.getElementById('aacfg-editor-regla').style.display = 'none';
+  document.getElementById('aacfg-pantalla-reglas').style.display = '';
+}
+
+function aacfgPoblarSelectVariables() {
+  var sel = document.getElementById('aacfg-regla-cant-variable');
+  var pasos = AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos || [];
+  var numericos = pasos.filter(function(p){ return p.tipo === 'numero'; });
+  var actual = sel.value;
+  sel.innerHTML = numericos.map(function(p){ return '<option value="'+p.id+'">'+escapeHTML(p.titulo)+'</option>'; }).join('');
+  if (actual) sel.value = actual;
+}
+
+function aacfgCambiarModoCantidad() {
+  var modo = document.getElementById('aacfg-regla-cant-modo').value;
+  document.getElementById('aacfg-regla-cant-fija-box').style.display = modo === 'fija' ? '' : 'none';
+  document.getElementById('aacfg-regla-cant-variable-box').style.display = modo !== 'fija' ? '' : 'none';
+  document.getElementById('aacfg-regla-cant-mult-box').style.display = modo === 'proporcional' ? '' : 'none';
+  document.getElementById('aacfg-regla-cant-div-box').style.display = modo === 'dividido_entre' ? '' : 'none';
+  document.getElementById('aacfg-regla-cant-redondeo-box').style.display = (modo === 'proporcional' || modo === 'dividido_entre') ? '' : 'none';
+}
+
+function aacfgRenderCondiciones() {
+  var cont = document.getElementById('aacfg-regla-condiciones');
+  var pasos = AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos || [];
+  if (!AACFG_CONDICIONES_TEMP.length) { cont.innerHTML = '<div style="padding:10px;text-align:center;color:var(--text3);font-size:12px">Sin condiciones — se aplica siempre</div>'; return; }
+  cont.innerHTML = AACFG_CONDICIONES_TEMP.map(function(c, i) {
+    var campoOpts = pasos.map(function(p){ return '<option value="'+p.id+'" '+(c.campo===p.id?'selected':'')+'>'+escapeHTML(p.titulo)+'</option>'; }).join('');
+    var opOpts = Object.keys(AACFG_OP_LABELS).map(function(k){ return '<option value="'+k+'" '+(c.op===k?'selected':'')+'>'+AACFG_OP_LABELS[k]+'</option>'; }).join('');
+    return '<div style="display:flex;gap:8px;align-items:center">' +
+      '<select style="flex:1" onchange="aacfgCondicionCambio('+i+',\'campo\',this.value)"><option value="">— pregunta —</option>'+campoOpts+'</select>' +
+      '<select style="width:140px" onchange="aacfgCondicionCambio('+i+',\'op\',this.value)">'+opOpts+'</select>' +
+      '<input type="text" placeholder="valor" value="'+escapeHTML(Array.isArray(c.valor)?c.valor.join(','):String(c.valor||''))+'" style="flex:1" onchange="aacfgCondicionCambio('+i+',\'valor\',this.value)">' +
+      '<button class="btn btn-sm btn-icon" onclick="aacfgEliminarCondicion('+i+')" style="color:var(--red)"><i class="ti ti-trash" style="font-size:13px"></i></button>' +
+    '</div>';
+  }).join('');
+}
+
+function aacfgCondicionCambio(idx, campo, val) {
+  if (campo === 'valor' && val.includes(',')) val = val.split(',').map(function(s){return s.trim();});
+  AACFG_CONDICIONES_TEMP[idx][campo] = val;
+}
+function aacfgAgregarCondicion() { AACFG_CONDICIONES_TEMP.push({campo:'',op:'eq',valor:''}); aacfgRenderCondiciones(); }
+function aacfgEliminarCondicion(idx) { AACFG_CONDICIONES_TEMP.splice(idx,1); aacfgRenderCondiciones(); }
+
+function aacfgGuardarRegla() {
+  var clave = document.getElementById('aacfg-regla-clave').value.trim();
+  if (!clave) { notify('Ingresá la palabra clave de búsqueda en Productos'); return; }
+
+  var modo = document.getElementById('aacfg-regla-cant-modo').value;
+  var cantidad = { modo: modo };
+  if (modo === 'fija') cantidad.valor = parseInt(document.getElementById('aacfg-regla-cant-fija').value)||1;
+  else {
+    cantidad.variable = document.getElementById('aacfg-regla-cant-variable').value;
+    if (!cantidad.variable) { notify('Elegí la pregunta numérica que define la cantidad'); return; }
+    if (modo === 'proporcional') { cantidad.multiplicador = parseFloat(document.getElementById('aacfg-regla-cant-mult').value)||1; cantidad.redondeo = document.getElementById('aacfg-regla-cant-redondeo').value; cantidad.minimo = 1; }
+    if (modo === 'dividido_entre') { cantidad.divisor = parseFloat(document.getElementById('aacfg-regla-cant-div').value)||1; cantidad.redondeo = document.getElementById('aacfg-regla-cant-redondeo').value; }
+  }
+
+  var condicionesValidas = AACFG_CONDICIONES_TEMP.filter(function(c){ return c.campo; });
+
+  var reg;
+  if (AACFG_REGLA_ACTUAL !== null) {
+    reg = AACFG_RUBROS[AACFG_RUBRO_ACTUAL].reglas[AACFG_REGLA_ACTUAL];
+  } else {
+    reg = { id: 'r' + Date.now() };
+    if (!AACFG_RUBROS[AACFG_RUBRO_ACTUAL].reglas) AACFG_RUBROS[AACFG_RUBRO_ACTUAL].reglas = [];
+    AACFG_RUBROS[AACFG_RUBRO_ACTUAL].reglas.push(reg);
+  }
+  reg.condiciones = condicionesValidas;
+  reg.accion = { tipo:'buscar_db', clave: clave };
+  reg.cantidad = cantidad;
+  reg.refNombre = document.getElementById('aacfg-regla-ref-nombre').value.trim() || clave;
+  reg.refPrecio = parseFloat(document.getElementById('aacfg-regla-ref-precio').value)||0;
+
+  aacfgGuardarTodo();
+  aacfgCerrarEditorRegla();
+  aacfgRenderReglas();
+}
+
+function aacfgEliminarRegla() {
+  if (AACFG_REGLA_ACTUAL === null) return;
+  if (!confirm('¿Eliminar esta regla?')) return;
+  AACFG_RUBROS[AACFG_RUBRO_ACTUAL].reglas.splice(AACFG_REGLA_ACTUAL, 1);
+  aacfgGuardarTodo();
+  aacfgCerrarEditorRegla();
+  aacfgRenderReglas();
+}
+
+// ── MOTOR DE REGLAS: ejecuta las reglas configuradas y devuelve la lista de productos ──
+// Esta es la función que reemplaza a calcularProductosAlarma/Camaras/etc para los rubros
+// migrados al sistema de configuración visual.
+function aacfgEvaluarCondicion(c, respuestas) {
+  var val = respuestas[c.campo];
+  if (c.op === 'eq') return String(val) === String(c.valor);
+  if (c.op === 'neq') return String(val) !== String(c.valor);
+  if (c.op === 'gt') return parseFloat(val) > parseFloat(c.valor);
+  if (c.op === 'lte') return parseFloat(val) <= parseFloat(c.valor);
+  if (c.op === 'in') return Array.isArray(c.valor) && c.valor.map(String).includes(String(val));
+  if (c.op === 'incluye') return Array.isArray(val) && val.includes(c.valor);
+  return false;
+}
+
+function aacfgCalcularCantidad(cfgCant, respuestas) {
+  if (!cfgCant) return 1;
+  if (cfgCant.modo === 'fija') return cfgCant.valor||1;
+  var base = parseFloat(respuestas[cfgCant.variable]) || 0;
+  if (cfgCant.modo === 'igual_variable') return Math.max(0, Math.round(base));
+  if (cfgCant.modo === 'proporcional') {
+    var r = base * (cfgCant.multiplicador||1);
+    r = cfgCant.redondeo === 'abajo' ? Math.floor(r) : Math.ceil(r);
+    return Math.max(cfgCant.minimo||0, r);
+  }
+  if (cfgCant.modo === 'dividido_entre') {
+    var r2 = base / (cfgCant.divisor||1);
+    return cfgCant.redondeo === 'abajo' ? Math.floor(r2) : Math.ceil(r2);
+  }
+  return 1;
+}
+
+function aacfgCalcularProductosPorReglas(rubroId, respuestas) {
+  var rubro = AACFG_RUBROS[rubroId];
+  if (!rubro) return [];
+  var lista = [];
+  (rubro.reglas||[]).forEach(function(reg) {
+    var cumple = (reg.condiciones||[]).every(function(c){ return aacfgEvaluarCondicion(c, respuestas); });
+    if (!cumple) return;
+    var qty = aacfgCalcularCantidad(reg.cantidad, respuestas);
+    if (qty <= 0) return;
+    var enDB = buscarProductoEnDB(reg.accion.clave, qty);
+    lista.push(enDB || { nombre: reg.refNombre||reg.accion.clave, sku:'', precio: reg.refPrecio||0, qty: qty });
+  });
+  return lista;
+}
+
+// ── PANTALLA 4: Vista previa — reusa el asistente real con la config nueva ──
+function aacfgAbrirPreview() {
+  document.getElementById('aacfg-pantalla-preguntas').style.display = 'none';
+  document.getElementById('aacfg-pantalla-reglas').style.display = 'none';
+  document.getElementById('aacfg-pantalla-preview').style.display = '';
+  var cont = document.getElementById('aacfg-preview-cont');
+  var rubro = AACFG_RUBROS[AACFG_RUBRO_ACTUAL];
+
+  if (!rubro.pasos || !rubro.pasos.length) {
+    cont.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Agregá al menos una pregunta para poder probar</div>';
+    return;
+  }
+
+  // Vista previa simplificada: formulario con todas las preguntas a la vez,
+  // y al tocar "Calcular" corre el motor de reglas y muestra qué traería.
+  var html = '<div class="card"><div class="card-head"><span class="card-title">Respuestas de prueba</span></div><div class="form-grid">';
+  rubro.pasos.forEach(function(p) {
+    if (p.tipo === 'numero') {
+      html += '<div class="fg"><label>'+escapeHTML(p.titulo)+'</label><input type="number" id="aacfg-prev-'+p.id+'" value="'+(p.default||1)+'" min="'+(p.min||0)+'" max="'+(p.max||999)+'"></div>';
+    } else if (p.tipo === 'multi') {
+      html += '<div class="fg full"><label>'+escapeHTML(p.titulo)+'</label><div style="display:flex;gap:10px;flex-wrap:wrap">';
+      (p.opciones||[]).forEach(function(o) {
+        html += '<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="aacfg-prev-'+p.id+'-'+o.id+'" data-grupo="'+p.id+'" data-val="'+o.id+'" class="aacfg-prev-multi">'+escapeHTML(o.titulo)+'</label>';
+      });
+      html += '</div></div>';
+    } else {
+      html += '<div class="fg"><label>'+escapeHTML(p.titulo)+'</label><select id="aacfg-prev-'+p.id+'">';
+      (p.opciones||[]).forEach(function(o) { html += '<option value="'+o.id+'">'+escapeHTML(o.titulo)+'</option>'; });
+      html += '</select></div>';
+    }
+  });
+  html += '</div><div class="flex-end"><button class="btn btn-sm btn-primary" onclick="aacfgEjecutarPreview()"><i class="ti ti-player-play"></i> Calcular</button></div></div>';
+  html += '<div class="card" id="aacfg-prev-resultado-box" style="display:none"><div class="card-head"><span class="card-title">Productos que traería</span></div><div id="aacfg-prev-resultado"></div></div>';
+  cont.innerHTML = html;
+}
+
+function aacfgEjecutarPreview() {
+  var rubro = AACFG_RUBROS[AACFG_RUBRO_ACTUAL];
+  var respuestas = {};
+  rubro.pasos.forEach(function(p) {
+    if (p.tipo === 'numero') {
+      respuestas[p.id] = parseInt((document.getElementById('aacfg-prev-'+p.id)||{}).value) || 0;
+    } else if (p.tipo === 'multi') {
+      var marcados = [];
+      document.querySelectorAll('.aacfg-prev-multi[data-grupo="'+p.id+'"]:checked').forEach(function(el){ marcados.push(el.dataset.val); });
+      respuestas[p.id] = marcados;
+    } else {
+      respuestas[p.id] = (document.getElementById('aacfg-prev-'+p.id)||{}).value || '';
+    }
+  });
+
+  var resultado = aacfgCalcularProductosPorReglas(AACFG_RUBRO_ACTUAL, respuestas);
+  var box = document.getElementById('aacfg-prev-resultado-box');
+  var cont = document.getElementById('aacfg-prev-resultado');
+  box.style.display = '';
+  if (!resultado.length) { cont.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Ninguna regla coincidió con estas respuestas</div>'; return; }
+  var total = 0;
+  cont.innerHTML = resultado.map(function(p) {
+    var sub = (p.precio||0) * p.qty;
+    total += sub;
+    var sinPrecio = !p.precio || p.precio <= 0;
+    return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)">' +
+      '<span style="font-size:13px">'+escapeHTML(p.nombre)+(sinPrecio?' <span class="badge b-red" style="font-size:9px">Sin precio</span>':'')+' × '+p.qty+'</span>' +
+      '<span style="font-size:13px;font-weight:500;color:'+(sinPrecio?'var(--red)':'')+'">$'+Math.round(sub).toLocaleString('es-AR')+'</span>' +
+    '</div>';
+  }).join('') + '<div style="display:flex;justify-content:space-between;padding:10px 0;font-weight:600"><span>Total</span><span>$'+Math.round(total).toLocaleString('es-AR')+'</span></div>';
+}
+
+function aacfgCerrarPreview() {
+  document.getElementById('aacfg-pantalla-preview').style.display = 'none';
+  document.getElementById('aacfg-pantalla-preguntas').style.display = '';
+}
+
+// ── CARGOS: configuración real (valor hora, días/mes, valor hora extra) ──
+var CARGOS_DATA = {}; // espejo en memoria de sisventas/config/cargos
+
+function cargarCargos() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/config/cargos'), function(snap) {
+    CARGOS_DATA = snap.val() || {};
+    renderCargosConfig();
+  });
 }
 
 function renderCargosConfig() {
@@ -6436,34 +7137,75 @@ function renderCargosConfig() {
   var vacioEl = document.getElementById('cargos-vacio');
   if (!tbl) return;
 
-  var empleadosActivos = Object.values(empData||{}).filter(function(e){ return e.activo !== false; });
-  var porCargo = {};
-  empleadosActivos.forEach(function(e) {
-    var cargo = e.cargo || 'Sin cargo asignado';
-    if (!porCargo[cargo]) porCargo[cargo] = [];
-    porCargo[cargo].push(e);
-  });
-
-  var cargos = Object.keys(porCargo);
+  var ids = Object.keys(CARGOS_DATA);
   tbl.querySelectorAll('tr:not(:first-child)').forEach(function(tr){ tr.remove(); });
 
-  if (!cargos.length) {
+  if (!ids.length) {
     if (vacioEl) vacioEl.style.display = '';
     return;
   }
   if (vacioEl) vacioEl.style.display = 'none';
 
-  cargos.sort().forEach(function(cargo) {
-    var lista = porCargo[cargo];
-    var sueldoProm = lista.reduce(function(s,e){ return s+(parseFloat(e.sueldoBase)||0); }, 0) / lista.length;
+  var empleadosActivos = Object.values(empData||{}).filter(function(e){ return e.activo !== false; });
+
+  ids.sort(function(a,b){ return (CARGOS_DATA[a].nombre||'').localeCompare(CARGOS_DATA[b].nombre||''); }).forEach(function(id) {
+    var c = CARGOS_DATA[id];
+    var valorHora = parseFloat(c.valorHora)||0;
+    var diasMes = parseFloat(c.diasMes)||0;
+    var sueldo8hs = valorHora * 8 * diasMes;
+    var cantEmpleados = empleadosActivos.filter(function(e){ return e.cargoId === id; }).length;
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td style="font-weight:500">' + escapeHTML(cargo) + '</td>' +
-      '<td style="text-align:right">' + lista.length + '</td>' +
-      '<td style="text-align:right">$' + Math.round(sueldoProm).toLocaleString('es-AR') + '</td>' +
-      '<td><button class="btn btn-sm btn-icon" onclick="showPage(\'empleados\',document.querySelector(\'[onclick*=empleados]\'))" title="Ver empleados de este cargo"><i class="ti ti-arrow-right" style="font-size:14px"></i></button></td>';
+      '<td style="font-weight:500">' + escapeHTML(c.nombre||'') + '</td>' +
+      '<td style="text-align:right">$' + valorHora.toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right">' + diasMes + '</td>' +
+      '<td style="text-align:right;color:var(--text3)">$' + Math.round(sueldo8hs).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right">$' + (parseFloat(c.valorHoraExtra)||0).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right">' + cantEmpleados + '</td>' +
+      '<td><button class="btn btn-sm btn-icon" onclick="cargosAbrirNuevo(\''+id+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+      '<button class="btn btn-sm btn-icon" onclick="cargosEliminar(\''+id+'\')" title="Eliminar" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:14px"></i></button></td>';
     tbl.appendChild(tr);
   });
+}
+
+function cargosAbrirNuevo(idExistente) {
+  var c = idExistente ? CARGOS_DATA[idExistente] : null;
+  var nombre = prompt('Nombre del cargo:', c ? c.nombre : '');
+  if (!nombre || !nombre.trim()) return;
+  var valorHoraTxt = prompt('Valor hora ($):', c ? c.valorHora : '5000');
+  if (valorHoraTxt === null) return;
+  var diasMesTxt = prompt('Días a contar en el mes:', c ? c.diasMes : '23');
+  if (diasMesTxt === null) return;
+  var valorHoraExtraTxt = prompt('Valor hora extra ($):', c ? c.valorHoraExtra : '7500');
+  if (valorHoraExtraTxt === null) return;
+
+  var datos = {
+    nombre: nombre.trim(),
+    valorHora: parseFloat(valorHoraTxt)||0,
+    diasMes: parseFloat(diasMesTxt)||0,
+    valorHoraExtra: parseFloat(valorHoraExtraTxt)||0
+  };
+
+  var id = idExistente || nombre.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  if (!idExistente && CARGOS_DATA[id]) { notify('Ya existe un cargo con ese nombre'); return; }
+
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/cargos/'+id), datos)
+    .then(function(){ notify('✓ Cargo guardado'); })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+function cargosEliminar(id) {
+  var c = CARGOS_DATA[id];
+  var empleadosActivos = Object.values(empData||{}).filter(function(e){ return e.activo !== false && e.cargoId === id; });
+  if (empleadosActivos.length) {
+    notify('No se puede eliminar: hay '+empleadosActivos.length+' empleado(s) activo(s) con este cargo');
+    return;
+  }
+  if (!confirm('¿Eliminar el cargo "'+(c.nombre||id)+'"?')) return;
+  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/config/cargos/'+id))
+    .then(function(){ notify('Cargo eliminado'); })
+    .catch(function(e){ notify('Error: '+e.message); });
 }
 
 function recargarConfigTFAppEnUI() {
@@ -6498,7 +7240,7 @@ var TODOS_MODULOS = [
   { id:'detalle',        label:'Detalle venta' },
   { id:'cobranzas',      label:'Cobranzas' },
   { id:'cuentacorriente',label:'Cuenta corriente' },
-  { id:'ordentrabajo',   label:'Órdenes de trabajo' },
+  { id:'ordentrabajo',   label:'Órdenes de trabajo (OT / instalaciones)' },
   { id:'clientes',       label:'Clientes' },
   { id:'productos',      label:'Productos' },
   { id:'empleados',      label:'Empleados' },
@@ -6511,7 +7253,7 @@ var TODOS_MODULOS = [
   { id:'sueldos',        label:'Sueldos' },
   { id:'rentabilidad',   label:'Rentabilidad' },
   { id:'proveedores',    label:'Proveedores' },
-  { id:'ordenes',        label:'Órdenes de compra' },
+  { id:'ordenes',        label:'Órdenes de compra (proveedores)' },
   { id:'garantias',      label:'Garantías' },
   { id:'soporte',        label:'Soporte' },
   { id:'remitos',        label:'Remitos' },
@@ -6531,6 +7273,21 @@ function cargarPermisosRoles() {
 }
 
 function renderTablaRoles() {
+  // Releer siempre el valor real desde Firebase antes de pintar, para evitar
+  // mostrar el valor por defecto si la carga inicial (al hacer login) todavía
+  // no había terminado cuando el admin entra a esta pestaña.
+  if (window.fbDB) {
+    window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/permisos')).then(function(snap) {
+      var data = snap.val();
+      if (data) Object.assign(PERMISOS_ROLES, data);
+      _renderTablaRolesUI();
+    }).catch(function(){ _renderTablaRolesUI(); });
+  } else {
+    _renderTablaRolesUI();
+  }
+}
+
+function _renderTablaRolesUI() {
   var cont = document.getElementById('cfg-roles-tabla');
   if (!cont) return;
   var roles = ['admin','administrativo','vendedor','tecnico'];
@@ -7494,6 +8251,11 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
       inp = document.createElement('select');
       (f.opts||[]).forEach(o => { const opt=document.createElement('option'); opt.value=o; opt.textContent=o; inp.appendChild(opt); });
       inp.id = f.id;
+      if (datosExistentes) {
+        var campoSel = f.id.replace(/^n[a-z]+-/, '');
+        var valorSel = datosExistentes[campoSel] || datosExistentes[f.id] || '';
+        if (valorSel) inp.value = valorSel;
+      }
       fg.appendChild(inp);
       grid.appendChild(fg);
     } else if (f.t === 'autocomplete-prov') {
@@ -9601,6 +10363,2143 @@ function buscarGarantia(val) {
 // ══════════════════════════════════════════════
 // ASISTENTE DE VENTAS
 // ══════════════════════════════════════════════
+
+// ── SEMILLA INICIAL DE CONFIGURACIÓN DEL ASISTENTE DE VENTAS ──
+// Se usa solo si Firebase todavía no tiene nada guardado en sisventas/config/asistente/rubros
+var AACFG_SEMILLA_RUBROS = {
+  "alarmas": {
+    "nombre": "Alarmas Garnet",
+    "color": "#d97706",
+    "icono": "ti-shield-check",
+    "activo": true,
+    "orden": 1,
+    "pasos": [
+      {
+        "id": "tipo_prop",
+        "titulo": "¿Qué tipo de propiedad es?",
+        "desc": "Esto determina el panel más adecuado",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "residencial",
+            "ico": "ti-home",
+            "titulo": "Residencial",
+            "desc": "Casa, departamento, PH"
+          },
+          {
+            "id": "comercial",
+            "ico": "ti-building",
+            "titulo": "Comercial",
+            "desc": "Local, oficina, negocio"
+          },
+          {
+            "id": "industrial",
+            "ico": "ti-building-factory-2",
+            "titulo": "Industrial",
+            "desc": "Galpón, fábrica, depósito"
+          }
+        ]
+      },
+      {
+        "id": "zonas",
+        "titulo": "¿Cuántas zonas necesita proteger?",
+        "desc": "Cada zona es un sector independiente (habitación, local, puerta, etc.)",
+        "tipo": "numero",
+        "min": 1,
+        "max": 64,
+        "default": 4,
+        "label": "zonas"
+      },
+      {
+        "id": "comunicacion",
+        "titulo": "¿Cómo quiere recibir alertas?",
+        "desc": "El sistema puede avisar al celular cuando se activa la alarma",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "solo_sirena",
+            "ico": "ti-volume",
+            "titulo": "Solo sirena local",
+            "desc": "Sin aviso remoto"
+          },
+          {
+            "id": "gsm",
+            "ico": "ti-device-mobile",
+            "titulo": "Por GSM / celular",
+            "desc": "Llamadas o SMS al activarse"
+          },
+          {
+            "id": "ip",
+            "ico": "ti-world",
+            "titulo": "Por App / Internet",
+            "desc": "Notificación a la app"
+          },
+          {
+            "id": "gsm_ip",
+            "ico": "ti-broadcast",
+            "titulo": "GSM + App combinado",
+            "desc": "Máxima cobertura"
+          }
+        ]
+      },
+      {
+        "id": "sensores",
+        "titulo": "¿Qué tipo de detección necesita?",
+        "desc": "Podés combinar tipos según las áreas a proteger",
+        "tipo": "multi",
+        "opciones": [
+          {
+            "id": "pir",
+            "ico": "ti-eye",
+            "titulo": "Movimiento (PIR)",
+            "desc": "Detección de movimiento estándar"
+          },
+          {
+            "id": "mag",
+            "ico": "ti-door",
+            "titulo": "Contacto magnético",
+            "desc": "Apertura de puertas/ventanas"
+          },
+          {
+            "id": "doble",
+            "ico": "ti-shield",
+            "titulo": "Doble tecnología",
+            "desc": "Menos falsas alarmas"
+          },
+          {
+            "id": "exterior",
+            "ico": "ti-cloud-rain",
+            "titulo": "Exterior",
+            "desc": "Resistente a la intemperie"
+          }
+        ]
+      },
+      {
+        "id": "accesorios",
+        "titulo": "¿Necesita accesorios adicionales?",
+        "desc": "Podés seleccionar varios",
+        "tipo": "multi",
+        "opciones": [
+          {
+            "id": "sirena_ext",
+            "ico": "ti-volume",
+            "titulo": "Sirena exterior",
+            "desc": "Disuasión visible"
+          },
+          {
+            "id": "sirena_int",
+            "ico": "ti-volume-2",
+            "titulo": "Sirena interior",
+            "desc": "Alerta sonora interna"
+          },
+          {
+            "id": "teclado",
+            "ico": "ti-keyboard",
+            "titulo": "Teclado adicional",
+            "desc": "Para activar/desactivar"
+          },
+          {
+            "id": "bateria",
+            "ico": "ti-battery",
+            "titulo": "Batería de respaldo",
+            "desc": "Funciona sin luz"
+          }
+        ]
+      }
+    ],
+    "reglas": [
+      {
+        "id": "r1",
+        "condiciones": [
+          {
+            "campo": "zonas",
+            "op": "lte",
+            "valor": 8
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Panel Garnet PG-380"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Panel Garnet PG-380",
+        "refSku": "PG-380",
+        "refPrecio": 85000
+      },
+      {
+        "id": "r2",
+        "condiciones": [
+          {
+            "campo": "zonas",
+            "op": "gt",
+            "valor": 8
+          },
+          {
+            "campo": "zonas",
+            "op": "lte",
+            "valor": 16
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Panel Garnet PG-780"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Panel Garnet PG-780",
+        "refSku": "PG-780",
+        "refPrecio": 135000
+      },
+      {
+        "id": "r3",
+        "condiciones": [
+          {
+            "campo": "zonas",
+            "op": "gt",
+            "valor": 16
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Panel Garnet PG-1632"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Panel Garnet PG-1632",
+        "refSku": "PG-1632",
+        "refPrecio": 195000
+      },
+      {
+        "id": "r4",
+        "condiciones": [
+          {
+            "campo": "comunicacion",
+            "op": "in",
+            "valor": [
+              "gsm",
+              "gsm_ip"
+            ]
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Módulo GSM Garnet"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Módulo GSM Garnet",
+        "refSku": "GSM-MOD",
+        "refPrecio": 35000
+      },
+      {
+        "id": "r5",
+        "condiciones": [
+          {
+            "campo": "comunicacion",
+            "op": "in",
+            "valor": [
+              "ip",
+              "gsm_ip"
+            ]
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Módulo IP Garnet"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Módulo IP Garnet",
+        "refSku": "IP-MOD",
+        "refPrecio": 28000
+      },
+      {
+        "id": "r6",
+        "condiciones": [
+          {
+            "campo": "sensores",
+            "op": "incluye",
+            "valor": "pir"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sensor PIR Garnet 426i"
+        },
+        "cantidad": {
+          "modo": "proporcional",
+          "variable": "zonas",
+          "multiplicador": 0.6,
+          "redondeo": "arriba",
+          "minimo": 1
+        },
+        "refNombre": "Sensor PIR Garnet 426i",
+        "refSku": "426i",
+        "refPrecio": 18000
+      },
+      {
+        "id": "r7",
+        "condiciones": [
+          {
+            "campo": "sensores",
+            "op": "incluye",
+            "valor": "mag"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Contacto magnético Garnet"
+        },
+        "cantidad": {
+          "modo": "proporcional",
+          "variable": "zonas",
+          "multiplicador": 0.4,
+          "redondeo": "arriba",
+          "minimo": 1
+        },
+        "refNombre": "Contacto magnético Garnet",
+        "refSku": "MAG-01",
+        "refPrecio": 5500
+      },
+      {
+        "id": "r8",
+        "condiciones": [
+          {
+            "campo": "sensores",
+            "op": "incluye",
+            "valor": "doble"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Detector doble tecnología Garnet DT"
+        },
+        "cantidad": {
+          "modo": "proporcional",
+          "variable": "zonas",
+          "multiplicador": 0.5,
+          "redondeo": "arriba",
+          "minimo": 1
+        },
+        "refNombre": "Detector doble tec. Garnet DT",
+        "refSku": "DT-200",
+        "refPrecio": 28000
+      },
+      {
+        "id": "r9",
+        "condiciones": [
+          {
+            "campo": "sensores",
+            "op": "incluye",
+            "valor": "exterior"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Detector exterior Garnet"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 2
+        },
+        "refNombre": "Detector exterior Garnet",
+        "refSku": "EXT-100",
+        "refPrecio": 35000
+      },
+      {
+        "id": "r10",
+        "condiciones": [
+          {
+            "campo": "accesorios",
+            "op": "incluye",
+            "valor": "sirena_ext"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sirena exterior Garnet"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Sirena exterior Garnet",
+        "refSku": "SIR-EXT",
+        "refPrecio": 22000
+      },
+      {
+        "id": "r11",
+        "condiciones": [
+          {
+            "campo": "accesorios",
+            "op": "incluye",
+            "valor": "sirena_int"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sirena interior Garnet"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Sirena interior Garnet",
+        "refSku": "SIR-INT",
+        "refPrecio": 12000
+      },
+      {
+        "id": "r12",
+        "condiciones": [
+          {
+            "campo": "accesorios",
+            "op": "incluye",
+            "valor": "teclado"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Teclado adicional KP-140"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Teclado adicional KP-140",
+        "refSku": "KP-140B",
+        "refPrecio": 45000
+      },
+      {
+        "id": "r13",
+        "condiciones": [
+          {
+            "campo": "accesorios",
+            "op": "incluye",
+            "valor": "bateria"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Batería 12V 7Ah"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Batería 12V 7Ah",
+        "refSku": "BAT-7A",
+        "refPrecio": 18000
+      },
+      {
+        "id": "r14",
+        "condiciones": [],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Fuente switching 2A Garnet"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Fuente switching 2A Garnet",
+        "refSku": "FTE-2A",
+        "refPrecio": 12000
+      }
+    ]
+  },
+  "camaras": {
+    "nombre": "Cámaras",
+    "color": "#1d4ed8",
+    "icono": "ti-camera",
+    "activo": true,
+    "orden": 2,
+    "pasos": [
+      {
+        "id": "tipo_cam",
+        "titulo": "¿Dónde van las cámaras?",
+        "desc": "Determina el tipo de cámara más adecuado",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "interior",
+            "ico": "ti-home",
+            "titulo": "Solo interiores",
+            "desc": "Pasillos, halls, oficinas"
+          },
+          {
+            "id": "exterior",
+            "ico": "ti-cloud-rain",
+            "titulo": "Solo exteriores",
+            "desc": "Entradas, estacionamientos"
+          },
+          {
+            "id": "mixto",
+            "ico": "ti-refresh",
+            "titulo": "Interior y exterior",
+            "desc": "Combinación de ambos"
+          }
+        ]
+      },
+      {
+        "id": "marca_linea",
+        "titulo": "¿Qué marca y tipo de cámara?",
+        "desc": "EZVIZ PTZ permite mover y seguir movimiento a control remoto",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "hikvision",
+            "ico": "ti-camera",
+            "titulo": "Hikvision",
+            "desc": "Línea estándar de cámaras fijas"
+          },
+          {
+            "id": "ezviz_fija",
+            "ico": "ti-video",
+            "titulo": "EZVIZ fija",
+            "desc": "Cámara IP fija, sin movimiento"
+          },
+          {
+            "id": "ezviz_ptz",
+            "ico": "ti-rotate-2",
+            "titulo": "EZVIZ domo PTZ",
+            "desc": "Domo motorizado, gira y sigue movimiento"
+          }
+        ]
+      },
+      {
+        "id": "cantidad_cam",
+        "titulo": "¿Cuántas cámaras necesita?",
+        "desc": "Podés ajustar la cantidad después",
+        "tipo": "numero",
+        "min": 1,
+        "max": 64,
+        "default": 4,
+        "label": "cámaras"
+      },
+      {
+        "id": "resolucion",
+        "titulo": "¿Qué resolución necesita?",
+        "desc": "A mayor resolución, mejor imagen pero mayor almacenamiento",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "2mp",
+            "ico": "ti-camera",
+            "titulo": "2 MP — Full HD",
+            "desc": "Ideal para uso residencial"
+          },
+          {
+            "id": "4mp",
+            "ico": "ti-search",
+            "titulo": "4 MP — Ultra HD",
+            "desc": "Comercios y oficinas"
+          },
+          {
+            "id": "8mp",
+            "ico": "ti-target",
+            "titulo": "8 MP — 4K",
+            "desc": "Máxima definición, uso profesional"
+          }
+        ]
+      },
+      {
+        "id": "grabacion",
+        "titulo": "¿Cuántos días de grabación necesita?",
+        "desc": "Determina el tamaño del disco duro del NVR/DVR",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "7dias",
+            "ico": "ti-calendar",
+            "titulo": "7 días",
+            "desc": "Uso básico residencial"
+          },
+          {
+            "id": "15dias",
+            "ico": "ti-calendar-stats",
+            "titulo": "15 días",
+            "desc": "Recomendado para comercios"
+          },
+          {
+            "id": "30dias",
+            "ico": "ti-calendar-event",
+            "titulo": "30 días",
+            "desc": "Máxima cobertura"
+          }
+        ]
+      },
+      {
+        "id": "acceso_remoto",
+        "titulo": "¿Necesita ver las cámaras desde el celular?",
+        "desc": "Acceso remoto por app",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "si",
+            "ico": "ti-device-mobile",
+            "titulo": "Sí, desde el celular",
+            "desc": "App gratuita"
+          },
+          {
+            "id": "no",
+            "ico": "ti-device-desktop",
+            "titulo": "Solo desde el monitor local",
+            "desc": "Sin acceso remoto"
+          }
+        ]
+      }
+    ],
+    "reglas": [
+      {
+        "id": "r1",
+        "condiciones": [
+          {
+            "campo": "marca_linea",
+            "op": "eq",
+            "valor": "ezviz_ptz"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db_estricto",
+          "clave": "ezviz ptz",
+          "claveAlt": "ezviz domo"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cantidad_cam"
+        },
+        "refNombre": "Cámara EZVIZ domo PTZ",
+        "refSku": "",
+        "refPrecio": 0
+      },
+      {
+        "id": "r2",
+        "condiciones": [
+          {
+            "campo": "marca_linea",
+            "op": "eq",
+            "valor": "ezviz_fija"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db_estricto",
+          "clave": "ezviz fija",
+          "claveAlt": "ezviz ip"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cantidad_cam"
+        },
+        "refNombre": "Cámara EZVIZ fija",
+        "refSku": "",
+        "refPrecio": 0
+      },
+      {
+        "id": "r3",
+        "condiciones": [
+          {
+            "campo": "marca_linea",
+            "op": "eq",
+            "valor": "hikvision"
+          },
+          {
+            "campo": "resolucion",
+            "op": "eq",
+            "valor": "2mp"
+          },
+          {
+            "campo": "tipo_cam",
+            "op": "eq",
+            "valor": "interior"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Cámara Hikvision DS-2CD2123G2-I 2MP domo"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cantidad_cam"
+        },
+        "refNombre": "Cámara Hikvision DS-2CD2123G2-I 2MP domo",
+        "refSku": "DS-2CD2123G2",
+        "refPrecio": 55000
+      },
+      {
+        "id": "r4",
+        "condiciones": [
+          {
+            "campo": "marca_linea",
+            "op": "eq",
+            "valor": "hikvision"
+          },
+          {
+            "campo": "resolucion",
+            "op": "eq",
+            "valor": "2mp"
+          },
+          {
+            "campo": "tipo_cam",
+            "op": "eq",
+            "valor": "exterior"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Cámara Hikvision DS-2CD2143G2-I 2MP bullet"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cantidad_cam"
+        },
+        "refNombre": "Cámara Hikvision DS-2CD2143G2-I 2MP bullet",
+        "refSku": "DS-2CD2143G2",
+        "refPrecio": 65000
+      },
+      {
+        "id": "r5",
+        "condiciones": [
+          {
+            "campo": "marca_linea",
+            "op": "eq",
+            "valor": "hikvision"
+          },
+          {
+            "campo": "resolucion",
+            "op": "eq",
+            "valor": "2mp"
+          },
+          {
+            "campo": "tipo_cam",
+            "op": "eq",
+            "valor": "mixto"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Cámara Hikvision 2MP domo interior"
+        },
+        "cantidad": {
+          "modo": "proporcional",
+          "variable": "cantidad_cam",
+          "multiplicador": 0.5,
+          "redondeo": "arriba",
+          "minimo": 0
+        },
+        "refNombre": "Cámara Hikvision 2MP domo interior",
+        "refSku": "DS-2CD2123G2",
+        "refPrecio": 55000
+      },
+      {
+        "id": "r6",
+        "condiciones": [
+          {
+            "campo": "marca_linea",
+            "op": "eq",
+            "valor": "hikvision"
+          },
+          {
+            "campo": "resolucion",
+            "op": "eq",
+            "valor": "2mp"
+          },
+          {
+            "campo": "tipo_cam",
+            "op": "eq",
+            "valor": "mixto"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Cámara Hikvision 2MP bullet exterior"
+        },
+        "cantidad": {
+          "modo": "proporcional",
+          "variable": "cantidad_cam",
+          "multiplicador": 0.5,
+          "redondeo": "abajo",
+          "minimo": 0
+        },
+        "refNombre": "Cámara Hikvision 2MP bullet exterior",
+        "refSku": "DS-2CD2143G2",
+        "refPrecio": 65000
+      },
+      {
+        "id": "r7",
+        "condiciones": [
+          {
+            "campo": "marca_linea",
+            "op": "eq",
+            "valor": "hikvision"
+          },
+          {
+            "campo": "resolucion",
+            "op": "eq",
+            "valor": "4mp"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Cámara Hikvision DS-2CD2143G2 4MP"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cantidad_cam"
+        },
+        "refNombre": "Cámara Hikvision DS-2CD2143G2 4MP",
+        "refSku": "DS-2CD2143G2-4",
+        "refPrecio": 85000
+      },
+      {
+        "id": "r8",
+        "condiciones": [
+          {
+            "campo": "marca_linea",
+            "op": "eq",
+            "valor": "hikvision"
+          },
+          {
+            "campo": "resolucion",
+            "op": "eq",
+            "valor": "8mp"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Cámara Hikvision DS-2CD2083G2 8MP 4K"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cantidad_cam"
+        },
+        "refNombre": "Cámara Hikvision DS-2CD2083G2 8MP 4K",
+        "refSku": "DS-2CD2083G2",
+        "refPrecio": 135000
+      },
+      {
+        "id": "r9",
+        "condiciones": [
+          {
+            "campo": "cantidad_cam",
+            "op": "lte",
+            "valor": 4
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "NVR Hikvision 4ch DS-7NI-K1"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "NVR Hikvision 4ch",
+        "refSku": "NVR-4",
+        "refPrecio": 95000
+      },
+      {
+        "id": "r10",
+        "condiciones": [
+          {
+            "campo": "cantidad_cam",
+            "op": "gt",
+            "valor": 4
+          },
+          {
+            "campo": "cantidad_cam",
+            "op": "lte",
+            "valor": 8
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "NVR Hikvision 8ch DS-7NI-K1"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "NVR Hikvision 8ch",
+        "refSku": "NVR-8",
+        "refPrecio": 130000
+      },
+      {
+        "id": "r11",
+        "condiciones": [
+          {
+            "campo": "cantidad_cam",
+            "op": "gt",
+            "valor": 8
+          },
+          {
+            "campo": "cantidad_cam",
+            "op": "lte",
+            "valor": 16
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "NVR Hikvision 16ch DS-7NI-K1"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "NVR Hikvision 16ch",
+        "refSku": "NVR-16",
+        "refPrecio": 185000
+      },
+      {
+        "id": "r12",
+        "condiciones": [
+          {
+            "campo": "cantidad_cam",
+            "op": "gt",
+            "valor": 16
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "NVR Hikvision 32ch DS-7NI-K1"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "NVR Hikvision 32ch",
+        "refSku": "NVR-32",
+        "refPrecio": 185000
+      },
+      {
+        "id": "r13",
+        "condiciones": [
+          {
+            "campo": "grabacion",
+            "op": "eq",
+            "valor": "7dias"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Disco duro 1TB Seagate Skyhawk"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Disco duro 1TB Seagate Skyhawk",
+        "refSku": "HDD-1TB",
+        "refPrecio": 45000
+      },
+      {
+        "id": "r14",
+        "condiciones": [
+          {
+            "campo": "grabacion",
+            "op": "eq",
+            "valor": "15dias"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Disco duro 2TB Seagate Skyhawk"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Disco duro 2TB Seagate Skyhawk",
+        "refSku": "HDD-2TB",
+        "refPrecio": 75000
+      },
+      {
+        "id": "r15",
+        "condiciones": [
+          {
+            "campo": "grabacion",
+            "op": "eq",
+            "valor": "30dias"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Disco duro 4TB Seagate Skyhawk"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Disco duro 4TB Seagate Skyhawk",
+        "refSku": "HDD-4TB",
+        "refPrecio": 130000
+      },
+      {
+        "id": "r16",
+        "condiciones": [
+          {
+            "campo": "acceso_remoto",
+            "op": "eq",
+            "valor": "si"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Switch PoE para cámaras 8 puertos"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Switch PoE para cámaras 8 puertos",
+        "refSku": "SW-POE8",
+        "refPrecio": 55000
+      }
+    ]
+  },
+  "videoportero": {
+    "nombre": "Video portero",
+    "color": "#16a34a",
+    "icono": "ti-door",
+    "activo": true,
+    "orden": 3,
+    "pasos": [
+      {
+        "id": "tipo_edif",
+        "titulo": "¿Qué tipo de edificio es?",
+        "desc": "",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "casa",
+            "ico": "ti-home",
+            "titulo": "Casa o PH",
+            "desc": "1 unidad"
+          },
+          {
+            "id": "edificio",
+            "ico": "ti-building",
+            "titulo": "Edificio",
+            "desc": "Múltiples departamentos"
+          },
+          {
+            "id": "countries",
+            "ico": "ti-buildings",
+            "titulo": "Barrio / Countries",
+            "desc": "Múltiples accesos"
+          }
+        ]
+      },
+      {
+        "id": "cant_monitor",
+        "titulo": "¿Cuántos monitores interiores necesita?",
+        "desc": "Un monitor por unidad o habitación donde atender el llamado",
+        "tipo": "numero",
+        "min": 1,
+        "max": 32,
+        "default": 1,
+        "label": "monitores"
+      },
+      {
+        "id": "cant_panel",
+        "titulo": "¿Cuántos paneles exteriores (botoneras) necesita?",
+        "desc": "Uno por puerta de acceso",
+        "tipo": "numero",
+        "min": 1,
+        "max": 8,
+        "default": 1,
+        "label": "paneles exteriores"
+      },
+      {
+        "id": "apertura",
+        "titulo": "¿Necesita abrir la puerta desde el monitor?",
+        "desc": "",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "si",
+            "ico": "ti-lock-open",
+            "titulo": "Sí, con cerradura eléctrica",
+            "desc": "Se incluye chapa eléctrica"
+          },
+          {
+            "id": "no",
+            "ico": "ti-door",
+            "titulo": "Solo video y audio",
+            "desc": "Sin apertura remota"
+          }
+        ]
+      }
+    ],
+    "reglas": [
+      {
+        "id": "r1",
+        "condiciones": [],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Panel exterior Hikvision DS-KD8003-IME1"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cant_panel"
+        },
+        "refNombre": "Panel exterior Hikvision DS-KD8003-IME1",
+        "refSku": "DS-KD8003",
+        "refPrecio": 145000
+      },
+      {
+        "id": "r2",
+        "condiciones": [],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Monitor interior Hikvision DS-KH6320-WTE1"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cant_monitor"
+        },
+        "refNombre": "Monitor interior Hikvision DS-KH6320-WTE1",
+        "refSku": "DS-KH6320",
+        "refPrecio": 95000
+      },
+      {
+        "id": "r3",
+        "condiciones": [
+          {
+            "campo": "apertura",
+            "op": "eq",
+            "valor": "si"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Chapa eléctrica 12V"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cant_panel"
+        },
+        "refNombre": "Chapa eléctrica 12V",
+        "refSku": "CHAPA-12V",
+        "refPrecio": 28000
+      },
+      {
+        "id": "r4",
+        "condiciones": [
+          {
+            "campo": "cant_monitor",
+            "op": "gt",
+            "valor": 1
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Switch Hikvision PoE 4 puertos"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Switch Hikvision PoE 4 puertos",
+        "refSku": "SW-POE4",
+        "refPrecio": 35000
+      },
+      {
+        "id": "r4b",
+        "condiciones": [
+          {
+            "campo": "cant_panel",
+            "op": "gt",
+            "valor": 1
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Switch Hikvision PoE 4 puertos"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Switch Hikvision PoE 4 puertos",
+        "refSku": "SW-POE4",
+        "refPrecio": 35000
+      },
+      {
+        "id": "r5",
+        "condiciones": [],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Fuente switching 2A"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Fuente switching 2A",
+        "refSku": "FTE-2A",
+        "refPrecio": 12000
+      }
+    ]
+  },
+  "acceso": {
+    "nombre": "Control de acceso",
+    "color": "#9333ea",
+    "icono": "ti-fingerprint",
+    "activo": true,
+    "orden": 4,
+    "pasos": [
+      {
+        "id": "tipo_acceso",
+        "titulo": "¿Qué tipo de identificación necesita?",
+        "desc": "",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "tarjeta",
+            "ico": "ti-credit-card",
+            "titulo": "Tarjeta / llavero RFID",
+            "desc": "Acceso con tarjeta de proximidad"
+          },
+          {
+            "id": "huella",
+            "ico": "ti-hand-click",
+            "titulo": "Huella digital",
+            "desc": "Acceso biométrico"
+          },
+          {
+            "id": "facial",
+            "ico": "ti-mood-smile",
+            "titulo": "Reconocimiento facial",
+            "desc": "Máxima seguridad"
+          },
+          {
+            "id": "combinado",
+            "ico": "ti-lock",
+            "titulo": "Combinado",
+            "desc": "Tarjeta + huella o PIN"
+          }
+        ]
+      },
+      {
+        "id": "cant_lectores",
+        "titulo": "¿Cuántos puntos de acceso necesita controlar?",
+        "desc": "Puertas, torniquetes, barreras",
+        "tipo": "numero",
+        "min": 1,
+        "max": 32,
+        "default": 1,
+        "label": "lectores"
+      },
+      {
+        "id": "cant_usuarios",
+        "titulo": "¿Cuántas personas van a usar el sistema?",
+        "desc": "Determina la capacidad del controlador",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "hasta50",
+            "ico": "ti-users",
+            "titulo": "Hasta 50 personas",
+            "desc": "Pequeña empresa"
+          },
+          {
+            "id": "hasta200",
+            "ico": "ti-users-group",
+            "titulo": "50 a 200 personas",
+            "desc": "Empresa mediana"
+          },
+          {
+            "id": "mas200",
+            "ico": "ti-building",
+            "titulo": "Más de 200",
+            "desc": "Gran empresa o edificio"
+          }
+        ]
+      }
+    ],
+    "reglas": [
+      {
+        "id": "r1",
+        "condiciones": [
+          {
+            "campo": "tipo_acceso",
+            "op": "eq",
+            "valor": "tarjeta"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Lector RFID Hikvision DS-K1T804MF"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cant_lectores"
+        },
+        "refNombre": "Lector RFID Hikvision DS-K1T804MF",
+        "refSku": "DS-K1T804MF",
+        "refPrecio": 65000
+      },
+      {
+        "id": "r2",
+        "condiciones": [
+          {
+            "campo": "tipo_acceso",
+            "op": "eq",
+            "valor": "huella"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Lector huella Hikvision DS-K1T805MF"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cant_lectores"
+        },
+        "refNombre": "Lector huella Hikvision DS-K1T805MF",
+        "refSku": "DS-K1T805MF",
+        "refPrecio": 95000
+      },
+      {
+        "id": "r3",
+        "condiciones": [
+          {
+            "campo": "tipo_acceso",
+            "op": "eq",
+            "valor": "facial"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Terminal facial Hikvision DS-K1T341BMF"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cant_lectores"
+        },
+        "refNombre": "Terminal facial Hikvision DS-K1T341BMF",
+        "refSku": "DS-K1T341",
+        "refPrecio": 280000
+      },
+      {
+        "id": "r4",
+        "condiciones": [
+          {
+            "campo": "tipo_acceso",
+            "op": "eq",
+            "valor": "combinado"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Terminal multi Hikvision DS-K1T805BMF"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cant_lectores"
+        },
+        "refNombre": "Terminal multi Hikvision DS-K1T805BMF",
+        "refSku": "DS-K1T805BMF",
+        "refPrecio": 120000
+      },
+      {
+        "id": "r5",
+        "condiciones": [],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Controlador de acceso Hikvision DS-K2602G"
+        },
+        "cantidad": {
+          "modo": "dividido_entre",
+          "variable": "cant_lectores",
+          "divisor": 2,
+          "redondeo": "arriba"
+        },
+        "refNombre": "Controlador de acceso Hikvision DS-K2602G",
+        "refSku": "DS-K2602G",
+        "refPrecio": 135000
+      },
+      {
+        "id": "r6",
+        "condiciones": [],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Chapa eléctrica 12V"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cant_lectores"
+        },
+        "refNombre": "Chapa eléctrica 12V",
+        "refSku": "CHAPA-12V",
+        "refPrecio": 28000
+      },
+      {
+        "id": "r7",
+        "condiciones": [],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Botón de salida"
+        },
+        "cantidad": {
+          "modo": "igual_variable",
+          "variable": "cant_lectores"
+        },
+        "refNombre": "Botón de salida",
+        "refSku": "BOTON-SAL",
+        "refPrecio": 5500
+      },
+      {
+        "id": "r8",
+        "condiciones": [],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Fuente switching 3A"
+        },
+        "cantidad": {
+          "modo": "dividido_entre",
+          "variable": "cant_lectores",
+          "divisor": 2,
+          "redondeo": "arriba"
+        },
+        "refNombre": "Fuente switching 3A",
+        "refSku": "FTE-3A",
+        "refPrecio": 18000
+      },
+      {
+        "id": "r9",
+        "condiciones": [
+          {
+            "campo": "tipo_acceso",
+            "op": "in",
+            "valor": [
+              "tarjeta",
+              "combinado"
+            ]
+          },
+          {
+            "campo": "cant_usuarios",
+            "op": "eq",
+            "valor": "hasta50"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Tarjetas RFID Mifare (pack x10)"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 3
+        },
+        "refNombre": "Tarjetas RFID Mifare (pack x10)",
+        "refSku": "RFID-10",
+        "refPrecio": 8500
+      },
+      {
+        "id": "r10",
+        "condiciones": [
+          {
+            "campo": "tipo_acceso",
+            "op": "in",
+            "valor": [
+              "tarjeta",
+              "combinado"
+            ]
+          },
+          {
+            "campo": "cant_usuarios",
+            "op": "eq",
+            "valor": "hasta200"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Tarjetas RFID Mifare (pack x10)"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 10
+        },
+        "refNombre": "Tarjetas RFID Mifare (pack x10)",
+        "refSku": "RFID-10",
+        "refPrecio": 8500
+      },
+      {
+        "id": "r11",
+        "condiciones": [
+          {
+            "campo": "tipo_acceso",
+            "op": "in",
+            "valor": [
+              "tarjeta",
+              "combinado"
+            ]
+          },
+          {
+            "campo": "cant_usuarios",
+            "op": "eq",
+            "valor": "mas200"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Tarjetas RFID Mifare (pack x10)"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 20
+        },
+        "refNombre": "Tarjetas RFID Mifare (pack x10)",
+        "refSku": "RFID-10",
+        "refPrecio": 8500
+      }
+    ]
+  },
+  "domotica": {
+    "nombre": "Domótica",
+    "color": "#be185d",
+    "icono": "ti-smart-home",
+    "activo": true,
+    "orden": 5,
+    "pasos": [
+      {
+        "id": "tipo_control",
+        "titulo": "¿Qué quiere controlar?",
+        "desc": "Podés seleccionar más de una opción",
+        "tipo": "multi",
+        "opciones": [
+          {
+            "id": "luces",
+            "ico": "ti-bulb",
+            "titulo": "Iluminación",
+            "desc": "Encender/apagar y regular luces"
+          },
+          {
+            "id": "persianas",
+            "ico": "ti-window",
+            "titulo": "Persianas / cortinas",
+            "desc": "Control motorizado de aberturas"
+          },
+          {
+            "id": "enchufes",
+            "ico": "ti-plug",
+            "titulo": "Enchufes inteligentes",
+            "desc": "Control de aparatos por app"
+          },
+          {
+            "id": "clima",
+            "ico": "ti-snowflake",
+            "titulo": "Aire acondicionado",
+            "desc": "Control remoto del AC"
+          },
+          {
+            "id": "puertas",
+            "ico": "ti-door",
+            "titulo": "Puertas / cerraduras",
+            "desc": "Apertura remota"
+          },
+          {
+            "id": "sensores",
+            "ico": "ti-eye",
+            "titulo": "Sensores ambiente",
+            "desc": "Temperatura, humedad, movimiento"
+          }
+        ]
+      },
+      {
+        "id": "cant_puntos",
+        "titulo": "¿Cuántos puntos de control necesita?",
+        "desc": "Por ejemplo: 4 luces + 2 enchufes = 6 puntos",
+        "tipo": "numero",
+        "min": 1,
+        "max": 100,
+        "default": 6,
+        "label": "puntos de control"
+      },
+      {
+        "id": "conexion",
+        "titulo": "¿Cómo se va a controlar?",
+        "desc": "",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "wifi",
+            "ico": "ti-device-mobile",
+            "titulo": "Solo por app (eWeLink)",
+            "desc": "Control desde el celular"
+          },
+          {
+            "id": "voz",
+            "ico": "ti-microphone",
+            "titulo": "App + voz (Alexa/Google)",
+            "desc": "Con asistente de voz"
+          },
+          {
+            "id": "local",
+            "ico": "ti-device-desktop",
+            "titulo": "App + control local (iHost)",
+            "desc": "Funciona sin internet con Sonoff iHost"
+          }
+        ]
+      },
+      {
+        "id": "instalacion",
+        "titulo": "¿Dónde va instalado?",
+        "desc": "",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "residencial",
+            "ico": "ti-home",
+            "titulo": "Residencial",
+            "desc": "Casa, departamento"
+          },
+          {
+            "id": "comercial",
+            "ico": "ti-building",
+            "titulo": "Comercial",
+            "desc": "Local u oficina"
+          },
+          {
+            "id": "nuevo",
+            "ico": "ti-hammer",
+            "titulo": "Construcción nueva",
+            "desc": "Con obra en curso, cableado nuevo"
+          }
+        ]
+      }
+    ],
+    "reglas": [
+      {
+        "id": "r1",
+        "condiciones": [
+          {
+            "campo": "tipo_control",
+            "op": "incluye",
+            "valor": "luces"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sonoff MINI R2 relay inteligente"
+        },
+        "cantidad": {
+          "modo": "proporcional",
+          "variable": "cant_puntos",
+          "multiplicador": 0.5,
+          "redondeo": "arriba",
+          "minimo": 1
+        },
+        "refNombre": "Sonoff MINI R2 relay inteligente",
+        "refSku": "MINI-R2",
+        "refPrecio": 18500
+      },
+      {
+        "id": "r2",
+        "condiciones": [
+          {
+            "campo": "tipo_control",
+            "op": "incluye",
+            "valor": "persianas"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sonoff DUAL R3 control persianas"
+        },
+        "cantidad": {
+          "modo": "proporcional",
+          "variable": "cant_puntos",
+          "multiplicador": 0.2,
+          "redondeo": "abajo",
+          "minimo": 1
+        },
+        "refNombre": "Sonoff DUAL R3 control persianas",
+        "refSku": "DUAL-R3",
+        "refPrecio": 28000
+      },
+      {
+        "id": "r3",
+        "condiciones": [
+          {
+            "campo": "tipo_control",
+            "op": "incluye",
+            "valor": "enchufes"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sonoff S26R2 enchufe inteligente"
+        },
+        "cantidad": {
+          "modo": "proporcional",
+          "variable": "cant_puntos",
+          "multiplicador": 0.3,
+          "redondeo": "arriba",
+          "minimo": 1
+        },
+        "refNombre": "Sonoff S26R2 enchufe inteligente",
+        "refSku": "S26R2",
+        "refPrecio": 12500
+      },
+      {
+        "id": "r4",
+        "condiciones": [
+          {
+            "campo": "tipo_control",
+            "op": "incluye",
+            "valor": "clima"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sonoff IRHVAC control AC por IR"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Sonoff IRHVAC control AC por IR",
+        "refSku": "IRHVAC",
+        "refPrecio": 22000
+      },
+      {
+        "id": "r5",
+        "condiciones": [
+          {
+            "campo": "tipo_control",
+            "op": "incluye",
+            "valor": "puertas"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sonoff SV 5-24V control puerta"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Sonoff SV 5-24V control puerta",
+        "refSku": "SV",
+        "refPrecio": 14500
+      },
+      {
+        "id": "r6",
+        "condiciones": [
+          {
+            "campo": "tipo_control",
+            "op": "incluye",
+            "valor": "sensores"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sonoff SNZB-02 sensor temp/humedad Zigbee"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 2
+        },
+        "refNombre": "Sonoff SNZB-02 sensor temp/humedad Zigbee",
+        "refSku": "SNZB-02",
+        "refPrecio": 15000
+      },
+      {
+        "id": "r7",
+        "condiciones": [
+          {
+            "campo": "tipo_control",
+            "op": "incluye",
+            "valor": "sensores"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sonoff SNZB-03 sensor movimiento Zigbee"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Sonoff SNZB-03 sensor movimiento Zigbee",
+        "refSku": "SNZB-03",
+        "refPrecio": 17500
+      },
+      {
+        "id": "r8",
+        "condiciones": [
+          {
+            "campo": "conexion",
+            "op": "eq",
+            "valor": "local"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sonoff iHost Smart Home Hub local"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Sonoff iHost Smart Home Hub local",
+        "refSku": "IHOST",
+        "refPrecio": 95000
+      },
+      {
+        "id": "r9",
+        "condiciones": [
+          {
+            "campo": "conexion",
+            "op": "neq",
+            "valor": "local"
+          },
+          {
+            "campo": "tipo_control",
+            "op": "incluye",
+            "valor": "sensores"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sonoff Zigbee Bridge Pro"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Sonoff Zigbee Bridge Pro",
+        "refSku": "ZBBRIDGE-P",
+        "refPrecio": 38000
+      },
+      {
+        "id": "r10",
+        "condiciones": [
+          {
+            "campo": "conexion",
+            "op": "neq",
+            "valor": "local"
+          },
+          {
+            "campo": "cant_puntos",
+            "op": "gt",
+            "valor": 8
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Sonoff Zigbee Bridge Pro"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Sonoff Zigbee Bridge Pro",
+        "refSku": "ZBBRIDGE-P",
+        "refPrecio": 38000
+      },
+      {
+        "id": "r11",
+        "condiciones": [
+          {
+            "campo": "conexion",
+            "op": "eq",
+            "valor": "voz"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Amazon Echo Dot (4ta gen) Alexa"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Amazon Echo Dot (4ta gen) Alexa",
+        "refSku": "ECHO-DOT4",
+        "refPrecio": 45000
+      }
+    ]
+  },
+  "redes": {
+    "nombre": "Redes",
+    "color": "#0369a1",
+    "icono": "ti-router",
+    "activo": true,
+    "orden": 6,
+    "pasos": [
+      {
+        "id": "tipo_red",
+        "titulo": "¿Para qué es la red?",
+        "desc": "",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "hogar",
+            "ico": "ti-home",
+            "titulo": "Hogar / residencial",
+            "desc": "Cobertura WiFi en la vivienda"
+          },
+          {
+            "id": "empresa",
+            "ico": "ti-building",
+            "titulo": "Empresa / oficina",
+            "desc": "Red corporativa con gestión"
+          },
+          {
+            "id": "hotel",
+            "ico": "ti-building-skyscraper",
+            "titulo": "Hotel / alquiler",
+            "desc": "Con portal cautivo y gestión de huéspedes"
+          }
+        ]
+      },
+      {
+        "id": "superficie",
+        "titulo": "¿Cuántos m² necesita cubrir?",
+        "desc": "Calculamos la cantidad de access points necesarios",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "hasta150",
+            "ico": "ti-home",
+            "titulo": "Hasta 150 m²",
+            "desc": "1-2 access points"
+          },
+          {
+            "id": "hasta300",
+            "ico": "ti-home-2",
+            "titulo": "150 a 300 m²",
+            "desc": "2-3 access points"
+          },
+          {
+            "id": "hasta600",
+            "ico": "ti-building",
+            "titulo": "300 a 600 m²",
+            "desc": "3-5 access points"
+          },
+          {
+            "id": "mas600",
+            "ico": "ti-building-factory-2",
+            "titulo": "Más de 600 m²",
+            "desc": "6 o más — cotización especial"
+          }
+        ]
+      },
+      {
+        "id": "usuarios_red",
+        "titulo": "¿Cuántos dispositivos se conectan simultáneamente?",
+        "desc": "Celulares, computadoras, cámaras, etc.",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "hasta20",
+            "ico": "ti-device-mobile",
+            "titulo": "Hasta 20",
+            "desc": "Hogar o pequeña oficina"
+          },
+          {
+            "id": "hasta50",
+            "ico": "ti-device-laptop",
+            "titulo": "20 a 50",
+            "desc": "Empresa mediana"
+          },
+          {
+            "id": "mas50",
+            "ico": "ti-device-desktop",
+            "titulo": "Más de 50",
+            "desc": "Red densa — equipos enterprise"
+          }
+        ]
+      },
+      {
+        "id": "gestion",
+        "titulo": "¿Necesita gestión centralizada?",
+        "desc": "Controller Omada para gestionar toda la red desde una sola pantalla",
+        "tipo": "opciones",
+        "opciones": [
+          {
+            "id": "si",
+            "ico": "ti-device-desktop",
+            "titulo": "Sí, con controller",
+            "desc": "Control centralizado de la red"
+          },
+          {
+            "id": "no",
+            "ico": "ti-broadcast",
+            "titulo": "Solo access points",
+            "desc": "Configuración independiente"
+          }
+        ]
+      }
+    ],
+    "reglas": [
+      {
+        "id": "r1",
+        "condiciones": [
+          {
+            "campo": "superficie",
+            "op": "eq",
+            "valor": "hasta150"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Access Point Omada EAP670 WiFi 6"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Access Point Omada EAP670 WiFi 6",
+        "refSku": "EAP670",
+        "refPrecio": 95000
+      },
+      {
+        "id": "r2",
+        "condiciones": [
+          {
+            "campo": "superficie",
+            "op": "eq",
+            "valor": "hasta300"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Access Point Omada EAP670 WiFi 6"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 2
+        },
+        "refNombre": "Access Point Omada EAP670 WiFi 6",
+        "refSku": "EAP670",
+        "refPrecio": 95000
+      },
+      {
+        "id": "r3",
+        "condiciones": [
+          {
+            "campo": "superficie",
+            "op": "eq",
+            "valor": "hasta600"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Access Point Omada EAP670 WiFi 6"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 4
+        },
+        "refNombre": "Access Point Omada EAP670 WiFi 6",
+        "refSku": "EAP670",
+        "refPrecio": 95000
+      },
+      {
+        "id": "r4",
+        "condiciones": [
+          {
+            "campo": "superficie",
+            "op": "eq",
+            "valor": "mas600"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Access Point Omada EAP670 WiFi 6"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 6
+        },
+        "refNombre": "Access Point Omada EAP670 WiFi 6",
+        "refSku": "EAP670",
+        "refPrecio": 95000
+      },
+      {
+        "id": "r5",
+        "condiciones": [
+          {
+            "campo": "gestion",
+            "op": "eq",
+            "valor": "si"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Controller Omada OC200"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Controller Omada OC200",
+        "refSku": "OC200",
+        "refPrecio": 85000
+      },
+      {
+        "id": "r6",
+        "condiciones": [
+          {
+            "campo": "gestion",
+            "op": "eq",
+            "valor": "si"
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Router Omada ER605"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Router Omada ER605",
+        "refSku": "ER605",
+        "refPrecio": 110000
+      },
+      {
+        "id": "r7",
+        "condiciones": [
+          {
+            "campo": "superficie",
+            "op": "in",
+            "valor": [
+              "hasta300",
+              "hasta600",
+              "mas600"
+            ]
+          }
+        ],
+        "accion": {
+          "tipo": "buscar_db",
+          "clave": "Switch PoE Omada TL-SG2210P 8 puertos"
+        },
+        "cantidad": {
+          "modo": "fija",
+          "valor": 1
+        },
+        "refNombre": "Switch PoE Omada TL-SG2210P 8 puertos",
+        "refSku": "TL-SG2210P",
+        "refPrecio": 78000
+      }
+    ]
+  }
+};
 
 var ASIST_RUBROS = {
   alarmas: {
