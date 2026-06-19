@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v18.0 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v18.1 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5440,27 +5440,46 @@ function doLogoutAutomatico() {
 }
 
 function _ejecutarLogout() {
+  // 1. Volver al dashboard ANTES de ocultar la app, para que el próximo
+  //    usuario que inicie sesión siempre arranque en dashboard, sin importar
+  //    en qué módulo estaba el usuario anterior.
+  try {
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+    var dash = document.getElementById('page-dashboard');
+    if (dash) dash.classList.add('active');
+    var navDash = document.querySelector('[onclick*="dashboard"]');
+    if (navDash) navDash.classList.add('active');
+  } catch(e) {}
+
+  // 2. Cerrar sesión en Firebase Auth
   if (window.fbAuth && window.fbSignOut) {
     window.fbSignOut(window.fbAuth).catch(function(){});
   }
+
+  // 3. Limpiar estado de sesión — NO dejar currentRole en 'admin' entre usuarios
   isAuthenticated = false;
-  currentRole = 'admin';
+  currentUser = '';
+  currentRole = '';
+
   if (typeof stopSessionTimer === 'function') stopSessionTimer();
   if (typeof cerrarUserPanel === 'function') cerrarUserPanel();
-  // Ocultar pantalla de carga si quedó visible
+  _ocultarDropGlobal && _ocultarDropGlobal();
+
+  // 4. Ocultar la app y mostrar el login
   var loading = document.getElementById('screen-loading');
   if (loading) loading.style.display = 'none';
-  // Volver al login
   document.getElementById('screen-app').classList.remove('visible');
   document.getElementById('screen-login').style.display = '';
-  // Limpiar campos
+
+  // 5. Limpiar campos del login
   var lu = document.getElementById('l-user');
   var lp = document.getElementById('l-pass');
   if (lu) lu.value = '';
   if (lp) lp.value = '';
   var err = document.getElementById('login-error');
   if (err) err.style.display = 'none';
-  // Restablecer botón Ingresar
+
   if (typeof window._resetLoginBtn === 'function') window._resetLoginBtn();
   notify('Sesión cerrada');
 }
@@ -5660,7 +5679,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v18.0-firebase',
+  VERSION: 'v18.1-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
