@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v17.7 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v17.9 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5621,7 +5621,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v17.7-firebase',
+  VERSION: 'v17.9-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7765,7 +7765,7 @@ function cambiarPassword() {
 
 function resetSessionTimer() {
   clearTimeout(sessionTimer);
-  sessionStart = Date.now(); // reiniciar el contador visual también
+  // NO reiniciar sessionStart — ese es el tiempo activo desde el login, no el de inactividad
   sessionTimer = setTimeout(function() {
     notify('Sesión expirada por inactividad');
     setTimeout(doLogoutAutomatico, 2000);
@@ -17146,71 +17146,134 @@ function crearFilaProducto(cod, desc, precio, qty) {
 }
 
 // Abrir el dropdown selector de un producto
-function abrirSelectorProducto(selectorEl) {
-  // Cerrar todos los otros abiertos
-  document.querySelectorAll('.prod-search-drop').forEach(d => {
-    if (d !== selectorEl.nextElementSibling) d.style.display = 'none';
+// ══════════════════════════════════════════════
+// DROPDOWN GLOBAL DE PRODUCTOS — position:fixed
+// Solución definitiva: un único dropdown fuera de la tabla,
+// posicionado con getBoundingClientRect() para no ser cortado
+// por ningún ancestro con overflow.
+// ══════════════════════════════════════════════
+var _prodDropTR = null; // fila actualmente asociada al dropdown
+
+function _crearDropGlobal() {
+  if (document.getElementById('prod-drop-global')) return;
+  var d = document.createElement('div');
+  d.id = 'prod-drop-global';
+  d.style.cssText = 'display:none;position:fixed;z-index:9999;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);box-shadow:0 4px 20px rgba(0,0,0,.18);min-width:300px;max-width:480px;overflow:hidden';
+  d.innerHTML =
+    '<div style="padding:7px 10px;border-bottom:0.5px solid var(--border)">' +
+      '<input id="prod-drop-inp" placeholder="Buscar por código o nombre..." autocomplete="off" ' +
+        'style="width:100%;border:none;background:transparent;font-size:12px;font-family:inherit;outline:none;color:var(--text)">' +
+    '</div>' +
+    '<div id="prod-drop-list" style="max-height:240px;overflow-y:auto"></div>';
+  document.body.appendChild(d);
+
+  document.getElementById('prod-drop-inp').addEventListener('input', function() {
+    _renderDropGlobal(this.value);
   });
-  const drop = selectorEl.nextElementSibling;
-  const isOpen = drop.style.display === 'block';
-  drop.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) {
-    const inp = drop.querySelector('.prod-search-inp');
-    if (inp) { inp.value = ''; inp.focus(); }
-    renderDropProductos(drop.querySelector('.prod-drop-list'), '');
+  // Cerrar al hacer click fuera
+  document.addEventListener('mousedown', function(e) {
+    var drop = document.getElementById('prod-drop-global');
+    if (drop && !drop.contains(e.target) && !e.target.closest('.prod-selector')) {
+      drop.style.display = 'none';
+      _prodDropTR = null;
+    }
+  });
+  // Cerrar al hacer scroll
+  window.addEventListener('scroll', function() {
+    var drop = document.getElementById('prod-drop-global');
+    if (drop) drop.style.display = 'none';
+    _prodDropTR = null;
+  }, true);
+}
+
+function abrirSelectorProducto(selectorEl) {
+  _crearDropGlobal();
+  var drop = document.getElementById('prod-drop-global');
+  var inp = document.getElementById('prod-drop-inp');
+  var tr = selectorEl.closest('tr');
+
+  // Si ya está abierto para esta misma fila, cerrar
+  if (drop.style.display === 'block' && _prodDropTR === tr) {
+    drop.style.display = 'none';
+    _prodDropTR = null;
+    return;
   }
+
+  _prodDropTR = tr;
+
+  // Posicionar bajo el botón
+  var rect = selectorEl.getBoundingClientRect();
+  drop.style.top  = (rect.bottom + 4) + 'px';
+  drop.style.left = rect.left + 'px';
+
+  // Ajustar si sale de la pantalla por la derecha
+  drop.style.display = 'block';
+  var dropRect = drop.getBoundingClientRect();
+  if (dropRect.right > window.innerWidth - 8) {
+    drop.style.left = Math.max(8, window.innerWidth - dropRect.width - 8) + 'px';
+  }
+  // Ajustar si sale por abajo
+  if (dropRect.bottom > window.innerHeight - 8) {
+    drop.style.top = Math.max(8, rect.top - dropRect.height - 4) + 'px';
+  }
+
+  if (inp) { inp.value = ''; inp.focus(); }
+  _renderDropGlobal('');
 }
 
-// Renderizar la lista de productos en el dropdown
-function renderDropProductos(listEl, filtro) {
+function _renderDropGlobal(filtro) {
+  var listEl = document.getElementById('prod-drop-list');
   if (!listEl || !prodData) return;
-  const f = filtro.toLowerCase();
-  const items = Object.values(prodData).filter(p =>
-    !f || p.codigo.toLowerCase().includes(f) || p.descripcion.toLowerCase().includes(f)
-  );
-  listEl.innerHTML = items.length ? items.map(p => {
-    const stk = stockData[p.codigo] || { real:0, reservado:0 };
-    const disp = stk.real - stk.reservado;
-    const stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--text3)';
-    return `<div class="prod-drop-item" onmousedown="selProductoEnFila(this,'${p.codigo}','${p.descripcion.replace(/'/g,"\'")}',${p.venta||0})">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;color:var(--text)">${escapeHTML(p.codigo)} — ${escapeHTML(p.descripcion)}</div>
-        <div style="font-size:11px;color:var(--text3)">$${(p.venta||0).toLocaleString('es-AR')} · <span style="color:${stkColor}">${disp} disp.</span></div>
-      </div>
-    </div>`;
-  }).join('') : '<div style="padding:12px;font-size:12px;color:var(--text3);text-align:center">Sin resultados</div>';
+  var f = filtro.toLowerCase().trim();
+  var items = Object.values(prodData).filter(function(p) {
+    if (!f) return true;
+    return (p.codigo||'').toLowerCase().includes(f) || (p.descripcion||'').toLowerCase().includes(f) || (p.nombre||'').toLowerCase().includes(f);
+  }).slice(0, 80);
+
+  listEl.innerHTML = items.length ? items.map(function(p) {
+    var stk = stockData ? (stockData[p.codigo] || {real:0, reservado:0}) : {real:0, reservado:0};
+    var disp = stk.real - stk.reservado;
+    var stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--text3)';
+    return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.descripcion||p.nombre||'')+'" data-precio="'+(p.venta||0)+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
+      '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' — '+escapeHTML(p.descripcion||p.nombre||'')+'</div>' +
+      '<div style="font-size:11px;color:var(--text3)">$'+(parseFloat(p.venta)||0).toLocaleString('es-AR')+' · <span style="color:'+stkColor+'">'+disp+' disp.</span></div>' +
+    '</div>';
+  }).join('') : '<div style="padding:14px;font-size:12px;color:var(--text3);text-align:center">Sin resultados</div>';
 }
 
-// Filtrar al escribir en el buscador del dropdown
-function filtrarSelectorProducto(inp) {
-  const listEl = inp.closest('.prod-search-drop').querySelector('.prod-drop-list');
-  renderDropProductos(listEl, inp.value);
-}
+function _selProdGlobal(item) {
+  var cod    = item.dataset.cod;
+  var desc   = item.dataset.desc;
+  var precio = parseFloat(item.dataset.precio) || 0;
 
-// Seleccionar un producto desde el dropdown
-function selProductoEnFila(item, cod, desc, precio) {
-  const tr = item.closest('tr');
-  const drop = item.closest('.prod-search-drop');
-  // Actualizar el selector visual
-  const selCod = tr.querySelector('.prod-sel-cod');
-  if (selCod) selCod.textContent = cod;
-  // Actualizar descripción
-  const descTxt = tr.querySelector('.desc-txt');
-  if (descTxt) descTxt.textContent = desc;
-  // Actualizar precio
-  const priceInp = tr.querySelector('.price');
-  if (priceInp) { priceInp.value = precio; }
-  // Cerrar dropdown
+  if (_prodDropTR) {
+    var tr = _prodDropTR;
+    var selCod   = tr.querySelector('.prod-sel-cod');
+    var descTxt  = tr.querySelector('.desc-txt');
+    var priceInp = tr.querySelector('.price');
+    var ppPrice  = tr.querySelector('.ppprice');
+    if (selCod)   selCod.textContent = cod;
+    if (descTxt)  descTxt.textContent = desc;
+    if (priceInp) { priceInp.value = precio; }
+    if (ppPrice)  { ppPrice.value = precio; }
+    var qtyInp = tr.querySelector('.qty');
+    if (qtyInp) { calcRow(qtyInp); if (typeof actualizarStockFila === 'function') actualizarStockFila(qtyInp); }
+    if (typeof calcPpTotales === 'function') calcPpTotales();
+  }
+
+  var drop = document.getElementById('prod-drop-global');
   if (drop) drop.style.display = 'none';
-  // Recalcular
-  const qtyInp = tr.querySelector('.qty');
-  if (qtyInp) { calcRow(qtyInp); actualizarStockFila(qtyInp); }
+  _prodDropTR = null;
 }
 
-// Cerrar dropdowns al hacer click fuera
+// Mantener compatibilidad con llamadas legacy de filtrarSelectorProducto / selProductoEnFila
+function filtrarSelectorProducto(inp) { _renderDropGlobal(inp.value); }
+function selProductoEnFila(item, cod, desc, precio) { _selProdGlobal(item); }
+
+// Cerrar dropdowns al hacer click fuera — versión legacy, ahora cubierta por el listener global
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.prod-selector') && !e.target.closest('.prod-search-drop')) {
-    document.querySelectorAll('.prod-search-drop').forEach(d => d.style.display = 'none');
+    document.querySelectorAll('.prod-search-drop').forEach(function(d){ d.style.display = 'none'; });
   }
 });
 
