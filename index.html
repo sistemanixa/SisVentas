@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v17.4 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v17.6 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2552,29 +2552,127 @@ tr:hover td{color:var(--text)}
 
       <!-- ── SOPORTE / RECLAMOS ── -->
       <div id="page-soporte" class="page">
-        <div class="metrics" style="grid-template-columns:repeat(4,1fr)">
-          <div class="metric"><div class="m-label">Tickets abiertos</div><div class="m-value" id="sp-abiertos">0</div><div class="m-sub">—</div></div>
-          <div class="metric"><div class="m-label">En curso</div><div class="m-value" id="sp-encurso">0</div><div class="m-sub">—</div></div>
-          <div class="metric"><div class="m-label">Cerrados este mes</div><div class="m-value" id="sp-cerrados">0</div><div class="m-sub">—</div></div>
-          <div class="metric"><div class="m-label">Mantenimientos</div><div class="m-value" id="sp-mant">0</div><div class="m-sub">—</div></div>
+
+        <!-- Métricas -->
+        <div class="metrics" style="grid-template-columns:repeat(5,1fr)">
+          <div class="metric" style="cursor:pointer" onclick="spFiltrar('nuevo')">
+            <div class="m-label">Nuevos</div>
+            <div class="m-value" id="sp-cnt-nuevo" style="color:var(--blue)">0</div>
+            <div class="m-sub">sin atender</div>
+          </div>
+          <div class="metric" style="cursor:pointer" onclick="spFiltrar('diagnostico')">
+            <div class="m-label">En diagnóstico</div>
+            <div class="m-value" id="sp-cnt-diagnostico" style="color:var(--amber)">0</div>
+            <div class="m-sub">revisión remota</div>
+          </div>
+          <div class="metric" style="cursor:pointer" onclick="spFiltrar('visita')">
+            <div class="m-label">Visita requerida</div>
+            <div class="m-value" id="sp-cnt-visita" style="color:var(--red)">0</div>
+            <div class="m-sub">esperando técnico</div>
+          </div>
+          <div class="metric" style="cursor:pointer" onclick="spFiltrar('ot_activa')">
+            <div class="m-label">OT activa</div>
+            <div class="m-value" id="sp-cnt-ot_activa" style="color:var(--purple)">0</div>
+            <div class="m-sub">técnico asignado</div>
+          </div>
+          <div class="metric" style="cursor:pointer" onclick="spFiltrar('')">
+            <div class="m-label">Cerrados mes</div>
+            <div class="m-value" id="sp-cnt-cerrado" style="color:var(--green)">0</div>
+            <div class="m-sub">este mes</div>
+          </div>
         </div>
+
+        <!-- Lista principal -->
         <div class="card">
           <div class="card-head">
-            <span class="card-title">Tickets de soporte</span>
-            <button class="btn btn-sm btn-primary" onclick="abrirModalNuevo('ticket')"><i class="ti ti-plus"></i> Nuevo ticket</button>
+            <span class="card-title">Reclamos y soporte</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="sp-filtro-estado" class="search-input" style="width:160px" onchange="spRenderLista()">
+                <option value="">Todos los estados</option>
+                <option value="nuevo">Nuevos</option>
+                <option value="diagnostico">En diagnóstico</option>
+                <option value="visita">Visita requerida</option>
+                <option value="ot_activa">OT activa</option>
+                <option value="cerrado">Cerrados</option>
+              </select>
+              <button class="btn btn-sm btn-primary" onclick="spAbrirNuevo()"><i class="ti ti-plus"></i> Nuevo reclamo</button>
+            </div>
           </div>
-          <table>
-            <thead><tr><th>N°</th><th>Descripción</th><th>Cliente</th><th>Equipo</th><th>Técnico</th><th style="text-align:right">Prioridad</th><th style="text-align:right">Estado</th></tr></thead>
-            <tbody><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin tickets registrados</td></tr></tbody>
-          </table>
+          <div id="sp-lista" style="display:flex;flex-direction:column;gap:0"></div>
         </div>
-        <div class="card">
-          <div class="card-head"><span class="card-title">Mantenimientos programados</span><button class="btn btn-sm btn-primary" onclick="abrirModalNuevo('evento')"><i class="ti ti-plus"></i> Programar</button></div>
-          <table>
-            <thead><tr><th>Equipo</th><th>Cliente</th><th>Fecha</th><th>Técnico</th><th style="text-align:right">Frecuencia</th><th style="text-align:right">Estado</th></tr></thead>
-            <tbody><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Sin mantenimientos programados</td></tr></tbody>
-          </table>
+
+        <!-- Modal de detalle/gestión de un reclamo -->
+        <div id="sp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center">
+          <div style="background:var(--bg2);border-radius:var(--radius-lg);width:min(96vw,600px);max-height:90vh;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px">
+
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:15px;font-weight:600" id="sp-modal-titulo">Reclamo</span>
+              <button class="btn btn-sm btn-icon" onclick="spCerrarModal()"><i class="ti ti-x"></i></button>
+            </div>
+
+            <!-- Datos del reclamo -->
+            <div style="background:var(--bg3);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:12px;color:var(--text3);min-width:80px">Cliente</span>
+                <span id="sp-modal-cliente" style="font-weight:500"></span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:flex-start">
+                <span style="font-size:12px;color:var(--text3);min-width:80px">Problema</span>
+                <span id="sp-modal-desc" style="font-size:13px"></span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:12px;color:var(--text3);min-width:80px">Ingresó</span>
+                <span id="sp-modal-fecha" style="font-size:13px"></span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:12px;color:var(--text3);min-width:80px">Estado</span>
+                <span id="sp-modal-estado-badge"></span>
+                <span id="sp-modal-ot-link" style="display:none;margin-left:8px"></span>
+              </div>
+            </div>
+
+            <!-- Historial de notas -->
+            <div>
+              <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Historial</div>
+              <div id="sp-modal-historial" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"></div>
+            </div>
+
+            <!-- Agregar nota -->
+            <div style="display:flex;gap:8px">
+              <input id="sp-modal-nota" type="text" placeholder="Agregar nota o diagnóstico remoto..." style="flex:1">
+              <button class="btn btn-sm btn-primary" onclick="spAgregarNota()"><i class="ti ti-send"></i></button>
+            </div>
+
+            <!-- Acciones de cambio de estado -->
+            <div id="sp-modal-acciones" style="display:flex;flex-direction:column;gap:8px;border-top:0.5px solid var(--border);padding-top:14px"></div>
+
+          </div>
         </div>
+
+        <!-- Modal de nuevo reclamo -->
+        <div id="sp-modal-nuevo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center">
+          <div style="background:var(--bg2);border-radius:var(--radius-lg);width:min(96vw,480px);padding:24px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:15px;font-weight:600">Nuevo reclamo</span>
+              <button class="btn btn-sm btn-icon" onclick="_hide('sp-modal-nuevo')"><i class="ti ti-x"></i></button>
+            </div>
+            <div class="fg full"><label>Cliente</label>
+              <div class="sw" style="position:relative">
+                <input id="sp-nuevo-cli" type="text" placeholder="Buscar cliente..." autocomplete="off" oninput="spBuscarCliente(this.value)">
+                <div id="sp-nuevo-cli-drop" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);z-index:300;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:200px;overflow-y:auto"></div>
+              </div>
+            </div>
+            <input id="sp-nuevo-cli-id" type="hidden">
+            <div class="fg full"><label>Descripción del problema</label>
+              <textarea id="sp-nuevo-desc" rows="3" placeholder="¿Qué está pasando? Describí el problema que reporta el cliente..." style="resize:vertical"></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px">
+              <button class="btn btn-sm" onclick="_hide('sp-modal-nuevo')">Cancelar</button>
+              <button class="btn btn-sm btn-primary" onclick="spGuardarNuevo()"><i class="ti ti-check"></i> Registrar reclamo</button>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- ── EQUIPOS INSTALADOS ── -->
@@ -5522,7 +5620,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v17.4-firebase',
+  VERSION: 'v17.6-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5915,6 +6013,7 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
+  if (typeof spCargar === 'function') setTimeout(spCargar, 400);
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); setTimeout(applyRole, 400); }, 400);
   if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
@@ -10163,11 +10262,382 @@ function guardarGarantia(datos) {
     .then(function(){ notify('Garantía registrada'); });
 }
 
+// ══════════════════════════════════════════════
+// MÓDULO SOPORTE / RECLAMOS — flujo unificado
+// Ruta Firebase: sisventas/reclamos
+// ══════════════════════════════════════════════
+var SP_DATA = {};   // espejo en memoria
+var SP_MODAL_KEY = null;  // fbKey del reclamo abierto en modal
+
+var SP_ESTADOS = {
+  nuevo:       { label:'Nuevo',            color:'var(--blue)',   badge:'b-blue'   },
+  diagnostico: { label:'En diagnóstico',   color:'var(--amber)',  badge:'b-amber'  },
+  visita:      { label:'Visita requerida', color:'var(--red)',    badge:'b-red'    },
+  ot_activa:   { label:'OT activa',        color:'var(--purple)', badge:'b-purple' },
+  cerrado:     { label:'Cerrado',          color:'var(--green)',  badge:'b-green'  }
+};
+
+function spCargar() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/reclamos'), function(snap) {
+    var data = snap.val() || {};
+    SP_DATA = {};
+    Object.entries(data).forEach(function(e) { SP_DATA[e[0]] = Object.assign({ fbKey: e[0] }, e[1]); });
+    spRenderLista();
+    spActualizarMetricas();
+  });
+}
+
+function spActualizarMetricas() {
+  var hoyMes = new Date().getMonth();
+  var hoyAnio = new Date().getFullYear();
+  var cnts = { nuevo:0, diagnostico:0, visita:0, ot_activa:0, cerrado:0 };
+  Object.values(SP_DATA).forEach(function(r) {
+    if (r.estado === 'cerrado') {
+      var f = new Date(r.ts||0);
+      if (f.getMonth() === hoyMes && f.getFullYear() === hoyAnio) cnts.cerrado++;
+    } else {
+      cnts[r.estado] = (cnts[r.estado]||0) + 1;
+    }
+  });
+  Object.keys(cnts).forEach(function(k) {
+    var el = document.getElementById('sp-cnt-' + k);
+    if (el) el.textContent = cnts[k];
+  });
+}
+
+function spFiltrar(estado) {
+  var sel = document.getElementById('sp-filtro-estado');
+  if (sel) sel.value = estado;
+  spRenderLista();
+}
+
+function spRenderLista() {
+  var cont = document.getElementById('sp-lista');
+  if (!cont) return;
+  var filtro = (document.getElementById('sp-filtro-estado')||{}).value || '';
+
+  var lista = Object.values(SP_DATA).filter(function(r) {
+    if (!filtro) return r.estado !== 'cerrado'; // por defecto oculta cerrados
+    return r.estado === filtro;
+  });
+  lista.sort(function(a,b) { return (b.ts||0)-(a.ts||0); });
+
+  if (!lista.length) {
+    cont.innerHTML = '<div style="padding:28px;text-align:center;color:var(--text3);font-size:13px">Sin reclamos' + (filtro?' con ese estado':' abiertos') + '</div>';
+    return;
+  }
+
+  cont.innerHTML = lista.map(function(r) {
+    var est = SP_ESTADOS[r.estado] || SP_ESTADOS.nuevo;
+    var ultimaNota = (r.historial||[]).slice(-1)[0];
+    var notaTxt = ultimaNota ? escapeHTML(ultimaNota.texto||'') : '';
+    var otLink = r.otKey ? '<span style="font-size:11px;color:var(--purple)">OT vinculada</span>' : '';
+    return '<div onclick="spAbrirModal(\'' + r.fbKey + '\')" style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:0.5px solid var(--border);cursor:pointer" class="cr">' +
+      '<div style="width:8px;height:8px;border-radius:50%;background:' + est.color + ';flex-shrink:0"></div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-weight:500;font-size:13px">' + escapeHTML(r.cliente||'Sin cliente') + '</div>' +
+        '<div style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(r.descripcion||'') + '</div>' +
+        (notaTxt ? '<div style="font-size:11px;color:var(--text2);margin-top:2px">↳ ' + notaTxt + '</div>' : '') +
+      '</div>' +
+      '<div style="flex-shrink:0;text-align:right">' +
+        '<span class="badge ' + est.badge + '" style="font-size:10px">' + est.label + '</span>' + otLink +
+        '<div style="font-size:11px;color:var(--text3);margin-top:4px">' + spFormatFecha(r.ts) + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function spFormatFecha(ts) {
+  if (!ts) return '';
+  var d = new Date(ts);
+  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ── NUEVO RECLAMO ──
+function spAbrirNuevo() {
+  document.getElementById('sp-nuevo-cli').value = '';
+  document.getElementById('sp-nuevo-cli-id').value = '';
+  document.getElementById('sp-nuevo-desc').value = '';
+  document.getElementById('sp-modal-nuevo').style.display = 'flex';
+}
+
+function spBuscarCliente(val) {
+  var drop = document.getElementById('sp-nuevo-cli-drop');
+  if (!val || val.length < 2) { drop.style.display = 'none'; return; }
+  var matches = (clientesData||[]).filter(function(c) {
+    return (c.nombre||'').toLowerCase().includes(val.toLowerCase());
+  }).slice(0,6);
+  if (!matches.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = matches.map(function(c) {
+    return '<div class="di" style="padding:8px 12px;cursor:pointer;font-size:13px" onclick="spSelCliente(\'' +
+      escapeHTML(c.nombre||'') + '\',\'' + escapeHTML(c.fbKey||c.id||'') + '\')">' + escapeHTML(c.nombre||'') + '</div>';
+  }).join('');
+  drop.style.display = 'block';
+}
+
+function spSelCliente(nombre, id) {
+  document.getElementById('sp-nuevo-cli').value = nombre;
+  document.getElementById('sp-nuevo-cli-id').value = id;
+  document.getElementById('sp-nuevo-cli-drop').style.display = 'none';
+}
+
+function spGuardarNuevo() {
+  var cli = document.getElementById('sp-nuevo-cli').value.trim();
+  var desc = document.getElementById('sp-nuevo-desc').value.trim();
+  if (!cli) { notify('Ingresá el cliente'); return; }
+  if (!desc) { notify('Ingresá la descripción del problema'); return; }
+
+  var reclamo = {
+    cliente:     cli,
+    clienteId:   document.getElementById('sp-nuevo-cli-id').value,
+    descripcion: desc,
+    estado:      'nuevo',
+    ts:          Date.now(),
+    usuario:     currentUser||'',
+    historial:   [{ texto:'Reclamo registrado', autor: currentUser||'sistema', ts: Date.now() }]
+  };
+
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  window.fbPush(window.fbRef(window.fbDB, 'sisventas/reclamos'), reclamo)
+    .then(function() {
+      notify('✓ Reclamo registrado');
+      document.getElementById('sp-modal-nuevo').style.display = 'none';
+    })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+// ── MODAL DE GESTIÓN ──
+function spAbrirModal(fbKey) {
+  var r = SP_DATA[fbKey];
+  if (!r) return;
+  SP_MODAL_KEY = fbKey;
+
+  var est = SP_ESTADOS[r.estado] || SP_ESTADOS.nuevo;
+  document.getElementById('sp-modal-titulo').textContent = 'Reclamo — ' + (r.cliente||'');
+  document.getElementById('sp-modal-cliente').textContent = r.cliente||'—';
+  document.getElementById('sp-modal-desc').textContent = r.descripcion||'—';
+  document.getElementById('sp-modal-fecha').textContent = spFormatFecha(r.ts);
+  document.getElementById('sp-modal-estado-badge').innerHTML = '<span class="badge '+est.badge+'">'+est.label+'</span>';
+
+  // Link a OT y venta si existen
+  var otLinkEl = document.getElementById('sp-modal-ot-link');
+  if (r.otKey || r.ventaKey) {
+    otLinkEl.style.display = '';
+    var links = '';
+    if (r.otKey) links += '<button class="btn btn-sm" onclick="spVerOT(\''+r.otKey+'\')"><i class="ti ti-file-text" style="font-size:13px"></i> Ver OT</button> ';
+    if (r.ventaKey) links += '<button class="btn btn-sm" onclick="spVerVenta(\''+r.ventaId+'\')"><i class="ti ti-receipt" style="font-size:13px"></i> Ver venta '+(r.ventaId||'')+'</button>';
+    otLinkEl.innerHTML = links;
+  } else {
+    otLinkEl.style.display = 'none';
+  }
+
+  // Historial
+  var hist = r.historial || [];
+  var histEl = document.getElementById('sp-modal-historial');
+  histEl.innerHTML = hist.map(function(h) {
+    return '<div style="background:var(--bg3);border-radius:var(--radius);padding:8px 12px">' +
+      '<div style="font-size:12px">' + escapeHTML(h.texto||'') + '</div>' +
+      '<div style="font-size:10px;color:var(--text3);margin-top:2px">' + escapeHTML(h.autor||'') + ' · ' + spFormatFecha(h.ts) + '</div>' +
+    '</div>';
+  }).join('') || '<div style="text-align:center;color:var(--text3);font-size:12px;padding:12px">Sin notas todavía</div>';
+  histEl.scrollTop = histEl.scrollHeight;
+
+  // Acciones según estado
+  spRenderAcciones(r.estado);
+  document.getElementById('sp-modal').style.display = 'flex';
+}
+
+function spCerrarModal() {
+  document.getElementById('sp-modal').style.display = 'none';
+  SP_MODAL_KEY = null;
+}
+
+function spRenderAcciones(estado) {
+  var cont = document.getElementById('sp-modal-acciones');
+  var btns = [];
+
+  if (estado === 'nuevo') {
+    btns.push('<button class="btn btn-sm btn-primary" onclick="spCambiarEstado(\'diagnostico\')"><i class="ti ti-search"></i> Tomar diagnóstico remoto</button>');
+    btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--green)"><i class="ti ti-check"></i> Resolver sin visita (cerrar)</button>');
+  }
+  if (estado === 'diagnostico') {
+    btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--green)"><i class="ti ti-check"></i> Resuelto de forma remota (cerrar)</button>');
+    btns.push('<button class="btn btn-sm" onclick="spSolicitarVisita()" style="color:var(--red)"><i class="ti ti-truck"></i> Requiere visita técnica</button>');
+  }
+  if (estado === 'visita') {
+    btns.push('<button class="btn btn-sm btn-primary" onclick="spGenerarOT()"><i class="ti ti-file-plus"></i> Generar OT y asignar técnico</button>');
+  }
+  if (estado === 'ot_activa') {
+    btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--green)"><i class="ti ti-check"></i> Marcar como resuelto (cerrar)</button>');
+  }
+  if (estado !== 'cerrado') {
+    btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--text3);margin-top:4px"><i class="ti ti-x"></i> Cerrar sin resolver</button>');
+  }
+
+  cont.innerHTML = btns.join('');
+}
+
+function spAgregarNota() {
+  var inp = document.getElementById('sp-modal-nota');
+  var texto = inp.value.trim();
+  if (!texto || !SP_MODAL_KEY) return;
+  var r = SP_DATA[SP_MODAL_KEY];
+  var hist = r.historial ? r.historial.slice() : [];
+  hist.push({ texto, autor: currentUser||'sistema', ts: Date.now() });
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/reclamos/' + SP_MODAL_KEY), { historial: hist })
+    .then(function(){ inp.value = ''; notify('✓ Nota agregada'); })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+function spCambiarEstado(nuevoEstado, extraDatos) {
+  if (!SP_MODAL_KEY) return;
+  var r = SP_DATA[SP_MODAL_KEY];
+  var hist = r.historial ? r.historial.slice() : [];
+  var est = SP_ESTADOS[nuevoEstado];
+  hist.push({ texto: 'Estado cambiado a: ' + (est?est.label:nuevoEstado), autor: currentUser||'sistema', ts: Date.now() });
+  var update = Object.assign({ estado: nuevoEstado, historial: hist }, extraDatos||{});
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/reclamos/' + SP_MODAL_KEY), update)
+    .then(function(){
+      notify('✓ ' + (est?est.label:'Estado actualizado'));
+      if (nuevoEstado === 'cerrado') spCerrarModal();
+    })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+function spSolicitarVisita() {
+  spCambiarEstado('visita');
+}
+
+function spGenerarOT() {
+  if (!SP_MODAL_KEY) return;
+  var r = SP_DATA[SP_MODAL_KEY];
+
+  // Paso 1: buscar producto de visita técnica / mano de obra en el catálogo
+  var prods = prodData ? Object.values(prodData) : [];
+  var prodVisita = prods.find(function(p) {
+    var nombre = (p.nombre||p.descripcion||'').toLowerCase();
+    return p.esManoDeObra || nombre.includes('visita') || nombre.includes('técnica') || nombre.includes('mano de obra');
+  });
+
+  if (!prodVisita) {
+    notify('No se encontró un producto de visita técnica en el catálogo. Cargá uno con la opción "Es mano de obra" activada.');
+    return;
+  }
+
+  // Paso 2: pedir técnico
+  var tecnicos = Object.values(empData||{}).filter(function(e){
+    return e.activo !== false;
+  });
+  var opciones = tecnicos.length
+    ? tecnicos.map(function(t,i){ return i+') '+t.nombre; }).join('\n')
+    : '(sin empleados cargados)';
+  var selIdx = prompt('Elegí el técnico asignado:\n' + opciones);
+  if (selIdx === null) return; // canceló
+  var tecnico = (tecnicos[parseInt(selIdx)]) ? tecnicos[parseInt(selIdx)].nombre : 'Sin asignar';
+
+  // Paso 3: armar la venta con la visita técnica como ítem
+  var punit = parseFloat(prodVisita.venta) || 0;
+  var sub = punit;
+  var iva = Math.round(sub * ((parseFloat(prodVisita.iva)||21)/100));
+  var total = sub + iva;
+  var ventaId = '#SP-' + String(Date.now()).slice(-5);
+  var fechaHoy = new Date().toISOString().split('T')[0];
+
+  var nuevaVenta = {
+    id:         ventaId,
+    cliente:    r.cliente||'',
+    clienteId:  r.clienteId||'',
+    empleado:   tecnico,
+    fecha:      fechaHoy,
+    estadoPago: 'pendiente_pago',
+    estadoInst: 'pendiente_inst',
+    origen:     'reclamo',
+    reclamoKey: SP_MODAL_KEY,
+    items: [{
+      cod:   prodVisita.codigo||'',
+      desc:  prodVisita.nombre||prodVisita.descripcion||'Visita técnica',
+      qty:   1,
+      punit: punit,
+      sub:   sub
+    }],
+    subtotal: sub,
+    iva:      iva,
+    total:    total,
+    pagos:    [],
+    obs:      'Generada desde reclamo: ' + (r.descripcion||''),
+    audit: [{ fecha: fechaHoy, usuario: currentUser||'Sistema', accion: 'Venta creada automáticamente desde reclamo de soporte' }]
+  };
+
+  // Paso 4: guardar venta en Firebase, luego crear OT vinculada
+  window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), nuevaVenta)
+    .then(function(ventaRef) {
+      var ventaFbKey = ventaRef.key;
+      nuevaVenta.fbKey = ventaFbKey;
+
+      // Paso 5: crear la OT vinculada a esa venta
+      var ot = {
+        id:          'OT-R' + String(Date.now()).slice(-5),
+        ventaId:     ventaId,
+        ventaFbKey:  ventaFbKey,
+        cliente:     r.cliente||'',
+        clienteId:   r.clienteId||'',
+        estado:      'pendiente',
+        tecnico:     tecnico,
+        fecha:       fechaHoy,
+        hora:        '09:00',
+        duracion:    '4 horas',
+        dir:         'Sin definir',
+        obs:         'Reclamo: ' + (r.descripcion||''),
+        tipoVisita:  'Reclamo post-venta',
+        reclamoKey:  SP_MODAL_KEY,
+        progreso:    0,
+        checks: {
+          preparacion: CHECKLISTS.preparacion.map(function(){ return false; }),
+          instalacion: CHECKLISTS.instalacion.map(function(){ return false; }),
+          verificacion: CHECKLISTS.verificacion.map(function(){ return false; })
+        },
+        materiales: [],
+        audit: [{ fecha: fechaHoy, usuario: currentUser||'Sistema', accion: 'OT creada desde reclamo de soporte. Venta: ' + ventaId }]
+      };
+
+      return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot)
+        .then(function(otRef) {
+          var otFbKey = otRef.key;
+          // Paso 6: actualizar el reclamo con estado ot_activa + referencias a venta y OT
+          spCambiarEstado('ot_activa', {
+            otKey:      otFbKey,
+            ventaKey:   ventaFbKey,
+            ventaId:    ventaId,
+            tecnico:    tecnico
+          });
+          notify('✓ Venta y OT generadas. Técnico: ' + tecnico + ' · Total: $' + total.toLocaleString('es-AR'));
+        });
+    })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+function spVerOT(otKey) {
+  spCerrarModal();
+  showPage('ordentrabajo', null);
+  setTimeout(function(){ verOT(otKey); }, 500);
+}
+
+function spVerVenta(ventaId) {
+  spCerrarModal();
+  showPage('ventas', document.querySelector('[onclick*="ventas"]'));
+  setTimeout(function(){
+    var v = (ventasList||[]).find(function(x){ return x.id === ventaId; });
+    if (v && v.fbKey) verVenta(v.fbKey);
+  }, 600);
+}
+
 function guardarTicket(datos) {
   if (!window.fbDB) return;
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/tickets'), Object.assign(datos||{}, { ts: Date.now(), usuario: currentUser }))
     .then(function(){ notify('Ticket registrado'); });
 }
+
 
 function guardarRemito(datos) {
   if (!window.fbDB) return;
