@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v17.6 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v17.7 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5525,6 +5525,7 @@ function showPage(id, el) {
   if (id === 'asistente')      { setTimeout(function(){ document.getElementById('asist-inicio').style.display='';document.getElementById('asist-preguntas').style.display='none';document.getElementById('asist-resumen').style.display='none'; }, 50); }
   if (id === 'sueldos')        { setTimeout(function(){ renderModuloSueldos(); }, 100); }
   if (id === 'vacaciones')     { setTimeout(function(){ renderModuloVacaciones(); }, 100); }
+  if (id === 'tablero')        { setTimeout(function(){ renderTablero(); }, 100); }
   if (id === 'reportes')       { setTimeout(function(){ renderReportes(); }, 100); }
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
   if (id === 'cobranzas')      { setTimeout(function(){ fbCargarPagos(); }, 50); }
@@ -5620,7 +5621,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v17.6-firebase',
+  VERSION: 'v17.7-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6014,6 +6015,7 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
   if (typeof spCargar === 'function') setTimeout(spCargar, 400);
+  if (typeof fbCargarVacaciones === 'function') setTimeout(fbCargarVacaciones, 400);
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); setTimeout(applyRole, 400); }, 400);
   if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
@@ -13938,14 +13940,35 @@ function diasVacPorAntiguedad(fechaIngreso) {
   return 35;
 }
 
-function renderModuloVacaciones() {
+function fbCargarVacaciones() {
   if (!window.fbDB) return;
-  window.fbGet(window.fbRef(window.fbDB,'sisventas/vacaciones')).then(function(snap){
+  window.fbOnValue(window.fbRef(window.fbDB,'sisventas/vacaciones'), function(snap){
     var data = snap.val()||{};
     var periodos = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); });
+    window._vacPeriodos = periodos; // caché en memoria
+    // Solo re-renderizar si el módulo está activo
+    if (document.getElementById('page-vacaciones') && document.getElementById('page-vacaciones').classList.contains('active')) {
+      renderTablaVacaciones(periodos);
+      renderPeriodosVacaciones(periodos);
+    }
+  });
+}
+
+function renderModuloVacaciones() {
+  var periodos = window._vacPeriodos || [];
+  if (!periodos.length && window.fbDB) {
+    // Primera visita: pedir los datos directamente
+    window.fbGet(window.fbRef(window.fbDB,'sisventas/vacaciones')).then(function(snap){
+      var data = snap.val()||{};
+      periodos = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); });
+      window._vacPeriodos = periodos;
+      renderTablaVacaciones(periodos);
+      renderPeriodosVacaciones(periodos);
+    });
+  } else {
     renderTablaVacaciones(periodos);
     renderPeriodosVacaciones(periodos);
-  });
+  }
 }
 
 function renderTablaVacaciones(periodos) {
@@ -15501,6 +15524,124 @@ function generarOTdesdeVenta(ventaId, cliente, dir) {
 // ══════════════════════════════════════════════
 // KPIs DASHBOARD
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// TABLERO EJECUTIVO — datos reales
+// ══════════════════════════════════════════════
+function renderTablero() {
+  var anioSel = parseInt((document.getElementById('tab-anio-sel')||{}).value) || new Date().getFullYear();
+  var mesActual = new Date().toISOString().slice(0,7);
+  var _e = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+
+  var ventas = (ventasList||[]).filter(function(v){ return (v.fecha||'').startsWith(String(anioSel)); });
+  var ventasMes = ventas.filter(function(v){ return (v.fecha||'').slice(0,7)===mesActual; });
+  var totalAnio = ventas.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var ticketProm = ventas.length ? totalAnio/ventas.length : 0;
+
+  // Margen promedio anual
+  var ventasConMargen = ventas.filter(function(v){ return v.margenPct > 0; });
+  var margenProm = ventasConMargen.length
+    ? ventasConMargen.reduce(function(s,v){ return s+(parseFloat(v.margenPct)||0); },0)/ventasConMargen.length
+    : null;
+
+  // Clientes únicos que compraron en el año
+  var clientesActivos = new Set(ventas.map(function(v){ return v.cliente||v.clienteId; })).size;
+
+  _e('tab-anio-label', anioSel);
+  _e('tab-ventas-acum', '$'+Math.round(totalAnio).toLocaleString('es-AR'));
+  _e('tab-ventas-sub', ventas.length + ' ventas en el año');
+  _e('tab-margen', margenProm !== null ? Math.round(margenProm)+'%' : '—');
+  _e('tab-margen-sub', 'promedio de ventas con margen');
+  _e('tab-clientes', clientesActivos);
+  _e('tab-clientes-sub', 'compraron en ' + anioSel);
+  _e('tab-ticket', '$'+Math.round(ticketProm).toLocaleString('es-AR'));
+  _e('tab-ticket-sub', 'ticket promedio anual');
+
+  // Gráfico de barras mensual
+  var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var datosPorMes = MESES.map(function(m, i) {
+    var mes = String(anioSel) + '-' + String(i+1).padStart(2,'0');
+    var vMes = ventas.filter(function(v){ return (v.fecha||'').slice(0,7)===mes; });
+    var gMes = (gastosList||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mes; });
+    return {
+      mes: m, esMesActual: mes===mesActual,
+      ventas: vMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); },0),
+      gastos: gMes.reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0)
+    };
+  });
+  var maxVal = Math.max(1, ...datosPorMes.map(function(d){ return Math.max(d.ventas, d.gastos); }));
+  var chart = document.getElementById('tab-chart');
+  if (chart) {
+    chart.innerHTML = datosPorMes.map(function(d) {
+      var hv = Math.round((d.ventas/maxVal)*100);
+      var hg = Math.round((d.gastos/maxVal)*100);
+      var esMes = d.esMesActual;
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px" title="'+d.mes+' — Ventas: $'+Math.round(d.ventas).toLocaleString('es-AR')+' / Gastos: $'+Math.round(d.gastos).toLocaleString('es-AR')+'">' +
+        '<div style="width:100%;display:flex;gap:2px;align-items:flex-end;height:100px">' +
+          '<div style="flex:1;background:'+(esMes?'var(--green)':'var(--green-bg)')+';border:1px solid var(--green);border-radius:3px 3px 0 0;height:'+hv+'%;min-height:'+(d.ventas>0?'2px':'0')+'"></div>' +
+          '<div style="flex:1;background:'+(esMes?'var(--red)':'var(--red-bg)')+';border:1px solid var(--red);border-radius:3px 3px 0 0;height:'+hg+'%;min-height:'+(d.gastos>0?'2px':'0')+'"></div>' +
+        '</div>' +
+        '<span style="font-size:10px;color:'+(esMes?'var(--text)':'var(--text3)')+';font-weight:'+(esMes?'600':'400')+'">'+d.mes+'</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  // Top 5 productos
+  var conteoProd = {};
+  ventas.forEach(function(v) {
+    (v.items||[]).forEach(function(it) {
+      var k = it.desc||it.cod||'Sin nombre';
+      if (!conteoProd[k]) conteoProd[k] = { cant:0, monto:0 };
+      conteoProd[k].cant += parseInt(it.qty)||1;
+      conteoProd[k].monto += parseFloat(it.sub)||0;
+    });
+  });
+  var top5prod = Object.entries(conteoProd).sort(function(a,b){ return b[1].monto-a[1].monto; }).slice(0,5);
+  var tabTopProd = document.getElementById('tab-top-productos');
+  if (tabTopProd) {
+    tabTopProd.innerHTML = top5prod.length ? top5prod.map(function(e,i) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">' +
+        '<div><span style="font-size:11px;color:var(--text3);margin-right:8px">'+(i+1)+'.</span>'+escapeHTML(e[0])+'</div>' +
+        '<div style="text-align:right;font-size:12px"><div style="font-weight:600">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</div>' +
+        '<div style="color:var(--text3)">'+e[1].cant+' und.</div></div>' +
+      '</div>';
+    }).join('') : '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin ventas en '+anioSel+'</div>';
+  }
+
+  // Top 5 clientes
+  var conteoClientes = {};
+  ventas.forEach(function(v) {
+    var k = v.cliente||'Sin nombre';
+    if (!conteoClientes[k]) conteoClientes[k] = 0;
+    conteoClientes[k] += parseFloat(v.total)||0;
+  });
+  var top5cli = Object.entries(conteoClientes).sort(function(a,b){ return b[1]-a[1]; }).slice(0,5);
+  var tabTopCli = document.getElementById('tab-top-clientes');
+  if (tabTopCli) {
+    tabTopCli.innerHTML = top5cli.length ? top5cli.map(function(e,i) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">' +
+        '<div><span style="font-size:11px;color:var(--text3);margin-right:8px">'+(i+1)+'.</span>'+escapeHTML(e[0])+'</div>' +
+        '<div style="font-weight:600;font-size:13px">$'+Math.round(e[1]).toLocaleString('es-AR')+'</div>' +
+      '</div>';
+    }).join('') : '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin ventas en '+anioSel+'</div>';
+  }
+
+  // Indicadores de cobrabilidad
+  var totalMesFact = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); },0);
+  var totalMesCobrado = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.totalPagado)||0); },0);
+  var pctCobrado = totalMesFact > 0 ? Math.round((totalMesCobrado/totalMesFact)*100) : null;
+  var pendienteCobro = (ventasList||[]).filter(function(v){ return v.estadoPago !== 'cobrado'; })
+    .reduce(function(s,v){ return s+(parseFloat(v.total)||0)-(parseFloat(v.totalPagado)||0); },0);
+  var gastosMes = (gastosList||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; })
+    .reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
+  var otsPend = (otData||[]).filter(function(ot){ return ot.estado !== 'completada'; }).length;
+
+  _e('tab-cobrado-mes', pctCobrado !== null ? pctCobrado+'%' : '—');
+  _e('tab-pendiente', '$'+Math.round(pendienteCobro).toLocaleString('es-AR'));
+  _e('tab-gastos-mes', '$'+Math.round(gastosMes).toLocaleString('es-AR'));
+  _e('tab-gastos-sub', (gastosList||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; }).length + ' gastos este mes');
+  _e('tab-ots-pend', otsPend);
+}
+
 function renderKPIsDashboard() {
   var hoy = new Date().toISOString().slice(0,10);
   var ayer = new Date(Date.now()-86400000).toISOString().slice(0,10);
@@ -17396,90 +17537,51 @@ function actualizarResumenStock() {
 <div id="page-tablero" class="page">
   <div class="metrics">
     <div class="metric">
-      <div class="metric-label">Ventas acum. 2026</div>
-      <div class="metric-value" style="color:var(--green)">$1.434.800</div>
-      <div class="metric-sub metric-up">+18% vs 2025</div>
+      <div class="metric-label">Ventas acum. <span id="tab-anio-label">2026</span></div>
+      <div class="metric-value" style="color:var(--green)" id="tab-ventas-acum">$0</div>
+      <div class="metric-sub" id="tab-ventas-sub">—</div>
     </div>
     <div class="metric">
       <div class="metric-label">Margen promedio</div>
-      <div class="metric-value">20.4%</div>
-      <div class="metric-sub metric-up">+2.1% vs año ant.</div>
+      <div class="metric-value" id="tab-margen">—</div>
+      <div class="metric-sub" id="tab-margen-sub">—</div>
     </div>
     <div class="metric">
       <div class="metric-label">Clientes activos</div>
-      <div class="metric-value">143</div>
-      <div class="metric-sub metric-up">+12 este año</div>
+      <div class="metric-value" id="tab-clientes">0</div>
+      <div class="metric-sub" id="tab-clientes-sub">—</div>
     </div>
     <div class="metric">
       <div class="metric-label">Ticket promedio</div>
-      <div class="metric-value">$6.647</div>
-      <div class="metric-sub metric-up">+$400 vs mes ant.</div>
+      <div class="metric-value" id="tab-ticket">$0</div>
+      <div class="metric-sub" id="tab-ticket-sub">—</div>
     </div>
   </div>
 
   <!-- Gráfico barras mensual -->
   <div class="card">
     <div class="card-head">
-      <span class="card-title">Ventas vs Egresos 2026</span>
-      <select class="search-input" style="width:120px">
-        <option>2026</option><option>2025</option>
+      <span class="card-title">Ventas vs Gastos — mes a mes</span>
+      <select class="search-input" style="width:90px" id="tab-anio-sel" onchange="renderTablero()">
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
       </select>
     </div>
-    <div style="display:flex;align-items:flex-end;gap:4px;height:120px;margin-top:8px">
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div style="width:100%;display:flex;gap:2px;align-items:flex-end;height:100px">
-          <div style="flex:1;background:var(--green-bg);border:1px solid var(--green);border-radius:3px 3px 0 0;height:48%"></div>
-          <div style="flex:1;background:var(--red-bg);border:1px solid var(--red);border-radius:3px 3px 0 0;height:39%"></div>
-        </div>
-        <span style="font-size:10px;color:var(--text3)">Ene</span>
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div style="width:100%;display:flex;gap:2px;align-items:flex-end;height:100px">
-          <div style="flex:1;background:var(--green-bg);border:1px solid var(--green);border-radius:3px 3px 0 0;height:54%"></div>
-          <div style="flex:1;background:var(--red-bg);border:1px solid var(--red);border-radius:3px 3px 0 0;height:43%"></div>
-        </div>
-        <span style="font-size:10px;color:var(--text3)">Feb</span>
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div style="width:100%;display:flex;gap:2px;align-items:flex-end;height:100px">
-          <div style="flex:1;background:var(--green-bg);border:1px solid var(--green);border-radius:3px 3px 0 0;height:100%"></div>
-          <div style="flex:1;background:var(--red-bg);border:1px solid var(--red);border-radius:3px 3px 0 0;height:77%"></div>
-        </div>
-        <span style="font-size:10px;color:var(--text3)">Mar</span>
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div style="width:100%;display:flex;gap:2px;align-items:flex-end;height:100px">
-          <div style="flex:1;background:var(--green-bg);border:1px solid var(--green);border-radius:3px 3px 0 0;height:70%"></div>
-          <div style="flex:1;background:var(--red-bg);border:1px solid var(--red);border-radius:3px 3px 0 0;height:57%"></div>
-        </div>
-        <span style="font-size:10px;color:var(--text3)">Abr</span>
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div style="width:100%;display:flex;gap:2px;align-items:flex-end;height:100px">
-          <div style="flex:1;background:var(--green);border-radius:3px 3px 0 0;height:76%"></div>
-          <div style="flex:1;background:var(--red);border-radius:3px 3px 0 0;height:60%"></div>
-        </div>
-        <span style="font-size:10px;color:var(--text);font-weight:600">May</span>
-      </div>
-    </div>
+    <div id="tab-chart" style="display:flex;align-items:flex-end;gap:4px;height:120px;margin-top:8px"></div>
     <div style="display:flex;gap:16px;margin-top:10px;font-size:12px">
       <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:var(--green);border-radius:2px;display:inline-block"></span>Ventas</span>
-      <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:var(--red);border-radius:2px;display:inline-block"></span>Egresos</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:var(--red);border-radius:2px;display:inline-block"></span>Gastos</span>
     </div>
   </div>
 
   <div class="row2">
     <div class="card" style="margin-bottom:0">
       <div class="card-head"><span class="card-title">Top 5 productos más vendidos</span></div>
-      <div id="top-productos-lista" style="display:flex;flex-direction:column;gap:0">
-        <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin datos disponibles</div>
-      </div>
+      <div id="tab-top-productos" style="display:flex;flex-direction:column;gap:0"></div>
     </div>
     <div class="card" style="margin-bottom:0">
       <div class="card-head"><span class="card-title">Top 5 clientes por facturación</span></div>
-      <div id="top-clientes-lista" style="display:flex;flex-direction:column;gap:0">
-        <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin datos disponibles</div>
-      </div>
+      <div id="tab-top-clientes" style="display:flex;flex-direction:column;gap:0"></div>
     </div>
   </div>
 
@@ -17488,23 +17590,23 @@ function actualizarResumenStock() {
     <div class="metrics" style="margin-bottom:0">
       <div class="metric">
         <div class="metric-label">Cobrado en el mes</div>
-        <div class="metric-value" style="font-size:18px">79.5%</div>
-        <div class="metric-sub metric-up">de lo facturado</div>
+        <div class="metric-value" style="font-size:18px" id="tab-cobrado-mes">—</div>
+        <div class="metric-sub">de lo facturado</div>
       </div>
       <div class="metric">
-        <div class="metric-label">Cobrado a 30 días</div>
-        <div class="metric-value" style="font-size:18px">91.2%</div>
-        <div class="metric-sub metric-up">histórico</div>
+        <div class="metric-label">Pendiente de cobro</div>
+        <div class="metric-value" style="font-size:18px;color:var(--amber)" id="tab-pendiente">$0</div>
+        <div class="metric-sub">ventas sin cobrar</div>
       </div>
       <div class="metric">
-        <div class="metric-label">Deuda promedio</div>
-        <div class="metric-value" style="font-size:18px">$17.508</div>
-        <div class="metric-sub">por cliente deudor</div>
+        <div class="metric-label">Gastos este mes</div>
+        <div class="metric-value" style="font-size:18px" id="tab-gastos-mes">$0</div>
+        <div class="metric-sub" id="tab-gastos-sub">—</div>
       </div>
       <div class="metric">
-        <div class="metric-label">Stock parado</div>
-        <div class="metric-value" style="font-size:18px;color:var(--amber)">$22.000</div>
-        <div class="metric-sub mwarn">sin movimiento 30d</div>
+        <div class="metric-label">OTs pendientes</div>
+        <div class="metric-value" style="font-size:18px;color:var(--amber)" id="tab-ots-pend">0</div>
+        <div class="metric-sub">sin completar</div>
       </div>
     </div>
   </div>
