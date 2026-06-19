@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v18.1 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v18.8 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -854,10 +854,10 @@ tr:hover td{color:var(--text)}
         <i class="ti ti-chart-line"></i>Estadísticas
       </div>
       <div class="s-section tecnico-only">Acceso rápido</div>
-      <div class="nav-item" onclick="showPage('agenda',this)">
+      <div class="nav-item" style="display:none" onclick="showPage('agenda',this)">
         <i class="ti ti-calendar"></i>Agenda
       </div>
-      <div class="nav-item" onclick="showPage('servicios',this)">
+      <div class="nav-item" style="display:none" onclick="showPage('servicios',this)">
         <i class="ti ti-tool"></i>Servicios
       </div>
       <div class="nav-item" onclick="showPage('remitos',this)">
@@ -1510,29 +1510,77 @@ tr:hover td{color:var(--text)}
         <div id="ot-list-view">
           <div class="metrics col3">
             <div class="metric"><div class="metric-label">OT abiertas</div><div class="metric-value" id="ot-met-abiertas">0</div><div class="metric-sub">en progreso</div></div>
-            <div class="metric"><div class="metric-label">Instalaciones hoy</div><div class="metric-value" id="ot-met-hoy" style="color:var(--blue)">0</div><div class="metric-sub">programadas</div></div>
+            <div class="metric"><div class="metric-label">Para hoy</div><div class="metric-value" id="ot-met-hoy" style="color:var(--blue)">0</div><div class="metric-sub">programadas</div></div>
             <div class="metric"><div class="metric-label">Completadas mes</div><div class="metric-value" id="ot-met-comp" style="color:var(--green)">0</div><div class="metric-sub">este mes</div></div>
           </div>
-          <div class="card">
-            <div class="card-head">
-              <span class="card-title">Órdenes de trabajo</span>
-              <div style="display:flex;gap:6px">
-                <input class="search-input" style="width:180px" placeholder="Buscar cliente o N°..." oninput="buscarOT(this.value)">
-                <select class="search-input" style="width:150px" onchange="filtrarOT(this.value)">
-                  <option value="">Todos los estados</option>
-                  <option value="pendiente">Pendiente</option>
-                  <option value="en_progreso">En progreso</option>
-                  <option value="completada">Completada</option>
-                  <option value="con_observaciones">Con observaciones</option>
-                </select>
-                <button class="btn btn-sm btn-primary" onclick="nuevaOT()"><i class="ti ti-plus"></i> Nueva OT</button>
+
+          <!-- Vista técnico: tablero del día -->
+          <div id="ot-vista-tecnico" style="display:none">
+            <div class="card" style="margin-bottom:10px">
+              <div class="card-head">
+                <div>
+                  <span class="card-title">Mis órdenes del día</span>
+                  <span id="ot-tec-fecha-lbl" style="font-size:12px;color:var(--text3);margin-left:8px"></span>
+                </div>
+              </div>
+              <!-- Atrasadas -->
+              <div id="ot-tec-atrasadas-box" style="display:none">
+                <div style="font-size:11px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+                  <i class="ti ti-alert-triangle"></i> Atrasadas — pendientes de días anteriores
+                </div>
+                <div id="ot-tec-atrasadas" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+              </div>
+              <!-- Hoy -->
+              <div id="ot-tec-hoy-box" style="display:none">
+                <div style="font-size:11px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+                  <i class="ti ti-calendar-today"></i> Hoy
+                </div>
+                <div id="ot-tec-hoy" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+              </div>
+              <!-- Sin fecha / futuras -->
+              <div id="ot-tec-pendientes-box" style="display:none">
+                <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+                  <i class="ti ti-clock"></i> Sin fecha asignada
+                </div>
+                <div id="ot-tec-pendientes" style="display:flex;flex-direction:column;gap:8px"></div>
+              </div>
+              <div id="ot-tec-vacia" style="display:none;padding:28px;text-align:center;color:var(--text3);font-size:13px">
+                <i class="ti ti-circle-check" style="font-size:28px;color:var(--green);display:block;margin-bottom:8px"></i>
+                Sin órdenes pendientes — todo al día
               </div>
             </div>
-            <div class="table-wrap">
-              <table id="ot-tabla">
-                <thead><tr><th>N° OT</th><th>Venta</th><th>Cliente</th><th>Técnico</th><th>Fecha</th><th>Progreso</th><th>Estado</th><th></th></tr></thead>
-                <tbody id="ot-tbody"></tbody>
-              </table>
+          </div>
+
+          <!-- Vista admin/administrativo: tabla completa -->
+          <div id="ot-vista-admin">
+            <div class="card">
+              <div class="card-head">
+                <span class="card-title">Órdenes de trabajo</span>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <input class="search-input" style="width:160px" placeholder="Buscar cliente o N°..." oninput="buscarOT(this.value)">
+                  <select class="search-input" style="width:140px" onchange="filtrarOT(this.value)" id="ot-filtro-estado">
+                    <option value="">Todos los estados</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="en_progreso">En progreso</option>
+                    <option value="completada">Completada</option>
+                    <option value="con_observaciones">Con observaciones</option>
+                  </select>
+                  <select class="search-input" style="width:140px" onchange="filtrarOTTecnico(this.value)" id="ot-filtro-tecnico">
+                    <option value="">Todos los técnicos</option>
+                  </select>
+                  <button class="btn btn-sm btn-primary" onclick="nuevaOT()"><i class="ti ti-plus"></i> Nueva OT</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table id="ot-tabla">
+                  <thead><tr>
+                    <th style="width:32px"></th>
+                    <th>N° OT</th><th>Cliente</th><th>Técnico</th>
+                    <th>Fecha</th><th>Tipo</th><th>Progreso</th><th>Estado</th><th></th>
+                  </tr></thead>
+                  <tbody id="ot-tbody"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -1547,28 +1595,39 @@ tr:hover td{color:var(--text)}
           <!-- Header OT -->
           <div class="card">
             <div class="card-head">
-              <div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span id="ot-det-num" style="font-size:15px;font-weight:600">OT-001</span>
-                <span id="ot-det-estado-badge" style="margin-left:10px"></span>
+                <span id="ot-det-estado-badge"></span>
+                <span id="ot-det-prioridad-badge" style="display:none">
+                  <span class="badge b-red"><i class="ti ti-flame" style="font-size:11px"></i> PRIORIDAD</span>
+                </span>
               </div>
-              <button class="btn btn-sm" onclick="imprimirOT()"><i class="ti ti-printer"></i> Imprimir OT</button>
+              <div style="display:flex;gap:8px;align-items:center">
+                <!-- Toggle prioridad — solo admin/administrativo -->
+                <label class="toggle-sw no-tecnico" title="Marcar como prioridad">
+                  <input type="checkbox" id="ot-det-prioridad" onchange="actualizarOT()">
+                  <span class="toggle-knob"></span>
+                </label>
+                <span class="no-tecnico" style="font-size:12px;color:var(--text3)">Prioridad</span>
+                <button class="btn btn-sm" onclick="imprimirOT()"><i class="ti ti-printer"></i> Imprimir OT</button>
+              </div>
             </div>
             <div class="form-grid">
               <div class="fg"><label>Venta origen</label><input id="ot-det-venta" readonly></div>
               <div class="fg"><label>Cliente</label><input id="ot-det-cliente" readonly></div>
-              <div class="fg"><label>Técnico asignado</label>
+              <div class="fg no-tecnico"><label>Técnico asignado</label>
                 <select id="ot-det-tecnico" onchange="actualizarOT()">
                   <option value="">— Seleccionar técnico —</option>
                 </select>
               </div>
-              <div class="fg"><label>Fecha programada</label><input type="date" id="ot-det-fecha" onchange="actualizarOT()"></div>
+              <div class="fg"><label>Fecha programada</label><input type="date" id="ot-det-fecha" onchange="actualizarOTFecha()"></div>
               <div class="fg"><label>Hora</label><input type="time" id="ot-det-hora" onchange="actualizarOT()"></div>
-              <div class="fg"><label>Duración estimada</label>
+              <div class="fg no-tecnico"><label>Duración estimada</label>
                 <select id="ot-det-duracion">
                   <option>2 horas</option><option>4 horas</option><option>6 horas</option><option>Día completo</option>
                 </select>
               </div>
-              <div class="fg"><label>Tipo de visita</label>
+              <div class="fg no-tecnico"><label>Tipo de visita</label>
                 <select id="ot-det-tipovisita" onchange="actualizarOT()">
                   <option>Instalación nueva</option>
                   <option>Mantenimiento</option>
@@ -1581,7 +1640,29 @@ tr:hover td{color:var(--text)}
                 <div style="padding:8px 10px;background:var(--amber-bg);color:var(--amber);border-radius:var(--radius);font-size:12px;font-weight:500" id="ot-det-repetida-lbl"></div>
               </div>
               <div class="fg full"><label>Dirección de instalación</label><input id="ot-det-dir" readonly></div>
-              <div class="fg full"><label>Observaciones / notas</label><input id="ot-det-obs" placeholder="Notas para el técnico..."></div>
+              <div class="fg full"><label>Notas del administrativo para el técnico</label><input id="ot-det-obs" placeholder="Notas para el técnico..." onchange="actualizarOT()"></div>
+            </div>
+          </div>
+
+          <!-- Contexto según origen: credenciales + historial reclamo o materiales venta -->
+          <div id="ot-contexto-box">
+            <!-- Credenciales del cliente -->
+            <div class="card" id="ot-cred-box" style="display:none">
+              <div class="card-head">
+                <span class="card-title"><i class="ti ti-key" style="margin-right:6px"></i>Credenciales del sistema</span>
+                <span style="font-size:11px;color:var(--text3)">Del cliente · traídas de la ficha</span>
+              </div>
+              <div id="ot-cred-lista" style="display:flex;flex-direction:column;gap:10px"></div>
+            </div>
+
+            <!-- Historial del reclamo (si viene de soporte) -->
+            <div class="card" id="ot-reclamo-box" style="display:none">
+              <div class="card-head">
+                <span class="card-title"><i class="ti ti-headset" style="margin-right:6px"></i>Historial del reclamo</span>
+                <button class="btn btn-sm" id="ot-reclamo-link-btn" onclick="otVerReclamo()"><i class="ti ti-external-link" style="font-size:13px"></i> Ver reclamo completo</button>
+              </div>
+              <div id="ot-reclamo-desc" style="font-size:13px;font-weight:500;margin-bottom:10px"></div>
+              <div id="ot-reclamo-hist" style="display:flex;flex-direction:column;gap:6px"></div>
             </div>
           </div>
 
@@ -1623,6 +1704,24 @@ tr:hover td{color:var(--text)}
                 <tbody id="ot-materiales"></tbody>
               </table>
             </div>
+          </div>
+
+          <!-- Notas y fotos del técnico -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title"><i class="ti ti-notes" style="margin-right:6px"></i>Notas del técnico</span>
+              <span style="font-size:11px;color:var(--text3)">Historial técnico para futuras visitas</span>
+            </div>
+            <div id="ot-notas-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="ot-nota-nueva" placeholder="Agregar nota técnica (qué se hizo, qué se encontró, recomendaciones...)" style="flex:1">
+              <label class="btn btn-sm" style="cursor:pointer" title="Adjuntar foto">
+                <i class="ti ti-camera"></i>
+                <input type="file" accept="image/*" style="display:none" onchange="otAgregarFoto(this)">
+              </label>
+              <button class="btn btn-sm btn-primary" onclick="otAgregarNota()"><i class="ti ti-send"></i></button>
+            </div>
+            <div id="ot-fotos-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
           </div>
 
           <!-- Acta de entrega -->
@@ -2342,21 +2441,83 @@ tr:hover td{color:var(--text)}
 
       <!-- ── AGENDA ── -->
       <div id="page-agenda" class="page">
-        <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
-          <div class="metric"><div class="m-label">Eventos hoy</div><div class="m-value" id="ag-hoy">0</div><div class="m-sub">—</div></div>
-          <div class="metric"><div class="m-label">Esta semana</div><div class="m-value" id="ag-semana">0</div><div class="m-sub">—</div></div>
-          <div class="metric"><div class="m-label">Pendientes</div><div class="m-value" id="ag-pendientes">0</div><div class="m-sub">—</div></div>
+
+        <!-- Métricas -->
+        <div class="metrics" style="grid-template-columns:repeat(4,1fr)">
+          <div class="metric"><div class="m-label">Hoy</div><div class="m-value" id="ag-hoy">0</div><div class="m-sub">eventos</div></div>
+          <div class="metric"><div class="m-label">Esta semana</div><div class="m-value" id="ag-semana">0</div><div class="m-sub">eventos</div></div>
+          <div class="metric"><div class="m-label">Instalaciones</div><div class="m-value" id="ag-inst" style="color:var(--green)">0</div><div class="m-sub">programadas</div></div>
+          <div class="metric"><div class="m-label">Reclamos</div><div class="m-value" id="ag-recl" style="color:var(--blue)">0</div><div class="m-sub">con visita</div></div>
         </div>
+
         <div class="card">
-          <div class="card-head">
-            <span class="card-title">Eventos</span>
-            <button class="btn btn-sm btn-primary" onclick="abrirModalNuevo('evento')"><i class="ti ti-plus"></i> Nuevo evento</button>
+          <!-- Cabecera del calendario -->
+          <div class="card-head" style="flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="btn btn-sm btn-icon" onclick="agNav(-1)"><i class="ti ti-chevron-left"></i></button>
+              <span id="ag-titulo" style="font-size:15px;font-weight:600;min-width:200px;text-align:center"></span>
+              <button class="btn btn-sm btn-icon" onclick="agNav(1)"><i class="ti ti-chevron-right"></i></button>
+              <button class="btn btn-sm" onclick="agIrHoy()" style="font-size:12px">Hoy</button>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <!-- Leyenda -->
+              <span style="font-size:11px;display:flex;align-items:center;gap:4px;color:var(--text3)">
+                <span style="width:10px;height:10px;border-radius:2px;background:#22c55e;display:inline-block"></span>Instalación
+                <span style="width:10px;height:10px;border-radius:2px;background:#3b82f6;display:inline-block;margin-left:6px"></span>Reclamo
+                <span style="width:10px;height:10px;border-radius:2px;background:#f59e0b;display:inline-block;margin-left:6px"></span>Interno
+              </span>
+              <!-- Vistas -->
+              <div style="display:flex;border:0.5px solid var(--border);border-radius:6px;overflow:hidden">
+                <button class="ag-vista-btn active" data-vista="mes" onclick="agCambiarVista('mes',this)" style="padding:5px 10px;font-size:12px;border:none;cursor:pointer;background:var(--bg3);color:var(--text)">Mes</button>
+                <button class="ag-vista-btn" data-vista="semana" onclick="agCambiarVista('semana',this)" style="padding:5px 10px;font-size:12px;border:none;cursor:pointer;background:transparent;color:var(--text3)">Semana</button>
+                <button class="ag-vista-btn" data-vista="dia" onclick="agCambiarVista('dia',this)" style="padding:5px 10px;font-size:12px;border:none;cursor:pointer;background:transparent;color:var(--text3)">Día</button>
+              </div>
+              <button class="btn btn-sm btn-primary" onclick="agAbrirNuevoEvento()"><i class="ti ti-plus"></i> Nuevo evento</button>
+            </div>
           </div>
-          <table>
-            <thead><tr><th>Fecha</th><th>Hora</th><th>Descripción</th><th>Cliente</th><th>Empleado</th><th style="text-align:right">Estado</th></tr></thead>
-            <tbody><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Sin eventos registrados</td></tr></tbody>
-          </table>
+
+          <!-- Cuerpo del calendario -->
+          <div id="ag-calendario" style="margin-top:4px"></div>
         </div>
+
+        <!-- Modal nuevo evento interno -->
+        <div id="ag-modal-nuevo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center">
+          <div style="background:var(--bg2);border-radius:var(--radius-lg);width:min(96vw,440px);padding:24px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:15px;font-weight:600">Nuevo evento interno</span>
+              <button class="btn btn-sm btn-icon" onclick="_hide('ag-modal-nuevo')"><i class="ti ti-x"></i></button>
+            </div>
+            <div class="fg full"><label>Descripción</label>
+              <input type="text" id="ag-ev-desc" placeholder="Reunión de equipo, trámite, capacitación...">
+            </div>
+            <div class="form-grid">
+              <div class="fg"><label>Fecha</label><input type="date" id="ag-ev-fecha"></div>
+              <div class="fg"><label>Hora</label><input type="time" id="ag-ev-hora" value="09:00"></div>
+            </div>
+            <div class="fg full"><label>Empleado / responsable</label>
+              <select id="ag-ev-empleado">
+                <option value="">— Todos —</option>
+              </select>
+            </div>
+            <div class="fg full"><label>Notas</label>
+              <input type="text" id="ag-ev-notas" placeholder="Opcional...">
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px">
+              <button class="btn btn-sm" onclick="_hide('ag-modal-nuevo')">Cancelar</button>
+              <button class="btn btn-sm btn-primary" onclick="agGuardarEvento()"><i class="ti ti-check"></i> Guardar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel lateral de evento al hacer clic -->
+        <div id="ag-panel-evento" style="display:none;position:fixed;top:0;right:0;width:min(96vw,360px);height:100vh;background:var(--bg2);border-left:0.5px solid var(--border2);z-index:150;overflow-y:auto;padding:20px;box-shadow:-4px 0 20px rgba(0,0,0,.2)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <span style="font-size:14px;font-weight:600" id="ag-panel-titulo">Evento</span>
+            <button class="btn btn-sm btn-icon" onclick="_hide('ag-panel-evento')"><i class="ti ti-x"></i></button>
+          </div>
+          <div id="ag-panel-contenido" style="display:flex;flex-direction:column;gap:12px"></div>
+        </div>
+
       </div>
 
       <!-- ── SERVICIOS ── -->
@@ -2958,6 +3119,7 @@ tr:hover td{color:var(--text)}
           <button class="hist-tab-btn" onclick="switchHistTab('presupuestos',this)"><i class="ti ti-file-description"></i> Presupuestos</button>
           <button class="hist-tab-btn" onclick="switchHistTab('tickets',this)"><i class="ti ti-headset"></i> Tickets</button>
           <button class="hist-tab-btn" onclick="switchHistTab('equipos',this)"><i class="ti ti-cpu"></i> Equipos</button>
+          <button class="hist-tab-btn" onclick="switchHistTab('credenciales',this)"><i class="ti ti-key"></i> Credenciales</button>
         </div>
 
         <!-- Tab Ventas -->
@@ -3012,6 +3174,73 @@ tr:hover td{color:var(--text)}
               <thead><tr><th>Equipo</th><th>N° serie</th><th>Instalación</th><th class="tr">Garantía hasta</th><th class="tr">Estado</th></tr></thead>
               <tbody id="hc-eq-body"></tbody>
             </table></div>
+          </div>
+        </div>
+
+        <!-- Tab Credenciales -->
+        <div class="hist-sec" id="hist-credenciales">
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">Credenciales del sistema</span>
+              <button class="btn btn-sm btn-primary" onclick="credAgregarNueva()"><i class="ti ti-plus"></i> Agregar</button>
+            </div>
+            <div style="margin-bottom:14px;padding:10px 14px;background:var(--amber-bg);border-radius:var(--radius);font-size:12px;color:var(--amber)">
+              <i class="ti ti-shield-lock" style="font-size:14px;margin-right:6px"></i>
+              Información confidencial. Acceso visible para todos los roles pero solo editable por admin y administrativo.
+            </div>
+            <div id="hc-cred-lista" style="display:flex;flex-direction:column;gap:10px">
+              <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin credenciales cargadas</div>
+            </div>
+          </div>
+
+          <!-- Editor inline de una credencial -->
+          <div id="hc-cred-editor" style="display:none">
+            <div class="card">
+              <div class="card-head">
+                <span class="card-title" id="hc-cred-editor-titulo">Nueva credencial</span>
+                <button class="btn btn-sm btn-icon" onclick="credCerrarEditor()"><i class="ti ti-x"></i></button>
+              </div>
+              <div class="form-grid">
+                <div class="fg"><label>Tipo de sistema</label>
+                  <select id="cred-tipo">
+                    <option value="dvr">DVR / NVR</option>
+                    <option value="alarma">Panel de alarma</option>
+                    <option value="app">App móvil</option>
+                    <option value="router">Router / Red</option>
+                    <option value="camara">Cámara IP</option>
+                    <option value="domotica">Domótica</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Descripción / nombre</label>
+                  <input type="text" id="cred-desc" placeholder="Ej: DVR planta baja, App eWeLink...">
+                </div>
+                <div class="fg"><label>Usuario</label>
+                  <input type="text" id="cred-user" placeholder="admin, 12345...">
+                </div>
+                <div class="fg"><label>Contraseña</label>
+                  <div style="position:relative">
+                    <input type="password" id="cred-pass" placeholder="••••••••" style="width:100%;padding-right:36px">
+                    <button onclick="credTogglePass()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:0" title="Ver/ocultar">
+                      <i class="ti ti-eye" id="cred-pass-ico" style="font-size:16px"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="fg"><label>IP / dirección (opcional)</label>
+                  <input type="text" id="cred-ip" placeholder="192.168.1.100 o app.ejemplo.com">
+                </div>
+                <div class="fg"><label>Puerto (opcional)</label>
+                  <input type="text" id="cred-puerto" placeholder="8080, 554...">
+                </div>
+                <div class="fg full"><label>Notas adicionales</label>
+                  <input type="text" id="cred-notas" placeholder="Ej: contraseña cambiada el 12/06, reiniciar si no conecta...">
+                </div>
+              </div>
+              <div class="flex-end" style="gap:8px">
+                <button class="btn btn-sm" id="cred-btn-eliminar" onclick="credEliminar()" style="color:var(--red);display:none"><i class="ti ti-trash"></i> Eliminar</button>
+                <button class="btn btn-sm btn-primary" onclick="credGuardar()"><i class="ti ti-check"></i> Guardar</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -4447,7 +4676,7 @@ function renderTablaClientes(filtro) {
       '<td class="hide-mobile" style="color:var(--text2)">' + tel + '</td>' +
       '<td style="text-align:right"><label class="toggle-sw" onclick="event.stopPropagation()" title="' + (activo ? 'Activo — clic para dar de baja' : 'Inactivo — clic para reactivar') + '"><input type="checkbox" ' + (activo ? 'checked' : '') + ' onchange="event.stopPropagation();toggleActivoCliente(\'' + cid + '\')"><span class="toggle-knob"></span></label></td>' +
       '<td style="text-align:right;white-space:nowrap">' +
-        '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();verClienteById(this)" title="Historial"><i class="ti ti-clock-history" style="font-size:15px"></i></button>' +
+        '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();verClienteById(this)" title="Historial"><i class="ti ti-history" style="font-size:15px"></i></button>' +
         '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();editarClienteById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
         '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();eliminarCliente(this)" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:15px"></i></button>' +
       '</td>' +
@@ -4911,10 +5140,11 @@ function fbCargarClientes() {
       });
       // Ordenar por nombre
       clientesData.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
-      // Siempre actualizar la tabla
+      // Siempre actualizar la tabla preservando el filtro activo
       console.log('[Firebase] Clientes cargados:', clientesData ? clientesData.length : 0);
       if (typeof renderTablaClientes === 'function') {
-        renderTablaClientes();
+        var _cliInp = document.querySelector('#page-clientes .search-input');
+        renderTablaClientes(_cliInp ? _cliInp.value : '');
       } else {
         console.error('[Firebase] renderTablaClientes NO disponible');
       }
@@ -5078,6 +5308,12 @@ function fbCargarOTs() {
       otData = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
       });
+    }
+    // Si la agenda está visible, actualizar el calendario con las OTs nuevas
+    var pageAgenda = document.getElementById('page-agenda');
+    if (pageAgenda && pageAgenda.classList.contains('active')) {
+      if (typeof agRenderCalendario === 'function') agRenderCalendario();
+      if (typeof agActualizarMetricas === 'function') agActualizarMetricas();
     }
   });
 }
@@ -5461,6 +5697,7 @@ function _ejecutarLogout() {
   isAuthenticated = false;
   currentUser = '';
   currentRole = '';
+  window.usuariosData = []; // forzar re-lectura desde Firebase en el próximo login
 
   if (typeof stopSessionTimer === 'function') stopSessionTimer();
   if (typeof cerrarUserPanel === 'function') cerrarUserPanel();
@@ -5562,7 +5799,7 @@ function showPage(id, el) {
 
   // Lógica por módulo
   if (id === 'empleados')      { if(typeof volverlista==='function') volverlista(); }
-  if (id === 'clientes')      { setTimeout(function(){ if(typeof renderTablaClientes==='function') renderTablaClientes(); }, 100); }
+  if (id === 'clientes')      { setTimeout(function(){ if(typeof renderTablaClientes==='function'){ var inp=document.querySelector('#page-clientes .search-input'); renderTablaClientes(inp?inp.value:''); }}, 100); }
   if (id === 'detalle')       { setTimeout(function(){ if(typeof renderVentasTabla==='function'){renderVentasTabla();renderMetricasVentas();} }, 100); }
   if (id === 'presupuesto')    { setTimeout(function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }, 50); }
   if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
@@ -5578,7 +5815,7 @@ function showPage(id, el) {
   if (id === 'garantias')      { setTimeout(function(){ fbCargarGarantias(); }, 50); }
   if (id === 'soporte')        { setTimeout(function(){ fbCargarTickets(); }, 50); }
   if (id === 'remitos')        { setTimeout(function(){ fbCargarRemitos(); }, 50); }
-  if (id === 'agenda')         { setTimeout(function(){ fbCargarAgenda(); }, 50); }
+  if (id === 'agenda')         { setTimeout(function(){ fbCargarAgenda(); agRenderCalendario(); }, 50); }
   if (id === 'servicios')      { setTimeout(function(){ fbCargarServicios(); }, 50); }
   if (id === 'asistente')      { setTimeout(function(){ document.getElementById('asist-inicio').style.display='';document.getElementById('asist-preguntas').style.display='none';document.getElementById('asist-resumen').style.display='none'; }, 50); }
   if (id === 'sueldos')        { setTimeout(function(){ renderModuloSueldos(); }, 100); }
@@ -5679,7 +5916,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v18.1-firebase',
+  VERSION: 'v18.8-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5915,8 +6152,27 @@ window.doLogin = function doLogin() {
 // Lógica compartida de resolución de rol — usada tanto por login manual como por restauración de sesión
 function _resolverRolYCompletarLogin(user, err) {
   var emailLower = user.email.toLowerCase();
-  function aplicarRolYNombre(usuariosSnap) {
-    var lista = usuariosSnap ? Object.values(usuariosSnap) : (window.usuariosData || []);
+
+  // Timeout de emergencia: si en 8 segundos no completó el login,
+  // cerrar sesión y mostrar el login limpio para no quedar colgado.
+  var _loginTimeout = setTimeout(function() {
+    if (!isAuthenticated) return;
+    // Si llegamos acá, algo falló silenciosamente
+    isAuthenticated = false;
+    if (window.fbAuth && window.fbSignOut) window.fbSignOut(window.fbAuth).catch(function(){});
+    var loadingEl = document.getElementById('screen-loading');
+    if (loadingEl) loadingEl.style.display = 'none';
+    document.getElementById('screen-login').style.display = '';
+    var errEl = document.getElementById('login-error');
+    if (errEl) {
+      errEl.textContent = 'El servidor tardó demasiado en responder. Intentá de nuevo.';
+      errEl.style.display = 'block';
+    }
+  }, 8000);
+
+  function aplicarRolYNombre(lista) {
+    clearTimeout(_loginTimeout); // login completado, cancelar timeout
+    lista = lista || [];
     var usuario = lista.find(function(u) {
       var mailDB = (u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com')).toLowerCase();
       return mailDB === emailLower;
@@ -5933,9 +6189,13 @@ function _resolverRolYCompletarLogin(user, err) {
       return;
     }
     if (usuario.activo === false) {
+      clearTimeout(_loginTimeout);
       window.fbSignOut(window.fbAuth);
       isAuthenticated = false;
-      if(err) { err.textContent = 'Tu cuenta está desactivada. Contactá al administrador.'; err.style.display = 'block'; }
+      var loadingEl = document.getElementById('screen-loading');
+      if (loadingEl) loadingEl.style.display = 'none';
+      document.getElementById('screen-login').style.display = '';
+      if (err) { err.textContent = 'Tu cuenta está desactivada. Contactá al administrador.'; err.style.display = 'block'; }
       return;
     }
     var r = (usuario.rol||'').toLowerCase();
@@ -5945,20 +6205,28 @@ function _resolverRolYCompletarLogin(user, err) {
                 : 'administrativo';
     _completarLogin(usuario.nombre || user.email.split('@')[0]);
   }
-  if (window.usuariosData && window.usuariosData.length) {
-    aplicarRolYNombre(null);
-  } else {
-    window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios')).then(function(snap) {
-      var data = snap.val();
-      var lista = data ? Object.values(data).map(function(v){ return v; }) : [];
-      window.usuariosData = lista;
-      aplicarRolYNombre(lista);
-    }).catch(function() {
+
+  // Siempre leer frescos desde Firebase — no confiar en caché de sesión anterior
+  // que podría tener datos de otro usuario o de una versión vieja del código.
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios')).then(function(snap) {
+    var data = snap.val();
+    var lista = data ? Object.values(data) : [];
+    window.usuariosData = lista; // actualizar caché
+    aplicarRolYNombre(lista);
+  }).catch(function() {
+    clearTimeout(_loginTimeout);
+    // Fallback: intentar con datos cacheados si los hay
+    if (window.usuariosData && window.usuariosData.length) {
+      aplicarRolYNombre(window.usuariosData);
+    } else {
       window.fbSignOut(window.fbAuth);
       isAuthenticated = false;
-      if(err) { err.textContent = 'No se pudo verificar el rol. Verificá tu conexión.'; err.style.display = 'block'; }
-    });
-  }
+      var loadingEl = document.getElementById('screen-loading');
+      if (loadingEl) loadingEl.style.display = 'none';
+      document.getElementById('screen-login').style.display = '';
+      if (err) { err.textContent = 'No se pudo verificar el rol. Verificá tu conexión.'; err.style.display = 'block'; }
+    }
+  });
 }
 
 // ── RESTAURAR SESIÓN AL RECARGAR (F5) ──
@@ -6233,10 +6501,14 @@ function confirmarVenta() {
 
   // Construir objeto venta
   var cli = document.getElementById('cli-inp').value;
+  var idCliEl = document.getElementById('id-cli');
+  var idCliVal = idCliEl ? idCliEl.value.trim() : '';
   var dir = (_get('cli-dir-hidden')||{}).value || 'Sin definir';
   var nuevaVenta = {
     id: '#' + String(ventasList.length + 43).padStart(5,'0'),
-    cliente: cli,
+    cliente:  cli,
+    idCliente: idCliVal,        // ← ID real del cliente para filtrar en historial
+    clienteId: idCliVal,        // ← campo alternativo para compatibilidad
     empleado: (document.querySelector('#venta-empleado')||{}).value || '',
     fecha: new Date().toLocaleDateString('es-AR'),
     estadoPago: 'pendiente_pago',
@@ -10820,38 +11092,376 @@ function fbCargarRemitos() {
   });
 }
 
+// ══════════════════════════════════════════════
+// AGENDA — Calendario visual Día/Semana/Mes
+// Tres tipos de evento:
+//   🟢 instalacion — viene de OT con fecha asignada
+//   🔵 reclamo     — viene de reclamo con OT fechada
+//   🟡 interno     — creado manualmente en Agenda
+// ══════════════════════════════════════════════
+var AG_DATA = [];         // eventos internos de sisventas/agenda
+var AG_VISTA = 'mes';     // 'mes' | 'semana' | 'dia'
+var AG_CURSOR = new Date(); // fecha actual del calendario
+
+var AG_COLORES = {
+  instalacion: { bg:'#22c55e22', border:'#22c55e', text:'#22c55e' },
+  reclamo:     { bg:'#3b82f622', border:'#3b82f6', text:'#3b82f6' },
+  interno:     { bg:'#f59e0b22', border:'#f59e0b', text:'#f59e0b' }
+};
+
 function fbCargarAgenda() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/agenda'), function(snap) {
-    var data = snap.val();
-    var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); })
-                      .sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); }) : [];
-    var tbody = document.querySelector('#page-agenda tbody');
-    if (!tbody) return;
-    if (!lista.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Sin eventos registrados</td></tr>';
-      return;
-    }
-    var hoy = new Date().toISOString().split('T')[0];
-    tbody.innerHTML = lista.map(function(ev){
-      var esFuturo = (ev.fecha||'') >= hoy;
-      var estBadge = ev.estado === 'confirmado' ? '<span class="badge b-blue">Confirmado</span>'
-        : ev.estado === 'completado' ? '<span class="badge b-green">Completado</span>'
-        : '<span class="badge b-amber">Pendiente</span>';
-      return '<tr>'+
-        '<td>'+escapeHTML(ev.fecha||'—')+'</td>'+
-        '<td>'+escapeHTML(ev.hora||'—')+'</td>'+
-        '<td>'+escapeHTML(ev.descripcion||'—')+'</td>'+
-        '<td>'+escapeHTML(ev.cliente||'—')+'</td>'+
-        '<td>'+escapeHTML(ev.empleado||'—')+'</td>'+
-        '<td style="text-align:right">'+estBadge+
-        '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'agenda\',\''+ev.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:12px"></i></button></td>'+
-      '</tr>';
-    }).join('');
-    var _e = function(id){ return document.getElementById(id); };
-    if (_e('ag-hoy'))       _e('ag-hoy').textContent      = lista.filter(function(ev){ return ev.fecha===hoy; }).length;
-    if (_e('ag-pendientes'))_e('ag-pendientes').textContent= lista.filter(function(ev){ return ev.estado!=='completado'; }).length;
+    var data = snap.val() || {};
+    AG_DATA = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]}, e[1]); });
+    agRenderCalendario();
+    agActualizarMetricas();
   });
+}
+
+// Construir todos los eventos del calendario (internos + OTs con fecha)
+function agGetTodosEventos() {
+  var eventos = [];
+
+  // 1. Eventos internos de Firebase
+  AG_DATA.forEach(function(ev) {
+    if (!ev.fecha) return;
+    eventos.push({
+      tipo: 'interno', fecha: ev.fecha, hora: ev.hora||'',
+      titulo: ev.descripcion||'Evento', subtitulo: ev.empleado||'',
+      notas: ev.notas||'', fbKey: ev.fbKey, ref: null
+    });
+  });
+
+  // 2. OTs con fecha asignada
+  (otData||[]).forEach(function(ot) {
+    if (!ot.fecha || ot.estado === 'completada') return;
+    var esReclamo = ot.tipoVisita === 'Reclamo post-venta' || ot.reclamoKey;
+    eventos.push({
+      tipo: esReclamo ? 'reclamo' : 'instalacion',
+      fecha: ot.fecha, hora: ot.hora||'',
+      titulo: ot.cliente||'Sin cliente',
+      subtitulo: (ot.tipoVisita||'Instalación') + (ot.tecnico ? ' · ' + ot.tecnico : ''),
+      notas: ot.obs||'',
+      fbKey: ot.fbKey||ot.id, ref: ot, otId: ot.id
+    });
+  });
+
+  return eventos.sort(function(a,b){
+    return (a.fecha+a.hora) < (b.fecha+b.hora) ? -1 : 1;
+  });
+}
+
+function agActualizarMetricas() {
+  var hoy = new Date().toISOString().split('T')[0];
+  var semFin = new Date(); semFin.setDate(semFin.getDate()+7);
+  var semStr = semFin.toISOString().split('T')[0];
+  var evs = agGetTodosEventos();
+  var _e = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+  _e('ag-hoy',    evs.filter(function(e){ return e.fecha===hoy; }).length);
+  _e('ag-semana', evs.filter(function(e){ return e.fecha>=hoy && e.fecha<=semStr; }).length);
+  _e('ag-inst',   evs.filter(function(e){ return e.tipo==='instalacion'; }).length);
+  _e('ag-recl',   evs.filter(function(e){ return e.tipo==='reclamo'; }).length);
+}
+
+// ── Navegación ──
+function agNav(dir) {
+  if (AG_VISTA === 'mes') {
+    AG_CURSOR.setMonth(AG_CURSOR.getMonth() + dir);
+  } else if (AG_VISTA === 'semana') {
+    AG_CURSOR.setDate(AG_CURSOR.getDate() + dir * 7);
+  } else {
+    AG_CURSOR.setDate(AG_CURSOR.getDate() + dir);
+  }
+  agRenderCalendario();
+}
+
+function agIrHoy() { AG_CURSOR = new Date(); agRenderCalendario(); }
+
+function agCambiarVista(vista, btn) {
+  AG_VISTA = vista;
+  document.querySelectorAll('.ag-vista-btn').forEach(function(b){
+    b.style.background = 'transparent'; b.style.color = 'var(--text3)';
+  });
+  if (btn) { btn.style.background = 'var(--bg3)'; btn.style.color = 'var(--text)'; }
+  agRenderCalendario();
+}
+
+// ── Render principal ──
+function agRenderCalendario() {
+  var cont = document.getElementById('ag-calendario');
+  if (!cont) return;
+  var tit = document.getElementById('ag-titulo');
+  if (AG_VISTA === 'mes') {
+    if (tit) tit.textContent = AG_CURSOR.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+    cont.innerHTML = agRenderMes();
+  } else if (AG_VISTA === 'semana') {
+    var ini = agInicioSemana(AG_CURSOR);
+    var fin = new Date(ini); fin.setDate(fin.getDate()+6);
+    if (tit) tit.textContent = 'Semana del ' + ini.getDate() + ' al ' + fin.getDate() + ' de ' + fin.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+    cont.innerHTML = agRenderSemana(ini);
+  } else {
+    if (tit) tit.textContent = AG_CURSOR.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    cont.innerHTML = agRenderDia(AG_CURSOR);
+  }
+}
+
+// ── Vista MES ──
+function agRenderMes() {
+  var evs = agGetTodosEventos();
+  var anio = AG_CURSOR.getFullYear();
+  var mes  = AG_CURSOR.getMonth();
+  var hoy  = new Date().toISOString().split('T')[0];
+  var primerDia = new Date(anio, mes, 1);
+  var totalDias = new Date(anio, mes+1, 0).getDate();
+  // Lun=0 ... Dom=6
+  var diaInicio = (primerDia.getDay()+6)%7;
+
+  var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border)">';
+  var dias = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  dias.forEach(function(d){
+    html += '<div style="background:var(--bg2);text-align:center;font-size:11px;font-weight:600;color:var(--text3);padding:6px 0;text-transform:uppercase">'+d+'</div>';
+  });
+
+  // Celdas vacías antes del primer día
+  for (var i=0; i<diaInicio; i++) {
+    html += '<div style="background:var(--bg2);min-height:80px;padding:4px"></div>';
+  }
+
+  for (var d=1; d<=totalDias; d++) {
+    var fechaStr = anio+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var esHoy = fechaStr === hoy;
+    var esFinde = ((diaInicio+d-1)%7) >= 5; // sab/dom
+    var evsDelDia = evs.filter(function(e){ return e.fecha===fechaStr; });
+    var esLaboral = !esFinde;
+
+    html += '<div onclick="agClickDia(\''+fechaStr+'\')" style="background:'+(esHoy?'var(--blue-bg)':esFinde?'var(--bg)':'var(--bg2)')+';min-height:80px;padding:4px;cursor:pointer;transition:background .1s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\''+(esHoy?'var(--blue-bg)':esFinde?'var(--bg)':'var(--bg2)')+'\'">';
+    html += '<div style="font-size:12px;font-weight:'+(esHoy?'700':'400')+';color:'+(esHoy?'var(--blue)':esFinde?'var(--text3)':'var(--text)')+';margin-bottom:3px">'+d+'</div>';
+
+    evsDelDia.slice(0,3).forEach(function(ev) {
+      var col = AG_COLORES[ev.tipo] || AG_COLORES.interno;
+      html += '<div onclick="event.stopPropagation();agVerEvento(\''+escapeHTML(ev.fbKey||'')+'\',\''+ev.tipo+'\')" style="font-size:10px;background:'+col.bg+';border-left:2px solid '+col.border+';padding:1px 4px;border-radius:2px;margin-bottom:2px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:'+col.text+'">'+
+        (ev.hora?ev.hora.slice(0,5)+' ':'') + escapeHTML(ev.titulo) +
+      '</div>';
+    });
+    if (evsDelDia.length > 3) {
+      html += '<div style="font-size:10px;color:var(--text3)">+'+(evsDelDia.length-3)+' más</div>';
+    }
+    html += '</div>';
+  }
+
+  // Celdas vacías al final
+  var totalCeldas = diaInicio + totalDias;
+  var resto = totalCeldas % 7;
+  if (resto > 0) {
+    for (var j=0; j<(7-resto); j++) {
+      html += '<div style="background:var(--bg);min-height:80px;padding:4px"></div>';
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── Vista SEMANA ──
+function agInicioSemana(fecha) {
+  var d = new Date(fecha);
+  var dia = (d.getDay()+6)%7; // Lun=0
+  d.setDate(d.getDate()-dia);
+  return d;
+}
+
+function agRenderSemana(lunes) {
+  var evs = agGetTodosEventos();
+  var hoy = new Date().toISOString().split('T')[0];
+  var HORAS = [];
+  for (var h=8; h<=15; h++) HORAS.push(h);
+
+  var fechas = [];
+  for (var i=0; i<7; i++) {
+    var d = new Date(lunes); d.setDate(d.getDate()+i);
+    fechas.push(d);
+  }
+
+  var dias = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  var html = '<div style="display:grid;grid-template-columns:48px repeat(7,1fr);gap:0;border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">';
+
+  // Header
+  html += '<div style="background:var(--bg3);border-bottom:0.5px solid var(--border)"></div>';
+  fechas.forEach(function(d, i) {
+    var fStr = d.toISOString().split('T')[0];
+    var esHoy = fStr === hoy;
+    var esFinde = i >= 5;
+    html += '<div style="background:'+(esHoy?'var(--blue-bg)':esFinde?'var(--bg)':'var(--bg3)')+';text-align:center;padding:6px 2px;border-bottom:0.5px solid var(--border);border-left:0.5px solid var(--border)">' +
+      '<div style="font-size:10px;color:var(--text3)">'+dias[i]+'</div>' +
+      '<div style="font-size:15px;font-weight:'+(esHoy?'700':'400')+';color:'+(esHoy?'var(--blue)':'var(--text)')+'">'+d.getDate()+'</div>' +
+    '</div>';
+  });
+
+  // Franjas horarias
+  HORAS.forEach(function(hora) {
+    var horaStr = String(hora).padStart(2,'0')+':00';
+    html += '<div style="background:var(--bg3);font-size:10px;color:var(--text3);text-align:right;padding:4px 6px 0 0;border-bottom:0.5px solid var(--border)">'+horaStr+'</div>';
+    fechas.forEach(function(d, i) {
+      var fStr = d.toISOString().split('T')[0];
+      var esFinde = i >= 5;
+      var evsHora = evs.filter(function(e){
+        return e.fecha === fStr && e.hora && parseInt(e.hora) === hora;
+      });
+      html += '<div style="background:'+(esFinde?'var(--bg)':'var(--bg2)')+';border-bottom:0.5px solid var(--border);border-left:0.5px solid var(--border);min-height:44px;padding:2px;position:relative">';
+      evsHora.forEach(function(ev) {
+        var col = AG_COLORES[ev.tipo] || AG_COLORES.interno;
+        html += '<div onclick="agVerEvento(\''+escapeHTML(ev.fbKey||'')+'\',\''+ev.tipo+'\')" style="font-size:10px;background:'+col.bg+';border-left:2px solid '+col.border+';padding:2px 4px;border-radius:2px;margin-bottom:2px;cursor:pointer;color:'+col.text+'">'+escapeHTML(ev.titulo)+'</div>';
+      });
+      html += '</div>';
+    });
+  });
+  html += '</div>';
+  return html;
+}
+
+// ── Vista DÍA ──
+function agRenderDia(fecha) {
+  var fStr = fecha.toISOString().split('T')[0];
+  var evs = agGetTodosEventos().filter(function(e){ return e.fecha === fStr; });
+  var HORAS = [];
+  for (var h=8; h<=15; h++) HORAS.push(h);
+
+  var html = '<div style="display:grid;grid-template-columns:60px 1fr;gap:0;border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">';
+  HORAS.forEach(function(hora) {
+    var horaStr = String(hora).padStart(2,'0')+':00';
+    var evsHora = evs.filter(function(e){ return e.hora && parseInt(e.hora) === hora; });
+    var esLaboral = hora >= 8 && hora <= 15;
+
+    html += '<div style="background:var(--bg3);font-size:11px;color:var(--text3);text-align:right;padding:8px 10px 0 0;border-bottom:0.5px solid var(--border)">'+horaStr+'</div>';
+    html += '<div style="background:'+(esLaboral?'var(--bg2)':'var(--bg)')+';border-bottom:0.5px solid var(--border);border-left:0.5px solid var(--border);min-height:56px;padding:4px 8px">';
+    evsHora.forEach(function(ev) {
+      var col = AG_COLORES[ev.tipo] || AG_COLORES.interno;
+      html += '<div onclick="agVerEvento(\''+escapeHTML(ev.fbKey||'')+'\',\''+ev.tipo+'\')" style="background:'+col.bg+';border-left:3px solid '+col.border+';padding:4px 8px;border-radius:4px;cursor:pointer;margin-bottom:4px">' +
+        '<div style="font-size:13px;font-weight:500;color:'+col.text+'">'+escapeHTML(ev.titulo)+'</div>' +
+        '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(ev.subtitulo)+'</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  });
+
+  // Eventos sin hora
+  var sinHora = evs.filter(function(e){ return !e.hora; });
+  if (sinHora.length) {
+    html += '<div style="background:var(--bg3);font-size:10px;color:var(--text3);text-align:right;padding:8px 10px 0 0;border-bottom:0.5px solid var(--border)">Sin hora</div>';
+    html += '<div style="background:var(--bg2);border-bottom:0.5px solid var(--border);border-left:0.5px solid var(--border);padding:4px 8px">';
+    sinHora.forEach(function(ev) {
+      var col = AG_COLORES[ev.tipo] || AG_COLORES.interno;
+      html += '<div onclick="agVerEvento(\''+escapeHTML(ev.fbKey||'')+'\',\''+ev.tipo+'\')" style="background:'+col.bg+';border-left:3px solid '+col.border+';padding:4px 8px;border-radius:4px;cursor:pointer;margin-bottom:4px">' +
+        '<div style="font-size:13px;font-weight:500;color:'+col.text+'">'+escapeHTML(ev.titulo)+'</div>' +
+        '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(ev.subtitulo)+'</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
+  if (!evs.length) html = '<div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">Sin eventos para este día — <button class="btn btn-sm btn-primary" onclick="agAbrirNuevoEvento()">+ Crear evento interno</button></div>';
+  return html;
+}
+
+// ── Clic en un día (vista mes) ──
+function agClickDia(fechaStr) {
+  AG_CURSOR = new Date(fechaStr + 'T12:00:00');
+  agCambiarVista('dia', document.querySelector('[data-vista="dia"]'));
+}
+
+// ── Ver detalle de un evento ──
+function agVerEvento(fbKey, tipo) {
+  var panel = document.getElementById('ag-panel-evento');
+  var cont  = document.getElementById('ag-panel-contenido');
+  var tit   = document.getElementById('ag-panel-titulo');
+  if (!panel || !cont) return;
+
+  if (tipo === 'interno') {
+    var ev = AG_DATA.find(function(e){ return e.fbKey === fbKey; });
+    if (!ev) return;
+    if (tit) tit.textContent = 'Evento interno';
+    cont.innerHTML =
+      agPanelFila('Descripción', ev.descripcion||'—') +
+      agPanelFila('Fecha', ev.fecha||'—') +
+      agPanelFila('Hora', ev.hora||'—') +
+      agPanelFila('Responsable', ev.empleado||'—') +
+      agPanelFila('Notas', ev.notas||'—') +
+      '<button class="btn btn-sm" onclick="agEliminarEvento(\''+fbKey+'\')" style="color:var(--red);margin-top:8px"><i class="ti ti-trash"></i> Eliminar evento</button>';
+  } else {
+    // OT (instalación o reclamo)
+    var ot = (otData||[]).find(function(o){ return (o.fbKey||o.id) === fbKey; });
+    if (!ot) return;
+    var col = AG_COLORES[tipo] || AG_COLORES.instalacion;
+    if (tit) tit.innerHTML = '<span style="color:'+col.text+'">' + (tipo==='reclamo'?'Reclamo/Servicio':'Instalación') + '</span>';
+    cont.innerHTML =
+      agPanelFila('Cliente', ot.cliente||'—') +
+      agPanelFila('Fecha', ot.fecha||'—') +
+      agPanelFila('Hora', ot.hora||'Sin hora asignada') +
+      agPanelFila('Técnico', ot.tecnico||'Sin asignar') +
+      agPanelFila('Tipo', ot.tipoVisita||'—') +
+      agPanelFila('Dirección', ot.dir||'—') +
+      agPanelFila('Notas', ot.obs||'—') +
+      agPanelFila('Progreso', (ot.progreso||0)+'%') +
+      '<button class="btn btn-sm btn-primary" onclick="agIrAOT(\''+escapeHTML(ot.id||fbKey)+'\')" style="margin-top:8px;width:100%"><i class="ti ti-external-link"></i> Abrir OT completa</button>';
+  }
+
+  panel.style.display = 'block';
+}
+
+function agPanelFila(label, valor) {
+  return '<div style="border-bottom:0.5px solid var(--border);padding:8px 0">' +
+    '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">'+label+'</div>' +
+    '<div style="font-size:13px">'+escapeHTML(String(valor))+'</div>' +
+  '</div>';
+}
+
+function agIrAOT(otId) {
+  _hide('ag-panel-evento');
+  showPage('ordentrabajo', document.querySelector('[onclick*="ordentrabajo"]'));
+  setTimeout(function(){ verOT(otId); }, 300);
+}
+
+// ── Nuevo evento interno ──
+function agAbrirNuevoEvento() {
+  var hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('ag-ev-fecha').value = AG_CURSOR.toISOString().split('T')[0] || hoy;
+  document.getElementById('ag-ev-hora').value  = '09:00';
+  document.getElementById('ag-ev-desc').value  = '';
+  document.getElementById('ag-ev-notas').value = '';
+  // Poblar select de empleados
+  var sel = document.getElementById('ag-ev-empleado');
+  if (sel && sel.options.length <= 1) {
+    Object.values(empData||{}).filter(function(e){ return e.activo !== false; }).forEach(function(e) {
+      var opt = document.createElement('option'); opt.value=e.nombre; opt.textContent=e.nombre; sel.appendChild(opt);
+    });
+  }
+  document.getElementById('ag-modal-nuevo').style.display = 'flex';
+}
+
+function agGuardarEvento() {
+  var desc  = document.getElementById('ag-ev-desc').value.trim();
+  var fecha = document.getElementById('ag-ev-fecha').value;
+  if (!desc) { notify('Ingresá la descripción del evento'); return; }
+  if (!fecha) { notify('Ingresá la fecha'); return; }
+  var ev = {
+    descripcion: desc,
+    fecha, hora: document.getElementById('ag-ev-hora').value,
+    empleado: document.getElementById('ag-ev-empleado').value,
+    notas: document.getElementById('ag-ev-notas').value,
+    tipo: 'interno', ts: Date.now(), usuario: currentUser||''
+  };
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  window.fbPush(window.fbRef(window.fbDB, 'sisventas/agenda'), ev)
+    .then(function(){ notify('✓ Evento guardado'); document.getElementById('ag-modal-nuevo').style.display='none'; })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+function agEliminarEvento(fbKey) {
+  if (!confirm('¿Eliminar este evento?')) return;
+  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/agenda/'+fbKey))
+    .then(function(){ notify('Evento eliminado'); _hide('ag-panel-evento'); })
+    .catch(function(e){ notify('Error: '+e.message); });
 }
 
 function imprimirRemito(fbKey) {
@@ -15337,48 +15947,169 @@ function otBadge(estado) {
   return `<span class="${cls}">${label}</span>`;
 }
 
-// Renderizar tabla de OTs
-function renderOTTabla(filtro='') {
-  const tbody = document.getElementById('ot-tbody');
-  if (!tbody) return;
-  var busq = (document.getElementById('ot-busq')||{}).value||'';
-  const rows = otData.filter(function(o){
-    var matchFiltro = !filtro || o.estado === filtro;
-    var matchBusq   = !busq   || (o.id||'').toLowerCase().includes(busq.toLowerCase()) || (o.cliente||'').toLowerCase().includes(busq.toLowerCase());
-    return matchFiltro && matchBusq;
-  });
-  tbody.innerHTML = rows.map(o => {
-    var visitasPreviasReales = _contarVisitasPrevias(o.cliente, o.dir, o.id);
-    var iconoRepetida = visitasPreviasReales > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N° '+(visitasPreviasReales+1)+' a esta instalación"></i>' : '';
-    return `<tr>
-    <td style="font-weight:500">${iconoRepetida}${escapeHTML(o.id)}</td>
-    <td>${escapeHTML(o.ventaId||'—')}</td>
-    <td>${escapeHTML(o.cliente||'—')}</td>
-    <td>${escapeHTML(o.tecnico||'Sin asignar')}</td>
-    <td style="color:var(--text3)">${escapeHTML(o.fecha||'—')}</td>
-    <td style="min-width:100px">
-      <div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:${o.progreso||0}%"></div></div>
-      <div style="font-size:11px;color:var(--text3);margin-top:3px">${o.progreso||0}%</div>
-    </td>
-    <td>${otBadge(o.estado)}</td>
-    <td style="white-space:nowrap">
-      <button class="btn btn-sm btn-icon" onclick="verOT('${o.id}')" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>
-      <button class="btn btn-sm btn-icon" onclick="eliminarOT('${o.fbKey||o.id}')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button>
-    </td>
-  </tr>`;
-  }).join('');
-  if (!rows.length) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
-  // Actualizar métricas
+// Renderizar OTs — diferenciado por rol
+function renderOTTabla(filtro) {
   var hoy = new Date().toISOString().split('T')[0];
   var mes = hoy.slice(0,7);
   var _e = function(id){ return document.getElementById(id); };
+
+  // Métricas (iguales para todos)
   if (_e('ot-met-abiertas')) _e('ot-met-abiertas').textContent = otData.filter(function(o){ return o.estado !== 'completada'; }).length;
   if (_e('ot-met-hoy'))      _e('ot-met-hoy').textContent      = otData.filter(function(o){ return o.fecha === hoy; }).length;
   if (_e('ot-met-comp'))     _e('ot-met-comp').textContent     = otData.filter(function(o){ return o.estado === 'completada' && (o.fecha||'').slice(0,7) === mes; }).length;
+
+  var esTecnico = currentRole === 'tecnico';
+  if (_e('ot-vista-tecnico')) _e('ot-vista-tecnico').style.display = esTecnico ? '' : 'none';
+  if (_e('ot-vista-admin'))   _e('ot-vista-admin').style.display   = esTecnico ? 'none' : '';
+
+  if (esTecnico) {
+    _renderOTVistaTenico(hoy);
+  } else {
+    _renderOTVistaAdmin(filtro||'', hoy);
+  }
+}
+
+// ── Tarjeta de OT para vista técnico ──
+function _otTarjeta(o, hoy) {
+  var esPrioridad = o.prioridad === true || o.prioridad === 'true';
+  var esAtrasada  = o.fecha && o.fecha < hoy && o.estado !== 'completada';
+  var borderColor = esPrioridad || esAtrasada ? 'var(--red)' : o.fecha === hoy ? 'var(--amber)' : 'var(--border)';
+  var tipo = o.tipoVisita || o.tipo || 'Instalación nueva';
+  var tipoIco = tipo.toLowerCase().includes('reclamo') ? 'ti-headset' : tipo.toLowerCase().includes('mant') ? 'ti-tool' : 'ti-bolt';
+  var tipoColor = tipo.toLowerCase().includes('reclamo') ? 'var(--red)' : tipo.toLowerCase().includes('mant') ? 'var(--amber)' : 'var(--blue)';
+  var visitasPrev = _contarVisitasPrevias(o.cliente, o.dir, o.id);
+  return '<div style="background:var(--bg3);border-radius:var(--radius);padding:14px;border-left:3px solid '+borderColor+';cursor:pointer" onclick="verOT(\''+escapeHTML(o.id||o.fbKey||'')+'\')">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">' +
+      '<div style="flex:1">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+          (esPrioridad ? '<span class="badge b-red" style="font-size:10px"><i class="ti ti-flame" style="font-size:10px"></i> PRIORIDAD</span>' : '') +
+          (esAtrasada  ? '<span class="badge b-red" style="font-size:10px">ATRASADA</span>' : '') +
+          '<span style="font-size:12px;font-weight:600;font-family:monospace">'+escapeHTML(o.id||'')+'</span>' +
+          (visitasPrev > 0 ? '<span style="font-size:11px;color:var(--amber)"><i class="ti ti-repeat"></i> Visita N°'+(visitasPrev+1)+'</span>' : '') +
+        '</div>' +
+        '<div style="font-size:14px;font-weight:500;margin-bottom:2px">'+escapeHTML(o.cliente||'Sin cliente')+'</div>' +
+        '<div style="font-size:12px;color:var(--text3)"><i class="ti ti-map-pin" style="font-size:11px"></i> '+escapeHTML(o.dir||'Sin dirección')+'</div>' +
+        (o.obs ? '<div style="font-size:12px;color:var(--text2);margin-top:4px;font-style:italic">'+escapeHTML(o.obs)+'</div>' : '') +
+      '</div>' +
+      '<div style="text-align:right;flex-shrink:0">' +
+        '<div style="font-size:12px;color:'+tipoColor+'"><i class="ti '+tipoIco+'" style="font-size:12px"></i> '+escapeHTML(tipo)+'</div>' +
+        (o.hora ? '<div style="font-size:13px;font-weight:600;margin-top:4px">'+escapeHTML(o.hora)+'</div>' : '') +
+        '<div style="margin-top:6px">' +
+          '<div class="progress-bar" style="margin:0;width:80px"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div>' +
+          '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function _renderOTVistaTenico(hoy) {
+  var _e = function(id){ return document.getElementById(id); };
+  if (_e('ot-tec-fecha-lbl')) _e('ot-tec-fecha-lbl').textContent =
+    new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+
+  // Solo OTs del técnico actual, no completadas
+  var miNombre = currentUser || '';
+  var mias = otData.filter(function(o){
+    return o.estado !== 'completada' &&
+      (o.tecnico === miNombre || !miNombre);
+  });
+
+  // Ordenar: prioridad primero, luego fecha
+  mias.sort(function(a,b){
+    var ap = a.prioridad ? 0 : 1;
+    var bp = b.prioridad ? 0 : 1;
+    if (ap !== bp) return ap - bp;
+    return (a.fecha||'9999') < (b.fecha||'9999') ? -1 : 1;
+  });
+
+  var atrasadas  = mias.filter(function(o){ return o.fecha && o.fecha < hoy; });
+  var deHoy      = mias.filter(function(o){ return o.fecha === hoy; });
+  var sinFecha   = mias.filter(function(o){ return !o.fecha || o.fecha > hoy; });
+
+  var renderGrupo = function(containerId, boxId, lista) {
+    var box  = _e(boxId);
+    var cont = _e(containerId);
+    if (!box || !cont) return;
+    if (!lista.length) { box.style.display='none'; return; }
+    box.style.display = '';
+    cont.innerHTML = lista.map(function(o){ return _otTarjeta(o, hoy); }).join('');
+  };
+
+  renderGrupo('ot-tec-atrasadas',  'ot-tec-atrasadas-box',  atrasadas);
+  renderGrupo('ot-tec-hoy',        'ot-tec-hoy-box',        deHoy);
+  renderGrupo('ot-tec-pendientes', 'ot-tec-pendientes-box', sinFecha);
+
+  var vacia = _e('ot-tec-vacia');
+  if (vacia) vacia.style.display = mias.length ? 'none' : '';
+}
+
+function _renderOTVistaAdmin(filtro, hoy) {
+  var tbody = document.getElementById('ot-tbody');
+  if (!tbody) return;
+  var busq = (document.getElementById('ot-busq')||{}).value||'';
+  var filtroTec = (document.getElementById('ot-filtro-tecnico')||{}).value||'';
+
+  // Actualizar select de técnicos
+  var selTec = document.getElementById('ot-filtro-tecnico');
+  if (selTec && selTec.options.length <= 1) {
+    var tecnicos = [...new Set(otData.map(function(o){ return o.tecnico; }).filter(Boolean))].sort();
+    tecnicos.forEach(function(t){
+      var opt = document.createElement('option'); opt.value=t; opt.textContent=t;
+      selTec.appendChild(opt);
+    });
+  }
+
+  var rows = otData.filter(function(o){
+    var matchFiltro = !filtro    || o.estado   === filtro;
+    var matchTec    = !filtroTec || o.tecnico  === filtroTec;
+    var matchBusq   = !busq      || (o.id||'').toLowerCase().includes(busq.toLowerCase()) || (o.cliente||'').toLowerCase().includes(busq.toLowerCase());
+    return matchFiltro && matchTec && matchBusq;
+  });
+
+  // Ordenar: prioridad > atrasadas > hoy > futuras > sin fecha
+  rows.sort(function(a,b){
+    var score = function(o){
+      if (o.prioridad) return 0;
+      if (o.fecha && o.fecha < hoy) return 1;
+      if (o.fecha === hoy) return 2;
+      if (o.fecha > hoy) return 3;
+      return 4;
+    };
+    return score(a) - score(b);
+  });
+
+  tbody.innerHTML = rows.map(function(o) {
+    var esPrioridad = o.prioridad === true || o.prioridad === 'true';
+    var esAtrasada  = o.fecha && o.fecha < hoy && o.estado !== 'completada';
+    var rowColor    = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : o.fecha === hoy ? 'background:rgba(245,158,11,.04)' : '';
+    var visitasPrev = _contarVisitasPrevias(o.cliente, o.dir, o.id);
+    var iconoRep    = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+    return '<tr style="'+rowColor+'">' +
+      '<td style="text-align:center">' +
+        (esPrioridad ? '<i class="ti ti-flame" style="color:var(--red);font-size:14px" title="Prioridad"></i>' : '') +
+        (esAtrasada && !esPrioridad ? '<i class="ti ti-clock" style="color:var(--amber);font-size:14px" title="Atrasada"></i>' : '') +
+      '</td>' +
+      '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+escapeHTML(o.id||'')+'</td>' +
+      '<td>'+escapeHTML(o.cliente||'—')+'</td>' +
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(o.tecnico||'Sin asignar')+'</td>' +
+      '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':o.fecha===hoy?'var(--amber)':'var(--text3)')+'">'+escapeHTML(o.fecha||'Sin fecha')+(o.hora?' '+o.hora:'')+'</td>' +
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(o.tipoVisita||o.tipo||'—')+'</td>' +
+      '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
+      '<td>'+otBadge(o.estado)+'</td>' +
+      '<td style="white-space:nowrap">' +
+        '<button class="btn btn-sm btn-icon" onclick="verOT(\''+escapeHTML(o.id||o.fbKey||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+escapeHTML(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+  if (!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
 }
 
 function filtrarOT(v) { renderOTTabla(v); }
+function filtrarOTTecnico(v) { renderOTTabla(); }
 function buscarOT(v)  { renderOTTabla(); }
+
 
 // Ver detalle de una OT
 function abrirOTDesdeId(otId) {
@@ -15389,65 +16120,210 @@ function abrirOTDesdeId(otId) {
 }
 
 function verOT(id) {
-  const ot = otData.find(o => o.id === id);
-  if (!ot) return;
-  otActualId = id;
+  var ot = otData.find(function(o){ return o.id === id || o.fbKey === id; });
+  if (!ot) { notify('OT no encontrada'); return; }
+  otActualId = ot.id || id;
   _hide('ot-list-view');
   _block('ot-detalle-view');
 
-  _set('ot-det-num',ot.id);
+  _set('ot-det-num', ot.id||'OT');
   document.getElementById('ot-det-estado-badge').innerHTML = otBadge(ot.estado);
-  document.getElementById('ot-det-venta').value = ot.ventaId;
-  document.getElementById('ot-det-cliente').value = ot.cliente;
-  document.getElementById('ot-det-tecnico').value = ot.tecnico;
-  document.getElementById('ot-det-fecha').value = ot.fecha;
-  document.getElementById('ot-det-hora').value = ot.hora;
-  document.getElementById('ot-det-dir').value = ot.dir;
-  document.getElementById('ot-det-obs').value = ot.obs;
-  document.getElementById('ot-det-tipovisita').value = ot.tipoVisita || 'Instalación nueva';
 
-  var visitasPreviasReales = _contarVisitasPrevias(ot.cliente, ot.dir, ot.id);
+  // Prioridad
+  var esPrioridad = ot.prioridad === true || ot.prioridad === 'true';
+  var prioChk = document.getElementById('ot-det-prioridad');
+  var prioBadge = document.getElementById('ot-det-prioridad-badge');
+  if (prioChk) prioChk.checked = esPrioridad;
+  if (prioBadge) prioBadge.style.display = esPrioridad ? '' : 'none';
+
+  document.getElementById('ot-det-venta').value = ot.ventaId||'';
+  document.getElementById('ot-det-cliente').value = ot.cliente||'';
+  document.getElementById('ot-det-fecha').value = ot.fecha||'';
+  document.getElementById('ot-det-hora').value = ot.hora||'';
+  document.getElementById('ot-det-dir').value = ot.dir||'';
+  document.getElementById('ot-det-obs').value = ot.obs||'';
+
+  var tipoSel = document.getElementById('ot-det-tipovisita');
+  if (tipoSel) tipoSel.value = ot.tipoVisita || 'Instalación nueva';
+
+  // Técnico (select — solo si no es técnico)
+  var tecSel = document.getElementById('ot-det-tecnico');
+  if (tecSel && ot.tecnico) tecSel.value = ot.tecnico;
+
+  // Visita repetida
+  var visitasPrev = _contarVisitasPrevias(ot.cliente, ot.dir, ot.id);
   var repetidaBox = document.getElementById('ot-det-repetida-box');
   var repetidaLbl = document.getElementById('ot-det-repetida-lbl');
-  if (visitasPreviasReales > 0 && repetidaBox && repetidaLbl) {
+  if (visitasPrev > 0 && repetidaBox && repetidaLbl) {
     repetidaBox.style.display = '';
-    repetidaLbl.innerHTML = '<i class="ti ti-alert-triangle"></i> Visita N° ' + (visitasPreviasReales+1) + ' a esta instalación — ya se registraron ' + visitasPreviasReales + ' visita' + (visitasPreviasReales!==1?'s':'') + ' previa' + (visitasPreviasReales!==1?'s':'') + '.';
+    repetidaLbl.innerHTML = '<i class="ti ti-alert-triangle"></i> Visita N° '+(visitasPrev+1)+' — ya hay '+visitasPrev+' visita'+(visitasPrev!==1?'s':'')+ ' previa'+(visitasPrev!==1?'s':'')+' registrada'+(visitasPrev!==1?'s':'')+'.';
   } else if (repetidaBox) {
     repetidaBox.style.display = 'none';
   }
 
-  renderChecklist('checklist-preparacion', ot.checks.preparacion, CHECKLISTS.preparacion, id, 'preparacion');
-  renderChecklist('checklist-instalacion', ot.checks.instalacion, CHECKLISTS.instalacion, id, 'instalacion');
-  renderChecklist('checklist-verificacion', ot.checks.verificacion, CHECKLISTS.verificacion, id, 'verificacion');
-  actualizarProgreso(ot);
+  // ── Credenciales del cliente ──
+  otCargarCredenciales(ot);
 
-  // Materiales
-  const mat = document.getElementById('ot-materiales');
-  if (mat) mat.innerHTML = ot.materiales.map(m => {
-    const ok = m.instalada >= m.vendida;
-    const parcial = m.instalada > 0 && m.instalada < m.vendida;
-    return `<tr>
-      <td>${escapeHTML(m.cod)}</td>
-      <td>${escapeHTML(m.desc)}</td>
-      <td class="tr">${m.vendida}</td>
-      <td class="tr"><input type="number" value="${m.instalada}" min="0" max="${m.vendida}" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:3px 6px;text-align:right;font-size:13px;font-family:inherit"></td>
-      <td class="tr">${ok ? '<span class="badge b-green">Completo</span>' : parcial ? '<span class="badge b-amber">Parcial</span>' : '<span class="badge b-red">Pendiente</span>'}</td>
-    </tr>`;
+  // ── Contexto según origen ──
+  var reclamoBox = document.getElementById('ot-reclamo-box');
+  if (reclamoBox) {
+    if (ot.reclamoKey && SP_DATA[ot.reclamoKey]) {
+      var reclamo = SP_DATA[ot.reclamoKey];
+      reclamoBox.style.display = '';
+      var descEl = document.getElementById('ot-reclamo-desc');
+      if (descEl) descEl.textContent = reclamo.descripcion||'';
+      var histEl = document.getElementById('ot-reclamo-hist');
+      if (histEl) {
+        var hist = reclamo.historial || [];
+        histEl.innerHTML = hist.map(function(h) {
+          return '<div style="background:var(--bg3);border-radius:var(--radius);padding:8px 12px">' +
+            '<div style="font-size:12px">'+escapeHTML(h.texto||'')+'</div>' +
+            '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+escapeHTML(h.autor||'')+' · '+spFormatFecha(h.ts)+'</div>' +
+          '</div>';
+        }).join('') || '<div style="color:var(--text3);font-size:12px">Sin notas en el reclamo</div>';
+      }
+    } else {
+      reclamoBox.style.display = 'none';
+    }
+  }
+
+  // ── Notas del técnico ──
+  otRenderNotas(ot);
+
+  // ── Checklist ──
+  if (ot.checks) {
+    renderChecklist('checklist-preparacion', ot.checks.preparacion||[], CHECKLISTS.preparacion, ot.id, 'preparacion');
+    renderChecklist('checklist-instalacion', ot.checks.instalacion||[], CHECKLISTS.instalacion, ot.id, 'instalacion');
+    renderChecklist('checklist-verificacion', ot.checks.verificacion||[], CHECKLISTS.verificacion, ot.id, 'verificacion');
+    actualizarProgreso(ot);
+  }
+
+  // ── Materiales ──
+  var mat = document.getElementById('ot-materiales');
+  if (mat) mat.innerHTML = (ot.materiales||[]).map(function(m) {
+    var ok = m.instalada >= m.vendida;
+    var parcial = m.instalada > 0 && m.instalada < m.vendida;
+    return '<tr><td>'+escapeHTML(m.cod||'')+'</td><td>'+escapeHTML(m.desc||'')+'</td><td class="tr">'+m.vendida+'</td>' +
+      '<td class="tr"><input type="number" value="'+m.instalada+'" min="0" max="'+m.vendida+'" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:3px 6px;text-align:right;font-size:13px;font-family:inherit"></td>' +
+      '<td class="tr">'+(ok?'<span class="badge b-green">Completo</span>':parcial?'<span class="badge b-amber">Parcial</span>':'<span class="badge b-red">Pendiente</span>')+'</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:12px">Sin materiales registrados</td></tr>';
+
+  // ── Audit ──
+  var auditEl = document.getElementById('ot-audit');
+  if (auditEl) auditEl.innerHTML = [...(ot.audit||[])].reverse().map(function(e) {
+    return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">' +
+      '<div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-history" style="font-size:12px;color:var(--text3)"></i></div>' +
+      '<div><div style="font-size:13px">'+escapeHTML(e.accion||'')+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML(e.usuario||'')+' · '+escapeHTML(e.fecha||'')+'</div></div>' +
+    '</div>';
   }).join('');
-
-  // Audit
-  const auditEl = document.getElementById('ot-audit');
-  if (auditEl) auditEl.innerHTML = [...ot.audit].reverse().map(e => `
-    <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
-      <div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <i class="ti ti-history" style="font-size:12px;color:var(--text3)"></i>
-      </div>
-      <div>
-        <div style="font-size:13px;color:var(--text)">${escapeHTML(e.accion)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHTML(e.usuario)} · ${escapeHTML(e.fecha)}</div>
-      </div>
-    </div>`).join('');
 }
+
+// ── Credenciales del cliente en OT ──
+function otCargarCredenciales(ot) {
+  var box  = document.getElementById('ot-cred-box');
+  var lista = document.getElementById('ot-cred-lista');
+  if (!box || !lista) return;
+
+  // Buscar idCliente a partir del cliente de la OT
+  var cli = (clientesData||[]).find(function(c){
+    return c.nombre === ot.cliente || String(c.id) === String(ot.clienteId||'');
+  });
+  if (!cli || !window.fbDB) { box.style.display='none'; return; }
+
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/credenciales/'+cli.id)).then(function(snap) {
+    var data = snap.val();
+    if (!data) { box.style.display='none'; return; }
+    box.style.display = '';
+    var items = Object.values(data);
+    lista.innerHTML = items.map(function(c) {
+      var ico = (CRED_TIPO_ICONOS||{})[c.tipo] || 'ti-key';
+      return '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;display:flex;gap:12px;align-items:flex-start">' +
+        '<div style="width:32px;height:32px;border-radius:6px;background:var(--blue-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+ico+'" style="font-size:16px"></i></div>' +
+        '<div style="flex:1">' +
+          '<div style="font-weight:500;font-size:13px">'+escapeHTML(c.desc||c.tipo||'')+'</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;margin-top:6px">' +
+            (c.user ? '<div><span style="font-size:10px;color:var(--text3);display:block">Usuario</span><span style="font-family:monospace;font-size:13px">'+escapeHTML(c.user)+'</span></div>' : '') +
+            (c.pass ? '<div><span style="font-size:10px;color:var(--text3);display:block">Contraseña</span>' +
+              '<div style="display:flex;align-items:center;gap:6px">' +
+                '<span class="ot-cred-pass" style="font-family:monospace;font-size:13px">••••••••</span>' +
+                '<button onclick="this.previousElementSibling.textContent=this.previousElementSibling.textContent===\'••••••••\'?\''+escapeHTML(c.pass||'')+'\':\'••••••••\'" style="background:none;border:none;cursor:pointer;color:var(--text3)"><i class="ti ti-eye" style="font-size:13px"></i></button>' +
+              '</div></div>' : '') +
+            (c.ip ? '<div><span style="font-size:10px;color:var(--text3);display:block">IP / Sistema</span><span style="font-family:monospace;font-size:12px">'+escapeHTML(c.ip)+(c.puerto?':'+escapeHTML(c.puerto):'')+'</span></div>' : '') +
+          '</div>' +
+          (c.notas ? '<div style="margin-top:6px;font-size:11px;color:var(--text3);font-style:italic">'+escapeHTML(c.notas)+'</div>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }).catch(function(){ box.style.display='none'; });
+}
+
+// ── Notas del técnico en OT ──
+function otRenderNotas(ot) {
+  var lista = document.getElementById('ot-notas-lista');
+  var fotosCont = document.getElementById('ot-fotos-preview');
+  if (!lista) return;
+  var notas = ot.notasTecnico || [];
+  lista.innerHTML = notas.length ? notas.map(function(n) {
+    return '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px">' +
+      '<div style="font-size:13px">'+escapeHTML(n.texto||'')+'</div>' +
+      '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+escapeHTML(n.autor||'')+' · '+spFormatFecha(n.ts)+'</div>' +
+      (n.fotoUrl ? '<img src="'+escapeHTML(n.fotoUrl)+'" style="max-width:100%;border-radius:6px;margin-top:8px;max-height:200px;object-fit:cover">' : '') +
+    '</div>';
+  }).join('') : '<div style="font-size:12px;color:var(--text3);text-align:center;padding:12px">Sin notas técnicas todavía</div>';
+  if (fotosCont) fotosCont.innerHTML = '';
+}
+
+function otAgregarNota() {
+  var inp = document.getElementById('ot-nota-nueva');
+  var texto = inp ? inp.value.trim() : '';
+  if (!texto) { notify('Ingresá el texto de la nota'); return; }
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+  if (!ot || !window.fbDB) return;
+  var notas = ot.notasTecnico ? ot.notasTecnico.slice() : [];
+  notas.push({ texto, autor: currentUser||'Técnico', ts: Date.now() });
+  var key = ot.fbKey || otActualId;
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico: notas })
+    .then(function(){ inp.value=''; notify('✓ Nota agregada'); })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+function otAgregarFoto(input) {
+  var file = input.files[0];
+  if (!file) return;
+  if (file.size > 3*1024*1024) { notify('La foto no puede superar 3MB'); return; }
+  if (!window.fbStorage) { notify('Storage no disponible'); return; }
+  var inp  = document.getElementById('ot-nota-nueva');
+  var texto = inp ? inp.value.trim() : 'Foto adjunta';
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+  if (!ot) return;
+  var path = 'sisventas/ots/'+(ot.fbKey||otActualId)+'/fotos/'+Date.now()+'_'+file.name;
+  var sRef = window.fbStorageRef(window.fbStorage, path);
+  notify('Subiendo foto...');
+  window.fbUploadBytes(sRef, file).then(function(){
+    return window.fbGetDownloadURL(sRef);
+  }).then(function(url) {
+    var notas = ot.notasTecnico ? ot.notasTecnico.slice() : [];
+    notas.push({ texto: texto||'Foto', autor: currentUser||'Técnico', ts: Date.now(), fotoUrl: url });
+    var key = ot.fbKey || otActualId;
+    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico: notas });
+  }).then(function(){ if(inp) inp.value=''; notify('✓ Foto adjuntada'); })
+  .catch(function(e){ notify('Error: '+e.message); });
+}
+
+function otVerReclamo() {
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+  if (!ot || !ot.reclamoKey) return;
+  volverListaOT();
+  showPage('soporte', document.querySelector('[onclick*="soporte"]'));
+  setTimeout(function(){ spAbrirModal(ot.reclamoKey); }, 400);
+}
+
+function actualizarOTFecha() {
+  actualizarOT();
+  // Si se asignó fecha, sincronizar con Agenda automáticamente (próximo paso)
+}
+
+
 
 // Renderizar checklist de una fase
 function renderChecklist(containerId, checks, labels, otId, fase) {
@@ -15505,18 +16381,29 @@ function completarOT() {
 }
 
 function actualizarOT() {
-  const ot = otData.find(o => o.id === otActualId);
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot) return;
 
-  ot.tecnico    = document.getElementById('ot-det-tecnico').value;
+  var tecSel = document.getElementById('ot-det-tecnico');
+  var durSel = document.getElementById('ot-det-duracion');
+  var tipoSel = document.getElementById('ot-det-tipovisita');
+  var prioChk = document.getElementById('ot-det-prioridad');
+  var prioBadge = document.getElementById('ot-det-prioridad-badge');
+
+  if (tecSel)  ot.tecnico    = tecSel.value;
   ot.fecha      = document.getElementById('ot-det-fecha').value;
   ot.hora       = document.getElementById('ot-det-hora').value;
-  ot.duracion   = document.getElementById('ot-det-duracion').value;
-  ot.tipoVisita = document.getElementById('ot-det-tipovisita').value;
+  if (durSel)  ot.duracion   = durSel.value;
+  if (tipoSel) ot.tipoVisita = tipoSel.value;
   ot.obs        = document.getElementById('ot-det-obs').value;
+  if (prioChk) {
+    ot.prioridad = prioChk.checked;
+    if (prioBadge) prioBadge.style.display = prioChk.checked ? '' : 'none';
+  }
 
-  const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-  ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor'), accion: 'Datos de la OT actualizados' });
+  var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  if (!ot.audit) ot.audit = [];
+  ot.audit.push({ fecha: ahora, usuario: currentUser || 'Sistema', accion: 'Datos de la OT actualizados' + (ot.prioridad ? ' · Marcada como PRIORIDAD' : '') });
 
   if (typeof fbGuardarOT === 'function') fbGuardarOT(ot);
   notify('OT actualizada');
@@ -16026,17 +16913,20 @@ function verHistorialCli(btn) {
 function verHistorialCliente(id, nombre) {
   clienteActualId = id;
   var cli = (clientesData || []).find(function(c){ return String(c.id) === String(id); });
-  if (!cli && clientesData && clientesData.length) cli = clientesData[0];
-  if (!cli) { notify('Cliente no encontrado'); return; }
+  if (!cli) { notify('Cliente no encontrado (ID: '+id+')'); return; }
   showPage('historialcliente', null);
 
+  // Registrar cliente activo para credenciales
+  if (typeof credSetCliente === 'function') credSetCliente(cli.id);
+
   // Header
+  var iniciales = (cli.nombre||'').split(' ').slice(0,2).map(function(p){ return p[0]||''; }).join('').toUpperCase() || '?';
   _set('hc-titulo','Historial — ' + cli.nombre);
-  _set('hc-avatar',cli.iniciales);
+  _set('hc-avatar', cli.iniciales || iniciales);
   _set('hc-nombre',cli.nombre);
-  document.getElementById('hc-tel').innerHTML = '<i class="ti ti-phone" style="font-size:12px"></i> ' + cli.tel;
-  document.getElementById('hc-email').innerHTML = '<i class="ti ti-mail" style="font-size:12px"></i> ' + cli.email;
-  document.getElementById('hc-dir').innerHTML = '<i class="ti ti-map-pin" style="font-size:12px"></i> ' + cli.dir;
+  document.getElementById('hc-tel').innerHTML = '<i class="ti ti-phone" style="font-size:12px"></i> ' + (cli.tel||cli.telefono||'—');
+  document.getElementById('hc-email').innerHTML = '<i class="ti ti-mail" style="font-size:12px"></i> ' + (cli.email||cli.mail||'—');
+  document.getElementById('hc-dir').innerHTML = '<i class="ti ti-map-pin" style="font-size:12px"></i> ' + (cli.dir||'—');
   var cliActivo = cli.estado === 'activo' || cli.activo !== false;
   document.getElementById('hc-estado-badge').innerHTML =
     '<label class="toggle-sw" title="' + (cliActivo ? 'Activo — clic para dar de baja' : 'Inactivo — clic para reactivar') + '">' +
@@ -16044,10 +16934,17 @@ function verHistorialCliente(id, nombre) {
     '<span class="toggle-knob"></span></label>' +
     '<span style="font-size:12px;color:var(--text3);margin-left:8px">' + (cliActivo ? 'Activo' : 'Inactivo') + '</span>';
 
+  // Filtro estricto por ID — nunca por nombre para evitar mezclar sucursales
+  function filtrarPorCliente(lista) {
+    return (lista || []).filter(function(v) {
+      return String(v.idClienteOriginal) === String(id) ||
+             String(v.clienteId)         === String(id) ||
+             String(v.idCliente)         === String(id);
+    });
+  }
+
   // KPIs reales desde ventasList
-  var vReales = (ventasList || []).filter(function(v) {
-    return String(v.idClienteOriginal) === String(id) || v.cliente === cli.nombre;
-  });
+  var vReales = filtrarPorCliente(ventasList);
   var totalReal = vReales.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
   var saldoReal = vReales.filter(function(v){ return v.estadoPago !== 'pago_total'; })
                          .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
@@ -16063,11 +16960,8 @@ function verHistorialCliente(id, nombre) {
   _set('hc-equipos', vReales.length || (cli.equipos||0));
   _set('hc-garantia-sub', 'ventas registradas');
 
-  // Tab ventas — datos reales de Firebase
-  var ventasCliente = (ventasList || []).filter(function(v) {
-    return String(v.idClienteOriginal) === String(id) || v.cliente === cli.nombre;
-  });
-  const ventas = ventasCliente.length ? ventasCliente : [];
+  // Tab ventas
+  var ventas = filtrarPorCliente(ventasList);
   var vBody = document.getElementById('hc-ventas-body');
   if (vBody) {
     vBody.innerHTML = ventas.length ? ventas.map(function(v) {
@@ -16094,8 +16988,14 @@ function verHistorialCliente(id, nombre) {
     <td class="tr" style="color:${p.saldo>0?'var(--amber)':'var(--text3)'}">$${(parseFloat(p.saldo)||0).toLocaleString('es-AR')}</td>
   </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin pagos registrados</td></tr>';
 
-  // Tab presupuestos
-  const pptos = typeof pptoData !== 'undefined' ? pptoData.filter(p => p.cliente === cli.nombre) : [];
+  // Tab presupuestos — filtrar por ID, no por nombre
+  var pptos = typeof pptoData !== 'undefined' ? pptoData.filter(function(p) {
+    return String(p.clienteId) === String(id) || String(p.idCliente) === String(id);
+  }) : [];
+  // Fallback: si las ventas del cliente tienen presupuesto vinculado, mostrarlos también
+  if (!pptos.length && typeof pptoData !== 'undefined') {
+    pptos = pptoData.filter(function(p){ return p.cliente === cli.nombre && cli.nombre; });
+  }
   const ppBody = document.getElementById('hc-ppto-body');
   ppBody.innerHTML = pptos.length ? pptos.map(p => `<tr>
     <td style="font-weight:500">${escapeHTML(p.id)}</td>
@@ -16136,7 +17036,169 @@ function switchHistTab(tab, btn) {
   const sec = document.getElementById('hist-' + tab);
   if (sec) sec.classList.add('active');
   if (btn) btn.classList.add('active');
+  if (tab === 'credenciales') credCargar();
 }
+
+// ══════════════════════════════════════════════
+// CREDENCIALES DEL CLIENTE
+// Ruta Firebase: sisventas/credenciales/{clienteId}/{credKey}
+// ══════════════════════════════════════════════
+var _credClienteId = null;
+var _credEditKey = null;
+
+var CRED_TIPO_LABELS = {
+  dvr:'DVR / NVR', alarma:'Panel de alarma', app:'App móvil',
+  router:'Router / Red', camara:'Cámara IP', domotica:'Domótica', otro:'Otro'
+};
+var CRED_TIPO_ICONOS = {
+  dvr:'ti-device-desktop-analytics', alarma:'ti-shield-check', app:'ti-device-mobile',
+  router:'ti-router', camara:'ti-camera', domotica:'ti-smart-home', otro:'ti-key'
+};
+
+function credSetCliente(clienteId) {
+  _credClienteId = String(clienteId);
+}
+
+function credCargar() {
+  if (!_credClienteId || !window.fbDB) return;
+  var lista = document.getElementById('hc-cred-lista');
+  if (!lista) return;
+  lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Cargando...</div>';
+  credCerrarEditor();
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/credenciales/' + _credClienteId)).then(function(snap) {
+    var data = snap.val();
+    if (!data) {
+      lista.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin credenciales cargadas para este cliente</div>';
+      return;
+    }
+    var items = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]}, e[1]); });
+    lista.innerHTML = items.map(function(c) {
+      var ico = CRED_TIPO_ICONOS[c.tipo] || 'ti-key';
+      var lbl = CRED_TIPO_LABELS[c.tipo] || c.tipo;
+      var puedeEditar = currentRole === 'admin' || currentRole === 'administrativo';
+      return '<div style="background:var(--bg3);border-radius:var(--radius);padding:14px;display:flex;gap:14px;align-items:flex-start">' +
+        '<div style="width:36px;height:36px;border-radius:8px;background:var(--blue-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+          '<i class="ti '+ico+'" style="font-size:18px"></i></div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-weight:500;font-size:13px">'+escapeHTML(c.desc||lbl)+'</div>' +
+          '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">'+lbl+'</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">' +
+            (c.user ? '<div><span style="font-size:10px;color:var(--text3);display:block">Usuario</span><span style="font-size:13px;font-family:monospace">'+escapeHTML(c.user)+'</span></div>' : '') +
+            (c.pass ? '<div><span style="font-size:10px;color:var(--text3);display:block">Contraseña</span>' +
+              '<div style="display:flex;align-items:center;gap:6px">' +
+                '<span style="font-size:13px;font-family:monospace" id="cred-pass-view-'+c.fbKey+'">••••••••</span>' +
+                '<button onclick="credMostrarPass(\''+c.fbKey+'\',\''+escapeHTML(c.pass||'').replace(/'/g,"\\'")+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:0" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
+              '</div></div>' : '') +
+            (c.ip ? '<div><span style="font-size:10px;color:var(--text3);display:block">IP / Dirección</span><span style="font-size:12px;font-family:monospace">'+escapeHTML(c.ip)+(c.puerto?':'+escapeHTML(c.puerto):'')+'</span></div>' : '') +
+          '</div>' +
+          (c.notas ? '<div style="margin-top:8px;font-size:12px;color:var(--text2);font-style:italic">'+escapeHTML(c.notas)+'</div>' : '') +
+        '</div>' +
+        (puedeEditar ? '<button class="btn btn-sm btn-icon" onclick="credAbrirEditor(\''+c.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' : '') +
+      '</div>';
+    }).join('');
+  }).catch(function(e){ lista.innerHTML = '<div style="padding:14px;color:var(--red);font-size:12px">Error al cargar: '+e.message+'</div>'; });
+}
+
+function credMostrarPass(key, pass) {
+  var el = document.getElementById('cred-pass-view-' + key);
+  if (!el) return;
+  if (el.textContent === '••••••••') {
+    el.textContent = pass;
+    setTimeout(function(){ if(el) el.textContent='••••••••'; }, 10000); // ocultar después de 10s
+  } else {
+    el.textContent = '••••••••';
+  }
+}
+
+function credTogglePass() {
+  var inp = document.getElementById('cred-pass');
+  var ico = document.getElementById('cred-pass-ico');
+  if (!inp) return;
+  if (inp.type === 'password') { inp.type = 'text'; ico.className='ti ti-eye-off'; }
+  else { inp.type = 'password'; ico.className='ti ti-eye'; }
+}
+
+function credAgregarNueva() {
+  if (currentRole !== 'admin' && currentRole !== 'administrativo') { notify('Sin permisos para agregar credenciales'); return; }
+  _credEditKey = null;
+  document.getElementById('hc-cred-editor-titulo').textContent = 'Nueva credencial';
+  document.getElementById('cred-tipo').value = 'dvr';
+  document.getElementById('cred-desc').value = '';
+  document.getElementById('cred-user').value = '';
+  document.getElementById('cred-pass').value = '';
+  document.getElementById('cred-pass').type = 'password';
+  document.getElementById('cred-pass-ico').className = 'ti ti-eye';
+  document.getElementById('cred-ip').value = '';
+  document.getElementById('cred-puerto').value = '';
+  document.getElementById('cred-notas').value = '';
+  document.getElementById('cred-btn-eliminar').style.display = 'none';
+  document.getElementById('hc-cred-editor').style.display = '';
+  document.getElementById('hc-cred-editor').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function credAbrirEditor(fbKey) {
+  if (currentRole !== 'admin' && currentRole !== 'administrativo') return;
+  _credEditKey = fbKey;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/credenciales/'+_credClienteId+'/'+fbKey)).then(function(snap) {
+    var c = snap.val(); if (!c) return;
+    document.getElementById('hc-cred-editor-titulo').textContent = 'Editar credencial';
+    document.getElementById('cred-tipo').value  = c.tipo  || 'dvr';
+    document.getElementById('cred-desc').value  = c.desc  || '';
+    document.getElementById('cred-user').value  = c.user  || '';
+    document.getElementById('cred-pass').value  = c.pass  || '';
+    document.getElementById('cred-pass').type   = 'password';
+    document.getElementById('cred-pass-ico').className = 'ti ti-eye';
+    document.getElementById('cred-ip').value    = c.ip    || '';
+    document.getElementById('cred-puerto').value= c.puerto|| '';
+    document.getElementById('cred-notas').value = c.notas || '';
+    document.getElementById('cred-btn-eliminar').style.display = '';
+    document.getElementById('hc-cred-editor').style.display = '';
+    document.getElementById('hc-cred-editor').scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+}
+
+function credCerrarEditor() {
+  var ed = document.getElementById('hc-cred-editor');
+  if (ed) ed.style.display = 'none';
+  _credEditKey = null;
+}
+
+function credGuardar() {
+  if (!_credClienteId || !window.fbDB) { notify('Sin conexión'); return; }
+  var tipo  = document.getElementById('cred-tipo').value;
+  var desc  = document.getElementById('cred-desc').value.trim();
+  var user  = document.getElementById('cred-user').value.trim();
+  var pass  = document.getElementById('cred-pass').value.trim();
+  if (!user && !pass) { notify('Ingresá al menos usuario o contraseña'); return; }
+  var datos = {
+    tipo, desc: desc || CRED_TIPO_LABELS[tipo],
+    user, pass,
+    ip:      document.getElementById('cred-ip').value.trim(),
+    puerto:  document.getElementById('cred-puerto').value.trim(),
+    notas:   document.getElementById('cred-notas').value.trim(),
+    ts:      Date.now(),
+    editadoPor: currentUser || ''
+  };
+  var path = 'sisventas/credenciales/' + _credClienteId + '/' + (_credEditKey || '');
+  var op = _credEditKey
+    ? window.fbUpdate(window.fbRef(window.fbDB, path), datos)
+    : window.fbPush(window.fbRef(window.fbDB, 'sisventas/credenciales/' + _credClienteId), datos);
+  op.then(function() {
+    notify('✓ Credencial guardada');
+    credCerrarEditor();
+    credCargar();
+  }).catch(function(e){ notify('Error: '+e.message); });
+}
+
+function credEliminar() {
+  if (!_credEditKey || !_credClienteId) return;
+  if (!confirm('¿Eliminar esta credencial? No se puede deshacer.')) return;
+  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/credenciales/'+_credClienteId+'/'+_credEditKey))
+    .then(function(){ notify('Credencial eliminada'); credCerrarEditor(); credCargar(); })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
+
 
 function verDetalleVenta(ventaId) {
   var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
