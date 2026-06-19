@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v17.9 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v18.0 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4563,45 +4563,84 @@ function actualizarSugerenciasCliente() {
   // el filterCli funcione con los datos reales
 }
 
+// ══════════════════════════════════════════════
+// DROPDOWN GLOBAL DE BÚSQUEDA — todos los buscadores del sistema
+// position:fixed, nunca cortado por ningún contenedor
+// ══════════════════════════════════════════════
+var _gDropEl = null;
+var _gDropInputRef = null;
+
+function _crearDropBusqueda() {
+  if (document.getElementById('busq-drop-global')) return document.getElementById('busq-drop-global');
+  var d = document.createElement('div');
+  d.id = 'busq-drop-global';
+  d.style.cssText = 'display:none;position:fixed;z-index:9998;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.14);max-height:260px;overflow-y:auto';
+  document.body.appendChild(d);
+  document.addEventListener('mousedown', function(e) {
+    var drop = document.getElementById('busq-drop-global');
+    if (drop && !drop.contains(e.target) && e.target !== _gDropInputRef) {
+      drop.style.display = 'none';
+    }
+  });
+  window.addEventListener('scroll', function(){ var d=document.getElementById('busq-drop-global'); if(d) d.style.display='none'; }, true);
+  return d;
+}
+
+function _mostrarDropGlobal(inputEl, html) {
+  var d = _crearDropBusqueda();
+  _gDropEl = d;
+  _gDropInputRef = inputEl;
+  d.innerHTML = html;
+  d.style.display = 'block';
+  var rect = inputEl.getBoundingClientRect();
+  d.style.top   = (rect.bottom + 3) + 'px';
+  d.style.left  = rect.left + 'px';
+  d.style.width = Math.max(rect.width, 260) + 'px';
+  var dr = d.getBoundingClientRect();
+  if (dr.right  > window.innerWidth  - 8) d.style.left = Math.max(8, window.innerWidth  - dr.width  - 8) + 'px';
+  if (dr.bottom > window.innerHeight - 8) d.style.top  = Math.max(8, rect.top - dr.height - 3) + 'px';
+}
+
+function _ocultarDropGlobal() {
+  var d = document.getElementById('busq-drop-global');
+  if (d) d.style.display = 'none';
+}
+
 function filterCli(val) {
-  var v = (typeof val === 'string' ? val : (val && val.value ? val.value : '')).trim().toLowerCase();
-  var drop = document.getElementById('cli-drop');
-  if (!drop) return;
+  var v = (typeof val === 'string' ? val : '').trim().toLowerCase();
+  var inp = document.getElementById('cli-inp');
+  if (!inp) return;
   var lista = clientesData || [];
   var matches = v
-    ? lista.filter(function(c) {
-        return (c.nombre||'').toLowerCase().includes(v) ||
-               (c.empresa||'').toLowerCase().includes(v) ||
-               String(c.id||'').includes(v);
-      })
-    : lista.slice(0, 8);
-  if (!matches.length) { drop.style.display = 'none'; return; }
-  drop.innerHTML = matches.slice(0,10).map(function(c) {
-    var empresa = c.empresa ? '<div style="font-size:11px;color:var(--text3)">' + c.empresa + '</div>' : '';
-    return '<div class="di" data-id="' + String(c.id).replace(/"/g,'&quot;') + '" style="cursor:pointer" onmousedown="selCliById(this)">' +
-      '<div style="font-weight:500;font-size:13px">' + c.nombre + '</div>' +
-      empresa +
-      '<div style="font-size:11px;color:var(--text3)">' + (c.dir||'') + (c.telefono?' · '+c.telefono:'') + '</div>' +
+    ? lista.filter(function(c){ return (c.nombre||'').toLowerCase().includes(v)||(c.empresa||'').toLowerCase().includes(v)||String(c.id||'').includes(v); })
+    : lista.slice(0,8);
+  if (!matches.length) { _ocultarDropGlobal(); return; }
+  var html = matches.slice(0,10).map(function(c) {
+    var empresa = c.empresa ? '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(c.empresa)+'</div>' : '';
+    return '<div class="di" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)" onmousedown="_gSelCliById(\''+String(c.id)+'\')">' +
+      '<div style="font-weight:500;font-size:13px">'+escapeHTML(c.nombre)+'</div>'+empresa+
+      '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(c.dir||'')+(c.telefono?' · '+escapeHTML(c.telefono):'')+'</div>'+
     '</div>';
   }).join('');
-  drop.style.display = 'block';
+  _mostrarDropGlobal(inp, html);
 }
-function selCliById(el) {
-  var id = el.dataset.id;
-  var c  = (clientesData||[]).find(function(x){ return String(x.id) === String(id); });
+
+function _gSelCliById(id) {
+  var c = (clientesData||[]).find(function(x){ return String(x.id)===String(id); });
   if (!c) return;
   selCli(c.id, c.nombre, c.dir||'');
 }
 
+function selCliById(el) { _gSelCliById(el.dataset.id); }
+
 function selCli(id, nombre, dir) {
-  var inp = document.getElementById('cli-inp');
-  var idEl= document.getElementById('id-cli');
+  var inp  = document.getElementById('cli-inp');
+  var idEl = document.getElementById('id-cli');
   var dirEl= document.getElementById('cli-dir-hidden');
-  if (inp) inp.value = nombre;
+  if (inp)  inp.value  = nombre;
   if (idEl) idEl.value = String(id).padStart(4,'0');
-  if (dirEl) dirEl.value = dir || '';
-  var drop = document.getElementById('cli-drop');
-  if (drop) drop.style.display = 'none';
+  if (dirEl)dirEl.value= dir || '';
+  _ocultarDropGlobal();
 }
 
 
@@ -5621,7 +5660,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v17.9-firebase',
+  VERSION: 'v18.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6037,7 +6076,7 @@ function _completarLogin(nombre) {
 }
 
 // selCli definida arriba con parámetros (id, nombre, dir)
-document.addEventListener('click', e => { if (!e.target.closest('.sw')) _hide('cli-drop'); });
+document.addEventListener('click', function(e) { if (!e.target.closest('.sw')) _hide('cli-drop'); });
 
 // ── CÁLCULOS VENTA ──
 function calcRow(inp) {
@@ -17053,62 +17092,53 @@ function actualizarFabYHome(id) {
 
 // Autocomplete de cliente para presupuesto
 function filterDropProv(inp) {
-  var drop = document.getElementById(inp.id + '-drop');
-  if (!drop) return;
   var v = inp.value.trim().toLowerCase();
   var lista = proveedoresData || [];
   var matches = v ? lista.filter(function(p){ return (p.nombre||'').toLowerCase().includes(v); }) : lista;
-  if (!matches.length) { drop.style.display = 'none'; return; }
-  drop.innerHTML = matches.slice(0,8).map(function(p) {
+  if (!matches.length) { _ocultarDropGlobal(); return; }
+  var html = matches.slice(0,8).map(function(p) {
     return '<div style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px" ' +
-      'onmousedown="event.preventDefault();document.getElementById(\''+inp.id+'\').value=\''+escapeHTML(p.nombre).replace(/'/g,"\\'")+'\';document.getElementById(\''+drop.id+'\').style.display=\'none\';">' +
-      escapeHTML(p.nombre) +
-      (p.rubro ? ' <span style="color:var(--text3);font-size:11px">· '+escapeHTML(p.rubro)+'</span>' : '') +
+      'onmousedown="event.preventDefault();document.getElementById(\''+inp.id+'\').value=\''+escapeHTML(p.nombre).replace(/'/g,"\\'")+'\';_ocultarDropGlobal();">' +
+      escapeHTML(p.nombre)+(p.rubro?'<span style="color:var(--text3);font-size:11px"> · '+escapeHTML(p.rubro)+'</span>':'')+
     '</div>';
   }).join('');
-  drop.style.display = 'block';
+  _mostrarDropGlobal(inp, html);
 }
 
 function filterDrop(inputId, dropId) {
   var inp = document.getElementById(inputId);
-  var drop = document.getElementById(dropId);
-  if (!inp || !drop) return;
+  if (!inp) return;
   var v = inp.value.trim().toLowerCase();
-  if (!v) { drop.style.display = 'none'; return; }
-  
-  // Filtrar clientes del sistema
-  var matches = clientesData ? clientesData.filter(function(c) {
-    return c.nombre.toLowerCase().includes(v);
-  }) : [];
-  
-  if (!matches.length) { drop.style.display = 'none'; return; }
-  
-  drop.innerHTML = matches.map(function(c) {
+  if (!v) { _ocultarDropGlobal(); return; }
+  var matches = (clientesData||[]).filter(function(c){ return (c.nombre||'').toLowerCase().includes(v); });
+  if (!matches.length) { _ocultarDropGlobal(); return; }
+  var html = matches.slice(0,10).map(function(c) {
     return '<div style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px" ' +
-      'onmousedown="selDrop(\'' + inputId + '\',\'' + dropId + '\',\'' + c.nombre + '\')">' +
-      c.nombre + '</div>';
+      'onmousedown="_gFilterDropSel(\''+inputId+'\',\''+escapeHTML(c.nombre).replace(/'/g,"\\'")+'\')">'+
+      escapeHTML(c.nombre)+'</div>';
   }).join('');
-  drop.style.display = 'block';
+  _mostrarDropGlobal(inp, html);
 }
 
-function selDrop(inputId, dropId, valor) {
+function _gFilterDropSel(inputId, valor) {
   var inp = document.getElementById(inputId);
-  var drop = document.getElementById(dropId);
   if (inp) inp.value = valor;
-  if (drop) drop.style.display = 'none';
-  // Si es el cliente del presupuesto, guardar en campo oculto
+  _ocultarDropGlobal();
+  // Callback especial para presupuesto
   if (inputId === 'pp-cli') {
-    var cli = clientesData ? clientesData.find(function(c){ return c.nombre === valor; }) : null;
-    if (cli) {
-      var idEl = _get('pp-cli-id');
-      if (idEl) idEl.value = cli.id;
-    }
+    var cli = (clientesData||[]).find(function(c){ return c.nombre===valor; });
+    if (cli) { var idEl=_get('pp-cli-id'); if(idEl) idEl.value=cli.id; }
   }
 }
 
-// Cerrar dropdown al hacer click fuera
+function selDrop(inputId, dropId, valor) {
+  _gFilterDropSel(inputId, valor);
+}
+
+// Cerrar al click fuera — compatibilidad legacy
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.sw')) {
+    _ocultarDropGlobal();
     document.querySelectorAll('.drop').forEach(function(d){ d.style.display='none'; });
   }
 });
