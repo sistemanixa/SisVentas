@@ -750,7 +750,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.14 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.15 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1157,18 +1157,20 @@ tr:hover td{color:var(--text)}
       </div>
 
       <!-- Filtros -->
-      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <input class="search-input" style="flex:1;min-width:160px" placeholder="Buscar por N°, cliente..." oninput="filtrarVentas(this.value)" id="ventas-search">
-        <select class="search-input" style="width:160px" id="ventas-estado" onchange="filtrarVentasEstado(this.value)">
-          <option value="">Todos los estados</option>
-          <option value="pendiente_pago">Pendiente pago</option>
-          <option value="seniado">Señado</option>
-          <option value="pago_total">Pago total</option>
-          <option value="en_instalacion">En instalación</option>
-          <option value="instalado">Instalado</option>
-          <option value="con_garantia">Con garantía</option>
-        </select>
-        <input type="month" class="search-input" style="width:150px" id="ventas-mes" onchange="filtrarVentasMes(this.value)">
+      <div style="margin-bottom:12px">
+        <input class="search-input" style="width:100%;margin-bottom:8px" placeholder="Buscar por N°, cliente..." oninput="filtrarVentas(this.value)" id="ventas-search">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="search-input" style="flex:1;min-width:140px" id="ventas-estado" onchange="filtrarVentasEstado(this.value)">
+            <option value="">Todos los estados</option>
+            <option value="pendiente_pago">Pendiente pago</option>
+            <option value="seniado">Señado</option>
+            <option value="pago_total">Pago total</option>
+            <option value="en_instalacion">En instalación</option>
+            <option value="instalado">Instalado</option>
+            <option value="con_garantia">Con garantía</option>
+          </select>
+          <input type="month" class="search-input" style="flex:1;min-width:140px" id="ventas-mes" onchange="filtrarVentasMes(this.value)">
+        </div>
       </div>
 
       <!-- Tabs rápidos -->
@@ -1177,6 +1179,7 @@ tr:hover td{color:var(--text)}
         <button class="btn btn-sm" id="vtab-cobrar" onclick="tabVentas('cobrar',this)">Por cobrar</button>
         <button class="btn btn-sm" id="vtab-instalar" onclick="tabVentas('instalar',this)">Por instalar</button>
         <button class="btn btn-sm" id="vtab-hoy" onclick="tabVentas('hoy',this)">Hoy</button>
+        <button class="btn btn-sm" id="vtab-facturadas" onclick="tabVentas('facturadas',this)">Facturadas</button>
       </div>
 
       <div class="table-wrap">
@@ -4560,11 +4563,11 @@ function kpiCobrado() {
   notify('Mostrando ventas cobradas');
 }
 function kpiPendiente() {
-  // "Pendiente" agrupa todo lo que no es pago_total — el select de estado no tiene
-  // una opción combinada, así que filtramos directo sobre la lista completa.
-  window._filtrosVentas = { texto:'', estado:'', mes:'', tab:'todas' };
+  // "Pendiente" = todo lo que no es pago_total. Los únicos estados de pago son
+  // pendiente_pago / seniado / pago_total, así que esto es exactamente el tab "Por cobrar".
+  window._filtrosVentas = { texto:'', estado:'', mes:'', tab:'cobrar' };
   _restaurarControlesFiltrosVentas();
-  renderVentasTabla((ventasList||[]).filter(function(v){ return v.estadoPago !== 'pago_total'; }));
+  _aplicarFiltrosVentas();
   notify('Mostrando ventas con saldo pendiente');
 }
 // Compara si una fecha en formato DD/MM/YYYY (el que usa el sistema) pertenece al mes "YYYY-MM" dado
@@ -4578,9 +4581,9 @@ function _fechaEsDelMes(fechaDDMMYYYY, mesYYYYMM) {
 function kpiIva() {
   var hoy = new Date();
   var mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
-  window._filtrosVentas = { texto:'', estado:'', mes:mesActual, tab:'todas' };
+  window._filtrosVentas = { texto:'', estado:'', mes:mesActual, tab:'facturadas' };
   _restaurarControlesFiltrosVentas();
-  renderVentasTabla((ventasList||[]).filter(function(v){ return _fechaEsDelMes(v.fecha, mesActual) && v.factura; }));
+  _aplicarFiltrosVentas();
   notify('Mostrando ventas facturadas de este mes');
 }
 
@@ -5976,7 +5979,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.14-firebase',
+  VERSION: 'v19.15-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -18442,20 +18445,15 @@ function _aplicarFiltrosVentas() {
     lista = lista.filter(v => v.estadoPago === f.estado || v.estadoInst === f.estado);
   }
   if (f.mes) {
-    const [y,m] = f.mes.split('-');
-    lista = lista.filter(v => {
-      const partes = (v.fecha||'').split('/');
-      if (partes.length < 3) return false;
-      const [d,mv,yv] = partes;
-      return mv === m && ('20'+yv) === y;
-    });
+    lista = lista.filter(v => typeof _fechaEsDelMes === 'function' ? _fechaEsDelMes(v.fecha, f.mes) : true);
   }
   const hoy = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'2-digit'});
   const mapasTab = {
-    todas:    lista,
-    cobrar:   lista.filter(v => ['pendiente_pago','seniado'].includes(v.estadoPago)),
-    instalar: lista.filter(v => ['pendiente_inst','en_instalacion'].includes(v.estadoInst)),
-    hoy:      lista.filter(v => v.fecha === hoy),
+    todas:      lista,
+    cobrar:     lista.filter(v => ['pendiente_pago','seniado'].includes(v.estadoPago)),
+    instalar:   lista.filter(v => ['pendiente_inst','en_instalacion'].includes(v.estadoInst)),
+    hoy:        lista.filter(v => v.fecha === hoy),
+    facturadas: lista.filter(v => !!v.factura),
   };
   renderVentasTabla(mapasTab[f.tab] || lista);
 }
