@@ -750,7 +750,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.19 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.21 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5985,7 +5985,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.19-firebase',
+  VERSION: 'v19.21-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8197,7 +8197,7 @@ function volverlista() {
 // ── SWIPE PARA ABRIR/CERRAR SIDEBAR (abrir: solo desde el borde izquierdo) ──
 (function(){
   let x0=null, y0=null, t0=null, desdeBorde=false;
-  const ZONA_BORDE_PX = 24; // ancho de la franja izquierda que habilita el gesto de apertura
+  const ZONA_BORDE_PX = 40; // ancho de la franja izquierda que habilita el gesto de apertura
   document.addEventListener('touchstart', e=>{
     x0 = e.touches[0].clientX;
     y0 = e.touches[0].clientY;
@@ -9222,12 +9222,19 @@ function guardarTipoCambio(btn) {
 }
 
 // ── Conexión real a dolarapi.com — sin auth, gratuita, pública ──
-function actualizarDolarAPI(silencioso) {
+function actualizarDolarAPI(silencioso, _esReintento) {
   var btn = document.getElementById('btn-actualizar-dolar');
   if (btn && !silencioso) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Actualizando...'; }
 
-  fetch('https://dolarapi.com/v1/dolares')
-    .then(function(r) { if (!r.ok) throw new Error('API no disponible'); return r.json(); })
+  var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var timeoutId = controller ? setTimeout(function(){ controller.abort(); }, 8000) : null;
+
+  fetch('https://dolarapi.com/v1/dolares', controller ? {signal: controller.signal} : {})
+    .then(function(r) {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (!r.ok) throw new Error('http_' + r.status);
+      return r.json();
+    })
     .then(function(data) {
       var oficial = data.find(function(d){ return d.casa === 'oficial'; });
       var blue    = data.find(function(d){ return d.casa === 'blue'; });
@@ -9251,15 +9258,31 @@ function actualizarDolarAPI(silencioso) {
         fuenteFecha: oficial ? oficial.fechaActualizacion : ''
       };
       window.TIPO_CAMBIO_CONFIG = datos;
-      if (window.fbDB) window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos);
+      if (!window.fbDB) { if (!silencioso) notify('Cotización obtenida pero sin conexión a Firebase — no se guardó'); return; }
 
-      var lblEl = document.getElementById('cfg-tc-actualizado');
-      if (lblEl) lblEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-
-      if (!silencioso) notify('✓ Cotización actualizada — Oficial $'+datos.oficial+' · Blue $'+datos.blue+' · MEP $'+datos.mep);
+      window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos)
+        .then(function() {
+          var lblEl = document.getElementById('cfg-tc-actualizado');
+          if (lblEl) lblEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+          if (!silencioso) notify('✓ Cotización actualizada — Oficial $'+datos.oficial+' · Blue $'+datos.blue+' · MEP $'+datos.mep);
+        })
+        .catch(function(e) {
+          console.error('[dolarAPI] Error guardando en Firebase:', e);
+          if (!silencioso) notify('Se obtuvo la cotización pero no se pudo guardar en Firebase: ' + e.message);
+        });
     })
     .catch(function(e) {
-      if (!silencioso) notify('No se pudo conectar con dolarapi.com — verificá tu conexión');
+      if (timeoutId) clearTimeout(timeoutId);
+      console.error('[dolarAPI] Error al consultar dolarapi.com:', e);
+      // Un solo reintento automático silencioso antes de mostrar el error al usuario.
+      if (!_esReintento) { setTimeout(function(){ actualizarDolarAPI(silencioso, true); }, 1200); return; }
+      if (silencioso) return;
+      var msg;
+      if (e.name === 'AbortError') msg = 'dolarapi.com tardó demasiado en responder (timeout) — probá de nuevo';
+      else if (!navigator.onLine) msg = 'Tu dispositivo está sin conexión a internet';
+      else if (e.message && e.message.indexOf('http_') === 0) msg = 'dolarapi.com respondió con error (' + e.message.replace('http_','') + ') — puede estar caído, probá en unos minutos';
+      else msg = 'No se pudo conectar con dolarapi.com (' + (e.message||'error de red') + ') — si tenés internet, puede ser un bloqueo de red local';
+      notify(msg);
     })
     .finally(function() {
       if (btn && !silencioso) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Actualizar ahora'; }
