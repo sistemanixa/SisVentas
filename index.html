@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v18.9 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.4 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1924,16 +1924,19 @@ tr:hover td{color:var(--text)}
       <div id="page-configuracion" class="page">
 
         <!-- TABS -->
-        <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg3);padding:4px;border-radius:var(--radius-lg);width:fit-content">
-          <button class="cfg-tab active" onclick="showCfgTab('general',this)">General</button>
-          <button class="cfg-tab" onclick="showCfgTab('cargos',this)">Cargos</button>
-          <button class="cfg-tab" onclick="showCfgTab('comisiones',this)">Comisiones</button>
-          <button class="cfg-tab" onclick="showCfgTab('sueldos',this)">Sueldos base</button>
-          <button class="cfg-tab" onclick="showCfgTab('impuestos',this)">Impuestos</button>
-          <button class="cfg-tab" onclick="showCfgTab('roles',this)">Roles</button>
-          <button class="cfg-tab" onclick="showCfgTab('facturacion',this)">Facturación</button>
-          <button class="cfg-tab" onclick="showCfgTab('basedatos',this)">Base de datos</button>
-          <button class="cfg-tab admin-o-administrativo" onclick="showCfgTab('asistente',this)">Asistente de ventas</button>
+        <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg3);padding:4px;border-radius:var(--radius-lg);max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin">
+          <button class="cfg-tab active" onclick="showCfgTab('general',this)" style="white-space:nowrap;flex-shrink:0">General</button>
+          <button class="cfg-tab" onclick="showCfgTab('cargos',this)" style="white-space:nowrap;flex-shrink:0">Cargos</button>
+          <button class="cfg-tab" onclick="showCfgTab('comisiones',this)" style="white-space:nowrap;flex-shrink:0">Comisiones</button>
+          <button class="cfg-tab" onclick="showCfgTab('sueldos',this)" style="white-space:nowrap;flex-shrink:0">Sueldos base</button>
+          <button class="cfg-tab" onclick="showCfgTab('impuestos',this)" style="white-space:nowrap;flex-shrink:0">Impuestos</button>
+          <button class="cfg-tab" onclick="showCfgTab('roles',this)" style="white-space:nowrap;flex-shrink:0">Roles</button>
+          <button class="cfg-tab" onclick="showCfgTab('facturacion',this)" style="white-space:nowrap;flex-shrink:0">Facturación</button>
+          <button class="cfg-tab" onclick="showCfgTab('basedatos',this)" style="white-space:nowrap;flex-shrink:0">Base de datos</button>
+          <button class="cfg-tab admin-o-administrativo" onclick="showCfgTab('asistente',this)" style="white-space:nowrap;flex-shrink:0">Asistente de ventas</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin:-12px 0 14px 4px;display:flex;align-items:center;gap:4px">
+          <i class="ti ti-arrow-left-right" style="font-size:12px"></i> Deslizá para ver más opciones
         </div>
 
         <!-- TAB: GENERAL -->
@@ -1975,7 +1978,13 @@ tr:hover td{color:var(--text)}
             <div class="flex-end"><button class="btn btn-primary" onclick="guardarDatosEmpresa(this)"><i class="ti ti-check"></i> Guardar cambios</button></div>
           </div>
           <div class="card">
-            <div class="card-head"><span class="card-title">Tipo de cambio</span></div>
+            <div class="card-head">
+              <span class="card-title">Tipo de cambio</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span id="cfg-tc-actualizado" style="font-size:11px;color:var(--text3)"></span>
+                <button class="btn btn-sm" id="btn-actualizar-dolar" onclick="actualizarDolarAPI()"><i class="ti ti-refresh"></i> Actualizar ahora</button>
+              </div>
+            </div>
             <div class="form-grid">
               <div class="fg">
                 <label>Dólar oficial ($)</label>
@@ -1997,31 +2006,31 @@ tr:hover td{color:var(--text)}
               </div>
               <div class="fg">
                 <label>Moneda usada en presupuestos</label>
-                <select>
-                  <option>Pesos argentinos (ARS)</option>
-                  <option>Dólares (USD)</option>
-                  <option>Mostrar ambos</option>
+                <select id="cfg-moneda-presupuestos">
+                  <option value="ARS">Pesos argentinos (ARS)</option>
+                  <option value="USD">Dólares (USD)</option>
+                  <option value="ambos">Mostrar ambos</option>
                 </select>
               </div>
               <div class="fg">
                 <label>Dólar usado para conversión</label>
-                <select>
-                  <option>Oficial</option>
-                  <option>Blue</option>
-                  <option>MEP</option>
+                <select id="cfg-dolar-conversion">
+                  <option value="oficial">Oficial</option>
+                  <option value="blue">Blue</option>
+                  <option value="mep">MEP</option>
                 </select>
               </div>
               <div class="fg">
                 <label>Actualización automática</label>
-                <select>
-                  <option>Manual</option>
-                  <option>Diaria (API)</option>
+                <select id="cfg-tc-auto">
+                  <option value="manual">Manual</option>
+                  <option value="diaria">Diaria (API)</option>
                 </select>
               </div>
             </div>
             <div style="margin-top:12px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius);font-size:12px;color:var(--text2)">
               <i class="ti ti-info-circle" style="font-size:14px;margin-right:6px"></i>
-              El tipo de cambio se usa para convertir precios en USD a ARS en presupuestos y ventas.
+              El tipo de cambio se usa para convertir a ARS los productos cargados en USD, en ventas y presupuestos. Fuente: <a href="https://dolarapi.com" target="_blank" style="color:var(--blue)">dolarapi.com</a>
             </div>
             <div class="flex-end" style="margin-top:10px"><button class="btn btn-primary" onclick="guardarTipoCambio(this)"><i class="ti ti-check"></i> Guardar tipo de cambio</button></div>
           </div>
@@ -3447,10 +3456,21 @@ tr:hover td{color:var(--text)}
             <div id="pf-proveedores-vacio" style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Sin proveedores cargados — agregá al menos uno</div>
           </div>
           <div class="card">
-            <div class="card-head"><span class="card-title">Precios</span></div>
+            <div class="card-head">
+              <span class="card-title">Precios</span>
+              <span id="pf-moneda-badge-head" style="font-size:11px"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius)">
+              <label style="margin:0;font-size:12px;color:var(--text2);font-weight:500">Moneda de este producto</label>
+              <select id="pf-moneda" onchange="cambiarMonedaProducto()" style="width:120px">
+                <option value="ARS">🇦🇷 ARS — Pesos</option>
+                <option value="USD">💵 USD — Dólares</option>
+              </select>
+              <span style="font-size:11px;color:var(--text3)" id="pf-moneda-hint">Precios cargados en pesos argentinos</span>
+            </div>
             <div class="form-grid cols3">
-              <div class="fg"><label>Precio de compra ($)</label><input type="number" id="pf-compra" placeholder="0" oninput="calcMargen()" min="0"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
-              <div class="fg"><label>Precio de venta ($)</label><input type="number" id="pf-venta" placeholder="0" oninput="calcMargen()" min="0"></div>
+              <div class="fg"><label>Precio de compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input type="number" id="pf-compra" placeholder="0" oninput="calcMargen()" min="0"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
+              <div class="fg"><label>Precio de venta (<span id="pf-venta-moneda-lbl">$</span>)</label><input type="number" id="pf-venta" placeholder="0" oninput="calcMargen()" min="0"></div>
               <div class="fg"><label>Margen calculado</label><input type="text" id="pf-margen" readonly placeholder="—" style="color:var(--green);font-weight:500"></div>
               <div class="fg"><label>IVA</label>
                 <select id="pf-iva">
@@ -3460,6 +3480,7 @@ tr:hover td{color:var(--text)}
                 </select>
               </div>
               <div class="fg"><label>Precio venta c/IVA</label><input type="text" id="pf-venta-iva" readonly placeholder="—" style="font-weight:500"></div>
+              <div class="fg" id="pf-equiv-ars-box" style="display:none"><label>Equivalente hoy en ARS</label><input type="text" id="pf-equiv-ars" readonly placeholder="—" style="font-weight:500;color:var(--blue)"></div>
             </div>
           </div>
           <div class="card">
@@ -4796,7 +4817,7 @@ function renderTablaProductos(filtro) {
       '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.esManoDeObra ? '<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px" title="Mano de obra"></i>' : '') + (p.nombre||'') + '</td>' +
       '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.descripcion||p.categoria||'—') + '</td>' +
       '<td style="text-align:right;font-weight:600;color:' + stkColor + '">' + stk + '</td>' +
-      '<td style="text-align:right">$' + (parseFloat(pv)||0).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right">' + (p.moneda==='USD' ? '<span class="badge b-blue" style="font-size:9px;margin-right:4px" title="Cargado en dólares">USD</span>$'+(parseFloat(pv)||0).toLocaleString('es-AR') : '$' + (parseFloat(pv)||0).toLocaleString('es-AR')) + '</td>' +
       '<td style="text-align:right">' + costoLbl + '</td>' +
       '<td style="text-align:right;color:var(--green)">' + margen + '</td>' +
       '<td style="padding-left:12px"><button class="icon-btn" data-pid="' + pid + '" onclick="event.stopPropagation();editarProductoById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
@@ -4821,23 +4842,6 @@ function editarProducto(id) { abrirFormProducto(id); }
 
 // ── RENDER TABLA VENTAS ──
 // renderVentasTabla primera versión — redirige a la implementación principal
-function renderVentasTabla(filtro) {
-  // Si hay lista activa, usar la implementación completa abajo
-  if (typeof ventasList !== 'undefined') {
-    var lista = ventasList || [];
-    if (filtro && typeof filtro === 'string') {
-      var f = filtro.toLowerCase();
-      lista = lista.filter(function(v){
-        return (v.id||'').toLowerCase().includes(f) || (v.cliente||'').toLowerCase().includes(f);
-      });
-    }
-    // Delegar a la función principal definida abajo
-    if (document.getElementById('ventas-tbody')) {
-      var fn = window._renderVentasTbodyFn;
-      if (fn) fn(lista);
-    }
-  }
-}
 function volverListaVentas() {
   var dv = document.getElementById('ventas-detalle-view') || document.getElementById('venta-detalle-view');
   var lv = document.getElementById('ventas-list-view')   || document.getElementById('venta-list-view');
@@ -5979,7 +5983,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v18.9-firebase',
+  VERSION: 'v19.4-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6094,7 +6098,7 @@ var NOTIF_CONFIG = {
 };
 var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
-  producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'P. compra ($)',id:'np-pc',t:'number',ph:'0'},{l:'P. venta ($)',id:'np-pv',t:'number',ph:'0'}]},
+  producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'Moneda',id:'np-moneda',t:'select',opts:['ARS','USD']},{l:'P. compra',id:'np-pc',t:'number',ph:'0'},{l:'P. venta',id:'np-pv',t:'number',ph:'0'}]},
   empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'text',ph:'Ej: Vendedor senior',list:'lista-cargos'},{l:'Sueldo base ($)',id:'ne-sueldo-base',t:'text',ph:'Ej: 180000'},{l:'Valor hora extra ($)',id:'ne-hora-extra',t:'text',ph:'Ej: 1200'},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
   usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
   proveedor: { title:'Nuevo proveedor', fields:[
@@ -6130,8 +6134,6 @@ var prodData = {};
 var otData = [];
 var ventasList = [];
 var empData = {};
-var ccData = {};
-var recibosData={};
 var clientesData = [];
 var ventasData = [];
 
@@ -6406,6 +6408,7 @@ function _completarLogin(nombre) {
   if (typeof spCargar === 'function') setTimeout(spCargar, 400);
   if (typeof fbCargarVacaciones === 'function') setTimeout(fbCargarVacaciones, 400);
   if (typeof cfCargar === 'function') setTimeout(cfCargar, 450);
+  if (typeof chequearActualizacionAutoDolar === 'function') setTimeout(chequearActualizacionAutoDolar, 500);
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); setTimeout(applyRole, 400); }, 400);
   if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
@@ -6580,10 +6583,19 @@ function confirmarVenta() {
     total: 0, subtotal: 0, iva: 0, descuento: 0,
     items: filas.map(function(tr) {
       var cod   = (tr.querySelector('.prod-sel-cod')||{}).textContent || '';
-      var desc  = (tr.querySelector('.desc-txt')||{}).textContent || '';
+      var descEl = tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt');
+      var desc  = descEl ? descEl.textContent : '';
       var qty   = parseInt((tr.querySelector('.qty')||{}).value) || 1;
       var punit = parseFloat((tr.querySelector('.price')||{}).value) || 0;
-      return { cod:cod, desc:desc, qty:qty, punit:punit, sub:qty*punit };
+      var item  = { cod:cod, desc:desc, qty:qty, punit:punit, sub:qty*punit };
+      // Si el producto fue convertido de USD, dejar registro de la cotización usada
+      if (tr.dataset.monedaOriginal === 'USD') {
+        item.monedaOriginal   = 'USD';
+        item.precioUsdOriginal = parseFloat(tr.dataset.precioUsdOriginal) || 0;
+        item.cotizacionUsada   = parseFloat(tr.dataset.cotizacionUsada) || 0;
+        item.cotizacionTipo    = tr.dataset.cotizacionTipo || 'oficial';
+      }
+      return item;
     }),
     pagos: [],
     obs: (document.getElementById('venta-obs')||{}).value || '',
@@ -6597,6 +6609,15 @@ function confirmarVenta() {
   var costoTotalVenta = nuevaVenta.items.reduce(function(s, item) {
     var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === item.cod; });
     var costoUnit = prod ? (parseFloat(prod.compra)||0) : 0;
+    // Si el producto está en USD, convertir el costo a ARS con la misma cotización
+    // usada para el precio de venta de este ítem (trazabilidad consistente)
+    if (prod && prod.moneda === 'USD' && item.cotizacionUsada) {
+      costoUnit = costoUnit * item.cotizacionUsada;
+    } else if (prod && prod.moneda === 'USD') {
+      var tcFallback = (window.TIPO_CAMBIO_CONFIG||{});
+      var cotizFallback = parseFloat(tcFallback[tcFallback.dolarConversion||'oficial']) || 0;
+      if (cotizFallback > 0) costoUnit = costoUnit * cotizFallback;
+    }
     return s + costoUnit * item.qty;
   }, 0);
   nuevaVenta.costoTotal = costoTotalVenta;
@@ -6731,6 +6752,9 @@ function abrirFormProducto(id) {
   document.getElementById('pf-estado').value = p.estado || 'activo';
   document.getElementById('pf-unidad').value = p.unidad || 'Unidad';
   document.getElementById('pf-es-mano-obra').checked = !!p.esManoDeObra;
+  var monedaSel = document.getElementById('pf-moneda');
+  if (monedaSel) monedaSel.value = p.moneda || 'ARS';
+  cambiarMonedaProducto();
 
   // Imagen del producto
   quitarImagenProducto();
@@ -6820,6 +6844,25 @@ function cerrarFormProducto() {
   _block('prod-list-view');
 }
 
+function cambiarMonedaProducto() {
+  var sel = document.getElementById('pf-moneda');
+  var esUSD = sel && sel.value === 'USD';
+  var compraLbl = document.getElementById('pf-compra-moneda-lbl');
+  var ventaLbl  = document.getElementById('pf-venta-moneda-lbl');
+  var hint      = document.getElementById('pf-moneda-hint');
+  var badgeHead = document.getElementById('pf-moneda-badge-head');
+  if (compraLbl) compraLbl.textContent = esUSD ? 'USD' : '$';
+  if (ventaLbl)  ventaLbl.textContent  = esUSD ? 'USD' : '$';
+  if (hint) hint.textContent = esUSD
+    ? 'Se convierte a pesos automáticamente al vender, según cotización vigente'
+    : 'Precios cargados en pesos argentinos';
+  if (badgeHead) badgeHead.innerHTML = esUSD
+    ? '<span class="badge b-blue">💵 USD</span>' : '<span class="badge b-gray">🇦🇷 ARS</span>';
+  var equivBox = document.getElementById('pf-equiv-ars-box');
+  if (equivBox) equivBox.style.display = esUSD ? '' : 'none';
+  calcMargen();
+}
+
 function calcMargen() {
   const c = parseFloat(document.getElementById('pf-compra').value) || 0;
   const v = parseFloat(document.getElementById('pf-venta').value) || 0;
@@ -6835,6 +6878,18 @@ function calcMargen() {
     document.getElementById('pf-venta-iva').value = '$' + Math.round(v * (1 + iva / 100)).toLocaleString('es-AR');
   } else {
     document.getElementById('pf-venta-iva').value = v > 0 ? '$' + Math.round(v).toLocaleString('es-AR') : '—';
+  }
+  // Si el producto está en USD, mostrar el equivalente actual en ARS como referencia
+  var monedaSel = document.getElementById('pf-moneda');
+  var equivEl = document.getElementById('pf-equiv-ars');
+  if (monedaSel && monedaSel.value === 'USD' && equivEl) {
+    var tc = (window.TIPO_CAMBIO_CONFIG||{});
+    var cotiz = tc[tc.dolarConversion || 'oficial'] || tc.oficial || 0;
+    if (v > 0 && cotiz > 0) {
+      equivEl.value = '$' + Math.round(v * cotiz).toLocaleString('es-AR') + ' ARS (cotiz. ' + (tc.dolarConversion||'oficial') + ' $' + cotiz + ')';
+    } else {
+      equivEl.value = cotiz ? '—' : 'Configurá el tipo de cambio primero';
+    }
   }
 }
 
@@ -6858,6 +6913,7 @@ function guardarProducto() {
     categoria:    document.getElementById('pf-categoria').value,
     proveedores:  proveedoresValidos,
     proveedor:    proveedorPrincipal ? proveedorPrincipal.nombre : '',
+    moneda:       (document.getElementById('pf-moneda')||{}).value || 'ARS',
     compra:       parseFloat(document.getElementById('pf-compra').value) || 0,
     venta:        parseFloat(document.getElementById('pf-venta').value) || 0,
     iva:          parseFloat(document.getElementById('pf-iva').value) || 21,
@@ -7065,33 +7121,6 @@ function calcSaldoTrasCobranza() {
   const el=document.getElementById('cob-nuevo-saldo');
   el.value='$'+Math.round(nuevo).toLocaleString('es-AR');
   el.style.color=nuevo===0?'var(--green)':'var(--amber)';
-}
-function registrarPago() {
-  const venta=document.getElementById('cob-venta').value;
-  const monto=document.getElementById('cob-monto').value;
-  const medio=document.getElementById('cob-medio').value;
-  if(!venta||!monto){notify('Completá venta y monto');return;}
-  notify('Pago registrado correctamente');
-  // El recibo se mostrará cuando se implemente la integración con Firebase
-}
-// recibosData movido al inicio
-function verRecibo(id) {
-  const r=recibosData[id];
-  if (!r) { notify('Recibo no encontrado'); return; }
-  _set('rec-num','Recibo '+r.num);
-  _set('rec-fecha',r.fecha);
-  _set('rec-cliente',r.cliente);
-  _set('rec-venta',r.venta);
-  _set('rec-medio',r.medio);
-  document.getElementById('rec-estado').innerHTML = r.estado;
-  _set('rec-total-venta',r.totalVenta);
-  _set('rec-pagos-ant',r.pagosAnt);
-  _set('rec-este-pago',r.estePago);
-  _set('rec-saldo-final',r.saldo);
-  document.getElementById('rec-saldo-final').style.color=r.saldoColor;
-  document.getElementById('rec-items').innerHTML = r.items;
-  const ov=document.getElementById('recibo-overlay');
-  ov.style.display='flex';
 }
 
 // ── CONFIGURACIÓN TABS ──
@@ -7953,7 +7982,6 @@ function calcRentabilidad() {
 }
 
 function buscarCC(v) { document.querySelectorAll('.ccrow').forEach(tr=>tr.style.display=tr.textContent.toLowerCase().includes(v.toLowerCase())?'':'none'); }
-// ccData movido al inicio
 function verCuentaClienteReal(nombre) {
   var d = (window._ccMapActual || {})[nombre];
   if (!d) { notify('Cliente sin datos de cuenta corriente'); return; }
@@ -8193,27 +8221,6 @@ function stopSessionTimer() {
 // session timer y panel: integrados en doLogin/doLogout directamente
 
 // ── IMPRIMIR / EXPORTAR ──
-function abrirModalImprimir(context, titulo) {
-  const title = document.getElementById('modal-print-title');
-  const body  = document.getElementById('modal-print-body');
-  if (!title || !body) { notify('Preparando impresión...'); return; }
-  title.textContent = titulo || 'Imprimir';
-  body.innerHTML = `
-    <div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:14px;font-size:13px;color:var(--text2)">
-      <i class="ti ti-printer" style="font-size:16px;margin-right:8px;color:var(--text3)"></i>
-      <strong>${escapeHTML(titulo||'')}</strong><br>
-      <span style="font-size:12px;color:var(--text3)">Se enviará a la impresora predeterminada.</span>
-    </div>
-    <div class="form-grid" style="margin-bottom:0">
-      <div class="fg"><label>Formato</label>
-        <select><option>A4</option><option>Carta</option><option>Ticket 80mm</option></select>
-      </div>
-      <div class="fg"><label>Copias</label>
-        <input type="number" value="1" min="1" max="10">
-      </div>
-    </div>`;
-  document.getElementById('modal-print').classList.add('open');
-}
 // ── ejecutarImpresion: llama a la función correcta según contexto ──
 var _printContext = null;
 function ejecutarImpresion() {
@@ -8226,8 +8233,6 @@ function ejecutarImpresion() {
   else notify('Imprimiendo...');
 }
 
-// Guardar contexto al abrir modal imprimir
-var _origAbrirModalImprimir = window.abrirModalImprimir;
 function abrirModalImprimir(context, titulo) {
   _printContext = context;
   var title = document.getElementById('modal-print-title');
@@ -8715,10 +8720,6 @@ function copiarSeleccion() {
 
 // empData movido
 
-// ccData movido
-
-// recibosData movido
-
 // otData movido
 
 // pptoData movido
@@ -8858,6 +8859,7 @@ function guardarNuevoGenerico() {
       nombre:      obj.desc || '',
       descripcion: obj.desc || '',
       marca:       obj.marca || '',
+      moneda:      obj.moneda || 'ARS',
       venta:       pv,
       compra:      pc,
       margen:      pv > 0 ? Math.round((pv-pc)/pv*100*10)/10 : 0,
@@ -9060,8 +9062,13 @@ function guardarTipoCambio(btn) {
   var datos = {
     oficial: parseFloat((document.getElementById('cfg-dolar-oficial')||{}).value) || 0,
     blue:    parseFloat((document.getElementById('cfg-dolar-blue')||{}).value)    || 0,
-    mep:     parseFloat((document.getElementById('cfg-dolar-mep')||{}).value)     || 0
+    mep:     parseFloat((document.getElementById('cfg-dolar-mep')||{}).value)     || 0,
+    monedaPresupuestos: (document.getElementById('cfg-moneda-presupuestos')||{}).value || 'ARS',
+    dolarConversion:    (document.getElementById('cfg-dolar-conversion')||{}).value || 'oficial',
+    actualizacionAuto:  (document.getElementById('cfg-tc-auto')||{}).value || 'manual',
+    actualizadoManualEn: Date.now()
   };
+  window.TIPO_CAMBIO_CONFIG = datos; // caché en memoria para uso inmediato en ventas/presupuestos
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos)
       .then(function(){ notify('✓ Tipo de cambio guardado'); });
@@ -9069,6 +9076,67 @@ function guardarTipoCambio(btn) {
   var orig = btn.innerHTML;
   btn.innerHTML = '<i class="ti ti-check"></i> Guardado'; btn.disabled=true;
   setTimeout(function(){ btn.innerHTML=orig; btn.disabled=false; }, 2000);
+}
+
+// ── Conexión real a dolarapi.com — sin auth, gratuita, pública ──
+function actualizarDolarAPI(silencioso) {
+  var btn = document.getElementById('btn-actualizar-dolar');
+  if (btn && !silencioso) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Actualizando...'; }
+
+  fetch('https://dolarapi.com/v1/dolares')
+    .then(function(r) { if (!r.ok) throw new Error('API no disponible'); return r.json(); })
+    .then(function(data) {
+      var oficial = data.find(function(d){ return d.casa === 'oficial'; });
+      var blue    = data.find(function(d){ return d.casa === 'blue'; });
+      var mep     = data.find(function(d){ return d.casa === 'bolsa'; }); // MEP = "bolsa" en dolarapi
+
+      var oEl = document.getElementById('cfg-dolar-oficial');
+      var bEl = document.getElementById('cfg-dolar-blue');
+      var mEl = document.getElementById('cfg-dolar-mep');
+      if (oficial && oEl) oEl.value = Math.round(oficial.venta);
+      if (blue    && bEl) bEl.value = Math.round(blue.venta);
+      if (mep     && mEl) mEl.value = Math.round(mep.venta);
+
+      var datos = {
+        oficial: oficial ? Math.round(oficial.venta) : 0,
+        blue:    blue    ? Math.round(blue.venta)    : 0,
+        mep:     mep     ? Math.round(mep.venta)     : 0,
+        monedaPresupuestos: (document.getElementById('cfg-moneda-presupuestos')||{}).value || 'ARS',
+        dolarConversion:    (document.getElementById('cfg-dolar-conversion')||{}).value || 'oficial',
+        actualizacionAuto:  (document.getElementById('cfg-tc-auto')||{}).value || 'manual',
+        actualizadoApiEn: Date.now(),
+        fuenteFecha: oficial ? oficial.fechaActualizacion : ''
+      };
+      window.TIPO_CAMBIO_CONFIG = datos;
+      if (window.fbDB) window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos);
+
+      var lblEl = document.getElementById('cfg-tc-actualizado');
+      if (lblEl) lblEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+
+      if (!silencioso) notify('✓ Cotización actualizada — Oficial $'+datos.oficial+' · Blue $'+datos.blue+' · MEP $'+datos.mep);
+    })
+    .catch(function(e) {
+      if (!silencioso) notify('No se pudo conectar con dolarapi.com — verificá tu conexión');
+    })
+    .finally(function() {
+      if (btn && !silencioso) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Actualizar ahora'; }
+    });
+}
+
+// Actualización automática diaria: revisa al cargar la página de Configuración
+// si ya pasó un día desde la última actualización por API, y si el modo está en "diaria".
+function chequearActualizacionAutoDolar() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tipoCambio')).then(function(snap) {
+    var d = snap.val(); if (!d) return;
+    window.TIPO_CAMBIO_CONFIG = d;
+    if (d.actualizacionAuto !== 'diaria') return;
+    var ultima = d.actualizadoApiEn || 0;
+    var unDiaMs = 24*60*60*1000;
+    if (Date.now() - ultima > unDiaMs) {
+      actualizarDolarAPI(true); // silencioso, sin notificación molesta
+    }
+  });
 }
 
 function guardarPreferenciasSistema(btn) {
@@ -9153,10 +9221,20 @@ function cargarConfigGeneral() {
   });
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tipoCambio')).then(function(snap) {
     var d = snap.val(); if (!d) return;
+    window.TIPO_CAMBIO_CONFIG = d;
     var o=document.getElementById('cfg-dolar-oficial'), b=document.getElementById('cfg-dolar-blue'), m=document.getElementById('cfg-dolar-mep');
+    var mp=document.getElementById('cfg-moneda-presupuestos'), dc=document.getElementById('cfg-dolar-conversion'), ta=document.getElementById('cfg-tc-auto');
     if (o && d.oficial) o.value = d.oficial;
     if (b && d.blue)    b.value = d.blue;
     if (m && d.mep)     m.value = d.mep;
+    if (mp && d.monedaPresupuestos) mp.value = d.monedaPresupuestos;
+    if (dc && d.dolarConversion)    dc.value = d.dolarConversion;
+    if (ta && d.actualizacionAuto)  ta.value = d.actualizacionAuto;
+    var lblEl = document.getElementById('cfg-tc-actualizado');
+    if (lblEl && (d.actualizadoApiEn || d.actualizadoManualEn)) {
+      var ts = Math.max(d.actualizadoApiEn||0, d.actualizadoManualEn||0);
+      lblEl.textContent = 'Actualizado ' + new Date(ts).toLocaleDateString('es-AR') + ' ' + new Date(ts).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    }
   });
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/preferencias')).then(function(snap) {
     var d = snap.val(); if (!d) return;
@@ -9951,25 +10029,6 @@ function capturarManual() {
   }
 }
 
-function editarGasto(fbKey) {
-  // Buscar el gasto en los datos cargados (fbCargarGastos los tiene en el listener)
-  if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/gastos/' + fbKey), function(snap) {
-    var g = snap.val();
-    if (!g) { notify('Gasto no encontrado'); return; }
-    // Mapear campos del objeto al formato que espera el modal
-    var datos = {
-      f:      g.fecha || '',
-      tipo:   g.tipo || '',
-      desc:   g.descripcion || '',
-      cat:    g.categoria || '',
-      monto:  g.monto || '',
-      medio:  g.medio || ''
-    };
-    abrirModalNuevo('gasto', datos, fbKey);
-  }, { onlyOnce: true });
-}
-
 function editarProveedor(fbKey) {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/proveedores/' + fbKey), function(snap) {
@@ -10135,11 +10194,6 @@ function guardarGastoRapido() {
       cerrarGastoRapido();
     })
     .catch(function(e){ notify('Error: '+e.message); });
-}
-
-function registrarGasto() {
-  document.getElementById('modal-nuevo').classList.remove('open');
-  notify('Gasto registrado correctamente');
 }
 
 // ══════════════════════════════════════════════
@@ -18114,7 +18168,6 @@ var ventasFiltroActual = '';
 
 // Renderizar la tabla de ventas
 function renderVentasTabla(lista) {
-  window._renderVentasTbodyFn = renderVentasTabla; // Registrar para la versión temprana
   const tbody = document.getElementById('ventas-tbody');
   const count = document.getElementById('ventas-count');
   if (!tbody) return;
@@ -18710,9 +18763,11 @@ function _renderDropGlobal(filtro) {
     var stk = stockData ? (stockData[p.codigo] || {real:0, reservado:0}) : {real:0, reservado:0};
     var disp = stk.real - stk.reservado;
     var stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--text3)';
-    return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.descripcion||p.nombre||'')+'" data-precio="'+(p.venta||0)+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
+    var esUSD = p.moneda === 'USD';
+    var precioLbl = esUSD ? 'USD ' + (parseFloat(p.venta)||0).toLocaleString('es-AR') : '$'+(parseFloat(p.venta)||0).toLocaleString('es-AR');
+    return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.descripcion||p.nombre||'')+'" data-precio="'+(p.venta||0)+'" data-moneda="'+(esUSD?'USD':'ARS')+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
       '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' — '+escapeHTML(p.descripcion||p.nombre||'')+'</div>' +
-      '<div style="font-size:11px;color:var(--text3)">$'+(parseFloat(p.venta)||0).toLocaleString('es-AR')+' · <span style="color:'+stkColor+'">'+disp+' disp.</span></div>' +
+      '<div style="font-size:11px;color:var(--text3)">'+(esUSD?'<span class="badge b-blue" style="font-size:9px;margin-right:3px">USD</span>':'')+precioLbl+' · <span style="color:'+stkColor+'">'+disp+' disp.</span></div>' +
     '</div>';
   }).join('') : '<div style="padding:14px;font-size:12px;color:var(--text3);text-align:center">Sin resultados</div>';
 }
@@ -18721,6 +18776,21 @@ function _selProdGlobal(item) {
   var cod    = item.dataset.cod;
   var desc   = item.dataset.desc;
   var precio = parseFloat(item.dataset.precio) || 0;
+  var moneda = item.dataset.moneda || 'ARS';
+
+  // ── Conversión automática USD → ARS ──
+  var cotizUsada = null, cotizTipo = null, precioOriginalUSD = null;
+  if (moneda === 'USD') {
+    var tc = (window.TIPO_CAMBIO_CONFIG || {});
+    cotizTipo = tc.dolarConversion || 'oficial';
+    cotizUsada = parseFloat(tc[cotizTipo]) || 0;
+    if (cotizUsada > 0) {
+      precioOriginalUSD = precio;
+      precio = Math.round(precio * cotizUsada);
+    } else {
+      notify('⚠️ Configurá el tipo de cambio en Configuración antes de vender productos en USD');
+    }
+  }
 
   if (_prodDropTR) {
     var tr = _prodDropTR;
@@ -18729,9 +18799,36 @@ function _selProdGlobal(item) {
     var priceInp = tr.querySelector('.price');
     var ppPrice  = tr.querySelector('.ppprice');
     if (selCod)   selCod.textContent = cod;
-    if (descTxt)  descTxt.textContent = desc;
+    if (descTxt)  {
+      descTxt.innerHTML = '';
+      var descSpan = document.createElement('span');
+      descSpan.className = 'desc-txt-clean';
+      descSpan.textContent = desc;
+      descTxt.appendChild(descSpan);
+      // Badge visual de conversión — no forma parte del texto guardado
+      if (moneda === 'USD' && cotizUsada > 0) {
+        var badge = document.createElement('span');
+        badge.className = 'badge b-blue';
+        badge.style.cssText = 'font-size:9px;margin-left:4px';
+        badge.title = 'Convertido de USD '+precioOriginalUSD+' a cotización '+cotizTipo+' $'+cotizUsada;
+        badge.textContent = 'USD '+precioOriginalUSD+' → $'+cotizUsada;
+        descTxt.appendChild(badge);
+      }
+    }
     if (priceInp) { priceInp.value = precio; }
     if (ppPrice)  { ppPrice.value = precio; }
+    // Guardar metadata de conversión en data-attributes de la fila, para persistir al confirmar la venta
+    if (moneda === 'USD' && cotizUsada > 0) {
+      tr.dataset.monedaOriginal = 'USD';
+      tr.dataset.precioUsdOriginal = precioOriginalUSD;
+      tr.dataset.cotizacionUsada = cotizUsada;
+      tr.dataset.cotizacionTipo = cotizTipo;
+    } else {
+      delete tr.dataset.monedaOriginal;
+      delete tr.dataset.precioUsdOriginal;
+      delete tr.dataset.cotizacionUsada;
+      delete tr.dataset.cotizacionTipo;
+    }
     var qtyInp = tr.querySelector('.qty');
     if (qtyInp) { calcRow(qtyInp); if (typeof actualizarStockFila === 'function') actualizarStockFila(qtyInp); }
     if (typeof calcPpTotales === 'function') calcPpTotales();
