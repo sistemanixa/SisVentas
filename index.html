@@ -750,7 +750,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.16 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.19 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5985,7 +5985,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.16-firebase',
+  VERSION: 'v19.19-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7134,6 +7134,30 @@ function selVentaCob(venta,cliente,total,cobrado,saldo) {
   document.getElementById('cob-monto').value='';
   document.getElementById('cob-nuevo-saldo').value='';
 }
+
+// Navega a Cobranzas y precarga el formulario con los datos reales de la venta,
+// para no tener que volver a buscarla y tipear todo de nuevo.
+function irACobranzasConVenta(ventaId) {
+  var venta = (ventasList||[]).find(function(v){ return v.id === ventaId; });
+  showPage('cobranzas', document.querySelector('[onclick*=cobranzas]'));
+  if (!venta) return;
+  setTimeout(function() {
+    var total   = parseFloat(venta.total) || 0;
+    var cobrado = parseFloat(venta.totalPagado) || 0;
+    var saldo   = Math.max(0, total - cobrado);
+    selVentaCob(
+      String(venta.id||'').replace(/^#/,''),
+      venta.cliente || '',
+      '$' + Math.round(total).toLocaleString('es-AR'),
+      '$' + Math.round(cobrado).toLocaleString('es-AR'),
+      '$' + Math.round(saldo).toLocaleString('es-AR')
+    );
+    var elFecha = document.getElementById('cob-fecha');
+    if (elFecha && !elFecha.value) elFecha.value = new Date().toISOString().split('T')[0];
+    var elMonto = document.getElementById('cob-monto');
+    if (elMonto) elMonto.focus();
+  }, 150);
+}
 function calcSaldoTrasCobranza() {
   const saldoStr=document.getElementById('cob-saldo').value.replace(/\$|\./g,'').replace(',','.');
   const saldo=parseFloat(saldoStr)||0;
@@ -8170,13 +8194,15 @@ function volverlista() {
   _hide('emp-detail-view');
 }
 
-// ── SWIPE PARA ABRIR/CERRAR SIDEBAR (cualquier parte de la pantalla) ──
+// ── SWIPE PARA ABRIR/CERRAR SIDEBAR (abrir: solo desde el borde izquierdo) ──
 (function(){
-  let x0=null, y0=null, t0=null;
+  let x0=null, y0=null, t0=null, desdeBorde=false;
+  const ZONA_BORDE_PX = 24; // ancho de la franja izquierda que habilita el gesto de apertura
   document.addEventListener('touchstart', e=>{
     x0 = e.touches[0].clientX;
     y0 = e.touches[0].clientY;
     t0 = Date.now();
+    desdeBorde = x0 <= ZONA_BORDE_PX;
   }, {passive:true});
   document.addEventListener('touchend', e=>{
     if(x0===null) return;
@@ -8190,16 +8216,16 @@ function volverlista() {
     const sidebar = document.querySelector('.sidebar');
     if(!sidebar) { x0=null; return; }
     const isOpen = sidebar.classList.contains('open');
-    // Swipe derecha → abrir (desde cualquier parte)
-    if(dx > 0 && !isOpen) {
+    // Swipe derecha → abrir, solo si el dedo arrancó pegado al borde izquierdo
+    if(dx > 0 && !isOpen && desdeBorde) {
       if(typeof toggleSidebar === 'function') toggleSidebar();
     }
-    // Swipe izquierda → cerrar
+    // Swipe izquierda → cerrar (desde cualquier parte, mientras está abierto)
     if(dx < 0 && isOpen) {
       if(typeof closeSidebar === 'function') closeSidebar();
       else if(typeof closeSidebarMobile === 'function') closeSidebarMobile();
     }
-    x0=null; y0=null; t0=null;
+    x0=null; y0=null; t0=null; desdeBorde=false;
   }, {passive:true});
 })();
 
@@ -10872,7 +10898,9 @@ function cfNum(v) {
 }
 function cfPesos(v) { return '$' + v.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
+var FACT_TAB_ACTIVA = 'cf';
 function showFactTab(id, el) {
+  FACT_TAB_ACTIVA = id;
   document.querySelectorAll('.fact-panel').forEach(function(p){ p.style.display = 'none'; });
   document.querySelectorAll('.fact-tab').forEach(function(t){ t.classList.remove('active'); });
   document.getElementById('fact-' + id).style.display = 'block';
@@ -11493,7 +11521,10 @@ function fvRenderCompensacion() {
   var hayDatos = (CF_DATA && CF_DATA.length) || (FV_DATA && FV_DATA.length);
   card.style.display = hayDatos ? '' : 'none';
   if (!hayDatos) return;
-  var periodo = FV_PERIODO_ACTIVO || CF_PERIODO_ACTIVO || null;
+  // Sigue el período de la pestaña que el usuario está mirando en este momento.
+  var periodo = FACT_TAB_ACTIVA === 'fv'
+    ? (FV_PERIODO_ACTIVO || CF_PERIODO_ACTIVO || null)
+    : (CF_PERIODO_ACTIVO || FV_PERIODO_ACTIVO || null);
   var c = calcularCompensacionIVA(periodo);
   var lblPeriodo = periodo ? new Date(periodo+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'}) : 'todos los períodos';
   var aFavor = c.saldo <= 0;
@@ -18647,7 +18678,7 @@ function verVenta(id) {
   const accs = document.getElementById('venta-det-acciones');
   const esPendPago = ['pendiente_pago','seniado'].includes(v.estadoPago);
   let accsHTML = '';
-  if (esPendPago) accsHTML += '<button class="btn btn-sm btn-primary" onclick="showPage(\'cobranzas\',document.querySelector(\'[onclick*=cobranzas]\'))"><i class="ti ti-cash"></i> Registrar pago</button>';
+  if (esPendPago) accsHTML += '<button class="btn btn-sm btn-primary" onclick="irACobranzasConVenta(\''+v.id+'\')"><i class="ti ti-cash"></i> Registrar pago</button>';
   if (v.otId)     accsHTML += '<button class="btn btn-sm" onclick="verOTdesdeVenta()"><i class="ti ti-clipboard-list"></i> Ver OT</button>';
   accsHTML += '<button class="btn btn-sm" onclick="abrirModalImprimir(\'venta\',\'Venta ' + v.id + '\')"><i class="ti ti-printer"></i> Imprimir</button>';
   // Botón facturar — solo si no tiene factura emitida
