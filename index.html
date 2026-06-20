@@ -244,8 +244,8 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 
 /* ── TABLES ── */
 table{width:100%;border-collapse:collapse}
-th{font-size:11px;color:var(--text3);text-align:left;padding:0 0 9px;border-bottom:0.5px solid var(--border);font-weight:400}
-td{padding:9px 0;font-size:13px;color:var(--text2);border-bottom:0.5px solid var(--border)}
+th{font-size:11px;color:var(--text3);text-align:left;padding:0 10px 9px 0;border-bottom:0.5px solid var(--border);font-weight:400}
+td{padding:9px 10px 9px 0;font-size:13px;color:var(--text2);border-bottom:0.5px solid var(--border)}
 tr:last-child td{border-bottom:none}
 tr:hover td{color:var(--text)}
 .dt{width:100%;border-collapse:collapse}
@@ -695,7 +695,7 @@ tr:hover td{color:var(--text)}
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, get, push, onValue, update, remove }
+    import { getDatabase, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
              createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
@@ -728,6 +728,8 @@ tr:hover td{color:var(--text)}
     window.fbOnValue     = onValue;
     window.fbUpdate      = update;
     window.fbRemove      = remove;
+    window.fbOnDisconnect = onDisconnect;
+    window.fbServerTimestamp = serverTimestamp;
     window.fbSignIn      = signInWithEmailAndPassword;
     window.fbSignOut     = signOut;
     window.fbOnAuth      = onAuthStateChanged;
@@ -768,7 +770,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.33 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.35 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1959,6 +1961,7 @@ tr:hover td{color:var(--text)}
           <button class="cfg-tab" onclick="showCfgTab('roles',this)" style="white-space:nowrap;flex-shrink:0">Roles</button>
           <button class="cfg-tab" onclick="showCfgTab('facturacion',this)" style="white-space:nowrap;flex-shrink:0">Facturación</button>
           <button class="cfg-tab" onclick="showCfgTab('basedatos',this)" style="white-space:nowrap;flex-shrink:0">Base de datos</button>
+          <button class="cfg-tab" onclick="showCfgTab('actividad',this)" style="white-space:nowrap;flex-shrink:0">Actividad</button>
           <button class="cfg-tab admin-o-administrativo" onclick="showCfgTab('asistente',this)" style="white-space:nowrap;flex-shrink:0">Asistente de ventas</button>
         </div>
         <div style="font-size:11px;color:var(--text3);margin:-12px 0 14px 4px;display:flex;align-items:center;gap:4px">
@@ -2313,6 +2316,31 @@ tr:hover td{color:var(--text)}
             <div style="font-size:11px;color:var(--text3);margin-top:8px">
               ⚠️ "Cargar datos demo" solo usarlo una vez la primera vez.
             </div>
+          </div>
+        </div>
+
+        <!-- TAB: ACTIVIDAD — log de uso del sistema -->
+        <div id="cfg-actividad" class="cfg-panel" style="display:none">
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">Historial de actividad</span>
+            </div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
+              Acciones importantes registradas por usuario: ventas creadas, pagos registrados, altas y ediciones de clientes, productos y empleados, inicios y cierres de sesión.
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+              <select id="act-filtro-usuario" style="max-width:220px" onchange="renderLogActividad()">
+                <option value="">— Todos los usuarios —</option>
+              </select>
+              <select id="act-filtro-accion" style="max-width:220px" onchange="renderLogActividad()">
+                <option value="">— Todas las acciones —</option>
+              </select>
+              <button class="btn btn-sm" onclick="cargarLogActividad()"><i class="ti ti-refresh"></i> Actualizar</button>
+            </div>
+            <table>
+              <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+              <tbody id="act-tbody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px">Sin actividad registrada todavía</td></tr></tbody>
+            </table>
           </div>
         </div>
 
@@ -3706,8 +3734,8 @@ tr:hover td{color:var(--text)}
               <input class="search-input" style="width:100%" placeholder="Buscar empleado..." oninput="buscarEmpleado(this.value)">
             </div>
             <table id="emp-tbl">
-              <thead><tr><th>ID</th><th>Apellido y nombre</th><th>Cargo</th><th style="text-align:right">Mensual (cargo)</th><th style="text-align:right">Comisión (mes)</th><th>Fecha de inicio</th><th style="text-align:right">Estado</th><th></th></tr></thead>
-              <tbody id="emp-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr></tbody>
+              <thead><tr><th>ID</th><th>Apellido y nombre</th><th>Cargo</th><th style="text-align:right">Mensual (cargo)</th><th style="text-align:right">Hs ex (valor)</th><th style="text-align:right">Comisión (mes)</th><th>Fecha de inicio</th><th style="text-align:right">Estado</th><th></th></tr></thead>
+              <tbody id="emp-tbody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -3785,6 +3813,7 @@ tr:hover td{color:var(--text)}
             <span class="card-title">Usuarios del sistema</span>
             <button class="btn btn-sm btn-primary" onclick="abrirModalNuevo('usuario')"><i class="ti ti-plus"></i> Nuevo usuario</button>
           </div>
+          <div id="usuarios-online-resumen" style="font-size:12px;color:var(--text3);margin-bottom:12px"></div>
           <table>
             <thead><tr><th>ID</th><th>Nombre</th><th>Usuario</th><th>Rol</th><th style="text-align:right">Último acceso</th><th style="text-align:right">Estado</th><th></th></tr></thead>
             <tbody id="usuarios-tbody"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr></tbody>
@@ -5059,7 +5088,7 @@ function renderTablaEmpleados() {
   }).sort(function(a,b){ return (a.legajo||0)-(b.legajo||0); });
 
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(e) {
@@ -5068,6 +5097,7 @@ function renderTablaEmpleados() {
     var estadoBadge = '<label class="toggle-sw" onclick="event.stopPropagation()" title="'+(e.activo!==false?'Activo — clic para dar de baja':'Inactivo — clic para reactivar')+'"><input type="checkbox" '+(e.activo!==false?'checked':'')+' onchange="event.stopPropagation();abrirModalEstadoEmpleado(\''+e.fbKey+'\','+(e.activo!==false)+')"><span class="toggle-knob"></span></label>';
     var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
     var mensual = cargoInfo ? (parseFloat(cargoInfo.valorHora)||0)*8*(parseFloat(cargoInfo.diasMes)||0) : 0;
+    var valorHsEx = cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
     var comCalc = (typeof calcularComisionEmpleado === 'function') ? calcularComisionEmpleado(e, new Date().toISOString().slice(0,7)) : null;
     var comision = comCalc ? (comCalc.comision||0) : 0;
     return '<tr class="er" style="cursor:pointer" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')">' +
@@ -5075,6 +5105,7 @@ function renderTablaEmpleados() {
       '<td style="font-weight:500">'+escapeHTML(e.nombre||'—')+'</td>' +
       '<td><span class="badge '+catColor+'">'+escapeHTML(catLabel)+'</span></td>' +
       '<td style="text-align:right">'+(cargoInfo?'$'+Math.round(mensual).toLocaleString('es-AR'):'—')+'</td>' +
+      '<td style="text-align:right;color:var(--amber)">'+(cargoInfo?'$'+Math.round(valorHsEx).toLocaleString('es-AR'):'—')+'</td>' +
       '<td style="text-align:right;color:var(--green)">'+(comision?'$'+Math.round(comision).toLocaleString('es-AR'):'—')+'</td>' +
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(e.fechaIngreso||'—')+'</td>' +
       '<td style="text-align:right">'+estadoBadge+'</td>' +
@@ -5135,6 +5166,15 @@ function renderTablaUsuarios() {
   var tbody = document.getElementById('usuarios-tbody');
   if (!tbody) return;
   var lista = window.usuariosData || [];
+  var resumenEl = document.getElementById('usuarios-online-resumen');
+  if (resumenEl) {
+    var cantOnline = lista.filter(function(u) {
+      var mail = u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com');
+      return (typeof estaUsuarioOnline === 'function') ? estaUsuarioOnline(mail) : false;
+    }).length;
+    resumenEl.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--green);box-shadow:0 0 0 3px rgba(61,220,132,.18)"></span>' +
+      cantOnline + ' ' + (cantOnline === 1 ? 'usuario conectado ahora' : 'usuarios conectados ahora');
+  }
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr>';
     return;
@@ -5147,9 +5187,12 @@ function renderTablaUsuarios() {
       : '<span class="badge b-purple">Administrativo</span>';
     var estadoBadge = '<label class="toggle-sw" title="' + (u.activo !== false ? 'Activo' : 'Inactivo') + '"><input type="checkbox" ' + (u.activo !== false ? 'checked' : '') + ' onchange="toggleActivoUsuario(\'' + u.fbKey + '\',' + (u.activo !== false) + ')"><span class="toggle-knob"></span></label>';
     var ultimoAcceso = u.ultimoAcceso || '—';
+    var emailUsuario = u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com');
+    var online = (typeof estaUsuarioOnline === 'function') ? estaUsuarioOnline(emailUsuario) : false;
+    var puntoOnline = '<span title="' + (online ? 'Conectado ahora' : 'Sin conexión activa') + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:' + (online ? 'var(--green)' : 'var(--text3)') + (online ? ';box-shadow:0 0 0 3px rgba(61,220,132,.18)' : '') + '"></span>';
     return '<tr>' +
       '<td>' + (i + 1) + '</td>' +
-      '<td>' + escapeHTML(u.nombre || '—') + '</td>' +
+      '<td>' + puntoOnline + escapeHTML(u.nombre || '—') + '</td>' +
       '<td style="color:var(--text3)">' + escapeHTML(u.login || u.mail || '—') + '</td>' +
       '<td>' + rolBadge + '</td>' +
       '<td style="text-align:right;color:var(--text3)">' + escapeHTML(ultimoAcceso) + '</td>' +
@@ -5862,6 +5905,8 @@ function _ejecutarLogout() {
   } catch(e) {}
 
   // 2. Cerrar sesión en Firebase Auth
+  if (typeof registrarActividad === 'function') registrarActividad('Cierre de sesión', '');
+  limpiarPresenciaOnline();
   if (window.fbAuth && window.fbSignOut) {
     window.fbSignOut(window.fbAuth).catch(function(){});
   }
@@ -5870,6 +5915,8 @@ function _ejecutarLogout() {
   isAuthenticated = false;
   currentUser = '';
   currentRole = '';
+  currentUserUid = '';
+  currentUserEmail = '';
   window.usuariosData = []; // forzar re-lectura desde Firebase en el próximo login
 
   if (typeof stopSessionTimer === 'function') stopSessionTimer();
@@ -6088,7 +6135,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.33-firebase',
+  VERSION: 'v19.35-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6146,6 +6193,8 @@ function forzarActualizacionApp() {
   }
 }
 let isAuthenticated = false;
+let currentUserUid = ''; // uid de Firebase Auth — clave de presencia en Firebase
+let currentUserEmail = ''; // email normalizado — permite cruzar presencia con sisventas/usuarios
 // ── NORMALIZAR PEGADO DE NÚMEROS DESDE EXCEL ──
 // Excel copia montos como "1,234.56" (coma=miles, punto=decimal) o "1.234,56" (formato AR)
 // según la configuración regional. Esta función detecta el formato y lo limpia
@@ -6372,6 +6421,8 @@ window.doLogin = function doLogin() {
 // Lógica compartida de resolución de rol — usada tanto por login manual como por restauración de sesión
 function _resolverRolYCompletarLogin(user, err) {
   var emailLower = user.email.toLowerCase();
+  currentUserUid = user.uid;
+  currentUserEmail = emailLower;
 
   // Timeout de emergencia: si en 8 segundos no completó el login,
   // cerrar sesión y mostrar el login limpio para no quedar colgado.
@@ -6498,9 +6549,47 @@ setTimeout(function() {
   }
 }, 6000);
 
+// ── PRESENCIA EN TIEMPO REAL ──
+// Usa onDisconnect de Firebase: el propio servidor de Firebase detecta cuando la
+// conexión se corta (cierre de pestaña, pérdida de red, navegador cerrado de golpe)
+// y aplica el cambio a online:false automáticamente, sin depender de que el
+// navegador llegue a avisar nada. Por eso es confiable incluso ante cierres abruptos,
+// a diferencia de simplemente registrar el último login.
+function registrarPresenciaOnline() {
+  if (!window.fbDB || !window.fbOnDisconnect || !currentUserUid) return;
+  var refPresencia = window.fbRef(window.fbDB, 'sisventas/presencia/' + currentUserUid);
+  var datosOnline = {
+    online: true,
+    nombre: currentUser || '',
+    email: currentUserEmail || '',
+    rol: currentRole || '',
+    ultimaConexion: window.fbServerTimestamp ? window.fbServerTimestamp() : Date.now()
+  };
+  window.fbSet(refPresencia, datosOnline);
+  // Si la conexión se corta sin que el código de logout llegue a correr,
+  // Firebase aplica esto solo del lado del servidor.
+  window.fbOnDisconnect(refPresencia).set({
+    online: false,
+    nombre: currentUser || '',
+    email: currentUserEmail || '',
+    rol: currentRole || '',
+    ultimaDesconexion: window.fbServerTimestamp ? window.fbServerTimestamp() : Date.now()
+  });
+}
+
+function limpiarPresenciaOnline() {
+  if (!window.fbDB || !currentUserUid) return;
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presencia/' + currentUserUid), {
+    online: false,
+    ultimaDesconexion: window.fbServerTimestamp ? window.fbServerTimestamp() : Date.now()
+  }).catch(function(){});
+}
+
 function _completarLogin(nombre) {
   currentUser = nombre;
   applyRole();
+  registrarPresenciaOnline();
+  if (typeof registrarActividad === 'function') registrarActividad('Inicio de sesión', '');
 
   // Mostrar versión en el sidebar
   var vSidebar = document.getElementById('s-version-el');
@@ -6560,6 +6649,7 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
+  if (typeof cargarPresenciaUsuarios === 'function') setTimeout(cargarPresenciaUsuarios, 350);
   if (typeof chequearVersionNueva === 'function') setTimeout(chequearVersionNueva, 1500);
   if (typeof spCargar === 'function') setTimeout(spCargar, 400);
   if (typeof fbCargarVacaciones === 'function') setTimeout(fbCargarVacaciones, 400);
@@ -6786,6 +6876,9 @@ function confirmarVenta() {
     fbGuardarVenta(nuevaVenta);
   } else {
     ventasList.unshift(nuevaVenta);
+  }
+  if (typeof registrarActividad === 'function') {
+    registrarActividad('Venta creada', nuevaVenta.id + ' — ' + cli + ' — $' + Math.round(nuevaVenta.total).toLocaleString('es-AR'));
   }
 
   // Generar OT
@@ -7336,6 +7429,7 @@ function showCfgTab(id, el) {
   if (id === 'facturacion' && typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
   if (id === 'cargos') renderCargosConfig();
   if (id === 'notificaciones' && typeof renderConfigAlertas === 'function') renderConfigAlertas();
+  if (id === 'actividad') cargarLogActividad();
   if (id === 'asistente') aacfgInicializar();
 }
 
@@ -7847,6 +7941,93 @@ function aacfgCerrarPreview() {
 
 // ── CARGOS: configuración real (valor hora, días/mes, valor hora extra) ──
 var CARGOS_DATA = {}; // espejo en memoria de sisventas/config/cargos
+var PRESENCIA_DATA = {}; // espejo en memoria de sisventas/presencia, clave = uid
+
+// Listener en vivo de presencia — cualquier cambio de online/offline de cualquier
+// usuario dispara esto al instante (es lo que da el efecto "tiempo real").
+function cargarPresenciaUsuarios() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/presencia'), function(snap) {
+    PRESENCIA_DATA = snap.val() || {};
+    if (typeof renderTablaUsuarios === 'function') renderTablaUsuarios();
+  });
+}
+
+// Dado un email, busca si ese usuario tiene una sesión marcada online ahora mismo.
+function estaUsuarioOnline(email) {
+  if (!email) return false;
+  var emailLower = String(email).toLowerCase();
+  return Object.values(PRESENCIA_DATA).some(function(p) {
+    return p.online === true && String(p.email||'').toLowerCase() === emailLower;
+  });
+}
+
+// ── LOG DE ACTIVIDAD ──
+// Registra solo acciones importantes (no cada clic): ventas, pagos, altas/ediciones
+// de clientes/productos/empleados. Pensado para que el admin pueda auditar el uso
+// real del sistema sin ahogarse en ruido de navegación.
+function registrarActividad(accion, detalle) {
+  if (!window.fbDB) return;
+  window.fbPush(window.fbRef(window.fbDB, 'sisventas/log_actividad'), {
+    usuario: currentUser || 'Desconocido',
+    email: currentUserEmail || '',
+    accion: accion || '',
+    detalle: detalle || '',
+    timestamp: window.fbServerTimestamp ? window.fbServerTimestamp() : Date.now(),
+    fecha: new Date().toISOString()
+  }).catch(function(){});
+}
+
+var LOG_ACTIVIDAD_DATA = []; // últimos registros cargados, más reciente primero
+
+function cargarLogActividad() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/log_actividad')).then(function(snap) {
+    var data = snap.val() || {};
+    LOG_ACTIVIDAD_DATA = Object.values(data).sort(function(a,b) {
+      return (b.fecha||'').localeCompare(a.fecha||'');
+    }).slice(0, 300); // últimos 300 registros — suficiente para auditoría reciente sin sobrecargar la tabla
+    // Llenar selects de filtro con los usuarios y acciones que aparecen en el log
+    var selUsu = document.getElementById('act-filtro-usuario');
+    var selAcc = document.getElementById('act-filtro-accion');
+    if (selUsu) {
+      var usuarios = Array.from(new Set(LOG_ACTIVIDAD_DATA.map(function(l){ return l.usuario; }).filter(Boolean))).sort();
+      var valActual = selUsu.value;
+      selUsu.innerHTML = '<option value="">— Todos los usuarios —</option>' + usuarios.map(function(u){ return '<option value="'+escapeHTML(u)+'">'+escapeHTML(u)+'</option>'; }).join('');
+      selUsu.value = valActual;
+    }
+    if (selAcc) {
+      var acciones = Array.from(new Set(LOG_ACTIVIDAD_DATA.map(function(l){ return l.accion; }).filter(Boolean))).sort();
+      var valActualAcc = selAcc.value;
+      selAcc.innerHTML = '<option value="">— Todas las acciones —</option>' + acciones.map(function(a){ return '<option value="'+escapeHTML(a)+'">'+escapeHTML(a)+'</option>'; }).join('');
+      selAcc.value = valActualAcc;
+    }
+    renderLogActividad();
+  }).catch(function(){});
+}
+
+function renderLogActividad() {
+  var tbody = document.getElementById('act-tbody');
+  if (!tbody) return;
+  var filtroUsu = (document.getElementById('act-filtro-usuario')||{}).value || '';
+  var filtroAcc = (document.getElementById('act-filtro-accion')||{}).value || '';
+  var lista = LOG_ACTIVIDAD_DATA.filter(function(l) {
+    return (!filtroUsu || l.usuario === filtroUsu) && (!filtroAcc || l.accion === filtroAcc);
+  });
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px">Sin actividad registrada todavía</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(function(l) {
+    var fechaFmt = l.fecha ? new Date(l.fecha).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    return '<tr>' +
+      '<td style="font-size:12px;color:var(--text3);white-space:nowrap">' + escapeHTML(fechaFmt) + '</td>' +
+      '<td style="font-weight:500">' + escapeHTML(l.usuario||'—') + '</td>' +
+      '<td>' + escapeHTML(l.accion||'—') + '</td>' +
+      '<td style="color:var(--text3)">' + escapeHTML(l.detalle||'') + '</td>' +
+    '</tr>';
+  }).join('');
+}
 
 function cargarCargos() {
   if (!window.fbDB) return;
@@ -9157,6 +9338,9 @@ function guardarNuevoGenerico() {
       clientesData.push(nuevo);
       if (typeof renderTablaClientes === 'function') renderTablaClientes();
     }
+    if (typeof registrarActividad === 'function') {
+      registrarActividad('Cliente guardado', nuevo.nombre);
+    }
 
   } else if (tipo === 'producto') {
     var pv  = parseFloat(obj.pv  || 0);
@@ -9178,6 +9362,9 @@ function guardarNuevoGenerico() {
     };
     if (typeof fbGuardarProducto === 'function') {
       fbGuardarProducto(nuevo);
+    }
+    if (typeof registrarActividad === 'function') {
+      registrarActividad('Producto guardado', nuevo.codigo + ' — ' + nuevo.nombre);
     }
 
   } else if (tipo === 'empleado') {
@@ -9201,7 +9388,10 @@ function guardarNuevoGenerico() {
     if (window.fbDB) {
       if (fbKeyEmp) {
         window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKeyEmp), datosEmp)
-          .then(function(){ notify('Empleado actualizado'); })
+          .then(function(){
+            notify('Empleado actualizado');
+            if (typeof registrarActividad === 'function') registrarActividad('Empleado editado', datosEmp.nombre);
+          })
           .catch(function(e){ notify('Error: '+e.message); });
       } else {
         // Calcular próximo número de legajo
@@ -9210,7 +9400,10 @@ function guardarNuevoGenerico() {
         datosEmp.legajo = maxLeg + 1;
         datosEmp.ts = Date.now();
         window.fbPush(window.fbRef(window.fbDB, 'sisventas/empleados'), datosEmp)
-          .then(function(){ notify('Empleado guardado — Legajo N° '+datosEmp.legajo); })
+          .then(function(){
+            notify('Empleado guardado — Legajo N° '+datosEmp.legajo);
+            if (typeof registrarActividad === 'function') registrarActividad('Empleado creado', datosEmp.nombre + ' — Legajo N° ' + datosEmp.legajo);
+          })
           .catch(function(e){ notify('Error: '+e.message); });
       }
     } else { notify('Sin conexión'); }
@@ -10930,6 +11123,9 @@ function registrarPago() {
         });
       }
       notify('✓ Pago registrado correctamente');
+      if (typeof registrarActividad === 'function') {
+        registrarActividad('Pago registrado', venta + ' — ' + (pago.cliente||'') + ' — $' + Math.round(monto).toLocaleString('es-AR') + ' (' + medio + ')');
+      }
       // Ofrecer imprimir recibo
       window._ultimoPagoId = ref.key;
       window._ultimoPago   = pago;
