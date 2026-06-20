@@ -384,10 +384,6 @@ tr:hover td{color:var(--text)}
   /* ── MÓDULO OT ── */
   #ot-list-view .card-head{flex-direction:column;align-items:flex-start}
 
-  /* ── SUELDO TABLA ── */
-  #suel-tabla{font-size:11px}
-  #suel-tabla input{width:45px!important;font-size:11px!important}
-
   /* ── MISC ── */
   .page-title{font-size:13px}
   .badge{font-size:10px;padding:2px 6px}
@@ -749,7 +745,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.12 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.13 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -881,7 +877,6 @@ tr:hover td{color:var(--text)}
       <div class="s-section no-tecnico">Finanzas</div>
       <div class="nav-item" onclick="showPage('caja',this)"><i class="ti ti-cash"></i> Caja diaria</div>
       <div class="nav-item" onclick="showPage('gastos',this)"><i class="ti ti-receipt"></i>Gastos</div>
-      <div class="nav-item" onclick="showPage('sueldos',this)"><i class="ti ti-wallet"></i>Sueldos</div>
       <div class="nav-item" onclick="showPage('rentabilidad',this)"><i class="ti ti-trending-up"></i>Rentabilidad</div>
       <div class="s-section no-tecnico admin-only">Compras</div>
       <div class="nav-item" onclick="showPage('proveedores',this)">
@@ -2070,7 +2065,7 @@ tr:hover td{color:var(--text)}
               Cada cargo define el valor hora, los días a contar en el mes, y el valor de hora extra. En la ficha de cada empleado solo se elige el cargo y las horas diarias que trabaja — el sueldo se calcula solo a partir de estos datos.
             </div>
             <table id="cargos-tbl">
-              <tr><th>Cargo</th><th style="text-align:right">Valor hora</th><th style="text-align:right">8hs/día</th><th style="text-align:right">4hs/día</th><th style="text-align:right">Días/mes</th><th style="text-align:right">Empleados</th><th></th></tr>
+              <tr><th>Cargo</th><th style="text-align:right">Valor hora</th><th style="text-align:right">Hs ex</th><th style="text-align:right">Días/mes</th><th style="text-align:right">Mensual (8hs)</th><th style="text-align:right">8hs/día</th><th style="text-align:right">4hs/día</th><th style="text-align:right">Empleados</th><th></th></tr>
             </table>
             <div id="cargos-vacio" style="text-align:center;color:var(--text3);padding:24px;font-size:13px;display:none">Sin cargos creados todavía</div>
           </div>
@@ -3591,8 +3586,8 @@ tr:hover td{color:var(--text)}
               <input class="search-input" style="width:100%" placeholder="Buscar empleado..." oninput="buscarEmpleado(this.value)">
             </div>
             <table id="emp-tbl">
-              <thead><tr><th>ID</th><th>Apellido y nombre</th><th>Categoría</th><th style="text-align:right">Sueldo base</th><th style="text-align:right">Comisiones</th><th style="text-align:right">H. extra</th><th style="text-align:right">Total mes</th><th style="text-align:right">Estado</th><th></th></tr></thead>
-              <tbody id="emp-tbody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr></tbody>
+              <thead><tr><th>ID</th><th>Apellido y nombre</th><th>Cargo</th><th style="text-align:right">Mensual (cargo)</th><th style="text-align:right">Comisión (mes)</th><th>Fecha de inicio</th><th style="text-align:right">Estado</th><th></th></tr></thead>
+              <tbody id="emp-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -3996,114 +3991,6 @@ tr:hover td{color:var(--text)}
         <button class="btn btn-primary" style="padding:12px 28px;font-size:15px" onclick="asistGenerarPresupuesto()">
           <i class="ti ti-file-description"></i> Generar presupuesto
         </button>
-      </div>
-    </div>
-  </div>
-
-</div>
-<div id="page-sueldos" class="page">
-
-  <!-- Selector de mes -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-    <div style="display:flex;align-items:center;gap:8px">
-      <button class="btn btn-sm" onclick="cambiarMesSueldos(-1)"><i class="ti ti-chevron-left"></i></button>
-      <span style="font-size:15px;font-weight:600;min-width:160px;text-align:center" id="suel-mes-label">Junio 2026</span>
-      <button class="btn btn-sm" onclick="cambiarMesSueldos(1)"><i class="ti ti-chevron-right"></i></button>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-sm" onclick="exportarExcel('Planilla de sueldos')"><i class="ti ti-download"></i> Exportar</button>
-      <button class="btn btn-sm btn-primary" onclick="guardarLiquidacion()"><i class="ti ti-check"></i> Guardar liquidación</button>
-    </div>
-  </div>
-
-  <!-- Métricas -->
-  <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
-    <div class="metric"><div class="m-label">Total sueldos</div><div class="m-value" id="suel-total" style="color:var(--red)">$0</div><div class="m-sub" id="suel-total-sub">—</div></div>
-    <div class="metric"><div class="m-label">Hs extra</div><div class="m-value" id="suel-hextra" style="color:var(--amber)">$0</div><div class="m-sub">—</div></div>
-    <div class="metric"><div class="m-label">Descuentos</div><div class="m-value" id="suel-desc" style="color:var(--blue)">$0</div><div class="m-sub">cuotas + adelantos</div></div>
-    <div class="metric"><div class="m-label">A pagar total</div><div class="m-value" id="suel-apagar" style="color:var(--green)">$0</div><div class="m-sub">—</div></div>
-  </div>
-
-  <!-- Tabla de liquidación -->
-  <div class="card" style="margin-bottom:12px">
-    <div class="card-head">
-      <span class="card-title">Liquidación mensual</span>
-      <button class="btn btn-sm" onclick="showPage('configuracion',document.querySelector('[onclick*=configuracion]'));setTimeout(function(){showCfgTab('cargos',document.querySelector('[onclick*=\'cargos\']'))},150)"><i class="ti ti-settings"></i> Ver cargos</button>
-    </div>
-    <div class="table-wrap">
-      <table id="suel-tabla">
-        <thead><tr>
-          <th>Empleado</th><th>Cargo</th>
-          <th class="tr">Sueldo base</th>
-          <th class="tr" style="min-width:60px"></th>
-          <th class="tr">Val. hora extra</th>
-          <th class="tr" style="min-width:70px">Hs extra</th>
-          <th class="tr">Val. Hs ext</th>
-          <th class="tr" style="color:var(--green)">Comisión</th>
-          <th class="tr">Entrega</th>
-          <th class="tr">Descuentos</th>
-          <th class="tr">Adelantos</th>
-          <th class="tr" style="font-weight:700">A pagar</th>
-          <th></th>
-        </tr></thead>
-        <tbody id="suel-tbody"></tbody>
-        <tfoot>
-          <tr style="font-weight:600;border-top:2px solid var(--border)">
-            <td colspan="2">TOTALES</td>
-            <td class="tr" id="suel-f-base">$0</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td class="tr" id="suel-f-hextra">$0</td>
-            <td class="tr" id="suel-f-entrega">$0</td>
-            <td class="tr" id="suel-f-desc">$0</td>
-            <td class="tr" id="suel-f-adel">$0</td>
-            <td class="tr" id="suel-f-apagar" style="color:var(--green)">$0</td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  </div>
-
-  <!-- Gastos del mes y resumen -->
-  <div class="row2">
-    <div class="card" style="margin-bottom:0">
-      <div class="card-head">
-        <span class="card-title">Gastos del mes</span>
-        <button class="btn btn-sm" onclick="showPage('gastos',null)"><i class="ti ti-external-link"></i> Ver todos</button>
-      </div>
-      <div id="suel-gastos-lista" style="display:flex;flex-direction:column;gap:0">
-        <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin gastos del mes</div>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:12px 0 0;border-top:0.5px solid var(--border);margin-top:8px;font-weight:600">
-        <span>Total gastos</span><span id="suel-gastos-total" style="color:var(--red)">$0</span>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:0">
-      <div class="card-head"><span class="card-title">Resumen del mes</span></div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)"><span style="color:var(--text2)">Sub total sueldos</span><span id="suel-res-sueldos" style="font-weight:500">$0</span></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)"><span style="color:var(--text2)">Total gastos</span><span id="suel-res-gastos" style="font-weight:500;color:var(--red)">$0</span></div>
-        <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700"><span>Total a erogar</span><span id="suel-res-total" style="color:var(--red)">$0</span></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal descuento en cuotas -->
-  <div id="modal-cuota" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center">
-    <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-      <div style="font-size:15px;font-weight:600;margin-bottom:16px">Agregar descuento en cuotas</div>
-      <div class="form-grid">
-        <div class="fg full"><label>Descripción</label><input type="text" id="cuota-desc" placeholder="Ej: Moto — tarjeta empresa"></div>
-        <div class="fg"><label>Monto total ($)</label><input type="number" id="cuota-monto" placeholder="0" oninput="calcCuota()"></div>
-        <div class="fg"><label>Cant. cuotas</label><input type="number" id="cuota-cant" placeholder="12" min="1" oninput="calcCuota()"></div>
-        <div class="fg full"><label>Valor por cuota</label><input type="text" id="cuota-val" readonly style="background:var(--bg4);font-weight:600"></div>
-        <div class="fg full"><label>Desde (mes)</label><input type="month" id="cuota-desde"></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:16px">
-        <button class="btn" style="flex:1" onclick="document.getElementById('modal-cuota').style.display='none'">Cancelar</button>
-        <button class="btn btn-primary" style="flex:1" onclick="guardarCuotas()">Guardar</button>
       </div>
     </div>
   </div>
@@ -5052,22 +4939,24 @@ function renderTablaEmpleados() {
   }).sort(function(a,b){ return (a.legajo||0)-(b.legajo||0); });
 
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(e) {
     var catLabel = e.cargo || 'Sin cargo';
-    var catColor = String(e.cargo||'').toLowerCase().includes('técnico') ? 'b-amber' : String(e.cargo||'').toLowerCase().includes('junior') ? 'b-purple' : 'b-blue';
+    var catColor = String(e.cargo||'').toLowerCase().includes('técnico') ? 'b-amber' : String(e.cargo||'').toLowerCase().includes('admin') ? 'b-purple' : 'b-blue';
     var estadoBadge = '<label class="toggle-sw" onclick="event.stopPropagation()" title="'+(e.activo!==false?'Activo — clic para dar de baja':'Inactivo — clic para reactivar')+'"><input type="checkbox" '+(e.activo!==false?'checked':'')+' onchange="event.stopPropagation();abrirModalEstadoEmpleado(\''+e.fbKey+'\','+(e.activo!==false)+')"><span class="toggle-knob"></span></label>';
-    var totalMes = (parseFloat(e.sueldoBase)||0)+(parseFloat(e.comisiones)||0)+(parseFloat(e.hextra)||0);
+    var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
+    var mensual = cargoInfo ? (parseFloat(cargoInfo.valorHora)||0)*8*(parseFloat(cargoInfo.diasMes)||0) : 0;
+    var comCalc = (typeof calcularComisionEmpleado === 'function') ? calcularComisionEmpleado(e, new Date().toISOString().slice(0,7)) : null;
+    var comision = comCalc ? (comCalc.comision||0) : 0;
     return '<tr class="er" style="cursor:pointer" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')">' +
       '<td style="font-family:monospace;font-weight:600;color:var(--text3)">'+String(e.legajo||'—').padStart(4,'0')+'</td>' +
       '<td style="font-weight:500">'+escapeHTML(e.nombre||'—')+'</td>' +
       '<td><span class="badge '+catColor+'">'+escapeHTML(catLabel)+'</span></td>' +
-      '<td style="text-align:right">$'+(parseFloat(e.sueldoBase)||0).toLocaleString('es-AR')+'</td>' +
-      '<td style="text-align:right;color:var(--green)">$'+(parseFloat(e.comisiones)||0).toLocaleString('es-AR')+'</td>' +
-      '<td style="text-align:right;color:var(--amber)">'+(e.hextra?'$'+(parseFloat(e.hextra)||0).toLocaleString('es-AR'):'—')+'</td>' +
-      '<td style="text-align:right;font-weight:500">$'+totalMes.toLocaleString('es-AR')+'</td>' +
+      '<td style="text-align:right">'+(cargoInfo?'$'+Math.round(mensual).toLocaleString('es-AR'):'—')+'</td>' +
+      '<td style="text-align:right;color:var(--green)">'+(comision?'$'+Math.round(comision).toLocaleString('es-AR'):'—')+'</td>' +
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(e.fechaIngreso||'—')+'</td>' +
       '<td style="text-align:right">'+estadoBadge+'</td>' +
       '<td style="white-space:nowrap" onclick="event.stopPropagation()">' +
         '<button class="btn btn-sm btn-icon" onclick="editarEmpleado(\''+e.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
@@ -5838,9 +5727,9 @@ var notifT;
 // ── SHOW PAGE (navegación principal) ──
 var PERMISOS_DEFAULT = {
   admin:          { bloqueados: [] },
-  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad','sueldos'] },
-  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal'] },
-  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','sueldos','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal'] }
+  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad'] },
+  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal'] },
+  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal'] }
 };
 var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 
@@ -5916,7 +5805,6 @@ function showPage(id, el) {
   if (id === 'agenda')         { setTimeout(function(){ fbCargarAgenda(); agRenderCalendario(); }, 50); }
   if (id === 'servicios')      { setTimeout(function(){ fbCargarServicios(); }, 50); }
   if (id === 'asistente')      { setTimeout(function(){ document.getElementById('asist-inicio').style.display='';document.getElementById('asist-preguntas').style.display='none';document.getElementById('asist-resumen').style.display='none'; }, 50); }
-  if (id === 'sueldos')        { setTimeout(function(){ renderModuloSueldos(); }, 100); }
   if (id === 'vacaciones')     { setTimeout(function(){ renderModuloVacaciones(); }, 100); }
   if (id === 'tablero')        { setTimeout(function(){ renderTablero(); }, 100); }
   if (id === 'creditofiscal')  { setTimeout(function(){ if(typeof cfRenderTodo==='function') cfRenderTodo(); }, 100); }
@@ -6015,7 +5903,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.12-firebase',
+  VERSION: 'v19.13-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6131,7 +6019,7 @@ var NOTIF_CONFIG = {
 var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
   producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'Moneda',id:'np-moneda',t:'select',opts:['ARS','USD']},{l:'P. compra',id:'np-pc',t:'number',ph:'0'},{l:'P. venta',id:'np-pv',t:'number',ph:'0'}]},
-  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo',t:'text',ph:'Ej: Vendedor senior',list:'lista-cargos'},{l:'Sueldo base ($)',id:'ne-sueldo-base',t:'text',ph:'Ej: 180000'},{l:'Valor hora extra ($)',id:'ne-hora-extra',t:'text',ph:'Ej: 1200'},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
+  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo-id',t:'select-cargo'},{l:'Fecha de inicio',id:'ne-fecha-ingreso',t:'date'},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
   usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
   proveedor: { title:'Nuevo proveedor', fields:[
     {l:'Nombre / Razón social',id:'npv-nm',t:'text',ph:'Razón social',full:true},
@@ -7738,26 +7626,52 @@ function renderCargosConfig() {
   if (vacioEl) vacioEl.style.display = 'none';
 
   var empleadosActivos = Object.values(empData||{}).filter(function(e){ return e.activo !== false; });
+  var inpStyle = 'width:80px;text-align:right;background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:3px 6px;font-size:12px';
 
   ids.sort(function(a,b){ return (CARGOS_DATA[a].nombre||'').localeCompare(CARGOS_DATA[b].nombre||''); }).forEach(function(id) {
     var c = CARGOS_DATA[id];
     var valorHora = parseFloat(c.valorHora)||0;
+    var valorHoraExtra = parseFloat(c.valorHoraExtra)||0;
     var diasMes = parseFloat(c.diasMes)||0;
     var sueldo8hs = valorHora * 8;
     var sueldo4hs = valorHora * 4;
+    var mensual = valorHora * 8 * diasMes;
     var cantEmpleados = empleadosActivos.filter(function(e){ return e.cargoId === id; }).length;
     var tr = document.createElement('tr');
+    tr.id = 'cargo-row-' + id;
     tr.innerHTML =
       '<td style="font-weight:500">' + escapeHTML(c.nombre||'') + '<div style="font-size:10px;color:var(--text3)">' + escapeHTML(c.categoriaBase||'') + '</div></td>' +
-      '<td style="text-align:right">$' + valorHora.toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right;color:var(--text3)">$' + Math.round(sueldo8hs).toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right;color:var(--text3)">$' + Math.round(sueldo4hs).toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right">' + diasMes + '</td>' +
+      '<td style="text-align:right"><input type="number" value="' + valorHora + '" style="' + inpStyle + '" onchange="cargosEditarRapido(\'' + id + '\',\'valorHora\',this.value)"></td>' +
+      '<td style="text-align:right"><input type="number" value="' + valorHoraExtra + '" style="' + inpStyle + '" onchange="cargosEditarRapido(\'' + id + '\',\'valorHoraExtra\',this.value)"></td>' +
+      '<td style="text-align:right"><input type="number" value="' + diasMes + '" style="width:55px;text-align:right;background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:3px 6px;font-size:12px" onchange="cargosEditarRapido(\'' + id + '\',\'diasMes\',this.value)"></td>' +
+      '<td style="text-align:right;font-weight:600" id="cargo-mensual-' + id + '">$' + Math.round(mensual).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right;color:var(--text3)" id="cargo-8hs-' + id + '">$' + Math.round(sueldo8hs).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right;color:var(--text3)" id="cargo-4hs-' + id + '">$' + Math.round(sueldo4hs).toLocaleString('es-AR') + '</td>' +
       '<td style="text-align:right">' + cantEmpleados + '</td>' +
       '<td><button class="btn btn-sm btn-icon" onclick="cargosAbrirNuevo(\''+id+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
       '<button class="btn btn-sm btn-icon" onclick="cargosEliminar(\''+id+'\')" title="Eliminar" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:14px"></i></button></td>';
     tbl.appendChild(tr);
   });
+}
+
+function cargosEditarRapido(id, campo, valor) {
+  var c = CARGOS_DATA[id];
+  if (!c || !window.fbDB) { notify('Sin conexión'); return; }
+  var num = parseFloat(valor) || 0;
+
+  // Recalcular columnas derivadas en la fila al instante (sin esperar a Firebase)
+  var valorHora = campo === 'valorHora' ? num : (parseFloat(c.valorHora)||0);
+  var diasMes   = campo === 'diasMes'   ? num : (parseFloat(c.diasMes)||0);
+  var _e = function(elId, val) { var el = document.getElementById(elId); if (el) el.textContent = '$'+Math.round(val).toLocaleString('es-AR'); };
+  if (campo === 'valorHora' || campo === 'diasMes') {
+    _e('cargo-mensual-'+id, valorHora*8*diasMes);
+    _e('cargo-8hs-'+id, valorHora*8);
+    _e('cargo-4hs-'+id, valorHora*4);
+  }
+
+  window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/cargos/'+id+'/'+campo), num)
+    .then(function(){ notify('✓ Guardado'); })
+    .catch(function(e){ notify('Error: '+e.message); });
 }
 
 function _previewCargoCalculos() {
@@ -7861,7 +7775,6 @@ var TODOS_MODULOS = [
   { id:'estadisticas',   label:'Estadísticas' },
   { id:'gastos',         label:'Gastos' },
   { id:'caja',           label:'Caja diaria' },
-  { id:'sueldos',        label:'Sueldos' },
   { id:'rentabilidad',   label:'Rentabilidad' },
   { id:'proveedores',    label:'Proveedores' },
   { id:'ordenes',        label:'Órdenes de compra (proveedores)' },
@@ -8142,27 +8055,32 @@ function verCuentaCliente(nombre) {
 // empData movido al inicio
 function verEmpleado(id) {
   const e = empData[id];
+  if (!e) return;
   _hide('emp-list-view');
   _block('emp-detail-view');
+  var iniciales = (e.nombre||'—').trim().split(/\s+/).map(function(p){return p[0]||'';}).slice(0,2).join('').toUpperCase();
   const av = document.getElementById('det-avatar');
-  av.textContent = e.initials;
-  av.style.background = e.avatarBg;
-  av.style.color = e.avatarColor;
-  _set('det-nombre',e.nombre);
-  setChildren(document.getElementById('det-cat'), [makeBadge(e.cat, e.catBadge)]);
-  setChildren(document.getElementById('det-estado'), [makeBadge(e.estado, e.estadoBadge)]);
-  _set('det-ingreso',e.ingreso);
-  _set('det-base',e.base);
-  _set('det-comisiones',e.comisiones);
-  _set('det-hextra',e.hextra);
-  _set('det-hextra-sub',e.hextra_sub);
-  _set('det-total',e.total);
-  document.getElementById('det-dni').value = e.dni;
-  document.getElementById('det-tel').value = e.tel;
-  document.getElementById('det-email').value = e.email;
-  document.getElementById('det-dir').value = e.dir;
-  _set('h-may-com',e.comisiones);
-  _set('h-may-hex',e.hextra);
+  av.textContent = iniciales || '—';
+  av.style.background = 'var(--blue-bg)';
+  av.style.color = 'var(--blue)';
+  _set('det-nombre',e.nombre||'—');
+  setChildren(document.getElementById('det-cat'), [makeBadge(e.cargo || 'Sin cargo', 'b-blue')]);
+  setChildren(document.getElementById('det-estado'), [makeBadge(e.activo!==false ? 'Activo' : 'Inactivo', e.activo!==false ? 'b-green' : 'b-red')]);
+  _set('det-ingreso', e.fechaIngreso ? 'Ingresó: '+e.fechaIngreso : 'Fecha de inicio no cargada');
+  var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
+  _set('det-base', cargoInfo ? '$'+Math.round((parseFloat(cargoInfo.valorHora)||0)*8).toLocaleString('es-AR') : '—');
+  var comCalc = (typeof calcularComisionEmpleado === 'function') ? calcularComisionEmpleado(e, new Date().toISOString().slice(0,7)) : null;
+  _set('det-comisiones', comCalc ? '$'+Math.round(comCalc.comision||0).toLocaleString('es-AR') : '—');
+  _set('det-comisiones-sub', 'este mes');
+  _set('det-hextra', cargoInfo ? '$'+Math.round(parseFloat(cargoInfo.valorHoraExtra)||0).toLocaleString('es-AR') : '—');
+  _set('det-hextra-sub', 'valor hora extra');
+  var totalAprox = (cargoInfo ? (parseFloat(cargoInfo.valorHora)||0)*8*(parseFloat(cargoInfo.diasMes)||0) : 0) + (comCalc ? (comCalc.comision||0) : 0);
+  _set('det-total', '$'+Math.round(totalAprox).toLocaleString('es-AR'));
+  _set('det-total-sub', 'mensual aprox.');
+  document.getElementById('det-dni').value = e.dni||'';
+  document.getElementById('det-tel').value = e.telefono||'';
+  document.getElementById('det-email').value = e.mail||'';
+  document.getElementById('det-dir').value = e.direccion||'';
 }
 function volverlista() {
   _block('emp-list-view');
@@ -8849,6 +8767,21 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
       }
       fg.appendChild(inp);
       grid.appendChild(fg);
+    } else if (f.t === 'select-cargo') {
+      inp = document.createElement('select');
+      inp.id = f.id;
+      var optVacio = document.createElement('option');
+      optVacio.value = ''; optVacio.textContent = '— Sin cargo asignado —';
+      inp.appendChild(optVacio);
+      var idsCargo = Object.keys(CARGOS_DATA||{}).sort(function(a,b){ return (CARGOS_DATA[a].nombre||'').localeCompare(CARGOS_DATA[b].nombre||''); });
+      idsCargo.forEach(function(cid) {
+        var opt = document.createElement('option');
+        opt.value = cid; opt.textContent = CARGOS_DATA[cid].nombre || cid;
+        inp.appendChild(opt);
+      });
+      if (datosExistentes && datosExistentes.cargoId) inp.value = datosExistentes.cargoId;
+      fg.appendChild(inp);
+      grid.appendChild(fg);
     } else if (f.t === 'autocomplete-prov') {
       inp = document.createElement('input');
       inp.type = 'text';
@@ -8967,30 +8900,37 @@ function guardarNuevoGenerico() {
 
   } else if (tipo === 'empleado') {
     var fbKeyEmp = window._modalFbKey;
+    var cargoIdSel = obj['cargo-id'] || '';
+    var cargoNombreSel = (cargoIdSel && CARGOS_DATA[cargoIdSel]) ? CARGOS_DATA[cargoIdSel].nombre : '';
     var datosEmp = {
       nombre:    ((obj.nm || '') + ' ' + (obj.ap || '')).trim(),
-      cargo:     obj.cargo || '',
-      sueldoBase: parseFloat(obj['sueldo-base']) || 0,
-      horaExtra:  parseFloat(obj['hora-extra']) || 0,
+      cargoId:   cargoIdSel,
+      cargo:     cargoNombreSel,
+      fechaIngreso: obj['fecha-ingreso'] || '',
       telefono:  obj.tel || '',
       mail:      obj.em || '',
       dni:       obj.dni || '',
       tipoEmpleado:    obj.tipo || 'Empleado',
       pctComisionPropio: parseFloat(obj['pct-comision']) || 0,
-      activo:    (obj.activo || 'Activo') !== 'Inactivo',
-      historial: [{ tipo:'alta', motivo:'Ingreso', fecha: new Date().toISOString().split('T')[0], usuario: currentUser||'' }]
+      activo:    (obj.activo || 'Activo') !== 'Inactivo'
     };
+    if (!fbKeyEmp) datosEmp.historial = [{ tipo:'alta', motivo:'Ingreso', fecha: new Date().toISOString().split('T')[0], usuario: currentUser||'' }];
     if (!datosEmp.nombre.trim()) { notify('Ingresá nombre y apellido'); return; }
     if (window.fbDB) {
-      // Calcular próximo número de legajo
-      var legajos = Object.values(empData||{}).map(function(e){ return parseInt(e.legajo)||0; });
-      var maxLeg = legajos.length ? Math.max.apply(null, legajos) : 0;
-      datosEmp.legajo = maxLeg + 1;
-      var promesaEmp = fbKeyEmp
-        ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKeyEmp), datosEmp)
-        : (datosEmp.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/empleados'), datosEmp));
-      promesaEmp.then(function(){ notify(fbKeyEmp ? 'Empleado actualizado' : 'Empleado guardado — Legajo N° '+datosEmp.legajo); })
-               .catch(function(e){ notify('Error: '+e.message); });
+      if (fbKeyEmp) {
+        window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKeyEmp), datosEmp)
+          .then(function(){ notify('Empleado actualizado'); })
+          .catch(function(e){ notify('Error: '+e.message); });
+      } else {
+        // Calcular próximo número de legajo
+        var legajos = Object.values(empData||{}).map(function(e){ return parseInt(e.legajo)||0; });
+        var maxLeg = legajos.length ? Math.max.apply(null, legajos) : 0;
+        datosEmp.legajo = maxLeg + 1;
+        datosEmp.ts = Date.now();
+        window.fbPush(window.fbRef(window.fbDB, 'sisventas/empleados'), datosEmp)
+          .then(function(){ notify('Empleado guardado — Legajo N° '+datosEmp.legajo); })
+          .catch(function(e){ notify('Error: '+e.message); });
+      }
     } else { notify('Sin conexión'); }
 
   } else if (tipo === 'gasto') {
@@ -14894,189 +14834,6 @@ function calcularProductosRedes(r) {
   return lista;
 }
 // ══════════════════════════════════════════════
-
-var suelMesActual = new Date().toISOString().slice(0,7);
-var liquidacionData = {};
-
-function cambiarMesSueldos(delta) {
-  var d = new Date(suelMesActual + '-01');
-  d.setMonth(d.getMonth() + delta);
-  suelMesActual = d.toISOString().slice(0,7);
-  renderModuloSueldos();
-}
-
-function renderModuloSueldos() {
-  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  var d = new Date(suelMesActual + '-01');
-  var lbl = document.getElementById('suel-mes-label');
-  if (lbl) lbl.textContent = meses[d.getMonth()] + ' ' + d.getFullYear();
-  cargarLiquidacionMes();
-  renderGastosMesSueldos();
-}
-
-function cargarLiquidacionMes() {
-  if (!window.fbDB) return;
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/sueldos/'+suelMesActual)).then(function(snap) {
-    renderTablaSueldos(snap.val() || {});
-  });
-}
-
-function obtenerCategoriaEmpleado(emp) {
-  var cargo = (emp.cargo||'').toUpperCase();
-  if (cargo.includes('TECNICO C')||cargo.includes('TÉCNICO C')) return 'TECNICO C';
-  if (cargo.includes('TECNICO B')||cargo.includes('TÉCNICO B')) return 'TECNICO B';
-  if (cargo.includes('TECNICO A')||cargo.includes('TÉCNICO A')) return 'TECNICO A';
-  if (cargo.includes('ADMIN'))   return 'ADMINIS';
-  if (cargo.includes('INICIAL')) return 'INICIAL';
-  if (cargo.includes('TEMP'))    return 'A-TEMP';
-  if (emp.categoria==39) return 'TECNICO C';
-  if (emp.categoria==15) return 'TECNICO B';
-  return 'TECNICO A';
-}
-
-function calcDescuentosCuotasMes(empFbKey) {
-  var total = 0;
-  (gastosData||[]).filter(function(g){
-    return g.empleadoId===empFbKey && g.esCuota && (g.cuotaMes||'')===suelMesActual;
-  }).forEach(function(g){ total += parseFloat(g.monto)||0; });
-  return total;
-}
-
-function renderTablaSueldos(guardada) {
-  var tbody = document.getElementById('suel-tbody');
-  if (!tbody) return;
-  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false && e.tipoEmpleado !== 'Vendedor a comisión'; });
-  if (!empleados.length) { tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:24px">Sin empleados activos</td></tr>'; return; }
-  var totBase=0,totHext=0,totEntrega=0,totDesc=0,totAdel=0,totPagar=0;
-  tbody.innerHTML = empleados.map(function(emp) {
-    var g      = guardada[emp.fbKey] || {};
-    // Sueldo base y valor de hora extra: vienen directo de la ficha del empleado,
-    // ya no de una tabla central de categorías.
-    var sueldoBase  = parseFloat(emp.sueldoBase) || 0;
-    var valHoraExtra = parseFloat(emp.horaExtra) || 0;
-    var hsExtra    = g.hsExtra!==undefined ? parseFloat(g.hsExtra) : 0;
-    var valHsExt   = hsExtra * valHoraExtra * 1.5;
-    // Comisión calculada del mes
-    var comCalc    = calcularComisionEmpleado(emp, suelMesActual);
-    var comision   = g.comision !== undefined ? parseFloat(g.comision) : comCalc.comision;
-    var descCuotas = calcDescuentosCuotasMes(emp.fbKey);
-    var entrega    = g.entrega  !==undefined ? parseFloat(g.entrega)   : sueldoBase+valHsExt+comision;
-    var descuento  = g.descuento!==undefined ? parseFloat(g.descuento) : descCuotas;
-    var adelanto   = parseFloat(g.adelanto)||0;
-    var aPagar     = entrega - descuento - adelanto;
-    totBase+=sueldoBase; totHext+=valHsExt; totEntrega+=entrega; totDesc+=descuento; totAdel+=adelanto; totPagar+=aPagar;
-    var fkey = emp.fbKey;
-    var inp = function(campo,val,w){ return '<input type="number" value="'+Math.round(val)+'" style="width:'+w+'px;text-align:right;background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:3px 5px;font-size:12px" onchange="onEditSueldo(\''+fkey+'\',\''+campo+'\',this.value)">'; };
-    return '<tr>'+
-      '<td style="font-weight:500">'+escapeHTML(emp.nombre||'—')+'</td>'+
-      '<td><span class="badge b-blue" style="font-size:10px">'+escapeHTML(emp.cargo||'Sin cargo')+'</span></td>'+
-      '<td class="tr" style="color:var(--text3);font-size:12px">$'+Math.round(sueldoBase).toLocaleString('es-AR')+'</td>'+
-      '<td class="tr" style="color:var(--text3);font-size:11px">fijo</td>'+
-      '<td class="tr" style="color:var(--text3);font-size:12px">$'+valHoraExtra.toLocaleString('es-AR')+'</td>'+
-      '<td class="tr">'+inp('hsExtra',hsExtra,45)+'</td>'+
-      '<td class="tr" style="color:var(--amber);font-size:12px">$'+Math.round(valHsExt).toLocaleString('es-AR')+'</td>'+
-      '<td class="tr" title="Ventas del mes: $'+Math.round(comCalc.totalVentas).toLocaleString('es-AR')+' ('+comCalc.pct+'%)">'+inp('comision',comision,85)+'</td>'+
-      '<td class="tr">'+inp('entrega',entrega,85)+'</td>'+
-      '<td class="tr"><div style="display:flex;align-items:center;gap:2px;justify-content:flex-end">'+inp('descuento',descuento,75)+
-        '<button class="btn btn-sm btn-icon" onclick="abrirModalCuotas(\''+fkey+'\')" title="Cuotas" style="padding:2px 3px"><i class="ti ti-credit-card" style="font-size:11px"></i></button></div></td>'+
-      '<td class="tr">'+inp('adelanto',adelanto,75)+'</td>'+
-      '<td class="tr" style="font-weight:700;color:'+(aPagar>=0?'var(--green)':'var(--red)')+'">$'+Math.round(aPagar).toLocaleString('es-AR')+'</td>'+
-      '<td></td>'+
-    '</tr>';
-  }).join('');
-  var _e=function(id,v){var el=document.getElementById(id);if(el)el.textContent='$'+Math.round(v).toLocaleString('es-AR');};
-  _e('suel-f-base',totBase);_e('suel-f-hextra',totHext);_e('suel-f-entrega',totEntrega);
-  _e('suel-f-desc',totDesc);_e('suel-f-adel',totAdel);_e('suel-f-apagar',totPagar);
-  _e('suel-total',totBase+totHext);_e('suel-hextra',totHext);_e('suel-desc',totDesc+totAdel);_e('suel-apagar',totPagar);
-  _e('suel-res-sueldos',totPagar);
-  actualizarResumenSueldos(totPagar, null);
-}
-
-function onEditSueldo(empFbKey, campo, valor) {
-  if (!liquidacionData[empFbKey]) liquidacionData[empFbKey]={};
-  liquidacionData[empFbKey][campo] = parseFloat(valor)||0;
-}
-
-function guardarLiquidacion() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
-  var tbody = document.getElementById('suel-tbody');
-  if (!tbody) return;
-  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false && e.tipoEmpleado !== 'Vendedor a comisión'; });
-  var datos = {};
-  empleados.forEach(function(emp, i) {
-    var fila = tbody.rows[i]; if (!fila) return;
-    var inputs = fila.querySelectorAll('input[type=number]');
-    var vals = Array.from(inputs).map(function(inp){ return parseFloat(inp.value)||0; });
-    datos[emp.fbKey] = { nombre:emp.nombre, hsExtra:vals[0], comision:vals[1], entrega:vals[2], descuento:vals[3], adelanto:vals[4] };
-    datos[emp.fbKey].aPagar = datos[emp.fbKey].entrega - datos[emp.fbKey].descuento - datos[emp.fbKey].adelanto;
-  });
-  window.fbSet(window.fbRef(window.fbDB,'sisventas/sueldos/'+suelMesActual), datos)
-    .then(function(){ notify('✓ Liquidación de '+suelMesActual+' guardada'); });
-}
-
-var _cuotaEmpFbKey = null;
-function abrirModalCuotas(empFbKey) {
-  _cuotaEmpFbKey = empFbKey;
-  ['cuota-desc','cuota-monto','cuota-val'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-  document.getElementById('cuota-cant').value  = '12';
-  document.getElementById('cuota-desde').value = suelMesActual;
-  document.getElementById('modal-cuota').style.display = 'flex';
-}
-
-function calcCuota() {
-  var monto = parseFloat(document.getElementById('cuota-monto').value)||0;
-  var cant  = parseInt(document.getElementById('cuota-cant').value)||1;
-  document.getElementById('cuota-val').value = '$'+Math.round(monto/cant).toLocaleString('es-AR');
-}
-
-function guardarCuotas() {
-  if (!window.fbDB||!_cuotaEmpFbKey) return;
-  var emp   = Object.values(empData||{}).find(function(e){ return e.fbKey===_cuotaEmpFbKey; });
-  var desc  = document.getElementById('cuota-desc').value.trim();
-  var monto = parseFloat(document.getElementById('cuota-monto').value)||0;
-  var cant  = parseInt(document.getElementById('cuota-cant').value)||1;
-  var desde = document.getElementById('cuota-desde').value;
-  if (!desc||!monto||!desde) { notify('Completá todos los campos'); return; }
-  var valCuota = Math.round(monto/cant);
-  var batch = [];
-  for (var i=0; i<cant; i++) {
-    var d = new Date(desde+'-01'); d.setMonth(d.getMonth()+i);
-    var mes = d.toISOString().slice(0,7);
-    batch.push(window.fbPush(window.fbRef(window.fbDB,'sisventas/gastos'), {
-      descripcion:desc+' (cuota '+(i+1)+'/'+cant+')', categoria:'Personal', tipo:'Fijo',
-      monto:valCuota, montoPagado:0, estado:'pendiente', fecha:mes+'-01',
-      empleadoId:_cuotaEmpFbKey, empleadoNombre:emp?emp.nombre:'',
-      esCuota:true, cuotaMes:mes, cuotaNum:i+1, cuotaTotal:cant, reembolsado:false, ts:Date.now()+i
-    }));
-  }
-  Promise.all(batch).then(function(){
-    notify('✓ '+cant+' cuotas de $'+valCuota.toLocaleString('es-AR')+' creadas');
-    document.getElementById('modal-cuota').style.display = 'none';
-  });
-}
-
-function renderGastosMesSueldos() {
-  var lista = (gastosData||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===suelMesActual&&!g.esCuota; });
-  var cont  = document.getElementById('suel-gastos-lista');
-  var tot   = lista.reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
-  if (cont) cont.innerHTML = lista.length ? lista.map(function(g){
-    return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:13px">'+
-      '<span style="color:var(--text2)">'+escapeHTML(g.descripcion||'—')+(g.empleadoNombre?' <span style="font-size:11px;color:var(--blue)">('+escapeHTML(g.empleadoNombre)+')</span>':'')+'</span>'+
-      '<span style="font-weight:500;color:var(--red)">$'+(parseFloat(g.monto)||0).toLocaleString('es-AR')+'</span></div>';
-  }).join('') : '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin gastos del mes</div>';
-  var _e=function(id,v){var el=document.getElementById(id);if(el)el.textContent='$'+Math.round(v).toLocaleString('es-AR');};
-  _e('suel-gastos-total',tot); _e('suel-res-gastos',tot);
-  actualizarResumenSueldos(null,tot);
-}
-
-var _lastSuelTotal=0, _lastGasTotal=0;
-function actualizarResumenSueldos(s,g) {
-  if (s!=null) _lastSuelTotal=s; if (g!=null) _lastGasTotal=g;
-  var el=document.getElementById('suel-res-total');
-  if (el) el.textContent='$'+Math.round(_lastSuelTotal+_lastGasTotal).toLocaleString('es-AR');
-}
-
-// ══════════════════════════════════════════════
 // MÓDULO VACACIONES
 // ══════════════════════════════════════════════
 
@@ -15331,7 +15088,8 @@ function editarEmpleado(fbKey) {
       ap:     partes.slice(1).join(' ') || '',
       nm:     partes[0] || '',
       dni:    e.dni || '',
-      cargo:  e.cargo || '',
+      cargoId: e.cargoId || '',
+      'fecha-ingreso': e.fechaIngreso || '',
       tel:    e.telefono || '',
       em:     e.mail || '',
       activo: e.activo !== false ? 'Activo' : 'Inactivo'
@@ -18477,7 +18235,7 @@ function verOTdesdeVenta() {
 // Inicializar al entrar
 // ── FUNCIONES CONECTADAS A BOTONES ──
 
-// Guardar fila individual en config (comisiones, sueldos)
+// Guardar fila individual en config (comisiones)
 var CONFIG_COMISIONES = {
   'Cat. 39': { pct: 2.5, min: 0, max: 999999 },
   'Cat. 15': { pct: 1.5, min: 0, max: 999999 },
@@ -18489,22 +18247,12 @@ function guardarFilaConfig(btn) {
   var inputs = tr.querySelectorAll('input[type=number]');
   var cargo  = tr.querySelector('td') ? tr.querySelector('td').textContent.trim() : '';
   var vals   = Array.from(inputs).map(function(i){ return parseFloat(i.value)||0; });
-  var thText = tr.closest('table').querySelector('th') ? tr.closest('table').querySelector('th').textContent : '';
-
-  var esComision = thText.includes('% sobre venta');
-  var esSueldo   = thText.includes('Sueldo base');
   var cat = cargo.includes('39') ? 'Cat. 39' : cargo.includes('15') ? 'Cat. 15' : 'Cat. 08';
 
-  if (esComision && window.fbDB) {
+  if (window.fbDB) {
     CONFIG_COMISIONES[cat] = { pct: vals[0]||0, min: vals[1]||0, max: vals[2]||0 };
     window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/comisiones'), CONFIG_COMISIONES)
       .then(function(){ notify('✓ Comisión guardada en Firebase'); })
-      .catch(function(e){ notify('Error: '+e.message); });
-  } else if (esSueldo && window.fbDB) {
-    if (typeof CONFIG_SUELDOS === 'undefined') window.CONFIG_SUELDOS = {};
-    window.CONFIG_SUELDOS[cat] = { base: vals[0]||0, actualizado: new Date().toISOString().split('T')[0] };
-    window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/categoriasSuel'), window.CONFIG_SUELDOS)
-      .then(function(){ notify('✓ Sueldo base guardado en Firebase'); })
       .catch(function(e){ notify('Error: '+e.message); });
   } else {
     notify('Sin conexión a Firebase');
@@ -18523,14 +18271,6 @@ function cargarConfigComisiones() {
       Object.assign(CONFIG_COMISIONES, data);
       // Actualizar inputs de configuración si la pantalla está visible
       actualizarInputsComisiones();
-    }
-  });
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/categoriasSuel')).then(function(snap) {
-    var data = snap.val();
-    if (data) {
-      if (typeof window.CONFIG_SUELDOS === 'undefined') window.CONFIG_SUELDOS = {};
-      Object.assign(window.CONFIG_SUELDOS, data);
-      actualizarInputsSueldos();
     }
   });
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/horasExtra')).then(function(snap) {
@@ -18557,21 +18297,6 @@ function guardarHorasExtra(btn) {
   setTimeout(function(){ btn.innerHTML=orig; btn.disabled=false; }, 2000);
 }
 
-function actualizarInputsSueldos() {
-  var tabla = document.querySelector('#cfg-sueldos table');
-  if (!tabla || !window.CONFIG_SUELDOS) return;
-  var filas = tabla.querySelectorAll('tr:not(:first-child)');
-  var cats  = ['Cat. 39', 'Cat. 15', 'Cat. 08'];
-  filas.forEach(function(tr, i) {
-    var cat = cats[i];
-    if (!cat || !window.CONFIG_SUELDOS[cat]) return;
-    var input = tr.querySelector('input[type=number]');
-    if (input) input.value = window.CONFIG_SUELDOS[cat].base;
-    var tds = tr.querySelectorAll('td');
-    if (tds[2] && window.CONFIG_SUELDOS[cat].actualizado) tds[2].textContent = window.CONFIG_SUELDOS[cat].actualizado;
-  });
-}
-
 function actualizarInputsComisiones() {
   var tabla = document.querySelector('.comisiones-tbl, #cfg-comisiones table');
   if (!tabla) return;
@@ -18585,6 +18310,19 @@ function actualizarInputsComisiones() {
     if (inputs[1]) inputs[1].value = CONFIG_COMISIONES[cat].min;
     if (inputs[2]) inputs[2].value = CONFIG_COMISIONES[cat].max;
   });
+}
+
+function obtenerCategoriaEmpleado(emp) {
+  var cargo = (emp.cargo||'').toUpperCase();
+  if (cargo.includes('TECNICO C')||cargo.includes('TÉCNICO C')) return 'TECNICO C';
+  if (cargo.includes('TECNICO B')||cargo.includes('TÉCNICO B')) return 'TECNICO B';
+  if (cargo.includes('TECNICO A')||cargo.includes('TÉCNICO A')) return 'TECNICO A';
+  if (cargo.includes('ADMIN'))   return 'ADMINIS';
+  if (cargo.includes('INICIAL')) return 'INICIAL';
+  if (cargo.includes('TEMP'))    return 'A-TEMP';
+  if (emp.categoria==39) return 'TECNICO C';
+  if (emp.categoria==15) return 'TECNICO B';
+  return 'TECNICO A';
 }
 
 function calcularComisionEmpleado(emp, mesAMM) {
