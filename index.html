@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://dolarapi.com https://www.tusfacturas.app; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="apple-icon-link" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
@@ -750,7 +750,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.21 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.24 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1595,6 +1595,12 @@ tr:hover td{color:var(--text)}
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
             <button class="btn btn-sm" onclick="volverListaOT()"><i class="ti ti-arrow-left"></i> Volver</button>
             <div style="display:flex;gap:6px" id="ot-acciones-header"></div>
+          </div>
+
+          <!-- Aviso de cambios externos: no se refresca solo para no pisar lo que estés editando -->
+          <div id="ot-aviso-cambio-externo" style="display:none;cursor:pointer;background:var(--blue-bg);border:0.5px solid var(--blue);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--blue);display:none;align-items:center;gap:8px" onclick="verOT(otActualId)">
+            <i class="ti ti-refresh" style="font-size:15px"></i>
+            <span>Esta OT cambió (otro usuario la editó) — tocá para actualizar</span>
           </div>
 
           <!-- Header OT -->
@@ -3236,6 +3242,12 @@ tr:hover td{color:var(--text)}
           <button class="btn btn-sm" onclick="showPage('clientes',document.querySelector('[onclick*=clientes]'))"><i class="ti ti-arrow-left"></i> Volver a clientes</button>
           <span id="hc-titulo" style="font-size:14px;font-weight:500">Historial del cliente</span>
           <div style="width:80px"></div>
+        </div>
+
+        <!-- Aviso de cambios externos: no se refresca solo para no perder el scroll -->
+        <div id="hc-aviso-cambio-externo" style="display:none;cursor:pointer;background:var(--blue-bg);border:0.5px solid var(--blue);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--blue);align-items:center;gap:8px" onclick="verHistorialCliente(clienteActualId)">
+          <i class="ti ti-refresh" style="font-size:15px"></i>
+          <span>Hay datos nuevos para este cliente — tocá para actualizar</span>
         </div>
 
         <!-- Header cliente -->
@@ -5219,8 +5231,29 @@ function fbCargarClientes() {
       }
       // Actualizar dropdown de clientes en ventas/presupuestos
       if (typeof actualizarSugerenciasCliente === 'function') actualizarSugerenciasCliente();
+      if (typeof _chequearCambioHistCliente === 'function') _chequearCambioHistCliente();
     }
   });
+}
+
+// Si hay un historial de cliente abierto, compara contra la huella guardada al entrar.
+// No refresca automático (perdería el scroll por el toggle display:none/block de showPage) — solo avisa.
+function _chequearCambioHistCliente() {
+  var pageHistCli = document.getElementById('page-historialcliente');
+  if (!pageHistCli || !pageHistCli.classList.contains('active')) return;
+  if (typeof clienteActualId === 'undefined' || !clienteActualId || !window._histClienteHuella) return;
+  var cli = (clientesData || []).find(function(c){ return String(c.id) === String(clienteActualId); });
+  if (!cli) return;
+  var ventas = (ventasList || []).filter(function(v) {
+    return String(v.idClienteOriginal) === String(clienteActualId) ||
+           String(v.clienteId)         === String(clienteActualId) ||
+           String(v.idCliente)         === String(clienteActualId);
+  });
+  var huellaNueva = JSON.stringify({cli: cli, ventas: ventas});
+  if (huellaNueva !== window._histClienteHuella) {
+    var avisoHcEl = document.getElementById('hc-aviso-cambio-externo');
+    if (avisoHcEl) avisoHcEl.style.display = 'flex';
+  }
 }
 
 function fbGuardarCliente(cli) {
@@ -5267,6 +5300,12 @@ function fbCargarProductos() {
         };
       });
       if (typeof renderTablaProductos === 'function') renderTablaProductos();
+      // Si hay un detalle de producto abierto (no el formulario de edición, que comparte
+      // la misma variable editingProdId), refrescarlo — es de solo lectura
+      var prodDetEl = document.getElementById('prod-detail-view');
+      if (prodDetEl && prodDetEl.style.display === 'block' && typeof editingProdId !== 'undefined' && editingProdId && typeof verProducto === 'function') {
+        verProducto(editingProdId);
+      }
     }
   });
 }
@@ -5300,9 +5339,22 @@ function fbCargarVentas() {
       if (typeof _aplicarFiltrosVentas === 'function') _aplicarFiltrosVentas();
       else if (typeof renderVentasTabla === 'function') renderVentasTabla();
       if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
-      setTimeout(function(){
-        if (typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
-      }, 300);
+      // Si hay un detalle de venta abierto en pantalla, refrescarlo con los datos nuevos
+      // (por ejemplo, si otro usuario registró un pago o cambió el estado mientras lo estabas mirando)
+      var detalleEl = document.getElementById('ventas-detalle-view');
+      if (detalleEl && detalleEl.style.display === 'block' && typeof ventaActualId !== 'undefined' && ventaActualId && typeof verVenta === 'function') {
+        verVenta(ventaActualId);
+      }
+      // Variante alternativa de detalle de venta (venta-detalle-view, usada desde historial/notificaciones)
+      var detalleEl2 = document.getElementById('venta-detalle-view');
+      if (detalleEl2 && detalleEl2.style.display === 'block' && window._ventaDetActualId && typeof verDetalleVenta === 'function') {
+        verDetalleVenta(window._ventaDetActualId);
+      }
+      // El historial de cliente muestra ventas — chequear si hay cambios para avisar (sin refrescar)
+      if (typeof _chequearCambioHistCliente === 'function') _chequearCambioHistCliente();
+      // Si el Dashboard está visible, refrescar sus KPIs
+      var pageDash = document.getElementById('page-dashboard');
+      if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
     }
   });
 }
@@ -5338,6 +5390,14 @@ function fbCargarPresupuestos() {
       if (pagPpto && pagPpto.classList.contains('active')) {
         if (typeof renderPptoTabla === 'function') renderPptoTabla();
       }
+      // Si hay un detalle de presupuesto abierto, refrescarlo con los datos nuevos
+      var pptoDetEl = document.getElementById('ppto-detalle-view');
+      if (pptoDetEl && pptoDetEl.style.display === 'block' && typeof pptoActualId !== 'undefined' && pptoActualId && typeof verPpto === 'function') {
+        verPpto(pptoActualId);
+      }
+      // Si el Dashboard está visible, refrescar sus KPIs
+      var pageDash = document.getElementById('page-dashboard');
+      if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
     }
   });
 }
@@ -5385,6 +5445,23 @@ function fbCargarOTs() {
       if (typeof agRenderCalendario === 'function') agRenderCalendario();
       if (typeof agActualizarMetricas === 'function') agActualizarMetricas();
     }
+    // Si hay un detalle de OT abierto, NO se refresca solo (tiene campos editables con
+    // guardado automático — refrescar en caliente podría pisar lo que el usuario está
+    // por guardar). En cambio, se avisa con un banner para que decida cuándo actualizar.
+    var otDetEl = document.getElementById('ot-detalle-view');
+    if (otDetEl && otDetEl.style.display === 'block' && typeof otActualId !== 'undefined' && otActualId) {
+      var otNueva = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+      if (otNueva && window._otDetalleHuella) {
+        var huellaNueva = JSON.stringify(otNueva);
+        if (window._otDetalleHuella !== huellaNueva) {
+          var avisoEl = document.getElementById('ot-aviso-cambio-externo');
+          if (avisoEl) avisoEl.style.display = 'flex';
+        }
+      }
+    }
+    // Si el Dashboard está visible, refrescar sus KPIs
+    var pageDash = document.getElementById('page-dashboard');
+    if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
   });
 }
 
@@ -5869,7 +5946,7 @@ function showPage(id, el) {
 
   // Lógica por módulo
   if (id === 'empleados')      { if(typeof volverlista==='function') volverlista(); }
-  if (id === 'clientes')      { setTimeout(function(){ if(typeof renderTablaClientes==='function'){ var inp=document.querySelector('#page-clientes .search-input'); renderTablaClientes(inp?inp.value:''); }}, 100); }
+  if (id === 'clientes')      { window._histClienteHuella = null; setTimeout(function(){ if(typeof renderTablaClientes==='function'){ var inp=document.querySelector('#page-clientes .search-input'); renderTablaClientes(inp?inp.value:''); }}, 100); }
   if (id === 'detalle')       { setTimeout(function(){ if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); }, 100); }
   if (id === 'presupuesto')    { setTimeout(function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }, 50); }
   if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
@@ -5985,7 +6062,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.21-firebase',
+  VERSION: 'v19.24-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8092,6 +8169,7 @@ function buscarCC(v) { document.querySelectorAll('.ccrow').forEach(tr=>tr.style.
 function verCuentaClienteReal(nombre) {
   var d = (window._ccMapActual || {})[nombre];
   if (!d) { notify('Cliente sin datos de cuenta corriente'); return; }
+  window._ccNombreActual = nombre;
   var card = document.querySelector('#page-cuentacorriente .card');
   var metrics = document.querySelector('#page-cuentacorriente .metrics');
   if (card) card.style.display = 'none';
@@ -8423,6 +8501,11 @@ function fbCargarPagos() {
       if(_e('cob-met-pendiente-sub')) _e('cob-met-pendiente-sub').textContent=conSaldo+' clientes con saldo';
       if(document.getElementById('kpi-deuda')) document.getElementById('kpi-deuda').textContent='$'+Math.round(totalDeuda).toLocaleString('es-AR');
       if(document.getElementById('kpi-deuda-sub')) document.getElementById('kpi-deuda-sub').textContent=conSaldo+' clientes con saldo';
+    }
+    // Si hay un detalle de cuenta corriente abierto, refrescarlo — es de solo lectura
+    var ccDetEl = document.getElementById('cc-detail');
+    if (ccDetEl && ccDetEl.style.display === 'block' && window._ccNombreActual && typeof verCuentaClienteReal === 'function') {
+      verCuentaClienteReal(window._ccNombreActual);
     }
   });
 }
@@ -15873,6 +15956,9 @@ function fbCargarGastos() {
     generarGastosFijosMes();
     renderTablaGastos();
     actualizarMetricasGastos();
+    // Si el Dashboard está visible, refrescar sus KPIs (evita mostrar $0 mientras este listener todavía no respondió)
+    var pageDash = document.getElementById('page-dashboard');
+    if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
   });
 }
 
@@ -16884,6 +16970,9 @@ function verOT(id) {
   otActualId = ot.id || id;
   _hide('ot-list-view');
   _block('ot-detalle-view');
+  var avisoEl = document.getElementById('ot-aviso-cambio-externo');
+  if (avisoEl) avisoEl.style.display = 'none';
+  window._otDetalleHuella = JSON.stringify(ot);
 
   _set('ot-det-num', ot.id||'OT');
   document.getElementById('ot-det-estado-badge').innerHTML = otBadge(ot.estado);
@@ -17174,6 +17263,7 @@ function volverListaOT() {
   _block('ot-list-view');
   _hide('ot-detalle-view');
   otActualId = null;
+  window._otDetalleHuella = null;
   renderOTTabla();
 }
 
@@ -17695,6 +17785,8 @@ function verHistorialCliente(id, nombre) {
   var cli = (clientesData || []).find(function(c){ return String(c.id) === String(id); });
   if (!cli) { notify('Cliente no encontrado (ID: '+id+')'); return; }
   showPage('historialcliente', null);
+  var avisoHcEl = document.getElementById('hc-aviso-cambio-externo');
+  if (avisoHcEl) avisoHcEl.style.display = 'none';
 
   // Registrar cliente activo para credenciales
   if (typeof credSetCliente === 'function') credSetCliente(cli.id);
@@ -17808,6 +17900,9 @@ function verHistorialCliente(id, nombre) {
 
   // Activar tab ventas por defecto
   switchHistTab('ventas', document.querySelector('.hist-tab-btn'));
+
+  // Huella para detectar cambios externos mientras se está mirando este historial
+  window._histClienteHuella = JSON.stringify({cli: cli, ventas: ventas});
 }
 
 function switchHistTab(tab, btn) {
@@ -17983,6 +18078,7 @@ function credEliminar() {
 function verDetalleVenta(ventaId) {
   var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
   if (!venta) { notify('Venta no encontrada'); return; }
+  window._ventaDetActualId = ventaId;
 
   var lv = document.getElementById('ventas-list-view');
   var dv = document.getElementById('venta-detalle-view');
