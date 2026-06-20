@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.7 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.10 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1126,25 +1126,25 @@ tr:hover td{color:var(--text)}
   <div id="ventas-list-view">
     <!-- Métricas rápidas -->
     <div class="metrics">
-      <div class="metric">
+      <div class="metric" style="cursor:pointer" onclick="kpiVentasMes()" title="Ver ventas de este mes">
         <div class="m-label">Ventas este mes</div>
         <div class="m-value" id="vm-total-mes">$0</div>
-        <div class="m-sub m-up">47 ventas</div>
+        <div class="m-sub m-up" id="vm-total-sub">—</div>
       </div>
-      <div class="metric">
+      <div class="metric" style="cursor:pointer" onclick="kpiCobrado()" title="Ver ventas cobradas">
         <div class="m-label">Cobrado</div>
         <div class="m-value" style="color:var(--green)" id="vm-cobrado">$0</div>
         <div class="m-sub" id="vm-cobrado-sub">—</div>
       </div>
-      <div class="metric">
+      <div class="metric" style="cursor:pointer" onclick="kpiPendiente()" title="Ver ventas con saldo pendiente">
         <div class="m-label">Pendiente</div>
         <div class="m-value" style="color:var(--amber)" id="vm-pendiente">$0</div>
         <div class="m-sub" id="vm-pendiente-sub">—</div>
       </div>
-      <div class="metric">
+      <div class="metric" style="cursor:pointer" onclick="kpiIva()" title="Ver ventas facturadas de este mes">
         <div class="m-label">IVA del mes</div>
         <div class="m-value" id="vm-iva">$0</div>
-        <div class="m-sub">vence 20/06</div>
+        <div class="m-sub" id="vm-iva-sub">vence 20/06</div>
       </div>
     </div>
 
@@ -1159,7 +1159,7 @@ tr:hover td{color:var(--text)}
       <!-- Filtros -->
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <input class="search-input" style="flex:1;min-width:160px" placeholder="Buscar por N°, cliente..." oninput="filtrarVentas(this.value)" id="ventas-search">
-        <select class="search-input" style="width:160px" onchange="filtrarVentasEstado(this.value)">
+        <select class="search-input" style="width:160px" id="ventas-estado" onchange="filtrarVentasEstado(this.value)">
           <option value="">Todos los estados</option>
           <option value="pendiente_pago">Pendiente pago</option>
           <option value="seniado">Señado</option>
@@ -4598,6 +4598,46 @@ var VENTA_ESTADOS = [
 ];
 
 // ── MÉTRICAS DEL MÓDULO DETALLE VENTAS ──
+// ── KPIs clickeables: cada tarjeta filtra la tabla de ventas según lo que representa ──
+function kpiVentasMes() {
+  var hoy = new Date();
+  var mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
+  window._filtrosVentas = { texto:'', estado:'', mes:mesActual, tab:'todas' };
+  _restaurarControlesFiltrosVentas();
+  _aplicarFiltrosVentas();
+  notify('Mostrando ventas de este mes');
+}
+function kpiCobrado() {
+  window._filtrosVentas = { texto:'', estado:'pago_total', mes:'', tab:'todas' };
+  _restaurarControlesFiltrosVentas();
+  _aplicarFiltrosVentas();
+  notify('Mostrando ventas cobradas');
+}
+function kpiPendiente() {
+  // "Pendiente" agrupa todo lo que no es pago_total — el select de estado no tiene
+  // una opción combinada, así que filtramos directo sobre la lista completa.
+  window._filtrosVentas = { texto:'', estado:'', mes:'', tab:'todas' };
+  _restaurarControlesFiltrosVentas();
+  renderVentasTabla((ventasList||[]).filter(function(v){ return v.estadoPago !== 'pago_total'; }));
+  notify('Mostrando ventas con saldo pendiente');
+}
+// Compara si una fecha en formato DD/MM/YYYY (el que usa el sistema) pertenece al mes "YYYY-MM" dado
+function _fechaEsDelMes(fechaDDMMYYYY, mesYYYYMM) {
+  var partes = (fechaDDMMYYYY||'').split('/');
+  if (partes.length < 3) return false;
+  var mm = partes[1], yyyy = partes[2].length === 2 ? '20'+partes[2] : partes[2];
+  return (yyyy + '-' + mm) === mesYYYYMM;
+}
+
+function kpiIva() {
+  var hoy = new Date();
+  var mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
+  window._filtrosVentas = { texto:'', estado:'', mes:mesActual, tab:'todas' };
+  _restaurarControlesFiltrosVentas();
+  renderVentasTabla((ventasList||[]).filter(function(v){ return _fechaEsDelMes(v.fecha, mesActual) && v.factura; }));
+  notify('Mostrando ventas facturadas de este mes');
+}
+
 function renderMetricasVentas() {
   var hoy = new Date();
   var mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
@@ -4606,9 +4646,9 @@ function renderMetricasVentas() {
 
   var ventas = ventasList || [];
 
-  // Filtrar ventas del mes actual (fecha formato YYYY-MM-DD)
+  // Filtrar ventas del mes actual (fecha formato DD/MM/YYYY, el real que usa el sistema)
   var ventasMes = ventas.filter(function(v){
-    return (v.fecha||'').slice(0,7) === mesActual;
+    return _fechaEsDelMes(v.fecha, mesActual);
   });
 
   // Totales del MES
@@ -4685,7 +4725,7 @@ function sortTabla(tablaId, col, tipo) {
   var renders = {
     'cli-tbl':  function() { renderTablaClientes(); },
     'prod-tbl': function() { renderTablaProductos(); },
-    'ven-tbl':  function() { renderVentasTabla(); },
+    'ven-tbl':  function() { if (typeof _aplicarFiltrosVentas === 'function') _aplicarFiltrosVentas(); else renderVentasTabla(); },
   };
   if (renders[tablaId]) renders[tablaId]();
 }
@@ -4846,7 +4886,8 @@ function volverListaVentas() {
   var lv = document.getElementById('ventas-list-view')   || document.getElementById('venta-list-view');
   if (dv) dv.style.display = 'none';
   if (lv) lv.style.display = '';
-  renderVentasTabla();
+  _restaurarControlesFiltrosVentas();
+  _aplicarFiltrosVentas();
 }
 
 
@@ -5293,7 +5334,8 @@ function fbCargarVentas() {
         var nb = parseInt((b.idOriginal||b.id||'').replace('#','')) || 0;
         return nb - na;
       });
-      if (typeof renderVentasTabla === 'function') renderVentasTabla();
+      if (typeof _aplicarFiltrosVentas === 'function') _aplicarFiltrosVentas();
+      else if (typeof renderVentasTabla === 'function') renderVentasTabla();
       if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
       setTimeout(function(){
         if (typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
@@ -5865,13 +5907,12 @@ function showPage(id, el) {
   // Lógica por módulo
   if (id === 'empleados')      { if(typeof volverlista==='function') volverlista(); }
   if (id === 'clientes')      { setTimeout(function(){ if(typeof renderTablaClientes==='function'){ var inp=document.querySelector('#page-clientes .search-input'); renderTablaClientes(inp?inp.value:''); }}, 100); }
-  if (id === 'detalle')       { setTimeout(function(){ if(typeof renderVentasTabla==='function'){renderVentasTabla();renderMetricasVentas();} }, 100); }
+  if (id === 'detalle')       { setTimeout(function(){ if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); }, 100); }
   if (id === 'presupuesto')    { setTimeout(function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }, 50); }
   if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
   if (id === 'venta')          { setTimeout(function(){ if(typeof inicializarFilasVenta==='function') inicializarFilasVenta(); }, 50); }
   if (id === 'dashboard')      { setTimeout(function(){ if(typeof renderKPIsDashboard==='function') renderKPIsDashboard(); }, 100); }
   if (id === 'notificaciones') { setTimeout(function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 50); }
-  if (id === 'detalle')        { setTimeout(function(){ if(typeof volverListaVentas==='function'){volverListaVentas();renderVentasTabla();} }, 50); }
   if (id === 'ctaemp')         { setTimeout(function(){ if(typeof iniciarCtaEmp==='function') iniciarCtaEmp(); }, 50); }
   if (id === 'rentabilidad')   { setTimeout(function(){ if(typeof calcRentabilidad==='function') calcRentabilidad(); }, 100); }
   if (id === 'informes')       { setTimeout(function(){ renderTablaInformes(); }, 50); }
@@ -5982,7 +6023,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.7-firebase',
+  VERSION: 'v19.10-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6578,7 +6619,7 @@ function confirmarVenta() {
     empleado: (document.querySelector('#venta-empleado')||{}).value || '',
     fecha: new Date().toLocaleDateString('es-AR'),
     estadoPago: 'pendiente_pago',
-    estadoInst: 'pendiente_pago',
+    estadoInst: 'pendiente_inst',
     total: 0, subtotal: 0, iva: 0, descuento: 0,
     items: filas.map(function(tr) {
       var cod   = (tr.querySelector('.prod-sel-cod')||{}).textContent || '';
@@ -16200,7 +16241,7 @@ function pptoAccion(accion) {
       iva:          0,
       total:        parseFloat(p.total) || 0,
       estadoPago:   'pendiente_pago',
-      estadoInst:   'pendiente_pago',
+      estadoInst:   'pendiente_inst',
       pptoOrigen:   p.id || '',
       observaciones: 'Generado desde presupuesto ' + (p.id||''),
       ts:           Date.now()
@@ -17332,11 +17373,19 @@ function ventaEstadoBadge(est) {
     pendiente_pago: ['badge b-amber','Pendiente pago'],
     seniado:        ['badge b-blue', 'Señado'],
     pago_total:     ['badge b-green','Pago total'],
+  };
+  const [cls, lbl] = map[est] || ['badge','—'];
+  return `<span class="${cls}">${lbl}</span>`;
+}
+
+function ventaEstadoInstBadge(est) {
+  const map = {
+    pendiente_inst: ['badge b-amber','No instalado'],
     en_instalacion: ['badge b-blue', 'En instalación'],
     instalado:      ['badge b-green','Instalado'],
     con_garantia:   ['badge b-green','Con garantía'],
   };
-  const [cls, lbl] = map[est] || ['badge','—'];
+  const [cls, lbl] = map[est] || ['badge b-amber','No instalado'];
   return `<span class="${cls}">${lbl}</span>`;
 }
 
@@ -17417,7 +17466,7 @@ function verHistorialCliente(id, nombre) {
         '<td style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
         '<td class="tr" style="font-weight:500">$' + (parseFloat(t)||0).toLocaleString('es-AR') + '</td>' +
         '<td class="tr">' + ventaEstadoBadge(v.estadoPago) + '</td>' +
-        '<td class="tr">' + ventaEstadoBadge(v.estadoInst) + '</td>' +
+        '<td class="tr">' + ventaEstadoInstBadge(v.estadoInst) + '</td>' +
         '<td><button class="btn btn-sm btn-icon" onclick="verDetalleVenta(this.dataset.vid)" data-vid="' + v.id + '"><i class="ti ti-eye" style="font-size:13px"></i></button></td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="6" style="color:var(--text3);text-align:center;padding:16px">Sin ventas registradas</td></tr>';
@@ -17672,7 +17721,7 @@ function renderDetalleVenta(v) {
     'pago_total':     { label:'Pago total',         color:'var(--green)', icon:'ti-check' },
   };
   var ESTADO_INST = {
-    'pendiente_pago': { label:'Pendiente',      color:'var(--text3)', icon:'ti-clock' },
+    'pendiente_inst': { label:'No instalado',   color:'var(--amber)', icon:'ti-clock' },
     'en_instalacion': { label:'En instalación', color:'var(--blue)',  icon:'ti-tools' },
     'instalado':      { label:'Instalado',      color:'var(--green)', icon:'ti-check' },
     'con_garantia':   { label:'Con garantía',   color:'var(--purple)',icon:'ti-shield-check' },
@@ -18210,7 +18259,7 @@ function renderVentasTabla(lista) {
     <td style="color:var(--text3);white-space:nowrap">${escapeHTML(v.fecha)}</td>
     <td class="tr" style="font-weight:500;white-space:nowrap">$${(parseFloat(v.total)||0).toLocaleString('es-AR')}</td>
     <td class="tr" style="white-space:nowrap">${ventaEstadoBadge(v.estadoPago)}</td>
-    <td class="tr" style="white-space:nowrap">${ventaEstadoBadge(v.estadoInst)}</td>
+    <td class="tr" style="white-space:nowrap">${ventaEstadoInstBadge(v.estadoInst)}</td>
     <td onclick="event.stopPropagation()" style="text-align:center">
       <button class="btn btn-sm btn-icon" onclick="verVenta('${v.id}')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
     </td>
@@ -18218,34 +18267,76 @@ function renderVentasTabla(lista) {
 }
 
 // Filtros
+// ── Filtros de Ventas: estado combinado, persiste al volver del detalle ──
+window._filtrosVentas = { texto:'', estado:'', mes:'', tab:'todas' };
+
 function filtrarVentas(v) {
-  const f = v.toLowerCase();
-  renderVentasTabla(ventasList.filter(x => x.id.toLowerCase().includes(f) || x.cliente.toLowerCase().includes(f)));
+  window._filtrosVentas.texto = v || '';
+  _aplicarFiltrosVentas();
 }
 function filtrarVentasEstado(est) {
-  renderVentasTabla(est ? ventasList.filter(v => v.estadoPago === est || v.estadoInst === est) : ventasList);
+  window._filtrosVentas.estado = est || '';
+  _aplicarFiltrosVentas();
 }
 function filtrarVentasMes(mes) {
-  if (!mes) { renderVentasTabla(); return; }
-  const [y,m] = mes.split('-');
-  renderVentasTabla(ventasList.filter(v => {
-    const [d,mv,yv] = v.fecha.split('/');
-    return mv === m && ('20'+yv) === y;
-  }));
+  window._filtrosVentas.mes = mes || '';
+  _aplicarFiltrosVentas();
 }
 function tabVentas(tipo, btn) {
+  window._filtrosVentas.tab = tipo;
   document.querySelectorAll('[id^=vtab-]').forEach(b => {
     b.style.background=''; b.style.color=''; b.style.borderColor='';
   });
-  btn.style.background='var(--text)'; btn.style.color='var(--bg2)'; btn.style.borderColor='var(--text)';
-  const hoy = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'2-digit'}).replace(/\//g,'/');
-  const mapas = {
-    todas:    ventasList,
-    cobrar:   ventasList.filter(v => ['pendiente_pago','seniado'].includes(v.estadoPago)),
-    instalar: ventasList.filter(v => ['pendiente_pago','en_instalacion'].includes(v.estadoInst)),
-    hoy:      ventasList.filter(v => v.fecha === hoy),
+  var btnActivo = btn || document.getElementById('vtab-'+tipo);
+  if (btnActivo) { btnActivo.style.background='var(--text)'; btnActivo.style.color='var(--bg2)'; btnActivo.style.borderColor='var(--text)'; }
+  _aplicarFiltrosVentas();
+}
+
+// Aplica los 4 filtros combinados sobre ventasList y renderiza el resultado
+function _aplicarFiltrosVentas() {
+  const f = window._filtrosVentas;
+  let lista = ventasList || [];
+
+  if (f.texto) {
+    const t = f.texto.toLowerCase();
+    lista = lista.filter(x => (x.id||'').toLowerCase().includes(t) || (x.cliente||'').toLowerCase().includes(t));
+  }
+  if (f.estado) {
+    lista = lista.filter(v => v.estadoPago === f.estado || v.estadoInst === f.estado);
+  }
+  if (f.mes) {
+    const [y,m] = f.mes.split('-');
+    lista = lista.filter(v => {
+      const partes = (v.fecha||'').split('/');
+      if (partes.length < 3) return false;
+      const [d,mv,yv] = partes;
+      return mv === m && ('20'+yv) === y;
+    });
+  }
+  const hoy = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'2-digit'});
+  const mapasTab = {
+    todas:    lista,
+    cobrar:   lista.filter(v => ['pendiente_pago','seniado'].includes(v.estadoPago)),
+    instalar: lista.filter(v => ['pendiente_inst','en_instalacion'].includes(v.estadoInst)),
+    hoy:      lista.filter(v => v.fecha === hoy),
   };
-  renderVentasTabla(mapas[tipo] || ventasList);
+  renderVentasTabla(mapasTab[f.tab] || lista);
+}
+
+// Restaura los controles visuales según el filtro guardado (al volver del detalle)
+function _restaurarControlesFiltrosVentas() {
+  const f = window._filtrosVentas;
+  var elSearch = document.getElementById('ventas-search');
+  var elEstado = document.getElementById('ventas-estado');
+  var elMes    = document.getElementById('ventas-mes');
+  if (elSearch) elSearch.value = f.texto || '';
+  if (elEstado) elEstado.value = f.estado || '';
+  if (elMes)    elMes.value    = f.mes || '';
+  document.querySelectorAll('[id^=vtab-]').forEach(b => {
+    b.style.background=''; b.style.color=''; b.style.borderColor='';
+  });
+  var btnTab = document.getElementById('vtab-'+(f.tab||'todas'));
+  if (btnTab) { btnTab.style.background='var(--text)'; btnTab.style.color='var(--bg2)'; btnTab.style.borderColor='var(--text)'; }
 }
 
 // Ver detalle de una venta
@@ -18262,25 +18353,26 @@ function verVenta(id) {
   _set('vd-cliente',v.cliente);
   _set('vd-fecha',v.fecha);
   document.getElementById('vd-badge-pago').innerHTML = ventaEstadoBadge(v.estadoPago);
-  document.getElementById('vd-badge-inst').innerHTML = ventaEstadoBadge(v.estadoInst);
+  document.getElementById('vd-badge-inst').innerHTML = ventaEstadoInstBadge(v.estadoInst);
   document.getElementById('vd-empleado').value = v.empleado || v.usuario || v.vendedor || '—';
   document.getElementById('vd-ppto').value = v.ppto || '—';
   document.getElementById('vd-obs').value = v.obs || '—';
   document.getElementById('vd-ot').value = v.otId || '—';
 
   // Timeline
-  renderVentaTimeline('vd-timeline', v.estadoPago === 'pago_total' && v.estadoInst !== 'pendiente_pago' ? v.estadoInst : v.estadoPago);
+  renderVentaTimeline('vd-timeline', v.estadoPago === 'pago_total' && v.estadoInst !== 'pendiente_inst' ? v.estadoInst : v.estadoPago);
 
   // Items
   const tbody = document.getElementById('vd-items');
-  tbody.innerHTML = v.items.map(it => `<tr>
+  const itemsVenta = Array.isArray(v.items) ? v.items : [];
+  tbody.innerHTML = itemsVenta.length ? itemsVenta.map(it => `<tr>
     <td style="overflow:hidden"><input type="checkbox"></td>
     <td style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(it.cod)}</td>
     <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(it.desc)}</td>
     <td class="tr" style="white-space:nowrap">${it.qty}</td>
     <td class="tr" style="white-space:nowrap">$${(parseFloat(it.punit)||0).toLocaleString('es-AR')}</td>
     <td class="tr" style="font-weight:500;white-space:nowrap">$${(parseFloat(it.sub)||0).toLocaleString('es-AR')}</td>
-  </tr>`).join('');
+  </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Esta venta no tiene ítems guardados — fue importada desde el sistema viejo sin detalle de productos</td></tr>';
 
   // Totales
   _set('vd-sub','$' + (parseFloat(v.subtotal)||0).toLocaleString('es-AR'));
@@ -18290,8 +18382,9 @@ function verVenta(id) {
 
   // Pagos
   const pagosEl = document.getElementById('vd-pagos-lista');
-  if (v.pagos.length) {
-    pagosEl.innerHTML = v.pagos.map(p => `
+  const pagosVenta = Array.isArray(v.pagos) ? v.pagos : [];
+  if (pagosVenta.length) {
+    pagosEl.innerHTML = pagosVenta.map(p => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">
         <div>
           <div style="font-size:13px;color:var(--text)">${escapeHTML(p.medio)}</div>
