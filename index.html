@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.11 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.12 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1766,7 +1766,7 @@ tr:hover td{color:var(--text)}
         <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
           <div class="metric">
             <div class="m-label">Cobrado este mes</div>
-            <div class="m-value" id="vm-cobrado">$0</div>
+            <div class="m-value" id="cob-met-cobrado">$0</div>
             <div class="m-sub" id="vm-cobrado-sub2">—</div>
           </div>
           <div class="metric">
@@ -1928,6 +1928,7 @@ tr:hover td{color:var(--text)}
           <button class="cfg-tab" onclick="showCfgTab('cargos',this)" style="white-space:nowrap;flex-shrink:0">Cargos</button>
           <button class="cfg-tab" onclick="showCfgTab('comisiones',this)" style="white-space:nowrap;flex-shrink:0">Comisiones</button>
           <button class="cfg-tab" onclick="showCfgTab('impuestos',this)" style="white-space:nowrap;flex-shrink:0">Impuestos</button>
+          <button class="cfg-tab" onclick="showCfgTab('notificaciones',this)" style="white-space:nowrap;flex-shrink:0">Notificaciones</button>
           <button class="cfg-tab" onclick="showCfgTab('roles',this)" style="white-space:nowrap;flex-shrink:0">Roles</button>
           <button class="cfg-tab" onclick="showCfgTab('facturacion',this)" style="white-space:nowrap;flex-shrink:0">Facturación</button>
           <button class="cfg-tab" onclick="showCfgTab('basedatos',this)" style="white-space:nowrap;flex-shrink:0">Base de datos</button>
@@ -2176,6 +2177,18 @@ tr:hover td{color:var(--text)}
               </div>
             </div>
             <div class="flex-end"><button class="btn btn-primary" onclick="guardarImpuestosGenerales()"><i class="ti ti-check"></i> Guardar</button></div>
+          </div>
+        </div>
+
+        <!-- TAB: NOTIFICACIONES -->
+        <div id="cfg-notificaciones" class="cfg-panel" style="display:none">
+          <div class="card">
+            <div class="card-head"><span class="card-title">Configuración de alertas</span></div>
+            <div style="margin-bottom:14px;padding:10px 14px;background:var(--blue-bg);border-radius:var(--radius);font-size:12px;color:var(--blue)">
+              <i class="ti ti-info-circle" style="font-size:14px;margin-right:6px"></i>
+              Definí qué alertas querés recibir y por qué canal. Los cambios se aplican de inmediato.
+            </div>
+            <div id="notif-config-lista" style="display:flex;flex-direction:column;gap:0"></div>
           </div>
         </div>
 
@@ -2743,12 +2756,6 @@ tr:hover td{color:var(--text)}
 
         <!-- Lista de notificaciones dinámica -->
         <div id="notif-lista"></div>
-
-        <!-- Config de alertas -->
-        <div class="card" style="margin-top:16px">
-          <div class="card-head"><span class="card-title">Configuración de alertas</span></div>
-          <div id="notif-config-lista" style="display:flex;flex-direction:column;gap:0"></div>
-        </div>
 
       </div>
 
@@ -4639,7 +4646,7 @@ function renderMetricasVentas() {
   var cobrado   = ventas.filter(function(v){ return v.estadoPago==='pago_total'; })
                         .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
   var pendiente = ventas.filter(function(v){ return v.estadoPago!=='pago_total'; })
-                        .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+                        .reduce(function(s,v){ return s+((parseFloat(v.total)||0)-(parseFloat(v.totalPagado)||0)); }, 0);
   var clisPend  = new Set(
     ventas.filter(function(v){ return v.estadoPago!=='pago_total'; })
           .map(function(v){ return v.cliente; })
@@ -6008,7 +6015,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.11-firebase',
+  VERSION: 'v19.12-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7179,6 +7186,7 @@ function showCfgTab(id, el) {
   if (id === 'roles') renderTablaRoles();
   if (id === 'facturacion' && typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
   if (id === 'cargos') renderCargosConfig();
+  if (id === 'notificaciones' && typeof renderConfigAlertas === 'function') renderConfigAlertas();
   if (id === 'asistente') aacfgInicializar();
 }
 
@@ -8373,7 +8381,14 @@ function fbCargarPagos() {
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
       var totalDeuda=ccLista.reduce(function(s,e){return s+(e[1].total-e[1].cobrado>0?e[1].total-e[1].cobrado:0);},0);
       var conSaldo=ccLista.filter(function(e){return e[1].total-e[1].cobrado>0;}).length;
+      // Cobrado este mes: suma de pagos del mes actual (lista de pagos ya cargada arriba)
+      var hoyD = new Date();
+      var mesActualCob = hoyD.getFullYear() + '-' + String(hoyD.getMonth()+1).padStart(2,'0');
+      var cobradoMes = (lista||[]).filter(function(p){ return typeof _fechaEsDelMes==='function' && _fechaEsDelMes(p.fecha, mesActualCob); })
+                                   .reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
       var _e=function(id){return document.getElementById(id);};
+      if(_e('cob-met-cobrado')) _e('cob-met-cobrado').textContent='$'+Math.round(cobradoMes).toLocaleString('es-AR');
+      if(_e('vm-cobrado-sub2')) _e('vm-cobrado-sub2').textContent='pagos registrados este mes';
       if(_e('cc-met-clientes')) _e('cc-met-clientes').textContent=conSaldo;
       if(_e('cc-met-clientes-sub')) _e('cc-met-clientes-sub').textContent='de '+ccLista.length+' activos';
       if(_e('cc-met-deuda')) _e('cc-met-deuda').textContent='$'+Math.round(totalDeuda).toLocaleString('es-AR');
@@ -17104,19 +17119,17 @@ function renderKPIsDashboard() {
   }
 
   // ── Deuda clientes (solo admin ve total) ──
+  // Mismo criterio que usa Cobranzas: si está en pago_total el saldo es 0,
+  // sino se resta lo ya cobrado (campo real: totalPagado)
   var ventasDeuda = esAdmin ? todasVentas : ventas;
-  var ventasConDeuda = ventasDeuda.filter(function(v) {
+  function _saldoPendienteVenta(v) {
     var total = parseFloat(v.total) || 0;
-    var pagado = parseFloat(v.pagado || v.montoCobrado) || 0;
-    var saldoPendiente = total - pagado;
-    // Solo cuenta como deuda si tiene saldo real pendiente mayor a 0
-    return v.estadoPago !== 'pago_total' && total > 0 && saldoPendiente > 0;
-  });
-  var deudaTotal = ventasConDeuda.reduce(function(s,v){
-    var total = parseFloat(v.total) || 0;
-    var pagado = parseFloat(v.pagado || v.montoCobrado) || 0;
-    return s + (total - pagado);
-  }, 0);
+    if (v.estadoPago === 'pago_total') return 0;
+    var pagado = parseFloat(v.totalPagado) || 0;
+    return total - pagado;
+  }
+  var ventasConDeuda = ventasDeuda.filter(function(v) { return _saldoPendienteVenta(v) > 0; });
+  var deudaTotal = ventasConDeuda.reduce(function(s,v){ return s + _saldoPendienteVenta(v); }, 0);
   var clientesUnicos = new Set(ventasConDeuda.map(function(v){ return v.cliente; })).size;
   _set('kpi-deuda', '$' + Math.round(deudaTotal).toLocaleString('es-AR'));
   var deudaSubEl = document.getElementById('kpi-deuda-sub');
