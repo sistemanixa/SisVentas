@@ -750,7 +750,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.28 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.29 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6062,7 +6062,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.28-firebase',
+  VERSION: 'v19.29-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8941,7 +8941,7 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
   // que usa el mismo modal con sus propios botones y oculta este)
   var modalEl = document.getElementById('modal-nuevo');
   if (modalEl) {
-    var botonesModal = modalEl.querySelectorAll('.flex-end button');
+    var botonesModal = modalEl.querySelectorAll('.modal > .flex-end button');
     botonesModal.forEach(function(b){ b.style.removeProperty('display'); });
   }
   const body = document.getElementById('modal-nuevo-body');
@@ -15525,9 +15525,15 @@ function abrirModalVacaciones(empFbKey) {
     '<div class="fg"><label>Hasta</label><input type="date" id="vac-hasta" style="width:100%" oninput="calcDiasVac()"></div>'+
     '<div class="fg full"><label>Días</label><input type="number" id="vac-dias" style="width:100%"></div>'+
     '<div class="fg full"><label>Observaciones</label><input type="text" id="vac-obs" placeholder="Opcional" style="width:100%"></div>'+
+  '</div>'+
+  '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">'+
+    '<button class="btn" onclick="document.getElementById(\'modal-nuevo\').classList.remove(\'open\')">Cancelar</button>'+
+    '<button class="btn btn-primary" onclick="guardarPeriodoVac()"><i class="ti ti-check"></i> Guardar período</button>'+
   '</div>';
-  var btn=modal.querySelector('button.btn-primary');
-  if (btn) { btn.textContent='Guardar período'; btn.onclick=guardarPeriodoVac; }
+  // Este modal usa sus propios botones — ocultar el footer genérico (nunca se muta su
+  // texto/onclick, así no queda "pegado" para la próxima vez que se use el modal)
+  var botonesFooter = modal.querySelectorAll('.modal > .flex-end button');
+  botonesFooter.forEach(function(b){ b.style.display = 'none'; });
   modal.classList.add('open');
 }
 
@@ -15585,7 +15591,7 @@ function abrirModalEstadoEmpleado(fbKey, estadoActual) {
   modalBody.innerHTML = html;
   // Este modal usa su propio botón de confirmación arriba — ocultar el Guardar genérico
   // (nunca se muta su texto/onclick, así no queda "pegado" para la próxima vez que se use el modal)
-  var botonesFooter = modal.querySelectorAll('.flex-end button');
+  var botonesFooter = modal.querySelectorAll('.modal > .flex-end button');
   botonesFooter.forEach(function(b){ b.style.display = 'none'; });
   modal.classList.add('open');
 }
