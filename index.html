@@ -750,7 +750,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.15 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.16 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -955,8 +955,8 @@ tr:hover td{color:var(--text)}
             <div class="m-value" id="kpi-pptos">0</div>
             <div class="m-sub m-warn"><span id="kpi-pptos-sub">cargando...</span></div>
           </div>
-          <div class="metric" style="cursor:pointer" onclick="kpiNavegar('iva')" title="Ver reportes">
-            <div class="m-label">IVA acumulado</div>
+          <div class="metric" style="cursor:pointer" onclick="kpiNavegar('iva')" title="Ver Facturaciones">
+            <div class="m-label">IVA a compensar</div>
             <div class="m-value" id="kpi-iva">$0</div>
             <div class="m-sub" id="kpi-iva-mes">cargando...</div>
           </div>
@@ -2645,6 +2645,12 @@ tr:hover td{color:var(--text)}
 
       <!-- ── FACTURACIONES (Crédito Fiscal + Facturas Realizadas) ── -->
       <div id="page-creditofiscal" class="page">
+
+        <!-- Compensación de IVA — Débito (Facturas Realizadas) vs Crédito (Crédito Fiscal) -->
+        <div class="card" id="fact-compensacion-card" style="display:none">
+          <div class="card-head"><span class="card-title">Compensación de IVA</span></div>
+          <div id="fact-compensacion-box"></div>
+        </div>
 
         <div class="cfg-tabs" style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto">
           <button class="fact-tab active" onclick="showFactTab('cf',this)" style="white-space:nowrap;flex-shrink:0">Crédito Fiscal</button>
@@ -5883,7 +5889,7 @@ function showPage(id, el) {
   if (id === 'asistente')      { setTimeout(function(){ document.getElementById('asist-inicio').style.display='';document.getElementById('asist-preguntas').style.display='none';document.getElementById('asist-resumen').style.display='none'; }, 50); }
   if (id === 'vacaciones')     { setTimeout(function(){ renderModuloVacaciones(); }, 100); }
   if (id === 'tablero')        { setTimeout(function(){ renderTablero(); }, 100); }
-  if (id === 'creditofiscal')  { setTimeout(function(){ if(typeof cfRenderTodo==='function') cfRenderTodo(); if(typeof fvRenderTodo==='function') fvRenderTodo(); }, 100); }
+  if (id === 'creditofiscal')  { setTimeout(function(){ if(typeof cfRenderTodo==='function') cfRenderTodo(); if(typeof fvRenderTodo==='function') fvRenderTodo(); if(typeof fvRenderCompensacion==='function') fvRenderCompensacion(); }, 100); }
   if (id === 'reportes')       { setTimeout(function(){ renderReportes(); }, 100); }
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
   if (id === 'cobranzas')      { setTimeout(function(){ fbCargarPagos(); }, 50); }
@@ -5979,7 +5985,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.15-firebase',
+  VERSION: 'v19.16-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10872,6 +10878,7 @@ function showFactTab(id, el) {
   document.getElementById('fact-' + id).style.display = 'block';
   el.classList.add('active');
   if (id === 'fv' && typeof fvCargar === 'function') fvCargar();
+  if (typeof fvRenderCompensacion === 'function') fvRenderCompensacion();
 }
 
 function cfCargar() {
@@ -10883,6 +10890,8 @@ function cfCargar() {
     if (!CF_PERIODO_ACTIVO && periodos.length) CF_PERIODO_ACTIVO = periodos[periodos.length-1];
     cfActualizarPeriodosUI();
     if (CF_DATA.length) cfRenderTodo();
+    if (typeof fvRenderCompensacion === 'function') fvRenderCompensacion();
+    if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
   });
 }
 
@@ -10981,15 +10990,34 @@ function cfActualizarPeriodosUI() {
   if (!box || !cont) return;
   if (!periodos.length) { cont.style.display='none'; return; }
   cont.style.display='block';
+  var esAdmin = currentRole === 'admin';
   box.innerHTML = periodos.map(function(p) {
     var d = new Date(p+'-01T12:00:00');
     var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
     var activo = p === CF_PERIODO_ACTIVO;
-    return '<span onclick="cfSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+'</span>';
+    var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();cfEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar período"></i>' : '';
+    return '<span onclick="cfSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
   }).join('') + '<span onclick="cfSelPeriodo(null)" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(!CF_PERIODO_ACTIVO?'var(--blue)':'var(--bg3)')+';color:'+(!CF_PERIODO_ACTIVO?'#fff':'var(--text3)')+'">Todos</span>';
 }
 
-function cfSelPeriodo(p) { CF_PERIODO_ACTIVO = p; cfActualizarPeriodosUI(); cfRenderTodo(); }
+function cfEliminarPeriodo(periodo) {
+  if (currentRole !== 'admin') { notify('Solo un administrador puede eliminar un período'); return; }
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var d = new Date(periodo+'-01T12:00:00');
+  var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  var comps = CF_DATA.filter(function(c){ return (c.fecha||'').slice(0,7) === periodo; });
+  if (!confirm('¿Eliminar TODOS los '+comps.length+' comprobantes de Crédito Fiscal de '+lbl+'?\n\nEsta acción no se puede deshacer. Vas a poder volver a cargar el CSV de ese período después.')) return;
+  if (!confirm('Confirmá de nuevo: se van a borrar '+comps.length+' comprobantes de '+lbl+' de forma PERMANENTE. ¿Continuar?')) return;
+  var promesas = comps.map(function(c){ return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/comprobantesCompra/'+c.fbKey)); });
+  Promise.all(promesas).then(function(){
+    if (CF_PERIODO_ACTIVO === periodo) CF_PERIODO_ACTIVO = null;
+    notify('✓ Período '+lbl+' eliminado ('+comps.length+' comprobantes)');
+    if (typeof fvRenderCompensacion === 'function') fvRenderCompensacion();
+    if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
+  }).catch(function(e){ notify('Error: '+e.message); });
+}
+
+function cfSelPeriodo(p) { CF_PERIODO_ACTIVO = p; cfActualizarPeriodosUI(); cfRenderTodo(); if (typeof fvRenderCompensacion==='function') fvRenderCompensacion(); }
 
 function cfGetCompFiltrados() {
   return CF_DATA.filter(function(c){ return !CF_PERIODO_ACTIVO || (c.fecha||'').startsWith(CF_PERIODO_ACTIVO); });
@@ -11168,6 +11196,8 @@ function fvCargar() {
     if (!FV_PERIODO_ACTIVO && periodos.length) FV_PERIODO_ACTIVO = periodos[periodos.length-1];
     fvActualizarPeriodosUI();
     if (FV_DATA.length) fvRenderTodo();
+    if (typeof fvRenderCompensacion === 'function') fvRenderCompensacion();
+    if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
   });
 }
 
@@ -11266,15 +11296,34 @@ function fvActualizarPeriodosUI() {
   if (!box || !cont) return;
   if (!periodos.length) { cont.style.display='none'; return; }
   cont.style.display='block';
+  var esAdmin = currentRole === 'admin';
   box.innerHTML = periodos.map(function(p) {
     var d = new Date(p+'-01T12:00:00');
     var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
     var activo = p === FV_PERIODO_ACTIVO;
-    return '<span onclick="fvSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+'</span>';
+    var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();fvEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar período"></i>' : '';
+    return '<span onclick="fvSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
   }).join('') + '<span onclick="fvSelPeriodo(null)" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(!FV_PERIODO_ACTIVO?'var(--blue)':'var(--bg3)')+';color:'+(!FV_PERIODO_ACTIVO?'#fff':'var(--text3)')+'">Todos</span>';
 }
 
-function fvSelPeriodo(p) { FV_PERIODO_ACTIVO = p; fvActualizarPeriodosUI(); fvRenderTodo(); }
+function fvEliminarPeriodo(periodo) {
+  if (currentRole !== 'admin') { notify('Solo un administrador puede eliminar un período'); return; }
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var d = new Date(periodo+'-01T12:00:00');
+  var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  var comps = FV_DATA.filter(function(c){ return (c.fecha||'').slice(0,7) === periodo; });
+  if (!confirm('¿Eliminar TODOS los '+comps.length+' comprobantes de Facturas Realizadas de '+lbl+'?\n\nEsta acción no se puede deshacer. Vas a poder volver a cargar el CSV de ese período después.')) return;
+  if (!confirm('Confirmá de nuevo: se van a borrar '+comps.length+' comprobantes de '+lbl+' de forma PERMANENTE. ¿Continuar?')) return;
+  var promesas = comps.map(function(c){ return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/'+c.fbKey)); });
+  Promise.all(promesas).then(function(){
+    if (FV_PERIODO_ACTIVO === periodo) FV_PERIODO_ACTIVO = null;
+    notify('✓ Período '+lbl+' eliminado ('+comps.length+' comprobantes)');
+    fvRenderCompensacion();
+    if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
+  }).catch(function(e){ notify('Error: '+e.message); });
+}
+
+function fvSelPeriodo(p) { FV_PERIODO_ACTIVO = p; fvActualizarPeriodosUI(); fvRenderTodo(); fvRenderCompensacion(); }
 
 function fvGetCompFiltrados() {
   return FV_DATA.filter(function(c){ return !FV_PERIODO_ACTIVO || (c.fecha||'').startsWith(FV_PERIODO_ACTIVO); });
@@ -11423,6 +11472,37 @@ function fvToggleCliente(id) {
   var abierto = det.style.display !== 'none';
   det.style.display = abierto ? 'none' : '';
   if (row) row.style.borderLeftColor = abierto ? 'transparent' : 'var(--blue)';
+}
+
+// ── COMPENSACIÓN DE IVA — Débito Fiscal (Facturas Realizadas) vs Crédito Fiscal ──
+// Fuente única de verdad: datos reales cargados de AFIP (CF_DATA / FV_DATA), no el módulo Ventas.
+// periodo: 'YYYY-MM' o null/undefined para todos los períodos cargados.
+function calcularCompensacionIVA(periodo) {
+  var compCF = (CF_DATA||[]).filter(function(c){ return !periodo || (c.fecha||'').startsWith(periodo); });
+  var compFV = (FV_DATA||[]).filter(function(c){ return !periodo || (c.fecha||'').startsWith(periodo); });
+  var credito = compCF.filter(function(c){ return typeof cfEsCreditoFiscal === 'function' && cfEsCreditoFiscal(c.tipo); })
+    .reduce(function(s,c){ return s + (parseFloat(c.totalIVA)||0); }, 0);
+  var debito = compFV.reduce(function(s,c){ return s + (parseFloat(c.totalIVA)||0); }, 0);
+  return { credito: credito, debito: debito, saldo: debito - credito };
+}
+
+function fvRenderCompensacion() {
+  var card = document.getElementById('fact-compensacion-card');
+  var box = document.getElementById('fact-compensacion-box');
+  if (!box || !card) return;
+  var hayDatos = (CF_DATA && CF_DATA.length) || (FV_DATA && FV_DATA.length);
+  card.style.display = hayDatos ? '' : 'none';
+  if (!hayDatos) return;
+  var periodo = FV_PERIODO_ACTIVO || CF_PERIODO_ACTIVO || null;
+  var c = calcularCompensacionIVA(periodo);
+  var lblPeriodo = periodo ? new Date(periodo+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'}) : 'todos los períodos';
+  var aFavor = c.saldo <= 0;
+  box.innerHTML =
+    '<div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr))">' +
+      cfMetricCard('Débito fiscal', cfPesos(c.debito), 'facturas realizadas · '+lblPeriodo, 'red') +
+      cfMetricCard('Crédito fiscal', cfPesos(c.credito), 'crédito fiscal · '+lblPeriodo, 'green') +
+      cfMetricCard(aFavor ? 'Saldo a favor' : 'A compensar (pagar)', cfPesos(Math.abs(c.saldo)), aFavor ? 'crédito disponible para el próximo período' : 'IVA neto a ingresar a AFIP', aFavor ? 'blue' : 'amber') +
+    '</div>';
 }
 
 function spCargar() {
@@ -17212,6 +17292,25 @@ function renderTablero() {
   _e('tab-ots-pend', otsPend);
 }
 
+// IVA a compensar del mes actual, usando datos reales de AFIP (módulo Facturaciones).
+// Misma fuente que la tarjeta "Compensación de IVA" en Facturaciones — debe coincidir siempre.
+function actualizarKpiIvaDashboard() {
+  var hoyDate = new Date();
+  var mesActual = hoyDate.getFullYear() + '-' + String(hoyDate.getMonth()+1).padStart(2,'0');
+  var c = (typeof calcularCompensacionIVA === 'function') ? calcularCompensacionIVA(mesActual) : { saldo: 0 };
+  var aFavor = c.saldo <= 0;
+  var ivaEl = document.getElementById('kpi-iva');
+  if (ivaEl) {
+    ivaEl.textContent = '$' + Math.round(Math.abs(c.saldo)).toLocaleString('es-AR');
+    ivaEl.style.color = aFavor ? 'var(--blue)' : 'var(--amber)';
+  }
+  var ivaMesEl = document.getElementById('kpi-iva-mes');
+  if (ivaMesEl) {
+    var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    ivaMesEl.textContent = (aFavor ? 'a favor · ' : 'a pagar · ') + meses[hoyDate.getMonth()] + ' ' + hoyDate.getFullYear();
+  }
+}
+
 function renderKPIsDashboard() {
   var hoyDate = new Date();
   var hoy  = hoyDate.toLocaleDateString('es-AR'); // DD/MM/YYYY — formato real que usa el sistema
@@ -17265,16 +17364,8 @@ function renderKPIsDashboard() {
   var pptoSubEl = document.getElementById('kpi-pptos-sub');
   if (pptoSubEl) pptoSubEl.textContent = pptosActivos.length + ' activos';
 
-  // ── IVA acumulado (mes actual) ──
-  var mesActual = hoyDate.getFullYear() + '-' + String(hoyDate.getMonth()+1).padStart(2,'0');
-  var ivaTotal = todasVentas.filter(function(v){ return (typeof _fechaEsDelMes === 'function' ? _fechaEsDelMes(v.fecha, mesActual) : false) && v.factura; })
-    .reduce(function(s,v){ return s + (parseFloat(v.iva)||0); }, 0);
-  _set('kpi-iva', '$' + Math.round(ivaTotal).toLocaleString('es-AR'));
-  var ivaMesEl = document.getElementById('kpi-iva-mes');
-  if (ivaMesEl) {
-    var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-    ivaMesEl.textContent = meses[new Date().getMonth()] + ' ' + new Date().getFullYear();
-  }
+  // ── IVA a compensar (mes actual) — usa datos reales de AFIP (Crédito Fiscal + Facturas Realizadas) ──
+  actualizarKpiIvaDashboard();
 
   // ── Gráfico barras últimos 7 días ──
   var dias7 = [];
@@ -17428,7 +17519,7 @@ function kpiNavegar(tipo) {
   } else if (tipo === 'presupuestos') {
     showPage('presupuesto', document.querySelector('[onclick*="presupuesto"]'));
   } else if (tipo === 'iva') {
-    showPage('reportes', document.querySelector('[onclick*="reportes"]'));
+    showPage('creditofiscal', document.querySelector('[onclick*="creditofiscal"]'));
   }
 }
 
