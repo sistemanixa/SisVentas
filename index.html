@@ -750,7 +750,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.26 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.28 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6062,7 +6062,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.26-firebase',
+  VERSION: 'v19.28-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8937,6 +8937,13 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
   const cfg = FORMS_CFG[tipo];
   if (!cfg) { notify('Formulario no disponible'); return; }
   _set('modal-nuevo-title', fbKeyExistente ? cfg.title.replace('Nuevo','Editar') : cfg.title);
+  // Restaurar el botón Guardar genérico por si quedó oculto (ej: viniendo del legajo de empleado,
+  // que usa el mismo modal con sus propios botones y oculta este)
+  var modalEl = document.getElementById('modal-nuevo');
+  if (modalEl) {
+    var botonesModal = modalEl.querySelectorAll('.flex-end button');
+    botonesModal.forEach(function(b){ b.style.removeProperty('display'); });
+  }
   const body = document.getElementById('modal-nuevo-body');
   body.innerHTML = '';
   const grid = document.createElement('div');
@@ -15564,6 +15571,9 @@ function abrirModalEstadoEmpleado(fbKey, estadoActual) {
     '</select></div>' +
     '<div class="fg"><label>Fecha</label><input type="date" id="emp-estado-fecha" value="'+new Date().toISOString().split('T')[0]+'" style="width:100%"></div>' +
     '<div class="fg"><label>Observaciones (opcional)</label><textarea id="emp-estado-obs" rows="2" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);box-sizing:border-box"></textarea></div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
+      '<button class="btn btn-primary" onclick="confirmarEstadoEmpleado(\''+fbKey+'\',' + (!estaActivo) + ',document.getElementById(\'emp-estado-motivo\').value,document.getElementById(\'emp-estado-fecha\').value,document.getElementById(\'emp-estado-obs\').value);document.getElementById(\'modal-nuevo\').classList.remove(\'open\')">' + (estaActivo ? 'Confirmar baja' : 'Confirmar alta') + '</button>' +
+    '</div>' +
   '</div>';
 
   // Usar modal genérico de confirmación
@@ -15573,18 +15583,10 @@ function abrirModalEstadoEmpleado(fbKey, estadoActual) {
   if (!modal || !modalTitle || !modalBody) return;
   modalTitle.textContent = titulo;
   modalBody.innerHTML = html;
-  // Cambiar el botón guardar
-  var btnGuardar = modal.querySelector('.btn-primary');
-  if (btnGuardar) {
-    btnGuardar.textContent = estaActivo ? 'Confirmar baja' : 'Confirmar alta';
-    btnGuardar.onclick = function() {
-      var motivo = document.getElementById('emp-estado-motivo').value;
-      var fecha  = document.getElementById('emp-estado-fecha').value;
-      var obs    = document.getElementById('emp-estado-obs').value;
-      confirmarEstadoEmpleado(fbKey, !estaActivo, motivo, fecha, obs);
-      modal.classList.remove('open');
-    };
-  }
+  // Este modal usa su propio botón de confirmación arriba — ocultar el Guardar genérico
+  // (nunca se muta su texto/onclick, así no queda "pegado" para la próxima vez que se use el modal)
+  var botonesFooter = modal.querySelectorAll('.flex-end button');
+  botonesFooter.forEach(function(b){ b.style.display = 'none'; });
   modal.classList.add('open');
 }
 
@@ -15632,6 +15634,9 @@ function abrirLegajoEmpleado(fbKey) {
 
   var estadoColor = emp.activo !== false ? 'var(--green)' : 'var(--red)';
   var estadoTxt   = emp.activo !== false ? 'Activo' : 'Inactivo';
+  var cargoInfo = emp.cargoId ? CARGOS_DATA[emp.cargoId] : null;
+  var mensualCargo = cargoInfo ? Math.round((parseFloat(cargoInfo.valorHora)||0)*8*(parseFloat(cargoInfo.diasMes)||0)) : 0;
+  var horaExtraCargo = cargoInfo ? Math.round(parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
   var modal = document.getElementById('modal-nuevo');
   var modalTitle = document.getElementById('modal-nuevo-title');
   var modalBody  = document.getElementById('modal-nuevo-body');
@@ -15640,16 +15645,17 @@ function abrirLegajoEmpleado(fbKey) {
   modalBody.innerHTML =
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">' +
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">DNI</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.dni||'—')+'</div></div>' +
-      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Cargo</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.cargo||'—')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Cargo</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.cargo||'Sin cargo asignado')+'</div></div>' +
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Teléfono</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.telefono||emp.tel||'—')+'</div></div>' +
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Estado</div><div style="font-size:14px;font-weight:600;margin-top:2px;color:'+estadoColor+'">'+estadoTxt+'</div></div>' +
-      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Sueldo base</div><div style="font-size:14px;font-weight:500;margin-top:2px">$'+Math.round(parseFloat(emp.sueldoBase)||0).toLocaleString('es-AR')+'</div></div>' +
-      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Valor hora extra</div><div style="font-size:14px;font-weight:500;margin-top:2px">$'+Math.round(parseFloat(emp.horaExtra)||0).toLocaleString('es-AR')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Fecha de inicio</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.fechaIngreso||'—')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Mensual (según cargo)</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+(cargoInfo?'$'+mensualCargo.toLocaleString('es-AR'):'—')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Valor hora extra</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+(cargoInfo?'$'+horaExtraCargo.toLocaleString('es-AR'):'—')+'</div></div>' +
     '</div>' +
     '<div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Historial de altas y bajas</div>' +
     htmlHist +
     '<div style="margin-top:16px;display:flex;gap:8px">' +
-      '<button class="btn btn-sm btn-primary" onclick="editarEmpleado(\''+fbKey+'\');document.getElementById(\'modal-nuevo\').classList.remove(\'open\')"><i class="ti ti-edit"></i> Editar datos</button>' +
+      '<button class="btn btn-sm btn-primary" onclick="editarEmpleado(\''+fbKey+'\')"><i class="ti ti-edit"></i> Editar datos</button>' +
       '<button class="btn btn-sm" onclick="abrirModalEstadoEmpleado(\''+fbKey+'\','+(emp.activo!==false)+');"><i class="ti ti-refresh"></i> Cambiar estado</button>' +
     '</div>';
   // Ocultar botón guardar genérico
