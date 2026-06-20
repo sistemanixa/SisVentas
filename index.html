@@ -417,6 +417,11 @@ tr:hover td{color:var(--text)}
 .cfg-tab:hover{background:var(--bg2);color:var(--text)}
 .cfg-tab.active{background:var(--bg2);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.08)}
 
+/* ── FACTURACIONES TABS ── */
+.fact-tab{padding:7px 14px;border-radius:var(--radius);border:none;background:transparent;color:var(--text2);font-size:13px;font-family:inherit;cursor:pointer;transition:all .12s}
+.fact-tab:hover{background:var(--bg2);color:var(--text)}
+.fact-tab.active{background:var(--bg2);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
 /* ── NOTIF ── */
 .notif{position:fixed;bottom:90px;right:16px;background:var(--text);color:var(--bg2);padding:11px 16px;border-radius:var(--radius);font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9999;display:flex;align-items:center;gap:8px}
 .notif.show{opacity:1}
@@ -745,7 +750,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.13 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.14 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -886,7 +891,7 @@ tr:hover td{color:var(--text)}
         <i class="ti ti-shopping-cart"></i>Órdenes de compra
       </div>
       <div class="nav-item admin-o-administrativo" onclick="showPage('creditofiscal',this)">
-        <i class="ti ti-receipt-tax"></i>Crédito Fiscal
+        <i class="ti ti-receipt-tax"></i>Facturaciones
       </div>
       <div class="s-section admin-only">Sistema</div>
       <div class="nav-item" onclick="showPage('notificaciones',this)">
@@ -2635,61 +2640,129 @@ tr:hover td{color:var(--text)}
         </div>
       </div>
 
-      <!-- ── CRÉDITO FISCAL (IVA Compras) ── -->
+      <!-- ── FACTURACIONES (Crédito Fiscal + Facturas Realizadas) ── -->
       <div id="page-creditofiscal" class="page">
 
-        <!-- Carga de CSV -->
-        <div class="card">
-          <div class="card-head">
-            <span class="card-title">Cargar comprobantes AFIP</span>
-            <div style="display:flex;gap:6px">
-              <label class="btn btn-sm btn-primary" style="cursor:pointer">
-                <i class="ti ti-upload"></i> Seleccionar CSV
-                <input type="file" id="cf-file-input" accept=".csv" style="display:none" onchange="cfCargarCSV(this)">
-              </label>
+        <div class="cfg-tabs" style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto">
+          <button class="fact-tab active" onclick="showFactTab('cf',this)" style="white-space:nowrap;flex-shrink:0">Crédito Fiscal</button>
+          <button class="fact-tab" onclick="showFactTab('fv',this)" style="white-space:nowrap;flex-shrink:0">Facturas Realizadas</button>
+        </div>
+
+        <!-- PESTAÑA: CRÉDITO FISCAL -->
+        <div id="fact-cf" class="fact-panel">
+
+          <!-- Carga de CSV -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">Cargar comprobantes AFIP</span>
+              <div style="display:flex;gap:6px">
+                <label class="btn btn-sm btn-primary" style="cursor:pointer">
+                  <i class="ti ti-upload"></i> Seleccionar CSV
+                  <input type="file" id="cf-file-input" accept=".csv" style="display:none" onchange="cfCargarCSV(this)">
+                </label>
+              </div>
+            </div>
+            <div id="cf-drop-zone" style="border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:24px;text-align:center;cursor:pointer" onclick="document.getElementById('cf-file-input').click()">
+              <i class="ti ti-file-upload" style="font-size:26px;color:var(--text3);display:block;margin-bottom:6px"></i>
+              <div style="font-size:13px;color:var(--text2);margin-bottom:2px" id="cf-drop-txt">Arrastrá el CSV de comprobantes recibidos de AFIP o hacé clic para seleccionarlo</div>
+              <div style="font-size:11px;color:var(--text3)">AFIP → Mis Comprobantes → Recibidos → Exportar CSV</div>
+            </div>
+            <div id="cf-periodos-box" style="margin-top:12px;display:none">
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Períodos cargados</div>
+              <div id="cf-periodos-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
             </div>
           </div>
-          <div id="cf-drop-zone" style="border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:24px;text-align:center;cursor:pointer" onclick="document.getElementById('cf-file-input').click()">
-            <i class="ti ti-file-upload" style="font-size:26px;color:var(--text3);display:block;margin-bottom:6px"></i>
-            <div style="font-size:13px;color:var(--text2);margin-bottom:2px" id="cf-drop-txt">Arrastrá el CSV de comprobantes recibidos de AFIP o hacé clic para seleccionarlo</div>
-            <div style="font-size:11px;color:var(--text3)">AFIP → Mis Comprobantes → Recibidos → Exportar CSV</div>
+
+          <!-- Totales -->
+          <div class="card" id="cf-card-totales" style="display:none">
+            <div class="card-head">
+              <span class="card-title" id="cf-totales-titulo">Totales del período</span>
+              <span id="cf-totales-qty" style="font-size:12px;color:var(--text3)"></span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;background:var(--amber-bg);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px">
+              <i class="ti ti-alert-triangle" style="color:var(--amber);font-size:16px;flex-shrink:0;margin-top:1px"></i>
+              <span style="font-size:12px;color:var(--text2)">
+                Solo las <strong>Facturas A</strong> (y comprobantes A equivalentes) discriminan IVA y generan crédito fiscal computable.
+                Las <strong>Facturas B</strong> son a consumidor final — el IVA va incluido en el precio pero <strong style="color:var(--red)">no se compensa</strong>.
+              </span>
+            </div>
+            <div class="metrics" id="cf-metrics-box"></div>
+
+            <div style="font-size:11px;color:var(--text3);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">IVA por alícuota</div>
+            <div id="cf-alicuotas-box" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+
+            <div style="font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Por tipo de comprobante</div>
+            <div id="cf-tipos-box" style="display:flex;flex-wrap:wrap;gap:6px"></div>
           </div>
-          <div id="cf-periodos-box" style="margin-top:12px;display:none">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Períodos cargados</div>
-            <div id="cf-periodos-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+
+          <!-- Historial por proveedor -->
+          <div class="card" id="cf-card-historial" style="display:none">
+            <div class="card-head">
+              <span class="card-title">Historial por proveedor</span>
+              <span id="cf-prov-qty" style="font-size:12px;color:var(--text3)"></span>
+            </div>
+            <input type="text" class="search-input" style="width:100%;margin-bottom:12px" placeholder="Buscar por nombre, CUIT o N° de comprobante..." oninput="cfFiltrarHistorial(this.value)">
+            <div id="cf-historial-box"></div>
           </div>
+
         </div>
 
-        <!-- Totales -->
-        <div class="card" id="cf-card-totales" style="display:none">
-          <div class="card-head">
-            <span class="card-title" id="cf-totales-titulo">Totales del período</span>
-            <span id="cf-totales-qty" style="font-size:12px;color:var(--text3)"></span>
-          </div>
-          <div style="display:flex;align-items:flex-start;gap:8px;background:var(--amber-bg);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px">
-            <i class="ti ti-alert-triangle" style="color:var(--amber);font-size:16px;flex-shrink:0;margin-top:1px"></i>
-            <span style="font-size:12px;color:var(--text2)">
-              Solo las <strong>Facturas A</strong> (y comprobantes A equivalentes) discriminan IVA y generan crédito fiscal computable.
-              Las <strong>Facturas B</strong> son a consumidor final — el IVA va incluido en el precio pero <strong style="color:var(--red)">no se compensa</strong>.
-            </span>
-          </div>
-          <div class="metrics" id="cf-metrics-box"></div>
+        <!-- PESTAÑA: FACTURAS REALIZADAS -->
+        <div id="fact-fv" class="fact-panel" style="display:none">
 
-          <div style="font-size:11px;color:var(--text3);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">IVA por alícuota</div>
-          <div id="cf-alicuotas-box" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
-
-          <div style="font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Por tipo de comprobante</div>
-          <div id="cf-tipos-box" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-        </div>
-
-        <!-- Historial por proveedor -->
-        <div class="card" id="cf-card-historial" style="display:none">
-          <div class="card-head">
-            <span class="card-title">Historial por proveedor</span>
-            <span id="cf-prov-qty" style="font-size:12px;color:var(--text3)"></span>
+          <!-- Carga de CSV -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">Cargar comprobantes emitidos AFIP</span>
+              <div style="display:flex;gap:6px">
+                <label class="btn btn-sm btn-primary" style="cursor:pointer">
+                  <i class="ti ti-upload"></i> Seleccionar CSV
+                  <input type="file" id="fv-file-input" accept=".csv" style="display:none" onchange="fvCargarCSV(this)">
+                </label>
+              </div>
+            </div>
+            <div id="fv-drop-zone" style="border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:24px;text-align:center;cursor:pointer" onclick="document.getElementById('fv-file-input').click()">
+              <i class="ti ti-file-upload" style="font-size:26px;color:var(--text3);display:block;margin-bottom:6px"></i>
+              <div style="font-size:13px;color:var(--text2);margin-bottom:2px" id="fv-drop-txt">Arrastrá el CSV de comprobantes emitidos de AFIP o hacé clic para seleccionarlo</div>
+              <div style="font-size:11px;color:var(--text3)">AFIP → Mis Comprobantes → Emitidos → Exportar CSV</div>
+            </div>
+            <div id="fv-periodos-box" style="margin-top:12px;display:none">
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Períodos cargados</div>
+              <div id="fv-periodos-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+            </div>
           </div>
-          <input type="text" class="search-input" style="width:100%;margin-bottom:12px" placeholder="Buscar por nombre, CUIT o N° de comprobante..." oninput="cfFiltrarHistorial(this.value)">
-          <div id="cf-historial-box"></div>
+
+          <!-- Totales -->
+          <div class="card" id="fv-card-totales" style="display:none">
+            <div class="card-head">
+              <span class="card-title" id="fv-totales-titulo">Totales del período</span>
+              <span id="fv-totales-qty" style="font-size:12px;color:var(--text3)"></span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;background:var(--blue-bg);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px">
+              <i class="ti ti-info-circle" style="color:var(--blue);font-size:16px;flex-shrink:0;margin-top:1px"></i>
+              <span style="font-size:12px;color:var(--text2)">
+                Comprobantes que vos emitiste — el IVA discriminado en Facturas A/M es <strong>Débito Fiscal</strong>, lo que tenés que ingresar a AFIP.
+              </span>
+            </div>
+            <div class="metrics" id="fv-metrics-box"></div>
+
+            <div style="font-size:11px;color:var(--text3);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">IVA por alícuota</div>
+            <div id="fv-alicuotas-box" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+
+            <div style="font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Por tipo de comprobante</div>
+            <div id="fv-tipos-box" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+
+          <!-- Historial por cliente -->
+          <div class="card" id="fv-card-historial" style="display:none">
+            <div class="card-head">
+              <span class="card-title">Historial por cliente</span>
+              <span id="fv-prov-qty" style="font-size:12px;color:var(--text3)"></span>
+            </div>
+            <input type="text" class="search-input" style="width:100%;margin-bottom:12px" placeholder="Buscar por nombre, CUIT o N° de comprobante..." oninput="fvFiltrarHistorial(this.value)">
+            <div id="fv-historial-box"></div>
+          </div>
+
         </div>
 
       </div>
@@ -5807,7 +5880,7 @@ function showPage(id, el) {
   if (id === 'asistente')      { setTimeout(function(){ document.getElementById('asist-inicio').style.display='';document.getElementById('asist-preguntas').style.display='none';document.getElementById('asist-resumen').style.display='none'; }, 50); }
   if (id === 'vacaciones')     { setTimeout(function(){ renderModuloVacaciones(); }, 100); }
   if (id === 'tablero')        { setTimeout(function(){ renderTablero(); }, 100); }
-  if (id === 'creditofiscal')  { setTimeout(function(){ if(typeof cfRenderTodo==='function') cfRenderTodo(); }, 100); }
+  if (id === 'creditofiscal')  { setTimeout(function(){ if(typeof cfRenderTodo==='function') cfRenderTodo(); if(typeof fvRenderTodo==='function') fvRenderTodo(); }, 100); }
   if (id === 'reportes')       { setTimeout(function(){ renderReportes(); }, 100); }
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
   if (id === 'cobranzas')      { setTimeout(function(){ fbCargarPagos(); }, 50); }
@@ -5903,7 +5976,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.13-firebase',
+  VERSION: 'v19.14-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5999,7 +6072,7 @@ function secureLog(message) {
 // ── Estado global ──
 
 const SESSION_TIMEOUT = 30 * 60 * 1000;
-const titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Crédito Fiscal'};
+const titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Facturaciones'};
 
 let sessionTimer = null, sessionStart = null, tiempoUI = null;
 
@@ -6328,6 +6401,7 @@ function _completarLogin(nombre) {
   if (typeof spCargar === 'function') setTimeout(spCargar, 400);
   if (typeof fbCargarVacaciones === 'function') setTimeout(fbCargarVacaciones, 400);
   if (typeof cfCargar === 'function') setTimeout(cfCargar, 450);
+  if (typeof fvCargar === 'function') setTimeout(fvCargar, 450);
   if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 450);
   if (typeof chequearActualizacionAutoDolar === 'function') setTimeout(chequearActualizacionAutoDolar, 500);
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); setTimeout(applyRole, 400); }, 400);
@@ -7778,7 +7852,7 @@ var TODOS_MODULOS = [
   { id:'rentabilidad',   label:'Rentabilidad' },
   { id:'proveedores',    label:'Proveedores' },
   { id:'ordenes',        label:'Órdenes de compra (proveedores)' },
-  { id:'creditofiscal',  label:'Crédito Fiscal (IVA Compras)' },
+  { id:'creditofiscal',  label:'Facturaciones (Crédito Fiscal + Facturas Realizadas)' },
   { id:'garantias',      label:'Garantías' },
   { id:'soporte',        label:'Soporte' },
   { id:'remitos',        label:'Remitos' },
@@ -10789,6 +10863,14 @@ function cfNum(v) {
 }
 function cfPesos(v) { return '$' + v.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
+function showFactTab(id, el) {
+  document.querySelectorAll('.fact-panel').forEach(function(p){ p.style.display = 'none'; });
+  document.querySelectorAll('.fact-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.getElementById('fact-' + id).style.display = 'block';
+  el.classList.add('active');
+  if (id === 'fv' && typeof fvCargar === 'function') fvCargar();
+}
+
 function cfCargar() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/comprobantesCompra'), function(snap) {
@@ -11060,6 +11142,284 @@ function cfToggleProv(id) {
   var abierto = det.style.display !== 'none';
   det.style.display = abierto ? 'none' : '';
   if (row) row.style.borderLeftColor = abierto ? 'transparent' : 'var(--green)';
+}
+
+// ══════════════════════════════════════════════
+// FACTURAS REALIZADAS — Débito Fiscal (comprobantes emitidos AFIP)
+// Ruta Firebase: sisventas/comprobantesVenta/{id}
+// Factura A / M / Tique Fact. A / Factura de Crédito Electrónica A
+// discriminan IVA explícito (débito fiscal computable).
+// Factura B es a consumidor final: el IVA va incluido en el precio.
+// ══════════════════════════════════════════════
+var FV_DATA = [];          // todos los comprobantes emitidos (acumulado histórico)
+var FV_PERIODO_ACTIVO = null;
+var FV_TIPOS_CON_IVA_DISCRIMINADO = ['1','2','3','51','81','201'];
+function fvConIvaDiscriminado(tipo) { return FV_TIPOS_CON_IVA_DISCRIMINADO.includes(String(tipo)); }
+
+function fvCargar() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta'), function(snap) {
+    var data = snap.val() || {};
+    FV_DATA = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]}, e[1]); });
+    var periodos = [...new Set(FV_DATA.map(function(c){ return (c.fecha||'').slice(0,7); }))].filter(Boolean).sort();
+    if (!FV_PERIODO_ACTIVO && periodos.length) FV_PERIODO_ACTIVO = periodos[periodos.length-1];
+    fvActualizarPeriodosUI();
+    if (FV_DATA.length) fvRenderTodo();
+  });
+}
+
+// ── Carga de CSV ──
+function fvCargarCSV(input) {
+  var file = input.files[0];
+  if (file) fvProcesarArchivo(file);
+}
+
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    var dz = document.getElementById('fv-drop-zone');
+    if (!dz) return;
+    dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.style.borderColor='var(--blue)'; });
+    dz.addEventListener('dragleave', function(){ dz.style.borderColor='var(--border2)'; });
+    dz.addEventListener('drop', function(e){
+      e.preventDefault(); dz.style.borderColor='var(--border2)';
+      var f = e.dataTransfer.files[0];
+      if (f) fvProcesarArchivo(f);
+    });
+  });
+})();
+
+function fvProcesarArchivo(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var rows = fvParsearCSV(e.target.result);
+      if (!rows.length) { notify('El archivo no tiene datos válidos'); return; }
+      fvSubirAFirebase(rows);
+    } catch(err) {
+      notify('Error al procesar el CSV: ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function fvParsearCSV(text) {
+  var lines = text.split('\n').filter(function(l){ return l.trim(); });
+  var sep = lines[0].includes(';') ? ';' : ',';
+  var headers = lines[0].split(sep).map(function(h){ return h.replace(/^"|"$/g,'').trim(); });
+  return lines.slice(1).filter(function(l){ return l.trim(); }).map(function(line) {
+    var vals = [], cur = '', inQ = false;
+    for (var i=0; i<line.length; i++) {
+      var ch = line[i];
+      if (ch==='"') { inQ=!inQ; continue; }
+      if (ch===sep && !inQ) { vals.push(cur.trim()); cur=''; continue; }
+      cur+=ch;
+    }
+    vals.push(cur.trim());
+    var obj = {};
+    headers.forEach(function(h,i){ obj[h]=vals[i]||''; });
+    return {
+      fecha:        obj['Fecha de Emisión']||'',
+      tipo:         obj['Tipo de Comprobante']||'',
+      ptoVta:       obj['Punto de Venta']||'',
+      nroDoc:       obj['Número Desde']||'',
+      cuitReceptor: obj['Nro. Doc. Receptor']||'',
+      nombre:       obj['Denominación Receptor']||'',
+      neto:         cfNum(obj['Imp. Neto Gravado Total']),
+      iva105:       cfNum(obj['IVA 10,5%']),
+      neto105:      cfNum(obj['Imp. Neto Gravado IVA 10,5%']),
+      iva21:        cfNum(obj['IVA 21%']),
+      neto21:       cfNum(obj['Imp. Neto Gravado IVA 21%']),
+      iva25:        cfNum(obj['IVA 2,5%']),
+      iva5:         cfNum(obj['IVA 5%']),
+      iva27:        cfNum(obj['IVA 27%']),
+      totalIVA:     cfNum(obj['Total IVA']),
+      total:        cfNum(obj['Imp. Total'])
+    };
+  }).filter(function(r){ return r.cuitReceptor && r.total !== 0; });
+}
+
+function fvSubirAFirebase(rows) {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var nuevos = 0, existentes = 0;
+  var promesas = rows.map(function(r) {
+    var key = r.cuitReceptor + '_' + r.tipo + '_' + r.ptoVta + '_' + r.nroDoc;
+    var yaExiste = FV_DATA.some(function(c){ return c.fbKey === key; });
+    if (yaExiste) { existentes++; return Promise.resolve(); }
+    nuevos++;
+    return window.fbSet(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/'+key),
+      Object.assign({}, r, { cargadoPor: currentUser||'', ts: Date.now() }));
+  });
+  Promise.all(promesas).then(function() {
+    document.getElementById('fv-drop-txt').textContent = '✓ ' + nuevos + ' comprobantes nuevos cargados' + (existentes ? ' · '+existentes+' ya existían' : '');
+    notify('✓ ' + nuevos + ' comprobantes nuevos importados' + (existentes ? ' ('+existentes+' ya estaban cargados)' : ''));
+  }).catch(function(e){ notify('Error: '+e.message); });
+}
+
+// ── Períodos ──
+function fvActualizarPeriodosUI() {
+  var periodos = [...new Set(FV_DATA.map(function(c){ return (c.fecha||'').slice(0,7); }))].filter(Boolean).sort();
+  var box = document.getElementById('fv-periodos-chips');
+  var cont = document.getElementById('fv-periodos-box');
+  if (!box || !cont) return;
+  if (!periodos.length) { cont.style.display='none'; return; }
+  cont.style.display='block';
+  box.innerHTML = periodos.map(function(p) {
+    var d = new Date(p+'-01T12:00:00');
+    var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+    var activo = p === FV_PERIODO_ACTIVO;
+    return '<span onclick="fvSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+'</span>';
+  }).join('') + '<span onclick="fvSelPeriodo(null)" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(!FV_PERIODO_ACTIVO?'var(--blue)':'var(--bg3)')+';color:'+(!FV_PERIODO_ACTIVO?'#fff':'var(--text3)')+'">Todos</span>';
+}
+
+function fvSelPeriodo(p) { FV_PERIODO_ACTIVO = p; fvActualizarPeriodosUI(); fvRenderTodo(); }
+
+function fvGetCompFiltrados() {
+  return FV_DATA.filter(function(c){ return !FV_PERIODO_ACTIVO || (c.fecha||'').startsWith(FV_PERIODO_ACTIVO); });
+}
+
+// ── Render principal ──
+function fvRenderTodo() {
+  var comps = fvGetCompFiltrados();
+  document.getElementById('fv-card-totales').style.display = comps.length ? '' : 'none';
+  document.getElementById('fv-card-historial').style.display = comps.length ? '' : 'none';
+  if (!comps.length) return;
+
+  var lbl = FV_PERIODO_ACTIVO
+    ? new Date(FV_PERIODO_ACTIVO+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'})
+    : 'todos los períodos';
+  document.getElementById('fv-totales-titulo').textContent = 'Totales — ' + lbl;
+  document.getElementById('fv-totales-qty').textContent = comps.length + ' comprobantes';
+
+  fvRenderMetricas(comps);
+  fvRenderAlicuotas(comps);
+  fvRenderTipos(comps);
+  fvRenderHistorial(comps, '');
+}
+
+function fvRenderMetricas(comps) {
+  var totalIVA   = comps.reduce(function(s,c){ return s+c.totalIVA; }, 0);
+  var totalNeto  = comps.reduce(function(s,c){ return s+c.neto; }, 0);
+  var totalFact  = comps.reduce(function(s,c){ return s+c.total; }, 0);
+  var iva21      = comps.reduce(function(s,c){ return s+c.iva21; }, 0);
+  var iva105     = comps.reduce(function(s,c){ return s+c.iva105; }, 0);
+
+  document.getElementById('fv-metrics-box').innerHTML =
+    cfMetricCard('Débito fiscal (IVA a ingresar)', cfPesos(totalIVA), 'todo lo emitido', 'red') +
+    cfMetricCard('Total facturado', cfPesos(totalFact), 'todos los comprobantes', '') +
+    cfMetricCard('IVA 21%', cfPesos(iva21), 'alícuota general', 'blue') +
+    cfMetricCard('IVA 10,5%', cfPesos(iva105), 'alícuota reducida', 'amber');
+}
+
+function fvRenderAlicuotas(comps) {
+  var ali = [
+    { lbl:'IVA 21%',   val: comps.reduce(function(s,c){return s+c.iva21;},0),  color:'#3b82f6' },
+    { lbl:'IVA 10,5%', val: comps.reduce(function(s,c){return s+c.iva105;},0), color:'#f59e0b' },
+    { lbl:'IVA 27%',   val: comps.reduce(function(s,c){return s+c.iva27;},0),  color:'#a855f7' },
+    { lbl:'IVA 5%',    val: comps.reduce(function(s,c){return s+c.iva5;},0),   color:'#22c55e' },
+    { lbl:'IVA 2,5%',  val: comps.reduce(function(s,c){return s+c.iva25;},0),  color:'#64748b' },
+  ].filter(function(a){ return a.val > 0; });
+  var totalIVA = ali.reduce(function(s,a){ return s+a.val; }, 0);
+
+  document.getElementById('fv-alicuotas-box').innerHTML = ali.length ? ali.map(function(a) {
+    var pct = totalIVA > 0 ? Math.round(a.val/totalIVA*100) : 0;
+    return '<div style="display:flex;align-items:center;gap:10px">' +
+      '<div style="min-width:80px;font-size:12px;font-weight:600;color:'+a.color+'">'+a.lbl+'</div>' +
+      '<div style="flex:1;background:'+a.color+'15;border-radius:3px;height:7px"><div style="width:'+pct+'%;height:7px;background:'+a.color+';border-radius:3px"></div></div>' +
+      '<div style="font-family:monospace;font-size:13px;min-width:120px;text-align:right">'+cfPesos(a.val)+'</div>' +
+      '<div style="font-size:11px;color:var(--text3);min-width:36px;text-align:right">'+pct+'%</div>' +
+    '</div>';
+  }).join('') : '<div style="color:var(--text3);font-size:12px">Sin IVA discriminado en este período</div>';
+}
+
+function fvRenderTipos(comps) {
+  var tipos = {};
+  comps.forEach(function(c){
+    var t = CF_TIPOS_COMP[c.tipo] || 'Tipo '+c.tipo;
+    tipos[t] = (tipos[t]||0) + 1;
+  });
+  document.getElementById('fv-tipos-box').innerHTML = Object.entries(tipos)
+    .sort(function(a,b){ return b[1]-a[1]; })
+    .map(function(e){ return '<span class="badge b-gray" style="font-size:11px">'+e[0]+' ×'+e[1]+'</span>'; })
+    .join('');
+}
+
+// ── Historial por cliente ──
+function fvFiltrarHistorial(val) { fvRenderHistorial(fvGetCompFiltrados(), val); }
+
+function fvRenderHistorial(comps, filtro) {
+  var clientes = {};
+  comps.forEach(function(c) {
+    var k = c.cuitReceptor;
+    if (!clientes[k]) clientes[k] = { cuit:k, nombre:c.nombre, comps:[], totalIVA:0, total:0 };
+    clientes[k].comps.push(c);
+    clientes[k].totalIVA += c.totalIVA;
+    clientes[k].total += c.total;
+  });
+  var lista = Object.values(clientes).sort(function(a,b){ return b.total - a.total; });
+
+  if (filtro) {
+    var f = filtro.toLowerCase();
+    lista = lista.filter(function(p){
+      return p.nombre.toLowerCase().includes(f) || p.cuit.includes(f) ||
+        p.comps.some(function(c){ return c.nroDoc.includes(f); });
+    });
+  }
+
+  document.getElementById('fv-prov-qty').textContent = lista.length + ' clientes';
+  document.getElementById('fv-historial-box').innerHTML = lista.length
+    ? lista.map(function(p, idx){ return fvRenderClienteRow(p, idx); }).join('')
+    : '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">Sin resultados</div>';
+}
+
+function fvRenderClienteRow(p, idx) {
+  var id = 'fv-cli-'+idx;
+  var compConIva = p.comps.filter(function(c){ return fvConIvaDiscriminado(c.tipo); });
+  return '<div id="'+id+'" onclick="fvToggleCliente(\''+id+'\')" style="background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-bottom:6px;cursor:pointer;border-left:3px solid transparent">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+      '<div>' +
+        '<div style="font-weight:600;font-size:13px">'+escapeHTML(p.nombre)+'</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px">CUIT '+p.cuit+' · '+p.comps.length+' comprobante'+(p.comps.length!==1?'s':'') +
+          (compConIva.length ? ' · '+compConIva.length+' con IVA discriminado' : ' · sin IVA discriminado') + '</div>' +
+      '</div>' +
+      '<div style="text-align:right">' +
+        '<div style="font-size:14px;font-weight:700;color:'+(p.totalIVA>0?'var(--red)':'var(--text3)')+'">'+cfPesos(p.totalIVA)+' IVA</div>' +
+        '<div style="font-size:11px;color:var(--text3)">Total: '+cfPesos(p.total)+'</div>' +
+      '</div>' +
+    '</div>' +
+    '<div id="'+id+'-det" style="display:none;margin-top:12px">' +
+      '<div class="table-wrap"><table>' +
+        '<thead><tr><th>Fecha</th><th>Tipo</th><th>N° Comp.</th><th class="tr">Neto</th><th class="tr">IVA</th><th class="tr">Total</th></tr></thead>' +
+        '<tbody>' + p.comps.map(function(c) {
+          var tipoNom = CF_TIPOS_COMP[c.tipo] || 'Tipo '+c.tipo;
+          var conIva = fvConIvaDiscriminado(c.tipo);
+          var numFmt = String(c.ptoVta).padStart(4,'0') + '-' + String(c.nroDoc).padStart(8,'0');
+          return '<tr>' +
+            '<td style="font-family:monospace;font-size:12px">'+c.fecha+'</td>' +
+            '<td><span class="badge '+(conIva?'b-blue':'b-gray')+'" style="font-size:10px">'+tipoNom+'</span></td>' +
+            '<td style="font-family:monospace;font-size:12px">'+numFmt+'</td>' +
+            '<td class="tr" style="font-family:monospace">'+cfPesos(c.neto)+'</td>' +
+            '<td class="tr" style="font-family:monospace;color:'+(conIva?'var(--red)':'var(--text3)')+';font-weight:'+(conIva?'600':'400')+'">'+(conIva?cfPesos(c.totalIVA):(c.totalIVA>0?cfPesos(c.totalIVA):'—'))+'</td>' +
+            '<td class="tr" style="font-family:monospace">'+cfPesos(c.total)+'</td>' +
+          '</tr>';
+        }).join('') + '</tbody>' +
+        '<tfoot><tr style="border-top:1px solid var(--border);font-weight:700">' +
+          '<td colspan="3" style="font-size:11px;color:var(--text3)">TOTAL FACTURADO</td>' +
+          '<td class="tr" style="font-family:monospace">'+cfPesos(p.comps.reduce(function(s,c){return s+c.neto;},0))+'</td>' +
+          '<td class="tr" style="font-family:monospace;color:var(--red)">'+cfPesos(p.totalIVA)+'</td>' +
+          '<td class="tr" style="font-family:monospace">'+cfPesos(p.total)+'</td>' +
+        '</tr></tfoot>' +
+      '</table></div>' +
+    '</div>' +
+  '</div>';
+}
+
+function fvToggleCliente(id) {
+  var det = document.getElementById(id+'-det');
+  var row = document.getElementById(id);
+  if (!det) return;
+  var abierto = det.style.display !== 'none';
+  det.style.display = abierto ? 'none' : '';
+  if (row) row.style.borderLeftColor = abierto ? 'transparent' : 'var(--blue)';
 }
 
 function spCargar() {
