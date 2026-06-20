@@ -7,6 +7,24 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://dolarapi.com https://www.tusfacturas.app; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
+<script>
+  // Desregistro forzado de cualquier Service Worker que haya quedado de una instalación
+  // PWA anterior. Si esto no corre, un SW viejo puede seguir sirviendo versiones
+  // cacheadas del sistema indefinidamente, incluso después de actualizar el archivo
+  // en el servidor — el único síntoma visible es "la app no se actualiza nunca".
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+      regs.forEach(function(reg) { reg.unregister(); });
+    }).catch(function(){});
+  }
+  if (window.caches && caches.keys) {
+    caches.keys().then(function(names) {
+      names.forEach(function(name) { caches.delete(name); });
+    }).catch(function(){});
+  }
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://dolarapi.com https://www.tusfacturas.app; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="apple-icon-link" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
@@ -750,7 +768,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.30 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.33 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2065,7 +2083,15 @@ tr:hover td{color:var(--text)}
             </button>
             <div style="font-size:11px;color:var(--text3);margin-top:8px">⚠️ Ejecutar solo una vez. Afecta ventas con ID original que no tengan factura emitida.</div>
           </div>
-        </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title" style="color:var(--amber)"><i class="ti ti-stethoscope"></i> Diagnóstico: Cargo de empleados</span></div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Herramienta temporal para revisar por qué algunos empleados no muestran el valor mensual de su cargo.</div>
+            <button class="btn btn-sm" onclick="diagnosticoCargoEmpleados()" style="color:var(--amber);border-color:var(--amber)">
+              <i class="ti ti-search"></i> Ejecutar diagnóstico
+            </button>
+            <div id="diag-cargo-resultado" style="margin-top:12px"></div>
+          </div>
+          </div>
 
         <!-- TAB: CARGOS -->
         <div id="cfg-cargos" class="cfg-panel" style="display:none">
@@ -6062,13 +6088,63 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.30-firebase',
+  VERSION: 'v19.33-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
   ADMINISTRATIVO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados']),
   VENDEDOR_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados','proveedores','ordenes','gastos','reportes','estadisticas'])
 });
+
+// Compara la versión que está corriendo en pantalla contra la que realmente está
+// publicada en el servidor ahora mismo (pidiéndola con cache-busting, para evitar
+// que el propio chequeo caiga en el mismo caché que estamos tratando de detectar).
+// Si difieren, muestra un aviso con un botón para forzar la actualización real.
+function chequearVersionNueva() {
+  fetch(window.location.pathname + '?cb=' + Date.now(), { cache: 'no-store' })
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      var m = html.match(/VERSION:\s*'([^']+)'/);
+      if (!m) return;
+      var versionServidor = m[1];
+      if (versionServidor !== APP_CONFIG.VERSION) {
+        mostrarAvisoVersionNueva(versionServidor);
+      }
+    })
+    .catch(function(){});
+}
+
+function mostrarAvisoVersionNueva(versionNueva) {
+  if (document.getElementById('aviso-version-nueva')) return;
+  var div = document.createElement('div');
+  div.id = 'aviso-version-nueva';
+  div.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;background:var(--bg2,#1a2332);border:0.5px solid var(--blue,#3ddc84);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:13px;color:#fff;max-width:92vw';
+  div.innerHTML =
+    '<span>Hay una versión nueva del sistema ('+versionNueva.replace('-firebase','')+') — la que ves ahora está desactualizada.</span>' +
+    '<button onclick="forzarActualizacionApp()" style="background:#3ddc84;color:#080e1a;border:none;border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;white-space:nowrap;cursor:pointer">Actualizar ahora</button>';
+  document.body.appendChild(div);
+}
+
+// Fuerza una recarga real saltando el caché del navegador, y de paso desregistra
+// cualquier Service Worker que pudiera estar interceptando la carga.
+function forzarActualizacionApp() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+      regs.forEach(function(reg) { reg.unregister(); });
+      if (window.caches && caches.keys) {
+        caches.keys().then(function(names) {
+          names.forEach(function(name) { caches.delete(name); });
+        }).finally(function() {
+          window.location.href = window.location.pathname + '?cb=' + Date.now();
+        });
+      } else {
+        window.location.href = window.location.pathname + '?cb=' + Date.now();
+      }
+    });
+  } else {
+    window.location.href = window.location.pathname + '?cb=' + Date.now();
+  }
+}
 let isAuthenticated = false;
 // ── NORMALIZAR PEGADO DE NÚMEROS DESDE EXCEL ──
 // Excel copia montos como "1,234.56" (coma=miles, punto=decimal) o "1.234,56" (formato AR)
@@ -6484,6 +6560,7 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
+  if (typeof chequearVersionNueva === 'function') setTimeout(chequearVersionNueva, 1500);
   if (typeof spCargar === 'function') setTimeout(spCargar, 400);
   if (typeof fbCargarVacaciones === 'function') setTimeout(fbCargarVacaciones, 400);
   if (typeof cfCargar === 'function') setTimeout(cfCargar, 450);
@@ -7788,10 +7865,16 @@ function cargarCargos() {
       window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/cargos'), seed);
       CARGOS_DATA = seed;
       renderCargosConfig();
+      if (typeof renderTablaEmpleados === 'function') renderTablaEmpleados();
       return;
     }
     CARGOS_DATA = data;
     renderCargosConfig();
+    // La tabla de Empleados puede haberse pintado antes de que CARGOS_DATA tuviera
+    // datos reales (ambos listeners de Firebase cargan en paralelo, sin orden
+    // garantizado) — por eso "Mensual (cargo)" quedaba en "—" hasta tocar algo que
+    // forzara un segundo render. Ahora se refresca solo apenas los cargos llegan.
+    if (typeof renderTablaEmpleados === 'function') renderTablaEmpleados();
   });
 }
 
@@ -17686,6 +17769,38 @@ function verDetalleVentaDesdeId(ventaId) {
   setTimeout(function() {
     if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaId);
   }, 150);
+}
+
+function diagnosticoCargoEmpleados() {
+  var box = document.getElementById('diag-cargo-resultado');
+  if (!box) return;
+  var empleados = Object.values(empData||{});
+  var cargosIds = Object.keys(CARGOS_DATA||{});
+  if (!empleados.length) { box.innerHTML = '<div style="font-size:12px;color:var(--text3)">No hay empleados cargados.</div>'; return; }
+
+  var filas = empleados.map(function(e) {
+    var tieneCargoId = !!e.cargoId;
+    var cargoExiste = tieneCargoId && CARGOS_DATA[e.cargoId];
+    var estado, color;
+    if (!tieneCargoId) { estado = 'Sin cargoId guardado'; color = 'var(--text3)'; }
+    else if (!cargoExiste) { estado = 'cargoId no existe en Cargos'; color = 'var(--red)'; }
+    else { estado = 'OK'; color = 'var(--green)'; }
+    return '<tr>' +
+      '<td style="padding:6px 8px;font-size:12px">'+escapeHTML(e.nombre||'—')+'</td>' +
+      '<td style="padding:6px 8px;font-size:12px;color:var(--text3)">'+escapeHTML(e.cargo||'—')+'</td>' +
+      '<td style="padding:6px 8px;font-size:11px;font-family:monospace;color:var(--text3)">'+escapeHTML(e.cargoId||'(vacío)')+'</td>' +
+      '<td style="padding:6px 8px;font-size:12px;font-weight:500;color:'+color+'">'+estado+'</td>' +
+    '</tr>';
+  }).join('');
+
+  box.innerHTML =
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Cargos existentes en Firebase: '+cargosIds.length+' ('+cargosIds.map(function(id){return CARGOS_DATA[id].nombre;}).join(', ')+')</div>' +
+    '<table style="width:100%;border-collapse:collapse"><thead><tr>' +
+      '<th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3)">Empleado</th>' +
+      '<th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3)">Cargo (texto)</th>' +
+      '<th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3)">cargoId guardado</th>' +
+      '<th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3)">Estado</th>' +
+    '</tr></thead><tbody>' + filas + '</tbody></table>';
 }
 
 function fixIVADatosImportados() {
