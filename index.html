@@ -749,7 +749,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.10 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.11 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1042,7 +1042,7 @@ tr:hover td{color:var(--text)}
         <div class="card">
           <div class="card-head"><span class="card-title">Datos de la venta</span></div>
           <div class="form-grid">
-            <div class="fg"><label>N° de venta</label><input type="text" value="00043" readonly></div>
+            <div class="fg"><label>N° de venta</label><input type="text" id="vf-numero-preview" value="—" readonly></div>
             <div class="fg"><label>Fecha</label><input type="date" id="venta-fecha"></div>
             <div class="fg full"><label>Cliente</label>
               <div class="sw">
@@ -1927,7 +1927,6 @@ tr:hover td{color:var(--text)}
           <button class="cfg-tab active" onclick="showCfgTab('general',this)" style="white-space:nowrap;flex-shrink:0">General</button>
           <button class="cfg-tab" onclick="showCfgTab('cargos',this)" style="white-space:nowrap;flex-shrink:0">Cargos</button>
           <button class="cfg-tab" onclick="showCfgTab('comisiones',this)" style="white-space:nowrap;flex-shrink:0">Comisiones</button>
-          <button class="cfg-tab" onclick="showCfgTab('sueldos',this)" style="white-space:nowrap;flex-shrink:0">Sueldos base</button>
           <button class="cfg-tab" onclick="showCfgTab('impuestos',this)" style="white-space:nowrap;flex-shrink:0">Impuestos</button>
           <button class="cfg-tab" onclick="showCfgTab('roles',this)" style="white-space:nowrap;flex-shrink:0">Roles</button>
           <button class="cfg-tab" onclick="showCfgTab('facturacion',this)" style="white-space:nowrap;flex-shrink:0">Facturación</button>
@@ -2070,9 +2069,39 @@ tr:hover td{color:var(--text)}
               Cada cargo define el valor hora, los días a contar en el mes, y el valor de hora extra. En la ficha de cada empleado solo se elige el cargo y las horas diarias que trabaja — el sueldo se calcula solo a partir de estos datos.
             </div>
             <table id="cargos-tbl">
-              <tr><th>Cargo</th><th style="text-align:right">Valor hora</th><th style="text-align:right">Días/mes</th><th style="text-align:right">Sueldo (8hs)</th><th style="text-align:right">Valor hora extra</th><th style="text-align:right">Empleados</th><th></th></tr>
+              <tr><th>Cargo</th><th style="text-align:right">Valor hora</th><th style="text-align:right">8hs/día</th><th style="text-align:right">4hs/día</th><th style="text-align:right">Días/mes</th><th style="text-align:right">Empleados</th><th></th></tr>
             </table>
             <div id="cargos-vacio" style="text-align:center;color:var(--text3);padding:24px;font-size:13px;display:none">Sin cargos creados todavía</div>
+          </div>
+        </div>
+
+        <!-- Modal cargo (crear/editar) -->
+        <div id="modal-cargo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center">
+          <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:420px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+            <div style="font-size:15px;font-weight:600;margin-bottom:16px" id="modal-cargo-titulo">Nuevo cargo</div>
+            <input type="hidden" id="cargo-id-edit">
+            <div class="form-grid" style="margin-bottom:0">
+              <div class="fg full"><label>Nombre del cargo</label><input type="text" id="cargo-nombre" placeholder="Ej: Técnico instalador senior"></div>
+              <div class="fg full"><label>Categoría base (para cálculo de sueldos)</label>
+                <select id="cargo-categoria-base">
+                  <option value="TECNICO C">Técnico C</option>
+                  <option value="TECNICO B">Técnico B</option>
+                  <option value="TECNICO A">Técnico A</option>
+                  <option value="ADMINIS">Administrativo</option>
+                  <option value="INICIAL">Inicial</option>
+                  <option value="A-TEMP">Temporal</option>
+                </select>
+              </div>
+              <div class="fg"><label>Valor hora ($)</label><input type="number" id="cargo-valor-hora" value="5000" oninput="_previewCargoCalculos()"></div>
+              <div class="fg"><label>Días a contar/mes</label><input type="number" id="cargo-dias-mes" value="23" oninput="_previewCargoCalculos()"></div>
+              <div class="fg"><label>8hs/día (calculado)</label><input type="text" id="cargo-preview-8hs" readonly></div>
+              <div class="fg"><label>4hs/día (calculado)</label><input type="text" id="cargo-preview-4hs" readonly></div>
+              <div class="fg full"><label>Valor hora extra ($)</label><input type="number" id="cargo-valor-hora-extra" value="7500"></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:18px">
+              <button class="btn" style="flex:1" onclick="document.getElementById('modal-cargo').style.display='none'">Cancelar</button>
+              <button class="btn btn-primary" style="flex:1" onclick="cargosGuardar()"><i class="ti ti-check"></i> Guardar</button>
+            </div>
           </div>
         </div>
 
@@ -2118,42 +2147,6 @@ tr:hover td{color:var(--text)}
               <div class="fg"><label>Técnico instalador — hora extra ($)</label><input type="number" id="cfg-hextra-08" value="1100"></div>
             </div>
             <div class="flex-end"><button class="btn btn-primary" onclick="guardarHorasExtra(this)"><i class="ti ti-check"></i> Guardar</button></div>
-          </div>
-        </div>
-
-        <!-- TAB: SUELDOS BASE -->
-        <div id="cfg-sueldos" class="cfg-panel" style="display:none">
-          <div class="card">
-            <div class="card-head"><span class="card-title">Sueldo básico por cargo</span></div>
-            <div style="margin-bottom:14px;padding:10px 14px;background:var(--blue-bg);border-radius:var(--radius);font-size:12px;color:var(--blue)">
-              <i class="ti ti-info-circle" style="font-size:14px;margin-right:6px"></i>
-              Estos valores se aplican automáticamente a los empleados del cargo correspondiente. Podés sobreescribirlos individualmente en la ficha del empleado.
-            </div>
-            <table>
-              <tr><th>Cargo</th><th style="text-align:right">Sueldo base ($)</th><th style="text-align:right">Últ. actualización</th><th ></th></tr>
-              <tr>
-                <td>Vendedor senior (Cat. 39)</td>
-                <td style="text-align:right"><input type="number" value="180000" style="width:110px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 8px;text-align:right;font-size:13px;font-family:inherit"></td>
-                <td style="text-align:right;color:var(--text3)">01/05/26</td>
-                <td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar sueldo"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>
-              </tr>
-              <tr>
-                <td>Vendedor junior (Cat. 15)</td>
-                <td style="text-align:right"><input type="number" value="150000" style="width:110px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 8px;text-align:right;font-size:13px;font-family:inherit"></td>
-                <td style="text-align:right;color:var(--text3)">01/05/26</td>
-                <td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar sueldo"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>
-              </tr>
-              <tr>
-                <td>Técnico instalador (Cat. 08)</td>
-                <td style="text-align:right"><input type="number" value="165000" style="width:110px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 8px;text-align:right;font-size:13px;font-family:inherit"></td>
-                <td style="text-align:right;color:var(--text3)">01/05/26</td>
-                <td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar sueldo"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>
-              </tr>
-            </table>
-            <div class="flex-end">
-              <button class="btn" onclick="exportarExcel('Planilla de sueldos')"><i class="ti ti-download"></i> Exportar planilla</button>
-            </div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px">💡 Usá el ✓ de cada fila para guardar ese sueldo individualmente.</div>
           </div>
         </div>
 
@@ -4028,7 +4021,7 @@ tr:hover td{color:var(--text)}
   <div class="card" style="margin-bottom:12px">
     <div class="card-head">
       <span class="card-title">Liquidación mensual</span>
-      <button class="btn btn-sm" onclick="abrirConfigCategoriasModal()"><i class="ti ti-settings"></i> Categorías</button>
+      <button class="btn btn-sm" onclick="showPage('configuracion',document.querySelector('[onclick*=configuracion]'));setTimeout(function(){showCfgTab('cargos',document.querySelector('[onclick*=\'cargos\']'))},150)"><i class="ti ti-settings"></i> Ver cargos</button>
     </div>
     <div class="table-wrap">
       <table id="suel-tabla">
@@ -4104,20 +4097,6 @@ tr:hover td{color:var(--text)}
       <div style="display:flex;gap:8px;margin-top:16px">
         <button class="btn" style="flex:1" onclick="document.getElementById('modal-cuota').style.display='none'">Cancelar</button>
         <button class="btn btn-primary" style="flex:1" onclick="guardarCuotas()">Guardar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal categorías -->
-  <div id="modal-categorias-suel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center">
-    <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:500px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-      <div style="font-size:15px;font-weight:600;margin-bottom:16px">Valores de categorías</div>
-      <table style="width:100%;font-size:13px">
-        <thead><tr><th>Categoría</th><th class="tr">Val. hora</th><th class="tr">8hs/día</th><th class="tr">4hs/día</th><th class="tr">Días/mes</th></tr></thead>
-        <tbody id="cat-suel-tbody"></tbody>
-      </table>
-      <div style="display:flex;justify-content:flex-end;margin-top:16px">
-        <button class="btn btn-primary" onclick="guardarCategoriasSuel()"><i class="ti ti-check"></i> Guardar</button>
       </div>
     </div>
   </div>
@@ -5040,12 +5019,18 @@ function fbCargarEmpleados() {
     var selEmp = document.getElementById('venta-empleado');
     if (selEmp) {
       var opts = '<option value="">— Seleccionar empleado —</option>';
+      var fbKeyUsuarioActual = '';
       Object.values(empData).forEach(function(e) {
         if (e.activo !== false) {
           opts += '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+' (Leg. '+e.legajo+')</option>';
+          // Vincular con el usuario logueado: mismo nombre (sin distinguir mayúsculas/espacios)
+          if ((e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim()) {
+            fbKeyUsuarioActual = e.fbKey;
+          }
         }
       });
       selEmp.innerHTML = opts;
+      if (fbKeyUsuarioActual) selEmp.value = fbKeyUsuarioActual;
     }
     if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
   });
@@ -6023,7 +6008,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.10-firebase',
+  VERSION: 'v19.11-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6448,9 +6433,9 @@ function _completarLogin(nombre) {
   if (typeof spCargar === 'function') setTimeout(spCargar, 400);
   if (typeof fbCargarVacaciones === 'function') setTimeout(fbCargarVacaciones, 400);
   if (typeof cfCargar === 'function') setTimeout(cfCargar, 450);
+  if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 450);
   if (typeof chequearActualizacionAutoDolar === 'function') setTimeout(chequearActualizacionAutoDolar, 500);
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); setTimeout(applyRole, 400); }, 400);
-  if (typeof cargarCategoriasSuelDB === 'function') setTimeout(cargarCategoriasSuelDB, 500);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
 
   // Mostrar app después de ~2.5 segundos (tiempo de carga de Firebase)
@@ -6696,6 +6681,24 @@ function inicializarFilasVenta() {
   body.appendChild(crearFilaProducto('','',0,1));
   calcTotals();
   actualizarResumenStock();
+
+  // Mostrar el próximo número de venta (mismo cálculo que usa confirmarVenta)
+  var numPreview = document.getElementById('vf-numero-preview');
+  if (numPreview) numPreview.value = '#' + String((ventasList||[]).length + 43).padStart(5,'0');
+
+  // Re-aplicar preselección de empleado por si el usuario ya estaba logueado
+  // antes de que cargaran los datos de empleados
+  var selEmp = document.getElementById('venta-empleado');
+  if (selEmp && !selEmp.value) {
+    var match = Object.values(empData||{}).find(function(e){
+      return (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
+    });
+    if (match) selEmp.value = match.fbKey;
+  }
+
+  // Fecha de hoy por defecto
+  var fechaInp = document.getElementById('venta-fecha');
+  if (fechaInp && !fechaInp.value) fechaInp.value = new Date().toISOString().slice(0,10);
 }
 
 // ── DETALLE ──
@@ -7691,7 +7694,23 @@ var CARGOS_DATA = {}; // espejo en memoria de sisventas/config/cargos
 function cargarCargos() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/config/cargos'), function(snap) {
-    CARGOS_DATA = snap.val() || {};
+    var data = snap.val();
+    if (!data) {
+      // Primera vez: sembrar los 6 cargos reales de CATEGORIAS_SUEL
+      var seed = {
+        'tecnico_c': { nombre:'Técnico C', categoriaBase:'TECNICO C', valorHora:6450, diasMes:23, valorHoraExtra:9700 },
+        'tecnico_b': { nombre:'Técnico B', categoriaBase:'TECNICO B', valorHora:6450, diasMes:23, valorHoraExtra:9700 },
+        'tecnico_a': { nombre:'Técnico A', categoriaBase:'TECNICO A', valorHora:5000, diasMes:23, valorHoraExtra:7500 },
+        'administrativo': { nombre:'Administrativo', categoriaBase:'ADMINIS', valorHora:5800, diasMes:23, valorHoraExtra:8700 },
+        'inicial': { nombre:'Inicial', categoriaBase:'INICIAL', valorHora:4500, diasMes:0, valorHoraExtra:6750 },
+        'temporal': { nombre:'Temporal', categoriaBase:'A-TEMP', valorHora:4800, diasMes:0, valorHoraExtra:7200 }
+      };
+      window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/cargos'), seed);
+      CARGOS_DATA = seed;
+      renderCargosConfig();
+      return;
+    }
+    CARGOS_DATA = data;
     renderCargosConfig();
   });
 }
@@ -7716,15 +7735,16 @@ function renderCargosConfig() {
     var c = CARGOS_DATA[id];
     var valorHora = parseFloat(c.valorHora)||0;
     var diasMes = parseFloat(c.diasMes)||0;
-    var sueldo8hs = valorHora * 8 * diasMes;
+    var sueldo8hs = valorHora * 8;
+    var sueldo4hs = valorHora * 4;
     var cantEmpleados = empleadosActivos.filter(function(e){ return e.cargoId === id; }).length;
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td style="font-weight:500">' + escapeHTML(c.nombre||'') + '</td>' +
+      '<td style="font-weight:500">' + escapeHTML(c.nombre||'') + '<div style="font-size:10px;color:var(--text3)">' + escapeHTML(c.categoriaBase||'') + '</div></td>' +
       '<td style="text-align:right">$' + valorHora.toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right">' + diasMes + '</td>' +
       '<td style="text-align:right;color:var(--text3)">$' + Math.round(sueldo8hs).toLocaleString('es-AR') + '</td>' +
-      '<td style="text-align:right">$' + (parseFloat(c.valorHoraExtra)||0).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right;color:var(--text3)">$' + Math.round(sueldo4hs).toLocaleString('es-AR') + '</td>' +
+      '<td style="text-align:right">' + diasMes + '</td>' +
       '<td style="text-align:right">' + cantEmpleados + '</td>' +
       '<td><button class="btn btn-sm btn-icon" onclick="cargosAbrirNuevo(\''+id+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
       '<button class="btn btn-sm btn-icon" onclick="cargosEliminar(\''+id+'\')" title="Eliminar" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:14px"></i></button></td>';
@@ -7732,30 +7752,49 @@ function renderCargosConfig() {
   });
 }
 
+function _previewCargoCalculos() {
+  var vh = parseFloat((document.getElementById('cargo-valor-hora')||{}).value) || 0;
+  var p8 = document.getElementById('cargo-preview-8hs');
+  var p4 = document.getElementById('cargo-preview-4hs');
+  if (p8) p8.value = '$' + Math.round(vh*8).toLocaleString('es-AR');
+  if (p4) p4.value = '$' + Math.round(vh*4).toLocaleString('es-AR');
+}
+
 function cargosAbrirNuevo(idExistente) {
   var c = idExistente ? CARGOS_DATA[idExistente] : null;
-  var nombre = prompt('Nombre del cargo:', c ? c.nombre : '');
-  if (!nombre || !nombre.trim()) return;
-  var valorHoraTxt = prompt('Valor hora ($):', c ? c.valorHora : '5000');
-  if (valorHoraTxt === null) return;
-  var diasMesTxt = prompt('Días a contar en el mes:', c ? c.diasMes : '23');
-  if (diasMesTxt === null) return;
-  var valorHoraExtraTxt = prompt('Valor hora extra ($):', c ? c.valorHoraExtra : '7500');
-  if (valorHoraExtraTxt === null) return;
+  document.getElementById('cargo-id-edit').value = idExistente || '';
+  document.getElementById('modal-cargo-titulo').textContent = idExistente ? 'Editar cargo' : 'Nuevo cargo';
+  document.getElementById('cargo-nombre').value = c ? (c.nombre||'') : '';
+  document.getElementById('cargo-categoria-base').value = c ? (c.categoriaBase||'TECNICO A') : 'TECNICO A';
+  document.getElementById('cargo-valor-hora').value = c ? (c.valorHora||5000) : 5000;
+  document.getElementById('cargo-dias-mes').value = c ? (c.diasMes||23) : 23;
+  document.getElementById('cargo-valor-hora-extra').value = c ? (c.valorHoraExtra||7500) : 7500;
+  _previewCargoCalculos();
+  document.getElementById('modal-cargo').style.display = 'flex';
+}
+
+function cargosGuardar() {
+  var idExistente = document.getElementById('cargo-id-edit').value;
+  var nombre = document.getElementById('cargo-nombre').value.trim();
+  if (!nombre) { notify('Ingresá un nombre para el cargo'); return; }
 
   var datos = {
-    nombre: nombre.trim(),
-    valorHora: parseFloat(valorHoraTxt)||0,
-    diasMes: parseFloat(diasMesTxt)||0,
-    valorHoraExtra: parseFloat(valorHoraExtraTxt)||0
+    nombre: nombre,
+    categoriaBase: document.getElementById('cargo-categoria-base').value,
+    valorHora: parseFloat(document.getElementById('cargo-valor-hora').value) || 0,
+    diasMes: parseFloat(document.getElementById('cargo-dias-mes').value) || 0,
+    valorHoraExtra: parseFloat(document.getElementById('cargo-valor-hora-extra').value) || 0
   };
 
-  var id = idExistente || nombre.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  var id = idExistente || nombre.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
   if (!idExistente && CARGOS_DATA[id]) { notify('Ya existe un cargo con ese nombre'); return; }
 
   if (!window.fbDB) { notify('Sin conexión'); return; }
   window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/cargos/'+id), datos)
-    .then(function(){ notify('✓ Cargo guardado'); })
+    .then(function(){
+      notify('✓ Cargo guardado');
+      document.getElementById('modal-cargo').style.display = 'none';
+    })
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
@@ -14841,15 +14880,6 @@ function calcularProductosRedes(r) {
 }
 // ══════════════════════════════════════════════
 
-var CATEGORIAS_SUEL = {
-  'TECNICO C': { valHora:6450, hs8:51600, hs4:25800, diasMes:23 },
-  'TECNICO B': { valHora:6450, hs8:51600, hs4:25800, diasMes:23 },
-  'TECNICO A': { valHora:5000, hs8:40000, hs4:20000, diasMes:23 },
-  'ADMINIS':   { valHora:5800, hs8:46400, hs4:23200, diasMes:23 },
-  'INICIAL':   { valHora:4500, hs8:36000, hs4:18000, diasMes:0  },
-  'A-TEMP':    { valHora:4800, hs8:38400, hs4:19200, diasMes:0  }
-};
-
 var suelMesActual = new Date().toISOString().slice(0,7);
 var liquidacionData = {};
 
@@ -15010,29 +15040,6 @@ function guardarCuotas() {
   });
 }
 
-function abrirConfigCategoriasModal() {
-  var tbody = document.getElementById('cat-suel-tbody'); if (!tbody) return;
-  tbody.innerHTML = Object.entries(CATEGORIAS_SUEL).map(function(e){
-    var k=e[0],v=e[1];
-    return '<tr><td style="font-weight:500">'+k+'</td>'+
-      '<td class="tr"><input type="number" data-cat="'+k+'" data-campo="valHora" value="'+v.valHora+'" style="width:80px;text-align:right;background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:4px 6px;font-size:12px"></td>'+
-      '<td class="tr" style="color:var(--text3)">$'+(v.valHora*8).toLocaleString('es-AR')+'</td>'+
-      '<td class="tr" style="color:var(--text3)">$'+(v.valHora*4).toLocaleString('es-AR')+'</td>'+
-      '<td class="tr"><input type="number" data-cat="'+k+'" data-campo="diasMes" value="'+v.diasMes+'" style="width:50px;text-align:right;background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:4px 6px;font-size:12px"></td></tr>';
-  }).join('');
-  document.getElementById('modal-categorias-suel').style.display = 'flex';
-}
-
-function guardarCategoriasSuel() {
-  document.querySelectorAll('#cat-suel-tbody input').forEach(function(inp){
-    var cat=inp.dataset.cat, campo=inp.dataset.campo;
-    if (CATEGORIAS_SUEL[cat]) { CATEGORIAS_SUEL[cat][campo]=parseFloat(inp.value)||0; CATEGORIAS_SUEL[cat].hs8=CATEGORIAS_SUEL[cat].valHora*8; CATEGORIAS_SUEL[cat].hs4=CATEGORIAS_SUEL[cat].valHora*4; }
-  });
-  if (window.fbDB) window.fbSet(window.fbRef(window.fbDB,'sisventas/config/categoriasSuel'), CATEGORIAS_SUEL);
-  document.getElementById('modal-categorias-suel').style.display = 'none';
-  renderModuloSueldos(); notify('✓ Categorías actualizadas');
-}
-
 function renderGastosMesSueldos() {
   var lista = (gastosData||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===suelMesActual&&!g.esCuota; });
   var cont  = document.getElementById('suel-gastos-lista');
@@ -15180,11 +15187,6 @@ function guardarPeriodoVac() {
     empleadoId:fkey, empleadoNombre:emp?emp.nombre:'', desde:desde, hasta:hasta, dias:dias,
     obs:document.getElementById('vac-obs').value, ts:Date.now()
   }).then(function(){ notify('✓ Período registrado'); document.getElementById('modal-nuevo').classList.remove('open'); renderModuloVacaciones(); });
-}
-
-function cargarCategoriasSuelDB() {
-  if (!window.fbDB) return;
-  window.fbGet(window.fbRef(window.fbDB,'sisventas/config/categoriasSuel')).then(function(snap){ var d=snap.val(); if(d) Object.assign(CATEGORIAS_SUEL,d); });
 }
 
 function toggleActivoCliente(cid) {
@@ -17075,8 +17077,10 @@ function renderTablero() {
 }
 
 function renderKPIsDashboard() {
-  var hoy = new Date().toISOString().slice(0,10);
-  var ayer = new Date(Date.now()-86400000).toISOString().slice(0,10);
+  var hoyDate = new Date();
+  var hoy  = hoyDate.toLocaleDateString('es-AR'); // DD/MM/YYYY — formato real que usa el sistema
+  var ayerDate = new Date(Date.now()-86400000);
+  var ayer = ayerDate.toLocaleDateString('es-AR');
   var esAdmin = (currentRole === 'admin' || currentRole === 'administrativo');
 
   // Filtrar ventas por usuario si no es admin
@@ -17128,8 +17132,8 @@ function renderKPIsDashboard() {
   if (pptoSubEl) pptoSubEl.textContent = pptosActivos.length + ' activos';
 
   // ── IVA acumulado (mes actual) ──
-  var mesActual = hoy.slice(0,7);
-  var ivaTotal = todasVentas.filter(function(v){ return (v.fecha||'').slice(0,7) === mesActual && v.factura; })
+  var mesActual = hoyDate.getFullYear() + '-' + String(hoyDate.getMonth()+1).padStart(2,'0');
+  var ivaTotal = todasVentas.filter(function(v){ return (typeof _fechaEsDelMes === 'function' ? _fechaEsDelMes(v.fecha, mesActual) : false) && v.factura; })
     .reduce(function(s,v){ return s + (parseFloat(v.iva)||0); }, 0);
   _set('kpi-iva', '$' + Math.round(ivaTotal).toLocaleString('es-AR'));
   var ivaMesEl = document.getElementById('kpi-iva-mes');
@@ -17283,8 +17287,10 @@ function renderRentabilidadDashboard(todasVentas) {
 function kpiNavegar(tipo) {
   if (tipo === 'ventasHoy') {
     showPage('detalle', document.querySelector('[onclick*="detalle"]'));
+    setTimeout(function() { if (typeof tabVentas === 'function') tabVentas('hoy', document.getElementById('vtab-hoy')); }, 150);
   } else if (tipo === 'deuda') {
-    showPage('cobranzas', document.querySelector('[onclick*="cobranzas"]'));
+    showPage('detalle', document.querySelector('[onclick*="detalle"]'));
+    setTimeout(function() { if (typeof tabVentas === 'function') tabVentas('cobrar', document.getElementById('vtab-cobrar')); }, 150);
   } else if (tipo === 'presupuestos') {
     showPage('presupuesto', document.querySelector('[onclick*="presupuesto"]'));
   } else if (tipo === 'iva') {
