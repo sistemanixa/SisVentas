@@ -703,6 +703,8 @@ tr:hover td{color:var(--text)}
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getStorage, ref as storageRef, uploadBytes, getDownloadURL }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+    import { getFunctions, httpsCallable }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCw8Q4-fUA69iWFkDuy8qEkEcOGHOjFsto",
@@ -718,6 +720,10 @@ tr:hover td{color:var(--text)}
     const fbDB   = getDatabase(fbApp);
     const fbAuth = getAuth(fbApp);
     const fbStorage = getStorage(fbApp);
+    const fbFunctions = getFunctions(fbApp, 'southamerica-east1');
+
+    window.fbCallEmitirFactura = httpsCallable(fbFunctions, 'emitirFactura');
+    window.fbCallTestTFApp     = httpsCallable(fbFunctions, 'testTFApp');
 
     window.fbDB          = fbDB;
     window.fbAuth        = fbAuth;
@@ -770,7 +776,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.39 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.40 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5662,110 +5668,36 @@ async function emitirFactura(venta, tipoComprobante) {
     notify('Falta configurar la provincia del emisor en Configuración → Facturación');
     return null;
   }
+  if (!window.fbCallEmitirFactura) {
+    notify('Función de facturación no disponible — recargá la página');
+    return null;
+  }
 
   notify('Emitiendo factura en AFIP/ARCA...');
 
-  var hoy = new Date();
-  var fechaFmt = hoy.toLocaleDateString('es-AR'); // dd/mm/aaaa
-  var vencimiento = new Date(hoy);
-  vencimiento.setDate(vencimiento.getDate() + 10);
-  var vencFmt = vencimiento.toLocaleDateString('es-AR');
-
-  // Cliente con CUIT real (Factura A) vs consumidor final con o sin CUIT (Factura B)
-  var tieneCuit = !!venta.clienteCuit;
-  var body = {
-    usertoken: TFAPP_CONFIG.usertoken,
-    apitoken:  TFAPP_CONFIG.apitoken,
-    apikey:    TFAPP_CONFIG.apikey,
-    cliente: {
-      documento_tipo:  tieneCuit ? 'CUIT' : 'DNI',
-      documento_nro:   (tieneCuit ? venta.clienteCuit : (venta.clienteDni || '0')).replace(/[^0-9]/g, ''),
-      razon_social:    venta.cliente || 'Consumidor Final',
-      email:           venta.clienteEmail || '',
-      domicilio:       venta.clienteDir   || 'Sin especificar',
-      provincia:       TFAPP_CONFIG.provincia,
-      envia_por_mail:  venta.clienteEmail ? 'S' : 'N',
-      condicion_pago:  '201', // 201 = Contado, confirmado contra la tabla oficial de referencia de TusFacturasApp
-      condicion_iva:   tipoComprobante === 'FACTURA A' ? 'RI' : 'CF',
-      reclama_deuda:   'N', // no gestionamos cobros desde TusFacturasApp — evita que le manden recordatorios al cliente
-      rg5329:          'N'
-    },
-    comprobante: {
-      fecha:                    fechaFmt,
-      tipo:                     tipoComprobante,
-      operacion:                'V', // V = venta
-      idioma:                   '1', // 1 = español
-      punto_venta:              TFAPP_CONFIG.punto_venta,
-      moneda:                   'PES',
-      cotizacion:               1,
-      vencimiento:              vencFmt,
-      periodo_facturado_desde:  fechaFmt,
-      periodo_facturado_hasta:  fechaFmt,
-      rubro:                    TFAPP_CONFIG.rubro,
-      rubro_grupo_contable:     TFAPP_CONFIG.rubro,
-      total:                    Math.round((parseFloat(venta.total)||0) * 100) / 100,
-      detalle: venta.items.map(function(i) {
-        return {
-          cantidad:      i.qty,
-          afecta_stock:  'N', // el control de stock ya lo hace SisVentas, no hace falta duplicarlo en TusFacturasApp
-          bonificacion_porcentaje: 0,
-          producto: {
-            descripcion:              i.desc || 'Producto',
-            unidad_bulto:             1,
-            lista_precios:            'SisVentas',
-            codigo:                   i.cod || '',
-            precio_unitario_sin_iva:  Math.round((i.punit / 1.21) * 100) / 100,
-            alicuota:                 21,
-            unidad_medida:            7, // 7 = unidades, según tabla de referencia AFIP
-            actualiza_precio:         'N',
-            rg5329:                   'N'
-          }
-        };
-      })
-    }
-  };
-
   try {
-    var resp = await fetch(TFAPP_CONFIG.endpoint, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(body)
+    // La Cloud Function arma el body real y llama a TusFacturasApp del lado del
+    // servidor — evita el bloqueo de CORS que tiene su API contra llamadas
+    // directas desde el navegador, y mantiene los tokens fuera del HTML público.
+    var resp = await window.fbCallEmitirFactura({
+      venta: venta,
+      tipoComprobante: tipoComprobante,
+      provincia: TFAPP_CONFIG.provincia,
+      puntoVenta: TFAPP_CONFIG.punto_venta,
+      rubro: TFAPP_CONFIG.rubro,
+      usuario: currentUser || '',
+      email: currentUserEmail || ''
     });
-    var data = await resp.json();
-
-    if (data.error === 'N') {
-      var resultado = {
-        cae:                (data.comprobante && data.comprobante.cae ? String(data.comprobante.cae).trim() : ''),
-        cae_vencimiento:    (data.comprobante ? data.comprobante.cae_vencimiento : ''),
-        numero_comprobante: (data.comprobante ? data.comprobante.numero : ''),
-        tipo:               tipoComprobante,
-        pdf_url:            (data.comprobante ? data.comprobante.pdf : ''),
-        fecha:              fechaFmt
-      };
-      // Guardar en Firebase junto con la venta
-      if (venta.fbKey && window.fbDB) {
-        window.fbUpdate(
-          window.fbRef(window.fbDB, 'sisventas/ventas/' + venta.fbKey),
-          { factura: resultado }
-        );
-      }
-      if (typeof registrarActividad === 'function') {
-        registrarActividad('Factura emitida', (venta.id||'') + ' — ' + tipoComprobante + ' — CAE ' + resultado.cae);
-      }
-      notify('✓ Factura emitida — CAE: ' + resultado.cae);
-      // Abrir PDF
-      if (resultado.pdf_url) {
-        window.open(resultado.pdf_url, '_blank');
-      }
-      return resultado;
-    } else {
-      var errores = Array.isArray(data.errores) ? data.errores.join(', ') : (data.errores || 'Error desconocido');
-      notify('Error AFIP/ARCA: ' + errores);
-      return null;
+    var resultado = resp.data;
+    notify('✓ Factura emitida — CAE: ' + resultado.cae);
+    if (resultado.pdf_url) {
+      window.open(resultado.pdf_url, '_blank');
     }
+    return resultado;
   } catch(e) {
-    notify('Error de conexión con TusFacturasApp');
-    console.error('[TusFacturasApp]', e);
+    // httpsCallable empaqueta errores con .message (texto) y .code (ej. 'failed-precondition')
+    notify('Error: ' + (e.message || 'No se pudo emitir la factura'));
+    console.error('[emitirFactura]', e);
     return null;
   }
 }
@@ -5872,42 +5804,25 @@ function guardarConfigTFApp() {
 
 async function testTFApp() {
   if (!TFAPP_CONFIG.usertoken) { notify('Completá los tokens primero'); return; }
+  if (!window.fbCallTestTFApp) { notify('Función de prueba no disponible — recargá la página'); return; }
   notify('Probando conexión...');
   try {
-    // Endpoint dedicado de TusFacturasApp para validar credenciales y el estado
-    // de los servicios de AFIP/ARCA, sin necesidad de emitir ningún comprobante de prueba.
-    var resp = await fetch('https://www.tusfacturas.app/app/api/v2/estado_servicios/alertas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        usertoken: TFAPP_CONFIG.usertoken,
-        apitoken:  TFAPP_CONFIG.apitoken,
-        apikey:    TFAPP_CONFIG.apikey
-      })
-    });
-    // Si el servidor de TusFacturasApp devuelve un error HTTP (503, 502, 500, etc.)
-    // el problema es de su lado, no de nuestras credenciales ni de nuestro código.
-    if (!resp.ok) {
-      notify('TusFacturasApp no está respondiendo ahora mismo (HTTP ' + resp.status + ') — no es un problema de tus credenciales, probá de nuevo en unos minutos');
-      return;
-    }
-    var data = await resp.json();
-    if (data.error === 'N') {
-      if (data.facturacion === 'OK') {
-        notify('✓ Conexión OK — credenciales válidas y AFIP/ARCA operativo');
-      } else {
-        notify('✓ Credenciales válidas, pero AFIP/ARCA reporta una alerta: ' + (data.facturacion || ''));
-      }
+    // La Cloud Function valida las credenciales del lado del servidor (sin el
+    // bloqueo de CORS que tiene la API de TusFacturasApp contra el navegador).
+    var resp = await window.fbCallTestTFApp();
+    var data = resp.data;
+    if (data.facturacion === 'OK') {
+      notify('✓ Conexión OK — credenciales válidas y AFIP/ARCA operativo');
     } else {
-      var errores = Array.isArray(data.errores) ? data.errores.join(', ') : (data.errores || 'Verificá los tokens');
-      if (/\bip\b/i.test(errores)) {
-        notify('Error: ' + errores + ' — La IP desde la que estás conectado no está habilitada en TusFacturasApp (Mi espacio de trabajo → Puntos de venta → tu PDV → "IP de habilitada")');
-      } else {
-        notify('Error: ' + errores);
-      }
+      notify('✓ Credenciales válidas, pero AFIP/ARCA reporta una alerta: ' + (data.facturacion || ''));
     }
   } catch(e) {
-    notify('Error de red — verificá tu conexión a internet');
+    var msg = e.message || 'Error desconocido';
+    if (/\bip\b/i.test(msg)) {
+      notify('Error: ' + msg + ' — La IP desde la que estás conectado no está habilitada en TusFacturasApp (Mi espacio de trabajo → Puntos de venta → tu PDV → "IP de habilitada")');
+    } else {
+      notify('Error: ' + msg);
+    }
   }
 }
 
@@ -6192,7 +6107,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.39-firebase',
+  VERSION: 'v19.40-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
