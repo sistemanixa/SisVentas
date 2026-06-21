@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://dolarapi.com https://www.tusfacturas.app; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://dolarapi.com https://www.tusfacturas.app https://*.cloudfunctions.net; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
 <script>
   // Desregistro forzado de cualquier Service Worker que haya quedado de una instalación
   // PWA anterior. Si esto no corre, un SW viejo puede seguir sirviendo versiones
@@ -24,7 +24,7 @@
   }
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://dolarapi.com https://www.tusfacturas.app; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://dolarapi.com https://www.tusfacturas.app https://*.cloudfunctions.net; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="apple-icon-link" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
@@ -703,8 +703,6 @@ tr:hover td{color:var(--text)}
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getStorage, ref as storageRef, uploadBytes, getDownloadURL }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-    import { getFunctions, httpsCallable }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCw8Q4-fUA69iWFkDuy8qEkEcOGHOjFsto",
@@ -720,10 +718,6 @@ tr:hover td{color:var(--text)}
     const fbDB   = getDatabase(fbApp);
     const fbAuth = getAuth(fbApp);
     const fbStorage = getStorage(fbApp);
-    const fbFunctions = getFunctions(fbApp, 'southamerica-east1');
-
-    window.fbCallEmitirFactura = httpsCallable(fbFunctions, 'emitirFactura');
-    window.fbCallTestTFApp     = httpsCallable(fbFunctions, 'testTFApp');
 
     window.fbDB          = fbDB;
     window.fbAuth        = fbAuth;
@@ -776,7 +770,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.40 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.41 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5654,6 +5648,15 @@ var TFAPP_CONFIG = {
   activo: false  // Cambiar a true cuando tengas los tokens
 };
 
+// Cloud Functions intermedias — evitan el bloqueo de CORS que tiene la API de
+// TusFacturasApp contra llamadas directas desde el navegador, y mantienen los
+// tokens de TusFacturasApp fuera del HTML público (viven en Secret Manager).
+var SISVENTAS_FUNCTIONS = {
+  emitirFactura: 'https://southamerica-east1-nixa-sisventas.cloudfunctions.net/emitirFactura',
+  testTFApp:     'https://southamerica-east1-nixa-sisventas.cloudfunctions.net/testTFApp',
+  frontendKey:   '9551f2780845e7773b784c6d9b505dd6041d8052f0fe8e1f51959015767ffa5a'
+};
+
 // Emitir factura desde una venta
 async function emitirFactura(venta, tipoComprobante) {
   if (!TFAPP_CONFIG.activo) {
@@ -5668,35 +5671,35 @@ async function emitirFactura(venta, tipoComprobante) {
     notify('Falta configurar la provincia del emisor en Configuración → Facturación');
     return null;
   }
-  if (!window.fbCallEmitirFactura) {
-    notify('Función de facturación no disponible — recargá la página');
-    return null;
-  }
 
   notify('Emitiendo factura en AFIP/ARCA...');
 
   try {
-    // La Cloud Function arma el body real y llama a TusFacturasApp del lado del
-    // servidor — evita el bloqueo de CORS que tiene su API contra llamadas
-    // directas desde el navegador, y mantiene los tokens fuera del HTML público.
-    var resp = await window.fbCallEmitirFactura({
-      venta: venta,
-      tipoComprobante: tipoComprobante,
-      provincia: TFAPP_CONFIG.provincia,
-      puntoVenta: TFAPP_CONFIG.punto_venta,
-      rubro: TFAPP_CONFIG.rubro,
-      usuario: currentUser || '',
-      email: currentUserEmail || ''
+    var resp = await fetch(SISVENTAS_FUNCTIONS.emitirFactura, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Frontend-Key': SISVENTAS_FUNCTIONS.frontendKey },
+      body: JSON.stringify({
+        venta: venta,
+        tipoComprobante: tipoComprobante,
+        provincia: TFAPP_CONFIG.provincia,
+        puntoVenta: TFAPP_CONFIG.punto_venta,
+        rubro: TFAPP_CONFIG.rubro,
+        usuario: currentUser || '',
+        email: currentUserEmail || ''
+      })
     });
-    var resultado = resp.data;
-    notify('✓ Factura emitida — CAE: ' + resultado.cae);
-    if (resultado.pdf_url) {
-      window.open(resultado.pdf_url, '_blank');
+    var data = await resp.json();
+    if (!resp.ok || data.error) {
+      notify('Error: ' + (data.mensaje || 'No se pudo emitir la factura'));
+      return null;
     }
-    return resultado;
+    notify('✓ Factura emitida — CAE: ' + data.cae);
+    if (data.pdf_url) {
+      window.open(data.pdf_url, '_blank');
+    }
+    return data;
   } catch(e) {
-    // httpsCallable empaqueta errores con .message (texto) y .code (ej. 'failed-precondition')
-    notify('Error: ' + (e.message || 'No se pudo emitir la factura'));
+    notify('Error de conexión con el servidor de facturación');
     console.error('[emitirFactura]', e);
     return null;
   }
@@ -5804,25 +5807,31 @@ function guardarConfigTFApp() {
 
 async function testTFApp() {
   if (!TFAPP_CONFIG.usertoken) { notify('Completá los tokens primero'); return; }
-  if (!window.fbCallTestTFApp) { notify('Función de prueba no disponible — recargá la página'); return; }
   notify('Probando conexión...');
   try {
-    // La Cloud Function valida las credenciales del lado del servidor (sin el
-    // bloqueo de CORS que tiene la API de TusFacturasApp contra el navegador).
-    var resp = await window.fbCallTestTFApp();
-    var data = resp.data;
+    var resp = await fetch(SISVENTAS_FUNCTIONS.testTFApp, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Frontend-Key': SISVENTAS_FUNCTIONS.frontendKey },
+      body: JSON.stringify({})
+    });
+    var data = await resp.json();
+    if (!resp.ok || data.error) {
+      var msg = data.mensaje || 'Error desconocido';
+      if (/\bip\b/i.test(msg)) {
+        notify('Error: ' + msg + ' — La IP desde la que estás conectado no está habilitada en TusFacturasApp (Mi espacio de trabajo → Puntos de venta → tu PDV → "IP de habilitada")');
+      } else {
+        notify('Error: ' + msg);
+      }
+      return;
+    }
     if (data.facturacion === 'OK') {
       notify('✓ Conexión OK — credenciales válidas y AFIP/ARCA operativo');
     } else {
       notify('✓ Credenciales válidas, pero AFIP/ARCA reporta una alerta: ' + (data.facturacion || ''));
     }
   } catch(e) {
-    var msg = e.message || 'Error desconocido';
-    if (/\bip\b/i.test(msg)) {
-      notify('Error: ' + msg + ' — La IP desde la que estás conectado no está habilitada en TusFacturasApp (Mi espacio de trabajo → Puntos de venta → tu PDV → "IP de habilitada")');
-    } else {
-      notify('Error: ' + msg);
-    }
+    notify('Error de conexión con el servidor de facturación');
+    console.error('[testTFApp]', e);
   }
 }
 
@@ -6107,7 +6116,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.40-firebase',
+  VERSION: 'v19.41-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
