@@ -770,7 +770,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.36 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.37 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5885,6 +5885,12 @@ async function testTFApp() {
         apikey:    TFAPP_CONFIG.apikey
       })
     });
+    // Si el servidor de TusFacturasApp devuelve un error HTTP (503, 502, 500, etc.)
+    // el problema es de su lado, no de nuestras credenciales ni de nuestro código.
+    if (!resp.ok) {
+      notify('TusFacturasApp no está respondiendo ahora mismo (HTTP ' + resp.status + ') — no es un problema de tus credenciales, probá de nuevo en unos minutos');
+      return;
+    }
     var data = await resp.json();
     if (data.error === 'N') {
       if (data.facturacion === 'OK') {
@@ -5894,10 +5900,14 @@ async function testTFApp() {
       }
     } else {
       var errores = Array.isArray(data.errores) ? data.errores.join(', ') : (data.errores || 'Verificá los tokens');
-      notify('Error: ' + errores);
+      if (/\bip\b/i.test(errores)) {
+        notify('Error: ' + errores + ' — La IP desde la que estás conectado no está habilitada en TusFacturasApp (Mi espacio de trabajo → Puntos de venta → tu PDV → "IP de habilitada")');
+      } else {
+        notify('Error: ' + errores);
+      }
     }
   } catch(e) {
-    notify('Error de red — verificá la conexión');
+    notify('Error de red — verificá tu conexión a internet');
   }
 }
 
@@ -6196,7 +6206,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.36-firebase',
+  VERSION: 'v19.37-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
