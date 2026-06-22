@@ -770,7 +770,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.44 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.45 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6050,7 +6050,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.44-firebase',
+  VERSION: 'v19.45-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6809,7 +6809,7 @@ function confirmarVenta() {
     guardarPromise = fbGuardarVenta(nuevaVenta);
   } else {
     ventasList.unshift(nuevaVenta);
-    guardarPromise = Promise.resolve();
+    guardarPromise = Promise.resolve(null);
   }
   if (typeof registrarActividad === 'function') {
     registrarActividad('Venta creada', nuevaVenta.id + ' — ' + cli + ' — $' + Math.round(nuevaVenta.total).toLocaleString('es-AR'));
@@ -6830,19 +6830,15 @@ function confirmarVenta() {
     if (typeof inicializarFilasVenta === 'function') inicializarFilasVenta();
   }, 300);
 
-  // Una vez guardado en Firebase, ir al detalle de la venta recién creada
+  // Mostrar modal de confirmación — esperamos un poco para que el listener de
+  // Firebase actualice ventasList con el fbKey real antes de buscarlo
   guardarPromise.then(function() {
-    // Buscar el fbKey real de la venta recién guardada (Firebase la habrá agregado a ventasList)
-    var ventaGuardada = (ventasList || []).find(function(v) { return v.id === nuevaVenta.id; });
-    var fbKey = ventaGuardada ? ventaGuardada.fbKey : null;
-    if (fbKey) {
-      window._ventaActualFbKey = fbKey;
-      window._ventaActualId = nuevaVenta.id;
-    }
-    // Mostrar modal de confirmación con acciones rápidas
-    mostrarConfirmacionVenta(nuevaVenta, fbKey);
-  }).catch(function() {
-    // Si falla el guardado, mostrar igual el notify básico
+    setTimeout(function() {
+      var ventaGuardada = (ventasList || []).find(function(v) { return v.id === nuevaVenta.id; });
+      mostrarConfirmacionVenta(nuevaVenta, ventaGuardada ? ventaGuardada.fbKey : null);
+    }, 800);
+  }).catch(function(e) {
+    console.error('[confirmarVenta]', e);
     notify('Venta ' + nuevaVenta.id + ' confirmada ✓');
   });
 }
@@ -19471,7 +19467,7 @@ function crearFilaProducto(cod, desc, precio, qty) {
     </td>
     <td><span class="desc-txt" style="font-size:13px;color:var(--text2)">${escapeHTML(desc)}</span></td>
     <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right"></td>
-    <td class="stock-cell" style="text-align:right;overflow:hidden;white-space:nowrap;max-width:90px"><span class="stock-ind" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis">${stockBadge}</span></td>
+    <td class="stock-cell" style="text-align:right;white-space:nowrap;max-width:90px"><span class="stock-ind" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis">${stockBadge}</span></td>
     <td><input type="number" value="${precio||0}" class="price" oninput="calcRow(this)" min="0" style="width:80px;text-align:right"></td>
     <td class="sub" style="text-align:right;color:var(--text);font-weight:500">$${Math.round((qty||1)*(precio||0)).toLocaleString('es-AR')}</td>
     <td><button class="btn btn-sm btn-danger" onclick="delRow(this)" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>`;
