@@ -792,7 +792,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.66 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.67 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6114,7 +6114,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.66-firebase',
+  VERSION: 'v19.67-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6147,24 +6147,48 @@ function iniciarListenerVersion() {
     function(snap) {
       var versionFirebase = snap.val();
 
-      // Si el nodo está vacío o tiene una versión MÁS VIEJA que la que está corriendo,
-      // actualizarlo — esto cubre el caso de publicar varias versiones seguidas sin
-      // loguearse como admin entre ellas.
+      // Si el nodo está vacío o tiene versión MÁS VIEJA que la corriendo,
+      // actualizarlo — así otros clientes lo detectan en tiempo real.
       if (!versionFirebase || _versionMasNueva(APP_CONFIG.VERSION, versionFirebase)) {
         window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), APP_CONFIG.VERSION)
           .catch(function(){});
-        return; // no actualizar hasta que el nodo refleje la versión real
+        return;
       }
 
-      // Si Firebase tiene una versión más nueva que la que está corriendo, actualizar
+      // Firebase tiene versión más nueva — actualizar
       if (_versionMasNueva(versionFirebase, APP_CONFIG.VERSION)) {
         actualizarAutomaticamente(APP_CONFIG.VERSION, versionFirebase);
       }
     }
   );
+
+  // Polling de respaldo contra GitHub cada 3 minutos — cubre el caso donde
+  // el nodo de Firebase queda desactualizado porque nadie con la versión nueva
+  // se conectó todavía (el huevo y la gallina).
+  setInterval(function() {
+    fetch(window.location.pathname + '?_v=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+    })
+      .then(function(r) { return r.ok ? r.text() : null; })
+      .then(function(html) {
+        if (!html) return;
+        var m = html.match(/VERSION:\s*'([^']+)'/);
+        if (!m) return;
+        var versionGitHub = m[1];
+        // Si GitHub tiene una versión más nueva que la corriendo, actualizar el nodo
+        // y disparar la actualización — esto rompe el ciclo huevo-gallina.
+        if (_versionMasNueva(versionGitHub, APP_CONFIG.VERSION)) {
+          window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), versionGitHub)
+            .catch(function(){});
+          // El listener de Firebase lo va a detectar y actualizar automáticamente
+        }
+      })
+      .catch(function(){});
+  }, 3 * 60 * 1000);
 }
 
-// Compara dos versiones tipo 'v19.61-firebase' — devuelve true si a > b
+// Compara dos versiones tipo 'v19.66-firebase' — devuelve true si a > b
 function _versionMasNueva(a, b) {
   var na = parseInt((a||'').replace(/[^0-9]/g,'')) || 0;
   var nb = parseInt((b||'').replace(/[^0-9]/g,'')) || 0;
