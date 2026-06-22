@@ -1124,7 +1124,7 @@ tr:hover td{color:var(--text)}
                 <col style="width:32px">
               </colgroup>
               <thead><tr>
-                <th></th>
+                <th style="overflow:hidden"><input type="checkbox" onchange="toggleAll(this)"></th>
                 <th>CÓDIGO</th>
                 <th>PRODUCTO</th>
                 <th style="text-align:right">CANT.</th>
@@ -1132,16 +1132,6 @@ tr:hover td{color:var(--text)}
                 <th style="text-align:right">P. UNIT.</th>
                 <th style="text-align:right">% DESC.</th>
                 <th style="text-align:right">SUBTOTAL</th>
-                <th></th>
-              </tr></thead>
-              <thead><tr>
-                <th style="overflow:hidden"><input type="checkbox" onchange="toggleAll(this)"></th>
-                <th style="overflow:hidden">Código</th>
-                <th style="overflow:hidden">Producto</th>
-                <th style="text-align:right;overflow:hidden">Cant.</th>
-                <th style="text-align:right">Disponible</th>
-                <th style="text-align:right;overflow:hidden">P. unit.</th>
-                <th style="text-align:right;overflow:hidden">Subtotal</th>
                 <th></th>
               </tr></thead>
               <tbody id="det-body">
@@ -1171,7 +1161,14 @@ tr:hover td{color:var(--text)}
                 </div>
               </div>
             </div>
-            <div id="margen-ganancia-box" class="admin-only" style="margin-top:10px;padding:12px 14px;border-radius:var(--radius);display:none;width:100%;max-width:320px;box-sizing:border-box">
+          </div>
+          <!-- Margen de ganancia — oculto por defecto, solo admin, toggle manual -->
+          <div class="admin-only" style="margin-top:8px">
+            <button onclick="toggleMargenGanancia()" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:0">
+              <i class="ti ti-eye" id="margen-eye-icon" style="font-size:12px"></i>
+              <span id="margen-eye-lbl">Ver margen de ganancia</span>
+            </button>
+            <div id="margen-ganancia-box" style="display:none;margin-top:8px;padding:10px 14px;border-radius:var(--radius);box-sizing:border-box;max-width:320px">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Margen de ganancia</span>
                 <span id="margen-ganancia-pct" style="font-size:18px;font-weight:700">—</span>
@@ -6410,7 +6407,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.88-firebase',
+  VERSION: 'v19.89-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7230,6 +7227,17 @@ function calcTotals() {
 // Rojo (<15%): requiere autorización del admin para confirmar. Amarillo (15-20%): regular. Verde (>20%): ganancia perfecta.
 var ventaRequiereAutorizacion = false;
 var ventaAutorizadaPorAdmin = false;
+
+function toggleMargenGanancia() {
+  var box  = document.getElementById('margen-ganancia-box');
+  var ico  = document.getElementById('margen-eye-icon');
+  var lbl  = document.getElementById('margen-eye-lbl');
+  if (!box) return;
+  var visible = box.style.display !== 'none';
+  box.style.display = visible ? 'none' : '';
+  if (ico) ico.className = visible ? 'ti ti-eye' : 'ti ti-eye-off';
+  if (lbl) lbl.textContent = visible ? 'Ver margen de ganancia' : 'Ocultar margen';
+}
 
 function calcMargenGanancia() {
   var box = document.getElementById('margen-ganancia-box');
