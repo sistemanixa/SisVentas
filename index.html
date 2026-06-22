@@ -1298,9 +1298,16 @@ tr:hover td{color:var(--text)}
     <div class="card">
       <div class="card-head">
         <div>
-          <span id="vd-num" style="font-size:16px;font-weight:600;color:var(--text)"></span>
-          <span id="vd-cliente" style="font-size:13px;color:var(--text2);margin-left:10px"></span>
-          <span id="vd-fecha" style="font-size:12px;color:var(--text3);margin-left:8px"></span>
+          <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+            <span id="vd-num" style="font-size:16px;font-weight:600;color:var(--text)"></span>
+            <span id="vd-cliente" style="font-size:14px;font-weight:500;color:var(--text2)"></span>
+            <span id="vd-fecha" style="font-size:12px;color:var(--text3)"></span>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:5px;flex-wrap:wrap" id="vd-cli-info">
+            <span id="vd-cli-dir" style="font-size:12px;color:var(--text3);display:none"><i class="ti ti-map-pin" style="font-size:11px;margin-right:3px"></i><span></span></span>
+            <a id="vd-cli-tel" style="font-size:12px;color:var(--text3);text-decoration:none;display:none" href="#"><i class="ti ti-phone" style="font-size:11px;margin-right:3px"></i><span></span></a>
+            <a id="vd-cli-wp" style="font-size:12px;color:var(--green);text-decoration:none;display:none" href="#" target="_blank"><i class="ti ti-brand-whatsapp" style="font-size:11px;margin-right:3px"></i><span></span></a>
+          </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center">
           <!-- Badge de pago — clic abre dropdown para cambiar estado -->
@@ -6332,7 +6339,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.76-firebase',
+  VERSION: 'v19.77-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -19672,8 +19679,8 @@ function verVenta(id) {
   _block('ventas-detalle-view');
 
   // Header
-  _set('vd-num',v.id);
-  _set('vd-cliente',v.cliente);
+  _set('vd-num', v.id);
+  _set('vd-cliente', v.cliente);
   _set('vd-fecha', _mostrarFecha(v.fecha));
   document.getElementById('vd-badge-pago').innerHTML = ventaEstadoBadge(v.estadoPago);
   document.getElementById('vd-badge-inst').innerHTML = ventaEstadoInstBadge(v.estadoInst);
@@ -19681,6 +19688,44 @@ function verVenta(id) {
   document.getElementById('vd-ppto').value = v.ppto || '—';
   document.getElementById('vd-obs').value = v.obs || '—';
   document.getElementById('vd-ot').value = v.otId || '—';
+
+  // Datos del cliente — buscar en clientesData por id o nombre
+  var cliData = null;
+  if (v.idCliente && clientesData) {
+    cliData = clientesData.find(function(c){ return c.id == v.idCliente || c.id == v.clienteId; });
+  }
+  if (!cliData && v.cliente && clientesData) {
+    cliData = clientesData.find(function(c){ return (c.nombre||'').toLowerCase().trim() === (v.cliente||'').toLowerCase().trim(); });
+  }
+  var dirEl  = document.getElementById('vd-cli-dir');
+  var telEl  = document.getElementById('vd-cli-tel');
+  var wpEl   = document.getElementById('vd-cli-wp');
+  if (cliData) {
+    var dir = cliData.dir || cliData.direccion || '';
+    var tel = cliData.telefono || cliData.tel || '';
+    if (dirEl && dir) {
+      dirEl.style.display = '';
+      dirEl.querySelector('span').textContent = dir;
+    }
+    if (tel) {
+      var telNum = tel.replace(/[^0-9]/g,'');
+      if (telEl) {
+        telEl.style.display = '';
+        telEl.href = 'tel:' + telNum;
+        telEl.querySelector('span').textContent = tel;
+      }
+      if (wpEl) {
+        wpEl.style.display = '';
+        wpEl.href = 'https://wa.me/549' + telNum.replace(/^0/,'');
+        wpEl.querySelector('span').textContent = 'WhatsApp';
+      }
+    }
+  } else {
+    // Si no encontramos el cliente, ocultar los campos
+    if (dirEl) dirEl.style.display = 'none';
+    if (telEl) telEl.style.display = 'none';
+    if (wpEl)  wpEl.style.display  = 'none';
+  }
 
   // Timeline
   renderVentaTimeline('vd-timeline', v.estadoPago === 'pago_total' && v.estadoInst !== 'pendiente_inst' ? v.estadoInst : v.estadoPago);
