@@ -544,7 +544,7 @@ tr:hover td{color:var(--text)}
 .stock-warn{background:var(--amber-bg);color:var(--amber)}
 .stock-error{background:var(--red-bg);color:var(--red)}
 .stock-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
-.prod-search-drop{position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.08);overflow:hidden}
+.prod-search-drop{position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.08);overflow-y:auto;max-height:260px}
 .prod-drop-item{padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px;display:flex;justify-content:space-between;align-items:center}
 .prod-drop-item:last-child{border-bottom:none}
 .prod-drop-item:hover{background:var(--bg3)}
@@ -639,7 +639,7 @@ tr:hover td{color:var(--text)}
 /* ── SELECTOR DE PRODUCTO ── */
 .prod-selector{display:inline-flex;align-items:center;cursor:pointer;padding:4px 8px;border-radius:4px;font-size:13px;font-weight:500;color:var(--text);transition:background .12s;min-width:80px;user-select:none}
 .prod-selector:hover{background:var(--bg3)}
-.prod-search-drop{position:absolute;top:calc(100% + 2px);left:0;min-width:280px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);z-index:100;box-shadow:0 4px 20px rgba(0,0,0,.12);overflow:hidden}
+.prod-search-drop{position:absolute;top:calc(100% + 2px);left:0;min-width:280px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);z-index:100;box-shadow:0 4px 20px rgba(0,0,0,.12);overflow-y:auto;max-height:260px}
 .prod-drop-list{max-height:220px;overflow-y:auto}
 .prod-drop-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)}
 .prod-drop-item:last-child{border-bottom:none}
@@ -770,7 +770,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.41 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.44 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1101,7 +1101,7 @@ tr:hover td{color:var(--text)}
                 <th style="overflow:hidden">Código</th>
                 <th style="overflow:hidden">Producto</th>
                 <th style="text-align:right;overflow:hidden">Cant.</th>
-                <th style="text-align:right;overflow:hidden">Disponible</th>
+                <th style="text-align:right">Disponible</th>
                 <th style="text-align:right;overflow:hidden">P. unit.</th>
                 <th style="text-align:right;overflow:hidden">Subtotal</th>
                 <th></th>
@@ -2248,44 +2248,22 @@ tr:hover td{color:var(--text)}
         <!-- TAB: FACTURACIÓN -->
         <div id="cfg-facturacion" class="cfg-panel" style="display:none">
           <div class="card">
-            <div class="card-head"><span class="card-title">Datos del emisor — ARCA/AFIP</span></div>
-            <div class="form-grid">
-              <div class="fg"><label>CUIT</label>
-                <input id="cfg-cuit-emisor" placeholder="20-12345678-9" oninput="guardarConfigTFApp()"></div>
-              <div class="fg"><label>Razón social</label>
-                <input id="cfg-razon-social" placeholder="Nixa SRL" oninput="guardarConfigTFApp()"></div>
-              <div class="fg full"><label>Condición frente al IVA</label>
-                <select id="cfg-cond-iva" onchange="guardarConfigTFApp()">
-                  <option>Responsable inscripto</option>
-                  <option>Monotributista</option>
-                  <option>Exento</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-head"><span class="card-title">Facturación electrónica — AFIP</span></div>
+            <div class="card-head"><span class="card-title">Facturación electrónica — AFIP/ARCA</span></div>
             <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
               Proveedor: <strong>TusFacturasApp</strong>
-              <span id="tfapp-status" style="margin-left:8px;font-size:12px;color:var(--text3)">No configurado</span>
+              <span id="tfapp-status" style="margin-left:8px;font-size:12px;color:var(--green)">✓ Configurado</span>
+            </div>
+            <div style="font-size:13px;color:var(--text3);margin-bottom:16px;padding:10px 14px;background:var(--bg2);border-radius:var(--radius)">
+              Las credenciales de acceso (User Token, API Token, API Key) están guardadas de forma segura en Google Secret Manager — no se almacenan en el sistema ni son visibles acá. Solo configurá los datos de facturación a continuación.
             </div>
             <div class="form-grid">
-              <div class="fg"><label>User Token</label>
-                <input id="cfg-tfapp-usertoken" placeholder="Tu usertoken de TusFacturasApp"
-                  oninput="guardarConfigTFApp()"></div>
-              <div class="fg"><label>API Token</label>
-                <input id="cfg-tfapp-apitoken" placeholder="Tu apitoken"
-                  oninput="guardarConfigTFApp()"></div>
-              <div class="fg"><label>API Key</label>
-                <input id="cfg-tfapp-apikey" placeholder="Tu apikey"
-                  oninput="guardarConfigTFApp()"></div>
               <div class="fg"><label>Punto de venta</label>
-                <input id="cfg-tfapp-pv" type="number" value="1" min="1"
+                <input id="cfg-tfapp-pv" type="number" value="2" min="1"
                   oninput="guardarConfigTFApp()"></div>
               <div class="fg"><label>Código de provincia (AFIP)</label>
                 <input id="cfg-tfapp-provincia" placeholder="Ej: 2"
                   oninput="guardarConfigTFApp()">
-                <div style="font-size:11px;color:var(--text3);margin-top:4px">Buscalo en tu panel de TusFacturasApp → tablas de referencia → provincias</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:4px">Buenos Aires = 2. Verificalo en TusFacturasApp → tablas de referencia → provincias</div>
               </div>
               <div class="fg"><label>Rubro</label>
                 <input id="cfg-tfapp-rubro" placeholder="Seguridad y domótica"
@@ -2298,9 +2276,6 @@ tr:hover td{color:var(--text)}
               <a href="https://www.tusfacturas.app" target="_blank" class="btn btn-sm">
                 <i class="ti ti-external-link"></i> Ir a TusFacturasApp
               </a>
-            </div>
-            <div style="font-size:11px;color:var(--text3);margin-top:8px">
-              Necesitás cuenta en TusFacturasApp y certificado digital AFIP activo.
             </div>
           </div>
         </div>
@@ -5632,20 +5607,13 @@ function abrirUserPanel() {
 }
 
 
-// ══════════════════════════════════════════════
-// TUSfacturas APP — FACTURACIÓN ELECTRÓNICA AFIP/ARCA
-// Estructura de campos verificada contra la documentación oficial:
-// https://developers.tusfacturas.app/api-factura-electronica-afip-facturacion-ventas/referencia-api-afip-arca
-// ══════════════════════════════════════════════
+// Configuración de facturación — los tokens viven en Secret Manager (Cloud Functions),
+// acá solo se guardan los datos no-sensibles que viajan en cada comprobante.
 var TFAPP_CONFIG = {
-  usertoken:  'TU_USERTOKEN',   // Reemplazar con token de TusFacturasApp
-  apitoken:   'TU_APITOKEN',    // Reemplazar con API token
-  apikey:     'TU_APIKEY',      // Reemplazar con API key
-  endpoint:   'https://www.tusfacturas.app/app/api/v2/facturacion/nuevo',
-  punto_venta: 1,
-  provincia:  '', // código numérico AFIP de la provincia del emisor — completar en Configuración
-  rubro:      'Seguridad y domótica', // campo libre, solo para reportes internos de TusFacturasApp
-  activo: false  // Cambiar a true cuando tengas los tokens
+  punto_venta: 2,
+  provincia:   '', // código numérico AFIP — completar en Configuración → Facturación
+  rubro:       'Seguridad y domótica',
+  activo:      true // siempre activo — los tokens los maneja la Cloud Function
 };
 
 // Cloud Functions intermedias — evitan el bloqueo de CORS que tiene la API de
@@ -5765,48 +5733,24 @@ function confirmarEmisionFactura(ventaId) {
 
 // ── CONFIG TUSACTURAS APP ──
 function guardarConfigTFApp() {
-  var ut = document.getElementById('cfg-tfapp-usertoken');
-  var at = document.getElementById('cfg-tfapp-apitoken');
-  var ak = document.getElementById('cfg-tfapp-apikey');
-  var pv = document.getElementById('cfg-tfapp-pv');
-  var cuit = document.getElementById('cfg-cuit-emisor');
-  var rs   = document.getElementById('cfg-razon-social');
-  var ci   = document.getElementById('cfg-cond-iva');
+  var pv   = document.getElementById('cfg-tfapp-pv');
   var prov = document.getElementById('cfg-tfapp-provincia');
   var rub  = document.getElementById('cfg-tfapp-rubro');
-  if (ut) TFAPP_CONFIG.usertoken  = ut.value;
-  if (at) TFAPP_CONFIG.apitoken   = at.value;
-  if (ak) TFAPP_CONFIG.apikey     = ak.value;
-  if (pv) TFAPP_CONFIG.punto_venta = parseInt(pv.value) || 1;
-  if (cuit) TFAPP_CONFIG.cuit          = cuit.value;
-  if (rs)   TFAPP_CONFIG.razonSocial   = rs.value;
-  if (ci)   TFAPP_CONFIG.condicionIva  = ci.value;
-  if (prov) TFAPP_CONFIG.provincia     = prov.value;
-  if (rub)  TFAPP_CONFIG.rubro         = rub.value || 'Seguridad y domótica';
-  TFAPP_CONFIG.activo = !!(ut && ut.value && at && at.value && ak && ak.value);
-  var status = document.getElementById('tfapp-status');
-  if (status) {
-    status.textContent = TFAPP_CONFIG.activo ? '✓ Configurado' : 'Incompleto';
-    status.style.color = TFAPP_CONFIG.activo ? 'var(--green)' : 'var(--amber)';
-  }
-  // Guardar en Firebase para persistir
+  if (pv)   TFAPP_CONFIG.punto_venta = parseInt(pv.value) || 2;
+  if (prov) TFAPP_CONFIG.provincia   = prov.value;
+  if (rub)  TFAPP_CONFIG.rubro       = rub.value || 'Seguridad y domótica';
+  // Los tokens viven en Secret Manager — siempre activo
+  TFAPP_CONFIG.activo = true;
   if (window.fbDB) {
     window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/config/tfapp'), {
-      usertoken:    TFAPP_CONFIG.usertoken,
-      apitoken:     TFAPP_CONFIG.apitoken,
-      apikey:       TFAPP_CONFIG.apikey,
-      punto_venta:  TFAPP_CONFIG.punto_venta,
-      cuit:         TFAPP_CONFIG.cuit || '',
-      razonSocial:  TFAPP_CONFIG.razonSocial || '',
-      condicionIva: TFAPP_CONFIG.condicionIva || '',
-      provincia:    TFAPP_CONFIG.provincia || '',
-      rubro:        TFAPP_CONFIG.rubro || ''
+      punto_venta: TFAPP_CONFIG.punto_venta,
+      provincia:   TFAPP_CONFIG.provincia || '',
+      rubro:       TFAPP_CONFIG.rubro || ''
     });
   }
 }
 
 async function testTFApp() {
-  if (!TFAPP_CONFIG.usertoken) { notify('Completá los tokens primero'); return; }
   notify('Probando conexión...');
   try {
     var resp = await fetch(SISVENTAS_FUNCTIONS.testTFApp, {
@@ -5842,20 +5786,10 @@ document.addEventListener('firebase-ready', function() {
     .then(function(snap) {
       var cfg = snap.val();
       if (!cfg) return;
-      TFAPP_CONFIG.usertoken   = cfg.usertoken   || '';
-      TFAPP_CONFIG.apitoken    = cfg.apitoken    || '';
-      TFAPP_CONFIG.apikey      = cfg.apikey      || '';
-      TFAPP_CONFIG.punto_venta = cfg.punto_venta || 1;
-      TFAPP_CONFIG.cuit          = cfg.cuit          || '';
-      TFAPP_CONFIG.razonSocial   = cfg.razonSocial   || '';
-      TFAPP_CONFIG.condicionIva  = cfg.condicionIva  || '';
-      TFAPP_CONFIG.provincia     = cfg.provincia     || '';
-      TFAPP_CONFIG.rubro         = cfg.rubro         || 'Seguridad y domótica';
-      TFAPP_CONFIG.activo = !!(cfg.usertoken && cfg.apitoken && cfg.apikey);
-      // Rellenar los inputs si están visibles — usamos recargarConfigTFAppEnUI() para no
-      // duplicar esta lógica; cubre tanto el caso de abrir la pestaña después como el caso
-      // de ya estar parado en la pestaña Facturación cuando estos datos terminan de llegar
-      // (por ejemplo, al refrescar la página estando ya en Configuración → Facturación).
+      TFAPP_CONFIG.punto_venta = cfg.punto_venta || 2;
+      TFAPP_CONFIG.provincia   = cfg.provincia   || '';
+      TFAPP_CONFIG.rubro       = cfg.rubro       || 'Seguridad y domótica';
+      TFAPP_CONFIG.activo      = true; // los tokens viven en Secret Manager, siempre activo
       if (typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
     });
 });
@@ -6116,7 +6050,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.41-firebase',
+  VERSION: 'v19.44-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6135,7 +6069,16 @@ function chequearVersionNueva() {
       var m = html.match(/VERSION:\s*'([^']+)'/);
       if (!m) return;
       var versionServidor = m[1];
-      if (versionServidor !== APP_CONFIG.VERSION) {
+      if (versionServidor === APP_CONFIG.VERSION) return;
+      // Hay versión nueva — si el usuario no está en medio de una operación,
+      // recargar automáticamente para que nunca vea datos desactualizados.
+      var hayVentaAbierta = document.getElementById('page-venta') && document.getElementById('page-venta').classList.contains('active');
+      var hayCliCargado   = document.getElementById('cli-inp') && document.getElementById('cli-inp').value;
+      if (!hayVentaAbierta || !hayCliCargado) {
+        // Recarga silenciosa — el usuario ni se entera
+        window.location.href = window.location.pathname + '?cb=' + Date.now();
+      } else {
+        // Está en una venta a mitad — mostrar aviso y dejar que decida cuándo actualizar
         mostrarAvisoVersionNueva(versionServidor);
       }
     })
@@ -6794,18 +6737,25 @@ function confirmarVenta() {
     if (stockData[cod]) stockData[cod].reservado += qty;
   });
 
-  // Construir objeto venta
-  var cli = document.getElementById('cli-inp').value;
-  var idCliEl = document.getElementById('id-cli');
-  var idCliVal = idCliEl ? idCliEl.value.trim() : '';
-  var dir = (_get('cli-dir-hidden')||{}).value || 'Sin definir';
+  // Calcular próximo ID buscando el máximo real de ventasList, no el length
+  var maxId = 0;
+  (ventasList || []).forEach(function(v) {
+    var n = parseInt(String(v.idOriginal || v.id || '').replace(/[^0-9]/g, '')) || 0;
+    if (n > maxId) maxId = n;
+  });
+  var hoy = new Date();
+  var dd = String(hoy.getDate()).padStart(2,'0');
+  var mm = String(hoy.getMonth()+1).padStart(2,'0');
+  var aaaa = hoy.getFullYear();
+  var fechaHoy = dd + '/' + mm + '/' + aaaa;
+
   var nuevaVenta = {
-    id: '#' + String(ventasList.length + 43).padStart(5,'0'),
+    id: '#' + String(maxId + 1).padStart(5,'0'),
     cliente:  cli,
     idCliente: idCliVal,        // ← ID real del cliente para filtrar en historial
     clienteId: idCliVal,        // ← campo alternativo para compatibilidad
     empleado: (document.querySelector('#venta-empleado')||{}).value || '',
-    fecha: new Date().toLocaleDateString('es-AR'),
+    fecha: fechaHoy,
     estadoPago: 'pendiente_pago',
     estadoInst: 'pendiente_inst',
     total: 0, subtotal: 0, iva: 0, descuento: 0,
@@ -6827,7 +6777,7 @@ function confirmarVenta() {
     }),
     pagos: [],
     obs: (document.getElementById('venta-obs')||{}).value || '',
-    audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: 'Sistema', accion: 'Venta confirmada' }]
+    audit: [{ fecha: fechaHoy, usuario: 'Sistema', accion: 'Venta confirmada' }]
   };
   nuevaVenta.subtotal = nuevaVenta.items.reduce(function(s,i){ return s+i.sub; }, 0);
   nuevaVenta.iva = Math.round(nuevaVenta.subtotal * 0.21);
@@ -6853,20 +6803,22 @@ function confirmarVenta() {
   nuevaVenta.margenAutorizadoPorAdmin = ventaAutorizadaPorAdmin;
 
   // Guardar en Firebase
+  // Guardar en Firebase y esperar la confirmación real antes de redirigir
+  var guardarPromise;
   if (typeof fbGuardarVenta === 'function') {
-    fbGuardarVenta(nuevaVenta);
+    guardarPromise = fbGuardarVenta(nuevaVenta);
   } else {
     ventasList.unshift(nuevaVenta);
+    guardarPromise = Promise.resolve();
   }
   if (typeof registrarActividad === 'function') {
     registrarActividad('Venta creada', nuevaVenta.id + ' — ' + cli + ' — $' + Math.round(nuevaVenta.total).toLocaleString('es-AR'));
   }
 
-  // Generar OT
+  // Generar OT vinculada
   if (typeof generarOTdesdeVenta === 'function') generarOTdesdeVenta(nuevaVenta.id, cli, dir);
-  notify('Venta ' + nuevaVenta.id + ' confirmada ✓');
 
-  // Reset
+  // Reset del formulario
   setTimeout(function() {
     document.getElementById('det-body').innerHTML = '';
     document.getElementById('cli-inp').value = '';
@@ -6876,10 +6828,86 @@ function confirmarVenta() {
     ventaAutorizadaPorAdmin = false;
     ventaRequiereAutorizacion = false;
     if (typeof inicializarFilasVenta === 'function') inicializarFilasVenta();
-  }, 1000);
+  }, 300);
+
+  // Una vez guardado en Firebase, ir al detalle de la venta recién creada
+  guardarPromise.then(function() {
+    // Buscar el fbKey real de la venta recién guardada (Firebase la habrá agregado a ventasList)
+    var ventaGuardada = (ventasList || []).find(function(v) { return v.id === nuevaVenta.id; });
+    var fbKey = ventaGuardada ? ventaGuardada.fbKey : null;
+    if (fbKey) {
+      window._ventaActualFbKey = fbKey;
+      window._ventaActualId = nuevaVenta.id;
+    }
+    // Mostrar modal de confirmación con acciones rápidas
+    mostrarConfirmacionVenta(nuevaVenta, fbKey);
+  }).catch(function() {
+    // Si falla el guardado, mostrar igual el notify básico
+    notify('Venta ' + nuevaVenta.id + ' confirmada ✓');
+  });
 }
 
 // Inicializar filas al cargar nueva venta
+// Modal de confirmación que aparece al guardar una venta, con acciones rápidas.
+// Reemplaza el notify simple y da acceso inmediato al detalle y al cobro.
+function mostrarConfirmacionVenta(venta, fbKey) {
+  // Remover cualquier modal previo por las dudas
+  var prev = document.getElementById('modal-venta-confirmada');
+  if (prev) prev.remove();
+
+  var div = document.createElement('div');
+  div.id = 'modal-venta-confirmada';
+  div.style.cssText = 'position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)';
+  div.innerHTML =
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:28px 32px;max-width:420px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.4);text-align:center">' +
+      '<div style="font-size:32px;margin-bottom:8px">✅</div>' +
+      '<div style="font-weight:700;font-size:18px;margin-bottom:4px">Venta ' + escapeHTML(venta.id) + ' confirmada</div>' +
+      '<div style="color:var(--text3);font-size:13px;margin-bottom:4px">' + escapeHTML(venta.cliente) + '</div>' +
+      '<div style="font-size:22px;font-weight:700;color:var(--green);margin-bottom:20px">$' + Math.round(venta.total).toLocaleString('es-AR') + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px">' +
+        '<button class="btn btn-primary" onclick="cerrarConfirmacionVenta();if(typeof showPage===\'function\')showPage(\'ventas\');setTimeout(function(){verVenta(\'' + escapeHTML(venta.id) + '\')},300)" style="width:100%;padding:12px">' +
+          '<i class="ti ti-eye"></i> Ver detalle de la venta' +
+        '</button>' +
+        '<button class="btn" onclick="cerrarConfirmacionVenta();abrirCobroRapido(\'' + escapeHTML(venta.id) + '\',' + Math.round(venta.total) + ',\'' + escapeHTML(venta.cliente) + '\')" style="width:100%;padding:12px;border-color:var(--green);color:var(--green)">' +
+          '<i class="ti ti-cash"></i> Cobrar ahora' +
+        '</button>' +
+        '<button class="btn" onclick="cerrarConfirmacionVenta()" style="width:100%;padding:10px;color:var(--text3);border-color:var(--border)">' +
+          'Cargar otra venta' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(div);
+  // Cerrar al tocar el fondo
+  div.addEventListener('click', function(e) { if (e.target === div) cerrarConfirmacionVenta(); });
+}
+
+function cerrarConfirmacionVenta() {
+  var m = document.getElementById('modal-venta-confirmada');
+  if (m) m.remove();
+}
+
+// Abre el módulo de cobranzas con la venta precargada
+function abrirCobroRapido(ventaId, total, cliente) {
+  // Navegar al módulo de cobranzas
+  if (typeof showPage === 'function') showPage('cobranzas');
+  // Precargar datos de la venta en el formulario de cobro
+  setTimeout(function() {
+    var selVenta = document.getElementById('cob-venta');
+    var inpMonto = document.getElementById('cob-monto');
+    var inpCliente = document.getElementById('cob-cliente');
+    if (selVenta) {
+      // Buscar la opción correcta en el select de ventas
+      Array.from(selVenta.options).forEach(function(opt) {
+        if (opt.value === ventaId || opt.text.includes(ventaId)) selVenta.value = opt.value;
+      });
+      // Disparar el cambio para que se carguen los datos dependientes
+      selVenta.dispatchEvent(new Event('change'));
+    }
+    if (inpMonto) inpMonto.value = total;
+    if (inpCliente) inpCliente.value = cliente;
+  }, 400);
+}
+
 function inicializarFilasVenta() {
   const body = document.getElementById('det-body');
   if (!body) return;
@@ -6890,7 +6918,14 @@ function inicializarFilasVenta() {
 
   // Mostrar el próximo número de venta (mismo cálculo que usa confirmarVenta)
   var numPreview = document.getElementById('vf-numero-preview');
-  if (numPreview) numPreview.value = '#' + String((ventasList||[]).length + 43).padStart(5,'0');
+  if (numPreview) {
+    var maxIdPreview = 0;
+    (ventasList||[]).forEach(function(v) {
+      var n = parseInt(String(v.idOriginal||v.id||'').replace(/[^0-9]/g,'')) || 0;
+      if (n > maxIdPreview) maxIdPreview = n;
+    });
+    numPreview.value = '#' + String(maxIdPreview + 1).padStart(5,'0');
+  }
 
   // Re-aplicar preselección de empleado por si el usuario ya estaba logueado
   // antes de que cargaran los datos de empleados
@@ -8163,29 +8198,12 @@ function cargosEliminar(id) {
 }
 
 function recargarConfigTFAppEnUI() {
-  var ut = document.getElementById('cfg-tfapp-usertoken');
-  var at = document.getElementById('cfg-tfapp-apitoken');
-  var ak = document.getElementById('cfg-tfapp-apikey');
-  var pv = document.getElementById('cfg-tfapp-pv');
-  var cuit = document.getElementById('cfg-cuit-emisor');
-  var rs   = document.getElementById('cfg-razon-social');
-  var ci   = document.getElementById('cfg-cond-iva');
+  var pv   = document.getElementById('cfg-tfapp-pv');
   var prov = document.getElementById('cfg-tfapp-provincia');
   var rub  = document.getElementById('cfg-tfapp-rubro');
-  if (ut) ut.value = TFAPP_CONFIG.usertoken   || '';
-  if (at) at.value = TFAPP_CONFIG.apitoken    || '';
-  if (ak) ak.value = TFAPP_CONFIG.apikey      || '';
-  if (pv) pv.value = TFAPP_CONFIG.punto_venta || 1;
-  if (cuit) cuit.value = TFAPP_CONFIG.cuit        || '';
-  if (rs)   rs.value   = TFAPP_CONFIG.razonSocial || '';
-  if (ci && TFAPP_CONFIG.condicionIva) ci.value = TFAPP_CONFIG.condicionIva;
+  if (pv)   pv.value   = TFAPP_CONFIG.punto_venta || 2;
   if (prov) prov.value = TFAPP_CONFIG.provincia || '';
   if (rub)  rub.value  = TFAPP_CONFIG.rubro || 'Seguridad y domótica';
-  var status = document.getElementById('tfapp-status');
-  if (status) {
-    status.textContent = TFAPP_CONFIG.activo ? '✓ Configurado' : 'No configurado';
-    status.style.color = TFAPP_CONFIG.activo ? 'var(--green)' : 'var(--text3)';
-  }
 }
 
 // ── PERMISOS POR ROL ──
