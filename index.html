@@ -6339,7 +6339,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.77-firebase',
+  VERSION: 'v19.78-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6362,8 +6362,8 @@ const APP_CONFIG = Object.freeze({
 
 var _listenerVersionActivo = false;
 var _versionNuevaDisponible = null;
+var _actualizandoAhora = false; // evitar disparar dos veces
 
-// Muestra botón de actualización en la ruedita con badge verde
 function _mostrarBotonActualizacion(versionNueva) {
   _versionNuevaDisponible = versionNueva;
   var verLbl = versionNueva.replace('-firebase','');
@@ -6373,65 +6373,24 @@ function _mostrarBotonActualizacion(versionNueva) {
   if (lbl) lbl.textContent = 'Actualizar a ' + verLbl;
   if (btn) btn.style.display = '';
   if (badge) badge.style.display = '';
-  var gear = document.getElementById('btn-gear');
-  if (gear) gear.title = 'Actualización disponible: ' + verLbl;
 }
 
-// Compara dos versiones — devuelve true si a > b
 function _versionMasNueva(a, b) {
   var na = parseInt((a||'').replace(/[^0-9]/g,'')) || 0;
   var nb = parseInt((b||'').replace(/[^0-9]/g,'')) || 0;
   return na > nb;
 }
 
-function iniciarListenerVersion() {
-  if (_listenerVersionActivo) return;
-  if (!window.fbDB) return;
-  _listenerVersionActivo = true;
-
-  // MÉTODO 2: Listener Firebase — tiempo real via WebSocket
-  window.fbOnValue(
-    window.fbRef(window.fbDB, 'sisventas/config/version'),
-    function(snap) {
-      var versionFirebase = snap.val();
-      if (!versionFirebase || _versionMasNueva(APP_CONFIG.VERSION, versionFirebase)) {
-        window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), APP_CONFIG.VERSION)
-          .catch(function(){});
-        return;
-      }
-      if (_versionMasNueva(versionFirebase, APP_CONFIG.VERSION)) {
-        actualizarAutomaticamente(APP_CONFIG.VERSION, versionFirebase);
-      }
-    }
-  );
-
-  // MÉTODO 3: Polling GitHub cada 3 min — rompe el ciclo huevo-gallina
-  setInterval(function() {
-    fetch(window.location.pathname + '?_v=' + Date.now(), {
-      cache: 'no-store',
-      headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
-    })
-      .then(function(r) { return r.ok ? r.text() : null; })
-      .then(function(html) {
-        if (!html) return;
-        var m = html.match(/VERSION:\s*'([^']+)'/);
-        if (!m) return;
-        if (_versionMasNueva(m[1], APP_CONFIG.VERSION)) {
-          if (window.fbDB) window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), m[1]).catch(function(){});
-        }
-      })
-      .catch(function(){});
-  }, 3 * 60 * 1000);
+// Punto de entrada único para disparar la actualización
+function _dispararActualizacion(versionNueva) {
+  if (_actualizandoAhora) return;
+  if (!_versionMasNueva(versionNueva, APP_CONFIG.VERSION)) return;
+  _actualizandoAhora = true;
+  actualizarAutomaticamente(APP_CONFIG.VERSION, versionNueva);
 }
 
-function chequearVersionNueva() {} // mantenida por compatibilidad
-
-var _chequeoVersionIniciado = false;
-function iniciarChequeoPeriodicoVersion() {
-  if (_chequeoVersionIniciado) return;
-  _chequeoVersionIniciado = true;
-
-  // MÉTODO 1: Chequeo inmediato contra GitHub — corre apenas se llama (login o firebase-ready)
+// Chequea GitHub directamente y actualiza si hay versión nueva
+function _chequearGitHub(callback) {
   fetch(window.location.pathname + '?_v=' + Date.now(), {
     cache: 'no-store',
     headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
@@ -6443,13 +6402,57 @@ function iniciarChequeoPeriodicoVersion() {
       if (!m) return;
       var vGitHub = m[1];
       if (_versionMasNueva(vGitHub, APP_CONFIG.VERSION)) {
-        if (window.fbDB) window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), vGitHub).catch(function(){});
-        actualizarAutomaticamente(APP_CONFIG.VERSION, vGitHub);
+        // Actualizar nodo Firebase para que otros clientes lo detecten
+        if (window.fbDB) {
+          window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), vGitHub).catch(function(){});
+        }
+        // Disparar la actualización directamente — no esperar al listener
+        _dispararActualizacion(vGitHub);
       }
+      if (callback) callback(vGitHub);
     })
     .catch(function(){});
+}
 
-  // MÉTODO 2: Listener Firebase en tiempo real
+function iniciarListenerVersion() {
+  if (_listenerVersionActivo) return;
+  if (!window.fbDB) return;
+  _listenerVersionActivo = true;
+
+  // Listener Firebase — detecta cuando OTRO cliente actualiza el nodo
+  window.fbOnValue(
+    window.fbRef(window.fbDB, 'sisventas/config/version'),
+    function(snap) {
+      var versionFirebase = snap.val();
+      if (!versionFirebase) return;
+      // Si Firebase tiene una versión más nueva que la corriendo → actualizar
+      if (_versionMasNueva(versionFirebase, APP_CONFIG.VERSION)) {
+        _dispararActualizacion(versionFirebase);
+      }
+      // Si la corriendo es más nueva que Firebase → actualizar el nodo
+      // (no volver atrás ni hacer return — dejar que el listener siga activo)
+      if (_versionMasNueva(APP_CONFIG.VERSION, versionFirebase)) {
+        window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), APP_CONFIG.VERSION)
+          .catch(function(){});
+      }
+    }
+  );
+
+  // Polling GitHub cada 2 min — respaldo principal contra el CDN de GitHub Pages
+  setInterval(function() { _chequearGitHub(); }, 2 * 60 * 1000);
+}
+
+function chequearVersionNueva() {} // compatibilidad
+
+var _chequeoVersionIniciado = false;
+function iniciarChequeoPeriodicoVersion() {
+  if (_chequeoVersionIniciado) return;
+  _chequeoVersionIniciado = true;
+
+  // Chequeo inmediato contra GitHub al arrancar
+  _chequearGitHub();
+
+  // Listener Firebase en tiempo real
   if (window.fbDB) iniciarListenerVersion();
 }
 
