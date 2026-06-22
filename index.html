@@ -796,7 +796,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v19.97 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v19.98 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6537,7 +6537,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.97-firebase',
+  VERSION: 'v19.98-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6709,6 +6709,7 @@ function actualizarAutomaticamente(versionActual, versionNueva) {
   if (paginaActual) {
     try { sessionStorage.setItem('sisventas_pagina_previa', paginaActual); } catch(e){}
   }
+  try { sessionStorage.setItem('sisventas_version_previa', APP_CONFIG.VERSION); } catch(e){}
 
   setTimeout(function() {
     if ('serviceWorker' in navigator) {
@@ -6734,18 +6735,71 @@ function actualizarAutomaticamente(versionActual, versionNueva) {
 // Al iniciar, si venimos de una actualización automática, volver al módulo anterior
 function restaurarPaginaPostActualizacion() {
   try {
-    var pagPrevia = sessionStorage.getItem('sisventas_pagina_previa');
-    if (pagPrevia) {
-      sessionStorage.removeItem('sisventas_pagina_previa');
-      // Esperar a que el sistema esté inicializado antes de navegar
-      setTimeout(function() {
-        if (typeof showPage === 'function') {
-          var btn = document.querySelector('[onclick*="' + pagPrevia + '"]');
-          showPage(pagPrevia, btn);
-        }
-      }, 1500);
-    }
+    var pagPrevia    = sessionStorage.getItem('sisventas_pagina_previa');
+    var verPrevia    = sessionStorage.getItem('sisventas_version_previa');
+    if (!pagPrevia) return;
+    sessionStorage.removeItem('sisventas_pagina_previa');
+    sessionStorage.removeItem('sisventas_version_previa');
+
+    // Navegar al módulo donde estaba el usuario
+    setTimeout(function() {
+      if (typeof showPage === 'function') {
+        var btn = document.querySelector('[onclick*="' + pagPrevia + '"]');
+        showPage(pagPrevia, btn);
+      }
+      // Mostrar popup de actualización exitosa
+      _mostrarPopupActualizacion(verPrevia, APP_CONFIG.VERSION);
+    }, 1500);
   } catch(e){}
+}
+
+function _mostrarPopupActualizacion(verAnterior, verNueva) {
+  var prev = document.getElementById('popup-actualizado');
+  if (prev) prev.remove();
+
+  var desdeStr = verAnterior ? verAnterior.replace('-firebase','') : '';
+  var hastaStr = (verNueva||'').replace('-firebase','');
+
+  var overlay = document.createElement('div');
+  overlay.id = 'popup-actualizado';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.35)';
+  overlay.innerHTML =
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:32px 36px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5);text-align:center;position:relative;border:0.5px solid var(--border2)">' +
+      // Ícono animado
+      '<div style="width:64px;height:64px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">' +
+        '<i class="ti ti-rocket" style="font-size:28px;color:var(--green)"></i>' +
+      '</div>' +
+      // Título
+      '<div style="font-weight:700;font-size:20px;color:var(--text);margin-bottom:6px">¡Sistema actualizado!</div>' +
+      '<div style="font-size:13px;color:var(--text3);margin-bottom:20px">SisVentas se actualizó automáticamente con las últimas mejoras de Nixa</div>' +
+      // Versiones
+      (desdeStr ?
+        '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;padding:10px 16px;background:var(--bg3);border-radius:var(--radius)">' +
+          '<span style="font-family:monospace;font-size:13px;color:var(--text3)">' + desdeStr + '</span>' +
+          '<i class="ti ti-arrow-right" style="color:var(--green);font-size:14px"></i>' +
+          '<span style="font-family:monospace;font-size:14px;font-weight:700;color:var(--green)">' + hastaStr + '</span>' +
+        '</div>'
+      : '<div style="font-family:monospace;font-size:16px;font-weight:700;color:var(--green);margin-bottom:20px">' + hastaStr + '</div>') +
+      // Mensaje
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:24px;line-height:1.6">' +
+        'Todo funcionando correctamente.<br>Seguís exactamente donde estabas.' +
+      '</div>' +
+      // Botón
+      '<button onclick="document.getElementById(\'popup-actualizado\').remove()" ' +
+        'style="width:100%;padding:12px;border-radius:var(--radius);border:none;background:var(--green);color:#080e1a;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;letter-spacing:.3px">' +
+        '✓ Entendido, ¡gracias!' +
+      '</button>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+  // Cerrar con Escape
+  document.addEventListener('keydown', function handler(e) {
+    if (e.key === 'Escape') {
+      var p = document.getElementById('popup-actualizado');
+      if (p) p.remove();
+      document.removeEventListener('keydown', handler);
+    }
+  });
 }
 
 function mostrarAvisoVersionNueva(versionNueva) {
