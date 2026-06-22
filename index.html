@@ -792,7 +792,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.59 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.62 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -3744,7 +3744,7 @@ tr:hover td{color:var(--text)}
               <input class="search-input" style="width:100%" placeholder="Buscar empleado..." oninput="buscarEmpleado(this.value)">
             </div>
             <table id="emp-tbl">
-              <thead><tr><th>ID</th><th>Apellido y nombre</th><th>Cargo</th><th style="text-align:right">Mensual (cargo)</th><th style="text-align:right">Hs ex (valor)</th><th style="text-align:right">Comisión (mes)</th><th>Fecha de inicio</th><th style="text-align:right">Estado</th><th></th></tr></thead>
+              <thead><tr><th>ID</th><th>Apellido y nombre</th><th>Cargo</th><th style="text-align:right">Mensual (cargo)</th><th style="text-align:right">Hs extra mes</th><th style="text-align:right">Comisión (mes)</th><th>Fecha de inicio</th><th style="text-align:right">Estado</th><th></th></tr></thead>
               <tbody id="emp-tbody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr></tbody>
             </table>
           </div>
@@ -5096,6 +5096,15 @@ function fbCargarEmpleados() {
   });
 }
 
+// Guardar horas extra del mes directamente desde la tabla, sin abrir el modal completo
+function guardarHsExtraEmpleado(fbKey, valor) {
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var hs = parseFloat(valor) || 0;
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKey), { hsExtraMes: hs })
+    .then(function() { notify('✓ Hs. extra actualizadas'); })
+    .catch(function(e) { notify('Error: ' + e.message); });
+}
+
 function renderTablaEmpleados() {
   var tbody = document.getElementById('emp-tbody');
   if (!tbody) return;
@@ -5124,12 +5133,17 @@ function renderTablaEmpleados() {
       '<td style="font-weight:500">'+escapeHTML(e.nombre||'—')+'</td>' +
       '<td><span class="badge '+catColor+'">'+escapeHTML(catLabel)+'</span></td>' +
       '<td style="text-align:right">'+(cargoInfo?'$'+Math.round(mensual).toLocaleString('es-AR'):'—')+'</td>' +
-      '<td style="text-align:right;color:var(--amber)">' +
-        (cargoInfo && hsExtraMes > 0
-          ? '<span title="'+hsExtraMes+' hs × $'+Math.round(valorHsEx).toLocaleString('es-AR')+'/h">$'+Math.round(montoHsEx).toLocaleString('es-AR')+'</span>'
-          : cargoInfo
-            ? '<span style="color:var(--text3);font-size:11px">'+hsExtraMes+' hs</span>'
-            : '—') +
+      '<td style="text-align:right" onclick="event.stopPropagation()">' +
+        '<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">' +
+          '<input type="number" value="' + hsExtraMes + '" min="0" step="0.5" ' +
+            'style="width:52px;text-align:right;padding:3px 5px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);font-size:12px;font-family:inherit" ' +
+            'title="Horas extra este mes" ' +
+            'onchange="guardarHsExtraEmpleado(\'' + e.fbKey + '\',this.value)" ' +
+            'onclick="event.stopPropagation()">' +
+          (cargoInfo && valorHsEx > 0 && hsExtraMes > 0
+            ? '<span style="font-size:11px;color:var(--amber);white-space:nowrap" title="' + hsExtraMes + ' hs × $' + Math.round(valorHsEx).toLocaleString('es-AR') + '/h">= $' + Math.round(montoHsEx).toLocaleString('es-AR') + '</span>'
+            : '<span style="font-size:11px;color:var(--text3)">hs</span>') +
+        '</div>' +
       '</td>' +
       '<td style="text-align:right;color:var(--green)">'+(comision?'$'+Math.round(comision).toLocaleString('es-AR'):'—')+'</td>' +
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(e.fechaIngreso||'—')+'</td>' +
@@ -6098,7 +6112,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.59-firebase',
+  VERSION: 'v19.62-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6130,13 +6144,29 @@ function iniciarListenerVersion() {
     window.fbRef(window.fbDB, 'sisventas/config/version'),
     function(snap) {
       var versionFirebase = snap.val();
-      if (!versionFirebase) return;
-      // Si la versión en Firebase es distinta a la que está corriendo, actualizar
-      if (versionFirebase !== APP_CONFIG.VERSION) {
+
+      // Si el nodo está vacío o tiene una versión MÁS VIEJA que la que está corriendo,
+      // actualizarlo — esto cubre el caso de publicar varias versiones seguidas sin
+      // loguearse como admin entre ellas.
+      if (!versionFirebase || _versionMasNueva(APP_CONFIG.VERSION, versionFirebase)) {
+        window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), APP_CONFIG.VERSION)
+          .catch(function(){});
+        return; // no actualizar hasta que el nodo refleje la versión real
+      }
+
+      // Si Firebase tiene una versión más nueva que la que está corriendo, actualizar
+      if (_versionMasNueva(versionFirebase, APP_CONFIG.VERSION)) {
         actualizarAutomaticamente(APP_CONFIG.VERSION, versionFirebase);
       }
     }
   );
+}
+
+// Compara dos versiones tipo 'v19.61-firebase' — devuelve true si a > b
+function _versionMasNueva(a, b) {
+  var na = parseInt((a||'').replace(/[^0-9]/g,'')) || 0;
+  var nb = parseInt((b||'').replace(/[^0-9]/g,'')) || 0;
+  return na > nb;
 }
 
 // Mantener chequearVersionNueva como fallback por compatibilidad
@@ -7060,19 +7090,21 @@ function mostrarConfirmacionVenta(venta, fbKey) {
   div.style.cssText = 'position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)';
   div.innerHTML =
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:28px 32px;max-width:420px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.4);text-align:center">' +
-      '<div style="font-size:32px;margin-bottom:8px">✅</div>' +
+      '<div style="width:48px;height:48px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">' +
+        '<i class="ti ti-check" style="font-size:24px;color:var(--green)"></i>' +
+      '</div>' +
       '<div style="font-weight:700;font-size:18px;margin-bottom:4px">Venta ' + escapeHTML(venta.id) + ' confirmada</div>' +
       '<div style="color:var(--text3);font-size:13px;margin-bottom:4px">' + escapeHTML(venta.cliente) + '</div>' +
       '<div style="font-size:22px;font-weight:700;color:var(--green);margin-bottom:20px">$' + Math.round(venta.total).toLocaleString('es-AR') + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px">' +
-        '<button class="btn btn-primary" onclick="cerrarConfirmacionVenta();if(typeof showPage===\'function\')showPage(\'ventas\');setTimeout(function(){verVenta(\'' + escapeHTML(venta.id) + '\')},300)" style="width:100%;padding:12px">' +
+        '<button class="btn btn-primary" onclick="cerrarConfirmacionVenta();if(typeof showPage===\'function\')showPage(\'ventas\');setTimeout(function(){verVenta(\'' + escapeHTML(venta.id) + '\')},600)" style="width:100%;padding:12px">' +
           '<i class="ti ti-eye"></i> Ver detalle de la venta' +
         '</button>' +
         '<button class="btn" onclick="cerrarConfirmacionVenta();abrirCobroRapido(\'' + escapeHTML(venta.id) + '\',' + Math.round(venta.total) + ',\'' + escapeHTML(venta.cliente) + '\')" style="width:100%;padding:12px;border-color:var(--green);color:var(--green)">' +
           '<i class="ti ti-cash"></i> Cobrar ahora' +
         '</button>' +
         '<button class="btn" onclick="cerrarConfirmacionVenta()" style="width:100%;padding:10px;color:var(--text3);border-color:var(--border)">' +
-          'Cargar otra venta' +
+          '<i class="ti ti-plus"></i> Cargar otra venta' +
         '</button>' +
       '</div>' +
     '</div>';
@@ -8591,6 +8623,24 @@ function _parsearFechaFlexible(f) {
     return new Date(parseInt(partes[2]), parseInt(partes[1])-1, parseInt(partes[0]));
   }
   return null;
+}
+
+// Normaliza cualquier fecha (DD/MM/YYYY o YYYY-MM-DD) a DD/MM/YYYY para mostrar
+function _mostrarFecha(f) {
+  if (!f) return '—';
+  if (f.indexOf('/') !== -1) {
+    // Ya es DD/MM/YYYY — asegurar ceros (ej: 21/6/2026 → 21/06/2026)
+    var p = f.split('/');
+    if (p.length === 3) return p[0].padStart(2,'0') + '/' + p[1].padStart(2,'0') + '/' + p[2];
+    return f;
+  }
+  if (f.indexOf('-') !== -1) {
+    // YYYY-MM-DD → DD/MM/YYYY
+    var q = f.split('-');
+    if (q.length === 3) return q[2].padStart(2,'0') + '/' + q[1].padStart(2,'0') + '/' + q[0];
+    return f;
+  }
+  return f;
 }
 
 function calcRentabilidad() {
@@ -18071,7 +18121,7 @@ function renderKPIsDashboard() {
         return '<tr style="cursor:pointer" onclick="verDetalleVentaDesdeId(\'' + vid + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
           '<td style="font-family:monospace;font-size:12px">' + vid + '</td>' +
           '<td>' + escapeHTML(v.cliente||'') + '</td>' +
-          '<td class="hide-mobile" style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
+          '<td class="hide-mobile" style="color:var(--text3)">' + _mostrarFecha(v.fecha) + '</td>' +
           '<td style="text-align:right">$' + subtotal.toLocaleString('es-AR') + '</td>' +
           '<td style="text-align:right;color:var(--text3)">$' + iva.toLocaleString('es-AR') + '</td>' +
           '<td style="text-align:right;font-weight:600">$' + total.toLocaleString('es-AR') + '</td>' +
@@ -18391,7 +18441,7 @@ function verHistorialCliente(id, nombre) {
       var t = parseFloat(v.total)||0;
       return '<tr>' +
         '<td style="font-weight:500;font-family:monospace;font-size:12px">' + (v.id||'') + '</td>' +
-        '<td style="color:var(--text3)">' + (v.fecha||'') + '</td>' +
+        '<td style="color:var(--text3)">' + _mostrarFecha(v.fecha) + '</td>' +
         '<td class="tr" style="font-weight:500">$' + (parseFloat(t)||0).toLocaleString('es-AR') + '</td>' +
         '<td class="tr">' + ventaEstadoBadge(v.estadoPago) + '</td>' +
         '<td class="tr">' + ventaEstadoInstBadge(v.estadoInst) + '</td>' +
@@ -19189,7 +19239,7 @@ function renderVentasTabla(lista) {
   tbody.innerHTML = rows.map(v => `<tr style="cursor:pointer" onclick="verVenta('${v.id}')">
     <td style="font-weight:500;color:var(--text);font-family:monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(v.id)}</td>
     <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(v.cliente)}</td>
-    <td style="color:var(--text3);white-space:nowrap">${escapeHTML(v.fecha)}</td>
+    <td style="color:var(--text3);white-space:nowrap">${_mostrarFecha(v.fecha)}</td>
     <td class="tr" style="font-weight:500;white-space:nowrap">$${(parseFloat(v.total)||0).toLocaleString('es-AR')}</td>
     <td class="tr" style="white-space:nowrap">${ventaEstadoBadge(v.estadoPago)}</td>
     <td class="tr" style="white-space:nowrap">${ventaEstadoInstBadge(v.estadoInst)}</td>
@@ -19279,7 +19329,7 @@ function verVenta(id) {
   // Header
   _set('vd-num',v.id);
   _set('vd-cliente',v.cliente);
-  _set('vd-fecha',v.fecha);
+  _set('vd-fecha', _mostrarFecha(v.fecha));
   document.getElementById('vd-badge-pago').innerHTML = ventaEstadoBadge(v.estadoPago);
   document.getElementById('vd-badge-inst').innerHTML = ventaEstadoInstBadge(v.estadoInst);
   document.getElementById('vd-empleado').value = v.empleado || v.usuario || v.vendedor || '—';
