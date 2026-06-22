@@ -790,7 +790,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.48 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.49 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6088,7 +6088,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.48-firebase',
+  VERSION: 'v19.49-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6123,10 +6123,13 @@ function chequearVersionNueva() {
 }
 
 // Chequeo periódico — cada 5 minutos en segundo plano
+var _chequeoVersionIniciado = false;
 function iniciarChequeoPeriodicoVersion() {
-  // Primer chequeo a los 10 segundos de cargar (deja tiempo a que se inicialice todo)
-  setTimeout(chequearVersionNueva, 10000);
-  // Después chequea cada 5 minutos
+  if (_chequeoVersionIniciado) return; // evitar doble registro
+  _chequeoVersionIniciado = true;
+  // Primer chequeo inmediato (ya pasaron los 15s del firebase-ready, o los 10s del login)
+  chequearVersionNueva();
+  // Después cada 5 minutos
   setInterval(chequearVersionNueva, 5 * 60 * 1000);
 }
 
@@ -6211,6 +6214,18 @@ function mostrarAvisoVersionNueva(versionNueva) {
 function forzarActualizacionApp() {
   actualizarAutomaticamente();
 }
+// Chequeo de versión: arranca con firebase-ready (cubre sesiones ya abiertas)
+// y también en _completarLogin (cubre nuevos logins). El setInterval de 5min
+// se registra solo una vez gracias a la flag interna de iniciarChequeoPeriodicoVersion.
+document.addEventListener('firebase-ready', function() {
+  // Esperar 15 segundos — deja tiempo a que la sesión se restaure y la app termine de cargar
+  // antes del primer chequeo, para no interferir con el arranque inicial.
+  setTimeout(function() {
+    if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
+    if (typeof restaurarPaginaPostActualizacion === 'function') restaurarPaginaPostActualizacion();
+  }, 15000);
+});
+
 let isAuthenticated = false;
 let currentUserUid = ''; // uid de Firebase Auth — clave de presencia en Firebase
 let currentUserEmail = ''; // email normalizado — permite cruzar presencia con sisventas/usuarios
