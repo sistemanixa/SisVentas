@@ -792,7 +792,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.68 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.69 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2302,6 +2302,9 @@ tr:hover td{color:var(--text)}
               </button>
               <a href="https://www.tusfacturas.app" target="_blank" class="btn btn-sm">
                 <i class="ti ti-external-link"></i> Ir a TusFacturasApp
+              </a>
+              <a href="https://auth.afip.gob.ar/contribuyente_/login.xhtml" target="_blank" class="btn btn-sm" title="Acceder al portal de ARCA/AFIP">
+                <i class="ti ti-building-bank"></i> ARCA / AFIP
               </a>
             </div>
           </div>
@@ -6304,7 +6307,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.68-firebase',
+  VERSION: 'v19.69-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
