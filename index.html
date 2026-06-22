@@ -2756,6 +2756,13 @@ tr:hover td{color:var(--text)}
 
       <!-- ── FACTURACIONES (Crédito Fiscal + Facturas Realizadas) ── -->
       <div id="page-creditofiscal" class="page">
+        <!-- Header con botón ARCA -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-size:18px;font-weight:700">Facturaciones</div>
+          <a href="https://auth.afip.gob.ar/contribuyente_/login.xhtml" target="_blank" class="btn btn-sm" title="Ir al portal ARCA/AFIP — Mis Comprobantes">
+            <i class="ti ti-building-bank"></i> ARCA / Mis comprobantes
+          </a>
+        </div>
 
         <!-- Compensación de IVA — Débito (Facturas Realizadas) vs Crédito (Crédito Fiscal) -->
         <div class="card" id="fact-compensacion-card" style="display:none">
@@ -5937,7 +5944,6 @@ async function emitirFactura(venta, tipoComprobante) {
   }
 
   notify('Emitiendo factura en AFIP/ARCA...');
-  console.log('[Factura] PDV:', TFAPP_CONFIG.punto_venta, '| Provincia:', TFAPP_CONFIG.provincia, '| Activo:', TFAPP_CONFIG.activo);
 
   try {
     var resp = await fetch(SISVENTAS_FUNCTIONS.emitirFactura, {
@@ -5959,9 +5965,6 @@ async function emitirFactura(venta, tipoComprobante) {
       return null;
     }
     notify('✓ Factura emitida — CAE: ' + data.cae);
-    if (data.pdf_url) {
-      window.open(data.pdf_url, '_blank');
-    }
     return data;
   } catch(e) {
     notify('Error de conexión con el servidor de facturación');
@@ -6015,6 +6018,32 @@ function selTipoFactura(btn, tipo) {
   btn.classList.add('btn-primary');
 }
 
+function verFacturaEmitida(pdfUrl, cae) {
+  var prev = document.getElementById('modal-factura-emitida');
+  if (prev) prev.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-factura-emitida';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML =
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:28px 32px;max-width:420px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.4);text-align:center">' +
+      '<div style="width:48px;height:48px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">' +
+        '<i class="ti ti-file-check" style="font-size:24px;color:var(--green)"></i>' +
+      '</div>' +
+      '<div style="font-weight:700;font-size:16px;margin-bottom:8px">Factura electrónica emitida</div>' +
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:4px">CAE</div>' +
+      '<div style="font-family:monospace;font-size:18px;font-weight:700;color:var(--green);margin-bottom:20px;cursor:pointer" onclick="navigator.clipboard.writeText(\''+cae+'\');notify(\'CAE copiado\')" title="Clic para copiar">' +
+        cae + ' <i class="ti ti-copy" style="font-size:13px;color:var(--text3)"></i>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' +
+        (pdfUrl ? '<a href="'+pdfUrl+'" target="_blank" class="btn btn-primary" style="width:100%;padding:10px;text-align:center;text-decoration:none"><i class="ti ti-download"></i> Descargar / Ver PDF</a>' : '<div style="font-size:12px;color:var(--text3)">PDF no disponible — buscalo en TusFacturasApp</div>') +
+        '<a href="https://app.tusfacturas.app" target="_blank" class="btn" style="width:100%;padding:8px;text-align:center;text-decoration:none;color:var(--text3)"><i class="ti ti-external-link"></i> Ver en TusFacturasApp</a>' +
+        '<button onclick="document.getElementById(\'modal-factura-emitida\').remove()" class="btn" style="width:100%;padding:8px;color:var(--text3)">Cerrar</button>' +
+      '</div>' +
+    '</div>';
+  overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
 function confirmarEmisionFactura(ventaId) {
   var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
   if (!venta) return;
@@ -6025,7 +6054,34 @@ function confirmarEmisionFactura(ventaId) {
     venta.clienteDir   = cli.dir   || '';
   }
   document.getElementById('modal-factura').remove();
-  emitirFactura(venta, _facturaSelTipo);
+  emitirFactura(venta, _facturaSelTipo).then(function(data) {
+    if (!data || !data.cae) return;
+    // Guardar los datos de la factura en la venta en Firebase
+    var facturaObj = {
+      cae:        data.cae,
+      vencCae:    data.vencimiento_cae || '',
+      pdf_url:    data.pdf_url || '',
+      tipo:       _facturaSelTipo,
+      fecha:      new Date().toLocaleDateString('es-AR'),
+      nroComprobante: data.nro_comprobante || '',
+      total:      data.total || venta.total
+    };
+    venta.factura = facturaObj;
+    if (window.fbDB && venta.fbKey) {
+      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/' + venta.fbKey), { factura: facturaObj })
+        .then(function() {
+          notify('✓ Factura guardada en la venta');
+          // Recargar el detalle si está abierto
+          if (window._ventaDetalleActual && window._ventaDetalleActual.id === ventaId) {
+            window._ventaDetalleActual.factura = facturaObj;
+            verVenta(ventaId);
+          }
+        })
+        .catch(function(e){ notify('Factura emitida pero no se pudo guardar: ' + e.message); });
+    }
+    // Abrir PDF en nueva pestaña
+    if (data.pdf_url) window.open(data.pdf_url, '_blank');
+  });
 }
 
 // ── CONFIG TUSACTURAS APP ──
@@ -6354,7 +6410,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.83-firebase',
+  VERSION: 'v19.87-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11938,24 +11994,66 @@ function cfCargar() {
 }
 
 // ── Carga de CSV ──
-function cfCargarCSV(input) {
-  var file = input.files[0];
-  if (file) cfProcesarArchivo(file);
+// Detecta si un CSV de AFIP es de comprobantes recibidos (crédito fiscal)
+// o emitidos (facturas realizadas) mirando las columnas del encabezado.
+// Recibidos: tienen columna "Denominación Emisor" o "Cuit Emisor"
+// Emitidos:  tienen columna "Denominación Receptor" o "Nro. Doc. Receptor"
+function detectarTipoCSVAfip(text) {
+  var firstLine = (text.split('\n')[0] || '').toLowerCase();
+  if (firstLine.includes('denominación emisor') || firstLine.includes('cuit emisor') || firstLine.includes('denominacion emisor')) return 'recibidos';
+  if (firstLine.includes('denominación receptor') || firstLine.includes('nro. doc. receptor') || firstLine.includes('denominacion receptor')) return 'emitidos';
+  return 'desconocido';
 }
 
-(function() {
-  document.addEventListener('DOMContentLoaded', function() {
-    var dz = document.getElementById('cf-drop-zone');
-    if (!dz) return;
-    dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.style.borderColor='var(--blue)'; });
-    dz.addEventListener('dragleave', function(){ dz.style.borderColor='var(--border2)'; });
-    dz.addEventListener('drop', function(e){
-      e.preventDefault(); dz.style.borderColor='var(--border2)';
-      var f = e.dataTransfer.files[0];
-      if (f) cfProcesarArchivo(f);
-    });
-  });
-})();
+function cfCargarCSV(input) {
+  var file = input.files[0];
+  if (!file) return;
+  // Leer primero para detectar el tipo
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var tipo = detectarTipoCSVAfip(e.target.result);
+    if (tipo === 'emitidos') {
+      if (confirm('Este archivo parece ser de Comprobantes Emitidos — corresponde a "Facturas Realizadas", no a "Crédito Fiscal".\n\n¿Querés cargarlo en Facturas Realizadas?')) {
+        showFactTab('fv', document.querySelector('.fact-tab:last-child'));
+        fvProcesarTexto(e.target.result);
+      }
+      input.value = '';
+      return;
+    }
+    cfProcesarArchivo(file);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function fvCargarCSV(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var tipo = detectarTipoCSVAfip(e.target.result);
+    if (tipo === 'recibidos') {
+      if (confirm('Este archivo parece ser de Comprobantes Recibidos — corresponde a "Crédito Fiscal", no a "Facturas Realizadas".\n\n¿Querés cargarlo en Crédito Fiscal?')) {
+        showFactTab('cf', document.querySelector('.fact-tab:first-child'));
+        cfProcesarArchivo(file);
+      }
+      input.value = '';
+      return;
+    }
+    fvProcesarArchivo(file);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// Versión que recibe texto directo (para cuando ya lo leímos para detectar el tipo)
+function fvProcesarTexto(text) {
+  try {
+    var rows = fvParsearCSV(text);
+    if (!rows.length) { notify('El archivo no tiene datos válidos'); return; }
+    fvSubirAFirebase(rows);
+  } catch(err) {
+    notify('Error al procesar el CSV: ' + err.message);
+  }
+}
 
 function cfProcesarArchivo(file) {
   var reader = new FileReader();
@@ -12244,22 +12342,27 @@ function fvCargar() {
 }
 
 // ── Carga de CSV ──
-function fvCargarCSV(input) {
-  var file = input.files[0];
-  if (file) fvProcesarArchivo(file);
-}
-
+// Drop zone para Facturas Realizadas
 (function() {
   document.addEventListener('DOMContentLoaded', function() {
-    var dz = document.getElementById('fv-drop-zone');
-    if (!dz) return;
-    dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.style.borderColor='var(--blue)'; });
-    dz.addEventListener('dragleave', function(){ dz.style.borderColor='var(--border2)'; });
-    dz.addEventListener('drop', function(e){
-      e.preventDefault(); dz.style.borderColor='var(--border2)';
-      var f = e.dataTransfer.files[0];
-      if (f) fvProcesarArchivo(f);
-    });
+    var dz = document.getElementById('cf-drop-zone');
+    if (dz) {
+      dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.style.borderColor='var(--blue)'; });
+      dz.addEventListener('dragleave', function(){ dz.style.borderColor='var(--border2)'; });
+      dz.addEventListener('drop', function(e){
+        e.preventDefault(); dz.style.borderColor='var(--border2)';
+        var f = e.dataTransfer.files[0]; if (f) cfProcesarArchivo(f);
+      });
+    }
+    var dz2 = document.getElementById('fv-drop-zone');
+    if (dz2) {
+      dz2.addEventListener('dragover', function(e){ e.preventDefault(); dz2.style.borderColor='var(--blue)'; });
+      dz2.addEventListener('dragleave', function(){ dz2.style.borderColor='var(--border2)'; });
+      dz2.addEventListener('drop', function(e){
+        e.preventDefault(); dz2.style.borderColor='var(--border2)';
+        var f = e.dataTransfer.files[0]; if (f) fvProcesarArchivo(f);
+      });
+    }
   });
 })();
 
@@ -19137,7 +19240,9 @@ function renderDetalleVenta(v) {
         '<div style="font-size:13px;color:var(--text3)">' + v.fecha + ' · ' + (v.usuario||'Sistema') + '</div>' +
       '</div>' +
       (v.factura
-        ? '<a href="'+v.factura.pdf_url+'" target="_blank" class="btn btn-sm" style="color:var(--green);border-color:var(--green)"><i class="ti ti-file-check"></i> CAE: '+v.factura.cae+'</a>'
+        ? '<span style="display:inline-flex;align-items:center;gap:4px">' +
+            '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="verFacturaEmitida(\''+v.factura.pdf_url+'\',\''+v.factura.cae+'\')" title="CAE: '+v.factura.cae+'"><i class="ti ti-file-check"></i> Facturada</button>' +
+          '</span>'
         : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
       ) +
       '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' +
@@ -19853,10 +19958,8 @@ function verVenta(id) {
   // Botón facturar — solo si no tiene factura emitida
   if (!v.factura) {
     accsHTML += '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(\''+v.id+'\')"><i class="ti ti-file-invoice"></i> Facturar</button>';
-    accsHTML += '<a href="https://auth.afip.gob.ar/contribuyente_/login.xhtml" target="_blank" class="btn btn-sm" title="Ir al portal ARCA/AFIP" style="color:var(--text3);border-color:var(--border2)"><i class="ti ti-building-bank"></i> ARCA</a>';
   } else {
-    accsHTML += '<a href="'+v.factura.pdf_url+'" target="_blank" class="btn btn-sm" style="color:var(--green);border-color:var(--green)"><i class="ti ti-file-check"></i> CAE: '+v.factura.cae+'</a>';
-    accsHTML += '<a href="https://auth.afip.gob.ar/contribuyente_/login.xhtml" target="_blank" class="btn btn-sm" title="Ir al portal ARCA/AFIP" style="color:var(--text3);border-color:var(--border2)"><i class="ti ti-building-bank"></i> ARCA</a>';
+    accsHTML += '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="verFacturaEmitida(\''+v.factura.pdf_url+'\',\''+v.factura.cae+'\')" title="CAE: '+v.factura.cae+'"><i class="ti ti-file-check"></i> Facturada — CAE: '+v.factura.cae+'</button>';
   }
   accs.innerHTML = accsHTML;
 
