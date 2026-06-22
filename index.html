@@ -6036,7 +6036,7 @@ function verFacturaEmitida(pdfUrl, cae) {
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:8px">' +
         (pdfUrl ? '<a href="'+pdfUrl+'" target="_blank" class="btn btn-primary" style="width:100%;padding:10px;text-align:center;text-decoration:none"><i class="ti ti-download"></i> Descargar / Ver PDF</a>' : '<div style="font-size:12px;color:var(--text3)">PDF no disponible — buscalo en TusFacturasApp</div>') +
-        '<a href="https://app.tusfacturas.app" target="_blank" class="btn" style="width:100%;padding:8px;text-align:center;text-decoration:none;color:var(--text3)"><i class="ti ti-external-link"></i> Ver en TusFacturasApp</a>' +
+        '<a href="https://www.tusfacturas.app/app/cpb/lista" target="_blank" class="btn" style="width:100%;padding:8px;text-align:center;text-decoration:none;color:var(--text3)"><i class="ti ti-external-link"></i> Ver en TusFacturasApp</a>' +
         '<button onclick="document.getElementById(\'modal-factura-emitida\').remove()" class="btn" style="width:100%;padding:8px;color:var(--text3)">Cerrar</button>' +
       '</div>' +
     '</div>';
@@ -6410,7 +6410,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.87-firebase',
+  VERSION: 'v19.88-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9710,8 +9710,9 @@ function imprimirSeccion(pageId, titulo) {
 }
 
 function imprimirVentaActual() {
-  // Leer los datos del detalle de venta actual
-  var g = function(id){ var el=document.getElementById(id); return el ? el.textContent.trim() : ''; };
+  var v = window._ventaDetalleActual;
+  if (!v) { notify('Sin venta activa'); return; }
+
   var empresa = {
     nombre: (document.getElementById('cfg-empresa-nombre')||{}).value || 'Nixa',
     dir:    (document.getElementById('cfg-empresa-dir')||{}).value || 'Patagones 390, Mar del Plata',
@@ -9719,61 +9720,118 @@ function imprimirVentaActual() {
   };
   var logoHTML = window.logoEmpresaUrl
     ? '<img src="'+window.logoEmpresaUrl+'" style="height:50px;object-fit:contain">'
-    : '<div style="font-size:22px;font-weight:700">'+empresa.nombre+'</div>';
+    : '<div style="font-size:24px;font-weight:700;letter-spacing:-.5px">'+empresa.nombre+'</div>';
 
-  // Items de la venta
-  var items = '';
-  document.querySelectorAll('#vd-items tr').forEach(function(tr) {
-    var tds = tr.querySelectorAll('td');
-    if (tds.length >= 5) {
-      items += '<tr><td>'+tds[1].textContent.trim()+'</td><td>'+tds[2].textContent.trim()+'</td>' +
-               '<td style="text-align:right">'+tds[3].textContent.trim()+'</td>' +
-               '<td style="text-align:right">'+tds[4].textContent.trim()+'</td>' +
-               '<td style="text-align:right;font-weight:600">'+tds[5].textContent.trim()+'</td></tr>';
-    }
-  });
+  // Datos del cliente desde clientesData
+  var cliData = null;
+  if (clientesData) {
+    cliData = clientesData.find(function(c){ return c.id == v.idCliente || c.id == v.clienteId; });
+    if (!cliData) cliData = clientesData.find(function(c){ return (c.nombre||'').toLowerCase().trim() === (v.cliente||'').toLowerCase().trim(); });
+  }
+  var cliDir  = (cliData && (cliData.dir||cliData.direccion)) || v.dir || '';
+  var cliDni  = (cliData && cliData.dni) || '';
+  var cliCuit = (cliData && cliData.cuit) || '';
+  var cliTel  = (cliData && (cliData.telefono||cliData.tel)) || '';
+
+  // Estado de pago legible
+  var estadoPagoLbl = { pendiente_pago:'Pendiente de pago', seniado:'Señado', pago_total:'Pago total' }[v.estadoPago] || v.estadoPago || '—';
+
+  // Tipo de comprobante
+  var tipoComp = v.factura ? v.factura.tipo : 'Comprobante de venta';
+
+  // Items
+  var itemsHTML = (v.items||[]).map(function(it) {
+    var disc = parseFloat(it.disc)||0;
+    var punit = '$' + (parseFloat(it.punit)||0).toLocaleString('es-AR');
+    var sub   = '$' + (parseFloat(it.sub)||0).toLocaleString('es-AR');
+    var discCell = disc > 0 ? '<td style="text-align:right;color:#e53">-'+disc+'%</td>' : '<td></td>';
+    return '<tr>' +
+      '<td style="font-family:monospace;font-size:11px">'+escapeHTML(it.cod||'')+'</td>' +
+      '<td>'+escapeHTML(it.desc||it.nombre||'')+'</td>' +
+      '<td style="text-align:right">'+it.qty+'</td>' +
+      '<td style="text-align:right">'+punit+'</td>' +
+      discCell +
+      '<td style="text-align:right;font-weight:600">'+sub+'</td>' +
+    '</tr>';
+  }).join('');
+
+  var tieneDescuento = (v.items||[]).some(function(it){ return parseFloat(it.disc)>0; });
 
   var w = window.open('','_blank','width=900,height=700');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Venta '+g('vd-num')+'</title>' +
-    '<style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}' +
-    'table{border-collapse:collapse;width:100%}th,td{border:0.5px solid #ddd;padding:8px 12px}' +
-    'th{background:#f5f5f5;font-weight:600}.tr{text-align:right}' +
-    '.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:16px;margin-bottom:24px}' +
-    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}' +
-    '.info-box{background:#f9f9f9;border-radius:6px;padding:12px}' +
-    '.info-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}' +
-    '.totales{float:right;width:280px;margin-top:16px}' +
-    '.tot-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid #eee}' +
-    '.tot-final{font-weight:700;font-size:15px;border-top:2px solid #222;margin-top:4px}' +
-    '@media print{body{margin:20px}}</style></head><body>' +
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+tipoComp+' '+v.id+'</title>' +
+    '<style>' +
+    'body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:32px 40px}' +
+    'table{border-collapse:collapse;width:100%}' +
+    'th{background:#f5f5f5;font-weight:600;padding:8px 10px;border:0.5px solid #ddd;font-size:12px}' +
+    'td{padding:7px 10px;border:0.5px solid #ddd;font-size:13px}' +
+    '.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;margin-bottom:20px;border-bottom:2px solid #222}' +
+    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}' +
+    '.info-box{background:#f9f9f9;border-radius:6px;padding:10px 14px}' +
+    '.info-lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}' +
+    '.info-val{font-weight:600;font-size:13px}' +
+    '.info-sub{font-size:11px;color:#666;margin-top:2px}' +
+    '.tots{width:300px;margin-left:auto;margin-top:16px}' +
+    '.tot-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid #eee;font-size:13px}' +
+    '.tot-final{font-weight:700;font-size:15px;border-top:2px solid #222;padding-top:8px;margin-top:4px}' +
+    '.cae-box{margin-top:24px;padding:12px 16px;border:1px solid #22c55e;border-radius:6px;background:#f0fdf4;font-size:12px}' +
+    '@media print{body{margin:16px 20px}}' +
+    '</style></head><body>' +
 
     // Header
-    '<div class="header"><div>'+logoHTML+
-    '<div style="font-size:11px;color:#666;margin-top:4px">'+empresa.dir+'</div>' +
-    (empresa.cuit ? '<div style="font-size:11px;color:#666">CUIT: '+empresa.cuit+'</div>' : '') +
-    '</div><div style="text-align:right">' +
-    '<div style="font-size:20px;font-weight:700;color:#222">Comprobante de venta</div>' +
-    '<div style="font-size:16px;font-weight:500;margin-top:4px">'+g('vd-num')+'</div>' +
-    '<div style="font-size:12px;color:#666;margin-top:2px">'+g('vd-fecha')+'</div>' +
-    '</div></div>' +
-
-    // Info cliente y estado
-    '<div class="info-grid">' +
-    '<div class="info-box"><div class="info-label">Cliente</div><div style="font-weight:600;font-size:14px">'+g('vd-cliente')+'</div></div>' +
-    '<div class="info-box"><div class="info-label">Estado pago</div><div style="font-weight:500">'+(document.querySelector('.vd-estado-pago, #vd-estado-badges .badge')||{}).textContent+'</div></div>' +
+    '<div class="header">' +
+      '<div>'+logoHTML+
+        '<div style="font-size:11px;color:#666;margin-top:6px">'+escapeHTML(empresa.dir)+'</div>' +
+        (empresa.cuit ? '<div style="font-size:11px;color:#666">CUIT: '+empresa.cuit+'</div>' : '') +
+      '</div>' +
+      '<div style="text-align:right">' +
+        '<div style="font-size:20px;font-weight:700">'+tipoComp+'</div>' +
+        '<div style="font-size:15px;font-weight:500;margin-top:4px">'+escapeHTML(v.id||'')+'</div>' +
+        '<div style="font-size:12px;color:#666;margin-top:2px">'+_mostrarFecha(v.fecha)+'</div>' +
+        (v.factura && v.factura.numero_comprobante ? '<div style="font-size:11px;color:#666">Nro: '+v.factura.numero_comprobante+'</div>' : '') +
+      '</div>' +
     '</div>' +
 
-    // Tabla de productos
-    '<table><thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th><th class="tr">P. unit.</th><th class="tr">Subtotal</th></tr></thead>' +
-    '<tbody>'+items+'</tbody></table>' +
+    // Info cliente y venta
+    '<div class="info-grid">' +
+      '<div class="info-box">' +
+        '<div class="info-lbl">Cliente</div>' +
+        '<div class="info-val">'+escapeHTML(v.cliente||'—')+'</div>' +
+        (cliDir  ? '<div class="info-sub">'+escapeHTML(cliDir)+'</div>' : '') +
+        (cliTel  ? '<div class="info-sub">Tel: '+escapeHTML(cliTel)+'</div>' : '') +
+        (cliDni  ? '<div class="info-sub">DNI: '+escapeHTML(cliDni)+'</div>' : '') +
+        (cliCuit ? '<div class="info-sub">CUIT: '+escapeHTML(cliCuit)+'</div>' : '') +
+      '</div>' +
+      '<div class="info-box">' +
+        '<div class="info-lbl">Datos de la venta</div>' +
+        '<div class="info-sub">Estado pago: <strong>'+estadoPagoLbl+'</strong></div>' +
+        (v.empleado ? '<div class="info-sub">Vendedor: '+escapeHTML(v.empleado)+'</div>' : '') +
+        (v.obs && v.obs !== '—' ? '<div class="info-sub">Obs: '+escapeHTML(v.obs)+'</div>' : '') +
+      '</div>' +
+    '</div>' +
+
+    // Tabla de items
+    '<table><thead><tr>' +
+      '<th>Código</th><th>Descripción</th><th style="text-align:right">Cant.</th>' +
+      '<th style="text-align:right">P. unit.</th>' +
+      (tieneDescuento ? '<th style="text-align:right">Desc.</th>' : '') +
+      '<th style="text-align:right">Subtotal</th>' +
+    '</tr></thead><tbody>'+itemsHTML+'</tbody></table>' +
 
     // Totales
-    '<div class="totales">' +
-    '<div class="tot-row"><span>Subtotal</span><span>'+g('vd-sub')+'</span></div>' +
-    (g('vd-desc-amt') && g('vd-desc-amt') !== '$0' ? '<div class="tot-row"><span>Descuento</span><span style="color:#e53">'+g('vd-desc-amt')+'</span></div>' : '') +
-    '<div class="tot-row"><span>IVA 21%</span><span style="color:#f59e0b">'+g('vd-iva')+'</span></div>' +
-    '<div class="tot-row tot-final"><span>TOTAL</span><span>'+g('vd-total')+'</span></div>' +
+    '<div class="tots">' +
+      '<div class="tot-row"><span>Subtotal</span><span>$'+(parseFloat(v.subtotal)||0).toLocaleString('es-AR')+'</span></div>' +
+      (parseFloat(v.descuento)>0 ? '<div class="tot-row"><span>Descuento</span><span style="color:#e53">-$'+(parseFloat(v.descuento)||0).toLocaleString('es-AR')+'</span></div>' : '') +
+      '<div class="tot-row"><span>IVA 21%</span><span style="color:#f59e0b">$'+(parseFloat(v.iva)||0).toLocaleString('es-AR')+'</span></div>' +
+      '<div class="tot-row tot-final"><span>TOTAL</span><span>$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</span></div>' +
     '</div>' +
+
+    // CAE si tiene factura electrónica
+    (v.factura && v.factura.cae ?
+      '<div class="cae-box">' +
+        '<strong>Factura electrónica — '+escapeHTML(v.factura.tipo||'')+'</strong><br>' +
+        'CAE Nº: <strong>'+escapeHTML(v.factura.cae)+'</strong>' +
+        (v.factura.cae_vencimiento ? ' · Vto: '+escapeHTML(v.factura.cae_vencimiento) : '') +
+      '</div>' : '') +
 
     '</body></html>');
   w.document.close();
