@@ -9963,8 +9963,7 @@ function imprimirVentaActual() {
   }).join('');
 
   var tieneDescuento = (v.items||[]).some(function(it){ return parseFloat(it.disc)>0; });
-  var nCols    = tieneDescuento ? 6 : 5;
-  var spanTots = nCols - 2;
+  var nCols = tieneDescuento ? 6 : 5;
 
   // Tipo de comprobante — factura, nota de crédito, o comprobante interno
   var tipoComp = (v.factura && v.factura.tipo)
@@ -10039,22 +10038,26 @@ function imprimirVentaActual() {
       '</tr></thead>' +
       '<tbody>'+itemsHTML+'</tbody>' +
       '<tfoot>' +
-        '<tr><td colspan="'+spanTots+'"></td>' +
-          '<td style="text-align:right;font-size:12px;color:#666">Subtotal</td>' +
-          '<td style="text-align:right">$'+(parseFloat(v.subtotal)||0).toLocaleString('es-AR')+'</td>' +
+        '<tr>' +
+          '<td colspan="'+(nCols-2)+'" style="border:none"></td>' +
+          '<td style="text-align:right;font-size:12px;color:#666;border-top:2px solid #222;padding-top:8px">Subtotal</td>' +
+          '<td style="text-align:right;border-top:2px solid #222;padding-top:8px">$'+(parseFloat(v.subtotal)||0).toLocaleString('es-AR')+'</td>' +
         '</tr>' +
         (parseFloat(v.descuento)>0 ?
-          '<tr><td colspan="'+spanTots+'"></td>' +
-            '<td style="text-align:right;font-size:12px;color:#dc2626">Descuento</td>' +
-            '<td style="text-align:right;color:#dc2626">-$'+(parseFloat(v.descuento)||0).toLocaleString('es-AR')+'</td>' +
+          '<tr>' +
+            '<td colspan="'+(nCols-2)+'" style="border:none"></td>' +
+            '<td style="text-align:right;font-size:12px;color:#dc2626;border:none">Descuento</td>' +
+            '<td style="text-align:right;color:#dc2626;border:none">-$'+(parseFloat(v.descuento)||0).toLocaleString('es-AR')+'</td>' +
           '</tr>' : '') +
-        '<tr><td colspan="'+spanTots+'"></td>' +
-          '<td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td>' +
-          '<td style="text-align:right;color:#d97706">$'+(parseFloat(v.iva)||0).toLocaleString('es-AR')+'</td>' +
+        '<tr>' +
+          '<td colspan="'+(nCols-2)+'" style="border:none"></td>' +
+          '<td style="text-align:right;font-size:12px;color:#d97706;border:none">IVA 21%</td>' +
+          '<td style="text-align:right;color:#d97706;border:none">$'+(parseFloat(v.iva)||0).toLocaleString('es-AR')+'</td>' +
         '</tr>' +
-        '<tr style="border-top:2px solid #222"><td colspan="'+spanTots+'"></td>' +
-          '<td style="text-align:right;font-weight:700;font-size:14px;padding-top:8px;padding-bottom:8px">TOTAL</td>' +
-          '<td style="text-align:right;font-weight:700;font-size:14px;padding-top:8px;padding-bottom:8px">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
+        '<tr>' +
+          '<td colspan="'+(nCols-2)+'" style="border:none"></td>' +
+          '<td style="text-align:right;font-weight:700;font-size:14px;border-top:2px solid #222;padding-top:8px;padding-bottom:8px">TOTAL</td>' +
+          '<td style="text-align:right;font-weight:700;font-size:14px;border-top:2px solid #222;padding-top:8px;padding-bottom:8px">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
         '</tr>' +
       '</tfoot>' +
     '</table>' +
