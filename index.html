@@ -796,7 +796,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v19.96 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v19.97 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6052,7 +6052,7 @@ function abrirModalNotaCredito(ventaId) {
       // Número de comprobante — requerido por AFIP
       '<div style="margin-bottom:12px">' +
         '<label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Número de comprobante original (requerido por AFIP)</label>' +
-        '<input id="nc-nro-comp" type="number" value="' + (parseInt(nroComp)||'') + '" placeholder="Ej: 1 — buscalo en TusFacturasApp" min="1" ' +
+        '<input id="nc-nro-comp" type="text" value="' + (nroComp||'') + '" placeholder="Ej: 00003-00000002 o solo el número" ' +
           'style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;box-sizing:border-box">' +
         (nroComp ? '' : '<div style="font-size:11px;color:var(--amber);margin-top:4px">⚠️ No encontrado automáticamente — ingresalo manualmente desde TusFacturasApp → Comprobantes</div>') +
       '</div>' +
@@ -6072,9 +6072,16 @@ async function emitirNotaCredito(ventaId) {
   var v = (ventasList||[]).find(function(x){ return x.id === ventaId; });
   if (!v || !v.factura) return;
 
-  // Leer el número del comprobante del input manual
+  // Leer el número del comprobante del input — acepta formatos: "00003-00000002", "2", "00000002"
   var nroInput = document.getElementById('nc-nro-comp');
-  var nroComp = nroInput ? (parseInt(nroInput.value) || 0) : 0;
+  var nroRaw = nroInput ? nroInput.value.trim() : '';
+  // Si tiene guión (formato AFIP: 00003-00000002), tomar la parte después del guión
+  var nroComp = 0;
+  if (nroRaw.includes('-')) {
+    nroComp = parseInt(nroRaw.split('-')[1]) || 0;
+  } else {
+    nroComp = parseInt(nroRaw) || 0;
+  }
   if (!nroComp) {
     notify('Ingresá el número de comprobante original para continuar');
     if (nroInput) nroInput.focus();
@@ -6530,7 +6537,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.96-firebase',
+  VERSION: 'v19.97-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
