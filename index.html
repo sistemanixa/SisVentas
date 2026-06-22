@@ -790,7 +790,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.49 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.50 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6088,7 +6088,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.49-firebase',
+  VERSION: 'v19.50-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6112,11 +6112,9 @@ function chequearVersionNueva() {
       var hayVentaAbierta = document.getElementById('page-venta') && document.getElementById('page-venta').classList.contains('active');
       var hayCliCargado   = document.getElementById('cli-inp') && document.getElementById('cli-inp').value;
       if (hayVentaAbierta && hayCliCargado) {
-        // Está en medio de una venta — no interrumpir, mostrar aviso
         mostrarAvisoVersionNueva(versionServidor);
       } else {
-        // Actualización automática con pantalla de carga
-        actualizarAutomaticamente();
+        actualizarAutomaticamente(APP_CONFIG.VERSION, versionServidor);
       }
     })
     .catch(function(){});
@@ -6133,34 +6131,47 @@ function iniciarChequeoPeriodicoVersion() {
   setInterval(chequearVersionNueva, 5 * 60 * 1000);
 }
 
-function actualizarAutomaticamente() {
-  // Recordar en qué módulo estaba el usuario para volver ahí después de actualizar
+function actualizarAutomaticamente(versionActual, versionNueva) {
+  var verActual = (versionActual || APP_CONFIG.VERSION || '').replace('-firebase','');
+  var verNueva  = (versionNueva  || '').replace('-firebase','');
+
+  var prev = document.getElementById('overlay-actualizando');
+  if (prev) prev.remove();
+
   var paginaActual = '';
   var paginaActiva = document.querySelector('.page.active');
   if (paginaActiva) paginaActual = paginaActiva.id.replace('page-', '');
 
-  // Mostrar pantalla de actualización que cubre todo — no puede cerrarse
   var overlay = document.createElement('div');
   overlay.id = 'overlay-actualizando';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg,#080e1a);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg,#080e1a);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px';
   overlay.innerHTML =
-    '<div style="font-size:40px">🔄</div>' +
-    '<div style="font-weight:700;font-size:20px;color:var(--text,#fff)">Actualizando SisVentas...</div>' +
-    '<div style="font-size:13px;color:var(--text3,#6b7fa3)">Hay una versión nueva disponible. Recargando en un momento.</div>' +
-    '<div style="width:200px;height:4px;background:var(--bg2,#1a2332);border-radius:4px;overflow:hidden;margin-top:8px">' +
-      '<div id="upd-bar" style="height:100%;width:0%;background:var(--green,#3ddc84);border-radius:4px;transition:width 2.5s ease"></div>' +
-    '</div>';
+    // Logo / ícono de la app (igual que el favicon)
+    '<svg width="48" height="48" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:4px">' +
+      '<rect width="100" height="100" rx="20" fill="#1a2332"/>' +
+      '<path d="M30 65 L50 30 L70 65 M38 50 L62 50" stroke="#3ddc84" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '</svg>' +
+    '<div style="font-weight:700;font-size:18px;color:var(--text,#fff);letter-spacing:.3px">Actualizando SisVentas</div>' +
+    // Versión de → a
+    (verActual && verNueva ?
+      '<div style="display:flex;align-items:center;gap:10px;font-size:13px">' +
+        '<span style="color:var(--text3,#6b7fa3);font-family:monospace">' + verActual + '</span>' +
+        '<i class="ti ti-arrow-right" style="color:var(--green,#3ddc84);font-size:14px"></i>' +
+        '<span style="color:var(--green,#3ddc84);font-family:monospace;font-weight:600">' + verNueva + '</span>' +
+      '</div>'
+    : '<div style="font-size:13px;color:var(--text3,#6b7fa3)">Descargando versión nueva...</div>') +
+    '<div style="width:220px;height:3px;background:var(--bg2,#1a2332);border-radius:4px;overflow:hidden;margin-top:12px">' +
+      '<div id="upd-bar" style="height:100%;width:0%;background:var(--green,#3ddc84);border-radius:4px;transition:width 2.5s linear"></div>' +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--text3,#6b7fa3);margin-top:4px">No cerrés esta ventana</div>';
   document.body.appendChild(overlay);
 
-  // Animar barra de progreso
   setTimeout(function(){ var b = document.getElementById('upd-bar'); if(b) b.style.width='100%'; }, 50);
 
-  // Guardar el módulo actual en sessionStorage para volver ahí después de recargar
   if (paginaActual) {
     try { sessionStorage.setItem('sisventas_pagina_previa', paginaActual); } catch(e){}
   }
 
-  // Desregistrar SW, limpiar caché, recargar
   setTimeout(function() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(regs) {
@@ -6212,7 +6223,7 @@ function mostrarAvisoVersionNueva(versionNueva) {
 
 // Fuerza una recarga real saltando el caché del navegador.
 function forzarActualizacionApp() {
-  actualizarAutomaticamente();
+  actualizarAutomaticamente(APP_CONFIG.VERSION, '');
 }
 // Chequeo de versión: arranca con firebase-ready (cubre sesiones ya abiertas)
 // y también en _completarLogin (cubre nuevos logins). El setInterval de 5min
