@@ -792,7 +792,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.64 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.65 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6114,7 +6114,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.64-firebase',
+  VERSION: 'v19.65-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6301,12 +6301,11 @@ function forzarActualizacionApp() {
 // y también en _completarLogin (cubre nuevos logins). El setInterval de 5min
 // se registra solo una vez gracias a la flag interna de iniciarChequeoPeriodicoVersion.
 document.addEventListener('firebase-ready', function() {
-  // Esperar 15 segundos — deja tiempo a que la sesión se restaure y la app termine de cargar
-  // antes del primer chequeo, para no interferir con el arranque inicial.
+  // 2 segundos — alcanza para que Firebase Auth restaure la sesión sin interferir con el arranque
   setTimeout(function() {
     if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
     if (typeof restaurarPaginaPostActualizacion === 'function') restaurarPaginaPostActualizacion();
-  }, 15000);
+  }, 2000);
 });
 
 let isAuthenticated = false;
