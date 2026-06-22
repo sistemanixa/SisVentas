@@ -770,7 +770,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.46 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.47 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5051,13 +5051,20 @@ function fbCargarEmpleados() {
     if (selEmp) {
       var opts = '<option value="">— Seleccionar empleado —</option>';
       var fbKeyUsuarioActual = '';
+      // Si el admin no figura como empleado, agregar su nombre como opción especial al tope
+      var esAdmin = (currentRole === 'admin');
+      var adminTieneEmpleado = Object.values(empData).some(function(e) {
+        return e.activo !== false && (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
+      });
+      if (esAdmin && !adminTieneEmpleado && currentUser) {
+        opts += '<option value="__admin__" selected>' + escapeHTML(currentUser) + ' (Admin)</option>';
+        fbKeyUsuarioActual = '__admin__';
+      }
       Object.values(empData).forEach(function(e) {
         if (e.activo !== false) {
-          opts += '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+' (Leg. '+e.legajo+')</option>';
-          // Vincular con el usuario logueado: mismo nombre (sin distinguir mayúsculas/espacios)
-          if ((e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim()) {
-            fbKeyUsuarioActual = e.fbKey;
-          }
+          var selected = (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
+          opts += '<option value="'+e.fbKey+'"'+(selected?' selected':'')+'>'+escapeHTML(e.nombre)+' (Leg. '+e.legajo+')</option>';
+          if (selected) fbKeyUsuarioActual = e.fbKey;
         }
       });
       selEmp.innerHTML = opts;
@@ -6826,7 +6833,13 @@ function confirmarVenta() {
     cliente:  cli,
     idCliente: idCliVal,        // ← ID real del cliente para filtrar en historial
     clienteId: idCliVal,        // ← campo alternativo para compatibilidad
-    empleado: (document.querySelector('#venta-empleado')||{}).value || '',
+    empleado: (function(){
+      var sel = document.querySelector('#venta-empleado');
+      if (!sel || !sel.value) return '';
+      if (sel.value === '__admin__') return currentUser || 'Admin'; // admin sin perfil de empleado
+      var empEncontrado = Object.values(empData||{}).find(function(e){ return e.fbKey === sel.value; });
+      return empEncontrado ? empEncontrado.nombre : sel.value;
+    })(),
     fecha: fechaHoy,
     estadoPago: 'pendiente_pago',
     estadoInst: 'pendiente_inst',
@@ -7017,7 +7030,13 @@ function inicializarFilasVenta() {
     var match = Object.values(empData||{}).find(function(e){
       return (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
     });
-    if (match) selEmp.value = match.fbKey;
+    if (match) {
+      selEmp.value = match.fbKey;
+    } else if (currentRole === 'admin' && currentUser) {
+      // Admin sin perfil de empleado — buscar si ya tiene la opción __admin__ y seleccionarla
+      var optAdmin = Array.from(selEmp.options).find(function(o){ return o.value === '__admin__'; });
+      if (optAdmin) selEmp.value = '__admin__';
+    }
   }
 
   // Fecha de hoy por defecto
@@ -19554,7 +19573,7 @@ function crearFilaProducto(cod, desc, precio, qty) {
     </td>
     <td><span class="desc-txt" style="font-size:13px;color:var(--text2)">${escapeHTML(desc)}</span></td>
     <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right"></td>
-    <td class="stock-cell" style="text-align:right;white-space:nowrap;max-width:90px"><span class="stock-ind" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis">${stockBadge}</span></td>
+    <td class="stock-cell" style="text-align:right;white-space:nowrap;max-width:90px;background:inherit"><span class="stock-ind" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis">${stockBadge}</span></td>
     <td><input type="number" value="${precio||0}" class="price" oninput="calcRow(this)" min="0" style="width:80px;text-align:right"></td>
     <td class="sub" style="text-align:right;color:var(--text);font-weight:500">$${Math.round((qty||1)*(precio||0)).toLocaleString('es-AR')}</td>
     <td><button class="btn btn-sm btn-danger" onclick="delRow(this)" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>`;
@@ -19574,7 +19593,7 @@ function _crearDropGlobal() {
   if (document.getElementById('prod-drop-global')) return;
   var d = document.createElement('div');
   d.id = 'prod-drop-global';
-  d.style.cssText = 'display:none;position:fixed;z-index:9999;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);box-shadow:0 4px 20px rgba(0,0,0,.18);min-width:300px;max-width:480px;overflow:hidden';
+  d.style.cssText = 'display:none;position:fixed;z-index:9999;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);box-shadow:0 4px 20px rgba(0,0,0,.18);min-width:300px;max-width:480px;overflow:visible';
   d.innerHTML =
     '<div style="padding:7px 10px;border-bottom:0.5px solid var(--border)">' +
       '<input id="prod-drop-inp" placeholder="Buscar por código o nombre..." autocomplete="off" ' +
