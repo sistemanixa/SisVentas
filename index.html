@@ -5937,6 +5937,7 @@ async function emitirFactura(venta, tipoComprobante) {
   }
 
   notify('Emitiendo factura en AFIP/ARCA...');
+  console.log('[Factura] PDV:', TFAPP_CONFIG.punto_venta, '| Provincia:', TFAPP_CONFIG.provincia, '| Activo:', TFAPP_CONFIG.activo);
 
   try {
     var resp = await fetch(SISVENTAS_FUNCTIONS.emitirFactura, {
@@ -6353,7 +6354,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.80-firebase',
+  VERSION: 'v19.83-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6580,38 +6581,61 @@ let currentUserUid = ''; // uid de Firebase Auth — clave de presencia en Fireb
 let currentUserEmail = ''; // email normalizado — permite cruzar presencia con sisventas/usuarios
 // ── NORMALIZAR PEGADO DE NÚMEROS DESDE EXCEL ──
 // Excel copia montos como "1,234.56" (coma=miles, punto=decimal) o "1.234,56" (formato AR)
-// según la configuración regional. Esta función detecta el formato y lo limpia
-// para que los inputs type="number" (que solo aceptan formato JS: punto decimal) lo acepten.
+// Convierte un string de número en cualquier formato regional a número JS (punto decimal).
+// Casos que maneja:
+//   "105.245"     → 105245  (punto = miles, >3 dígitos después)
+//   "1.234,56"    → 1234.56 (formato AR: punto=miles, coma=decimal)
+//   "1,234.56"    → 1234.56 (formato US: coma=miles, punto=decimal)
+//   "105,245"     → 105245  (coma = miles, 3 dígitos después)
+//   "10,50"       → 10.50   (coma = decimal, 2 dígitos después)
+//   "$105.245"    → 105245  (símbolo $ ignorado)
+//   "105245"      → 105245  (sin separadores)
 function normalizarNumeroExcel(texto) {
   if (!texto) return '';
   var t = String(texto).trim();
-  // Quitar símbolos de moneda y espacios
+  // Quitar símbolo $ y espacios
   t = t.replace(/[$\s]/g, '');
+  if (!t) return '';
+
   var tieneComa  = t.indexOf(',') !== -1;
   var tienePunto = t.indexOf('.') !== -1;
+
   if (tieneComa && tienePunto) {
-    // Ambos presentes: el último símbolo es el decimal
+    // Ambos presentes — el que está último es el decimal
     var posComa  = t.lastIndexOf(',');
     var posPunto = t.lastIndexOf('.');
     if (posComa > posPunto) {
-      // Formato AR: 1.234,56 → punto=miles, coma=decimal
+      // Formato AR: 1.234,56 — punto=miles, coma=decimal
       t = t.replace(/\./g, '').replace(',', '.');
     } else {
-      // Formato US: 1,234.56 → coma=miles, punto=decimal
+      // Formato US: 1,234.56 — coma=miles, punto=decimal
       t = t.replace(/,/g, '');
     }
+  } else if (tienePunto && !tieneComa) {
+    // Solo punto — determinar si es miles o decimal
+    var partesPunto = t.split('.');
+    var despuesPunto = partesPunto[partesPunto.length - 1];
+    if (partesPunto.length > 2) {
+      // Múltiples puntos — son separadores de miles (ej: 1.234.567)
+      t = t.replace(/\./g, '');
+    } else if (despuesPunto.length === 3) {
+      // Exactamente 3 dígitos después del punto → miles (ej: 105.245)
+      t = t.replace('.', '');
+    }
+    // 1 o 2 dígitos después → decimal (ej: 10.50, 10.5) — dejar como está
   } else if (tieneComa && !tienePunto) {
-    // Solo coma: puede ser miles (1,234) o decimal (1234,56)
+    // Solo coma
     var partesComa = t.split(',');
-    if (partesComa[partesComa.length-1].length === 2) {
-      // 2 dígitos después de la coma → es decimal
-      t = t.replace(',', '.');
-    } else {
-      // Es separador de miles
+    var despuesComa = partesComa[partesComa.length - 1];
+    if (partesComa.length > 2 || despuesComa.length === 3) {
+      // Múltiples comas o 3 dígitos → separador de miles
       t = t.replace(/,/g, '');
+    } else {
+      // 1 o 2 dígitos → decimal
+      t = t.replace(',', '.');
     }
   }
-  // Si solo tiene punto, ya es válido para JS (sea miles o decimal, parseFloat lo toma bien si no hay ambigüedad)
+
   var num = parseFloat(t);
   return isNaN(num) ? '' : String(num);
 }
@@ -7156,7 +7180,7 @@ function calcMargenGanancia() {
   if (!box) return;
 
   var totalTxt = (document.getElementById('t-tot')||{}).textContent || '$0';
-  var total = parseFloat(totalTxt.replace(/[\$\.]/g,'').replace(',','.')) || 0;
+  var total = parseFloat(normalizarNumeroExcel(totalTxt)) || 0;
 
   var costoTotal = 0;
   var filas = Array.from(document.querySelectorAll('#det-body tr'));
@@ -7970,7 +7994,7 @@ function irACobranzasConVenta(ventaId) {
   }, 150);
 }
 function calcSaldoTrasCobranza() {
-  const saldoStr=document.getElementById('cob-saldo').value.replace(/\$|\./g,'').replace(',','.');
+  const saldoStr=normalizarNumeroExcel(document.getElementById('cob-saldo').value);
   const saldo=parseFloat(saldoStr)||0;
   const monto=parseFloat(document.getElementById('cob-monto').value)||0;
   const nuevo=Math.max(0,saldo-monto);
@@ -9549,7 +9573,7 @@ function exportarExcel(titulo) {
               tds[1].textContent.trim(),
               tds[2].textContent.trim(),
               tds[3].textContent.trim(),
-              parseFloat((tds[4].textContent||'').replace(/[$\.,]/g,'').replace(',','.')) || 0,
+              parseFloat(normalizarNumeroExcel(tds[4].textContent||'')) || 0,
               tds[5] ? tds[5].textContent.trim() : ''
             ]);
           }
@@ -11155,7 +11179,7 @@ function editarProveedor(fbKey) {
 }
 function cerrarCaja() {
   var saldoTexto = (document.getElementById('caja-saldo')||{}).textContent || '$0';
-  var saldoCalculado = parseFloat(saldoTexto.replace(/[\$\.]/g,'').replace(',','.')) || 0;
+  var saldoCalculado = parseFloat(normalizarNumeroExcel(saldoTexto)) || 0;
   const saldo = prompt('Saldo calculado por el sistema: $' + Math.round(saldoCalculado).toLocaleString('es-AR') + '\n\nIngresá el saldo real contado en caja ($):');
   if (saldo === null) return;
   const real = parseFloat(saldo.replace(/[^0-9.]/g,'')) || 0;
@@ -17291,7 +17315,7 @@ var pptoActualId = null;
 
 
 function checkAprobacion() {
-  var _ptt=document.getElementById('pp-total'); const total = parseFloat((_ptt?_ptt.textContent:'0').replace(/[\$\.]/g,'').replace(',','.')) || 0;
+  var _ptt=document.getElementById('pp-total'); const total = parseFloat(normalizarNumeroExcel(_ptt?_ptt.textContent:'0')) || 0;
   var _d2=document.getElementById('pp-descuento'); const desc  = parseFloat(_d2?_d2.value:0) || 0;
   const alerta = document.getElementById('form-alerta-aprobacion');
   const txt    = document.getElementById('form-alerta-txt');
@@ -17548,7 +17572,7 @@ function guardarPresupuesto(modo) {
   if (!cli) { notify('Seleccioná un cliente'); return; }
   var _d3=document.getElementById('pp-descuento'); const desc = parseFloat(_d3?_d3.value:0) || 0;
   var _tt=document.getElementById('pp-total'); const totalTxt = (_tt?_tt.textContent:'') || '$0';
-  const total = parseFloat(totalTxt.replace(/[\$\.]/g,'').replace(',','.')) || 0;
+  const total = parseFloat(normalizarNumeroExcel(totalTxt)) || 0;
 
   // Leer ítems reales de la tabla — mismo criterio que en Ventas
   var filasPp = Array.from(document.querySelectorAll('#pp-body tr'));
@@ -19705,6 +19729,7 @@ function verVenta(id) {
   if (!v) return;
   ventaActualId = id;
   window._ventaActualFbKey = v.fbKey || id;
+  window._ventaDetalleActual = v; // necesario para cambiarEstadoVenta desde los dropdowns
   _hide('ventas-list-view');
   _block('ventas-detalle-view');
 
@@ -19828,8 +19853,10 @@ function verVenta(id) {
   // Botón facturar — solo si no tiene factura emitida
   if (!v.factura) {
     accsHTML += '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(\''+v.id+'\')"><i class="ti ti-file-invoice"></i> Facturar</button>';
+    accsHTML += '<a href="https://auth.afip.gob.ar/contribuyente_/login.xhtml" target="_blank" class="btn btn-sm" title="Ir al portal ARCA/AFIP" style="color:var(--text3);border-color:var(--border2)"><i class="ti ti-building-bank"></i> ARCA</a>';
   } else {
     accsHTML += '<a href="'+v.factura.pdf_url+'" target="_blank" class="btn btn-sm" style="color:var(--green);border-color:var(--green)"><i class="ti ti-file-check"></i> CAE: '+v.factura.cae+'</a>';
+    accsHTML += '<a href="https://auth.afip.gob.ar/contribuyente_/login.xhtml" target="_blank" class="btn btn-sm" title="Ir al portal ARCA/AFIP" style="color:var(--text3);border-color:var(--border2)"><i class="ti ti-building-bank"></i> ARCA</a>';
   }
   accs.innerHTML = accsHTML;
 
