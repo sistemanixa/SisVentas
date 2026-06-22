@@ -541,20 +541,24 @@ tr:hover td{color:var(--text)}
   .stock-indicator i{display:none}
   /* ── TABLA DE NUEVA VENTA EN MOBILE ── */
   /* Ocultar columnas secundarias en pantalla chica para que no se apriete */
-  #page-venta #det-body td:nth-child(4),   /* Cant — queda como input compacto */
+  #page-venta #det-body td:nth-child(4),   /* Cant */
   #page-venta thead th:nth-child(4) { min-width:48px }
   #page-venta #det-body td:nth-child(5),   /* Disponible — ocultar en mobile */
   #page-venta thead th:nth-child(5) { display:none }
   #page-venta #det-body td:nth-child(6),   /* P.unit */
   #page-venta thead th:nth-child(6) { min-width:70px }
-  #page-venta #det-body td:nth-child(7),   /* Subtotal */
-  #page-venta thead th:nth-child(7) { min-width:70px }
+  #page-venta #det-body td:nth-child(7),   /* %Desc */
+  #page-venta thead th:nth-child(7) { min-width:55px }
+  #page-venta #det-body td:nth-child(8),   /* Subtotal */
+  #page-venta thead th:nth-child(8) { min-width:70px }
   /* Botón búsqueda avanzada más compacto en mobile */
   .btn-busq-avanz { width:22px!important; height:22px!important }
   /* Input de cantidad más compacto */
   #page-venta #det-body .qty { width:40px!important }
   /* Input de precio más compacto */
   #page-venta #det-body .price { width:65px!important }
+  /* Input de descuento más compacto */
+  #page-venta #det-body .disc { width:36px!important }
   /* Totales en columna en mobile */
   #page-venta .totals { flex-direction:column!important; align-items:flex-start!important }
   #page-venta .tbox { width:100%!important; max-width:100%!important }
@@ -1115,9 +1119,21 @@ tr:hover td{color:var(--text)}
                 <col style="width:58px">
                 <col style="width:85px">
                 <col style="width:85px">
-                <col style="width:85px">
+                <col style="width:65px">
+                <col style="width:80px">
                 <col style="width:32px">
               </colgroup>
+              <thead><tr>
+                <th></th>
+                <th>CÓDIGO</th>
+                <th>PRODUCTO</th>
+                <th style="text-align:right">CANT.</th>
+                <th style="text-align:right">DISPONIBLE</th>
+                <th style="text-align:right">P. UNIT.</th>
+                <th style="text-align:right">% DESC.</th>
+                <th style="text-align:right">SUBTOTAL</th>
+                <th></th>
+              </tr></thead>
               <thead><tr>
                 <th style="overflow:hidden"><input type="checkbox" onchange="toggleAll(this)"></th>
                 <th style="overflow:hidden">Código</th>
@@ -1142,8 +1158,18 @@ tr:hover td{color:var(--text)}
           <div class="totals">
             <div class="tbox">
               <div class="tl"><span>Subtotal</span><span id="t-sub">$0</span></div>
+              <div class="tl" id="t-desc-row" style="display:none;color:var(--green)"><span>Descuento general</span><span id="t-desc">-$0</span></div>
               <div class="tl iva"><span>IVA 21%</span><span id="t-iva">$0</span></div>
               <div class="tl final"><span>Total</span><span id="t-tot">$0</span></div>
+              <div class="tl" style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)">
+                <span style="font-size:12px;color:var(--text3)">Desc. general %</span>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <input type="number" id="desc-general" min="0" max="100" placeholder="0"
+                    oninput="calcTotals()"
+                    style="width:60px;text-align:right;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--green);font-size:13px;font-family:inherit;padding:3px 6px">
+                  <span style="font-size:12px;color:var(--text3)">%</span>
+                </div>
+              </div>
             </div>
             <div id="margen-ganancia-box" class="admin-only" style="margin-top:10px;padding:12px 14px;border-radius:var(--radius);display:none;width:100%;max-width:320px;box-sizing:border-box">
               <div style="display:flex;justify-content:space-between;align-items:center">
@@ -1277,8 +1303,27 @@ tr:hover td{color:var(--text)}
           <span id="vd-fecha" style="font-size:12px;color:var(--text3);margin-left:8px"></span>
         </div>
         <div style="display:flex;gap:6px;align-items:center">
-          <span id="vd-badge-pago"></span>
-          <span id="vd-badge-inst"></span>
+          <!-- Badge de pago — clic abre dropdown para cambiar estado -->
+          <div style="position:relative">
+            <span id="vd-badge-pago" style="cursor:pointer" title="Clic para cambiar estado de pago" onclick="toggleEstadoDropdown('pago')"></span>
+            <div id="vd-drop-pago" style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:100;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.2);min-width:160px;overflow:hidden">
+              <div style="padding:6px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:0.5px solid var(--border)">Estado de pago</div>
+              <div onclick="cambiarEstadoVenta('pago','pendiente_pago')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-clock" style="color:var(--text3)"></i> Pendiente pago</div>
+              <div onclick="cambiarEstadoVenta('pago','seniado')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-coin" style="color:var(--blue)"></i> Señado</div>
+              <div onclick="cambiarEstadoVenta('pago','pago_total')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-check" style="color:var(--green)"></i> Pago total</div>
+            </div>
+          </div>
+          <!-- Badge de instalación — clic abre dropdown para cambiar estado -->
+          <div style="position:relative">
+            <span id="vd-badge-inst" style="cursor:pointer" title="Clic para cambiar estado de instalación" onclick="toggleEstadoDropdown('inst')"></span>
+            <div id="vd-drop-inst" style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:100;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.2);min-width:160px;overflow:hidden">
+              <div style="padding:6px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:0.5px solid var(--border)">Estado de instalación</div>
+              <div onclick="cambiarEstadoVenta('inst','pendiente_inst')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-clock" style="color:var(--text3)"></i> Pendiente</div>
+              <div onclick="cambiarEstadoVenta('inst','en_instalacion')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-tools" style="color:var(--blue)"></i> En instalación</div>
+              <div onclick="cambiarEstadoVenta('inst','instalado')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-package" style="color:var(--green)"></i> Instalado</div>
+              <div onclick="cambiarEstadoVenta('inst','con_garantia')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-shield-check" style="color:var(--purple)"></i> Con garantía</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -6287,7 +6332,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.73-firebase',
+  VERSION: 'v19.75-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7029,18 +7074,48 @@ document.addEventListener('click', function(e) { if (!e.target.closest('.sw')) _
 // ── CÁLCULOS VENTA ──
 function calcRow(inp) {
   const tr = inp.closest('tr');
-  const q = parseFloat(tr.querySelector('.qty').value) || 0;
-  const p = parseFloat(tr.querySelector('.price').value) || 0;
-  tr.querySelector('.sub').textContent = '$' + Math.round(q * p).toLocaleString('es-AR');
+  const q  = parseFloat(tr.querySelector('.qty').value) || 0;
+  const p  = parseFloat(tr.querySelector('.price').value) || 0;
+  const dp = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
+  const bruto = q * p;
+  const neto  = dp > 0 ? bruto * (1 - dp/100) : bruto;
+  const sub = tr.querySelector('.sub');
+  if (sub) {
+    if (dp > 0) {
+      sub.innerHTML = '<span style="text-decoration:line-through;color:var(--text3);font-size:11px;font-weight:400">$' + Math.round(bruto).toLocaleString('es-AR') + '</span><br>$' + Math.round(neto).toLocaleString('es-AR');
+    } else {
+      sub.textContent = '$' + Math.round(neto).toLocaleString('es-AR');
+    }
+    // Colorear el campo de descuento
+    var discInp = tr.querySelector('.disc');
+    if (discInp) discInp.style.color = dp > 0 ? 'var(--green)' : 'var(--text3)';
+  }
   calcTotals();
 }
+
 function calcTotals() {
+  // Subtotal suma de netos por fila (ya con descuento por ítem)
   let s = 0;
-  document.querySelectorAll('#det-body .sub').forEach(td => s += parseFloat(td.textContent.replace(/\$|\./g,'').replace(',','.')) || 0);
-  const iva = s * 0.21;
-  _set('t-sub','$' + Math.round(s).toLocaleString('es-AR'));
-  _set('t-iva','$' + Math.round(iva).toLocaleString('es-AR'));
-  _set('t-tot','$' + Math.round(s + iva).toLocaleString('es-AR'));
+  document.querySelectorAll('#det-body tr').forEach(function(tr) {
+    var q  = parseFloat((tr.querySelector('.qty')||{}).value) || 0;
+    var p  = parseFloat((tr.querySelector('.price')||{}).value) || 0;
+    var dp = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
+    s += q * p * (1 - dp/100);
+  });
+
+  // Descuento general
+  var descGenPct = parseFloat((document.getElementById('desc-general')||{}).value) || 0;
+  var descGenAmt = s * descGenPct / 100;
+  var sConDesc   = s - descGenAmt;
+  var iva        = sConDesc * 0.21;
+
+  _set('t-sub', '$' + Math.round(s).toLocaleString('es-AR'));
+  // Mostrar/ocultar línea de descuento general
+  var descRow = document.getElementById('t-desc-row');
+  if (descRow) descRow.style.display = descGenPct > 0 ? '' : 'none';
+  _set('t-desc', '-$' + Math.round(descGenAmt).toLocaleString('es-AR'));
+  _set('t-iva',  '$' + Math.round(iva).toLocaleString('es-AR'));
+  _set('t-tot',  '$' + Math.round(sConDesc + iva).toLocaleString('es-AR'));
   calcMargenGanancia();
 }
 
@@ -7198,23 +7273,29 @@ function confirmarVenta() {
       var desc  = descEl ? descEl.textContent : '';
       var qty   = parseInt((tr.querySelector('.qty')||{}).value) || 1;
       var punit = parseFloat((tr.querySelector('.price')||{}).value) || 0;
-      var item  = { cod:cod, desc:desc, qty:qty, punit:punit, sub:qty*punit };
-      // Si el producto fue convertido de USD, dejar registro de la cotización usada
+      var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
+      var sub   = Math.round(qty * punit * (1 - disc/100));
+      var item  = { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub };
       if (tr.dataset.monedaOriginal === 'USD') {
-        item.monedaOriginal   = 'USD';
+        item.monedaOriginal    = 'USD';
         item.precioUsdOriginal = parseFloat(tr.dataset.precioUsdOriginal) || 0;
         item.cotizacionUsada   = parseFloat(tr.dataset.cotizacionUsada) || 0;
         item.cotizacionTipo    = tr.dataset.cotizacionTipo || 'oficial';
       }
       return item;
     }),
+    descuentoGeneral: parseFloat((document.getElementById('desc-general')||{}).value) || 0,
     pagos: [],
     obs: (document.getElementById('venta-obs')||{}).value || '',
     audit: [{ fecha: fechaHoy, usuario: 'Sistema', accion: 'Venta confirmada' }]
   };
-  nuevaVenta.subtotal = nuevaVenta.items.reduce(function(s,i){ return s+i.sub; }, 0);
-  nuevaVenta.iva = Math.round(nuevaVenta.subtotal * 0.21);
-  nuevaVenta.total = nuevaVenta.subtotal + nuevaVenta.iva;
+  var subtotalBruto = nuevaVenta.items.reduce(function(s,i){ return s + (i.qty * i.punit); }, 0);
+  var subtotalNeto  = nuevaVenta.items.reduce(function(s,i){ return s + i.sub; }, 0);
+  var descGenAmt    = Math.round(subtotalNeto * (nuevaVenta.descuentoGeneral/100));
+  nuevaVenta.subtotal  = subtotalNeto - descGenAmt;
+  nuevaVenta.descuento = descGenAmt + (subtotalBruto - subtotalNeto); // descuento total (items + general)
+  nuevaVenta.iva       = Math.round(nuevaVenta.subtotal * 0.21);
+  nuevaVenta.total     = nuevaVenta.subtotal + nuevaVenta.iva;
 
   // Costo y margen calculados al momento de la venta (controlador de ganancia)
   var costoTotalVenta = nuevaVenta.items.reduce(function(s, item) {
@@ -18898,7 +18979,52 @@ function verDetalleVenta(ventaId) {
   }
 }
 
+// ── CAMBIO DE ESTADO DESDE EL DETALLE DE VENTA ──
+function toggleEstadoDropdown(tipo) {
+  var drop = document.getElementById('vd-drop-' + tipo);
+  var otro = document.getElementById('vd-drop-' + (tipo === 'pago' ? 'inst' : 'pago'));
+  if (!drop) return;
+  if (otro) otro.style.display = 'none';
+  drop.style.display = drop.style.display === 'none' ? '' : 'none';
+  // Cerrar al tocar fuera
+  if (drop.style.display !== 'none') {
+    setTimeout(function() {
+      document.addEventListener('click', function handler(e) {
+        if (!drop.contains(e.target) && !e.target.closest('[onclick*="toggleEstadoDropdown"]')) {
+          drop.style.display = 'none';
+          document.removeEventListener('click', handler);
+        }
+      });
+    }, 10);
+  }
+}
+
+function cambiarEstadoVenta(tipo, nuevoEstado) {
+  // Cerrar dropdowns
+  ['pago','inst'].forEach(function(t) {
+    var d = document.getElementById('vd-drop-' + t);
+    if (d) d.style.display = 'none';
+  });
+  if (!window._ventaDetalleActual || !window.fbDB) return;
+  var v = window._ventaDetalleActual;
+  var campo = tipo === 'pago' ? 'estadoPago' : 'estadoInst';
+  v[campo] = nuevoEstado;
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/' + v.fbKey), { [campo]: nuevoEstado })
+    .then(function() {
+      notify('Estado actualizado');
+      // Actualizar badges y timeline sin recargar todo
+      var badgePago = document.getElementById('vd-badge-pago');
+      var badgeInst = document.getElementById('vd-badge-inst');
+      if (badgePago) badgePago.innerHTML = ventaEstadoBadge(v.estadoPago);
+      if (badgeInst) badgeInst.innerHTML = ventaEstadoInstBadge(v.estadoInst);
+      renderVentaTimeline('vd-timeline', v.estadoPago === 'pago_total' && v.estadoInst !== 'pendiente_inst' ? v.estadoInst : v.estadoPago);
+      if (typeof registrarActividad === 'function') registrarActividad('Estado cambiado', v.id + ': ' + campo + ' → ' + nuevoEstado);
+    })
+    .catch(function(e) { notify('Error: ' + e.message); });
+}
+
 function renderDetalleVenta(v) {
+  window._ventaDetalleActual = v; // guardar referencia para cambiarEstadoVenta
   var dv = document.getElementById('venta-detalle-view');
   if (!dv) return;
 
@@ -19954,10 +20080,11 @@ document.addEventListener('click', function(e) {
 
 // ── FILA DE PRODUCTO CON SELECTOR ──
 // prodData tiene todos los productos disponibles
-function crearFilaProducto(cod, desc, precio, qty) {
+function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
   const tr = document.createElement('tr');
-  const stk = stockData[cod] || { real:0, reservado:0 };
   const stockBadge = stockBadgeHTML(cod, qty || 1);
+  const dp = parseFloat(desc_pct) || 0;
+  const precioFinal = dp > 0 ? Math.round((qty||1) * precio * (1 - dp/100)) : Math.round((qty||1) * (precio||0));
   tr.innerHTML = `
     <td><input type="checkbox"></td>
     <td style="position:relative;min-width:100px">
@@ -19985,7 +20112,18 @@ function crearFilaProducto(cod, desc, precio, qty) {
     <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right"></td>
     <td class="stock-cell" style="text-align:right;white-space:nowrap;max-width:90px;background:inherit"><span class="stock-ind" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis">${stockBadge}</span></td>
     <td><input type="number" value="${precio||0}" class="price" oninput="calcRow(this)" min="0" style="width:80px;text-align:right"></td>
-    <td class="sub" style="text-align:right;color:var(--text);font-weight:500">$${Math.round((qty||1)*(precio||0)).toLocaleString('es-AR')}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px">
+        <input type="number" value="${dp||''}" class="disc" placeholder="0" min="0" max="100" oninput="calcRow(this)"
+          style="width:44px;text-align:right;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:${dp>0?'var(--green)':'var(--text3)'};font-size:12px;font-family:inherit;padding:2px 4px">
+        <span style="font-size:11px;color:var(--text3)">%</span>
+      </div>
+    </td>
+    <td class="sub" style="text-align:right;color:var(--text);font-weight:500">
+      ${dp > 0
+        ? `<span style="text-decoration:line-through;color:var(--text3);font-size:11px;font-weight:400">$${Math.round((qty||1)*(precio||0)).toLocaleString('es-AR')}</span><br>$${precioFinal.toLocaleString('es-AR')}`
+        : `$${precioFinal.toLocaleString('es-AR')}`}
+    </td>
     <td><button class="btn btn-sm btn-danger" onclick="delRow(this)" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>`;
   return tr;
 }
