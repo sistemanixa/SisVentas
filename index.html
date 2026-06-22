@@ -792,7 +792,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.71 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.72 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4894,7 +4894,14 @@ function renderTablaProductos(filtro) {
       '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.esManoDeObra ? '<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px" title="Mano de obra"></i>' : '') + (p.nombre||'') + '</td>' +
       '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.descripcion||p.categoria||'—') + '</td>' +
       '<td style="text-align:right;font-weight:600;color:' + stkColor + '">' + stk + '</td>' +
-      '<td style="text-align:right">' + (p.moneda==='USD' ? '<span class="badge b-blue" style="font-size:9px;margin-right:4px" title="Cargado en dólares">USD</span>$'+(parseFloat(pv)||0).toLocaleString('es-AR') : '$' + (parseFloat(pv)||0).toLocaleString('es-AR')) + '</td>' +
+      // Precio USD primario + equivalente ARS
+      (function(){
+        var tc = window.TIPO_CAMBIO_CONFIG || {};
+        var cotiz = parseFloat(tc[tc.dolarConversion || 'oficial']) || 0;
+        var pvFmt = (parseFloat(pv)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+        var equivARS = cotiz > 0 && pv > 0 ? '<br><span style="font-size:10px;color:var(--text3);font-weight:400">$ ' + Math.round(pv * cotiz).toLocaleString('es-AR') + ' ARS</span>' : '';
+        return '<td style="text-align:right">USD ' + pvFmt + equivARS + '</td>';
+      })() +
       '<td style="text-align:right">' + costoLbl + '</td>' +
       '<td style="text-align:right;color:var(--green)">' + margen + '</td>' +
       '<td style="padding-left:12px"><button class="icon-btn" data-pid="' + pid + '" onclick="event.stopPropagation();editarProductoById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
@@ -6308,7 +6315,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.71-firebase',
+  VERSION: 'v19.72-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -20076,15 +20083,19 @@ function _renderDropGlobal(filtro) {
     var stk = stockData ? (stockData[p.codigo] || {real:0, reservado:0}) : {real:0, reservado:0};
     var disp = stk.real - stk.reservado;
     var stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--text3)';
-    var esUSD = p.moneda === 'USD';
-    var precioLbl = esUSD ? 'USD ' + (parseFloat(p.venta)||0).toLocaleString('es-AR') : '$'+(parseFloat(p.venta)||0).toLocaleString('es-AR');
-    return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+(p.venta||0)+'" data-moneda="'+(esUSD?'USD':'ARS')+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
+    var esUSD = p.moneda === 'USD' || !p.moneda; // sin campo moneda = USD (así están cargados los productos)
+    var pvNum = parseFloat(p.venta) || 0;
+    var tc2 = window.TIPO_CAMBIO_CONFIG || {};
+    var cotiz2 = parseFloat(tc2[tc2.dolarConversion || 'oficial']) || 0;
+    var precioLbl = 'USD ' + pvNum.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    var equivARS2 = cotiz2 > 0 && pvNum > 0 ? ' · $' + Math.round(pvNum * cotiz2).toLocaleString('es-AR') : '';
+    return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+(p.venta||0)+'" data-moneda="USD" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
       '<div>' +
         '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' — '+escapeHTML(p.nombre||p.descripcion||'')+'</div>' +
         (p.descripcion && p.descripcion !== p.nombre && p.descripcion !== '-' ?
           '<div style="font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:380px">'+escapeHTML(p.descripcion)+'</div>' : '') +
       '</div>' +
-      '<div style="font-size:11px;color:var(--text3);white-space:nowrap;margin-left:8px">'+(esUSD?'<span class="badge b-blue" style="font-size:9px;margin-right:3px">USD</span>':'')+precioLbl+' · <span style="color:'+stkColor+'">'+disp+' disp.</span></div>' +
+      '<div style="font-size:11px;color:var(--text3);white-space:nowrap;margin-left:8px"><span class="badge b-blue" style="font-size:9px;margin-right:3px">USD</span>'+precioLbl+equivARS2+' · <span style="color:'+stkColor+'">'+disp+' disp.</span></div>' +
     '</div>';
   }).join('') : '<div style="padding:14px;font-size:12px;color:var(--text3);text-align:center">Sin resultados</div>';
 }
@@ -20260,10 +20271,12 @@ function renderBusqAvanz() {
     var stk  = stockData ? (stockData[p.codigo] || {real:0,reservado:0}) : {real:0,reservado:0};
     var disp = stk.real - stk.reservado;
     var stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--green)';
-    var esUSD = p.moneda === 'USD';
     var precio = parseFloat(p.venta) || 0;
-    var precioLbl = esUSD ? 'USD '+precio.toLocaleString('es-AR') : '$'+precio.toLocaleString('es-AR');
-    return '<div onclick="seleccionarProdAvanz(\''+escapeHTML(p.codigo)+'\',\''+escapeHTML(p.nombre||p.descripcion||'')+'\','+precio+',\''+( esUSD?'USD':'ARS')+'\')" ' +
+    var tc3 = window.TIPO_CAMBIO_CONFIG || {};
+    var cotiz3 = parseFloat(tc3[tc3.dolarConversion || 'oficial']) || 0;
+    var precioUSD = 'USD ' + precio.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    var equivARS3 = cotiz3 > 0 && precio > 0 ? '$' + Math.round(precio * cotiz3).toLocaleString('es-AR') : '';
+    return '<div onclick="seleccionarProdAvanz(\''+escapeHTML(p.codigo)+'\',\''+escapeHTML(p.nombre||p.descripcion||'')+'\','+precio+',\'USD\')" ' +
       'style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:var(--radius);cursor:pointer;margin-bottom:4px;border:0.5px solid var(--border)"' +
       ' onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
       '<div style="min-width:0">' +
@@ -20274,7 +20287,8 @@ function renderBusqAvanz() {
         '</div>' +
       '</div>' +
       '<div style="text-align:right;flex-shrink:0;margin-left:12px">' +
-        '<div style="font-weight:600;font-size:13px;color:var(--text)">' + precioLbl + '</div>' +
+        '<div style="font-weight:600;font-size:13px;color:var(--text)"><span class="badge b-blue" style="font-size:9px;margin-right:3px">USD</span>' + precioUSD + '</div>' +
+        (equivARS3 ? '<div style="font-size:11px;color:var(--text3)">≈ ' + equivARS3 + ' ARS</div>' : '') +
         '<div style="font-size:11px;color:'+stkColor+'">' + disp + ' disp.</div>' +
       '</div>' +
     '</div>';
