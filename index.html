@@ -792,7 +792,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.54 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.56 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6090,7 +6090,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.54-firebase',
+  VERSION: 'v19.56-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6102,30 +6102,65 @@ const APP_CONFIG = Object.freeze({
 // publicada en el servidor ahora mismo (pidiéndola con cache-busting, para evitar
 // que el propio chequeo caiga en el mismo caché que estamos tratando de detectar).
 // Si difieren, muestra un aviso con un botón para forzar la actualización real.
+// ══════════════════════════════════════════════════════════════════
+// SISTEMA DE VERSIÓN EN TIEMPO REAL VÍA FIREBASE
+// En vez de hacer polling contra GitHub Pages (que tiene CDN con caché
+// de hasta 10 minutos y no es confiable), escuchamos el nodo
+// sisventas/config/version en Firebase Realtime DB — que es tiempo
+// real garantizado. Cuando subís una versión nueva, actualizás ese
+// nodo y todos los clientes conectados se actualizan al instante.
+// ══════════════════════════════════════════════════════════════════
+
+var _listenerVersionActivo = false;
+
+function iniciarListenerVersion() {
+  if (_listenerVersionActivo) return;
+  if (!window.fbDB) return;
+  _listenerVersionActivo = true;
+
+  window.fbOnValue(
+    window.fbRef(window.fbDB, 'sisventas/config/version'),
+    function(snap) {
+      var versionFirebase = snap.val();
+      if (!versionFirebase) return;
+      // Si la versión en Firebase es distinta a la que está corriendo, actualizar
+      if (versionFirebase !== APP_CONFIG.VERSION) {
+        actualizarAutomaticamente(APP_CONFIG.VERSION, versionFirebase);
+      }
+    }
+  );
+}
+
+// Mantener chequearVersionNueva como fallback por compatibilidad
+// pero ahora solo sirve como respaldo si Firebase no está disponible
 function chequearVersionNueva() {
-  fetch(window.location.pathname + '?cb=' + Date.now(), { cache: 'no-store' })
-    .then(function(r) { return r.text(); })
+  if (_listenerVersionActivo) return; // ya cubierto por Firebase
+  fetch(window.location.pathname + '?_v=' + Date.now(), {
+    cache: 'no-store',
+    headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+  })
+    .then(function(r) { if (!r.ok) return; return r.text(); })
     .then(function(html) {
+      if (!html) return;
       var m = html.match(/VERSION:\s*'([^']+)'/);
       if (!m) return;
-      var versionServidor = m[1];
-      if (versionServidor === APP_CONFIG.VERSION) return;
-      // Siempre actualizar automáticamente — si hay una venta a mitad se pierde,
-      // pero la prioridad es tener siempre la versión más reciente.
-      actualizarAutomaticamente(APP_CONFIG.VERSION, versionServidor);
+      if (m[1] !== APP_CONFIG.VERSION) actualizarAutomaticamente(APP_CONFIG.VERSION, m[1]);
     })
     .catch(function(){});
 }
 
-// Chequeo periódico — cada 5 minutos en segundo plano
 var _chequeoVersionIniciado = false;
 function iniciarChequeoPeriodicoVersion() {
-  if (_chequeoVersionIniciado) return; // evitar doble registro
+  if (_chequeoVersionIniciado) return;
   _chequeoVersionIniciado = true;
-  // Primer chequeo inmediato (ya pasaron los 15s del firebase-ready, o los 10s del login)
-  chequearVersionNueva();
-  // Después cada 5 minutos
-  setInterval(chequearVersionNueva, 5 * 60 * 1000);
+  // Preferir el listener de Firebase (tiempo real, sin CDN)
+  if (window.fbDB) {
+    iniciarListenerVersion();
+  } else {
+    // Fallback: polling si Firebase no está disponible
+    chequearVersionNueva();
+    setInterval(chequearVersionNueva, 2 * 60 * 1000);
+  }
 }
 
 function actualizarAutomaticamente(versionActual, versionNueva) {
@@ -6632,10 +6667,16 @@ function _completarLogin(nombre) {
   applyRole();
   registrarPresenciaOnline();
   if (typeof registrarActividad === 'function') registrarActividad('Inicio de sesión', '');
-  // Iniciar chequeo periódico de versión nueva en background
+  // Iniciar listener de versión en tiempo real vía Firebase
   if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
   // Si venimos de una actualización automática, volver al módulo donde estaba el usuario
   if (typeof restaurarPaginaPostActualizacion === 'function') restaurarPaginaPostActualizacion();
+  // Si es admin, publicar la versión actual en Firebase — así todos los clientes conectados
+  // la detectan en tiempo real sin depender del CDN de GitHub Pages.
+  if (currentRole === 'admin' && window.fbDB && APP_CONFIG && APP_CONFIG.VERSION) {
+    window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), APP_CONFIG.VERSION)
+      .catch(function(){});
+  }
 
   // Mostrar versión en el sidebar
   var vSidebar = document.getElementById('s-version-el');
