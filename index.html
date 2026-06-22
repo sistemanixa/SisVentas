@@ -796,7 +796,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.73 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v19.94 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6019,6 +6019,105 @@ function selTipoFactura(btn, tipo) {
   btn.classList.add('btn-primary');
 }
 
+function abrirModalNotaCredito(ventaId) {
+  var v = (ventasList||[]).find(function(x){ return x.id === ventaId; });
+  if (!v || !v.factura) { notify('Sin factura emitida en esta venta'); return; }
+  var f = v.factura;
+
+  // Verificar que la factura no tiene más de 15 días (límite AFIP)
+  if (f.fecha) {
+    var partes = f.fecha.split('/');
+    var fechaFact = new Date(parseInt(partes[2]), parseInt(partes[1])-1, parseInt(partes[0]));
+    var diasDesde = Math.floor((Date.now() - fechaFact.getTime()) / (1000*60*60*24));
+    if (diasDesde > 15) {
+      notify('⚠️ La factura tiene más de 15 días — AFIP puede rechazar la nota de crédito. Consultá con tu contador.');
+    }
+  }
+
+  var prev = document.getElementById('modal-nota-credito');
+  if (prev) prev.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-nota-credito';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML =
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:28px 32px;max-width:460px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
+      '<div style="font-weight:700;font-size:16px;margin-bottom:4px"><i class="ti ti-file-minus" style="color:var(--red);margin-right:8px"></i>Emitir nota de crédito</div>' +
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">Anula contablemente la ' + escapeHTML(f.tipo||'factura') + ' — CAE: ' + escapeHTML(f.cae||'') + '</div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--text2);margin-bottom:16px">' +
+        '<div><strong>Venta:</strong> ' + escapeHTML(v.id) + ' — ' + escapeHTML(v.cliente) + '</div>' +
+        '<div><strong>Factura:</strong> ' + escapeHTML(f.tipo||'') + ' Nro: ' + escapeHTML(f.numero_comprobante||'') + ' del ' + escapeHTML(f.fecha||'') + '</div>' +
+        '<div><strong>Total:</strong> $' + (parseFloat(v.total)||0).toLocaleString('es-AR') + '</div>' +
+      '</div>' +
+      '<div style="padding:10px;background:rgba(239,68,68,.08);border:0.5px solid var(--red);border-radius:var(--radius);font-size:12px;color:var(--red);margin-bottom:16px">' +
+        '⚠️ Esta acción emitirá una nota de crédito en AFIP/ARCA. No se puede deshacer. La venta quedará marcada como anulada en el sistema.' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+        '<button onclick="document.getElementById(\'modal-nota-credito\').remove()" class="btn btn-sm">Cancelar</button>' +
+        '<button onclick="emitirNotaCredito(\''+ventaId+'\')" class="btn btn-sm" style="background:var(--red);color:#fff;border-color:var(--red)"><i class="ti ti-check"></i> Confirmar y emitir NC</button>' +
+      '</div>' +
+    '</div>';
+  overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function emitirNotaCredito(ventaId) {
+  var v = (ventasList||[]).find(function(x){ return x.id === ventaId; });
+  if (!v || !v.factura) return;
+  document.getElementById('modal-nota-credito').remove();
+  notify('Emitiendo nota de crédito en AFIP/ARCA...');
+
+  // Determinar tipo de NC según tipo de factura original
+  var tipoNC = v.factura.tipo === 'FACTURA A' ? 'NOTA DE CREDITO A' : 'NOTA DE CREDITO B';
+
+  try {
+    var resp = await fetch(SISVENTAS_FUNCTIONS.emitirFactura, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Frontend-Key': SISVENTAS_FUNCTIONS.frontendKey },
+      body: JSON.stringify({
+        venta: v,
+        tipoComprobante: tipoNC,
+        provincia: TFAPP_CONFIG.provincia,
+        puntoVenta: TFAPP_CONFIG.punto_venta,
+        rubro: TFAPP_CONFIG.rubro,
+        usuario: currentUser || '',
+        email: currentUserEmail || '',
+        // Comprobante asociado — requerido por AFIP para NC
+        comprobante_asociado: {
+          tipo: v.factura.tipo,
+          punto_venta: TFAPP_CONFIG.punto_venta,
+          numero: v.factura.numero_comprobante || '',
+          fecha: v.factura.fecha || ''
+        }
+      })
+    });
+    var data = await resp.json();
+    if (!resp.ok || data.error) {
+      notify('Error al emitir NC: ' + (data.mensaje || 'Error desconocido'));
+      return;
+    }
+    notify('✓ Nota de crédito emitida — CAE: ' + data.cae);
+    // Marcar la venta como anulada y guardar la NC
+    if (window.fbDB && v.fbKey) {
+      await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/' + v.fbKey), {
+        anulada: true,
+        estadoPago: 'anulada',
+        notaCredito: {
+          cae:    data.cae,
+          tipo:   tipoNC,
+          fecha:  new Date().toLocaleDateString('es-AR'),
+          pdf_url: data.pdf_url || ''
+        },
+        fechaAnulacion: new Date().toLocaleDateString('es-AR'),
+        anuladaPor: currentUser || 'Admin'
+      });
+    }
+    verFacturaEmitida(data.pdf_url || '', data.cae || '');
+    setTimeout(function(){ volverListaVentas(); }, 3000);
+  } catch(e) {
+    notify('Error de conexión: ' + e.message);
+  }
+}
+
 function verFacturaEmitida(pdfUrl, cae) {
   var prev = document.getElementById('modal-factura-emitida');
   if (prev) prev.remove();
@@ -6413,13 +6512,28 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.92-firebase',
+  VERSION: 'v19.94-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
   ADMINISTRATIVO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados']),
   VENDEDOR_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados','proveedores','ordenes','gastos','reportes','estadisticas'])
 });
+
+// Sincronizar todos los elementos de versión en el DOM con APP_CONFIG.VERSION
+(function() {
+  var ver = APP_CONFIG.VERSION.replace('-firebase','');
+  var verCompleta = ver + ' · Firebase';
+  // Login sidebar
+  var loginLbl = document.getElementById('login-version-lbl');
+  if (loginLbl) loginLbl.textContent = verCompleta;
+  // Panel ruedita
+  var upVer = document.getElementById('up-version');
+  if (upVer) upVer.textContent = ver;
+  // Sidebar post-login
+  var sVer = document.getElementById('s-version-el');
+  if (sVer) sVer.textContent = verCompleta;
+})();
 
 // Compara la versión que está corriendo en pantalla contra la que realmente está
 // publicada en el servidor ahora mismo (pidiéndola con cache-busting, para evitar
@@ -20063,6 +20177,7 @@ function verVenta(id) {
     accsHTML += '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(\''+v.id+'\')"><i class="ti ti-file-invoice"></i> Facturar</button>';
   } else {
     accsHTML += '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="verFacturaEmitida(\''+v.factura.pdf_url+'\',\''+v.factura.cae+'\')" title="CAE: '+v.factura.cae+'"><i class="ti ti-file-check"></i> Facturada — CAE: '+v.factura.cae+'</button>';
+    accsHTML += '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="abrirModalNotaCredito(\''+v.id+'\')" title="Emitir nota de crédito para anular esta factura"><i class="ti ti-file-minus"></i> Nota de crédito</button>';
   }
   accs.innerHTML = accsHTML;
 
@@ -20913,7 +21028,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:11px;color:var(--text3);text-align:center">SisVentas <span id="up-version">v13.9</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:11px;color:var(--text3);text-align:center">SisVentas <span id="up-version">v19.93</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
