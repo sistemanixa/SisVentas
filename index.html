@@ -770,7 +770,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.45 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.46 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1792,6 +1792,11 @@ tr:hover td{color:var(--text)}
 
       <!-- ── COBRANZAS ── -->
       <div id="page-cobranzas" class="page">
+        <div id="cob-volver-venta" style="display:none;margin-bottom:12px">
+          <button class="btn btn-sm" onclick="volverADetalleVenta()" style="gap:6px">
+            <i class="ti ti-arrow-left"></i> Volver al detalle de la venta
+          </button>
+        </div>
         <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
           <div class="metric">
             <div class="m-label">Cobrado este mes</div>
@@ -5916,6 +5921,12 @@ function showPage(id, el) {
       return;
     }
   }
+  // Si se navega a cobranzas desde el menú (no desde abrirCobroRapido), ocultar el botón volver
+  if (id === 'cobranzas' && el) {
+    var btnVolver = document.getElementById('cob-volver-venta');
+    if (btnVolver) btnVolver.style.display = 'none';
+    window._cobOrigenVentaId = null;
+  }
   // Ocultar todas las páginas
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
@@ -6050,7 +6061,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.45-firebase',
+  VERSION: 'v19.46-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6070,51 +6081,108 @@ function chequearVersionNueva() {
       if (!m) return;
       var versionServidor = m[1];
       if (versionServidor === APP_CONFIG.VERSION) return;
-      // Hay versión nueva — si el usuario no está en medio de una operación,
-      // recargar automáticamente para que nunca vea datos desactualizados.
+      // Hay versión nueva
       var hayVentaAbierta = document.getElementById('page-venta') && document.getElementById('page-venta').classList.contains('active');
       var hayCliCargado   = document.getElementById('cli-inp') && document.getElementById('cli-inp').value;
-      if (!hayVentaAbierta || !hayCliCargado) {
-        // Recarga silenciosa — el usuario ni se entera
-        window.location.href = window.location.pathname + '?cb=' + Date.now();
-      } else {
-        // Está en una venta a mitad — mostrar aviso y dejar que decida cuándo actualizar
+      if (hayVentaAbierta && hayCliCargado) {
+        // Está en medio de una venta — no interrumpir, mostrar aviso
         mostrarAvisoVersionNueva(versionServidor);
+      } else {
+        // Actualización automática con pantalla de carga
+        actualizarAutomaticamente();
       }
     })
     .catch(function(){});
+}
+
+// Chequeo periódico — cada 5 minutos en segundo plano
+function iniciarChequeoPeriodicoVersion() {
+  // Primer chequeo a los 10 segundos de cargar (deja tiempo a que se inicialice todo)
+  setTimeout(chequearVersionNueva, 10000);
+  // Después chequea cada 5 minutos
+  setInterval(chequearVersionNueva, 5 * 60 * 1000);
+}
+
+function actualizarAutomaticamente() {
+  // Recordar en qué módulo estaba el usuario para volver ahí después de actualizar
+  var paginaActual = '';
+  var paginaActiva = document.querySelector('.page.active');
+  if (paginaActiva) paginaActual = paginaActiva.id.replace('page-', '');
+
+  // Mostrar pantalla de actualización que cubre todo — no puede cerrarse
+  var overlay = document.createElement('div');
+  overlay.id = 'overlay-actualizando';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg,#080e1a);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px';
+  overlay.innerHTML =
+    '<div style="font-size:40px">🔄</div>' +
+    '<div style="font-weight:700;font-size:20px;color:var(--text,#fff)">Actualizando SisVentas...</div>' +
+    '<div style="font-size:13px;color:var(--text3,#6b7fa3)">Hay una versión nueva disponible. Recargando en un momento.</div>' +
+    '<div style="width:200px;height:4px;background:var(--bg2,#1a2332);border-radius:4px;overflow:hidden;margin-top:8px">' +
+      '<div id="upd-bar" style="height:100%;width:0%;background:var(--green,#3ddc84);border-radius:4px;transition:width 2.5s ease"></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  // Animar barra de progreso
+  setTimeout(function(){ var b = document.getElementById('upd-bar'); if(b) b.style.width='100%'; }, 50);
+
+  // Guardar el módulo actual en sessionStorage para volver ahí después de recargar
+  if (paginaActual) {
+    try { sessionStorage.setItem('sisventas_pagina_previa', paginaActual); } catch(e){}
+  }
+
+  // Desregistrar SW, limpiar caché, recargar
+  setTimeout(function() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(reg) { reg.unregister(); });
+      }).catch(function(){}).finally(function() {
+        if (window.caches && caches.keys) {
+          caches.keys().then(function(names) {
+            names.forEach(function(name) { caches.delete(name); });
+          }).finally(function() {
+            window.location.href = window.location.pathname + '?cb=' + Date.now();
+          });
+        } else {
+          window.location.href = window.location.pathname + '?cb=' + Date.now();
+        }
+      });
+    } else {
+      window.location.href = window.location.pathname + '?cb=' + Date.now();
+    }
+  }, 2800);
+}
+
+// Al iniciar, si venimos de una actualización automática, volver al módulo anterior
+function restaurarPaginaPostActualizacion() {
+  try {
+    var pagPrevia = sessionStorage.getItem('sisventas_pagina_previa');
+    if (pagPrevia) {
+      sessionStorage.removeItem('sisventas_pagina_previa');
+      // Esperar a que el sistema esté inicializado antes de navegar
+      setTimeout(function() {
+        if (typeof showPage === 'function') {
+          var btn = document.querySelector('[onclick*="' + pagPrevia + '"]');
+          showPage(pagPrevia, btn);
+        }
+      }, 1500);
+    }
+  } catch(e){}
 }
 
 function mostrarAvisoVersionNueva(versionNueva) {
   if (document.getElementById('aviso-version-nueva')) return;
   var div = document.createElement('div');
   div.id = 'aviso-version-nueva';
-  div.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;background:var(--bg2,#1a2332);border:0.5px solid var(--blue,#3ddc84);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:13px;color:#fff;max-width:92vw';
+  div.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;background:var(--bg2,#1a2332);border:0.5px solid var(--green,#3ddc84);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:13px;color:#fff;max-width:92vw';
   div.innerHTML =
-    '<span>Hay una versión nueva del sistema ('+versionNueva.replace('-firebase','')+') — la que ves ahora está desactualizada.</span>' +
-    '<button onclick="forzarActualizacionApp()" style="background:#3ddc84;color:#080e1a;border:none;border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;white-space:nowrap;cursor:pointer">Actualizar ahora</button>';
+    '<span>Hay una versión nueva ('+versionNueva.replace('-firebase','')+') — guardá tu venta y actualizá cuando puedas.</span>' +
+    '<button onclick="actualizarAutomaticamente()" style="background:#3ddc84;color:#080e1a;border:none;border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;white-space:nowrap;cursor:pointer">Actualizar ahora</button>';
   document.body.appendChild(div);
 }
 
-// Fuerza una recarga real saltando el caché del navegador, y de paso desregistra
-// cualquier Service Worker que pudiera estar interceptando la carga.
+// Fuerza una recarga real saltando el caché del navegador.
 function forzarActualizacionApp() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(regs) {
-      regs.forEach(function(reg) { reg.unregister(); });
-      if (window.caches && caches.keys) {
-        caches.keys().then(function(names) {
-          names.forEach(function(name) { caches.delete(name); });
-        }).finally(function() {
-          window.location.href = window.location.pathname + '?cb=' + Date.now();
-        });
-      } else {
-        window.location.href = window.location.pathname + '?cb=' + Date.now();
-      }
-    });
-  } else {
-    window.location.href = window.location.pathname + '?cb=' + Date.now();
-  }
+  actualizarAutomaticamente();
 }
 let isAuthenticated = false;
 let currentUserUid = ''; // uid de Firebase Auth — clave de presencia en Firebase
@@ -6514,6 +6582,10 @@ function _completarLogin(nombre) {
   applyRole();
   registrarPresenciaOnline();
   if (typeof registrarActividad === 'function') registrarActividad('Inicio de sesión', '');
+  // Iniciar chequeo periódico de versión nueva en background
+  if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
+  // Si venimos de una actualización automática, volver al módulo donde estaba el usuario
+  if (typeof restaurarPaginaPostActualizacion === 'function') restaurarPaginaPostActualizacion();
 
   // Mostrar versión en el sidebar
   var vSidebar = document.getElementById('s-version-el');
@@ -6884,24 +6956,39 @@ function cerrarConfirmacionVenta() {
 
 // Abre el módulo de cobranzas con la venta precargada
 function abrirCobroRapido(ventaId, total, cliente) {
+  // Recordar la venta de origen para poder volver
+  window._cobOrigenVentaId = ventaId;
   // Navegar al módulo de cobranzas
   if (typeof showPage === 'function') showPage('cobranzas');
+  // Mostrar botón de volver
+  var btnVolver = document.getElementById('cob-volver-venta');
+  if (btnVolver) btnVolver.style.display = '';
   // Precargar datos de la venta en el formulario de cobro
   setTimeout(function() {
     var selVenta = document.getElementById('cob-venta');
     var inpMonto = document.getElementById('cob-monto');
-    var inpCliente = document.getElementById('cob-cliente');
     if (selVenta) {
-      // Buscar la opción correcta en el select de ventas
-      Array.from(selVenta.options).forEach(function(opt) {
-        if (opt.value === ventaId || opt.text.includes(ventaId)) selVenta.value = opt.value;
-      });
-      // Disparar el cambio para que se carguen los datos dependientes
-      selVenta.dispatchEvent(new Event('change'));
+      selVenta.value = ventaId.replace('#','');
+      selVenta.dispatchEvent(new Event('input'));
+      if (typeof buscarVentaCob === 'function') buscarVentaCob(ventaId.replace('#',''));
     }
     if (inpMonto) inpMonto.value = total;
-    if (inpCliente) inpCliente.value = cliente;
   }, 400);
+}
+
+function volverADetalleVenta() {
+  var ventaId = window._cobOrigenVentaId;
+  var btnVolver = document.getElementById('cob-volver-venta');
+  if (btnVolver) btnVolver.style.display = 'none';
+  window._cobOrigenVentaId = null;
+  if (ventaId && typeof showPage === 'function') {
+    showPage('ventas');
+    setTimeout(function() {
+      if (typeof verVenta === 'function') verVenta(ventaId);
+    }, 300);
+  } else if (typeof showPage === 'function') {
+    showPage('ventas');
+  }
 }
 
 function inicializarFilasVenta() {
