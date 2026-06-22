@@ -792,7 +792,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.62 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.63 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6112,7 +6112,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.62-firebase',
+  VERSION: 'v19.63-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11263,8 +11263,22 @@ function eliminarVenta(fbKey) {
   var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!confirm('¿Eliminar venta ' + ((v||{}).id||'') + '?\nEsta acción no se puede deshacer.')) return;
   if (!window.fbDB) { notify('Sin conexión'); return; }
+
+  // Buscar OT vinculada para eliminarla junto con la venta
+  var otVinculada = v ? (otData||[]).find(function(o){ return o.ventaId === v.id; }) : null;
+
   window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey))
-    .then(function(){ notify('Venta eliminada'); volverListaVentas(); })
+    .then(function() {
+      // Eliminar OT vinculada si existe
+      if (otVinculada && otVinculada.fbKey) {
+        return window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey))
+          .then(function() { notify('Venta y OT vinculada eliminadas'); })
+          .catch(function() { notify('Venta eliminada — no se pudo eliminar la OT vinculada'); });
+      } else {
+        notify('Venta eliminada');
+      }
+    })
+    .then(function(){ volverListaVentas(); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
 
