@@ -539,11 +539,31 @@ tr:hover td{color:var(--text)}
 @media (max-width:900px){
   .stock-indicator{font-size:9px;padding:2px 4px;gap:2px}
   .stock-indicator i{display:none}
+  /* ── TABLA DE NUEVA VENTA EN MOBILE ── */
+  /* Ocultar columnas secundarias en pantalla chica para que no se apriete */
+  #page-venta #det-body td:nth-child(4),   /* Cant — queda como input compacto */
+  #page-venta thead th:nth-child(4) { min-width:48px }
+  #page-venta #det-body td:nth-child(5),   /* Disponible — ocultar en mobile */
+  #page-venta thead th:nth-child(5) { display:none }
+  #page-venta #det-body td:nth-child(6),   /* P.unit */
+  #page-venta thead th:nth-child(6) { min-width:70px }
+  #page-venta #det-body td:nth-child(7),   /* Subtotal */
+  #page-venta thead th:nth-child(7) { min-width:70px }
+  /* Input de cantidad más compacto */
+  #page-venta #det-body .qty { width:40px!important }
+  /* Input de precio más compacto */
+  #page-venta #det-body .price { width:65px!important }
+  /* Totales en columna en mobile */
+  #page-venta .totals { flex-direction:column!important; align-items:flex-start!important }
+  #page-venta .tbox { width:100%!important; max-width:100%!important }
+  /* Botones de confirmar en ancho completo */
+  #page-venta .flex-end { flex-direction:column!important; gap:8px!important }
+  #page-venta .flex-end .btn { width:100%!important; justify-content:center!important }
 }
 .stock-ok{background:var(--green-bg);color:var(--green)}
 .stock-warn{background:var(--amber-bg);color:var(--amber)}
 .stock-error{background:var(--red-bg);color:var(--red)}
-.stock-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.stock-cell{text-align:right;white-space:nowrap}
 .prod-search-drop{position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.08);overflow-y:auto;max-height:260px}
 .prod-drop-item{padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px;display:flex;justify-content:space-between;align-items:center}
 .prod-drop-item:last-child{border-bottom:none}
@@ -770,7 +790,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.47 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.48 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6068,7 +6088,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.46-firebase',
+  VERSION: 'v19.48-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
