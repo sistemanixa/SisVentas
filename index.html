@@ -792,7 +792,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.72 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.73 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2179,40 +2179,12 @@ tr:hover td{color:var(--text)}
               <i class="ti ti-alert-triangle" style="font-size:14px;margin-right:6px"></i>
               Los cambios en comisiones aplican desde el próximo período. Los períodos anteriores no se modifican.
             </div>
-            <table>
-              <tr><th>Cargo</th><th style="text-align:right">% sobre venta</th><th style="text-align:right">Mínimo garantizado</th><th style="text-align:right">Tope máximo</th><th ></th></tr>
-              <tr>
-                <td>Vendedor senior (Cat. 39)</td>
-                <td style="text-align:right"><input type="number" value="2.5" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">%</td>
-                <td style="text-align:right"><input type="number" value="1500" style="width:80px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit"></td>
-                <td style="text-align:right"><input type="number" value="8000" style="width:80px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit"></td>
-                <td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar esta fila"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>
-              </tr>
-              <tr>
-                <td>Vendedor junior (Cat. 15)</td>
-                <td style="text-align:right"><input type="number" value="1.5" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">%</td>
-                <td style="text-align:right"><input type="number" value="800" style="width:80px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit"></td>
-                <td style="text-align:right"><input type="number" value="4000" style="width:80px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit"></td>
-                <td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar esta fila"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>
-              </tr>
-              <tr>
-                <td>Técnico instalador (Cat. 08)</td>
-                <td style="text-align:right"><input type="number" value="1.0" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">%</td>
-                <td style="text-align:right"><input type="number" value="600" style="width:80px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit"></td>
-                <td style="text-align:right"><input type="number" value="3000" style="width:80px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit"></td>
-                <td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar esta fila"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>
-              </tr>
+            <table id="cfg-comisiones-tbl">
+              <tbody id="cfg-comisiones-tbody">
+                <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Cargando cargos...</td></tr>
+              </tbody>
             </table>
-            <div style="font-size:11px;color:var(--text3);margin-top:8px">💡 Usá el ✓ de cada fila para guardar esa comisión individualmente.</div>
-          </div>
-          <div class="card">
-            <div class="card-head"><span class="card-title">Valor hora extra</span></div>
-            <div class="form-grid">
-              <div class="fg"><label>Vendedor senior — hora extra ($)</label><input type="number" id="cfg-hextra-39" value="1200"></div>
-              <div class="fg"><label>Vendedor junior — hora extra ($)</label><input type="number" id="cfg-hextra-15" value="900"></div>
-              <div class="fg"><label>Técnico instalador — hora extra ($)</label><input type="number" id="cfg-hextra-08" value="1100"></div>
-            </div>
-            <div class="flex-end"><button class="btn btn-primary" onclick="guardarHorasExtra(this)"><i class="ti ti-check"></i> Guardar</button></div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">Usá el ✓ de cada fila para guardar la comisión de ese cargo individualmente. Los cargos se administran en la solapa <strong>Cargos</strong>.</div>
           </div>
         </div>
 
@@ -6315,7 +6287,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.72-firebase',
+  VERSION: 'v19.73-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7915,6 +7887,7 @@ function showCfgTab(id, el) {
   if (id === 'roles') renderTablaRoles();
   if (id === 'facturacion' && typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
   if (id === 'cargos') renderCargosConfig();
+  if (id === 'comisiones') renderComisionesConfig();
   if (id === 'notificaciones' && typeof renderConfigAlertas === 'function') renderConfigAlertas();
   if (id === 'actividad') cargarLogActividad();
   if (id === 'asistente') aacfgInicializar();
@@ -19675,17 +19648,48 @@ var CONFIG_COMISIONES = {
   'Cat. 08': { pct: 1.0, min: 0, max: 999999 }
 };
 
+// Genera la tabla de comisiones dinámicamente desde CARGOS_DATA
+function renderComisionesConfig() {
+  var tbody = document.getElementById('cfg-comisiones-tbody');
+  if (!tbody) return;
+  var cargos = Object.values(CARGOS_DATA || {});
+  if (!cargos.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">No hay cargos creados aún. Creá los cargos en la solapa <strong>Cargos</strong> primero.</td></tr>';
+    return;
+  }
+  var inp = function(val, w) {
+    return '<input type="number" value="'+(val||0)+'" style="width:'+w+'px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">';
+  };
+  tbody.innerHTML =
+    '<tr><th>Cargo</th><th style="text-align:right">% sobre venta</th><th style="text-align:right">Mínimo garantizado</th><th style="text-align:right">Tope máximo</th><th></th></tr>' +
+    cargos.map(function(c) {
+      var com = CONFIG_COMISIONES[c.id] || {};
+      return '<tr data-cargo-id="'+escapeHTML(c.id)+'">' +
+        '<td style="font-weight:500">'+escapeHTML(c.nombre||c.id)+'</td>' +
+        '<td style="text-align:right">'+inp(com.pct||0, 60)+'%</td>' +
+        '<td style="text-align:right">'+inp(com.min||0, 80)+'</td>' +
+        '<td style="text-align:right">'+inp(com.max||0, 80)+'</td>' +
+        '<td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>' +
+      '</tr>';
+    }).join('');
+}
+
 function guardarFilaConfig(btn) {
-  var tr     = btn.closest('tr');
-  var inputs = tr.querySelectorAll('input[type=number]');
-  var cargo  = tr.querySelector('td') ? tr.querySelector('td').textContent.trim() : '';
-  var vals   = Array.from(inputs).map(function(i){ return parseFloat(i.value)||0; });
-  var cat = cargo.includes('39') ? 'Cat. 39' : cargo.includes('15') ? 'Cat. 15' : 'Cat. 08';
+  var tr      = btn.closest('tr');
+  var inputs  = tr.querySelectorAll('input[type=number]');
+  var cargoId = tr.dataset.cargoId;
+  var vals    = Array.from(inputs).map(function(i){ return parseFloat(i.value)||0; });
+
+  if (!cargoId) {
+    // Legacy: fila hardcodeada vieja (ya no debería haber)
+    notify('Fila sin cargo ID — recargá la solapa de comisiones');
+    return;
+  }
 
   if (window.fbDB) {
-    CONFIG_COMISIONES[cat] = { pct: vals[0]||0, min: vals[1]||0, max: vals[2]||0 };
+    CONFIG_COMISIONES[cargoId] = { pct: vals[0]||0, min: vals[1]||0, max: vals[2]||0 };
     window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/comisiones'), CONFIG_COMISIONES)
-      .then(function(){ notify('✓ Comisión guardada en Firebase'); })
+      .then(function(){ notify('✓ Comisión guardada para ' + (CARGOS_DATA[cargoId]||{}).nombre); })
       .catch(function(e){ notify('Error: '+e.message); });
   } else {
     notify('Sin conexión a Firebase');
@@ -19702,16 +19706,11 @@ function cargarConfigComisiones() {
     var data = snap.val();
     if (data) {
       Object.assign(CONFIG_COMISIONES, data);
-      // Actualizar inputs de configuración si la pantalla está visible
       actualizarInputsComisiones();
+      // Si la solapa está visible, re-renderizar con los datos frescos
+      var panel = document.getElementById('cfg-comisiones');
+      if (panel && panel.style.display !== 'none') renderComisionesConfig();
     }
-  });
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/horasExtra')).then(function(snap) {
-    var d = snap.val(); if (!d) return;
-    var _v = function(id, val) { var el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
-    _v('cfg-hextra-39', d['Cat. 39']);
-    _v('cfg-hextra-15', d['Cat. 15']);
-    _v('cfg-hextra-08', d['Cat. 08']);
   });
 }
 
