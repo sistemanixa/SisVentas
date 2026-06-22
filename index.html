@@ -796,7 +796,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v19.95 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v19.96 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6034,6 +6034,7 @@ function abrirModalNotaCredito(ventaId) {
     }
   }
 
+  var nroComp = f.numero_comprobante || f.nroComprobante || '';
   var prev = document.getElementById('modal-nota-credito');
   if (prev) prev.remove();
   var overlay = document.createElement('div');
@@ -6043,13 +6044,20 @@ function abrirModalNotaCredito(ventaId) {
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:28px 32px;max-width:460px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
       '<div style="font-weight:700;font-size:16px;margin-bottom:4px"><i class="ti ti-file-minus" style="color:var(--red);margin-right:8px"></i>Emitir nota de crédito</div>' +
       '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">Anula contablemente la ' + escapeHTML(f.tipo||'factura') + ' — CAE: ' + escapeHTML(f.cae||'') + '</div>' +
-      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--text2);margin-bottom:16px">' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--text2);margin-bottom:12px">' +
         '<div><strong>Venta:</strong> ' + escapeHTML(v.id) + ' — ' + escapeHTML(v.cliente) + '</div>' +
-        '<div><strong>Factura:</strong> ' + escapeHTML(f.tipo||'') + ' Nro: ' + escapeHTML(f.numero_comprobante||'') + ' del ' + escapeHTML(f.fecha||'') + '</div>' +
+        '<div><strong>Factura:</strong> ' + escapeHTML(f.tipo||'') + ' del ' + escapeHTML(f.fecha||'') + '</div>' +
         '<div><strong>Total:</strong> $' + (parseFloat(v.total)||0).toLocaleString('es-AR') + '</div>' +
       '</div>' +
+      // Número de comprobante — requerido por AFIP
+      '<div style="margin-bottom:12px">' +
+        '<label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Número de comprobante original (requerido por AFIP)</label>' +
+        '<input id="nc-nro-comp" type="number" value="' + (parseInt(nroComp)||'') + '" placeholder="Ej: 1 — buscalo en TusFacturasApp" min="1" ' +
+          'style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;box-sizing:border-box">' +
+        (nroComp ? '' : '<div style="font-size:11px;color:var(--amber);margin-top:4px">⚠️ No encontrado automáticamente — ingresalo manualmente desde TusFacturasApp → Comprobantes</div>') +
+      '</div>' +
       '<div style="padding:10px;background:rgba(239,68,68,.08);border:0.5px solid var(--red);border-radius:var(--radius);font-size:12px;color:var(--red);margin-bottom:16px">' +
-        '⚠️ Esta acción emitirá una nota de crédito en AFIP/ARCA. No se puede deshacer. La venta quedará marcada como anulada en el sistema.' +
+        '⚠️ Esta acción emitirá una nota de crédito en AFIP/ARCA. No se puede deshacer.' +
       '</div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end">' +
         '<button onclick="document.getElementById(\'modal-nota-credito\').remove()" class="btn btn-sm">Cancelar</button>' +
@@ -6063,6 +6071,16 @@ function abrirModalNotaCredito(ventaId) {
 async function emitirNotaCredito(ventaId) {
   var v = (ventasList||[]).find(function(x){ return x.id === ventaId; });
   if (!v || !v.factura) return;
+
+  // Leer el número del comprobante del input manual
+  var nroInput = document.getElementById('nc-nro-comp');
+  var nroComp = nroInput ? (parseInt(nroInput.value) || 0) : 0;
+  if (!nroComp) {
+    notify('Ingresá el número de comprobante original para continuar');
+    if (nroInput) nroInput.focus();
+    return;
+  }
+
   document.getElementById('modal-nota-credito').remove();
   notify('Emitiendo nota de crédito en AFIP/ARCA...');
 
@@ -6085,7 +6103,7 @@ async function emitirNotaCredito(ventaId) {
         comprobante_asociado: {
           tipo: v.factura.tipo,
           punto_venta: TFAPP_CONFIG.punto_venta,
-          numero: v.factura.numero_comprobante || '',
+          numero: nroComp,
           fecha: v.factura.fecha || ''
         }
       })
@@ -6512,7 +6530,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.95-firebase',
+  VERSION: 'v19.96-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
