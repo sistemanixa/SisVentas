@@ -796,7 +796,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.01 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.02 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1317,6 +1317,7 @@ tr:hover td{color:var(--text)}
               <div onclick="cambiarEstadoVenta('pago','pendiente_pago')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-clock" style="color:var(--text3)"></i> Pendiente pago</div>
               <div onclick="cambiarEstadoVenta('pago','seniado')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-coin" style="color:var(--blue)"></i> Señado</div>
               <div onclick="cambiarEstadoVenta('pago','pago_total')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-check" style="color:var(--green)"></i> Pago total</div>
+              <div id="vd-drop-pago-anulada" style="display:none;padding:8px 12px;font-size:13px;cursor:pointer;align-items:center;gap:8px;border-top:0.5px solid var(--border)" onclick="cambiarEstadoVenta('pago','anulada')" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-file-minus" style="color:var(--red)"></i> Anulada (NC emitida)</div>
             </div>
           </div>
           <!-- Badge de instalación — clic abre dropdown para cambiar estado -->
@@ -6539,7 +6540,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.01-firebase',
+  VERSION: 'v20.02-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -20052,7 +20053,10 @@ function renderVentasTabla(lista) {
     <td class="tr" style="white-space:nowrap">${ventaEstadoInstBadge(v.estadoInst)}</td>
     <td style="text-align:center;white-space:nowrap">
       ${v.notaCredito && v.notaCredito.cae
-        ? `<span title="NC emitida — CAE: ${escapeHTML(v.notaCredito.cae)}" style="color:var(--red)"><i class="ti ti-file-minus" style="font-size:15px"></i></span>`
+        ? `<span title="Factura anulada con NC — CAE NC: ${escapeHTML(v.notaCredito.cae)}" style="display:inline-flex;align-items:center;gap:3px">
+            <i class="ti ti-file-check" style="font-size:13px;color:var(--text3);text-decoration:line-through;opacity:.5"></i>
+            <i class="ti ti-file-minus" style="font-size:15px;color:var(--red)"></i>
+           </span>`
         : v.factura && v.factura.cae
           ? `<span title="Factura emitida — CAE: ${escapeHTML(v.factura.cae)}" style="color:var(--green)"><i class="ti ti-file-check" style="font-size:15px"></i></span>`
           : ''}
@@ -20151,6 +20155,9 @@ function verVenta(id) {
   _set('vd-fecha', _mostrarFecha(v.fecha));
   document.getElementById('vd-badge-pago').innerHTML = ventaEstadoBadge(v.estadoPago);
   document.getElementById('vd-badge-inst').innerHTML = ventaEstadoInstBadge(v.estadoInst);
+  // Mostrar opción "Anulada" en el dropdown solo si tiene NC emitida
+  var anuladaOpt = document.getElementById('vd-drop-pago-anulada');
+  if (anuladaOpt) anuladaOpt.style.display = v.notaCredito ? 'flex' : 'none';
   document.getElementById('vd-empleado').value = v.empleado || v.usuario || v.vendedor || '—';
   document.getElementById('vd-ppto').value = v.ppto || '—';
   document.getElementById('vd-obs').value = v.obs || '—';
