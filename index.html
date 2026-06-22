@@ -1371,23 +1371,27 @@ tr:hover td{color:var(--text)}
           <tfoot>
             <tr style="border-top:0.5px solid var(--border)">
               <td colspan="4"></td>
-              <td style="text-align:right;font-size:12px;color:var(--text3);padding-top:10px">Subtotal</td>
-              <td style="text-align:right;padding-top:10px" id="vd-sub"></td>
+              <td colspan="2" style="padding-top:10px">
+                <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--text3)">Subtotal</span><span id="vd-sub"></span></div>
+              </td>
             </tr>
             <tr id="vd-desc-row" style="display:none">
               <td colspan="4"></td>
-              <td style="text-align:right;font-size:12px;color:var(--green)">Descuento</td>
-              <td style="text-align:right;color:var(--green)" id="vd-desc-amt"></td>
+              <td colspan="2">
+                <div style="display:flex;justify-content:space-between;color:var(--green)"><span style="font-size:12px">Descuento</span><span id="vd-desc-amt"></span></div>
+              </td>
             </tr>
             <tr>
               <td colspan="4"></td>
-              <td style="text-align:right;font-size:12px;color:var(--amber)">IVA 21%</td>
-              <td style="text-align:right;color:var(--amber)" id="vd-iva"></td>
+              <td colspan="2">
+                <div style="display:flex;justify-content:space-between;color:var(--amber)"><span style="font-size:12px">IVA 21%</span><span id="vd-iva"></span></div>
+              </td>
             </tr>
             <tr>
               <td colspan="4"></td>
-              <td style="text-align:right;font-weight:700;font-size:14px;padding-bottom:8px">Total</td>
-              <td style="text-align:right;font-weight:700;font-size:14px;padding-bottom:8px" id="vd-total"></td>
+              <td colspan="2" style="padding-bottom:8px;border-top:0.5px solid var(--border);padding-top:6px">
+                <div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:14px">Total</span><span style="font-weight:700;font-size:14px" id="vd-total"></span></div>
+              </td>
             </tr>
           </tfoot>
         </table>
@@ -6052,32 +6056,34 @@ function confirmarEmisionFactura(ventaId) {
   }
   document.getElementById('modal-factura').remove();
   emitirFactura(venta, _facturaSelTipo).then(function(data) {
-    if (!data || !data.cae) return;
-    // Guardar los datos de la factura en la venta en Firebase
-    var facturaObj = {
-      cae:        data.cae,
-      vencCae:    data.vencimiento_cae || '',
-      pdf_url:    data.pdf_url || '',
-      tipo:       _facturaSelTipo,
-      fecha:      new Date().toLocaleDateString('es-AR'),
-      nroComprobante: data.nro_comprobante || '',
-      total:      data.total || venta.total
-    };
-    venta.factura = facturaObj;
+    if (!data) return;
+    // La Cloud Function ya guardó la factura en Firebase.
+    // Leer el resultado desde Firebase para asegurarnos de tener el CAE correcto.
     if (window.fbDB && venta.fbKey) {
-      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/' + venta.fbKey), { factura: facturaObj })
-        .then(function() {
-          notify('✓ Factura guardada en la venta');
-          // Recargar el detalle si está abierto
-          if (window._ventaDetalleActual && window._ventaDetalleActual.id === ventaId) {
-            window._ventaDetalleActual.factura = facturaObj;
-            verVenta(ventaId);
+      window.fbGet(window.fbRef(window.fbDB, 'sisventas/ventas/' + venta.fbKey + '/factura'))
+        .then(function(snap) {
+          var facturaObj = snap.val();
+          if (facturaObj) {
+            venta.factura = facturaObj;
+            // Actualizar también el objeto en ventasList
+            var v2 = (ventasList||[]).find(function(x){ return x.id === ventaId; });
+            if (v2) v2.factura = facturaObj;
+            if (window._ventaDetalleActual && window._ventaDetalleActual.id === ventaId) {
+              window._ventaDetalleActual.factura = facturaObj;
+              verVenta(ventaId);
+            }
+            verFacturaEmitida(facturaObj.pdf_url || '', facturaObj.cae || (data.cae||''));
+          } else {
+            // Fallback: usar lo que vino en el fetch
+            verFacturaEmitida(data.pdf_url||'', data.cae||'');
           }
         })
-        .catch(function(e){ notify('Factura emitida pero no se pudo guardar: ' + e.message); });
+        .catch(function() {
+          verFacturaEmitida(data.pdf_url||'', data.cae||'');
+        });
+    } else {
+      verFacturaEmitida(data.pdf_url||'', data.cae||'');
     }
-    // Abrir PDF en nueva pestaña
-    if (data.pdf_url) window.open(data.pdf_url, '_blank');
   });
 }
 
@@ -6407,7 +6413,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.89-firebase',
+  VERSION: 'v19.92-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9813,7 +9819,6 @@ function imprimirVentaActual() {
         '<div class="info-lbl">Datos de la venta</div>' +
         '<div class="info-sub">Estado pago: <strong>'+estadoPagoLbl+'</strong></div>' +
         (v.empleado ? '<div class="info-sub">Vendedor: '+escapeHTML(v.empleado)+'</div>' : '') +
-        (v.obs && v.obs !== '—' ? '<div class="info-sub">Obs: '+escapeHTML(v.obs)+'</div>' : '') +
       '</div>' +
     '</div>' +
 
@@ -11705,15 +11710,44 @@ function editarVenta(id) {
 
 function eliminarVenta(fbKey) {
   var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
-  if (!confirm('¿Eliminar venta ' + ((v||{}).id||'') + '?\nEsta acción no se puede deshacer.')) return;
+  if (!v) return;
+
+  // BLOQUEO FISCAL — una venta con factura electrónica emitida no puede eliminarse
+  // porque tiene CAE asignado por AFIP. Hay que emitir una nota de crédito en ARCA.
+  if (v.factura && v.factura.cae) {
+    var msg =
+      '⚠️ Esta venta tiene una factura electrónica emitida.\n\n' +
+      'Tipo: ' + (v.factura.tipo||'Factura') + '\n' +
+      'CAE: ' + v.factura.cae + '\n\n' +
+      'No se puede eliminar — hacerlo sería una irregularidad fiscal.\n\n' +
+      '¿Qué podés hacer?\n' +
+      '• Emitir una nota de crédito en ARCA/TusFacturasApp para anular el comprobante\n' +
+      '• Marcar la venta como "Anulada" en el sistema (queda registrada pero invisible en las listas)\n\n' +
+      '¿Querés marcarla como Anulada?';
+    if (!confirm(msg)) return;
+    // Marcar como anulada en Firebase — no se elimina, queda oculta
+    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey), {
+      anulada: true,
+      estadoPago: 'anulada',
+      fechaAnulacion: new Date().toLocaleDateString('es-AR'),
+      anuladaPor: currentUser || 'Admin'
+    })
+    .then(function() {
+      notify('Venta marcada como anulada — el comprobante CAE sigue vigente en ARCA');
+      volverListaVentas();
+    })
+    .catch(function(e){ notify('Error: ' + e.message); });
+    return;
+  }
+
+  if (!confirm('¿Eliminar venta ' + v.id + '?\nEsta acción no se puede deshacer.')) return;
   if (!window.fbDB) { notify('Sin conexión'); return; }
 
   // Buscar OT vinculada para eliminarla junto con la venta
-  var otVinculada = v ? (otData||[]).find(function(o){ return o.ventaId === v.id; }) : null;
+  var otVinculada = (otData||[]).find(function(o){ return o.ventaId === v.id; });
 
   window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey))
     .then(function() {
-      // Eliminar OT vinculada si existe
       if (otVinculada && otVinculada.fbKey) {
         return window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey))
           .then(function() { notify('Venta y OT vinculada eliminadas'); })
@@ -19856,6 +19890,9 @@ function tabVentas(tipo, btn) {
 function _aplicarFiltrosVentas() {
   const f = window._filtrosVentas;
   let lista = ventasList || [];
+
+  // Excluir siempre las ventas anuladas de las listas normales
+  lista = lista.filter(v => !v.anulada);
 
   if (f.texto) {
     const t = f.texto.toLowerCase();
