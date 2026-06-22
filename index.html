@@ -790,7 +790,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.53 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.54 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6088,7 +6088,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.53-firebase',
+  VERSION: 'v19.54-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -19596,13 +19596,20 @@ function crearFilaProducto(cod, desc, precio, qty) {
   const tr = document.createElement('tr');
   const stk = stockData[cod] || { real:0, reservado:0 };
   const stockBadge = stockBadgeHTML(cod, qty || 1);
-  // El código muestra un botón selector, no un input editable
   tr.innerHTML = `
     <td><input type="checkbox"></td>
     <td style="position:relative;min-width:100px">
-      <div class="prod-selector" onclick="abrirSelectorProducto(this)">
-        <span class="prod-sel-cod">${escapeHTML(cod)}</span>
-        <i class="ti ti-chevron-down" style="font-size:11px;color:var(--text3);margin-left:4px;flex-shrink:0"></i>
+      <div style="display:flex;align-items:center;gap:4px">
+        <div class="prod-selector" onclick="abrirSelectorProducto(this)" style="flex:1">
+          <span class="prod-sel-cod">${escapeHTML(cod)}</span>
+          <i class="ti ti-chevron-down" style="font-size:11px;color:var(--text3);margin-left:4px;flex-shrink:0"></i>
+        </div>
+        <button class="btn-busq-avanz" onclick="abrirBusquedaAvanzada(this.closest('tr'))" title="Búsqueda avanzada por categoría y marca"
+          style="flex-shrink:0;width:26px;height:26px;border-radius:6px;border:0.5px solid var(--border2);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:background .12s"
+          onmouseenter="this.style.background='var(--bg3)';this.style.color='var(--text)'"
+          onmouseleave="this.style.background='transparent';this.style.color='var(--text3)'">
+          <i class="ti ti-filter" style="font-size:12px"></i>
+        </button>
       </div>
       <div class="prod-search-drop" style="display:none">
         <div style="padding:6px 8px;border-bottom:0.5px solid var(--border)">
@@ -19796,6 +19803,136 @@ function _selProdGlobal(item) {
 // Mantener compatibilidad con llamadas legacy de filtrarSelectorProducto / selProductoEnFila
 function filtrarSelectorProducto(inp) { _renderDropGlobal(inp.value); }
 function selProductoEnFila(item, cod, desc, precio) { _selProdGlobal(item); }
+
+// ══════════════════════════════════════════════
+// BÚSQUEDA AVANZADA DE PRODUCTOS
+// Modal con filtros por categoría, marca y texto libre.
+// Al seleccionar un producto, lo carga en la fila correspondiente.
+// ══════════════════════════════════════════════
+var _busqAvanzTR = null; // fila a la que se va a cargar el producto
+
+function abrirBusquedaAvanzada(tr) {
+  _busqAvanzTR = tr;
+  var prev = document.getElementById('modal-busq-avanz');
+  if (prev) prev.remove();
+
+  // Construir listas únicas de categorías y marcas, normalizadas
+  var productos = Object.values(prodData || {}).filter(function(p){ return p.activo !== false; });
+  var cats  = [...new Set(productos.map(function(p){ return (p.categoria||'').trim().toUpperCase(); }).filter(Boolean))].sort();
+  var marcas = [...new Set(productos.map(function(p){ return (p.marca||'').trim().toUpperCase(); }).filter(Boolean))].sort();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-busq-avanz';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML =
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:700px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
+      // Header
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
+        '<div style="font-weight:700;font-size:15px"><i class="ti ti-filter" style="margin-right:8px;color:var(--green)"></i>Búsqueda avanzada de productos</div>' +
+        '<button onclick="cerrarBusquedaAvanzada()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;line-height:1;padding:4px"><i class="ti ti-x"></i></button>' +
+      '</div>' +
+      // Filtros
+      '<div style="padding:14px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:10px">' +
+        '<input id="ba-texto" placeholder="Buscar por código, nombre o descripción..." oninput="renderBusqAvanz()" autocomplete="off"' +
+          'style="width:100%;padding:8px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box">' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+          '<select id="ba-cat" onchange="renderBusqAvanz()" style="flex:1;min-width:160px;padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">' +
+            '<option value="">— Todas las categorías —</option>' +
+            cats.map(function(c){ return '<option value="'+escapeHTML(c)+'">'+escapeHTML(c)+'</option>'; }).join('') +
+          '</select>' +
+          '<select id="ba-marca" onchange="renderBusqAvanz()" style="flex:1;min-width:140px;padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">' +
+            '<option value="">— Todas las marcas —</option>' +
+            marcas.map(function(m){ return '<option value="'+escapeHTML(m)+'">'+escapeHTML(m)+'</option>'; }).join('') +
+          '</select>' +
+          '<button onclick="document.getElementById(\'ba-texto\').value=\'\';document.getElementById(\'ba-cat\').value=\'\';document.getElementById(\'ba-marca\').value=\'\';renderBusqAvanz()" ' +
+            'style="padding:7px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:transparent;color:var(--text3);font-size:12px;cursor:pointer;white-space:nowrap">' +
+            'Limpiar filtros' +
+          '</button>' +
+        '</div>' +
+        '<div id="ba-contador" style="font-size:11px;color:var(--text3)">Cargando...</div>' +
+      '</div>' +
+      // Resultados
+      '<div id="ba-resultados" style="overflow-y:auto;flex:1;padding:8px 12px"></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  // Cerrar al tocar el fondo
+  overlay.addEventListener('mousedown', function(e){ if(e.target === overlay) cerrarBusquedaAvanzada(); });
+
+  // Foco en el input de texto
+  setTimeout(function(){ var inp = document.getElementById('ba-texto'); if(inp) inp.focus(); }, 50);
+
+  renderBusqAvanz();
+}
+
+function cerrarBusquedaAvanzada() {
+  var m = document.getElementById('modal-busq-avanz');
+  if (m) m.remove();
+  _busqAvanzTR = null;
+}
+
+function renderBusqAvanz() {
+  var texto  = ((document.getElementById('ba-texto')||{}).value||'').trim().toLowerCase();
+  var cat    = ((document.getElementById('ba-cat')||{}).value||'').trim().toUpperCase();
+  var marca  = ((document.getElementById('ba-marca')||{}).value||'').trim().toUpperCase();
+  var cont   = document.getElementById('ba-contador');
+  var lista  = document.getElementById('ba-resultados');
+  if (!lista) return;
+
+  var productos = Object.values(prodData || {}).filter(function(p) {
+    if (p.activo === false) return false;
+    if (cat   && (p.categoria||'').trim().toUpperCase() !== cat)   return false;
+    if (marca && (p.marca||'').trim().toUpperCase() !== marca)      return false;
+    if (texto) {
+      var hayCoincidencia =
+        (p.codigo||'').toLowerCase().includes(texto) ||
+        (p.nombre||'').toLowerCase().includes(texto) ||
+        (p.descripcion||'').toLowerCase().includes(texto);
+      if (!hayCoincidencia) return false;
+    }
+    return true;
+  });
+
+  if (cont) cont.textContent = productos.length + ' producto' + (productos.length !== 1 ? 's' : '') + ' encontrado' + (productos.length !== 1 ? 's' : '');
+
+  if (!productos.length) {
+    lista.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">Sin resultados para los filtros seleccionados</div>';
+    return;
+  }
+
+  lista.innerHTML = productos.slice(0, 120).map(function(p) {
+    var stk  = stockData ? (stockData[p.codigo] || {real:0,reservado:0}) : {real:0,reservado:0};
+    var disp = stk.real - stk.reservado;
+    var stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--green)';
+    var esUSD = p.moneda === 'USD';
+    var precio = parseFloat(p.venta) || 0;
+    var precioLbl = esUSD ? 'USD '+precio.toLocaleString('es-AR') : '$'+precio.toLocaleString('es-AR');
+    return '<div onclick="seleccionarProdAvanz(\''+escapeHTML(p.codigo)+'\',\''+escapeHTML(p.nombre||p.descripcion||'')+'\','+precio+',\''+( esUSD?'USD':'ARS')+'\')" ' +
+      'style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:var(--radius);cursor:pointer;margin-bottom:4px;border:0.5px solid var(--border)"' +
+      ' onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
+      '<div style="min-width:0">' +
+        '<div style="font-weight:600;font-size:13px;color:var(--text)">' + escapeHTML(p.codigo) + ' <span style="font-weight:400;color:var(--text2)">— ' + escapeHTML(p.nombre||p.descripcion||'') + '</span></div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap">' +
+          (p.categoria ? '<span>'+escapeHTML(p.categoria)+'</span>' : '') +
+          (p.marca ? '<span style="color:var(--blue)">'+escapeHTML(p.marca)+'</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div style="text-align:right;flex-shrink:0;margin-left:12px">' +
+        '<div style="font-weight:600;font-size:13px;color:var(--text)">' + precioLbl + '</div>' +
+        '<div style="font-size:11px;color:'+stkColor+'">' + disp + ' disp.</div>' +
+      '</div>' +
+    '</div>';
+  }).join('') + (productos.length > 120 ? '<div style="padding:10px;text-align:center;font-size:11px;color:var(--text3)">Mostrando los primeros 120 resultados — usá los filtros para acotar</div>' : '');
+}
+
+function seleccionarProdAvanz(cod, nombre, precio, moneda) {
+  if (!_busqAvanzTR) { cerrarBusquedaAvanzada(); return; }
+  // Simular la selección como si viniera del dropdown normal
+  var fakeItem = { dataset: { cod: cod, desc: nombre, precio: precio, moneda: moneda } };
+  _prodDropTR = _busqAvanzTR;
+  _selProdGlobal(fakeItem);
+  cerrarBusquedaAvanzada();
+}
 
 // Cerrar dropdowns al hacer click fuera — versión legacy, ahora cubierta por el listener global
 document.addEventListener('click', function(e) {
