@@ -792,7 +792,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.57 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.58 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6090,7 +6090,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.57-firebase',
+  VERSION: 'v19.58-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6448,6 +6448,27 @@ var PPTO_ESTADOS = {
 };
 let currentRole = 'admin';
 var notifLeidas = new Set();
+
+// Cargar notificaciones leídas desde Firebase para este usuario
+function cargarNotifLeidas() {
+  if (!window.fbDB || !currentUserEmail) return;
+  var key = 'sisventas/notif_leidas/' + currentUserEmail.replace(/\./g,'_').replace(/@/g,'__');
+  window.fbGet(window.fbRef(window.fbDB, key)).then(function(snap) {
+    var data = snap.val();
+    if (data && typeof data === 'object') {
+      Object.keys(data).forEach(function(id) { notifLeidas.add(id); });
+    }
+    if (typeof renderNotificaciones === 'function') renderNotificaciones('');
+    actualizarBadgeNotif();
+  }).catch(function(){});
+}
+
+// Guardar una notificación como leída en Firebase para este usuario
+function guardarNotifLeida(id) {
+  if (!window.fbDB || !currentUserEmail) return;
+  var key = 'sisventas/notif_leidas/' + currentUserEmail.replace(/\./g,'_').replace(/@/g,'__') + '/' + id;
+  window.fbSet(window.fbRef(window.fbDB, key), true).catch(function(){});
+}
 var todasNotifs = [];
 const now = new Date();
 _set('topbar-date',now.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}));
@@ -6669,6 +6690,8 @@ function _completarLogin(nombre) {
   if (typeof registrarActividad === 'function') registrarActividad('Inicio de sesión', '');
   // Iniciar listener de versión en tiempo real vía Firebase
   if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
+  // Cargar notificaciones leídas persistidas para este usuario
+  if (typeof cargarNotifLeidas === 'function') cargarNotifLeidas();
   // Si venimos de una actualización automática, volver al módulo donde estaba el usuario
   if (typeof restaurarPaginaPostActualizacion === 'function') restaurarPaginaPostActualizacion();
   // Si es admin, publicar la versión actual en Firebase — así todos los clientes conectados
@@ -19091,6 +19114,7 @@ function toggleNotifConfig(key, val) {
 
 function marcarLeida(id) {
   notifLeidas.add(id);
+  guardarNotifLeida(id);
   const card = document.getElementById('ncard-' + id);
   if (card) {
     card.style.opacity = '.6';
@@ -19104,7 +19128,7 @@ function marcarLeida(id) {
 }
 
 function marcarTodasLeidas() {
-  todasNotifs.forEach(n => notifLeidas.add(n.id));
+  todasNotifs.forEach(n => { notifLeidas.add(n.id); guardarNotifLeida(n.id); });
   (function(){var _nf=document.getElementById('notif-filtro');renderNotificaciones((_nf?_nf.value:'')||'');})();
   actualizarBadgeNotif();
   notify('Todas las notificaciones marcadas como leídas');
