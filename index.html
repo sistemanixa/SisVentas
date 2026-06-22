@@ -6332,7 +6332,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.75-firebase',
+  VERSION: 'v19.76-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -18042,13 +18042,18 @@ function renderChecklist(containerId, checks, labels, otId, fase) {
 
 // Toggle un ítem del checklist
 function toggleCheckOT(otId, fase, idx) {
-  const ot = otData.find(o => o.id === otId);
+  const ot = otData.find(o => o.id === otId || o.fbKey === otId);
   if (!ot || ot.estado === 'completada') return;
   ot.checks[fase][idx] = !ot.checks[fase][idx];
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  if (!ot.audit) ot.audit = [];
   ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: (ot.checks[fase][idx] ? '✓ ' : '✗ ') + CHECKLISTS[fase][idx] });
   actualizarProgreso(ot);
   renderChecklist(`checklist-${fase}`, ot.checks[fase], CHECKLISTS[fase], otId, fase);
+  // Guardar checks y progreso en Firebase
+  if (typeof fbGuardarOT === 'function') {
+    fbGuardarOT(ot).catch(function(e){ console.error('Error guardando check:', e); });
+  }
 }
 
 // Calcular y mostrar progreso
@@ -18063,24 +18068,33 @@ function actualizarProgreso(ot) {
   if (pctEl) { pctEl.textContent = pct + '%'; pctEl.style.color = pct === 100 ? 'var(--green)' : 'var(--blue)'; }
   if (pct === 100 && ot.estado === 'en_progreso') {
     ot.estado = 'completada';
-    document.getElementById('ot-det-estado-badge').innerHTML = otBadge('completada');
+    const badge = document.getElementById('ot-det-estado-badge');
+    if (badge) badge.innerHTML = otBadge('completada');
     notify('¡Checklist completo! Podés finalizar la OT.');
   }
 }
 
 // Completar OT
 function completarOT() {
-  const ot = otData.find(o => o.id === otActualId);
+  const ot = otData.find(o => o.id === otActualId || o.fbKey === otActualId);
   if (!ot) return;
   var _oc=document.getElementById('ot-acta-conf'); const conf = _oc?_oc.value:'';
   if (!conf) { notify('Seleccioná la conformidad del cliente'); return; }
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.estado = 'completada';
   ot.progreso = 100;
+  if (!ot.audit) ot.audit = [];
   ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: 'OT marcada como completada. Conformidad: ' + conf });
   ot.audit.push({ fecha: ahora, usuario: 'Sistema', accion: 'Garantía activada automáticamente' });
   document.getElementById('ot-det-estado-badge').innerHTML = otBadge('completada');
-  notify('Orden de trabajo completada. Garantía activada.');
+  // Guardar en Firebase
+  if (typeof fbGuardarOT === 'function') {
+    fbGuardarOT(ot)
+      .then(function() { notify('✓ OT completada y guardada en Firebase'); })
+      .catch(function(e) { notify('OT completada pero error al guardar: ' + e.message); });
+  } else {
+    notify('Orden de trabajo completada. Garantía activada.');
+  }
 }
 
 function actualizarOT() {
