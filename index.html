@@ -796,7 +796,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.02 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.03 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6540,7 +6540,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.02-firebase',
+  VERSION: 'v20.03-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9965,26 +9965,30 @@ function imprimirVentaActual() {
     '</tr>';
   }).join('');
 
-  var tieneDescuento = (v.items||[]).some(function(it){ return parseFloat(it.disc)>0; });
+  var nCols = tieneDescuento ? 6 : 5;
+  var spanTots = nCols - 2; // colspan para las celdas vacías antes de los totales
 
-  var w = window.open('','_blank','width=900,height=700');
+  var w = window.open('','_blank','width=860,height=700');
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+tipoComp+' '+v.id+'</title>' +
     '<style>' +
-    'body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:32px 40px}' +
+    '*{box-sizing:border-box}' +
+    'body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:28px 36px}' +
     'table{border-collapse:collapse;width:100%}' +
-    'th{background:#f5f5f5;font-weight:600;padding:8px 10px;border:0.5px solid #ddd;font-size:12px}' +
-    'td{padding:7px 10px;border:0.5px solid #ddd;font-size:13px}' +
-    '.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;margin-bottom:20px;border-bottom:2px solid #222}' +
-    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}' +
-    '.info-box{background:#f9f9f9;border-radius:6px;padding:10px 14px}' +
+    'th{background:#f0f0f0;font-weight:600;padding:7px 10px;border:1px solid #ddd;font-size:11px;text-transform:uppercase;letter-spacing:.3px}' +
+    'td{padding:7px 10px;border:1px solid #e8e8e8;font-size:13px;vertical-align:top}' +
+    'tfoot td{border-left:none;border-right:none;border-bottom:none;padding:4px 10px}' +
+    'tfoot tr:first-child td{border-top:2px solid #222;padding-top:8px}' +
+    'tfoot tr:last-child td{font-weight:700;font-size:15px;padding-bottom:8px}' +
+    '.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;margin-bottom:18px;border-bottom:2px solid #222}' +
+    '.tipo-badge{display:inline-block;padding:4px 14px;border:2px solid #222;font-size:16px;font-weight:700;letter-spacing:.5px;margin-bottom:6px}' +
+    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}' +
+    '.info-box{background:#f9f9f9;border-radius:4px;padding:10px 14px;border:0.5px solid #e8e8e8}' +
     '.info-lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}' +
     '.info-val{font-weight:600;font-size:13px}' +
-    '.info-sub{font-size:11px;color:#666;margin-top:2px}' +
-    '.tots{width:300px;margin-left:auto;margin-top:16px}' +
-    '.tot-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid #eee;font-size:13px}' +
-    '.tot-final{font-weight:700;font-size:15px;border-top:2px solid #222;padding-top:8px;margin-top:4px}' +
-    '.cae-box{margin-top:24px;padding:12px 16px;border:1px solid #22c55e;border-radius:6px;background:#f0fdf4;font-size:12px}' +
-    '@media print{body{margin:16px 20px}}' +
+    '.info-sub{font-size:11px;color:#555;margin-top:2px}' +
+    '.cae-box{margin-top:20px;padding:10px 14px;border:1.5px solid #16a34a;border-radius:5px;background:#f0fdf4;font-size:12px}' +
+    '.nc-box{margin-top:20px;padding:10px 14px;border:1.5px solid #dc2626;border-radius:5px;background:#fef2f2;font-size:12px}' +
+    '@media print{body{margin:14px 18px}button{display:none}}' +
     '</style></head><body>' +
 
     // Header
@@ -9994,10 +9998,10 @@ function imprimirVentaActual() {
         (empresa.cuit ? '<div style="font-size:11px;color:#666">CUIT: '+empresa.cuit+'</div>' : '') +
       '</div>' +
       '<div style="text-align:right">' +
-        '<div style="font-size:20px;font-weight:700">'+tipoComp+'</div>' +
-        '<div style="font-size:15px;font-weight:500;margin-top:4px">'+escapeHTML(v.id||'')+'</div>' +
+        '<div class="tipo-badge">'+escapeHTML(tipoComp)+'</div>' +
+        '<div style="font-size:15px;font-weight:600;margin-top:2px">'+escapeHTML(v.id||'')+'</div>' +
         '<div style="font-size:12px;color:#666;margin-top:2px">'+_mostrarFecha(v.fecha)+'</div>' +
-        (v.factura && v.factura.numero_comprobante ? '<div style="font-size:11px;color:#666">Nro: '+v.factura.numero_comprobante+'</div>' : '') +
+        (v.factura && v.factura.numero_comprobante ? '<div style="font-size:11px;color:#666;margin-top:1px">Nro comprobante: <strong>'+escapeHTML(String(v.factura.numero_comprobante))+'</strong></div>' : '') +
       '</div>' +
     '</div>' +
 
@@ -10012,34 +10016,56 @@ function imprimirVentaActual() {
         (cliCuit ? '<div class="info-sub">CUIT: '+escapeHTML(cliCuit)+'</div>' : '') +
       '</div>' +
       '<div class="info-box">' +
-        '<div class="info-lbl">Datos de la venta</div>' +
+        '<div class="info-lbl">Datos de la operación</div>' +
         '<div class="info-sub">Estado pago: <strong>'+estadoPagoLbl+'</strong></div>' +
         (v.empleado ? '<div class="info-sub">Vendedor: '+escapeHTML(v.empleado)+'</div>' : '') +
       '</div>' +
     '</div>' +
 
-    // Tabla de items
-    '<table><thead><tr>' +
-      '<th>Código</th><th>Descripción</th><th style="text-align:right">Cant.</th>' +
-      '<th style="text-align:right">P. unit.</th>' +
-      (tieneDescuento ? '<th style="text-align:right">Desc.</th>' : '') +
-      '<th style="text-align:right">Subtotal</th>' +
-    '</tr></thead><tbody>'+itemsHTML+'</tbody></table>' +
+    // Tabla de items con tfoot para totales
+    '<table>' +
+      '<thead><tr>' +
+        '<th style="width:90px">Código</th>' +
+        '<th>Descripción</th>' +
+        '<th style="text-align:right;width:55px">Cant.</th>' +
+        '<th style="text-align:right;width:100px">P. unit.</th>' +
+        (tieneDescuento ? '<th style="text-align:right;width:60px">Desc.</th>' : '') +
+        '<th style="text-align:right;width:110px">Subtotal</th>' +
+      '</tr></thead>' +
+      '<tbody>'+itemsHTML+'</tbody>' +
+      '<tfoot>' +
+        '<tr><td colspan="'+spanTots+'"></td>' +
+          '<td style="text-align:right;font-size:12px;color:#666">Subtotal</td>' +
+          '<td style="text-align:right">$'+(parseFloat(v.subtotal)||0).toLocaleString('es-AR')+'</td>' +
+        '</tr>' +
+        (parseFloat(v.descuento)>0 ?
+          '<tr><td colspan="'+spanTots+'"></td>' +
+            '<td style="text-align:right;font-size:12px;color:#dc2626">Descuento</td>' +
+            '<td style="text-align:right;color:#dc2626">-$'+(parseFloat(v.descuento)||0).toLocaleString('es-AR')+'</td>' +
+          '</tr>' : '') +
+        '<tr><td colspan="'+spanTots+'"></td>' +
+          '<td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td>' +
+          '<td style="text-align:right;color:#d97706">$'+(parseFloat(v.iva)||0).toLocaleString('es-AR')+'</td>' +
+        '</tr>' +
+        '<tr style="border-top:2px solid #222"><td colspan="'+spanTots+'"></td>' +
+          '<td style="text-align:right;font-weight:700;font-size:14px;padding-top:8px;padding-bottom:8px">TOTAL</td>' +
+          '<td style="text-align:right;font-weight:700;font-size:14px;padding-top:8px;padding-bottom:8px">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
+        '</tr>' +
+      '</tfoot>' +
+    '</table>' +
 
-    // Totales
-    '<div class="tots">' +
-      '<div class="tot-row"><span>Subtotal</span><span>$'+(parseFloat(v.subtotal)||0).toLocaleString('es-AR')+'</span></div>' +
-      (parseFloat(v.descuento)>0 ? '<div class="tot-row"><span>Descuento</span><span style="color:#e53">-$'+(parseFloat(v.descuento)||0).toLocaleString('es-AR')+'</span></div>' : '') +
-      '<div class="tot-row"><span>IVA 21%</span><span style="color:#f59e0b">$'+(parseFloat(v.iva)||0).toLocaleString('es-AR')+'</span></div>' +
-      '<div class="tot-row tot-final"><span>TOTAL</span><span>$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</span></div>' +
-    '</div>' +
-
-    // CAE si tiene factura electrónica
-    (v.factura && v.factura.cae ?
+    // CAE / NC
+    (v.notaCredito && v.notaCredito.cae ?
+      '<div class="nc-box">' +
+        '<strong>Nota de crédito emitida — '+escapeHTML(v.notaCredito.tipo||'')+'</strong><br>' +
+        'CAE NC: <strong>'+escapeHTML(v.notaCredito.cae)+'</strong>' +
+        (v.factura && v.factura.cae ? '<br><span style="color:#666">Factura original CAE: '+escapeHTML(v.factura.cae)+'</span>' : '') +
+      '</div>'
+    : v.factura && v.factura.cae ?
       '<div class="cae-box">' +
-        '<strong>Factura electrónica — '+escapeHTML(v.factura.tipo||'')+'</strong><br>' +
+        '<strong>'+escapeHTML(v.factura.tipo||'Factura electrónica')+'</strong><br>' +
         'CAE Nº: <strong>'+escapeHTML(v.factura.cae)+'</strong>' +
-        (v.factura.cae_vencimiento ? ' · Vto: '+escapeHTML(v.factura.cae_vencimiento) : '') +
+        (v.factura.cae_vencimiento ? ' &nbsp;·&nbsp; Vto: '+escapeHTML(v.factura.cae_vencimiento) : '') +
       '</div>' : '') +
 
     '</body></html>');
