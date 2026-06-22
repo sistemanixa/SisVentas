@@ -792,7 +792,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.70 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px">v19.71 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -972,7 +972,7 @@ tr:hover td{color:var(--text)}
         <span id="fb-status" style="font-size:11px;color:var(--text3)"></span>
         <span class="role-badge" id="role-badge-el">Admin</span>
         <button class="icon-btn" title="Notificaciones" onclick="toggleNotificacionesPanel()" style="position:relative"><i class="ti ti-bell" style="font-size:16px"></i><span id="notif-badge" style="position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--red);border-radius:50%;border:1.5px solid var(--bg2)"></span></button>
-        <button class="icon-btn" title="Mi cuenta" onclick="toggleUserPanel()" id="btn-gear"><i class="ti ti-settings" style="font-size:16px"></i></button>
+        <button class="icon-btn" title="Mi cuenta" onclick="toggleUserPanel()" id="btn-gear" style="position:relative"><i class="ti ti-settings" style="font-size:16px"></i><span id="gear-update-badge" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--green);border-radius:50%;border:1.5px solid var(--bg2)"></span></button>
       </div>
     </div>
   <div class="overlay-mobile" id="mob-overlay" onclick="toggleSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199"></div>
@@ -6308,7 +6308,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v19.70-firebase',
+  VERSION: 'v19.71-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6330,35 +6330,51 @@ const APP_CONFIG = Object.freeze({
 // ══════════════════════════════════════════════════════════════════
 
 var _listenerVersionActivo = false;
+var _versionNuevaDisponible = null;
+
+// Muestra botón de actualización en la ruedita con badge verde
+function _mostrarBotonActualizacion(versionNueva) {
+  _versionNuevaDisponible = versionNueva;
+  var verLbl = versionNueva.replace('-firebase','');
+  var lbl = document.getElementById('up-btn-actualizar-lbl');
+  var btn = document.getElementById('up-btn-actualizar');
+  var badge = document.getElementById('gear-update-badge');
+  if (lbl) lbl.textContent = 'Actualizar a ' + verLbl;
+  if (btn) btn.style.display = '';
+  if (badge) badge.style.display = '';
+  var gear = document.getElementById('btn-gear');
+  if (gear) gear.title = 'Actualización disponible: ' + verLbl;
+}
+
+// Compara dos versiones — devuelve true si a > b
+function _versionMasNueva(a, b) {
+  var na = parseInt((a||'').replace(/[^0-9]/g,'')) || 0;
+  var nb = parseInt((b||'').replace(/[^0-9]/g,'')) || 0;
+  return na > nb;
+}
 
 function iniciarListenerVersion() {
   if (_listenerVersionActivo) return;
   if (!window.fbDB) return;
   _listenerVersionActivo = true;
 
+  // MÉTODO 2: Listener Firebase — tiempo real via WebSocket
   window.fbOnValue(
     window.fbRef(window.fbDB, 'sisventas/config/version'),
     function(snap) {
       var versionFirebase = snap.val();
-
-      // Si el nodo está vacío o tiene versión MÁS VIEJA que la corriendo,
-      // actualizarlo — así otros clientes lo detectan en tiempo real.
       if (!versionFirebase || _versionMasNueva(APP_CONFIG.VERSION, versionFirebase)) {
         window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), APP_CONFIG.VERSION)
           .catch(function(){});
         return;
       }
-
-      // Firebase tiene versión más nueva — actualizar
       if (_versionMasNueva(versionFirebase, APP_CONFIG.VERSION)) {
         actualizarAutomaticamente(APP_CONFIG.VERSION, versionFirebase);
       }
     }
   );
 
-  // Polling de respaldo contra GitHub cada 3 minutos — cubre el caso donde
-  // el nodo de Firebase queda desactualizado porque nadie con la versión nueva
-  // se conectó todavía (el huevo y la gallina).
+  // MÉTODO 3: Polling GitHub cada 3 min — rompe el ciclo huevo-gallina
   setInterval(function() {
     fetch(window.location.pathname + '?_v=' + Date.now(), {
       cache: 'no-store',
@@ -6369,56 +6385,41 @@ function iniciarListenerVersion() {
         if (!html) return;
         var m = html.match(/VERSION:\s*'([^']+)'/);
         if (!m) return;
-        var versionGitHub = m[1];
-        // Si GitHub tiene una versión más nueva que la corriendo, actualizar el nodo
-        // y disparar la actualización — esto rompe el ciclo huevo-gallina.
-        if (_versionMasNueva(versionGitHub, APP_CONFIG.VERSION)) {
-          window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), versionGitHub)
-            .catch(function(){});
-          // El listener de Firebase lo va a detectar y actualizar automáticamente
+        if (_versionMasNueva(m[1], APP_CONFIG.VERSION)) {
+          if (window.fbDB) window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), m[1]).catch(function(){});
         }
       })
       .catch(function(){});
   }, 3 * 60 * 1000);
 }
 
-// Compara dos versiones tipo 'v19.66-firebase' — devuelve true si a > b
-function _versionMasNueva(a, b) {
-  var na = parseInt((a||'').replace(/[^0-9]/g,'')) || 0;
-  var nb = parseInt((b||'').replace(/[^0-9]/g,'')) || 0;
-  return na > nb;
-}
-
-// Mantener chequearVersionNueva como fallback por compatibilidad
-// pero ahora solo sirve como respaldo si Firebase no está disponible
-function chequearVersionNueva() {
-  if (_listenerVersionActivo) return; // ya cubierto por Firebase
-  fetch(window.location.pathname + '?_v=' + Date.now(), {
-    cache: 'no-store',
-    headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
-  })
-    .then(function(r) { if (!r.ok) return; return r.text(); })
-    .then(function(html) {
-      if (!html) return;
-      var m = html.match(/VERSION:\s*'([^']+)'/);
-      if (!m) return;
-      if (m[1] !== APP_CONFIG.VERSION) actualizarAutomaticamente(APP_CONFIG.VERSION, m[1]);
-    })
-    .catch(function(){});
-}
+function chequearVersionNueva() {} // mantenida por compatibilidad
 
 var _chequeoVersionIniciado = false;
 function iniciarChequeoPeriodicoVersion() {
   if (_chequeoVersionIniciado) return;
   _chequeoVersionIniciado = true;
-  // Preferir el listener de Firebase (tiempo real, sin CDN)
-  if (window.fbDB) {
-    iniciarListenerVersion();
-  } else {
-    // Fallback: polling si Firebase no está disponible
-    chequearVersionNueva();
-    setInterval(chequearVersionNueva, 2 * 60 * 1000);
-  }
+
+  // MÉTODO 1: Chequeo inmediato contra GitHub — corre apenas se llama (login o firebase-ready)
+  fetch(window.location.pathname + '?_v=' + Date.now(), {
+    cache: 'no-store',
+    headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+  })
+    .then(function(r) { return r.ok ? r.text() : null; })
+    .then(function(html) {
+      if (!html) return;
+      var m = html.match(/VERSION:\s*'([^']+)'/);
+      if (!m) return;
+      var vGitHub = m[1];
+      if (_versionMasNueva(vGitHub, APP_CONFIG.VERSION)) {
+        if (window.fbDB) window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), vGitHub).catch(function(){});
+        actualizarAutomaticamente(APP_CONFIG.VERSION, vGitHub);
+      }
+    })
+    .catch(function(){});
+
+  // MÉTODO 2: Listener Firebase en tiempo real
+  if (window.fbDB) iniciarListenerVersion();
 }
 
 function actualizarAutomaticamente(versionActual, versionNueva) {
@@ -20437,6 +20438,13 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
     <div style="padding:6px 10px;font-size:11px;color:var(--text3);text-align:center">SisVentas <span id="up-version">v13.9</span> · Firebase</div>
+    <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
+    <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
+      <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
+        <i class="ti ti-refresh" style="font-size:13px"></i>
+        <span id="up-btn-actualizar-lbl">Actualizar disponible</span>
+      </button>
+    </div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
     <div class="up-item" style="color:var(--red)" onclick="doLogout()"><i class="ti ti-logout" style="font-size:15px"></i> Cerrar sesión</div>
   </div>
