@@ -804,7 +804,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.17 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.18 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6563,7 +6563,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.17-firebase',
+  VERSION: 'v20.18-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9418,20 +9418,21 @@ function volverlista() {
 (function(){
   let x0=null, y0=null, t0=null, desdeBorde=false;
   const ZONA_BORDE_PX = 52; // ancho de la franja izquierda que habilita el gesto de apertura
-  const ZONA_MUERTA_DERECHA = 32;
   document.addEventListener('touchstart', e=>{
     x0 = e.touches[0].clientX;
     y0 = e.touches[0].clientY;
     t0 = Date.now();
     desdeBorde = x0 <= ZONA_BORDE_PX;
-    if (x0 >= window.innerWidth - ZONA_MUERTA_DERECHA) { x0 = null; }
+    // Si el toque no es desde el borde izquierdo, no trackear nada
+    // Así el scroll nativo queda completamente libre en toda la pantalla
+    if (!desdeBorde) { x0 = null; return; }
   }, {passive:true});
   document.addEventListener('touchend', e=>{
     if(x0===null) return;
     const dx = e.changedTouches[0].clientX - x0;
     const dy = e.changedTouches[0].clientY - y0;
     const dt = Date.now() - t0;
-    // Ignorar si es más vertical que horizontal, o si duró más de 400ms (scroll lento)
+    // Ignorar si es más vertical que horizontal, o si duró más de 400ms
     if(Math.abs(dx) < Math.abs(dy) * 1.2 || dt > 400) { x0=null; return; }
     // Necesita al menos 60px de desplazamiento horizontal
     if(Math.abs(dx) < 60) { x0=null; return; }
