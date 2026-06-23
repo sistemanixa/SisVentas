@@ -803,7 +803,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.12 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.13 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4309,7 +4309,7 @@ tr:hover td{color:var(--text)}
     <div class="metric"><div class="m-label">Sueldo base</div><div class="m-value" id="ctaemp-base">$0</div><div class="m-sub">mensual bruto</div></div>
     <div class="metric"><div class="m-label">Haberes</div><div class="m-value" id="ctaemp-haberes" style="color:var(--green)">$0</div><div class="m-sub">sueldo + comisiones + h.extra</div></div>
     <div class="metric"><div class="m-label">Adelantos</div><div class="m-value" id="ctaemp-adelantos" style="color:var(--red)">$0</div><div class="m-sub">descontados del total</div></div>
-    <div class="metric" style="background:var(--text);color:var(--bg2)"><div class="m-label" style="color:rgba(255,255,255,.5)">Total a cobrar</div><div class="m-value" id="ctaemp-total" style="color:var(--bg2)">$0</div><div class="m-sub" style="color:rgba(255,255,255,.4)" id="ctaemp-periodo">—</div></div>
+    <div class="metric"><div class="m-label">Total a cobrar</div><div class="m-value" id="ctaemp-total" style="color:var(--text)">$0</div><div class="m-sub" id="ctaemp-periodo">—</div></div>
   </div>
 
   <!-- Tabla de movimientos -->
@@ -5356,6 +5356,7 @@ async function confirmarRegistroHaberes() {
       sueldoBase:  sueldo,
       hsExtra:     hsExtra,
       montoHsEx:   montoHsEx,
+      empleadoId:  e.fbKey,
       ts:          Date.now()
     };
     promesas.push(
@@ -6559,7 +6560,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.12-firebase',
+  VERSION: 'v20.13-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -17828,11 +17829,34 @@ function confirmarPagoGasto() {
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+_gastoFbKeyPago), {
     montoPagado: nuevoPagado, estado: nuevoEstado, medio: medio
   }).then(function(){
-    notify('✓ Pago registrado');
+    notify('\u2713 Pago registrado');
     document.getElementById('modal-pago-gasto').style.display = 'none';
-    // Si lo pagó un técnico y se pagó completo, marcar reembolsado
+    // Si se pagó completo y tiene empleadoId, marcar reembolsado y actualizar ctaemp
     if (nuevoEstado==='pagado' && g.empleadoId) {
       window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+_gastoFbKeyPago), { reembolsado: true });
+      // Buscar el movimiento en ctaemp que corresponde a este gasto y marcarlo pagado
+      if (window.fbDB) {
+        window.fbGet(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId))
+          .then(function(snap) {
+            var movs = snap.val();
+            if (!movs) return;
+            // Buscar movimiento por fbKey del gasto o por descripcion/monto/fecha
+            Object.entries(movs).forEach(function(entry) {
+              var key = entry[0]; var mov = entry[1];
+              var esElMov = mov.gastoFbKey === _gastoFbKeyPago ||
+                (Math.abs((parseFloat(mov.monto)||0) - (parseFloat(g.monto)||0)) < 1 &&
+                 mov.estado !== 'pagado' &&
+                 (mov.tipo === 'sueldo' || mov.tipo === 'gasto_empresa' || mov.tipo === 'transporte'));
+              if (esElMov) {
+                window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId + '/' + key), {
+                  estado: 'pagado',
+                  fechaPago: new Date().toISOString().slice(0,10),
+                  medioPago: medio
+                });
+              }
+            });
+          }).catch(function(){});
+      }
     }
   });
 }
