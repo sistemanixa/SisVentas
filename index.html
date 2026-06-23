@@ -803,7 +803,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.13 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.14 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5351,7 +5351,9 @@ async function confirmarRegistroHaberes() {
       descripcion: 'Haber ' + mesLbl + (montoHsEx > 0 ? ' (incl. ' + hsExtra + ' hs extra)' : ''),
       monto:       total,
       fecha:       fechaGasto,
-      estado:      'aprobado',
+      estado:      'pagado',
+      fechaPago:   fechaGasto,
+      medioPago:   'Transferencia',
       mes:         mesISO,
       sueldoBase:  sueldo,
       hsExtra:     hsExtra,
@@ -6560,7 +6562,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.13-firebase',
+  VERSION: 'v20.14-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11829,6 +11831,20 @@ function cargarCtaEmp(empFbKey) {
     var data = snap.val();
     movsEmpData = data ? Object.entries(data).map(function(e){ return Object.assign({ fbKey: e[0] }, e[1]); })
                         .sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
+    // Migrar silenciosamente sueldos en estado 'aprobado' → 'pagado'
+    // (los haberes siempre nacen pagados, el estado aprobado era del sistema viejo)
+    if (data) {
+      Object.entries(data).forEach(function(entry) {
+        var key = entry[0]; var mov = entry[1];
+        if (mov.tipo === 'sueldo' && mov.estado === 'aprobado') {
+          window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + key), {
+            estado: 'pagado',
+            fechaPago: mov.fecha || mov.mes + '-30',
+            medioPago: 'Transferencia'
+          });
+        }
+      });
+    }
     renderMovsEmp();
     // Verificar si hay haberes históricos sin importar
     verificarHaberesHistoricos(empFbKey);
@@ -11892,7 +11908,7 @@ function renderMovsEmp() {
       var tipoCls   = {sueldo:'b-blue',comision:'b-green',hextra:'b-green',adelanto:'b-red',transporte:'b-amber',materiales:'b-amber',gasto_empresa:'b-amber',otro:'b-blue'}[m.tipo]||'b-blue';
       var esEgreso  = ['adelanto'].includes(m.tipo);
       var montoColor = esEgreso ? 'var(--red)' : 'var(--green)';
-      var estBadge  = {pendiente:'<span class="badge b-amber">Pendiente</span>',aprobado:'<span class="badge b-blue">Aprobado</span>',pagado:'<span class="badge b-green">Pagado</span>'}[m.estado]||m.estado;
+      var estBadge  = {pendiente:'<span class="badge b-amber">Pendiente</span>',aprobado:'<span class="badge b-blue">Aprobado</span>',pagado:'<span class="badge b-green">Pagado</span>',rechazado:'<span class="badge b-red">Rechazado</span>'}[m.estado]||('<span class="badge">'+m.estado+'</span>');
       var fotoBtn   = m.fotoUrl ? '<a href="'+m.fotoUrl+'" target="_blank" class="btn btn-sm btn-icon" title="Ver comprobante"><i class="ti ti-photo" style="font-size:14px"></i></a>' : '<span style="color:var(--text3);font-size:11px">—</span>';
       var fecha = m.fecha ? m.fecha.split('-').reverse().join('/') : '—';
       return '<tr>' +
