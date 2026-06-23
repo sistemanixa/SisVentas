@@ -801,7 +801,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.26 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.30 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1118,7 +1118,6 @@ tr:hover td{color:var(--text)}
           <div style="overflow-x:auto;overflow-y:visible">
             <table class="tbl-sheet" style="table-layout:fixed;width:100%">
               <colgroup>
-                <col style="width:28px">
                 <col style="width:130px">
                 <col>
                 <col style="width:58px">
@@ -1129,7 +1128,6 @@ tr:hover td{color:var(--text)}
                 <col style="width:32px">
               </colgroup>
               <thead><tr>
-                <th style="overflow:hidden"><input type="checkbox" onchange="toggleAll(this)"></th>
                 <th>CÓDIGO</th>
                 <th>PRODUCTO</th>
                 <th style="text-align:right">CANT.</th>
@@ -1150,7 +1148,7 @@ tr:hover td{color:var(--text)}
             </div>
             <div id="stock-resumen-body" style="display:flex;flex-direction:column;gap:6px"></div>
           </div>
-          <div class="totals">
+          <div class="totals" style="margin-top:20px;padding-top:16px;border-top:2px solid var(--border)">
             <div class="tbox">
               <div class="tl"><span>Subtotal</span><span id="t-sub">$0</span></div>
               <div class="tl" id="t-desc-row" style="display:none;color:var(--green)"><span>Descuento general</span><span id="t-desc">-$0</span></div>
@@ -1476,6 +1474,7 @@ tr:hover td{color:var(--text)}
         <button class="btn btn-sm" id="tab-pendientes" onclick="tabPpto('pendientes',this)">Pendientes</button>
         <button class="btn btn-sm" id="tab-aprobados" onclick="tabPpto('aprobados',this)">Aprobados</button>
         <button class="btn btn-sm" id="tab-convertidos" onclick="tabPpto('convertidos',this)">Convertidos</button>
+        <button class="btn btn-sm" id="tab-anulados" onclick="tabPpto('anulados',this)" style="color:var(--text3)">Anulados</button>
       </div>
 
       <div class="table-wrap">
@@ -1613,6 +1612,9 @@ tr:hover td{color:var(--text)}
       </div></div>
       <div class="flex-end">
         <button class="btn" onclick="guardarPresupuesto('borrador')"><i class="ti ti-device-floppy"></i> Guardar borrador</button>
+        <button class="btn" onclick="actualizarValoresPpto()" title="Recalcula precios al tipo de cambio actual y extiende el vencimiento" style="color:var(--blue);border-color:var(--blue)">
+          <i class="ti ti-refresh"></i> Actualizar valores
+        </button>
         <button class="btn" id="ppto-detalle-toggle" onclick="togglePptoDetalle()" title="Cambia si el presupuesto muestra precios o no" style="gap:6px">
           <i class="ti ti-eye" id="ppto-detalle-icon"></i>
           <span id="ppto-detalle-label">Con detalle</span>
@@ -6456,6 +6458,12 @@ function showPage(id, el) {
   // Lógica por módulo
   if (id === 'empleados')      { if(typeof volverlista==='function') volverlista(); cargarMovimientosParaTablaEmp(); }
   if (id === 'clientes')      { window._histClienteHuella = null; setTimeout(function(){ if(typeof renderTablaClientes==='function'){ var inp=document.querySelector('#page-clientes .search-input'); renderTablaClientes(inp?inp.value:''); }}, 100); }
+  if (id === 'venta') {
+    setTimeout(function(){
+      var body = document.getElementById('det-body');
+      if (body && body.children.length === 0) addRow();
+    }, 100);
+  }
   if (id === 'detalle')       { setTimeout(function(){ if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); }, 100); }
   if (id === 'presupuesto')    { setTimeout(function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }, 50); }
   if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
@@ -6572,7 +6580,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.26-firebase',
+  VERSION: 'v20.30-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7477,7 +7485,7 @@ function calcTotals() {
   // Mostrar/ocultar línea de descuento general
   var descRow = document.getElementById('t-desc-row');
   if (descRow) descRow.style.display = descGenPct > 0 ? '' : 'none';
-  _set('t-desc', '-$' + Math.round(descGenAmt).toLocaleString('es-AR'));
+  _set('t-desc', '-' + descGenPct + '% (-$' + Math.round(descGenAmt).toLocaleString('es-AR') + ')');
   _set('t-iva',  '$' + Math.round(iva).toLocaleString('es-AR'));
   _set('t-tot',  '$' + Math.round(sConDesc + iva).toLocaleString('es-AR'));
   calcMargenGanancia();
@@ -10195,7 +10203,7 @@ function imprimirVentaActual() {
         (parseFloat(v.descuento)>0 ?
           '<tr class="tfoot-row"><td colspan="'+(nCols-2)+'" style="border:none"></td>' +
             '<td style="text-align:right;font-size:12px;color:#dc2626">Descuento</td>' +
-            '<td style="text-align:right;color:#dc2626">-$'+(parseFloat(v.descuento)||0).toLocaleString('es-AR')+'</td>' +
+            '<td style="text-align:right;color:#dc2626">' + (v.descuentoGeneral > 0 ? '-'+v.descuentoGeneral+'% ' : '') + '(-$'+(parseFloat(v.descuento)||0).toLocaleString('es-AR')+')</td>' +
           '</tr>' : '') +
         '<tr class="tfoot-row"><td colspan="'+(nCols-2)+'" style="border:none"></td>' +
           '<td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td>' +
@@ -12215,17 +12223,29 @@ function eliminarVenta(fbKey) {
   // Buscar OT vinculada para eliminarla junto con la venta
   var otVinculada = (otData||[]).find(function(o){ return o.ventaId === v.id; });
 
-  window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey))
+  // Buscar pagos vinculados a esta venta
+  var pagosVinculados = (window._pagosListaActual||[]).filter(function(p){ return p.venta === v.id && p.fbKey; });
+
+  var promesas = [window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey))];
+
+  // Eliminar pagos vinculados
+  pagosVinculados.forEach(function(p) {
+    promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + p.fbKey)));
+  });
+
+  // Eliminar OT vinculada
+  if (otVinculada && otVinculada.fbKey) {
+    promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey)));
+  }
+
+  Promise.all(promesas)
     .then(function() {
-      if (otVinculada && otVinculada.fbKey) {
-        return window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey))
-          .then(function() { notify('Venta y OT vinculada eliminadas'); })
-          .catch(function() { notify('Venta eliminada — no se pudo eliminar la OT vinculada'); });
-      } else {
-        notify('Venta eliminada');
-      }
+      var partes = ['Venta eliminada'];
+      if (pagosVinculados.length) partes.push(pagosVinculados.length + ' pago' + (pagosVinculados.length !== 1 ? 's' : '') + ' eliminado' + (pagosVinculados.length !== 1 ? 's' : ''));
+      if (otVinculada) partes.push('OT vinculada eliminada');
+      notify('✓ ' + partes.join(' · '));
+      volverListaVentas();
     })
-    .then(function(){ volverListaVentas(); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
 
@@ -18100,7 +18120,14 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
   const tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
   let rows = pptoData;
-  if (filtroEstado) rows = rows.filter(p => p.estado === filtroEstado);
+  // Ocultar anulados por defecto — solo mostrar si se filtra explícitamente
+  if (filtroEstado === 'anulado') {
+    rows = rows.filter(p => p.estado === 'anulado');
+  } else if (filtroEstado) {
+    rows = rows.filter(p => p.estado === filtroEstado && p.estado !== 'anulado');
+  } else {
+    rows = rows.filter(p => p.estado !== 'anulado');
+  }
   if (filtroTexto)  rows = rows.filter(p => (p.cliente + p.id).toLowerCase().includes(filtroTexto.toLowerCase()));
   tbody.innerHTML = rows.map(p => {
     const e = PPTO_ESTADOS[p.estado] || {};
@@ -18183,11 +18210,17 @@ function verPpto(id) {
   if (itemsBody) {
     var items = Array.isArray(p.items) ? p.items : [];
     itemsBody.innerHTML = items.length ? items.map(function(it) {
-      return '<tr><td>'+escapeHTML(it.cod||'')+'</td><td>'+escapeHTML(it.desc||'')+'</td>' +
-        '<td class="tr">'+(it.qty||0)+'</td>' +
-        '<td class="tr">$'+Math.round(parseFloat(it.punit)||0).toLocaleString('es-AR')+'</td>' +
-        '<td class="tr" style="font-weight:500">$'+Math.round(parseFloat(it.sub)||0).toLocaleString('es-AR')+'</td></tr>';
-    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Este presupuesto no tiene ítems guardados (creado antes de la actualización del sistema)</td></tr>';
+      // Compatibilidad con campos de distintas versiones del sistema
+      var cod   = it.cod   || it.codigo      || '';
+      var desc  = it.desc  || it.descripcion || it.nombre || '';
+      var qty   = parseFloat(it.qty   || it.cantidad || 1) || 1;
+      var punit = parseFloat(it.punit || it.precio   || it.precioUnitario || 0) || 0;
+      var sub   = parseFloat(it.sub   || it.subtotal || (punit * qty)) || 0;
+      return '<tr><td>'+escapeHTML(cod)+'</td><td>'+escapeHTML(desc)+'</td>' +
+        '<td class="tr">'+qty+'</td>' +
+        '<td class="tr">$'+Math.round(punit).toLocaleString('es-AR')+'</td>' +
+        '<td class="tr" style="font-weight:500">$'+Math.round(sub).toLocaleString('es-AR')+'</td></tr>';
+    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Este presupuesto no tiene ítems guardados</td></tr>';
   }
 }
 
@@ -18350,6 +18383,84 @@ function pptoAccion(accion) {
 }
 
 // Guardar presupuesto nuevo
+function actualizarValoresPpto() {
+  if (!pptoActualId) return;
+  var p = (pptoData||[]).find(function(x){ return x.id === pptoActualId; });
+  if (!p) return;
+
+  var diasVenc = parseInt((document.getElementById('cfg-dias-venc')||{}).value) || 10;
+  var hoy  = new Date();
+  var vence = new Date(hoy.getTime() + diasVenc * 86400000);
+  var fechaHoy  = hoy.toISOString().slice(0,10);
+  var fechaVenc = vence.toISOString().slice(0,10);
+
+  // Recalcular ítems en USD al tipo de cambio actual
+  var tc = window.TIPO_CAMBIO_CONFIG || {};
+  var cotizTipo = tc.dolarConversion || 'oficial';
+  var cotizActual = parseFloat(tc[cotizTipo]) || 0;
+  var itemsActualizados = 0;
+
+  var items = (p.items||[]).map(function(it) {
+    // Solo recalcular ítems que originalmente eran USD
+    if (it.monedaOriginal === 'USD' && it.precioUsdOriginal && cotizActual > 0) {
+      var nuevoPunit = Math.round(it.precioUsdOriginal * cotizActual);
+      var nuevoSub   = Math.round(nuevoPunit * (it.qty||1) * (1 - (it.disc||0)/100));
+      itemsActualizados++;
+      return Object.assign({}, it, {
+        punit: nuevoPunit,
+        sub:   nuevoSub,
+        cotizacionUsada: cotizActual,
+        cotizacionTipo:  cotizTipo
+      });
+    }
+    return it;
+  });
+
+  // Recalcular totales
+  var subtotalNeto = items.reduce(function(s,i){ return s + (parseFloat(i.sub)||0); }, 0);
+  var descPct = parseFloat(p.descuento)||0;
+  var descAmt = Math.round(subtotalNeto * descPct / 100);
+  var nuevoTotal = subtotalNeto - descAmt;
+
+  var msg = '¿Actualizar el presupuesto ' + pptoActualId + '?
+
+';
+  if (cotizActual > 0 && itemsActualizados > 0) {
+    msg += '• ' + itemsActualizados + ' ítem' + (itemsActualizados !== 1 ? 's' : '') + ' en USD recalculados al tipo de cambio actual ($' + cotizActual.toLocaleString('es-AR') + ' ' + cotizTipo + ')
+';
+    msg += '• Total actualizado: $' + Math.round(nuevoTotal).toLocaleString('es-AR') + '
+';
+  } else if (itemsActualizados === 0) {
+    msg += '• Sin ítems USD para recalcular (los precios ARS no cambian)
+';
+  }
+  msg += '• Nueva fecha: ' + fechaHoy + '
+';
+  msg += '• Nuevo vencimiento: ' + fechaVenc + ' (+' + diasVenc + ' días)';
+
+  if (!confirm(msg)) return;
+  if (!window.fbDB || !p.fbKey) { notify('Sin conexión'); return; }
+
+  var audit = (p.audit||[]).concat([{
+    accion: 'Valores actualizados' + (itemsActualizados > 0 ? ' (' + itemsActualizados + ' ítems USD recalculados, TC $' + cotizActual + ')' : ' (fecha y vencimiento)'),
+    fecha: fechaHoy,
+    user:  currentUser || 'Admin'
+  }]);
+
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
+    items:    items,
+    total:    nuevoTotal,
+    subtotal: subtotalNeto - descAmt,
+    fecha:    fechaHoy,
+    vence:    fechaVenc,
+    audit:    audit,
+    tsActualizacion: Date.now()
+  }).then(function() {
+    notify('✓ Presupuesto actualizado' + (itemsActualizados > 0 ? ' — ' + itemsActualizados + ' precios recalculados' : ''));
+    verPpto(pptoActualId); // recargar vista
+  }).catch(function(e){ notify('Error: ' + e.message); });
+}
+
 function guardarPresupuesto(modo) {
   var _cli=document.getElementById('pp-cli'); const cli = _cli?_cli.value.trim():'';
   if (!cli) { notify('Seleccioná un cliente'); return; }
@@ -18366,7 +18477,7 @@ function guardarPresupuesto(modo) {
     var qty   = parseFloat((tr.querySelector('.ppqty')||{}).value) || 1;
     var punit = parseFloat((tr.querySelector('.ppprice')||{}).value) || 0;
     return { cod:cod, desc:desc2, qty:qty, punit:punit, sub:qty*punit };
-  }).filter(function(it){ return it.cod && it.cod !== '—'; }); // descartar filas sin producto seleccionado
+  }).filter(function(it){ return (it.desc && it.desc.trim()) || it.punit > 0; }); // descartar filas completamente vacías
 
   if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
 
@@ -18437,7 +18548,7 @@ function filtrarPptoEstado(v) { renderPptoTabla(v); }
 function tabPpto(tipo, btn) {
   document.querySelectorAll('[id^=tab-]').forEach(b => { b.style.background=''; b.style.color=''; b.style.borderColor=''; });
   btn.style.background='var(--text)'; btn.style.color='var(--bg2)'; btn.style.borderColor='var(--text)';
-  const mapa = { todos:'', pendientes:'revision', aprobados:'aprobado_int', convertidos:'convertido' };
+  const mapa = { todos:'', pendientes:'revision', aprobados:'aprobado_int', convertidos:'convertido', anulados:'anulado' };
   renderPptoTabla(mapa[tipo] || '');
 }
 
@@ -21005,7 +21116,6 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
   const dp = parseFloat(desc_pct) || 0;
   const precioFinal = dp > 0 ? Math.round((qty||1) * precio * (1 - dp/100)) : Math.round((qty||1) * (precio||0));
   tr.innerHTML = `
-    <td><input type="checkbox"></td>
     <td style="position:relative;min-width:100px">
       <div style="display:flex;align-items:center;gap:4px">
         <div class="prod-selector" onclick="abrirSelectorProducto(this)" style="flex:1">
