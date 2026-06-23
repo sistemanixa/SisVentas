@@ -4297,7 +4297,7 @@ tr:hover td{color:var(--text)}
   <!-- Tarjetas resumen -->
   <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px" id="ctaemp-metrics" style="display:none">
     <div class="metric"><div class="m-label">Sueldo base</div><div class="m-value" id="ctaemp-base">$0</div><div class="m-sub">mensual bruto</div></div>
-    <div class="metric"><div class="m-label">Haberes</div><div class="m-value" id="ctaemp-haberes" style="color:var(--green)">$0</div><div class="m-sub">comisiones + h.extra + gastos</div></div>
+    <div class="metric"><div class="m-label">Haberes</div><div class="m-value" id="ctaemp-haberes" style="color:var(--green)">$0</div><div class="m-sub">sueldo + comisiones + h.extra</div></div>
     <div class="metric"><div class="m-label">Adelantos</div><div class="m-value" id="ctaemp-adelantos" style="color:var(--red)">$0</div><div class="m-sub">descontados del total</div></div>
     <div class="metric" style="background:var(--text);color:var(--bg2)"><div class="m-label" style="color:rgba(255,255,255,.5)">Total a cobrar</div><div class="m-value" id="ctaemp-total" style="color:var(--bg2)">$0</div><div class="m-sub" style="color:rgba(255,255,255,.4)" id="ctaemp-periodo">—</div></div>
   </div>
@@ -5340,6 +5340,23 @@ async function confirmarRegistroHaberes() {
         registradoPor: currentUser || 'Admin',
         ts:         Date.now()
       })
+    );
+
+    // Agregar movimiento en cuenta corriente del empleado (tipo sueldo)
+    var movCtaEmp = {
+      tipo:        'sueldo',
+      descripcion: 'Haber ' + mesLbl + (montoHsEx > 0 ? ' (incl. ' + hsExtra + ' hs extra)' : ''),
+      monto:       total,
+      fecha:       fechaGasto,
+      estado:      'aprobado',
+      mes:         mesISO,
+      sueldoBase:  sueldo,
+      hsExtra:     hsExtra,
+      montoHsEx:   montoHsEx,
+      ts:          Date.now()
+    };
+    promesas.push(
+      window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + e.fbKey), movCtaEmp)
     );
     contador++;
   });
@@ -9947,23 +9964,32 @@ function imprimirVentaActual() {
   var estadoPagoLbl = { pendiente_pago:'Pendiente de pago', seniado:'Señado', pago_total:'Pago total' }[v.estadoPago] || v.estadoPago || '—';
 
   // Items
+  var nCols = 5;
+
   var itemsHTML = (v.items||[]).map(function(it) {
     var disc = parseFloat(it.disc)||0;
-    var punit = '$' + (parseFloat(it.punit)||0).toLocaleString('es-AR');
+    var punitVal = parseFloat(it.punit)||0;
+    var punit = '$' + punitVal.toLocaleString('es-AR');
     var sub   = '$' + (parseFloat(it.sub)||0).toLocaleString('es-AR');
-    var discCell = disc > 0 ? '<td style="text-align:right;color:#e53">-'+disc+'%</td>' : '<td></td>';
+    var punitCell;
+    if (disc > 0) {
+      var punitDesc = punitVal * (1 - disc/100);
+      punitCell = '<td style="text-align:right">' +
+        '<span style="text-decoration:line-through;color:#aaa;font-size:11px">'+punit+'</span>' +
+        '<span style="color:#e53;font-size:10px;margin:0 3px">-'+disc+'%</span>' +
+        '<br><span>$'+punitDesc.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})+'</span>' +
+      '</td>';
+    } else {
+      punitCell = '<td style="text-align:right">'+punit+'</td>';
+    }
     return '<tr>' +
       '<td style="font-family:monospace;font-size:11px">'+escapeHTML(it.cod||'')+'</td>' +
       '<td>'+escapeHTML(it.desc||it.nombre||'')+'</td>' +
       '<td style="text-align:right">'+it.qty+'</td>' +
-      '<td style="text-align:right">'+punit+'</td>' +
-      discCell +
+      punitCell +
       '<td style="text-align:right;font-weight:600">'+sub+'</td>' +
     '</tr>';
   }).join('');
-
-  var tieneDescuento = (v.items||[]).some(function(it){ return parseFloat(it.disc)>0; });
-  var nCols = tieneDescuento ? 6 : 5;
 
   // Tipo de comprobante — factura, nota de crédito, o comprobante interno
   var tipoComp = (v.factura && v.factura.tipo)
@@ -10032,8 +10058,7 @@ function imprimirVentaActual() {
         '<th style="width:90px">Código</th>' +
         '<th>Descripción</th>' +
         '<th style="text-align:right;width:55px">Cant.</th>' +
-        '<th style="text-align:right;width:100px">P. unit.</th>' +
-        (tieneDescuento ? '<th style="text-align:right;width:60px">Desc.</th>' : '') +
+        '<th style="text-align:right;width:120px">P. unit.</th>' +
         '<th style="text-align:right;width:110px">Subtotal</th>' +
       '</tr></thead>' +
       '<tbody>'+itemsHTML+'</tbody>' +
@@ -11813,13 +11838,11 @@ function renderMovsEmp() {
     }).join('');
   }
   // Recalcular totales
-  var haberes   = movsEmpData.filter(function(m){ return ['comision','hextra','transporte','materiales','otro'].includes(m.tipo) && m.estado !== 'rechazado'; })
+  var haberes   = movsEmpData.filter(function(m){ return ['sueldo','comision','hextra','transporte','materiales','otro'].includes(m.tipo) && m.estado !== 'rechazado'; })
                              .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
   var adelantos = movsEmpData.filter(function(m){ return m.tipo === 'adelanto' && m.estado !== 'rechazado'; })
                              .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-  var emp = Object.values(empData||{}).find(function(e){ return (e.fbKey||e.id)==ctaEmpActual; });
-  var base = parseFloat((emp||{}).sueldoBase) || 0;
-  var total = base + haberes - adelantos;
+  var total = haberes - adelantos;
   var el = function(id){ return document.getElementById(id); };
   if (el('ctaemp-haberes'))  el('ctaemp-haberes').textContent  = '$' + Math.round(haberes).toLocaleString('es-AR');
   if (el('ctaemp-adelantos'))el('ctaemp-adelantos').textContent= '$' + Math.round(adelantos).toLocaleString('es-AR');
