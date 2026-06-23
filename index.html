@@ -487,6 +487,7 @@ tr:hover td{color:var(--text)}
 .badge-aceptado{background:var(--green-bg);color:var(--green)}
 .badge-rechazado{background:var(--red-bg);color:var(--red)}
 .badge-vencido{background:#f3f4f6;color:#6b7280}
+.badge-anulado { background:var(--bg2); color:var(--text3); border:1px solid var(--border); }
 .badge-convertido{background:#ede9fe;color:#5b21b6}
 
 /* ── ALERTA APROBACIÓN ── */
@@ -716,6 +717,12 @@ tr:hover td{color:var(--text)}
 .check-item.checked{background:rgba(34,197,94,.08);border-color:var(--green)}
 .check-item input[type=checkbox]{width:18px;height:18px;flex-shrink:0;cursor:pointer;accent-color:var(--green)}
 .rel-foto-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--radius);cursor:pointer}
+.ppto-menu-item {
+  display:flex;align-items:center;gap:8px;width:100%;padding:8px 14px;
+  background:none;border:none;cursor:pointer;font-size:13px;color:var(--text);
+  text-align:left;transition:background .15s;
+}
+.ppto-menu-item:hover { background:var(--bg2); }
 </style>
 
   <!-- Firebase SDK -->
@@ -796,7 +803,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.07 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.10 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -3798,7 +3805,7 @@ tr:hover td{color:var(--text)}
               <input class="search-input" style="width:100%" placeholder="Buscar empleado..." oninput="buscarEmpleado(this.value)">
             </div>
             <table id="emp-tbl">
-              <thead><tr><th>ID</th><th>Apellido y nombre</th><th>Cargo</th><th style="text-align:right">Mensual (cargo)</th><th style="text-align:right">Hs extra mes</th><th style="text-align:right">Comisión (mes)</th><th>Fecha de inicio</th><th style="text-align:right">Estado</th><th></th></tr></thead>
+              <thead><tr><th style="width:50px">ID</th><th>Apellido y nombre</th><th style="width:130px">Cargo</th><th style="text-align:right;width:130px">Mensual (cargo)</th><th style="text-align:right;width:190px">Hs extra mes</th><th style="text-align:right;width:130px;padding-left:24px">Comisión (mes)</th><th style="width:110px">Fecha inicio</th><th style="text-align:right;width:60px">Estado</th><th style="width:90px"></th></tr></thead>
               <tbody id="emp-tbody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr></tbody>
             </table>
           </div>
@@ -5395,7 +5402,7 @@ function renderTablaEmpleados() {
       '<td style="font-weight:500">'+escapeHTML(e.nombre||'—')+'</td>' +
       '<td><span class="badge '+catColor+'">'+escapeHTML(catLabel)+'</span></td>' +
       '<td style="text-align:right">'+(cargoInfo?'$'+Math.round(mensual).toLocaleString('es-AR'):'—')+'</td>' +
-      '<td style="text-align:right" onclick="event.stopPropagation()">' +
+      '<td style="text-align:right;width:190px" onclick="event.stopPropagation()">' +
         '<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">' +
           '<input type="number" value="' + hsExtraMes + '" min="0" step="0.5" ' +
             'style="width:52px;text-align:right;padding:3px 5px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);font-size:12px;font-family:inherit" ' +
@@ -5407,7 +5414,7 @@ function renderTablaEmpleados() {
             : '<span style="font-size:11px;color:var(--text3)">hs</span>') +
         '</div>' +
       '</td>' +
-      '<td style="text-align:right;color:var(--green)">'+(comision?'$'+Math.round(comision).toLocaleString('es-AR'):'—')+'</td>' +
+      '<td style="text-align:right;color:var(--green);padding-left:24px">'+(comision?'$'+Math.round(comision).toLocaleString('es-AR'):'—')+'</td>' +
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(e.fechaIngreso||'—')+'</td>' +
       '<td style="text-align:right">'+estadoBadge+'</td>' +
       '<td style="white-space:nowrap" onclick="event.stopPropagation()">' +
@@ -6546,7 +6553,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.07-firebase',
+  VERSION: 'v20.10-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7034,6 +7041,7 @@ var PPTO_ESTADOS = {
   rechazado:      { label:'Rechazado',            badge:'badge-rechazado',   icon:'ti-thumb-down',     orden:7 },
   vencido:        { label:'Vencido',              badge:'badge-vencido',     icon:'ti-calendar-off',   orden:8 },
   convertido:     { label:'Convertido a venta',   badge:'badge-convertido',  icon:'ti-arrow-right',    orden:9 },
+  anulado:        { label:'Anulado',               badge:'badge-anulado',     icon:'ti-ban',            orden:10 },
 };
 let currentRole = 'admin';
 var notifLeidas = new Set();
@@ -9981,44 +9989,102 @@ function imprimirVentaActual() {
       ? v.notaCredito.tipo
       : 'Comprobante de venta';
 
-  var w = window.open('','_blank','width=860,height=700');
+  // Datos adicionales para comprobante
+  var formaPago = (v.pagos && v.pagos.length) ? v.pagos.map(function(p){ return p.medio||p.forma||''; }).filter(Boolean).join(', ') : (v.formaPago||'');
+  var condIVA   = tipoComp.includes(' A') ? 'Responsable Inscripto' : 'Consumidor Final';
+  var nroComp   = v.factura && v.factura.numero_comprobante ? String(v.factura.numero_comprobante).padStart(8,'0') : '';
+  var pdv       = '00002';
+  var caeNum    = (v.factura && v.factura.cae) || (v.notaCredito && v.notaCredito.cae) || '';
+  var caeVto    = (v.factura && v.factura.cae_vencimiento) || '';
+  var cuitEmp   = empresa.cuit.replace(/\D/g,'');
+
+  // QR AFIP: URL estándar de verificación
+  var qrData = '';
+  var qrImg  = '';
+  if (caeNum) {
+    var fechaSinGuion = (v.fecha||'').replace(/-/g,'');
+    var totalCents    = Math.round((parseFloat(v.total)||0) * 100);
+    // Objeto JSON para QR AFIP (formato oficial)
+    var qrObj = {
+      ver: 1,
+      fecha: v.fecha || '',
+      cuit: parseInt(cuitEmp) || 20346484161,
+      ptoVta: parseInt(pdv),
+      tipoCmp: tipoComp.includes(' A') ? 1 : 6,
+      nroCmp: parseInt(nroComp) || 0,
+      importe: parseFloat(v.total)||0,
+      moneda: 'PES',
+      ctz: 1,
+      tipoDocRec: cliCuit ? 80 : 96,
+      nroDocRec: parseInt((cliCuit||cliDni||'0').replace(/\D/g,'')),
+      tipoCodAut: 'E',
+      codAut: parseInt(caeNum)||0
+    };
+    var qrJson   = JSON.stringify(qrObj);
+    var qrBase64 = btoa(qrJson);
+    var qrUrl    = 'https://www.afip.gob.ar/fe/qr/?p=' + qrBase64;
+    // QR via API pública (no requiere librería)
+    qrImg = '<img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data='+encodeURIComponent(qrUrl)+'" width="90" height="90" style="display:block">';
+  }
+
+  var w = window.open('','_blank','width=860,height=750');
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+tipoComp+' '+v.id+'</title>' +
     '<style>' +
-    '*{box-sizing:border-box}' +
-    'body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:28px 36px}' +
+    '*{box-sizing:border-box;margin:0;padding:0}' +
+    'body{font-family:Arial,sans-serif;font-size:12.5px;color:#1a1a1a;margin:24px 32px;background:#fff}' +
     'table{border-collapse:collapse;width:100%}' +
-    'th{background:#f0f0f0;font-weight:600;padding:7px 10px;border:1px solid #ddd;font-size:11px;text-transform:uppercase;letter-spacing:.3px}' +
-    'td{padding:7px 10px;border:1px solid #e8e8e8;font-size:13px;vertical-align:top}' +
-    'tfoot td{border-left:none;border-right:none;border-bottom:none;padding:4px 10px}' +
-    'tfoot tr:first-child td{border-top:2px solid #222;padding-top:8px}' +
-    'tfoot tr:last-child td{font-weight:700;font-size:15px;padding-bottom:8px}' +
-    '.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;margin-bottom:18px;border-bottom:2px solid #222}' +
-    '.tipo-badge{display:inline-block;padding:4px 14px;border:2px solid #222;font-size:16px;font-weight:700;letter-spacing:.5px;margin-bottom:6px}' +
-    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}' +
-    '.info-box{background:#f9f9f9;border-radius:4px;padding:10px 14px;border:0.5px solid #e8e8e8}' +
-    '.info-lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}' +
-    '.info-val{font-weight:600;font-size:13px}' +
-    '.info-sub{font-size:11px;color:#555;margin-top:2px}' +
-    '.cae-box{margin-top:20px;padding:10px 14px;border:1.5px solid #16a34a;border-radius:5px;background:#f0fdf4;font-size:12px}' +
-    '.nc-box{margin-top:20px;padding:10px 14px;border:1.5px solid #dc2626;border-radius:5px;background:#fef2f2;font-size:12px}' +
-    '@media print{body{margin:14px 18px}button{display:none}}' +
+    'th{background:#1e293b;color:#fff;font-weight:600;padding:7px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;text-align:left}' +
+    'th.tr,td.tr{text-align:right}' +
+    'td{padding:6px 10px;border-bottom:1px solid #eee;font-size:12.5px;vertical-align:middle}' +
+    'tr:last-child td{border-bottom:none}' +
+    '.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;margin-bottom:16px;border-bottom:3px solid #1e293b}' +
+    '.logo-area{display:flex;flex-direction:column;justify-content:flex-start}' +
+    '.comp-area{text-align:right}' +
+    '.tipo-badge{display:inline-block;padding:6px 18px;border:2.5px solid #1e293b;font-size:15px;font-weight:800;letter-spacing:.8px;margin-bottom:8px}' +
+    '.comp-num{font-size:22px;font-weight:700;color:#1e293b}' +
+    '.comp-fecha{font-size:12px;color:#666;margin-top:3px}' +
+    '.divider-letter{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:3px solid #1e293b;border-radius:4px;font-size:24px;font-weight:900;margin:0 auto 6px;color:#1e293b}' +
+    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}' +
+    '.info-box{background:#f8fafc;border-radius:6px;padding:10px 14px;border:1px solid #e2e8f0}' +
+    '.info-lbl{font-size:9.5px;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:600}' +
+    '.info-val{font-weight:700;font-size:13px;color:#0f172a}' +
+    '.info-sub{font-size:11px;color:#475569;margin-top:3px;line-height:1.5}' +
+    '.items-table{margin-bottom:0}' +
+    '.tfoot-row td{border:none;padding:4px 10px}' +
+    '.tfoot-first td{border-top:2px solid #1e293b;padding-top:10px}' +
+    '.tfoot-total td{border-top:2.5px solid #1e293b;padding-top:8px;padding-bottom:8px;font-weight:800;font-size:15px}' +
+    '.cae-section{margin-top:18px;display:flex;align-items:flex-start;gap:16px;padding:12px 16px;border:1.5px solid #16a34a;border-radius:6px;background:#f0fdf4}' +
+    '.nc-section{margin-top:18px;display:flex;align-items:flex-start;gap:16px;padding:12px 16px;border:1.5px solid #dc2626;border-radius:6px;background:#fef2f2}' +
+    '.cae-texts{flex:1}' +
+    '.cae-title{font-weight:700;font-size:12px;color:#15803d;margin-bottom:4px}' +
+    '.nc-title{font-weight:700;font-size:12px;color:#dc2626;margin-bottom:4px}' +
+    '.cae-num{font-family:monospace;font-size:16px;font-weight:700;color:#0f172a;letter-spacing:.5px}' +
+    '.cae-vto{font-size:10.5px;color:#666;margin-top:3px}' +
+    '.footer{margin-top:20px;padding-top:12px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-end}' +
+    '.footer-legal{font-size:9.5px;color:#94a3b8;line-height:1.6;max-width:70%}' +
+    '.no-comprobante{margin-top:18px;padding:14px 16px;border:1px dashed #94a3b8;border-radius:6px;background:#f8fafc;font-size:11px;color:#64748b;text-align:center}' +
+    '@media print{body{margin:10px 14px}button,.no-print{display:none}tr{page-break-inside:avoid}}' +
     '</style></head><body>' +
 
-    // Header
+    // ── HEADER ──
     '<div class="header">' +
-      '<div>'+logoHTML+
-        '<div style="font-size:11px;color:#666;margin-top:6px">'+escapeHTML(empresa.dir)+'</div>' +
-        (empresa.cuit ? '<div style="font-size:11px;color:#666">CUIT: '+empresa.cuit+'</div>' : '') +
+      '<div class="logo-area">' +
+        logoHTML +
+        '<div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.7">' +
+          escapeHTML(empresa.dir) + '<br>' +
+          (empresa.cuit ? 'CUIT: ' + escapeHTML(empresa.cuit) + '<br>' : '') +
+          'Condición IVA: Responsable Inscripto' +
+        '</div>' +
       '</div>' +
-      '<div style="text-align:right">' +
+      '<div class="comp-area">' +
         '<div class="tipo-badge">'+escapeHTML(tipoComp)+'</div>' +
-        '<div style="font-size:15px;font-weight:600;margin-top:2px">'+escapeHTML(v.id||'')+'</div>' +
-        '<div style="font-size:12px;color:#666;margin-top:2px">'+_mostrarFecha(v.fecha)+'</div>' +
-        (v.factura && v.factura.numero_comprobante ? '<div style="font-size:11px;color:#666;margin-top:1px">Nro comprobante: <strong>'+escapeHTML(String(v.factura.numero_comprobante))+'</strong></div>' : '') +
+        (nroComp ? '<div style="font-size:11px;color:#64748b;margin-bottom:4px">PDV <strong>'+pdv+'</strong> — Nro. <strong>'+nroComp+'</strong></div>' : '') +
+        '<div class="comp-num">#'+escapeHTML(String(v.id||''))+'</div>' +
+        '<div class="comp-fecha">'+_mostrarFecha(v.fecha)+'</div>' +
       '</div>' +
     '</div>' +
 
-    // Info cliente y venta
+    // ── INFO CLIENTE Y OPERACIÓN ──
     '<div class="info-grid">' +
       '<div class="info-box">' +
         '<div class="info-lbl">Cliente</div>' +
@@ -10027,66 +10093,95 @@ function imprimirVentaActual() {
         (cliTel  ? '<div class="info-sub">Tel: '+escapeHTML(cliTel)+'</div>' : '') +
         (cliDni  ? '<div class="info-sub">DNI: '+escapeHTML(cliDni)+'</div>' : '') +
         (cliCuit ? '<div class="info-sub">CUIT: '+escapeHTML(cliCuit)+'</div>' : '') +
+        '<div class="info-sub" style="margin-top:5px;color:#64748b">Condición IVA: <strong>'+condIVA+'</strong></div>' +
       '</div>' +
       '<div class="info-box">' +
         '<div class="info-lbl">Datos de la operación</div>' +
-        '<div class="info-sub">Estado pago: <strong>'+estadoPagoLbl+'</strong></div>' +
-        (v.empleado ? '<div class="info-sub">Vendedor: '+escapeHTML(v.empleado)+'</div>' : '') +
+        '<div class="info-sub">Estado de pago: <strong>'+estadoPagoLbl+'</strong></div>' +
+        (formaPago ? '<div class="info-sub">Forma de pago: <strong>'+escapeHTML(formaPago)+'</strong></div>' : '') +
+        (v.empleado ? '<div class="info-sub">Vendedor: <strong>'+escapeHTML(v.empleado)+'</strong></div>' : '') +
+        (v.ot ? '<div class="info-sub">OT asociada: <strong>'+escapeHTML(v.ot)+'</strong></div>' : '') +
       '</div>' +
     '</div>' +
 
-    // Tabla de items con tfoot para totales
-    '<table>' +
+    // ── TABLA DE ÍTEMS ──
+    '<table class="items-table">' +
       '<thead><tr>' +
         '<th style="width:90px">Código</th>' +
         '<th>Descripción</th>' +
-        '<th style="text-align:right;width:55px">Cant.</th>' +
-        '<th style="text-align:right;width:120px">P. unit.</th>' +
-        '<th style="text-align:right;width:110px">Subtotal</th>' +
+        '<th class="tr" style="width:55px">Cant.</th>' +
+        '<th class="tr" style="width:120px">P. unit.</th>' +
+        '<th class="tr" style="width:110px">Subtotal</th>' +
       '</tr></thead>' +
       '<tbody>'+itemsHTML+'</tbody>' +
       '<tfoot>' +
-        '<tr>' +
+        '<tr class="tfoot-row tfoot-first">' +
           '<td colspan="'+(nCols-2)+'" style="border:none"></td>' +
-          '<td style="text-align:right;font-size:12px;color:#666;border-top:2px solid #222;padding-top:8px">Subtotal</td>' +
-          '<td style="text-align:right;border-top:2px solid #222;padding-top:8px">$'+(parseFloat(v.subtotal)||0).toLocaleString('es-AR')+'</td>' +
+          '<td style="text-align:right;font-size:12px;color:#64748b">Subtotal</td>' +
+          '<td style="text-align:right">$'+(parseFloat(v.subtotal)||0).toLocaleString('es-AR')+'</td>' +
         '</tr>' +
         (parseFloat(v.descuento)>0 ?
-          '<tr>' +
-            '<td colspan="'+(nCols-2)+'" style="border:none"></td>' +
-            '<td style="text-align:right;font-size:12px;color:#dc2626;border:none">Descuento</td>' +
-            '<td style="text-align:right;color:#dc2626;border:none">-$'+(parseFloat(v.descuento)||0).toLocaleString('es-AR')+'</td>' +
+          '<tr class="tfoot-row"><td colspan="'+(nCols-2)+'" style="border:none"></td>' +
+            '<td style="text-align:right;font-size:12px;color:#dc2626">Descuento</td>' +
+            '<td style="text-align:right;color:#dc2626">-$'+(parseFloat(v.descuento)||0).toLocaleString('es-AR')+'</td>' +
           '</tr>' : '') +
-        '<tr>' +
-          '<td colspan="'+(nCols-2)+'" style="border:none"></td>' +
-          '<td style="text-align:right;font-size:12px;color:#d97706;border:none">IVA 21%</td>' +
-          '<td style="text-align:right;color:#d97706;border:none">$'+(parseFloat(v.iva)||0).toLocaleString('es-AR')+'</td>' +
+        '<tr class="tfoot-row"><td colspan="'+(nCols-2)+'" style="border:none"></td>' +
+          '<td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td>' +
+          '<td style="text-align:right;color:#d97706">$'+(parseFloat(v.iva)||0).toLocaleString('es-AR')+'</td>' +
         '</tr>' +
-        '<tr>' +
-          '<td colspan="'+(nCols-2)+'" style="border:none"></td>' +
-          '<td style="text-align:right;font-weight:700;font-size:14px;border-top:2px solid #222;padding-top:8px;padding-bottom:8px">TOTAL</td>' +
-          '<td style="text-align:right;font-weight:700;font-size:14px;border-top:2px solid #222;padding-top:8px;padding-bottom:8px">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
+        '<tr class="tfoot-row tfoot-total"><td colspan="'+(nCols-2)+'" style="border:none"></td>' +
+          '<td style="text-align:right">TOTAL</td>' +
+          '<td style="text-align:right">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
         '</tr>' +
       '</tfoot>' +
     '</table>' +
 
-    // CAE / NC
+    // ── CAE / QR ──
     (v.notaCredito && v.notaCredito.cae ?
-      '<div class="nc-box">' +
-        '<strong>Nota de crédito emitida — '+escapeHTML(v.notaCredito.tipo||'')+'</strong><br>' +
-        'CAE NC: <strong>'+escapeHTML(v.notaCredito.cae)+'</strong>' +
-        (v.factura && v.factura.cae ? '<br><span style="color:#666">Factura original CAE: '+escapeHTML(v.factura.cae)+'</span>' : '') +
+      '<div class="nc-section">' +
+        (qrImg ? '<div>'+qrImg+'<div style="font-size:9px;color:#666;text-align:center;margin-top:3px">Verificar en AFIP</div></div>' : '') +
+        '<div class="cae-texts">' +
+          '<div class="nc-title">'+escapeHTML(v.notaCredito.tipo||'Nota de Crédito')+'</div>' +
+          '<div style="font-size:11px;color:#555;margin-bottom:4px">Anula la factura original</div>' +
+          '<div style="font-size:11px;color:#555">CAE NC: <span class="cae-num">'+escapeHTML(v.notaCredito.cae)+'</span></div>' +
+          (v.factura && v.factura.cae ? '<div class="cae-vto">Factura original CAE: '+escapeHTML(v.factura.cae)+'</div>' : '') +
+        '</div>' +
       '</div>'
     : v.factura && v.factura.cae ?
-      '<div class="cae-box">' +
-        '<strong>'+escapeHTML(v.factura.tipo||'Factura electrónica')+'</strong><br>' +
-        'CAE Nº: <strong>'+escapeHTML(v.factura.cae)+'</strong>' +
-        (v.factura.cae_vencimiento ? ' &nbsp;·&nbsp; Vto: '+escapeHTML(v.factura.cae_vencimiento) : '') +
-      '</div>' : '') +
+      '<div class="cae-section">' +
+        (qrImg ? '<div>'+qrImg+'<div style="font-size:9px;color:#666;text-align:center;margin-top:3px">Verificar en AFIP</div></div>' : '') +
+        '<div class="cae-texts">' +
+          '<div class="cae-title">'+escapeHTML(v.factura.tipo||'Factura Electrónica')+'  ·  Comprobante válido ante AFIP</div>' +
+          '<div style="font-size:11px;color:#475569;margin-bottom:6px">PDV '+pdv+(nroComp?' — Nro. comprobante: '+nroComp:'')+'</div>' +
+          '<div>CAE Nº: <span class="cae-num">'+escapeHTML(caeNum)+'</span></div>' +
+          (caeVto ? '<div class="cae-vto">Vencimiento CAE: '+escapeHTML(caeVto)+'</div>' : '') +
+        '</div>' +
+      '</div>'
+    :
+      '<div class="no-comprobante">Comprobante interno — sin CAE electrónico emitido ante AFIP</div>'
+    ) +
+
+    // ── FOOTER LEGAL ──
+    '<div class="footer">' +
+      '<div class="footer-legal">' +
+        escapeHTML(empresa.nombre) + ' · ' + escapeHTML(empresa.dir) + '<br>' +
+        (empresa.cuit ? 'CUIT: ' + escapeHTML(empresa.cuit) + ' · ' : '') +
+        'Responsable Inscripto · IVA Responsable Inscripto<br>' +
+        'Documento no válido como factura si no posee CAE emitido por AFIP' +
+      '</div>' +
+      '<div style="text-align:right;font-size:10px;color:#94a3b8">' +
+        'SisVentas · Nixa<br>' +
+        'Generado el ' + new Date().toLocaleDateString('es-AR') +
+      '</div>' +
+    '</div>' +
+
+    '<div class="no-print" style="margin-top:20px;text-align:center">' +
+      '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>' +
+    '</div>' +
 
     '</body></html>');
   w.document.close();
-  setTimeout(function(){ w.print(); }, 600);
+  setTimeout(function(){ w.print(); }, 800);
 }
 
 // Copiar selección de items del detalle de venta
@@ -12049,6 +12144,48 @@ function eliminarVenta(fbKey) {
 }
 
 // ── PRESUPUESTOS: eliminar e imprimir ──
+function toggleMenuPpto(e, menuId) {
+  e.stopPropagation();
+  var ya = document.getElementById(menuId);
+  var abierto = ya && ya.style.display === 'block';
+  cerrarMenusPpto();
+  if (!abierto && ya) ya.style.display = 'block';
+}
+function cerrarMenusPpto() {
+  document.querySelectorAll('.ppto-dropdown-menu').forEach(function(m){ m.style.display='none'; });
+}
+// Cerrar al hacer click fuera
+document.addEventListener('click', function(){ cerrarMenusPpto(); });
+
+function eliminarPptoDesdeTabla(pptoId) {
+  var p = (pptoData||[]).find(function(x){ return x.id === pptoId; });
+  if (!p || !p.fbKey) return notify('No se encontro el presupuesto');
+  if (!confirm('¿Eliminar el presupuesto ' + pptoId + '? Esta accion no se puede deshacer.')) return;
+  window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + p.fbKey))
+    .then(function(){ notify('Presupuesto eliminado'); })
+    .catch(function(e){ notify('Error: ' + e.message); });
+}
+
+function anularPptoDesdeTabla(pptoId) {
+  var p = (pptoData||[]).find(function(x){ return x.id === pptoId; });
+  if (!p || !p.fbKey) return notify('No se encontro el presupuesto');
+  if (!confirm('¿Anular el presupuesto ' + pptoId + '? Quedara registrado como anulado.')) return;
+  var upd = {
+    estado: 'anulado',
+    audit: (p.audit||[]).concat([{ accion:'Anulado', fecha: new Date().toISOString().slice(0,10), user: currentUser||'Admin' }])
+  };
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + p.fbKey), upd)
+    .then(function(){ notify('Presupuesto anulado'); })
+    .catch(function(e){ notify('Error: ' + e.message); });
+}
+
+function imprimirPptoDesdeTabla(pptoId) {
+  var p = (pptoData||[]).find(function(x){ return x.id === pptoId; });
+  if (!p) return;
+  pptoActualId = pptoId;
+  imprimirPresupuesto();
+}
+
 function eliminarPpto(fbKey) {
   var p = (pptoData||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!confirm('¿Eliminar presupuesto ' + ((p||{}).numero||'') + '?')) return;
@@ -17836,7 +17973,28 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
       <td class="tr" style="font-weight:500">${totalFmt}</td>
       <td>${escapeHTML(p.vence)}</td>
       <td>${pptoStateBadge(p.estado)}</td>
-      <td><button class="btn btn-sm btn-icon" onclick="event.stopPropagation();verPpto('${p.id}')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button></td>
+      <td onclick="event.stopPropagation()" style="position:relative">
+        <button class="btn btn-sm btn-icon" onclick="toggleMenuPpto(event,'menu-ppto-${p.id}')" title="Acciones">
+          <i class="ti ti-dots-vertical" style="font-size:15px"></i>
+        </button>
+        <div id="menu-ppto-${p.id}" class="ppto-dropdown-menu" style="display:none;position:absolute;right:0;top:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:999;min-width:170px;padding:4px 0">
+          <button class="ppto-menu-item" onclick="cerrarMenusPpto();verPpto('${p.id}')">
+            <i class="ti ti-eye" style="font-size:13px"></i> Ver detalle
+          </button>
+          <button class="ppto-menu-item" onclick="cerrarMenusPpto();imprimirPptoDesdeTabla('${p.id}')">
+            <i class="ti ti-printer" style="font-size:13px"></i> Imprimir
+          </button>
+          ${p.estado !== 'convertido' && p.estado !== 'anulado' ? `
+          <div style="border-top:1px solid var(--border);margin:4px 0"></div>
+          <button class="ppto-menu-item" onclick="cerrarMenusPpto();anularPptoDesdeTabla('${p.id}')" style="color:var(--amber)">
+            <i class="ti ti-ban" style="font-size:13px"></i> Anular
+          </button>` : ''}
+          <div style="border-top:1px solid var(--border);margin:4px 0"></div>
+          <button class="ppto-menu-item" onclick="cerrarMenusPpto();eliminarPptoDesdeTabla('${p.id}')" style="color:var(--red)">
+            <i class="ti ti-trash" style="font-size:13px"></i> Eliminar
+          </button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sin resultados</td></tr>';
