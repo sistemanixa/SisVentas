@@ -804,7 +804,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.22 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.23 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4989,6 +4989,14 @@ function editarProducto(id) { abrirFormProducto(id); }
 function volverListaVentas() {
   var dv = document.getElementById('ventas-detalle-view') || document.getElementById('venta-detalle-view');
   var lv = document.getElementById('ventas-list-view')   || document.getElementById('venta-list-view');
+  // Si vino desde historial cliente o cobranzas, volver a esa página
+  var origen = window._ventaDesdeHistorialOrigen;
+  if (origen) {
+    window._ventaDesdeHistorialOrigen = null;
+    if (dv) dv.style.display = 'none';
+    showPage(origen, null);
+    return;
+  }
   if (dv) dv.style.display = 'none';
   if (lv) lv.style.display = '';
   _restaurarControlesFiltrosVentas();
@@ -6567,7 +6575,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.22-firebase',
+  VERSION: 'v20.23-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9364,9 +9372,12 @@ function verCuentaClienteReal(nombre) {
   var saldoCorrido = 0;
   var rows = movs.map(function(m) {
     saldoCorrido += m.debe - m.haber;
-    return '<tr>' +
+    var ventaId = m.tipo === 'Venta' ? (m.concepto.replace('Venta ','')) : null;
+    var trStyle = ventaId ? 'cursor:pointer;touch-action:pan-y' : '';
+    var trClick = ventaId ? 'onclick="verVentaDesdeHistorial(\''+ventaId+'\',this)"' : '';
+    return '<tr style="'+trStyle+'" '+trClick+' onmouseenter="if(this.onclick)this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">' +
       '<td>' + escapeHTML(m.fecha) + '</td>' +
-      '<td>' + escapeHTML(m.concepto) + '</td>' +
+      '<td style="color:'+(ventaId?'var(--blue)':'')+'">'+escapeHTML(m.concepto)+(ventaId?' <i class="ti ti-external-link" style="font-size:10px;opacity:.6"></i>':'')+'</td>' +
       '<td style="text-align:right">' + (m.debe ? '$'+Math.round(m.debe).toLocaleString('es-AR') : '—') + '</td>' +
       '<td style="text-align:right;color:var(--green)">' + (m.haber ? '$'+Math.round(m.haber).toLocaleString('es-AR') : '—') + '</td>' +
       '<td style="text-align:right;font-weight:500">$' + Math.round(saldoCorrido).toLocaleString('es-AR') + '</td>' +
@@ -9376,6 +9387,21 @@ function verCuentaClienteReal(nombre) {
   document.getElementById('cc-movimientos').innerHTML =
     '<tr><th>Fecha</th><th>Concepto</th><th style="text-align:right">Debe</th><th style="text-align:right">Haber</th><th style="text-align:right">Saldo</th></tr>' +
     (rows || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sin movimientos registrados</td></tr>');
+}
+
+function irAVentaDesdeCobranza(ventaId) {
+  var v = (ventasList||[]).find(function(x){ return x.id===ventaId || x.fbKey===ventaId; });
+  if (!v) { notify('Venta no encontrada'); return; }
+  window._ventaDesdeHistorialOrigen = 'cobranzas';
+  verDetalleVenta(v.fbKey || v.id);
+}
+
+function verVentaDesdeHistorial(ventaId, trEl) {
+  var v = (ventasList||[]).find(function(x){ return x.id===ventaId || x.fbKey===ventaId; });
+  if (!v) { notify('Venta no encontrada'); return; }
+  // Guardar página origen para poder volver
+  window._ventaDesdeHistorialOrigen = 'cuentacorriente';
+  verDetalleVenta(v.fbKey || v.id);
 }
 
 // Mantenida por compatibilidad si algo viejo todavía la referencia
@@ -9614,7 +9640,8 @@ function fbCargarPagos() {
     window._historialPagosActual = listaCortada; // guardar para acceso por índice
     if (pagosTbody) {
       pagosTbody.innerHTML = listaCortada.length ? listaCortada.map(function(p, idx){
-        return '<tr><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(p.medio||'—')+'</td><td style="text-align:right;color:var(--green);font-weight:500">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">—</td><td style="text-align:right"><button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button></td></tr>';
+        var ventaLink = p.venta ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();irAVentaDesdeCobranza(\''+escapeHTML(p.venta)+'\');" title="Ver venta"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></button>' : '—';
+        return '<tr><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(p.medio||'—')+'</td><td style="text-align:right;color:var(--green);font-weight:500">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right"><button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
     // Cuenta corriente desde ventasList
@@ -12773,10 +12800,11 @@ function cfMetricCard(label, value, sub, color) {
 
 function cfRenderMetricas(comps) {
   var compsA = comps.filter(function(c){ return cfEsCreditoFiscal(c.tipo); });
-  var totalIVA  = compsA.reduce(function(s,c){ return s+c.totalIVA; }, 0);
-  var totalNeto = compsA.reduce(function(s,c){ return s+c.neto; }, 0);
-  var iva21     = compsA.reduce(function(s,c){ return s+c.iva21; }, 0);
-  var iva105    = compsA.reduce(function(s,c){ return s+c.iva105; }, 0);
+  var signo = function(c){ return ['3','8','12'].includes(String(c.tipo)) ? -1 : 1; };
+  var totalIVA  = compsA.reduce(function(s,c){ return s+c.totalIVA*signo(c); }, 0);
+  var totalNeto = compsA.reduce(function(s,c){ return s+c.neto*signo(c); }, 0);
+  var iva21     = compsA.reduce(function(s,c){ return s+c.iva21*signo(c); }, 0);
+  var iva105    = compsA.reduce(function(s,c){ return s+c.iva105*signo(c); }, 0);
 
   document.getElementById('cf-metrics-box').innerHTML =
     cfMetricCard('Crédito fiscal real', cfPesos(totalIVA), 'solo Facturas A · IVA computable', 'green') +
@@ -12788,11 +12816,11 @@ function cfRenderMetricas(comps) {
 function cfRenderAlicuotas(comps) {
   var compsA = comps.filter(function(c){ return cfEsCreditoFiscal(c.tipo); });
   var ali = [
-    { lbl:'IVA 21%',   val: compsA.reduce(function(s,c){return s+c.iva21;},0),  color:'#3b82f6' },
-    { lbl:'IVA 10,5%', val: compsA.reduce(function(s,c){return s+c.iva105;},0), color:'#f59e0b' },
-    { lbl:'IVA 27%',   val: compsA.reduce(function(s,c){return s+c.iva27;},0),  color:'#a855f7' },
-    { lbl:'IVA 5%',    val: compsA.reduce(function(s,c){return s+c.iva5;},0),   color:'#22c55e' },
-    { lbl:'IVA 2,5%',  val: compsA.reduce(function(s,c){return s+c.iva25;},0),  color:'#64748b' },
+    { lbl:'IVA 21%',   val: compsA.reduce(function(s,c){return s+c.iva21*signo(c);},0),  color:'#3b82f6' },
+    { lbl:'IVA 10,5%', val: compsA.reduce(function(s,c){return s+c.iva105*signo(c);},0), color:'#f59e0b' },
+    { lbl:'IVA 27%',   val: compsA.reduce(function(s,c){return s+c.iva27*signo(c);},0),  color:'#a855f7' },
+    { lbl:'IVA 5%',    val: compsA.reduce(function(s,c){return s+c.iva5*signo(c);},0),   color:'#22c55e' },
+    { lbl:'IVA 2,5%',  val: compsA.reduce(function(s,c){return s+c.iva25*signo(c);},0),  color:'#64748b' },
   ].filter(function(a){ return a.val > 0; });
   var totalIVA = ali.reduce(function(s,a){ return s+a.val; }, 0);
 
@@ -12828,8 +12856,9 @@ function cfRenderHistorial(comps, filtro) {
     var k = c.cuitEmisor;
     if (!provs[k]) provs[k] = { cuit:k, nombre:c.nombre, comps:[], totalIVA:0, total:0 };
     provs[k].comps.push(c);
-    if (cfEsCreditoFiscal(c.tipo)) provs[k].totalIVA += c.totalIVA;
-    provs[k].total += c.total;
+    var esNC1 = ['3','8','12'].includes(String(c.tipo));
+    if (cfEsCreditoFiscal(c.tipo)) provs[k].totalIVA += esNC1 ? -c.totalIVA : c.totalIVA;
+    provs[k].total += esNC1 ? -c.total : c.total;
   });
   var lista = Object.values(provs).sort(function(a,b){ return b.totalIVA - a.totalIVA; });
 
@@ -12868,13 +12897,14 @@ function cfRenderProvRow(p, idx) {
         '<tbody>' + p.comps.map(function(c) {
           var tipoNom = CF_TIPOS_COMP[c.tipo] || 'Tipo '+c.tipo;
           var computa = cfEsCreditoFiscal(c.tipo);
+          var esNC = ['3','8','12'].includes(String(c.tipo));
           var numFmt = String(c.ptoVta).padStart(4,'0') + '-' + String(c.nroDoc).padStart(8,'0');
           return '<tr style="'+(computa?'':'opacity:.55')+'">' +
             '<td style="font-family:monospace;font-size:12px">'+c.fecha+'</td>' +
             '<td><span class="badge '+(computa?'b-green':'b-gray')+'" style="font-size:10px">'+tipoNom+'</span></td>' +
             '<td style="font-family:monospace;font-size:12px">'+numFmt+'</td>' +
             '<td class="tr" style="font-family:monospace">'+cfPesos(c.neto)+'</td>' +
-            '<td class="tr" style="font-family:monospace;color:'+(computa?'var(--green)':'var(--text3)')+';font-weight:'+(computa?'600':'400')+'">'+(computa?cfPesos(c.totalIVA):(c.totalIVA>0?'(no computa)':'—'))+'</td>' +
+            '<td class="tr" style="font-family:monospace;color:'+(esNC?'var(--red)':(computa?'var(--green)':'var(--text3)'))+';font-weight:'+(computa?'600':'400')+'">'+(computa?(esNC?'-':'')+cfPesos(c.totalIVA):(c.totalIVA>0?'(no computa)':'—'))+'</td>' +
             '<td class="tr" style="font-family:monospace">'+cfPesos(c.total)+'</td>' +
           '</tr>';
         }).join('') + '</tbody>' +
@@ -20523,7 +20553,7 @@ function verVenta(id) {
   // Items
   const tbody = document.getElementById('vd-items');
   const itemsVenta = Array.isArray(v.items) ? v.items : [];
-  var itemsVentaFiltrados = itemsVenta.filter(it => (it.desc||'').trim() || parseFloat(it.punit) > 0);
+  var itemsVentaFiltrados = itemsVenta.filter(it => ((it.desc||'').trim() && (it.desc||'').trim() !== 'Producto') || parseFloat(it.punit) > 0 || parseFloat(it.sub) > 0);
   tbody.innerHTML = itemsVentaFiltrados.length ? itemsVentaFiltrados.map(it => `<tr>
     <td style="overflow:hidden"><input type="checkbox"></td>
     <td style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(it.cod)}</td>
@@ -20538,7 +20568,14 @@ function verVenta(id) {
   var descAmt = parseFloat(v.descuento)||0;
   var descRow = document.getElementById('vd-desc-row');
   if (descRow) descRow.style.display = descAmt > 0 ? '' : 'none';
-  _set('vd-desc-amt', descAmt > 0 ? '-$' + descAmt.toLocaleString('es-AR') : '');
+  // Mostrar descuento como % si existe descuentoGeneral, sino como monto
+  var descLabel;
+  if (v.descuentoGeneral && parseFloat(v.descuentoGeneral) > 0) {
+    descLabel = '-' + parseFloat(v.descuentoGeneral).toLocaleString('es-AR') + '% (-$' + Math.round(descAmt).toLocaleString('es-AR') + ')';
+  } else {
+    descLabel = descAmt > 0 ? '-$' + Math.round(descAmt).toLocaleString('es-AR') : '';
+  }
+  _set('vd-desc-amt', descLabel);
   _set('vd-iva','$' + (parseFloat(v.iva)||0).toLocaleString('es-AR'));
   _set('vd-total','$' + (parseFloat(v.total)||0).toLocaleString('es-AR'));
 
