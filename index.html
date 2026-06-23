@@ -803,7 +803,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.11 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.12 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6160,6 +6160,12 @@ async function emitirNotaCredito(ventaId) {
 }
 
 function verFacturaEmitida(pdfUrl, cae) {
+  // Si hay PDF de ARCA, abrirlo directamente
+  if (pdfUrl) {
+    window.open(pdfUrl, '_blank');
+    return;
+  }
+  // Sin PDF: modal con CAE y link a TusFacturasApp
   var prev = document.getElementById('modal-factura-emitida');
   if (prev) prev.remove();
   var overlay = document.createElement('div');
@@ -6172,12 +6178,12 @@ function verFacturaEmitida(pdfUrl, cae) {
       '</div>' +
       '<div style="font-weight:700;font-size:16px;margin-bottom:8px">Factura electrónica emitida</div>' +
       '<div style="font-size:12px;color:var(--text3);margin-bottom:4px">CAE</div>' +
-      '<div style="font-family:monospace;font-size:18px;font-weight:700;color:var(--green);margin-bottom:20px;cursor:pointer" onclick="navigator.clipboard.writeText(\''+cae+'\');notify(\'CAE copiado\')" title="Clic para copiar">' +
+      '<div style="font-family:monospace;font-size:18px;font-weight:700;color:var(--green);margin-bottom:12px;cursor:pointer" onclick="navigator.clipboard.writeText(\''+cae+'\');notify(\'CAE copiado\')" title="Clic para copiar">' +
         cae + ' <i class="ti ti-copy" style="font-size:13px;color:var(--text3)"></i>' +
       '</div>' +
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">PDF no disponible — descargalo desde TusFacturasApp</div>' +
       '<div style="display:flex;flex-direction:column;gap:8px">' +
-        (pdfUrl ? '<a href="'+pdfUrl+'" target="_blank" class="btn btn-primary" style="width:100%;padding:10px;text-align:center;text-decoration:none"><i class="ti ti-download"></i> Descargar / Ver PDF</a>' : '<div style="font-size:12px;color:var(--text3)">PDF no disponible — buscalo en TusFacturasApp</div>') +
-        '<a href="https://www.tusfacturas.app" target="_blank" class="btn" style="width:100%;padding:8px;text-align:center;text-decoration:none;color:var(--text3)"><i class="ti ti-external-link"></i> Ir a TusFacturasApp</a>' +
+        '<a href="https://www.tusfacturas.app" target="_blank" class="btn btn-primary" style="width:100%;padding:10px;text-align:center;text-decoration:none"><i class="ti ti-external-link"></i> Ir a TusFacturasApp</a>' +
         '<button onclick="document.getElementById(\'modal-factura-emitida\').remove()" class="btn" style="width:100%;padding:8px;color:var(--text3)">Cerrar</button>' +
       '</div>' +
     '</div>';
@@ -6553,7 +6559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.11-firebase',
+  VERSION: 'v20.12-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
