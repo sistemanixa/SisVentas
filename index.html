@@ -6,7 +6,6 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://dolarapi.com https://www.tusfacturas.app https://*.cloudfunctions.net; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
 <script>
   // Desregistro forzado de cualquier Service Worker que haya quedado de una instalación
   // PWA anterior. Si esto no corre, un SW viejo puede seguir sirviendo versiones
@@ -24,7 +23,6 @@
   }
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleapis.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://dolarapi.com https://www.tusfacturas.app https://*.cloudfunctions.net; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="apple-icon-link" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
@@ -792,7 +790,6 @@ tr:hover td{color:var(--text)}
 <div id="screen-loading" style="display:flex;position:fixed;inset:0;background:var(--bg);z-index:998;flex-direction:column;align-items:center;justify-content:center;gap:20px">
   <div id="loading-logo" style="font-size:28px;font-weight:700;color:var(--text);letter-spacing:-1px">SisVentas</div>
   <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
-    <!-- Barra de progreso -->
     <div style="width:200px;height:3px;background:var(--border);border-radius:3px;overflow:hidden">
       <div id="loading-bar" style="height:3px;background:var(--green);border-radius:3px;width:0%;transition:width .4s ease"></div>
     </div>
@@ -804,7 +801,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.24 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.26 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6575,7 +6572,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.24-firebase',
+  VERSION: 'v20.26-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7156,7 +7153,7 @@ function _resolverRolYCompletarLogin(user, err) {
       errEl.textContent = 'El servidor tardó demasiado en responder. Intentá de nuevo.';
       errEl.style.display = 'block';
     }
-  }, 4000);
+  }, 8000);
 
   function aplicarRolYNombre(lista) {
     clearTimeout(_loginTimeout); // login completado, cancelar timeout
@@ -7207,7 +7204,7 @@ function _resolverRolYCompletarLogin(user, err) {
       currentRole = esAdminFallback ? 'admin' : 'vendedor';
       _completarLogin(user.displayName || user.email.split('@')[0]);
     }
-  }, 2000);
+  }, 5000);
 
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios')).then(function(snap) {
     clearTimeout(_usuariosTimeout);
@@ -7279,7 +7276,7 @@ setTimeout(function() {
     _primeraVerificacionAuth = false;
     _mostrarLoginSinSesion();
   }
-}, 2000);
+}, 6000);
 
 // Timeout ABSOLUTO: si después de 12 segundos la app no está visible,
 // mostrar login sin importar qué — cubre casos donde Auth responde pero
@@ -7295,7 +7292,7 @@ setTimeout(function() {
     if (loginEl)   loginEl.style.display = '';
     if (window.fbAuth && window.fbSignOut) window.fbSignOut(window.fbAuth).catch(function(){});
   }
-}, 3000);
+}, 12000);
 
 // ── PRESENCIA EN TIEMPO REAL ──
 // Usa onDisconnect de Firebase: el propio servidor de Firebase detecta cuando la
@@ -9406,7 +9403,7 @@ function verCuentaClienteReal(nombre) {
     var ventaId = m.tipo === 'Venta' ? (m.concepto.replace('Venta ','')) : null;
     var trStyle = ventaId ? 'cursor:pointer;touch-action:pan-y' : '';
     var trClick = ventaId ? 'onclick="verVentaDesdeHistorial(\''+ventaId+'\',this)"' : '';
-    return '<tr style="'+trStyle+'" '+trClick+' onmouseenter="if(this.onclick)this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">' +
+    return '<tr style="'+trStyle+'" '+trClick+' onmouseenter="if(this.onclick)this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
       '<td>' + escapeHTML(m.fecha) + '</td>' +
       '<td style="color:'+(ventaId?'var(--blue)':'')+'">'+escapeHTML(m.concepto)+(ventaId?' <i class="ti ti-external-link" style="font-size:10px;opacity:.6"></i>':'')+'</td>' +
       '<td style="text-align:right">' + (m.debe ? '$'+Math.round(m.debe).toLocaleString('es-AR') : '—') + '</td>' +
