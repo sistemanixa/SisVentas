@@ -804,7 +804,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.20 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.22 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1616,6 +1616,10 @@ tr:hover td{color:var(--text)}
       </div></div>
       <div class="flex-end">
         <button class="btn" onclick="guardarPresupuesto('borrador')"><i class="ti ti-device-floppy"></i> Guardar borrador</button>
+        <button class="btn" id="ppto-detalle-toggle" onclick="togglePptoDetalle()" title="Cambia si el presupuesto muestra precios o no" style="gap:6px">
+          <i class="ti ti-eye" id="ppto-detalle-icon"></i>
+          <span id="ppto-detalle-label">Con detalle</span>
+        </button>
         <button class="btn" onclick="imprimirPresupuesto()"><i class="ti ti-printer"></i> Imprimir</button>
         <button class="btn btn-primary" onclick="guardarPresupuesto('revision')"><i class="ti ti-send"></i> Enviar a revisión</button>
       </div>
@@ -6563,7 +6567,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.20-firebase',
+  VERSION: 'v20.22-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -12222,6 +12226,24 @@ function eliminarPpto(fbKey) {
     .catch(function(e){ notify('Error: ' + e.message); });
 }
 
+// Toggle detalle/sin detalle en presupuesto
+var _pptoConDetalle = true;
+function togglePptoDetalle() {
+  _pptoConDetalle = !_pptoConDetalle;
+  var icon  = document.getElementById('ppto-detalle-icon');
+  var label = document.getElementById('ppto-detalle-label');
+  var btn   = document.getElementById('ppto-detalle-toggle');
+  if (_pptoConDetalle) {
+    if (icon)  icon.className  = 'ti ti-eye';
+    if (label) label.textContent = 'Con detalle';
+    if (btn)   btn.style.color = '';
+  } else {
+    if (icon)  icon.className  = 'ti ti-eye-off';
+    if (label) label.textContent = 'Sin detalle';
+    if (btn)   btn.style.color = 'var(--amber)';
+  }
+}
+
 function imprimirPresupuesto() {
   var g = function(id){ var el=document.getElementById(id); return el ? el.value||el.textContent||'' : ''; };
   var empresa = {
@@ -12245,7 +12267,12 @@ function imprimirPresupuesto() {
       var precio = tds[3] ? tds[3].querySelector('input') ? tds[3].querySelector('input').value : tds[3].textContent.trim() : '';
       var sub  = tds[4] ? tds[4].textContent.trim() : '';
       if (desc && desc !== 'Seleccioná un producto') {
-        items += '<tr><td>'+cod+'</td><td>'+desc+'</td><td style="text-align:right">'+qty+'</td><td style="text-align:right">'+precio+'</td><td style="text-align:right;font-weight:600">'+sub+'</td></tr>';
+        if (_pptoConDetalle) {
+          items += '<tr><td>'+cod+'</td><td>'+desc+'</td><td style="text-align:right">'+qty+'</td><td style="text-align:right">'+precio+'</td><td style="text-align:right;font-weight:600">'+sub+'</td></tr>';
+        } else {
+          // Sin detalle: mostrar ítem pero sin precio ni subtotal
+          items += '<tr><td>'+cod+'</td><td>'+desc+'</td><td style="text-align:right">'+qty+'</td><td style="text-align:right;color:#ccc">—</td><td style="text-align:right;color:#ccc">—</td></tr>';
+        }
       }
     }
   });
@@ -12289,10 +12316,14 @@ function imprimirPresupuesto() {
     '<table><thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th><th class="tr">P. unit.</th><th class="tr">Subtotal</th></tr></thead>'+
     '<tbody>'+(items||'<tr><td colspan="5" style="text-align:center;color:#999">Sin items</td></tr>')+'</tbody></table>'+
     '<div class="totales">'+
-    '<div class="tot-row"><span>Subtotal</span><span>'+sub+'</span></div>'+
-    (desc&&desc!=='$0'?'<div class="tot-row"><span>Descuento</span><span style="color:#e53">'+desc+'</span></div>':'')+
-    (iva&&iva!=='$0'?'<div class="tot-row"><span>IVA 21%</span><span style="color:#f59e0b">'+iva+'</span></div>':'')+
-    '<div class="tot-row tot-final"><span>TOTAL</span><span>'+total+'</span></div>'+
+    (_pptoConDetalle ? (
+      '<div class="tot-row"><span>Subtotal</span><span>'+sub+'</span></div>'+
+      (desc&&desc!=='$0'?'<div class="tot-row"><span>Descuento</span><span style="color:#e53">'+desc+'</span></div>':'')+
+      (iva&&iva!=='$0'?'<div class="tot-row"><span>IVA 21%</span><span style="color:#f59e0b">'+iva+'</span></div>':'')+
+      '<div class="tot-row tot-final"><span>TOTAL</span><span>'+total+'</span></div>'
+    ) : (
+      '<div class="tot-row tot-final" style="font-size:16px"><span>TOTAL</span><span>'+total+'</span></div>'
+    ))+
     '</div>'+
     (obs?'<div class="validez" style="margin-top:60px"><strong>Observaciones:</strong> '+obs+'</div>':'')+
     '<div class="validez">Este presupuesto tiene validez hasta el <strong>'+venc+'</strong>. '+
@@ -21049,7 +21080,9 @@ function _renderDropGlobal(filtro) {
     var cotiz2 = parseFloat(tc2[tc2.dolarConversion || 'oficial']) || 0;
     var precioLbl = 'USD ' + pvNum.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
     var equivARS2 = cotiz2 > 0 && pvNum > 0 ? ' · $' + Math.round(pvNum * cotiz2).toLocaleString('es-AR') : '';
-    return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+(p.venta||0)+'" data-moneda="USD" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
+    var monedaProd = p.moneda || 'ARS';
+    var precioProd = monedaProd === 'USD' ? (p.venta||0) : (p.ventaARS || p.venta || 0);
+    return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+precioProd+'" data-moneda="'+monedaProd+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
       '<div>' +
         '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' — '+escapeHTML(p.nombre||p.descripcion||'')+'</div>' +
         (p.descripcion && p.descripcion !== p.nombre && p.descripcion !== '-' ?
@@ -21079,6 +21112,7 @@ function _selProdGlobal(item) {
       notify('⚠️ Configurá el tipo de cambio en Configuración antes de vender productos en USD');
     }
   }
+  // Si el producto es ARS, el precio ya viene en pesos — no se toca
 
   if (_prodDropTR) {
     var tr = _prodDropTR;
