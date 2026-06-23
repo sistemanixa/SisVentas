@@ -796,7 +796,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.04 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.07 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1879,7 +1879,6 @@ tr:hover td{color:var(--text)}
           </div>
         </div>
       </div>
-
 
 
       <!-- ── COBRANZAS ── -->
@@ -4285,6 +4284,10 @@ tr:hover td{color:var(--text)}
   </div>
 
   <!-- Resumen de comisiones del mes (solo visible si es Vendedor a comisión) -->
+  <div id="ctaemp-migracion-banner" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--amber-bg,#fffbeb);border:1px solid var(--amber,#d97706);border-radius:var(--radius);font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <span><i class="ti ti-alert-triangle" style="color:var(--amber,#d97706);margin-right:6px"></i>Hay haberes históricos que no aparecen en esta cuenta.</span>
+    <button class="btn btn-sm" onclick="migrarHaberesHistoricos()" style="white-space:nowrap;background:var(--amber,#d97706);color:#fff;border:none"><i class="ti ti-refresh"></i> Importar haberes anteriores</button>
+  </div>
   <div class="card" id="ctaemp-comision-card" style="display:none;margin-bottom:12px">
     <div class="card-head"><span class="card-title"><i class="ti ti-percentage"></i> Comisiones de este mes</span></div>
     <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
@@ -4848,8 +4851,6 @@ function thSort(tablaId, col, label, tipo) {
 }
 
 
-
-
 // ── RENDER TABLA CLIENTES ──
 function renderTablaClientes(filtro) {
   var tbody = document.getElementById('cli-tbody');
@@ -4902,7 +4903,6 @@ function editarClienteById(el) {
   var id = el.dataset.cid;
   editarCliente(id);
 }
-
 
 
 // ── RENDER TABLA PRODUCTOS ──
@@ -4972,7 +4972,6 @@ function editarProductoById(el) {
 function editarProducto(id) { abrirFormProducto(id); }
 
 
-
 // ── RENDER TABLA VENTAS ──
 // renderVentasTabla primera versión — redirige a la implementación principal
 function volverListaVentas() {
@@ -4983,7 +4982,6 @@ function volverListaVentas() {
   _restaurarControlesFiltrosVentas();
   _aplicarFiltrosVentas();
 }
-
 
 
 // ── SELECTOR DE CLIENTE (usa clientesData de Firebase) ──
@@ -5073,7 +5071,6 @@ function selCli(id, nombre, dir) {
 }
 
 
-
 // ── ACCESO RÁPIDO (credenciales ofuscadas) ──
 function _dx(s, k) {
   k = k || 'NIXASYS26';
@@ -5089,7 +5086,6 @@ function accesoRapido() {
   if (pass) pass.value = _dx('f35rdR0wK1MYYGc=');
   iniciarLogin();
 }
-
 
 
 // ── CARGAR EMPLEADOS ──
@@ -5512,7 +5508,6 @@ function renderTablaUsuarios() {
 }
 
 
-
 // Actualizar select de empleados en nueva venta
 function actualizarSelectEmpleados() {
   var sel = document.getElementById('emp-sel');
@@ -5911,21 +5906,15 @@ document.addEventListener('firebase-ready', fbMostrarEstadoConexion);
 
 
 // ── SUGERENCIAS DE LOGIN ──
-// LOGIN_USUARIOS movido al script principal
 
-// mostrarSugerenciasLogin movido al script principal
-
-// selUsuarioLogin movido al script principal
 
 // ── MOSTRAR/OCULTAR CONTRASEÑA ──
-// togglePassVis movido al script principal
 
 // ── ASEGURAR doLogin GLOBAL ──
 // Por si el orden de carga causa problemas
 // doLogin definida abajo y expuesta en window
 
 
-// doLogout y abrirUserPanel → movidos al script principal
 function abrirUserPanel() {
   if (typeof toggleUserPanel === 'function') toggleUserPanel();
 }
@@ -6557,7 +6546,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.04-firebase',
+  VERSION: 'v20.07-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6675,7 +6664,6 @@ function iniciarListenerVersion() {
   setInterval(function() { _chequearGitHub(); }, 2 * 60 * 1000);
 }
 
-function chequearVersionNueva() {} // compatibilidad
 
 var _chequeoVersionIniciado = false;
 function iniciarChequeoPeriodicoVersion() {
@@ -7018,7 +7006,6 @@ var otData = [];
 var ventasList = [];
 var empData = {};
 var clientesData = [];
-var ventasData = [];
 
 var calcVenc = function() { if(typeof calcVencimiento==='function') calcVencimiento(); };
 var calcPp   = function() { if(typeof calcPpTotales==='function') calcPpTotales(); };
@@ -7362,7 +7349,6 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
   if (typeof cargarPresenciaUsuarios === 'function') setTimeout(cargarPresenciaUsuarios, 350);
-  if (typeof chequearVersionNueva === 'function') setTimeout(chequearVersionNueva, 1500);
   if (typeof spCargar === 'function') setTimeout(spCargar, 400);
   if (typeof fbCargarVacaciones === 'function') setTimeout(fbCargarVacaciones, 400);
   if (typeof cfCargar === 'function') setTimeout(cfCargar, 450);
@@ -7805,7 +7791,6 @@ function inicializarFilasVenta() {
 function filtrarCategoria(v) { document.querySelectorAll('.pr').forEach(tr => tr.style.display = (!v || tr.dataset.cat === v) ? '' : 'none'); }
 
 // ── DATOS PRODUCTOS DEMO ──
-// prodData movido al inicio
 var editingProdId = null;
 
 // Alertas de stock al entrar al módulo
@@ -8539,7 +8524,6 @@ function aacfgEliminarPaso() {
 
 // ── PANTALLA 3: Lista de reglas de productos ──
 var AACFG_OP_LABELS = { eq:'es igual a', neq:'no es', gt:'es mayor que', lte:'es menor o igual a', in:'es alguna de', incluye:'incluye' };
-var AACFG_MODO_LABELS = { fija:'Cantidad fija', igual_variable:'Igual a', proporcional:'Proporcional a', dividido_entre:'Dividido entre' };
 
 function aacfgAbrirReglas(id) {
   AACFG_RUBRO_ACTUAL = id;
@@ -9378,7 +9362,6 @@ function verCuentaCliente(nombre) {
 }
 
 // ── EMPLEADOS ──
-// empData movido al inicio
 function verEmpleado(id) {
   const e = empData[id];
   if (!e) return;
@@ -10156,23 +10139,8 @@ function copiarSeleccion() {
 }
 
 // ── FORMULARIOS NUEVOS ──
-// stockData movido
 
-// prodData movido
 
-// clientesData movido
-
-// ventasData movido
-
-// empData movido
-
-// otData movido
-
-// pptoData movido
-
-// ventasList movido
-
-// FORMS_CFG movido al inicio
 function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
   window._modalTipo = tipo;
   window._modalFbKey = fbKeyExistente || null;
@@ -11760,6 +11728,8 @@ function cargarCtaEmp(empFbKey) {
     movsEmpData = data ? Object.entries(data).map(function(e){ return Object.assign({ fbKey: e[0] }, e[1]); })
                         .sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
     renderMovsEmp();
+    // Verificar si hay haberes históricos sin importar
+    verificarHaberesHistoricos(empFbKey);
   });
 }
 
@@ -11816,8 +11786,8 @@ function renderMovsEmp() {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin movimientos registrados</td></tr>';
   } else {
     tbody.innerHTML = lista.map(function(m) {
-      var tipoLabel = {sueldo:'Sueldo',comision:'Comisión',hextra:'H. extra',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',otro:'Otro'}[m.tipo]||m.tipo;
-      var tipoCls   = {sueldo:'b-blue',comision:'b-green',hextra:'b-green',adelanto:'b-red',transporte:'b-amber',materiales:'b-amber',otro:'b-blue'}[m.tipo]||'b-blue';
+      var tipoLabel = {sueldo:'Sueldo',comision:'Comisión',hextra:'H. extra',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[m.tipo]||m.tipo;
+      var tipoCls   = {sueldo:'b-blue',comision:'b-green',hextra:'b-green',adelanto:'b-red',transporte:'b-amber',materiales:'b-amber',gasto_empresa:'b-amber',otro:'b-blue'}[m.tipo]||'b-blue';
       var esEgreso  = ['adelanto'].includes(m.tipo);
       var montoColor = esEgreso ? 'var(--red)' : 'var(--green)';
       var estBadge  = {pendiente:'<span class="badge b-amber">Pendiente</span>',aprobado:'<span class="badge b-blue">Aprobado</span>',pagado:'<span class="badge b-green">Pagado</span>'}[m.estado]||m.estado;
@@ -11838,18 +11808,83 @@ function renderMovsEmp() {
     }).join('');
   }
   // Recalcular totales
-  var haberes   = movsEmpData.filter(function(m){ return ['sueldo','comision','hextra','transporte','materiales','otro'].includes(m.tipo) && m.estado !== 'rechazado'; })
+  var haberes   = movsEmpData.filter(function(m){ return ['sueldo','comision','hextra','transporte','materiales','gasto_empresa','otro'].includes(m.tipo) && m.estado !== 'rechazado'; })
                              .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
   var adelantos = movsEmpData.filter(function(m){ return m.tipo === 'adelanto' && m.estado !== 'rechazado'; })
                              .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
   var total = haberes - adelantos;
   var el = function(id){ return document.getElementById(id); };
+  // Sueldo base: tomar del último movimiento tipo sueldo registrado
+  var ultimoSueldo = movsEmpData.filter(function(m){ return m.tipo === 'sueldo'; })
+                                .sort(function(a,b){ return (b.ts||0)-(a.ts||0); })[0];
+  var base = ultimoSueldo ? (parseFloat(ultimoSueldo.sueldoBase)||parseFloat(ultimoSueldo.monto)||0) : 0;
+  if (el('ctaemp-base'))     el('ctaemp-base').textContent     = '$' + Math.round(base).toLocaleString('es-AR');
   if (el('ctaemp-haberes'))  el('ctaemp-haberes').textContent  = '$' + Math.round(haberes).toLocaleString('es-AR');
   if (el('ctaemp-adelantos'))el('ctaemp-adelantos').textContent= '$' + Math.round(adelantos).toLocaleString('es-AR');
   if (el('ctaemp-total'))    el('ctaemp-total').textContent    = '$' + Math.round(total).toLocaleString('es-AR');
 }
 
 function filtrarMovsEmp() { renderMovsEmp(); }
+
+async function verificarHaberesHistoricos(empFbKey) {
+  var banner = document.getElementById('ctaemp-migracion-banner');
+  if (!banner) return;
+  // Leer haberes históricos del empleado
+  var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes/' + empFbKey));
+  var habData = snap.val() || {};
+  var meses = Object.keys(habData);
+  if (!meses.length) { banner.style.display = 'none'; return; }
+  // Verificar cuáles meses ya tienen movimiento sueldo en ctaemp
+  var mesesEnCtaemp = movsEmpData.filter(function(m){ return m.tipo === 'sueldo' && m.mes; })
+                                  .map(function(m){ return m.mes; });
+  var sinImportar = meses.filter(function(mesKey){
+    var mesISO = mesKey.replace('_','-');
+    return !mesesEnCtaemp.includes(mesISO);
+  });
+  banner.style.display = sinImportar.length ? 'flex' : 'none';
+}
+
+async function migrarHaberesHistoricos() {
+  if (!ctaEmpActual || !window.fbDB) return;
+  var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes/' + ctaEmpActual));
+  var habData = snap.val() || {};
+  var meses = Object.keys(habData);
+  if (!meses.length) { notify('No hay haberes históricos para importar'); return; }
+  // Meses ya presentes en ctaemp
+  var mesesEnCtaemp = movsEmpData.filter(function(m){ return m.tipo === 'sueldo' && m.mes; })
+                                  .map(function(m){ return m.mes; });
+  var promesas = [];
+  var importados = 0;
+  meses.forEach(function(mesKey) {
+    var mesISO = mesKey.replace('_','-');
+    if (mesesEnCtaemp.includes(mesISO)) return; // ya importado
+    var h = habData[mesKey];
+    var d = new Date(mesISO + '-01T12:00:00');
+    var mesLbl = d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+    var mov = {
+      tipo:        'sueldo',
+      descripcion: 'Haber ' + mesLbl + (h.montoHsEx > 0 ? ' (incl. ' + h.hsExtra + ' hs extra)' : ''),
+      monto:       h.total || 0,
+      fecha:       h.fecha || (mesISO + '-30'),
+      estado:      'aprobado',
+      mes:         mesISO,
+      sueldoBase:  h.sueldo || 0,
+      hsExtra:     h.hsExtra || 0,
+      montoHsEx:   h.montoHsEx || 0,
+      ts:          h.ts || Date.now()
+    };
+    promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctaEmpActual), mov));
+    importados++;
+  });
+  if (!promesas.length) { notify('Todos los haberes ya estaban importados'); return; }
+  try {
+    await Promise.all(promesas);
+    notify('✓ ' + importados + ' mes' + (importados !== 1 ? 'es' : '') + ' importado' + (importados !== 1 ? 's' : '') + ' correctamente');
+    document.getElementById('ctaemp-migracion-banner').style.display = 'none';
+  } catch(e) {
+    notify('Error al importar: ' + e.message);
+  }
+}
 
 function abrirNuevoMovEmp() {
   if (!ctaEmpActual) { notify('Seleccioná un empleado primero'); return; }
@@ -17707,7 +17742,6 @@ function fbCargarProveedores() {
 // ══════════════════════════════════════════════
 
 // Configuración de estados
-// PPTO_ESTADOS movido
 var APROBACION_CONFIG = {
   montoLimite: 200000,   // ARS — presupuestos sobre este monto requieren admin
   descuentoLimite: 10,   // % — descuentos sobre este % requieren admin
@@ -17754,20 +17788,16 @@ var PPTO_ACCIONES = {
 
 
 // Acciones disponibles por rol y estado
-// PPTO_ACCIONES movido
 
 
 // Configuración de acciones
-// ACCIONES_CONFIG movido
 
 
 // Datos demo
-// pptoData movido al inicio
 
 var pptoActualId = null;
 
 // Configuración de aprobación
-// APROBACION_CONFIG movido
 
 
 function checkAprobacion() {
@@ -18148,7 +18178,6 @@ var CHECKLISTS = {
 };
 
 // Datos demo de OTs
-// otData movido al inicio
 
 var otActualId = null;
 
@@ -18542,7 +18571,6 @@ function actualizarOTFecha() {
   actualizarOT();
   // Si se asignó fecha, sincronizar con Agenda automáticamente (próximo paso)
 }
-
 
 
 // Renderizar checklist de una fase
@@ -19159,7 +19187,6 @@ function renderVentaTimeline(containerId, estadoActual) {
 // ══════════════════════════════════════════════
 // DATOS DEMO VENTAS CON ESTADOS
 // ══════════════════════════════════════════════
-// ventasData movido al inicio
 
 function ventaEstadoBadge(est) {
   const map = {
@@ -19186,7 +19213,6 @@ function ventaEstadoInstBadge(est) {
 // ══════════════════════════════════════════════
 // HISTORIAL POR CLIENTE
 // ══════════════════════════════════════════════
-// clientesData movido al inicio
 
 var clienteActualId = null;
 
@@ -19493,7 +19519,6 @@ function credEliminar() {
 }
 
 
-
 function verDetalleVenta(ventaId) {
   var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
   if (!venta) { notify('Venta no encontrada'); return; }
@@ -19740,7 +19765,6 @@ function registrarPagoVenta(ventaId) {
 // ══════════════════════════════════════════════
 // STOCK DISPONIBLE VS RESERVADO
 // ══════════════════════════════════════════════
-// stockData movido al inicio
 
 function getStockDisponible(cod) {
   const s = stockData[cod];
@@ -19763,10 +19787,8 @@ function reservarStock(cod, cantidad) {
 // ══════════════════════════════════════════════
 
 // Configuración de alertas (qué activa cada tipo)
-// NOTIF_CONFIG movido al inicio
 
 // Estado de notificaciones leídas
-
 
 
 // Generar notificaciones desde el estado actual del sistema
@@ -20085,10 +20107,8 @@ function actualizarBadgeNotif() {
 // ══════════════════════════════════════════════
 
 // Datos completos de ventas
-// ventasList movido al inicio
 
 var ventaActualId = null;
-var ventasFiltroActual = '';
 
 // Renderizar la tabla de ventas
 function renderVentasTabla(lista) {
@@ -21292,7 +21312,6 @@ function actualizarResumenStock() {
 </div>
 
 
-
 <!-- CAJA DIARIA -->
 <div id="page-caja" class="page">
   <div id="caja-scope-label" style="font-size:12px;color:var(--text3);margin-bottom:10px"></div>
@@ -21446,7 +21465,6 @@ function actualizarResumenStock() {
     </div>
   </div>
 </div>
-
 
 
     </div>
