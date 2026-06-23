@@ -801,7 +801,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.30 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.31 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2192,6 +2192,12 @@ tr:hover td{color:var(--text)}
               <i class="ti ti-receipt-off"></i> Poner IVA = 0 en ventas importadas sin factura
             </button>
             <div style="font-size:11px;color:var(--text3);margin-top:8px">⚠️ Ejecutar solo una vez. Afecta ventas con ID original que no tengan factura emitida.</div>
+            <div style="margin-top:12px">
+              <button class="btn btn-sm" onclick="migrarEmpleadoPptos()" style="color:var(--amber);border-color:var(--amber)">
+                <i class="ti ti-user-plus"></i> Asignar yplana a presupuestos sin empleado
+              </button>
+              <div style="font-size:11px;color:var(--text3);margin-top:6px">⚠️ Ejecutar solo una vez.</div>
+            </div>
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title" style="color:var(--amber)"><i class="ti ti-stethoscope"></i> Diagnóstico: Cargo de empleados</span></div>
@@ -5577,6 +5583,23 @@ var FB_PATHS = {
 };
 
 // ── CARGAR TODO al iniciar ──
+
+function migrarEmpleadoPptos() {
+  if (!window.fbDB) { notify('Sin conexion'); return; }
+  var sinEmpleado = (pptoData||[]).filter(function(p){ return !p.empleado && p.fbKey; });
+  if (!sinEmpleado.length) { notify('Todos los presupuestos ya tienen empleado asignado'); return; }
+  if (!confirm('Asignar yplana como creador de ' + sinEmpleado.length + ' presupuestos sin empleado?')) return;
+  var promesas = sinEmpleado.map(function(p) {
+    return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
+      empleado: 'yplana',
+      usuario:  'yplana'
+    });
+  });
+  Promise.all(promesas)
+    .then(function() { notify('OK - ' + sinEmpleado.length + ' presupuestos actualizados'); })
+    .catch(function(e){ notify('Error: ' + e.message); });
+}
+
 function fbCargarTodo() {
   fbCargarClientes();
   fbCargarProductos();
@@ -6580,7 +6603,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.30-firebase',
+  VERSION: 'v20.31-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -18178,7 +18201,7 @@ function verPpto(id) {
   // Info básica
   _set('ppto-det-numero',p.id);
   document.getElementById('ppto-det-estado-badge').innerHTML = pptoStateBadge(p.estado);
-  _set('ppto-det-meta','Creado por ' + p.empleado);
+  _set('ppto-det-meta','Creado por ' + (p.empleado || p.usuario || 'Usuario no registrado'));
   document.getElementById('ppto-det-cliente').value = p.cliente;
   document.getElementById('ppto-det-empleado').value = p.empleado;
   document.getElementById('ppto-det-fecha').value = p.fecha;
@@ -18210,7 +18233,6 @@ function verPpto(id) {
   if (itemsBody) {
     var items = Array.isArray(p.items) ? p.items : [];
     itemsBody.innerHTML = items.length ? items.map(function(it) {
-      // Compatibilidad con campos de distintas versiones del sistema
       var cod   = it.cod   || it.codigo      || '';
       var desc  = it.desc  || it.descripcion || it.nombre || '';
       var qty   = parseFloat(it.qty   || it.cantidad || 1) || 1;
@@ -18220,7 +18242,7 @@ function verPpto(id) {
         '<td class="tr">'+qty+'</td>' +
         '<td class="tr">$'+Math.round(punit).toLocaleString('es-AR')+'</td>' +
         '<td class="tr" style="font-weight:500">$'+Math.round(sub).toLocaleString('es-AR')+'</td></tr>';
-    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Este presupuesto no tiene ítems guardados</td></tr>';
+    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Este presupuesto no tiene items guardados</td></tr>';
   }
 }
 
@@ -18387,77 +18409,40 @@ function actualizarValoresPpto() {
   if (!pptoActualId) return;
   var p = (pptoData||[]).find(function(x){ return x.id === pptoActualId; });
   if (!p) return;
-
   var diasVenc = parseInt((document.getElementById('cfg-dias-venc')||{}).value) || 10;
-  var hoy  = new Date();
+  var hoy   = new Date();
   var vence = new Date(hoy.getTime() + diasVenc * 86400000);
   var fechaHoy  = hoy.toISOString().slice(0,10);
   var fechaVenc = vence.toISOString().slice(0,10);
-
-  // Recalcular ítems en USD al tipo de cambio actual
   var tc = window.TIPO_CAMBIO_CONFIG || {};
   var cotizTipo = tc.dolarConversion || 'oficial';
   var cotizActual = parseFloat(tc[cotizTipo]) || 0;
   var itemsActualizados = 0;
-
   var items = (p.items||[]).map(function(it) {
-    // Solo recalcular ítems que originalmente eran USD
     if (it.monedaOriginal === 'USD' && it.precioUsdOriginal && cotizActual > 0) {
       var nuevoPunit = Math.round(it.precioUsdOriginal * cotizActual);
       var nuevoSub   = Math.round(nuevoPunit * (it.qty||1) * (1 - (it.disc||0)/100));
       itemsActualizados++;
-      return Object.assign({}, it, {
-        punit: nuevoPunit,
-        sub:   nuevoSub,
-        cotizacionUsada: cotizActual,
-        cotizacionTipo:  cotizTipo
-      });
+      return Object.assign({}, it, { punit: nuevoPunit, sub: nuevoSub, cotizacionUsada: cotizActual, cotizacionTipo: cotizTipo });
     }
     return it;
   });
-
-  // Recalcular totales
   var subtotalNeto = items.reduce(function(s,i){ return s + (parseFloat(i.sub)||0); }, 0);
   var descPct = parseFloat(p.descuento)||0;
   var descAmt = Math.round(subtotalNeto * descPct / 100);
   var nuevoTotal = subtotalNeto - descAmt;
-
-  var msg = '¿Actualizar el presupuesto ' + pptoActualId + '?
-
-';
-  if (cotizActual > 0 && itemsActualizados > 0) {
-    msg += '• ' + itemsActualizados + ' ítem' + (itemsActualizados !== 1 ? 's' : '') + ' en USD recalculados al tipo de cambio actual ($' + cotizActual.toLocaleString('es-AR') + ' ' + cotizTipo + ')
-';
-    msg += '• Total actualizado: $' + Math.round(nuevoTotal).toLocaleString('es-AR') + '
-';
-  } else if (itemsActualizados === 0) {
-    msg += '• Sin ítems USD para recalcular (los precios ARS no cambian)
-';
-  }
-  msg += '• Nueva fecha: ' + fechaHoy + '
-';
-  msg += '• Nuevo vencimiento: ' + fechaVenc + ' (+' + diasVenc + ' días)';
-
+  var msg = 'Actualizar presupuesto ' + pptoActualId + '?\n';
+  msg += '- Fecha: ' + fechaHoy + '\n- Vence: ' + fechaVenc;
+  if (itemsActualizados > 0) msg += '\n- ' + itemsActualizados + ' items USD recalculados (TC $' + cotizActual + ')';
   if (!confirm(msg)) return;
-  if (!window.fbDB || !p.fbKey) { notify('Sin conexión'); return; }
-
-  var audit = (p.audit||[]).concat([{
-    accion: 'Valores actualizados' + (itemsActualizados > 0 ? ' (' + itemsActualizados + ' ítems USD recalculados, TC $' + cotizActual + ')' : ' (fecha y vencimiento)'),
-    fecha: fechaHoy,
-    user:  currentUser || 'Admin'
-  }]);
-
+  if (!window.fbDB || !p.fbKey) { notify('Sin conexion'); return; }
+  var audit = (p.audit||[]).concat([{ accion: 'Valores actualizados', fecha: fechaHoy, user: currentUser || 'Admin' }]);
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
-    items:    items,
-    total:    nuevoTotal,
-    subtotal: subtotalNeto - descAmt,
-    fecha:    fechaHoy,
-    vence:    fechaVenc,
-    audit:    audit,
-    tsActualizacion: Date.now()
+    items: items, total: nuevoTotal, subtotal: subtotalNeto - descAmt,
+    fecha: fechaHoy, vence: fechaVenc, audit: audit, tsActualizacion: Date.now()
   }).then(function() {
-    notify('✓ Presupuesto actualizado' + (itemsActualizados > 0 ? ' — ' + itemsActualizados + ' precios recalculados' : ''));
-    verPpto(pptoActualId); // recargar vista
+    notify('Presupuesto actualizado' + (itemsActualizados > 0 ? ' - ' + itemsActualizados + ' precios recalculados' : ''));
+    verPpto(pptoActualId);
   }).catch(function(e){ notify('Error: ' + e.message); });
 }
 
@@ -18477,7 +18462,7 @@ function guardarPresupuesto(modo) {
     var qty   = parseFloat((tr.querySelector('.ppqty')||{}).value) || 1;
     var punit = parseFloat((tr.querySelector('.ppprice')||{}).value) || 0;
     return { cod:cod, desc:desc2, qty:qty, punit:punit, sub:qty*punit };
-  }).filter(function(it){ return (it.desc && it.desc.trim()) || it.punit > 0; }); // descartar filas completamente vacías
+  }).filter(function(it){ return (it.desc && it.desc.trim()) || it.punit > 0; });
 
   if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
 
@@ -18486,7 +18471,7 @@ function guardarPresupuesto(modo) {
   const motivo = reqAprobacion ? (desc > APROBACION_CONFIG.descuentoLimite ? `Descuento ${desc}% supera el límite` : `Total supera el límite de aprobación`) : '';
   const nuevo = {
     id: 'PP-00' + (pptoData.length + 10),
-    cliente: cli, empleado: currentUser || '',
+    cliente: cli, empleado: currentUser || '', usuario: currentUser || '',
     fecha: new Date().toLocaleDateString('es-AR'),
     vence: (function(){var _v=document.getElementById('pp-venc');return _v?_v.value:'';})() || '',
     total, descuento: desc,
