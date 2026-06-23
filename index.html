@@ -801,7 +801,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.29 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.30 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6580,7 +6580,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.29-firebase',
+  VERSION: 'v20.30-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -18210,11 +18210,17 @@ function verPpto(id) {
   if (itemsBody) {
     var items = Array.isArray(p.items) ? p.items : [];
     itemsBody.innerHTML = items.length ? items.map(function(it) {
-      return '<tr><td>'+escapeHTML(it.cod||'')+'</td><td>'+escapeHTML(it.desc||'')+'</td>' +
-        '<td class="tr">'+(it.qty||0)+'</td>' +
-        '<td class="tr">$'+Math.round(parseFloat(it.punit)||0).toLocaleString('es-AR')+'</td>' +
-        '<td class="tr" style="font-weight:500">$'+Math.round(parseFloat(it.sub)||0).toLocaleString('es-AR')+'</td></tr>';
-    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Este presupuesto no tiene ítems guardados (creado antes de la actualización del sistema)</td></tr>';
+      // Compatibilidad con campos de distintas versiones del sistema
+      var cod   = it.cod   || it.codigo      || '';
+      var desc  = it.desc  || it.descripcion || it.nombre || '';
+      var qty   = parseFloat(it.qty   || it.cantidad || 1) || 1;
+      var punit = parseFloat(it.punit || it.precio   || it.precioUnitario || 0) || 0;
+      var sub   = parseFloat(it.sub   || it.subtotal || (punit * qty)) || 0;
+      return '<tr><td>'+escapeHTML(cod)+'</td><td>'+escapeHTML(desc)+'</td>' +
+        '<td class="tr">'+qty+'</td>' +
+        '<td class="tr">$'+Math.round(punit).toLocaleString('es-AR')+'</td>' +
+        '<td class="tr" style="font-weight:500">$'+Math.round(sub).toLocaleString('es-AR')+'</td></tr>';
+    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Este presupuesto no tiene ítems guardados</td></tr>';
   }
 }
 
@@ -18471,7 +18477,7 @@ function guardarPresupuesto(modo) {
     var qty   = parseFloat((tr.querySelector('.ppqty')||{}).value) || 1;
     var punit = parseFloat((tr.querySelector('.ppprice')||{}).value) || 0;
     return { cod:cod, desc:desc2, qty:qty, punit:punit, sub:qty*punit };
-  }).filter(function(it){ return it.cod && it.cod !== '—'; }); // descartar filas sin producto seleccionado
+  }).filter(function(it){ return (it.desc && it.desc.trim()) || it.punit > 0; }); // descartar filas completamente vacías
 
   if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
 
