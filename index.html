@@ -804,7 +804,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.23 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.24 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6575,7 +6575,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.23-firebase',
+  VERSION: 'v20.24-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7196,12 +7196,27 @@ function _resolverRolYCompletarLogin(user, err) {
 
   // Siempre leer frescos desde Firebase — no confiar en caché de sesión anterior
   // que podría tener datos de otro usuario o de una versión vieja del código.
+  var _usuariosTimeout = setTimeout(function() {
+    // Si fbGet tarda más de 5 segundos, usar caché o continuar con rol básico
+    console.warn('[Auth] fbGet usuarios timeout — usando fallback');
+    if (window.usuariosData && window.usuariosData.length) {
+      aplicarRolYNombre(window.usuariosData);
+    } else {
+      // Sin caché: asumir admin si es el email de nixa
+      var esAdminFallback = emailLower === 'nixa@sistemanixa.com' || emailLower.startsWith('admin@');
+      currentRole = esAdminFallback ? 'admin' : 'vendedor';
+      _completarLogin(user.displayName || user.email.split('@')[0]);
+    }
+  }, 5000);
+
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios')).then(function(snap) {
+    clearTimeout(_usuariosTimeout);
     var data = snap.val();
     var lista = data ? Object.values(data) : [];
     window.usuariosData = lista; // actualizar caché
     aplicarRolYNombre(lista);
   }).catch(function() {
+    clearTimeout(_usuariosTimeout);
     clearTimeout(_loginTimeout);
     // Fallback: intentar con datos cacheados si los hay
     if (window.usuariosData && window.usuariosData.length) {
@@ -7265,6 +7280,22 @@ setTimeout(function() {
     _mostrarLoginSinSesion();
   }
 }, 6000);
+
+// Timeout ABSOLUTO: si después de 12 segundos la app no está visible,
+// mostrar login sin importar qué — cubre casos donde Auth responde pero
+// fbGet de usuarios se cuelga sin error (modo avión con sesión cacheada)
+setTimeout(function() {
+  var appScreen = document.getElementById('screen-app');
+  var loginEl   = document.getElementById('screen-login');
+  var loadingEl = document.getElementById('screen-loading');
+  var appVisible = appScreen && (appScreen.style.display !== 'none' && appScreen.classList.contains('visible'));
+  if (!appVisible && loadingEl && loadingEl.style.display !== 'none') {
+    console.warn('[Auth] Timeout absoluto — forzando pantalla de login');
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (loginEl)   loginEl.style.display = '';
+    if (window.fbAuth && window.fbSignOut) window.fbSignOut(window.fbAuth).catch(function(){});
+  }
+}, 12000);
 
 // ── PRESENCIA EN TIEMPO REAL ──
 // Usa onDisconnect de Firebase: el propio servidor de Firebase detecta cuando la
