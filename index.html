@@ -584,18 +584,16 @@ tr:hover td{color:var(--text)}
 .venta-resumen-stock{background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-top:12px;display:none}
 
 /* ── FAB (Botón flotante) ── */
-.fab-container{position:fixed;bottom:24px;right:16px;z-index:800;display:none;flex-direction:column;align-items:flex-end;gap:10px;touch-action:manipulation}
+.fab-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:none;flex-direction:column;align-items:flex-end;gap:10px}
 @media(max-width:768px){.fab-container{display:flex}.fab-container.hidden{display:none!important}}
 @media(min-width:769px){.notif{bottom:24px!important;right:24px!important}}
-.fab-main{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .2s,background .2s;flex-shrink:0;touch-action:manipulation}
-.fab-main:hover{background:#333;transform:scale(1.08)}
+.fab-main{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .2s;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .fab-main.open{transform:rotate(45deg)}
-.fab-actions{display:flex;flex-direction:column;gap:8px;align-items:flex-end;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .2s,transform .2s;touch-action:manipulation}
+.fab-actions{display:flex;flex-direction:column;gap:8px;align-items:flex-end;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .2s,transform .2s}
 .fab-actions.open{opacity:1;pointer-events:auto;transform:translateY(0)}
-.fab-item{display:flex;align-items:center;gap:10px;cursor:pointer;background:none;border:none;padding:0;touch-action:manipulation}
+.fab-item{display:flex;align-items:center;gap:10px;cursor:pointer;background:none;border:none;padding:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .fab-label{background:var(--text);color:var(--bg2);font-size:12px;font-weight:500;padding:5px 11px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-.fab-btn{width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);flex-shrink:0;transition:transform .15s}
-.fab-btn:hover{transform:scale(1.1)}
+.fab-btn{width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.2);flex-shrink:0}
 
 /* ── INPUTS EN TABLAS (estilo spreadsheet) ── */
 .dt input, table.dt input,
@@ -805,7 +803,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.45 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.47 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6697,7 +6695,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.45-firebase',
+  VERSION: 'v20.47-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13228,12 +13226,11 @@ function cfEliminarPeriodo(periodo) {
   var d = new Date(periodo+'-01T12:00:00');
   var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
   var comps = CF_DATA.filter(function(c){ return (c.fecha||'').slice(0,7) === periodo; });
-  if (!confirm('¿Eliminar TODOS los '+comps.length+' comprobantes de Crédito Fiscal de '+lbl+'?\n\nEsta acción no se puede deshacer. Vas a poder volver a cargar el CSV de ese período después.')) return;
-  if (!confirm('Confirmá de nuevo: se van a borrar '+comps.length+' comprobantes de '+lbl+' de forma PERMANENTE. ¿Continuar?')) return;
+  if (!confirm('⚠️ ATENCIÓN: Esto borra los '+comps.length+' comprobantes de '+lbl+' de FIREBASE (base de datos).\n\nNo es solo ocultar la vista — los datos se eliminan permanentemente.\nPodés volver a cargar el CSV después si los necesitás.\n\n¿Confirmar eliminación?')) return;
   var promesas = comps.map(function(c){ return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/comprobantesCompra/'+c.fbKey)); });
   Promise.all(promesas).then(function(){
     if (CF_PERIODO_ACTIVO === periodo) CF_PERIODO_ACTIVO = null;
-    notify('✓ Período '+lbl+' eliminado ('+comps.length+' comprobantes)');
+    notify('✓ Período '+lbl+' eliminado de Firebase ('+comps.length+' comprobantes)');
     if (typeof fvRenderCompensacion === 'function') fvRenderCompensacion();
     if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
   }).catch(function(e){ notify('Error: '+e.message); });
@@ -13562,12 +13559,11 @@ function fvEliminarPeriodo(periodo) {
   var d = new Date(periodo+'-01T12:00:00');
   var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
   var comps = FV_DATA.filter(function(c){ return (c.fecha||'').slice(0,7) === periodo; });
-  if (!confirm('¿Eliminar TODOS los '+comps.length+' comprobantes de Facturas Realizadas de '+lbl+'?\n\nEsta acción no se puede deshacer. Vas a poder volver a cargar el CSV de ese período después.')) return;
-  if (!confirm('Confirmá de nuevo: se van a borrar '+comps.length+' comprobantes de '+lbl+' de forma PERMANENTE. ¿Continuar?')) return;
+  if (!confirm('⚠️ ATENCIÓN: Esto borra los '+comps.length+' comprobantes de '+lbl+' de FIREBASE (base de datos).\n\nNo es solo ocultar la vista — los datos se eliminan permanentemente.\nPodés volver a cargar el CSV después si los necesitás.\n\n¿Confirmar eliminación?')) return;
   var promesas = comps.map(function(c){ return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/'+c.fbKey)); });
   Promise.all(promesas).then(function(){
     if (FV_PERIODO_ACTIVO === periodo) FV_PERIODO_ACTIVO = null;
-    notify('✓ Período '+lbl+' eliminado ('+comps.length+' comprobantes)');
+    notify('✓ Período '+lbl+' eliminado de Firebase ('+comps.length+' comprobantes)');
     fvRenderCompensacion();
     if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
   }).catch(function(e){ notify('Error: '+e.message); });
@@ -21524,17 +21520,34 @@ function editarCliente(id) {
 function toggleFab() {
   fabOpen = !fabOpen;
   var actions = document.getElementById('fab-actions');
-  var main = document.getElementById('fab-main');
-  if(actions) actions.classList.toggle('open', fabOpen);
-  if(main) main.classList.toggle('open', fabOpen);
+  var main    = document.getElementById('fab-main');
+  if (actions) actions.classList.toggle('open', fabOpen);
+  if (main)    main.classList.toggle('open', fabOpen);
 }
 function closeFab() {
   fabOpen = false;
   var actions = document.getElementById('fab-actions');
-  var main = document.getElementById('fab-main');
-  if(actions) actions.classList.remove('open');
-  if(main) main.classList.remove('open');
+  var main    = document.getElementById('fab-main');
+  if (actions) actions.classList.remove('open');
+  if (main)    main.classList.remove('open');
 }
+// Fix iOS: el scroll ocurre en .content (no en body) y rompe position:fixed.
+// Reposicionamos el FAB manualmente con cada evento scroll para que siempre
+// quede pegado al viewport, independientemente del scroll interno.
+(function() {
+  var contentEl = document.querySelector('.content');
+  if (!contentEl) return;
+  contentEl.addEventListener('scroll', function() {
+    var fab = document.getElementById('fab-container');
+    if (!fab || fab.classList.contains('hidden')) return;
+    // Forzar repaint — en iOS esto hace que recalcule la posición fixed
+    fab.style.display = 'none';
+    fab.offsetHeight; // trigger reflow
+    fab.style.display = '';
+    // Cerrar el menú si está abierto al hacer scroll
+    if (fabOpen) closeFab();
+  }, { passive: true });
+})();
 function fabAccion(tipo) {
   closeFab();
   switch(tipo) {
