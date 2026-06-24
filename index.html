@@ -803,7 +803,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.49 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.50 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6695,7 +6695,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.49-firebase',
+  VERSION: 'v20.50-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -18715,7 +18715,20 @@ function verPpto(id) {
   document.getElementById('ppto-det-fecha').value = p.fecha;
   document.getElementById('ppto-det-vence').value = p.vence;
   document.getElementById('ppto-det-total').value = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
-  document.getElementById('ppto-det-desc').value = p.descuento + '%';
+  document.getElementById('ppto-det-desc').value = (p.descuento || 0) + '%';
+
+  // Calcular y mostrar totales desglosados
+  var _sub   = parseFloat(p.subtotal) || parseFloat(p.total) || 0;
+  var _desc  = parseFloat(p.descuento) || 0;
+  var _descAmt = Math.round(_sub * _desc / 100);
+  var _base  = _sub - _descAmt;
+  var _iva   = Math.round(_base * 0.21);
+  var _total = parseFloat(p.total) || 0;
+  var _s = function(id, v) { var el=document.getElementById(id); if(el) el.textContent = '$'+Math.round(v).toLocaleString('es-AR'); };
+  _s('ppto-det-sub',      _sub);
+  _s('ppto-det-desc-amt', _descAmt);
+  _s('ppto-det-iva',      _iva);
+  _s('ppto-det-total2',   _total);
 
   // Alerta aprobación
   const alertaEl = document.getElementById('ppto-alerta-aprobacion');
@@ -18846,8 +18859,8 @@ function renderAudit(p) {
 
 // Ejecutar una acción sobre el presupuesto actual
 function pptoAccion(accion) {
-  const p = pptoData.find(x => x.id === pptoActualId);
-  if (!p) return;
+  const p = pptoData.find(x => x.id === pptoActualId || x.fbKey === pptoActualId);
+  if (!p) { notify('Presupuesto no encontrado'); return; }
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   const usuario = currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor');
 
@@ -18925,7 +18938,18 @@ function pptoAccion(accion) {
 
   p.estado = t.nuevoEstado;
   p.requiereAprobacion = false;
+  p.audit = p.audit || [];
   p.audit.push({ fecha:ahora, usuario, accion: t.auditMsg });
+
+  // Guardar en Firebase
+  if (window.fbDB && p.fbKey) {
+    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
+      estado: t.nuevoEstado,
+      requiereAprobacion: false,
+      audit: p.audit
+    }).catch(function(e){ notify('Error guardando: ' + e.message); });
+  }
+
   notify(t.msg);
   verPpto(p.id);
 }
