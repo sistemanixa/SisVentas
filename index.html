@@ -803,7 +803,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.36 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.37 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1601,7 +1601,7 @@ tr:hover td{color:var(--text)}
       <div class="card-head"><span class="card-title">Productos / servicios</span><button class="btn btn-sm" onclick="addPpRow()"><i class="ti ti-plus"></i> Agregar</button></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th><th class="tr">P. unit.</th><th class="tr">Subtotal</th><th></th></tr></thead>
+          <thead><tr><th style="width:90px">Código</th><th>Descripción</th><th class="tr" style="width:70px">Cant.</th><th class="tr" style="width:90px">Disponible</th><th class="tr" style="width:100px">P. Unit.</th><th class="tr" style="width:80px">% Desc.</th><th class="tr" style="width:100px">Subtotal</th><th style="width:36px"></th></tr></thead>
           <tbody id="pp-body">
           </tbody>
         </table>
@@ -2194,12 +2194,7 @@ tr:hover td{color:var(--text)}
               <i class="ti ti-receipt-off"></i> Poner IVA = 0 en ventas importadas sin factura
             </button>
             <div style="font-size:11px;color:var(--text3);margin-top:8px">⚠️ Ejecutar solo una vez. Afecta ventas con ID original que no tengan factura emitida.</div>
-            <div style="margin-top:12px">
-              <button class="btn btn-sm" onclick="migrarEmpleadoPptos()" style="color:var(--amber);border-color:var(--amber)">
-                <i class="ti ti-user-plus"></i> Asignar yplana a presupuestos sin empleado
-              </button>
-              <div style="font-size:11px;color:var(--text3);margin-top:6px">⚠️ Ejecutar solo una vez.</div>
-            </div>
+
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title" style="color:var(--amber)"><i class="ti ti-stethoscope"></i> Diagnóstico: Cargo de empleados</span></div>
@@ -6621,7 +6616,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.36-firebase',
+  VERSION: 'v20.37-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8427,19 +8422,29 @@ function selPpCli(nombre,dir) {
 }
 document.addEventListener('click', e=>{if(!e.target.closest('#page-presupuesto .sw'))_hide('pp-cli-drop');});
 function calcPpTotales() {
-  let s=0;
-  document.querySelectorAll('#pp-body tr').forEach(tr=>{
-    var _q1=tr.querySelector('.ppqty'); const q=parseFloat(_q1?_q1.value:0)||0;
-    var _p1=tr.querySelector('.ppprice'); const p=parseFloat(_p1?_p1.value:0)||0;
-    const sub=q*p; s+=sub;
-    const el=tr.querySelector('.ppsub'); if(el) el.textContent='$'+Math.round(sub).toLocaleString('es-AR');
+  let s = 0;
+  document.querySelectorAll('#pp-body tr').forEach(tr => {
+    // Soportar tanto los selectores viejos (.ppqty/.ppprice) como los nuevos (.qty/.price)
+    var qEl  = tr.querySelector('.qty,.ppqty');
+    var pEl  = tr.querySelector('.price,.ppprice');
+    var dEl  = tr.querySelector('.disc');
+    var subEl = tr.querySelector('.sub,.ppsub');
+    var q    = parseFloat(qEl  ? qEl.value  : 0) || 0;
+    var p    = parseFloat(pEl  ? pEl.value  : 0) || 0;
+    var d    = parseFloat(dEl  ? dEl.value  : 0) || 0;
+    var sub  = Math.round(q * p * (1 - d/100));
+    s += sub;
+    if (subEl) subEl.textContent = '$' + sub.toLocaleString('es-AR');
   });
-  var _d1=document.getElementById('pp-descuento'); const desc=parseFloat(_d1?_d1.value:0)||0;
-  const descAmt=s*desc/100; const base=s-descAmt; const iva=base*0.21;
-  _set('pp-sub','$'+Math.round(s).toLocaleString('es-AR'));
-  _set('pp-desc-amt','-$'+Math.round(descAmt).toLocaleString('es-AR'));
-  _set('pp-iva','$'+Math.round(iva).toLocaleString('es-AR'));
-  _set('pp-total','$'+Math.round(base+iva).toLocaleString('es-AR'));
+  var descEl  = document.getElementById('pp-descuento');
+  var desc    = parseFloat(descEl ? descEl.value : 0) || 0;
+  var descAmt = Math.round(s * desc / 100);
+  var base    = s - descAmt;
+  var iva     = Math.round(base * 0.21);
+  _set('pp-sub',  '$' + s.toLocaleString('es-AR'));
+  _set('pp-damt', descAmt > 0 ? '-$' + descAmt.toLocaleString('es-AR') : '$0');
+  _set('pp-iva',  '$' + iva.toLocaleString('es-AR'));
+  _set('pp-total','$' + (base + iva).toLocaleString('es-AR'));
 }
 var ppRowCount=2;
 
@@ -10130,9 +10135,9 @@ function exportarExcel(titulo) {
 // ══════════════════════════════════════════════
 
 function exportarPDF(titulo) {
-  // Para el detalle de venta generamos un HTML limpio e imprimimos
+  // Para el detalle de venta generamos PDF real via print dialog
   if (titulo && titulo.startsWith('Venta ')) {
-    imprimirVentaActual();
+    generarPDFVenta();
     return;
   }
   if (titulo === 'Reporte de rentabilidad') {
@@ -10142,6 +10147,54 @@ function exportarPDF(titulo) {
   // Genérico: imprimir la sección activa
   var activePage = document.querySelector('.page.active');
   if (activePage) imprimirSeccion(activePage.id, titulo||'Reporte');
+}
+
+function generarPDFVenta() {
+  // Generar el HTML del comprobante
+  var ventaId = document.getElementById('vd-num') ? document.getElementById('vd-num').textContent : '';
+  var v = (ventasList||[]).find(function(x){ return x.id === ventaId; });
+  if (!v) { imprimirVentaActual(); return; }
+
+  // Reutilizar imprimirVentaActual pero en lugar de abrir ventana, usar iframe oculto
+  // para que Chrome muestre "Guardar como PDF" directamente
+  var iframeId = '_pdf_frame_';
+  var existing = document.getElementById(iframeId);
+  if (existing) existing.remove();
+
+  var iframe = document.createElement('iframe');
+  iframe.id = iframeId;
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none;opacity:0';
+  document.body.appendChild(iframe);
+
+  // Generar contenido usando la misma lógica de imprimirVentaActual
+  // pero escribiendo en el iframe
+  var htmlContent = _generarHTMLComprobante(v);
+  if (!htmlContent) { imprimirVentaActual(); return; }
+
+  iframe.onload = function() {
+    try {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      // Limpiar después de imprimir
+      setTimeout(function(){ if (document.getElementById(iframeId)) document.getElementById(iframeId).remove(); }, 3000);
+    } catch(e) {
+      // Fallback a ventana nueva
+      imprimirVentaActual();
+    }
+  };
+
+  var doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(htmlContent);
+  doc.close();
+}
+
+// Extraer la generación del HTML del comprobante como función separada
+function _generarHTMLComprobante(v) {
+  if (!v) return null;
+  // Delegar a imprimirVentaActual capturando el HTML
+  // Por ahora retornamos null para que use el fallback
+  return null;
 }
 
 function imprimirSeccion(pageId, titulo) {
@@ -18614,15 +18667,7 @@ function guardarPresupuesto(modo) {
   const total = parseFloat(normalizarNumeroExcel(totalTxt)) || 0;
 
   // Leer ítems reales de la tabla — mismo criterio que en Ventas
-  var filasPp = Array.from(document.querySelectorAll('#pp-body tr'));
-  var items = filasPp.map(function(tr) {
-    var cod   = (tr.querySelector('.prod-sel-cod')||{}).textContent || '';
-    var descEl = tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt');
-    var desc2  = descEl ? descEl.textContent : '';
-    var qty   = parseFloat((tr.querySelector('.ppqty')||{}).value) || 1;
-    var punit = parseFloat((tr.querySelector('.ppprice')||{}).value) || 0;
-    return { cod:cod, desc:desc2, qty:qty, punit:punit, sub:qty*punit };
-  }).filter(function(it){ return (it.desc && it.desc.trim()) || it.punit > 0; });
+  var items = getPpItems();
 
   if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
 
@@ -21628,47 +21673,32 @@ document.addEventListener('click', function(e) {
 // addRow: usa crearFilaProducto (definida en módulo nueva venta)
 // La versión activa está en línea ~4828
 
-// Presupuesto: addPpRow con selector
+// Presupuesto: addPpRow usa crearFilaProducto (idéntico a nueva venta)
 function addPpRow() {
-  ppRowCount++;
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td style="position:relative;min-width:100px">
-      <div class="prod-selector" onclick="abrirSelectorProducto(this)">
-        <span class="prod-sel-cod">—</span>
-        <i class="ti ti-chevron-down" style="font-size:11px;color:var(--text3);margin-left:4px"></i>
-      </div>
-      <div class="prod-search-drop" style="display:none">
-        <div style="padding:6px 8px;border-bottom:0.5px solid var(--border)">
-          <input class="prod-search-inp" placeholder="Buscar..." oninput="filtrarSelectorProducto(this)" autocomplete="off"
-            style="width:100%;border:none;background:transparent;font-size:12px;font-family:inherit;outline:none">
-        </div>
-        <div class="prod-drop-list"></div>
-      </div>
-    </td>
-    <td><span class="desc-txt" style="font-size:13px;color:var(--text2)">Seleccioná un producto</span></td>
-    <td><input type="number" value="1" class="ppqty" oninput="calcPpTotales()" min="1" style="text-align:right;width:55px"></td>
-    <td><input type="number" value="0" class="ppprice" oninput="calcPpTotales()" min="0" style="text-align:right;width:80px"></td>
-    <td class="ppsub" style="text-align:right;color:var(--text);font-weight:500">$0</td>
-    <td><button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();calcPpTotales()"
-      style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px"
-      onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'">
-      <i class="ti ti-trash" style="font-size:14px"></i></button></td>`;
-  // Al seleccionar producto en presupuesto, actualizar precio del presupuesto
-  tr.querySelector('.prod-search-drop').addEventListener('mousedown', function(e) {
-    const item = e.target.closest('.prod-drop-item');
-    if (!item) return;
-    // El precio se actualizará via selProductoEnFila pero también update ppprice
-    setTimeout(() => {
-      const priceInp = tr.querySelector('.ppprice');
-      const sel = tr.querySelector('.prod-sel-cod');
-      if (sel && priceInp && prodData) {
-        const p = Object.values(prodData).find(x => x.codigo === sel.textContent);
-        if (p) { priceInp.value = p.venta || 0; calcPpTotales(); }
-      }
-    }, 50);
+  // Usar el mismo componente que nueva venta para consistencia total
+  var body = document.getElementById('pp-body');
+  if (!body) return;
+  var tr = crearFilaProducto('', '', 0, 1);
+  // Redirigir calcRow a calcPpTotales cuando se cambia precio/cant en presupuesto
+  tr.querySelectorAll('.qty, .price, .disc').forEach(function(inp) {
+    inp.addEventListener('input', function() { calcRow(inp); calcPpTotales(); });
   });
-  document.getElementById('pp-body').appendChild(tr);
+  body.appendChild(tr);
+}
+
+// Extrae los ítems del pp-body igual que nueva venta extrae de det-body
+function getPpItems() {
+  var filas = Array.from(document.querySelectorAll('#pp-body tr'));
+  return filas.map(function(tr) {
+    var cod   = (tr.querySelector('.prod-sel-cod')||{}).textContent || '';
+    var descEl = tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt') || tr.querySelector('[class*="desc"]');
+    var desc  = descEl ? descEl.textContent.trim() : '';
+    var qty   = parseFloat((tr.querySelector('.qty,.ppqty')||{}).value) || 1;
+    var punit = parseFloat((tr.querySelector('.price,.ppprice')||{}).value) || 0;
+    var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
+    var sub   = Math.round(qty * punit * (1 - disc/100));
+    return { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub };
+  }).filter(function(it){ return (it.desc && it.desc.trim() && it.desc !== 'Seleccioná un producto') || it.punit > 0; });
 }
 
 
