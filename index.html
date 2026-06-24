@@ -803,7 +803,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.48 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.49 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -833,8 +833,8 @@ tr:hover td{color:var(--text)}
       <i class="ti ti-login" style="font-size:16px" id="ico-login-btn"></i>
       <span id="txt-login-btn"> Ingresar</span>
     </button>
-    <button onclick="document.getElementById('l-user').value='nixa@sistemanixa.com';document.getElementById('l-pass').value='1734Nixa...';" style="width:100%;margin-top:8px;padding:8px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:inherit">
-      ⚡ Acceso rápido (nixa)
+    <button id="btn-acceso-rapido" onclick="accesoRapido()" style="display:none;width:100%;margin-top:8px;padding:8px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:inherit">
+      ⚡ Acceso rápido
     </button>
     
   </div>
@@ -2184,7 +2184,7 @@ tr:hover td{color:var(--text)}
               <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
                 <div style="position:relative;width:40px;height:22px;flex-shrink:0">
                   <input type="checkbox" id="cfg-quick-visible" style="opacity:0;position:absolute;width:0;height:0" onchange="toggleQuickLoginPreview()">
-                  <div id="cfg-quick-track" onclick="document.getElementById('cfg-quick-visible').click()" style="position:absolute;inset:0;border-radius:20px;background:var(--bg4);border:1px solid var(--border2);cursor:pointer;transition:background .2s"></div>
+                  <div id="cfg-quick-track" onclick="var cb=document.getElementById('cfg-quick-visible');cb.checked=!cb.checked;toggleQuickLoginPreview();" style="position:absolute;inset:0;border-radius:20px;background:var(--bg4);border:1px solid var(--border2);cursor:pointer;transition:background .2s"></div>
                   <div id="cfg-quick-thumb" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text3);transition:transform .2s,background .2s;pointer-events:none"></div>
                 </div>
                 <span style="font-size:13px">Mostrar botón de acceso rápido en el login</span>
@@ -5148,7 +5148,7 @@ function toggleQuickLoginPreview() {
 }
 
 function aplicarConfigLogin(cfg) {
-  var btn = document.querySelector('[onclick*="accesoRapido"]');
+  var btn = document.getElementById('btn-acceso-rapido');
   if (!btn) return;
   btn.style.display = (cfg && cfg.visible) ? '' : 'none';
 }
@@ -5181,8 +5181,9 @@ function toggleCSFActual() {
 function accesoRapido() {
   var inp = document.getElementById('l-user');
   var pass = document.getElementById('l-pass');
-  if (window._quickLoginEmail) { if(inp) inp.value=window._quickLoginEmail; } else if(inp) inp.value=_dx('ICAgIBMqOkFCKyQ5LzohMhxVISQ=');
-  if (window._quickLoginPass) { if(pass) pass.value=window._quickLoginPass; } else if(pass) pass.value=_dx('f35rdR0wK1MYYGc=');
+  if (window._quickLoginEmail && inp)  inp.value  = window._quickLoginEmail;
+  if (window._quickLoginPass  && pass) pass.value = window._quickLoginPass;
+  if (!window._quickLoginEmail) return; // sin credenciales configuradas, no hacer nada
   iniciarLogin();
 }
 
@@ -6694,7 +6695,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.48-firebase',
+  VERSION: 'v20.49-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
