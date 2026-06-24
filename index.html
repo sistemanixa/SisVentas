@@ -805,7 +805,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.40 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.41 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2790,7 +2790,7 @@ tr:hover td{color:var(--text)}
         </div>
 
         <div class="cfg-tabs" style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto">
-          <button class="fact-tab active" onclick="showFactTab('cf',this)" style="white-space:nowrap;flex-shrink:0">Crédito Fiscal</button>
+          <button class="fact-tab active" onclick="showFactTab('cf',this)" style="white-space:nowrap;flex-shrink:0">Facturas Emitidas</button>
           <button class="fact-tab" onclick="showFactTab('fv',this)" style="white-space:nowrap;flex-shrink:0">Facturas Realizadas</button>
         </div>
 
@@ -6622,7 +6622,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.40-firebase',
+  VERSION: 'v20.41-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -12992,7 +12992,7 @@ function cfCargarCSV(input) {
   reader.onload = function(e) {
     var tipo = detectarTipoCSVAfip(e.target.result);
     if (tipo === 'emitidos') {
-      if (confirm('Este archivo parece ser de Comprobantes Emitidos — corresponde a "Facturas Realizadas", no a "Crédito Fiscal".\n\n¿Querés cargarlo en Facturas Realizadas?')) {
+      if (confirm('Este archivo parece ser de Comprobantes Emitidos — corresponde a "Facturas Realizadas", no a "Facturas Emitidas".\n\n¿Querés cargarlo en Facturas Realizadas?')) {
         showFactTab('fv', document.querySelector('.fact-tab:last-child'));
         fvProcesarTexto(e.target.result);
       }
@@ -13011,7 +13011,7 @@ function fvCargarCSV(input) {
   reader.onload = function(e) {
     var tipo = detectarTipoCSVAfip(e.target.result);
     if (tipo === 'recibidos') {
-      if (confirm('Este archivo parece ser de Comprobantes Recibidos — corresponde a "Crédito Fiscal", no a "Facturas Realizadas".\n\n¿Querés cargarlo en Crédito Fiscal?')) {
+      if (confirm('Este archivo parece ser de Comprobantes Recibidos — corresponde a "Facturas Emitidas", no a "Facturas Realizadas".\n\n¿Querés cargarlo en Facturas Emitidas?')) {
         showFactTab('cf', document.querySelector('.fact-tab:first-child'));
         cfProcesarArchivo(file);
       }
@@ -13110,13 +13110,32 @@ function cfActualizarPeriodosUI() {
   if (!periodos.length) { cont.style.display='none'; return; }
   cont.style.display='block';
   var esAdmin = currentRole === 'admin';
-  box.innerHTML = periodos.map(function(p) {
-    var d = new Date(p+'-01T12:00:00');
-    var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-    var activo = p === CF_PERIODO_ACTIVO;
-    var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();cfEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar período"></i>' : '';
-    return '<span onclick="cfSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
-  }).join('') + '<span onclick="cfSelPeriodo(null)" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(!CF_PERIODO_ACTIVO?'var(--blue)':'var(--bg3)')+';color:'+(!CF_PERIODO_ACTIVO?'#fff':'var(--text3)')+'">Todos</span>';
+  var aniosCF = [...new Set(periodos.map(function(p){ return p.slice(0,4); }))].sort();
+  var htmlCF = '';
+  if (aniosCF.length > 1) {
+    aniosCF.forEach(function(anio) {
+      var meses = periodos.filter(function(p){ return p.startsWith(anio); });
+      htmlCF += '<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;padding-left:2px">'+anio+'</div><div style="display:flex;flex-wrap:wrap;gap:4px">';
+      meses.forEach(function(p) {
+        var d = new Date(p+'-01T12:00:00');
+        var lbl = d.toLocaleDateString('es-AR',{month:'long'});
+        var activo = p === CF_PERIODO_ACTIVO;
+        var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();cfEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:10px;vertical-align:middle"></i>' : '';
+        htmlCF += '<span onclick="cfSelPeriodo(\''+p+'\')" style="padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
+      });
+      htmlCF += '</div></div>';
+    });
+  } else {
+    htmlCF = periodos.map(function(p) {
+      var d = new Date(p+'-01T12:00:00');
+      var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+      var activo = p === CF_PERIODO_ACTIVO;
+      var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();cfEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar período"></i>' : '';
+      return '<span onclick="cfSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
+    }).join('');
+  }
+  htmlCF += '<span onclick="cfSelPeriodo(null)" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(!CF_PERIODO_ACTIVO?'var(--blue)':'var(--bg3)')+';color:'+(!CF_PERIODO_ACTIVO?'#fff':'var(--text3)')+'">Todos</span>';
+  box.innerHTML = htmlCF;
 }
 
 function cfEliminarPeriodo(periodo) {
@@ -13424,13 +13443,32 @@ function fvActualizarPeriodosUI() {
   if (!periodos.length) { cont.style.display='none'; return; }
   cont.style.display='block';
   var esAdmin = currentRole === 'admin';
-  box.innerHTML = periodos.map(function(p) {
-    var d = new Date(p+'-01T12:00:00');
-    var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-    var activo = p === FV_PERIODO_ACTIVO;
-    var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();fvEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar período"></i>' : '';
-    return '<span onclick="fvSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
-  }).join('') + '<span onclick="fvSelPeriodo(null)" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(!FV_PERIODO_ACTIVO?'var(--blue)':'var(--bg3)')+';color:'+(!FV_PERIODO_ACTIVO?'#fff':'var(--text3)')+'">Todos</span>';
+  var aniosFV = [...new Set(periodos.map(function(p){ return p.slice(0,4); }))].sort();
+  var htmlFV = '';
+  if (aniosFV.length > 1) {
+    aniosFV.forEach(function(anio) {
+      var meses = periodos.filter(function(p){ return p.startsWith(anio); });
+      htmlFV += '<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;padding-left:2px">'+anio+'</div><div style="display:flex;flex-wrap:wrap;gap:4px">';
+      meses.forEach(function(p) {
+        var d = new Date(p+'-01T12:00:00');
+        var lbl = d.toLocaleDateString('es-AR',{month:'long'});
+        var activo = p === FV_PERIODO_ACTIVO;
+        var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();fvEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:10px;vertical-align:middle"></i>' : '';
+        htmlFV += '<span onclick="fvSelPeriodo(\''+p+'\')" style="padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
+      });
+      htmlFV += '</div></div>';
+    });
+  } else {
+    htmlFV = periodos.map(function(p) {
+      var d = new Date(p+'-01T12:00:00');
+      var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+      var activo = p === FV_PERIODO_ACTIVO;
+      var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();fvEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar período"></i>' : '';
+      return '<span onclick="fvSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
+    }).join('');
+  }
+  htmlFV += '<span onclick="fvSelPeriodo(null)" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(!FV_PERIODO_ACTIVO?'var(--blue)':'var(--bg3)')+';color:'+(!FV_PERIODO_ACTIVO?'#fff':'var(--text3)')+'">Todos</span>';
+  box.innerHTML = htmlFV;
 }
 
 function fvEliminarPeriodo(periodo) {
@@ -13450,7 +13488,22 @@ function fvEliminarPeriodo(periodo) {
   }).catch(function(e){ notify('Error: '+e.message); });
 }
 
-function fvSelPeriodo(p) { FV_PERIODO_ACTIVO = p; fvActualizarPeriodosUI(); fvRenderTodo(); fvRenderCompensacion(); }
+function fvSelPeriodo(p) {
+  FV_PERIODO_ACTIVO = p;
+  // Limpiar el buscador de texto al cambiar de período
+  var busq = document.querySelector('#fv-historial-box ~ * input, [oninput*="fvFiltrarHistorial"]');
+  if (!busq) {
+    // Buscar por placeholder
+    document.querySelectorAll('input').forEach(function(el){
+      if (el.placeholder && el.placeholder.includes('CUIT')) { el.value = ''; }
+    });
+  } else {
+    busq.value = '';
+  }
+  fvActualizarPeriodosUI();
+  fvRenderTodo();
+  fvRenderCompensacion();
+}
 
 function fvGetCompFiltrados() {
   return FV_DATA.filter(function(c){ return !FV_PERIODO_ACTIVO || (c.fecha||'').startsWith(FV_PERIODO_ACTIVO); });
