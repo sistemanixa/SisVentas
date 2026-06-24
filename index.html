@@ -805,7 +805,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.39 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.40 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6622,7 +6622,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.39-firebase',
+  VERSION: 'v20.40-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -18488,6 +18488,43 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
 }
 
 // Ver detalle de un presupuesto
+function editarPptoParaMigrar(id) {
+  // Abrir el presupuesto en modo edición para poder agregar los ítems manualmente
+  var p = (pptoData||[]).find(function(x){ return x.id === id; });
+  if (!p) return;
+  _hide('ppto-detalle-view');
+  _hide('ppto-list-view');
+  _block('ppto-form-view');
+  // Llenar el formulario con los datos del presupuesto
+  var cliEl  = document.getElementById('pp-cli');
+  var fechaEl= document.getElementById('pp-fecha');
+  var vencEl = document.getElementById('pp-vencimiento') || document.getElementById('pp-venc');
+  var descEl = document.getElementById('pp-descuento');
+  if (cliEl)   cliEl.value   = p.cliente || '';
+  if (fechaEl) fechaEl.value = p.fecha   || '';
+  if (vencEl)  vencEl.value  = p.vence   || '';
+  if (descEl)  descEl.value  = p.descuento || 0;
+  // Guardar fbKey para que al guardar actualice en vez de crear nuevo
+  window._pptoEditandoFbKey = p.fbKey;
+  window._pptoEditandoId    = p.id;
+  // Limpiar tabla de items
+  var body = document.getElementById('pp-body');
+  if (body) body.innerHTML = '';
+  // Si tiene items, cargarlos
+  if (p.items && p.items.length) {
+    var itemsArr = Array.isArray(p.items) ? p.items : Object.values(p.items);
+    itemsArr.forEach(function(it) {
+      var tr = crearFilaProducto(it.cod||it.codigo||'', it.desc||it.descripcion||it.nombre||'', it.punit||it.precio||0, it.qty||it.cantidad||1);
+      if (body) body.appendChild(tr);
+    });
+  } else {
+    // Sin items: agregar una fila vacía para empezar
+    addPpRow();
+  }
+  calcPpTotales();
+  notify('Abrí el presupuesto para editar — agregá los ítems y guardá');
+}
+
 function verPpto(id) {
   const p = pptoData.find(x => x.id === id);
   if (!p) return;
@@ -18550,7 +18587,15 @@ function verPpto(id) {
         '<td class="tr">'+qty+'</td>' +
         '<td class="tr">$'+Math.round(punit).toLocaleString('es-AR')+'</td>' +
         '<td class="tr" style="font-weight:500">$'+Math.round(sub).toLocaleString('es-AR')+'</td></tr>';
-    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Este presupuesto no tiene items guardados</td></tr>';
+    }).join('') :
+    // Sin items: mostrar mensaje con opción de ir a editar
+    '<tr><td colspan="5" style="padding:16px;text-align:center">' +
+      '<div style="color:var(--text3);font-size:13px;margin-bottom:8px">Este presupuesto no tiene ítems guardados en Firebase.</div>' +
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Total del presupuesto: <strong>$' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '</strong></div>' +
+      '<button class="btn btn-sm" onclick="editarPptoParaMigrar(\'' + p.id + '\')" style="color:var(--blue);border-color:var(--blue)">' +
+        '<i class="ti ti-edit"></i> Abrir para editar y guardar ítems' +
+      '</button>' +
+    '</td></tr>';
   }
 }
 
@@ -18781,6 +18826,13 @@ function guardarPresupuesto(modo) {
     motivo,
     audit: [{ fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor'), accion: estadoFinal === 'revision' ? 'Creado y enviado a revisión automáticamente por regla de aprobación' : 'Presupuesto creado como borrador' }]
   };
+  // Si estamos editando un presupuesto existente, preservar su fbKey e id
+  if (window._pptoEditandoFbKey) {
+    nuevo.fbKey = window._pptoEditandoFbKey;
+    nuevo.id    = window._pptoEditandoId || nuevo.id;
+    window._pptoEditandoFbKey = null;
+    window._pptoEditandoId    = null;
+  }
   if (typeof fbGuardarPresupuesto === 'function') {
     fbGuardarPresupuesto(nuevo);
   } else {
