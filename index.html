@@ -131,7 +131,9 @@ body.dark-mode{
   --blue:#60a5fa;--blue-bg:rgba(96,165,250,0.12);
   --purple:#a78bfa;--purple-bg:rgba(167,139,250,0.12);
 }
-html{overflow-x:hidden;max-width:100vw;overscroll-behavior-y:none}body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;height:100vh;overflow:hidden;max-width:100vw}
+html{overflow-x:hidden;max-width:100vw;overscroll-behavior-y:none}input[type="number"]{-moz-appearance:textfield}
+input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;height:100vh;overflow:hidden;max-width:100vw}
 
 /* ── LOGIN ── */
 #screen-login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999}
@@ -803,7 +805,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.38 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.39 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6620,7 +6622,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.38-firebase',
+  VERSION: 'v20.39-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7524,6 +7526,14 @@ function calcRow(inp) {
   const q  = parseFloat(tr.querySelector('.qty').value) || 0;
   const p  = parseFloat(tr.querySelector('.price').value) || 0;
   const dp = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
+  // Validar descuento por ítem contra el límite configurado
+  if (dp > 0 && APROBACION_CONFIG && dp > APROBACION_CONFIG.descuentoLimite) {
+    var discInp = tr.querySelector('.disc');
+    if (discInp) { discInp.style.borderColor = 'var(--amber)'; discInp.title = 'Supera el límite de ' + APROBACION_CONFIG.descuentoLimite + '% — requiere aprobación'; }
+  } else {
+    var discInp2 = tr.querySelector('.disc');
+    if (discInp2) { discInp2.style.borderColor = ''; discInp2.title = ''; }
+  }
   const bruto = q * p;
   const neto  = dp > 0 ? bruto * (1 - dp/100) : bruto;
   const sub = tr.querySelector('.sub');
@@ -7658,6 +7668,16 @@ function toggleAll(cb) { document.querySelectorAll('#det-body input[type=checkbo
 
 function confirmarVenta() {
   if (!document.getElementById('cli-inp').value) { notify('Seleccioná un cliente primero'); return; }
+
+  // Validar descuento general contra límite configurado
+  var _descGen = parseFloat((document.getElementById('desc-general')||{}).value) || 0;
+  if (_descGen > 0 && APROBACION_CONFIG && _descGen > APROBACION_CONFIG.descuentoLimite) {
+    if (currentRole !== 'admin') {
+      notify('El descuento general ' + _descGen + '% supera el límite de ' + APROBACION_CONFIG.descuentoLimite + '%. Necesitás autorización del admin.');
+      return;
+    }
+    if (!confirm('Descuento ' + _descGen + '% supera el límite configurado de ' + APROBACION_CONFIG.descuentoLimite + '%. ¿Autorizar como admin?')) return;
+  }
 
   // ── Controlador de ganancia: bloquear si el margen es rojo y no fue autorizado ──
   if (ventaRequiereAutorizacion && !ventaAutorizadaPorAdmin) {
@@ -12611,47 +12631,99 @@ function imprimirPresupuesto() {
   var total = g('pp-total') || g('ppto-det-total2')  || '$0';
   var obs   = g('pp-obs')   || g('ppto-det-obs')     || '';
 
-  var w = window.open('','_blank','width=900,height=700');
+  var w = window.open('','_blank','width=860,height=750');
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Presupuesto '+num+'</title>'+
-    '<style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}'+
-    'table{border-collapse:collapse;width:100%}th,td{border:0.5px solid #ddd;padding:8px 12px}'+
-    'th{background:#f5f5f5;font-weight:600}.tr{text-align:right}'+
-    '.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:16px;margin-bottom:24px}'+
-    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0}'+
-    '.info-box{background:#f9f9f9;border-radius:6px;padding:12px}label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px}'+
-    '.totales{float:right;width:260px;margin-top:16px}'+
-    '.tot-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid #eee}'+
-    '.tot-final{font-weight:700;font-size:15px;border-top:2px solid #222;margin-top:4px}'+
-    '.validez{margin-top:32px;padding:12px;background:#f5f5f5;border-radius:6px;font-size:12px}'+
-    '@media print{body{margin:20px}}</style></head><body>'+
-    '<div class="header"><div>'+logoHTML+'<div style="font-size:11px;color:#666;margin-top:4px">'+empresa.dir+'</div>'+
-    (empresa.tel?'<div style="font-size:11px;color:#666">Tel: '+empresa.tel+'</div>':'')+
-    (empresa.cuit?'<div style="font-size:11px;color:#666">CUIT: '+empresa.cuit+'</div>':'')+
-    '</div><div style="text-align:right">'+
-    '<div style="font-size:20px;font-weight:700">Presupuesto</div>'+
-    '<div style="font-size:16px;font-weight:500;margin-top:4px">'+num+'</div>'+
-    '<div style="font-size:12px;color:#666;margin-top:2px">Fecha: '+fecha+'</div>'+
-    '<div style="font-size:12px;color:#666">Válido hasta: '+venc+'</div>'+
-    '</div></div>'+
+    '<style>'+
+    '*{box-sizing:border-box;margin:0;padding:0}'+
+    'body{font-family:Arial,sans-serif;font-size:12.5px;color:#1a1a1a;margin:24px 32px;background:#fff}'+
+    'table{border-collapse:collapse;width:100%}'+
+    'th{background:#1e293b;color:#fff;font-weight:600;padding:7px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;text-align:left}'+
+    'th.tr,td.tr{text-align:right}'+
+    'td{padding:6px 10px;border-bottom:1px solid #eee;font-size:12.5px;vertical-align:middle}'+
+    'tr:last-child td{border-bottom:none}'+
+    '.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;margin-bottom:16px;border-bottom:3px solid #1e293b}'+
+    '.logo-area{display:flex;flex-direction:column;justify-content:flex-start}'+
+    '.comp-area{text-align:right}'+
+    '.tipo-badge{display:inline-block;padding:6px 18px;border:2.5px solid #1e293b;font-size:15px;font-weight:800;letter-spacing:.8px;margin-bottom:8px}'+
+    '.comp-num{font-size:22px;font-weight:700;color:#1e293b}'+
+    '.comp-fecha{font-size:12px;color:#666;margin-top:3px}'+
+    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}'+
+    '.info-box{background:#f8fafc;border-radius:6px;padding:10px 14px;border:1px solid #e2e8f0}'+
+    '.info-lbl{font-size:9.5px;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:600}'+
+    '.info-val{font-weight:700;font-size:13px;color:#0f172a}'+
+    '.info-sub{font-size:11px;color:#475569;margin-top:3px;line-height:1.5}'+
+    '.tfoot-row td{border:none;padding:4px 10px}'+
+    '.tfoot-first td{border-top:2px solid #1e293b;padding-top:10px}'+
+    '.tfoot-total td{border-top:2.5px solid #1e293b;padding-top:8px;padding-bottom:8px;font-weight:800;font-size:15px}'+
+    '.validez{margin-top:20px;padding:12px 16px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;font-size:11px;color:#64748b}'+
+    '.footer{margin-top:20px;padding-top:12px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-end}'+
+    '.footer-legal{font-size:9.5px;color:#94a3b8;line-height:1.6}'+
+    '@media print{body{margin:10px 14px}button,.no-print{display:none}tr{page-break-inside:avoid}}'+
+    '</style></head><body>'+
+
+    '<div class="header">'+
+      '<div class="logo-area">'+logoHTML+
+        '<div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.7">'+empresa.dir+
+        (empresa.cuit ? '<br>CUIT: '+empresa.cuit : '')+
+        '</div>'+
+      '</div>'+
+      '<div class="comp-area">'+
+        '<div class="tipo-badge">PRESUPUESTO</div>'+
+        '<div class="comp-num">'+num+'</div>'+
+        '<div class="comp-fecha">'+fecha+'</div>'+
+        '<div class="comp-fecha" style="color:#d97706">Válido hasta: '+venc+'</div>'+
+      '</div>'+
+    '</div>'+
+
     '<div class="info-grid">'+
-    '<div class="info-box"><label>Cliente</label><div style="font-weight:600;font-size:14px">'+cli+'</div></div>'+
-    '<div class="info-box"><label>Condición</label><div>A convenir</div></div>'+
+      '<div class="info-box">'+
+        '<div class="info-lbl">Cliente</div>'+
+        '<div class="info-val">'+cli+'</div>'+
+      '</div>'+
+      '<div class="info-box">'+
+        '<div class="info-lbl">Condición de pago</div>'+
+        '<div class="info-sub">A convenir</div>'+
+        (obs ? '<div class="info-sub" style="margin-top:6px">'+obs+'</div>' : '')+
+      '</div>'+
     '</div>'+
-    '<table><thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th><th class="tr">P. unit.</th><th class="tr">Subtotal</th></tr></thead>'+
-    '<tbody>'+(items||'<tr><td colspan="5" style="text-align:center;color:#999">Sin items</td></tr>')+'</tbody></table>'+
-    '<div class="totales">'+
-    (_pptoConDetalle ? (
-      '<div class="tot-row"><span>Subtotal</span><span>'+sub+'</span></div>'+
-      (desc&&desc!=='$0'?'<div class="tot-row"><span>Descuento</span><span style="color:#e53">'+desc+'</span></div>':'')+
-      (iva&&iva!=='$0'?'<div class="tot-row"><span>IVA 21%</span><span style="color:#f59e0b">'+iva+'</span></div>':'')+
-      '<div class="tot-row tot-final"><span>TOTAL</span><span>'+total+'</span></div>'
-    ) : (
-      '<div class="tot-row tot-final" style="font-size:16px"><span>TOTAL</span><span>'+total+'</span></div>'
-    ))+
+
+    '<table>'+
+      '<thead><tr>'+
+        '<th style="width:90px">Código</th>'+
+        '<th>Descripción</th>'+
+        '<th class="tr" style="width:55px">Cant.</th>'+
+        '<th class="tr" style="width:110px">P. unit.</th>'+
+        '<th class="tr" style="width:110px">Subtotal</th>'+
+      '</tr></thead>'+
+      '<tbody>'+(items||'<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:16px">Sin ítems</td></tr>')+'</tbody>'+
+      '<tfoot>'+
+        (_pptoConDetalle ? (
+          '<tr class="tfoot-row tfoot-first"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#64748b">Subtotal</td><td style="text-align:right">'+sub+'</td></tr>'+
+          (desc&&desc!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#dc2626">Descuento</td><td style="text-align:right;color:#dc2626">'+desc+'</td></tr>':'')+
+          (iva&&iva!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td><td style="text-align:right;color:#d97706">'+iva+'</td></tr>':'')+
+          '<tr class="tfoot-row tfoot-total"><td colspan="3" style="border:none"></td><td style="text-align:right">TOTAL</td><td style="text-align:right">'+total+'</td></tr>'
+        ) : (
+          '<tr class="tfoot-row tfoot-total"><td colspan="3" style="border:none"></td><td style="text-align:right">TOTAL</td><td style="text-align:right">'+total+'</td></tr>'
+        ))+
+      '</tfoot>'+
+    '</table>'+
+
+    '<div class="validez">'+
+      'Este presupuesto tiene validez hasta el <strong>'+venc+'</strong>. '+
+      'Los precios incluyen IVA según corresponda. '+
+      'Precios en pesos argentinos. Sujeto a disponibilidad de stock.'+
     '</div>'+
-    (obs?'<div class="validez" style="margin-top:60px"><strong>Observaciones:</strong> '+obs+'</div>':'')+
-    '<div class="validez">Este presupuesto tiene validez hasta el <strong>'+venc+'</strong>. '+
-    'Los precios están expresados en pesos argentinos e incluyen IVA según corresponda.</div>'+
+
+    '<div class="footer">'+
+      '<div class="footer-legal">'+empresa.nombre+' · '+empresa.dir+(empresa.cuit?' · CUIT: '+empresa.cuit:'')+
+      '<br>Documento no vinculante — válido como presupuesto comercial hasta la fecha indicada.</div>'+
+      '<div style="text-align:right;font-size:10px;color:#94a3b8">SisVentas · Nixa<br>'+fecha+'</div>'+
+    '</div>'+
+
+    '<div class="no-print" style="margin-top:20px;text-align:center">'+
+      '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>'+
+    '</div>'+
+
     '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
