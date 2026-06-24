@@ -805,7 +805,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.43 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.44 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1408,6 +1408,7 @@ tr:hover td{color:var(--text)}
       </div>
       <div class="flex-end">
         <button class="btn btn-sm" onclick="copiarSeleccion()"><i class="ti ti-copy"></i> Copiar selección</button>
+        <button class="btn btn-sm" id="btn-csf-static" onclick="toggleCSFActual()" title="Quita el IVA 21% y bloquea la facturación"><i class="ti ti-receipt-off"></i> Contado s/fact.</button>
         <button class="btn btn-sm" onclick="abrirModalImprimir('venta','Imprimir venta #' + document.getElementById('vd-num').textContent)"><i class="ti ti-printer"></i> Imprimir</button>
         <button class="btn btn-sm" onclick="exportarPDF('Venta ' + document.getElementById('vd-num').textContent)"><i class="ti ti-file-type-pdf"></i> PDF</button>
         <button class="btn btn-sm admin-only" onclick="eliminarVenta(window._ventaActualFbKey)" style="color:var(--red);border-color:var(--red)" title="Eliminar esta venta"><i class="ti ti-trash"></i></button>
@@ -1418,7 +1419,7 @@ tr:hover td{color:var(--text)}
     <div class="card">
       <div class="card-head">
         <span class="card-title">Pagos registrados</span>
-        <button class="btn btn-sm btn-primary" onclick="showPage('cobranzas',document.querySelector('[onclick*=cobranzas]'))">
+        <button class="btn btn-sm btn-primary" id="vd-btn-reg-pago" onclick="var vid=document.getElementById('vd-id-hidden')&&document.getElementById('vd-id-hidden').value;if(vid)irACobranzasConVenta(vid);">
           <i class="ti ti-plus"></i> Registrar pago
         </button>
       </div>
@@ -2173,6 +2174,25 @@ tr:hover td{color:var(--text)}
               El tipo de cambio se usa para convertir a ARS los productos cargados en USD, en ventas y presupuestos. Fuente: <a href="https://dolarapi.com" target="_blank" style="color:var(--blue)">dolarapi.com</a>
             </div>
             <div class="flex-end" style="margin-top:10px"><button class="btn btn-primary" onclick="guardarTipoCambio(this)"><i class="ti ti-check"></i> Guardar tipo de cambio</button></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title"><i class="ti ti-login" style="margin-right:6px"></i>Acceso rápido (login)</span></div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Credenciales que se precargan en el botón ⚡ de la pantalla de login.</div>
+            <div class="form-grid">
+              <div class="fg"><label>Email de acceso rápido</label><input type="email" id="cfg-quick-email" placeholder="usuario@empresa.com"></div>
+              <div class="fg"><label>Contraseña de acceso rápido</label><input type="password" id="cfg-quick-pass" placeholder="••••••••" autocomplete="new-password"></div>
+            </div>
+            <div class="fg" style="margin-top:8px">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                <div style="position:relative;width:40px;height:22px;flex-shrink:0">
+                  <input type="checkbox" id="cfg-quick-visible" style="opacity:0;position:absolute;width:0;height:0" onchange="toggleQuickLoginPreview()">
+                  <div id="cfg-quick-track" onclick="document.getElementById('cfg-quick-visible').click()" style="position:absolute;inset:0;border-radius:20px;background:var(--bg4);border:1px solid var(--border2);cursor:pointer;transition:background .2s"></div>
+                  <div id="cfg-quick-thumb" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text3);transition:transform .2s,background .2s;pointer-events:none"></div>
+                </div>
+                <span style="font-size:13px">Mostrar botón de acceso rápido en el login</span>
+              </label>
+            </div>
+            <div class="flex-end" style="margin-top:10px"><button class="btn btn-primary" onclick="guardarConfigLogin(this)"><i class="ti ti-check"></i> Guardar</button></div>
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title">Preferencias del sistema</span></div>
@@ -5106,11 +5126,66 @@ function _dx(s, k) {
   return r;
 }
 
+function guardarConfigLogin(btn) {
+  var email = (document.getElementById('cfg-quick-email')||{}).value || '';
+  var pass  = (document.getElementById('cfg-quick-pass')||{}).value || '';
+  var visible = !!(document.getElementById('cfg-quick-visible')||{}).checked;
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/config/loginRapido'), { email:email, pass:pass, visible:visible })
+    .then(function(){
+      notify('✓ Configuración de login guardada');
+      window._quickLoginEmail = email;
+      window._quickLoginPass  = pass;
+      aplicarConfigLogin({ email:email, pass:pass, visible:visible });
+      if (btn) { var orig=btn.innerHTML; btn.innerHTML='✓ Guardado'; setTimeout(function(){ btn.innerHTML=orig; }, 1500); }
+    }).catch(function(e){ notify('Error: '+e.message); });
+}
+
+function toggleQuickLoginPreview() {
+  var checked = !!(document.getElementById('cfg-quick-visible')||{}).checked;
+  var track = document.getElementById('cfg-quick-track');
+  var thumb = document.getElementById('cfg-quick-thumb');
+  if (track) track.style.background = checked ? 'var(--blue)' : 'var(--bg4)';
+  if (thumb) { thumb.style.transform = checked ? 'translateX(18px)' : 'translateX(0)'; thumb.style.background = checked ? '#fff' : 'var(--text3)'; }
+}
+
+function aplicarConfigLogin(cfg) {
+  var btn = document.querySelector('[onclick*="accesoRapido"]');
+  if (!btn) return;
+  btn.style.display = (cfg && cfg.visible) ? '' : 'none';
+}
+
+function cargarConfigLogin() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/loginRapido')).then(function(snap){
+    var cfg = snap.val();
+    if (!cfg) return;
+    var eEl=document.getElementById('cfg-quick-email');
+    var pEl=document.getElementById('cfg-quick-pass');
+    var vEl=document.getElementById('cfg-quick-visible');
+    if (eEl) eEl.value = cfg.email||'';
+    if (pEl) pEl.value = cfg.pass||'';
+    if (vEl) { vEl.checked = !!cfg.visible; toggleQuickLoginPreview(); }
+    window._quickLoginEmail = cfg.email||'';
+    window._quickLoginPass  = cfg.pass||'';
+    aplicarConfigLogin(cfg);
+  }).catch(function(){});
+}
+
+function toggleCSFActual() {
+  var vidEl = document.getElementById('vd-id-hidden');
+  if (!vidEl || !vidEl.value) { notify('Sin venta abierta'); return; }
+  var vid = vidEl.value;
+  var v = (ventasList||[]).find(function(x){ return x.id===vid||x.fbKey===vid; });
+  if (!v) { notify('Venta no encontrada'); return; }
+  toggleCSF(v.id, v.fbKey);
+}
+
 function accesoRapido() {
   var inp = document.getElementById('l-user');
   var pass = document.getElementById('l-pass');
-  if (inp)  inp.value  = _dx('ICAgIBMqOkFCKyQ5LzohMhxVISQ=');
-  if (pass) pass.value = _dx('f35rdR0wK1MYYGc=');
+  if (window._quickLoginEmail) { if(inp) inp.value=window._quickLoginEmail; } else if(inp) inp.value=_dx('ICAgIBMqOkFCKyQ5LzohMhxVISQ=');
+  if (window._quickLoginPass) { if(pass) pass.value=window._quickLoginPass; } else if(pass) pass.value=_dx('f35rdR0wK1MYYGc=');
   iniciarLogin();
 }
 
@@ -6622,7 +6697,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.43-firebase',
+  VERSION: 'v20.44-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7489,6 +7564,7 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigGeneral === 'function') setTimeout(cargarConfigGeneral, 350);
   if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
+  if (typeof cargarConfigLogin === 'function') setTimeout(cargarConfigLogin, 350);
   if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
   if (typeof cargarPresenciaUsuarios === 'function') setTimeout(cargarPresenciaUsuarios, 350);
   if (typeof spCargar === 'function') setTimeout(spCargar, 400);
@@ -9625,8 +9701,14 @@ function verCuentaClienteReal(nombre) {
 }
 
 function irAVentaDesdeCobranza(ventaId) {
-  var v = (ventasList||[]).find(function(x){ return x.id===ventaId || x.fbKey===ventaId; });
-  if (!v) { notify('Venta no encontrada'); return; }
+  if (!ventaId || ventaId === '—') return;
+  var vid = String(ventaId).trim();
+  var num = vid.replace(/[^0-9]/g, '');
+  var v = (ventasList||[]).find(function(x){
+    return x.id === vid || x.fbKey === vid ||
+      (num && (String(x.id).replace(/[^0-9]/g,'') === num || String(x.fbKey).replace(/[^0-9]/g,'') === num));
+  });
+  if (!v) { notify('Venta ' + vid + ' no encontrada'); return; }
   window._ventaDesdeHistorialOrigen = 'cobranzas';
   verDetalleVenta(v.fbKey || v.id);
 }
@@ -21200,7 +21282,13 @@ function verVenta(id) {
   if (v.otId)     accsHTML += '<button class="btn btn-sm" onclick="verOTdesdeVenta()"><i class="ti ti-clipboard-list"></i> Ver OT</button>';
   accsHTML += '<button class="btn btn-sm" onclick="abrirModalImprimir(\'venta\',\'Venta ' + v.id + '\')" ><i class="ti ti-printer"></i> Imprimir</button>';
   var _csf = v.contadoSinFactura === true;
-  accsHTML += '<button class="btn btn-sm" onclick="toggleCSF(\''+v.id+'\',\''+v.fbKey+'\');" style="'+(_csf?'color:var(--amber);border-color:var(--amber)':'')+'" title="Quita IVA y bloquea facturacion"><i class="ti ti-receipt-off"></i> '+(_csf?'Contado s/fact. \u2713':'Contado s/fact.')+'</button>';
+  // Actualizar estado visual del botón CSF estático (junto a Copiar selección)
+  var btnCsf = document.getElementById('btn-csf-static');
+  if (btnCsf) {
+    btnCsf.style.color = _csf ? 'var(--amber)' : '';
+    btnCsf.style.borderColor = _csf ? 'var(--amber)' : '';
+    btnCsf.innerHTML = '<i class="ti ti-receipt-off"></i> ' + (_csf ? 'Contado s/fact. \u2713' : 'Contado s/fact.');
+  }
   // Botón facturar — solo si no tiene factura emitida
   if (!v.factura) {
     accsHTML += '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(\''+v.id+'\')"><i class="ti ti-file-invoice"></i> Facturar</button>';
