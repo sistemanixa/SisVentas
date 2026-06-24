@@ -803,7 +803,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.47 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.48 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1417,7 +1417,7 @@ tr:hover td{color:var(--text)}
     <div class="card">
       <div class="card-head">
         <span class="card-title">Pagos registrados</span>
-        <button class="btn btn-sm btn-primary" id="vd-btn-reg-pago" onclick="var vid=document.getElementById('vd-id-hidden')&&document.getElementById('vd-id-hidden').value;if(vid)irACobranzasConVenta(vid);">
+        <button class="btn btn-sm btn-primary" id="vd-btn-reg-pago" onclick="if(ventaActualId) irACobranzasConVenta(ventaActualId); else notify('Abrí una venta primero');">
           <i class="ti ti-plus"></i> Registrar pago
         </button>
       </div>
@@ -5171,9 +5171,8 @@ function cargarConfigLogin() {
 }
 
 function toggleCSFActual() {
-  var vidEl = document.getElementById('vd-id-hidden');
-  if (!vidEl || !vidEl.value) { notify('Sin venta abierta'); return; }
-  var vid = vidEl.value;
+  var vid = ventaActualId;
+  if (!vid) { notify('Sin venta abierta'); return; }
   var v = (ventasList||[]).find(function(x){ return x.id===vid||x.fbKey===vid; });
   if (!v) { notify('Venta no encontrada'); return; }
   toggleCSF(v.id, v.fbKey);
@@ -6695,7 +6694,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.47-firebase',
+  VERSION: 'v20.48-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8575,7 +8574,12 @@ function selVentaCob(venta,cliente,total,cobrado,saldo) {
 // Navega a Cobranzas y precarga el formulario con los datos reales de la venta,
 // para no tener que volver a buscarla y tipear todo de nuevo.
 function irACobranzasConVenta(ventaId) {
-  var venta = (ventasList||[]).find(function(v){ return v.id === ventaId; });
+  var vid = String(ventaId||'').trim();
+  var num = vid.replace(/[^0-9]/g,'');
+  var venta = (ventasList||[]).find(function(v){
+    return v.id === vid || v.fbKey === vid ||
+      (num && (String(v.id).replace(/[^0-9]/g,'') === num || String(v.fbKey||'').replace(/[^0-9]/g,'') === num));
+  });
   showPage('cobranzas', document.querySelector('[onclick*=cobranzas]'));
   if (!venta) return;
   setTimeout(function() {
@@ -9704,7 +9708,9 @@ function irAVentaDesdeCobranza(ventaId) {
   var num = vid.replace(/[^0-9]/g, '');
   var v = (ventasList||[]).find(function(x){
     return x.id === vid || x.fbKey === vid ||
-      (num && (String(x.id).replace(/[^0-9]/g,'') === num || String(x.fbKey).replace(/[^0-9]/g,'') === num));
+      (num && (String(x.id).replace(/[^0-9]/g,'') === num ||
+               String(x.fbKey||'').replace(/[^0-9]/g,'') === num ||
+               String(x.idOriginal||'').replace(/[^0-9]/g,'') === num));
   });
   if (!v) { notify('Venta ' + vid + ' no encontrada'); return; }
   window._ventaDesdeHistorialOrigen = 'cobranzas';
