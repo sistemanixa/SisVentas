@@ -181,7 +181,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .s-nav{padding:14px 10px;flex:1;overflow-y:auto}
 .s-section{font-size:10px;color:var(--text3);padding:0 10px;margin:14px 0 4px;text-transform:uppercase;letter-spacing:1px}
 .s-section:first-child{margin-top:0}
-.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;color:var(--text2);font-size:13px;transition:all .12s;margin-bottom:1px;border:0.5px solid transparent;user-select:none;white-space:nowrap}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;color:var(--text2);font-size:13px;transition:all .12s;margin-bottom:1px;border:0.5px solid transparent;user-select:none;white-space:nowrap;touch-action:manipulation}
 .nav-item:hover{background:var(--bg3);color:var(--text)}
 .nav-item.active{background:var(--bg3);color:var(--text);border-color:var(--border2)}
 .nav-item i{font-size:15px;width:17px;text-align:center;flex-shrink:0}
@@ -276,7 +276,7 @@ tr:hover td{color:var(--text)}
 .bar-lbl.today{color:var(--text);font-weight:600}
 
 /* ── BUTTONS ── */
-.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--radius);font-size:13px;cursor:pointer;border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-family:inherit;transition:all .12s}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--radius);font-size:13px;cursor:pointer;border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-family:inherit;transition:all .12s;touch-action:manipulation}
 .btn:hover{background:var(--bg3);color:var(--text)}
 .btn-primary{background:var(--text);color:var(--bg2);border-color:var(--text)}
 .btn-primary:hover{opacity:.85}
@@ -584,15 +584,15 @@ tr:hover td{color:var(--text)}
 .venta-resumen-stock{background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-top:12px;display:none}
 
 /* ── FAB (Botón flotante) ── */
-.fab-container{position:fixed;bottom:24px;right:16px;z-index:800;display:none;flex-direction:column;align-items:flex-end;gap:10px}
+.fab-container{position:fixed;bottom:24px;right:16px;z-index:800;display:none;flex-direction:column;align-items:flex-end;gap:10px;touch-action:manipulation}
 @media(max-width:768px){.fab-container{display:flex}.fab-container.hidden{display:none!important}}
 @media(min-width:769px){.notif{bottom:24px!important;right:24px!important}}
-.fab-main{width:52px;height:52px;border-radius:50%;background:var(--text);color:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .2s,background .2s;flex-shrink:0}
+.fab-main{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .2s,background .2s;flex-shrink:0;touch-action:manipulation}
 .fab-main:hover{background:#333;transform:scale(1.08)}
 .fab-main.open{transform:rotate(45deg)}
-.fab-actions{display:flex;flex-direction:column;gap:8px;align-items:flex-end;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .2s,transform .2s}
+.fab-actions{display:flex;flex-direction:column;gap:8px;align-items:flex-end;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .2s,transform .2s;touch-action:manipulation}
 .fab-actions.open{opacity:1;pointer-events:auto;transform:translateY(0)}
-.fab-item{display:flex;align-items:center;gap:10px;cursor:pointer;background:none;border:none;padding:0}
+.fab-item{display:flex;align-items:center;gap:10px;cursor:pointer;background:none;border:none;padding:0;touch-action:manipulation}
 .fab-label{background:var(--text);color:var(--bg2);font-size:12px;font-weight:500;padding:5px 11px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .fab-btn{width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);flex-shrink:0;transition:transform .15s}
 .fab-btn:hover{transform:scale(1.1)}
@@ -805,7 +805,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.42 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.43 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2790,8 +2790,8 @@ tr:hover td{color:var(--text)}
         </div>
 
         <div class="cfg-tabs" style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto">
-          <button class="fact-tab active" onclick="showFactTab('cf',this)" style="white-space:nowrap;flex-shrink:0">Facturas Emitidas</button>
-          <button class="fact-tab" onclick="showFactTab('fv',this)" style="white-space:nowrap;flex-shrink:0">Facturas Realizadas</button>
+          <button class="fact-tab active" onclick="showFactTab('cf',this)" style="white-space:nowrap;flex-shrink:0">Facturas Recibidas</button>
+          <button class="fact-tab" onclick="showFactTab('fv',this)" style="white-space:nowrap;flex-shrink:0">Facturas Emitidas</button>
         </div>
 
         <!-- PESTAÑA: CRÉDITO FISCAL -->
@@ -6622,7 +6622,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.42-firebase',
+  VERSION: 'v20.43-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -12992,7 +12992,7 @@ function cfCargarCSV(input) {
   reader.onload = function(e) {
     var tipo = detectarTipoCSVAfip(e.target.result);
     if (tipo === 'emitidos') {
-      if (confirm('Este archivo parece ser de Comprobantes Emitidos — corresponde a "Facturas Realizadas", no a "Facturas Emitidas".\n\n¿Querés cargarlo en Facturas Realizadas?')) {
+      if (confirm('Este archivo parece ser de Comprobantes Emitidos — corresponde a "Facturas Emitidas", no a "Facturas Recibidas".\n\n¿Querés cargarlo en Facturas Recibidas?')) {
         showFactTab('fv', document.querySelector('.fact-tab:last-child'));
         fvProcesarTexto(e.target.result);
       }
@@ -13011,7 +13011,7 @@ function fvCargarCSV(input) {
   reader.onload = function(e) {
     var tipo = detectarTipoCSVAfip(e.target.result);
     if (tipo === 'recibidos') {
-      if (confirm('Este archivo parece ser de Comprobantes Recibidos — corresponde a "Facturas Emitidas", no a "Facturas Realizadas".\n\n¿Querés cargarlo en Facturas Emitidas?')) {
+      if (confirm('Este archivo parece ser de Comprobantes Recibidos — corresponde a "Facturas Recibidas", no a "Facturas Emitidas".\n\n¿Querés cargarlo en Facturas Recibidas?')) {
         showFactTab('cf', document.querySelector('.fact-tab:first-child'));
         cfProcesarArchivo(file);
       }
@@ -13581,8 +13581,10 @@ function fvFiltrarHistorial(val) { fvRenderHistorial(fvGetCompFiltrados(), val);
 function fvRenderHistorial(comps, filtro) {
   var clientes = {};
   comps.forEach(function(c) {
-    var k = c.cuitReceptor;
-    if (!clientes[k]) clientes[k] = { cuit:k, nombre:c.nombre, comps:[], totalIVA:0, total:0 };
+    // CUIT vacío = Consumidor Final; usar nombre como clave para no colapsarlos todos
+    var k = c.cuitReceptor || ('CF_' + (c.nombre || 'Consumidor Final'));
+    var nombre = c.nombre || (c.cuitReceptor ? c.cuitReceptor : 'Consumidor Final');
+    if (!clientes[k]) clientes[k] = { cuit: c.cuitReceptor||'—', nombre: nombre, comps:[], totalIVA:0, total:0 };
     clientes[k].comps.push(c);
     clientes[k].totalIVA += c.totalIVA;
     clientes[k].total += c.total;
