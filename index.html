@@ -805,7 +805,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.41 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.42 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6622,7 +6622,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.41-firebase',
+  VERSION: 'v20.42-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -18542,40 +18542,70 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
 
 // Ver detalle de un presupuesto
 function editarPptoParaMigrar(id) {
-  // Abrir el presupuesto en modo edición para poder agregar los ítems manualmente
   var p = (pptoData||[]).find(function(x){ return x.id === id; });
   if (!p) return;
-  _hide('ppto-detalle-view');
-  _hide('ppto-list-view');
-  _block('ppto-form-view');
-  // Llenar el formulario con los datos del presupuesto
-  var cliEl  = document.getElementById('pp-cli');
-  var fechaEl= document.getElementById('pp-fecha');
-  var vencEl = document.getElementById('pp-vencimiento') || document.getElementById('pp-venc');
-  var descEl = document.getElementById('pp-descuento');
-  if (cliEl)   cliEl.value   = p.cliente || '';
-  if (fechaEl) fechaEl.value = p.fecha   || '';
-  if (vencEl)  vencEl.value  = p.vence   || '';
-  if (descEl)  descEl.value  = p.descuento || 0;
-  // Guardar fbKey para que al guardar actualice en vez de crear nuevo
+
+  // Guardar referencia antes de que abrirNuevoPresupuesto limpie todo
   window._pptoEditandoFbKey = p.fbKey;
   window._pptoEditandoId    = p.id;
-  // Limpiar tabla de items
-  var body = document.getElementById('pp-body');
-  if (body) body.innerHTML = '';
-  // Si tiene items, cargarlos
-  if (p.items && p.items.length) {
-    var itemsArr = Array.isArray(p.items) ? p.items : Object.values(p.items);
-    itemsArr.forEach(function(it) {
-      var tr = crearFilaProducto(it.cod||it.codigo||'', it.desc||it.descripcion||it.nombre||'', it.punit||it.precio||0, it.qty||it.cantidad||1);
-      if (body) body.appendChild(tr);
-    });
-  } else {
-    // Sin items: agregar una fila vacía para empezar
-    addPpRow();
-  }
-  calcPpTotales();
-  notify('Abrí el presupuesto para editar — agregá los ítems y guardá');
+
+  // Abrir el formulario (inicializa y muestra ppto-form-view)
+  abrirNuevoPresupuesto();
+
+  // Esperar un tick para que el DOM esté listo
+  setTimeout(function() {
+    // Número
+    var numEl = document.getElementById('pp-numero');
+    if (numEl) numEl.value = p.id;
+
+    // Cliente — el campo es un buscador, seteamos el valor directamente
+    var cliEl = document.getElementById('pp-cli');
+    if (cliEl) cliEl.value = p.cliente || '';
+
+    // Fecha
+    var fechaEl = document.getElementById('pp-fecha');
+    if (fechaEl) {
+      // Convertir formato dd/mm/aaaa o aaaa-mm-dd
+      var fecha = p.fecha || '';
+      if (fecha.includes('/')) {
+        var parts = fecha.split('/');
+        if (parts.length === 3) fecha = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0');
+      }
+      fechaEl.value = fecha;
+    }
+
+    // Vencimiento (readonly, lo seteamos directamente)
+    var vencEl = document.getElementById('pp-venc');
+    if (vencEl) vencEl.value = p.vence || '';
+
+    // Descuento
+    var descEl = document.getElementById('pp-descuento');
+    if (descEl) descEl.value = parseFloat(p.descuento) || 0;
+
+    // Limpiar tabla y agregar fila vacía para que el usuario agregue ítems
+    var body = document.getElementById('pp-body');
+    if (body) {
+      body.innerHTML = '';
+      // Si tiene items, cargarlos
+      if (p.items) {
+        var arr = Array.isArray(p.items) ? p.items : Object.values(p.items);
+        arr.filter(function(it){ return it.desc || it.descripcion || it.nombre; }).forEach(function(it) {
+          var tr = crearFilaProducto(
+            it.cod || it.codigo || '',
+            it.desc || it.descripcion || it.nombre || '',
+            it.punit || it.precio || 0,
+            it.qty || it.cantidad || 1
+          );
+          body.appendChild(tr);
+        });
+      }
+      // Siempre agregar una fila vacía al final
+      addPpRow();
+    }
+
+    calcPpTotales();
+    notify('Presupuesto ' + p.id + ' abierto para editar — agregá los ítems y guardá');
+  }, 150);
 }
 
 function verPpto(id) {
