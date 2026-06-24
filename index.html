@@ -227,6 +227,8 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 /* ── METRICS ── */
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
 .metric{background:var(--bg3);border-radius:var(--radius);padding:14px 16px;touch-action:pan-y}
+.metrics{touch-action:pan-y}
+.card{touch-action:pan-y}
 .m-label{font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
 .m-value{font-size:22px;font-weight:600;color:var(--text);margin-bottom:4px}
 .m-sub{font-size:11px;color:var(--text3)}
@@ -801,7 +803,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.31 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.33 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1040,7 +1042,7 @@ tr:hover td{color:var(--text)}
             <span class="card-title"><i class="ti ti-chart-line"></i> Rentabilidad del mes</span>
             <button class="btn btn-sm" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))"><i class="ti ti-external-link"></i> Ver reporte completo</button>
           </div>
-          <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+          <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;touch-action:pan-y">
             <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver detalle de ventas">
               <div class="m-label">Ingresos del mes</div><div class="m-value" id="dash-rent-ingresos" style="color:var(--green)">$0</div><div class="m-sub">total facturado</div>
             </div>
@@ -1148,7 +1150,7 @@ tr:hover td{color:var(--text)}
             </div>
             <div id="stock-resumen-body" style="display:flex;flex-direction:column;gap:6px"></div>
           </div>
-          <div class="totals" style="margin-top:20px;padding-top:16px;border-top:2px solid var(--border)">
+          <div class="totals" style="margin-top:24px">
             <div class="tbox">
               <div class="tl"><span>Subtotal</span><span id="t-sub">$0</span></div>
               <div class="tl" id="t-desc-row" style="display:none;color:var(--green)"><span>Descuento general</span><span id="t-desc">-$0</span></div>
@@ -6603,7 +6605,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.31-firebase',
+  VERSION: 'v20.33-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -18231,7 +18233,17 @@ function verPpto(id) {
   // Ítems reales del presupuesto — reemplaza el contenido de ejemplo
   var itemsBody = document.getElementById('ppto-det-items');
   if (itemsBody) {
-    var items = Array.isArray(p.items) ? p.items : [];
+    // Diagnóstico: mostrar en consola el formato real de los items
+    console.log('[PPTO DEBUG] id:', p.id, '| items type:', typeof p.items, '| isArray:', Array.isArray(p.items), '| raw:', JSON.stringify(p.items ? (Array.isArray(p.items) ? p.items.slice(0,2) : Object.entries(p.items).slice(0,2)) : null));
+    // Normalizar: Firebase a veces guarda arrays como objetos {0:{...}, 1:{...}}
+    var items;
+    if (Array.isArray(p.items)) {
+      items = p.items;
+    } else if (p.items && typeof p.items === 'object') {
+      items = Object.values(p.items);
+    } else {
+      items = [];
+    }
     itemsBody.innerHTML = items.length ? items.map(function(it) {
       var cod   = it.cod   || it.codigo      || '';
       var desc  = it.desc  || it.descripcion || it.nombre || '';
