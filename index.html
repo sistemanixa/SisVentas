@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.70 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.71 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6807,7 +6807,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.70-firebase',
+  VERSION: 'v20.71-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -21402,19 +21402,30 @@ function verVenta(id) {
 
   // Pagos
   const pagosEl = document.getElementById('vd-pagos-lista');
-  const pagosVenta = Array.isArray(v.pagos) ? v.pagos : [];
-  if (pagosVenta.length) {
-    pagosEl.innerHTML = pagosVenta.map(p => `
+  // Combinar pagos embebidos (v.pagos) + pagos de cobranzas (sisventas/pagos)
+  var pagosEmbebidos = Array.isArray(v.pagos) ? v.pagos.map(function(p){ return Object.assign({}, p, {fuente:'venta'}); }) : [];
+  var pagosCobranzas = (window._pagosListaActual||[]).filter(function(p){
+    var vid = String(v.id||'').replace(/[^0-9]/g,'');
+    var pvid = String(p.venta||'').replace(/[^0-9]/g,'');
+    return p.venta === v.id || pvid === vid;
+  }).map(function(p){ return Object.assign({}, p, {fuente:'cobranzas'}); });
+  // Deduplicar por monto+fecha
+  var claves = new Set(pagosEmbebidos.map(function(p){ return (p.monto||'')+'|'+(p.fecha||''); }));
+  var pagosExtra = pagosCobranzas.filter(function(p){ return !claves.has((p.monto||'')+'|'+(p.fecha||'')); });
+  var todosLosPagos = pagosEmbebidos.concat(pagosExtra).sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); });
+
+  if (todosLosPagos.length) {
+    pagosEl.innerHTML = todosLosPagos.map(function(p) { return `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">
         <div>
-          <div style="font-size:13px;color:var(--text)">${escapeHTML(p.medio)}</div>
-          <div style="font-size:11px;color:var(--text3)">${escapeHTML(p.fecha)}</div>
+          <div style="font-size:13px;color:var(--text)">${escapeHTML(p.medio||'Efectivo')}</div>
+          <div style="font-size:11px;color:var(--text3)">${escapeHTML(p.fecha||'')}${p.obs?' · '+escapeHTML(p.obs):''}</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:13px;font-weight:500;color:var(--green)">$${(parseFloat(p.monto)||0).toLocaleString('es-AR')}</div>
-          <div style="font-size:11px;color:${p.saldo>0?'var(--amber)':'var(--text3)'}">Saldo: $${(parseFloat(p.saldo)||0).toLocaleString('es-AR')}</div>
+          ${p.saldo!=null?'<div style="font-size:11px;color:'+(p.saldo>0?'var(--amber)':'var(--text3)')+'">Saldo: $'+(parseFloat(p.saldo)||0).toLocaleString('es-AR')+'</div>':''}
         </div>
-      </div>`).join('');
+      </div>`; }).join('');
   } else {
     pagosEl.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:16px">Sin pagos registrados</div>';
   }
