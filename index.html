@@ -210,7 +210,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .role-badge.vendedor{background:var(--purple-bg);color:var(--purple)}
 
 /* ── CONTENT ── */
-.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px;box-sizing:border-box;width:100%}
+.content{flex:1;overflow-y:auto;overflow-x:auto;padding:24px;box-sizing:border-box;width:100%}
 .content::-webkit-scrollbar{width:4px}
 .content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 @media(max-width:768px){.content::-webkit-scrollbar{width:0!important;display:none!important}.content{scrollbar-width:none;-ms-overflow-style:none}.btn{touch-action:manipulation}.metric[onclick]{touch-action:manipulation}}
@@ -224,7 +224,7 @@ body.dark-mode ::-webkit-scrollbar{width:4px;height:4px}
 body.dark-mode ::-webkit-scrollbar-track{background:transparent}
 body.dark-mode ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:4px}
 body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)}
-.page{display:none;width:100%;box-sizing:border-box;overflow-x:hidden}
+.page{display:none;width:100%;box-sizing:border-box}
 .page.active{display:block}
 
 /* ── METRICS ── */
@@ -349,7 +349,7 @@ tr:hover td{color:var(--text)}
   .main{min-width:0;flex:1}
   body{overflow-y:auto;overflow-x:hidden;height:auto}
   .app{overflow:visible;height:auto}
-  .content{overflow-y:visible;overflow-x:hidden;height:auto}
+  .content{overflow-y:visible;overflow-x:auto;height:auto}
 
   /* ── TOPBAR ── */
   .topbar{padding:0 14px}
@@ -358,7 +358,7 @@ tr:hover td{color:var(--text)}
 
   /* ── CONTENIDO ── */
   .content{padding:10px;overflow-x:hidden}
-  .page{overflow-x:hidden}
+  .page{overflow-x:visible}
   .card{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:12px}
 
   /* ── GRIDS ── */
@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.62 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.63 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5069,12 +5069,14 @@ function _crearDropBusqueda() {
   d.id = 'busq-drop-global';
   d.style.cssText = 'display:none;position:fixed;z-index:9998;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.14);max-height:260px;overflow-y:auto';
   document.body.appendChild(d);
-  document.addEventListener('mousedown', function(e) {
+  var _closeDrop = function(e) {
     var drop = document.getElementById('busq-drop-global');
     if (drop && !drop.contains(e.target) && e.target !== _gDropInputRef) {
       drop.style.display = 'none';
     }
-  });
+  };
+  document.addEventListener('mousedown',  _closeDrop);
+  document.addEventListener('touchstart', _closeDrop, {passive:true});
   window.addEventListener('scroll', function(){ var d=document.getElementById('busq-drop-global'); if(d) d.style.display='none'; }, true);
   return d;
 }
@@ -6805,7 +6807,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.62-firebase',
+  VERSION: 'v20.63-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -19024,14 +19026,19 @@ function pptoAccion(accion) {
 
   // Guardar en Firebase
   if (window.fbDB && p.fbKey) {
+    if (!window.fbUpdate) { notify('Error: fbUpdate no disponible'); return; }
     window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
       estado: t.nuevoEstado,
       requiereAprobacion: false,
       audit: p.audit
-    }).catch(function(e){ notify('Error guardando: ' + e.message); });
+    }).then(function(){
+      notify('✓ ' + t.msg);
+    }).catch(function(e){ notify('Error guardando estado: ' + e.message); });
+  } else {
+    if (!p.fbKey) notify('Error: presupuesto sin fbKey — no se puede guardar');
+    else notify('Error: sin conexión a Firebase');
+    return;
   }
-
-  notify(t.msg);
   verPpto(p.id);
 }
 
