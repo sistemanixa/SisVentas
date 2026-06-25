@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.71 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.72 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1923,9 +1923,9 @@ tr:hover td{color:var(--text)}
             <div class="m-sub" id="cob-met-pendiente-sub">—</div>
           </div>
           <div class="metric">
-            <div class="m-label">Vencidos</div>
-            <div class="m-value" style="color:var(--red)" id="cob-met-vencidos">$0</div>
-            <div class="m-sub" style="color:var(--red)" id="cob-met-vencidos-sub">—</div>
+            <div class="m-label">Promedio por cobro</div>
+            <div class="m-value" id="cob-met-promedio">$0</div>
+            <div class="m-sub" id="cob-met-promedio-sub">este mes</div>
           </div>
         </div>
         <div class="card">
@@ -1963,7 +1963,10 @@ tr:hover td{color:var(--text)}
         </div>
 
         <div class="card">
-          <div class="card-head"><span class="card-title">Últimos pagos registrados</span></div>
+          <div class="card-head">
+            <span class="card-title">Historial de cobros</span>
+            <input type="text" id="cob-buscador" placeholder="Buscar por venta, cliente, medio..." style="width:220px;font-size:13px" oninput="filtrarCobros(this.value)">
+          </div>
           <table id="pagos-tbl">
             <thead><tr><th>Venta</th><th>Cliente</th><th>Fecha</th><th>Medio</th><th style="text-align:right">Monto</th><th style="text-align:right">Saldo restante</th><th></th></tr></thead>
             <tbody id="pagos-tbody"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr></tbody>
@@ -4770,10 +4773,16 @@ function kpiPendiente() {
   notify('Mostrando ventas con saldo pendiente');
 }
 // Compara si una fecha en formato DD/MM/YYYY (el que usa el sistema) pertenece al mes "YYYY-MM" dado
-function _fechaEsDelMes(fechaDDMMYYYY, mesYYYYMM) {
-  var partes = (fechaDDMMYYYY||'').split('/');
+function _fechaEsDelMes(fecha, mesYYYYMM) {
+  var f = (fecha||'').trim();
+  if (!f || !mesYYYYMM) return false;
+  // Formato yyyy-mm-dd (como guardan los pagos de cobranzas)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(f)) return f.slice(0,7) === mesYYYYMM;
+  // Formato dd/mm/yyyy
+  var partes = f.split('/');
   if (partes.length < 3) return false;
-  var mm = partes[1], yyyy = partes[2].length === 2 ? '20'+partes[2] : partes[2];
+  var mm = partes[1].padStart(2,'0');
+  var yyyy = partes[2].length === 2 ? '20'+partes[2] : partes[2];
   return (yyyy + '-' + mm) === mesYYYYMM;
 }
 
@@ -6807,7 +6816,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.71-firebase',
+  VERSION: 'v20.72-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10041,6 +10050,28 @@ function _imprimirOTReal() {
 }
 
 // ── CUENTA CORRIENTE: cargar pagos desde Firebase ──
+function anularPago(fbKey) {
+  if (!confirm('¿Anular este cobro? Quedará registrado como anulado en rojo.')) return;
+  var motivo = prompt('Motivo de la anulación (opcional):') || '';
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/pagos/' + fbKey), {
+    anulado: true,
+    anuladoFecha: new Date().toISOString().slice(0,10),
+    anuladoPor: currentUser || 'Admin',
+    anuladoMotivo: motivo
+  }).then(function(){ notify('✓ Cobro anulado'); })
+    .catch(function(e){ notify('Error: ' + e.message); });
+}
+
+function filtrarCobros(texto) {
+  var t = (texto||'').toLowerCase();
+  var rows = document.querySelectorAll('#pagos-tbody tr');
+  rows.forEach(function(tr){
+    var txt = tr.textContent.toLowerCase();
+    tr.style.display = (!t || txt.includes(t)) ? '' : 'none';
+  });
+}
+
 function elimPago(fbKey) {
   if (!confirm('Eliminar este pago?')) return;
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + fbKey))
@@ -10059,8 +10090,10 @@ function fbCargarPagos() {
     if (pagosTbody) {
       pagosTbody.innerHTML = listaCortada.length ? listaCortada.map(function(p, idx){
         var ventaLink = p.venta ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();irAVentaDesdeCobranza(\''+escapeHTML(p.venta)+'\');" title="Ver venta"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></button>' : '—';
-        var _ed = p.fbKey ? '<button class="btn btn-sm btn-icon" onclick="elimPago(\''+p.fbKey+'\');" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:13px"></i></button>' : '';
-        return '<tr><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(p.medio||'—')+'</td><td style="text-align:right;color:var(--green);font-weight:500">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>'+_ed+'</td></tr>';
+        var _ed = p.fbKey && !p.anulado ? '<button class="btn btn-sm btn-icon" onclick="anularPago(\''+p.fbKey+'\')" title="Anular cobro" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-ban" style="font-size:13px"></i></button>' : '';
+        var trStyle = p.anulado ? 'background:rgba(239,68,68,.08);opacity:.7' : '';
+        var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : '<span style="color:var(--green);font-weight:500">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</span>';
+        return '<tr style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(p.medio||'—')+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>'+_ed+'</td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
     // Cuenta corriente desde ventasList
@@ -10095,8 +10128,13 @@ function fbCargarPagos() {
       var cobradoMes = (lista||[]).filter(function(p){ return typeof _fechaEsDelMes==='function' && _fechaEsDelMes(p.fecha, mesActualCob); })
                                    .reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
       var _e=function(id){return document.getElementById(id);};
-      if(_e('cob-met-cobrado')) _e('cob-met-cobrado').textContent='$'+Math.round(cobradoMes).toLocaleString('es-AR');
-      if(_e('vm-cobrado-sub2')) _e('vm-cobrado-sub2').textContent='pagos registrados este mes';
+      var pagosMes = (lista||[]).filter(function(p){ return typeof _fechaEsDelMes==='function' && _fechaEsDelMes(p.fecha, mesActualCob) && !p.anulado; });
+      var cobradoMesMonto = pagosMes.reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
+      var promedioCobro = pagosMes.length ? Math.round(cobradoMesMonto / pagosMes.length) : 0;
+      if(_e('cob-met-cobrado')) _e('cob-met-cobrado').textContent='$'+Math.round(cobradoMesMonto).toLocaleString('es-AR');
+      if(_e('vm-cobrado-sub2')) _e('vm-cobrado-sub2').textContent=pagosMes.length+' cobros este mes';
+      if(_e('cob-met-promedio')) _e('cob-met-promedio').textContent='$'+promedioCobro.toLocaleString('es-AR');
+      if(_e('cob-met-promedio-sub')) _e('cob-met-promedio-sub').textContent=pagosMes.length ? 'en '+pagosMes.length+' cobros' : 'sin cobros este mes';
       if(_e('cc-met-clientes')) _e('cc-met-clientes').textContent=conSaldo;
       if(_e('cc-met-clientes-sub')) _e('cc-met-clientes-sub').textContent='de '+ccLista.length+' activos';
       if(_e('cc-met-deuda')) _e('cc-met-deuda').textContent='$'+Math.round(totalDeuda).toLocaleString('es-AR');
