@@ -229,9 +229,9 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 
 /* ── METRICS ── */
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
-.metric{background:var(--bg3);border-radius:var(--radius);padding:14px 16px;touch-action:pan-y}
-.metrics{touch-action:pan-y}
-.card{touch-action:pan-y}
+.metric{background:var(--bg3);border-radius:var(--radius);padding:14px 16px}
+.metrics{}
+.card{}
 .m-label{font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
 .m-value{font-size:22px;font-weight:600;color:var(--text);margin-bottom:4px}
 .m-sub{font-size:11px;color:var(--text3)}
@@ -269,9 +269,9 @@ tr:hover td{color:var(--text)}
 .b-purple{background:var(--purple-bg);color:var(--purple)}
 
 /* ── BAR CHART ── */
-.bar-area{display:flex;align-items:flex-end;gap:6px;height:100px;margin-top:16px;padding:12px 4px 0 4px;box-sizing:border-box;touch-action:pan-y}
-.bc{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0;touch-action:pan-y}
-.bar{width:100%;background:var(--bg4);border-radius:3px 3px 0 0;cursor:pointer;transition:background .15s;min-height:4px;touch-action:pan-y}
+.bar-area{display:flex;align-items:flex-end;gap:6px;height:100px;margin-top:16px;padding:12px 4px 0 4px;box-sizing:border-box;touch-action:pan-x pan-y}
+.bc{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0;touch-action:pan-x pan-y}
+.bar{width:100%;background:var(--bg4);border-radius:3px 3px 0 0;cursor:pointer;transition:background .15s;min-height:4px;touch-action:pan-x pan-y}
 .bar:hover,.bar.today{background:var(--text)}
 .bar-lbl{font-size:10px;color:var(--text3);white-space:nowrap}
 .bar-lbl.today{color:var(--text);font-weight:600}
@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.65 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.66 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -996,22 +996,22 @@ tr:hover td{color:var(--text)}
       <!-- ── DASHBOARD ── -->
       <div id="page-dashboard" class="page active">
         <div class="metrics">
-          <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="kpiNavegar('ventasHoy')" title="Ver detalle de ventas">
+          <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiNavegar('ventasHoy')" title="Ver detalle de ventas">
             <div class="m-label">Ventas hoy</div>
             <div class="m-value" id="kpi-ventas-hoy">$0</div>
             <div class="m-sub" id="kpi-ventas-diff" style="color:var(--text3)">sin datos aún</div>
           </div>
-          <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="kpiNavegar('deuda')" title="Ver cobranzas">
+          <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiNavegar('deuda')" title="Ver cobranzas">
             <div class="m-label">Deuda clientes</div>
             <div class="m-value" id="kpi-deuda" style="color:var(--amber)">$0</div>
             <div class="m-sub m-warn" id="kpi-deuda-sub">cargando...</div>
           </div>
-          <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="kpiNavegar('presupuestos')" title="Ver presupuestos">
+          <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiNavegar('presupuestos')" title="Ver presupuestos">
             <div class="m-label">Presupuestos</div>
             <div class="m-value" id="kpi-pptos">0</div>
             <div class="m-sub m-warn"><span id="kpi-pptos-sub">cargando...</span></div>
           </div>
-          <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="kpiNavegar('iva')" title="Ver Facturaciones">
+          <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiNavegar('iva')" title="Ver Facturaciones">
             <div class="m-label">IVA a compensar</div>
             <div class="m-value" id="kpi-iva">$0</div>
             <div class="m-sub" id="kpi-iva-mes">cargando...</div>
@@ -1045,7 +1045,7 @@ tr:hover td{color:var(--text)}
             <span class="card-title"><i class="ti ti-chart-line"></i> Rentabilidad del mes</span>
             <button class="btn btn-sm" style="touch-action:manipulation" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))"><i class="ti ti-external-link"></i> Ver reporte completo</button>
           </div>
-          <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;touch-action:pan-y">
+          <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;touch-action:pan-x pan-y">
             <div class="metric" style="cursor:pointer;touch-action:manipulation" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver detalle de ventas">
               <div class="m-label">Ingresos del mes</div><div class="m-value" id="dash-rent-ingresos" style="color:var(--green)">$0</div><div class="m-sub">total facturado</div>
             </div>
@@ -1078,7 +1078,7 @@ tr:hover td{color:var(--text)}
         </div>
         <div class="card">
           <div class="card-head">
-            <span class="card-title" style="cursor:pointer;touch-action:pan-y" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver todas las ventas">Últimas ventas</span>
+            <span class="card-title" style="cursor:pointer;touch-action:pan-x pan-y" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver todas las ventas">Últimas ventas</span>
             <button class="btn btn-sm" style="touch-action:manipulation" onclick="showPage('venta',document.querySelectorAll('.nav-item')[1])"><i class="ti ti-plus"></i> Nueva venta</button>
           </div>
           <!-- Tabla desktop -->
@@ -1205,22 +1205,22 @@ tr:hover td{color:var(--text)}
   <div id="ventas-list-view">
     <!-- Métricas rápidas -->
     <div class="metrics">
-      <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="kpiVentasMes()" title="Ver ventas de este mes">
+      <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiVentasMes()" title="Ver ventas de este mes">
         <div class="m-label">Ventas este mes</div>
         <div class="m-value" id="vm-total-mes">$0</div>
         <div class="m-sub m-up" id="vm-total-sub">—</div>
       </div>
-      <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="kpiCobrado()" title="Ver ventas cobradas">
+      <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiCobrado()" title="Ver ventas cobradas">
         <div class="m-label">Cobrado</div>
         <div class="m-value" style="color:var(--green)" id="vm-cobrado">$0</div>
         <div class="m-sub" id="vm-cobrado-sub">—</div>
       </div>
-      <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="kpiPendiente()" title="Ver ventas con saldo pendiente">
+      <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiPendiente()" title="Ver ventas con saldo pendiente">
         <div class="m-label">Pendiente</div>
         <div class="m-value" style="color:var(--amber)" id="vm-pendiente">$0</div>
         <div class="m-sub" id="vm-pendiente-sub">—</div>
       </div>
-      <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="kpiIva()" title="Ver ventas facturadas de este mes">
+      <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiIva()" title="Ver ventas facturadas de este mes">
         <div class="m-label">IVA del mes</div>
         <div class="m-value" id="vm-iva">$0</div>
         <div class="m-sub" id="vm-iva-sub">vence 20/06</div>
@@ -3027,27 +3027,27 @@ tr:hover td{color:var(--text)}
 
         <!-- Métricas -->
         <div class="metrics" style="grid-template-columns:repeat(5,1fr)">
-          <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="spFiltrar('nuevo')">
+          <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="spFiltrar('nuevo')">
             <div class="m-label">Nuevos</div>
             <div class="m-value" id="sp-cnt-nuevo" style="color:var(--blue)">0</div>
             <div class="m-sub">sin atender</div>
           </div>
-          <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="spFiltrar('diagnostico')">
+          <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="spFiltrar('diagnostico')">
             <div class="m-label">En diagnóstico</div>
             <div class="m-value" id="sp-cnt-diagnostico" style="color:var(--amber)">0</div>
             <div class="m-sub">revisión remota</div>
           </div>
-          <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="spFiltrar('visita')">
+          <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="spFiltrar('visita')">
             <div class="m-label">Visita requerida</div>
             <div class="m-value" id="sp-cnt-visita" style="color:var(--red)">0</div>
             <div class="m-sub">esperando técnico</div>
           </div>
-          <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="spFiltrar('ot_activa')">
+          <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="spFiltrar('ot_activa')">
             <div class="m-label">OT activa</div>
             <div class="m-value" id="sp-cnt-ot_activa" style="color:var(--purple)">0</div>
             <div class="m-sub">técnico asignado</div>
           </div>
-          <div class="metric" style="cursor:pointer;touch-action:pan-y" onclick="spFiltrar('')">
+          <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="spFiltrar('')">
             <div class="m-label">Cerrados mes</div>
             <div class="m-value" id="sp-cnt-cerrado" style="color:var(--green)">0</div>
             <div class="m-sub">este mes</div>
@@ -5615,7 +5615,7 @@ function renderTablaEmpleados() {
     var montoHsEx = hsExtraMes * valorHsEx;
     var comCalc = (typeof calcularComisionEmpleado === 'function') ? calcularComisionEmpleado(e, new Date().toISOString().slice(0,7)) : null;
     var comision = comCalc ? (comCalc.comision||0) : 0;
-    return '<tr class="er" style="cursor:pointer;touch-action:pan-y" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')">' +
+    return '<tr class="er" style="cursor:pointer;touch-action:pan-x pan-y" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')">' +
       '<td style="font-family:monospace;font-weight:600;color:var(--text3)">'+String(e.legajo||'—').padStart(4,'0')+'</td>' +
       '<td style="font-weight:500">'+escapeHTML(e.nombre||'—')+'</td>' +
       '<td><span class="badge '+catColor+'">'+escapeHTML(catLabel)+'</span></td>' +
@@ -6807,7 +6807,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.65-firebase',
+  VERSION: 'v20.66-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9800,7 +9800,7 @@ function verCuentaClienteReal(nombre) {
   var rows = movs.map(function(m) {
     saldoCorrido += m.debe - m.haber;
     var ventaId = m.tipo === 'Venta' ? (m.concepto.replace('Venta ','')) : null;
-    var trStyle = ventaId ? 'cursor:pointer;touch-action:pan-y' : '';
+    var trStyle = ventaId ? 'cursor:pointer;touch-action:pan-x pan-y' : '';
     var trClick = ventaId ? 'onclick="verVentaDesdeHistorial(\''+ventaId+'\',this)"' : '';
     return '<tr style="'+trStyle+'" '+trClick+' onmouseenter="if(this.onclick)this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
       '<td>' + escapeHTML(m.fecha) + '</td>' +
@@ -10087,7 +10087,7 @@ function fbCargarPagos() {
       var ccLista = Object.entries(ccMap).filter(function(e){ return e[1].total>0; }).sort(function(a,b){ return (b[1].total-b[1].cobrado)-(a[1].total-a[1].cobrado); });
       ccTbody.innerHTML = ccLista.length ? ccLista.map(function(e){
         var nom=e[0],d=e[1]; var saldo=d.total-d.cobrado;
-        return '<tr class="ccrow" style="cursor:pointer;touch-action:pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(nom).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
+        return '<tr class="ccrow" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(nom).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
       var totalDeuda=ccLista.reduce(function(s,e){return s+(e[1].total-e[1].cobrado>0?e[1].total-e[1].cobrado:0);},0);
       var conSaldo=ccLista.filter(function(e){return e[1].total-e[1].cobrado>0;}).length;
@@ -18035,7 +18035,7 @@ function renderTablaInformes() {
     var estBadge = {borrador:'<span class="badge b-amber">Borrador</span>',completado:'<span class="badge b-blue">Completado</span>',enviado:'<span class="badge b-green">Enviado</span>'}[inf.estado]||inf.estado;
     var tipoBadge = {seguro:'<span class="badge b-red">Seguro</span>',garantia:'<span class="badge b-purple">Garantía</span>',mantenimiento:'<span class="badge b-blue">Mantenimiento</span>',instalacion:'<span class="badge b-green">Instalación</span>',tecnico:'<span class="badge b-blue">Técnico</span>'}[inf.tipo]||'<span class="badge b-blue">Técnico</span>';
     var fecha = inf.fecha ? inf.fecha.split('-').reverse().join('/') : '—';
-    return '<tr style="cursor:pointer;touch-action:pan-y" onclick="editarInforme(\''+inf.fbKey+'\')">' +
+    return '<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="editarInforme(\''+inf.fbKey+'\')">' +
       '<td style="font-family:monospace;font-size:12px;font-weight:500">'+ escapeHTML(inf.numero||'—') +'</td>' +
       '<td style="color:var(--text3);font-size:12px">'+ fecha +'</td>' +
       '<td><div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(inf.cliente||'—') +'</div><div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(inf.equipo||'') +'</div></td>' +
@@ -18688,7 +18688,7 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
     const e = PPTO_ESTADOS[p.estado] || {};
     const totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
     const alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
-    return `<tr style="cursor:pointer;touch-action:pan-y" onclick="verPpto('${p.id}')">
+    return `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verPpto('${p.id}')">
       <td style="font-weight:500">${escapeHTML(p.id)}${alerta}</td>
       <td>${escapeHTML(p.cliente)}</td>
       <td class="tr" style="font-weight:500">${totalFmt}</td>
@@ -20040,15 +20040,15 @@ function renderKPIsDashboard() {
         var iva = parseFloat(v.iva) || 0;
         var total = parseFloat(v.total) || 0;
         var vid = escapeHTML(v.id||'');
-        return '<tr style="cursor:pointer;touch-action:pan-y" onclick="verDetalleVentaDesdeId(\'' + vid + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
+        return '<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verDetalleVentaDesdeId(\'' + vid + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
           '<td style="font-family:monospace;font-size:12px">' + vid + '</td>' +
           '<td>' + escapeHTML(v.cliente||'') + '</td>' +
           '<td class="hide-mobile" style="color:var(--text3)">' + _mostrarFecha(v.fecha) + '</td>' +
           '<td style="text-align:right">$' + subtotal.toLocaleString('es-AR') + '</td>' +
           '<td style="text-align:right;color:var(--text3)">$' + iva.toLocaleString('es-AR') + '</td>' +
           '<td style="text-align:right;font-weight:600">$' + total.toLocaleString('es-AR') + '</td>' +
-          '<td style="text-align:right;touch-action:pan-y">' + estadoLbl + '</td>' +
-          '<td style="touch-action:pan-y"><button class="btn btn-sm btn-icon" style="touch-action:pan-y" onclick="event.stopPropagation();verDetalleVentaDesdeId(\'' + vid + '\')" title="Ver detalle completo"><i class="ti ti-arrow-right" style="font-size:14px"></i></button></td>' +
+          '<td style="text-align:right;touch-action:pan-x pan-y">' + estadoLbl + '</td>' +
+          '<td style="touch-action:pan-x pan-y"><button class="btn btn-sm btn-icon" style="touch-action:pan-x pan-y" onclick="event.stopPropagation();verDetalleVentaDesdeId(\'' + vid + '\')" title="Ver detalle completo"><i class="ti ti-arrow-right" style="font-size:14px"></i></button></td>' +
         '</tr>';
       }).join('');
     } else {
@@ -20068,10 +20068,10 @@ function renderKPIsDashboard() {
     } else {
       otTabla.innerHTML = otsPend.slice(0,6).map(function(o) {
         var badge = o.estado === 'en_progreso' ? '<span class="badge b-blue">En progreso</span>' : '<span class="badge b-amber">Pendiente</span>';
-        return '<tr style="cursor:pointer;touch-action:pan-y" onclick="abrirOTDesdeId(\'' + escapeHTML(o.id||o.fbKey||'') + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
+        return '<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="abrirOTDesdeId(\'' + escapeHTML(o.id||o.fbKey||'') + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
           '<td>' + escapeHTML(o.cliente||'') + '</td>' +
           '<td style="color:var(--text3)">' + escapeHTML(o.tecnico||'Sin asignar') + '</td>' +
-          '<td style="text-align:right;touch-action:pan-y">' + badge + '</td>' +
+          '<td style="text-align:right;touch-action:pan-x pan-y">' + badge + '</td>' +
         '</tr>';
       }).join('');
     }
