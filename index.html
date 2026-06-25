@@ -5,7 +5,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 <script>
   // Desregistro forzado de cualquier Service Worker que haya quedado de una instalación
   // PWA anterior. Si esto no corre, un SW viejo puede seguir sirviendo versiones
@@ -246,7 +246,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 .card-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:400}
 
 /* ── TABLES ── */
-table{width:100%;border-collapse:collapse;touch-action:pan-y}
+table{width:100%;border-collapse:collapse;touch-action:pan-x pan-y}
 th{font-size:11px;color:var(--text3);text-align:left;padding:0 10px 9px 0;border-bottom:0.5px solid var(--border);font-weight:400}
 td{padding:9px 10px 9px 0;font-size:13px;color:var(--text2);border-bottom:0.5px solid var(--border)}
 tr:last-child td{border-bottom:none}
@@ -357,7 +357,7 @@ tr:hover td{color:var(--text)}
   .topbar-right{gap:4px}
 
   /* ── CONTENIDO ── */
-  .content{padding:10px;overflow-x:hidden}
+  .content{padding:10px;overflow-x:auto}
   .page{overflow-x:visible}
   .card{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:12px}
 
@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.64 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.65 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6807,7 +6807,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.64-firebase',
+  VERSION: 'v20.65-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9820,14 +9820,22 @@ function irAVentaDesdeCobranza(ventaId) {
   if (!ventaId || ventaId === '—') return;
   var vid = String(ventaId).trim();
   var num = vid.replace(/[^0-9]/g, '');
-  console.log('[COB DEBUG] buscando ventaId:', vid, '| num:', num, '| ventasList ids:', (ventasList||[]).slice(0,5).map(function(x){return x.id;}));
+  // Log detallado para diagnóstico
+  var allIds = (ventasList||[]).slice(0,8).map(function(x){return x.id+'(fbKey:'+x.fbKey+')'});
+  console.log('[COB] buscando:', vid, '| num:', num, '| primeras ventas:', allIds);
   var v = (ventasList||[]).find(function(x){
+    var xNum = String(x.id||'').replace(/[^0-9]/g,'');
+    var xFbNum = String(x.fbKey||'').replace(/[^0-9]/g,'');
     return x.id === vid || x.fbKey === vid ||
-      (num && (String(x.id).replace(/[^0-9]/g,'') === num ||
-               String(x.fbKey||'').replace(/[^0-9]/g,'') === num ||
-               String(x.idOriginal||'').replace(/[^0-9]/g,'') === num));
+      (num && num.length >= 4 && (xNum === num || xFbNum === num ||
+        String(x.idOriginal||'').replace(/[^0-9]/g,'') === num));
   });
-  if (!v) { notify('Venta ' + vid + ' no encontrada — revisá consola (F12)'); return; }
+  if (!v) {
+    console.log('[COB] NO encontrada. Total ventas en lista:', (ventasList||[]).length);
+    notify('Venta ' + vid + ' no encontrada');
+    return;
+  }
+  console.log('[COB] Encontrada:', v.id, 'fbKey:', v.fbKey);
   window._ventaDesdeHistorialOrigen = 'cobranzas';
   verDetalleVenta(v.fbKey || v.id);
 }
@@ -18941,6 +18949,45 @@ function renderAudit(p) {
 }
 
 // Ejecutar una acción sobre el presupuesto actual
+// Enviar presupuesto al cliente por WhatsApp (si tiene teléfono) o imprimir PDF
+function pptoEnviarCliente() {
+  var p = (pptoData||[]).find(function(x){ return x.id === pptoActualId || x.fbKey === pptoActualId; });
+  if (!p) { notify('Presupuesto no encontrado'); return; }
+
+  // Buscar teléfono del cliente
+  var cli = (clientesData||[]).find(function(c){
+    return c.nombre === p.cliente || String(c.id) === String(p.idCliente);
+  });
+  var tel = cli && (cli.telefono || cli.tel || cli.celular || '');
+  // Limpiar número
+  tel = tel ? tel.replace(/\D/g,'') : '';
+  if (tel && tel.length < 8) tel = '';
+
+  // Texto del mensaje
+  var total = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
+  var vence = p.vence || '';
+  var msg = encodeURIComponent(
+    'Hola ' + (p.cliente||'') + ', te enviamos el presupuesto ' + (p.id||'') +
+    ' por un total de ' + total + '.' +
+    (vence ? ' Válido hasta el ' + vence + '.' : '') +
+    '\n\nPodemos coordinarlo cuando quieras.'
+  );
+
+  if (tel) {
+    // Tiene teléfono: abrir WhatsApp + imprimir PDF
+    var wa = 'https://wa.me/54' + tel + '?text=' + msg;
+    window.open(wa, '_blank');
+    setTimeout(function(){ imprimirPresupuesto(); }, 800);
+  } else {
+    // Sin teléfono: solo PDF
+    notify('El cliente no tiene teléfono registrado — se abre el PDF para enviar manualmente');
+    setTimeout(function(){ imprimirPresupuesto(); }, 300);
+  }
+
+  // Igual registrar que se envió
+  pptoAccion('enviar_cliente');
+}
+
 function pptoAccion(accion) {
   const p = pptoData.find(x => x.id === pptoActualId || x.fbKey === pptoActualId);
   if (!p) { notify('Presupuesto no encontrado'); return; }
@@ -21166,7 +21213,7 @@ function renderVentasTabla(lista) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin ventas para mostrar</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map(v => `<tr style="cursor:pointer;touch-action:pan-y" onclick="verVenta('${v.id}')">
+  tbody.innerHTML = rows.map(v => `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verVenta('${v.id}')">
     <td style="font-weight:500;color:var(--text);font-family:monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(v.id)}</td>
     <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(v.cliente)}</td>
     <td style="color:var(--text3);white-space:nowrap">${_mostrarFecha(v.fecha)}</td>
