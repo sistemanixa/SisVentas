@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.66 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.68 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6807,7 +6807,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.66-firebase',
+  VERSION: 'v20.68-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9820,9 +9820,6 @@ function irAVentaDesdeCobranza(ventaId) {
   if (!ventaId || ventaId === '—') return;
   var vid = String(ventaId).trim();
   var num = vid.replace(/[^0-9]/g, '');
-  // Log detallado para diagnóstico
-  var allIds = (ventasList||[]).slice(0,8).map(function(x){return x.id+'(fbKey:'+x.fbKey+')'});
-  console.log('[COB] buscando:', vid, '| num:', num, '| primeras ventas:', allIds);
   var v = (ventasList||[]).find(function(x){
     var xNum = String(x.id||'').replace(/[^0-9]/g,'');
     var xFbNum = String(x.fbKey||'').replace(/[^0-9]/g,'');
@@ -9830,14 +9827,9 @@ function irAVentaDesdeCobranza(ventaId) {
       (num && num.length >= 4 && (xNum === num || xFbNum === num ||
         String(x.idOriginal||'').replace(/[^0-9]/g,'') === num));
   });
-  if (!v) {
-    console.log('[COB] NO encontrada. Total ventas en lista:', (ventasList||[]).length);
-    notify('Venta ' + vid + ' no encontrada');
-    return;
-  }
-  console.log('[COB] Encontrada:', v.id, 'fbKey:', v.fbKey);
+  if (!v) { notify('Venta ' + vid + ' no encontrada'); return; }
   window._ventaDesdeHistorialOrigen = 'cobranzas';
-  verDetalleVenta(v.fbKey || v.id);
+  verDetalleVenta(v.id);
 }
 
 function verVentaDesdeHistorial(ventaId, trEl) {
