@@ -588,7 +588,7 @@ tr:hover td{color:var(--text)}
 
 /* ── FAB (Botón flotante) ── */
 .fab-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:none;flex-direction:column;align-items:flex-end;gap:10px;will-change:transform;transform:translateZ(0);-webkit-transform:translateZ(0)}
-@media(max-width:768px){.fab-container{display:flex}.fab-container.hidden{display:none!important}}
+@media(max-width:768px){.fab-container{display:none!important}/* FAB deshabilitado — interfiere con scroll */}
 @media(min-width:769px){.notif{bottom:24px!important;right:24px!important}}
 .fab-main{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .2s;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;will-change:transform;transform:translateZ(0);-webkit-transform:translateZ(0)}
 .fab-main.open{transform:rotate(45deg)}
@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.61 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.62 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1194,6 +1194,12 @@ tr:hover td{color:var(--text)}
 
       <!-- ── DETALLE ── -->
       <div id="page-detalle" class="page">
+        <div class="metrics" style="margin-bottom:12px">
+          <div class="metric"><div class="m-label">Este mes</div><div class="m-value" id="stat-ven-mes" style="color:var(--green)">—</div><div class="m-sub">total facturado</div></div>
+          <div class="metric"><div class="m-label">Cantidad</div><div class="m-value" id="stat-ven-cant">—</div><div class="m-sub">ventas del mes</div></div>
+          <div class="metric"><div class="m-label">Pendiente cobro</div><div class="m-value" id="stat-ven-pendiente" style="color:var(--amber)">—</div><div class="m-sub">sin cobrar</div></div>
+          <div class="metric"><div class="m-label">Ticket promedio</div><div class="m-value" id="stat-ven-ticket">—</div><div class="m-sub">por venta</div></div>
+        </div>
 
   <!-- Vista lista de ventas -->
   <div id="ventas-list-view">
@@ -3558,6 +3564,12 @@ tr:hover td{color:var(--text)}
 
       <!-- ── CLIENTES ── -->
       <div id="page-clientes" class="page">
+        <div class="metrics" style="margin-bottom:12px">
+          <div class="metric"><div class="m-label">Total clientes</div><div class="m-value" id="stat-cli-total">—</div><div class="m-sub">registrados</div></div>
+          <div class="metric"><div class="m-label">Con ventas</div><div class="m-value" id="stat-cli-conventa">—</div><div class="m-sub">clientes activos</div></div>
+          <div class="metric"><div class="m-label">Con deuda</div><div class="m-value" id="stat-cli-deuda" style="color:var(--amber)">—</div><div class="m-sub">saldo pendiente</div></div>
+          <div class="metric"><div class="m-label">Nuevos este mes</div><div class="m-value" id="stat-cli-nuevos" style="color:var(--green)">—</div><div class="m-sub">altas del mes</div></div>
+        </div>
         <div class="card">
           <div class="card-head">
             <span class="card-title">Clientes</span>
@@ -3582,6 +3594,12 @@ tr:hover td{color:var(--text)}
 
       <!-- ── PRODUCTOS ── -->
       <div id="page-productos" class="page">
+        <div class="metrics" style="margin-bottom:12px">
+          <div class="metric"><div class="m-label">Total productos</div><div class="m-value" id="stat-prod-total">—</div><div class="m-sub">en catálogo</div></div>
+          <div class="metric"><div class="m-label">Con stock</div><div class="m-value" id="stat-prod-stock" style="color:var(--green)">—</div><div class="m-sub">disponibles</div></div>
+          <div class="metric"><div class="m-label">Sin precio</div><div class="m-value" id="stat-prod-sinprecio" style="color:var(--amber)">—</div><div class="m-sub">requieren precio</div></div>
+          <div class="metric"><div class="m-label">Más vendido</div><div class="m-value" id="stat-prod-top" style="font-size:11px;line-height:1.3">—</div><div class="m-sub">del mes</div></div>
+        </div>
 
         <!-- ALERTAS STOCK -->
         <div id="stock-alerts" style="margin-bottom:12px;display:flex;flex-direction:column;gap:6px"></div>
@@ -5127,6 +5145,76 @@ function _dx(s, k) {
   return r;
 }
 
+
+// ── Mini-dash stats por módulo ────────────────────────────────────────────────
+function actualizarStatClientes() {
+  var total   = (clientesData||[]).length;
+  var hoy     = new Date();
+  var mesAct  = hoy.getMonth(); var anioAct = hoy.getFullYear();
+  var nuevos  = (clientesData||[]).filter(function(c){
+    var f = c.fechaAlta || c.created || '';
+    if (!f) return false;
+    var d = new Date(f); return d.getMonth()===mesAct && d.getFullYear()===anioAct;
+  }).length;
+  // Clientes con deuda (saldo pendiente en ventas)
+  var conDeuda = new Set();
+  (ventasList||[]).forEach(function(v){
+    if ((parseFloat(v.saldo)||0) > 0 && v.cliente) conDeuda.add(v.cliente);
+  });
+  // Clientes con al menos una venta
+  var conVenta = new Set((ventasList||[]).map(function(v){ return v.cliente; }));
+  var _s = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+  _s('stat-cli-total',   total);
+  _s('stat-cli-conventa',conVenta.size);
+  _s('stat-cli-deuda',   conDeuda.size);
+  _s('stat-cli-nuevos',  nuevos || '0');
+}
+
+function actualizarStatProductos() {
+  var prods = Object.values(prodData||{});
+  var total  = prods.length;
+  var conStock   = prods.filter(function(p){ return (parseFloat(p.stock)||0) > 0; }).length;
+  var sinPrecio  = prods.filter(function(p){ return !(parseFloat(p.venta)||parseFloat(p.precio)||0); }).length;
+  // Más vendido del mes
+  var hoy = new Date(); var mes = hoy.getMonth(); var anio = hoy.getFullYear();
+  var conteo = {};
+  (ventasList||[]).forEach(function(v){
+    var f = v.fecha||''; var d = new Date(f);
+    if (d.getMonth()!==mes || d.getFullYear()!==anio) return;
+    (v.items||[]).forEach(function(it){
+      var k = it.desc||it.nombre||''; if (!k) return;
+      conteo[k] = (conteo[k]||0) + (parseFloat(it.qty)||1);
+    });
+  });
+  var topProd = '—';
+  var maxQty  = 0;
+  Object.entries(conteo).forEach(function(e){ if(e[1]>maxQty){ maxQty=e[1]; topProd=e[0]; } });
+  if (topProd.length > 18) topProd = topProd.slice(0,16)+'…';
+  var _s = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+  _s('stat-prod-total',    total);
+  _s('stat-prod-stock',    conStock);
+  _s('stat-prod-sinprecio',sinPrecio);
+  _s('stat-prod-top',      topProd);
+}
+
+function actualizarStatVentas() {
+  var hoy = new Date(); var mes = hoy.getMonth(); var anio = hoy.getFullYear();
+  var ventasMes = (ventasList||[]).filter(function(v){
+    var f = v.fecha||''; var d = new Date(f);
+    return d.getMonth()===mes && d.getFullYear()===anio;
+  });
+  var totalMes   = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var pendiente  = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.saldo)||0); }, 0);
+  var cant       = ventasMes.length;
+  var ticket     = cant ? Math.round(totalMes/cant) : 0;
+  var _m = function(n){ return '$'+Math.round(n).toLocaleString('es-AR'); };
+  var _s = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+  _s('stat-ven-mes',       _m(totalMes));
+  _s('stat-ven-cant',      cant);
+  _s('stat-ven-pendiente', _m(pendiente));
+  _s('stat-ven-ticket',    _m(ticket));
+}
+// ─────────────────────────────────────────────────────────────────────────────
 function guardarConfigLogin(btn) {
   var email = (document.getElementById('cfg-quick-email')||{}).value || '';
   var pass  = (document.getElementById('cfg-quick-pass')||{}).value || '';
@@ -5182,11 +5270,27 @@ function toggleCSFActual() {
 }
 
 function accesoRapido() {
-  var inp = document.getElementById('l-user');
+  var inp  = document.getElementById('l-user');
   var pass = document.getElementById('l-pass');
+  var btnShowPass = document.getElementById('btn-show-pass');
   if (window._quickLoginEmail && inp)  inp.value  = window._quickLoginEmail;
-  if (window._quickLoginPass  && pass) pass.value = window._quickLoginPass;
-  if (!window._quickLoginEmail) return; // sin credenciales configuradas, no hacer nada
+  if (window._quickLoginPass  && pass) {
+    pass.value = window._quickLoginPass;
+    pass.type  = 'password'; // asegurar que esté oculta
+    // Bloquear el botón de mostrar contraseña
+    if (btnShowPass) {
+      btnShowPass.style.display = 'none';
+    }
+    // Al limpiar el campo, volver a habilitar
+    var onInput = function() {
+      if (!pass.value) {
+        if (btnShowPass) btnShowPass.style.display = '';
+        pass.removeEventListener('input', onInput);
+      }
+    };
+    pass.addEventListener('input', onInput);
+  }
+  if (!window._quickLoginEmail) return;
   iniciarLogin();
 }
 
@@ -6578,14 +6682,14 @@ function showPage(id, el) {
 
   // Lógica por módulo
   if (id === 'empleados')      { if(typeof volverlista==='function') volverlista(); cargarMovimientosParaTablaEmp(); }
-  if (id === 'clientes')      { window._histClienteHuella = null; setTimeout(function(){ if(typeof renderTablaClientes==='function'){ var inp=document.querySelector('#page-clientes .search-input'); renderTablaClientes(inp?inp.value:''); }}, 100); }
+  if (id === 'clientes')      { window._histClienteHuella = null; setTimeout(function(){ if(typeof renderTablaClientes==='function'){ var inp=document.querySelector('#page-clientes .search-input'); renderTablaClientes(inp?inp.value:''); } if(typeof actualizarStatClientes==='function') actualizarStatClientes(); }, 100); }
   if (id === 'venta') {
     setTimeout(function(){
       var body = document.getElementById('det-body');
       if (body && body.children.length === 0) addRow();
     }, 100);
   }
-  if (id === 'detalle')       { setTimeout(function(){ if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); }, 100); }
+  if (id === 'detalle')       { setTimeout(function(){ if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); if(typeof actualizarStatVentas==='function') actualizarStatVentas(); }, 100); }
   if (id === 'presupuesto')    { setTimeout(function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }, 50); }
   if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
   if (id === 'venta')          { setTimeout(function(){ if(typeof inicializarFilasVenta==='function') inicializarFilasVenta(); }, 50); }
@@ -6701,7 +6805,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.61-firebase',
+  VERSION: 'v20.62-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8628,6 +8732,7 @@ function showCfgTab(id, el) {
   el.classList.add('active');
   if (id === 'roles') renderTablaRoles();
   if (id === 'facturacion' && typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
+  if (id === 'productos' && typeof actualizarStatProductos === 'function') setTimeout(actualizarStatProductos, 200);
   if (id === 'cargos') renderCargosConfig();
   if (id === 'comisiones') renderComisionesConfig();
   if (id === 'notificaciones' && typeof renderConfigAlertas === 'function') renderConfigAlertas();
