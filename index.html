@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.59 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.60 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1046,16 +1046,16 @@ tr:hover td{color:var(--text)}
             <button class="btn btn-sm" style="touch-action:manipulation" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))"><i class="ti ti-external-link"></i> Ver reporte completo</button>
           </div>
           <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;touch-action:pan-y">
-            <div class="metric" style="touch-action:pan-y">
+            <div class="metric" style="cursor:pointer;touch-action:manipulation" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver detalle de ventas">
               <div class="m-label">Ingresos del mes</div><div class="m-value" id="dash-rent-ingresos" style="color:var(--green)">$0</div><div class="m-sub">total facturado</div>
             </div>
-            <div class="metric" style="touch-action:pan-y">
+            <div class="metric" style="cursor:pointer;touch-action:manipulation" onclick="showPage('gastos',document.querySelector('[onclick*=gastos]'))" title="Ver módulo de gastos">
               <div class="m-label">Gastos del mes</div><div class="m-value" id="dash-rent-gastos" style="color:var(--red)">$0</div><div class="m-sub">gastos cargados</div>
             </div>
-            <div class="metric" style="touch-action:pan-y">
+            <div class="metric" style="cursor:pointer;touch-action:manipulation" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))" title="Ver reporte completo">
               <div class="m-label">Utilidad estimada</div><div class="m-value" id="dash-rent-utilidad">$0</div><div class="m-sub">ingresos − gastos</div>
             </div>
-            <div class="metric" style="touch-action:pan-y">
+            <div class="metric" style="cursor:pointer;touch-action:manipulation" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))" title="Ver reporte completo">
               <div class="m-label">Margen</div><div class="m-value" id="dash-rent-margen">—</div><div class="m-sub" id="dash-rent-margen-sub">—</div>
             </div>
           </div>
@@ -6701,7 +6701,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.59-firebase',
+  VERSION: 'v20.60-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
