@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.72 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.73 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5042,18 +5042,20 @@ function editarProducto(id) { abrirFormProducto(id); }
 // ── RENDER TABLA VENTAS ──
 // renderVentasTabla primera versión — redirige a la implementación principal
 function volverListaVentas() {
-  var dv = document.getElementById('ventas-detalle-view') || document.getElementById('venta-detalle-view');
-  var lv = document.getElementById('ventas-list-view')   || document.getElementById('venta-list-view');
-  // Si vino desde historial cliente o cobranzas, volver a esa página
+  var dv  = document.getElementById('venta-detalle-view');
+  var dv2 = document.getElementById('ventas-detalle-view');
+  var lv  = document.getElementById('ventas-list-view') || document.getElementById('venta-list-view');
   var origen = window._ventaDesdeHistorialOrigen;
   if (origen) {
     window._ventaDesdeHistorialOrigen = null;
-    if (dv) dv.style.display = 'none';
+    if (dv)  dv.style.display  = 'none';
+    if (dv2) dv2.style.display = 'none';
     showPage(origen, null);
     return;
   }
-  if (dv) dv.style.display = 'none';
-  if (lv) lv.style.display = '';
+  if (dv)  dv.style.display  = 'none';
+  if (dv2) dv2.style.display = 'none';
+  if (lv)  lv.style.display  = '';
   _restaurarControlesFiltrosVentas();
   _aplicarFiltrosVentas();
 }
@@ -5907,8 +5909,25 @@ function fbCargarProductos() {
     if (data) {
       prodData = {};
       stockData = {};
-      Object.entries(data).forEach(function(e, i) {
+      // Deduplicar: si hay dos entradas con mismo 'id', preferir la que tiene ventaARS
+      var _seen = {}; // id → entrada preferida
+      Object.entries(data).forEach(function(e) {
         var p = Object.assign({ fbKey: e[0] }, e[1]);
+        var pid = String(p.id || p.idProducto || e[0]).replace(/[^0-9]/g,'');
+        if (!pid) return;
+        if (!_seen[pid]) { _seen[pid] = p; }
+        else {
+          // Preferir la que tiene ventaARS (precios completos)
+          var actual = _seen[pid];
+          if ((parseFloat(p.ventaARS)||0) > 0 && !(parseFloat(actual.ventaARS)||0)) {
+            _seen[pid] = p;
+          }
+          // O la que tiene más campos completos (nombre + precios)
+          else if (!actual.nombre && p.nombre) { _seen[pid] = p; }
+        }
+      });
+      Object.entries(_seen).forEach(function(e, i) {
+        var p = e[1];
         prodData[i+1] = p;
         var cod = p.codigo || ('P-' + String(p.id||i).padStart(4,'0'));
         p.codigo = cod;
@@ -6816,7 +6835,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.72-firebase',
+  VERSION: 'v20.73-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9840,11 +9859,14 @@ function irAVentaDesdeCobranza(ventaId) {
   window._ventaDesdeHistorialOrigen = 'cobranzas';
   // Navegar al módulo de ventas primero, luego mostrar el detalle
   window._ventaDesdeHistorialOrigen = 'cobranzas';
+  // Ocultar la lista antes de navegar para evitar el flash
+  var _lv = document.getElementById('ventas-list-view');
+  if (_lv) _lv.style.display = 'none';
   showPage('detalle', document.querySelector('[onclick*=detalle]'));
   setTimeout(function() {
     verDetalleVenta(v.id);
     window._ventaDesdeHistorialOrigen = null;
-  }, 350);
+  }, 200);
 }
 
 function verVentaDesdeHistorial(ventaId, trEl) {
@@ -20637,14 +20659,15 @@ function verDetalleVenta(ventaId) {
   if (!venta) { notify('Venta no encontrada'); return; }
   window._ventaDetActualId = ventaId;
 
-  var lv = document.getElementById('ventas-list-view');
-  var dv = document.getElementById('venta-detalle-view');
-  if (lv) lv.style.display = 'none';
+  var lv  = document.getElementById('ventas-list-view');
+  var dv  = document.getElementById('venta-detalle-view');
+  var dv2 = document.getElementById('ventas-detalle-view'); // viejo — siempre ocultar
+  if (lv)  lv.style.display  = 'none';
+  if (dv2) dv2.style.display = 'none';
   if (dv) {
     dv.style.display = 'block';
     renderDetalleVenta(venta);
   } else {
-    // Crear vista detalle si no existe
     crearVistaDetalleVenta(venta);
   }
 }
@@ -21346,11 +21369,13 @@ function _restaurarControlesFiltrosVentas() {
 
 // Ver detalle de una venta
 function verVenta(id) {
+  // Redirigir siempre a verDetalleVenta (vista unificada) para evitar duplicación
+  if (typeof verDetalleVenta === 'function') { verDetalleVenta(id); return; }
   const v = ventasList.find(x => x.id === id);
   if (!v) return;
   ventaActualId = id;
   window._ventaActualFbKey = v.fbKey || id;
-  window._ventaDetalleActual = v; // necesario para cambiarEstadoVenta desde los dropdowns
+  window._ventaDetalleActual = v;
   _hide('ventas-list-view');
   _block('ventas-detalle-view');
 
