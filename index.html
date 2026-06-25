@@ -136,7 +136,7 @@ input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-ou
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;height:100vh;overflow:hidden;max-width:100vw}
 
 /* ── LOGIN ── */
-#screen-login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999}
+#screen-login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:10000}
 .login-box{width:360px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-xl);padding:40px 36px}
 .login-logo{text-align:center;margin-bottom:32px}
 .login-brand{font-size:28px;font-weight:700;letter-spacing:1px;color:var(--text)}
@@ -588,7 +588,7 @@ tr:hover td{color:var(--text)}
 
 /* ── FAB (Botón flotante) ── */
 .fab-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:none;flex-direction:column;align-items:flex-end;gap:10px;will-change:transform;transform:translateZ(0);-webkit-transform:translateZ(0)}
-@media(max-width:768px){.fab-container{display:none!important}/* FAB deshabilitado para diagnóstico */}
+@media(max-width:768px){.fab-container{display:flex}.fab-container.hidden{display:none!important}}
 @media(min-width:769px){.notif{bottom:24px!important;right:24px!important}}
 .fab-main{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .2s;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;will-change:transform;transform:translateZ(0);-webkit-transform:translateZ(0)}
 .fab-main.open{transform:rotate(45deg)}
@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.60 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.61 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2184,14 +2184,14 @@ tr:hover td{color:var(--text)}
               <div class="fg"><label>Contraseña de acceso rápido</label><input type="password" id="cfg-quick-pass" placeholder="••••••••" autocomplete="new-password"></div>
             </div>
             <div class="fg" style="margin-top:8px">
-              <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-                <div style="position:relative;width:40px;height:22px;flex-shrink:0">
-                  <input type="checkbox" id="cfg-quick-visible" style="opacity:0;position:absolute;width:0;height:0" onchange="toggleQuickLoginPreview()">
-                  <div id="cfg-quick-track" onclick="var cb=document.getElementById('cfg-quick-visible');cb.checked=!cb.checked;toggleQuickLoginPreview();" style="position:absolute;inset:0;border-radius:20px;background:var(--bg4);border:1px solid var(--border2);cursor:pointer;transition:background .2s"></div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="position:relative;width:40px;height:22px;flex-shrink:0;cursor:pointer" onclick="var cb=document.getElementById('cfg-quick-visible');cb.checked=!cb.checked;toggleQuickLoginPreview();">
+                  <input type="checkbox" id="cfg-quick-visible" style="opacity:0;position:absolute;width:0;height:0;pointer-events:none">
+                  <div id="cfg-quick-track" style="position:absolute;inset:0;border-radius:20px;background:var(--bg4);border:1px solid var(--border2);transition:background .2s;pointer-events:none"></div>
                   <div id="cfg-quick-thumb" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text3);transition:transform .2s,background .2s;pointer-events:none"></div>
                 </div>
-                <span style="font-size:13px">Mostrar botón de acceso rápido en el login</span>
-              </label>
+                <span style="font-size:13px;cursor:pointer" onclick="var cb=document.getElementById('cfg-quick-visible');cb.checked=!cb.checked;toggleQuickLoginPreview();">Mostrar botón de acceso rápido en el login</span>
+              </div>
             </div>
             <div class="flex-end" style="margin-top:10px"><button class="btn btn-primary" onclick="guardarConfigLogin(this)"><i class="ti ti-check"></i> Guardar</button></div>
           </div>
@@ -6701,7 +6701,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.60-firebase',
+  VERSION: 'v20.61-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
