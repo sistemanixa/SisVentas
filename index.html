@@ -809,7 +809,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.87 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.88 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6981,7 +6981,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.87-firebase',
+  VERSION: 'v20.88-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -20338,26 +20338,42 @@ function renderKPIsDashboard() {
   // ── Gráfico barras últimos 7 días ──
   var dias7 = [];
   for (var i = 6; i >= 0; i--) {
-    var d = new Date(Date.now() - i*86400000);
-    dias7.push(d.toISOString().slice(0,10));
+    // Usar fecha local (no UTC) para evitar desfase de zona horaria
+    var d = new Date();
+    d.setDate(d.getDate() - i);
+    var yyyy = d.getFullYear();
+    var mm   = String(d.getMonth()+1).padStart(2,'0');
+    var dd   = String(d.getDate()).padStart(2,'0');
+    // Guardar ambos formatos para comparar con ventas
+    dias7.push({ iso: yyyy+'-'+mm+'-'+dd, dmy: dd+'/'+mm+'/'+yyyy, dow: d.getDay() });
   }
   var maxVal = 0;
-  var totales = dias7.map(function(fecha) {
-    var t = ventas.filter(function(v){ return v.fecha === fecha; })
-      .reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
+  var totales = dias7.map(function(dia) {
+    var t = ventas.filter(function(v){
+      var f = (v.fecha||'').trim();
+      // Aceptar DD/MM/YYYY, DD/MM/YY, YYYY-MM-DD
+      return f === dia.dmy || f.slice(0,10) === dia.iso ||
+             f === dia.dmy.slice(0,8) + dia.dmy.slice(8);
+    }).reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
     if (t > maxVal) maxVal = t;
     return t;
   });
   var diaNombres = ['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
-  var maxPx = 72; // deja aire arriba dentro del contenedor de 100px
+  var maxPx = 72;
   for (var j = 0; j < 7; j++) {
     var barEl  = document.getElementById('bar-' + j);
     var lblEl  = document.getElementById('blbl-' + j);
     var alto   = maxVal > 0 ? Math.max(4, Math.round(totales[j]/maxVal*maxPx)) : 4;
-    var diaSem = new Date(dias7[j]).getDay();
     var esHoy  = j === 6;
-    if (barEl) { barEl.style.height = alto + 'px'; barEl.title = '$' + Math.round(totales[j]).toLocaleString('es-AR'); }
-    if (lblEl) { lblEl.textContent = esHoy ? 'Hoy' : diaNombres[diaSem]; }
+    if (barEl) {
+      barEl.style.height = alto + 'px';
+      barEl.title = dias7[j].dmy + ': $' + Math.round(totales[j]).toLocaleString('es-AR');
+      barEl.style.background = esHoy ? 'var(--blue)' : (totales[j] > 0 ? 'var(--green)' : 'var(--bg4)');
+    }
+    if (lblEl) {
+      lblEl.textContent = esHoy ? 'Hoy' : diaNombres[dias7[j].dow];
+      lblEl.className = 'bar-lbl' + (esHoy ? ' today' : '');
+    }
   }
 
   // ── Últimas ventas — click abre detalle ──
