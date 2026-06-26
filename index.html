@@ -547,6 +547,9 @@ tr:hover td{color:var(--text)}
   .stock-indicator{font-size:9px;padding:2px 4px;gap:2px}
   .stock-indicator i{display:none}
   /* ── TABLA DE NUEVA VENTA EN MOBILE ── */
+  /* Reducir padding de filas en mobile */
+  #cli-tbody tr td { padding: 8px 6px !important; }
+  #cli-tbody tr { line-height: 1.3; }
   /* Ocultar columnas secundarias en pantalla chica para que no se apriete */
   #page-venta #det-body td:nth-child(4),   /* Cant */
   #page-venta thead th:nth-child(4) { min-width:48px }
@@ -806,7 +809,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.84 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.86 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6978,7 +6981,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.84-firebase',
+  VERSION: 'v20.86-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10090,7 +10093,7 @@ function verClienteDesdeCC() {
   var cli = (clientesData||[]).find(function(c){ return c.nombre === nombre || (c.nombre+' '+c.apellidos).trim() === nombre; });
   if (!cli) { notify('Cliente no encontrado en el sistema'); return; }
   showPage('clientes', document.querySelector('[onclick*=clientes]'));
-  setTimeout(function(){ if (typeof verHistorialCliente === 'function') verHistorialCliente(cli.fbKey||cli.id, nombre); }, 200);
+  setTimeout(function(){ if (typeof verHistorialCliente === 'function') verHistorialCliente(cli.fbKey||String(cli.id), nombre); }, 200);
 }
 
 function verVentaDesdeHistorial(ventaId, trEl) {
@@ -12560,7 +12563,7 @@ function guardarGastoRapido() {
     .then(function() {
       if (miEmpleado) {
         var mov = {
-          tipo: 'gasto_empresa', monto: monto, desc: 'Gasto empresa: '+desc,
+          tipo: 'gasto_empresa', monto: monto, desc: desc, descripcion: desc,
           fecha: datos.fecha, estado: 'aprobado', ts: Date.now(), usuario: currentUser||''
         };
         window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/'+miEmpleado.fbKey), mov);
@@ -12595,6 +12598,13 @@ function iniciarCtaEmp() {
     sel.innerHTML = opts;
     sel.disabled = false;
     sel.style.display = '';
+    // Limpiar datos del empleado anterior para no mostrar info vieja
+    movsEmpData = [];
+    var tbody = document.getElementById('ctaemp-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Seleccioná un empleado</td></tr>';
+    ['ctaemp-base','ctaemp-total','ctaemp-haberes','ctaemp-adelantos'].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.textContent = '—';
+    });
   } else {
     // Vendedor/técnico: solo su propia cuenta, sin poder elegir otra
     var propio = lista.find(function(e){ return e.mail === currentUser || e.nombre === currentUser; });
@@ -12705,10 +12715,19 @@ function renderMovsEmp() {
       var estBadge  = {pendiente:'<span class="badge b-amber">Pendiente</span>',aprobado:'<span class="badge b-blue">Aprobado</span>',pagado:'<span class="badge b-green">Pagado</span>',rechazado:'<span class="badge b-red">Rechazado</span>'}[m.estado]||('<span class="badge">'+m.estado+'</span>');
       var fotoBtn   = m.fotoUrl ? '<a href="'+m.fotoUrl+'" target="_blank" class="btn btn-sm btn-icon" title="Ver comprobante"><i class="ti ti-photo" style="font-size:14px"></i></a>' : '<span style="color:var(--text3);font-size:11px">—</span>';
       var fecha = m.fecha ? m.fecha.split('-').reverse().join('/') : '—';
-      return '<tr>' +
+      // Descripción: puede estar en 'descripcion', 'desc', o 'detalle'
+      var descTexto = m.descripcion || m.desc || m.detalle || '';
+      // Navegación: gastos de empresa van al módulo gastos, otros muestran detalle
+      var trClick = '';
+      if (m.tipo === 'gasto_empresa' && m.gastoFbKey) {
+        trClick = 'onclick="irAGastoDesdeCtaEmp(this)" data-gasto="' + m.gastoFbKey + '" style="cursor:pointer"';
+      } else {
+        trClick = 'onclick="verDetalleMovEmp(this)" data-fbkey="' + m.fbKey + '" style="cursor:pointer"';
+      }
+      return '<tr ' + trClick + '>' +
         '<td style="color:var(--text3);font-size:12px">'+ fecha +'</td>' +
         '<td><span class="badge '+tipoCls+'" style="font-size:11px">'+ tipoLabel +'</span></td>' +
-        '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(m.descripcion||'') +'</td>' +
+        '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(descTexto) +'</td>' +
         '<td class="tr" style="font-weight:500;color:'+montoColor+'">'+(esEgreso?'-':'')+'$'+(parseFloat(m.monto)||0).toLocaleString('es-AR')+'</td>' +
         '<td class="tr">'+ estBadge +'</td>' +
         '<td class="tr">'+ fotoBtn +'</td>' +
@@ -12745,6 +12764,26 @@ function renderMovsEmp() {
 }
 
 function filtrarMovsEmp() { renderMovsEmp(); }
+
+function irAGastoDesdeCtaEmp(el) {
+  var gastoFbKey = el.dataset ? el.dataset.gasto : el;
+  if (!gastoFbKey) { notify('Sin referencia al gasto'); return; }
+  showPage('gastos', document.querySelector('[onclick*=gastos]'));
+  setTimeout(function() {
+    if (typeof editarGasto === 'function') editarGasto(gastoFbKey);
+  }, 300);
+}
+
+function verDetalleMovEmp(tr) {
+  // Mostrar un tooltip/notify con el detalle del movimiento
+  var fbKey = tr.dataset.fbkey;
+  var mov = movsEmpData.find(function(m){ return m.fbKey === fbKey; });
+  if (!mov) return;
+  var tipoLabel = {sueldo:'Sueldo',comision:'Comisión',hextra:'H. extra',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[mov.tipo]||mov.tipo;
+  var desc = mov.descripcion || mov.desc || mov.detalle || 'Sin descripción';
+  var fecha = mov.fecha ? mov.fecha.split('-').reverse().join('/') : '—';
+  notify(tipoLabel + ' · ' + fecha + ' · $' + (parseFloat(mov.monto)||0).toLocaleString('es-AR') + (desc ? ' — ' + desc : ''));
+}
 
 async function verificarHaberesHistoricos(empFbKey) {
   var banner = document.getElementById('ctaemp-migracion-banner');
@@ -20594,7 +20633,7 @@ function verHistorialCli(btn) {
 
 function verHistorialCliente(id, nombre) {
   clienteActualId = id;
-  var cli = (clientesData || []).find(function(c){ return String(c.id) === String(id); });
+  var cli = (clientesData || []).find(function(c){ return String(c.fbKey) === String(id) || String(c.id) === String(id); });
   if (!cli) { notify('Cliente no encontrado (ID: '+id+')'); return; }
   showPage('historialcliente', null);
   var avisoHcEl = document.getElementById('hc-aviso-cambio-externo');
