@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.82 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.83 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1905,7 +1905,10 @@ tr:hover td{color:var(--text)}
               <div class="emp-name" id="cc-nombre">—</div>
               <div class="emp-meta"><span id="cc-estado-lbl"></span><span>·</span><span id="cc-saldo-lbl" style="font-weight:500"></span></div>
             </div>
-            <button class="btn btn-sm btn-primary" onclick="showPage('cobranzas',document.querySelector('[onclick*=cobranzas]'))"><i class="ti ti-cash"></i> Registrar pago</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-sm btn-primary" onclick="irACobranzasDesdeCC()"><i class="ti ti-cash"></i> Registrar pago</button>
+              <button class="btn btn-sm" onclick="verClienteDesdeCC()"><i class="ti ti-user"></i> Ver cliente</button>
+            </div>
           </div>
           <div class="emp-sueldo-grid" style="grid-template-columns:repeat(3,1fr)">
             <div class="sueldo-card"><div class="sueldo-label">Total facturado</div><div class="sueldo-value" id="cc-total">$15.004</div></div>
@@ -6974,7 +6977,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.82-firebase',
+  VERSION: 'v20.83-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10059,12 +10062,48 @@ function irAVentaDesdeCobranza(ventaId) {
   }, 200);
 }
 
+function irACobranzasDesdeCC() {
+  // Ir a cobranzas precargando el cliente actual
+  var nombre = window._ccNombreActual || '';
+  showPage('cobranzas', document.querySelector('[onclick*=cobranzas]'));
+  if (nombre) {
+    setTimeout(function() {
+      // Precargar el nombre del cliente en el campo de cobranzas
+      var cliEl = document.getElementById('cob-cliente');
+      if (cliEl) cliEl.value = nombre;
+      // Buscar la venta pendiente más reciente de ese cliente
+      var ventasPendientes = (ventasList||[]).filter(function(v){
+        return v.cliente === nombre && v.estadoPago !== 'pago_total';
+      }).sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); });
+      if (ventasPendientes.length) {
+        var vp = ventasPendientes[0];
+        irACobranzasConVenta(vp.id);
+      }
+    }, 150);
+  }
+}
+
+function verClienteDesdeCC() {
+  var nombre = window._ccNombreActual || '';
+  if (!nombre) return;
+  var cli = (clientesData||[]).find(function(c){ return c.nombre === nombre || (c.nombre+' '+c.apellidos).trim() === nombre; });
+  if (!cli) { notify('Cliente no encontrado en el sistema'); return; }
+  showPage('clientes', document.querySelector('[onclick*=clientes]'));
+  setTimeout(function(){ if (typeof verCliente === 'function') verCliente(cli.fbKey||cli.id); }, 200);
+}
+
 function verVentaDesdeHistorial(ventaId, trEl) {
   var v = (ventasList||[]).find(function(x){ return x.id===ventaId || x.fbKey===ventaId; });
   if (!v) { notify('Venta no encontrada'); return; }
-  // Guardar página origen para poder volver
   window._ventaDesdeHistorialOrigen = 'cuentacorriente';
-  verDetalleVenta(v.fbKey || v.id);
+  // Ocultar lista para evitar flash
+  var lv = document.getElementById('ventas-list-view');
+  if (lv) lv.style.display = 'none';
+  showPage('detalle', document.querySelector('[onclick*=detalle]'));
+  setTimeout(function() {
+    verDetalleVenta(v.id);
+    window._ventaDesdeHistorialOrigen = 'cuentacorriente';
+  }, 200);
 }
 
 // Mantenida por compatibilidad si algo viejo todavía la referencia
