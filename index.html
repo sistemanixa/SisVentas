@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.73 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.75 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1301,155 +1301,6 @@ tr:hover td{color:var(--text)}
 
 
   <!-- Vista detalle de una venta -->
-  <div id="ventas-detalle-view" style="display:none">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <button class="btn btn-sm" onclick="volverListaVentas()"><i class="ti ti-arrow-left"></i> Volver</button>
-      <div style="display:flex;gap:6px;flex-wrap:wrap" id="venta-det-acciones"></div>
-    </div>
-
-    <!-- Header de la venta -->
-    <div class="card">
-      <div class="card-head">
-        <div>
-          <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
-            <span id="vd-num" style="font-size:16px;font-weight:600;color:var(--text)"></span>
-            <span id="vd-cliente" style="font-size:14px;font-weight:500;color:var(--text2)"></span>
-            <span id="vd-fecha" style="font-size:12px;color:var(--text3)"></span>
-          </div>
-          <div style="display:flex;gap:16px;margin-top:5px;flex-wrap:wrap" id="vd-cli-info">
-            <span id="vd-cli-dir" style="font-size:12px;color:var(--text3);display:none"><i class="ti ti-map-pin" style="font-size:11px;margin-right:3px"></i><span></span></span>
-            <a id="vd-cli-tel" style="font-size:12px;color:var(--text3);text-decoration:none;display:none" href="#"><i class="ti ti-phone" style="font-size:11px;margin-right:3px"></i><span></span></a>
-            <a id="vd-cli-wp" style="font-size:12px;color:var(--green);text-decoration:none;display:none" href="#" target="_blank"><i class="ti ti-brand-whatsapp" style="font-size:11px;margin-right:3px"></i><span></span></a>
-          </div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <!-- Badge de pago — clic abre dropdown para cambiar estado -->
-          <div style="position:relative">
-            <span id="vd-badge-pago" style="cursor:pointer" title="Clic para cambiar estado de pago" onclick="toggleEstadoDropdown('pago')"></span>
-            <div id="vd-drop-pago" style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:100;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.2);min-width:160px;overflow:hidden">
-              <div style="padding:6px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:0.5px solid var(--border)">Estado de pago</div>
-              <div onclick="cambiarEstadoVenta('pago','pendiente_pago')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-clock" style="color:var(--text3)"></i> Pendiente pago</div>
-              <div onclick="cambiarEstadoVenta('pago','seniado')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-coin" style="color:var(--blue)"></i> Señado</div>
-              <div onclick="cambiarEstadoVenta('pago','pago_total')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-check" style="color:var(--green)"></i> Pago total</div>
-              <div id="vd-drop-pago-anulada" style="display:none;padding:8px 12px;font-size:13px;cursor:pointer;align-items:center;gap:8px;border-top:0.5px solid var(--border)" onclick="cambiarEstadoVenta('pago','anulada')" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-file-minus" style="color:var(--red)"></i> Anulada (NC emitida)</div>
-            </div>
-          </div>
-          <!-- Badge de instalación — clic abre dropdown para cambiar estado -->
-          <div style="position:relative">
-            <span id="vd-badge-inst" style="cursor:pointer" title="Clic para cambiar estado de instalación" onclick="toggleEstadoDropdown('inst')"></span>
-            <div id="vd-drop-inst" style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:100;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.2);min-width:160px;overflow:hidden">
-              <div style="padding:6px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:0.5px solid var(--border)">Estado de instalación</div>
-              <div onclick="cambiarEstadoVenta('inst','pendiente_inst')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-clock" style="color:var(--text3)"></i> Pendiente</div>
-              <div onclick="cambiarEstadoVenta('inst','en_instalacion')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-tools" style="color:var(--blue)"></i> En instalación</div>
-              <div onclick="cambiarEstadoVenta('inst','instalado')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-package" style="color:var(--green)"></i> Instalado</div>
-              <div onclick="cambiarEstadoVenta('inst','con_garantia')" style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><i class="ti ti-shield-check" style="color:var(--purple)"></i> Con garantía</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Timeline de estados -->
-      <div style="margin-bottom:4px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Flujo de la venta</div>
-      <div id="vd-timeline" class="venta-timeline"></div>
-
-      <!-- Datos básicos -->
-      <div class="form-grid" style="margin-top:12px">
-        <div class="fg"><label>Empleado</label><input id="vd-empleado" readonly></div>
-        <div class="fg"><label>Presupuesto origen</label><input id="vd-ppto" readonly></div>
-        <div class="fg"><label>Observaciones</label><input id="vd-obs" readonly></div>
-        <div class="fg"><label>OT vinculada</label><input id="vd-ot" readonly></div>
-      </div>
-    </div>
-
-    <!-- Productos de la venta -->
-    <div class="card">
-      <div class="card-head"><span class="card-title">Productos vendidos</span></div>
-      <div class="table-wrap">
-        <table class="tbl-sheet" style="table-layout:fixed;width:100%">
-          <colgroup>
-            <col style="width:32px">
-            <col style="width:90px">
-            <col>
-            <col style="width:60px">
-            <col style="width:110px">
-            <col style="width:110px">
-          </colgroup>
-          <thead>
-            <tr>
-              <th style="overflow:hidden"><input type="checkbox" onchange="document.querySelectorAll('#vd-items input[type=checkbox]').forEach(c=>c.checked=this.checked)"></th>
-              <th style="overflow:hidden;white-space:nowrap">Código</th>
-              <th style="overflow:hidden;white-space:nowrap">Descripción</th>
-              <th class="tr" style="overflow:hidden;white-space:nowrap">Cant.</th>
-              <th class="tr" style="overflow:hidden;white-space:nowrap">P. unit.</th>
-              <th class="tr" style="overflow:hidden;white-space:nowrap">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody id="vd-items"></tbody>
-          <tfoot>
-            <tr style="border-top:0.5px solid var(--border)">
-              <td colspan="4"></td>
-              <td colspan="2" style="padding-top:10px">
-                <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--text3)">Subtotal</span><span id="vd-sub"></span></div>
-              </td>
-            </tr>
-            <tr id="vd-desc-row" style="display:none">
-              <td colspan="4"></td>
-              <td colspan="2">
-                <div style="display:flex;justify-content:space-between;color:var(--green)"><span style="font-size:12px">Descuento</span><span id="vd-desc-amt"></span></div>
-              </td>
-            </tr>
-            <tr>
-              <td colspan="4"></td>
-              <td colspan="2">
-                <div style="display:flex;justify-content:space-between;color:var(--amber)"><span style="font-size:12px">IVA 21%</span><span id="vd-iva"></span></div>
-              </td>
-            </tr>
-            <tr>
-              <td colspan="4"></td>
-              <td colspan="2" style="padding-bottom:8px;border-top:0.5px solid var(--border);padding-top:6px">
-                <div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:14px">Total</span><span style="font-weight:700;font-size:14px" id="vd-total"></span></div>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-      <div class="flex-end">
-        <button class="btn btn-sm" onclick="copiarSeleccion()"><i class="ti ti-copy"></i> Copiar selección</button>
-        <button class="btn btn-sm" id="btn-csf-static" onclick="toggleCSFActual()" title="Quita el IVA 21% y bloquea la facturación"><i class="ti ti-receipt-off"></i> Contado s/fact.</button>
-        <button class="btn btn-sm" onclick="abrirModalImprimir('venta','Imprimir venta #' + document.getElementById('vd-num').textContent)"><i class="ti ti-printer"></i> Imprimir</button>
-        <button class="btn btn-sm" onclick="exportarPDF('Venta ' + document.getElementById('vd-num').textContent)"><i class="ti ti-file-type-pdf"></i> PDF</button>
-        <button class="btn btn-sm admin-only" onclick="eliminarVenta(window._ventaActualFbKey)" style="color:var(--red);border-color:var(--red)" title="Eliminar esta venta"><i class="ti ti-trash"></i></button>
-      </div>
-    </div>
-
-    <!-- Historial de pagos de esta venta -->
-    <div class="card">
-      <div class="card-head">
-        <span class="card-title">Pagos registrados</span>
-        <button class="btn btn-sm btn-primary" id="vd-btn-reg-pago" onclick="if(ventaActualId) irACobranzasConVenta(ventaActualId); else notify('Abrí una venta primero');">
-          <i class="ti ti-plus"></i> Registrar pago
-        </button>
-      </div>
-      <div id="vd-pagos-lista">
-        <div style="font-size:13px;color:var(--text3);text-align:center;padding:16px">Sin pagos registrados</div>
-      </div>
-    </div>
-
-    <!-- OT vinculada -->
-    <div class="card" id="vd-ot-card" style="display:none">
-      <div class="card-head">
-        <span class="card-title">Orden de trabajo vinculada</span>
-        <button class="btn btn-sm" id="vd-ot-btn" onclick="verOTdesdeVenta()"><i class="ti ti-clipboard-list"></i> Ver OT</button>
-      </div>
-      <div id="vd-ot-info" style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text2)"></div>
-    </div>
-
-    <!-- Auditoría -->
-    <div class="card">
-      <div class="card-head"><span class="card-title">Historial de cambios</span></div>
-      <div id="vd-audit"></div>
-    </div>
-  </div>
 </div>
 
       <!-- ── PRESUPUESTOS ── -->
@@ -5919,7 +5770,7 @@ function fbCargarProductos() {
         else {
           // Preferir la que tiene ventaARS (precios completos)
           var actual = _seen[pid];
-          if ((parseFloat(p.ventaARS)||0) > 0 && !(parseFloat(actual.ventaARS)||0)) {
+          if (!(parseFloat(p.ventaARS)||0) && (parseFloat(actual.ventaARS)||0) > 0) {
             _seen[pid] = p;
           }
           // O la que tiene más campos completos (nombre + precios)
@@ -6835,7 +6686,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.73-firebase',
+  VERSION: 'v20.75-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
