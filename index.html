@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.83 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.84 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4257,6 +4257,7 @@ tr:hover td{color:var(--text)}
           <option value="adelanto">Adelanto</option>
           <option value="transporte">Transporte</option>
           <option value="materiales">Materiales</option>
+          <option value="gasto_empresa">Gasto empresa</option>
           <option value="otro">Otro</option>
         </select>
         <select class="search-input btn-sm" id="ctaemp-filtro-estado" style="width:140px" onchange="filtrarMovsEmp()">
@@ -6977,7 +6978,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.83-firebase',
+  VERSION: 'v20.84-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10089,7 +10090,7 @@ function verClienteDesdeCC() {
   var cli = (clientesData||[]).find(function(c){ return c.nombre === nombre || (c.nombre+' '+c.apellidos).trim() === nombre; });
   if (!cli) { notify('Cliente no encontrado en el sistema'); return; }
   showPage('clientes', document.querySelector('[onclick*=clientes]'));
-  setTimeout(function(){ if (typeof verCliente === 'function') verCliente(cli.fbKey||cli.id); }, 200);
+  setTimeout(function(){ if (typeof verHistorialCliente === 'function') verHistorialCliente(cli.fbKey||cli.id, nombre); }, 200);
 }
 
 function verVentaDesdeHistorial(ventaId, trEl) {
@@ -19588,7 +19589,7 @@ function _otTarjeta(o, hoy) {
   var tipoIco = tipo.toLowerCase().includes('reclamo') ? 'ti-headset' : tipo.toLowerCase().includes('mant') ? 'ti-tool' : 'ti-bolt';
   var tipoColor = tipo.toLowerCase().includes('reclamo') ? 'var(--red)' : tipo.toLowerCase().includes('mant') ? 'var(--amber)' : 'var(--blue)';
   var visitasPrev = _contarVisitasPrevias(o.cliente, o.dir, o.id);
-  return '<div style="background:var(--bg3);border-radius:var(--radius);padding:14px;border-left:3px solid '+borderColor+';cursor:pointer" onclick="verOT(\''+escapeHTML(o.id||o.fbKey||'')+'\')">' +
+  return '<div style="background:var(--bg3);border-radius:var(--radius);padding:14px;border-left:3px solid '+borderColor+';cursor:pointer" onclick="verOT(\''+escapeHTML(o.fbKey||o.id||'')+'\')">' +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">' +
       '<div style="flex:1">' +
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
@@ -19708,7 +19709,7 @@ function _renderOTVistaAdmin(filtro, hoy) {
       '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
       '<td>'+otBadge(o.estado)+'</td>' +
       '<td style="white-space:nowrap">' +
-        '<button class="btn btn-sm btn-icon" onclick="verOT(\''+escapeHTML(o.id||o.fbKey||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="verOT(\''+escapeHTML(o.fbKey||o.id||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
         '<button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+escapeHTML(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button>' +
       '</td>' +
     '</tr>';
@@ -19730,9 +19731,11 @@ function abrirOTDesdeId(otId) {
 }
 
 function verOT(id) {
-  var ot = otData.find(function(o){ return o.id === id || o.fbKey === id; });
+  // Buscar por fbKey primero (más confiable), luego por id
+  var ot = otData.find(function(o){ return o.fbKey === id; })
+        || otData.find(function(o){ return o.id === id; });
   if (!ot) { notify('OT no encontrada'); return; }
-  otActualId = ot.id || id;
+  otActualId = ot.fbKey || ot.id || id;
   _hide('ot-list-view');
   _block('ot-detalle-view');
   var avisoEl = document.getElementById('ot-aviso-cambio-externo');
