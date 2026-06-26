@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.81 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.82 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6974,7 +6974,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.81-firebase',
+  VERSION: 'v20.82-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10304,25 +10304,15 @@ function fbCargarPagos() {
         return '<tr style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(p.medio||'—')+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>'+_ed+'</td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
-    // Cuenta corriente: total desde ventas, cobrado desde TODOS los pagos
+    // Cuenta corriente desde ventasList
     var ccMap = {};
     (ventasList||[]).forEach(function(v){
       if (!ccMap[v.cliente]) ccMap[v.cliente]={total:0,cobrado:0,ultimoPago:'—'};
       ccMap[v.cliente].total += parseFloat(v.total)||0;
-      // Pagos embebidos en la venta (v.pagos[])
-      (v.pagos||[]).forEach(function(pg){
-        ccMap[v.cliente].cobrado += parseFloat(pg.monto)||0;
-      });
+      if (v.estadoPago==='pago_total') ccMap[v.cliente].cobrado += parseFloat(v.total)||0;
+      else ccMap[v.cliente].cobrado += parseFloat(v.totalPagado||0);
     });
-    // Sumar pagos de sisventas/pagos (cobranzas) — no duplican v.pagos[]
-    lista.filter(function(p){ return !p.anulado; }).forEach(function(p){
-      if (!p.cliente) return;
-      if (!ccMap[p.cliente]) ccMap[p.cliente] = { total:0, cobrado:0, ultimoPago:'—' };
-      ccMap[p.cliente].cobrado += parseFloat(p.monto)||0;
-      if (!ccMap[p.cliente].ultimoPago || (p.fecha||'') > ccMap[p.cliente].ultimoPago) {
-        ccMap[p.cliente].ultimoPago = p.fecha || '—';
-      }
-    });
+    lista.forEach(function(p){ if(ccMap[p.cliente]) ccMap[p.cliente].ultimoPago=p.fecha||'—'; });
     window._ccMapActual = ccMap;
     var _emb = [];
     (ventasList||[]).forEach(function(v) {
