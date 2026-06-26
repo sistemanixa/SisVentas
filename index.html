@@ -806,7 +806,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.77 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.81 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -3583,6 +3583,30 @@ tr:hover td{color:var(--text)}
               </select>
               <span style="font-size:11px;color:var(--text3)" id="pf-moneda-hint">Precios cargados en pesos argentinos</span>
             </div>
+            <!-- Flujo guiado: precio gremio → margen → precio venta → USD -->
+            <div style="padding:10px 14px;background:rgba(59,130,246,.07);border-radius:var(--radius);margin-bottom:12px;border:0.5px solid rgba(59,130,246,.2)">
+              <div style="font-size:11px;font-weight:600;color:var(--blue);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Calculadora de precio</div>
+              <div class="form-grid cols3" style="margin-bottom:0">
+                <div class="fg">
+                  <label>Precio gremio / costo ARS</label>
+                  <input type="number" id="pf-precio-gremio" placeholder="0" min="0" oninput="calcPrecioDesdeGremio()">
+                  <div style="font-size:11px;color:var(--text3);margin-top:4px">Precio de lista del gremio en pesos</div>
+                </div>
+                <div class="fg">
+                  <label>% Margen deseado</label>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <input type="number" id="pf-margen-deseado" placeholder="40" min="0" max="99" style="width:80px" oninput="calcPrecioDesdeGremio()">
+                    <span style="color:var(--text3);font-size:13px">%</span>
+                  </div>
+                  <div style="font-size:11px;color:var(--text3);margin-top:4px">Ej: 40 = ganás 40% sobre el costo</div>
+                </div>
+                <div class="fg">
+                  <label>Precio venta calculado (ARS)</label>
+                  <input type="text" id="pf-precio-calculado" readonly placeholder="—" style="font-weight:600;color:var(--green)">
+                  <div style="font-size:11px;color:var(--text3);margin-top:4px" id="pf-precio-usd-equiv">= USD —</div>
+                </div>
+              </div>
+            </div>
             <div class="form-grid cols3">
               <div class="fg"><label>Precio de compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input type="number" id="pf-compra" placeholder="0" oninput="calcMargen()" min="0"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
               <div class="fg"><label>Precio de venta (<span id="pf-venta-moneda-lbl">$</span>)</label><input type="number" id="pf-venta" placeholder="0" oninput="calcMargen()" min="0"></div>
@@ -5010,6 +5034,34 @@ function _dx(s, k) {
 }
 
 
+// ── Funciones globales de formato numérico (única fuente de verdad) ──────────
+// $n(num) → "1.234.567" | $m(num) → "$1.234.567" | $p(str) → float
+window.$n = function(n, dec) {
+  return (parseFloat(n)||0).toLocaleString('es-AR', {
+    minimumFractionDigits: dec||0, maximumFractionDigits: dec||0
+  });
+};
+window.$m = function(n, dec) { return '$' + window.$n(n, dec); };
+window.$p = function(s) {
+  s = String(s||'').replace(/[^0-9,.-]/g,'');
+  if (s.includes('.') && s.includes(',')) {
+    return s.lastIndexOf(',') > s.lastIndexOf('.')
+      ? parseFloat(s.replace(/\./g,'').replace(',','.'))
+      : parseFloat(s.replace(/,/g,''));
+  }
+  if (s.includes('.')) {
+    var p = s.split('.');
+    if (p.length > 2 || (p.length===2 && p[1].length===3)) s = s.replace(/\./g,'');
+    return parseFloat(s)||0;
+  }
+  if (s.includes(',')) {
+    var p2 = s.split(',');
+    if (p2.length > 2 || (p2.length===2 && p2[1].length===3)) s = s.replace(/,/g,'');
+    else s = s.replace(',','.');
+  }
+  return parseFloat(s)||0;
+};
+// ─────────────────────────────────────────────────────────────────────────────
 // ── Mini-dash stats por módulo ────────────────────────────────────────────────
 function actualizarStatClientes() {
   var total   = (clientesData||[]).length;
@@ -5079,6 +5131,258 @@ function actualizarStatVentas() {
   _s('stat-ven-ticket',    _m(ticket));
 }
 // ─────────────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// FLUJO COMPLETO DE VENTAS
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─── 8. GENERAR ORDEN DE COMPRA DESDE VENTA AGENDADA ─────────────────────────
+function generarOrdenCompraDesdeVenta(ventaObj) {
+  if (!ventaObj || !ventaObj.items || !ventaObj.items.length) return;
+  if (!window.fbDB) return;
+  var items = ventaObj.items.filter(function(it){
+    return it.desc || it.nombre;
+  }).map(function(it){
+    return { codigo: it.cod||it.codigo||'', descripcion: it.desc||it.nombre||'', cantidad: it.qty||1, unidad:'Unidad', precioRef: it.punit||0, recibido: false };
+  });
+  if (!items.length) return;
+  var oc = {
+    ventaId: ventaObj.id, cliente: ventaObj.cliente||'',
+    fecha: new Date().toISOString().slice(0,10),
+    estado: 'pendiente', items: items,
+    obs: 'Generada automáticamente desde venta ' + ventaObj.id,
+    ts: Date.now(), usuario: currentUser||'Sistema'
+  };
+  window.fbPush(window.fbRef(window.fbDB, 'sisventas/ordenes_compra'), oc)
+    .then(function(ref){
+      notify('📦 Orden de compra generada — ' + items.length + ' productos de ' + ventaObj.id);
+      if (ventaObj.fbKey) {
+        window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas+'/'+ventaObj.fbKey), { ordenCompraId: ref.key });
+      }
+    });
+}
+
+// ─── 1. ANULACIÓN AUTOMÁTICA DE PRESUPUESTOS VENCIDOS ─────────────────────────
+function verificarVencimientosPptos() {
+  var hoy = new Date().toISOString().slice(0,10);
+  var vencidos = (pptoData||[]).filter(function(p){
+    return p.vence && p.vence < hoy &&
+      ['borrador','revision','aprobado_int','enviado','visto'].includes(p.estado);
+  });
+  if (!vencidos.length) return;
+  vencidos.forEach(function(p) {
+    if (!p.fbKey || !window.fbDB) return;
+    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
+      estado: 'vencido',
+      audit: (p.audit||[]).concat([{
+        fecha: hoy, usuario: 'Sistema',
+        accion: 'Anulado automáticamente por vencimiento'
+      }])
+    });
+  });
+  if (vencidos.length) notify('⏰ ' + vencidos.length + ' presupuesto(s) vencidos anulados automáticamente');
+}
+
+// ─── 2. PAGO DE SEÑA → HABILITA AGENDA → GENERA OT ───────────────────────────
+function flujoPostPago(ventaObj, montoSeña) {
+  if (!ventaObj) return;
+  var vid = ventaObj.id;
+  var cli = ventaObj.cliente || '';
+  var dir = ventaObj.direccion || '';
+  var hoy = new Date().toISOString().slice(0,10);
+
+  // Notificar al admin
+  notify('✓ Seña de $' + Math.round(montoSeña).toLocaleString('es-AR') + ' registrada para ' + cli + '. Se habilitó agenda y generó OT.');
+
+  // 2c. Generar orden de compra con los productos de la venta
+  generarOrdenCompraDesdeVenta(ventaObj);
+
+  // 2a. Crear evento en agenda
+  var evAgenda = {
+    descripcion: 'Instalación pendiente — ' + vid + ' · ' + cli,
+    fecha: hoy,
+    hora: '09:00',
+    tipo: 'instalacion',
+    ventaId: vid,
+    cliente: cli,
+    direccion: dir,
+    estado: 'pendiente_fecha',
+    ts: Date.now(),
+    usuario: currentUser || 'Sistema'
+  };
+  if (window.fbDB) {
+    window.fbPush(window.fbRef(window.fbDB, 'sisventas/agenda'), evAgenda)
+      .then(function(ref){
+        // Guardar referencia del evento en la venta
+        if (ventaObj.fbKey) {
+          window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaObj.fbKey), {
+            agendaEventoId: ref.key,
+            agendaHabilitada: true
+          });
+        }
+      });
+  }
+
+  // 2b. Generar OT automáticamente
+  var ot = {
+    ventaId:      vid,
+    cliente:      cli,
+    direccion:    dir,
+    estado:       'pendiente',
+    tecnico:      '',
+    fecha:        hoy,
+    descripcion:  'Instalación ' + vid + ' — ' + cli,
+    items:        (ventaObj.items||[]).map(function(it){ return { desc: it.desc||it.nombre||'', qty: it.qty||1, instalado: false }; }),
+    origen:       'pago_seña',
+    ts:           Date.now(),
+    usuario:      currentUser || 'Sistema'
+  };
+  if (window.fbDB) {
+    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot)
+      .then(function(ref){
+        var otKey = ref.key;
+        // Vincular OT a la venta
+        if (ventaObj.fbKey) {
+          window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaObj.fbKey), {
+            otId: otKey,
+            otGenerada: true
+          });
+        }
+        // Publicar en tareas pendientes
+        if (window.fbDB) {
+          window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/tareas/' + otKey), {
+            otKey: otKey, ventaId: vid, cliente: cli,
+            estado: 'disponible', ts: Date.now()
+          });
+        }
+      });
+  }
+}
+
+// ─── 3. TÉCNICO TOMA UNA OT ───────────────────────────────────────────────────
+function tecnicoTomarOT(otFbKey) {
+  if (!otFbKey || !window.fbDB) return;
+  var ot = (otData||[]).find(function(o){ return o.fbKey === otFbKey; });
+  if (!ot) return;
+  if (ot.tecnico && ot.tecnico !== currentUser) {
+    if (!confirm('Esta OT ya está asignada a ' + ot.tecnico + '. ¿Reasignar a ' + currentUser + '?')) return;
+  }
+  var hoy = new Date().toISOString().slice(0,10);
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otFbKey), {
+    tecnico: currentUser || '',
+    estado: 'en_curso',
+    fechaInicio: hoy,
+    audit: (ot.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'', accion: 'OT tomada por técnico' }])
+  }).then(function(){
+    // Actualizar tareas
+    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/tareas/' + otFbKey), { estado: 'en_curso', tecnico: currentUser||'' });
+    notify('✓ OT asignada a ' + (currentUser||'vos'));
+  });
+}
+
+// ─── 4. CIERRE DE OT → CIERRE DE VENTA ───────────────────────────────────────
+function cerrarOTyVenta(otFbKey, conformidad) {
+  var ot = (otData||[]).find(function(o){ return o.fbKey === otFbKey; });
+  if (!ot) { notify('OT no encontrada'); return; }
+  if (!conformidad) {
+    if (!confirm('¿Confirmar conformidad del cliente y cerrar la OT?')) return;
+  }
+  var hoy = new Date().toISOString().slice(0,10);
+
+  // Cerrar OT
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otFbKey), {
+    estado: 'completada',
+    fechaCierre: hoy,
+    conformidadCliente: true,
+    audit: (ot.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'', accion: 'OT cerrada — conformidad del cliente registrada' }])
+  });
+
+  // Quitar de tareas pendientes
+  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/tareas/' + otFbKey));
+
+  // Cerrar la venta vinculada
+  if (ot.ventaId) {
+    var venta = (ventasList||[]).find(function(v){ return v.id === ot.ventaId; });
+    if (venta && venta.fbKey) {
+      window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
+        estado: 'instalado',
+        estadoInstalacion: 'instalado',
+        fechaInstalacion: hoy,
+        audit: (venta.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'Sistema', accion: 'Venta cerrada — instalación completada' }])
+      });
+      notify('✓ OT cerrada y venta ' + ot.ventaId + ' marcada como instalada');
+    }
+  }
+}
+
+// ─── 5. ASIGNAR FECHA DE INSTALACIÓN DESDE AGENDA ────────────────────────────
+function asignarFechaInstalacion(ventaId, fecha, tecnico) {
+  var venta = (ventasList||[]).find(function(v){ return v.id === ventaId; });
+  if (!venta || !venta.fbKey) { notify('Venta no encontrada'); return; }
+
+  // Actualizar venta
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
+    fechaInstalacionProg: fecha,
+    tecnicoAsignado: tecnico || ''
+  });
+
+  // Actualizar OT vinculada
+  var ot = (otData||[]).find(function(o){ return o.ventaId === ventaId; });
+  if (ot && ot.fbKey) {
+    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
+      fecha: fecha, tecnico: tecnico || '', estado: 'programada'
+    });
+    // Actualizar evento de agenda
+    if (venta.agendaEventoId) {
+      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/agenda/' + venta.agendaEventoId), {
+        fecha: fecha, hora: '09:00', estado: 'programado',
+        descripcion: 'Instalación ' + ventaId + ' — ' + venta.cliente
+      });
+    }
+  }
+  notify('✓ Fecha de instalación asignada: ' + fecha + (tecnico ? ' · Técnico: ' + tecnico : ''));
+}
+
+// ─── 6. PANEL DE TAREAS PENDIENTES PARA TÉCNICOS ─────────────────────────────
+function renderTareasPendientes() {
+  var container = document.getElementById('panel-tareas-tecnico');
+  if (!container) return;
+  if (!window.fbDB) { container.innerHTML = '<div style="color:var(--text3)">Sin conexión</div>'; return; }
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/tareas')).then(function(snap) {
+    var tareas = [];
+    if (snap.val()) Object.entries(snap.val()).forEach(function(e){
+      tareas.push(Object.assign({ fbKey: e[0] }, e[1]));
+    });
+    var disponibles = tareas.filter(function(t){ return t.estado === 'disponible' || t.estado === 'en_curso'; });
+    if (!disponibles.length) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px">Sin OTs pendientes</div>';
+      return;
+    }
+    container.innerHTML = disponibles.map(function(t){
+      var badge = t.estado === 'en_curso'
+        ? '<span style="background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:11px">En curso</span>'
+        : '<span style="background:rgba(34,197,94,.1);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px">Disponible</span>';
+      return '<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<div><div style="font-weight:500">' + escapeHTML(t.cliente||'') + '</div>' +
+          '<div style="font-size:12px;color:var(--text3)">Venta ' + escapeHTML(t.ventaId||'') + '</div></div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' + badge +
+          (t.estado === 'disponible'
+            ? '<button class="btn btn-sm btn-primary" onclick="tecnicoTomarOT(\''+t.fbKey+'\')">Tomar</button>'
+            : '<button class="btn btn-sm" onclick="cerrarOTyVenta(\''+t.fbKey+'\',false)">Cerrar</button>') +
+          '</div></div></div>';
+    }).join('');
+  }).catch(function(){ container.innerHTML = '<div style="color:var(--text3)">Error al cargar tareas</div>'; });
+}
+
+// ─── 7. INICIALIZACIÓN DEL FLUJO ─────────────────────────────────────────────
+function inicializarFlujoVentas() {
+  // Verificar vencimientos al cargar y cada hora
+  setTimeout(verificarVencimientosPptos, 5000);
+  setInterval(verificarVencimientosPptos, 3600000);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+
 function guardarConfigLogin(btn) {
   var email = (document.getElementById('cfg-quick-email')||{}).value || '';
   var pass  = (document.getElementById('cfg-quick-pass')||{}).value || '';
@@ -5617,7 +5921,7 @@ var fbEsperandoReady = [];
 
 document.addEventListener('firebase-ready', function() {
   fbConectado = true;
-  console.log('[Firebase] Conectado a nixa-sisventas');
+  
   // Ejecutar callbacks pendientes
   fbEsperandoReady.forEach(function(fn) { try { fn(); } catch(e) {} });
   fbEsperandoReady = [];
@@ -5890,20 +6194,6 @@ function fbCargarPresupuestos() {
   });
 }
 
-function verificarVencimientosPptos() {
-  if (!window.fbDB) return;
-  var hoy = new Date().toISOString().split('T')[0];
-  var activos = ['borrador','revision','aprobado_int','enviado','visto','aceptado'];
-  (pptoData||[]).forEach(function(p) {
-    if (!activos.includes(p.estado)) return;
-    if (!p.vence) return;
-    if (p.vence < hoy && p.fbKey) {
-      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+p.fbKey), {
-        estado: 'vencido'
-      });
-    }
-  });
-}
 
 function fbGuardarPresupuesto(ppto) {
   if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
@@ -6684,7 +6974,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.77-firebase',
+  VERSION: 'v20.81-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7552,6 +7842,7 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarConfigLogin === 'function') setTimeout(cargarConfigLogin, 350);
+  if (typeof inicializarFlujoVentas === 'function') setTimeout(inicializarFlujoVentas, 4000);
   if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
   if (typeof cargarPresenciaUsuarios === 'function') setTimeout(cargarPresenciaUsuarios, 350);
   if (typeof spCargar === 'function') setTimeout(spCargar, 400);
@@ -8094,6 +8385,11 @@ function abrirFormProducto(id) {
   document.getElementById('pf-descripcion').value = p.descripcion || '';
   document.getElementById('pf-categoria').value = p.categoria || '';
   document.getElementById('pf-venta').value = p.venta || '';
+  // Cargar campos de calculadora de precio
+  var pgEl = document.getElementById('pf-precio-gremio');
+  var mdEl = document.getElementById('pf-margen-deseado');
+  if (pgEl) pgEl.value = p.precioGremio || p.compraARS || p.compra || '';
+  if (mdEl) mdEl.value = p.margenDeseado || '';
   document.getElementById('pf-iva').value = p.iva || 21;
   document.getElementById('pf-stock').value = p.stock !== undefined ? p.stock : '';
   document.getElementById('pf-stock-min').value = p.stockMin || '';
@@ -8298,6 +8594,30 @@ function cambiarMonedaProducto() {
   calcMargen();
 }
 
+function calcPrecioDesdeGremio() {
+  var gremio  = parseFloat(document.getElementById('pf-precio-gremio').value) || 0;
+  var margen  = parseFloat(document.getElementById('pf-margen-deseado').value) || 0;
+  var calcEl  = document.getElementById('pf-precio-calculado');
+  var usdEl   = document.getElementById('pf-precio-usd-equiv');
+  if (!gremio || !margen) { if (calcEl) calcEl.value = ''; return; }
+  // Precio venta = costo / (1 - margen/100)
+  var precioVenta = Math.round(gremio / (1 - margen / 100));
+  if (calcEl) calcEl.value = '$' + precioVenta.toLocaleString('es-AR');
+  // Cargar en el campo de precio venta
+  var pfVenta = document.getElementById('pf-venta');
+  var pfCompra = document.getElementById('pf-compra');
+  if (pfVenta)  pfVenta.value  = precioVenta;
+  if (pfCompra) pfCompra.value = gremio;
+  // Mostrar equivalente USD
+  var tc = (window._tipoCambioActual && window._tipoCambioActual.venta) || 0;
+  if (tc && usdEl) {
+    usdEl.textContent = '= USD ' + (precioVenta / tc).toFixed(2) + ' (TC $' + Math.round(tc).toLocaleString('es-AR') + ')';
+  } else if (usdEl) {
+    usdEl.textContent = 'TC no disponible';
+  }
+  calcMargen();
+}
+
 function calcMargen() {
   const c = parseFloat(document.getElementById('pf-compra').value) || 0;
   const v = parseFloat(document.getElementById('pf-venta').value) || 0;
@@ -8358,8 +8678,29 @@ function guardarProducto() {
     stockMin:     parseInt(document.getElementById('pf-stock-min').value) || 5,
     estado:       document.getElementById('pf-estado').value,
     unidad:       document.getElementById('pf-unidad').value,
-    esManoDeObra: document.getElementById('pf-es-mano-obra').checked
+    esManoDeObra: document.getElementById('pf-es-mano-obra').checked,
+    precioGremio: parseFloat(document.getElementById('pf-precio-gremio').value) || 0,
+    margenDeseado: parseFloat(document.getElementById('pf-margen-deseado').value) || 0
   };
+
+  // ── Conversión automática a USD si el producto está en ARS ──
+  var tc = (window._tipoCambioActual && window._tipoCambioActual.venta) || 0;
+  if (datos.moneda === 'ARS' && tc > 0) {
+    datos.ventaUSD   = parseFloat((datos.venta  / tc).toFixed(2));
+    datos.compraUSD  = parseFloat((datos.compra / tc).toFixed(2));
+    datos.ventaARS   = datos.venta;
+    datos.compraARS  = datos.compra;
+    datos.tcGuardado = tc;
+    datos.tcFecha    = new Date().toISOString().slice(0,10);
+  } else if (datos.moneda === 'USD') {
+    // Ya está en USD — guardar también equivalente ARS
+    datos.ventaUSD  = datos.venta;
+    datos.compraUSD = datos.compra;
+    if (tc > 0) {
+      datos.ventaARS  = Math.round(datos.venta  * tc);
+      datos.compraARS = Math.round(datos.compra * tc);
+    }
+  }
 
   if (editingProdId) {
     datos.fbKey = editingProdId;
@@ -9767,11 +10108,7 @@ function volverlista() {
 }
 
 
-// ── SWIPE SIDEBAR DESHABILITADO — solo ícono hamburguesa ──
-// (código comentado para diagnóstico de scroll)
-/*
-SWIPE_HANDLER_DISABLED
-*/
+// ── Sidebar: solo botón hamburguesa (swipe deshabilitado) ──
 
 // ── PANEL USUARIO ──
 function toggleUserPanel() {
@@ -9967,15 +10304,25 @@ function fbCargarPagos() {
         return '<tr style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(p.medio||'—')+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>'+_ed+'</td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
-    // Cuenta corriente desde ventasList
+    // Cuenta corriente: total desde ventas, cobrado desde TODOS los pagos
     var ccMap = {};
     (ventasList||[]).forEach(function(v){
       if (!ccMap[v.cliente]) ccMap[v.cliente]={total:0,cobrado:0,ultimoPago:'—'};
       ccMap[v.cliente].total += parseFloat(v.total)||0;
-      if (v.estadoPago==='pago_total') ccMap[v.cliente].cobrado += parseFloat(v.total)||0;
-      else ccMap[v.cliente].cobrado += parseFloat(v.totalPagado||0);
+      // Pagos embebidos en la venta (v.pagos[])
+      (v.pagos||[]).forEach(function(pg){
+        ccMap[v.cliente].cobrado += parseFloat(pg.monto)||0;
+      });
     });
-    lista.forEach(function(p){ if(ccMap[p.cliente]) ccMap[p.cliente].ultimoPago=p.fecha||'—'; });
+    // Sumar pagos de sisventas/pagos (cobranzas) — no duplican v.pagos[]
+    lista.filter(function(p){ return !p.anulado; }).forEach(function(p){
+      if (!p.cliente) return;
+      if (!ccMap[p.cliente]) ccMap[p.cliente] = { total:0, cobrado:0, ultimoPago:'—' };
+      ccMap[p.cliente].cobrado += parseFloat(p.monto)||0;
+      if (!ccMap[p.cliente].ultimoPago || (p.fecha||'') > ccMap[p.cliente].ultimoPago) {
+        ccMap[p.cliente].ultimoPago = p.fecha || '—';
+      }
+    });
     window._ccMapActual = ccMap;
     var _emb = [];
     (ventasList||[]).forEach(function(v) {
@@ -12053,7 +12400,7 @@ function cerrarCaja() {
   var saldoCalculado = parseFloat(normalizarNumeroExcel(saldoTexto)) || 0;
   const saldo = prompt('Saldo calculado por el sistema: $' + Math.round(saldoCalculado).toLocaleString('es-AR') + '\n\nIngresá el saldo real contado en caja ($):');
   if (saldo === null) return;
-  const real = parseFloat(saldo.replace(/[^0-9.]/g,'')) || 0;
+  const real = (function(s){ return parseFloat(String(s).replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,''))||0; })(saldo);
   const diff = real - saldoCalculado;
   if (diff === 0) notify('✓ Caja cerrada sin diferencias');
   else notify('Caja cerrada. ' + (diff > 0 ? 'Sobrante' : 'Faltante') + ': $' + Math.abs(diff).toLocaleString('es-AR'));
@@ -12856,6 +13203,10 @@ function registrarPago() {
       notify('✓ Pago registrado correctamente');
       if (typeof registrarActividad === 'function') {
         registrarActividad('Pago registrado', venta + ' — ' + (pago.cliente||'') + ' — $' + Math.round(monto).toLocaleString('es-AR') + ' (' + medio + ')');
+      }
+      // ── FLUJO POST-PAGO: si es la primera seña, habilitar agenda y generar OT
+      if (ventaObj && !ventaObj.otGenerada) {
+        flujoPostPago(ventaObj, monto);
       }
       // Ofrecer imprimir recibo
       window._ultimoPagoId = ref.key;
@@ -18751,7 +19102,7 @@ function verPpto(id) {
   var itemsBody = document.getElementById('ppto-det-items');
   if (itemsBody) {
     // Diagnóstico: mostrar en consola el formato real de los items
-    console.log('[PPTO DEBUG] id:', p.id, '| items type:', typeof p.items, '| isArray:', Array.isArray(p.items), '| raw:', JSON.stringify(p.items ? (Array.isArray(p.items) ? p.items.slice(0,2) : Object.entries(p.items).slice(0,2)) : null));
+
     // Normalizar: Firebase a veces guarda arrays como objetos {0:{...}, 1:{...}}
     var items;
     if (Array.isArray(p.items)) {
