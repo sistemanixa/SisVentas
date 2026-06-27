@@ -744,6 +744,11 @@ tr:hover td{color:var(--text)}
     import { getStorage, ref as storageRef, uploadBytes, getDownloadURL }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
+    // Capturar errores JS globales para debug
+    window.onerror = function(msg, src, line, col, err) {
+      console.error('[JS ERROR]', msg, 'en línea', line, src);
+      return false;
+    };
     const firebaseConfig = {
       apiKey: "AIzaSyCw8Q4-fUA69iWFkDuy8qEkEcOGHOjFsto",
       authDomain: "nixa-sisventas.firebaseapp.com",
@@ -809,7 +814,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.93 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.96 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6910,6 +6915,13 @@ function showPage(id, el) {
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
   if (id === 'cobranzas')      { setTimeout(function(){ fbCargarPagos(); }, 50); }
   if (id === 'cuentacorriente'){ setTimeout(function(){ fbCargarPagos(); }, 50); }
+  if (id === 'configuracion')   { setTimeout(function(){
+    try{ if(typeof cargarConfigGeneral==='function') cargarConfigGeneral(); }catch(e){}
+    try{ if(typeof cargarConfigImpuestos==='function') cargarConfigImpuestos(); }catch(e){}
+    try{ if(typeof cargarConfigComisiones==='function') cargarConfigComisiones(); }catch(e){}
+    try{ if(typeof cargarConfigLogin==='function') cargarConfigLogin(); }catch(e){}
+    try{ if(typeof cargarCargos==='function') cargarCargos(); }catch(e){}
+  }, 200); }
   if (id === 'productos')      {
     try { if(typeof mostrarAlertasStock==='function') mostrarAlertasStock(); } catch(e){}
     var plv=document.getElementById('prod-list-view');
@@ -7001,7 +7013,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.93-firebase',
+  VERSION: 'v20.96-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10175,12 +10187,12 @@ function volverlista() {
 
 // ── PANEL USUARIO ──
 function toggleUserPanel() {
-  const panel = document.getElementById('user-panel');
-  const overlay = document.getElementById('user-panel-overlay');
+  var panel = document.getElementById('user-panel');
+  var overlay = document.getElementById('user-panel-overlay');
   if (!panel) return;
-  const isOpen = panel.style.display === 'block';
+  var isOpen = panel.style.display === 'block';
   panel.style.display = isOpen ? 'none' : 'block';
-  overlay.style.display = isOpen ? 'none' : 'block';
+  if (overlay) overlay.style.display = isOpen ? 'none' : 'block';
   if (!isOpen) {
     var vEl = document.getElementById('up-version');
     if (vEl && APP_CONFIG && APP_CONFIG.VERSION) {
@@ -19957,15 +19969,61 @@ function verOT(id) {
     actualizarProgreso(ot);
   }
 
-  // ── Materiales ──
+  // ── Materiales — leer desde OT o desde la venta origen ──
   var mat = document.getElementById('ot-materiales');
-  if (mat) mat.innerHTML = (ot.materiales||[]).map(function(m) {
-    var ok = m.instalada >= m.vendida;
-    var parcial = m.instalada > 0 && m.instalada < m.vendida;
-    return '<tr><td>'+escapeHTML(m.cod||'')+'</td><td>'+escapeHTML(m.desc||'')+'</td><td class="tr">'+m.vendida+'</td>' +
-      '<td class="tr"><input type="number" value="'+m.instalada+'" min="0" max="'+m.vendida+'" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:3px 6px;text-align:right;font-size:13px;font-family:inherit"></td>' +
-      '<td class="tr">'+(ok?'<span class="badge b-green">Completo</span>':parcial?'<span class="badge b-amber">Parcial</span>':'<span class="badge b-red">Pendiente</span>')+'</td></tr>';
-  }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:12px">Sin materiales registrados</td></tr>';
+  if (mat) {
+    var materiales = [];
+
+    // 1. Si la OT tiene materiales propios, usarlos
+    if (ot.materiales && ot.materiales.length) {
+      materiales = ot.materiales;
+    }
+    // 2. Si no, buscar en la venta origen
+    else if (ot.ventaId) {
+      var ventaOrigen = (ventasList||[]).find(function(v){ return v.id === ot.ventaId; });
+      if (ventaOrigen && ventaOrigen.items && ventaOrigen.items.length) {
+        // Mapear ítems de la venta al formato de materiales de OT
+        materiales = ventaOrigen.items.map(function(it){
+          // Buscar si ya hay progreso guardado en ot.items (por fbKey del ítem)
+          var prog = (ot.items||[]).find(function(i){ return i.cod === (it.cod||it.codigo||''); });
+          return {
+            cod:       it.cod || it.codigo || '',
+            desc:      it.desc || it.nombre || it.descripcion || '',
+            vendida:   parseFloat(it.qty || it.cantidad || 1),
+            instalada: prog ? parseFloat(prog.instalada||0) : 0
+          };
+        }).filter(function(m){ return m.desc; }); // solo ítems con descripción
+      }
+    }
+    // 3. Si hay ítems (del flujoPostPago), también usarlos
+    else if (ot.items && ot.items.length) {
+      materiales = ot.items.map(function(it){
+        return {
+          cod:       it.cod || it.codigo || '',
+          desc:      it.desc || it.nombre || it.descripcion || '',
+          vendida:   parseFloat(it.qty || it.cantidad || 1),
+          instalada: parseFloat(it.instalada || 0)
+        };
+      }).filter(function(m){ return m.desc; });
+    }
+
+    mat.innerHTML = materiales.length ? materiales.map(function(m) {
+      var ok      = m.instalada >= m.vendida;
+      var parcial = m.instalada > 0 && m.instalada < m.vendida;
+      var badge   = ok ? '<span class="badge b-green">Completo</span>'
+                       : parcial ? '<span class="badge b-amber">Parcial</span>'
+                       : '<span class="badge b-red">Pendiente</span>';
+      return '<tr>' +
+        '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(m.cod||'')+'</td>' +
+        '<td>'+escapeHTML(m.desc||'')+'</td>' +
+        '<td class="tr">'+m.vendida+'</td>' +
+        '<td class="tr"><input type="number" value="'+m.instalada+'" min="0" max="'+m.vendida+'" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:3px 6px;text-align:right;font-size:13px;font-family:inherit" onchange="otActualizarMaterial(this,\''+escapeHTML(m.cod)+'\')"></td>' +
+        '<td class="tr">'+badge+'</td></tr>';
+    }).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:12px">Sin materiales' +
+      (ot.ventaId ? ' — la venta origen no tiene ítems registrados' : ' — OT sin venta vinculada') +
+      '</td></tr>';
+  }
 
   // ── Audit ──
   var auditEl = document.getElementById('ot-audit');
@@ -19977,7 +20035,50 @@ function verOT(id) {
   }).join('');
 }
 
-// ── Credenciales del cliente en OT ──
+function otActualizarMaterial(inp, cod) {
+  // Guardar progreso de instalación de un material en la OT
+  var ot = otData.find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
+  if (!ot || !ot.fbKey || !window.fbDB) return;
+
+  // Reconstruir el array de ítems con el nuevo valor
+  var filas = document.querySelectorAll('#ot-materiales tr');
+  var items = [];
+  filas.forEach(function(tr) {
+    var tds = tr.querySelectorAll('td');
+    var inpEl = tr.querySelector('input[type=number]');
+    if (tds.length >= 2 && inpEl) {
+      items.push({
+        cod:       tds[0].textContent.trim(),
+        desc:      tds[1].textContent.trim(),
+        vendida:   parseFloat(tds[2].textContent) || 0,
+        instalada: parseFloat(inpEl.value) || 0
+      });
+    }
+  });
+
+  // Actualizar badge de estado en la misma fila
+  var tr = inp.closest('tr');
+  if (tr) {
+    var vendida   = parseFloat(inp.max) || 0;
+    var instalada = parseFloat(inp.value) || 0;
+    var badgeEl   = tr.querySelector('.badge');
+    if (badgeEl) {
+      if (instalada >= vendida && vendida > 0) {
+        badgeEl.className = 'badge b-green'; badgeEl.textContent = 'Completo';
+      } else if (instalada > 0) {
+        badgeEl.className = 'badge b-amber'; badgeEl.textContent = 'Parcial';
+      } else {
+        badgeEl.className = 'badge b-red'; badgeEl.textContent = 'Pendiente';
+      }
+    }
+  }
+
+  // Guardar en Firebase
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
+    items: items
+  }).catch(function(e){ notify('Error guardando: ' + e.message); });
+}
+
 function otCargarCredenciales(ot) {
   var box  = document.getElementById('ot-cred-box');
   var lista = document.getElementById('ot-cred-lista');
@@ -20694,6 +20795,9 @@ function migrarCobrosHistoricos_analizar() {
     var conFechaObs = _cobrosParaMigrar.filter(function(v){
       return /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(v.obs||'');
     }).length;
+    var sinFechaObs = _cobrosParaMigrar.filter(function(v){
+      return !/\d{1,2}\/\d{1,2}\/\d{2,4}/.test(v.obs||'');
+    });
     var monto = _cobrosParaMigrar.reduce(function(s,v){ return s+(parseFloat(v.totalPagado)||0); },0);
 
     if (!_cobrosParaMigrar.length) {
@@ -20702,15 +20806,41 @@ function migrarCobrosHistoricos_analizar() {
       return;
     }
 
+    // Guardar para ver el listado
+    window._sinFechaObsList = sinFechaObs;
+
     res.innerHTML =
       '<div style="background:var(--bg3);border-radius:6px;padding:10px;margin-bottom:8px">' +
       '<b>' + _cobrosParaMigrar.length + '</b> ventas para migrar · ' +
       '<b>$' + Math.round(monto).toLocaleString('es-AR') + '</b> total · ' +
       '<span style="color:var(--green)">' + conFechaObs + ' con fecha en obs</span> · ' +
-      '<span style="color:var(--amber)">' + (_cobrosParaMigrar.length - conFechaObs) + ' usarán fecha de venta</span>' +
-      '</div>';
+      '<span style="color:var(--amber);cursor:pointer;text-decoration:underline" onclick="migrarCobrosHistoricos_verSinFecha()">' + sinFechaObs.length + ' sin fecha — ver listado ▼</span>' +
+      '</div>' +
+      '<div id="migrar-cobros-sinfecha-lista" style="display:none;max-height:240px;overflow-y:auto;background:var(--bg3);border-radius:6px;padding:8px;margin-bottom:8px;font-size:11px;font-family:monospace;line-height:1.6"></div>';
     document.getElementById('btn-migrar-cobros-ejecutar').style.display = '';
   }).catch(function(e){ res.innerHTML = '<span style="color:var(--red)">Error: '+e.message+'</span>'; });
+}
+
+function migrarCobrosHistoricos_verSinFecha() {
+  var lista = window._sinFechaObsList || [];
+  var box = document.getElementById('migrar-cobros-sinfecha-lista');
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  if (!lista.length) { box.innerHTML = 'Todas tienen fecha en obs ✓'; box.style.display = 'block'; return; }
+  box.innerHTML =
+    '<div style="color:var(--amber);font-weight:600;margin-bottom:6px;font-size:12px">' + lista.length + ' ventas sin fecha en obs (usarán la fecha de la venta):</div>' +
+    lista.map(function(v) {
+      var obs = (v.obs||'').slice(0, 60);
+      var fecha = (v.fecha||'—').split('T')[0];
+      var pagado = '$' + (parseFloat(v.totalPagado)||0).toLocaleString('es-AR');
+      return '<div style="padding:3px 0;border-bottom:0.5px solid var(--border);display:flex;gap:8px">' +
+        '<span style="color:var(--blue);min-width:80px">' + (v.id||'') + '</span>' +
+        '<span style="color:var(--text3);min-width:80px">' + fecha + '</span>' +
+        '<span style="color:var(--green);min-width:90px">' + pagado + '</span>' +
+        '<span style="color:var(--text2)">obs: "' + obs + '"</span>' +
+        '</div>';
+    }).join('');
+  box.style.display = 'block';
 }
 
 function migrarCobrosHistoricos_ejecutar() {
