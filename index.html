@@ -814,7 +814,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.100 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.101 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1837,7 +1837,15 @@ tr:hover td{color:var(--text)}
         <div class="card">
           <div class="card-head">
             <span class="card-title">Historial de cobros</span>
-            <input type="text" id="cob-buscador" placeholder="Buscar por venta, cliente, medio..." style="width:220px;font-size:13px" oninput="filtrarCobros(this.value)">
+            <span id="cob-contador" style="font-size:12px;color:var(--text3)"></span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+            <input class="search-input" style="flex:1;min-width:180px" id="cob-buscador" placeholder="Buscar por venta, cliente o medio..." oninput="filtrarCobros(this.value)">
+            <div style="display:flex;gap:4px">
+              <button id="cob-filtro-todos" class="btn btn-sm btn-primary" onclick="setFiltroCob('todos')">Todos</button>
+              <button id="cob-filtro-mes" class="btn btn-sm" onclick="setFiltroCob('mes')">Este mes</button>
+              <button id="cob-filtro-anulados" class="btn btn-sm" onclick="setFiltroCob('anulados')">Anulados</button>
+            </div>
           </div>
           <table id="pagos-tbl">
             <thead><tr><th>Venta</th><th>Cliente</th><th>Fecha</th><th>Medio</th><th style="text-align:right">Monto</th><th style="text-align:right">Saldo restante</th><th></th></tr></thead>
@@ -2101,31 +2109,7 @@ tr:hover td{color:var(--text)}
             <div style="font-size:11px;color:var(--text3);margin-top:4px">⚠️ Solo "Días de vencimiento" se guarda en base de datos por ahora. El resto de campos son de referencia visual.</div>
             <div class="flex-end"><button class="btn btn-primary" onclick="guardarPreferenciasSistema(this)"><i class="ti ti-check"></i> Guardar cambios</button></div>
           </div>
-          <div class="card">
-            <div class="card-head"><span class="card-title" style="color:var(--amber)"><i class="ti ti-tools"></i> Corrección de datos importados</span></div>
-            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Herramientas para corregir datos migrados del sistema VB.NET anterior.</div>
-            <button class="btn btn-sm" onclick="fixIVADatosImportados()" style="color:var(--amber);border-color:var(--amber)">
-              <i class="ti ti-receipt-off"></i> Poner IVA = 0 en ventas importadas sin factura
-            </button>
-            <div style="font-size:11px;color:var(--text3);margin-top:8px">⚠️ Ejecutar solo una vez. Afecta ventas con ID original que no tengan factura emitida.</div>
 
-            <hr style="border:none;border-top:0.5px solid var(--border);margin:16px 0">
-            <div style="font-size:13px;font-weight:500;margin-bottom:6px"><i class="ti ti-cash" style="margin-right:6px"></i>Migrar cobros históricos</div>
-            <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Crea registros en Cobranzas a partir de las ventas migradas que tienen <code>totalPagado &gt; 0</code>. Lee la fecha del campo observaciones.</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-              <button class="btn btn-sm" onclick="migrarCobrosHistoricos_analizar()" style="color:var(--amber);border-color:var(--amber)"><i class="ti ti-search"></i> Analizar ventas</button>
-              <button class="btn btn-sm" id="btn-migrar-cobros-ejecutar" onclick="migrarCobrosHistoricos_ejecutar()" style="display:none;color:var(--green);border-color:var(--green)"><i class="ti ti-database-import"></i> Crear cobros</button>
-            </div>
-            <div id="migrar-cobros-resultado" style="font-size:12px;margin-top:4px"></div>
-          <div class="card">
-            <div class="card-head"><span class="card-title" style="color:var(--amber)"><i class="ti ti-stethoscope"></i> Diagnóstico: Cargo de empleados</span></div>
-            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Herramienta temporal para revisar por qué algunos empleados no muestran el valor mensual de su cargo.</div>
-            <button class="btn btn-sm" onclick="diagnosticoCargoEmpleados()" style="color:var(--amber);border-color:var(--amber)">
-              <i class="ti ti-search"></i> Ejecutar diagnóstico
-            </button>
-            <div id="diag-cargo-resultado" style="margin-top:12px"></div>
-          </div>
-          </div>
 
         <!-- TAB: CARGOS -->
         <div id="cfg-cargos" class="cfg-panel" style="display:none">
@@ -7021,7 +7005,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.100-firebase',
+  VERSION: 'v20.101-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10389,13 +10373,37 @@ function anularPago(fbKey) {
     .catch(function(e){ notify('Error: ' + e.message); });
 }
 
+var _cobFiltroActual = 'todos';
+
+function setFiltroCob(filtro) {
+  _cobFiltroActual = filtro;
+  ['todos','mes','anulados'].forEach(function(f) {
+    var btn = document.getElementById('cob-filtro-' + f);
+    if (btn) btn.className = 'btn btn-sm' + (f === filtro ? ' btn-primary' : '');
+  });
+  filtrarCobros((document.getElementById('cob-buscador')||{}).value || '');
+}
+
 function filtrarCobros(texto) {
   var t = (texto||'').toLowerCase();
+  var hoy = new Date();
+  var mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
   var rows = document.querySelectorAll('#pagos-tbody tr');
-  rows.forEach(function(tr){
-    var txt = tr.textContent.toLowerCase();
-    tr.style.display = (!t || txt.includes(t)) ? '' : 'none';
+  var visibles = 0;
+  rows.forEach(function(tr) {
+    var matchTxt = !t || tr.textContent.toLowerCase().includes(t);
+    var fecha    = tr.dataset.fecha || '';
+    var anulado  = tr.dataset.anulado === '1';
+    var matchFiltro = _cobFiltroActual === 'todos'   ? true
+                    : _cobFiltroActual === 'mes'     ? fecha.startsWith(mesActual)
+                    : _cobFiltroActual === 'anulados'? anulado
+                    : true;
+    var show = matchTxt && matchFiltro;
+    tr.style.display = show ? '' : 'none';
+    if (show) visibles++;
   });
+  var contador = document.getElementById('cob-contador');
+  if (contador) contador.textContent = visibles + ' cobro' + (visibles !== 1 ? 's' : '');
 }
 
 function elimPago(fbKey) {
@@ -10411,15 +10419,17 @@ function fbCargarPagos() {
     var data = snap.val();
     var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
     var pagosTbody = document.getElementById('pagos-tbody');
-    var listaCortada = lista;
-    window._historialPagosActual = listaCortada;
+    // Últimas 20 por defecto — el filtro muestra más si se busca
+    window._historialPagosCompleto = lista; // guardar lista completa para filtros
+    var listaCortada = lista.slice(0, 20);
+    window._historialPagosActual = lista; // mantener lista completa para recibos
     if (pagosTbody) {
       pagosTbody.innerHTML = listaCortada.length ? listaCortada.map(function(p, idx){
         var ventaLink = p.venta ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();irAVentaDesdeCobranza(\''+escapeHTML(p.venta)+'\');" title="Ver venta"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></button>' : '—';
         var _ed = p.fbKey && !p.anulado ? '<button class="btn btn-sm btn-icon" onclick="anularPago(\''+p.fbKey+'\')" title="Anular cobro" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-ban" style="font-size:13px"></i></button>' : '';
         var trStyle = p.anulado ? 'background:rgba(239,68,68,.08);opacity:.7' : '';
         var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : '<span style="color:var(--green);font-weight:500">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</span>';
-        return '<tr style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(p.medio||'—')+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>'+_ed+'</td></tr>';
+        return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(p.medio||'—')+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>'+_ed+'</td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
     // Cuenta corriente desde ventasList
@@ -19954,12 +19964,15 @@ function verOT(id) {
   if (tecSel) {
     // Poblar opciones si aún no están
     if (tecSel.options.length <= 1) {
-      var emps = Object.values(empData||{}).filter(function(e){ return e.activo !== false; })
-        .sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
-      // Agregar Inicial primero
-      ['Inicial'].concat(emps.map(function(e){ return e.nombre; })).forEach(function(n){
-        if ([...tecSel.options].some(function(o){ return o.value === n; })) return;
-        var opt = document.createElement('option'); opt.value = n; opt.textContent = n;
+      // Solo empleados con cargo técnico A, B o C
+      var emps = Object.values(empData||{}).filter(function(e){
+        if (e.activo === false) return false;
+        var cat = (e.categoriaBase || e.cargo || '').toUpperCase();
+        return cat.includes('TECNICO') || cat.includes('TÉCNICO');
+      }).sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
+      emps.forEach(function(e){
+        if ([...tecSel.options].some(function(o){ return o.value === e.nombre; })) return;
+        var opt = document.createElement('option'); opt.value = e.nombre; opt.textContent = e.nombre;
         tecSel.appendChild(opt);
       });
     }
@@ -20760,198 +20773,12 @@ function verDetalleVentaDesdeId(ventaId) {
   }, 150);
 }
 
-function diagnosticoCargoEmpleados() {
-  var box = document.getElementById('diag-cargo-resultado');
-  if (!box) return;
-  var empleados = Object.values(empData||{});
-  var cargosIds = Object.keys(CARGOS_DATA||{});
-  if (!empleados.length) { box.innerHTML = '<div style="font-size:12px;color:var(--text3)">No hay empleados cargados.</div>'; return; }
-
-  var filas = empleados.map(function(e) {
-    var tieneCargoId = !!e.cargoId;
-    var cargoExiste = tieneCargoId && CARGOS_DATA[e.cargoId];
-    var estado, color;
-    if (!tieneCargoId) { estado = 'Sin cargoId guardado'; color = 'var(--text3)'; }
-    else if (!cargoExiste) { estado = 'cargoId no existe en Cargos'; color = 'var(--red)'; }
-    else { estado = 'OK'; color = 'var(--green)'; }
-    return '<tr>' +
-      '<td style="padding:6px 8px;font-size:12px">'+escapeHTML(e.nombre||'—')+'</td>' +
-      '<td style="padding:6px 8px;font-size:12px;color:var(--text3)">'+escapeHTML(e.cargo||'—')+'</td>' +
-      '<td style="padding:6px 8px;font-size:11px;font-family:monospace;color:var(--text3)">'+escapeHTML(e.cargoId||'(vacío)')+'</td>' +
-      '<td style="padding:6px 8px;font-size:12px;font-weight:500;color:'+color+'">'+estado+'</td>' +
-    '</tr>';
-  }).join('');
-
-  box.innerHTML =
-    '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Cargos existentes en Firebase: '+cargosIds.length+' ('+cargosIds.map(function(id){return CARGOS_DATA[id].nombre;}).join(', ')+')</div>' +
-    '<table style="width:100%;border-collapse:collapse"><thead><tr>' +
-      '<th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3)">Empleado</th>' +
-      '<th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3)">Cargo (texto)</th>' +
-      '<th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3)">cargoId guardado</th>' +
-      '<th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3)">Estado</th>' +
-    '</tr></thead><tbody>' + filas + '</tbody></table>';
-}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // HERRAMIENTA: MIGRAR COBROS HISTÓRICOS (desde Configuración)
 // ══════════════════════════════════════════════════════════════════════════════
-var _cobrosParaMigrar = [];
-
-function _extraerFechaDeObs(obs, fechaVenta) {
-  var s = String(obs||'').trim();
-  var m1 = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-  if (m1) {
-    var yy = m1[3].length === 2 ? '20'+m1[3] : m1[3];
-    return yy + '-' + m1[2].padStart(2,'0') + '-' + m1[1].padStart(2,'0');
-  }
-  var m2 = s.match(/(\d{4})-(\d{2})-(\d{2})/);
-  if (m2) return m2[0];
-  return _normFechaMig(fechaVenta);
-}
-
-function _normFechaMig(f) {
-  if (!f) return '';
-  var s = String(f).trim().replace(/[T ].*$/, '');
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  var p = s.split('/');
-  if (p.length === 3) {
-    var yy = p[2].length === 2 ? '20'+p[2] : p[2];
-    return yy + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
-  }
-  return s;
-}
-
-function migrarCobrosHistoricos_analizar() {
-  var res = document.getElementById('migrar-cobros-resultado');
-  if (!window.fbDB) { res.innerHTML = '<span style="color:var(--red)">Sin conexión a Firebase</span>'; return; }
-  res.innerHTML = '<span style="color:var(--text3)">Analizando ventas...</span>';
-
-  // Cargar pagos existentes para no duplicar
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/pagos')).then(function(snapPagos) {
-    var pagosExist = snapPagos.val() || {};
-    var ventasConPago = new Set(Object.values(pagosExist).map(function(p){ return p.venta; }).filter(Boolean));
-
-    // Filtrar ventas con totalPagado > 0 sin cobro ya registrado
-    _cobrosParaMigrar = (ventasList||[]).filter(function(v) {
-      var pagado = parseFloat(v.totalPagado || 0);
-      return pagado > 0 && !ventasConPago.has(v.id);
-    });
-
-    var conFechaObs = _cobrosParaMigrar.filter(function(v){
-      return /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(v.obs||'');
-    }).length;
-    var sinFechaObs = _cobrosParaMigrar.filter(function(v){
-      return !/\d{1,2}\/\d{1,2}\/\d{2,4}/.test(v.obs||'');
-    });
-    var monto = _cobrosParaMigrar.reduce(function(s,v){ return s+(parseFloat(v.totalPagado)||0); },0);
-
-    if (!_cobrosParaMigrar.length) {
-      res.innerHTML = '<span style="color:var(--green)">✓ No hay ventas pendientes de migrar (todas ya tienen cobro o totalPagado = 0)</span>';
-      document.getElementById('btn-migrar-cobros-ejecutar').style.display = 'none';
-      return;
-    }
-
-    // Guardar para ver el listado
-    window._sinFechaObsList = sinFechaObs;
-
-    res.innerHTML =
-      '<div style="background:var(--bg3);border-radius:6px;padding:10px;margin-bottom:8px">' +
-      '<b>' + _cobrosParaMigrar.length + '</b> ventas para migrar · ' +
-      '<b>$' + Math.round(monto).toLocaleString('es-AR') + '</b> total · ' +
-      '<span style="color:var(--green)">' + conFechaObs + ' con fecha en obs</span> · ' +
-      '<span style="color:var(--amber);cursor:pointer;text-decoration:underline" onclick="migrarCobrosHistoricos_verSinFecha()">' + sinFechaObs.length + ' sin fecha — ver listado ▼</span>' +
-      '</div>' +
-      '<div id="migrar-cobros-sinfecha-lista" style="display:none;max-height:240px;overflow-y:auto;background:var(--bg3);border-radius:6px;padding:8px;margin-bottom:8px;font-size:11px;font-family:monospace;line-height:1.6"></div>';
-    document.getElementById('btn-migrar-cobros-ejecutar').style.display = '';
-  }).catch(function(e){ res.innerHTML = '<span style="color:var(--red)">Error: '+e.message+'</span>'; });
-}
-
-function migrarCobrosHistoricos_verSinFecha() {
-  var lista = window._sinFechaObsList || [];
-  var box = document.getElementById('migrar-cobros-sinfecha-lista');
-  if (!box) return;
-  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
-  if (!lista.length) { box.innerHTML = 'Todas tienen fecha en obs ✓'; box.style.display = 'block'; return; }
-  box.innerHTML =
-    '<div style="color:var(--amber);font-weight:600;margin-bottom:6px;font-size:12px">' + lista.length + ' ventas sin fecha en obs (usarán la fecha de la venta):</div>' +
-    lista.map(function(v) {
-      var obs = (v.obs||'').slice(0, 60);
-      var fecha = (v.fecha||'—').split('T')[0];
-      var pagado = '$' + (parseFloat(v.totalPagado)||0).toLocaleString('es-AR');
-      return '<div style="padding:3px 0;border-bottom:0.5px solid var(--border);display:flex;gap:8px">' +
-        '<span style="color:var(--blue);min-width:80px">' + (v.id||'') + '</span>' +
-        '<span style="color:var(--text3);min-width:80px">' + fecha + '</span>' +
-        '<span style="color:var(--green);min-width:90px">' + pagado + '</span>' +
-        '<span style="color:var(--text2)">obs: "' + obs + '"</span>' +
-        '</div>';
-    }).join('');
-  box.style.display = 'block';
-}
-
-function migrarCobrosHistoricos_ejecutar() {
-  if (!_cobrosParaMigrar.length) { notify('Analizá primero'); return; }
-  if (!confirm('¿Crear ' + _cobrosParaMigrar.length + ' cobros históricos en Firebase?\n\nEsta acción no se puede deshacer.')) return;
-
-  var btn = document.getElementById('btn-migrar-cobros-ejecutar');
-  btn.disabled = true; btn.textContent = '⏳ Migrando...';
-  var res = document.getElementById('migrar-cobros-resultado');
-  var ok = 0, errores = 0;
-
-  var promesas = _cobrosParaMigrar.map(function(v, i) {
-    var monto   = parseFloat(v.totalPagado) || 0;
-    var total   = parseFloat(v.total) || 0;
-    var saldo   = Math.max(0, total - monto);
-    var obs     = v.obs || '';
-    var tieneFechaObs = /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(obs);
-    var fechaCobro = _extraerFechaDeObs(obs, _normFechaMig(v.fecha));
-
-    var pago = {
-      venta:       v.id,
-      cliente:     v.cliente || '',
-      monto:       monto,
-      fecha:       fechaCobro,
-      medio:       'Transferencia',
-      obs:         obs || 'Migrado del sistema anterior',
-      saldo:       saldo,
-      tipo:        monto >= total * 0.99 ? 'pago_total' : 'pago_parcial',
-      ts:          Date.now() - (_cobrosParaMigrar.length - i) * 1000,
-      usuario:     'Migración',
-      migrado:     true,
-      fechaFuente: tieneFechaObs ? 'obs' : 'venta'
-    };
-
-    return window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos'), pago)
-      .then(function(r) {
-        window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/pagos/' + r.key), { fbKey: r.key });
-        ok++;
-      })
-      .catch(function() { errores++; });
-  });
-
-  Promise.all(promesas).then(function() {
-    res.innerHTML += '<div style="color:var(--green);margin-top:8px">✓ ' + ok + ' cobros creados' + (errores ? ' · <span style="color:var(--red)">' + errores + ' errores</span>' : '') + '</div>';
-    btn.textContent = '✓ Completado';
-    btn.style.cssText = 'color:var(--green);border-color:var(--green)';
-    _cobrosParaMigrar = [];
-    notify('✓ Migración completada: ' + ok + ' cobros creados');
-  });
-}
 // ══════════════════════════════════════════════════════════════════════════════
 
-function fixIVADatosImportados() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
-  if (!confirm('¿Poner IVA = 0 en todas las ventas importadas (con idOriginal) que no tienen factura?\nVerificá que sea correcto antes de continuar.')) return;
-  var ventas = (ventasList||[]).filter(function(v){ return v.idOriginal && !v.factura && v.fbKey; });
-  if (!ventas.length) { notify('No hay ventas importadas para corregir'); return; }
-  var count = 0;
-  ventas.forEach(function(v) {
-    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/'+v.fbKey), { iva: 0 })
-      .then(function(){
-        count++;
-        if (count === ventas.length) notify('✓ IVA corregido en ' + count + ' ventas importadas');
-      });
-  });
-}
 
 function moverVentaAPresupuesto(ventaId) {
   var v = (ventasList||[]).find(function(x){ return x.id===ventaId || x.fbKey===ventaId; });
