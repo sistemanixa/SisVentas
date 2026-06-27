@@ -814,7 +814,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.101 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.102 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7005,7 +7005,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.101-firebase',
+  VERSION: 'v20.102-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10211,20 +10211,25 @@ function toggleUserPanel() {
   var overlay = document.getElementById('user-panel-overlay');
   if (!panel) return;
   var isOpen = panel.style.display === 'block';
-  panel.style.display = isOpen ? 'none' : 'block';
-  if (overlay) {
-    if (isOpen) {
-      overlay.style.display = 'none';
-    } else {
-      // Mostrar overlay con delay para evitar que capture el mismo click
-      setTimeout(function() { overlay.style.display = 'block'; }, 10);
-    }
+  if (isOpen) {
+    panel.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
+    return;
   }
-  if (!isOpen) {
-    var vEl = document.getElementById('up-version');
-    if (vEl && APP_CONFIG && APP_CONFIG.VERSION) {
-      vEl.textContent = APP_CONFIG.VERSION.replace('-firebase','');
-    }
+  // Calcular posición correcta para mobile (considera barra del browser)
+  var vv = window.visualViewport;
+  var topOffset = vv ? (vv.offsetTop + 52) : 52;
+  var rightOffset = vv ? (window.innerWidth - vv.offsetLeft - vv.width) : 0;
+  panel.style.top   = topOffset + 'px';
+  panel.style.right = (12 + rightOffset) + 'px';
+  panel.style.display = 'block';
+  panel.offsetHeight; // forzar repaint
+  if (overlay) {
+    setTimeout(function() { if (overlay) overlay.style.display = 'block'; }, 50);
+  }
+  var vEl = document.getElementById('up-version');
+  if (vEl && APP_CONFIG && APP_CONFIG.VERSION) {
+    vEl.textContent = APP_CONFIG.VERSION.replace('-firebase','');
   }
 }
 function cerrarUserPanel() {
@@ -21635,8 +21640,8 @@ function generarNotificaciones() {
   actualizarBadgeNotif();
   } catch(errNotif) {
     console.error('[Notificaciones] Error generando:', errNotif);
-    todasNotifs = [];
-    if (typeof renderNotificaciones === 'function') renderNotificaciones();
+    var notifLista = document.getElementById('notif-lista');
+    if (notifLista) notifLista.innerHTML = '<div style="padding:24px;text-align:center;color:var(--red)"><i class="ti ti-alert-circle" style="font-size:24px"></i><div style="margin-top:8px;font-size:13px">Error al cargar notificaciones</div><div style="font-size:11px;color:var(--text3);margin-top:4px">'+errNotif.message+'</div></div>';
   }
 }
 
