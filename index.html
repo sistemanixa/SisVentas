@@ -814,7 +814,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.97 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.99 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1905,9 +1905,16 @@ tr:hover td{color:var(--text)}
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><span class="card-title">Cuenta corriente por cliente</span></div>
-          <div style="margin-bottom:14px">
-            <input class="search-input" style="width:100%" placeholder="Buscar cliente..." oninput="buscarCC(this.value)">
+          <div class="card-head"><span class="card-title">Cuenta corriente por cliente</span>
+            <span id="cc-contador" style="font-size:12px;color:var(--text3)"></span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+            <input class="search-input" style="flex:1;min-width:180px" id="cc-buscador" placeholder="Buscar cliente..." oninput="buscarCC(this.value)">
+            <div style="display:flex;gap:4px">
+              <button id="cc-filtro-pendiente" class="btn btn-sm btn-primary" onclick="setFiltroCC('pendiente')" title="Solo con saldo pendiente">Pendientes</button>
+              <button id="cc-filtro-todos" class="btn btn-sm" onclick="setFiltroCC('todos')" title="Todos los clientes">Todos</button>
+              <button id="cc-filtro-aldia" class="btn btn-sm" onclick="setFiltroCC('aldia')" title="Solo al día">Al día</button>
+            </div>
           </div>
           <table id="cc-tbl">
             <thead><tr><th>Cliente</th><th style="text-align:right">Total ventas</th><th style="text-align:right">Cobrado</th><th style="text-align:right">Saldo pendiente</th><th style="text-align:right">Último pago</th><th style="text-align:right">Estado</th><th></th></tr></thead>
@@ -6826,8 +6833,8 @@ var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 var _paginaAntesDeNotif = null;
 
 function toggleNotificacionesPanel() {
+  if (typeof closeSidebarMobile === 'function') closeSidebarMobile();
   var pagNotif = document.getElementById('page-notificaciones');
-  if (!pagNotif) { notify('Error: módulo notificaciones no encontrado'); return; }
   var estaAbierta = pagNotif && pagNotif.classList.contains('active');
 
   if (estaAbierta) {
@@ -7014,7 +7021,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.97-firebase',
+  VERSION: 'v20.99-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10000,7 +10007,34 @@ function calcRentabilidad() {
   }
 }
 
-function buscarCC(v) { document.querySelectorAll('.ccrow').forEach(tr=>tr.style.display=tr.textContent.toLowerCase().includes(v.toLowerCase())?'':'none'); }
+var _ccFiltroActual = 'pendiente';
+
+function setFiltroCC(filtro) {
+  _ccFiltroActual = filtro;
+  ['pendiente','todos','aldia'].forEach(function(f) {
+    var btn = document.getElementById('cc-filtro-' + f);
+    if (btn) btn.className = 'btn btn-sm' + (f === filtro ? ' btn-primary' : '');
+  });
+  buscarCC((document.getElementById('cc-buscador')||{}).value || '');
+}
+
+function buscarCC(q) {
+  var rows = document.querySelectorAll('#cc-tbody .ccrow');
+  var txt = (q||'').toLowerCase();
+  var visibles = 0;
+  rows.forEach(function(r) {
+    var matchTxt     = !txt || r.textContent.toLowerCase().includes(txt);
+    var saldo        = parseFloat(r.dataset.saldo || 0);
+    var esPendiente  = saldo > 0;
+    var matchFiltro  = _ccFiltroActual === 'todos' ? true
+                     : _ccFiltroActual === 'pendiente' ? esPendiente : !esPendiente;
+    var show = matchTxt && matchFiltro;
+    r.style.display = show ? '' : 'none';
+    if (show) visibles++;
+  });
+  var contador = document.getElementById('cc-contador');
+  if (contador) contador.textContent = visibles + ' cliente' + (visibles !== 1 ? 's' : '');
+}
 function verCuentaClienteReal(nombre) {
   var d = (window._ccMapActual || {})[nombre];
   if (!d) { notify('Cliente sin datos de cuenta corriente'); return; }
@@ -10188,6 +10222,7 @@ function volverlista() {
 
 // ── PANEL USUARIO ──
 function toggleUserPanel() {
+  if (typeof closeSidebarMobile === 'function') closeSidebarMobile();
   var panel = document.getElementById('user-panel');
   var overlay = document.getElementById('user-panel-overlay');
   if (!panel) return;
@@ -10402,8 +10437,10 @@ function fbCargarPagos() {
       var ccLista = Object.entries(ccMap).filter(function(e){ return e[1].total>0; }).sort(function(a,b){ return (b[1].total-b[1].cobrado)-(a[1].total-a[1].cobrado); });
       ccTbody.innerHTML = ccLista.length ? ccLista.map(function(e){
         var nom=e[0],d=e[1]; var saldo=d.total-d.cobrado;
-        return '<tr class="ccrow" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(nom).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
+        return '<tr class="ccrow" data-saldo="'+saldo+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(nom).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
+      // Aplicar filtro activo y actualizar contador
+      setTimeout(function(){ buscarCC((document.getElementById('cc-buscador')||{}).value||''); }, 0);
       var totalDeuda=ccLista.reduce(function(s,e){return s+(e[1].total-e[1].cobrado>0?e[1].total-e[1].cobrado:0);},0);
       var conSaldo=ccLista.filter(function(e){return e[1].total-e[1].cobrado>0;}).length;
       // Cobrado este mes: suma de pagos del mes actual (lista de pagos ya cargada arriba)
