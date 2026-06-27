@@ -814,7 +814,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.104 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.105 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7015,7 +7015,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.104-firebase',
+  VERSION: 'v20.105-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -19984,7 +19984,15 @@ function verOT(id) {
   document.getElementById('ot-det-cliente').value = ot.cliente||'';
   document.getElementById('ot-det-fecha').value = ot.fecha||'';
   document.getElementById('ot-det-hora').value = ot.hora||'';
-  document.getElementById('ot-det-dir').value = ot.dir||'';
+  // Dirección: primero la de la OT, sino leerla del cliente vinculado
+  var dirOT = ot.dir || ot.direccion || '';
+  if (!dirOT && ot.cliente) {
+    var cliOT = (clientesData||[]).find(function(c){
+      return c.nombre === ot.cliente || (c.nombre+' '+c.apellidos).trim() === ot.cliente;
+    });
+    if (cliOT) dirOT = cliOT.direccion || cliOT.domicilio || cliOT.dir || '';
+  }
+  document.getElementById('ot-det-dir').value = dirOT;
   document.getElementById('ot-det-obs').value = ot.obs||'';
 
   var tipoSel = document.getElementById('ot-det-tipovisita');
@@ -20708,7 +20716,16 @@ function renderKPIsDashboard() {
       otTabla.innerHTML = otsPend.slice(0,6).map(function(o) {
         var badge = o.estado === 'en_progreso' ? '<span class="badge b-blue">En progreso</span>' : '<span class="badge b-amber">Pendiente</span>';
         return '<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="abrirOTDesdeId(\'' + escapeHTML(o.id||o.fbKey||'') + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
-          '<td>' + escapeHTML(o.cliente||'') + '</td>' +
+          '<td><div style="font-weight:500">' + escapeHTML(o.cliente||'') + '</div>' +
+            (function(){
+              var dir = o.dir || o.direccion || '';
+              if (!dir && o.cliente) {
+                var c = (clientesData||[]).find(function(c){ return c.nombre===o.cliente||(c.nombre+' '+c.apellidos).trim()===o.cliente; });
+                if (c) dir = c.direccion || c.domicilio || c.dir || '';
+              }
+              return dir ? '<div style="font-size:11px;color:var(--text3);margin-top:2px"><i class="ti ti-map-pin" style="font-size:10px"></i> ' + escapeHTML(dir) + '</div>' : '';
+            })() +
+          '</td>' +
           '<td style="color:var(--text3)">' + escapeHTML(o.tecnico||'Sin asignar') + '</td>' +
           '<td style="text-align:right;touch-action:pan-x pan-y">' + badge + '</td>' +
         '</tr>';
