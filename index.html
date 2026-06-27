@@ -814,7 +814,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.102 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.103 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1840,7 +1840,16 @@ tr:hover td{color:var(--text)}
             <span id="cob-contador" style="font-size:12px;color:var(--text3)"></span>
           </div>
           <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-            <input class="search-input" style="flex:1;min-width:180px" id="cob-buscador" placeholder="Buscar por venta, cliente o medio..." oninput="filtrarCobros(this.value)">
+            <input class="search-input" style="flex:1;min-width:160px" id="cob-buscador" placeholder="Buscar por venta o cliente..." oninput="filtrarCobros(this.value)">
+            <select class="search-input" style="width:150px" id="cob-filtro-medio" onchange="filtrarCobros(document.getElementById('cob-buscador').value)">
+              <option value="">Todos los medios</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Transferencia">Transferencia</option>
+              <option value="Tarjeta de débito">Tarjeta débito</option>
+              <option value="Tarjeta de crédito">Tarjeta crédito</option>
+              <option value="Cheque">Cheque</option>
+              <option value="QR">QR</option>
+            </select>
             <div style="display:flex;gap:4px">
               <button id="cob-filtro-todos" class="btn btn-sm btn-primary" onclick="setFiltroCob('todos')">Todos</button>
               <button id="cob-filtro-mes" class="btn btn-sm" onclick="setFiltroCob('mes')">Este mes</button>
@@ -7005,7 +7014,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.102-firebase',
+  VERSION: 'v20.103-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10390,20 +10399,26 @@ function setFiltroCob(filtro) {
 }
 
 function filtrarCobros(texto) {
-  var t = (texto||'').toLowerCase();
-  var hoy = new Date();
+  var t      = (texto||'').toLowerCase();
+  var medio  = (document.getElementById('cob-filtro-medio')||{}).value || '';
+  var hoy    = new Date();
   var mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
-  var rows = document.querySelectorAll('#pagos-tbody tr');
+  var rows   = document.querySelectorAll('#pagos-tbody tr');
   var visibles = 0;
   rows.forEach(function(tr) {
-    var matchTxt = !t || tr.textContent.toLowerCase().includes(t);
-    var fecha    = tr.dataset.fecha || '';
-    var anulado  = tr.dataset.anulado === '1';
-    var matchFiltro = _cobFiltroActual === 'todos'   ? true
-                    : _cobFiltroActual === 'mes'     ? fecha.startsWith(mesActual)
-                    : _cobFiltroActual === 'anulados'? anulado
+    // Buscar solo en venta y cliente (no en medio — ese tiene su propio filtro)
+    var tdVenta   = tr.cells[0] ? tr.cells[0].textContent.toLowerCase() : '';
+    var tdCliente = tr.cells[1] ? tr.cells[1].textContent.toLowerCase() : '';
+    var tdMedio   = tr.cells[3] ? tr.cells[3].textContent.trim() : '';
+    var matchTxt    = !t || tdVenta.includes(t) || tdCliente.includes(t);
+    var matchMedio  = !medio || tdMedio === medio;
+    var fecha       = tr.dataset.fecha || '';
+    var anulado     = tr.dataset.anulado === '1';
+    var matchFiltro = _cobFiltroActual === 'todos'    ? true
+                    : _cobFiltroActual === 'mes'      ? fecha.startsWith(mesActual)
+                    : _cobFiltroActual === 'anulados' ? anulado
                     : true;
-    var show = matchTxt && matchFiltro;
+    var show = matchTxt && matchMedio && matchFiltro;
     tr.style.display = show ? '' : 'none';
     if (show) visibles++;
   });
@@ -10422,7 +10437,15 @@ function fbCargarPagos() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/pagos'), function(snap) {
     var data = snap.val();
-    var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
+    var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); }).sort(function(a,b){
+      // Ordenar por fecha desc, luego por ts desc como fallback
+      var fa = (a.fecha||'').replace(/\//g,'-'); var fb2 = (b.fecha||'').replace(/\//g,'-');
+      // Normalizar DD-MM-YYYY → YYYY-MM-DD para comparar
+      var norm = function(f){ if (!f) return ''; var p=f.split('-'); return p.length===3&&p[2].length===4?p[2]+'-'+p[1]+'-'+p[0]:f; };
+      var da = norm(fa), db2 = norm(fb2);
+      if (da && db2 && da !== db2) return db2.localeCompare(da);
+      return (b.ts||0)-(a.ts||0);
+    }) : [];
     var pagosTbody = document.getElementById('pagos-tbody');
     // Últimas 20 por defecto — el filtro muestra más si se busca
     window._historialPagosCompleto = lista; // guardar lista completa para filtros
