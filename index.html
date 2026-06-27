@@ -809,7 +809,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.91 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.92 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2097,7 +2097,14 @@ tr:hover td{color:var(--text)}
             </button>
             <div style="font-size:11px;color:var(--text3);margin-top:8px">⚠️ Ejecutar solo una vez. Afecta ventas con ID original que no tengan factura emitida.</div>
 
-          </div>
+            <hr style="border:none;border-top:0.5px solid var(--border);margin:16px 0">
+            <div style="font-size:13px;font-weight:500;margin-bottom:6px"><i class="ti ti-cash" style="margin-right:6px"></i>Migrar cobros históricos</div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Crea registros en Cobranzas a partir de las ventas migradas que tienen <code>totalPagado &gt; 0</code>. Lee la fecha del campo observaciones.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+              <button class="btn btn-sm" onclick="migrarCobrosHistoricos_analizar()" style="color:var(--amber);border-color:var(--amber)"><i class="ti ti-search"></i> Analizar ventas</button>
+              <button class="btn btn-sm" id="btn-migrar-cobros-ejecutar" onclick="migrarCobrosHistoricos_ejecutar()" style="display:none;color:var(--green);border-color:var(--green)"><i class="ti ti-database-import"></i> Crear cobros</button>
+            </div>
+            <div id="migrar-cobros-resultado" style="font-size:12px;margin-top:4px"></div>
           <div class="card">
             <div class="card-head"><span class="card-title" style="color:var(--amber)"><i class="ti ti-stethoscope"></i> Diagnóstico: Cargo de empleados</span></div>
             <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Herramienta temporal para revisar por qué algunos empleados no muestran el valor mensual de su cargo.</div>
@@ -6994,7 +7001,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.91-firebase',
+  VERSION: 'v20.92-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -20636,6 +20643,123 @@ function diagnosticoCargoEmpleados() {
       '<th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3)">Estado</th>' +
     '</tr></thead><tbody>' + filas + '</tbody></table>';
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// HERRAMIENTA: MIGRAR COBROS HISTÓRICOS (desde Configuración)
+// ══════════════════════════════════════════════════════════════════════════════
+var _cobrosParaMigrar = [];
+
+function _extraerFechaDeObs(obs, fechaVenta) {
+  var s = String(obs||'').trim();
+  var m1 = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m1) {
+    var yy = m1[3].length === 2 ? '20'+m1[3] : m1[3];
+    return yy + '-' + m1[2].padStart(2,'0') + '-' + m1[1].padStart(2,'0');
+  }
+  var m2 = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m2) return m2[0];
+  return _normFechaMig(fechaVenta);
+}
+
+function _normFechaMig(f) {
+  if (!f) return '';
+  var s = String(f).trim().replace(/[T ].*$/, '');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  var p = s.split('/');
+  if (p.length === 3) {
+    var yy = p[2].length === 2 ? '20'+p[2] : p[2];
+    return yy + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+  }
+  return s;
+}
+
+function migrarCobrosHistoricos_analizar() {
+  var res = document.getElementById('migrar-cobros-resultado');
+  if (!window.fbDB) { res.innerHTML = '<span style="color:var(--red)">Sin conexión a Firebase</span>'; return; }
+  res.innerHTML = '<span style="color:var(--text3)">Analizando ventas...</span>';
+
+  // Cargar pagos existentes para no duplicar
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/pagos')).then(function(snapPagos) {
+    var pagosExist = snapPagos.val() || {};
+    var ventasConPago = new Set(Object.values(pagosExist).map(function(p){ return p.venta; }).filter(Boolean));
+
+    // Filtrar ventas con totalPagado > 0 sin cobro ya registrado
+    _cobrosParaMigrar = (ventasList||[]).filter(function(v) {
+      var pagado = parseFloat(v.totalPagado || 0);
+      return pagado > 0 && !ventasConPago.has(v.id);
+    });
+
+    var conFechaObs = _cobrosParaMigrar.filter(function(v){
+      return /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(v.obs||'');
+    }).length;
+    var monto = _cobrosParaMigrar.reduce(function(s,v){ return s+(parseFloat(v.totalPagado)||0); },0);
+
+    if (!_cobrosParaMigrar.length) {
+      res.innerHTML = '<span style="color:var(--green)">✓ No hay ventas pendientes de migrar (todas ya tienen cobro o totalPagado = 0)</span>';
+      document.getElementById('btn-migrar-cobros-ejecutar').style.display = 'none';
+      return;
+    }
+
+    res.innerHTML =
+      '<div style="background:var(--bg3);border-radius:6px;padding:10px;margin-bottom:8px">' +
+      '<b>' + _cobrosParaMigrar.length + '</b> ventas para migrar · ' +
+      '<b>$' + Math.round(monto).toLocaleString('es-AR') + '</b> total · ' +
+      '<span style="color:var(--green)">' + conFechaObs + ' con fecha en obs</span> · ' +
+      '<span style="color:var(--amber)">' + (_cobrosParaMigrar.length - conFechaObs) + ' usarán fecha de venta</span>' +
+      '</div>';
+    document.getElementById('btn-migrar-cobros-ejecutar').style.display = '';
+  }).catch(function(e){ res.innerHTML = '<span style="color:var(--red)">Error: '+e.message+'</span>'; });
+}
+
+function migrarCobrosHistoricos_ejecutar() {
+  if (!_cobrosParaMigrar.length) { notify('Analizá primero'); return; }
+  if (!confirm('¿Crear ' + _cobrosParaMigrar.length + ' cobros históricos en Firebase?\n\nEsta acción no se puede deshacer.')) return;
+
+  var btn = document.getElementById('btn-migrar-cobros-ejecutar');
+  btn.disabled = true; btn.textContent = '⏳ Migrando...';
+  var res = document.getElementById('migrar-cobros-resultado');
+  var ok = 0, errores = 0;
+
+  var promesas = _cobrosParaMigrar.map(function(v, i) {
+    var monto   = parseFloat(v.totalPagado) || 0;
+    var total   = parseFloat(v.total) || 0;
+    var saldo   = Math.max(0, total - monto);
+    var obs     = v.obs || '';
+    var tieneFechaObs = /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(obs);
+    var fechaCobro = _extraerFechaDeObs(obs, _normFechaMig(v.fecha));
+
+    var pago = {
+      venta:       v.id,
+      cliente:     v.cliente || '',
+      monto:       monto,
+      fecha:       fechaCobro,
+      medio:       'Transferencia',
+      obs:         obs || 'Migrado del sistema anterior',
+      saldo:       saldo,
+      tipo:        monto >= total * 0.99 ? 'pago_total' : 'pago_parcial',
+      ts:          Date.now() - (_cobrosParaMigrar.length - i) * 1000,
+      usuario:     'Migración',
+      migrado:     true,
+      fechaFuente: tieneFechaObs ? 'obs' : 'venta'
+    };
+
+    return window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos'), pago)
+      .then(function(r) {
+        window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/pagos/' + r.key), { fbKey: r.key });
+        ok++;
+      })
+      .catch(function() { errores++; });
+  });
+
+  Promise.all(promesas).then(function() {
+    res.innerHTML += '<div style="color:var(--green);margin-top:8px">✓ ' + ok + ' cobros creados' + (errores ? ' · <span style="color:var(--red)">' + errores + ' errores</span>' : '') + '</div>';
+    btn.textContent = '✓ Completado';
+    btn.style.cssText = 'color:var(--green);border-color:var(--green)';
+    _cobrosParaMigrar = [];
+    notify('✓ Migración completada: ' + ok + ' cobros creados');
+  });
+}
+// ══════════════════════════════════════════════════════════════════════════════
 
 function fixIVADatosImportados() {
   if (!window.fbDB) { notify('Sin conexión'); return; }
