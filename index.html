@@ -809,7 +809,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.92 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.93 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7001,7 +7001,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.92-firebase',
+  VERSION: 'v20.93-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11630,6 +11630,8 @@ function cargarConfigGeneral() {
     if (mp && d.monedaPresupuestos) mp.value = d.monedaPresupuestos;
     if (dc && d.dolarConversion)    dc.value = d.dolarConversion;
     if (ta && d.actualizacionAuto)  ta.value = d.actualizacionAuto;
+    // Actualizar toggle de moneda en nueva venta si está abierta
+    if (typeof iniciarMonedaVenta === 'function') iniciarMonedaVenta();
     var lblEl = document.getElementById('cfg-tc-actualizado');
     if (lblEl && (d.actualizadoApiEn || d.actualizadoManualEn)) {
       var ts = Math.max(d.actualizadoApiEn||0, d.actualizadoManualEn||0);
@@ -22618,7 +22620,25 @@ function _selProdGlobal(item) {
         descTxt.appendChild(badge);
       }
     }
-    if (priceInp) { priceInp.value = precio; }
+    if (priceInp) {
+      priceInp.value = precio;
+      // Indicador visual USD en el campo precio
+      var priceCell = priceInp.parentElement;
+      var usdTag = priceCell ? priceCell.querySelector('.usd-tag') : null;
+      if (moneda === 'USD' && cotizUsada > 0) {
+        if (!usdTag && priceCell) {
+          var tag = document.createElement('div');
+          tag.className = 'usd-tag';
+          tag.style.cssText = 'font-size:9px;color:var(--blue);font-weight:600;line-height:1;margin-bottom:2px';
+          tag.textContent = 'USD ' + precioOriginalUSD;
+          priceCell.insertBefore(tag, priceInp);
+        } else if (usdTag) {
+          usdTag.textContent = 'USD ' + precioOriginalUSD;
+        }
+      } else if (usdTag) {
+        usdTag.remove();
+      }
+    }
     if (ppPrice)  { ppPrice.value = precio; }
     // Guardar metadata de conversión en data-attributes de la fila, para persistir al confirmar la venta
     if (moneda === 'USD' && cotizUsada > 0) {
@@ -22660,12 +22680,13 @@ function toggleMonedaVenta() {
 }
 
 function iniciarMonedaVenta() {
-  // Leer config y mostrar/ocultar toggle
-  var cfg = window.CONFIG_GENERAL || {};
+  // Leer config desde TIPO_CAMBIO_CONFIG (donde realmente se guarda)
+  var cfg = window.TIPO_CAMBIO_CONFIG || {};
   var monedaCfg = cfg.monedaPresupuestos || 'ARS';
   var toggle = document.getElementById('venta-moneda-toggle');
   if (toggle) {
-    if (monedaCfg === 'ambos') {
+    // Mostrar toggle siempre en modo "ambos", o si no hay config aún → default ambos
+    if (monedaCfg === 'ambos' || !cfg.monedaPresupuestos) {
       toggle.style.display = 'flex';
       _ventaMonedaActual = 'ARS'; // default pesos
     } else {
