@@ -809,7 +809,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.88 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.91 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1121,7 +1121,19 @@ tr:hover td{color:var(--text)}
         <div class="card">
           <div class="card-head">
             <span class="card-title">Productos</span>
-            <button class="btn btn-sm" onclick="addRow()"><i class="ti ti-plus"></i> Agregar fila</button>
+            <div style="display:flex;align-items:center;gap:10px">
+              <!-- Toggle moneda — visible solo si config = ambos -->
+              <div id="venta-moneda-toggle" style="display:none;align-items:center;gap:6px;font-size:12px">
+                <span style="color:var(--text3)">ARS</span>
+                <div style="position:relative;width:36px;height:20px;cursor:pointer" onclick="toggleMonedaVenta()">
+                  <div id="vmt-track" style="position:absolute;inset:0;border-radius:10px;background:var(--bg4);border:1px solid var(--border2);transition:background .2s"></div>
+                  <div id="vmt-thumb" style="position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--text3);transition:transform .2s,background .2s;pointer-events:none"></div>
+                </div>
+                <span style="color:var(--text3)">USD</span>
+                <span id="vmt-label" style="font-size:11px;color:var(--blue);font-weight:600">ARS</span>
+              </div>
+              <button class="btn btn-sm" onclick="addRow()"><i class="ti ti-plus"></i> Agregar fila</button>
+            </div>
           </div>
           <div style="overflow-x:auto;overflow-y:visible">
             <table class="tbl-sheet" style="table-layout:fixed;width:100%">
@@ -1428,7 +1440,8 @@ tr:hover td{color:var(--text)}
     <!-- LOG DE AUDITORÍA -->
     <div class="card">
       <div class="card-head"><span class="card-title">Historial de cambios</span></div>
-      <div id="ppto-audit-log" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div id="ppto-depreciacion-box" style="display:none;margin-bottom:12px"></div>
+  <div id="ppto-audit-log" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
 
@@ -6868,7 +6881,7 @@ function showPage(id, el) {
   if (id === 'detalle')       { setTimeout(function(){ if(window._ventaDesdeHistorialOrigen) return; if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); if(typeof actualizarStatVentas==='function') actualizarStatVentas(); }, 100); }
   if (id === 'presupuesto')    { setTimeout(function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }, 50); }
   if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
-  if (id === 'venta')          { setTimeout(function(){ if(typeof inicializarFilasVenta==='function') inicializarFilasVenta(); }, 50); }
+  if (id === 'venta')          { setTimeout(function(){ if(typeof inicializarFilasVenta==='function') inicializarFilasVenta(); if(typeof iniciarMonedaVenta==='function') iniciarMonedaVenta(); }, 50); }
   if (id === 'gastos')         { setTimeout(function(){ if(typeof renderTablaGastos==='function'){ renderTablaGastos(); actualizarMetricasGastos(); }}, 50); }
   if (id === 'dashboard')      { setTimeout(function(){ if(typeof renderKPIsDashboard==='function') renderKPIsDashboard(); }, 100); }
   if (id === 'notificaciones') { setTimeout(function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 50); }
@@ -6981,7 +6994,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.88-firebase',
+  VERSION: 'v20.91-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9892,19 +9905,19 @@ function _parsearFechaFlexible(f) {
 // Normaliza cualquier fecha (DD/MM/YYYY o YYYY-MM-DD) a DD/MM/YYYY para mostrar
 function _mostrarFecha(f) {
   if (!f) return '—';
-  if (f.indexOf('/') !== -1) {
-    // Ya es DD/MM/YYYY — asegurar ceros (ej: 21/6/2026 → 21/06/2026)
-    var p = f.split('/');
-    if (p.length === 3) return p[0].padStart(2,'0') + '/' + p[1].padStart(2,'0') + '/' + p[2];
-    return f;
+  // Quitar hora si viene pegada (ej: "25/06/2026 01:30" o "2026-06-25T01:30")
+  var clean = String(f).trim().replace(/[T ].*$/, '').trim();
+  if (clean.indexOf('/') !== -1) {
+    var p = clean.split('/');
+    if (p.length === 3) return p[0].padStart(2,'0') + '/' + p[1].padStart(2,'0') + '/' + p[2].slice(0,4);
+    return clean;
   }
-  if (f.indexOf('-') !== -1) {
-    // YYYY-MM-DD → DD/MM/YYYY
-    var q = f.split('-');
+  if (clean.indexOf('-') !== -1) {
+    var q = clean.split('-');
     if (q.length === 3) return q[2].padStart(2,'0') + '/' + q[1].padStart(2,'0') + '/' + q[0];
-    return f;
+    return clean;
   }
-  return f;
+  return clean;
 }
 
 function calcRentabilidad() {
@@ -13177,6 +13190,7 @@ function imprimirPresupuesto() {
         '<div class="comp-num">'+num+'</div>'+
         '<div class="comp-fecha">'+fecha+'</div>'+
         '<div class="comp-fecha" style="color:#d97706">Válido hasta: '+venc+'</div>'+
+        (p.tcGuardado ? '<div class="comp-fecha" style="color:#888;font-size:10px">TC referencia: $'+parseFloat(p.tcGuardado).toLocaleString('es-AR')+(p.tcFechaGuardado?' ('+p.tcFechaGuardado+')':'')+' · Precios en USD, se factura al TC del día del pago</div>' : '')+
       '</div>'+
     '</div>'+
 
@@ -19167,6 +19181,18 @@ function verPpto(id) {
 
   // Acciones
   renderAcciones(p);
+  // Opción B — mostrar alerta si el presupuesto perdió valor
+  var dep = checkDepreciacionPpto(p);
+  var depBox = document.getElementById('ppto-depreciacion-box');
+  if (dep && depBox) {
+    depBox.style.display = '';
+    depBox.innerHTML = '<div style="background:rgba(251,191,36,.1);border:1px solid var(--amber);border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:12px">' +
+      '<div><div style="font-size:12px;font-weight:600;color:var(--amber)">⚠️ Depreciación del +' + dep.pct + '% desde la emisión</div>' +
+      '<div style="font-size:11px;color:var(--text3)">TC guardado: $' + dep.tcGuardado.toLocaleString('es-AR') + ' → TC actual: $' + dep.tcActual.toLocaleString('es-AR') + ' · Total actualizado: $' + dep.totalActualizado.toLocaleString('es-AR') + '</div></div>' +
+      '<button class="btn btn-sm" style="white-space:nowrap;border-color:var(--amber);color:var(--amber)" onclick="recotizarPpto()"><i class="ti ti-refresh"></i> Recotizar</button></div>';
+  } else if (depBox) {
+    depBox.style.display = 'none';
+  }
 
   // Audit log
   renderAudit(p);
@@ -19240,6 +19266,55 @@ function renderTimeline(p) {
 }
 
 // Renderizar acciones disponibles
+// ── Detector de depreciación (Opción B) ───────────────────────────────────────
+function checkDepreciacionPpto(p) {
+  if (!p || !p.tcGuardado) return null;
+  var tc = (window.TIPO_CAMBIO_CONFIG || {});
+  var tipoCfg = tc.dolarConversion || 'oficial';
+  var tcActual = parseFloat(tc[tipoCfg]) || 0;
+  if (!tcActual || !p.tcGuardado) return null;
+  var factor = tcActual / parseFloat(p.tcGuardado);
+  if (factor < 1.10) return null; // menos del 10% de variación — no alertar
+  return {
+    factor:    factor,
+    pct:       Math.round((factor - 1) * 100),
+    tcGuardado: parseFloat(p.tcGuardado),
+    tcActual,
+    totalOriginal: parseFloat(p.total) || 0,
+    totalActualizado: Math.round((parseFloat(p.total) || 0) * factor)
+  };
+}
+
+function recotizarPpto() {
+  var p = (pptoData||[]).find(function(x){ return x.id === pptoActualId || x.fbKey === pptoActualId; });
+  if (!p) return;
+  var dep = checkDepreciacionPpto(p);
+  if (!dep) { notify('No hay variación significativa del TC para recotizar'); return; }
+  if (!confirm('¿Recotizar el presupuesto al TC actual?\n\nTC original: $' + dep.tcGuardado.toLocaleString('es-AR') + '\nTC actual: $' + dep.tcActual.toLocaleString('es-AR') + ' (+' + dep.pct + '%)\n\nTotal original: $' + dep.totalOriginal.toLocaleString('es-AR') + '\nTotal actualizado: $' + dep.totalActualizado.toLocaleString('es-AR') + '\n\nEsto creará una nueva versión del presupuesto.')) return;
+  // Crear nuevo presupuesto con precios actualizados
+  var nuevo = Object.assign({}, p, {
+    id: p.id + '-R',
+    idOriginal: p.id,
+    total: dep.totalActualizado,
+    subtotal: Math.round((parseFloat(p.subtotal)||0) * dep.factor),
+    tcGuardado: dep.tcActual,
+    tcFechaGuardado: new Date().toISOString().slice(0,10),
+    estado: 'borrador',
+    obs: (p.obs||'') + ' [Recotizado +' + dep.pct + '% por TC]',
+    fbKey: null
+  });
+  if (p.items) nuevo.items = p.items.map(function(it){
+    return Object.assign({}, it, {
+      punit: Math.round((parseFloat(it.punit)||0) * dep.factor),
+      sub:   Math.round((parseFloat(it.sub)||0)   * dep.factor)
+    });
+  });
+  if (window.fbDB) {
+    window.fbPush(window.fbRef(window.fbDB, 'sisventas/presupuestos'), Object.assign(nuevo, { ts: Date.now() }))
+      .then(function(r){ nuevo.fbKey = r.key; notify('✓ Presupuesto recotizado creado: ' + nuevo.id); });
+  }
+}
+
 function renderAcciones(p) {
   const lista = document.getElementById('ppto-acciones-lista');
   if (!lista) return;
@@ -19707,8 +19782,11 @@ function _renderOTVistaAdmin(filtro, hoy) {
   // Actualizar select de técnicos
   var selTec = document.getElementById('ot-filtro-tecnico');
   if (selTec && selTec.options.length <= 1) {
-    var tecnicos = [...new Set(otData.map(function(o){ return o.tecnico; }).filter(Boolean))].sort();
-    tecnicos.forEach(function(t){
+    // Combinar técnicos de OTs existentes + empleados activos
+    var tecDeOTs = new Set(otData.map(function(o){ return o.tecnico; }).filter(Boolean));
+    var tecDeEmps = Object.values(empData||{}).filter(function(e){ return e.activo !== false; }).map(function(e){ return e.nombre; });
+    var todosTecs = [...new Set([...tecDeOTs, ...tecDeEmps, 'Inicial'])].sort();
+    todosTecs.forEach(function(t){
       var opt = document.createElement('option'); opt.value=t; opt.textContent=t;
       selTec.appendChild(opt);
     });
@@ -19805,9 +19883,22 @@ function verOT(id) {
   var tipoSel = document.getElementById('ot-det-tipovisita');
   if (tipoSel) tipoSel.value = ot.tipoVisita || 'Instalación nueva';
 
-  // Técnico (select — solo si no es técnico)
+  // Técnico (select — poblar con empleados activos)
   var tecSel = document.getElementById('ot-det-tecnico');
-  if (tecSel && ot.tecnico) tecSel.value = ot.tecnico;
+  if (tecSel) {
+    // Poblar opciones si aún no están
+    if (tecSel.options.length <= 1) {
+      var emps = Object.values(empData||{}).filter(function(e){ return e.activo !== false; })
+        .sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
+      // Agregar Inicial primero
+      ['Inicial'].concat(emps.map(function(e){ return e.nombre; })).forEach(function(n){
+        if ([...tecSel.options].some(function(o){ return o.value === n; })) return;
+        var opt = document.createElement('option'); opt.value = n; opt.textContent = n;
+        tecSel.appendChild(opt);
+      });
+    }
+    if (ot.tecnico) tecSel.value = ot.tecnico;
+  }
 
   // Visita repetida
   var visitasPrev = _contarVisitasPrevias(ot.cliente, ot.dir, ot.id);
@@ -20392,7 +20483,7 @@ function renderKPIsDashboard() {
         return '<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verDetalleVentaDesdeId(\'' + vid + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
           '<td style="font-family:monospace;font-size:12px">' + vid + '</td>' +
           '<td>' + escapeHTML(v.cliente||'') + '</td>' +
-          '<td class="hide-mobile" style="color:var(--text3)">' + _mostrarFecha(v.fecha) + '</td>' +
+          '<td class="hide-mobile" style="color:var(--text3);white-space:nowrap;min-width:90px">' + _mostrarFecha(v.fecha) + '</td>' +
           '<td style="text-align:right">$' + subtotal.toLocaleString('es-AR') + '</td>' +
           '<td style="text-align:right;color:var(--text3)">$' + iva.toLocaleString('es-AR') + '</td>' +
           '<td style="text-align:right;font-weight:600">$' + total.toLocaleString('es-AR') + '</td>' +
@@ -22342,12 +22433,27 @@ function _selProdGlobal(item) {
   var precio = parseFloat(item.dataset.precio) || 0;
   var moneda = item.dataset.moneda || 'ARS';
 
-  // Mano de obra siempre en ARS — ignorar moneda USD aunque esté configurada
   var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod || p.nombre === desc; });
+  // Mano de obra siempre en ARS
   if (prod && prod.esManoDeObra) {
     moneda = 'ARS';
-    // Usar ventaARS si está disponible
     if (prod.ventaARS) precio = prod.ventaARS;
+  } else {
+    // Respetar moneda de venta seleccionada por el toggle
+    var monedaVenta = window._ventaMonedaActual || 'ARS';
+    if (monedaVenta === 'ARS' && moneda === 'USD') {
+      // Config dice ARS: forzar conversión aunque el producto sea USD
+      // (la conversión la hace el bloque de abajo)
+    } else if (monedaVenta === 'USD' && moneda === 'ARS') {
+      // Config dice USD: convertir ARS → USD
+      var tc = (window.TIPO_CAMBIO_CONFIG || {});
+      var tipoCfg = tc.dolarConversion || 'oficial';
+      var tcVal = parseFloat(tc[tipoCfg]) || 0;
+      if (tcVal > 0 && precio > 0) {
+        precio = parseFloat((precio / tcVal).toFixed(2));
+        moneda = 'USD';
+      }
+    }
   }
 
   // ── Conversión automática USD → ARS ──
@@ -22413,6 +22519,45 @@ function _selProdGlobal(item) {
 }
 
 // Mantener compatibilidad con llamadas legacy de filtrarSelectorProducto / selProductoEnFila
+// ── Sistema de moneda en nueva venta ─────────────────────────────────────────
+var _ventaMonedaActual = 'ARS'; // 'ARS' o 'USD'
+
+function toggleMonedaVenta() {
+  _ventaMonedaActual = _ventaMonedaActual === 'ARS' ? 'USD' : 'ARS';
+  var esUSD = _ventaMonedaActual === 'USD';
+  var track = document.getElementById('vmt-track');
+  var thumb = document.getElementById('vmt-thumb');
+  var label = document.getElementById('vmt-label');
+  if (track) track.style.background = esUSD ? 'var(--blue)' : 'var(--bg4)';
+  if (thumb) thumb.style.transform   = esUSD ? 'translateX(16px)' : 'translateX(0)';
+  if (thumb) thumb.style.background  = esUSD ? '#fff' : 'var(--text3)';
+  if (label) { label.textContent = _ventaMonedaActual; label.style.color = esUSD ? 'var(--blue)' : 'var(--text3)'; }
+  notify('Moneda de venta: ' + _ventaMonedaActual);
+}
+
+function iniciarMonedaVenta() {
+  // Leer config y mostrar/ocultar toggle
+  var cfg = window.CONFIG_GENERAL || {};
+  var monedaCfg = cfg.monedaPresupuestos || 'ARS';
+  var toggle = document.getElementById('venta-moneda-toggle');
+  if (toggle) {
+    if (monedaCfg === 'ambos') {
+      toggle.style.display = 'flex';
+      _ventaMonedaActual = 'ARS'; // default pesos
+    } else {
+      toggle.style.display = 'none';
+      _ventaMonedaActual = monedaCfg === 'USD' ? 'USD' : 'ARS';
+    }
+    // Resetear visual
+    var track = document.getElementById('vmt-track');
+    var thumb = document.getElementById('vmt-thumb');
+    var label = document.getElementById('vmt-label');
+    if (track) track.style.background = 'var(--bg4)';
+    if (thumb) { thumb.style.transform = 'translateX(0)'; thumb.style.background = 'var(--text3)'; }
+    if (label) { label.textContent = 'ARS'; label.style.color = 'var(--text3)'; }
+  }
+}
+
 function filtrarSelectorProducto(inp) { _renderDropGlobal(inp.value); }
 function selProductoEnFila(item, cod, desc, precio) { _selProdGlobal(item); }
 
