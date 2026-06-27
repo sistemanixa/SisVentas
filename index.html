@@ -829,7 +829,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.106 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.108 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1755,6 +1755,25 @@ tr:hover td{color:var(--text)}
               <button class="btn btn-sm btn-primary" onclick="otAgregarNota()"><i class="ti ti-send"></i></button>
             </div>
             <div id="ot-fotos-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+          </div>
+
+          <!-- Materiales usados por el técnico -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title"><i class="ti ti-package" style="margin-right:6px"></i>Materiales usados</span>
+              <span style="font-size:11px;color:var(--text3)">Productos adicionales utilizados en obra</span>
+            </div>
+            <div id="ot-mat-usados-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
+            <div style="position:relative;margin-bottom:8px">
+              <input class="search-input" id="ot-mat-buscador" placeholder="Buscar producto para agregar..." oninput="otBuscarMaterialUsado(this.value)" autocomplete="off">
+              <div id="ot-mat-drop" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:200;max-height:180px;overflow-y:auto"></div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <input type="number" id="ot-mat-cant" placeholder="Cant." min="1" value="1" style="width:70px">
+              <input type="text" id="ot-mat-desc" placeholder="Descripción del material" style="flex:1" readonly>
+              <input type="text" id="ot-mat-cod" placeholder="" style="display:none">
+              <button class="btn btn-sm btn-primary" onclick="otAgregarMaterialUsado()"><i class="ti ti-plus"></i> Agregar</button>
+            </div>
           </div>
 
           <!-- Acta de entrega -->
@@ -5548,18 +5567,16 @@ async function iaEnviar() {
     ' Empleado actual: ' + (currentUser||'') + ' (' + (currentRole||'') + ').' +
     (_iaContexto ? '\n\n' + _iaContexto : '');
 
-  // Llamar a la API de Claude
+  // Llamar a la Cloud Function proxy (evita CORS de Anthropic)
   try {
-    var mensajes = _iaHistorial.slice(-12); // últimos 12 mensajes para no exceder tokens
-    var resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model:      'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system:     systemPrompt,
-        messages:   mensajes
-      })
+    var mensajes = _iaHistorial.slice(-12);
+    var resp = await fetch('https://southamerica-east1-nixa-sisventas.cloudfunctions.net/asistente', {
+      method:  'POST',
+      headers: {
+        'Content-Type':    'application/json',
+        'X-Frontend-Key':  SISVENTAS_FUNCTIONS.frontendKey
+      },
+      body: JSON.stringify({ system: systemPrompt, messages: mensajes })
     });
     var data = await resp.json();
     var respText = (data.content && data.content[0] && data.content[0].text) || 'No pude procesar la respuesta.';
@@ -7177,7 +7194,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.106-firebase',
+  VERSION: 'v20.108-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10530,9 +10547,34 @@ function _imprimirOTReal() {
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OT '+ot.id+'</title><style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}.field{background:#f9f9f9;border-radius:6px;padding:10px}label{font-size:10px;color:#888;text-transform:uppercase;display:block;margin-bottom:2px}.firma{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px}.firma-line{border-top:1px solid #222;padding-top:6px;font-size:11px;color:#666;text-align:center}@media print{body{margin:20px}}</style></head><body>'+
     '<div class="header"><div>'+logo+'<div style="font-size:11px;color:#666;margin-top:4px">'+empresa.dir+'</div></div>'+
     '<div style="text-align:right"><div style="font-size:18px;font-weight:700">Orden de Trabajo</div><div style="font-size:15px;font-weight:500">'+escapeHTML(ot.id)+'</div><div style="font-size:12px;color:#666">'+escapeHTML(ot.fecha||'')+'</div></div></div>'+
-    '<div class="grid"><div class="field"><label>Cliente</label><strong>'+escapeHTML(ot.cliente||'—')+'</strong></div><div class="field"><label>Dirección</label>'+escapeHTML(ot.dir||'—')+'</div>'+
-    '<div class="field"><label>Técnico</label>'+escapeHTML(ot.tecnico||'Sin asignar')+'</div><div class="field"><label>Venta vinculada</label>'+escapeHTML(ot.ventaId||'—')+'</div></div>'+
-    (ot.obs?'<div class="field" style="margin-bottom:16px"><label>Observaciones</label>'+escapeHTML(ot.obs)+'</div>':'')+
+    (function(){
+      var dir = ot.dir || ot.direccion || '';
+      if (!dir && ot.cliente) {
+        var c = (clientesData||[]).find(function(c){ return c.nombre===ot.cliente||(c.nombre+' '+(c.apellidos||'')).trim()===ot.cliente; });
+        if (c) dir = c.direccion || c.domicilio || c.dir || '';
+      }
+      var matsHtml = '';
+      var mats = ot.materiales || ot.items || [];
+      if (mats.length) {
+        matsHtml = '<div style="margin-bottom:20px"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:8px">Materiales</div><table style="width:100%;border-collapse:collapse"><tr style="background:#f0f0f0"><th style="text-align:left;padding:6px 8px;font-size:11px">Descripción</th><th style="text-align:right;padding:6px 8px;font-size:11px">Presup.</th><th style="text-align:right;padding:6px 8px;font-size:11px">Instalado</th></tr>' +
+          mats.map(function(m){ return '<tr style="border-bottom:0.5px solid #eee"><td style="padding:6px 8px">'+m.desc+'</td><td style="text-align:right;padding:6px 8px">'+m.vendida+'</td><td style="text-align:right;padding:6px 8px">'+m.instalada+'</td></tr>'; }).join('') + '</table></div>';
+      }
+      // Notas técnicas
+      var notasHtml = '';
+      var notas = ot.notasTecnico || [];
+      if (notas.length) {
+        notasHtml = '<div style="margin-bottom:20px"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:8px">Notas técnicas</div>' +
+          notas.map(function(n){ return '<div style="padding:8px;background:#f9f9f9;border-radius:4px;margin-bottom:4px;font-size:12px">'+n.texto+'<span style="color:#999;font-size:10px;margin-left:8px">'+n.autor+'</span></div>'; }).join('') + '</div>';
+      }
+      return '<div class="grid">'+
+        '<div class="field"><label>Cliente</label><strong>'+escapeHTML(ot.cliente||'—')+'</strong></div>'+
+        '<div class="field"><label>Dirección</label>'+(dir?escapeHTML(dir):'<span style="color:#999">Sin dirección</span>')+'</div>'+
+        '<div class="field"><label>Técnico</label>'+escapeHTML(ot.tecnico||'Sin asignar')+'</div>'+
+        '<div class="field"><label>Venta vinculada</label>'+escapeHTML(ot.ventaId||'—')+'</div>'+
+      '</div>'+
+      (ot.obs?'<div class="field" style="margin-bottom:16px"><label>Descripción del trabajo</label>'+escapeHTML(ot.obs)+'</div>':'')+
+      matsHtml + notasHtml;
+    })()+
     '<div class="firma"><div><div class="firma-line">Firma del técnico</div></div><div><div class="firma-line">Conformidad del cliente</div></div></div>'+
     '</body></html>');
   w.document.close();
@@ -20193,6 +20235,7 @@ function verOT(id) {
   }
 
   // ── Credenciales del cliente ──
+  otCargarMatUsados(ot);
   otCargarCredenciales(ot);
 
   // ── Contexto según origen ──
@@ -20273,10 +20316,11 @@ function verOT(id) {
       var badge   = ok ? '<span class="badge b-green">Completo</span>'
                        : parcial ? '<span class="badge b-amber">Parcial</span>'
                        : '<span class="badge b-red">Pendiente</span>';
+      var esTecnico = currentRole === 'tecnico';
       return '<tr>' +
         '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(m.cod||'')+'</td>' +
         '<td>'+escapeHTML(m.desc||'')+'</td>' +
-        '<td class="tr">'+m.vendida+'</td>' +
+        '<td class="tr" title="Cantidad presupuestada — solo admin puede modificar">'+m.vendida+'</td>' +
         '<td class="tr"><input type="number" value="'+m.instalada+'" min="0" max="'+m.vendida+'" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:3px 6px;text-align:right;font-size:13px;font-family:inherit" onchange="otActualizarMaterial(this,\''+escapeHTML(m.cod)+'\')"></td>' +
         '<td class="tr">'+badge+'</td></tr>';
     }).join('')
@@ -20339,6 +20383,85 @@ function otActualizarMaterial(inp, cod) {
   }).catch(function(e){ notify('Error guardando: ' + e.message); });
 }
 
+// ── Materiales usados por el técnico ──────────────────────────────────────────
+function otCargarMatUsados(ot) {
+  var lista = document.getElementById('ot-mat-usados-lista');
+  if (!lista) return;
+  var usados = ot.materialesUsados || [];
+  lista.innerHTML = usados.length ? usados.map(function(m, i) {
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg3);border-radius:var(--radius)">' +
+      '<div style="flex:1"><div style="font-size:13px">'+escapeHTML(m.desc||'')+'</div>' +
+      '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(m.cod||'')+'</div></div>' +
+      '<span class="badge b-blue">x'+m.cant+'</span>' +
+      '<span style="font-size:10px;color:var(--text3)">'+escapeHTML(m.autor||'')+'</span>' +
+    '</div>';
+  }).join('') : '<div style="font-size:12px;color:var(--text3);padding:8px">Sin materiales adicionales registrados</div>';
+}
+
+function otBuscarMaterialUsado(q) {
+  var drop = document.getElementById('ot-mat-drop');
+  if (!drop) return;
+  if (!q || q.length < 2) { drop.style.display = 'none'; return; }
+  var txt = q.toLowerCase();
+  var res = Object.values(prodData||{}).filter(function(p){
+    return ((p.nombre||p.descripcion||'').toLowerCase().includes(txt) ||
+            (p.codigo||'').toLowerCase().includes(txt)) && !p.esManoDeObra;
+  }).slice(0, 8);
+  if (!res.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = res.map(function(p) {
+    var nombre = p.nombre || p.descripcion || '';
+    return '<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:0.5px solid var(--border)" ' +
+      'onmousedown="otSelMaterialUsado(\''+escapeHTML(nombre)+'\',\''+escapeHTML(p.codigo||p.fbKey)+'\')">'+
+      '<div style="font-weight:500">'+escapeHTML(nombre)+'</div>' +
+      '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(p.codigo||'')+'</div>' +
+    '</div>';
+  }).join('');
+  drop.style.display = 'block';
+}
+
+function otSelMaterialUsado(desc, cod) {
+  var buscador = document.getElementById('ot-mat-buscador');
+  var descInp  = document.getElementById('ot-mat-desc');
+  var codInp   = document.getElementById('ot-mat-cod');
+  var drop     = document.getElementById('ot-mat-drop');
+  if (buscador) buscador.value = desc;
+  if (descInp)  descInp.value  = desc;
+  if (codInp)   codInp.value   = cod;
+  if (drop)     drop.style.display = 'none';
+}
+
+function otAgregarMaterialUsado() {
+  var desc = (document.getElementById('ot-mat-desc')||{}).value || (document.getElementById('ot-mat-buscador')||{}).value || '';
+  var cod  = (document.getElementById('ot-mat-cod')||{}).value || '';
+  var cant = parseInt((document.getElementById('ot-mat-cant')||{}).value) || 1;
+  if (!desc.trim()) { notify('Buscá y seleccioná un producto primero'); return; }
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+  if (!ot || !window.fbDB) return;
+  var usados = (ot.materialesUsados || []).slice();
+  usados.push({ desc: desc.trim(), cod, cant, autor: currentUser||'', ts: Date.now() });
+  var key = ot.fbKey || otActualId;
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { materialesUsados: usados })
+    .then(function(){
+      // Limpiar campos
+      ['ot-mat-buscador','ot-mat-desc','ot-mat-cod'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+      var cantEl = document.getElementById('ot-mat-cant'); if (cantEl) cantEl.value = '1';
+      // Notificar al admin guardando en Firebase
+      window.fbPush(window.fbRef(window.fbDB, 'sisventas/notificaciones_admin'), {
+        tipo:    'material_ot',
+        otId:    key,
+        cliente: ot.cliente || '',
+        tecnico: currentUser || '',
+        material: desc,
+        cant,
+        ts:      Date.now(),
+        leida:   false
+      });
+      notify('✓ Material agregado y admin notificado');
+      otCargarMatUsados(Object.assign({}, ot, { materialesUsados: usados }));
+    })
+    .catch(function(e){ notify('Error: '+e.message); });
+}
+
 function otCargarCredenciales(ot) {
   var box  = document.getElementById('ot-cred-box');
   var lista = document.getElementById('ot-cred-lista');
@@ -20383,10 +20506,19 @@ function otRenderNotas(ot) {
   var fotosCont = document.getElementById('ot-fotos-preview');
   if (!lista) return;
   var notas = ot.notasTecnico || [];
-  lista.innerHTML = notas.length ? notas.map(function(n) {
-    return '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px">' +
-      '<div style="font-size:13px">'+escapeHTML(n.texto||'')+'</div>' +
-      '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+escapeHTML(n.autor||'')+' · '+spFormatFecha(n.ts)+'</div>' +
+  lista.innerHTML = notas.length ? notas.map(function(n, idx) {
+    var esPropia = (n.autor || '') === (currentUser || '') || currentRole === 'admin';
+    var esAdmin  = ['admin','administrativo'].includes((n.rol||n.autor||'').toLowerCase()) || (n.autor||'') !== (currentUser||'');
+    return '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px;border-left:3px solid '+(esPropia?'var(--blue)':'var(--border2)')+'">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+        '<div style="font-size:13px;flex:1">'+escapeHTML(n.texto||'')+'</div>' +
+        (esPropia && currentRole !== 'admin' && esAdmin ? '' :
+         esPropia ? '' : '<span title="Nota del administrador — solo lectura" style="font-size:11px;color:var(--text3)">🔒</span>') +
+      '</div>' +
+      '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+
+        '<span style="font-weight:500;color:'+(esPropia?'var(--blue)':'var(--text3)')+'">'+escapeHTML(n.autor||'')+'</span>' +
+        ' · '+spFormatFecha(n.ts)+
+      '</div>' +
       (n.fotoUrl ? '<img src="'+escapeHTML(n.fotoUrl)+'" style="max-width:100%;border-radius:6px;margin-top:8px;max-height:200px;object-fit:cover">' : '') +
     '</div>';
   }).join('') : '<div style="font-size:12px;color:var(--text3);text-align:center;padding:12px">Sin notas técnicas todavía</div>';
