@@ -869,7 +869,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.135 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.136 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -3857,908 +3857,986 @@ tr:hover td{color:var(--text)}
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- ── EMPLEADOS ── -->
+      
       <div id="page-empleados" class="page">
-        <div id="emp-list-view">
-          <div class="card">
-            <div class="card-head">
-              <span class="card-title">Empleados</span>
-              <div style="display:flex;gap:8px">
-                <button class="btn btn-sm" onclick="abrirModalHaberesMes()"><i class="ti ti-cash"></i> Registrar haberes del mes</button>
-                <button class="btn btn-sm btn-primary" id="btn-nuevo-emp" onclick="abrirModalNuevo('empleado')"><i class="ti ti-plus"></i> Nuevo empleado</button>
+              <div id="emp-list-view">
+                <div class="card">
+                  <div class="card-head">
+                    <span class="card-title">Empleados</span>
+                    <div style="display:flex;gap:8px">
+                      <button class="btn btn-sm" onclick="abrirModalHaberesMes()"><i class="ti ti-cash"></i> Registrar haberes del mes</button>
+                      <button class="btn btn-sm btn-primary" id="btn-nuevo-emp" onclick="abrirModalNuevo('empleado')"><i class="ti ti-plus"></i> Nuevo empleado</button>
+                    </div>
+                  </div>
+                  <div style="margin-bottom:14px">
+                    <input class="search-input" style="width:100%" placeholder="Buscar empleado..." oninput="buscarEmpleado(this.value)">
+                  </div>
+                  <table id="emp-tbl">
+                    <thead><tr><th style="width:50px">ID</th><th>Apellido y nombre</th><th style="width:130px">Cargo</th><th style="text-align:right;width:130px">Mensual (cargo)</th><th style="text-align:right;width:190px">Hs extra mes</th><th style="text-align:right;width:130px;padding-left:24px">Comisión (mes)</th><th style="width:110px">Fecha inicio</th><th style="text-align:right;width:60px">Estado</th><th style="width:90px"></th></tr></thead>
+                    <tbody id="emp-tbody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- FICHA EMPLEADO -->
+              <div id="emp-detail-view" style="display:none">
+                <div style="margin-bottom:14px">
+                  <button class="btn btn-sm" onclick="volverlista()"><i class="ti ti-arrow-left"></i> Volver a empleados</button>
+                </div>
+                <div class="emp-header">
+                  <div class="emp-avatar" id="det-avatar" style="background:var(--blue-bg);color:var(--blue)">—</div>
+                  <div class="emp-info">
+                    <div class="emp-name" id="det-nombre">—</div>
+                    <div class="emp-meta">
+                      <span id="det-cat"></span>
+                      <span>·</span>
+                      <span id="det-estado"></span>
+                      <span>·</span>
+                      <span id="det-ingreso"></span>
+                    </div>
+                  </div>
+                  <button class="btn btn-sm" onclick="abrirModalNuevo('empleado')" title="Editar empleado"><i class="ti ti-edit"></i> Editar</button>
+                </div>
+
+                <div class="emp-sueldo-grid">
+                  <div class="sueldo-card">
+                    <div class="sueldo-label">Sueldo base</div>
+                    <div class="sueldo-value" id="det-base">—</div>
+                    <div class="sueldo-sub">mensual bruto</div>
+                  </div>
+                  <div class="sueldo-card">
+                    <div class="sueldo-label">Comisiones</div>
+                    <div class="sueldo-value" id="det-comisiones" style="color:var(--green)">—</div>
+                    <div class="sueldo-sub" id="det-comisiones-sub">—</div>
+                  </div>
+                  <div class="sueldo-card">
+                    <div class="sueldo-label">Horas extra</div>
+                    <div class="sueldo-value" id="det-hextra" style="color:var(--amber)">—</div>
+                    <div class="sueldo-sub" id="det-hextra-sub">—</div>
+                  </div>
+                  <div class="sueldo-card" style="background:var(--text);color:var(--bg2)">
+                    <div class="sueldo-label" style="color:rgba(255,255,255,.5)">Total a cobrar</div>
+                    <div class="sueldo-value" id="det-total" style="color:var(--bg2)">—</div>
+                    <div class="sueldo-sub" style="color:rgba(255,255,255,.4)" id="det-total-sub">—</div>
+                  </div>
+                </div>
+
+                <div class="row2">
+                  <div class="card" style="margin-bottom:0">
+                    <div class="card-head"><span class="card-title">Datos personales</span></div>
+                    <div class="form-grid">
+                      <div class="fg"><label>DNI</label><input type="text" id="det-dni" readonly></div>
+                      <div class="fg"><label>Teléfono</label><input type="text" id="det-tel" readonly></div>
+                      <div class="fg"><label>Email</label><input type="text" id="det-email" readonly></div>
+                      <div class="fg"><label>Dirección</label><input type="text" id="det-dir" readonly></div>
+                    </div>
+                  </div>
+                  <div class="card" style="margin-bottom:0">
+                    <div class="card-head"><span class="card-title">Historial de comisiones</span></div>
+                    <table>
+                      <tr><th>Período</th><th style="text-align:right">Ventas</th><th style="text-align:right">Comisión</th><th style="text-align:right">H. extra</th></tr>
+                      <tr><td>Mayo 2026</td><td style="text-align:right">12</td><td style="text-align:right;color:var(--green)" id="h-may-com">$3.200</td><td style="text-align:right;color:var(--amber)" id="h-may-hex">$800</td></tr>
+                      <tr><td>Abril 2026</td><td style="text-align:right">9</td><td style="text-align:right;color:var(--green)">$2.400</td><td style="text-align:right;color:var(--text3)">—</td></tr>
+                      <tr><td>Marzo 2026</td><td style="text-align:right">14</td><td style="text-align:right;color:var(--green)">$3.800</td><td style="text-align:right;color:var(--amber)">$1.200</td></tr>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
-            <div style="margin-bottom:14px">
-              <input class="search-input" style="width:100%" placeholder="Buscar empleado..." oninput="buscarEmpleado(this.value)">
+      <div id="page-usuarios" class="page">
+              <div class="card">
+                <div class="card-head">
+                  <span class="card-title">Usuarios del sistema</span>
+                  <button class="btn btn-sm btn-primary" onclick="abrirModalNuevo('usuario')"><i class="ti ti-plus"></i> Nuevo usuario</button>
+                </div>
+                <div id="usuarios-online-resumen" style="font-size:12px;color:var(--text3);margin-bottom:12px"></div>
+                <table>
+                  <thead><tr><th>ID</th><th>Nombre</th><th>Usuario</th><th>Rol</th><th style="text-align:right">Último acceso</th><th style="text-align:right">Estado</th><th></th></tr></thead>
+                  <tbody id="usuarios-tbody"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr></tbody>
+                </table>
+              </div>
             </div>
-            <table id="emp-tbl">
-              <thead><tr><th style="width:50px">ID</th><th>Apellido y nombre</th><th style="width:130px">Cargo</th><th style="text-align:right;width:130px">Mensual (cargo)</th><th style="text-align:right;width:190px">Hs extra mes</th><th style="text-align:right;width:130px;padding-left:24px">Comisión (mes)</th><th style="width:110px">Fecha inicio</th><th style="text-align:right;width:60px">Estado</th><th style="width:90px"></th></tr></thead>
-              <tbody id="emp-tbody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr></tbody>
+      <div id="page-reportes" class="page">
+              <div class="metrics">
+                <div class="metric">
+                  <div class="m-label">Total mes</div>
+                  <div class="m-value" id="rep-total">$0</div>
+                  <div class="m-sub" id="rep-total-sub">—</div>
+                </div>
+                <div class="metric">
+                  <div class="m-label">Ventas realizadas</div>
+                  <div class="m-value" id="rep-cant">0</div>
+                  <div class="m-sub">este mes</div>
+                </div>
+                <div class="metric">
+                  <div class="m-label">Ticket promedio</div>
+                  <div class="m-value" id="rep-ticket">$0</div>
+                  <div class="m-sub">por venta</div>
+                </div>
+                <div class="metric">
+                  <div class="m-label">IVA a declarar</div>
+                  <div class="m-value" id="rep-iva">$0</div>
+                  <div class="m-sub m-warn" id="rep-iva-sub">—</div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-head">
+                  <span class="card-title" id="emp-resumen-titulo">Resumen por empleado</span>
+                  <button class="btn btn-sm" onclick="exportarExcel('Reporte de ventas')"><i class="ti ti-download"></i> Exportar</button>
+                </div>
+                <table>
+                  <thead><tr><th>Empleado</th><th>Cat.</th><th>Ventas</th><th>Monto</th><th>Comisión</th><th>H. extra</th><th>S. base</th><th>Total</th></tr></thead>
+                  <tbody id="emp-resumen-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+      <div id="page-gastos" class="page">
+
+        <!-- MÉTRICAS -->
+        <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
+          <div class="metric"><div class="m-label">Gastos del mes</div><div class="m-value" id="gas-total" style="color:var(--red)">$0</div><div class="m-sub" id="gas-total-sub">— pagados</div></div>
+          <div class="metric"><div class="m-label">Pendiente de pago</div><div class="m-value" id="gas-pendiente" style="color:var(--amber)">$0</div><div class="m-sub" id="gas-pend-cant">0 gastos</div></div>
+          <div class="metric"><div class="m-label">Vencen esta semana</div><div class="m-value" id="gas-vencen" style="color:var(--red)">$0</div><div class="m-sub" id="gas-vencen-cant">—</div></div>
+          <div class="metric"><div class="m-label">A reembolsar a técnicos</div><div class="m-value" id="gas-reembolso" style="color:var(--blue)">$0</div><div class="m-sub" id="gas-reembolso-cant">—</div></div>
+        </div>
+
+        <!-- ALERTAS DE VENCIMIENTO -->
+        <div id="gas-alertas-box" style="display:none;margin-bottom:12px"></div>
+
+        <!-- LISTA -->
+        <div class="card" id="gasto-list">
+          <div class="card-head">
+            <span class="card-title">Gastos</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <input class="search-input" style="width:180px" placeholder="Buscar..." oninput="filtrarGastos()">
+              <select class="search-input" style="width:130px" id="gas-f-tipo" onchange="filtrarGastos()">
+                <option value="">Todos los tipos</option>
+                <option value="Fijo">Fijo</option>
+                <option value="Variable">Variable</option>
+                <option value="Compra">Compra</option>
+              </select>
+              <select class="search-input" style="width:140px" id="gas-f-estado" onchange="filtrarGastos()">
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="pagado_parcial">Pago parcial</option>
+                <option value="pagado">Pagado</option>
+              </select>
+              <button class="btn btn-sm btn-primary" onclick="abrirFormGasto(null)"><i class="ti ti-plus"></i> Nuevo gasto</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Tipo</th>
+                <th class="tr">Monto</th><th class="tr">Pagado</th><th class="tr">Vencimiento</th>
+                <th class="tr">Estado</th><th class="tr">Pagó</th><th></th>
+              </tr></thead>
+              <tbody id="gastos-tbody"><tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr></tbody>
+            </table>
+          </div>
+          <div class="flex-end" style="margin-top:12px">
+            <button class="btn btn-sm" onclick="exportarExcel('Gastos del período')"><i class="ti ti-download"></i> Exportar Excel</button>
+          </div>
+        </div>
+
+        <!-- FORMULARIO NUEVO/EDITAR GASTO -->
+        <div class="card" id="gasto-form" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <button class="btn btn-sm" onclick="cerrarFormGasto()"><i class="ti ti-arrow-left"></i> Volver</button>
+            <span style="font-size:14px;font-weight:600" id="gasto-form-titulo">Nuevo gasto</span>
+            <div style="width:80px"></div>
+          </div>
+
+          <div class="form-grid">
+            <div class="fg"><label>Fecha</label><input type="date" id="g-fecha"></div>
+            <div class="fg"><label>Vencimiento / Fecha límite de pago</label><input type="date" id="g-vencimiento"></div>
+            <div class="fg"><label>Tipo</label>
+              <select id="g-tipo" onchange="onChangeTipoGasto()">
+                <option value="Variable">Variable</option>
+                <option value="Fijo">Fijo — se repite mensualmente</option>
+                <option value="Compra">Compra de mercadería</option>
+              </select>
+            </div>
+            <div class="fg"><label>Categoría</label>
+              <select id="g-categoria">
+                <option>Inmueble</option><option>Servicios</option><option>Personal</option>
+                <option>Transporte</option><option>Materiales</option><option>Marketing</option>
+                <option>Mercadería</option><option>Impuestos</option><option>Otro</option>
+              </select>
+            </div>
+            <div class="fg full"><label>Descripción</label>
+              <input type="text" id="g-descripcion" placeholder="Ej: Alquiler oficina junio">
+            </div>
+            <div class="fg"><label>Monto total ($)</label><input type="number" id="g-monto" placeholder="0" oninput="calcRestoGasto()"></div>
+            <div class="fg"><label>Monto ya pagado ($)</label><input type="number" id="g-monto-pagado" placeholder="0" value="0" oninput="calcRestoGasto()"></div>
+            <div class="fg"><label>Resta pagar</label>
+              <input type="text" id="g-resta" readonly style="background:var(--bg4);font-weight:600">
+            </div>
+            <div class="fg"><label>Medio de pago</label>
+              <select id="g-medio">
+                <option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option><option>QR</option>
+              </select>
+            </div>
+            <div class="fg"><label>Proveedor / A quién se paga</label><input type="text" id="g-proveedor" placeholder="Opcional"></div>
+            <div class="fg"><label>N° comprobante</label><input type="text" id="g-comprobante" placeholder="Opcional"></div>
+
+            <!-- Pagado por técnico -->
+            <div class="fg full" style="background:var(--bg3);border-radius:var(--radius);padding:12px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+                <input type="checkbox" id="g-pagado-tecnico" onchange="togglePagadoTecnico(this.checked)" style="width:16px;height:16px;accent-color:var(--blue)">
+                <span style="font-size:13px;font-weight:500">Este gasto lo pagó un técnico — reembolsar al empleado</span>
+              </label>
+              <div id="g-tecnico-box" style="display:none;margin-top:10px">
+                <select id="g-tecnico-id" style="width:100%">
+                  <option value="">— Seleccionar empleado —</option>
+                </select>
+                <div style="font-size:12px;color:var(--blue);margin-top:6px"><i class="ti ti-info-circle"></i> Se acreditará automáticamente en la cuenta corriente del empleado</div>
+              </div>
+            </div>
+
+            <!-- Foto del comprobante -->
+            <div class="fg full">
+              <label>Foto del ticket / comprobante</label>
+              <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:14px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('g-foto-input').click()">
+                <i class="ti ti-camera-plus" style="font-size:24px;color:var(--text3)"></i>
+                <div style="font-size:12px;color:var(--text3);margin-top:4px">Tocá para agregar foto del comprobante</div>
+              </div>
+              <input type="file" id="g-foto-input" accept="image/*" capture="environment" style="display:none" onchange="previewFotoGasto(this)">
+              <div id="g-foto-preview" style="margin-top:8px"></div>
+            </div>
+          </div>
+
+          <div class="flex-end" style="margin-top:16px;gap:8px">
+            <button class="btn" onclick="cerrarFormGasto()">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarGastoCompleto()"><i class="ti ti-check"></i> Guardar gasto</button>
+          </div>
+        </div>
+
+        <!-- MODAL PAGO PARCIAL -->
+        <div id="modal-pago-gasto" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center">
+          <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+            <div style="font-size:15px;font-weight:600;margin-bottom:16px" id="mpg-titulo">Registrar pago</div>
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Monto a pagar ahora ($)</label>
+              <input type="number" id="mpg-monto" placeholder="0" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;box-sizing:border-box">
+            </div>
+            <div style="margin-bottom:16px">
+              <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Medio de pago</label>
+              <select id="mpg-medio" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-family:inherit">
+                <option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option><option>QR</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn" style="flex:1" onclick="document.getElementById('modal-pago-gasto').style.display='none'">Cancelar</button>
+              <button class="btn btn-primary" style="flex:1" onclick="confirmarPagoGasto()">Confirmar pago</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div id="page-asistente" class="page">
+
+        <!-- PANTALLA: ELEGIR RUBRO -->
+        <div id="asist-inicio">
+          <div style="text-align:center;padding:24px 0 32px">
+            <div style="font-size:22px;font-weight:700;margin-bottom:6px">¿Qué sistema vas a cotizar?</div>
+            <div style="font-size:14px;color:var(--text3)">Seleccioná el rubro para comenzar</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;max-width:700px;margin:0 auto">
+
+            <button class="asist-rubro-btn" onclick="iniciarAsistente('alarmas')">
+              <div class="asist-rubro-ico" style="background:#fef3c7;color:#d97706"><i class="ti ti-shield-check"></i></div>
+              <div class="asist-rubro-label">Alarmas</div>
+              <div class="asist-rubro-marca">By Garnet</div>
+            </button>
+
+            <button class="asist-rubro-btn" onclick="iniciarAsistente('camaras')">
+              <div class="asist-rubro-ico" style="background:#dbeafe;color:#1d4ed8"><i class="ti ti-camera"></i></div>
+              <div class="asist-rubro-label">Cámaras</div>
+              <div class="asist-rubro-marca">By Hikvision</div>
+            </button>
+
+            <button class="asist-rubro-btn" onclick="iniciarAsistente('videoportero')">
+              <div class="asist-rubro-ico" style="background:#f0fdf4;color:#16a34a"><i class="ti ti-door"></i></div>
+              <div class="asist-rubro-label">Video portero</div>
+              <div class="asist-rubro-marca">By Hikvision</div>
+            </button>
+
+            <button class="asist-rubro-btn" onclick="iniciarAsistente('acceso')">
+              <div class="asist-rubro-ico" style="background:#fdf4ff;color:#9333ea"><i class="ti ti-fingerprint"></i></div>
+              <div class="asist-rubro-label">Control acceso</div>
+              <div class="asist-rubro-marca">By Hikvision</div>
+            </button>
+
+            <button class="asist-rubro-btn" onclick="iniciarAsistente('domotica')">
+              <div class="asist-rubro-ico" style="background:#fdf2f8;color:#be185d"><i class="ti ti-smart-home"></i></div>
+              <div class="asist-rubro-label">Domótica</div>
+              <div class="asist-rubro-marca">By Sonoff</div>
+            </button>
+
+            <button class="asist-rubro-btn" onclick="iniciarAsistente('redes')">
+              <div class="asist-rubro-ico" style="background:#eff6ff;color:#0369a1"><i class="ti ti-router"></i></div>
+              <div class="asist-rubro-label">Redes</div>
+              <div class="asist-rubro-marca">By TP-Link Omada</div>
+            </button>
+
+          </div>
+        </div>
+
+        <!-- PANTALLA: ÁRBOL DE PREGUNTAS -->
+        <div id="asist-preguntas" style="display:none;max-width:600px;margin:0 auto">
+
+          <!-- Header con progreso -->
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px">
+            <button class="btn btn-sm" onclick="asistVolver()" id="asist-btn-volver">
+              <i class="ti ti-arrow-left"></i>
+            </button>
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                <span style="font-size:12px;color:var(--text3)" id="asist-paso-label">Paso 1 de 5</span>
+                <span style="font-size:12px;color:var(--text3)" id="asist-rubro-label">Alarmas</span>
+              </div>
+              <div style="height:4px;background:var(--border);border-radius:2px">
+                <div id="asist-progress-bar" style="height:4px;background:var(--green);border-radius:2px;transition:width .3s ease;width:0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pregunta actual -->
+          <div style="margin-bottom:28px">
+            <div style="font-size:20px;font-weight:700;margin-bottom:8px;line-height:1.3" id="asist-pregunta-titulo"></div>
+            <div style="font-size:14px;color:var(--text3)" id="asist-pregunta-desc"></div>
+          </div>
+
+          <!-- Opciones -->
+          <div id="asist-opciones" style="display:flex;flex-direction:column;gap:10px"></div>
+
+          <!-- Input numérico (para cantidades) -->
+          <div id="asist-input-num" style="display:none;margin-top:8px">
+            <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+              <button onclick="asistAjustarNum(-1)" style="width:48px;height:48px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg3);font-size:20px;cursor:pointer;color:var(--text)">−</button>
+              <input type="number" id="asist-num-val" min="1" max="200" value="1"
+                style="flex:1;text-align:center;font-size:28px;font-weight:700;padding:12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-family:inherit">
+              <button onclick="asistAjustarNum(1)" style="width:48px;height:48px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg3);font-size:20px;cursor:pointer;color:var(--text)">+</button>
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:14px;font-size:16px" onclick="asistConfirmarNum()">
+              Continuar <i class="ti ti-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- PANTALLA: RESUMEN Y PRODUCTOS -->
+        <div id="asist-resumen" style="display:none;max-width:680px;margin:0 auto">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+            <button class="btn btn-sm" onclick="asistVolverAPreguntas()"><i class="ti ti-arrow-left"></i> Volver</button>
+            <div>
+              <div style="font-size:18px;font-weight:700" id="asist-res-titulo">Sistema recomendado</div>
+              <div style="font-size:13px;color:var(--text3)" id="asist-res-sub"></div>
+            </div>
+          </div>
+
+          <!-- Productos recomendados -->
+          <div class="card" style="margin-bottom:12px">
+            <div class="card-head"><span class="card-title">Productos del sistema</span></div>
+            <div id="asist-productos-lista" style="display:flex;flex-direction:column;gap:0"></div>
+            <div id="asist-aviso-sin-precio" style="display:none;margin-top:10px;padding:10px 14px;background:var(--red-bg);color:var(--red);border-radius:var(--radius);font-size:12px">
+              <i class="ti ti-alert-triangle" style="font-size:14px;margin-right:6px"></i>
+              Hay ítems sin precio cargado en el sistema. Cargá el precio en Productos antes de generar el presupuesto.
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0 0;border-top:0.5px solid var(--border);margin-top:8px">
+              <span style="font-size:14px;font-weight:600">Total estimado</span>
+              <span style="font-size:20px;font-weight:700;color:var(--green)" id="asist-total">$0</span>
+            </div>
+          </div>
+
+          <!-- Seleccionar cliente y generar presupuesto -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">Generar presupuesto</span></div>
+            <div class="form-grid">
+              <div class="fg full">
+                <label>Cliente</label>
+                <div class="sw">
+                  <input type="text" id="asist-cli-inp" placeholder="Buscar cliente..."
+                    oninput="filterDrop('asist-cli-inp','asist-cli-drop')" autocomplete="off">
+                  <div class="drop" id="asist-cli-drop" style="display:none"></div>
+                </div>
+              </div>
+              <div class="fg full">
+                <label>Observaciones</label>
+                <input type="text" id="asist-obs" placeholder="Notas adicionales para el presupuesto">
+              </div>
+            </div>
+            <div class="flex-end" style="margin-top:8px">
+              <button class="btn btn-primary" style="padding:12px 28px;font-size:15px" onclick="asistGenerarPresupuesto()">
+                <i class="ti ti-file-description"></i> Generar presupuesto
+              </button>
+            </div>
+          </div>
+        </div>
+
+            <!-- VACACIONES -->
+            <div id="page-vacaciones" class="page">
+            <div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px">
+            <div class="metric"><div class="m-label">Empleados activos</div><div class="m-value" id="vac-total">0</div><div class="m-sub">—</div></div>
+            <div class="metric"><div class="m-label">Con vacaciones pendientes</div><div class="m-value" id="vac-pendientes" style="color:var(--amber)">0</div><div class="m-sub">días sin tomar</div></div>
+            <div class="metric"><div class="m-label">De licencia ahora</div><div class="m-value" id="vac-activas" style="color:var(--blue)">0</div><div class="m-sub">—</div></div>
+            </div>
+            <div class="card">
+            <div class="card-head">
+            <span class="card-title">Vacaciones por empleado</span>
+            <button class="btn btn-sm btn-primary" onclick="abrirModalVacaciones(null)"><i class="ti ti-plus"></i> Registrar período</button>
+            </div>
+            <table>
+            <thead><tr>
+            <th>Legajo</th><th>Empleado</th><th>Antigüedad</th>
+            <th class="tr">Días corresponden</th><th class="tr">Días tomados</th>
+            <th class="tr">Días disponibles</th><th>Próximo período</th><th></th>
+            </tr></thead>
+            <tbody id="vac-tbody"></tbody>
+            </table>
+            </div>
+            <!-- Historial de períodos -->
+            <div class="card" style="margin-top:12px">
+            <div class="card-head"><span class="card-title">Períodos registrados</span></div>
+            <table>
+            <thead><tr><th>Empleado</th><th>Desde</th><th>Hasta</th><th class="tr">Días</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="vac-periodos-tbody"></tbody>
+            </table>
+            </div>
+            </div>
+
+            <!-- RENTABILIDAD -->
+            <div id="page-rentabilidad" class="page">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+            <span style="font-size:13px;color:var(--text2)">Periodo:</span>
+            <select class="search-input" id="rent-periodo" style="width:160px" onchange="calcRentabilidad()">
+            <option value="mes_actual">Este mes</option>
+            <option value="mes_anterior">Mes anterior</option>
+            <option value="ult_3_meses">Últimos 3 meses</option>
+            <option value="anio_actual">Año actual</option>
+            </select>
+            <button class="btn btn-sm" onclick="exportarPDF('Reporte de rentabilidad')"><i class="ti ti-download"></i> Exportar PDF</button>
+            </div>
+            <div class="metrics">
+            <div class="metric"><div class="m-label">Ingresos ventas</div><div class="m-value" id="rent-ingresos" style="color:var(--green)">$0</div><div class="m-sub" id="rent-ingresos-sub">—</div></div>
+            <div class="metric"><div class="m-label">Total egresos</div><div class="m-value" id="rent-egresos" style="color:var(--red)">$0</div><div class="m-sub">gastos + compras</div></div>
+            <div class="metric"><div class="m-label">Utilidad neta</div><div class="m-value" id="rent-utilidad" style="color:var(--green)">$0</div><div class="m-sub">antes de impuestos</div></div>
+            <div class="metric"><div class="m-label">Margen neto</div><div class="m-value" id="rent-margen">—</div><div class="m-sub" id="rent-margen-sub">—</div></div>
+            </div>
+            <div class="card">
+            <div class="card-head"><span class="card-title">Estado de resultados</span></div>
+            <div class="table-wrap">
+            <table>
+            <thead><tr><th>Concepto</th><th class="tr">Monto</th></tr></thead>
+            <tbody id="rent-tbody"><tr><td colspan="2" style="text-align:center;color:var(--text3);padding:24px">Sin datos disponibles</td></tr></tbody>
+            </table>
+            </div>
+            </div>
+            </div>
+
+            <!-- ── CUENTA CORRIENTE EMPLEADOS ── -->
+            <div id="page-ctaemp" class="page">
+            <!-- Selector de empleado (admin ve todos, técnico solo se ve a sí mismo) -->
+            <div class="card" style="margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:13px;color:var(--text2);font-weight:500">Empleado:</span>
+            <select id="ctaemp-sel" class="search-input" style="width:220px" onchange="cargarCtaEmp(this.value)">
+            <option value="">— Seleccionar —</option>
+            </select>
+            <button class="btn btn-sm btn-primary" onclick="abrirNuevoMovEmp()" style="margin-left:auto"><i class="ti ti-plus"></i> Nuevo movimiento</button>
+            </div>
+            </div>
+
+            <!-- Resumen de comisiones del mes (solo visible si es Vendedor a comisión) -->
+            <div id="ctaemp-migracion-banner" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--amber-bg,#fffbeb);border:1px solid var(--amber,#d97706);border-radius:var(--radius);font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <span><i class="ti ti-alert-triangle" style="color:var(--amber,#d97706);margin-right:6px"></i>Hay haberes históricos que no aparecen en esta cuenta.</span>
+            <button class="btn btn-sm" onclick="migrarHaberesHistoricos()" style="white-space:nowrap;background:var(--amber,#d97706);color:#fff;border:none"><i class="ti ti-refresh"></i> Importar haberes anteriores</button>
+            </div>
+            <div class="card" id="ctaemp-comision-card" style="display:none;margin-bottom:12px">
+            <div class="card-head"><span class="card-title"><i class="ti ti-percentage"></i> Comisiones de este mes</span></div>
+            <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+            <div class="metric"><div class="m-label">Total generado</div><div class="m-value" id="ctaemp-com-total" style="color:var(--blue)">$0</div><div class="m-sub" id="ctaemp-com-cant">0 ventas</div></div>
+            <div class="metric"><div class="m-label">Ya cobrado</div><div class="m-value" id="ctaemp-com-cobrado" style="color:var(--green)">$0</div><div class="m-sub">acreditado en cta. cte.</div></div>
+            <div class="metric"><div class="m-label">Pendiente de cobro</div><div class="m-value" id="ctaemp-com-pendiente" style="color:var(--amber)">$0</div><div class="m-sub">ventas aún no cobradas</div></div>
+            </div>
+            </div>
+
+            <!-- Tarjetas resumen -->
+            <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px" id="ctaemp-metrics" style="display:none">
+            <div class="metric"><div class="m-label">Sueldo base</div><div class="m-value" id="ctaemp-base">$0</div><div class="m-sub">mensual bruto</div></div>
+            <div class="metric"><div class="m-label">Haberes</div><div class="m-value" id="ctaemp-haberes" style="color:var(--green)">$0</div><div class="m-sub">sueldo + comisiones + h.extra</div></div>
+            <div class="metric"><div class="m-label">Adelantos</div><div class="m-value" id="ctaemp-adelantos" style="color:var(--red)">$0</div><div class="m-sub">descontados del total</div></div>
+            <div class="metric"><div class="m-label">Total a cobrar</div><div class="m-value" id="ctaemp-total" style="color:var(--text)">$0</div><div class="m-sub" id="ctaemp-periodo">—</div></div>
+            </div>
+
+            <!-- Tabla de movimientos -->
+            <div class="card">
+            <div class="card-head">
+            <span class="card-title">Movimientos</span>
+            <div style="display:flex;gap:6px">
+            <select class="search-input btn-sm" id="ctaemp-filtro-tipo" style="width:160px" onchange="filtrarMovsEmp()">
+            <option value="">Todos los tipos</option>
+            <option value="sueldo">Sueldo</option>
+            <option value="comision">Comisión</option>
+            <option value="hextra">H. extra</option>
+            <option value="adelanto">Adelanto</option>
+            <option value="transporte">Transporte</option>
+            <option value="materiales">Materiales</option>
+            <option value="gasto_empresa">Gasto empresa</option>
+            <option value="otro">Otro</option>
+            </select>
+            <select class="search-input btn-sm" id="ctaemp-filtro-estado" style="width:140px" onchange="filtrarMovsEmp()">
+            <option value="">Todos</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="aprobado">Aprobado</option>
+            <option value="pagado">Pagado</option>
+            </select>
+            </div>
+            </div>
+            <div class="table-wrap">
+            <table style="table-layout:fixed;width:100%">
+            <colgroup>
+            <col style="width:90px"><col style="width:110px"><col><col style="width:110px"><col style="width:90px"><col style="width:80px"><col style="width:36px">
+            </colgroup>
+            <thead>
+            <tr>
+            <th>Fecha</th><th>Tipo</th><th>Descripción</th>
+            <th class="tr">Monto</th><th class="tr">Estado</th><th class="tr">Comprobante</th><th></th>
+            </tr>
+            </thead>
+            <tbody id="ctaemp-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Seleccioná un empleado para ver sus movimientos</td></tr>
+            </tbody>
+            </table>
+            </div>
+            </div>
+      </div>
+
+      </div>
+      <div id="page-vacaciones" class="page">
+            <div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px">
+            <div class="metric"><div class="m-label">Empleados activos</div><div class="m-value" id="vac-total">0</div><div class="m-sub">—</div></div>
+            <div class="metric"><div class="m-label">Con vacaciones pendientes</div><div class="m-value" id="vac-pendientes" style="color:var(--amber)">0</div><div class="m-sub">días sin tomar</div></div>
+            <div class="metric"><div class="m-label">De licencia ahora</div><div class="m-value" id="vac-activas" style="color:var(--blue)">0</div><div class="m-sub">—</div></div>
+            </div>
+            <div class="card">
+            <div class="card-head">
+            <span class="card-title">Vacaciones por empleado</span>
+            <button class="btn btn-sm btn-primary" onclick="abrirModalVacaciones(null)"><i class="ti ti-plus"></i> Registrar período</button>
+            </div>
+            <table>
+            <thead><tr>
+            <th>Legajo</th><th>Empleado</th><th>Antigüedad</th>
+            <th class="tr">Días corresponden</th><th class="tr">Días tomados</th>
+            <th class="tr">Días disponibles</th><th>Próximo período</th><th></th>
+            </tr></thead>
+            <tbody id="vac-tbody"></tbody>
+            </table>
+            </div>
+            <!-- Historial de períodos -->
+            <div class="card" style="margin-top:12px">
+            <div class="card-head"><span class="card-title">Períodos registrados</span></div>
+            <table>
+            <thead><tr><th>Empleado</th><th>Desde</th><th>Hasta</th><th class="tr">Días</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="vac-periodos-tbody"></tbody>
+            </table>
+            </div>
+            </div>
+      <div id="page-rentabilidad" class="page">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+            <span style="font-size:13px;color:var(--text2)">Periodo:</span>
+            <select class="search-input" id="rent-periodo" style="width:160px" onchange="calcRentabilidad()">
+            <option value="mes_actual">Este mes</option>
+            <option value="mes_anterior">Mes anterior</option>
+            <option value="ult_3_meses">Últimos 3 meses</option>
+            <option value="anio_actual">Año actual</option>
+            </select>
+            <button class="btn btn-sm" onclick="exportarPDF('Reporte de rentabilidad')"><i class="ti ti-download"></i> Exportar PDF</button>
+            </div>
+            <div class="metrics">
+            <div class="metric"><div class="m-label">Ingresos ventas</div><div class="m-value" id="rent-ingresos" style="color:var(--green)">$0</div><div class="m-sub" id="rent-ingresos-sub">—</div></div>
+            <div class="metric"><div class="m-label">Total egresos</div><div class="m-value" id="rent-egresos" style="color:var(--red)">$0</div><div class="m-sub">gastos + compras</div></div>
+            <div class="metric"><div class="m-label">Utilidad neta</div><div class="m-value" id="rent-utilidad" style="color:var(--green)">$0</div><div class="m-sub">antes de impuestos</div></div>
+            <div class="metric"><div class="m-label">Margen neto</div><div class="m-value" id="rent-margen">—</div><div class="m-sub" id="rent-margen-sub">—</div></div>
+            </div>
+            <div class="card">
+            <div class="card-head"><span class="card-title">Estado de resultados</span></div>
+            <div class="table-wrap">
+            <table>
+            <thead><tr><th>Concepto</th><th class="tr">Monto</th></tr></thead>
+            <tbody id="rent-tbody"><tr><td colspan="2" style="text-align:center;color:var(--text3);padding:24px">Sin datos disponibles</td></tr></tbody>
+            </table>
+            </div>
+            </div>
+            </div>
+      <div id="page-ctaemp" class="page">
+            <!-- Selector de empleado (admin ve todos, técnico solo se ve a sí mismo) -->
+            <div class="card" style="margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:13px;color:var(--text2);font-weight:500">Empleado:</span>
+            <select id="ctaemp-sel" class="search-input" style="width:220px" onchange="cargarCtaEmp(this.value)">
+            <option value="">— Seleccionar —</option>
+            </select>
+            <button class="btn btn-sm btn-primary" onclick="abrirNuevoMovEmp()" style="margin-left:auto"><i class="ti ti-plus"></i> Nuevo movimiento</button>
+            </div>
+            </div>
+
+            <!-- Resumen de comisiones del mes (solo visible si es Vendedor a comisión) -->
+            <div id="ctaemp-migracion-banner" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--amber-bg,#fffbeb);border:1px solid var(--amber,#d97706);border-radius:var(--radius);font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <span><i class="ti ti-alert-triangle" style="color:var(--amber,#d97706);margin-right:6px"></i>Hay haberes históricos que no aparecen en esta cuenta.</span>
+            <button class="btn btn-sm" onclick="migrarHaberesHistoricos()" style="white-space:nowrap;background:var(--amber,#d97706);color:#fff;border:none"><i class="ti ti-refresh"></i> Importar haberes anteriores</button>
+            </div>
+            <div class="card" id="ctaemp-comision-card" style="display:none;margin-bottom:12px">
+            <div class="card-head"><span class="card-title"><i class="ti ti-percentage"></i> Comisiones de este mes</span></div>
+            <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+            <div class="metric"><div class="m-label">Total generado</div><div class="m-value" id="ctaemp-com-total" style="color:var(--blue)">$0</div><div class="m-sub" id="ctaemp-com-cant">0 ventas</div></div>
+            <div class="metric"><div class="m-label">Ya cobrado</div><div class="m-value" id="ctaemp-com-cobrado" style="color:var(--green)">$0</div><div class="m-sub">acreditado en cta. cte.</div></div>
+            <div class="metric"><div class="m-label">Pendiente de cobro</div><div class="m-value" id="ctaemp-com-pendiente" style="color:var(--amber)">$0</div><div class="m-sub">ventas aún no cobradas</div></div>
+            </div>
+            </div>
+
+            <!-- Tarjetas resumen -->
+            <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px" id="ctaemp-metrics" style="display:none">
+            <div class="metric"><div class="m-label">Sueldo base</div><div class="m-value" id="ctaemp-base">$0</div><div class="m-sub">mensual bruto</div></div>
+            <div class="metric"><div class="m-label">Haberes</div><div class="m-value" id="ctaemp-haberes" style="color:var(--green)">$0</div><div class="m-sub">sueldo + comisiones + h.extra</div></div>
+            <div class="metric"><div class="m-label">Adelantos</div><div class="m-value" id="ctaemp-adelantos" style="color:var(--red)">$0</div><div class="m-sub">descontados del total</div></div>
+            <div class="metric"><div class="m-label">Total a cobrar</div><div class="m-value" id="ctaemp-total" style="color:var(--text)">$0</div><div class="m-sub" id="ctaemp-periodo">—</div></div>
+            </div>
+
+            <!-- Tabla de movimientos -->
+            <div class="card">
+            <div class="card-head">
+            <span class="card-title">Movimientos</span>
+            <div style="display:flex;gap:6px">
+            <select class="search-input btn-sm" id="ctaemp-filtro-tipo" style="width:160px" onchange="filtrarMovsEmp()">
+            <option value="">Todos los tipos</option>
+            <option value="sueldo">Sueldo</option>
+            <option value="comision">Comisión</option>
+            <option value="hextra">H. extra</option>
+            <option value="adelanto">Adelanto</option>
+            <option value="transporte">Transporte</option>
+            <option value="materiales">Materiales</option>
+            <option value="gasto_empresa">Gasto empresa</option>
+            <option value="otro">Otro</option>
+            </select>
+            <select class="search-input btn-sm" id="ctaemp-filtro-estado" style="width:140px" onchange="filtrarMovsEmp()">
+            <option value="">Todos</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="aprobado">Aprobado</option>
+            <option value="pagado">Pagado</option>
+            </select>
+            </div>
+            </div>
+            <div class="table-wrap">
+            <table style="table-layout:fixed;width:100%">
+            <colgroup>
+            <col style="width:90px"><col style="width:110px"><col><col style="width:110px"><col style="width:90px"><col style="width:80px"><col style="width:36px">
+            </colgroup>
+            <thead>
+            <tr>
+            <th>Fecha</th><th>Tipo</th><th>Descripción</th>
+            <th class="tr">Monto</th><th class="tr">Estado</th><th class="tr">Comprobante</th><th></th>
+            </tr>
+            </thead>
+            <tbody id="ctaemp-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Seleccioná un empleado para ver sus movimientos</td></tr>
+            </tbody>
+            </table>
+            </div>
+            </div>
+      </div>
+      <div id="page-informes" class="page">
+        <div id="informes-lista-view">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;gap:8px;flex:1;flex-wrap:wrap">
+              <input class="search-input" style="flex:1;min-width:180px" placeholder="Buscar por cliente, N° o técnico..." id="inf-search" oninput="filtrarInformes()">
+              <select class="search-input" style="width:150px" id="inf-filtro-estado" onchange="filtrarInformes()">
+                <option value="">Todos</option>
+                <option value="borrador">Borrador</option>
+                <option value="completado">Completado</option>
+                <option value="enviado">Enviado</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="abrirNuevoInforme()"><i class="ti ti-plus"></i> Nuevo informe</button>
+          </div>
+          <div class="card">
+            <table style="table-layout:fixed;width:100%">
+              <colgroup>
+                <col style="width:80px"><col style="width:110px"><col><col style="width:100px"><col style="width:100px"><col style="width:90px"><col style="width:36px">
+              </colgroup>
+              <thead>
+                <tr><th>N°</th><th>Fecha</th><th>Cliente / Equipo</th><th>Técnico</th><th class="tr">Tipo</th><th class="tr">Estado</th><th></th></tr>
+              </thead>
+              <tbody id="informes-tbody">
+                <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Sin informes registrados</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
 
-        <!-- FICHA EMPLEADO -->
-        <div id="emp-detail-view" style="display:none">
-          <div style="margin-bottom:14px">
-            <button class="btn btn-sm" onclick="volverlista()"><i class="ti ti-arrow-left"></i> Volver a empleados</button>
+        <!-- FORMULARIO INFORME -->
+        <div id="informes-form-view" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <button class="btn btn-sm" onclick="volverListaInformes()"><i class="ti ti-arrow-left"></i> Volver</button>
+            <span style="font-size:13px;font-weight:600" id="inf-form-titulo">Nuevo informe técnico</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="guardarInforme('borrador')"><i class="ti ti-device-floppy"></i> Guardar borrador</button>
+              <button class="btn btn-sm btn-primary" onclick="guardarInforme('completado')"><i class="ti ti-check"></i> Completar</button>
+            </div>
           </div>
-          <div class="emp-header">
-            <div class="emp-avatar" id="det-avatar" style="background:var(--blue-bg);color:var(--blue)">—</div>
-            <div class="emp-info">
-              <div class="emp-name" id="det-nombre">—</div>
-              <div class="emp-meta">
-                <span id="det-cat"></span>
-                <span>·</span>
-                <span id="det-estado"></span>
-                <span>·</span>
-                <span id="det-ingreso"></span>
+
+          <div class="card">
+            <div class="card-head"><span class="card-title">Datos del informe</span></div>
+            <div class="form-grid">
+              <div class="fg"><label>N° informe</label><input type="text" id="inf-numero" readonly placeholder="Auto"></div>
+              <div class="fg"><label>Fecha</label><input type="date" id="inf-fecha"></div>
+              <div class="fg"><label>Tipo</label>
+                <select id="inf-tipo">
+                  <option value="tecnico">Informe técnico</option>
+                  <option value="seguro">Informe para seguro</option>
+                  <option value="garantia">Informe de garantía</option>
+                  <option value="mantenimiento">Informe de mantenimiento</option>
+                  <option value="instalacion">Informe de instalación</option>
+                </select>
+              </div>
+              <div class="fg"><label>Técnico responsable</label>
+                <select id="inf-tecnico">
+                  <option value="">— Seleccionar —</option>
+                </select>
+              </div>
+              <div class="fg full"><label>Cliente</label>
+                <div class="sw">
+                  <input type="text" id="inf-cliente" placeholder="Buscar cliente..." oninput="filterDrop('inf-cliente','inf-cli-drop')" autocomplete="off">
+                  <div class="drop" id="inf-cli-drop" style="display:none"></div>
+                </div>
+              </div>
+              <div class="fg full"><label>Dirección del servicio</label><input type="text" id="inf-dir" placeholder="Calle y número"></div>
+              <div class="fg full"><label>Equipo / Sistema intervenido</label><input type="text" id="inf-equipo" placeholder="Ej: Alarma Garnet PG-380, cámaras Hikvision, Sonoff iHost..."></div>
+              <div class="fg"><label>N° serie / Modelo</label><input type="text" id="inf-serie" placeholder="SN-XXXXX"></div>
+              <div class="fg"><label>Venta / OT vinculada</label><input type="text" id="inf-venta" placeholder="Ej: #109696"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="card-title">Contenido técnico</span></div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div>
+                <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Motivo de la visita / solicitud</label>
+                <textarea id="inf-motivo" rows="3" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Describir el motivo por el cual se realizó la visita técnica..."></textarea>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Diagnóstico</label>
+                <textarea id="inf-diagnostico" rows="4" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Detallar el diagnóstico encontrado en el equipo o sistema..."></textarea>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Acciones correctivas realizadas</label>
+                <textarea id="inf-acciones" rows="4" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Describir las acciones realizadas para resolver el problema..."></textarea>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Materiales / repuestos utilizados</label>
+                <textarea id="inf-materiales" rows="2" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Listar materiales utilizados (opcional)..."></textarea>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Medidas preventivas recomendadas</label>
+                <textarea id="inf-preventivas" rows="3" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Recomendaciones para evitar futuros inconvenientes..."></textarea>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Observaciones adicionales</label>
+                <textarea id="inf-obs" rows="2" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Cualquier otra observación relevante..."></textarea>
               </div>
             </div>
-            <button class="btn btn-sm" onclick="abrirModalNuevo('empleado')" title="Editar empleado"><i class="ti ti-edit"></i> Editar</button>
           </div>
 
-          <div class="emp-sueldo-grid">
-            <div class="sueldo-card">
-              <div class="sueldo-label">Sueldo base</div>
-              <div class="sueldo-value" id="det-base">—</div>
-              <div class="sueldo-sub">mensual bruto</div>
-            </div>
-            <div class="sueldo-card">
-              <div class="sueldo-label">Comisiones</div>
-              <div class="sueldo-value" id="det-comisiones" style="color:var(--green)">—</div>
-              <div class="sueldo-sub" id="det-comisiones-sub">—</div>
-            </div>
-            <div class="sueldo-card">
-              <div class="sueldo-label">Horas extra</div>
-              <div class="sueldo-value" id="det-hextra" style="color:var(--amber)">—</div>
-              <div class="sueldo-sub" id="det-hextra-sub">—</div>
-            </div>
-            <div class="sueldo-card" style="background:var(--text);color:var(--bg2)">
-              <div class="sueldo-label" style="color:rgba(255,255,255,.5)">Total a cobrar</div>
-              <div class="sueldo-value" id="det-total" style="color:var(--bg2)">—</div>
-              <div class="sueldo-sub" style="color:rgba(255,255,255,.4)" id="det-total-sub">—</div>
-            </div>
-          </div>
-
-          <div class="row2">
-            <div class="card" style="margin-bottom:0">
-              <div class="card-head"><span class="card-title">Datos personales</span></div>
-              <div class="form-grid">
-                <div class="fg"><label>DNI</label><input type="text" id="det-dni" readonly></div>
-                <div class="fg"><label>Teléfono</label><input type="text" id="det-tel" readonly></div>
-                <div class="fg"><label>Email</label><input type="text" id="det-email" readonly></div>
-                <div class="fg"><label>Dirección</label><input type="text" id="det-dir" readonly></div>
+          <div class="card">
+            <div class="card-head"><span class="card-title">Conformidad del cliente</span></div>
+            <div class="form-grid">
+              <div class="fg full"><label>Nombre y apellido (quien recibe)</label><input type="text" id="inf-receptor" placeholder="Nombre completo"></div>
+              <div class="fg"><label>DNI</label><input type="text" id="inf-receptor-dni" placeholder="12.345.678"></div>
+              <div class="fg"><label>Resultado</label>
+                <select id="inf-resultado">
+                  <option value="conforme">Conforme</option>
+                  <option value="parcial">Conforme parcial</option>
+                  <option value="pendiente">Pendiente revisión</option>
+                </select>
               </div>
             </div>
-            <div class="card" style="margin-bottom:0">
-              <div class="card-head"><span class="card-title">Historial de comisiones</span></div>
-              <table>
-                <tr><th>Período</th><th style="text-align:right">Ventas</th><th style="text-align:right">Comisión</th><th style="text-align:right">H. extra</th></tr>
-                <tr><td>Mayo 2026</td><td style="text-align:right">12</td><td style="text-align:right;color:var(--green)" id="h-may-com">$3.200</td><td style="text-align:right;color:var(--amber)" id="h-may-hex">$800</td></tr>
-                <tr><td>Abril 2026</td><td style="text-align:right">9</td><td style="text-align:right;color:var(--green)">$2.400</td><td style="text-align:right;color:var(--text3)">—</td></tr>
-                <tr><td>Marzo 2026</td><td style="text-align:right">14</td><td style="text-align:right;color:var(--green)">$3.800</td><td style="text-align:right;color:var(--amber)">$1.200</td></tr>
-              </table>
-            </div>
+          </div>
+
+          <div class="flex-end" style="margin-bottom:24px">
+            <button class="btn" onclick="guardarInforme('borrador')"><i class="ti ti-device-floppy"></i> Guardar borrador</button>
+            <button class="btn" onclick="imprimirInforme()"><i class="ti ti-printer"></i> Imprimir</button>
+            <button class="btn btn-primary" onclick="guardarInforme('enviado')"><i class="ti ti-send"></i> Marcar como enviado</button>
           </div>
         </div>
       </div>
-
-      <!-- ── USUARIOS (solo admin) ── -->
-      <div id="page-usuarios" class="page">
-        <div class="card">
-          <div class="card-head">
-            <span class="card-title">Usuarios del sistema</span>
-            <button class="btn btn-sm btn-primary" onclick="abrirModalNuevo('usuario')"><i class="ti ti-plus"></i> Nuevo usuario</button>
-          </div>
-          <div id="usuarios-online-resumen" style="font-size:12px;color:var(--text3);margin-bottom:12px"></div>
-          <table>
-            <thead><tr><th>ID</th><th>Nombre</th><th>Usuario</th><th>Rol</th><th style="text-align:right">Último acceso</th><th style="text-align:right">Estado</th><th></th></tr></thead>
-            <tbody id="usuarios-tbody"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- ── REPORTES (solo admin) ── -->
-      <div id="page-reportes" class="page">
-        <div class="metrics">
-          <div class="metric">
-            <div class="m-label">Total mes</div>
-            <div class="m-value" id="rep-total">$0</div>
-            <div class="m-sub" id="rep-total-sub">—</div>
-          </div>
-          <div class="metric">
-            <div class="m-label">Ventas realizadas</div>
-            <div class="m-value" id="rep-cant">0</div>
-            <div class="m-sub">este mes</div>
-          </div>
-          <div class="metric">
-            <div class="m-label">Ticket promedio</div>
-            <div class="m-value" id="rep-ticket">$0</div>
-            <div class="m-sub">por venta</div>
-          </div>
-          <div class="metric">
-            <div class="m-label">IVA a declarar</div>
-            <div class="m-value" id="rep-iva">$0</div>
-            <div class="m-sub m-warn" id="rep-iva-sub">—</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-head">
-            <span class="card-title" id="emp-resumen-titulo">Resumen por empleado</span>
-            <button class="btn btn-sm" onclick="exportarExcel('Reporte de ventas')"><i class="ti ti-download"></i> Exportar</button>
-          </div>
-          <table>
-            <thead><tr><th>Empleado</th><th>Cat.</th><th>Ventas</th><th>Monto</th><th>Comisión</th><th>H. extra</th><th>S. base</th><th>Total</th></tr></thead>
-            <tbody id="emp-resumen-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
-<!-- GASTOS -->
-<div id="page-gastos" class="page">
-
-  <!-- MÉTRICAS -->
-  <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
-    <div class="metric"><div class="m-label">Gastos del mes</div><div class="m-value" id="gas-total" style="color:var(--red)">$0</div><div class="m-sub" id="gas-total-sub">— pagados</div></div>
-    <div class="metric"><div class="m-label">Pendiente de pago</div><div class="m-value" id="gas-pendiente" style="color:var(--amber)">$0</div><div class="m-sub" id="gas-pend-cant">0 gastos</div></div>
-    <div class="metric"><div class="m-label">Vencen esta semana</div><div class="m-value" id="gas-vencen" style="color:var(--red)">$0</div><div class="m-sub" id="gas-vencen-cant">—</div></div>
-    <div class="metric"><div class="m-label">A reembolsar a técnicos</div><div class="m-value" id="gas-reembolso" style="color:var(--blue)">$0</div><div class="m-sub" id="gas-reembolso-cant">—</div></div>
+      
+      <div id="page-caja" class="page">
+  <div id="caja-scope-label" style="font-size:12px;color:var(--text3);margin-bottom:10px"></div>
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Saldo apertura</div>
+      <div class="metric-value" id="caja-apertura">$0</div>
+      <div class="metric-sub">hoy</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Ingresos del día</div>
+      <div class="metric-value" id="caja-ingresos" style="color:var(--green)">$0</div>
+      <div class="metric-sub">cobros del día</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Egresos del día</div>
+      <div class="metric-value" id="caja-egresos" style="color:var(--red)">$0</div>
+      <div class="metric-sub">gastos y retiros</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Saldo actual</div>
+      <div class="metric-value" id="caja-saldo" style="color:var(--green)">$0</div>
+      <div class="metric-sub">efectivo en caja</div>
+    </div>
   </div>
 
-  <!-- ALERTAS DE VENCIMIENTO -->
-  <div id="gas-alertas-box" style="display:none;margin-bottom:12px"></div>
-
-  <!-- LISTA -->
-  <div class="card" id="gasto-list">
-    <div class="card-head">
-      <span class="card-title">Gastos</span>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <input class="search-input" style="width:180px" placeholder="Buscar..." oninput="filtrarGastos()">
-        <select class="search-input" style="width:130px" id="gas-f-tipo" onchange="filtrarGastos()">
-          <option value="">Todos los tipos</option>
-          <option value="Fijo">Fijo</option>
-          <option value="Variable">Variable</option>
-          <option value="Compra">Compra</option>
-        </select>
-        <select class="search-input" style="width:140px" id="gas-f-estado" onchange="filtrarGastos()">
-          <option value="">Todos los estados</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="pagado_parcial">Pago parcial</option>
-          <option value="pagado">Pagado</option>
-        </select>
-        <button class="btn btn-sm btn-primary" onclick="abrirFormGasto(null)"><i class="ti ti-plus"></i> Nuevo gasto</button>
+  <div class="row2">
+    <div class="card" style="margin-bottom:0">
+      <div class="card-head">
+        <span class="card-title">Estado de caja — hoy</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="cerrarCaja()"><i class="ti ti-lock"></i> Cerrar caja</button>
+          <button class="btn btn-sm btn-primary" onclick="document.getElementById('caja-mov-form').style.display=document.getElementById('caja-mov-form').style.display==='none'?'block':'none'"><i class="ti ti-plus"></i> Movimiento</button>
+        </div>
       </div>
+      <div id="caja-mov-form" style="display:none;background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:14px">
+        <div class="form-grid">
+          <div class="fg"><label>Tipo</label>
+            <select id="cm-tipo"><option>Ingreso</option><option>Egreso</option><option>Retiro</option></select>
+          </div>
+          <div class="fg"><label>Monto ($)</label><input type="number" id="cm-monto" placeholder="0"></div>
+          <div class="fg"><label>Concepto</label><input id="cm-concepto" placeholder="Ej: Cobro venta #00042"></div>
+          <div class="fg"><label>Medio</label>
+            <select id="cm-medio"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>
+          </div>
+        </div>
+        <div class="flex-end"><button class="btn btn-sm btn-primary" onclick="registrarMovCaja()"><i class="ti ti-check"></i> Registrar</button></div>
+      </div>
+      <div id="caja-movimientos" style="display:flex;flex-direction:column;gap:0">
+        <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin movimientos registrados hoy</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="card-head"><span class="card-title">Resumen por medio de pago</span></div>
+      <div id="caja-medios" style="display:flex;flex-direction:column;gap:0">
+        <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin datos</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Historial de cajas</span>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr>
-          <th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Tipo</th>
-          <th class="tr">Monto</th><th class="tr">Pagado</th><th class="tr">Vencimiento</th>
-          <th class="tr">Estado</th><th class="tr">Pagó</th><th></th>
-        </tr></thead>
-        <tbody id="gastos-tbody"><tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr></tbody>
-      </table>
-    </div>
-    <div class="flex-end" style="margin-top:12px">
-      <button class="btn btn-sm" onclick="exportarExcel('Gastos del período')"><i class="ti ti-download"></i> Exportar Excel</button>
-    </div>
-  </div>
-
-  <!-- FORMULARIO NUEVO/EDITAR GASTO -->
-  <div class="card" id="gasto-form" style="display:none">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <button class="btn btn-sm" onclick="cerrarFormGasto()"><i class="ti ti-arrow-left"></i> Volver</button>
-      <span style="font-size:14px;font-weight:600" id="gasto-form-titulo">Nuevo gasto</span>
-      <div style="width:80px"></div>
-    </div>
-
-    <div class="form-grid">
-      <div class="fg"><label>Fecha</label><input type="date" id="g-fecha"></div>
-      <div class="fg"><label>Vencimiento / Fecha límite de pago</label><input type="date" id="g-vencimiento"></div>
-      <div class="fg"><label>Tipo</label>
-        <select id="g-tipo" onchange="onChangeTipoGasto()">
-          <option value="Variable">Variable</option>
-          <option value="Fijo">Fijo — se repite mensualmente</option>
-          <option value="Compra">Compra de mercadería</option>
-        </select>
-      </div>
-      <div class="fg"><label>Categoría</label>
-        <select id="g-categoria">
-          <option>Inmueble</option><option>Servicios</option><option>Personal</option>
-          <option>Transporte</option><option>Materiales</option><option>Marketing</option>
-          <option>Mercadería</option><option>Impuestos</option><option>Otro</option>
-        </select>
-      </div>
-      <div class="fg full"><label>Descripción</label>
-        <input type="text" id="g-descripcion" placeholder="Ej: Alquiler oficina junio">
-      </div>
-      <div class="fg"><label>Monto total ($)</label><input type="number" id="g-monto" placeholder="0" oninput="calcRestoGasto()"></div>
-      <div class="fg"><label>Monto ya pagado ($)</label><input type="number" id="g-monto-pagado" placeholder="0" value="0" oninput="calcRestoGasto()"></div>
-      <div class="fg"><label>Resta pagar</label>
-        <input type="text" id="g-resta" readonly style="background:var(--bg4);font-weight:600">
-      </div>
-      <div class="fg"><label>Medio de pago</label>
-        <select id="g-medio">
-          <option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option><option>QR</option>
-        </select>
-      </div>
-      <div class="fg"><label>Proveedor / A quién se paga</label><input type="text" id="g-proveedor" placeholder="Opcional"></div>
-      <div class="fg"><label>N° comprobante</label><input type="text" id="g-comprobante" placeholder="Opcional"></div>
-
-      <!-- Pagado por técnico -->
-      <div class="fg full" style="background:var(--bg3);border-radius:var(--radius);padding:12px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
-          <input type="checkbox" id="g-pagado-tecnico" onchange="togglePagadoTecnico(this.checked)" style="width:16px;height:16px;accent-color:var(--blue)">
-          <span style="font-size:13px;font-weight:500">Este gasto lo pagó un técnico — reembolsar al empleado</span>
-        </label>
-        <div id="g-tecnico-box" style="display:none;margin-top:10px">
-          <select id="g-tecnico-id" style="width:100%">
-            <option value="">— Seleccionar empleado —</option>
-          </select>
-          <div style="font-size:12px;color:var(--blue);margin-top:6px"><i class="ti ti-info-circle"></i> Se acreditará automáticamente en la cuenta corriente del empleado</div>
-        </div>
-      </div>
-
-      <!-- Foto del comprobante -->
-      <div class="fg full">
-        <label>Foto del ticket / comprobante</label>
-        <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:14px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('g-foto-input').click()">
-          <i class="ti ti-camera-plus" style="font-size:24px;color:var(--text3)"></i>
-          <div style="font-size:12px;color:var(--text3);margin-top:4px">Tocá para agregar foto del comprobante</div>
-        </div>
-        <input type="file" id="g-foto-input" accept="image/*" capture="environment" style="display:none" onchange="previewFotoGasto(this)">
-        <div id="g-foto-preview" style="margin-top:8px"></div>
-      </div>
-    </div>
-
-    <div class="flex-end" style="margin-top:16px;gap:8px">
-      <button class="btn" onclick="cerrarFormGasto()">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarGastoCompleto()"><i class="ti ti-check"></i> Guardar gasto</button>
-    </div>
-  </div>
-
-  <!-- MODAL PAGO PARCIAL -->
-  <div id="modal-pago-gasto" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center">
-    <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-      <div style="font-size:15px;font-weight:600;margin-bottom:16px" id="mpg-titulo">Registrar pago</div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Monto a pagar ahora ($)</label>
-        <input type="number" id="mpg-monto" placeholder="0" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:16px">
-        <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Medio de pago</label>
-        <select id="mpg-medio" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-family:inherit">
-          <option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option><option>QR</option>
-        </select>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn" style="flex:1" onclick="document.getElementById('modal-pago-gasto').style.display='none'">Cancelar</button>
-        <button class="btn btn-primary" style="flex:1" onclick="confirmarPagoGasto()">Confirmar pago</button>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<!-- ASISTENTE DE VENTAS -->
-<div id="page-asistente" class="page">
-
-  <!-- PANTALLA: ELEGIR RUBRO -->
-  <div id="asist-inicio">
-    <div style="text-align:center;padding:24px 0 32px">
-      <div style="font-size:22px;font-weight:700;margin-bottom:6px">¿Qué sistema vas a cotizar?</div>
-      <div style="font-size:14px;color:var(--text3)">Seleccioná el rubro para comenzar</div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;max-width:700px;margin:0 auto">
-
-      <button class="asist-rubro-btn" onclick="iniciarAsistente('alarmas')">
-        <div class="asist-rubro-ico" style="background:#fef3c7;color:#d97706"><i class="ti ti-shield-check"></i></div>
-        <div class="asist-rubro-label">Alarmas</div>
-        <div class="asist-rubro-marca">By Garnet</div>
-      </button>
-
-      <button class="asist-rubro-btn" onclick="iniciarAsistente('camaras')">
-        <div class="asist-rubro-ico" style="background:#dbeafe;color:#1d4ed8"><i class="ti ti-camera"></i></div>
-        <div class="asist-rubro-label">Cámaras</div>
-        <div class="asist-rubro-marca">By Hikvision</div>
-      </button>
-
-      <button class="asist-rubro-btn" onclick="iniciarAsistente('videoportero')">
-        <div class="asist-rubro-ico" style="background:#f0fdf4;color:#16a34a"><i class="ti ti-door"></i></div>
-        <div class="asist-rubro-label">Video portero</div>
-        <div class="asist-rubro-marca">By Hikvision</div>
-      </button>
-
-      <button class="asist-rubro-btn" onclick="iniciarAsistente('acceso')">
-        <div class="asist-rubro-ico" style="background:#fdf4ff;color:#9333ea"><i class="ti ti-fingerprint"></i></div>
-        <div class="asist-rubro-label">Control acceso</div>
-        <div class="asist-rubro-marca">By Hikvision</div>
-      </button>
-
-      <button class="asist-rubro-btn" onclick="iniciarAsistente('domotica')">
-        <div class="asist-rubro-ico" style="background:#fdf2f8;color:#be185d"><i class="ti ti-smart-home"></i></div>
-        <div class="asist-rubro-label">Domótica</div>
-        <div class="asist-rubro-marca">By Sonoff</div>
-      </button>
-
-      <button class="asist-rubro-btn" onclick="iniciarAsistente('redes')">
-        <div class="asist-rubro-ico" style="background:#eff6ff;color:#0369a1"><i class="ti ti-router"></i></div>
-        <div class="asist-rubro-label">Redes</div>
-        <div class="asist-rubro-marca">By TP-Link Omada</div>
-      </button>
-
-    </div>
-  </div>
-
-  <!-- PANTALLA: ÁRBOL DE PREGUNTAS -->
-  <div id="asist-preguntas" style="display:none;max-width:600px;margin:0 auto">
-
-    <!-- Header con progreso -->
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px">
-      <button class="btn btn-sm" onclick="asistVolver()" id="asist-btn-volver">
-        <i class="ti ti-arrow-left"></i>
-      </button>
-      <div style="flex:1">
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="font-size:12px;color:var(--text3)" id="asist-paso-label">Paso 1 de 5</span>
-          <span style="font-size:12px;color:var(--text3)" id="asist-rubro-label">Alarmas</span>
-        </div>
-        <div style="height:4px;background:var(--border);border-radius:2px">
-          <div id="asist-progress-bar" style="height:4px;background:var(--green);border-radius:2px;transition:width .3s ease;width:0%"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Pregunta actual -->
-    <div style="margin-bottom:28px">
-      <div style="font-size:20px;font-weight:700;margin-bottom:8px;line-height:1.3" id="asist-pregunta-titulo"></div>
-      <div style="font-size:14px;color:var(--text3)" id="asist-pregunta-desc"></div>
-    </div>
-
-    <!-- Opciones -->
-    <div id="asist-opciones" style="display:flex;flex-direction:column;gap:10px"></div>
-
-    <!-- Input numérico (para cantidades) -->
-    <div id="asist-input-num" style="display:none;margin-top:8px">
-      <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
-        <button onclick="asistAjustarNum(-1)" style="width:48px;height:48px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg3);font-size:20px;cursor:pointer;color:var(--text)">−</button>
-        <input type="number" id="asist-num-val" min="1" max="200" value="1"
-          style="flex:1;text-align:center;font-size:28px;font-weight:700;padding:12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-family:inherit">
-        <button onclick="asistAjustarNum(1)" style="width:48px;height:48px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg3);font-size:20px;cursor:pointer;color:var(--text)">+</button>
-      </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:14px;font-size:16px" onclick="asistConfirmarNum()">
-        Continuar <i class="ti ti-arrow-right"></i>
-      </button>
-    </div>
-  </div>
-
-  <!-- PANTALLA: RESUMEN Y PRODUCTOS -->
-  <div id="asist-resumen" style="display:none;max-width:680px;margin:0 auto">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <button class="btn btn-sm" onclick="asistVolverAPreguntas()"><i class="ti ti-arrow-left"></i> Volver</button>
-      <div>
-        <div style="font-size:18px;font-weight:700" id="asist-res-titulo">Sistema recomendado</div>
-        <div style="font-size:13px;color:var(--text3)" id="asist-res-sub"></div>
-      </div>
-    </div>
-
-    <!-- Productos recomendados -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-head"><span class="card-title">Productos del sistema</span></div>
-      <div id="asist-productos-lista" style="display:flex;flex-direction:column;gap:0"></div>
-      <div id="asist-aviso-sin-precio" style="display:none;margin-top:10px;padding:10px 14px;background:var(--red-bg);color:var(--red);border-radius:var(--radius);font-size:12px">
-        <i class="ti ti-alert-triangle" style="font-size:14px;margin-right:6px"></i>
-        Hay ítems sin precio cargado en el sistema. Cargá el precio en Productos antes de generar el presupuesto.
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0 0;border-top:0.5px solid var(--border);margin-top:8px">
-        <span style="font-size:14px;font-weight:600">Total estimado</span>
-        <span style="font-size:20px;font-weight:700;color:var(--green)" id="asist-total">$0</span>
-      </div>
-    </div>
-
-    <!-- Seleccionar cliente y generar presupuesto -->
-    <div class="card">
-      <div class="card-head"><span class="card-title">Generar presupuesto</span></div>
-      <div class="form-grid">
-        <div class="fg full">
-          <label>Cliente</label>
-          <div class="sw">
-            <input type="text" id="asist-cli-inp" placeholder="Buscar cliente..."
-              oninput="filterDrop('asist-cli-inp','asist-cli-drop')" autocomplete="off">
-            <div class="drop" id="asist-cli-drop" style="display:none"></div>
-          </div>
-        </div>
-        <div class="fg full">
-          <label>Observaciones</label>
-          <input type="text" id="asist-obs" placeholder="Notas adicionales para el presupuesto">
-        </div>
-      </div>
-      <div class="flex-end" style="margin-top:8px">
-        <button class="btn btn-primary" style="padding:12px 28px;font-size:15px" onclick="asistGenerarPresupuesto()">
-          <i class="ti ti-file-description"></i> Generar presupuesto
-        </button>
-      </div>
-    </div>
-  </div>
-
-      <!-- VACACIONES -->
-      <div id="page-vacaciones" class="page">
-      <div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px">
-      <div class="metric"><div class="m-label">Empleados activos</div><div class="m-value" id="vac-total">0</div><div class="m-sub">—</div></div>
-      <div class="metric"><div class="m-label">Con vacaciones pendientes</div><div class="m-value" id="vac-pendientes" style="color:var(--amber)">0</div><div class="m-sub">días sin tomar</div></div>
-      <div class="metric"><div class="m-label">De licencia ahora</div><div class="m-value" id="vac-activas" style="color:var(--blue)">0</div><div class="m-sub">—</div></div>
-      </div>
-      <div class="card">
-      <div class="card-head">
-      <span class="card-title">Vacaciones por empleado</span>
-      <button class="btn btn-sm btn-primary" onclick="abrirModalVacaciones(null)"><i class="ti ti-plus"></i> Registrar período</button>
-      </div>
-      <table>
-      <thead><tr>
-      <th>Legajo</th><th>Empleado</th><th>Antigüedad</th>
-      <th class="tr">Días corresponden</th><th class="tr">Días tomados</th>
-      <th class="tr">Días disponibles</th><th>Próximo período</th><th></th>
-      </tr></thead>
-      <tbody id="vac-tbody"></tbody>
-      </table>
-      </div>
-      <!-- Historial de períodos -->
-      <div class="card" style="margin-top:12px">
-      <div class="card-head"><span class="card-title">Períodos registrados</span></div>
-      <table>
-      <thead><tr><th>Empleado</th><th>Desde</th><th>Hasta</th><th class="tr">Días</th><th>Estado</th><th></th></tr></thead>
-      <tbody id="vac-periodos-tbody"></tbody>
-      </table>
-      </div>
-      </div>
-
-      <!-- RENTABILIDAD -->
-      <div id="page-rentabilidad" class="page">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-      <span style="font-size:13px;color:var(--text2)">Periodo:</span>
-      <select class="search-input" id="rent-periodo" style="width:160px" onchange="calcRentabilidad()">
-      <option value="mes_actual">Este mes</option>
-      <option value="mes_anterior">Mes anterior</option>
-      <option value="ult_3_meses">Últimos 3 meses</option>
-      <option value="anio_actual">Año actual</option>
-      </select>
-      <button class="btn btn-sm" onclick="exportarPDF('Reporte de rentabilidad')"><i class="ti ti-download"></i> Exportar PDF</button>
-      </div>
-      <div class="metrics">
-      <div class="metric"><div class="m-label">Ingresos ventas</div><div class="m-value" id="rent-ingresos" style="color:var(--green)">$0</div><div class="m-sub" id="rent-ingresos-sub">—</div></div>
-      <div class="metric"><div class="m-label">Total egresos</div><div class="m-value" id="rent-egresos" style="color:var(--red)">$0</div><div class="m-sub">gastos + compras</div></div>
-      <div class="metric"><div class="m-label">Utilidad neta</div><div class="m-value" id="rent-utilidad" style="color:var(--green)">$0</div><div class="m-sub">antes de impuestos</div></div>
-      <div class="metric"><div class="m-label">Margen neto</div><div class="m-value" id="rent-margen">—</div><div class="m-sub" id="rent-margen-sub">—</div></div>
-      </div>
-      <div class="card">
-      <div class="card-head"><span class="card-title">Estado de resultados</span></div>
-      <div class="table-wrap">
-      <table>
-      <thead><tr><th>Concepto</th><th class="tr">Monto</th></tr></thead>
-      <tbody id="rent-tbody"><tr><td colspan="2" style="text-align:center;color:var(--text3);padding:24px">Sin datos disponibles</td></tr></tbody>
-      </table>
-      </div>
-      </div>
-      </div>
-
-      <!-- ── CUENTA CORRIENTE EMPLEADOS ── -->
-      <div id="page-ctaemp" class="page">
-      <!-- Selector de empleado (admin ve todos, técnico solo se ve a sí mismo) -->
-      <div class="card" style="margin-bottom:12px">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:13px;color:var(--text2);font-weight:500">Empleado:</span>
-      <select id="ctaemp-sel" class="search-input" style="width:220px" onchange="cargarCtaEmp(this.value)">
-      <option value="">— Seleccionar —</option>
-      </select>
-      <button class="btn btn-sm btn-primary" onclick="abrirNuevoMovEmp()" style="margin-left:auto"><i class="ti ti-plus"></i> Nuevo movimiento</button>
-      </div>
-      </div>
-
-      <!-- Resumen de comisiones del mes (solo visible si es Vendedor a comisión) -->
-      <div id="ctaemp-migracion-banner" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--amber-bg,#fffbeb);border:1px solid var(--amber,#d97706);border-radius:var(--radius);font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px">
-      <span><i class="ti ti-alert-triangle" style="color:var(--amber,#d97706);margin-right:6px"></i>Hay haberes históricos que no aparecen en esta cuenta.</span>
-      <button class="btn btn-sm" onclick="migrarHaberesHistoricos()" style="white-space:nowrap;background:var(--amber,#d97706);color:#fff;border:none"><i class="ti ti-refresh"></i> Importar haberes anteriores</button>
-      </div>
-      <div class="card" id="ctaemp-comision-card" style="display:none;margin-bottom:12px">
-      <div class="card-head"><span class="card-title"><i class="ti ti-percentage"></i> Comisiones de este mes</span></div>
-      <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
-      <div class="metric"><div class="m-label">Total generado</div><div class="m-value" id="ctaemp-com-total" style="color:var(--blue)">$0</div><div class="m-sub" id="ctaemp-com-cant">0 ventas</div></div>
-      <div class="metric"><div class="m-label">Ya cobrado</div><div class="m-value" id="ctaemp-com-cobrado" style="color:var(--green)">$0</div><div class="m-sub">acreditado en cta. cte.</div></div>
-      <div class="metric"><div class="m-label">Pendiente de cobro</div><div class="m-value" id="ctaemp-com-pendiente" style="color:var(--amber)">$0</div><div class="m-sub">ventas aún no cobradas</div></div>
-      </div>
-      </div>
-
-      <!-- Tarjetas resumen -->
-      <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px" id="ctaemp-metrics" style="display:none">
-      <div class="metric"><div class="m-label">Sueldo base</div><div class="m-value" id="ctaemp-base">$0</div><div class="m-sub">mensual bruto</div></div>
-      <div class="metric"><div class="m-label">Haberes</div><div class="m-value" id="ctaemp-haberes" style="color:var(--green)">$0</div><div class="m-sub">sueldo + comisiones + h.extra</div></div>
-      <div class="metric"><div class="m-label">Adelantos</div><div class="m-value" id="ctaemp-adelantos" style="color:var(--red)">$0</div><div class="m-sub">descontados del total</div></div>
-      <div class="metric"><div class="m-label">Total a cobrar</div><div class="m-value" id="ctaemp-total" style="color:var(--text)">$0</div><div class="m-sub" id="ctaemp-periodo">—</div></div>
-      </div>
-
-      <!-- Tabla de movimientos -->
-      <div class="card">
-      <div class="card-head">
-      <span class="card-title">Movimientos</span>
-      <div style="display:flex;gap:6px">
-      <select class="search-input btn-sm" id="ctaemp-filtro-tipo" style="width:160px" onchange="filtrarMovsEmp()">
-      <option value="">Todos los tipos</option>
-      <option value="sueldo">Sueldo</option>
-      <option value="comision">Comisión</option>
-      <option value="hextra">H. extra</option>
-      <option value="adelanto">Adelanto</option>
-      <option value="transporte">Transporte</option>
-      <option value="materiales">Materiales</option>
-      <option value="gasto_empresa">Gasto empresa</option>
-      <option value="otro">Otro</option>
-      </select>
-      <select class="search-input btn-sm" id="ctaemp-filtro-estado" style="width:140px" onchange="filtrarMovsEmp()">
-      <option value="">Todos</option>
-      <option value="pendiente">Pendiente</option>
-      <option value="aprobado">Aprobado</option>
-      <option value="pagado">Pagado</option>
-      </select>
-      </div>
-      </div>
-      <div class="table-wrap">
-      <table style="table-layout:fixed;width:100%">
-      <colgroup>
-      <col style="width:90px"><col style="width:110px"><col><col style="width:110px"><col style="width:90px"><col style="width:80px"><col style="width:36px">
-      </colgroup>
-      <thead>
-      <tr>
-      <th>Fecha</th><th>Tipo</th><th>Descripción</th>
-      <th class="tr">Monto</th><th class="tr">Estado</th><th class="tr">Comprobante</th><th></th>
-      </tr>
-      </thead>
-      <tbody id="ctaemp-tbody">
-      <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Seleccioná un empleado para ver sus movimientos</td></tr>
-      </tbody>
-      </table>
-      </div>
-      </div>
-</div>
-
-</div>
-
-<!-- MODAL NUEVO MOVIMIENTO EMPLEADO -->
-<div id="modal-movi-emp" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:600;align-items:center;justify-content:center">
-  <div style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-xl);width:480px;max-width:95vw;padding:28px;box-shadow:0 8px 40px rgba(0,0,0,.18)">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <span style="font-size:15px;font-weight:600">Nuevo movimiento</span>
-      <button class="btn btn-sm" onclick="cerrarModalMovEmp()"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="form-grid">
-      <div class="fg"><label>Fecha</label><input type="date" id="movi-fecha"></div>
-      <div class="fg"><label>Tipo</label>
-        <select id="movi-tipo" onchange="onMoviTipoChange()">
-          <option value="sueldo">Sueldo base</option>
-          <option value="comision">Comisión</option>
-          <option value="hextra">Horas extra</option>
-          <option value="adelanto">Adelanto</option>
-          <option value="transporte">Gasto transporte</option>
-          <option value="materiales">Compra materiales</option>
-          <option value="otro">Otro</option>
-        </select>
-      </div>
-      <div class="fg full"><label>Descripción</label><input type="text" id="movi-desc" placeholder="Detalle del movimiento"></div>
-      <div class="fg"><label>Monto ($)</label><input type="number" id="movi-monto" placeholder="0" min="0"></div>
-      <div class="fg"><label>Estado</label>
-        <select id="movi-estado">
-          <option value="pendiente">Pendiente aprobación</option>
-          <option value="aprobado">Aprobado</option>
-          <option value="pagado">Pagado</option>
-        </select>
-      </div>
-      <!-- Comprobante foto — solo visible para transporte/materiales -->
-      <div class="fg full" id="movi-foto-wrap" style="display:none">
-        <label>Foto del ticket / comprobante</label>
-        <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:18px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('movi-foto-input').click()">
-          <i class="ti ti-camera-plus" style="font-size:24px;color:var(--text3)"></i>
-          <div style="font-size:12px;color:var(--text3);margin-top:6px">Tocá para subir foto</div>
-          <div id="movi-foto-nombre" style="font-size:12px;color:var(--green);margin-top:4px"></div>
-        </div>
-        <input type="file" id="movi-foto-input" accept="image/*" capture="environment" style="display:none" onchange="onFotoSeleccionada(this)">
-        <img id="movi-foto-preview" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:var(--radius);margin-top:8px">
-      </div>
-    </div>
-    <div class="flex-end" style="margin-top:16px">
-      <button class="btn" onclick="cerrarModalMovEmp()">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarMovEmp()"><i class="ti ti-check"></i> Guardar movimiento</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── INFORMES TÉCNICOS ── -->
-<div id="page-informes" class="page">
-  <div id="informes-lista-view">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div style="display:flex;gap:8px;flex:1;flex-wrap:wrap">
-        <input class="search-input" style="flex:1;min-width:180px" placeholder="Buscar por cliente, N° o técnico..." id="inf-search" oninput="filtrarInformes()">
-        <select class="search-input" style="width:150px" id="inf-filtro-estado" onchange="filtrarInformes()">
-          <option value="">Todos</option>
-          <option value="borrador">Borrador</option>
-          <option value="completado">Completado</option>
-          <option value="enviado">Enviado</option>
-        </select>
-      </div>
-      <button class="btn btn-primary btn-sm" onclick="abrirNuevoInforme()"><i class="ti ti-plus"></i> Nuevo informe</button>
-    </div>
-    <div class="card">
-      <table style="table-layout:fixed;width:100%">
-        <colgroup>
-          <col style="width:80px"><col style="width:110px"><col><col style="width:100px"><col style="width:100px"><col style="width:90px"><col style="width:36px">
-        </colgroup>
-        <thead>
-          <tr><th>N°</th><th>Fecha</th><th>Cliente / Equipo</th><th>Técnico</th><th class="tr">Tipo</th><th class="tr">Estado</th><th></th></tr>
-        </thead>
-        <tbody id="informes-tbody">
-          <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Sin informes registrados</td></tr>
+        <thead><tr><th>Fecha</th><th class="tr">Ingresos</th><th class="tr">Egresos</th><th class="tr">Saldo</th><th class="tr">Estado</th></tr></thead>
+        <tbody id="caja-historial-tbody">
+          <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Sin historial de cajas</td></tr>
         </tbody>
       </table>
     </div>
   </div>
-
-  <!-- FORMULARIO INFORME -->
-  <div id="informes-form-view" style="display:none">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <button class="btn btn-sm" onclick="volverListaInformes()"><i class="ti ti-arrow-left"></i> Volver</button>
-      <span style="font-size:13px;font-weight:600" id="inf-form-titulo">Nuevo informe técnico</span>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-sm" onclick="guardarInforme('borrador')"><i class="ti ti-device-floppy"></i> Guardar borrador</button>
-        <button class="btn btn-sm btn-primary" onclick="guardarInforme('completado')"><i class="ti ti-check"></i> Completar</button>
-      </div>
+</div>
+      
+      <div id="page-tablero" class="page">
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Ventas acum. <span id="tab-anio-label">2026</span></div>
+      <div class="metric-value" style="color:var(--green)" id="tab-ventas-acum">$0</div>
+      <div class="metric-sub" id="tab-ventas-sub">—</div>
     </div>
-
-    <div class="card">
-      <div class="card-head"><span class="card-title">Datos del informe</span></div>
-      <div class="form-grid">
-        <div class="fg"><label>N° informe</label><input type="text" id="inf-numero" readonly placeholder="Auto"></div>
-        <div class="fg"><label>Fecha</label><input type="date" id="inf-fecha"></div>
-        <div class="fg"><label>Tipo</label>
-          <select id="inf-tipo">
-            <option value="tecnico">Informe técnico</option>
-            <option value="seguro">Informe para seguro</option>
-            <option value="garantia">Informe de garantía</option>
-            <option value="mantenimiento">Informe de mantenimiento</option>
-            <option value="instalacion">Informe de instalación</option>
-          </select>
-        </div>
-        <div class="fg"><label>Técnico responsable</label>
-          <select id="inf-tecnico">
-            <option value="">— Seleccionar —</option>
-          </select>
-        </div>
-        <div class="fg full"><label>Cliente</label>
-          <div class="sw">
-            <input type="text" id="inf-cliente" placeholder="Buscar cliente..." oninput="filterDrop('inf-cliente','inf-cli-drop')" autocomplete="off">
-            <div class="drop" id="inf-cli-drop" style="display:none"></div>
-          </div>
-        </div>
-        <div class="fg full"><label>Dirección del servicio</label><input type="text" id="inf-dir" placeholder="Calle y número"></div>
-        <div class="fg full"><label>Equipo / Sistema intervenido</label><input type="text" id="inf-equipo" placeholder="Ej: Alarma Garnet PG-380, cámaras Hikvision, Sonoff iHost..."></div>
-        <div class="fg"><label>N° serie / Modelo</label><input type="text" id="inf-serie" placeholder="SN-XXXXX"></div>
-        <div class="fg"><label>Venta / OT vinculada</label><input type="text" id="inf-venta" placeholder="Ej: #109696"></div>
-      </div>
+    <div class="metric">
+      <div class="metric-label">Margen promedio</div>
+      <div class="metric-value" id="tab-margen">—</div>
+      <div class="metric-sub" id="tab-margen-sub">—</div>
     </div>
-
-    <div class="card">
-      <div class="card-head"><span class="card-title">Contenido técnico</span></div>
-      <div style="display:flex;flex-direction:column;gap:14px">
-        <div>
-          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Motivo de la visita / solicitud</label>
-          <textarea id="inf-motivo" rows="3" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Describir el motivo por el cual se realizó la visita técnica..."></textarea>
-        </div>
-        <div>
-          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Diagnóstico</label>
-          <textarea id="inf-diagnostico" rows="4" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Detallar el diagnóstico encontrado en el equipo o sistema..."></textarea>
-        </div>
-        <div>
-          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Acciones correctivas realizadas</label>
-          <textarea id="inf-acciones" rows="4" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Describir las acciones realizadas para resolver el problema..."></textarea>
-        </div>
-        <div>
-          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Materiales / repuestos utilizados</label>
-          <textarea id="inf-materiales" rows="2" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Listar materiales utilizados (opcional)..."></textarea>
-        </div>
-        <div>
-          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Medidas preventivas recomendadas</label>
-          <textarea id="inf-preventivas" rows="3" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Recomendaciones para evitar futuros inconvenientes..."></textarea>
-        </div>
-        <div>
-          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Observaciones adicionales</label>
-          <textarea id="inf-obs" rows="2" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text)" placeholder="Cualquier otra observación relevante..."></textarea>
-        </div>
-      </div>
+    <div class="metric">
+      <div class="metric-label">Clientes activos</div>
+      <div class="metric-value" id="tab-clientes">0</div>
+      <div class="metric-sub" id="tab-clientes-sub">—</div>
     </div>
-
-    <div class="card">
-      <div class="card-head"><span class="card-title">Conformidad del cliente</span></div>
-      <div class="form-grid">
-        <div class="fg full"><label>Nombre y apellido (quien recibe)</label><input type="text" id="inf-receptor" placeholder="Nombre completo"></div>
-        <div class="fg"><label>DNI</label><input type="text" id="inf-receptor-dni" placeholder="12.345.678"></div>
-        <div class="fg"><label>Resultado</label>
-          <select id="inf-resultado">
-            <option value="conforme">Conforme</option>
-            <option value="parcial">Conforme parcial</option>
-            <option value="pendiente">Pendiente revisión</option>
-          </select>
-        </div>
-      </div>
+    <div class="metric">
+      <div class="metric-label">Ticket promedio</div>
+      <div class="metric-value" id="tab-ticket">$0</div>
+      <div class="metric-sub" id="tab-ticket-sub">—</div>
     </div>
+  </div>
 
-    <div class="flex-end" style="margin-bottom:24px">
-      <button class="btn" onclick="guardarInforme('borrador')"><i class="ti ti-device-floppy"></i> Guardar borrador</button>
-      <button class="btn" onclick="imprimirInforme()"><i class="ti ti-printer"></i> Imprimir</button>
-      <button class="btn btn-primary" onclick="guardarInforme('enviado')"><i class="ti ti-send"></i> Marcar como enviado</button>
+  <!-- Gráfico barras mensual -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Ventas vs Gastos — mes a mes</span>
+      <select class="search-input" style="width:90px" id="tab-anio-sel" onchange="renderTablero()">
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+      </select>
+    </div>
+    <div id="tab-chart" style="display:flex;align-items:flex-end;gap:4px;height:120px;margin-top:8px"></div>
+    <div style="display:flex;gap:16px;margin-top:10px;font-size:12px">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:var(--green);border-radius:2px;display:inline-block"></span>Ventas</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:var(--red);border-radius:2px;display:inline-block"></span>Gastos</span>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="card" style="margin-bottom:0">
+      <div class="card-head"><span class="card-title">Top 5 productos más vendidos</span></div>
+      <div id="tab-top-productos" style="display:flex;flex-direction:column;gap:0"></div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="card-head"><span class="card-title">Top 5 clientes por facturación</span></div>
+      <div id="tab-top-clientes" style="display:flex;flex-direction:column;gap:0"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="card-title">Indicadores de cobrabilidad</span></div>
+    <div class="metrics" style="margin-bottom:0">
+      <div class="metric">
+        <div class="metric-label">Cobrado en el mes</div>
+        <div class="metric-value" style="font-size:18px" id="tab-cobrado-mes">—</div>
+        <div class="metric-sub">de lo facturado</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Pendiente de cobro</div>
+        <div class="metric-value" style="font-size:18px;color:var(--amber)" id="tab-pendiente">$0</div>
+        <div class="metric-sub" id="tab-pendiente-sub">sin cobrar</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Gastos este mes</div>
+        <div class="metric-value" style="font-size:18px" id="tab-gastos-mes">$0</div>
+        <div class="metric-sub" id="tab-gastos-sub">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">OTs pendientes</div>
+        <div class="metric-value" style="font-size:18px;color:var(--amber)" id="tab-ots-pend">0</div>
+        <div class="metric-sub">sin completar</div>
+      </div>
     </div>
   </div>
 </div>
+      </div>
+
+      <!-- ── EMPLEADOS ── -->
+      
+
+      <!-- ── USUARIOS (solo admin) ── -->
+      
+
+      <!-- ── REPORTES (solo admin) ── -->
+      
+
+<!-- GASTOS -->
 
 
-<script id="app-main">
-var fabOpen = false;
-
-// ── MODO OSCURO ──
-function toggleDarkMode(on) {
-  document.body.classList.toggle('dark-mode', on);
-  try { localStorage.setItem('nixa_dark', on ? '1' : '0'); } catch(e){}
-  var ico = document.querySelector('#dark-mode-toggle');
-  if (ico) ico.checked = on;
-  // Actualizar ícono en topbar si existe
-  var tonicono = document.getElementById('dark-mode-icon');
-  if (tonicono) tonicono.className = on ? 'ti ti-sun' : 'ti ti-moon';
-}
-
-// Aplicar preferencia guardada al cargar
-(function() {
-  try {
-    var saved = localStorage.getItem('nixa_dark');
-    if (saved === '1') {
-      document.body.classList.add('dark-mode');
-      // El toggle se actualiza cuando el panel se abre
-    }
-  } catch(e) {}
-})();
-
-
-// ── SEARCHABLE SELECT ──
-function initSearchableSelect(selectId, placeholder) {
-  var sel = document.getElementById(selectId);
-  if (!sel || sel.dataset.ssInit) return;
-  sel.dataset.ssInit = '1';
-  sel.style.display = 'none';
-  var ph = placeholder || 'Seleccionar...';
-  var currentLabel = sel.selectedIndex >= 0 && sel.options[sel.selectedIndex]
-    ? sel.options[sel.selectedIndex].text : ph;
-
-  var wrap = document.createElement('div');
-  wrap.className = 'ss-wrap';
-  wrap.dataset.ss = selectId;
-  sel.parentNode.insertBefore(wrap, sel);
-  wrap.appendChild(sel);
-
-  var inp = document.createElement('input');
-  inp.type = 'text'; inp.className = 'ss-input';
-  inp.readOnly = true; inp.value = currentLabel; inp.placeholder = ph;
-  inp.dataset.ssId = selectId;
-  inp.onclick = function() { ssToggle(this); };
-  wrap.insertBefore(inp, sel);
-
-  var drop = document.createElement('div');
-  drop.className = 'ss-drop'; drop.id = 'ss-drop-' + selectId;
-
-  var srch = document.createElement('input');
-  srch.type = 'text'; srch.className = 'ss-search'; srch.placeholder = 'Buscar...';
-  srch.dataset.ssFor = selectId;
-  srch.oninput = function() { ssFilterByData(this); };
-  srch.onclick = function(e) { e.stopPropagation(); };
-
-  var list = document.createElement('div');
-  list.className = 'ss-list'; list.id = 'ss-list-' + selectId;
-
-  drop.appendChild(srch); drop.appendChild(list);
-  document.body.appendChild(drop);
-
-  ssRenderList(selectId, sel.value, '');
-
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('[data-ss="' + selectId + '"]') &&
-        !e.target.closest('#ss-drop-' + selectId)) {
-      ssClose(selectId);
-    }
-  });
-}
-
-function ssToggle(inp) {
-  var id   = inp.dataset.ssId;
-  var drop = document.getElementById('ss-drop-' + id);
-  if (!drop) return;
-  var isOpen = drop.classList.contains('open');
-  document.querySelectorAll('.ss-drop.open').forEach(function(d){ d.classList.remove('open'); });
-  if (!isOpen) {
-    var rect = inp.getBoundingClientRect();
-    drop.style.top   = (rect.bottom + 2) + 'px';
-    drop.style.left  = rect.left + 'px';
-    drop.style.width = Math.max(rect.width, 200) + 'px';
-    drop.classList.add('open');
-    var srch = drop.querySelector('.ss-search');
-    if (srch) { srch.value = ''; ssFilter(srch, id); srch.focus(); }
-  }
-}
-
-function ssClose(id) {
-  var drop = document.getElementById('ss-drop-' + id);
-  if (drop) drop.classList.remove('open');
-}
-
-function ssFilterByData(inp) {
-  var id = inp.dataset.ssFor;
-  if (id) ssFilter(inp, id);
-}
-
-function ssFilter(inp, id) {
-  var sel = document.getElementById(id);
-  if (!sel) return;
-  ssRenderList(id, sel.value, inp.value);
-}
-
-function ssRenderList(id, currentVal, q) {
-  var sel  = document.getElementById(id);
-  var list = document.getElementById('ss-list-' + id);
-  if (!list || !sel) return;
-  var opts = Array.from(sel.options).map(function(o){ return { value:o.value, label:o.text }; });
-  var filtered = q ? opts.filter(function(o){ return o.label.toLowerCase().includes(q.toLowerCase()); }) : opts;
-  if (!filtered.length) { list.innerHTML = '<div class="ss-empty">Sin resultados</div>'; return; }
-  list.innerHTML = '';
-  filtered.forEach(function(o) {
-    var item = document.createElement('div');
-    item.className = 'ss-item' + (o.value === currentVal ? ' selected' : '');
-    item.textContent = o.label;
-    item.dataset.val  = o.value;
-    item.dataset.ssId = id;
-    item.onmousedown  = function() { ssSelect(this); };
-    list.appendChild(item);
-  });
-}
-
-function ssSelect(item) {
-  var id  = item.dataset.ssId;
-  var val = item.dataset.val;
-  var sel = document.getElementById(id);
-  var inp = document.querySelector('[data-ss-id="' + id + '"]');
-  if (!sel || !inp) return;
-  sel.value = val; inp.value = item.textContent.trim();
-  sel.dispatchEvent(new Event('change'));
-  ssClose(id);
-}
-
-function actualizarSelectCategorias() {
-  var cats = window.categoriasData || [];
-  ['filter-cat','pf-categoria'].forEach(function(sid) {
-    var sel = document.getElementById(sid);
-    if (!sel) return;
-    sel.innerHTML = '<option value="">Todas las categorías</option>' +
-      cats.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('');
-    // Re-inicializar el searchable select si ya existe
-    var wrap = sel.parentNode;
-    if (wrap && wrap.dataset && wrap.dataset.ss) {
-      var inp = wrap.querySelector('.ss-input');
-      if (inp) inp.value = sel.options[0] ? sel.options[0].text : '';
-      ssRenderList(sid, sel.value, '');
-    }
-  });
-}
-
-
-// ── ESTADOS DE VENTA PARA TIMELINE ──
-var VENTA_ESTADOS = [
-  { id:'pendiente_pago', label:'Pendiente pago', icon:'ti-clock',         cls:'pending' },
-  { id:'seniado',        label:'Señado',          icon:'ti-coin',          cls:'active'  },
-  { id:'pago_total',     label:'Pago total',       icon:'ti-check',         cls:'done'    },
+<!-- ASISTENTE DE VENTAS -->
+d:'pago_total',     label:'Pago total',       icon:'ti-check',         cls:'done'    },
   { id:'en_instalacion', label:'En instalación',   icon:'ti-tools',         cls:'active'  },
   { id:'instalado',      label:'Instalado',        icon:'ti-package',       cls:'done'    },
   { id:'con_garantia',   label:'Con garantía',     icon:'ti-shield-check',  cls:'done'    },
@@ -7580,7 +7658,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.135-firebase',
+  VERSION: 'v20.136-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -24191,158 +24269,10 @@ function actualizarResumenStock() {
 
 
 <!-- CAJA DIARIA -->
-<div id="page-caja" class="page">
-  <div id="caja-scope-label" style="font-size:12px;color:var(--text3);margin-bottom:10px"></div>
-  <div class="metrics">
-    <div class="metric">
-      <div class="metric-label">Saldo apertura</div>
-      <div class="metric-value" id="caja-apertura">$0</div>
-      <div class="metric-sub">hoy</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Ingresos del día</div>
-      <div class="metric-value" id="caja-ingresos" style="color:var(--green)">$0</div>
-      <div class="metric-sub">cobros del día</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Egresos del día</div>
-      <div class="metric-value" id="caja-egresos" style="color:var(--red)">$0</div>
-      <div class="metric-sub">gastos y retiros</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Saldo actual</div>
-      <div class="metric-value" id="caja-saldo" style="color:var(--green)">$0</div>
-      <div class="metric-sub">efectivo en caja</div>
-    </div>
-  </div>
 
-  <div class="row2">
-    <div class="card" style="margin-bottom:0">
-      <div class="card-head">
-        <span class="card-title">Estado de caja — hoy</span>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-sm" onclick="cerrarCaja()"><i class="ti ti-lock"></i> Cerrar caja</button>
-          <button class="btn btn-sm btn-primary" onclick="document.getElementById('caja-mov-form').style.display=document.getElementById('caja-mov-form').style.display==='none'?'block':'none'"><i class="ti ti-plus"></i> Movimiento</button>
-        </div>
-      </div>
-      <div id="caja-mov-form" style="display:none;background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:14px">
-        <div class="form-grid">
-          <div class="fg"><label>Tipo</label>
-            <select id="cm-tipo"><option>Ingreso</option><option>Egreso</option><option>Retiro</option></select>
-          </div>
-          <div class="fg"><label>Monto ($)</label><input type="number" id="cm-monto" placeholder="0"></div>
-          <div class="fg"><label>Concepto</label><input id="cm-concepto" placeholder="Ej: Cobro venta #00042"></div>
-          <div class="fg"><label>Medio</label>
-            <select id="cm-medio"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>
-          </div>
-        </div>
-        <div class="flex-end"><button class="btn btn-sm btn-primary" onclick="registrarMovCaja()"><i class="ti ti-check"></i> Registrar</button></div>
-      </div>
-      <div id="caja-movimientos" style="display:flex;flex-direction:column;gap:0">
-        <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin movimientos registrados hoy</div>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:0">
-      <div class="card-head"><span class="card-title">Resumen por medio de pago</span></div>
-      <div id="caja-medios" style="display:flex;flex-direction:column;gap:0">
-        <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin datos</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head">
-      <span class="card-title">Historial de cajas</span>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Fecha</th><th class="tr">Ingresos</th><th class="tr">Egresos</th><th class="tr">Saldo</th><th class="tr">Estado</th></tr></thead>
-        <tbody id="caja-historial-tbody">
-          <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Sin historial de cajas</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
 
 <!-- TABLERO GERENCIAL -->
-<div id="page-tablero" class="page">
-  <div class="metrics">
-    <div class="metric">
-      <div class="metric-label">Ventas acum. <span id="tab-anio-label">2026</span></div>
-      <div class="metric-value" style="color:var(--green)" id="tab-ventas-acum">$0</div>
-      <div class="metric-sub" id="tab-ventas-sub">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Margen promedio</div>
-      <div class="metric-value" id="tab-margen">—</div>
-      <div class="metric-sub" id="tab-margen-sub">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Clientes activos</div>
-      <div class="metric-value" id="tab-clientes">0</div>
-      <div class="metric-sub" id="tab-clientes-sub">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Ticket promedio</div>
-      <div class="metric-value" id="tab-ticket">$0</div>
-      <div class="metric-sub" id="tab-ticket-sub">—</div>
-    </div>
-  </div>
 
-  <!-- Gráfico barras mensual -->
-  <div class="card">
-    <div class="card-head">
-      <span class="card-title">Ventas vs Gastos — mes a mes</span>
-      <select class="search-input" style="width:90px" id="tab-anio-sel" onchange="renderTablero()">
-        <option value="2026">2026</option>
-        <option value="2025">2025</option>
-      </select>
-    </div>
-    <div id="tab-chart" style="display:flex;align-items:flex-end;gap:4px;height:120px;margin-top:8px"></div>
-    <div style="display:flex;gap:16px;margin-top:10px;font-size:12px">
-      <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:var(--green);border-radius:2px;display:inline-block"></span>Ventas</span>
-      <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:var(--red);border-radius:2px;display:inline-block"></span>Gastos</span>
-    </div>
-  </div>
-
-  <div class="row2">
-    <div class="card" style="margin-bottom:0">
-      <div class="card-head"><span class="card-title">Top 5 productos más vendidos</span></div>
-      <div id="tab-top-productos" style="display:flex;flex-direction:column;gap:0"></div>
-    </div>
-    <div class="card" style="margin-bottom:0">
-      <div class="card-head"><span class="card-title">Top 5 clientes por facturación</span></div>
-      <div id="tab-top-clientes" style="display:flex;flex-direction:column;gap:0"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head"><span class="card-title">Indicadores de cobrabilidad</span></div>
-    <div class="metrics" style="margin-bottom:0">
-      <div class="metric">
-        <div class="metric-label">Cobrado en el mes</div>
-        <div class="metric-value" style="font-size:18px" id="tab-cobrado-mes">—</div>
-        <div class="metric-sub">de lo facturado</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Pendiente de cobro</div>
-        <div class="metric-value" style="font-size:18px;color:var(--amber)" id="tab-pendiente">$0</div>
-        <div class="metric-sub" id="tab-pendiente-sub">sin cobrar</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Gastos este mes</div>
-        <div class="metric-value" style="font-size:18px" id="tab-gastos-mes">$0</div>
-        <div class="metric-sub" id="tab-gastos-sub">—</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">OTs pendientes</div>
-        <div class="metric-value" style="font-size:18px;color:var(--amber)" id="tab-ots-pend">0</div>
-        <div class="metric-sub">sin completar</div>
-      </div>
-    </div>
-  </div>
-</div>
 
 
     </div>
