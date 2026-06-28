@@ -735,7 +735,7 @@ tr:hover td{color:var(--text)}
 }
 .ppto-menu-item:hover { background:var(--bg2); }
 /* ── MENSAJERÍA INTERNA ── */
-#chat-fab{position:fixed;bottom:80px;right:16px;z-index:9996;width:48px;height:48px;border-radius:50%;background:var(--green);border:none;cursor:pointer;color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(61,220,132,.35);transition:transform .2s}
+#chat-fab{position:fixed;bottom:82px;right:16px;z-index:9996;width:48px;height:48px;border-radius:50%;background:var(--green);border:none;cursor:pointer;color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(61,220,132,.35);transition:transform .2s}
 #chat-fab:hover{transform:scale(1.08)}
 #chat-badge{position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg)}
 #chat-modal{display:none;position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:flex-end;padding:0 16px}
@@ -757,7 +757,7 @@ tr:hover td{color:var(--text)}
 #chat-input{flex:1;border-radius:20px;padding:8px 14px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;resize:none;max-height:80px;outline:none;line-height:1.4}
 #chat-send{width:36px;height:36px;border-radius:50%;background:var(--green);border:none;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .chat-online-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px}
-@media(max-width:768px){#chat-fab{bottom:70px}#chat-box{max-width:100%;border-radius:16px 16px 0 0}}
+@media(max-width:768px){#chat-fab{bottom:206px}#chat-box{max-width:100%;border-radius:16px 16px 0 0}}
 /* ── ASISTENTE IA ── */
 #ia-modal{display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center}
 #ia-modal.open{display:flex}
@@ -859,7 +859,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.118 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.119 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7441,7 +7441,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.118-firebase',
+  VERSION: 'v20.119-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
