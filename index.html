@@ -869,7 +869,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.134 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.135 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1058,7 +1058,7 @@ tr:hover td{color:var(--text)}
 
       <!-- ── DASHBOARD ── -->
       <div id="page-dashboard" class="page active">
-        <div class="metrics">
+        <div class="metrics no-tecnico">
           <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiNavegar('ventasHoy')" title="Ver detalle de ventas">
             <div class="m-label">Ventas hoy</div>
             <div class="m-value" id="kpi-ventas-hoy">$0</div>
@@ -1081,7 +1081,7 @@ tr:hover td{color:var(--text)}
           </div>
         </div>
         <div class="row2">
-          <div class="card" style="margin-bottom:0">
+          <div class="card no-tecnico" style="margin-bottom:0">
             <div class="card-head"><span class="card-title">Ventas — últimos 7 días</span></div>
             <div class="bar-area" id="dash-bar-area">
               <div class="bc"><div class="bar" style="height:4px" id="bar-0"></div><span class="bar-lbl" id="blbl-0">—</span></div>
@@ -1103,6 +1103,17 @@ tr:hover td{color:var(--text)}
 <tbody id="dash-ot-pendientes"><tr><td colspan="3" style="text-align:center;padding:12px;color:var(--text3)">Cargando...</td></tr></tbody></table>
           </div>
         </div>
+        <!-- Dashboard técnico — solo visible para técnicos -->
+        <div class="card tecnico-only" id="dash-tecnico-card" style="display:none">
+          <div class="card-head">
+            <span class="card-title"><i class="ti ti-tools"></i> Mis órdenes de trabajo</span>
+            <button class="btn btn-sm" onclick="showPage('ordentrabajo',document.querySelector('[onclick*=ordentrabajo]'))"><i class="ti ti-external-link"></i> Ver todas</button>
+          </div>
+          <div id="dash-mis-ots" style="display:flex;flex-direction:column;gap:6px;padding:4px 0">
+            <div style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Cargando...</div>
+          </div>
+        </div>
+
         <div class="card admin-only" id="dash-rentabilidad-card" style="display:none">
           <div class="card-head">
             <span class="card-title"><i class="ti ti-chart-line"></i> Rentabilidad del mes</span>
@@ -7437,7 +7448,17 @@ function showPage(id, el) {
   if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
   if (id === 'venta')          { setTimeout(function(){ if(typeof inicializarFilasVenta==='function') inicializarFilasVenta(); if(typeof iniciarMonedaVenta==='function') iniciarMonedaVenta(); }, 50); }
   if (id === 'gastos')         { setTimeout(function(){ if(typeof renderTablaGastos==='function'){ renderTablaGastos(); actualizarMetricasGastos(); }}, 50); }
-  if (id === 'dashboard')      { setTimeout(function(){ if(typeof renderKPIsDashboard==='function') renderKPIsDashboard(); }, 100); }
+  if (id === 'dashboard') { setTimeout(function(){
+    if(typeof renderKPIsDashboard==='function') renderKPIsDashboard();
+    // Mostrar/ocultar cards según rol
+    var esTecnico = currentRole === 'tecnico';
+    var dashTec = document.getElementById('dash-tecnico-card');
+    var dashRent = document.getElementById('dash-rentabilidad-card');
+    if (dashTec) dashTec.style.display = esTecnico ? '' : 'none';
+    if (dashRent) dashRent.style.display = esTecnico ? 'none' : '';
+    // Si es técnico, cargar sus OTs
+    if (esTecnico) renderDashMisOTs();
+  }, 100); }
   if (id === 'notificaciones') { setTimeout(function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 50); }
   if (id === 'ctaemp')         { setTimeout(function(){ if(typeof iniciarCtaEmp==='function') iniciarCtaEmp(); }, 50); }
   if (id === 'rentabilidad')   { setTimeout(function(){ if(typeof calcRentabilidad==='function') calcRentabilidad(); }, 100); }
@@ -7559,7 +7580,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.134-firebase',
+  VERSION: 'v20.135-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -21554,6 +21575,37 @@ function actualizarKpiIvaDashboard() {
     var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
     ivaMesEl.textContent = (aFavor ? 'a favor · ' : 'a pagar · ') + meses[hoyDate.getMonth()] + ' ' + hoyDate.getFullYear();
   }
+}
+
+function renderDashMisOTs() {
+  var cont = document.getElementById('dash-mis-ots');
+  if (!cont) return;
+  var mis = (otData||[]).filter(function(o){
+    return (o.tecnico||'') === (currentUser||'') && o.estado !== 'completada';
+  }).sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); });
+  if (!mis.length) {
+    cont.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px;font-size:13px">No tenés OTs pendientes asignadas</div>';
+    return;
+  }
+  cont.innerHTML = mis.map(function(o) {
+    var dir = o.dir || o.direccion || '';
+    if (!dir && o.cliente) {
+      var c = (clientesData||[]).find(function(c){ return c.nombre===o.cliente; });
+      if (c) dir = c.direccion || c.domicilio || '';
+    }
+    var estadoColor = o.estado==='en_curso'?'var(--blue)':o.estado==='pendiente'?'var(--amber)':'var(--text3)';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius);cursor:pointer" onclick="showPage(\'ordentrabajo\',null);setTimeout(function(){verOT(\''+o.fbKey+'\')},300)">' +
+      '<div style="flex:1">' +
+        '<div style="font-weight:500;font-size:13px">'+escapeHTML(o.cliente||'—')+'</div>' +
+        (dir?'<div style="font-size:11px;color:var(--text3)"><i class="ti ti-map-pin" style="font-size:10px"></i> '+escapeHTML(dir)+'</div>':'') +
+        '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(o.descripcion||o.desc||'')+'</div>' +
+      '</div>' +
+      '<div style="text-align:right">' +
+        '<span style="font-size:11px;font-weight:500;color:'+estadoColor+'">'+escapeHTML(o.estado||'')+'</span>' +
+        '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(o.fecha||'')+'</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 }
 
 function renderKPIsDashboard() {
