@@ -869,7 +869,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.131 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.132 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4987,7 +4987,7 @@ function poblarSelectCategorias() {
     cats.map(function(c){ return '<option value="'+escapeHTML(c)+'"'+(c===actual?' selected':'')+'>'+escapeHTML(c)+'</option>'; }).join('');
 }
 
-var _prodCatsAbiertas = {}; // qué categorías están expandidas
+var _prodCatsAbiertas = {}; // undefined = abierta por defecto, false = cerrada
 
 function _renderFilaProd(p) {
   var stk = parseInt(p.stock) || 0;
@@ -5066,12 +5066,15 @@ function renderTablaProductos(filtro) {
     var prods = grupos[cat].sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
     var abierta = _prodCatsAbiertas[cat] !== false; // abierta por default
     var catId = 'cat-' + cat.replace(/[^a-zA-Z0-9]/g,'_');
-    html += '<tr class="prod-cat-row" onclick="toggleProdCat(\''+escapeHTML(cat)+'\')" style="cursor:pointer;background:var(--bg3);user-select:none">' +
-      '<td colspan="9" style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--text2)">' +
-        '<span id="icon-'+catId+'" style="font-size:11px;margin-right:8px;display:inline-block;transition:transform .2s;'+(abierta?'transform:rotate(90deg)':'')+'">▶</span>' +
-        escapeHTML(cat) +
-        ' <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px">'+prods.length+' producto'+(prods.length!==1?'s':'')+'</span>' +
-      '</td></tr>';
+    var catStyle = 'cursor:pointer;background:var(--bg3);border-left:3px solid var(--blue);user-select:none';
+    var iconStyle = 'font-size:10px;color:var(--blue);display:inline-block;transition:transform .2s;' + (abierta ? 'transform:rotate(90deg)' : '');
+    html += '<tr class="prod-cat-row" onclick="toggleProdCat(\''+escapeHTML(cat)+'\')" style="'+catStyle+'">' +
+      '<td colspan="9" style="padding:12px 14px">' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+      '<span id="icon-'+catId+'" style="'+iconStyle+'">&#9658;</span>' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">'+escapeHTML(cat)+'</span>' +
+      '<span style="font-size:11px;color:var(--text3);background:var(--bg2);border:0.5px solid var(--border);border-radius:99px;padding:1px 8px">'+prods.length+' producto'+(prods.length!==1?'s':'')+'</span>' +
+      '</div></td></tr>';
     if (abierta) {
       html += prods.map(_renderFilaProd).join('');
     }
@@ -7556,7 +7559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.131-firebase',
+  VERSION: 'v20.132-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
