@@ -591,7 +591,7 @@ tr:hover td{color:var(--text)}
 
 /* ── FAB (Botón flotante) ── */
 .fab-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:none;flex-direction:column;align-items:flex-end;gap:10px;will-change:transform;transform:translateZ(0);-webkit-transform:translateZ(0)}
-@media(max-width:768px){.fab-container{display:none!important}/* FAB deshabilitado — interfiere con scroll */}
+@media(max-width:768px){.fab-container{bottom:16px;right:auto;left:16px}/* FAB en esquina izquierda en mobile */}
 @media(min-width:769px){.notif{bottom:24px!important;right:24px!important}}
 .fab-main{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .2s;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;will-change:transform;transform:translateZ(0);-webkit-transform:translateZ(0)}
 .fab-main.open{transform:rotate(45deg)}
@@ -829,7 +829,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.109 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.110 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7194,7 +7194,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.109-firebase',
+  VERSION: 'v20.110-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8064,6 +8064,11 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigLogin === 'function') setTimeout(cargarConfigLogin, 350);
   if (typeof inicializarFlujoVentas === 'function') setTimeout(inicializarFlujoVentas, 4000);
   if (typeof iaInicializar === 'function') setTimeout(iaInicializar, 1000);
+  // Mostrar FAB
+  setTimeout(function(){
+    var fab = document.getElementById('fab-container');
+    if (fab) fab.style.display = 'flex';
+  }, 1200);
   if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
   if (typeof cargarPresenciaUsuarios === 'function') setTimeout(cargarPresenciaUsuarios, 350);
   if (typeof spCargar === 'function') setTimeout(spCargar, 400);
