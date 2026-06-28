@@ -590,10 +590,10 @@ tr:hover td{color:var(--text)}
 .venta-resumen-stock{background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-top:12px;display:none}
 
 /* ── FAB (Botón flotante) ── */
-.fab-container{position:fixed;bottom:24px;right:16px;z-index:9999;display:none;flex-direction:column;align-items:flex-end;gap:10px;will-change:transform;transform:translateZ(0);-webkit-transform:translateZ(0)}
-@media(max-width:768px){.fab-container{bottom:16px;right:auto;left:16px}/* FAB en esquina izquierda en mobile */}
+.fab-container{position:fixed!important;bottom:148px!important;right:16px!important;left:auto!important;z-index:9998;display:none;flex-direction:column;align-items:flex-end;gap:10px}
+@media(max-width:768px){.fab-container{bottom:148px!important;right:16px!important;left:auto!important}}
 @media(min-width:769px){.notif{bottom:24px!important;right:24px!important}}
-.fab-main{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .2s;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;will-change:transform;transform:translateZ(0);-webkit-transform:translateZ(0)}
+.fab-main{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .2s;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .fab-main.open{transform:rotate(45deg)}
 .fab-actions{display:flex;flex-direction:column;gap:8px;align-items:flex-end;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .2s,transform .2s}
 .fab-actions.open{opacity:1;pointer-events:auto;transform:translateY(0)}
@@ -742,7 +742,7 @@ tr:hover td{color:var(--text)}
 #ia-input-row{padding:12px 16px;border-top:0.5px solid var(--border);display:flex;gap:8px;align-items:flex-end}
 #ia-input{flex:1;border-radius:14px;padding:9px 14px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;resize:none;max-height:100px;outline:none;line-height:1.4}
 #ia-send{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-#ia-fab{position:fixed;bottom:90px;right:16px;z-index:9998;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;cursor:pointer;color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(99,102,241,.4);transition:transform .2s}
+#ia-fab{position:fixed;bottom:90px;right:16px;z-index:9997;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;cursor:pointer;color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(99,102,241,.4);transition:transform .2s}
 #ia-fab:hover{transform:scale(1.08)}
 @media(max-width:768px){#ia-box{height:85vh}}
 </style>
@@ -829,7 +829,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.110 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.112 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7194,7 +7194,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.110-firebase',
+  VERSION: 'v20.112-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -22635,7 +22635,7 @@ function closeFab() {
   function reposFab() {
     var vv = window.visualViewport;
     var bottom = (window.innerHeight - vv.height - vv.offsetTop);
-    fab.style.bottom = Math.max(24, 24 + bottom) + 'px';
+    fab.style.bottom = Math.max(148, 148 + bottom) + 'px';
   }
   window.visualViewport.addEventListener('resize', reposFab, { passive: true });
   window.visualViewport.addEventListener('scroll', reposFab, { passive: true });
