@@ -591,9 +591,9 @@ tr:hover td{color:var(--text)}
 
 /* ── FAB (Botón flotante) ── */
 /* FAB: solo visible en mobile */
-.fab-container{position:fixed!important;bottom:16px!important;right:16px!important;left:auto!important;z-index:9998;display:none;flex-direction:column;align-items:flex-end;gap:10px}
+.fab-container{position:fixed!important;bottom:148px!important;right:16px!important;left:auto!important;z-index:9998;display:none;flex-direction:column;align-items:flex-end;gap:10px}
 /* En desktop: ocultar FAB */
-@media(min-width:769px){.fab-container{display:none!important}}
+@media(min-width:1025px){.fab-container{display:none!important}}
 /* En mobile: mostrar FAB */
 @media(max-width:768px){.fab-container{bottom:16px!important;right:16px!important;left:auto!important}}
 @media(min-width:769px){.notif{bottom:24px!important;right:24px!important}}
@@ -757,7 +757,17 @@ tr:hover td{color:var(--text)}
 #chat-input{flex:1;border-radius:20px;padding:8px 14px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;resize:none;max-height:80px;outline:none;line-height:1.4}
 #chat-send{width:36px;height:36px;border-radius:50%;background:var(--green);border:none;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .chat-online-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px}
-@media(max-width:768px){#chat-fab{bottom:206px}#chat-box{max-width:100%;border-radius:16px 16px 0 0}}
+@media(max-width:1024px){#chat-fab{bottom:82px}#chat-box{max-width:100%;border-radius:16px 16px 0 0}}
+/* ── SEARCHABLE SELECT ── */
+.ss-drop{display:none;position:fixed;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:9000;overflow:hidden;max-height:260px;flex-direction:column}
+.ss-drop.open{display:flex}
+.ss-search{padding:8px 12px;border:none;border-bottom:0.5px solid var(--border);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;outline:none;flex-shrink:0}
+.ss-list{overflow-y:auto;flex:1}
+.ss-opt{padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text)}
+.ss-opt:hover,.ss-opt.selected{background:var(--bg3)}
+.ss-opt.selected{color:var(--blue);font-weight:500}
+.ss-opt.group-head{font-size:11px;color:var(--text3);padding:6px 12px 2px;text-transform:uppercase;letter-spacing:.5px;cursor:default;pointer-events:none}
+.ss-input{width:100%;padding:8px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;cursor:pointer;box-sizing:border-box}
 /* ── ASISTENTE IA ── */
 #ia-modal{display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center}
 #ia-modal.open{display:flex}
@@ -771,8 +781,8 @@ tr:hover td{color:var(--text)}
 #ia-input{flex:1;border-radius:14px;padding:9px 14px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;resize:none;max-height:100px;outline:none;line-height:1.4}
 #ia-send{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 #ia-fab{position:fixed;bottom:24px;right:16px;z-index:9997;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;cursor:pointer;color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(99,102,241,.4);transition:transform .2s}
-/* En mobile: ocultar IA flotante (va dentro del FAB) */
-@media(max-width:768px){#ia-fab{display:none!important}}
+/* En mobile/tablet: ocultar IA flotante (va dentro del FAB) */
+@media(max-width:1024px){#ia-fab{display:none!important}}
 #ia-fab:hover{transform:scale(1.08)}
 @media(max-width:768px){#ia-box{height:85vh}}
 </style>
@@ -859,7 +869,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.121 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.126 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1821,11 +1831,28 @@ tr:hover td{color:var(--text)}
                   <option value="no_conforme">No conforme</option>
                 </select>
               </div>
-              <div class="fg"><label>Firma cliente</label>
+              <div class="fg"><label>Nombre del cliente</label>
                 <input id="ot-acta-firma" placeholder="Nombre y aclaración">
               </div>
             </div>
-            <div class="flex-end">
+            <!-- Firma digital -->
+            <div style="margin-top:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <label style="font-size:12px;color:var(--text2);font-weight:500">✍️ Firma digital del cliente</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-sm" onclick="firmaLimpiar()" style="font-size:11px">Borrar</button>
+                  <span id="firma-guardada-badge" style="display:none;background:var(--green-bg);color:var(--green);font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--green)">✓ Firma guardada</span>
+                </div>
+              </div>
+              <div style="position:relative;border:1.5px solid var(--border2);border-radius:var(--radius);overflow:hidden;background:#fff;touch-action:none">
+                <canvas id="firma-canvas" style="display:block;width:100%;height:160px;cursor:crosshair"></canvas>
+                <div id="firma-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px;pointer-events:none">Firmar aquí</div>
+              </div>
+              <div id="firma-preview" style="display:none;margin-top:8px">
+                <img id="firma-img" style="max-height:80px;border:0.5px solid var(--border);border-radius:6px">
+              </div>
+            </div>
+            <div class="flex-end" style="margin-top:12px">
               <button class="btn btn-sm" onclick="abrirModalImprimir('ot','Acta de entrega')"><i class="ti ti-file-text"></i> Imprimir acta</button>
               <button class="btn btn-sm btn-primary" id="btn-completar-ot" onclick="completarOT()"><i class="ti ti-check"></i> Marcar como completada</button>
             </div>
@@ -5853,7 +5880,7 @@ function chatAbrirDirecto(usuario) {
 
 function iaInicializar() {
   // IA flotante solo en desktop — en mobile está dentro del FAB
-  if (window.innerWidth > 768) {
+  if (window.innerWidth > 1024) {
     var fab = document.getElementById('ia-fab');
     if (fab) fab.style.display = 'flex';
   }
@@ -7381,6 +7408,10 @@ function showPage(id, el) {
   // FAB y Home en mobile
   if (typeof actualizarFabYHome === 'function') actualizarFabYHome(id);
   // Cerrar sidebar en mobile
+  // Scroll al top al cambiar de página
+  var contentEl = document.querySelector('.content');
+  if (contentEl) contentEl.scrollTop = 0;
+
   if (window.innerWidth <= 768 && typeof closeSidebarMobile === 'function') closeSidebarMobile();
 }
 
@@ -7459,7 +7490,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.121-firebase',
+  VERSION: 'v20.126-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8332,7 +8363,7 @@ function _completarLogin(nombre) {
   if (typeof chatInicializar === 'function') setTimeout(chatInicializar, 1500);
   // Mostrar FAB solo en mobile
   setTimeout(function(){
-    if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 1024) {
       var fab = document.getElementById('fab-container');
       if (fab) fab.style.display = 'flex';
     }
@@ -8878,11 +8909,12 @@ function abrirFormProducto(id) {
   document.getElementById('pf-codigo').value = p.codigo || '';
   document.getElementById('pf-descripcion').value = p.descripcion || '';
   document.getElementById('pf-categoria').value = p.categoria || '';
-  document.getElementById('pf-venta').value = p.venta || '';
+  document.getElementById('pf-venta').value = p.venta ? pfFormatearPrecio(p.venta) : '';
   // Cargar campos de calculadora de precio
   var pgEl = document.getElementById('pf-precio-gremio');
   var mdEl = document.getElementById('pf-margen-deseado');
-  if (pgEl) pgEl.value = p.precioGremio || p.compraARS || p.compra || '';
+  var rawGremio = p.precioGremio || p.compraARS || p.compra || '';
+  if (pgEl) pgEl.value = rawGremio ? pfFormatearPrecio(rawGremio) : '';
   if (mdEl) mdEl.value = p.margenDeseado || '';
   document.getElementById('pf-iva').value = p.iva || 21;
   document.getElementById('pf-stock').value = p.stock !== undefined ? p.stock : '';
@@ -9171,6 +9203,12 @@ function pfUsarPrecio(precio) {
   calcPrecioDesdeGremio();
   calcMargen();
   notify('✓ Precio de compra actualizado a $' + precio.toLocaleString('es-AR'));
+}
+
+function pfFormatearPrecio(val) {
+  // Redondear a 2 decimales máximo, eliminar decimales innecesarios
+  var n = parseFloat(val) || 0;
+  return n % 1 === 0 ? String(Math.round(n)) : n.toFixed(2).replace(/\.?0+$/, '');
 }
 
 function calcPrecioDesdeGremio() {
@@ -10933,7 +10971,10 @@ function _imprimirOTReal() {
       (ot.obs?'<div class="field" style="margin-bottom:16px"><label>Descripción del trabajo</label>'+escapeHTML(ot.obs)+'</div>':'')+
       matsHtml + notasHtml;
     })()+
-    '<div class="firma"><div><div class="firma-line">Firma del técnico</div></div><div><div class="firma-line">Conformidad del cliente</div></div></div>'+
+    '<div class="firma"><div>' +
+      (ot.firmaClienteUrl ? '<img src="'+ot.firmaClienteUrl+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
+      '<div class="firma-line">Firma del cliente'+(ot.firmaClienteUrl?' ✓':''+(ot.fechaFirma?' · '+ot.fechaFirma:''))+'</div></div>'+
+      '<div><div style="height:60px"></div><div class="firma-line">Firma del técnico</div></div></div>'+
     '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
@@ -20595,6 +20636,12 @@ function verOT(id) {
   // ── Credenciales del cliente ──
   otCargarMatUsados(ot);
   otCargarCredenciales(ot);
+  // Inicializar canvas de firma
+  setTimeout(function() {
+    firmaLimpiar();
+    firmaInicializar();
+    firmaCargar(ot);
+  }, 100);
 
   // ── Contexto según origen ──
   var reclamoBox = document.getElementById('ot-reclamo-box');
@@ -20819,6 +20866,140 @@ function otAgregarMaterialUsado() {
     })
     .catch(function(e){ notify('Error: '+e.message); });
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FIRMA DIGITAL EN OT
+// ══════════════════════════════════════════════════════════════════════════════
+var _firmaCtx    = null;
+var _firmaDibujo = false;
+var _firmaTiene  = false;
+
+function firmaInicializar() {
+  var canvas = document.getElementById('firma-canvas');
+  if (!canvas) return;
+
+  // Ajustar tamaño real del canvas al tamaño CSS
+  var rect = canvas.getBoundingClientRect();
+  canvas.width  = rect.width  * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  _firmaCtx = canvas.getContext('2d');
+  _firmaCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  _firmaCtx.strokeStyle = '#1a1a1a';
+  _firmaCtx.lineWidth   = 2;
+  _firmaCtx.lineCap     = 'round';
+  _firmaCtx.lineJoin    = 'round';
+
+  function getPos(e) {
+    var r = canvas.getBoundingClientRect();
+    var src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
+  }
+
+  function start(e) {
+    e.preventDefault();
+    _firmaDibujo = true;
+    var p = getPos(e);
+    _firmaCtx.beginPath();
+    _firmaCtx.moveTo(p.x, p.y);
+    document.getElementById('firma-placeholder').style.display = 'none';
+  }
+  function move(e) {
+    if (!_firmaDibujo) return;
+    e.preventDefault();
+    var p = getPos(e);
+    _firmaCtx.lineTo(p.x, p.y);
+    _firmaCtx.stroke();
+    _firmaTiene = true;
+  }
+  function end(e) {
+    if (!_firmaDibujo) return;
+    e.preventDefault();
+    _firmaDibujo = false;
+    if (_firmaTiene) firmaAutoguardar();
+  }
+
+  canvas.addEventListener('mousedown',  start, { passive: false });
+  canvas.addEventListener('mousemove',  move,  { passive: false });
+  canvas.addEventListener('mouseup',    end,   { passive: false });
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove',  move,  { passive: false });
+  canvas.addEventListener('touchend',   end,   { passive: false });
+}
+
+function firmaLimpiar() {
+  var canvas = document.getElementById('firma-canvas');
+  if (!canvas || !_firmaCtx) return;
+  _firmaCtx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+  _firmaTiene = false;
+  document.getElementById('firma-placeholder').style.display = '';
+  document.getElementById('firma-guardada-badge').style.display = 'none';
+  document.getElementById('firma-preview').style.display = 'none';
+}
+
+function firmaAutoguardar() {
+  // Guardar la firma como dataURL en la OT
+  var canvas = document.getElementById('firma-canvas');
+  if (!canvas || !_firmaTiene) return;
+  var dataUrl = canvas.toDataURL('image/png');
+
+  // Subir a Firebase Storage
+  if (!window.fbStorage || !window.fbDB) {
+    // Sin storage — guardar como dataURL en Firebase (solo si es pequeña)
+    firmaGuardarEnOT(dataUrl);
+    return;
+  }
+
+  var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
+  if (!ot || !ot.fbKey) return;
+
+  // Convertir dataURL a blob
+  var arr = dataUrl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+  var bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+  while(n--) u8arr[n] = bstr.charCodeAt(n);
+  var blob = new Blob([u8arr], {type: mime});
+
+  var path = 'firmas/ot_' + ot.fbKey + '_' + Date.now() + '.png';
+  var ref  = window.storageRef(window.fbStorage, path);
+
+  window.uploadBytes(ref, blob).then(function(snap) {
+    return window.getDownloadURL(snap.ref);
+  }).then(function(url) {
+    firmaGuardarEnOT(url);
+  }).catch(function() {
+    // Fallback: guardar dataURL directamente
+    firmaGuardarEnOT(dataUrl);
+  });
+}
+
+function firmaGuardarEnOT(firmaUrl) {
+  var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
+  if (!ot || !ot.fbKey || !window.fbDB) return;
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
+    firmaClienteUrl: firmaUrl,
+    firmada: true,
+    fechaFirma: new Date().toISOString().slice(0,10)
+  });
+  var badge = document.getElementById('firma-guardada-badge');
+  if (badge) badge.style.display = '';
+  // Mostrar preview
+  var preview = document.getElementById('firma-preview');
+  var img     = document.getElementById('firma-img');
+  if (preview && img) { img.src = firmaUrl; preview.style.display = ''; }
+}
+
+function firmaCargar(ot) {
+  // Al abrir una OT, cargar la firma si ya existe
+  if (!ot || !ot.firmaClienteUrl) return;
+  var badge = document.getElementById('firma-guardada-badge');
+  var preview = document.getElementById('firma-preview');
+  var img     = document.getElementById('firma-img');
+  if (badge)   badge.style.display = '';
+  if (preview) preview.style.display = '';
+  if (img)     img.src = ot.firmaClienteUrl;
+  _firmaTiene = true;
+  document.getElementById('firma-placeholder').style.display = 'none';
+}
+// ══════════════════════════════════════════════════════════════════════════════
 
 function otCargarCredenciales(ot) {
   var box  = document.getElementById('ot-cred-box');
@@ -22994,7 +23175,7 @@ function closeFab() {
   function reposFab() {
     var vv = window.visualViewport;
     var bottom = (window.innerHeight - vv.height - vv.offsetTop);
-    fab.style.bottom = Math.max(16, 16 + bottom) + 'px';
+    fab.style.bottom = Math.max(148, 148 + bottom) + 'px';
   }
   window.visualViewport.addEventListener('resize', reposFab, { passive: true });
   window.visualViewport.addEventListener('scroll', reposFab, { passive: true });
