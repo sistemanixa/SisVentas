@@ -590,8 +590,12 @@ tr:hover td{color:var(--text)}
 .venta-resumen-stock{background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-top:12px;display:none}
 
 /* ── FAB (Botón flotante) ── */
-.fab-container{position:fixed!important;bottom:148px!important;right:16px!important;left:auto!important;z-index:9998;display:none;flex-direction:column;align-items:flex-end;gap:10px}
-@media(max-width:768px){.fab-container{bottom:148px!important;right:16px!important;left:auto!important}}
+/* FAB: solo visible en mobile */
+.fab-container{position:fixed!important;bottom:16px!important;right:16px!important;left:auto!important;z-index:9998;display:none;flex-direction:column;align-items:flex-end;gap:10px}
+/* En desktop: ocultar FAB */
+@media(min-width:769px){.fab-container{display:none!important}}
+/* En mobile: mostrar FAB */
+@media(max-width:768px){.fab-container{bottom:16px!important;right:16px!important;left:auto!important}}
 @media(min-width:769px){.notif{bottom:24px!important;right:24px!important}}
 .fab-main{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .2s;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .fab-main.open{transform:rotate(45deg)}
@@ -742,7 +746,9 @@ tr:hover td{color:var(--text)}
 #ia-input-row{padding:12px 16px;border-top:0.5px solid var(--border);display:flex;gap:8px;align-items:flex-end}
 #ia-input{flex:1;border-radius:14px;padding:9px 14px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;resize:none;max-height:100px;outline:none;line-height:1.4}
 #ia-send{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-#ia-fab{position:fixed;bottom:90px;right:16px;z-index:9997;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;cursor:pointer;color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(99,102,241,.4);transition:transform .2s}
+#ia-fab{position:fixed;bottom:24px;right:16px;z-index:9997;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;cursor:pointer;color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(99,102,241,.4);transition:transform .2s}
+/* En mobile: ocultar IA flotante (va dentro del FAB) */
+@media(max-width:768px){#ia-fab{display:none!important}}
 #ia-fab:hover{transform:scale(1.08)}
 @media(max-width:768px){#ia-box{height:85vh}}
 </style>
@@ -829,7 +835,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.112 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.113 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5590,8 +5596,11 @@ async function iaEnviar() {
 
 // Mostrar FAB de IA después del login
 function iaInicializar() {
-  var fab = document.getElementById('ia-fab');
-  if (fab) fab.style.display = 'flex';
+  // IA flotante solo en desktop — en mobile está dentro del FAB
+  if (window.innerWidth > 768) {
+    var fab = document.getElementById('ia-fab');
+    if (fab) fab.style.display = 'flex';
+  }
 }
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -7194,7 +7203,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.112-firebase',
+  VERSION: 'v20.113-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8064,10 +8073,12 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigLogin === 'function') setTimeout(cargarConfigLogin, 350);
   if (typeof inicializarFlujoVentas === 'function') setTimeout(inicializarFlujoVentas, 4000);
   if (typeof iaInicializar === 'function') setTimeout(iaInicializar, 1000);
-  // Mostrar FAB
+  // Mostrar FAB solo en mobile
   setTimeout(function(){
-    var fab = document.getElementById('fab-container');
-    if (fab) fab.style.display = 'flex';
+    if (window.innerWidth <= 768) {
+      var fab = document.getElementById('fab-container');
+      if (fab) fab.style.display = 'flex';
+    }
   }, 1200);
   if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
   if (typeof cargarPresenciaUsuarios === 'function') setTimeout(cargarPresenciaUsuarios, 350);
@@ -22635,7 +22646,7 @@ function closeFab() {
   function reposFab() {
     var vv = window.visualViewport;
     var bottom = (window.innerHeight - vv.height - vv.offsetTop);
-    fab.style.bottom = Math.max(148, 148 + bottom) + 'px';
+    fab.style.bottom = Math.max(16, 16 + bottom) + 'px';
   }
   window.visualViewport.addEventListener('resize', reposFab, { passive: true });
   window.visualViewport.addEventListener('scroll', reposFab, { passive: true });
@@ -23640,6 +23651,10 @@ window.onerror = function(msg, src, line, col) {
     <button class="fab-item" onclick="fabAccion('agenda')">
       <span class="fab-label">Agendar evento</span>
       <div class="fab-btn" style="background:#4a3ab0"><i class="ti ti-calendar-plus" style="font-size:17px;color:#fff"></i></div>
+    </button>
+    <button class="fab-item" onclick="closeFab();iaAbrir()">
+      <span class="fab-label">Asistente IA</span>
+      <div class="fab-btn" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/><circle cx="9" cy="14" r="1" fill="white" stroke="none"/><circle cx="15" cy="14" r="1" fill="white" stroke="none"/></svg></div>
     </button>
   </div>
   <!-- Botón principal -->
