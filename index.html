@@ -870,7 +870,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.5px;font-weight:500" id="login-version-lbl">v20.145 · Firebase</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.5px;font-weight:500" id="login-version-lbl">v20.146 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6018,22 +6018,9 @@ var _chatUsuarios = {};
 function chatInicializar() {
   var btn = document.getElementById('chat-fab');
   if (btn) btn.style.display = 'flex';
-  if (window.fbDB && currentUser) {
-    var presKey = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
-    var presRef = window.fbRef(window.fbDB, 'sisventas/chat_online/' + presKey);
-    window.fbSet(presRef, { nombre: currentUser, rol: currentRole||'', ts: Date.now() });
-    // Borrar al desconectarse (Firebase lo hace automáticamente)
-    if (window.fbOnDisconnect) {
-      window.fbOnDisconnect(presRef).remove();
-    }
-  }
+  // La presencia ya la maneja registrarPresenciaOnline() con sisventas/presencia
+  // El chat lee de PRESENCIA_DATA para mostrar quién está online
   if (window.fbDB) {
-    window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat_online'), function(snap) {
-      _chatUsuarios = {};
-      if (snap.val()) Object.values(snap.val()).forEach(function(u){ if(u.nombre) _chatUsuarios[u.nombre] = u; });
-      var lbl = document.getElementById('chat-online-label');
-      if (lbl) lbl.textContent = Object.keys(_chatUsuarios).length + ' en línea';
-    });
     ['general','tecnicos','admin'].forEach(function(canal) {
       window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat/' + canal), function(snap) {
         if (!snap.val()) return;
@@ -6071,6 +6058,12 @@ function chatAbrir() {
   // Mostrar botón limpiar solo para admin
   var btnLimpiar = document.getElementById('btn-chat-admin-limpiar');
   if (btnLimpiar) btnLimpiar.style.display = currentRole === 'admin' ? '' : 'none';
+  // Actualizar label online desde PRESENCIA_DATA
+  var lbl = document.getElementById('chat-online-label');
+  if (lbl) {
+    var cantOnline = Object.values(PRESENCIA_DATA||{}).filter(function(p){ return p.online === true; }).length;
+    lbl.textContent = cantOnline + ' en línea';
+  }
   chatCargarCanal(_chatCanal);
 }
 
@@ -6139,7 +6132,10 @@ function chatEnviar() {
 function chatAbrirDirectos() {
   var msgs = document.getElementById('chat-messages');
   if (!msgs) return;
-  var otros = Object.values(_chatUsuarios).filter(function(u){ return u.nombre!==currentUser; });
+  // Usar PRESENCIA_DATA (fuente única de verdad) en lugar de _chatUsuarios
+  var otros = Object.values(PRESENCIA_DATA||{}).filter(function(p){
+    return p.online === true && p.nombre !== currentUser;
+  });
   if (!otros.length) { msgs.innerHTML='<div style="text-align:center;color:var(--text3);padding:24px">No hay otros usuarios en línea</div>'; return; }
   msgs.innerHTML = '<div style="padding:8px 0"><div style="font-size:11px;color:var(--text3);margin-bottom:8px">USUARIOS EN LÍNEA</div>' +
     otros.map(function(u){
@@ -7876,7 +7872,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.145-firebase',
+  VERSION: 'v20.146-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -24552,7 +24548,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text2);text-align:center;font-weight:500">SisVentas <span id="up-version">v20.145</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text2);text-align:center;font-weight:500">SisVentas <span id="up-version">v20.146</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
