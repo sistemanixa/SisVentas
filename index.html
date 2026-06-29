@@ -6345,11 +6345,19 @@ function chatCargarCanal(canal) {
       }
     }
     chatRenderMensajes(lista);
+    // Marcar mensajes ajenos como leídos
     lista.forEach(function(m) {
       if (m.autor !== currentUser && m.fbKey && !(m.leido&&m.leido[currentUser])) {
         var leidoKey = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
         var upd={}; upd['leido/'+leidoKey]=true;
         window.fbUpdate(window.fbRef(window.fbDB,'sisventas/chat/'+canal+'/'+m.fbKey),upd);
+      }
+    });
+    // Actualizar ticks en tiempo real para mensajes propios
+    lista.forEach(function(m) {
+      if (m.autor === currentUser && m.fbKey) {
+        var el = document.querySelector('[data-fbkey="'+m.fbKey+'"] .chat-tick');
+        if (el) el.outerHTML = chatTicks(m);
       }
     });
     _chatNoLeidos[canal]=0; chatActualizarBadges();
@@ -6455,12 +6463,7 @@ function chatScrollAMensaje(fbKey) {
 
 function chatMsgContenido(m) {
   if (m.fotoUrl) {
-    var img = document.createElement('img');
-    img.src = m.fotoUrl;
-    img.style.cssText = 'max-width:100%;border-radius:8px;max-height:200px;object-fit:cover;display:block;cursor:pointer;margin-top:4px';
-    img.onclick = function(){ window.open(m.fotoUrl,'_blank'); };
-    img.onerror = function(){ this.style.display='none'; };
-    return img.outerHTML;
+    return '<img src="' + escapeHTML(m.fotoUrl) + '" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:cover;display:block;cursor:pointer;margin-top:4px" onclick="window.open(this.src,\'_blank\')" onerror="this.style.display=\'none\'">';
   }
   return '<div>' + escapeHTML(m.texto||'') + '</div>';
 }
