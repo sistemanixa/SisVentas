@@ -869,7 +869,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.138 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.139 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4301,6 +4301,16 @@ tr:hover td{color:var(--text)}
   </div>
 
       <!-- VACACIONES -->
+      
+
+      <!-- RENTABILIDAD -->
+      
+
+      <!-- ── CUENTA CORRIENTE EMPLEADOS ── -->
+      
+
+</div>
+
       <div id="page-vacaciones" class="page">
       <div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px">
       <div class="metric"><div class="m-label">Empleados activos</div><div class="m-value" id="vac-total">0</div><div class="m-sub">—</div></div>
@@ -4331,7 +4341,6 @@ tr:hover td{color:var(--text)}
       </div>
       </div>
 
-      <!-- RENTABILIDAD -->
       <div id="page-rentabilidad" class="page">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <span style="font-size:13px;color:var(--text2)">Periodo:</span>
@@ -4360,7 +4369,6 @@ tr:hover td{color:var(--text)}
       </div>
       </div>
 
-      <!-- ── CUENTA CORRIENTE EMPLEADOS ── -->
       <div id="page-ctaemp" class="page">
       <!-- Selector de empleado (admin ve todos, técnico solo se ve a sí mismo) -->
       <div class="card" style="margin-bottom:12px">
@@ -4438,7 +4446,6 @@ tr:hover td{color:var(--text)}
       </div>
 </div>
 
-</div>
 
 <!-- MODAL NUEVO MOVIMIENTO EMPLEADO -->
 <div id="modal-movi-emp" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:600;align-items:center;justify-content:center">
@@ -7762,7 +7769,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.138-firebase',
+  VERSION: 'v20.139-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
