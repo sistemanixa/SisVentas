@@ -19034,15 +19034,17 @@ function fbCargarVacaciones() {
 
 function renderModuloVacaciones() {
   var periodos = window._vacPeriodos || [];
+  var empCount = Object.keys(empData||{}).length;
+  console.log('[VAC] renderModuloVacaciones - periodos:', periodos.length, 'empData:', empCount);
   if (!periodos.length && window.fbDB) {
-    // Primera visita: pedir los datos directamente
     window.fbGet(window.fbRef(window.fbDB,'sisventas/vacaciones')).then(function(snap){
       var data = snap.val()||{};
       periodos = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); });
+      console.log('[VAC] fbGet OK - periodos:', periodos.length);
       window._vacPeriodos = periodos;
       renderTablaVacaciones(periodos);
       renderPeriodosVacaciones(periodos);
-    });
+    }).catch(function(e){ console.error('[VAC] fbGet ERROR:', e); });
   } else {
     renderTablaVacaciones(periodos);
     renderPeriodosVacaciones(periodos);
