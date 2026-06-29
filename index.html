@@ -744,11 +744,17 @@ tr:hover td{color:var(--text)}
 #chat-header{padding:12px 16px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 #chat-canales{display:flex;gap:6px;padding:10px 16px;border-bottom:0.5px solid var(--border);overflow-x:auto;flex-shrink:0;scrollbar-width:none}
 #chat-canales::-webkit-scrollbar{display:none}
-.chat-canal-btn{padding:5px 12px;border-radius:20px;border:0.5px solid var(--border2);background:none;color:var(--text2);cursor:pointer;font-size:12px;white-space:nowrap;font-family:inherit;transition:all .15s;position:relative}
+.chat-canal-btn{padding:5px 9px;border-radius:20px;border:0.5px solid var(--border2);background:none;color:var(--text2);cursor:pointer;font-size:11px;white-space:nowrap;font-family:inherit;transition:all .15s;position:relative}
 .chat-canal-btn.active{background:var(--green);color:#fff;border-color:var(--green)}
 .chat-canal-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 3px}
 #chat-messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
-.chat-msg{max-width:80%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4}
+.chat-msg{max-width:80%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4;position:relative}
+.chat-msg-wrap{display:flex;flex-direction:column;position:relative;margin-bottom:2px}
+.chat-msg-wrap:hover .chat-reply-btn{opacity:1}
+.chat-reply-btn{opacity:0;transition:opacity .15s;position:absolute;top:50%;transform:translateY(-50%);background:var(--bg3);border:0.5px solid var(--border2);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:13px}
+.chat-reply-btn:hover{color:var(--blue);border-color:var(--blue)}
+.chat-reply-preview{background:rgba(255,255,255,.08);border-left:3px solid var(--green);border-radius:4px;padding:4px 8px;margin-bottom:4px;font-size:11px;color:var(--text3);cursor:pointer}
+.chat-tick{font-size:11px;display:inline-flex;align-items:center}
 .chat-msg.mine{align-self:flex-end;background:var(--green);color:#fff;border-radius:12px 12px 2px 12px}
 .chat-msg.other{align-self:flex-start;background:var(--bg3);color:var(--text);border-radius:12px 12px 12px 2px}
 .chat-msg-autor{font-size:10px;font-weight:600;margin-bottom:3px;opacity:.8}
@@ -870,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.170 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.174 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -916,7 +922,7 @@ tr:hover td{color:var(--text)}
   <div class="sidebar">
     <div class="s-logo" onclick="showPage('dashboard', document.querySelector('[onclick*=dashboard]'))" style="cursor:pointer">
       <div class="s-brand">SisVentas</div>
-      <div class="s-sub">powered by Nixa</div>
+      <div class="s-sub" style="color:var(--text2);font-weight:500;font-size:11px">powered by Nixa</div>
       <div class="s-sub" id="s-version-el" style="font-size:11px;opacity:1;font-weight:500;color:var(--text2)"></div>
     </div>
     <div class="s-nav">
@@ -6117,6 +6123,7 @@ async function iaEnviar() {
 // MENSAJERÍA INTERNA
 // ══════════════════════════════════════════════════════════════════════════════
 var _chatCanal    = 'general';
+var _chatReplyMsg  = null; // mensaje al que se está respondiendo
 var _chatListener = null;
 var _chatNoLeidos = {};
 var _chatUsuarios = {};
@@ -6317,7 +6324,12 @@ function chatCargarCanal(canal) {
   _chatListener = window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat/'+canal), function(snap) {
     var data = snap.val();
     var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); })
-      .sort(function(a,b){ return (a.ts||0)-(b.ts||0); }) : [];
+      .sort(function(a,b){
+        // Primero por ts, pero si son iguales o muy cercanos usar fbKey (cronológico en Firebase)
+        var diff = (a.ts||0) - (b.ts||0);
+        if (Math.abs(diff) < 1000) return a.fbKey < b.fbKey ? -1 : 1; // menos de 1 segundo → orden de Firebase
+        return diff;
+      }) : [];
     // Mostrar quién está online en este canal — solo una vez, no en cada update
     var bannerExistente = document.getElementById('chat-online-banner');
     if (!bannerExistente) {
@@ -6340,25 +6352,100 @@ function chatCargarCanal(canal) {
   });
 }
 
+function chatTicks(m) {
+  if (!m || m.autor !== currentUser) return '';
+  var leidos = m.leido ? Object.keys(m.leido).filter(function(u){ return u !== currentUser; }) : [];
+  if (!leidos.length) {
+    return '<span class="chat-tick" title="Enviado" style="color:var(--text3)"><svg width="14" height="10" viewBox="0 0 14 10"><path d="M1 5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+  }
+  return '<span class="chat-tick" title="Leido por '+leidos.join(', ')+'" style="color:#4ade80"><svg width="18" height="10" viewBox="0 0 18 10"><path d="M1 5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+}
+
+function chatSetReply(btn) {
+  var fbKey = btn.dataset.fk; var autor = btn.dataset.au; var texto = btn.dataset.tx;
+  _chatReplyMsg = { fbKey: fbKey, autor: autor, texto: texto };
+  var preview = document.getElementById('chat-reply-preview');
+  if (!preview) {
+    preview = document.createElement('div');
+    preview.id = 'chat-reply-preview';
+    preview.style.cssText = 'padding:6px 12px;background:var(--bg3);border-left:3px solid var(--green);margin:0 8px 4px;border-radius:4px;display:flex;align-items:center;gap:8px';
+    var inputRow = document.getElementById('chat-input-row');
+    if (inputRow) inputRow.parentNode.insertBefore(preview, inputRow);
+  }
+  preview.innerHTML =
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:11px;font-weight:600;color:var(--green)">Respondiendo a ' + escapeHTML(autor) + '</div>' +
+      '<div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML((texto||'').slice(0,60)) + '</div>' +
+    '</div>' +
+    '<button onclick="chatCancelReply()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0 4px">×</button>';
+  var inp = document.getElementById('chat-input');
+  if (inp) inp.focus();
+}
+
+function chatCancelReply() {
+  _chatReplyMsg = null;
+  var preview = document.getElementById('chat-reply-preview');
+  if (preview) preview.remove();
+}
+
+function chatScrollAMensaje(fbKey) {
+  var el = document.querySelector('[data-fbkey="' + fbKey + '"]');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.style.background = 'rgba(99,102,241,.2)';
+    setTimeout(function(){ el.style.background = ''; }, 1200);
+  }
+}
+
+function chatMsgContenido(m) {
+  if (m.fotoUrl) {
+    var img = document.createElement('img');
+    img.src = m.fotoUrl;
+    img.style.cssText = 'max-width:100%;border-radius:8px;max-height:200px;object-fit:cover;display:block;cursor:pointer;margin-top:4px';
+    img.onclick = function(){ window.open(m.fotoUrl,'_blank'); };
+    img.onerror = function(){ this.style.display='none'; };
+    return img.outerHTML;
+  }
+  return '<div>' + escapeHTML(m.texto||'') + '</div>';
+}
+
 function chatRenderMensajes(lista) {
   var container = document.getElementById('chat-messages');
   if (!container) return;
-  if (!lista.length) { container.innerHTML='<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Sin mensajes aún. ¡Sé el primero!</div>'; return; }
+  if (!lista.length) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Sin mensajes aún. ¡Sé el primero!</div>';
+    return;
+  }
+  var msgMap = {};
+  lista.forEach(function(m){ if(m.fbKey) msgMap[m.fbKey] = m; });
+
   container.innerHTML = lista.map(function(m) {
-    var esMio = m.autor === currentUser;
-    var hora = m.ts ? new Date(m.ts).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) : '';
-    var fecha = m.ts ? new Date(m.ts).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'}) : '';
-    return '<div style="display:flex;flex-direction:column;align-items:'+(esMio?'flex-end':'flex-start')+'">' +
-      '<div class="chat-msg '+(esMio?'mine':'other')+'">' +
-        (!esMio?'<div class="chat-msg-autor">'+escapeHTML(m.autor||'')+'</div>':'') +
-        (m.fotoUrl ? '<img src="'+escapeHTML(m.fotoUrl)+'" style="max-width:100%;border-radius:8px;margin-top:4px;max-height:200px;object-fit:cover;display:block;cursor:pointer" onclick="window.open(\''+escapeHTML(m.fotoUrl)+'\',\'_blank\')" onerror="this.style.display=\'none\'">' : '<div>'+escapeHTML(m.texto||'')+'</div>') +
-        '<div style="display:flex;align-items:center;gap:4px;justify-content:'+(esMio?'flex-end':'flex-start')+'">' +
-          '<span class="chat-msg-hora">'+fecha+' '+hora+'</span>' +
-          (esMio ? (function(){
-            var leidos = m.leido ? Object.keys(m.leido).filter(function(u){ return u !== currentUser; }) : [];
-            if (!leidos.length) return '<span title="Enviado" style="font-size:11px;color:var(--text3)">✓</span>';
-            return '<span title="Leído por '+leidos.join(', ')+'" style="font-size:11px;color:#4ade80">✓✓</span>';
-          })() : '') +
+    var esMio  = m.autor === currentUser;
+    var hora   = m.ts ? new Date(m.ts).toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) : '';
+    var align  = esMio ? 'flex-end' : 'flex-start';
+    var replyHtml = '';
+    if (m.replyFbKey && msgMap[m.replyFbKey]) {
+      var orig = msgMap[m.replyFbKey];
+      replyHtml = '<div class="chat-reply-preview" onclick="chatScrollAMensaje(\"' + (m.replyFbKey||'') + '\")">' +
+        '<b style="color:var(--green);font-size:11px">' + escapeHTML(orig.autor||'') + '</b> ' +
+        '<span>' + escapeHTML((orig.texto || (orig.fotoUrl ? '📷 Foto' : '')||'').slice(0,50)) + '</span></div>';
+    }
+    var fbKeyEsc = (m.fbKey||'').replace(/'/g, '');
+    var fbKeyEsc = (m.fbKey||'').replace(/["']/g,'');
+    var autorEsc = (m.autor||'').replace(/["']/g,'');
+    var textoEsc = (m.texto||'').slice(0,80).replace(/["'<>]/g,'');
+    var replyBtn = '<button class="chat-reply-btn" style="' + (esMio ? 'left:-36px' : 'right:-36px') + '" ' +
+      'onclick="chatSetReply(this)" data-fk="' + fbKeyEsc + '" data-au="' + autorEsc + '" data-tx="' + textoEsc + '" title="Responder">&#x21A9;</button>';
+    var contenido = m.fotoUrl
+    var contenido = chatMsgContenido(m);
+      replyBtn +
+      '<div class="chat-msg ' + (esMio ? 'mine' : 'other') + '">' +
+        (!esMio ? '<div class="chat-msg-autor">' + escapeHTML(m.autor||'') + '</div>' : '') +
+        replyHtml +
+        contenido +
+        '<div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;margin-top:3px">' +
+          '<span class="chat-msg-hora">' + hora + '</span>' +
+          chatTicks(m) +
         '</div>' +
       '</div></div>';
   }).join('');
@@ -6370,9 +6457,14 @@ function chatEnviar() {
   var texto = inp ? inp.value.trim() : '';
   if (!texto || !window.fbDB) return;
   inp.value=''; inp.style.height='';
-  window.fbPush(window.fbRef(window.fbDB,'sisventas/chat/'+_chatCanal), {
-    texto, autor: currentUser||'', rol: currentRole||'', ts: Date.now(), canal: _chatCanal
-  });
+  var msg = { texto: texto, autor: currentUser||'', rol: currentRole||'', ts: Date.now(), canal: _chatCanal };
+  if (_chatReplyMsg) {
+    msg.replyFbKey  = _chatReplyMsg.fbKey;
+    msg.replyAutor  = _chatReplyMsg.autor;
+    msg.replyTexto  = (_chatReplyMsg.texto||'').slice(0,100);
+    chatCancelReply();
+  }
+  window.fbPush(window.fbRef(window.fbDB,'sisventas/chat/'+_chatCanal), msg);
 }
 
 function chatAbrirDirectos() {
@@ -8151,7 +8243,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.170-firebase',
+  VERSION: 'v20.174-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -25099,7 +25191,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.170</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.174</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -25286,10 +25378,10 @@ window.onerror = function(msg, src, line, col) {
         🔧 Técnicos<span class="chat-canal-badge" id="badge-tecnicos"></span>
       </button>
       <button class="chat-canal-btn" onclick="chatCambiarCanal('admin',this)" data-canal="admin">
-        👔 Administrativo<span class="chat-canal-badge" id="badge-admin"></span>
+        👔 Administ.<span class="chat-canal-badge" id="badge-admin"></span>
       </button>
       <button class="chat-canal-btn" onclick="chatAbrirDirectos()" data-canal="directos">
-        💬 Directos<span class="chat-canal-badge" id="badge-directos"></span>
+        💬 Directo<span class="chat-canal-badge" id="badge-directos"></span>
       </button>
     </div>
     <div id="chat-messages"><div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Cargando mensajes...</div></div>
