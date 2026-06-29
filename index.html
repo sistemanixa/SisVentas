@@ -869,7 +869,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.137 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.138 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7654,6 +7654,7 @@ function showPage(id, el) {
   if (id === 'tablero')        { setTimeout(function(){ renderTablero(); }, 100); }
   if (id === 'creditofiscal')  { setTimeout(function(){ if(typeof cfRenderTodo==='function') cfRenderTodo(); if(typeof fvRenderTodo==='function') fvRenderTodo(); if(typeof fvRenderCompensacion==='function') fvRenderCompensacion(); }, 100); }
   if (id === 'reportes')       { setTimeout(function(){ renderReportes(); }, 100); }
+  if (id === 'estadisticas')   { setTimeout(function(){ if(typeof renderEstadisticas==='function') renderEstadisticas(); }, 150); }
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
   if (id === 'cobranzas')      { setTimeout(function(){ fbCargarPagos(); }, 50); }
   if (id === 'cuentacorriente'){ setTimeout(function(){ fbCargarPagos(); }, 50); }
@@ -7759,7 +7760,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.137-firebase',
+  VERSION: 'v20.138-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -19049,6 +19050,12 @@ function renderModuloVacaciones() {
 function renderTablaVacaciones(periodos) {
   var tbody = document.getElementById('vac-tbody'); if (!tbody) return;
   var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false && e.tipoEmpleado !== 'Vendedor a comisión'; });
+  // Si empData no cargó todavía, reintentar
+  if (!empleados.length && Object.keys(empData||{}).length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Cargando empleados...</td></tr>';
+    setTimeout(function(){ renderTablaVacaciones(periodos); }, 600);
+    return;
+  }
   var hoy = new Date().toISOString().split('T')[0];
   var enLicencia=0, conPendientes=0;
   tbody.innerHTML = empleados.map(function(emp){
