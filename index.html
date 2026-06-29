@@ -878,7 +878,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.178 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.179 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1240,13 +1240,6 @@ tr:hover td{color:var(--text)}
               </select>
             </div>
             <div class="fg"><label>Observaciones</label><input type="text" placeholder="Opcional..."></div>
-            <div class="fg" style="display:flex;align-items:center;gap:10px">
-              <label style="margin-bottom:0">Condición IVA</label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
-                <input type="checkbox" id="venta-con-iva" checked onchange="recalcularTotalesVenta()" style="width:16px;height:16px;accent-color:var(--blue)">
-                Incluye IVA (21%)
-              </label>
-            </div>
           </div>
         </div>
         <div class="card">
@@ -1332,6 +1325,9 @@ tr:hover td{color:var(--text)}
             </div>
           </div>
           <div class="flex-end">
+            <button class="btn" id="btn-toggle-iva-venta" onclick="toggleIvaVenta(this)" style="min-width:110px">
+              <i class="ti ti-receipt-tax"></i> Con IVA
+            </button>
             <button class="btn" onclick="abrirModalImprimir('venta','Imprimir venta')"><i class="ti ti-printer"></i> Imprimir</button>
             <button class="btn btn-primary" onclick="confirmarVenta()"><i class="ti ti-check"></i> Confirmar venta</button>
           </div>
@@ -8320,7 +8316,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.178-firebase',
+  VERSION: 'v20.179-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9266,7 +9262,31 @@ function calcRow(inp) {
   calcTotals();
 }
 
+var _ventaConIva = true; // estado global del toggle IVA en nueva venta
+
 function recalcularTotalesVenta() { calcTotals(); }
+
+function toggleIvaVenta(btn) {
+  _ventaConIva = !_ventaConIva;
+  btn.innerHTML = '<i class="ti ti-receipt-tax"></i> ' + (_ventaConIva ? 'Con IVA' : 'Sin IVA');
+  btn.style.color = _ventaConIva ? '' : 'var(--amber)';
+  btn.style.borderColor = _ventaConIva ? '' : 'var(--amber)';
+  calcTotals();
+}
+
+function toggleIvaDetalle(btn, ventaId) {
+  var venta = (ventasList||[]).find(function(v){ return v.id === ventaId; });
+  if (!venta || !window.fbDB) return;
+  var nuevoConIva = venta.conIva === false ? true : false;
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), { conIva: nuevoConIva })
+    .then(function(){
+      venta.conIva = nuevoConIva;
+      btn.innerHTML = '<i class="ti ti-receipt-tax"></i> ' + (nuevoConIva ? 'Con IVA' : 'Sin IVA');
+      btn.style.color = nuevoConIva ? '' : 'var(--amber)';
+      btn.style.borderColor = nuevoConIva ? '' : 'var(--amber)';
+      notify((nuevoConIva ? 'Con IVA activado' : 'Sin IVA — precio final sin impuesto'));
+    });
+}
 
 function calcTotals() {
   // Subtotal suma de netos por fila (ya con descuento por ítem)
@@ -9283,8 +9303,8 @@ function calcTotals() {
   var descGenAmt = s * descGenPct / 100;
   var sConDesc   = s - descGenAmt;
 
-  // Toggle IVA
-  var conIva = !document.getElementById('venta-con-iva') || document.getElementById('venta-con-iva').checked;
+  // Toggle IVA — usa variable global
+  var conIva = typeof _ventaConIva !== 'undefined' ? _ventaConIva : true;
   var iva    = conIva ? sConDesc * 0.21 : 0;
 
   _set('t-sub', '$' + Math.round(s).toLocaleString('es-AR'));
@@ -9628,6 +9648,10 @@ function volverADetalleVenta() {
 }
 
 function inicializarFilasVenta() {
+  // Reset toggle IVA
+  _ventaConIva = true;
+  var btnIva = document.getElementById('btn-toggle-iva-venta');
+  if (btnIva) { btnIva.innerHTML = '<i class="ti ti-receipt-tax"></i> Con IVA'; btnIva.style.color=''; btnIva.style.borderColor=''; }
   const body = document.getElementById('det-body');
   if (!body) return;
   body.innerHTML = '';
@@ -21387,7 +21411,7 @@ function pptoAccion(accion) {
       fecha:        ahora,
       empleado:     p.empleado || currentUser || '',
       comisionado2: (document.getElementById('venta-comisionado2')||{}).value || '',
-      conIva:       !document.getElementById('venta-con-iva') || document.getElementById('venta-con-iva').checked,
+      conIva:       typeof _ventaConIva !== 'undefined' ? _ventaConIva : true,
       usuario:      currentUser || '',
       items:        p.items   || [],
       subtotal:     parseFloat(p.subtotal || p.total) || 0,
@@ -24296,7 +24320,8 @@ function verVenta(id) {
   let accsHTML = '';
   if (esPendPago) accsHTML += '<button class="btn btn-sm btn-primary" onclick="irACobranzasConVenta(\''+v.id+'\')"><i class="ti ti-cash"></i> Registrar pago</button>';
   if (v.otId)     accsHTML += '<button class="btn btn-sm" onclick="verOTdesdeVenta()"><i class="ti ti-clipboard-list"></i> Ver OT</button>';
-  accsHTML += '<button class="btn btn-sm" onclick="abrirModalImprimir(\'venta\',\'Venta ' + v.id + '\')" ><i class="ti ti-printer"></i> Imprimir</button>';
+  accsHTML += '<button class="btn btn-sm" id="btn-iva-detalle-'+v.id+'" onclick="toggleIvaDetalle(this,\'' + v.id + '\')" style="min-width:90px"><i class="ti ti-receipt-tax"></i> ' + ((v.conIva===false) ? 'Sin IVA' : 'Con IVA') + '</button>';
+  accsHTML += '<button class="btn btn-sm" onclick="abrirModalImprimir(\'venta\',\'Venta ' + v.id + '\')"><i class="ti ti-printer"></i> Imprimir</button>';
   var _csf = v.contadoSinFactura === true;
   // Actualizar estado visual del botón CSF estático (junto a Copiar selección)
   var btnCsf = document.getElementById('btn-csf-static');
@@ -25278,7 +25303,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.178</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.179</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
