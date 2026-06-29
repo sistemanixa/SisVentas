@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.174 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.175 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -6181,7 +6181,8 @@ function chatInicializar() {
       window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat/' + canal), function(snap) {
         if (!snap.val()) return;
         var msgs = Object.values(snap.val());
-        var n = msgs.filter(function(m){ return m.autor !== currentUser && !(m.leido && m.leido[currentUser]); }).length;
+        var _lk = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
+        var n = msgs.filter(function(m){ return m.autor !== currentUser && !(m.leido && (m.leido[currentUser]||m.leido[_lk])); }).length;
         _chatNoLeidos[canal] = n;
         chatActualizarBadges();
         // Notificación push si llega mensaje nuevo y el chat no está abierto
@@ -6344,7 +6345,8 @@ function chatCargarCanal(canal) {
     chatRenderMensajes(lista);
     lista.forEach(function(m) {
       if (m.autor !== currentUser && m.fbKey && !(m.leido&&m.leido[currentUser])) {
-        var upd={}; upd['leido/'+currentUser]=true;
+        var leidoKey = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
+        var upd={}; upd['leido/'+leidoKey]=true;
         window.fbUpdate(window.fbRef(window.fbDB,'sisventas/chat/'+canal+'/'+m.fbKey),upd);
       }
     });
@@ -6354,11 +6356,11 @@ function chatCargarCanal(canal) {
 
 function chatTicks(m) {
   if (!m || m.autor !== currentUser) return '';
-  var leidos = m.leido ? Object.keys(m.leido).filter(function(u){ return u !== currentUser; }) : [];
+  var miKey  = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
+  var leidos = m.leido ? Object.keys(m.leido).filter(function(u){ return u !== miKey; }) : [];
   if (!leidos.length) {
-    return '<span class="chat-tick" title="Enviado" style="color:var(--text3)"><svg width="14" height="10" viewBox="0 0 14 10"><path d="M1 5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
   }
-  return '<span class="chat-tick" title="Leido por '+leidos.join(', ')+'" style="color:#4ade80"><svg width="18" height="10" viewBox="0 0 18 10"><path d="M1 5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+  return '<span class="chat-tick" title="Leido por '+leidos.join(', ')+'" style="color:#4ade80"><svg width="14" height="8" viewBox="0 0 18 10"><path d="M1 5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 }
 
 function chatSetReply(btn) {
@@ -8242,7 +8244,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.174-firebase',
+  VERSION: 'v20.175-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -25190,7 +25192,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.174</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.175</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
