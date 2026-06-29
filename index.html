@@ -870,7 +870,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.5px;font-weight:500" id="login-version-lbl">v20.149 · Firebase</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.5px;font-weight:500" id="login-version-lbl">v20.151 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5874,11 +5874,19 @@ function iaAbrir(contexto, label) {
   if (lbl) lbl.textContent = _iaCtxLabel;
   var modal = document.getElementById('ia-modal');
   if (modal) { modal.classList.add('open'); document.body.style.overflow = 'hidden'; }
+  // Renderizar sugerencias según rol
+  iaRenderSugerencias();
   // Mensaje de bienvenida si es conversación nueva
   if (!_iaHistorial.length) {
+    var bienvenidaBase = 'Hola ' + (currentUser||'').split(' ')[0] + '! ';
+    var bienvenidaRol = currentRole === 'tecnico'
+      ? 'Soy el asistente técnico de Nixa. Puedo ayudarte con diagnósticos, manuales de equipos y procedimientos de instalación.'
+      : currentRole === 'administrativo' || currentRole === 'vendedor'
+      ? 'Soy el asistente de Nixa. Puedo ayudarte con tus ventas, presupuestos y consultas del sistema.'
+      : 'Soy el asistente de Nixa. Puedo ayudarte con consultas del sistema, diagnósticos técnicos, redacción de informes o lo que necesites.';
     var bienvenida = _iaContexto
       ? 'Hola, tengo el contexto de esta OT cargado. ¿Qué necesitás saber o resolver?'
-      : 'Hola ' + (currentUser||'').split(' ')[0] + '! Soy el asistente de Nixa. Puedo ayudarte con consultas del sistema, diagnósticos técnicos, redacción de informes o lo que necesites.';
+      : bienvenidaBase + bienvenidaRol;
     iaMostrarMensaje('bot', bienvenida);
   }
   setTimeout(function(){ var inp = document.getElementById('ia-input'); if(inp) inp.focus(); }, 200);
@@ -5934,6 +5942,46 @@ function iaMostrarMensaje(rol, texto) {
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
   return div;
+}
+
+function iaRenderSugerencias() {
+  var sug = document.getElementById('ia-sugerencias');
+  if (!sug) return;
+  var sugerencias = {
+    admin: [
+      '¿Cuánto facturamos este mes?',
+      '¿Qué OTs están pendientes?',
+      'Resumen de rentabilidad del mes',
+      'Redactar informe técnico',
+      'Manual Hikvision DS-K4H250S',
+      'Manual Sonoff NSPanel Pro'
+    ],
+    administrativo: [
+      'Mis ventas de este mes',
+      'Redactar presupuesto para cliente',
+      'Ayudame a redactar un mail',
+      'Manual Hikvision',
+      'Diagnóstico de alarma'
+    ],
+    tecnico: [
+      'Diagnóstico cerradura electromagnética',
+      'Manual Hikvision DS-K4H250S',
+      'Manual Sonoff NSPanel Pro',
+      'Cómo configurar Zigbee en iHost',
+      'Redactar informe técnico',
+      'Procedimiento de instalación cámara IP'
+    ],
+    vendedor: [
+      'Mis ventas de este mes',
+      'Redactar presupuesto para cliente',
+      'Manual Hikvision'
+    ]
+  };
+  var lista = sugerencias[currentRole] || sugerencias.tecnico;
+  sug.innerHTML = lista.map(function(s) {
+    return '<button onclick="iaSugerencia(this)" class="btn btn-sm" style="font-size:11px;border-color:var(--border2)">'+escapeHTML(s)+'</button>';
+  }).join('');
+  sug.style.display = 'flex';
 }
 
 function iaSugerencia(btn) {
@@ -6021,11 +6069,18 @@ async function iaEnviar() {
       body: JSON.stringify({ system: systemPrompt, messages: mensajes })
     });
     var data = await resp.json();
+    if (data.error) {
+      if (thinkDiv) { thinkDiv.textContent = '⚠️ ' + (data.error.message || 'Error del asistente.'); thinkDiv.classList.remove('thinking'); }
+      _iaThinking = false; return;
+    }
     var respText = (data.content && data.content[0] && data.content[0].text) || 'No pude procesar la respuesta.';
     if (thinkDiv) { thinkDiv.textContent = respText; thinkDiv.classList.remove('thinking'); }
     _iaHistorial.push({ role: 'assistant', content: respText });
   } catch(e) {
-    if (thinkDiv) { thinkDiv.textContent = 'Error al conectar con el asistente. Verificá tu conexión.'; thinkDiv.classList.remove('thinking'); }
+    var msgError = e && e.message && e.message.includes('Failed to fetch')
+      ? 'No se pudo conectar con el asistente. Verificá tu conexión a internet.'
+      : 'Error: ' + (e.message || 'problema desconocido');
+    if (thinkDiv) { thinkDiv.textContent = msgError; thinkDiv.classList.remove('thinking'); }
   }
   _iaThinking = false;
 }
@@ -7636,7 +7691,7 @@ var PERMISOS_DEFAULT = {
   admin:          { bloqueados: [] },
   administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad'] },
   vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal'] },
-  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal'] }
+  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal','caja','gastos'] }
 };
 var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 
@@ -7850,7 +7905,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.149-firebase',
+  VERSION: 'v20.151-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -24614,7 +24669,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text2);text-align:center;font-weight:500">SisVentas <span id="up-version">v20.149</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text2);text-align:center;font-weight:500">SisVentas <span id="up-version">v20.151</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -24845,12 +24900,6 @@ window.onerror = function(msg, src, line, col) {
     </div>
     <div id="ia-messages"></div>
     <div id="ia-sugerencias" style="padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;border-top:0.5px solid var(--border)">
-      <button onclick="iaSugerencia(this)" class="btn btn-sm" style="font-size:11px;border-color:var(--border2)">¿Cuánto facturamos este mes?</button>
-      <button onclick="iaSugerencia(this)" class="btn btn-sm" style="font-size:11px;border-color:var(--border2)">¿Qué OTs están pendientes?</button>
-      <button onclick="iaSugerencia(this)" class="btn btn-sm" style="font-size:11px;border-color:var(--border2)">Redactar informe técnico</button>
-      <button onclick="iaSugerencia(this)" class="btn btn-sm" style="font-size:11px;border-color:var(--border2)">Diagnóstico cerradura electromagnética</button>
-      <button onclick="iaSugerencia(this)" class="btn btn-sm" style="font-size:11px;border-color:var(--border2)">Manual Hikvision DS-K4H250S</button>
-      <button onclick="iaSugerencia(this)" class="btn btn-sm" style="font-size:11px;border-color:var(--border2)">Manual Sonoff NSPanel Pro</button>
     </div>
     <div id="ia-input-row">
       <textarea id="ia-input" placeholder="Preguntá algo..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();iaEnviar()}"></textarea>
