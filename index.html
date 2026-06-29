@@ -870,7 +870,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.164 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.168 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -917,7 +917,7 @@ tr:hover td{color:var(--text)}
     <div class="s-logo" onclick="showPage('dashboard', document.querySelector('[onclick*=dashboard]'))" style="cursor:pointer">
       <div class="s-brand">SisVentas</div>
       <div class="s-sub">powered by Nixa</div>
-      <div class="s-sub" id="s-version-el" style="font-size:10px;opacity:.7"></div>
+      <div class="s-sub" id="s-version-el" style="font-size:11px;opacity:1;font-weight:500;color:var(--text2)"></div>
     </div>
     <div class="s-nav">
       <div class="s-section">General</div>
@@ -6121,20 +6121,55 @@ var _chatListener = null;
 var _chatNoLeidos = {};
 var _chatUsuarios = {};
 
+// ══════════════════════════════════════════════════════════════════════════════
+// WEB PUSH NOTIFICATIONS — Chat interno
+// ══════════════════════════════════════════════════════════════════════════════
+var _chatNotifPermiso = false;
+
+function chatSolicitarPermiso() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') { _chatNotifPermiso = true; return; }
+  if (Notification.permission === 'denied') return;
+  // Pedir permiso con un mensaje amigable
+  Notification.requestPermission().then(function(perm) {
+    _chatNotifPermiso = perm === 'granted';
+    if (_chatNotifPermiso) notify('✓ Notificaciones de chat activadas');
+  });
+}
+
+function chatMostrarNotif(titulo, cuerpo, canal) {
+  if (!_chatNotifPermiso || document.visibilityState === 'visible') return;
+  var n = new Notification('💬 ' + titulo, {
+    body:    cuerpo,
+    icon:    'https://ventas.sistemanixa.com/favicon.ico',
+    badge:   'https://ventas.sistemanixa.com/favicon.ico',
+    tag:     'chat-' + canal, // agrupa notificaciones del mismo canal
+    renotify: true,
+    silent:  false
+  });
+  n.onclick = function() {
+    window.focus();
+    chatAbrir();
+    if (canal) { _chatCanal = canal; chatCargarCanal(canal); }
+    n.close();
+  };
+  // Auto-cerrar a los 6 segundos
+  setTimeout(function(){ n.close(); }, 6000);
+}
+// ══════════════════════════════════════════════════════════════════════════════
+
 function chatInicializar() {
-  // Marcar como inicializado — aplicarVisibilidadBotonesFlotantes lo mostrará
-  // solo cuando tenga la config cargada (evita el parpadeo aparecer/desaparecer)
   var btn = document.getElementById('chat-fab');
   if (btn) { btn._inicializado = true; }
-  // Si la config ya está cargada, aplicar ahora; si no, esperará a que cargarDashWidgets termine
   if (Object.keys(DASH_WIDGETS_CONFIG).length > 0) {
     aplicarVisibilidadBotonesFlotantes();
-  }
-  // Si no hay config aún, mostrar por defecto (visible = true)
-  else if (btn) { btn.style.display = 'flex'; }
-  // La presencia ya la maneja registrarPresenciaOnline() con sisventas/presencia
-  // El chat lee de PRESENCIA_DATA para mostrar quién está online
+  } else if (btn) { btn.style.display = 'flex'; }
+
+  // Solicitar permiso para notificaciones del sistema
+  setTimeout(chatSolicitarPermiso, 3000);
+
   if (window.fbDB) {
+    var _ultimosMsgs = {}; // rastrear último ts por canal para detectar mensajes nuevos
     ['general','tecnicos','admin'].forEach(function(canal) {
       window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat/' + canal), function(snap) {
         if (!snap.val()) return;
@@ -6142,9 +6177,64 @@ function chatInicializar() {
         var n = msgs.filter(function(m){ return m.autor !== currentUser && !(m.leido && m.leido[currentUser]); }).length;
         _chatNoLeidos[canal] = n;
         chatActualizarBadges();
+        // Notificación push si llega mensaje nuevo y el chat no está abierto
+        var modal = document.getElementById('chat-modal');
+        var chatAbierto = modal && modal.classList.contains('open');
+        if (!chatAbierto && n > 0) {
+          var nuevos = msgs.filter(function(m){
+            return m.autor !== currentUser &&
+                   !(m.leido && m.leido[currentUser]) &&
+                   (m.ts||0) > (_ultimosMsgs[canal]||0);
+          });
+          if (nuevos.length) {
+            var ult = nuevos[nuevos.length-1];
+            var canalNombre = { general:'General', tecnicos:'Técnicos', admin:'Admin' }[canal] || canal;
+            chatMostrarNotif(
+              (ult.autor||'Alguien') + ' en ' + canalNombre,
+              ult.texto || (ult.fotoUrl ? '📷 Foto' : 'Nuevo mensaje'),
+              canal
+            );
+          }
+        }
+        // Actualizar último ts visto
+        if (msgs.length) {
+          _ultimosMsgs[canal] = Math.max.apply(null, msgs.map(function(m){ return m.ts||0; }));
+        }
       });
     });
+    // También escuchar mensajes directos
+    chatEscucharDirectos();
   }
+}
+
+function chatEscucharDirectos() {
+  if (!window.fbDB || !currentUser) return;
+  var miKey = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
+  // Escuchar el nodo raíz de chat para detectar canales directos nuevos
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat'), function(snap) {
+    var data = snap.val() || {};
+    Object.keys(data).forEach(function(canal) {
+      if (!canal.startsWith('directo_') || !canal.includes(miKey)) return;
+      var msgs = Object.values(data[canal] || {});
+      var noLeidos = msgs.filter(function(m){
+        return m.autor !== currentUser && !(m.leido && m.leido[currentUser]);
+      });
+      // Badge en la pestaña Directos
+      _chatNoLeidos[canal] = noLeidos.length;
+      chatActualizarBadges();
+      // Notificación si hay mensajes nuevos y chat cerrado
+      var modal = document.getElementById('chat-modal');
+      var chatAbierto = modal && modal.classList.contains('open') && _chatCanal === canal;
+      if (!chatAbierto && noLeidos.length) {
+        var ult = noLeidos[noLeidos.length-1];
+        chatMostrarNotif(
+          'Mensaje de ' + (ult.autor||'alguien'),
+          ult.texto || (ult.fotoUrl ? '📷 Foto' : 'Nuevo mensaje'),
+          canal
+        );
+      }
+    });
+  });
 }
 
 function chatActualizarBadges() {
@@ -6195,6 +6285,29 @@ function chatCambiarCanal(canal, btn) {
   chatCargarCanal(canal);
 }
 
+function chatOnlineEnCanal(canal) {
+  // Mapeo de canal → roles que pertenecen
+  var rolesCanal = {
+    general:    ['admin','administrativo','vendedor','tecnico'],
+    tecnicos:   ['tecnico'],
+    admin:      ['admin','administrativo','vendedor']
+  };
+  var roles = rolesCanal[canal];
+  if (!roles) return '';
+  var online = Object.values(PRESENCIA_DATA||{}).filter(function(p){
+    return p.online === true && p.nombre !== currentUser && roles.includes(p.rol||'');
+  });
+  if (!online.length) return '';
+  return '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg3);border-bottom:0.5px solid var(--border);flex-wrap:wrap">' +
+    '<span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">En línea:</span>' +
+    online.map(function(u){
+      return '<span style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--green)">' +
+        '<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span>' +
+        escapeHTML(u.nombre||'') + '</span>';
+    }).join('') +
+  '</div>';
+}
+
 function chatCargarCanal(canal) {
   if (!window.fbDB) return;
   var msgs = document.getElementById('chat-messages');
@@ -6204,6 +6317,14 @@ function chatCargarCanal(canal) {
     var data = snap.val();
     var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); })
       .sort(function(a,b){ return (a.ts||0)-(b.ts||0); }) : [];
+    // Mostrar quién está online en este canal
+    var onlineBanner = chatOnlineEnCanal(canal);
+    if (onlineBanner && msgs) {
+      var bannerEl = document.createElement('div');
+      bannerEl.id = 'chat-online-banner';
+      bannerEl.innerHTML = onlineBanner;
+      msgs.insertAdjacentHTML('beforebegin', onlineBanner);
+    }
     chatRenderMensajes(lista);
     lista.forEach(function(m) {
       if (m.autor !== currentUser && m.fbKey && !(m.leido&&m.leido[currentUser])) {
@@ -6227,7 +6348,14 @@ function chatRenderMensajes(lista) {
       '<div class="chat-msg '+(esMio?'mine':'other')+'">' +
         (!esMio?'<div class="chat-msg-autor">'+escapeHTML(m.autor||'')+'</div>':'') +
         (m.fotoUrl ? '<img src="'+escapeHTML(m.fotoUrl)+'" style="max-width:100%;border-radius:8px;margin-top:4px;max-height:200px;object-fit:cover;display:block;cursor:pointer" onclick="window.open(\''+escapeHTML(m.fotoUrl)+'\',\'_blank\')" onerror="this.style.display=\'none\'">' : '<div>'+escapeHTML(m.texto||'')+'</div>') +
-        '<div class="chat-msg-hora">'+fecha+' '+hora+'</div>' +
+        '<div style="display:flex;align-items:center;gap:4px;justify-content:'+(esMio?'flex-end':'flex-start')+'">' +
+          '<span class="chat-msg-hora">'+fecha+' '+hora+'</span>' +
+          (esMio ? (function(){
+            var leidos = m.leido ? Object.keys(m.leido).filter(function(u){ return u !== currentUser; }) : [];
+            if (!leidos.length) return '<span title="Enviado" style="font-size:11px;color:var(--text3)">✓</span>';
+            return '<span title="Leído por '+leidos.join(', ')+'" style="font-size:11px;color:#4ade80">✓✓</span>';
+          })() : '') +
+        '</div>' +
       '</div></div>';
   }).join('');
   container.scrollTop = container.scrollHeight;
@@ -6246,18 +6374,81 @@ function chatEnviar() {
 function chatAbrirDirectos() {
   var msgs = document.getElementById('chat-messages');
   if (!msgs) return;
-  // Usar PRESENCIA_DATA (fuente única de verdad) en lugar de _chatUsuarios
-  var otros = Object.values(PRESENCIA_DATA||{}).filter(function(p){
-    return p.online === true && p.nombre !== currentUser;
+  msgs.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Cargando conversaciones...</div>';
+
+  if (!window.fbDB) return;
+
+  // Buscar todos los canales directos que involucran al usuario actual
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/chat')).then(function(snap) {
+    var data = snap.val() || {};
+    var miKey = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
+    var conversaciones = [];
+
+    Object.keys(data).forEach(function(canal) {
+      if (!canal.startsWith('directo_')) return;
+      if (!canal.includes(miKey)) return;
+      // Extraer el otro usuario del nombre del canal
+      var partes = canal.replace('directo_','').split('_'+miKey).join('_').split(miKey+'_').join('_');
+      // Buscar mensajes y el último
+      var mensajes = Object.values(data[canal] || {});
+      if (!mensajes.length) return;
+      var ultimo = mensajes.sort(function(a,b){ return (b.ts||0)-(a.ts||0); })[0];
+      var noLeidos = mensajes.filter(function(m){
+        return m.autor !== currentUser && !(m.leido && m.leido[currentUser]);
+      }).length;
+      // Buscar el otro participante
+      var otroAutor = mensajes.find(function(m){ return m.autor !== currentUser; });
+      var otroNombre = otroAutor ? otroAutor.autor : canal.replace('directo_','').replace(miKey,'').replace(/_/g,' ').trim();
+      conversaciones.push({ canal, otroNombre, ultimo, noLeidos });
+    });
+
+    // También mostrar usuarios online aunque no tengan conversación
+    var onlineOtros = Object.values(PRESENCIA_DATA||{}).filter(function(p){
+      return p.online === true && p.nombre !== currentUser;
+    });
+    onlineOtros.forEach(function(p) {
+      var yaEsta = conversaciones.some(function(c){ return c.otroNombre === p.nombre; });
+      if (!yaEsta) conversaciones.push({ canal: null, otroNombre: p.nombre, ultimo: null, noLeidos: 0 });
+    });
+
+    if (!conversaciones.length) {
+      msgs.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">No hay conversaciones directas aún</div>';
+      return;
+    }
+
+    // Ordenar: con mensajes no leídos primero, luego por último mensaje
+    conversaciones.sort(function(a,b){
+      if (b.noLeidos !== a.noLeidos) return b.noLeidos - a.noLeidos;
+      return ((b.ultimo && b.ultimo.ts)||0) - ((a.ultimo && a.ultimo.ts)||0);
+    });
+
+    msgs.innerHTML = '<div style="padding:8px 0">' +
+      '<div style="font-size:11px;color:var(--text3);margin-bottom:8px;padding:0 4px">MENSAJES DIRECTOS</div>' +
+      conversaciones.map(function(c) {
+        var presencia = Object.values(PRESENCIA_DATA||{}).find(function(p){ return p.nombre === c.otroNombre; });
+        var online    = presencia && presencia.online;
+        var dotColor  = online ? 'var(--green)' : 'var(--text3)';
+        var ultimoTxt = c.ultimo ? (c.ultimo.texto || (c.ultimo.fotoUrl ? '📷 Foto' : '')) : 'Nueva conversación';
+        var badge     = c.noLeidos > 0
+          ? '<span style="background:var(--red);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px;font-weight:600">'+c.noLeidos+'</span>'
+          : '';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-bottom:0.5px solid var(--border)" onclick="chatAbrirDirecto(\''+escapeHTML(c.otroNombre)+'\')">' +
+          '<div style="position:relative;flex-shrink:0">' +
+            '<div style="width:36px;height:36px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">'+escapeHTML((c.otroNombre||'?')[0].toUpperCase())+'</div>' +
+            '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:'+dotColor+';border:2px solid var(--bg2)"></span>' +
+          '</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:13px;font-weight:500">'+escapeHTML(c.otroNombre||'')+'</div>' +
+            '<div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(ultimoTxt.slice(0,40))+'</div>' +
+          '</div>' +
+          badge +
+          '<i class="ti ti-chevron-right" style="color:var(--text3);flex-shrink:0"></i>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }).catch(function() {
+    msgs.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px">Error cargando conversaciones</div>';
   });
-  if (!otros.length) { msgs.innerHTML='<div style="text-align:center;color:var(--text3);padding:24px">No hay otros usuarios en línea</div>'; return; }
-  msgs.innerHTML = '<div style="padding:8px 0"><div style="font-size:11px;color:var(--text3);margin-bottom:8px">USUARIOS EN LÍNEA</div>' +
-    otros.map(function(u){
-      return '<div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--radius);cursor:pointer;border-bottom:0.5px solid var(--border)" onclick="chatAbrirDirecto(\''+escapeHTML(u.nombre)+'\')">' +
-        '<span class="chat-online-dot"></span>' +
-        '<div><div style="font-size:13px;font-weight:500">'+escapeHTML(u.nombre||'')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(u.rol||'')+'</div></div>' +
-        '<i class="ti ti-chevron-right" style="margin-left:auto;color:var(--text3)"></i></div>';
-    }).join('')+'</div>';
 }
 
 function chatEnviarFoto(input) {
@@ -7943,7 +8134,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.164-firebase',
+  VERSION: 'v20.168-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -24891,7 +25082,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.164</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.168</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -25077,8 +25268,8 @@ window.onerror = function(msg, src, line, col) {
       <button class="chat-canal-btn" onclick="chatCambiarCanal('tecnicos',this)" data-canal="tecnicos">
         🔧 Técnicos<span class="chat-canal-badge" id="badge-tecnicos"></span>
       </button>
-      <button class="chat-canal-btn admin-only" onclick="chatCambiarCanal('admin',this)" data-canal="admin">
-        👔 Admin<span class="chat-canal-badge" id="badge-admin"></span>
+      <button class="chat-canal-btn" onclick="chatCambiarCanal('admin',this)" data-canal="admin">
+        👔 Administrativo<span class="chat-canal-badge" id="badge-admin"></span>
       </button>
       <button class="chat-canal-btn" onclick="chatAbrirDirectos()" data-canal="directos">
         💬 Directos<span class="chat-canal-badge" id="badge-directos"></span>
