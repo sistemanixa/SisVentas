@@ -5355,7 +5355,8 @@ function toggleProdCat(cat) {
 
 function buscarProducto(val) { renderTablaProductos(val); }
 function verProductoById(el) {
-  var pid = el.dataset.pid;
+  var tr = el.closest ? el.closest('[data-pid]') : el;
+  var pid = tr ? tr.dataset.pid : el.dataset.pid;
   var p = prodData ? Object.values(prodData).find(function(x){ return String(x.fbKey) === String(pid); }) : null;
   if (p) verProducto(p.fbKey);
 }
