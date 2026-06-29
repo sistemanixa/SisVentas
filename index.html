@@ -870,7 +870,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.5px;font-weight:500" id="login-version-lbl">v20.161 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.162 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7942,7 +7942,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.161-firebase',
+  VERSION: 'v20.162-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8842,15 +8842,7 @@ function _completarLogin(nombre) {
       if (typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
       if (typeof applyDashWidgets === 'function') applyDashWidgets();
       if (currentRole !== 'admin') setTimeout(function(){ if(typeof renderDashMiCuenta==='function') renderDashMiCuenta(); }, 1500);
-      // Re-asegurar chat e IA después de applyDashWidgets
-      setTimeout(function(){
-        var chatBtn = document.getElementById('chat-fab');
-        if (chatBtn && chatBtn._inicializado) chatBtn.style.display = 'flex';
-        if (window.innerWidth > 1024) {
-          var iaBtn = document.getElementById('ia-fab');
-          if (iaBtn && iaBtn._inicializado) iaBtn.style.display = 'flex';
-        }
-      }, 200);
+      // Botones flotantes manejados por aplicarVisibilidadBotonesFlotantes()
       if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 500);
       if (typeof actualizarFabYHome === 'function') actualizarFabYHome('dashboard');
       if (typeof _verificarHaberesPendientes === 'function') setTimeout(_verificarHaberesPendientes, 6000);
@@ -10906,15 +10898,32 @@ function guardarDashWidgets() {
   var config = {};
   DASH_WIDGETS_DEF.forEach(function(w) {
     config[w.id] = {
-      admin:          true, // admin siempre ve todo
+      admin:          true,
       administrativo: !!(document.getElementById('dw_'+w.id+'_administrativo')||{}).checked,
       tecnico:        !!(document.getElementById('dw_'+w.id+'_tecnico')||{}).checked
     };
   });
   DASH_WIDGETS_CONFIG = config;
+  // Aplicar chat e IA inmediatamente
+  aplicarVisibilidadBotonesFlotantes();
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/dashWidgets'), config)
       .then(function(){ notify('✓ Configuración de dashboard guardada'); });
+  }
+}
+
+function aplicarVisibilidadBotonesFlotantes() {
+  // Chat
+  var cfg = DASH_WIDGETS_CONFIG['btn_chat'];
+  var chatVisible = cfg ? !!cfg[currentRole] : true;
+  var chatBtn = document.getElementById('chat-fab');
+  if (chatBtn && chatBtn._inicializado) chatBtn.style.display = chatVisible ? 'flex' : 'none';
+  // IA flotante desktop
+  var cfgIA = DASH_WIDGETS_CONFIG['btn_ia'];
+  var iaVisible = cfgIA ? !!cfgIA[currentRole] : true;
+  if (window.innerWidth > 1024) {
+    var iaBtn = document.getElementById('ia-fab');
+    if (iaBtn && iaBtn._inicializado) iaBtn.style.display = iaVisible ? 'flex' : 'none';
   }
 }
 
@@ -10923,8 +10932,9 @@ function cargarDashWidgets() {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/dashWidgets')).then(function(snap) {
     if (snap.val()) DASH_WIDGETS_CONFIG = snap.val();
     renderCfgDashWidgets();
-    // Aplicar al dashboard actual
     applyDashWidgets();
+    // Aplicar visibilidad de botones flotantes tras cargar config
+    if (typeof aplicarVisibilidadBotonesFlotantes === 'function') aplicarVisibilidadBotonesFlotantes();
   }).catch(function(){ renderCfgDashWidgets(); });
 }
 
@@ -10943,17 +10953,15 @@ function applyDashWidgets() {
       mi_actividad:      ['dash-administrativo-card'],
       mis_ots:           ['dash-tecnico-card'],
       ultimas_ventas:    ['dash-ultimas-ventas-card'],
-      btn_ia:            ['ia-fab'],
-      btn_chat:          ['chat-fab']
+      btn_ia:            [],
+      btn_chat:          []
     }[w.id] || [];
     elIds.forEach(function(id) {
       var el = document.getElementById(id);
       if (!el) return;
       // mis_ots nunca para admin
       if (w.id === 'mis_ots' && currentRole === 'admin') { el.style.display = 'none'; return; }
-      // Para chat e IA: no tocar si no hay config guardada
-      var tieneConfig = Object.keys(DASH_WIDGETS_CONFIG).length > 0;
-      if ((w.id === 'btn_chat' || w.id === 'btn_ia') && !tieneConfig) return;
+      // btn_chat y btn_ia se manejan en aplicarVisibilidadBotonesFlotantes()
       el.style.display = visible ? '' : 'none';
     });
     // metricas_globales y grafico_barras comparten el mismo contenedor row2
@@ -24869,7 +24877,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text2);text-align:center;font-weight:500">SisVentas <span id="up-version">v20.161</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.162</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
