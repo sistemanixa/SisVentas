@@ -6430,14 +6430,13 @@ function chatRenderMensajes(lista) {
         '<b style="color:var(--green);font-size:11px">' + escapeHTML(orig.autor||'') + '</b> ' +
         '<span>' + escapeHTML((orig.texto || (orig.fotoUrl ? '📷 Foto' : '')||'').slice(0,50)) + '</span></div>';
     }
-    var fbKeyEsc = (m.fbKey||'').replace(/'/g, '');
     var fbKeyEsc = (m.fbKey||'').replace(/["']/g,'');
     var autorEsc = (m.autor||'').replace(/["']/g,'');
     var textoEsc = (m.texto||'').slice(0,80).replace(/["'<>]/g,'');
     var replyBtn = '<button class="chat-reply-btn" style="' + (esMio ? 'left:-36px' : 'right:-36px') + '" ' +
       'onclick="chatSetReply(this)" data-fk="' + fbKeyEsc + '" data-au="' + autorEsc + '" data-tx="' + textoEsc + '" title="Responder">&#x21A9;</button>';
-    var contenido = m.fotoUrl
     var contenido = chatMsgContenido(m);
+    return '<div class="chat-msg-wrap" style="align-items:' + align + '" data-fbkey="' + (m.fbKey||'') + '">' +
       replyBtn +
       '<div class="chat-msg ' + (esMio ? 'mine' : 'other') + '">' +
         (!esMio ? '<div class="chat-msg-autor">' + escapeHTML(m.autor||'') + '</div>' : '') +
