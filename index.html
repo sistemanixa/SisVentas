@@ -870,7 +870,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.5px;font-weight:500" id="login-version-lbl">v20.144 · Firebase</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.5px;font-weight:500" id="login-version-lbl">v20.145 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1059,7 +1059,7 @@ tr:hover td{color:var(--text)}
 
       <!-- ── DASHBOARD ── -->
       <div id="page-dashboard" class="page active">
-        <div class="metrics no-tecnico">
+        <div class="metrics no-tecnico admin-only">
           <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiNavegar('ventasHoy')" title="Ver detalle de ventas">
             <div class="m-label">Ventas hoy</div>
             <div class="m-value" id="kpi-ventas-hoy">$0</div>
@@ -1083,7 +1083,7 @@ tr:hover td{color:var(--text)}
           </div>
         </div>
         <div class="row2">
-          <div class="card no-tecnico" style="margin-bottom:0">
+          <div class="card no-tecnico admin-only" style="margin-bottom:0">
             <div class="card-head"><span class="card-title">Ventas — últimos 7 días</span></div>
             <div class="bar-area" id="dash-bar-area">
               <div class="bc"><div class="bar" style="height:4px" id="bar-0"></div><span class="bar-lbl" id="blbl-0">—</span></div>
@@ -7807,6 +7807,44 @@ function applyRole() {
     el.style.display = isTecnico ? '' : 'none';
   });
 
+  // Ocultar métricas sensibles para rol administrativo
+  if (isAdministrativo) {
+    // IDs de métricas que muestran datos globales de la empresa
+    var metricasOcultar = [
+      // Dashboard
+      'kpi-ventas-hoy','kpi-ventas-diff','kpi-deuda','kpi-deuda-sub',
+      'kpi-pptos','kpi-pptos-sub','kpi-pptos-conv','kpi-iva','kpi-iva-mes',
+      // Detalle ventas
+      'stat-ven-mes','stat-ven-cant','stat-ven-pendiente','stat-ven-pendiente-sub','stat-ven-ticket',
+      // Cobranzas
+      'stat-cob-mes','stat-cob-hoy','stat-cob-pend',
+      // Cuenta corriente
+      'stat-cc-deuda','stat-cc-clientes','stat-cc-vencidos',
+      // Gastos
+      'stat-gas-mes','stat-gas-ant','stat-gas-prom',
+      // Rentabilidad
+      'dash-rentabilidad-card',
+      // OTs dashboard (dato global)
+      'dash-ordenes-pend'
+    ];
+    metricasOcultar.forEach(function(id) {
+      // Ocultar el elemento y su card padre si lo tiene
+      var el = document.getElementById(id);
+      if (!el) return;
+      // Subir hasta encontrar .metric o .card o el elemento mismo
+      var target = el.closest('.metric') || el.closest('.card') || el;
+      if (target) target.style.display = 'none';
+    });
+    // Ocultar bloques de métricas completos por página
+    // Detalle ventas, cobranzas, cuenta corriente, gastos
+    ['page-detalle','page-cobranzas','page-cuentacorriente','page-gastos',
+     'page-rentabilidad','page-estadisticas'].forEach(function(pid) {
+      var pg = document.getElementById(pid);
+      if (!pg) return;
+      pg.querySelectorAll('.metrics').forEach(function(m){ m.style.display = 'none'; });
+    });
+  }
+
   // ── Permisos dinámicos por módulo (desde Configuración → Roles) ──
   // Primero restaurar TODOS los nav-items a visible, luego ocultar solo los bloqueados
   // del rol actual. Esto evita que queden ocultos ítems de una sesión anterior con
@@ -7838,7 +7876,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.144-firebase',
+  VERSION: 'v20.145-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -24514,7 +24552,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text2);text-align:center;font-weight:500">SisVentas <span id="up-version">v20.144</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text2);text-align:center;font-weight:500">SisVentas <span id="up-version">v20.145</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
