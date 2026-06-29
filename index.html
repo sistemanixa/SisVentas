@@ -870,7 +870,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.5px;font-weight:500" id="login-version-lbl">v20.155 · Firebase</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.5px;font-weight:500" id="login-version-lbl">v20.156 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7916,7 +7916,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.155-firebase',
+  VERSION: 'v20.156-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8341,7 +8341,7 @@ var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
   producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'Moneda',id:'np-moneda',t:'select',opts:['ARS','USD']},{l:'P. compra',id:'np-pc',t:'number',ph:'0'},{l:'P. venta',id:'np-pv',t:'number',ph:'0'}]},
   empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo-id',t:'select-cargo'},{l:'Fecha de inicio',id:'ne-fecha-ingreso',t:'date'},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Hs. extra este mes',id:'ne-hs-extra',t:'number',ph:'0'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
-  usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
+  usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Empleado vinculado',id:'nu-emp-vinculado',t:'select-empleado'},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
   proveedor: { title:'Nuevo proveedor', fields:[
     {l:'Nombre / Razón social',id:'npv-nm',t:'text',ph:'Razón social',full:true},
     {l:'Rubro',id:'npv-rub',t:'text',ph:'Ej: Alarmas, cámaras, domótica'},
@@ -12349,6 +12349,24 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
         var valorSel = datosExistentes[campoSel] || datosExistentes[f.id] || '';
         if (valorSel) inp.value = valorSel;
       }
+      fg.appendChild(inp);
+      grid.appendChild(fg);
+    } else if (f.t === 'select-empleado') {
+      inp = document.createElement('select');
+      inp.id = f.id;
+      var optVacioEmp = document.createElement('option');
+      optVacioEmp.value = ''; optVacioEmp.textContent = '— Sin vincular —';
+      inp.appendChild(optVacioEmp);
+      Object.values(empData||{})
+        .filter(function(e){ return e.activo !== false; })
+        .sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); })
+        .forEach(function(e) {
+          var opt = document.createElement('option');
+          opt.value = e.fbKey; opt.textContent = e.nombre || '';
+          inp.appendChild(opt);
+        });
+      // Preseleccionar si estamos editando
+      if (datosExistentes && datosExistentes.empleadoFbKey) inp.value = datosExistentes.empleadoFbKey;
       fg.appendChild(inp);
       grid.appendChild(fg);
     } else if (f.t === 'select-cargo') {
@@ -19654,11 +19672,12 @@ function editarUsuario(fbKey) {
     if (!u) { notify('Usuario no encontrado'); return; }
     var rolInverso = {admin:'Administrador',administrativo:'Administrativo',vendedor:'Vendedor',tecnico:'Técnico'};
     var datos = {
-      nm:     u.nombre || '',
-      user:   u.login || u.mail || '',
-      rol:    rolInverso[u.rol] || 'Administrativo',
-      activo: u.activo !== false ? 'Activo' : 'Inactivo',
-      pass:   ''
+      nm:             u.nombre || '',
+      user:           u.login || u.mail || '',
+      rol:            rolInverso[u.rol] || 'Administrativo',
+      activo:         u.activo !== false ? 'Activo' : 'Inactivo',
+      empleadoFbKey:  u.empleadoFbKey || '',
+      pass:           ''
     };
     abrirModalNuevo('usuario', datos, fbKey);
   }, { onlyOnce: true });
@@ -24746,7 +24765,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text2);text-align:center;font-weight:500">SisVentas <span id="up-version">v20.155</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text2);text-align:center;font-weight:500">SisVentas <span id="up-version">v20.156</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
