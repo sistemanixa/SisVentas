@@ -878,7 +878,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.180 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.181 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -8316,7 +8316,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.180-firebase',
+  VERSION: 'v20.181-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -15460,6 +15460,8 @@ function cfParsearCSV(text) {
       nroDoc:     obj['Número Desde']||'',
       cuitEmisor: obj['Nro. Doc. Emisor']||'',
       nombre:     obj['Denominación Emisor']||'',
+      moneda:     obj['Moneda']||'$',
+      tipoCambio: cfNum(obj['Tipo Cambio']) || 1,
       neto:       cfNum(obj['Imp. Neto Gravado Total']),
       iva105:     cfNum(obj['IVA 10,5%']),
       neto105:    cfNum(obj['Imp. Neto Gravado IVA 10,5%']),
@@ -15471,7 +15473,28 @@ function cfParsearCSV(text) {
       totalIVA:   cfNum(obj['Total IVA']),
       total:      cfNum(obj['Imp. Total'])
     };
-  }).filter(function(r){ return r.cuitEmisor && r.total !== 0; });
+  }).filter(function(r){ return r.cuitEmisor && r.total !== 0; })
+  .map(function(r) {
+    // Si la moneda es USD, convertir todos los montos a pesos
+    if (r.moneda && r.moneda !== '$' && r.tipoCambio > 1) {
+      var tc = r.tipoCambio;
+      var round2 = function(n){ return Math.round(n * 100) / 100; };
+      r.netoOriginal   = r.neto;
+      r.totalOriginal  = r.total;
+      r.monedaOriginal = r.moneda;
+      r.neto     = round2(r.neto     * tc);
+      r.iva105   = round2(r.iva105   * tc);
+      r.neto105  = round2(r.neto105  * tc);
+      r.iva21    = round2(r.iva21    * tc);
+      r.neto21   = round2(r.neto21   * tc);
+      r.iva25    = round2(r.iva25    * tc);
+      r.iva5     = round2(r.iva5     * tc);
+      r.iva27    = round2(r.iva27    * tc);
+      r.totalIVA = round2(r.totalIVA * tc);
+      r.total    = round2(r.total    * tc);
+    }
+    return r;
+  });
 }
 
 function cfSubirAFirebase(rows) {
@@ -15681,7 +15704,9 @@ function cfRenderProvRow(p, idx) {
           var numFmt = String(c.ptoVta).padStart(4,'0') + '-' + String(c.nroDoc).padStart(8,'0');
           return '<tr style="'+(computa?'':'opacity:.55')+'">' +
             '<td style="font-family:monospace;font-size:12px">'+c.fecha+'</td>' +
-            '<td><span class="badge '+(computa?'b-green':'b-gray')+'" style="font-size:10px">'+tipoNom+'</span></td>' +
+            '<td><span class="badge '+(computa?'b-green':'b-gray')+'" style="font-size:10px">'+tipoNom+'</span>' +
+              (c.monedaOriginal ? ' <span class="badge b-blue" style="font-size:9px" title="TC: $'+c.tipoCambio+'">'+c.monedaOriginal+'</span>' : '') +
+            '</td>' +
             '<td style="font-family:monospace;font-size:12px">'+numFmt+'</td>' +
             '<td class="tr" style="font-family:monospace">'+cfPesos(c.neto)+'</td>' +
             '<td class="tr" style="font-family:monospace;color:'+(esNC?'var(--red)':(computa?'var(--green)':'var(--text3)'))+';font-weight:'+(computa?'600':'400')+'">'+(computa?(esNC?'-':'')+cfPesos(c.totalIVA):(c.totalIVA>0?'(no computa)':'—'))+'</td>' +
@@ -25314,7 +25339,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.180</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.181</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
