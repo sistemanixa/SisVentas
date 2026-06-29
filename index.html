@@ -1482,7 +1482,7 @@ tr:hover td{color:var(--text)}
 
       <div class="table-wrap">
         <table id="ppto-tabla">
-          <thead id="ppto-thead" style="display:none">
+          <thead id="ppto-thead" style="visibility:collapse;height:0">
             <tr>
               <th>#</th><th>Cliente</th><th>Total</th><th>Vence</th><th>Estado</th><th>Acciones</th>
             </tr>
@@ -20961,7 +20961,7 @@ function pptoStateBadge(estado) {
 function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
   // Mostrar encabezado solo con búsqueda activa
   var thead = document.getElementById('ppto-thead');
-  if (thead) thead.style.display = filtroTexto ? '' : 'none';
+  if (thead) { thead.style.visibility = filtroTexto ? 'visible' : 'collapse'; thead.style.height = filtroTexto ? '' : '0'; }
   const tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
   let rows = pptoData;
