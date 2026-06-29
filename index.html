@@ -869,7 +869,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.139 · Firebase</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:.5px" id="login-version-lbl">v20.141 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1195,9 +1195,14 @@ tr:hover td{color:var(--text)}
               </div>
             </div>
             <div class="fg"><label>ID cliente</label><input type="text" id="id-cli" placeholder="(se carga al seleccionar)" readonly></div>
-            <div class="fg"><label>Empleado</label>
+            <div class="fg"><label>Vendedor</label>
               <select id="venta-empleado">
-                <option value="">— Seleccionar empleado —</option>
+                <option value="">— Seleccionar —</option>
+              </select>
+            </div>
+            <div class="fg"><label>2do comisionado <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
+              <select id="venta-comisionado2">
+                <option value="">— Ninguno —</option>
               </select>
             </div>
             <div class="fg"><label>Observaciones</label><input type="text" placeholder="Opcional..."></div>
@@ -5924,35 +5929,56 @@ async function iaEnviar() {
   if (thinkDiv) thinkDiv.classList.add('thinking');
   _iaThinking = true;
 
-  // Construir system prompt con contexto del sistema
+  // Construir system prompt con contexto filtrado según ROL
   var hoy = new Date().toLocaleDateString('es-AR');
   var mesActual = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0');
-
-  // Datos reales del sistema
-  var ventasMes = (ventasList||[]).filter(function(v){ return (v.fecha||'').slice(0,7)===mesActual||(_mostrarFecha&&(v.fecha||'').includes('/'+(new Date().getMonth()+1)+'/'+new Date().getFullYear())); });
-  var montoMes  = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); },0);
-  var otsPend   = (otData||[]).filter(function(o){ return o.estado!=='completada'; });
-  var gastosMes = (gastosData||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; });
-  var montoGastos = gastosMes.reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
-  var clientesDeuda = (ventasList||[]).filter(function(v){ return v.estadoPago!=='pago_total' && (parseFloat(v.total)||0)>0; }).length;
+  var esAdmin = currentRole === 'admin';
+  var esAdministrativo = currentRole === 'administrativo' || currentRole === 'vendedor';
+  var esTecnico = currentRole === 'tecnico';
 
   var systemPrompt =
-    'Sos el asistente inteligente de Nixa, empresa de seguridad y domótica de Mar del Plata, Argentina. ' +
+    'Sos el asistente técnico de Nixa, empresa de seguridad y domótica de Mar del Plata, Argentina. ' +
     'Respondés en español, de forma concisa y práctica. ' +
-    'Tenés acceso a búsqueda web — úsala cuando te pidan manuales, fichas técnicas o documentación de productos. ' +
+    'Tenés acceso a búsqueda web — úsala para manuales, fichas técnicas y documentación de productos. ' +
     'Cuando busques manuales: buscá en el sitio oficial del fabricante y devolvé el LINK DIRECTO al PDF. ' +
     'Fabricantes comunes de Nixa: Hikvision (hikvision.com), Dahua (dahuasecurity.com), Sonoff (sonoff.tech), Hanwha, Bosch, DSC, Paradox, Olide, Cdvi.' +
-    '\n\n=== DATOS REALES DEL SISTEMA ===' +
-    '\nFecha: ' + hoy +
-    '\nUsuario: ' + (currentUser||'') + ' (' + (currentRole||'') + ')' +
-    '\nVentas este mes: ' + ventasMes.length + ' ventas · $' + Math.round(montoMes).toLocaleString('es-AR') +
-    '\nGastos este mes: $' + Math.round(montoGastos).toLocaleString('es-AR') +
-    '\nUtilidad estimada: $' + Math.round(montoMes - montoGastos).toLocaleString('es-AR') +
-    '\nOTs pendientes: ' + otsPend.length + (otsPend.length ? ' (' + otsPend.map(function(o){return o.cliente;}).slice(0,3).join(', ') + ')' : '') +
-    '\nClientes con deuda: ' + clientesDeuda +
-    (_iaContexto ? '\n\n' + _iaContexto : '');
+    '\n\nUsuario: ' + (currentUser||'') + ' · Rol: ' + (currentRole||'') + ' · Fecha: ' + hoy;
 
-  // Llamar a la Cloud Function proxy (evita CORS de Anthropic)
+  if (esAdmin) {
+    // Admin: acceso completo a datos financieros
+    var ventasMes   = (ventasList||[]).filter(function(v){ return (v.fecha||'').slice(0,7)===mesActual; });
+    var montoMes    = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); },0);
+    var otsPend     = (otData||[]).filter(function(o){ return o.estado!=='completada'; });
+    var gastosMes   = (gastosData||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; });
+    var montoGastos = gastosMes.reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
+    var clientesDeuda = (ventasList||[]).filter(function(v){ return v.estadoPago!=='pago_total' && (parseFloat(v.total)||0)>0; }).length;
+    systemPrompt +=
+      '\n\n=== DATOS DEL SISTEMA ===' +
+      '\nVentas este mes: ' + ventasMes.length + ' · $' + Math.round(montoMes).toLocaleString('es-AR') +
+      '\nGastos este mes: $' + Math.round(montoGastos).toLocaleString('es-AR') +
+      '\nUtilidad estimada: $' + Math.round(montoMes - montoGastos).toLocaleString('es-AR') +
+      '\nOTs pendientes: ' + otsPend.length + (otsPend.length ? ' (' + otsPend.map(function(o){return o.cliente;}).slice(0,3).join(', ') + ')' : '') +
+      '\nClientes con deuda: ' + clientesDeuda;
+  } else if (esAdministrativo) {
+    // Administrativo: solo sus propios datos, sin datos globales de la empresa
+    var misMes = (ventasList||[]).filter(function(v){
+      return (v.fecha||'').slice(0,7)===mesActual &&
+             (v.empleado||v.vendedor||v.usuario||'') === (currentUser||'');
+    });
+    systemPrompt +=
+      '\n\n=== MIS DATOS ===' +
+      '\nMis ventas este mes: ' + misMes.length +
+      '\nNOTA IMPORTANTE: Solo tenés acceso a tus propios datos. No respondas preguntas sobre ventas totales de la empresa, gastos, utilidades u otros datos financieros globales.';
+  } else if (esTecnico) {
+    // Técnico: solo contexto de OT, sin datos financieros
+    systemPrompt +=
+      '\nNOTA IMPORTANTE: Sos un asistente técnico. Solo podés ayudar con diagnósticos técnicos, manuales de equipos y procedimientos de instalación. No tenés acceso ni respondés preguntas sobre ventas, dinero, facturación o datos financieros de la empresa.';
+  }
+
+  // Agregar contexto de OT si está disponible
+  if (_iaContexto) systemPrompt += '\n\n' + _iaContexto;
+
+  // Llamar a la Cloud Function proxy
   try {
     var mensajes = _iaHistorial.slice(-12);
     var resp = await fetch('https://asistente-171899432710.southamerica-east1.run.app', {
@@ -6261,7 +6287,8 @@ function fbCargarEmpleados() {
     renderTablaEmpleados();
 
     // Select empleados en venta
-    var selEmp = document.getElementById('venta-empleado');
+    var selEmp  = document.getElementById('venta-empleado');
+  var selCom2 = document.getElementById('venta-comisionado2');
     if (selEmp) {
       var opts = '<option value="">— Seleccionar empleado —</option>';
       var fbKeyUsuarioActual = '';
@@ -6283,6 +6310,16 @@ function fbCargarEmpleados() {
       });
       selEmp.innerHTML = opts;
       if (fbKeyUsuarioActual) selEmp.value = fbKeyUsuarioActual;
+    }
+    // Poblar select de segundo comisionado
+    if (selCom2) {
+      var opts2 = '<option value="">— Ninguno —</option>';
+      Object.values(empData).forEach(function(e) {
+        if (e.activo !== false) {
+          opts2 += '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+' (Leg. '+e.legajo+')</option>';
+        }
+      });
+      selCom2.innerHTML = opts2;
     }
     if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
   });
@@ -7769,7 +7806,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.139-firebase',
+  VERSION: 'v20.141-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13757,6 +13794,10 @@ function renderMovsEmp() {
       var esEgreso  = ['adelanto'].includes(m.tipo);
       var montoColor = esEgreso ? 'var(--red)' : 'var(--green)';
       var estBadge  = {pendiente:'<span class="badge b-amber">Pendiente</span>',aprobado:'<span class="badge b-blue">Aprobado</span>',pagado:'<span class="badge b-green">Pagado</span>',rechazado:'<span class="badge b-red">Rechazado</span>'}[m.estado]||('<span class="badge">'+m.estado+'</span>');
+      var aprobBtn  = (currentRole === 'admin' && m.estado === 'pendiente' && m.tipo === 'comision')
+        ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
+          '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);margin-left:4px" onclick="rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
+        : '';
       var fotoBtn   = m.fotoUrl ? '<a href="'+m.fotoUrl+'" target="_blank" class="btn btn-sm btn-icon" title="Ver comprobante"><i class="ti ti-photo" style="font-size:14px"></i></a>' : '<span style="color:var(--text3);font-size:11px">—</span>';
       var fecha = m.fecha ? m.fecha.split('-').reverse().join('/') : '—';
       // Descripción: puede estar en 'descripcion', 'desc', o 'detalle'
@@ -13776,7 +13817,10 @@ function renderMovsEmp() {
         '<td class="tr">'+ estBadge +'</td>' +
         '<td class="tr">'+ fotoBtn +'</td>' +
         '<td style="white-space:nowrap">' +
-          '<button class="btn btn-sm btn-icon" onclick="aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar" style="'+(m.estado==='pendiente'?'':'display:none')+'"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button>' +
+          (m.tipo === 'comision' && m.estado === 'pendiente' && currentRole === 'admin'
+            ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green);font-size:11px;padding:3px 8px" onclick="aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
+              '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 8px;margin-left:4px" onclick="rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
+            : '<button class="btn btn-sm btn-icon" onclick="aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar" style="'+(m.estado==='pendiente'?'':'display:none')+'"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button>') +
           '<button class="btn btn-sm btn-icon" onclick="eliminarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
         '</td>' +
       '</tr>';
@@ -13962,6 +14006,27 @@ function guardarMovEmp() {
       .then(function(){ notify('Movimiento guardado'); cerrarModalMovEmp(); })
       .catch(function(e){ notify('Error: ' + e.message); });
   }
+}
+
+function aprobarComision(movFbKey, empFbKey) {
+  if (!window.fbDB) return;
+  if (!confirm('¿Aprobar esta comisión?')) return;
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
+    estado: 'aprobado',
+    aprobadoPor: currentUser || '',
+    fechaAprobacion: new Date().toISOString().slice(0,10)
+  }).then(function(){ notify('✓ Comisión aprobada'); });
+}
+
+function rechazarComision(movFbKey, empFbKey) {
+  if (!window.fbDB) return;
+  var motivo = prompt('Motivo del rechazo (opcional):') || '';
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
+    estado: 'rechazado',
+    rechazadoPor: currentUser || '',
+    motivoRechazo: motivo,
+    fechaRechazo: new Date().toISOString().slice(0,10)
+  }).then(function(){ notify('Comisión rechazada'); });
 }
 
 function aprobarMovEmp(movKey, empKey) {
@@ -14313,6 +14378,10 @@ function registrarPago() {
           estadoPago: nuevoEstado,
           totalPagado: nuevoTotal
         });
+        // Generar comisiones cuando se completa el pago
+        if (nuevoEstado === 'pago_total') {
+          generarComisionesVenta(ventaObj, nuevoTotal);
+        }
       }
       notify('✓ Pago registrado correctamente');
       if (typeof registrarActividad === 'function') {
@@ -19883,6 +19952,91 @@ function abrirPagoGasto(fbKey) {
   document.getElementById('modal-pago-gasto').style.display = 'flex';
 }
 
+function generarComisionesVenta(venta, montoCobrado) {
+  if (!window.fbDB || !venta) return;
+
+  // Calcular base de comisión: total sin IVA - costo de productos
+  var totalConIva  = parseFloat(venta.total) || 0;
+  var tieneIva     = venta.conIva !== false; // por defecto tiene IVA
+  var totalSinIva  = tieneIva ? Math.round(totalConIva / 1.21 * 100) / 100 : totalConIva;
+  var costoTotal   = (venta.items || []).reduce(function(s, it) {
+    var prod = Object.values(prodData||{}).find(function(p){
+      return p.codigo === it.cod || p.fbKey === it.pid;
+    });
+    var costoUnit = prod ? (parseFloat(prod.compra || prod.compraARS || prod.precio_compra) || 0) : 0;
+    return s + costoUnit * (parseInt(it.qty) || 1);
+  }, 0);
+  var ganancia = totalSinIva - costoTotal;
+
+  if (ganancia <= 0) {
+    console.log('[COMISION] Ganancia <= 0, no se genera comisión');
+    return;
+  }
+
+  // Determinar vendedores y sus FbKeys
+  var vendedores = [];
+
+  // Vendedor principal
+  var empPrincipal = Object.values(empData||{}).find(function(e){
+    return e.fbKey === venta.empleado || e.nombre === venta.empleado;
+  });
+  if (empPrincipal && parseFloat(empPrincipal.pctComision || empPrincipal.comision || 0) > 0) {
+    vendedores.push(empPrincipal);
+  }
+
+  // Segundo comisionado
+  var empCom2 = venta.comisionado2 ? Object.values(empData||{}).find(function(e){
+    return e.fbKey === venta.comisionado2 || e.nombre === venta.comisionado2;
+  }) : null;
+  if (empCom2 && empCom2.fbKey !== (empPrincipal && empPrincipal.fbKey)) {
+    vendedores.push(empCom2);
+  }
+
+  if (!vendedores.length) return;
+
+  // Calcular porcentaje — si hay dos se divide en partes iguales
+  vendedores.forEach(function(emp) {
+    var pctTotal = parseFloat(emp.pctComision || emp.comision || 0);
+    if (!pctTotal) return;
+    var pctCada  = vendedores.length > 1 ? pctTotal / 2 : pctTotal;
+    var monto    = Math.round(ganancia * pctCada / 100);
+    if (monto <= 0) return;
+
+    // Guardar comisión pendiente de aprobación
+    var movimiento = {
+      tipo:        'comision',
+      estado:      'pendiente', // admin debe aprobar
+      monto:       monto,
+      pct:         pctCada,
+      gananciaBase: ganancia,
+      ventaId:     venta.id || '',
+      ventaFbKey:  venta.fbKey || '',
+      cliente:     venta.cliente || '',
+      descripcion: 'Comisión venta ' + (venta.id||'') + ' · ' + pctCada + '% sobre ganancia $' + Math.round(ganancia).toLocaleString('es-AR'),
+      fecha:       new Date().toISOString().slice(0,10),
+      ts:          Date.now(),
+      aprobadoPor: '',
+      empleadoNombre: emp.nombre || ''
+    };
+
+    window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + emp.fbKey), movimiento)
+      .then(function() {
+        // Notificar al admin
+        window.fbPush(window.fbRef(window.fbDB, 'sisventas/notificaciones_admin'), {
+          tipo:    'comision_pendiente',
+          empNombre: emp.nombre || '',
+          empFbKey:  emp.fbKey || '',
+          monto,
+          ventaId: venta.id || '',
+          cliente: venta.cliente || '',
+          ts:      Date.now(),
+          leida:   false
+        });
+        notify('💰 Comisión generada para ' + (emp.nombre||'') + ' — pendiente de aprobación admin');
+      });
+  });
+}
+
 function confirmarPagoGasto() {
   var g = gastosData.find(function(x){ return x.fbKey===_gastoFbKeyPago; });
   if (!g) return;
@@ -19978,7 +20132,8 @@ function fbCargarProveedores() {
           '<td>' +
             '<button onclick="toggleProveedorBase(\''+ p.fbKey +'\')" ' +
               'title="'+(esBase?'Proveedor base — click para quitar':'Marcar como proveedor base')+'" ' +
-              'style="background:none;border:none;cursor:pointer;font-size:18px;padding:0 6px 0 0;line-height:1">'+(esBase?'⭐':'☆')+'</button>' +
+              'style="background:none;border:none;cursor:pointer;font-size:16px;padding:0 6px 0 0;line-height:1;color:'+(esBase?'var(--amber)':'var(--border2)')+'">'+
+              '<i class="ti '+(esBase?'ti-star-filled':'ti-star')+'" style="font-size:16px"></i></button>' +
             '<span style="font-weight:'+(esBase?'600':'500')+'">'+escapeHTML(p.nombre||'')+'</span>' +
           '</td>' +
           '<td style="color:var(--text3)">'+ escapeHTML(p.rubro||'') +'</td>' +
@@ -20492,6 +20647,7 @@ function pptoAccion(accion) {
       cliente:      p.cliente || '',
       fecha:        ahora,
       empleado:     p.empleado || currentUser || '',
+      comisionado2: (document.getElementById('venta-comisionado2')||{}).value || '',
       usuario:      currentUser || '',
       items:        p.items   || [],
       subtotal:     parseFloat(p.subtotal || p.total) || 0,
