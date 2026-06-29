@@ -1482,7 +1482,7 @@ tr:hover td{color:var(--text)}
 
       <div class="table-wrap">
         <table id="ppto-tabla">
-          <thead id="ppto-thead" style="visibility:collapse;height:0">
+          <thead>
             <tr>
               <th>#</th><th>Cliente</th><th>Total</th><th>Vence</th><th>Estado</th><th>Acciones</th>
             </tr>
@@ -3704,7 +3704,7 @@ tr:hover td{color:var(--text)}
               <col style="width:65px">
               <col style="width:90px">
             </colgroup>
-            <thead><tr>
+            <thead id="prod-tbl-thead" style="visibility:collapse"><tr>
               <th></th>
               <th data-sort="codigo" onclick="sortTabla('prod-tbl','codigo','str')" style="cursor:pointer;user-select:none">Código <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
               <th data-sort="nombre" onclick="sortTabla('prod-tbl','nombre','str')" style="cursor:pointer;user-select:none">Nombre <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
@@ -5278,6 +5278,9 @@ function renderTablaProductos(filtro) {
   if (!tbody) return;
   var lista = prodData ? Object.values(prodData) : [];
   poblarSelectCategorias();
+  // Mostrar thead solo cuando hay búsqueda activa
+  var thead = document.getElementById('prod-tbl-thead');
+  if (thead) thead.style.visibility = (filtro && filtro.trim()) ? 'visible' : 'collapse';
 
   // Con búsqueda activa → vista plana
   if (filtro && filtro.trim()) {
@@ -20960,8 +20963,7 @@ function pptoStateBadge(estado) {
 // Renderizar tabla principal
 function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
   // Mostrar encabezado solo con búsqueda activa
-  var thead = document.getElementById('ppto-thead');
-  if (thead) { thead.style.visibility = filtroTexto ? 'visible' : 'collapse'; thead.style.height = filtroTexto ? '' : '0'; }
+
   const tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
   let rows = pptoData;
