@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.199 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.201 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1616,7 +1616,21 @@ tr:hover td{color:var(--text)}
       </div>
     </div>
     <div class="card">
-      <div class="card-head"><span class="card-title">Productos / servicios</span><button class="btn btn-sm" onclick="addPpRow()"><i class="ti ti-plus"></i> Agregar</button></div>
+      <div class="card-head"><span class="card-title">Productos / servicios</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <!-- Toggle moneda — visible solo si config = ambos, igual que en Nueva venta -->
+          <div id="ppto-moneda-toggle" style="display:none;align-items:center;gap:6px;font-size:12px">
+            <span style="color:var(--text3)">ARS</span>
+            <div style="position:relative;width:36px;height:20px;cursor:pointer" onclick="toggleMonedaPpto()">
+              <div id="pmt-track" style="position:absolute;inset:0;border-radius:10px;background:var(--bg4);border:1px solid var(--border2);transition:background .2s"></div>
+              <div id="pmt-thumb" style="position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--text3);transition:transform .2s,background .2s;pointer-events:none"></div>
+            </div>
+            <span style="color:var(--text3)">USD</span>
+            <span id="pmt-label" style="font-size:11px;color:var(--blue);font-weight:600">ARS</span>
+          </div>
+          <button class="btn btn-sm" onclick="addPpRow()"><i class="ti ti-plus"></i> Agregar</button>
+        </div>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th style="width:90px">Código</th><th>Descripción</th><th class="tr" style="width:70px">Cant.</th><th class="tr" style="width:90px">Disponible</th><th class="tr" style="width:100px">P. Unit.</th><th class="tr" style="width:80px">% Desc.</th><th class="tr" style="width:100px">Subtotal</th><th style="width:36px"></th></tr></thead>
@@ -8986,7 +9000,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.199-firebase',
+  VERSION: 'v20.201-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9358,6 +9372,105 @@ document.addEventListener('paste', function(e) {
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// FORMATO DE MONTOS TIPO CALCULADORA
+// Mientras se escribe, se agregan separadores de miles automáticamente
+// (formato argentino: punto de miles, coma decimal). El punto del teclado
+// numérico actúa como la coma decimal, igual que en la calculadora de Windows.
+// El input pasa a ser type="text" visualmente, pero el valor numérico real
+// queda disponible en input.dataset.raw (string tipo "1234.56", listo para
+// parseFloat) y en la función getMontoRaw(input) para usar en los cálculos.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Devuelve el valor numérico real de un input formateado con money-input.
+// Usar esto en vez de parseFloat(input.value) para estos campos.
+function getMontoRaw(input) {
+  if (!input) return 0;
+  return parseFloat(input.dataset.raw || '0') || 0;
+}
+
+// Formatea un número a texto con separador de miles argentino, sin forzar
+// decimales si no los tiene (para que no se vea "1.234,00" mientras se escribe).
+function _formatMontoVisual(enteroStr, decStr, tieneComa) {
+  var entero = enteroStr.replace(/^0+(?=\d)/, '') || '0'; // sin ceros a la izquierda, salvo "0" solo
+  var conMiles = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  if (tieneComa) return conMiles + ',' + (decStr || '');
+  return conMiles;
+}
+
+// Convierte un input type="number" en un campo con formato tipo calculadora.
+// Se llama una vez por input, normalmente al renderizar el HTML (data-money="1").
+function initMoneyInput(input) {
+  if (!input || input.dataset.moneyInit) return;
+  input.dataset.moneyInit = '1';
+  input.type = 'text';
+  input.inputMode = 'decimal';
+  input.autocomplete = 'off';
+
+  // Valor inicial: lo que ya tenía el input (viene de value="..." en el HTML)
+  var inicial = parseFloat(input.value) || 0;
+  input.dataset.raw = String(inicial);
+  if (inicial !== 0) {
+    var partes = String(inicial).split('.');
+    input.value = _formatMontoVisual(partes[0], (partes[1]||'').slice(0,2), !!partes[1]);
+  } else {
+    input.value = input.getAttribute('placeholder') ? '' : '0';
+  }
+
+  input.addEventListener('keydown', function(e) {
+    // El punto (o coma) del teclado numérico marca el inicio de los decimales,
+    // igual que en la calculadora de Windows — no escribe un "." literal de más.
+    if (e.key === '.' || e.key === ',') {
+      e.preventDefault();
+      if (!input.dataset.tieneComa) {
+        input.dataset.tieneComa = '1';
+        _refrescarMoneyVisual(input);
+      }
+    }
+  });
+
+  input.addEventListener('input', function() {
+    // Solo dejar pasar dígitos; reconstruir el string entero+decimal desde cero
+    // a partir de TODOS los dígitos tipeados, para que el separador de miles
+    // se recalcule solo (como una calculadora real).
+    var soloDigitos = input.value.replace(/\D/g, '');
+    var tieneComa = !!input.dataset.tieneComa;
+    if (tieneComa) {
+      // Los últimos hasta 2 dígitos son decimales; el resto es la parte entera
+      var dec = soloDigitos.slice(-2);
+      var ent = soloDigitos.slice(0, -2) || '0';
+      input.dataset.raw = ent + '.' + dec;
+      input.value = _formatMontoVisual(ent, dec, true);
+    } else {
+      input.dataset.raw = soloDigitos || '0';
+      input.value = soloDigitos ? _formatMontoVisual(soloDigitos, '', false) : '';
+    }
+    // Disparar un evento 'change'-like liviano para que el código que ya
+    // escucha oninput en el input siga funcionando con el valor correcto.
+  }, true); // captura, para correr ANTES que el oninput inline del HTML
+
+  input.addEventListener('blur', function() {
+    if (!input.value) { input.dataset.raw = '0'; }
+  });
+
+  input.addEventListener('focus', function() { input.select(); });
+}
+
+function _refrescarMoneyVisual(input) {
+  var raw = input.dataset.raw || '0';
+  var partes = raw.split('.');
+  input.value = _formatMontoVisual(partes[0], (partes[1]||'').slice(0,2), !!input.dataset.tieneComa);
+}
+
+// Inicializa todos los inputs con data-money="1" dentro de un contenedor
+// (o todo el documento si no se pasa contenedor). Llamar después de cualquier
+// innerHTML que inserte filas/formularios con campos de monto nuevos.
+function initMoneyInputsEn(contenedor) {
+  var root = contenedor || document;
+  root.querySelectorAll('[data-money="1"]').forEach(initMoneyInput);
+}
+
 function safeClass(value, allowed, fallback) {
   return allowed.includes(value) ? value : fallback;
 }
@@ -9913,7 +10026,8 @@ document.addEventListener('click', function(e) { if (!e.target.closest('.sw')) _
 function calcRow(inp) {
   const tr = inp.closest('tr');
   const q  = parseFloat(tr.querySelector('.qty').value) || 0;
-  const p  = parseFloat(tr.querySelector('.price').value) || 0;
+  const priceInp = tr.querySelector('.price');
+  const p  = priceInp.dataset.moneyInit ? getMontoRaw(priceInp) : (parseFloat(priceInp.value) || 0);
   const dp = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
   // Validar descuento por ítem contra el límite configurado
   if (dp > 0 && APROBACION_CONFIG && dp > APROBACION_CONFIG.descuentoLimite) {
@@ -22436,6 +22550,7 @@ function abrirNuevoPresupuesto() {
   addPpRow();
 
   if (fi) { fi.value = d.toISOString().split('T')[0]; calcVencimiento(); }
+  if (typeof iniciarMonedaPpto === 'function') iniciarMonedaPpto();
   calcPpTotales();
 }
 function filtrarPptoTexto(v) { renderPptoTabla('', v); }
@@ -25713,7 +25828,7 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
     <td><span class="desc-txt" style="font-size:13px;color:var(--text2)">${escapeHTML(desc)}</span></td>
     <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right"></td>
     <td class="stock-cell" style="text-align:right;white-space:nowrap;max-width:90px;background:inherit"><span class="stock-ind" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis">${stockBadge}</span></td>
-    <td><input type="number" value="${precio||0}" class="price" oninput="calcRow(this)" min="0" style="width:80px;text-align:right"></td>
+    <td><input value="${precio||0}" data-money="1" class="price" oninput="calcRow(this)" style="width:80px;text-align:right"></td>
     <td style="text-align:right;white-space:nowrap">
       <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px">
         <input type="number" value="${dp||''}" class="disc" placeholder="0" min="0" max="100" oninput="calcRow(this)"
@@ -25727,6 +25842,7 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
         : `$${precioFinal.toLocaleString('es-AR')}`}
     </td>
     <td><button class="btn btn-sm btn-danger" onclick="delRow(this)" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>`;
+  initMoneyInputsEn(tr);
   return tr;
 }
 
@@ -25848,13 +25964,30 @@ function _selProdGlobal(item) {
   var moneda = item.dataset.moneda || 'ARS';
 
   var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod || p.nombre === desc; });
-  // Mano de obra siempre en ARS
+  // Mano de obra: precio siempre se muestra en ARS, pero si el producto está
+  // cargado en USD hay que convertirlo en vivo a la cotización actual — no
+  // alcanza con ventaARS guardado porque puede no existir (ej. producto
+  // cargado cuando no había cotización configurada).
   if (prod && prod.esManoDeObra) {
+    if (prod.moneda === 'USD') {
+      var tcMO = (window.TIPO_CAMBIO_CONFIG || {});
+      var tipoCfgMO = tcMO.dolarConversion || 'oficial';
+      var tcValMO = parseFloat(tcMO[tipoCfgMO]) || 0;
+      if (tcValMO > 0) {
+        precio = Math.round((parseFloat(prod.venta)||0) * tcValMO);
+      } else if (prod.ventaARS) {
+        precio = prod.ventaARS; // fallback si no hay cotización cargada ahora mismo
+      } else {
+        notify('⚠️ Mano de obra "' + (prod.nombre||'') + '" está en USD y no hay cotización configurada — el precio puede ser incorrecto');
+      }
+    } else {
+      precio = prod.ventaARS || prod.venta || 0;
+    }
     moneda = 'ARS';
-    if (prod.ventaARS) precio = prod.ventaARS;
   } else {
     // Respetar moneda de venta seleccionada por el toggle
-    var monedaVenta = window._ventaMonedaActual || 'ARS';
+    var esFilaPpto = _prodDropTR && _prodDropTR.closest('#pp-body');
+    var monedaVenta = (esFilaPpto ? window._pptoMonedaActual : window._ventaMonedaActual) || 'ARS';
     if (monedaVenta === 'ARS' && moneda === 'USD') {
       // Config dice ARS: forzar conversión aunque el producto sea USD
       // (la conversión la hace el bloque de abajo)
@@ -25910,6 +26043,15 @@ function _selProdGlobal(item) {
     }
     if (priceInp) {
       priceInp.value = precio;
+      // Guardar el precio "ancla" en USD de este ítem (si corresponde), para que
+      // el toggle ARS/USD pueda reconvertir esta fila en cualquier momento sin
+      // ir acumulando error de redondeo entre toggles sucesivos.
+      if (moneda === 'USD' && cotizUsada > 0) {
+        priceInp.dataset.precioUsd = precioOriginalUSD;
+      } else {
+        delete priceInp.dataset.precioUsd; // ítem en ARS puro (sin equivalente USD conocido)
+      }
+      if (priceInp.dataset.moneyInit) { priceInp.dataset.raw = String(precio); _refrescarMoneyVisual(priceInp); }
       // Indicador visual USD en el campo precio
       var priceCell = priceInp.parentElement;
       var usdTag = priceCell ? priceCell.querySelector('.usd-tag') : null;
@@ -25964,7 +26106,69 @@ function toggleMonedaVenta() {
   if (thumb) thumb.style.transform   = esUSD ? 'translateX(16px)' : 'translateX(0)';
   if (thumb) thumb.style.background  = esUSD ? '#fff' : 'var(--text3)';
   if (label) { label.textContent = _ventaMonedaActual; label.style.color = esUSD ? 'var(--blue)' : 'var(--text3)'; }
-  notify('Moneda de venta: ' + _ventaMonedaActual);
+
+  _reconvertirFilasAMoneda('#det-body', _ventaMonedaActual);
+  notify('Moneda de venta: ' + _ventaMonedaActual + ' — todos los productos convertidos');
+}
+
+// Recorre todas las filas de una tabla de ítems (venta o presupuesto) y
+// convierte el precio unitario de cada una a la moneda indicada, usando la
+// cotización actual configurada. Mantiene el precio "ancla" en USD de cada
+// fila (data-precio-usd) para poder ir y volver de ARS a USD sin acumular
+// error de redondeo.
+function _reconvertirFilasAMoneda(tbodySelector, monedaDestino) {
+  var tc = (window.TIPO_CAMBIO_CONFIG || {});
+  var tcVal = parseFloat(tc[tc.dolarConversion || 'oficial']) || 0;
+  if (tcVal <= 0) {
+    notify('⚠️ Configurá el tipo de cambio en Configuración para convertir entre ARS y USD');
+    return;
+  }
+
+  document.querySelectorAll(tbodySelector + ' tr').forEach(function(tr) {
+    var priceInp = tr.querySelector('.price');
+    if (!priceInp) return;
+
+    // Si la fila no tiene ancla en USD, calcularla a partir del valor actual
+    // (asumiendo que el valor actual está en ARS, que es el caso por defecto).
+    if (!priceInp.dataset.precioUsd) {
+      var valorActual = priceInp.dataset.moneyInit ? getMontoRaw(priceInp) : (parseFloat(priceInp.value)||0);
+      if (valorActual > 0) {
+        priceInp.dataset.precioUsd = parseFloat((valorActual / tcVal).toFixed(2));
+      } else {
+        return; // fila vacía, nada que convertir
+      }
+    }
+
+    var precioUsd = parseFloat(priceInp.dataset.precioUsd) || 0;
+    var nuevoValor = monedaDestino === 'USD' ? precioUsd : Math.round(precioUsd * tcVal);
+
+    if (priceInp.dataset.moneyInit) {
+      priceInp.dataset.raw = String(nuevoValor);
+      _refrescarMoneyVisual(priceInp);
+    } else {
+      priceInp.value = nuevoValor;
+    }
+
+    // Etiqueta USD debajo del precio, solo cuando estamos viendo en ARS
+    // (para que se sepa a cuántos dólares equivale cada ítem)
+    var priceCell = priceInp.parentElement;
+    var usdTag = priceCell ? priceCell.querySelector('.usd-tag') : null;
+    if (monedaDestino === 'ARS') {
+      if (!usdTag && priceCell) {
+        var tag = document.createElement('div');
+        tag.className = 'usd-tag';
+        tag.style.cssText = 'font-size:9px;color:var(--blue);font-weight:600;line-height:1;margin-bottom:2px';
+        tag.textContent = 'USD ' + precioUsd;
+        priceCell.insertBefore(tag, priceInp);
+      } else if (usdTag) {
+        usdTag.textContent = 'USD ' + precioUsd;
+      }
+    } else if (usdTag) {
+      usdTag.remove();
+    }
+
+    calcRow(priceInp);
+  });
 }
 
 function iniciarMonedaVenta() {
@@ -25985,6 +26189,45 @@ function iniciarMonedaVenta() {
     var track = document.getElementById('vmt-track');
     var thumb = document.getElementById('vmt-thumb');
     var label = document.getElementById('vmt-label');
+    if (track) track.style.background = 'var(--bg4)';
+    if (thumb) { thumb.style.transform = 'translateX(0)'; thumb.style.background = 'var(--text3)'; }
+    if (label) { label.textContent = 'ARS'; label.style.color = 'var(--text3)'; }
+  }
+}
+
+var _pptoMonedaActual = 'ARS'; // 'ARS' o 'USD' — equivalente a _ventaMonedaActual pero para presupuestos
+
+function toggleMonedaPpto() {
+  _pptoMonedaActual = _pptoMonedaActual === 'ARS' ? 'USD' : 'ARS';
+  var esUSD = _pptoMonedaActual === 'USD';
+  var track = document.getElementById('pmt-track');
+  var thumb = document.getElementById('pmt-thumb');
+  var label = document.getElementById('pmt-label');
+  if (track) track.style.background = esUSD ? 'var(--blue)' : 'var(--bg4)';
+  if (thumb) thumb.style.transform   = esUSD ? 'translateX(16px)' : 'translateX(0)';
+  if (thumb) thumb.style.background  = esUSD ? '#fff' : 'var(--text3)';
+  if (label) { label.textContent = _pptoMonedaActual; label.style.color = esUSD ? 'var(--blue)' : 'var(--text3)'; }
+
+  _reconvertirFilasAMoneda('#pp-body', _pptoMonedaActual);
+  notify('Moneda de presupuesto: ' + _pptoMonedaActual + ' — todos los productos convertidos');
+  if (typeof calcPpTotales === 'function') calcPpTotales();
+}
+
+function iniciarMonedaPpto() {
+  var cfg = window.TIPO_CAMBIO_CONFIG || {};
+  var monedaCfg = cfg.monedaPresupuestos || 'ARS';
+  var toggle = document.getElementById('ppto-moneda-toggle');
+  if (toggle) {
+    if (monedaCfg === 'ambos' || !cfg.monedaPresupuestos) {
+      toggle.style.display = 'flex';
+      _pptoMonedaActual = 'ARS';
+    } else {
+      toggle.style.display = 'none';
+      _pptoMonedaActual = monedaCfg === 'USD' ? 'USD' : 'ARS';
+    }
+    var track = document.getElementById('pmt-track');
+    var thumb = document.getElementById('pmt-thumb');
+    var label = document.getElementById('pmt-label');
     if (track) track.style.background = 'var(--bg4)';
     if (thumb) { thumb.style.transform = 'translateX(0)'; thumb.style.background = 'var(--text3)'; }
     if (label) { label.textContent = 'ARS'; label.style.color = 'var(--text3)'; }
