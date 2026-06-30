@@ -878,7 +878,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.181 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.185 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -961,6 +961,9 @@ tr:hover td{color:var(--text)}
       </div>
       <div class="nav-item" onclick="showPage('productos',this)">
         <i class="ti ti-package"></i>Productos
+      </div>
+      <div class="nav-item" onclick="showPage('kits',this)">
+        <i class="ti ti-box-multiple"></i>Kits
       </div>
       <div class="s-section">Personal</div>
       <div class="nav-item" onclick="showPage('empleados',this)">
@@ -1780,8 +1783,17 @@ tr:hover td{color:var(--text)}
                 <label>Historial en esta instalación</label>
                 <div style="padding:8px 10px;background:var(--amber-bg);color:var(--amber);border-radius:var(--radius);font-size:12px;font-weight:500" id="ot-det-repetida-lbl"></div>
               </div>
-              <div class="fg full"><label>Dirección de instalación</label><input id="ot-det-dir" readonly></div>
+              <div class="fg full">
+                <label>Dirección de instalación</label>
+                <div style="display:flex;gap:6px">
+                  <input id="ot-det-dir" readonly style="flex:1">
+                  <button class="btn btn-sm" id="ot-det-dir-maps-btn" onclick="abrirDireccionEnMaps()" title="Abrir en Google Maps" style="flex-shrink:0">
+                    <i class="ti ti-map-pin"></i>
+                  </button>
+                </div>
+              </div>
               <div class="fg full"><label>Notas del administrativo para el técnico</label><input id="ot-det-obs" placeholder="Notas para el técnico..." onchange="actualizarOT()"></div>
+              <div class="fg full"><label>Notas del técnico (visita)</label><input id="ot-det-obs-tecnico" placeholder="El técnico escribe acá sus notas..." onchange="actualizarOT()"></div>
             </div>
           </div>
 
@@ -1838,12 +1850,34 @@ tr:hover td{color:var(--text)}
 
           <!-- Materiales utilizados -->
           <div class="card">
-            <div class="card-head"><span class="card-title">Materiales / productos</span></div>
+            <div class="card-head">
+              <span class="card-title">Materiales / productos</span>
+              <button class="btn btn-sm btn-primary" onclick="otAbrirSelectorProductos()"><i class="ti ti-plus"></i> Agregar productos</button>
+            </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant. vendida</th><th class="tr">Cant. instalada</th><th class="tr">Estado</th></tr></thead>
+                <thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th><th class="tr">Instalado</th></tr></thead>
                 <tbody id="ot-materiales"></tbody>
               </table>
+            </div>
+          </div>
+
+          <!-- Selector de productos adicionales -->
+          <div id="ot-selector-prod-modal" class="modal-overlay" style="display:none">
+            <div class="modal" style="max-width:520px">
+              <div class="modal-head">
+                <span>Agregar productos a la OT</span>
+                <button class="btn btn-sm btn-icon" onclick="otCerrarSelectorProductos()"><i class="ti ti-x"></i></button>
+              </div>
+              <div class="modal-body">
+                <input type="text" class="search-input" placeholder="Buscar producto..." id="ot-sel-prod-buscar" oninput="otFiltrarSelectorProductos(this.value)" style="margin-bottom:12px">
+                <div id="ot-sel-prod-lista" style="max-height:280px;overflow-y:auto;margin-bottom:12px"></div>
+                <div id="ot-sel-prod-carrito" style="border-top:1px solid var(--border);padding-top:10px"></div>
+                <div class="flex-end" style="margin-top:10px">
+                  <button class="btn" onclick="otCerrarSelectorProductos()">Cancelar</button>
+                  <button class="btn btn-primary" onclick="otConfirmarVentaAdicional()"><i class="ti ti-check"></i> Generar venta</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1863,25 +1897,6 @@ tr:hover td{color:var(--text)}
               <button class="btn btn-sm btn-primary" onclick="otAgregarNota()"><i class="ti ti-send"></i></button>
             </div>
             <div id="ot-fotos-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
-          </div>
-
-          <!-- Materiales usados por el técnico -->
-          <div class="card">
-            <div class="card-head">
-              <span class="card-title"><i class="ti ti-package" style="margin-right:6px"></i>Materiales usados</span>
-              <span style="font-size:11px;color:var(--text3)">Productos adicionales utilizados en obra</span>
-            </div>
-            <div id="ot-mat-usados-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
-            <div style="position:relative;margin-bottom:8px">
-              <input class="search-input" id="ot-mat-buscador" placeholder="Buscar producto para agregar..." oninput="otBuscarMaterialUsado(this.value)" autocomplete="off">
-              <div id="ot-mat-drop" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:200;max-height:180px;overflow-y:auto"></div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <input type="number" id="ot-mat-cant" placeholder="Cant." min="1" value="1" style="width:70px">
-              <input type="text" id="ot-mat-desc" placeholder="Descripción del material" style="flex:1" readonly>
-              <input type="text" id="ot-mat-cod" placeholder="" style="display:none">
-              <button class="btn btn-sm btn-primary" onclick="otAgregarMaterialUsado()"><i class="ti ti-plus"></i> Agregar</button>
-            </div>
           </div>
 
           <!-- Acta de entrega -->
@@ -3939,6 +3954,123 @@ tr:hover td{color:var(--text)}
 
         </div>
 
+        <!-- ── KITS ── -->
+        <div id="page-kits" class="page">
+          <!-- Listado de kits -->
+          <div id="kits-list-view">
+            <div class="metrics">
+              <div class="metric">
+                <div class="m-label">Total de kits</div>
+                <div class="m-value" id="kit-stat-total">0</div>
+                <div class="m-sub">armados</div>
+              </div>
+              <div class="metric">
+                <div class="m-label">Costo promedio</div>
+                <div class="m-value" id="kit-stat-costo">$0</div>
+                <div class="m-sub">por kit</div>
+              </div>
+              <div class="metric">
+                <div class="m-label">Margen promedio</div>
+                <div class="m-value" id="kit-stat-margen">0%</div>
+                <div class="m-sub">sobre costo</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <span class="card-title">Kits armados</span>
+                <button class="btn btn-primary" onclick="abrirNuevoKit()"><i class="ti ti-plus"></i> Nuevo kit</button>
+              </div>
+              <div class="fg" style="margin-bottom:14px">
+                <input type="text" class="search-input" placeholder="Buscar kit por nombre..." oninput="filtrarKits(this.value)">
+              </div>
+              <div style="overflow-x:auto">
+                <table>
+                  <thead>
+                    <tr><th>Código</th><th>Nombre</th><th>Componentes</th><th>Costo</th><th>Margen</th><th>P. Venta</th><th>Stock disp.</th><th>Acciones</th></tr>
+                  </thead>
+                  <tbody id="kits-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Cargando kits...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formulario nuevo/editar kit -->
+          <div id="kit-form-view" style="display:none">
+            <div style="margin-bottom:14px">
+              <button class="btn btn-sm" onclick="volverListaKits()"><i class="ti ti-arrow-left"></i> Volver</button>
+            </div>
+            <div class="card">
+              <div class="card-head"><span class="card-title" id="kit-form-titulo">Nuevo kit</span></div>
+              <div class="form-grid">
+                <div class="fg full"><label>Nombre del kit</label><input type="text" id="kit-nombre" placeholder="Ej: Kit alarma residencial básica"></div>
+                <div class="fg full"><label>Descripción</label><input type="text" id="kit-descripcion" placeholder="Opcional..."></div>
+                <div class="fg"><label>Categoría</label>
+                  <select id="kit-categoria">
+                    <option value="">— Seleccionar —</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Margen sobre costo (%)</label><input type="number" id="kit-margen" placeholder="30" oninput="calcKitTotales()"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <span class="card-title">Componentes del kit</span>
+                <button class="btn btn-sm" onclick="abrirSelectorProductoKit()"><i class="ti ti-plus"></i> Agregar producto</button>
+              </div>
+              <div style="overflow-x:auto">
+                <table>
+                  <thead>
+                    <tr><th>Producto</th><th>Costo unit.</th><th>Cantidad</th><th>Subtotal</th><th></th></tr>
+                  </thead>
+                  <tbody id="kit-componentes-tbody">
+                    <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sin componentes — agregá productos al kit</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+                <div class="metric">
+                  <div class="m-label">Costo total</div>
+                  <div class="m-value" id="kit-calc-costo" style="color:var(--text)">$0</div>
+                  <div class="m-sub">suma de componentes</div>
+                </div>
+                <div class="metric">
+                  <div class="m-label">Margen aplicado</div>
+                  <div class="m-value" id="kit-calc-margen" style="color:var(--amber)">$0</div>
+                  <div class="m-sub" id="kit-calc-margen-pct">0%</div>
+                </div>
+                <div class="metric">
+                  <div class="m-label">Precio de venta</div>
+                  <div class="m-value" id="kit-calc-venta" style="color:var(--green)">$0</div>
+                  <div class="m-sub">costo + margen</div>
+                </div>
+              </div>
+              <div class="flex-end">
+                <button class="btn" onclick="volverListaKits()">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarKit()"><i class="ti ti-check"></i> Guardar kit</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selector de producto para agregar al kit -->
+          <div id="kit-selector-modal" class="modal-overlay" style="display:none">
+            <div class="modal" style="max-width:520px">
+              <div class="modal-head">
+                <span>Agregar producto al kit</span>
+                <button class="btn btn-sm btn-icon" onclick="cerrarSelectorProductoKit()"><i class="ti ti-x"></i></button>
+              </div>
+              <div class="modal-body">
+                <input type="text" class="search-input" placeholder="Buscar producto..." id="kit-sel-buscar" oninput="filtrarSelectorKit(this.value)" style="margin-bottom:12px">
+                <div id="kit-sel-lista" style="max-height:360px;overflow-y:auto"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- DETALLE PRODUCTO -->
 
       <!-- ── EMPLEADOS ── -->
@@ -5231,6 +5363,270 @@ function editarClienteById(el) {
 
 
 // ── RENDER TABLA PRODUCTOS ──
+// ══════════════════════════════════════════════════════════════════════════════
+// MÓDULO KITS
+// ══════════════════════════════════════════════════════════════════════════════
+var KITS_DATA = {};
+var _kitComponentesActual = []; // [{pid, codigo, nombre, costo, cantidad}]
+var _kitEditandoFbKey = null;
+
+function cargarKits() {
+  if (!window.fbDB) return;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/kits'), function(snap) {
+    KITS_DATA = snap.val() || {};
+    renderTablaKits();
+    actualizarStatsKits();
+  });
+}
+
+function actualizarStatsKits() {
+  var lista = Object.values(KITS_DATA);
+  _set('kit-stat-total', lista.length);
+  if (!lista.length) { _set('kit-stat-costo','$0'); _set('kit-stat-margen','0%'); return; }
+  var costoProm = lista.reduce(function(s,k){ return s+(parseFloat(k.costoTotal)||0); },0) / lista.length;
+  var margenProm = lista.reduce(function(s,k){ return s+(parseFloat(k.margenPct)||0); },0) / lista.length;
+  _set('kit-stat-costo', '$' + Math.round(costoProm).toLocaleString('es-AR'));
+  _set('kit-stat-margen', Math.round(margenProm) + '%');
+}
+
+function renderTablaKits(filtro) {
+  var tbody = document.getElementById('kits-tbody');
+  if (!tbody) return;
+  var lista = Object.entries(KITS_DATA).map(function(e){ return Object.assign({fbKey:e[0]}, e[1]); });
+  if (filtro) {
+    var f = filtro.toLowerCase();
+    lista = lista.filter(function(k){ return (k.nombre||'').toLowerCase().includes(f) || (k.codigo||'').toLowerCase().includes(f); });
+  }
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">'+(filtro?'Sin resultados':'Sin kits armados aún')+'</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(function(k) {
+    var stockDisp = calcularStockDisponibleKit(k);
+    var stockColor = stockDisp === 0 ? 'var(--red)' : stockDisp <= 2 ? 'var(--amber)' : 'var(--green)';
+    return '<tr>' +
+      '<td><span class="badge b-blue">'+escapeHTML(k.codigo||'')+'</span></td>' +
+      '<td>'+escapeHTML(k.nombre||'')+'</td>' +
+      '<td style="font-size:12px;color:var(--text3)">'+(k.componentes?k.componentes.length:0)+' productos</td>' +
+      '<td>$'+Math.round(k.costoTotal||0).toLocaleString('es-AR')+'</td>' +
+      '<td>'+(k.margenPct||0)+'%</td>' +
+      '<td style="font-weight:600;color:var(--green)">$'+Math.round(k.precioVenta||0).toLocaleString('es-AR')+'</td>' +
+      '<td style="color:'+stockColor+';font-weight:600">'+stockDisp+'</td>' +
+      '<td style="white-space:nowrap">' +
+        '<button class="btn btn-sm btn-icon" onclick="editarKit(\''+k.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="eliminarKit(\''+k.fbKey+'\')" title="Eliminar" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function calcularStockDisponibleKit(kit) {
+  if (!kit.componentes || !kit.componentes.length) return 0;
+  // El stock disponible del kit es el mínimo de (stock del componente / cantidad necesaria)
+  var minDisponible = Infinity;
+  kit.componentes.forEach(function(c) {
+    var prod = Object.values(prodData||{}).find(function(p){ return p.fbKey === c.pid || p.codigo === c.codigo; });
+    var stockProd = prod ? (parseInt(prod.stock)||0) : 0;
+    var disp = Math.floor(stockProd / (c.cantidad||1));
+    if (disp < minDisponible) minDisponible = disp;
+  });
+  return minDisponible === Infinity ? 0 : minDisponible;
+}
+
+function filtrarKits(v) { renderTablaKits(v); }
+
+function abrirNuevoKit() {
+  _kitEditandoFbKey = null;
+  _kitComponentesActual = [];
+  _set2('kit-nombre','');
+  _set2('kit-descripcion','');
+  _set2('kit-margen','30');
+  document.getElementById('kit-form-titulo').textContent = 'Nuevo kit';
+  renderComponentesKit();
+  calcKitTotales();
+  poblarCategoriasKit();
+  _hide('kits-list-view');
+  _block('kit-form-view');
+}
+
+function editarKit(fbKey) {
+  var k = KITS_DATA[fbKey];
+  if (!k) return;
+  _kitEditandoFbKey = fbKey;
+  _kitComponentesActual = (k.componentes||[]).slice();
+  _set2('kit-nombre', k.nombre||'');
+  _set2('kit-descripcion', k.descripcion||'');
+  _set2('kit-margen', k.margenPct||30);
+  document.getElementById('kit-form-titulo').textContent = 'Editar kit — ' + k.codigo;
+  poblarCategoriasKit();
+  _set2('kit-categoria', k.categoria||'');
+  renderComponentesKit();
+  calcKitTotales();
+  _hide('kits-list-view');
+  _block('kit-form-view');
+}
+
+function volverListaKits() {
+  _hide('kit-form-view');
+  _block('kits-list-view');
+  renderTablaKits();
+}
+
+function poblarCategoriasKit() {
+  var sel = document.getElementById('kit-categoria');
+  if (!sel) return;
+  var cats = [...new Set(Object.values(prodData||{}).map(function(p){ return p.categoria; }).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">— Seleccionar —</option>' + cats.map(function(c){ return '<option value="'+escapeHTML(c)+'">'+escapeHTML(c)+'</option>'; }).join('');
+}
+
+function _set2(id, val) { var e = document.getElementById(id); if (e) e.value = val; }
+
+function renderComponentesKit() {
+  var tbody = document.getElementById('kit-componentes-tbody');
+  if (!tbody) return;
+  if (!_kitComponentesActual.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sin componentes — agregá productos al kit</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _kitComponentesActual.map(function(c, idx) {
+    var subtotal = (c.costo||0) * (c.cantidad||1);
+    return '<tr>' +
+      '<td>'+escapeHTML(c.nombre||'')+' <span style="color:var(--text3);font-size:11px">('+escapeHTML(c.codigo||'')+')</span></td>' +
+      '<td>$'+(c.costo||0).toLocaleString('es-AR')+'</td>' +
+      '<td><input type="number" min="1" value="'+(c.cantidad||1)+'" style="width:70px" onchange="actualizarCantidadKit('+idx+',this.value)"></td>' +
+      '<td style="font-weight:600">$'+Math.round(subtotal).toLocaleString('es-AR')+'</td>' +
+      '<td><button class="btn btn-sm btn-icon" onclick="quitarComponenteKit('+idx+')" style="color:var(--red)"><i class="ti ti-x" style="font-size:14px"></i></button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function actualizarCantidadKit(idx, val) {
+  _kitComponentesActual[idx].cantidad = Math.max(1, parseInt(val)||1);
+  renderComponentesKit();
+  calcKitTotales();
+}
+
+function quitarComponenteKit(idx) {
+  _kitComponentesActual.splice(idx, 1);
+  renderComponentesKit();
+  calcKitTotales();
+}
+
+function calcKitTotales() {
+  var costoTotal = _kitComponentesActual.reduce(function(s,c){ return s + (c.costo||0)*(c.cantidad||1); }, 0);
+  var margenPct  = parseFloat(document.getElementById('kit-margen').value) || 0;
+  var margenMonto = costoTotal * margenPct / 100;
+  var precioVenta = costoTotal + margenMonto;
+
+  _set('kit-calc-costo', '$' + Math.round(costoTotal).toLocaleString('es-AR'));
+  _set('kit-calc-margen', '$' + Math.round(margenMonto).toLocaleString('es-AR'));
+  _set('kit-calc-margen-pct', margenPct + '%');
+  _set('kit-calc-venta', '$' + Math.round(precioVenta).toLocaleString('es-AR'));
+}
+
+function abrirSelectorProductoKit() {
+  var modal = document.getElementById('kit-selector-modal');
+  if (modal) modal.style.display = 'flex';
+  filtrarSelectorKit('');
+  setTimeout(function(){ var inp = document.getElementById('kit-sel-buscar'); if(inp) inp.focus(); }, 100);
+}
+
+function cerrarSelectorProductoKit() {
+  var modal = document.getElementById('kit-selector-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function filtrarSelectorKit(texto) {
+  var cont = document.getElementById('kit-sel-lista');
+  if (!cont) return;
+  var lista = Object.values(prodData||{});
+  if (texto) {
+    var f = texto.toLowerCase();
+    lista = lista.filter(function(p){
+      return (p.nombre||'').toLowerCase().includes(f) || (p.codigo||'').toLowerCase().includes(f);
+    });
+  }
+  lista = lista.slice(0, 50); // limitar resultados
+  if (!lista.length) { cont.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px">Sin resultados</div>'; return; }
+  cont.innerHTML = lista.map(function(p) {
+    var yaAgregado = _kitComponentesActual.some(function(c){ return c.pid === p.fbKey || c.codigo === p.codigo; });
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:0.5px solid var(--border);'+(yaAgregado?'opacity:.4':'cursor:pointer')+'" '+
+      (yaAgregado?'':'onclick="agregarComponenteKit(\''+p.fbKey+'\')"') + '>' +
+      '<div><div style="font-size:13px">'+escapeHTML(p.nombre||'')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(p.codigo||'')+' · $'+Math.round(p.compra||0).toLocaleString('es-AR')+'</div></div>' +
+      (yaAgregado ? '<span style="font-size:11px;color:var(--text3)">Ya agregado</span>' : '<i class="ti ti-plus" style="color:var(--blue)"></i>') +
+    '</div>';
+  }).join('');
+}
+
+function agregarComponenteKit(pid) {
+  var p = Object.values(prodData||{}).find(function(x){ return x.fbKey === pid; });
+  if (!p) return;
+  _kitComponentesActual.push({ pid: p.fbKey, codigo: p.codigo, nombre: p.nombre, costo: parseFloat(p.compra)||0, cantidad: 1 });
+  renderComponentesKit();
+  calcKitTotales();
+  cerrarSelectorProductoKit();
+  notify('✓ ' + p.nombre + ' agregado al kit');
+}
+
+function guardarKit() {
+  var nombre = document.getElementById('kit-nombre').value.trim();
+  if (!nombre) { notify('Ingresá un nombre para el kit'); return; }
+  if (!_kitComponentesActual.length) { notify('Agregá al menos un producto al kit'); return; }
+
+  var costoTotal = _kitComponentesActual.reduce(function(s,c){ return s + (c.costo||0)*(c.cantidad||1); }, 0);
+  var margenPct  = parseFloat(document.getElementById('kit-margen').value) || 0;
+  var precioVenta = costoTotal * (1 + margenPct/100);
+
+  var kit = {
+    nombre,
+    descripcion:  document.getElementById('kit-descripcion').value.trim(),
+    categoria:    document.getElementById('kit-categoria').value,
+    componentes:  _kitComponentesActual,
+    costoTotal:   Math.round(costoTotal*100)/100,
+    margenPct,
+    precioVenta:  Math.round(precioVenta*100)/100,
+    actualizadoPor: currentUser||'',
+    ts: Date.now()
+  };
+
+  if (_kitEditandoFbKey) {
+    kit.codigo = KITS_DATA[_kitEditandoFbKey].codigo;
+    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/kits/'+_kitEditandoFbKey), kit)
+      .then(function(){ notify('✓ Kit actualizado'); volverListaKits(); });
+  } else {
+    // Generar código secuencial
+    var maxNum = Object.values(KITS_DATA).reduce(function(max,k){
+      var n = parseInt((k.codigo||'').replace('KIT-',''))||0;
+      return n > max ? n : max;
+    }, 0);
+    kit.codigo = 'KIT-' + String(maxNum+1).padStart(3,'0');
+    window.fbPush(window.fbRef(window.fbDB, 'sisventas/kits'), kit)
+      .then(function(){ notify('✓ Kit creado: ' + kit.codigo); volverListaKits(); });
+  }
+}
+
+function eliminarKit(fbKey) {
+  var k = KITS_DATA[fbKey];
+  if (!k) return;
+  if (!confirm('¿Eliminar el kit "'+k.nombre+'"? Esta acción no se puede deshacer.')) return;
+  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/kits/'+fbKey))
+    .then(function(){ notify('Kit eliminado'); });
+}
+
+// Descontar stock de componentes al vender un kit
+function descontarStockKit(kitFbKey, cantidadVendida) {
+  var kit = KITS_DATA[kitFbKey];
+  if (!kit || !kit.componentes) return;
+  cantidadVendida = cantidadVendida || 1;
+  kit.componentes.forEach(function(c) {
+    var prod = Object.values(prodData||{}).find(function(p){ return p.fbKey === c.pid; });
+    if (!prod) return;
+    var nuevoStock = Math.max(0, (parseInt(prod.stock)||0) - (c.cantidad * cantidadVendida));
+    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/productos/'+prod.fbKey), { stock: nuevoStock });
+  });
+}
+// ══════════════════════════════════════════════════════════════════════════════
+
 function poblarSelectCategorias() {
   var sel = document.getElementById('filter-cat');
   if (!sel) return;
@@ -8218,6 +8614,13 @@ function showPage(id, el) {
     try{ if(typeof cargarConfigLogin==='function') cargarConfigLogin(); }catch(e){}
     try{ if(typeof cargarCargos==='function') cargarCargos(); }catch(e){}
   }, 200); }
+  if (id === 'kits') {
+    var klv=document.getElementById('kits-list-view');
+    var kfv=document.getElementById('kit-form-view');
+    if(klv) klv.style.display='block';
+    if(kfv) kfv.style.display='none';
+    if (typeof cargarKits === 'function') cargarKits();
+  }
   if (id === 'productos')      {
     try { if(typeof mostrarAlertasStock==='function') mostrarAlertasStock(); } catch(e){}
     var plv=document.getElementById('prod-list-view');
@@ -8316,7 +8719,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.181-firebase',
+  VERSION: 'v20.185-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -21669,13 +22072,9 @@ var CHECKLISTS = {
     'Verificar vehículo y combustible',
   ],
   instalacion: [
-    'Relevamiento del lugar de instalación',
-    'Instalación de equipos según plano',
-    'Cableado y conexiones eléctricas',
-    'Configuración de dispositivos (eWeLink / app)',
-    'Prueba de funcionamiento individual de cada equipo',
-    'Integración con sistema existente (si aplica)',
-    'Configuración de accesos remotos del cliente',
+    'Instalación de equipos en sitio',
+    'Cableado y conexionado',
+    'Configuración y prueba de funcionamiento',
   ],
   verificacion: [
     'Prueba integral del sistema completo',
@@ -21878,6 +22277,13 @@ function abrirOTDesdeId(otId) {
   }, 200);
 }
 
+function abrirDireccionEnMaps() {
+  var dir = window._otDireccionActual || (document.getElementById('ot-det-dir')||{}).value || '';
+  if (!dir) { notify('No hay dirección cargada para esta OT'); return; }
+  var url = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(dir + ', Mar del Plata, Argentina');
+  window.open(url, '_blank');
+}
+
 function verOT(id) {
   // Buscar por fbKey primero (más confiable), luego por id
   var ot = otData.find(function(o){ return o.fbKey === id; })
@@ -21905,15 +22311,29 @@ function verOT(id) {
   document.getElementById('ot-det-fecha').value = ot.fecha||'';
   document.getElementById('ot-det-hora').value = ot.hora||'';
   // Dirección: primero la de la OT, sino leerla del cliente vinculado
-  var dirOT = ot.dir || ot.direccion || '';
+  var dirOT = ot.dir || ot.direccion || ot.domicilio || '';
   if (!dirOT && ot.cliente) {
     var cliOT = (clientesData||[]).find(function(c){
-      return c.nombre === ot.cliente || (c.nombre+' '+c.apellidos).trim() === ot.cliente;
+      var nombreCompleto = (c.nombre + ' ' + (c.apellidos||'')).trim();
+      return c.nombre === ot.cliente || nombreCompleto === ot.cliente ||
+             (c.nombre||'').toLowerCase().trim() === (ot.cliente||'').toLowerCase().trim();
     });
     if (cliOT) dirOT = cliOT.direccion || cliOT.domicilio || cliOT.dir || '';
   }
   document.getElementById('ot-det-dir').value = dirOT;
+  // Mostrar/ocultar botón de Maps según si hay dirección
+  var mapsBtn = document.getElementById('ot-det-dir-maps-btn');
+  if (mapsBtn) mapsBtn.style.display = dirOT ? '' : 'none';
+  window._otDireccionActual = dirOT;
   document.getElementById('ot-det-obs').value = ot.obs||'';
+  document.getElementById('ot-det-obs-tecnico').value = ot.obsTecnico||'';
+  // Notas del administrativo: solo editable por admin/administrativo, no por técnico
+  var obsAdminInp = document.getElementById('ot-det-obs');
+  if (obsAdminInp) {
+    obsAdminInp.readOnly = (currentRole === 'tecnico');
+    obsAdminInp.style.background = (currentRole === 'tecnico') ? 'var(--bg3)' : '';
+    obsAdminInp.style.cursor = (currentRole === 'tecnico') ? 'not-allowed' : '';
+  }
 
   var tipoSel = document.getElementById('ot-det-tipovisita');
   if (tipoSel) tipoSel.value = ot.tipoVisita || 'Instalación nueva';
@@ -21950,7 +22370,6 @@ function verOT(id) {
   }
 
   // ── Credenciales del cliente ──
-  otCargarMatUsados(ot);
   otCargarCredenciales(ot);
   // Inicializar canvas de firma
   setTimeout(function() {
@@ -22031,21 +22450,25 @@ function verOT(id) {
       }).filter(function(m){ return m.desc; });
     }
 
-    mat.innerHTML = materiales.length ? materiales.map(function(m) {
-      var ok      = m.instalada >= m.vendida;
-      var parcial = m.instalada > 0 && m.instalada < m.vendida;
-      var badge   = ok ? '<span class="badge b-green">Completo</span>'
-                       : parcial ? '<span class="badge b-amber">Parcial</span>'
-                       : '<span class="badge b-red">Pendiente</span>';
-      var esTecnico = currentRole === 'tecnico';
+    var materialesFiltrados = materiales.filter(function(m){
+      // Excluir mano de obra / instalación-configuración de la lista de materiales físicos
+      var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === m.cod; });
+      if (!prod) return true; // si no se encuentra el producto, mostrar igual
+      if (prod.esManoDeObra) return false;
+      var cat = (prod.categoria||'').toUpperCase();
+      if (cat.includes('MANO DE OBRA') || cat.includes('INSTALACION') || cat.includes('CONFIGURACION')) return false;
+      return true;
+    });
+    mat.innerHTML = materialesFiltrados.length ? materialesFiltrados.map(function(m) {
+      var instalado = m.instalada >= m.vendida;
       return '<tr>' +
         '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(m.cod||'')+'</td>' +
         '<td>'+escapeHTML(m.desc||'')+'</td>' +
-        '<td class="tr" title="Cantidad presupuestada — solo admin puede modificar">'+m.vendida+'</td>' +
-        '<td class="tr"><input type="number" value="'+m.instalada+'" min="0" max="'+m.vendida+'" style="width:60px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:3px 6px;text-align:right;font-size:13px;font-family:inherit" onchange="otActualizarMaterial(this,\''+escapeHTML(m.cod)+'\')"></td>' +
-        '<td class="tr">'+badge+'</td></tr>';
+        '<td class="tr">'+m.vendida+'</td>' +
+        '<td class="tr"><input type="checkbox" '+(instalado?'checked':'')+' style="width:18px;height:18px;accent-color:var(--green);cursor:pointer" onchange="otToggleInstalado(this,\''+escapeHTML(m.cod)+'\','+m.vendida+')"></td>' +
+      '</tr>';
     }).join('')
-    : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:12px">Sin materiales' +
+    : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sin materiales' +
       (ot.ventaId ? ' — la venta origen no tiene ítems registrados' : ' — OT sin venta vinculada') +
       '</td></tr>';
   }
@@ -22104,83 +22527,134 @@ function otActualizarMaterial(inp, cod) {
   }).catch(function(e){ notify('Error guardando: ' + e.message); });
 }
 
-// ── Materiales usados por el técnico ──────────────────────────────────────────
-function otCargarMatUsados(ot) {
-  var lista = document.getElementById('ot-mat-usados-lista');
-  if (!lista) return;
-  var usados = ot.materialesUsados || [];
-  lista.innerHTML = usados.length ? usados.map(function(m, i) {
-    return '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg3);border-radius:var(--radius)">' +
-      '<div style="flex:1"><div style="font-size:13px">'+escapeHTML(m.desc||'')+'</div>' +
-      '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(m.cod||'')+'</div></div>' +
-      '<span class="badge b-blue">x'+m.cant+'</span>' +
-      '<span style="font-size:10px;color:var(--text3)">'+escapeHTML(m.autor||'')+'</span>' +
-    '</div>';
-  }).join('') : '<div style="font-size:12px;color:var(--text3);padding:8px">Sin materiales adicionales registrados</div>';
-}
-
-function otBuscarMaterialUsado(q) {
-  var drop = document.getElementById('ot-mat-drop');
-  if (!drop) return;
-  if (!q || q.length < 2) { drop.style.display = 'none'; return; }
-  var txt = q.toLowerCase();
-  var res = Object.values(prodData||{}).filter(function(p){
-    return ((p.nombre||p.descripcion||'').toLowerCase().includes(txt) ||
-            (p.codigo||'').toLowerCase().includes(txt)) && !p.esManoDeObra;
-  }).slice(0, 8);
-  if (!res.length) { drop.style.display = 'none'; return; }
-  drop.innerHTML = res.map(function(p) {
-    var nombre = p.nombre || p.descripcion || '';
-    return '<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:0.5px solid var(--border)" ' +
-      'onmousedown="otSelMaterialUsado(\''+escapeHTML(nombre)+'\',\''+escapeHTML(p.codigo||p.fbKey)+'\')">'+
-      '<div style="font-weight:500">'+escapeHTML(nombre)+'</div>' +
-      '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(p.codigo||'')+'</div>' +
-    '</div>';
-  }).join('');
-  drop.style.display = 'block';
-}
-
-function otSelMaterialUsado(desc, cod) {
-  var buscador = document.getElementById('ot-mat-buscador');
-  var descInp  = document.getElementById('ot-mat-desc');
-  var codInp   = document.getElementById('ot-mat-cod');
-  var drop     = document.getElementById('ot-mat-drop');
-  if (buscador) buscador.value = desc;
-  if (descInp)  descInp.value  = desc;
-  if (codInp)   codInp.value   = cod;
-  if (drop)     drop.style.display = 'none';
-}
-
-function otAgregarMaterialUsado() {
-  var desc = (document.getElementById('ot-mat-desc')||{}).value || (document.getElementById('ot-mat-buscador')||{}).value || '';
-  var cod  = (document.getElementById('ot-mat-cod')||{}).value || '';
-  var cant = parseInt((document.getElementById('ot-mat-cant')||{}).value) || 1;
-  if (!desc.trim()) { notify('Buscá y seleccioná un producto primero'); return; }
+// ── Toggle instalado por ítem ──────────────────────────────────────────────
+function otToggleInstalado(chk, cod, vendida) {
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB) return;
-  var usados = (ot.materialesUsados || []).slice();
-  usados.push({ desc: desc.trim(), cod, cant, autor: currentUser||'', ts: Date.now() });
+  var nuevoVal = chk.checked ? vendida : 0;
+  var items = (ot.items || []).slice();
+  var item = items.find(function(i){ return i.cod === cod; });
+  if (item) { item.instalada = nuevoVal; }
+  else { items.push({ cod: cod, instalada: nuevoVal }); }
   var key = ot.fbKey || otActualId;
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { materialesUsados: usados })
-    .then(function(){
-      // Limpiar campos
-      ['ot-mat-buscador','ot-mat-desc','ot-mat-cod'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-      var cantEl = document.getElementById('ot-mat-cant'); if (cantEl) cantEl.value = '1';
-      // Notificar al admin guardando en Firebase
-      window.fbPush(window.fbRef(window.fbDB, 'sisventas/notificaciones_admin'), {
-        tipo:    'material_ot',
-        otId:    key,
-        cliente: ot.cliente || '',
-        tecnico: currentUser || '',
-        material: desc,
-        cant,
-        ts:      Date.now(),
-        leida:   false
-      });
-      notify('✓ Material agregado y admin notificado');
-      otCargarMatUsados(Object.assign({}, ot, { materialesUsados: usados }));
-    })
-    .catch(function(e){ notify('Error: '+e.message); });
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { items: items })
+    .then(function(){ ot.items = items; });
+}
+
+// ── Selector de productos adicionales → genera venta nueva ─────────────────
+var _otCarritoAdicional = [];
+
+function otAbrirSelectorProductos() {
+  _otCarritoAdicional = [];
+  var modal = document.getElementById('ot-selector-prod-modal');
+  if (modal) modal.style.display = 'flex';
+  otFiltrarSelectorProductos('');
+  otRenderCarritoAdicional();
+  setTimeout(function(){ var inp = document.getElementById('ot-sel-prod-buscar'); if(inp) inp.focus(); }, 100);
+}
+
+function otCerrarSelectorProductos() {
+  var modal = document.getElementById('ot-selector-prod-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function otFiltrarSelectorProductos(texto) {
+  var cont = document.getElementById('ot-sel-prod-lista');
+  if (!cont) return;
+  var lista = Object.values(prodData||{}).filter(function(p){ return !p.esManoDeObra; });
+  if (texto) {
+    var f = texto.toLowerCase();
+    lista = lista.filter(function(p){
+      return (p.nombre||'').toLowerCase().includes(f) || (p.codigo||'').toLowerCase().includes(f);
+    });
+  }
+  lista = lista.slice(0, 30);
+  if (!lista.length) { cont.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px">Sin resultados</div>'; return; }
+  cont.innerHTML = lista.map(function(p) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="otAgregarAlCarrito(\''+p.fbKey+'\')">' +
+      '<div><div style="font-size:13px">'+escapeHTML(p.nombre||'')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(p.codigo||'')+' · $'+Math.round(p.venta||0).toLocaleString('es-AR')+'</div></div>' +
+      '<i class="ti ti-plus" style="color:var(--blue)"></i>' +
+    '</div>';
+  }).join('');
+}
+
+function otAgregarAlCarrito(pid) {
+  var p = Object.values(prodData||{}).find(function(x){ return x.fbKey === pid; });
+  if (!p) return;
+  var existente = _otCarritoAdicional.find(function(c){ return c.pid === pid; });
+  if (existente) { existente.cantidad++; }
+  else { _otCarritoAdicional.push({ pid: p.fbKey, codigo: p.codigo, nombre: p.nombre, precio: parseFloat(p.venta)||0, cantidad: 1 }); }
+  otRenderCarritoAdicional();
+  notify('+ ' + p.nombre);
+}
+
+function otRenderCarritoAdicional() {
+  var cont = document.getElementById('ot-sel-prod-carrito');
+  if (!cont) return;
+  if (!_otCarritoAdicional.length) { cont.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center">Sin productos seleccionados</div>'; return; }
+  var total = _otCarritoAdicional.reduce(function(s,c){ return s + c.precio*c.cantidad; }, 0);
+  cont.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:6px">PRODUCTOS A AGREGAR</div>' +
+    _otCarritoAdicional.map(function(c, idx) {
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0">' +
+        '<div style="flex:1;font-size:13px">'+escapeHTML(c.nombre)+'</div>' +
+        '<input type="number" min="1" value="'+c.cantidad+'" style="width:50px" onchange="otCarritoCant('+idx+',this.value)">' +
+        '<div style="width:80px;text-align:right;font-size:13px">$'+Math.round(c.precio*c.cantidad).toLocaleString('es-AR')+'</div>' +
+        '<button class="btn btn-sm btn-icon" onclick="otQuitarCarrito('+idx+')" style="color:var(--red)"><i class="ti ti-x" style="font-size:13px"></i></button>' +
+      '</div>';
+    }).join('') +
+    '<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);font-weight:600">' +
+      '<span>Total</span><span>$'+Math.round(total).toLocaleString('es-AR')+'</span>' +
+    '</div>';
+}
+
+function otCarritoCant(idx, val) {
+  _otCarritoAdicional[idx].cantidad = Math.max(1, parseInt(val)||1);
+  otRenderCarritoAdicional();
+}
+
+function otQuitarCarrito(idx) {
+  _otCarritoAdicional.splice(idx, 1);
+  otRenderCarritoAdicional();
+}
+
+function otConfirmarVentaAdicional() {
+  if (!_otCarritoAdicional.length) { notify('Agregá al menos un producto'); return; }
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+  if (!ot || !window.fbDB) return;
+
+  var items = _otCarritoAdicional.map(function(c) {
+    return { cod: c.codigo, desc: c.nombre, qty: c.cantidad, punit: c.precio, sub: c.precio*c.cantidad };
+  });
+  var total = items.reduce(function(s,i){ return s+i.sub; }, 0);
+
+  var venta = {
+    cliente:      ot.cliente || '',
+    items:        items,
+    total:        Math.round(total*100)/100,
+    estadoPago:   'pendiente_pago',
+    empleado:     currentUser || '',
+    otId:         ot.fbKey || ot.id,
+    origenOT:     true,
+    nota:         'Venta adicional generada desde OT ' + (ot.id||''),
+    fecha:        new Date().toISOString().slice(0,10),
+    ts:           Date.now()
+  };
+
+  window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), venta).then(function(snap) {
+    // Notificar al admin
+    window.fbPush(window.fbRef(window.fbDB, 'sisventas/notificaciones_admin'), {
+      tipo:    'venta_adicional_ot',
+      otId:    ot.fbKey || ot.id,
+      cliente: ot.cliente || '',
+      tecnico: currentUser || '',
+      monto:   venta.total,
+      cantidadItems: items.length,
+      ts:      Date.now(),
+      leida:   false
+    });
+    notify('✓ Venta adicional generada por $' + Math.round(total).toLocaleString('es-AR') + ' — admin notificado');
+    otCerrarSelectorProductos();
+  }).catch(function(e){ notify('Error: ' + e.message); });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -22516,6 +22990,7 @@ function actualizarOT() {
   if (durSel)  ot.duracion   = durSel.value;
   if (tipoSel) ot.tipoVisita = tipoSel.value;
   ot.obs        = document.getElementById('ot-det-obs').value;
+  ot.obsTecnico = document.getElementById('ot-det-obs-tecnico').value;
   if (prioChk) {
     ot.prioridad = prioChk.checked;
     if (prioBadge) prioBadge.style.display = prioChk.checked ? '' : 'none';
@@ -25339,7 +25814,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.181</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.185</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
