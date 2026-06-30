@@ -878,7 +878,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.190 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.192 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4089,8 +4089,8 @@ tr:hover td{color:var(--text)}
               <input class="search-input" style="width:100%" placeholder="Buscar empleado..." oninput="buscarEmpleado(this.value)">
             </div>
             <table id="emp-tbl">
-              <thead><tr><th style="width:50px">ID</th><th>Apellido y nombre</th><th style="width:130px">Cargo</th><th style="text-align:right;width:130px">Mensual (cargo)</th><th style="text-align:right;width:190px">Hs extra mes</th><th style="text-align:right;width:130px;padding-left:24px">Comisión (mes)</th><th style="width:110px">Fecha inicio</th><th style="text-align:right;width:60px">Estado</th><th style="width:90px"></th></tr></thead>
-              <tbody id="emp-tbody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr></tbody>
+              <thead><tr><th style="width:50px">ID</th><th>Apellido y nombre</th><th style="width:130px">Cargo</th><th style="text-align:right;width:130px">Mensual (cargo)</th><th style="text-align:right;width:130px;padding-left:24px">Comisión (mes)</th><th style="width:110px">Fecha inicio</th><th style="text-align:right;width:60px">Estado</th><th style="width:90px"></th></tr></thead>
+              <tbody id="emp-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -7226,18 +7226,11 @@ function fbCargarEmpleados() {
   });
 }
 
-// Guardar horas extra del mes directamente desde la tabla, sin abrir el modal completo
-function guardarHsExtraEmpleado(fbKey, valor) {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
-  var hs = parseFloat(valor) || 0;
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKey), { hsExtraMes: hs })
-    .then(function() { notify('✓ Hs. extra actualizadas'); })
-    .catch(function(e) { notify('Error: ' + e.message); });
-}
-
 // ══════════════════════════════════════════════
 // HABERES DEL MES — Registro como gastos
 // ══════════════════════════════════════════════
+var _habFilasActuales = []; // estado en memoria de las filas del modal de haberes (para edición en vivo de hs extra)
+
 function abrirModalHaberesMes() {
   var ahora  = new Date();
   var mesISO = ahora.toISOString().slice(0,7); // YYYY-MM
@@ -7246,18 +7239,18 @@ function abrirModalHaberesMes() {
   var empleados = Object.values(empData||{}).filter(function(e){ return e.activo !== false; });
   if (!empleados.length) { notify('No hay empleados activos'); return; }
 
-  // Calcular montos para cada empleado
-  var filas = empleados.map(function(e) {
+  // Calcular montos para cada empleado — hs extra arranca en 0, se carga acá mismo en el modal
+  _habFilasActuales = empleados.map(function(e) {
     var cargoInfo  = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
     var sueldo     = cargoInfo ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0)) : 0;
     var valorHsEx  = cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
-    var hsExtra    = parseFloat(e.hsExtraMes) || 0;
-    var montoHsEx  = Math.round(hsExtra * valorHsEx);
+    var hsExtra    = 0;
+    var montoHsEx  = 0;
     var total      = sueldo + montoHsEx;
-    return { e:e, sueldo:sueldo, hsExtra:hsExtra, montoHsEx:montoHsEx, total:total, cargoInfo:cargoInfo };
+    return { e:e, sueldo:sueldo, valorHsEx:valorHsEx, hsExtra:hsExtra, montoHsEx:montoHsEx, total:total, cargoInfo:cargoInfo };
   });
 
-  var totalGeneral = filas.reduce(function(s,f){ return s + f.total; }, 0);
+  var totalGeneral = _habFilasActuales.reduce(function(s,f){ return s + f.total; }, 0);
 
   var prev = document.getElementById('modal-haberes-mes');
   if (prev) prev.remove();
@@ -7267,12 +7260,12 @@ function abrirModalHaberesMes() {
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
 
   overlay.innerHTML =
-    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:760px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
       // Header
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
         '<div>' +
           '<div style="font-weight:700;font-size:15px"><i class="ti ti-cash" style="margin-right:8px;color:var(--green)"></i>Registrar haberes — ' + mesLbl + '</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Se generará un gasto en categoría Personal por cada empleado activo</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Cargá las horas extra de cada empleado para este mes — se generará un gasto en categoría Personal</div>' +
         '</div>' +
         '<button onclick="document.getElementById(\'modal-haberes-mes\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>' +
       '</div>' +
@@ -7283,11 +7276,11 @@ function abrirModalHaberesMes() {
       '</div>' +
       // Tabla de empleados
       '<div id="hab-tabla-body" style="overflow-y:auto;flex:1;padding:12px 20px">' +
-        _renderTablaHaberes(filas, mesISO) +
+        _renderTablaHaberes(_habFilasActuales) +
       '</div>' +
       // Footer con total y botón
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">' +
-        '<div style="font-size:14px"><span style="color:var(--text3)">Total a registrar:</span> <strong style="font-size:16px">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
+        '<div style="font-size:14px"><span style="color:var(--text3)">Total a registrar:</span> <strong style="font-size:16px" id="hab-total-lbl">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
         '<button class="btn btn-primary" onclick="confirmarRegistroHaberes()">' +
           '<i class="ti ti-check"></i> Confirmar y registrar gastos' +
         '</button>' +
@@ -7298,31 +7291,52 @@ function abrirModalHaberesMes() {
   overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
 }
 
-function _renderTablaHaberes(filas, mesISO) {
+function _renderTablaHaberes(filas) {
   if (!filas.length) return '<div style="padding:20px;text-align:center;color:var(--text3)">Sin empleados activos</div>';
   return '<table style="width:100%;border-collapse:collapse">' +
     '<thead><tr>' +
       '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Empleado</th>' +
       '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Sueldo base</th>' +
-      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Hs extra</th>' +
+      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400;width:140px">Hs extra este mes</th>' +
       '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Monto hs ex</th>' +
       '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Total</th>' +
     '</tr></thead>' +
     '<tbody>' +
-    filas.map(function(f) {
+    filas.map(function(f, i) {
       return '<tr style="border-bottom:0.5px solid var(--border)">' +
         '<td style="padding:10px 0">' +
           '<div style="font-weight:500;font-size:13px">' + escapeHTML(f.e.nombre||'') + '</div>' +
           '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(f.e.cargo||'Sin cargo') + '</div>' +
         '</td>' +
         '<td style="text-align:right;font-size:13px;padding:10px 0">$' + f.sueldo.toLocaleString('es-AR') + '</td>' +
-        '<td style="text-align:right;font-size:13px;padding:10px 0;color:var(--text3)">' + f.hsExtra + ' hs</td>' +
-        '<td style="text-align:right;font-size:13px;padding:10px 0;color:var(--amber)">' + (f.montoHsEx > 0 ? '$'+f.montoHsEx.toLocaleString('es-AR') : '—') + '</td>' +
-        '<td style="text-align:right;font-size:14px;font-weight:600;padding:10px 0">$' + f.total.toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;padding:10px 0">' +
+          '<input type="number" value="' + f.hsExtra + '" min="0" step="0.5" ' +
+            'style="width:64px;text-align:right;padding:4px 6px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);font-size:13px;font-family:inherit" ' +
+            'oninput="actualizarHsExtraHaberes(' + i + ',this.value)">' +
+        '</td>' +
+        '<td style="text-align:right;font-size:13px;padding:10px 0;color:var(--amber)" id="hab-monto-hsex-' + i + '">' + (f.montoHsEx > 0 ? '$'+f.montoHsEx.toLocaleString('es-AR') : '—') + '</td>' +
+        '<td style="text-align:right;font-size:14px;font-weight:600;padding:10px 0" id="hab-total-fila-' + i + '">$' + f.total.toLocaleString('es-AR') + '</td>' +
       '</tr>';
     }).join('') +
     '</tbody>' +
   '</table>';
+}
+
+function actualizarHsExtraHaberes(idx, valor) {
+  var f = _habFilasActuales[idx];
+  if (!f) return;
+  f.hsExtra   = parseFloat(valor) || 0;
+  f.montoHsEx = Math.round(f.hsExtra * f.valorHsEx);
+  f.total     = f.sueldo + f.montoHsEx;
+
+  var montoEl = document.getElementById('hab-monto-hsex-' + idx);
+  var totalEl = document.getElementById('hab-total-fila-' + idx);
+  if (montoEl) montoEl.textContent = f.montoHsEx > 0 ? '$'+f.montoHsEx.toLocaleString('es-AR') : '—';
+  if (totalEl) totalEl.textContent = '$' + f.total.toLocaleString('es-AR');
+
+  var totalGeneral = _habFilasActuales.reduce(function(s,ff){ return s + ff.total; }, 0);
+  var totalLbl = document.getElementById('hab-total-lbl');
+  if (totalLbl) totalLbl.textContent = '$' + totalGeneral.toLocaleString('es-AR');
 }
 
 function recalcularHaberes() {
@@ -7362,13 +7376,12 @@ async function confirmarRegistroHaberes() {
   var promesas = [];
   var contador = 0;
 
-  empleados.forEach(function(e) {
-    var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
-    var sueldo    = cargoInfo ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0)) : 0;
-    var valorHsEx = cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
-    var hsExtra   = parseFloat(e.hsExtraMes) || 0;
-    var montoHsEx = Math.round(hsExtra * valorHsEx);
-    var total     = sueldo + montoHsEx;
+  _habFilasActuales.forEach(function(f) {
+    var e         = f.e;
+    var sueldo    = f.sueldo;
+    var hsExtra   = f.hsExtra;
+    var montoHsEx = f.montoHsEx;
+    var total     = f.total;
     if (total <= 0) return;
 
     var desc = 'Haber ' + (e.nombre||'') + ' — ' + mesLbl +
@@ -7456,7 +7469,7 @@ async function confirmarRegistroHaberes() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// AGUINALDO (SAC) — 50% del mejor sueldo del semestre, tomado del historial de haberes
+// AGUINALDO (SAC) — mejor sueldo del semestre (sin hs extra) / 12 × meses trabajados, tomado del historial de haberes
 // ══════════════════════════════════════════════════════════════════════════════
 
 function _semestreActual() {
@@ -7501,7 +7514,7 @@ async function abrirModalAguinaldo() {
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
         '<div>' +
           '<div style="font-weight:700;font-size:15px"><i class="ti ti-gift" style="margin-right:8px;color:var(--amber)"></i>Registrar aguinaldo (SAC)</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:2px">50% del mejor sueldo del semestre — se generará un gasto en categoría Personal por cada empleado</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Mejor sueldo del semestre ÷ 12 × meses trabajados — se generará un gasto en categoría Personal por cada empleado</div>' +
         '</div>' +
         '<button onclick="document.getElementById(\'modal-aguinaldo\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>' +
       '</div>' +
@@ -7540,6 +7553,20 @@ function _opcionesSemestre(actual) {
   return opts.join('');
 }
 
+// Calcula cuántos meses del semestre [anio,sem] estuvo activo el empleado, según su fecha de ingreso.
+// Si ingresó antes o durante el semestre, cuenta desde el mes de ingreso (o desde el inicio del semestre si ingresó antes).
+// Si ingresó después de terminado el semestre, devuelve 0.
+function _mesesTrabajadosEnSemestre(fechaIngreso, anio, sem) {
+  var mesesSem = _mesesDelSemestre(anio, sem); // array de 'YYYY-MM', 6 elementos
+  if (!fechaIngreso) return mesesSem.length; // sin fecha cargada, se asume antigüedad completa
+  var ingresoISO = String(fechaIngreso).slice(0,7); // 'YYYY-MM'
+  var count = 0;
+  mesesSem.forEach(function(mesISO) {
+    if (mesISO >= ingresoISO) count++;
+  });
+  return count;
+}
+
 function _calcularFilasAguinaldo(empleados, habData, anio, sem) {
   var mesesSem = _mesesDelSemestre(anio, sem);
   return empleados.map(function(e) {
@@ -7549,7 +7576,7 @@ function _calcularFilasAguinaldo(empleados, habData, anio, sem) {
     mesesSem.forEach(function(mesISO) {
       var mesKey = mesISO.replace('-','_');
       var reg = historial[mesKey];
-      if (reg && reg.sueldo) {
+      if (reg && reg.sueldo) { // reg.sueldo ya excluye horas extra (se guarda por separado en montoHsEx)
         mesesConDatos++;
         if (reg.sueldo > mejorSueldo) mejorSueldo = reg.sueldo;
       }
@@ -7559,8 +7586,10 @@ function _calcularFilasAguinaldo(empleados, habData, anio, sem) {
       var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
       mejorSueldo = cargoInfo ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0)) : 0;
     }
-    var aguinaldo = Math.round(mejorSueldo * 0.5);
-    return { e:e, mejorSueldo:mejorSueldo, mesesConDatos:mesesConDatos, aguinaldo:aguinaldo };
+    var mesesTrabajados = _mesesTrabajadosEnSemestre(e.fechaIngreso, anio, sem);
+    // SAC = mejor sueldo (sin hs extra) / 12 × meses trabajados en el semestre
+    var aguinaldo = Math.round((mejorSueldo / 12) * mesesTrabajados);
+    return { e:e, mejorSueldo:mejorSueldo, mesesConDatos:mesesConDatos, mesesTrabajados:mesesTrabajados, aguinaldo:aguinaldo };
   });
 }
 
@@ -7570,17 +7599,20 @@ function _renderTablaAguinaldo(filas) {
     '<thead><tr>' +
       '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Empleado</th>' +
       '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Mejor sueldo del semestre</th>' +
-      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Aguinaldo (50%)</th>' +
+      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Meses trabajados</th>' +
+      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Aguinaldo</th>' +
     '</tr></thead>' +
     '<tbody>' +
     filas.map(function(f) {
       var sinDatos = f.mesesConDatos === 0 && f.mejorSueldo > 0;
+      var esParcial = f.mesesTrabajados < 6;
       return '<tr style="border-bottom:0.5px solid var(--border)">' +
         '<td style="padding:10px 0">' +
           '<div style="font-weight:500;font-size:13px">' + escapeHTML(f.e.nombre||'') + '</div>' +
           '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(f.e.cargo||'Sin cargo') + (sinDatos ? ' · <span style="color:var(--amber)">sin haberes registrados, se usó el sueldo de cargo actual</span>' : '') + '</div>' +
         '</td>' +
         '<td style="text-align:right;font-size:13px;padding:10px 0">$' + f.mejorSueldo.toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;font-size:13px;padding:10px 0' + (esParcial ? ';color:var(--amber)' : ';color:var(--text3)') + '">' + f.mesesTrabajados + ' / 6' + (esParcial ? ' <span title="Antigüedad menor a 6 meses en este semestre">⚠</span>' : '') + '</td>' +
         '<td style="text-align:right;font-size:14px;font-weight:600;padding:10px 0;color:var(--green)">$' + f.aguinaldo.toLocaleString('es-AR') + '</td>' +
       '</tr>';
     }).join('') +
@@ -7702,7 +7734,7 @@ function renderTablaEmpleados() {
   }).sort(function(a,b){ return (a.legajo||0)-(b.legajo||0); });
 
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin empleados registrados</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(e) {
@@ -7711,9 +7743,6 @@ function renderTablaEmpleados() {
     var estadoBadge = '<label class="toggle-sw" onclick="event.stopPropagation()" title="'+(e.activo!==false?'Activo — clic para dar de baja':'Inactivo — clic para reactivar')+'"><input type="checkbox" '+(e.activo!==false?'checked':'')+' onchange="event.stopPropagation();abrirModalEstadoEmpleado(\''+e.fbKey+'\','+(e.activo!==false)+')"><span class="toggle-knob"></span></label>';
     var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
     var mensual = cargoInfo ? (parseFloat(cargoInfo.valorHora)||0)*8*(parseFloat(cargoInfo.diasMes)||0) : 0;
-    var valorHsEx = cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
-    var hsExtraMes = parseFloat(e.hsExtraMes) || 0;
-    var montoHsEx = hsExtraMes * valorHsEx;
     var comCalc = (typeof calcularComisionEmpleado === 'function') ? calcularComisionEmpleado(e, new Date().toISOString().slice(0,7)) : null;
     var comision = comCalc ? (comCalc.comision||0) : 0;
     return '<tr class="er" style="cursor:pointer;touch-action:pan-x pan-y" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')">' +
@@ -7721,18 +7750,6 @@ function renderTablaEmpleados() {
       '<td style="font-weight:500">'+escapeHTML(e.nombre||'—')+'</td>' +
       '<td><span class="badge '+catColor+'">'+escapeHTML(catLabel)+'</span></td>' +
       '<td style="text-align:right">'+(cargoInfo?'$'+Math.round(mensual).toLocaleString('es-AR'):'—')+'</td>' +
-      '<td style="text-align:right;width:190px" onclick="event.stopPropagation()">' +
-        '<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">' +
-          '<input type="number" value="' + hsExtraMes + '" min="0" step="0.5" ' +
-            'style="width:52px;text-align:right;padding:3px 5px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);font-size:12px;font-family:inherit" ' +
-            'title="Horas extra este mes" ' +
-            'onchange="guardarHsExtraEmpleado(\'' + e.fbKey + '\',this.value)" ' +
-            'onclick="event.stopPropagation()">' +
-          (cargoInfo && valorHsEx > 0 && hsExtraMes > 0
-            ? '<span style="font-size:11px;color:var(--amber);white-space:nowrap" title="' + hsExtraMes + ' hs × $' + Math.round(valorHsEx).toLocaleString('es-AR') + '/h">= $' + Math.round(montoHsEx).toLocaleString('es-AR') + '</span>'
-            : '<span style="font-size:11px;color:var(--text3)">hs</span>') +
-        '</div>' +
-      '</td>' +
       '<td style="text-align:right;color:var(--green);padding-left:24px">'+(comision?'$'+Math.round(comision).toLocaleString('es-AR'):'—')+'</td>' +
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(e.fechaIngreso||'—')+'</td>' +
       '<td style="text-align:right">'+estadoBadge+'</td>' +
@@ -8959,7 +8976,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.190-firebase',
+  VERSION: 'v20.192-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
