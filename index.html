@@ -341,6 +341,10 @@ tr:hover td{color:var(--text)}
 
 /* ── RESPONSIVE MOBILE ── */
 @media (max-width: 900px) {
+  /* ── TABLAS RESPONSIVE: ocultar tabla desktop, mostrar versión mobile ── */
+  .hide-mobile-block{display:none!important}
+  .show-mobile-only{display:block!important}
+
   /* ── SIDEBAR ── */
   .sidebar{display:flex;position:fixed;top:0;left:-280px;bottom:0;z-index:300;background:var(--bg2);flex-direction:column;overflow-y:auto;border-right:0.5px solid var(--border);width:260px;height:100vh;transition:left .25s ease}
   .sidebar.open{left:0;box-shadow:4px 0 20px rgba(0,0,0,.15)}
@@ -878,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.195 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.199 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1213,7 +1217,7 @@ tr:hover td{color:var(--text)}
           <!-- Mobile: divs flex -->
           <div class="show-mobile-only" id="dash-ventas-mobile" style="width:100%;box-sizing:border-box">
             <div style="display:flex;padding:4px 0 8px;border-bottom:0.5px solid var(--border);font-size:11px;color:var(--text3)"><span style="flex:1">Cliente</span><span style="flex-shrink:0;margin-left:12px">Total</span><span style="flex-shrink:0;margin-left:8px;min-width:68px">Estado</span></div>
-            <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin ventas recientes</div>
+            <div id="dash-ventas-mobile-lista"><div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Cargando ventas...</div></div>
           </div>
         </div>
       </div>
@@ -8982,7 +8986,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.195-firebase',
+  VERSION: 'v20.199-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9482,18 +9486,25 @@ function cargarNotifLeidas() {
   window.fbGet(window.fbRef(window.fbDB, key)).then(function(snap) {
     var data = snap.val();
     if (data && typeof data === 'object') {
-      Object.keys(data).forEach(function(id) { notifLeidas.add(id); });
+      Object.keys(data).forEach(function(id) { notifLeidas.add(id); }); // ya vienen sanitizadas desde Firebase
     }
     if (typeof renderNotificaciones === 'function') renderNotificaciones('');
     actualizarBadgeNotif();
   }).catch(function(){});
 }
 
+// Firebase Realtime Database no permite los caracteres . # $ [ ] en una key.
+// Los ids de notificación pueden derivar de v.id/ot.id que sí los contienen
+// (ej. ventas con id "#00123"), así que hay que sanitizar antes de usarlos como path.
+function _sanitizarKeyFirebase(id) {
+  return String(id||'').replace(/[.#$\[\]]/g, '_');
+}
+
 // Guardar una notificación como leída en Firebase para este usuario
 function guardarNotifLeida(id) {
   if (!window.fbDB || !currentUserEmail) return;
-  var key = 'sisventas/notif_leidas/' + currentUserEmail.replace(/\./g,'_').replace(/@/g,'__') + '/' + id;
-  window.fbSet(window.fbRef(window.fbDB, key), true).catch(function(){});
+  var key = 'sisventas/notif_leidas/' + currentUserEmail.replace(/\./g,'_').replace(/@/g,'__') + '/' + _sanitizarKeyFirebase(id);
+  window.fbSet(window.fbRef(window.fbDB, key), true).catch(function(e){ console.error('Error guardando notif leída:', e); });
 }
 var todasNotifs = [];
 const now = new Date();
@@ -20922,16 +20933,91 @@ function eliminarCliente(el) {
   var cid = el.dataset.cid;
   var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid); });
   if (!cli) return;
-  if (!confirm('¿Eliminar cliente "' + (cli.nombre||'') + '"? Esta acción no se puede deshacer.')) return;
-  if (cli.fbKey && window.fbDB) {
-    window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey))
-      .then(function(){ notify('Cliente eliminado'); })
-      .catch(function(e){ notify('Error: ' + e.message); });
-  } else {
-    clientesData = (clientesData||[]).filter(function(c){ return String(c.id) !== String(cid); });
-    renderTablaClientes();
-    notify('Cliente eliminado');
+
+  // Detectar todo lo asociado a este cliente antes de pedir confirmación,
+  // para que el usuario sepa exactamente qué se va a borrar.
+  var ventasCli = (ventasList||[]).filter(function(v){
+    return String(v.idCliente||v.clienteId||'') === String(cli.id) ||
+           (v.cliente||'').toLowerCase().trim() === (cli.nombre||'').toLowerCase().trim();
+  });
+  var pptosCli = (pptoData||[]).filter(function(p){
+    return (p.cliente||'').toLowerCase().trim() === (cli.nombre||'').toLowerCase().trim();
+  });
+  var otSueltasCli = (otData||[]).filter(function(o){
+    var deAlgunaVenta = ventasCli.some(function(v){ return v.id === o.ventaId; });
+    if (deAlgunaVenta) return false; // esa OT ya se borra en cascada con su venta
+    return String(o.clienteId||'') === String(cli.id) ||
+           (o.cliente||'').toLowerCase().trim() === (cli.nombre||'').toLowerCase().trim();
+  });
+  var pagosSueltosCli = (window._pagosListaActual||[]).filter(function(p){
+    var deAlgunaVenta = ventasCli.some(function(v){ return v.id === p.venta; });
+    if (deAlgunaVenta) return false; // ya se borra en cascada con la venta
+    return (p.cliente||'').toLowerCase().trim() === (cli.nombre||'').toLowerCase().trim();
+  });
+
+  var resumen = [];
+  if (ventasCli.length)      resumen.push(ventasCli.length + ' venta' + (ventasCli.length!==1?'s':'') + ' (con sus OT y pagos)');
+  if (pptosCli.length)       resumen.push(pptosCli.length + ' presupuesto' + (pptosCli.length!==1?'s':''));
+  if (otSueltasCli.length)   resumen.push(otSueltasCli.length + ' OT suelta' + (otSueltasCli.length!==1?'s':''));
+  if (pagosSueltosCli.length) resumen.push(pagosSueltosCli.length + ' pago' + (pagosSueltosCli.length!==1?'s':'') + ' suelto' + (pagosSueltosCli.length!==1?'s':''));
+
+  var msg = '¿Eliminar cliente "' + (cli.nombre||'') + '"?\n\nEsta acción no se puede deshacer.';
+  if (resumen.length) {
+    msg += '\n\nTambién se eliminará todo lo asociado:\n• ' + resumen.join('\n• ');
   }
+  if (!confirm(msg)) return;
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+
+  // Bloqueo fiscal: si alguna venta del cliente tiene factura con CAE, no se puede borrar en cascada.
+  var ventaFacturada = ventasCli.find(function(v){ return v.factura && v.factura.cae; });
+  if (ventaFacturada) {
+    notify('No se puede eliminar: el cliente tiene la venta ' + ventaFacturada.id + ' con factura electrónica (CAE) emitida. Anulá esa factura con una nota de crédito en ARCA antes de eliminar el cliente.');
+    return;
+  }
+
+  var promesas = [];
+
+  // Ventas del cliente — reutiliza la misma lógica de borrado en cascada que eliminarVenta()
+  // (borra también la OT vinculada y los pagos de esa venta)
+  ventasCli.forEach(function(v) {
+    if (!v.fbKey) return;
+    promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + v.fbKey)));
+    var otVinculada = (otData||[]).find(function(o){ return o.ventaId === v.id; });
+    if (otVinculada && otVinculada.fbKey) {
+      promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey)));
+    }
+    var pagosVenta = (window._pagosListaActual||[]).filter(function(p){ return p.venta === v.id && p.fbKey; });
+    pagosVenta.forEach(function(p) {
+      promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + p.fbKey)));
+    });
+  });
+
+  // Presupuestos del cliente
+  pptosCli.forEach(function(p) {
+    if (p.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + p.fbKey)));
+  });
+
+  // OT sueltas del cliente (sin venta asociada, ej. service/garantía directo)
+  otSueltasCli.forEach(function(o) {
+    if (o.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + o.fbKey)));
+  });
+
+  // Pagos sueltos del cliente (sin venta asociada)
+  pagosSueltosCli.forEach(function(p) {
+    if (p.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + p.fbKey)));
+  });
+
+  // El cliente, al final
+  if (cli.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey)));
+
+  Promise.all(promesas)
+    .then(function() {
+      notify('✓ Cliente y todo lo asociado eliminado' + (resumen.length ? ' (' + resumen.join(', ') + ')' : ''));
+      if (typeof registrarActividad === 'function') {
+        registrarActividad('Cliente eliminado en cascada', (cli.nombre||'') + ' — ' + resumen.join(', '));
+      }
+    })
+    .catch(function(e){ notify('Error al eliminar: ' + e.message); });
 }
 
 function eliminarProducto(el) {
@@ -21775,7 +21861,7 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
         <button class="btn btn-sm btn-icon" onclick="toggleMenuPpto(event,'menu-ppto-${p.id}')" title="Acciones">
           <i class="ti ti-dots-vertical" style="font-size:15px"></i>
         </button>
-        <div id="menu-ppto-${p.id}" class="ppto-dropdown-menu" style="display:none;position:absolute;right:0;top:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:999;min-width:170px;padding:4px 0">
+        <div id="menu-ppto-${p.id}" class="ppto-dropdown-menu" style="display:none;position:absolute;right:0;top:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:999;min-width:170px;padding:4px 0">
           <button class="ppto-menu-item" onclick="cerrarMenusPpto();verPpto('${p.id}')">
             <i class="ti ti-eye" style="font-size:13px"></i> Ver detalle
           </button>
@@ -23268,6 +23354,17 @@ function completarOT() {
   ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: 'OT marcada como completada. Conformidad: ' + conf });
   ot.audit.push({ fecha: ahora, usuario: 'Sistema', accion: 'Garantía activada automáticamente' });
   document.getElementById('ot-det-estado-badge').innerHTML = otBadge('completada');
+
+  // Actualizar automáticamente el estado de instalación de la venta vinculada.
+  // Antes esto quedaba pegado en "pendiente_inst" para siempre porque nada lo tocaba.
+  if (ot.ventaId && window.fbDB) {
+    var ventaVinculada = (ventasList||[]).find(function(v){ return v.id === ot.ventaId; });
+    if (ventaVinculada && ventaVinculada.fbKey && ventaVinculada.estadoInst !== 'instalado') {
+      window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaVinculada.fbKey), { estadoInst: 'instalado' })
+        .catch(function(e){ console.error('Error al actualizar estado de instalación de la venta:', e); });
+    }
+  }
+
   // Guardar en Firebase
   if (typeof fbGuardarOT === 'function') {
     fbGuardarOT(ot)
@@ -23760,6 +23857,31 @@ function renderKPIsDashboard() {
       }).join('');
     } else {
       ultVentasEl.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:16px;color:var(--text3)">Sin ventas recientes</td></tr>';
+    }
+  }
+
+  // ── Últimas ventas — versión mobile (tarjetas en vez de tabla) ──
+  var ultVentasMobileEl = document.getElementById('dash-ventas-mobile-lista');
+  if (ultVentasMobileEl) {
+    var ultimasM = ventas.slice(0, 10);
+    if (ultimasM.length) {
+      ultVentasMobileEl.innerHTML = ultimasM.map(function(v) {
+        var estadoLbl = v.estadoPago === 'pago_total' ? '<span class="badge b-green">Pagado</span>'
+                       : v.estadoPago === 'seniado' ? '<span class="badge b-blue">Señado</span>'
+                       : '<span class="badge b-amber">Pendiente</span>';
+        var total = parseFloat(v.total) || 0;
+        var vid = escapeHTML(v.id||'');
+        return '<div onclick="verDetalleVentaDesdeId(\'' + vid + '\')" style="display:flex;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer">' +
+          '<span style="flex:1;min-width:0">' +
+            '<div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(v.cliente||'') + '</div>' +
+            '<div style="font-size:11px;color:var(--text3)">' + vid + ' · ' + _mostrarFecha(v.fecha) + '</div>' +
+          '</span>' +
+          '<span style="flex-shrink:0;margin-left:12px;font-weight:600;font-size:13px">$' + total.toLocaleString('es-AR') + '</span>' +
+          '<span style="flex-shrink:0;margin-left:8px;min-width:68px;text-align:right">' + estadoLbl + '</span>' +
+        '</div>';
+      }).join('');
+    } else {
+      ultVentasMobileEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin ventas recientes</div>';
     }
   }
 
@@ -24363,24 +24485,26 @@ function renderDetalleVenta(v) {
   var saldo = total - pagado;
 
   dv.innerHTML =
-    // Header
-    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">' +
+    // Header — fila 1: volver + título
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">' +
       '<button class="btn btn-sm" onclick="volverListaVentas()">' +
         '<i class="ti ti-arrow-left"></i> Volver' +
       '</button>' +
-      '<div style="flex:1">' +
+      '<div style="flex:1;min-width:140px">' +
         '<div style="font-size:18px;font-weight:700">Venta ' + v.id + '</div>' +
         '<div style="font-size:13px;color:var(--text3)">' + v.fecha + ' · ' + (v.usuario||'Sistema') + '</div>' +
       '</div>' +
+    '</div>' +
+    // Header — fila 2: acciones (envuelve en mobile)
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap">' +
       (v.factura
-        ? '<span style="display:inline-flex;align-items:center;gap:4px">' +
-            '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="verFacturaEmitida(\''+v.factura.pdf_url+'\',\''+v.factura.cae+'\')" title="CAE: '+v.factura.cae+'"><i class="ti ti-file-check"></i> Facturada</button>' +
-          '</span>'
+        ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="verFacturaEmitida(\''+v.factura.pdf_url+'\',\''+v.factura.cae+'\')" title="CAE: '+v.factura.cae+'"><i class="ti ti-file-check"></i> Facturada</button>'
         : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
       ) +
       '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' +
       '<button class="btn btn-sm" onclick="imprimirVentaActual()" title="Abre el comprobante para imprimir o guardar como PDF"><i class="ti ti-printer"></i> Imprimir comprobante</button>' +
       '<button class="btn btn-sm" style="color:var(--green2,var(--green));border-color:var(--green2,var(--green))" onclick="pdfYWhatsappVenta(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Generar PDF y abrir WhatsApp del cliente"><i class="ti ti-brand-whatsapp"></i> PDF / WhatsApp</button>' +
+      '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="eliminarVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Eliminar venta (también elimina la OT y los pagos vinculados)"><i class="ti ti-trash"></i> Eliminar</button>' +
     '</div>' +
 
     // Cliente y estados
@@ -24452,7 +24576,7 @@ function renderDetalleVenta(v) {
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
         '<span style="font-weight:600">Historial de pagos</span>' +
         (saldo > 0
-          ? '<button class="btn btn-sm btn-primary" onclick="registrarPagoVenta(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-plus"></i> Registrar pago</button>'
+          ? '<button class="btn btn-sm btn-primary" onclick="irACobranzasConVenta(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-plus"></i> Registrar pago</button>'
           : '<span style="font-size:12px;color:var(--green)"><i class="ti ti-check"></i> Saldo cancelado</span>'
         ) +
       '</div>' +
@@ -24501,35 +24625,10 @@ function toggleCSF(vid, fk) {
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
+// Mantenida por compatibilidad — ahora todo registro de pago pasa por el
+// módulo de Cobranzas (irACobranzasConVenta), para que quede centralizado.
 function registrarPagoVenta(ventaId) {
-  var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
-  if (!venta) return;
-  var monto = prompt('Monto a registrar ($):');
-  if (!monto || isNaN(parseFloat(monto))) return;
-  var medio = prompt('Medio de pago (Efectivo/Transferencia/Tarjeta):') || 'Efectivo';
-  var pago = {
-    fecha: new Date().toLocaleDateString('es-AR'),
-    monto: parseFloat(monto),
-    medio: medio,
-    nota: ''
-  };
-  if (!venta.pagos) venta.pagos = [];
-  venta.pagos.push(pago);
-  var pagado = venta.pagos.reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
-  var total  = parseFloat(venta.total) || 0;
-  if (pagado >= total) {
-    venta.estadoPago = 'pago_total';
-  } else if (pagado > 0) {
-    venta.estadoPago = 'seniado';
-  }
-  if (!venta.audit) venta.audit = [];
-  venta.audit.push({ fecha: new Date().toLocaleDateString('es-AR'), usuario: 'Admin', accion: 'Pago registrado: $' + parseFloat(monto).toLocaleString('es-AR') });
-  if (typeof fbGuardarVenta === 'function') {
-    fbGuardarVenta(venta).then(function() {
-      renderDetalleVenta(venta);
-      notify('Pago registrado ✓');
-    });
-  }
+  irACobranzasConVenta(ventaId);
 }
 
 
@@ -24762,7 +24861,7 @@ function renderNotificaciones(filtro) {
   if (!lista) return;
 
   const rows = filtro ? todasNotifs.filter(n => n.tipo === filtro) : todasNotifs;
-  const sinLeer = rows.filter(n => !notifLeidas.has(n.id)).length;
+  const sinLeer = rows.filter(n => !notifLeidas.has(_sanitizarKeyFirebase(n.id))).length;
 
   if (lbl) lbl.textContent = sinLeer > 0
     ? sinLeer + ' notificación' + (sinLeer > 1 ? 'es' : '') + ' sin leer'
@@ -24781,7 +24880,7 @@ function renderNotificaciones(filtro) {
   const bgMap    = { red:'var(--red-bg)', amber:'var(--amber-bg)', blue:'var(--blue-bg)', green:'var(--green-bg)' };
 
   lista.innerHTML = rows.map(n => {
-    const leida = notifLeidas.has(n.id);
+    const leida = notifLeidas.has(_sanitizarKeyFirebase(n.id));
     const c = colorMap[n.color] || 'var(--text2)';
     const bg = bgMap[n.color] || 'var(--bg3)';
     return `<div style="background:${leida ? 'var(--bg3)' : bg};border:0.5px solid ${leida ? 'var(--border)' : c};border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;opacity:${leida ? '.6' : '1'};transition:opacity .2s" id="ncard-${n.id}">
@@ -24831,7 +24930,8 @@ function toggleNotifConfig(key, val) {
 }
 
 function marcarLeida(id) {
-  notifLeidas.add(id);
+  var idSan = _sanitizarKeyFirebase(id);
+  notifLeidas.add(idSan);
   guardarNotifLeida(id);
   const card = document.getElementById('ncard-' + id);
   if (card) {
@@ -24840,13 +24940,13 @@ function marcarLeida(id) {
     card.style.border = '0.5px solid var(--border)';
   }
   actualizarBadgeNotif();
-  const sinLeer = todasNotifs.filter(n => !notifLeidas.has(n.id)).length;
+  const sinLeer = todasNotifs.filter(n => !notifLeidas.has(_sanitizarKeyFirebase(n.id))).length;
   const lbl = document.getElementById('notif-count-label');
   if (lbl) lbl.textContent = sinLeer > 0 ? sinLeer + ' notificación' + (sinLeer > 1 ? 'es' : '') + ' sin leer' : 'Todo al día ✓';
 }
 
 function marcarTodasLeidas() {
-  todasNotifs.forEach(n => { notifLeidas.add(n.id); guardarNotifLeida(n.id); });
+  todasNotifs.forEach(n => { notifLeidas.add(_sanitizarKeyFirebase(n.id)); guardarNotifLeida(n.id); });
   (function(){var _nf=document.getElementById('notif-filtro');renderNotificaciones((_nf?_nf.value:'')||'');})();
   actualizarBadgeNotif();
   notify('Todas las notificaciones marcadas como leídas');
@@ -24857,7 +24957,7 @@ function filtrarNotifs(tipo) {
 }
 
 function actualizarBadgeNotif() {
-  const sinLeer = todasNotifs.filter(n => !notifLeidas.has(n.id)).length;
+  const sinLeer = todasNotifs.filter(n => !notifLeidas.has(_sanitizarKeyFirebase(n.id))).length;
   const badge = document.getElementById('notif-badge');
   if (badge) badge.style.display = sinLeer > 0 ? 'block' : 'none';
   // Actualizar el número en el sidebar
