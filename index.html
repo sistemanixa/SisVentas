@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.206 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.207 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9003,7 +9003,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.206-firebase',
+  VERSION: 'v20.207-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -25941,7 +25941,7 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
     <td style="text-align:right;white-space:nowrap">
       <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px">
         <input type="number" value="${dp||''}" class="disc" placeholder="0" min="0" max="100" oninput="calcRow(this)"
-          style="width:44px;text-align:right;border:0.5px solid var(--border3);border-radius:4px;background:var(--bg);color:${dp>0?'var(--green)':'var(--text3)'};font-size:12px;font-family:inherit;padding:2px 4px">
+          style="width:44px;text-align:right;border:0.5px solid var(--border3);border-radius:4px;background:var(--bg);color:${dp>0?'var(--green)':'var(--text3)'};font-size:13px;font-family:inherit;padding:4px 6px;outline:none">
         <span style="font-size:11px;color:var(--text3)">%</span>
       </div>
     </td>
