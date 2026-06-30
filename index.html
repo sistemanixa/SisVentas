@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.201 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.202 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1641,10 +1641,13 @@ tr:hover td{color:var(--text)}
       <div class="totals"><div class="tbox">
         <div class="tl"><span>Subtotal</span><span id="pp-sub">$0</span></div>
         <div class="tl" style="color:var(--green)"><span>Descuento</span><span id="pp-damt">$0</span></div>
-        <div class="tl iva"><span>IVA 21%</span><span id="pp-iva">$0</span></div>
+        <div class="tl iva" id="pp-iva-row"><span>IVA 21%</span><span id="pp-iva">$0</span></div>
         <div class="tl final"><span>Total</span><span id="pp-total">$0</span></div>
       </div></div>
       <div class="flex-end">
+        <button class="btn" id="btn-toggle-iva-ppto" onclick="toggleIvaPpto(this)" style="min-width:110px">
+          <i class="ti ti-receipt-tax"></i> Con IVA
+        </button>
         <button class="btn" onclick="guardarPresupuesto('borrador')"><i class="ti ti-device-floppy"></i> Guardar borrador</button>
         <button class="btn" onclick="actualizarValoresPpto()" title="Recalcula precios al tipo de cambio actual y extiende el vencimiento" style="color:var(--blue);border-color:var(--blue)">
           <i class="ti ti-refresh"></i> Actualizar valores
@@ -2014,7 +2017,7 @@ tr:hover td{color:var(--text)}
             <div class="fg"><label>Total de la venta</label><input type="text" id="cob-total-venta" readonly placeholder="—" style="font-weight:500"></div>
             <div class="fg"><label>Ya cobrado</label><input type="text" id="cob-ya-cobrado" readonly placeholder="—" style="color:var(--green)"></div>
             <div class="fg"><label>Saldo pendiente</label><input type="text" id="cob-saldo" readonly placeholder="—" style="color:var(--amber);font-weight:500"></div>
-            <div class="fg"><label>Monto a cobrar ahora ($)</label><input type="number" id="cob-monto" placeholder="0" min="0" oninput="calcSaldoTrasCobranza()"></div>
+            <div class="fg"><label>Monto a cobrar ahora ($)</label><input data-money="1" id="cob-monto" placeholder="0" oninput="calcSaldoTrasCobranza()"></div>
             <div class="fg"><label>Medio de pago</label>
               <select id="cob-medio">
                 <option>Efectivo</option>
@@ -2679,7 +2682,7 @@ tr:hover td{color:var(--text)}
               <div class="form-grid">
                 <div class="fg full"><label>Buscar en el catálogo de Productos por palabra clave</label><input type="text" id="aacfg-regla-clave" placeholder="Ej: Panel Garnet PG-380"></div>
                 <div class="fg"><label>Nombre de referencia (si no se encuentra en Productos)</label><input type="text" id="aacfg-regla-ref-nombre"></div>
-                <div class="fg"><label>Precio de referencia ($)</label><input type="number" id="aacfg-regla-ref-precio"></div>
+                <div class="fg"><label>Precio de referencia ($)</label><input data-money="1" id="aacfg-regla-ref-precio"></div>
               </div>
             </div>
             <div class="card">
@@ -3841,7 +3844,7 @@ tr:hover td{color:var(--text)}
               <div class="form-grid cols3" style="margin-bottom:0">
                 <div class="fg">
                   <label>Precio gremio / costo ARS</label>
-                  <input type="number" id="pf-precio-gremio" placeholder="0" min="0" oninput="calcPrecioDesdeGremio()">
+                  <input data-money="1" id="pf-precio-gremio" placeholder="0" oninput="calcPrecioDesdeGremio()">
                   <div style="font-size:11px;color:var(--text3);margin-top:4px">Precio de lista del gremio en pesos</div>
                 </div>
                 <div class="fg">
@@ -3868,8 +3871,8 @@ tr:hover td{color:var(--text)}
               <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Busca el precio en Biosegur, Free Electron y Tecnoprices usando la IA</div>
               <div id="pf-precios-resultado" style="display:none;flex-direction:column;gap:6px"></div>
             </div>
-              <div class="fg"><label>Precio de compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input type="number" id="pf-compra" placeholder="0" oninput="calcMargen()" min="0"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
-              <div class="fg"><label>Precio de venta (<span id="pf-venta-moneda-lbl">$</span>)</label><input type="number" id="pf-venta" placeholder="0" oninput="calcMargen()" min="0"></div>
+              <div class="fg"><label>Precio de compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input data-money="1" id="pf-compra" placeholder="0" oninput="calcMargen()"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
+              <div class="fg"><label>Precio de venta (<span id="pf-venta-moneda-lbl">$</span>)</label><input data-money="1" id="pf-venta" placeholder="0" oninput="calcMargen()"></div>
               <div class="fg"><label>Margen calculado</label><input type="text" id="pf-margen" readonly placeholder="—" style="color:var(--green);font-weight:500"></div>
               <div class="fg"><label>IVA</label>
                 <select id="pf-iva">
@@ -4314,8 +4317,8 @@ tr:hover td{color:var(--text)}
       <div class="fg full"><label>Descripción</label>
         <input type="text" id="g-descripcion" placeholder="Ej: Alquiler oficina junio">
       </div>
-      <div class="fg"><label>Monto total ($)</label><input type="number" id="g-monto" placeholder="0" oninput="calcRestoGasto()"></div>
-      <div class="fg"><label>Monto ya pagado ($)</label><input type="number" id="g-monto-pagado" placeholder="0" value="0" oninput="calcRestoGasto()"></div>
+      <div class="fg"><label>Monto total ($)</label><input data-money="1" id="g-monto" placeholder="0" oninput="calcRestoGasto()"></div>
+      <div class="fg"><label>Monto ya pagado ($)</label><input data-money="1" id="g-monto-pagado" placeholder="0" value="0" oninput="calcRestoGasto()"></div>
       <div class="fg"><label>Resta pagar</label>
         <input type="text" id="g-resta" readonly style="background:var(--bg4);font-weight:600">
       </div>
@@ -4365,7 +4368,7 @@ tr:hover td{color:var(--text)}
       <div style="font-size:15px;font-weight:600;margin-bottom:16px" id="mpg-titulo">Registrar pago</div>
       <div style="margin-bottom:12px">
         <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Monto a pagar ahora ($)</label>
-        <input type="number" id="mpg-monto" placeholder="0" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;box-sizing:border-box">
+        <input data-money="1" id="mpg-monto" placeholder="0" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;box-sizing:border-box">
       </div>
       <div style="margin-bottom:16px">
         <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Medio de pago</label>
@@ -4691,7 +4694,7 @@ tr:hover td{color:var(--text)}
         </select>
       </div>
       <div class="fg full"><label>Descripción</label><input type="text" id="movi-desc" placeholder="Detalle del movimiento"></div>
-      <div class="fg"><label>Monto ($)</label><input type="number" id="movi-monto" placeholder="0" min="0"></div>
+      <div class="fg"><label>Monto ($)</label><input data-money="1" id="movi-monto" placeholder="0"></div>
       <div class="fg"><label>Estado</label>
         <select id="movi-estado">
           <option value="pendiente">Pendiente aprobación</option>
@@ -4883,7 +4886,7 @@ tr:hover td{color:var(--text)}
           <div class="fg"><label>Tipo</label>
             <select id="cm-tipo"><option>Ingreso</option><option>Egreso</option><option>Retiro</option></select>
           </div>
-          <div class="fg"><label>Monto ($)</label><input type="number" id="cm-monto" placeholder="0"></div>
+          <div class="fg"><label>Monto ($)</label><input data-money="1" id="cm-monto" placeholder="0"></div>
           <div class="fg"><label>Concepto</label><input id="cm-concepto" placeholder="Ej: Cobro venta #00042"></div>
           <div class="fg"><label>Medio</label>
             <select id="cm-medio"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>
@@ -9000,7 +9003,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.201-firebase',
+  VERSION: 'v20.202-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10084,7 +10087,8 @@ function calcTotals() {
   let s = 0;
   document.querySelectorAll('#det-body tr').forEach(function(tr) {
     var q  = parseFloat((tr.querySelector('.qty')||{}).value) || 0;
-    var p  = parseFloat((tr.querySelector('.price')||{}).value) || 0;
+    var priceInp = tr.querySelector('.price');
+    var p  = priceInp ? (priceInp.dataset.moneyInit ? getMontoRaw(priceInp) : (parseFloat(priceInp.value) || 0)) : 0;
     var dp = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
     s += q * p * (1 - dp/100);
   });
@@ -10284,7 +10288,8 @@ function confirmarVenta() {
       var descEl = tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt');
       var desc  = descEl ? descEl.textContent : '';
       var qty   = parseInt((tr.querySelector('.qty')||{}).value) || 1;
-      var punit = parseFloat((tr.querySelector('.price')||{}).value) || 0;
+      var priceInpItem = tr.querySelector('.price');
+      var punit = priceInpItem ? (priceInpItem.dataset.moneyInit ? getMontoRaw(priceInpItem) : (parseFloat(priceInpItem.value) || 0)) : 0;
       var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
       var sub   = Math.round(qty * punit * (1 - disc/100));
       var item  = { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub };
@@ -10598,12 +10603,12 @@ function abrirFormProducto(id) {
   // Campo URL proveedor (codWeb)
   var cwEl = document.getElementById('pf-cod-web');
   if (cwEl) cwEl.value = p.codWeb || p.urlProveedor || '';
-  document.getElementById('pf-venta').value = p.venta ? pfFormatearPrecio(p.venta) : '';
+  _setMontoInput(document.getElementById('pf-venta'), p.venta || 0);
   // Cargar campos de calculadora de precio
   var pgEl = document.getElementById('pf-precio-gremio');
   var mdEl = document.getElementById('pf-margen-deseado');
-  var rawGremio = p.precioGremio || p.compraARS || p.compra || '';
-  if (pgEl) pgEl.value = rawGremio ? pfFormatearPrecio(rawGremio) : '';
+  var rawGremio = p.precioGremio || p.compraARS || p.compra || 0;
+  if (pgEl) _setMontoInput(pgEl, rawGremio);
   if (mdEl) mdEl.value = p.margenDeseado || '';
   document.getElementById('pf-iva').value = p.iva || 21;
   document.getElementById('pf-stock').value = p.stock !== undefined ? p.stock : '';
@@ -10833,7 +10838,7 @@ async function buscarPreciosProveedores() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando...'; }
   if (res) { res.style.display = 'flex'; res.innerHTML = '<div style="color:var(--text3);font-size:12px">Consultando proveedores...</div>'; }
 
-  var precioActual = parseFloat((document.getElementById('pf-compra')||{}).value) || 0;
+  var precioActual = getMontoRaw(document.getElementById('pf-compra'));
   var systemPrompt = 'Sos un asistente especializado en precios de materiales para instalaciones de seguridad y domótica en Argentina. ' +
     'Buscá el precio de "' + termino + '" en estos proveedores argentinos: ' +
     '1) Biosegur (biosegur.com.ar) - usar URL: biosegur.com.ar/busqueda_avanzada.php?buscar=1&palabra=TERMINO ' +
@@ -10914,7 +10919,7 @@ function pfFormatearPrecio(val) {
 }
 
 function calcPrecioDesdeGremio() {
-  var gremio  = parseFloat(document.getElementById('pf-precio-gremio').value) || 0;
+  var gremio  = getMontoRaw(document.getElementById('pf-precio-gremio'));
   var margen  = parseFloat(document.getElementById('pf-margen-deseado').value) || 0;
   var calcEl  = document.getElementById('pf-precio-calculado');
   var usdEl   = document.getElementById('pf-precio-usd-equiv');
@@ -10925,8 +10930,8 @@ function calcPrecioDesdeGremio() {
   // Cargar en el campo de precio venta
   var pfVenta = document.getElementById('pf-venta');
   var pfCompra = document.getElementById('pf-compra');
-  if (pfVenta)  pfVenta.value  = precioVenta;
-  if (pfCompra) pfCompra.value = gremio;
+  if (pfVenta)  _setMontoInput(pfVenta, precioVenta);
+  if (pfCompra) _setMontoInput(pfCompra, gremio);
   // Mostrar equivalente USD
   var tc = (window._tipoCambioActual && window._tipoCambioActual.venta) || 0;
   if (tc && usdEl) {
@@ -10937,9 +10942,22 @@ function calcPrecioDesdeGremio() {
   calcMargen();
 }
 
+// Asigna un valor numérico a un input formateado con data-money, manteniendo
+// sincronizados tanto el texto visible como el dato crudo (dataset.raw).
+function _setMontoInput(input, valor) {
+  if (!input) return;
+  if (input.dataset.moneyInit) {
+    input.dataset.raw = String(valor);
+    delete input.dataset.tieneComa;
+    _refrescarMoneyVisual(input);
+  } else {
+    input.value = valor;
+  }
+}
+
 function calcMargen() {
-  const c = parseFloat(document.getElementById('pf-compra').value) || 0;
-  const v = parseFloat(document.getElementById('pf-venta').value) || 0;
+  const c = getMontoRaw(document.getElementById('pf-compra'));
+  const v = getMontoRaw(document.getElementById('pf-venta'));
   const iva = parseFloat(document.getElementById('pf-iva').value) || 0;
   if (c > 0 && v > 0) {
     const margen = ((v - c) / c * 100).toFixed(1);
@@ -10992,15 +11010,15 @@ function guardarProducto() {
     proveedores:  proveedoresValidos,
     proveedor:    proveedorPrincipal ? proveedorPrincipal.nombre : '',
     moneda:       (document.getElementById('pf-moneda')||{}).value || 'ARS',
-    compra:       Math.round((parseFloat(document.getElementById('pf-compra').value) || 0) * 100) / 100,
-    venta:        Math.round((parseFloat(document.getElementById('pf-venta').value) || 0) * 100) / 100,
+    compra:       Math.round(getMontoRaw(document.getElementById('pf-compra')) * 100) / 100,
+    venta:        Math.round(getMontoRaw(document.getElementById('pf-venta')) * 100) / 100,
     iva:          parseFloat(document.getElementById('pf-iva').value) || 21,
     stock:        parseInt(document.getElementById('pf-stock').value) || 0,
     stockMin:     parseInt(document.getElementById('pf-stock-min').value) || 5,
     estado:       document.getElementById('pf-estado').value,
     unidad:       document.getElementById('pf-unidad').value,
     esManoDeObra: document.getElementById('pf-es-mano-obra').checked,
-    precioGremio: parseFloat(document.getElementById('pf-precio-gremio').value) || 0,
+    precioGremio: getMontoRaw(document.getElementById('pf-precio-gremio')),
     margenDeseado: parseFloat(document.getElementById('pf-margen-deseado').value) || 0,
     codWeb:  (document.getElementById('pf-cod-web')||{}).value || '',
     imagenUrl: (document.getElementById('pf-imagen-url')||{}).value || ''
@@ -11181,6 +11199,16 @@ function selPpCli(nombre,dir) {
   _hide('pp-cli-drop');
 }
 document.addEventListener('click', e=>{if(!e.target.closest('#page-presupuesto .sw'))_hide('pp-cli-drop');});
+var _pptoConIva = true; // estado global del toggle IVA en presupuesto
+
+function toggleIvaPpto(btn) {
+  _pptoConIva = !_pptoConIva;
+  btn.innerHTML = '<i class="ti ti-receipt-tax"></i> ' + (_pptoConIva ? 'Con IVA' : 'Sin IVA');
+  btn.style.color = _pptoConIva ? '' : 'var(--amber)';
+  btn.style.borderColor = _pptoConIva ? '' : 'var(--amber)';
+  calcPpTotales();
+}
+
 function calcPpTotales() {
   let s = 0;
   document.querySelectorAll('#pp-body tr').forEach(tr => {
@@ -11190,7 +11218,7 @@ function calcPpTotales() {
     var dEl  = tr.querySelector('.disc');
     var subEl = tr.querySelector('.sub,.ppsub');
     var q    = parseFloat(qEl  ? qEl.value  : 0) || 0;
-    var p    = parseFloat(pEl  ? pEl.value  : 0) || 0;
+    var p    = pEl && pEl.dataset.moneyInit ? getMontoRaw(pEl) : (parseFloat(pEl ? pEl.value : 0) || 0);
     var d    = parseFloat(dEl  ? dEl.value  : 0) || 0;
     var sub  = Math.round(q * p * (1 - d/100));
     s += sub;
@@ -11200,9 +11228,12 @@ function calcPpTotales() {
   var desc    = parseFloat(descEl ? descEl.value : 0) || 0;
   var descAmt = Math.round(s * desc / 100);
   var base    = s - descAmt;
-  var iva     = Math.round(base * 0.21);
+  var conIva  = typeof _pptoConIva !== 'undefined' ? _pptoConIva : true;
+  var iva     = conIva ? Math.round(base * 0.21) : 0;
   _set('pp-sub',  '$' + s.toLocaleString('es-AR'));
   _set('pp-damt', descAmt > 0 ? '-$' + descAmt.toLocaleString('es-AR') : '$0');
+  var ivaRow = document.getElementById('pp-iva-row');
+  if (ivaRow) ivaRow.style.display = conIva ? '' : 'none';
   _set('pp-iva',  '$' + iva.toLocaleString('es-AR'));
   _set('pp-total','$' + (base + iva).toLocaleString('es-AR'));
 }
@@ -11230,7 +11261,7 @@ function selVentaCob(venta,cliente,total,cobrado,saldo) {
   document.getElementById('cob-ya-cobrado').value=cobrado;
   document.getElementById('cob-saldo').value=saldo;
   _hide('cob-drop');
-  document.getElementById('cob-monto').value='';
+  _setMontoInput(document.getElementById('cob-monto'), 0);
   document.getElementById('cob-nuevo-saldo').value='';
 }
 
@@ -11265,7 +11296,7 @@ function irACobranzasConVenta(ventaId) {
 function calcSaldoTrasCobranza() {
   const saldoStr=normalizarNumeroExcel(document.getElementById('cob-saldo').value);
   const saldo=parseFloat(saldoStr)||0;
-  const monto=parseFloat(document.getElementById('cob-monto').value)||0;
+  const monto=getMontoRaw(document.getElementById('cob-monto'));
   const nuevo=Math.max(0,saldo-monto);
   const el=document.getElementById('cob-nuevo-saldo');
   el.value='$'+Math.round(nuevo).toLocaleString('es-AR');
@@ -11573,7 +11604,7 @@ function aacfgAbrirEditorRegla(idx) {
   AACFG_CONDICIONES_TEMP = reg && reg.condiciones ? JSON.parse(JSON.stringify(reg.condiciones)) : [];
   document.getElementById('aacfg-regla-clave').value = reg ? (reg.accion?reg.accion.clave||'':'') : '';
   document.getElementById('aacfg-regla-ref-nombre').value = reg ? reg.refNombre||'' : '';
-  document.getElementById('aacfg-regla-ref-precio').value = reg ? reg.refPrecio||0 : 0;
+  _setMontoInput(document.getElementById('aacfg-regla-ref-precio'), reg ? reg.refPrecio||0 : 0);
   document.getElementById('aacfg-regla-btn-eliminar').style.display = idx !== null ? '' : 'none';
 
   aacfgPoblarSelectVariables();
@@ -11662,7 +11693,7 @@ function aacfgGuardarRegla() {
   reg.accion = { tipo:'buscar_db', clave: clave };
   reg.cantidad = cantidad;
   reg.refNombre = document.getElementById('aacfg-regla-ref-nombre').value.trim() || clave;
-  reg.refPrecio = parseFloat(document.getElementById('aacfg-regla-ref-precio').value)||0;
+  reg.refPrecio = getMontoRaw(document.getElementById('aacfg-regla-ref-precio'));
 
   aacfgGuardarTodo();
   aacfgCerrarEditorRegla();
@@ -13328,9 +13359,28 @@ function pdfYWhatsappVenta(ventaId) {
   }
 }
 
+var _ventaImpConDetalle = true; // estado del toggle "Con detalle" / "Sin detalle" al imprimir venta
+
+function toggleVentaDetalle() {
+  _ventaImpConDetalle = !_ventaImpConDetalle;
+  var icon  = document.getElementById('venta-detalle-icon');
+  var label = document.getElementById('venta-detalle-label');
+  var btn   = document.getElementById('venta-detalle-toggle');
+  if (_ventaImpConDetalle) {
+    if (icon)  icon.className  = 'ti ti-eye';
+    if (label) label.textContent = 'Con detalle';
+    if (btn)   btn.style.color = '';
+  } else {
+    if (icon)  icon.className  = 'ti ti-eye-off';
+    if (label) label.textContent = 'Sin detalle';
+    if (btn)   btn.style.color = 'var(--amber)';
+  }
+}
+
 function imprimirVentaActual() {
   var v = window._ventaDetalleActual;
   if (!v) { notify('Sin venta activa'); return; }
+  var conDetalle = _ventaImpConDetalle;
 
   var empresa = {
     nombre: (document.getElementById('cfg-empresa-nombre')||{}).value || 'Nixa',
@@ -13364,7 +13414,9 @@ function imprimirVentaActual() {
     var punit = '$' + punitVal.toLocaleString('es-AR');
     var sub   = '$' + (parseFloat(it.sub)||0).toLocaleString('es-AR');
     var punitCell;
-    if (disc > 0) {
+    if (!conDetalle) {
+      punitCell = '<td style="text-align:right;color:#ccc">—</td>';
+    } else if (disc > 0) {
       var punitDesc = punitVal * (1 - disc/100);
       punitCell = '<td style="text-align:right">' +
         '<span style="text-decoration:line-through;color:#aaa;font-size:11px">'+punit+'</span>' +
@@ -13379,7 +13431,7 @@ function imprimirVentaActual() {
       '<td>'+escapeHTML(it.desc||it.nombre||'')+'</td>' +
       '<td style="text-align:right">'+it.qty+'</td>' +
       punitCell +
-      '<td style="text-align:right;font-weight:600">'+sub+'</td>' +
+      '<td style="text-align:right;font-weight:600">'+(conDetalle ? sub : '<span style="color:#ccc">—</span>')+'</td>' +
     '</tr>';
   }).join('');
 
@@ -13516,6 +13568,7 @@ function imprimirVentaActual() {
       '</tr></thead>' +
       '<tbody>'+itemsHTML+'</tbody>' +
       '<tfoot>' +
+        (conDetalle ? (
         '<tr class="tfoot-row tfoot-first">' +
           '<td colspan="'+(nCols-2)+'" style="border:none"></td>' +
           '<td style="text-align:right;font-size:12px;color:#64748b">Subtotal</td>' +
@@ -13533,7 +13586,13 @@ function imprimirVentaActual() {
         '<tr class="tfoot-row tfoot-total"><td colspan="'+(nCols-2)+'" style="border:none"></td>' +
           '<td style="text-align:right">TOTAL</td>' +
           '<td style="text-align:right">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
-        '</tr>' +
+        '</tr>'
+        ) : (
+        '<tr class="tfoot-row tfoot-total"><td colspan="'+(nCols-2)+'" style="border:none"></td>' +
+          '<td style="text-align:right">TOTAL</td>' +
+          '<td style="text-align:right">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
+        '</tr>'
+        )) +
       '</tfoot>' +
     '</table>' +
 
@@ -15098,7 +15157,7 @@ function cerrarCaja() {
 function registrarMovCaja() {
   if (!window.fbDB) { notify('Sin conexión'); return; }
   var tipo = document.getElementById('cm-tipo').value;
-  var monto = parseFloat(document.getElementById('cm-monto').value) || 0;
+  var monto = getMontoRaw(document.getElementById('cm-monto'));
   var concepto = document.getElementById('cm-concepto').value.trim();
   var medio = document.getElementById('cm-medio').value;
 
@@ -15134,7 +15193,7 @@ function registrarMovCaja() {
 
       notify('✓ Movimiento de caja registrado');
       _hide('caja-mov-form');
-      document.getElementById('cm-monto').value = '';
+      _setMontoInput(document.getElementById('cm-monto'), 0);
       document.getElementById('cm-concepto').value = '';
       fbCargarCaja();
     }).catch(function(e){ notify('Error: '+e.message); });
@@ -15146,7 +15205,7 @@ var gastoRapidoFotoBase64 = null;
 function abrirGastoRapido() {
   gastoRapidoFotoBase64 = null;
   document.getElementById('gr-fecha').value = new Date().toISOString().split('T')[0];
-  document.getElementById('gr-monto').value = '';
+  _setMontoInput(document.getElementById('gr-monto'), 0);
   document.getElementById('gr-descripcion').value = '';
   document.getElementById('gr-categoria').value = 'Transporte';
   document.getElementById('gr-medio').value = 'Efectivo';
@@ -15173,7 +15232,7 @@ function previewFotoGastoRapido(input) {
 }
 
 function guardarGastoRapido() {
-  var monto = parseFloat(document.getElementById('gr-monto').value) || 0;
+  var monto = getMontoRaw(document.getElementById('gr-monto'));
   var desc  = document.getElementById('gr-descripcion').value.trim();
   if (!desc)  { notify('Ingresá una descripción'); return; }
   if (!monto) { notify('Ingresá el monto'); return; }
@@ -15543,7 +15602,7 @@ function abrirNuevoMovEmp() {
   document.getElementById('movi-fecha').value = new Date().toISOString().split('T')[0];
   document.getElementById('movi-tipo').value  = 'transporte';
   document.getElementById('movi-desc').value  = '';
-  document.getElementById('movi-monto').value = '';
+  _setMontoInput(document.getElementById('movi-monto'), 0);
   document.getElementById('movi-estado').value = currentRole === 'admin' ? 'aprobado' : 'pendiente';
   document.getElementById('movi-foto-preview').style.display = 'none';
   document.getElementById('movi-foto-nombre').textContent = '';
@@ -15576,7 +15635,7 @@ function onFotoSeleccionada(input) {
 
 function guardarMovEmp() {
   if (!ctaEmpActual || !window.fbDB) { notify('Sin conexión o empleado no seleccionado'); return; }
-  var monto = parseFloat(document.getElementById('movi-monto').value) || 0;
+  var monto = getMontoRaw(document.getElementById('movi-monto'));
   if (!monto) { notify('Ingresá un monto'); return; }
   var nuevo = {
     tipo:        document.getElementById('movi-tipo').value,
@@ -15844,6 +15903,11 @@ function imprimirPresupuesto() {
   var total = g('pp-total') || g('ppto-det-total2')  || '$0';
   var obs   = g('pp-obs')   || g('ppto-det-obs')     || '';
 
+  // Si es un presupuesto ya guardado, usar su conIva guardado; si es el
+  // formulario nuevo, usar el estado actual del toggle en pantalla.
+  var pptoGuardado = pptoActualId ? (pptoData||[]).find(function(x){ return x.id === pptoActualId; }) : null;
+  var imprimirConIva = pptoGuardado ? (pptoGuardado.conIva !== false) : (typeof _pptoConIva !== 'undefined' ? _pptoConIva : true);
+
   var w = window.open('','_blank','width=860,height=750');
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Presupuesto '+num+'</title>'+
     '<style>'+
@@ -15914,7 +15978,7 @@ function imprimirPresupuesto() {
         (_pptoConDetalle ? (
           '<tr class="tfoot-row tfoot-first"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#64748b">Subtotal</td><td style="text-align:right">'+sub+'</td></tr>'+
           (desc&&desc!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#dc2626">Descuento</td><td style="text-align:right;color:#dc2626">'+desc+'</td></tr>':'')+
-          (iva&&iva!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td><td style="text-align:right;color:#d97706">'+iva+'</td></tr>':'')+
+          (imprimirConIva && iva&&iva!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td><td style="text-align:right;color:#d97706">'+iva+'</td></tr>':'')+
           '<tr class="tfoot-row tfoot-total"><td colspan="3" style="border:none"></td><td style="text-align:right">TOTAL</td><td style="text-align:right">'+total+'</td></tr>'
         ) : (
           '<tr class="tfoot-row tfoot-total"><td colspan="3" style="border:none"></td><td style="text-align:right">TOTAL</td><td style="text-align:right">'+total+'</td></tr>'
@@ -15946,7 +16010,7 @@ function imprimirPresupuesto() {
 // ── COBRANZAS: registrar pago real en Firebase e imprimir recibo ──
 function registrarPago() {
   var venta  = document.getElementById('cob-venta').value.trim();
-  var monto  = parseFloat(document.getElementById('cob-monto').value) || 0;
+  var monto  = getMontoRaw(document.getElementById('cob-monto'));
   var medio  = document.getElementById('cob-medio').value;
   var fecha  = document.getElementById('cob-fecha') ? document.getElementById('cob-fecha').value : new Date().toISOString().split('T')[0];
   var obs    = document.getElementById('cob-obs') ? document.getElementById('cob-obs').value : '';
@@ -21499,8 +21563,8 @@ function abrirFormGasto(fbKey) {
   document.getElementById('g-tipo').value      = 'Variable';
   document.getElementById('g-categoria').value = 'Otro';
   document.getElementById('g-descripcion').value = '';
-  document.getElementById('g-monto').value     = '';
-  document.getElementById('g-monto-pagado').value = '0';
+  _setMontoInput(document.getElementById('g-monto'), 0);
+  _setMontoInput(document.getElementById('g-monto-pagado'), 0);
   document.getElementById('g-resta').value     = '';
   document.getElementById('g-medio').value     = 'Efectivo';
   document.getElementById('g-proveedor').value = '';
@@ -21525,8 +21589,8 @@ function abrirFormGasto(fbKey) {
       document.getElementById('g-tipo').value        = g.tipo||'Variable';
       document.getElementById('g-categoria').value   = g.categoria||'Otro';
       document.getElementById('g-descripcion').value = g.descripcion||'';
-      document.getElementById('g-monto').value       = g.monto||'';
-      document.getElementById('g-monto-pagado').value= g.montoPagado||0;
+      _setMontoInput(document.getElementById('g-monto'), g.monto||0);
+      _setMontoInput(document.getElementById('g-monto-pagado'), g.montoPagado||0);
       document.getElementById('g-medio').value       = g.medio||'Efectivo';
       document.getElementById('g-proveedor').value   = g.proveedor||'';
       document.getElementById('g-comprobante').value = g.comprobante||'';
@@ -21555,8 +21619,8 @@ function cerrarFormGasto() {
 }
 
 function calcRestoGasto() {
-  var monto  = parseFloat(document.getElementById('g-monto').value)||0;
-  var pagado = parseFloat(document.getElementById('g-monto-pagado').value)||0;
+  var monto  = getMontoRaw(document.getElementById('g-monto'));
+  var pagado = getMontoRaw(document.getElementById('g-monto-pagado'));
   var resta  = Math.max(0, monto-pagado);
   document.getElementById('g-resta').value = resta > 0 ? '$'+resta.toLocaleString('es-AR') : 'Pagado completo';
 }
@@ -21587,8 +21651,8 @@ function previewFotoGasto(input) {
 }
 
 function guardarGastoCompleto() {
-  var monto  = parseFloat(document.getElementById('g-monto').value)||0;
-  var pagado = parseFloat(document.getElementById('g-monto-pagado').value)||0;
+  var monto  = getMontoRaw(document.getElementById('g-monto'));
+  var pagado = getMontoRaw(document.getElementById('g-monto-pagado'));
   var desc   = document.getElementById('g-descripcion').value.trim();
   if (!desc)  { notify('Ingresá una descripción'); return; }
   if (!monto) { notify('Ingresá el monto'); return; }
@@ -21652,7 +21716,7 @@ function abrirPagoGasto(fbKey) {
   _gastoFbKeyPago = fbKey;
   var resta = (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0);
   document.getElementById('mpg-titulo').textContent = 'Pagar: '+escapeHTML(g.descripcion||'')+'  (resta $'+resta.toLocaleString('es-AR')+')';
-  document.getElementById('mpg-monto').value = resta;
+  _setMontoInput(document.getElementById('mpg-monto'), resta);
   document.getElementById('modal-pago-gasto').style.display = 'flex';
 }
 
@@ -21744,7 +21808,7 @@ function generarComisionesVenta(venta, montoCobrado) {
 function confirmarPagoGasto() {
   var g = gastosData.find(function(x){ return x.fbKey===_gastoFbKeyPago; });
   if (!g) return;
-  var montoNuevo = parseFloat(document.getElementById('mpg-monto').value)||0;
+  var montoNuevo = getMontoRaw(document.getElementById('mpg-monto'));
   var medio = document.getElementById('mpg-medio').value;
   var nuevoPagado = (parseFloat(g.montoPagado)||0) + montoNuevo;
   var nuevoEstado = nuevoPagado >= (parseFloat(g.monto)||0) ? 'pagado' : 'pagado_parcial';
@@ -22492,6 +22556,7 @@ function guardarPresupuesto(modo) {
     fecha: new Date().toLocaleDateString('es-AR'),
     vence: (function(){var _v=document.getElementById('pp-venc');return _v?_v.value:'';})() || '',
     total, descuento: desc,
+    conIva: typeof _pptoConIva !== 'undefined' ? _pptoConIva : true,
     items: items,
     estado: estadoFinal,
     requiereAprobacion: reqAprobacion,
@@ -22550,6 +22615,9 @@ function abrirNuevoPresupuesto() {
   addPpRow();
 
   if (fi) { fi.value = d.toISOString().split('T')[0]; calcVencimiento(); }
+  _pptoConIva = true;
+  var btnIva = document.getElementById('btn-toggle-iva-ppto');
+  if (btnIva) { btnIva.innerHTML = '<i class="ti ti-receipt-tax"></i> Con IVA'; btnIva.style.color = ''; btnIva.style.borderColor = ''; }
   if (typeof iniciarMonedaPpto === 'function') iniciarMonedaPpto();
   calcPpTotales();
 }
@@ -24617,6 +24685,9 @@ function renderDetalleVenta(v) {
         : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
       ) +
       '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' +
+      '<button class="btn btn-sm" id="venta-detalle-toggle" onclick="toggleVentaDetalle()" title="Cambia si el comprobante muestra precios o no" style="gap:6px">' +
+        '<i class="ti ti-eye" id="venta-detalle-icon"></i> <span id="venta-detalle-label">Con detalle</span>' +
+      '</button>' +
       '<button class="btn btn-sm" onclick="imprimirVentaActual()" title="Abre el comprobante para imprimir o guardar como PDF"><i class="ti ti-printer"></i> Imprimir comprobante</button>' +
       '<button class="btn btn-sm" style="color:var(--green2,var(--green));border-color:var(--green2,var(--green))" onclick="pdfYWhatsappVenta(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Generar PDF y abrir WhatsApp del cliente"><i class="ti ti-brand-whatsapp"></i> PDF / WhatsApp</button>' +
       '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="eliminarVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Eliminar venta (también elimina la OT y los pagos vinculados)"><i class="ti ti-trash"></i> Eliminar</button>' +
@@ -26401,7 +26472,8 @@ function getPpItems() {
     var descEl = tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt') || tr.querySelector('[class*="desc"]');
     var desc  = descEl ? descEl.textContent.trim() : '';
     var qty   = parseFloat((tr.querySelector('.qty,.ppqty')||{}).value) || 1;
-    var punit = parseFloat((tr.querySelector('.price,.ppprice')||{}).value) || 0;
+    var priceInpPp = tr.querySelector('.price,.ppprice');
+    var punit = priceInpPp ? (priceInpPp.dataset.moneyInit ? getMontoRaw(priceInpPp) : (parseFloat(priceInpPp.value) || 0)) : 0;
     var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
     var sub   = Math.round(qty * punit * (1 - disc/100));
     return { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub };
@@ -26525,7 +26597,7 @@ function actualizarResumenStock() {
     </div>
     <div class="form-grid">
       <div class="fg"><label>Fecha</label><input type="date" id="gr-fecha"></div>
-      <div class="fg"><label>Monto ($)</label><input type="number" id="gr-monto" placeholder="0"></div>
+      <div class="fg"><label>Monto ($)</label><input data-money="1" id="gr-monto" placeholder="0"></div>
       <div class="fg full"><label>Descripción</label><input type="text" id="gr-descripcion" placeholder="Ej: Nafta, materiales, almuerzo..."></div>
       <div class="fg"><label>Categoría</label>
         <select id="gr-categoria">
@@ -26647,6 +26719,11 @@ window.onerror = function(msg, src, line, col) {
     // Panel oculto por defecto — activar manualmente si se necesita debug
   }
 };
+
+// Inicializar formato calculadora en todos los inputs de monto estáticos del HTML
+// (los que se crean dinámicamente con innerHTML, como filas de venta/presupuesto,
+// se inicializan aparte con initMoneyInputsEn justo después de insertarse).
+if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 </script>
 
 
