@@ -878,7 +878,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.192 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.195 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1404,6 +1404,12 @@ tr:hover td{color:var(--text)}
         <button class="btn btn-sm" id="vtab-instalar" onclick="tabVentas('instalar',this)">Por instalar</button>
         <button class="btn btn-sm" id="vtab-hoy" onclick="tabVentas('hoy',this)">Hoy</button>
         <button class="btn btn-sm" id="vtab-facturadas" onclick="tabVentas('facturadas',this)">Facturadas</button>
+      </div>
+
+      <!-- Banner: avisa cuando hay un filtro activo que puede estar ocultando ventas nuevas -->
+      <div id="ventas-filtro-activo-banner" style="display:none;align-items:center;justify-content:space-between;gap:10px;background:var(--amber-bg);border:0.5px solid var(--amber);border-radius:var(--radius);padding:8px 12px;margin-bottom:12px;font-size:12px">
+        <span style="display:flex;align-items:center;gap:6px;color:var(--amber)"><i class="ti ti-filter"></i><span id="ventas-filtro-activo-texto">Filtro activo</span></span>
+        <button class="btn btn-sm" onclick="limpiarFiltrosVentas()" style="padding:3px 10px;font-size:11px">Ver todas</button>
       </div>
 
       <div class="table-wrap">
@@ -8976,7 +8982,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.192-firebase',
+  VERSION: 'v20.195-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -12583,8 +12589,17 @@ function cambiarPassword() {
 
 // ── TIMEOUT DE SESIÓN ──
 
+// El setTimeout de abajo NO es confiable solo: los navegadores pausan/ralentizan
+// los timers cuando la pestaña está en segundo plano o la pantalla se bloquea.
+// Por eso guardamos también un timestamp real en localStorage y lo recalculamos
+// cada vez que la pestaña vuelve a estar visible (ver visibilitychange más abajo).
+function _marcarActividadSesion() {
+  try { localStorage.setItem('sv_lastActivity', String(Date.now())); } catch(e) {}
+}
+
 function resetSessionTimer() {
   clearTimeout(sessionTimer);
+  _marcarActividadSesion();
   // NO reiniciar sessionStart — ese es el tiempo activo desde el login, no el de inactividad
   sessionTimer = setTimeout(function() {
     notify('Sesión expirada por inactividad');
@@ -12593,6 +12608,7 @@ function resetSessionTimer() {
 }
 function startSessionTimer() {
   sessionStart = Date.now();
+  _marcarActividadSesion();
   resetSessionTimer();
   clearInterval(tiempoUI);
   tiempoUI = setInterval(function() {
@@ -12609,10 +12625,41 @@ function stopSessionTimer() {
   clearTimeout(sessionTimer);
   clearInterval(tiempoUI);
   sessionStart = null;
+  try { localStorage.removeItem('sv_lastActivity'); } catch(e) {}
 }
 ['click','keydown','touchstart','scroll'].forEach(function(ev) {
   document.addEventListener(ev, function() { if (typeof isAuthenticated !== 'undefined' && isAuthenticated) resetSessionTimer(); }, {passive:true});
 });
+
+// Chequeo real de inactividad al volver a la pestaña/pantalla.
+// El setTimeout pudo haber estado "congelado" mientras la pestaña estaba en
+// background o el dispositivo bloqueado, así que acá comparamos contra el
+// timestamp real guardado en localStorage en vez de confiar en que el
+// setTimeout se haya disparado a tiempo.
+function _chequearInactividadReal() {
+  if (typeof isAuthenticated === 'undefined' || !isAuthenticated) return;
+  var last = 0;
+  try { last = parseInt(localStorage.getItem('sv_lastActivity')) || 0; } catch(e) {}
+  if (!last) return;
+  var transcurrido = Date.now() - last;
+  if (transcurrido >= SESSION_TIMEOUT) {
+    notify('Sesión expirada por inactividad');
+    setTimeout(doLogoutAutomatico, 1500);
+  } else {
+    // Si todavía no venció, reprogramamos el setTimeout con el tiempo real restante
+    // (el timer viejo pudo haber quedado desfasado por el tiempo congelado)
+    clearTimeout(sessionTimer);
+    sessionTimer = setTimeout(function() {
+      notify('Sesión expirada por inactividad');
+      setTimeout(doLogoutAutomatico, 2000);
+    }, SESSION_TIMEOUT - transcurrido);
+  }
+}
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') _chequearInactividadReal();
+});
+// pageshow cubre el caso de volver desde el caché de retroceso del navegador (bfcache)
+window.addEventListener('pageshow', function() { _chequearInactividadReal(); });
 
 // Parchar doLogin y doLogout para integrar panel y timer
 // session timer y panel: integrados en doLogin/doLogout directamente
@@ -13092,51 +13139,9 @@ function exportarPDF(titulo) {
 }
 
 function generarPDFVenta() {
-  // Generar el HTML del comprobante
-  var ventaId = document.getElementById('vd-num') ? document.getElementById('vd-num').textContent : '';
-  var v = (ventasList||[]).find(function(x){ return x.id === ventaId; });
-  if (!v) { imprimirVentaActual(); return; }
-
-  // Reutilizar imprimirVentaActual pero en lugar de abrir ventana, usar iframe oculto
-  // para que Chrome muestre "Guardar como PDF" directamente
-  var iframeId = '_pdf_frame_';
-  var existing = document.getElementById(iframeId);
-  if (existing) existing.remove();
-
-  var iframe = document.createElement('iframe');
-  iframe.id = iframeId;
-  iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none;opacity:0';
-  document.body.appendChild(iframe);
-
-  // Generar contenido usando la misma lógica de imprimirVentaActual
-  // pero escribiendo en el iframe
-  var htmlContent = _generarHTMLComprobante(v);
-  if (!htmlContent) { imprimirVentaActual(); return; }
-
-  iframe.onload = function() {
-    try {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      // Limpiar después de imprimir
-      setTimeout(function(){ if (document.getElementById(iframeId)) document.getElementById(iframeId).remove(); }, 3000);
-    } catch(e) {
-      // Fallback a ventana nueva
-      imprimirVentaActual();
-    }
-  };
-
-  var doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write(htmlContent);
-  doc.close();
-}
-
-// Extraer la generación del HTML del comprobante como función separada
-function _generarHTMLComprobante(v) {
-  if (!v) return null;
-  // Delegar a imprimirVentaActual capturando el HTML
-  // Por ahora retornamos null para que use el fallback
-  return null;
+  // El comprobante se genera siempre vía imprimirVentaActual() (ventana + diálogo de impresión
+  // del navegador, donde el usuario puede elegir "Guardar como PDF").
+  imprimirVentaActual();
 }
 
 function imprimirSeccion(pageId, titulo) {
@@ -13165,6 +13170,37 @@ function imprimirSeccion(pageId, titulo) {
     '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
+}
+
+// Genera el comprobante (vía diálogo de impresión/Guardar como PDF) y, si el cliente
+// tiene teléfono cargado, abre además su chat de WhatsApp para adjuntarlo manualmente.
+function pdfYWhatsappVenta(ventaId) {
+  var v = (ventasList||[]).find(function(x){ return x.id === ventaId || x.fbKey === ventaId; }) || window._ventaDetalleActual;
+  if (!v) { notify('Venta no encontrada'); return; }
+
+  // Buscar teléfono del cliente
+  var cli = (clientesData||[]).find(function(c){
+    return c.nombre === v.cliente || String(c.id) === String(v.idCliente || v.clienteId);
+  });
+  var tel = cli && (cli.telefono || cli.tel || cli.celular || '');
+  tel = tel ? tel.replace(/\D/g,'') : '';
+  if (tel && tel.length < 8) tel = '';
+
+  var total = '$' + Math.round(parseFloat(v.total)||0).toLocaleString('es-AR');
+  var msg = encodeURIComponent(
+    'Hola ' + (v.cliente||'') + ', te enviamos el comprobante de tu compra ' + (v.id||'') +
+    ' por un total de ' + total + '.\n\nTe lo adjuntamos a continuación.'
+  );
+
+  if (tel) {
+    var wa = 'https://wa.me/54' + tel + '?text=' + msg;
+    window.open(wa, '_blank');
+    notify('Se abrió WhatsApp del cliente — generá el PDF desde el diálogo de impresión y adjuntalo ahí');
+    setTimeout(function(){ imprimirVentaActual(); }, 800);
+  } else {
+    notify('El cliente no tiene teléfono registrado — se abre el comprobante para guardarlo como PDF');
+    setTimeout(function(){ imprimirVentaActual(); }, 300);
+  }
 }
 
 function imprimirVentaActual() {
@@ -24343,6 +24379,8 @@ function renderDetalleVenta(v) {
         : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
       ) +
       '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' +
+      '<button class="btn btn-sm" onclick="imprimirVentaActual()" title="Abre el comprobante para imprimir o guardar como PDF"><i class="ti ti-printer"></i> Imprimir comprobante</button>' +
+      '<button class="btn btn-sm" style="color:var(--green2,var(--green));border-color:var(--green2,var(--green))" onclick="pdfYWhatsappVenta(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Generar PDF y abrir WhatsApp del cliente"><i class="ti ti-brand-whatsapp"></i> PDF / WhatsApp</button>' +
     '</div>' +
 
     // Cliente y estados
@@ -24931,6 +24969,45 @@ function _aplicarFiltrosVentas() {
     facturadas: lista.filter(v => !!v.factura),
   };
   renderVentasTabla(mapasTab[f.tab] || lista);
+  _actualizarBannerFiltroVentas();
+}
+
+// Muestra un aviso visible cuando hay un filtro distinto al default "todas",
+// para que no parezca que el listado "no se actualiza" cuando en realidad está filtrado.
+function _actualizarBannerFiltroVentas() {
+  var f = window._filtrosVentas || {};
+  var banner = document.getElementById('ventas-filtro-activo-banner');
+  var txtEl  = document.getElementById('ventas-filtro-activo-texto');
+  if (!banner || !txtEl) return;
+
+  var partes = [];
+  if (f.tab && f.tab !== 'todas') {
+    var tabLbl = {cobrar:'Por cobrar', instalar:'Por instalar', hoy:'Hoy', facturadas:'Facturadas'}[f.tab] || f.tab;
+    partes.push(tabLbl);
+  }
+  if (f.estado) {
+    var estLbl = {pendiente_pago:'Pendiente pago', seniado:'Señado', pago_total:'Pago total', en_instalacion:'En instalación', instalado:'Instalado', con_garantia:'Con garantía'}[f.estado] || f.estado;
+    partes.push(estLbl);
+  }
+  if (f.mes) {
+    var d = new Date(f.mes + '-01T12:00:00');
+    partes.push(d.toLocaleDateString('es-AR',{month:'long',year:'numeric'}));
+  }
+  if (f.texto) partes.push('"' + f.texto + '"');
+
+  if (partes.length) {
+    txtEl.textContent = 'Mostrando solo: ' + partes.join(' · ') + ' — puede haber ventas nuevas ocultas por este filtro';
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// Resetea todos los filtros del listado de ventas a "todas"
+function limpiarFiltrosVentas() {
+  window._filtrosVentas = { texto:'', estado:'', mes:'', tab:'todas' };
+  _restaurarControlesFiltrosVentas();
+  _aplicarFiltrosVentas();
 }
 
 // Restaura los controles visuales según el filtro guardado (al volver del detalle)
