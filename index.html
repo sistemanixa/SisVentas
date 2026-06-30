@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.203 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.204 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9003,7 +9003,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.203-firebase',
+  VERSION: 'v20.204-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -26140,43 +26140,21 @@ function _selProdGlobal(item) {
       descSpan.className = 'desc-txt-clean';
       descSpan.textContent = desc;
       descTxt.appendChild(descSpan);
-      // Badge visual de conversión — no forma parte del texto guardado
-      if (moneda === 'USD' && cotizUsada > 0) {
-        var badge = document.createElement('span');
-        badge.className = 'badge b-blue';
-        badge.style.cssText = 'font-size:9px;margin-left:4px';
-        badge.title = 'Convertido de USD '+precioOriginalUSD+' a cotización '+cotizTipo+' $'+cotizUsada;
-        badge.textContent = 'USD '+precioOriginalUSD+' → $'+cotizUsada;
-        descTxt.appendChild(badge);
-      }
+      // Badge visual de conversión eliminado — el dato se guarda internamente en data-precio-usd
+      // para que el toggle ARS/USD pueda reconvertir sin perder precisión
     }
     if (priceInp) {
       priceInp.value = precio;
-      // Guardar el precio "ancla" en USD de este ítem (si corresponde), para que
-      // el toggle ARS/USD pueda reconvertir esta fila en cualquier momento sin
-      // ir acumulando error de redondeo entre toggles sucesivos.
       if (moneda === 'USD' && cotizUsada > 0) {
         priceInp.dataset.precioUsd = precioOriginalUSD;
       } else {
-        delete priceInp.dataset.precioUsd; // ítem en ARS puro (sin equivalente USD conocido)
+        delete priceInp.dataset.precioUsd;
       }
       if (priceInp.dataset.moneyInit) { priceInp.dataset.raw = String(precio); _refrescarMoneyVisual(priceInp); }
-      // Indicador visual USD en el campo precio
+      // Eliminar usd-tag previo si existe (lo quitamos de la UI pero el dato sigue en dataset.precioUsd)
       var priceCell = priceInp.parentElement;
       var usdTag = priceCell ? priceCell.querySelector('.usd-tag') : null;
-      if (moneda === 'USD' && cotizUsada > 0) {
-        if (!usdTag && priceCell) {
-          var tag = document.createElement('div');
-          tag.className = 'usd-tag';
-          tag.style.cssText = 'font-size:9px;color:var(--blue);font-weight:600;line-height:1;margin-bottom:2px';
-          tag.textContent = 'USD ' + precioOriginalUSD;
-          priceCell.insertBefore(tag, priceInp);
-        } else if (usdTag) {
-          usdTag.textContent = 'USD ' + precioOriginalUSD;
-        }
-      } else if (usdTag) {
-        usdTag.remove();
-      }
+      if (usdTag) usdTag.remove();
     }
     if (ppPrice)  { ppPrice.value = precio; }
     // Guardar metadata de conversión en data-attributes de la fila, para persistir al confirmar la venta
@@ -26258,23 +26236,12 @@ function _reconvertirFilasAMoneda(tbodySelector, monedaDestino) {
       priceInp.value = nuevoValor;
     }
 
-    // Etiqueta USD debajo del precio, solo cuando estamos viendo en ARS
-    // (para que se sepa a cuántos dólares equivale cada ítem)
+
+    // El dato USD se mantiene en dataset.precioUsd para reconvertir sin perder precisión,
+    // pero no mostramos ninguna etiqueta visual encima del precio (fue eliminada por pedido)
     var priceCell = priceInp.parentElement;
     var usdTag = priceCell ? priceCell.querySelector('.usd-tag') : null;
-    if (monedaDestino === 'ARS') {
-      if (!usdTag && priceCell) {
-        var tag = document.createElement('div');
-        tag.className = 'usd-tag';
-        tag.style.cssText = 'font-size:9px;color:var(--blue);font-weight:600;line-height:1;margin-bottom:2px';
-        tag.textContent = 'USD ' + precioUsd;
-        priceCell.insertBefore(tag, priceInp);
-      } else if (usdTag) {
-        usdTag.textContent = 'USD ' + precioUsd;
-      }
-    } else if (usdTag) {
-      usdTag.remove();
-    }
+    if (usdTag) usdTag.remove();
 
     calcRow(priceInp);
   });
