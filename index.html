@@ -903,7 +903,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.222 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.223 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9036,7 +9036,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.222-firebase',
+  VERSION: 'v20.223-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10002,7 +10002,8 @@ function _completarLogin(nombre) {
   // Todo lo opcional se carga después de que la app ya es visible
   if (typeof startSessionTimer === 'function') startSessionTimer();
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
-  if (typeof fbCargarTodo === 'function') fbCargarTodo();
+  // fbCargarTodo BLOQUEADO PARA DIAGNÓSTICO
+  // if (typeof fbCargarTodo === 'function') fbCargarTodo();
 
   // Diferir todo lo no esencial a DESPUÉS de que la app es visible
   // para que ningún proceso secundario pueda bloquear el loading.
@@ -10017,52 +10018,8 @@ function _completarLogin(nombre) {
       document.getElementById('screen-app').classList.add('visible');
       notify('Bienvenido, ' + nombre + '!');
 
-      // Todo lo opcional carga DESPUÉS de que la app ya es visible
-      // Cada función en su propio setTimeout para no bloquear el thread
-      var _despues = [
-        [function(){ if(typeof cargarLogoGuardado==='function') cargarLogoGuardado(); }, 100],
-        [function(){ if(typeof cargarConfigGeneral==='function') cargarConfigGeneral(); }, 200],
-        [function(){ if(typeof cargarConfigImpuestos==='function') cargarConfigImpuestos(); }, 300],
-        [function(){ if(typeof cargarConfigComisiones==='function') cargarConfigComisiones(); }, 400],
-        [function(){ if(typeof cargarConfigLogin==='function') cargarConfigLogin(); }, 500],
-        [function(){ if(typeof cargarCargos==='function') cargarCargos(); }, 600],
-        [function(){ if(typeof cargarPresenciaUsuarios==='function') cargarPresenciaUsuarios(); }, 700],
-        [function(){ if(typeof spCargar==='function') spCargar(); }, 800],
-        [function(){ if(typeof fbCargarVacaciones==='function') fbCargarVacaciones(); }, 900],
-        [function(){ if(typeof cfCargar==='function') cfCargar(); }, 1000],
-        [function(){ if(typeof fvCargar==='function') fvCargar(); }, 1100],
-        [function(){ if(typeof cargarPermisosRoles==='function') cargarPermisosRoles(); }, 1200],
-        [function(){ if(typeof cargarDashWidgets==='function') cargarDashWidgets(); }, 1300],
-        [function(){ if(typeof applyRole==='function') applyRole(); }, 1400],
-        [function(){ if(typeof renderKPIsDashboard==='function') renderKPIsDashboard(); }, 1500],
-        [function(){ if(typeof applyDashWidgets==='function') applyDashWidgets(); }, 1600],
-        [function(){ if(typeof chequearActualizacionAutoDolar==='function') chequearActualizacionAutoDolar(); }, 1700],
-        [function(){ if(typeof actualizarFabYHome==='function') actualizarFabYHome('dashboard'); }, 1800],
-        // DESACTIVADOS TEMPORALMENTE para diagnóstico:
-        // [function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 2000],
-        // [function(){ if(typeof iaInicializar==='function') iaInicializar(); }, 2500],
-        // [function(){ if(typeof chatInicializar==='function') chatInicializar(); }, 3000],
-        // [function(){ if(typeof inicializarFlujoVentas==='function') inicializarFlujoVentas(); }, 3500],
-        // [function(){ if(typeof _verificarHaberesPendientes==='function') _verificarHaberesPendientes(); }, 4000],
-        [function(){
-          if(currentRole!=='admin'){
-            if(typeof renderDashMiCuenta==='function') renderDashMiCuenta();
-            if((currentRole==='administrativo'||currentRole==='vendedor')&&typeof renderDashAdministrativo==='function') renderDashAdministrativo();
-            if(currentRole==='tecnico'&&typeof renderDashMisOTs==='function') renderDashMisOTs();
-          }
-        }, 2000],
-        [function(){
-          if(window.innerWidth<=1024){
-            var fab=document.getElementById('fab-container');
-            if(fab) fab.style.display='flex';
-          }
-        }, 500],
-      ];
-      _despues.forEach(function(item){
-        setTimeout(function(){
-          try { item[0](); } catch(e){ console.warn('[SV post-load]', e && e.message); }
-        }, item[1]);
-      });
+  // TODAS LAS FUNCIONES SECUNDARIAS DESACTIVADAS PARA DIAGNÓSTICO
+  // Solo fbCargarTodo corre para tener datos básicos
 
     }, 300);
   }, 1500);
