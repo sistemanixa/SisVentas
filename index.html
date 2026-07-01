@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.236 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.239 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1324,7 +1324,7 @@ tr:hover td{color:var(--text)}
             <div class="tbox">
               <div class="tl"><span>Subtotal</span><span id="t-sub">$0</span></div>
               <div class="tl" id="t-desc-row" style="display:none;color:var(--green)"><span>Descuento general</span><span id="t-desc">-$0</span></div>
-              <div class="tl iva"><span>IVA 21%</span><span id="t-iva">$0</span></div>
+              <div class="tl iva" id="t-iva-row"><span>IVA 21%</span><span id="t-iva">$0</span></div>
               <div class="tl final"><span>Total</span><span id="t-tot">$0</span></div>
               <div class="tl" style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)">
                 <span style="font-size:12px;color:var(--text3)">Desc. general %</span>
@@ -8342,10 +8342,11 @@ function fbCargarVentas() {
       ventasList = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
       }).sort(function(a,b) {
-        // Ordenar por id numérico descendente
-        var na = parseInt((a.idOriginal||a.id||'').replace('#','')) || 0;
-        var nb = parseInt((b.idOriginal||b.id||'').replace('#','')) || 0;
-        return nb - na;
+        // Ordenar por fecha descendente, fallback a ts
+        var fa = (a.fecha||'').split('/').reverse().join('-');
+        var fb = (b.fecha||'').split('/').reverse().join('-');
+        if (fa && fb && fa !== fb) return fb.localeCompare(fa);
+        return (b.ts||0) - (a.ts||0);
       });
       if (typeof _aplicarFiltrosVentas === 'function') _aplicarFiltrosVentas();
       else if (typeof renderVentasTabla === 'function') renderVentasTabla();
@@ -8414,7 +8415,12 @@ function fbCargarPresupuestos() {
     if (data) {
       pptoData = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
-      }).sort(function(a,b) { return (b.id||'').localeCompare(a.id||''); });
+      }).sort(function(a,b) {
+        var fa = (a.fecha||'').split('/').reverse().join('-');
+        var fb = (b.fecha||'').split('/').reverse().join('-');
+        if (fa && fb && fa !== fb) return fb.localeCompare(fa);
+        return (b.ts||0) - (a.ts||0);
+      });
       // Verificar vencimientos automáticamente
       setTimeout(verificarVencimientosPptos, 800);
       // Actualizar tabla si está visible
@@ -9263,7 +9269,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.236-firebase',
+  VERSION: 'v20.239-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10799,6 +10805,14 @@ function inicializarFilasVenta() {
   _ventaConIva = true;
   var btnIva = document.getElementById('btn-toggle-iva-venta');
   if (btnIva) { btnIva.innerHTML = '<i class="ti ti-receipt-tax"></i> Con IVA'; btnIva.style.color=''; btnIva.style.borderColor=''; }
+  // Reset toggle Con detalle/Sin detalle
+  _ventaImpConDetalle = true;
+  var btnDet = document.getElementById('btn-detalle-venta');
+  var iconDet = document.getElementById('icon-detalle-venta');
+  var labelDet = document.getElementById('label-detalle-venta');
+  if (btnDet) { btnDet.style.color=''; btnDet.style.borderColor=''; }
+  if (iconDet) iconDet.className = 'ti ti-eye';
+  if (labelDet) labelDet.textContent = 'Con detalle';
   const body = document.getElementById('det-body');
   if (!body) return;
   body.innerHTML = '';
@@ -22647,21 +22661,30 @@ function verPpto(id) {
   document.getElementById('ppto-det-total').value = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
   document.getElementById('ppto-det-desc').value = (p.descuento || 0) + '%';
 
-  // Mostrar totales usando los valores guardados en Firebase
-  // NO recalcular — los valores guardados son la fuente de verdad
-  var _sub     = parseFloat(p.subtotal) || 0;
-  var _desc    = parseFloat(p.descuento) || 0;
-  var _descPct = parseFloat(p.descuentoPct || p.descuentoGeneral) || 0;
-  // descAmt: si está guardado usarlo, sino calcularlo del porcentaje
-  var _descAmt = parseFloat(p.descuentoAmt) || Math.round(_sub * _descPct / 100) || _desc;
-  var _conIva  = p.conIva !== false; // respetar lo que se guardó
+  // Mostrar totales — para presupuestos nuevos usa los campos guardados,
+  // para los viejos (sin subtotal guardado) recalcula desde los ítems
+  var _descPct = parseFloat(p.descuento) || 0; // siempre es porcentaje
+
+  // Subtotal = suma de ítems (qty * punit con descuento por ítem)
+  var _sub = parseFloat(p.subtotal) || 0;
+  if (!_sub && p.items && p.items.length) {
+    _sub = p.items.reduce(function(s, it) {
+      var q = parseFloat(it.qty) || 1;
+      var pu = parseFloat(it.punit) || 0;
+      var d = parseFloat(it.disc || it.descuento) || 0;
+      return s + Math.round(q * pu * (1 - d/100));
+    }, 0);
+  }
+  if (!_sub) _sub = parseFloat(p.total) || 0; // último fallback
+
+  var _descAmt = parseFloat(p.descuentoAmt) || Math.round(_sub * _descPct / 100);
+  var _conIva  = p.conIva !== false;
   var _base    = _sub - _descAmt;
   var _iva     = _conIva ? (parseFloat(p.iva) || Math.round(_base * 0.21)) : 0;
   var _total   = parseFloat(p.total) || (_base + _iva);
   var _s = function(id, v) { var el=document.getElementById(id); if(el) el.textContent = '$'+Math.round(v).toLocaleString('es-AR'); };
   _s('ppto-det-sub',      _sub);
   _s('ppto-det-desc-amt', _descAmt);
-  // Mostrar/ocultar fila IVA según si el presupuesto lo tiene
   var ivaRowDet = document.getElementById('ppto-det-iva-row');
   if (ivaRowDet) ivaRowDet.style.display = _conIva ? '' : 'none';
   _s('ppto-det-iva',      _iva);
@@ -25262,10 +25285,19 @@ function renderDetalleVenta(v) {
 
   var ep = ESTADO_PAGO[v.estadoPago] || { label: v.estadoPago||'—', color:'var(--text3)', icon:'ti-minus' };
   var ei = ESTADO_INST[v.estadoInst] || { label: v.estadoInst||'—', color:'var(--text3)', icon:'ti-minus' };
-  var total = parseFloat(v.total) || 0;
-  var subtotal = parseFloat(v.subtotal) || total;
-  var iva = parseFloat(v.iva) || 0;
-  var descuento = parseFloat(v.descuento) || 0;
+  var total    = parseFloat(v.total) || 0;
+  var descuento = parseFloat(v.descuento) || 0; // monto en pesos
+  var iva      = parseFloat(v.iva) || 0;
+
+  // Subtotal: si no está guardado, calcularlo desde los ítems
+  var subtotal = parseFloat(v.subtotal) || 0;
+  if (!subtotal && v.items && v.items.length) {
+    subtotal = v.items.reduce(function(s, it) {
+      var sub = parseFloat(it.sub) || Math.round((parseFloat(it.qty)||1) * (parseFloat(it.punit)||0) * (1 - (parseFloat(it.disc||it.descuento)||0)/100));
+      return s + sub;
+    }, 0);
+  }
+  if (!subtotal) subtotal = total + descuento; // fallback: total + descuento = subtotal original
   var items = v.items || [];
   var pagos = v.pagos || [];
   var pagado = pagos.reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
