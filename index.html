@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.240 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.241 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9269,7 +9269,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.240-firebase',
+  VERSION: 'v20.241-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11649,19 +11649,42 @@ function filtrarEstadoPpto(v) { document.querySelectorAll('.pprow').forEach(tr=>
 // ── COBRANZAS ──
 document.addEventListener('DOMContentLoaded',()=>{ const f=document.getElementById('cob-fecha'); if(f)f.value=new Date().toISOString().split('T')[0]; });
 function buscarVentaCob(v) {
-  const d=document.getElementById('cob-drop');
-  if(!v){d.style.display='none';return;}
-  let any=false;
-  d.querySelectorAll('.di').forEach(i=>{const s=i.textContent.toLowerCase().includes(v.toLowerCase());i.style.display=s?'':'none';if(s)any=true;});
-  d.style.display=any?'block':'none';
+  const d = document.getElementById('cob-drop');
+  if (!v || v.length < 2) { d.style.display='none'; return; }
+  var q = v.toLowerCase().replace(/[#v\-]/g,'');
+  var matches = (ventasList||[]).filter(function(venta) {
+    var idN = String(venta.id||'').toLowerCase().replace(/[#v\-]/g,'');
+    var cli = String(venta.cliente||'').toLowerCase();
+    return idN.includes(q) || cli.includes(v.toLowerCase());
+  }).slice(0, 15);
+  if (!matches.length) { d.style.display='none'; return; }
+  d.innerHTML = matches.map(function(venta) {
+    var total   = parseFloat(venta.total)||0;
+    var cobrado = parseFloat(venta.totalPagado)||0;
+    var saldo   = Math.max(0, total - cobrado);
+    var fmtARS  = function(n){ return '$' + Math.round(n).toLocaleString('es-AR'); };
+    return '<div class="di" onmousedown="selVentaCob(\'' +
+      escapeHTML(venta.id||'') + '\',\'' +
+      escapeHTML(venta.cliente||'') + '\',\'' +
+      fmtARS(total) + '\',\'' +
+      fmtARS(cobrado) + '\',\'' +
+      fmtARS(saldo) + '\')">' +
+      '<span><strong style="font-family:monospace;font-size:12px">' + escapeHTML(venta.id||'') + '</strong>' +
+      ' <span style="color:var(--text3);font-size:12px">' + escapeHTML(venta.cliente||'') + '</span></span>' +
+      '<span style="font-size:12px;color:' + (saldo>0?'var(--amber)':'var(--green)') + '">' +
+        (saldo>0 ? 'Saldo: ' + fmtARS(saldo) : '✓ Cobrado') +
+      '</span>' +
+      '</div>';
+  }).join('');
+  d.style.display = 'block';
 }
 document.addEventListener('click',e=>{if(!e.target.closest('#page-cobranzas .sw'))_hide('cob-drop');});
-function selVentaCob(venta,cliente,total,cobrado,saldo) {
-  document.getElementById('cob-venta').value='#'+venta;
-  document.getElementById('cob-cliente').value=cliente;
-  document.getElementById('cob-total-venta').value=total;
-  document.getElementById('cob-ya-cobrado').value=cobrado;
-  document.getElementById('cob-saldo').value=saldo;
+function selVentaCob(ventaId, cliente, total, cobrado, saldo) {
+  document.getElementById('cob-venta').value = ventaId;
+  document.getElementById('cob-cliente').value = cliente;
+  document.getElementById('cob-total-venta').value = total;
+  document.getElementById('cob-ya-cobrado').value = cobrado;
+  document.getElementById('cob-saldo').value = saldo;
   _hide('cob-drop');
   _setMontoInput(document.getElementById('cob-monto'), 0);
   document.getElementById('cob-nuevo-saldo').value='';
@@ -11683,7 +11706,7 @@ function irACobranzasConVenta(ventaId) {
     var cobrado = parseFloat(venta.totalPagado) || 0;
     var saldo   = Math.max(0, total - cobrado);
     selVentaCob(
-      String(venta.id||'').replace(/^#/,''),
+      venta.id || '',
       venta.cliente || '',
       '$' + Math.round(total).toLocaleString('es-AR'),
       '$' + Math.round(cobrado).toLocaleString('es-AR'),
@@ -16481,12 +16504,24 @@ function registrarPago() {
   if (!monto) { notify('Ingresá un monto'); return; }
   if (!window.fbDB) { notify('Sin conexión'); return; }
 
-  // Buscar la venta en Firebase
-  var ventaId = venta.replace('#','').trim();
-  var ventaObj = (ventasList||[]).find(function(v){ return String(v.id||'').replace(/[#V]/g,'') === ventaId || v.fbKey === ventaId; });
+  // Buscar la venta — compatible con patrón viejo (#109677) y nuevo (#V-109677)
+  var ventaIdInput = venta.trim();
+  var ventaObj = (ventasList||[]).find(function(v) {
+    var idV = String(v.id||'');
+    // Coincidencia exacta
+    if (idV === ventaIdInput) return true;
+    // Comparar solo los números
+    var numInput = ventaIdInput.replace(/[^0-9]/g,'');
+    var numV     = idV.replace(/[^0-9]/g,'');
+    return numInput && numV && numInput === numV;
+  });
+
+  // Usar el ID correcto de la venta (el que está en Firebase, ya migrado)
+  var ventaIdGuardar = ventaObj ? (ventaObj.id || ventaIdInput) : ventaIdInput;
 
   var pago = {
-    venta:    venta,
+    venta:    ventaIdGuardar,
+    ventaId:  ventaIdGuardar,
     cliente:  ventaObj ? (ventaObj.cliente||'') : (document.getElementById('cob-cliente')||{}).value||'',
     monto:    monto,
     medio:    medio,
