@@ -903,7 +903,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.231 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.232 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7974,58 +7974,31 @@ function migrarEmpleadoPptos() {
 }
 
 function fbCargarTodo() {
-  // MODO DIAGNÓSTICO COMPLETO — todas de a una con confirmación
-  var funciones = [
-    { nombre: 'fbCargarClientes',    fn: fbCargarClientes },
-    { nombre: 'fbCargarProductos',   fn: fbCargarProductos },
-    { nombre: 'fbCargarVentas',      fn: fbCargarVentas },
-    { nombre: 'fbCargarPresupuestos',fn: fbCargarPresupuestos },
-    { nombre: 'fbCargarOTs',         fn: fbCargarOTs },
-    { nombre: 'fbCargarEmpleados',   fn: fbCargarEmpleados },
-    { nombre: 'fbCargarCategorias',  fn: fbCargarCategorias },
-    { nombre: 'fbCargarUsuarios',    fn: fbCargarUsuarios },
-    { nombre: 'fbCargarGastos',      fn: fbCargarGastos },
-    { nombre: 'fbCargarPagos',       fn: fbCargarPagos },
-    { nombre: 'fbCargarProveedores', fn: fbCargarProveedores },
-    { nombre: 'fbCargarInformes',    fn: fbCargarInformes },
-    { nombre: 'fbCargarOrdenes',     fn: fbCargarOrdenes },
-    { nombre: 'fbCargarEquipos',     fn: fbCargarEquipos },
-    { nombre: 'fbCargarGarantias',   fn: fbCargarGarantias },
-    { nombre: 'fbCargarTickets',     fn: fbCargarTickets },
-    { nombre: 'fbCargarRemitos',     fn: fbCargarRemitos },
-    { nombre: 'fbCargarAgenda',      fn: fbCargarAgenda },
-    { nombre: 'fbCargarServicios',   fn: fbCargarServicios },
-    { nombre: 'fbCargarCaja',        fn: fbCargarCaja },
-  ];
-
-  var idx = 0;
-  var panel = document.createElement('div');
-  panel.id = 'diag-panel';
-  panel.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99999;background:#1a1d27;border:1px solid #3ddc84;border-radius:12px;padding:16px 24px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5);min-width:320px';
-  panel.innerHTML = '<div id="diag-txt" style="color:#e2e8f0;font-size:13px;margin-bottom:12px">Diagnóstico de carga</div>' +
-    '<button id="diag-btn" style="background:#3ddc84;color:#0f1117;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer">Continuar →</button>';
-  document.body.appendChild(panel);
-
-  function siguiente() {
-    if (idx >= funciones.length) {
-      document.getElementById('diag-txt').textContent = '✅ Todas las funciones cargadas sin problemas';
-      document.getElementById('diag-btn').textContent = 'Cerrar';
-      document.getElementById('diag-btn').onclick = function() { panel.remove(); };
-      return;
-    }
-    var actual = funciones[idx];
-    document.getElementById('diag-txt').innerHTML =
-      '<span style="color:#94a3b8;font-size:11px">' + (idx+1) + '/' + funciones.length + '</span><br>' +
-      '<span style="color:#3ddc84;font-weight:600">' + actual.nombre + '</span><br>' +
-      '<span style="color:#94a3b8;font-size:11px">Click → lanza. Si se congela = culpable</span>';
-    document.getElementById('diag-btn').onclick = function() {
-      console.log('[DIAG] Lanzando:', actual.nombre);
-      actual.fn();
-      idx++;
-      setTimeout(siguiente, 1500);
-    };
-  }
-  siguiente();
+  fbCargarClientes();
+  fbCargarProductos();
+  fbCargarVentas();
+  fbCargarPresupuestos();
+  fbCargarOTs();
+  fbCargarEmpleados();
+  fbCargarCategorias();
+  fbCargarUsuarios();
+  fbCargarGastos();
+  fbCargarPagos();
+  fbCargarProveedores();
+  fbCargarInformes();
+  fbCargarOrdenes();
+  fbCargarEquipos();
+  fbCargarGarantias();
+  fbCargarTickets();
+  fbCargarRemitos();
+  fbCargarAgenda();
+  fbCargarServicios();
+  fbCargarCaja();
+  // Generar gastos fijos UNA SOLA VEZ, 5 segundos después de que todo cargó
+  // (el flag _gastosFijosGenerados asegura que nunca se ejecute más de una vez)
+  setTimeout(function() {
+    if (typeof generarGastosFijosMes === 'function') generarGastosFijosMes();
+  }, 5000);
 }
 
   var funciones = [
@@ -9076,7 +9049,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.231-firebase',
+  VERSION: 'v20.232-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10021,8 +9994,11 @@ function _completarLogin(nombre) {
 
   // Secuencia de carga con progreso
   var pasos = [
-    { pct: 30, txt: 'Conectando con Firebase...' },
-    { pct: 70, txt: 'Cargando datos...' },
+    { pct: 15, txt: 'Cargando clientes y productos...' },
+    { pct: 35, txt: 'Cargando ventas y presupuestos...' },
+    { pct: 55, txt: 'Cargando empleados y usuarios...' },
+    { pct: 75, txt: 'Cargando equipos e informes...' },
+    { pct: 90, txt: 'Preparando el dashboard...' },
     { pct: 100, txt: '¡Listo!' },
   ];
   var paso = 0;
@@ -10034,7 +10010,6 @@ function _completarLogin(nombre) {
     } else { clearInterval(iv); }
   }, 400);
 
-  // CARGA MÍNIMA — solo lo esencial para que la app funcione
   if (typeof startSessionTimer === 'function') startSessionTimer();
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
@@ -21511,22 +21486,29 @@ function fbCargarGastos() {
     gastosData = data ? Object.entries(data).map(function(e){
       return Object.assign({ fbKey: e[0] }, e[1]);
     }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
-    // Generar gastos fijos del mes si no existen
-    generarGastosFijosMes();
+    // NOTA: generarGastosFijosMes() fue removida del callback de fbOnValue
+    // porque causaba un loop infinito: al crear un gasto nuevo, Firebase
+    // disparaba el callback de nuevo, que creaba otro gasto, y así 50.000 veces.
+    // Ahora se llama UNA SOLA VEZ con protección, desde un lugar controlado.
     renderTablaGastos();
     actualizarMetricasGastos();
-    // Si el Dashboard está visible, refrescar sus KPIs (evita mostrar $0 mientras este listener todavía no respondió)
     var pageDash = document.getElementById('page-dashboard');
     if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
   });
 }
 
+// Flag para asegurarse de que generarGastosFijosMes corra una sola vez por sesión
+var _gastosFijosGenerados = false;
+
 function generarGastosFijosMes() {
-  // Por cada gasto fijo, si no hay copia del mes actual → crearla como pendiente
+  // Protección doble: solo una vez por sesión Y solo si los datos ya cargaron
+  if (_gastosFijosGenerados) return;
+  if (!gastosData || gastosData.length === 0) return;
+  _gastosFijosGenerados = true;
+
   var mesActual = new Date().toISOString().slice(0,7);
   var fijosMes = gastosData.filter(function(g){ return g.tipo==='Fijo' && (g.fecha||'').slice(0,7)===mesActual; });
   var nombresYaMes = fijosMes.map(function(g){ return (g.descripcion||'').toLowerCase().split(' ').slice(0,-1).join(' '); });
-  // Buscar fijos de meses anteriores que no tienen copia este mes
   gastosData.filter(function(g){ return g.tipo==='Fijo' && (g.fecha||'').slice(0,7) < mesActual && g.esFijoBase; })
     .forEach(function(g) {
       var desc = (g.descripcion||'').toLowerCase().split(' ').slice(0,-1).join(' ');
