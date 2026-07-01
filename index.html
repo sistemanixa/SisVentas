@@ -802,7 +802,7 @@ tr:hover td{color:var(--text)}
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp }
+    import { getDatabase, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp, query, limitToLast }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
              createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
@@ -843,6 +843,8 @@ tr:hover td{color:var(--text)}
     window.fbOnDisconnect = onDisconnect;
     window.fbRemove     = remove;
     window.fbServerTimestamp = serverTimestamp;
+    window.fbQuery       = query;
+    window.fbLimitToLast = limitToLast;
     window.fbSignIn      = signInWithEmailAndPassword;
     window.fbSignOut     = signOut;
     window.fbOnAuth      = onAuthStateChanged;
@@ -882,7 +884,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.200 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.215 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1616,7 +1618,21 @@ tr:hover td{color:var(--text)}
       </div>
     </div>
     <div class="card">
-      <div class="card-head"><span class="card-title">Productos / servicios</span><button class="btn btn-sm" onclick="addPpRow()"><i class="ti ti-plus"></i> Agregar</button></div>
+      <div class="card-head"><span class="card-title">Productos / servicios</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <!-- Toggle moneda — visible solo si config = ambos, igual que en Nueva venta -->
+          <div id="ppto-moneda-toggle" style="display:none;align-items:center;gap:6px;font-size:12px">
+            <span style="color:var(--text3)">ARS</span>
+            <div style="position:relative;width:36px;height:20px;cursor:pointer" onclick="toggleMonedaPpto()">
+              <div id="pmt-track" style="position:absolute;inset:0;border-radius:10px;background:var(--bg4);border:1px solid var(--border2);transition:background .2s"></div>
+              <div id="pmt-thumb" style="position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--text3);transition:transform .2s,background .2s;pointer-events:none"></div>
+            </div>
+            <span style="color:var(--text3)">USD</span>
+            <span id="pmt-label" style="font-size:11px;color:var(--blue);font-weight:600">ARS</span>
+          </div>
+          <button class="btn btn-sm" onclick="addPpRow()"><i class="ti ti-plus"></i> Agregar</button>
+        </div>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th style="width:90px">Código</th><th>Descripción</th><th class="tr" style="width:70px">Cant.</th><th class="tr" style="width:90px">Disponible</th><th class="tr" style="width:100px">P. Unit.</th><th class="tr" style="width:80px">% Desc.</th><th class="tr" style="width:100px">Subtotal</th><th style="width:36px"></th></tr></thead>
@@ -1627,10 +1643,13 @@ tr:hover td{color:var(--text)}
       <div class="totals"><div class="tbox">
         <div class="tl"><span>Subtotal</span><span id="pp-sub">$0</span></div>
         <div class="tl" style="color:var(--green)"><span>Descuento</span><span id="pp-damt">$0</span></div>
-        <div class="tl iva"><span>IVA 21%</span><span id="pp-iva">$0</span></div>
+        <div class="tl iva" id="pp-iva-row"><span>IVA 21%</span><span id="pp-iva">$0</span></div>
         <div class="tl final"><span>Total</span><span id="pp-total">$0</span></div>
       </div></div>
       <div class="flex-end">
+        <button class="btn" id="btn-toggle-iva-ppto" onclick="toggleIvaPpto(this)" style="min-width:110px">
+          <i class="ti ti-receipt-tax"></i> Con IVA
+        </button>
         <button class="btn" onclick="guardarPresupuesto('borrador')"><i class="ti ti-device-floppy"></i> Guardar borrador</button>
         <button class="btn" onclick="actualizarValoresPpto()" title="Recalcula precios al tipo de cambio actual y extiende el vencimiento" style="color:var(--blue);border-color:var(--blue)">
           <i class="ti ti-refresh"></i> Actualizar valores
@@ -2000,7 +2019,7 @@ tr:hover td{color:var(--text)}
             <div class="fg"><label>Total de la venta</label><input type="text" id="cob-total-venta" readonly placeholder="—" style="font-weight:500"></div>
             <div class="fg"><label>Ya cobrado</label><input type="text" id="cob-ya-cobrado" readonly placeholder="—" style="color:var(--green)"></div>
             <div class="fg"><label>Saldo pendiente</label><input type="text" id="cob-saldo" readonly placeholder="—" style="color:var(--amber);font-weight:500"></div>
-            <div class="fg"><label>Monto a cobrar ahora ($)</label><input type="number" id="cob-monto" placeholder="0" min="0" oninput="calcSaldoTrasCobranza()"></div>
+            <div class="fg"><label>Monto a cobrar ahora ($)</label><input data-money="1" id="cob-monto" placeholder="0" oninput="calcSaldoTrasCobranza()"></div>
             <div class="fg"><label>Medio de pago</label>
               <select id="cob-medio">
                 <option>Efectivo</option>
@@ -2665,7 +2684,7 @@ tr:hover td{color:var(--text)}
               <div class="form-grid">
                 <div class="fg full"><label>Buscar en el catálogo de Productos por palabra clave</label><input type="text" id="aacfg-regla-clave" placeholder="Ej: Panel Garnet PG-380"></div>
                 <div class="fg"><label>Nombre de referencia (si no se encuentra en Productos)</label><input type="text" id="aacfg-regla-ref-nombre"></div>
-                <div class="fg"><label>Precio de referencia ($)</label><input type="number" id="aacfg-regla-ref-precio"></div>
+                <div class="fg"><label>Precio de referencia ($)</label><input data-money="1" id="aacfg-regla-ref-precio"></div>
               </div>
             </div>
             <div class="card">
@@ -3804,7 +3823,7 @@ tr:hover td{color:var(--text)}
               <i class="ti ti-info-circle"></i> Cargá el precio de cada proveedor. El sistema marca automáticamente el más económico.
             </div>
             <table id="pf-proveedores-tbl" style="width:100%">
-              <tr><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio de costo ($)</th><th style="text-align:right">Actualizado</th><th></th></tr>
+              <tr><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio de costo ($)</th><th style="text-align:center;white-space:nowrap" title="Si el proveedor cotiza sin IVA, el sistema suma el 21% para calcular tu costo real">Sin IVA <i class="ti ti-info-circle" style="font-size:11px;color:var(--text3)"></i></th><th style="text-align:right;color:var(--amber)">Costo real</th><th>URL</th><th style="text-align:right">Actualizado</th><th></th></tr>
             </table>
             <div id="pf-proveedores-vacio" style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Sin proveedores cargados — agregá al menos uno</div>
           </div>
@@ -3827,7 +3846,7 @@ tr:hover td{color:var(--text)}
               <div class="form-grid cols3" style="margin-bottom:0">
                 <div class="fg">
                   <label>Precio gremio / costo ARS</label>
-                  <input type="number" id="pf-precio-gremio" placeholder="0" min="0" oninput="calcPrecioDesdeGremio()">
+                  <input data-money="1" id="pf-precio-gremio" placeholder="0" oninput="calcPrecioDesdeGremio()">
                   <div style="font-size:11px;color:var(--text3);margin-top:4px">Precio de lista del gremio en pesos</div>
                 </div>
                 <div class="fg">
@@ -3854,8 +3873,8 @@ tr:hover td{color:var(--text)}
               <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Busca el precio en Biosegur, Free Electron y Tecnoprices usando la IA</div>
               <div id="pf-precios-resultado" style="display:none;flex-direction:column;gap:6px"></div>
             </div>
-              <div class="fg"><label>Precio de compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input type="number" id="pf-compra" placeholder="0" oninput="calcMargen()" min="0"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
-              <div class="fg"><label>Precio de venta (<span id="pf-venta-moneda-lbl">$</span>)</label><input type="number" id="pf-venta" placeholder="0" oninput="calcMargen()" min="0"></div>
+              <div class="fg"><label>Precio de compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input data-money="1" id="pf-compra" placeholder="0" oninput="calcMargen()"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
+              <div class="fg"><label>Precio de venta (<span id="pf-venta-moneda-lbl">$</span>)</label><input data-money="1" id="pf-venta" placeholder="0" oninput="calcMargen()"></div>
               <div class="fg"><label>Margen calculado</label><input type="text" id="pf-margen" readonly placeholder="—" style="color:var(--green);font-weight:500"></div>
               <div class="fg"><label>IVA</label>
                 <select id="pf-iva">
@@ -4091,7 +4110,7 @@ tr:hover td{color:var(--text)}
               <span class="card-title">Empleados</span>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-sm" onclick="abrirModalHaberesMes()"><i class="ti ti-cash"></i> Registrar haberes del mes</button>
-                <button class="btn btn-sm" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
+                <button class="btn btn-sm" onclick="_safeAbrirAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
                 <button class="btn btn-sm btn-primary" id="btn-nuevo-emp" onclick="abrirModalNuevo('empleado')"><i class="ti ti-plus"></i> Nuevo empleado</button>
               </div>
             </div>
@@ -4300,8 +4319,8 @@ tr:hover td{color:var(--text)}
       <div class="fg full"><label>Descripción</label>
         <input type="text" id="g-descripcion" placeholder="Ej: Alquiler oficina junio">
       </div>
-      <div class="fg"><label>Monto total ($)</label><input type="number" id="g-monto" placeholder="0" oninput="calcRestoGasto()"></div>
-      <div class="fg"><label>Monto ya pagado ($)</label><input type="number" id="g-monto-pagado" placeholder="0" value="0" oninput="calcRestoGasto()"></div>
+      <div class="fg"><label>Monto total ($)</label><input data-money="1" id="g-monto" placeholder="0" oninput="calcRestoGasto()"></div>
+      <div class="fg"><label>Monto ya pagado ($)</label><input data-money="1" id="g-monto-pagado" placeholder="0" value="0" oninput="calcRestoGasto()"></div>
       <div class="fg"><label>Resta pagar</label>
         <input type="text" id="g-resta" readonly style="background:var(--bg4);font-weight:600">
       </div>
@@ -4351,7 +4370,7 @@ tr:hover td{color:var(--text)}
       <div style="font-size:15px;font-weight:600;margin-bottom:16px" id="mpg-titulo">Registrar pago</div>
       <div style="margin-bottom:12px">
         <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Monto a pagar ahora ($)</label>
-        <input type="number" id="mpg-monto" placeholder="0" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;box-sizing:border-box">
+        <input data-money="1" id="mpg-monto" placeholder="0" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;box-sizing:border-box">
       </div>
       <div style="margin-bottom:16px">
         <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Medio de pago</label>
@@ -4677,7 +4696,7 @@ tr:hover td{color:var(--text)}
         </select>
       </div>
       <div class="fg full"><label>Descripción</label><input type="text" id="movi-desc" placeholder="Detalle del movimiento"></div>
-      <div class="fg"><label>Monto ($)</label><input type="number" id="movi-monto" placeholder="0" min="0"></div>
+      <div class="fg"><label>Monto ($)</label><input data-money="1" id="movi-monto" placeholder="0"></div>
       <div class="fg"><label>Estado</label>
         <select id="movi-estado">
           <option value="pendiente">Pendiente aprobación</option>
@@ -4869,7 +4888,7 @@ tr:hover td{color:var(--text)}
           <div class="fg"><label>Tipo</label>
             <select id="cm-tipo"><option>Ingreso</option><option>Egreso</option><option>Retiro</option></select>
           </div>
-          <div class="fg"><label>Monto ($)</label><input type="number" id="cm-monto" placeholder="0"></div>
+          <div class="fg"><label>Monto ($)</label><input data-money="1" id="cm-monto" placeholder="0"></div>
           <div class="fg"><label>Concepto</label><input id="cm-concepto" placeholder="Ej: Cobro venta #00042"></div>
           <div class="fg"><label>Medio</label>
             <select id="cm-medio"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>
@@ -6277,7 +6296,7 @@ function renderTareasPendientes() {
     var tareas = [];
     if (snap.val()) Object.entries(snap.val()).forEach(function(e){
       tareas.push(Object.assign({ fbKey: e[0] }, e[1]));
-    });
+    }).catch(function(){});
     var disponibles = tareas.filter(function(t){ return t.estado === 'disponible' || t.estado === 'en_curso'; });
     if (!disponibles.length) {
       container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px">Sin OTs pendientes</div>';
@@ -6595,7 +6614,11 @@ function chatInicializar() {
   if (window.fbDB) {
     var _ultimosMsgs = {}; // rastrear último ts por canal para detectar mensajes nuevos
     ['general','tecnicos','admin'].forEach(function(canal) {
-      window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat/' + canal), function(snap) {
+      // Limitar a los últimos 50 mensajes — evita traer todo el historial al iniciar
+      var refCanal = window.fbQuery
+        ? window.fbQuery(window.fbRef(window.fbDB, 'sisventas/chat/' + canal), window.fbLimitToLast(50))
+        : window.fbRef(window.fbDB, 'sisventas/chat/' + canal);
+      window.fbOnValue(refCanal, function(snap) {
         if (!snap.val()) return;
         var msgs = Object.values(snap.val());
         var _lk = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
@@ -6635,31 +6658,37 @@ function chatInicializar() {
 function chatEscucharDirectos() {
   if (!window.fbDB || !currentUser) return;
   var miKey = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
-  // Escuchar el nodo raíz de chat para detectar canales directos nuevos
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat'), function(snap) {
+  // NO suscribirse al nodo raíz completo de 'sisventas/chat' — trae todos los mensajes
+  // históricos y puede bloquear el hilo al iniciar. Usamos get() una vez para detectar
+  // canales directos y nos suscribimos solo a los que pertenecen al usuario, limitados.
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/chat')).then(function(snap) {
     var data = snap.val() || {};
     Object.keys(data).forEach(function(canal) {
       if (!canal.startsWith('directo_') || !canal.includes(miKey)) return;
-      var msgs = Object.values(data[canal] || {});
-      var noLeidos = msgs.filter(function(m){
-        return m.autor !== currentUser && !(m.leido && m.leido[currentUser]);
+      var refDirecto = window.fbQuery
+        ? window.fbQuery(window.fbRef(window.fbDB, 'sisventas/chat/' + canal), window.fbLimitToLast(50))
+        : window.fbRef(window.fbDB, 'sisventas/chat/' + canal);
+      window.fbOnValue(refDirecto, function(snapCanal) {
+        if (!snapCanal.val()) return;
+        var msgs = Object.values(snapCanal.val() || {});
+        var noLeidos = msgs.filter(function(m){
+          return m.autor !== currentUser && !(m.leido && m.leido[currentUser]);
+        });
+        _chatNoLeidos[canal] = noLeidos.length;
+        chatActualizarBadges();
+        var modal = document.getElementById('chat-modal');
+        var chatAbierto = modal && modal.classList.contains('open') && _chatCanal === canal;
+        if (!chatAbierto && noLeidos.length) {
+          var ult = noLeidos[noLeidos.length-1];
+          chatMostrarNotif(
+            'Mensaje de ' + (ult.autor||'alguien'),
+            ult.texto || (ult.fotoUrl ? '📷 Foto' : 'Nuevo mensaje'),
+            canal
+          );
+        }
       });
-      // Badge en la pestaña Directos
-      _chatNoLeidos[canal] = noLeidos.length;
-      chatActualizarBadges();
-      // Notificación si hay mensajes nuevos y chat cerrado
-      var modal = document.getElementById('chat-modal');
-      var chatAbierto = modal && modal.classList.contains('open') && _chatCanal === canal;
-      if (!chatAbierto && noLeidos.length) {
-        var ult = noLeidos[noLeidos.length-1];
-        chatMostrarNotif(
-          'Mensaje de ' + (ult.autor||'alguien'),
-          ult.texto || (ult.fotoUrl ? '📷 Foto' : 'Nuevo mensaje'),
-          canal
-        );
-      }
     });
-  });
+  }).catch(function(e){ console.warn('[Chat] Error cargando canales directos:', e&&e.message); });
 }
 
 function chatActualizarBadges() {
@@ -7291,7 +7320,7 @@ function abrirModalHaberesMes() {
       // Footer con total y botón
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">' +
         '<div style="font-size:14px"><span style="color:var(--text3)">Total a registrar:</span> <strong style="font-size:16px" id="hab-total-lbl">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
-        '<button class="btn btn-primary" onclick="confirmarRegistroHaberes()">' +
+        '<button class="btn btn-primary" onclick="_safeConfirmarHaberes()">' +
           '<i class="ti ti-check"></i> Confirmar y registrar gastos' +
         '</button>' +
       '</div>' +
@@ -7539,7 +7568,7 @@ async function abrirModalAguinaldo() {
       '</div>' +
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">' +
         '<div style="font-size:14px"><span style="color:var(--text3)">Total a registrar:</span> <strong style="font-size:16px" id="agu-total-lbl">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
-        '<button class="btn btn-primary" onclick="confirmarRegistroAguinaldo()"><i class="ti ti-check"></i> Confirmar y registrar gastos</button>' +
+        '<button class="btn btn-primary" onclick="_safeConfirmarAguinaldo()"><i class="ti ti-check"></i> Confirmar y registrar gastos</button>' +
       '</div>' +
     '</div>';
 
@@ -8691,6 +8720,7 @@ function doLogoutAutomatico() {
 }
 
 function _ejecutarLogout() {
+  _sesionYaRestaurada = false;
   // 1. Volver al dashboard ANTES de ocultar la app, para que el próximo
   //    usuario que inicie sesión siempre arranque en dashboard, sin importar
   //    en qué módulo estaba el usuario anterior.
@@ -8986,7 +9016,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.200-firebase',
+  VERSION: 'v20.215-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9395,6 +9425,7 @@ function initMoneyInput(input) {
   input.autocomplete = 'off';
 
   // Valor inicial: lo que ya tenía el input (viene de value="..." en el HTML)
+  input.dataset.moneyInitializing = '1';
   var inicial = parseFloat(input.value) || 0;
   input.dataset.raw = String(inicial);
   if (inicial !== 0) {
@@ -9403,6 +9434,7 @@ function initMoneyInput(input) {
   } else {
     input.value = input.getAttribute('placeholder') ? '' : '0';
   }
+  delete input.dataset.moneyInitializing;
 
   input.addEventListener('keydown', function(e) {
     // El punto (o coma) del teclado numérico marca el inicio de los decimales,
@@ -9417,6 +9449,8 @@ function initMoneyInput(input) {
   });
 
   input.addEventListener('input', function() {
+    // No procesar si el campo se está inicializando (evita disparar oninput inline prematuramente)
+    if (input.dataset.moneyInitializing) return;
     // Solo dejar pasar dígitos; reconstruir el string entero+decimal desde cero
     // a partir de TODOS los dígitos tipeados, para que el separador de miles
     // se recalcule solo (como una calculadora real).
@@ -9595,6 +9629,22 @@ function cargarNotifLeidas() {
 // Firebase Realtime Database no permite los caracteres . # $ [ ] en una key.
 // Los ids de notificación pueden derivar de v.id/ot.id que sí los contienen
 // (ej. ventas con id "#00123"), así que hay que sanitizar antes de usarlos como path.
+
+// Wrappers seguros para funciones async que usan await fbGet —
+// capturan cualquier Promise rechazada sin propagarla al hilo principal.
+function _safeConfirmarHaberes() {
+  confirmarRegistroHaberes().catch(function(e){ notify('Error al registrar haberes: '+(e&&e.message||e)); });
+}
+function _safeAbrirAguinaldo() {
+  abrirModalAguinaldo().catch(function(e){ notify('Error al abrir aguinaldo: '+(e&&e.message||e)); });
+}
+function _safeConfirmarAguinaldo() {
+  confirmarRegistroAguinaldo().catch(function(e){ notify('Error al registrar aguinaldo: '+(e&&e.message||e)); });
+}
+function _safeRecalcularAguinaldo() {
+  recalcularAguinaldo().catch(function(e){ console.warn('Error recalculando aguinaldo:', e); });
+}
+
 function _sanitizarKeyFirebase(id) {
   return String(id||'').replace(/[.#$\[\]]/g, '_');
 }
@@ -9870,7 +9920,7 @@ function _verificarHaberesPendientes() {
     // Ver si hay algún empleado activo sin haberes del mes pasado
     var sinRegistrar = empleados.filter(function(e) {
       return !habData[e.fbKey] || !habData[e.fbKey][mesKey];
-    });
+    }).catch(function(){});
     if (sinRegistrar.length > 0) {
       // Mostrar notificación no intrusiva
       var msg = '⚠️ No se registraron los haberes de ' + mesLbl + ' para ' +
@@ -9952,17 +10002,23 @@ function _completarLogin(nombre) {
   }, 400);
 
   // Iniciar carga de datos
+  var _t0 = Date.now();
+  var _log = function(msg) { console.log('[SV-LOAD ' + (Date.now()-_t0) + 'ms]', msg); };
+  _log('startSessionTimer');
   if (typeof startSessionTimer === 'function') startSessionTimer();
+  _log('actualizarPanelUsuario');
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
+  _log('fbCargarTodo');
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
-  if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 300);
-  if (typeof cargarConfigGeneral === 'function') setTimeout(cargarConfigGeneral, 350);
-  if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
-  if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
-  if (typeof cargarConfigLogin === 'function') setTimeout(cargarConfigLogin, 350);
-  if (typeof inicializarFlujoVentas === 'function') setTimeout(inicializarFlujoVentas, 4000);
-  if (typeof iaInicializar === 'function') setTimeout(iaInicializar, 1000);
-  if (typeof chatInicializar === 'function') setTimeout(chatInicializar, 1500);
+  _log('fbCargarTodo OK — programando timeouts...');
+  if (typeof cargarLogoGuardado === 'function') setTimeout(function(){ _log('cargarLogoGuardado'); cargarLogoGuardado(); }, 300);
+  if (typeof cargarConfigGeneral === 'function') setTimeout(function(){ _log('cargarConfigGeneral'); cargarConfigGeneral(); }, 350);
+  if (typeof cargarConfigImpuestos === 'function') setTimeout(function(){ _log('cargarConfigImpuestos'); cargarConfigImpuestos(); }, 350);
+  if (typeof cargarConfigComisiones === 'function') setTimeout(function(){ _log('cargarConfigComisiones①'); cargarConfigComisiones(); }, 350);
+  if (typeof cargarConfigLogin === 'function') setTimeout(function(){ _log('cargarConfigLogin'); cargarConfigLogin(); }, 350);
+  if (typeof inicializarFlujoVentas === 'function') setTimeout(function(){ _log('inicializarFlujoVentas'); inicializarFlujoVentas(); }, 4000);
+  if (typeof iaInicializar === 'function') setTimeout(function(){ _log('iaInicializar'); iaInicializar(); }, 1000);
+  if (typeof chatInicializar === 'function') setTimeout(function(){ _log('chatInicializar'); chatInicializar(); }, 1500);
   // Mostrar FAB solo en mobile
   setTimeout(function(){
     if (window.innerWidth <= 1024) {
@@ -9970,19 +10026,23 @@ function _completarLogin(nombre) {
       if (fab) fab.style.display = 'flex';
     }
   }, 1200);
-  if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
-  if (typeof cargarPresenciaUsuarios === 'function') setTimeout(cargarPresenciaUsuarios, 350);
-  if (typeof spCargar === 'function') setTimeout(spCargar, 400);
-  if (typeof fbCargarVacaciones === 'function') setTimeout(fbCargarVacaciones, 400);
-  if (typeof cfCargar === 'function') setTimeout(cfCargar, 450);
-  if (typeof fvCargar === 'function') setTimeout(fvCargar, 450);
-  if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 450);
-  if (typeof chequearActualizacionAutoDolar === 'function') setTimeout(chequearActualizacionAutoDolar, 500);
-  if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); cargarDashWidgets(); setTimeout(applyRole, 400); }, 400);
-  if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
+  if (typeof cargarCargos === 'function') setTimeout(function(){ _log('cargarCargos①'); cargarCargos(); }, 350);
+  if (typeof cargarPresenciaUsuarios === 'function') setTimeout(function(){ _log('cargarPresenciaUsuarios'); cargarPresenciaUsuarios(); }, 350);
+  if (typeof spCargar === 'function') setTimeout(function(){ _log('spCargar'); spCargar(); }, 400);
+  if (typeof fbCargarVacaciones === 'function') setTimeout(function(){ _log('fbCargarVacaciones'); fbCargarVacaciones(); }, 400);
+  if (typeof cfCargar === 'function') setTimeout(function(){ _log('cfCargar'); cfCargar(); }, 450);
+  if (typeof fvCargar === 'function') setTimeout(function(){ _log('fvCargar'); fvCargar(); }, 450);
+  if (typeof cargarCargos === 'function') setTimeout(function(){ _log('cargarCargos②'); cargarCargos(); }, 450);
+  if (typeof chequearActualizacionAutoDolar === 'function') setTimeout(function(){ _log('chequearActualizacionAutoDolar'); chequearActualizacionAutoDolar(); }, 500);
+  if (typeof cargarPermisosRoles === 'function') setTimeout(function(){
+    _log('cargarPermisosRoles+cargarDashWidgets');
+    cargarPermisosRoles(); cargarDashWidgets(); setTimeout(function(){ _log('applyRole'); applyRole(); }, 400);
+  }, 400);
+  if (typeof cargarConfigComisiones === 'function') setTimeout(function(){ _log('cargarConfigComisiones②'); cargarConfigComisiones(); }, 600);
 
   // Mostrar app después de ~2.5 segundos (tiempo de carga de Firebase)
   setTimeout(function() {
+    _log('⭐ TIMEOUT FINAL DISPARADO — revelando app');
     clearInterval(iv);
     if (bar) bar.style.width = '100%';
     if (msg) msg.textContent = '¡Listo!';
@@ -10070,7 +10130,8 @@ function calcTotals() {
   let s = 0;
   document.querySelectorAll('#det-body tr').forEach(function(tr) {
     var q  = parseFloat((tr.querySelector('.qty')||{}).value) || 0;
-    var p  = parseFloat((tr.querySelector('.price')||{}).value) || 0;
+    var priceInp = tr.querySelector('.price');
+    var p  = priceInp ? (priceInp.dataset.moneyInit ? getMontoRaw(priceInp) : (parseFloat(priceInp.value) || 0)) : 0;
     var dp = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
     s += q * p * (1 - dp/100);
   });
@@ -10270,7 +10331,8 @@ function confirmarVenta() {
       var descEl = tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt');
       var desc  = descEl ? descEl.textContent : '';
       var qty   = parseInt((tr.querySelector('.qty')||{}).value) || 1;
-      var punit = parseFloat((tr.querySelector('.price')||{}).value) || 0;
+      var priceInpItem = tr.querySelector('.price');
+      var punit = priceInpItem ? (priceInpItem.dataset.moneyInit ? getMontoRaw(priceInpItem) : (parseFloat(priceInpItem.value) || 0)) : 0;
       var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
       var sub   = Math.round(qty * punit * (1 - disc/100));
       var item  = { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub };
@@ -10584,12 +10646,12 @@ function abrirFormProducto(id) {
   // Campo URL proveedor (codWeb)
   var cwEl = document.getElementById('pf-cod-web');
   if (cwEl) cwEl.value = p.codWeb || p.urlProveedor || '';
-  document.getElementById('pf-venta').value = p.venta ? pfFormatearPrecio(p.venta) : '';
+  _setMontoInput(document.getElementById('pf-venta'), p.venta || 0);
   // Cargar campos de calculadora de precio
   var pgEl = document.getElementById('pf-precio-gremio');
   var mdEl = document.getElementById('pf-margen-deseado');
-  var rawGremio = p.precioGremio || p.compraARS || p.compra || '';
-  if (pgEl) pgEl.value = rawGremio ? pfFormatearPrecio(rawGremio) : '';
+  var rawGremio = p.precioGremio || p.compraARS || p.compra || 0;
+  if (pgEl) _setMontoInput(pgEl, rawGremio);
   if (mdEl) mdEl.value = p.margenDeseado || '';
   document.getElementById('pf-iva').value = p.iva || 21;
   document.getElementById('pf-stock').value = p.stock !== undefined ? p.stock : '';
@@ -10651,14 +10713,38 @@ function renderTablaProveedoresProducto() {
   });
 
   tbl.querySelectorAll('tr:not(:first-child)').forEach(function(tr){ tr.remove(); });
+  // Para el "más barato" usar el costo real (incluyendo IVA si el proveedor cotiza sin IVA)
+  var costosReales = prodProveedoresActuales.map(function(pv) {
+    var p = parseFloat(pv.precio) || 0;
+    return pv.sinIva ? p * 1.21 : p;
+  });
+  masBaratoIdx = 0;
+  costosReales.forEach(function(c, i) {
+    if (c > 0 && (costosReales[masBaratoIdx] === 0 || c < costosReales[masBaratoIdx])) masBaratoIdx = i;
+  });
+
   prodProveedoresActuales.forEach(function(pv, i) {
     var esMasBarato = i === masBaratoIdx && prodProveedoresActuales.length > 1;
+    var sinIva = !!pv.sinIva;
+    var precioRaw = parseFloat(pv.precio) || 0;
+    var costoReal = sinIva ? Math.round(precioRaw * 1.21) : precioRaw;
+    var costoRealFmt = costoReal > 0
+      ? (sinIva
+          ? '<span style="color:var(--amber);font-size:12px;font-weight:600">$'+costoReal.toLocaleString('es-AR')+'</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(+IVA)</span>'
+          : '<span style="color:var(--text3);font-size:12px">incluido</span>')
+      : '<span style="color:var(--text3);font-size:12px">—</span>';
     var tr = document.createElement('tr');
     if (esMasBarato) tr.style.background = 'var(--green-bg)';
     tr.innerHTML =
       '<td style="padding:6px 4px;min-width:110px"><input type="text" value="'+escapeHTML(pv.nombre||'')+'" placeholder="Ej: Biosegur" oninput="actualizarProveedorProducto('+i+',\'nombre\',this.value)" style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:13px;font-family:inherit"></td>' +
-      '<td style="padding:6px 4px;text-align:right"><input type="number" value="'+(pv.precio||'')+'" placeholder="0" oninput="actualizarProveedorProducto('+i+',\'precio\',this.value)" style="width:100px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;text-align:right;font-size:13px;font-family:inherit"></td>' +
-      '<td style="padding:6px 4px"><input type="url" value="'+escapeHTML(pv.url||'')+'" placeholder="https://proveedor.com/producto..." oninput="actualizarProveedorProducto('+i+',\'url\',this.value)" style="width:100%;min-width:180px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:12px;font-family:inherit;color:var(--blue)"></td>' +
+      '<td style="padding:6px 4px;text-align:right"><input type="number" value="'+(pv.precio||'')+'" placeholder="0" oninput="actualizarProveedorProducto('+i+',\'precio\',this.value)" style="width:90px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;text-align:right;font-size:13px;font-family:inherit"></td>' +
+      '<td style="padding:6px 4px;text-align:center">' +
+        '<label style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px" title="El precio que cotiza el proveedor NO incluye IVA — el sistema sumará el 21% para calcular el costo real">' +
+          '<input type="checkbox" '+(sinIva?'checked':'')+' onchange="actualizarProveedorProducto('+i+',\'sinIva\',this.checked);renderTablaProveedoresProducto();calcMargen();" style="accent-color:var(--amber);width:14px;height:14px;cursor:pointer">' +
+        '</label>' +
+      '</td>' +
+      '<td style="padding:6px 4px;text-align:right;white-space:nowrap">'+costoRealFmt+'</td>' +
+      '<td style="padding:6px 4px"><input type="url" value="'+escapeHTML(pv.url||'')+'" placeholder="https://proveedor.com/producto..." oninput="actualizarProveedorProducto('+i+',\'url\',this.value)" style="width:100%;min-width:150px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:12px;font-family:inherit;color:var(--blue)"></td>' +
       '<td style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text3);white-space:nowrap">' + (pv.actualizado||'sin fecha') + (esMasBarato ? '<br><span class="badge b-green" style="font-size:9px">+ económico</span>' : '') + '</td>' +
       '<td style="padding:6px 4px;text-align:right;white-space:nowrap">' +
         (pv.url ? '<a href="'+escapeHTML(pv.url)+'" target="_blank" class="btn btn-sm btn-icon" title="Abrir en proveedor"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></a>' : '') +
@@ -10777,11 +10863,21 @@ function actualizarProveedorProducto(idx, campo, valor) {
 
 function recalcularCompraDesdeProveedores() {
   if (!prodProveedoresActuales.length) return;
+  // Calcular costo real de cada proveedor (con IVA incluido si corresponde)
   var masBarato = prodProveedoresActuales.reduce(function(min, pv) {
-    return (parseFloat(pv.precio)||Infinity) < (parseFloat(min.precio)||Infinity) ? pv : min;
+    var costoReal = parseFloat(pv.precio)||0;
+    if (pv.sinIva && costoReal > 0) costoReal = costoReal * 1.21;
+    var costoMin  = parseFloat(min.precio)||Infinity;
+    if (min.sinIva && costoMin < Infinity) costoMin = costoMin * 1.21;
+    return (costoReal > 0 && costoReal < costoMin) ? pv : min;
   }, prodProveedoresActuales[0]);
+
+  // El campo pf-compra guarda el costo real (con IVA incluido si aplica)
+  var costoCompra = parseFloat(masBarato.precio) || 0;
+  if (masBarato.sinIva && costoCompra > 0) costoCompra = Math.round(costoCompra * 1.21);
+
   var compraEl = document.getElementById('pf-compra');
-  if (compraEl) compraEl.value = parseFloat((parseFloat(masBarato.precio)||0).toFixed(2));
+  if (compraEl) _setMontoInput(compraEl, costoCompra);
 }
 
 function cerrarFormProducto() {
@@ -10819,7 +10915,7 @@ async function buscarPreciosProveedores() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando...'; }
   if (res) { res.style.display = 'flex'; res.innerHTML = '<div style="color:var(--text3);font-size:12px">Consultando proveedores...</div>'; }
 
-  var precioActual = parseFloat((document.getElementById('pf-compra')||{}).value) || 0;
+  var precioActual = getMontoRaw(document.getElementById('pf-compra'));
   var systemPrompt = 'Sos un asistente especializado en precios de materiales para instalaciones de seguridad y domótica en Argentina. ' +
     'Buscá el precio de "' + termino + '" en estos proveedores argentinos: ' +
     '1) Biosegur (biosegur.com.ar) - usar URL: biosegur.com.ar/busqueda_avanzada.php?buscar=1&palabra=TERMINO ' +
@@ -10900,7 +10996,7 @@ function pfFormatearPrecio(val) {
 }
 
 function calcPrecioDesdeGremio() {
-  var gremio  = parseFloat(document.getElementById('pf-precio-gremio').value) || 0;
+  var gremio  = getMontoRaw(document.getElementById('pf-precio-gremio'));
   var margen  = parseFloat(document.getElementById('pf-margen-deseado').value) || 0;
   var calcEl  = document.getElementById('pf-precio-calculado');
   var usdEl   = document.getElementById('pf-precio-usd-equiv');
@@ -10911,8 +11007,8 @@ function calcPrecioDesdeGremio() {
   // Cargar en el campo de precio venta
   var pfVenta = document.getElementById('pf-venta');
   var pfCompra = document.getElementById('pf-compra');
-  if (pfVenta)  pfVenta.value  = precioVenta;
-  if (pfCompra) pfCompra.value = gremio;
+  if (pfVenta)  _setMontoInput(pfVenta, precioVenta);
+  if (pfCompra) _setMontoInput(pfCompra, gremio);
   // Mostrar equivalente USD
   var tc = (window._tipoCambioActual && window._tipoCambioActual.venta) || 0;
   if (tc && usdEl) {
@@ -10923,9 +11019,22 @@ function calcPrecioDesdeGremio() {
   calcMargen();
 }
 
+// Asigna un valor numérico a un input formateado con data-money, manteniendo
+// sincronizados tanto el texto visible como el dato crudo (dataset.raw).
+function _setMontoInput(input, valor) {
+  if (!input) return;
+  if (input.dataset.moneyInit) {
+    input.dataset.raw = String(valor);
+    delete input.dataset.tieneComa;
+    _refrescarMoneyVisual(input);
+  } else {
+    input.value = valor;
+  }
+}
+
 function calcMargen() {
-  const c = parseFloat(document.getElementById('pf-compra').value) || 0;
-  const v = parseFloat(document.getElementById('pf-venta').value) || 0;
+  const c = getMontoRaw(document.getElementById('pf-compra'));
+  const v = getMontoRaw(document.getElementById('pf-venta'));
   const iva = parseFloat(document.getElementById('pf-iva').value) || 0;
   if (c > 0 && v > 0) {
     const margen = ((v - c) / c * 100).toFixed(1);
@@ -10966,7 +11075,11 @@ function guardarProducto() {
     return { nombre: pv.nombre.trim(), precio: parseFloat(pv.precio)||0, actualizado: pv.actualizado||'', url: pv.url||'' };
   });
   var proveedorPrincipal = proveedoresValidos.length
-    ? proveedoresValidos.reduce(function(min, pv){ return (parseFloat(pv.precio)) < (parseFloat(min.precio)) ? pv : min; }, proveedoresValidos[0])
+    ? proveedoresValidos.reduce(function(min, pv){
+        var cPv  = (parseFloat(pv.precio)||0) * (pv.sinIva ? 1.21 : 1);
+        var cMin = (parseFloat(min.precio)||0) * (min.sinIva ? 1.21 : 1);
+        return cPv > 0 && cPv < cMin ? pv : min;
+      }, proveedoresValidos[0])
     : null;
 
   var datos = {
@@ -10978,15 +11091,15 @@ function guardarProducto() {
     proveedores:  proveedoresValidos,
     proveedor:    proveedorPrincipal ? proveedorPrincipal.nombre : '',
     moneda:       (document.getElementById('pf-moneda')||{}).value || 'ARS',
-    compra:       Math.round((parseFloat(document.getElementById('pf-compra').value) || 0) * 100) / 100,
-    venta:        Math.round((parseFloat(document.getElementById('pf-venta').value) || 0) * 100) / 100,
+    compra:       Math.round(getMontoRaw(document.getElementById('pf-compra')) * 100) / 100,
+    venta:        Math.round(getMontoRaw(document.getElementById('pf-venta')) * 100) / 100,
     iva:          parseFloat(document.getElementById('pf-iva').value) || 21,
     stock:        parseInt(document.getElementById('pf-stock').value) || 0,
     stockMin:     parseInt(document.getElementById('pf-stock-min').value) || 5,
     estado:       document.getElementById('pf-estado').value,
     unidad:       document.getElementById('pf-unidad').value,
     esManoDeObra: document.getElementById('pf-es-mano-obra').checked,
-    precioGremio: parseFloat(document.getElementById('pf-precio-gremio').value) || 0,
+    precioGremio: getMontoRaw(document.getElementById('pf-precio-gremio')),
     margenDeseado: parseFloat(document.getElementById('pf-margen-deseado').value) || 0,
     codWeb:  (document.getElementById('pf-cod-web')||{}).value || '',
     imagenUrl: (document.getElementById('pf-imagen-url')||{}).value || ''
@@ -11167,6 +11280,16 @@ function selPpCli(nombre,dir) {
   _hide('pp-cli-drop');
 }
 document.addEventListener('click', e=>{if(!e.target.closest('#page-presupuesto .sw'))_hide('pp-cli-drop');});
+var _pptoConIva = true; // estado global del toggle IVA en presupuesto
+
+function toggleIvaPpto(btn) {
+  _pptoConIva = !_pptoConIva;
+  btn.innerHTML = '<i class="ti ti-receipt-tax"></i> ' + (_pptoConIva ? 'Con IVA' : 'Sin IVA');
+  btn.style.color = _pptoConIva ? '' : 'var(--amber)';
+  btn.style.borderColor = _pptoConIva ? '' : 'var(--amber)';
+  calcPpTotales();
+}
+
 function calcPpTotales() {
   let s = 0;
   document.querySelectorAll('#pp-body tr').forEach(tr => {
@@ -11176,7 +11299,7 @@ function calcPpTotales() {
     var dEl  = tr.querySelector('.disc');
     var subEl = tr.querySelector('.sub,.ppsub');
     var q    = parseFloat(qEl  ? qEl.value  : 0) || 0;
-    var p    = parseFloat(pEl  ? pEl.value  : 0) || 0;
+    var p    = pEl && pEl.dataset.moneyInit ? getMontoRaw(pEl) : (parseFloat(pEl ? pEl.value : 0) || 0);
     var d    = parseFloat(dEl  ? dEl.value  : 0) || 0;
     var sub  = Math.round(q * p * (1 - d/100));
     s += sub;
@@ -11186,9 +11309,12 @@ function calcPpTotales() {
   var desc    = parseFloat(descEl ? descEl.value : 0) || 0;
   var descAmt = Math.round(s * desc / 100);
   var base    = s - descAmt;
-  var iva     = Math.round(base * 0.21);
+  var conIva  = typeof _pptoConIva !== 'undefined' ? _pptoConIva : true;
+  var iva     = conIva ? Math.round(base * 0.21) : 0;
   _set('pp-sub',  '$' + s.toLocaleString('es-AR'));
   _set('pp-damt', descAmt > 0 ? '-$' + descAmt.toLocaleString('es-AR') : '$0');
+  var ivaRow = document.getElementById('pp-iva-row');
+  if (ivaRow) ivaRow.style.display = conIva ? '' : 'none';
   _set('pp-iva',  '$' + iva.toLocaleString('es-AR'));
   _set('pp-total','$' + (base + iva).toLocaleString('es-AR'));
 }
@@ -11216,7 +11342,7 @@ function selVentaCob(venta,cliente,total,cobrado,saldo) {
   document.getElementById('cob-ya-cobrado').value=cobrado;
   document.getElementById('cob-saldo').value=saldo;
   _hide('cob-drop');
-  document.getElementById('cob-monto').value='';
+  _setMontoInput(document.getElementById('cob-monto'), 0);
   document.getElementById('cob-nuevo-saldo').value='';
 }
 
@@ -11251,7 +11377,7 @@ function irACobranzasConVenta(ventaId) {
 function calcSaldoTrasCobranza() {
   const saldoStr=normalizarNumeroExcel(document.getElementById('cob-saldo').value);
   const saldo=parseFloat(saldoStr)||0;
-  const monto=parseFloat(document.getElementById('cob-monto').value)||0;
+  const monto=getMontoRaw(document.getElementById('cob-monto'));
   const nuevo=Math.max(0,saldo-monto);
   const el=document.getElementById('cob-nuevo-saldo');
   el.value='$'+Math.round(nuevo).toLocaleString('es-AR');
@@ -11559,7 +11685,7 @@ function aacfgAbrirEditorRegla(idx) {
   AACFG_CONDICIONES_TEMP = reg && reg.condiciones ? JSON.parse(JSON.stringify(reg.condiciones)) : [];
   document.getElementById('aacfg-regla-clave').value = reg ? (reg.accion?reg.accion.clave||'':'') : '';
   document.getElementById('aacfg-regla-ref-nombre').value = reg ? reg.refNombre||'' : '';
-  document.getElementById('aacfg-regla-ref-precio').value = reg ? reg.refPrecio||0 : 0;
+  _setMontoInput(document.getElementById('aacfg-regla-ref-precio'), reg ? reg.refPrecio||0 : 0);
   document.getElementById('aacfg-regla-btn-eliminar').style.display = idx !== null ? '' : 'none';
 
   aacfgPoblarSelectVariables();
@@ -11648,7 +11774,7 @@ function aacfgGuardarRegla() {
   reg.accion = { tipo:'buscar_db', clave: clave };
   reg.cantidad = cantidad;
   reg.refNombre = document.getElementById('aacfg-regla-ref-nombre').value.trim() || clave;
-  reg.refPrecio = parseFloat(document.getElementById('aacfg-regla-ref-precio').value)||0;
+  reg.refPrecio = getMontoRaw(document.getElementById('aacfg-regla-ref-precio'));
 
   aacfgGuardarTodo();
   aacfgCerrarEditorRegla();
@@ -12196,7 +12322,7 @@ function cargarPermisosRoles() {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/permisos')).then(function(snap) {
     var data = snap.val();
     if (data) Object.assign(PERMISOS_ROLES, data);
-  });
+  }).catch(function(){});
 }
 
 function renderTablaRoles() {
@@ -13314,9 +13440,28 @@ function pdfYWhatsappVenta(ventaId) {
   }
 }
 
+var _ventaImpConDetalle = true; // estado del toggle "Con detalle" / "Sin detalle" al imprimir venta
+
+function toggleVentaDetalle() {
+  _ventaImpConDetalle = !_ventaImpConDetalle;
+  var icon  = document.getElementById('venta-detalle-icon');
+  var label = document.getElementById('venta-detalle-label');
+  var btn   = document.getElementById('venta-detalle-toggle');
+  if (_ventaImpConDetalle) {
+    if (icon)  icon.className  = 'ti ti-eye';
+    if (label) label.textContent = 'Con detalle';
+    if (btn)   btn.style.color = '';
+  } else {
+    if (icon)  icon.className  = 'ti ti-eye-off';
+    if (label) label.textContent = 'Sin detalle';
+    if (btn)   btn.style.color = 'var(--amber)';
+  }
+}
+
 function imprimirVentaActual() {
   var v = window._ventaDetalleActual;
   if (!v) { notify('Sin venta activa'); return; }
+  var conDetalle = _ventaImpConDetalle;
 
   var empresa = {
     nombre: (document.getElementById('cfg-empresa-nombre')||{}).value || 'Nixa',
@@ -13350,7 +13495,9 @@ function imprimirVentaActual() {
     var punit = '$' + punitVal.toLocaleString('es-AR');
     var sub   = '$' + (parseFloat(it.sub)||0).toLocaleString('es-AR');
     var punitCell;
-    if (disc > 0) {
+    if (!conDetalle) {
+      punitCell = '<td style="text-align:right;color:#ccc">—</td>';
+    } else if (disc > 0) {
       var punitDesc = punitVal * (1 - disc/100);
       punitCell = '<td style="text-align:right">' +
         '<span style="text-decoration:line-through;color:#aaa;font-size:11px">'+punit+'</span>' +
@@ -13365,7 +13512,7 @@ function imprimirVentaActual() {
       '<td>'+escapeHTML(it.desc||it.nombre||'')+'</td>' +
       '<td style="text-align:right">'+it.qty+'</td>' +
       punitCell +
-      '<td style="text-align:right;font-weight:600">'+sub+'</td>' +
+      '<td style="text-align:right;font-weight:600">'+(conDetalle ? sub : '<span style="color:#ccc">—</span>')+'</td>' +
     '</tr>';
   }).join('');
 
@@ -13502,6 +13649,7 @@ function imprimirVentaActual() {
       '</tr></thead>' +
       '<tbody>'+itemsHTML+'</tbody>' +
       '<tfoot>' +
+        (conDetalle ? (
         '<tr class="tfoot-row tfoot-first">' +
           '<td colspan="'+(nCols-2)+'" style="border:none"></td>' +
           '<td style="text-align:right;font-size:12px;color:#64748b">Subtotal</td>' +
@@ -13519,7 +13667,13 @@ function imprimirVentaActual() {
         '<tr class="tfoot-row tfoot-total"><td colspan="'+(nCols-2)+'" style="border:none"></td>' +
           '<td style="text-align:right">TOTAL</td>' +
           '<td style="text-align:right">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
-        '</tr>' +
+        '</tr>'
+        ) : (
+        '<tr class="tfoot-row tfoot-total"><td colspan="'+(nCols-2)+'" style="border:none"></td>' +
+          '<td style="text-align:right">TOTAL</td>' +
+          '<td style="text-align:right">$'+(parseFloat(v.total)||0).toLocaleString('es-AR')+'</td>' +
+        '</tr>'
+        )) +
       '</tfoot>' +
     '</table>' +
 
@@ -14149,7 +14303,7 @@ function chequearActualizacionAutoDolar() {
     if (Date.now() - ultima > unDiaMs) {
       actualizarDolarAPI(true); // silencioso, sin notificación molesta
     }
-  });
+  }).catch(function(){});
 }
 
 function guardarPreferenciasSistema(btn) {
@@ -14208,7 +14362,7 @@ function cargarConfigImpuestos() {
     _v('imp-percepcion', d.percepcionIva);
     _v('imp-retencion', d.retencionGanancias);
     if (d.condicionFiscal) _v('imp-condicion', d.condicionFiscal);
-  });
+  }).catch(function(){});
 }
 
 function guardarConfiguracion(btn) {
@@ -14231,7 +14385,7 @@ function cargarConfigGeneral() {
     _v('cfg-empresa-tel', d.tel);
     _v('cfg-empresa-email', d.email);
     _v('cfg-empresa-web', d.web);
-  });
+  }).catch(function(){});
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tipoCambio')).then(function(snap) {
     var d = snap.val(); if (!d) return;
     window.TIPO_CAMBIO_CONFIG = d;
@@ -14256,7 +14410,7 @@ function cargarConfigGeneral() {
     var dv = document.getElementById('cfg-dias-venc');
     if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
     window._diasVencimientoConfig = d.diasVencimiento || 15;
-  });
+  }).catch(function(){});
 }
 
 // ── LOGO EMPRESA ──
@@ -15084,7 +15238,7 @@ function cerrarCaja() {
 function registrarMovCaja() {
   if (!window.fbDB) { notify('Sin conexión'); return; }
   var tipo = document.getElementById('cm-tipo').value;
-  var monto = parseFloat(document.getElementById('cm-monto').value) || 0;
+  var monto = getMontoRaw(document.getElementById('cm-monto'));
   var concepto = document.getElementById('cm-concepto').value.trim();
   var medio = document.getElementById('cm-medio').value;
 
@@ -15120,7 +15274,7 @@ function registrarMovCaja() {
 
       notify('✓ Movimiento de caja registrado');
       _hide('caja-mov-form');
-      document.getElementById('cm-monto').value = '';
+      _setMontoInput(document.getElementById('cm-monto'), 0);
       document.getElementById('cm-concepto').value = '';
       fbCargarCaja();
     }).catch(function(e){ notify('Error: '+e.message); });
@@ -15132,7 +15286,7 @@ var gastoRapidoFotoBase64 = null;
 function abrirGastoRapido() {
   gastoRapidoFotoBase64 = null;
   document.getElementById('gr-fecha').value = new Date().toISOString().split('T')[0];
-  document.getElementById('gr-monto').value = '';
+  _setMontoInput(document.getElementById('gr-monto'), 0);
   document.getElementById('gr-descripcion').value = '';
   document.getElementById('gr-categoria').value = 'Transporte';
   document.getElementById('gr-medio').value = 'Efectivo';
@@ -15159,7 +15313,7 @@ function previewFotoGastoRapido(input) {
 }
 
 function guardarGastoRapido() {
-  var monto = parseFloat(document.getElementById('gr-monto').value) || 0;
+  var monto = getMontoRaw(document.getElementById('gr-monto'));
   var desc  = document.getElementById('gr-descripcion').value.trim();
   if (!desc)  { notify('Ingresá una descripción'); return; }
   if (!monto) { notify('Ingresá el monto'); return; }
@@ -15297,7 +15451,7 @@ function cargarCtaEmp(empFbKey) {
   var TIPOS_GASTOS_EMP = ['gasto_empresa','transporte','materiales','otro'];
 
   window._ctaEmpUnsubscribe && window._ctaEmpUnsubscribe();
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey), function(snap) {
+  window._ctaEmpUnsubscribe = window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey), function(snap) {
     var data = snap.val();
     var ctaMovs = data ? Object.entries(data).map(function(e){
       return Object.assign({ fbKey: e[0], _fuente: 'ctaemp' }, e[1]);
@@ -15529,7 +15683,7 @@ function abrirNuevoMovEmp() {
   document.getElementById('movi-fecha').value = new Date().toISOString().split('T')[0];
   document.getElementById('movi-tipo').value  = 'transporte';
   document.getElementById('movi-desc').value  = '';
-  document.getElementById('movi-monto').value = '';
+  _setMontoInput(document.getElementById('movi-monto'), 0);
   document.getElementById('movi-estado').value = currentRole === 'admin' ? 'aprobado' : 'pendiente';
   document.getElementById('movi-foto-preview').style.display = 'none';
   document.getElementById('movi-foto-nombre').textContent = '';
@@ -15562,7 +15716,7 @@ function onFotoSeleccionada(input) {
 
 function guardarMovEmp() {
   if (!ctaEmpActual || !window.fbDB) { notify('Sin conexión o empleado no seleccionado'); return; }
-  var monto = parseFloat(document.getElementById('movi-monto').value) || 0;
+  var monto = getMontoRaw(document.getElementById('movi-monto'));
   if (!monto) { notify('Ingresá un monto'); return; }
   var nuevo = {
     tipo:        document.getElementById('movi-tipo').value,
@@ -15830,6 +15984,11 @@ function imprimirPresupuesto() {
   var total = g('pp-total') || g('ppto-det-total2')  || '$0';
   var obs   = g('pp-obs')   || g('ppto-det-obs')     || '';
 
+  // Si es un presupuesto ya guardado, usar su conIva guardado; si es el
+  // formulario nuevo, usar el estado actual del toggle en pantalla.
+  var pptoGuardado = pptoActualId ? (pptoData||[]).find(function(x){ return x.id === pptoActualId; }) : null;
+  var imprimirConIva = pptoGuardado ? (pptoGuardado.conIva !== false) : (typeof _pptoConIva !== 'undefined' ? _pptoConIva : true);
+
   var w = window.open('','_blank','width=860,height=750');
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Presupuesto '+num+'</title>'+
     '<style>'+
@@ -15900,7 +16059,7 @@ function imprimirPresupuesto() {
         (_pptoConDetalle ? (
           '<tr class="tfoot-row tfoot-first"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#64748b">Subtotal</td><td style="text-align:right">'+sub+'</td></tr>'+
           (desc&&desc!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#dc2626">Descuento</td><td style="text-align:right;color:#dc2626">'+desc+'</td></tr>':'')+
-          (iva&&iva!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td><td style="text-align:right;color:#d97706">'+iva+'</td></tr>':'')+
+          (imprimirConIva && iva&&iva!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td><td style="text-align:right;color:#d97706">'+iva+'</td></tr>':'')+
           '<tr class="tfoot-row tfoot-total"><td colspan="3" style="border:none"></td><td style="text-align:right">TOTAL</td><td style="text-align:right">'+total+'</td></tr>'
         ) : (
           '<tr class="tfoot-row tfoot-total"><td colspan="3" style="border:none"></td><td style="text-align:right">TOTAL</td><td style="text-align:right">'+total+'</td></tr>'
@@ -15932,7 +16091,7 @@ function imprimirPresupuesto() {
 // ── COBRANZAS: registrar pago real en Firebase e imprimir recibo ──
 function registrarPago() {
   var venta  = document.getElementById('cob-venta').value.trim();
-  var monto  = parseFloat(document.getElementById('cob-monto').value) || 0;
+  var monto  = getMontoRaw(document.getElementById('cob-monto'));
   var medio  = document.getElementById('cob-medio').value;
   var fecha  = document.getElementById('cob-fecha') ? document.getElementById('cob-fecha').value : new Date().toISOString().split('T')[0];
   var obs    = document.getElementById('cob-obs') ? document.getElementById('cob-obs').value : '';
@@ -21485,8 +21644,8 @@ function abrirFormGasto(fbKey) {
   document.getElementById('g-tipo').value      = 'Variable';
   document.getElementById('g-categoria').value = 'Otro';
   document.getElementById('g-descripcion').value = '';
-  document.getElementById('g-monto').value     = '';
-  document.getElementById('g-monto-pagado').value = '0';
+  _setMontoInput(document.getElementById('g-monto'), 0);
+  _setMontoInput(document.getElementById('g-monto-pagado'), 0);
   document.getElementById('g-resta').value     = '';
   document.getElementById('g-medio').value     = 'Efectivo';
   document.getElementById('g-proveedor').value = '';
@@ -21511,8 +21670,8 @@ function abrirFormGasto(fbKey) {
       document.getElementById('g-tipo').value        = g.tipo||'Variable';
       document.getElementById('g-categoria').value   = g.categoria||'Otro';
       document.getElementById('g-descripcion').value = g.descripcion||'';
-      document.getElementById('g-monto').value       = g.monto||'';
-      document.getElementById('g-monto-pagado').value= g.montoPagado||0;
+      _setMontoInput(document.getElementById('g-monto'), g.monto||0);
+      _setMontoInput(document.getElementById('g-monto-pagado'), g.montoPagado||0);
       document.getElementById('g-medio').value       = g.medio||'Efectivo';
       document.getElementById('g-proveedor').value   = g.proveedor||'';
       document.getElementById('g-comprobante').value = g.comprobante||'';
@@ -21541,8 +21700,8 @@ function cerrarFormGasto() {
 }
 
 function calcRestoGasto() {
-  var monto  = parseFloat(document.getElementById('g-monto').value)||0;
-  var pagado = parseFloat(document.getElementById('g-monto-pagado').value)||0;
+  var monto  = getMontoRaw(document.getElementById('g-monto'));
+  var pagado = getMontoRaw(document.getElementById('g-monto-pagado'));
   var resta  = Math.max(0, monto-pagado);
   document.getElementById('g-resta').value = resta > 0 ? '$'+resta.toLocaleString('es-AR') : 'Pagado completo';
 }
@@ -21573,8 +21732,8 @@ function previewFotoGasto(input) {
 }
 
 function guardarGastoCompleto() {
-  var monto  = parseFloat(document.getElementById('g-monto').value)||0;
-  var pagado = parseFloat(document.getElementById('g-monto-pagado').value)||0;
+  var monto  = getMontoRaw(document.getElementById('g-monto'));
+  var pagado = getMontoRaw(document.getElementById('g-monto-pagado'));
   var desc   = document.getElementById('g-descripcion').value.trim();
   if (!desc)  { notify('Ingresá una descripción'); return; }
   if (!monto) { notify('Ingresá el monto'); return; }
@@ -21638,7 +21797,7 @@ function abrirPagoGasto(fbKey) {
   _gastoFbKeyPago = fbKey;
   var resta = (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0);
   document.getElementById('mpg-titulo').textContent = 'Pagar: '+escapeHTML(g.descripcion||'')+'  (resta $'+resta.toLocaleString('es-AR')+')';
-  document.getElementById('mpg-monto').value = resta;
+  _setMontoInput(document.getElementById('mpg-monto'), resta);
   document.getElementById('modal-pago-gasto').style.display = 'flex';
 }
 
@@ -21730,7 +21889,7 @@ function generarComisionesVenta(venta, montoCobrado) {
 function confirmarPagoGasto() {
   var g = gastosData.find(function(x){ return x.fbKey===_gastoFbKeyPago; });
   if (!g) return;
-  var montoNuevo = parseFloat(document.getElementById('mpg-monto').value)||0;
+  var montoNuevo = getMontoRaw(document.getElementById('mpg-monto'));
   var medio = document.getElementById('mpg-medio').value;
   var nuevoPagado = (parseFloat(g.montoPagado)||0) + montoNuevo;
   var nuevoEstado = nuevoPagado >= (parseFloat(g.monto)||0) ? 'pagado' : 'pagado_parcial';
@@ -22478,6 +22637,7 @@ function guardarPresupuesto(modo) {
     fecha: new Date().toLocaleDateString('es-AR'),
     vence: (function(){var _v=document.getElementById('pp-venc');return _v?_v.value:'';})() || '',
     total, descuento: desc,
+    conIva: typeof _pptoConIva !== 'undefined' ? _pptoConIva : true,
     items: items,
     estado: estadoFinal,
     requiereAprobacion: reqAprobacion,
@@ -22536,6 +22696,10 @@ function abrirNuevoPresupuesto() {
   addPpRow();
 
   if (fi) { fi.value = d.toISOString().split('T')[0]; calcVencimiento(); }
+  _pptoConIva = true;
+  var btnIva = document.getElementById('btn-toggle-iva-ppto');
+  if (btnIva) { btnIva.innerHTML = '<i class="ti ti-receipt-tax"></i> Con IVA'; btnIva.style.color = ''; btnIva.style.borderColor = ''; }
+  if (typeof iniciarMonedaPpto === 'function') iniciarMonedaPpto();
   calcPpTotales();
 }
 function filtrarPptoTexto(v) { renderPptoTabla('', v); }
@@ -24602,6 +24766,9 @@ function renderDetalleVenta(v) {
         : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
       ) +
       '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' +
+      '<button class="btn btn-sm" id="venta-detalle-toggle" onclick="toggleVentaDetalle()" title="Cambia si el comprobante muestra precios o no" style="gap:6px">' +
+        '<i class="ti ti-eye" id="venta-detalle-icon"></i> <span id="venta-detalle-label">Con detalle</span>' +
+      '</button>' +
       '<button class="btn btn-sm" onclick="imprimirVentaActual()" title="Abre el comprobante para imprimir o guardar como PDF"><i class="ti ti-printer"></i> Imprimir comprobante</button>' +
       '<button class="btn btn-sm" style="color:var(--green2,var(--green));border-color:var(--green2,var(--green))" onclick="pdfYWhatsappVenta(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Generar PDF y abrir WhatsApp del cliente"><i class="ti ti-brand-whatsapp"></i> PDF / WhatsApp</button>' +
       '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="eliminarVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Eliminar venta (también elimina la OT y los pagos vinculados)"><i class="ti ti-trash"></i> Eliminar</button>' +
@@ -25491,7 +25658,7 @@ function cargarConfigComisiones() {
       var panel = document.getElementById('cfg-comisiones');
       if (panel && panel.style.display !== 'none') renderComisionesConfig();
     }
-  });
+  }).catch(function(){});
 }
 
 function guardarHorasExtra(btn) {
@@ -25811,13 +25978,13 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
       </div>
     </td>
     <td><span class="desc-txt" style="font-size:13px;color:var(--text2)">${escapeHTML(desc)}</span></td>
-    <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right"></td>
+    <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right;background:var(--bg);color:var(--text);border:0.5px solid var(--border3);border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;outline:none"></td>
     <td class="stock-cell" style="text-align:right;white-space:nowrap;max-width:90px;background:inherit"><span class="stock-ind" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis">${stockBadge}</span></td>
-    <td><input value="${precio||0}" data-money="1" class="price" oninput="calcRow(this)" style="width:80px;text-align:right"></td>
+    <td><input value="${precio||0}" data-money="1" class="price" oninput="calcRow(this)" style="width:80px;text-align:right;background:var(--bg);color:var(--text);border:0.5px solid var(--border3);border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;outline:none"></td>
     <td style="text-align:right;white-space:nowrap">
       <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px">
         <input type="number" value="${dp||''}" class="disc" placeholder="0" min="0" max="100" oninput="calcRow(this)"
-          style="width:44px;text-align:right;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:${dp>0?'var(--green)':'var(--text3)'};font-size:12px;font-family:inherit;padding:2px 4px">
+          style="width:44px;text-align:right;border:0.5px solid var(--border3);border-radius:4px;background:var(--bg);color:${dp>0?'var(--green)':'var(--text3)'};font-size:13px;font-family:inherit;padding:4px 6px;outline:none">
         <span style="font-size:11px;color:var(--text3)">%</span>
       </div>
     </td>
@@ -25949,13 +26116,30 @@ function _selProdGlobal(item) {
   var moneda = item.dataset.moneda || 'ARS';
 
   var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod || p.nombre === desc; });
-  // Mano de obra siempre en ARS
+  // Mano de obra: precio siempre se muestra en ARS, pero si el producto está
+  // cargado en USD hay que convertirlo en vivo a la cotización actual — no
+  // alcanza con ventaARS guardado porque puede no existir (ej. producto
+  // cargado cuando no había cotización configurada).
   if (prod && prod.esManoDeObra) {
+    if (prod.moneda === 'USD') {
+      var tcMO = (window.TIPO_CAMBIO_CONFIG || {});
+      var tipoCfgMO = tcMO.dolarConversion || 'oficial';
+      var tcValMO = parseFloat(tcMO[tipoCfgMO]) || 0;
+      if (tcValMO > 0) {
+        precio = Math.round((parseFloat(prod.venta)||0) * tcValMO);
+      } else if (prod.ventaARS) {
+        precio = prod.ventaARS; // fallback si no hay cotización cargada ahora mismo
+      } else {
+        notify('⚠️ Mano de obra "' + (prod.nombre||'') + '" está en USD y no hay cotización configurada — el precio puede ser incorrecto');
+      }
+    } else {
+      precio = prod.ventaARS || prod.venta || 0;
+    }
     moneda = 'ARS';
-    if (prod.ventaARS) precio = prod.ventaARS;
   } else {
     // Respetar moneda de venta seleccionada por el toggle
-    var monedaVenta = window._ventaMonedaActual || 'ARS';
+    var esFilaPpto = _prodDropTR && _prodDropTR.closest('#pp-body');
+    var monedaVenta = (esFilaPpto ? window._pptoMonedaActual : window._ventaMonedaActual) || 'ARS';
     if (monedaVenta === 'ARS' && moneda === 'USD') {
       // Config dice ARS: forzar conversión aunque el producto sea USD
       // (la conversión la hace el bloque de abajo)
@@ -25999,34 +26183,21 @@ function _selProdGlobal(item) {
       descSpan.className = 'desc-txt-clean';
       descSpan.textContent = desc;
       descTxt.appendChild(descSpan);
-      // Badge visual de conversión — no forma parte del texto guardado
-      if (moneda === 'USD' && cotizUsada > 0) {
-        var badge = document.createElement('span');
-        badge.className = 'badge b-blue';
-        badge.style.cssText = 'font-size:9px;margin-left:4px';
-        badge.title = 'Convertido de USD '+precioOriginalUSD+' a cotización '+cotizTipo+' $'+cotizUsada;
-        badge.textContent = 'USD '+precioOriginalUSD+' → $'+cotizUsada;
-        descTxt.appendChild(badge);
-      }
+      // Badge visual de conversión eliminado — el dato se guarda internamente en data-precio-usd
+      // para que el toggle ARS/USD pueda reconvertir sin perder precisión
     }
     if (priceInp) {
       priceInp.value = precio;
-      // Indicador visual USD en el campo precio
+      if (moneda === 'USD' && cotizUsada > 0) {
+        priceInp.dataset.precioUsd = precioOriginalUSD;
+      } else {
+        delete priceInp.dataset.precioUsd;
+      }
+      if (priceInp.dataset.moneyInit) { priceInp.dataset.raw = String(precio); _refrescarMoneyVisual(priceInp); }
+      // Eliminar usd-tag previo si existe (lo quitamos de la UI pero el dato sigue en dataset.precioUsd)
       var priceCell = priceInp.parentElement;
       var usdTag = priceCell ? priceCell.querySelector('.usd-tag') : null;
-      if (moneda === 'USD' && cotizUsada > 0) {
-        if (!usdTag && priceCell) {
-          var tag = document.createElement('div');
-          tag.className = 'usd-tag';
-          tag.style.cssText = 'font-size:9px;color:var(--blue);font-weight:600;line-height:1;margin-bottom:2px';
-          tag.textContent = 'USD ' + precioOriginalUSD;
-          priceCell.insertBefore(tag, priceInp);
-        } else if (usdTag) {
-          usdTag.textContent = 'USD ' + precioOriginalUSD;
-        }
-      } else if (usdTag) {
-        usdTag.remove();
-      }
+      if (usdTag) usdTag.remove();
     }
     if (ppPrice)  { ppPrice.value = precio; }
     // Guardar metadata de conversión en data-attributes de la fila, para persistir al confirmar la venta
@@ -26065,7 +26236,58 @@ function toggleMonedaVenta() {
   if (thumb) thumb.style.transform   = esUSD ? 'translateX(16px)' : 'translateX(0)';
   if (thumb) thumb.style.background  = esUSD ? '#fff' : 'var(--text3)';
   if (label) { label.textContent = _ventaMonedaActual; label.style.color = esUSD ? 'var(--blue)' : 'var(--text3)'; }
-  notify('Moneda de venta: ' + _ventaMonedaActual);
+
+  _reconvertirFilasAMoneda('#det-body', _ventaMonedaActual);
+  notify('Moneda de venta: ' + _ventaMonedaActual + ' — todos los productos convertidos');
+}
+
+// Recorre todas las filas de una tabla de ítems (venta o presupuesto) y
+// convierte el precio unitario de cada una a la moneda indicada, usando la
+// cotización actual configurada. Mantiene el precio "ancla" en USD de cada
+// fila (data-precio-usd) para poder ir y volver de ARS a USD sin acumular
+// error de redondeo.
+function _reconvertirFilasAMoneda(tbodySelector, monedaDestino) {
+  var tc = (window.TIPO_CAMBIO_CONFIG || {});
+  var tcVal = parseFloat(tc[tc.dolarConversion || 'oficial']) || 0;
+  if (tcVal <= 0) {
+    notify('⚠️ Configurá el tipo de cambio en Configuración para convertir entre ARS y USD');
+    return;
+  }
+
+  document.querySelectorAll(tbodySelector + ' tr').forEach(function(tr) {
+    var priceInp = tr.querySelector('.price');
+    if (!priceInp) return;
+
+    // Si la fila no tiene ancla en USD, calcularla a partir del valor actual
+    // (asumiendo que el valor actual está en ARS, que es el caso por defecto).
+    if (!priceInp.dataset.precioUsd) {
+      var valorActual = priceInp.dataset.moneyInit ? getMontoRaw(priceInp) : (parseFloat(priceInp.value)||0);
+      if (valorActual > 0) {
+        priceInp.dataset.precioUsd = parseFloat((valorActual / tcVal).toFixed(2));
+      } else {
+        return; // fila vacía, nada que convertir
+      }
+    }
+
+    var precioUsd = parseFloat(priceInp.dataset.precioUsd) || 0;
+    var nuevoValor = monedaDestino === 'USD' ? precioUsd : Math.round(precioUsd * tcVal);
+
+    if (priceInp.dataset.moneyInit) {
+      priceInp.dataset.raw = String(nuevoValor);
+      _refrescarMoneyVisual(priceInp);
+    } else {
+      priceInp.value = nuevoValor;
+    }
+
+
+    // El dato USD se mantiene en dataset.precioUsd para reconvertir sin perder precisión,
+    // pero no mostramos ninguna etiqueta visual encima del precio (fue eliminada por pedido)
+    var priceCell = priceInp.parentElement;
+    var usdTag = priceCell ? priceCell.querySelector('.usd-tag') : null;
+    if (usdTag) usdTag.remove();
+
+    calcRow(priceInp);
+  });
 }
 
 function iniciarMonedaVenta() {
@@ -26086,6 +26308,45 @@ function iniciarMonedaVenta() {
     var track = document.getElementById('vmt-track');
     var thumb = document.getElementById('vmt-thumb');
     var label = document.getElementById('vmt-label');
+    if (track) track.style.background = 'var(--bg4)';
+    if (thumb) { thumb.style.transform = 'translateX(0)'; thumb.style.background = 'var(--text3)'; }
+    if (label) { label.textContent = 'ARS'; label.style.color = 'var(--text3)'; }
+  }
+}
+
+var _pptoMonedaActual = 'ARS'; // 'ARS' o 'USD' — equivalente a _ventaMonedaActual pero para presupuestos
+
+function toggleMonedaPpto() {
+  _pptoMonedaActual = _pptoMonedaActual === 'ARS' ? 'USD' : 'ARS';
+  var esUSD = _pptoMonedaActual === 'USD';
+  var track = document.getElementById('pmt-track');
+  var thumb = document.getElementById('pmt-thumb');
+  var label = document.getElementById('pmt-label');
+  if (track) track.style.background = esUSD ? 'var(--blue)' : 'var(--bg4)';
+  if (thumb) thumb.style.transform   = esUSD ? 'translateX(16px)' : 'translateX(0)';
+  if (thumb) thumb.style.background  = esUSD ? '#fff' : 'var(--text3)';
+  if (label) { label.textContent = _pptoMonedaActual; label.style.color = esUSD ? 'var(--blue)' : 'var(--text3)'; }
+
+  _reconvertirFilasAMoneda('#pp-body', _pptoMonedaActual);
+  notify('Moneda de presupuesto: ' + _pptoMonedaActual + ' — todos los productos convertidos');
+  if (typeof calcPpTotales === 'function') calcPpTotales();
+}
+
+function iniciarMonedaPpto() {
+  var cfg = window.TIPO_CAMBIO_CONFIG || {};
+  var monedaCfg = cfg.monedaPresupuestos || 'ARS';
+  var toggle = document.getElementById('ppto-moneda-toggle');
+  if (toggle) {
+    if (monedaCfg === 'ambos' || !cfg.monedaPresupuestos) {
+      toggle.style.display = 'flex';
+      _pptoMonedaActual = 'ARS';
+    } else {
+      toggle.style.display = 'none';
+      _pptoMonedaActual = monedaCfg === 'USD' ? 'USD' : 'ARS';
+    }
+    var track = document.getElementById('pmt-track');
+    var thumb = document.getElementById('pmt-thumb');
+    var label = document.getElementById('pmt-label');
     if (track) track.style.background = 'var(--bg4)';
     if (thumb) { thumb.style.transform = 'translateX(0)'; thumb.style.background = 'var(--text3)'; }
     if (label) { label.textContent = 'ARS'; label.style.color = 'var(--text3)'; }
@@ -26259,7 +26520,8 @@ function getPpItems() {
     var descEl = tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt') || tr.querySelector('[class*="desc"]');
     var desc  = descEl ? descEl.textContent.trim() : '';
     var qty   = parseFloat((tr.querySelector('.qty,.ppqty')||{}).value) || 1;
-    var punit = parseFloat((tr.querySelector('.price,.ppprice')||{}).value) || 0;
+    var priceInpPp = tr.querySelector('.price,.ppprice');
+    var punit = priceInpPp ? (priceInpPp.dataset.moneyInit ? getMontoRaw(priceInpPp) : (parseFloat(priceInpPp.value) || 0)) : 0;
     var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
     var sub   = Math.round(qty * punit * (1 - disc/100));
     return { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub };
@@ -26383,7 +26645,7 @@ function actualizarResumenStock() {
     </div>
     <div class="form-grid">
       <div class="fg"><label>Fecha</label><input type="date" id="gr-fecha"></div>
-      <div class="fg"><label>Monto ($)</label><input type="number" id="gr-monto" placeholder="0"></div>
+      <div class="fg"><label>Monto ($)</label><input data-money="1" id="gr-monto" placeholder="0"></div>
       <div class="fg full"><label>Descripción</label><input type="text" id="gr-descripcion" placeholder="Ej: Nafta, materiales, almuerzo..."></div>
       <div class="fg"><label>Categoría</label>
         <select id="gr-categoria">
@@ -26497,14 +26759,43 @@ function actualizarResumenStock() {
   DEBUG
 </button>
 <script>
-// Panel debug — solo errores rojos
-window.onerror = function(msg, src, line, col) {
+// Panel debug — muestra errores en pantalla para diagnóstico
+window.onerror = function(msg, src, line, col, err) {
   const log = document.getElementById('debug-log');
   if(log) {
-    log.innerHTML += '<div style="color:red;border-bottom:1px solid #333;padding:2px 0">❌ '+msg+'<br><span style="color:#888">L'+line+':'+col+'</span></div>';
-    // Panel oculto por defecto — activar manualmente si se necesita debug
+    log.innerHTML += '<div style="color:red;border-bottom:1px solid #333;padding:2px 0">❌ '+msg+'<br><span style="color:#888">L'+line+':'+col+' — '+src+'</span></div>';
+  }
+  // Si el error ocurre durante el loading, mostrarlo directamente en pantalla
+  var loadMsg = document.getElementById('loading-msg');
+  var loadingEl = document.getElementById('screen-loading');
+  if (loadMsg && loadingEl && loadingEl.style.display !== 'none') {
+    loadMsg.innerHTML = '<span style="color:#e53">⚠️ Error: '+msg+'<br><small>Línea '+line+' — '+String(src).split('/').pop()+'</small></span>';
+    loadMsg.style.display = 'block';
   }
 };
+
+// Capturar también Promises no manejadas
+window.addEventListener('unhandledrejection', function(e) {
+  var msg = e.reason ? (e.reason.message || String(e.reason)) : 'Promise rechazada';
+  console.warn('[SisVentas] Promise no capturada:', msg);
+  // CRÍTICO: prevenir que el error congele el hilo principal
+  e.preventDefault();
+  // Solo mostrar en pantalla si NO es un error esperado de permisos Firebase
+  // (esos ocurren cuando un path nuevo aún no está en las reglas de Realtime DB)
+  if (!msg.includes('Permission denied') && !msg.includes('permission_denied')) {
+    var loadMsg = document.getElementById('loading-msg');
+    var loadingEl = document.getElementById('screen-loading');
+    if (loadMsg && loadingEl && loadingEl.style.display !== 'none') {
+      loadMsg.innerHTML = '<span style="color:var(--amber)">⚠️ '+msg+'</span>';
+    }
+  }
+});
+
+// Inicializar formato calculadora en todos los inputs de monto estáticos del HTML
+// después de que la app termine de cargar (diferido para no interferir con el login/loading).
+if (typeof initMoneyInputsEn === 'function') {
+  setTimeout(function() { initMoneyInputsEn(document); }, 3000);
+}
 </script>
 
 
