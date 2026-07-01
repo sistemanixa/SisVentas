@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.242 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.244 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2206,6 +2206,7 @@ tr:hover td{color:var(--text)}
           <button class="cfg-tab" onclick="showCfgTab('notificaciones',this)" style="white-space:nowrap;flex-shrink:0">Notificaciones</button>
           <button class="cfg-tab" onclick="showCfgTab('roles',this)" style="white-space:nowrap;flex-shrink:0">Roles</button>
           <button class="cfg-tab" onclick="showCfgTab('facturacion',this)" style="white-space:nowrap;flex-shrink:0">Facturación</button>
+          <button class="cfg-tab" onclick="showCfgTab('mediosPago',this)" style="white-space:nowrap;flex-shrink:0">Medios de pago</button>
           <button class="cfg-tab" onclick="showCfgTab('basedatos',this)" style="white-space:nowrap;flex-shrink:0">Base de datos</button>
           <button class="cfg-tab" onclick="showCfgTab('actividad',this)" style="white-space:nowrap;flex-shrink:0">Actividad</button>
           <button class="cfg-tab admin-o-administrativo" onclick="showCfgTab('asistente',this)" style="white-space:nowrap;flex-shrink:0">Asistente de ventas</button>
@@ -2539,6 +2540,40 @@ tr:hover td{color:var(--text)}
                 <i class="ti ti-building-bank"></i> ARCA / AFIP
               </a>
             </div>
+          </div>
+        </div>
+
+        <!-- TAB: MEDIOS DE PAGO -->
+        <div id="cfg-mediosPago" class="cfg-panel" style="display:none">
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title"><i class="ti ti-wallet" style="margin-right:6px;color:var(--blue)"></i>Medios de pago</span>
+            </div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:16px">
+              Configurá los medios de pago disponibles. Aparecerán en Cobranzas, Gastos y Cuenta corriente. Podés agregar alias de CBU, bancos, billeteras, etc.
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:16px">
+              <input type="text" id="cfg-mp-nombre" placeholder="Ej: Alias Uala, BBVA, Mercado Pago..." style="flex:1;padding:8px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit">
+              <select id="cfg-mp-tipo" style="padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;font-size:13px">
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia / Alias</option>
+                <option value="tarjeta">Tarjeta débito/crédito</option>
+                <option value="qr">QR / Billetera digital</option>
+                <option value="cheque">Cheque</option>
+                <option value="otro">Otro</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="agregarMedioPago()"><i class="ti ti-plus"></i> Agregar</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse" id="cfg-mp-tabla">
+              <thead><tr>
+                <th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Nombre</th>
+                <th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Tipo</th>
+                <th style="width:40px"></th>
+              </tr></thead>
+              <tbody id="cfg-mp-tbody">
+                <tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Cargando...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -9163,6 +9198,7 @@ function showPage(id, el) {
     try{ if(typeof cargarConfigComisiones==='function') cargarConfigComisiones(); }catch(e){}
     try{ if(typeof cargarConfigLogin==='function') cargarConfigLogin(); }catch(e){}
     try{ if(typeof cargarCargos==='function') cargarCargos(); }catch(e){}
+    try{ if(typeof renderMediosPagoConfig==='function') renderMediosPagoConfig(); }catch(e){}
   }, 200); }
   if (id === 'kits') {
     var klv=document.getElementById('kits-list-view');
@@ -9269,7 +9305,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.242-firebase',
+  VERSION: 'v20.244-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10327,6 +10363,7 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
   if (typeof cargarConfigLogin === 'function') setTimeout(cargarConfigLogin, 350);
+  if (typeof cargarMediosPago === 'function') setTimeout(cargarMediosPago, 400);
   if (typeof inicializarFlujoVentas === 'function') setTimeout(inicializarFlujoVentas, 4000);
   if (typeof iaInicializar === 'function') setTimeout(iaInicializar, 1000);
   if (typeof chatInicializar === 'function') setTimeout(chatInicializar, 1500);
@@ -26251,6 +26288,105 @@ function guardarFilaConfig(btn) {
   setTimeout(function(){ if(icon){ icon.className='ti ti-check'; btn.style.color=''; } }, 2000);
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// MEDIOS DE PAGO CONFIGURABLES
+// ══════════════════════════════════════════════════════════════════════════════
+
+var MEDIOS_PAGO_CONFIG = [
+  { nombre: 'Efectivo',       tipo: 'efectivo' },
+  { nombre: 'Transferencia',  tipo: 'transferencia' },
+  { nombre: 'Tarjeta',        tipo: 'tarjeta' },
+  { nombre: 'QR',             tipo: 'qr' },
+  { nombre: 'Cheque',         tipo: 'cheque' },
+];
+
+var TIPO_LABEL_MP = {
+  efectivo: 'Efectivo', transferencia: 'Transferencia / Alias',
+  tarjeta: 'Tarjeta', qr: 'QR / Billetera', cheque: 'Cheque', otro: 'Otro'
+};
+
+function cargarMediosPago() {
+  if (!window.fbDB) return;
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/mediosPago')).then(function(snap) {
+    var data = snap.val();
+    if (data && Array.isArray(data) && data.length) {
+      MEDIOS_PAGO_CONFIG = data;
+    }
+    renderMediosPagoConfig();
+    poblarSelectoresMediosPago();
+  }).catch(function() {
+    poblarSelectoresMediosPago(); // usar defaults si falla
+  });
+}
+
+function renderMediosPagoConfig() {
+  var tbody = document.getElementById('cfg-mp-tbody');
+  if (!tbody) return;
+  if (!MEDIOS_PAGO_CONFIG.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">No hay medios configurados</td></tr>';
+    return;
+  }
+  tbody.innerHTML = MEDIOS_PAGO_CONFIG.map(function(m, i) {
+    return '<tr style="border-bottom:0.5px solid var(--border)">' +
+      '<td style="padding:10px 0;font-size:13px;font-weight:500">' + escapeHTML(m.nombre) + '</td>' +
+      '<td style="padding:10px 0;font-size:12px;color:var(--text3)">' + (TIPO_LABEL_MP[m.tipo]||m.tipo) + '</td>' +
+      '<td style="padding:10px 0;text-align:right">' +
+        '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);padding:3px 8px" onclick="eliminarMedioPago(' + i + ')">' +
+          '<i class="ti ti-trash"></i>' +
+        '</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function agregarMedioPago() {
+  var nombre = (document.getElementById('cfg-mp-nombre').value || '').trim();
+  var tipo   = document.getElementById('cfg-mp-tipo').value;
+  if (!nombre) { notify('Ingresá un nombre'); return; }
+  if (MEDIOS_PAGO_CONFIG.find(function(m){ return m.nombre.toLowerCase() === nombre.toLowerCase(); })) {
+    notify('Ya existe un medio con ese nombre'); return;
+  }
+  MEDIOS_PAGO_CONFIG.push({ nombre: nombre, tipo: tipo });
+  guardarMediosPago();
+  document.getElementById('cfg-mp-nombre').value = '';
+}
+
+function eliminarMedioPago(idx) {
+  var m = MEDIOS_PAGO_CONFIG[idx];
+  if (!m) return;
+  if (!confirm('¿Eliminar "' + m.nombre + '"? Los cobros ya registrados con este medio no se modifican.')) return;
+  MEDIOS_PAGO_CONFIG.splice(idx, 1);
+  guardarMediosPago();
+}
+
+function guardarMediosPago() {
+  if (!window.fbDB) return;
+  window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/mediosPago'), MEDIOS_PAGO_CONFIG)
+    .then(function() {
+      notify('✓ Medios de pago guardados');
+      renderMediosPagoConfig();
+      poblarSelectoresMediosPago();
+    }).catch(function(e){ notify('Error: ' + e.message); });
+}
+
+// Puebla todos los selectores de medio de pago del sistema
+function poblarSelectoresMediosPago() {
+  var ids = ['cob-medio', 'cob-filtro-medio', 'g-medio', 'mpg-medio', 'cm-medio', 'ng-medio', 'gr-medio'];
+  var html = MEDIOS_PAGO_CONFIG.map(function(m) {
+    return '<option value="' + escapeHTML(m.nombre) + '">' + escapeHTML(m.nombre) + '</option>';
+  }).join('');
+  var htmlFiltro = '<option value="">Todos los medios</option>' + html;
+
+  ids.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var actual = el.value;
+    el.innerHTML = id === 'cob-filtro-medio' ? htmlFiltro : html;
+    // Intentar mantener la selección actual
+    if (actual) el.value = actual;
+  });
+}
+
 function cargarConfigComisiones() {
   if (!window.fbDB) return;
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/comisiones')).then(function(snap) {
@@ -26535,9 +26671,21 @@ function filterDrop(inputId, dropId) {
   var inp = document.getElementById(inputId);
   if (!inp) return;
   var v = inp.value.trim().toLowerCase();
-  if (!v) { _ocultarDropGlobal(); return; }
+  if (!v || v.length < 2) { _ocultarDropGlobal(); return; }
   var matches = (clientesData||[]).filter(function(c){ return (c.nombre||'').toLowerCase().includes(v); });
-  if (!matches.length) { _ocultarDropGlobal(); return; }
+
+  // Botón agregar cliente siempre al final
+  var btnAgregar = '<div style="padding:10px 12px;cursor:pointer;border-top:0.5px solid var(--border);font-size:13px;color:var(--blue);display:flex;align-items:center;gap:8px;font-weight:500" ' +
+    'onmousedown="_abrirAltaRapidaCliente(\'' + inputId + '\',\'' + escapeHTML(inp.value.trim()).replace(/'/g,"\\'") + '\')">' +
+    '<i class="ti ti-user-plus"></i> Agregar "' + escapeHTML(inp.value.trim()) + '" como cliente nuevo' +
+    '</div>';
+
+  if (!matches.length) {
+    var html = '<div style="padding:10px 12px;font-size:12px;color:var(--text3)">Sin resultados</div>' + btnAgregar;
+    _mostrarDropGlobal(inp, html);
+    return;
+  }
+
   var html = matches.slice(0,10).map(function(c) {
     var dir = c.direccion || c.dir || c.domicilio || '';
     var subtext = dir ? '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML(dir)+'</div>' : '';
@@ -26545,11 +26693,13 @@ function filterDrop(inputId, dropId) {
       'onmousedown="_gFilterDropSel(\''+inputId+'\',\''+escapeHTML(c.nombre).replace(/'/g,"\\'")+'\',\''+escapeHTML(c.fbKey||c.id||'').replace(/'/g,"\\'")+'\')">'+
       '<div>'+escapeHTML(c.nombre)+'</div>'+subtext+
       '</div>';
-  }).join('');
+  }).join('') + btnAgregar;
   _mostrarDropGlobal(inp, html);
 }
 
-function _gFilterDropSel(inputId, valor, fbKey) {
+function selDrop(inputId, dropId, valor) {
+  _gFilterDropSel(inputId, valor);
+}
   var inp = document.getElementById(inputId);
   if (inp) inp.value = valor;
   _ocultarDropGlobal();
@@ -26569,9 +26719,104 @@ function _gFilterDropSel(inputId, valor, fbKey) {
   }
 }
 
-function selDrop(inputId, dropId, valor) {
-  _gFilterDropSel(inputId, valor);
+function _abrirAltaRapidaCliente(inputOrigen, nombrePrevio) {
+  _ocultarDropGlobal();
+  var prev = document.getElementById('modal-alta-rapida-cli');
+  if (prev) prev.remove();
+
+  // Separar nombre en nombre/apellido si tiene espacio
+  var partes = (nombrePrevio||'').trim().split(' ');
+  var apellidoPre = partes.length > 1 ? partes.pop() : '';
+  var nombrePre   = partes.join(' ');
+
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-alta-rapida-cli';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML =
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:500px;box-shadow:0 16px 48px rgba(0,0,0,.5)">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border)">' +
+        '<div>' +
+          '<div style="font-weight:700;font-size:15px"><i class="ti ti-user-plus" style="margin-right:8px;color:var(--blue)"></i>Nuevo cliente</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Datos mínimos — podés completar más desde el módulo Clientes</div>' +
+        '</div>' +
+        '<button onclick="document.getElementById(\'modal-alta-rapida-cli\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px"><i class="ti ti-x"></i></button>' +
+      '</div>' +
+      '<div style="padding:20px;display:flex;flex-direction:column;gap:12px">' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+          '<div class="fg"><label>Nombre *</label><input type="text" id="arc-nombre" value="'+escapeHTML(nombrePre)+'" placeholder="Juan" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+          '<div class="fg"><label>Apellido *</label><input type="text" id="arc-apellido" value="'+escapeHTML(apellidoPre)+'" placeholder="García" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+        '</div>' +
+        '<div class="fg"><label>Dirección</label><input type="text" id="arc-dir" placeholder="Av. Colón 1234, Mar del Plata" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+          '<div class="fg"><label>Teléfono</label><input type="tel" id="arc-tel" placeholder="223-xxxxxxx" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+          '<div class="fg"><label>CUIT / DNI</label><input type="text" id="arc-cuit" placeholder="20-12345678-9" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+        '</div>' +
+        '<div class="fg"><label>Email</label><input type="email" id="arc-email" placeholder="cliente@email.com" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+      '</div>' +
+      '<div style="padding:14px 20px;border-top:0.5px solid var(--border);display:flex;gap:10px;justify-content:flex-end">' +
+        '<button class="btn" onclick="document.getElementById(\'modal-alta-rapida-cli\').remove()">Cancelar</button>' +
+        '<button class="btn btn-primary" onclick="_guardarAltaRapidaCliente(\''+inputOrigen+'\')">' +
+          '<i class="ti ti-check"></i> Guardar y seleccionar' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
+  setTimeout(function(){ var el=document.getElementById('arc-nombre'); if(el) el.focus(); }, 100);
 }
+
+async function _guardarAltaRapidaCliente(inputOrigen) {
+  var nombre   = (document.getElementById('arc-nombre').value||'').trim();
+  var apellido = (document.getElementById('arc-apellido').value||'').trim();
+  var dir      = (document.getElementById('arc-dir').value||'').trim();
+  var tel      = (document.getElementById('arc-tel').value||'').trim();
+  var cuit     = (document.getElementById('arc-cuit').value||'').trim();
+  var email    = (document.getElementById('arc-email').value||'').trim();
+
+  if (!nombre && !apellido) { notify('Ingresá al menos el nombre'); return; }
+
+  var nombreCompleto = [nombre, apellido].filter(Boolean).join(' ');
+
+  // Generar ID incremental
+  var maxId = 0;
+  (clientesData||[]).forEach(function(c){
+    var n = parseInt(String(c.id||'').replace(/[^0-9]/g,'')) || 0;
+    if (n > maxId) maxId = n;
+  });
+
+  var nuevo = {
+    id:        String(maxId + 1).padStart(5,'0'),
+    nombre:    nombreCompleto,
+    apellido:  apellido,
+    nombre1:   nombre,
+    direccion: dir,
+    tel:       tel,
+    cuit:      cuit,
+    email:     email,
+    fechaAlta: new Date().toLocaleDateString('es-AR'),
+    ts:        Date.now()
+  };
+
+  try {
+    var ref = await window.fbPush(window.fbRef(window.fbDB, 'sisventas/clientes'), nuevo);
+    nuevo.fbKey = ref.key;
+
+    // Agregar a clientesData local inmediatamente
+    if (!window.clientesData) window.clientesData = [];
+    clientesData.unshift(nuevo);
+
+    // Seleccionar el cliente en el campo de origen
+    _gFilterDropSel(inputOrigen, nombreCompleto, nuevo.fbKey);
+
+    document.getElementById('modal-alta-rapida-cli').remove();
+    notify('✓ Cliente "' + nombreCompleto + '" creado y seleccionado');
+  } catch(e) {
+    notify('Error al guardar: ' + e.message);
+  }
+}
+
+
 
 // Cerrar al click fuera — compatibilidad legacy
 document.addEventListener('click', function(e) {
