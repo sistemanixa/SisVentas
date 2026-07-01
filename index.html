@@ -903,7 +903,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.219 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.220 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9035,7 +9035,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.219-firebase',
+  VERSION: 'v20.220-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9729,23 +9729,12 @@ function _resolverRolYCompletarLogin(user, err) {
 
   // Timeout de emergencia: si en 8 segundos no completó el login,
   // cerrar sesión y mostrar el login limpio para no quedar colgado.
-  var _loginTimeout = setTimeout(function() {
-    if (!isAuthenticated) return;
-    // Si llegamos acá, algo falló silenciosamente
-    isAuthenticated = false;
-    if (window.fbAuth && window.fbSignOut) window.fbSignOut(window.fbAuth).catch(function(){});
-    var loadingEl = document.getElementById('screen-loading');
-    if (loadingEl) loadingEl.style.display = 'none';
-    document.getElementById('screen-login').style.display = '';
-    var errEl = document.getElementById('login-error');
-    if (errEl) {
-      errEl.textContent = 'El servidor tardó demasiado en responder. Intentá de nuevo.';
-      errEl.style.display = 'block';
-    }
-  }, 8000);
+  // Timeout de emergencia DESACTIVADO — estaba matando el login cuando
+  // un Permission denied de Firebase demoraba la carga más de 8 segundos.
+  var _loginTimeout = null; // setTimeout desactivado
 
   function aplicarRolYNombre(lista) {
-    clearTimeout(_loginTimeout); // login completado, cancelar timeout
+    if (_loginTimeout) clearTimeout(_loginTimeout); // por si se reactiva en el futuro
     lista = lista || [];
     var usuario = lista.find(function(u) {
       var mailDB = (u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com')).toLowerCase();
@@ -9867,21 +9856,10 @@ setTimeout(function() {
   }
 }, 6000);
 
-// Timeout ABSOLUTO: si después de 12 segundos la app no está visible,
-// mostrar login sin importar qué — cubre casos donde Auth responde pero
-// fbGet de usuarios se cuelga sin error (modo avión con sesión cacheada)
-setTimeout(function() {
-  var appScreen = document.getElementById('screen-app');
-  var loginEl   = document.getElementById('screen-login');
-  var loadingEl = document.getElementById('screen-loading');
-  var appVisible = appScreen && (appScreen.style.display !== 'none' && appScreen.classList.contains('visible'));
-  if (!appVisible && loadingEl && loadingEl.style.display !== 'none') {
-    console.warn('[Auth] Timeout absoluto — forzando pantalla de login');
-    if (loadingEl) loadingEl.style.display = 'none';
-    if (loginEl)   loginEl.style.display = '';
-    if (window.fbAuth && window.fbSignOut) window.fbSignOut(window.fbAuth).catch(function(){});
-  }
-}, 12000);
+// Timeout absoluto DESACTIVADO — estaba forzando logout cuando Permission denied
+// de Firebase demoraba más de 12 segundos, causando que nunca se mostrara la app.
+// La app ahora se muestra en 1.5 segundos sin depender de que Firebase termine.
+// setTimeout(function() { ... }, 12000);
 
 // ── PRESENCIA EN TIEMPO REAL ──
 // Usa onDisconnect de Firebase: el propio servidor de Firebase detecta cuando la
