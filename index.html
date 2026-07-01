@@ -903,7 +903,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.218 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.219 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9035,7 +9035,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.218-firebase',
+  VERSION: 'v20.219-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10002,11 +10002,8 @@ function _completarLogin(nombre) {
 
   // Secuencia de carga con progreso
   var pasos = [
-    { pct: 15, txt: 'Cargando clientes y productos...' },
-    { pct: 35, txt: 'Cargando ventas y presupuestos...' },
-    { pct: 55, txt: 'Cargando empleados y usuarios...' },
-    { pct: 75, txt: 'Cargando equipos e informes...' },
-    { pct: 90, txt: 'Preparando el dashboard...' },
+    { pct: 30, txt: 'Conectando con Firebase...' },
+    { pct: 70, txt: 'Cargando datos...' },
     { pct: 100, txt: '¡Listo!' },
   ];
   var paso = 0;
@@ -10015,75 +10012,76 @@ function _completarLogin(nombre) {
       if (bar) bar.style.width = pasos[paso].pct + '%';
       if (msg) msg.textContent = pasos[paso].txt;
       paso++;
-    } else {
-      clearInterval(iv);
-    }
+    } else { clearInterval(iv); }
   }, 400);
 
-  // Iniciar carga de datos
-  var _t0 = Date.now();
-  var _log = function(msg) { console.log('[SV-LOAD ' + (Date.now()-_t0) + 'ms]', msg); };
-  _log('startSessionTimer');
+  // CARGA MÍNIMA — solo lo esencial para que la app funcione
+  // Todo lo opcional se carga después de que la app ya es visible
   if (typeof startSessionTimer === 'function') startSessionTimer();
-  _log('actualizarPanelUsuario');
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
-  _log('fbCargarTodo');
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
-  _log('fbCargarTodo OK — programando timeouts...');
-  if (typeof cargarLogoGuardado === 'function') setTimeout(function(){ _log('cargarLogoGuardado'); cargarLogoGuardado(); }, 300);
-  if (typeof cargarConfigGeneral === 'function') setTimeout(function(){ _log('cargarConfigGeneral'); cargarConfigGeneral(); }, 350);
-  if (typeof cargarConfigImpuestos === 'function') setTimeout(function(){ _log('cargarConfigImpuestos'); cargarConfigImpuestos(); }, 350);
-  if (typeof cargarConfigComisiones === 'function') setTimeout(function(){ _log('cargarConfigComisiones①'); cargarConfigComisiones(); }, 350);
-  if (typeof cargarConfigLogin === 'function') setTimeout(function(){ _log('cargarConfigLogin'); cargarConfigLogin(); }, 350);
-  if (typeof inicializarFlujoVentas === 'function') setTimeout(function(){ _log('inicializarFlujoVentas'); inicializarFlujoVentas(); }, 4000);
-  // iaInicializar DESACTIVADO TEMPORALMENTE para diagnóstico
-  // if (typeof iaInicializar === 'function') setTimeout(function(){ _log('iaInicializar'); iaInicializar(); }, 1000);
-  // chatInicializar DESACTIVADO TEMPORALMENTE para diagnóstico
-  // if (typeof chatInicializar === 'function') setTimeout(function(){ _log('chatInicializar'); chatInicializar(); }, 1500);
-  // Mostrar FAB solo en mobile
-  setTimeout(function(){
-    if (window.innerWidth <= 1024) {
-      var fab = document.getElementById('fab-container');
-      if (fab) fab.style.display = 'flex';
-    }
-  }, 1200);
-  if (typeof cargarCargos === 'function') setTimeout(function(){ _log('cargarCargos①'); cargarCargos(); }, 350);
-  if (typeof cargarPresenciaUsuarios === 'function') setTimeout(function(){ _log('cargarPresenciaUsuarios'); cargarPresenciaUsuarios(); }, 350);
-  if (typeof spCargar === 'function') setTimeout(function(){ _log('spCargar'); spCargar(); }, 400);
-  if (typeof fbCargarVacaciones === 'function') setTimeout(function(){ _log('fbCargarVacaciones'); fbCargarVacaciones(); }, 400);
-  if (typeof cfCargar === 'function') setTimeout(function(){ _log('cfCargar'); cfCargar(); }, 450);
-  if (typeof fvCargar === 'function') setTimeout(function(){ _log('fvCargar'); fvCargar(); }, 450);
-  if (typeof cargarCargos === 'function') setTimeout(function(){ _log('cargarCargos②'); cargarCargos(); }, 450);
-  if (typeof chequearActualizacionAutoDolar === 'function') setTimeout(function(){ _log('chequearActualizacionAutoDolar'); chequearActualizacionAutoDolar(); }, 500);
-  if (typeof cargarPermisosRoles === 'function') setTimeout(function(){
-    _log('cargarPermisosRoles+cargarDashWidgets');
-    cargarPermisosRoles(); cargarDashWidgets(); setTimeout(function(){ _log('applyRole'); applyRole(); }, 400);
-  }, 400);
-  if (typeof cargarConfigComisiones === 'function') setTimeout(function(){ _log('cargarConfigComisiones②'); cargarConfigComisiones(); }, 600);
 
-  // Mostrar app después de ~2.5 segundos (tiempo de carga de Firebase)
+  // Diferir todo lo no esencial a DESPUÉS de que la app es visible
+  // para que ningún proceso secundario pueda bloquear el loading.
+
+  // Mostrar app después de 1.5 segundos — sin esperar procesos secundarios
   setTimeout(function() {
-    _log('⭐ TIMEOUT FINAL DISPARADO — revelando app');
     clearInterval(iv);
     if (bar) bar.style.width = '100%';
     if (msg) msg.textContent = '¡Listo!';
     setTimeout(function() {
       if (loadingEl) loadingEl.style.display = 'none';
       document.getElementById('screen-app').classList.add('visible');
-      if (typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
-      if (typeof applyDashWidgets === 'function') applyDashWidgets();
-      if (currentRole !== 'admin') setTimeout(function(){
-        if(typeof renderDashMiCuenta==='function') renderDashMiCuenta();
-        if((currentRole==='administrativo'||currentRole==='vendedor') && typeof renderDashAdministrativo==='function') renderDashAdministrativo();
-        if(currentRole==='tecnico' && typeof renderDashMisOTs==='function') renderDashMisOTs();
-      }, 1500);
-      // Botones flotantes manejados por aplicarVisibilidadBotonesFlotantes()
-      if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 500);
-      if (typeof actualizarFabYHome === 'function') actualizarFabYHome('dashboard');
-      if (typeof _verificarHaberesPendientes === 'function') setTimeout(_verificarHaberesPendientes, 6000);
       notify('Bienvenido, ' + nombre + '!');
-    }, 400);
-  }, 2600);
+
+      // Todo lo opcional carga DESPUÉS de que la app ya es visible
+      // Cada función en su propio setTimeout para no bloquear el thread
+      var _despues = [
+        [function(){ if(typeof cargarLogoGuardado==='function') cargarLogoGuardado(); }, 100],
+        [function(){ if(typeof cargarConfigGeneral==='function') cargarConfigGeneral(); }, 200],
+        [function(){ if(typeof cargarConfigImpuestos==='function') cargarConfigImpuestos(); }, 300],
+        [function(){ if(typeof cargarConfigComisiones==='function') cargarConfigComisiones(); }, 400],
+        [function(){ if(typeof cargarConfigLogin==='function') cargarConfigLogin(); }, 500],
+        [function(){ if(typeof cargarCargos==='function') cargarCargos(); }, 600],
+        [function(){ if(typeof cargarPresenciaUsuarios==='function') cargarPresenciaUsuarios(); }, 700],
+        [function(){ if(typeof spCargar==='function') spCargar(); }, 800],
+        [function(){ if(typeof fbCargarVacaciones==='function') fbCargarVacaciones(); }, 900],
+        [function(){ if(typeof cfCargar==='function') cfCargar(); }, 1000],
+        [function(){ if(typeof fvCargar==='function') fvCargar(); }, 1100],
+        [function(){ if(typeof cargarPermisosRoles==='function') cargarPermisosRoles(); }, 1200],
+        [function(){ if(typeof cargarDashWidgets==='function') cargarDashWidgets(); }, 1300],
+        [function(){ if(typeof applyRole==='function') applyRole(); }, 1400],
+        [function(){ if(typeof renderKPIsDashboard==='function') renderKPIsDashboard(); }, 1500],
+        [function(){ if(typeof applyDashWidgets==='function') applyDashWidgets(); }, 1600],
+        [function(){ if(typeof chequearActualizacionAutoDolar==='function') chequearActualizacionAutoDolar(); }, 1700],
+        [function(){ if(typeof actualizarFabYHome==='function') actualizarFabYHome('dashboard'); }, 1800],
+        [function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 2000],
+        [function(){ if(typeof iaInicializar==='function') iaInicializar(); }, 2500],
+        [function(){ if(typeof chatInicializar==='function') chatInicializar(); }, 3000],
+        [function(){ if(typeof inicializarFlujoVentas==='function') inicializarFlujoVentas(); }, 3500],
+        [function(){ if(typeof _verificarHaberesPendientes==='function') _verificarHaberesPendientes(); }, 4000],
+        [function(){
+          if(currentRole!=='admin'){
+            if(typeof renderDashMiCuenta==='function') renderDashMiCuenta();
+            if((currentRole==='administrativo'||currentRole==='vendedor')&&typeof renderDashAdministrativo==='function') renderDashAdministrativo();
+            if(currentRole==='tecnico'&&typeof renderDashMisOTs==='function') renderDashMisOTs();
+          }
+        }, 2000],
+        [function(){
+          if(window.innerWidth<=1024){
+            var fab=document.getElementById('fab-container');
+            if(fab) fab.style.display='flex';
+          }
+        }, 500],
+      ];
+      _despues.forEach(function(item){
+        setTimeout(function(){
+          try { item[0](); } catch(e){ console.warn('[SV post-load]', e && e.message); }
+        }, item[1]);
+      });
+
+    }, 300);
+  }, 1500);
 }
 
 // selCli definida arriba con parámetros (id, nombre, dir)
