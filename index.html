@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.253 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.254 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9321,7 +9321,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.253-firebase',
+  VERSION: 'v20.254-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -14376,8 +14376,13 @@ function guardarNuevoGenerico() {
 
   // Guardar según el tipo
   if (tipo === 'cliente') {
+    // Si estamos editando, buscar el cliente existente por _editingClienteId
+    var cliExistente = window._editingClienteId
+      ? (clientesData||[]).find(function(c){ return c.id === window._editingClienteId || c.fbKey === window._editingClienteId; })
+      : null;
+
     var nuevo = {
-      id:        String(Date.now()).slice(-6),
+      id:        cliExistente ? cliExistente.id : String(Date.now()).slice(-6),
       nombre:    (obj.nm || '') + (obj.ap ? ' ' + obj.ap : ''),
       apellidos: obj.ap || '',
       telefono:  obj.tel || '',
@@ -14386,9 +14391,16 @@ function guardarNuevoGenerico() {
       empresa:   obj.empresa || '',
       dir:       obj.dir || '',
       localidad: 'Mar del Plata',
-      saldo:     0,
+      saldo:     cliExistente ? (cliExistente.saldo || 0) : 0,
       activo:    true
     };
+
+    // Si hay fbKey del existente, agregarlo para que fbGuardarCliente actualice en lugar de crear
+    if (cliExistente && cliExistente.fbKey) {
+      nuevo.fbKey = cliExistente.fbKey;
+    }
+
+    window._editingClienteId = null; // limpiar para la próxima vez
     if (typeof fbGuardarCliente === 'function') {
       fbGuardarCliente(nuevo);
     } else {
