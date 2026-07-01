@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.232 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.236 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1257,7 +1257,7 @@ tr:hover td{color:var(--text)}
               </div>
             </div>
             <div class="fg"><label>ID cliente</label><input type="text" id="id-cli" placeholder="(se carga al seleccionar)" readonly></div>
-            <div class="fg"><label>Vendedor</label>
+            <div class="fg"><label>1er comisionado <span style="color:var(--text3);font-weight:400">(vendedor)</span></label>
               <select id="venta-empleado">
                 <option value="">— Seleccionar —</option>
               </select>
@@ -2401,6 +2401,19 @@ tr:hover td{color:var(--text)}
             <div style="margin-bottom:14px;padding:10px 14px;background:var(--amber-bg);border-radius:var(--radius);font-size:12px;color:var(--amber)">
               <i class="ti ti-alert-triangle" style="font-size:14px;margin-right:6px"></i>
               Los cambios en comisiones aplican desde el próximo período. Los períodos anteriores no se modifican.
+            </div>
+            <!-- Tope máximo global -->
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius)">
+              <i class="ti ti-shield-check" style="color:var(--blue);font-size:18px"></i>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:600;margin-bottom:2px">Tope máximo de comisión global</div>
+                <div style="font-size:11px;color:var(--text3)">Ningún vendedor puede superar este % sobre la ganancia. Si dos vendedores suman más, se divide el tope en partes iguales.</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="number" id="cfg-max-comision-pct" value="10" min="0" max="100" step="0.5" style="width:70px;padding:6px 8px;text-align:right;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:14px;font-weight:600">
+                <span style="color:var(--text3)">%</span>
+                <button class="btn btn-sm btn-primary" onclick="guardarMaxComisionPct()"><i class="ti ti-check"></i></button>
+              </div>
             </div>
             <table id="cfg-comisiones-tbl">
               <tbody id="cfg-comisiones-tbody">
@@ -9250,7 +9263,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.232-firebase',
+  VERSION: 'v20.236-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -16030,9 +16043,27 @@ function cerrarModalMovEmp() {
 }
 
 function onMoviTipoChange() {
-  var tipo = document.getElementById('movi-tipo').value;
-  var wrap = document.getElementById('movi-foto-wrap');
+  var tipo    = document.getElementById('movi-tipo').value;
+  var wrap    = document.getElementById('movi-foto-wrap');
+  var estado  = document.getElementById('movi-estado');
+  var nota    = document.getElementById('movi-tipo-nota');
+
   if (wrap) wrap.style.display = ['transporte','materiales'].includes(tipo) ? '' : 'none';
+
+  // Comisión manual del admin → pendiente para que la apruebe explícitamente
+  if (tipo === 'comision') {
+    if (estado) estado.value = 'pendiente';
+    if (!nota) {
+      nota = document.createElement('div');
+      nota.id = 'movi-tipo-nota';
+      nota.style.cssText = 'font-size:12px;color:var(--amber);padding:8px 10px;background:var(--amber-bg);border-radius:6px;margin-top:4px';
+      document.getElementById('movi-estado').parentElement.after(nota);
+    }
+    nota.textContent = '💡 La comisión quedará pendiente de aprobación. Aprobala desde la cuenta corriente del empleado.';
+    nota.style.display = '';
+  } else {
+    if (nota) nota.style.display = 'none';
+  }
 }
 
 function onFotoSeleccionada(input) {
@@ -16052,6 +16083,7 @@ function guardarMovEmp() {
   if (!ctaEmpActual || !window.fbDB) { notify('Sin conexión o empleado no seleccionado'); return; }
   var monto = getMontoRaw(document.getElementById('movi-monto'));
   if (!monto) { notify('Ingresá un monto'); return; }
+  var empActual = Object.values(empData||{}).find(function(e){ return e.fbKey === ctaEmpActual; });
   var nuevo = {
     tipo:        document.getElementById('movi-tipo').value,
     fecha:       document.getElementById('movi-fecha').value,
@@ -16059,6 +16091,8 @@ function guardarMovEmp() {
     monto:       monto,
     estado:      document.getElementById('movi-estado').value,
     usuario:     currentUser || 'admin',
+    empleadoNombre: empActual ? (empActual.nombre || '') : '',
+    empleadoId:  ctaEmpActual,
     ts:          Date.now(),
     fotoUrl:     null
   };
@@ -22152,23 +22186,27 @@ function abrirPagoGasto(fbKey) {
 function generarComisionesVenta(venta, montoCobrado) {
   if (!window.fbDB || !venta) return;
 
-  // Calcular base de comisión: total sin IVA - costo de productos
-  var totalConIva  = parseFloat(venta.total) || 0;
-  var tieneIva     = venta.conIva !== false; // por defecto tiene IVA
-  var totalSinIva  = tieneIva ? Math.round(totalConIva / 1.21 * 100) / 100 : totalConIva;
-  var costoTotal   = (venta.items || []).reduce(function(s, it) {
+  // Base de comisión = subtotal - descuento - costo de compra
+  var subtotalVenta = parseFloat(venta.subtotal) || parseFloat(venta.total) || 0;
+  var descuentoVenta = parseFloat(venta.descuento) || 0;
+  var baseNeta = subtotalVenta - descuentoVenta;
+  var costoTotal = (venta.items || []).reduce(function(s, it) {
     var prod = Object.values(prodData||{}).find(function(p){
       return p.codigo === it.cod || p.fbKey === it.pid;
     });
     var costoUnit = prod ? (parseFloat(prod.compra || prod.compraARS || prod.precio_compra) || 0) : 0;
     return s + costoUnit * (parseInt(it.qty) || 1);
   }, 0);
-  var ganancia = totalSinIva - costoTotal;
+  var ganancia = baseNeta - costoTotal;
 
-  if (ganancia <= 0) {
-    console.log('[COMISION] Ganancia <= 0, no se genera comisión');
-    return;
-  }
+  if (ganancia <= 0) return;
+
+  // Tope máximo de comisión global (configurable en APROBACION_CONFIG)
+  var maxComisionPct = parseFloat(
+    (APROBACION_CONFIG && APROBACION_CONFIG.maxComisionPct != null)
+      ? APROBACION_CONFIG.maxComisionPct
+      : 10
+  );
 
   // Determinar vendedores y sus FbKeys
   var vendedores = [];
@@ -22177,7 +22215,7 @@ function generarComisionesVenta(venta, montoCobrado) {
   var empPrincipal = Object.values(empData||{}).find(function(e){
     return e.fbKey === venta.empleado || e.nombre === venta.empleado;
   });
-  if (empPrincipal && parseFloat(empPrincipal.pctComision || empPrincipal.comision || 0) > 0) {
+  if (empPrincipal && parseFloat(empPrincipal.pctComisionPropio || empPrincipal.pctComision || empPrincipal.comision || 0) > 0) {
     vendedores.push(empPrincipal);
   }
 
@@ -22191,28 +22229,58 @@ function generarComisionesVenta(venta, montoCobrado) {
 
   if (!vendedores.length) return;
 
-  // Calcular porcentaje — si hay dos se divide en partes iguales
-  vendedores.forEach(function(emp) {
-    var pctTotal = parseFloat(emp.pctComision || emp.comision || 0);
-    if (!pctTotal) return;
-    var pctCada  = vendedores.length > 1 ? pctTotal / 2 : pctTotal;
-    var monto    = Math.round(ganancia * pctCada / 100);
+  // Calcular % efectivo por vendedor respetando el tope máximo global
+  // Regla:
+  // 1 vendedor: su % pero no más que maxComisionPct
+  // 2 vendedores: suma de sus % pero no más que maxComisionPct → se divide el tope en partes iguales
+  var pctsPorEmp = vendedores.map(function(emp) {
+    return parseFloat(emp.pctComisionPropio || emp.pctComision || emp.comision || 0);
+  });
+  var pctSuma = pctsPorEmp.reduce(function(a, b){ return a + b; }, 0);
+
+  var pctEfectivos;
+  if (vendedores.length === 1) {
+    // Un solo vendedor: limitar su % al tope
+    pctEfectivos = [Math.min(pctsPorEmp[0], maxComisionPct)];
+  } else {
+    // Dos vendedores: si la suma supera el tope, repartir el tope en partes iguales
+    if (pctSuma > maxComisionPct) {
+      var pctCadaUno = maxComisionPct / vendedores.length;
+      pctEfectivos = vendedores.map(function(){ return pctCadaUno; });
+    } else {
+      // No supera el tope — cada uno recibe su % propio
+      pctEfectivos = pctsPorEmp;
+    }
+  }
+
+  vendedores.forEach(function(emp, i) {
+    var pctCada = pctEfectivos[i];
+    if (!pctCada) return;
+    var monto = Math.round(ganancia * pctCada / 100);
     if (monto <= 0) return;
 
-    // Guardar comisión pendiente de aprobación
+    var ajustado = pctsPorEmp[i] > pctCada; // se auto-ajustó al tope
+    var esVendedorComision = (emp.tipoEmpleado === 'Vendedor a comisión' || emp.esVendedor);
+
+    // Guardar comisión
     var movimiento = {
       tipo:        'comision',
-      estado:      'pendiente', // admin debe aprobar
+      estado:      esVendedorComision ? 'aprobado' : 'pendiente', // vendedor a comisión → directo
+      aprobadoPor: esVendedorComision ? 'Sistema (automático)' : '',
+      aprobadoTs:  esVendedorComision ? Date.now() : null,
       monto:       monto,
       pct:         pctCada,
+      pctOriginal: pctsPorEmp[i],
+      ajustadoAlTope: ajustado,
       gananciaBase: ganancia,
       ventaId:     venta.id || '',
       ventaFbKey:  venta.fbKey || '',
       cliente:     venta.cliente || '',
-      descripcion: 'Comisión venta ' + (venta.id||'') + ' · ' + pctCada + '% sobre ganancia $' + Math.round(ganancia).toLocaleString('es-AR'),
+      descripcion: 'Comisión venta ' + (venta.id||'') + ' · ' + pctCada + '% sobre ganancia $' + Math.round(ganancia).toLocaleString('es-AR') +
+        (ajustado ? ' (ajustado al tope máximo de ' + maxComisionPct + '%)' : '') +
+        (vendedores.length > 1 ? ' · entre ' + vendedores.length + ' comisionados' : ''),
       fecha:       new Date().toISOString().slice(0,10),
       ts:          Date.now(),
-      aprobadoPor: '',
       empleadoNombre: emp.nombre || ''
     };
 
@@ -22361,6 +22429,7 @@ function fbCargarProveedores() {
 var APROBACION_CONFIG = {
   montoLimite: 200000,   // ARS — presupuestos sobre este monto requieren admin
   descuentoLimite: 10,   // % — descuentos sobre este % requieren admin
+  maxComisionPct: 10,    // % máximo de comisión sobre la ganancia (global)
 };
 var ACCIONES_CONFIG = {
   enviar_revision:  { label:'Enviar a revisión',        icon:'ti-clock',         cls:'btn btn-sm',         fn:'pptoAccion("enviar_revision")' },
@@ -26112,11 +26181,28 @@ function cargarConfigComisiones() {
     if (data) {
       Object.assign(CONFIG_COMISIONES, data);
       actualizarInputsComisiones();
-      // Si la solapa está visible, re-renderizar con los datos frescos
       var panel = document.getElementById('cfg-comisiones');
       if (panel && panel.style.display !== 'none') renderComisionesConfig();
     }
   });
+  // Cargar tope máximo global
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/maxComisionPct')).then(function(snap) {
+    var val = snap.val();
+    if (val != null) {
+      APROBACION_CONFIG.maxComisionPct = parseFloat(val) || 10;
+      var el = document.getElementById('cfg-max-comision-pct');
+      if (el) el.value = APROBACION_CONFIG.maxComisionPct;
+    }
+  }).catch(function(){});
+}
+
+function guardarMaxComisionPct() {
+  var el = document.getElementById('cfg-max-comision-pct');
+  var val = parseFloat(el ? el.value : 10) || 10;
+  APROBACION_CONFIG.maxComisionPct = val;
+  window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/maxComisionPct'), val)
+    .then(function(){ notify('✓ Tope máximo de comisión guardado: ' + val + '%'); })
+    .catch(function(e){ notify('Error: ' + e.message); });
 }
 
 function guardarHorasExtra(btn) {
