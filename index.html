@@ -903,7 +903,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.226 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.227 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7974,26 +7974,34 @@ function migrarEmpleadoPptos() {
 }
 
 function fbCargarTodo() {
+  // Escalonar la carga para no lanzar 20 fbOnValue simultáneos que saturan el CPU
+  // Los esenciales van primero, el resto diferido en tandas de 200ms
   fbCargarClientes();
   fbCargarProductos();
   fbCargarVentas();
   fbCargarPresupuestos();
   fbCargarOTs();
-  fbCargarEmpleados();
-  fbCargarCategorias();
-  fbCargarUsuarios();
-  fbCargarGastos();
-  fbCargarProveedores();
-  fbCargarInformes();
-  fbCargarOrdenes();
-  fbCargarEquipos();
-  fbCargarGarantias();
-  fbCargarTickets();
-  fbCargarRemitos();
-  fbCargarAgenda();
-  fbCargarPagos();
-  fbCargarServicios();
-  fbCargarCaja();
+  setTimeout(function() {
+    fbCargarEmpleados();
+    fbCargarCategorias();
+    fbCargarUsuarios();
+    fbCargarGastos();
+    fbCargarPagos();
+  }, 200);
+  setTimeout(function() {
+    fbCargarProveedores();
+    fbCargarInformes();
+    fbCargarOrdenes();
+    fbCargarEquipos();
+  }, 400);
+  setTimeout(function() {
+    fbCargarGarantias();
+    fbCargarTickets();
+    fbCargarRemitos();
+    fbCargarAgenda();
+    fbCargarServicios();
+    fbCargarCaja();
+  }, 600);
 }
 
 // ── CLIENTES ──
@@ -9035,7 +9043,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.226-firebase',
+  VERSION: 'v20.227-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9996,8 +10004,7 @@ function _completarLogin(nombre) {
   // CARGA MÍNIMA — solo lo esencial para que la app funcione
   if (typeof startSessionTimer === 'function') startSessionTimer();
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
-  // fbCargarTodo SIGUE BLOQUEADO — sospechoso principal del CPU al 100%
-  // if (typeof fbCargarTodo === 'function') fbCargarTodo();
+  if (typeof fbCargarTodo === 'function') fbCargarTodo();
 
   // Mostrar app después de 1.5 segundos — sin esperar procesos secundarios
   setTimeout(function() {
