@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.208 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.209 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9003,7 +9003,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.208-firebase',
+  VERSION: 'v20.209-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -26720,14 +26720,31 @@ function actualizarResumenStock() {
   DEBUG
 </button>
 <script>
-// Panel debug — solo errores rojos
-window.onerror = function(msg, src, line, col) {
+// Panel debug — muestra errores en pantalla para diagnóstico
+window.onerror = function(msg, src, line, col, err) {
   const log = document.getElementById('debug-log');
   if(log) {
-    log.innerHTML += '<div style="color:red;border-bottom:1px solid #333;padding:2px 0">❌ '+msg+'<br><span style="color:#888">L'+line+':'+col+'</span></div>';
-    // Panel oculto por defecto — activar manualmente si se necesita debug
+    log.innerHTML += '<div style="color:red;border-bottom:1px solid #333;padding:2px 0">❌ '+msg+'<br><span style="color:#888">L'+line+':'+col+' — '+src+'</span></div>';
+  }
+  // Si el error ocurre durante el loading, mostrarlo directamente en pantalla
+  var loadMsg = document.getElementById('loading-msg');
+  var loadingEl = document.getElementById('screen-loading');
+  if (loadMsg && loadingEl && loadingEl.style.display !== 'none') {
+    loadMsg.innerHTML = '<span style="color:#e53">⚠️ Error: '+msg+'<br><small>Línea '+line+' — '+String(src).split('/').pop()+'</small></span>';
+    loadMsg.style.display = 'block';
   }
 };
+
+// Capturar también Promises no manejadas
+window.addEventListener('unhandledrejection', function(e) {
+  var msg = e.reason ? (e.reason.message || String(e.reason)) : 'Promise rechazada';
+  var loadMsg = document.getElementById('loading-msg');
+  var loadingEl = document.getElementById('screen-loading');
+  if (loadMsg && loadingEl && loadingEl.style.display !== 'none') {
+    loadMsg.innerHTML = '<span style="color:#e53">⚠️ Error async: '+msg+'</span>';
+    loadMsg.style.display = 'block';
+  }
+});
 
 // Inicializar formato calculadora en todos los inputs de monto estáticos del HTML
 // después de que la app termine de cargar (diferido para no interferir con el login/loading).
