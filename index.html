@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.231 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.232 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1356,6 +1356,9 @@ tr:hover td{color:var(--text)}
             <button class="btn" id="btn-toggle-iva-venta" onclick="toggleIvaVenta(this)" style="min-width:110px">
               <i class="ti ti-receipt-tax"></i> Con IVA
             </button>
+            <button class="btn" id="btn-detalle-venta" onclick="toggleDetalleVenta(this)" style="min-width:120px">
+              <i class="ti ti-eye" id="icon-detalle-venta"></i> <span id="label-detalle-venta">Con detalle</span>
+            </button>
             <button class="btn" onclick="abrirModalImprimir('venta','Imprimir venta')"><i class="ti ti-printer"></i> Imprimir</button>
             <button class="btn btn-primary" onclick="confirmarVenta()"><i class="ti ti-check"></i> Confirmar venta</button>
           </div>
@@ -1593,7 +1596,7 @@ tr:hover td{color:var(--text)}
         <div class="tbox">
           <div class="tl"><span>Subtotal</span><span id="ppto-det-sub">$0</span></div>
           <div class="tl" style="color:var(--green)"><span>Descuento</span><span id="ppto-det-desc-amt">$0</span></div>
-          <div class="tl iva"><span>IVA 21%</span><span id="ppto-det-iva">$0</span></div>
+          <div class="tl iva" id="ppto-det-iva-row"><span>IVA 21%</span><span id="ppto-det-iva">$0</span></div>
           <div class="tl final"><span>Total</span><span id="ppto-det-total2">$0</span></div>
         </div>
       </div>
@@ -9247,7 +9250,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.231-firebase',
+  VERSION: 'v20.232-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13760,6 +13763,15 @@ function pdfYWhatsappVenta(ventaId) {
 }
 
 var _ventaImpConDetalle = true; // estado del toggle "Con detalle" / "Sin detalle" al imprimir venta
+
+function toggleDetalleVenta(btn) {
+  _ventaImpConDetalle = !_ventaImpConDetalle;
+  var icon  = document.getElementById('icon-detalle-venta');
+  var label = document.getElementById('label-detalle-venta');
+  if (icon)  icon.className  = _ventaImpConDetalle ? 'ti ti-eye' : 'ti ti-eye-off';
+  if (label) label.textContent = _ventaImpConDetalle ? 'Con detalle' : 'Sin detalle';
+  if (btn) { btn.style.color = _ventaImpConDetalle ? '' : 'var(--amber)'; btn.style.borderColor = _ventaImpConDetalle ? '' : 'var(--amber)'; }
+}
 
 function toggleVentaDetalle() {
   _ventaImpConDetalle = !_ventaImpConDetalle;
@@ -22566,16 +22578,23 @@ function verPpto(id) {
   document.getElementById('ppto-det-total').value = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
   document.getElementById('ppto-det-desc').value = (p.descuento || 0) + '%';
 
-  // Calcular y mostrar totales desglosados
-  var _sub   = parseFloat(p.subtotal) || parseFloat(p.total) || 0;
-  var _desc  = parseFloat(p.descuento) || 0;
-  var _descAmt = Math.round(_sub * _desc / 100);
-  var _base  = _sub - _descAmt;
-  var _iva   = Math.round(_base * 0.21);
-  var _total = parseFloat(p.total) || 0;
+  // Mostrar totales usando los valores guardados en Firebase
+  // NO recalcular — los valores guardados son la fuente de verdad
+  var _sub     = parseFloat(p.subtotal) || 0;
+  var _desc    = parseFloat(p.descuento) || 0;
+  var _descPct = parseFloat(p.descuentoPct || p.descuentoGeneral) || 0;
+  // descAmt: si está guardado usarlo, sino calcularlo del porcentaje
+  var _descAmt = parseFloat(p.descuentoAmt) || Math.round(_sub * _descPct / 100) || _desc;
+  var _conIva  = p.conIva !== false; // respetar lo que se guardó
+  var _base    = _sub - _descAmt;
+  var _iva     = _conIva ? (parseFloat(p.iva) || Math.round(_base * 0.21)) : 0;
+  var _total   = parseFloat(p.total) || (_base + _iva);
   var _s = function(id, v) { var el=document.getElementById(id); if(el) el.textContent = '$'+Math.round(v).toLocaleString('es-AR'); };
   _s('ppto-det-sub',      _sub);
   _s('ppto-det-desc-amt', _descAmt);
+  // Mostrar/ocultar fila IVA según si el presupuesto lo tiene
+  var ivaRowDet = document.getElementById('ppto-det-iva-row');
+  if (ivaRowDet) ivaRowDet.style.display = _conIva ? '' : 'none';
   _s('ppto-det-iva',      _iva);
   _s('ppto-det-total2',   _total);
 
@@ -22976,6 +22995,14 @@ function guardarPresupuesto(modo) {
   var _tt=document.getElementById('pp-total'); const totalTxt = (_tt?_tt.textContent:'') || '$0';
   const total = parseFloat(normalizarNumeroExcel(totalTxt)) || 0;
 
+  // Calcular subtotal (antes del descuento) e IVA para guardarlos por separado
+  var _subEl = document.getElementById('pp-sub');
+  var _ivaEl = document.getElementById('pp-iva');
+  var subtotalBruto = parseFloat(normalizarNumeroExcel(_subEl ? _subEl.textContent : '0')) || 0;
+  var ivaGuardado   = parseFloat(normalizarNumeroExcel(_ivaEl ? _ivaEl.textContent : '0')) || 0;
+  var descAmt       = Math.round(subtotalBruto * desc / 100);
+  var conIvaGuardar = typeof _pptoConIva !== 'undefined' ? _pptoConIva : true;
+
   // Leer ítems reales de la tabla — mismo criterio que en Ventas
   var items = getPpItems();
 
@@ -22989,8 +23016,8 @@ function guardarPresupuesto(modo) {
     cliente: cli, empleado: currentUser || '', usuario: currentUser || '',
     fecha: new Date().toLocaleDateString('es-AR'),
     vence: (function(){var _v=document.getElementById('pp-venc');return _v?_v.value:'';})() || '',
-    total, descuento: desc,
-    conIva: typeof _pptoConIva !== 'undefined' ? _pptoConIva : true,
+    total, subtotal: subtotalBruto, descuento: desc, descuentoAmt: descAmt,
+    iva: ivaGuardado, conIva: conIvaGuardar,
     items: items,
     estado: estadoFinal,
     requiereAprobacion: reqAprobacion,
