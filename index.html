@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.211 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.212 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -5747,7 +5747,7 @@ function renderTablaProductos(filtro) {
   var html = '';
   cats.forEach(function(cat) {
     var prods = grupos[cat].sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
-    var abierta = _prodCatsAbiertas[cat] === true; // cerrada por default
+    var abierta = _prodCatsAbiertas[cat] !== false; // abierta por defecto
     var catId = 'cat-' + cat.replace(/[^a-zA-Z0-9]/g,'_');
     var catStyle = 'cursor:pointer;background:var(--bg3);border-left:3px solid var(--blue);user-select:none';
     var iconStyle = 'font-size:10px;color:var(--blue);display:inline-block;transition:transform .2s;' + (abierta ? 'transform:rotate(90deg)' : '');
@@ -9026,7 +9026,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.211-firebase',
+  VERSION: 'v20.212-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -25910,21 +25910,33 @@ function filterDrop(inputId, dropId) {
   var matches = (clientesData||[]).filter(function(c){ return (c.nombre||'').toLowerCase().includes(v); });
   if (!matches.length) { _ocultarDropGlobal(); return; }
   var html = matches.slice(0,10).map(function(c) {
+    var dir = c.direccion || c.dir || c.domicilio || '';
+    var subtext = dir ? '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML(dir)+'</div>' : '';
     return '<div style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px" ' +
-      'onmousedown="_gFilterDropSel(\''+inputId+'\',\''+escapeHTML(c.nombre).replace(/'/g,"\\'")+'\')">'+
-      escapeHTML(c.nombre)+'</div>';
+      'onmousedown="_gFilterDropSel(\''+inputId+'\',\''+escapeHTML(c.nombre).replace(/'/g,"\\'")+'\',\''+escapeHTML(c.fbKey||c.id||'').replace(/'/g,"\\'")+'\')">'+
+      '<div>'+escapeHTML(c.nombre)+'</div>'+subtext+
+      '</div>';
   }).join('');
   _mostrarDropGlobal(inp, html);
 }
 
-function _gFilterDropSel(inputId, valor) {
+function _gFilterDropSel(inputId, valor, fbKey) {
   var inp = document.getElementById(inputId);
   if (inp) inp.value = valor;
   _ocultarDropGlobal();
   // Callback especial para presupuesto
   if (inputId === 'pp-cli') {
-    var cli = (clientesData||[]).find(function(c){ return c.nombre===valor; });
-    if (cli) { var idEl=_get('pp-cli-id'); if(idEl) idEl.value=cli.id; }
+    // Buscar por fbKey si está disponible, sino por nombre
+    var cli = fbKey
+      ? (clientesData||[]).find(function(c){ return (c.fbKey||c.id)=== fbKey; })
+      : (clientesData||[]).find(function(c){ return c.nombre===valor; });
+    if (cli) {
+      var idEl = _get('pp-cli-id');
+      if (idEl) idEl.value = cli.id || cli.fbKey || '';
+      // Autocompletar dirección si hay campo
+      var dirEl = _get('pp-dir') || _get('pp-cli-dir');
+      if (dirEl) dirEl.value = cli.direccion || cli.dir || cli.domicilio || '';
+    }
   }
 }
 
