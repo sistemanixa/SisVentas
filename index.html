@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.215 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.217 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1080,7 +1080,7 @@ tr:hover td{color:var(--text)}
             <span class="card-title"><i class="ti ti-wallet"></i> Mi cuenta</span>
             <button class="btn btn-sm" onclick="showPage('ctaemp',document.querySelector('[onclick*=ctaemp]'))"><i class="ti ti-external-link"></i> Ver completo</button>
           </div>
-          <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+          <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">
             <div class="metric">
               <div class="m-label">Total a cobrar</div>
               <div class="m-value" id="dash-mc-total" style="color:var(--green)">—</div>
@@ -1096,6 +1096,16 @@ tr:hover td{color:var(--text)}
               <div class="m-value" id="dash-mc-adelantos" style="color:var(--red)">—</div>
               <div class="m-sub">descontados</div>
             </div>
+          </div>
+          <!-- Widget hs extra -->
+          <div id="dash-mc-hsextra-box" style="display:none;border-top:0.5px solid var(--border);padding-top:10px;margin-top:4px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div style="font-size:13px;color:var(--text2)">
+              <i class="ti ti-clock-plus" style="color:var(--amber);margin-right:6px"></i>
+              Hs. extra: <span id="dash-mc-hsex-estado" style="color:var(--amber);font-weight:600">—</span>
+            </div>
+            <button class="btn btn-sm" onclick="abrirFormCargaHsExtra()" style="color:var(--amber);border-color:var(--amber)">
+              <i class="ti ti-plus"></i> Cargar hs extra
+            </button>
           </div>
         </div>
 
@@ -9205,7 +9215,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.215-firebase',
+  VERSION: 'v20.217-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -15601,7 +15611,10 @@ function cargarCtaEmp(empFbKey) {
   // Buscar datos del empleado
   var emp = Object.values(empData || {}).find(function(e){ return (e.fbKey||e.id) == empFbKey; });
   if (emp) {
-    var base = parseFloat(emp.sueldoBase) || 0;
+    var cargoInfoEmp = emp.cargoId ? (CARGOS_DATA||{})[emp.cargoId] : null;
+    var base = cargoInfoEmp
+      ? Math.round((parseFloat(cargoInfoEmp.valorHora)||0) * 8 * (parseFloat(cargoInfoEmp.diasMes)||0))
+      : 0;
     document.getElementById('ctaemp-base').textContent = '$' + Math.round(base).toLocaleString('es-AR');
     renderComisionesDelMes(emp);
   }
@@ -15730,8 +15743,8 @@ function renderMovsEmp() {
   }
   // Recalcular totales
   var TIPOS_HABER = ['sueldo','comision','hextra','transporte','materiales','gasto_empresa','otro'];
-  // Total haberes acumulados (todos los no rechazados)
-  var haberes   = movsEmpData.filter(function(m){ return TIPOS_HABER.includes(m.tipo) && m.estado !== 'rechazado'; })
+  // Haberes PENDIENTES de cobro (no incluir los ya pagados)
+  var haberes   = movsEmpData.filter(function(m){ return TIPOS_HABER.includes(m.tipo) && m.estado === 'pendiente'; })
                              .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
   // Adelantos ya descontados
   var adelantos = movsEmpData.filter(function(m){ return m.tipo === 'adelanto' && m.estado !== 'rechazado'; })
@@ -24073,16 +24086,25 @@ function renderDashMiCuenta() {
     var data = snap.val() || {};
     var movs = Object.values(data);
     var emp  = Object.values(empData||{}).find(function(e){ return e.fbKey === empFbKey; }) || {};
-    var sueldo = parseFloat(emp.sueldoBase) || 0;
 
-    var comisionesPend = movs.filter(function(m){ return m.tipo === 'comision' && m.estado === 'pendiente'; });
+    // Calcular sueldo base desde el cargo (igual que en el modal de haberes)
+    var cargoInfo = emp.cargoId ? (CARGOS_DATA||{})[emp.cargoId] : null;
+    var sueldo = cargoInfo
+      ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0))
+      : 0;
+
+    var comisionesPend  = movs.filter(function(m){ return m.tipo === 'comision' && m.estado === 'pendiente'; });
     var comisionesAprob = movs.filter(function(m){ return m.tipo === 'comision' && m.estado === 'aprobado'; });
-    var adelantos = movs.filter(function(m){ return m.tipo === 'adelanto'; });
+    var adelantos       = movs.filter(function(m){ return m.tipo === 'adelanto'; });
+    // Solo sueldos PENDIENTES de cobro (no incluir los ya pagados)
+    var sueldosPend     = movs.filter(function(m){ return (m.tipo === 'sueldo' || m.tipo === 'hextra') && m.estado === 'pendiente'; });
 
-    var totalComPend  = comisionesPend.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-    var totalComAprob = comisionesAprob.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-    var totalAdelanto = adelantos.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-    var totalCobrar   = sueldo + totalComAprob - totalAdelanto;
+    var totalSueldoPend = sueldosPend.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+    var totalComPend    = comisionesPend.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+    var totalComAprob   = comisionesAprob.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+    var totalAdelanto   = adelantos.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+    // Total a cobrar = sueldos pendientes + comisiones aprobadas - adelantos
+    var totalCobrar     = totalSueldoPend + totalComAprob - totalAdelanto;
 
     var fmt = function(n){ return '$' + Math.round(n).toLocaleString('es-AR'); };
     var el = function(id){ return document.getElementById(id); };
@@ -24091,6 +24113,37 @@ function renderDashMiCuenta() {
     if(el('dash-mc-comisiones-sub')) el('dash-mc-comisiones-sub').textContent =
       comisionesPend.length + ' pendiente' + (comisionesPend.length !== 1 ? 's' : '') + ' de aprobación';
     if(el('dash-mc-adelantos'))  el('dash-mc-adelantos').textContent  = fmt(totalAdelanto);
+
+    // Widget hs extra — cargar solicitudes del empleado
+    var hsexBox = el('dash-mc-hsextra-box');
+    var hsexEst = el('dash-mc-hsex-estado');
+    if (hsexBox) {
+      hsexBox.style.display = 'flex';
+      window.fbGet(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes')).then(function(snap2) {
+        var sols = snap2.val() ? Object.values(snap2.val()).filter(function(s){ return s.empFbKey === empFbKey; }) : [];
+        var pendHs  = sols.filter(function(s){ return s.estado === 'pendiente'; });
+        var aprobHs = sols.filter(function(s){ return s.estado === 'aprobado'; });
+        var totalHsPend = pendHs.reduce(function(s,x){ return s+(parseFloat(x.horas)||0); }, 0);
+        var totalHsAprob = aprobHs.filter(function(s){
+          // Solo las aprobadas de los últimos 2 meses
+          var mesActual = new Date().toISOString().slice(0,7);
+          return (s.fecha||'').slice(0,7) >= new Date(new Date().setMonth(new Date().getMonth()-1)).toISOString().slice(0,7);
+        }).reduce(function(s,x){ return s+(parseFloat(x.horas)||0); }, 0);
+
+        if (hsexEst) {
+          if (pendHs.length > 0) {
+            hsexEst.textContent = pendHs.length + ' solicitud' + (pendHs.length > 1 ? 'es' : '') + ' pendiente' + (pendHs.length > 1 ? 's' : '') + ' (' + totalHsPend + ' hs)';
+            hsexEst.style.color = 'var(--amber)';
+          } else if (totalHsAprob > 0) {
+            hsexEst.textContent = totalHsAprob + ' hs aprobadas este mes';
+            hsexEst.style.color = 'var(--green)';
+          } else {
+            hsexEst.textContent = 'Sin solicitudes';
+            hsexEst.style.color = 'var(--text3)';
+          }
+        }
+      }).catch(function(){});
+    }
   }).catch(function(){ card.style.display = 'none'; });
 }
 
