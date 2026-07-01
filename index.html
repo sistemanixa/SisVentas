@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.213 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.212 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4108,8 +4108,7 @@ tr:hover td{color:var(--text)}
             <div class="card-head">
               <span class="card-title">Empleados</span>
               <div style="display:flex;gap:8px">
-                <button class="btn btn-sm" onclick="abrirModalHaberesMes()"><i class="ti ti-cash"></i> Registrar sueldos</button>
-                <button class="btn btn-sm" onclick="abrirModalHsExtra()" style="color:var(--amber);border-color:var(--amber)"><i class="ti ti-clock-plus"></i> Hs. extra <span id="badge-hsex-pendientes" style="display:none;background:var(--amber);color:#000;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
+                <button class="btn btn-sm" onclick="abrirModalHaberesMes()"><i class="ti ti-cash"></i> Registrar haberes del mes</button>
                 <button class="btn btn-sm" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
                 <button class="btn btn-sm btn-primary" id="btn-nuevo-emp" onclick="abrirModalNuevo('empleado')"><i class="ti ti-plus"></i> Nuevo empleado</button>
               </div>
@@ -7280,67 +7279,22 @@ var _habFilasActuales = []; // estado en memoria de las filas del modal de haber
 
 function abrirModalHaberesMes() {
   var ahora  = new Date();
-  var mesISO = ahora.toISOString().slice(0,7);
+  var mesISO = ahora.toISOString().slice(0,7); // YYYY-MM
   var mesLbl = ahora.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 
   var empleados = Object.values(empData||{}).filter(function(e){ return e.activo !== false; });
   if (!empleados.length) { notify('No hay empleados activos'); return; }
 
+  // Calcular montos para cada empleado — hs extra arranca en 0, se carga acá mismo en el modal
   _habFilasActuales = empleados.map(function(e) {
-    var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
-    var sueldo    = cargoInfo ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0)) : 0;
-    return { e:e, sueldo:sueldo, cargoInfo:cargoInfo };
+    var cargoInfo  = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
+    var sueldo     = cargoInfo ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0)) : 0;
+    var valorHsEx  = cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
+    var hsExtra    = 0;
+    var montoHsEx  = 0;
+    var total      = sueldo + montoHsEx;
+    return { e:e, sueldo:sueldo, valorHsEx:valorHsEx, hsExtra:hsExtra, montoHsEx:montoHsEx, total:total, cargoInfo:cargoInfo };
   });
-
-  var totalGeneral = _habFilasActuales.reduce(function(s,f){ return s + f.sueldo; }, 0);
-  var prev = document.getElementById('modal-haberes-mes');
-  if (prev) prev.remove();
-
-  var overlay = document.createElement('div');
-  overlay.id = 'modal-haberes-mes';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
-  overlay.innerHTML =
-    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
-        '<div>' +
-          '<div style="font-weight:700;font-size:15px"><i class="ti ti-cash" style="margin-right:8px;color:var(--green)"></i>Registrar sueldos — ' + mesLbl + '</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Solo sueldos base. Las hs. extra se registran por separado desde el botón "Hs. extra".</div>' +
-        '</div>' +
-        '<button onclick="document.getElementById(\'modal-haberes-mes\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>' +
-      '</div>' +
-      '<div style="padding:12px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:10px">' +
-        '<label style="font-size:13px;color:var(--text2);white-space:nowrap">Mes a registrar:</label>' +
-        '<input type="month" id="hab-mes-sel" value="' + mesISO + '" style="padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">' +
-      '</div>' +
-      '<div style="overflow-y:auto;flex:1;padding:12px 20px">' +
-        '<table style="width:100%;border-collapse:collapse">' +
-          '<thead><tr>' +
-            '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Empleado</th>' +
-            '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Cargo</th>' +
-            '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Sueldo base</th>' +
-          '</tr></thead>' +
-          '<tbody>' +
-          _habFilasActuales.map(function(f) {
-            return '<tr style="border-bottom:0.5px solid var(--border)">' +
-              '<td style="padding:10px 0;font-weight:500;font-size:13px">' + escapeHTML(f.e.nombre||'') + '</td>' +
-              '<td style="padding:10px 0;font-size:12px;color:var(--text3)">' + escapeHTML(f.e.cargo||'Sin cargo') + '</td>' +
-              '<td style="text-align:right;font-size:13px;font-weight:600;padding:10px 0;color:var(--green)">' + (f.sueldo > 0 ? '$'+f.sueldo.toLocaleString('es-AR') : '<span style="color:var(--text3)">Sin cargo</span>') + '</td>' +
-            '</tr>';
-          }).join('') +
-          '</tbody>' +
-        '</table>' +
-      '</div>' +
-      '<div style="padding:14px 20px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">' +
-        '<div style="font-size:14px"><span style="color:var(--text3)">Total sueldos:</span> <strong style="font-size:16px;color:var(--green)">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
-        '<button class="btn btn-primary" onclick="_safeConfirmarHaberes()">' +
-          '<i class="ti ti-check"></i> Confirmar y registrar' +
-        '</button>' +
-      '</div>' +
-    '</div>';
-
-  document.body.appendChild(overlay);
-  overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
-}
 
   var totalGeneral = _habFilasActuales.reduce(function(s,f){ return s + f.total; }, 0);
 
@@ -7558,260 +7512,6 @@ async function confirmarRegistroHaberes() {
   } catch(err) {
     notify('Error al registrar haberes: ' + err.message);
   }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// HORAS EXTRA — carga por empleado + aprobación admin
-// ══════════════════════════════════════════════════════════════════════════════
-
-function abrirModalHsExtra() {
-  var esAdmin = currentRole === 'admin' || currentRole === 'administrativo';
-  if (esAdmin) {
-    abrirPanelAprobacionHsExtra();
-  } else {
-    abrirFormCargaHsExtra();
-  }
-}
-
-// ── FORMULARIO DEL EMPLEADO para cargar sus hs extra ──
-function abrirFormCargaHsExtra() {
-  // Buscar el empleado correspondiente al usuario logueado
-  var miEmp = Object.values(empData||{}).find(function(e){
-    return (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
-  });
-  if (!miEmp) { notify('No se encontró tu perfil de empleado'); return; }
-
-  var prev = document.getElementById('modal-hsextra');
-  if (prev) prev.remove();
-
-  var hoy = new Date().toISOString().split('T')[0];
-  var overlay = document.createElement('div');
-  overlay.id = 'modal-hsextra';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
-  overlay.innerHTML =
-    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:500px;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border)">' +
-        '<div style="font-weight:700;font-size:15px"><i class="ti ti-clock-plus" style="margin-right:8px;color:var(--amber)"></i>Cargar horas extra</div>' +
-        '<button onclick="document.getElementById(\'modal-hsextra\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px"><i class="ti ti-x"></i></button>' +
-      '</div>' +
-      '<div style="padding:20px;display:flex;flex-direction:column;gap:14px">' +
-        '<div style="background:var(--bg3);border-radius:8px;padding:10px 14px;font-size:13px">' +
-          '<span style="color:var(--text3)">Empleado: </span><strong>' + escapeHTML(miEmp.nombre||'') + '</strong>' +
-        '</div>' +
-        '<div class="fg"><label>Fecha</label><input type="date" id="hsex-fecha" value="' + hoy + '" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
-        '<div class="fg"><label>Cantidad de horas</label><input type="number" id="hsex-hs" placeholder="0" min="0.5" step="0.5" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
-        '<div class="fg"><label>Descripción / Justificación</label><textarea id="hsex-desc" placeholder="Ej: Instalación en calle Rivadavia 1234 — sistema de alarma. Trabajo adicional fuera del horario habitual." rows="3" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;resize:vertical"></textarea></div>' +
-      '</div>' +
-      '<div style="padding:14px 20px;border-top:0.5px solid var(--border);display:flex;gap:10px;justify-content:flex-end">' +
-        '<button class="btn" onclick="document.getElementById(\'modal-hsextra\').remove()">Cancelar</button>' +
-        '<button class="btn btn-primary" onclick="enviarSolicitudHsExtra(\'' + miEmp.fbKey + '\',\'' + escapeHTML(miEmp.nombre||'') + '\')">' +
-          '<i class="ti ti-send"></i> Enviar para aprobación' +
-        '</button>' +
-      '</div>' +
-    '</div>';
-
-  document.body.appendChild(overlay);
-  overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
-}
-
-async function enviarSolicitudHsExtra(empFbKey, empNombre) {
-  var fecha = document.getElementById('hsex-fecha').value;
-  var hs    = parseFloat(document.getElementById('hsex-hs').value) || 0;
-  var desc  = (document.getElementById('hsex-desc').value || '').trim();
-
-  if (!fecha) { notify('Ingresá la fecha'); return; }
-  if (hs <= 0) { notify('Ingresá la cantidad de horas'); return; }
-  if (!desc)   { notify('Ingresá una descripción/justificación'); return; }
-
-  var solicitud = {
-    empFbKey:   empFbKey,
-    empNombre:  empNombre,
-    fecha:      fecha,
-    horas:      hs,
-    descripcion: desc,
-    estado:     'pendiente',
-    ts:         Date.now(),
-    enviadoPor: currentUser || empNombre
-  };
-
-  try {
-    await window.fbPush(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes'), solicitud);
-    document.getElementById('modal-hsextra').remove();
-    notify('✓ Solicitud enviada — el administrador la revisará y aprobará');
-  } catch(e) {
-    notify('Error al enviar: ' + e.message);
-  }
-}
-
-// ── PANEL ADMIN: ver y aprobar/rechazar solicitudes de hs extra ──
-async function abrirPanelAprobacionHsExtra() {
-  var prev = document.getElementById('modal-hsextra-admin');
-  if (prev) prev.remove();
-
-  // Cargar solicitudes pendientes
-  var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes')).catch(function(){ return { val: function(){ return null; } }; });
-  var data = snap.val() || {};
-  var solicitudes = Object.entries(data).map(function(e){ return Object.assign({ fbKey: e[0] }, e[1]); })
-    .sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
-
-  var pendientes = solicitudes.filter(function(s){ return s.estado === 'pendiente'; });
-
-  var overlay = document.createElement('div');
-  overlay.id = 'modal-hsextra-admin';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
-
-  var filas = pendientes.length
-    ? pendientes.map(function(s) {
-        var cargoInfo = null;
-        var emp = Object.values(empData||{}).find(function(e){ return e.fbKey === s.empFbKey; });
-        if (emp && emp.cargoId) cargoInfo = CARGOS_DATA[emp.cargoId];
-        var valorHsEx = cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
-        var monto = Math.round(s.horas * valorHsEx);
-
-        return '<tr style="border-bottom:0.5px solid var(--border)">' +
-          '<td style="padding:10px 8px">' +
-            '<div style="font-weight:600;font-size:13px">' + escapeHTML(s.empNombre||'') + '</div>' +
-            '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(s.fecha||'') + '</div>' +
-          '</td>' +
-          '<td style="padding:10px 8px;text-align:center;font-weight:600;color:var(--amber)">' + s.horas + ' hs</td>' +
-          '<td style="padding:10px 8px;font-size:12px;color:var(--text2);max-width:200px">' + escapeHTML(s.descripcion||'') + '</td>' +
-          '<td style="padding:10px 8px;text-align:right;font-weight:600;color:var(--green)">' + (monto > 0 ? '$'+monto.toLocaleString('es-AR') : '—') + '</td>' +
-          '<td style="padding:10px 8px;text-align:right;white-space:nowrap">' +
-            '<button class="btn btn-sm" style="background:var(--green);color:#000;margin-right:4px" onclick="aprobarHsExtra(\'' + s.fbKey + '\')">' +
-              '<i class="ti ti-check"></i> Aprobar' +
-            '</button>' +
-            '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="rechazarHsExtra(\'' + s.fbKey + '\')">' +
-              '<i class="ti ti-x"></i>' +
-            '</button>' +
-          '</td>' +
-        '</tr>';
-      }).join('')
-    : '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text3)">No hay solicitudes pendientes</td></tr>';
-
-  overlay.innerHTML =
-    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:760px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
-        '<div>' +
-          '<div style="font-weight:700;font-size:15px"><i class="ti ti-clock-check" style="margin-right:8px;color:var(--amber)"></i>Aprobación de horas extra</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + pendientes.length + ' solicitud(es) pendiente(s)</div>' +
-        '</div>' +
-        '<button onclick="document.getElementById(\'modal-hsextra-admin\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px"><i class="ti ti-x"></i></button>' +
-      '</div>' +
-      '<div style="overflow-y:auto;flex:1;padding:12px 20px">' +
-        '<table style="width:100%;border-collapse:collapse">' +
-          '<thead><tr>' +
-            '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Empleado</th>' +
-            '<th style="text-align:center;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Horas</th>' +
-            '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Descripción</th>' +
-            '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Monto</th>' +
-            '<th></th>' +
-          '</tr></thead>' +
-          '<tbody>' + filas + '</tbody>' +
-        '</table>' +
-      '</div>' +
-      '<div style="padding:12px 20px;border-top:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">' +
-        '<button class="btn btn-sm" onclick="abrirFormCargaHsExtra()" style="color:var(--amber);border-color:var(--amber)"><i class="ti ti-plus"></i> Cargar hs extra manual</button>' +
-        '<button class="btn" onclick="document.getElementById(\'modal-hsextra-admin\').remove()">Cerrar</button>' +
-      '</div>' +
-    '</div>';
-
-  document.body.appendChild(overlay);
-  overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
-}
-
-async function aprobarHsExtra(solFbKey) {
-  if (!window.fbDB) return;
-  // Leer la solicitud
-  var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes/' + solFbKey));
-  var s = snap.val();
-  if (!s) { notify('Solicitud no encontrada'); return; }
-
-  var emp = Object.values(empData||{}).find(function(e){ return e.fbKey === s.empFbKey; });
-  var cargoInfo = emp && emp.cargoId ? CARGOS_DATA[emp.cargoId] : null;
-  var valorHsEx = cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
-  var monto = Math.round(s.horas * valorHsEx);
-
-  var mesISO = (s.fecha||'').slice(0,7);
-  var mesLbl = new Date(mesISO + '-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-
-  var promesas = [];
-
-  // Guardar como gasto
-  promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), {
-    fecha:        s.fecha,
-    tipo:         'Variable',
-    descripcion:  'Hs extra ' + (s.empNombre||'') + ' — ' + escapeHTML(s.descripcion||'') + ' (' + s.horas + ' hs)',
-    categoria:    'Personal',
-    monto:        monto,
-    medio:        'Transferencia',
-    estado:       'Pendiente',
-    empleadoFbKey: s.empFbKey,
-    empleadoNombre: s.empNombre||'',
-    mes:          mesISO,
-    hsExtra:      s.horas,
-    ts:           Date.now()
-  }));
-
-  // Movimiento en cuenta del empleado
-  if (s.empFbKey) {
-    promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + s.empFbKey), {
-      tipo:        'hextra',
-      descripcion: 'Hs extra aprobadas — ' + escapeHTML(s.descripcion||'') + ' (' + s.horas + ' hs)',
-      monto:       monto,
-      fecha:       s.fecha,
-      estado:      'pendiente',
-      mes:         mesISO,
-      hsExtra:     s.horas,
-      empleadoId:  s.empFbKey,
-      ts:          Date.now()
-    }));
-  }
-
-  // Marcar solicitud como aprobada
-  promesas.push(window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes/' + solFbKey), {
-    estado:     'aprobado',
-    aprobadoPor: currentUser || 'Admin',
-    aprobadoTs:  Date.now(),
-    monto:       monto
-  }));
-
-  try {
-    await Promise.all(promesas);
-    notify('✓ Hs extra aprobadas — se generó el gasto por $' + monto.toLocaleString('es-AR'));
-    // Refrescar el panel
-    document.getElementById('modal-hsextra-admin').remove();
-    abrirPanelAprobacionHsExtra();
-    actualizarBadgeHsExtraPendientes();
-  } catch(e) {
-    notify('Error: ' + e.message);
-  }
-}
-
-async function rechazarHsExtra(solFbKey) {
-  if (!confirm('¿Rechazar esta solicitud de horas extra?')) return;
-  await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes/' + solFbKey), {
-    estado:      'rechazado',
-    rechazadoPor: currentUser || 'Admin',
-    rechazadoTs:  Date.now()
-  }).catch(function(e){ notify('Error: ' + e.message); });
-  notify('Solicitud rechazada');
-  document.getElementById('modal-hsextra-admin').remove();
-  abrirPanelAprobacionHsExtra();
-  actualizarBadgeHsExtraPendientes();
-}
-
-// Badge en el botón con el número de solicitudes pendientes
-function actualizarBadgeHsExtraPendientes() {
-  if (currentRole !== 'admin' && currentRole !== 'administrativo') return;
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes')).then(function(snap) {
-    var data = snap.val() || {};
-    var pendientes = Object.values(data).filter(function(s){ return s.estado === 'pendiente'; }).length;
-    var badge = document.getElementById('badge-hsex-pendientes');
-    if (badge) {
-      badge.textContent = pendientes;
-      badge.style.display = pendientes > 0 ? '' : 'none';
-    }
-  }).catch(function(){});
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -9326,7 +9026,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.213-firebase',
+  VERSION: 'v20.212-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10338,7 +10038,6 @@ function _completarLogin(nombre) {
       }, 1500);
       // Botones flotantes manejados por aplicarVisibilidadBotonesFlotantes()
       if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 500);
-      if (typeof actualizarBadgeHsExtraPendientes === 'function') setTimeout(actualizarBadgeHsExtraPendientes, 2000);
       if (typeof actualizarFabYHome === 'function') actualizarFabYHome('dashboard');
       if (typeof _verificarHaberesPendientes === 'function') setTimeout(_verificarHaberesPendientes, 6000);
       notify('Bienvenido, ' + nombre + '!');
