@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.224 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.227 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9226,7 +9226,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.224-firebase',
+  VERSION: 'v20.227-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9868,6 +9868,22 @@ window.doLogin = function doLogin() {
       .then(function(cred) {
         if(err) err.style.display = 'none';
         isAuthenticated = true;
+
+        // Detectar patrón usuario nuevo: contraseña == usuario (ej: mtello / mtello)
+        // Si se detecta, forzar cambio de contraseña antes de entrar al sistema
+        var userPart = u.toLowerCase().trim(); // parte antes del @ o el usuario completo
+        var passLower = p.toLowerCase().trim();
+        var esPasswordDefault = passLower === userPart ||
+          passLower === email.split('@')[0].toLowerCase() ||
+          passLower === (userPart.replace(/[^a-z]/g,'')); // por si tiene puntos/guiones
+
+        if (esPasswordDefault) {
+          // Guardar el usuario para completar el login después del cambio
+          window._pendingLoginUser = cred.user;
+          _mostrarForzarCambioPassword(cred.user, err);
+          return;
+        }
+
         _resolverRolYCompletarLogin(cred.user, err);
       })
       .catch(function(fbError) {
@@ -10122,6 +10138,74 @@ function _verificarHaberesPendientes() {
       }
     }
   }).catch(function(){});
+}
+
+function _mostrarForzarCambioPassword(fbUser, errEl) {
+  // Mostrar pantalla de login limpia con modal de cambio encima
+  var loadingEl = document.getElementById('screen-loading');
+  if (loadingEl) loadingEl.style.display = 'none';
+
+  var prev = document.getElementById('modal-forzar-pass');
+  if (prev) prev.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-forzar-pass';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML =
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:420px;padding:28px;box-shadow:0 16px 48px rgba(0,0,0,.5)">' +
+      '<div style="text-align:center;margin-bottom:20px">' +
+        '<div style="font-size:32px;margin-bottom:8px">🔐</div>' +
+        '<div style="font-weight:700;font-size:16px;margin-bottom:6px">Cambiá tu contraseña</div>' +
+        '<div style="font-size:13px;color:var(--text3)">Es tu primer ingreso al sistema.<br>Elegí una contraseña personal para continuar.</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:12px">' +
+        '<div class="fg"><label>Nueva contraseña</label><input type="password" id="forzar-pass-nueva" placeholder="Mínimo 6 caracteres" autocomplete="new-password" style="width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px"></div>' +
+        '<div class="fg"><label>Repetir contraseña</label><input type="password" id="forzar-pass-confirm" placeholder="Repetí la contraseña" autocomplete="new-password" style="width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px"></div>' +
+        '<div id="forzar-pass-error" style="display:none;color:var(--red);font-size:12px;padding:8px 10px;background:rgba(239,68,68,.1);border-radius:6px"></div>' +
+        '<button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="_confirmarCambioForzado()">' +
+          '<i class="ti ti-check"></i> Guardar y entrar al sistema' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+
+  // Guardar referencia al usuario para usarla en el confirm
+  window._fbUserPendingPass = fbUser;
+
+  setTimeout(function(){
+    var inp = document.getElementById('forzar-pass-nueva');
+    if (inp) inp.focus();
+  }, 100);
+}
+
+async function _confirmarCambioForzado() {
+  var nueva   = (document.getElementById('forzar-pass-nueva').value || '').trim();
+  var confirm = (document.getElementById('forzar-pass-confirm').value || '').trim();
+  var errEl   = document.getElementById('forzar-pass-error');
+
+  var mostrarError = function(msg) {
+    errEl.textContent = msg;
+    errEl.style.display = '';
+  };
+
+  if (!nueva || !confirm) { mostrarError('Completá ambos campos'); return; }
+  if (nueva.length < 6)   { mostrarError('Mínimo 6 caracteres'); return; }
+  if (nueva !== confirm)  { mostrarError('Las contraseñas no coinciden'); return; }
+
+  var fbUser = window._fbUserPendingPass;
+  if (!fbUser) { mostrarError('Error: sesión no disponible'); return; }
+
+  try {
+    await window.fbUpdatePass(fbUser, nueva);
+    // Contraseña cambiada — ahora sí continuar con el login normal
+    document.getElementById('modal-forzar-pass').remove();
+    window._fbUserPendingPass = null;
+    notify('✓ Contraseña guardada — bienvenido al sistema');
+    _resolverRolYCompletarLogin(fbUser, null);
+  } catch(e) {
+    mostrarError('Error al guardar: ' + (e.message || e));
+  }
 }
 
 function _completarLogin(nombre) {
@@ -12993,15 +13077,43 @@ function checkPwdStrength(pwd) {
   if (bar) { bar.style.background = colors[score]; bar.style.width = (score*25)+'%'; }
   if (lbl) { lbl.textContent = labels[score]||''; lbl.style.color = colors[score]; }
 }
-function cambiarPassword() {
+async function cambiarPassword() {
   var _pa=document.getElementById('pwd-actual'); const actual = _pa?_pa.value:'';
   var _pn=document.getElementById('pwd-nueva'); const nueva = _pn?_pn.value:'';
-  var _pc=document.getElementById('pwd-confirm'); const confirm = _pc?_pc.value:'';
-  if (!actual||!nueva||!confirm) { notify('Completá todos los campos'); return; }
-  if (nueva !== confirm) { notify('Las contraseñas no coinciden'); return; }
+  var _pc=document.getElementById('pwd-confirm'); const confirmar = _pc?_pc.value:'';
+  if (!actual||!nueva||!confirmar) { notify('Completá todos los campos'); return; }
+  if (nueva !== confirmar) { notify('Las contraseñas no coinciden'); return; }
   if (nueva.length < 6) { notify('Mínimo 6 caracteres'); return; }
-  document.getElementById('modal-password').classList.remove('open');
-  notify('Contraseña actualizada correctamente');
+
+  var user = window.fbAuth && window.fbAuth.currentUser;
+  if (!user) { notify('No hay sesión activa'); return; }
+
+  // Reautenticar con la contraseña actual antes de cambiarla
+  // (Firebase requiere reautenticación reciente para operaciones sensibles)
+  try {
+    var { EmailAuthProvider, reauthenticateWithCredential } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    var cred = EmailAuthProvider.credential(user.email, actual);
+    await reauthenticateWithCredential(user, cred);
+  } catch(e) {
+    var msg = e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential'
+      ? 'La contraseña actual es incorrecta'
+      : 'Error al verificar contraseña: ' + e.message;
+    notify(msg);
+    return;
+  }
+
+  // Actualizar contraseña en Firebase Auth
+  try {
+    await window.fbUpdatePass(user, nueva);
+    document.getElementById('modal-password').classList.remove('open');
+    if (_pa) _pa.value = '';
+    if (_pn) _pn.value = '';
+    if (_pc) _pc.value = '';
+    notify('✓ Contraseña actualizada correctamente');
+  } catch(e) {
+    notify('Error al actualizar: ' + e.message);
+  }
 }
 
 // ── TIMEOUT DE SESIÓN ──
@@ -26077,6 +26189,7 @@ function toggleFab() {
       : true;
     var acciones = accionesBase.filter(function(a) {
       if (a.accion === 'ia') return iaPermitida;
+      if (currentRole === 'tecnico') return a.accion === 'agenda' || a.accion === 'gasto';
       return true;
     });
     var div = document.createElement('div');
