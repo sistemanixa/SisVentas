@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.210 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.212 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4108,7 +4108,7 @@ tr:hover td{color:var(--text)}
               <span class="card-title">Empleados</span>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-sm" onclick="abrirModalHaberesMes()"><i class="ti ti-cash"></i> Registrar haberes del mes</button>
-                <button class="btn btn-sm" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
+                <button class="btn btn-sm" onclick="_safeAbrirAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
                 <button class="btn btn-sm btn-primary" id="btn-nuevo-emp" onclick="abrirModalNuevo('empleado')"><i class="ti ti-plus"></i> Nuevo empleado</button>
               </div>
             </div>
@@ -6294,7 +6294,7 @@ function renderTareasPendientes() {
     var tareas = [];
     if (snap.val()) Object.entries(snap.val()).forEach(function(e){
       tareas.push(Object.assign({ fbKey: e[0] }, e[1]));
-    });
+    }).catch(function(){});
     var disponibles = tareas.filter(function(t){ return t.estado === 'disponible' || t.estado === 'en_curso'; });
     if (!disponibles.length) {
       container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px">Sin OTs pendientes</div>';
@@ -7308,7 +7308,7 @@ function abrirModalHaberesMes() {
       // Footer con total y botón
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">' +
         '<div style="font-size:14px"><span style="color:var(--text3)">Total a registrar:</span> <strong style="font-size:16px" id="hab-total-lbl">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
-        '<button class="btn btn-primary" onclick="confirmarRegistroHaberes()">' +
+        '<button class="btn btn-primary" onclick="_safeConfirmarHaberes()">' +
           '<i class="ti ti-check"></i> Confirmar y registrar gastos' +
         '</button>' +
       '</div>' +
@@ -7556,7 +7556,7 @@ async function abrirModalAguinaldo() {
       '</div>' +
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">' +
         '<div style="font-size:14px"><span style="color:var(--text3)">Total a registrar:</span> <strong style="font-size:16px" id="agu-total-lbl">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
-        '<button class="btn btn-primary" onclick="confirmarRegistroAguinaldo()"><i class="ti ti-check"></i> Confirmar y registrar gastos</button>' +
+        '<button class="btn btn-primary" onclick="_safeConfirmarAguinaldo()"><i class="ti ti-check"></i> Confirmar y registrar gastos</button>' +
       '</div>' +
     '</div>';
 
@@ -9003,7 +9003,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.210-firebase',
+  VERSION: 'v20.212-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9616,6 +9616,22 @@ function cargarNotifLeidas() {
 // Firebase Realtime Database no permite los caracteres . # $ [ ] en una key.
 // Los ids de notificación pueden derivar de v.id/ot.id que sí los contienen
 // (ej. ventas con id "#00123"), así que hay que sanitizar antes de usarlos como path.
+
+// Wrappers seguros para funciones async que usan await fbGet —
+// capturan cualquier Promise rechazada sin propagarla al hilo principal.
+function _safeConfirmarHaberes() {
+  confirmarRegistroHaberes().catch(function(e){ notify('Error al registrar haberes: '+(e&&e.message||e)); });
+}
+function _safeAbrirAguinaldo() {
+  abrirModalAguinaldo().catch(function(e){ notify('Error al abrir aguinaldo: '+(e&&e.message||e)); });
+}
+function _safeConfirmarAguinaldo() {
+  confirmarRegistroAguinaldo().catch(function(e){ notify('Error al registrar aguinaldo: '+(e&&e.message||e)); });
+}
+function _safeRecalcularAguinaldo() {
+  recalcularAguinaldo().catch(function(e){ console.warn('Error recalculando aguinaldo:', e); });
+}
+
 function _sanitizarKeyFirebase(id) {
   return String(id||'').replace(/[.#$\[\]]/g, '_');
 }
@@ -9891,7 +9907,7 @@ function _verificarHaberesPendientes() {
     // Ver si hay algún empleado activo sin haberes del mes pasado
     var sinRegistrar = empleados.filter(function(e) {
       return !habData[e.fbKey] || !habData[e.fbKey][mesKey];
-    });
+    }).catch(function(){});
     if (sinRegistrar.length > 0) {
       // Mostrar notificación no intrusiva
       var msg = '⚠️ No se registraron los haberes de ' + mesLbl + ' para ' +
@@ -12283,7 +12299,7 @@ function cargarPermisosRoles() {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/permisos')).then(function(snap) {
     var data = snap.val();
     if (data) Object.assign(PERMISOS_ROLES, data);
-  });
+  }).catch(function(){});
 }
 
 function renderTablaRoles() {
@@ -14264,7 +14280,7 @@ function chequearActualizacionAutoDolar() {
     if (Date.now() - ultima > unDiaMs) {
       actualizarDolarAPI(true); // silencioso, sin notificación molesta
     }
-  });
+  }).catch(function(){});
 }
 
 function guardarPreferenciasSistema(btn) {
@@ -14323,7 +14339,7 @@ function cargarConfigImpuestos() {
     _v('imp-percepcion', d.percepcionIva);
     _v('imp-retencion', d.retencionGanancias);
     if (d.condicionFiscal) _v('imp-condicion', d.condicionFiscal);
-  });
+  }).catch(function(){});
 }
 
 function guardarConfiguracion(btn) {
@@ -14346,7 +14362,7 @@ function cargarConfigGeneral() {
     _v('cfg-empresa-tel', d.tel);
     _v('cfg-empresa-email', d.email);
     _v('cfg-empresa-web', d.web);
-  });
+  }).catch(function(){});
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tipoCambio')).then(function(snap) {
     var d = snap.val(); if (!d) return;
     window.TIPO_CAMBIO_CONFIG = d;
@@ -14371,7 +14387,7 @@ function cargarConfigGeneral() {
     var dv = document.getElementById('cfg-dias-venc');
     if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
     window._diasVencimientoConfig = d.diasVencimiento || 15;
-  });
+  }).catch(function(){});
 }
 
 // ── LOGO EMPRESA ──
@@ -25619,7 +25635,7 @@ function cargarConfigComisiones() {
       var panel = document.getElementById('cfg-comisiones');
       if (panel && panel.style.display !== 'none') renderComisionesConfig();
     }
-  });
+  }).catch(function(){});
 }
 
 function guardarHorasExtra(btn) {
@@ -26738,11 +26754,17 @@ window.onerror = function(msg, src, line, col, err) {
 // Capturar también Promises no manejadas
 window.addEventListener('unhandledrejection', function(e) {
   var msg = e.reason ? (e.reason.message || String(e.reason)) : 'Promise rechazada';
-  var loadMsg = document.getElementById('loading-msg');
-  var loadingEl = document.getElementById('screen-loading');
-  if (loadMsg && loadingEl && loadingEl.style.display !== 'none') {
-    loadMsg.innerHTML = '<span style="color:#e53">⚠️ Error async: '+msg+'</span>';
-    loadMsg.style.display = 'block';
+  console.warn('[SisVentas] Promise no capturada:', msg);
+  // CRÍTICO: prevenir que el error congele el hilo principal
+  e.preventDefault();
+  // Solo mostrar en pantalla si NO es un error esperado de permisos Firebase
+  // (esos ocurren cuando un path nuevo aún no está en las reglas de Realtime DB)
+  if (!msg.includes('Permission denied') && !msg.includes('permission_denied')) {
+    var loadMsg = document.getElementById('loading-msg');
+    var loadingEl = document.getElementById('screen-loading');
+    if (loadMsg && loadingEl && loadingEl.style.display !== 'none') {
+      loadMsg.innerHTML = '<span style="color:var(--amber)">⚠️ '+msg+'</span>';
+    }
   }
 });
 
