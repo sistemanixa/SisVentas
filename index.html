@@ -903,7 +903,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.230 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.231 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7974,19 +7974,17 @@ function migrarEmpleadoPptos() {
 }
 
 function fbCargarTodo() {
-  // Las anteriores a fbCargarPagos son seguras — se cargan automáticamente
-  fbCargarClientes();
-  fbCargarProductos();
-  fbCargarVentas();
-  fbCargarPresupuestos();
-  fbCargarOTs();
-  fbCargarEmpleados();
-  fbCargarCategorias();
-  fbCargarUsuarios();
-  fbCargarGastos();
-
-  // MODO DIAGNÓSTICO desde fbCargarPagos en adelante
+  // MODO DIAGNÓSTICO COMPLETO — todas de a una con confirmación
   var funciones = [
+    { nombre: 'fbCargarClientes',    fn: fbCargarClientes },
+    { nombre: 'fbCargarProductos',   fn: fbCargarProductos },
+    { nombre: 'fbCargarVentas',      fn: fbCargarVentas },
+    { nombre: 'fbCargarPresupuestos',fn: fbCargarPresupuestos },
+    { nombre: 'fbCargarOTs',         fn: fbCargarOTs },
+    { nombre: 'fbCargarEmpleados',   fn: fbCargarEmpleados },
+    { nombre: 'fbCargarCategorias',  fn: fbCargarCategorias },
+    { nombre: 'fbCargarUsuarios',    fn: fbCargarUsuarios },
+    { nombre: 'fbCargarGastos',      fn: fbCargarGastos },
     { nombre: 'fbCargarPagos',       fn: fbCargarPagos },
     { nombre: 'fbCargarProveedores', fn: fbCargarProveedores },
     { nombre: 'fbCargarInformes',    fn: fbCargarInformes },
@@ -8001,7 +7999,6 @@ function fbCargarTodo() {
   ];
 
   var idx = 0;
-
   var panel = document.createElement('div');
   panel.id = 'diag-panel';
   panel.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99999;background:#1a1d27;border:1px solid #3ddc84;border-radius:12px;padding:16px 24px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5);min-width:320px';
@@ -8020,18 +8017,26 @@ function fbCargarTodo() {
     document.getElementById('diag-txt').innerHTML =
       '<span style="color:#94a3b8;font-size:11px">' + (idx+1) + '/' + funciones.length + '</span><br>' +
       '<span style="color:#3ddc84;font-weight:600">' + actual.nombre + '</span><br>' +
-      '<span style="color:#94a3b8;font-size:11px">Si se cuelga después de hacer click = esta es la culpable</span>';
+      '<span style="color:#94a3b8;font-size:11px">Click → lanza. Si se congela = culpable</span>';
     document.getElementById('diag-btn').onclick = function() {
       console.log('[DIAG] Lanzando:', actual.nombre);
       actual.fn();
       idx++;
-      setTimeout(siguiente, 800);
+      setTimeout(siguiente, 1500);
     };
   }
-
   siguiente();
 }
 
+  var funciones = [
+    { nombre: 'fbCargarPagos',       fn: fbCargarPagos },
+    { nombre: 'fbCargarProveedores', fn: fbCargarProveedores },
+    { nombre: 'fbCargarInformes',    fn: fbCargarInformes },
+    { nombre: 'fbCargarOrdenes',     fn: fbCargarOrdenes },
+    { nombre: 'fbCargarEquipos',     fn: fbCargarEquipos },
+    { nombre: 'fbCargarGarantias',   fn: fbCargarGarantias },
+    { nombre: 'fbCargarTickets',     fn: fbCargarTickets },
+    { nombre: 'fbCargarRemitos',     fn: fbCargarRemitos },
 // ── CLIENTES ──
 function fbCargarClientes() {
   if (!window.fbDB) return;
@@ -9071,7 +9076,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.230-firebase',
+  VERSION: 'v20.231-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
