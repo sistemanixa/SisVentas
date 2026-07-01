@@ -903,7 +903,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.220 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.221 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9035,7 +9035,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.220-firebase',
+  VERSION: 'v20.221-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10033,11 +10033,12 @@ function _completarLogin(nombre) {
         [function(){ if(typeof applyDashWidgets==='function') applyDashWidgets(); }, 1600],
         [function(){ if(typeof chequearActualizacionAutoDolar==='function') chequearActualizacionAutoDolar(); }, 1700],
         [function(){ if(typeof actualizarFabYHome==='function') actualizarFabYHome('dashboard'); }, 1800],
-        [function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 2000],
-        [function(){ if(typeof iaInicializar==='function') iaInicializar(); }, 2500],
-        [function(){ if(typeof chatInicializar==='function') chatInicializar(); }, 3000],
-        [function(){ if(typeof inicializarFlujoVentas==='function') inicializarFlujoVentas(); }, 3500],
-        [function(){ if(typeof _verificarHaberesPendientes==='function') _verificarHaberesPendientes(); }, 4000],
+        // DESACTIVADOS TEMPORALMENTE para diagnóstico:
+        // [function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 2000],
+        // [function(){ if(typeof iaInicializar==='function') iaInicializar(); }, 2500],
+        // [function(){ if(typeof chatInicializar==='function') chatInicializar(); }, 3000],
+        // [function(){ if(typeof inicializarFlujoVentas==='function') inicializarFlujoVentas(); }, 3500],
+        // [function(){ if(typeof _verificarHaberesPendientes==='function') _verificarHaberesPendientes(); }, 4000],
         [function(){
           if(currentRole!=='admin'){
             if(typeof renderDashMiCuenta==='function') renderDashMiCuenta();
