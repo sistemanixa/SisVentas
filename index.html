@@ -802,7 +802,7 @@ tr:hover td{color:var(--text)}
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp, query, limitToLast }
+    import { getDatabase, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
              createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
@@ -838,32 +838,11 @@ tr:hover td{color:var(--text)}
     window.fbGet         = get;
     window.fbPush        = push;
     window.fbOnValue     = onValue;
-
-// Parche de seguridad: envuelve todos los callbacks de fbOnValue en try/catch
-// para que si alguno lanza una excepción, no bloquee el event loop ni congele el loading.
-(function() {
-  var _fbOnValueOriginal = window.fbOnValue;
-  if (!_fbOnValueOriginal) return;
-  window.fbOnValue = function(ref, callback, options) {
-    var safeCallback = function(snap) {
-      try {
-        callback(snap);
-      } catch(e) {
-        console.error('[SV] Error en callback fbOnValue:', e && e.message, e);
-      }
-    };
-    return _fbOnValueOriginal(ref, safeCallback, options);
-  };
-  console.log('[SV] fbOnValue protegido con try/catch global');
-})();
-
     window.fbUpdate      = update;
     window.fbRemove      = remove;
     window.fbOnDisconnect = onDisconnect;
     window.fbRemove     = remove;
     window.fbServerTimestamp = serverTimestamp;
-    window.fbQuery       = query;
-    window.fbLimitToLast = limitToLast;
     window.fbSignIn      = signInWithEmailAndPassword;
     window.fbSignOut     = signOut;
     window.fbOnAuth      = onAuthStateChanged;
@@ -903,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.233 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.208 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4129,7 +4108,7 @@ tr:hover td{color:var(--text)}
               <span class="card-title">Empleados</span>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-sm" onclick="abrirModalHaberesMes()"><i class="ti ti-cash"></i> Registrar haberes del mes</button>
-                <button class="btn btn-sm" onclick="_safeAbrirAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
+                <button class="btn btn-sm" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
                 <button class="btn btn-sm btn-primary" id="btn-nuevo-emp" onclick="abrirModalNuevo('empleado')"><i class="ti ti-plus"></i> Nuevo empleado</button>
               </div>
             </div>
@@ -6315,7 +6294,7 @@ function renderTareasPendientes() {
     var tareas = [];
     if (snap.val()) Object.entries(snap.val()).forEach(function(e){
       tareas.push(Object.assign({ fbKey: e[0] }, e[1]));
-    }).catch(function(){});
+    });
     var disponibles = tareas.filter(function(t){ return t.estado === 'disponible' || t.estado === 'en_curso'; });
     if (!disponibles.length) {
       container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px">Sin OTs pendientes</div>';
@@ -6633,11 +6612,7 @@ function chatInicializar() {
   if (window.fbDB) {
     var _ultimosMsgs = {}; // rastrear último ts por canal para detectar mensajes nuevos
     ['general','tecnicos','admin'].forEach(function(canal) {
-      // Limitar a los últimos 50 mensajes — evita traer todo el historial al iniciar
-      var refCanal = window.fbQuery
-        ? window.fbQuery(window.fbRef(window.fbDB, 'sisventas/chat/' + canal), window.fbLimitToLast(50))
-        : window.fbRef(window.fbDB, 'sisventas/chat/' + canal);
-      window.fbOnValue(refCanal, function(snap) {
+      window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat/' + canal), function(snap) {
         if (!snap.val()) return;
         var msgs = Object.values(snap.val());
         var _lk = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
@@ -6677,37 +6652,31 @@ function chatInicializar() {
 function chatEscucharDirectos() {
   if (!window.fbDB || !currentUser) return;
   var miKey = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
-  // NO suscribirse al nodo raíz completo de 'sisventas/chat' — trae todos los mensajes
-  // históricos y puede bloquear el hilo al iniciar. Usamos get() una vez para detectar
-  // canales directos y nos suscribimos solo a los que pertenecen al usuario, limitados.
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/chat')).then(function(snap) {
+  // Escuchar el nodo raíz de chat para detectar canales directos nuevos
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat'), function(snap) {
     var data = snap.val() || {};
     Object.keys(data).forEach(function(canal) {
       if (!canal.startsWith('directo_') || !canal.includes(miKey)) return;
-      var refDirecto = window.fbQuery
-        ? window.fbQuery(window.fbRef(window.fbDB, 'sisventas/chat/' + canal), window.fbLimitToLast(50))
-        : window.fbRef(window.fbDB, 'sisventas/chat/' + canal);
-      window.fbOnValue(refDirecto, function(snapCanal) {
-        if (!snapCanal.val()) return;
-        var msgs = Object.values(snapCanal.val() || {});
-        var noLeidos = msgs.filter(function(m){
-          return m.autor !== currentUser && !(m.leido && m.leido[currentUser]);
-        });
-        _chatNoLeidos[canal] = noLeidos.length;
-        chatActualizarBadges();
-        var modal = document.getElementById('chat-modal');
-        var chatAbierto = modal && modal.classList.contains('open') && _chatCanal === canal;
-        if (!chatAbierto && noLeidos.length) {
-          var ult = noLeidos[noLeidos.length-1];
-          chatMostrarNotif(
-            'Mensaje de ' + (ult.autor||'alguien'),
-            ult.texto || (ult.fotoUrl ? '📷 Foto' : 'Nuevo mensaje'),
-            canal
-          );
-        }
+      var msgs = Object.values(data[canal] || {});
+      var noLeidos = msgs.filter(function(m){
+        return m.autor !== currentUser && !(m.leido && m.leido[currentUser]);
       });
+      // Badge en la pestaña Directos
+      _chatNoLeidos[canal] = noLeidos.length;
+      chatActualizarBadges();
+      // Notificación si hay mensajes nuevos y chat cerrado
+      var modal = document.getElementById('chat-modal');
+      var chatAbierto = modal && modal.classList.contains('open') && _chatCanal === canal;
+      if (!chatAbierto && noLeidos.length) {
+        var ult = noLeidos[noLeidos.length-1];
+        chatMostrarNotif(
+          'Mensaje de ' + (ult.autor||'alguien'),
+          ult.texto || (ult.fotoUrl ? '📷 Foto' : 'Nuevo mensaje'),
+          canal
+        );
+      }
     });
-  }).catch(function(e){ console.warn('[Chat] Error cargando canales directos:', e&&e.message); });
+  });
 }
 
 function chatActualizarBadges() {
@@ -7339,7 +7308,7 @@ function abrirModalHaberesMes() {
       // Footer con total y botón
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">' +
         '<div style="font-size:14px"><span style="color:var(--text3)">Total a registrar:</span> <strong style="font-size:16px" id="hab-total-lbl">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
-        '<button class="btn btn-primary" onclick="_safeConfirmarHaberes()">' +
+        '<button class="btn btn-primary" onclick="confirmarRegistroHaberes()">' +
           '<i class="ti ti-check"></i> Confirmar y registrar gastos' +
         '</button>' +
       '</div>' +
@@ -7587,7 +7556,7 @@ async function abrirModalAguinaldo() {
       '</div>' +
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">' +
         '<div style="font-size:14px"><span style="color:var(--text3)">Total a registrar:</span> <strong style="font-size:16px" id="agu-total-lbl">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
-        '<button class="btn btn-primary" onclick="_safeConfirmarAguinaldo()"><i class="ti ti-check"></i> Confirmar y registrar gastos</button>' +
+        '<button class="btn btn-primary" onclick="confirmarRegistroAguinaldo()"><i class="ti ti-check"></i> Confirmar y registrar gastos</button>' +
       '</div>' +
     '</div>';
 
@@ -7983,7 +7952,6 @@ function fbCargarTodo() {
   fbCargarCategorias();
   fbCargarUsuarios();
   fbCargarGastos();
-  fbCargarPagos();
   fbCargarProveedores();
   fbCargarInformes();
   fbCargarOrdenes();
@@ -7992,24 +7960,15 @@ function fbCargarTodo() {
   fbCargarTickets();
   fbCargarRemitos();
   fbCargarAgenda();
+  fbCargarPagos();
   fbCargarServicios();
   fbCargarCaja();
-  // Generar gastos fijos UNA SOLA VEZ, 5 segundos después de que todo cargó
-  // (el flag _gastosFijosGenerados asegura que nunca se ejecute más de una vez)
+  // Generar gastos fijos UNA SOLA VEZ, 5s después de que los datos cargaron
   setTimeout(function() {
     if (typeof generarGastosFijosMes === 'function') generarGastosFijosMes();
   }, 5000);
 }
 
-  var funciones = [
-    { nombre: 'fbCargarPagos',       fn: fbCargarPagos },
-    { nombre: 'fbCargarProveedores', fn: fbCargarProveedores },
-    { nombre: 'fbCargarInformes',    fn: fbCargarInformes },
-    { nombre: 'fbCargarOrdenes',     fn: fbCargarOrdenes },
-    { nombre: 'fbCargarEquipos',     fn: fbCargarEquipos },
-    { nombre: 'fbCargarGarantias',   fn: fbCargarGarantias },
-    { nombre: 'fbCargarTickets',     fn: fbCargarTickets },
-    { nombre: 'fbCargarRemitos',     fn: fbCargarRemitos },
 // ── CLIENTES ──
 function fbCargarClientes() {
   if (!window.fbDB) return;
@@ -8753,7 +8712,6 @@ function doLogoutAutomatico() {
 }
 
 function _ejecutarLogout() {
-  _sesionYaRestaurada = false;
   // 1. Volver al dashboard ANTES de ocultar la app, para que el próximo
   //    usuario que inicie sesión siempre arranque en dashboard, sin importar
   //    en qué módulo estaba el usuario anterior.
@@ -9049,7 +9007,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.233-firebase',
+  VERSION: 'v20.208-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9458,7 +9416,6 @@ function initMoneyInput(input) {
   input.autocomplete = 'off';
 
   // Valor inicial: lo que ya tenía el input (viene de value="..." en el HTML)
-  input.dataset.moneyInitializing = '1';
   var inicial = parseFloat(input.value) || 0;
   input.dataset.raw = String(inicial);
   if (inicial !== 0) {
@@ -9467,7 +9424,6 @@ function initMoneyInput(input) {
   } else {
     input.value = input.getAttribute('placeholder') ? '' : '0';
   }
-  delete input.dataset.moneyInitializing;
 
   input.addEventListener('keydown', function(e) {
     // El punto (o coma) del teclado numérico marca el inicio de los decimales,
@@ -9482,8 +9438,6 @@ function initMoneyInput(input) {
   });
 
   input.addEventListener('input', function() {
-    // No procesar si el campo se está inicializando (evita disparar oninput inline prematuramente)
-    if (input.dataset.moneyInitializing) return;
     // Solo dejar pasar dígitos; reconstruir el string entero+decimal desde cero
     // a partir de TODOS los dígitos tipeados, para que el separador de miles
     // se recalcule solo (como una calculadora real).
@@ -9662,22 +9616,6 @@ function cargarNotifLeidas() {
 // Firebase Realtime Database no permite los caracteres . # $ [ ] en una key.
 // Los ids de notificación pueden derivar de v.id/ot.id que sí los contienen
 // (ej. ventas con id "#00123"), así que hay que sanitizar antes de usarlos como path.
-
-// Wrappers seguros para funciones async que usan await fbGet —
-// capturan cualquier Promise rechazada sin propagarla al hilo principal.
-function _safeConfirmarHaberes() {
-  confirmarRegistroHaberes().catch(function(e){ notify('Error al registrar haberes: '+(e&&e.message||e)); });
-}
-function _safeAbrirAguinaldo() {
-  abrirModalAguinaldo().catch(function(e){ notify('Error al abrir aguinaldo: '+(e&&e.message||e)); });
-}
-function _safeConfirmarAguinaldo() {
-  confirmarRegistroAguinaldo().catch(function(e){ notify('Error al registrar aguinaldo: '+(e&&e.message||e)); });
-}
-function _safeRecalcularAguinaldo() {
-  recalcularAguinaldo().catch(function(e){ console.warn('Error recalculando aguinaldo:', e); });
-}
-
 function _sanitizarKeyFirebase(id) {
   return String(id||'').replace(/[.#$\[\]]/g, '_');
 }
@@ -9743,12 +9681,23 @@ function _resolverRolYCompletarLogin(user, err) {
 
   // Timeout de emergencia: si en 8 segundos no completó el login,
   // cerrar sesión y mostrar el login limpio para no quedar colgado.
-  // Timeout de emergencia DESACTIVADO — estaba matando el login cuando
-  // un Permission denied de Firebase demoraba la carga más de 8 segundos.
-  var _loginTimeout = null; // setTimeout desactivado
+  var _loginTimeout = setTimeout(function() {
+    if (!isAuthenticated) return;
+    // Si llegamos acá, algo falló silenciosamente
+    isAuthenticated = false;
+    if (window.fbAuth && window.fbSignOut) window.fbSignOut(window.fbAuth).catch(function(){});
+    var loadingEl = document.getElementById('screen-loading');
+    if (loadingEl) loadingEl.style.display = 'none';
+    document.getElementById('screen-login').style.display = '';
+    var errEl = document.getElementById('login-error');
+    if (errEl) {
+      errEl.textContent = 'El servidor tardó demasiado en responder. Intentá de nuevo.';
+      errEl.style.display = 'block';
+    }
+  }, 8000);
 
   function aplicarRolYNombre(lista) {
-    if (_loginTimeout) clearTimeout(_loginTimeout); // por si se reactiva en el futuro
+    clearTimeout(_loginTimeout); // login completado, cancelar timeout
     lista = lista || [];
     var usuario = lista.find(function(u) {
       var mailDB = (u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com')).toLowerCase();
@@ -9870,10 +9819,21 @@ setTimeout(function() {
   }
 }, 6000);
 
-// Timeout absoluto DESACTIVADO — estaba forzando logout cuando Permission denied
-// de Firebase demoraba más de 12 segundos, causando que nunca se mostrara la app.
-// La app ahora se muestra en 1.5 segundos sin depender de que Firebase termine.
-// setTimeout(function() { ... }, 12000);
+// Timeout ABSOLUTO: si después de 12 segundos la app no está visible,
+// mostrar login sin importar qué — cubre casos donde Auth responde pero
+// fbGet de usuarios se cuelga sin error (modo avión con sesión cacheada)
+setTimeout(function() {
+  var appScreen = document.getElementById('screen-app');
+  var loginEl   = document.getElementById('screen-login');
+  var loadingEl = document.getElementById('screen-loading');
+  var appVisible = appScreen && (appScreen.style.display !== 'none' && appScreen.classList.contains('visible'));
+  if (!appVisible && loadingEl && loadingEl.style.display !== 'none') {
+    console.warn('[Auth] Timeout absoluto — forzando pantalla de login');
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (loginEl)   loginEl.style.display = '';
+    if (window.fbAuth && window.fbSignOut) window.fbSignOut(window.fbAuth).catch(function(){});
+  }
+}, 12000);
 
 // ── PRESENCIA EN TIEMPO REAL ──
 // Usa onDisconnect de Firebase: el propio servidor de Firebase detecta cuando la
@@ -9931,7 +9891,7 @@ function _verificarHaberesPendientes() {
     // Ver si hay algún empleado activo sin haberes del mes pasado
     var sinRegistrar = empleados.filter(function(e) {
       return !habData[e.fbKey] || !habData[e.fbKey][mesKey];
-    }).catch(function(){});
+    });
     if (sinRegistrar.length > 0) {
       // Mostrar notificación no intrusiva
       var msg = '⚠️ No se registraron los haberes de ' + mesLbl + ' para ' +
@@ -10007,14 +9967,42 @@ function _completarLogin(nombre) {
       if (bar) bar.style.width = pasos[paso].pct + '%';
       if (msg) msg.textContent = pasos[paso].txt;
       paso++;
-    } else { clearInterval(iv); }
+    } else {
+      clearInterval(iv);
+    }
   }, 400);
 
+  // Iniciar carga de datos
   if (typeof startSessionTimer === 'function') startSessionTimer();
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
+  if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 300);
+  if (typeof cargarConfigGeneral === 'function') setTimeout(cargarConfigGeneral, 350);
+  if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
+  if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
+  if (typeof cargarConfigLogin === 'function') setTimeout(cargarConfigLogin, 350);
+  if (typeof inicializarFlujoVentas === 'function') setTimeout(inicializarFlujoVentas, 4000);
+  if (typeof iaInicializar === 'function') setTimeout(iaInicializar, 1000);
+  if (typeof chatInicializar === 'function') setTimeout(chatInicializar, 1500);
+  // Mostrar FAB solo en mobile
+  setTimeout(function(){
+    if (window.innerWidth <= 1024) {
+      var fab = document.getElementById('fab-container');
+      if (fab) fab.style.display = 'flex';
+    }
+  }, 1200);
+  if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
+  if (typeof cargarPresenciaUsuarios === 'function') setTimeout(cargarPresenciaUsuarios, 350);
+  if (typeof spCargar === 'function') setTimeout(spCargar, 400);
+  if (typeof fbCargarVacaciones === 'function') setTimeout(fbCargarVacaciones, 400);
+  if (typeof cfCargar === 'function') setTimeout(cfCargar, 450);
+  if (typeof fvCargar === 'function') setTimeout(fvCargar, 450);
+  if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 450);
+  if (typeof chequearActualizacionAutoDolar === 'function') setTimeout(chequearActualizacionAutoDolar, 500);
+  if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); cargarDashWidgets(); setTimeout(applyRole, 400); }, 400);
+  if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
 
-  // Mostrar app después de 1.5 segundos — sin esperar procesos secundarios
+  // Mostrar app después de ~2.5 segundos (tiempo de carga de Firebase)
   setTimeout(function() {
     clearInterval(iv);
     if (bar) bar.style.width = '100%';
@@ -10022,45 +10010,20 @@ function _completarLogin(nombre) {
     setTimeout(function() {
       if (loadingEl) loadingEl.style.display = 'none';
       document.getElementById('screen-app').classList.add('visible');
+      if (typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
+      if (typeof applyDashWidgets === 'function') applyDashWidgets();
+      if (currentRole !== 'admin') setTimeout(function(){
+        if(typeof renderDashMiCuenta==='function') renderDashMiCuenta();
+        if((currentRole==='administrativo'||currentRole==='vendedor') && typeof renderDashAdministrativo==='function') renderDashAdministrativo();
+        if(currentRole==='tecnico' && typeof renderDashMisOTs==='function') renderDashMisOTs();
+      }, 1500);
+      // Botones flotantes manejados por aplicarVisibilidadBotonesFlotantes()
+      if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 500);
+      if (typeof actualizarFabYHome === 'function') actualizarFabYHome('dashboard');
+      if (typeof _verificarHaberesPendientes === 'function') setTimeout(_verificarHaberesPendientes, 6000);
       notify('Bienvenido, ' + nombre + '!');
-
-      // Funciones reactivadas — no sospechosas
-      var _ok = [
-        [function(){ if(typeof cargarLogoGuardado==='function') cargarLogoGuardado(); }, 100],
-        [function(){ if(typeof cargarConfigGeneral==='function') cargarConfigGeneral(); }, 200],
-        [function(){ if(typeof cargarConfigImpuestos==='function') cargarConfigImpuestos(); }, 300],
-        [function(){ if(typeof cargarConfigComisiones==='function') cargarConfigComisiones(); }, 400],
-        [function(){ if(typeof cargarConfigLogin==='function') cargarConfigLogin(); }, 500],
-        [function(){ if(typeof cargarCargos==='function') cargarCargos(); }, 600],
-        [function(){ if(typeof spCargar==='function') spCargar(); }, 700],
-        [function(){ if(typeof fbCargarVacaciones==='function') fbCargarVacaciones(); }, 800],
-        [function(){ if(typeof cfCargar==='function') cfCargar(); }, 900],
-        [function(){ if(typeof fvCargar==='function') fvCargar(); }, 1000],
-        [function(){ if(typeof cargarPermisosRoles==='function') cargarPermisosRoles(); }, 1100],
-        [function(){ if(typeof cargarDashWidgets==='function') cargarDashWidgets(); }, 1200],
-        [function(){ if(typeof applyRole==='function') applyRole(); }, 1300],
-        [function(){ if(typeof applyDashWidgets==='function') applyDashWidgets(); }, 1400],
-        [function(){ if(typeof chequearActualizacionAutoDolar==='function') chequearActualizacionAutoDolar(); }, 1500],
-        [function(){ if(typeof actualizarFabYHome==='function') actualizarFabYHome('dashboard'); }, 1600],
-        [function(){
-          if(window.innerWidth<=1024){ var fab=document.getElementById('fab-container'); if(fab) fab.style.display='flex'; }
-        }, 300],
-        [function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 1700],
-        [function(){ if(typeof iaInicializar==='function') iaInicializar(); }, 1800],
-        [function(){ if(typeof chatInicializar==='function') chatInicializar(); }, 2000],
-        [function(){ if(typeof inicializarFlujoVentas==='function') inicializarFlujoVentas(); }, 2500],
-        [function(){ if(typeof _verificarHaberesPendientes==='function') _verificarHaberesPendientes(); }, 3000],
-        // SIGUE BLOQUEADO — confirmando como culpable:
-        // fbCargarTodo
-      ];
-      _ok.forEach(function(item){
-        setTimeout(function(){
-          try { item[0](); } catch(e){ console.warn('[SV]', e&&e.message); }
-        }, item[1]);
-      });
-
-    }, 300);
-  }, 1500);
+    }, 400);
+  }, 2600);
 }
 
 // selCli definida arriba con parámetros (id, nombre, dir)
@@ -12320,7 +12283,7 @@ function cargarPermisosRoles() {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/permisos')).then(function(snap) {
     var data = snap.val();
     if (data) Object.assign(PERMISOS_ROLES, data);
-  }).catch(function(){});
+  });
 }
 
 function renderTablaRoles() {
@@ -13061,8 +13024,6 @@ function fbCargarPagos() {
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
     }
-    // Diferir el procesamiento pesado de cuenta corriente para no bloquear el thread
-    setTimeout(function() {
     // Cuenta corriente desde ventasList
     var ccMap = {};
     (ventasList||[]).forEach(function(v){
@@ -13117,7 +13078,6 @@ function fbCargarPagos() {
     if (ccDetEl && ccDetEl.style.display === 'block' && window._ccNombreActual && typeof verCuentaClienteReal === 'function') {
       verCuentaClienteReal(window._ccNombreActual);
     }
-    }, 0); // fin setTimeout procesamiento pesado
   });
 }
 
@@ -14304,7 +14264,7 @@ function chequearActualizacionAutoDolar() {
     if (Date.now() - ultima > unDiaMs) {
       actualizarDolarAPI(true); // silencioso, sin notificación molesta
     }
-  }).catch(function(){});
+  });
 }
 
 function guardarPreferenciasSistema(btn) {
@@ -14363,7 +14323,7 @@ function cargarConfigImpuestos() {
     _v('imp-percepcion', d.percepcionIva);
     _v('imp-retencion', d.retencionGanancias);
     if (d.condicionFiscal) _v('imp-condicion', d.condicionFiscal);
-  }).catch(function(){});
+  });
 }
 
 function guardarConfiguracion(btn) {
@@ -14386,7 +14346,7 @@ function cargarConfigGeneral() {
     _v('cfg-empresa-tel', d.tel);
     _v('cfg-empresa-email', d.email);
     _v('cfg-empresa-web', d.web);
-  }).catch(function(){});
+  });
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tipoCambio')).then(function(snap) {
     var d = snap.val(); if (!d) return;
     window.TIPO_CAMBIO_CONFIG = d;
@@ -14411,7 +14371,7 @@ function cargarConfigGeneral() {
     var dv = document.getElementById('cfg-dias-venc');
     if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
     window._diasVencimientoConfig = d.diasVencimiento || 15;
-  }).catch(function(){});
+  });
 }
 
 // ── LOGO EMPRESA ──
@@ -15452,7 +15412,7 @@ function cargarCtaEmp(empFbKey) {
   var TIPOS_GASTOS_EMP = ['gasto_empresa','transporte','materiales','otro'];
 
   window._ctaEmpUnsubscribe && window._ctaEmpUnsubscribe();
-  window._ctaEmpUnsubscribe = window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey), function(snap) {
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey), function(snap) {
     var data = snap.val();
     var ctaMovs = data ? Object.entries(data).map(function(e){
       return Object.assign({ fbKey: e[0], _fuente: 'ctaemp' }, e[1]);
@@ -21486,10 +21446,10 @@ function fbCargarGastos() {
     gastosData = data ? Object.entries(data).map(function(e){
       return Object.assign({ fbKey: e[0] }, e[1]);
     }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
-    // NOTA: generarGastosFijosMes() fue removida del callback de fbOnValue
-    // porque causaba un loop infinito: al crear un gasto nuevo, Firebase
-    // disparaba el callback de nuevo, que creaba otro gasto, y así 50.000 veces.
-    // Ahora se llama UNA SOLA VEZ con protección, desde un lugar controlado.
+    // NOTA: generarGastosFijosMes() fue removida de acá porque causaba un loop
+    // infinito: al crear un gasto Firebase disparaba este callback de nuevo,
+    // que creaba otro gasto, y así hasta 50.000 registros.
+    // Ahora se llama una sola vez desde fbCargarTodo, 5 segundos después de cargar.
     renderTablaGastos();
     actualizarMetricasGastos();
     var pageDash = document.getElementById('page-dashboard');
@@ -21497,38 +21457,30 @@ function fbCargarGastos() {
   });
 }
 
+var _gastosFijosGenerados = false; // evita que corra más de una vez por sesión
+
 function generarGastosFijosMes() {
-  // Protección doble: solo una vez por sesión Y solo si los datos ya cargaron
   if (_gastosFijosGenerados) return;
   if (!gastosData || gastosData.length === 0) return;
   _gastosFijosGenerados = true;
 
   var mesActual = new Date().toISOString().slice(0,7);
 
-  // Construir un Set de claves únicas de gastos que ya existen este mes
-  // clave = descripcion_base|categoria — más robusto que comparar nombre parcial
+  // Set de claves únicas ya existentes este mes para deduplicar
   var clavesYaMes = new Set();
   gastosData.forEach(function(g) {
     if (g.tipo === 'Fijo' && (g.fecha||'').slice(0,7) === mesActual) {
-      // Normalizar: quitar el sufijo "— Mes Año" para obtener la descripción base
-      var descBase = (g.descripcion||'').replace(/\s*[—-]+\s*(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic|\d{4}).*/i, '').trim().toLowerCase();
-      var clave = descBase + '|' + (g.categoria||'').toLowerCase();
-      clavesYaMes.add(clave);
+      var descBase = (g.descripcion||'').replace(/\s*[—-]+\s*(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic|\d{4}).*/i,'').trim().toLowerCase();
+      clavesYaMes.add(descBase + '|' + (g.categoria||'').toLowerCase());
     }
   });
 
-  // Buscar fijos base de meses anteriores que no tienen copia este mes
-  gastosData
-    .filter(function(g){ return g.tipo==='Fijo' && (g.fecha||'').slice(0,7) < mesActual && g.esFijoBase; })
+  gastosData.filter(function(g){ return g.tipo==='Fijo' && (g.fecha||'').slice(0,7) < mesActual && g.esFijoBase; })
     .forEach(function(g) {
-      var descBase = (g.descripcion||'').replace(/\s*[—-]+\s*(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic|\d{4}).*/i, '').trim().toLowerCase();
+      var descBase = (g.descripcion||'').replace(/\s*[—-]+\s*(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic|\d{4}).*/i,'').trim().toLowerCase();
       var clave = descBase + '|' + (g.categoria||'').toLowerCase();
-
       if (!clavesYaMes.has(clave)) {
-        // Agregar al Set inmediatamente para que si esta función corre dos veces
-        // en la misma llamada no genere duplicados
         clavesYaMes.add(clave);
-
         var fecha = mesActual + '-01';
         var venc  = g.diaVencimiento ? mesActual + '-' + String(g.diaVencimiento).padStart(2,'0') : '';
         var nuevo = {
@@ -21547,7 +21499,6 @@ function generarGastosFijosMes() {
       }
     });
 }
-
 function mesLabel() {
   var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   var d = new Date();
@@ -25682,7 +25633,7 @@ function cargarConfigComisiones() {
       var panel = document.getElementById('cfg-comisiones');
       if (panel && panel.style.display !== 'none') renderComisionesConfig();
     }
-  }).catch(function(){});
+  });
 }
 
 function guardarHorasExtra(btn) {
@@ -26783,43 +26734,19 @@ function actualizarResumenStock() {
   DEBUG
 </button>
 <script>
-// Panel debug — muestra errores en pantalla para diagnóstico
-window.onerror = function(msg, src, line, col, err) {
+// Panel debug — solo errores rojos
+window.onerror = function(msg, src, line, col) {
   const log = document.getElementById('debug-log');
   if(log) {
-    log.innerHTML += '<div style="color:red;border-bottom:1px solid #333;padding:2px 0">❌ '+msg+'<br><span style="color:#888">L'+line+':'+col+' — '+src+'</span></div>';
-  }
-  // Si el error ocurre durante el loading, mostrarlo directamente en pantalla
-  var loadMsg = document.getElementById('loading-msg');
-  var loadingEl = document.getElementById('screen-loading');
-  if (loadMsg && loadingEl && loadingEl.style.display !== 'none') {
-    loadMsg.innerHTML = '<span style="color:#e53">⚠️ Error: '+msg+'<br><small>Línea '+line+' — '+String(src).split('/').pop()+'</small></span>';
-    loadMsg.style.display = 'block';
+    log.innerHTML += '<div style="color:red;border-bottom:1px solid #333;padding:2px 0">❌ '+msg+'<br><span style="color:#888">L'+line+':'+col+'</span></div>';
+    // Panel oculto por defecto — activar manualmente si se necesita debug
   }
 };
 
-// Capturar también Promises no manejadas
-window.addEventListener('unhandledrejection', function(e) {
-  var msg = e.reason ? (e.reason.message || String(e.reason)) : 'Promise rechazada';
-  console.warn('[SisVentas] Promise no capturada:', msg);
-  // CRÍTICO: prevenir que el error congele el hilo principal
-  e.preventDefault();
-  // Solo mostrar en pantalla si NO es un error esperado de permisos Firebase
-  // (esos ocurren cuando un path nuevo aún no está en las reglas de Realtime DB)
-  if (!msg.includes('Permission denied') && !msg.includes('permission_denied')) {
-    var loadMsg = document.getElementById('loading-msg');
-    var loadingEl = document.getElementById('screen-loading');
-    if (loadMsg && loadingEl && loadingEl.style.display !== 'none') {
-      loadMsg.innerHTML = '<span style="color:var(--amber)">⚠️ '+msg+'</span>';
-    }
-  }
-});
-
 // Inicializar formato calculadora en todos los inputs de monto estáticos del HTML
-// después de que la app termine de cargar (diferido para no interferir con el login/loading).
-if (typeof initMoneyInputsEn === 'function') {
-  setTimeout(function() { initMoneyInputsEn(document); }, 3000);
-}
+// (los que se crean dinámicamente con innerHTML, como filas de venta/presupuesto,
+// se inicializan aparte con initMoneyInputsEn justo después de insertarse).
+if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 </script>
 
 
