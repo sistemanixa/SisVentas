@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.256 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.257 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4726,7 +4726,9 @@ tr:hover td{color:var(--text)}
       <div class="card">
       <div class="card-head">
       <span class="card-title">Movimientos</span>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-sm" id="ctaemp-btn-mes-ant" onclick="setCtaEmpPeriodo('anterior')" title="Ver movimientos del mes anterior">Mes anterior</button>
+      <button class="btn btn-sm btn-primary" id="ctaemp-btn-mes-act" onclick="setCtaEmpPeriodo('actual')" title="Ver movimientos del mes actual">Mes actual</button>
       <select class="search-input btn-sm" id="ctaemp-filtro-tipo" style="width:160px" onchange="filtrarMovsEmp()">
       <option value="">Todos los tipos</option>
       <option value="sueldo">Sueldo</option>
@@ -9336,7 +9338,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.256-firebase',
+  VERSION: 'v20.257-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13561,18 +13563,40 @@ function fbCargarPagos() {
 }
 
 // ── ESTADÍSTICAS ──
+function _mesSistema(offset) {
+  var d = new Date();
+  d.setMonth(d.getMonth() + (parseInt(offset,10)||0));
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function _fechaMes(fecha) {
+  var f = String(fecha||'').trim();
+  if (!f) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(f)) return f.slice(0,7);
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(f)) return f.slice(6,10) + '-' + f.slice(3,5);
+  if (/^\d{2}-\d{2}-\d{4}$/.test(f)) return f.slice(6,10) + '-' + f.slice(3,5);
+  return f.slice(0,7);
+}
+function _fechaEnMes(fecha, mes) {
+  if (typeof _fechaEsDelMes === 'function') return _fechaEsDelMes(fecha, mes);
+  return _fechaMes(fecha) === mes;
+}
+function _periodoActualReportes() {
+  return window._reportesPeriodo || _mesSistema(0);
+}
+
+// ── ESTADÍSTICAS ──
 function renderEstadisticas() {
-  var mesActual = new Date().toISOString().slice(0,7);
-  var ventasMes = (ventasList||[]).filter(function(v){ return (v.fecha||'').slice(0,7)===mesActual; });
+  var mesActual = _periodoActualReportes();
+  var ventasMes = (ventasList||[]).filter(function(v){ return _fechaEnMes(v.fecha, mesActual); });
   var porEmp={};
-  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'—'; if(!porEmp[e])porEmp[e]={cant:0,monto:0}; porEmp[e].cant++; porEmp[e].monto+=parseFloat(v.total)||0; });
+  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'—'; if(!porEmp[e])porEmp[e]={cant:0,monto:0,comision:0}; porEmp[e].cant++; porEmp[e].monto+=parseFloat(v.total)||0; porEmp[e].comision+=parseFloat(v.comision)||0; });
   var estTbodyEmp=document.getElementById('est-tbody-emp');
   if(estTbodyEmp){
     var empLista=Object.entries(porEmp).sort(function(a,b){return b[1].monto-a[1].monto;});
-    estTbodyEmp.innerHTML=empLista.length?empLista.map(function(e){var empObj=Object.values(empData||{}).find(function(x){return x.nombre===e[0];});var com=empObj?parseFloat(empObj.comisiones)||0:0;return '<tr><td>'+escapeHTML(e[0])+'</td><td style="text-align:right">'+e[1].cant+'</td><td style="text-align:right">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(com).toLocaleString('es-AR')+'</td></tr>';}).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sin datos del mes</td></tr>';
+    estTbodyEmp.innerHTML=empLista.length?empLista.map(function(e){return '<tr><td>'+escapeHTML(e[0])+'</td><td style="text-align:right">'+e[1].cant+'</td><td style="text-align:right">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(e[1].comision).toLocaleString('es-AR')+'</td></tr>';}).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sin datos del mes</td></tr>';
   }
   var porProd={};
-  ventasMes.forEach(function(v){(v.items||[]).forEach(function(it){var d=it.desc||it.descripcion||'—';if(!porProd[d])porProd[d]={cant:0,monto:0};porProd[d].cant+=parseInt(it.qty)||1;porProd[d].monto+=parseFloat(it.sub)||0;});});
+  ventasMes.forEach(function(v){(v.items||v.detalle||[]).forEach(function(it){var d=it.desc||it.descripcion||it.producto||'—';if(!porProd[d])porProd[d]={cant:0,monto:0};porProd[d].cant+=parseInt(it.qty||it.cantidad)||1;porProd[d].monto+=parseFloat(it.sub||it.subtotal||it.total)||0;});});
   var estTbodyProd=document.getElementById('est-tbody-prod');
   if(estTbodyProd){
     var prodLista=Object.entries(porProd).sort(function(a,b){return b[1].cant-a[1].cant;}).slice(0,10);
@@ -13583,21 +13607,34 @@ function renderEstadisticas() {
   if(_e('est-total')) _e('est-total').textContent='$'+Math.round(totalMes).toLocaleString('es-AR');
   if(_e('est-total-sub')) _e('est-total-sub').textContent=ventasMes.length+' ventas del mes';
   var empTop=Object.entries(porEmp).sort(function(a,b){return b[1].monto-a[1].monto;})[0];
-  if(_e('est-mejor-vend')&&empTop){_e('est-mejor-vend').textContent=empTop[0];if(_e('est-mejor-vend-sub'))_e('est-mejor-vend-sub').textContent='$'+Math.round(empTop[1].monto).toLocaleString('es-AR');}
+  if(_e('est-mejor-vend')){_e('est-mejor-vend').textContent=empTop?empTop[0]:'—';if(_e('est-mejor-vend-sub'))_e('est-mejor-vend-sub').textContent=empTop?'$'+Math.round(empTop[1].monto).toLocaleString('es-AR'):'—';}
   var prodTop=Object.entries(porProd).sort(function(a,b){return b[1].cant-a[1].cant;})[0];
-  if(_e('est-prod-top')&&prodTop){_e('est-prod-top').textContent=prodTop[0].slice(0,20);if(_e('est-prod-top-sub'))_e('est-prod-top-sub').textContent=prodTop[1].cant+' unidades';}
+  if(_e('est-prod-top')){_e('est-prod-top').textContent=prodTop?prodTop[0].slice(0,20):'—';if(_e('est-prod-top-sub'))_e('est-prod-top-sub').textContent=prodTop?prodTop[1].cant+' unidades':'—';}
+
+  var porMes={};
+  (ventasList||[]).forEach(function(v){ var m=_fechaMes(v.fecha); if(!m) return; if(!porMes[m]) porMes[m]={cant:0,monto:0}; porMes[m].cant++; porMes[m].monto+=parseFloat(v.total)||0; });
+  var mejorMes=Object.entries(porMes).sort(function(a,b){return b[1].monto-a[1].monto;})[0];
+  if(_e('est-mejor-mes')){ _e('est-mejor-mes').textContent=mejorMes?mejorMes[0]:'—'; if(_e('est-mejor-mes-sub')) _e('est-mejor-mes-sub').textContent=mejorMes?'$'+Math.round(mejorMes[1].monto).toLocaleString('es-AR'):'—'; }
+  var bar=_e('est-bar-meses');
+  if(bar){
+    var anio=mesActual.slice(0,4), max=1;
+    var mesesLbl=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    for(var i=1;i<=12;i++){ var mk=anio+'-'+String(i).padStart(2,'0'); max=Math.max(max,(porMes[mk]||{}).monto||0); }
+    bar.innerHTML='';
+    for(var j=1;j<=12;j++){ var key=anio+'-'+String(j).padStart(2,'0'), monto=(porMes[key]||{}).monto||0; var h=Math.max(4,Math.round((monto/max)*92)); bar.innerHTML += '<div class="bc" title="'+key+' · $'+Math.round(monto).toLocaleString('es-AR')+'"><div class="bar '+(key===mesActual?'today':'')+'" style="height:'+h+'px"></div><span class="bar-lbl '+(key===mesActual?'today':'')+'">'+mesesLbl[j-1]+'</span></div>'; }
+  }
+
   // Cobros por medio de pago
   var periodo=(_e('est-mp-periodo')&&_e('est-mp-periodo').value)||'mes';
   var hoyD=new Date();
-  var fdMes=hoyD.toISOString().slice(0,7);
-  var fd3m=(function(){var d=new Date(hoyD);d.setMonth(d.getMonth()-2);return d.toISOString().slice(0,7);})();
+  var fdMes=hoyD.getFullYear() + '-' + String(hoyD.getMonth()+1).padStart(2,'0');
+  var fd3m=(function(){var d=new Date(hoyD);d.setMonth(d.getMonth()-2);return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');})();
   var fdAnio=String(hoyD.getFullYear());
   var pagosFilt=(window._historialPagosCompleto||[]).filter(function(p){
     if(periodo==='todo')return true;
-    var f=String(p.fecha||'').replace(/\//g,'-');
-    if(/^\d{2}-\d{2}-\d{4}$/.test(f))f=f.slice(6)+'-'+f.slice(3,5);
-    if(periodo==='mes')return f.slice(0,7)===fdMes;
-    if(periodo==='3m')return f.slice(0,7)>=fd3m;
+    var f=_fechaMes(p.fecha);
+    if(periodo==='mes')return f===fdMes;
+    if(periodo==='3m')return f>=fd3m;
     if(periodo==='anio')return f.slice(0,4)===fdAnio;
     return true;
   });
@@ -13613,11 +13650,11 @@ function renderEstadisticas() {
 
 // ── REPORTES ──
 function renderReportes() {
-  var mesActual=new Date().toISOString().slice(0,7);
-  var ventasMes=(ventasList||[]).filter(function(v){return (v.fecha||'').slice(0,7)===mesActual;});
+  var mesActual=_periodoActualReportes();
+  var ventasMes=(ventasList||[]).filter(function(v){return _fechaEnMes(v.fecha,mesActual);});
   var totalMes=ventasMes.reduce(function(s,v){return s+(parseFloat(v.total)||0);},0);
   var ticketProm=ventasMes.length?totalMes/ventasMes.length:0;
-  var ivaDecl=(ventasList||[]).filter(function(v){return (v.fecha||'').slice(0,7)===mesActual&&v.factura;}).reduce(function(s,v){return s+(parseFloat(v.iva)||0);},0);
+  var ivaDecl=ventasMes.filter(function(v){return v.factura;}).reduce(function(s,v){return s+(parseFloat(v.iva)||0);},0);
   var meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   var _e=function(id){return document.getElementById(id);};
   if(_e('rep-total')) _e('rep-total').textContent='$'+Math.round(totalMes).toLocaleString('es-AR');
@@ -13626,6 +13663,14 @@ function renderReportes() {
   if(_e('rep-ticket')) _e('rep-ticket').textContent='$'+Math.round(ticketProm).toLocaleString('es-AR');
   if(_e('rep-iva')) _e('rep-iva').textContent='$'+Math.round(ivaDecl).toLocaleString('es-AR');
   if(_e('rep-iva-sub')) _e('rep-iva-sub').textContent='vence 20/'+meses[new Date().getMonth()];
+  var porEmp={};
+  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'—'; if(!porEmp[e]) porEmp[e]={cat:'—',ventas:0,monto:0,comision:0,hextra:0,base:0}; porEmp[e].ventas++; porEmp[e].monto+=parseFloat(v.total)||0; porEmp[e].comision+=parseFloat(v.comision)||0; });
+  Object.values(empData||{}).forEach(function(emp){ var n=emp.nombre||'—'; if(!porEmp[n]) porEmp[n]={cat:'—',ventas:0,monto:0,comision:0,hextra:0,base:0}; porEmp[n].cat=emp.cargo||emp.categoria||'—'; var c=emp.cargoId?(CARGOS_DATA||{})[emp.cargoId]:null; porEmp[n].base=c?Math.round((parseFloat(c.valorHora)||0)*8*(parseFloat(c.diasMes)||0)):(parseFloat(emp.sueldoBase)||0); });
+  var tbody=_e('emp-resumen-tbody');
+  if(tbody){
+    var lista=Object.entries(porEmp).filter(function(e){return e[1].ventas>0 || e[1].comision>0 || e[1].base>0;}).sort(function(a,b){return b[1].monto-a[1].monto;});
+    tbody.innerHTML=lista.length?lista.map(function(e){ var x=e[1], total=x.comision+x.hextra+x.base; return '<tr><td>'+escapeHTML(e[0])+'</td><td>'+escapeHTML(x.cat||'—')+'</td><td>'+x.ventas+'</td><td>$'+Math.round(x.monto).toLocaleString('es-AR')+'</td><td style="color:var(--green)">$'+Math.round(x.comision).toLocaleString('es-AR')+'</td><td>$'+Math.round(x.hextra).toLocaleString('es-AR')+'</td><td>$'+Math.round(x.base).toLocaleString('es-AR')+'</td><td style="font-weight:600">$'+Math.round(total).toLocaleString('es-AR')+'</td></tr>'; }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
+  }
 }
 
 // ── SERVICIOS desde Firebase ──
@@ -15966,6 +16011,24 @@ function cargarCtaEmp(empFbKey) {
   });
 }
 
+// ── Período de Mi cuenta ──
+window._ctaEmpPeriodoOffset = 0;
+function _ctaEmpPeriodoMes() { return _mesSistema(window._ctaEmpPeriodoOffset || 0); }
+function setCtaEmpPeriodo(tipo) {
+  window._ctaEmpPeriodoOffset = (tipo === 'anterior') ? -1 : 0;
+  var bAnt = document.getElementById('ctaemp-btn-mes-ant');
+  var bAct = document.getElementById('ctaemp-btn-mes-act');
+  if (bAnt) bAnt.className = 'btn btn-sm' + (window._ctaEmpPeriodoOffset === -1 ? ' btn-primary' : '');
+  if (bAct) bAct.className = 'btn btn-sm' + (window._ctaEmpPeriodoOffset === 0 ? ' btn-primary' : '');
+  var emp = Object.values(empData || {}).find(function(e){ return (e.fbKey||e.id) == ctaEmpActual; });
+  if (emp) renderComisionesDelMes(emp);
+  renderMovsEmp();
+}
+function irAVentaDesdeComision(ventaId) {
+  if (!ventaId) { notify('La comisión no tiene venta vinculada'); return; }
+  verDetalleVentaDesdeId(ventaId);
+}
+
 // ── Comisiones del mes para Vendedor a comisión ──
 function renderComisionesDelMes(emp) {
   var card = document.getElementById('ctaemp-comision-card');
@@ -15977,17 +16040,11 @@ function renderComisionesDelMes(emp) {
   card.style.display = '';
 
   var pct = parseFloat(emp.pctComisionPropio) || 0;
-  var hoy = new Date();
-  var mesActual = hoy.getMonth();
-  var añoActual = hoy.getFullYear();
+  var mesCta = _ctaEmpPeriodoMes();
 
   var ventasDelVendedor = (ventasList||[]).filter(function(v) {
-    if (v.empleado !== emp.nombre) return false;
-    var partesFecha = (v.fecha||'').split('/'); // DD/MM/YYYY
-    if (partesFecha.length < 3) return false;
-    var mesVenta = parseInt(partesFecha[1]) - 1;
-    var añoVenta = parseInt(partesFecha[2]);
-    return mesVenta === mesActual && añoVenta === añoActual;
+    var esVendedor = (v.empleado === emp.nombre) || (v.vendedor === emp.nombre) || (v.empleado2 === emp.nombre) || (v.comisionado2 === emp.nombre);
+    return esVendedor && _fechaEnMes(v.fecha, mesCta);
   });
 
   var totalGenerado = 0, totalCobrado = 0, totalPendiente = 0;
@@ -16002,7 +16059,7 @@ function renderComisionesDelMes(emp) {
   });
 
   document.getElementById('ctaemp-com-total').textContent = '$' + Math.round(totalGenerado).toLocaleString('es-AR');
-  document.getElementById('ctaemp-com-cant').textContent = ventasDelVendedor.length + ' venta' + (ventasDelVendedor.length !== 1 ? 's' : '') + ' este mes · ' + pct + '% de comisión';
+  document.getElementById('ctaemp-com-cant').textContent = ventasDelVendedor.length + ' venta' + (ventasDelVendedor.length !== 1 ? 's' : '') + ' ' + mesCta + ' · ' + pct + '% de comisión';
   document.getElementById('ctaemp-com-cobrado').textContent = '$' + Math.round(totalCobrado).toLocaleString('es-AR');
   document.getElementById('ctaemp-com-pendiente').textContent = '$' + Math.round(totalPendiente).toLocaleString('es-AR');
 }
@@ -16012,8 +16069,10 @@ function renderMovsEmp() {
   if (!tbody) return;
   var filtroTipo   = (document.getElementById('ctaemp-filtro-tipo')||{}).value || '';
   var filtroEstado = (document.getElementById('ctaemp-filtro-estado')||{}).value || '';
+  var mesCta = _ctaEmpPeriodoMes();
   var lista = movsEmpData.filter(function(m) {
-    return (!filtroTipo || m.tipo === filtroTipo) && (!filtroEstado || m.estado === filtroEstado);
+    var fechaMov = m.fecha || m.mes || '';
+    return (!filtroTipo || m.tipo === filtroTipo) && (!filtroEstado || m.estado === filtroEstado) && (!mesCta || _fechaEnMes(fechaMov, mesCta) || String(m.mes||'') === mesCta);
   });
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin movimientos registrados</td></tr>';
@@ -16025,8 +16084,8 @@ function renderMovsEmp() {
       var montoColor = esEgreso ? 'var(--red)' : 'var(--green)';
       var estBadge  = {pendiente:'<span class="badge b-amber">Pendiente</span>',aprobado:'<span class="badge b-blue">Aprobado</span>',pagado:'<span class="badge b-green">Pagado</span>',rechazado:'<span class="badge b-red">Rechazado</span>'}[m.estado]||('<span class="badge">'+m.estado+'</span>');
       var aprobBtn  = (currentRole === 'admin' && m.estado === 'pendiente' && m.tipo === 'comision')
-        ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
-          '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);margin-left:4px" onclick="rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
+        ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="event.stopPropagation();aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
+          '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
         : '';
       var fotoBtn   = m.fotoUrl ? '<a href="'+m.fotoUrl+'" target="_blank" class="btn btn-sm btn-icon" title="Ver comprobante"><i class="ti ti-photo" style="font-size:14px"></i></a>' : '<span style="color:var(--text3);font-size:11px">—</span>';
       var fecha = m.fecha ? m.fecha.split('-').reverse().join('/') : '—';
@@ -16036,6 +16095,8 @@ function renderMovsEmp() {
       var trClick = '';
       if (m.tipo === 'gasto_empresa' && m.gastoFbKey) {
         trClick = 'onclick="irAGastoDesdeCtaEmp(this)" data-gasto="' + m.gastoFbKey + '" style="cursor:pointer"';
+      } else if (m.tipo === 'comision' && m.ventaId) {
+        trClick = 'onclick="irAVentaDesdeComision(\'' + m.ventaId + '\')" data-fbkey="' + m.fbKey + '" style="cursor:pointer" title="Ver venta vinculada"';
       } else {
         trClick = 'onclick="verDetalleMovEmp(this)" data-fbkey="' + m.fbKey + '" style="cursor:pointer"';
       }
@@ -16048,10 +16109,10 @@ function renderMovsEmp() {
         '<td class="tr">'+ fotoBtn +'</td>' +
         '<td style="white-space:nowrap">' +
           (m.tipo === 'comision' && m.estado === 'pendiente' && currentRole === 'admin'
-            ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green);font-size:11px;padding:3px 8px" onclick="aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
-              '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 8px;margin-left:4px" onclick="rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
-            : '<button class="btn btn-sm btn-icon" onclick="aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar" style="'+(m.estado==='pendiente'?'':'display:none')+'"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button>') +
-          '<button class="btn btn-sm btn-icon" onclick="eliminarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
+            ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green);font-size:11px;padding:3px 8px" onclick="event.stopPropagation();aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
+              '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 8px;margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
+            : '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar" style="'+(m.estado==='pendiente'?'':'display:none')+'"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button>') +
+          '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();eliminarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
         '</td>' +
       '</tr>';
     }).join('');
