@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.230 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.231 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -8354,6 +8354,27 @@ function fbCargarVentas() {
   });
 }
 
+
+function abrirEditorVenta(fbKey) {
+  var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
+  if (!v) { notify('Venta no encontrada'); return; }
+  showPage('venta', document.querySelector('[onclick*="venta"]'));
+  setTimeout(function(){
+    var tbody = document.getElementById('det-body');
+    if (tbody) tbody.innerHTML = '';
+    var cliInp = document.getElementById('cli-inp'); if(cliInp) cliInp.value = v.cliente||'';
+    var obsInp = document.getElementById('venta-obs'); if(obsInp) obsInp.value = v.observaciones||v.obs||'';
+    (v.items||[]).forEach(function(it) {
+      var tr = crearFilaProducto(it.cod||'', it.desc||it.nombre||'', it.punit||0, it.qty||1, it.disc||0);
+      if (tbody && tr) tbody.appendChild(tr);
+    });
+    if(typeof initMoneyInputsEn==='function') initMoneyInputsEn(document.getElementById('det-body'));
+    calcTotals();
+    window._ventaEditandoFbKey = fbKey;
+    notify('Editando venta ' + (v.id||fbKey) + ' — confirmá para guardar cambios');
+  }, 400);
+}
+
 function fbGuardarVenta(venta) {
   if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
   var r = window.fbRef(window.fbDB, FB_PATHS.ventas);
@@ -9226,7 +9247,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.230-firebase',
+  VERSION: 'v20.231-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10512,35 +10533,7 @@ function toggleAll(cb) { document.querySelectorAll('#det-body input[type=checkbo
 // Actualizar resumen de stock debajo de la tabla
 // actualizarResumenStock definida abajo con implementación compatible con prod-sel-cod
 
-function abrirEditorVenta(fbKey) {
-  var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
-  if (!v) { notify('Venta no encontrada'); return; }
-  // Ir a la página de nueva venta y cargar los datos
-  showPage('venta', document.querySelector('[onclick*="venta"]'));
-  setTimeout(function(){
-    // Limpiar tabla
-    var tbody = document.getElementById('det-body');
-    if (tbody) tbody.innerHTML = '';
-    // Cargar cliente
-    var cliInp = document.getElementById('det-cli');
-    if (cliInp) cliInp.value = v.cliente||'';
-    // Cargar observaciones
-    var obsInp = document.getElementById('venta-obs');
-    if (obsInp) obsInp.value = v.observaciones||v.obs||'';
-    // Cargar ítems
-    (v.items||[]).forEach(function(it) {
-      var tr = crearFilaProducto(it.cod||'', it.desc||it.nombre||'', it.punit||0, it.qty||1, it.disc||0);
-      if (tbody && tr) tbody.appendChild(tr);
-      initMoneyInputsEn && initMoneyInputsEn(tbody);
-    });
-    calcTotals();
-    // Guardar referencia para actualizar en vez de crear
-    window._ventaEditandoFbKey = fbKey;
-    notify('Editando venta ' + (v.id||fbKey) + ' — confirmá para guardar cambios');
-  }, 400);
-}
-
-
+function confirmarVenta() {
   if (!document.getElementById('cli-inp').value) { notify('Seleccioná un cliente primero'); return; }
 
   // Validar descuento general contra límite configurado
@@ -10672,13 +10665,11 @@ function abrirEditorVenta(fbKey) {
   nuevaVenta.margenAutorizadoPorAdmin = ventaAutorizadaPorAdmin;
 
   // Guardar en Firebase
-  // Si estamos editando una venta existente, usar su fbKey
+  // Si editando venta existente, conservar fbKey
   if (window._ventaEditandoFbKey) {
     nuevaVenta.fbKey = window._ventaEditandoFbKey;
     window._ventaEditandoFbKey = null;
   }
-
-  // Guardar en Firebase y esperar la confirmación real antes de redirigir
   var guardarPromise;
   if (typeof fbGuardarVenta === 'function') {
     guardarPromise = fbGuardarVenta(nuevaVenta);
@@ -12553,7 +12544,6 @@ function guardarDashWidgets() {
 function aplicarVisibilidadBotonesFlotantes() {
   // Chat
   var cfg = DASH_WIDGETS_CONFIG['btn_chat'];
-  // Por defecto chat visible para admin, técnico y administrativo — NO para vendedor
   var chatVisible = cfg ? !!cfg[currentRole] : (currentRole !== 'vendedor');
   var chatBtn = document.getElementById('chat-fab');
   if (chatBtn && chatBtn._inicializado) chatBtn.style.display = chatVisible ? 'flex' : 'none';
@@ -22373,7 +22363,6 @@ var ACCIONES_CONFIG = {
   reactivar:        { label:'Reactivar presupuesto',    icon:'ti-refresh',       cls:'btn btn-sm',         fn:'pptoAccion("reactivar")' },
   modificar_precio: { label:'Modificar precios',        icon:'ti-pencil',        cls:'btn btn-sm',         fn:'pptoAccion("modificar_precio")' },
   imprimir:         { label:'Imprimir',                 icon:'ti-printer',       cls:'btn btn-sm',         fn:'imprimirPresupuesto()' },
-  editar_ppto:      { label:'Editar',                   icon:'ti-edit',          cls:'btn btn-sm',         fn:'pptoAccion(\"editar_ppto\")',      style:'color:var(--blue);border-color:var(--blue)' },
   eliminar:         { label:'Eliminar',                 icon:'ti-trash',         cls:'btn btn-sm',         fn:'eliminarPpto(window.pptoActualId)', style:'color:var(--red);border-color:var(--red-bg)' },
 };
 var PPTO_ACCIONES = {
@@ -22391,9 +22380,9 @@ var PPTO_ACCIONES = {
   admin: {
     borrador:     ['enviar_revision','aprobar_directo','editar_ppto'],
     revision:     ['aprobar','rechazar','editar_ppto'],
-    aprobado_int: ['enviar_cliente','modificar_precio','editar_ppto'],
-    enviado:      ['marcar_visto','marcar_aceptado','rechazar','editar_ppto'],
-    visto:        ['marcar_aceptado','rechazar','editar_ppto'],
+    aprobado_int: ['enviar_cliente','modificar_precio'],
+    enviado:      ['marcar_visto','marcar_aceptado','rechazar'],
+    visto:        ['marcar_aceptado','rechazar'],
     aceptado:     ['convertir_venta','editar_ppto'],
     rechazado:    ['reactivar'],
     vencido:      ['reactivar'],
@@ -22891,37 +22880,17 @@ function pptoAccion(accion) {
   }
 
   if (accion === 'editar_ppto') {
-    // Cargar el presupuesto en el formulario de edición
     var pEdit = pptoData.find(function(x){ return x.id === pptoActualId; });
     if (pEdit) {
       abrirNuevoPresupuesto();
       setTimeout(function() {
-        // Cargar datos del presupuesto a editar
-        var numEl = document.getElementById('pp-numero'); if(numEl) numEl.value = pEdit.id||'';
-        var cliEl = document.getElementById('pp-cli'); if(cliEl) cliEl.value = pEdit.cliente||'';
-        var obsEl = document.getElementById('pp-obs'); if(obsEl) obsEl.value = pEdit.observaciones||'';
-        var fechEl = document.getElementById('pp-fecha'); if(fechEl) fechEl.value = pEdit.fecha||'';
-        var descEl = document.getElementById('pp-descuento'); if(descEl) descEl.value = pEdit.descuento||0;
-        // Cargar ítems
-        var tbody = document.getElementById('pp-body');
-        if (tbody) {
-          tbody.innerHTML = '';
-          (pEdit.items||[]).forEach(function(it) {
-            addPpRow();
-            var lastRow = tbody.lastElementChild;
-            if (!lastRow) return;
-            var descInput = lastRow.querySelector('.desc-txt,.desc-txt-clean,input[placeholder*="product"]');
-            var priceInput = lastRow.querySelector('.price,.ppprice');
-            var qtyInput   = lastRow.querySelector('.qty,.ppqty');
-            if (descInput)  descInput.value = it.desc||it.nombre||'';
-            if (priceInput) priceInput.value = it.punit||0;
-            if (qtyInput)   qtyInput.value   = it.qty||1;
-          });
-        }
+        var cliEl=document.getElementById('pp-cli'); if(cliEl) cliEl.value=pEdit.cliente||'';
+        var obsEl=document.getElementById('pp-obs'); if(obsEl) obsEl.value=pEdit.observaciones||'';
+        var tbody=document.getElementById('pp-body');
+        if(tbody){ tbody.innerHTML=''; (pEdit.items||[]).forEach(function(it){ addPpRow(); var r=tbody.lastElementChild; if(!r)return; var p=r.querySelector('.price,.ppprice'); var q=r.querySelector('.qty,.ppqty'); if(p) p.value=it.punit||0; if(q) q.value=it.qty||1; }); }
         calcPpTotales();
-        // Guardar referencia para que al guardar actualice en vez de crear nuevo
-        window._pptoEditandoId = pEdit.fbKey;
-        notify('Editando presupuesto ' + (pEdit.id||'') + ' — guardá cuando termines');
+        window._pptoEditandoId=pEdit.fbKey;
+        notify('Editando presupuesto '+(pEdit.id||'')+' — guardá cuando termines');
       }, 300);
     }
     return;
@@ -25223,7 +25192,7 @@ function renderDetalleVenta(v) {
         ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="verFacturaEmitida(\''+v.factura.pdf_url+'\',\''+v.factura.cae+'\')" title="CAE: '+v.factura.cae+'"><i class="ti ti-file-check"></i> Facturada</button>'
         : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
       ) +
-      (currentRole === 'admin' ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirEditorVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Editar esta venta"><i class="ti ti-edit"></i> Editar</button>' : '') +
+      (currentRole === 'admin' ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirEditorVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Editar"><i class="ti ti-edit"></i> Editar</button>' : '') +
       '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' +
       '<button class="btn btn-sm" id="venta-detalle-toggle" onclick="toggleVentaDetalle()" title="Cambia si el comprobante muestra precios o no" style="gap:6px">' +
         '<i class="ti ti-eye" id="venta-detalle-icon"></i> <span id="venta-detalle-label">Con detalle</span>' +
@@ -25586,24 +25555,10 @@ function renderNotificaciones(filtro) {
   const lbl   = document.getElementById('notif-count-label');
   if (!lista) return;
 
-  // Mapa: tipo de notificación → módulo que requiere acceso
-  const NOTIF_MODULO = {
-    stock:        'productos',
-    presupuesto:  'presupuesto',
-    deuda:        'cobranzas',
-    ot:           'ordenes_trabajo',
-    gasto:        'gastos',
-    agenda:       'agenda',
-    empleado:     'empleados',
-  };
-  var bloqueados = (PERMISOS_ROLES[currentRole]||PERMISOS_DEFAULT[currentRole]||{bloqueados:[]}).bloqueados||[];
-
+  var _notifModulo = { stock:'productos', presupuesto:'presupuesto', deuda:'cobranzas', ot:'ordenes_trabajo', gasto:'gastos' };
+  var _bloqueadosNotif = (PERMISOS_ROLES[currentRole]||PERMISOS_DEFAULT[currentRole]||{bloqueados:[]}).bloqueados||[];
   const rows = (filtro ? todasNotifs.filter(n => n.tipo === filtro) : todasNotifs)
-    .filter(function(n) {
-      var modulo = NOTIF_MODULO[n.tipo];
-      if (!modulo) return true; // sin módulo asociado → siempre visible
-      return !bloqueados.includes(modulo);
-    });
+    .filter(function(n){ var m = _notifModulo[n.tipo]; return !m || !_bloqueadosNotif.includes(m); });
   const sinLeer = rows.filter(n => !notifLeidas.has(_sanitizarKeyFirebase(n.id))).length;
 
   if (lbl) lbl.textContent = sinLeer > 0
