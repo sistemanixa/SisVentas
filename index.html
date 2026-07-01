@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.244 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.253 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -3151,6 +3151,22 @@ tr:hover td{color:var(--text)}
           <table>
             <thead><tr><th>Producto</th><th style="text-align:right">Unidades</th><th style="text-align:right">Monto total</th></tr></thead>
             <tbody id="est-tbody-prod"><tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">Sin datos</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title"><i class="ti ti-wallet" style="margin-right:6px;color:var(--blue)"></i>Cobros por medio de pago</span>
+            <select id="est-mp-periodo" onchange="renderEstadisticas()" style="padding:4px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:12px;font-family:inherit">
+              <option value="mes">Este mes</option>
+              <option value="3m">Últimos 3 meses</option>
+              <option value="anio">Este año</option>
+              <option value="todo">Todo</option>
+            </select>
+          </div>
+          <div class="metrics" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-bottom:12px" id="est-mp-cards"></div>
+          <table>
+            <thead><tr><th>Medio</th><th style="text-align:right">Cobros</th><th style="text-align:right">Monto</th><th style="text-align:right">%</th></tr></thead>
+            <tbody id="est-tbody-medios"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sin datos</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -9305,7 +9321,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.244-firebase',
+  VERSION: 'v20.253-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13555,6 +13571,29 @@ function renderEstadisticas() {
   if(_e('est-mejor-vend')&&empTop){_e('est-mejor-vend').textContent=empTop[0];if(_e('est-mejor-vend-sub'))_e('est-mejor-vend-sub').textContent='$'+Math.round(empTop[1].monto).toLocaleString('es-AR');}
   var prodTop=Object.entries(porProd).sort(function(a,b){return b[1].cant-a[1].cant;})[0];
   if(_e('est-prod-top')&&prodTop){_e('est-prod-top').textContent=prodTop[0].slice(0,20);if(_e('est-prod-top-sub'))_e('est-prod-top-sub').textContent=prodTop[1].cant+' unidades';}
+  // Cobros por medio de pago
+  var periodo=(_e('est-mp-periodo')&&_e('est-mp-periodo').value)||'mes';
+  var hoyD=new Date();
+  var fdMes=hoyD.toISOString().slice(0,7);
+  var fd3m=(function(){var d=new Date(hoyD);d.setMonth(d.getMonth()-2);return d.toISOString().slice(0,7);})();
+  var fdAnio=String(hoyD.getFullYear());
+  var pagosFilt=(window._historialPagosCompleto||[]).filter(function(p){
+    if(periodo==='todo')return true;
+    var f=String(p.fecha||'').replace(/\//g,'-');
+    if(/^\d{2}-\d{2}-\d{4}$/.test(f))f=f.slice(6)+'-'+f.slice(3,5);
+    if(periodo==='mes')return f.slice(0,7)===fdMes;
+    if(periodo==='3m')return f.slice(0,7)>=fd3m;
+    if(periodo==='anio')return f.slice(0,4)===fdAnio;
+    return true;
+  });
+  var porMedio={};
+  pagosFilt.forEach(function(p){var m=p.medio||'Sin especificar';if(!porMedio[m])porMedio[m]={cant:0,monto:0};porMedio[m].cant++;porMedio[m].monto+=parseFloat(p.monto)||0;});
+  var totalCob=Object.values(porMedio).reduce(function(s,v){return s+v.monto;},0);
+  var listaMed=Object.entries(porMedio).sort(function(a,b){return b[1].monto-a[1].monto;});
+  var mpCards=_e('est-mp-cards');
+  if(mpCards)mpCards.innerHTML=listaMed.slice(0,4).map(function(e){var pct=totalCob>0?Math.round(e[1].monto/totalCob*100):0;return '<div class="metric"><div class="m-label">'+escapeHTML(e[0])+'</div><div class="m-value" style="color:var(--blue)">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</div><div class="m-sub">'+e[1].cant+' cobro'+(e[1].cant!==1?'s':'')+' · '+pct+'%</div></div>';}).join('')||'<div style="color:var(--text3);font-size:13px;padding:8px">Sin cobros</div>';
+  var tbMed=_e('est-tbody-medios');
+  if(tbMed)tbMed.innerHTML=listaMed.length?listaMed.map(function(e){var pct=totalCob>0?Math.round(e[1].monto/totalCob*100):0;return '<tr><td style="padding:8px 0">'+escapeHTML(e[0])+'</td><td style="text-align:right;color:var(--text3)">'+e[1].cant+'</td><td style="text-align:right;font-weight:600">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+pct+'%</td></tr>';}).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sin cobros en el período</td></tr>';
 }
 
 // ── REPORTES ──
@@ -26671,21 +26710,13 @@ function filterDrop(inputId, dropId) {
   var inp = document.getElementById(inputId);
   if (!inp) return;
   var v = inp.value.trim().toLowerCase();
-  if (!v || v.length < 2) { _ocultarDropGlobal(); return; }
+  if (!v) { _ocultarDropGlobal(); return; }
   var matches = (clientesData||[]).filter(function(c){ return (c.nombre||'').toLowerCase().includes(v); });
-
-  // Botón agregar cliente siempre al final
-  var btnAgregar = '<div style="padding:10px 12px;cursor:pointer;border-top:0.5px solid var(--border);font-size:13px;color:var(--blue);display:flex;align-items:center;gap:8px;font-weight:500" ' +
-    'onmousedown="_abrirAltaRapidaCliente(\'' + inputId + '\',\'' + escapeHTML(inp.value.trim()).replace(/'/g,"\\'") + '\')">' +
-    '<i class="ti ti-user-plus"></i> Agregar "' + escapeHTML(inp.value.trim()) + '" como cliente nuevo' +
-    '</div>';
-
+  var btnAgregar = '<div style="padding:10px 12px;cursor:pointer;border-top:0.5px solid var(--border);font-size:13px;color:var(--blue);display:flex;align-items:center;gap:8px;font-weight:500" onmousedown="event.preventDefault();_abrirAltaRapidaCliente(\''+inputId+'\',\''+inp.value.trim().replace(/'/g,"\\'")+'\')"><i class="ti ti-user-plus"></i> Agregar cliente nuevo</div>';
   if (!matches.length) {
-    var html = '<div style="padding:10px 12px;font-size:12px;color:var(--text3)">Sin resultados</div>' + btnAgregar;
-    _mostrarDropGlobal(inp, html);
+    _mostrarDropGlobal(inp, '<div style="padding:8px 12px;font-size:12px;color:var(--text3)">Sin resultados</div>' + btnAgregar);
     return;
   }
-
   var html = matches.slice(0,10).map(function(c) {
     var dir = c.direccion || c.dir || c.domicilio || '';
     var subtext = dir ? '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML(dir)+'</div>' : '';
@@ -26697,9 +26728,7 @@ function filterDrop(inputId, dropId) {
   _mostrarDropGlobal(inp, html);
 }
 
-function selDrop(inputId, dropId, valor) {
-  _gFilterDropSel(inputId, valor);
-}
+function _gFilterDropSel(inputId, valor, fbKey) {
   var inp = document.getElementById(inputId);
   if (inp) inp.value = valor;
   _ocultarDropGlobal();
@@ -26719,34 +26748,33 @@ function selDrop(inputId, dropId, valor) {
   }
 }
 
+function selDrop(inputId, dropId, valor) {
+  _gFilterDropSel(inputId, valor);
+}
+
 function _abrirAltaRapidaCliente(inputOrigen, nombrePrevio) {
   _ocultarDropGlobal();
   var prev = document.getElementById('modal-alta-rapida-cli');
   if (prev) prev.remove();
-
-  // Separar nombre en nombre/apellido si tiene espacio
   var partes = (nombrePrevio||'').trim().split(' ');
   var apellidoPre = partes.length > 1 ? partes.pop() : '';
-  var nombrePre   = partes.join(' ');
-
+  var nombrePre = partes.join(' ');
   var overlay = document.createElement('div');
   overlay.id = 'modal-alta-rapida-cli';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px';
   overlay.innerHTML =
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:500px;box-shadow:0 16px 48px rgba(0,0,0,.5)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border)">' +
-        '<div>' +
-          '<div style="font-weight:700;font-size:15px"><i class="ti ti-user-plus" style="margin-right:8px;color:var(--blue)"></i>Nuevo cliente</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Datos mínimos — podés completar más desde el módulo Clientes</div>' +
-        '</div>' +
+        '<div><div style="font-weight:700;font-size:15px"><i class="ti ti-user-plus" style="margin-right:8px;color:var(--blue)"></i>Nuevo cliente</div>' +
+        '<div style="font-size:12px;color:var(--text3);margin-top:2px">Datos mínimos — completá más desde Clientes</div></div>' +
         '<button onclick="document.getElementById(\'modal-alta-rapida-cli\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px"><i class="ti ti-x"></i></button>' +
       '</div>' +
       '<div style="padding:20px;display:flex;flex-direction:column;gap:12px">' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
-          '<div class="fg"><label>Nombre *</label><input type="text" id="arc-nombre" value="'+escapeHTML(nombrePre)+'" placeholder="Juan" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
-          '<div class="fg"><label>Apellido *</label><input type="text" id="arc-apellido" value="'+escapeHTML(apellidoPre)+'" placeholder="García" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+          '<div class="fg"><label>Nombre</label><input type="text" id="arc-nombre" value="' + escapeHTML(nombrePre) + '" placeholder="Juan" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+          '<div class="fg"><label>Apellido</label><input type="text" id="arc-apellido" value="' + escapeHTML(apellidoPre) + '" placeholder="García" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
         '</div>' +
-        '<div class="fg"><label>Dirección</label><input type="text" id="arc-dir" placeholder="Av. Colón 1234, Mar del Plata" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+        '<div class="fg"><label>Dirección</label><input type="text" id="arc-dir" placeholder="Av. Colón 1234" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
           '<div class="fg"><label>Teléfono</label><input type="tel" id="arc-tel" placeholder="223-xxxxxxx" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
           '<div class="fg"><label>CUIT / DNI</label><input type="text" id="arc-cuit" placeholder="20-12345678-9" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
@@ -26755,12 +26783,9 @@ function _abrirAltaRapidaCliente(inputOrigen, nombrePrevio) {
       '</div>' +
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);display:flex;gap:10px;justify-content:flex-end">' +
         '<button class="btn" onclick="document.getElementById(\'modal-alta-rapida-cli\').remove()">Cancelar</button>' +
-        '<button class="btn btn-primary" onclick="_guardarAltaRapidaCliente(\''+inputOrigen+'\')">' +
-          '<i class="ti ti-check"></i> Guardar y seleccionar' +
-        '</button>' +
+        '<button class="btn btn-primary" onclick="_guardarAltaRapidaCliente(\'' + inputOrigen + '\')"><i class="ti ti-check"></i> Guardar y seleccionar</button>' +
       '</div>' +
     '</div>';
-
   document.body.appendChild(overlay);
   overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
   setTimeout(function(){ var el=document.getElementById('arc-nombre'); if(el) el.focus(); }, 100);
@@ -26769,54 +26794,27 @@ function _abrirAltaRapidaCliente(inputOrigen, nombrePrevio) {
 async function _guardarAltaRapidaCliente(inputOrigen) {
   var nombre   = (document.getElementById('arc-nombre').value||'').trim();
   var apellido = (document.getElementById('arc-apellido').value||'').trim();
-  var dir      = (document.getElementById('arc-dir').value||'').trim();
-  var tel      = (document.getElementById('arc-tel').value||'').trim();
-  var cuit     = (document.getElementById('arc-cuit').value||'').trim();
-  var email    = (document.getElementById('arc-email').value||'').trim();
-
   if (!nombre && !apellido) { notify('Ingresá al menos el nombre'); return; }
-
   var nombreCompleto = [nombre, apellido].filter(Boolean).join(' ');
-
-  // Generar ID incremental
   var maxId = 0;
-  (clientesData||[]).forEach(function(c){
-    var n = parseInt(String(c.id||'').replace(/[^0-9]/g,'')) || 0;
-    if (n > maxId) maxId = n;
-  });
-
+  (clientesData||[]).forEach(function(c){ var n=parseInt(String(c.id||'').replace(/[^0-9]/g,''))||0; if(n>maxId)maxId=n; });
   var nuevo = {
-    id:        String(maxId + 1).padStart(5,'0'),
-    nombre:    nombreCompleto,
-    apellido:  apellido,
-    nombre1:   nombre,
-    direccion: dir,
-    tel:       tel,
-    cuit:      cuit,
-    email:     email,
-    fechaAlta: new Date().toLocaleDateString('es-AR'),
-    ts:        Date.now()
+    id: String(maxId+1).padStart(5,'0'), nombre: nombreCompleto, apellido: apellido, nombre1: nombre,
+    direccion: (document.getElementById('arc-dir').value||'').trim(),
+    tel: (document.getElementById('arc-tel').value||'').trim(),
+    cuit: (document.getElementById('arc-cuit').value||'').trim(),
+    email: (document.getElementById('arc-email').value||'').trim(),
+    fechaAlta: new Date().toLocaleDateString('es-AR'), ts: Date.now()
   };
-
   try {
-    var ref = await window.fbPush(window.fbRef(window.fbDB, 'sisventas/clientes'), nuevo);
+    var ref = await window.fbPush(window.fbRef(window.fbDB,'sisventas/clientes'), nuevo);
     nuevo.fbKey = ref.key;
-
-    // Agregar a clientesData local inmediatamente
-    if (!window.clientesData) window.clientesData = [];
     clientesData.unshift(nuevo);
-
-    // Seleccionar el cliente en el campo de origen
     _gFilterDropSel(inputOrigen, nombreCompleto, nuevo.fbKey);
-
     document.getElementById('modal-alta-rapida-cli').remove();
-    notify('✓ Cliente "' + nombreCompleto + '" creado y seleccionado');
-  } catch(e) {
-    notify('Error al guardar: ' + e.message);
-  }
+    notify('✓ Cliente "'+nombreCompleto+'" creado y seleccionado');
+  } catch(e) { notify('Error: '+e.message); }
 }
-
-
 
 // Cerrar al click fuera — compatibilidad legacy
 document.addEventListener('click', function(e) {
