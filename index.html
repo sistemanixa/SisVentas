@@ -269,9 +269,9 @@ tr:hover td{color:var(--text)}
 .b-purple{background:var(--purple-bg);color:var(--purple)}
 
 /* ── BAR CHART ── */
-.bar-area{display:flex;align-items:flex-end;gap:6px;height:100px;margin-top:16px;padding:12px 4px 0 4px;box-sizing:border-box;touch-action:pan-x pan-y}
-.bc{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0;touch-action:pan-x pan-y}
-.bar{width:100%;background:var(--bg4);border-radius:3px 3px 0 0;cursor:pointer;transition:background .15s;min-height:4px;touch-action:pan-x pan-y}
+.bar-area{display:flex;align-items:flex-end;gap:6px;height:120px;margin-top:8px;padding:0 4px;box-sizing:border-box;touch-action:pan-x pan-y}
+.bc{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;flex:1;min-width:0;height:100%;touch-action:pan-x pan-y}
+.bar{width:100%;background:var(--bg4);border-radius:3px 3px 0 0;cursor:pointer;transition:background .15s,height .3s;min-height:4px;touch-action:pan-x pan-y}
 .bar:hover,.bar.today{background:var(--text)}
 .bar-lbl{font-size:10px;color:var(--text3);white-space:nowrap}
 .bar-lbl.today{color:var(--text);font-weight:600}
@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.254 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.255 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -8814,12 +8814,24 @@ async function emitirNotaCredito(ventaId) {
   var tipoNC = v.factura.tipo === 'FACTURA A' ? 'NOTA DE CREDITO A' : 'NOTA DE CREDITO B';
 
   try {
+    // Calcular importes para la NC — el IVA debe descontarse explícitamente
+    var totalNC   = parseFloat(v.total) || 0;
+    var ivaNC     = parseFloat(v.iva) || 0;
+    var netoNC    = totalNC - ivaNC; // importe neto sin IVA
+
     var resp = await fetch(SISVENTAS_FUNCTIONS.emitirFactura, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Frontend-Key': SISVENTAS_FUNCTIONS.frontendKey },
       body: JSON.stringify({
-        venta: v,
+        venta: Object.assign({}, v, {
+          // Sobreescribir con valores explícitos para que el CF arme la NC correctamente
+          importe_neto:  netoNC,
+          importe_iva:   ivaNC,
+          importe_total: totalNC,
+          iva_incluido:  ivaNC > 0
+        }),
         tipoComprobante: tipoNC,
+        esNotaCredito: true,
         provincia: TFAPP_CONFIG.provincia,
         puntoVenta: TFAPP_CONFIG.punto_venta,
         rubro: TFAPP_CONFIG.rubro,
@@ -9321,7 +9333,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.254-firebase',
+  VERSION: 'v20.255-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
