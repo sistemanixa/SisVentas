@@ -838,6 +838,25 @@ tr:hover td{color:var(--text)}
     window.fbGet         = get;
     window.fbPush        = push;
     window.fbOnValue     = onValue;
+
+// Parche de seguridad: envuelve todos los callbacks de fbOnValue en try/catch
+// para que si alguno lanza una excepción, no bloquee el event loop ni congele el loading.
+(function() {
+  var _fbOnValueOriginal = window.fbOnValue;
+  if (!_fbOnValueOriginal) return;
+  window.fbOnValue = function(ref, callback, options) {
+    var safeCallback = function(snap) {
+      try {
+        callback(snap);
+      } catch(e) {
+        console.error('[SV] Error en callback fbOnValue:', e && e.message, e);
+      }
+    };
+    return _fbOnValueOriginal(ref, safeCallback, options);
+  };
+  console.log('[SV] fbOnValue protegido con try/catch global');
+})();
+
     window.fbUpdate      = update;
     window.fbRemove      = remove;
     window.fbOnDisconnect = onDisconnect;
@@ -884,7 +903,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.215 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.216 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9016,7 +9035,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.215-firebase',
+  VERSION: 'v20.216-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
