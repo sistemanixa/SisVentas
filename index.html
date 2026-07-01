@@ -882,7 +882,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.214 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.204 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4108,7 +4108,7 @@ tr:hover td{color:var(--text)}
               <span class="card-title">Empleados</span>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-sm" onclick="abrirModalHaberesMes()"><i class="ti ti-cash"></i> Registrar haberes del mes</button>
-                <button class="btn btn-sm" onclick="_safeAbrirAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
+                <button class="btn btn-sm" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
                 <button class="btn btn-sm btn-primary" id="btn-nuevo-emp" onclick="abrirModalNuevo('empleado')"><i class="ti ti-plus"></i> Nuevo empleado</button>
               </div>
             </div>
@@ -6294,7 +6294,7 @@ function renderTareasPendientes() {
     var tareas = [];
     if (snap.val()) Object.entries(snap.val()).forEach(function(e){
       tareas.push(Object.assign({ fbKey: e[0] }, e[1]));
-    }).catch(function(){});
+    });
     var disponibles = tareas.filter(function(t){ return t.estado === 'disponible' || t.estado === 'en_curso'; });
     if (!disponibles.length) {
       container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px">Sin OTs pendientes</div>';
@@ -7308,7 +7308,7 @@ function abrirModalHaberesMes() {
       // Footer con total y botón
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">' +
         '<div style="font-size:14px"><span style="color:var(--text3)">Total a registrar:</span> <strong style="font-size:16px" id="hab-total-lbl">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
-        '<button class="btn btn-primary" onclick="_safeConfirmarHaberes()">' +
+        '<button class="btn btn-primary" onclick="confirmarRegistroHaberes()">' +
           '<i class="ti ti-check"></i> Confirmar y registrar gastos' +
         '</button>' +
       '</div>' +
@@ -7556,7 +7556,7 @@ async function abrirModalAguinaldo() {
       '</div>' +
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">' +
         '<div style="font-size:14px"><span style="color:var(--text3)">Total a registrar:</span> <strong style="font-size:16px" id="agu-total-lbl">$' + totalGeneral.toLocaleString('es-AR') + '</strong></div>' +
-        '<button class="btn btn-primary" onclick="_safeConfirmarAguinaldo()"><i class="ti ti-check"></i> Confirmar y registrar gastos</button>' +
+        '<button class="btn btn-primary" onclick="confirmarRegistroAguinaldo()"><i class="ti ti-check"></i> Confirmar y registrar gastos</button>' +
       '</div>' +
     '</div>';
 
@@ -8708,8 +8708,6 @@ function doLogoutAutomatico() {
 }
 
 function _ejecutarLogout() {
-  _loginCompletado = false; // reset guard para el próximo login
-  _sesionYaRestaurada = false;
   // 1. Volver al dashboard ANTES de ocultar la app, para que el próximo
   //    usuario que inicie sesión siempre arranque en dashboard, sin importar
   //    en qué módulo estaba el usuario anterior.
@@ -9005,7 +9003,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.214-firebase',
+  VERSION: 'v20.204-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9414,7 +9412,6 @@ function initMoneyInput(input) {
   input.autocomplete = 'off';
 
   // Valor inicial: lo que ya tenía el input (viene de value="..." en el HTML)
-  input.dataset.moneyInitializing = '1';
   var inicial = parseFloat(input.value) || 0;
   input.dataset.raw = String(inicial);
   if (inicial !== 0) {
@@ -9423,7 +9420,6 @@ function initMoneyInput(input) {
   } else {
     input.value = input.getAttribute('placeholder') ? '' : '0';
   }
-  delete input.dataset.moneyInitializing;
 
   input.addEventListener('keydown', function(e) {
     // El punto (o coma) del teclado numérico marca el inicio de los decimales,
@@ -9438,8 +9434,6 @@ function initMoneyInput(input) {
   });
 
   input.addEventListener('input', function() {
-    // No procesar si el campo se está inicializando (evita disparar oninput inline prematuramente)
-    if (input.dataset.moneyInitializing) return;
     // Solo dejar pasar dígitos; reconstruir el string entero+decimal desde cero
     // a partir de TODOS los dígitos tipeados, para que el separador de miles
     // se recalcule solo (como una calculadora real).
@@ -9618,22 +9612,6 @@ function cargarNotifLeidas() {
 // Firebase Realtime Database no permite los caracteres . # $ [ ] en una key.
 // Los ids de notificación pueden derivar de v.id/ot.id que sí los contienen
 // (ej. ventas con id "#00123"), así que hay que sanitizar antes de usarlos como path.
-
-// Wrappers seguros para funciones async que usan await fbGet —
-// capturan cualquier Promise rechazada sin propagarla al hilo principal.
-function _safeConfirmarHaberes() {
-  confirmarRegistroHaberes().catch(function(e){ notify('Error al registrar haberes: '+(e&&e.message||e)); });
-}
-function _safeAbrirAguinaldo() {
-  abrirModalAguinaldo().catch(function(e){ notify('Error al abrir aguinaldo: '+(e&&e.message||e)); });
-}
-function _safeConfirmarAguinaldo() {
-  confirmarRegistroAguinaldo().catch(function(e){ notify('Error al registrar aguinaldo: '+(e&&e.message||e)); });
-}
-function _safeRecalcularAguinaldo() {
-  recalcularAguinaldo().catch(function(e){ console.warn('Error recalculando aguinaldo:', e); });
-}
-
 function _sanitizarKeyFirebase(id) {
   return String(id||'').replace(/[.#$\[\]]/g, '_');
 }
@@ -9909,7 +9887,7 @@ function _verificarHaberesPendientes() {
     // Ver si hay algún empleado activo sin haberes del mes pasado
     var sinRegistrar = empleados.filter(function(e) {
       return !habData[e.fbKey] || !habData[e.fbKey][mesKey];
-    }).catch(function(){});
+    });
     if (sinRegistrar.length > 0) {
       // Mostrar notificación no intrusiva
       var msg = '⚠️ No se registraron los haberes de ' + mesLbl + ' para ' +
@@ -9923,14 +9901,8 @@ function _verificarHaberesPendientes() {
   }).catch(function(){});
 }
 
-var _loginCompletado = false; // guard: evita que _completarLogin corra dos veces en el mismo login
-
 function _completarLogin(nombre) {
-  if (_loginCompletado) {
-    console.warn('[SV-AUTH] _completarLogin llamado por segunda vez — ignorando duplicado');
-    return;
-  }
-  _loginCompletado = true;
+  currentUser = nombre;
   applyRole();
   registrarPresenciaOnline();
   if (typeof registrarActividad === 'function') registrarActividad('Inicio de sesión', '');
@@ -9997,23 +9969,17 @@ function _completarLogin(nombre) {
   }, 400);
 
   // Iniciar carga de datos
-  var _t0 = Date.now();
-  var _log = function(msg) { console.log('[SV-LOAD ' + (Date.now()-_t0) + 'ms]', msg); };
-  _log('startSessionTimer');
   if (typeof startSessionTimer === 'function') startSessionTimer();
-  _log('actualizarPanelUsuario');
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
-  _log('fbCargarTodo');
   if (typeof fbCargarTodo === 'function') fbCargarTodo();
-  _log('fbCargarTodo OK — programando timeouts...');
-  if (typeof cargarLogoGuardado === 'function') setTimeout(function(){ _log('cargarLogoGuardado'); cargarLogoGuardado(); }, 300);
-  if (typeof cargarConfigGeneral === 'function') setTimeout(function(){ _log('cargarConfigGeneral'); cargarConfigGeneral(); }, 350);
-  if (typeof cargarConfigImpuestos === 'function') setTimeout(function(){ _log('cargarConfigImpuestos'); cargarConfigImpuestos(); }, 350);
-  if (typeof cargarConfigComisiones === 'function') setTimeout(function(){ _log('cargarConfigComisiones①'); cargarConfigComisiones(); }, 350);
-  if (typeof cargarConfigLogin === 'function') setTimeout(function(){ _log('cargarConfigLogin'); cargarConfigLogin(); }, 350);
-  if (typeof inicializarFlujoVentas === 'function') setTimeout(function(){ _log('inicializarFlujoVentas'); inicializarFlujoVentas(); }, 4000);
-  if (typeof iaInicializar === 'function') setTimeout(function(){ _log('iaInicializar'); iaInicializar(); }, 1000);
-  if (typeof chatInicializar === 'function') setTimeout(function(){ _log('chatInicializar'); chatInicializar(); }, 1500);
+  if (typeof cargarLogoGuardado === 'function') setTimeout(cargarLogoGuardado, 300);
+  if (typeof cargarConfigGeneral === 'function') setTimeout(cargarConfigGeneral, 350);
+  if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
+  if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
+  if (typeof cargarConfigLogin === 'function') setTimeout(cargarConfigLogin, 350);
+  if (typeof inicializarFlujoVentas === 'function') setTimeout(inicializarFlujoVentas, 4000);
+  if (typeof iaInicializar === 'function') setTimeout(iaInicializar, 1000);
+  if (typeof chatInicializar === 'function') setTimeout(chatInicializar, 1500);
   // Mostrar FAB solo en mobile
   setTimeout(function(){
     if (window.innerWidth <= 1024) {
@@ -10021,23 +9987,19 @@ function _completarLogin(nombre) {
       if (fab) fab.style.display = 'flex';
     }
   }, 1200);
-  if (typeof cargarCargos === 'function') setTimeout(function(){ _log('cargarCargos①'); cargarCargos(); }, 350);
-  if (typeof cargarPresenciaUsuarios === 'function') setTimeout(function(){ _log('cargarPresenciaUsuarios'); cargarPresenciaUsuarios(); }, 350);
-  if (typeof spCargar === 'function') setTimeout(function(){ _log('spCargar'); spCargar(); }, 400);
-  if (typeof fbCargarVacaciones === 'function') setTimeout(function(){ _log('fbCargarVacaciones'); fbCargarVacaciones(); }, 400);
-  if (typeof cfCargar === 'function') setTimeout(function(){ _log('cfCargar'); cfCargar(); }, 450);
-  if (typeof fvCargar === 'function') setTimeout(function(){ _log('fvCargar'); fvCargar(); }, 450);
-  if (typeof cargarCargos === 'function') setTimeout(function(){ _log('cargarCargos②'); cargarCargos(); }, 450);
-  if (typeof chequearActualizacionAutoDolar === 'function') setTimeout(function(){ _log('chequearActualizacionAutoDolar'); chequearActualizacionAutoDolar(); }, 500);
-  if (typeof cargarPermisosRoles === 'function') setTimeout(function(){
-    _log('cargarPermisosRoles+cargarDashWidgets');
-    cargarPermisosRoles(); cargarDashWidgets(); setTimeout(function(){ _log('applyRole'); applyRole(); }, 400);
-  }, 400);
-  if (typeof cargarConfigComisiones === 'function') setTimeout(function(){ _log('cargarConfigComisiones②'); cargarConfigComisiones(); }, 600);
+  if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 350);
+  if (typeof cargarPresenciaUsuarios === 'function') setTimeout(cargarPresenciaUsuarios, 350);
+  if (typeof spCargar === 'function') setTimeout(spCargar, 400);
+  if (typeof fbCargarVacaciones === 'function') setTimeout(fbCargarVacaciones, 400);
+  if (typeof cfCargar === 'function') setTimeout(cfCargar, 450);
+  if (typeof fvCargar === 'function') setTimeout(fvCargar, 450);
+  if (typeof cargarCargos === 'function') setTimeout(cargarCargos, 450);
+  if (typeof chequearActualizacionAutoDolar === 'function') setTimeout(chequearActualizacionAutoDolar, 500);
+  if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); cargarDashWidgets(); setTimeout(applyRole, 400); }, 400);
+  if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
 
   // Mostrar app después de ~2.5 segundos (tiempo de carga de Firebase)
   setTimeout(function() {
-    _log('⭐ TIMEOUT FINAL DISPARADO — revelando app');
     clearInterval(iv);
     if (bar) bar.style.width = '100%';
     if (msg) msg.textContent = '¡Listo!';
@@ -12317,7 +12279,7 @@ function cargarPermisosRoles() {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/permisos')).then(function(snap) {
     var data = snap.val();
     if (data) Object.assign(PERMISOS_ROLES, data);
-  }).catch(function(){});
+  });
 }
 
 function renderTablaRoles() {
@@ -14298,7 +14260,7 @@ function chequearActualizacionAutoDolar() {
     if (Date.now() - ultima > unDiaMs) {
       actualizarDolarAPI(true); // silencioso, sin notificación molesta
     }
-  }).catch(function(){});
+  });
 }
 
 function guardarPreferenciasSistema(btn) {
@@ -14357,7 +14319,7 @@ function cargarConfigImpuestos() {
     _v('imp-percepcion', d.percepcionIva);
     _v('imp-retencion', d.retencionGanancias);
     if (d.condicionFiscal) _v('imp-condicion', d.condicionFiscal);
-  }).catch(function(){});
+  });
 }
 
 function guardarConfiguracion(btn) {
@@ -14380,7 +14342,7 @@ function cargarConfigGeneral() {
     _v('cfg-empresa-tel', d.tel);
     _v('cfg-empresa-email', d.email);
     _v('cfg-empresa-web', d.web);
-  }).catch(function(){});
+  });
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tipoCambio')).then(function(snap) {
     var d = snap.val(); if (!d) return;
     window.TIPO_CAMBIO_CONFIG = d;
@@ -14405,7 +14367,7 @@ function cargarConfigGeneral() {
     var dv = document.getElementById('cfg-dias-venc');
     if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
     window._diasVencimientoConfig = d.diasVencimiento || 15;
-  }).catch(function(){});
+  });
 }
 
 // ── LOGO EMPRESA ──
@@ -15446,7 +15408,7 @@ function cargarCtaEmp(empFbKey) {
   var TIPOS_GASTOS_EMP = ['gasto_empresa','transporte','materiales','otro'];
 
   window._ctaEmpUnsubscribe && window._ctaEmpUnsubscribe();
-  window._ctaEmpUnsubscribe = window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey), function(snap) {
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey), function(snap) {
     var data = snap.val();
     var ctaMovs = data ? Object.entries(data).map(function(e){
       return Object.assign({ fbKey: e[0], _fuente: 'ctaemp' }, e[1]);
@@ -25653,7 +25615,7 @@ function cargarConfigComisiones() {
       var panel = document.getElementById('cfg-comisiones');
       if (panel && panel.style.display !== 'none') renderComisionesConfig();
     }
-  }).catch(function(){});
+  });
 }
 
 function guardarHorasExtra(btn) {
@@ -25973,13 +25935,13 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
       </div>
     </td>
     <td><span class="desc-txt" style="font-size:13px;color:var(--text2)">${escapeHTML(desc)}</span></td>
-    <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right;background:var(--bg);color:var(--text);border:0.5px solid var(--border3);border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;outline:none"></td>
+    <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right"></td>
     <td class="stock-cell" style="text-align:right;white-space:nowrap;max-width:90px;background:inherit"><span class="stock-ind" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis">${stockBadge}</span></td>
-    <td><input value="${precio||0}" data-money="1" class="price" oninput="calcRow(this)" style="width:80px;text-align:right;background:var(--bg);color:var(--text);border:0.5px solid var(--border3);border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;outline:none"></td>
+    <td><input value="${precio||0}" data-money="1" class="price" oninput="calcRow(this)" style="width:80px;text-align:right"></td>
     <td style="text-align:right;white-space:nowrap">
       <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px">
         <input type="number" value="${dp||''}" class="disc" placeholder="0" min="0" max="100" oninput="calcRow(this)"
-          style="width:44px;text-align:right;border:0.5px solid var(--border3);border-radius:4px;background:var(--bg);color:${dp>0?'var(--green)':'var(--text3)'};font-size:13px;font-family:inherit;padding:4px 6px;outline:none">
+          style="width:44px;text-align:right;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:${dp>0?'var(--green)':'var(--text3)'};font-size:12px;font-family:inherit;padding:2px 4px">
         <span style="font-size:11px;color:var(--text3)">%</span>
       </div>
     </td>
@@ -26754,43 +26716,19 @@ function actualizarResumenStock() {
   DEBUG
 </button>
 <script>
-// Panel debug — muestra errores en pantalla para diagnóstico
-window.onerror = function(msg, src, line, col, err) {
+// Panel debug — solo errores rojos
+window.onerror = function(msg, src, line, col) {
   const log = document.getElementById('debug-log');
   if(log) {
-    log.innerHTML += '<div style="color:red;border-bottom:1px solid #333;padding:2px 0">❌ '+msg+'<br><span style="color:#888">L'+line+':'+col+' — '+src+'</span></div>';
-  }
-  // Si el error ocurre durante el loading, mostrarlo directamente en pantalla
-  var loadMsg = document.getElementById('loading-msg');
-  var loadingEl = document.getElementById('screen-loading');
-  if (loadMsg && loadingEl && loadingEl.style.display !== 'none') {
-    loadMsg.innerHTML = '<span style="color:#e53">⚠️ Error: '+msg+'<br><small>Línea '+line+' — '+String(src).split('/').pop()+'</small></span>';
-    loadMsg.style.display = 'block';
+    log.innerHTML += '<div style="color:red;border-bottom:1px solid #333;padding:2px 0">❌ '+msg+'<br><span style="color:#888">L'+line+':'+col+'</span></div>';
+    // Panel oculto por defecto — activar manualmente si se necesita debug
   }
 };
 
-// Capturar también Promises no manejadas
-window.addEventListener('unhandledrejection', function(e) {
-  var msg = e.reason ? (e.reason.message || String(e.reason)) : 'Promise rechazada';
-  console.warn('[SisVentas] Promise no capturada:', msg);
-  // CRÍTICO: prevenir que el error congele el hilo principal
-  e.preventDefault();
-  // Solo mostrar en pantalla si NO es un error esperado de permisos Firebase
-  // (esos ocurren cuando un path nuevo aún no está en las reglas de Realtime DB)
-  if (!msg.includes('Permission denied') && !msg.includes('permission_denied')) {
-    var loadMsg = document.getElementById('loading-msg');
-    var loadingEl = document.getElementById('screen-loading');
-    if (loadMsg && loadingEl && loadingEl.style.display !== 'none') {
-      loadMsg.innerHTML = '<span style="color:var(--amber)">⚠️ '+msg+'</span>';
-    }
-  }
-});
-
 // Inicializar formato calculadora en todos los inputs de monto estáticos del HTML
-// después de que la app termine de cargar (diferido para no interferir con el login/loading).
-if (typeof initMoneyInputsEn === 'function') {
-  setTimeout(function() { initMoneyInputsEn(document); }, 3000);
-}
+// (los que se crean dinámicamente con innerHTML, como filas de venta/presupuesto,
+// se inicializan aparte con initMoneyInputsEn justo después de insertarse).
+if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 </script>
 
 
