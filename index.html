@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.263 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.264 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4754,6 +4754,23 @@ tr:hover td{color:var(--text)}
       <div class="metric"><div class="m-label">Haberes</div><div class="m-value" id="ctaemp-haberes" style="color:var(--green)">$0</div><div class="m-sub">sueldo + comisiones + h.extra</div></div>
       <div class="metric"><div class="m-label">Adelantos</div><div class="m-value" id="ctaemp-adelantos" style="color:var(--red)">$0</div><div class="m-sub">descontados del total</div></div>
       <div class="metric"><div class="m-label">Total a cobrar</div><div class="m-value" id="ctaemp-total" style="color:var(--text)">$0</div><div class="m-sub" id="ctaemp-periodo">—</div></div>
+      </div>
+
+      <!-- Pagos realizados al empleado -->
+      <div class="card" id="ctaemp-pagos-card" style="display:none;margin-bottom:12px">
+      <div class="card-head">
+      <span class="card-title"><i class="ti ti-cash-banknote"></i> Pagos realizados</span>
+      <span id="ctaemp-pagos-resumen" style="font-size:12px;color:var(--text3)">—</span>
+      </div>
+      <div class="table-wrap">
+      <table style="table-layout:fixed;width:100%">
+      <colgroup>
+      <col style="width:90px"><col><col style="width:110px"><col style="width:110px"><col style="width:110px"><col style="width:90px">
+      </colgroup>
+      <thead><tr><th>Fecha</th><th>Concepto</th><th class="tr">Monto</th><th>Medio</th><th>Usuario</th><th class="tr">Comprobante</th></tr></thead>
+      <tbody id="ctaemp-pagos-tbody"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:18px">Sin pagos registrados</td></tr></tbody>
+      </table>
+      </div>
       </div>
 
       <!-- Tabla de movimientos -->
@@ -9406,7 +9423,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.263-firebase',
+  VERSION: 'v20.264-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -16146,7 +16163,9 @@ function cargarCtaEmp(empFbKey) {
         descripcion: g.descripcion || g.desc || g.detalle || '',
         desc:       g.descripcion || g.desc || g.detalle || '',
         fecha:      g.fecha || '',
-        estado:     g.estado || 'pagado',
+        estado:     normalizarEstadoGasto(g),
+        montoPagado: parseFloat(g.montoPagado)||0,
+        pagos:      g.pagos || {},
         gastoFbKey: g.fbKey,
         ts:         g.ts || 0,
         _fuente:    'gastos'
@@ -16211,6 +16230,70 @@ function renderComisionesDelMes(emp) {
   document.getElementById('ctaemp-com-pendiente').textContent = '$' + Math.round(totalPendiente).toLocaleString('es-AR');
 }
 
+
+function _movEmpPagosArray(m) {
+  var pagos = m && m.pagos ? m.pagos : {};
+  if (Array.isArray(pagos)) return pagos.map(function(p,i){ p._idx=i; return p; });
+  return Object.keys(pagos).map(function(k){ var p = pagos[k] || {}; p._key = k; return p; }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+}
+
+function _renderPagosRealizadosEmp(listaPeriodo) {
+  var card = document.getElementById('ctaemp-pagos-card');
+  var tbody = document.getElementById('ctaemp-pagos-tbody');
+  var resumen = document.getElementById('ctaemp-pagos-resumen');
+  if (!card || !tbody) return;
+  var pagos = [];
+  (listaPeriodo || []).forEach(function(m){
+    _movEmpPagosArray(m).forEach(function(p, idx){
+      pagos.push({
+        mov: m,
+        pago: p,
+        idx: idx,
+        fecha: p.fecha || m.fechaPago || m.fecha || '',
+        monto: parseFloat(p.monto) || 0,
+        medio: p.medio || m.medioPago || '',
+        usuario: p.usuario || m.usuarioPago || m.usuario || '',
+        comprobante: p.comprobante || null,
+        concepto: m.descripcion || m.desc || m.detalle || ''
+      });
+    });
+  });
+  card.style.display = '';
+  if (!pagos.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:18px">Sin pagos registrados en este período</td></tr>';
+    if (resumen) resumen.textContent = '0 pagos';
+    return;
+  }
+  pagos.sort(function(a,b){ return (b.pago.ts||0)-(a.pago.ts||0); });
+  var total = pagos.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
+  if (resumen) resumen.textContent = pagos.length + ' pago' + (pagos.length!==1?'s':'') + ' · $' + Math.round(total).toLocaleString('es-AR');
+  tbody.innerHTML = pagos.map(function(x){
+    var compBtn = x.comprobante && x.comprobante.data
+      ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();abrirComprobanteMovEmp(\''+x.mov.fbKey+'\','+x.idx+')" title="Ver comprobante"><i class="ti ti-paperclip" style="font-size:14px;color:var(--blue)"></i></button>'
+      : '<span style="color:var(--text3);font-size:11px">—</span>';
+    var concepto = x.concepto || ({sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',gasto_empresa:'Gasto empresa'}[x.mov.tipo] || x.mov.tipo || 'Movimiento');
+    return '<tr>'+
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML((x.fecha||'').split('-').reverse().join('/')||'—')+'</td>'+
+      '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(concepto)+'</td>'+
+      '<td class="tr" style="font-weight:600;color:var(--green)">$'+Math.round(x.monto).toLocaleString('es-AR')+'</td>'+
+      '<td>'+escapeHTML(x.medio||'—')+'</td>'+
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(x.usuario||'—')+'</td>'+
+      '<td class="tr">'+compBtn+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function abrirComprobanteMovEmp(movFbKey, idx) {
+  var mov = (movsEmpData||[]).find(function(m){ return m.fbKey === movFbKey; });
+  var pagos = _movEmpPagosArray(mov);
+  var comp = pagos[idx] && pagos[idx].comprobante;
+  if (!comp || !comp.data) { notify('Ese pago no tiene comprobante adjunto'); return; }
+  var w = window.open('', '_blank');
+  if (!w) { notify('El navegador bloqueó la ventana del comprobante'); return; }
+  if ((comp.tipo||'').includes('pdf')) w.document.write('<iframe src="'+comp.data+'" style="border:0;width:100%;height:100vh"></iframe>');
+  else w.document.write('<img src="'+comp.data+'" style="max-width:100%;height:auto;display:block;margin:0 auto;background:#111">');
+}
+
 function renderMovsEmp() {
   var tbody = document.getElementById('ctaemp-tbody');
   if (!tbody) return;
@@ -16221,6 +16304,7 @@ function renderMovsEmp() {
     var fechaMov = m.fecha || m.mes || '';
     return (!filtroTipo || m.tipo === filtroTipo) && (!filtroEstado || m.estado === filtroEstado) && (!mesCta || _fechaEnMes(fechaMov, mesCta) || String(m.mes||'') === mesCta);
   });
+  _renderPagosRealizadosEmp(lista);
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin movimientos registrados</td></tr>';
   } else {
@@ -22456,6 +22540,8 @@ function renderTablaGastos() {
     var btnPagar = estadoNorm!=='pagado'
       ? '<button class="btn btn-sm btn-icon" onclick="abrirPagoGasto(\''+g.fbKey+'\')" title="Registrar pago" style="color:var(--green)"><i class="ti ti-cash" style="font-size:14px"></i></button>'
       : '';
+    var pagosCount = _gastoPagosArray(g).length;
+    var btnPagos = '<button class="btn btn-sm btn-icon" onclick="verPagosGasto(\''+g.fbKey+'\')" title="Ver pagos y comprobantes" style="color:'+(pagosCount?'var(--blue)':'var(--text3)')+'"><i class="ti ti-files" style="font-size:14px"></i></button>';
     var bulkTd = _gastosPagoMultipleActivo
       ? '<td style="text-align:center">'+(gastoSeleccionableParaPago(g) ? '<input type="checkbox" '+(_gastosSeleccionadosPago[g.fbKey]?'checked':'')+' onchange="toggleSeleccionGastoPago(\''+g.fbKey+'\',this.checked)">' : '')+'</td>'
       : '';
@@ -22469,7 +22555,7 @@ function renderTablaGastos() {
       '<td class="tr" style="font-size:12px;color:'+(g.vencimiento&&g.vencimiento<new Date().toISOString().split('T')[0]?'var(--red)':'var(--text3)')+'">'+venc+'</td>' +
       '<td class="tr">'+estBadge(g)+'</td>' +
       '<td class="tr">'+pagoPor+'</td>' +
-      '<td style="white-space:nowrap">'+btnPagar+
+      '<td style="white-space:nowrap">'+btnPagar+btnPagos+
         '<button class="btn btn-sm btn-icon" onclick="abrirFormGasto(\''+g.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>'+
         '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'gastos\',\''+g.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>'+
       '</td>' +
@@ -22872,6 +22958,12 @@ function confirmarPagoGasto() {
   });
 
   if (!promesas.length) { notify('No hay saldo pendiente para pagar'); return; }
+  if (loteKey && window.fbDB) {
+    var gastosIncluidos = keys.map(function(k){ var g = (gastosData||[]).find(function(x){ return x.fbKey===k; }) || {}; return { gastoFbKey:k, descripcion:g.descripcion||'', monto:parseFloat(g.monto)||0, saldoPagado:Math.min(restoGasto(g), montoNuevo) }; });
+    window.fbSet(window.fbRef(window.fbDB, 'sisventas/pagos_realizados/' + loteKey), {
+      fecha:new Date().toISOString().slice(0,10), ts:Date.now(), medio:medio, monto:montoNuevo, usuario:currentUser||'', rol:currentRole||'', comprobante:_pagoGastoComprobante||null, gastos:gastosIncluidos
+    }).catch(function(){});
+  }
   Promise.all(promesas).then(function(){
     notify(keys.length > 1 ? '✓ Pago múltiple registrado' : '✓ Pago registrado');
     document.getElementById('modal-pago-gasto').style.display = 'none';
@@ -28048,7 +28140,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.263</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.264</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
