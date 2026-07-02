@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.262 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.263 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4369,17 +4369,27 @@ tr:hover td{color:var(--text)}
           <option value="pagado_parcial">Pago parcial</option>
           <option value="pagado">Pagado</option>
         </select>
+        <button class="btn btn-sm" id="btn-gastos-multiple" onclick="togglePagoMultipleGastos()"><i class="ti ti-checklist"></i> Pago múltiple</button>
         <button class="btn btn-sm btn-primary" onclick="abrirFormGasto(null)"><i class="ti ti-plus"></i> Nuevo gasto</button>
+      </div>
+    </div>
+    <div id="gas-pago-multiple-bar" style="display:none;margin:0 0 12px;padding:10px 12px;background:var(--blue-bg);border:0.5px solid var(--blue);border-radius:var(--radius);align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div style="font-size:13px;color:var(--blue)"><i class="ti ti-checklist"></i> Seleccioná gastos pendientes para pagarlos juntos. <strong id="gas-multi-resumen">0 seleccionados · $0</strong></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="seleccionarTodosGastosVisibles()">Seleccionar visibles</button>
+        <button class="btn btn-sm" onclick="cancelarPagoMultipleGastos()">Cancelar</button>
+        <button class="btn btn-sm btn-primary" onclick="abrirPagoMultipleGastos()"><i class="ti ti-cash"></i> Pagar seleccionados</button>
       </div>
     </div>
     <div class="table-wrap">
       <table>
         <thead><tr>
+          <th id="gas-bulk-head" style="display:none;width:32px"></th>
           <th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Tipo</th>
           <th class="tr">Monto</th><th class="tr">Pagado</th><th class="tr">Vencimiento</th>
           <th class="tr">Estado</th><th class="tr">Pagó</th><th></th>
         </tr></thead>
-        <tbody id="gastos-tbody"><tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr></tbody>
+        <tbody id="gastos-tbody"><tr><td colspan="11" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr></tbody>
       </table>
     </div>
     <div class="flex-end" style="margin-top:12px">
@@ -9396,7 +9406,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.262-firebase',
+  VERSION: 'v20.263-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -22301,23 +22311,119 @@ function actualizarMetricasGastos() {
   }
 }
 
-function renderTablaGastos() {
-  var tbody = document.getElementById('gastos-tbody');
-  if (!tbody) return;
-  var busq    = ((document.getElementById('gas-f-tipo')||{}).parentElement ? '' : '');
+
+var _gastosPagoMultipleActivo = false;
+var _gastosSeleccionadosPago = {};
+var _gastoPagoMultipleKeys = [];
+
+function normalizarEstadoGasto(g) {
+  var monto = parseFloat(g && g.monto) || 0;
+  var pagado = parseFloat(g && g.montoPagado) || 0;
+  if (monto > 0 && pagado >= monto) return 'pagado';
+  if (pagado > 0) return 'pagado_parcial';
+  var est = String((g && g.estado) || '').toLowerCase().trim().replace(/\s+/g,'_');
+  if (est === 'pago_parcial' || est === 'parcial') return 'pagado_parcial';
+  if (est === 'pagado' || est === 'pago_total') return 'pagado';
+  return 'pendiente';
+}
+
+function normalizarTipoGasto(g) {
+  var t = String((g && g.tipo) || '').toLowerCase().trim();
+  if (t === 'fijo') return 'Fijo';
+  if (t === 'compra') return 'Compra';
+  if (t === 'variable') return 'Variable';
+  return (g && g.tipo) || 'Variable';
+}
+
+function restoGasto(g) {
+  return Math.max(0, (parseFloat(g && g.monto)||0) - (parseFloat(g && g.montoPagado)||0));
+}
+
+function gastoSeleccionableParaPago(g) {
+  return normalizarEstadoGasto(g) !== 'pagado' && restoGasto(g) > 0;
+}
+
+function togglePagoMultipleGastos() {
+  _gastosPagoMultipleActivo = !_gastosPagoMultipleActivo;
+  if (!_gastosPagoMultipleActivo) _gastosSeleccionadosPago = {};
+  renderTablaGastos();
+}
+
+function cancelarPagoMultipleGastos() {
+  _gastosPagoMultipleActivo = false;
+  _gastosSeleccionadosPago = {};
+  renderTablaGastos();
+}
+
+function toggleSeleccionGastoPago(fbKey, checked) {
+  if (checked) _gastosSeleccionadosPago[fbKey] = true;
+  else delete _gastosSeleccionadosPago[fbKey];
+  actualizarResumenPagoMultiple();
+}
+
+function gastosFiltradosActuales() {
   var fTipo   = (document.getElementById('gas-f-tipo')||{}).value   || '';
   var fEstado = (document.getElementById('gas-f-estado')||{}).value || '';
-  var fBusq   = '';
-  // buscar el input de búsqueda en el card-head
   var inp = document.querySelector('#gasto-list input.search-input');
-  if (inp) fBusq = inp.value.toLowerCase();
-
-  var lista = gastosData.filter(function(g){
-    var matchTipo   = !fTipo   || g.tipo   === fTipo;
-    var matchEstado = !fEstado || g.estado === fEstado;
+  var fBusq = inp ? String(inp.value||'').toLowerCase() : '';
+  return (gastosData||[]).filter(function(g){
+    var tipoNorm = normalizarTipoGasto(g);
+    var estadoNorm = normalizarEstadoGasto(g);
+    var matchTipo   = !fTipo   || tipoNorm === fTipo;
+    var matchEstado = !fEstado || estadoNorm === fEstado;
     var matchBusq   = !fBusq  || (g.descripcion||'').toLowerCase().includes(fBusq) || (g.categoria||'').toLowerCase().includes(fBusq);
     return matchTipo && matchEstado && matchBusq;
   });
+}
+
+function actualizarResumenPagoMultiple() {
+  var keys = Object.keys(_gastosSeleccionadosPago||{});
+  var total = keys.reduce(function(s,k){
+    var g = (gastosData||[]).find(function(x){ return x.fbKey === k; });
+    return s + (g ? restoGasto(g) : 0);
+  }, 0);
+  var el = document.getElementById('gas-multi-resumen');
+  if (el) el.textContent = keys.length + ' seleccionado' + (keys.length!==1?'s':'') + ' · $' + Math.round(total).toLocaleString('es-AR');
+  var btn = document.getElementById('btn-gastos-multiple');
+  if (btn) {
+    btn.className = _gastosPagoMultipleActivo ? 'btn btn-sm btn-primary' : 'btn btn-sm';
+    btn.innerHTML = _gastosPagoMultipleActivo ? '<i class="ti ti-x"></i> Salir pago múltiple' : '<i class="ti ti-checklist"></i> Pago múltiple';
+  }
+}
+
+function seleccionarTodosGastosVisibles() {
+  gastosFiltradosActuales().forEach(function(g){ if (gastoSeleccionableParaPago(g)) _gastosSeleccionadosPago[g.fbKey] = true; });
+  renderTablaGastos();
+}
+
+function abrirPagoMultipleGastos() {
+  var keys = Object.keys(_gastosSeleccionadosPago||{}).filter(function(k){
+    var g = (gastosData||[]).find(function(x){ return x.fbKey === k; });
+    return g && gastoSeleccionableParaPago(g);
+  });
+  if (!keys.length) { notify('Seleccioná al menos un gasto pendiente'); return; }
+  _gastoFbKeyPago = null;
+  _gastoPagoMultipleKeys = keys;
+  _pagoGastoComprobante = null;
+  var total = keys.reduce(function(s,k){ var g = (gastosData||[]).find(function(x){ return x.fbKey === k; }); return s + restoGasto(g); }, 0);
+  var inpComp = document.getElementById('mpg-comprobante-input');
+  var lblComp = document.getElementById('mpg-comprobante-lbl');
+  if (inpComp) inpComp.value = '';
+  if (lblComp) lblComp.textContent = 'Opcional: adjuntar transferencia / ticket';
+  document.getElementById('mpg-titulo').textContent = 'Pago múltiple: ' + keys.length + ' gastos  (total $' + Math.round(total).toLocaleString('es-AR') + ')';
+  _setMontoInput(document.getElementById('mpg-monto'), total);
+  document.getElementById('modal-pago-gasto').style.display = 'flex';
+}
+
+function renderTablaGastos() {
+  var tbody = document.getElementById('gastos-tbody');
+  if (!tbody) return;
+  var lista = gastosFiltradosActuales();
+  var bar = document.getElementById('gas-pago-multiple-bar');
+  var head = document.getElementById('gas-bulk-head');
+  if (bar) bar.style.display = _gastosPagoMultipleActivo ? 'flex' : 'none';
+  if (head) head.style.display = _gastosPagoMultipleActivo ? '' : 'none';
+  actualizarResumenPagoMultiple();
 
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr>';
@@ -22326,8 +22432,9 @@ function renderTablaGastos() {
 
   var estBadge = function(g) {
     var resta = (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0);
-    if (g.estado==='pagado')         return '<span class="badge b-green">Pagado</span>';
-    if (g.estado==='pagado_parcial') return '<span class="badge b-amber">Parcial</span>';
+    var estadoNorm = normalizarEstadoGasto(g);
+    if (estadoNorm==='pagado')         return '<span class="badge b-green">Pagado</span>';
+    if (estadoNorm==='pagado_parcial') return '<span class="badge b-amber">Parcial</span>';
     // Verificar si está vencido
     var hoy = new Date().toISOString().split('T')[0];
     if (g.vencimiento && g.vencimiento < hoy) return '<span class="badge b-red">Vencido</span>';
@@ -22337,17 +22444,22 @@ function renderTablaGastos() {
   tbody.innerHTML = lista.map(function(g) {
     var fecha = (g.fecha||'').split('-').reverse().join('/');
     var venc  = g.vencimiento ? g.vencimiento.split('-').reverse().join('/') : '—';
-    var resta = (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0);
-    var tipoBadge = g.tipo==='Fijo' ? '<span class="badge b-blue">Fijo</span>'
-                  : g.tipo==='Compra' ? '<span class="badge b-purple">Compra</span>'
+    var resta = restoGasto(g);
+    var tipoNorm = normalizarTipoGasto(g);
+    var estadoNorm = normalizarEstadoGasto(g);
+    var tipoBadge = tipoNorm==='Fijo' ? '<span class="badge b-blue">Fijo</span>'
+                  : tipoNorm==='Compra' ? '<span class="badge b-purple">Compra</span>'
                   : '<span class="badge b-amber">Variable</span>';
     var pagoPor = g.empleadoId
       ? '<span title="Pagó: '+escapeHTML(g.empleadoNombre||'Técnico')+'" style="color:var(--blue);font-size:12px"><i class="ti ti-user"></i> '+escapeHTML((g.empleadoNombre||'').split(' ')[0])+'</span>'
       : '<span style="color:var(--text3);font-size:12px">Empresa</span>';
-    var btnPagar = g.estado!=='pagado'
+    var btnPagar = estadoNorm!=='pagado'
       ? '<button class="btn btn-sm btn-icon" onclick="abrirPagoGasto(\''+g.fbKey+'\')" title="Registrar pago" style="color:var(--green)"><i class="ti ti-cash" style="font-size:14px"></i></button>'
       : '';
-    return '<tr>' +
+    var bulkTd = _gastosPagoMultipleActivo
+      ? '<td style="text-align:center">'+(gastoSeleccionableParaPago(g) ? '<input type="checkbox" '+(_gastosSeleccionadosPago[g.fbKey]?'checked':'')+' onchange="toggleSeleccionGastoPago(\''+g.fbKey+'\',this.checked)">' : '')+'</td>'
+      : '';
+    return '<tr>' + bulkTd +
       '<td style="color:var(--text3);font-size:12px">'+fecha+'</td>' +
       '<td style="font-weight:500">'+escapeHTML(g.descripcion||'—')+'</td>' +
       '<td style="color:var(--text3);font-size:12px">'+escapeHTML(g.categoria||'—')+'</td>' +
@@ -22682,19 +22794,44 @@ function generarComisionesVenta(venta, montoCobrado) {
   });
 }
 
-function confirmarPagoGasto() {
-  var g = gastosData.find(function(x){ return x.fbKey===_gastoFbKeyPago; });
-  if (!g) return;
-  var montoNuevo = getMontoRaw(document.getElementById('mpg-monto'));
-  var medio = document.getElementById('mpg-medio').value;
+function _actualizarCtaEmpPorPagoGasto(g, fbKey, montoTotal, nuevoPagado, nuevoEstado, medio, pagoKey, pago) {
+  if (!g || !g.empleadoId || !window.fbDB) return;
+  if (nuevoEstado==='pagado') window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+fbKey), { reembolsado: true });
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId))
+    .then(function(snap) {
+      var movs = snap.val();
+      if (!movs) return;
+      Object.entries(movs).forEach(function(entry) {
+        var key = entry[0]; var mov = entry[1];
+        var esElMov = mov.gastoFbKey === fbKey ||
+          (Math.abs((parseFloat(mov.monto)||0) - montoTotal) < 1 &&
+           mov.estado !== 'pagado' &&
+           (mov.tipo === 'sueldo' || mov.tipo === 'gasto_empresa' || mov.tipo === 'transporte'));
+        if (esElMov) {
+          var updMov = {
+            estado: nuevoEstado === 'pagado' ? 'pagado' : 'pagado_parcial',
+            fechaPago: new Date().toISOString().slice(0,10),
+            medioPago: medio,
+            montoPagado: nuevoPagado
+          };
+          updMov['pagos/' + pagoKey] = pago;
+          window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId + '/' + key), updMov);
+        }
+      });
+    }).catch(function(){});
+}
+
+function _registrarPagoGastoUnitario(fbKey, montoNuevo, medio, comprobante, loteKey) {
+  var g = (gastosData||[]).find(function(x){ return x.fbKey===fbKey; });
+  if (!g || !window.fbDB) return Promise.resolve(false);
   var montoTotal = parseFloat(g.monto)||0;
   var pagadoActual = parseFloat(g.montoPagado)||0;
   var resta = Math.max(0, montoTotal - pagadoActual);
-  if (!montoNuevo || montoNuevo <= 0) { notify('Ingresá un monto válido'); return; }
+  if (!montoNuevo || montoNuevo <= 0 || resta <= 0) return Promise.resolve(false);
   if (montoNuevo > resta) montoNuevo = resta;
   var nuevoPagado = pagadoActual + montoNuevo;
   var nuevoEstado = nuevoPagado >= montoTotal ? 'pagado' : 'pagado_parcial';
-  var pagoKey = 'pago_' + Date.now();
+  var pagoKey = 'pago_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
   var pago = {
     fecha: new Date().toISOString().slice(0,10),
     ts: Date.now(),
@@ -22702,42 +22839,46 @@ function confirmarPagoGasto() {
     medio: medio,
     usuario: currentUser || '',
     rol: currentRole || '',
-    comprobante: _pagoGastoComprobante || null
+    lotePagoKey: loteKey || null,
+    comprobante: comprobante || null
   };
   var upd = { montoPagado: nuevoPagado, estado: nuevoEstado, medio: medio };
   upd['pagos/' + pagoKey] = pago;
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+_gastoFbKeyPago), upd).then(function(){
-    notify('✓ Pago registrado');
+  return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+fbKey), upd).then(function(){
+    _actualizarCtaEmpPorPagoGasto(g, fbKey, montoTotal, nuevoPagado, nuevoEstado, medio, pagoKey, pago);
+    return true;
+  });
+}
+
+function confirmarPagoGasto() {
+  var medio = document.getElementById('mpg-medio').value;
+  var montoNuevo = getMontoRaw(document.getElementById('mpg-monto'));
+  if (!montoNuevo || montoNuevo <= 0) { notify('Ingresá un monto válido'); return; }
+
+  var keys = (_gastoPagoMultipleKeys && _gastoPagoMultipleKeys.length) ? _gastoPagoMultipleKeys.slice() : (_gastoFbKeyPago ? [_gastoFbKeyPago] : []);
+  if (!keys.length) return;
+
+  var loteKey = keys.length > 1 ? ('lote_' + Date.now()) : null;
+  var restanteAPagar = montoNuevo;
+  var promesas = [];
+
+  keys.forEach(function(k){
+    var g = (gastosData||[]).find(function(x){ return x.fbKey===k; });
+    if (!g) return;
+    var resta = restoGasto(g);
+    var pagoEste = keys.length > 1 ? Math.min(resta, restanteAPagar) : Math.min(resta, montoNuevo);
+    restanteAPagar -= pagoEste;
+    if (pagoEste > 0) promesas.push(_registrarPagoGastoUnitario(k, pagoEste, medio, _pagoGastoComprobante, loteKey));
+  });
+
+  if (!promesas.length) { notify('No hay saldo pendiente para pagar'); return; }
+  Promise.all(promesas).then(function(){
+    notify(keys.length > 1 ? '✓ Pago múltiple registrado' : '✓ Pago registrado');
     document.getElementById('modal-pago-gasto').style.display = 'none';
-    // Si se pagó completo y tiene empleadoId, marcar reembolsado y actualizar ctaemp.
-    // Si queda parcial, también reflejar el pago parcial en la cuenta del empleado.
-    if (g.empleadoId) {
-      if (nuevoEstado==='pagado') window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+_gastoFbKeyPago), { reembolsado: true });
-      if (window.fbDB) {
-        window.fbGet(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId))
-          .then(function(snap) {
-            var movs = snap.val();
-            if (!movs) return;
-            Object.entries(movs).forEach(function(entry) {
-              var key = entry[0]; var mov = entry[1];
-              var esElMov = mov.gastoFbKey === _gastoFbKeyPago ||
-                (Math.abs((parseFloat(mov.monto)||0) - montoTotal) < 1 &&
-                 mov.estado !== 'pagado' &&
-                 (mov.tipo === 'sueldo' || mov.tipo === 'gasto_empresa' || mov.tipo === 'transporte'));
-              if (esElMov) {
-                var updMov = {
-                  estado: nuevoEstado === 'pagado' ? 'pagado' : 'pagado_parcial',
-                  fechaPago: new Date().toISOString().slice(0,10),
-                  medioPago: medio,
-                  montoPagado: nuevoPagado
-                };
-                updMov['pagos/' + pagoKey] = pago;
-                window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId + '/' + key), updMov);
-              }
-            });
-          }).catch(function(){});
-      }
-    }
+    _gastoFbKeyPago = null;
+    _gastoPagoMultipleKeys = [];
+    _pagoGastoComprobante = null;
+    cancelarPagoMultipleGastos();
   }).catch(function(e){ notify('Error al registrar pago: ' + e.message); });
 }
 
@@ -27907,7 +28048,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.262</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.263</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
