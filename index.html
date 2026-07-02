@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.259 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.260 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9361,7 +9361,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.259-firebase',
+  VERSION: 'v20.260-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10608,6 +10608,24 @@ function obtenerCostoItemVenta(item) {
   }
   var qty = parseFloat(item.qty || item.cantidad || 1) || 1;
   return obtenerCostoUnitarioVenta(item.cod || item.codigo, item) * qty;
+}
+
+try { window._mostrarCostoCompraDetalleVenta = localStorage.getItem('sv_mostrar_costo_compra_detalle') === '1'; }
+catch(e) { window._mostrarCostoCompraDetalleVenta = false; }
+
+function toggleCostoCompraDetalleVenta() {
+  window._mostrarCostoCompraDetalleVenta = !window._mostrarCostoCompraDetalleVenta;
+  try { localStorage.setItem('sv_mostrar_costo_compra_detalle', window._mostrarCostoCompraDetalleVenta ? '1' : '0'); } catch(e) {}
+  if (window._ventaDetalleActual) renderDetalleVenta(window._ventaDetalleActual);
+}
+
+function obtenerCostoUnitarioDetalleVenta(item) {
+  item = item || {};
+  var qty = parseFloat(item.qty || item.cantidad || 1) || 1;
+  if (qty <= 0) qty = 1;
+  var costoTotal = parseFloat(item.costoTotalCompra || item.costoTotal || item.costo) || 0;
+  if (costoTotal > 0) return costoTotal / qty;
+  return obtenerCostoUnitarioVenta(item.cod || item.codigo, item);
 }
 
 // ── CONTROLADOR DE GANANCIA ──
@@ -25638,6 +25656,7 @@ function renderDetalleVenta(v) {
       '<button class="btn btn-sm" id="venta-detalle-toggle" onclick="toggleVentaDetalle()" title="Cambia si el comprobante muestra precios o no" style="gap:6px">' +
         '<i class="ti ti-eye" id="venta-detalle-icon"></i> <span id="venta-detalle-label">Con detalle</span>' +
       '</button>' +
+      (currentRole === 'admin' ? '<button class="btn btn-sm" onclick="toggleCostoCompraDetalleVenta()" title="Muestra u oculta la columna de precio de compra" style="gap:6px;color:var(--amber);border-color:var(--amber)"><i class="ti ' + (window._mostrarCostoCompraDetalleVenta ? 'ti-eye-off' : 'ti-eye') + '"></i> ' + (window._mostrarCostoCompraDetalleVenta ? 'Ocultar compra' : 'Ver compra') + '</button>' : '') +
       '<button class="btn btn-sm" onclick="imprimirVentaActual()" title="Abre el comprobante para imprimir o guardar como PDF"><i class="ti ti-printer"></i> Imprimir comprobante</button>' +
       '<button class="btn btn-sm" style="color:var(--green2,var(--green));border-color:var(--green2,var(--green))" onclick="pdfYWhatsappVenta(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Generar PDF y abrir WhatsApp del cliente"><i class="ti ti-brand-whatsapp"></i> PDF / WhatsApp</button>' +
       '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="eliminarVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Eliminar venta (también elimina la OT y los pagos vinculados)"><i class="ti ti-trash"></i> Eliminar</button>' +
@@ -25674,17 +25693,20 @@ function renderDetalleVenta(v) {
             '<thead><tr>' +
               '<th style="text-align:left;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Descripción</th>' +
               '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 4px;border-bottom:1px solid var(--border2)">Cant.</th>' +
+              (currentRole === 'admin' && window._mostrarCostoCompraDetalleVenta ? '<th style="text-align:right;font-size:11px;color:var(--amber);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">P. compra</th>' : '') +
               '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">P. Unit.</th>' +
               '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Subtotal</th>' +
             '</tr></thead><tbody>' +
             items.map(function(it) {
               var sub = it.sub || (it.qty * it.punit);
+              var costoUnit = obtenerCostoUnitarioDetalleVenta(it);
               return '<tr>' +
                 '<td style="padding:8px 0;border-bottom:.5px solid var(--border)">' +
                   (it.cod ? '<span style="font-family:monospace;font-size:11px;color:var(--text3);margin-right:6px">' + it.cod + '</span>' : '') +
                   '<span style="font-size:13px">' + (it.desc||'') + '</span>' +
                 '</td>' +
                 '<td style="text-align:right;padding:8px 4px;border-bottom:.5px solid var(--border);font-size:13px">' + (it.qty||1) + '</td>' +
+                (currentRole === 'admin' && window._mostrarCostoCompraDetalleVenta ? '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px;color:var(--amber)">$' + Math.round(costoUnit || 0).toLocaleString('es-AR') + '</td>' : '') +
                 '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px">$' + (it.punit||0).toLocaleString('es-AR') + '</td>' +
                 '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">$' + (sub||0).toLocaleString('es-AR') + '</td>' +
               '</tr>';
@@ -27703,7 +27725,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.185</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.260</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
