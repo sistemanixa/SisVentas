@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.267 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.271 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -3663,6 +3663,7 @@ tr:hover td{color:var(--text)}
 
         <!-- Tabs -->
         <div class="hist-tab">
+          <button class="hist-tab-btn" onclick="switchHistTab('timeline',this)"><i class="ti ti-timeline"></i> Timeline</button>
           <button class="hist-tab-btn active" onclick="switchHistTab('ventas',this)"><i class="ti ti-receipt"></i> Ventas</button>
           <button class="hist-tab-btn" onclick="switchHistTab('pagos',this)"><i class="ti ti-cash"></i> Pagos</button>
           <button class="hist-tab-btn" onclick="switchHistTab('presupuestos',this)"><i class="ti ti-file-description"></i> Presupuestos</button>
@@ -3672,6 +3673,15 @@ tr:hover td{color:var(--text)}
         </div>
 
         <!-- Tab Ventas -->
+        <div class="hist-sec" id="hist-timeline">
+          <div class="card">
+            <div class="card-head"><span class="card-title"><i class="ti ti-timeline"></i> Timeline del cliente</span></div>
+            <div id="hc-timeline-body" style="display:flex;flex-direction:column;gap:8px">
+              <div style="text-align:center;color:var(--text3);padding:16px">Sin movimientos</div>
+            </div>
+          </div>
+        </div>
+
         <div class="hist-sec active" id="hist-ventas">
           <div class="card">
             <div class="card-head"><span class="card-title">Ventas</span></div>
@@ -8542,7 +8552,7 @@ function ventaTienePagoTotal(v) {
 function abrirEditorVenta(fbKey) {
   var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!v) { notify('Venta no encontrada'); return; }
-  if (ventaTienePagoTotal(v)) { notify('No se puede editar una venta con pago total realizado'); return; }
+  if (!puedeEditarVentaPermiso(v)) { notify('Sin permisos o venta con pago total realizado'); return; }
   showPage('venta', document.querySelector('[onclick*="venta"]'));
   setTimeout(function(){
     var tbody = document.getElementById('det-body');
@@ -9248,6 +9258,30 @@ var PERMISOS_DEFAULT = {
 };
 var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 
+// ── PERMISOS CENTRALIZADOS ──
+// Fuente única para decisiones de permisos en botones/acciones.
+// Mantiene compatibilidad con la solapa Configuración → Roles, que hoy gobierna
+// visibilidad/acceso por módulo. Las acciones finas usan esta base para evitar
+// validaciones dispersas por nombre de rol.
+function rolActualNormalizado() { return String(currentRole || '').toLowerCase(); }
+function esAdmin() { return rolActualNormalizado() === 'admin'; }
+function esAdministrativo() { return rolActualNormalizado() === 'administrativo'; }
+function esTecnico() { return rolActualNormalizado() === 'tecnico'; }
+function esAdminOAdministrativo() { return esAdmin() || esAdministrativo(); }
+function permisoModulo(idModulo) {
+  if (!idModulo) return false;
+  if (esAdmin()) return true;
+  var cfg = (PERMISOS_ROLES[rolActualNormalizado()] || PERMISOS_DEFAULT[rolActualNormalizado()] || { bloqueados: [] });
+  var bloqueados = cfg.bloqueados || [];
+  return bloqueados.indexOf(idModulo) === -1;
+}
+function puedeEditarVentaPermiso(v) {
+  return esAdminOAdministrativo() && permisoModulo('detalle') && !ventaTienePagoTotal(v);
+}
+function puedeEditarPresupuestoPermiso(p) {
+  return esAdminOAdministrativo() && permisoModulo('presupuesto') && pptoPuedeEditar(p);
+}
+
 var _paginaAntesDeNotif = null;
 
 function toggleNotificacionesPanel() {
@@ -9278,12 +9312,9 @@ function showPage(id, el) {
   var page = document.getElementById('page-' + id);
   if (!page) { notify('Módulo no disponible'); return; }
   // Validar permisos dinámicos (Configuración → Roles)
-  if (currentRole !== 'admin') {
-    var bloqueadosSP = (PERMISOS_ROLES[currentRole]||PERMISOS_DEFAULT[currentRole]||{bloqueados:[]}).bloqueados||[];
-    if (bloqueadosSP.includes(id)) {
-      notify('Acceso restringido para tu rol');
-      return;
-    }
+  if (!permisoModulo(id)) {
+    notify('Acceso restringido para tu rol');
+    return;
   }
   // Si se navega a cobranzas desde el menú (no desde abrirCobroRapido), ocultar el botón volver
   if (id === 'cobranzas' && el) {
@@ -9467,7 +9498,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.267-firebase',
+  VERSION: 'v20.271-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9970,7 +10001,7 @@ function secureLog(message) {
 // ── Estado global ──
 
 const SESSION_TIMEOUT = 30 * 60 * 1000;
-const titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Facturaciones'};
+const titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Facturaciones',tesoreria:'Tesorería'};
 
 let sessionTimer = null, sessionStart = null, tiempoUI = null;
 
@@ -23272,7 +23303,7 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
           <button class="ppto-menu-item" onclick="cerrarMenusPpto();imprimirPptoDesdeTabla('${p.id}')">
             <i class="ti ti-printer" style="font-size:13px"></i> Imprimir
           </button>
-          ${pptoPuedeEditar(p) && currentRole === 'admin' ? `
+          ${puedeEditarPresupuestoPermiso(p) ? `
           <button class="ppto-menu-item" onclick="cerrarMenusPpto();abrirEditorPpto('${p.id}')" style="color:var(--blue)">
             <i class="ti ti-edit" style="font-size:13px"></i> Editar
           </button>` : ''}
@@ -23301,7 +23332,7 @@ function pptoPuedeEditar(p) {
 function abrirEditorPpto(id) {
   var p = (pptoData||[]).find(function(x){ return x.id === id || x.fbKey === id; });
   if (!p) { notify('Presupuesto no encontrado'); return; }
-  if (!pptoPuedeEditar(p)) { notify('No se puede editar un presupuesto que ya fue pasado a venta'); return; }
+  if (!puedeEditarPresupuestoPermiso(p)) { notify('Sin permisos o presupuesto ya convertido a venta'); return; }
 
   window._pptoEditandoFbKey = p.fbKey || '';
   window._pptoEditandoId    = p.id || '';
@@ -23481,7 +23512,7 @@ function verPpto(id) {
   // Acciones
   var headerAcciones = document.getElementById('ppto-acciones-header');
   if (headerAcciones) {
-    headerAcciones.innerHTML = (pptoPuedeEditar(p) && currentRole === 'admin')
+    headerAcciones.innerHTML = puedeEditarPresupuestoPermiso(p)
       ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirEditorPpto(\'' + escapeHTML(p.id||p.fbKey||'') + '\')"><i class="ti ti-edit"></i> Editar</button>'
       : '';
   }
@@ -25869,11 +25900,99 @@ function verHistorialCliente(id, nombre) {
     <td class="tr"><span class="badge b-green">Vigente</span></td>
   </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin equipos registrados</td></tr>';
 
-  // Activar tab ventas por defecto
-  switchHistTab('ventas', document.querySelector('.hist-tab-btn'));
+  // Timeline consolidado (no reemplaza las solapas actuales)
+  if (typeof renderClienteTimeline === 'function') renderClienteTimeline(cli, ventas, pptos, todosLosPagos);
+
+  // Activar tab ventas por defecto para no cambiar el flujo actual
+  switchHistTab('ventas', document.querySelector('.hist-tab-btn[onclick*="ventas"]'));
 
   // Huella para detectar cambios externos mientras se está mirando este historial
   window._histClienteHuella = JSON.stringify({cli: cli, ventas: ventas});
+}
+
+
+function renderClienteTimeline(cli, ventas, pptos, pagos) {
+  var body = document.getElementById('hc-timeline-body');
+  if (!body || !cli) return;
+  function safe(v){ return (typeof escapeHTML === 'function') ? escapeHTML(v || '') : String(v || '').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function fecha(v){ return (v || '').slice(0,10) || '—'; }
+  function ts(v){ var d = Date.parse(fecha(v)); return isNaN(d) ? 0 : d; }
+  function money(v){ return '$' + Math.round(parseFloat(v)||0).toLocaleString('es-AR'); }
+  var eventos = [];
+
+  (pptos || []).forEach(function(p){
+    eventos.push({
+      fecha: p.fecha || p.createdAt || '',
+      icon: 'ti-file-description',
+      color: 'var(--blue)',
+      titulo: 'Presupuesto ' + (p.id || p.numero || ''),
+      detalle: (p.estado || '—') + ' · ' + money(p.total),
+      accion: p.id ? 'verPpto(\'' + String(p.id).replace(/'/g,"\\'") + '\')' : ''
+    });
+    if (p.estado === 'convertido' || p.ventaId || p.ventaGeneradaId) {
+      eventos.push({ fecha: p.fechaConversion || p.convertidoFecha || p.fecha || '', icon:'ti-arrow-right', color:'var(--green)', titulo:'Presupuesto convertido a venta', detalle: p.ventaId || p.ventaGeneradaId || p.id || '' });
+    }
+  });
+
+  (ventas || []).forEach(function(v){
+    eventos.push({
+      fecha: v.fecha || v.createdAt || '',
+      icon: 'ti-receipt',
+      color: 'var(--green)',
+      titulo: 'Venta ' + (v.id || v.numero || ''),
+      detalle: (v.estadoPago || '—') + ' · ' + money(v.total),
+      accion: v.id ? 'verDetalleVenta(\'' + String(v.id).replace(/'/g,"\\'") + '\')' : ''
+    });
+    var ot = (typeof otData !== 'undefined' ? (otData || []) : []).find(function(o){ return String(o.ventaId || o.idVenta || '') === String(v.id || ''); });
+    if (ot) {
+      eventos.push({
+        fecha: ot.fecha || ot.fechaProgramada || v.fecha || '',
+        icon: 'ti-clipboard-list',
+        color: ot.estado === 'completada' ? 'var(--green)' : 'var(--amber)',
+        titulo: 'OT ' + (ot.id || ot.numero || ''),
+        detalle: (ot.estado || 'pendiente') + (ot.tecnico ? ' · ' + ot.tecnico : ''),
+        accion: (ot.fbKey || ot.id) ? 'verOT(\'' + String(ot.fbKey || ot.id).replace(/'/g,"\\'") + '\')' : ''
+      });
+    }
+  });
+
+  (pagos || []).forEach(function(p){
+    eventos.push({
+      fecha: p.fecha || p.createdAt || '',
+      icon: 'ti-cash',
+      color: 'var(--green)',
+      titulo: 'Pago recibido' + (p.ventaId ? ' · ' + p.ventaId : ''),
+      detalle: (p.medio || '—') + ' · ' + money(p.monto),
+      accion: p.ventaId ? 'verDetalleVenta(\'' + String(p.ventaId).replace(/'/g,"\\'") + '\')' : ''
+    });
+  });
+
+  var otsSueltas = (typeof otData !== 'undefined' ? (otData || []) : []).filter(function(o){
+    if (o.ventaId || o.idVenta) return false;
+    return String(o.clienteId || o.idCliente || '') === String(cli.id || cli.fbKey || '') || (o.cliente && cli.nombre && o.cliente === cli.nombre);
+  });
+  otsSueltas.forEach(function(o){
+    eventos.push({
+      fecha: o.fecha || o.fechaProgramada || '',
+      icon: 'ti-clipboard-list',
+      color: o.estado === 'completada' ? 'var(--green)' : 'var(--amber)',
+      titulo: 'OT ' + (o.id || o.numero || ''),
+      detalle: (o.estado || 'pendiente') + (o.tecnico ? ' · ' + o.tecnico : ''),
+      accion: (o.fbKey || o.id) ? 'verOT(\'' + String(o.fbKey || o.id).replace(/'/g,"\\'") + '\')' : ''
+    });
+  });
+
+  eventos = eventos.filter(function(e){ return e.fecha || e.titulo; }).sort(function(a,b){ return ts(b.fecha) - ts(a.fecha); }).slice(0,80);
+  body.innerHTML = eventos.length ? eventos.map(function(e){
+    var btn = e.accion ? '<button class="btn btn-sm" onclick="' + e.accion + '"><i class="ti ti-eye"></i> Ver</button>' : '';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg2)">' +
+      '<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;color:' + e.color + ';flex-shrink:0"><i class="ti ' + e.icon + '"></i></div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--text)">' + safe(e.titulo) + '</div>' +
+        '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + safe(fecha(e.fecha)) + ' · ' + safe(e.detalle) + '</div>' +
+      '</div>' + btn +
+    '</div>';
+  }).join('') : '<div style="text-align:center;color:var(--text3);padding:18px">Sin movimientos para mostrar</div>';
 }
 
 function switchHistTab(tab, btn) {
@@ -26181,7 +26300,7 @@ function renderDetalleVenta(v) {
         ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="verFacturaEmitida(\''+v.factura.pdf_url+'\',\''+v.factura.cae+'\')" title="CAE: '+v.factura.cae+'"><i class="ti ti-file-check"></i> Facturada</button>'
         : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
       ) +
-      (currentRole === 'admin' && !ventaTienePagoTotal(v) ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirEditorVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Editar"><i class="ti ti-edit"></i> Editar</button>' : '') +
+      (puedeEditarVentaPermiso(v) ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirEditorVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Editar"><i class="ti ti-edit"></i> Editar</button>' : '') +
       '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' +
       '<button class="btn btn-sm" id="venta-detalle-toggle" onclick="toggleVentaDetalle()" title="Cambia si el comprobante muestra precios o no" style="gap:6px">' +
         '<i class="ti ti-eye" id="venta-detalle-icon"></i> <span id="venta-detalle-label">Con detalle</span>' +
@@ -28769,6 +28888,491 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
       return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg3);border-radius:var(--radius);padding:12px 14px;flex-wrap:wrap"><div><div style="font-size:13px;font-weight:600">'+m(p.monto)+' · '+e(p.medio||p.medioPago||'—')+' '+badge+' '+(p.loteId?'<span class="badge b-purple">'+e(p.loteId)+'</span>':'')+'</div><div style="font-size:12px;color:var(--text2);margin-top:3px">'+e(p.gastoDesc||'—')+'</div><div style="font-size:11px;color:var(--text3);margin-top:3px">'+e(String(p.fecha||'').split('-').reverse().join('/')||'')+' · '+e(p.usuario||'Sistema')+'</div></div><div>'+compBtn+'</div></div>';
     }).join('');
   };
+})();
+</script>
+
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════════
+   v20.269 — Consolidación real de OT, Notificaciones y Tesorería
+   Parche no destructivo sobre v20.268.
+   ══════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  function svEsc(v){
+    if (typeof escapeHTML === 'function') return escapeHTML(v);
+    return String(v||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+  function svNorm(v){
+    return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  }
+  function svMoney(v){
+    return (typeof money === 'function') ? money(v) : '$' + Math.round(parseFloat(v)||0).toLocaleString('es-AR');
+  }
+  function svToday(){ return new Date().toISOString().slice(0,10); }
+  function svMes(offset){
+    var d = new Date(); d.setMonth(d.getMonth() + (offset||0));
+    return d.toISOString().slice(0,7);
+  }
+  function svArray(x){
+    if (Array.isArray(x)) return x;
+    if (x && typeof x === 'object') return Object.values(x);
+    return [];
+  }
+  function svCurrentUserName(){
+    return String(window.currentUserName || window.currentUser || window.currentUserEmail || 'Sistema');
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // OT: dirección robusta + no falso aviso + regreso al listado
+  // ─────────────────────────────────────────────────────────────
+  var DIR_FIELDS = [
+    'dir','direccion','domicilio','domicilioCliente','direccionCliente','direccion_cliente',
+    'direccionInstalacion','direccion_instalacion','direccionObra','direccion_obra','ubicacion',
+    'address','calle','domicilioInstalacion','direccionServicio','direccion_servicio',
+    'instalacionDireccion','instalacion_direccion','lugarInstalacion','lugar_instalacion'
+  ];
+  function pickDireccion(obj){
+    if (!obj) return '';
+    for (var i=0;i<DIR_FIELDS.length;i++) {
+      var v = obj[DIR_FIELDS[i]];
+      if (v !== undefined && v !== null && String(v).trim()) return String(v).trim();
+    }
+    // Algunas fichas guardan dirección dentro de subobjetos.
+    var sub = ['cliente','clienteObj','clienteData','clienteInfo','datosCliente','instalacion','obra','direccionData'];
+    for (var j=0;j<sub.length;j++) {
+      if (obj[sub[j]] && typeof obj[sub[j]] === 'object') {
+        var d = pickDireccion(obj[sub[j]]);
+        if (d) return d;
+      }
+    }
+    return '';
+  }
+  function ventaRelacionada(ot){
+    var ventas = svArray(window.ventasList);
+    if (!ot) return null;
+    var ids = [ot.ventaId, ot.venta, ot.idVenta, ot.ventaFbKey, ot.ventaKey].filter(Boolean).map(String);
+    var nums = ids.map(function(x){return x.replace(/\D/g,'');}).filter(Boolean);
+    return ventas.find(function(v){
+      var arr = [v.fbKey,v.id,v.numero,v.ventaId,v.nro,v.codigo].filter(Boolean).map(String);
+      var arrNum = arr.map(function(x){return x.replace(/\D/g,'');});
+      return arr.some(function(x){return ids.indexOf(x)>=0;}) || arrNum.some(function(x){return x && nums.indexOf(x)>=0;});
+    }) || null;
+  }
+  function clienteRelacionado(ot, venta){
+    var clientes = svArray(window.clientesData);
+    var ids=[];
+    [ot,venta].forEach(function(o){ if(!o) return; ids.push(o.clienteId,o.idCliente,o.id_cli,o.clienteKey,o.clienteFbKey,o.fbKeyCliente); });
+    ids = ids.filter(Boolean).map(String);
+    if (ids.length) {
+      var c = clientes.find(function(cli){
+        var arr=[cli.fbKey,cli.key,cli.id,cli.codigo,cli.nroCliente].filter(Boolean).map(String);
+        return arr.some(function(x){return ids.indexOf(x)>=0;});
+      });
+      if (c) return c;
+    }
+    var names=[];
+    [ot,venta].forEach(function(o){ if(!o) return; names.push(o.cliente,o.clienteNombre,o.nombreCliente,o.razonSocial,o.empresa); });
+    var nn = names.map(svNorm).filter(Boolean);
+    if (nn.length) {
+      return clientes.find(function(cli){
+        var arr=[cli.nombre,cli.apellido,cli.apellidos,((cli.nombre||'')+' '+(cli.apellido||cli.apellidos||'')).trim(),cli.razonSocial,cli.razon_social,cli.empresa].map(svNorm).filter(Boolean);
+        return arr.some(function(n){ return nn.indexOf(n)>=0; });
+      }) || null;
+    }
+    return null;
+  }
+  window._otResolverDireccionCliente = function(ot){
+    ot = ot || {};
+    var d = pickDireccion(ot); if (d) return d;
+    var v = ventaRelacionada(ot);
+    d = pickDireccion(v); if (d) return d;
+    var c = clienteRelacionado(ot, v);
+    d = pickDireccion(c); if (d) return d;
+    return '';
+  };
+  function guardarDireccionResuelta(ot, dir){
+    if (!ot || !dir || !window.fbDB || !ot.fbKey) return;
+    if (pickDireccion(ot)) return;
+    window._otGuardandoLocalHasta = Date.now() + 4000;
+    window.fbUpdate(window.fbRef(window.fbDB, (window.FB_PATHS&&FB_PATHS.ordenesTrabajo?FB_PATHS.ordenesTrabajo:'sisventas/ordenesTrabajo') + '/' + ot.fbKey), {
+      dir: dir,
+      direccion: dir,
+      usuarioUltimaEdicion: svCurrentUserName(),
+      tsUltimaEdicion: Date.now()
+    }).catch(function(e){ console.warn('[OT] No se pudo guardar dirección resuelta', e); });
+  }
+  var _sv269_verOT = window.verOT;
+  if (typeof _sv269_verOT === 'function') {
+    window.verOT = function(id){
+      var r = _sv269_verOT.apply(this, arguments);
+      setTimeout(function(){
+        var ot = svArray(window.otData).find(function(o){ return o && (o.fbKey===window.otActualId || o.id===window.otActualId || o.fbKey===id || o.id===id); });
+        var dir = window._otResolverDireccionCliente(ot);
+        var inp = document.getElementById('ot-det-dir');
+        if (inp) {
+          var actual = String(inp.value||'').trim();
+          if (dir && (!actual || actual==='—' || actual==='Sin dirección')) {
+            inp.value = dir;
+            window._otDireccionActual = dir;
+            guardarDireccionResuelta(ot, dir);
+          }
+          inp.placeholder = dir ? '' : 'Sin dirección cargada en la ficha del cliente';
+        }
+        var maps = document.getElementById('ot-det-dir-maps-btn');
+        if (maps) maps.style.display = (inp && inp.value) ? '' : 'none';
+        if (typeof instalarPasosOT === 'function') instalarPasosOT();
+      }, 250);
+      return r;
+    };
+  }
+  // Marcar updates locales directos para que el banner no avise por cambios propios.
+  ['actualizarOT','actualizarOTFecha','otAgregarNota','otAgregarFoto','toggleCheckOT'].forEach(function(fn){
+    var old = window[fn];
+    if (typeof old === 'function') {
+      window[fn] = function(){
+        window._otGuardandoLocalHasta = Date.now() + 4000;
+        return old.apply(this, arguments);
+      };
+    }
+  });
+  var _sv269_completarOT = window.completarOT;
+  if (typeof _sv269_completarOT === 'function') {
+    window.completarOT = function(){
+      window._otGuardandoLocalHasta = Date.now() + 5000;
+      var r = _sv269_completarOT.apply(this, arguments);
+      setTimeout(function(){
+        var det = document.getElementById('ot-detalle-view');
+        var list = document.getElementById('ot-list-view');
+        if (det && det.style.display !== 'none') {
+          var ot = svArray(window.otData).find(function(o){return o && (o.fbKey===window.otActualId || o.id===window.otActualId);});
+          if (ot && ot.estado === 'completada' && typeof volverListaOT === 'function') volverListaOT();
+        }
+        if (list && list.style.display !== 'none' && typeof renderOTTabla === 'function') renderOTTabla();
+      }, 900);
+      return r;
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Notificaciones: urgent filter + estados persistidos por usuario
+  // ─────────────────────────────────────────────────────────────
+  function notifStorageKey(){
+    var u = String(window.currentUserEmail || window.currentUser || 'local').toLowerCase().replace(/[^a-z0-9]+/g,'_');
+    return 'sv_notif_state_v3_' + u;
+  }
+  function nKey(id){ return String(id||'').replace(/[.#$\[\]/]/g,'_'); }
+  function loadState(){ try{return JSON.parse(localStorage.getItem(notifStorageKey())||'{}')||{};}catch(e){return {};} }
+  function saveState(st){ try{localStorage.setItem(notifStorageKey(), JSON.stringify(st||{}));}catch(e){} }
+  function getN(id){ var st=loadState(); return st[nKey(id)]||{}; }
+  function setN(id, patch){
+    var st=loadState(), k=nKey(id);
+    st[k]=Object.assign(st[k]||{}, patch, {updatedAt:new Date().toISOString(), usuario:svCurrentUserName()});
+    saveState(st);
+    if (window.fbDB && window.currentUserEmail) {
+      window.fbSet(window.fbRef(window.fbDB, 'sisventas/notificaciones_estado/' + nKey(window.currentUserEmail) + '/' + k), st[k]).catch(function(){});
+    }
+  }
+  function visibleNotif(n, filtro){
+    var st = getN(n.id), estado = st.estado || '';
+    if (filtro === 'pospuestas') return estado === 'pospuesta';
+    if (filtro === 'resueltas') return estado === 'resuelta';
+    if (filtro === 'archivadas') return estado === 'archivada';
+    if (filtro === 'urgente' && !n.urgente) return false;
+    if (filtro && !['urgente','pospuestas','resueltas','archivadas'].includes(filtro) && n.tipo !== filtro) return false;
+    if (estado === 'archivada' || estado === 'resuelta') return false;
+    if (estado === 'pospuesta' && st.reaparece && st.reaparece > svToday()) return false;
+    return true;
+  }
+  window.notifResolver = function(id){ setN(id,{estado:'resuelta'}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif(); if(typeof notify==='function') notify('Notificación resuelta'); };
+  window.notifArchivar = function(id){ setN(id,{estado:'archivada'}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif(); if(typeof notify==='function') notify('Notificación archivada'); };
+  window.notifPosponer = function(id,dias){ var d=new Date(); d.setDate(d.getDate()+(dias||1)); setN(id,{estado:'pospuesta',reaparece:d.toISOString().slice(0,10)}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif(); if(typeof notify==='function') notify('Notificación pospuesta'); };
+  window.marcarLeida = function(id){ setN(id,{estado:'leida'}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif(); };
+  window.marcarTodasLeidas = function(){ (window.todasNotifs||[]).forEach(function(n){ if(visibleNotif(n,(document.getElementById('notif-filtro')||{}).value||'')) setN(n.id,{estado:'leida'}); }); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif(); if(typeof notify==='function') notify('Notificaciones visibles marcadas como leídas'); };
+  window.notifAbrirAccion = function(id){
+    var n=(window.todasNotifs||[]).find(function(x){return x.id===id;});
+    if(!n) return;
+    setN(id,{estado:'leida'});
+    if(n.accion && n.accion.fn){ try{ new Function(n.accion.fn)(); }catch(e){ console.error(e); } }
+  };
+  window.renderNotificaciones = function(filtro){
+    filtro=filtro||'';
+    var lista=document.getElementById('notif-lista'), lbl=document.getElementById('notif-count-label');
+    if(!lista) return;
+    var rows=(window.todasNotifs||[]).filter(function(n){ return visibleNotif(n,filtro); });
+    var nuevas=(window.todasNotifs||[]).filter(function(n){ var st=getN(n.id); return visibleNotif(n,'') && !st.estado; });
+    if(lbl) lbl.textContent = nuevas.length ? (nuevas.length + ' nueva' + (nuevas.length!==1?'s':'') + ' / ' + rows.length + ' visible' + (rows.length!==1?'s':'')) : 'Todo al día ✓';
+    if(!rows.length){ lista.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--text3)"><i class="ti ti-checks" style="font-size:32px;display:block;margin-bottom:10px"></i><div style="font-size:14px;font-weight:500">Sin notificaciones</div><div style="font-size:12px;margin-top:4px">No hay pendientes para este filtro</div></div>'; return; }
+    var colorMap={red:'var(--red)',amber:'var(--amber)',blue:'var(--blue)',green:'var(--green)',purple:'var(--purple)'};
+    lista.innerHTML=rows.map(function(n){
+      var st=getN(n.id), estado=st.estado||'nueva', c=colorMap[n.color]||'var(--text2)';
+      var badge=estado==='pospuesta'?'<span class="badge b-amber">Pospuesta '+svEsc(st.reaparece||'')+'</span>':estado==='resuelta'?'<span class="badge b-green">Resuelta</span>':estado==='archivada'?'<span class="badge">Archivada</span>':estado==='leida'?'<span class="badge b-blue">Leída</span>':'<span class="badge b-red">Nueva</span>';
+      var act=(n.accion&&n.accion.fn)?'<button class="btn btn-sm" onclick="notifAbrirAccion(\''+svEsc(n.id)+'\')">'+svEsc(n.accion.label||'Ver')+'</button>':'';
+      return '<div style="background:var(--bg2);border:0.5px solid '+(n.urgente?'var(--red)':'var(--border)')+';border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;opacity:'+(estado==='leida'||estado==='pospuesta'?'.75':'1')+'">'+
+        '<i class="ti '+svEsc(n.icono||'ti-bell')+'" style="font-size:20px;color:'+c+';flex-shrink:0;margin-top:2px"></i>'+
+        '<div style="flex:1;min-width:0"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><strong style="font-size:13px;color:'+c+'">'+svEsc(n.titulo||'Notificación')+'</strong>'+badge+(n.urgente?'<span class="badge b-red">Urgente</span>':'')+'</div><div style="font-size:12px;color:var(--text2);line-height:1.4;margin-top:4px">'+svEsc(n.sub||'')+'</div><div style="font-size:11px;color:var(--text3);margin-top:6px">'+svEsc(n.tiempo||'')+'</div></div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'+act+'<button class="btn btn-sm" onclick="notifPosponer(\''+svEsc(n.id)+'\',1)"><i class="ti ti-clock"></i> Mañana</button><button class="btn btn-sm" onclick="notifResolver(\''+svEsc(n.id)+'\')"><i class="ti ti-check"></i> Resolver</button><button class="btn btn-sm" onclick="notifArchivar(\''+svEsc(n.id)+'\')"><i class="ti ti-archive"></i> Archivar</button></div></div>';
+    }).join('');
+  };
+  window.filtrarNotifs = function(tipo){ renderNotificaciones(tipo || ''); };
+  window.actualizarBadgeNotif = function(){
+    var count=(window.todasNotifs||[]).filter(function(n){ var st=getN(n.id); return visibleNotif(n,'') && !st.estado; }).length;
+    var b=document.getElementById('notif-badge'); if(b) b.style.display=count?'block':'none';
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // Tesorería: consolidar pagos desde gastos y movimiento de empleado cargado
+  // ─────────────────────────────────────────────────────────────
+  function pagosArray(obj){
+    var p = obj && obj.pagos ? obj.pagos : {};
+    if (Array.isArray(p)) return p.map(function(x,i){return Object.assign({_idx:i},x||{});});
+    return Object.keys(p||{}).map(function(k){ return Object.assign({_key:k}, p[k]||{}); });
+  }
+  var _sv269_tesPagosPrev = window._tesoreriaPagos;
+  window._tesoreriaPagos = function(){
+    var out=[];
+    svArray(window.gastosData).forEach(function(g){
+      pagosArray(g).forEach(function(p,i){
+        out.push(Object.assign({},p,{origen:'gasto',gastoKey:g.fbKey,gastoDesc:g.descripcion||g.desc||'',categoria:g.categoria||'',montoGasto:g.monto||0,loteId:p.loteId||p.pagoId||p.pgId||'',_idx:i,empleadoId:g.empleadoId||'',empleadoNombre:g.empleadoNombre||''}));
+      });
+    });
+    // Si Mi Cuenta está cargada, incorporar también movimientos con pagos que no sean gastos.
+    svArray(window.movsEmpData).forEach(function(m){
+      if (m._fuente === 'gastos') return;
+      pagosArray(m).forEach(function(p,i){
+        out.push(Object.assign({},p,{origen:'ctaemp',gastoKey:m.gastoFbKey||m.fbKey,gastoDesc:m.descripcion||m.desc||m.detalle||m.tipo||'',categoria:m.tipo||'',montoGasto:m.monto||0,loteId:p.loteId||p.pagoId||p.pgId||'',_idx:i,empleadoId:window.ctaEmpActual||'',empleadoNombre:''}));
+      });
+    });
+    var seen={};
+    return out.filter(function(p){
+      var k=[p.origen,p.gastoKey,p._idx,p._key,p.fecha,p.monto,p.loteId].join('|');
+      if(seen[k]) return false; seen[k]=1; return true;
+    }).sort(function(a,b){ return String(b.fecha||'').localeCompare(String(a.fecha||'')) || ((b.ts||0)-(a.ts||0)); });
+  };
+  // Reforzar título al abrir Tesorería aunque el mapa original no la tuviera.
+  var _sv269_showPage = window.showPage;
+  if (typeof _sv269_showPage === 'function') {
+    window.showPage = function(page, el){
+      var r = _sv269_showPage.apply(this, arguments);
+      setTimeout(function(){
+        if(page==='tesoreria'){
+          var t=document.getElementById('page-title'); if(t) t.textContent='Tesorería';
+          if(typeof renderTesoreria==='function') renderTesoreria();
+        }
+        if(page==='notificaciones'){
+          if(typeof generarNotificaciones==='function') generarNotificaciones();
+          else if(typeof renderNotificaciones==='function') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||'');
+        }
+      },120);
+      return r;
+    };
+  }
+})();
+</script>
+
+
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════════
+   v20.270 — Mi Cuenta: comisiones trazables + Tesorería ligada al empleado
+   Parche no destructivo sobre v20.269.
+   ══════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  function esc(v){
+    if (typeof escapeHTML === 'function') return escapeHTML(v);
+    return String(v||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+  function norm(v){
+    return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  }
+  function arr(x){
+    if (Array.isArray(x)) return x;
+    if (x && typeof x === 'object') return Object.keys(x).map(function(k){ return Object.assign({fbKey:k}, x[k]||{}); });
+    return [];
+  }
+  function mon(v){ return (typeof money==='function') ? money(v) : ('$' + Math.round(parseFloat(v)||0).toLocaleString('es-AR')); }
+  function fechaFmt(f){
+    f=String(f||'');
+    if (/^\d{4}-\d{2}-\d{2}/.test(f)) return f.slice(0,10).split('-').reverse().join('/');
+    return f || '—';
+  }
+  function mesActualCta(){
+    if (typeof _ctaEmpPeriodoMes === 'function') return _ctaEmpPeriodoMes();
+    var d = new Date();
+    if (window.ctaEmpPeriodo === 'anterior') d.setMonth(d.getMonth()-1);
+    return d.toISOString().slice(0,7);
+  }
+  function fechaEnMes(f, mes){
+    if (typeof _fechaEnMes === 'function') return _fechaEnMes(f, mes);
+    return String(f||'').slice(0,7) === mes;
+  }
+  function empNombreCompleto(emp){
+    emp = emp || {};
+    return String(emp.nombreCompleto || emp.nombre || ((emp.apellido||'') + ' ' + (emp.nombres||'')).trim() || '').trim();
+  }
+  function ventaDelEmpleado(v, emp){
+    var n = norm(empNombreCompleto(emp));
+    var eid = String(emp.fbKey || emp.id || '').trim();
+    var nombres = [v.empleado,v.vendedor,v.empleadoNombre,v.comisionado,v.empleado2,v.comisionado2,v.vendedor2].map(norm).filter(Boolean);
+    var ids = [v.empleadoId,v.vendedorId,v.empFbKey,v.comisionadoId,v.empleado2Id,v.comisionado2Id].filter(Boolean).map(String);
+    return (!!n && nombres.indexOf(n)>=0) || (!!eid && ids.indexOf(eid)>=0);
+  }
+  function costoItem(it){
+    it = it || {};
+    var qty = parseFloat(it.qty ?? it.cantidad ?? it.cant ?? 1) || 1;
+    var directo = parseFloat(it.costoTotal ?? it.totalCompra ?? it.total_compra ?? it.compraTotal);
+    if (!isNaN(directo) && directo > 0) return directo;
+    var unit = parseFloat(it.precioCompra ?? it.compra ?? it.costo ?? it.precio_compra ?? it.pcompra);
+    if (!isNaN(unit) && unit > 0) return unit * qty;
+    // Fallback solo para ventas viejas: buscar producto actual por código.
+    var cod = String(it.cod || it.codigo || it.sku || '').trim();
+    if (cod && window.productosData) {
+      var pr = (window.productosData||[]).find(function(p){ return String(p.cod||p.codigo||p.sku||'').trim() === cod; });
+      if (pr) {
+        var pc = parseFloat(pr.precioCompra ?? pr.compra ?? pr.costo ?? pr.precio_compra);
+        if (!isNaN(pc) && pc > 0) return pc * qty;
+      }
+    }
+    return 0;
+  }
+  function gananciaVenta(v){
+    v = v || {};
+    var subtotal = parseFloat(v.subtotalBruto ?? v.subtotalSinDesc ?? v.subtotal ?? 0) || 0;
+    var descuento = parseFloat(v.descuentoMonto ?? v.descuento ?? 0) || 0;
+    var items = arr(v.items);
+    var costo = items.reduce(function(s,it){ return s + costoItem(it); }, 0);
+    if (!costo && parseFloat(v.costoProductos||0)>0) costo = parseFloat(v.costoProductos)||0;
+    var gan = subtotal - descuento - costo;
+    return { subtotal:subtotal, descuento:descuento, costo:costo, ganancia:gan };
+  }
+  function ventaId(v){ return String(v.id || v.numero || v.fbKey || '').trim(); }
+  function abrirVenta(id){
+    if (!id) return;
+    if (typeof verDetalleVentaDesdeId === 'function') return verDetalleVentaDesdeId(id);
+    if (typeof verDetalleVenta === 'function') return verDetalleVenta(id);
+    if (typeof verVenta === 'function') return verVenta(id);
+  }
+  window.abrirVentaDesdeComision270 = abrirVenta;
+
+  function asegurarBloqueComisiones(){
+    var card = document.getElementById('ctaemp-comision-card');
+    if (!card) return null;
+    var body = document.getElementById('ctaemp-com-detalle');
+    if (!body) {
+      var html = '<div id="ctaemp-com-detalle" style="margin-top:12px;border-top:0.5px solid var(--border);padding-top:10px">'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">'+
+        '<span style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Detalle trazable de comisiones</span>'+
+        '<span id="ctaemp-com-detalle-info" style="font-size:11px;color:var(--text3)"></span></div>'+
+        '<div id="ctaemp-com-lista" style="display:flex;flex-direction:column;gap:6px"></div></div>';
+      card.insertAdjacentHTML('beforeend', html);
+      body = document.getElementById('ctaemp-com-detalle');
+    }
+    return body;
+  }
+
+  var oldRenderCom = window.renderComisionesDelMes;
+  window.renderComisionesDelMes = function(emp){
+    if (typeof oldRenderCom === 'function') oldRenderCom.apply(this, arguments);
+    var card = document.getElementById('ctaemp-comision-card');
+    if (!card || !emp) return;
+    if (emp.tipoEmpleado !== 'Vendedor a comisión') return;
+    asegurarBloqueComisiones();
+    var lista = document.getElementById('ctaemp-com-lista');
+    var info = document.getElementById('ctaemp-com-detalle-info');
+    if (!lista) return;
+    var pct = parseFloat(emp.pctComisionPropio) || 0;
+    var mes = mesActualCta();
+    var ventas = (window.ventasList||[]).filter(function(v){ return ventaDelEmpleado(v, emp) && fechaEnMes(v.fecha, mes); });
+    var totalGanancia = 0, totalComision = 0, totalCosto = 0;
+    var rows = ventas.map(function(v){
+      var g = gananciaVenta(v);
+      var base = Math.max(g.ganancia, 0);
+      var com = parseFloat(v.comisionMonto || v.comision || 0);
+      if (!com) com = base * (pct/100);
+      totalGanancia += g.ganancia;
+      totalComision += com;
+      totalCosto += g.costo;
+      var estado = v.estadoPago === 'pago_total' ? '<span class="badge b-green">Cobrado</span>' : '<span class="badge b-amber">Pendiente</span>';
+      var warn = g.costo <= 0 ? '<span class="badge b-amber" title="Venta vieja sin costo guardado o producto sin compra">Costo estimado</span>' : '';
+      return '<div onclick="abrirVentaDesdeComision270(\''+esc(v.fbKey||v.id||v.numero||'')+'\')" style="cursor:pointer;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center">'+
+        '<div style="min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);display:flex;gap:6px;align-items:center;flex-wrap:wrap">Venta '+esc(ventaId(v))+' '+estado+' '+warn+'</div>'+ 
+        '<div style="font-size:12px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(v.cliente||'Sin cliente')+' · '+fechaFmt(v.fecha)+'</div>'+ 
+        '<div style="font-size:11px;color:var(--text3);margin-top:3px">Subtotal '+mon(g.subtotal)+' − Desc. '+mon(g.descuento)+' − Costo '+mon(g.costo)+' = Ganancia '+mon(g.ganancia)+'</div></div>'+ 
+        '<div style="text-align:right"><div style="font-size:14px;font-weight:700;color:var(--green)">'+mon(com)+'</div><div style="font-size:11px;color:var(--text3)">'+pct+'% sobre ganancia</div></div></div>';
+    });
+    if (info) info.textContent = ventas.length ? (ventas.length + ' venta' + (ventas.length!==1?'s':'') + ' · Ganancia ' + mon(totalGanancia) + ' · Costo ' + mon(totalCosto)) : '';
+    lista.innerHTML = rows.length ? rows.join('') : '<div style="text-align:center;color:var(--text3);font-size:13px;padding:14px">Sin ventas con comisión en este período</div>';
+    // Ajustar métricas superiores para que no vuelvan a calcular sobre total de venta.
+    var elTotal = document.getElementById('ctaemp-com-total');
+    var elCant = document.getElementById('ctaemp-com-cant');
+    if (elTotal) elTotal.textContent = mon(totalComision);
+    if (elCant) elCant.textContent = ventas.length + ' venta' + (ventas.length!==1?'s':'') + ' ' + mes + ' · comisión sobre ganancia';
+  };
+
+  // Tesorería: detalle auditable del pago sin perder el listado.
+  function pagoKey(p){ return [p.origen,p.gastoKey,p._idx,p._key,p.fecha,p.monto,p.loteId].join('|'); }
+  window.tesAbrirDetallePago270 = function(key){
+    var pagos = (typeof window._tesoreriaPagos === 'function' ? window._tesoreriaPagos() : []);
+    var p = pagos.find(function(x){ return pagoKey(x) === key; });
+    if (!p) { if(typeof notify==='function') notify('No se encontró el pago'); return; }
+    var modal = document.getElementById('modal-tes-pago-270');
+    if (!modal) {
+      document.body.insertAdjacentHTML('beforeend','<div id="modal-tes-pago-270" class="modal-overlay"><div class="modal" style="max-width:620px"><div class="modal-head"><span class="modal-title">Detalle de pago</span><button class="btn btn-sm btn-icon" onclick="document.getElementById(\'modal-tes-pago-270\').classList.remove(\'open\')"><i class="ti ti-x"></i></button></div><div id="modal-tes-pago-body"></div></div></div>');
+      modal = document.getElementById('modal-tes-pago-270');
+    }
+    var body = document.getElementById('modal-tes-pago-body');
+    var comp = p.comprobante && (p.comprobante.data || p.comprobante.url || p.comprobante.nombre);
+    body.innerHTML = '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">'+
+      '<div class="metric"><div class="m-label">Importe</div><div class="m-value" style="color:var(--green)">'+mon(p.monto)+'</div><div class="m-sub">'+esc(p.medio||p.medioPago||'—')+'</div></div>'+ 
+      '<div class="metric"><div class="m-label">Fecha</div><div class="m-value" style="font-size:18px">'+esc(fechaFmt(p.fecha))+'</div><div class="m-sub">registrado</div></div>'+ 
+      '<div class="metric"><div class="m-label">Lote</div><div class="m-value" style="font-size:18px">'+esc(p.loteId||'—')+'</div><div class="m-sub">pago múltiple</div></div></div>'+ 
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px">'+
+      '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Origen</div>'+ 
+      '<div style="font-size:13px;color:var(--text)">'+esc(p.gastoDesc||p.concepto||'—')+'</div>'+ 
+      '<div style="font-size:12px;color:var(--text3);margin-top:4px">Usuario: '+esc(p.usuario||'Sistema')+' · Categoría: '+esc(p.categoria||'—')+'</div></div>'+ 
+      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">'+
+      (comp ? '<button class="btn btn-primary" onclick="tesVerComprobante(\''+esc(p.gastoKey||'')+'\','+(p._idx||0)+')"><i class="ti ti-paperclip"></i> Ver comprobante</button>' : '<span style="font-size:12px;color:var(--text3);align-self:center">Sin comprobante adjunto</span>')+
+      '</div>';
+    modal.classList.add('open');
+  };
+  var oldRenderTes = window.renderTesoreria;
+  window.renderTesoreria = function(){
+    var r = (typeof oldRenderTes === 'function') ? oldRenderTes.apply(this, arguments) : undefined;
+    setTimeout(function(){
+      var el = document.getElementById('tes-lista');
+      if (!el) return;
+      var cards = Array.from(el.children || []);
+      var pagos = (typeof window._tesoreriaPagos === 'function' ? window._tesoreriaPagos() : []);
+      // Reagregar botón de detalle sobre los pagos visibles sin recalcular todo el listado.
+      cards.forEach(function(card, i){
+        if (!card || card.querySelector('[data-tes-detalle-270]')) return;
+        var txt = norm(card.textContent||'');
+        var p = pagos.find(function(x){ return txt.includes(norm(x.gastoDesc||'')) && txt.includes(norm(x.medio||x.medioPago||'')); });
+        if (!p) return;
+        var key = esc(pagoKey(p));
+        var div = document.createElement('button');
+        div.className = 'btn btn-sm';
+        div.setAttribute('data-tes-detalle-270','1');
+        div.innerHTML = '<i class="ti ti-eye"></i> Ver detalle';
+        div.onclick = function(ev){ ev.stopPropagation(); window.tesAbrirDetallePago270(key); };
+        var last = card.lastElementChild || card;
+        if (last) last.appendChild(div);
+      });
+    }, 80);
+    return r;
+  };
+
+  // Re-render de Mi Cuenta al entrar, para que el detalle nuevo aparezca aunque Firebase cargue antes.
+  var oldShow = window.showPage;
+  if (typeof oldShow === 'function') {
+    window.showPage = function(page, el){
+      var r = oldShow.apply(this, arguments);
+      if (page === 'ctaemp') setTimeout(function(){
+        if (window.ctaEmpActual && typeof cargarCtaEmp === 'function') cargarCtaEmp(window.ctaEmpActual);
+      }, 250);
+      if (page === 'tesoreria' && typeof window.renderTesoreria === 'function') setTimeout(window.renderTesoreria, 180);
+      return r;
+    };
+  }
 })();
 </script>
 
