@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.271 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.272 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1376,7 +1376,7 @@ tr:hover td{color:var(--text)}
 
       <!-- ── DETALLE ── -->
       <div id="page-detalle" class="page">
-        <div class="metrics" style="margin-bottom:12px">
+        <div class="metrics" id="ventas-stats-global" style="margin-bottom:12px">
           <div class="metric"><div class="m-label">Este mes</div><div class="m-value" id="stat-ven-mes" style="color:var(--green)">—</div><div class="m-sub">total facturado</div></div>
           <div class="metric"><div class="m-label">Cantidad</div><div class="m-value" id="stat-ven-cant">—</div><div class="m-sub">ventas del mes</div></div>
           <div class="metric"><div class="m-label">Pendiente cobro</div><div class="m-value" id="stat-ven-pendiente" style="color:var(--amber)">—</div><div class="m-sub" id="stat-ven-pendiente-sub">sin cobrar</div></div>
@@ -1386,7 +1386,7 @@ tr:hover td{color:var(--text)}
   <!-- Vista lista de ventas -->
   <div id="ventas-list-view">
     <!-- Métricas rápidas -->
-    <div class="metrics">
+    <div class="metrics" id="ventas-list-stats-global">
       <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiVentasMes()" title="Ver ventas de este mes">
         <div class="m-label">Ventas este mes</div>
         <div class="m-value" id="vm-total-mes">$0</div>
@@ -6006,11 +6006,19 @@ function volverListaVentas() {
     window._ventaDesdeHistorialOrigen = null;
     if (dv)  dv.style.display  = 'none';
     if (dv2) dv2.style.display = 'none';
+    var st0o = document.getElementById('ventas-stats-global');
+    var st1o = document.getElementById('ventas-list-stats-global');
+    if (st0o) st0o.style.display = '';
+    if (st1o) st1o.style.display = '';
     showPage(origen, null);
     return;
   }
   if (dv)  dv.style.display  = 'none';
   if (dv2) dv2.style.display = 'none';
+  var st0 = document.getElementById('ventas-stats-global');
+  var st1 = document.getElementById('ventas-list-stats-global');
+  if (st0) st0.style.display = '';
+  if (st1) st1.style.display = '';
   if (lv)  lv.style.display  = '';
   _restaurarControlesFiltrosVentas();
   _aplicarFiltrosVentas();
@@ -9498,7 +9506,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.271-firebase',
+  VERSION: 'v20.272-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -26174,6 +26182,10 @@ function verDetalleVenta(ventaId) {
   var dv2 = document.getElementById('ventas-detalle-view'); // viejo — siempre ocultar
   if (lv)  lv.style.display  = 'none';
   if (dv2) dv2.style.display = 'none';
+  var st0 = document.getElementById('ventas-stats-global');
+  var st1 = document.getElementById('ventas-list-stats-global');
+  if (st0) st0.style.display = 'none';
+  if (st1) st1.style.display = 'none';
   if (dv) {
     dv.style.display = 'block';
     renderDetalleVenta(venta);
@@ -26281,7 +26293,29 @@ function renderDetalleVenta(v) {
   // Unir ambas fuentes evitando duplicados por monto+fecha
   var pagos = pagosGlobales.length ? pagosGlobales : pagosEmbebidos;
   var pagado = pagos.reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
-  var saldo = total - pagado;
+  var saldo = Math.max(0, total - pagado);
+  var porcPagado = total > 0 ? Math.min(100, (pagado / total) * 100) : 0;
+  var comisionDetalle = 0;
+  if (Array.isArray(v.comisiones)) {
+    comisionDetalle = v.comisiones.reduce(function(s,c){ return s + (parseFloat(c.monto)||0); }, 0);
+  } else {
+    comisionDetalle = parseFloat(v.comisionMonto || v.comision || 0) || 0;
+  }
+  var otAsociada = v.otId || v.ordenTrabajoId || v.ot || '';
+  var facturaTxt = v.facturaNumero || v.factura || (v.facturada ? 'Emitida' : 'Sin factura');
+  var puedeVerInternosVenta = (currentRole === 'admin');
+  var metricVentaHtml = '<div class="metrics" id="venta-detalle-metricas" style="margin-bottom:12px;grid-template-columns:repeat(' + (puedeVerInternosVenta ? '4' : '3') + ',minmax(0,1fr))">' +
+    '<div class="metric"><div class="m-label">Total venta</div><div class="m-value">$' + Math.round(total).toLocaleString('es-AR') + '</div><div class="m-sub">' + ep.label + '</div></div>' +
+    '<div class="metric"><div class="m-label">Pagado</div><div class="m-value" style="color:var(--green)">$' + Math.round(pagado).toLocaleString('es-AR') + '</div><div class="m-sub">' + porcPagado.toFixed(0) + '% de la venta</div></div>' +
+    '<div class="metric"><div class="m-label">Saldo</div><div class="m-value" style="color:' + (saldo > 0 ? 'var(--amber)' : 'var(--green)') + '">$' + Math.round(saldo).toLocaleString('es-AR') + '</div><div class="m-sub">' + (saldo > 0 ? 'pendiente de cobro' : 'cancelado') + '</div></div>' +
+    (puedeVerInternosVenta ? '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">$' + Math.round(gananciaDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">margen ' + margenDetalle.toFixed(1) + '%</div></div>' : '') +
+  '</div>' +
+  '<div class="metrics" id="venta-detalle-seguimiento" style="margin-bottom:12px;grid-template-columns:repeat(4,minmax(0,1fr))">' +
+    '<div class="metric"><div class="m-label">Facturación</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(facturaTxt)) + '</div><div class="m-sub">estado fiscal</div></div>' +
+    '<div class="metric"><div class="m-label">Instalación</div><div class="m-value" style="font-size:18px;color:' + ei.color + '">' + ei.label + '</div><div class="m-sub">estado OT/inst.</div></div>' +
+    '<div class="metric"><div class="m-label">OT asociada</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(otAsociada || '—')) + '</div><div class="m-sub">seguimiento técnico</div></div>' +
+    '<div class="metric"><div class="m-label">Última modif.</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(v.editadoEn || v.actualizado || v.fecha || '—')) + '</div><div class="m-sub">auditoría de venta</div></div>' +
+  '</div>';
 
   dv.innerHTML =
     // Header — fila 1: volver + título
@@ -26310,6 +26344,8 @@ function renderDetalleVenta(v) {
       '<button class="btn btn-sm" style="color:var(--green2,var(--green));border-color:var(--green2,var(--green))" onclick="pdfYWhatsappVenta(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Generar PDF y abrir WhatsApp del cliente"><i class="ti ti-brand-whatsapp"></i> PDF / WhatsApp</button>' +
       '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="eliminarVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Eliminar venta (también elimina la OT y los pagos vinculados)"><i class="ti ti-trash"></i> Eliminar</button>' +
     '</div>' +
+
+    metricVentaHtml +
 
     // Cliente y estados
     '<div class="card" style="margin-bottom:12px">' +
@@ -26379,9 +26415,9 @@ function renderDetalleVenta(v) {
       ) +
     '</div>' +
 
-    (currentRole === 'admin' ?
+    (puedeVerInternosVenta ?
       '<div class="card" style="margin-bottom:12px">' +
-        '<div style="font-weight:600;margin-bottom:12px">Ganancia de la venta</div>' +
+        '<div style="font-weight:600;margin-bottom:12px">Rentabilidad interna</div>' +
         '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">' +
           '<div class="metric"><div class="m-label">Neto venta</div><div class="m-value">$' + Math.round(netoDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">subtotal − descuentos</div></div>' +
           '<div class="metric"><div class="m-label">Costo productos</div><div class="m-value" style="color:var(--amber)">$' + Math.round(costoDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">compra × cantidad</div></div>' +
@@ -26414,6 +26450,16 @@ function renderDetalleVenta(v) {
             : '')
         : '<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">Sin pagos registrados</div>'
       ) +
+    '</div>' +
+
+    '<div class="card" style="margin-bottom:12px">' +
+      '<div style="font-weight:600;margin-bottom:12px"><i class="ti ti-route" style="margin-right:6px"></i>Resumen de seguimiento</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text2)">' +
+        '<span class="badge b-blue">Venta confirmada</span>' +
+        (pagos.length ? '<span class="badge b-green">' + pagos.length + ' pago' + (pagos.length!==1?'s':'') + '</span>' : '<span class="badge b-amber">Sin pagos</span>') +
+        (otAsociada ? '<span class="badge b-purple">OT ' + escapeHTML(String(otAsociada)) + '</span>' : '<span class="badge">Sin OT</span>') +
+        '<span class="badge" style="background:var(--bg3);color:var(--text2)">' + ei.label + '</span>' +
+      '</div>' +
     '</div>' +
 
     // Auditoría
