@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.277 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.281 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4893,6 +4893,20 @@ tr:hover td{color:var(--text)}
         </div>
         <input type="file" id="movi-foto-input" accept="image/*" capture="environment" style="display:none" onchange="onFotoSeleccionada(this)">
         <img id="movi-foto-preview" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:var(--radius);margin-top:8px">
+      </div>
+      <!-- Repetición periódica -->
+      <div class="fg full" style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="movi-periodico" style="accent-color:var(--blue);width:15px;height:15px" onchange="onMoviPeriodicoChange(this.checked)">
+          Repetir mensualmente (gasto fijo del empleado)
+        </label>
+        <div id="movi-periodico-opts" style="display:none;margin-top:10px;display:none">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Se generará automáticamente el día indicado de cada mes hasta que lo desactivés.</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <label style="font-size:12px;color:var(--text2)">Día del mes:</label>
+            <input type="number" id="movi-periodico-dia" min="1" max="28" value="1" style="width:60px;padding:6px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;text-align:center">
+          </div>
+        </div>
       </div>
     </div>
     <div class="flex-end" style="margin-top:16px">
@@ -9267,9 +9281,9 @@ var notifT;
 // ── SHOW PAGE (navegación principal) ──
 var PERMISOS_DEFAULT = {
   admin:          { bloqueados: [] },
-  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad'] },
-  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal','gastos'] },
-  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal','caja','gastos','clientes','productos','kits'] }
+  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad','tesoreria'] },
+  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal','gastos','tesoreria'] },
+  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal','caja','gastos','clientes','productos','kits','tesoreria'] }
 };
 var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 
@@ -9513,7 +9527,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.277-firebase',
+  VERSION: 'v20.281-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -16237,6 +16251,12 @@ function iniciarCtaEmp() {
 }
 
 function cargarCtaEmp(empFbKey) {
+  // Limpiar todo antes de cargar el nuevo empleado
+  var limpia = ['ctaemp-base','ctaemp-haberes','ctaemp-adelantos','ctaemp-total'];
+  limpia.forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent='…'; });
+  var tbodyLimpia = document.getElementById('ctaemp-tbody');
+  if (tbodyLimpia) tbodyLimpia.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Cargando…</td></tr>';
+  movsEmpData = [];
   // Ocultar banner siempre al cambiar de empleado
   var banner = document.getElementById('ctaemp-migracion-banner');
   if (banner) banner.style.display = 'none';
@@ -16609,6 +16629,8 @@ function abrirNuevoMovEmp() {
   document.getElementById('movi-desc').value  = '';
   _setMontoInput(document.getElementById('movi-monto'), 0);
   document.getElementById('movi-estado').value = _esRolAdminOAdministrativo() ? 'aprobado' : 'pendiente';
+  var chkPer = document.getElementById('movi-periodico');
+  if (chkPer) { chkPer.checked = false; onMoviPeriodicoChange(false); }
   document.getElementById('movi-foto-preview').style.display = 'none';
   document.getElementById('movi-foto-nombre').textContent = '';
   onMoviTipoChange();
@@ -16617,6 +16639,11 @@ function abrirNuevoMovEmp() {
 
 function cerrarModalMovEmp() {
   document.getElementById('modal-movi-emp').style.display = 'none';
+}
+
+function onMoviPeriodicoChange(checked) {
+  var opts = document.getElementById('movi-periodico-opts');
+  if (opts) opts.style.display = checked ? 'block' : 'none';
 }
 
 function onMoviTipoChange() {
@@ -16673,6 +16700,25 @@ function guardarMovEmp() {
     ts:          Date.now(),
     fotoUrl:     null
   };
+  // Si es periódico, guardar config de repetición
+  var esPeriodico = document.getElementById('movi-periodico') && document.getElementById('movi-periodico').checked;
+  if (esPeriodico) {
+    var dia = parseInt(document.getElementById('movi-periodico-dia').value) || 1;
+    nuevo.periodico    = true;
+    nuevo.periodicoDia = dia;
+    // Registrar también en la config de gastos periódicos del empleado
+    window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos_periodicos_emp/' + ctaEmpActual), {
+      tipo:        nuevo.tipo,
+      descripcion: nuevo.descripcion,
+      monto:       monto,
+      dia:         dia,
+      activo:      true,
+      empleadoId:  ctaEmpActual,
+      empleadoNombre: nuevo.empleadoNombre,
+      creadoPor:   currentUser || 'admin',
+      ts:          Date.now()
+    }).then(function(){ notify('✓ Gasto periódico registrado — se repetirá el día ' + dia + ' de cada mes'); });
+  }
   var fileInput = document.getElementById('movi-foto-input');
   var file = fileInput && fileInput.files[0];
   if (file && window.fbStorage) {
@@ -22436,7 +22482,13 @@ function fbCargarGastos() {
     var data = snap.val();
     gastosData = data ? Object.entries(data).map(function(e){
       return Object.assign({ fbKey: e[0] }, e[1]);
-    }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
+    }).sort(function(a,b){
+      // Fecha ascendente (más antiguo primero)
+      var fa = (a.fecha||'').split('/').reverse().join('-');
+      var fb = (b.fecha||'').split('/').reverse().join('-');
+      if (fa && fb && fa !== fb) return fa.localeCompare(fb);
+      return (a.ts||0) - (b.ts||0);
+    }) : [];
     // NOTA: generarGastosFijosMes() fue removida de acá porque causaba un loop
     // infinito: al crear un gasto Firebase disparaba este callback de nuevo,
     // que creaba otro gasto, y así hasta 50.000 registros.
@@ -23037,9 +23089,10 @@ function _actualizarCtaEmpPorPagoGasto(g, fbKey, montoTotal, nuevoPagado, nuevoE
       Object.entries(movs).forEach(function(entry) {
         var key = entry[0]; var mov = entry[1];
         var esElMov = mov.gastoFbKey === fbKey ||
-          (Math.abs((parseFloat(mov.monto)||0) - montoTotal) < 1 &&
-           mov.estado !== 'pagado' &&
-           (mov.tipo === 'sueldo' || mov.tipo === 'gasto_empresa' || mov.tipo === 'transporte'));
+          mov.gastoKey === fbKey ||
+          (mov.descripcion && g.descripcion && mov.descripcion === g.descripcion &&
+           Math.abs((parseFloat(mov.monto)||0) - montoTotal) < 1 &&
+           mov.estado !== 'pagado');
         if (esElMov) {
           var updMov = {
             estado: nuevoEstado === 'pagado' ? 'pagado' : 'pagado_parcial',
@@ -26793,7 +26846,16 @@ function renderNotificaciones(filtro) {
   const lbl   = document.getElementById('notif-count-label');
   if (!lista) return;
 
-  var _notifModulo = { stock:'productos', presupuesto:'presupuesto', deuda:'cobranzas', ot:'ordenes_trabajo', gasto:'gastos' };
+  var _notifModulo = {
+    stock:       'productos',
+    presupuesto: 'presupuesto',
+    deuda:       'cobranzas',
+    ot:          'ordenes_trabajo',
+    gasto:       'gastos',
+    empleado:    'empleados',
+    caja:        'caja',
+    proveedor:   'proveedores'
+  };
   var _bloqueadosNotif = (PERMISOS_ROLES[currentRole]||PERMISOS_DEFAULT[currentRole]||{bloqueados:[]}).bloqueados||[];
   const rows = (filtro ? todasNotifs.filter(n => n.tipo === filtro) : todasNotifs)
     .filter(function(n){ var m = _notifModulo[n.tipo]; return !m || !_bloqueadosNotif.includes(m); });
