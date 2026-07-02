@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.273 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.274 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9506,7 +9506,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.273-firebase',
+  VERSION: 'v20.274-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -16388,6 +16388,34 @@ function abrirComprobanteMovEmp(movFbKey, idx) {
   else w.document.write('<img src="'+comp.data+'" style="max-width:100%;height:auto;display:block;margin:0 auto;background:#111">');
 }
 
+
+function _esRolAdminOAdministrativo() {
+  var r = String(currentRole || '').toLowerCase();
+  return r === 'admin' || r === 'administrativo';
+}
+
+function _movEmpEstaPagado(m) {
+  if (!m) return false;
+  var est = String(m.estado || '').toLowerCase();
+  var monto = parseFloat(m.monto) || 0;
+  var pagado = parseFloat(m.montoPagado) || 0;
+  if (est === 'pagado' || est === 'pago_total') return true;
+  if (m._fuente === 'gastos' && monto > 0 && pagado >= monto) return true;
+  var pagos = _movEmpPagosArray(m).reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
+  return monto > 0 && pagos >= monto;
+}
+
+function _movEmpEsCobrable(m) {
+  if (!m) return false;
+  var est = String(m.estado || '').toLowerCase();
+  if (est === 'rechazado' || est === 'anulado') return false;
+  return !_movEmpEstaPagado(m);
+}
+
+function _puedeAprobarMovEmp(m) {
+  return _esRolAdminOAdministrativo() && m && m._fuente !== 'gastos' && String(m.estado||'').toLowerCase() === 'pendiente';
+}
+
 function renderMovsEmp() {
   var tbody = document.getElementById('ctaemp-tbody');
   if (!tbody) return;
@@ -16408,7 +16436,7 @@ function renderMovsEmp() {
       var esEgreso  = ['adelanto'].includes(m.tipo);
       var montoColor = esEgreso ? 'var(--red)' : 'var(--green)';
       var estBadge  = {pendiente:'<span class="badge b-amber">Pendiente</span>',aprobado:'<span class="badge b-blue">Aprobado</span>',pagado:'<span class="badge b-green">Pagado</span>',rechazado:'<span class="badge b-red">Rechazado</span>'}[m.estado]||('<span class="badge">'+m.estado+'</span>');
-      var aprobBtn  = (currentRole === 'admin' && m.estado === 'pendiente' && m.tipo === 'comision')
+      var aprobBtn  = (_puedeAprobarMovEmp(m) && m.tipo === 'comision')
         ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="event.stopPropagation();aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
           '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
         : '';
@@ -16433,29 +16461,24 @@ function renderMovsEmp() {
         '<td class="tr">'+ estBadge +'</td>' +
         '<td class="tr">'+ fotoBtn +'</td>' +
         '<td style="white-space:nowrap">' +
-          (m.tipo === 'comision' && m.estado === 'pendiente' && currentRole === 'admin'
+          (_puedeAprobarMovEmp(m) && m.tipo === 'comision'
             ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green);font-size:11px;padding:3px 8px" onclick="event.stopPropagation();aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
               '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 8px;margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
-            : '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar" style="'+(m.estado==='pendiente'?'':'display:none')+'"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button>') +
-          '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();eliminarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
+            : (_puedeAprobarMovEmp(m) ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button>' : '')) +
+          (_esRolAdminOAdministrativo() && m._fuente !== 'gastos' ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();eliminarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' : '') +
         '</td>' +
       '</tr>';
     }).join('');
   }
-  // Recalcular totales
+  // Recalcular totales — aprobar NO descuenta ni paga; solo Pago/Tesorería descuenta
   var TIPOS_HABER = ['sueldo','comision','hextra','transporte','materiales','gasto_empresa','otro'];
-  // Haberes PENDIENTES de cobro (no incluir los ya pagados)
-  var haberes   = movsEmpData.filter(function(m){ return TIPOS_HABER.includes(m.tipo) && m.estado === 'pendiente'; })
-                             .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-  // Adelantos ya descontados
-  var adelantos = movsEmpData.filter(function(m){ return m.tipo === 'adelanto' && m.estado !== 'rechazado'; })
-                             .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-  // Total a cobrar = solo lo pendiente (no pagado aún)
-  var pendiente = movsEmpData.filter(function(m){ return TIPOS_HABER.includes(m.tipo) && m.estado === 'pendiente'; })
-                             .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-  var adelantosPend = movsEmpData.filter(function(m){ return m.tipo === 'adelanto' && m.estado === 'pendiente'; })
-                             .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-  var total = pendiente - adelantosPend;
+  var haberes = movsEmpData.filter(function(m){ return TIPOS_HABER.includes(m.tipo) && _movEmpEsCobrable(m); })
+                            .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+  var adelantos = movsEmpData.filter(function(m){ return m.tipo === 'adelanto' && String(m.estado||'').toLowerCase() !== 'rechazado'; })
+                              .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+  var adelantosPend = movsEmpData.filter(function(m){ return m.tipo === 'adelanto' && _movEmpEsCobrable(m); })
+                                  .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+  var total = haberes - adelantosPend;
   var el = function(id){ return document.getElementById(id); };
   // Sueldo base: tomar del último movimiento tipo sueldo registrado
   var ultimoSueldo = movsEmpData.filter(function(m){ return m.tipo === 'sueldo'; })
@@ -16557,7 +16580,7 @@ function abrirNuevoMovEmp() {
   document.getElementById('movi-tipo').value  = 'transporte';
   document.getElementById('movi-desc').value  = '';
   _setMontoInput(document.getElementById('movi-monto'), 0);
-  document.getElementById('movi-estado').value = currentRole === 'admin' ? 'aprobado' : 'pendiente';
+  document.getElementById('movi-estado').value = _esRolAdminOAdministrativo() ? 'aprobado' : 'pendiente';
   document.getElementById('movi-foto-preview').style.display = 'none';
   document.getElementById('movi-foto-nombre').textContent = '';
   onMoviTipoChange();
@@ -16647,16 +16670,18 @@ function guardarMovEmp() {
 
 function aprobarComision(movFbKey, empFbKey) {
   if (!window.fbDB) return;
+  if (!_esRolAdminOAdministrativo()) { notify('No tenés permiso para aprobar comisiones'); return; }
   if (!confirm('¿Aprobar esta comisión?')) return;
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
     estado: 'aprobado',
     aprobadoPor: currentUser || '',
     fechaAprobacion: new Date().toISOString().slice(0,10)
-  }).then(function(){ notify('✓ Comisión aprobada'); });
+  }).then(function(){ notify('✓ Comisión aprobada — queda pendiente de pago'); });
 }
 
 function rechazarComision(movFbKey, empFbKey) {
   if (!window.fbDB) return;
+  if (!_esRolAdminOAdministrativo()) { notify('No tenés permiso para rechazar comisiones'); return; }
   var motivo = prompt('Motivo del rechazo (opcional):') || '';
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
     estado: 'rechazado',
@@ -16668,11 +16693,16 @@ function rechazarComision(movFbKey, empFbKey) {
 
 function aprobarMovEmp(movKey, empKey) {
   if (!window.fbDB) return;
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey), { estado: 'aprobado' })
-    .then(function(){ notify('Movimiento aprobado'); });
+  if (!_esRolAdminOAdministrativo()) { notify('No tenés permiso para aprobar movimientos'); return; }
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey), {
+    estado: 'aprobado',
+    aprobadoPor: currentUser || '',
+    fechaAprobacion: new Date().toISOString().slice(0,10)
+  }).then(function(){ notify('Movimiento aprobado — queda pendiente de pago'); });
 }
 
 function eliminarMovEmp(movKey, empKey) {
+  if (!_esRolAdminOAdministrativo()) { notify('No tenés permiso para eliminar movimientos'); return; }
   if (!confirm('¿Eliminar este movimiento?')) return;
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey))
     .then(function(){ notify('Movimiento eliminado'); });
@@ -25259,25 +25289,25 @@ function renderDashMiCuenta() {
       ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0))
       : 0;
 
-    var comisionesPend  = movs.filter(function(m){ return m.tipo === 'comision' && m.estado === 'pendiente'; });
-    var comisionesAprob = movs.filter(function(m){ return m.tipo === 'comision' && m.estado === 'aprobado'; });
-    var adelantos       = movs.filter(function(m){ return m.tipo === 'adelanto'; });
-    // Solo sueldos PENDIENTES de cobro (no incluir los ya pagados)
-    var sueldosPend     = movs.filter(function(m){ return (m.tipo === 'sueldo' || m.tipo === 'hextra') && m.estado === 'pendiente'; });
+    var comisionesPend  = movs.filter(function(m){ return m.tipo === 'comision' && String(m.estado||'').toLowerCase() === 'pendiente'; });
+    var comisionesAprob = movs.filter(function(m){ return m.tipo === 'comision' && String(m.estado||'').toLowerCase() === 'aprobado'; });
+    var comisionesCobrables = movs.filter(function(m){ return m.tipo === 'comision' && _movEmpEsCobrable(m); });
+    var adelantos       = movs.filter(function(m){ return m.tipo === 'adelanto' && String(m.estado||'').toLowerCase() !== 'rechazado'; });
+    var haberesCobrables = movs.filter(function(m){ return ['sueldo','hextra','comision','transporte','materiales','gasto_empresa','otro'].includes(m.tipo) && _movEmpEsCobrable(m); });
 
-    var totalSueldoPend = sueldosPend.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+    var totalHaberesPend = haberesCobrables.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
     var totalComPend    = comisionesPend.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
     var totalComAprob   = comisionesAprob.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
     var totalAdelanto   = adelantos.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-    // Total a cobrar = sueldos pendientes + comisiones aprobadas - adelantos
-    var totalCobrar     = totalSueldoPend + totalComAprob - totalAdelanto;
+    var totalAdelantoPend = adelantos.filter(function(m){ return _movEmpEsCobrable(m); }).reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+    var totalCobrar     = totalHaberesPend - totalAdelantoPend;
 
     var fmt = function(n){ return '$' + Math.round(n).toLocaleString('es-AR'); };
     var el = function(id){ return document.getElementById(id); };
     if(el('dash-mc-total'))      el('dash-mc-total').textContent      = fmt(Math.max(0, totalCobrar));
-    if(el('dash-mc-comisiones')) el('dash-mc-comisiones').textContent = fmt(totalComPend);
+    if(el('dash-mc-comisiones')) el('dash-mc-comisiones').textContent = fmt(totalComPend + totalComAprob);
     if(el('dash-mc-comisiones-sub')) el('dash-mc-comisiones-sub').textContent =
-      comisionesPend.length + ' pendiente' + (comisionesPend.length !== 1 ? 's' : '') + ' de aprobación';
+      comisionesPend.length + ' pendiente' + (comisionesPend.length !== 1 ? 's' : '') + ' · ' + comisionesAprob.length + ' aprobada' + (comisionesAprob.length !== 1 ? 's' : '') + ' sin pagar';
     if(el('dash-mc-adelantos'))  el('dash-mc-adelantos').textContent  = fmt(totalAdelanto);
 
     // Widget hs extra — cargar solicitudes del empleado
