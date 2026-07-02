@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.274 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.275 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9506,7 +9506,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.274-firebase',
+  VERSION: 'v20.275-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13666,7 +13666,8 @@ function _imprimirOTReal() {
       (ot.firmaClienteUrl ? '<img src="'+ot.firmaClienteUrl+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
       '<div class="firma-line">Firma del cliente'+(ot.firmaClienteUrl?' ✓':''+(ot.fechaFirma?' · '+ot.fechaFirma:''))+'</div></div>'+
       '<div><div style="height:60px"></div><div class="firma-line">Firma del técnico</div></div></div>'+
-    '</body></html>');
+    '
+</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
@@ -14170,7 +14171,8 @@ function imprimirSeccion(pageId, titulo) {
     '<div style="text-align:right"><div style="font-size:16px;font-weight:600">'+titulo+'</div>' +
     '<div style="font-size:12px;color:#666">'+new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})+'</div></div></div>' +
     page.innerHTML +
-    '</body></html>');
+    '
+</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
@@ -14495,7 +14497,8 @@ function imprimirVentaActual() {
       '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>' +
     '</div>' +
 
-    '</body></html>');
+    '
+</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 800);
 }
@@ -16258,7 +16261,7 @@ function cargarCtaEmp(empFbKey) {
         desc:       g.descripcion || g.desc || g.detalle || '',
         fecha:      g.fecha || '',
         estado:     normalizarEstadoGasto(g),
-        montoPagado: parseFloat(g.montoPagado)||0,
+        montoPagado: totalPagadoGasto(g),
         pagos:      g.pagos || {},
         gastoFbKey: g.fbKey,
         ts:         g.ts || 0,
@@ -16394,15 +16397,26 @@ function _esRolAdminOAdministrativo() {
   return r === 'admin' || r === 'administrativo';
 }
 
-function _movEmpEstaPagado(m) {
-  if (!m) return false;
-  var est = String(m.estado || '').toLowerCase();
-  var monto = parseFloat(m.monto) || 0;
-  var pagado = parseFloat(m.montoPagado) || 0;
-  if (est === 'pagado' || est === 'pago_total') return true;
-  if (m._fuente === 'gastos' && monto > 0 && pagado >= monto) return true;
+function _movEmpTotalPagado(m) {
+  if (!m) return 0;
   var pagos = _movEmpPagosArray(m).reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
-  return monto > 0 && pagos >= monto;
+  return pagos > 0 ? pagos : (parseFloat(m.montoPagado) || 0);
+}
+
+function _movEmpEstadoCalculado(m) {
+  if (!m) return 'pendiente';
+  var est = String(m.estado || '').toLowerCase();
+  if (est === 'rechazado' || est === 'anulado') return est;
+  var monto = parseFloat(m.monto) || 0;
+  var pagado = _movEmpTotalPagado(m);
+  if (monto > 0 && pagado >= monto - 0.01) return 'pagado';
+  if (pagado > 0) return 'pagado_parcial';
+  if (est === 'aprobado') return 'aprobado';
+  return 'pendiente';
+}
+
+function _movEmpEstaPagado(m) {
+  return _movEmpEstadoCalculado(m) === 'pagado';
 }
 
 function _movEmpEsCobrable(m) {
@@ -16435,7 +16449,8 @@ function renderMovsEmp() {
       var tipoCls   = {sueldo:'b-blue',comision:'b-green',hextra:'b-green',adelanto:'b-red',transporte:'b-amber',materiales:'b-amber',gasto_empresa:'b-amber',otro:'b-blue'}[m.tipo]||'b-blue';
       var esEgreso  = ['adelanto'].includes(m.tipo);
       var montoColor = esEgreso ? 'var(--red)' : 'var(--green)';
-      var estBadge  = {pendiente:'<span class="badge b-amber">Pendiente</span>',aprobado:'<span class="badge b-blue">Aprobado</span>',pagado:'<span class="badge b-green">Pagado</span>',rechazado:'<span class="badge b-red">Rechazado</span>'}[m.estado]||('<span class="badge">'+m.estado+'</span>');
+      var estadoCalc = _movEmpEstadoCalculado(m);
+      var estBadge  = {pendiente:'<span class="badge b-amber">Pendiente</span>',aprobado:'<span class="badge b-blue">Aprobado</span>',pagado_parcial:'<span class="badge b-amber">Pago parcial</span>',pagado:'<span class="badge b-green">Pagado</span>',rechazado:'<span class="badge b-red">Rechazado</span>',anulado:'<span class="badge b-red">Anulado</span>'}[estadoCalc]||('<span class="badge">'+estadoCalc+'</span>');
       var aprobBtn  = (_puedeAprobarMovEmp(m) && m.tipo === 'comision')
         ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="event.stopPropagation();aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
           '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
@@ -17007,7 +17022,8 @@ function imprimirPresupuesto() {
       '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>'+
     '</div>'+
 
-    '</body></html>');
+    '
+</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
@@ -17151,7 +17167,8 @@ function imprimirRecibo() {
     '<div><div class="firma-line">Firma del cliente</div></div>'+
     '<div><div class="firma-line">Firma Nixa</div></div>'+
     '</div></div>'+
-    '</body></html>');
+    '
+</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
@@ -18889,7 +18906,8 @@ function imprimirRemito(fbKey) {
       '<p><strong>Venta vinculada:</strong> '+escapeHTML(r.venta||'—')+'</p>'+
       '<p><strong>Descripción:</strong> '+escapeHTML(r.descripcion||'—')+'</p>'+
       '<div class="firma"><div><div class="firma-line">Firma receptor</div></div><div><div class="firma-line">Firma Nixa</div></div></div>'+
-      '</body></html>');
+      '
+</body></html>');
     w.document.close();
     setTimeout(function(){ w.print(); }, 500);
   }, { onlyOnce: true });
@@ -22400,7 +22418,8 @@ function imprimirInforme() {
     (g('inf-obs') ? '<section><h2>Observaciones</h2><p>'+g('inf-obs').replace(/\n/g,'<br>')+'</p></section>' : '') +
     '<section><h2>Conformidad del cliente</h2><div class="grid"><div><label>Nombre quien recibe</label><p>'+g('inf-receptor')+'</p></div><div><label>DNI</label><p>'+g('inf-receptor-dni')+'</p></div><div><label>Resultado</label><p>'+g('inf-resultado')+'</p></div></div></section>' +
     '<div class="firma"><div><div class="firma-line">Firma del técnico: '+g('inf-tecnico')+'</div></div><div><div class="firma-line">Firma del cliente: '+g('inf-receptor')+'</div></div></div>' +
-    '</body></html>';
+    '
+</body></html>';
   w.document.write(html);
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
@@ -22485,17 +22504,17 @@ function actualizarMetricasGastos() {
   var mesActual = hoy.toISOString().slice(0,7);
   var enUnaSemana = new Date(hoy.getTime() + 7*86400000).toISOString().split('T')[0];
   var gasMes = gastosData.filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; });
-  var pagados    = gasMes.filter(function(g){ return g.estado==='pagado'; }).reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
-  var pendientes = gastosData.filter(function(g){ return g.estado==='pendiente'||g.estado==='pagado_parcial'; });
-  var pendTotal  = pendientes.reduce(function(s,g){ return s+(parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0); },0);
+  var pagados    = gasMes.filter(function(g){ return normalizarEstadoGasto(g)==='pagado'; }).reduce(function(s,g){ return s+totalPagadoGasto(g); },0);
+  var pendientes = gastosData.filter(function(g){ return normalizarEstadoGasto(g)!=='pagado'; });
+  var pendTotal  = pendientes.reduce(function(s,g){ return s+restoGasto(g); },0);
   var vencenProx = pendientes.filter(function(g){ return g.vencimiento && g.vencimiento<=enUnaSemana; });
-  var vencTotal  = vencenProx.reduce(function(s,g){ return s+(parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0); },0);
+  var vencTotal  = vencenProx.reduce(function(s,g){ return s+restoGasto(g); },0);
   var reembolso  = gastosData.filter(function(g){ return g.empleadoId && !g.reembolsado; });
   var reembTotal = reembolso.reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
 
   var _e = function(id){ return document.getElementById(id); };
   if (_e('gas-total'))          _e('gas-total').textContent          = '$'+Math.round(pagados).toLocaleString('es-AR');
-  if (_e('gas-total-sub'))      _e('gas-total-sub').textContent      = gasMes.filter(function(g){return g.estado==='pagado';}).length+' pagados este mes';
+  if (_e('gas-total-sub'))      _e('gas-total-sub').textContent      = gasMes.filter(function(g){return normalizarEstadoGasto(g)==='pagado';}).length+' pagados este mes';
   if (_e('gas-pendiente'))      _e('gas-pendiente').textContent      = '$'+Math.round(pendTotal).toLocaleString('es-AR');
   if (_e('gas-pend-cant'))      _e('gas-pend-cant').textContent      = pendientes.length+' gasto'+(pendientes.length!==1?'s':'');
   if (_e('gas-vencen'))         _e('gas-vencen').textContent         = '$'+Math.round(vencTotal).toLocaleString('es-AR');
@@ -22511,7 +22530,7 @@ function actualizarMetricasGastos() {
       alertasBox.innerHTML = '<div style="background:var(--red-bg);border:0.5px solid var(--red);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--red)">' +
         '<i class="ti ti-alert-circle" style="margin-right:8px"></i>' +
         '<strong>'+vencenProx.length+' gasto'+(vencenProx.length!==1?'s vencen':'vence')+' en los próximos 7 días:</strong> ' +
-        vencenProx.map(function(g){ return escapeHTML(g.descripcion||'—')+' ('+escapeHTML(g.vencimiento||'')+',$'+Math.round((parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0)).toLocaleString('es-AR')+')'; }).join(' · ') +
+        vencenProx.map(function(g){ return escapeHTML(g.descripcion||'—')+' ('+escapeHTML(g.vencimiento||'')+',$'+Math.round(restoGasto(g)).toLocaleString('es-AR')+')'; }).join(' · ') +
       '</div>';
     } else {
       alertasBox.style.display = 'none';
@@ -22524,14 +22543,21 @@ var _gastosPagoMultipleActivo = false;
 var _gastosSeleccionadosPago = {};
 var _gastoPagoMultipleKeys = [];
 
+function totalPagadoGasto(g) {
+  if (!g) return 0;
+  var pagos = _gastoPagosArray(g);
+  if (pagos && pagos.length) {
+    return pagos.reduce(function(s,p){ return s + (parseFloat(p && p.monto) || 0); }, 0);
+  }
+  return parseFloat(g.montoPagado) || 0;
+}
+
 function normalizarEstadoGasto(g) {
   var monto = parseFloat(g && g.monto) || 0;
-  var pagado = parseFloat(g && g.montoPagado) || 0;
-  if (monto > 0 && pagado >= monto) return 'pagado';
+  var pagado = totalPagadoGasto(g);
+  // Fuente de verdad: importes realmente pagados. El estado guardado legacy no puede marcar Pagado con $0.
+  if (monto > 0 && pagado >= monto - 0.01) return 'pagado';
   if (pagado > 0) return 'pagado_parcial';
-  var est = String((g && g.estado) || '').toLowerCase().trim().replace(/\s+/g,'_');
-  if (est === 'pago_parcial' || est === 'parcial') return 'pagado_parcial';
-  if (est === 'pagado' || est === 'pago_total') return 'pagado';
   return 'pendiente';
 }
 
@@ -22544,7 +22570,7 @@ function normalizarTipoGasto(g) {
 }
 
 function restoGasto(g) {
-  return Math.max(0, (parseFloat(g && g.monto)||0) - (parseFloat(g && g.montoPagado)||0));
+  return Math.max(0, (parseFloat(g && g.monto)||0) - totalPagadoGasto(g));
 }
 
 function gastoSeleccionableParaPago(g) {
@@ -22675,7 +22701,7 @@ function renderTablaGastos() {
       '<td style="color:var(--text3);font-size:12px">'+escapeHTML(g.categoria||'—')+'</td>' +
       '<td>'+tipoBadge+'</td>' +
       '<td class="tr" style="font-weight:500">$'+(parseFloat(g.monto)||0).toLocaleString('es-AR')+'</td>' +
-      '<td class="tr" style="color:var(--green)">$'+(parseFloat(g.montoPagado)||0).toLocaleString('es-AR')+'</td>' +
+      '<td class="tr" style="color:var(--green)">$'+totalPagadoGasto(g).toLocaleString('es-AR')+'</td>' +
       '<td class="tr" style="font-size:12px;color:'+(g.vencimiento&&g.vencimiento<new Date().toISOString().split('T')[0]?'var(--red)':'var(--text3)')+'">'+venc+'</td>' +
       '<td class="tr">'+estBadge(g)+'</td>' +
       '<td class="tr">'+pagoPor+'</td>' +
@@ -22855,7 +22881,7 @@ function abrirPagoGasto(fbKey) {
   var lblComp = document.getElementById('mpg-comprobante-lbl');
   if (inpComp) inpComp.value = '';
   if (lblComp) lblComp.textContent = 'Opcional: adjuntar transferencia / ticket';
-  var resta = Math.max(0, (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0));
+  var resta = restoGasto(g);
   document.getElementById('mpg-titulo').textContent = 'Pagar: '+(g.descripcion||'')+'  (resta $'+resta.toLocaleString('es-AR')+')';
   _setMontoInput(document.getElementById('mpg-monto'), resta);
   document.getElementById('modal-pago-gasto').style.display = 'flex';
@@ -23035,7 +23061,7 @@ function _registrarPagoGastoUnitario(fbKey, montoNuevo, medio, comprobante, lote
   var g = (gastosData||[]).find(function(x){ return x.fbKey===fbKey; });
   if (!g || !window.fbDB) return Promise.resolve(false);
   var montoTotal = parseFloat(g.monto)||0;
-  var pagadoActual = parseFloat(g.montoPagado)||0;
+  var pagadoActual = totalPagadoGasto(g);
   var resta = Math.max(0, montoTotal - pagadoActual);
   if (!montoNuevo || montoNuevo <= 0 || resta <= 0) return Promise.resolve(false);
   if (montoNuevo > resta) montoNuevo = resta;
@@ -29704,5 +29730,13 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 })();
 </script>
 
+
+
+<script>
+/* v20.275 — Gastos: estado calculado por pagos reales
+   - El estado Pagado/Parcial/Pendiente se calcula por monto pagado real.
+   - Evita registros con Pagado $0 y estado Pagado por flags legacy.
+   - Métricas y tabla de Gastos usan la misma fuente de verdad. */
+</script>
 </body>
 </html>
