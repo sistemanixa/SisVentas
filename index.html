@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.272 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.273 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9506,7 +9506,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.272-firebase',
+  VERSION: 'v20.273-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -29416,6 +29416,258 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
         if (window.ctaEmpActual && typeof cargarCtaEmp === 'function') cargarCtaEmp(window.ctaEmpActual);
       }, 250);
       if (page === 'tesoreria' && typeof window.renderTesoreria === 'function') setTimeout(window.renderTesoreria, 180);
+      return r;
+    };
+  }
+})();
+</script>
+
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   v20.273 — Corrección real OT: dirección + flujo por pasos
+   - Ignora direcciones placeholder como "Sin definir"
+   - Resuelve dirección desde venta y ficha del cliente
+   - Reemplaza la barra de pasos vieja por un wizard que muestra un paso por vez
+   ════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  function _norm273(s){
+    return String(s||'').toLowerCase().trim()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\s+/g,' ');
+  }
+  function _isEmptyDir273(v){
+    var n = _norm273(v);
+    return !n || n === '-' || n === '—' || n === 'sin definir' || n === 'sin direccion' || n === 'sin dirección' || n === 'no definido' || n === 'no cargado' || n === 'undefined' || n === 'null';
+  }
+  function _escape273(s){
+    if (typeof escapeHTML === 'function') return escapeHTML(s);
+    return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+  function _clientes273(){
+    var c = window.clientesData || [];
+    if (Array.isArray(c)) return c;
+    return Object.values(c||{});
+  }
+  function _ventas273(){ return Array.isArray(window.ventasList) ? window.ventasList : []; }
+  var DIR_FIELDS_273 = [
+    'dir','direccion','domicilio','direccionCliente','direccion_cliente','domicilioCliente',
+    'direccionInstalacion','direccion_instalacion','domicilioInstalacion','direccionObra','direccion_obra',
+    'ubicacion','address','calle','direccionServicio','direccion_servicio','instalacionDireccion',
+    'instalacion_direccion','lugarInstalacion','lugar_instalacion'
+  ];
+  function _readDir273(obj){
+    if(!obj) return '';
+    for(var i=0;i<DIR_FIELDS_273.length;i++){
+      var v = obj[DIR_FIELDS_273[i]];
+      if(!_isEmptyDir273(v)) return String(v).trim();
+    }
+    var nested = ['cliente','clienteObj','clienteData','clienteInfo','datosCliente','instalacion','obra','direccionData','clienteSeleccionado'];
+    for(var j=0;j<nested.length;j++){
+      var d = _readDir273(obj[nested[j]]);
+      if(d) return d;
+    }
+    return '';
+  }
+  function _matchCliente273(ot, venta){
+    var clientes = _clientes273();
+    var ids = [
+      ot && ot.clienteId, ot && ot.idCliente, ot && ot.id_cli, ot && ot.clienteKey,
+      venta && venta.clienteId, venta && venta.idCliente, venta && venta.id_cli, venta && venta.clienteKey, venta && venta.id_cli
+    ].filter(Boolean).map(String);
+    if(ids.length){
+      var cId = clientes.find(function(c){
+        var cand = [c.id,c.fbKey,c.key,c.codigo,c.uid,c.idCliente].filter(Boolean).map(String);
+        return cand.some(function(x){ return ids.indexOf(x) >= 0; });
+      });
+      if(cId) return cId;
+    }
+    var names = [
+      ot && ot.cliente,
+      venta && venta.cliente,
+      venta && venta.clienteNombre,
+      venta && venta.razonSocial
+    ].filter(Boolean).map(_norm273);
+    if(names.length){
+      return clientes.find(function(c){
+        var cand = [
+          c.nombre,
+          ((c.nombre||'') + ' ' + (c.apellidos || c.apellido || '')).trim(),
+          c.razonSocial,
+          c.razon_social,
+          c.empresa
+        ].map(_norm273).filter(Boolean);
+        return cand.some(function(x){ return names.indexOf(x) >= 0; });
+      }) || null;
+    }
+    return null;
+  }
+
+  // Reemplazo definitivo: no acepta "Sin definir" como dirección válida.
+  window._otResolverDireccionCliente = function(ot){
+    ot = ot || {};
+    var dir = _readDir273(ot);
+    if(dir) return dir;
+
+    var ventaId = ot.ventaId || ot.venta || ot.ventaOrigen || ot.idVenta || '';
+    var venta = null;
+    if(ventaId){
+      venta = _ventas273().find(function(v){
+        return String(v.id||'') === String(ventaId) || String(v.numero||'') === String(ventaId) || String(v.fbKey||'') === String(ventaId);
+      }) || null;
+      dir = _readDir273(venta);
+      if(dir) return dir;
+    }
+
+    var cli = _matchCliente273(ot, venta);
+    dir = _readDir273(cli);
+    if(dir) return dir;
+    return '';
+  };
+
+  function _setDirEnOT273(ot){
+    var dir = window._otResolverDireccionCliente(ot);
+    var inp = document.getElementById('ot-det-dir');
+    if(inp){
+      if(dir) inp.value = dir;
+      else if(_isEmptyDir273(inp.value)) inp.value = '';
+    }
+    window._otDireccionActual = dir || (inp && !_isEmptyDir273(inp.value) ? inp.value : '');
+    var maps = document.getElementById('ot-det-dir-maps-btn');
+    if(maps) maps.style.display = window._otDireccionActual ? '' : 'none';
+
+    // Persistir solo cuando realmente se encontró dirección válida.
+    if(ot && dir && (_isEmptyDir273(ot.dir) && _isEmptyDir273(ot.direccion) && _isEmptyDir273(ot.domicilio))){
+      ot.dir = dir;
+      if(typeof fbGuardarOT === 'function'){
+        window._otGuardandoLocalHasta = Date.now() + 2500;
+        try{ fbGuardarOT(ot).catch(function(e){ console.warn('No se pudo guardar dirección de OT:', e); }); }catch(e){}
+      }
+    }
+  }
+
+  window.abrirDireccionEnMaps = function(){
+    var dir = window._otDireccionActual || (document.getElementById('ot-det-dir')||{}).value || '';
+    if(_isEmptyDir273(dir)){ if(typeof notify==='function') notify('No hay dirección cargada para esta OT'); return; }
+    window.open('https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(dir), '_blank');
+  };
+
+  var _genOriginal273 = window.generarOTdesdeVenta;
+  if(typeof _genOriginal273 === 'function'){
+    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
+      if(_isEmptyDir273(dir)){
+        var venta = _ventas273().find(function(v){ return String(v.id||'')===String(ventaId) || String(v.numero||'')===String(ventaId) || String(v.fbKey||'')===String(ventaId); }) || null;
+        dir = window._otResolverDireccionCliente({ ventaId: ventaId, cliente: cliente, clienteId: venta && (venta.clienteId || venta.idCliente || venta.id_cli), ventaObj: venta });
+      }
+      return _genOriginal273.call(this, ventaId, cliente, _isEmptyDir273(dir) ? '' : dir);
+    };
+  }
+
+  function _otCards273(){
+    var view = document.getElementById('ot-detalle-view');
+    if(!view) return [];
+    return Array.from(view.querySelectorAll(':scope > .card')).filter(function(card){
+      return card.id !== 'ot-wizard-273' && card.id !== 'ot-pasos-rapidos';
+    });
+  }
+  function _cardHas273(card, selector){ return !!(card && card.querySelector(selector)); }
+  function _clasificarCards273(){
+    _otCards273().forEach(function(card){
+      var step = '';
+      if(_cardHas273(card,'#ot-det-venta') || _cardHas273(card,'#ot-det-cliente')) step = 'cliente';
+      else if(_cardHas273(card,'#ot-materiales')) step = 'materiales';
+      else if(_cardHas273(card,'#ot-progress-fill') || _cardHas273(card,'#checklist-preparacion')) step = 'checklist';
+      else if(_cardHas273(card,'#ot-notas-lista') || _cardHas273(card,'#ot-fotos-preview')) step = 'fotos';
+      else if(_cardHas273(card,'#ot-acta-conf') || _cardHas273(card,'#firma-canvas') || _cardHas273(card,'#btn-completar-ot')) step = 'finalizar';
+      else if(_cardHas273(card,'#ot-audit')) step = 'historial';
+      else if(_cardHas273(card,'#ot-cred-lista') || _cardHas273(card,'#ot-reclamo-hist')) step = 'cliente';
+      if(step) card.setAttribute('data-ot-step-273', step);
+    });
+  }
+  function _stepTitle273(step){
+    return ({cliente:'Cliente y ubicación', materiales:'Materiales', checklist:'Checklist', fotos:'Fotos y notas', finalizar:'Finalizar', historial:'Historial'})[step] || step;
+  }
+  function _activarPaso273(step){
+    step = step || window._otStep273 || 'cliente';
+    window._otStep273 = step;
+    _clasificarCards273();
+    _otCards273().forEach(function(card){
+      var s = card.getAttribute('data-ot-step-273');
+      if(!s) return;
+      var mostrar = (s === step);
+      // El historial queda solo para admin cuando se entra explícitamente.
+      if(s === 'historial' && step !== 'historial') mostrar = false;
+      card.style.display = mostrar ? '' : 'none';
+    });
+    Array.from(document.querySelectorAll('#ot-wizard-273 [data-step]')).forEach(function(btn){
+      var active = btn.getAttribute('data-step') === step;
+      btn.classList.toggle('btn-primary', active);
+      if(active) btn.setAttribute('aria-current','step'); else btn.removeAttribute('aria-current');
+    });
+    var lbl = document.getElementById('ot-wizard-273-label');
+    if(lbl) lbl.textContent = _stepTitle273(step);
+  }
+  function _instalarWizard273(){
+    var view = document.getElementById('ot-detalle-view');
+    if(!view) return;
+    var viejo = document.getElementById('ot-pasos-rapidos');
+    if(viejo) viejo.remove();
+    var wiz = document.getElementById('ot-wizard-273');
+    if(!wiz){
+      wiz = document.createElement('div');
+      wiz.id = 'ot-wizard-273';
+      wiz.className = 'card';
+      wiz.style.cssText = 'padding:12px 14px;margin-bottom:12px;position:sticky;top:0;z-index:6';
+      wiz.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
+        '<div><span class="card-title"><i class="ti ti-route"></i> OT por pasos</span><div id="ot-wizard-273-label" style="font-size:12px;color:var(--text2);margin-top:3px">Cliente y ubicación</div></div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+          '<button type="button" class="btn btn-sm" data-step="cliente" onclick="otPasoIr(\'cliente\')">1 Cliente</button>'+
+          '<button type="button" class="btn btn-sm" data-step="materiales" onclick="otPasoIr(\'materiales\')">2 Materiales</button>'+
+          '<button type="button" class="btn btn-sm" data-step="checklist" onclick="otPasoIr(\'checklist\')">3 Checklist</button>'+
+          '<button type="button" class="btn btn-sm" data-step="fotos" onclick="otPasoIr(\'fotos\')">4 Fotos / notas</button>'+
+          '<button type="button" class="btn btn-sm" data-step="finalizar" onclick="otPasoIr(\'finalizar\')">5 Finalizar</button>'+
+          '<button type="button" class="btn btn-sm admin-only" data-step="historial" onclick="otPasoIr(\'historial\')">Historial</button>'+
+        '</div></div>';
+      var aviso = document.getElementById('ot-aviso-cambio-externo');
+      if(aviso && aviso.parentNode) aviso.parentNode.insertBefore(wiz, aviso.nextSibling);
+      else view.insertBefore(wiz, view.firstChild);
+    }
+    _clasificarCards273();
+    _activarPaso273(window._otStep273 || 'cliente');
+  }
+  window.otPasoIr = function(step){
+    _activarPaso273(step || 'cliente');
+    var wiz = document.getElementById('ot-wizard-273');
+    if(wiz) wiz.scrollIntoView({behavior:'smooth', block:'start'});
+  };
+
+  var _verOTActual273 = window.verOT;
+  if(typeof _verOTActual273 === 'function'){
+    window.verOT = function(id){
+      window._otStep273 = 'cliente';
+      var r = _verOTActual273.apply(this, arguments);
+      setTimeout(function(){
+        var ot = (window.otData||[]).find(function(o){ return String(o.fbKey||'')===String(id) || String(o.id||'')===String(id) || String(o.fbKey||'')===String(window.otActualId||'') || String(o.id||'')===String(window.otActualId||''); });
+        _setDirEnOT273(ot);
+        _instalarWizard273();
+      }, 160);
+      setTimeout(function(){
+        var ot = (window.otData||[]).find(function(o){ return String(o.fbKey||'')===String(window.otActualId||'') || String(o.id||'')===String(window.otActualId||''); });
+        _setDirEnOT273(ot);
+        _instalarWizard273();
+      }, 650);
+      return r;
+    };
+  }
+
+  var _volverLista273 = window.volverListaOT;
+  if(typeof _volverLista273 === 'function'){
+    window.volverListaOT = function(){
+      var r = _volverLista273.apply(this, arguments);
+      var viejo = document.getElementById('ot-pasos-rapidos'); if(viejo) viejo.remove();
+      var wiz = document.getElementById('ot-wizard-273'); if(wiz) wiz.remove();
       return r;
     };
   }
