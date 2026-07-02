@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.284 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.285 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1743,7 +1743,7 @@ tr:hover td{color:var(--text)}
                   <input class="search-input" style="width:160px" placeholder="Buscar cliente o N°..." oninput="buscarOT(this.value)">
                   <select class="search-input" style="width:140px" onchange="filtrarOT(this.value)" id="ot-filtro-estado">
                     <option value="">Todos los estados</option>
-                    <option value="pendiente">Pendiente</option>
+                    <option value="pendiente" selected>Pendiente</option>
                     <option value="en_progreso">En progreso</option>
                     <option value="completada">Completada</option>
                     <option value="con_observaciones">Con observaciones</option>
@@ -1831,7 +1831,7 @@ tr:hover td{color:var(--text)}
               <div class="fg full">
                 <label>Dirección de instalación</label>
                 <div style="display:flex;gap:6px">
-                  <input id="ot-det-dir" readonly style="flex:1">
+                  <input id="ot-det-dir" style="flex:1" placeholder="Calle y número..." onchange="window._otDireccionActual=this.value" oninput="window._otDireccionActual=this.value">
                   <button class="btn btn-sm" id="ot-det-dir-maps-btn" onclick="abrirDireccionEnMaps()" title="Abrir en Google Maps" style="flex-shrink:0">
                     <i class="ti ti-map-pin"></i>
                   </button>
@@ -9165,7 +9165,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.284-firebase',
+  VERSION: 'v20.285-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -23339,6 +23339,11 @@ function renderOTTabla(filtro) {
   var hoy = new Date().toISOString().split('T')[0];
   var mes = hoy.slice(0,7);
   var _e = function(id){ return document.getElementById(id); };
+  // Si no se pasa filtro, leer el select (default: pendiente)
+  if (filtro === undefined) {
+    var sel = _e('ot-filtro-estado');
+    filtro = sel ? sel.value : 'pendiente';
+  }
 
   // Métricas (iguales para todos)
   if (_e('ot-met-abiertas')) _e('ot-met-abiertas').textContent = otData.filter(function(o){ return o.estado !== 'completada'; }).length;
@@ -27848,32 +27853,106 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
     };
   }
 
+
+  var _otPasoActual = 0;
+  var _otPasos = [
+    { id:'cliente',    label:'Cliente',    icon:'ti-user',         target:'ot-det-cliente' },
+    { id:'ubicacion',  label:'Dirección',  icon:'ti-map-pin',      target:'ot-det-dir' },
+    { id:'materiales', label:'Materiales', icon:'ti-tool',         target:'ot-materiales' },
+    { id:'checklist',  label:'Checklist',  icon:'ti-list-check',   target:'checklist-preparacion' },
+    { id:'fotos',      label:'Fotos',      icon:'ti-camera',       target:'ot-notas-lista' },
+    { id:'finalizar',  label:'Finalizar',  icon:'ti-circle-check', target:'btn-completar-ot' },
+  ];
+
+  function _otPasoCompleto(paso) {
+    var el = document.getElementById(paso.target);
+    if (!el) return false;
+    if (paso.id === 'cliente')    return !!(el.value && el.value.trim());
+    if (paso.id === 'ubicacion')  return !!(el.value && el.value.trim());
+    if (paso.id === 'checklist') {
+      var checks = document.querySelectorAll('#checklist-preparacion input[type=checkbox]');
+      return checks.length > 0 && Array.from(checks).every(function(c){ return c.checked; });
+    }
+    if (paso.id === 'materiales') {
+      var mat = document.getElementById('ot-materiales');
+      return mat && mat.value && mat.value.trim().length > 2;
+    }
+    if (paso.id === 'fotos') {
+      var notas = document.getElementById('ot-notas-lista');
+      return notas && notas.children && notas.children.length > 0;
+    }
+    return false;
+  }
+
+  function _otRenderWizard() {
+    var bar = document.getElementById('ot-pasos-rapidos');
+    if (!bar) return;
+    var btns = _otPasos.map(function(p, i) {
+      var completo = _otPasoCompleto(p);
+      var activo   = i === _otPasoActual;
+      var color = completo ? 'var(--green)' : activo ? 'var(--blue)' : 'var(--text3)';
+      var bg    = activo ? 'var(--blue)' : completo ? 'rgba(61,220,132,.15)' : 'var(--bg3)';
+      var border= activo ? '2px solid var(--blue)' : completo ? '1.5px solid var(--green)' : '1px solid var(--border)';
+      return '<button onclick="otPasoIr('+i+')" style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:'+border+';border-radius:8px;background:'+bg+';color:'+color+';cursor:pointer;font-size:12px;font-weight:'+(activo?'700':'500')+';white-space:nowrap;font-family:inherit">'+
+        (completo ? '<i class="ti ti-circle-check" style="font-size:14px"></i>' : '<i class="ti '+p.icon+'" style="font-size:14px"></i>')+
+        '<span>'+(i+1)+'. '+p.label+'</span>'+
+      '</button>';
+    }).join('<span style="color:var(--border);font-size:16px">›</span>');
+
+    bar.innerHTML =
+      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+btns+'</div>'+
+      '<div style="margin-top:8px;height:3px;background:var(--bg3);border-radius:2px">'+
+        '<div style="height:3px;background:var(--blue);border-radius:2px;transition:width .3s;width:'+
+          Math.round((_otPasoActual/(_otPasos.length-1))*100)+'%"></div>'+
+      '</div>';
+  }
+
   function instalarPasosOT(){
-    var view=document.getElementById('ot-detalle-view'); if(!view || document.getElementById('ot-pasos-rapidos')) return;
+    var view=document.getElementById('ot-detalle-view');
+    if(!view || document.getElementById('ot-pasos-rapidos')) return;
     var aviso=document.getElementById('ot-aviso-cambio-externo');
     var bar=document.createElement('div');
     bar.id='ot-pasos-rapidos';
     bar.className='card';
     bar.style.cssText='padding:12px 14px;margin-bottom:12px;position:sticky;top:0;z-index:4';
-    bar.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
-      '<span class="card-title"><i class="ti ti-route"></i> OT por pasos</span>'+
-      '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-        '<button class="btn btn-sm" onclick="otPasoIr(\'cliente\')">1 Cliente</button>'+
-        '<button class="btn btn-sm" onclick="otPasoIr(\'ubicacion\')">2 Ubicación</button>'+
-        '<button class="btn btn-sm" onclick="otPasoIr(\'materiales\')">3 Materiales</button>'+
-        '<button class="btn btn-sm" onclick="otPasoIr(\'checklist\')">4 Checklist</button>'+
-        '<button class="btn btn-sm" onclick="otPasoIr(\'fotos\')">5 Fotos / notas</button>'+
-        '<button class="btn btn-sm btn-primary" onclick="otPasoIr(\'finalizar\')">Finalizar</button>'+
-      '</div></div>';
-    if(aviso && aviso.parentNode) aviso.parentNode.insertBefore(bar,aviso.nextSibling); else view.insertBefore(bar,view.firstChild);
+    if(aviso && aviso.parentNode) aviso.parentNode.insertBefore(bar,aviso.nextSibling);
+    else view.insertBefore(bar,view.firstChild);
+    _otPasoActual = 0;
+    _otRenderWizard();
   }
-  window.otPasoIr=function(p){
-    var map={
-      cliente:'ot-det-cliente', ubicacion:'ot-det-dir', materiales:'ot-materiales', checklist:'checklist-preparacion', fotos:'ot-notas-lista', finalizar:'btn-completar-ot'
-    };
-    var el=document.getElementById(map[p]);
-    if(el){ (el.closest('.card')||el).scrollIntoView({behavior:'smooth',block:'start'}); }
+
+  window.otPasoIr = function(idx) {
+    if (typeof idx === 'string') {
+      idx = _otPasos.findIndex(function(p){ return p.id === idx; });
+    }
+    if (idx < 0 || idx >= _otPasos.length) return;
+    _otPasoActual = idx;
+    var p = _otPasos[idx];
+    var el = document.getElementById(p.target);
+    if (el) {
+      (el.closest('.card') || el).scrollIntoView({behavior:'smooth', block:'start'});
+      setTimeout(function(){
+        if (el.focus && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) el.focus();
+      }, 400);
+    }
+    _otRenderWizard();
+    // Auto-avanzar si hay más pasos
+    setTimeout(function(){
+      _otRenderWizard(); // re-render para mostrar estado actualizado
+    }, 1000);
   };
+
+  // Re-renderizar el wizard cuando cambian los campos
+  document.addEventListener('input', function(e){
+    if (document.getElementById('ot-pasos-rapidos') && e.target.closest('#ot-detalle-view')) {
+      setTimeout(_otRenderWizard, 200);
+    }
+  });
+  document.addEventListener('change', function(e){
+    if (document.getElementById('ot-pasos-rapidos') && e.target.closest('#ot-detalle-view')) {
+      setTimeout(_otRenderWizard, 200);
+    }
+  });
   function loadNotifState(){ try{return JSON.parse(localStorage.getItem('sv_notif_state_v2')||'{}')||{};}catch(e){return {};} }
   function saveNotifState(st){ try{localStorage.setItem('sv_notif_state_v2',JSON.stringify(st||{}));}catch(e){} }
   function key(id){ return (typeof _sanitizarKeyFirebase==='function') ? _sanitizarKeyFirebase(id) : String(id||'').replace(/[.#$\[\]/]/g,'_'); }
