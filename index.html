@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.257 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.258 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1269,6 +1269,11 @@ tr:hover td{color:var(--text)}
               <select id="venta-comisionado2">
                 <option value="">— Ninguno —</option>
               </select>
+            </div>
+            <div class="fg full" id="venta-comision-control" style="display:flex;flex-direction:row;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius);border:0.5px solid var(--border)">
+              <input type="checkbox" id="venta-generar-comision" style="width:16px;height:16px;accent-color:var(--green)">
+              <label for="venta-generar-comision" style="font-size:12px;color:var(--text2);text-transform:none;letter-spacing:0;cursor:pointer">Liquidar comisión por esta venta</label>
+              <span style="font-size:11px;color:var(--text3)">Si no se marca, no se genera comisión automática al cobrar.</span>
             </div>
             <div class="fg"><label>Observaciones</label><input type="text" placeholder="Opcional..."></div>
           </div>
@@ -7362,6 +7367,7 @@ function fbCargarEmpleados() {
       });
       selCom2.innerHTML = opts2;
     }
+    if (typeof actualizarControlComisionVenta === 'function') actualizarControlComisionVenta();
     if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
   });
 }
@@ -7370,6 +7376,23 @@ function fbCargarEmpleados() {
 // HABERES DEL MES — Registro como gastos
 // ══════════════════════════════════════════════
 var _habFilasActuales = []; // estado en memoria de las filas del modal de haberes (para edición en vivo de hs extra)
+
+function actualizarControlComisionVenta() {
+  var cb = document.getElementById('venta-generar-comision');
+  var box = document.getElementById('venta-comision-control');
+  if (!cb) return;
+  // Regla operativa: el admin debe habilitar expresamente la comisión.
+  // Los vendedores no-admin quedan habilitados por defecto porque la venta la originan ellos.
+  if (currentRole === 'admin') {
+    cb.checked = false;
+    cb.disabled = false;
+    if (box) box.title = 'Admin: marcar solo cuando la venta corresponda liquidar comisión a un vendedor/comisionado';
+  } else {
+    cb.checked = true;
+    cb.disabled = true;
+    if (box) box.title = 'Vendedor: la venta propia queda habilitada para comisión automática';
+  }
+}
 
 function abrirModalHaberesMes() {
   var ahora  = new Date();
@@ -9338,7 +9361,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.257-firebase',
+  VERSION: 'v20.258-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10700,6 +10723,16 @@ function confirmarVenta() {
       var empEncontrado = Object.values(empData||{}).find(function(e){ return e.fbKey === sel.value; });
       return empEncontrado ? empEncontrado.nombre : sel.value;
     })(),
+    empleadoFbKey: (function(){ var sel=document.querySelector('#venta-empleado'); return sel ? (sel.value||'') : ''; })(),
+    comisionado2: (function(){
+      var sel = document.querySelector('#venta-comisionado2');
+      if (!sel || !sel.value) return '';
+      var empEncontrado = Object.values(empData||{}).find(function(e){ return e.fbKey === sel.value; });
+      return empEncontrado ? empEncontrado.nombre : sel.value;
+    })(),
+    comisionado2FbKey: (function(){ var sel=document.querySelector('#venta-comisionado2'); return sel ? (sel.value||'') : ''; })(),
+    comisionHabilitada: (function(){ var cb=document.getElementById('venta-generar-comision'); return currentRole === 'admin' ? !!(cb && cb.checked) : true; })(),
+    creadaPorRol: currentRole || '',
     fecha: fechaHoy,
     estadoPago: 'pendiente_pago',
     estadoInst: 'pendiente_inst',
@@ -10915,6 +10948,7 @@ function inicializarFilasVenta() {
       if (optAdmin) selEmp.value = '__admin__';
     }
   }
+  if (typeof actualizarControlComisionVenta === 'function') actualizarControlComisionVenta();
 
   // Fecha de hoy por defecto
   var fechaInp = document.getElementById('venta-fecha');
@@ -22399,17 +22433,27 @@ function abrirPagoGasto(fbKey) {
 function generarComisionesVenta(venta, montoCobrado) {
   if (!window.fbDB || !venta) return;
 
-  // Base de comisión = subtotal - descuento - costo de compra
-  var subtotalVenta = parseFloat(venta.subtotal) || parseFloat(venta.total) || 0;
+  // Regla operativa: no generar comisiones automáticas si la venta no fue marcada para liquidar comisión.
+  // Esto evita que una venta cargada por Admin a nombre de un empleado genere comisión por error.
+  if (venta.comisionHabilitada !== true) return;
+
+  // Base de comisión = subtotal bruto - descuentos - costo de compra x cantidad.
+  var itemsVenta = venta.items || [];
+  var subtotalBruto = itemsVenta.length ? itemsVenta.reduce(function(s, it) {
+    return s + ((parseFloat(it.qty)||1) * (parseFloat(it.punit)||0));
+  }, 0) : ((parseFloat(venta.subtotal)||parseFloat(venta.total)||0) + (parseFloat(venta.descuento)||0));
   var descuentoVenta = parseFloat(venta.descuento) || 0;
-  var baseNeta = subtotalVenta - descuentoVenta;
-  var costoTotal = (venta.items || []).reduce(function(s, it) {
-    var prod = Object.values(prodData||{}).find(function(p){
-      return p.codigo === it.cod || p.fbKey === it.pid;
-    });
-    var costoUnit = prod ? (parseFloat(prod.compra || prod.compraARS || prod.precio_compra) || 0) : 0;
-    return s + costoUnit * (parseInt(it.qty) || 1);
-  }, 0);
+  var baseNeta = Math.max(0, subtotalBruto - descuentoVenta);
+  var costoTotal = parseFloat(venta.costoTotal)||0;
+  if (!costoTotal) {
+    costoTotal = itemsVenta.reduce(function(s, it) {
+      var prod = Object.values(prodData||{}).find(function(p){
+        return p.codigo === it.cod || p.fbKey === it.pid;
+      });
+      var costoUnit = prod ? (parseFloat(prod.compra || prod.compraARS || prod.precio_compra) || 0) : 0;
+      return s + costoUnit * (parseInt(it.qty) || 1);
+    }, 0);
+  }
   var ganancia = baseNeta - costoTotal;
 
   if (ganancia <= 0) return;
@@ -22426,15 +22470,15 @@ function generarComisionesVenta(venta, montoCobrado) {
 
   // Vendedor principal
   var empPrincipal = Object.values(empData||{}).find(function(e){
-    return e.fbKey === venta.empleado || e.nombre === venta.empleado;
+    return e.fbKey === venta.empleadoFbKey || e.fbKey === venta.empleado || e.nombre === venta.empleado;
   });
   if (empPrincipal && parseFloat(empPrincipal.pctComisionPropio || empPrincipal.pctComision || empPrincipal.comision || 0) > 0) {
     vendedores.push(empPrincipal);
   }
 
   // Segundo comisionado
-  var empCom2 = venta.comisionado2 ? Object.values(empData||{}).find(function(e){
-    return e.fbKey === venta.comisionado2 || e.nombre === venta.comisionado2;
+  var empCom2 = (venta.comisionado2 || venta.comisionado2FbKey) ? Object.values(empData||{}).find(function(e){
+    return e.fbKey === venta.comisionado2FbKey || e.fbKey === venta.comisionado2 || e.nombre === venta.comisionado2;
   }) : null;
   if (empCom2 && empCom2.fbKey !== (empPrincipal && empPrincipal.fbKey)) {
     vendedores.push(empCom2);
@@ -22478,9 +22522,9 @@ function generarComisionesVenta(venta, montoCobrado) {
     // Guardar comisión
     var movimiento = {
       tipo:        'comision',
-      estado:      esVendedorComision ? 'aprobado' : 'pendiente', // vendedor a comisión → directo
-      aprobadoPor: esVendedorComision ? 'Sistema (automático)' : '',
-      aprobadoTs:  esVendedorComision ? Date.now() : null,
+      estado:      'pendiente', // siempre queda para revisión/aprobación
+      aprobadoPor: '',
+      aprobadoTs:  null,
       monto:       monto,
       pct:         pctCada,
       pctOriginal: pctsPorEmp[i],
@@ -25498,6 +25542,18 @@ function renderDetalleVenta(v) {
   }
   if (!subtotal) subtotal = total + descuento; // fallback: total + descuento = subtotal original
   var items = v.items || [];
+  var subtotalBrutoDetalle = items.length ? items.reduce(function(s,it){ return s + ((parseFloat(it.qty)||1) * (parseFloat(it.punit)||0)); },0) : (subtotal + descuento);
+  var netoDetalle = Math.max(0, subtotalBrutoDetalle - descuento);
+  var costoDetalle = parseFloat(v.costoTotal)||0;
+  if (!costoDetalle && items.length) {
+    costoDetalle = items.reduce(function(s,it){
+      var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === it.cod || p.fbKey === it.pid; });
+      var costoUnit = prod ? (parseFloat(prod.compra || prod.compraARS || prod.precio_compra)||0) : 0;
+      return s + costoUnit * (parseFloat(it.qty)||1);
+    },0);
+  }
+  var gananciaDetalle = netoDetalle - costoDetalle;
+  var margenDetalle = netoDetalle > 0 ? (gananciaDetalle / netoDetalle * 100) : 0;
 
   // Buscar pagos en la colección global (sisventas/pagos) + los embebidos en v.pagos
   var ventaIdNum = String(v.id||'').replace(/[^0-9]/g,'');
@@ -25589,10 +25645,11 @@ function renderDetalleVenta(v) {
           // Totales
           '<div style="margin-top:12px;display:flex;justify-content:flex-end">' +
             '<div style="min-width:220px">' +
+              '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--text2)"><span>Subtotal bruto</span><span>$' + (parseFloat(subtotalBrutoDetalle)||0).toLocaleString('es-AR') + '</span></div>' +
               (descuento > 0
-                ? '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--text2)"><span>Subtotal</span><span>$' + (parseFloat(subtotal)||0).toLocaleString('es-AR') + '</span></div>' +
-                  '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--red)"><span>Descuento</span><span>-$' + (parseFloat(descuento)||0).toLocaleString('es-AR') + '</span></div>'
+                ? '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--red)"><span>Descuento</span><span>-$' + (parseFloat(descuento)||0).toLocaleString('es-AR') + '</span></div>'
                 : '') +
+              '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--text2)"><span>Neto venta</span><span>$' + (parseFloat(netoDetalle)||0).toLocaleString('es-AR') + '</span></div>' +
               (iva > 0
                 ? '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--amber)"><span>IVA 21%</span><span>$' + (parseFloat(iva)||0).toLocaleString('es-AR') + '</span></div>'
                 : '') +
@@ -25602,6 +25659,17 @@ function renderDetalleVenta(v) {
         : '<div style="text-align:center;padding:20px;color:var(--text3)">Sin ítems registrados</div>'
       ) +
     '</div>' +
+
+    (currentRole === 'admin' ?
+      '<div class="card" style="margin-bottom:12px">' +
+        '<div style="font-weight:600;margin-bottom:12px">Ganancia de la venta</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">' +
+          '<div class="metric"><div class="m-label">Neto venta</div><div class="m-value">$' + Math.round(netoDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">subtotal − descuentos</div></div>' +
+          '<div class="metric"><div class="m-label">Costo productos</div><div class="m-value" style="color:var(--amber)">$' + Math.round(costoDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">compra × cantidad</div></div>' +
+          '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">$' + Math.round(gananciaDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">neto − costo</div></div>' +
+          '<div class="metric"><div class="m-label">Margen</div><div class="m-value">' + margenDetalle.toFixed(1) + '%</div><div class="m-sub">sobre neto</div></div>' +
+        '</div>' +
+      '</div>' : '') +
 
     // Pagos
     '<div class="card" style="margin-bottom:12px">' +
