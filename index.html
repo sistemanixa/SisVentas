@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.258 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.259 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9361,7 +9361,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.258-firebase',
+  VERSION: 'v20.259-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10558,6 +10558,58 @@ function calcTotals() {
   calcMargenGanancia();
 }
 
+
+function normalizarCodigoProducto(cod) {
+  return String(cod || '').trim().toUpperCase().replace(/\s+/g,'').replace(/^COD[:\-]?/,'');
+}
+
+function obtenerProductoPorCodigoVenta(cod, item) {
+  var codNorm = normalizarCodigoProducto(cod || (item && (item.cod || item.codigo)) || '');
+  var pid = item && (item.pid || item.productoId || item.fbKeyProducto || item.productoFbKey);
+  var lista = Object.values(prodData || {});
+  var prod = null;
+  if (pid) prod = (prodData || {})[pid] || lista.find(function(p){ return p.fbKey === pid || p.id === pid; });
+  if (!prod && codNorm) {
+    prod = lista.find(function(p){
+      return normalizarCodigoProducto(p.codigo) === codNorm ||
+             normalizarCodigoProducto(p.cod) === codNorm ||
+             normalizarCodigoProducto(p.sku) === codNorm;
+    });
+  }
+  return prod || null;
+}
+
+function obtenerCostoUnitarioVenta(cod, item) {
+  item = item || {};
+  var costoDirecto = parseFloat(item.costoUnitarioCompra || item.costoUnitario || item.costoCompra || item.compra || item.precioCompra || item.precio_compra || 0) || 0;
+  var prod = obtenerProductoPorCodigoVenta(cod, item);
+  var costoProd = prod ? (parseFloat(prod.compraARS || prod.compra || prod.precio_compra || prod.precioCompra || prod.costo || 0) || 0) : 0;
+  var costoUnit = costoDirecto || costoProd;
+
+  var moneda = (item.monedaOriginal || (prod && (prod.moneda || prod.monedaCompra)) || '').toUpperCase();
+  if (moneda === 'USD') {
+    var yaARS = !!(item.costoUnitarioCompra || item.costoUnitario || item.costoCompra || item.compra || item.precioCompra || item.precio_compra) && !item.costoUnitarioUSD;
+    if (!yaARS) {
+      var cotiz = parseFloat(item.cotizacionUsada) || 0;
+      if (!cotiz) {
+        var tc = window.TIPO_CAMBIO_CONFIG || {};
+        cotiz = parseFloat(tc[tc.dolarConversion || 'oficial']) || parseFloat(tc.oficial) || parseFloat(tc.blue) || parseFloat(tc.mep) || 0;
+      }
+      if (cotiz > 0) costoUnit = costoUnit * cotiz;
+    }
+  }
+  return costoUnit || 0;
+}
+
+function obtenerCostoItemVenta(item) {
+  item = item || {};
+  if (parseFloat(item.costoTotalCompra || item.costoTotal || item.costo) > 0) {
+    return parseFloat(item.costoTotalCompra || item.costoTotal || item.costo) || 0;
+  }
+  var qty = parseFloat(item.qty || item.cantidad || 1) || 1;
+  return obtenerCostoUnitarioVenta(item.cod || item.codigo, item) * qty;
+}
+
 // ── CONTROLADOR DE GANANCIA ──
 // Costo = suma de precio de costo de cada ítem de la venta (incluye productos y mano de obra,
 // la mano de obra NO se excluye porque representa un egreso real para el técnico).
@@ -10590,8 +10642,8 @@ function calcMargenGanancia() {
     var selCod = tr.querySelector('.prod-sel-cod');
     var cod = selCod ? selCod.textContent.trim() : '';
     var qty = parseInt((tr.querySelector('.qty')||{}).value) || 0;
-    var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod; });
-    var costoUnit = prod ? (parseFloat(prod.compra)||0) : 0;
+    var prod = obtenerProductoPorCodigoVenta(cod, null);
+    var costoUnit = obtenerCostoUnitarioVenta(cod, { cotizacionUsada: parseFloat(tr.dataset.cotizacionUsada)||0, monedaOriginal: tr.dataset.monedaOriginal || (prod && prod.moneda) || '' });
     costoTotal += costoUnit * qty;
   });
 
@@ -10747,6 +10799,15 @@ function confirmarVenta() {
       var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
       var sub   = Math.round(qty * punit * (1 - disc/100));
       var item  = { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub };
+      var prodItemCosto = obtenerProductoPorCodigoVenta(cod, item);
+      var costoUnitarioItem = obtenerCostoUnitarioVenta(cod, {
+        cod: cod,
+        cotizacionUsada: parseFloat(tr.dataset.cotizacionUsada) || 0,
+        monedaOriginal: tr.dataset.monedaOriginal || (prodItemCosto && prodItemCosto.moneda) || ''
+      });
+      item.pid = prodItemCosto ? (prodItemCosto.fbKey || prodItemCosto.id || '') : '';
+      item.costoUnitarioCompra = Math.round(costoUnitarioItem * 100) / 100;
+      item.costoTotalCompra = Math.round(costoUnitarioItem * qty * 100) / 100;
       if (tr.dataset.monedaOriginal === 'USD') {
         item.monedaOriginal    = 'USD';
         item.precioUsdOriginal = parseFloat(tr.dataset.precioUsdOriginal) || 0;
@@ -10772,18 +10833,7 @@ function confirmarVenta() {
 
   // Costo y margen calculados al momento de la venta (controlador de ganancia)
   var costoTotalVenta = nuevaVenta.items.reduce(function(s, item) {
-    var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === item.cod; });
-    var costoUnit = prod ? (parseFloat(prod.compra)||0) : 0;
-    // Si el producto está en USD, convertir el costo a ARS con la misma cotización
-    // usada para el precio de venta de este ítem (trazabilidad consistente)
-    if (prod && prod.moneda === 'USD' && item.cotizacionUsada) {
-      costoUnit = costoUnit * item.cotizacionUsada;
-    } else if (prod && prod.moneda === 'USD') {
-      var tcFallback = (window.TIPO_CAMBIO_CONFIG||{});
-      var cotizFallback = parseFloat(tcFallback[tcFallback.dolarConversion||'oficial']) || 0;
-      if (cotizFallback > 0) costoUnit = costoUnit * cotizFallback;
-    }
-    return s + costoUnit * item.qty;
+    return s + obtenerCostoItemVenta(item);
   }, 0);
   nuevaVenta.costoTotal = costoTotalVenta;
   nuevaVenta.margenPct = nuevaVenta.total > 0 ? ((nuevaVenta.total - costoTotalVenta) / nuevaVenta.total) * 100 : 0;
@@ -25547,9 +25597,7 @@ function renderDetalleVenta(v) {
   var costoDetalle = parseFloat(v.costoTotal)||0;
   if (!costoDetalle && items.length) {
     costoDetalle = items.reduce(function(s,it){
-      var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === it.cod || p.fbKey === it.pid; });
-      var costoUnit = prod ? (parseFloat(prod.compra || prod.compraARS || prod.precio_compra)||0) : 0;
-      return s + costoUnit * (parseFloat(it.qty)||1);
+      return s + obtenerCostoItemVenta(it);
     },0);
   }
   var gananciaDetalle = netoDetalle - costoDetalle;
