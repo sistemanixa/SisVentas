@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.275 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.277 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -8566,7 +8566,14 @@ function abrirEditorVenta(fbKey) {
     var tbody = document.getElementById('det-body');
     if (tbody) tbody.innerHTML = '';
     var cliInp = document.getElementById('cli-inp'); if(cliInp) cliInp.value = v.cliente||'';
+    var idCliInp = document.getElementById('id-cli'); if(idCliInp) idCliInp.value = v.idCliente || v.clienteId || '';
     var obsInp = document.getElementById('venta-obs'); if(obsInp) obsInp.value = v.observaciones||v.obs||'';
+    var descGenInp = document.getElementById('desc-general'); if(descGenInp) descGenInp.value = parseFloat(v.descuentoGeneral||0) || '';
+
+    // MUY IMPORTANTE: al editar, el toggle debe tomar el estado guardado de la venta.
+    // Si la venta original estaba sin IVA, confirmar edición debe volver a guardar iva=0.
+    aplicarEstadoIvaVenta(v.conIva !== false, false);
+
     (v.items||[]).forEach(function(it) {
       var tr = crearFilaProducto(it.cod||'', it.desc||it.nombre||'', it.punit||0, it.qty||1, it.disc||0);
       if (tbody && tr) tbody.appendChild(tr);
@@ -9506,7 +9513,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.275-firebase',
+  VERSION: 'v20.277-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10647,14 +10654,23 @@ function calcRow(inp) {
 
 var _ventaConIva = true; // estado global del toggle IVA en nueva venta
 
+function aplicarEstadoIvaVenta(conIva, recalcular) {
+  _ventaConIva = conIva !== false;
+  var btn = document.getElementById('btn-toggle-iva-venta');
+  if (btn) {
+    btn.innerHTML = '<i class="ti ti-receipt-tax"></i> ' + (_ventaConIva ? 'Con IVA' : 'Sin IVA');
+    btn.style.color = _ventaConIva ? '' : 'var(--amber)';
+    btn.style.borderColor = _ventaConIva ? '' : 'var(--amber)';
+  }
+  var ivaRow = document.getElementById('t-iva-row');
+  if (ivaRow) ivaRow.style.display = _ventaConIva ? '' : 'none';
+  if (recalcular !== false && typeof calcTotals === 'function') calcTotals();
+}
+
 function recalcularTotalesVenta() { calcTotals(); }
 
 function toggleIvaVenta(btn) {
-  _ventaConIva = !_ventaConIva;
-  btn.innerHTML = '<i class="ti ti-receipt-tax"></i> ' + (_ventaConIva ? 'Con IVA' : 'Sin IVA');
-  btn.style.color = _ventaConIva ? '' : 'var(--amber)';
-  btn.style.borderColor = _ventaConIva ? '' : 'var(--amber)';
-  calcTotals();
+  aplicarEstadoIvaVenta(!_ventaConIva, true);
 }
 
 function toggleIvaDetalle(btn, ventaId) {
@@ -13666,8 +13682,7 @@ function _imprimirOTReal() {
       (ot.firmaClienteUrl ? '<img src="'+ot.firmaClienteUrl+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
       '<div class="firma-line">Firma del cliente'+(ot.firmaClienteUrl?' ✓':''+(ot.fechaFirma?' · '+ot.fechaFirma:''))+'</div></div>'+
       '<div><div style="height:60px"></div><div class="firma-line">Firma del técnico</div></div></div>'+
-    '
-</body></html>');
+    '\n</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
@@ -14171,8 +14186,7 @@ function imprimirSeccion(pageId, titulo) {
     '<div style="text-align:right"><div style="font-size:16px;font-weight:600">'+titulo+'</div>' +
     '<div style="font-size:12px;color:#666">'+new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})+'</div></div></div>' +
     page.innerHTML +
-    '
-</body></html>');
+    '\n</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
@@ -14497,8 +14511,7 @@ function imprimirVentaActual() {
       '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>' +
     '</div>' +
 
-    '
-</body></html>');
+    '\n</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 800);
 }
@@ -16729,21 +16742,9 @@ function eliminarMovEmp(movKey, empKey) {
 
 // ── VENTAS: editar y eliminar ──
 function editarVenta(id) {
-  // Carga los datos de la venta en el formulario de nueva venta
   var v = (ventasList||[]).find(function(x){ return x.id === id || x.fbKey === id; });
   if (!v) { notify('Venta no encontrada'); return; }
-  showPage('venta', null);
-  setTimeout(function() {
-    var clinp = document.getElementById('cli-inp');
-    var idcli = document.getElementById('id-cli');
-    if (clinp) clinp.value = v.cliente || '';
-    if (idcli) idcli.value = v.idCliente || '';
-    var fEl = document.getElementById('venta-fecha');
-    if (fEl) fEl.value = v.fecha || '';
-    // Marcar como edición
-    window._editingVentaId = v.fbKey;
-    notify('Editando venta ' + v.id + ' — modificá los datos y guardá');
-  }, 300);
+  if (typeof abrirEditorVenta === 'function') { abrirEditorVenta(v.fbKey || id); return; }
 }
 
 function eliminarVenta(fbKey) {
@@ -17022,8 +17023,7 @@ function imprimirPresupuesto() {
       '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>'+
     '</div>'+
 
-    '
-</body></html>');
+    '\n</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
@@ -17167,8 +17167,7 @@ function imprimirRecibo() {
     '<div><div class="firma-line">Firma del cliente</div></div>'+
     '<div><div class="firma-line">Firma Nixa</div></div>'+
     '</div></div>'+
-    '
-</body></html>');
+    '\n</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
@@ -18906,8 +18905,7 @@ function imprimirRemito(fbKey) {
       '<p><strong>Venta vinculada:</strong> '+escapeHTML(r.venta||'—')+'</p>'+
       '<p><strong>Descripción:</strong> '+escapeHTML(r.descripcion||'—')+'</p>'+
       '<div class="firma"><div><div class="firma-line">Firma receptor</div></div><div><div class="firma-line">Firma Nixa</div></div></div>'+
-      '
-</body></html>');
+      '\n</body></html>');
     w.document.close();
     setTimeout(function(){ w.print(); }, 500);
   }, { onlyOnce: true });
@@ -22418,8 +22416,7 @@ function imprimirInforme() {
     (g('inf-obs') ? '<section><h2>Observaciones</h2><p>'+g('inf-obs').replace(/\n/g,'<br>')+'</p></section>' : '') +
     '<section><h2>Conformidad del cliente</h2><div class="grid"><div><label>Nombre quien recibe</label><p>'+g('inf-receptor')+'</p></div><div><label>DNI</label><p>'+g('inf-receptor-dni')+'</p></div><div><label>Resultado</label><p>'+g('inf-resultado')+'</p></div></div></section>' +
     '<div class="firma"><div><div class="firma-line">Firma del técnico: '+g('inf-tecnico')+'</div></div><div><div class="firma-line">Firma del cliente: '+g('inf-receptor')+'</div></div></div>' +
-    '
-</body></html>';
+    '\n</body></html>';
   w.document.write(html);
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
@@ -26317,6 +26314,21 @@ function renderDetalleVenta(v) {
   var descuento = parseFloat(v.descuento) || 0; // monto en pesos
   var iva      = parseFloat(v.iva) || 0;
 
+  // Compatibilidad: si una venta fue marcada sin IVA pero quedó un IVA heredado por una edición anterior,
+  // el detalle debe respetar conIva=false y no mostrar ni sumar impuesto.
+  if (v.conIva === false) {
+    iva = 0;
+    var totalSinIva = parseFloat(v.subtotal) || 0;
+    if (!totalSinIva && v.items && v.items.length) {
+      totalSinIva = v.items.reduce(function(s, it) {
+        return s + (parseFloat(it.sub) || Math.round((parseFloat(it.qty)||1) * (parseFloat(it.punit)||0) * (1 - (parseFloat(it.disc||it.descuento)||0)/100)));
+      }, 0);
+      var dg = parseFloat(v.descuentoGeneral)||0;
+      if (dg > 0) totalSinIva = totalSinIva - Math.round(totalSinIva * dg / 100);
+    }
+    if (totalSinIva > 0) total = totalSinIva;
+  }
+
   // Subtotal: si no está guardado, calcularlo desde los ítems
   var subtotal = parseFloat(v.subtotal) || 0;
   if (!subtotal && v.items && v.items.length) {
@@ -27143,8 +27155,11 @@ function verVenta(id) {
     descLabel = descAmt > 0 ? '-$' + Math.round(descAmt).toLocaleString('es-AR') : '';
   }
   _set('vd-desc-amt', descLabel);
-  _set('vd-iva','$' + (parseFloat(v.iva)||0).toLocaleString('es-AR'));
-  _set('vd-total','$' + (parseFloat(v.total)||0).toLocaleString('es-AR'));
+  var _vdIva = v.conIva === false ? 0 : (parseFloat(v.iva)||0);
+  var _vdTotal = parseFloat(v.total)||0;
+  if (v.conIva === false && parseFloat(v.subtotal) > 0) _vdTotal = parseFloat(v.subtotal)||0;
+  _set('vd-iva','$' + _vdIva.toLocaleString('es-AR'));
+  _set('vd-total','$' + _vdTotal.toLocaleString('es-AR'));
 
   // Pagos
   const pagosEl = document.getElementById('vd-pagos-lista');
@@ -29733,6 +29748,12 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 
 <script>
+/* v20.277 — Ventas: edición respeta IVA activado/desactivado
+   - Al editar venta, el toggle de IVA se inicializa desde venta.conIva.
+   - Si se confirma una venta editada sin IVA, se guarda con iva=0 y total sin impuesto.
+   - El detalle normaliza visualmente ventas con conIva=false para evitar mostrar IVA heredado.
+*/
+
 /* v20.275 — Gastos: estado calculado por pagos reales
    - El estado Pagado/Parcial/Pendiente se calcula por monto pagado real.
    - Evita registros con Pagado $0 y estado Pagado por flags legacy.
