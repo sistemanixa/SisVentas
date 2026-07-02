@@ -885,7 +885,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.260 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.262 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4462,22 +4462,41 @@ tr:hover td{color:var(--text)}
 
   <!-- MODAL PAGO PARCIAL -->
   <div id="modal-pago-gasto" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center">
-    <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:420px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
       <div style="font-size:15px;font-weight:600;margin-bottom:16px" id="mpg-titulo">Registrar pago</div>
       <div style="margin-bottom:12px">
         <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Monto a pagar ahora ($)</label>
         <input data-money="1" id="mpg-monto" placeholder="0" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;box-sizing:border-box">
       </div>
-      <div style="margin-bottom:16px">
+      <div style="margin-bottom:12px">
         <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Medio de pago</label>
         <select id="mpg-medio" style="width:100%;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-family:inherit">
           <option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option><option>QR</option>
         </select>
       </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comprobante de este pago</label>
+        <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:10px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('mpg-comprobante-input').click()">
+          <i class="ti ti-paperclip" style="font-size:18px;color:var(--text3)"></i>
+          <div id="mpg-comprobante-lbl" style="font-size:12px;color:var(--text3);margin-top:3px">Opcional: adjuntar transferencia / ticket</div>
+        </div>
+        <input type="file" id="mpg-comprobante-input" accept="image/*,.pdf" style="display:none" onchange="previewPagoGastoComprobante(this)">
+      </div>
       <div style="display:flex;gap:8px">
         <button class="btn" style="flex:1" onclick="document.getElementById('modal-pago-gasto').style.display='none'">Cancelar</button>
         <button class="btn btn-primary" style="flex:1" onclick="confirmarPagoGasto()">Confirmar pago</button>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL HISTORIAL DE PAGOS DE GASTO -->
+  <div id="modal-hist-pago-gasto" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:601;align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border-radius:var(--radius-xl);padding:24px;width:520px;max-width:94vw;max-height:86vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:15px;font-weight:600" id="hpg-titulo">Pagos registrados</div>
+        <button class="btn btn-sm btn-icon" onclick="document.getElementById('modal-hist-pago-gasto').style.display='none'"><i class="ti ti-x"></i></button>
+      </div>
+      <div id="hpg-body" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
 
@@ -8560,7 +8579,13 @@ function fbCargarOTs() {
         var huellaNueva = JSON.stringify(otNueva);
         if (window._otDetalleHuella !== huellaNueva) {
           var avisoEl = document.getElementById('ot-aviso-cambio-externo');
-          if (avisoEl) avisoEl.style.display = 'flex';
+          // Evitar falso aviso cuando el cambio acaba de salir desde esta misma pantalla.
+          if (window._otGuardandoLocalHasta && Date.now() < window._otGuardandoLocalHasta) {
+            window._otDetalleHuella = huellaNueva;
+            if (avisoEl) avisoEl.style.display = 'none';
+          } else {
+            if (avisoEl) avisoEl.style.display = 'flex';
+          }
         }
       }
     }
@@ -8572,12 +8597,22 @@ function fbCargarOTs() {
 
 function fbGuardarOT(ot) {
   if (!window.fbDB) return Promise.resolve();
+  window._otGuardandoLocalHasta = Date.now() + 2500;
   var r = window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo);
+  var prom;
   if (ot.fbKey) {
-    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), ot);
+    prom = window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), ot);
   } else {
-    return window.fbPush(r, ot).then(function(ref) { return ref.key; });
+    prom = window.fbPush(r, ot).then(function(ref) { ot.fbKey = ref.key; return ref.key; });
   }
+  return prom.then(function(res){
+    if (typeof otActualId !== 'undefined' && otActualId && (ot.id === otActualId || ot.fbKey === otActualId)) {
+      window._otDetalleHuella = JSON.stringify(ot);
+      var avisoEl = document.getElementById('ot-aviso-cambio-externo');
+      if (avisoEl) avisoEl.style.display = 'none';
+    }
+    return res;
+  });
 }
 
 // ── SEED: cargar datos demo a Firebase (solo primera vez) ──
@@ -9361,7 +9396,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.260-firebase',
+  VERSION: 'v20.262-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -22488,14 +22523,34 @@ function guardarGastoCompleto() {
 
 // Registrar pago parcial o total
 var _gastoFbKeyPago = null;
+var _pagoGastoComprobante = null;
 function abrirPagoGasto(fbKey) {
   var g = gastosData.find(function(x){ return x.fbKey===fbKey; });
   if (!g) return;
   _gastoFbKeyPago = fbKey;
-  var resta = (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0);
-  document.getElementById('mpg-titulo').textContent = 'Pagar: '+escapeHTML(g.descripcion||'')+'  (resta $'+resta.toLocaleString('es-AR')+')';
+  _pagoGastoComprobante = null;
+  var inpComp = document.getElementById('mpg-comprobante-input');
+  var lblComp = document.getElementById('mpg-comprobante-lbl');
+  if (inpComp) inpComp.value = '';
+  if (lblComp) lblComp.textContent = 'Opcional: adjuntar transferencia / ticket';
+  var resta = Math.max(0, (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0));
+  document.getElementById('mpg-titulo').textContent = 'Pagar: '+(g.descripcion||'')+'  (resta $'+resta.toLocaleString('es-AR')+')';
   _setMontoInput(document.getElementById('mpg-monto'), resta);
   document.getElementById('modal-pago-gasto').style.display = 'flex';
+}
+
+function previewPagoGastoComprobante(input) {
+  _pagoGastoComprobante = null;
+  var lbl = document.getElementById('mpg-comprobante-lbl');
+  var file = input && input.files && input.files[0];
+  if (!file) { if (lbl) lbl.textContent = 'Opcional: adjuntar transferencia / ticket'; return; }
+  if (file.size > 900000) { notify('El comprobante debe pesar menos de 900 KB'); input.value=''; return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    _pagoGastoComprobante = { nombre:file.name, tipo:file.type||'', data:e.target.result, ts:Date.now() };
+    if (lbl) lbl.textContent = 'Adjunto: ' + file.name;
+  };
+  reader.readAsDataURL(file);
 }
 
 function generarComisionesVenta(venta, montoCobrado) {
@@ -22632,41 +22687,100 @@ function confirmarPagoGasto() {
   if (!g) return;
   var montoNuevo = getMontoRaw(document.getElementById('mpg-monto'));
   var medio = document.getElementById('mpg-medio').value;
-  var nuevoPagado = (parseFloat(g.montoPagado)||0) + montoNuevo;
-  var nuevoEstado = nuevoPagado >= (parseFloat(g.monto)||0) ? 'pagado' : 'pagado_parcial';
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+_gastoFbKeyPago), {
-    montoPagado: nuevoPagado, estado: nuevoEstado, medio: medio
-  }).then(function(){
-    notify('\u2713 Pago registrado');
+  var montoTotal = parseFloat(g.monto)||0;
+  var pagadoActual = parseFloat(g.montoPagado)||0;
+  var resta = Math.max(0, montoTotal - pagadoActual);
+  if (!montoNuevo || montoNuevo <= 0) { notify('Ingresá un monto válido'); return; }
+  if (montoNuevo > resta) montoNuevo = resta;
+  var nuevoPagado = pagadoActual + montoNuevo;
+  var nuevoEstado = nuevoPagado >= montoTotal ? 'pagado' : 'pagado_parcial';
+  var pagoKey = 'pago_' + Date.now();
+  var pago = {
+    fecha: new Date().toISOString().slice(0,10),
+    ts: Date.now(),
+    monto: montoNuevo,
+    medio: medio,
+    usuario: currentUser || '',
+    rol: currentRole || '',
+    comprobante: _pagoGastoComprobante || null
+  };
+  var upd = { montoPagado: nuevoPagado, estado: nuevoEstado, medio: medio };
+  upd['pagos/' + pagoKey] = pago;
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+_gastoFbKeyPago), upd).then(function(){
+    notify('✓ Pago registrado');
     document.getElementById('modal-pago-gasto').style.display = 'none';
-    // Si se pagó completo y tiene empleadoId, marcar reembolsado y actualizar ctaemp
-    if (nuevoEstado==='pagado' && g.empleadoId) {
-      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+_gastoFbKeyPago), { reembolsado: true });
-      // Buscar el movimiento en ctaemp que corresponde a este gasto y marcarlo pagado
+    // Si se pagó completo y tiene empleadoId, marcar reembolsado y actualizar ctaemp.
+    // Si queda parcial, también reflejar el pago parcial en la cuenta del empleado.
+    if (g.empleadoId) {
+      if (nuevoEstado==='pagado') window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+_gastoFbKeyPago), { reembolsado: true });
       if (window.fbDB) {
         window.fbGet(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId))
           .then(function(snap) {
             var movs = snap.val();
             if (!movs) return;
-            // Buscar movimiento por fbKey del gasto o por descripcion/monto/fecha
             Object.entries(movs).forEach(function(entry) {
               var key = entry[0]; var mov = entry[1];
               var esElMov = mov.gastoFbKey === _gastoFbKeyPago ||
-                (Math.abs((parseFloat(mov.monto)||0) - (parseFloat(g.monto)||0)) < 1 &&
+                (Math.abs((parseFloat(mov.monto)||0) - montoTotal) < 1 &&
                  mov.estado !== 'pagado' &&
                  (mov.tipo === 'sueldo' || mov.tipo === 'gasto_empresa' || mov.tipo === 'transporte'));
               if (esElMov) {
-                window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId + '/' + key), {
-                  estado: 'pagado',
+                var updMov = {
+                  estado: nuevoEstado === 'pagado' ? 'pagado' : 'pagado_parcial',
                   fechaPago: new Date().toISOString().slice(0,10),
-                  medioPago: medio
-                });
+                  medioPago: medio,
+                  montoPagado: nuevoPagado
+                };
+                updMov['pagos/' + pagoKey] = pago;
+                window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId + '/' + key), updMov);
               }
             });
           }).catch(function(){});
       }
     }
-  });
+  }).catch(function(e){ notify('Error al registrar pago: ' + e.message); });
+}
+
+function _gastoPagosArray(g) {
+  var pagos = g && g.pagos ? g.pagos : {};
+  if (Array.isArray(pagos)) return pagos;
+  return Object.keys(pagos).map(function(k){ var p = pagos[k] || {}; p._key = k; return p; }).sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
+}
+
+function verPagosGasto(fbKey) {
+  var g = gastosData.find(function(x){ return x.fbKey===fbKey; });
+  if (!g) return;
+  var body = document.getElementById('hpg-body');
+  var tit = document.getElementById('hpg-titulo');
+  if (tit) tit.textContent = 'Pagos — ' + (g.descripcion||'Gasto');
+  var pagos = _gastoPagosArray(g);
+  if (!pagos.length) {
+    body.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:12px;text-align:center">Sin pagos registrados todavía</div>';
+  } else {
+    body.innerHTML = pagos.map(function(p, idx){
+      var comp = p.comprobante && p.comprobante.data
+        ? '<button class="btn btn-sm" onclick="abrirComprobantePago(\''+fbKey+'\','+idx+')"><i class="ti ti-paperclip"></i> Ver comprobante</button>'
+        : '<span style="font-size:12px;color:var(--text3)">Sin comprobante</span>';
+      return '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px">'+
+        '<div><div style="font-size:13px;font-weight:600">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+' · '+escapeHTML(p.medio||'')+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML((p.fecha||'').split('-').reverse().join('/')||'')+' · '+escapeHTML(p.usuario||'Sistema')+'</div></div>'+comp+'</div>';
+    }).join('');
+  }
+  document.getElementById('modal-hist-pago-gasto').style.display = 'flex';
+}
+
+function abrirComprobantePago(fbKey, idx) {
+  var g = gastosData.find(function(x){ return x.fbKey===fbKey; });
+  var pagos = _gastoPagosArray(g);
+  var comp = pagos[idx] && pagos[idx].comprobante;
+  if (!comp || !comp.data) { notify('Ese pago no tiene comprobante adjunto'); return; }
+  var w = window.open('', '_blank');
+  if (!w) { notify('El navegador bloqueó la ventana del comprobante'); return; }
+  if ((comp.tipo||'').includes('pdf')) {
+    w.document.write('<iframe src="'+comp.data+'" style="border:0;width:100%;height:100vh"></iframe>');
+  } else {
+    w.document.write('<img src="'+comp.data+'" style="max-width:100%;height:auto;display:block;margin:0 auto;background:#111">');
+  }
 }
 
 function editarGasto(fbKey) { abrirFormGasto(fbKey); }
@@ -23714,6 +23828,55 @@ function abrirOTDesdeId(otId) {
   }, 200);
 }
 
+
+function _otResolverDireccionCliente(ot) {
+  var camposDireccion = ['direccion','domicilio','dir','direccionInstalacion','direccion_instalacion','direccionObra','direccion_obra','ubicacion','localidadDireccion','address'];
+  function leerDir(obj) {
+    if (!obj) return '';
+    for (var i=0;i<camposDireccion.length;i++) {
+      var v = obj[camposDireccion[i]];
+      if (v !== undefined && v !== null && String(v).trim()) return String(v).trim();
+    }
+    return '';
+  }
+  var dir = leerDir(ot);
+  if (dir) return dir;
+
+  // 1) Buscar dirección desde la venta origen, si la OT nació desde una venta.
+  if (ot && ot.ventaId && Array.isArray(ventasList)) {
+    var ventaOrigen = ventasList.find(function(v){ return v.id === ot.ventaId || v.numero === ot.ventaId || v.fbKey === ot.ventaId; });
+    dir = leerDir(ventaOrigen);
+    if (dir) return dir;
+    if (ventaOrigen && ventaOrigen.clienteObj) {
+      dir = leerDir(ventaOrigen.clienteObj);
+      if (dir) return dir;
+    }
+  }
+
+  // 2) Buscar por id de cliente si existe.
+  var clientesArr = Array.isArray(clientesData) ? clientesData : Object.values(clientesData||{});
+  var cliId = ot ? (ot.clienteId || ot.idCliente || ot.id_cli || ot.clienteKey) : '';
+  if (cliId) {
+    var cliPorId = clientesArr.find(function(c){ return c.id === cliId || c.fbKey === cliId || c.key === cliId || c.codigo === cliId; });
+    dir = leerDir(cliPorId);
+    if (dir) return dir;
+  }
+
+  // 3) Buscar por nombre de cliente, tolerando mayúsculas, espacios y apellido.
+  var nombreOT = String((ot && ot.cliente) || '').toLowerCase().trim();
+  if (nombreOT) {
+    var cliOT = clientesArr.find(function(c){
+      var n1 = String(c.nombre || '').toLowerCase().trim();
+      var n2 = String(((c.nombre || '') + ' ' + (c.apellidos || c.apellido || '')).trim()).toLowerCase();
+      var n3 = String(c.razonSocial || c.razon_social || '').toLowerCase().trim();
+      return n1 === nombreOT || n2 === nombreOT || n3 === nombreOT;
+    });
+    dir = leerDir(cliOT);
+    if (dir) return dir;
+  }
+  return '';
+}
+
 function abrirDireccionEnMaps() {
   var dir = window._otDireccionActual || (document.getElementById('ot-det-dir')||{}).value || '';
   if (!dir) { notify('No hay dirección cargada para esta OT'); return; }
@@ -23747,17 +23910,17 @@ function verOT(id) {
   document.getElementById('ot-det-cliente').value = ot.cliente||'';
   document.getElementById('ot-det-fecha').value = ot.fecha||'';
   document.getElementById('ot-det-hora').value = ot.hora||'';
-  // Dirección: primero la de la OT, sino leerla del cliente vinculado
-  var dirOT = ot.dir || ot.direccion || ot.domicilio || '';
-  if (!dirOT && ot.cliente) {
-    var cliOT = (clientesData||[]).find(function(c){
-      var nombreCompleto = (c.nombre + ' ' + (c.apellidos||'')).trim();
-      return c.nombre === ot.cliente || nombreCompleto === ot.cliente ||
-             (c.nombre||'').toLowerCase().trim() === (ot.cliente||'').toLowerCase().trim();
-    });
-    if (cliOT) dirOT = cliOT.direccion || cliOT.domicilio || cliOT.dir || '';
+  // Dirección: primero la de la OT; si no existe, resolverla desde venta origen o ficha del cliente.
+  var dirOT = _otResolverDireccionCliente(ot);
+  document.getElementById('ot-det-dir').value = dirOT || '';
+  // Si la OT no tenía dirección propia pero se pudo resolver desde el cliente, dejarla guardada para próximas aperturas.
+  if (dirOT && !ot.dir && !ot.direccion && !ot.domicilio) {
+    ot.dir = dirOT;
+    if (typeof fbGuardarOT === 'function') {
+      window._otGuardandoLocalHasta = Date.now() + 2500;
+      fbGuardarOT(ot).catch(function(e){ console.warn('No se pudo guardar dirección resuelta en OT:', e); });
+    }
   }
-  document.getElementById('ot-det-dir').value = dirOT;
   // Mostrar/ocultar botón de Maps según si hay dirección
   var mapsBtn = document.getElementById('ot-det-dir-maps-btn');
   if (mapsBtn) mapsBtn.style.display = dirOT ? '' : 'none';
@@ -23909,6 +24072,8 @@ function verOT(id) {
       (ot.ventaId ? ' — la venta origen no tiene ítems registrados' : ' — OT sin venta vinculada') +
       '</td></tr>';
   }
+
+  aplicarVistaTecnicoOT();
 
   // ── Audit ──
   var auditEl = document.getElementById('ot-audit');
@@ -24415,10 +24580,14 @@ function completarOT() {
   // Guardar en Firebase
   if (typeof fbGuardarOT === 'function') {
     fbGuardarOT(ot)
-      .then(function() { notify('✓ OT completada y guardada en Firebase'); })
+      .then(function() {
+        notify('✓ OT completada y guardada en Firebase');
+        volverListaOT();
+      })
       .catch(function(e) { notify('OT completada pero error al guardar: ' + e.message); });
   } else {
     notify('Orden de trabajo completada. Garantía activada.');
+    volverListaOT();
   }
 }
 
@@ -24450,6 +24619,19 @@ function actualizarOT() {
 
   if (typeof fbGuardarOT === 'function') fbGuardarOT(ot);
   notify('OT actualizada');
+}
+
+
+function aplicarVistaTecnicoOT() {
+  var esTec = currentRole === 'tecnico';
+  var idsOcultar = ['ot-contexto-box','ot-reclamo-box','ot-cred-box','ot-audit'];
+  idsOcultar.forEach(function(id){ var el=document.getElementById(id); if(el) el.closest('.card') ? el.closest('.card').style.display = (esTec ? 'none' : '') : el.style.display = (esTec ? 'none' : ''); });
+  var dur = document.getElementById('ot-det-duracion'); if (dur && dur.closest('.fg')) dur.closest('.fg').style.display = esTec ? 'none' : '';
+  var tipo = document.getElementById('ot-det-tipovisita'); if (tipo && tipo.closest('.fg')) tipo.closest('.fg').style.display = esTec ? 'none' : '';
+  var prio = document.getElementById('ot-det-prioridad'); if (prio && prio.closest('label')) prio.closest('label').style.display = esTec ? 'none' : '';
+  var btnImp = document.querySelector('#ot-detalle-view button[onclick="imprimirOT()"]'); if (btnImp) btnImp.style.display = esTec ? 'none' : '';
+  var btnMaps = document.getElementById('ot-det-dir-maps-btn');
+  if (esTec && btnMaps) { btnMaps.classList.add('btn-primary'); btnMaps.innerHTML = '<i class="ti ti-map-pin"></i> Maps'; }
 }
 
 function imprimirOT() { abrirModalImprimir('ot', 'Orden de trabajo ' + otActualId); }
@@ -27725,7 +27907,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.260</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.262</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
