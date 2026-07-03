@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.291 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.292 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4293,8 +4293,8 @@ tr:hover td{color:var(--text)}
           </div>
           <div id="usuarios-online-resumen" style="font-size:12px;color:var(--text3);margin-bottom:12px"></div>
           <table>
-            <thead><tr><th>ID</th><th>Nombre</th><th>Usuario</th><th>Rol</th><th style="text-align:right">Último acceso</th><th style="text-align:right">Estado</th><th></th></tr></thead>
-            <tbody id="usuarios-tbody"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr></tbody>
+            <thead><tr><th>ID</th><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Clave</th><th style="text-align:right">Último acceso</th><th style="text-align:right">Estado</th><th></th></tr></thead>
+            <tbody id="usuarios-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -8079,7 +8079,7 @@ function renderTablaUsuarios() {
       cantOnline + ' ' + (cantOnline === 1 ? 'usuario conectado ahora' : 'usuarios conectados ahora');
   }
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(u, i) {
@@ -8093,16 +8093,23 @@ function renderTablaUsuarios() {
     var emailUsuario = u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com');
     var online = (typeof estaUsuarioOnline === 'function') ? estaUsuarioOnline(emailUsuario) : false;
     var puntoOnline = '<span title="' + (online ? 'Conectado ahora' : 'Sin conexión activa') + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:' + (online ? 'var(--green)' : 'var(--text3)') + (online ? ';box-shadow:0 0 0 3px rgba(61,220,132,.18)' : '') + '"></span>';
+    var claveUsuario = obtenerClaveUsuarioAdmin(u);
+    var claveId = 'usu-clave-' + (u.fbKey || i);
+    var claveHtml = claveUsuario
+      ? '<span id="' + claveId + '" data-clave="' + escapeHTML(claveUsuario) + '" data-visible="0" style="font-family:monospace;color:var(--text3)">••••••••</span> <button class="btn btn-sm btn-icon" onclick="toggleVerClaveUsuario(\'' + claveId + '\')" title="Ver / ocultar clave" style="padding:2px 4px"><i class="ti ti-eye" style="font-size:13px"></i></button>'
+      : '<span style="color:var(--text3);font-size:12px">Sin registrar</span>';
     return '<tr>' +
       '<td>' + (i + 1) + '</td>' +
       '<td>' + puntoOnline + escapeHTML(u.nombre || '—') + '</td>' +
       '<td style="color:var(--text3)">' + escapeHTML(u.login || u.mail || '—') + '</td>' +
       '<td>' + rolBadge + '</td>' +
+      '<td>' + claveHtml + '</td>' +
       '<td style="text-align:right;color:var(--text3)">' + escapeHTML(ultimoAcceso) + '</td>' +
       '<td style="text-align:right">' + estadoBadge + '</td>' +
       '<td style="text-align:right;white-space:nowrap">' +
         '<button class="btn btn-sm btn-icon" onclick="editarUsuario(\'' + u.fbKey + '\')" title="Editar usuario"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
-        '<button class="btn btn-sm btn-icon" onclick="resetPasswordUsuario(\'' + u.mail + '\')" title="Resetear contraseña" style="color:var(--amber)"><i class="ti ti-key" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="gestionarClaveUsuario(\'' + u.fbKey + '\')" title="Cambiar clave registrada" style="color:var(--blue)"><i class="ti ti-lock-cog" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="resetPasswordUsuario(\'' + u.mail + '\')" title="Enviar email de reseteo" style="color:var(--amber)"><i class="ti ti-key" style="font-size:14px"></i></button>' +
         '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'usuarios\',\'' + u.fbKey + '\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
       '</td>' +
     '</tr>';
@@ -9237,7 +9244,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.291-firebase',
+  VERSION: 'v20.292-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9731,7 +9738,7 @@ var NOTIF_CONFIG = {
 var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
   producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'Moneda',id:'np-moneda',t:'select',opts:['ARS','USD']},{l:'P. compra',id:'np-pc',t:'number',ph:'0'},{l:'P. venta',id:'np-pv',t:'number',ph:'0'}]},
-  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo-id',t:'select-cargo'},{l:'Fecha de inicio',id:'ne-fecha-ingreso',t:'date'},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Hs. extra este mes',id:'ne-hs-extra',t:'number',ph:'0'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
+  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo-id',t:'select-cargo'},{l:'Fecha de inicio',id:'ne-fecha-ingreso',t:'date'},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
   usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Empleado vinculado',id:'nu-emp-vinculado',t:'select-empleado'},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
   proveedor: { title:'Nuevo proveedor', fields:[
     {l:'Nombre / Razón social',id:'npv-nm',t:'text',ph:'Razón social',full:true},
@@ -14337,7 +14344,6 @@ function guardarNuevoGenerico() {
       dni:       obj.dni || '',
       tipoEmpleado:    obj.tipo || 'Empleado',
       pctComisionPropio: parseFloat(obj['pct-comision']) || 0,
-      hsExtraMes: parseFloat(obj['hs-extra']) || 0,
       activo:    (obj.activo || 'Activo') !== 'Inactivo'
     };
     if (!fbKeyEmp) datosEmp.historial = [{ tipo:'alta', motivo:'Ingreso', fecha: new Date().toISOString().split('T')[0], usuario: currentUser||'' }];
@@ -14459,6 +14465,11 @@ function guardarNuevoGenerico() {
       empleadoFbKey: empVinculado || '',
       ts:           Date.now()
     };
+    if (pass) {
+      datosUsu.claveAdmin = pass;
+      datosUsu.claveActualizadaTs = Date.now();
+      datosUsu.claveActualizadaPor = currentUser || '';
+    }
     if (!datosUsu.nombre) { notify('Ingresá el nombre completo'); return; }
     if (!login)           { notify('Ingresá el nombre de usuario'); return; }
 
@@ -21490,13 +21501,49 @@ function editarEmpleado(fbKey) {
       'fecha-ingreso': e.fechaIngreso || '',
       tipo:   e.tipoEmpleado || 'Empleado',
       'pct-comision': e.pctComisionPropio || '',
-      'hs-extra': e.hsExtraMes || 0,
       tel:    e.telefono || '',
       em:     e.mail || '',
       activo: e.activo !== false ? 'Activo' : 'Inactivo'
     };
     abrirModalNuevo('empleado', datos, fbKey);
   }, { onlyOnce: true });
+}
+
+
+function obtenerClaveUsuarioAdmin(u) {
+  if (!u || currentRole !== 'admin') return '';
+  return String(u.claveAdmin || u.passwordAdmin || u.password || u.pass || '').trim();
+}
+
+function toggleVerClaveUsuario(id) {
+  if (currentRole !== 'admin') { notify('Solo administrador'); return; }
+  var el = document.getElementById(id);
+  if (!el) return;
+  var visible = el.getAttribute('data-visible') === '1';
+  var clave = el.getAttribute('data-clave') || '';
+  el.textContent = visible ? '••••••••' : clave;
+  el.setAttribute('data-visible', visible ? '0' : '1');
+}
+
+function gestionarClaveUsuario(fbKey) {
+  if (currentRole !== 'admin') { notify('Solo administrador'); return; }
+  var u = (window.usuariosData || []).find(function(x){ return x.fbKey === fbKey; });
+  if (!u) { notify('Usuario no encontrado'); return; }
+  var actual = obtenerClaveUsuarioAdmin(u);
+  var nueva = prompt('Nueva clave registrada para ' + (u.login || u.mail || u.nombre || 'usuario') + ':', actual || '');
+  if (nueva === null) return;
+  nueva = String(nueva).trim();
+  if (nueva.length < 6) { notify('La clave debe tener al menos 6 caracteres'); return; }
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/usuarios/' + fbKey), {
+    claveAdmin: nueva,
+    claveActualizadaTs: Date.now(),
+    claveActualizadaPor: currentUser || ''
+  }).then(function(){
+    notify('✓ Clave registrada actualizada');
+    if (confirm('Clave registrada actualizada. ¿Enviar también email de reseteo de Firebase al usuario?')) {
+      resetPasswordUsuario(u.mail || ((u.login||'') + '@sistemanixa.com'));
+    }
+  }).catch(function(e){ notify('Error: ' + e.message); });
 }
 
 function toggleActivoUsuario(fbKey, estadoActual) {
@@ -21532,7 +21579,7 @@ function editarUsuario(fbKey) {
       rol:            rolInverso[u.rol] || 'Administrativo',
       activo:         u.activo !== false ? 'Activo' : 'Inactivo',
       empleadoFbKey:  u.empleadoFbKey || '',
-      pass:           ''
+      pass:           u.claveAdmin || u.password || u.pass || ''
     };
     abrirModalNuevo('usuario', datos, fbKey);
   }, { onlyOnce: true });
