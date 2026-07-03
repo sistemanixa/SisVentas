@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.297 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.300 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -4744,10 +4744,6 @@ tr:hover td{color:var(--text)}
       </div>
 
       <!-- Resumen de comisiones del mes (solo visible si es Vendedor a comisión) -->
-      <div id="ctaemp-migracion-banner" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--amber-bg,#fffbeb);border:1px solid var(--amber,#d97706);border-radius:var(--radius);font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px">
-      <span><i class="ti ti-alert-triangle" style="color:var(--amber,#d97706);margin-right:6px"></i>Hay haberes históricos que no aparecen en esta cuenta.</span>
-      <button class="btn btn-sm" onclick="migrarHaberesHistoricos()" style="white-space:nowrap;background:var(--amber,#d97706);color:#fff;border:none"><i class="ti ti-refresh"></i> Importar haberes anteriores</button>
-      </div>
       <div class="card" id="ctaemp-comision-card" style="display:none;margin-bottom:12px">
       <div class="card-head"><span class="card-title"><i class="ti ti-percentage"></i> Comisiones de este mes</span></div>
       <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
@@ -9248,7 +9244,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.297-firebase',
+  VERSION: 'v20.300-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -15759,15 +15755,94 @@ function iniciarCtaEmp() {
   }
 }
 
+
+function _ctaEmpNormalizarTxt(v) {
+  return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+}
+
+function _ctaEmpMesDeMov(m) {
+  return String((m && (m.mes || m.fecha || m.fechaPago)) || '').slice(0,7);
+}
+
+function _ctaEmpEsGastoPersonalEmpleado(g, empFbKey) {
+  if (!g || !empFbKey) return false;
+  var gEmp = g.empleadoId || g.empleadoFbKey || '';
+  if (gEmp !== empFbKey) return false;
+  var cat = _ctaEmpNormalizarTxt(g.categoria || '');
+  var desc = _ctaEmpNormalizarTxt(g.descripcion || g.desc || g.detalle || '');
+  return cat === 'personal' || desc.indexOf('haber ') === 0 || desc.indexOf('hs extra') === 0 || desc.indexOf('horas extra') >= 0 || desc.indexOf('aguinaldo') >= 0;
+}
+
+
+function _ctaEmpTipoDesdeGasto(g) {
+  if (!g) return 'gasto_empresa';
+  var cat = _ctaEmpNormalizarTxt(g.categoria || '');
+  var desc = _ctaEmpNormalizarTxt(g.descripcion || g.desc || g.detalle || '');
+
+  if (cat === 'personal') {
+    if (desc.indexOf('haber ') === 0 || desc.indexOf('sueldo ') >= 0) return 'sueldo';
+    if (desc.indexOf('hs extra') >= 0 || desc.indexOf('horas extra') >= 0) return 'hextra';
+    if (desc.indexOf('aguinaldo') >= 0) return 'aguinaldo';
+    if (desc.indexOf('adelanto') >= 0) return 'adelanto';
+    return 'gasto_empresa';
+  }
+
+  if (desc.indexOf('haber ') === 0) return 'sueldo';
+  if (desc.indexOf('hs extra') >= 0 || desc.indexOf('horas extra') >= 0) return 'hextra';
+  if (desc.indexOf('aguinaldo') >= 0) return 'aguinaldo';
+  if (desc.indexOf('adelanto') >= 0) return 'adelanto';
+
+  var tipoCat = String(g.categoria || '').toLowerCase();
+  return ['gasto_empresa','transporte','materiales','otro'].includes(tipoCat) ? tipoCat : 'gasto_empresa';
+}
+
+function _ctaEmpEsSueldoMovimiento(m) {
+  if (!m) return false;
+  if (m.tipo === 'sueldo') return true;
+  var desc = _ctaEmpNormalizarTxt(m.descripcion || m.desc || m.detalle || '');
+  return desc.indexOf('haber ') === 0 || desc.indexOf('sueldo ') >= 0;
+}
+
+function _ctaEmpMovimientoLegacyDuplicadoPorGasto(m, empFbKey) {
+  if (!m || m._fuente === 'gastos' || !(gastosData || []).length) return null;
+  var tipo = String(m.tipo || '').toLowerCase();
+  if (!['sueldo','hextra','aguinaldo'].includes(tipo)) return null;
+  var monto = parseFloat(m.monto) || 0;
+  if (!monto) return null;
+  var mes = _ctaEmpMesDeMov(m);
+  var descM = _ctaEmpNormalizarTxt(m.descripcion || m.desc || m.detalle || '');
+  var emp = (empData && Object.values(empData).find(function(e){ return (e.fbKey || e.id) == empFbKey; })) || null;
+  var empNom = _ctaEmpNormalizarTxt(emp && emp.nombre);
+  return (gastosData || []).find(function(g){
+    if (!_ctaEmpEsGastoPersonalEmpleado(g, empFbKey)) return false;
+    if (Math.abs((parseFloat(g.monto) || 0) - monto) > 1) return false;
+    var mesG = String(g.mes || g.fecha || '').slice(0,7);
+    if (mes && mesG && mes !== mesG) return false;
+    var descG = _ctaEmpNormalizarTxt(g.descripcion || g.desc || g.detalle || '');
+    if (tipo === 'sueldo' && descG.indexOf('haber ') === 0) return true;
+    if (tipo === 'hextra' && (descG.indexOf('hs extra') >= 0 || descG.indexOf('horas extra') >= 0)) return true;
+    if (tipo === 'aguinaldo' && descG.indexOf('aguinaldo') >= 0) return true;
+    if (empNom && descG.indexOf(empNom) >= 0 && descM) return true;
+    return descM && descG && (descM.indexOf(descG.slice(0,60)) >= 0 || descG.indexOf(descM.slice(0,60)) >= 0);
+  }) || null;
+}
+
+function _ctaEmpActualizarBannerDuplicadosLegacy() {
+  var banner = document.getElementById('ctaemp-migracion-banner');
+  if (banner) banner.remove();
+  return false;
+}
+
+async function ctaEmpEliminarDuplicadosLegacy() { return false; }
+
 function cargarCtaEmp(empFbKey) {
   var limpia = ['ctaemp-base','ctaemp-haberes','ctaemp-adelantos','ctaemp-total'];
   limpia.forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent='…'; });
   var tbodyLimpia = document.getElementById('ctaemp-tbody');
   if (tbodyLimpia) tbodyLimpia.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Cargando…</td></tr>';
   movsEmpData = [];
-  // Ocultar banner siempre al cambiar de empleado
   var banner = document.getElementById('ctaemp-migracion-banner');
-  if (banner) banner.style.display = 'none';
+  if (banner) banner.remove();
   if (!empFbKey || !window.fbDB) return;
   ctaEmpActual = empFbKey;
   var emp = Object.values(empData || {}).find(function(e){ return (e.fbKey||e.id) == empFbKey; });
@@ -15785,9 +15860,18 @@ function cargarCtaEmp(empFbKey) {
   window._ctaEmpUnsubscribe && window._ctaEmpUnsubscribe();
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey), function(snap) {
     var data = snap.val();
-    var ctaMovs = data ? Object.entries(data).map(function(e){
+    var ctaMovsOriginal = data ? Object.entries(data).map(function(e){
       return Object.assign({ fbKey: e[0], _fuente: 'ctaemp' }, e[1]);
     }) : [];
+    window._ctaEmpDuplicadosLegacy = [];
+    var ctaMovs = ctaMovsOriginal.filter(function(m){
+      var gDup = _ctaEmpMovimientoLegacyDuplicadoPorGasto(m, empFbKey);
+      if (gDup) {
+        window._ctaEmpDuplicadosLegacy.push(Object.assign({}, m, { gastoDuplicadoFbKey: gDup.fbKey }));
+        return false;
+      }
+      return true;
+    });
     // Combinar con gastos de sisventas/gastos donde empleadoId === empFbKey
     // pero SOLO los que NO tienen ya un movimiento en ctaemp (evitar duplicados)
     var fbKeysEnCtaemp = new Set(ctaMovs.map(function(m){ return m.gastoFbKey || m.gastoKey || ''; }).filter(Boolean));
@@ -15808,7 +15892,7 @@ function cargarCtaEmp(empFbKey) {
     }).map(function(g){
       return {
         fbKey:      g.fbKey,
-        tipo:       TIPOS_GASTOS_EMP.includes(g.categoria ? g.categoria.toLowerCase() : '') ? g.categoria.toLowerCase() : 'gasto_empresa',
+        tipo:       _ctaEmpTipoDesdeGasto(g),
         monto:      parseFloat(g.monto)||0,
         descripcion: g.descripcion || g.desc || g.detalle || '',
         desc:       g.descripcion || g.desc || g.detalle || '',
@@ -15823,7 +15907,7 @@ function cargarCtaEmp(empFbKey) {
     });
     movsEmpData = ctaMovs.concat(gastosEmp).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
     renderMovsEmp();
-    verificarHaberesHistoricos(empFbKey);
+    _ctaEmpActualizarBannerDuplicadosLegacy();
   });
 }
 window._ctaEmpPeriodoOffset = 0;
@@ -16088,7 +16172,7 @@ function renderMovsEmp() {
       '</tr>';
     }).join('');
   }
-  var TIPOS_HABER = ['sueldo','comision','hextra','transporte','materiales','gasto_empresa','otro'];
+  var TIPOS_HABER = ['sueldo','aguinaldo','comision','hextra','transporte','materiales','gasto_empresa','otro'];
   var listaPeriodo = movsEmpData.filter(function(m){ return _movEmpEnPeriodo(m, mesCta); });
   var haberes = listaPeriodo.filter(function(m){ return TIPOS_HABER.includes(m.tipo) && _movEmpEsCobrable(m); })
                             .reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
@@ -16098,8 +16182,7 @@ function renderMovsEmp() {
                                   .reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
   var total = haberes - adelantosPend;
   var el = function(id){ return document.getElementById(id); };
-  // Sueldo base: tomar solo del movimiento de sueldo del período mostrado.
-  var ultimoSueldo = listaPeriodo.filter(function(m){ return m.tipo === 'sueldo'; })
+  var ultimoSueldo = listaPeriodo.filter(function(m){ return _ctaEmpEsSueldoMovimiento(m); })
                                 .sort(function(a,b){ return (b.ts||0)-(a.ts||0); })[0];
   var base = ultimoSueldo ? (parseFloat(ultimoSueldo.sueldoBase)||parseFloat(ultimoSueldo.monto)||0) : 0;
   if (el('ctaemp-base'))     el('ctaemp-base').textContent     = '$' + Math.round(base).toLocaleString('es-AR');
@@ -16129,64 +16212,6 @@ function verDetalleMovEmp(tr) {
   var fechaRaw = _movEmpFechaVisual(mov);
   var fecha = fechaRaw ? fechaRaw.split('-').reverse().join('/') : '—';
   notify(tipoLabel + ' · ' + fecha + ' · $' + (parseFloat(mov.monto)||0).toLocaleString('es-AR') + (desc ? ' — ' + desc : ''));
-}
-
-async function verificarHaberesHistoricos(empFbKey) {
-  var banner = document.getElementById('ctaemp-migracion-banner');
-  if (!banner) return;
-  var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes/' + empFbKey));
-  var habData = snap.val() || {};
-  var meses = Object.keys(habData);
-  if (!meses.length) { banner.style.display = 'none'; return; }
-  var mesesEnCtaemp = movsEmpData.filter(function(m){ return m.tipo === 'sueldo' && m.mes; })
-                                  .map(function(m){ return m.mes; });
-  var sinImportar = meses.filter(function(mesKey){
-    var mesISO = mesKey.replace('_','-');
-    return !mesesEnCtaemp.includes(mesISO);
-  });
-  banner.style.display = sinImportar.length ? 'flex' : 'none';
-}
-
-async function migrarHaberesHistoricos() {
-  if (!ctaEmpActual || !window.fbDB) return;
-  var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes/' + ctaEmpActual));
-  var habData = snap.val() || {};
-  var meses = Object.keys(habData);
-  if (!meses.length) { notify('No hay haberes históricos para importar'); return; }
-  // Meses ya presentes en ctaemp
-  var mesesEnCtaemp = movsEmpData.filter(function(m){ return m.tipo === 'sueldo' && m.mes; })
-                                  .map(function(m){ return m.mes; });
-  var promesas = [];
-  var importados = 0;
-  meses.forEach(function(mesKey) {
-    var mesISO = mesKey.replace('_','-');
-    if (mesesEnCtaemp.includes(mesISO)) return; // ya importado
-    var h = habData[mesKey];
-    var d = new Date(mesISO + '-01T12:00:00');
-    var mesLbl = d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
-    var mov = {
-      tipo:        'sueldo',
-      descripcion: 'Haber ' + mesLbl + (h.montoHsEx > 0 ? ' (incl. ' + h.hsExtra + ' hs extra)' : ''),
-      monto:       h.total || 0,
-      fecha:       h.fecha || (mesISO + '-30'),
-      estado:      'aprobado',
-      mes:         mesISO,
-      sueldoBase:  h.sueldo || 0,
-      hsExtra:     h.hsExtra || 0,
-      montoHsEx:   h.montoHsEx || 0,
-      ts:          h.ts || Date.now()
-    };
-    promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctaEmpActual), mov));
-    importados++;
-  });
-  if (!promesas.length) { notify('Todos los haberes ya estaban importados'); return; }
-  try {
-    await Promise.all(promesas);
-    notify('✓ ' + importados + ' mes' + (importados !== 1 ? 'es' : '') + ' importado' + (importados !== 1 ? 's' : '') + ' correctamente');
-    document.getElementById('ctaemp-migracion-banner').style.display = 'none';
-  } catch(e) {
-    notify('Error al importar: ' + e.message);
-  }
 }
 
 function abrirNuevoMovEmp() {
@@ -27956,7 +27981,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.297</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.300</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
