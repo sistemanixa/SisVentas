@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.294 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.295 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9245,7 +9245,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.294-firebase',
+  VERSION: 'v20.295-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -15936,6 +15936,19 @@ function _movEmpTotalPagado(m) {
   return pagos > 0 ? pagos : (parseFloat(m.montoPagado) || 0);
 }
 
+function _movEmpSaldoPendiente(m) {
+  if (!m) return 0;
+  var monto = parseFloat(m.monto) || 0;
+  var pagado = _movEmpTotalPagado(m);
+  return Math.max(0, monto - pagado);
+}
+
+function _movEmpEnPeriodo(m, mes) {
+  if (!m || !mes) return true;
+  var fechaMov = m.fecha || m.mes || '';
+  return _fechaEnMes(fechaMov, mes) || String(m.mes||'') === mes;
+}
+
 function _movEmpEstadoCalculado(m) {
   if (!m) return 'pendiente';
   var est = String(m.estado || '').toLowerCase();
@@ -15970,8 +15983,8 @@ function renderMovsEmp() {
   var filtroEstado = (document.getElementById('ctaemp-filtro-estado')||{}).value || '';
   var mesCta = _ctaEmpPeriodoMes();
   var lista = movsEmpData.filter(function(m) {
-    var fechaMov = m.fecha || m.mes || '';
-    return (!filtroTipo || m.tipo === filtroTipo) && (!filtroEstado || m.estado === filtroEstado) && (!mesCta || _fechaEnMes(fechaMov, mesCta) || String(m.mes||'') === mesCta);
+    var estadoCalcFiltro = _movEmpEstadoCalculado(m);
+    return (!filtroTipo || m.tipo === filtroTipo) && (!filtroEstado || estadoCalcFiltro === filtroEstado || String(m.estado||'').toLowerCase() === filtroEstado) && _movEmpEnPeriodo(m, mesCta);
   });
   _renderPagosRealizadosEmp(lista);
   if (!lista.length) {
@@ -16019,16 +16032,17 @@ function renderMovsEmp() {
     }).join('');
   }
   var TIPOS_HABER = ['sueldo','comision','hextra','transporte','materiales','gasto_empresa','otro'];
-  var haberes = movsEmpData.filter(function(m){ return TIPOS_HABER.includes(m.tipo) && _movEmpEsCobrable(m); })
-                            .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-  var adelantos = movsEmpData.filter(function(m){ return m.tipo === 'adelanto' && String(m.estado||'').toLowerCase() !== 'rechazado'; })
+  var listaPeriodo = movsEmpData.filter(function(m){ return _movEmpEnPeriodo(m, mesCta); });
+  var haberes = listaPeriodo.filter(function(m){ return TIPOS_HABER.includes(m.tipo) && _movEmpEsCobrable(m); })
+                            .reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
+  var adelantos = listaPeriodo.filter(function(m){ return m.tipo === 'adelanto' && String(m.estado||'').toLowerCase() !== 'rechazado'; })
                               .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-  var adelantosPend = movsEmpData.filter(function(m){ return m.tipo === 'adelanto' && _movEmpEsCobrable(m); })
-                                  .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+  var adelantosPend = listaPeriodo.filter(function(m){ return m.tipo === 'adelanto' && _movEmpEsCobrable(m); })
+                                  .reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
   var total = haberes - adelantosPend;
   var el = function(id){ return document.getElementById(id); };
-  // Sueldo base: tomar del último movimiento tipo sueldo registrado
-  var ultimoSueldo = movsEmpData.filter(function(m){ return m.tipo === 'sueldo'; })
+  // Sueldo base: tomar solo del movimiento de sueldo del período mostrado.
+  var ultimoSueldo = listaPeriodo.filter(function(m){ return m.tipo === 'sueldo'; })
                                 .sort(function(a,b){ return (b.ts||0)-(a.ts||0); })[0];
   var base = ultimoSueldo ? (parseFloat(ultimoSueldo.sueldoBase)||parseFloat(ultimoSueldo.monto)||0) : 0;
   if (el('ctaemp-base'))     el('ctaemp-base').textContent     = '$' + Math.round(base).toLocaleString('es-AR');
@@ -24823,22 +24837,19 @@ function renderDashMiCuenta() {
     var movs = Object.values(data);
     var emp  = Object.values(empData||{}).find(function(e){ return e.fbKey === empFbKey; }) || {};
 
-    var cargoInfo = emp.cargoId ? (CARGOS_DATA||{})[emp.cargoId] : null;
-    var sueldo = cargoInfo
-      ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0))
-      : 0;
+    var mesActual = _mesSistema(0);
+    var movsMes = movs.filter(function(m){ return _movEmpEnPeriodo(m, mesActual); });
 
-    var comisionesPend  = movs.filter(function(m){ return m.tipo === 'comision' && String(m.estado||'').toLowerCase() === 'pendiente'; });
-    var comisionesAprob = movs.filter(function(m){ return m.tipo === 'comision' && String(m.estado||'').toLowerCase() === 'aprobado'; });
-    var comisionesCobrables = movs.filter(function(m){ return m.tipo === 'comision' && _movEmpEsCobrable(m); });
-    var adelantos       = movs.filter(function(m){ return m.tipo === 'adelanto' && String(m.estado||'').toLowerCase() !== 'rechazado'; });
-    var haberesCobrables = movs.filter(function(m){ return ['sueldo','hextra','comision','transporte','materiales','gasto_empresa','otro'].includes(m.tipo) && _movEmpEsCobrable(m); });
+    var comisionesPend  = movsMes.filter(function(m){ return m.tipo === 'comision' && _movEmpEstadoCalculado(m) === 'pendiente'; });
+    var comisionesAprob = movsMes.filter(function(m){ return m.tipo === 'comision' && _movEmpEstadoCalculado(m) === 'aprobado'; });
+    var adelantos       = movsMes.filter(function(m){ return m.tipo === 'adelanto' && String(m.estado||'').toLowerCase() !== 'rechazado'; });
+    var haberesCobrables = movsMes.filter(function(m){ return ['sueldo','hextra','comision','transporte','materiales','gasto_empresa','otro'].includes(m.tipo) && _movEmpEsCobrable(m); });
 
-    var totalHaberesPend = haberesCobrables.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-    var totalComPend    = comisionesPend.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-    var totalComAprob   = comisionesAprob.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+    var totalHaberesPend = haberesCobrables.reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
+    var totalComPend    = comisionesPend.reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
+    var totalComAprob   = comisionesAprob.reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
     var totalAdelanto   = adelantos.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-    var totalAdelantoPend = adelantos.filter(function(m){ return _movEmpEsCobrable(m); }).reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
+    var totalAdelantoPend = adelantos.filter(function(m){ return _movEmpEsCobrable(m); }).reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
     var totalCobrar     = totalHaberesPend - totalAdelantoPend;
 
     var fmt = function(n){ return '$' + Math.round(n).toLocaleString('es-AR'); };
@@ -27885,7 +27896,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.294</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.295</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
