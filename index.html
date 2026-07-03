@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.292 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.293 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -8110,6 +8110,7 @@ function renderTablaUsuarios() {
         '<button class="btn btn-sm btn-icon" onclick="editarUsuario(\'' + u.fbKey + '\')" title="Editar usuario"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
         '<button class="btn btn-sm btn-icon" onclick="gestionarClaveUsuario(\'' + u.fbKey + '\')" title="Cambiar clave registrada" style="color:var(--blue)"><i class="ti ti-lock-cog" style="font-size:14px"></i></button>' +
         '<button class="btn btn-sm btn-icon" onclick="resetPasswordUsuario(\'' + u.mail + '\')" title="Enviar email de reseteo" style="color:var(--amber)"><i class="ti ti-key" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="iniciarImpersonacionUsuario(\'' + u.fbKey + '\')" title="Ver como este usuario" style="color:var(--green)"><i class="ti ti-user-search" style="font-size:14px"></i></button>' +
         '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'usuarios\',\'' + u.fbKey + '\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
       '</td>' +
     '</tr>';
@@ -9244,7 +9245,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.292-firebase',
+  VERSION: 'v20.293-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -21509,6 +21510,90 @@ function editarEmpleado(fbKey) {
   }, { onlyOnce: true });
 }
 
+
+
+function _normalizarRolUsuarioSistema(rol) {
+  var r = String(rol || '').toLowerCase();
+  if (r === 'admin' || r === 'administrador') return 'admin';
+  if (r === 'tecnico' || r === 'técnico') return 'tecnico';
+  if (r === 'vendedor') return 'vendedor';
+  return 'administrativo';
+}
+
+function _emailUsuarioSistema(u) {
+  return (u && (u.mail || (u.login && String(u.login).includes('@') ? u.login : (u.login || '') + '@sistemanixa.com'))) || '';
+}
+
+function _actualizarCabeceraSesion() {
+  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var sname = document.getElementById('s-uname-el');
+  if (sname) sname.textContent = currentUser || '—';
+  var srole = document.getElementById('s-urole-el');
+  if (srole) srole.textContent = rolLabels[currentRole] || currentRole || '—';
+  var av = document.getElementById('s-avatar-el');
+  if (av) {
+    var nombre = currentUser || '';
+    var partes = nombre.split(' ').filter(Boolean);
+    av.textContent = partes.length >= 2 ? (partes[0][0] + (partes[1][0] || '')).toUpperCase() : (nombre || 'US').slice(0,2).toUpperCase();
+  }
+}
+
+function _mostrarBannerImpersonacion() {
+  var viejo = document.getElementById('impersonacion-banner');
+  if (viejo) viejo.remove();
+  if (!window._impersonacionOriginal) return;
+  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var div = document.createElement('div');
+  div.id = 'impersonacion-banner';
+  div.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:12000;background:var(--amber-bg);color:var(--amber);border-bottom:0.5px solid var(--amber);padding:8px 14px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.12)';
+  div.innerHTML = '<span><i class="ti ti-user-search" style="margin-right:6px"></i>Viendo como <strong>' + escapeHTML(currentUser || 'usuario') + '</strong> · ' + escapeHTML(rolLabels[currentRole] || currentRole || '') + '</span>' +
+    '<button class="btn btn-sm" onclick="finalizarImpersonacionUsuario()" style="background:var(--text);color:var(--bg2);border-color:var(--text)"><i class="ti ti-arrow-back-up"></i> Volver a Admin</button>';
+  document.body.appendChild(div);
+}
+
+function iniciarImpersonacionUsuario(fbKey) {
+  if (currentRole !== 'admin' && !window._impersonacionOriginal) { notify('Solo administrador'); return; }
+  var u = (window.usuariosData || []).find(function(x){ return x.fbKey === fbKey; });
+  if (!u) { notify('Usuario no encontrado'); return; }
+  var nuevoRol = _normalizarRolUsuarioSistema(u.rol);
+  if (nuevoRol === 'admin') { notify('Ya estás en vista administrador'); return; }
+  if (!window._impersonacionOriginal) {
+    window._impersonacionOriginal = {
+      user: currentUser,
+      role: currentRole,
+      email: currentUserEmail,
+      uid: currentUserUid
+    };
+  }
+  if (typeof registrarActividad === 'function') registrarActividad('Vista como usuario', (u.nombre || u.login || '') + ' · ' + nuevoRol);
+  currentUser = u.nombre || u.login || _emailUsuarioSistema(u).split('@')[0] || 'Usuario';
+  currentRole = nuevoRol;
+  currentUserEmail = String(_emailUsuarioSistema(u) || '').toLowerCase();
+  applyRole();
+  _actualizarCabeceraSesion();
+  _mostrarBannerImpersonacion();
+  if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
+  showPage('dashboard', document.querySelector('[onclick*="dashboard"]'));
+  notify('Vista cambiada a ' + currentUser);
+}
+
+function finalizarImpersonacionUsuario() {
+  var orig = window._impersonacionOriginal;
+  if (!orig) return;
+  currentUser = orig.user || currentUser;
+  currentRole = orig.role || 'admin';
+  currentUserEmail = orig.email || currentUserEmail;
+  currentUserUid = orig.uid || currentUserUid;
+  window._impersonacionOriginal = null;
+  var banner = document.getElementById('impersonacion-banner');
+  if (banner) banner.remove();
+  applyRole();
+  _actualizarCabeceraSesion();
+  if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
+  if (typeof registrarActividad === 'function') registrarActividad('Fin vista como usuario', '');
+  showPage('dashboard', document.querySelector('[onclick*="dashboard"]'));
+  notify('Volviste a Admin');
+}
 
 function obtenerClaveUsuarioAdmin(u) {
   if (!u || currentRole !== 'admin') return '';
