@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.301 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.302 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1691,7 +1691,7 @@ tr:hover td{color:var(--text)}
           <div class="metrics col3">
             <div class="metric"><div class="metric-label">OT abiertas</div><div class="metric-value" id="ot-met-abiertas">0</div><div class="metric-sub">en progreso</div></div>
             <div class="metric"><div class="metric-label">Para hoy</div><div class="metric-value" id="ot-met-hoy" style="color:var(--blue)">0</div><div class="metric-sub">programadas</div></div>
-            <div class="metric"><div class="metric-label">Completadas mes</div><div class="metric-value" id="ot-met-comp" style="color:var(--green)">0</div><div class="metric-sub">este mes</div></div>
+            <div class="metric"><div class="metric-label">Completadas</div><div class="metric-value" id="ot-met-comp" style="color:var(--green)">0</div><div class="metric-sub">total</div></div>
           </div>
 
           <!-- Vista técnico: tablero del día -->
@@ -9244,7 +9244,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.301-firebase',
+  VERSION: 'v20.302-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -23775,9 +23775,10 @@ function renderOTTabla(filtro) {
   }
 
   // Métricas (iguales para todos)
-  if (_e('ot-met-abiertas')) _e('ot-met-abiertas').textContent = otData.filter(function(o){ return o.estado !== 'completada'; }).length;
-  if (_e('ot-met-hoy'))      _e('ot-met-hoy').textContent      = otData.filter(function(o){ return o.fecha === hoy; }).length;
-  if (_e('ot-met-comp'))     _e('ot-met-comp').textContent     = otData.filter(function(o){ return o.estado === 'completada' && (o.fecha||'').slice(0,7) === mes; }).length;
+  var esCompletadaOT = function(o){ return String(o && (o.estado || '')).toLowerCase() === 'completada'; };
+  if (_e('ot-met-abiertas')) _e('ot-met-abiertas').textContent = otData.filter(function(o){ return !esCompletadaOT(o); }).length;
+  if (_e('ot-met-hoy'))      _e('ot-met-hoy').textContent      = otData.filter(function(o){ return String(o.fecha||'').slice(0,10) === hoy; }).length;
+  if (_e('ot-met-comp'))     _e('ot-met-comp').textContent     = otData.filter(esCompletadaOT).length;
 
   var esTecnico = currentRole === 'tecnico';
   if (_e('ot-vista-tecnico')) _e('ot-vista-tecnico').style.display = esTecnico ? '' : 'none';
@@ -24617,6 +24618,9 @@ function actualizarProgreso(ot) {
   if (pctEl) { pctEl.textContent = pct + '%'; pctEl.style.color = pct === 100 ? 'var(--green)' : 'var(--blue)'; }
   if (pct === 100 && ot.estado === 'en_progreso') {
     ot.estado = 'completada';
+    var hoyCierre = new Date().toISOString().slice(0,10);
+    ot.fechaCierre = ot.fechaCierre || hoyCierre;
+    ot.fechaCompletada = ot.fechaCompletada || hoyCierre;
     const badge = document.getElementById('ot-det-estado-badge');
     if (badge) badge.innerHTML = otBadge('completada');
     notify('¡Checklist completo! Podés finalizar la OT.');
@@ -24632,6 +24636,9 @@ function completarOT() {
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.estado = 'completada';
   ot.progreso = 100;
+  var hoyCierre = new Date().toISOString().slice(0,10);
+  ot.fechaCierre = ot.fechaCierre || hoyCierre;
+  ot.fechaCompletada = ot.fechaCompletada || hoyCierre;
   if (!ot.audit) ot.audit = [];
   ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: 'OT marcada como completada. Conformidad: ' + conf });
   ot.audit.push({ fecha: ahora, usuario: 'Sistema', accion: 'Garantía activada automáticamente' });
@@ -27981,7 +27988,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.301</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.302</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
