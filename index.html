@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.302 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.304 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -2034,6 +2034,7 @@ tr:hover td{color:var(--text)}
             <div class="fg"><label>Monto a cobrar ahora ($)</label><input data-money="1" id="cob-monto" placeholder="0" oninput="calcSaldoTrasCobranza()"></div>
             <div class="fg"><label>Medio de pago</label>
               <select id="cob-medio">
+                <option value="">— Seleccionar —</option>
                 <option>Efectivo</option>
                 <option>Transferencia</option>
                 <option>Tarjeta de débito</option>
@@ -9244,7 +9245,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.302-firebase',
+  VERSION: 'v20.304-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11658,6 +11659,8 @@ function selVentaCob(ventaId, cliente, total, cobrado, saldo) {
   _hide('cob-drop');
   _setMontoInput(document.getElementById('cob-monto'), 0);
   document.getElementById('cob-nuevo-saldo').value='';
+  var refEl = document.getElementById('cob-ref'); if (refEl) refEl.value = '';
+  var obsEl = document.getElementById('cob-obs'); if (obsEl) obsEl.value = '';
 }
 
 // Navega a Cobranzas y precarga el formulario con los datos reales de la venta,
@@ -13374,11 +13377,12 @@ function fbCargarPagos() {
       var listaCortada = lista.slice(0, 20);
       if (pagosTbody) {
         pagosTbody.innerHTML = listaCortada.length ? listaCortada.map(function(p, idx){
-        var ventaLink = p.venta ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();irAVentaDesdeCobranza(\''+escapeHTML(p.venta)+'\');" title="Ver venta"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></button>' : '—';
+        var ventaLink = (p.venta && !p.anulado) ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();irAVentaDesdeCobranza(\''+escapeHTML(p.venta)+'\');" title="Ver venta"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></button>' : '—';
         var _ed = p.fbKey && !p.anulado ? '<button class="btn btn-sm btn-icon" onclick="anularPago(\''+p.fbKey+'\')" title="Anular cobro" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-ban" style="font-size:13px"></i></button>' : '';
         var trStyle = p.anulado ? 'background:rgba(239,68,68,.08);opacity:.7' : '';
         var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : '<span style="color:var(--green);font-weight:500">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</span>';
-        return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(p.medio||'—')+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>'+_ed+'</td></tr>';
+        var reciboBtn = p.anulado ? '' : '<button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>';
+        return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(p.medio||'—')+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap">'+reciboBtn+_ed+'</td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
     }
@@ -16654,11 +16658,15 @@ function imprimirPresupuesto() {
 function registrarPago() {
   var venta  = document.getElementById('cob-venta').value.trim();
   var monto  = getMontoRaw(document.getElementById('cob-monto'));
-  var medio  = document.getElementById('cob-medio').value;
+  var medioEl = document.getElementById('cob-medio');
+  var medio  = medioEl ? medioEl.value : '';
   var fecha  = document.getElementById('cob-fecha') ? document.getElementById('cob-fecha').value : new Date().toISOString().split('T')[0];
-  var obs    = document.getElementById('cob-obs') ? document.getElementById('cob-obs').value : '';
+  var refEl  = document.getElementById('cob-ref');
+  var obsEl  = document.getElementById('cob-obs');
+  var obs    = obsEl ? obsEl.value : (refEl ? refEl.value.trim() : '');
   if (!venta) { notify('Seleccioná una venta'); return; }
   if (!monto) { notify('Ingresá un monto'); return; }
+  if (!medio) { notify('Seleccioná un medio de pago'); if (medioEl) medioEl.focus(); return; }
   if (!window.fbDB) { notify('Sin conexión'); return; }
 
   var ventaIdInput = venta.trim();
@@ -16715,9 +16723,11 @@ function registrarPago() {
       window._ultimoPago   = pago;
       window._ultimoPagoVenta = ventaObj;
       setTimeout(function(){ imprimirRecibo(); }, 400);
-      ['cob-venta','cob-monto','cob-cliente','cob-total-venta','cob-ya-cobrado','cob-saldo','cob-nuevo-saldo'].forEach(function(id){
+      ['cob-venta','cob-monto','cob-cliente','cob-total-venta','cob-ya-cobrado','cob-saldo','cob-nuevo-saldo','cob-ref','cob-obs'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.value = '';
       });
+      var medioReset = document.getElementById('cob-medio');
+      if (medioReset) medioReset.value = '';
     })
     .catch(function(e){ notify('Error al guardar: ' + e.message); });
 }
@@ -17260,6 +17270,13 @@ var FV_DATA = [];          // todos los comprobantes emitidos (acumulado histór
 var FV_PERIODO_ACTIVO = null;
 var FV_TIPOS_CON_IVA_DISCRIMINADO = ['1','2','3','51','81','201'];
 function fvConIvaDiscriminado(tipo) { return FV_TIPOS_CON_IVA_DISCRIMINADO.includes(String(tipo)); }
+function fvEsNotaCredito(tipo) {
+  var t = String(tipo||'').trim().toLowerCase();
+  return ['3','8','12'].includes(t) || t.includes('nota') && t.includes('cr');
+}
+function fvSigno(c) { return fvEsNotaCredito(c && c.tipo) ? -1 : 1; }
+function fvMontoFirmado(c, campo) { return (parseFloat(c && c[campo]) || 0) * fvSigno(c); }
+function fvPesosFirmado(c, campo) { return cfPesos(fvMontoFirmado(c, campo)); }
 
 function fvCargar() {
   if (!window.fbDB) return;
@@ -17453,31 +17470,31 @@ function fvRenderTodo() {
 }
 
 function fvRenderMetricas(comps) {
-  var totalIVA   = comps.reduce(function(s,c){ return s+c.totalIVA; }, 0);
-  var totalNeto  = comps.reduce(function(s,c){ return s+c.neto; }, 0);
-  var totalFact  = comps.reduce(function(s,c){ return s+c.total; }, 0);
-  var iva21      = comps.reduce(function(s,c){ return s+c.iva21; }, 0);
-  var iva105     = comps.reduce(function(s,c){ return s+c.iva105; }, 0);
+  var totalIVA   = comps.reduce(function(s,c){ return s+fvMontoFirmado(c,'totalIVA'); }, 0);
+  var totalNeto  = comps.reduce(function(s,c){ return s+fvMontoFirmado(c,'neto'); }, 0);
+  var totalFact  = comps.reduce(function(s,c){ return s+fvMontoFirmado(c,'total'); }, 0);
+  var iva21      = comps.reduce(function(s,c){ return s+fvMontoFirmado(c,'iva21'); }, 0);
+  var iva105     = comps.reduce(function(s,c){ return s+fvMontoFirmado(c,'iva105'); }, 0);
 
   document.getElementById('fv-metrics-box').innerHTML =
-    cfMetricCard('Débito fiscal (IVA a ingresar)', cfPesos(totalIVA), 'todo lo emitido', 'red') +
-    cfMetricCard('Total facturado', cfPesos(totalFact), 'todos los comprobantes', '') +
-    cfMetricCard('IVA 21%', cfPesos(iva21), 'alícuota general', 'blue') +
-    cfMetricCard('IVA 10,5%', cfPesos(iva105), 'alícuota reducida', 'amber');
+    cfMetricCard('Débito fiscal (IVA a ingresar)', cfPesos(totalIVA), 'facturas menos notas de crédito', 'red') +
+    cfMetricCard('Total facturado', cfPesos(totalFact), 'facturas menos notas de crédito', '') +
+    cfMetricCard('IVA 21%', cfPesos(iva21), 'alícuota general neta', 'blue') +
+    cfMetricCard('IVA 10,5%', cfPesos(iva105), 'alícuota reducida neta', 'amber');
 }
 
 function fvRenderAlicuotas(comps) {
   var ali = [
-    { lbl:'IVA 21%',   val: comps.reduce(function(s,c){return s+c.iva21;},0),  color:'#3b82f6' },
-    { lbl:'IVA 10,5%', val: comps.reduce(function(s,c){return s+c.iva105;},0), color:'#f59e0b' },
-    { lbl:'IVA 27%',   val: comps.reduce(function(s,c){return s+c.iva27;},0),  color:'#a855f7' },
-    { lbl:'IVA 5%',    val: comps.reduce(function(s,c){return s+c.iva5;},0),   color:'#22c55e' },
-    { lbl:'IVA 2,5%',  val: comps.reduce(function(s,c){return s+c.iva25;},0),  color:'#64748b' },
-  ].filter(function(a){ return a.val > 0; });
-  var totalIVA = ali.reduce(function(s,a){ return s+a.val; }, 0);
+    { lbl:'IVA 21%',   val: comps.reduce(function(s,c){return s+fvMontoFirmado(c,'iva21');},0),  color:'#3b82f6' },
+    { lbl:'IVA 10,5%', val: comps.reduce(function(s,c){return s+fvMontoFirmado(c,'iva105');},0), color:'#f59e0b' },
+    { lbl:'IVA 27%',   val: comps.reduce(function(s,c){return s+fvMontoFirmado(c,'iva27');},0),  color:'#a855f7' },
+    { lbl:'IVA 5%',    val: comps.reduce(function(s,c){return s+fvMontoFirmado(c,'iva5');},0),   color:'#22c55e' },
+    { lbl:'IVA 2,5%',  val: comps.reduce(function(s,c){return s+fvMontoFirmado(c,'iva25');},0),  color:'#64748b' },
+  ].filter(function(a){ return Math.abs(a.val) > 0.005; });
+  var totalIVA = ali.reduce(function(s,a){ return s+Math.abs(a.val); }, 0);
 
   document.getElementById('fv-alicuotas-box').innerHTML = ali.length ? ali.map(function(a) {
-    var pct = totalIVA > 0 ? Math.round(a.val/totalIVA*100) : 0;
+    var pct = totalIVA > 0 ? Math.round(Math.abs(a.val)/totalIVA*100) : 0;
     return '<div style="display:flex;align-items:center;gap:10px">' +
       '<div style="min-width:80px;font-size:12px;font-weight:600;color:'+a.color+'">'+a.lbl+'</div>' +
       '<div style="flex:1;background:'+a.color+'15;border-radius:3px;height:7px"><div style="width:'+pct+'%;height:7px;background:'+a.color+';border-radius:3px"></div></div>' +
@@ -17507,8 +17524,8 @@ function fvRenderHistorial(comps, filtro) {
     var nombre = c.nombre || (c.cuitReceptor ? c.cuitReceptor : 'Consumidor Final');
     if (!clientes[k]) clientes[k] = { cuit: c.cuitReceptor||'—', nombre: nombre, comps:[], totalIVA:0, total:0 };
     clientes[k].comps.push(c);
-    clientes[k].totalIVA += c.totalIVA;
-    clientes[k].total += c.total;
+    clientes[k].totalIVA += fvMontoFirmado(c,'totalIVA');
+    clientes[k].total += fvMontoFirmado(c,'total');
   });
   var lista = Object.values(clientes).sort(function(a,b){ return b.total - a.total; });
 
@@ -17547,19 +17564,20 @@ function fvRenderClienteRow(p, idx) {
         '<tbody>' + p.comps.map(function(c) {
           var tipoNom = CF_TIPOS_COMP[c.tipo] || 'Tipo '+c.tipo;
           var conIva = fvConIvaDiscriminado(c.tipo);
+          var esNC = fvEsNotaCredito(c.tipo);
           var numFmt = String(c.ptoVta).padStart(4,'0') + '-' + String(c.nroDoc).padStart(8,'0');
           return '<tr>' +
             '<td style="font-family:monospace;font-size:12px">'+c.fecha+'</td>' +
-            '<td><span class="badge '+(conIva?'b-blue':'b-gray')+'" style="font-size:10px">'+tipoNom+'</span></td>' +
+            '<td><span class="badge '+(esNC?'b-red':(conIva?'b-blue':'b-gray'))+'" style="font-size:10px">'+tipoNom+'</span></td>' +
             '<td style="font-family:monospace;font-size:12px">'+numFmt+'</td>' +
-            '<td class="tr" style="font-family:monospace">'+cfPesos(c.neto)+'</td>' +
-            '<td class="tr" style="font-family:monospace;color:'+(conIva?'var(--red)':'var(--text3)')+';font-weight:'+(conIva?'600':'400')+'">'+(conIva?cfPesos(c.totalIVA):(c.totalIVA>0?cfPesos(c.totalIVA):'—'))+'</td>' +
-            '<td class="tr" style="font-family:monospace">'+cfPesos(c.total)+'</td>' +
+            '<td class="tr" style="font-family:monospace;color:'+(esNC?'var(--red)':'inherit')+'">'+fvPesosFirmado(c,'neto')+'</td>' +
+            '<td class="tr" style="font-family:monospace;color:'+(conIva?'var(--red)':'var(--text3)')+';font-weight:'+(conIva?'600':'400')+'">'+(conIva?fvPesosFirmado(c,'totalIVA'):(c.totalIVA>0?fvPesosFirmado(c,'totalIVA'):'—'))+'</td>' +
+            '<td class="tr" style="font-family:monospace;color:'+(esNC?'var(--red)':'inherit')+'">'+fvPesosFirmado(c,'total')+'</td>' +
           '</tr>';
         }).join('') + '</tbody>' +
         '<tfoot><tr style="border-top:1px solid var(--border);font-weight:700">' +
-          '<td colspan="3" style="font-size:11px;color:var(--text3)">TOTAL FACTURADO</td>' +
-          '<td class="tr" style="font-family:monospace">'+cfPesos(p.comps.reduce(function(s,c){return s+c.neto;},0))+'</td>' +
+          '<td colspan="3" style="font-size:11px;color:var(--text3)">TOTAL NETO</td>' +
+          '<td class="tr" style="font-family:monospace">'+cfPesos(p.comps.reduce(function(s,c){return s+fvMontoFirmado(c,'neto');},0))+'</td>' +
           '<td class="tr" style="font-family:monospace;color:var(--red)">'+cfPesos(p.totalIVA)+'</td>' +
           '<td class="tr" style="font-family:monospace">'+cfPesos(p.total)+'</td>' +
         '</tr></tfoot>' +
@@ -17581,8 +17599,8 @@ function calcularCompensacionIVA(periodo) {
   var compCF = (CF_DATA||[]).filter(function(c){ return !periodo || (c.fecha||'').startsWith(periodo); });
   var compFV = (FV_DATA||[]).filter(function(c){ return !periodo || (c.fecha||'').startsWith(periodo); });
   var credito = compCF.filter(function(c){ return typeof cfEsCreditoFiscal === 'function' && cfEsCreditoFiscal(c.tipo); })
-    .reduce(function(s,c){ return s + (parseFloat(c.totalIVA)||0); }, 0);
-  var debito = compFV.reduce(function(s,c){ return s + (parseFloat(c.totalIVA)||0); }, 0);
+    .reduce(function(s,c){ return s + ((parseFloat(c.totalIVA)||0) * (typeof cfSigno === 'function' ? cfSigno(c) : 1)); }, 0);
+  var debito = compFV.reduce(function(s,c){ return s + (typeof fvMontoFirmado === 'function' ? fvMontoFirmado(c,'totalIVA') : (parseFloat(c.totalIVA)||0)); }, 0);
   return { credito: credito, debito: debito, saldo: debito - credito };
 }
 
@@ -27988,7 +28006,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.302</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.304</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
