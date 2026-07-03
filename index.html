@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.306 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.308 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -1360,7 +1360,7 @@ tr:hover td{color:var(--text)}
 
       <!-- ── DETALLE ── -->
       <div id="page-detalle" class="page">
-        <div class="metrics" id="ventas-stats-global" style="margin-bottom:12px">
+        <div class="metrics admin-only" id="ventas-stats-global" style="margin-bottom:12px">
           <div class="metric"><div class="m-label">Este mes</div><div class="m-value" id="stat-ven-mes" style="color:var(--green)">—</div><div class="m-sub">total facturado</div></div>
           <div class="metric"><div class="m-label">Cantidad</div><div class="m-value" id="stat-ven-cant">—</div><div class="m-sub">ventas del mes</div></div>
           <div class="metric"><div class="m-label">Pendiente cobro</div><div class="m-value" id="stat-ven-pendiente" style="color:var(--amber)">—</div><div class="m-sub" id="stat-ven-pendiente-sub">sin cobrar</div></div>
@@ -1370,7 +1370,7 @@ tr:hover td{color:var(--text)}
   <!-- Vista lista de ventas -->
   <div id="ventas-list-view">
     <!-- Métricas rápidas -->
-    <div class="metrics" id="ventas-list-stats-global">
+    <div class="metrics admin-only" id="ventas-list-stats-global">
       <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiVentasMes()" title="Ver ventas de este mes">
         <div class="m-label">Ventas este mes</div>
         <div class="m-value" id="vm-total-mes">$0</div>
@@ -1998,7 +1998,7 @@ tr:hover td{color:var(--text)}
             <i class="ti ti-arrow-left"></i> Volver al detalle de la venta
           </button>
         </div>
-        <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+        <div class="metrics admin-only" id="cobranzas-stats-global" style="grid-template-columns:repeat(3,1fr)">
           <div class="metric">
             <div class="m-label">Cobrado este mes</div>
             <div class="m-value" id="cob-met-cobrado">$0</div>
@@ -8366,6 +8366,26 @@ function ventaTienePagoTotal(v) {
   return total > 0 && pagado >= total - 1;
 }
 
+
+function resolverIdClienteVenta(v) {
+  if (!v) return '';
+  var directo = v.idCliente || v.clienteId || v.id_cli || v.clienteKey || v.clienteFbKey || v.fbKeyCliente || v.idClienteOriginal || '';
+  if (directo) return String(directo);
+  var nombreVenta = String(v.cliente || v.clienteNombre || v.nombreCliente || '').trim().toLowerCase();
+  if (!nombreVenta) return '';
+  var cli = (clientesData || []).find(function(c) {
+    var nombres = [
+      c.nombre,
+      c.empresa,
+      c.razonSocial,
+      c.cliente,
+      ((c.nombre || '') + ' ' + (c.apellidos || c.apellido || '')).trim()
+    ].map(function(x){ return String(x || '').trim().toLowerCase(); }).filter(Boolean);
+    return nombres.indexOf(nombreVenta) >= 0;
+  });
+  return cli ? String(cli.id || cli.fbKey || '') : '';
+}
+
 function abrirEditorVenta(fbKey) {
   var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!v) { notify('Venta no encontrada'); return; }
@@ -8375,7 +8395,8 @@ function abrirEditorVenta(fbKey) {
     var tbody = document.getElementById('det-body');
     if (tbody) tbody.innerHTML = '';
     var cliInp = document.getElementById('cli-inp'); if(cliInp) cliInp.value = v.cliente||'';
-    var idCliInp = document.getElementById('id-cli'); if(idCliInp) idCliInp.value = v.idCliente || v.clienteId || '';
+    var idCliResuelto = (typeof resolverIdClienteVenta === 'function') ? resolverIdClienteVenta(v) : (v.idCliente || v.clienteId || '');
+    var idCliInp = document.getElementById('id-cli'); if(idCliInp) idCliInp.value = idCliResuelto || '';
     var obsInp = document.getElementById('venta-obs'); if(obsInp) obsInp.value = v.observaciones||v.obs||'';
     var descGenInp = document.getElementById('desc-general'); if(descGenInp) descGenInp.value = parseFloat(v.descuentoGeneral||0) || '';
     aplicarEstadoIvaVenta(v.conIva !== false, false);
@@ -9245,7 +9266,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.306-firebase',
+  VERSION: 'v20.308-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10592,6 +10613,15 @@ function confirmarVenta() {
   var cli = document.getElementById('cli-inp').value;
   var idCliEl = document.getElementById('id-cli');
   var idCliVal = idCliEl ? idCliEl.value.trim() : '';
+  if (!idCliVal) {
+    var cliMatch = (clientesData || []).find(function(c){
+      return String(c.nombre || '').trim().toLowerCase() === String(cli || '').trim().toLowerCase() ||
+             String(c.empresa || '').trim().toLowerCase() === String(cli || '').trim().toLowerCase() ||
+             String(c.razonSocial || '').trim().toLowerCase() === String(cli || '').trim().toLowerCase();
+    });
+    if (cliMatch) idCliVal = String(cliMatch.id || cliMatch.fbKey || '');
+    if (idCliEl && idCliVal) idCliEl.value = idCliVal;
+  }
   var dir = (_get('cli-dir-hidden')||{}).value || 'Sin definir';
   var maxId = 0;
   (ventasList || []).forEach(function(v) {
@@ -10753,7 +10783,7 @@ function mostrarConfirmacionVenta(venta, fbKey) {
       '<div style="color:var(--text3);font-size:13px;margin-bottom:4px">' + escapeHTML(venta.cliente) + '</div>' +
       '<div style="font-size:22px;font-weight:700;color:var(--green);margin-bottom:20px">$' + Math.round(venta.total).toLocaleString('es-AR') + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px">' +
-        '<button class="btn btn-primary" onclick="cerrarConfirmacionVenta();if(typeof showPage===\'function\')showPage(\'ventas\');setTimeout(function(){verVenta(\'' + escapeHTML(venta.id) + '\')},600)" style="width:100%;padding:12px">' +
+        '<button class="btn btn-primary" onclick="abrirDetalleVentaConfirmada308(\'' + escapeHTML(venta.id) + '\',\'' + escapeHTML(fbKey||'') + '\')" style="width:100%;padding:12px">' +
           '<i class="ti ti-eye"></i> Ver detalle de la venta' +
         '</button>' +
         '<button class="btn" onclick="cerrarConfirmacionVenta();abrirCobroRapido(\'' + escapeHTML(venta.id) + '\',' + Math.round(venta.total) + ',\'' + escapeHTML(venta.cliente) + '\')" style="width:100%;padding:12px;border-color:var(--green);color:var(--green)">' +
@@ -28062,7 +28092,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.306</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.308</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -29527,6 +29557,100 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   };
   document.addEventListener('input',function(e){ if(e.target && e.target.closest && e.target.closest('#ot-detalle-view')) setTimeout(function(){ show(window._otWizardStep||'cliente'); },150); });
   document.addEventListener('change',function(e){ if(e.target && e.target.closest && e.target.closest('#ot-detalle-view')) setTimeout(function(){ show(window._otWizardStep||'cliente'); },150); });
+})();
+</script>
+
+
+<script>
+(function(){
+  'use strict';
+  function rolActual308(){ return String(window.currentRole || '').toLowerCase(); }
+  function esAdmin308(){ return rolActual308() === 'admin'; }
+  function setDisplay308(el, visible){ if(el) el.style.display = visible ? '' : 'none'; }
+  window.aplicarDashboardPermisos308 = function(){
+    var admin = esAdmin308();
+    ['ventas-stats-global','ventas-list-stats-global','cobranzas-stats-global'].forEach(function(id){ setDisplay308(document.getElementById(id), admin); });
+    var pageCob = document.getElementById('page-cobranzas');
+    if (pageCob) Array.from(pageCob.querySelectorAll(':scope > .metrics')).forEach(function(m){ setDisplay308(m, admin); });
+  };
+  var showPrev308 = window.showPage;
+  if (typeof showPrev308 === 'function') window.showPage = function(page, el){ var r = showPrev308.apply(this, arguments); setTimeout(window.aplicarDashboardPermisos308, 80); return r; };
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(window.aplicarDashboardPermisos308, 300); });
+
+  function ventaActualEditando308(){
+    var key = window._ventaEditandoFbKey;
+    if (!key) return window._ventaEditandoOriginal || null;
+    return window._ventaEditandoOriginal || (window.ventasList||[]).find(function(v){ return v && (v.fbKey === key || v.id === key); }) || null;
+  }
+  function restaurarDescuentosEdicion308(){
+    var v = ventaActualEditando308(); if (!v) return;
+    var dg = document.getElementById('desc-general');
+    if (dg && String(dg.value||'').trim() === '') { var val = parseFloat(v.descuentoGeneral || 0) || 0; if (val > 0) dg.value = val; }
+    Array.from(document.querySelectorAll('#det-body tr')).forEach(function(tr, idx){
+      var inp = tr.querySelector('.disc'); if (!inp || String(inp.value||'').trim() !== '') return;
+      var it = (v.items||[])[idx] || null;
+      if (!it) { var cod = (tr.querySelector('.prod-sel-cod')||{}).textContent || ''; it = (v.items||[]).find(function(x){ return String(x.cod||x.codigo||'') === String(cod); }); }
+      var d = it ? (parseFloat(it.disc || it.descuentoPct || 0) || 0) : 0;
+      if (d > 0) { inp.value = d; inp.style.color = 'var(--green)'; }
+    });
+  }
+  var abrirPrev308 = window.abrirEditorVenta;
+  if (typeof abrirPrev308 === 'function') window.abrirEditorVenta = function(fbKey){ var r = abrirPrev308.apply(this, arguments); [450,900,1400].forEach(function(t){ setTimeout(function(){ restaurarDescuentosEdicion308(); if(typeof calcTotals==='function') calcTotals(); }, t); }); return r; };
+  var calcPrev308 = window.calcTotals;
+  if (typeof calcPrev308 === 'function') window.calcTotals = function(){ if (window._ventaEditandoFbKey || window._ventaEditandoOriginal) restaurarDescuentosEdicion308(); return calcPrev308.apply(this, arguments); };
+  var confirmarPrev308 = window.confirmarVenta;
+  if (typeof confirmarPrev308 === 'function') window.confirmarVenta = function(){ if (window._ventaEditandoFbKey || window._ventaEditandoOriginal) restaurarDescuentosEdicion308(); return confirmarPrev308.apply(this, arguments); };
+
+  window.abrirDetalleVentaConfirmada308 = function(id, fbKey){
+    if (typeof cerrarConfirmacionVenta === 'function') cerrarConfirmacionVenta();
+    if (typeof showPage === 'function') showPage('detalle', document.querySelector('[onclick*=detalle]'));
+    setTimeout(function(){
+      var v = (window.ventasList || []).find(function(x){ return String(x.fbKey||'') === String(fbKey||'') || String(x.id||'') === String(id||'') || String(x.numero||'') === String(id||''); });
+      var ref = (v && (v.fbKey || v.id || v.numero)) || fbKey || id;
+      if (typeof verDetalleVentaDesdeId === 'function') return verDetalleVentaDesdeId(ref);
+      if (typeof verVenta === 'function') return verVenta(ref);
+      if (typeof renderDetalleVenta === 'function' && v) return renderDetalleVenta(v);
+      if (typeof notify === 'function') notify('No se pudo abrir el detalle de la venta');
+    }, 350);
+  };
+
+  function norm308(v){ return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim(); }
+  function medioCfg308(medio){
+    if (typeof obtenerMedioPagoConfig === 'function') return obtenerMedioPagoConfig(medio);
+    var n = norm308(medio);
+    return (window.MEDIOS_PAGO_CONFIG||[]).find(function(x){
+      var tipo = norm308(x.tipo || 'otro'); var corto = (window.TIPO_LABEL_MP_CORTO && window.TIPO_LABEL_MP_CORTO[tipo]) || tipo.toUpperCase();
+      return norm308(x.nombre) === n || norm308(corto + ' / ' + x.nombre) === n;
+    }) || null;
+  }
+  window._tesTipoMedio = function(p){
+    p = p || {}; var medio = p.medio || p.medioPago || ''; var cfg = medioCfg308(medio);
+    if (cfg && cfg.tipo) return norm308(cfg.tipo);
+    var n = norm308(medio);
+    if (/efect/.test(n)) return 'efectivo';
+    if (/trans|transfer|alias|cbu|banco|bancaria|santander|galicia|bbva|macro|nacion|provincia|uala/.test(n)) return 'transferencia';
+    if (/mercado pago|mercadopago|\bmp\b|qr|billetera/.test(n)) return 'qr';
+    if (/tarj|debito|credito|visa|master/.test(n)) return 'tarjeta';
+    if (/cheq|echeq/.test(n)) return 'cheque';
+    if (p.comprobante && (p.comprobante.data || p.comprobante.url || p.comprobante.nombre)) return 'transferencia';
+    return 'otro';
+  };
+  function dentroPeriodo308(fecha, per){ fecha = String(fecha || ''); if (per === 'todos') return true; var d = new Date(), ym = d.toISOString().slice(0,7), prevD = new Date(d.getFullYear(), d.getMonth()-1, 1), prev = prevD.toISOString().slice(0,7); if (per === 'anterior') return fecha.slice(0,7) === prev; return fecha.slice(0,7) === ym; }
+  function money308(n){ return (typeof money === 'function') ? money(n) : '$' + Math.round(parseFloat(n)||0).toLocaleString('es-AR'); }
+  function setMetric308(id, val, sub){ var el = document.getElementById(id); if(!el) return; el.textContent = val; var s = el.closest('.metric'); s = s ? s.querySelector('.m-sub') : null; if (s && sub !== undefined) s.textContent = sub; }
+  function corregirMetricasTesoreria308(){
+    if (typeof window._tesoreriaPagos !== 'function') return;
+    var per = (document.getElementById('tes-periodo')||{}).value || 'mes';
+    var pagos = window._tesoreriaPagos().filter(function(p){ return dentroPeriodo308(p.fecha, per); });
+    var total = 0, transfer = 0, efectivo = 0, comp = 0, cTransfer = 0, cEfectivo = 0;
+    pagos.forEach(function(p){ var m = parseFloat(p.monto) || 0; total += m; var tipo = window._tesTipoMedio(p); if (tipo === 'transferencia') { transfer += m; cTransfer++; } if (tipo === 'efectivo') { efectivo += m; cEfectivo++; } if (p.comprobante && (p.comprobante.data || p.comprobante.url || p.comprobante.nombre)) comp++; });
+    setMetric308('tes-met-mes', money308(total), pagos.length + (pagos.length === 1 ? ' pago registrado' : ' pagos registrados'));
+    setMetric308('tes-met-transfer', money308(transfer), cTransfer + (cTransfer === 1 ? ' transferencia' : ' transferencias'));
+    setMetric308('tes-met-efectivo', money308(efectivo), cEfectivo + (cEfectivo === 1 ? ' pago en efectivo' : ' pagos en efectivo'));
+    setMetric308('tes-met-comp', comp, 'adjuntos');
+  }
+  var renderTesPrev308 = window.renderTesoreria;
+  if (typeof renderTesPrev308 === 'function') window.renderTesoreria = function(){ var r = renderTesPrev308.apply(this, arguments); setTimeout(corregirMetricasTesoreria308, 120); return r; };
 })();
 </script>
 
