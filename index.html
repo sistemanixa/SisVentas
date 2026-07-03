@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.288 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.291 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7732,11 +7732,16 @@ async function abrirModalAguinaldo() {
         '</div>' +
         '<button onclick="document.getElementById(\'modal-aguinaldo\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>' +
       '</div>' +
-      '<div style="padding:12px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:10px">' +
+      '<div style="padding:12px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
         '<label style="font-size:13px;color:var(--text2);white-space:nowrap">Semestre a liquidar:</label>' +
         '<select id="agu-sem-sel" onchange="recalcularAguinaldo()" style="padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">' +
           _opcionesSemestre(actual) +
         '</select>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-left:auto">' +
+          '<label style="font-size:13px;color:var(--text2);white-space:nowrap">Máximo por empleado:</label>' +
+          '<input type="text" id="agu-maximo" placeholder="Sin límite" oninput="recalcularAguinaldo()" ' +
+            'style="width:130px;padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;text-align:right">' +
+        '</div>' +
       '</div>' +
       '<div id="agu-tabla-body" style="overflow-y:auto;flex:1;padding:12px 20px">' +
         _renderTablaAguinaldo(filas) +
@@ -7779,6 +7784,10 @@ function _mesesTrabajadosEnSemestre(fechaIngreso, anio, sem) {
 
 function _calcularFilasAguinaldo(empleados, habData, anio, sem) {
   var mesesSem = _mesesDelSemestre(anio, sem);
+  // Leer el máximo del input
+  var maxInp = document.getElementById('agu-maximo');
+  var maxVal = maxInp ? parseFloat((maxInp.value||'').replace(/\./g,'').replace(',','.')) : 0;
+
   return empleados.map(function(e) {
     var historial = habData[e.fbKey] || {};
     var mejorSueldo = 0;
@@ -7786,7 +7795,7 @@ function _calcularFilasAguinaldo(empleados, habData, anio, sem) {
     mesesSem.forEach(function(mesISO) {
       var mesKey = mesISO.replace('-','_');
       var reg = historial[mesKey];
-      if (reg && reg.sueldo) { // reg.sueldo ya excluye horas extra (se guarda por separado en montoHsEx)
+      if (reg && reg.sueldo) {
         mesesConDatos++;
         if (reg.sueldo > mejorSueldo) mejorSueldo = reg.sueldo;
       }
@@ -7796,20 +7805,48 @@ function _calcularFilasAguinaldo(empleados, habData, anio, sem) {
       mejorSueldo = cargoInfo ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0)) : 0;
     }
     var mesesTrabajados = _mesesTrabajadosEnSemestre(e.fechaIngreso, anio, sem);
-    // SAC = mejor sueldo (sin hs extra) / 12 × meses trabajados en el semestre
-    var aguinaldo = Math.round((mejorSueldo / 12) * mesesTrabajados);
-    return { e:e, mejorSueldo:mejorSueldo, mesesConDatos:mesesConDatos, mesesTrabajados:mesesTrabajados, aguinaldo:aguinaldo };
+    var aguinaldoTotal = Math.round(((mejorSueldo / 12) * mesesTrabajados) * 100) / 100;
+
+    // Aplicar límite máximo
+    var aguinaldo = aguinaldoTotal;
+    var limitado = false;
+    if (maxVal > 0 && aguinaldoTotal > maxVal) {
+      aguinaldo = maxVal;
+      limitado = true;
+    }
+    var pct = aguinaldoTotal > 0 ? Math.round(aguinaldo / aguinaldoTotal * 1000) / 10 : 100;
+
+    var fmt = function(n) {
+      return (n % 1 === 0)
+        ? n.toLocaleString('es-AR')
+        : n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    };
+
+    return {
+      e: e,
+      mejorSueldo: mejorSueldo,
+      mesesConDatos: mesesConDatos,
+      mesesTrabajados: mesesTrabajados,
+      aguinaldoTotal: aguinaldoTotal,
+      aguinaldo: aguinaldo,
+      aguinaldoDisplay: fmt(aguinaldo),
+      aguinaldoTotalDisplay: fmt(aguinaldoTotal),
+      limitado: limitado,
+      pct: pct
+    };
   });
 }
 
 function _renderTablaAguinaldo(filas) {
   if (!filas.length) return '<div style="padding:20px;text-align:center;color:var(--text3)">Sin empleados activos</div>';
+  var hayLimite = filas.some(function(f){ return f.limitado; });
   return '<table style="width:100%;border-collapse:collapse">' +
     '<thead><tr>' +
       '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Empleado</th>' +
-      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Mejor sueldo del semestre</th>' +
-      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Meses trabajados</th>' +
-      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Aguinaldo</th>' +
+      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Mejor sueldo</th>' +
+      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Meses</th>' +
+      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">SAC total</th>' +
+      (hayLimite ? '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">A abonar</th>' : '') +
     '</tr></thead>' +
     '<tbody>' +
     filas.map(function(f) {
@@ -7818,11 +7855,20 @@ function _renderTablaAguinaldo(filas) {
       return '<tr style="border-bottom:0.5px solid var(--border)">' +
         '<td style="padding:10px 0">' +
           '<div style="font-weight:500;font-size:13px">' + escapeHTML(f.e.nombre||'') + '</div>' +
-          '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(f.e.cargo||'Sin cargo') + (sinDatos ? ' · <span style="color:var(--amber)">sin haberes registrados, se usó el sueldo de cargo actual</span>' : '') + '</div>' +
+          '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(f.e.cargo||'Sin cargo') +
+            (sinDatos ? ' · <span style="color:var(--amber)">sin haberes, se usó cargo actual</span>' : '') + '</div>' +
         '</td>' +
         '<td style="text-align:right;font-size:13px;padding:10px 0">$' + f.mejorSueldo.toLocaleString('es-AR') + '</td>' +
-        '<td style="text-align:right;font-size:13px;padding:10px 0' + (esParcial ? ';color:var(--amber)' : ';color:var(--text3)') + '">' + f.mesesTrabajados + ' / 6' + (esParcial ? ' <span title="Antigüedad menor a 6 meses en este semestre">⚠</span>' : '') + '</td>' +
-        '<td style="text-align:right;font-size:14px;font-weight:600;padding:10px 0;color:var(--green)">$' + f.aguinaldo.toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;font-size:13px;padding:10px 0;color:' + (esParcial ? 'var(--amber)' : 'var(--text3)') + '">' +
+          f.mesesTrabajados + '/6' + (esParcial ? ' ⚠' : '') + '</td>' +
+        '<td style="text-align:right;font-size:13px;padding:10px 0;color:' + (f.limitado ? 'var(--text3)' : 'var(--green)') + ';' + (f.limitado ? 'text-decoration:line-through' : '') + '">' +
+          '$' + f.aguinaldoTotalDisplay +
+          '<div style="font-size:10px;color:var(--text3);text-decoration:none">$' + f.mejorSueldo.toLocaleString('es-AR') + ' ÷ 12 × ' + f.mesesTrabajados + '</div>' +
+        '</td>' +
+        (hayLimite ? '<td style="text-align:right;font-size:14px;font-weight:700;padding:10px 0;color:var(--green)">' +
+          '$' + f.aguinaldoDisplay +
+          (f.limitado ? '<div style="font-size:10px;color:var(--amber);font-weight:400">' + f.pct + '% del SAC</div>' : '<div style="font-size:10px;color:var(--text3);font-weight:400">100%</div>') +
+        '</td>' : '') +
       '</tr>';
     }).join('') +
     '</tbody>' +
@@ -7840,12 +7886,24 @@ async function recalcularAguinaldo() {
   var habData = habSnap.val() || {};
 
   var filas = _calcularFilasAguinaldo(empleados, habData, anio, sem);
-  var totalGeneral = filas.reduce(function(s,f){ return s + f.aguinaldo; }, 0);
+  var totalSAC    = filas.reduce(function(s,f){ return s + f.aguinaldoTotal; }, 0);
+  var totalAbonar = filas.reduce(function(s,f){ return s + f.aguinaldo; }, 0);
+  var hayLimite   = filas.some(function(f){ return f.limitado; });
 
   var body = document.getElementById('agu-tabla-body');
   var totalLbl = document.getElementById('agu-total-lbl');
   if (body) body.innerHTML = _renderTablaAguinaldo(filas);
-  if (totalLbl) totalLbl.textContent = '$' + totalGeneral.toLocaleString('es-AR');
+  if (totalLbl) {
+    if (hayLimite) {
+      var pctTotal = totalSAC > 0 ? Math.round(totalAbonar / totalSAC * 1000) / 10 : 100;
+      totalLbl.innerHTML =
+        '<span style="color:var(--text3);text-decoration:line-through;font-size:13px">SAC total: $' + Math.round(totalSAC).toLocaleString('es-AR') + '</span>' +
+        '&nbsp;&nbsp;→&nbsp;&nbsp;<strong style="font-size:16px">$' + Math.round(totalAbonar).toLocaleString('es-AR') + '</strong>' +
+        '<span style="font-size:12px;color:var(--amber);margin-left:8px">(' + pctTotal + '% del SAC)</span>';
+    } else {
+      totalLbl.innerHTML = '<strong style="font-size:16px">$' + totalAbonar.toLocaleString('es-AR') + '</strong>';
+    }
+  }
 }
 
 async function confirmarRegistroAguinaldo() {
@@ -9179,7 +9237,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.288-firebase',
+  VERSION: 'v20.291-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -12710,14 +12768,53 @@ function calcRentabilidad() {
 
   // Desglose de gastos por categoría para el estado de resultados
   var gastosPorCategoria = {};
+  // Contadores específicos de personal
+  var totalSueldos = 0, totalHsExtra = 0, totalAguinaldo = 0, totalOtrosPersonal = 0;
+
   gastosPeriodo.forEach(function(g) {
-    var cat = g.categoria || 'Otro';
-    gastosPorCategoria[cat] = (gastosPorCategoria[cat]||0) + (parseFloat(g.monto)||0);
+    var cat = (g.categoria || 'Otro');
+    var desc = (g.descripcion || '').toLowerCase();
+    var tipo = (g.tipo || g.tipomov || '').toLowerCase();
+
+    // Detectar si es un gasto de personal y de qué tipo
+    var esPersonal = cat.toLowerCase() === 'personal' ||
+                     desc.includes('sueldo') || desc.includes('salario') ||
+                     desc.includes('haber') || desc.includes('aguinaldo') ||
+                     desc.includes('hs extra') || desc.includes('hora extra') ||
+                     tipo === 'sueldo' || tipo === 'hextra' || tipo === 'aguinaldo';
+
+    if (esPersonal) {
+      var monto = parseFloat(g.monto) || 0;
+      if (desc.includes('aguinaldo') || desc.includes('sac') || tipo === 'aguinaldo') {
+        totalAguinaldo += monto;
+      } else if (desc.includes('hs extra') || desc.includes('hora extra') ||
+                 desc.includes('h. extra') || tipo === 'hextra') {
+        totalHsExtra += monto;
+      } else if (desc.includes('sueldo') || desc.includes('salario') ||
+                 desc.includes('haber') || tipo === 'sueldo') {
+        totalSueldos += monto;
+      } else {
+        totalOtrosPersonal += monto;
+      }
+    } else {
+      gastosPorCategoria[cat] = (gastosPorCategoria[cat]||0) + (parseFloat(g.monto)||0);
+    }
   });
 
   var filas = [];
   filas.push({ concepto: 'Ingresos por ventas', monto: ingresos, esTotal:false, signo:1 });
   filas.push({ concepto: 'Costo de productos y mano de obra vendidos', monto: -costoProductos, esTotal:false, signo:-1 });
+
+  // Personal con desglose
+  var totalPersonal = totalSueldos + totalHsExtra + totalAguinaldo + totalOtrosPersonal;
+  if (totalPersonal > 0) {
+    filas.push({ concepto: 'Gastos — Personal', monto: -totalPersonal, esTotal:false, signo:-1, esGrupo:true });
+    if (totalSueldos > 0)    filas.push({ concepto: '↳ Sueldos', monto: -totalSueldos, signo:-1, esSubItem:true });
+    if (totalHsExtra > 0)    filas.push({ concepto: '↳ Horas extra', monto: -totalHsExtra, signo:-1, esSubItem:true });
+    if (totalAguinaldo > 0)  filas.push({ concepto: '↳ Aguinaldo (SAC)', monto: -totalAguinaldo, signo:-1, esSubItem:true });
+    if (totalOtrosPersonal > 0) filas.push({ concepto: '↳ Otros personal', monto: -totalOtrosPersonal, signo:-1, esSubItem:true });
+  }
+
   Object.keys(gastosPorCategoria).forEach(function(cat) {
     filas.push({ concepto: 'Gastos — ' + cat, monto: -gastosPorCategoria[cat], esTotal:false, signo:-1 });
   });
@@ -12727,8 +12824,15 @@ function calcRentabilidad() {
   if (tbody) {
     tbody.innerHTML = filas.map(function(f) {
       var color = f.signo > 0 ? 'var(--green)' : 'var(--red)';
-      var estilo = f.esTotal ? 'font-weight:700;border-top:1.5px solid var(--border2)' : '';
-      return '<tr style="' + estilo + '"><td>' + escapeHTML(f.concepto) + '</td><td class="tr" style="color:' + color + ';font-weight:' + (f.esTotal?'700':'500') + '">$' + Math.round(f.monto).toLocaleString('es-AR') + '</td></tr>';
+      var estilo = f.esTotal ? 'font-weight:700;border-top:1.5px solid var(--border2)'
+                 : f.esGrupo ? 'font-weight:600'
+                 : f.esSubItem ? 'color:var(--text3)' : '';
+      var indent = f.esSubItem ? 'padding-left:20px;font-size:12px' : '';
+      return '<tr style="' + estilo + '">' +
+        '<td style="' + indent + '">' + escapeHTML(f.concepto) + '</td>' +
+        '<td class="tr" style="color:' + color + ';font-weight:' + (f.esTotal?'700':f.esGrupo?'600':'500') + ';' + indent + '">$' +
+          Math.abs(Math.round(f.monto)).toLocaleString('es-AR') + '</td>' +
+      '</tr>';
     }).join('');
   }
 }
