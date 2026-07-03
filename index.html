@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.318 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.319 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9274,7 +9274,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.318-firebase',
+  VERSION: 'v20.319-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13341,187 +13341,7 @@ function _imprimirOTReal() {
       (ot.firmaClienteUrl ? '<img src="'+ot.firmaClienteUrl+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
       '<div class="firma-line">Firma del cliente'+(ot.firmaClienteUrl?' ✓':''+(ot.fechaFirma?' · '+ot.fechaFirma:''))+'</div></div>'+
       '<div><div style="height:60px"></div><div class="firma-line">Firma del técnico</div></div></div>'+
-    '\n
-<script>
-(function(){
-  function norm(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
-  function arr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
-  function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function empKeyByValue(value){
-    var raw = String(value||'').trim();
-    if(!raw) return '';
-    if(raw === '__admin__') return '__admin__';
-    var emps = arr(window.empData||{});
-    var direct = emps.find(function(e){ return String(e.fbKey||'')===raw || String(e.id||'')===raw || String(e.legajo||'')===raw; });
-    if(direct) return direct.fbKey || direct.id || '';
-    var n = norm(raw);
-    var byName = emps.find(function(e){
-      var names = [e.nombre, e.apellido, ((e.nombre||'')+' '+(e.apellido||e.apellidos||'')).trim(), e.usuario, e.email].map(norm);
-      return names.indexOf(n) >= 0;
-    });
-    return byName ? (byName.fbKey || byName.id || '') : '';
-  }
-  function ventaByKeyOrId(id){
-    id = String(id||'');
-    return arr(window.ventasList||[]).find(function(v){ return String(v.fbKey||'')===id || String(v.id||'')===id || String(v.numero||'')===id; }) || null;
-  }
-  function setSelectIfOption(sel, value){
-    if(!sel || !value) return false;
-    var exists = Array.from(sel.options||[]).some(function(o){ return String(o.value)===String(value); });
-    if(exists){ sel.value = value; return true; }
-    return false;
-  }
-  function restaurarComisionadosVenta(fbKey){
-    var v = ventaByKeyOrId(fbKey) || window._ventaEditandoOriginal;
-    if(!v) return;
-    var sel1 = document.getElementById('venta-empleado');
-    var sel2 = document.getElementById('venta-comisionado2');
-    var cb   = document.getElementById('venta-generar-comision');
-
-    var key1 = empKeyByValue(v.empleadoFbKey || v.vendedorFbKey || v.comisionado1FbKey || v.empleadoId || v.vendedorId || '');
-    if(!key1) key1 = empKeyByValue(v.empleado || v.vendedor || v.comisionado1 || '');
-    if(!key1 && (v.empleado || v.vendedor || v.usuario) && norm(v.empleado || v.vendedor || v.usuario) === norm(window.currentUser||'')) key1 = '__admin__';
-    if(key1) setSelectIfOption(sel1, key1);
-
-    var key2 = empKeyByValue(v.comisionado2FbKey || v.segundoComisionadoFbKey || v.empleado2FbKey || '');
-    if(!key2) key2 = empKeyByValue(v.comisionado2 || v.segundoComisionado || v.empleado2 || '');
-    if(key2) setSelectIfOption(sel2, key2);
-
-    if(cb) cb.checked = (v.comisionHabilitada === true || v.generarComision === true || v.liquidarComision === true);
-  }
-
-  var abrirPrev317 = window.abrirEditorVenta;
-  if(typeof abrirPrev317 === 'function'){
-    window.abrirEditorVenta = function(fbKey){
-      var r = abrirPrev317.apply(this, arguments);
-      [450,800,1200,1700].forEach(function(t){ setTimeout(function(){ restaurarComisionadosVenta(fbKey); }, t); });
-      return r;
-    };
-  }
-
-  function idsVenta(v){ return [v && v.id, v && v.fbKey, v && v.numero, v && v.idOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean); }
-  function buscarOTVenta(v){
-    if(!v) return null;
-    var raw = String(v.otFbKey || v.otId || v.ordenTrabajoId || v.ot || '').trim();
-    var vIds = idsVenta(v);
-    return arr(window.otData||[]).find(function(o){
-      if(!o) return false;
-      var otIds = [o.fbKey, o.id, o.otId, o.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      if(raw && otIds.indexOf(raw) >= 0) return true;
-      var ventaRefs = [o.ventaId, o.venta, o.ventaNumero, o.ventaFbKey].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      return vIds.some(function(id){ return ventaRefs.indexOf(id) >= 0; });
-    }) || null;
-  }
-  function clienteDeVenta(v){
-    var cid = String(v.idCliente || v.clienteId || '').trim();
-    var cname = norm(v.cliente || v.clienteNombre || '');
-    return arr(window.clientesData||[]).find(function(c){ return String(c.id||'')===cid || String(c.fbKey||'')===cid; }) ||
-      arr(window.clientesData||[]).find(function(c){ return [c.nombre,c.empresa,c.razonSocial,c.cliente,((c.nombre||'')+' '+(c.apellido||c.apellidos||'')).trim()].map(norm).indexOf(cname)>=0; }) || null;
-  }
-  function direccionClienteVenta(v){
-    var c = clienteDeVenta(v) || {};
-    return c.direccion || c.dir || c.domicilio || c.domicilioInstalacion || c.direccionInstalacion || v.dir || v.direccion || 'Sin definir';
-  }
-  function nextOTId(){
-    var max = 0;
-    arr(window.otData||[]).forEach(function(o){
-      var m = String((o&&o.id)||(o&&o.numero)||'').match(/OT[-\s]?(\d+)/i);
-      if(m) max = Math.max(max, parseInt(m[1],10)||0);
-    });
-    return 'OT-' + String(max + 1).padStart(3,'0');
-  }
-  function checksBase(){
-    var c = window.CHECKLISTS || {};
-    return {
-      preparacion: arr(c.preparacion||[]).map(function(){return false;}),
-      instalacion: arr(c.instalacion||[]).map(function(){return false;}),
-      verificacion: arr(c.verificacion||[]).map(function(){return false;})
-    };
-  }
-  function crearOTParaVenta(v){
-    if(!v || !window.fbDB) { if(typeof notify==='function') notify('Sin conexión o venta no encontrada'); return; }
-    var otExistente = buscarOTVenta(v);
-    if(otExistente) return abrirOTVenta(otExistente);
-    var idOT = nextOTId();
-    var ot = {
-      id: idOT,
-      ventaId: v.id || '',
-      ventaFbKey: v.fbKey || '',
-      cliente: v.cliente || v.clienteNombre || '',
-      tecnico: 'Sin asignar',
-      fecha: '',
-      hora: '09:00',
-      duracion: '2 horas',
-      dir: direccionClienteVenta(v),
-      obs: 'Creada manualmente desde detalle de venta ' + (v.id || ''),
-      estado: 'pendiente',
-      progreso: 0,
-      tipoVisita: 'Instalación nueva',
-      esRepetida: false,
-      visitaNro: 1,
-      checks: checksBase(),
-      items: arr(v.items||[]).map(function(it){ return { cod: it.cod||'', desc: it.desc||it.nombre||'', vendida: parseFloat(it.qty||it.cantidad)||1, instalada: 0 }; }),
-      audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: window.currentUser || 'Sistema', accion: 'OT creada desde detalle de venta ' + (v.id || '') }],
-      ts: Date.now()
-    };
-    var prom = (typeof window.fbGuardarOT === 'function') ? window.fbGuardarOT(ot) : window.fbPush(window.fbRef(window.fbDB, window.FB_PATHS.ordenesTrabajo), ot).then(function(ref){ return ref.key; });
-    prom.then(function(key){
-      if(key) ot.fbKey = key;
-      if(v.fbKey && window.FB_PATHS && window.FB_PATHS.ventas){
-        window.fbUpdate(window.fbRef(window.fbDB, window.FB_PATHS.ventas + '/' + v.fbKey), { otId: idOT, otFbKey: key || '', ordenTrabajoId: idOT }).catch(function(){});
-      }
-      if(typeof notify === 'function') notify('✓ OT creada y asociada');
-      abrirOTVenta(ot);
-    }).catch(function(e){ if(typeof notify==='function') notify('Error creando OT: ' + e.message); });
-  }
-  function abrirOTVenta(ot){
-    if(!ot) return;
-    if(typeof window.showPage === 'function') window.showPage('ordentrabajo', document.querySelector('[onclick*=ordentrabajo]'));
-    setTimeout(function(){ if(typeof window.verOT === 'function') window.verOT(ot.fbKey || ot.id || ot.numero); }, 450);
-  }
-  window.abrirOTDesdeDetalleVenta = function(ventaId){
-    var v = ventaByKeyOrId(ventaId || window._ventaDetActualId || window.ventaActualId);
-    if(!v) { if(typeof notify==='function') notify('Venta no encontrada'); return; }
-    var ot = buscarOTVenta(v);
-    if(ot) { abrirOTVenta(ot); return; }
-    if(confirm('Esta venta no tiene una Orden de Trabajo asociada.\n\n¿Querés crearla y asociarla ahora?')) crearOTParaVenta(v);
-  };
-
-  function estadoOTBadge(ot){
-    if(!ot) return '<span style="color:var(--amber);font-size:18px;font-weight:600">Crear OT</span>';
-    var estado = String(ot.estado||'pendiente').toLowerCase();
-    var color = estado.indexOf('complet')>=0 ? 'var(--green)' : (estado.indexOf('progreso')>=0 ? 'var(--blue)' : 'var(--amber)');
-    var id = ot.id || ot.numero || 'OT vinculada';
-    return '<span style="color:'+color+';font-size:18px;font-weight:700">'+esc(id)+'</span>';
-  }
-  function mejorarTarjetaOTDetalle(v){
-    var cont = document.getElementById('venta-detalle-seguimiento');
-    if(!cont || !v) return;
-    var cards = Array.from(cont.querySelectorAll('.metric'));
-    var card = cards.find(function(c){ var l=c.querySelector('.m-label'); return l && norm(l.textContent)==='ot asociada'; });
-    if(!card) return;
-    var ot = buscarOTVenta(v);
-    var val = card.querySelector('.m-value');
-    var sub = card.querySelector('.m-sub');
-    if(val) val.innerHTML = estadoOTBadge(ot);
-    if(sub) sub.textContent = ot ? 'clic para abrir orden' : 'clic para crear y asociar';
-    card.style.cursor = 'pointer';
-    card.title = ot ? 'Abrir orden de trabajo' : 'Crear orden de trabajo para esta venta';
-    card.onclick = function(){ window.abrirOTDesdeDetalleVenta(v.fbKey || v.id); };
-  }
-  var renderPrev317 = window.renderDetalleVenta;
-  if(typeof renderPrev317 === 'function'){
-    window.renderDetalleVenta = function(v){
-      window._ventaDetalleActual = v;
-      var r = renderPrev317.apply(this, arguments);
-      setTimeout(function(){ mejorarTarjetaOTDetalle(v); }, 0);
-      return r;
-    };
-  }
-})();
-</script>
-
-</body></html>');
+    '\n</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
@@ -14001,187 +13821,7 @@ function imprimirSeccion(pageId, titulo) {
     '<div style="text-align:right"><div style="font-size:16px;font-weight:600">'+titulo+'</div>' +
     '<div style="font-size:12px;color:#666">'+new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})+'</div></div></div>' +
     page.innerHTML +
-    '\n
-<script>
-(function(){
-  function norm(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
-  function arr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
-  function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function empKeyByValue(value){
-    var raw = String(value||'').trim();
-    if(!raw) return '';
-    if(raw === '__admin__') return '__admin__';
-    var emps = arr(window.empData||{});
-    var direct = emps.find(function(e){ return String(e.fbKey||'')===raw || String(e.id||'')===raw || String(e.legajo||'')===raw; });
-    if(direct) return direct.fbKey || direct.id || '';
-    var n = norm(raw);
-    var byName = emps.find(function(e){
-      var names = [e.nombre, e.apellido, ((e.nombre||'')+' '+(e.apellido||e.apellidos||'')).trim(), e.usuario, e.email].map(norm);
-      return names.indexOf(n) >= 0;
-    });
-    return byName ? (byName.fbKey || byName.id || '') : '';
-  }
-  function ventaByKeyOrId(id){
-    id = String(id||'');
-    return arr(window.ventasList||[]).find(function(v){ return String(v.fbKey||'')===id || String(v.id||'')===id || String(v.numero||'')===id; }) || null;
-  }
-  function setSelectIfOption(sel, value){
-    if(!sel || !value) return false;
-    var exists = Array.from(sel.options||[]).some(function(o){ return String(o.value)===String(value); });
-    if(exists){ sel.value = value; return true; }
-    return false;
-  }
-  function restaurarComisionadosVenta(fbKey){
-    var v = ventaByKeyOrId(fbKey) || window._ventaEditandoOriginal;
-    if(!v) return;
-    var sel1 = document.getElementById('venta-empleado');
-    var sel2 = document.getElementById('venta-comisionado2');
-    var cb   = document.getElementById('venta-generar-comision');
-
-    var key1 = empKeyByValue(v.empleadoFbKey || v.vendedorFbKey || v.comisionado1FbKey || v.empleadoId || v.vendedorId || '');
-    if(!key1) key1 = empKeyByValue(v.empleado || v.vendedor || v.comisionado1 || '');
-    if(!key1 && (v.empleado || v.vendedor || v.usuario) && norm(v.empleado || v.vendedor || v.usuario) === norm(window.currentUser||'')) key1 = '__admin__';
-    if(key1) setSelectIfOption(sel1, key1);
-
-    var key2 = empKeyByValue(v.comisionado2FbKey || v.segundoComisionadoFbKey || v.empleado2FbKey || '');
-    if(!key2) key2 = empKeyByValue(v.comisionado2 || v.segundoComisionado || v.empleado2 || '');
-    if(key2) setSelectIfOption(sel2, key2);
-
-    if(cb) cb.checked = (v.comisionHabilitada === true || v.generarComision === true || v.liquidarComision === true);
-  }
-
-  var abrirPrev317 = window.abrirEditorVenta;
-  if(typeof abrirPrev317 === 'function'){
-    window.abrirEditorVenta = function(fbKey){
-      var r = abrirPrev317.apply(this, arguments);
-      [450,800,1200,1700].forEach(function(t){ setTimeout(function(){ restaurarComisionadosVenta(fbKey); }, t); });
-      return r;
-    };
-  }
-
-  function idsVenta(v){ return [v && v.id, v && v.fbKey, v && v.numero, v && v.idOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean); }
-  function buscarOTVenta(v){
-    if(!v) return null;
-    var raw = String(v.otFbKey || v.otId || v.ordenTrabajoId || v.ot || '').trim();
-    var vIds = idsVenta(v);
-    return arr(window.otData||[]).find(function(o){
-      if(!o) return false;
-      var otIds = [o.fbKey, o.id, o.otId, o.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      if(raw && otIds.indexOf(raw) >= 0) return true;
-      var ventaRefs = [o.ventaId, o.venta, o.ventaNumero, o.ventaFbKey].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      return vIds.some(function(id){ return ventaRefs.indexOf(id) >= 0; });
-    }) || null;
-  }
-  function clienteDeVenta(v){
-    var cid = String(v.idCliente || v.clienteId || '').trim();
-    var cname = norm(v.cliente || v.clienteNombre || '');
-    return arr(window.clientesData||[]).find(function(c){ return String(c.id||'')===cid || String(c.fbKey||'')===cid; }) ||
-      arr(window.clientesData||[]).find(function(c){ return [c.nombre,c.empresa,c.razonSocial,c.cliente,((c.nombre||'')+' '+(c.apellido||c.apellidos||'')).trim()].map(norm).indexOf(cname)>=0; }) || null;
-  }
-  function direccionClienteVenta(v){
-    var c = clienteDeVenta(v) || {};
-    return c.direccion || c.dir || c.domicilio || c.domicilioInstalacion || c.direccionInstalacion || v.dir || v.direccion || 'Sin definir';
-  }
-  function nextOTId(){
-    var max = 0;
-    arr(window.otData||[]).forEach(function(o){
-      var m = String((o&&o.id)||(o&&o.numero)||'').match(/OT[-\s]?(\d+)/i);
-      if(m) max = Math.max(max, parseInt(m[1],10)||0);
-    });
-    return 'OT-' + String(max + 1).padStart(3,'0');
-  }
-  function checksBase(){
-    var c = window.CHECKLISTS || {};
-    return {
-      preparacion: arr(c.preparacion||[]).map(function(){return false;}),
-      instalacion: arr(c.instalacion||[]).map(function(){return false;}),
-      verificacion: arr(c.verificacion||[]).map(function(){return false;})
-    };
-  }
-  function crearOTParaVenta(v){
-    if(!v || !window.fbDB) { if(typeof notify==='function') notify('Sin conexión o venta no encontrada'); return; }
-    var otExistente = buscarOTVenta(v);
-    if(otExistente) return abrirOTVenta(otExistente);
-    var idOT = nextOTId();
-    var ot = {
-      id: idOT,
-      ventaId: v.id || '',
-      ventaFbKey: v.fbKey || '',
-      cliente: v.cliente || v.clienteNombre || '',
-      tecnico: 'Sin asignar',
-      fecha: '',
-      hora: '09:00',
-      duracion: '2 horas',
-      dir: direccionClienteVenta(v),
-      obs: 'Creada manualmente desde detalle de venta ' + (v.id || ''),
-      estado: 'pendiente',
-      progreso: 0,
-      tipoVisita: 'Instalación nueva',
-      esRepetida: false,
-      visitaNro: 1,
-      checks: checksBase(),
-      items: arr(v.items||[]).map(function(it){ return { cod: it.cod||'', desc: it.desc||it.nombre||'', vendida: parseFloat(it.qty||it.cantidad)||1, instalada: 0 }; }),
-      audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: window.currentUser || 'Sistema', accion: 'OT creada desde detalle de venta ' + (v.id || '') }],
-      ts: Date.now()
-    };
-    var prom = (typeof window.fbGuardarOT === 'function') ? window.fbGuardarOT(ot) : window.fbPush(window.fbRef(window.fbDB, window.FB_PATHS.ordenesTrabajo), ot).then(function(ref){ return ref.key; });
-    prom.then(function(key){
-      if(key) ot.fbKey = key;
-      if(v.fbKey && window.FB_PATHS && window.FB_PATHS.ventas){
-        window.fbUpdate(window.fbRef(window.fbDB, window.FB_PATHS.ventas + '/' + v.fbKey), { otId: idOT, otFbKey: key || '', ordenTrabajoId: idOT }).catch(function(){});
-      }
-      if(typeof notify === 'function') notify('✓ OT creada y asociada');
-      abrirOTVenta(ot);
-    }).catch(function(e){ if(typeof notify==='function') notify('Error creando OT: ' + e.message); });
-  }
-  function abrirOTVenta(ot){
-    if(!ot) return;
-    if(typeof window.showPage === 'function') window.showPage('ordentrabajo', document.querySelector('[onclick*=ordentrabajo]'));
-    setTimeout(function(){ if(typeof window.verOT === 'function') window.verOT(ot.fbKey || ot.id || ot.numero); }, 450);
-  }
-  window.abrirOTDesdeDetalleVenta = function(ventaId){
-    var v = ventaByKeyOrId(ventaId || window._ventaDetActualId || window.ventaActualId);
-    if(!v) { if(typeof notify==='function') notify('Venta no encontrada'); return; }
-    var ot = buscarOTVenta(v);
-    if(ot) { abrirOTVenta(ot); return; }
-    if(confirm('Esta venta no tiene una Orden de Trabajo asociada.\n\n¿Querés crearla y asociarla ahora?')) crearOTParaVenta(v);
-  };
-
-  function estadoOTBadge(ot){
-    if(!ot) return '<span style="color:var(--amber);font-size:18px;font-weight:600">Crear OT</span>';
-    var estado = String(ot.estado||'pendiente').toLowerCase();
-    var color = estado.indexOf('complet')>=0 ? 'var(--green)' : (estado.indexOf('progreso')>=0 ? 'var(--blue)' : 'var(--amber)');
-    var id = ot.id || ot.numero || 'OT vinculada';
-    return '<span style="color:'+color+';font-size:18px;font-weight:700">'+esc(id)+'</span>';
-  }
-  function mejorarTarjetaOTDetalle(v){
-    var cont = document.getElementById('venta-detalle-seguimiento');
-    if(!cont || !v) return;
-    var cards = Array.from(cont.querySelectorAll('.metric'));
-    var card = cards.find(function(c){ var l=c.querySelector('.m-label'); return l && norm(l.textContent)==='ot asociada'; });
-    if(!card) return;
-    var ot = buscarOTVenta(v);
-    var val = card.querySelector('.m-value');
-    var sub = card.querySelector('.m-sub');
-    if(val) val.innerHTML = estadoOTBadge(ot);
-    if(sub) sub.textContent = ot ? 'clic para abrir orden' : 'clic para crear y asociar';
-    card.style.cursor = 'pointer';
-    card.title = ot ? 'Abrir orden de trabajo' : 'Crear orden de trabajo para esta venta';
-    card.onclick = function(){ window.abrirOTDesdeDetalleVenta(v.fbKey || v.id); };
-  }
-  var renderPrev317 = window.renderDetalleVenta;
-  if(typeof renderPrev317 === 'function'){
-    window.renderDetalleVenta = function(v){
-      window._ventaDetalleActual = v;
-      var r = renderPrev317.apply(this, arguments);
-      setTimeout(function(){ mejorarTarjetaOTDetalle(v); }, 0);
-      return r;
-    };
-  }
-})();
-</script>
-
-</body></html>');
+    '\n</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
@@ -14493,187 +14133,7 @@ function imprimirVentaActual() {
       '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>' +
     '</div>' +
 
-    '\n
-<script>
-(function(){
-  function norm(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
-  function arr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
-  function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function empKeyByValue(value){
-    var raw = String(value||'').trim();
-    if(!raw) return '';
-    if(raw === '__admin__') return '__admin__';
-    var emps = arr(window.empData||{});
-    var direct = emps.find(function(e){ return String(e.fbKey||'')===raw || String(e.id||'')===raw || String(e.legajo||'')===raw; });
-    if(direct) return direct.fbKey || direct.id || '';
-    var n = norm(raw);
-    var byName = emps.find(function(e){
-      var names = [e.nombre, e.apellido, ((e.nombre||'')+' '+(e.apellido||e.apellidos||'')).trim(), e.usuario, e.email].map(norm);
-      return names.indexOf(n) >= 0;
-    });
-    return byName ? (byName.fbKey || byName.id || '') : '';
-  }
-  function ventaByKeyOrId(id){
-    id = String(id||'');
-    return arr(window.ventasList||[]).find(function(v){ return String(v.fbKey||'')===id || String(v.id||'')===id || String(v.numero||'')===id; }) || null;
-  }
-  function setSelectIfOption(sel, value){
-    if(!sel || !value) return false;
-    var exists = Array.from(sel.options||[]).some(function(o){ return String(o.value)===String(value); });
-    if(exists){ sel.value = value; return true; }
-    return false;
-  }
-  function restaurarComisionadosVenta(fbKey){
-    var v = ventaByKeyOrId(fbKey) || window._ventaEditandoOriginal;
-    if(!v) return;
-    var sel1 = document.getElementById('venta-empleado');
-    var sel2 = document.getElementById('venta-comisionado2');
-    var cb   = document.getElementById('venta-generar-comision');
-
-    var key1 = empKeyByValue(v.empleadoFbKey || v.vendedorFbKey || v.comisionado1FbKey || v.empleadoId || v.vendedorId || '');
-    if(!key1) key1 = empKeyByValue(v.empleado || v.vendedor || v.comisionado1 || '');
-    if(!key1 && (v.empleado || v.vendedor || v.usuario) && norm(v.empleado || v.vendedor || v.usuario) === norm(window.currentUser||'')) key1 = '__admin__';
-    if(key1) setSelectIfOption(sel1, key1);
-
-    var key2 = empKeyByValue(v.comisionado2FbKey || v.segundoComisionadoFbKey || v.empleado2FbKey || '');
-    if(!key2) key2 = empKeyByValue(v.comisionado2 || v.segundoComisionado || v.empleado2 || '');
-    if(key2) setSelectIfOption(sel2, key2);
-
-    if(cb) cb.checked = (v.comisionHabilitada === true || v.generarComision === true || v.liquidarComision === true);
-  }
-
-  var abrirPrev317 = window.abrirEditorVenta;
-  if(typeof abrirPrev317 === 'function'){
-    window.abrirEditorVenta = function(fbKey){
-      var r = abrirPrev317.apply(this, arguments);
-      [450,800,1200,1700].forEach(function(t){ setTimeout(function(){ restaurarComisionadosVenta(fbKey); }, t); });
-      return r;
-    };
-  }
-
-  function idsVenta(v){ return [v && v.id, v && v.fbKey, v && v.numero, v && v.idOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean); }
-  function buscarOTVenta(v){
-    if(!v) return null;
-    var raw = String(v.otFbKey || v.otId || v.ordenTrabajoId || v.ot || '').trim();
-    var vIds = idsVenta(v);
-    return arr(window.otData||[]).find(function(o){
-      if(!o) return false;
-      var otIds = [o.fbKey, o.id, o.otId, o.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      if(raw && otIds.indexOf(raw) >= 0) return true;
-      var ventaRefs = [o.ventaId, o.venta, o.ventaNumero, o.ventaFbKey].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      return vIds.some(function(id){ return ventaRefs.indexOf(id) >= 0; });
-    }) || null;
-  }
-  function clienteDeVenta(v){
-    var cid = String(v.idCliente || v.clienteId || '').trim();
-    var cname = norm(v.cliente || v.clienteNombre || '');
-    return arr(window.clientesData||[]).find(function(c){ return String(c.id||'')===cid || String(c.fbKey||'')===cid; }) ||
-      arr(window.clientesData||[]).find(function(c){ return [c.nombre,c.empresa,c.razonSocial,c.cliente,((c.nombre||'')+' '+(c.apellido||c.apellidos||'')).trim()].map(norm).indexOf(cname)>=0; }) || null;
-  }
-  function direccionClienteVenta(v){
-    var c = clienteDeVenta(v) || {};
-    return c.direccion || c.dir || c.domicilio || c.domicilioInstalacion || c.direccionInstalacion || v.dir || v.direccion || 'Sin definir';
-  }
-  function nextOTId(){
-    var max = 0;
-    arr(window.otData||[]).forEach(function(o){
-      var m = String((o&&o.id)||(o&&o.numero)||'').match(/OT[-\s]?(\d+)/i);
-      if(m) max = Math.max(max, parseInt(m[1],10)||0);
-    });
-    return 'OT-' + String(max + 1).padStart(3,'0');
-  }
-  function checksBase(){
-    var c = window.CHECKLISTS || {};
-    return {
-      preparacion: arr(c.preparacion||[]).map(function(){return false;}),
-      instalacion: arr(c.instalacion||[]).map(function(){return false;}),
-      verificacion: arr(c.verificacion||[]).map(function(){return false;})
-    };
-  }
-  function crearOTParaVenta(v){
-    if(!v || !window.fbDB) { if(typeof notify==='function') notify('Sin conexión o venta no encontrada'); return; }
-    var otExistente = buscarOTVenta(v);
-    if(otExistente) return abrirOTVenta(otExistente);
-    var idOT = nextOTId();
-    var ot = {
-      id: idOT,
-      ventaId: v.id || '',
-      ventaFbKey: v.fbKey || '',
-      cliente: v.cliente || v.clienteNombre || '',
-      tecnico: 'Sin asignar',
-      fecha: '',
-      hora: '09:00',
-      duracion: '2 horas',
-      dir: direccionClienteVenta(v),
-      obs: 'Creada manualmente desde detalle de venta ' + (v.id || ''),
-      estado: 'pendiente',
-      progreso: 0,
-      tipoVisita: 'Instalación nueva',
-      esRepetida: false,
-      visitaNro: 1,
-      checks: checksBase(),
-      items: arr(v.items||[]).map(function(it){ return { cod: it.cod||'', desc: it.desc||it.nombre||'', vendida: parseFloat(it.qty||it.cantidad)||1, instalada: 0 }; }),
-      audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: window.currentUser || 'Sistema', accion: 'OT creada desde detalle de venta ' + (v.id || '') }],
-      ts: Date.now()
-    };
-    var prom = (typeof window.fbGuardarOT === 'function') ? window.fbGuardarOT(ot) : window.fbPush(window.fbRef(window.fbDB, window.FB_PATHS.ordenesTrabajo), ot).then(function(ref){ return ref.key; });
-    prom.then(function(key){
-      if(key) ot.fbKey = key;
-      if(v.fbKey && window.FB_PATHS && window.FB_PATHS.ventas){
-        window.fbUpdate(window.fbRef(window.fbDB, window.FB_PATHS.ventas + '/' + v.fbKey), { otId: idOT, otFbKey: key || '', ordenTrabajoId: idOT }).catch(function(){});
-      }
-      if(typeof notify === 'function') notify('✓ OT creada y asociada');
-      abrirOTVenta(ot);
-    }).catch(function(e){ if(typeof notify==='function') notify('Error creando OT: ' + e.message); });
-  }
-  function abrirOTVenta(ot){
-    if(!ot) return;
-    if(typeof window.showPage === 'function') window.showPage('ordentrabajo', document.querySelector('[onclick*=ordentrabajo]'));
-    setTimeout(function(){ if(typeof window.verOT === 'function') window.verOT(ot.fbKey || ot.id || ot.numero); }, 450);
-  }
-  window.abrirOTDesdeDetalleVenta = function(ventaId){
-    var v = ventaByKeyOrId(ventaId || window._ventaDetActualId || window.ventaActualId);
-    if(!v) { if(typeof notify==='function') notify('Venta no encontrada'); return; }
-    var ot = buscarOTVenta(v);
-    if(ot) { abrirOTVenta(ot); return; }
-    if(confirm('Esta venta no tiene una Orden de Trabajo asociada.\n\n¿Querés crearla y asociarla ahora?')) crearOTParaVenta(v);
-  };
-
-  function estadoOTBadge(ot){
-    if(!ot) return '<span style="color:var(--amber);font-size:18px;font-weight:600">Crear OT</span>';
-    var estado = String(ot.estado||'pendiente').toLowerCase();
-    var color = estado.indexOf('complet')>=0 ? 'var(--green)' : (estado.indexOf('progreso')>=0 ? 'var(--blue)' : 'var(--amber)');
-    var id = ot.id || ot.numero || 'OT vinculada';
-    return '<span style="color:'+color+';font-size:18px;font-weight:700">'+esc(id)+'</span>';
-  }
-  function mejorarTarjetaOTDetalle(v){
-    var cont = document.getElementById('venta-detalle-seguimiento');
-    if(!cont || !v) return;
-    var cards = Array.from(cont.querySelectorAll('.metric'));
-    var card = cards.find(function(c){ var l=c.querySelector('.m-label'); return l && norm(l.textContent)==='ot asociada'; });
-    if(!card) return;
-    var ot = buscarOTVenta(v);
-    var val = card.querySelector('.m-value');
-    var sub = card.querySelector('.m-sub');
-    if(val) val.innerHTML = estadoOTBadge(ot);
-    if(sub) sub.textContent = ot ? 'clic para abrir orden' : 'clic para crear y asociar';
-    card.style.cursor = 'pointer';
-    card.title = ot ? 'Abrir orden de trabajo' : 'Crear orden de trabajo para esta venta';
-    card.onclick = function(){ window.abrirOTDesdeDetalleVenta(v.fbKey || v.id); };
-  }
-  var renderPrev317 = window.renderDetalleVenta;
-  if(typeof renderPrev317 === 'function'){
-    window.renderDetalleVenta = function(v){
-      window._ventaDetalleActual = v;
-      var r = renderPrev317.apply(this, arguments);
-      setTimeout(function(){ mejorarTarjetaOTDetalle(v); }, 0);
-      return r;
-    };
-  }
-})();
-</script>
-
-</body></html>');
+    '\n</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 800);
 }
@@ -17240,187 +16700,7 @@ function imprimirPresupuesto() {
       '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>'+
     '</div>'+
 
-    '\n
-<script>
-(function(){
-  function norm(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
-  function arr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
-  function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function empKeyByValue(value){
-    var raw = String(value||'').trim();
-    if(!raw) return '';
-    if(raw === '__admin__') return '__admin__';
-    var emps = arr(window.empData||{});
-    var direct = emps.find(function(e){ return String(e.fbKey||'')===raw || String(e.id||'')===raw || String(e.legajo||'')===raw; });
-    if(direct) return direct.fbKey || direct.id || '';
-    var n = norm(raw);
-    var byName = emps.find(function(e){
-      var names = [e.nombre, e.apellido, ((e.nombre||'')+' '+(e.apellido||e.apellidos||'')).trim(), e.usuario, e.email].map(norm);
-      return names.indexOf(n) >= 0;
-    });
-    return byName ? (byName.fbKey || byName.id || '') : '';
-  }
-  function ventaByKeyOrId(id){
-    id = String(id||'');
-    return arr(window.ventasList||[]).find(function(v){ return String(v.fbKey||'')===id || String(v.id||'')===id || String(v.numero||'')===id; }) || null;
-  }
-  function setSelectIfOption(sel, value){
-    if(!sel || !value) return false;
-    var exists = Array.from(sel.options||[]).some(function(o){ return String(o.value)===String(value); });
-    if(exists){ sel.value = value; return true; }
-    return false;
-  }
-  function restaurarComisionadosVenta(fbKey){
-    var v = ventaByKeyOrId(fbKey) || window._ventaEditandoOriginal;
-    if(!v) return;
-    var sel1 = document.getElementById('venta-empleado');
-    var sel2 = document.getElementById('venta-comisionado2');
-    var cb   = document.getElementById('venta-generar-comision');
-
-    var key1 = empKeyByValue(v.empleadoFbKey || v.vendedorFbKey || v.comisionado1FbKey || v.empleadoId || v.vendedorId || '');
-    if(!key1) key1 = empKeyByValue(v.empleado || v.vendedor || v.comisionado1 || '');
-    if(!key1 && (v.empleado || v.vendedor || v.usuario) && norm(v.empleado || v.vendedor || v.usuario) === norm(window.currentUser||'')) key1 = '__admin__';
-    if(key1) setSelectIfOption(sel1, key1);
-
-    var key2 = empKeyByValue(v.comisionado2FbKey || v.segundoComisionadoFbKey || v.empleado2FbKey || '');
-    if(!key2) key2 = empKeyByValue(v.comisionado2 || v.segundoComisionado || v.empleado2 || '');
-    if(key2) setSelectIfOption(sel2, key2);
-
-    if(cb) cb.checked = (v.comisionHabilitada === true || v.generarComision === true || v.liquidarComision === true);
-  }
-
-  var abrirPrev317 = window.abrirEditorVenta;
-  if(typeof abrirPrev317 === 'function'){
-    window.abrirEditorVenta = function(fbKey){
-      var r = abrirPrev317.apply(this, arguments);
-      [450,800,1200,1700].forEach(function(t){ setTimeout(function(){ restaurarComisionadosVenta(fbKey); }, t); });
-      return r;
-    };
-  }
-
-  function idsVenta(v){ return [v && v.id, v && v.fbKey, v && v.numero, v && v.idOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean); }
-  function buscarOTVenta(v){
-    if(!v) return null;
-    var raw = String(v.otFbKey || v.otId || v.ordenTrabajoId || v.ot || '').trim();
-    var vIds = idsVenta(v);
-    return arr(window.otData||[]).find(function(o){
-      if(!o) return false;
-      var otIds = [o.fbKey, o.id, o.otId, o.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      if(raw && otIds.indexOf(raw) >= 0) return true;
-      var ventaRefs = [o.ventaId, o.venta, o.ventaNumero, o.ventaFbKey].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      return vIds.some(function(id){ return ventaRefs.indexOf(id) >= 0; });
-    }) || null;
-  }
-  function clienteDeVenta(v){
-    var cid = String(v.idCliente || v.clienteId || '').trim();
-    var cname = norm(v.cliente || v.clienteNombre || '');
-    return arr(window.clientesData||[]).find(function(c){ return String(c.id||'')===cid || String(c.fbKey||'')===cid; }) ||
-      arr(window.clientesData||[]).find(function(c){ return [c.nombre,c.empresa,c.razonSocial,c.cliente,((c.nombre||'')+' '+(c.apellido||c.apellidos||'')).trim()].map(norm).indexOf(cname)>=0; }) || null;
-  }
-  function direccionClienteVenta(v){
-    var c = clienteDeVenta(v) || {};
-    return c.direccion || c.dir || c.domicilio || c.domicilioInstalacion || c.direccionInstalacion || v.dir || v.direccion || 'Sin definir';
-  }
-  function nextOTId(){
-    var max = 0;
-    arr(window.otData||[]).forEach(function(o){
-      var m = String((o&&o.id)||(o&&o.numero)||'').match(/OT[-\s]?(\d+)/i);
-      if(m) max = Math.max(max, parseInt(m[1],10)||0);
-    });
-    return 'OT-' + String(max + 1).padStart(3,'0');
-  }
-  function checksBase(){
-    var c = window.CHECKLISTS || {};
-    return {
-      preparacion: arr(c.preparacion||[]).map(function(){return false;}),
-      instalacion: arr(c.instalacion||[]).map(function(){return false;}),
-      verificacion: arr(c.verificacion||[]).map(function(){return false;})
-    };
-  }
-  function crearOTParaVenta(v){
-    if(!v || !window.fbDB) { if(typeof notify==='function') notify('Sin conexión o venta no encontrada'); return; }
-    var otExistente = buscarOTVenta(v);
-    if(otExistente) return abrirOTVenta(otExistente);
-    var idOT = nextOTId();
-    var ot = {
-      id: idOT,
-      ventaId: v.id || '',
-      ventaFbKey: v.fbKey || '',
-      cliente: v.cliente || v.clienteNombre || '',
-      tecnico: 'Sin asignar',
-      fecha: '',
-      hora: '09:00',
-      duracion: '2 horas',
-      dir: direccionClienteVenta(v),
-      obs: 'Creada manualmente desde detalle de venta ' + (v.id || ''),
-      estado: 'pendiente',
-      progreso: 0,
-      tipoVisita: 'Instalación nueva',
-      esRepetida: false,
-      visitaNro: 1,
-      checks: checksBase(),
-      items: arr(v.items||[]).map(function(it){ return { cod: it.cod||'', desc: it.desc||it.nombre||'', vendida: parseFloat(it.qty||it.cantidad)||1, instalada: 0 }; }),
-      audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: window.currentUser || 'Sistema', accion: 'OT creada desde detalle de venta ' + (v.id || '') }],
-      ts: Date.now()
-    };
-    var prom = (typeof window.fbGuardarOT === 'function') ? window.fbGuardarOT(ot) : window.fbPush(window.fbRef(window.fbDB, window.FB_PATHS.ordenesTrabajo), ot).then(function(ref){ return ref.key; });
-    prom.then(function(key){
-      if(key) ot.fbKey = key;
-      if(v.fbKey && window.FB_PATHS && window.FB_PATHS.ventas){
-        window.fbUpdate(window.fbRef(window.fbDB, window.FB_PATHS.ventas + '/' + v.fbKey), { otId: idOT, otFbKey: key || '', ordenTrabajoId: idOT }).catch(function(){});
-      }
-      if(typeof notify === 'function') notify('✓ OT creada y asociada');
-      abrirOTVenta(ot);
-    }).catch(function(e){ if(typeof notify==='function') notify('Error creando OT: ' + e.message); });
-  }
-  function abrirOTVenta(ot){
-    if(!ot) return;
-    if(typeof window.showPage === 'function') window.showPage('ordentrabajo', document.querySelector('[onclick*=ordentrabajo]'));
-    setTimeout(function(){ if(typeof window.verOT === 'function') window.verOT(ot.fbKey || ot.id || ot.numero); }, 450);
-  }
-  window.abrirOTDesdeDetalleVenta = function(ventaId){
-    var v = ventaByKeyOrId(ventaId || window._ventaDetActualId || window.ventaActualId);
-    if(!v) { if(typeof notify==='function') notify('Venta no encontrada'); return; }
-    var ot = buscarOTVenta(v);
-    if(ot) { abrirOTVenta(ot); return; }
-    if(confirm('Esta venta no tiene una Orden de Trabajo asociada.\n\n¿Querés crearla y asociarla ahora?')) crearOTParaVenta(v);
-  };
-
-  function estadoOTBadge(ot){
-    if(!ot) return '<span style="color:var(--amber);font-size:18px;font-weight:600">Crear OT</span>';
-    var estado = String(ot.estado||'pendiente').toLowerCase();
-    var color = estado.indexOf('complet')>=0 ? 'var(--green)' : (estado.indexOf('progreso')>=0 ? 'var(--blue)' : 'var(--amber)');
-    var id = ot.id || ot.numero || 'OT vinculada';
-    return '<span style="color:'+color+';font-size:18px;font-weight:700">'+esc(id)+'</span>';
-  }
-  function mejorarTarjetaOTDetalle(v){
-    var cont = document.getElementById('venta-detalle-seguimiento');
-    if(!cont || !v) return;
-    var cards = Array.from(cont.querySelectorAll('.metric'));
-    var card = cards.find(function(c){ var l=c.querySelector('.m-label'); return l && norm(l.textContent)==='ot asociada'; });
-    if(!card) return;
-    var ot = buscarOTVenta(v);
-    var val = card.querySelector('.m-value');
-    var sub = card.querySelector('.m-sub');
-    if(val) val.innerHTML = estadoOTBadge(ot);
-    if(sub) sub.textContent = ot ? 'clic para abrir orden' : 'clic para crear y asociar';
-    card.style.cursor = 'pointer';
-    card.title = ot ? 'Abrir orden de trabajo' : 'Crear orden de trabajo para esta venta';
-    card.onclick = function(){ window.abrirOTDesdeDetalleVenta(v.fbKey || v.id); };
-  }
-  var renderPrev317 = window.renderDetalleVenta;
-  if(typeof renderPrev317 === 'function'){
-    window.renderDetalleVenta = function(v){
-      window._ventaDetalleActual = v;
-      var r = renderPrev317.apply(this, arguments);
-      setTimeout(function(){ mejorarTarjetaOTDetalle(v); }, 0);
-      return r;
-    };
-  }
-})();
-</script>
-
-</body></html>');
+    '\n</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
@@ -17563,187 +16843,7 @@ function imprimirRecibo() {
     '<div><div class="firma-line">Firma del cliente</div></div>'+
     '<div><div class="firma-line">Firma Nixa</div></div>'+
     '</div></div>'+
-    '\n
-<script>
-(function(){
-  function norm(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
-  function arr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
-  function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function empKeyByValue(value){
-    var raw = String(value||'').trim();
-    if(!raw) return '';
-    if(raw === '__admin__') return '__admin__';
-    var emps = arr(window.empData||{});
-    var direct = emps.find(function(e){ return String(e.fbKey||'')===raw || String(e.id||'')===raw || String(e.legajo||'')===raw; });
-    if(direct) return direct.fbKey || direct.id || '';
-    var n = norm(raw);
-    var byName = emps.find(function(e){
-      var names = [e.nombre, e.apellido, ((e.nombre||'')+' '+(e.apellido||e.apellidos||'')).trim(), e.usuario, e.email].map(norm);
-      return names.indexOf(n) >= 0;
-    });
-    return byName ? (byName.fbKey || byName.id || '') : '';
-  }
-  function ventaByKeyOrId(id){
-    id = String(id||'');
-    return arr(window.ventasList||[]).find(function(v){ return String(v.fbKey||'')===id || String(v.id||'')===id || String(v.numero||'')===id; }) || null;
-  }
-  function setSelectIfOption(sel, value){
-    if(!sel || !value) return false;
-    var exists = Array.from(sel.options||[]).some(function(o){ return String(o.value)===String(value); });
-    if(exists){ sel.value = value; return true; }
-    return false;
-  }
-  function restaurarComisionadosVenta(fbKey){
-    var v = ventaByKeyOrId(fbKey) || window._ventaEditandoOriginal;
-    if(!v) return;
-    var sel1 = document.getElementById('venta-empleado');
-    var sel2 = document.getElementById('venta-comisionado2');
-    var cb   = document.getElementById('venta-generar-comision');
-
-    var key1 = empKeyByValue(v.empleadoFbKey || v.vendedorFbKey || v.comisionado1FbKey || v.empleadoId || v.vendedorId || '');
-    if(!key1) key1 = empKeyByValue(v.empleado || v.vendedor || v.comisionado1 || '');
-    if(!key1 && (v.empleado || v.vendedor || v.usuario) && norm(v.empleado || v.vendedor || v.usuario) === norm(window.currentUser||'')) key1 = '__admin__';
-    if(key1) setSelectIfOption(sel1, key1);
-
-    var key2 = empKeyByValue(v.comisionado2FbKey || v.segundoComisionadoFbKey || v.empleado2FbKey || '');
-    if(!key2) key2 = empKeyByValue(v.comisionado2 || v.segundoComisionado || v.empleado2 || '');
-    if(key2) setSelectIfOption(sel2, key2);
-
-    if(cb) cb.checked = (v.comisionHabilitada === true || v.generarComision === true || v.liquidarComision === true);
-  }
-
-  var abrirPrev317 = window.abrirEditorVenta;
-  if(typeof abrirPrev317 === 'function'){
-    window.abrirEditorVenta = function(fbKey){
-      var r = abrirPrev317.apply(this, arguments);
-      [450,800,1200,1700].forEach(function(t){ setTimeout(function(){ restaurarComisionadosVenta(fbKey); }, t); });
-      return r;
-    };
-  }
-
-  function idsVenta(v){ return [v && v.id, v && v.fbKey, v && v.numero, v && v.idOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean); }
-  function buscarOTVenta(v){
-    if(!v) return null;
-    var raw = String(v.otFbKey || v.otId || v.ordenTrabajoId || v.ot || '').trim();
-    var vIds = idsVenta(v);
-    return arr(window.otData||[]).find(function(o){
-      if(!o) return false;
-      var otIds = [o.fbKey, o.id, o.otId, o.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      if(raw && otIds.indexOf(raw) >= 0) return true;
-      var ventaRefs = [o.ventaId, o.venta, o.ventaNumero, o.ventaFbKey].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      return vIds.some(function(id){ return ventaRefs.indexOf(id) >= 0; });
-    }) || null;
-  }
-  function clienteDeVenta(v){
-    var cid = String(v.idCliente || v.clienteId || '').trim();
-    var cname = norm(v.cliente || v.clienteNombre || '');
-    return arr(window.clientesData||[]).find(function(c){ return String(c.id||'')===cid || String(c.fbKey||'')===cid; }) ||
-      arr(window.clientesData||[]).find(function(c){ return [c.nombre,c.empresa,c.razonSocial,c.cliente,((c.nombre||'')+' '+(c.apellido||c.apellidos||'')).trim()].map(norm).indexOf(cname)>=0; }) || null;
-  }
-  function direccionClienteVenta(v){
-    var c = clienteDeVenta(v) || {};
-    return c.direccion || c.dir || c.domicilio || c.domicilioInstalacion || c.direccionInstalacion || v.dir || v.direccion || 'Sin definir';
-  }
-  function nextOTId(){
-    var max = 0;
-    arr(window.otData||[]).forEach(function(o){
-      var m = String((o&&o.id)||(o&&o.numero)||'').match(/OT[-\s]?(\d+)/i);
-      if(m) max = Math.max(max, parseInt(m[1],10)||0);
-    });
-    return 'OT-' + String(max + 1).padStart(3,'0');
-  }
-  function checksBase(){
-    var c = window.CHECKLISTS || {};
-    return {
-      preparacion: arr(c.preparacion||[]).map(function(){return false;}),
-      instalacion: arr(c.instalacion||[]).map(function(){return false;}),
-      verificacion: arr(c.verificacion||[]).map(function(){return false;})
-    };
-  }
-  function crearOTParaVenta(v){
-    if(!v || !window.fbDB) { if(typeof notify==='function') notify('Sin conexión o venta no encontrada'); return; }
-    var otExistente = buscarOTVenta(v);
-    if(otExistente) return abrirOTVenta(otExistente);
-    var idOT = nextOTId();
-    var ot = {
-      id: idOT,
-      ventaId: v.id || '',
-      ventaFbKey: v.fbKey || '',
-      cliente: v.cliente || v.clienteNombre || '',
-      tecnico: 'Sin asignar',
-      fecha: '',
-      hora: '09:00',
-      duracion: '2 horas',
-      dir: direccionClienteVenta(v),
-      obs: 'Creada manualmente desde detalle de venta ' + (v.id || ''),
-      estado: 'pendiente',
-      progreso: 0,
-      tipoVisita: 'Instalación nueva',
-      esRepetida: false,
-      visitaNro: 1,
-      checks: checksBase(),
-      items: arr(v.items||[]).map(function(it){ return { cod: it.cod||'', desc: it.desc||it.nombre||'', vendida: parseFloat(it.qty||it.cantidad)||1, instalada: 0 }; }),
-      audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: window.currentUser || 'Sistema', accion: 'OT creada desde detalle de venta ' + (v.id || '') }],
-      ts: Date.now()
-    };
-    var prom = (typeof window.fbGuardarOT === 'function') ? window.fbGuardarOT(ot) : window.fbPush(window.fbRef(window.fbDB, window.FB_PATHS.ordenesTrabajo), ot).then(function(ref){ return ref.key; });
-    prom.then(function(key){
-      if(key) ot.fbKey = key;
-      if(v.fbKey && window.FB_PATHS && window.FB_PATHS.ventas){
-        window.fbUpdate(window.fbRef(window.fbDB, window.FB_PATHS.ventas + '/' + v.fbKey), { otId: idOT, otFbKey: key || '', ordenTrabajoId: idOT }).catch(function(){});
-      }
-      if(typeof notify === 'function') notify('✓ OT creada y asociada');
-      abrirOTVenta(ot);
-    }).catch(function(e){ if(typeof notify==='function') notify('Error creando OT: ' + e.message); });
-  }
-  function abrirOTVenta(ot){
-    if(!ot) return;
-    if(typeof window.showPage === 'function') window.showPage('ordentrabajo', document.querySelector('[onclick*=ordentrabajo]'));
-    setTimeout(function(){ if(typeof window.verOT === 'function') window.verOT(ot.fbKey || ot.id || ot.numero); }, 450);
-  }
-  window.abrirOTDesdeDetalleVenta = function(ventaId){
-    var v = ventaByKeyOrId(ventaId || window._ventaDetActualId || window.ventaActualId);
-    if(!v) { if(typeof notify==='function') notify('Venta no encontrada'); return; }
-    var ot = buscarOTVenta(v);
-    if(ot) { abrirOTVenta(ot); return; }
-    if(confirm('Esta venta no tiene una Orden de Trabajo asociada.\n\n¿Querés crearla y asociarla ahora?')) crearOTParaVenta(v);
-  };
-
-  function estadoOTBadge(ot){
-    if(!ot) return '<span style="color:var(--amber);font-size:18px;font-weight:600">Crear OT</span>';
-    var estado = String(ot.estado||'pendiente').toLowerCase();
-    var color = estado.indexOf('complet')>=0 ? 'var(--green)' : (estado.indexOf('progreso')>=0 ? 'var(--blue)' : 'var(--amber)');
-    var id = ot.id || ot.numero || 'OT vinculada';
-    return '<span style="color:'+color+';font-size:18px;font-weight:700">'+esc(id)+'</span>';
-  }
-  function mejorarTarjetaOTDetalle(v){
-    var cont = document.getElementById('venta-detalle-seguimiento');
-    if(!cont || !v) return;
-    var cards = Array.from(cont.querySelectorAll('.metric'));
-    var card = cards.find(function(c){ var l=c.querySelector('.m-label'); return l && norm(l.textContent)==='ot asociada'; });
-    if(!card) return;
-    var ot = buscarOTVenta(v);
-    var val = card.querySelector('.m-value');
-    var sub = card.querySelector('.m-sub');
-    if(val) val.innerHTML = estadoOTBadge(ot);
-    if(sub) sub.textContent = ot ? 'clic para abrir orden' : 'clic para crear y asociar';
-    card.style.cursor = 'pointer';
-    card.title = ot ? 'Abrir orden de trabajo' : 'Crear orden de trabajo para esta venta';
-    card.onclick = function(){ window.abrirOTDesdeDetalleVenta(v.fbKey || v.id); };
-  }
-  var renderPrev317 = window.renderDetalleVenta;
-  if(typeof renderPrev317 === 'function'){
-    window.renderDetalleVenta = function(v){
-      window._ventaDetalleActual = v;
-      var r = renderPrev317.apply(this, arguments);
-      setTimeout(function(){ mejorarTarjetaOTDetalle(v); }, 0);
-      return r;
-    };
-  }
-})();
-</script>
-
-</body></html>');
+    '\n</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
@@ -19413,187 +18513,7 @@ function imprimirRemito(fbKey) {
       '<p><strong>Venta vinculada:</strong> '+escapeHTML(r.venta||'—')+'</p>'+
       '<p><strong>Descripción:</strong> '+escapeHTML(r.descripcion||'—')+'</p>'+
       '<div class="firma"><div><div class="firma-line">Firma receptor</div></div><div><div class="firma-line">Firma Nixa</div></div></div>'+
-      '\n
-<script>
-(function(){
-  function norm(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
-  function arr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
-  function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function empKeyByValue(value){
-    var raw = String(value||'').trim();
-    if(!raw) return '';
-    if(raw === '__admin__') return '__admin__';
-    var emps = arr(window.empData||{});
-    var direct = emps.find(function(e){ return String(e.fbKey||'')===raw || String(e.id||'')===raw || String(e.legajo||'')===raw; });
-    if(direct) return direct.fbKey || direct.id || '';
-    var n = norm(raw);
-    var byName = emps.find(function(e){
-      var names = [e.nombre, e.apellido, ((e.nombre||'')+' '+(e.apellido||e.apellidos||'')).trim(), e.usuario, e.email].map(norm);
-      return names.indexOf(n) >= 0;
-    });
-    return byName ? (byName.fbKey || byName.id || '') : '';
-  }
-  function ventaByKeyOrId(id){
-    id = String(id||'');
-    return arr(window.ventasList||[]).find(function(v){ return String(v.fbKey||'')===id || String(v.id||'')===id || String(v.numero||'')===id; }) || null;
-  }
-  function setSelectIfOption(sel, value){
-    if(!sel || !value) return false;
-    var exists = Array.from(sel.options||[]).some(function(o){ return String(o.value)===String(value); });
-    if(exists){ sel.value = value; return true; }
-    return false;
-  }
-  function restaurarComisionadosVenta(fbKey){
-    var v = ventaByKeyOrId(fbKey) || window._ventaEditandoOriginal;
-    if(!v) return;
-    var sel1 = document.getElementById('venta-empleado');
-    var sel2 = document.getElementById('venta-comisionado2');
-    var cb   = document.getElementById('venta-generar-comision');
-
-    var key1 = empKeyByValue(v.empleadoFbKey || v.vendedorFbKey || v.comisionado1FbKey || v.empleadoId || v.vendedorId || '');
-    if(!key1) key1 = empKeyByValue(v.empleado || v.vendedor || v.comisionado1 || '');
-    if(!key1 && (v.empleado || v.vendedor || v.usuario) && norm(v.empleado || v.vendedor || v.usuario) === norm(window.currentUser||'')) key1 = '__admin__';
-    if(key1) setSelectIfOption(sel1, key1);
-
-    var key2 = empKeyByValue(v.comisionado2FbKey || v.segundoComisionadoFbKey || v.empleado2FbKey || '');
-    if(!key2) key2 = empKeyByValue(v.comisionado2 || v.segundoComisionado || v.empleado2 || '');
-    if(key2) setSelectIfOption(sel2, key2);
-
-    if(cb) cb.checked = (v.comisionHabilitada === true || v.generarComision === true || v.liquidarComision === true);
-  }
-
-  var abrirPrev317 = window.abrirEditorVenta;
-  if(typeof abrirPrev317 === 'function'){
-    window.abrirEditorVenta = function(fbKey){
-      var r = abrirPrev317.apply(this, arguments);
-      [450,800,1200,1700].forEach(function(t){ setTimeout(function(){ restaurarComisionadosVenta(fbKey); }, t); });
-      return r;
-    };
-  }
-
-  function idsVenta(v){ return [v && v.id, v && v.fbKey, v && v.numero, v && v.idOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean); }
-  function buscarOTVenta(v){
-    if(!v) return null;
-    var raw = String(v.otFbKey || v.otId || v.ordenTrabajoId || v.ot || '').trim();
-    var vIds = idsVenta(v);
-    return arr(window.otData||[]).find(function(o){
-      if(!o) return false;
-      var otIds = [o.fbKey, o.id, o.otId, o.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      if(raw && otIds.indexOf(raw) >= 0) return true;
-      var ventaRefs = [o.ventaId, o.venta, o.ventaNumero, o.ventaFbKey].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      return vIds.some(function(id){ return ventaRefs.indexOf(id) >= 0; });
-    }) || null;
-  }
-  function clienteDeVenta(v){
-    var cid = String(v.idCliente || v.clienteId || '').trim();
-    var cname = norm(v.cliente || v.clienteNombre || '');
-    return arr(window.clientesData||[]).find(function(c){ return String(c.id||'')===cid || String(c.fbKey||'')===cid; }) ||
-      arr(window.clientesData||[]).find(function(c){ return [c.nombre,c.empresa,c.razonSocial,c.cliente,((c.nombre||'')+' '+(c.apellido||c.apellidos||'')).trim()].map(norm).indexOf(cname)>=0; }) || null;
-  }
-  function direccionClienteVenta(v){
-    var c = clienteDeVenta(v) || {};
-    return c.direccion || c.dir || c.domicilio || c.domicilioInstalacion || c.direccionInstalacion || v.dir || v.direccion || 'Sin definir';
-  }
-  function nextOTId(){
-    var max = 0;
-    arr(window.otData||[]).forEach(function(o){
-      var m = String((o&&o.id)||(o&&o.numero)||'').match(/OT[-\s]?(\d+)/i);
-      if(m) max = Math.max(max, parseInt(m[1],10)||0);
-    });
-    return 'OT-' + String(max + 1).padStart(3,'0');
-  }
-  function checksBase(){
-    var c = window.CHECKLISTS || {};
-    return {
-      preparacion: arr(c.preparacion||[]).map(function(){return false;}),
-      instalacion: arr(c.instalacion||[]).map(function(){return false;}),
-      verificacion: arr(c.verificacion||[]).map(function(){return false;})
-    };
-  }
-  function crearOTParaVenta(v){
-    if(!v || !window.fbDB) { if(typeof notify==='function') notify('Sin conexión o venta no encontrada'); return; }
-    var otExistente = buscarOTVenta(v);
-    if(otExistente) return abrirOTVenta(otExistente);
-    var idOT = nextOTId();
-    var ot = {
-      id: idOT,
-      ventaId: v.id || '',
-      ventaFbKey: v.fbKey || '',
-      cliente: v.cliente || v.clienteNombre || '',
-      tecnico: 'Sin asignar',
-      fecha: '',
-      hora: '09:00',
-      duracion: '2 horas',
-      dir: direccionClienteVenta(v),
-      obs: 'Creada manualmente desde detalle de venta ' + (v.id || ''),
-      estado: 'pendiente',
-      progreso: 0,
-      tipoVisita: 'Instalación nueva',
-      esRepetida: false,
-      visitaNro: 1,
-      checks: checksBase(),
-      items: arr(v.items||[]).map(function(it){ return { cod: it.cod||'', desc: it.desc||it.nombre||'', vendida: parseFloat(it.qty||it.cantidad)||1, instalada: 0 }; }),
-      audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: window.currentUser || 'Sistema', accion: 'OT creada desde detalle de venta ' + (v.id || '') }],
-      ts: Date.now()
-    };
-    var prom = (typeof window.fbGuardarOT === 'function') ? window.fbGuardarOT(ot) : window.fbPush(window.fbRef(window.fbDB, window.FB_PATHS.ordenesTrabajo), ot).then(function(ref){ return ref.key; });
-    prom.then(function(key){
-      if(key) ot.fbKey = key;
-      if(v.fbKey && window.FB_PATHS && window.FB_PATHS.ventas){
-        window.fbUpdate(window.fbRef(window.fbDB, window.FB_PATHS.ventas + '/' + v.fbKey), { otId: idOT, otFbKey: key || '', ordenTrabajoId: idOT }).catch(function(){});
-      }
-      if(typeof notify === 'function') notify('✓ OT creada y asociada');
-      abrirOTVenta(ot);
-    }).catch(function(e){ if(typeof notify==='function') notify('Error creando OT: ' + e.message); });
-  }
-  function abrirOTVenta(ot){
-    if(!ot) return;
-    if(typeof window.showPage === 'function') window.showPage('ordentrabajo', document.querySelector('[onclick*=ordentrabajo]'));
-    setTimeout(function(){ if(typeof window.verOT === 'function') window.verOT(ot.fbKey || ot.id || ot.numero); }, 450);
-  }
-  window.abrirOTDesdeDetalleVenta = function(ventaId){
-    var v = ventaByKeyOrId(ventaId || window._ventaDetActualId || window.ventaActualId);
-    if(!v) { if(typeof notify==='function') notify('Venta no encontrada'); return; }
-    var ot = buscarOTVenta(v);
-    if(ot) { abrirOTVenta(ot); return; }
-    if(confirm('Esta venta no tiene una Orden de Trabajo asociada.\n\n¿Querés crearla y asociarla ahora?')) crearOTParaVenta(v);
-  };
-
-  function estadoOTBadge(ot){
-    if(!ot) return '<span style="color:var(--amber);font-size:18px;font-weight:600">Crear OT</span>';
-    var estado = String(ot.estado||'pendiente').toLowerCase();
-    var color = estado.indexOf('complet')>=0 ? 'var(--green)' : (estado.indexOf('progreso')>=0 ? 'var(--blue)' : 'var(--amber)');
-    var id = ot.id || ot.numero || 'OT vinculada';
-    return '<span style="color:'+color+';font-size:18px;font-weight:700">'+esc(id)+'</span>';
-  }
-  function mejorarTarjetaOTDetalle(v){
-    var cont = document.getElementById('venta-detalle-seguimiento');
-    if(!cont || !v) return;
-    var cards = Array.from(cont.querySelectorAll('.metric'));
-    var card = cards.find(function(c){ var l=c.querySelector('.m-label'); return l && norm(l.textContent)==='ot asociada'; });
-    if(!card) return;
-    var ot = buscarOTVenta(v);
-    var val = card.querySelector('.m-value');
-    var sub = card.querySelector('.m-sub');
-    if(val) val.innerHTML = estadoOTBadge(ot);
-    if(sub) sub.textContent = ot ? 'clic para abrir orden' : 'clic para crear y asociar';
-    card.style.cursor = 'pointer';
-    card.title = ot ? 'Abrir orden de trabajo' : 'Crear orden de trabajo para esta venta';
-    card.onclick = function(){ window.abrirOTDesdeDetalleVenta(v.fbKey || v.id); };
-  }
-  var renderPrev317 = window.renderDetalleVenta;
-  if(typeof renderPrev317 === 'function'){
-    window.renderDetalleVenta = function(v){
-      window._ventaDetalleActual = v;
-      var r = renderPrev317.apply(this, arguments);
-      setTimeout(function(){ mejorarTarjetaOTDetalle(v); }, 0);
-      return r;
-    };
-  }
-})();
-</script>
-
-</body></html>');
+      '\n</body></html>');
     w.document.close();
     setTimeout(function(){ w.print(); }, 500);
   }, { onlyOnce: true });
@@ -23200,187 +22120,7 @@ function imprimirInforme() {
     (g('inf-obs') ? '<section><h2>Observaciones</h2><p>'+g('inf-obs').replace(/\n/g,'<br>')+'</p></section>' : '') +
     '<section><h2>Conformidad del cliente</h2><div class="grid"><div><label>Nombre quien recibe</label><p>'+g('inf-receptor')+'</p></div><div><label>DNI</label><p>'+g('inf-receptor-dni')+'</p></div><div><label>Resultado</label><p>'+g('inf-resultado')+'</p></div></div></section>' +
     '<div class="firma"><div><div class="firma-line">Firma del técnico: '+g('inf-tecnico')+'</div></div><div><div class="firma-line">Firma del cliente: '+g('inf-receptor')+'</div></div></div>' +
-    '\n
-<script>
-(function(){
-  function norm(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
-  function arr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
-  function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function empKeyByValue(value){
-    var raw = String(value||'').trim();
-    if(!raw) return '';
-    if(raw === '__admin__') return '__admin__';
-    var emps = arr(window.empData||{});
-    var direct = emps.find(function(e){ return String(e.fbKey||'')===raw || String(e.id||'')===raw || String(e.legajo||'')===raw; });
-    if(direct) return direct.fbKey || direct.id || '';
-    var n = norm(raw);
-    var byName = emps.find(function(e){
-      var names = [e.nombre, e.apellido, ((e.nombre||'')+' '+(e.apellido||e.apellidos||'')).trim(), e.usuario, e.email].map(norm);
-      return names.indexOf(n) >= 0;
-    });
-    return byName ? (byName.fbKey || byName.id || '') : '';
-  }
-  function ventaByKeyOrId(id){
-    id = String(id||'');
-    return arr(window.ventasList||[]).find(function(v){ return String(v.fbKey||'')===id || String(v.id||'')===id || String(v.numero||'')===id; }) || null;
-  }
-  function setSelectIfOption(sel, value){
-    if(!sel || !value) return false;
-    var exists = Array.from(sel.options||[]).some(function(o){ return String(o.value)===String(value); });
-    if(exists){ sel.value = value; return true; }
-    return false;
-  }
-  function restaurarComisionadosVenta(fbKey){
-    var v = ventaByKeyOrId(fbKey) || window._ventaEditandoOriginal;
-    if(!v) return;
-    var sel1 = document.getElementById('venta-empleado');
-    var sel2 = document.getElementById('venta-comisionado2');
-    var cb   = document.getElementById('venta-generar-comision');
-
-    var key1 = empKeyByValue(v.empleadoFbKey || v.vendedorFbKey || v.comisionado1FbKey || v.empleadoId || v.vendedorId || '');
-    if(!key1) key1 = empKeyByValue(v.empleado || v.vendedor || v.comisionado1 || '');
-    if(!key1 && (v.empleado || v.vendedor || v.usuario) && norm(v.empleado || v.vendedor || v.usuario) === norm(window.currentUser||'')) key1 = '__admin__';
-    if(key1) setSelectIfOption(sel1, key1);
-
-    var key2 = empKeyByValue(v.comisionado2FbKey || v.segundoComisionadoFbKey || v.empleado2FbKey || '');
-    if(!key2) key2 = empKeyByValue(v.comisionado2 || v.segundoComisionado || v.empleado2 || '');
-    if(key2) setSelectIfOption(sel2, key2);
-
-    if(cb) cb.checked = (v.comisionHabilitada === true || v.generarComision === true || v.liquidarComision === true);
-  }
-
-  var abrirPrev317 = window.abrirEditorVenta;
-  if(typeof abrirPrev317 === 'function'){
-    window.abrirEditorVenta = function(fbKey){
-      var r = abrirPrev317.apply(this, arguments);
-      [450,800,1200,1700].forEach(function(t){ setTimeout(function(){ restaurarComisionadosVenta(fbKey); }, t); });
-      return r;
-    };
-  }
-
-  function idsVenta(v){ return [v && v.id, v && v.fbKey, v && v.numero, v && v.idOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean); }
-  function buscarOTVenta(v){
-    if(!v) return null;
-    var raw = String(v.otFbKey || v.otId || v.ordenTrabajoId || v.ot || '').trim();
-    var vIds = idsVenta(v);
-    return arr(window.otData||[]).find(function(o){
-      if(!o) return false;
-      var otIds = [o.fbKey, o.id, o.otId, o.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      if(raw && otIds.indexOf(raw) >= 0) return true;
-      var ventaRefs = [o.ventaId, o.venta, o.ventaNumero, o.ventaFbKey].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      return vIds.some(function(id){ return ventaRefs.indexOf(id) >= 0; });
-    }) || null;
-  }
-  function clienteDeVenta(v){
-    var cid = String(v.idCliente || v.clienteId || '').trim();
-    var cname = norm(v.cliente || v.clienteNombre || '');
-    return arr(window.clientesData||[]).find(function(c){ return String(c.id||'')===cid || String(c.fbKey||'')===cid; }) ||
-      arr(window.clientesData||[]).find(function(c){ return [c.nombre,c.empresa,c.razonSocial,c.cliente,((c.nombre||'')+' '+(c.apellido||c.apellidos||'')).trim()].map(norm).indexOf(cname)>=0; }) || null;
-  }
-  function direccionClienteVenta(v){
-    var c = clienteDeVenta(v) || {};
-    return c.direccion || c.dir || c.domicilio || c.domicilioInstalacion || c.direccionInstalacion || v.dir || v.direccion || 'Sin definir';
-  }
-  function nextOTId(){
-    var max = 0;
-    arr(window.otData||[]).forEach(function(o){
-      var m = String((o&&o.id)||(o&&o.numero)||'').match(/OT[-\s]?(\d+)/i);
-      if(m) max = Math.max(max, parseInt(m[1],10)||0);
-    });
-    return 'OT-' + String(max + 1).padStart(3,'0');
-  }
-  function checksBase(){
-    var c = window.CHECKLISTS || {};
-    return {
-      preparacion: arr(c.preparacion||[]).map(function(){return false;}),
-      instalacion: arr(c.instalacion||[]).map(function(){return false;}),
-      verificacion: arr(c.verificacion||[]).map(function(){return false;})
-    };
-  }
-  function crearOTParaVenta(v){
-    if(!v || !window.fbDB) { if(typeof notify==='function') notify('Sin conexión o venta no encontrada'); return; }
-    var otExistente = buscarOTVenta(v);
-    if(otExistente) return abrirOTVenta(otExistente);
-    var idOT = nextOTId();
-    var ot = {
-      id: idOT,
-      ventaId: v.id || '',
-      ventaFbKey: v.fbKey || '',
-      cliente: v.cliente || v.clienteNombre || '',
-      tecnico: 'Sin asignar',
-      fecha: '',
-      hora: '09:00',
-      duracion: '2 horas',
-      dir: direccionClienteVenta(v),
-      obs: 'Creada manualmente desde detalle de venta ' + (v.id || ''),
-      estado: 'pendiente',
-      progreso: 0,
-      tipoVisita: 'Instalación nueva',
-      esRepetida: false,
-      visitaNro: 1,
-      checks: checksBase(),
-      items: arr(v.items||[]).map(function(it){ return { cod: it.cod||'', desc: it.desc||it.nombre||'', vendida: parseFloat(it.qty||it.cantidad)||1, instalada: 0 }; }),
-      audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: window.currentUser || 'Sistema', accion: 'OT creada desde detalle de venta ' + (v.id || '') }],
-      ts: Date.now()
-    };
-    var prom = (typeof window.fbGuardarOT === 'function') ? window.fbGuardarOT(ot) : window.fbPush(window.fbRef(window.fbDB, window.FB_PATHS.ordenesTrabajo), ot).then(function(ref){ return ref.key; });
-    prom.then(function(key){
-      if(key) ot.fbKey = key;
-      if(v.fbKey && window.FB_PATHS && window.FB_PATHS.ventas){
-        window.fbUpdate(window.fbRef(window.fbDB, window.FB_PATHS.ventas + '/' + v.fbKey), { otId: idOT, otFbKey: key || '', ordenTrabajoId: idOT }).catch(function(){});
-      }
-      if(typeof notify === 'function') notify('✓ OT creada y asociada');
-      abrirOTVenta(ot);
-    }).catch(function(e){ if(typeof notify==='function') notify('Error creando OT: ' + e.message); });
-  }
-  function abrirOTVenta(ot){
-    if(!ot) return;
-    if(typeof window.showPage === 'function') window.showPage('ordentrabajo', document.querySelector('[onclick*=ordentrabajo]'));
-    setTimeout(function(){ if(typeof window.verOT === 'function') window.verOT(ot.fbKey || ot.id || ot.numero); }, 450);
-  }
-  window.abrirOTDesdeDetalleVenta = function(ventaId){
-    var v = ventaByKeyOrId(ventaId || window._ventaDetActualId || window.ventaActualId);
-    if(!v) { if(typeof notify==='function') notify('Venta no encontrada'); return; }
-    var ot = buscarOTVenta(v);
-    if(ot) { abrirOTVenta(ot); return; }
-    if(confirm('Esta venta no tiene una Orden de Trabajo asociada.\n\n¿Querés crearla y asociarla ahora?')) crearOTParaVenta(v);
-  };
-
-  function estadoOTBadge(ot){
-    if(!ot) return '<span style="color:var(--amber);font-size:18px;font-weight:600">Crear OT</span>';
-    var estado = String(ot.estado||'pendiente').toLowerCase();
-    var color = estado.indexOf('complet')>=0 ? 'var(--green)' : (estado.indexOf('progreso')>=0 ? 'var(--blue)' : 'var(--amber)');
-    var id = ot.id || ot.numero || 'OT vinculada';
-    return '<span style="color:'+color+';font-size:18px;font-weight:700">'+esc(id)+'</span>';
-  }
-  function mejorarTarjetaOTDetalle(v){
-    var cont = document.getElementById('venta-detalle-seguimiento');
-    if(!cont || !v) return;
-    var cards = Array.from(cont.querySelectorAll('.metric'));
-    var card = cards.find(function(c){ var l=c.querySelector('.m-label'); return l && norm(l.textContent)==='ot asociada'; });
-    if(!card) return;
-    var ot = buscarOTVenta(v);
-    var val = card.querySelector('.m-value');
-    var sub = card.querySelector('.m-sub');
-    if(val) val.innerHTML = estadoOTBadge(ot);
-    if(sub) sub.textContent = ot ? 'clic para abrir orden' : 'clic para crear y asociar';
-    card.style.cursor = 'pointer';
-    card.title = ot ? 'Abrir orden de trabajo' : 'Crear orden de trabajo para esta venta';
-    card.onclick = function(){ window.abrirOTDesdeDetalleVenta(v.fbKey || v.id); };
-  }
-  var renderPrev317 = window.renderDetalleVenta;
-  if(typeof renderPrev317 === 'function'){
-    window.renderDetalleVenta = function(v){
-      window._ventaDetalleActual = v;
-      var r = renderPrev317.apply(this, arguments);
-      setTimeout(function(){ mejorarTarjetaOTDetalle(v); }, 0);
-      return r;
-    };
-  }
-})();
-</script>
-
-</body></html>';
+    '\n</body></html>';
   w.document.write(html);
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
@@ -23934,16 +22674,7 @@ function _pctComisionEmpleadoVenta(emp) {
   if (pctDirecto > 0) return pctDirecto;
   var cargoId = emp.cargoId || emp.cargo || emp.categoria || '';
   if (cargoId && CONFIG_COMISIONES) {
-    var cfg = CONFIG_COMISIONES[cargoId];
-    if (!cfg && CARGOS_DATA && CARGOS_DATA[cargoId]) cfg = CONFIG_COMISIONES[CARGOS_DATA[cargoId].id] || cfg;
-    if (!cfg && CARGOS_DATA) {
-      var cargoNombre = String((CARGOS_DATA[cargoId]||{}).nombre || cargoId).toLowerCase();
-      Object.keys(CARGOS_DATA||{}).some(function(k){
-        var c = CARGOS_DATA[k] || {};
-        if (String(c.nombre||'').toLowerCase() === cargoNombre) { cfg = CONFIG_COMISIONES[k]; return true; }
-        return false;
-      });
-    }
+    var cfg = (typeof obtenerConfigComisionCargo === 'function') ? obtenerConfigComisionCargo(cargoId) : CONFIG_COMISIONES[cargoId];
     if (cfg && parseFloat(cfg.pct || 0) > 0) return parseFloat(cfg.pct) || 0;
   }
   return 0;
@@ -28259,23 +26990,72 @@ var CONFIG_COMISIONES = {
   'Cat. 08': { pct: 1.0, min: 0, max: 999999 }
 };
 
+function _normComisionKey(v) {
+  return String(v || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function _aliasesComisionCargo(cargoId) {
+  var c = (CARGOS_DATA || {})[cargoId] || {};
+  var arr = [cargoId, c.id, c.nombre, c.cargo, c.categoria, c.categoriaBase];
+  var base = _normComisionKey(c.categoriaBase || c.nombre || cargoId);
+  var idn  = _normComisionKey(cargoId);
+  // Compatibilidad con claves usadas en versiones anteriores.
+  if (idn === 'tecnico_c' || base === 'tecnico_c') arr.push('Cat. 39', 'cat_39', 'TECNICO C', 'Técnico C');
+  if (idn === 'tecnico_b' || base === 'tecnico_b') arr.push('Cat. 15', 'cat_15', 'TECNICO B', 'Técnico B');
+  if (idn === 'tecnico_a' || base === 'tecnico_a') arr.push('Cat. 08', 'cat_08', 'TECNICO A', 'Técnico A');
+  if (idn === 'administrativo' || base === 'adminis' || base === 'administrativo') arr.push('ADMINIS', 'Administrativo');
+  if (idn === 'inicial' || base === 'inicial') arr.push('INICIAL', 'Inicial');
+  if (idn === 'temporal' || base === 'a_temp' || base === 'temporal') arr.push('A-TEMP', 'Temporal');
+  return Array.from(new Set(arr.filter(function(x){ return x !== undefined && x !== null && String(x).trim() !== ''; })));
+}
+
+function obtenerConfigComisionCargo(cargoId) {
+  var cfgs = CONFIG_COMISIONES || {};
+  if (cfgs[cargoId]) return cfgs[cargoId];
+  var aliases = _aliasesComisionCargo(cargoId);
+  for (var i = 0; i < aliases.length; i++) {
+    if (cfgs[aliases[i]]) return cfgs[aliases[i]];
+  }
+  var aliasesNorm = aliases.map(_normComisionKey);
+  var keys = Object.keys(cfgs);
+  for (var k = 0; k < keys.length; k++) {
+    if (aliasesNorm.indexOf(_normComisionKey(keys[k])) >= 0) return cfgs[keys[k]];
+  }
+  return { pct:0, min:0, max:0 };
+}
+
+function guardarConfigComisionCargo(cargoId, cfg) {
+  if (!cargoId) return;
+  CONFIG_COMISIONES[cargoId] = {
+    pct: parseFloat(cfg && cfg.pct) || 0,
+    min: parseFloat(cfg && cfg.min) || 0,
+    max: parseFloat(cfg && cfg.max) || 0
+  };
+}
+
 function renderComisionesConfig() {
   var tbody = document.getElementById('cfg-comisiones-tbody');
   if (!tbody) return;
-  var cargos = Object.values(CARGOS_DATA || {});
-  if (!cargos.length) {
+  var ids = Object.keys(CARGOS_DATA || {});
+  if (!ids.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">No hay cargos creados aún. Creá los cargos en la solapa <strong>Cargos</strong> primero.</td></tr>';
     return;
   }
+  ids.sort(function(a,b){ return ((CARGOS_DATA[a]||{}).nombre||a).localeCompare(((CARGOS_DATA[b]||{}).nombre||b)); });
   var inp = function(val, w) {
-    return '<input type="number" value="'+(val||0)+'" style="width:'+w+'px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">';
+    return '<input type="number" value="'+(parseFloat(val)||0)+'" style="width:'+w+'px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">';
   };
   tbody.innerHTML =
     '<tr><th>Cargo</th><th style="text-align:right">% sobre venta</th><th style="text-align:right">Mínimo garantizado</th><th style="text-align:right">Tope máximo</th><th></th></tr>' +
-    cargos.map(function(c) {
-      var com = CONFIG_COMISIONES[c.id] || {};
-      return '<tr data-cargo-id="'+escapeHTML(c.id)+'">' +
-        '<td style="font-weight:500">'+escapeHTML(c.nombre||c.id)+'</td>' +
+    ids.map(function(id) {
+      var c = CARGOS_DATA[id] || {};
+      var com = obtenerConfigComisionCargo(id) || {};
+      return '<tr data-cargo-id="'+escapeHTML(id)+'">' +
+        '<td style="font-weight:500">'+escapeHTML(c.nombre||id)+'</td>' +
         '<td style="text-align:right">'+inp(com.pct||0, 60)+'%</td>' +
         '<td style="text-align:right">'+inp(com.min||0, 80)+'</td>' +
         '<td style="text-align:right">'+inp(com.max||0, 80)+'</td>' +
@@ -28285,26 +27065,20 @@ function renderComisionesConfig() {
 }
 
 function guardarFilaConfig(btn) {
-  var tr      = btn.closest('tr');
-  var inputs  = tr.querySelectorAll('input[type=number]');
+  var tr = btn && btn.closest ? btn.closest('tr') : null;
+  if (!tr) return;
+  var inputs = tr.querySelectorAll('input[type=number]');
   var cargoId = tr.dataset.cargoId;
-  var vals    = Array.from(inputs).map(function(i){ return parseFloat(i.value)||0; });
-
-  if (!cargoId) {
-    // Legacy: fila hardcodeada vieja (ya no debería haber)
-    notify('Fila sin cargo ID — recargá la solapa de comisiones');
-    return;
-  }
-
+  var vals = Array.from(inputs).map(function(i){ return parseFloat(i.value)||0; });
+  if (!cargoId) { notify('Fila sin cargo ID — recargá la solapa de comisiones'); return; }
+  guardarConfigComisionCargo(cargoId, { pct: vals[0]||0, min: vals[1]||0, max: vals[2]||0 });
   if (window.fbDB) {
-    CONFIG_COMISIONES[cargoId] = { pct: vals[0]||0, min: vals[1]||0, max: vals[2]||0 };
     window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/comisiones'), CONFIG_COMISIONES)
-      .then(function(){ notify('✓ Comisión guardada para ' + (CARGOS_DATA[cargoId]||{}).nombre); })
+      .then(function(){ notify('✓ Comisión guardada para ' + ((CARGOS_DATA[cargoId]||{}).nombre || cargoId)); })
       .catch(function(e){ notify('Error: '+e.message); });
   } else {
     notify('Sin conexión a Firebase');
   }
-
   var icon = btn.querySelector('i');
   if (icon) { icon.className = 'ti ti-check-circle'; btn.style.color='var(--green)'; }
   setTimeout(function(){ if(icon){ icon.className='ti ti-check'; btn.style.color=''; } }, 2000);
@@ -28436,14 +27210,13 @@ function cargarConfigComisiones() {
   if (!window.fbDB) return;
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/comisiones')).then(function(snap) {
     var data = snap.val();
-    if (data) {
-      Object.assign(CONFIG_COMISIONES, data);
+    if (data && typeof data === 'object') {
+      CONFIG_COMISIONES = Object.assign({}, CONFIG_COMISIONES || {}, data);
       actualizarInputsComisiones();
       var panel = document.getElementById('cfg-comisiones');
       if (panel && panel.style.display !== 'none') renderComisionesConfig();
     }
-  });
-  // Cargar tope máximo global
+  }).catch(function(){});
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/maxComisionPct')).then(function(snap) {
     var val = snap.val();
     if (val != null) {
@@ -28479,17 +27252,15 @@ function guardarHorasExtra(btn) {
 }
 
 function actualizarInputsComisiones() {
-  var tabla = document.querySelector('.comisiones-tbl, #cfg-comisiones table');
+  var tabla = document.querySelector('#cfg-comisiones-tbody');
   if (!tabla) return;
-  var filas = tabla.querySelectorAll('tbody tr, tr:not(:first-child)');
-  var cats  = ['Cat. 39', 'Cat. 15', 'Cat. 08'];
-  filas.forEach(function(tr, i) {
-    var cat = cats[i];
-    if (!cat || !CONFIG_COMISIONES[cat]) return;
+  Array.from(tabla.querySelectorAll('tr[data-cargo-id]')).forEach(function(tr) {
+    var cargoId = tr.dataset.cargoId;
+    var cfg = obtenerConfigComisionCargo(cargoId) || {};
     var inputs = tr.querySelectorAll('input[type=number]');
-    if (inputs[0]) inputs[0].value = CONFIG_COMISIONES[cat].pct;
-    if (inputs[1]) inputs[1].value = CONFIG_COMISIONES[cat].min;
-    if (inputs[2]) inputs[2].value = CONFIG_COMISIONES[cat].max;
+    if (inputs[0]) inputs[0].value = parseFloat(cfg.pct || 0) || 0;
+    if (inputs[1]) inputs[1].value = parseFloat(cfg.min || 0) || 0;
+    if (inputs[2]) inputs[2].value = parseFloat(cfg.max || 0) || 0;
   });
 }
 
@@ -29463,7 +28234,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.318</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.319</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -31371,7 +30142,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.318';
+  SV.Cache.version = 'v20.319';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -31691,307 +30462,5 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 })();
 </script>
 
-
-<script>
-(function(){
-  function norm(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
-  function arr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
-  function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function empKeyByValue(value){
-    var raw = String(value||'').trim();
-    if(!raw) return '';
-    if(raw === '__admin__') return '__admin__';
-    var emps = arr(window.empData||{});
-    var direct = emps.find(function(e){ return String(e.fbKey||'')===raw || String(e.id||'')===raw || String(e.legajo||'')===raw; });
-    if(direct) return direct.fbKey || direct.id || '';
-    var n = norm(raw);
-    var byName = emps.find(function(e){
-      var names = [e.nombre, e.apellido, ((e.nombre||'')+' '+(e.apellido||e.apellidos||'')).trim(), e.usuario, e.email].map(norm);
-      return names.indexOf(n) >= 0;
-    });
-    return byName ? (byName.fbKey || byName.id || '') : '';
-  }
-  function ventaByKeyOrId(id){
-    id = String(id||'');
-    return arr(window.ventasList||[]).find(function(v){ return String(v.fbKey||'')===id || String(v.id||'')===id || String(v.numero||'')===id; }) || null;
-  }
-  function setSelectIfOption(sel, value){
-    if(!sel || !value) return false;
-    var exists = Array.from(sel.options||[]).some(function(o){ return String(o.value)===String(value); });
-    if(exists){ sel.value = value; return true; }
-    return false;
-  }
-  function restaurarComisionadosVenta(fbKey){
-    var v = ventaByKeyOrId(fbKey) || window._ventaEditandoOriginal;
-    if(!v) return;
-    var sel1 = document.getElementById('venta-empleado');
-    var sel2 = document.getElementById('venta-comisionado2');
-    var cb   = document.getElementById('venta-generar-comision');
-
-    var key1 = empKeyByValue(v.empleadoFbKey || v.vendedorFbKey || v.comisionado1FbKey || v.empleadoId || v.vendedorId || '');
-    if(!key1) key1 = empKeyByValue(v.empleado || v.vendedor || v.comisionado1 || '');
-    if(!key1 && (v.empleado || v.vendedor || v.usuario) && norm(v.empleado || v.vendedor || v.usuario) === norm(window.currentUser||'')) key1 = '__admin__';
-    if(key1) setSelectIfOption(sel1, key1);
-
-    var key2 = empKeyByValue(v.comisionado2FbKey || v.segundoComisionadoFbKey || v.empleado2FbKey || '');
-    if(!key2) key2 = empKeyByValue(v.comisionado2 || v.segundoComisionado || v.empleado2 || '');
-    if(key2) setSelectIfOption(sel2, key2);
-
-    if(cb) cb.checked = (v.comisionHabilitada === true || v.generarComision === true || v.liquidarComision === true);
-  }
-
-  var abrirPrev317 = window.abrirEditorVenta;
-  if(typeof abrirPrev317 === 'function'){
-    window.abrirEditorVenta = function(fbKey){
-      var r = abrirPrev317.apply(this, arguments);
-      [450,800,1200,1700].forEach(function(t){ setTimeout(function(){ restaurarComisionadosVenta(fbKey); }, t); });
-      return r;
-    };
-  }
-
-  function idsVenta(v){ return [v && v.id, v && v.fbKey, v && v.numero, v && v.idOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean); }
-  function buscarOTVenta(v){
-    if(!v) return null;
-    var raw = String(v.otFbKey || v.otId || v.ordenTrabajoId || v.ot || '').trim();
-    var vIds = idsVenta(v);
-    return arr(window.otData||[]).find(function(o){
-      if(!o) return false;
-      var otIds = [o.fbKey, o.id, o.otId, o.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      if(raw && otIds.indexOf(raw) >= 0) return true;
-      var ventaRefs = [o.ventaId, o.venta, o.ventaNumero, o.ventaFbKey].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      return vIds.some(function(id){ return ventaRefs.indexOf(id) >= 0; });
-    }) || null;
-  }
-  function clienteDeVenta(v){
-    var cid = String(v.idCliente || v.clienteId || '').trim();
-    var cname = norm(v.cliente || v.clienteNombre || '');
-    return arr(window.clientesData||[]).find(function(c){ return String(c.id||'')===cid || String(c.fbKey||'')===cid; }) ||
-      arr(window.clientesData||[]).find(function(c){ return [c.nombre,c.empresa,c.razonSocial,c.cliente,((c.nombre||'')+' '+(c.apellido||c.apellidos||'')).trim()].map(norm).indexOf(cname)>=0; }) || null;
-  }
-  function direccionClienteVenta(v){
-    var c = clienteDeVenta(v) || {};
-    return c.direccion || c.dir || c.domicilio || c.domicilioInstalacion || c.direccionInstalacion || v.dir || v.direccion || 'Sin definir';
-  }
-  function nextOTId(){
-    var max = 0;
-    arr(window.otData||[]).forEach(function(o){
-      var m = String((o&&o.id)||(o&&o.numero)||'').match(/OT[-\s]?(\d+)/i);
-      if(m) max = Math.max(max, parseInt(m[1],10)||0);
-    });
-    return 'OT-' + String(max + 1).padStart(3,'0');
-  }
-  function checksBase(){
-    var c = window.CHECKLISTS || {};
-    return {
-      preparacion: arr(c.preparacion||[]).map(function(){return false;}),
-      instalacion: arr(c.instalacion||[]).map(function(){return false;}),
-      verificacion: arr(c.verificacion||[]).map(function(){return false;})
-    };
-  }
-  function crearOTParaVenta(v){
-    if(!v || !window.fbDB) { if(typeof notify==='function') notify('Sin conexión o venta no encontrada'); return; }
-    var otExistente = buscarOTVenta(v);
-    if(otExistente) return abrirOTVenta(otExistente);
-    var idOT = nextOTId();
-    var ot = {
-      id: idOT,
-      ventaId: v.id || '',
-      ventaFbKey: v.fbKey || '',
-      cliente: v.cliente || v.clienteNombre || '',
-      tecnico: 'Sin asignar',
-      fecha: '',
-      hora: '09:00',
-      duracion: '2 horas',
-      dir: direccionClienteVenta(v),
-      obs: 'Creada manualmente desde detalle de venta ' + (v.id || ''),
-      estado: 'pendiente',
-      progreso: 0,
-      tipoVisita: 'Instalación nueva',
-      esRepetida: false,
-      visitaNro: 1,
-      checks: checksBase(),
-      items: arr(v.items||[]).map(function(it){ return { cod: it.cod||'', desc: it.desc||it.nombre||'', vendida: parseFloat(it.qty||it.cantidad)||1, instalada: 0 }; }),
-      audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: window.currentUser || 'Sistema', accion: 'OT creada desde detalle de venta ' + (v.id || '') }],
-      ts: Date.now()
-    };
-    var prom = (typeof window.fbGuardarOT === 'function') ? window.fbGuardarOT(ot) : window.fbPush(window.fbRef(window.fbDB, window.FB_PATHS.ordenesTrabajo), ot).then(function(ref){ return ref.key; });
-    prom.then(function(key){
-      if(key) ot.fbKey = key;
-      if(v.fbKey && window.FB_PATHS && window.FB_PATHS.ventas){
-        window.fbUpdate(window.fbRef(window.fbDB, window.FB_PATHS.ventas + '/' + v.fbKey), { otId: idOT, otFbKey: key || '', ordenTrabajoId: idOT }).catch(function(){});
-      }
-      if(typeof notify === 'function') notify('✓ OT creada y asociada');
-      abrirOTVenta(ot);
-    }).catch(function(e){ if(typeof notify==='function') notify('Error creando OT: ' + e.message); });
-  }
-  function abrirOTVenta(ot){
-    if(!ot) return;
-    if(typeof window.showPage === 'function') window.showPage('ordentrabajo', document.querySelector('[onclick*=ordentrabajo]'));
-    setTimeout(function(){ if(typeof window.verOT === 'function') window.verOT(ot.fbKey || ot.id || ot.numero); }, 450);
-  }
-  window.abrirOTDesdeDetalleVenta = function(ventaId){
-    var v = ventaByKeyOrId(ventaId || window._ventaDetActualId || window.ventaActualId);
-    if(!v) { if(typeof notify==='function') notify('Venta no encontrada'); return; }
-    var ot = buscarOTVenta(v);
-    if(ot) { abrirOTVenta(ot); return; }
-    if(confirm('Esta venta no tiene una Orden de Trabajo asociada.\n\n¿Querés crearla y asociarla ahora?')) crearOTParaVenta(v);
-  };
-
-  function estadoOTBadge(ot){
-    if(!ot) return '<span style="color:var(--amber);font-size:18px;font-weight:600">Crear OT</span>';
-    var estado = String(ot.estado||'pendiente').toLowerCase();
-    var color = estado.indexOf('complet')>=0 ? 'var(--green)' : (estado.indexOf('progreso')>=0 ? 'var(--blue)' : 'var(--amber)');
-    var id = ot.id || ot.numero || 'OT vinculada';
-    return '<span style="color:'+color+';font-size:18px;font-weight:700">'+esc(id)+'</span>';
-  }
-  function mejorarTarjetaOTDetalle(v){
-    var cont = document.getElementById('venta-detalle-seguimiento');
-    if(!cont || !v) return;
-    var cards = Array.from(cont.querySelectorAll('.metric'));
-    var card = cards.find(function(c){ var l=c.querySelector('.m-label'); return l && norm(l.textContent)==='ot asociada'; });
-    if(!card) return;
-    var ot = buscarOTVenta(v);
-    var val = card.querySelector('.m-value');
-    var sub = card.querySelector('.m-sub');
-    if(val) val.innerHTML = estadoOTBadge(ot);
-    if(sub) sub.textContent = ot ? 'clic para abrir orden' : 'clic para crear y asociar';
-    card.style.cursor = 'pointer';
-    card.title = ot ? 'Abrir orden de trabajo' : 'Crear orden de trabajo para esta venta';
-    card.onclick = function(){ window.abrirOTDesdeDetalleVenta(v.fbKey || v.id); };
-  }
-  var renderPrev317 = window.renderDetalleVenta;
-  if(typeof renderPrev317 === 'function'){
-    window.renderDetalleVenta = function(v){
-      window._ventaDetalleActual = v;
-      var r = renderPrev317.apply(this, arguments);
-      setTimeout(function(){ mejorarTarjetaOTDetalle(v); }, 0);
-      return r;
-    };
-  }
-})();
-</script>
-
-
-<script>
-(function(){
-  function esc318(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function norm318(v){ return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
-  function cargos318(){ return window.CARGOS_DATA || {}; }
-  function aliasesCargo318(id, cargo){
-    cargo = cargo || {};
-    var nombre = cargo.nombre || id || '';
-    var base = cargo.categoriaBase || cargo.categoria || '';
-    var arr = [id, nombre, base, norm318(id), norm318(nombre), norm318(base)];
-    var b = norm318(base), n = norm318(nombre), i = norm318(id);
-    if(b === 'tecnico_c' || n === 'tecnico_c' || i === 'tecnico_c') arr.push('Cat. 39','cat_39','TECNICO C','tecnico_c');
-    if(b === 'tecnico_b' || n === 'tecnico_b' || i === 'tecnico_b') arr.push('Cat. 39','cat_39','TECNICO B','tecnico_b');
-    if(b === 'tecnico_a' || n === 'tecnico_a' || i === 'tecnico_a') arr.push('Cat. 15','cat_15','TECNICO A','tecnico_a');
-    if(b === 'adminis' || n.indexOf('administrativo')>=0 || i.indexOf('administrativo')>=0) arr.push('Cat. 08','cat_08','ADMINIS','administrativo');
-    if(b === 'inicial' || n.indexOf('inicial')>=0 || i.indexOf('inicial')>=0) arr.push('Cat. 08','cat_08','INICIAL','inicial');
-    if(b === 'a_temp' || b === 'temp' || n.indexOf('temporal')>=0 || i.indexOf('temporal')>=0) arr.push('Cat. 08','cat_08','A-TEMP','temporal');
-    return Array.from(new Set(arr.filter(Boolean)));
-  }
-  window._resolverComisionCargo = function(id){
-    var cfgs = window.CONFIG_COMISIONES || {};
-    var cargo = cargos318()[id] || {};
-    var aliases = aliasesCargo318(id, cargo);
-    for(var a=0; a<aliases.length; a++){
-      var k = aliases[a];
-      if(cfgs[k]) return { pct:parseFloat(cfgs[k].pct)||0, min:parseFloat(cfgs[k].min)||0, max:parseFloat(cfgs[k].max)||0 };
-    }
-    return { pct:0, min:0, max:0 };
-  };
-  window._normalizarConfigComisiones = function(){
-    if(!window.CONFIG_COMISIONES) window.CONFIG_COMISIONES = {};
-    Object.keys(cargos318()).forEach(function(id){
-      if(!window.CONFIG_COMISIONES[id]) window.CONFIG_COMISIONES[id] = window._resolverComisionCargo(id);
-    });
-    return window.CONFIG_COMISIONES;
-  };
-  window.renderComisionesConfig = function(){
-    var tbody = document.getElementById('cfg-comisiones-tbody');
-    if(!tbody) return;
-    window._normalizarConfigComisiones();
-    var lista = Object.keys(cargos318()).map(function(id){ var c=cargos318()[id]||{}; return Object.assign({id:id}, c); })
-      .sort(function(a,b){ return String(a.nombre||a.id).localeCompare(String(b.nombre||b.id)); });
-    if(!lista.length){
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">No hay cargos creados aún. Creá los cargos en la solapa <strong>Cargos</strong> primero.</td></tr>';
-      return;
-    }
-    function inp(val,w){ return '<input type="number" value="'+(parseFloat(val)||0)+'" style="width:'+w+'px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">'; }
-    tbody.innerHTML = '<tr><th>Cargo</th><th style="text-align:right">% sobre venta</th><th style="text-align:right">Mínimo garantizado</th><th style="text-align:right">Tope máximo</th><th></th></tr>' + lista.map(function(c){
-      var com = window._resolverComisionCargo(c.id);
-      return '<tr data-cargo-id="'+esc318(c.id)+'">'+
-        '<td style="font-weight:500">'+esc318(c.nombre||c.id)+'</td>'+
-        '<td style="text-align:right">'+inp(com.pct,60)+'%</td>'+
-        '<td style="text-align:right">'+inp(com.min,90)+'</td>'+
-        '<td style="text-align:right">'+inp(com.max,90)+'</td>'+
-        '<td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>'+
-      '</tr>';
-    }).join('');
-  };
-  window.guardarFilaConfig = function(btn){
-    var tr = btn && btn.closest ? btn.closest('tr') : null;
-    if(!tr) return;
-    var cargoId = tr.dataset.cargoId;
-    var inputs = tr.querySelectorAll('input[type=number]');
-    var vals = Array.from(inputs).map(function(i){ return parseFloat(i.value)||0; });
-    if(!cargoId){ if(typeof notify==='function') notify('Fila sin cargo ID — recargá la solapa'); return; }
-    if(!window.CONFIG_COMISIONES) window.CONFIG_COMISIONES = {};
-    window.CONFIG_COMISIONES[cargoId] = { pct:vals[0]||0, min:vals[1]||0, max:vals[2]||0 };
-    window._normalizarConfigComisiones();
-    if(!window.fbDB){ if(typeof notify==='function') notify('Sin conexión a Firebase'); return; }
-    window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/comisiones'), window.CONFIG_COMISIONES).then(function(){
-      if(typeof notify==='function') notify('✓ Comisión guardada para ' + ((cargos318()[cargoId]||{}).nombre || cargoId));
-    }).catch(function(e){ if(typeof notify==='function') notify('Error: '+e.message); });
-    var icon = btn.querySelector('i');
-    if(icon){ icon.className='ti ti-check-circle'; btn.style.color='var(--green)'; setTimeout(function(){ icon.className='ti ti-check'; btn.style.color=''; },1600); }
-  };
-  window.cargarConfigComisiones = function(){
-    if(!window.fbDB) return;
-    window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/comisiones')).then(function(snap){
-      var data = snap.val();
-      if(data) window.CONFIG_COMISIONES = Object.assign({}, window.CONFIG_COMISIONES || {}, data);
-      window._normalizarConfigComisiones();
-      var panel = document.getElementById('cfg-comisiones');
-      if(panel && panel.style.display !== 'none') window.renderComisionesConfig();
-    }).catch(function(){ window._normalizarConfigComisiones(); });
-    window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/maxComisionPct')).then(function(snap){
-      var val = snap.val();
-      if(val != null){
-        if(window.APROBACION_CONFIG) window.APROBACION_CONFIG.maxComisionPct = parseFloat(val) || 10;
-        var el = document.getElementById('cfg-max-comision-pct'); if(el) el.value = parseFloat(val)||10;
-      }
-    }).catch(function(){});
-  };
-  window._pctComisionEmpleadoVenta = function(emp){
-    if(!emp) return 0;
-    var directo = parseFloat(emp.pctComisionPropio || emp.pctComision || emp.comision || 0) || 0;
-    if(directo > 0) return directo;
-    var cargoId = emp.cargoId || '';
-    if(!cargoId){
-      var cargoTxt = norm318(emp.cargo || emp.categoria || '');
-      Object.keys(cargos318()).some(function(id){ var c=cargos318()[id]||{}; if(norm318(c.nombre)===cargoTxt || norm318(c.categoriaBase)===cargoTxt || norm318(id)===cargoTxt){ cargoId=id; return true; } return false; });
-    }
-    return parseFloat((window._resolverComisionCargo(cargoId)||{}).pct)||0;
-  };
-  window.calcularComisionEmpleado = function(emp, mesAMM){
-    emp = emp || {};
-    var pct = window._pctComisionEmpleadoVenta(emp);
-    var cargoId = emp.cargoId || '';
-    var cfg = window._resolverComisionCargo(cargoId);
-    var mes = mesAMM || new Date().toISOString().slice(0,7);
-    var ventas = (window.ventasList||[]).filter(function(v){
-      return (v.empleado===emp.nombre || v.empleadoId===emp.fbKey || v.empleadoId===emp.id) && (v.fecha||'').slice(0,7) === mes;
-    });
-    var totalVentas = ventas.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
-    var sinTope = totalVentas * pct / 100;
-    var max = parseFloat(cfg.max)||0;
-    if(max <= 0) max = 999999999;
-    var final = Math.max(parseFloat(cfg.min)||0, Math.min(max, sinTope));
-    return { totalVentas:totalVentas, cantVentas:ventas.length, pct:pct, comision:final, sinTope:sinTope };
-  };
-})();
-</script>
 </body>
 </html>
