@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.313 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.314 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -966,6 +966,9 @@ tr:hover td{color:var(--text)}
       </div>
 
       <div class="s-section">Post Venta</div>
+      <div class="nav-item" onclick="showPage('agenda',this)">
+        <i class="ti ti-calendar-event"></i>Agenda
+      </div>
       <div class="nav-item" onclick="showPage('ordentrabajo',this)">
         <i class="ti ti-clipboard-list"></i>Órdenes de trabajo
       </div>
@@ -1689,9 +1692,9 @@ tr:hover td{color:var(--text)}
         <!-- LISTA DE OT -->
         <div id="ot-list-view">
           <div class="metrics col3">
-            <div class="metric"><div class="metric-label">OT abiertas</div><div class="metric-value" id="ot-met-abiertas">0</div><div class="metric-sub">en progreso</div></div>
-            <div class="metric"><div class="metric-label">Para hoy</div><div class="metric-value" id="ot-met-hoy" style="color:var(--blue)">0</div><div class="metric-sub">programadas</div></div>
-            <div class="metric"><div class="metric-label">Completadas</div><div class="metric-value" id="ot-met-comp" style="color:var(--green)">0</div><div class="metric-sub">total</div></div>
+            <div class="metric" style="cursor:pointer" onclick="otFiltroRapido314('abiertas')"><div class="metric-label">OT abiertas</div><div class="metric-value" id="ot-met-abiertas">0</div><div class="metric-sub">en progreso</div></div>
+            <div class="metric" style="cursor:pointer" onclick="otFiltroRapido314('hoy')"><div class="metric-label">Para hoy</div><div class="metric-value" id="ot-met-hoy" style="color:var(--blue)">0</div><div class="metric-sub">programadas</div></div>
+            <div class="metric" style="cursor:pointer" onclick="otFiltroRapido314('completadas')"><div class="metric-label">Completadas</div><div class="metric-value" id="ot-met-comp" style="color:var(--green)">0</div><div class="metric-sub">total</div></div>
           </div>
 
           <!-- Vista técnico: tablero del día -->
@@ -1737,13 +1740,19 @@ tr:hover td{color:var(--text)}
               <div class="card-head">
                 <span class="card-title">Órdenes de trabajo</span>
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
-                  <input class="search-input" style="width:160px" placeholder="Buscar cliente o N°..." oninput="buscarOT(this.value)">
+                  <input class="search-input" style="width:160px" id="ot-busq" placeholder="Buscar cliente o N°..." oninput="buscarOT(this.value)">
                   <select class="search-input" style="width:140px" onchange="filtrarOT(this.value)" id="ot-filtro-estado">
                     <option value="">Todos los estados</option>
                     <option value="pendiente" selected>Pendiente</option>
                     <option value="en_progreso">En progreso</option>
                     <option value="completada">Completada</option>
                     <option value="con_observaciones">Con observaciones</option>
+                  </select>
+                  <select class="search-input" style="width:135px" onchange="renderOTTabla()" id="ot-filtro-periodo">
+                    <option value="todos">Todas las fechas</option>
+                    <option value="hoy">Hoy</option>
+                    <option value="semana">Esta semana</option>
+                    <option value="mes">Este mes</option>
                   </select>
                   <select class="search-input" style="width:140px" onchange="filtrarOTTecnico(this.value)" id="ot-filtro-tecnico">
                     <option value="">Todos los técnicos</option>
@@ -9268,7 +9277,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.313-firebase',
+  VERSION: 'v20.314-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10738,7 +10747,7 @@ function confirmarVenta() {
     registrarActividad('Venta creada', nuevaVenta.id + ' — ' + cli + ' — $' + Math.round(nuevaVenta.total).toLocaleString('es-AR'));
   }
 
-  if (typeof generarOTdesdeVenta === 'function') generarOTdesdeVenta(nuevaVenta.id, cli, dir);
+  if (!nuevaVenta.ventaEditada && typeof generarOTdesdeVenta === 'function') generarOTdesdeVenta(nuevaVenta.id, cli, dir);
 
   // Reset del formulario
   setTimeout(function() {
@@ -13324,7 +13333,135 @@ function _imprimirOTReal() {
       (ot.firmaClienteUrl ? '<img src="'+ot.firmaClienteUrl+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
       '<div class="firma-line">Firma del cliente'+(ot.firmaClienteUrl?' ✓':''+(ot.fechaFirma?' · '+ot.fechaFirma:''))+'</div></div>'+
       '<div><div style="height:60px"></div><div class="firma-line">Firma del técnico</div></div></div>'+
-    '\n</body></html>');
+    '\n
+<script>
+(function(){
+  function e(id){ return document.getElementById(id); }
+  function arr(v){ return Array.isArray(v) ? v : Object.values(v || {}); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function hoyISO(){ return new Date().toISOString().slice(0,10); }
+  function fechaISO(v){
+    if(!v) return '';
+    var s = String(v).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(m) return m[3] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+    return s.slice(0,10);
+  }
+  function inicioSemana(d){
+    var x = new Date(d + 'T00:00:00');
+    var day = x.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff);
+    return x.toISOString().slice(0,10);
+  }
+  function matchPeriodoOT(o, periodo){
+    if(!periodo || periodo === 'todos') return true;
+    var f = fechaISO(o && o.fecha);
+    if(!f) return false;
+    var h = hoyISO();
+    if(periodo === 'hoy') return f === h;
+    if(periodo === 'mes') return f.slice(0,7) === h.slice(0,7);
+    if(periodo === 'semana') return f >= inicioSemana(h) && f <= h;
+    return true;
+  }
+  function estadoNormal(o){ return String(o && o.estado || '').toLowerCase(); }
+  function esCompletada(o){ return estadoNormal(o) === 'completada'; }
+
+  window.otFiltroRapido314 = function(tipo){
+    var est = e('ot-filtro-estado');
+    var per = e('ot-filtro-periodo');
+    var tec = e('ot-filtro-tecnico');
+    var busq = e('ot-busq');
+    if(busq) busq.value = '';
+    if(tec) tec.value = '';
+    window._otFiltroEspecial314 = '';
+    if(tipo === 'abiertas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial314 = 'abiertas'; }
+    if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
+    if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
+    if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
+  };
+
+  var prevGenerarOT = window.generarOTdesdeVenta;
+  if(typeof prevGenerarOT === 'function' && !prevGenerarOT._sv314){
+    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
+      var existe = arr(window.otData).find(function(o){ return String(o && o.ventaId || '') === String(ventaId || ''); });
+      if(existe) return existe.id || existe.fbKey || '';
+      return prevGenerarOT.apply(this, arguments);
+    };
+    window.generarOTdesdeVenta._sv314 = true;
+  }
+
+  var prevRenderAdmin = window._renderOTVistaAdmin;
+  if(typeof prevRenderAdmin === 'function' && !prevRenderAdmin._sv314){
+    window._renderOTVistaAdmin = function(filtro, hoy){
+      var tbody = e('ot-tbody');
+      if(!tbody) return prevRenderAdmin.apply(this, arguments);
+      var busq = (e('ot-busq') || {}).value || '';
+      var filtroTec = (e('ot-filtro-tecnico') || {}).value || '';
+      var periodo = (e('ot-filtro-periodo') || {}).value || 'todos';
+      var selTec = e('ot-filtro-tecnico');
+      if (selTec && selTec.options.length <= 1) {
+        var tecDeOTs = new Set(arr(window.otData).map(function(o){ return o && o.tecnico; }).filter(Boolean));
+        var tecDeEmps = arr(window.empData).filter(function(x){ return x && x.activo !== false; }).map(function(x){ return x.nombre; });
+        Array.from(new Set(Array.from(tecDeOTs).concat(tecDeEmps).filter(Boolean))).sort().forEach(function(t){
+          var opt = document.createElement('option'); opt.value=t; opt.textContent=t; selTec.appendChild(opt);
+        });
+      }
+      var especial = window._otFiltroEspecial314 || '';
+      var rows = arr(window.otData).filter(function(o){
+        if(!o) return false;
+        var est = estadoNormal(o);
+        var matchFiltro = especial === 'abiertas' ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
+        var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
+        var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
+        var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;
+        return matchFiltro && matchTec && matchBusq && matchPeriodoOT(o, periodo);
+      });
+      hoy = hoy || hoyISO();
+      rows.sort(function(a,b){
+        function score(o){
+          var f = fechaISO(o && o.fecha);
+          if(o && o.prioridad) return 0;
+          if(f && f < hoy && !esCompletada(o)) return 1;
+          if(f === hoy) return 2;
+          if(f && f > hoy) return 3;
+          return 4;
+        }
+        return score(a)-score(b) || String(fechaISO(a.fecha)||'9999').localeCompare(String(fechaISO(b.fecha)||'9999'));
+      });
+      tbody.innerHTML = rows.map(function(o){
+        var f = fechaISO(o.fecha);
+        var esPrioridad = o.prioridad === true || o.prioridad === 'true';
+        var esAtrasada = f && f < hoy && !esCompletada(o);
+        var rowColor = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : f === hoy ? 'background:rgba(245,158,11,.04)' : '';
+        var visitasPrev = (typeof window._contarVisitasPrevias === 'function') ? window._contarVisitasPrevias(o.cliente, o.dir, o.id) : 0;
+        var iconoRep = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+        return '<tr style="'+rowColor+'">' +
+          '<td style="text-align:center">'+(esPrioridad?'<i class="ti ti-flame" style="color:var(--red);font-size:14px"></i>':'')+(esAtrasada&&!esPrioridad?'<i class="ti ti-clock" style="color:var(--amber);font-size:14px"></i>':'')+'</td>' +
+          '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+esc(o.id||'')+'</td>' +
+          '<td>'+esc(o.cliente||'—')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tecnico||'Sin asignar')+'</td>' +
+          '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':f===hoy?'var(--amber)':'var(--text3)')+'">'+esc(o.fecha||'Sin fecha')+(o.hora?' '+esc(o.hora):'')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tipoVisita||o.tipo||'—')+'</td>' +
+          '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
+          '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o.estado) : esc(o.estado||'')) +'</td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button></td>' +
+        '</tr>';
+      }).join('');
+      if(!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
+    };
+    window._renderOTVistaAdmin._sv314 = true;
+  }
+
+  var prevFiltrarOT = window.filtrarOT;
+  window.filtrarOT = function(v){ window._otFiltroEspecial314 = ''; if(typeof window.renderOTTabla === 'function') window.renderOTTabla(v); };
+  window.buscarOT = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+  window.filtrarOTTecnico = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+})();
+</script>
+
+</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
@@ -13804,7 +13941,135 @@ function imprimirSeccion(pageId, titulo) {
     '<div style="text-align:right"><div style="font-size:16px;font-weight:600">'+titulo+'</div>' +
     '<div style="font-size:12px;color:#666">'+new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})+'</div></div></div>' +
     page.innerHTML +
-    '\n</body></html>');
+    '\n
+<script>
+(function(){
+  function e(id){ return document.getElementById(id); }
+  function arr(v){ return Array.isArray(v) ? v : Object.values(v || {}); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function hoyISO(){ return new Date().toISOString().slice(0,10); }
+  function fechaISO(v){
+    if(!v) return '';
+    var s = String(v).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(m) return m[3] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+    return s.slice(0,10);
+  }
+  function inicioSemana(d){
+    var x = new Date(d + 'T00:00:00');
+    var day = x.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff);
+    return x.toISOString().slice(0,10);
+  }
+  function matchPeriodoOT(o, periodo){
+    if(!periodo || periodo === 'todos') return true;
+    var f = fechaISO(o && o.fecha);
+    if(!f) return false;
+    var h = hoyISO();
+    if(periodo === 'hoy') return f === h;
+    if(periodo === 'mes') return f.slice(0,7) === h.slice(0,7);
+    if(periodo === 'semana') return f >= inicioSemana(h) && f <= h;
+    return true;
+  }
+  function estadoNormal(o){ return String(o && o.estado || '').toLowerCase(); }
+  function esCompletada(o){ return estadoNormal(o) === 'completada'; }
+
+  window.otFiltroRapido314 = function(tipo){
+    var est = e('ot-filtro-estado');
+    var per = e('ot-filtro-periodo');
+    var tec = e('ot-filtro-tecnico');
+    var busq = e('ot-busq');
+    if(busq) busq.value = '';
+    if(tec) tec.value = '';
+    window._otFiltroEspecial314 = '';
+    if(tipo === 'abiertas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial314 = 'abiertas'; }
+    if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
+    if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
+    if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
+  };
+
+  var prevGenerarOT = window.generarOTdesdeVenta;
+  if(typeof prevGenerarOT === 'function' && !prevGenerarOT._sv314){
+    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
+      var existe = arr(window.otData).find(function(o){ return String(o && o.ventaId || '') === String(ventaId || ''); });
+      if(existe) return existe.id || existe.fbKey || '';
+      return prevGenerarOT.apply(this, arguments);
+    };
+    window.generarOTdesdeVenta._sv314 = true;
+  }
+
+  var prevRenderAdmin = window._renderOTVistaAdmin;
+  if(typeof prevRenderAdmin === 'function' && !prevRenderAdmin._sv314){
+    window._renderOTVistaAdmin = function(filtro, hoy){
+      var tbody = e('ot-tbody');
+      if(!tbody) return prevRenderAdmin.apply(this, arguments);
+      var busq = (e('ot-busq') || {}).value || '';
+      var filtroTec = (e('ot-filtro-tecnico') || {}).value || '';
+      var periodo = (e('ot-filtro-periodo') || {}).value || 'todos';
+      var selTec = e('ot-filtro-tecnico');
+      if (selTec && selTec.options.length <= 1) {
+        var tecDeOTs = new Set(arr(window.otData).map(function(o){ return o && o.tecnico; }).filter(Boolean));
+        var tecDeEmps = arr(window.empData).filter(function(x){ return x && x.activo !== false; }).map(function(x){ return x.nombre; });
+        Array.from(new Set(Array.from(tecDeOTs).concat(tecDeEmps).filter(Boolean))).sort().forEach(function(t){
+          var opt = document.createElement('option'); opt.value=t; opt.textContent=t; selTec.appendChild(opt);
+        });
+      }
+      var especial = window._otFiltroEspecial314 || '';
+      var rows = arr(window.otData).filter(function(o){
+        if(!o) return false;
+        var est = estadoNormal(o);
+        var matchFiltro = especial === 'abiertas' ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
+        var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
+        var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
+        var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;
+        return matchFiltro && matchTec && matchBusq && matchPeriodoOT(o, periodo);
+      });
+      hoy = hoy || hoyISO();
+      rows.sort(function(a,b){
+        function score(o){
+          var f = fechaISO(o && o.fecha);
+          if(o && o.prioridad) return 0;
+          if(f && f < hoy && !esCompletada(o)) return 1;
+          if(f === hoy) return 2;
+          if(f && f > hoy) return 3;
+          return 4;
+        }
+        return score(a)-score(b) || String(fechaISO(a.fecha)||'9999').localeCompare(String(fechaISO(b.fecha)||'9999'));
+      });
+      tbody.innerHTML = rows.map(function(o){
+        var f = fechaISO(o.fecha);
+        var esPrioridad = o.prioridad === true || o.prioridad === 'true';
+        var esAtrasada = f && f < hoy && !esCompletada(o);
+        var rowColor = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : f === hoy ? 'background:rgba(245,158,11,.04)' : '';
+        var visitasPrev = (typeof window._contarVisitasPrevias === 'function') ? window._contarVisitasPrevias(o.cliente, o.dir, o.id) : 0;
+        var iconoRep = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+        return '<tr style="'+rowColor+'">' +
+          '<td style="text-align:center">'+(esPrioridad?'<i class="ti ti-flame" style="color:var(--red);font-size:14px"></i>':'')+(esAtrasada&&!esPrioridad?'<i class="ti ti-clock" style="color:var(--amber);font-size:14px"></i>':'')+'</td>' +
+          '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+esc(o.id||'')+'</td>' +
+          '<td>'+esc(o.cliente||'—')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tecnico||'Sin asignar')+'</td>' +
+          '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':f===hoy?'var(--amber)':'var(--text3)')+'">'+esc(o.fecha||'Sin fecha')+(o.hora?' '+esc(o.hora):'')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tipoVisita||o.tipo||'—')+'</td>' +
+          '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
+          '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o.estado) : esc(o.estado||'')) +'</td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button></td>' +
+        '</tr>';
+      }).join('');
+      if(!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
+    };
+    window._renderOTVistaAdmin._sv314 = true;
+  }
+
+  var prevFiltrarOT = window.filtrarOT;
+  window.filtrarOT = function(v){ window._otFiltroEspecial314 = ''; if(typeof window.renderOTTabla === 'function') window.renderOTTabla(v); };
+  window.buscarOT = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+  window.filtrarOTTecnico = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+})();
+</script>
+
+</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
@@ -14116,7 +14381,135 @@ function imprimirVentaActual() {
       '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>' +
     '</div>' +
 
-    '\n</body></html>');
+    '\n
+<script>
+(function(){
+  function e(id){ return document.getElementById(id); }
+  function arr(v){ return Array.isArray(v) ? v : Object.values(v || {}); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function hoyISO(){ return new Date().toISOString().slice(0,10); }
+  function fechaISO(v){
+    if(!v) return '';
+    var s = String(v).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(m) return m[3] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+    return s.slice(0,10);
+  }
+  function inicioSemana(d){
+    var x = new Date(d + 'T00:00:00');
+    var day = x.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff);
+    return x.toISOString().slice(0,10);
+  }
+  function matchPeriodoOT(o, periodo){
+    if(!periodo || periodo === 'todos') return true;
+    var f = fechaISO(o && o.fecha);
+    if(!f) return false;
+    var h = hoyISO();
+    if(periodo === 'hoy') return f === h;
+    if(periodo === 'mes') return f.slice(0,7) === h.slice(0,7);
+    if(periodo === 'semana') return f >= inicioSemana(h) && f <= h;
+    return true;
+  }
+  function estadoNormal(o){ return String(o && o.estado || '').toLowerCase(); }
+  function esCompletada(o){ return estadoNormal(o) === 'completada'; }
+
+  window.otFiltroRapido314 = function(tipo){
+    var est = e('ot-filtro-estado');
+    var per = e('ot-filtro-periodo');
+    var tec = e('ot-filtro-tecnico');
+    var busq = e('ot-busq');
+    if(busq) busq.value = '';
+    if(tec) tec.value = '';
+    window._otFiltroEspecial314 = '';
+    if(tipo === 'abiertas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial314 = 'abiertas'; }
+    if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
+    if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
+    if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
+  };
+
+  var prevGenerarOT = window.generarOTdesdeVenta;
+  if(typeof prevGenerarOT === 'function' && !prevGenerarOT._sv314){
+    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
+      var existe = arr(window.otData).find(function(o){ return String(o && o.ventaId || '') === String(ventaId || ''); });
+      if(existe) return existe.id || existe.fbKey || '';
+      return prevGenerarOT.apply(this, arguments);
+    };
+    window.generarOTdesdeVenta._sv314 = true;
+  }
+
+  var prevRenderAdmin = window._renderOTVistaAdmin;
+  if(typeof prevRenderAdmin === 'function' && !prevRenderAdmin._sv314){
+    window._renderOTVistaAdmin = function(filtro, hoy){
+      var tbody = e('ot-tbody');
+      if(!tbody) return prevRenderAdmin.apply(this, arguments);
+      var busq = (e('ot-busq') || {}).value || '';
+      var filtroTec = (e('ot-filtro-tecnico') || {}).value || '';
+      var periodo = (e('ot-filtro-periodo') || {}).value || 'todos';
+      var selTec = e('ot-filtro-tecnico');
+      if (selTec && selTec.options.length <= 1) {
+        var tecDeOTs = new Set(arr(window.otData).map(function(o){ return o && o.tecnico; }).filter(Boolean));
+        var tecDeEmps = arr(window.empData).filter(function(x){ return x && x.activo !== false; }).map(function(x){ return x.nombre; });
+        Array.from(new Set(Array.from(tecDeOTs).concat(tecDeEmps).filter(Boolean))).sort().forEach(function(t){
+          var opt = document.createElement('option'); opt.value=t; opt.textContent=t; selTec.appendChild(opt);
+        });
+      }
+      var especial = window._otFiltroEspecial314 || '';
+      var rows = arr(window.otData).filter(function(o){
+        if(!o) return false;
+        var est = estadoNormal(o);
+        var matchFiltro = especial === 'abiertas' ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
+        var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
+        var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
+        var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;
+        return matchFiltro && matchTec && matchBusq && matchPeriodoOT(o, periodo);
+      });
+      hoy = hoy || hoyISO();
+      rows.sort(function(a,b){
+        function score(o){
+          var f = fechaISO(o && o.fecha);
+          if(o && o.prioridad) return 0;
+          if(f && f < hoy && !esCompletada(o)) return 1;
+          if(f === hoy) return 2;
+          if(f && f > hoy) return 3;
+          return 4;
+        }
+        return score(a)-score(b) || String(fechaISO(a.fecha)||'9999').localeCompare(String(fechaISO(b.fecha)||'9999'));
+      });
+      tbody.innerHTML = rows.map(function(o){
+        var f = fechaISO(o.fecha);
+        var esPrioridad = o.prioridad === true || o.prioridad === 'true';
+        var esAtrasada = f && f < hoy && !esCompletada(o);
+        var rowColor = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : f === hoy ? 'background:rgba(245,158,11,.04)' : '';
+        var visitasPrev = (typeof window._contarVisitasPrevias === 'function') ? window._contarVisitasPrevias(o.cliente, o.dir, o.id) : 0;
+        var iconoRep = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+        return '<tr style="'+rowColor+'">' +
+          '<td style="text-align:center">'+(esPrioridad?'<i class="ti ti-flame" style="color:var(--red);font-size:14px"></i>':'')+(esAtrasada&&!esPrioridad?'<i class="ti ti-clock" style="color:var(--amber);font-size:14px"></i>':'')+'</td>' +
+          '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+esc(o.id||'')+'</td>' +
+          '<td>'+esc(o.cliente||'—')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tecnico||'Sin asignar')+'</td>' +
+          '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':f===hoy?'var(--amber)':'var(--text3)')+'">'+esc(o.fecha||'Sin fecha')+(o.hora?' '+esc(o.hora):'')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tipoVisita||o.tipo||'—')+'</td>' +
+          '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
+          '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o.estado) : esc(o.estado||'')) +'</td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button></td>' +
+        '</tr>';
+      }).join('');
+      if(!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
+    };
+    window._renderOTVistaAdmin._sv314 = true;
+  }
+
+  var prevFiltrarOT = window.filtrarOT;
+  window.filtrarOT = function(v){ window._otFiltroEspecial314 = ''; if(typeof window.renderOTTabla === 'function') window.renderOTTabla(v); };
+  window.buscarOT = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+  window.filtrarOTTecnico = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+})();
+</script>
+
+</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 800);
 }
@@ -16683,7 +17076,135 @@ function imprimirPresupuesto() {
       '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>'+
     '</div>'+
 
-    '\n</body></html>');
+    '\n
+<script>
+(function(){
+  function e(id){ return document.getElementById(id); }
+  function arr(v){ return Array.isArray(v) ? v : Object.values(v || {}); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function hoyISO(){ return new Date().toISOString().slice(0,10); }
+  function fechaISO(v){
+    if(!v) return '';
+    var s = String(v).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(m) return m[3] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+    return s.slice(0,10);
+  }
+  function inicioSemana(d){
+    var x = new Date(d + 'T00:00:00');
+    var day = x.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff);
+    return x.toISOString().slice(0,10);
+  }
+  function matchPeriodoOT(o, periodo){
+    if(!periodo || periodo === 'todos') return true;
+    var f = fechaISO(o && o.fecha);
+    if(!f) return false;
+    var h = hoyISO();
+    if(periodo === 'hoy') return f === h;
+    if(periodo === 'mes') return f.slice(0,7) === h.slice(0,7);
+    if(periodo === 'semana') return f >= inicioSemana(h) && f <= h;
+    return true;
+  }
+  function estadoNormal(o){ return String(o && o.estado || '').toLowerCase(); }
+  function esCompletada(o){ return estadoNormal(o) === 'completada'; }
+
+  window.otFiltroRapido314 = function(tipo){
+    var est = e('ot-filtro-estado');
+    var per = e('ot-filtro-periodo');
+    var tec = e('ot-filtro-tecnico');
+    var busq = e('ot-busq');
+    if(busq) busq.value = '';
+    if(tec) tec.value = '';
+    window._otFiltroEspecial314 = '';
+    if(tipo === 'abiertas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial314 = 'abiertas'; }
+    if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
+    if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
+    if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
+  };
+
+  var prevGenerarOT = window.generarOTdesdeVenta;
+  if(typeof prevGenerarOT === 'function' && !prevGenerarOT._sv314){
+    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
+      var existe = arr(window.otData).find(function(o){ return String(o && o.ventaId || '') === String(ventaId || ''); });
+      if(existe) return existe.id || existe.fbKey || '';
+      return prevGenerarOT.apply(this, arguments);
+    };
+    window.generarOTdesdeVenta._sv314 = true;
+  }
+
+  var prevRenderAdmin = window._renderOTVistaAdmin;
+  if(typeof prevRenderAdmin === 'function' && !prevRenderAdmin._sv314){
+    window._renderOTVistaAdmin = function(filtro, hoy){
+      var tbody = e('ot-tbody');
+      if(!tbody) return prevRenderAdmin.apply(this, arguments);
+      var busq = (e('ot-busq') || {}).value || '';
+      var filtroTec = (e('ot-filtro-tecnico') || {}).value || '';
+      var periodo = (e('ot-filtro-periodo') || {}).value || 'todos';
+      var selTec = e('ot-filtro-tecnico');
+      if (selTec && selTec.options.length <= 1) {
+        var tecDeOTs = new Set(arr(window.otData).map(function(o){ return o && o.tecnico; }).filter(Boolean));
+        var tecDeEmps = arr(window.empData).filter(function(x){ return x && x.activo !== false; }).map(function(x){ return x.nombre; });
+        Array.from(new Set(Array.from(tecDeOTs).concat(tecDeEmps).filter(Boolean))).sort().forEach(function(t){
+          var opt = document.createElement('option'); opt.value=t; opt.textContent=t; selTec.appendChild(opt);
+        });
+      }
+      var especial = window._otFiltroEspecial314 || '';
+      var rows = arr(window.otData).filter(function(o){
+        if(!o) return false;
+        var est = estadoNormal(o);
+        var matchFiltro = especial === 'abiertas' ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
+        var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
+        var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
+        var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;
+        return matchFiltro && matchTec && matchBusq && matchPeriodoOT(o, periodo);
+      });
+      hoy = hoy || hoyISO();
+      rows.sort(function(a,b){
+        function score(o){
+          var f = fechaISO(o && o.fecha);
+          if(o && o.prioridad) return 0;
+          if(f && f < hoy && !esCompletada(o)) return 1;
+          if(f === hoy) return 2;
+          if(f && f > hoy) return 3;
+          return 4;
+        }
+        return score(a)-score(b) || String(fechaISO(a.fecha)||'9999').localeCompare(String(fechaISO(b.fecha)||'9999'));
+      });
+      tbody.innerHTML = rows.map(function(o){
+        var f = fechaISO(o.fecha);
+        var esPrioridad = o.prioridad === true || o.prioridad === 'true';
+        var esAtrasada = f && f < hoy && !esCompletada(o);
+        var rowColor = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : f === hoy ? 'background:rgba(245,158,11,.04)' : '';
+        var visitasPrev = (typeof window._contarVisitasPrevias === 'function') ? window._contarVisitasPrevias(o.cliente, o.dir, o.id) : 0;
+        var iconoRep = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+        return '<tr style="'+rowColor+'">' +
+          '<td style="text-align:center">'+(esPrioridad?'<i class="ti ti-flame" style="color:var(--red);font-size:14px"></i>':'')+(esAtrasada&&!esPrioridad?'<i class="ti ti-clock" style="color:var(--amber);font-size:14px"></i>':'')+'</td>' +
+          '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+esc(o.id||'')+'</td>' +
+          '<td>'+esc(o.cliente||'—')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tecnico||'Sin asignar')+'</td>' +
+          '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':f===hoy?'var(--amber)':'var(--text3)')+'">'+esc(o.fecha||'Sin fecha')+(o.hora?' '+esc(o.hora):'')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tipoVisita||o.tipo||'—')+'</td>' +
+          '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
+          '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o.estado) : esc(o.estado||'')) +'</td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button></td>' +
+        '</tr>';
+      }).join('');
+      if(!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
+    };
+    window._renderOTVistaAdmin._sv314 = true;
+  }
+
+  var prevFiltrarOT = window.filtrarOT;
+  window.filtrarOT = function(v){ window._otFiltroEspecial314 = ''; if(typeof window.renderOTTabla === 'function') window.renderOTTabla(v); };
+  window.buscarOT = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+  window.filtrarOTTecnico = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+})();
+</script>
+
+</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
@@ -16826,7 +17347,135 @@ function imprimirRecibo() {
     '<div><div class="firma-line">Firma del cliente</div></div>'+
     '<div><div class="firma-line">Firma Nixa</div></div>'+
     '</div></div>'+
-    '\n</body></html>');
+    '\n
+<script>
+(function(){
+  function e(id){ return document.getElementById(id); }
+  function arr(v){ return Array.isArray(v) ? v : Object.values(v || {}); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function hoyISO(){ return new Date().toISOString().slice(0,10); }
+  function fechaISO(v){
+    if(!v) return '';
+    var s = String(v).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(m) return m[3] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+    return s.slice(0,10);
+  }
+  function inicioSemana(d){
+    var x = new Date(d + 'T00:00:00');
+    var day = x.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff);
+    return x.toISOString().slice(0,10);
+  }
+  function matchPeriodoOT(o, periodo){
+    if(!periodo || periodo === 'todos') return true;
+    var f = fechaISO(o && o.fecha);
+    if(!f) return false;
+    var h = hoyISO();
+    if(periodo === 'hoy') return f === h;
+    if(periodo === 'mes') return f.slice(0,7) === h.slice(0,7);
+    if(periodo === 'semana') return f >= inicioSemana(h) && f <= h;
+    return true;
+  }
+  function estadoNormal(o){ return String(o && o.estado || '').toLowerCase(); }
+  function esCompletada(o){ return estadoNormal(o) === 'completada'; }
+
+  window.otFiltroRapido314 = function(tipo){
+    var est = e('ot-filtro-estado');
+    var per = e('ot-filtro-periodo');
+    var tec = e('ot-filtro-tecnico');
+    var busq = e('ot-busq');
+    if(busq) busq.value = '';
+    if(tec) tec.value = '';
+    window._otFiltroEspecial314 = '';
+    if(tipo === 'abiertas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial314 = 'abiertas'; }
+    if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
+    if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
+    if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
+  };
+
+  var prevGenerarOT = window.generarOTdesdeVenta;
+  if(typeof prevGenerarOT === 'function' && !prevGenerarOT._sv314){
+    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
+      var existe = arr(window.otData).find(function(o){ return String(o && o.ventaId || '') === String(ventaId || ''); });
+      if(existe) return existe.id || existe.fbKey || '';
+      return prevGenerarOT.apply(this, arguments);
+    };
+    window.generarOTdesdeVenta._sv314 = true;
+  }
+
+  var prevRenderAdmin = window._renderOTVistaAdmin;
+  if(typeof prevRenderAdmin === 'function' && !prevRenderAdmin._sv314){
+    window._renderOTVistaAdmin = function(filtro, hoy){
+      var tbody = e('ot-tbody');
+      if(!tbody) return prevRenderAdmin.apply(this, arguments);
+      var busq = (e('ot-busq') || {}).value || '';
+      var filtroTec = (e('ot-filtro-tecnico') || {}).value || '';
+      var periodo = (e('ot-filtro-periodo') || {}).value || 'todos';
+      var selTec = e('ot-filtro-tecnico');
+      if (selTec && selTec.options.length <= 1) {
+        var tecDeOTs = new Set(arr(window.otData).map(function(o){ return o && o.tecnico; }).filter(Boolean));
+        var tecDeEmps = arr(window.empData).filter(function(x){ return x && x.activo !== false; }).map(function(x){ return x.nombre; });
+        Array.from(new Set(Array.from(tecDeOTs).concat(tecDeEmps).filter(Boolean))).sort().forEach(function(t){
+          var opt = document.createElement('option'); opt.value=t; opt.textContent=t; selTec.appendChild(opt);
+        });
+      }
+      var especial = window._otFiltroEspecial314 || '';
+      var rows = arr(window.otData).filter(function(o){
+        if(!o) return false;
+        var est = estadoNormal(o);
+        var matchFiltro = especial === 'abiertas' ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
+        var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
+        var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
+        var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;
+        return matchFiltro && matchTec && matchBusq && matchPeriodoOT(o, periodo);
+      });
+      hoy = hoy || hoyISO();
+      rows.sort(function(a,b){
+        function score(o){
+          var f = fechaISO(o && o.fecha);
+          if(o && o.prioridad) return 0;
+          if(f && f < hoy && !esCompletada(o)) return 1;
+          if(f === hoy) return 2;
+          if(f && f > hoy) return 3;
+          return 4;
+        }
+        return score(a)-score(b) || String(fechaISO(a.fecha)||'9999').localeCompare(String(fechaISO(b.fecha)||'9999'));
+      });
+      tbody.innerHTML = rows.map(function(o){
+        var f = fechaISO(o.fecha);
+        var esPrioridad = o.prioridad === true || o.prioridad === 'true';
+        var esAtrasada = f && f < hoy && !esCompletada(o);
+        var rowColor = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : f === hoy ? 'background:rgba(245,158,11,.04)' : '';
+        var visitasPrev = (typeof window._contarVisitasPrevias === 'function') ? window._contarVisitasPrevias(o.cliente, o.dir, o.id) : 0;
+        var iconoRep = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+        return '<tr style="'+rowColor+'">' +
+          '<td style="text-align:center">'+(esPrioridad?'<i class="ti ti-flame" style="color:var(--red);font-size:14px"></i>':'')+(esAtrasada&&!esPrioridad?'<i class="ti ti-clock" style="color:var(--amber);font-size:14px"></i>':'')+'</td>' +
+          '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+esc(o.id||'')+'</td>' +
+          '<td>'+esc(o.cliente||'—')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tecnico||'Sin asignar')+'</td>' +
+          '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':f===hoy?'var(--amber)':'var(--text3)')+'">'+esc(o.fecha||'Sin fecha')+(o.hora?' '+esc(o.hora):'')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tipoVisita||o.tipo||'—')+'</td>' +
+          '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
+          '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o.estado) : esc(o.estado||'')) +'</td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button></td>' +
+        '</tr>';
+      }).join('');
+      if(!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
+    };
+    window._renderOTVistaAdmin._sv314 = true;
+  }
+
+  var prevFiltrarOT = window.filtrarOT;
+  window.filtrarOT = function(v){ window._otFiltroEspecial314 = ''; if(typeof window.renderOTTabla === 'function') window.renderOTTabla(v); };
+  window.buscarOT = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+  window.filtrarOTTecnico = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+})();
+</script>
+
+</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
@@ -18496,7 +19145,135 @@ function imprimirRemito(fbKey) {
       '<p><strong>Venta vinculada:</strong> '+escapeHTML(r.venta||'—')+'</p>'+
       '<p><strong>Descripción:</strong> '+escapeHTML(r.descripcion||'—')+'</p>'+
       '<div class="firma"><div><div class="firma-line">Firma receptor</div></div><div><div class="firma-line">Firma Nixa</div></div></div>'+
-      '\n</body></html>');
+      '\n
+<script>
+(function(){
+  function e(id){ return document.getElementById(id); }
+  function arr(v){ return Array.isArray(v) ? v : Object.values(v || {}); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function hoyISO(){ return new Date().toISOString().slice(0,10); }
+  function fechaISO(v){
+    if(!v) return '';
+    var s = String(v).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(m) return m[3] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+    return s.slice(0,10);
+  }
+  function inicioSemana(d){
+    var x = new Date(d + 'T00:00:00');
+    var day = x.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff);
+    return x.toISOString().slice(0,10);
+  }
+  function matchPeriodoOT(o, periodo){
+    if(!periodo || periodo === 'todos') return true;
+    var f = fechaISO(o && o.fecha);
+    if(!f) return false;
+    var h = hoyISO();
+    if(periodo === 'hoy') return f === h;
+    if(periodo === 'mes') return f.slice(0,7) === h.slice(0,7);
+    if(periodo === 'semana') return f >= inicioSemana(h) && f <= h;
+    return true;
+  }
+  function estadoNormal(o){ return String(o && o.estado || '').toLowerCase(); }
+  function esCompletada(o){ return estadoNormal(o) === 'completada'; }
+
+  window.otFiltroRapido314 = function(tipo){
+    var est = e('ot-filtro-estado');
+    var per = e('ot-filtro-periodo');
+    var tec = e('ot-filtro-tecnico');
+    var busq = e('ot-busq');
+    if(busq) busq.value = '';
+    if(tec) tec.value = '';
+    window._otFiltroEspecial314 = '';
+    if(tipo === 'abiertas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial314 = 'abiertas'; }
+    if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
+    if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
+    if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
+  };
+
+  var prevGenerarOT = window.generarOTdesdeVenta;
+  if(typeof prevGenerarOT === 'function' && !prevGenerarOT._sv314){
+    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
+      var existe = arr(window.otData).find(function(o){ return String(o && o.ventaId || '') === String(ventaId || ''); });
+      if(existe) return existe.id || existe.fbKey || '';
+      return prevGenerarOT.apply(this, arguments);
+    };
+    window.generarOTdesdeVenta._sv314 = true;
+  }
+
+  var prevRenderAdmin = window._renderOTVistaAdmin;
+  if(typeof prevRenderAdmin === 'function' && !prevRenderAdmin._sv314){
+    window._renderOTVistaAdmin = function(filtro, hoy){
+      var tbody = e('ot-tbody');
+      if(!tbody) return prevRenderAdmin.apply(this, arguments);
+      var busq = (e('ot-busq') || {}).value || '';
+      var filtroTec = (e('ot-filtro-tecnico') || {}).value || '';
+      var periodo = (e('ot-filtro-periodo') || {}).value || 'todos';
+      var selTec = e('ot-filtro-tecnico');
+      if (selTec && selTec.options.length <= 1) {
+        var tecDeOTs = new Set(arr(window.otData).map(function(o){ return o && o.tecnico; }).filter(Boolean));
+        var tecDeEmps = arr(window.empData).filter(function(x){ return x && x.activo !== false; }).map(function(x){ return x.nombre; });
+        Array.from(new Set(Array.from(tecDeOTs).concat(tecDeEmps).filter(Boolean))).sort().forEach(function(t){
+          var opt = document.createElement('option'); opt.value=t; opt.textContent=t; selTec.appendChild(opt);
+        });
+      }
+      var especial = window._otFiltroEspecial314 || '';
+      var rows = arr(window.otData).filter(function(o){
+        if(!o) return false;
+        var est = estadoNormal(o);
+        var matchFiltro = especial === 'abiertas' ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
+        var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
+        var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
+        var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;
+        return matchFiltro && matchTec && matchBusq && matchPeriodoOT(o, periodo);
+      });
+      hoy = hoy || hoyISO();
+      rows.sort(function(a,b){
+        function score(o){
+          var f = fechaISO(o && o.fecha);
+          if(o && o.prioridad) return 0;
+          if(f && f < hoy && !esCompletada(o)) return 1;
+          if(f === hoy) return 2;
+          if(f && f > hoy) return 3;
+          return 4;
+        }
+        return score(a)-score(b) || String(fechaISO(a.fecha)||'9999').localeCompare(String(fechaISO(b.fecha)||'9999'));
+      });
+      tbody.innerHTML = rows.map(function(o){
+        var f = fechaISO(o.fecha);
+        var esPrioridad = o.prioridad === true || o.prioridad === 'true';
+        var esAtrasada = f && f < hoy && !esCompletada(o);
+        var rowColor = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : f === hoy ? 'background:rgba(245,158,11,.04)' : '';
+        var visitasPrev = (typeof window._contarVisitasPrevias === 'function') ? window._contarVisitasPrevias(o.cliente, o.dir, o.id) : 0;
+        var iconoRep = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+        return '<tr style="'+rowColor+'">' +
+          '<td style="text-align:center">'+(esPrioridad?'<i class="ti ti-flame" style="color:var(--red);font-size:14px"></i>':'')+(esAtrasada&&!esPrioridad?'<i class="ti ti-clock" style="color:var(--amber);font-size:14px"></i>':'')+'</td>' +
+          '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+esc(o.id||'')+'</td>' +
+          '<td>'+esc(o.cliente||'—')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tecnico||'Sin asignar')+'</td>' +
+          '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':f===hoy?'var(--amber)':'var(--text3)')+'">'+esc(o.fecha||'Sin fecha')+(o.hora?' '+esc(o.hora):'')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tipoVisita||o.tipo||'—')+'</td>' +
+          '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
+          '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o.estado) : esc(o.estado||'')) +'</td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button></td>' +
+        '</tr>';
+      }).join('');
+      if(!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
+    };
+    window._renderOTVistaAdmin._sv314 = true;
+  }
+
+  var prevFiltrarOT = window.filtrarOT;
+  window.filtrarOT = function(v){ window._otFiltroEspecial314 = ''; if(typeof window.renderOTTabla === 'function') window.renderOTTabla(v); };
+  window.buscarOT = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+  window.filtrarOTTecnico = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+})();
+</script>
+
+</body></html>');
     w.document.close();
     setTimeout(function(){ w.print(); }, 500);
   }, { onlyOnce: true });
@@ -22103,7 +22880,135 @@ function imprimirInforme() {
     (g('inf-obs') ? '<section><h2>Observaciones</h2><p>'+g('inf-obs').replace(/\n/g,'<br>')+'</p></section>' : '') +
     '<section><h2>Conformidad del cliente</h2><div class="grid"><div><label>Nombre quien recibe</label><p>'+g('inf-receptor')+'</p></div><div><label>DNI</label><p>'+g('inf-receptor-dni')+'</p></div><div><label>Resultado</label><p>'+g('inf-resultado')+'</p></div></div></section>' +
     '<div class="firma"><div><div class="firma-line">Firma del técnico: '+g('inf-tecnico')+'</div></div><div><div class="firma-line">Firma del cliente: '+g('inf-receptor')+'</div></div></div>' +
-    '\n</body></html>';
+    '\n
+<script>
+(function(){
+  function e(id){ return document.getElementById(id); }
+  function arr(v){ return Array.isArray(v) ? v : Object.values(v || {}); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function hoyISO(){ return new Date().toISOString().slice(0,10); }
+  function fechaISO(v){
+    if(!v) return '';
+    var s = String(v).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(m) return m[3] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+    return s.slice(0,10);
+  }
+  function inicioSemana(d){
+    var x = new Date(d + 'T00:00:00');
+    var day = x.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff);
+    return x.toISOString().slice(0,10);
+  }
+  function matchPeriodoOT(o, periodo){
+    if(!periodo || periodo === 'todos') return true;
+    var f = fechaISO(o && o.fecha);
+    if(!f) return false;
+    var h = hoyISO();
+    if(periodo === 'hoy') return f === h;
+    if(periodo === 'mes') return f.slice(0,7) === h.slice(0,7);
+    if(periodo === 'semana') return f >= inicioSemana(h) && f <= h;
+    return true;
+  }
+  function estadoNormal(o){ return String(o && o.estado || '').toLowerCase(); }
+  function esCompletada(o){ return estadoNormal(o) === 'completada'; }
+
+  window.otFiltroRapido314 = function(tipo){
+    var est = e('ot-filtro-estado');
+    var per = e('ot-filtro-periodo');
+    var tec = e('ot-filtro-tecnico');
+    var busq = e('ot-busq');
+    if(busq) busq.value = '';
+    if(tec) tec.value = '';
+    window._otFiltroEspecial314 = '';
+    if(tipo === 'abiertas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial314 = 'abiertas'; }
+    if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
+    if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
+    if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
+  };
+
+  var prevGenerarOT = window.generarOTdesdeVenta;
+  if(typeof prevGenerarOT === 'function' && !prevGenerarOT._sv314){
+    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
+      var existe = arr(window.otData).find(function(o){ return String(o && o.ventaId || '') === String(ventaId || ''); });
+      if(existe) return existe.id || existe.fbKey || '';
+      return prevGenerarOT.apply(this, arguments);
+    };
+    window.generarOTdesdeVenta._sv314 = true;
+  }
+
+  var prevRenderAdmin = window._renderOTVistaAdmin;
+  if(typeof prevRenderAdmin === 'function' && !prevRenderAdmin._sv314){
+    window._renderOTVistaAdmin = function(filtro, hoy){
+      var tbody = e('ot-tbody');
+      if(!tbody) return prevRenderAdmin.apply(this, arguments);
+      var busq = (e('ot-busq') || {}).value || '';
+      var filtroTec = (e('ot-filtro-tecnico') || {}).value || '';
+      var periodo = (e('ot-filtro-periodo') || {}).value || 'todos';
+      var selTec = e('ot-filtro-tecnico');
+      if (selTec && selTec.options.length <= 1) {
+        var tecDeOTs = new Set(arr(window.otData).map(function(o){ return o && o.tecnico; }).filter(Boolean));
+        var tecDeEmps = arr(window.empData).filter(function(x){ return x && x.activo !== false; }).map(function(x){ return x.nombre; });
+        Array.from(new Set(Array.from(tecDeOTs).concat(tecDeEmps).filter(Boolean))).sort().forEach(function(t){
+          var opt = document.createElement('option'); opt.value=t; opt.textContent=t; selTec.appendChild(opt);
+        });
+      }
+      var especial = window._otFiltroEspecial314 || '';
+      var rows = arr(window.otData).filter(function(o){
+        if(!o) return false;
+        var est = estadoNormal(o);
+        var matchFiltro = especial === 'abiertas' ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
+        var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
+        var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
+        var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;
+        return matchFiltro && matchTec && matchBusq && matchPeriodoOT(o, periodo);
+      });
+      hoy = hoy || hoyISO();
+      rows.sort(function(a,b){
+        function score(o){
+          var f = fechaISO(o && o.fecha);
+          if(o && o.prioridad) return 0;
+          if(f && f < hoy && !esCompletada(o)) return 1;
+          if(f === hoy) return 2;
+          if(f && f > hoy) return 3;
+          return 4;
+        }
+        return score(a)-score(b) || String(fechaISO(a.fecha)||'9999').localeCompare(String(fechaISO(b.fecha)||'9999'));
+      });
+      tbody.innerHTML = rows.map(function(o){
+        var f = fechaISO(o.fecha);
+        var esPrioridad = o.prioridad === true || o.prioridad === 'true';
+        var esAtrasada = f && f < hoy && !esCompletada(o);
+        var rowColor = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : f === hoy ? 'background:rgba(245,158,11,.04)' : '';
+        var visitasPrev = (typeof window._contarVisitasPrevias === 'function') ? window._contarVisitasPrevias(o.cliente, o.dir, o.id) : 0;
+        var iconoRep = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+        return '<tr style="'+rowColor+'">' +
+          '<td style="text-align:center">'+(esPrioridad?'<i class="ti ti-flame" style="color:var(--red);font-size:14px"></i>':'')+(esAtrasada&&!esPrioridad?'<i class="ti ti-clock" style="color:var(--amber);font-size:14px"></i>':'')+'</td>' +
+          '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+esc(o.id||'')+'</td>' +
+          '<td>'+esc(o.cliente||'—')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tecnico||'Sin asignar')+'</td>' +
+          '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':f===hoy?'var(--amber)':'var(--text3)')+'">'+esc(o.fecha||'Sin fecha')+(o.hora?' '+esc(o.hora):'')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tipoVisita||o.tipo||'—')+'</td>' +
+          '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
+          '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o.estado) : esc(o.estado||'')) +'</td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button></td>' +
+        '</tr>';
+      }).join('');
+      if(!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
+    };
+    window._renderOTVistaAdmin._sv314 = true;
+  }
+
+  var prevFiltrarOT = window.filtrarOT;
+  window.filtrarOT = function(v){ window._otFiltroEspecial314 = ''; if(typeof window.renderOTTabla === 'function') window.renderOTTabla(v); };
+  window.buscarOT = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+  window.filtrarOTTecnico = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+})();
+</script>
+
+</body></html>';
   w.document.write(html);
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
@@ -28145,7 +29050,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.313</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.314</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30053,7 +30958,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.313';
+  SV.Cache.version = 'v20.314';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -30237,6 +31142,134 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
     }
   });
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(SV.Metrics.refresh, 500); });
+})();
+</script>
+
+
+<script>
+(function(){
+  function e(id){ return document.getElementById(id); }
+  function arr(v){ return Array.isArray(v) ? v : Object.values(v || {}); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function hoyISO(){ return new Date().toISOString().slice(0,10); }
+  function fechaISO(v){
+    if(!v) return '';
+    var s = String(v).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(m) return m[3] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+    return s.slice(0,10);
+  }
+  function inicioSemana(d){
+    var x = new Date(d + 'T00:00:00');
+    var day = x.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff);
+    return x.toISOString().slice(0,10);
+  }
+  function matchPeriodoOT(o, periodo){
+    if(!periodo || periodo === 'todos') return true;
+    var f = fechaISO(o && o.fecha);
+    if(!f) return false;
+    var h = hoyISO();
+    if(periodo === 'hoy') return f === h;
+    if(periodo === 'mes') return f.slice(0,7) === h.slice(0,7);
+    if(periodo === 'semana') return f >= inicioSemana(h) && f <= h;
+    return true;
+  }
+  function estadoNormal(o){ return String(o && o.estado || '').toLowerCase(); }
+  function esCompletada(o){ return estadoNormal(o) === 'completada'; }
+
+  window.otFiltroRapido314 = function(tipo){
+    var est = e('ot-filtro-estado');
+    var per = e('ot-filtro-periodo');
+    var tec = e('ot-filtro-tecnico');
+    var busq = e('ot-busq');
+    if(busq) busq.value = '';
+    if(tec) tec.value = '';
+    window._otFiltroEspecial314 = '';
+    if(tipo === 'abiertas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial314 = 'abiertas'; }
+    if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
+    if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
+    if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
+  };
+
+  var prevGenerarOT = window.generarOTdesdeVenta;
+  if(typeof prevGenerarOT === 'function' && !prevGenerarOT._sv314){
+    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
+      var existe = arr(window.otData).find(function(o){ return String(o && o.ventaId || '') === String(ventaId || ''); });
+      if(existe) return existe.id || existe.fbKey || '';
+      return prevGenerarOT.apply(this, arguments);
+    };
+    window.generarOTdesdeVenta._sv314 = true;
+  }
+
+  var prevRenderAdmin = window._renderOTVistaAdmin;
+  if(typeof prevRenderAdmin === 'function' && !prevRenderAdmin._sv314){
+    window._renderOTVistaAdmin = function(filtro, hoy){
+      var tbody = e('ot-tbody');
+      if(!tbody) return prevRenderAdmin.apply(this, arguments);
+      var busq = (e('ot-busq') || {}).value || '';
+      var filtroTec = (e('ot-filtro-tecnico') || {}).value || '';
+      var periodo = (e('ot-filtro-periodo') || {}).value || 'todos';
+      var selTec = e('ot-filtro-tecnico');
+      if (selTec && selTec.options.length <= 1) {
+        var tecDeOTs = new Set(arr(window.otData).map(function(o){ return o && o.tecnico; }).filter(Boolean));
+        var tecDeEmps = arr(window.empData).filter(function(x){ return x && x.activo !== false; }).map(function(x){ return x.nombre; });
+        Array.from(new Set(Array.from(tecDeOTs).concat(tecDeEmps).filter(Boolean))).sort().forEach(function(t){
+          var opt = document.createElement('option'); opt.value=t; opt.textContent=t; selTec.appendChild(opt);
+        });
+      }
+      var especial = window._otFiltroEspecial314 || '';
+      var rows = arr(window.otData).filter(function(o){
+        if(!o) return false;
+        var est = estadoNormal(o);
+        var matchFiltro = especial === 'abiertas' ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
+        var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
+        var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
+        var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;
+        return matchFiltro && matchTec && matchBusq && matchPeriodoOT(o, periodo);
+      });
+      hoy = hoy || hoyISO();
+      rows.sort(function(a,b){
+        function score(o){
+          var f = fechaISO(o && o.fecha);
+          if(o && o.prioridad) return 0;
+          if(f && f < hoy && !esCompletada(o)) return 1;
+          if(f === hoy) return 2;
+          if(f && f > hoy) return 3;
+          return 4;
+        }
+        return score(a)-score(b) || String(fechaISO(a.fecha)||'9999').localeCompare(String(fechaISO(b.fecha)||'9999'));
+      });
+      tbody.innerHTML = rows.map(function(o){
+        var f = fechaISO(o.fecha);
+        var esPrioridad = o.prioridad === true || o.prioridad === 'true';
+        var esAtrasada = f && f < hoy && !esCompletada(o);
+        var rowColor = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : f === hoy ? 'background:rgba(245,158,11,.04)' : '';
+        var visitasPrev = (typeof window._contarVisitasPrevias === 'function') ? window._contarVisitasPrevias(o.cliente, o.dir, o.id) : 0;
+        var iconoRep = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+        return '<tr style="'+rowColor+'">' +
+          '<td style="text-align:center">'+(esPrioridad?'<i class="ti ti-flame" style="color:var(--red);font-size:14px"></i>':'')+(esAtrasada&&!esPrioridad?'<i class="ti ti-clock" style="color:var(--amber);font-size:14px"></i>':'')+'</td>' +
+          '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+esc(o.id||'')+'</td>' +
+          '<td>'+esc(o.cliente||'—')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tecnico||'Sin asignar')+'</td>' +
+          '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':f===hoy?'var(--amber)':'var(--text3)')+'">'+esc(o.fecha||'Sin fecha')+(o.hora?' '+esc(o.hora):'')+'</td>' +
+          '<td style="font-size:12px;color:var(--text3)">'+esc(o.tipoVisita||o.tipo||'—')+'</td>' +
+          '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
+          '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o.estado) : esc(o.estado||'')) +'</td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+esc(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button></td>' +
+        '</tr>';
+      }).join('');
+      if(!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
+    };
+    window._renderOTVistaAdmin._sv314 = true;
+  }
+
+  var prevFiltrarOT = window.filtrarOT;
+  window.filtrarOT = function(v){ window._otFiltroEspecial314 = ''; if(typeof window.renderOTTabla === 'function') window.renderOTTabla(v); };
+  window.buscarOT = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
+  window.filtrarOTTecnico = function(){ if(typeof window.renderOTTabla === 'function') window.renderOTTabla(); };
 })();
 </script>
 
