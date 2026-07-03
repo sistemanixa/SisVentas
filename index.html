@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.295 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.296 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -7643,21 +7643,24 @@ async function aprobarHsExtra(solFbKey) {
   var monto = Math.round((s.horas||0) * (cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0));
   var mesISO = (s.fecha||'').slice(0,7);
   try {
-    await Promise.all([
-      window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), {
-        fecha: s.fecha, tipo: 'Variable',
-        descripcion: 'Hs extra ' + (s.empNombre||'') + ' — ' + (s.descripcion||'') + ' (' + s.horas + ' hs)',
-        categoria: 'Personal', monto: monto, medio: 'Transferencia', estado: 'Pendiente',
-        empleadoFbKey: s.empFbKey, empleadoNombre: s.empNombre||'', mes: mesISO, hsExtra: s.horas, ts: Date.now()
-      }),
-      s.empFbKey ? window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + s.empFbKey), {
+    var tsAhora = Date.now();
+    var gastoPayload = {
+      fecha: s.fecha, tipo: 'Variable',
+      descripcion: 'Hs extra ' + (s.empNombre||'') + ' — ' + (s.descripcion||'') + ' (' + s.horas + ' hs)',
+      categoria: 'Personal', monto: monto, medio: 'Transferencia', estado: 'Pendiente',
+      empleadoId: s.empFbKey, empleadoFbKey: s.empFbKey, empleadoNombre: s.empNombre||'', mes: mesISO, hsExtra: s.horas, ts: tsAhora
+    };
+    var gastoRef = await window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), gastoPayload);
+    if (s.empFbKey) {
+      await window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + s.empFbKey), {
         tipo: 'hextra', descripcion: 'Hs extra aprobadas — ' + (s.descripcion||'') + ' (' + s.horas + ' hs)',
-        monto: monto, fecha: s.fecha, estado: 'pendiente', mes: mesISO, hsExtra: s.horas, empleadoId: s.empFbKey, ts: Date.now()
-      }) : Promise.resolve(),
-      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes/' + solFbKey), {
-        estado: 'aprobado', aprobadoPor: currentUser||'Admin', aprobadoTs: Date.now(), monto: monto
-      })
-    ]);
+        monto: monto, fecha: s.fecha, estado: 'pendiente', mes: mesISO, hsExtra: s.horas, empleadoId: s.empFbKey,
+        gastoFbKey: gastoRef.key, ts: tsAhora + 1
+      });
+    }
+    await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes/' + solFbKey), {
+      estado: 'aprobado', aprobadoPor: currentUser||'Admin', aprobadoTs: Date.now(), monto: monto, gastoFbKey: gastoRef.key
+    });
     notify('✓ Aprobado — gasto de $' + monto.toLocaleString('es-AR') + ' generado');
     document.getElementById('modal-hsextra-admin').remove();
     abrirPanelAprobacionHsExtra();
@@ -9245,7 +9248,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.295-firebase',
+  VERSION: 'v20.296-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -15790,7 +15793,18 @@ function cargarCtaEmp(empFbKey) {
     var fbKeysEnCtaemp = new Set(ctaMovs.map(function(m){ return m.gastoFbKey || m.gastoKey || ''; }).filter(Boolean));
 
     var gastosEmp = (gastosData||[]).filter(function(g){
-      return g.empleadoId === empFbKey && !fbKeysEnCtaemp.has(g.fbKey);
+      var gEmp = g.empleadoId || g.empleadoFbKey || '';
+      if (gEmp !== empFbKey || fbKeysEnCtaemp.has(g.fbKey)) return false;
+      var yaExiste = ctaMovs.some(function(m){
+        if ((m.gastoFbKey || m.gastoKey || '') === g.fbKey) return true;
+        var mismoMonto = Math.abs((parseFloat(m.monto)||0) - (parseFloat(g.monto)||0)) <= 1;
+        var mismoMes = String(m.mes || m.fecha || '').slice(0,7) === String(g.mes || g.fecha || '').slice(0,7);
+        var md = String(m.descripcion || m.desc || m.detalle || '').trim().toLowerCase();
+        var gd = String(g.descripcion || g.desc || g.detalle || '').trim().toLowerCase();
+        var mismoTexto = md && gd && (md === gd || md.includes(gd.slice(0,60)) || gd.includes(md.slice(0,60)));
+        return mismoMonto && mismoMes && mismoTexto;
+      });
+      return !yaExiste;
     }).map(function(g){
       return {
         fbKey:      g.fbKey,
@@ -15943,6 +15957,38 @@ function _movEmpSaldoPendiente(m) {
   return Math.max(0, monto - pagado);
 }
 
+function _buscarGastoRelacionadoMovEmp(m) {
+  if (!m || !(gastosData||[]).length) return null;
+  if (m.gastoFbKey || m.gastoKey) {
+    var key = m.gastoFbKey || m.gastoKey;
+    var exacto = (gastosData||[]).find(function(g){ return g.fbKey === key; });
+    if (exacto) return exacto;
+  }
+  var empKey = m.empleadoId || ctaEmpActual || '';
+  var monto  = parseFloat(m.monto) || 0;
+  var desc   = String(m.descripcion || m.desc || m.detalle || '').trim().toLowerCase();
+  var mes    = String(m.mes || '').slice(0,7);
+  if (!empKey || !monto) return null;
+  var candidatos = (gastosData||[]).filter(function(g){
+    var gEmp = g.empleadoId || g.empleadoFbKey || '';
+    if (gEmp !== empKey) return false;
+    if (Math.abs((parseFloat(g.monto)||0) - monto) > 1) return false;
+    if (mes && String(g.mes || g.fecha || '').slice(0,7) !== mes && String(g.fecha||'').slice(0,7) !== mes) return false;
+    var gd = String(g.descripcion || g.desc || g.detalle || '').trim().toLowerCase();
+    if (!desc || !gd) return true;
+    if (gd === desc) return true;
+    return gd.includes(desc.slice(0,60)) || desc.includes(gd.slice(0,60));
+  });
+  if (!candidatos.length) return null;
+  candidatos.sort(function(a,b){ return Math.abs((b.ts||0)-(m.ts||0)) - Math.abs((a.ts||0)-(m.ts||0)); });
+  return candidatos[0];
+}
+
+function _movEmpFechaVisual(m) {
+  var g = _buscarGastoRelacionadoMovEmp(m);
+  return (g && g.fecha) || m.fecha || m.fechaPago || '';
+}
+
 function _movEmpEnPeriodo(m, mes) {
   if (!m || !mes) return true;
   var fechaMov = m.fecha || m.mes || '';
@@ -16002,7 +16048,8 @@ function renderMovsEmp() {
           '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
         : '';
       var fotoBtn   = m.fotoUrl ? '<a href="'+m.fotoUrl+'" target="_blank" class="btn btn-sm btn-icon" title="Ver comprobante"><i class="ti ti-photo" style="font-size:14px"></i></a>' : '<span style="color:var(--text3);font-size:11px">—</span>';
-      var fecha = m.fecha ? m.fecha.split('-').reverse().join('/') : '—';
+      var fechaRaw = _movEmpFechaVisual(m);
+      var fecha = fechaRaw ? fechaRaw.split('-').reverse().join('/') : '—';
       // Descripción: puede estar en 'descripcion', 'desc', o 'detalle'
       var descTexto = m.descripcion || m.desc || m.detalle || '';
       // Navegación: gastos de empresa van al módulo gastos, otros muestran detalle
@@ -16069,7 +16116,8 @@ function verDetalleMovEmp(tr) {
   if (!mov) return;
   var tipoLabel = {sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[mov.tipo]||mov.tipo;
   var desc = mov.descripcion || mov.desc || mov.detalle || 'Sin descripción';
-  var fecha = mov.fecha ? mov.fecha.split('-').reverse().join('/') : '—';
+  var fechaRaw = _movEmpFechaVisual(mov);
+  var fecha = fechaRaw ? fechaRaw.split('-').reverse().join('/') : '—';
   notify(tipoLabel + ' · ' + fecha + ' · $' + (parseFloat(mov.monto)||0).toLocaleString('es-AR') + (desc ? ' — ' + desc : ''));
 }
 
@@ -22641,9 +22689,10 @@ function generarComisionesVenta(venta, montoCobrado) {
 }
 
 function _actualizarCtaEmpPorPagoGasto(g, fbKey, montoTotal, nuevoPagado, nuevoEstado, medio, pagoKey, pago) {
-  if (!g || !g.empleadoId || !window.fbDB) return;
+  var empRelPago = g && (g.empleadoId || g.empleadoFbKey);
+  if (!g || !empRelPago || !window.fbDB) return;
   if (nuevoEstado==='pagado') window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+fbKey), { reembolsado: true });
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId))
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empRelPago))
     .then(function(snap) {
       var movs = snap.val();
       if (!movs) return;
@@ -22662,7 +22711,8 @@ function _actualizarCtaEmpPorPagoGasto(g, fbKey, montoTotal, nuevoPagado, nuevoE
             montoPagado: nuevoPagado
           };
           updMov['pagos/' + pagoKey] = pago;
-          window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId + '/' + key), updMov);
+          if (g.fecha && !mov.fecha) updMov.fecha = g.fecha;
+          window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empRelPago + '/' + key), updMov);
         }
       });
     }).catch(function(){});
@@ -27896,7 +27946,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.295</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.296</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
