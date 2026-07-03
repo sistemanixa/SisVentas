@@ -876,7 +876,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.317 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.318 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9274,7 +9274,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.317-firebase',
+  VERSION: 'v20.318-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -29463,7 +29463,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.317</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.318</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -31371,7 +31371,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.317';
+  SV.Cache.version = 'v20.318';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -31868,6 +31868,129 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
       return r;
     };
   }
+})();
+</script>
+
+
+<script>
+(function(){
+  function esc318(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function norm318(v){ return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
+  function cargos318(){ return window.CARGOS_DATA || {}; }
+  function aliasesCargo318(id, cargo){
+    cargo = cargo || {};
+    var nombre = cargo.nombre || id || '';
+    var base = cargo.categoriaBase || cargo.categoria || '';
+    var arr = [id, nombre, base, norm318(id), norm318(nombre), norm318(base)];
+    var b = norm318(base), n = norm318(nombre), i = norm318(id);
+    if(b === 'tecnico_c' || n === 'tecnico_c' || i === 'tecnico_c') arr.push('Cat. 39','cat_39','TECNICO C','tecnico_c');
+    if(b === 'tecnico_b' || n === 'tecnico_b' || i === 'tecnico_b') arr.push('Cat. 39','cat_39','TECNICO B','tecnico_b');
+    if(b === 'tecnico_a' || n === 'tecnico_a' || i === 'tecnico_a') arr.push('Cat. 15','cat_15','TECNICO A','tecnico_a');
+    if(b === 'adminis' || n.indexOf('administrativo')>=0 || i.indexOf('administrativo')>=0) arr.push('Cat. 08','cat_08','ADMINIS','administrativo');
+    if(b === 'inicial' || n.indexOf('inicial')>=0 || i.indexOf('inicial')>=0) arr.push('Cat. 08','cat_08','INICIAL','inicial');
+    if(b === 'a_temp' || b === 'temp' || n.indexOf('temporal')>=0 || i.indexOf('temporal')>=0) arr.push('Cat. 08','cat_08','A-TEMP','temporal');
+    return Array.from(new Set(arr.filter(Boolean)));
+  }
+  window._resolverComisionCargo = function(id){
+    var cfgs = window.CONFIG_COMISIONES || {};
+    var cargo = cargos318()[id] || {};
+    var aliases = aliasesCargo318(id, cargo);
+    for(var a=0; a<aliases.length; a++){
+      var k = aliases[a];
+      if(cfgs[k]) return { pct:parseFloat(cfgs[k].pct)||0, min:parseFloat(cfgs[k].min)||0, max:parseFloat(cfgs[k].max)||0 };
+    }
+    return { pct:0, min:0, max:0 };
+  };
+  window._normalizarConfigComisiones = function(){
+    if(!window.CONFIG_COMISIONES) window.CONFIG_COMISIONES = {};
+    Object.keys(cargos318()).forEach(function(id){
+      if(!window.CONFIG_COMISIONES[id]) window.CONFIG_COMISIONES[id] = window._resolverComisionCargo(id);
+    });
+    return window.CONFIG_COMISIONES;
+  };
+  window.renderComisionesConfig = function(){
+    var tbody = document.getElementById('cfg-comisiones-tbody');
+    if(!tbody) return;
+    window._normalizarConfigComisiones();
+    var lista = Object.keys(cargos318()).map(function(id){ var c=cargos318()[id]||{}; return Object.assign({id:id}, c); })
+      .sort(function(a,b){ return String(a.nombre||a.id).localeCompare(String(b.nombre||b.id)); });
+    if(!lista.length){
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">No hay cargos creados aún. Creá los cargos en la solapa <strong>Cargos</strong> primero.</td></tr>';
+      return;
+    }
+    function inp(val,w){ return '<input type="number" value="'+(parseFloat(val)||0)+'" style="width:'+w+'px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">'; }
+    tbody.innerHTML = '<tr><th>Cargo</th><th style="text-align:right">% sobre venta</th><th style="text-align:right">Mínimo garantizado</th><th style="text-align:right">Tope máximo</th><th></th></tr>' + lista.map(function(c){
+      var com = window._resolverComisionCargo(c.id);
+      return '<tr data-cargo-id="'+esc318(c.id)+'">'+
+        '<td style="font-weight:500">'+esc318(c.nombre||c.id)+'</td>'+
+        '<td style="text-align:right">'+inp(com.pct,60)+'%</td>'+
+        '<td style="text-align:right">'+inp(com.min,90)+'</td>'+
+        '<td style="text-align:right">'+inp(com.max,90)+'</td>'+
+        '<td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>'+
+      '</tr>';
+    }).join('');
+  };
+  window.guardarFilaConfig = function(btn){
+    var tr = btn && btn.closest ? btn.closest('tr') : null;
+    if(!tr) return;
+    var cargoId = tr.dataset.cargoId;
+    var inputs = tr.querySelectorAll('input[type=number]');
+    var vals = Array.from(inputs).map(function(i){ return parseFloat(i.value)||0; });
+    if(!cargoId){ if(typeof notify==='function') notify('Fila sin cargo ID — recargá la solapa'); return; }
+    if(!window.CONFIG_COMISIONES) window.CONFIG_COMISIONES = {};
+    window.CONFIG_COMISIONES[cargoId] = { pct:vals[0]||0, min:vals[1]||0, max:vals[2]||0 };
+    window._normalizarConfigComisiones();
+    if(!window.fbDB){ if(typeof notify==='function') notify('Sin conexión a Firebase'); return; }
+    window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/comisiones'), window.CONFIG_COMISIONES).then(function(){
+      if(typeof notify==='function') notify('✓ Comisión guardada para ' + ((cargos318()[cargoId]||{}).nombre || cargoId));
+    }).catch(function(e){ if(typeof notify==='function') notify('Error: '+e.message); });
+    var icon = btn.querySelector('i');
+    if(icon){ icon.className='ti ti-check-circle'; btn.style.color='var(--green)'; setTimeout(function(){ icon.className='ti ti-check'; btn.style.color=''; },1600); }
+  };
+  window.cargarConfigComisiones = function(){
+    if(!window.fbDB) return;
+    window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/comisiones')).then(function(snap){
+      var data = snap.val();
+      if(data) window.CONFIG_COMISIONES = Object.assign({}, window.CONFIG_COMISIONES || {}, data);
+      window._normalizarConfigComisiones();
+      var panel = document.getElementById('cfg-comisiones');
+      if(panel && panel.style.display !== 'none') window.renderComisionesConfig();
+    }).catch(function(){ window._normalizarConfigComisiones(); });
+    window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/maxComisionPct')).then(function(snap){
+      var val = snap.val();
+      if(val != null){
+        if(window.APROBACION_CONFIG) window.APROBACION_CONFIG.maxComisionPct = parseFloat(val) || 10;
+        var el = document.getElementById('cfg-max-comision-pct'); if(el) el.value = parseFloat(val)||10;
+      }
+    }).catch(function(){});
+  };
+  window._pctComisionEmpleadoVenta = function(emp){
+    if(!emp) return 0;
+    var directo = parseFloat(emp.pctComisionPropio || emp.pctComision || emp.comision || 0) || 0;
+    if(directo > 0) return directo;
+    var cargoId = emp.cargoId || '';
+    if(!cargoId){
+      var cargoTxt = norm318(emp.cargo || emp.categoria || '');
+      Object.keys(cargos318()).some(function(id){ var c=cargos318()[id]||{}; if(norm318(c.nombre)===cargoTxt || norm318(c.categoriaBase)===cargoTxt || norm318(id)===cargoTxt){ cargoId=id; return true; } return false; });
+    }
+    return parseFloat((window._resolverComisionCargo(cargoId)||{}).pct)||0;
+  };
+  window.calcularComisionEmpleado = function(emp, mesAMM){
+    emp = emp || {};
+    var pct = window._pctComisionEmpleadoVenta(emp);
+    var cargoId = emp.cargoId || '';
+    var cfg = window._resolverComisionCargo(cargoId);
+    var mes = mesAMM || new Date().toISOString().slice(0,7);
+    var ventas = (window.ventasList||[]).filter(function(v){
+      return (v.empleado===emp.nombre || v.empleadoId===emp.fbKey || v.empleadoId===emp.id) && (v.fecha||'').slice(0,7) === mes;
+    });
+    var totalVentas = ventas.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
+    var sinTope = totalVentas * pct / 100;
+    var max = parseFloat(cfg.max)||0;
+    if(max <= 0) max = 999999999;
+    var final = Math.max(parseFloat(cfg.min)||0, Math.min(max, sinTope));
+    return { totalVentas:totalVentas, cantVentas:ventas.length, pct:pct, comision:final, sinTope:sinTope };
+  };
 })();
 </script>
 
