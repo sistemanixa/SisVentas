@@ -800,10 +800,10 @@ tr:hover td{color:var(--text)}
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.328 — Dashboard: PC OT más ancho + tablet lado a lado
-   - Celular: mantiene apilado.
-   - Tablet: gráficos lado a lado desde 701px.
+   v20.330 — Dashboard: ajustes finos PC/tablet
+   - Tablet: gráficos lado a lado con el mismo ancho.
    - PC: OT pendientes más ancho; ventas más compacto.
+   - PC: evolución mensual más separada y más baja.
    - Celular: mantiene gráficos apilados.
    ══════════════════════════════════════════════════════════════════════════════ */
 #dash-row2-admin{align-items:stretch;gap:12px!important}
@@ -825,22 +825,27 @@ tr:hover td{color:var(--text)}
 #dash-ot-pendientes td{line-height:1.22!important}
 
 @media (min-width:1200px){
-  #dash-row2-admin{grid-template-columns:minmax(360px,.78fr) minmax(660px,1.22fr)!important}
-  #dash-row2-admin > .card:first-child{padding-bottom:14px!important}
-  #dash-row2-admin .dash-ventas-split{grid-template-columns:1fr!important;gap:10px!important}
-  #dash-row2-admin .dash-ventas-split > div:nth-child(2){border-left:none!important;border-top:0.5px solid var(--border)!important;padding-left:0!important;padding-top:10px!important}
-  #dash-row2-admin #dash-bar-area{height:76px!important;max-height:76px!important}
-  #dash-month-svg{height:76px!important;max-height:76px!important}
+  #dash-row2-admin{grid-template-columns:minmax(320px,.62fr) minmax(720px,1.38fr)!important;gap:14px!important}
+  #dash-row2-admin > .card:first-child{padding:14px 16px 12px!important}
+  #dash-row2-admin > .card:first-child .card-head{margin-bottom:10px!important}
+  #dash-row2-admin .dash-ventas-split{grid-template-columns:1fr!important;gap:24px!important;min-height:0!important}
+  #dash-row2-admin .dash-ventas-split > div:nth-child(2){border-left:none!important;border-top:0.5px solid var(--border)!important;padding-left:0!important;padding-top:18px!important}
+  #dash-row2-admin #dash-bar-area{height:72px!important;max-height:72px!important}
+  #dash-month-svg{height:62px!important;max-height:62px!important}
+  #dash-month-labels{font-size:10px!important}
+  #dash-month-var{font-size:10px!important}
+  #dash-month-total{font-size:11px!important}
   #dash-ventas-quick-326{margin-top:8px!important}
-  #dash-row2-admin > .card:nth-child(2){min-height:430px!important}
+  #dash-row2-admin > .card:nth-child(2){min-height:450px!important}
 }
 
 @media (min-width:701px) and (max-width:1199px){
   #dash-row2-admin{grid-template-columns:1fr!important}
-  #dash-row2-admin .dash-ventas-split{grid-template-columns:3fr 2fr!important;gap:18px!important}
+  #dash-row2-admin .dash-ventas-split{grid-template-columns:1fr 1fr!important;gap:18px!important;min-height:160px!important}
   #dash-row2-admin .dash-ventas-split > div:nth-child(2){border-left:0.5px solid var(--border)!important;border-top:none!important;padding-left:18px!important;padding-top:0!important}
+  #dash-row2-admin .dash-ventas-split > div{width:100%!important;min-width:0!important}
   #dash-row2-admin #dash-bar-area{height:104px!important;max-height:104px!important}
-  #dash-month-svg{height:104px!important;max-height:104px!important}
+  #dash-month-svg{height:104px!important;max-height:104px!important;width:100%!important}
 }
 
 @media (max-width:700px){
@@ -848,6 +853,114 @@ tr:hover td{color:var(--text)}
   #dash-row2-admin .dash-ventas-split > div:nth-child(2){border-left:none!important;border-top:0.5px solid var(--border)!important;padding-left:0!important;padding-top:14px!important}
   #dash-row2-admin #dash-bar-area{height:118px!important}
   #dash-month-svg{height:118px!important;max-height:118px!important}
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   v20.330 — Mobile UX integral
+   Ajustes generales responsive sin tocar lógica: tarjetas, filtros, botones,
+   tablas, notificaciones y espacios en pantallas chicas.
+   ══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 900px){
+  body{font-size:14px!important;background:var(--bg)!important;overflow-x:hidden!important}
+  .content{padding:12px!important;max-width:100vw!important;overflow-x:hidden!important}
+  .page{max-width:100%!important;overflow-x:hidden!important}
+  .card{border-radius:14px!important;padding:14px!important;margin-bottom:12px!important;overflow-x:hidden!important}
+  .card-head{align-items:flex-start!important;gap:10px!important;margin-bottom:12px!important}
+  .card-head > div{max-width:100%!important}
+  .card-title{font-size:12px!important;line-height:1.3!important;letter-spacing:.9px!important}
+  .metrics,.emp-sueldo-grid{gap:10px!important;margin-bottom:12px!important}
+  .metric,.sueldo-card{padding:13px 14px!important;border-radius:12px!important;min-width:0!important}
+  .m-label,.sueldo-label{font-size:10.5px!important;line-height:1.25!important;overflow-wrap:anywhere!important}
+  .m-value,.sueldo-value{font-size:20px!important;line-height:1.15!important;overflow-wrap:anywhere!important}
+  .m-sub,.sueldo-sub{font-size:11px!important;line-height:1.25!important;overflow-wrap:anywhere!important}
+  .form-grid,.form-grid.cols3{gap:10px!important}
+  .fg{min-width:0!important}
+  .fg input,.fg select,.fg textarea,.search-input,.ss-input{width:100%!important;min-width:0!important;max-width:100%!important;border-radius:10px!important;padding:10px 12px!important;box-sizing:border-box!important}
+  .btn{min-height:36px!important;border-radius:10px!important;white-space:normal!important;line-height:1.2!important;justify-content:center!important;text-align:center!important}
+  .btn-sm{min-height:34px!important;padding:7px 10px!important}
+  .flex-end{gap:8px!important;flex-wrap:wrap!important}
+  .flex-end .btn{flex:1 1 auto!important;min-width:120px!important}
+  .table-wrap{width:100%!important;max-width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch!important}
+  table{max-width:100%!important}
+  th,td{font-size:12px!important;line-height:1.3!important;vertical-align:top!important}
+  .badge{font-size:10.5px!important;line-height:1.2!important;white-space:normal!important;text-align:center!important}
+  .modal{width:96vw!important;max-width:96vw!important;padding:18px!important}
+  .modal-head{gap:10px!important}
+}
+
+@media (max-width: 768px){
+  .topbar{height:56px!important;padding:0 12px!important;gap:6px!important}
+  .page-title{font-size:16px!important;font-weight:600!important}
+  .topbar-right{gap:4px!important}
+  .role-badge{font-size:12px!important;padding:5px 10px!important;margin-right:0!important}
+  .icon-btn{width:38px!important;height:38px!important;border-radius:12px!important}
+  .hamburger.icon-btn,#btn-home{width:40px!important;height:40px!important}
+
+  /* Filtros y headers: en móvil primero contenido, luego acciones. */
+  .card-head{flex-direction:column!important;align-items:stretch!important}
+  .card-head .btn,.card-head button,.card-head select,.card-head input{max-width:100%!important}
+  .card-head > div[style*="display:flex"]{width:100%!important;display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+
+  /* Métricas: dos columnas si hay espacio, una cuando la tarjeta se aprieta. */
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .metrics[style*="repeat(4"],.metrics[style*="repeat(3"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #dash-micuenta-card .metrics,#dash-adm-metrics,#page-cuentacorriente .metrics,#page-tesoreria .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+
+  /* Notificaciones: la tarjeta pasa de fila desktop a bloque mobile. */
+  #page-notificaciones > div:first-child{display:grid!important;grid-template-columns:1fr!important;gap:10px!important;align-items:stretch!important;margin-bottom:14px!important}
+  #page-notificaciones > div:first-child > div{width:100%!important;display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+  #page-notificaciones #notif-count-label{font-size:14px!important;line-height:1.3!important;color:var(--text2)!important}
+  #page-notificaciones #notif-filtro{width:100%!important;font-size:18px!important;min-height:48px!important}
+  #page-notificaciones > div:first-child .btn{width:100%!important}
+  #notif-lista{display:flex!important;flex-direction:column!important;gap:10px!important}
+  #notif-lista > div{display:grid!important;grid-template-columns:28px minmax(0,1fr)!important;gap:10px!important;align-items:start!important;padding:14px!important;margin-bottom:0!important;overflow:hidden!important}
+  #notif-lista > div > i{grid-column:1!important;grid-row:1!important;font-size:23px!important;margin-top:1px!important}
+  #notif-lista > div > div:nth-child(2){grid-column:2!important;grid-row:1!important;min-width:0!important;width:100%!important}
+  #notif-lista > div > div:nth-child(2) strong{display:block!important;font-size:15px!important;line-height:1.18!important;overflow-wrap:anywhere!important;word-break:normal!important;hyphens:auto!important;max-width:100%!important}
+  #notif-lista > div > div:nth-child(2) > div:first-child{display:flex!important;flex-wrap:wrap!important;gap:6px!important;align-items:flex-start!important}
+  #notif-lista > div > div:nth-child(2) > div:nth-child(2){font-size:13px!important;line-height:1.45!important;margin-top:8px!important;overflow-wrap:anywhere!important}
+  #notif-lista > div > div:nth-child(2) > div:nth-child(3){font-size:12px!important;line-height:1.35!important;margin-top:8px!important}
+  #notif-lista > div > div:nth-child(3){grid-column:1 / -1!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;justify-content:stretch!important;width:100%!important;margin-top:8px!important}
+  #notif-lista > div > div:nth-child(3) .btn{width:100%!important;min-width:0!important;padding:8px 6px!important}
+
+  /* OT / listas con mucho texto: reducir aire y permitir corte prolijo. */
+  #dash-ot-pendientes td,#ot-tbody td,#ventas-tbody td,#pagos-tbody td,#cc-tbody td{overflow-wrap:anywhere!important;white-space:normal!important}
+  #dash-ot-pendientes td{padding:8px 6px!important;line-height:1.25!important}
+  #dash-ot-pendientes td:first-child{font-weight:600!important;color:var(--text)!important}
+
+  /* Tablas muy anchas: mantienen scroll horizontal pero sin romper la pantalla. */
+  #page-venta table,#page-presupuesto table,#page-detalle table,#page-ordentrabajo table,#page-cobranzas table,#page-tesoreria table,#page-empleados table,#page-productos table,#page-clientes table{min-width:680px!important}
+  #page-dashboard table{min-width:0!important}
+
+  /* Botones flotantes menos invasivos y fuera del contenido principal. */
+  .fab-container{right:14px!important;bottom:76px!important}
+  #chat-fab{right:14px!important;bottom:18px!important}
+  .fab-main,#chat-fab,#ia-fab{width:52px!important;height:52px!important}
+}
+
+@media (max-width: 560px){
+  .content{padding:10px!important}
+  .metrics,.metrics[style*="repeat"],.emp-sueldo-grid,#dash-micuenta-card .metrics,#dash-adm-metrics,#page-cuentacorriente .metrics,#page-tesoreria .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .metric,.sueldo-card{padding:12px!important}
+  .m-value,.sueldo-value{font-size:18px!important}
+  .row2{gap:10px!important}
+  .card{padding:12px!important;border-radius:14px!important}
+  .form-grid{grid-template-columns:1fr!important}
+  .flex-end{flex-direction:column!important;align-items:stretch!important}
+  .flex-end .btn{width:100%!important;min-width:0!important}
+  #notif-lista > div{grid-template-columns:24px minmax(0,1fr)!important;padding:13px!important}
+  #notif-lista > div > div:nth-child(3){grid-template-columns:1fr 1fr!important}
+}
+
+@media (max-width: 390px){
+  .content{padding:8px!important}
+  .metrics,.metrics[style*="repeat"],.emp-sueldo-grid{grid-template-columns:1fr!important}
+  #page-dashboard .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .topbar{padding:0 8px!important}
+  .page-title{font-size:15px!important}
+  .role-badge{padding:4px 8px!important}
+  #notif-lista > div > div:nth-child(3){grid-template-columns:1fr!important}
 }
 </style>
 
@@ -930,7 +1043,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.328 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.330 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9355,7 +9468,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.328-firebase',
+  VERSION: 'v20.330-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -28320,7 +28433,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.328</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.330</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30228,7 +30341,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.328';
+  SV.Cache.version = 'v20.330';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
