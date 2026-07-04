@@ -800,7 +800,7 @@ tr:hover td{color:var(--text)}
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.334 — Dashboard: ajustes finos PC/tablet
+   v20.335 — Dashboard: ajustes finos PC/tablet
    - Tablet: gráficos lado a lado con el mismo ancho.
    - PC: OT pendientes más ancho; ventas más compacto.
    - PC: evolución mensual más separada y más baja.
@@ -857,7 +857,7 @@ tr:hover td{color:var(--text)}
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.334 — Mobile UX integral
+   v20.335 — Mobile UX integral
    Ajustes generales responsive sin tocar lógica: tarjetas, filtros, botones,
    tablas, notificaciones y espacios en pantallas chicas.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -964,7 +964,7 @@ tr:hover td{color:var(--text)}
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.334 — Estadísticas y Rentabilidad: panel gráfico ejecutivo
+   v20.335 — Estadísticas y Rentabilidad: panel gráfico ejecutivo
    Replica el lenguaje visual del dashboard principal, con contenido específico.
    ══════════════════════════════════════════════════════════════════════════════ */
 .sv334-analytics-card{background:linear-gradient(145deg,rgba(96,165,250,.08),rgba(15,17,23,.02));border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px;overflow:hidden}
@@ -1090,7 +1090,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.334 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.335 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div class="login-field">
@@ -9515,7 +9515,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.334-firebase',
+  VERSION: 'v20.335-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -28480,7 +28480,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.334</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.335</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30388,7 +30388,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.334';
+  SV.Cache.version = 'v20.335';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -30972,7 +30972,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.334 — SisVentas Mobile UX: Configuración en tarjetas
+   v20.335 — SisVentas Mobile UX: Configuración en tarjetas
    - Móvil: Cargos, Comisiones y Actividad dejan de depender de tablas anchas.
    - Escritorio/tablet: no altera la lógica ni la vista de PC.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -31145,7 +31145,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.334 — Dashboard ventas: KPIs internos del contenedor
+   v20.335 — Dashboard ventas: KPIs internos del contenedor
    - Agrega tarjeta compacta: vs mes anterior, promedio diario, mejor día.
    - Agrega tarjetas grandes: Hoy, Semana, Mes.
    - No modifica lógica de ventas ni cobranzas; solo lectura y presentación.
@@ -31303,7 +31303,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.334 — Dashboard: OT pendientes más compacto
+   v20.335 — Dashboard: OT pendientes más compacto
    - PC: Ventas gana ancho; OT baja a panel secundario.
    - Compacta filas y padding de OT sin tocar datos ni lógica.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -31363,7 +31363,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.334 — Gráficos ejecutivos en Estadísticas y Rentabilidad
+   v20.335 — Gráficos ejecutivos en Estadísticas y Rentabilidad
    Inserción por ancla final: no pisa impresión ni lógica existente.
    ══════════════════════════════════════════════════════════════════════════════ */
 (function(){
@@ -31479,5 +31479,185 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(function(){ if(document.getElementById('page-estadisticas')&&document.getElementById('page-estadisticas').classList.contains('active')) renderStats334(); if(document.getElementById('page-rentabilidad')&&document.getElementById('page-rentabilidad').classList.contains('active')) renderRent334(); },500); });
 })();
 </script>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════════
+     v20.335 — Dashboard principal: divisor ajustable Ventas / OT
+     Inserción final no destructiva. Usa localStorage y no afecta mobile/tablet.
+     ══════════════════════════════════════════════════════════════════════════════ -->
+<style id="sv335-dashboard-resizer-css">
+@media (min-width:1200px){
+  #dash-row2-admin.sv335-resizable{
+    position:relative!important;
+    grid-template-columns:minmax(420px,var(--sv335-sales-width,54%)) minmax(360px,1fr)!important;
+    gap:16px!important;
+    align-items:stretch!important;
+  }
+  #dash-row2-admin.sv335-resizable > .card:first-child{
+    min-width:0!important;
+  }
+  #dash-row2-admin.sv335-resizable > .card:nth-child(2){
+    min-width:0!important;
+    min-height:360px!important;
+  }
+  #sv335-dashboard-divider{
+    position:absolute;
+    z-index:25;
+    top:8px;
+    bottom:8px;
+    left:var(--sv335-divider-left,54%);
+    width:16px;
+    transform:translateX(-8px);
+    cursor:col-resize;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    touch-action:none;
+    opacity:.58;
+    transition:opacity .15s ease;
+  }
+  #sv335-dashboard-divider:hover,
+  #sv335-dashboard-divider.dragging{opacity:1}
+  #sv335-dashboard-divider:before{
+    content:'';
+    width:3px;
+    height:64px;
+    border-radius:999px;
+    background:var(--border3);
+    box-shadow:0 0 0 4px rgba(120,130,160,.06);
+  }
+  #sv335-dashboard-divider:after{
+    content:'↔';
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:11px;
+    color:var(--text2);
+    background:var(--bg2);
+    border:0.5px solid var(--border2);
+  }
+  #sv335-dashboard-reset{
+    position:absolute;
+    z-index:26;
+    right:10px;
+    top:10px;
+    border:0.5px solid var(--border2);
+    background:var(--bg2);
+    color:var(--text3);
+    border-radius:999px;
+    padding:4px 8px;
+    font-size:10px;
+    line-height:1;
+    cursor:pointer;
+    opacity:.55;
+    transition:opacity .15s ease,color .15s ease,background .15s ease;
+  }
+  #sv335-dashboard-reset:hover{opacity:1;color:var(--text);background:var(--bg3)}
+}
+@media (max-width:1199px){
+  #sv335-dashboard-divider,#sv335-dashboard-reset{display:none!important}
+}
+</style>
+<script id="sv335-dashboard-resizer-js">
+(function(){
+  var KEY = 'sisventas_dash_ventas_ot_pct_v20_335';
+  var DEFAULT = 54;
+  var MIN = 38;
+  var MAX = 72;
+  function clamp(n){ return Math.max(MIN, Math.min(MAX, n)); }
+  function applyPct(pct){
+    var row = document.getElementById('dash-row2-admin');
+    if(!row) return;
+    pct = clamp(Number(pct) || DEFAULT);
+    row.style.setProperty('--sv335-sales-width', pct.toFixed(1) + '%');
+    row.style.setProperty('--sv335-divider-left', pct.toFixed(1) + '%');
+  }
+  function getSaved(){
+    try { return clamp(parseFloat(localStorage.getItem(KEY)) || DEFAULT); }
+    catch(e){ return DEFAULT; }
+  }
+  function savePct(pct){
+    try { localStorage.setItem(KEY, String(clamp(pct))); } catch(e) {}
+  }
+  function ensure(){
+    var row = document.getElementById('dash-row2-admin');
+    if(!row) return;
+    row.classList.add('sv335-resizable');
+    if(!document.getElementById('sv335-dashboard-divider')){
+      var divider = document.createElement('div');
+      divider.id = 'sv335-dashboard-divider';
+      divider.title = 'Arrastrar para ajustar Ventas / OT. Doble click para restablecer.';
+      row.appendChild(divider);
+      var dragging = false;
+      function pctFromEvent(ev){
+        var point = ev.touches && ev.touches.length ? ev.touches[0] : ev;
+        var rect = row.getBoundingClientRect();
+        return clamp(((point.clientX - rect.left) / rect.width) * 100);
+      }
+      function start(ev){
+        if(window.innerWidth < 1200) return;
+        dragging = true;
+        divider.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+        move(ev);
+        ev.preventDefault();
+      }
+      function move(ev){
+        if(!dragging) return;
+        var pct = pctFromEvent(ev);
+        applyPct(pct);
+        ev.preventDefault();
+      }
+      function end(ev){
+        if(!dragging) return;
+        dragging = false;
+        divider.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        savePct(pctFromEvent(ev.changedTouches && ev.changedTouches.length ? ev.changedTouches[0] : ev));
+      }
+      divider.addEventListener('mousedown', start);
+      divider.addEventListener('touchstart', start, {passive:false});
+      divider.addEventListener('dblclick', function(){ applyPct(DEFAULT); savePct(DEFAULT); });
+      window.addEventListener('mousemove', move, {passive:false});
+      window.addEventListener('touchmove', move, {passive:false});
+      window.addEventListener('mouseup', end);
+      window.addEventListener('touchend', end);
+    }
+    if(!document.getElementById('sv335-dashboard-reset')){
+      var reset = document.createElement('button');
+      reset.id = 'sv335-dashboard-reset';
+      reset.type = 'button';
+      reset.textContent = 'Restablecer ancho';
+      reset.title = 'Volver al ancho recomendado';
+      reset.onclick = function(){ applyPct(DEFAULT); savePct(DEFAULT); };
+      row.appendChild(reset);
+    }
+    applyPct(getSaved());
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensure); else ensure();
+  document.addEventListener('firebase-ready', function(){ setTimeout(ensure, 300); });
+  window.addEventListener('resize', function(){ applyPct(getSaved()); });
+  var oldShowPage = window.showPage;
+  if(typeof oldShowPage === 'function' && !oldShowPage.__sv335Wrapped){
+    var wrapped = function(){
+      var r = oldShowPage.apply(this, arguments);
+      setTimeout(ensure, 80);
+      return r;
+    };
+    wrapped.__sv335Wrapped = true;
+    window.showPage = wrapped;
+  }
+})();
+</script>
+
 </body>
 </html>
