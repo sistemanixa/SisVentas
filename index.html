@@ -9,12 +9,12 @@
 <script>
   // PWA v20.339: no desregistrar el Service Worker al iniciar.
   // Chrome necesita manifest + Service Worker estable para permitir instalación.
-  window.SISVENTAS_PWA_VERSION = 'v20.339';
+  window.SISVENTAS_PWA_VERSION = 'v20.340';
 </script>
 
 <title>SisVentas</title>
-<link rel="icon" id="favicon-link" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" id="apple-icon-link" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
+<link rel="apple-touch-icon" id="apple-icon-link" href="nixa-icon-192.png">
 <link rel="manifest" id="manifest-link" href="manifest.webmanifest">
 <meta name="theme-color" content="#080e1a">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1085,7 +1085,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.339 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.340 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -9511,7 +9511,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.339-firebase',
+  VERSION: 'v20.340-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -28476,7 +28476,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.339</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.340</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30384,7 +30384,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.339';
+  SV.Cache.version = 'v20.340';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
