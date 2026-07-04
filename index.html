@@ -7,25 +7,20 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 <script>
-  // PWA anterior. Si esto no corre, un SW viejo puede seguir sirviendo versiones
-  // en el servidor — el único síntoma visible es "la app no se actualiza nunca".
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(regs) {
-      regs.forEach(function(reg) { reg.unregister(); });
-    }).catch(function(){});
-  }
-  if (window.caches && caches.keys) {
-    caches.keys().then(function(names) {
-      names.forEach(function(name) { caches.delete(name); });
-    }).catch(function(){});
-  }
+  // PWA v20.339: no desregistrar el Service Worker al iniciar.
+  // Chrome necesita manifest + Service Worker estable para permitir instalación.
+  window.SISVENTAS_PWA_VERSION = 'v20.339';
 </script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="apple-icon-link" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080e1a'/%3E%3Cpath d='M30 65 L50 30 L70 65 M38 50 L62 50' stroke='%233ddc84' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
-<link rel="manifest" id="manifest-link" href="data:application/json,%7B%22name%22%3A%22SisVentas%22%2C%22short_name%22%3A%22SisVentas%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23080e1a%22%2C%22theme_color%22%3A%22%23080e1a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%25270%25200%2520100%2520100%2527%253E%253Crect%2520width%3D%2527100%2527%2520height%3D%2527100%2527%2520rx%3D%252720%2527%2520fill%3D%2527%2523080e1a%2527%2F%253E%253Cpath%2520d%3D%2527M30%252065%2520L50%252030%2520L70%252065%2520M38%252050%2520L62%252050%2527%2520stroke%3D%2527%25233ddc84%2527%2520stroke-width%3D%25278%2527%2520stroke-linecap%3D%2527round%2527%2520stroke-linejoin%3D%2527round%2527%2520fill%3D%2527none%2527%2F%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<link rel="manifest" id="manifest-link" href="manifest.webmanifest">
 <meta name="theme-color" content="#080e1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SisVentas">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
@@ -800,7 +795,7 @@ tr:hover td{color:var(--text)}
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.336 — Dashboard: ajustes finos PC/tablet
+   v20.339 — Dashboard: ajustes finos PC/tablet
    - Tablet: gráficos lado a lado con el mismo ancho.
    - PC: OT pendientes más ancho; ventas más compacto.
    - PC: evolución mensual más separada y más baja.
@@ -857,7 +852,7 @@ tr:hover td{color:var(--text)}
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.336 — Mobile UX integral
+   v20.339 — Mobile UX integral
    Ajustes generales responsive sin tocar lógica: tarjetas, filtros, botones,
    tablas, notificaciones y espacios en pantallas chicas.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -964,7 +959,7 @@ tr:hover td{color:var(--text)}
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.336 — Estadísticas y Rentabilidad: panel gráfico ejecutivo
+   v20.339 — Estadísticas y Rentabilidad: panel gráfico ejecutivo
    Replica el lenguaje visual del dashboard principal, con contenido específico.
    ══════════════════════════════════════════════════════════════════════════════ */
 .sv334-analytics-card{background:linear-gradient(145deg,rgba(96,165,250,.08),rgba(15,17,23,.02));border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px;overflow:hidden}
@@ -1090,36 +1085,37 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.336 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.339 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
-    <div class="login-field">
-      <label>Usuario</label>
-      <div style="position:relative">
-        <input type="email" id="l-user" placeholder="usuario@sistemanixa.com"
-          autocomplete="email" value=""
-          onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()"
-          style="width:100%;padding-right:36px;box-sizing:border-box">
-        <i class="ti ti-at" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:15px;pointer-events:none"></i>
+    <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
+      <div class="login-field">
+        <label for="l-user">Usuario</label>
+        <div style="position:relative">
+          <input type="email" id="l-user" name="username" placeholder="usuario@sistemanixa.com"
+            autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="email" value=""
+            onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()"
+            style="width:100%;padding-right:36px;box-sizing:border-box">
+          <i class="ti ti-at" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:15px;pointer-events:none"></i>
+        </div>
       </div>
-    </div>
-    <div class="login-field">
-      <label>Contraseña</label>
-      <div style="position:relative">
-        <input type="password" id="l-pass" placeholder="Contraseña" autocomplete="current-password"
-          onkeydown="if(event.key==='Enter')window.iniciarLoginConFeedback()"
-          style="width:100%;padding-right:40px;box-sizing:border-box">
-        <button type="button" onclick="window.togglePassVis()"
-          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:4px"
-          id="btn-show-pass">
-          <i class="ti ti-eye" style="font-size:16px" id="ico-show-pass"></i>
-        </button>
+      <div class="login-field">
+        <label for="l-pass">Contraseña</label>
+        <div style="position:relative">
+          <input type="password" id="l-pass" name="password" placeholder="Contraseña" autocomplete="current-password"
+            style="width:100%;padding-right:40px;box-sizing:border-box">
+          <button type="button" onclick="window.togglePassVis()"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:4px"
+            id="btn-show-pass" aria-label="Mostrar u ocultar contraseña">
+            <i class="ti ti-eye" style="font-size:16px" id="ico-show-pass"></i>
+          </button>
+        </div>
       </div>
-    </div>
-    <button class="login-btn" id="btn-login" onclick="window.iniciarLoginConFeedback()">
-      <i class="ti ti-login" style="font-size:16px" id="ico-login-btn"></i>
-      <span id="txt-login-btn"> Ingresar</span>
-    </button>
+      <button class="login-btn" id="btn-login" type="submit">
+        <i class="ti ti-login" style="font-size:16px" id="ico-login-btn"></i>
+        <span id="txt-login-btn"> Ingresar</span>
+      </button>
+    </form>
 
   </div>
 </div>
@@ -9515,7 +9511,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.336-firebase',
+  VERSION: 'v20.339-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -28480,7 +28476,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.336</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.339</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30388,7 +30384,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.336';
+  SV.Cache.version = 'v20.339';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -30972,7 +30968,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.336 — SisVentas Mobile UX: Configuración en tarjetas
+   v20.339 — SisVentas Mobile UX: Configuración en tarjetas
    - Móvil: Cargos, Comisiones y Actividad dejan de depender de tablas anchas.
    - Escritorio/tablet: no altera la lógica ni la vista de PC.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -31145,7 +31141,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.336 — Dashboard ventas: KPIs internos del contenedor
+   v20.339 — Dashboard ventas: KPIs internos del contenedor
    - Agrega tarjeta compacta: vs mes anterior, promedio diario, mejor día.
    - Agrega tarjetas grandes: Hoy, Semana, Mes.
    - No modifica lógica de ventas ni cobranzas; solo lectura y presentación.
@@ -31303,7 +31299,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.336 — Dashboard: OT pendientes más compacto
+   v20.339 — Dashboard: OT pendientes más compacto
    - PC: Ventas gana ancho; OT baja a panel secundario.
    - Compacta filas y padding de OT sin tocar datos ni lógica.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -31363,7 +31359,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.336 — Gráficos ejecutivos en Estadísticas y Rentabilidad
+   v20.339 — Gráficos ejecutivos en Estadísticas y Rentabilidad
    Inserción por ancla final: no pisa impresión ni lógica existente.
    ══════════════════════════════════════════════════════════════════════════════ */
 (function(){
@@ -31482,7 +31478,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 
 <!-- ══════════════════════════════════════════════════════════════════════════════
-     v20.336 — Dashboard principal: divisor ajustable Ventas / OT
+     v20.339 — Dashboard principal: divisor ajustable Ventas / OT
      Inserción final no destructiva. Usa localStorage y no afecta mobile/tablet.
      ══════════════════════════════════════════════════════════════════════════════ -->
 <style id="sv335-dashboard-resizer-css">
@@ -31663,7 +31659,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.336 — Formato unificado de impresión NIXA
+   v20.339 — Formato unificado de impresión NIXA
    Aplica encabezado/pie institucional a recibos, comprobantes, facturas,
    presupuestos, remitos, OT, informes e impresiones genéricas.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -31805,6 +31801,85 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
     var body='<section class="grid">'+clienteBox(cli,c,g('inf-dir'))+box('Equipo / servicio','<strong>'+esc(g('inf-equipo')||'Informe técnico')+'</strong>','Técnico: '+esc(g('inf-tecnico')||'—'))+'</section>'+section('Diagnóstico',g('inf-diagnostico'))+section('Acciones correctivas realizadas',g('inf-acciones'))+section('Materiales utilizados',g('inf-materiales'))+section('Medidas preventivas recomendadas',g('inf-preventivas'))+section('Observaciones',g('inf-obs'))+'<div class="firma"><div><div class="firma-line">Firma del técnico</div></div><div><div class="firma-line">Firma del cliente</div></div></div>';
     openPrint(shell({title:'INFORME TÉCNICO',num:g('inf-num')||'',fecha:fecha(g('inf-fecha')),body:body}));
   };
+})();
+</script>
+
+
+<script id="sv339-pwa-install">
+/* ══════════════════════════════════════════════════════════════════════════════
+   v20.339 — PWA instalable
+   - Registra sw.js sin borrar caché al iniciar.
+   - Expone botón Instalar cuando Chrome habilita beforeinstallprompt.
+   - Mantiene compatibilidad con Google Password Manager y Firebase.
+   ══════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  var deferredPrompt = null;
+  function notify(msg, type){
+    try { if (typeof toast === 'function') return toast(msg, type || 'info'); } catch(e){}
+    try { if (typeof showNotif === 'function') return showNotif(msg); } catch(e){}
+    console.log('[PWA]', msg);
+  }
+  function ensureInstallButton(){
+    var btn = document.getElementById('sv339-install-app-btn');
+    if (btn) return btn;
+    btn = document.createElement('button');
+    btn.id = 'sv339-install-app-btn';
+    btn.type = 'button';
+    btn.innerHTML = '<i class="ti ti-download"></i><span>Instalar</span>';
+    btn.style.cssText = 'display:none;position:fixed;right:18px;bottom:142px;z-index:9999;align-items:center;gap:7px;padding:10px 14px;border-radius:999px;border:0.5px solid var(--border2);background:var(--text);color:var(--bg2);font-family:inherit;font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer';
+    btn.onclick = async function(){
+      if (!deferredPrompt) {
+        notify('Para instalar: menú de Chrome → Agregar a pantalla principal.');
+        return;
+      }
+      deferredPrompt.prompt();
+      try { await deferredPrompt.userChoice; } catch(e) {}
+      deferredPrompt = null;
+      btn.style.display = 'none';
+    };
+    document.body.appendChild(btn);
+    return btn;
+  }
+  function isStandalone(){
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  }
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!isStandalone()) ensureInstallButton().style.display = 'inline-flex';
+  });
+  window.addEventListener('appinstalled', function(){
+    deferredPrompt = null;
+    var btn = document.getElementById('sv339-install-app-btn');
+    if (btn) btn.style.display = 'none';
+    notify('SisVentas instalado correctamente.');
+  });
+  window.svInstalarApp = function(){
+    var btn = ensureInstallButton();
+    btn.click();
+  };
+  window.svPwaEstado = function(){
+    return {
+      standalone: isStandalone(),
+      serviceWorker: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
+      promptDisponible: !!deferredPrompt
+    };
+  };
+  function registerSW(){
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      console.warn('[PWA] Chrome solo permite instalar PWAs en HTTPS o localhost.');
+      return;
+    }
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(function(reg){
+        console.log('[PWA] Service Worker registrado:', reg.scope);
+        if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+      })
+      .catch(function(err){ console.warn('[PWA] No se pudo registrar sw.js:', err); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', registerSW);
+  else registerSW();
 })();
 </script>
 </body>
