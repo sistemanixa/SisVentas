@@ -9,7 +9,7 @@
 <script>
   // PWA v20.339: no desregistrar el Service Worker al iniciar.
   // Chrome necesita manifest + Service Worker estable para permitir instalación.
-  window.SISVENTAS_PWA_VERSION = 'v20.343';
+  window.SISVENTAS_PWA_VERSION = 'v20.345';
 </script>
 
 <title>SisVentas</title>
@@ -1085,7 +1085,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.343 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.345 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -7908,8 +7908,7 @@ async function abrirModalAguinaldo() {
   var filas = _calcularFilasAguinaldo(empleados, habData, actual.anio, actual.sem);
   var totalGeneral = filas.reduce(function(s,f){ return s + f.aguinaldo; }, 0);
 
-  var prev = document.getElementById('modal-aguinaldo');
-  if (prev) prev.remove();
+  Array.from(document.querySelectorAll('#modal-aguinaldo')).forEach(function(prev){ prev.remove(); });
 
   var overlay = document.createElement('div');
   overlay.id = 'modal-aguinaldo';
@@ -9456,7 +9455,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.343-firebase',
+  VERSION: 'v20.345-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -12469,7 +12468,7 @@ function registrarActividad(accion, detalle) {
 
 var LOG_ACTIVIDAD_DATA = []; // últimos registros cargados, más reciente primero
 
-/* v20.343: limpieza del historial de actividad — solo administrador. */
+/* v20.345: limpieza del historial de actividad — solo administrador. */
 async function limpiarLogActividad() {
   if (currentRole !== 'admin') { notify('Solo el administrador puede limpiar el registro'); return; }
   if (!window.fbDB) { notify('Sin conexión'); return; }
@@ -27197,7 +27196,7 @@ function guardarConfigComisionCargo(cargoId, cfg) {
   };
 }
 
-/* v20.343: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
+/* v20.345: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
    ('Cat. 39', etc.) hacían fallar TODO fbSet de comisiones, por eso nada persistía.
    Este helper renombra las claves inválidas con _normComisionKey ('Cat. 39' → 'cat_39'),
    que la lectura ya resuelve vía _aliasesComisionCargo. */
@@ -28395,7 +28394,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.343</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.345</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30303,7 +30302,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.343';
+  SV.Cache.version = 'v20.345';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -30827,7 +30826,17 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
         count++;
         var cells=tr.querySelectorAll('td');
         var valCell=cells[cells.length-1];
-        var raw=(valCell&&valCell.textContent||'').replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(',','.');
+        // v20.345: el total debe tomar solo el importe principal de la celda.
+        // Antes se leía todo el textContent, incluyendo la fórmula interna
+        // ($920.000 ÷ 12 × 6), y eso concatenaba números generando importes enormes.
+        var montoTxt = '';
+        if (valCell) {
+          var nodoMonto = Array.from(valCell.childNodes || []).find(function(n){
+            return n.nodeType === 3 && String(n.textContent||'').trim();
+          });
+          montoTxt = nodoMonto ? nodoMonto.textContent : (valCell.firstChild ? valCell.firstChild.textContent : valCell.textContent);
+        }
+        var raw=(montoTxt||'').replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(',','.');
         total += parseFloat(raw)||0;
       }
     });
@@ -30842,7 +30851,11 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   }
   if(typeof window.recalcularAguinaldo==='function'){
     var originalRecalcularAguinaldo322=window.recalcularAguinaldo;
-    window.recalcularAguinaldo=function(){ var r=originalRecalcularAguinaldo322.apply(this, arguments); setTimeout(aplicarSelectorAguinaldo322,0); return r; };
+    window.recalcularAguinaldo=async function(){
+      var r = await originalRecalcularAguinaldo322.apply(this, arguments);
+      aplicarSelectorAguinaldo322();
+      return r;
+    };
   }
   window.confirmarRegistroAguinaldo = async function(){
     if (!window.fbDB) { notify('Sin conexión'); return; }
