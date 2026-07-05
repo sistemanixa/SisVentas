@@ -9,7 +9,7 @@
 <script>
   // PWA v20.339: no desregistrar el Service Worker al iniciar.
   // Chrome necesita manifest + Service Worker estable para permitir instalación.
-  window.SISVENTAS_PWA_VERSION = 'v20.348';
+  window.SISVENTAS_PWA_VERSION = 'v20.350';
 </script>
 
 <title>SisVentas</title>
@@ -1085,14 +1085,14 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.348 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.350 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
       <div class="login-field">
         <label for="l-user">Usuario</label>
         <div style="position:relative">
-          <input type="email" id="l-user" name="username" placeholder="usuario@sistemanixa.com"
+          <input type="text" id="l-user" name="username" placeholder="usuario o usuario@sistemanixa.com"
             autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="email" value=""
             onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()"
             style="width:100%;padding-right:36px;box-sizing:border-box">
@@ -2464,6 +2464,7 @@ tr:hover td{color:var(--text)}
           <button class="cfg-tab" onclick="showCfgTab('facturacion',this)" style="white-space:nowrap;flex-shrink:0">Facturación</button>
           <button class="cfg-tab" onclick="showCfgTab('mediosPago',this)" style="white-space:nowrap;flex-shrink:0">Medios de pago</button>
           <button class="cfg-tab" onclick="showCfgTab('basedatos',this)" style="white-space:nowrap;flex-shrink:0">Base de datos</button>
+          <button class="cfg-tab admin-only" onclick="showCfgTab('mantenimiento',this)" style="white-space:nowrap;flex-shrink:0">Mantenimiento</button>
           <button class="cfg-tab" onclick="showCfgTab('actividad',this)" style="white-space:nowrap;flex-shrink:0">Actividad</button>
           <button class="cfg-tab admin-o-administrativo" onclick="showCfgTab('asistente',this)" style="white-space:nowrap;flex-shrink:0">Asistente de ventas</button>
         </div>
@@ -2835,6 +2836,46 @@ tr:hover td{color:var(--text)}
             <div style="font-size:11px;color:var(--text3);margin-top:8px">
               ⚠️ "Cargar datos demo" solo usarlo una vez la primera vez.
             </div>
+          </div>
+        </div>
+
+        <!-- TAB: MANTENIMIENTO — diagnóstico, migraciones y limpieza controlada -->
+        <div id="cfg-mantenimiento" class="cfg-panel" style="display:none">
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title"><i class="ti ti-tool"></i> Centro de diagnóstico y mantenimiento</span>
+              <span id="mnt-estado-general" class="badge b-amber">Sin analizar</span>
+            </div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.45;margin-bottom:14px">
+              Herramienta administrativa para revisar la salud de Firebase, migrar estructuras antiguas a <strong>Gastos</strong> y limpiar registros obsoletos únicamente cuando la integridad esté verificada.
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px" class="metrics" id="mnt-metricas">
+              <div class="metric"><div class="m-label">Gastos</div><div class="m-value" id="mnt-kpi-gastos">—</div><div class="m-sub">fuente actual</div></div>
+              <div class="metric"><div class="m-label">Aguinaldos legacy</div><div class="m-value" id="mnt-kpi-agu">—</div><div class="m-sub">rama antigua</div></div>
+              <div class="metric"><div class="m-label">Horas extra legacy</div><div class="m-value" id="mnt-kpi-hs">—</div><div class="m-sub">solicitudes aprobadas</div></div>
+              <div class="metric"><div class="m-label">Pendientes</div><div class="m-value" id="mnt-kpi-pend">—</div><div class="m-sub">por migrar</div></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+              <button class="btn btn-sm btn-primary" onclick="mntAnalizarBase()"><i class="ti ti-search"></i> Analizar base</button>
+              <button class="btn btn-sm" onclick="mntMigrarLegacy()"><i class="ti ti-database-import"></i> Migrar legacy a Gastos</button>
+              <button class="btn btn-sm" onclick="mntVerificarIntegridad()"><i class="ti ti-shield-check"></i> Verificar integridad</button>
+              <button class="btn btn-sm btn-danger" id="mnt-btn-limpiar" onclick="mntLimpiarLegacy()" disabled><i class="ti ti-trash"></i> Limpiar legacy migrado</button>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:10px">
+              La limpieza no borra solicitudes pendientes: solo elimina estructuras o registros antiguos ya migrados y vinculados a Gastos.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title"><i class="ti ti-list-check"></i> Migraciones</span></div>
+            <div id="mnt-migraciones-lista" style="display:flex;flex-direction:column;gap:8px">
+              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Ejecutá “Analizar base” para ver el estado.</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v20.350
+Listo para analizar.
+</pre>
           </div>
         </div>
 
@@ -9431,7 +9472,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.348-firebase',
+  VERSION: 'v20.350-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10033,14 +10074,17 @@ window.doLogin = function doLogin() {
   var err = document.getElementById('login-error');
 
   if (window.fbAuth && window.fbSignIn) {
-    var email = u.includes('@') ? u : u + '@sistemanixa.com';
+    // v20.350: el campo de usuario vuelve a aceptar usuario corto (nixa) o email completo.
+    // El input ya no es type=email para evitar la validación nativa del navegador antes de autocompletar.
+    var usuarioLogin = u.toLowerCase().replace(/\s+/g,'');
+    var email = usuarioLogin.includes('@') ? usuarioLogin : usuarioLogin + '@sistemanixa.com';
     window._loginEnCurso = true;
     window.fbSignIn(window.fbAuth, email, p)
       .then(function(cred) {
         if(err) err.style.display = 'none';
         isAuthenticated = true;
 
-        var userPart = u.toLowerCase().trim(); // parte antes del @ o el usuario completo
+        var userPart = (typeof usuarioLogin !== 'undefined' ? usuarioLogin : u.toLowerCase().trim()); // parte antes del @ o el usuario completo
         var passLower = p.toLowerCase().trim();
         var esPasswordDefault = passLower === userPart ||
           passLower === email.split('@')[0].toLowerCase() ||
@@ -11922,6 +11966,7 @@ function showCfgTab(id, el) {
   if (id === 'comisiones') renderComisionesConfig();
   if (id === 'notificaciones' && typeof renderConfigAlertas === 'function') renderConfigAlertas();
   if (id === 'actividad') cargarLogActividad();
+  if (id === 'mantenimiento' && typeof mntInicializar === 'function') mntInicializar();
   if (id === 'asistente') aacfgInicializar();
 }
 // CONFIGURACIÓN DEL ASISTENTE DE VENTAS — editor visual
@@ -12444,7 +12489,7 @@ function registrarActividad(accion, detalle) {
 
 var LOG_ACTIVIDAD_DATA = []; // últimos registros cargados, más reciente primero
 
-/* v20.348: limpieza del historial de actividad — solo administrador. */
+/* v20.350: limpieza del historial de actividad — solo administrador. */
 async function limpiarLogActividad() {
   if (currentRole !== 'admin') { notify('Solo el administrador puede limpiar el registro'); return; }
   if (!window.fbDB) { notify('Sin conexión'); return; }
@@ -22303,11 +22348,12 @@ var gastoActualFbKey = null;
 var gastoFotoBase64 = null;
 
 
-// v20.348 — Migración definitiva de pagables legacy a Gastos.
+// v20.350 — Migración definitiva de pagables legacy a Gastos.
 // Desde esta versión, Gastos es la fuente real para SAC y Horas Extra.
 // Las ramas legacy (aguinaldos / ctaemp / hsextra_solicitudes) solo se leen para migrar registros viejos.
 var _migracionPagablesLegacyEjecutada = false;
 var _migracionPagablesLegacyEnCurso = false;
+window._ultimaMigracionPagablesLegacy = window._ultimaMigracionPagablesLegacy || { ejecutada:false, creados:0, ts:null };
 
 function _pagableNormFecha(f) {
   if (!f) return '';
@@ -22456,6 +22502,8 @@ async function _migrarPagablesLegacyAGastos() {
       if (typeof registrarActividad === 'function') registrarActividad('Migración pagables legacy', creados + ' registro(s) migrados a Gastos');
       if (typeof notify === 'function') notify('✓ Migración completada: ' + creados + ' SAC/hs extra quedaron en Gastos');
     }
+    window._ultimaMigracionPagablesLegacy = { ejecutada:true, creados:creados, ts:Date.now() };
+    if (!writes.length) console.info('[Migración pagables legacy] Sin registros nuevos para migrar.');
   } catch(e) {
     console.warn('[Migración pagables legacy]', e);
   } finally {
@@ -22479,7 +22527,7 @@ function fbCargarGastos() {
     actualizarMetricasGastos();
     var pageDash = document.getElementById('page-dashboard');
     if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
-    setTimeout(function(){ if (typeof _migrarPagablesLegacyAGastos === 'function') _migrarPagablesLegacyAGastos(); }, 500);
+    // v20.350: la migración legacy queda controlada desde Configuración > Mantenimiento.
   });
 }
 
@@ -27334,7 +27382,7 @@ function guardarConfigComisionCargo(cargoId, cfg) {
   };
 }
 
-/* v20.348: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
+/* v20.350: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
    ('Cat. 39', etc.) hacían fallar TODO fbSet de comisiones, por eso nada persistía.
    Este helper renombra las claves inválidas con _normComisionKey ('Cat. 39' → 'cat_39'),
    que la lectura ya resuelve vía _aliasesComisionCargo. */
@@ -28532,7 +28580,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.348</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.350</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30440,7 +30488,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.348';
+  SV.Cache.version = 'v20.350';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -30964,7 +31012,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
         count++;
         var cells=tr.querySelectorAll('td');
         var valCell=cells[cells.length-1];
-        // v20.348: el total debe tomar solo el importe principal de la celda.
+        // v20.350: el total debe tomar solo el importe principal de la celda.
         // Antes se leía todo el textContent, incluyendo la fórmula interna
         // ($920.000 ÷ 12 × 6), y eso concatenaba números generando importes enormes.
         var montoTxt = '';
@@ -31956,7 +32004,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.348 — Corrección definitiva SAC / Aguinaldo
+   v20.350 — Corrección definitiva SAC / Aguinaldo
    - La advertencia de duplicado ya no se basa solo en sisventas/aguinaldos,
      porque ese nodo puede conservar marcas antiguas o de pruebas.
    - Se valida contra gastos reales de Personal/Aguinaldo para el empleado,
@@ -32090,7 +32138,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.348 — SAC visible en Gastos + fecha editable
+   v20.350 — SAC visible en Gastos + fecha editable
    - Los SAC que quedaron solo en sisventas/aguinaldos se muestran en Gastos
      como registros recuperados para poder detectarlos y eliminarlos.
    - El alta de SAC usa por defecto la fecha del día y permite modificarla.
@@ -32362,7 +32410,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.348 — Fuente única definitiva para SAC y Horas Extra
+   v20.350 — Fuente única definitiva para SAC y Horas Extra
    - Gastos queda como única fuente real de registros pagables.
    - Las ramas legacy se migran una sola vez a Gastos.
    - El alta nueva de SAC y aprobación de Hs Extra ya NO escribe en aguinaldos/ctaemp.
@@ -32500,6 +32548,70 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
     }
   };
 })();
+</script>
+
+
+<script>
+/* v20.350 — Centro de diagnóstico y mantenimiento de base de datos */
+var MNT_STATE = { analizado:false, integridadOK:false, pendientes:0, diag:null, inicializado:false };
+function mntInicializar(){ if (MNT_STATE.inicializado) return; MNT_STATE.inicializado=true; mntLog('Centro de mantenimiento cargado.'); mntRenderMigraciones(null); }
+function mntLog(msg){ var el=document.getElementById('mnt-console'); if(!el) return; var hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); el.textContent+='['+hora+'] '+msg+'\n'; el.scrollTop=el.scrollHeight; }
+function mntSetEstado(txt, cls){ var el=document.getElementById('mnt-estado-general'); if(!el) return; el.className='badge '+(cls||'b-amber'); el.textContent=txt; }
+function mntSetText(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
+function mntObjCount(o){ return o && typeof o==='object' ? Object.keys(o).length : 0; }
+function mntMoney(n){ return Math.round(parseFloat(n)||0); }
+function mntFecha(f){ return (typeof _pagableNormFecha==='function') ? _pagableNormFecha(f) : (f||new Date().toISOString().slice(0,10)); }
+function mntEmpByKey(empKey){ try { return (empData && Object.values(empData).find(function(e){ return String(e.fbKey||e.id||'')===String(empKey||''); })) || {}; } catch(e){ return {}; } }
+function mntGastoExiste(gastos, tipoPagable, empKey, monto, fecha, semKey, legacyKey){
+  if (typeof _pagableGastoExistente==='function') return !!_pagableGastoExistente(tipoPagable, empKey, monto, fecha, semKey, legacyKey);
+  monto=mntMoney(monto); fecha=mntFecha(fecha);
+  return (gastos||[]).some(function(g){ var desc=String(g.descripcion||'').toLowerCase(); var tipo=String(g.tipoPagable||'').toLowerCase(); var esTipo=tipo===tipoPagable||(tipoPagable==='aguinaldo'&&desc.indexOf('aguinaldo')>=0)||(tipoPagable==='hextra'&&(desc.indexOf('hs extra')>=0||desc.indexOf('horas extra')>=0)); if(!esTipo) return false; if(legacyKey&&String(g.legacyKey||'')===String(legacyKey)) return true; if(empKey&&(g.empleadoFbKey||g.empleadoId||'')&&String(g.empleadoFbKey||g.empleadoId)!==String(empKey)) return false; if(semKey&&g.semestre&&String(g.semestre)!==String(semKey)) return false; if(monto>0&&Math.abs(mntMoney(g.monto)-monto)>1) return false; return true; });
+}
+async function mntGet(path){ var snap=await window.fbGet(window.fbRef(window.fbDB,path)).catch(function(){return {val:function(){return null;}};}); return snap.val()||null; }
+async function mntAnalizarBase(){
+  if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
+  mntSetEstado('Analizando...','b-amber'); mntLog('Analizando base de datos...');
+  var data=await Promise.all([mntGet('sisventas/gastos'),mntGet('sisventas/aguinaldos'),mntGet('sisventas/hsextra_solicitudes'),mntGet('sisventas/ctaemp'),mntGet('sisventas/migraciones'),mntGet('sisventas/empleados'),mntGet('sisventas/clientes'),mntGet('sisventas/productos'),mntGet('sisventas/ventas')]);
+  var gastosObj=data[0]||{}, agu=data[1]||{}, hs=data[2]||{}, cta=data[3]||{}, migr=data[4]||{};
+  var gastos=Object.keys(gastosObj).map(function(k){return Object.assign({fbKey:k},gastosObj[k]);});
+  var aguTotal=0, aguPend=0, aguMigr=0;
+  Object.keys(agu).forEach(function(empKey){ Object.keys(agu[empKey]||{}).forEach(function(semKey){ var r=agu[empKey][semKey]||{}; var monto=mntMoney(r.aguinaldo||r.monto||0); if(monto<=0) return; aguTotal++; var leg='aguinaldos/'+empKey+'/'+semKey; if(mntGastoExiste(gastos,'aguinaldo',empKey,monto,r.fecha,semKey,leg)) aguMigr++; else aguPend++; }); });
+  var hsAprob=0, hsPend=0, hsMigr=0;
+  Object.keys(hs).forEach(function(solKey){ var sol=hs[solKey]||{}; if(String(sol.estado||'').toLowerCase()!=='aprobado') return; var empKey=sol.empFbKey||sol.empleadoFbKey||sol.empleadoId||''; var monto=mntMoney(sol.monto||0); var leg='hsextra_solicitudes/'+solKey; hsAprob++; if(mntGastoExiste(gastos,'hextra',empKey,monto,sol.fecha,'',leg)) hsMigr++; else hsPend++; });
+  var ctaPagables=0, ctaPend=0, ctaMigr=0;
+  Object.keys(cta).forEach(function(empKey){ Object.keys(cta[empKey]||{}).forEach(function(mKey){ var m=cta[empKey][mKey]||{}; var tipo=String(m.tipo||'').toLowerCase(); if(tipo!=='hextra'&&tipo!=='aguinaldo') return; var monto=mntMoney(m.monto||0); if(monto<=0) return; ctaPagables++; var leg='ctaemp/'+empKey+'/'+mKey; if(mntGastoExiste(gastos,tipo,empKey,monto,m.fecha,m.semestre||'',leg)) ctaMigr++; else ctaPend++; }); });
+  var pendientes=aguPend+hsPend+ctaPend;
+  MNT_STATE={analizado:true,integridadOK:false,pendientes:pendientes,diag:{gastos:mntObjCount(gastosObj),aguTotal:aguTotal,aguPend:aguPend,aguMigr:aguMigr,hsAprob:hsAprob,hsPend:hsPend,hsMigr:hsMigr,ctaPagables:ctaPagables,ctaPend:ctaPend,ctaMigr:ctaMigr,migraciones:migr,empleados:mntObjCount(data[5]),clientes:mntObjCount(data[6]),productos:mntObjCount(data[7]),ventas:mntObjCount(data[8])}};
+  mntSetText('mnt-kpi-gastos',MNT_STATE.diag.gastos); mntSetText('mnt-kpi-agu',aguTotal); mntSetText('mnt-kpi-hs',hsAprob); mntSetText('mnt-kpi-pend',pendientes);
+  mntSetEstado(pendientes?'Requiere migración':'Base consistente',pendientes?'b-amber':'b-green');
+  mntLog('Gastos: '+MNT_STATE.diag.gastos); mntLog('Aguinaldos legacy: '+aguTotal+' ('+aguPend+' pendientes, '+aguMigr+' ya migrados)'); mntLog('Horas extra aprobadas legacy: '+hsAprob+' ('+hsPend+' pendientes, '+hsMigr+' ya migradas)'); mntLog('Cuenta empleado legacy pagable: '+ctaPagables+' ('+ctaPend+' pendientes, '+ctaMigr+' ya migrados)');
+  mntRenderMigraciones(migr); var btn=document.getElementById('mnt-btn-limpiar'); if(btn) btn.disabled=true;
+}
+function mntRenderMigraciones(migr){ var box=document.getElementById('mnt-migraciones-lista'); if(!box) return; migr=migr||{}; var defs=[['001-sac-gastos','Aguinaldos legacy → Gastos'],['002-horasextras-gastos','Horas extra legacy → Gastos'],['003-ctaemp-pagables-gastos','Cuenta empleado pagable legacy → Gastos']]; box.innerHTML=defs.map(function(d){ var m=migr[d[0]]||{}; var ok=String(m.estado||'').toLowerCase()==='ok'; return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3)"><div><div style="font-size:13px;font-weight:600;color:var(--text)">'+d[0]+'</div><div style="font-size:12px;color:var(--text2)">'+d[1]+'</div></div><div style="text-align:right"><span class="badge '+(ok?'b-green':'b-amber')+'">'+(ok?'Ejecutada':'Pendiente')+'</span><div style="font-size:11px;color:var(--text3);margin-top:4px">'+(m.fecha||'—')+'</div></div></div>'; }).join(''); }
+async function mntMigrarLegacy(){
+  if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
+  if(!MNT_STATE.analizado) await mntAnalizarBase();
+  mntSetEstado('Migrando...','b-amber'); mntLog('Iniciando migración controlada...'); var antes=Date.now();
+  var creadosAntes=window._ultimaMigracionPagablesLegacy&&window._ultimaMigracionPagablesLegacy.creados?window._ultimaMigracionPagablesLegacy.creados:0;
+  if(typeof _migracionPagablesLegacyEjecutada!=='undefined') _migracionPagablesLegacyEjecutada=false;
+  if(typeof _migrarPagablesLegacyAGastos==='function') await _migrarPagablesLegacyAGastos();
+  var creados=window._ultimaMigracionPagablesLegacy&&typeof window._ultimaMigracionPagablesLegacy.creados==='number'?window._ultimaMigracionPagablesLegacy.creados:creadosAntes;
+  var usuario=currentUser||(currentUserData&&currentUserData.nombre)||'Admin'; var fecha=new Date().toISOString();
+  await window.fbUpdate(window.fbRef(window.fbDB),{'sisventas/migraciones/001-sac-gastos':{estado:'OK',version:'v20.350',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/002-horasextras-gastos':{estado:'OK',version:'v20.350',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/003-ctaemp-pagables-gastos':{estado:'OK',version:'v20.350',fecha:fecha,usuario:usuario,registrosNuevos:creados}}).catch(function(e){mntLog('No se pudo guardar historial: '+e.message);});
+  mntLog('Migración finalizada. Registros nuevos creados: '+creados+'. Tiempo: '+((Date.now()-antes)/1000).toFixed(2)+' s'); notify('✓ Migración finalizada'); await mntAnalizarBase();
+}
+async function mntVerificarIntegridad(){ if(!MNT_STATE.analizado) await mntAnalizarBase(); mntLog('Verificando integridad...'); var d=MNT_STATE.diag||{}; var issues=[]; if((d.aguPend||0)>0) issues.push('Aguinaldos sin gasto: '+d.aguPend); if((d.hsPend||0)>0) issues.push('Horas extra aprobadas sin gasto: '+d.hsPend); if((d.ctaPend||0)>0) issues.push('Movimientos de cuenta empleado sin gasto: '+d.ctaPend); if(!issues.length){MNT_STATE.integridadOK=true; mntSetEstado('Integridad OK','b-green'); var btn=document.getElementById('mnt-btn-limpiar'); if(btn) btn.disabled=false; mntLog('Integridad OK. La limpieza segura ya está habilitada.'); notify('✓ Integridad OK');} else {MNT_STATE.integridadOK=false; mntSetEstado('Integridad pendiente','b-amber'); var btn2=document.getElementById('mnt-btn-limpiar'); if(btn2) btn2.disabled=true; issues.forEach(mntLog); notify('Hay pendientes por migrar');} }
+async function mntLimpiarLegacy(){
+  if(!MNT_STATE.integridadOK){ notify('Primero verificá integridad OK'); return; }
+  if(!confirm('Vas a limpiar estructuras antiguas ya migradas. No se borrarán solicitudes pendientes. ¿Continuar?')) return;
+  var clave=prompt('Escribí LIMPIAR para confirmar la limpieza definitiva:'); if(clave!=='LIMPIAR'){ notify('Limpieza cancelada'); return; }
+  mntSetEstado('Limpiando...','b-amber'); mntLog('Iniciando limpieza segura de legacy migrado...'); var borrados=0;
+  await window.fbRemove(window.fbRef(window.fbDB,'sisventas/aguinaldos')).then(function(){borrados++; mntLog('Eliminado: /sisventas/aguinaldos');}).catch(function(e){mntLog('No se pudo borrar aguinaldos: '+e.message);});
+  var hs=await mntGet('sisventas/hsextra_solicitudes')||{}; var hsUpdates={}; Object.keys(hs).forEach(function(k){var sol=hs[k]||{}; if(String(sol.estado||'').toLowerCase()==='aprobado'&&(sol.gastoFbKey||sol.migradoAGastos)) hsUpdates['sisventas/hsextra_solicitudes/'+k]=null;}); if(Object.keys(hsUpdates).length) await window.fbUpdate(window.fbRef(window.fbDB),hsUpdates).then(function(){borrados+=Object.keys(hsUpdates).length; mntLog('Eliminadas horas extra aprobadas migradas: '+Object.keys(hsUpdates).length);});
+  var cta=await mntGet('sisventas/ctaemp')||{}; var ctaUpdates={}; Object.keys(cta).forEach(function(empKey){Object.keys(cta[empKey]||{}).forEach(function(mKey){var m=cta[empKey][mKey]||{}; var tipo=String(m.tipo||'').toLowerCase(); if((tipo==='hextra'||tipo==='aguinaldo')&&(m.gastoFbKey||m.migradoAGastos)) ctaUpdates['sisventas/ctaemp/'+empKey+'/'+mKey]=null;});}); if(Object.keys(ctaUpdates).length) await window.fbUpdate(window.fbRef(window.fbDB),ctaUpdates).then(function(){borrados+=Object.keys(ctaUpdates).length; mntLog('Eliminados movimientos ctaemp legacy migrados: '+Object.keys(ctaUpdates).length);});
+  await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:'v20.350',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
+  mntLog('Limpieza finalizada. Elementos removidos: '+borrados); notify('✓ Limpieza legacy finalizada'); await mntAnalizarBase();
+}
 </script>
 
 </body>
