@@ -7,9 +7,9 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 <script>
-  // PWA v20.339: no desregistrar el Service Worker al iniciar.
+  // PWA v20.342: no desregistrar el Service Worker al iniciar.
   // Chrome necesita manifest + Service Worker estable para permitir instalación.
-  window.SISVENTAS_PWA_VERSION = 'v20.341';
+  window.SISVENTAS_PWA_VERSION = 'v20.342';
 </script>
 
 <title>SisVentas</title>
@@ -795,7 +795,7 @@ tr:hover td{color:var(--text)}
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.339 — Dashboard: ajustes finos PC/tablet
+   v20.342 — Dashboard: ajustes finos PC/tablet
    - Tablet: gráficos lado a lado con el mismo ancho.
    - PC: OT pendientes más ancho; ventas más compacto.
    - PC: evolución mensual más separada y más baja.
@@ -852,7 +852,7 @@ tr:hover td{color:var(--text)}
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.339 — Mobile UX integral
+   v20.342 — Mobile UX integral
    Ajustes generales responsive sin tocar lógica: tarjetas, filtros, botones,
    tablas, notificaciones y espacios en pantallas chicas.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -959,7 +959,7 @@ tr:hover td{color:var(--text)}
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.339 — Estadísticas y Rentabilidad: panel gráfico ejecutivo
+   v20.342 — Estadísticas y Rentabilidad: panel gráfico ejecutivo
    Replica el lenguaje visual del dashboard principal, con contenido específico.
    ══════════════════════════════════════════════════════════════════════════════ */
 .sv334-analytics-card{background:linear-gradient(145deg,rgba(96,165,250,.08),rgba(15,17,23,.02));border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px;overflow:hidden}
@@ -1085,7 +1085,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.341 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.342 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -7554,7 +7554,7 @@ function abrirModalHaberesMes() {
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
         '<div>' +
           '<div style="font-weight:700;font-size:15px"><i class="ti ti-cash" style="margin-right:8px;color:var(--green)"></i>Registrar haberes — ' + mesLbl + '</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Cargá las horas extra de cada empleado para este mes — se generará un gasto en categoría Personal</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Registra solo sueldo base. Las horas extra se cargan y aprueban desde el módulo específico para evitar duplicaciones</div>' +
         '</div>' +
         '<button onclick="document.getElementById(\'modal-haberes-mes\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>' +
       '</div>' +
@@ -7586,8 +7586,6 @@ function _renderTablaHaberes(filas) {
     '<thead><tr>' +
       '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Empleado</th>' +
       '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Sueldo base</th>' +
-      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400;width:140px">Hs extra este mes</th>' +
-      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Monto hs ex</th>' +
       '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Total</th>' +
     '</tr></thead>' +
     '<tbody>' +
@@ -7598,12 +7596,6 @@ function _renderTablaHaberes(filas) {
           '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(f.e.cargo||'Sin cargo') + '</div>' +
         '</td>' +
         '<td style="text-align:right;font-size:13px;padding:10px 0">$' + f.sueldo.toLocaleString('es-AR') + '</td>' +
-        '<td style="text-align:right;padding:10px 0">' +
-          '<input type="number" value="' + f.hsExtra + '" min="0" step="0.5" ' +
-            'style="width:64px;text-align:right;padding:4px 6px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);font-size:13px;font-family:inherit" ' +
-            'oninput="actualizarHsExtraHaberes(' + i + ',this.value)">' +
-        '</td>' +
-        '<td style="text-align:right;font-size:13px;padding:10px 0;color:var(--amber)" id="hab-monto-hsex-' + i + '">' + (f.montoHsEx > 0 ? '$'+f.montoHsEx.toLocaleString('es-AR') : '—') + '</td>' +
         '<td style="text-align:right;font-size:14px;font-weight:600;padding:10px 0" id="hab-total-fila-' + i + '">$' + f.total.toLocaleString('es-AR') + '</td>' +
       '</tr>';
     }).join('') +
@@ -8438,7 +8430,7 @@ function fbCargarTodo() {
   fbCargarPagos();
   fbCargarServicios();
   fbCargarCaja();
-  /* v20.341: generación automática de gastos fijos ELIMINADA.
+  /* v20.342: generación automática de gastos fijos ELIMINADA.
      La carga mensual la realiza el administrador manualmente. */
 }
 function fbCargarClientes() {
@@ -9510,7 +9502,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.341-firebase',
+  VERSION: 'v20.342-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -16116,6 +16108,32 @@ function _ctaEmpMovimientoLegacyDuplicadoPorGasto(m, empFbKey) {
   }) || null;
 }
 
+
+function _ctaEmpGastoPersonalDebeOmitirse(g, empFbKey, ctaMovs) {
+  // v20.342: la cuenta corriente del empleado toma haberes/hs extra desde ctaemp.
+  // Los gastos de Personal son el asiento contable/tesorería; si se muestran además
+  // como movimiento del empleado duplican sueldo u horas extra.
+  if (!g || !empFbKey || !_ctaEmpEsGastoPersonalEmpleado(g, empFbKey)) return false;
+  var tipoG = _ctaEmpTipoDesdeGasto(g);
+  if (!['sueldo','hextra','aguinaldo'].includes(tipoG)) return false;
+  var mesG = String(g.mes || g.fecha || '').slice(0,7);
+  var montoG = parseFloat(g.monto) || 0;
+  var sueldoBaseG = parseFloat(g.sueldoBase) || 0;
+  var montoHsExG = parseFloat(g.montoHsEx) || 0;
+  return (ctaMovs || []).some(function(m){
+    var mesM = String(m.mes || m.fecha || '').slice(0,7);
+    if (mesG && mesM && mesG !== mesM) return false;
+    var tipoM = String(m.tipo || '').toLowerCase();
+    var montoM = parseFloat(m.monto) || 0;
+    if (tipoG === tipoM && Math.abs(montoM - montoG) <= 1) return true;
+    if (tipoG === 'sueldo' && tipoM === 'sueldo') return true;
+    if (tipoM === 'sueldo' && sueldoBaseG > 0 && Math.abs(montoM - sueldoBaseG) <= 1) return true;
+    if (tipoM === 'hextra' && montoHsExG > 0 && Math.abs(montoM - montoHsExG) <= 1) return true;
+    if (tipoG === 'aguinaldo' && tipoM === 'aguinaldo') return true;
+    return false;
+  });
+}
+
 function _ctaEmpActualizarBannerDuplicadosLegacy() {
   var banner = document.getElementById('ctaemp-migracion-banner');
   if (banner) banner.remove();
@@ -16168,6 +16186,7 @@ function cargarCtaEmp(empFbKey) {
     var gastosEmp = (gastosData||[]).filter(function(g){
       var gEmp = g.empleadoId || g.empleadoFbKey || '';
       if (gEmp !== empFbKey || fbKeysEnCtaemp.has(g.fbKey)) return false;
+      if (_ctaEmpGastoPersonalDebeOmitirse(g, empFbKey, ctaMovs)) return false;
       var yaExiste = ctaMovs.some(function(m){
         if ((m.gastoFbKey || m.gastoKey || '') === g.fbKey) return true;
         var mismoMonto = Math.abs((parseFloat(m.monto)||0) - (parseFloat(g.monto)||0)) <= 1;
@@ -22386,7 +22405,7 @@ function fbCargarGastos() {
   });
 }
 
-/* v20.341: generarGastosFijosMes() eliminada. Los gastos fijos mensuales los genera el admin manualmente; la generación automática duplicaba registros (p.ej. 'Haber ... — junio de 2026 — Julio 2026') cuando el guion de la descripción no coincidía con la regex de recorte. */
+/* v20.342: generarGastosFijosMes() eliminada. Los gastos fijos mensuales los genera el admin manualmente; la generación automática duplicaba registros (p.ej. 'Haber ... — junio de 2026 — Julio 2026') cuando el guion de la descripción no coincidía con la regex de recorte. */
 function mesLabel() {
   var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   var d = new Date();
@@ -25227,6 +25246,7 @@ function renderDashMiCuenta() {
     var gastosEmp = (gastosData||[]).filter(function(g){
       var gEmp = g.empleadoId || g.empleadoFbKey || '';
       if (gEmp !== empFbKey || fbKeysEnCtaemp.has(g.fbKey)) return false;
+      if (_ctaEmpGastoPersonalDebeOmitirse(g, empFbKey, ctaMovs)) return false;
       var yaExiste = ctaMovs.some(function(m){
         if ((m.gastoFbKey || m.gastoKey || '') === g.fbKey) return true;
         var mismoMonto = Math.abs((parseFloat(m.monto)||0) - (parseFloat(g.monto)||0)) <= 1;
@@ -28434,7 +28454,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.341</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.342</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30342,7 +30362,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.341';
+  SV.Cache.version = 'v20.342';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -30926,7 +30946,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.339 — SisVentas Mobile UX: Configuración en tarjetas
+   v20.342 — SisVentas Mobile UX: Configuración en tarjetas
    - Móvil: Cargos, Comisiones y Actividad dejan de depender de tablas anchas.
    - Escritorio/tablet: no altera la lógica ni la vista de PC.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -31099,7 +31119,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.339 — Dashboard ventas: KPIs internos del contenedor
+   v20.342 — Dashboard ventas: KPIs internos del contenedor
    - Agrega tarjeta compacta: vs mes anterior, promedio diario, mejor día.
    - Agrega tarjetas grandes: Hoy, Semana, Mes.
    - No modifica lógica de ventas ni cobranzas; solo lectura y presentación.
@@ -31257,7 +31277,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.339 — Dashboard: OT pendientes más compacto
+   v20.342 — Dashboard: OT pendientes más compacto
    - PC: Ventas gana ancho; OT baja a panel secundario.
    - Compacta filas y padding de OT sin tocar datos ni lógica.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -31317,7 +31337,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.339 — Gráficos ejecutivos en Estadísticas y Rentabilidad
+   v20.342 — Gráficos ejecutivos en Estadísticas y Rentabilidad
    Inserción por ancla final: no pisa impresión ni lógica existente.
    ══════════════════════════════════════════════════════════════════════════════ */
 (function(){
@@ -31436,7 +31456,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 
 <!-- ══════════════════════════════════════════════════════════════════════════════
-     v20.339 — Dashboard principal: divisor ajustable Ventas / OT
+     v20.342 — Dashboard principal: divisor ajustable Ventas / OT
      Inserción final no destructiva. Usa localStorage y no afecta mobile/tablet.
      ══════════════════════════════════════════════════════════════════════════════ -->
 <style id="sv335-dashboard-resizer-css">
@@ -31617,7 +31637,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.339 — Formato unificado de impresión NIXA
+   v20.342 — Formato unificado de impresión NIXA
    Aplica encabezado/pie institucional a recibos, comprobantes, facturas,
    presupuestos, remitos, OT, informes e impresiones genéricas.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -31765,7 +31785,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script id="sv339-pwa-install">
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.339 — PWA instalable
+   v20.342 — PWA instalable
    - Registra sw.js sin borrar caché al iniciar.
    - Expone botón Instalar cuando Chrome habilita beforeinstallprompt.
    - Mantiene compatibilidad con Google Password Manager y Firebase.
