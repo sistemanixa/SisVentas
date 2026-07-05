@@ -9,7 +9,7 @@
 <script>
   // PWA v20.339: no desregistrar el Service Worker al iniciar.
   // Chrome necesita manifest + Service Worker estable para permitir instalación.
-  window.SISVENTAS_PWA_VERSION = 'v20.345';
+  window.SISVENTAS_PWA_VERSION = 'v20.347';
 </script>
 
 <title>SisVentas</title>
@@ -1085,7 +1085,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.345 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.347 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -9455,7 +9455,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.345-firebase',
+  VERSION: 'v20.347-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -12468,7 +12468,7 @@ function registrarActividad(accion, detalle) {
 
 var LOG_ACTIVIDAD_DATA = []; // últimos registros cargados, más reciente primero
 
-/* v20.345: limpieza del historial de actividad — solo administrador. */
+/* v20.347: limpieza del historial de actividad — solo administrador. */
 async function limpiarLogActividad() {
   if (currentRole !== 'admin') { notify('Solo el administrador puede limpiar el registro'); return; }
   if (!window.fbDB) { notify('Sin conexión'); return; }
@@ -27196,7 +27196,7 @@ function guardarConfigComisionCargo(cargoId, cfg) {
   };
 }
 
-/* v20.345: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
+/* v20.347: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
    ('Cat. 39', etc.) hacían fallar TODO fbSet de comisiones, por eso nada persistía.
    Este helper renombra las claves inválidas con _normComisionKey ('Cat. 39' → 'cat_39'),
    que la lectura ya resuelve vía _aliasesComisionCargo. */
@@ -28394,7 +28394,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.345</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.347</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30302,7 +30302,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.345';
+  SV.Cache.version = 'v20.347';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -30826,7 +30826,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
         count++;
         var cells=tr.querySelectorAll('td');
         var valCell=cells[cells.length-1];
-        // v20.345: el total debe tomar solo el importe principal de la celda.
+        // v20.347: el total debe tomar solo el importe principal de la celda.
         // Antes se leía todo el textContent, incluyendo la fórmula interna
         // ($920.000 ÷ 12 × 6), y eso concatenaba números generando importes enormes.
         var montoTxt = '';
@@ -31814,5 +31814,412 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   else registerSW();
 })();
 </script>
+
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════════
+   v20.347 — Corrección definitiva SAC / Aguinaldo
+   - La advertencia de duplicado ya no se basa solo en sisventas/aguinaldos,
+     porque ese nodo puede conservar marcas antiguas o de pruebas.
+   - Se valida contra gastos reales de Personal/Aguinaldo para el empleado,
+     año y semestre seleccionados.
+   - Mantiene la versión nueva con selección individual de empleados.
+   ══════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  function sv346Arr(obj){
+    if (typeof arr322 === 'function') return arr322(obj);
+    return Object.keys(obj || {}).map(function(k){ var v = obj[k] || {}; if (!v.fbKey) v.fbKey = k; return v; });
+  }
+  function sv346Norm(v){
+    return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  }
+  function sv346Activos(){
+    return sv346Arr(window.empData || {}).filter(function(e){ return e && e.activo !== false; });
+  }
+  function sv346EmpleadoSeleccionado(key){
+    if (window.aguSelKeys322 && typeof window.aguSelKeys322.has === 'function') return window.aguSelKeys322.has(key);
+    var chk = document.querySelector('.agu-check-322[data-key="' + String(key || '').replace(/"/g,'\\"') + '"]');
+    return !chk || chk.checked;
+  }
+  function sv346EsGastoAguinaldo(g, empKey, semKey, semLbl){
+    if (!g || g.anulado === true || sv346Norm(g.estado) === 'anulado') return false;
+    var desc = sv346Norm(g.descripcion || g.concepto || '');
+    var cat  = sv346Norm(g.categoria || '');
+    var tipo = sv346Norm(g.tipo || g.tipoHaber || g.movTipo || '');
+    var empOk = String(g.empleadoFbKey || g.empleadoId || g.empFbKey || '') === String(empKey || '');
+    if (!empOk) return false;
+    var esPersonal = cat === 'personal' || desc.indexOf('haber') >= 0 || desc.indexOf('aguinaldo') >= 0 || desc.indexOf('sac') >= 0;
+    var esSac = tipo === 'aguinaldo' || desc.indexOf('aguinaldo') >= 0 || desc.indexOf('sac') >= 0;
+    if (!esPersonal || !esSac) return false;
+    if (String(g.semestre || '') === String(semKey)) return true;
+    return desc.indexOf(sv346Norm(semLbl)) >= 0;
+  }
+  async function sv346HaySacRealRegistrado(empleados, semKey, semLbl){
+    var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/gastos'));
+    var gastos = sv346Arr(snap.val() || {});
+    var keys = new Set((empleados || []).map(function(e){ return String(e.fbKey || ''); }));
+    return gastos.some(function(g){
+      var empKey = String(g.empleadoFbKey || g.empleadoId || g.empFbKey || '');
+      return keys.has(empKey) && sv346EsGastoAguinaldo(g, empKey, semKey, semLbl);
+    });
+  }
+  function sv346ActualizarMarcaAguinaldo(e, semKey, payload){
+    return window.fbSet(window.fbRef(window.fbDB, 'sisventas/aguinaldos/' + e.fbKey + '/' + semKey), payload);
+  }
+  window.confirmarRegistroAguinaldo = async function(){
+    if (!window.fbDB) { notify('Sin conexión'); return; }
+    var sel = document.getElementById('agu-sem-sel');
+    var actual = (typeof _semestreActual === 'function') ? _semestreActual() : { anio: new Date().getFullYear(), sem: (new Date().getMonth() < 6 ? 1 : 2) };
+    var partes = sel ? String(sel.value || '').split('-') : [String(actual.anio), String(actual.sem)];
+    var anio = parseInt(partes[0], 10);
+    var sem  = parseInt(partes[1], 10);
+    var semKey = anio + '_S' + sem;
+    var semLbl = (sem === 1 ? '1er semestre' : '2do semestre') + ' ' + anio;
+    var fechaGasto = sem === 1 ? anio + '-06-30' : anio + '-12-18';
+    var empleados = sv346Activos().filter(function(e){ return e && e.fbKey && sv346EmpleadoSeleccionado(e.fbKey); });
+    if (!empleados.length) { notify('Seleccioná al menos un empleado'); return; }
+
+    try {
+      var yaRegistradoReal = await sv346HaySacRealRegistrado(empleados, semKey, semLbl);
+      if (yaRegistradoReal) {
+        if (!confirm('Ya existe aguinaldo registrado en Gastos para uno o más empleados en ' + semLbl + '. ¿Registrar de nuevo de todas formas?')) return;
+      }
+
+      var habSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes'));
+      var habData = habSnap.val() || {};
+      var filas = (typeof _calcularFilasAguinaldo === 'function') ? _calcularFilasAguinaldo(empleados, habData, anio, sem) : [];
+      var promesas = [];
+      var contador = 0;
+
+      filas.forEach(function(f){
+        if (!f || !f.e || !f.e.fbKey || Number(f.aguinaldo || 0) <= 0) return;
+        var e = f.e;
+        var desc = 'Aguinaldo ' + (e.nombre || '') + ' — ' + semLbl;
+        var gasto = {
+          fecha: fechaGasto,
+          tipo: 'aguinaldo',
+          descripcion: desc,
+          categoria: 'Personal',
+          monto: Number(f.aguinaldo || 0),
+          medio: 'Transferencia',
+          estado: 'Pagado',
+          empleadoFbKey: e.fbKey,
+          empleadoNombre: e.nombre || '',
+          semestre: semKey,
+          mejorSueldo: Number(f.mejorSueldo || 0),
+          origen: 'SAC',
+          ts: Date.now()
+        };
+        promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), gasto));
+        promesas.push(sv346ActualizarMarcaAguinaldo(e, semKey, {
+          semestre: semKey,
+          mejorSueldo: Number(f.mejorSueldo || 0),
+          aguinaldo: Number(f.aguinaldo || 0),
+          fecha: fechaGasto,
+          registradoPor: window.currentUser || (typeof currentUser !== 'undefined' ? currentUser : 'Admin'),
+          fuenteValidacion: 'gastos',
+          ts: Date.now()
+        }));
+        promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + e.fbKey), {
+          tipo: 'aguinaldo',
+          descripcion: 'Aguinaldo ' + semLbl,
+          monto: Number(f.aguinaldo || 0),
+          fecha: fechaGasto,
+          estado: 'pendiente',
+          semestre: semKey,
+          mejorSueldo: Number(f.mejorSueldo || 0),
+          empleadoId: e.fbKey,
+          ts: Date.now()
+        }));
+        contador++;
+      });
+
+      if (!contador) { notify('No hay importes de aguinaldo para registrar'); return; }
+      await Promise.all(promesas);
+      var modal = document.getElementById('modal-aguinaldo');
+      if (modal) modal.remove();
+      notify('✓ Aguinaldo de ' + semLbl + ' registrado (' + contador + ' empleados)');
+      if (typeof registrarActividad === 'function') registrarActividad('Aguinaldo registrado', semLbl + ' — ' + contador + ' empleados');
+      if (typeof renderGastos === 'function') renderGastos();
+    } catch(err) {
+      notify('Error al registrar aguinaldo: ' + (err && err.message ? err.message : err));
+    }
+  };
+})();
+</script>
+
+
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════════
+   v20.347 — SAC visible en Gastos + fecha editable
+   - Los SAC que quedaron solo en sisventas/aguinaldos se muestran en Gastos
+     como registros recuperados para poder detectarlos y eliminarlos.
+   - El alta de SAC usa por defecto la fecha del día y permite modificarla.
+   - La validación de duplicado contempla gastos reales y marcas SAC existentes.
+   ══════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  var sv347AguinaldosData = {};
+  var sv347AguListenerStarted = false;
+
+  function sv347Arr(obj){
+    return Object.keys(obj || {}).map(function(k){ var v = obj[k] || {}; if (v && typeof v === 'object' && !v.fbKey) v.fbKey = k; return v; });
+  }
+  function sv347Norm(v){
+    return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  }
+  function sv347Today(){
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function sv347EmpNombre(empKey){
+    var e = (window.empData || {})[empKey] || sv347Arr(window.empData || {}).find(function(x){ return String(x.fbKey||'') === String(empKey||''); });
+    return (e && e.nombre) || 'Empleado';
+  }
+  function sv347SemLbl(semKey){
+    var m = String(semKey||'').match(/^(\d{4})_S([12])$/);
+    if (!m) return String(semKey||'');
+    return (m[2] === '1' ? '1er semestre' : '2do semestre') + ' ' + m[1];
+  }
+  function sv347EsGastoSac(g){
+    if (!g) return false;
+    var desc = sv347Norm(g.descripcion || g.concepto || '');
+    var tipo = sv347Norm(g.tipo || g.tipoHaber || g.origen || '');
+    return tipo === 'aguinaldo' || tipo === 'sac' || desc.indexOf('aguinaldo') >= 0 || desc.indexOf('sac') >= 0;
+  }
+  function sv347GastoSacKey(g){
+    if (!sv347EsGastoSac(g)) return '';
+    var emp = String(g.empleadoFbKey || g.empleadoId || g.empFbKey || '');
+    var sem = String(g.semestre || '');
+    if (!emp || !sem) return '';
+    return emp + '|' + sem;
+  }
+  function sv347GastosExtendidos(){
+    var base = (window.gastosData || []).slice();
+    var existentes = new Set(base.map(sv347GastoSacKey).filter(Boolean));
+    Object.keys(sv347AguinaldosData || {}).forEach(function(empKey){
+      var regs = sv347AguinaldosData[empKey] || {};
+      Object.keys(regs || {}).forEach(function(semKey){
+        var r = regs[semKey] || {};
+        if (existentes.has(empKey + '|' + semKey)) return;
+        var monto = Number(r.aguinaldo || r.monto || 0);
+        if (!monto) return;
+        base.push({
+          fbKey: 'aguinaldo_recuperado__' + empKey + '__' + semKey,
+          _origenAguinaldo: true,
+          _aguEmpKey: empKey,
+          _aguSemKey: semKey,
+          fecha: r.fecha || '',
+          tipo: 'aguinaldo',
+          descripcion: 'Aguinaldo ' + sv347EmpNombre(empKey) + ' — ' + sv347SemLbl(semKey) + ' (recuperado)',
+          categoria: 'Personal',
+          monto: monto,
+          montoPagado: monto,
+          medio: 'Transferencia',
+          estado: 'Pagado',
+          empleadoFbKey: empKey,
+          empleadoNombre: sv347EmpNombre(empKey),
+          semestre: semKey,
+          mejorSueldo: r.mejorSueldo || 0,
+          ts: r.ts || 0
+        });
+      });
+    });
+    return base.sort(function(a,b){
+      var fa = _normFechaGasto(a.fecha||'') || '0000-00-00';
+      var fb = _normFechaGasto(b.fecha||'') || '0000-00-00';
+      if (fa !== fb) return fb.localeCompare(fa);
+      return (Number(b.ts)||0) - (Number(a.ts)||0);
+    });
+  }
+  function sv347StartAguListener(){
+    if (sv347AguListenerStarted || !window.fbDB || !window.fbOnValue) return;
+    sv347AguListenerStarted = true;
+    window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/aguinaldos'), function(snap){
+      sv347AguinaldosData = snap.val() || {};
+      try { if (typeof renderTablaGastos === 'function') renderTablaGastos(); } catch(e){}
+    });
+  }
+
+  var oldFbCargarGastos = window.fbCargarGastos;
+  window.fbCargarGastos = function(){
+    var r = oldFbCargarGastos ? oldFbCargarGastos.apply(this, arguments) : undefined;
+    sv347StartAguListener();
+    return r;
+  };
+  if (window.fbDB) setTimeout(sv347StartAguListener, 500);
+
+  window.gastosFiltradosActuales = function(){
+    var fTipo   = (document.getElementById('gas-f-tipo')||{}).value   || '';
+    var fEstado = (document.getElementById('gas-f-estado')||{}).value || '';
+    var fMes    = (document.getElementById('gas-f-mes')||{}).value;
+    if (fMes === undefined) fMes = 'mes';
+    var inp = document.querySelector('#gasto-list input.search-input');
+    var fBusq = inp ? String(inp.value||'').toLowerCase() : '';
+    var hoyD = new Date();
+    var mesActual = hoyD.toISOString().slice(0,7);
+    var mes3m = (function(){ var d=new Date(hoyD); d.setMonth(d.getMonth()-2); return d.toISOString().slice(0,7); })();
+    var anioActual = String(hoyD.getFullYear());
+
+    return sv347GastosExtendidos().filter(function(g){
+      var tipoNorm   = normalizarTipoGasto(g);
+      var estadoNorm = normalizarEstadoGasto(g);
+      var matchTipo   = !fTipo   || tipoNorm === fTipo || (fTipo === 'Fijo' && tipoNorm === 'aguinaldo');
+      var matchEstado = !fEstado || estadoNorm === fEstado;
+      var txt = ((g.descripcion||'') + ' ' + (g.categoria||'') + ' ' + (g.semestre||'')).toLowerCase();
+      var matchBusq   = !fBusq || txt.includes(fBusq);
+      var matchMes = true;
+      var f = _normFechaGasto(g.fecha);
+      if (fMes === 'mes') matchMes = f.slice(0,7) === mesActual;
+      else if (fMes === '3m') matchMes = f.slice(0,7) >= mes3m;
+      else if (fMes === 'anio') matchMes = f.slice(0,4) === anioActual;
+      var matchKpiVence = true;
+      if (window._filtroGastosKpiVence) {
+        var venc = g.vencimiento || '';
+        matchKpiVence = venc >= window._filtroGastosKpiVence.desde && venc <= window._filtroGastosKpiVence.hasta;
+      }
+      var matchKpiReembolso = true;
+      if (window._filtroGastosKpiReembolso) {
+        matchKpiReembolso = !!(g.empleadoId && normalizarEstadoGasto(g) !== 'pagado' && !g.reembolsado);
+      }
+      return matchTipo && matchEstado && matchBusq && matchMes && matchKpiVence && matchKpiReembolso;
+    });
+  };
+
+  var oldEliminar = window.eliminarRegistro;
+  window.eliminarRegistro = function(coleccion, fbKey){
+    if (coleccion === 'gastos' && String(fbKey||'').indexOf('aguinaldo_recuperado__') === 0) {
+      var m = String(fbKey).match(/^aguinaldo_recuperado__(.+)__(\d{4}_S[12])$/);
+      if (!m) { notify('No se pudo identificar el aguinaldo recuperado'); return; }
+      if (!confirm('¿Eliminar esta marca de aguinaldo recuperada? Esto la quitará de sisventas/aguinaldos.')) return;
+      if (!window.fbDB) { notify('Sin conexión'); return; }
+      window.fbRemove(window.fbRef(window.fbDB, 'sisventas/aguinaldos/' + m[1] + '/' + m[2]))
+        .then(function(){ notify('Aguinaldo recuperado eliminado'); })
+        .catch(function(e){ notify('Error al eliminar: ' + e.message); });
+      return;
+    }
+    return oldEliminar ? oldEliminar.apply(this, arguments) : undefined;
+  };
+
+  function sv347InjectFecha(){
+    var modal = document.getElementById('modal-aguinaldo');
+    if (!modal || document.getElementById('agu-fecha-registro')) return;
+    var semSel = document.getElementById('agu-sem-sel');
+    if (!semSel || !semSel.parentElement) return;
+    var box = document.createElement('div');
+    box.id = 'agu-fecha-box-347';
+    box.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap';
+    box.innerHTML = '<label style="font-size:13px;color:var(--text2);white-space:nowrap">Fecha de registro:</label>' +
+      '<input type="date" id="agu-fecha-registro" value="' + sv347Today() + '" ' +
+      'style="padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">';
+    semSel.parentElement.insertBefore(box, semSel.nextSibling);
+  }
+  var oldAbrirAgu = window.abrirModalAguinaldo;
+  window.abrirModalAguinaldo = async function(){
+    var r = oldAbrirAgu ? await oldAbrirAgu.apply(this, arguments) : undefined;
+    setTimeout(sv347InjectFecha, 0);
+    return r;
+  };
+
+  function sv347EmpleadoSeleccionado(key){
+    var chk = document.querySelector('.agu-check-322[data-key="' + String(key || '').replace(/"/g,'\\"') + '"]');
+    return !chk || chk.checked;
+  }
+  async function sv347HaySacRegistrado(empleados, semKey, semLbl){
+    var empKeys = new Set((empleados||[]).map(function(e){ return String(e.fbKey||''); }));
+    var gastos = sv347GastosExtendidos();
+    var porGastos = gastos.some(function(g){
+      if (!sv347EsGastoSac(g)) return false;
+      var emp = String(g.empleadoFbKey || g.empleadoId || g.empFbKey || '');
+      if (!empKeys.has(emp)) return false;
+      if (String(g.semestre||'') === String(semKey)) return true;
+      return sv347Norm(g.descripcion||'').indexOf(sv347Norm(semLbl)) >= 0;
+    });
+    if (porGastos) return true;
+    var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/aguinaldos'));
+    var data = snap.val() || {};
+    return (empleados||[]).some(function(e){ return data[e.fbKey] && data[e.fbKey][semKey]; });
+  }
+
+  window.confirmarRegistroAguinaldo = async function(){
+    if (!window.fbDB) { notify('Sin conexión'); return; }
+    var sel = document.getElementById('agu-sem-sel');
+    var actual = (typeof _semestreActual === 'function') ? _semestreActual() : { anio: new Date().getFullYear(), sem: (new Date().getMonth() < 6 ? 1 : 2) };
+    var partes = sel ? String(sel.value || '').split('-') : [String(actual.anio), String(actual.sem)];
+    var anio = parseInt(partes[0], 10);
+    var sem  = parseInt(partes[1], 10);
+    var semKey = anio + '_S' + sem;
+    var semLbl = (sem === 1 ? '1er semestre' : '2do semestre') + ' ' + anio;
+    var fechaInp = document.getElementById('agu-fecha-registro');
+    var fechaGasto = (fechaInp && fechaInp.value) ? fechaInp.value : sv347Today();
+    var empleados = sv347Arr(window.empData || {}).filter(function(e){ return e && e.activo !== false && e.fbKey && sv347EmpleadoSeleccionado(e.fbKey); });
+    if (!empleados.length) { notify('Seleccioná al menos un empleado'); return; }
+
+    try {
+      var ya = await sv347HaySacRegistrado(empleados, semKey, semLbl);
+      if (ya) {
+        if (!confirm('Ya existe aguinaldo registrado para uno o más empleados en ' + semLbl + '. Si está mal, podés verlo en Gastos > Este año/Todo y eliminarlo. ¿Registrar de nuevo de todas formas?')) return;
+      }
+      var habSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes'));
+      var habData = habSnap.val() || {};
+      var filas = (typeof _calcularFilasAguinaldo === 'function') ? _calcularFilasAguinaldo(empleados, habData, anio, sem) : [];
+      var promesas = [];
+      var contador = 0;
+      filas.forEach(function(f){
+        if (!f || !f.e || !f.e.fbKey || Number(f.aguinaldo || 0) <= 0) return;
+        var e = f.e;
+        var desc = 'Aguinaldo ' + (e.nombre || '') + ' — ' + semLbl;
+        var gasto = {
+          fecha: fechaGasto,
+          tipo: 'aguinaldo',
+          descripcion: desc,
+          categoria: 'Personal',
+          monto: Number(f.aguinaldo || 0),
+          montoPagado: Number(f.aguinaldo || 0),
+          medio: 'Transferencia',
+          estado: 'Pagado',
+          empleadoFbKey: e.fbKey,
+          empleadoNombre: e.nombre || '',
+          semestre: semKey,
+          mejorSueldo: Number(f.mejorSueldo || 0),
+          origen: 'SAC',
+          ts: Date.now()
+        };
+        promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), gasto));
+        promesas.push(window.fbSet(window.fbRef(window.fbDB, 'sisventas/aguinaldos/' + e.fbKey + '/' + semKey), {
+          semestre: semKey,
+          mejorSueldo: Number(f.mejorSueldo || 0),
+          aguinaldo: Number(f.aguinaldo || 0),
+          fecha: fechaGasto,
+          registradoPor: window.currentUser || (typeof currentUser !== 'undefined' ? currentUser : 'Admin'),
+          fuenteValidacion: 'gastos',
+          ts: Date.now()
+        }));
+        promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + e.fbKey), {
+          tipo: 'aguinaldo',
+          descripcion: 'Aguinaldo ' + semLbl,
+          monto: Number(f.aguinaldo || 0),
+          fecha: fechaGasto,
+          estado: 'pendiente',
+          semestre: semKey,
+          mejorSueldo: Number(f.mejorSueldo || 0),
+          empleadoId: e.fbKey,
+          ts: Date.now()
+        }));
+        contador++;
+      });
+      if (!contador) { notify('No hay importes de aguinaldo para registrar'); return; }
+      await Promise.all(promesas);
+      var modal = document.getElementById('modal-aguinaldo');
+      if (modal) modal.remove();
+      notify('✓ Aguinaldo de ' + semLbl + ' registrado con fecha ' + fechaGasto + ' (' + contador + ' empleados)');
+      if (typeof registrarActividad === 'function') registrarActividad('Aguinaldo registrado', semLbl + ' — ' + contador + ' empleados');
+    } catch(err) {
+      notify('Error al registrar aguinaldo: ' + (err && err.message ? err.message : err));
+    }
+  };
+})();
+</script>
+
 </body>
 </html>
