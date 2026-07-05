@@ -9,7 +9,7 @@
 <script>
   // PWA v20.339: no desregistrar el Service Worker al iniciar.
   // Chrome necesita manifest + Service Worker estable para permitir instalación.
-  window.SISVENTAS_PWA_VERSION = 'v20.352';
+  window.SISVENTAS_PWA_VERSION = 'v20.357';
 </script>
 
 <title>SisVentas</title>
@@ -1085,7 +1085,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.352 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.357 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -2884,7 +2884,7 @@ tr:hover td{color:var(--text)}
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v20.352
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v20.357
 Listo para analizar.
 </pre>
           </div>
@@ -4798,6 +4798,7 @@ Listo para analizar.
         <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:10px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('mpg-comprobante-input').click()">
           <i class="ti ti-paperclip" style="font-size:18px;color:var(--text3)"></i>
           <div id="mpg-comprobante-lbl" style="font-size:12px;color:var(--text3);margin-top:3px">Opcional: adjuntar transferencia / ticket</div>
+          <div id="mpg-comprobante-preview" style="display:none;margin-top:10px;align-items:center;justify-content:center;gap:8px"></div>
         </div>
         <input type="file" id="mpg-comprobante-input" accept="image/*,.pdf" style="display:none" onchange="previewPagoGastoComprobante(this)">
       </div>
@@ -5053,7 +5054,7 @@ Listo para analizar.
       <!-- Tarjetas resumen -->
       <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px" id="ctaemp-metrics" style="display:none">
       <div class="metric"><div class="m-label">Sueldo base</div><div class="m-value" id="ctaemp-base">$0</div><div class="m-sub">mensual bruto</div></div>
-      <div class="metric"><div class="m-label">Haberes</div><div class="m-value" id="ctaemp-haberes" style="color:var(--green)">$0</div><div class="m-sub">sueldo + comisiones + h.extra</div></div>
+      <div class="metric"><div class="m-label">Total pagado</div><div class="m-value" id="ctaemp-haberes" style="color:var(--green)">$0</div><div class="m-sub">dinero abonado en el mes</div></div>
       <div class="metric"><div class="m-label">Adelantos</div><div class="m-value" id="ctaemp-adelantos" style="color:var(--red)">$0</div><div class="m-sub">descontados del total</div></div>
       <div class="metric"><div class="m-label">Total a cobrar</div><div class="m-value" id="ctaemp-total" style="color:var(--text)">$0</div><div class="m-sub" id="ctaemp-periodo">—</div></div>
       </div>
@@ -7754,7 +7755,7 @@ async function confirmarRegistroHaberes() {
 // HORAS EXTRA — carga por empleado + aprobación admin
 
 function abrirModalHsExtra() {
-  var esAdmin = currentRole === 'admin' || currentRole === 'administrativo';
+  var esAdmin = currentRole === 'admin';
   if (esAdmin) {
     abrirPanelAprobacionHsExtra();
   } else {
@@ -7820,6 +7821,7 @@ async function enviarSolicitudHsExtra(empFbKey, empNombre) {
 }
 
 async function abrirPanelAprobacionHsExtra() {
+  if (currentRole !== 'admin') { notify('Solo el administrador puede autorizar horas extra'); abrirFormCargaHsExtra(); return; }
   var prev = document.getElementById('modal-hsextra-admin');
   if (prev) prev.remove();
   var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes')).catch(function(){ return { val: function(){ return null; } }; });
@@ -7876,6 +7878,7 @@ async function abrirPanelAprobacionHsExtra() {
 }
 
 async function aprobarHsExtra(solFbKey) {
+  if (currentRole !== 'admin') { notify('Solo el administrador puede aprobar horas extra'); return; }
   var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes/' + solFbKey));
   var s = snap.val();
   if (!s) { notify('Solicitud no encontrada'); return; }
@@ -7908,6 +7911,7 @@ async function aprobarHsExtra(solFbKey) {
 }
 
 async function rechazarHsExtra(solFbKey) {
+  if (currentRole !== 'admin') { notify('Solo el administrador puede rechazar horas extra'); return; }
   if (!confirm('¿Rechazar esta solicitud?')) return;
   await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes/' + solFbKey), {
     estado: 'rechazado', rechazadoPor: currentUser||'Admin', rechazadoTs: Date.now()
@@ -7919,7 +7923,7 @@ async function rechazarHsExtra(solFbKey) {
 }
 
 function actualizarBadgeHsExtraPendientes() {
-  if (currentRole !== 'admin' && currentRole !== 'administrativo') return;
+  if (currentRole !== 'admin') return;
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes')).then(function(snap) {
     var data = snap.val() || {};
     var n = Object.values(data).filter(function(s){ return s.estado === 'pendiente'; }).length;
@@ -9483,7 +9487,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.352-firebase',
+  VERSION: 'v20.357-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10085,7 +10089,7 @@ window.doLogin = function doLogin() {
   var err = document.getElementById('login-error');
 
   if (window.fbAuth && window.fbSignIn) {
-    // v20.352: el campo de usuario vuelve a aceptar usuario corto (nixa) o email completo.
+    // v20.357: el campo de usuario vuelve a aceptar usuario corto (nixa) o email completo.
     // El input ya no es type=email para evitar la validación nativa del navegador antes de autocompletar.
     var usuarioLogin = u.toLowerCase().replace(/\s+/g,'');
     var email = usuarioLogin.includes('@') ? usuarioLogin : usuarioLogin + '@sistemanixa.com';
@@ -12500,7 +12504,7 @@ function registrarActividad(accion, detalle) {
 
 var LOG_ACTIVIDAD_DATA = []; // últimos registros cargados, más reciente primero
 
-/* v20.352: limpieza del historial de actividad — solo administrador. */
+/* v20.357: limpieza del historial de actividad — solo administrador. */
 async function limpiarLogActividad() {
   if (currentRole !== 'admin') { notify('Solo el administrador puede limpiar el registro'); return; }
   if (!window.fbDB) { notify('Sin conexión'); return; }
@@ -15977,7 +15981,7 @@ function iniciarCtaEmp() {
   var sel = document.getElementById('ctaemp-sel');
   if (!sel) return;
   var lista = Object.values(empData || {}).filter(function(e){ return e.activo !== false; });
-  var esAdmin = (currentRole === 'admin' || currentRole === 'administrativo');
+  var esAdmin = (currentRole === 'admin');
 
   // 1) Por empleadoFbKey guardado en el usuario (método correcto)
   // 2) Fallback: por email o nombre
@@ -16246,19 +16250,18 @@ function _movEmpPagosArray(m) {
   return Object.keys(pagos).map(function(k){ var p = pagos[k] || {}; p._key = k; return p; }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
 }
 
-function _renderPagosRealizadosEmp(listaPeriodo) {
-  var card = document.getElementById('ctaemp-pagos-card');
-  var tbody = document.getElementById('ctaemp-pagos-tbody');
-  var resumen = document.getElementById('ctaemp-pagos-resumen');
-  if (!card || !tbody) return;
+function _ctaEmpPagosRealizadosEnMes(movs, mes) {
   var pagos = [];
-  (listaPeriodo || []).forEach(function(m){
+  (movs || []).forEach(function(m){
     _movEmpPagosArray(m).forEach(function(p, idx){
+      var fechaPago = p.fecha || m.fechaPago || '';
+      if (mes && fechaPago && !_fechaEnMes(fechaPago, mes)) return;
+      if (mes && !fechaPago && !_movEmpEnPeriodo(m, mes)) return;
       pagos.push({
         mov: m,
         pago: p,
         idx: idx,
-        fecha: p.fecha || m.fechaPago || m.fecha || '',
+        fecha: fechaPago || m.fecha || '',
         monto: parseFloat(p.monto) || 0,
         medio: p.medio || m.medioPago || '',
         usuario: p.usuario || m.usuarioPago || m.usuario || '',
@@ -16266,14 +16269,43 @@ function _renderPagosRealizadosEmp(listaPeriodo) {
         concepto: m.descripcion || m.desc || m.detalle || ''
       });
     });
+
+    // Compatibilidad: movimientos antiguos marcados como pagados sin array de pagos.
+    var tienePagos = _movEmpPagosArray(m).length > 0;
+    var montoDirecto = parseFloat(m.montoPagado) || 0;
+    var fechaDirecta = m.fechaPago || '';
+    if (!tienePagos && montoDirecto > 0) {
+      if (mes && fechaDirecta && !_fechaEnMes(fechaDirecta, mes)) return;
+      if (mes && !fechaDirecta && !_movEmpEnPeriodo(m, mes)) return;
+      pagos.push({
+        mov: m,
+        pago: { ts: m.ts || 0, fecha: fechaDirecta || m.fecha || '', monto: montoDirecto },
+        idx: 0,
+        fecha: fechaDirecta || m.fecha || '',
+        monto: montoDirecto,
+        medio: m.medioPago || '',
+        usuario: m.usuarioPago || m.usuario || '',
+        comprobante: m.comprobante || null,
+        concepto: m.descripcion || m.desc || m.detalle || ''
+      });
+    }
   });
+  pagos.sort(function(a,b){ return (b.pago.ts||0)-(a.pago.ts||0); });
+  return pagos;
+}
+
+function _renderPagosRealizadosEmp(listaMovs, mes) {
+  var card = document.getElementById('ctaemp-pagos-card');
+  var tbody = document.getElementById('ctaemp-pagos-tbody');
+  var resumen = document.getElementById('ctaemp-pagos-resumen');
+  if (!card || !tbody) return;
+  var pagos = _ctaEmpPagosRealizadosEnMes(listaMovs || [], mes || _ctaEmpPeriodoMes());
   card.style.display = '';
   if (!pagos.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:18px">Sin pagos registrados en este período</td></tr>';
     if (resumen) resumen.textContent = '0 pagos';
     return;
   }
-  pagos.sort(function(a,b){ return (b.pago.ts||0)-(a.pago.ts||0); });
   var total = pagos.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
   if (resumen) resumen.textContent = pagos.length + ' pago' + (pagos.length!==1?'s':'') + ' · $' + Math.round(total).toLocaleString('es-AR');
   tbody.innerHTML = pagos.map(function(x){
@@ -16281,13 +16313,13 @@ function _renderPagosRealizadosEmp(listaPeriodo) {
       ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();abrirComprobanteMovEmp(\''+x.mov.fbKey+'\','+x.idx+')" title="Ver comprobante"><i class="ti ti-paperclip" style="font-size:14px;color:var(--blue)"></i></button>'
       : '<span style="color:var(--text3);font-size:11px">—</span>';
     var concepto = x.concepto || ({sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',gasto_empresa:'Gasto empresa'}[x.mov.tipo] || x.mov.tipo || 'Movimiento');
-    return '<tr>'+
-      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML((x.fecha||'').split('-').reverse().join('/')||'—')+'</td>'+
-      '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(concepto)+'</td>'+
-      '<td class="tr" style="font-weight:600;color:var(--green)">$'+Math.round(x.monto).toLocaleString('es-AR')+'</td>'+
-      '<td>'+escapeHTML(x.medio||'—')+'</td>'+
-      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(x.usuario||'—')+'</td>'+
-      '<td class="tr">'+compBtn+'</td>'+
+    return '<tr>'+ 
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML((x.fecha||'').split('-').reverse().join('/')||'—')+'</td>'+ 
+      '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(concepto)+'</td>'+ 
+      '<td class="tr" style="font-weight:600;color:var(--green)">$'+Math.round(x.monto).toLocaleString('es-AR')+'</td>'+ 
+      '<td>'+escapeHTML(x.medio||'—')+'</td>'+ 
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(x.usuario||'—')+'</td>'+ 
+      '<td class="tr">'+compBtn+'</td>'+ 
     '</tr>';
   }).join('');
 }
@@ -16393,7 +16425,16 @@ function _movEmpEsCobrable(m) {
 }
 
 function _puedeAprobarMovEmp(m) {
-  return _esRolAdminOAdministrativo() && m && m._fuente !== 'gastos' && String(m.estado||'').toLowerCase() === 'pendiente';
+  return currentRole === 'admin' && m && m._fuente !== 'gastos' && String(m.estado||'').toLowerCase() === 'pendiente';
+}
+
+function _ctaEmpMovVisibleParaRol(m) {
+  if (currentRole === 'admin') return true;
+  var est = String((m && m.estado) || '').toLowerCase();
+  var estadoCalc = _movEmpEstadoCalculado(m);
+  if (est === 'pendiente' || estadoCalc === 'pendiente') return false;
+  if (est === 'rechazado' || estadoCalc === 'rechazado' || est === 'anulado' || estadoCalc === 'anulado') return false;
+  return true;
 }
 
 function renderMovsEmp() {
@@ -16403,10 +16444,11 @@ function renderMovsEmp() {
   var filtroEstado = (document.getElementById('ctaemp-filtro-estado')||{}).value || '';
   var mesCta = _ctaEmpPeriodoMes();
   var lista = movsEmpData.filter(function(m) {
+    if (!_ctaEmpMovVisibleParaRol(m)) return false;
     var estadoCalcFiltro = _movEmpEstadoCalculado(m);
     return (!filtroTipo || m.tipo === filtroTipo) && (!filtroEstado || estadoCalcFiltro === filtroEstado || String(m.estado||'').toLowerCase() === filtroEstado) && _movEmpEnPeriodo(m, mesCta);
   });
-  _renderPagosRealizadosEmp(lista);
+  _renderPagosRealizadosEmp(movsEmpData.filter(_ctaEmpMovVisibleParaRol), mesCta);
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin movimientos registrados</td></tr>';
   } else {
@@ -16453,9 +16495,12 @@ function renderMovsEmp() {
     }).join('');
   }
   var TIPOS_HABER = ['sueldo','aguinaldo','comision','hextra','transporte','materiales','gasto_empresa','otro'];
-  var listaPeriodo = movsEmpData.filter(function(m){ return _movEmpEnPeriodo(m, mesCta); });
+  var listaPeriodo = movsEmpData.filter(function(m){ return _ctaEmpMovVisibleParaRol(m) && _movEmpEnPeriodo(m, mesCta); });
   var haberes = listaPeriodo.filter(function(m){ return TIPOS_HABER.includes(m.tipo) && _movEmpEsCobrable(m); })
                             .reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
+  // Total efectivamente abonado al empleado en el mes seleccionado, tomando fecha de pago.
+  var totalPagadoMes = _ctaEmpPagosRealizadosEnMes(movsEmpData, mesCta)
+                            .reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
   var adelantos = listaPeriodo.filter(function(m){ return m.tipo === 'adelanto' && String(m.estado||'').toLowerCase() !== 'rechazado'; })
                               .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
   var adelantosPend = listaPeriodo.filter(function(m){ return m.tipo === 'adelanto' && _movEmpEsCobrable(m); })
@@ -16466,7 +16511,7 @@ function renderMovsEmp() {
                                 .sort(function(a,b){ return (b.ts||0)-(a.ts||0); })[0];
   var base = ultimoSueldo ? (parseFloat(ultimoSueldo.sueldoBase)||parseFloat(ultimoSueldo.monto)||0) : 0;
   if (el('ctaemp-base'))     el('ctaemp-base').textContent     = '$' + Math.round(base).toLocaleString('es-AR');
-  if (el('ctaemp-haberes'))  el('ctaemp-haberes').textContent  = '$' + Math.round(haberes).toLocaleString('es-AR');
+  if (el('ctaemp-haberes'))  el('ctaemp-haberes').textContent  = '$' + Math.round(totalPagadoMes).toLocaleString('es-AR');
   if (el('ctaemp-adelantos'))el('ctaemp-adelantos').textContent= '$' + Math.round(adelantos).toLocaleString('es-AR');
   if (el('ctaemp-total'))    el('ctaemp-total').textContent    = '$' + Math.round(total).toLocaleString('es-AR');
 }
@@ -16613,15 +16658,92 @@ function guardarMovEmp() {
   }
 }
 
+function _comisionNormFecha(f) {
+  return (f && /^\d{4}-\d{2}-\d{2}$/.test(String(f))) ? String(f) : new Date().toISOString().slice(0,10);
+}
+
+function _buscarEmpleadoPorKeyCta(empFbKey) {
+  try {
+    return Object.values(empData || {}).find(function(e){ return String(e.fbKey||e.id||'') === String(empFbKey||''); }) || {};
+  } catch(e) { return {}; }
+}
+
+async function _crearGastoComisionDesdeMovimiento(empFbKey, movFbKey, mov) {
+  if (!window.fbDB || !empFbKey || !mov) return null;
+  var monto = Math.round(parseFloat(mov.monto)||0);
+  if (monto <= 0) return null;
+  var legacyKey = 'ctaemp/' + empFbKey + '/' + movFbKey;
+  var gastosObj = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/gastos')).then(function(s){return s.val()||{};}).catch(function(){return {};});
+  var yaExiste = Object.keys(gastosObj).some(function(k){
+    var g = gastosObj[k] || {};
+    if (String(g.legacyKey||'') === legacyKey) return true;
+    if (String(g.tipoPagable||'').toLowerCase() !== 'comision') return false;
+    if (String(g.empleadoFbKey||g.empleadoId||'') !== String(empFbKey)) return false;
+    if ((mov.ventaFbKey || mov.ventaId) && (String(g.ventaFbKey||'') === String(mov.ventaFbKey||'') || String(g.ventaId||'') === String(mov.ventaId||''))) return true;
+    return Math.abs((parseFloat(g.monto)||0)-monto) <= 1 && String(g.descripcion||'') === String(mov.descripcion||'');
+  });
+  if (yaExiste) {
+    await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), { migradoAGastos:true, legacyKey:legacyKey }).catch(function(){});
+    return null;
+  }
+  var emp = _buscarEmpleadoPorKeyCta(empFbKey);
+  var fecha = _comisionNormFecha(mov.fechaAprobacion || mov.fecha);
+  var pagado = Math.round(parseFloat(mov.montoPagado)||0);
+  var estadoMov = String(mov.estado||'').toLowerCase();
+  var estadoGasto = (estadoMov === 'pagado' || pagado >= monto) ? 'pagado' : (estadoMov === 'pagado_parcial' || pagado > 0 ? 'pagado_parcial' : 'pendiente_pago');
+  var gasto = {
+    fecha: fecha,
+    descripcion: mov.descripcion || ('Comisión venta ' + (mov.ventaId||'')),
+    categoria: 'Personal',
+    tipo: 'Comisión',
+    tipoPagable: 'comision',
+    monto: monto,
+    montoPagado: pagado || 0,
+    estado: estadoGasto,
+    empleadoId: empFbKey,
+    empleadoFbKey: empFbKey,
+    empleadoNombre: mov.empleadoNombre || emp.nombre || '',
+    ventaId: mov.ventaId || '',
+    ventaFbKey: mov.ventaFbKey || '',
+    cliente: mov.cliente || '',
+    origen: 'comision',
+    origenLegacy: 'ctaemp',
+    legacyKey: legacyKey,
+    generadoPor: currentUser || '',
+    ts: mov.ts || Date.now()
+  };
+  if (estadoGasto === 'pagado' || estadoGasto === 'pagado_parcial') {
+    var pagoKey = 'pago_' + Date.now();
+    gasto.pagos = {};
+    gasto.pagos[pagoKey] = { fecha: mov.fechaPago || fecha, ts: Date.now(), monto: pagado || monto, medio: mov.medioPago || '', usuario: currentUser || '', rol: currentRole || '', comprobante: mov.comprobante || null };
+  }
+  var refNuevo = window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'));
+  await window.fbSet(refNuevo, gasto);
+  await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), { gastoFbKey: refNuevo.key, migradoAGastos:true, legacyKey:legacyKey }).catch(function(){});
+  return refNuevo.key;
+}
+
 function aprobarComision(movFbKey, empFbKey) {
   if (!window.fbDB) return;
   if (!_esRolAdminOAdministrativo()) { notify('No tenés permiso para aprobar comisiones'); return; }
   if (!confirm('¿Aprobar esta comisión?')) return;
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
-    estado: 'aprobado',
-    aprobadoPor: currentUser || '',
-    fechaAprobacion: new Date().toISOString().slice(0,10)
-  }).then(function(){ notify('✓ Comisión aprobada — queda pendiente de pago'); });
+  var refMov = window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey);
+  window.fbGet(refMov).then(function(snap){
+    var mov = snap.val() || {};
+    var fechaApr = new Date().toISOString().slice(0,10);
+    mov.estado = 'aprobado';
+    mov.aprobadoPor = currentUser || '';
+    mov.fechaAprobacion = fechaApr;
+    return window.fbUpdate(refMov, {
+      estado: 'aprobado',
+      aprobadoPor: currentUser || '',
+      fechaAprobacion: fechaApr
+    }).then(function(){ return _crearGastoComisionDesdeMovimiento(empFbKey, movFbKey, mov); });
+  }).then(function(){
+    notify('✓ Comisión aprobada — gasto generado y pendiente de pago');
+    if (typeof fbCargarGastos === 'function') fbCargarGastos();
+    if (typeof cargarCtaEmp === 'function') cargarCtaEmp();
+  }).catch(function(e){ notify('Error aprobando comisión: ' + e.message); });
 }
 
 function rechazarComision(movFbKey, empFbKey) {
@@ -22359,7 +22481,7 @@ var gastoActualFbKey = null;
 var gastoFotoBase64 = null;
 
 
-// v20.352 — Migración definitiva de pagables legacy a Gastos.
+// v20.357 — Migración definitiva de pagables legacy a Gastos.
 // Desde esta versión, Gastos es la fuente real para SAC y Horas Extra.
 // Las ramas legacy (aguinaldos / ctaemp / hsextra_solicitudes) solo se leen para migrar registros viejos.
 var _migracionPagablesLegacyEjecutada = false;
@@ -22538,7 +22660,7 @@ function fbCargarGastos() {
     actualizarMetricasGastos();
     var pageDash = document.getElementById('page-dashboard');
     if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
-    // v20.352: la migración legacy queda controlada desde Configuración > Mantenimiento.
+    // v20.357: la migración legacy queda controlada desde Configuración > Mantenimiento.
   });
 }
 
@@ -22763,8 +22885,10 @@ function abrirPagoMultipleGastos() {
   var total = keys.reduce(function(s,k){ var g = (gastosData||[]).find(function(x){ return x.fbKey === k; }); return s + restoGasto(g); }, 0);
   var inpComp = document.getElementById('mpg-comprobante-input');
   var lblComp = document.getElementById('mpg-comprobante-lbl');
+  var prevComp = document.getElementById('mpg-comprobante-preview');
   if (inpComp) inpComp.value = '';
   if (lblComp) lblComp.textContent = 'Opcional: adjuntar transferencia / ticket';
+  if (prevComp) { prevComp.style.display = 'none'; prevComp.innerHTML = ''; }
   document.getElementById('mpg-titulo').textContent = 'Pago múltiple: ' + keys.length + ' gastos  (total $' + Math.round(total).toLocaleString('es-AR') + ')';
   _setMontoInput(document.getElementById('mpg-monto'), total);
   document.getElementById('modal-pago-gasto').style.display = 'flex';
@@ -22996,8 +23120,10 @@ function abrirPagoGasto(fbKey) {
   _pagoGastoComprobante = null;
   var inpComp = document.getElementById('mpg-comprobante-input');
   var lblComp = document.getElementById('mpg-comprobante-lbl');
+  var prevComp = document.getElementById('mpg-comprobante-preview');
   if (inpComp) inpComp.value = '';
   if (lblComp) lblComp.textContent = 'Opcional: adjuntar transferencia / ticket';
+  if (prevComp) { prevComp.style.display = 'none'; prevComp.innerHTML = ''; }
   var resta = restoGasto(g);
   document.getElementById('mpg-titulo').textContent = 'Pagar: '+(g.descripcion||'')+'  (resta $'+resta.toLocaleString('es-AR')+')';
   _setMontoInput(document.getElementById('mpg-monto'), resta);
@@ -23007,13 +23133,30 @@ function abrirPagoGasto(fbKey) {
 function previewPagoGastoComprobante(input) {
   _pagoGastoComprobante = null;
   var lbl = document.getElementById('mpg-comprobante-lbl');
+  var prev = document.getElementById('mpg-comprobante-preview');
   var file = input && input.files && input.files[0];
-  if (!file) { if (lbl) lbl.textContent = 'Opcional: adjuntar transferencia / ticket'; return; }
-  if (file.size > 900000) { notify('El comprobante debe pesar menos de 900 KB'); input.value=''; return; }
+  if (!file) {
+    if (lbl) lbl.textContent = 'Opcional: adjuntar transferencia / ticket';
+    if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+    return;
+  }
+  if (file.size > 900000) {
+    notify('El comprobante debe pesar menos de 900 KB');
+    input.value='';
+    if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+    return;
+  }
   var reader = new FileReader();
   reader.onload = function(e) {
     _pagoGastoComprobante = { nombre:file.name, tipo:file.type||'', data:e.target.result, ts:Date.now() };
-    if (lbl) lbl.textContent = 'Adjunto: ' + file.name;
+    if (lbl) lbl.textContent = 'Adjunto listo: ' + file.name;
+    if (prev) {
+      var esImg = (file.type||'').indexOf('image/') === 0;
+      prev.style.display = 'flex';
+      prev.innerHTML = esImg
+        ? '<img src="'+e.target.result+'" style="max-width:100%;max-height:150px;border-radius:10px;border:0.5px solid var(--border2);object-fit:contain;background:#05070c">'
+        : '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);padding:8px 10px;border:0.5px solid var(--border2);border-radius:10px;background:var(--bg2)"><i class="ti ti-file-type-pdf" style="font-size:18px;color:var(--red)"></i><span>'+escapeHTML(file.name)+'</span></div>';
+    }
   };
   reader.readAsDataURL(file);
 }
@@ -27393,7 +27536,7 @@ function guardarConfigComisionCargo(cargoId, cfg) {
   };
 }
 
-/* v20.352: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
+/* v20.357: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
    ('Cat. 39', etc.) hacían fallar TODO fbSet de comisiones, por eso nada persistía.
    Este helper renombra las claves inválidas con _normComisionKey ('Cat. 39' → 'cat_39'),
    que la lectura ya resuelve vía _aliasesComisionCargo. */
@@ -28591,7 +28734,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.352</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.357</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30499,7 +30642,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.352';
+  SV.Cache.version = 'v20.357';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -31023,7 +31166,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
         count++;
         var cells=tr.querySelectorAll('td');
         var valCell=cells[cells.length-1];
-        // v20.352: el total debe tomar solo el importe principal de la celda.
+        // v20.357: el total debe tomar solo el importe principal de la celda.
         // Antes se leía todo el textContent, incluyendo la fórmula interna
         // ($920.000 ÷ 12 × 6), y eso concatenaba números generando importes enormes.
         var montoTxt = '';
@@ -32015,7 +32158,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.352 — Corrección definitiva SAC / Aguinaldo
+   v20.357 — Corrección definitiva SAC / Aguinaldo
    - La advertencia de duplicado ya no se basa solo en sisventas/aguinaldos,
      porque ese nodo puede conservar marcas antiguas o de pruebas.
    - Se valida contra gastos reales de Personal/Aguinaldo para el empleado,
@@ -32149,7 +32292,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.352 — SAC visible en Gastos + fecha editable
+   v20.357 — SAC visible en Gastos + fecha editable
    - Los SAC que quedaron solo en sisventas/aguinaldos se muestran en Gastos
      como registros recuperados para poder detectarlos y eliminarlos.
    - El alta de SAC usa por defecto la fecha del día y permite modificarla.
@@ -32421,7 +32564,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.352 — Fuente única definitiva para SAC y Horas Extra
+   v20.357 — Fuente única definitiva para SAC y Horas Extra
    - Gastos queda como única fuente real de registros pagables.
    - Las ramas legacy se migran una sola vez a Gastos.
    - El alta nueva de SAC y aprobación de Hs Extra ya NO escribe en aguinaldos/ctaemp.
@@ -32563,7 +32706,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 
 <script>
-/* v20.352 — Centro de diagnóstico y mantenimiento de base de datos */
+/* v20.357 — Centro de diagnóstico y mantenimiento de base de datos */
 var MNT_STATE = { analizado:false, integridadOK:false, pendientes:0, diag:null, inicializado:false };
 function mntInicializar(){ if (MNT_STATE.inicializado) return; MNT_STATE.inicializado=true; mntLog('Centro de mantenimiento cargado.'); mntRenderMigraciones(null); }
 function mntLog(msg){ var el=document.getElementById('mnt-console'); if(!el) return; var hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); el.textContent+='['+hora+'] '+msg+'\n'; el.scrollTop=el.scrollHeight; }
@@ -32576,7 +32719,7 @@ function mntEmpByKey(empKey){ try { return (empData && Object.values(empData).fi
 function mntGastoExiste(gastos, tipoPagable, empKey, monto, fecha, semKey, legacyKey){
   if (typeof _pagableGastoExistente==='function') return !!_pagableGastoExistente(tipoPagable, empKey, monto, fecha, semKey, legacyKey);
   monto=mntMoney(monto); fecha=mntFecha(fecha);
-  return (gastos||[]).some(function(g){ var desc=String(g.descripcion||'').toLowerCase(); var tipo=String(g.tipoPagable||'').toLowerCase(); var esTipo=tipo===tipoPagable||(tipoPagable==='aguinaldo'&&desc.indexOf('aguinaldo')>=0)||(tipoPagable==='hextra'&&(desc.indexOf('hs extra')>=0||desc.indexOf('horas extra')>=0)); if(!esTipo) return false; if(legacyKey&&String(g.legacyKey||'')===String(legacyKey)) return true; if(empKey&&(g.empleadoFbKey||g.empleadoId||'')&&String(g.empleadoFbKey||g.empleadoId)!==String(empKey)) return false; if(semKey&&g.semestre&&String(g.semestre)!==String(semKey)) return false; if(monto>0&&Math.abs(mntMoney(g.monto)-monto)>1) return false; return true; });
+  return (gastos||[]).some(function(g){ var desc=String(g.descripcion||'').toLowerCase(); var tipo=String(g.tipoPagable||'').toLowerCase(); var esTipo=tipo===tipoPagable||(tipoPagable==='aguinaldo'&&desc.indexOf('aguinaldo')>=0)||(tipoPagable==='hextra'&&(desc.indexOf('hs extra')>=0||desc.indexOf('horas extra')>=0))||(tipoPagable==='comision'&&desc.indexOf('comisi')>=0); if(!esTipo) return false; if(legacyKey&&String(g.legacyKey||'')===String(legacyKey)) return true; if(empKey&&(g.empleadoFbKey||g.empleadoId||'')&&String(g.empleadoFbKey||g.empleadoId)!==String(empKey)) return false; if(semKey&&g.semestre&&String(g.semestre)!==String(semKey)) return false; if(monto>0&&Math.abs(mntMoney(g.monto)-monto)>1) return false; return true; });
 }
 async function mntGet(path){ var snap=await window.fbGet(window.fbRef(window.fbDB,path)).catch(function(){return {val:function(){return null;}};}); return snap.val()||null; }
 async function mntAnalizarBase(){
@@ -32590,7 +32733,7 @@ async function mntAnalizarBase(){
   var hsAprob=0, hsPend=0, hsMigr=0;
   Object.keys(hs).forEach(function(solKey){ var sol=hs[solKey]||{}; if(String(sol.estado||'').toLowerCase()!=='aprobado') return; var empKey=sol.empFbKey||sol.empleadoFbKey||sol.empleadoId||''; var monto=mntMoney(sol.monto||0); var leg='hsextra_solicitudes/'+solKey; hsAprob++; if(mntGastoExiste(gastos,'hextra',empKey,monto,sol.fecha,'',leg)) hsMigr++; else hsPend++; });
   var ctaPagables=0, ctaPend=0, ctaMigr=0;
-  Object.keys(cta).forEach(function(empKey){ Object.keys(cta[empKey]||{}).forEach(function(mKey){ var m=cta[empKey][mKey]||{}; var tipo=String(m.tipo||'').toLowerCase(); if(tipo!=='hextra'&&tipo!=='aguinaldo') return; var monto=mntMoney(m.monto||0); if(monto<=0) return; ctaPagables++; var leg='ctaemp/'+empKey+'/'+mKey; if(mntGastoExiste(gastos,tipo,empKey,monto,m.fecha,m.semestre||'',leg)) ctaMigr++; else ctaPend++; }); });
+  Object.keys(cta).forEach(function(empKey){ Object.keys(cta[empKey]||{}).forEach(function(mKey){ var m=cta[empKey][mKey]||{}; var tipo=String(m.tipo||'').toLowerCase(); var est=String(m.estado||'').toLowerCase(); if(tipo==='comision' && est!=='aprobado' && est!=='pagado_parcial' && est!=='pagado') return; if(tipo!=='hextra'&&tipo!=='aguinaldo'&&tipo!=='comision') return; var monto=mntMoney(m.monto||0); if(monto<=0) return; ctaPagables++; var leg='ctaemp/'+empKey+'/'+mKey; if(mntGastoExiste(gastos,tipo,empKey,monto,m.fecha,m.semestre||'',leg)) ctaMigr++; else ctaPend++; }); });
   var pendientes=aguPend+hsPend+ctaPend;
   MNT_STATE={analizado:true,integridadOK:false,pendientes:pendientes,diag:{gastos:mntObjCount(gastosObj),aguTotal:aguTotal,aguPend:aguPend,aguMigr:aguMigr,hsAprob:hsAprob,hsPend:hsPend,hsMigr:hsMigr,ctaPagables:ctaPagables,ctaPend:ctaPend,ctaMigr:ctaMigr,migraciones:migr,empleados:mntObjCount(data[5]),clientes:mntObjCount(data[6]),productos:mntObjCount(data[7]),ventas:mntObjCount(data[8])}};
   mntSetText('mnt-kpi-gastos',MNT_STATE.diag.gastos); mntSetText('mnt-kpi-agu',aguTotal); mntSetText('mnt-kpi-hs',hsAprob); mntSetText('mnt-kpi-pend',pendientes);
@@ -32598,7 +32741,7 @@ async function mntAnalizarBase(){
   mntLog('Gastos: '+MNT_STATE.diag.gastos); mntLog('Aguinaldos legacy: '+aguTotal+' ('+aguPend+' pendientes, '+aguMigr+' ya migrados)'); mntLog('Horas extra aprobadas legacy: '+hsAprob+' ('+hsPend+' pendientes, '+hsMigr+' ya migradas)'); mntLog('Cuenta empleado legacy pagable: '+ctaPagables+' ('+ctaPend+' pendientes, '+ctaMigr+' ya migrados)');
   mntRenderMigraciones(migr); var btn=document.getElementById('mnt-btn-limpiar'); if(btn) btn.disabled=true;
 }
-function mntRenderMigraciones(migr){ var box=document.getElementById('mnt-migraciones-lista'); if(!box) return; migr=migr||{}; var defs=[['001-sac-gastos','Aguinaldos legacy → Gastos'],['002-horasextras-gastos','Horas extra legacy → Gastos'],['003-ctaemp-pagables-gastos','Cuenta empleado pagable legacy → Gastos']]; box.innerHTML=defs.map(function(d){ var m=migr[d[0]]||{}; var ok=String(m.estado||'').toLowerCase()==='ok'; return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3)"><div><div style="font-size:13px;font-weight:600;color:var(--text)">'+d[0]+'</div><div style="font-size:12px;color:var(--text2)">'+d[1]+'</div></div><div style="text-align:right"><span class="badge '+(ok?'b-green':'b-amber')+'">'+(ok?'Ejecutada':'Pendiente')+'</span><div style="font-size:11px;color:var(--text3);margin-top:4px">'+(m.fecha||'—')+'</div></div></div>'; }).join(''); }
+function mntRenderMigraciones(migr){ var box=document.getElementById('mnt-migraciones-lista'); if(!box) return; migr=migr||{}; var defs=[['001-sac-gastos','Aguinaldos legacy → Gastos'],['002-horasextras-gastos','Horas extra legacy → Gastos'],['003-ctaemp-pagables-gastos','Cuenta empleado pagable legacy → Gastos'],['004-comisiones-gastos','Comisiones aprobadas → Gastos']]; box.innerHTML=defs.map(function(d){ var m=migr[d[0]]||{}; var ok=String(m.estado||'').toLowerCase()==='ok'; return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3)"><div><div style="font-size:13px;font-weight:600;color:var(--text)">'+d[0]+'</div><div style="font-size:12px;color:var(--text2)">'+d[1]+'</div></div><div style="text-align:right"><span class="badge '+(ok?'b-green':'b-amber')+'">'+(ok?'Ejecutada':'Pendiente')+'</span><div style="font-size:11px;color:var(--text3);margin-top:4px">'+(m.fecha||'—')+'</div></div></div>'; }).join(''); }
 async function mntMigrarLegacy(){
   if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
   if(!MNT_STATE.analizado) await mntAnalizarBase();
@@ -32606,9 +32749,25 @@ async function mntMigrarLegacy(){
   var creadosAntes=window._ultimaMigracionPagablesLegacy&&window._ultimaMigracionPagablesLegacy.creados?window._ultimaMigracionPagablesLegacy.creados:0;
   if(typeof _migracionPagablesLegacyEjecutada!=='undefined') _migracionPagablesLegacyEjecutada=false;
   if(typeof _migrarPagablesLegacyAGastos==='function') await _migrarPagablesLegacyAGastos();
+  var comCreadas = 0;
+  if (typeof _crearGastoComisionDesdeMovimiento === 'function') {
+    var ctaCom = await mntGet('sisventas/ctaemp') || {};
+    for (var empKeyCom of Object.keys(ctaCom)) {
+      for (var movKeyCom of Object.keys(ctaCom[empKeyCom] || {})) {
+        var movCom = ctaCom[empKeyCom][movKeyCom] || {};
+        if (String(movCom.tipo||'').toLowerCase() !== 'comision') continue;
+        var estCom = String(movCom.estado||'').toLowerCase();
+        if (estCom !== 'aprobado' && estCom !== 'pagado_parcial' && estCom !== 'pagado') continue;
+        var nuevoKeyCom = await _crearGastoComisionDesdeMovimiento(empKeyCom, movKeyCom, movCom).catch(function(){ return null; });
+        if (nuevoKeyCom) comCreadas++;
+      }
+    }
+    if (comCreadas) mntLog('Comisiones aprobadas migradas a Gastos: '+comCreadas);
+  }
   var creados=window._ultimaMigracionPagablesLegacy&&typeof window._ultimaMigracionPagablesLegacy.creados==='number'?window._ultimaMigracionPagablesLegacy.creados:creadosAntes;
+  creados += comCreadas;
   var usuario=currentUser||(currentUserData&&currentUserData.nombre)||'Admin'; var fecha=new Date().toISOString();
-  await window.fbUpdate(window.fbRef(window.fbDB),{'sisventas/migraciones/001-sac-gastos':{estado:'OK',version:'v20.352',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/002-horasextras-gastos':{estado:'OK',version:'v20.352',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/003-ctaemp-pagables-gastos':{estado:'OK',version:'v20.352',fecha:fecha,usuario:usuario,registrosNuevos:creados}}).catch(function(e){mntLog('No se pudo guardar historial: '+e.message);});
+  await window.fbUpdate(window.fbRef(window.fbDB),{'sisventas/migraciones/001-sac-gastos':{estado:'OK',version:'v20.357',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/002-horasextras-gastos':{estado:'OK',version:'v20.357',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/003-ctaemp-pagables-gastos':{estado:'OK',version:'v20.357',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/004-comisiones-gastos':{estado:'OK',version:'v20.357',fecha:fecha,usuario:usuario,registrosNuevos:comCreadas}}).catch(function(e){mntLog('No se pudo guardar historial: '+e.message);});
   mntLog('Migración finalizada. Registros nuevos creados: '+creados+'. Tiempo: '+((Date.now()-antes)/1000).toFixed(2)+' s'); notify('✓ Migración finalizada'); await mntAnalizarBase();
 }
 async function mntVerificarIntegridad(){ if(!MNT_STATE.analizado) await mntAnalizarBase(); mntLog('Verificando integridad...'); var d=MNT_STATE.diag||{}; var issues=[]; if((d.aguPend||0)>0) issues.push('Aguinaldos sin gasto: '+d.aguPend); if((d.hsPend||0)>0) issues.push('Horas extra aprobadas sin gasto: '+d.hsPend); if((d.ctaPend||0)>0) issues.push('Movimientos de cuenta empleado sin gasto: '+d.ctaPend); if(!issues.length){MNT_STATE.integridadOK=true; mntSetEstado('Integridad OK','b-green'); var btn=document.getElementById('mnt-btn-limpiar'); if(btn) btn.disabled=false; mntLog('Integridad OK. La limpieza segura ya está habilitada.'); notify('✓ Integridad OK');} else {MNT_STATE.integridadOK=false; mntSetEstado('Integridad pendiente','b-amber'); var btn2=document.getElementById('mnt-btn-limpiar'); if(btn2) btn2.disabled=true; issues.forEach(mntLog); notify('Hay pendientes por migrar');} }
@@ -32698,7 +32857,7 @@ async function mntEliminarDuplicadosGastosFijos(){
   var updates={}; keys.forEach(function(k){ updates['sisventas/gastos/'+k]=null; });
   await window.fbUpdate(window.fbRef(window.fbDB),updates).then(function(){
     mntLog('Duplicados eliminados: '+keys.length);
-    return window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/duplicados_fijos/'+Date.now()),{version:'v20.352',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:keys.length,keys:keys});
+    return window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/duplicados_fijos/'+Date.now()),{version:'v20.357',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:keys.length,keys:keys});
   }).catch(function(e){ mntLog('Error eliminando duplicados: '+e.message); notify('Error: '+e.message); });
   notify('✓ Duplicados fijos eliminados');
   await mntAnalizarDuplicadosGastosFijos();
@@ -32757,10 +32916,11 @@ async function mntLimpiarLegacy(){
   }
   if(ctaOmitidos) mntLog('Movimientos ctaemp conservados por no tener gasto real: '+ctaOmitidos);
 
-  await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:'v20.352',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
+  await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:'v20.357',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
   mntLog('Limpieza finalizada. Elementos removidos: '+borrados); notify('✓ Limpieza legacy finalizada'); await mntAnalizarBase();
 }
 
 </script>
+
 </body>
 </html>
