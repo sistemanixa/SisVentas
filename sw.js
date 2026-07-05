@@ -1,4 +1,4 @@
-/* SisVentas · NIXA — Service Worker v20.340
+/* SisVentas · NIXA — Service Worker v20.343
    Estrategia: red primero con caché de respaldo.
    Las versiones nuevas publicadas en el repo entran apenas hay conexión;
    sin internet, la app abre desde la última copia cacheada. */
