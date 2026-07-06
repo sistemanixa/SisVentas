@@ -97,17 +97,6 @@
     return inp.value;
   }
 
-  var genOriginal294 = window.generarOTdesdeVenta;
-  if(typeof genOriginal294 === 'function'){
-    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
-      if(dirVacia294(dir)){
-        var venta = arrVentas294().find(function(v){ return String(v.id || '') === String(ventaId) || String(v.numero || '') === String(ventaId) || String(v.fbKey || '') === String(ventaId); }) || null;
-        dir = window._otResolverDireccionCliente({ ventaId: ventaId, cliente: cliente, clienteId: venta && (venta.clienteId || venta.idCliente || venta.id_cli), ventaObj: venta });
-      }
-      return genOriginal294.call(this, ventaId, cliente, dirVacia294(dir) ? '' : dir);
-    };
-  }
-
   var pasos294 = [
     { id:'cliente',    titulo:'Cliente y ubicación', selector:'#ot-det-venta, #ot-det-cliente, #ot-det-dir' },
     { id:'materiales', titulo:'Materiales',          selector:'#ot-materiales' },
@@ -254,15 +243,10 @@
       setTimeout(function(){ setDireccion294(otActual294(id)); instalar294(); }, 700);
   });
 
-  var volverOriginal294 = window.volverListaOT;
-  if(typeof volverOriginal294 === 'function'){
-    window.volverListaOT = function(){
-      var r = volverOriginal294.apply(this, arguments);
+  document.addEventListener('sisventas:ot-closed',function(){
       var wiz = document.getElementById('ot-wizard-294'); if(wiz) wiz.remove();
       var viejo = document.getElementById('ot-pasos-rapidos'); if(viejo) viejo.remove();
-      return r;
-    };
-  }
+  });
 
   document.addEventListener('sisventas:page-changed', function(event){
       var page=event.detail&&event.detail.page;

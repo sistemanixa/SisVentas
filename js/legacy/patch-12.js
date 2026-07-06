@@ -50,16 +50,6 @@
     if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
   };
 
-  var prevGenerarOT = window.generarOTdesdeVenta;
-  if(typeof prevGenerarOT === 'function' && !prevGenerarOT._sv315){
-    window.generarOTdesdeVenta = function(ventaId, cliente, dir){
-      var existe = arr(window.otData).find(function(o){ return String(o && o.ventaId || '') === String(ventaId || ''); });
-      if(existe) return existe.id || existe.fbKey || '';
-      return prevGenerarOT.apply(this, arguments);
-    };
-    window.generarOTdesdeVenta._sv315 = true;
-  }
-
   var prevRenderAdmin = window._renderOTVistaAdmin;
   if(typeof prevRenderAdmin === 'function' && !prevRenderAdmin._sv315){
     window._renderOTVistaAdmin = function(filtro, hoy){

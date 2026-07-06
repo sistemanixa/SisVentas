@@ -4049,7 +4049,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.8.0-firebase',
+  VERSION: 'v1.9.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -19947,6 +19947,7 @@ function volverListaOT() {
   otActualId = null;
   window._otDetalleHuella = null;
   renderOTTabla();
+  document.dispatchEvent(new CustomEvent('sisventas:ot-closed'));
 }
 
 // Normaliza cliente+dirección para detectar si es la misma instalación,
@@ -19968,6 +19969,14 @@ function _contarVisitasPrevias(cliente, dir, otIdExcluir) {
 }
 
 function generarOTdesdeVenta(ventaId, cliente, dir) {
+  var existente=(otData||[]).find(function(ot){return String(ot&&ot.ventaId||'')===String(ventaId||'');});
+  if(existente) return existente.id||existente.fbKey||'';
+  if(!dir||!String(dir).trim()||String(dir).trim()==='Sin definir'){
+    var venta=(ventasList||[]).find(function(item){return String(item.id||item.numero||item.fbKey||'')===String(ventaId||'');})||null;
+    if(typeof window._otResolverDireccionCliente==='function'){
+      dir=window._otResolverDireccionCliente({ventaId:ventaId,cliente:cliente,clienteId:venta&&(venta.clienteId||venta.idCliente||venta.id_cli),ventaObj:venta})||'';
+    }
+  }
   var visitasPrevias = _contarVisitasPrevias(cliente, dir, null);
   const nuevo = {
     id: 'OT-0' + (otData.length + 19),

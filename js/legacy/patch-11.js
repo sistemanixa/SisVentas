@@ -61,7 +61,7 @@
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v1.8.0';
+  SV.Cache.version = 'v1.9.0';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){

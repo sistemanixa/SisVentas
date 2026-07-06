@@ -124,8 +124,7 @@
     setTimeout(function(){ show(window._otWizardStep||'cliente'); },900);
   });
   window.instalarWizardOT=function(){ show(window._otWizardStep||'cliente'); };
-  var volverPrev=window.volverListaOT;
-  if(typeof volverPrev==='function') window.volverListaOT=function(){ var r=volverPrev.apply(this,arguments); var w=q('ot-wizard-301'); if(w) w.remove(); return r; };
+  document.addEventListener('sisventas:ot-closed',function(){ var w=q('ot-wizard-301'); if(w) w.remove(); });
   var nuevaPrev=window.nuevaOT;
   window.nuevaOT=function(){
     if(!window.fbDB){ if(typeof nuevaPrev==='function') return nuevaPrev.apply(this,arguments); if(typeof notify==='function') notify('Sin conexión'); return; }
