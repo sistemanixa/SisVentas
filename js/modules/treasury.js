@@ -1,5 +1,8 @@
 
 (function(){
+  window.tesVerComprobante=function(gastoKey,idx){
+    if(typeof abrirComprobantePago==='function') abrirComprobantePago(gastoKey,idx);
+  };
   function tesArray(value){
     if(Array.isArray(value)) return value;
     return value&&typeof value==='object'?Object.values(value):[];

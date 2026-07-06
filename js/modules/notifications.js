@@ -78,5 +78,4 @@
     var count=notifSource().filter(function(n){ var st=getN(n.id); return visibleNotif(n,'') && !st.estado; }).length;
     var b=document.getElementById('notif-badge'); if(b) b.style.display=count?'block':'none';
   };
-
 })(window);
