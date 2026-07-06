@@ -118,14 +118,11 @@
     var prom=(typeof fbGuardarOT==='function') ? fbGuardarOT(ot) : Promise.resolve();
     prom.then(function(){ if(typeof notify==='function') notify('✓ OT iniciada'); show('checklist'); }).catch(function(e){ if(typeof notify==='function') notify('Error al iniciar OT: '+e.message); });
   };
-  var verPrev=window.verOT;
-  if(typeof verPrev==='function') window.verOT=function(id){
+  document.addEventListener('sisventas:ot-opened',function(){
     window._otWizardStep='cliente';
-    var r=verPrev.apply(this,arguments);
     setTimeout(function(){ show('cliente'); },250);
     setTimeout(function(){ show(window._otWizardStep||'cliente'); },900);
-    return r;
-  };
+  });
   window.instalarWizardOT=function(){ show(window._otWizardStep||'cliente'); };
   var volverPrev=window.volverListaOT;
   if(typeof volverPrev==='function') window.volverListaOT=function(){ var r=volverPrev.apply(this,arguments); var w=q('ot-wizard-301'); if(w) w.remove(); return r; };

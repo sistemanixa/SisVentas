@@ -247,16 +247,12 @@
     window.open('https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(dir), '_blank');
   };
 
-  var verOriginal294 = window.verOT;
-  if(typeof verOriginal294 === 'function'){
-    window.verOT = function(id){
+  document.addEventListener('sisventas:ot-opened',function(event){
+      var id=event.detail&&event.detail.id;
       window._otStep294 = 'cliente';
-      var r = verOriginal294.apply(this, arguments);
       setTimeout(function(){ setDireccion294(otActual294(id)); instalar294(); }, 180);
       setTimeout(function(){ setDireccion294(otActual294(id)); instalar294(); }, 700);
-      return r;
-    };
-  }
+  });
 
   var volverOriginal294 = window.volverListaOT;
   if(typeof volverOriginal294 === 'function'){

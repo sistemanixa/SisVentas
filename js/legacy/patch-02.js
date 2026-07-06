@@ -4,63 +4,6 @@
   function todayISO(){ return new Date().toISOString().slice(0,10); }
   function normTxt(v){ return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
   function esc(v){ return (typeof escapeHTML==='function') ? escapeHTML(v) : String(v||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-  window._otResolverDireccionCliente = function(ot){
-    var campos = ['dir','direccion','domicilio','direccionCliente','direccion_cliente','direccionInstalacion','direccion_instalacion','direccionObra','direccion_obra','ubicacion','address','calle','domicilioInstalacion'];
-    function leer(o){
-      if(!o) return '';
-      for(var i=0;i<campos.length;i++){ var v=o[campos[i]]; if(v!==undefined && v!==null && String(v).trim()) return String(v).trim(); }
-      return '';
-    }
-    var d = leer(ot); if(d) return d;
-    var ventas = Array.isArray(window.ventasList) ? window.ventasList : [];
-    var clientes = Array.isArray(window.clientesData) ? window.clientesData : Object.values(window.clientesData||{});
-    var venta = null;
-    if(ot && ot.ventaId){
-      var vid=String(ot.ventaId||''); var vidNum=vid.replace(/\D/g,'');
-      venta = ventas.find(function(v){
-        var a=[v.id,v.numero,v.fbKey,v.ventaId].map(function(x){return String(x||'');});
-        return a.indexOf(vid)>=0 || (vidNum && a.some(function(x){return x.replace(/\D/g,'')===vidNum;}));
-      });
-      d=leer(venta); if(d) return d;
-    }
-    var nombres=[];
-    if(ot){ nombres.push(ot.cliente, ot.clienteNombre, ot.nombreCliente); }
-    if(venta){ nombres.push(venta.cliente, venta.clienteNombre, venta.nombreCliente); d=leer(venta.clienteObj); if(d) return d; }
-    var ids=[];
-    if(ot) ids.push(ot.clienteId, ot.idCliente, ot.id_cli, ot.clienteKey);
-    if(venta) ids.push(venta.clienteId, venta.idCliente, venta.id_cli, venta.clienteKey, venta.id_cli);
-    ids=ids.filter(Boolean).map(String);
-    if(ids.length){
-      var cId=clientes.find(function(c){ return ids.indexOf(String(c.id||''))>=0 || ids.indexOf(String(c.fbKey||''))>=0 || ids.indexOf(String(c.key||''))>=0 || ids.indexOf(String(c.codigo||''))>=0; });
-      d=leer(cId); if(d) return d;
-    }
-    var nNorm=nombres.map(normTxt).filter(Boolean);
-    if(nNorm.length){
-      var cli=clientes.find(function(c){
-        var arr=[c.nombre, ((c.nombre||'')+' '+(c.apellidos||c.apellido||'')).trim(), c.razonSocial, c.empresa].map(normTxt);
-        return arr.some(function(n){ return n && nNorm.indexOf(n)>=0; });
-      });
-      d=leer(cli); if(d) return d;
-    }
-    return '';
-  };
-
-  var _verOTOriginal = window.verOT;
-  if(typeof _verOTOriginal === 'function'){
-    window.verOT = function(id){
-      _verOTOriginal(id);
-      setTimeout(function(){
-        var ot = (window.otData||[]).find(function(o){ return o.id===window.otActualId || o.fbKey===window.otActualId || o.id===id || o.fbKey===id; });
-        var dir = window._otResolverDireccionCliente(ot);
-        var inp = document.getElementById('ot-det-dir');
-        if(inp && dir && !inp.value){ inp.value = dir; window._otDireccionActual = dir; }
-        var maps = document.getElementById('ot-det-dir-maps-btn'); if(maps) maps.style.display = (inp && inp.value) ? '' : 'none';
-        instalarPasosOT();
-      },120);
-    };
-  }
-
-
   var _otPasoActual = window._otPasoActual = 0;
   var _otPasos = window._otPasos = [
     { id:'cliente',    label:'Cliente',    icon:'ti-user',         target:'ot-det-cliente' },

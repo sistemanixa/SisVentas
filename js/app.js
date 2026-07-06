@@ -4049,7 +4049,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.6.0-firebase',
+  VERSION: 'v1.8.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4221,20 +4221,20 @@ function actualizarAutomaticamente(versionActual, versionNueva) {
   setTimeout(function() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(regs) {
-        regs.forEach(function(reg) { reg.unregister(); });
+        return Promise.all(regs.map(function(reg) { return reg.unregister(); }));
       }).catch(function(){}).finally(function() {
         if (window.caches && caches.keys) {
           caches.keys().then(function(names) {
-            names.forEach(function(name) { caches.delete(name); });
+            return Promise.all(names.map(function(name) { return caches.delete(name); }));
           }).finally(function() {
-            window.location.href = window.location.pathname + '?cb=' + Date.now();
+            window.location.replace(window.location.pathname + '?app_version=' + encodeURIComponent(verNueva) + '&cb=' + Date.now());
           });
         } else {
-          window.location.href = window.location.pathname + '?cb=' + Date.now();
+          window.location.replace(window.location.pathname + '?app_version=' + encodeURIComponent(verNueva) + '&cb=' + Date.now());
         }
       });
     } else {
-      window.location.href = window.location.pathname + '?cb=' + Date.now();
+      window.location.replace(window.location.pathname + '?app_version=' + encodeURIComponent(verNueva) + '&cb=' + Date.now());
     }
   }, 2800);
 }
@@ -19405,6 +19405,7 @@ function verOT(id) {
       '<div><div style="font-size:13px">'+escapeHTML(e.accion||'')+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML(e.usuario||'')+' · '+escapeHTML(e.fecha||'')+'</div></div>' +
     '</div>';
   }).join('');
+  document.dispatchEvent(new CustomEvent('sisventas:ot-opened',{detail:{id:id,ot:ot}}));
 }
 
 function otActualizarMaterial(inp, cod) {

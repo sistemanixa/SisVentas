@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v1.6.0-firebase' -->
+<!-- VERSION: 'v1.8.0-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.js"></script>
+<script src="./js/core/version.js?v=1.8.0"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -22,12 +22,12 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
-<script src="./js/core/login.js"></script>
-<script src="./js/core/access-control.js"></script>
-<link rel="stylesheet" href="./css/app.css">
+<script src="./js/core/login.js?v=1.8.0"></script>
+<script src="./js/core/access-control.js?v=1.8.0"></script>
+<link rel="stylesheet" href="./css/app.css?v=1.8.0">
 
   <!-- Firebase SDK -->
-  <script type="module" id="firebase-init" src="./js/core/firebase.js"></script>
+  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=1.8.0"></script>
 </head>
 <body>
 
@@ -48,7 +48,7 @@
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v1.6.0 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v1.8.0 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -4425,7 +4425,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.js"></script>
+<script src="./js/app.js?v=1.8.0"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
 <div id="user-panel-overlay" style="display:none;position:fixed;inset:0;z-index:9990" onclick="cerrarUserPanel()"></div>
@@ -4462,7 +4462,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v1.6.0</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v1.8.0</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -4593,7 +4593,7 @@ Listo para analizar.
   style="display:none;position:fixed;bottom:10px;left:10px;z-index:9998;background:#333;color:#0f0;border:1px solid #0f0;padding:4px 8px;font-size:10px;font-family:monospace;border-radius:4px;cursor:pointer">
   DEBUG
 </button>
-<script src="./js/legacy/patch-01.js"></script>
+<script src="./js/legacy/patch-01.js?v=1.8.0"></script>
 
 <!-- FAB FLOTANTE -->
 <div class="fab-container" id="fab-container">
@@ -4685,56 +4685,56 @@ Listo para analizar.
     </div>
   </div>
 </div>
-<script src="./js/legacy/patch-02.js"></script>
+<script src="./js/legacy/patch-02.js?v=1.8.0"></script>
 
-<script src="./js/modules/treasury.js"></script>
+<script src="./js/modules/treasury.js?v=1.8.0"></script>
 
-<script src="./js/legacy/patch-04.js"></script>
-<script src="./js/modules/notifications.js"></script>
+<script src="./js/legacy/patch-04.js?v=1.8.0"></script>
+<script src="./js/modules/notifications.js?v=1.8.0"></script>
 
-<script src="./js/legacy/patch-05.js"></script>
+<script src="./js/legacy/patch-05.js?v=1.8.0"></script>
 
-<script src="./js/legacy/patch-06.js"></script>
+<script src="./js/legacy/patch-06.js?v=1.8.0"></script>
 
-<script src="./js/legacy/patch-07.js"></script>
-
-
-<script src="./js/legacy/patch-08.js"></script>
+<script src="./js/legacy/patch-07.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-09.js"></script>
+<script src="./js/legacy/patch-08.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-10.js"></script>
+<script src="./js/legacy/patch-09.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-11.js"></script>
+<script src="./js/legacy/patch-10.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-12.js"></script>
+<script src="./js/legacy/patch-11.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-13.js"></script>
-
-<script src="./js/legacy/patch-14.js"></script>
+<script src="./js/legacy/patch-12.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-15.js"></script>
+<script src="./js/legacy/patch-13.js?v=1.8.0"></script>
+
+<script src="./js/legacy/patch-14.js?v=1.8.0"></script>
 
 
-
-<script src="./js/legacy/patch-16.js"></script>
+<script src="./js/legacy/patch-15.js?v=1.8.0"></script>
 
 
 
-<script src="./js/legacy/patch-17.js"></script>
-
-
-<script src="./js/legacy/patch-18.js"></script>
+<script src="./js/legacy/patch-16.js?v=1.8.0"></script>
 
 
 
-<script src="./js/legacy/patch-19.js"></script>
+<script src="./js/legacy/patch-17.js?v=1.8.0"></script>
+
+
+<script src="./js/legacy/patch-18.js?v=1.8.0"></script>
+
+
+
+<script src="./js/legacy/patch-19.js?v=1.8.0"></script>
 
 
 <!-- ══════════════════════════════════════════════════════════════════════════════
@@ -4821,30 +4821,30 @@ Listo para analizar.
   #sv335-dashboard-divider,#sv335-dashboard-reset{display:none!important}
 }
 </style>
-<script src="./js/legacy/patch-20.js"></script>
+<script src="./js/legacy/patch-20.js?v=1.8.0"></script>
 
 
 
-<script src="./js/legacy/patch-21.js"></script>
+<script src="./js/legacy/patch-21.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-22.js"></script>
+<script src="./js/legacy/patch-22.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-23.js"></script>
+<script src="./js/legacy/patch-23.js?v=1.8.0"></script>
 
 
 
-<script src="./js/legacy/patch-24.js"></script>
+<script src="./js/legacy/patch-24.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-25.js"></script>
+<script src="./js/legacy/patch-25.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-26.js"></script>
+<script src="./js/legacy/patch-26.js?v=1.8.0"></script>
 
 
-<script src="./js/legacy/patch-27.js"></script>
+<script src="./js/legacy/patch-27.js?v=1.8.0"></script>
 
 </body>
 </html>

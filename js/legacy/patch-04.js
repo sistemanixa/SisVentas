@@ -80,15 +80,6 @@
     }
     return null;
   }
-  window._otResolverDireccionCliente = function(ot){
-    ot = ot || {};
-    var d = pickDireccion(ot); if (d) return d;
-    var v = ventaRelacionada(ot);
-    d = pickDireccion(v); if (d) return d;
-    var c = clienteRelacionado(ot, v);
-    d = pickDireccion(c); if (d) return d;
-    return '';
-  };
   function guardarDireccionResuelta(ot, dir){
     if (!ot || !dir || !window.fbDB || !ot.fbKey) return;
     if (pickDireccion(ot)) return;
@@ -100,10 +91,8 @@
       tsUltimaEdicion: Date.now()
     }).catch(function(e){ console.warn('[OT] No se pudo guardar dirección resuelta', e); });
   }
-  var _sv269_verOT = window.verOT;
-  if (typeof _sv269_verOT === 'function') {
-    window.verOT = function(id){
-      var r = _sv269_verOT.apply(this, arguments);
+  document.addEventListener('sisventas:ot-opened',function(event){
+      var id=event.detail&&event.detail.id;
       setTimeout(function(){
         var ot = svArray(window.otData).find(function(o){ return o && (o.fbKey===window.otActualId || o.id===window.otActualId || o.fbKey===id || o.id===id); });
         var dir = window._otResolverDireccionCliente(ot);
@@ -121,9 +110,7 @@
         if (maps) maps.style.display = (inp && inp.value) ? '' : 'none';
         if (typeof instalarPasosOT === 'function') instalarPasosOT();
       }, 250);
-      return r;
-    };
-  }
+  });
   ['actualizarOT','actualizarOTFecha','otAgregarNota','otAgregarFoto','toggleCheckOT'].forEach(function(fn){
     var old = window[fn];
     if (typeof old === 'function') {
