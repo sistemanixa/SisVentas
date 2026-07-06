@@ -9,7 +9,7 @@
 <script>
   // PWA v20.339: no desregistrar el Service Worker al iniciar.
   // Chrome necesita manifest + Service Worker estable para permitir instalación.
-  window.SISVENTAS_PWA_VERSION = 'v20.357';
+  window.SISVENTAS_PWA_VERSION = 'v20.358';
 </script>
 
 <title>SisVentas</title>
@@ -1004,6 +1004,16 @@ tr:hover td{color:var(--text)}
 @media(max-width:1199px){.sv334-graph-grid{grid-template-columns:1fr;gap:18px}.sv334-graph + .sv334-graph{border-left:none;border-top:0.5px solid var(--border);padding-left:0;padding-top:16px}.sv334-chart-wrap,.sv334-line-wrap{height:132px}.sv334-svg{height:112px}.sv334-mini,.sv334-quick{grid-template-columns:1fr 1fr 1fr}}
 @media(max-width:700px){.sv334-analytics-card{padding:14px 12px}.sv334-chart-wrap,.sv334-line-wrap{grid-template-columns:34px 1fr;height:126px}.sv334-svg{height:106px}.sv334-axis-y{font-size:9px}.sv334-bars-area{gap:5px;padding-left:6px}.sv334-mini{grid-template-columns:1fr;gap:8px}.sv334-quick{grid-template-columns:1fr;gap:8px}.sv334-q{padding:12px}.sv334-q-v{font-size:20px}.sv334-graph-total{font-size:11px}.sv334-period{display:none}}
 
+
+/* v20.358 — Topbar mobile y acciones de empleados */
+@media(max-width:640px){
+  #fb-status{display:none!important}
+  .topbar-right{gap:3px!important}
+}
+.emp-actions-358{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.emp-actions-358 .btn{min-height:34px;white-space:nowrap}
+@media(max-width:900px){.emp-actions-358{width:100%;display:grid!important;grid-template-columns:1fr 1fr;gap:8px}.emp-actions-358 .btn{width:100%;justify-content:center}}
+
 </style>
 
   <!-- Firebase SDK -->
@@ -1085,7 +1095,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.357 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.358 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -2884,7 +2894,7 @@ tr:hover td{color:var(--text)}
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v20.357
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v20.358
 Listo para analizar.
 </pre>
           </div>
@@ -4498,7 +4508,7 @@ Listo para analizar.
           <div class="card">
             <div class="card-head">
               <span class="card-title">Empleados</span>
-              <div style="display:flex;gap:8px">
+              <div class="emp-actions-358">
                 <button class="btn btn-sm" onclick="abrirModalHaberesMes()"><i class="ti ti-cash"></i> Registrar haberes del mes</button>
                 <button class="btn btn-sm" onclick="abrirModalHsExtra()" style="color:var(--amber);border-color:var(--amber)"><i class="ti ti-clock-plus"></i> Hs. extra <span id="badge-hsex-pendientes" style="display:none;background:var(--amber);color:#000;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
                 <button class="btn btn-sm" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
@@ -9359,6 +9369,8 @@ function showPage(id, el) {
   if (id === 'dashboard') { setTimeout(function(){
     if(typeof renderKPIsDashboard==='function') renderKPIsDashboard();
     applyDashWidgets();
+    var mc=document.getElementById('dash-micuenta-card');
+    if (currentRole === 'admin' && mc) mc.style.display='none';
     if (currentRole === 'tecnico') renderDashMisOTs();
     if (currentRole === 'administrativo' || currentRole === 'vendedor') renderDashAdministrativo();
     if (currentRole !== 'admin') renderDashMiCuenta();
@@ -9487,7 +9499,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.357-firebase',
+  VERSION: 'v20.358-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10089,7 +10101,7 @@ window.doLogin = function doLogin() {
   var err = document.getElementById('login-error');
 
   if (window.fbAuth && window.fbSignIn) {
-    // v20.357: el campo de usuario vuelve a aceptar usuario corto (nixa) o email completo.
+    // v20.358: el campo de usuario vuelve a aceptar usuario corto (nixa) o email completo.
     // El input ya no es type=email para evitar la validación nativa del navegador antes de autocompletar.
     var usuarioLogin = u.toLowerCase().replace(/\s+/g,'');
     var email = usuarioLogin.includes('@') ? usuarioLogin : usuarioLogin + '@sistemanixa.com';
@@ -12504,7 +12516,7 @@ function registrarActividad(accion, detalle) {
 
 var LOG_ACTIVIDAD_DATA = []; // últimos registros cargados, más reciente primero
 
-/* v20.357: limpieza del historial de actividad — solo administrador. */
+/* v20.358: limpieza del historial de actividad — solo administrador. */
 async function limpiarLogActividad() {
   if (currentRole !== 'admin') { notify('Solo el administrador puede limpiar el registro'); return; }
   if (!window.fbDB) { notify('Sin conexión'); return; }
@@ -16725,7 +16737,7 @@ async function _crearGastoComisionDesdeMovimiento(empFbKey, movFbKey, mov) {
 
 function aprobarComision(movFbKey, empFbKey) {
   if (!window.fbDB) return;
-  if (!_esRolAdminOAdministrativo()) { notify('No tenés permiso para aprobar comisiones'); return; }
+  if (currentRole !== 'admin') { notify('Solo el administrador puede aprobar comisiones'); return; }
   if (!confirm('¿Aprobar esta comisión?')) return;
   var refMov = window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey);
   window.fbGet(refMov).then(function(snap){
@@ -16748,7 +16760,7 @@ function aprobarComision(movFbKey, empFbKey) {
 
 function rechazarComision(movFbKey, empFbKey) {
   if (!window.fbDB) return;
-  if (!_esRolAdminOAdministrativo()) { notify('No tenés permiso para rechazar comisiones'); return; }
+  if (currentRole !== 'admin') { notify('Solo el administrador puede rechazar comisiones'); return; }
   var motivo = prompt('Motivo del rechazo (opcional):') || '';
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
     estado: 'rechazado',
@@ -22103,6 +22115,9 @@ function finalizarImpersonacionUsuario() {
   applyRole();
   _actualizarCabeceraSesion();
   if (typeof actualizarPanelUsuario === 'function') actualizarPanelUsuario();
+  var mc=document.getElementById('dash-micuenta-card'); if (mc) mc.style.display='none';
+  var adm=document.getElementById('dash-administrativo-card'); if (adm) adm.style.display='none';
+  var tec=document.getElementById('dash-tecnico-card'); if (tec) tec.style.display='none';
   if (typeof registrarActividad === 'function') registrarActividad('Fin vista como usuario', '');
   showPage('dashboard', document.querySelector('[onclick*="dashboard"]'));
   notify('Volviste a Admin');
@@ -22481,7 +22496,7 @@ var gastoActualFbKey = null;
 var gastoFotoBase64 = null;
 
 
-// v20.357 — Migración definitiva de pagables legacy a Gastos.
+// v20.358 — Migración definitiva de pagables legacy a Gastos.
 // Desde esta versión, Gastos es la fuente real para SAC y Horas Extra.
 // Las ramas legacy (aguinaldos / ctaemp / hsextra_solicitudes) solo se leen para migrar registros viejos.
 var _migracionPagablesLegacyEjecutada = false;
@@ -22660,7 +22675,7 @@ function fbCargarGastos() {
     actualizarMetricasGastos();
     var pageDash = document.getElementById('page-dashboard');
     if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
-    // v20.357: la migración legacy queda controlada desde Configuración > Mantenimiento.
+    // v20.358: la migración legacy queda controlada desde Configuración > Mantenimiento.
   });
 }
 
@@ -22763,10 +22778,13 @@ function totalPagadoGasto(g) {
 }
 
 function normalizarEstadoGasto(g) {
+  var est = String((g && g.estado) || '').toLowerCase();
+  if (est === 'rechazado' || est === 'anulado') return est;
   var monto = parseFloat(g && g.monto) || 0;
   var pagado = totalPagadoGasto(g);
   if (monto > 0 && pagado >= monto - 0.01) return 'pagado';
   if (pagado > 0) return 'pagado_parcial';
+  if (est === 'aprobado') return 'pendiente';
   return 'pendiente';
 }
 
@@ -22894,6 +22912,45 @@ function abrirPagoMultipleGastos() {
   document.getElementById('modal-pago-gasto').style.display = 'flex';
 }
 
+
+function _buscarCtaempMovimientoPorLegacyKey(legacyKey) {
+  if (!legacyKey) return Promise.resolve(null);
+  var m = String(legacyKey).match(/^ctaemp\/([^\/]+)\/([^\/]+)$/);
+  if (!m || !window.fbDB) return Promise.resolve(null);
+  return Promise.resolve({ empFbKey:m[1], movFbKey:m[2], ref:window.fbRef(window.fbDB, 'sisventas/ctaemp/' + m[1] + '/' + m[2]) });
+}
+
+function aprobarComisionDesdeGasto(gastoFbKey) {
+  if (currentRole !== 'admin') { notify('Solo el administrador puede aprobar comisiones'); return; }
+  var g = (gastosData||[]).find(function(x){ return x.fbKey === gastoFbKey; });
+  if (!g) { notify('Gasto no encontrado'); return; }
+  if (String(g.tipoPagable||'').toLowerCase() !== 'comision') { notify('No es una comisión'); return; }
+  if (!confirm('¿Aprobar esta comisión?')) return;
+  var fechaApr = new Date().toISOString().slice(0,10);
+  var upG = { estado:'pendiente_pago', aprobadoPor:currentUser||'', fechaAprobacion:fechaApr, aprobadoTs:Date.now() };
+  var prom = window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), upG);
+  prom = prom.then(function(){ return _buscarCtaempMovimientoPorLegacyKey(g.legacyKey); }).then(function(info){
+    if (info && info.ref) return window.fbUpdate(info.ref, { estado:'aprobado', aprobadoPor:currentUser||'', fechaAprobacion:fechaApr, aprobadoTs:Date.now(), gastoFbKey:gastoFbKey, migradoAGastos:true });
+  });
+  prom.then(function(){ notify('✓ Comisión aprobada — pendiente de pago'); if(typeof fbCargarGastos==='function') fbCargarGastos(); if(typeof cargarCtaEmp==='function') cargarCtaEmp(); })
+      .catch(function(e){ notify('Error aprobando comisión: ' + e.message); });
+}
+
+function rechazarComisionDesdeGasto(gastoFbKey) {
+  if (currentRole !== 'admin') { notify('Solo el administrador puede rechazar comisiones'); return; }
+  var g = (gastosData||[]).find(function(x){ return x.fbKey === gastoFbKey; });
+  if (!g) { notify('Gasto no encontrado'); return; }
+  if (String(g.tipoPagable||'').toLowerCase() !== 'comision') { notify('No es una comisión'); return; }
+  var motivo = prompt('Motivo del rechazo (opcional):') || '';
+  var fechaRech = new Date().toISOString().slice(0,10);
+  var prom = window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), { estado:'rechazado', rechazadoPor:currentUser||'', fechaRechazo:fechaRech, motivoRechazo:motivo });
+  prom = prom.then(function(){ return _buscarCtaempMovimientoPorLegacyKey(g.legacyKey); }).then(function(info){
+    if (info && info.ref) return window.fbUpdate(info.ref, { estado:'rechazado', rechazadoPor:currentUser||'', fechaRechazo:fechaRech, motivoRechazo:motivo, gastoFbKey:gastoFbKey, migradoAGastos:true });
+  });
+  prom.then(function(){ notify('Comisión rechazada'); if(typeof fbCargarGastos==='function') fbCargarGastos(); if(typeof cargarCtaEmp==='function') cargarCtaEmp(); })
+      .catch(function(e){ notify('Error rechazando comisión: ' + e.message); });
+}
+
 function renderTablaGastos() {
   var tbody = document.getElementById('gastos-tbody');
   if (!tbody) return;
@@ -22914,6 +22971,8 @@ function renderTablaGastos() {
     var estadoNorm = normalizarEstadoGasto(g);
     if (estadoNorm==='pagado')         return '<span class="badge b-green">Pagado</span>';
     if (estadoNorm==='pagado_parcial') return '<span class="badge b-amber">Parcial</span>';
+    if (estadoNorm==='rechazado')      return '<span class="badge b-red">Rechazado</span>';
+    if (estadoNorm==='anulado')        return '<span class="badge b-red">Anulado</span>';
     var hoy = new Date().toISOString().split('T')[0];
     if (g.vencimiento && g.vencimiento < hoy) return '<span class="badge b-red">Vencido</span>';
     return '<span class="badge b-blue">Pendiente</span>';
@@ -23295,7 +23354,8 @@ function generarComisionesVenta(venta, montoCobrado) {
     _ventaTieneComisionGenerada(emp.fbKey, venta).then(function(yaExiste) {
       if (yaExiste) return;
       window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + emp.fbKey), movimiento)
-        .then(function() {
+        .then(function(refMov) {
+          try { _crearGastoComisionDesdeMovimiento(emp.fbKey, refMov.key, Object.assign({}, movimiento, { fbKey: refMov.key })); } catch(_e) { console.warn('[comisión gasto pendiente]', _e); }
           if (venta.fbKey) {
             window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), { comisionesGeneradas: true }).catch(function(){});
           }
@@ -27536,7 +27596,7 @@ function guardarConfigComisionCargo(cargoId, cfg) {
   };
 }
 
-/* v20.357: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
+/* v20.358: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
    ('Cat. 39', etc.) hacían fallar TODO fbSet de comisiones, por eso nada persistía.
    Este helper renombra las claves inválidas con _normComisionKey ('Cat. 39' → 'cat_39'),
    que la lectura ya resuelve vía _aliasesComisionCargo. */
@@ -28734,7 +28794,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.357</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.358</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -30642,7 +30702,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.357';
+  SV.Cache.version = 'v20.358';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -31166,7 +31226,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
         count++;
         var cells=tr.querySelectorAll('td');
         var valCell=cells[cells.length-1];
-        // v20.357: el total debe tomar solo el importe principal de la celda.
+        // v20.358: el total debe tomar solo el importe principal de la celda.
         // Antes se leía todo el textContent, incluyendo la fórmula interna
         // ($920.000 ÷ 12 × 6), y eso concatenaba números generando importes enormes.
         var montoTxt = '';
@@ -32158,7 +32218,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.357 — Corrección definitiva SAC / Aguinaldo
+   v20.358 — Corrección definitiva SAC / Aguinaldo
    - La advertencia de duplicado ya no se basa solo en sisventas/aguinaldos,
      porque ese nodo puede conservar marcas antiguas o de pruebas.
    - Se valida contra gastos reales de Personal/Aguinaldo para el empleado,
@@ -32292,7 +32352,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.357 — SAC visible en Gastos + fecha editable
+   v20.358 — SAC visible en Gastos + fecha editable
    - Los SAC que quedaron solo en sisventas/aguinaldos se muestran en Gastos
      como registros recuperados para poder detectarlos y eliminarlos.
    - El alta de SAC usa por defecto la fecha del día y permite modificarla.
@@ -32564,7 +32624,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.357 — Fuente única definitiva para SAC y Horas Extra
+   v20.358 — Fuente única definitiva para SAC y Horas Extra
    - Gastos queda como única fuente real de registros pagables.
    - Las ramas legacy se migran una sola vez a Gastos.
    - El alta nueva de SAC y aprobación de Hs Extra ya NO escribe en aguinaldos/ctaemp.
@@ -32706,7 +32766,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 
 <script>
-/* v20.357 — Centro de diagnóstico y mantenimiento de base de datos */
+/* v20.358 — Centro de diagnóstico y mantenimiento de base de datos */
 var MNT_STATE = { analizado:false, integridadOK:false, pendientes:0, diag:null, inicializado:false };
 function mntInicializar(){ if (MNT_STATE.inicializado) return; MNT_STATE.inicializado=true; mntLog('Centro de mantenimiento cargado.'); mntRenderMigraciones(null); }
 function mntLog(msg){ var el=document.getElementById('mnt-console'); if(!el) return; var hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); el.textContent+='['+hora+'] '+msg+'\n'; el.scrollTop=el.scrollHeight; }
@@ -32767,7 +32827,7 @@ async function mntMigrarLegacy(){
   var creados=window._ultimaMigracionPagablesLegacy&&typeof window._ultimaMigracionPagablesLegacy.creados==='number'?window._ultimaMigracionPagablesLegacy.creados:creadosAntes;
   creados += comCreadas;
   var usuario=currentUser||(currentUserData&&currentUserData.nombre)||'Admin'; var fecha=new Date().toISOString();
-  await window.fbUpdate(window.fbRef(window.fbDB),{'sisventas/migraciones/001-sac-gastos':{estado:'OK',version:'v20.357',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/002-horasextras-gastos':{estado:'OK',version:'v20.357',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/003-ctaemp-pagables-gastos':{estado:'OK',version:'v20.357',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/004-comisiones-gastos':{estado:'OK',version:'v20.357',fecha:fecha,usuario:usuario,registrosNuevos:comCreadas}}).catch(function(e){mntLog('No se pudo guardar historial: '+e.message);});
+  await window.fbUpdate(window.fbRef(window.fbDB),{'sisventas/migraciones/001-sac-gastos':{estado:'OK',version:'v20.358',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/002-horasextras-gastos':{estado:'OK',version:'v20.358',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/003-ctaemp-pagables-gastos':{estado:'OK',version:'v20.358',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/004-comisiones-gastos':{estado:'OK',version:'v20.358',fecha:fecha,usuario:usuario,registrosNuevos:comCreadas}}).catch(function(e){mntLog('No se pudo guardar historial: '+e.message);});
   mntLog('Migración finalizada. Registros nuevos creados: '+creados+'. Tiempo: '+((Date.now()-antes)/1000).toFixed(2)+' s'); notify('✓ Migración finalizada'); await mntAnalizarBase();
 }
 async function mntVerificarIntegridad(){ if(!MNT_STATE.analizado) await mntAnalizarBase(); mntLog('Verificando integridad...'); var d=MNT_STATE.diag||{}; var issues=[]; if((d.aguPend||0)>0) issues.push('Aguinaldos sin gasto: '+d.aguPend); if((d.hsPend||0)>0) issues.push('Horas extra aprobadas sin gasto: '+d.hsPend); if((d.ctaPend||0)>0) issues.push('Movimientos de cuenta empleado sin gasto: '+d.ctaPend); if(!issues.length){MNT_STATE.integridadOK=true; mntSetEstado('Integridad OK','b-green'); var btn=document.getElementById('mnt-btn-limpiar'); if(btn) btn.disabled=false; mntLog('Integridad OK. La limpieza segura ya está habilitada.'); notify('✓ Integridad OK');} else {MNT_STATE.integridadOK=false; mntSetEstado('Integridad pendiente','b-amber'); var btn2=document.getElementById('mnt-btn-limpiar'); if(btn2) btn2.disabled=true; issues.forEach(mntLog); notify('Hay pendientes por migrar');} }
@@ -32857,7 +32917,7 @@ async function mntEliminarDuplicadosGastosFijos(){
   var updates={}; keys.forEach(function(k){ updates['sisventas/gastos/'+k]=null; });
   await window.fbUpdate(window.fbRef(window.fbDB),updates).then(function(){
     mntLog('Duplicados eliminados: '+keys.length);
-    return window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/duplicados_fijos/'+Date.now()),{version:'v20.357',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:keys.length,keys:keys});
+    return window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/duplicados_fijos/'+Date.now()),{version:'v20.358',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:keys.length,keys:keys});
   }).catch(function(e){ mntLog('Error eliminando duplicados: '+e.message); notify('Error: '+e.message); });
   notify('✓ Duplicados fijos eliminados');
   await mntAnalizarDuplicadosGastosFijos();
@@ -32916,7 +32976,7 @@ async function mntLimpiarLegacy(){
   }
   if(ctaOmitidos) mntLog('Movimientos ctaemp conservados por no tener gasto real: '+ctaOmitidos);
 
-  await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:'v20.357',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
+  await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:'v20.358',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
   mntLog('Limpieza finalizada. Elementos removidos: '+borrados); notify('✓ Limpieza legacy finalizada'); await mntAnalizarBase();
 }
 
