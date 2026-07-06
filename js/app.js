@@ -4049,7 +4049,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.9.0-firebase',
+  VERSION: 'v1.17.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -17691,6 +17691,31 @@ function previewFotoGasto(input) {
   reader.readAsDataURL(file);
 }
 
+function sincronizarMedioPagoCuentaEmpleado(gasto, fbKey, medioNuevo) {
+  var empleadoId = gasto && (gasto.empleadoId || gasto.empleadoFbKey);
+  if (!window.fbDB || !empleadoId || !medioNuevo) return Promise.resolve();
+  var cuentaRef = window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empleadoId);
+  return window.fbGet(cuentaRef).then(function(snapshot) {
+    var movimientos = snapshot.val() || {};
+    var updates = {};
+    Object.keys(movimientos).forEach(function(key) {
+      var mov = movimientos[key] || {};
+      var relacionado = mov.gastoFbKey === fbKey || mov.gastoKey === fbKey ||
+        (mov.descripcion && gasto.descripcion && mov.descripcion === gasto.descripcion &&
+         Math.abs((parseFloat(mov.monto)||0) - (parseFloat(gasto.monto)||0)) < 1);
+      if (!relacionado) return;
+      updates[key + '/medioPago'] = medioNuevo;
+      var pagos = mov.pagos || {};
+      Object.keys(pagos).forEach(function(pagoKey) {
+        updates[key + '/pagos/' + pagoKey + '/medio'] = medioNuevo;
+      });
+    });
+    return Object.keys(updates).length ? window.fbUpdate(cuentaRef, updates) : undefined;
+  }).catch(function(error) {
+    console.warn('[Gastos] No se pudo sincronizar el medio en cuenta empleado', error);
+  });
+}
+
 function guardarGastoCompleto() {
   var monto  = getMontoRaw(document.getElementById('g-monto'));
   var pagado = getMontoRaw(document.getElementById('g-monto-pagado'));
@@ -17725,11 +17750,29 @@ function guardarGastoCompleto() {
     fotoBase64:    gastoFotoBase64 || null,
     usuario:       currentUser || ''
   };
+  var gastoOriginal = gastoActualFbKey
+    ? (gastosData||[]).find(function(gasto){ return gasto.fbKey === gastoActualFbKey; })
+    : null;
+  if (gastoOriginal && gastoOriginal.pagos) {
+    if (Array.isArray(gastoOriginal.pagos)) {
+      datos.pagos = gastoOriginal.pagos.map(function(pago){
+        return Object.assign({}, pago || {}, { medio: datos.medio });
+      });
+    } else {
+      datos.pagos = {};
+      Object.keys(gastoOriginal.pagos).forEach(function(key){
+        datos.pagos[key] = Object.assign({}, gastoOriginal.pagos[key] || {}, { medio: datos.medio });
+      });
+    }
+  }
   if (!window.fbDB) { notify('Sin conexión'); return; }
   var promesa = gastoActualFbKey
     ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+gastoActualFbKey), datos)
     : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), datos));
   promesa.then(function() {
+    if (gastoActualFbKey && gastoOriginal) {
+      sincronizarMedioPagoCuentaEmpleado(gastoOriginal, gastoActualFbKey, datos.medio);
+    }
     notify(gastoActualFbKey ? 'Gasto actualizado' : 'Gasto registrado');
     if (tecnicoId && !gastoActualFbKey) {
       var mov = {
