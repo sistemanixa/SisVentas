@@ -9,7 +9,7 @@
 <script>
   // PWA v20.339: no desregistrar el Service Worker al iniciar.
   // Chrome necesita manifest + Service Worker estable para permitir instalación.
-  window.SISVENTAS_PWA_VERSION = 'v20.360';
+  window.SISVENTAS_PWA_VERSION = 'v20.361';
 </script>
 
 <title>SisVentas</title>
@@ -1005,7 +1005,7 @@ tr:hover td{color:var(--text)}
 @media(max-width:700px){.sv334-analytics-card{padding:14px 12px}.sv334-chart-wrap,.sv334-line-wrap{grid-template-columns:34px 1fr;height:126px}.sv334-svg{height:106px}.sv334-axis-y{font-size:9px}.sv334-bars-area{gap:5px;padding-left:6px}.sv334-mini{grid-template-columns:1fr;gap:8px}.sv334-quick{grid-template-columns:1fr;gap:8px}.sv334-q{padding:12px}.sv334-q-v{font-size:20px}.sv334-graph-total{font-size:11px}.sv334-period{display:none}}
 
 
-/* v20.360 — Topbar mobile y acciones de empleados */
+/* v20.361 — Topbar mobile y acciones de empleados */
 @media(max-width:640px){
   #fb-status{display:none!important}
   .topbar-right{gap:3px!important}
@@ -1013,12 +1013,6 @@ tr:hover td{color:var(--text)}
 .emp-actions-358{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .emp-actions-358 .btn{min-height:34px;white-space:nowrap}
 @media(max-width:900px){.emp-actions-358{width:100%;display:grid!important;grid-template-columns:1fr 1fr;gap:8px}.emp-actions-358 .btn{width:100%;justify-content:center}}
-
-
-/* v20.360 — Topbar responsive: ocultar estado Online en pantallas chicas */
-@media (max-width: 980px){
-  #fb-status{display:none!important}
-}
 
 </style>
 
@@ -1101,7 +1095,7 @@ tr:hover td{color:var(--text)}
     <div class="login-logo">
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.360 · Firebase</div>
+    <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v20.361 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -2900,7 +2894,7 @@ tr:hover td{color:var(--text)}
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v20.360
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v20.361
 Listo para analizar.
 </pre>
           </div>
@@ -9505,7 +9499,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v20.360-firebase',
+  VERSION: 'v20.361-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10107,7 +10101,7 @@ window.doLogin = function doLogin() {
   var err = document.getElementById('login-error');
 
   if (window.fbAuth && window.fbSignIn) {
-    // v20.360: el campo de usuario vuelve a aceptar usuario corto (nixa) o email completo.
+    // v20.361: el campo de usuario vuelve a aceptar usuario corto (nixa) o email completo.
     // El input ya no es type=email para evitar la validación nativa del navegador antes de autocompletar.
     var usuarioLogin = u.toLowerCase().replace(/\s+/g,'');
     var email = usuarioLogin.includes('@') ? usuarioLogin : usuarioLogin + '@sistemanixa.com';
@@ -12522,7 +12516,7 @@ function registrarActividad(accion, detalle) {
 
 var LOG_ACTIVIDAD_DATA = []; // últimos registros cargados, más reciente primero
 
-/* v20.360: limpieza del historial de actividad — solo administrador. */
+/* v20.361: limpieza del historial de actividad — solo administrador. */
 async function limpiarLogActividad() {
   if (currentRole !== 'admin') { notify('Solo el administrador puede limpiar el registro'); return; }
   if (!window.fbDB) { notify('Sin conexión'); return; }
@@ -13590,78 +13584,7 @@ function _imprimirOTReal() {
       (ot.firmaClienteUrl ? '<img src="'+ot.firmaClienteUrl+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
       '<div class="firma-line">Firma del cliente'+(ot.firmaClienteUrl?' ✓':''+(ot.fechaFirma?' · '+ot.fechaFirma:''))+'</div></div>'+
       '<div><div style="height:60px"></div><div class="firma-line">Firma del técnico</div></div></div>'+
-    '
-<script>
-/* v20.360 — Seguridad visual por rol
-   Admin conserva tableros ejecutivos. Administrativo/vendedor/técnico no ven dashboards globales
-   ni métricas comerciales agregadas aunque una función antigua intente mostrarlas. */
-(function(){
-  function _rolActual359(){
-    try { return String(window.currentRole || '').toLowerCase(); } catch(e){ return ''; }
-  }
-  function _esAdmin359(){ return _rolActual359() === 'admin'; }
-  function _hide359(id){ var el=document.getElementById(id); if(el) el.style.display='none'; }
-  function _show359(id, display){ var el=document.getElementById(id); if(el) el.style.display=display || ''; }
-
-  window._aplicarSeguridadDashRol359 = function(){
-    var admin = _esAdmin359();
-
-    // Métricas globales del Dashboard: solo Admin.
-    if (!admin) {
-      [
-        'dash-metricas-globales',
-        'dash-row2-admin',
-        'dash-actividad-card',
-        'dash-rentabilidad-card',
-        'dash-ultimas-ventas-card',
-        'dash-administrativo-card'
-      ].forEach(_hide359);
-    }
-
-    // En Detalle ventas, las tarjetas ejecutivas son solo Admin.
-    if (!admin) {
-      _hide359('ventas-stats-global');
-      _hide359('ventas-list-stats-global');
-    }
-
-    // En Admin no forzamos visibilidad acá: respeta admin-only/configuración existente.
-  };
-
-  // Envolver showPage para aplicar la seguridad después de cada navegación.
-  var _showPage359 = window.showPage;
-  if (typeof _showPage359 === 'function' && !_showPage359._sv359) {
-    var wrappedShowPage = function(){
-      var r = _showPage359.apply(this, arguments);
-      setTimeout(window._aplicarSeguridadDashRol359, 30);
-      setTimeout(window._aplicarSeguridadDashRol359, 180);
-      return r;
-    };
-    wrappedShowPage._sv359 = true;
-    window.showPage = wrappedShowPage;
-  }
-
-  // Envolver funciones que antes reabrían métricas con display=''.
-  ['volverListaVentas','renderMetricasVentas','actualizarStatVentas','applyDashWidgets','applyRole'].forEach(function(fn){
-    var old = window[fn];
-    if (typeof old === 'function' && !old._sv359) {
-      var wrap = function(){
-        var r = old.apply(this, arguments);
-        setTimeout(window._aplicarSeguridadDashRol359, 10);
-        return r;
-      };
-      wrap._sv359 = true;
-      window[fn] = wrap;
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(window._aplicarSeguridadDashRol359, 200);
-    setTimeout(window._aplicarSeguridadDashRol359, 800);
-  });
-})();
-</script>
-
-</body></html>');
+    '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
@@ -14141,78 +14064,7 @@ function imprimirSeccion(pageId, titulo) {
     '<div style="text-align:right"><div style="font-size:16px;font-weight:600">'+titulo+'</div>' +
     '<div style="font-size:12px;color:#666">'+new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})+'</div></div></div>' +
     page.innerHTML +
-    '
-<script>
-/* v20.360 — Seguridad visual por rol
-   Admin conserva tableros ejecutivos. Administrativo/vendedor/técnico no ven dashboards globales
-   ni métricas comerciales agregadas aunque una función antigua intente mostrarlas. */
-(function(){
-  function _rolActual359(){
-    try { return String(window.currentRole || '').toLowerCase(); } catch(e){ return ''; }
-  }
-  function _esAdmin359(){ return _rolActual359() === 'admin'; }
-  function _hide359(id){ var el=document.getElementById(id); if(el) el.style.display='none'; }
-  function _show359(id, display){ var el=document.getElementById(id); if(el) el.style.display=display || ''; }
-
-  window._aplicarSeguridadDashRol359 = function(){
-    var admin = _esAdmin359();
-
-    // Métricas globales del Dashboard: solo Admin.
-    if (!admin) {
-      [
-        'dash-metricas-globales',
-        'dash-row2-admin',
-        'dash-actividad-card',
-        'dash-rentabilidad-card',
-        'dash-ultimas-ventas-card',
-        'dash-administrativo-card'
-      ].forEach(_hide359);
-    }
-
-    // En Detalle ventas, las tarjetas ejecutivas son solo Admin.
-    if (!admin) {
-      _hide359('ventas-stats-global');
-      _hide359('ventas-list-stats-global');
-    }
-
-    // En Admin no forzamos visibilidad acá: respeta admin-only/configuración existente.
-  };
-
-  // Envolver showPage para aplicar la seguridad después de cada navegación.
-  var _showPage359 = window.showPage;
-  if (typeof _showPage359 === 'function' && !_showPage359._sv359) {
-    var wrappedShowPage = function(){
-      var r = _showPage359.apply(this, arguments);
-      setTimeout(window._aplicarSeguridadDashRol359, 30);
-      setTimeout(window._aplicarSeguridadDashRol359, 180);
-      return r;
-    };
-    wrappedShowPage._sv359 = true;
-    window.showPage = wrappedShowPage;
-  }
-
-  // Envolver funciones que antes reabrían métricas con display=''.
-  ['volverListaVentas','renderMetricasVentas','actualizarStatVentas','applyDashWidgets','applyRole'].forEach(function(fn){
-    var old = window[fn];
-    if (typeof old === 'function' && !old._sv359) {
-      var wrap = function(){
-        var r = old.apply(this, arguments);
-        setTimeout(window._aplicarSeguridadDashRol359, 10);
-        return r;
-      };
-      wrap._sv359 = true;
-      window[fn] = wrap;
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(window._aplicarSeguridadDashRol359, 200);
-    setTimeout(window._aplicarSeguridadDashRol359, 800);
-  });
-})();
-</script>
-
-</body></html>');
+    '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
@@ -14524,78 +14376,7 @@ function imprimirVentaActual() {
       '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>' +
     '</div>' +
 
-    '
-<script>
-/* v20.360 — Seguridad visual por rol
-   Admin conserva tableros ejecutivos. Administrativo/vendedor/técnico no ven dashboards globales
-   ni métricas comerciales agregadas aunque una función antigua intente mostrarlas. */
-(function(){
-  function _rolActual359(){
-    try { return String(window.currentRole || '').toLowerCase(); } catch(e){ return ''; }
-  }
-  function _esAdmin359(){ return _rolActual359() === 'admin'; }
-  function _hide359(id){ var el=document.getElementById(id); if(el) el.style.display='none'; }
-  function _show359(id, display){ var el=document.getElementById(id); if(el) el.style.display=display || ''; }
-
-  window._aplicarSeguridadDashRol359 = function(){
-    var admin = _esAdmin359();
-
-    // Métricas globales del Dashboard: solo Admin.
-    if (!admin) {
-      [
-        'dash-metricas-globales',
-        'dash-row2-admin',
-        'dash-actividad-card',
-        'dash-rentabilidad-card',
-        'dash-ultimas-ventas-card',
-        'dash-administrativo-card'
-      ].forEach(_hide359);
-    }
-
-    // En Detalle ventas, las tarjetas ejecutivas son solo Admin.
-    if (!admin) {
-      _hide359('ventas-stats-global');
-      _hide359('ventas-list-stats-global');
-    }
-
-    // En Admin no forzamos visibilidad acá: respeta admin-only/configuración existente.
-  };
-
-  // Envolver showPage para aplicar la seguridad después de cada navegación.
-  var _showPage359 = window.showPage;
-  if (typeof _showPage359 === 'function' && !_showPage359._sv359) {
-    var wrappedShowPage = function(){
-      var r = _showPage359.apply(this, arguments);
-      setTimeout(window._aplicarSeguridadDashRol359, 30);
-      setTimeout(window._aplicarSeguridadDashRol359, 180);
-      return r;
-    };
-    wrappedShowPage._sv359 = true;
-    window.showPage = wrappedShowPage;
-  }
-
-  // Envolver funciones que antes reabrían métricas con display=''.
-  ['volverListaVentas','renderMetricasVentas','actualizarStatVentas','applyDashWidgets','applyRole'].forEach(function(fn){
-    var old = window[fn];
-    if (typeof old === 'function' && !old._sv359) {
-      var wrap = function(){
-        var r = old.apply(this, arguments);
-        setTimeout(window._aplicarSeguridadDashRol359, 10);
-        return r;
-      };
-      wrap._sv359 = true;
-      window[fn] = wrap;
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(window._aplicarSeguridadDashRol359, 200);
-    setTimeout(window._aplicarSeguridadDashRol359, 800);
-  });
-})();
-</script>
-
-</body></html>');
+    '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 800);
 }
@@ -17280,78 +17061,7 @@ function imprimirPresupuesto() {
       '<button onclick="window.print()" style="padding:8px 24px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Imprimir</button>'+
     '</div>'+
 
-    '
-<script>
-/* v20.360 — Seguridad visual por rol
-   Admin conserva tableros ejecutivos. Administrativo/vendedor/técnico no ven dashboards globales
-   ni métricas comerciales agregadas aunque una función antigua intente mostrarlas. */
-(function(){
-  function _rolActual359(){
-    try { return String(window.currentRole || '').toLowerCase(); } catch(e){ return ''; }
-  }
-  function _esAdmin359(){ return _rolActual359() === 'admin'; }
-  function _hide359(id){ var el=document.getElementById(id); if(el) el.style.display='none'; }
-  function _show359(id, display){ var el=document.getElementById(id); if(el) el.style.display=display || ''; }
-
-  window._aplicarSeguridadDashRol359 = function(){
-    var admin = _esAdmin359();
-
-    // Métricas globales del Dashboard: solo Admin.
-    if (!admin) {
-      [
-        'dash-metricas-globales',
-        'dash-row2-admin',
-        'dash-actividad-card',
-        'dash-rentabilidad-card',
-        'dash-ultimas-ventas-card',
-        'dash-administrativo-card'
-      ].forEach(_hide359);
-    }
-
-    // En Detalle ventas, las tarjetas ejecutivas son solo Admin.
-    if (!admin) {
-      _hide359('ventas-stats-global');
-      _hide359('ventas-list-stats-global');
-    }
-
-    // En Admin no forzamos visibilidad acá: respeta admin-only/configuración existente.
-  };
-
-  // Envolver showPage para aplicar la seguridad después de cada navegación.
-  var _showPage359 = window.showPage;
-  if (typeof _showPage359 === 'function' && !_showPage359._sv359) {
-    var wrappedShowPage = function(){
-      var r = _showPage359.apply(this, arguments);
-      setTimeout(window._aplicarSeguridadDashRol359, 30);
-      setTimeout(window._aplicarSeguridadDashRol359, 180);
-      return r;
-    };
-    wrappedShowPage._sv359 = true;
-    window.showPage = wrappedShowPage;
-  }
-
-  // Envolver funciones que antes reabrían métricas con display=''.
-  ['volverListaVentas','renderMetricasVentas','actualizarStatVentas','applyDashWidgets','applyRole'].forEach(function(fn){
-    var old = window[fn];
-    if (typeof old === 'function' && !old._sv359) {
-      var wrap = function(){
-        var r = old.apply(this, arguments);
-        setTimeout(window._aplicarSeguridadDashRol359, 10);
-        return r;
-      };
-      wrap._sv359 = true;
-      window[fn] = wrap;
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(window._aplicarSeguridadDashRol359, 200);
-    setTimeout(window._aplicarSeguridadDashRol359, 800);
-  });
-})();
-</script>
-
-</body></html>');
+    '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
@@ -17494,78 +17204,7 @@ function imprimirRecibo() {
     '<div><div class="firma-line">Firma del cliente</div></div>'+
     '<div><div class="firma-line">Firma Nixa</div></div>'+
     '</div></div>'+
-    '
-<script>
-/* v20.360 — Seguridad visual por rol
-   Admin conserva tableros ejecutivos. Administrativo/vendedor/técnico no ven dashboards globales
-   ni métricas comerciales agregadas aunque una función antigua intente mostrarlas. */
-(function(){
-  function _rolActual359(){
-    try { return String(window.currentRole || '').toLowerCase(); } catch(e){ return ''; }
-  }
-  function _esAdmin359(){ return _rolActual359() === 'admin'; }
-  function _hide359(id){ var el=document.getElementById(id); if(el) el.style.display='none'; }
-  function _show359(id, display){ var el=document.getElementById(id); if(el) el.style.display=display || ''; }
-
-  window._aplicarSeguridadDashRol359 = function(){
-    var admin = _esAdmin359();
-
-    // Métricas globales del Dashboard: solo Admin.
-    if (!admin) {
-      [
-        'dash-metricas-globales',
-        'dash-row2-admin',
-        'dash-actividad-card',
-        'dash-rentabilidad-card',
-        'dash-ultimas-ventas-card',
-        'dash-administrativo-card'
-      ].forEach(_hide359);
-    }
-
-    // En Detalle ventas, las tarjetas ejecutivas son solo Admin.
-    if (!admin) {
-      _hide359('ventas-stats-global');
-      _hide359('ventas-list-stats-global');
-    }
-
-    // En Admin no forzamos visibilidad acá: respeta admin-only/configuración existente.
-  };
-
-  // Envolver showPage para aplicar la seguridad después de cada navegación.
-  var _showPage359 = window.showPage;
-  if (typeof _showPage359 === 'function' && !_showPage359._sv359) {
-    var wrappedShowPage = function(){
-      var r = _showPage359.apply(this, arguments);
-      setTimeout(window._aplicarSeguridadDashRol359, 30);
-      setTimeout(window._aplicarSeguridadDashRol359, 180);
-      return r;
-    };
-    wrappedShowPage._sv359 = true;
-    window.showPage = wrappedShowPage;
-  }
-
-  // Envolver funciones que antes reabrían métricas con display=''.
-  ['volverListaVentas','renderMetricasVentas','actualizarStatVentas','applyDashWidgets','applyRole'].forEach(function(fn){
-    var old = window[fn];
-    if (typeof old === 'function' && !old._sv359) {
-      var wrap = function(){
-        var r = old.apply(this, arguments);
-        setTimeout(window._aplicarSeguridadDashRol359, 10);
-        return r;
-      };
-      wrap._sv359 = true;
-      window[fn] = wrap;
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(window._aplicarSeguridadDashRol359, 200);
-    setTimeout(window._aplicarSeguridadDashRol359, 800);
-  });
-})();
-</script>
-
-</body></html>');
+    '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
@@ -19235,78 +18874,7 @@ function imprimirRemito(fbKey) {
       '<p><strong>Venta vinculada:</strong> '+escapeHTML(r.venta||'—')+'</p>'+
       '<p><strong>Descripción:</strong> '+escapeHTML(r.descripcion||'—')+'</p>'+
       '<div class="firma"><div><div class="firma-line">Firma receptor</div></div><div><div class="firma-line">Firma Nixa</div></div></div>'+
-      '
-<script>
-/* v20.360 — Seguridad visual por rol
-   Admin conserva tableros ejecutivos. Administrativo/vendedor/técnico no ven dashboards globales
-   ni métricas comerciales agregadas aunque una función antigua intente mostrarlas. */
-(function(){
-  function _rolActual359(){
-    try { return String(window.currentRole || '').toLowerCase(); } catch(e){ return ''; }
-  }
-  function _esAdmin359(){ return _rolActual359() === 'admin'; }
-  function _hide359(id){ var el=document.getElementById(id); if(el) el.style.display='none'; }
-  function _show359(id, display){ var el=document.getElementById(id); if(el) el.style.display=display || ''; }
-
-  window._aplicarSeguridadDashRol359 = function(){
-    var admin = _esAdmin359();
-
-    // Métricas globales del Dashboard: solo Admin.
-    if (!admin) {
-      [
-        'dash-metricas-globales',
-        'dash-row2-admin',
-        'dash-actividad-card',
-        'dash-rentabilidad-card',
-        'dash-ultimas-ventas-card',
-        'dash-administrativo-card'
-      ].forEach(_hide359);
-    }
-
-    // En Detalle ventas, las tarjetas ejecutivas son solo Admin.
-    if (!admin) {
-      _hide359('ventas-stats-global');
-      _hide359('ventas-list-stats-global');
-    }
-
-    // En Admin no forzamos visibilidad acá: respeta admin-only/configuración existente.
-  };
-
-  // Envolver showPage para aplicar la seguridad después de cada navegación.
-  var _showPage359 = window.showPage;
-  if (typeof _showPage359 === 'function' && !_showPage359._sv359) {
-    var wrappedShowPage = function(){
-      var r = _showPage359.apply(this, arguments);
-      setTimeout(window._aplicarSeguridadDashRol359, 30);
-      setTimeout(window._aplicarSeguridadDashRol359, 180);
-      return r;
-    };
-    wrappedShowPage._sv359 = true;
-    window.showPage = wrappedShowPage;
-  }
-
-  // Envolver funciones que antes reabrían métricas con display=''.
-  ['volverListaVentas','renderMetricasVentas','actualizarStatVentas','applyDashWidgets','applyRole'].forEach(function(fn){
-    var old = window[fn];
-    if (typeof old === 'function' && !old._sv359) {
-      var wrap = function(){
-        var r = old.apply(this, arguments);
-        setTimeout(window._aplicarSeguridadDashRol359, 10);
-        return r;
-      };
-      wrap._sv359 = true;
-      window[fn] = wrap;
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(window._aplicarSeguridadDashRol359, 200);
-    setTimeout(window._aplicarSeguridadDashRol359, 800);
-  });
-})();
-</script>
-
-</body></html>');
+      '</body></html>');
     w.document.close();
     setTimeout(function(){ w.print(); }, 500);
   }, { onlyOnce: true });
@@ -22916,78 +22484,7 @@ function imprimirInforme() {
     (g('inf-obs') ? '<section><h2>Observaciones</h2><p>'+g('inf-obs').replace(/\n/g,'<br>')+'</p></section>' : '') +
     '<section><h2>Conformidad del cliente</h2><div class="grid"><div><label>Nombre quien recibe</label><p>'+g('inf-receptor')+'</p></div><div><label>DNI</label><p>'+g('inf-receptor-dni')+'</p></div><div><label>Resultado</label><p>'+g('inf-resultado')+'</p></div></div></section>' +
     '<div class="firma"><div><div class="firma-line">Firma del técnico: '+g('inf-tecnico')+'</div></div><div><div class="firma-line">Firma del cliente: '+g('inf-receptor')+'</div></div></div>' +
-    '
-<script>
-/* v20.360 — Seguridad visual por rol
-   Admin conserva tableros ejecutivos. Administrativo/vendedor/técnico no ven dashboards globales
-   ni métricas comerciales agregadas aunque una función antigua intente mostrarlas. */
-(function(){
-  function _rolActual359(){
-    try { return String(window.currentRole || '').toLowerCase(); } catch(e){ return ''; }
-  }
-  function _esAdmin359(){ return _rolActual359() === 'admin'; }
-  function _hide359(id){ var el=document.getElementById(id); if(el) el.style.display='none'; }
-  function _show359(id, display){ var el=document.getElementById(id); if(el) el.style.display=display || ''; }
-
-  window._aplicarSeguridadDashRol359 = function(){
-    var admin = _esAdmin359();
-
-    // Métricas globales del Dashboard: solo Admin.
-    if (!admin) {
-      [
-        'dash-metricas-globales',
-        'dash-row2-admin',
-        'dash-actividad-card',
-        'dash-rentabilidad-card',
-        'dash-ultimas-ventas-card',
-        'dash-administrativo-card'
-      ].forEach(_hide359);
-    }
-
-    // En Detalle ventas, las tarjetas ejecutivas son solo Admin.
-    if (!admin) {
-      _hide359('ventas-stats-global');
-      _hide359('ventas-list-stats-global');
-    }
-
-    // En Admin no forzamos visibilidad acá: respeta admin-only/configuración existente.
-  };
-
-  // Envolver showPage para aplicar la seguridad después de cada navegación.
-  var _showPage359 = window.showPage;
-  if (typeof _showPage359 === 'function' && !_showPage359._sv359) {
-    var wrappedShowPage = function(){
-      var r = _showPage359.apply(this, arguments);
-      setTimeout(window._aplicarSeguridadDashRol359, 30);
-      setTimeout(window._aplicarSeguridadDashRol359, 180);
-      return r;
-    };
-    wrappedShowPage._sv359 = true;
-    window.showPage = wrappedShowPage;
-  }
-
-  // Envolver funciones que antes reabrían métricas con display=''.
-  ['volverListaVentas','renderMetricasVentas','actualizarStatVentas','applyDashWidgets','applyRole'].forEach(function(fn){
-    var old = window[fn];
-    if (typeof old === 'function' && !old._sv359) {
-      var wrap = function(){
-        var r = old.apply(this, arguments);
-        setTimeout(window._aplicarSeguridadDashRol359, 10);
-        return r;
-      };
-      wrap._sv359 = true;
-      window[fn] = wrap;
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(window._aplicarSeguridadDashRol359, 200);
-    setTimeout(window._aplicarSeguridadDashRol359, 800);
-  });
-})();
-</script>
-
-</body></html>';
+    '</body></html>';
   w.document.write(html);
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
@@ -22999,7 +22496,7 @@ var gastoActualFbKey = null;
 var gastoFotoBase64 = null;
 
 
-// v20.360 — Migración definitiva de pagables legacy a Gastos.
+// v20.361 — Migración definitiva de pagables legacy a Gastos.
 // Desde esta versión, Gastos es la fuente real para SAC y Horas Extra.
 // Las ramas legacy (aguinaldos / ctaemp / hsextra_solicitudes) solo se leen para migrar registros viejos.
 var _migracionPagablesLegacyEjecutada = false;
@@ -23178,7 +22675,7 @@ function fbCargarGastos() {
     actualizarMetricasGastos();
     var pageDash = document.getElementById('page-dashboard');
     if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
-    // v20.360: la migración legacy queda controlada desde Configuración > Mantenimiento.
+    // v20.361: la migración legacy queda controlada desde Configuración > Mantenimiento.
   });
 }
 
@@ -28099,7 +27596,7 @@ function guardarConfigComisionCargo(cargoId, cfg) {
   };
 }
 
-/* v20.360: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
+/* v20.361: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
    ('Cat. 39', etc.) hacían fallar TODO fbSet de comisiones, por eso nada persistía.
    Este helper renombra las claves inválidas con _normComisionKey ('Cat. 39' → 'cat_39'),
    que la lectura ya resuelve vía _aliasesComisionCargo. */
@@ -29297,7 +28794,7 @@ function actualizarResumenStock() {
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.360</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v20.361</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -31205,7 +30702,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v20.360';
+  SV.Cache.version = 'v20.361';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -31729,7 +31226,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
         count++;
         var cells=tr.querySelectorAll('td');
         var valCell=cells[cells.length-1];
-        // v20.360: el total debe tomar solo el importe principal de la celda.
+        // v20.361: el total debe tomar solo el importe principal de la celda.
         // Antes se leía todo el textContent, incluyendo la fórmula interna
         // ($920.000 ÷ 12 × 6), y eso concatenaba números generando importes enormes.
         var montoTxt = '';
@@ -32560,78 +32057,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
       '</header>'+
       (opts.body||'')+
       '<footer class="foot"><div>Documento generado electrónicamente por SisVentas — NIXA Sistemas de Seguridad.</div><div>'+esc(e.web||'')+'</div></footer>'+ 
-      '</main>
-<script>
-/* v20.360 — Seguridad visual por rol
-   Admin conserva tableros ejecutivos. Administrativo/vendedor/técnico no ven dashboards globales
-   ni métricas comerciales agregadas aunque una función antigua intente mostrarlas. */
-(function(){
-  function _rolActual359(){
-    try { return String(window.currentRole || '').toLowerCase(); } catch(e){ return ''; }
-  }
-  function _esAdmin359(){ return _rolActual359() === 'admin'; }
-  function _hide359(id){ var el=document.getElementById(id); if(el) el.style.display='none'; }
-  function _show359(id, display){ var el=document.getElementById(id); if(el) el.style.display=display || ''; }
-
-  window._aplicarSeguridadDashRol359 = function(){
-    var admin = _esAdmin359();
-
-    // Métricas globales del Dashboard: solo Admin.
-    if (!admin) {
-      [
-        'dash-metricas-globales',
-        'dash-row2-admin',
-        'dash-actividad-card',
-        'dash-rentabilidad-card',
-        'dash-ultimas-ventas-card',
-        'dash-administrativo-card'
-      ].forEach(_hide359);
-    }
-
-    // En Detalle ventas, las tarjetas ejecutivas son solo Admin.
-    if (!admin) {
-      _hide359('ventas-stats-global');
-      _hide359('ventas-list-stats-global');
-    }
-
-    // En Admin no forzamos visibilidad acá: respeta admin-only/configuración existente.
-  };
-
-  // Envolver showPage para aplicar la seguridad después de cada navegación.
-  var _showPage359 = window.showPage;
-  if (typeof _showPage359 === 'function' && !_showPage359._sv359) {
-    var wrappedShowPage = function(){
-      var r = _showPage359.apply(this, arguments);
-      setTimeout(window._aplicarSeguridadDashRol359, 30);
-      setTimeout(window._aplicarSeguridadDashRol359, 180);
-      return r;
-    };
-    wrappedShowPage._sv359 = true;
-    window.showPage = wrappedShowPage;
-  }
-
-  // Envolver funciones que antes reabrían métricas con display=''.
-  ['volverListaVentas','renderMetricasVentas','actualizarStatVentas','applyDashWidgets','applyRole'].forEach(function(fn){
-    var old = window[fn];
-    if (typeof old === 'function' && !old._sv359) {
-      var wrap = function(){
-        var r = old.apply(this, arguments);
-        setTimeout(window._aplicarSeguridadDashRol359, 10);
-        return r;
-      };
-      wrap._sv359 = true;
-      window[fn] = wrap;
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(window._aplicarSeguridadDashRol359, 200);
-    setTimeout(window._aplicarSeguridadDashRol359, 800);
-  });
-})();
-</script>
-
-</body></html>';
+      '</main></body></html>';
   }
   function css(){ return `
     *{box-sizing:border-box;margin:0;padding:0} body{background:#fff;color:#222;font-family:Arial,Helvetica,sans-serif;font-size:12.5px;line-height:1.35;margin:0}.doc{width:680px;margin:18px auto;padding:18px 22px}.head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:20px}.brand{display:flex;align-items:center;gap:16px;min-width:0}.nx-logo-img{width:92px;max-height:74px;object-fit:contain;display:block}.nx-logo-text{width:92px;height:62px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;letter-spacing:-1px;color:#173b2f}.brand-txt{font-size:11px;color:#555;line-height:1.45}.brand-name{font-size:15px;font-weight:800;color:#222;margin-bottom:2px}.comp{text-align:right;min-width:160px}.tipo{font-size:19px;font-weight:800;text-transform:uppercase;letter-spacing:-.2px}.num{font-size:15px;font-weight:700;margin-top:2px}.date{font-size:12px;color:#666}.state{display:inline-block;margin-top:7px;padding:4px 10px;border-radius:999px;border:1px solid #4caf50;color:#2e7d32;font-weight:700;font-size:11px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}.info-box{background:#fafafa;border:1px solid #e5e5e5;border-radius:7px;padding:10px 12px;min-height:58px}.lbl{font-size:9.5px;color:#777;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;font-weight:700}.val{font-size:13px;color:#222}.sub{font-size:11px;color:#555;margin-top:5px;line-height:1.45}.muted{font-size:11px;color:#666;margin-top:2px}.amount-box{border:2px solid #4caf50;border-radius:8px;text-align:center;padding:18px 16px;margin:18px 0 20px;background:#fbfffb}.amount-lbl{font-size:11px;color:#666;text-transform:uppercase}.amount{font-size:34px;font-weight:800;color:#43a047;margin:2px 0}.amount-sub{font-size:12px;color:#555}.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 18px}.status{background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:8px 10px}.status .k{font-size:9px;color:#777;text-transform:uppercase;letter-spacing:.4px}.status .v{font-size:13px;font-weight:800;margin-top:3px}table{width:100%;border-collapse:collapse;margin:10px 0 8px}th{background:#1f2937;color:#fff;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;padding:7px 9px;text-align:left}td{border-bottom:1px solid #eee;padding:7px 9px;vertical-align:top}.tr{text-align:right}.totals{margin-left:auto;width:260px;margin-top:8px}.tot-row{display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding:5px 0}.tot-row.total{border-top:2px solid #222;border-bottom:0;margin-top:5px;padding-top:8px;font-weight:800;font-size:15px}.note{border:1px solid #e5e5e5;background:#fafafa;border-radius:7px;padding:9px 12px;margin:12px 0;font-size:12px}.green{color:#43a047}.red{color:#d32f2f}.firma{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}.firma-line{border-top:1px solid #222;padding-top:7px;text-align:center;font-size:11px;color:#666}.foot{border-top:1px solid #ddd;margin-top:24px;padding-top:8px;font-size:9.5px;color:#888;display:flex;justify-content:space-between;gap:20px}@media print{.doc{width:auto;margin:0;padding:10mm 12mm}body{margin:0}.no-print{display:none}tr{page-break-inside:avoid}.head{break-inside:avoid}.foot{position:fixed;bottom:8mm;left:12mm;right:12mm}}`; }
@@ -32792,7 +32218,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.360 — Corrección definitiva SAC / Aguinaldo
+   v20.361 — Corrección definitiva SAC / Aguinaldo
    - La advertencia de duplicado ya no se basa solo en sisventas/aguinaldos,
      porque ese nodo puede conservar marcas antiguas o de pruebas.
    - Se valida contra gastos reales de Personal/Aguinaldo para el empleado,
@@ -32926,7 +32352,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.360 — SAC visible en Gastos + fecha editable
+   v20.361 — SAC visible en Gastos + fecha editable
    - Los SAC que quedaron solo en sisventas/aguinaldos se muestran en Gastos
      como registros recuperados para poder detectarlos y eliminarlos.
    - El alta de SAC usa por defecto la fecha del día y permite modificarla.
@@ -33198,7 +32624,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.360 — Fuente única definitiva para SAC y Horas Extra
+   v20.361 — Fuente única definitiva para SAC y Horas Extra
    - Gastos queda como única fuente real de registros pagables.
    - Las ramas legacy se migran una sola vez a Gastos.
    - El alta nueva de SAC y aprobación de Hs Extra ya NO escribe en aguinaldos/ctaemp.
@@ -33340,7 +32766,7 @@ if (typeof initMoneyInputsEn === 'function') initMoneyInputsEn(document);
 
 
 <script>
-/* v20.360 — Centro de diagnóstico y mantenimiento de base de datos */
+/* v20.361 — Centro de diagnóstico y mantenimiento de base de datos */
 var MNT_STATE = { analizado:false, integridadOK:false, pendientes:0, diag:null, inicializado:false };
 function mntInicializar(){ if (MNT_STATE.inicializado) return; MNT_STATE.inicializado=true; mntLog('Centro de mantenimiento cargado.'); mntRenderMigraciones(null); }
 function mntLog(msg){ var el=document.getElementById('mnt-console'); if(!el) return; var hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); el.textContent+='['+hora+'] '+msg+'\n'; el.scrollTop=el.scrollHeight; }
@@ -33401,7 +32827,7 @@ async function mntMigrarLegacy(){
   var creados=window._ultimaMigracionPagablesLegacy&&typeof window._ultimaMigracionPagablesLegacy.creados==='number'?window._ultimaMigracionPagablesLegacy.creados:creadosAntes;
   creados += comCreadas;
   var usuario=currentUser||(currentUserData&&currentUserData.nombre)||'Admin'; var fecha=new Date().toISOString();
-  await window.fbUpdate(window.fbRef(window.fbDB),{'sisventas/migraciones/001-sac-gastos':{estado:'OK',version:'v20.360',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/002-horasextras-gastos':{estado:'OK',version:'v20.360',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/003-ctaemp-pagables-gastos':{estado:'OK',version:'v20.360',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/004-comisiones-gastos':{estado:'OK',version:'v20.360',fecha:fecha,usuario:usuario,registrosNuevos:comCreadas}}).catch(function(e){mntLog('No se pudo guardar historial: '+e.message);});
+  await window.fbUpdate(window.fbRef(window.fbDB),{'sisventas/migraciones/001-sac-gastos':{estado:'OK',version:'v20.361',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/002-horasextras-gastos':{estado:'OK',version:'v20.361',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/003-ctaemp-pagables-gastos':{estado:'OK',version:'v20.361',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/004-comisiones-gastos':{estado:'OK',version:'v20.361',fecha:fecha,usuario:usuario,registrosNuevos:comCreadas}}).catch(function(e){mntLog('No se pudo guardar historial: '+e.message);});
   mntLog('Migración finalizada. Registros nuevos creados: '+creados+'. Tiempo: '+((Date.now()-antes)/1000).toFixed(2)+' s'); notify('✓ Migración finalizada'); await mntAnalizarBase();
 }
 async function mntVerificarIntegridad(){ if(!MNT_STATE.analizado) await mntAnalizarBase(); mntLog('Verificando integridad...'); var d=MNT_STATE.diag||{}; var issues=[]; if((d.aguPend||0)>0) issues.push('Aguinaldos sin gasto: '+d.aguPend); if((d.hsPend||0)>0) issues.push('Horas extra aprobadas sin gasto: '+d.hsPend); if((d.ctaPend||0)>0) issues.push('Movimientos de cuenta empleado sin gasto: '+d.ctaPend); if(!issues.length){MNT_STATE.integridadOK=true; mntSetEstado('Integridad OK','b-green'); var btn=document.getElementById('mnt-btn-limpiar'); if(btn) btn.disabled=false; mntLog('Integridad OK. La limpieza segura ya está habilitada.'); notify('✓ Integridad OK');} else {MNT_STATE.integridadOK=false; mntSetEstado('Integridad pendiente','b-amber'); var btn2=document.getElementById('mnt-btn-limpiar'); if(btn2) btn2.disabled=true; issues.forEach(mntLog); notify('Hay pendientes por migrar');} }
@@ -33491,7 +32917,7 @@ async function mntEliminarDuplicadosGastosFijos(){
   var updates={}; keys.forEach(function(k){ updates['sisventas/gastos/'+k]=null; });
   await window.fbUpdate(window.fbRef(window.fbDB),updates).then(function(){
     mntLog('Duplicados eliminados: '+keys.length);
-    return window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/duplicados_fijos/'+Date.now()),{version:'v20.360',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:keys.length,keys:keys});
+    return window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/duplicados_fijos/'+Date.now()),{version:'v20.361',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:keys.length,keys:keys});
   }).catch(function(e){ mntLog('Error eliminando duplicados: '+e.message); notify('Error: '+e.message); });
   notify('✓ Duplicados fijos eliminados');
   await mntAnalizarDuplicadosGastosFijos();
@@ -33550,278 +32976,71 @@ async function mntLimpiarLegacy(){
   }
   if(ctaOmitidos) mntLog('Movimientos ctaemp conservados por no tener gasto real: '+ctaOmitidos);
 
-  await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:'v20.360',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
+  await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:'v20.361',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
   mntLog('Limpieza finalizada. Elementos removidos: '+borrados); notify('✓ Limpieza legacy finalizada'); await mntAnalizarBase();
 }
 
 </script>
 
 
-<script>
-/* v20.360 — Seguridad visual por rol
-   Admin conserva tableros ejecutivos. Administrativo/vendedor/técnico no ven dashboards globales
-   ni métricas comerciales agregadas aunque una función antigua intente mostrarlas. */
+<script id="sv361-role-guard">
 (function(){
-  function _rolActual359(){
-    try { return String(window.currentRole || '').toLowerCase(); } catch(e){ return ''; }
-  }
-  function _esAdmin359(){ return _rolActual359() === 'admin'; }
-  function _hide359(id){ var el=document.getElementById(id); if(el) el.style.display='none'; }
-  function _show359(id, display){ var el=document.getElementById(id); if(el) el.style.display=display || ''; }
-
-  window._aplicarSeguridadDashRol359 = function(){
-    var admin = _esAdmin359();
-
-    // Métricas globales del Dashboard: solo Admin.
-    if (!admin) {
-      [
-        'dash-metricas-globales',
-        'dash-row2-admin',
-        'dash-actividad-card',
-        'dash-rentabilidad-card',
-        'dash-ultimas-ventas-card',
-        'dash-administrativo-card'
-      ].forEach(_hide359);
-    }
-
-    // En Detalle ventas, las tarjetas ejecutivas son solo Admin.
-    if (!admin) {
-      _hide359('ventas-stats-global');
-      _hide359('ventas-list-stats-global');
-    }
-
-    // En Admin no forzamos visibilidad acá: respeta admin-only/configuración existente.
+  function rolActual(){ try { return String(window.currentRole || (window.currentUserData && (window.currentUserData.rol || window.currentUserData.role)) || '').toLowerCase(); } catch(e){ return ''; } }
+  function esAdmin(){ var r=rolActual(); return r==='admin' || r==='administrador'; }
+  function esTecnico(){ var r=rolActual(); return r==='tecnico' || r==='técnico'; }
+  function q(id){ return document.getElementById(id); }
+  function hide(id){ var el=q(id); if(el) el.style.display='none'; }
+  function show(id,display){ var el=q(id); if(el) el.style.display=display||''; }
+  function navByPage(page){ return Array.prototype.slice.call(document.querySelectorAll('.nav-item')).filter(function(el){ var oc=el.getAttribute('onclick')||''; return oc.indexOf(page)>=0; }); }
+  function setNav(page, visible){ navByPage(page).forEach(function(el){ el.style.display=visible?'':'none'; }); }
+  window.sv361ApplyRoleGuard=function(){
+    var admin=esAdmin(), tec=esTecnico();
+    ['dash-metricas-globales','dash-row2-admin','dash-actividad-card','dash-rentabilidad-card','dash-ultimas-ventas-card','dash-administrativo-card','ventas-stats-global','ventas-list-stats-global'].forEach(function(id){ if(admin) show(id); else hide(id); });
+    if(!admin){ var pageDash=q('page-dashboard'); if(pageDash){ Array.prototype.forEach.call(pageDash.querySelectorAll('.metrics.no-tecnico,.row2.admin-only,.card.admin-only'),function(el){el.style.display='none';}); } }
+    var restrictedTech=['gastos','caja','tesoreria','rentabilidad','proveedores','ordenes','creditofiscal','usuarios','configuracion','detalle','cobranzas','cuentacorriente','reportes','estadisticas','presupuesto','venta'];
+    restrictedTech.forEach(function(p){ if(tec) setNav(p,false); });
+    if(tec){ restrictedTech.forEach(function(p){ var pg=q('page-'+p); if(pg&&pg.classList.contains('active')&&typeof window.showPage==='function') window.showPage('ctaemp',document.querySelector('[onclick*=ctaemp]')); }); }
   };
-
-  // Envolver showPage para aplicar la seguridad después de cada navegación.
-  var _showPage359 = window.showPage;
-  if (typeof _showPage359 === 'function' && !_showPage359._sv359) {
-    var wrappedShowPage = function(){
-      var r = _showPage359.apply(this, arguments);
-      setTimeout(window._aplicarSeguridadDashRol359, 30);
-      setTimeout(window._aplicarSeguridadDashRol359, 180);
-      return r;
+  var oldShow=window.showPage;
+  if(typeof oldShow==='function'&&!oldShow._sv361Guarded){
+    var guarded=function(page,el){
+      if(esTecnico()){
+        var denied={gastos:1,caja:1,tesoreria:1,rentabilidad:1,proveedores:1,ordenes:1,creditofiscal:1,usuarios:1,configuracion:1,detalle:1,cobranzas:1,cuentacorriente:1,reportes:1,estadisticas:1,presupuesto:1,venta:1};
+        if(denied[page]){ if(typeof window.notify==='function') window.notify('No tenés permiso para acceder a este módulo.'); page='ctaemp'; el=document.querySelector('[onclick*=ctaemp]'); }
+      }
+      var r=oldShow.call(this,page,el); setTimeout(window.sv361ApplyRoleGuard,60); return r;
     };
-    wrappedShowPage._sv359 = true;
-    window.showPage = wrappedShowPage;
+    guarded._sv361Guarded=true; window.showPage=guarded;
   }
-
-  // Envolver funciones que antes reabrían métricas con display=''.
-  ['volverListaVentas','renderMetricasVentas','actualizarStatVentas','applyDashWidgets','applyRole'].forEach(function(fn){
-    var old = window[fn];
-    if (typeof old === 'function' && !old._sv359) {
-      var wrap = function(){
-        var r = old.apply(this, arguments);
-        setTimeout(window._aplicarSeguridadDashRol359, 10);
-        return r;
+  function notifPermitidaTecnico(n){
+    var txt=''; try{ txt=[n.tipo,n.titulo,n.title,n.descripcion,n.mensaje,n.body,n.modulo,n.categoria].join(' ').toLowerCase(); }catch(e){}
+    var bloqueadas=['stock','presupuesto','iva','deuda','caja','tesorer','factur','proveedor','orden de compra','compra','cliente con saldo','vencimiento presupuesto'];
+    for(var i=0;i<bloqueadas.length;i++){ if(txt.indexOf(bloqueadas[i])>=0) return false; }
+    var permitidas=['ot','orden de trabajo','reclamo','soporte','garant','pago','pagado','hora extra','hs extra','comision','comisión','asignad','tecnico','técnico'];
+    for(var j=0;j<permitidas.length;j++){ if(txt.indexOf(permitidas[j])>=0) return true; }
+    return false;
+  }
+  function wrapNotif(){
+    if(typeof window.renderNotificaciones==='function'&&!window.renderNotificaciones._sv361Guarded){
+      var oldRender=window.renderNotificaciones;
+      window.renderNotificaciones=function(filtro){
+        if(esTecnico()&&Array.isArray(window.todasNotifs)){ var original=window.todasNotifs; window.todasNotifs=original.filter(notifPermitidaTecnico); try{return oldRender.call(this,filtro);} finally{window.todasNotifs=original;} }
+        return oldRender.call(this,filtro);
       };
-      wrap._sv359 = true;
-      window[fn] = wrap;
+      window.renderNotificaciones._sv361Guarded=true;
     }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(window._aplicarSeguridadDashRol359, 200);
-    setTimeout(window._aplicarSeguridadDashRol359, 800);
-  });
-})();
-</script>
-
-
-<script>
-/* v20.360 — Centro de permisos funcional y bloqueo de pantallas sensibles
-   - Técnico no puede entrar a Gastos ni cargar gasto administrativo.
-   - FAB técnico usa gasto rápido/reembolso, no la pantalla Gastos.
-   - Notificaciones se filtran por rol y por asignación.
-   - Si una pantalla quedó abierta al cambiar de rol, se cierra/limpia. */
-(function(){
-  function rol360(){ return String(window.currentRole || '').toLowerCase().trim(); }
-  function isAdmin360(){ return rol360()==='admin'; }
-  function isAdm360(){ return rol360()==='administrativo'; }
-  function isTec360(){ return rol360()==='tecnico' || rol360()==='técnico'; }
-  function isVend360(){ return rol360()==='vendedor'; }
-  function notify360(m){ if(typeof window.notify==='function') window.notify(m); else alert(m); }
-  function activePage360(){ var p=document.querySelector('.page.active'); return p ? p.id.replace(/^page-/,'') : ''; }
-  function user360(){ return String(window.currentUser || window.currentUserName || window.currentUserEmail || '').toLowerCase(); }
-  function norm360(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
-  function txt360(n){ return norm360([n&&n.tipo,n&&n.titulo,n&&n.sub,n&&n.tiempo].join(' ')); }
-
-  var ALLOW = {
-    admin: null,
-    administrativo: ['dashboard','asistente','presupuesto','venta','detalle','cobranzas','cuentacorriente','reportes','estadisticas','clientes','productos','kits','ordentrabajo','soporte','garantias','equipos','informes','remitos','ctaemp','vacaciones','gastos','creditofiscal','notificaciones'],
-    vendedor: ['dashboard','asistente','presupuesto','venta','detalle','cobranzas','clientes','productos','kits','ordentrabajo','soporte','garantias','equipos','informes','remitos','ctaemp','vacaciones','notificaciones'],
-    tecnico: ['dashboard','asistente','ordentrabajo','soporte','garantias','equipos','informes','remitos','ctaemp','vacaciones','notificaciones']
-  };
-  var HARD_BLOCK = {
-    tecnico: ['gastos','caja','tesoreria','rentabilidad','usuarios','configuracion','empleados','proveedores','ordenes','creditofiscal','detalle','venta','presupuesto','cobranzas','cuentacorriente','reportes','estadisticas','clientes','productos','kits'],
-    vendedor: ['gastos','caja','tesoreria','rentabilidad','usuarios','configuracion','empleados','proveedores','ordenes','creditofiscal','cuentacorriente','reportes','estadisticas'],
-    administrativo: ['usuarios','configuracion','rentabilidad','tesoreria']
-  };
-  function pageAllowed360(id){
-    if(!id) return false;
-    if(isAdmin360()) return true;
-    var r=rol360();
-    if((HARD_BLOCK[r]||[]).indexOf(id)>=0) return false;
-    var allow=ALLOW[r];
-    if(Array.isArray(allow)) return allow.indexOf(id)>=0;
-    if(typeof window.PERMISOS_ROLES!=='undefined' || typeof window.PERMISOS_DEFAULT!=='undefined'){
-      var cfg=((window.PERMISOS_ROLES||{})[r] || (window.PERMISOS_DEFAULT||{})[r] || {bloqueados:[]});
-      return (cfg.bloqueados||[]).indexOf(id)<0;
+    if(typeof window.actualizarBadgeNotif==='function'&&!window.actualizarBadgeNotif._sv361Guarded){
+      var oldBadge=window.actualizarBadgeNotif;
+      window.actualizarBadgeNotif=function(){
+        if(esTecnico()&&Array.isArray(window.todasNotifs)){ var original=window.todasNotifs; window.todasNotifs=original.filter(notifPermitidaTecnico); try{return oldBadge.call(this);} finally{window.todasNotifs=original;} }
+        return oldBadge.call(this);
+      };
+      window.actualizarBadgeNotif._sv361Guarded=true;
     }
-    return false;
   }
-  window.SV360_pageAllowed = pageAllowed360;
-
-  var oldPerm = window.permisoModulo;
-  window.permisoModulo = function(id){
-    if(!pageAllowed360(id)) return false;
-    if(typeof oldPerm==='function'){
-      try { return !!oldPerm.apply(this, arguments); } catch(e) { return true; }
-    }
-    return true;
-  };
-
-  function bloquearSiNoPermitido360(id){
-    if(pageAllowed360(id)) return false;
-    notify360('Acceso restringido para tu rol');
-    return true;
-  }
-  var oldShow = window.showPage;
-  if(typeof oldShow==='function' && !oldShow._sv360){
-    var wrapped=function(id, el){
-      if(bloquearSiNoPermitido360(id)){
-        if(activePage360()===id || !activePage360()){
-          try { oldShow.call(this,'dashboard',document.querySelector('[onclick*=dashboard]')); } catch(e){}
-        }
-        setTimeout(aplicarSeguridad360, 30);
-        return;
-      }
-      var r=oldShow.apply(this, arguments);
-      setTimeout(aplicarSeguridad360, 30);
-      setTimeout(aplicarSeguridad360, 250);
-      return r;
-    };
-    wrapped._sv360=true;
-    window.showPage=wrapped;
-  }
-
-  function aplicarSeguridad360(){
-    var page=activePage360();
-    if(page && !pageAllowed360(page)){
-      document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
-      var dash=document.getElementById('page-dashboard'); if(dash) dash.classList.add('active');
-      var title=document.getElementById('page-title'); if(title) title.textContent='Dashboard';
-    }
-    document.querySelectorAll('.nav-item[onclick]').forEach(function(n){
-      var m=String(n.getAttribute('onclick')||'').match(/showPage\(['"]([^'"]+)/);
-      if(m && !pageAllowed360(m[1])) n.style.display='none';
-      else if(m) n.style.removeProperty('display');
-    });
-    // Técnico nunca ve la pantalla de Gastos ni sus modales administrativos.
-    if(isTec360()){
-      var gm=document.getElementById('modal-nuevo');
-      if(gm && window._modalTipo==='gasto') gm.classList.remove('open');
-      var gf=document.getElementById('gasto-form'); if(gf) gf.style.display='none';
-      var gl=document.getElementById('gasto-list'); if(gl && activePage360()==='gastos') gl.style.display='none';
-    }
-    if(typeof window._aplicarSeguridadDashRol359==='function') window._aplicarSeguridadDashRol359();
-  }
-  window.aplicarSeguridadRol360=aplicarSeguridad360;
-
-  // Bloquear alta/edición/pago de gastos administrativos por fuera del router.
-  ['abrirFormGasto','abrirPagoGasto','abrirPagoMultipleGastos','togglePagoMultipleGastos','abrirModalNuevo'].forEach(function(fn){
-    var old=window[fn];
-    if(typeof old!=='function' || old._sv360) return;
-    var wrap=function(){
-      if(fn==='abrirModalNuevo' && arguments[0]==='gasto' && !pageAllowed360('gastos')){
-        if(isTec360() && typeof window.abrirGastoRapido==='function') return window.abrirGastoRapido();
-        notify360('No tenés permiso para cargar gastos administrativos');
-        return;
-      }
-      if(fn!=='abrirModalNuevo' && !pageAllowed360('gastos')){
-        notify360('No tenés permiso para operar Gastos');
-        return;
-      }
-      return old.apply(this, arguments);
-    };
-    wrap._sv360=true; window[fn]=wrap;
-  });
-
-  // FAB: técnico solo reembolso/gasto rápido y agenda/IA según corresponda; nunca pantalla Gastos.
-  var oldFab=window.fabAccion;
-  if(typeof oldFab==='function' && !oldFab._sv360){
-    var wrapFab=function(tipo){
-      if(tipo==='gasto' && !pageAllowed360('gastos')){
-        if(typeof window.closeFab==='function') window.closeFab();
-        if(typeof window.abrirGastoRapido==='function') return window.abrirGastoRapido();
-        notify360('No tenés permiso para cargar gastos administrativos');
-        return;
-      }
-      return oldFab.apply(this, arguments);
-    };
-    wrapFab._sv360=true; window.fabAccion=wrapFab;
-  }
-
-  // Filtro de notificaciones por rol.
-  function notifAllowed360(n){
-    if(isAdmin360()) return true;
-    var t=String((n&&n.tipo)||'').toLowerCase();
-    var tx=txt360(n);
-    var u=norm360(user360());
-    var own = !u || tx.indexOf(u)>=0;
-
-    if(isTec360()){
-      if(tx.indexOf('stock')>=0 || tx.indexOf('presupuesto')>=0 || tx.indexOf('deuda')>=0 || tx.indexOf('iva')>=0 || tx.indexOf('caja')>=0 || tx.indexOf('proveedor')>=0 || tx.indexOf('orden de compra')>=0) return false;
-      if(t==='ot' || tx.indexOf('ot-')>=0 || tx.indexOf('instalacion')>=0 || tx.indexOf('instalación')>=0) return own || tx.indexOf('sin tecnico')<0;
-      if(['soporte','reclamo','garantia','garantía','empleado','pago','comision','comisión','hsextra','hs_extra','horas extra'].some(function(x){return t===x || tx.indexOf(x)>=0;})) return true;
-      return false;
-    }
-    if(isAdm360() || isVend360()){
-      if(t==='stock' || t==='deuda' || tx.indexOf('stock')>=0 || tx.indexOf('iva')>=0 || tx.indexOf('caja')>=0 || tx.indexOf('rentabilidad')>=0) return false;
-      if(t==='gasto' && !pageAllowed360('gastos')) return false;
-      return true;
-    }
-    return false;
-  }
-  window.SV360_notifAllowed=notifAllowed360;
-
-  function patchNotifRenderer360(){
-    var oldRender=window.renderNotificaciones;
-    if(typeof oldRender!=='function' || oldRender._sv360) return;
-    var wrapped=function(filtro){
-      var original=window.todasNotifs;
-      try{
-        window.todasNotifs=(original||[]).filter(notifAllowed360);
-        return oldRender.apply(this, arguments);
-      } finally { window.todasNotifs=original; }
-    };
-    wrapped._sv360=true; window.renderNotificaciones=wrapped;
-  }
-  patchNotifRenderer360();
-  var oldGen=window.generarNotificaciones;
-  if(typeof oldGen==='function' && !oldGen._sv360){
-    var gen=function(){ var r=oldGen.apply(this, arguments); setTimeout(function(){ patchNotifRenderer360(); if(typeof window.renderNotificaciones==='function') window.renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); },30); return r; };
-    gen._sv360=true; window.generarNotificaciones=gen;
-  }
-  var oldBadge=window.actualizarBadgeNotif;
-  if(typeof oldBadge==='function' && !oldBadge._sv360){
-    var b=function(){
-      var original=window.todasNotifs;
-      try{ window.todasNotifs=(original||[]).filter(notifAllowed360); return oldBadge.apply(this, arguments); }
-      finally{ window.todasNotifs=original; }
-    };
-    b._sv360=true; window.actualizarBadgeNotif=b;
-  }
-
-  // Reaplicar luego de cambios de rol / impersonación.
-  ['applyRole','_actualizarCabeceraSesion','finalizarImpersonacionUsuario','verComoUsuario'].forEach(function(fn){
-    var old=window[fn];
-    if(typeof old==='function' && !old._sv360){
-      var w=function(){ var r=old.apply(this, arguments); setTimeout(aplicarSeguridad360,60); setTimeout(aplicarSeguridad360,300); return r; };
-      w._sv360=true; window[fn]=w;
-    }
-  });
-  document.addEventListener('DOMContentLoaded',function(){ setTimeout(aplicarSeguridad360,200); setTimeout(aplicarSeguridad360,900); });
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){wrapNotif();window.sv361ApplyRoleGuard();},250);});
+  document.addEventListener('firebase-ready',function(){setTimeout(function(){wrapNotif();window.sv361ApplyRoleGuard();},500);});
+  setInterval(function(){wrapNotif();window.sv361ApplyRoleGuard();},1500);
 })();
 </script>
 
