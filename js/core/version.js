@@ -1,3 +1,3 @@
   // PWA v20.339: no desregistrar el Service Worker al iniciar.
   // Chrome necesita manifest + Service Worker estable para permitir instalación.
-  window.SISVENTAS_PWA_VERSION = 'v1.5.0';
+  window.SISVENTAS_PWA_VERSION = 'v1.6.0';
