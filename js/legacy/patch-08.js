@@ -25,15 +25,11 @@
     if (pageCob) Array.from(pageCob.querySelectorAll(':scope > .metrics')).forEach(function(m){ setDisplay309(m, admin, 'grid'); });
   };
 
-  var applyRolePrev309 = window.applyRole;
-  if (typeof applyRolePrev309 === 'function') window.applyRole = function(){
-    var r = applyRolePrev309.apply(this, arguments);
+  document.addEventListener('sisventas:role-changed', function(){
     window.aplicarDashboardPermisos309();
     setTimeout(window.aplicarDashboardPermisos309, 80);
-    return r;
-  };
-  var showPrev309 = window.showPage;
-  if (typeof showPrev309 === 'function') window.showPage = function(page, el){ var r = showPrev309.apply(this, arguments); setTimeout(window.aplicarDashboardPermisos309, 80); return r; };
+  });
+  document.addEventListener('sisventas:page-changed', function(){ setTimeout(window.aplicarDashboardPermisos309, 80); });
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(window.aplicarDashboardPermisos309, 300); });
 
   function ventaActualEditando309(){

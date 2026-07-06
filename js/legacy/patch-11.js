@@ -61,7 +61,7 @@
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v1.1.0';
+  SV.Cache.version = 'v1.2.0';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -228,15 +228,10 @@
     refrescarDashOT312();
   };
 
-  var showPrev312 = window.showPage;
-  if (typeof showPrev312 === 'function' && !showPrev312._sv312) {
-    window.showPage = function(page, el){
-      var r = showPrev312.apply(this, arguments);
-      if(['dashboard','detalle','tesoreria','ordentrabajo','cobranzas'].indexOf(page) >= 0) setTimeout(SV.Metrics.refresh, 80);
-      return r;
-    };
-    window.showPage._sv312 = true;
-  }
+  document.addEventListener('sisventas:page-changed', function(event){
+    var page=event.detail&&event.detail.page;
+    if(['dashboard','detalle','tesoreria','ordentrabajo','cobranzas'].indexOf(page) >= 0) setTimeout(SV.Metrics.refresh, 80);
+  });
   ['renderDashboard','renderTesoreria','renderOTTabla','renderMetricasVentas','actualizarStatVentas'].forEach(function(fn){
     var prev = window[fn];
     if (typeof prev === 'function' && !prev._sv312) {

@@ -181,15 +181,11 @@
     }, 80);
     return r;
   };
-  var oldShow = window.showPage;
-  if (typeof oldShow === 'function') {
-    window.showPage = function(page, el){
-      var r = oldShow.apply(this, arguments);
+  document.addEventListener('sisventas:page-changed', function(event){
+      var page=event.detail&&event.detail.page;
       if (page === 'ctaemp') setTimeout(function(){
         if (window.ctaEmpActual && typeof cargarCtaEmp === 'function') cargarCtaEmp(window.ctaEmpActual);
       }, 250);
       if (page === 'tesoreria' && typeof window.renderTesoreria === 'function') setTimeout(window.renderTesoreria, 180);
-      return r;
-    };
-  }
+  });
 })();

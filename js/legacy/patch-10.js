@@ -137,10 +137,6 @@
     var cob = document.querySelector('#page-cobranzas > .metrics');
     if (cob) cob.style.display = window.tienePermiso('cobranzas.verDashboard') ? '' : 'none';
   }
-  var showPrev311 = window.showPage;
-  if (typeof showPrev311 === 'function' && !showPrev311._sv311) {
-    window.showPage = function(page, el){ var r = showPrev311.apply(this, arguments); setTimeout(aplicarDashSensibles311, 0); return r; };
-    window.showPage._sv311 = true;
-  }
+  document.addEventListener('sisventas:page-changed', function(){ setTimeout(aplicarDashSensibles311, 0); });
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(aplicarDashSensibles311, 300); });
 })();

@@ -91,10 +91,9 @@
     if (typeof window.actualizarStatVentas === 'function') window.actualizarStatVentas();
     if (typeof window.renderMetricasVentas === 'function') window.renderMetricasVentas();
   }
-  var showPrev310 = window.showPage;
-  if (typeof showPrev310 === 'function') {
-    window.showPage = function(page, el){ var r = showPrev310.apply(this, arguments); if(page === 'detalle') setTimeout(refrescarVentas310, 80); return r; };
-  }
+  document.addEventListener('sisventas:page-changed', function(event){
+    if(event.detail&&event.detail.page === 'detalle') setTimeout(refrescarVentas310, 80);
+  });
   var renderTablaPrev310 = window.renderVentasTabla;
   if (typeof renderTablaPrev310 === 'function') {
     window.renderVentasTabla = function(){ var r = renderTablaPrev310.apply(this, arguments); setTimeout(refrescarVentas310, 50); return r; };

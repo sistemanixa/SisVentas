@@ -240,10 +240,8 @@
     }).sort(function(a,b){ return String(b.fecha||'').localeCompare(String(a.fecha||'')) || ((b.ts||0)-(a.ts||0)); });
   };
   // Reforzar título al abrir Tesorería aunque el mapa original no la tuviera.
-  var _sv269_showPage = window.showPage;
-  if (typeof _sv269_showPage === 'function') {
-    window.showPage = function(page, el){
-      var r = _sv269_showPage.apply(this, arguments);
+  document.addEventListener('sisventas:page-changed', function(event){
+      var page=event.detail&&event.detail.page;
       setTimeout(function(){
         if(page==='tesoreria'){
           var t=document.getElementById('page-title'); if(t) t.textContent='Tesorería';
@@ -254,7 +252,5 @@
           else if(typeof renderNotificaciones==='function') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||'');
         }
       },120);
-      return r;
-    };
-  }
+  });
 })();

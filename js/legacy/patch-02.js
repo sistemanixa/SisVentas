@@ -240,8 +240,8 @@
   };
   window.tesVerComprobante=function(gastoKey,idx){ if(typeof abrirComprobantePago==='function') abrirComprobantePago(gastoKey,idx); };
 
-  var _showPage=window.showPage;
-  if(typeof _showPage==='function'){
-    window.showPage=function(page,el){ var r=_showPage(page,el); setTimeout(function(){ if(page==='tesoreria') renderTesoreria(); if(page==='notificaciones') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); },80); return r; };
-  }
+  document.addEventListener('sisventas:page-changed',function(event){
+    var page=event.detail&&event.detail.page;
+    setTimeout(function(){ if(page==='tesoreria') renderTesoreria(); if(page==='notificaciones') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); },80);
+  });
 })();

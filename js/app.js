@@ -3856,6 +3856,14 @@ function toggleNotificacionesPanel() {
 
 function showPage(id, el) {
   if (!isAuthenticated) { notify('Primero iniciá sesión'); return; }
+  if (window.SisVentas && window.SisVentas.Access) {
+    var resolvedPage = window.SisVentas.Access.resolvePage(id);
+    if (resolvedPage.redirected) {
+      notify('No tenés permiso para acceder a este módulo.');
+      id = resolvedPage.page;
+      el = document.querySelector('[onclick*="' + id + '"]');
+    }
+  }
   var page = document.getElementById('page-' + id);
   if (!page) { notify('Módulo no disponible'); return; }
   // Validar permisos dinámicos (Configuración → Roles)
@@ -4041,7 +4049,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.1.0-firebase',
+  VERSION: 'v1.2.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),

@@ -20,17 +20,7 @@
     restrictedTech.forEach(function(p){ if(tec) setNav(p,false); });
     if(tec){ restrictedTech.forEach(function(p){ var pg=q('page-'+p); if(pg&&pg.classList.contains('active')&&typeof window.showPage==='function') window.showPage('ctaemp',document.querySelector('[onclick*=ctaemp]')); }); }
   };
-  var oldShow=window.showPage;
-  if(typeof oldShow==='function'&&!oldShow._sv361Guarded){
-    var guarded=function(page,el){
-      if(esTecnico()){
-        var denied={gastos:1,caja:1,tesoreria:1,rentabilidad:1,proveedores:1,ordenes:1,creditofiscal:1,usuarios:1,configuracion:1,detalle:1,cobranzas:1,cuentacorriente:1,reportes:1,estadisticas:1,presupuesto:1,venta:1};
-        if(denied[page]){ if(typeof window.notify==='function') window.notify('No tenés permiso para acceder a este módulo.'); page='ctaemp'; el=document.querySelector('[onclick*=ctaemp]'); }
-      }
-      var r=oldShow.call(this,page,el); setTimeout(window.sv361ApplyRoleGuard,60); return r;
-    };
-    guarded._sv361Guarded=true; window.showPage=guarded;
-  }
+  document.addEventListener('sisventas:page-changed',function(){ setTimeout(window.sv361ApplyRoleGuard,60); });
   function notifPermitidaTecnico(n){
     var txt=''; try{ txt=[n.tipo,n.titulo,n.title,n.descripcion,n.mensaje,n.body,n.modulo,n.categoria].join(' ').toLowerCase(); }catch(e){}
     var bloqueadas=['stock','presupuesto','iva','deuda','caja','tesorer','factur','proveedor','orden de compra','compra','cliente con saldo','vencimiento presupuesto'];

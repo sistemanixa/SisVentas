@@ -27,6 +27,32 @@
     return (config.bloqueados || []).indexOf(moduleId) === -1;
   }
 
+  var technicianDenied = Object.freeze({
+    gastos: true,
+    caja: true,
+    tesoreria: true,
+    rentabilidad: true,
+    proveedores: true,
+    ordenes: true,
+    creditofiscal: true,
+    usuarios: true,
+    configuracion: true,
+    detalle: true,
+    cobranzas: true,
+    cuentacorriente: true,
+    reportes: true,
+    estadisticas: true,
+    presupuesto: true,
+    venta: true
+  });
+
+  function resolvePage(page) {
+    if (current() === 'tecnico' && technicianDenied[page]) {
+      return { page: 'ctaemp', redirected: true };
+    }
+    return { page: page, redirected: false };
+  }
+
   function emit(name, detail) {
     document.dispatchEvent(new CustomEvent('sisventas:' + name, { detail: detail || {} }));
   }
@@ -36,6 +62,7 @@
     current: current,
     is: is,
     canAccess: canAccess,
+    resolvePage: resolvePage,
     emit: emit
   });
 })(window);

@@ -268,14 +268,10 @@
     };
   }
 
-  var showOriginal294 = window.showPage;
-  if(typeof showOriginal294 === 'function'){
-    window.showPage = function(page, el){
-      var r = showOriginal294.apply(this, arguments);
+  document.addEventListener('sisventas:page-changed', function(event){
+      var page=event.detail&&event.detail.page;
       if(page === 'ordentrabajo') setTimeout(instalar294, 250);
-      return r;
-    };
-  }
+  });
 
   document.addEventListener('input', function(e){
     if(e.target && e.target.id === 'ot-det-dir') window._otDireccionActual = e.target.value || '';

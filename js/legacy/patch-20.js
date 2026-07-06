@@ -78,14 +78,5 @@
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensure); else ensure();
   document.addEventListener('firebase-ready', function(){ setTimeout(ensure, 300); });
   window.addEventListener('resize', function(){ applyPct(getSaved()); });
-  var oldShowPage = window.showPage;
-  if(typeof oldShowPage === 'function' && !oldShowPage.__sv335Wrapped){
-    var wrapped = function(){
-      var r = oldShowPage.apply(this, arguments);
-      setTimeout(ensure, 80);
-      return r;
-    };
-    wrapped.__sv335Wrapped = true;
-    window.showPage = wrapped;
-  }
+  document.addEventListener('sisventas:page-changed', function(){ setTimeout(ensure, 80); });
 })();

@@ -108,9 +108,6 @@
     var prevRent334=window.calcRentabilidad;
     window.calcRentabilidad=function(){ var r=prevRent334.apply(this,arguments); setTimeout(renderRent334,80); return r; };
   }
-  if(typeof window.showPage==='function'){
-    var prevShow334=window.showPage;
-    window.showPage=function(page,el){ var r=prevShow334.apply(this,arguments); setTimeout(function(){ if(page==='estadisticas') renderStats334(); if(page==='rentabilidad') renderRent334(); },140); return r; };
-  }
+  document.addEventListener('sisventas:page-changed',function(event){ var page=event.detail&&event.detail.page; setTimeout(function(){ if(page==='estadisticas') renderStats334(); if(page==='rentabilidad') renderRent334(); },140); });
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(function(){ if(document.getElementById('page-estadisticas')&&document.getElementById('page-estadisticas').classList.contains('active')) renderStats334(); if(document.getElementById('page-rentabilidad')&&document.getElementById('page-rentabilidad').classList.contains('active')) renderRent334(); },500); });
 })();
