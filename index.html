@@ -9498,6 +9498,11 @@ function applyRole() {
       }
     });
   }
+  // Los guards agregados al final del archivo deben reaccionar al cambio de rol,
+  // no volver a aplicar estilos mediante un intervalo permanente.
+  if (typeof window.sv361ApplyRoleGuard === 'function') {
+    window.sv361ApplyRoleGuard();
+  }
 }
 // cargarUsuariosLogin eliminada
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
@@ -10063,6 +10068,15 @@ var PPTO_ESTADOS = {
   anulado:        { label:'Anulado',               badge:'badge-anulado',     icon:'ti-ban',            orden:10 },
 };
 let currentRole = 'admin';
+
+// Fuente de verdad compartida para los bloques legacy y los parches finales.
+// Una variable declarada con `let` no se publica automáticamente en `window`;
+// varios controles de permisos consultan `window.currentRole`.
+Object.defineProperty(window, 'currentRole', {
+  configurable: true,
+  get: function() { return currentRole; },
+  set: function(value) { currentRole = value; }
+});
 var notifLeidas = new Set();
 
 // Cargar notificaciones leídas desde Firebase para este usuario
@@ -33064,7 +33078,9 @@ async function mntLimpiarLegacy(){
   }
   document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){wrapNotif();window.sv361ApplyRoleGuard();},250);});
   document.addEventListener('firebase-ready',function(){setTimeout(function(){wrapNotif();window.sv361ApplyRoleGuard();},500);});
-  setInterval(function(){wrapNotif();window.sv361ApplyRoleGuard();},1500);
+  // Sin polling: applyRole y showPage ya vuelven a aplicar el guard cuando
+  // cambia el usuario o la pantalla. El intervalo anterior ocultaba el
+  // dashboard porque leía un rol desincronizado.
 })();
 </script>
 
