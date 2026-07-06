@@ -4049,7 +4049,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.4.0-firebase',
+  VERSION: 'v1.5.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4097,9 +4097,13 @@ function _mostrarBotonActualizacion(versionNueva) {
 }
 
 function _versionMasNueva(a, b) {
-  var na = parseInt((a||'').replace(/[^0-9]/g,'')) || 0;
-  var nb = parseInt((b||'').replace(/[^0-9]/g,'')) || 0;
-  return na > nb;
+  function partes(version) {
+    var match=String(version||'').match(/(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
+    return match ? [Number(match[1]||0),Number(match[2]||0),Number(match[3]||0)] : [0,0,0];
+  }
+  var va=partes(a), vb=partes(b);
+  for(var i=0;i<3;i++){ if(va[i]!==vb[i]) return va[i]>vb[i]; }
+  return false;
 }
 
 // Punto de entrada único para disparar la actualización
@@ -4112,16 +4116,16 @@ function _dispararActualizacion(versionNueva) {
 
 // Chequea GitHub directamente y actualiza si hay versión nueva
 function _chequearGitHub(callback) {
-  fetch(window.location.pathname + '?_v=' + Date.now(), {
+  fetch('./js/core/version.js?_v=' + Date.now(), {
     cache: 'no-store',
     headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
   })
     .then(function(r) { return r.ok ? r.text() : null; })
-    .then(function(html) {
-      if (!html) return;
-      var m = html.match(/VERSION:\s*'([^']+)'/);
+    .then(function(source) {
+      if (!source) return;
+      var m = source.match(/SISVENTAS_PWA_VERSION\s*=\s*'([^']+)'/);
       if (!m) return;
-      var vGitHub = m[1];
+      var vGitHub = m[1] + '-firebase';
       if (_versionMasNueva(vGitHub, APP_CONFIG.VERSION)) {
         if (window.fbDB) {
           window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), vGitHub).catch(function(){});
