@@ -150,40 +150,10 @@
       return r;
     };
   }
-  // Tesorería: consolidar pagos desde gastos y movimiento de empleado cargado
-  function pagosArray(obj){
-    var p = obj && obj.pagos ? obj.pagos : {};
-    if (Array.isArray(p)) return p.map(function(x,i){return Object.assign({_idx:i},x||{});});
-    return Object.keys(p||{}).map(function(k){ return Object.assign({_key:k}, p[k]||{}); });
-  }
-  var _sv269_tesPagosPrev = window._tesoreriaPagos;
-  window._tesoreriaPagos = function(){
-    var out=[];
-    svArray(window.gastosData).forEach(function(g){
-      pagosArray(g).forEach(function(p,i){
-        out.push(Object.assign({},p,{origen:'gasto',gastoKey:g.fbKey,gastoDesc:g.descripcion||g.desc||'',categoria:g.categoria||'',montoGasto:g.monto||0,loteId:p.loteId||p.pagoId||p.pgId||'',_idx:i,empleadoId:g.empleadoId||'',empleadoNombre:g.empleadoNombre||''}));
-      });
-    });
-    svArray(window.movsEmpData).forEach(function(m){
-      if (m._fuente === 'gastos') return;
-      pagosArray(m).forEach(function(p,i){
-        out.push(Object.assign({},p,{origen:'ctaemp',gastoKey:m.gastoFbKey||m.fbKey,gastoDesc:m.descripcion||m.desc||m.detalle||m.tipo||'',categoria:m.tipo||'',montoGasto:m.monto||0,loteId:p.loteId||p.pagoId||p.pgId||'',_idx:i,empleadoId:window.ctaEmpActual||'',empleadoNombre:''}));
-      });
-    });
-    var seen={};
-    return out.filter(function(p){
-      var k=[p.origen,p.gastoKey,p._idx,p._key,p.fecha,p.monto,p.loteId].join('|');
-      if(seen[k]) return false; seen[k]=1; return true;
-    }).sort(function(a,b){ return String(b.fecha||'').localeCompare(String(a.fecha||'')) || ((b.ts||0)-(a.ts||0)); });
-  };
   // Reforzar título al abrir Tesorería aunque el mapa original no la tuviera.
   document.addEventListener('sisventas:page-changed', function(event){
       var page=event.detail&&event.detail.page;
       setTimeout(function(){
-        if(page==='tesoreria'){
-          var t=document.getElementById('page-title'); if(t) t.textContent='Tesorería';
-          if(typeof renderTesoreria==='function') renderTesoreria();
-        }
         if(page==='notificaciones'){
           if(typeof generarNotificaciones==='function') generarNotificaciones();
           else if(typeof renderNotificaciones==='function') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||'');

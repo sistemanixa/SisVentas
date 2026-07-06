@@ -105,6 +105,5 @@
     setMetric309('tes-met-comp', comp, 'adjuntos');
   }
   window.abrirDetalleVentaConfirmada308 = window.abrirDetalleVentaConfirmada309;
-  var renderTesPrev309 = window.renderTesoreria;
-  if (typeof renderTesPrev309 === 'function') window.renderTesoreria = function(){ var r = renderTesPrev309.apply(this, arguments); setTimeout(corregirMetricasTesoreria309, 120); return r; };
+  document.addEventListener('sisventas:treasury-rendered', function(){ setTimeout(corregirMetricasTesoreria309, 120); });
 })();

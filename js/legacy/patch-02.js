@@ -160,36 +160,10 @@
       setTimeout(window._otRenderWizard, 200);
     }
   });
-  window._tesoreriaPagos=function(){
-    var out=[];
-    (window.gastosData||[]).forEach(function(g){
-      var pagos=(typeof _gastoPagosArray==='function') ? _gastoPagosArray(g) : (Array.isArray(g.pagos)?g.pagos:[]);
-      pagos.forEach(function(p,i){ out.push(Object.assign({},p,{ gastoKey:g.fbKey, gastoDesc:g.descripcion||'', categoria:g.categoria||'', montoGasto:g.monto||0, loteId:p.loteId||p.pagoId||p.pgId||'', _idx:i })); });
-    });
-    return out.sort(function(a,b){ return String(b.fecha||'').localeCompare(String(a.fecha||'')); });
-  };
-  window.renderTesoreria=function(){
-    var el=document.getElementById('tes-lista'); if(!el) return;
-    var q=normTxt((document.getElementById('tes-buscar')||{}).value||''), medio=(document.getElementById('tes-medio')||{}).value||'', per=(document.getElementById('tes-periodo')||{}).value||'mes';
-    var now=new Date(), ym=now.toISOString().slice(0,7); var prev=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().slice(0,7);
-    var pagos=window._tesoreriaPagos().filter(function(p){
-      var fecha=String(p.fecha||''); if(per==='mes' && fecha.slice(0,7)!==ym) return false; if(per==='anterior' && fecha.slice(0,7)!==prev) return false;
-      if(medio && String(p.medio||'')!==medio) return false;
-      if(q && !normTxt([p.gastoDesc,p.medio,p.usuario,p.loteId].join(' ')).includes(q)) return false;
-      return true;
-    });
-    var total=pagos.reduce(function(s,p){return s+(parseFloat(p.monto)||0);},0), transfer=pagos.filter(function(p){return /trans/i.test(p.medio||'');}).reduce(function(s,p){return s+(parseFloat(p.monto)||0);},0), efectivo=pagos.filter(function(p){return /efect/i.test(p.medio||'');}).reduce(function(s,p){return s+(parseFloat(p.monto)||0);},0), comp=pagos.filter(function(p){return p.comprobante&&p.comprobante.data;}).length;
-    var ids=['tes-met-mes','tes-met-transfer','tes-met-efectivo','tes-met-comp']; var vals=[money(total),money(transfer),money(efectivo),comp]; ids.forEach(function(id,i){var x=document.getElementById(id); if(x)x.textContent=vals[i];});
-    if(!pagos.length){ el.innerHTML='<div style="text-align:center;color:var(--text3);padding:24px">Sin pagos para mostrar</div>'; return; }
-    el.innerHTML=pagos.map(function(p){
-      var compBtn=(p.comprobante&&p.comprobante.data)?'<button class="btn btn-sm" onclick="tesVerComprobante(\''+esc(p.gastoKey)+'\','+p._idx+')"><i class="ti ti-paperclip"></i> Comprobante</button>':'<span style="font-size:12px;color:var(--text3)">Sin comprobante</span>';
-      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg3);border-radius:var(--radius);padding:12px 14px;flex-wrap:wrap"><div><div style="font-size:13px;font-weight:600">'+money(p.monto)+' · '+esc(p.medio||'—')+' '+(p.loteId?'<span class="badge b-blue">'+esc(p.loteId)+'</span>':'')+'</div><div style="font-size:12px;color:var(--text2);margin-top:3px">'+esc(p.gastoDesc||'—')+'</div><div style="font-size:11px;color:var(--text3);margin-top:3px">'+esc((p.fecha||'').split('-').reverse().join('/')||'')+' · '+esc(p.usuario||'Sistema')+'</div></div><div>'+compBtn+'</div></div>';
-    }).join('');
-  };
   window.tesVerComprobante=function(gastoKey,idx){ if(typeof abrirComprobantePago==='function') abrirComprobantePago(gastoKey,idx); };
 
   document.addEventListener('sisventas:page-changed',function(event){
     var page=event.detail&&event.detail.page;
-    setTimeout(function(){ if(page==='tesoreria') renderTesoreria(); if(page==='notificaciones') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); },80);
+    setTimeout(function(){ if(page==='notificaciones') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); },80);
   });
 })();

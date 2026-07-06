@@ -156,9 +156,7 @@
       '</div>';
     modal.classList.add('open');
   };
-  var oldRenderTes = window.renderTesoreria;
-  window.renderTesoreria = function(){
-    var r = (typeof oldRenderTes === 'function') ? oldRenderTes.apply(this, arguments) : undefined;
+  function agregarDetalleTesoreria270(){
     setTimeout(function(){
       var el = document.getElementById('tes-lista');
       if (!el) return;
@@ -179,8 +177,8 @@
         if (last) last.appendChild(div);
       });
     }, 80);
-    return r;
-  };
+  }
+  document.addEventListener('sisventas:treasury-rendered', agregarDetalleTesoreria270);
   document.addEventListener('sisventas:page-changed', function(event){
       var page=event.detail&&event.detail.page;
       if (page === 'ctaemp') setTimeout(function(){
