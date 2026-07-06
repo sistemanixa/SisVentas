@@ -70,28 +70,6 @@
     _otPasoActual = 0;
     window._otRenderWizard();
   }
-
-  window.otPasoIr = function(idx) {
-    if (typeof idx === 'string') {
-      idx = _otPasos.findIndex(function(p){ return p.id === idx; });
-    }
-    if (idx < 0 || idx >= _otPasos.length) return;
-    _otPasoActual = window._otPasoActual = idx;
-    var p = _otPasos[idx];
-    var el = document.getElementById(p.target);
-    if (el) {
-      (el.closest('.card') || el).scrollIntoView({behavior:'smooth', block:'start'});
-      setTimeout(function(){
-        if (el.focus && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) el.focus();
-      }, 400);
-    }
-    window._otRenderWizard();
-    // Auto-avanzar si hay más pasos
-    setTimeout(function(){
-      window._otRenderWizard(); // re-render para mostrar estado actualizado
-    }, 1000);
-  };
-
   // Re-renderizar el wizard cuando cambian los campos
   document.addEventListener('input', function(e){
     if (document.getElementById('ot-pasos-rapidos') && e.target.closest('#ot-detalle-view')) {

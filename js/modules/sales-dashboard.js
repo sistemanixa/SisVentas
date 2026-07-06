@@ -137,14 +137,10 @@
     set332('dash-q-semana-326', money332(weekTot));
     set332('dash-q-mes-326', money332(monthTot));
   };
-  var _dashMonth332=window.dashRenderEvolucionMensual;
-  if(typeof _dashMonth332==='function'){
-    window.dashRenderEvolucionMensual=function(ventas){
-      var r=_dashMonth332.apply(this,arguments);
-      setTimeout(function(){ window.sv332UpdateDashSalesKpis(ventas); },20);
-      return r;
-    };
-  }
+  document.addEventListener('sisventas:dashboard-evolution-rendered',function(event){
+    var ventas=event.detail&&event.detail.ventas||[];
+    setTimeout(function(){ window.sv332UpdateDashSalesKpis(ventas); },20);
+  });
   var _renderDash332=window.renderDashboard;
   if(typeof _renderDash332==='function'){
     window.renderDashboard=function(){ var r=_renderDash332.apply(this,arguments); setTimeout(function(){ window.sv332UpdateDashSalesKpis(window.ventasList||window.ventasData||[]); },90); return r; };

@@ -2160,6 +2160,7 @@ function abrirModalHaberesMes() {
 
   document.body.appendChild(overlay);
   overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
+  document.dispatchEvent(new CustomEvent('sisventas:payroll-modal-opened'));
 }
 
 function _renderTablaHaberes(filas) {
@@ -4049,7 +4050,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.17.0-firebase',
+  VERSION: 'v1.21.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -10566,6 +10567,28 @@ function guardarGastoRapido() {
 var ctaEmpActual = null;
 var movsEmpData  = [];
 
+function limpiarCtaEmpSinSeleccion() {
+  ctaEmpActual = null;
+  movsEmpData = [];
+  if (window._ctaEmpUnsubscribe) {
+    try { window._ctaEmpUnsubscribe(); } catch(e) {}
+    window._ctaEmpUnsubscribe = null;
+  }
+  ['ctaemp-base','ctaemp-total','ctaemp-haberes','ctaemp-adelantos'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.textContent='—';
+  });
+  var tbody=document.getElementById('ctaemp-tbody');
+  if(tbody) tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Seleccioná un empleado</td></tr>';
+  var pagosBody=document.getElementById('ctaemp-pagos-tbody');
+  if(pagosBody) pagosBody.innerHTML='';
+  var pagosResumen=document.getElementById('ctaemp-pagos-resumen');
+  if(pagosResumen) pagosResumen.textContent='0 pagos';
+  var pagosCard=document.getElementById('ctaemp-pagos-card');
+  if(pagosCard) pagosCard.style.display='none';
+  var comisionCard=document.getElementById('ctaemp-comision-card');
+  if(comisionCard) comisionCard.style.display='none';
+}
+
 function iniciarCtaEmp() {
   // Llenar select de empleados
   var sel = document.getElementById('ctaemp-sel');
@@ -10608,12 +10631,7 @@ function iniciarCtaEmp() {
     if (propioEmp) {
       cargarCtaEmp(propioEmp.fbKey || propioEmp.id);
     } else {
-      movsEmpData = [];
-      var tbody = document.getElementById('ctaemp-tbody');
-      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Seleccioná un empleado</td></tr>';
-      ['ctaemp-base','ctaemp-total','ctaemp-haberes','ctaemp-adelantos'].forEach(function(id){
-        var el = document.getElementById(id); if(el) el.textContent = '—';
-      });
+      limpiarCtaEmpSinSeleccion();
     }
   } else {
     // Técnico/vendedor: solo su propia cuenta
@@ -10710,6 +10728,10 @@ function _ctaEmpActualizarBannerDuplicadosLegacy() {
 async function ctaEmpEliminarDuplicadosLegacy() { return false; }
 
 function cargarCtaEmp(empFbKey) {
+  if (!empFbKey) {
+    limpiarCtaEmpSinSeleccion();
+    return;
+  }
   var limpia = ['ctaemp-base','ctaemp-haberes','ctaemp-adelantos','ctaemp-total'];
   limpia.forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent='…'; });
   var tbodyLimpia = document.getElementById('ctaemp-tbody');
@@ -10717,7 +10739,7 @@ function cargarCtaEmp(empFbKey) {
   movsEmpData = [];
   var banner = document.getElementById('ctaemp-migracion-banner');
   if (banner) banner.remove();
-  if (!empFbKey || !window.fbDB) return;
+  if (!window.fbDB) return;
   ctaEmpActual = empFbKey;
   var emp = Object.values(empData || {}).find(function(e){ return (e.fbKey||e.id) == empFbKey; });
   if (emp) {
@@ -10732,7 +10754,7 @@ function cargarCtaEmp(empFbKey) {
   var TIPOS_GASTOS_EMP = ['gasto_empresa','transporte','materiales','otro'];
 
   window._ctaEmpUnsubscribe && window._ctaEmpUnsubscribe();
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey), function(snap) {
+  window._ctaEmpUnsubscribe = window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey), function(snap) {
     var data = snap.val();
     var ctaMovsOriginal = data ? Object.entries(data).map(function(e){
       return Object.assign({ fbKey: e[0], _fuente: 'ctaemp' }, e[1]);

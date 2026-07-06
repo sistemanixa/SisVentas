@@ -75,17 +75,14 @@
     });
   };
 
-  var _sv348AbrirAguinaldoPrev = window.abrirModalAguinaldo;
-  window.abrirModalAguinaldo = async function(){
-    var r = _sv348AbrirAguinaldoPrev ? await _sv348AbrirAguinaldoPrev.apply(this, arguments) : undefined;
+  document.addEventListener('sisventas:payroll-modal-opened',function(){
     setTimeout(function(){
       var viejo = document.getElementById('agu-fecha-box-347');
       if (viejo) viejo.remove();
       var fecha = document.getElementById('agu-fecha');
       if (fecha && !fecha.value) fecha.value = _sv348Today();
     }, 20);
-    return r;
-  };
+  });
 
   window.confirmarRegistroAguinaldo = async function(){
     if (!window.fbDB) { notify('Sin conexión'); return; }

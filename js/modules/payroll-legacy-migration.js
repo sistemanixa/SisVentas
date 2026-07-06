@@ -96,43 +96,6 @@
   };
   if (window.fbDB) setTimeout(sv347StartAguListener, 500);
 
-  window.gastosFiltradosActuales = function(){
-    var fTipo   = (document.getElementById('gas-f-tipo')||{}).value   || '';
-    var fEstado = (document.getElementById('gas-f-estado')||{}).value || '';
-    var fMes    = (document.getElementById('gas-f-mes')||{}).value;
-    if (fMes === undefined) fMes = 'mes';
-    var inp = document.querySelector('#gasto-list input.search-input');
-    var fBusq = inp ? String(inp.value||'').toLowerCase() : '';
-    var hoyD = new Date();
-    var mesActual = hoyD.toISOString().slice(0,7);
-    var mes3m = (function(){ var d=new Date(hoyD); d.setMonth(d.getMonth()-2); return d.toISOString().slice(0,7); })();
-    var anioActual = String(hoyD.getFullYear());
-
-    return sv347GastosExtendidos().filter(function(g){
-      var tipoNorm   = normalizarTipoGasto(g);
-      var estadoNorm = normalizarEstadoGasto(g);
-      var matchTipo   = !fTipo   || tipoNorm === fTipo || (fTipo === 'Fijo' && tipoNorm === 'aguinaldo');
-      var matchEstado = !fEstado || estadoNorm === fEstado;
-      var txt = ((g.descripcion||'') + ' ' + (g.categoria||'') + ' ' + (g.semestre||'')).toLowerCase();
-      var matchBusq   = !fBusq || txt.includes(fBusq);
-      var matchMes = true;
-      var f = _normFechaGasto(g.fecha);
-      if (fMes === 'mes') matchMes = f.slice(0,7) === mesActual;
-      else if (fMes === '3m') matchMes = f.slice(0,7) >= mes3m;
-      else if (fMes === 'anio') matchMes = f.slice(0,4) === anioActual;
-      var matchKpiVence = true;
-      if (window._filtroGastosKpiVence) {
-        var venc = g.vencimiento || '';
-        matchKpiVence = venc >= window._filtroGastosKpiVence.desde && venc <= window._filtroGastosKpiVence.hasta;
-      }
-      var matchKpiReembolso = true;
-      if (window._filtroGastosKpiReembolso) {
-        matchKpiReembolso = !!(g.empleadoId && normalizarEstadoGasto(g) !== 'pagado' && !g.reembolsado);
-      }
-      return matchTipo && matchEstado && matchBusq && matchMes && matchKpiVence && matchKpiReembolso;
-    });
-  };
-
   var oldEliminar = window.eliminarRegistro;
   window.eliminarRegistro = function(coleccion, fbKey){
     if (coleccion === 'gastos' && String(fbKey||'').indexOf('aguinaldo_recuperado__') === 0) {
@@ -161,12 +124,7 @@
       'style="padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">';
     semSel.parentElement.insertBefore(box, semSel.nextSibling);
   }
-  var oldAbrirAgu = window.abrirModalAguinaldo;
-  window.abrirModalAguinaldo = async function(){
-    var r = oldAbrirAgu ? await oldAbrirAgu.apply(this, arguments) : undefined;
-    setTimeout(sv347InjectFecha, 0);
-    return r;
-  };
+  document.addEventListener('sisventas:payroll-modal-opened',function(){ setTimeout(sv347InjectFecha,0); });
 
   function sv347EmpleadoSeleccionado(key){
     var chk = document.querySelector('.agu-check-322[data-key="' + String(key || '').replace(/"/g,'\\"') + '"]');
@@ -188,81 +146,4 @@
     return (empleados||[]).some(function(e){ return data[e.fbKey] && data[e.fbKey][semKey]; });
   }
 
-  window.confirmarRegistroAguinaldo = async function(){
-    if (!window.fbDB) { notify('Sin conexión'); return; }
-    var sel = document.getElementById('agu-sem-sel');
-    var actual = (typeof _semestreActual === 'function') ? _semestreActual() : { anio: new Date().getFullYear(), sem: (new Date().getMonth() < 6 ? 1 : 2) };
-    var partes = sel ? String(sel.value || '').split('-') : [String(actual.anio), String(actual.sem)];
-    var anio = parseInt(partes[0], 10);
-    var sem  = parseInt(partes[1], 10);
-    var semKey = anio + '_S' + sem;
-    var semLbl = (sem === 1 ? '1er semestre' : '2do semestre') + ' ' + anio;
-    var fechaInp = document.getElementById('agu-fecha-registro');
-    var fechaGasto = (fechaInp && fechaInp.value) ? fechaInp.value : sv347Today();
-    var empleados = sv347Arr(window.empData || {}).filter(function(e){ return e && e.activo !== false && e.fbKey && sv347EmpleadoSeleccionado(e.fbKey); });
-    if (!empleados.length) { notify('Seleccioná al menos un empleado'); return; }
-
-    try {
-      var ya = await sv347HaySacRegistrado(empleados, semKey, semLbl);
-      if (ya) {
-        if (!confirm('Ya existe aguinaldo registrado para uno o más empleados en ' + semLbl + '. Si está mal, podés verlo en Gastos > Este año/Todo y eliminarlo. ¿Registrar de nuevo de todas formas?')) return;
-      }
-      var habSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes'));
-      var habData = habSnap.val() || {};
-      var filas = (typeof _calcularFilasAguinaldo === 'function') ? _calcularFilasAguinaldo(empleados, habData, anio, sem) : [];
-      var promesas = [];
-      var contador = 0;
-      filas.forEach(function(f){
-        if (!f || !f.e || !f.e.fbKey || Number(f.aguinaldo || 0) <= 0) return;
-        var e = f.e;
-        var desc = 'Aguinaldo ' + (e.nombre || '') + ' — ' + semLbl;
-        var gasto = {
-          fecha: fechaGasto,
-          tipo: 'aguinaldo',
-          descripcion: desc,
-          categoria: 'Personal',
-          monto: Number(f.aguinaldo || 0),
-          montoPagado: Number(f.aguinaldo || 0),
-          medio: 'Transferencia',
-          estado: 'Pagado',
-          empleadoFbKey: e.fbKey,
-          empleadoNombre: e.nombre || '',
-          semestre: semKey,
-          mejorSueldo: Number(f.mejorSueldo || 0),
-          origen: 'SAC',
-          ts: Date.now()
-        };
-        promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), gasto));
-        promesas.push(window.fbSet(window.fbRef(window.fbDB, 'sisventas/aguinaldos/' + e.fbKey + '/' + semKey), {
-          semestre: semKey,
-          mejorSueldo: Number(f.mejorSueldo || 0),
-          aguinaldo: Number(f.aguinaldo || 0),
-          fecha: fechaGasto,
-          registradoPor: window.currentUser || (typeof currentUser !== 'undefined' ? currentUser : 'Admin'),
-          fuenteValidacion: 'gastos',
-          ts: Date.now()
-        }));
-        promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + e.fbKey), {
-          tipo: 'aguinaldo',
-          descripcion: 'Aguinaldo ' + semLbl,
-          monto: Number(f.aguinaldo || 0),
-          fecha: fechaGasto,
-          estado: 'pendiente',
-          semestre: semKey,
-          mejorSueldo: Number(f.mejorSueldo || 0),
-          empleadoId: e.fbKey,
-          ts: Date.now()
-        }));
-        contador++;
-      });
-      if (!contador) { notify('No hay importes de aguinaldo para registrar'); return; }
-      await Promise.all(promesas);
-      var modal = document.getElementById('modal-aguinaldo');
-      if (modal) modal.remove();
-      notify('✓ Aguinaldo de ' + semLbl + ' registrado con fecha ' + fechaGasto + ' (' + contador + ' empleados)');
-      if (typeof registrarActividad === 'function') registrarActividad('Aguinaldo registrado', semLbl + ' — ' + contador + ' empleados');
-    } catch(err) {
-      notify('Error al registrar aguinaldo: ' + (err && err.message ? err.message : err));
-    }
-  };
 })();

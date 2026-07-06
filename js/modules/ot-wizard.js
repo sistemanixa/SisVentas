@@ -202,7 +202,6 @@
     activar294(window._otStep294 || 'cliente');
   }
 
-  window.otPasoIr = function(step){ activar294(step || 'cliente'); };
   window.otPasoSiguiente = function(){
     var visibles = pasos294.filter(function(p){ return pasoValido294(p.id); });
     var idx = visibles.findIndex(function(p){ return p.id === (window._otStep294 || 'cliente'); });

@@ -58,5 +58,6 @@
       var qm=document.getElementById('dash-q-mes-326'); if(qm) qm.textContent=money320(actual.total);
     }catch(e){}
     svg.onclick=function(){ dashFiltrarVentasPorMes(actual.ym); };
+    document.dispatchEvent(new CustomEvent('sisventas:dashboard-evolution-rendered',{detail:{ventas:ventas||[]}}));
   };
 })();
