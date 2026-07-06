@@ -71,6 +71,7 @@
     window.confirmarVenta = function(){
       var editandoKey = window._ventaEditandoFbKey || '';
       var antes = editandoKey ? (window._ventaEditandoOriginal || getVentaActualEditando()) : null;
+      document.dispatchEvent(new CustomEvent('sisventas:sale-before-confirm'));
       var r = confirmarPrev311.apply(this, arguments);
       setTimeout(function(){
         if (editandoKey) {

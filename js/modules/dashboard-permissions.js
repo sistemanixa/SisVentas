@@ -53,8 +53,9 @@
   if (typeof abrirPrev309 === 'function') window.abrirEditorVenta = function(fbKey){ var r = abrirPrev309.apply(this, arguments); [450,900,1400].forEach(function(t){ setTimeout(function(){ restaurarDescuentosEdicion309(); if(typeof calcTotals==='function') calcTotals(); }, t); }); return r; };
   var calcPrev309 = window.calcTotals;
   if (typeof calcPrev309 === 'function') window.calcTotals = function(){ if (window._ventaEditandoFbKey || window._ventaEditandoOriginal) restaurarDescuentosEdicion309(); return calcPrev309.apply(this, arguments); };
-  var confirmarPrev309 = window.confirmarVenta;
-  if (typeof confirmarPrev309 === 'function') window.confirmarVenta = function(){ if (window._ventaEditandoFbKey || window._ventaEditandoOriginal) restaurarDescuentosEdicion309(); return confirmarPrev309.apply(this, arguments); };
+  document.addEventListener('sisventas:sale-before-confirm', function(){
+    if (window._ventaEditandoFbKey || window._ventaEditandoOriginal) restaurarDescuentosEdicion309();
+  });
 
   window.abrirDetalleVentaConfirmada309 = function(id, fbKey){
     if (typeof cerrarConfirmacionVenta === 'function') cerrarConfirmacionVenta();

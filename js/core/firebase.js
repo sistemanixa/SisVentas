@@ -9,10 +9,9 @@
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
     // Capturar errores JS globales para debug
-    window.onerror = function(msg, src, line, col, err) {
-      console.error('[JS ERROR]', msg, 'en línea', line, src);
-      return false;
-    };
+    window.addEventListener('error', function(event) {
+      console.error('[JS ERROR]', event.message, 'en línea', event.lineno, event.filename, event.error || '');
+    });
     const firebaseConfig = {
       apiKey: "AIzaSyCw8Q4-fUA69iWFkDuy8qEkEcOGHOjFsto",
       authDomain: "nixa-sisventas.firebaseapp.com",
@@ -53,4 +52,3 @@
 
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));
-
