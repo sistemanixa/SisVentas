@@ -160,58 +160,6 @@
       setTimeout(window._otRenderWizard, 200);
     }
   });
-  function loadNotifState(){ try{return JSON.parse(localStorage.getItem('sv_notif_state_v2')||'{}')||{};}catch(e){return {};} }
-  function saveNotifState(st){ try{localStorage.setItem('sv_notif_state_v2',JSON.stringify(st||{}));}catch(e){} }
-  function key(id){ return (typeof _sanitizarKeyFirebase==='function') ? _sanitizarKeyFirebase(id) : String(id||'').replace(/[.#$\[\]/]/g,'_'); }
-  function getState(id){ var st=loadNotifState(); return st[key(id)]||{}; }
-  function setState(id, patch){ var st=loadNotifState(); var k=key(id); st[k]=Object.assign(st[k]||{},patch,{updatedAt:new Date().toISOString(), usuario:window.currentUser||window.currentUserName||'Sistema'}); saveNotifState(st); }
-  function visiblePorEstado(n, filtro){
-    var s=getState(n.id), est=s.estado||'';
-    if(filtro==='pospuestas') return est==='pospuesta';
-    if(filtro==='resueltas') return est==='resuelta';
-    if(filtro==='archivadas') return est==='archivada';
-    if(est==='archivada' || est==='resuelta') return false;
-    if(est==='pospuesta' && s.reaparece && s.reaparece > todayISO()) return false;
-    return true;
-  }
-  function accionNotif(n){
-    if(n.accion && n.accion.fn) return '<button class="btn btn-sm" onclick="notifAbrirAccion(\''+esc(n.id)+'\')">'+esc(n.accion.label||'Ver')+'</button>';
-    return '';
-  }
-  window.notifAbrirAccion=function(id){ var n=(window.todasNotifs||[]).find(function(x){return x.id===id;}); if(n && n.accion && n.accion.fn){ setState(id,{estado:'leida'}); try{ new Function(n.accion.fn)(); }catch(e){ console.error(e); } } };
-  window.notifResolver=function(id){ setState(id,{estado:'resuelta'}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); actualizarBadgeNotif(); notify('Notificación resuelta'); };
-  window.notifArchivar=function(id){ setState(id,{estado:'archivada'}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); actualizarBadgeNotif(); notify('Notificación archivada'); };
-  window.notifPosponer=function(id,dias){ var d=new Date(); d.setDate(d.getDate()+(dias||1)); setState(id,{estado:'pospuesta',reaparece:d.toISOString().slice(0,10)}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); actualizarBadgeNotif(); notify('Notificación pospuesta'); };
-
-  window.renderNotificaciones = function(filtro){
-    var lista=document.getElementById('notif-lista'), lbl=document.getElementById('notif-count-label'); if(!lista) return;
-    filtro=filtro||'';
-    var modulo={stock:'productos', presupuesto:'presupuesto', deuda:'cobranzas', ot:'ordenes_trabajo', gasto:'gastos'};
-    var bloqueados=((window.PERMISOS_ROLES&&PERMISOS_ROLES[currentRole])||(window.PERMISOS_DEFAULT&&PERMISOS_DEFAULT[currentRole])||{bloqueados:[]}).bloqueados||[];
-    var rows=(window.todasNotifs||[]).filter(function(n){
-      if(filtro && !['pospuestas','resueltas','archivadas'].includes(filtro) && n.tipo!==filtro) return false;
-      var m=modulo[n.tipo]; if(m && bloqueados.includes(m)) return false;
-      return visiblePorEstado(n,filtro);
-    });
-    var activas=(window.todasNotifs||[]).filter(function(n){ return visiblePorEstado(n,'') && !getState(n.id).estado; });
-    if(lbl) lbl.textContent = activas.length ? activas.length+' nueva'+(activas.length!==1?'s':'')+' / '+rows.length+' visible'+(rows.length!==1?'s':'') : 'Todo al día ✓';
-    if(!rows.length){ lista.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--text3)"><i class="ti ti-checks" style="font-size:32px;display:block;margin-bottom:10px"></i><div style="font-size:14px;font-weight:500">Sin notificaciones</div><div style="font-size:12px;margin-top:4px">No hay pendientes para este filtro</div></div>'; return; }
-    var colorMap={red:'var(--red)',amber:'var(--amber)',blue:'var(--blue)',green:'var(--green)',purple:'var(--purple)'};
-    lista.innerHTML=rows.map(function(n){
-      var st=getState(n.id), est=st.estado||'nueva', c=colorMap[n.color]||'var(--text2)';
-      var muted=(est==='leida'||est==='pospuesta');
-      var badge=est==='pospuesta' ? '<span class="badge b-amber">Pospuesta '+esc(st.reaparece||'')+'</span>' : est==='resuelta' ? '<span class="badge b-green">Resuelta</span>' : est==='archivada' ? '<span class="badge">Archivada</span>' : est==='leida' ? '<span class="badge b-blue">Leída</span>' : '<span class="badge b-red">Nueva</span>';
-      return '<div style="background:var(--bg2);border:0.5px solid '+(n.urgente?'var(--red)':'var(--border)')+';border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;opacity:'+(muted?'.75':'1')+'">'+
-        '<i class="ti '+esc(n.icono)+'" style="font-size:20px;color:'+c+';flex-shrink:0;margin-top:2px"></i>'+
-        '<div style="flex:1;min-width:0"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><strong style="font-size:13px;color:'+c+'">'+esc(n.titulo)+'</strong>'+badge+(n.urgente?'<span class="badge b-red">Urgente</span>':'')+'</div>'+
-        '<div style="font-size:12px;color:var(--text2);line-height:1.4;margin-top:4px">'+esc(n.sub)+'</div><div style="font-size:11px;color:var(--text3);margin-top:6px">'+esc(n.tiempo||'')+'</div></div>'+
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'+accionNotif(n)+'<button class="btn btn-sm" onclick="notifPosponer(\''+esc(n.id)+'\',1)"><i class="ti ti-clock"></i> Mañana</button><button class="btn btn-sm" onclick="notifResolver(\''+esc(n.id)+'\')"><i class="ti ti-check"></i> Resolver</button><button class="btn btn-sm btn-icon" title="Archivar" onclick="notifArchivar(\''+esc(n.id)+'\')"><i class="ti ti-archive"></i></button></div></div>';
-    }).join('');
-    if(typeof renderConfigAlertas==='function') renderConfigAlertas();
-  };
-  window.marcarLeida=function(id){ setState(id,{estado:'leida'}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); actualizarBadgeNotif(); };
-  window.marcarTodasLeidas=function(){ (window.todasNotifs||[]).forEach(function(n){ if(visiblePorEstado(n,'')) setState(n.id,{estado:'leida'}); }); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); actualizarBadgeNotif(); notify('Notificaciones visibles marcadas como leídas'); };
-  window.actualizarBadgeNotif=function(){ var badge=document.getElementById('notif-badge'); var c=(window.todasNotifs||[]).filter(function(n){return visiblePorEstado(n,'') && !getState(n.id).estado;}).length; if(badge) badge.style.display=c?'block':'none'; };
   window._tesoreriaPagos=function(){
     var out=[];
     (window.gastosData||[]).forEach(function(g){
