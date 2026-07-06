@@ -22,7 +22,20 @@
   function ymActual(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
   function esPagoTotal(v){ var e=norm(v && (v.estadoPago || v.pagoEstado || v.estado_pago)); return e==='pago_total' || e==='cobrado' || e==='pagado' || e==='pago total'; }
   function esInstalado(v){ var e=norm(v && (v.estadoInst || v.estadoInstalacion || v.instalacion || v.estado_inst)); return e==='instalado' || e==='completada' || e==='completo'; }
-  function totalVenta(v){ return numero(v && (v.total != null ? v.total : v.totalVenta != null ? v.totalVenta : v.montoTotal != null ? v.montoTotal : v.totalFinal != null ? v.totalFinal : v.importeTotal != null ? v.importeTotal : v.importe_total)); }
+  function totalVenta(v){
+    if (!v) return 0;
+    var directo=numero(v.total != null ? v.total : v.totalVenta != null ? v.totalVenta : v.montoTotal != null ? v.montoTotal : v.totalFinal != null ? v.totalFinal : v.importeTotal != null ? v.importeTotal : v.importe_total);
+    if (directo) return directo;
+    var items=arr(v.items||v.productos||[]);
+    var desdeItems=items.reduce(function(s,it){
+      var sub=numero(it && (it.sub != null ? it.sub : it.subtotal != null ? it.subtotal : it.total));
+      if (!sub) sub=numero(it && (it.qty != null ? it.qty : it.cantidad)) * numero(it && (it.punit != null ? it.punit : it.precio));
+      return s+sub;
+    },0);
+    if (desdeItems) return desdeItems;
+    var subtotal=numero(v.subtotal != null ? v.subtotal : v.neto);
+    return Math.max(0,subtotal-numero(v.descuento)+numero(v.iva));
+  }
   function pagadoVenta(v){
     var directo = numero(v && (v.totalPagado != null ? v.totalPagado : v.pagado != null ? v.pagado : v.montoPagado));
     if (directo > 0) return directo;
@@ -32,7 +45,8 @@
   window.svResumenVentas = function(opts){
     opts = opts || {};
     var mes = opts.mes || ymActual();
-    var ventas = arr(window.ventasList || window.ventasData || []).filter(function(v){ return v && (!v.anulada || v.notaCredito); });
+    var fuente = typeof window.obtenerVentasSisVentas === 'function' ? window.obtenerVentasSisVentas() : (window.ventasList || window.ventasData || []);
+    var ventas = arr(fuente).filter(function(v){ return v && (!v.anulada || v.notaCredito); });
     var ventasMes = ventas.filter(function(v){ return fechaISO(v).slice(0,7) === mes; });
     var totalMes = 0, cobradoMes = 0, pendienteMes = 0, ivaMes = 0, pendCobroCant = 0, pendInstCant = 0, facturadasCant = 0;
     ventasMes.forEach(function(v){
@@ -62,11 +76,7 @@
     var labelMap = {
       'vm-cobrado':'Pagado este mes',
       'vm-pendiente':'Pendiente de cobro',
-      'vm-iva':'IVA del mes',
-      'stat-ven-mes':'Ventas del mes',
-      'stat-ven-cant':'Cantidad',
-      'stat-ven-pendiente':'Pendiente cobro',
-      'stat-ven-ticket':'Ticket promedio'
+      'vm-iva':'IVA del mes'
     };
     Object.keys(labelMap).forEach(function(id){
       var el=document.getElementById(id); if(!el) return;
@@ -87,17 +97,7 @@
     setSubForValue('vm-pendiente', r.pendienteCobroCant + (r.pendienteCobroCant===1 ? ' venta' : ' ventas') + ' sin cobrar del mes');
     setSubForValue('vm-iva', 'IVA real del mes');
   };
-  window.actualizarStatVentas = function(){
-    aplicarTextosDashboardVentas();
-    var r = window.svResumenVentas();
-    setTxt('stat-ven-mes', money(r.totalMes));
-    setTxt('stat-ven-cant', r.cantidadMes);
-    setTxt('stat-ven-pendiente', money(r.pendienteCobroMes));
-    setTxt('stat-ven-pendiente-sub', r.pendienteCobroCant + (r.pendienteCobroCant===1 ? ' venta sin cobrar' : ' ventas sin cobrar'));
-    setTxt('stat-ven-ticket', money(r.ticketPromedioMes));
-  };
   function refrescarVentas310(){
-    if (typeof window.actualizarStatVentas === 'function') window.actualizarStatVentas();
     if (typeof window.renderMetricasVentas === 'function') window.renderMetricasVentas();
   }
   document.addEventListener('sisventas:page-changed', function(event){

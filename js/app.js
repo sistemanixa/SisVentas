@@ -781,18 +781,14 @@ function volverListaVentas() {
     window._ventaDesdeHistorialOrigen = null;
     if (dv)  dv.style.display  = 'none';
     if (dv2) dv2.style.display = 'none';
-    var st0o = document.getElementById('ventas-stats-global');
     var st1o = document.getElementById('ventas-list-stats-global');
-    if (st0o) st0o.style.display = '';
     if (st1o) st1o.style.display = '';
     showPage(origen, null);
     return;
   }
   if (dv)  dv.style.display  = 'none';
   if (dv2) dv2.style.display = 'none';
-  var st0 = document.getElementById('ventas-stats-global');
   var st1 = document.getElementById('ventas-list-stats-global');
-  if (st0) st0.style.display = '';
   if (st1) st1.style.display = '';
   if (lv)  lv.style.display  = '';
   _restaurarControlesFiltrosVentas();
@@ -969,33 +965,6 @@ function actualizarStatProductos() {
   _s('stat-prod-top',      topProd);
 }
 
-function actualizarStatVentas() {
-  var hoy = new Date(); var mes = hoy.getMonth(); var anio = hoy.getFullYear();
-  var ventasMes = (ventasList||[]).filter(function(v){
-    var f = v.fecha||''; var d = new Date(f);
-    return d.getMonth()===mes && d.getFullYear()===anio;
-  });
-  var totalMes   = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
-  var pendiente  = ventasMes.filter(function(v){
-    return v.estadoPago !== 'pago_total' && v.estadoPago !== 'cobrado';
-  }).reduce(function(s,v){
-    var saldo = (parseFloat(v.total)||0) - (parseFloat(v.totalPagado)||0);
-    return s + Math.max(0, saldo);
-  }, 0);
-  var cantPend = ventasMes.filter(function(v){
-    return v.estadoPago !== 'pago_total' && v.estadoPago !== 'cobrado' &&
-           ((parseFloat(v.total)||0) - (parseFloat(v.totalPagado)||0)) > 0;
-  }).length;
-  var cant       = ventasMes.length;
-  var ticket     = cant ? Math.round(totalMes/cant) : 0;
-  var _m = function(n){ return '$'+Math.round(n).toLocaleString('es-AR'); };
-  var _s = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
-  _s('stat-ven-mes',       _m(totalMes));
-  _s('stat-ven-cant',      cant);
-  _s('stat-ven-pendiente', _m(pendiente));
-  _s('stat-ven-pendiente-sub', cantPend + ' venta' + (cantPend!==1?'s':'') + ' sin cobrar');
-  _s('stat-ven-ticket',    _m(ticket));
-}
 // FLUJO COMPLETO DE VENTAS
 function generarOrdenCompraDesdeVenta(ventaObj) {
   if (!ventaObj || !ventaObj.items || !ventaObj.items.length) return;
@@ -3087,6 +3056,7 @@ function fbCargarVentas() {
         if (fa && fb && fa !== fb) return fb.localeCompare(fa);
         return (b.ts||0) - (a.ts||0);
       });
+      window.ventasList = ventasList;
       if (typeof _aplicarFiltrosVentas === 'function') _aplicarFiltrosVentas();
       else if (typeof renderVentasTabla === 'function') renderVentasTabla();
       if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
@@ -3901,7 +3871,7 @@ function showPage(id, el) {
       if (body && body.children.length === 0) addRow();
     }, 100);
   }
-  if (id === 'detalle')       { setTimeout(function(){ if(window._ventaDesdeHistorialOrigen) return; if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); if(typeof actualizarStatVentas==='function') actualizarStatVentas(); }, 100); }
+  if (id === 'detalle')       { setTimeout(function(){ if(window._ventaDesdeHistorialOrigen) return; if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); }, 100); }
   if (id === 'presupuesto')    { setTimeout(function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }, 50); }
   if (id === 'ordentrabajo')   { setTimeout(function(){ if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }, 50); }
   if (id === 'venta')          { setTimeout(function(){ if(typeof inicializarFilasVenta==='function') inicializarFilasVenta(); if(typeof iniciarMonedaVenta==='function') iniciarMonedaVenta(); }, 50); }
@@ -4050,7 +4020,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.22.1-firebase',
+  VERSION: 'v1.23.2-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4582,6 +4552,7 @@ var stockData = {};
 var prodData = {};
 var otData = [];
 var ventasList = [];
+window.obtenerVentasSisVentas = function(){ return ventasList || []; };
 var empData = {};
 var clientesData = [];
 
@@ -19311,8 +19282,24 @@ function verOT(id) {
   if (prioChk) prioChk.checked = esPrioridad;
   if (prioBadge) prioBadge.style.display = esPrioridad ? '' : 'none';
 
-  document.getElementById('ot-det-venta').value = ot.ventaId||'';
-  document.getElementById('ot-det-cliente').value = ot.cliente||'';
+  var ventaInp = document.getElementById('ot-det-venta');
+  var clienteInp = document.getElementById('ot-det-cliente');
+  var esOTManual = ot.origen === 'manual' || (!ot.ventaId && !ot.reclamoKey && !ot.origenVenta);
+  var puedeEditarOrigen = esOTManual && currentRole !== 'tecnico';
+  if (ventaInp) {
+    ventaInp.value = ot.ventaId||'';
+    ventaInp.readOnly = !puedeEditarOrigen;
+    ventaInp.style.background = puedeEditarOrigen ? '' : 'var(--bg3)';
+    ventaInp.style.cursor = puedeEditarOrigen ? '' : 'not-allowed';
+    ventaInp.placeholder = puedeEditarOrigen ? 'Opcional' : '';
+  }
+  if (clienteInp) {
+    clienteInp.value = ot.cliente||'';
+    clienteInp.readOnly = !puedeEditarOrigen;
+    clienteInp.style.background = puedeEditarOrigen ? '' : 'var(--bg3)';
+    clienteInp.style.cursor = puedeEditarOrigen ? '' : 'not-allowed';
+    clienteInp.placeholder = puedeEditarOrigen ? 'Ingresá el cliente' : '';
+  }
   document.getElementById('ot-det-fecha').value = ot.fecha||'';
   document.getElementById('ot-det-hora').value = ot.hora||'';
   var dirOT = _otResolverDireccionCliente(ot);
@@ -19972,6 +19959,20 @@ function actualizarOT() {
   var prioChk = document.getElementById('ot-det-prioridad');
   var prioBadge = document.getElementById('ot-det-prioridad-badge');
 
+  var ventaInp = document.getElementById('ot-det-venta');
+  var clienteInp = document.getElementById('ot-det-cliente');
+  var dirInp = document.getElementById('ot-det-dir');
+  if (ventaInp && !ventaInp.readOnly) {
+    ot.ventaId = ventaInp.value.trim();
+    ot.origen = 'manual';
+  }
+  if (clienteInp && !clienteInp.readOnly) ot.cliente = clienteInp.value.trim();
+  if (dirInp) {
+    ot.dir = dirInp.value.trim();
+    window._otDireccionActual = ot.dir;
+    var mapsBtn = document.getElementById('ot-det-dir-maps-btn');
+    if (mapsBtn) mapsBtn.style.display = ot.dir ? '' : 'none';
+  }
   if (tecSel)  ot.tecnico    = tecSel.value;
   ot.fecha      = document.getElementById('ot-det-fecha').value;
   ot.hora       = document.getElementById('ot-det-hora').value;
@@ -21157,9 +21158,7 @@ function verDetalleVenta(ventaId) {
   var dv2 = document.getElementById('ventas-detalle-view'); // viejo — siempre ocultar
   if (lv)  lv.style.display  = 'none';
   if (dv2) dv2.style.display = 'none';
-  var st0 = document.getElementById('ventas-stats-global');
   var st1 = document.getElementById('ventas-list-stats-global');
-  if (st0) st0.style.display = 'none';
   if (st1) st1.style.display = 'none';
   if (dv) {
     dv.style.display = 'block';

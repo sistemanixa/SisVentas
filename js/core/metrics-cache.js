@@ -61,7 +61,7 @@
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v1.22.1';
+  SV.Cache.version = 'v1.23.2';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -232,7 +232,7 @@
     var page=event.detail&&event.detail.page;
     if(['dashboard','detalle','tesoreria','ordentrabajo','cobranzas'].indexOf(page) >= 0) setTimeout(SV.Metrics.refresh, 80);
   });
-  ['renderDashboard','renderTesoreria','renderOTTabla','renderMetricasVentas','actualizarStatVentas'].forEach(function(fn){
+  ['renderDashboard','renderTesoreria','renderOTTabla','renderMetricasVentas'].forEach(function(fn){
     var prev = window[fn];
     if (typeof prev === 'function' && !prev._sv312) {
       window[fn] = function(){ var r = prev.apply(this, arguments); setTimeout(SV.Metrics.refresh, 60); return r; };

@@ -18,7 +18,6 @@
   }
   window.aplicarDashboardPermisos309 = function(){
     var admin = esAdmin309();
-    setDisplay309(document.getElementById('ventas-stats-global'), admin, 'grid');
     setDisplay309(document.getElementById('ventas-list-stats-global'), admin, 'grid');
     setDisplay309(document.getElementById('cobranzas-stats-global'), admin, 'grid');
     var pageCob = document.getElementById('page-cobranzas');

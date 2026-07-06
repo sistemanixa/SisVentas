@@ -133,7 +133,7 @@
   };
 
   function aplicarDashSensibles311(){
-    var det = document.getElementById('ventas-stats-global');
+    var det = document.getElementById('ventas-list-stats-global');
     if (det) det.style.display = window.tienePermiso('ventas.verDashboard') ? '' : 'none';
     var cob = document.querySelector('#page-cobranzas > .metrics');
     if (cob) cob.style.display = window.tienePermiso('cobranzas.verDashboard') ? '' : 'none';
