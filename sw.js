@@ -1,37 +1,84 @@
-/* SisVentas · NIXA — Service Worker v20.362
-   Estrategia: red primero con caché de respaldo.
-   Las versiones nuevas publicadas en el repo entran apenas hay conexión;
-   sin internet, la app abre desde la última copia cacheada. */
-const CACHE = 'sisventas-v20.362';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './nixa-icon-192.png', './nixa-icon-512.png'];
+/* SisVentas · NIXA — Service Worker v1.1.0
+   Estrategia: red primero con caché de respaldo. */
+const CACHE = 'sisventas-v1.1.0';
+const SHELL = [
+  './',
+  './index.html',
+  './css/app.css',
+  './js/app.js',
+  './js/core/version.js',
+  './js/core/login.js',
+  './js/core/access-control.js',
+  './js/core/firebase.js',
+  './js/legacy/patch-01.js',
+  './js/legacy/patch-02.js',
+  './js/legacy/patch-03.js',
+  './js/legacy/patch-04.js',
+  './js/legacy/patch-05.js',
+  './js/legacy/patch-06.js',
+  './js/legacy/patch-07.js',
+  './js/legacy/patch-08.js',
+  './js/legacy/patch-09.js',
+  './js/legacy/patch-10.js',
+  './js/legacy/patch-11.js',
+  './js/legacy/patch-12.js',
+  './js/legacy/patch-13.js',
+  './js/legacy/patch-14.js',
+  './js/legacy/patch-15.js',
+  './js/legacy/patch-16.js',
+  './js/legacy/patch-17.js',
+  './js/legacy/patch-18.js',
+  './js/legacy/patch-19.js',
+  './js/legacy/patch-20.js',
+  './js/legacy/patch-21.js',
+  './js/legacy/patch-22.js',
+  './js/legacy/patch-23.js',
+  './js/legacy/patch-24.js',
+  './js/legacy/patch-25.js',
+  './js/legacy/patch-26.js',
+  './js/legacy/patch-27.js',
+  './manifest.webmanifest',
+  './nixa-icon-192.png',
+  './nixa-icon-512.png',
+];
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
-});
-
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((cache) => cache.addAll(SHELL))
+      .then(() => self.skipWaiting()),
   );
 });
 
-/* El botón de actualización de SisVentas envía este mensaje al SW en espera. */
-self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)),
+      ))
+      .then(() => self.clients.claim()),
+  );
 });
 
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  const url = new URL(e.request.url);
-  if (url.origin !== location.origin) return; // Firebase/gstatic/CDNs pasan directo
-  e.respondWith(
-    fetch(e.request)
-      .then(r => {
-        const copia = r.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copia));
-        return r;
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        return response;
       })
-      .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
+      .catch(async () => (
+        (await caches.match(event.request)) || caches.match('./index.html')
+      )),
   );
 });
