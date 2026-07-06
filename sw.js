@@ -1,8 +1,8 @@
-/* SisVentas · NIXA — Service Worker v20.357
+/* SisVentas · NIXA — Service Worker v20.358
    Estrategia: red primero con caché de respaldo.
    Las versiones nuevas publicadas en el repo entran apenas hay conexión;
    sin internet, la app abre desde la última copia cacheada. */
-const CACHE = 'sisventas-v20.357';
+const CACHE = 'sisventas-v20.358';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './nixa-icon-192.png', './nixa-icon-512.png'];
 
 self.addEventListener('install', e => {
