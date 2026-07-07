@@ -1,5 +1,5 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp }
+    import { getDatabase, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp, query, orderByChild, startAt, endAt }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
              createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
@@ -39,6 +39,10 @@
     window.fbOnDisconnect = onDisconnect;
     window.fbRemove     = remove;
     window.fbServerTimestamp = serverTimestamp;
+    window.fbQuery       = query;
+    window.fbOrderByChild = orderByChild;
+    window.fbStartAt     = startAt;
+    window.fbEndAt       = endAt;
     window.fbSignIn      = signInWithEmailAndPassword;
     window.fbSignOut     = signOut;
     window.fbOnAuth      = onAuthStateChanged;

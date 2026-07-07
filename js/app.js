@@ -3896,7 +3896,7 @@ function showPage(id, el) {
   if (id === 'garantias')      { setTimeout(function(){ fbCargarGarantias(); }, 50); }
   if (id === 'soporte')        { setTimeout(function(){ fbCargarTickets(); }, 50); }
   if (id === 'remitos')        { setTimeout(function(){ fbCargarRemitos(); }, 50); }
-  if (id === 'agenda')         { setTimeout(function(){ fbCargarAgenda(); agRenderCalendario(); }, 50); }
+  if (id === 'agenda')         { setTimeout(function(){ fbCargarAgenda(); }, 50); }
   if (id === 'servicios')      { setTimeout(function(){ fbCargarServicios(); }, 50); }
   if (id === 'asistente')      { setTimeout(function(){ document.getElementById('asist-inicio').style.display='';document.getElementById('asist-preguntas').style.display='none';document.getElementById('asist-resumen').style.display='none'; }, 50); }
   if (id === 'vacaciones')     { setTimeout(function(){
@@ -4020,7 +4020,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.24.2-firebase',
+  VERSION: 'v1.25.1-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13084,6 +13084,7 @@ function fbCargarRemitos() {
 var AG_DATA = [];         // eventos internos de sisventas/agenda
 var AG_VISTA = 'mes';     // 'mes' | 'semana' | 'dia'
 var AG_CURSOR = new Date(); // fecha actual del calendario
+var AG_UNSUBSCRIBE = null;
 
 var AG_COLORES = {
   instalacion: { bg:'#22c55e22', border:'#22c55e', text:'#22c55e' },
@@ -13093,9 +13094,26 @@ var AG_COLORES = {
 
 function fbCargarAgenda() {
   if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/agenda'), function(snap) {
-    var data = snap.val() || {};
-    AG_DATA = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]}, e[1]); });
+  if (typeof AG_UNSUBSCRIBE === 'function') AG_UNSUBSCRIBE();
+  var cont=document.getElementById('ag-calendario');
+  if(cont) cont.innerHTML='<div style="padding:34px;text-align:center;color:var(--text3)"><i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>Cargando agenda...</div>';
+  AG_DATA=[];
+  var queryApi=window.SisVentas&&window.SisVentas.DataQuery;
+  if(queryApi){
+    var bounds=queryApi.range(AG_CURSOR,AG_VISTA==='dia'?'semana':AG_VISTA);
+    AG_UNSUBSCRIBE=queryApi.subscribeDateRange('sisventas/agenda',bounds,function(rows){
+      AG_DATA=rows;
+      agRenderCalendario();
+      agActualizarMetricas();
+    },function(error){
+      console.error('[Agenda]',error);
+      if(cont) cont.innerHTML='<div style="padding:28px;text-align:center;color:var(--red)">No se pudo cargar la agenda</div>';
+    });
+    return;
+  }
+  AG_UNSUBSCRIBE=window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/agenda'), function(snap) {
+    var data=snap.val()||{};
+    AG_DATA=Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); });
     agRenderCalendario();
     agActualizarMetricas();
   });
@@ -13153,10 +13171,10 @@ function agNav(dir) {
   } else {
     AG_CURSOR.setDate(AG_CURSOR.getDate() + dir);
   }
-  agRenderCalendario();
+  fbCargarAgenda();
 }
 
-function agIrHoy() { AG_CURSOR = new Date(); agRenderCalendario(); }
+function agIrHoy() { AG_CURSOR = new Date(); fbCargarAgenda(); }
 
 function agCambiarVista(vista, btn) {
   AG_VISTA = vista;
@@ -13164,11 +13182,14 @@ function agCambiarVista(vista, btn) {
     b.style.background = 'transparent'; b.style.color = 'var(--text3)';
   });
   if (btn) { btn.style.background = 'var(--bg3)'; btn.style.color = 'var(--text)'; }
-  agRenderCalendario();
+  fbCargarAgenda();
 }
 function agRenderCalendario() {
   var cont = document.getElementById('ag-calendario');
   if (!cont) return;
+  cont.dataset.view = AG_VISTA;
+  var scrollHint=document.getElementById('agenda-scroll-hint');
+  if(scrollHint) scrollHint.style.display=AG_VISTA==='dia'?'none':'';
   var tit = document.getElementById('ag-titulo');
   if (AG_VISTA === 'mes') {
     if (tit) tit.textContent = AG_CURSOR.toLocaleDateString('es-AR',{month:'long',year:'numeric'});

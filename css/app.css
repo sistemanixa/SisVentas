@@ -135,6 +135,15 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px;flex-wrap:wrap}
 .card-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:400}
 
+/* Agenda: el desplazamiento horizontal queda contenido dentro del calendario. */
+#page-agenda{min-width:0;max-width:100%}
+#agenda-calendar-card{overflow:hidden}
+#ag-calendario{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y;padding-bottom:4px}
+#ag-calendario[data-view="mes"]>div{min-width:720px}
+#ag-calendario[data-view="semana"]>div{min-width:860px}
+#ag-calendario[data-view="dia"]>div{min-width:100%}
+.agenda-scroll-hint{display:none}
+
 /* ── TABLES ── */
 table{width:100%;border-collapse:collapse;touch-action:pan-x pan-y}
 th{font-size:11px;color:var(--text3);text-align:left;padding:0 10px 9px 0;border-bottom:0.5px solid var(--border);font-weight:400}
@@ -267,6 +276,18 @@ tr:hover td{color:var(--text)}
   /* ── FLEX HEADERS (card-head, filtros) ── */
   .card-head{flex-wrap:wrap;gap:8px}
   .card-head > div{flex-wrap:wrap;gap:6px}
+
+  /* Agenda móvil */
+  #agenda-calendar-card{padding:10px!important}
+  .agenda-toolbar{display:grid!important;grid-template-columns:minmax(0,1fr);align-items:stretch!important}
+  .agenda-nav{width:100%;display:grid!important;grid-template-columns:36px minmax(0,1fr) 36px auto;gap:5px!important}
+  .agenda-nav #ag-titulo{min-width:0!important;font-size:13px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .agenda-actions{width:100%;flex-wrap:nowrap!important;overflow-x:auto;padding-bottom:3px;-webkit-overflow-scrolling:touch}
+  .agenda-actions>*{flex-shrink:0}
+  .agenda-legend{display:none!important}
+  .agenda-scroll-hint{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);margin:2px 0 5px}
+  #ag-calendario[data-view="mes"]>div{min-width:680px}
+  #ag-calendario[data-view="semana"]>div{min-width:780px}
 
   /* ── TABLAS ── */
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;width:100%}
@@ -916,4 +937,3 @@ body.modal-secure-open{overflow:hidden!important}
 .emp-actions-358{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .emp-actions-358 .btn{min-height:34px;white-space:nowrap}
 @media(max-width:900px){.emp-actions-358{width:100%;display:grid!important;grid-template-columns:1fr 1fr;gap:8px}.emp-actions-358 .btn{width:100%;justify-content:center}}
-
