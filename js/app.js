@@ -3033,6 +3033,40 @@ function fbGuardarProducto(prod) {
       .then(function() { notify('Producto guardado ✓'); });
   }
 }
+
+function fechaVentaTimestamp(fecha, respaldoTs) {
+  if (fecha instanceof Date) return fecha.getTime();
+  var texto = String(fecha || '').trim().split(' ')[0].split('T')[0];
+  var partes;
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(texto)) {
+    partes = texto.split('-').map(Number);
+    return Date.UTC(partes[0], partes[1]-1, partes[2]);
+  }
+  if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}$/.test(texto)) {
+    partes = texto.split(/[\/-]/).map(Number);
+    var anio = partes[2] < 100 ? 2000 + partes[2] : partes[2];
+    return Date.UTC(anio, partes[1]-1, partes[0]);
+  }
+  var nativo = Date.parse(texto);
+  return Number.isNaN(nativo) ? (parseFloat(respaldoTs)||0) : nativo;
+}
+
+function obtenerProximoIdVenta() {
+  var maxId = 0;
+  (ventasList||[]).forEach(function(venta) {
+    // Las conversiones antiguas usaban seis dígitos del reloj; no deben romper la secuencia comercial.
+    if (venta.pptoOrigen && venta.numeroSecuencial !== true) return;
+    var numero = parseInt(String(venta.idOriginal || venta.id || '').replace(/[^0-9]/g, '')) || 0;
+    if (numero > maxId) maxId = numero;
+  });
+  var candidato;
+  do {
+    maxId++;
+    candidato = '#V-' + String(maxId).padStart(6, '0');
+  } while ((ventasList||[]).some(function(venta){ return venta.id === candidato; }));
+  return candidato;
+}
+
 function fbCargarVentas() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.ventas), function(snap) {
@@ -3041,11 +3075,8 @@ function fbCargarVentas() {
       ventasList = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
       }).sort(function(a,b) {
-        // Ordenar por fecha descendente, fallback a ts
-        var fa = (a.fecha||'').split('/').reverse().join('-');
-        var fb = (b.fecha||'').split('/').reverse().join('-');
-        if (fa && fb && fa !== fb) return fb.localeCompare(fa);
-        return (b.ts||0) - (a.ts||0);
+        var diferencia = fechaVentaTimestamp(b.fecha, b.ts) - fechaVentaTimestamp(a.fecha, a.ts);
+        return diferencia || ((b.ts||0) - (a.ts||0));
       });
       window.ventasList = ventasList;
       if (typeof _aplicarFiltrosVentas === 'function') _aplicarFiltrosVentas();
@@ -3315,6 +3346,37 @@ var SISVENTAS_FUNCTIONS = {
   frontendKey:   '9551f2780845e7773b784c6d9b505dd6041d8052f0fe8e1f51959015767ffa5a'
 };
 
+function normalizarIdentidadCliente(valor) {
+  return String(valor||'').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+}
+
+function resolverClienteDeVenta(venta) {
+  if (!venta) return null;
+  var clientes = Array.isArray(clientesData) ? clientesData : Object.values(clientesData||{});
+  var ids = [venta.clienteId, venta.idCliente, venta.clienteFbKey, venta.clienteKey].filter(Boolean).map(String);
+  if (ids.length) {
+    var porId = clientes.find(function(cliente) {
+      return [cliente.fbKey, cliente.id, cliente.key, cliente.codigo].filter(Boolean).map(String).some(function(id){ return ids.includes(id); });
+    });
+    if (porId) return porId;
+  }
+  var buscado = normalizarIdentidadCliente(venta.cliente || venta.clienteNombre || venta.razonSocial || '');
+  if (!buscado) return null;
+  return clientes.find(function(cliente) {
+    var nombre = cliente.nombre || cliente.nombre1 || '';
+    var apellido = cliente.apellido || cliente.apellidos || '';
+    return [nombre, nombre+' '+apellido, apellido+' '+nombre, cliente.empresa, cliente.razonSocial, cliente.razon_social, cliente.cliente]
+      .filter(Boolean).map(normalizarIdentidadCliente).includes(buscado);
+  }) || null;
+}
+
+function obtenerCuitClienteVenta(venta) {
+  var cliente = resolverClienteDeVenta(venta);
+  var valor = (cliente && (cliente.cuit || cliente.CUIT || cliente.cuitDni || cliente.documentoFiscal)) || venta.clienteCuit || venta.cuitCliente || '';
+  var digitos = String(valor).replace(/\D/g,'');
+  return digitos.length === 11 ? digitos : '';
+}
+
 // Emitir factura desde una venta
 async function emitirFactura(venta, tipoComprobante) {
   if (venta && venta.contadoSinFactura) {
@@ -3325,7 +3387,9 @@ async function emitirFactura(venta, tipoComprobante) {
     notify('Configurá TusFacturasApp en Configuración → Facturación');
     return null;
   }
-  if (tipoComprobante === 'FACTURA A' && !venta.clienteCuit) {
+  var cuitResuelto = obtenerCuitClienteVenta(venta);
+  if (cuitResuelto) venta.clienteCuit = cuitResuelto;
+  if (tipoComprobante === 'FACTURA A' && !cuitResuelto) {
     notify('El cliente no tiene CUIT cargado — la Factura A lo requiere obligatoriamente');
     return null;
   }
@@ -3373,8 +3437,10 @@ function abrirModalFactura(ventaId) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px';
   overlay.id = 'modal-factura';
 
-  var cli = clientesData ? clientesData.find(function(c){ return c.nombre === venta.cliente; }) : null;
-  var tieneCuit = !!(cli && cli.cuit);
+  var cli = resolverClienteDeVenta(venta);
+  var cuitCliente = obtenerCuitClienteVenta(venta);
+  var tieneCuit = !!cuitCliente;
+  if (tieneCuit) venta.clienteCuit = cuitCliente;
   var totalFmt = '$' + (venta.total||0).toLocaleString('es-AR');
 
   var html = '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.15)">';
@@ -4006,7 +4072,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.31.0-firebase',
+  VERSION: 'v1.32.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5393,11 +5459,6 @@ function confirmarVenta() {
     if (idCliEl && idCliVal) idCliEl.value = idCliVal;
   }
   var dir = (_get('cli-dir-hidden')||{}).value || 'Sin definir';
-  var maxId = 0;
-  (ventasList || []).forEach(function(v) {
-    var n = parseInt(String(v.idOriginal || v.id || '').replace(/[^0-9]/g, '')) || 0;
-    if (n > maxId) maxId = n;
-  });
   var hoy = new Date();
   var dd = String(hoy.getDate()).padStart(2,'0');
   var mm = String(hoy.getMonth()+1).padStart(2,'0');
@@ -5405,7 +5466,7 @@ function confirmarVenta() {
   var fechaHoy = dd + '/' + mm + '/' + aaaa;
 
   var nuevaVenta = {
-    id: '#V-' + String(maxId + 1).padStart(6,'0'),
+    id: obtenerProximoIdVenta(),
     cliente:  cli,
     idCliente: idCliVal,        // ← ID real del cliente para filtrar en historial
     clienteId: idCliVal,        // ← campo alternativo para compatibilidad
@@ -5636,12 +5697,7 @@ function inicializarFilasVenta() {
   // Mostrar el próximo número de venta (mismo cálculo que usa confirmarVenta)
   var numPreview = document.getElementById('vf-numero-preview');
   if (numPreview) {
-    var maxIdPreview = 0;
-    (ventasList||[]).forEach(function(v) {
-      var n = parseInt(String(v.idOriginal||v.id||'').replace(/[^0-9]/g,'')) || 0;
-      if (n > maxIdPreview) maxIdPreview = n;
-    });
-    numPreview.value = '#V-' + String(maxIdPreview + 1).padStart(6,'0');
+    numPreview.value = obtenerProximoIdVenta();
   }
 
   // Siempre pre-seleccionar el usuario logueado al abrir nueva venta
@@ -11077,14 +11133,30 @@ function abrirNuevoMovEmp() {
   var modal = document.getElementById('modal-movi-emp');
   if (!modal) return;
   document.getElementById('movi-fecha').value = new Date().toISOString().split('T')[0];
-  document.getElementById('movi-tipo').value  = 'transporte';
+  var esAdmin = String(currentRole||'').toLowerCase() === 'admin';
+  var tipoSelect = document.getElementById('movi-tipo');
+  var tiposEmpleado = ['transporte','materiales','otro'];
+  if (tipoSelect) {
+    Array.from(tipoSelect.options).forEach(function(opcion) {
+      var permitido = esAdmin || tiposEmpleado.includes(opcion.value);
+      opcion.hidden = !permitido;
+      opcion.disabled = !permitido;
+    });
+    tipoSelect.value = 'transporte';
+  }
   document.getElementById('movi-desc').value  = '';
   _setMontoInput(document.getElementById('movi-monto'), 0);
-  document.getElementById('movi-estado').value = _esRolAdminOAdministrativo() ? 'aprobado' : 'pendiente';
+  document.getElementById('movi-estado').value = esAdmin ? 'aprobado' : 'pendiente';
+  var estadoWrap = document.getElementById('movi-estado-wrap');
+  var periodicoWrap = document.getElementById('movi-periodico-wrap');
+  if (estadoWrap) estadoWrap.style.display = esAdmin ? '' : 'none';
+  if (periodicoWrap) periodicoWrap.style.display = esAdmin ? '' : 'none';
   var chkPer = document.getElementById('movi-periodico');
   if (chkPer) { chkPer.checked = false; onMoviPeriodicoChange(false); }
   document.getElementById('movi-foto-preview').style.display = 'none';
   document.getElementById('movi-foto-nombre').textContent = '';
+  var fotoInput = document.getElementById('movi-foto-input');
+  if (fotoInput) fotoInput.value = '';
   onMoviTipoChange();
   modal.style.display = 'flex';
 }
@@ -11140,19 +11212,25 @@ function guardarMovEmp() {
   var monto = getMontoRaw(document.getElementById('movi-monto'));
   if (!monto) { notify('Ingresá un monto'); return; }
   var empActual = Object.values(empData||{}).find(function(e){ return e.fbKey === ctaEmpActual; });
+  var esAdmin = String(currentRole||'').toLowerCase() === 'admin';
+  var tipoElegido = document.getElementById('movi-tipo').value;
+  if (!esAdmin && !['transporte','materiales','otro'].includes(tipoElegido)) {
+    notify('Ese tipo de movimiento solamente puede cargarlo el administrador');
+    return;
+  }
   var nuevo = {
-    tipo:        document.getElementById('movi-tipo').value,
+    tipo:        tipoElegido,
     fecha:       document.getElementById('movi-fecha').value,
     descripcion: document.getElementById('movi-desc').value.trim(),
     monto:       monto,
-    estado:      document.getElementById('movi-estado').value,
+    estado:      esAdmin ? document.getElementById('movi-estado').value : 'pendiente',
     usuario:     currentUser || 'admin',
     empleadoNombre: empActual ? (empActual.nombre || '') : '',
     empleadoId:  ctaEmpActual,
     ts:          Date.now(),
     fotoUrl:     null
   };
-  var esPeriodico = document.getElementById('movi-periodico') && document.getElementById('movi-periodico').checked;
+  var esPeriodico = esAdmin && document.getElementById('movi-periodico') && document.getElementById('movi-periodico').checked;
   if (esPeriodico) {
     var dia = parseInt(document.getElementById('movi-periodico-dia').value) || 1;
     nuevo.periodico    = true;
@@ -18874,11 +18952,13 @@ function pptoAccion(accion) {
   if (accion === 'convertir_venta') {
     if (!confirm('¿Convertir este presupuesto en venta? El estado de pago inicial será Pendiente de pago.')) return;
     if (!window.fbDB) { notify('Sin conexión'); return; }
-    var numVenta = '#V-' + String(Date.now()).slice(-6);
+    var numVenta = obtenerProximoIdVenta();
     var venta = {
       id:           numVenta,
       cliente:      p.cliente || '',
-      fecha:        ahora,
+      clienteId:    p.clienteId || p.idCliente || '',
+      idCliente:    p.clienteId || p.idCliente || '',
+      fecha:        new Date().toISOString().slice(0,10),
       empleado:     p.empleado || currentUser || '',
       comisionado2: (document.getElementById('venta-comisionado2')||{}).value || '',
       conIva:       typeof _ventaConIva !== 'undefined' ? _ventaConIva : true,
@@ -18891,6 +18971,7 @@ function pptoAccion(accion) {
       estadoPago:   'pendiente_pago',
       estadoInst:   'pendiente_inst',
       pptoOrigen:   p.id || '',
+      numeroSecuencial: true,
       observaciones: 'Generado desde presupuesto ' + (p.id||''),
       ts:           Date.now()
     };
@@ -20870,6 +20951,7 @@ function moverVentaAPresupuesto(ventaId) {
   var numPpto = 'PP-' + String(Date.now()).slice(-5);
   var ppto = {
     id: numPpto, cliente: v.cliente||'', empleado: v.empleado||v.usuario||currentUser||'',
+    clienteId: v.clienteId||v.idCliente||'', idCliente: v.clienteId||v.idCliente||'',
     usuario: currentUser||'', fecha: ahora, vence: vence,
     items: v.items||[], subtotal: parseFloat(v.subtotal||v.total)||0,
     descuento: parseFloat(v.descuento)||0, iva: 0,
@@ -21945,7 +22027,10 @@ function tabVentas(tipo, btn) {
 
 function _aplicarFiltrosVentas() {
   const f = window._filtrosVentas;
-  let lista = ventasList || [];
+  let lista = (ventasList || []).slice().sort(function(a,b) {
+    var diferencia = fechaVentaTimestamp(b.fecha, b.ts) - fechaVentaTimestamp(a.fecha, a.ts);
+    return diferencia || ((b.ts||0) - (a.ts||0));
+  });
   lista = lista.filter(v => !v.anulada || v.notaCredito);
 
   if (f.texto) {
@@ -21958,12 +22043,12 @@ function _aplicarFiltrosVentas() {
   if (f.mes) {
     lista = lista.filter(v => typeof _fechaEsDelMes === 'function' ? _fechaEsDelMes(v.fecha, f.mes) : true);
   }
-  const hoy = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'2-digit'});
+  const inicioHoy = new Date(); inicioHoy.setHours(0,0,0,0);
   const mapasTab = {
     todas:      lista,
     cobrar:     lista.filter(v => ['pendiente_pago','seniado'].includes(v.estadoPago)),
     instalar:   lista.filter(v => ['pendiente_inst','en_instalacion'].includes(v.estadoInst)),
-    hoy:        lista.filter(v => v.fecha === hoy),
+    hoy:        lista.filter(v => fechaVentaTimestamp(v.fecha, v.ts) === Date.UTC(inicioHoy.getFullYear(), inicioHoy.getMonth(), inicioHoy.getDate())),
     facturadas: lista.filter(v => !!v.factura),
   };
   renderVentasTabla(mapasTab[f.tab] || lista);
