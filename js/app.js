@@ -1090,7 +1090,7 @@ function flujoPostPago(ventaObj, montoSeña) {
 
   // 2b. Generar OT automáticamente
   var ot = {
-    id:           (typeof nextOTId === 'function' ? nextOTId() : ('OT-' + String(((window.otData||[]).length + 1)).padStart(3,'0'))),
+    id:           '',
     ventaId:      vid,
     ventaFbKey:   ventaObj.fbKey || '',
     cliente:      cli,
@@ -1108,7 +1108,10 @@ function flujoPostPago(ventaObj, montoSeña) {
     usuario:      currentUser || 'Sistema'
   };
   if (window.fbDB) {
-    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot)
+    var crearOTPromesa = typeof window.crearRegistroOTSeguro === 'function'
+      ? window.crearRegistroOTSeguro(ot)
+      : window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot);
+    crearOTPromesa
       .then(function(ref){
         var otKey = ref.key;
         // Vincular OT a la venta
@@ -4076,7 +4079,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.33.0-firebase',
+  VERSION: 'v1.33.2-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6425,13 +6428,16 @@ function cerrarFormPresupuesto() {
 }
 function calcVencimiento() {
   const fEl = document.getElementById('pp-fecha');
-  const diasEl = _get('pp-validez') || document.getElementById('pp-dias');
-  const vencEl = _get('pp-vencimiento') || document.getElementById('pp-venc');
+  const diasEl = document.getElementById('pp-validez') || document.getElementById('pp-dias');
+  const vencEl = document.getElementById('pp-vencimiento') || document.getElementById('pp-venc');
   if (!fEl || !fEl.value) return;
   const dias = parseInt(diasEl ? diasEl.value : 15) || 15;
-  const venc = new Date(fEl.value);
+  const partes = fEl.value.split('-').map(Number);
+  if (partes.length !== 3 || !partes[0] || !partes[1] || !partes[2]) return;
+  const venc = new Date(partes[0], partes[1] - 1, partes[2]);
   venc.setDate(venc.getDate() + dias);
-  if (vencEl) vencEl.value = venc.toLocaleDateString('es-AR');
+  const fechaISO = venc.getFullYear() + '-' + String(venc.getMonth()+1).padStart(2,'0') + '-' + String(venc.getDate()).padStart(2,'0');
+  if (vencEl) vencEl.value = fechaISO;
 }
 function filterPpCli(v) {
   const d=_get('pp-cli-drop');
@@ -6476,6 +6482,7 @@ function calcPpTotales() {
   var conIva  = typeof _pptoConIva !== 'undefined' ? _pptoConIva : true;
   var iva     = conIva ? Math.round(base * 0.21) : 0;
   _set('pp-sub',  '$' + s.toLocaleString('es-AR'));
+  _set('pp-desc-label', 'Descuento ' + desc.toLocaleString('es-AR',{maximumFractionDigits:2}) + '%');
   _set('pp-damt', descAmt > 0 ? '-$' + descAmt.toLocaleString('es-AR') : '$0');
   var ivaRow = document.getElementById('pp-iva-row');
   if (ivaRow) ivaRow.style.display = conIva ? '' : 'none';
@@ -11830,7 +11837,10 @@ function crearOT(ventaData) {
     materiales: ventaData ? (ventaData.items||[]).map(function(it){ return { cod:it.cod||it.codigo||'', desc:it.desc||it.nombre||it.descripcion||'', vendida:parseFloat(it.qty||it.cantidad||1), instalada:0 }; }) : [],
     ts:         Date.now()
   };
-  window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot)
+  var crearPromesa = typeof window.crearRegistroOTSeguro === 'function'
+    ? window.crearRegistroOTSeguro(ot, { evitarDoble: !ventaData })
+    : window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot);
+  return crearPromesa
     .then(function(ref){
       notify('✓ Orden de trabajo creada');
       showPage('ordentrabajo', null);
@@ -12937,7 +12947,7 @@ function spGenerarOT() {
       nuevaVenta.fbKey = ventaFbKey;
 
       var ot = {
-        id:          'OT-R' + String(Date.now()).slice(-5),
+        id:          '',
         ventaId:     ventaId,
         ventaFbKey:  ventaFbKey,
         cliente:     r.cliente||'',
@@ -12962,7 +12972,10 @@ function spGenerarOT() {
         audit: [{ fecha: fechaHoy, usuario: currentUser||'Sistema', accion: 'OT creada desde reclamo de soporte. Venta: ' + ventaId }]
       };
 
-      return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot)
+      var crearOTReclamo = typeof window.crearRegistroOTSeguro === 'function'
+        ? window.crearRegistroOTSeguro(ot)
+        : window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot);
+      return crearOTReclamo
         .then(function(otRef) {
           var otFbKey = otRef.key;
           spCambiarEstado('ot_activa', {
@@ -18582,7 +18595,15 @@ function abrirEditorPpto(id) {
       }
       fechaEl.value = fecha;
     }
-    var vencEl = document.getElementById('pp-venc'); if (vencEl) vencEl.value = p.vence || '';
+    var vencEl = document.getElementById('pp-venc');
+    if (vencEl) {
+      var vencGuardado = String(p.vence || '');
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(vencGuardado)) {
+        var vencPartes = vencGuardado.split('/');
+        vencGuardado = vencPartes[2] + '-' + vencPartes[1].padStart(2,'0') + '-' + vencPartes[0].padStart(2,'0');
+      }
+      vencEl.value = vencGuardado;
+    }
     var descEl = document.getElementById('pp-descuento');
     if (descEl) {
       descEl.disabled = false;
@@ -18702,6 +18723,7 @@ function verPpto(id) {
   var _s = function(id, v) { var el=document.getElementById(id); if(el) el.textContent = '$'+Math.round(v).toLocaleString('es-AR'); };
   _s('ppto-det-sub',      _sub);
   _s('ppto-det-desc-amt', _descAmt);
+  _set('ppto-det-desc-label', 'Descuento ' + (parseFloat(p.descuentoGeneral ?? p.descuentoPct ?? p.descuento)||0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '%');
   var ivaRowDet = document.getElementById('ppto-det-iva-row');
   if (ivaRowDet) ivaRowDet.style.display = _conIva ? '' : 'none';
   _s('ppto-det-iva',      _iva);

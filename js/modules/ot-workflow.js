@@ -15,6 +15,41 @@
     });
     return 'OT-' + String(max+1).padStart(3,'0');
   }
+  function maxOTNumber(){
+    var max=0;
+    arr(window.otData).forEach(function(o){
+      var m=String((o&&o.id)||'').match(/OT-(\d+)/i);
+      if(m) max=Math.max(max,parseInt(m[1],10)||0);
+    });
+    return max;
+  }
+  function reservarSiguienteOTId(){
+    if(!window.fbDB||typeof window.fbRunTransaction!=='function') return Promise.resolve(nextOTId());
+    var maxLocal=maxOTNumber();
+    var ref=window.fbRef(window.fbDB,'sisventas/contadores/ordenTrabajo');
+    return window.fbRunTransaction(ref,function(actual){
+      return Math.max(parseInt(actual,10)||0,maxLocal)+1;
+    }).then(function(result){
+      var numero=result&&result.snapshot?parseInt(result.snapshot.val(),10):0;
+      if(!numero) throw new Error('No se pudo reservar el número de OT');
+      return 'OT-'+String(numero).padStart(3,'0');
+    });
+  }
+  window.reservarSiguienteOTId=reservarSiguienteOTId;
+  window.crearRegistroOTSeguro=function(ot,opciones){
+    var evitarDoble=!!(opciones&&opciones.evitarDoble);
+    if(evitarDoble&&window._otCreacionEnCurso) return window._otCreacionEnCurso;
+    var promesa=reservarSiguienteOTId().then(function(id){
+      ot.id=id;
+      ot.ts=ot.ts||Date.now();
+      return window.fbPush(window.fbRef(window.fbDB,FB_PATHS.ordenesTrabajo),ot);
+    });
+    if(evitarDoble){
+      window._otCreacionEnCurso=promesa.finally(function(){ window._otCreacionEnCurso=null; });
+      return window._otCreacionEnCurso;
+    }
+    return promesa;
+  };
   function checksBase(){
     return {
       preparacion: (window.CHECKLISTS&&CHECKLISTS.preparacion||[]).map(function(){return false;}),
@@ -148,13 +183,14 @@
   document.addEventListener('sisventas:ot-closed',function(){ var w=q('ot-wizard-301'); if(w) w.remove(); });
   var nuevaPrev=window.nuevaOT;
   window.nuevaOT=function(){
+    if(window._otCreacionEnCurso){ if(typeof notify==='function') notify('La OT ya se está creando…'); return window._otCreacionEnCurso; }
     if(!window.fbDB){ if(typeof nuevaPrev==='function') return nuevaPrev.apply(this,arguments); if(typeof notify==='function') notify('Sin conexión'); return; }
     var ot={
-      id:nextOTId(), ventaId:'', cliente:'', clienteId:'', origen:'manual', estado:'pendiente', tecnico:'',
+      id:'', ventaId:'', cliente:'', clienteId:'', origen:'manual', estado:'pendiente', tecnico:'',
       fecha:new Date().toISOString().slice(0,10), hora:'', duracion:'2 horas', tipoVisita:'Instalación nueva',
       dir:'', obs:'', obsTecnico:'', prioridad:false, progreso:0, checks:checksBase(), materiales:[], notasTecnico:[], audit:[{fecha:new Date().toLocaleDateString('es-AR')+' '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),usuario:window.currentUser||'Sistema',accion:'OT creada manualmente'}], ts:Date.now()
     };
-    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot).then(function(ref){
+    return window.crearRegistroOTSeguro(ot,{evitarDoble:true}).then(function(ref){
       ot.fbKey=ref.key;
       if(Array.isArray(window.otData)) window.otData.push(ot);
       if(typeof notify==='function') notify('✓ Orden de trabajo creada');
