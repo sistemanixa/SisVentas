@@ -285,9 +285,32 @@ tr:hover td{color:var(--text)}
   .agenda-actions{width:100%;flex-wrap:nowrap!important;overflow-x:auto;padding-bottom:3px;-webkit-overflow-scrolling:touch}
   .agenda-actions>*{flex-shrink:0}
   .agenda-legend{display:none!important}
-  .agenda-scroll-hint{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);margin:2px 0 5px}
-  #ag-calendario[data-view="mes"]>div{min-width:680px}
-  #ag-calendario[data-view="semana"]>div{min-width:780px}
+  .agenda-scroll-hint{display:none!important}
+  #ag-calendario{overflow:visible;padding-bottom:0}
+  #ag-calendario[data-view="mes"]>div,
+  #ag-calendario[data-view="semana"]>div{min-width:0;width:100%}
+  .ag-mes-movil{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .ag-mes-dia-nombre{background:var(--bg3);padding:7px 0;text-align:center;color:var(--text3);font-size:10px;font-weight:700}
+  .ag-mes-celda{position:relative;display:flex;min-width:0;min-height:54px;padding:6px 2px;align-items:center;flex-direction:column;gap:4px;border:0;background:var(--bg2);color:var(--text);font:inherit}
+  button.ag-mes-celda{cursor:pointer}
+  .ag-mes-celda.es-finde{background:var(--bg)}
+  .ag-mes-celda.es-hoy{background:var(--blue-bg);color:var(--blue);font-weight:700;box-shadow:inset 0 0 0 1px var(--blue)}
+  .ag-mes-vacia{background:var(--bg)}
+  .ag-mes-numero{font-size:12px;line-height:1}
+  .ag-mes-puntos{display:flex;max-width:100%;gap:2px}
+  .ag-mes-puntos i{display:block;width:5px;height:5px;border-radius:50%}
+  .ag-mes-cantidad{font-size:9px;color:var(--text3);line-height:1}
+  .ag-semana-movil{display:flex;min-width:0!important;flex-direction:column;gap:8px}
+  .ag-semana-dia{overflow:hidden;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)}
+  .ag-semana-dia.es-hoy{border-color:var(--blue)}
+  .ag-semana-fecha{display:flex;width:100%;padding:9px 10px;align-items:center;justify-content:space-between;border:0;background:var(--bg3);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+  .ag-semana-dia.es-hoy .ag-semana-fecha{background:var(--blue-bg);color:var(--blue)}
+  .ag-semana-fecha strong{text-transform:capitalize;font-size:13px}
+  .ag-semana-fecha span{color:var(--text3);font-size:10px}
+  .ag-semana-eventos{display:flex;flex-direction:column;gap:5px;padding:7px}
+  .ag-semana-evento{display:grid;grid-template-columns:52px minmax(0,1fr);gap:7px;width:100%;padding:7px 8px;border:0;border-left:3px solid;border-radius:4px;color:var(--text);font:inherit;text-align:left;cursor:pointer}
+  .ag-semana-evento span{font-size:10px}
+  .ag-semana-evento strong{min-width:0;overflow:hidden;font-size:11px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
 
   /* ── TABLAS ── */
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;width:100%}

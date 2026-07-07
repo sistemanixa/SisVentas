@@ -771,23 +771,19 @@ function editarProductoById(el) {
   if (p) editarProducto(p.fbKey);
 }
 function editarProducto(id) { abrirFormProducto(id); }
-// renderVentasTabla primera versión — redirige a la implementación principal
 function volverListaVentas() {
   var dv  = document.getElementById('venta-detalle-view');
-  var dv2 = document.getElementById('ventas-detalle-view');
   var lv  = document.getElementById('ventas-list-view') || document.getElementById('venta-list-view');
   var origen = window._ventaDesdeHistorialOrigen;
   if (origen) {
     window._ventaDesdeHistorialOrigen = null;
     if (dv)  dv.style.display  = 'none';
-    if (dv2) dv2.style.display = 'none';
     var st1o = document.getElementById('ventas-list-stats-global');
     if (st1o) st1o.style.display = '';
     showPage(origen, null);
     return;
   }
   if (dv)  dv.style.display  = 'none';
-  if (dv2) dv2.style.display = 'none';
   var st1 = document.getElementById('ventas-list-stats-global');
   if (st1) st1.style.display = '';
   if (lv)  lv.style.display  = '';
@@ -1982,13 +1978,6 @@ function iaInicializar() {
   }
 }
 
-function toggleCSFActual() {
-  var vid = ventaActualId;
-  if (!vid) { notify('Sin venta abierta'); return; }
-  var v = (ventasList||[]).find(function(x){ return x.id===vid||x.fbKey===vid; });
-  if (!v) { notify('Venta no encontrada'); return; }
-  toggleCSF(v.id, v.fbKey);
-}
 function fbCargarEmpleados() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/empleados'), function(snap) {
@@ -3061,10 +3050,6 @@ function fbCargarVentas() {
       else if (typeof renderVentasTabla === 'function') renderVentasTabla();
       if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
       // (por ejemplo, si otro usuario registró un pago o cambió el estado mientras lo estabas mirando)
-      var detalleEl = document.getElementById('ventas-detalle-view');
-      if (detalleEl && detalleEl.style.display === 'block' && typeof ventaActualId !== 'undefined' && ventaActualId && typeof verVenta === 'function') {
-        verVenta(ventaActualId);
-      }
       var detalleEl2 = document.getElementById('venta-detalle-view');
       if (detalleEl2 && detalleEl2.style.display === 'block' && window._ventaDetActualId && typeof verDetalleVenta === 'function') {
         verDetalleVenta(window._ventaDetActualId);
@@ -3885,7 +3870,6 @@ function showPage(id, el) {
     if (currentRole === 'administrativo' || currentRole === 'vendedor') renderDashAdministrativo();
     if (currentRole !== 'admin') renderDashMiCuenta();
   }, 100); }
-  if (id === 'notificaciones') { setTimeout(function(){ if(typeof generarNotificaciones==='function') generarNotificaciones(); }, 50); }
   if (id === 'ctaemp')         { setTimeout(function(){
     if(typeof iniciarCtaEmp==='function') iniciarCtaEmp();
   }, 300); }
@@ -4020,7 +4004,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.25.1-firebase',
+  VERSION: 'v1.29.1-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4594,32 +4578,16 @@ Object.defineProperty(window, 'currentRole', {
   get: function() { return currentRole; },
   set: function(value) { currentRole = value; }
 });
-var notifLeidas = new Set();
-
-// Cargar notificaciones leídas desde Firebase para este usuario
-function cargarNotifLeidas() {
-  if (!window.fbDB || !currentUserEmail) return;
-  var key = 'sisventas/notif_leidas/' + currentUserEmail.replace(/\./g,'_').replace(/@/g,'__');
-  window.fbGet(window.fbRef(window.fbDB, key)).then(function(snap) {
-    var data = snap.val();
-    if (data && typeof data === 'object') {
-      Object.keys(data).forEach(function(id) { notifLeidas.add(id); }); // ya vienen sanitizadas desde Firebase
-    }
-    if (typeof renderNotificaciones === 'function') renderNotificaciones('');
-    actualizarBadgeNotif();
-  }).catch(function(){});
-}
-
-// Firebase Realtime Database no permite los caracteres . # $ [ ] en una key.
-function _sanitizarKeyFirebase(id) {
-  return String(id||'').replace(/[.#$\[\]]/g, '_');
-}
-
-function guardarNotifLeida(id) {
-  if (!window.fbDB || !currentUserEmail) return;
-  var key = 'sisventas/notif_leidas/' + currentUserEmail.replace(/\./g,'_').replace(/@/g,'__') + '/' + _sanitizarKeyFirebase(id);
-  window.fbSet(window.fbRef(window.fbDB, key), true).catch(function(e){ console.error('Error guardando notif leída:', e); });
-}
+Object.defineProperty(window, 'currentUserEmail', {
+  configurable: true,
+  get: function() { return currentUserEmail; },
+  set: function(value) { currentUserEmail = value; }
+});
+Object.defineProperty(window, 'currentUserUid', {
+  configurable: true,
+  get: function() { return currentUserUid; },
+  set: function(value) { currentUserUid = value; }
+});
 var todasNotifs = [];
 const now = new Date();
 _set('topbar-date',now.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}));
@@ -4973,8 +4941,7 @@ function _completarLogin(nombre) {
   if (typeof registrarActividad === 'function') registrarActividad('Inicio de sesión', '');
   // Iniciar listener de versión en tiempo real vía Firebase
   if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
-  // Cargar notificaciones leídas persistidas para este usuario
-  if (typeof cargarNotifLeidas === 'function') cargarNotifLeidas();
+  if (typeof window.iniciarSyncNotificaciones === 'function') window.iniciarSyncNotificaciones();
   if (typeof restaurarPaginaPostActualizacion === 'function') restaurarPaginaPostActualizacion();
   // la detectan en tiempo real sin depender del CDN de GitHub Pages.
   if (currentRole === 'admin' && window.fbDB && APP_CONFIG && APP_CONFIG.VERSION) {
@@ -5665,7 +5632,6 @@ function inicializarFilasVenta() {
   var fechaInp = document.getElementById('venta-fecha');
   if (fechaInp && !fechaInp.value) fechaInp.value = new Date().toISOString().slice(0,10);
 }
-// copiarSeleccion definida abajo con implementación completa
 function filtrarCategoria(v) {
   var sel = document.getElementById('filter-cat');
   if (sel && v) sel.value = v;
@@ -8914,54 +8880,6 @@ function imprimirVentaActual() {
     '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 800);
-}
-
-// Copiar selección de items del detalle de venta
-function copiarSeleccion() {
-  var seleccionados = [];
-  document.querySelectorAll('#vd-items tr').forEach(function(tr) {
-    var chk = tr.querySelector('input[type=checkbox]');
-    if (chk && chk.checked) {
-      var tds = tr.querySelectorAll('td');
-      if (tds.length >= 5) {
-        seleccionados.push(
-          (tds[1].textContent.trim()||'Sin código') + '\t' +
-          tds[2].textContent.trim() + '\t' +
-          tds[3].textContent.trim() + '\t' +
-          tds[4].textContent.trim() + '\t' +
-          tds[5].textContent.trim()
-        );
-      }
-    }
-  });
-  if (!seleccionados.length) {
-    document.querySelectorAll('#vd-items tr').forEach(function(tr) {
-      var tds = tr.querySelectorAll('td');
-      if (tds.length >= 5) {
-        seleccionados.push(
-          (tds[1].textContent.trim()||'') + '\t' +
-          tds[2].textContent.trim() + '\t' +
-          tds[3].textContent.trim() + '\t' +
-          tds[4].textContent.trim() + '\t' +
-          tds[5].textContent.trim()
-        );
-      }
-    });
-  }
-  if (!seleccionados.length) { notify('Sin items para copiar'); return; }
-  var texto = 'Código\tDescripción\tCant.\tP.Unit.\tSubtotal\n' + seleccionados.join('\n');
-  navigator.clipboard.writeText(texto)
-    .then(function(){ notify('✓ ' + seleccionados.length + ' item' + (seleccionados.length>1?'s':'') + ' copiados al portapapeles'); })
-    .catch(function(){
-      // Fallback para navegadores sin clipboard API
-      var ta = document.createElement('textarea');
-      ta.value = texto;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      notify('✓ Copiado al portapapeles');
-    });
 }
 
 function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
@@ -13184,12 +13102,17 @@ function agCambiarVista(vista, btn) {
   if (btn) { btn.style.background = 'var(--bg3)'; btn.style.color = 'var(--text)'; }
   fbCargarAgenda();
 }
+
+function agEsPantallaMovil() {
+  return window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
+}
+
 function agRenderCalendario() {
   var cont = document.getElementById('ag-calendario');
   if (!cont) return;
   cont.dataset.view = AG_VISTA;
   var scrollHint=document.getElementById('agenda-scroll-hint');
-  if(scrollHint) scrollHint.style.display=AG_VISTA==='dia'?'none':'';
+  if(scrollHint) scrollHint.style.display=agEsPantallaMovil() || AG_VISTA==='dia'?'none':'';
   var tit = document.getElementById('ag-titulo');
   if (AG_VISTA === 'mes') {
     if (tit) tit.textContent = AG_CURSOR.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
@@ -13205,6 +13128,7 @@ function agRenderCalendario() {
   }
 }
 function agRenderMes() {
+  if (agEsPantallaMovil()) return agRenderMesMovil();
   var evs = agGetTodosEventos();
   var anio = AG_CURSOR.getFullYear();
   var mes  = AG_CURSOR.getMonth();
@@ -13258,6 +13182,46 @@ function agRenderMes() {
   html += '</div>';
   return html;
 }
+
+function agRenderMesMovil() {
+  var evs = agGetTodosEventos();
+  var anio = AG_CURSOR.getFullYear();
+  var mes = AG_CURSOR.getMonth();
+  var hoy = new Date().toISOString().split('T')[0];
+  var primerDia = new Date(anio, mes, 1);
+  var totalDias = new Date(anio, mes + 1, 0).getDate();
+  var diaInicio = (primerDia.getDay() + 6) % 7;
+  var dias = ['L','M','M','J','V','S','D'];
+  var html = '<div class="ag-mes-movil">';
+
+  dias.forEach(function(nombre) {
+    html += '<div class="ag-mes-dia-nombre">' + nombre + '</div>';
+  });
+  for (var vacia = 0; vacia < diaInicio; vacia++) {
+    html += '<div class="ag-mes-celda ag-mes-vacia"></div>';
+  }
+  for (var dia = 1; dia <= totalDias; dia++) {
+    var fechaStr = anio + '-' + String(mes + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+    var eventos = evs.filter(function(ev) { return ev.fecha === fechaStr; });
+    var clases = 'ag-mes-celda' + (fechaStr === hoy ? ' es-hoy' : '') + (((diaInicio + dia - 1) % 7) >= 5 ? ' es-finde' : '');
+    html += '<button type="button" class="' + clases + '" onclick="agClickDia(\'' + fechaStr + '\')">';
+    html += '<span class="ag-mes-numero">' + dia + '</span>';
+    if (eventos.length) {
+      html += '<span class="ag-mes-puntos">';
+      eventos.slice(0, 3).forEach(function(ev) {
+        var color = AG_COLORES[ev.tipo] || AG_COLORES.interno;
+        html += '<i style="background:' + color.border + '"></i>';
+      });
+      html += '</span><span class="ag-mes-cantidad">' + eventos.length + '</span>';
+    }
+    html += '</button>';
+  }
+  var usadas = diaInicio + totalDias;
+  for (var final = usadas % 7; final > 0 && final < 7; final++) {
+    html += '<div class="ag-mes-celda ag-mes-vacia"></div>';
+  }
+  return html + '</div>';
+}
 function agInicioSemana(fecha) {
   var d = new Date(fecha);
   var dia = (d.getDay()+6)%7; // Lun=0
@@ -13266,6 +13230,7 @@ function agInicioSemana(fecha) {
 }
 
 function agRenderSemana(lunes) {
+  if (agEsPantallaMovil()) return agRenderSemanaMovil(lunes);
   var evs = agGetTodosEventos();
   var hoy = new Date().toISOString().split('T')[0];
   var HORAS = [];
@@ -13312,6 +13277,37 @@ function agRenderSemana(lunes) {
   });
   html += '</div>';
   return html;
+}
+
+function agRenderSemanaMovil(lunes) {
+  var evs = agGetTodosEventos();
+  var hoy = new Date().toISOString().split('T')[0];
+  var html = '<div class="ag-semana-movil">';
+
+  for (var indice = 0; indice < 7; indice++) {
+    var fecha = new Date(lunes);
+    fecha.setDate(fecha.getDate() + indice);
+    var fechaStr = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
+    var eventos = evs.filter(function(ev) { return ev.fecha === fechaStr; }).sort(function(a, b) {
+      return String(a.hora || '99:99').localeCompare(String(b.hora || '99:99'));
+    });
+    html += '<section class="ag-semana-dia' + (fechaStr === hoy ? ' es-hoy' : '') + '">';
+    html += '<button type="button" class="ag-semana-fecha" onclick="agClickDia(\'' + fechaStr + '\')">';
+    html += '<strong>' + fecha.toLocaleDateString('es-AR', { weekday:'short', day:'numeric' }) + '</strong>';
+    html += '<span>' + (eventos.length ? eventos.length + ' evento' + (eventos.length === 1 ? '' : 's') : 'Sin eventos') + '</span></button>';
+    if (eventos.length) {
+      html += '<div class="ag-semana-eventos">';
+      eventos.forEach(function(ev) {
+        var color = AG_COLORES[ev.tipo] || AG_COLORES.interno;
+        html += '<button type="button" class="ag-semana-evento" onclick="agVerEvento(\'' + escapeHTML(ev.fbKey || '') + '\',\'' + ev.tipo + '\')" style="border-left-color:' + color.border + ';background:' + color.bg + '">';
+        html += '<span style="color:' + color.text + '">' + escapeHTML(ev.hora ? ev.hora.slice(0, 5) : 'Sin hora') + '</span>';
+        html += '<strong>' + escapeHTML(ev.titulo) + '</strong></button>';
+      });
+      html += '</div>';
+    }
+    html += '</section>';
+  }
+  return html + '</div>';
 }
 function agRenderDia(fecha) {
   var fStr = fecha.toISOString().split('T')[0];
@@ -17251,9 +17247,24 @@ async function _migrarPagablesLegacyAGastos() {
   }
 }
 
+var _gastosUnsubscribe = null;
+var _gastosDataReady = false;
+var _gastosCargaError = '';
 function fbCargarGastos() {
   if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/gastos'), function(snap) {
+  if (typeof _gastosUnsubscribe === 'function') {
+    renderTablaGastos();
+    actualizarMetricasGastos();
+    return _gastosUnsubscribe;
+  }
+  if (!_gastosDataReady) {
+    _gastosCargaError='';
+    var tbody=document.getElementById('gastos-tbody');
+    if(tbody) tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:24px"><i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>Cargando gastos...</td></tr>';
+  }
+  _gastosUnsubscribe=window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/gastos'), function(snap) {
+    _gastosDataReady=true;
+    _gastosCargaError='';
     var data = snap.val();
     gastosData = data ? Object.entries(data).map(function(e){
       return Object.assign({ fbKey: e[0] }, e[1]);
@@ -17268,7 +17279,14 @@ function fbCargarGastos() {
     var pageDash = document.getElementById('page-dashboard');
     if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
     // v20.362: la migración legacy queda controlada desde Configuración > Mantenimiento.
+  },function(error){
+    console.error('[Gastos]',error);
+    _gastosUnsubscribe=null;
+    _gastosCargaError='No se pudieron cargar los gastos';
+    var tbody=document.getElementById('gastos-tbody');
+    if(tbody) tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--red);padding:24px">No se pudieron cargar los gastos</td></tr>';
   });
+  return _gastosUnsubscribe;
 }
 
 /* v20.341: generarGastosFijosMes() eliminada. Los gastos fijos mensuales los genera el admin manualmente; la generación automática duplicaba registros (p.ej. 'Haber ... — junio de 2026 — Julio 2026') cuando el guion de la descripción no coincidía con la regex de recorte. */
@@ -17546,6 +17564,10 @@ function rechazarComisionDesdeGasto(gastoFbKey) {
 function renderTablaGastos() {
   var tbody = document.getElementById('gastos-tbody');
   if (!tbody) return;
+  if (!_gastosDataReady) {
+    tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:'+(_gastosCargaError?'var(--red)':'var(--text3)')+';padding:24px">'+(_gastosCargaError||'<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>Cargando gastos...')+'</td></tr>';
+    return;
+  }
   var lista = gastosFiltradosActuales();
   var bar = document.getElementById('gas-pago-multiple-bar');
   var head = document.getElementById('gas-bulk-head');
@@ -21178,9 +21200,7 @@ function verDetalleVenta(ventaId) {
 
   var lv  = document.getElementById('ventas-list-view');
   var dv  = document.getElementById('venta-detalle-view');
-  var dv2 = document.getElementById('ventas-detalle-view'); // viejo — siempre ocultar
   if (lv)  lv.style.display  = 'none';
-  if (dv2) dv2.style.display = 'none';
   var st1 = document.getElementById('ventas-list-stats-global');
   if (st1) st1.style.display = 'none';
   if (dv) {
@@ -21190,50 +21210,8 @@ function verDetalleVenta(ventaId) {
     crearVistaDetalleVenta(venta);
   }
 }
-function toggleEstadoDropdown(tipo) {
-  var drop = document.getElementById('vd-drop-' + tipo);
-  var otro = document.getElementById('vd-drop-' + (tipo === 'pago' ? 'inst' : 'pago'));
-  if (!drop) return;
-  if (otro) otro.style.display = 'none';
-  drop.style.display = drop.style.display === 'none' ? '' : 'none';
-  // Cerrar al tocar fuera
-  if (drop.style.display !== 'none') {
-    setTimeout(function() {
-      document.addEventListener('click', function handler(e) {
-        if (!drop.contains(e.target) && !e.target.closest('[onclick*="toggleEstadoDropdown"]')) {
-          drop.style.display = 'none';
-          document.removeEventListener('click', handler);
-        }
-      });
-    }, 10);
-  }
-}
-
-function cambiarEstadoVenta(tipo, nuevoEstado) {
-  // Cerrar dropdowns
-  ['pago','inst'].forEach(function(t) {
-    var d = document.getElementById('vd-drop-' + t);
-    if (d) d.style.display = 'none';
-  });
-  if (!window._ventaDetalleActual || !window.fbDB) return;
-  var v = window._ventaDetalleActual;
-  var campo = tipo === 'pago' ? 'estadoPago' : 'estadoInst';
-  v[campo] = nuevoEstado;
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/' + v.fbKey), { [campo]: nuevoEstado })
-    .then(function() {
-      notify('Estado actualizado');
-      var badgePago = document.getElementById('vd-badge-pago');
-      var badgeInst = document.getElementById('vd-badge-inst');
-      if (badgePago) badgePago.innerHTML = ventaEstadoBadge(v.estadoPago);
-      if (badgeInst) badgeInst.innerHTML = ventaEstadoInstBadge(v.estadoInst);
-      renderVentaTimeline('vd-timeline', v.estadoPago === 'pago_total' && v.estadoInst !== 'pendiente_inst' ? v.estadoInst : v.estadoPago);
-      if (typeof registrarActividad === 'function') registrarActividad('Estado cambiado', v.id + ': ' + campo + ' → ' + nuevoEstado);
-    })
-    .catch(function(e) { notify('Error: ' + e.message); });
-}
-
 function renderDetalleVenta(v) {
-  window._ventaDetalleActual = v; // guardar referencia para cambiarEstadoVenta
+  window._ventaDetalleActual = v;
   var dv = document.getElementById('venta-detalle-view');
   if (!dv) return;
 
@@ -21753,68 +21731,6 @@ function pptoEstadoLabel(est) {
   return m[est] || est;
 }
 
-// Renderizar la lista de notificaciones
-function renderNotificaciones(filtro) {
-  const lista = document.getElementById('notif-lista');
-  const lbl   = document.getElementById('notif-count-label');
-  if (!lista) return;
-
-  var _notifModulo = {
-    stock:       'productos',
-    presupuesto: 'presupuesto',
-    deuda:       'cobranzas',
-    ot:          'ordenes_trabajo',
-    gasto:       'gastos',
-    empleado:    'empleados',
-    caja:        'caja',
-    proveedor:   'proveedores'
-  };
-  var _bloqueadosNotif = (PERMISOS_ROLES[currentRole]||PERMISOS_DEFAULT[currentRole]||{bloqueados:[]}).bloqueados||[];
-  const rows = (filtro ? todasNotifs.filter(n => n.tipo === filtro) : todasNotifs)
-    .filter(function(n){ var m = _notifModulo[n.tipo]; return !m || !_bloqueadosNotif.includes(m); });
-  const sinLeer = rows.filter(n => !notifLeidas.has(_sanitizarKeyFirebase(n.id))).length;
-
-  if (lbl) lbl.textContent = sinLeer > 0
-    ? sinLeer + ' notificación' + (sinLeer > 1 ? 'es' : '') + ' sin leer'
-    : 'Todo al día ✓';
-
-  if (!rows.length) {
-    lista.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text3)">
-      <i class="ti ti-checks" style="font-size:32px;display:block;margin-bottom:10px"></i>
-      <div style="font-size:14px;font-weight:500">Sin notificaciones${filtro ? ' de este tipo' : ''}</div>
-      <div style="font-size:12px;margin-top:4px">Todo está en orden</div>
-    </div>`;
-    return;
-  }
-
-  const colorMap = { red:'var(--red)', amber:'var(--amber)', blue:'var(--blue)', green:'var(--green)' };
-  const bgMap    = { red:'var(--red-bg)', amber:'var(--amber-bg)', blue:'var(--blue-bg)', green:'var(--green-bg)' };
-
-  lista.innerHTML = rows.map(n => {
-    const leida = notifLeidas.has(_sanitizarKeyFirebase(n.id));
-    const c = colorMap[n.color] || 'var(--text2)';
-    const bg = bgMap[n.color] || 'var(--bg3)';
-    return `<div style="background:${leida ? 'var(--bg3)' : bg};border:0.5px solid ${leida ? 'var(--border)' : c};border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;opacity:${leida ? '.6' : '1'};transition:opacity .2s" id="ncard-${n.id}">
-      <i class="ti ${n.icono}" style="font-size:20px;color:${c};flex-shrink:0;margin-top:1px"></i>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;color:${c};margin-bottom:3px;display:flex;align-items:center;gap:6px">
-          ${escapeHTML(n.titulo)}
-          ${n.urgente && !leida ? '<span style="font-size:10px;background:'+c+';color:#fff;padding:1px 6px;border-radius:10px">URGENTE</span>' : ''}
-        </div>
-        <div style="font-size:12px;color:${c};opacity:.8;line-height:1.4">${escapeHTML(n.sub)}</div>
-        <div style="font-size:11px;color:${c};opacity:.5;margin-top:6px;display:flex;align-items:center;gap:8px">
-          ${escapeHTML(n.tiempo)}
-          ${!leida ? '<span style="cursor:pointer;text-decoration:underline" onclick="marcarLeida(\''+n.id+'\')">Marcar leída</span>' : '<span>✓ Leída</span>'}
-        </div>
-      </div>
-      <button class="btn btn-sm" style="color:${c};border-color:${bg};flex-shrink:0;white-space:nowrap" onclick="${n.accion.fn}">${escapeHTML(n.accion.label)}</button>
-    </div>`;
-  }).join('');
-
-  // Renderizar config
-  renderConfigAlertas();
-}
-
 function renderConfigAlertas() {
   const el = document.getElementById('notif-config-lista');
   if (!el) return;
@@ -21840,53 +21756,9 @@ function toggleNotifConfig(key, val) {
   notify(NOTIF_CONFIG[key].label + (val ? ' activada' : ' desactivada'));
 }
 
-function marcarLeida(id) {
-  var idSan = _sanitizarKeyFirebase(id);
-  notifLeidas.add(idSan);
-  guardarNotifLeida(id);
-  const card = document.getElementById('ncard-' + id);
-  if (card) {
-    card.style.opacity = '.6';
-    card.style.background = 'var(--bg3)';
-    card.style.border = '0.5px solid var(--border)';
-  }
-  actualizarBadgeNotif();
-  const sinLeer = todasNotifs.filter(n => !notifLeidas.has(_sanitizarKeyFirebase(n.id))).length;
-  const lbl = document.getElementById('notif-count-label');
-  if (lbl) lbl.textContent = sinLeer > 0 ? sinLeer + ' notificación' + (sinLeer > 1 ? 'es' : '') + ' sin leer' : 'Todo al día ✓';
-}
-
-function marcarTodasLeidas() {
-  todasNotifs.forEach(n => { notifLeidas.add(_sanitizarKeyFirebase(n.id)); guardarNotifLeida(n.id); });
-  (function(){var _nf=document.getElementById('notif-filtro');renderNotificaciones((_nf?_nf.value:'')||'');})();
-  actualizarBadgeNotif();
-  notify('Todas las notificaciones marcadas como leídas');
-}
-
-function filtrarNotifs(tipo) {
-  renderNotificaciones(tipo || '');
-}
-
-function actualizarBadgeNotif() {
-  const sinLeer = todasNotifs.filter(n => !notifLeidas.has(_sanitizarKeyFirebase(n.id))).length;
-  const badge = document.getElementById('notif-badge');
-  if (badge) badge.style.display = sinLeer > 0 ? 'block' : 'none';
-  const sidebarBadge = document.querySelector('.nav-item [onclick*=notificaciones] ~ span, .nav-item span[style*="red"]');
-  if (sinLeer === 0) {
-    document.querySelectorAll('.nav-item').forEach(el => {
-      if (el.textContent.includes('Notificaciones')) {
-        const sp = el.querySelector('span[style*="red"]');
-        if (sp) sp.style.display = 'none';
-      }
-    });
-  }
-}
-
 // MÓDULO DETALLE DE VENTAS
 
 // Datos completos de ventas
-
-var ventaActualId = null;
 
 // Renderizar la tabla de ventas
 function renderVentasTabla(lista) {
@@ -22025,196 +21897,8 @@ function _restaurarControlesFiltrosVentas() {
 
 // Ver detalle de una venta
 function verVenta(id) {
-  // Redirigir siempre a verDetalleVenta (vista unificada) para evitar duplicación
-  if (typeof verDetalleVenta === 'function') { verDetalleVenta(id); return; }
-  const v = ventasList.find(x => x.id === id);
-  if (!v) return;
-  ventaActualId = id;
-  window._ventaActualFbKey = v.fbKey || id;
-  window._ventaDetalleActual = v;
-  _hide('ventas-list-view');
-  _block('ventas-detalle-view');
-
-  // Header
-  _set('vd-num', v.id);
-  _set('vd-cliente', v.cliente);
-  _set('vd-fecha', _mostrarFecha(v.fecha));
-  document.getElementById('vd-badge-pago').innerHTML = ventaEstadoBadge(v.estadoPago);
-  document.getElementById('vd-badge-inst').innerHTML = ventaEstadoInstBadge(v.estadoInst);
-  // Mostrar opción "Anulada" en el dropdown solo si tiene NC emitida
-  var anuladaOpt = document.getElementById('vd-drop-pago-anulada');
-  if (anuladaOpt) anuladaOpt.style.display = v.notaCredito ? 'flex' : 'none';
-  document.getElementById('vd-empleado').value = v.empleado || v.usuario || v.vendedor || '—';
-  document.getElementById('vd-ppto').value = v.ppto || '—';
-  document.getElementById('vd-obs').value = v.obs || '—';
-  document.getElementById('vd-ot').value = v.otId || '—';
-
-  // Datos del cliente — buscar en clientesData por id o nombre
-  var cliData = null;
-  if (v.idCliente && clientesData) {
-    cliData = clientesData.find(function(c){ return c.id == v.idCliente || c.id == v.clienteId; });
-  }
-  if (!cliData && v.cliente && clientesData) {
-    cliData = clientesData.find(function(c){ return (c.nombre||'').toLowerCase().trim() === (v.cliente||'').toLowerCase().trim(); });
-  }
-  var dirEl  = document.getElementById('vd-cli-dir');
-  var telEl  = document.getElementById('vd-cli-tel');
-  var wpEl   = document.getElementById('vd-cli-wp');
-  if (cliData) {
-    var dir = cliData.dir || cliData.direccion || '';
-    var tel = cliData.telefono || cliData.tel || '';
-    if (dirEl && dir) {
-      dirEl.style.display = '';
-      dirEl.querySelector('span').textContent = dir;
-    }
-    if (tel) {
-      var telNum = tel.replace(/[^0-9]/g,'');
-      if (telEl) {
-        telEl.style.display = '';
-        telEl.href = 'tel:' + telNum;
-        telEl.querySelector('span').textContent = tel;
-      }
-      if (wpEl) {
-        wpEl.style.display = '';
-        wpEl.href = 'https://wa.me/549' + telNum.replace(/^0/,'');
-        wpEl.querySelector('span').textContent = 'WhatsApp';
-      }
-    }
-  } else {
-    if (dirEl) dirEl.style.display = 'none';
-    if (telEl) telEl.style.display = 'none';
-    if (wpEl)  wpEl.style.display  = 'none';
-  }
-
-  // Timeline
-  renderVentaTimeline('vd-timeline', v.estadoPago === 'pago_total' && v.estadoInst !== 'pendiente_inst' ? v.estadoInst : v.estadoPago);
-
-  // Items
-  const tbody = document.getElementById('vd-items');
-  const itemsVenta = Array.isArray(v.items) ? v.items : [];
-  var itemsVentaFiltrados = itemsVenta.filter(it => ((it.desc||'').trim() && (it.desc||'').trim() !== 'Producto') || parseFloat(it.punit) > 0 || parseFloat(it.sub) > 0);
-  tbody.innerHTML = itemsVentaFiltrados.length ? itemsVentaFiltrados.map(it => `<tr>
-    <td style="overflow:hidden"><input type="checkbox"></td>
-    <td style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(it.cod)}</td>
-    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(it.desc)}</td>
-    <td class="tr" style="white-space:nowrap">${it.qty}</td>
-    <td class="tr" style="white-space:nowrap">$${(parseFloat(it.punit)||0).toLocaleString('es-AR')}</td>
-    <td class="tr" style="font-weight:500;white-space:nowrap">$${(parseFloat(it.sub)||0).toLocaleString('es-AR')}</td>
-  </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Esta venta no tiene ítems guardados — fue importada desde el sistema viejo sin detalle de productos</td></tr>';
-
-  // Totales
-  _set('vd-sub','$' + (parseFloat(v.subtotal)||0).toLocaleString('es-AR'));
-  var descAmt = parseFloat(v.descuento)||0;
-  var descRow = document.getElementById('vd-desc-row');
-  if (descRow) descRow.style.display = descAmt > 0 ? '' : 'none';
-  // Mostrar descuento como % si existe descuentoGeneral, sino como monto
-  var descLabel;
-  if (v.descuentoGeneral && parseFloat(v.descuentoGeneral) > 0) {
-    descLabel = '-' + parseFloat(v.descuentoGeneral).toLocaleString('es-AR') + '% (-$' + Math.round(descAmt).toLocaleString('es-AR') + ')';
-  } else {
-    descLabel = descAmt > 0 ? '-$' + Math.round(descAmt).toLocaleString('es-AR') : '';
-  }
-  _set('vd-desc-amt', descLabel);
-  var _vdIva = v.conIva === false ? 0 : (parseFloat(v.iva)||0);
-  var _vdTotal = parseFloat(v.total)||0;
-  if (v.conIva === false && parseFloat(v.subtotal) > 0) _vdTotal = parseFloat(v.subtotal)||0;
-  _set('vd-iva','$' + _vdIva.toLocaleString('es-AR'));
-  _set('vd-total','$' + _vdTotal.toLocaleString('es-AR'));
-
-  // Pagos
-  const pagosEl = document.getElementById('vd-pagos-lista');
-  // Combinar pagos embebidos (v.pagos) + pagos de cobranzas (sisventas/pagos)
-  var pagosEmbebidos = Array.isArray(v.pagos) ? v.pagos.map(function(p){ return Object.assign({}, p, {fuente:'venta'}); }) : [];
-  var pagosCobranzas = (window._pagosListaActual||[]).filter(function(p){
-    var vid = String(v.id||'').replace(/[^0-9]/g,'');
-    var pvid = String(p.venta||'').replace(/[^0-9]/g,'');
-    return p.venta === v.id || pvid === vid;
-  }).map(function(p){ return Object.assign({}, p, {fuente:'cobranzas'}); });
-  // Deduplicar por monto+fecha
-  var claves = new Set(pagosEmbebidos.map(function(p){ return (p.monto||'')+'|'+(p.fecha||''); }));
-  var pagosExtra = pagosCobranzas.filter(function(p){ return !claves.has((p.monto||'')+'|'+(p.fecha||'')); });
-  var todosLosPagos = pagosEmbebidos.concat(pagosExtra).sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); });
-
-  if (todosLosPagos.length) {
-    pagosEl.innerHTML = todosLosPagos.map(function(p) { return `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">
-        <div>
-          <div style="font-size:13px;color:var(--text)">${escapeHTML(p.medio||'Efectivo')}</div>
-          <div style="font-size:11px;color:var(--text3)">${escapeHTML(p.fecha||'')}${p.obs?' · '+escapeHTML(p.obs):''}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:13px;font-weight:500;color:var(--green)">$${(parseFloat(p.monto)||0).toLocaleString('es-AR')}</div>
-          ${p.saldo!=null?'<div style="font-size:11px;color:'+(p.saldo>0?'var(--amber)':'var(--text3)')+'">Saldo: $'+(parseFloat(p.saldo)||0).toLocaleString('es-AR')+'</div>':''}
-        </div>
-      </div>`; }).join('');
-  } else {
-    pagosEl.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:16px">Sin pagos registrados</div>';
-  }
-
-  // OT vinculada
-  const otCard = document.getElementById('vd-ot-card');
-  if (v.otId) {
-    otCard.style.display = 'block';
-    const ot = typeof otData !== 'undefined' ? otData.find(o => o.id === v.otId) : null;
-    const otInfo = document.getElementById('vd-ot-info');
-    if (ot && otInfo) {
-      otInfo.innerHTML = `
-        <span><strong>${escapeHTML(ot.id)}</strong></span>
-        <span>Técnico: ${escapeHTML(ot.tecnico)}</span>
-        <span>Fecha: ${escapeHTML(ot.fecha || 'Sin fecha')}</span>
-        <span>Estado: ${otBadge ? otBadge(ot.estado) : ot.estado}</span>
-        <span>Progreso: ${ot.progreso}%</span>`;
-    }
-  } else {
-    otCard.style.display = 'none';
-  }
-
-  // Acciones
-  const accs = document.getElementById('venta-det-acciones');
-  const esPendPago = ['pendiente_pago','seniado'].includes(v.estadoPago);
-  let accsHTML = '';
-  if (esPendPago) accsHTML += '<button class="btn btn-sm btn-primary" onclick="irACobranzasConVenta(\''+v.id+'\')"><i class="ti ti-cash"></i> Registrar pago</button>';
-  if (v.otId)     accsHTML += '<button class="btn btn-sm" onclick="verOTdesdeVenta()"><i class="ti ti-clipboard-list"></i> Ver OT</button>';
-  accsHTML += '<button class="btn btn-sm" id="btn-iva-detalle-'+v.id+'" onclick="toggleIvaDetalle(this,\'' + v.id + '\')" style="min-width:90px"><i class="ti ti-receipt-tax"></i> ' + ((v.conIva===false) ? 'Sin IVA' : 'Con IVA') + '</button>';
-  accsHTML += '<button class="btn btn-sm" onclick="abrirModalImprimir(\'venta\',\'Venta ' + v.id + '\')"><i class="ti ti-printer"></i> Imprimir</button>';
-  var _csf = v.contadoSinFactura === true;
-  var btnCsf = document.getElementById('btn-csf-static');
-  if (btnCsf) {
-    btnCsf.style.color = _csf ? 'var(--amber)' : '';
-    btnCsf.style.borderColor = _csf ? 'var(--amber)' : '';
-    btnCsf.innerHTML = '<i class="ti ti-receipt-off"></i> ' + (_csf ? 'Contado s/fact. \u2713' : 'Contado s/fact.');
-  }
-  // Botón facturar — solo si no tiene factura emitida
-  if (!v.factura) {
-    accsHTML += '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(\''+v.id+'\')"><i class="ti ti-file-invoice"></i> Facturar</button>';
-  } else {
-    accsHTML += '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="verFacturaEmitida(\''+v.factura.pdf_url+'\',\''+v.factura.cae+'\')" title="CAE: '+v.factura.cae+'"><i class="ti ti-file-check"></i> Facturada — CAE: '+v.factura.cae+'</button>';
-    accsHTML += '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="abrirModalNotaCredito(\''+v.id+'\')" title="Emitir nota de crédito para anular esta factura"><i class="ti ti-file-minus"></i> Nota de crédito</button>';
-  }
-  accs.innerHTML = accsHTML;
-
-  // Audit
-  const auditEl = document.getElementById('vd-audit');
-  auditEl.innerHTML = [...v.audit].reverse().map(e => `
-    <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
-      <div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <i class="ti ti-history" style="font-size:12px;color:var(--text3)"></i>
-      </div>
-      <div>
-        <div style="font-size:13px;color:var(--text)">${escapeHTML(e.accion)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHTML(e.usuario)} · ${escapeHTML(e.fecha)}</div>
-      </div>
-    </div>`).join('');
+  return verDetalleVenta(id);
 }
-
-function verOTdesdeVenta() {
-  const v = ventasList.find(x => x.id === ventaActualId);
-  if (!v || !v.otId) return;
-  showPage('ordentrabajo', document.querySelector('[onclick*=ordentrabajo]'));
-  setTimeout(() => verOT(v.otId), 100);
-}
-
-// volverListaVentas definida arriba
 
 // Inicializar al entrar
 

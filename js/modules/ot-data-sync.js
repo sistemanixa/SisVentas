@@ -137,14 +137,4 @@
       return r;
     };
   }
-  // Reforzar título al abrir Tesorería aunque el mapa original no la tuviera.
-  document.addEventListener('sisventas:page-changed', function(event){
-      var page=event.detail&&event.detail.page;
-      setTimeout(function(){
-        if(page==='notificaciones'){
-          if(typeof generarNotificaciones==='function') generarNotificaciones();
-          else if(typeof renderNotificaciones==='function') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||'');
-        }
-      },120);
-  });
 })();

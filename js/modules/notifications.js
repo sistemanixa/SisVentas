@@ -16,20 +16,56 @@
     return tecnico?source.filter(notifPermitidaTecnico):source;
   }
   // Notificaciones: urgent filter + estados persistidos por usuario
+  function currentEmail(){
+    return String(global.currentUserEmail||(global.fbAuth&&global.fbAuth.currentUser&&global.fbAuth.currentUser.email)||'').toLowerCase();
+  }
   function notifStorageKey(){
-    var u = String(window.currentUserEmail || window.currentUser || 'local').toLowerCase().replace(/[^a-z0-9]+/g,'_');
+    var u = String(currentEmail() || window.currentUser || 'local').toLowerCase().replace(/[^a-z0-9]+/g,'_');
     return 'sv_notif_state_v3_' + u;
   }
   function nKey(id){ return String(id||'').replace(/[.#$\[\]/]/g,'_'); }
   function loadState(){ try{return JSON.parse(localStorage.getItem(notifStorageKey())||'{}')||{};}catch(e){return {};} }
   function saveState(st){ try{localStorage.setItem(notifStorageKey(), JSON.stringify(st||{}));}catch(e){} }
-  function getN(id){ var st=loadState(); return st[nKey(id)]||{}; }
+  var notifState=loadState();
+  var notifStateUnsubscribe=null;
+  var notifStateUser='';
+  function getN(id){ return notifState[nKey(id)]||{}; }
+  function stateTime(value){ var t=Date.parse(value&&value.updatedAt||''); return isNaN(t)?0:t; }
+  function refreshNotifUI(){
+    if(typeof renderNotificaciones==='function') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||'');
+    if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif();
+  }
+  function iniciarSyncNotificaciones(){
+    var email=currentEmail();
+    if(!email||!global.fbDB||!global.fbOnValue) return;
+    var userKey=nKey(email);
+    if(notifStateUser===userKey&&typeof notifStateUnsubscribe==='function') return;
+    if(typeof notifStateUnsubscribe==='function') notifStateUnsubscribe();
+    notifStateUser=userKey;
+    notifState=loadState();
+    var ref=global.fbRef(global.fbDB,'sisventas/notificaciones_estado/'+userKey);
+    notifStateUnsubscribe=global.fbOnValue(ref,function(snapshot){
+      var remote=snapshot.val()||{}, merged={}, pending={};
+      Object.keys(Object.assign({},notifState,remote)).forEach(function(key){
+        var localValue=notifState[key], remoteValue=remote[key];
+        if(!remoteValue||(localValue&&stateTime(localValue)>stateTime(remoteValue))){ merged[key]=localValue; if(localValue) pending[key]=localValue; }
+        else merged[key]=remoteValue;
+      });
+      notifState=merged;
+      saveState(notifState);
+      if(Object.keys(pending).length&&global.fbUpdate) global.fbUpdate(ref,pending).catch(function(error){console.warn('[Notificaciones] No se pudo migrar estado local',error);});
+      refreshNotifUI();
+    },function(error){ console.error('[Notificaciones] Error de sincronización',error); });
+  }
+  window.iniciarSyncNotificaciones=iniciarSyncNotificaciones;
   function setN(id, patch){
-    var st=loadState(), k=nKey(id);
-    st[k]=Object.assign(st[k]||{}, patch, {updatedAt:new Date().toISOString(), usuario:svCurrentUserName()});
-    saveState(st);
-    if (window.fbDB && window.currentUserEmail) {
-      window.fbSet(window.fbRef(window.fbDB, 'sisventas/notificaciones_estado/' + nKey(window.currentUserEmail) + '/' + k), st[k]).catch(function(){});
+    var k=nKey(id);
+    notifState[k]=Object.assign(notifState[k]||{},patch,{updatedAt:new Date().toISOString(),usuario:svCurrentUserName()});
+    saveState(notifState);
+    iniciarSyncNotificaciones();
+    var email=currentEmail();
+    if (window.fbDB && email) {
+      window.fbSet(window.fbRef(window.fbDB,'sisventas/notificaciones_estado/'+nKey(email)+'/'+k),notifState[k]).catch(function(error){console.error('[Notificaciones] Error guardando estado',error);});
     }
   }
   function visibleNotif(n, filtro){
@@ -78,4 +114,18 @@
     var count=notifSource().filter(function(n){ var st=getN(n.id); return visibleNotif(n,'') && !st.estado; }).length;
     var b=document.getElementById('notif-badge'); if(b) b.style.display=count?'block':'none';
   };
+  function actualizarNotificacionesAutomaticamente(){
+    if(!currentEmail()) return;
+    iniciarSyncNotificaciones();
+    if(typeof global.generarNotificaciones==='function') global.generarNotificaciones();
+  }
+  document.addEventListener('sisventas:page-changed',function(event){
+    if(event.detail&&event.detail.page==='notificaciones') actualizarNotificacionesAutomaticamente();
+  });
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible') actualizarNotificacionesAutomaticamente();
+  });
+  window.addEventListener('focus',actualizarNotificacionesAutomaticamente);
+  setInterval(actualizarNotificacionesAutomaticamente,30000);
+  setTimeout(actualizarNotificacionesAutomaticamente,1000);
 })(window);
