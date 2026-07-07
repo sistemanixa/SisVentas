@@ -1068,7 +1068,9 @@ function flujoPostPago(ventaObj, montoSeña) {
     hora: '09:00',
     tipo: 'instalacion',
     ventaId: vid,
+    ventaFbKey: ventaObj.fbKey || '',
     cliente: cli,
+    clienteFbKey: ventaObj.clienteFbKey || ventaObj.clienteKey || '',
     direccion: dir,
     estado: 'pendiente_fecha',
     ts: Date.now(),
@@ -1090,7 +1092,9 @@ function flujoPostPago(ventaObj, montoSeña) {
   var ot = {
     id:           (typeof nextOTId === 'function' ? nextOTId() : ('OT-' + String(((window.otData||[]).length + 1)).padStart(3,'0'))),
     ventaId:      vid,
+    ventaFbKey:   ventaObj.fbKey || '',
     cliente:      cli,
+    clienteFbKey: ventaObj.clienteFbKey || ventaObj.clienteKey || '',
     direccion:    dir,
     estado:       'pendiente',
     tecnico:      '',
@@ -1118,7 +1122,7 @@ function flujoPostPago(ventaObj, montoSeña) {
         // Publicar en tareas pendientes
         if (window.fbDB) {
           window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/tareas/' + otKey), {
-            otKey: otKey, ventaId: vid, cliente: cli,
+            otKey: otKey, ordenTrabajoFbKey: otKey, ventaId: vid, ventaFbKey: ventaObj.fbKey || '', cliente: cli, clienteFbKey: ventaObj.clienteFbKey || ventaObj.clienteKey || '',
             estado: 'disponible', ts: Date.now()
           });
         }
@@ -4072,7 +4076,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.32.0-firebase',
+  VERSION: 'v1.33.0-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11695,7 +11699,9 @@ function registrarPago() {
   var pago = {
     venta:    ventaIdGuardar,
     ventaId:  ventaIdGuardar,
+    ventaFbKey: ventaObj ? (ventaObj.fbKey||'') : '',
     cliente:  ventaObj ? (ventaObj.cliente||'') : (document.getElementById('cob-cliente')||{}).value||'',
+    clienteFbKey: ventaObj ? (ventaObj.clienteFbKey||ventaObj.clienteKey||'') : '',
     monto:    monto,
     medio:    medio,
     fecha:    fecha,
@@ -11815,6 +11821,7 @@ function crearOT(ventaData) {
     ventaFbKey: ventaData ? (ventaData.fbKey||'') : '',
     cliente:    ventaData ? ventaData.cliente : '',
     clienteId:  ventaData ? (ventaData.clienteId||'') : '',
+    clienteFbKey: ventaData ? (ventaData.clienteFbKey||ventaData.clienteKey||'') : '',
     origen:     ventaData ? 'venta' : 'manual',
     estado:     'pendiente',
     tecnico:    '',

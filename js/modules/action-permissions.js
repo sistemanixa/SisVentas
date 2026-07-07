@@ -14,7 +14,10 @@
   function moduleAllowed(mod){
     if (!mod) return false;
     if (isAdmin()) return true;
-    var cfg = ((window.PERMISOS_ROLES || {})[normRol()] || (window.PERMISOS_DEFAULT || {})[normRol()] || { bloqueados: [] });
+    var role = normRol();
+    if (!role) return false;
+    var cfg = ((window.PERMISOS_ROLES || {})[role] || (window.PERMISOS_DEFAULT || {})[role]);
+    if (!cfg) return false;
     return (cfg.bloqueados || []).indexOf(mod) === -1;
   }
   var PERMISOS_ACCION = {
@@ -32,14 +35,27 @@
     'productos.editar':          { modulo:'productos', roles:['admin','administrativo'] },
     'productos.eliminar':        { modulo:'productos', admin:true },
     'clientes.editar':           { modulo:'clientes', roles:['admin','administrativo'] },
+    'clientes.eliminar':         { modulo:'clientes', admin:true },
     'presupuestos.editar':       { modulo:'presupuesto', roles:['admin','administrativo'] },
+    'presupuestos.eliminar':     { modulo:'presupuesto', admin:true },
+    'presupuestos.anular':       { modulo:'presupuesto', admin:true },
     'ot.editar':                 { modulo:'ordentrabajo', roles:['admin','administrativo','tecnico'] },
+    'ot.crear':                  { modulo:'ordentrabajo', roles:['admin','administrativo'] },
+    'ot.eliminar':               { modulo:'ordentrabajo', admin:true },
+    'empleados.eliminar':        { modulo:'empleados', admin:true },
+    'empleados.aprobarMovimiento': { modulo:'ctaemp', admin:true },
+    'empleados.eliminarMovimiento': { modulo:'ctaemp', admin:true },
+    'configuracion.editar':      { modulo:'configuracion', admin:true },
+    'registros.eliminar':        { admin:true, validar:function(ctx){
+      var permitidas=['gastos','proveedores','ordenes','informes','equipos','usuarios'];
+      return permitidas.indexOf(String((ctx.args||[])[0]||''))!==-1;
+    } },
     'usuarios.impersonar':       { modulo:'usuarios', admin:true },
     'auditoria.ver':             { modulo:'configuracion', admin:true }
   };
   window.tienePermiso = SV.Security.tienePermiso = function(permiso, contexto){
     var regla = PERMISOS_ACCION[permiso];
-    if (!regla) return moduleAllowed(permiso);
+    if (!regla) return false;
     if (regla.admin && !isAdmin()) return false;
     if (regla.roles && regla.roles.indexOf(normRol()) === -1) return false;
     if (regla.modulo && !moduleAllowed(regla.modulo)) return false;
@@ -49,6 +65,50 @@
   window.esAdminSV = SV.Security.esAdmin = isAdmin;
   window.esAdminOAdministrativoSV = SV.Security.esAdminOAdministrativo = function(){ return isAdmin() || isAdm(); };
   window.permisoModuloSV = SV.Security.permisoModulo = moduleAllowed;
+
+  function proteger(nombre, permiso){
+    var original=window[nombre];
+    if(typeof original!=='function'||original._svPermisoProtegido) return;
+    var protegida=function(){
+      if(!window.tienePermiso(permiso,{args:Array.prototype.slice.call(arguments)})){
+        if(typeof window.notify==='function') window.notify('No tenés permiso para realizar esta acción');
+        console.warn('[Seguridad] Acción bloqueada:',permiso,nombre);
+        return false;
+      }
+      return original.apply(this,arguments);
+    };
+    protegida._svPermisoProtegido=true;
+    protegida._svOriginal=original;
+    window[nombre]=protegida;
+  }
+
+  [
+    ['registrarPago','cobranzas.registrar'],
+    ['anularPago','cobranzas.anular'],
+    ['elimPago','cobranzas.anular'],
+    ['eliminarVenta','ventas.eliminar'],
+    ['eliminarPptoDesdeTabla','presupuestos.eliminar'],
+    ['eliminarPpto','presupuestos.eliminar'],
+    ['anularPptoDesdeTabla','presupuestos.anular'],
+    ['crearOT','ot.crear'],
+    ['eliminarOT','ot.eliminar'],
+    ['eliminarCliente','clientes.eliminar'],
+    ['eliminarProducto','productos.eliminar'],
+    ['eliminarEmpleado','empleados.eliminar'],
+    ['aprobarMovEmp','empleados.aprobarMovimiento'],
+    ['eliminarMovEmp','empleados.eliminarMovimiento'],
+    ['eliminarRegistro','registros.eliminar'],
+    ['guardarConfigTFApp','configuracion.editar'],
+    ['guardarTipoCambio','configuracion.editar'],
+    ['guardarPreferenciasSistema','configuracion.editar'],
+    ['guardarAlicuotaIVA','configuracion.editar'],
+    ['guardarImpuestosGenerales','configuracion.editar'],
+    ['guardarLogoEmpresa','configuracion.editar'],
+    ['eliminarLogoEmpresa','configuracion.editar'],
+    ['guardarDatosEmpresa','configuracion.editar'],
+    ['guardarPermisosRoles','configuracion.editar'],
+    ['restaurarPermisosDefault','configuracion.editar']
+  ].forEach(function(item){ proteger(item[0],item[1]); });
 
   function safeString(v){
     try { return JSON.stringify(v, function(k,val){ if (typeof val === 'function') return undefined; if (String(k).toLowerCase().indexOf('pass') >= 0) return '***'; return val; }).slice(0, 9000); }
