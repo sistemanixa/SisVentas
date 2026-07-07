@@ -24,17 +24,34 @@
   }
   var pasos = [
     {id:'cliente', titulo:'Cliente y ubicación', ayuda:'Datos principales de la visita, dirección y notas administrativas.', sel:'#ot-det-venta,#ot-det-cliente,#ot-det-dir,#ot-det-tecnico'},
+    {id:'reclamo', titulo:'Reclamo', ayuda:'Motivo original, historial y seguimiento del reclamo asociado.', sel:'#ot-reclamo-hist', origen:'reclamo'},
     {id:'materiales', titulo:'Materiales', ayuda:'Productos a instalar o materiales asociados a la venta.', sel:'#ot-materiales'},
     {id:'checklist', titulo:'Checklist', ayuda:'Control de preparación, instalación y verificación.', sel:'#checklist-preparacion,#ot-progress-fill'},
     {id:'fotos', titulo:'Fotos y notas', ayuda:'Notas técnicas y fotos del trabajo realizado.', sel:'#ot-notas-lista,#ot-fotos-preview,#ot-nota-nueva'},
     {id:'finalizar', titulo:'Finalizar', ayuda:'Acta de entrega, conformidad, firma y cierre de la OT.', sel:'#ot-acta-conf,#firma-canvas,#btn-completar-ot'},
     {id:'historial', titulo:'Historial', ayuda:'Auditoría interna de la orden.', sel:'#ot-audit', admin:true}
   ];
-  function pasosVisibles(){ return pasos.filter(function(p){ return !p.admin || roleAdmin(); }); }
+  function origenActual(){
+    var ot=findOT();
+    return typeof window.otResolverOrigen==='function' ? window.otResolverOrigen(ot) : ((ot&&ot.reclamoKey)?'reclamo':((ot&&ot.ventaId)?'venta':'manual'));
+  }
+  function pasosVisibles(){
+    var origen=origenActual();
+    return pasos.filter(function(p){
+      return (!p.admin || roleAdmin()) && (!p.origen || p.origen===origen);
+    }).map(function(p){
+      if(p.id!=='materiales') return p;
+      if(origen==='reclamo') return Object.assign({},p,{titulo:'Repuestos',ayuda:'Repuestos o materiales utilizados para resolver el reclamo.'});
+      if(origen==='manual') return Object.assign({},p,{ayuda:'Materiales agregados manualmente a la orden de trabajo.'});
+      return p;
+    });
+  }
   function cards(){
     var view=q('ot-detalle-view');
     if(!view) return [];
-    return Array.from(view.children).filter(function(el){ return el.classList && el.classList.contains('card') && !['ot-wizard-301','ot-wizard-294','ot-wizard-273','ot-pasos-rapidos'].includes(el.id); });
+    var directas=Array.from(view.children).filter(function(el){ return el.classList && el.classList.contains('card') && !['ot-wizard-301','ot-wizard-294','ot-wizard-273','ot-pasos-rapidos'].includes(el.id); });
+    var contexto=Array.from(view.querySelectorAll('#ot-contexto-box > .card'));
+    return directas.concat(contexto);
   }
   function clasificar(){
     cards().forEach(function(card){
@@ -47,6 +64,7 @@
   }
   function done(step){
     if(step==='cliente') return !!((q('ot-det-cliente')||{}).value) && !!((q('ot-det-dir')||{}).value);
+    if(step==='reclamo') return !!(q('ot-reclamo-hist') && q('ot-reclamo-hist').children.length);
     if(step==='materiales') return !!(q('ot-materiales') && q('ot-materiales').querySelector('tr'));
     if(step==='checklist'){
       var ch=Array.from(document.querySelectorAll('#checklist-preparacion input[type=checkbox],#checklist-instalacion input[type=checkbox],#checklist-verificacion input[type=checkbox]'));
@@ -80,7 +98,10 @@
     clasificar();
     cards().forEach(function(card){
       var s=card.getAttribute('data-ot-wstep')||'cliente';
-      card.style.display = (s===step) ? '' : 'none';
+      var mostrar=s===step;
+      if(card.id==='ot-reclamo-box' && origenActual()!=='reclamo') mostrar=false;
+      if(card.id==='ot-cred-box' && !(q('ot-cred-lista')&&q('ot-cred-lista').children.length)) mostrar=false;
+      card.style.display = mostrar ? '' : 'none';
     });
     var idx=vis.findIndex(function(p){return p.id===step;});
     if(idx<0) idx=0;
