@@ -4020,7 +4020,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.24.0-firebase',
+  VERSION: 'v1.24.2-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -19022,6 +19022,8 @@ var otActualId = null;
 function otBadge(estado) {
   const map = {
     pendiente:        ['badge b-amber','Pendiente'],
+    programada:       ['badge b-blue','Programada'],
+    en_curso:         ['badge b-blue','En curso'],
     en_progreso:      ['badge b-blue','En progreso'],
     completada:       ['badge b-green','Completada'],
     con_observaciones:['badge b-amber','Con observaciones'],
@@ -19035,10 +19037,10 @@ function renderOTTabla(filtro) {
   var hoy = new Date().toISOString().split('T')[0];
   var mes = hoy.slice(0,7);
   var _e = function(id){ return document.getElementById(id); };
-  // Si no se pasa filtro, leer el select (default: pendiente)
+  // Si no se pasa filtro, leer el selector. Por defecto se muestran todos.
   if (filtro === undefined) {
     var sel = _e('ot-filtro-estado');
-    filtro = sel ? sel.value : 'pendiente';
+    filtro = sel ? sel.value : '';
   }
 
   // Métricas (iguales para todos)
@@ -20581,9 +20583,9 @@ function renderKPIsDashboard() {
       otTabla.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:12px">Sin OTs pendientes</td></tr>';
     } else {
       otTabla.innerHTML = otsPend.slice(0,6).map(function(o) {
-        var badge = o.estado === 'en_progreso' ? '<span class="badge b-blue">En progreso</span>' : '<span class="badge b-amber">Pendiente</span>';
-        return '<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="abrirOTDesdeId(\'' + escapeHTML(o.id||o.fbKey||'') + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
-          '<td><div style="font-weight:500">' + escapeHTML(o.cliente||'') + '</div>' +
+        var badge = otBadge(o.estado);
+        return '<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="abrirOTDesdeId(\'' + escapeHTML(o.fbKey||o.id||'') + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
+          '<td><div style="font-weight:500">' + escapeHTML(o.cliente||'') + '</div><div style="font-size:11px;color:var(--blue);margin-top:2px;font-family:monospace">' + escapeHTML(o.id||'OT') + '</div>' +
             (function(){
               var dir = o.dir || o.direccion || '';
               if (!dir && o.cliente) {
