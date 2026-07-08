@@ -7,6 +7,10 @@
   function setText(id, value){ var el=document.getElementById(id); if(el) el.textContent=value; }
   function hasAny(obj, keys){ return keys.some(function(k){ return !!norm(obj && obj[k]); }); }
   function baseRef(rec){ return norm((rec && (rec.fbKey || rec.id || rec.numero || rec.codigo || rec.ventaId || rec.clienteId)) || ''); }
+  function put(updates, path, value){ if(path && value != null && value !== '') updates[path] = value; }
+  function sevClass(sev){ return sev==='critico'?'b-red':sev==='alto'?'b-amber':sev==='ok'?'b-green':'b-blue'; }
+  function sevPeso(sev){ return {critico:0,alto:1,medio:2,bajo:3,ok:4}[sev] == null ? 2 : {critico:0,alto:1,medio:2,bajo:3,ok:4}[sev]; }
+
   function resolverCliente(reg){
     if(typeof window._svResolverClienteRegistro === 'function') return window._svResolverClienteRegistro(reg, true);
     var id = norm(reg && (reg.clienteFbKey || reg.clienteKey || reg.clienteId || reg.idCliente));
@@ -23,11 +27,18 @@
       return [v.fbKey,v.id,v.numero,v.codigo].map(norm).indexOf(id) >= 0;
     }) || null;
   }
+  function resolverCategoria(reg){
+    var id = norm(reg && (reg.categoriaFbKey || reg.categoriaKey || reg.categoriaId || reg.categoria));
+    var cats = arr(window.catData || window.categoriasData || window.categoriasList);
+    if(!id) return null;
+    var byKey = cats.find(function(c){ return [c.fbKey,c.id,c.codigo].map(norm).indexOf(id) >= 0; });
+    if(byKey) return byKey;
+    var n = keyNorm(id);
+    return cats.find(function(c){ return [c.nombre,c.categoria,c.descripcion].map(keyNorm).indexOf(n) >= 0; }) || null;
+  }
   function issue(list, sev, tipo, msg, rec, sugerencia){
     list.push({sev:sev||'medio', tipo:tipo, msg:msg, ref:baseRef(rec), sugerencia:sugerencia||''});
   }
-  function sevClass(sev){ return sev==='critico'?'b-red':sev==='alto'?'b-amber':sev==='ok'?'b-green':'b-blue'; }
-  function sevPeso(sev){ return {critico:0,alto:1,medio:2,bajo:3,ok:4}[sev] == null ? 2 : {critico:0,alto:1,medio:2,bajo:3,ok:4}[sev]; }
 
   function auditarDuplicadosOT(issues){
     var mapa = {};
@@ -38,20 +49,13 @@
       mapa[id].push(o);
     });
     Object.keys(mapa).forEach(function(id){
-      if(mapa[id].length > 1) issue(issues,'critico','ot','Número de OT duplicado: '+id,mapa[id][0],'Ejecutar herramienta de reparación de OT antes de seguir cargando órdenes.');
-    });
-  }
-  function auditarPagosHuerfanos(issues){
-    arr(window._pagosListaActual || window._historialPagosCompleto || window.pagosData || window.pagosList).forEach(function(p){
-      if(!p || p.anulado) return;
-      var tieneRef = hasAny(p,['ventaFbKey','ventaKey','ventaId','idVenta','venta','nroVenta','numeroVenta']);
-      if(tieneRef && !resolverVenta(p)) issue(issues,'alto','pago','Pago con referencia de venta que no se pudo resolver',p,'Revisar venta eliminada/anulada o completar ventaFbKey.');
+      if(mapa[id].length > 1) issue(issues,'critico','ot','Numero de OT duplicado: '+id,mapa[id][0],'Ejecutar herramienta de reparacion de OT antes de seguir cargando ordenes.');
     });
   }
   function auditarVentas(issues){
     arr(window.ventasList || window.ventasData).forEach(function(v){
       if(!v) return;
-      if(!hasAny(v,['clienteFbKey','clienteKey']) && resolverCliente(v)) issue(issues,'medio','venta','Venta sin clienteFbKey aunque el cliente se puede resolver',v,'Normalizar clienteFbKey en una migración segura.');
+      if(!hasAny(v,['clienteFbKey','clienteKey']) && resolverCliente(v)) issue(issues,'medio','venta','Venta sin clienteFbKey aunque el cliente se puede resolver',v,'Normalizar clienteFbKey en una migracion segura.');
       if(!hasAny(v,['clienteFbKey','clienteKey','clienteId','idCliente']) && v.cliente) issue(issues,'bajo','venta','Venta depende solo del nombre de cliente',v,'Completar clave de cliente cuando se edite o migre.');
     });
   }
@@ -59,14 +63,17 @@
     arr(window.pptoData || window.presupuestosData).forEach(function(p){
       if(!p) return;
       if(!hasAny(p,['clienteFbKey','clienteKey']) && resolverCliente(p)) issue(issues,'medio','presupuesto','Presupuesto sin clienteFbKey aunque el cliente se puede resolver',p,'Normalizar clienteFbKey.');
-      if((p.ventaId || p.ventaGeneradaId) && !hasAny(p,['ventaFbKey','ventaGeneradaFbKey'])) issue(issues,'alto','presupuesto','Presupuesto convertido sin ventaFbKey/ventaGeneradaFbKey',p,'Completar vínculo a venta generada.');
+      if((p.ventaId || p.ventaGeneradaId) && !hasAny(p,['ventaFbKey','ventaGeneradaFbKey'])) issue(issues,'alto','presupuesto','Presupuesto convertido sin ventaFbKey/ventaGeneradaFbKey',p,'Completar vinculo a venta generada.');
     });
   }
   function auditarPagos(issues){
     arr(window._pagosListaActual || window._historialPagosCompleto || window.pagosData || window.pagosList).forEach(function(p){
       if(!p || p.anulado) return;
-      if(!hasAny(p,['ventaFbKey','ventaKey']) && resolverVenta(p)) issue(issues,'medio','pago','Pago sin ventaFbKey aunque la venta se puede resolver',p,'Normalizar ventaFbKey.');
-      if(!hasAny(p,['clienteFbKey','clienteKey']) && resolverCliente(p)) issue(issues,'bajo','pago','Pago sin clienteFbKey aunque el cliente se puede resolver',p,'Normalizar clienteFbKey.');
+      var tieneRef = hasAny(p,['ventaFbKey','ventaKey','ventaId','idVenta','venta','nroVenta','numeroVenta']);
+      var venta = resolverVenta(p);
+      if(tieneRef && !venta) issue(issues,'alto','pago','Pago con referencia de venta que no se pudo resolver',p,'Revisar venta eliminada/anulada o completar ventaFbKey.');
+      if(!hasAny(p,['ventaFbKey','ventaKey']) && venta) issue(issues,'medio','pago','Pago sin ventaFbKey aunque la venta se puede resolver',p,'Normalizar ventaFbKey.');
+      if(!hasAny(p,['clienteFbKey','clienteKey']) && (resolverCliente(p) || (venta && resolverCliente(venta)))) issue(issues,'bajo','pago','Pago sin clienteFbKey aunque el cliente se puede resolver',p,'Normalizar clienteFbKey.');
     });
   }
   function auditarOT(issues){
@@ -81,13 +88,13 @@
     arr(window.SP_DATA).forEach(function(r){
       if(!r) return;
       if(!hasAny(r,['clienteFbKey','clienteKey']) && resolverCliente(r)) issue(issues,'medio','reclamo','Reclamo sin clienteFbKey aunque el cliente se puede resolver',r,'Normalizar clienteFbKey.');
-      if((r.otKey || r.otId) && !(r.ventaKey || r.ventaFbKey || r.ventaId)) issue(issues,'bajo','reclamo','Reclamo con OT pero sin venta vinculada registrada',r,'Completar ventaKey si el reclamo generó visita facturable.');
+      if((r.otKey || r.otId) && !(r.ventaKey || r.ventaFbKey || r.ventaId)) issue(issues,'bajo','reclamo','Reclamo con OT pero sin venta vinculada registrada',r,'Completar ventaKey si el reclamo genero visita facturable.');
     });
   }
   function auditarProductos(issues){
     arr(window.prodData || window.productosData).forEach(function(p){
       if(!p) return;
-      if((p.categoria || p.categoriaId) && !hasAny(p,['categoriaFbKey','categoriaKey'])) issue(issues,'bajo','producto','Producto con categoría legacy sin categoriaFbKey',p,'Normalizar categoría cuando se edite o migre productos.');
+      if((p.categoria || p.categoriaId) && !hasAny(p,['categoriaFbKey','categoriaKey'])) issue(issues,'bajo','producto','Producto con categoria legacy sin categoriaFbKey',p,'Normalizar categoria cuando se edite o migre productos.');
     });
   }
 
@@ -97,66 +104,191 @@
     auditarVentas(issues);
     auditarPresupuestos(issues);
     auditarPagos(issues);
-    auditarPagosHuerfanos(issues);
     auditarOT(issues);
     auditarReclamos(issues);
     auditarProductos(issues);
     issues.sort(function(a,b){ return sevPeso(a.sev)-sevPeso(b.sev) || String(a.tipo).localeCompare(String(b.tipo)); });
     var porTipo = issues.reduce(function(acc,it){ acc[it.tipo]=(acc[it.tipo]||0)+1; return acc; }, {});
     var porSev = issues.reduce(function(acc,it){ acc[it.sev]=(acc[it.sev]||0)+1; return acc; }, {});
-    return { version:'v1.34.1', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
+    return { version:'v1.34.3', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
+  };
+
+  window.svGenerarPlanNormalizacionRelaciones = function(){
+    var updates = {};
+    var notas = [];
+    function nota(txt){ notas.push(txt); }
+    arr(window.ventasList || window.ventasData).forEach(function(v){
+      if(!v || !v.fbKey) return;
+      var c = resolverCliente(v);
+      if(c && c.fbKey && !hasAny(v,['clienteFbKey','clienteKey'])){
+        put(updates,'sisventas/ventas/'+v.fbKey+'/clienteFbKey',c.fbKey);
+        put(updates,'sisventas/ventas/'+v.fbKey+'/clienteKey',c.fbKey);
+        if(!v.clienteId && !v.idCliente && c.id) put(updates,'sisventas/ventas/'+v.fbKey+'/clienteId',c.id);
+      }
+    });
+    arr(window.pptoData || window.presupuestosData).forEach(function(p){
+      if(!p || !p.fbKey) return;
+      var c = resolverCliente(p);
+      if(c && c.fbKey && !hasAny(p,['clienteFbKey','clienteKey'])){
+        put(updates,'sisventas/presupuestos/'+p.fbKey+'/clienteFbKey',c.fbKey);
+        put(updates,'sisventas/presupuestos/'+p.fbKey+'/clienteKey',c.fbKey);
+      }
+      var v = resolverVenta({ ventaFbKey:p.ventaFbKey || p.ventaGeneradaFbKey, ventaId:p.ventaId || p.ventaGeneradaId });
+      if(v && v.fbKey && (p.ventaId || p.ventaGeneradaId) && !hasAny(p,['ventaFbKey','ventaGeneradaFbKey'])){
+        put(updates,'sisventas/presupuestos/'+p.fbKey+'/ventaFbKey',v.fbKey);
+        put(updates,'sisventas/presupuestos/'+p.fbKey+'/ventaGeneradaFbKey',v.fbKey);
+      }
+    });
+    arr(window._pagosListaActual || window._historialPagosCompleto || window.pagosData || window.pagosList).forEach(function(p){
+      if(!p || !p.fbKey || p.anulado) return;
+      var v = resolverVenta(p);
+      if(v && v.fbKey && !hasAny(p,['ventaFbKey','ventaKey'])){
+        put(updates,'sisventas/pagos/'+p.fbKey+'/ventaFbKey',v.fbKey);
+        put(updates,'sisventas/pagos/'+p.fbKey+'/ventaKey',v.fbKey);
+      }
+      var c = resolverCliente(p) || (v ? resolverCliente(v) : null);
+      if(c && c.fbKey && !hasAny(p,['clienteFbKey','clienteKey'])){
+        put(updates,'sisventas/pagos/'+p.fbKey+'/clienteFbKey',c.fbKey);
+        put(updates,'sisventas/pagos/'+p.fbKey+'/clienteKey',c.fbKey);
+      }
+    });
+    arr(window.otData || window.ordenesTrabajoData).forEach(function(o){
+      if(!o || !o.fbKey) return;
+      var v = resolverVenta(o);
+      if(v && v.fbKey && !hasAny(o,['ventaFbKey','ventaKey'])){
+        put(updates,'sisventas/ordenesTrabajo/'+o.fbKey+'/ventaFbKey',v.fbKey);
+        put(updates,'sisventas/ordenesTrabajo/'+o.fbKey+'/ventaKey',v.fbKey);
+      }
+      var c = resolverCliente(o) || (v ? resolverCliente(v) : null);
+      if(c && c.fbKey && !hasAny(o,['clienteFbKey','clienteKey'])){
+        put(updates,'sisventas/ordenesTrabajo/'+o.fbKey+'/clienteFbKey',c.fbKey);
+        put(updates,'sisventas/ordenesTrabajo/'+o.fbKey+'/clienteKey',c.fbKey);
+      }
+      if((o.origen === 'reclamo' || String(o.tipoVisita||'').toLowerCase().indexOf('reclamo') >= 0) && !o.reclamoKey) nota('OT '+(o.id||o.fbKey)+' parece reclamo pero requiere elegir reclamo original manualmente.');
+    });
+    arr(window.SP_DATA).forEach(function(r){
+      if(!r || !r.fbKey) return;
+      var c = resolverCliente(r);
+      if(c && c.fbKey && !hasAny(r,['clienteFbKey','clienteKey'])){
+        put(updates,'sisventas/reclamos/'+r.fbKey+'/clienteFbKey',c.fbKey);
+        put(updates,'sisventas/reclamos/'+r.fbKey+'/clienteKey',c.fbKey);
+      }
+    });
+    arr(window.prodData || window.productosData).forEach(function(p){
+      if(!p || !p.fbKey) return;
+      var c = resolverCategoria(p);
+      if(c && c.fbKey && (p.categoria || p.categoriaId) && !hasAny(p,['categoriaFbKey','categoriaKey'])){
+        put(updates,'sisventas/productos/'+p.fbKey+'/categoriaFbKey',c.fbKey);
+        put(updates,'sisventas/productos/'+p.fbKey+'/categoriaKey',c.fbKey);
+      }
+    });
+    return {
+      version:'v1.34.3',
+      fecha:new Date().toISOString(),
+      totalCambios:Object.keys(updates).length,
+      updates:updates,
+      notas:notas,
+      instrucciones:'Plan seguro de normalizacion. Revisar antes de aplicar. No incluye casos ambiguos ni reclamoKey sin certeza.'
+    };
   };
 
   window.svInformeAuditoriaRelaciones = function(res){
     res = res || window.svAuditarRelaciones();
     var lines = [];
-    lines.push('SisVentas · Auditoría de relaciones');
+    lines.push('SisVentas - Auditoria de relaciones');
     lines.push('Fecha: ' + new Date(res.fecha || Date.now()).toLocaleString('es-AR'));
     lines.push('Total avisos: ' + res.total);
     lines.push('Por severidad: ' + JSON.stringify(res.porSeveridad || {}));
     lines.push('Por tipo: ' + JSON.stringify(res.porTipo || {}));
     lines.push('');
     res.issues.forEach(function(x,i){
-      lines.push((i+1)+'. ['+String(x.sev||'medio').toUpperCase()+'] '+x.tipo+' · '+x.msg+' · Ref: '+(x.ref||'—')+(x.sugerencia?' · '+x.sugerencia:''));
+      lines.push((i+1)+'. ['+String(x.sev||'medio').toUpperCase()+'] '+x.tipo+' - '+x.msg+' - Ref: '+(x.ref||'-')+(x.sugerencia?' - '+x.sugerencia:''));
     });
     return lines.join('\n');
   };
-  window.svCopiarAuditoriaRelaciones = function(){
-    var txt = window.svInformeAuditoriaRelaciones(window._svUltimaAuditoriaRelaciones);
-    if(navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(txt).then(function(){ if(typeof notify==='function') notify('Informe copiado'); });
-    } else {
-      window.prompt('Copiá el informe:', txt);
-    }
+  function copiarTexto(txt, ok){
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function(){ if(typeof notify==='function') notify(ok); });
+    else window.prompt('Copiar:', txt);
+  }
+  window.svCopiarAuditoriaRelaciones = function(){ copiarTexto(window.svInformeAuditoriaRelaciones(window._svUltimaAuditoriaRelaciones), 'Informe copiado'); };
+  window.svCopiarPlanNormalizacionRelaciones = function(){
+    var plan = window.svGenerarPlanNormalizacionRelaciones();
+    copiarTexto(JSON.stringify(plan,null,2), 'Plan copiado ('+plan.totalCambios+' cambios)');
   };
-  window.svDescargarAuditoriaRelaciones = function(){
-    var res = window._svUltimaAuditoriaRelaciones || window.svAuditarRelaciones();
-    var blob = new Blob([JSON.stringify(res,null,2)], {type:'application/json'});
+  function descargarJSON(nombre, obj){
+    var blob = new Blob([JSON.stringify(obj,null,2)], {type:'application/json'});
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'sisventas-auditoria-relaciones-' + new Date().toISOString().slice(0,10) + '.json';
+    a.download = nombre + '-' + new Date().toISOString().slice(0,10) + '.json';
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  window.svDescargarAuditoriaRelaciones = function(){ descargarJSON('sisventas-auditoria-relaciones', window._svUltimaAuditoriaRelaciones || window.svAuditarRelaciones()); };
+  window.svDescargarPlanNormalizacionRelaciones = function(){
+    var plan = window.svGenerarPlanNormalizacionRelaciones();
+    descargarJSON('sisventas-plan-normalizacion', plan);
+    if(typeof notify==='function') notify('Plan descargado: '+plan.totalCambios+' cambio(s)');
+  };
+  window.svAplicarPlanNormalizacionRelaciones = async function(){
+    if(String(window.currentRole || '').toLowerCase() !== 'admin') { if(typeof notify==='function') notify('Solo el administrador puede aplicar el plan'); return false; }
+    if(!window.fbDB || typeof window.fbUpdate !== 'function' || typeof window.fbRef !== 'function') { if(typeof notify==='function') notify('Sin conexion Firebase'); return false; }
+    var auditoria = window.svAuditarRelaciones();
+    if((auditoria.porSeveridad.critico || 0) > 0) {
+      if(typeof notify==='function') notify('No se aplica: hay avisos criticos para resolver primero');
+      return false;
+    }
+    var plan = window.svGenerarPlanNormalizacionRelaciones();
+    if(!plan.totalCambios) { if(typeof notify==='function') notify('No hay cambios seguros para aplicar'); return false; }
+    if(!window.confirm('Se aplicaran '+plan.totalCambios+' cambio(s) seguros de normalizacion. No se borran datos. Continuar?')) return false;
+    var clave = window.prompt('Para confirmar escribi NORMALIZAR:');
+    if(clave !== 'NORMALIZAR') { if(typeof notify==='function') notify('Normalizacion cancelada'); return false; }
+    var usuario = window.currentUser || (window.currentUserData && window.currentUserData.nombre) || 'Admin';
+    var stamp = Date.now();
+    var meta = {
+      version: plan.version,
+      fecha: new Date().toISOString(),
+      usuario: usuario,
+      totalCambios: plan.totalCambios,
+      notas: plan.notas || []
+    };
+    try {
+      await window.fbSet(window.fbRef(window.fbDB, 'sisventas/mantenimiento/normalizaciones/'+stamp), Object.assign({}, meta, { updates: plan.updates }));
+      await window.fbUpdate(window.fbRef(window.fbDB), plan.updates);
+      if(typeof window.registrarActividad === 'function') window.registrarActividad('Normalizacion relaciones', plan.totalCambios+' cambio(s) aplicados');
+      if(typeof notify==='function') notify('Normalizacion aplicada: '+plan.totalCambios+' cambio(s)');
+      setTimeout(function(){
+        if(typeof window.fbCargarTodo === 'function') window.fbCargarTodo();
+        if(typeof window.svRenderAuditoriaRelaciones === 'function') window.svRenderAuditoriaRelaciones();
+      }, 900);
+      return true;
+    } catch(e) {
+      if(typeof notify==='function') notify('Error aplicando plan: '+e.message);
+      return false;
+    }
   };
 
   window.svRenderAuditoriaRelaciones = function(){
     var box=document.getElementById('mnt-relaciones-lista');
     var badge=document.getElementById('mnt-relaciones-count');
     var res=window.svAuditarRelaciones();
+    var plan=window.svGenerarPlanNormalizacionRelaciones();
     window._svUltimaAuditoriaRelaciones = res;
     if(badge){ badge.className='badge '+(res.total?'b-amber':'b-green'); badge.textContent=res.total ? (res.total+' aviso(s)') : 'Relaciones OK'; }
     var acciones = '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px;border-bottom:0.5px solid var(--border);background:var(--bg2)">'+
       '<button class="btn btn-sm" onclick="svCopiarAuditoriaRelaciones()"><i class="ti ti-copy"></i> Copiar informe</button>'+
       '<button class="btn btn-sm" onclick="svDescargarAuditoriaRelaciones()"><i class="ti ti-download"></i> Descargar JSON</button>'+
-      '<span style="font-size:12px;color:var(--text3);align-self:center">Críticos: '+(res.porSeveridad.critico||0)+' · Altos: '+(res.porSeveridad.alto||0)+' · Medios: '+(res.porSeveridad.medio||0)+' · Bajos: '+(res.porSeveridad.bajo||0)+'</span>'+
+      '<button class="btn btn-sm" onclick="svCopiarPlanNormalizacionRelaciones()"><i class="ti ti-clipboard-check"></i> Copiar plan seguro</button>'+
+      '<button class="btn btn-sm" onclick="svDescargarPlanNormalizacionRelaciones()"><i class="ti ti-file-download"></i> Descargar plan</button>'+
+      '<button class="btn btn-sm btn-primary" onclick="svAplicarPlanNormalizacionRelaciones()"><i class="ti ti-database-check"></i> Aplicar plan seguro</button>'+
+      '<span style="font-size:12px;color:var(--text3);align-self:center">Criticos: '+(res.porSeveridad.critico||0)+' - Altos: '+(res.porSeveridad.alto||0)+' - Plan: '+plan.totalCambios+' cambios</span>'+
     '</div>';
     if(box){
-      if(!res.total) box.innerHTML=acciones+'<div style="font-size:13px;color:var(--green);padding:12px;text-align:center">No se detectaron vínculos flojos en memoria.</div>';
+      if(!res.total) box.innerHTML=acciones+'<div style="font-size:13px;color:var(--green);padding:12px;text-align:center">No se detectaron vinculos flojos en memoria.</div>';
       else box.innerHTML=acciones+res.issues.slice(0,120).map(function(x){
         return '<div style="display:grid;grid-template-columns:86px 94px minmax(0,1fr) 120px;gap:8px;align-items:center;padding:8px 10px;border-bottom:0.5px solid var(--border)">'+
-          '<span class="badge '+sevClass(x.sev)+'">'+esc(x.sev)+'</span><span class="badge b-blue">'+esc(x.tipo)+'</span><div style="font-size:12px;color:var(--text2);overflow-wrap:anywhere">'+esc(x.msg)+(x.sugerencia?'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+esc(x.sugerencia)+'</div>':'')+'</div><div style="font-size:11px;color:var(--text3);text-align:right;overflow:hidden;text-overflow:ellipsis">'+esc(x.ref||'—')+'</div></div>';
+          '<span class="badge '+sevClass(x.sev)+'">'+esc(x.sev)+'</span><span class="badge b-blue">'+esc(x.tipo)+'</span><div style="font-size:12px;color:var(--text2);overflow-wrap:anywhere">'+esc(x.msg)+(x.sugerencia?'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+esc(x.sugerencia)+'</div>':'')+'</div><div style="font-size:11px;color:var(--text3);text-align:right;overflow:hidden;text-overflow:ellipsis">'+esc(x.ref||'-')+'</div></div>';
       }).join('') + (res.total>120 ? '<div style="padding:10px;color:var(--text3);font-size:12px;text-align:center">Se muestran 120 de '+res.total+' avisos.</div>' : '');
     }
-    if(typeof window.mntLog === 'function') window.mntLog('Auditoría de relaciones: '+res.total+' aviso(s). Críticos: '+(res.porSeveridad.critico||0)+'.');
+    if(typeof window.mntLog === 'function') window.mntLog('Auditoria de relaciones: '+res.total+' aviso(s). Plan seguro: '+plan.totalCambios+' cambio(s).');
     return res;
   };
 

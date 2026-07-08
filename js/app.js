@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesiÃ³n, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.34.1-firebase',
+  VERSION: 'v1.34.3-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo â€” auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
