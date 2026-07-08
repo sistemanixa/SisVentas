@@ -31,15 +31,24 @@
   function setHTML(el, val){ if (typeof el === 'string') el = document.getElementById(el); if (el) el.innerHTML = val; }
   function getLista(nombre){
     if (SV.Cache && typeof SV.Cache.get === 'function') return arr(SV.Cache.get(nombre));
-    var mapa = { ventas: window.ventasList || window.ventasData, clientes: window.clientesList || window.cliData || window.clientesData, productos: window.prodData || window.productosData, pagos: window.pagosData || window.pagosList, gastos: window.gastosData || window.gastosList, ot: window.otData || window.ordenesTrabajoData };
+    var mapa = { ventas: window.ventasList || window.ventasData, clientes: window.clientesList || window.cliData || window.clientesData, productos: window.prodData || window.productosData, pagos: window.pagosData || window.pagosList || window._pagosListaActual || window._historialPagosCompleto, gastos: window.gastosData || window.gastosList, ot: window.otData || window.ordenesTrabajoData };
     return arr(mapa[nombre] || window[nombre]);
   }
   function ventaId(v){ return id(v && (v.fbKey || v.id || v.numero || v.nro || v.codigo)); }
+  function ventaKeys(v){
+    var out = {};
+    [v && v.fbKey, v && v.id, v && v.numero, v && v.nro, v && v.codigo].forEach(function(k){ k=id(k); if(k) out[k]=true; });
+    return Object.keys(out);
+  }
   function clienteId(c){ return id(c && (c.fbKey || c.id || c.idCliente || c.codigo || c.dni || c.cuit)); }
   function productoCod(p){ return id(p && (p.codigo || p.cod || p.id || p.fbKey)); }
   function totalVenta(v){ return num(v && (v.total || v.totalVenta || v.importe || v.monto || v.totalConIva)); }
   function totalPago(p){ return num(p && (p.monto || p.importe || p.total || p.pagado)); }
-  function ventaPagoId(p){ return id(p && (p.ventaId || p.idVenta || p.venta || p.nroVenta || p.numeroVenta)); }
+  function ventaPagoKeys(p){
+    var out = {};
+    [p && p.ventaFbKey, p && p.ventaKey, p && p.ventaId, p && p.idVenta, p && p.venta, p && p.nroVenta, p && p.numeroVenta].forEach(function(k){ k=id(k); if(k) out[k]=true; });
+    return Object.keys(out);
+  }
   function tipoComprobante(v){ return lower(v && (v.tipoComprobante || v.comprobanteTipo || v.tipo || v.tipoFactura || '')); }
   function signoComprobante(v){ return tipoComprobante(v).indexOf('nota de crédito') >= 0 || tipoComprobante(v).indexOf('nota credito') >= 0 || tipoComprobante(v).indexOf('nc') === 0 ? -1 : 1; }
   function medioTipo(obj){
@@ -61,7 +70,7 @@
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v1.33.2';
+  SV.Cache.version = 'v1.33.3';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -78,8 +87,9 @@
       [p && p.codigo, p && p.cod, p && p.id, p && p.fbKey].forEach(function(k){ if(id(k)) idx.productosPorCodigo[id(k)] = p; });
     });
     getLista('pagos').forEach(function(p){
-      var k = ventaPagoId(p); if(!k) return;
-      (idx.pagosPorVenta[k] = idx.pagosPorVenta[k] || []).push(p);
+      ventaPagoKeys(p).forEach(function(k){
+        (idx.pagosPorVenta[k] = idx.pagosPorVenta[k] || []).push(p);
+      });
     });
     getLista('ot').forEach(function(o){
       var k = id(o && (o.ventaId || o.idVenta || o.venta)); if(!k) return;
@@ -114,8 +124,15 @@
       totalMes += sign * totalVenta(v);
       ivaMes += sign * num(v && (v.iva || v.iva21 || v.totalIva));
       cantMes += 1;
-      var vid = ventaId(v);
-      var pagado = (idx.pagosPorVenta[vid] || []).reduce(function(a,p){ return a + totalPago(p); }, 0);
+      var vistos = {};
+      var pagado = ventaKeys(v).reduce(function(totalKey, k){
+        return totalKey + (idx.pagosPorVenta[k] || []).reduce(function(a,p){
+          var pk = id(p && (p.fbKey || p.id || p.key)) || [p && p.fecha, p && p.monto, p && p.medio, p && p.venta, p && p.ventaFbKey].join('|');
+          if(vistos[pk]) return a;
+          vistos[pk] = true;
+          return a + totalPago(p);
+        }, 0);
+      }, 0);
       pendienteCobro += Math.max(0, totalVenta(v) - pagado);
       var ei = lower(v && (v.estadoInstalacion || v.instalacion || v.estadoOT || v.estado));
       if (ei.indexOf('instal') < 0 && ei.indexOf('complet') < 0 && ei.indexOf('finaliz') < 0) pendienteInstalacion += 1;

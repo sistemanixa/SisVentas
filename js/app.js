@@ -3107,11 +3107,14 @@ function ventaTienePagoTotal(v) {
   if (estado === 'pago_total' || estado === 'pagado' || estado === 'cancelada') return true;
   var total = parseFloat(v.total) || 0;
   var pagosEmbebidos = Array.isArray(v.pagos) ? v.pagos : [];
+  var idsVentaDetalle = [v.fbKey, v.id, v.numero, v.nro, v.codigo].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
   var ventaIdNum = String(v.id||'').replace(/[^0-9]/g,'');
   var pagosGlobales = (window._historialPagosCompleto||[]).filter(function(p) {
-    var pVenta = String(p.venta||p.ventaId||'');
+    if (p && (p.anulado || String(p.estado||'').toLowerCase()==='anulado')) return false;
+    var pVenta = String(p.ventaFbKey||p.ventaKey||p.venta||p.ventaId||p.idVenta||p.nroVenta||p.numeroVenta||'');
     var pNum   = pVenta.replace(/[^0-9]/g,'');
-    return pVenta === v.id || pVenta === v.fbKey || (ventaIdNum && pNum === ventaIdNum);
+    if (idsVentaDetalle.indexOf(pVenta) >= 0) return true;
+    return ventaIdNum && pNum === ventaIdNum;
   });
   var pagos = pagosGlobales.length ? pagosGlobales : pagosEmbebidos;
   var pagado = pagos.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
@@ -4079,7 +4082,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.33.2-firebase',
+  VERSION: 'v1.33.3-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8278,23 +8281,50 @@ function fbCargarPagos() {
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
     }
-    // Cuenta corriente desde ventasList
+    var _emb = [];
+    (ventasList||[]).forEach(function(v) {
+      if (!v.pagos || !v.pagos.length) return;
+      v.pagos.forEach(function(p) { _emb.push({ venta:v.id, ventaFbKey:v.fbKey||'', cliente:v.cliente||'', monto:parseFloat(p.monto)||0, medio:p.medio||'Efectivo', fecha:p.fecha||'', fbKey:null, ts:0 }); });
+    });
+    var _claves = new Set(lista.map(function(p){ return (p.ventaFbKey||'')+'|'+(p.venta||'')+'|'+(p.monto||'')+'|'+(p.fecha||''); }));
+    window._pagosListaActual = lista.concat(_emb.filter(function(p){ return !_claves.has((p.ventaFbKey||'')+'|'+(p.venta||'')+'|'+(p.monto||'')+'|'+(p.fecha||'')); })).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    function _ccVentaKeys(v){
+      var out = {};
+      [v && v.fbKey, v && v.id, v && v.numero, v && v.nro, v && v.codigo].forEach(function(k){ k=String(k||'').trim(); if(k) out[k]=true; });
+      return Object.keys(out);
+    }
+    function _ccPagoKeys(p){
+      var out = {};
+      [p && p.ventaFbKey, p && p.ventaKey, p && p.venta, p && p.ventaId, p && p.idVenta, p && p.nroVenta, p && p.numeroVenta].forEach(function(k){ k=String(k||'').trim(); if(k) out[k]=true; });
+      return Object.keys(out);
+    }
+    var pagosPorVentaCC = {};
+    (window._pagosListaActual||[]).forEach(function(p){
+      if (!p || p.anulado || String(p.estado||'').toLowerCase()==='anulado') return;
+      _ccPagoKeys(p).forEach(function(k){ (pagosPorVentaCC[k]=pagosPorVentaCC[k]||[]).push(p); });
+    });
+    function _ccPagadoVenta(v){
+      var vistos = {};
+      var totalPagos = _ccVentaKeys(v).reduce(function(sum,k){
+        return sum + (pagosPorVentaCC[k]||[]).reduce(function(acc,p){
+          var pk = String(p.fbKey||p.id||p.key||'') || [p.fecha||'',p.monto||0,p.medio||p.medioPago||'',p.venta||p.ventaFbKey||''].join('|');
+          if(vistos[pk]) return acc;
+          vistos[pk]=true;
+          return acc + (parseFloat(p.monto)||0);
+        },0);
+      },0);
+      var directo = parseFloat(v.totalPagado||v.pagado||v.montoPagado)||0;
+      return Math.max(totalPagos, directo);
+    }
+    // Cuenta corriente desde ventasList + pagos reales vinculados por ID/key
     var ccMap = {};
     (ventasList||[]).forEach(function(v){
       if (!ccMap[v.cliente]) ccMap[v.cliente]={total:0,cobrado:0,ultimoPago:'—'};
       ccMap[v.cliente].total += parseFloat(v.total)||0;
-      if (v.estadoPago==='pago_total') ccMap[v.cliente].cobrado += parseFloat(v.total)||0;
-      else ccMap[v.cliente].cobrado += parseFloat(v.totalPagado||0);
+      ccMap[v.cliente].cobrado += Math.min(parseFloat(v.total)||0, _ccPagadoVenta(v));
     });
     lista.forEach(function(p){ if(ccMap[p.cliente]) ccMap[p.cliente].ultimoPago=p.fecha||'—'; });
     window._ccMapActual = ccMap;
-    var _emb = [];
-    (ventasList||[]).forEach(function(v) {
-      if (!v.pagos || !v.pagos.length) return;
-      v.pagos.forEach(function(p) { _emb.push({ venta:v.id, cliente:v.cliente||'', monto:parseFloat(p.monto)||0, medio:p.medio||'Efectivo', fecha:p.fecha||'', fbKey:null, ts:0 }); });
-    });
-    var _claves = new Set(lista.map(function(p){ return (p.venta||'')+'|'+(p.monto||'')+'|'+(p.fecha||''); }));
-    window._pagosListaActual = lista.concat(_emb.filter(function(p){ return !_claves.has((p.venta||'')+'|'+(p.monto||'')+'|'+(p.fecha||'')); })).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
     var ccTbody = document.getElementById('cc-tbody');
     if (ccTbody) {
       var ccLista = Object.entries(ccMap).filter(function(e){ return e[1].total>0; }).sort(function(a,b){ return (b[1].total-b[1].cobrado)-(a[1].total-a[1].cobrado); });

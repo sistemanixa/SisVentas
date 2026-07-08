@@ -36,7 +36,40 @@
     var subtotal=numero(v.subtotal != null ? v.subtotal : v.neto);
     return Math.max(0,subtotal-numero(v.descuento)+numero(v.iva));
   }
+  function ventaKeys(v){
+    var out = {};
+    [v && v.fbKey, v && v.id, v && v.numero, v && v.nro, v && v.codigo].forEach(function(k){
+      k = String(k||'').trim();
+      if(k) out[k] = true;
+    });
+    return Object.keys(out);
+  }
+  function pagoKeys(p){
+    var out = {};
+    [p && p.ventaFbKey, p && p.ventaKey, p && p.ventaId, p && p.idVenta, p && p.venta, p && p.nroVenta, p && p.numeroVenta].forEach(function(k){
+      k = String(k||'').trim();
+      if(k) out[k] = true;
+    });
+    return Object.keys(out);
+  }
+  function pagosDeVenta(v){
+    var keys = ventaKeys(v);
+    if(!keys.length) return [];
+    var pagos = arr(window._pagosListaActual || window._historialPagosCompleto || window.pagosData || window.pagosList);
+    var vistos = {};
+    return pagos.filter(function(p){
+      if(!p || p.anulado || norm(p.estado) === 'anulado') return false;
+      var match = pagoKeys(p).some(function(k){ return keys.indexOf(k) >= 0; });
+      if(!match) return false;
+      var pk = String(p.fbKey || p.id || p.key || '') || [p.fecha || '', p.medio || p.medioPago || '', p.monto || 0, p.venta || p.ventaFbKey || ''].join('|');
+      if(vistos[pk]) return false;
+      vistos[pk] = true;
+      return true;
+    });
+  }
   function pagadoVenta(v){
+    var desdePagos = pagosDeVenta(v).reduce(function(s,p){ return s + numero(p && (p.monto || p.importe || p.total || p.pagado)); }, 0);
+    if (desdePagos > 0) return desdePagos;
     var directo = numero(v && (v.totalPagado != null ? v.totalPagado : v.pagado != null ? v.pagado : v.montoPagado));
     if (directo > 0) return directo;
     return esPagoTotal(v) ? totalVenta(v) : 0;
