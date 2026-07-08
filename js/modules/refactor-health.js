@@ -7,7 +7,16 @@
   function setText(id, value){ var el=document.getElementById(id); if(el) el.textContent=value; }
   function hasAny(obj, keys){ return keys.some(function(k){ return !!norm(obj && obj[k]); }); }
   function baseRef(rec){ return norm((rec && (rec.fbKey || rec.id || rec.numero || rec.codigo || rec.ventaId || rec.clienteId)) || ''); }
-  function put(updates, path, value){ if(path && value != null && value !== '') updates[path] = value; }
+  function rutaYaVerificada(path, value){
+    var m = window._svRutasNormalizadasVerificadas || {};
+    return !!(path && m[path] && valoresIguales(m[path], value));
+  }
+  function marcarRutaVerificada(path, value){
+    if(!path) return;
+    window._svRutasNormalizadasVerificadas = window._svRutasNormalizadasVerificadas || {};
+    window._svRutasNormalizadasVerificadas[path] = value;
+  }
+  function put(updates, path, value){ if(path && value != null && value !== '' && !rutaYaVerificada(path, value)) updates[path] = value; }
   function sevClass(sev){ return sev==='critico'?'b-red':sev==='alto'?'b-amber':sev==='ok'?'b-green':'b-blue'; }
   function sevPeso(sev){ return {critico:0,alto:1,medio:2,bajo:3,ok:4}[sev] == null ? 2 : {critico:0,alto:1,medio:2,bajo:3,ok:4}[sev]; }
 
@@ -39,6 +48,12 @@
   function issue(list, sev, tipo, msg, rec, sugerencia){
     list.push({sev:sev||'medio', tipo:tipo, msg:msg, ref:baseRef(rec), sugerencia:sugerencia||''});
   }
+  function relacionesVerificadasPara(rec, pares){
+    if(!rec || !rec.fbKey) return false;
+    return pares.every(function(par){
+      return rutaYaVerificada('sisventas/'+par.col+'/'+rec.fbKey+'/'+par.campo, par.valor);
+    });
+  }
 
   function auditarDuplicadosOT(issues){
     var mapa = {};
@@ -55,14 +70,16 @@
   function auditarVentas(issues){
     arr(window.ventasList || window.ventasData).forEach(function(v){
       if(!v) return;
-      if(!hasAny(v,['clienteFbKey','clienteKey']) && resolverCliente(v)) issue(issues,'medio','venta','Venta sin clienteFbKey aunque el cliente se puede resolver',v,'Normalizar clienteFbKey en una migracion segura.');
+      var c = resolverCliente(v);
+      if(!hasAny(v,['clienteFbKey','clienteKey']) && c && c.fbKey && !relacionesVerificadasPara(v,[{col:'ventas',campo:'clienteFbKey',valor:c.fbKey},{col:'ventas',campo:'clienteKey',valor:c.fbKey}])) issue(issues,'medio','venta','Venta sin clienteFbKey aunque el cliente se puede resolver',v,'Normalizar clienteFbKey en una migracion segura.');
       if(!hasAny(v,['clienteFbKey','clienteKey','clienteId','idCliente']) && v.cliente) issue(issues,'bajo','venta','Venta depende solo del nombre de cliente',v,'Completar clave de cliente cuando se edite o migre.');
     });
   }
   function auditarPresupuestos(issues){
     arr(window.pptoData || window.presupuestosData).forEach(function(p){
       if(!p) return;
-      if(!hasAny(p,['clienteFbKey','clienteKey']) && resolverCliente(p)) issue(issues,'medio','presupuesto','Presupuesto sin clienteFbKey aunque el cliente se puede resolver',p,'Normalizar clienteFbKey.');
+      var c = resolverCliente(p);
+      if(!hasAny(p,['clienteFbKey','clienteKey']) && c && c.fbKey && !relacionesVerificadasPara(p,[{col:'presupuestos',campo:'clienteFbKey',valor:c.fbKey},{col:'presupuestos',campo:'clienteKey',valor:c.fbKey}])) issue(issues,'medio','presupuesto','Presupuesto sin clienteFbKey aunque el cliente se puede resolver',p,'Normalizar clienteFbKey.');
       if((p.ventaId || p.ventaGeneradaId) && !hasAny(p,['ventaFbKey','ventaGeneradaFbKey'])) issue(issues,'alto','presupuesto','Presupuesto convertido sin ventaFbKey/ventaGeneradaFbKey',p,'Completar vinculo a venta generada.');
     });
   }
@@ -72,29 +89,34 @@
       var tieneRef = hasAny(p,['ventaFbKey','ventaKey','ventaId','idVenta','venta','nroVenta','numeroVenta']);
       var venta = resolverVenta(p);
       if(tieneRef && !venta) issue(issues,'alto','pago','Pago con referencia de venta que no se pudo resolver',p,'Revisar venta eliminada/anulada o completar ventaFbKey.');
-      if(!hasAny(p,['ventaFbKey','ventaKey']) && venta) issue(issues,'medio','pago','Pago sin ventaFbKey aunque la venta se puede resolver',p,'Normalizar ventaFbKey.');
-      if(!hasAny(p,['clienteFbKey','clienteKey']) && (resolverCliente(p) || (venta && resolverCliente(venta)))) issue(issues,'bajo','pago','Pago sin clienteFbKey aunque el cliente se puede resolver',p,'Normalizar clienteFbKey.');
+      if(!hasAny(p,['ventaFbKey','ventaKey']) && venta && venta.fbKey && !relacionesVerificadasPara(p,[{col:'pagos',campo:'ventaFbKey',valor:venta.fbKey},{col:'pagos',campo:'ventaKey',valor:venta.fbKey}])) issue(issues,'medio','pago','Pago sin ventaFbKey aunque la venta se puede resolver',p,'Normalizar ventaFbKey.');
+      var c = resolverCliente(p) || (venta && resolverCliente(venta));
+      if(!hasAny(p,['clienteFbKey','clienteKey']) && c && c.fbKey && !relacionesVerificadasPara(p,[{col:'pagos',campo:'clienteFbKey',valor:c.fbKey},{col:'pagos',campo:'clienteKey',valor:c.fbKey}])) issue(issues,'bajo','pago','Pago sin clienteFbKey aunque el cliente se puede resolver',p,'Normalizar clienteFbKey.');
     });
   }
   function auditarOT(issues){
     arr(window.otData || window.ordenesTrabajoData).forEach(function(o){
       if(!o) return;
-      if(!hasAny(o,['ventaFbKey','ventaKey']) && (o.ventaId || o.venta) && resolverVenta(o)) issue(issues,'medio','ot','OT sin ventaFbKey aunque la venta se puede resolver',o,'Normalizar ventaFbKey.');
-      if(!hasAny(o,['clienteFbKey','clienteKey']) && resolverCliente(o)) issue(issues,'medio','ot','OT sin clienteFbKey aunque el cliente se puede resolver',o,'Normalizar clienteFbKey.');
+      var v = resolverVenta(o);
+      if(!hasAny(o,['ventaFbKey','ventaKey']) && (o.ventaId || o.venta) && v && v.fbKey && !relacionesVerificadasPara(o,[{col:'ordenesTrabajo',campo:'ventaFbKey',valor:v.fbKey},{col:'ordenesTrabajo',campo:'ventaKey',valor:v.fbKey}])) issue(issues,'medio','ot','OT sin ventaFbKey aunque la venta se puede resolver',o,'Normalizar ventaFbKey.');
+      var c = resolverCliente(o) || (v && resolverCliente(v));
+      if(!hasAny(o,['clienteFbKey','clienteKey']) && c && c.fbKey && !relacionesVerificadasPara(o,[{col:'ordenesTrabajo',campo:'clienteFbKey',valor:c.fbKey},{col:'ordenesTrabajo',campo:'clienteKey',valor:c.fbKey}])) issue(issues,'medio','ot','OT sin clienteFbKey aunque el cliente se puede resolver',o,'Normalizar clienteFbKey.');
       if((o.origen === 'reclamo' || String(o.tipoVisita||'').toLowerCase().indexOf('reclamo') >= 0) && !o.reclamoKey) issue(issues,'alto','ot','OT de reclamo sin reclamoKey',o,'Vincular con reclamo original si existe.');
     });
   }
   function auditarReclamos(issues){
     arr(window.SP_DATA).forEach(function(r){
       if(!r) return;
-      if(!hasAny(r,['clienteFbKey','clienteKey']) && resolverCliente(r)) issue(issues,'medio','reclamo','Reclamo sin clienteFbKey aunque el cliente se puede resolver',r,'Normalizar clienteFbKey.');
+      var c = resolverCliente(r);
+      if(!hasAny(r,['clienteFbKey','clienteKey']) && c && c.fbKey && !relacionesVerificadasPara(r,[{col:'reclamos',campo:'clienteFbKey',valor:c.fbKey},{col:'reclamos',campo:'clienteKey',valor:c.fbKey}])) issue(issues,'medio','reclamo','Reclamo sin clienteFbKey aunque el cliente se puede resolver',r,'Normalizar clienteFbKey.');
       if((r.otKey || r.otId) && !(r.ventaKey || r.ventaFbKey || r.ventaId)) issue(issues,'bajo','reclamo','Reclamo con OT pero sin venta vinculada registrada',r,'Completar ventaKey si el reclamo genero visita facturable.');
     });
   }
   function auditarProductos(issues){
     arr(window.prodData || window.productosData).forEach(function(p){
       if(!p) return;
-      if((p.categoria || p.categoriaId) && !hasAny(p,['categoriaFbKey','categoriaKey'])) issue(issues,'bajo','producto','Producto con categoria legacy sin categoriaFbKey',p,'Normalizar categoria cuando se edite o migre productos.');
+      var c = resolverCategoria(p);
+      if((p.categoria || p.categoriaId) && !hasAny(p,['categoriaFbKey','categoriaKey']) && !(c && c.fbKey && relacionesVerificadasPara(p,[{col:'productos',campo:'categoriaFbKey',valor:c.fbKey},{col:'productos',campo:'categoriaKey',valor:c.fbKey}]))) issue(issues,'bajo','producto','Producto con categoria legacy sin categoriaFbKey',p,'Normalizar categoria cuando se edite o migre productos.');
     });
   }
 
@@ -110,7 +132,7 @@
     issues.sort(function(a,b){ return sevPeso(a.sev)-sevPeso(b.sev) || String(a.tipo).localeCompare(String(b.tipo)); });
     var porTipo = issues.reduce(function(acc,it){ acc[it.tipo]=(acc[it.tipo]||0)+1; return acc; }, {});
     var porSev = issues.reduce(function(acc,it){ acc[it.sev]=(acc[it.sev]||0)+1; return acc; }, {});
-    return { version:'v1.34.6', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
+    return { version:'v1.34.7', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
   };
 
   window.svGenerarPlanNormalizacionRelaciones = function(){
@@ -183,7 +205,7 @@
       }
     });
     return {
-      version:'v1.34.6',
+      version:'v1.34.7',
       fecha:new Date().toISOString(),
       totalCambios:Object.keys(updates).length,
       updates:updates,
@@ -227,6 +249,15 @@
     return Object.keys(updates).sort().map(function(ruta){
       return { ruta: ruta, valor: updates[ruta] };
     });
+  }
+  function resumenPlan(plan){
+    var porColeccion = {};
+    Object.keys((plan && plan.updates) || {}).forEach(function(ruta){
+      var p = ruta.split('/').filter(Boolean);
+      var col = p[1] || 'otros';
+      porColeccion[col] = (porColeccion[col] || 0) + 1;
+    });
+    return Object.keys(porColeccion).sort().map(function(k){ return k+': '+porColeccion[k]; }).join(', ') || 'sin cambios';
   }
   function setByPath(obj, parts, value){
     if(!obj || !parts || !parts.length) return false;
@@ -313,10 +344,13 @@
         if(typeof window.mntLog === 'function') window.mntLog('Plan seguro con pendientes de verificacion: '+verificacion.pendientes.length);
         return false;
       }
-      backupLista.forEach(function(x){ aplicarUpdateEnMemoria(x.ruta, x.valor); });
+      backupLista.forEach(function(x){
+        marcarRutaVerificada(x.ruta, x.valor);
+        aplicarUpdateEnMemoria(x.ruta, x.valor);
+      });
       if(typeof window.registrarActividad === 'function') window.registrarActividad('Normalizacion relaciones', plan.totalCambios+' cambio(s) aplicados');
       if(typeof notify==='function') notify('Normalizacion verificada: '+plan.totalCambios+' cambio(s)');
-      if(typeof window.mntLog === 'function') window.mntLog('Plan seguro verificado: '+plan.totalCambios+' cambio(s)');
+      if(typeof window.mntLog === 'function') window.mntLog('Plan seguro verificado: '+plan.totalCambios+' cambio(s) - '+resumenPlan(plan));
       setTimeout(function(){
         if(typeof window.fbCargarTodo === 'function') window.fbCargarTodo();
         if(typeof window.svRenderAuditoriaRelaciones === 'function') window.svRenderAuditoriaRelaciones();
