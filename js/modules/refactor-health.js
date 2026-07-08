@@ -110,7 +110,7 @@
     issues.sort(function(a,b){ return sevPeso(a.sev)-sevPeso(b.sev) || String(a.tipo).localeCompare(String(b.tipo)); });
     var porTipo = issues.reduce(function(acc,it){ acc[it.tipo]=(acc[it.tipo]||0)+1; return acc; }, {});
     var porSev = issues.reduce(function(acc,it){ acc[it.sev]=(acc[it.sev]||0)+1; return acc; }, {});
-    return { version:'v1.34.4', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
+    return { version:'v1.34.5', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
   };
 
   window.svGenerarPlanNormalizacionRelaciones = function(){
@@ -183,7 +183,7 @@
       }
     });
     return {
-      version:'v1.34.4',
+      version:'v1.34.5',
       fecha:new Date().toISOString(),
       totalCambios:Object.keys(updates).length,
       updates:updates,
@@ -222,6 +222,12 @@
     a.download = nombre + '-' + new Date().toISOString().slice(0,10) + '.json';
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
+  function planBackupSeguro(plan){
+    var updates = plan && plan.updates ? plan.updates : {};
+    return Object.keys(updates).sort().map(function(ruta){
+      return { ruta: ruta, valor: updates[ruta] };
+    });
+  }
   window.svDescargarAuditoriaRelaciones = function(){ descargarJSON('sisventas-auditoria-relaciones', window._svUltimaAuditoriaRelaciones || window.svAuditarRelaciones()); };
   window.svDescargarPlanNormalizacionRelaciones = function(){
     var plan = window.svGenerarPlanNormalizacionRelaciones();
@@ -251,7 +257,7 @@
       notas: plan.notas || []
     };
     try {
-      await window.fbSet(window.fbRef(window.fbDB, 'sisventas/mantenimiento/normalizaciones/'+stamp), Object.assign({}, meta, { updates: plan.updates }));
+      await window.fbSet(window.fbRef(window.fbDB, 'sisventas/mantenimiento/normalizaciones/'+stamp), Object.assign({}, meta, { updatesLista: planBackupSeguro(plan) }));
       await window.fbUpdate(window.fbRef(window.fbDB), plan.updates);
       if(typeof window.registrarActividad === 'function') window.registrarActividad('Normalizacion relaciones', plan.totalCambios+' cambio(s) aplicados');
       if(typeof notify==='function') notify('Normalizacion aplicada: '+plan.totalCambios+' cambio(s)');
