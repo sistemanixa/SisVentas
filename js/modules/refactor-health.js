@@ -110,7 +110,7 @@
     issues.sort(function(a,b){ return sevPeso(a.sev)-sevPeso(b.sev) || String(a.tipo).localeCompare(String(b.tipo)); });
     var porTipo = issues.reduce(function(acc,it){ acc[it.tipo]=(acc[it.tipo]||0)+1; return acc; }, {});
     var porSev = issues.reduce(function(acc,it){ acc[it.sev]=(acc[it.sev]||0)+1; return acc; }, {});
-    return { version:'v1.34.5', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
+    return { version:'v1.34.6', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
   };
 
   window.svGenerarPlanNormalizacionRelaciones = function(){
@@ -183,7 +183,7 @@
       }
     });
     return {
-      version:'v1.34.5',
+      version:'v1.34.6',
       fecha:new Date().toISOString(),
       totalCambios:Object.keys(updates).length,
       updates:updates,
@@ -228,6 +228,52 @@
       return { ruta: ruta, valor: updates[ruta] };
     });
   }
+  function setByPath(obj, parts, value){
+    if(!obj || !parts || !parts.length) return false;
+    var cur = obj;
+    for(var i=0;i<parts.length-1;i++){
+      var p = parts[i];
+      if(!cur[p] || typeof cur[p] !== 'object') cur[p] = {};
+      cur = cur[p];
+    }
+    cur[parts[parts.length-1]] = value;
+    return true;
+  }
+  function aplicarUpdateEnMemoria(ruta, valor){
+    var p = String(ruta||'').split('/').filter(Boolean);
+    if(p[0] !== 'sisventas' || p.length < 4) return false;
+    var col = p[1], key = p[2], campo = p.slice(3);
+    var listas = {
+      ventas: [window.ventasList, window.ventasData],
+      presupuestos: [window.pptoData, window.presupuestosData],
+      pagos: [window._pagosListaActual, window._historialPagosCompleto, window.pagosData, window.pagosList],
+      ordenesTrabajo: [window.otData, window.ordenesTrabajoData],
+      reclamos: [window.SP_DATA],
+      productos: [window.prodData, window.productosData]
+    }[col] || [];
+    var ok = false;
+    listas.forEach(function(lista){
+      arr(lista).forEach(function(rec){
+        if(rec && norm(rec.fbKey) === key) ok = setByPath(rec, campo, valor) || ok;
+      });
+    });
+    return ok;
+  }
+  function valoresIguales(a,b){
+    return String(a == null ? '' : a) === String(b == null ? '' : b);
+  }
+  async function verificarPlanAplicado(plan){
+    if(!window.fbGet || !window.fbRef || !window.fbDB) return { ok:false, pendientes:['Firebase get no disponible'] };
+    var pendientes = [];
+    var entries = Object.entries((plan && plan.updates) || {});
+    for(var i=0;i<entries.length;i++){
+      var ruta = entries[i][0], esperado = entries[i][1];
+      var snap = await window.fbGet(window.fbRef(window.fbDB, ruta)).catch(function(e){ return { _error:e, val:function(){ return undefined; } }; });
+      var actual = snap && typeof snap.val === 'function' ? snap.val() : undefined;
+      if(!valoresIguales(actual, esperado)) pendientes.push({ ruta:ruta, esperado:esperado, actual:actual == null ? null : actual });
+    }
+    return { ok: pendientes.length === 0, pendientes: pendientes };
+  }
   window.svDescargarAuditoriaRelaciones = function(){ descargarJSON('sisventas-auditoria-relaciones', window._svUltimaAuditoriaRelaciones || window.svAuditarRelaciones()); };
   window.svDescargarPlanNormalizacionRelaciones = function(){
     var plan = window.svGenerarPlanNormalizacionRelaciones();
@@ -257,14 +303,24 @@
       notas: plan.notas || []
     };
     try {
-      await window.fbSet(window.fbRef(window.fbDB, 'sisventas/mantenimiento/normalizaciones/'+stamp), Object.assign({}, meta, { updatesLista: planBackupSeguro(plan) }));
+      var backupLista = planBackupSeguro(plan);
+      await window.fbSet(window.fbRef(window.fbDB, 'sisventas/mantenimiento/normalizaciones/'+stamp), Object.assign({}, meta, { updatesLista: backupLista }));
       await window.fbUpdate(window.fbRef(window.fbDB), plan.updates);
+      var verificacion = await verificarPlanAplicado(plan);
+      if(!verificacion.ok) {
+        await window.fbSet(window.fbRef(window.fbDB, 'sisventas/mantenimiento/normalizaciones/'+stamp+'/verificacion'), verificacion).catch(function(){});
+        if(typeof notify==='function') notify('Plan escrito parcialmente: '+verificacion.pendientes.length+' ruta(s) no verificadas');
+        if(typeof window.mntLog === 'function') window.mntLog('Plan seguro con pendientes de verificacion: '+verificacion.pendientes.length);
+        return false;
+      }
+      backupLista.forEach(function(x){ aplicarUpdateEnMemoria(x.ruta, x.valor); });
       if(typeof window.registrarActividad === 'function') window.registrarActividad('Normalizacion relaciones', plan.totalCambios+' cambio(s) aplicados');
-      if(typeof notify==='function') notify('Normalizacion aplicada: '+plan.totalCambios+' cambio(s)');
+      if(typeof notify==='function') notify('Normalizacion verificada: '+plan.totalCambios+' cambio(s)');
+      if(typeof window.mntLog === 'function') window.mntLog('Plan seguro verificado: '+plan.totalCambios+' cambio(s)');
       setTimeout(function(){
         if(typeof window.fbCargarTodo === 'function') window.fbCargarTodo();
         if(typeof window.svRenderAuditoriaRelaciones === 'function') window.svRenderAuditoriaRelaciones();
-      }, 900);
+      }, 1200);
       return true;
     } catch(e) {
       if(typeof notify==='function') notify('Error aplicando plan: '+e.message);
