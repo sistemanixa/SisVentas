@@ -88,6 +88,9 @@
         }
         return score(a)-score(b) || String(fechaISO(a.fecha)||'9999').localeCompare(String(fechaISO(b.fecha)||'9999'));
       });
+      var puedeEliminarOT = typeof window.tienePermiso === 'function'
+        ? window.tienePermiso('ot.eliminar')
+        : String(window.currentRole || '').toLowerCase() === 'admin';
       tbody.innerHTML = rows.map(function(o){
         var f = fechaISO(o.fecha);
         var esPrioridad = o.prioridad === true || o.prioridad === 'true';
@@ -105,7 +108,9 @@
           '<td style="font-size:12px;color:var(--text3)">'+esc(o.tipoVisita||o.tipo||'—')+'</td>' +
           '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
           '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o.estado) : esc(o.estado||'')) +'</td>' +
-          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+key+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+key+'\')"><i class="ti ti-trash" style="font-size:14px"></i></button></td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+key+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
+            (puedeEliminarOT ? '<button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+key+'\')"><i class="ti ti-trash" style="font-size:14px"></i></button>' : '') +
+          '</td>' +
         '</tr>';
       }).join('');
       if(!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';

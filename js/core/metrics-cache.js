@@ -1,4 +1,4 @@
-(function(){
+﻿(function(){
   window.SisVentas = window.SisVentas || {};
   var SV = window.SisVentas;
   SV.Cache = SV.Cache || {};
@@ -50,14 +50,14 @@
     return Object.keys(out);
   }
   function tipoComprobante(v){ return lower(v && (v.tipoComprobante || v.comprobanteTipo || v.tipo || v.tipoFactura || '')); }
-  function signoComprobante(v){ return tipoComprobante(v).indexOf('nota de crédito') >= 0 || tipoComprobante(v).indexOf('nota credito') >= 0 || tipoComprobante(v).indexOf('nc') === 0 ? -1 : 1; }
+  function signoComprobante(v){ return tipoComprobante(v).indexOf('nota de crÃ©dito') >= 0 || tipoComprobante(v).indexOf('nota credito') >= 0 || tipoComprobante(v).indexOf('nc') === 0 ? -1 : 1; }
   function medioTipo(obj){
     var t = lower(obj && (obj.medioTipo || obj.tipoMedio || obj.tipo || obj.medio_pago_tipo));
     var m = lower(obj && (obj.medio || obj.medioPago || obj.formaPago || obj.nombreMedio));
     var s = (t + ' ' + m).trim();
     if (s.indexOf('efectivo') >= 0 || s.indexOf('caja') >= 0) return 'efectivo';
     if (s.indexOf('transfer') >= 0 || s.indexOf('alias') >= 0 || s.indexOf('cbu') >= 0 || s.indexOf('cvu') >= 0) return 'transferencia';
-    if (s.indexOf('tarjeta') >= 0 || s.indexOf('débito') >= 0 || s.indexOf('debito') >= 0 || s.indexOf('crédito') >= 0 || s.indexOf('credito') >= 0) return 'tarjeta';
+    if (s.indexOf('tarjeta') >= 0 || s.indexOf('dÃ©bito') >= 0 || s.indexOf('debito') >= 0 || s.indexOf('crÃ©dito') >= 0 || s.indexOf('credito') >= 0) return 'tarjeta';
     if (s.indexOf('cheque') >= 0 || s.indexOf('echeq') >= 0) return 'cheque';
     if (s.indexOf('qr') >= 0 || s.indexOf('mercado pago') >= 0 || s.indexOf('mp') >= 0) return 'qr';
     return t || m || 'otro';
@@ -70,7 +70,7 @@
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v1.33.3';
+  SV.Cache.version = 'v1.34.1';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -188,7 +188,7 @@
   };
 
   SV.Modal.confirmar = function(msg, onOk){
-    if (window.confirm(msg || 'Confirmar acción')) { if (typeof onOk === 'function') onOk(); return true; }
+    if (window.confirm(msg || 'Confirmar acciÃ³n')) { if (typeof onOk === 'function') onOk(); return true; }
     return false;
   };
   SV.Modal.alerta = function(msg){ if (typeof window.notify === 'function') window.notify(msg); else alert(msg); };
@@ -196,9 +196,9 @@
 
   SV.Validate.venta = function(v){
     var errores = [];
-    if(!v) errores.push('Venta vacía');
+    if(!v) errores.push('Venta vacÃ­a');
     if(v && !id(v.clienteId || v.idCliente) && !id(v.cliente || v.clienteNombre)) errores.push('Cliente obligatorio');
-    if(v && totalVenta(v) <= 0) errores.push('Total inválido');
+    if(v && totalVenta(v) <= 0) errores.push('Total invÃ¡lido');
     return { ok: errores.length === 0, errores: errores };
   };
   SV.Validate.cobro = function(c){
@@ -258,3 +258,4 @@
   });
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(SV.Metrics.refresh, 500); });
 })();
+

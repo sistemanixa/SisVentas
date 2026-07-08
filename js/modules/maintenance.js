@@ -6,6 +6,7 @@ function mntSetEstado(txt, cls){ var el=document.getElementById('mnt-estado-gene
 function mntSetText(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
 function mntObjCount(o){ return o && typeof o==='object' ? Object.keys(o).length : 0; }
 function mntMoney(n){ return Math.round(parseFloat(n)||0); }
+function mntRequireAdmin(accion){ if(String(window.currentRole||'').toLowerCase()==='admin') return true; if(typeof notify==='function') notify('Solo el administrador puede ejecutar '+(accion||'esta accion')); return false; }
 function mntFecha(f){ return (typeof _pagableNormFecha==='function') ? _pagableNormFecha(f) : (f||new Date().toISOString().slice(0,10)); }
 function mntEmpByKey(empKey){ try { return (empData && Object.values(empData).find(function(e){ return String(e.fbKey||e.id||'')===String(empKey||''); })) || {}; } catch(e){ return {}; } }
 function mntGastoExiste(gastos, tipoPagable, empKey, monto, fecha, semKey, legacyKey){
@@ -35,6 +36,7 @@ async function mntAnalizarBase(){
 }
 function mntRenderMigraciones(migr){ var box=document.getElementById('mnt-migraciones-lista'); if(!box) return; migr=migr||{}; var defs=[['001-sac-gastos','Aguinaldos legacy → Gastos'],['002-horasextras-gastos','Horas extra legacy → Gastos'],['003-ctaemp-pagables-gastos','Cuenta empleado pagable legacy → Gastos'],['004-comisiones-gastos','Comisiones aprobadas → Gastos']]; box.innerHTML=defs.map(function(d){ var m=migr[d[0]]||{}; var ok=String(m.estado||'').toLowerCase()==='ok'; return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3)"><div><div style="font-size:13px;font-weight:600;color:var(--text)">'+d[0]+'</div><div style="font-size:12px;color:var(--text2)">'+d[1]+'</div></div><div style="text-align:right"><span class="badge '+(ok?'b-green':'b-amber')+'">'+(ok?'Ejecutada':'Pendiente')+'</span><div style="font-size:11px;color:var(--text3);margin-top:4px">'+(m.fecha||'—')+'</div></div></div>'; }).join(''); }
 async function mntMigrarLegacy(){
+  if(!mntRequireAdmin('migraciones de mantenimiento')) return;
   if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
   if(!MNT_STATE.analizado) await mntAnalizarBase();
   mntSetEstado('Migrando...','b-amber'); mntLog('Iniciando migración controlada...'); var antes=Date.now();
@@ -115,6 +117,7 @@ function mntRenderDuplicadosGastosFijos(grupos){
   }).join('');
 }
 async function mntAnalizarDuplicadosGastosFijos(){
+  if(!mntRequireAdmin('auditoria de duplicados')) return;
   if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
   mntLog('Buscando duplicados de gastos fijos...');
   var gastosObj=await mntGet('sisventas/gastos')||{};
@@ -140,6 +143,7 @@ async function mntAnalizarDuplicadosGastosFijos(){
   notify(cant ? ('Detectados '+cant+' duplicado(s)') : 'Sin duplicados de gastos fijos');
 }
 async function mntEliminarDuplicadosGastosFijos(){
+  if(!mntRequireAdmin('eliminacion de duplicados')) return;
   var grupos=window._mntDuplicadosGastosFijos||[];
   var keys=[]; grupos.forEach(function(g){ (g.dups||[]).forEach(function(x){ if(x.fbKey) keys.push(x.fbKey); }); });
   if(!keys.length){ notify('No hay duplicados para eliminar'); return; }
@@ -157,6 +161,7 @@ async function mntEliminarDuplicadosGastosFijos(){
 }
 
 async function mntLimpiarLegacy(){
+  if(!mntRequireAdmin('limpieza legacy')) return;
   if(!MNT_STATE.integridadOK){ notify('Primero verificá integridad OK'); return; }
   if(!confirm('Vas a limpiar estructuras antiguas ya migradas. No se borrarán solicitudes pendientes ni rechazadas. ¿Continuar?')) return;
   var clave=prompt('Escribí LIMPIAR para confirmar la limpieza definitiva:'); if(clave!=='LIMPIAR'){ notify('Limpieza cancelada'); return; }
@@ -211,4 +216,3 @@ async function mntLimpiarLegacy(){
   await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:'v20.362',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
   mntLog('Limpieza finalizada. Elementos removidos: '+borrados); notify('✓ Limpieza legacy finalizada'); await mntAnalizarBase();
 }
-

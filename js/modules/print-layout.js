@@ -26,7 +26,15 @@
       logo: window.logoEmpresaUrl ? '<img src="'+window.logoEmpresaUrl+'" class="nx-logo-img">' : '<div class="nx-logo-text">NIXA</div>'
     };
   }
-  function cliente(nombre,id){
+  function cliente(nombre,id,registro){
+    var reg = Object.assign({}, registro || {}, {
+      cliente: nombre || (registro && registro.cliente) || '',
+      clienteId: id || (registro && (registro.clienteId || registro.idCliente)) || '',
+      idCliente: id || (registro && (registro.idCliente || registro.clienteId)) || ''
+    });
+    if (typeof window._svResolverClienteRegistro === 'function') {
+      return window._svResolverClienteRegistro(reg, true) || {};
+    }
     var n=(nombre||'').toString().trim().toLowerCase();
     var c=null;
     try{
@@ -73,7 +81,7 @@
 
   window.imprimirRecibo = function(){
     var pago=window._ultimoPago, v=window._ultimoPagoVenta; if(!pago){notify('Sin datos de pago para imprimir');return;}
-    var c=cliente(pago.cliente, v && (v.idCliente||v.clienteId));
+    var c=cliente(pago.cliente, v && (v.idCliente||v.clienteId), v || pago);
     var monto=parseFloat(pago.monto)||0, total=v?parseFloat(v.total)||0:0, pagadoAnt=v?Math.max(0,(parseFloat(v.totalPagado)||0)-monto):0, saldo=Math.max(0,total-pagadoAnt-monto);
     var body='<section class="grid">'+
       clienteBox(pago.cliente,c,v&&(v.direccion||v.dir||v.direccionInstalacion))+
@@ -91,8 +99,8 @@
     if(!window.fbDB) return;
     window.fbOnValue(window.fbRef(window.fbDB,'sisventas/remitos/'+fbKey),function(snap){
       var r=snap.val(); if(!r){notify('Remito no encontrado');return;}
-      var v=(window.ventasList||[]).find(function(x){return x.id===r.venta||x.fbKey===r.venta;})||{};
-      var c=cliente(r.cliente||v.cliente,v.idCliente||v.clienteId);
+      var v=(typeof window._svResolverVentaRegistro === 'function' ? window._svResolverVentaRegistro({venta:r.venta,ventaId:r.venta,ventaFbKey:r.ventaFbKey}) : null) || {};
+      var c=cliente(r.cliente||v.cliente,v.idCliente||v.clienteId,v);
       var body='<section class="grid">'+clienteBox(r.cliente||v.cliente,c,v.direccion||v.dir)+box('Venta vinculada','<strong>'+esc(r.venta||v.id||'—')+'</strong>', v.direccion||v.dir?'Dirección: '+esc(v.direccion||v.dir):'')+'</section>'+ '<div class="note"><div class="lbl">Descripción / detalle</div>'+esc(r.descripcion||'—')+'</div>'+ '<div class="firma"><div><div class="firma-line">Firma receptor</div></div><div><div class="firma-line">Firma Nixa</div></div></div>';
       openPrint(shell({title:'REMITO',num:r.numero||'—',fecha:fecha(r.fecha),body:body}));
     },{onlyOnce:true});
@@ -100,7 +108,7 @@
 
   window._imprimirOTReal = function(){
     var ot=(window.otData||[]).find(function(o){return o.id===window.otActualId||o.fbKey===window.otActualId;}); if(!ot){notify('OT no encontrada');return;}
-    var c=cliente(ot.cliente); var mats=ot.materiales||ot.items||[];
+    var c=cliente(ot.cliente, ot.clienteId||ot.idCliente, ot); var mats=ot.materiales||ot.items||[];
     var rows=mats.length?mats.map(function(m){return '<tr><td>'+esc(m.cod||'')+'</td><td>'+esc(m.desc||m.nombre||'')+'</td><td class="tr">'+esc(m.vendida||m.qty||'')+'</td><td class="tr">'+esc(m.instalada||'')+'</td></tr>';}).join(''):'<tr><td colspan="4" style="text-align:center;color:#888">Sin materiales cargados</td></tr>';
     var body='<section class="grid">'+clienteBox(ot.cliente,c,ot.dir||ot.direccion)+box('Técnico','<strong>'+esc(ot.tecnico||'Sin asignar')+'</strong>','Tipo: '+esc(ot.tipoVisita||ot.tipo||'—'))+box('Venta vinculada','<strong>'+esc(ot.ventaId||'—')+'</strong>','Fecha programada: '+esc(fecha(ot.fecha)))+box('Dirección',esc(ot.dir||ot.direccion||dirCliente(c)||'Sin dirección'), '')+'</section>'+(ot.obs?'<div class="note"><strong>Notas:</strong> '+esc(ot.obs)+'</div>':'')+'<table><thead><tr><th>Código</th><th>Material</th><th class="tr">Presup.</th><th class="tr">Instalado</th></tr></thead><tbody>'+rows+'</tbody></table><div class="firma"><div><div class="firma-line">Firma del cliente</div></div><div><div class="firma-line">Firma del técnico</div></div></div>';
     openPrint(shell({title:'ORDEN DE TRABAJO',num:ot.id||'—',fecha:fecha(ot.fecha),estado:ot.estado||'',body:body}));
@@ -117,7 +125,7 @@
 
   window.imprimirVentaActual = function(){
     var v=window._ventaDetalleActual; if(!v){notify('Sin venta activa');return;} var conDetalle=(typeof window._ventaImpConDetalle==='undefined')?true:window._ventaImpConDetalle;
-    var c=cliente(v.cliente,v.idCliente||v.clienteId); var tipo=(v.factura&&v.factura.tipo)||(v.notaCredito&&v.notaCredito.tipo)||'COMPROBANTE';
+    var c=cliente(v.cliente,v.idCliente||v.clienteId,v); var tipo=(v.factura&&v.factura.tipo)||(v.notaCredito&&v.notaCredito.tipo)||'COMPROBANTE';
     var estado={pendiente_pago:'Pendiente de pago',seniado:'Señado',pago_total:'Pago total'}[v.estadoPago]||v.estadoPago||'';
     var rows=(v.items||[]).filter(function(it){return (it.desc||it.nombre||'').trim()||parseFloat(it.punit)>0;}).map(function(it){return '<tr><td>'+esc(it.cod||'')+'</td><td>'+esc(it.desc||it.nombre||'')+'</td><td class="tr">'+esc(it.qty||it.cantidad||'')+'</td><td class="tr">'+(conDetalle?money(it.punit):'—')+'</td><td class="tr"><strong>'+(conDetalle?money(it.sub):'—')+'</strong></td></tr>';}).join('')||'<tr><td colspan="5" style="text-align:center;color:#888">Sin ítems</td></tr>';
     var body='<section class="grid">'+clienteBox(v.cliente,c,v.direccion||v.dir)+box('Datos de operación','<strong>'+esc(v.id||'—')+'</strong>','Estado pago: '+esc(estado)+(v.ot?'<br>OT asociada: '+esc(v.ot):'')+(v.empleado?'<br>Vendedor: '+esc(v.empleado):''))+ '</section><table><thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th><th class="tr">P. unit.</th><th class="tr">Subtotal</th></tr></thead><tbody>'+rows+'</tbody></table><div class="totals">'+(conDetalle?'<div class="tot-row"><span>Subtotal</span><span>'+money(v.subtotal)+'</span></div>'+(parseFloat(v.descuento)>0?'<div class="tot-row"><span>Descuento</span><span class="red">-'+money(v.descuento)+'</span></div>':'')+'<div class="tot-row"><span>IVA</span><span>'+money(v.iva)+'</span></div>':'')+'<div class="tot-row total"><span>Total</span><span>'+money(v.total)+'</span></div></div>'+((v.factura&&v.factura.cae)?'<div class="note"><strong>CAE:</strong> '+esc(v.factura.cae)+' · Vto: '+esc(v.factura.cae_vencimiento||'')+'</div>':'')+'<div class="firma"><div><div class="firma-line">Conformidad del cliente</div></div><div><div class="firma-line">Firma Nixa</div></div></div>';

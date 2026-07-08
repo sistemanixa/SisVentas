@@ -143,8 +143,9 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 #ag-calendario[data-view="semana"]>div{min-width:860px}
 #ag-calendario[data-view="dia"]>div{min-width:100%}
 .agenda-scroll-hint{display:none}
-.sv-auto-grid-wrap{display:block;width:100%;max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
-.sv-auto-grid-wrap>table{width:max-content;min-width:100%}
+.sv-auto-grid-wrap,.table-wrap{display:block;width:100%;max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
+.sv-auto-grid-wrap>table,.table-wrap>table{width:max-content;min-width:100%;max-width:none!important}
+.sv-scroll-panel{max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
 
 /* ── TABLES ── */
 table{width:100%;border-collapse:collapse;touch-action:pan-x pan-y}
@@ -772,10 +773,11 @@ body.modal-secure-open{overflow:hidden!important}
   #dash-row2-admin{grid-template-columns:minmax(320px,.62fr) minmax(720px,1.38fr)!important;gap:14px!important}
   #dash-row2-admin > .card:first-child{padding:14px 16px 12px!important}
   #dash-row2-admin > .card:first-child .card-head{margin-bottom:10px!important}
-  #dash-row2-admin .dash-ventas-split{grid-template-columns:1fr!important;gap:24px!important;min-height:0!important}
-  #dash-row2-admin .dash-ventas-split > div:nth-child(2){border-left:none!important;border-top:0.5px solid var(--border)!important;padding-left:0!important;padding-top:18px!important}
-  #dash-row2-admin #dash-bar-area{height:72px!important;max-height:72px!important}
-  #dash-month-svg{height:62px!important;max-height:62px!important}
+  #dash-row2-admin .dash-ventas-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:18px!important;min-height:150px!important}
+  #dash-row2-admin .dash-ventas-split > div:nth-child(2){border-left:0.5px solid var(--border)!important;border-top:none!important;padding-left:18px!important;padding-top:0!important}
+  #dash-row2-admin .dash-ventas-split > div{width:100%!important;min-width:0!important}
+  #dash-row2-admin #dash-bar-area{height:104px!important;max-height:104px!important}
+  #dash-month-svg{height:104px!important;max-height:104px!important;width:100%!important}
   #dash-month-labels{font-size:10px!important}
   #dash-month-var{font-size:10px!important}
   #dash-month-total{font-size:11px!important}
@@ -825,8 +827,11 @@ body.modal-secure-open{overflow:hidden!important}
   .btn-sm{min-height:34px!important;padding:7px 10px!important}
   .flex-end{gap:8px!important;flex-wrap:wrap!important}
   .flex-end .btn{flex:1 1 auto!important;min-width:120px!important}
-  .table-wrap{width:100%!important;max-width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch!important}
+  .table-wrap{width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-x:contain!important;touch-action:pan-x pan-y!important}
+  .sv-scroll-panel,#sp-lista,#mnt-relaciones-lista,#mnt-dup-fijos-lista,#mnt-migraciones-lista{max-width:100%!important;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-x pan-y!important}
+  #sp-lista .cr,#mnt-relaciones-lista>div,#mnt-dup-fijos-lista>div,#mnt-migraciones-lista>div{min-width:0!important}
   table{max-width:100%!important}
+  .table-wrap>table,.sv-auto-grid-wrap>table{max-width:none!important;width:max-content!important;min-width:100%!important}
   th,td{font-size:12px!important;line-height:1.3!important;vertical-align:top!important}
   .badge{font-size:10.5px!important;line-height:1.2!important;white-space:normal!important;text-align:center!important}
   .modal{width:96vw!important;max-width:96vw!important;padding:18px!important}
@@ -849,6 +854,9 @@ body.modal-secure-open{overflow:hidden!important}
   /* Métricas: dos columnas si hay espacio, una cuando la tarjeta se aprieta. */
   .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .metrics[style*="repeat(4"],.metrics[style*="repeat(3"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .card > div[style*="grid-template-columns:repeat(4"],
+  .card > div[style*="grid-template-columns:repeat(5"],
+  .card > div[style*="grid-template-columns:repeat(auto-fill"]{grid-template-columns:repeat(2,minmax(0,1fr))!important;min-width:0!important;max-width:100%!important}
   #dash-micuenta-card .metrics,#dash-adm-metrics,#page-cuentacorriente .metrics,#page-tesoreria .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 
   /* Notificaciones: la tarjeta pasa de fila desktop a bloque mobile. */
@@ -900,6 +908,9 @@ body.modal-secure-open{overflow:hidden!important}
 @media (max-width: 390px){
   .content{padding:8px!important}
   .metrics,.metrics[style*="repeat"],.emp-sueldo-grid{grid-template-columns:1fr!important}
+  .card > div[style*="grid-template-columns:repeat(4"],
+  .card > div[style*="grid-template-columns:repeat(5"],
+  .card > div[style*="grid-template-columns:repeat(auto-fill"]{grid-template-columns:1fr!important}
   #page-dashboard .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .topbar{padding:0 8px!important}
   .page-title{font-size:15px!important}

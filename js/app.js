@@ -1,4 +1,4 @@
-var fabOpen = false;
+﻿var fabOpen = false;
 function toggleDarkMode(on) {
   document.body.classList.toggle('dark-mode', on);
   try { localStorage.setItem('nixa_dark', on ? '1' : '0'); } catch(e){}
@@ -131,7 +131,7 @@ function actualizarSelectCategorias() {
   ['filter-cat','pf-categoria'].forEach(function(sid) {
     var sel = document.getElementById(sid);
     if (!sel) return;
-    sel.innerHTML = '<option value="">Todas las categorías</option>' +
+    sel.innerHTML = '<option value="">Todas las categorÃ­as</option>' +
       cats.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('');
     // Re-inicializar el searchable select si ya existe
     var wrap = sel.parentNode;
@@ -144,11 +144,11 @@ function actualizarSelectCategorias() {
 }
 var VENTA_ESTADOS = [
   { id:'pendiente_pago', label:'Pendiente pago', icon:'ti-clock',         cls:'pending' },
-  { id:'seniado',        label:'Señado',          icon:'ti-coin',          cls:'active'  },
+  { id:'seniado',        label:'SeÃ±ado',          icon:'ti-coin',          cls:'active'  },
   { id:'pago_total',     label:'Pago total',       icon:'ti-check',         cls:'done'    },
-  { id:'en_instalacion', label:'En instalación',   icon:'ti-tools',         cls:'active'  },
+  { id:'en_instalacion', label:'En instalaciÃ³n',   icon:'ti-tools',         cls:'active'  },
   { id:'instalado',      label:'Instalado',        icon:'ti-package',       cls:'done'    },
-  { id:'con_garantia',   label:'Con garantía',     icon:'ti-shield-check',  cls:'done'    },
+  { id:'con_garantia',   label:'Con garantÃ­a',     icon:'ti-shield-check',  cls:'done'    },
 ];
 function kpiVentasMes() {
   var hoy = new Date();
@@ -165,7 +165,7 @@ function kpiCobrado() {
   notify('Mostrando ventas cobradas');
 }
 function kpiPendiente() {
-  // "Pendiente" = todo lo que no es pago_total. Los únicos estados de pago son
+  // "Pendiente" = todo lo que no es pago_total. Los Ãºnicos estados de pago son
   window._filtrosVentas = { texto:'', estado:'', mes:'', tab:'cobrar' };
   _restaurarControlesFiltrosVentas();
   _aplicarFiltrosVentas();
@@ -209,7 +209,7 @@ function renderMetricasVentas() {
   var ivaMes    = ventasMes.filter(function(v){ return v.factura; }).reduce(function(s,v){ return s+(parseFloat(v.iva)||0); }, 0);
   var cantMes   = ventasMes.length;
 
-  // Cobrado y pendiente (histórico total — para cuenta corriente)
+  // Cobrado y pendiente (histÃ³rico total â€” para cuenta corriente)
   var cobrado   = ventas.filter(function(v){ return v.estadoPago==='pago_total'; })
                         .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
   var pendiente = ventas.filter(function(v){ return v.estadoPago!=='pago_total'; })
@@ -230,18 +230,18 @@ function renderMetricasVentas() {
   _set('vm-pendiente', '$' + Math.round(pendiente).toLocaleString('es-AR'));
   _set('vm-iva',       '$' + Math.round(ivaMes).toLocaleString('es-AR'));
 
-  // Subtítulos
+  // SubtÃ­tulos
   var subTotal = document.getElementById('vm-total-sub');
   if (subTotal) subTotal.textContent = cantMes + ' venta' + (cantMes!==1?'s':'') + ' en ' + mesLabel;
 
   var subCob = document.getElementById('vm-cobrado-sub');
-  if (subCob) subCob.textContent = pctCobrado + '% del total histórico';
+  if (subCob) subCob.textContent = pctCobrado + '% del total histÃ³rico';
 
   var subPend = document.getElementById('vm-pendiente-sub');
   if (subPend) subPend.textContent = clisPend + ' cliente' + (clisPend!==1?'s':'')+' con saldo';
 
   var subIva = document.getElementById('vm-iva-sub');
-  if (subIva) subIva.textContent = 'IVA real · ' + mesLabel;
+  if (subIva) subIva.textContent = 'IVA real Â· ' + mesLabel;
 }
 // SISTEMA DE ORDENAMIENTO DE TABLAS
 var _sortState = {};  // { tablaId: { col: 'nombre', dir: 'asc' } }
@@ -268,7 +268,7 @@ function sortTabla(tablaId, col, tipo) {
     }
   });
 
-  // Llamar la función de render correspondiente
+  // Llamar la funciÃ³n de render correspondiente
   var renders = {
     'cli-tbl':  function() { renderTablaClientes(); },
     'prod-tbl': function() { renderTablaProductos(); },
@@ -286,7 +286,7 @@ function sortData(lista, tablaId, defaultCol, defaultDir) {
   return lista.slice().sort(function(a, b) {
     var va = a[col];
     var vb = b[col];
-    // Numérico
+    // NumÃ©rico
     if (!isNaN(parseFloat(va)) && !isNaN(parseFloat(vb))) {
       return dir === 'asc' ? parseFloat(va) - parseFloat(vb) : parseFloat(vb) - parseFloat(va);
     }
@@ -338,7 +338,7 @@ function renderTablaClientes(filtro) {
       '<td style="font-weight:500">' + nombre + empresa + '</td>' +
       '<td class="hide-mobile" style="color:var(--text2)">' + dir + '</td>' +
       '<td class="hide-mobile" style="color:var(--text2)">' + tel + '</td>' +
-      '<td style="text-align:right"><label class="toggle-sw" onclick="event.stopPropagation()" title="' + (activo ? 'Activo — clic para dar de baja' : 'Inactivo — clic para reactivar') + '"><input type="checkbox" ' + (activo ? 'checked' : '') + ' onchange="event.stopPropagation();toggleActivoCliente(\'' + cid + '\')"><span class="toggle-knob"></span></label></td>' +
+      '<td style="text-align:right"><label class="toggle-sw" onclick="event.stopPropagation()" title="' + (activo ? 'Activo â€” clic para dar de baja' : 'Inactivo â€” clic para reactivar') + '"><input type="checkbox" ' + (activo ? 'checked' : '') + ' onchange="event.stopPropagation();toggleActivoCliente(\'' + cid + '\')"><span class="toggle-knob"></span></label></td>' +
       '<td style="text-align:right;white-space:nowrap">' +
         '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();verClienteById(this)" title="Historial"><i class="ti ti-history" style="font-size:15px"></i></button>' +
         '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();editarClienteById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
@@ -357,7 +357,7 @@ function editarClienteById(el) {
   var id = el.dataset.cid;
   editarCliente(id);
 }
-// MÓDULO KITS
+// MÃ“DULO KITS
 var KITS_DATA = {};
 var _kitComponentesActual = []; // [{pid, codigo, nombre, costo, cantidad}]
 var _kitEditandoFbKey = null;
@@ -390,7 +390,7 @@ function renderTablaKits(filtro) {
     lista = lista.filter(function(k){ return (k.nombre||'').toLowerCase().includes(f) || (k.codigo||'').toLowerCase().includes(f); });
   }
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">'+(filtro?'Sin resultados':'Sin kits armados aún')+'</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">'+(filtro?'Sin resultados':'Sin kits armados aÃºn')+'</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(k) {
@@ -448,7 +448,7 @@ function editarKit(fbKey) {
   _set2('kit-nombre', k.nombre||'');
   _set2('kit-descripcion', k.descripcion||'');
   _set2('kit-margen', k.margenPct||30);
-  document.getElementById('kit-form-titulo').textContent = 'Editar kit — ' + k.codigo;
+  document.getElementById('kit-form-titulo').textContent = 'Editar kit â€” ' + k.codigo;
   poblarCategoriasKit();
   _set2('kit-categoria', k.categoria||'');
   renderComponentesKit();
@@ -467,7 +467,7 @@ function poblarCategoriasKit() {
   var sel = document.getElementById('kit-categoria');
   if (!sel) return;
   var cats = [...new Set(Object.values(prodData||{}).map(function(p){ return p.categoria; }).filter(Boolean))].sort();
-  sel.innerHTML = '<option value="">— Seleccionar —</option>' + cats.map(function(c){ return '<option value="'+escapeHTML(c)+'">'+escapeHTML(c)+'</option>'; }).join('');
+  sel.innerHTML = '<option value="">â€” Seleccionar â€”</option>' + cats.map(function(c){ return '<option value="'+escapeHTML(c)+'">'+escapeHTML(c)+'</option>'; }).join('');
 }
 
 function _set2(id, val) { var e = document.getElementById(id); if (e) e.value = val; }
@@ -476,7 +476,7 @@ function renderComponentesKit() {
   var tbody = document.getElementById('kit-componentes-tbody');
   if (!tbody) return;
   if (!_kitComponentesActual.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sin componentes — agregá productos al kit</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sin componentes â€” agregÃ¡ productos al kit</td></tr>';
     return;
   }
   tbody.innerHTML = _kitComponentesActual.map(function(c, idx) {
@@ -543,7 +543,7 @@ function filtrarSelectorKit(texto) {
     var yaAgregado = _kitComponentesActual.some(function(c){ return c.pid === p.fbKey || c.codigo === p.codigo; });
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:0.5px solid var(--border);'+(yaAgregado?'opacity:.4':'cursor:pointer')+'" '+
       (yaAgregado?'':'onclick="agregarComponenteKit(\''+p.fbKey+'\')"') + '>' +
-      '<div><div style="font-size:13px">'+escapeHTML(p.nombre||'')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(p.codigo||'')+' · $'+Math.round(p.compra||0).toLocaleString('es-AR')+'</div></div>' +
+      '<div><div style="font-size:13px">'+escapeHTML(p.nombre||'')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(p.codigo||'')+' Â· $'+Math.round(p.compra||0).toLocaleString('es-AR')+'</div></div>' +
       (yaAgregado ? '<span style="font-size:11px;color:var(--text3)">Ya agregado</span>' : '<i class="ti ti-plus" style="color:var(--blue)"></i>') +
     '</div>';
   }).join('');
@@ -556,13 +556,13 @@ function agregarComponenteKit(pid) {
   renderComponentesKit();
   calcKitTotales();
   cerrarSelectorProductoKit();
-  notify('✓ ' + p.nombre + ' agregado al kit');
+  notify('âœ“ ' + p.nombre + ' agregado al kit');
 }
 
 function guardarKit() {
   var nombre = document.getElementById('kit-nombre').value.trim();
-  if (!nombre) { notify('Ingresá un nombre para el kit'); return; }
-  if (!_kitComponentesActual.length) { notify('Agregá al menos un producto al kit'); return; }
+  if (!nombre) { notify('IngresÃ¡ un nombre para el kit'); return; }
+  if (!_kitComponentesActual.length) { notify('AgregÃ¡ al menos un producto al kit'); return; }
 
   var costoTotal = _kitComponentesActual.reduce(function(s,c){ return s + (c.costo||0)*(c.cantidad||1); }, 0);
   var margenPct  = parseFloat(document.getElementById('kit-margen').value) || 0;
@@ -583,7 +583,7 @@ function guardarKit() {
   if (_kitEditandoFbKey) {
     kit.codigo = KITS_DATA[_kitEditandoFbKey].codigo;
     window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/kits/'+_kitEditandoFbKey), kit)
-      .then(function(){ notify('✓ Kit actualizado'); volverListaKits(); });
+      .then(function(){ notify('âœ“ Kit actualizado'); volverListaKits(); });
   } else {
     var maxNum = Object.values(KITS_DATA).reduce(function(max,k){
       var n = parseInt((k.codigo||'').replace('KIT-',''))||0;
@@ -591,14 +591,14 @@ function guardarKit() {
     }, 0);
     kit.codigo = 'KIT-' + String(maxNum+1).padStart(3,'0');
     window.fbPush(window.fbRef(window.fbDB, 'sisventas/kits'), kit)
-      .then(function(){ notify('✓ Kit creado: ' + kit.codigo); volverListaKits(); });
+      .then(function(){ notify('âœ“ Kit creado: ' + kit.codigo); volverListaKits(); });
   }
 }
 
 function eliminarKit(fbKey) {
   var k = KITS_DATA[fbKey];
   if (!k) return;
-  if (!confirm('¿Eliminar el kit "'+k.nombre+'"? Esta acción no se puede deshacer.')) return;
+  if (!confirm('Â¿Eliminar el kit "'+k.nombre+'"? Esta acciÃ³n no se puede deshacer.')) return;
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/kits/'+fbKey))
     .then(function(){ notify('Kit eliminado'); });
 }
@@ -621,7 +621,7 @@ function poblarSelectCategorias() {
   if (!sel) return;
   var cats = [...new Set(Object.values(prodData||{}).map(function(p){ return p.categoria||p.catId||''; }).filter(Boolean))].sort();
   var actual = sel.value;
-  sel.innerHTML = '<option value="">Todas las categorías</option>' +
+  sel.innerHTML = '<option value="">Todas las categorÃ­as</option>' +
     cats.map(function(c){ return '<option value="'+escapeHTML(c)+'"'+(c===actual?' selected':'')+'>'+escapeHTML(c)+'</option>'; }).join('');
 }
 
@@ -632,7 +632,7 @@ function _renderFilaProd(p) {
   var stkColor = stk <= 0 ? 'var(--red)' : stk <= (p.stockMin||2) ? 'var(--amber)' : 'var(--green)';
   var pv = parseFloat(p.venta || p.precio_venta || 0) || 0;
   var pc = parseFloat(p.compra || p.precio_compra || 0) || 0;
-  var margen = pv > 0 && pc > 0 ? ((pv-pc)/pv*100).toFixed(1) + '%' : '—';
+  var margen = pv > 0 && pc > 0 ? ((pv-pc)/pv*100).toFixed(1) + '%' : 'â€”';
   var pid = String(p.fbKey || '').replace(/"/g,'');
   var provLista = Array.isArray(p.proveedores) ? p.proveedores : [];
   var tc = window.TIPO_CAMBIO_CONFIG || {};
@@ -651,7 +651,7 @@ function _renderFilaProd(p) {
       :'<div style="width:44px;height:44px;border-radius:6px;background:var(--bg3);display:flex;align-items:center;justify-content:center"><i class="ti ti-photo" style="font-size:18px;color:var(--text3)"></i></div>')+'</td>'+
     '<td style="font-family:monospace;font-size:12px">'+(p.codigo||'')+'</td>'+
     '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.esManoDeObra?'<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px"></i>':'')+(p.nombre||p.descripcion||'')+'</td>'+
-    '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.descripcion||'—')+'</td>'+
+    '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.descripcion||'â€”')+'</td>'+
     '<td style="text-align:right;font-weight:600;color:'+stkColor+'">'+stk+'</td>'+
     '<td style="text-align:right">USD '+pvFmt+equivARS+'</td>'+
     '<td style="text-align:right">'+costoLbl+'</td>'+
@@ -667,11 +667,11 @@ function renderTablaProductos(filtro) {
   if (!tbody) return;
   var lista = prodData ? Object.values(prodData) : [];
   poblarSelectCategorias();
-  // Mostrar thead solo cuando hay búsqueda activa
+  // Mostrar thead solo cuando hay bÃºsqueda activa
   var thead = document.getElementById('prod-tbl-thead');
   if (thead) thead.style.visibility = (filtro && filtro.trim()) ? 'visible' : 'collapse';
 
-  // Con búsqueda activa → vista plana
+  // Con bÃºsqueda activa â†’ vista plana
   if (filtro && filtro.trim()) {
     var f = filtro.toLowerCase();
     lista = lista.filter(function(p) {
@@ -689,11 +689,11 @@ function renderTablaProductos(filtro) {
     return;
   }
 
-  // Sin búsqueda → vista agrupada por categoría
+  // Sin bÃºsqueda â†’ vista agrupada por categorÃ­a
   window._prodGrupos = {};
   var grupos = window._prodGrupos;
   lista.forEach(function(p) {
-    var cat = p.categoria || p.catId || 'Sin categoría';
+    var cat = p.categoria || p.catId || 'Sin categorÃ­a';
     if (!grupos[cat]) grupos[cat] = [];
     grupos[cat].push(p);
   });
@@ -746,7 +746,7 @@ function toggleProdCat(cat) {
   var catId = 'cat-' + cat.replace(/[^a-zA-Z0-9]/g,'_');
   var icon = document.getElementById('icon-'+catId);
   if (icon) icon.style.transform = abierta ? 'rotate(90deg)' : '';
-  // Re-renderizar solo las filas de esa categoría
+  // Re-renderizar solo las filas de esa categorÃ­a
   var tbody = document.getElementById('prod-tbody');
   if (!tbody) return;
   var rows = tbody.querySelectorAll('.cr[data-cat="'+CSS.escape(cat)+'"]');
@@ -793,8 +793,8 @@ function volverListaVentas() {
 function actualizarSugerenciasCliente() {
   // el filterCli funcione con los datos reales
 }
-// DROPDOWN GLOBAL DE BÚSQUEDA — todos los buscadores del sistema
-// position:fixed, nunca cortado por ningún contenedor
+// DROPDOWN GLOBAL DE BÃšSQUEDA â€” todos los buscadores del sistema
+// position:fixed, nunca cortado por ningÃºn contenedor
 var _gDropEl = null;
 var _gDropInputRef = null;
 
@@ -849,7 +849,7 @@ function filterCli(val) {
     var empresa = c.empresa ? '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(c.empresa)+'</div>' : '';
     return '<div class="di" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)" onmousedown="_gSelCliById(\''+String(c.id)+'\')">' +
       '<div style="font-weight:500;font-size:13px">'+escapeHTML(c.nombre)+'</div>'+empresa+
-      '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(c.dir||'')+(c.telefono?' · '+escapeHTML(c.telefono):'')+'</div>'+
+      '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(c.dir||'')+(c.telefono?' Â· '+escapeHTML(c.telefono):'')+'</div>'+
     '</div>';
   }).join('');
   _mostrarDropGlobal(inp, html);
@@ -878,7 +878,7 @@ function _dx(s, k) {
   for (var i = 0; i < b.length; i++) r += String.fromCharCode(b.charCodeAt(i) ^ k.charCodeAt(i % k.length));
   return r;
 }
-// $n(num) → "1.234.567" | $m(num) → "$1.234.567" | $p(str) → float
+// $n(num) â†’ "1.234.567" | $m(num) â†’ "$1.234.567" | $p(str) â†’ float
 window.$n = function(n, dec) {
   return (parseFloat(n)||0).toLocaleString('es-AR', {
     minimumFractionDigits: dec||0, maximumFractionDigits: dec||0
@@ -904,7 +904,7 @@ window.$p = function(s) {
   }
   return parseFloat(s)||0;
 };
-// ── Mini-dash stats por módulo ────────────────────────────────────────────────
+// â”€â”€ Mini-dash stats por mÃ³dulo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function actualizarStatClientes() {
   var total   = (clientesData||[]).length;
   var hoy     = new Date();
@@ -933,7 +933,7 @@ function actualizarStatProductos() {
   var total  = prods.length;
   var conStock   = prods.filter(function(p){ return (parseFloat(p.stock)||0) > 0; }).length;
   var sinPrecio  = prods.filter(function(p){ return !(parseFloat(p.venta)||parseFloat(p.precio)||0); }).length;
-  // Más vendido del mes
+  // MÃ¡s vendido del mes
   var mesActual = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0');
   var conteo = {};
   (ventasList||[]).forEach(function(v){
@@ -950,10 +950,10 @@ function actualizarStatProductos() {
       conteo[k] = (conteo[k]||0) + (parseFloat(it.qty)||1);
     });
   });
-  var topProd = '—';
+  var topProd = 'â€”';
   var maxQty  = 0;
   Object.entries(conteo).forEach(function(e){ if(e[1]>maxQty){ maxQty=e[1]; topProd=e[0]; } });
-  if (topProd.length > 18) topProd = topProd.slice(0,16)+'…';
+  if (topProd.length > 18) topProd = topProd.slice(0,16)+'â€¦';
   var _s = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
   _s('stat-prod-total',    total);
   _s('stat-prod-stock',    conStock);
@@ -975,12 +975,12 @@ function generarOrdenCompraDesdeVenta(ventaObj) {
     ventaId: ventaObj.id, cliente: ventaObj.cliente||'',
     fecha: new Date().toISOString().slice(0,10),
     estado: 'pendiente', items: items,
-    obs: 'Generada automáticamente desde venta ' + ventaObj.id,
+    obs: 'Generada automÃ¡ticamente desde venta ' + ventaObj.id,
     ts: Date.now(), usuario: currentUser||'Sistema'
   };
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/ordenes_compra'), oc)
     .then(function(ref){
-      notify('📦 Orden de compra generada — ' + items.length + ' productos de ' + ventaObj.id);
+      notify('ðŸ“¦ Orden de compra generada â€” ' + items.length + ' productos de ' + ventaObj.id);
       if (ventaObj.fbKey) {
         window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas+'/'+ventaObj.fbKey), { ordenCompraId: ref.key });
       }
@@ -1001,12 +1001,12 @@ function verificarVencimientosPptos() {
     if (!p.fbKey || !window.fbDB) return;
     window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
       estado: 'vencido',
-      audit: (p.audit||[]).concat([{ fecha: hoyStr, usuario: 'Sistema', accion: 'Anulado automáticamente por vencimiento' }])
+      audit: (p.audit||[]).concat([{ fecha: hoyStr, usuario: 'Sistema', accion: 'Anulado automÃ¡ticamente por vencimiento' }])
     });
   });
-  if (vencidos.length) notify('⏰ ' + vencidos.length + ' presupuesto(s) vencidos anulados automáticamente');
+  if (vencidos.length) notify('â° ' + vencidos.length + ' presupuesto(s) vencidos anulados automÃ¡ticamente');
 
-  // 2. Alertar los que vencen en las próximas 48hs
+  // 2. Alertar los que vencen en las prÃ³ximas 48hs
   var proximos = (pptoData||[]).filter(function(p){
     return p.vence && p.vence >= hoyStr && p.vence <= en48h && estadosActivos.includes(p.estado) && !p._alertado48h;
   });
@@ -1022,10 +1022,10 @@ function verificarVencimientosPptos() {
 }
 
 function pptoAlertarVencimientosProximos(pptos) {
-  // Mostrar notificación con botón de WhatsApp para cada uno
+  // Mostrar notificaciÃ³n con botÃ³n de WhatsApp para cada uno
   pptos.forEach(function(p) {
-    var diasStr = p.vence === new Date().toISOString().slice(0,10) ? 'HOY' : 'mañana';
-    var cli = (clientesData||[]).find(function(c){ return c.nombre===p.cliente || String(c.id)===String(p.idCliente); });
+    var diasStr = p.vence === new Date().toISOString().slice(0,10) ? 'HOY' : 'maÃ±ana';
+    var cli = _svResolverClienteRegistro(p, true);
     var tel = cli ? (cli.telefono||cli.tel||cli.celular||'').replace(/\D/g,'') : '';
     var total = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
     var msg = encodeURIComponent(
@@ -1034,21 +1034,21 @@ function pptoAlertarVencimientosProximos(pptos) {
     );
 
     var waUrl = tel ? 'https://wa.me/54' + tel + '?text=' + msg : '';
-    // Notificación especial con botón
+    // NotificaciÃ³n especial con botÃ³n
     var div = document.createElement('div');
     div.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:99999;background:var(--bg2);border:1px solid var(--amber);border-radius:12px;padding:14px 18px;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:360px;width:90vw;font-size:13px';
     div.innerHTML =
-      '<div style="font-weight:600;color:var(--amber);margin-bottom:6px">⏰ Presupuesto por vencer ' + diasStr + '</div>' +
-      '<div style="color:var(--text2);margin-bottom:10px">' + escapeHTML(p.cliente||'') + ' · ' + escapeHTML(p.id||'') + ' · ' + total + '</div>' +
+      '<div style="font-weight:600;color:var(--amber);margin-bottom:6px">â° Presupuesto por vencer ' + diasStr + '</div>' +
+      '<div style="color:var(--text2);margin-bottom:10px">' + escapeHTML(p.cliente||'') + ' Â· ' + escapeHTML(p.id||'') + ' Â· ' + total + '</div>' +
       '<div style="display:flex;gap:8px">' +
-        (waUrl ? '<a href="'+waUrl+'" target="_blank" style="flex:1;padding:8px;border-radius:8px;background:#25d366;color:#fff;text-align:center;font-weight:600;text-decoration:none;font-size:12px">📱 Recordatorio WhatsApp</a>' : '') +
+        (waUrl ? '<a href="'+waUrl+'" target="_blank" style="flex:1;padding:8px;border-radius:8px;background:#25d366;color:#fff;text-align:center;font-weight:600;text-decoration:none;font-size:12px">ðŸ“± Recordatorio WhatsApp</a>' : '') +
         '<button onclick="this.parentNode.parentNode.remove()" style="padding:8px 14px;border-radius:8px;border:0.5px solid var(--border2);background:none;color:var(--text3);cursor:pointer;font-size:12px">Cerrar</button>' +
       '</div>';
     document.body.appendChild(div);
     setTimeout(function(){ if(div.parentNode) div.remove(); }, 15000);
   });
 }
-function flujoPostPago(ventaObj, montoSeña) {
+function flujoPostPago(ventaObj, montoSena) {
   if (!ventaObj) return;
   var vid = ventaObj.id;
   var cli = ventaObj.cliente || '';
@@ -1056,14 +1056,14 @@ function flujoPostPago(ventaObj, montoSeña) {
   var hoy = new Date().toISOString().slice(0,10);
 
   // Notificar al admin
-  notify('✓ Seña de $' + Math.round(montoSeña).toLocaleString('es-AR') + ' registrada para ' + cli + '. Se habilitó agenda y generó OT.');
+  notify('âœ“ SeÃ±a de $' + Math.round(montoSena).toLocaleString('es-AR') + ' registrada para ' + cli + '. Se habilitÃ³ agenda y generÃ³ OT.');
 
   // 2c. Generar orden de compra con los productos de la venta
   generarOrdenCompraDesdeVenta(ventaObj);
 
   // 2a. Crear evento en agenda
   var evAgenda = {
-    descripcion: 'Instalación pendiente — ' + vid + ' · ' + cli,
+    descripcion: 'InstalaciÃ³n pendiente â€” ' + vid + ' Â· ' + cli,
     fecha: hoy,
     hora: '09:00',
     tipo: 'instalacion',
@@ -1088,7 +1088,7 @@ function flujoPostPago(ventaObj, montoSeña) {
       });
   }
 
-  // 2b. Generar OT automáticamente
+  // 2b. Generar OT automÃ¡ticamente
   var ot = {
     id:           '',
     ventaId:      vid,
@@ -1099,11 +1099,11 @@ function flujoPostPago(ventaObj, montoSeña) {
     estado:       'pendiente',
     tecnico:      '',
     fecha:        hoy,
-    descripcion:  'Instalación ' + vid + ' — ' + cli,
+    descripcion:  'InstalaciÃ³n ' + vid + ' â€” ' + cli,
     items:        (ventaObj.items||[]).map(function(it){ return { cod:it.cod||it.codigo||'', desc:it.desc||it.nombre||it.descripcion||'', qty:it.qty||it.cantidad||1, instalado:false }; }),
     materiales:   (ventaObj.items||[]).map(function(it){ return { cod:it.cod||it.codigo||'', desc:it.desc||it.nombre||it.descripcion||'', vendida:parseFloat(it.qty||it.cantidad||1), instalada:0 }; }),
     origen:       'venta',
-    origenDetalle:'pago_seña',
+    origenDetalle:'pago_seÃ±a',
     ts:           Date.now(),
     usuario:      currentUser || 'Sistema'
   };
@@ -1137,24 +1137,24 @@ function tecnicoTomarOT(otFbKey) {
   var ot = (otData||[]).find(function(o){ return o.fbKey === otFbKey; });
   if (!ot) return;
   if (ot.tecnico && ot.tecnico !== currentUser) {
-    if (!confirm('Esta OT ya está asignada a ' + ot.tecnico + '. ¿Reasignar a ' + currentUser + '?')) return;
+    if (!confirm('Esta OT ya estÃ¡ asignada a ' + ot.tecnico + '. Â¿Reasignar a ' + currentUser + '?')) return;
   }
   var hoy = new Date().toISOString().slice(0,10);
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otFbKey), {
     tecnico: currentUser || '',
     estado: 'en_curso',
     fechaInicio: hoy,
-    audit: (ot.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'', accion: 'OT tomada por técnico' }])
+    audit: (ot.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'', accion: 'OT tomada por tÃ©cnico' }])
   }).then(function(){
     window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/tareas/' + otFbKey), { estado: 'en_curso', tecnico: currentUser||'' });
-    notify('✓ OT asignada a ' + (currentUser||'vos'));
+    notify('âœ“ OT asignada a ' + (currentUser||'vos'));
   });
 }
 function cerrarOTyVenta(otFbKey, conformidad) {
   var ot = (otData||[]).find(function(o){ return o.fbKey === otFbKey; });
   if (!ot) { notify('OT no encontrada'); return; }
   if (!conformidad) {
-    if (!confirm('¿Confirmar conformidad del cliente y cerrar la OT?')) return;
+    if (!confirm('Â¿Confirmar conformidad del cliente y cerrar la OT?')) return;
   }
   var hoy = new Date().toISOString().slice(0,10);
 
@@ -1163,7 +1163,7 @@ function cerrarOTyVenta(otFbKey, conformidad) {
     estado: 'completada',
     fechaCierre: hoy,
     conformidadCliente: true,
-    audit: (ot.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'', accion: 'OT cerrada — conformidad del cliente registrada' }])
+    audit: (ot.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'', accion: 'OT cerrada â€” conformidad del cliente registrada' }])
   });
 
   // Quitar de tareas pendientes
@@ -1171,20 +1171,24 @@ function cerrarOTyVenta(otFbKey, conformidad) {
 
   // Cerrar la venta vinculada
   if (ot.ventaId) {
-    var venta = (ventasList||[]).find(function(v){ return v.id === ot.ventaId; });
+    var venta = _svResolverVentaRegistro(ot);
     if (venta && venta.fbKey) {
       window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
         estado: 'instalado',
         estadoInstalacion: 'instalado',
         fechaInstalacion: hoy,
-        audit: (venta.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'Sistema', accion: 'Venta cerrada — instalación completada' }])
+        audit: (venta.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'Sistema', accion: 'Venta cerrada â€” instalaciÃ³n completada' }])
       });
-      notify('✓ OT cerrada y venta ' + ot.ventaId + ' marcada como instalada');
+      notify('âœ“ OT cerrada y venta ' + ot.ventaId + ' marcada como instalada');
     }
   }
 }
 function asignarFechaInstalacion(ventaId, fecha, tecnico) {
-  var venta = (ventasList||[]).find(function(v){ return v.id === ventaId; });
+  var venta = (ventasList||[]).find(function(v){
+    return String(v.id||'') === String(ventaId||'') ||
+           String(v.fbKey||'') === String(ventaId||'') ||
+           _svRegistroPerteneceVenta({ ventaId: ventaId }, v);
+  });
   if (!venta || !venta.fbKey) { notify('Venta no encontrada'); return; }
 
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
@@ -1192,7 +1196,7 @@ function asignarFechaInstalacion(ventaId, fecha, tecnico) {
     tecnicoAsignado: tecnico || ''
   });
 
-  var ot = (otData||[]).find(function(o){ return o.ventaId === ventaId; });
+  var ot = (otData||[]).find(function(o){ return _svRegistroPerteneceVenta(o, venta); });
   if (ot && ot.fbKey) {
     window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
       fecha: fecha, tecnico: tecnico || '', estado: 'programada'
@@ -1200,16 +1204,16 @@ function asignarFechaInstalacion(ventaId, fecha, tecnico) {
     if (venta.agendaEventoId) {
       window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/agenda/' + venta.agendaEventoId), {
         fecha: fecha, hora: '09:00', estado: 'programado',
-        descripcion: 'Instalación ' + ventaId + ' — ' + venta.cliente
+        descripcion: 'InstalaciÃ³n ' + ventaId + ' â€” ' + venta.cliente
       });
     }
   }
-  notify('✓ Fecha de instalación asignada: ' + fecha + (tecnico ? ' · Técnico: ' + tecnico : ''));
+  notify('âœ“ Fecha de instalaciÃ³n asignada: ' + fecha + (tecnico ? ' Â· TÃ©cnico: ' + tecnico : ''));
 }
 function renderTareasPendientes() {
   var container = document.getElementById('panel-tareas-tecnico');
   if (!container) return;
-  if (!window.fbDB) { container.innerHTML = '<div style="color:var(--text3)">Sin conexión</div>'; return; }
+  if (!window.fbDB) { container.innerHTML = '<div style="color:var(--text3)">Sin conexiÃ³n</div>'; return; }
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/tareas')).then(function(snap) {
     var tareas = [];
     if (snap.val()) Object.entries(snap.val()).forEach(function(e){
@@ -1241,8 +1245,8 @@ function inicializarFlujoVentas() {
   setInterval(verificarVencimientosPptos, 3600000);
 }
 
-// ASISTENTE IA — powered by Claude
-var _iaHistorial   = [];  // mensajes de la conversación actual
+// ASISTENTE IA â€” powered by Claude
+var _iaHistorial   = [];  // mensajes de la conversaciÃ³n actual
 var _iaContexto    = '';  // contexto inyectado (OT, sistema, etc.)
 var _iaCtxLabel    = 'Modo general';
 var _iaThinking    = false;
@@ -1254,18 +1258,18 @@ function iaAbrir(contexto, label) {
   if (lbl) lbl.textContent = _iaCtxLabel;
   var modal = document.getElementById('ia-modal');
   if (modal) { modal.classList.add('open'); document.body.style.overflow = 'hidden'; }
-  // Renderizar sugerencias según rol
+  // Renderizar sugerencias segÃºn rol
   iaRenderSugerencias();
-  // Mensaje de bienvenida si es conversación nueva
+  // Mensaje de bienvenida si es conversaciÃ³n nueva
   if (!_iaHistorial.length) {
     var bienvenidaBase = 'Hola ' + (currentUser||'').split(' ')[0] + '! ';
     var bienvenidaRol = currentRole === 'tecnico'
-      ? 'Soy el asistente técnico de Nixa. Puedo ayudarte con diagnósticos, manuales de equipos y procedimientos de instalación.'
+      ? 'Soy el asistente tÃ©cnico de Nixa. Puedo ayudarte con diagnÃ³sticos, manuales de equipos y procedimientos de instalaciÃ³n.'
       : currentRole === 'administrativo' || currentRole === 'vendedor'
       ? 'Soy el asistente de Nixa. Puedo ayudarte con tus ventas, presupuestos y consultas del sistema.'
-      : 'Soy el asistente de Nixa. Puedo ayudarte con consultas del sistema, diagnósticos técnicos, redacción de informes o lo que necesites.';
+      : 'Soy el asistente de Nixa. Puedo ayudarte con consultas del sistema, diagnÃ³sticos tÃ©cnicos, redacciÃ³n de informes o lo que necesites.';
     var bienvenida = _iaContexto
-      ? 'Hola, tengo el contexto de esta OT cargado. ¿Qué necesitás saber o resolver?'
+      ? 'Hola, tengo el contexto de esta OT cargado. Â¿QuÃ© necesitÃ¡s saber o resolver?'
       : bienvenidaBase + bienvenidaRol;
     iaMostrarMensaje('bot', bienvenida);
   }
@@ -1275,15 +1279,15 @@ function iaAbrir(contexto, label) {
 function iaAbrirDesdeOT() {
   // Construir contexto con datos de la OT actual
   var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
-  if (!ot) { iaAbrir('', 'Asistente técnico'); return; }
-  var venta = (ventasList||[]).find(function(v){ return v.id === ot.ventaId; });
+  if (!ot) { iaAbrir('', 'Asistente tÃ©cnico'); return; }
+  var venta = _svResolverVentaRegistro(ot);
   var ctx = '=== CONTEXTO DE LA OT ===\n';
-  ctx += 'Cliente: ' + (ot.cliente||'—') + '\n';
-  ctx += 'Dirección: ' + (ot.dir||ot.direccion||'—') + '\n';
-  ctx += 'Descripción: ' + (ot.descripcion||'—') + '\n';
-  ctx += 'Estado: ' + (ot.estado||'—') + '\n';
-  ctx += 'Técnico asignado: ' + (ot.tecnico||'Sin asignar') + '\n';
-  ctx += 'Fecha: ' + (ot.fecha||'—') + '\n';
+  ctx += 'Cliente: ' + (ot.cliente||'â€”') + '\n';
+  ctx += 'DirecciÃ³n: ' + (ot.dir||ot.direccion||'â€”') + '\n';
+  ctx += 'DescripciÃ³n: ' + (ot.descripcion||'â€”') + '\n';
+  ctx += 'Estado: ' + (ot.estado||'â€”') + '\n';
+  ctx += 'TÃ©cnico asignado: ' + (ot.tecnico||'Sin asignar') + '\n';
+  ctx += 'Fecha: ' + (ot.fecha||'â€”') + '\n';
   if (ot.items && ot.items.length) {
     ctx += '\nProductos/materiales:\n';
     ot.items.forEach(function(it){ ctx += '- ' + (it.desc||it.nombre||'') + ' (cant: ' + (it.vendida||1) + ', instalado: ' + (it.instalada||0) + ')\n'; });
@@ -1297,7 +1301,7 @@ function iaAbrirDesdeOT() {
   if (notas && notas.textContent.trim()) {
     ctx += '\nNotas registradas:\n' + notas.textContent.trim().replace(/\s+/g,' ').slice(0,500);
   }
-  iaAbrir(ctx, 'OT · ' + (ot.cliente||'') + ' · ' + (ot.descripcion||'').slice(0,30));
+  iaAbrir(ctx, 'OT Â· ' + (ot.cliente||'') + ' Â· ' + (ot.descripcion||'').slice(0,30));
 }
 
 function iaCerrar() {
@@ -1329,10 +1333,10 @@ function iaRenderSugerencias() {
   if (!sug) return;
   var sugerencias = {
     admin: [
-      '¿Cuánto facturamos este mes?',
-      '¿Qué OTs están pendientes?',
+      'Â¿CuÃ¡nto facturamos este mes?',
+      'Â¿QuÃ© OTs estÃ¡n pendientes?',
       'Resumen de rentabilidad del mes',
-      'Redactar informe técnico',
+      'Redactar informe tÃ©cnico',
       'Manual Hikvision DS-K4H250S',
       'Manual Sonoff NSPanel Pro'
     ],
@@ -1341,15 +1345,15 @@ function iaRenderSugerencias() {
       'Redactar presupuesto para cliente',
       'Ayudame a redactar un mail',
       'Manual Hikvision',
-      'Diagnóstico de alarma'
+      'DiagnÃ³stico de alarma'
     ],
     tecnico: [
-      'Diagnóstico cerradura electromagnética',
+      'DiagnÃ³stico cerradura electromagnÃ©tica',
       'Manual Hikvision DS-K4H250S',
       'Manual Sonoff NSPanel Pro',
-      'Cómo configurar Zigbee en iHost',
-      'Redactar informe técnico',
-      'Procedimiento de instalación cámara IP'
+      'CÃ³mo configurar Zigbee en iHost',
+      'Redactar informe tÃ©cnico',
+      'Procedimiento de instalaciÃ³n cÃ¡mara IP'
     ],
     vendedor: [
       'Mis ventas de este mes',
@@ -1367,7 +1371,7 @@ function iaRenderSugerencias() {
 function iaSugerencia(btn) {
   var inp = document.getElementById('ia-input');
   if (inp) { inp.value = btn.textContent; iaEnviar(); }
-  // Ocultar sugerencias después de usarlas
+  // Ocultar sugerencias despuÃ©s de usarlas
   var sug = document.getElementById('ia-sugerencias');
   if (sug) sug.style.display = 'none';
 }
@@ -1388,7 +1392,7 @@ async function iaEnviar() {
   if (thinkDiv) thinkDiv.classList.add('thinking');
   _iaThinking = true;
 
-  // Construir system prompt con contexto filtrado según ROL
+  // Construir system prompt con contexto filtrado segÃºn ROL
   var hoy = new Date().toLocaleDateString('es-AR');
   var mesActual = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0');
   var esAdmin = currentRole === 'admin';
@@ -1396,12 +1400,12 @@ async function iaEnviar() {
   var esTecnico = currentRole === 'tecnico';
 
   var systemPrompt =
-    'Sos el asistente técnico de Nixa, empresa de seguridad y domótica de Mar del Plata, Argentina. ' +
-    'Respondés en español, de forma concisa y práctica. ' +
-    'Tenés acceso a búsqueda web — úsala para manuales, fichas técnicas y documentación de productos. ' +
-    'Cuando busques manuales: buscá en el sitio oficial del fabricante y devolvé el LINK DIRECTO al PDF. ' +
+    'Sos el asistente tÃ©cnico de Nixa, empresa de seguridad y domÃ³tica de Mar del Plata, Argentina. ' +
+    'RespondÃ©s en espaniol, de forma concisa y prÃ¡ctica. ' +
+    'TenÃ©s acceso a bÃºsqueda web â€” Ãºsala para manuales, fichas tÃ©cnicas y documentaciÃ³n de productos. ' +
+    'Cuando busques manuales: buscÃ¡ en el sitio oficial del fabricante y devolvÃ© el LINK DIRECTO al PDF. ' +
     'Fabricantes comunes de Nixa: Hikvision (hikvision.com), Dahua (dahuasecurity.com), Sonoff (sonoff.tech), Hanwha, Bosch, DSC, Paradox, Olide, Cdvi.' +
-    '\n\nUsuario: ' + (currentUser||'') + ' · Rol: ' + (currentRole||'') + ' · Fecha: ' + hoy;
+    '\n\nUsuario: ' + (currentUser||'') + ' Â· Rol: ' + (currentRole||'') + ' Â· Fecha: ' + hoy;
 
   if (esAdmin) {
     // Admin: acceso completo a datos financieros
@@ -1413,7 +1417,7 @@ async function iaEnviar() {
     var clientesDeuda = (ventasList||[]).filter(function(v){ return v.estadoPago!=='pago_total' && (parseFloat(v.total)||0)>0; }).length;
     systemPrompt +=
       '\n\n=== DATOS DEL SISTEMA ===' +
-      '\nVentas este mes: ' + ventasMes.length + ' · $' + Math.round(montoMes).toLocaleString('es-AR') +
+      '\nVentas este mes: ' + ventasMes.length + ' Â· $' + Math.round(montoMes).toLocaleString('es-AR') +
       '\nGastos este mes: $' + Math.round(montoGastos).toLocaleString('es-AR') +
       '\nUtilidad estimada: $' + Math.round(montoMes - montoGastos).toLocaleString('es-AR') +
       '\nOTs pendientes: ' + otsPend.length + (otsPend.length ? ' (' + otsPend.map(function(o){return o.cliente;}).slice(0,3).join(', ') + ')' : '') +
@@ -1427,11 +1431,11 @@ async function iaEnviar() {
     systemPrompt +=
       '\n\n=== MIS DATOS ===' +
       '\nMis ventas este mes: ' + misMes.length +
-      '\nNOTA IMPORTANTE: Solo tenés acceso a tus propios datos. No respondas preguntas sobre ventas totales de la empresa, gastos, utilidades u otros datos financieros globales.';
+      '\nNOTA IMPORTANTE: Solo tenÃ©s acceso a tus propios datos. No respondas preguntas sobre ventas totales de la empresa, gastos, utilidades u otros datos financieros globales.';
   } else if (esTecnico) {
-    // Técnico: solo contexto de OT, sin datos financieros
+    // TÃ©cnico: solo contexto de OT, sin datos financieros
     systemPrompt +=
-      '\nNOTA IMPORTANTE: Sos un asistente técnico. Solo podés ayudar con diagnósticos técnicos, manuales de equipos y procedimientos de instalación. No tenés acceso ni respondés preguntas sobre ventas, dinero, facturación o datos financieros de la empresa.';
+      '\nNOTA IMPORTANTE: Sos un asistente tÃ©cnico. Solo podÃ©s ayudar con diagnÃ³sticos tÃ©cnicos, manuales de equipos y procedimientos de instalaciÃ³n. No tenÃ©s acceso ni respondÃ©s preguntas sobre ventas, dinero, facturaciÃ³n o datos financieros de la empresa.';
   }
 
   if (_iaContexto) systemPrompt += '\n\n' + _iaContexto;
@@ -1449,7 +1453,7 @@ async function iaEnviar() {
     });
     var data = await resp.json();
     if (data.error) {
-      if (thinkDiv) { thinkDiv.textContent = '⚠️ ' + (data.error.message || 'Error del asistente.'); thinkDiv.classList.remove('thinking'); }
+      if (thinkDiv) { thinkDiv.textContent = 'âš ï¸ ' + (data.error.message || 'Error del asistente.'); thinkDiv.classList.remove('thinking'); }
       _iaThinking = false; return;
     }
     var respText = (data.content && data.content[0] && data.content[0].text) || 'No pude procesar la respuesta.';
@@ -1457,21 +1461,21 @@ async function iaEnviar() {
     _iaHistorial.push({ role: 'assistant', content: respText });
   } catch(e) {
     var msgError = e && e.message && e.message.includes('Failed to fetch')
-      ? 'No se pudo conectar con el asistente. Verificá tu conexión a internet.'
+      ? 'No se pudo conectar con el asistente. VerificÃ¡ tu conexiÃ³n a internet.'
       : 'Error: ' + (e.message || 'problema desconocido');
     if (thinkDiv) { thinkDiv.textContent = msgError; thinkDiv.classList.remove('thinking'); }
   }
   _iaThinking = false;
 }
 
-// Mostrar FAB de IA después del login
-// MENSAJERÍA INTERNA
+// Mostrar FAB de IA despuÃ©s del login
+// MENSAJERÃA INTERNA
 var _chatCanal    = 'general';
-var _chatReplyMsg  = null; // mensaje al que se está respondiendo
+var _chatReplyMsg  = null; // mensaje al que se estÃ¡ respondiendo
 var _chatListener = null;
 var _chatNoLeidos = {};
 var _chatUsuarios = {};
-// WEB PUSH NOTIFICATIONS — Chat interno
+// WEB PUSH NOTIFICATIONS â€” Chat interno
 var _chatNotifPermiso = false;
 
 function chatSolicitarPermiso() {
@@ -1481,13 +1485,13 @@ function chatSolicitarPermiso() {
   // Pedir permiso con un mensaje amigable
   Notification.requestPermission().then(function(perm) {
     _chatNotifPermiso = perm === 'granted';
-    if (_chatNotifPermiso) notify('✓ Notificaciones de chat activadas');
+    if (_chatNotifPermiso) notify('âœ“ Notificaciones de chat activadas');
   });
 }
 
 function chatMostrarNotif(titulo, cuerpo, canal) {
   if (!_chatNotifPermiso || document.visibilityState === 'visible') return;
-  var n = new Notification('💬 ' + titulo, {
+  var n = new Notification('ðŸ’¬ ' + titulo, {
     body:    cuerpo,
     icon:    'https://ventas.sistemanixa.com/favicon.ico',
     badge:   'https://ventas.sistemanixa.com/favicon.ico',
@@ -1516,7 +1520,7 @@ function chatInicializar() {
   setTimeout(chatSolicitarPermiso, 3000);
 
   if (window.fbDB) {
-    var _ultimosMsgs = {}; // rastrear último ts por canal para detectar mensajes nuevos
+    var _ultimosMsgs = {}; // rastrear Ãºltimo ts por canal para detectar mensajes nuevos
     ['general','tecnicos','admin'].forEach(function(canal) {
       window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat/' + canal), function(snap) {
         if (!snap.val()) return;
@@ -1525,7 +1529,7 @@ function chatInicializar() {
         var n = msgs.filter(function(m){ return m.autor !== currentUser && !(m.leido && (m.leido[currentUser]||m.leido[_lk])); }).length;
         _chatNoLeidos[canal] = n;
         chatActualizarBadges();
-        // Notificación push si llega mensaje nuevo y el chat no está abierto
+        // NotificaciÃ³n push si llega mensaje nuevo y el chat no estÃ¡ abierto
         var modal = document.getElementById('chat-modal');
         var chatAbierto = modal && modal.classList.contains('open');
         if (!chatAbierto && n > 0) {
@@ -1536,10 +1540,10 @@ function chatInicializar() {
           });
           if (nuevos.length) {
             var ult = nuevos[nuevos.length-1];
-            var canalNombre = { general:'General', tecnicos:'Técnicos', admin:'Admin' }[canal] || canal;
+            var canalNombre = { general:'General', tecnicos:'TÃ©cnicos', admin:'Admin' }[canal] || canal;
             chatMostrarNotif(
               (ult.autor||'Alguien') + ' en ' + canalNombre,
-              ult.texto || (ult.fotoUrl ? '📷 Foto' : 'Nuevo mensaje'),
+              ult.texto || (ult.fotoUrl ? 'ðŸ“· Foto' : 'Nuevo mensaje'),
               canal
             );
           }
@@ -1556,7 +1560,7 @@ function chatInicializar() {
 function chatEscucharDirectos() {
   if (!window.fbDB || !currentUser) return;
   var miKey = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
-  // Escuchar el nodo raíz de chat para detectar canales directos nuevos
+  // Escuchar el nodo raÃ­z de chat para detectar canales directos nuevos
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/chat'), function(snap) {
     var data = snap.val() || {};
     Object.keys(data).forEach(function(canal) {
@@ -1565,17 +1569,17 @@ function chatEscucharDirectos() {
       var noLeidos = msgs.filter(function(m){
         return m.autor !== currentUser && !(m.leido && m.leido[currentUser]);
       });
-      // Badge en la pestaña Directos
+      // Badge en la pestaÃ±a Directos
       _chatNoLeidos[canal] = noLeidos.length;
       chatActualizarBadges();
-      // Notificación si hay mensajes nuevos y chat cerrado
+      // NotificaciÃ³n si hay mensajes nuevos y chat cerrado
       var modal = document.getElementById('chat-modal');
       var chatAbierto = modal && modal.classList.contains('open') && _chatCanal === canal;
       if (!chatAbierto && noLeidos.length) {
         var ult = noLeidos[noLeidos.length-1];
         chatMostrarNotif(
           'Mensaje de ' + (ult.autor||'alguien'),
-          ult.texto || (ult.fotoUrl ? '📷 Foto' : 'Nuevo mensaje'),
+          ult.texto || (ult.fotoUrl ? 'ðŸ“· Foto' : 'Nuevo mensaje'),
           canal
         );
       }
@@ -1596,22 +1600,22 @@ function chatActualizarBadges() {
 function chatAdminLimpiar() {
   if (currentRole !== 'admin') return;
   var canal = _chatCanal;
-  if (!confirm('¿Eliminar todos los mensajes de "' + canal + '"? Esta acción no se puede deshacer.')) return;
+  if (!confirm('Â¿Eliminar todos los mensajes de "' + canal + '"? Esta acciÃ³n no se puede deshacer.')) return;
   if (!window.fbDB || !window.fbRemove) return;
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/chat/' + canal))
-    .then(function() { notify('✓ Canal "' + canal + '" limpiado'); });
+    .then(function() { notify('âœ“ Canal "' + canal + '" limpiado'); });
 }
 
 function chatAbrir() {
   var modal = document.getElementById('chat-modal');
   if (modal) { modal.classList.add('open'); document.body.style.overflow='hidden'; }
-  // Mostrar botón limpiar solo para admin
+  // Mostrar botÃ³n limpiar solo para admin
   var btnLimpiar = document.getElementById('btn-chat-admin-limpiar');
   if (btnLimpiar) btnLimpiar.style.display = currentRole === 'admin' ? '' : 'none';
   var lbl = document.getElementById('chat-online-label');
   if (lbl) {
     var cantOnline = Object.values(PRESENCIA_DATA||{}).filter(function(p){ return p.online === true; }).length;
-    lbl.textContent = cantOnline + ' en línea';
+    lbl.textContent = cantOnline + ' en lÃ­nea';
   }
   chatCargarCanal(_chatCanal);
 }
@@ -1631,7 +1635,7 @@ function chatCambiarCanal(canal, btn) {
 }
 
 function chatOnlineEnCanal(canal) {
-  // Mapeo de canal → roles que pertenecen
+  // Mapeo de canal â†’ roles que pertenecen
   var rolesCanal = {
     general:    ['admin','administrativo','vendedor','tecnico'],
     tecnicos:   ['tecnico'],
@@ -1644,7 +1648,7 @@ function chatOnlineEnCanal(canal) {
   });
   if (!online.length) return '';
   return '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg3);border-bottom:0.5px solid var(--border);flex-wrap:wrap">' +
-    '<span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">En línea:</span>' +
+    '<span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">En lÃ­nea:</span>' +
     online.map(function(u){
       return '<span style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--green)">' +
         '<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span>' +
@@ -1664,10 +1668,10 @@ function chatCargarCanal(canal) {
     var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); })
       .sort(function(a,b){
         var diff = (a.ts||0) - (b.ts||0);
-        if (Math.abs(diff) < 1000) return a.fbKey < b.fbKey ? -1 : 1; // menos de 1 segundo → orden de Firebase
+        if (Math.abs(diff) < 1000) return a.fbKey < b.fbKey ? -1 : 1; // menos de 1 segundo â†’ orden de Firebase
         return diff;
       }) : [];
-    // Mostrar quién está online en este canal — solo una vez, no en cada update
+    // Mostrar quiÃ©n estÃ¡ online en este canal â€” solo una vez, no en cada update
     var bannerExistente = document.getElementById('chat-online-banner');
     if (!bannerExistente) {
       var onlineBanner = chatOnlineEnCanal(canal);
@@ -1722,7 +1726,7 @@ function chatSetReply(btn) {
       '<div style="font-size:11px;font-weight:600;color:var(--green)">Respondiendo a ' + escapeHTML(autor) + '</div>' +
       '<div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML((texto||'').slice(0,60)) + '</div>' +
     '</div>' +
-    '<button onclick="chatCancelReply()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0 4px">×</button>';
+    '<button onclick="chatCancelReply()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0 4px">Ã—</button>';
   var inp = document.getElementById('chat-input');
   if (inp) inp.focus();
 }
@@ -1751,7 +1755,7 @@ function chatInitSwipe(container) {
     var dy = t.clientY - startY;
     if (Math.abs(dy) > Math.abs(dx)) return;
     var esMio = wrap.querySelector('.chat-msg.mine');
-    // Swipe derecha para mensajes del otro, izquierda para los míos
+    // Swipe derecha para mensajes del otro, izquierda para los mÃ­os
     var offset = esMio ? Math.min(0, dx) : Math.max(0, dx);
     if (Math.abs(offset) > 5) {
       wrap.classList.add('swiping');
@@ -1772,7 +1776,7 @@ function chatInitSwipe(container) {
       var fbKey = wrap.dataset.fbkey;
       var btnReply = wrap.querySelector('.chat-reply-btn');
       if (btnReply) {
-        // Vibración táctil si está disponible
+        // VibraciÃ³n tÃ¡ctil si estÃ¡ disponible
         if (navigator.vibrate) navigator.vibrate(30);
         chatSetReply(btnReply);
       }
@@ -1801,7 +1805,7 @@ function chatRenderMensajes(lista) {
   var container = document.getElementById('chat-messages');
   if (!container) return;
   if (!lista.length) {
-    container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Sin mensajes aún. ¡Sé el primero!</div>';
+    container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Sin mensajes aÃºn. Â¡SÃ© el primero!</div>';
     return;
   }
   var msgMap = {};
@@ -1816,7 +1820,7 @@ function chatRenderMensajes(lista) {
       var orig = msgMap[m.replyFbKey];
       replyHtml = '<div class="chat-reply-preview" onclick="chatScrollAMensaje(\"' + (m.replyFbKey||'') + '\")">' +
         '<b style="color:var(--green);font-size:11px">' + escapeHTML(orig.autor||'') + '</b> ' +
-        '<span>' + escapeHTML((orig.texto || (orig.fotoUrl ? '📷 Foto' : '')||'').slice(0,50)) + '</span></div>';
+        '<span>' + escapeHTML((orig.texto || (orig.fotoUrl ? 'ðŸ“· Foto' : '')||'').slice(0,50)) + '</span></div>';
     }
     var fbKeyEsc = (m.fbKey||'').replace(/["']/g,'');
     var autorEsc = (m.autor||'').replace(/["']/g,'');
@@ -1893,11 +1897,11 @@ function chatAbrirDirectos() {
     });
 
     if (!conversaciones.length) {
-      msgs.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">No hay conversaciones directas aún</div>';
+      msgs.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">No hay conversaciones directas aÃºn</div>';
       return;
     }
 
-    // Ordenar: con mensajes no leídos primero, luego por último mensaje
+    // Ordenar: con mensajes no leÃ­dos primero, luego por Ãºltimo mensaje
     conversaciones.sort(function(a,b){
       if (b.noLeidos !== a.noLeidos) return b.noLeidos - a.noLeidos;
       return ((b.ultimo && b.ultimo.ts)||0) - ((a.ultimo && a.ultimo.ts)||0);
@@ -1909,7 +1913,7 @@ function chatAbrirDirectos() {
         var presencia = Object.values(PRESENCIA_DATA||{}).find(function(p){ return p.nombre === c.otroNombre; });
         var online    = presencia && presencia.online;
         var dotColor  = online ? 'var(--green)' : 'var(--text3)';
-        var ultimoTxt = c.ultimo ? (c.ultimo.texto || (c.ultimo.fotoUrl ? '📷 Foto' : '')) : 'Nueva conversación';
+        var ultimoTxt = c.ultimo ? (c.ultimo.texto || (c.ultimo.fotoUrl ? 'ðŸ“· Foto' : '')) : 'Nueva conversaciÃ³n';
         var badge     = c.noLeidos > 0
           ? '<span style="background:var(--red);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px;font-weight:600">'+c.noLeidos+'</span>'
           : '';
@@ -1935,16 +1939,16 @@ function chatAbrirDirectos() {
 function chatEnviarFoto(input) {
   var file = input.files[0];
   if (!file) return;
-  // Validar tipo — solo jpg y png
+  // Validar tipo â€” solo jpg y png
   var tiposPermitidos = ['image/jpeg','image/jpg','image/png'];
   if (!tiposPermitidos.includes(file.type)) {
-    notify('Solo se permiten imágenes JPG o PNG');
+    notify('Solo se permiten imÃ¡genes JPG o PNG');
     input.value = '';
     return;
   }
   if (!window.fbStorage || !window.fbDB) { notify('Storage no disponible'); return; }
   if (file.size > 5 * 1024 * 1024) { notify('La imagen no puede superar 5MB'); input.value=''; return; }
-  notify('⏳ Subiendo imagen...');
+  notify('â³ Subiendo imagen...');
   var nombre = 'chat/' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g,'_');
   // Usar los nombres correctos expuestos en window
   var storageFn = window.storageRef || window.fbStorageRef;
@@ -1963,7 +1967,7 @@ function chatEnviarFoto(input) {
       ts:      Date.now(),
       canal:   _chatCanal
     });
-    notify('✓ Imagen enviada');
+    notify('âœ“ Imagen enviada');
   }).catch(function(e){ notify('Error subiendo imagen: ' + e.message); });
   input.value = '';
 }
@@ -2024,7 +2028,7 @@ function fbCargarEmpleados() {
     var selEmp  = document.getElementById('venta-empleado');
   var selCom2 = document.getElementById('venta-comisionado2');
     if (selEmp) {
-      var opts = '<option value="">— Seleccionar empleado —</option>';
+      var opts = '<option value="">â€” Seleccionar empleado â€”</option>';
       var fbKeyUsuarioActual = '';
       var esAdmin = (currentRole === 'admin');
       var adminTieneEmpleado = Object.values(empData).some(function(e) {
@@ -2046,7 +2050,7 @@ function fbCargarEmpleados() {
     }
     // Poblar select de segundo comisionado
     if (selCom2) {
-      var opts2 = '<option value="">— Ninguno —</option>';
+      var opts2 = '<option value="">â€” Ninguno â€”</option>';
       Object.values(empData).forEach(function(e) {
         if (e.activo !== false) {
           opts2 += '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+' (Leg. '+e.legajo+')</option>';
@@ -2058,22 +2062,22 @@ function fbCargarEmpleados() {
     if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
   });
 }
-// HABERES DEL MES — Registro como gastos
-var _habFilasActuales = []; // estado en memoria de las filas del modal de haberes (para edición en vivo de hs extra)
+// HABERES DEL MES â€” Registro como gastos
+var _habFilasActuales = []; // estado en memoria de las filas del modal de haberes (para ediciÃ³n en vivo de hs extra)
 
 function actualizarControlComisionVenta() {
   var cb = document.getElementById('venta-generar-comision');
   var box = document.getElementById('venta-comision-control');
   if (!cb) return;
-  // Regla operativa: el admin debe habilitar expresamente la comisión.
+  // Regla operativa: el admin debe habilitar expresamente la comisiÃ³n.
   if (currentRole === 'admin') {
     cb.checked = false;
     cb.disabled = false;
-    if (box) box.title = 'Admin: marcar solo cuando la venta corresponda liquidar comisión a un vendedor/comisionado';
+    if (box) box.title = 'Admin: marcar solo cuando la venta corresponda liquidar comisiÃ³n a un vendedor/comisionado';
   } else {
     cb.checked = true;
     cb.disabled = true;
-    if (box) box.title = 'Vendedor: la venta propia queda habilitada para comisión automática';
+    if (box) box.title = 'Vendedor: la venta propia queda habilitada para comisiÃ³n automÃ¡tica';
   }
 }
 
@@ -2084,7 +2088,7 @@ function abrirModalHaberesMes() {
 
   var empleados = Object.values(empData||{}).filter(function(e){ return e.activo !== false; });
   if (!empleados.length) { notify('No hay empleados activos'); return; }
-  /* v20.342: el haber mensual registra ÚNICAMENTE el sueldo base.
+  /* v20.342: el haber mensual registra ÃšNICAMENTE el sueldo base.
      Las horas extra se liquidan por el flujo de solicitudes aprobadas. */
   _habFilasActuales = empleados.map(function(e) {
     var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
@@ -2105,7 +2109,7 @@ function abrirModalHaberesMes() {
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
         '<div>' +
-          '<div style="font-weight:700;font-size:15px"><i class="ti ti-cash" style="margin-right:8px;color:var(--green)"></i>Registrar haberes — ' + mesLbl + '</div>' +
+          '<div style="font-weight:700;font-size:15px"><i class="ti ti-cash" style="margin-right:8px;color:var(--green)"></i>Registrar haberes â€” ' + mesLbl + '</div>' +
           '<div style="font-size:12px;color:var(--text3);margin-top:2px">Registra el sueldo base de cada empleado como gasto en Personal. Las horas extra se liquidan aparte, por solicitudes aprobadas.</div>' +
         '</div>' +
         '<button onclick="document.getElementById(\'modal-haberes-mes\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>' +
@@ -2151,7 +2155,7 @@ function _renderTablaHaberes(filas) {
   '</table>';
 }
 
-/* v20.342: actualizarHsExtraHaberes() eliminada — las horas extra se liquidan únicamente por solicitudes aprobadas. */
+/* v20.342: actualizarHsExtraHaberes() eliminada â€” las horas extra se liquidan Ãºnicamente por solicitudes aprobadas. */
 
 function recalcularHaberes() {
   var sel = document.getElementById('hab-mes-sel');
@@ -2161,17 +2165,17 @@ function recalcularHaberes() {
   var mesLbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
   var titulo = document.querySelector('#modal-haberes-mes .ti-cash');
   if (titulo && titulo.parentElement) {
-    titulo.parentElement.innerHTML = '<i class="ti ti-cash" style="margin-right:8px;color:var(--green)"></i>Registrar haberes — ' + mesLbl;
+    titulo.parentElement.innerHTML = '<i class="ti ti-cash" style="margin-right:8px;color:var(--green)"></i>Registrar haberes â€” ' + mesLbl;
   }
 }
 
 async function confirmarRegistroHaberes() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var sel = document.getElementById('hab-mes-sel');
   var mesISO = sel ? sel.value : new Date().toISOString().slice(0,7);
   var d = new Date(mesISO + '-01T12:00:00');
   var mesLbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-  var fechaGasto = mesISO + '-' + String(new Date(d.getFullYear(), d.getMonth()+1, 0).getDate()).padStart(2,'0'); // último día del mes
+  var fechaGasto = mesISO + '-' + String(new Date(d.getFullYear(), d.getMonth()+1, 0).getDate()).padStart(2,'0'); // Ãºltimo dÃ­a del mes
 
   var empleados = Object.values(empData||{}).filter(function(e){ return e.activo !== false; });
 
@@ -2182,7 +2186,7 @@ async function confirmarRegistroHaberes() {
   });
 
   if (yaRegistrado) {
-    if (!confirm('Ya existen haberes registrados para ' + mesLbl + '. ¿Querés registrarlos de nuevo de todas formas? (se agregarán como gastos adicionales)')) return;
+    if (!confirm('Ya existen haberes registrados para ' + mesLbl + '. Â¿QuerÃ©s registrarlos de nuevo de todas formas? (se agregarÃ¡n como gastos adicionales)')) return;
   }
 
   /* v20.342: el haber registra SOLO el sueldo base. Las horas extra se liquidan
@@ -2196,7 +2200,7 @@ async function confirmarRegistroHaberes() {
     var sueldo = f.sueldo;
     if (sueldo <= 0) return;
 
-    var desc = 'Haber ' + (e.nombre||'') + ' — ' + mesLbl;
+    var desc = 'Haber ' + (e.nombre||'') + ' â€” ' + mesLbl;
 
     var gasto = {
       fecha:          fechaGasto,
@@ -2248,14 +2252,14 @@ async function confirmarRegistroHaberes() {
   try {
     await Promise.all(promesas);
     document.getElementById('modal-haberes-mes').remove();
-    notify('✓ Haberes de ' + mesLbl + ' registrados (' + contador + ' empleados) — solo sueldo base; las hs extra van por solicitudes');
-    if (typeof registrarActividad === 'function') registrarActividad('Haberes registrados', mesLbl + ' — ' + contador + ' empleados');
+    notify('âœ“ Haberes de ' + mesLbl + ' registrados (' + contador + ' empleados) â€” solo sueldo base; las hs extra van por solicitudes');
+    if (typeof registrarActividad === 'function') registrarActividad('Haberes registrados', mesLbl + ' â€” ' + contador + ' empleados');
   } catch(err) {
     notify('Error al registrar haberes: ' + err.message);
   }
 }
-// ══════════════════════════════════════════════════════════════════════════════
-// HORAS EXTRA — carga por empleado + aprobación admin
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// HORAS EXTRA â€” carga por empleado + aprobaciÃ³n admin
 
 function abrirModalHsExtra() {
   var esAdmin = currentRole === 'admin';
@@ -2270,7 +2274,7 @@ function abrirFormCargaHsExtra() {
   var miEmp = Object.values(empData||{}).find(function(e){
     return (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
   });
-  if (!miEmp) { notify('No se encontró tu perfil de empleado'); return; }
+  if (!miEmp) { notify('No se encontrÃ³ tu perfil de empleado'); return; }
 
   var prev = document.getElementById('modal-hsextra');
   if (prev) prev.remove();
@@ -2291,12 +2295,12 @@ function abrirFormCargaHsExtra() {
         '</div>' +
         '<div class="fg"><label>Fecha</label><input type="date" id="hsex-fecha" value="' + hoy + '" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
         '<div class="fg"><label>Cantidad de horas</label><input type="number" id="hsex-hs" placeholder="0" min="0.5" step="0.5" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
-        '<div class="fg"><label>Descripción / Justificación</label><textarea id="hsex-desc" placeholder="Ej: Instalación en Rivadavia 1234 — sistema de alarma. Trabajo adicional fuera del horario habitual." rows="3" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;resize:vertical"></textarea></div>' +
+        '<div class="fg"><label>DescripciÃ³n / JustificaciÃ³n</label><textarea id="hsex-desc" placeholder="Ej: InstalaciÃ³n en Rivadavia 1234 â€” sistema de alarma. Trabajo adicional fuera del horario habitual." rows="3" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;resize:vertical"></textarea></div>' +
       '</div>' +
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);display:flex;gap:10px;justify-content:flex-end">' +
         '<button class="btn" onclick="document.getElementById(\'modal-hsextra\').remove()">Cancelar</button>' +
         '<button class="btn btn-primary" onclick="enviarSolicitudHsExtra(\'' + miEmp.fbKey + '\',\'' + escapeHTML(miEmp.nombre||'').replace(/'/g,"\\'") + '\')">' +
-          '<i class="ti ti-send"></i> Enviar para aprobación' +
+          '<i class="ti ti-send"></i> Enviar para aprobaciÃ³n' +
         '</button>' +
       '</div>' +
     '</div>';
@@ -2309,9 +2313,9 @@ async function enviarSolicitudHsExtra(empFbKey, empNombre) {
   var fecha = document.getElementById('hsex-fecha').value;
   var hs    = parseFloat(document.getElementById('hsex-hs').value) || 0;
   var desc  = (document.getElementById('hsex-desc').value || '').trim();
-  if (!fecha) { notify('Ingresá la fecha'); return; }
-  if (hs <= 0) { notify('Ingresá la cantidad de horas'); return; }
-  if (!desc)   { notify('Ingresá una descripción/justificación'); return; }
+  if (!fecha) { notify('IngresÃ¡ la fecha'); return; }
+  if (hs <= 0) { notify('IngresÃ¡ la cantidad de horas'); return; }
+  if (!desc)   { notify('IngresÃ¡ una descripciÃ³n/justificaciÃ³n'); return; }
   try {
     await window.fbPush(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes'), {
       empFbKey: empFbKey, empNombre: empNombre,
@@ -2319,7 +2323,7 @@ async function enviarSolicitudHsExtra(empFbKey, empNombre) {
       estado: 'pendiente', ts: Date.now(), enviadoPor: currentUser || empNombre
     });
     document.getElementById('modal-hsextra').remove();
-    notify('✓ Solicitud enviada — el administrador la revisará');
+    notify('âœ“ Solicitud enviada â€” el administrador la revisarÃ¡');
   } catch(e) { notify('Error al enviar: ' + e.message); }
 }
 
@@ -2345,7 +2349,7 @@ async function abrirPanelAprobacionHsExtra() {
       '<td style="padding:10px 8px"><div style="font-weight:600;font-size:13px">' + escapeHTML(s.empNombre||'') + '</div><div style="font-size:11px;color:var(--text3)">' + escapeHTML(s.fecha||'') + '</div></td>' +
       '<td style="padding:10px 8px;text-align:center;font-weight:600;color:var(--amber)">' + s.horas + ' hs</td>' +
       '<td style="padding:10px 8px;font-size:12px;max-width:200px">' + escapeHTML(s.descripcion||'') + '</td>' +
-      '<td style="padding:10px 8px;text-align:right;font-weight:600;color:var(--green)">' + (monto > 0 ? '$'+monto.toLocaleString('es-AR') : '—') + '</td>' +
+      '<td style="padding:10px 8px;text-align:right;font-weight:600;color:var(--green)">' + (monto > 0 ? '$'+monto.toLocaleString('es-AR') : 'â€”') + '</td>' +
       '<td style="padding:10px 8px;white-space:nowrap">' +
         '<button class="btn btn-sm" style="background:var(--green);color:#000;margin-right:4px" onclick="aprobarHsExtra(\'' + s.fbKey + '\')"><i class="ti ti-check"></i> Aprobar</button>' +
         '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="rechazarHsExtra(\'' + s.fbKey + '\')"><i class="ti ti-x"></i></button>' +
@@ -2355,7 +2359,7 @@ async function abrirPanelAprobacionHsExtra() {
   overlay.innerHTML =
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:760px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
-        '<div><div style="font-weight:700;font-size:15px"><i class="ti ti-clock-check" style="margin-right:8px;color:var(--amber)"></i>Aprobación de horas extra</div>' +
+        '<div><div style="font-weight:700;font-size:15px"><i class="ti ti-clock-check" style="margin-right:8px;color:var(--amber)"></i>AprobaciÃ³n de horas extra</div>' +
         '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + pendientes.length + ' solicitud(es) pendiente(s)</div></div>' +
         '<button onclick="document.getElementById(\'modal-hsextra-admin\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px"><i class="ti ti-x"></i></button>' +
       '</div>' +
@@ -2364,7 +2368,7 @@ async function abrirPanelAprobacionHsExtra() {
           '<thead><tr>' +
             '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Empleado</th>' +
             '<th style="text-align:center;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Horas</th>' +
-            '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Descripción</th>' +
+            '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">DescripciÃ³n</th>' +
             '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Monto</th>' +
             '<th></th>' +
           '</tr></thead>' +
@@ -2396,7 +2400,7 @@ async function aprobarHsExtra(solFbKey) {
     if (!ya) {
       var gastoPayload = _pagableGastoBase({
         tipoPagable: 'hextra', tipo: 'Variable', fecha: s.fecha, monto: monto,
-        descripcion: 'Hs extra ' + (s.empNombre||'') + ' — ' + (s.descripcion||'') + ' (' + s.horas + ' hs)',
+        descripcion: 'Hs extra ' + (s.empNombre||'') + ' â€” ' + (s.descripcion||'') + ' (' + s.horas + ' hs)',
         empleadoFbKey: s.empFbKey, empleadoNombre: s.empNombre||'', hsExtra: s.horas,
         origenLegacy: '', legacyKey: 'hsextra_solicitudes/' + solFbKey, ts: tsAhora
       });
@@ -2406,7 +2410,7 @@ async function aprobarHsExtra(solFbKey) {
     await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes/' + solFbKey), {
       estado: 'aprobado', aprobadoPor: currentUser||'Admin', aprobadoTs: Date.now(), monto: monto, gastoFbKey: gastoKey
     });
-    notify('✓ Aprobado — gasto de $' + monto.toLocaleString('es-AR') + ' generado');
+    notify('âœ“ Aprobado â€” gasto de $' + monto.toLocaleString('es-AR') + ' generado');
     document.getElementById('modal-hsextra-admin').remove();
     abrirPanelAprobacionHsExtra();
     actualizarBadgeHsExtraPendientes();
@@ -2415,7 +2419,7 @@ async function aprobarHsExtra(solFbKey) {
 
 async function rechazarHsExtra(solFbKey) {
   if (currentRole !== 'admin') { notify('Solo el administrador puede rechazar horas extra'); return; }
-  if (!confirm('¿Rechazar esta solicitud?')) return;
+  if (!confirm('Â¿Rechazar esta solicitud?')) return;
   await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes/' + solFbKey), {
     estado: 'rechazado', rechazadoPor: currentUser||'Admin', rechazadoTs: Date.now()
   }).catch(function(e){ notify('Error: ' + e.message); });
@@ -2453,7 +2457,7 @@ function _mesesDelSemestre(anio, sem) {
 }
 
 async function abrirModalAguinaldo() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var empleados = Object.values(empData||{}).filter(function(e){ return e.activo !== false; });
   if (!empleados.length) { notify('No hay empleados activos'); return; }
 
@@ -2476,7 +2480,7 @@ async function abrirModalAguinaldo() {
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
         '<div>' +
           '<div style="font-weight:700;font-size:15px"><i class="ti ti-gift" style="margin-right:8px;color:var(--amber)"></i>Registrar aguinaldo (SAC)</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Mejor sueldo del semestre ÷ 12 × meses trabajados — se generará un gasto en categoría Personal por cada empleado</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Mejor sueldo del semestre Ã· 12 Ã— meses trabajados â€” se generarÃ¡ un gasto en categorÃ­a Personal por cada empleado</div>' +
         '</div>' +
         '<button onclick="document.getElementById(\'modal-aguinaldo\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>' +
       '</div>' +
@@ -2488,8 +2492,8 @@ async function abrirModalAguinaldo() {
         '<label style="font-size:13px;color:var(--text2);white-space:nowrap">Fecha del gasto:</label>' +
         '<input type="date" id="agu-fecha" value="' + new Date().toISOString().slice(0,10) + '" style="padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">' +
         '<div style="display:flex;align-items:center;gap:8px;margin-left:auto">' +
-          '<label style="font-size:13px;color:var(--text2);white-space:nowrap">Máximo por empleado:</label>' +
-          '<input type="text" id="agu-maximo" placeholder="Sin límite" oninput="recalcularAguinaldo()" ' +
+          '<label style="font-size:13px;color:var(--text2);white-space:nowrap">MÃ¡ximo por empleado:</label>' +
+          '<input type="text" id="agu-maximo" placeholder="Sin lÃ­mite" oninput="recalcularAguinaldo()" ' +
             'style="width:130px;padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;text-align:right">' +
         '</div>' +
       '</div>' +
@@ -2523,7 +2527,7 @@ function _opcionesSemestre(actual) {
 }
 function _mesesTrabajadosEnSemestre(fechaIngreso, anio, sem) {
   var mesesSem = _mesesDelSemestre(anio, sem); // array de 'YYYY-MM', 6 elementos
-  if (!fechaIngreso) return mesesSem.length; // sin fecha cargada, se asume antigüedad completa
+  if (!fechaIngreso) return mesesSem.length; // sin fecha cargada, se asume antigÃ¼edad completa
   var ingresoISO = String(fechaIngreso).slice(0,7); // 'YYYY-MM'
   var count = 0;
   mesesSem.forEach(function(mesISO) {
@@ -2534,7 +2538,7 @@ function _mesesTrabajadosEnSemestre(fechaIngreso, anio, sem) {
 
 function _calcularFilasAguinaldo(empleados, habData, anio, sem) {
   var mesesSem = _mesesDelSemestre(anio, sem);
-  // Leer el máximo del input
+  // Leer el mÃ¡ximo del input
   var maxInp = document.getElementById('agu-maximo');
   var maxVal = maxInp ? parseFloat((maxInp.value||'').replace(/\./g,'').replace(',','.')) : 0;
 
@@ -2557,7 +2561,7 @@ function _calcularFilasAguinaldo(empleados, habData, anio, sem) {
     var mesesTrabajados = _mesesTrabajadosEnSemestre(e.fechaIngreso, anio, sem);
     var aguinaldoTotal = Math.round(((mejorSueldo / 12) * mesesTrabajados) * 100) / 100;
 
-    // Aplicar límite máximo
+    // Aplicar lÃ­mite mÃ¡ximo
     var aguinaldo = aguinaldoTotal;
     var limitado = false;
     if (maxVal > 0 && aguinaldoTotal > maxVal) {
@@ -2606,14 +2610,14 @@ function _renderTablaAguinaldo(filas) {
         '<td style="padding:10px 0">' +
           '<div style="font-weight:500;font-size:13px">' + escapeHTML(f.e.nombre||'') + '</div>' +
           '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(f.e.cargo||'Sin cargo') +
-            (sinDatos ? ' · <span style="color:var(--amber)">sin haberes, se usó cargo actual</span>' : '') + '</div>' +
+            (sinDatos ? ' Â· <span style="color:var(--amber)">sin haberes, se usÃ³ cargo actual</span>' : '') + '</div>' +
         '</td>' +
         '<td style="text-align:right;font-size:13px;padding:10px 0">$' + f.mejorSueldo.toLocaleString('es-AR') + '</td>' +
         '<td style="text-align:right;font-size:13px;padding:10px 0;color:' + (esParcial ? 'var(--amber)' : 'var(--text3)') + '">' +
-          f.mesesTrabajados + '/6' + (esParcial ? ' ⚠' : '') + '</td>' +
+          f.mesesTrabajados + '/6' + (esParcial ? ' âš ' : '') + '</td>' +
         '<td style="text-align:right;font-size:13px;padding:10px 0;color:' + (f.limitado ? 'var(--text3)' : 'var(--green)') + ';' + (f.limitado ? 'text-decoration:line-through' : '') + '">' +
           '$' + f.aguinaldoTotalDisplay +
-          '<div style="font-size:10px;color:var(--text3);text-decoration:none">$' + f.mejorSueldo.toLocaleString('es-AR') + ' ÷ 12 × ' + f.mesesTrabajados + '</div>' +
+          '<div style="font-size:10px;color:var(--text3);text-decoration:none">$' + f.mejorSueldo.toLocaleString('es-AR') + ' Ã· 12 Ã— ' + f.mesesTrabajados + '</div>' +
         '</td>' +
         (hayLimite ? '<td style="text-align:right;font-size:14px;font-weight:700;padding:10px 0;color:var(--green)">' +
           '$' + f.aguinaldoDisplay +
@@ -2648,7 +2652,7 @@ async function recalcularAguinaldo() {
       var pctTotal = totalSAC > 0 ? Math.round(totalAbonar / totalSAC * 1000) / 10 : 100;
       totalLbl.innerHTML =
         '<span style="color:var(--text3);text-decoration:line-through;font-size:13px">SAC total: $' + Math.round(totalSAC).toLocaleString('es-AR') + '</span>' +
-        '&nbsp;&nbsp;→&nbsp;&nbsp;<strong style="font-size:16px">$' + Math.round(totalAbonar).toLocaleString('es-AR') + '</strong>' +
+        '&nbsp;&nbsp;â†’&nbsp;&nbsp;<strong style="font-size:16px">$' + Math.round(totalAbonar).toLocaleString('es-AR') + '</strong>' +
         '<span style="font-size:12px;color:var(--amber);margin-left:8px">(' + pctTotal + '% del SAC)</span>';
     } else {
       totalLbl.innerHTML = '<strong style="font-size:16px">$' + totalAbonar.toLocaleString('es-AR') + '</strong>';
@@ -2657,7 +2661,7 @@ async function recalcularAguinaldo() {
 }
 
 async function confirmarRegistroAguinaldo() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var sel = document.getElementById('agu-sem-sel');
   var partes = sel ? sel.value.split('-') : [String(_semestreActual().anio), String(_semestreActual().sem)];
   var anio = parseInt(partes[0]), sem = parseInt(partes[1]);
@@ -2672,7 +2676,7 @@ async function confirmarRegistroAguinaldo() {
     return !!_pagableGastoExistente('aguinaldo', e.fbKey, 0, '', semKey, '');
   });
   if (yaRegistrado) {
-    if (!confirm('Ya existe un aguinaldo registrado en Gastos para ' + semLbl + '. ¿Querés registrarlo de nuevo de todas formas? (se agregará como gasto adicional)')) return;
+    if (!confirm('Ya existe un aguinaldo registrado en Gastos para ' + semLbl + '. Â¿QuerÃ©s registrarlo de nuevo de todas formas? (se agregarÃ¡ como gasto adicional)')) return;
   }
 
   var habSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes'));
@@ -2686,7 +2690,7 @@ async function confirmarRegistroAguinaldo() {
   filas.forEach(function(f, idx) {
     if (f.aguinaldo <= 0) return;
     var e = f.e;
-    var desc = 'Aguinaldo ' + (e.nombre||'') + ' — ' + semLbl;
+    var desc = 'Aguinaldo ' + (e.nombre||'') + ' â€” ' + semLbl;
 
     var gasto = _pagableGastoBase({
       fecha:       fechaGasto,
@@ -2710,8 +2714,8 @@ async function confirmarRegistroAguinaldo() {
   try {
     await Promise.all(promesas);
     document.getElementById('modal-aguinaldo').remove();
-    notify('✓ Aguinaldo de ' + semLbl + ' registrado en Gastos (' + contador + ' empleados)');
-    if (typeof registrarActividad === 'function') registrarActividad('Aguinaldo registrado', semLbl + ' — ' + contador + ' empleados');
+    notify('âœ“ Aguinaldo de ' + semLbl + ' registrado en Gastos (' + contador + ' empleados)');
+    if (typeof registrarActividad === 'function') registrarActividad('Aguinaldo registrado', semLbl + ' â€” ' + contador + ' empleados');
   } catch(err) {
     notify('Error al registrar aguinaldo: ' + err.message);
   }
@@ -2731,18 +2735,18 @@ function renderTablaEmpleados() {
   }
   tbody.innerHTML = lista.map(function(e) {
     var catLabel = e.cargo || 'Sin cargo';
-    var catColor = String(e.cargo||'').toLowerCase().includes('técnico') ? 'b-amber' : String(e.cargo||'').toLowerCase().includes('admin') ? 'b-purple' : 'b-blue';
-    var estadoBadge = '<label class="toggle-sw" onclick="event.stopPropagation()" title="'+(e.activo!==false?'Activo — clic para dar de baja':'Inactivo — clic para reactivar')+'"><input type="checkbox" '+(e.activo!==false?'checked':'')+' onchange="event.stopPropagation();abrirModalEstadoEmpleado(\''+e.fbKey+'\','+(e.activo!==false)+')"><span class="toggle-knob"></span></label>';
+    var catColor = String(e.cargo||'').toLowerCase().includes('tÃ©cnico') ? 'b-amber' : String(e.cargo||'').toLowerCase().includes('admin') ? 'b-purple' : 'b-blue';
+    var estadoBadge = '<label class="toggle-sw" onclick="event.stopPropagation()" title="'+(e.activo!==false?'Activo â€” clic para dar de baja':'Inactivo â€” clic para reactivar')+'"><input type="checkbox" '+(e.activo!==false?'checked':'')+' onchange="event.stopPropagation();abrirModalEstadoEmpleado(\''+e.fbKey+'\','+(e.activo!==false)+')"><span class="toggle-knob"></span></label>';
     var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
     var mensual = cargoInfo ? (parseFloat(cargoInfo.valorHora)||0)*8*(parseFloat(cargoInfo.diasMes)||0) : 0;
     var comCalc = (typeof calcularComisionEmpleado === 'function') ? calcularComisionEmpleado(e, new Date().toISOString().slice(0,7)) : null;
     var comision = comCalc ? (comCalc.comision||0) : 0;
     return '<tr class="er" style="cursor:pointer;touch-action:pan-x pan-y" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')">' +
-      '<td style="font-family:monospace;font-weight:600;color:var(--text3)">'+String(e.legajo||'—').padStart(4,'0')+'</td>' +
-      '<td style="font-weight:500">'+escapeHTML(e.nombre||'—')+'</td>' +
+      '<td style="font-family:monospace;font-weight:600;color:var(--text3)">'+String(e.legajo||'â€”').padStart(4,'0')+'</td>' +
+      '<td style="font-weight:500">'+escapeHTML(e.nombre||'â€”')+'</td>' +
       '<td><span class="badge '+catColor+'">'+escapeHTML(catLabel)+'</span></td>' +
-      '<td style="text-align:right">'+(cargoInfo?'$'+Math.round(mensual).toLocaleString('es-AR'):'—')+'</td>' +
-      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(e.fechaIngreso||'—')+'</td>' +
+      '<td style="text-align:right">'+(cargoInfo?'$'+Math.round(mensual).toLocaleString('es-AR'):'â€”')+'</td>' +
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(e.fechaIngreso||'â€”')+'</td>' +
       '<td style="text-align:right">'+estadoBadge+'</td>' +
       '<td style="white-space:nowrap" onclick="event.stopPropagation()">' +
         '<button class="btn btn-sm btn-icon" onclick="editarEmpleado(\''+e.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
@@ -2775,7 +2779,7 @@ function fbCargarUsuarios() {
       window.usuariosData = Object.entries(data).map(function(e){
         return Object.assign({ fbKey: e[0] }, e[1]);
       });
-      var rolLabels = {admin:'Admin',administrativo:'Administrativo',vendedor:'Vendedor',tecnico:'Técnico'};
+      var rolLabels = {admin:'Admin',administrativo:'Administrativo',vendedor:'Vendedor',tecnico:'TÃ©cnico'};
       window.LOGIN_USUARIOS = window.usuariosData
         .filter(function(u){ return u.activo !== false; })
         .map(function(u){
@@ -2810,23 +2814,23 @@ function renderTablaUsuarios() {
   tbody.innerHTML = lista.map(function(u, i) {
     var rolBadge = u.rol === 'admin' || u.rol === 'Administrador'
       ? '<span class="badge b-blue">Admin</span>'
-      : u.rol === 'tecnico' || u.rol === 'Técnico'
-      ? '<span class="badge b-amber">Técnico</span>'
+      : u.rol === 'tecnico' || u.rol === 'TÃ©cnico'
+      ? '<span class="badge b-amber">TÃ©cnico</span>'
       : '<span class="badge b-purple">Administrativo</span>';
     var estadoBadge = '<label class="toggle-sw" title="' + (u.activo !== false ? 'Activo' : 'Inactivo') + '"><input type="checkbox" ' + (u.activo !== false ? 'checked' : '') + ' onchange="toggleActivoUsuario(\'' + u.fbKey + '\',' + (u.activo !== false) + ')"><span class="toggle-knob"></span></label>';
-    var ultimoAcceso = u.ultimoAcceso || '—';
+    var ultimoAcceso = u.ultimoAcceso || 'â€”';
     var emailUsuario = u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com');
     var online = (typeof estaUsuarioOnline === 'function') ? estaUsuarioOnline(emailUsuario) : false;
-    var puntoOnline = '<span title="' + (online ? 'Conectado ahora' : 'Sin conexión activa') + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:' + (online ? 'var(--green)' : 'var(--text3)') + (online ? ';box-shadow:0 0 0 3px rgba(61,220,132,.18)' : '') + '"></span>';
+    var puntoOnline = '<span title="' + (online ? 'Conectado ahora' : 'Sin conexiÃ³n activa') + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:' + (online ? 'var(--green)' : 'var(--text3)') + (online ? ';box-shadow:0 0 0 3px rgba(61,220,132,.18)' : '') + '"></span>';
     var claveUsuario = obtenerClaveUsuarioAdmin(u);
     var claveId = 'usu-clave-' + (u.fbKey || i);
     var claveHtml = claveUsuario
-      ? '<span id="' + claveId + '" data-clave="' + escapeHTML(claveUsuario) + '" data-visible="0" style="font-family:monospace;color:var(--text3)">••••••••</span> <button class="btn btn-sm btn-icon" onclick="toggleVerClaveUsuario(\'' + claveId + '\')" title="Ver / ocultar clave" style="padding:2px 4px"><i class="ti ti-eye" style="font-size:13px"></i></button>'
+      ? '<span id="' + claveId + '" data-clave="' + escapeHTML(claveUsuario) + '" data-visible="0" style="font-family:monospace;color:var(--text3)">â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢</span> <button class="btn btn-sm btn-icon" onclick="toggleVerClaveUsuario(\'' + claveId + '\')" title="Ver / ocultar clave" style="padding:2px 4px"><i class="ti ti-eye" style="font-size:13px"></i></button>'
       : '<span style="color:var(--text3);font-size:12px">Sin registrar</span>';
     return '<tr>' +
       '<td>' + (i + 1) + '</td>' +
-      '<td>' + puntoOnline + escapeHTML(u.nombre || '—') + '</td>' +
-      '<td style="color:var(--text3)">' + escapeHTML(u.login || u.mail || '—') + '</td>' +
+      '<td>' + puntoOnline + escapeHTML(u.nombre || 'â€”') + '</td>' +
+      '<td style="color:var(--text3)">' + escapeHTML(u.login || u.mail || 'â€”') + '</td>' +
       '<td>' + rolBadge + '</td>' +
       '<td>' + claveHtml + '</td>' +
       '<td style="text-align:right;color:var(--text3)">' + escapeHTML(ultimoAcceso) + '</td>' +
@@ -2848,12 +2852,12 @@ function actualizarSelectEmpleados() {
   var activos = Object.values(empData).filter(function(e){ return e.activo !== false; });
   sel.innerHTML = '<option value="">Seleccionar empleado...</option>' +
     activos.map(function(e){
-      return '<option value="'+e.id+'">'+e.nombre+' — '+e.cargo+'</option>';
+      return '<option value="'+e.id+'">'+e.nombre+' â€” '+e.cargo+'</option>';
     }).join('');
 }
 // CAPA DE DATOS FIREBASE
 
-// Estado de conexión
+// Estado de conexiÃ³n
 var fbConectado = false;
 var fbEsperandoReady = [];
 
@@ -2863,7 +2867,7 @@ document.addEventListener('firebase-ready', function() {
   // Ejecutar callbacks pendientes
   fbEsperandoReady.forEach(function(fn) { try { fn(); } catch(e) {} });
   fbEsperandoReady = [];
-  // NO cargar datos aquí — se cargan después del login (auth requerida)
+  // NO cargar datos aquÃ­ â€” se cargan despuÃ©s del login (auth requerida)
 });
 
 function fbListo(fn) {
@@ -2918,7 +2922,7 @@ function fbCargarTodo() {
   fbCargarPagos();
   fbCargarServicios();
   fbCargarCaja();
-  /* v20.341: generación automática de gastos fijos ELIMINADA.
+  /* v20.341: generaciÃ³n automÃ¡tica de gastos fijos ELIMINADA.
      La carga mensual la realiza el administrador manualmente. */
 }
 function fbCargarClientes() {
@@ -2945,7 +2949,7 @@ function fbCargarClientes() {
     }
   });
 }
-// No refresca automático (perdería el scroll por el toggle display:none/block de showPage) — solo avisa.
+// No refresca automÃ¡tico (perderÃ­a el scroll por el toggle display:none/block de showPage) â€” solo avisa.
 function _chequearCambioHistCliente() {
   var pageHistCli = document.getElementById('page-historialcliente');
   if (!pageHistCli || !pageHistCli.classList.contains('active')) return;
@@ -2965,16 +2969,16 @@ function _chequearCambioHistCliente() {
 }
 
 function fbGuardarCliente(cli) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n Firebase'); return; }
   var r = window.fbRef(window.fbDB, FB_PATHS.clientes);
   if (cli.fbKey) {
     window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey), cli)
-      .then(function() { notify('Cliente actualizado ✓'); })
+      .then(function() { notify('Cliente actualizado âœ“'); })
       .catch(function(e) { notify('Error: ' + e.message); });
   } else {
     // Nuevo cliente
     window.fbPush(r, cli)
-      .then(function() { notify('Cliente guardado ✓'); })
+      .then(function() { notify('Cliente guardado âœ“'); })
       .catch(function(e) { notify('Error: ' + e.message); });
   }
 }
@@ -2992,7 +2996,7 @@ function fbCargarProductos() {
     if (data) {
       prodData = {};
       stockData = {};
-      var _seen = {}; // id → entrada preferida
+      var _seen = {}; // id â†’ entrada preferida
       Object.entries(data).forEach(function(e) {
         var p = Object.assign({ fbKey: e[0] }, e[1]);
         var pid = String(p.id || p.idProducto || e[0]).replace(/[^0-9]/g,'');
@@ -3020,7 +3024,7 @@ function fbCargarProductos() {
       });
       if (typeof renderTablaProductos === 'function') renderTablaProductos();
       if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
-      // la misma variable editingProdId), refrescarlo — es de solo lectura
+      // la misma variable editingProdId), refrescarlo â€” es de solo lectura
       var prodDetEl = document.getElementById('prod-detail-view');
       if (prodDetEl && prodDetEl.style.display === 'block' && typeof editingProdId !== 'undefined' && editingProdId && typeof verProducto === 'function') {
         verProducto(editingProdId);
@@ -3030,14 +3034,14 @@ function fbCargarProductos() {
 }
 
 function fbGuardarProducto(prod) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n Firebase'); return; }
   var r = window.fbRef(window.fbDB, FB_PATHS.productos);
   if (prod.fbKey) {
     window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + prod.fbKey), prod)
-      .then(function() { notify('Producto actualizado ✓'); });
+      .then(function() { notify('Producto actualizado âœ“'); });
   } else {
     window.fbPush(r, prod)
-      .then(function() { notify('Producto guardado ✓'); });
+      .then(function() { notify('Producto guardado âœ“'); });
   }
 }
 
@@ -3061,7 +3065,7 @@ function fechaVentaTimestamp(fecha, respaldoTs) {
 function obtenerProximoIdVenta() {
   var maxId = 0;
   (ventasList||[]).forEach(function(venta) {
-    // Las conversiones antiguas usaban seis dígitos del reloj; no deben romper la secuencia comercial.
+    // Las conversiones antiguas usaban seis dÃ­gitos del reloj; no deben romper la secuencia comercial.
     if (venta.pptoOrigen && venta.numeroSecuencial !== true) return;
     var numero = parseInt(String(venta.idOriginal || venta.id || '').replace(/[^0-9]/g, '')) || 0;
     if (numero > maxId) maxId = numero;
@@ -3089,7 +3093,7 @@ function fbCargarVentas() {
       if (typeof _aplicarFiltrosVentas === 'function') _aplicarFiltrosVentas();
       else if (typeof renderVentasTabla === 'function') renderVentasTabla();
       if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
-      // (por ejemplo, si otro usuario registró un pago o cambió el estado mientras lo estabas mirando)
+      // (por ejemplo, si otro usuario registrÃ³ un pago o cambiÃ³ el estado mientras lo estabas mirando)
       var detalleEl2 = document.getElementById('venta-detalle-view');
       if (detalleEl2 && detalleEl2.style.display === 'block' && window._ventaDetActualId && typeof verDetalleVenta === 'function') {
         verDetalleVenta(window._ventaDetActualId);
@@ -3120,6 +3124,97 @@ function ventaTienePagoTotal(v) {
   var pagado = pagos.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
   return total > 0 && pagado >= total - 1;
 }
+
+function _svTxtClave(x) {
+  return String(x || '').trim();
+}
+
+function _svTxtNombre(x) {
+  return String(x || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+}
+
+function _svVentaClaves(v) {
+  v = v || {};
+  var exactas = [v.fbKey, v.ventaFbKey, v.ventaKey, v.id, v.numero, v.ventaId, v.idVenta, v.nro, v.codigo]
+    .map(_svTxtClave).filter(Boolean);
+  var visibles = [v.id, v.numero, v.ventaId, v.idVenta, v.nro, v.codigo]
+    .map(_svTxtClave).filter(Boolean);
+  var nums = visibles.map(function(k){ return k.replace(/\D/g,''); }).filter(Boolean);
+  return {
+    exactas: Array.from(new Set(exactas)),
+    nums: Array.from(new Set(nums))
+  };
+}
+
+function _svRegistroPerteneceVenta(reg, venta) {
+  if (!reg || !venta) return false;
+  var claves = _svVentaClaves(venta);
+  var refs = [reg.ventaFbKey, reg.ventaKey, reg.venta, reg.ventaId, reg.idVenta, reg.nroVenta, reg.numeroVenta, reg.ventaNumero]
+    .map(_svTxtClave).filter(Boolean);
+  if (refs.some(function(r){ return claves.exactas.indexOf(r) >= 0; })) return true;
+  var numsReg = refs.map(function(r){ return r.replace(/\D/g,''); }).filter(Boolean);
+  return claves.nums.some(function(n){ return numsReg.indexOf(n) >= 0; });
+}
+
+function _svResolverVentaRegistro(reg) {
+  var ventas = Array.isArray(ventasList) ? ventasList : [];
+  if (!reg || !ventas.length) return null;
+  if (typeof reg === 'string' || typeof reg === 'number') {
+    reg = { ventaId: reg, venta: reg, id: reg, fbKey: reg };
+  }
+  var directas = [reg.fbKey, reg.ventaFbKey, reg.ventaKey].map(_svTxtClave).filter(Boolean);
+  if (directas.length) {
+    var porKey = ventas.find(function(v){
+      return directas.indexOf(String(v.fbKey||'')) >= 0 || directas.indexOf(String(v.ventaFbKey||'')) >= 0 || directas.indexOf(String(v.ventaKey||'')) >= 0;
+    });
+    if (porKey) return porKey;
+  }
+  return ventas.find(function(v){ return _svRegistroPerteneceVenta(reg, v); }) || null;
+}
+
+function _svClienteClaves(cli) {
+  cli = cli || {};
+  return [cli.fbKey, cli.clienteFbKey, cli.clienteKey, cli.id, cli.clienteId, cli.idCliente, cli.idClienteOriginal]
+    .map(_svTxtClave).filter(Boolean);
+}
+
+function _svRegistroPerteneceCliente(reg, cli, permitirNombre) {
+  if (!reg || !cli) return false;
+  var claves = _svClienteClaves(cli);
+  var refs = [reg.clienteFbKey, reg.clienteKey, reg.clienteId, reg.idCliente, reg.idClienteOriginal, reg.fbKeyCliente, reg.id_cli]
+    .map(_svTxtClave).filter(Boolean);
+  if (refs.some(function(r){ return claves.indexOf(r) >= 0; })) return true;
+  if (!permitirNombre) return false;
+  var nomReg = _svTxtNombre(reg.cliente || reg.clienteNombre || reg.nombreCliente || '');
+  var nomCli = _svTxtNombre(cli.nombre || cli.cliente || cli.empresa || cli.razonSocial || '');
+  return !!nomReg && !!nomCli && nomReg === nomCli;
+}
+
+function _svResolverClienteRegistro(reg, permitirNombre) {
+  var clientes = Array.isArray(clientesData) ? clientesData : Object.values(clientesData||{});
+  if (!reg || !clientes.length) return null;
+  var refs = [reg.clienteFbKey, reg.clienteKey, reg.clienteId, reg.idCliente, reg.idClienteOriginal, reg.fbKeyCliente, reg.id_cli]
+    .map(_svTxtClave).filter(Boolean);
+  if (refs.length) {
+    var porId = clientes.find(function(cli){
+      return _svClienteClaves(cli).some(function(k){ return refs.indexOf(k) >= 0; });
+    });
+    if (porId) return porId;
+  }
+  if (!permitirNombre) return null;
+  var nomReg = _svTxtNombre(reg.cliente || reg.clienteNombre || reg.nombreCliente || '');
+  if (!nomReg) return null;
+  return clientes.find(function(cli){
+    var nombres = [cli.nombre, cli.cliente, cli.empresa, cli.razonSocial, ((cli.nombre||'') + ' ' + (cli.apellidos||cli.apellido||'')).trim()]
+      .map(_svTxtNombre).filter(Boolean);
+    return nombres.indexOf(nomReg) >= 0;
+  }) || null;
+}
+
+window._svRegistroPerteneceVenta = _svRegistroPerteneceVenta;
+window._svResolverVentaRegistro = _svResolverVentaRegistro;
+window._svRegistroPerteneceCliente = _svRegistroPerteneceCliente;
+window._svResolverClienteRegistro = _svResolverClienteRegistro;
 
 
 function resolverIdClienteVenta(v) {
@@ -3164,20 +3259,20 @@ function abrirEditorVenta(fbKey) {
     calcTotals();
     window._ventaEditandoFbKey = fbKey;
     window._ventaEditandoOriginal = v;
-    notify('Editando venta ' + (v.id||fbKey) + ' — confirmá para guardar cambios');
+    notify('Editando venta ' + (v.id||fbKey) + ' â€” confirmÃ¡ para guardar cambios');
   }, 400);
 }
 
 function fbGuardarVenta(venta) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
+  if (!window.fbDB) { notify('Sin conexiÃ³n Firebase'); return Promise.resolve(); }
   var r = window.fbRef(window.fbDB, FB_PATHS.ventas);
   if (venta.fbKey) {
     return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), venta)
-      .then(function() { notify('Venta guardada ✓'); });
+      .then(function() { notify('Venta guardada âœ“'); });
   } else {
     return window.fbPush(r, venta)
       .then(function(ref) {
-        notify('Venta confirmada ✓');
+        notify('Venta confirmada âœ“');
         return ref.key;
       });
   }
@@ -3211,14 +3306,14 @@ function fbCargarPresupuestos() {
 }
 
 function fbGuardarPresupuesto(ppto) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
+  if (!window.fbDB) { notify('Sin conexiÃ³n Firebase'); return Promise.resolve(); }
   var r = window.fbRef(window.fbDB, FB_PATHS.presupuestos);
   if (ppto.fbKey) {
     return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + ppto.fbKey), ppto)
-      .then(function() { notify('Presupuesto guardado ✓'); });
+      .then(function() { notify('Presupuesto guardado âœ“'); });
   } else {
     return window.fbPush(r, ppto)
-      .then(function() { notify('Presupuesto guardado ✓'); });
+      .then(function() { notify('Presupuesto guardado âœ“'); });
   }
 }
 function fbCargarOTs() {
@@ -3230,14 +3325,14 @@ function fbCargarOTs() {
         return Object.assign({ fbKey: e[0] }, e[1]);
       });
     } else {
-      otData = []; // sin OTs — resetear el array para que el dashboard muestre vacío
+      otData = []; // sin OTs â€” resetear el array para que el dashboard muestre vacÃ­o
     }
     var pageAgenda = document.getElementById('page-agenda');
     if (pageAgenda && pageAgenda.classList.contains('active')) {
       if (typeof agRenderCalendario === 'function') agRenderCalendario();
       if (typeof agActualizarMetricas === 'function') agActualizarMetricas();
     }
-    // guardado automático — refrescar en caliente podría pisar lo que el usuario está
+    // guardado automÃ¡tico â€” refrescar en caliente podrÃ­a pisar lo que el usuario estÃ¡
     var otDetEl = document.getElementById('ot-detalle-view');
     if (otDetEl && otDetEl.style.display === 'block' && typeof otActualId !== 'undefined' && otActualId) {
       var otNueva = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
@@ -3279,7 +3374,7 @@ function fbGuardarOT(ot) {
   });
 }
 function fbSeedDatos() {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n Firebase'); return; }
   notify('Cargando datos demo a Firebase...');
 
   // Seed clientes
@@ -3317,7 +3412,7 @@ function fbSeedDatos() {
     window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), copia);
   });
 
-  setTimeout(function() { notify('✓ Datos demo cargados en Firebase'); }, 2000);
+  setTimeout(function() { notify('âœ“ Datos demo cargados en Firebase'); }, 2000);
 }
 function fbMostrarEstadoConexion() {
   var badge = document.getElementById('fb-status');
@@ -3339,17 +3434,17 @@ document.addEventListener('firebase-ready', fbMostrarEstadoConexion);
 function abrirUserPanel() {
   if (typeof toggleUserPanel === 'function') toggleUserPanel();
 }
-// acá solo se guardan los datos no-sensibles que viajan en cada comprobante.
+// acÃ¡ solo se guardan los datos no-sensibles que viajan en cada comprobante.
 var TFAPP_CONFIG = {
   punto_venta: 2,
-  provincia:   '', // código numérico AFIP — completar en Configuración → Facturación
-  rubro:       'Seguridad y domótica',
-  activo:      true // siempre activo — los tokens los maneja la Cloud Function
+  provincia:   '', // cÃ³digo numÃ©rico AFIP â€” completar en ConfiguraciÃ³n â†’ FacturaciÃ³n
+  rubro:       'Seguridad y domÃ³tica',
+  activo:      true // siempre activo â€” los tokens los maneja la Cloud Function
 };
 
-// Cloud Functions intermedias — evitan el bloqueo de CORS que tiene la API de
+// Cloud Functions intermedias â€” evitan el bloqueo de CORS que tiene la API de
 // TusFacturasApp contra llamadas directas desde el navegador, y mantienen los
-// tokens de TusFacturasApp fuera del HTML público (viven en Secret Manager).
+// tokens de TusFacturasApp fuera del HTML pÃºblico (viven en Secret Manager).
 var SISVENTAS_FUNCTIONS = {
   emitirFactura: 'https://southamerica-east1-nixa-sisventas.cloudfunctions.net/emitirFactura',
   testTFApp:     'https://southamerica-east1-nixa-sisventas.cloudfunctions.net/testTFApp',
@@ -3363,7 +3458,7 @@ function normalizarIdentidadCliente(valor) {
 function resolverClienteDeVenta(venta) {
   if (!venta) return null;
   var clientes = Array.isArray(clientesData) ? clientesData : Object.values(clientesData||{});
-  var ids = [venta.clienteId, venta.idCliente, venta.clienteFbKey, venta.clienteKey].filter(Boolean).map(String);
+  var ids = [venta.clienteFbKey, venta.clienteKey, venta.clienteId, venta.idCliente, venta.idClienteOriginal, venta.fbKeyCliente, venta.id_cli].filter(Boolean).map(String);
   if (ids.length) {
     var porId = clientes.find(function(cliente) {
       return [cliente.fbKey, cliente.id, cliente.key, cliente.codigo].filter(Boolean).map(String).some(function(id){ return ids.includes(id); });
@@ -3382,7 +3477,7 @@ function resolverClienteDeVenta(venta) {
 
 function obtenerCuitClienteVenta(venta) {
   var cliente = resolverClienteDeVenta(venta);
-  var valor = (cliente && (cliente.cuit || cliente.CUIT || cliente.cuitDni || cliente.documentoFiscal)) || venta.clienteCuit || venta.cuitCliente || '';
+  var valor = venta.clienteCuit || venta.cuitCliente || venta.cuit || (cliente && (cliente.cuit || cliente.CUIT || cliente.cuitDni || cliente.documentoFiscal || cliente.dniFiscal)) || '';
   var digitos = String(valor).replace(/\D/g,'');
   return digitos.length === 11 ? digitos : '';
 }
@@ -3390,21 +3485,21 @@ function obtenerCuitClienteVenta(venta) {
 // Emitir factura desde una venta
 async function emitirFactura(venta, tipoComprobante) {
   if (venta && venta.contadoSinFactura) {
-    notify('Esta venta fue marcada como "Contado sin factura" — no se puede emitir comprobante electrónico');
+    notify('Esta venta fue marcada como "Contado sin factura" â€” no se puede emitir comprobante electrÃ³nico');
     return null;
   }
   if (!TFAPP_CONFIG.activo) {
-    notify('Configurá TusFacturasApp en Configuración → Facturación');
+    notify('ConfigurÃ¡ TusFacturasApp en ConfiguraciÃ³n â†’ FacturaciÃ³n');
     return null;
   }
   var cuitResuelto = obtenerCuitClienteVenta(venta);
   if (cuitResuelto) venta.clienteCuit = cuitResuelto;
   if (tipoComprobante === 'FACTURA A' && !cuitResuelto) {
-    notify('El cliente no tiene CUIT cargado — la Factura A lo requiere obligatoriamente');
+    notify('El cliente no tiene CUIT cargado â€” la Factura A lo requiere obligatoriamente');
     return null;
   }
   if (!TFAPP_CONFIG.provincia) {
-    notify('Falta configurar la provincia del emisor en Configuración → Facturación');
+    notify('Falta configurar la provincia del emisor en ConfiguraciÃ³n â†’ FacturaciÃ³n');
     return null;
   }
 
@@ -3429,10 +3524,10 @@ async function emitirFactura(venta, tipoComprobante) {
       notify('Error: ' + (data.mensaje || 'No se pudo emitir la factura'));
       return null;
     }
-    notify('✓ Factura emitida — CAE: ' + data.cae);
+    notify('âœ“ Factura emitida â€” CAE: ' + data.cae);
     return data;
   } catch(e) {
-    notify('Error de conexión con el servidor de facturación');
+    notify('Error de conexiÃ³n con el servidor de facturaciÃ³n');
     console.error('[emitirFactura]', e);
     return null;
   }
@@ -3440,7 +3535,7 @@ async function emitirFactura(venta, tipoComprobante) {
 
 // Abrir modal para elegir tipo de factura
 function abrirModalFactura(ventaId) {
-  var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
+  var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('Venta no encontrada'); return; }
 
   var overlay = document.createElement('div');
@@ -3454,11 +3549,11 @@ function abrirModalFactura(ventaId) {
   var totalFmt = '$' + (venta.total||0).toLocaleString('es-AR');
 
   var html = '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.15)">';
-  html += '<div style="font-size:16px;font-weight:600;margin-bottom:16px">Emitir factura — ' + venta.id + '</div>';
+  html += '<div style="font-size:16px;font-weight:600;margin-bottom:16px">Emitir factura â€” ' + venta.id + '</div>';
   html += '<div style="font-size:13px;color:var(--text2);margin-bottom:6px">Cliente: ' + venta.cliente + '</div>';
   html += '<div style="font-size:13px;color:var(--text2);margin-bottom:' + (tieneCuit ? '16' : '4') + 'px">Total: ' + totalFmt + '</div>';
   if (!tieneCuit) {
-    html += '<div style="font-size:12px;color:var(--amber);margin-bottom:16px;padding:8px;background:var(--amber-bg);border-radius:6px">⚠️ El cliente no tiene CUIT — solo podés emitir Factura B</div>';
+    html += '<div style="font-size:12px;color:var(--amber);margin-bottom:16px;padding:8px;background:var(--amber-bg);border-radius:6px">âš ï¸ El cliente no tiene CUIT â€” solo podÃ©s emitir Factura B</div>';
   }
   html += '<div style="font-size:12px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Tipo de comprobante</div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:20px">';
@@ -3485,7 +3580,7 @@ function selTipoFactura(btn, tipo) {
 }
 
 function abrirModalNotaCredito(ventaId) {
-  var v = (ventasList||[]).find(function(x){ return x.id === ventaId; });
+  var v = _svResolverVentaRegistro(ventaId);
   if (!v || !v.factura) { notify('Sin factura emitida en esta venta'); return; }
   var f = v.factura;
 
@@ -3494,7 +3589,7 @@ function abrirModalNotaCredito(ventaId) {
     var fechaFact = new Date(parseInt(partes[2]), parseInt(partes[1])-1, parseInt(partes[0]));
     var diasDesde = Math.floor((Date.now() - fechaFact.getTime()) / (1000*60*60*24));
     if (diasDesde > 15) {
-      notify('⚠️ La factura tiene más de 15 días — AFIP puede rechazar la nota de crédito. Consultá con tu contador.');
+      notify('âš ï¸ La factura tiene mÃ¡s de 15 dÃ­as â€” AFIP puede rechazar la nota de crÃ©dito. ConsultÃ¡ con tu contador.');
     }
   }
 
@@ -3506,22 +3601,22 @@ function abrirModalNotaCredito(ventaId) {
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
   overlay.innerHTML =
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:28px 32px;max-width:460px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
-      '<div style="font-weight:700;font-size:16px;margin-bottom:4px"><i class="ti ti-file-minus" style="color:var(--red);margin-right:8px"></i>Emitir nota de crédito</div>' +
-      '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">Anula contablemente la ' + escapeHTML(f.tipo||'factura') + ' — CAE: ' + escapeHTML(f.cae||'') + '</div>' +
+      '<div style="font-weight:700;font-size:16px;margin-bottom:4px"><i class="ti ti-file-minus" style="color:var(--red);margin-right:8px"></i>Emitir nota de crÃ©dito</div>' +
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">Anula contablemente la ' + escapeHTML(f.tipo||'factura') + ' â€” CAE: ' + escapeHTML(f.cae||'') + '</div>' +
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--text2);margin-bottom:12px">' +
-        '<div><strong>Venta:</strong> ' + escapeHTML(v.id) + ' — ' + escapeHTML(v.cliente) + '</div>' +
+        '<div><strong>Venta:</strong> ' + escapeHTML(v.id) + ' â€” ' + escapeHTML(v.cliente) + '</div>' +
         '<div><strong>Factura:</strong> ' + escapeHTML(f.tipo||'') + ' del ' + escapeHTML(f.fecha||'') + '</div>' +
         '<div><strong>Total:</strong> $' + (parseFloat(v.total)||0).toLocaleString('es-AR') + '</div>' +
       '</div>' +
-      // Número de comprobante — requerido por AFIP
+      // NÃºmero de comprobante â€” requerido por AFIP
       '<div style="margin-bottom:12px">' +
-        '<label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Número de comprobante original (requerido por AFIP)</label>' +
-        '<input id="nc-nro-comp" type="text" value="' + (nroComp||'') + '" placeholder="Ej: 00003-00000002 o solo el número" ' +
+        '<label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">NÃºmero de comprobante original (requerido por AFIP)</label>' +
+        '<input id="nc-nro-comp" type="text" value="' + (nroComp||'') + '" placeholder="Ej: 00003-00000002 o solo el nÃºmero" ' +
           'style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;box-sizing:border-box">' +
-        (nroComp ? '' : '<div style="font-size:11px;color:var(--amber);margin-top:4px">⚠️ No encontrado automáticamente — ingresalo manualmente desde TusFacturasApp → Comprobantes</div>') +
+        (nroComp ? '' : '<div style="font-size:11px;color:var(--amber);margin-top:4px">âš ï¸ No encontrado automÃ¡ticamente â€” ingresalo manualmente desde TusFacturasApp â†’ Comprobantes</div>') +
       '</div>' +
       '<div style="padding:10px;background:rgba(239,68,68,.08);border:0.5px solid var(--red);border-radius:var(--radius);font-size:12px;color:var(--red);margin-bottom:16px">' +
-        '⚠️ Esta acción emitirá una nota de crédito en AFIP/ARCA. No se puede deshacer.' +
+        'âš ï¸ Esta acciÃ³n emitirÃ¡ una nota de crÃ©dito en AFIP/ARCA. No se puede deshacer.' +
       '</div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end">' +
         '<button onclick="document.getElementById(\'modal-nota-credito\').remove()" class="btn btn-sm">Cancelar</button>' +
@@ -3533,7 +3628,7 @@ function abrirModalNotaCredito(ventaId) {
 }
 
 async function emitirNotaCredito(ventaId) {
-  var v = (ventasList||[]).find(function(x){ return x.id === ventaId; });
+  var v = _svResolverVentaRegistro(ventaId);
   if (!v || !v.factura) return;
   var nroInput = document.getElementById('nc-nro-comp');
   var nroRaw = nroInput ? nroInput.value.trim() : '';
@@ -3544,15 +3639,15 @@ async function emitirNotaCredito(ventaId) {
     nroComp = parseInt(nroRaw) || 0;
   }
   if (!nroComp) {
-    notify('Ingresá el número de comprobante original para continuar');
+    notify('IngresÃ¡ el nÃºmero de comprobante original para continuar');
     if (nroInput) nroInput.focus();
     return;
   }
 
   document.getElementById('modal-nota-credito').remove();
-  notify('Emitiendo nota de crédito en AFIP/ARCA...');
+  notify('Emitiendo nota de crÃ©dito en AFIP/ARCA...');
 
-  // Determinar tipo de NC según tipo de factura original
+  // Determinar tipo de NC segÃºn tipo de factura original
   var tipoNC = v.factura.tipo === 'FACTURA A' ? 'NOTA DE CREDITO A' : 'NOTA DE CREDITO B';
 
   try {
@@ -3565,7 +3660,7 @@ async function emitirNotaCredito(ventaId) {
       headers: { 'Content-Type': 'application/json', 'X-Frontend-Key': SISVENTAS_FUNCTIONS.frontendKey },
       body: JSON.stringify({
         venta: Object.assign({}, v, {
-          // Sobreescribir con valores explícitos para que el CF arme la NC correctamente
+          // Sobreescribir con valores explÃ­citos para que el CF arme la NC correctamente
           importe_neto:  netoNC,
           importe_iva:   ivaNC,
           importe_total: totalNC,
@@ -3578,7 +3673,7 @@ async function emitirNotaCredito(ventaId) {
         rubro: TFAPP_CONFIG.rubro,
         usuario: currentUser || '',
         email: currentUserEmail || '',
-        // Comprobante asociado — requerido por AFIP para NC
+        // Comprobante asociado â€” requerido por AFIP para NC
         comprobante_asociado: {
           tipo: v.factura.tipo,
           punto_venta: TFAPP_CONFIG.punto_venta,
@@ -3592,7 +3687,7 @@ async function emitirNotaCredito(ventaId) {
       notify('Error al emitir NC: ' + (data.mensaje || 'Error desconocido'));
       return;
     }
-    notify('✓ Nota de crédito emitida — CAE: ' + data.cae);
+    notify('âœ“ Nota de crÃ©dito emitida â€” CAE: ' + data.cae);
     if (window.fbDB && v.fbKey) {
       await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/' + v.fbKey), {
         anulada: true,
@@ -3610,7 +3705,7 @@ async function emitirNotaCredito(ventaId) {
     verFacturaEmitida(data.pdf_url || '', data.cae || '');
     setTimeout(function(){ volverListaVentas(); }, 3000);
   } catch(e) {
-    notify('Error de conexión: ' + e.message);
+    notify('Error de conexiÃ³n: ' + e.message);
   }
 }
 
@@ -3630,12 +3725,12 @@ function verFacturaEmitida(pdfUrl, cae) {
       '<div style="width:48px;height:48px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">' +
         '<i class="ti ti-file-check" style="font-size:24px;color:var(--green)"></i>' +
       '</div>' +
-      '<div style="font-weight:700;font-size:16px;margin-bottom:8px">Factura electrónica emitida</div>' +
+      '<div style="font-weight:700;font-size:16px;margin-bottom:8px">Factura electrÃ³nica emitida</div>' +
       '<div style="font-size:12px;color:var(--text3);margin-bottom:4px">CAE</div>' +
       '<div style="font-family:monospace;font-size:18px;font-weight:700;color:var(--green);margin-bottom:12px;cursor:pointer" onclick="navigator.clipboard.writeText(\''+cae+'\');notify(\'CAE copiado\')" title="Clic para copiar">' +
         cae + ' <i class="ti ti-copy" style="font-size:13px;color:var(--text3)"></i>' +
       '</div>' +
-      '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">PDF no disponible — descargalo desde TusFacturasApp</div>' +
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">PDF no disponible â€” descargalo desde TusFacturasApp</div>' +
       '<div style="display:flex;flex-direction:column;gap:8px">' +
         '<a href="https://www.tusfacturas.app" target="_blank" class="btn btn-primary" style="width:100%;padding:10px;text-align:center;text-decoration:none"><i class="ti ti-external-link"></i> Ir a TusFacturasApp</a>' +
         '<button onclick="document.getElementById(\'modal-factura-emitida\').remove()" class="btn" style="width:100%;padding:8px;color:var(--text3)">Cerrar</button>' +
@@ -3646,13 +3741,13 @@ function verFacturaEmitida(pdfUrl, cae) {
 }
 
 function confirmarEmisionFactura(ventaId) {
-  var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
+  var venta = ventasList ? ventasList.find(function(v){ return String(v.id||'') === String(ventaId||'') || String(v.fbKey||'') === String(ventaId||''); }) : null;
   if (!venta) return;
-  var cli = clientesData ? clientesData.find(function(c){ return c.nombre === venta.cliente; }) : null;
+  var cli = resolverClienteDeVenta(venta);
   if (cli) {
-    venta.clienteCuit  = cli.cuit  || '';
+    venta.clienteCuit  = cli.cuit || cli.CUIT || cli.cuitDni || cli.documentoFiscal || venta.clienteCuit || '';
     venta.clienteEmail = cli.email || '';
-    venta.clienteDir   = cli.dir   || '';
+    venta.clienteDir   = cli.dir || cli.direccion || '';
   }
   document.getElementById('modal-factura').remove();
   emitirFactura(venta, _facturaSelTipo).then(function(data) {
@@ -3663,7 +3758,7 @@ function confirmarEmisionFactura(ventaId) {
           var facturaObj = snap.val();
           if (facturaObj) {
             venta.factura = facturaObj;
-            var v2 = (ventasList||[]).find(function(x){ return x.id === ventaId; });
+            var v2 = _svResolverVentaRegistro(ventaId);
             if (v2) v2.factura = facturaObj;
             if (window._ventaDetalleActual && window._ventaDetalleActual.id === ventaId) {
               window._ventaDetalleActual.factura = facturaObj;
@@ -3689,7 +3784,7 @@ function guardarConfigTFApp() {
   var rub  = document.getElementById('cfg-tfapp-rubro');
   if (pv)   TFAPP_CONFIG.punto_venta = parseInt(pv.value) || 2;
   if (prov) TFAPP_CONFIG.provincia   = prov.value;
-  if (rub)  TFAPP_CONFIG.rubro       = rub.value || 'Seguridad y domótica';
+  if (rub)  TFAPP_CONFIG.rubro       = rub.value || 'Seguridad y domÃ³tica';
   TFAPP_CONFIG.activo = true;
   if (window.fbDB) {
     window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/config/tfapp'), {
@@ -3701,7 +3796,7 @@ function guardarConfigTFApp() {
 }
 
 async function testTFApp() {
-  notify('Probando conexión...');
+  notify('Probando conexiÃ³n...');
   try {
     var resp = await fetch(SISVENTAS_FUNCTIONS.testTFApp, {
       method: 'POST',
@@ -3712,19 +3807,19 @@ async function testTFApp() {
     if (!resp.ok || data.error) {
       var msg = data.mensaje || 'Error desconocido';
       if (/\bip\b/i.test(msg)) {
-        notify('Error: ' + msg + ' — La IP desde la que estás conectado no está habilitada en TusFacturasApp (Mi espacio de trabajo → Puntos de venta → tu PDV → "IP de habilitada")');
+        notify('Error: ' + msg + ' â€” La IP desde la que estÃ¡s conectado no estÃ¡ habilitada en TusFacturasApp (Mi espacio de trabajo â†’ Puntos de venta â†’ tu PDV â†’ "IP de habilitada")');
       } else {
         notify('Error: ' + msg);
       }
       return;
     }
     if (data.facturacion === 'OK') {
-      notify('✓ Conexión OK — credenciales válidas y AFIP/ARCA operativo');
+      notify('âœ“ ConexiÃ³n OK â€” credenciales vÃ¡lidas y AFIP/ARCA operativo');
     } else {
-      notify('✓ Credenciales válidas, pero AFIP/ARCA reporta una alerta: ' + (data.facturacion || ''));
+      notify('âœ“ Credenciales vÃ¡lidas, pero AFIP/ARCA reporta una alerta: ' + (data.facturacion || ''));
     }
   } catch(e) {
-    notify('Error de conexión con el servidor de facturación');
+    notify('Error de conexiÃ³n con el servidor de facturaciÃ³n');
     console.error('[testTFApp]', e);
   }
 }
@@ -3738,7 +3833,7 @@ document.addEventListener('firebase-ready', function() {
       if (!cfg) return;
       TFAPP_CONFIG.punto_venta = cfg.punto_venta || 2;
       TFAPP_CONFIG.provincia   = cfg.provincia   || '';
-      TFAPP_CONFIG.rubro       = cfg.rubro       || 'Seguridad y domótica';
+      TFAPP_CONFIG.rubro       = cfg.rubro       || 'Seguridad y domÃ³tica';
       TFAPP_CONFIG.activo      = true; // los tokens viven en Secret Manager, siempre activo
       if (typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
     });
@@ -3756,19 +3851,19 @@ function doLogout() {
   if (msgs) msgs.innerHTML = '';
   _iaContexto = '';
   _iaCtxLabel = 'Modo general';
-  if (!confirm('¿Cerrar sesión?')) return;
+  if (!confirm('Â¿Cerrar sesiÃ³n?')) return;
   _ejecutarLogout();
 }
 
 function doLogoutAutomatico() {
-  // Cierre por inactividad — sin pedir confirmación
+  // Cierre por inactividad â€” sin pedir confirmaciÃ³n
   _ejecutarLogout();
 }
 
 function _ejecutarLogout() {
-  // 1. Volver al dashboard ANTES de ocultar la app, para que el próximo
-  //    usuario que inicie sesión siempre arranque en dashboard, sin importar
-  //    en qué módulo estaba el usuario anterior.
+  // 1. Volver al dashboard ANTES de ocultar la app, para que el prÃ³ximo
+  //    usuario que inicie sesiÃ³n siempre arranque en dashboard, sin importar
+  //    en quÃ© mÃ³dulo estaba el usuario anterior.
   try {
     document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
     document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
@@ -3778,20 +3873,20 @@ function _ejecutarLogout() {
     if (navDash) navDash.classList.add('active');
   } catch(e) {}
 
-  // 2. Cerrar sesión en Firebase Auth
-  if (typeof registrarActividad === 'function') registrarActividad('Cierre de sesión', '');
+  // 2. Cerrar sesiÃ³n en Firebase Auth
+  if (typeof registrarActividad === 'function') registrarActividad('Cierre de sesiÃ³n', '');
   limpiarPresenciaOnline();
   if (window.fbAuth && window.fbSignOut) {
     window.fbSignOut(window.fbAuth).catch(function(){});
   }
 
-  // 3. Limpiar estado de sesión — NO dejar currentRole en 'admin' entre usuarios
+  // 3. Limpiar estado de sesiÃ³n â€” NO dejar currentRole en 'admin' entre usuarios
   isAuthenticated = false;
   currentUser = '';
   currentRole = '';
   currentUserUid = '';
   currentUserEmail = '';
-  window.usuariosData = []; // forzar re-lectura desde Firebase en el próximo login
+  window.usuariosData = []; // forzar re-lectura desde Firebase en el prÃ³ximo login
 
   if (typeof stopSessionTimer === 'function') stopSessionTimer();
   chatLimpiarPresencia();
@@ -3813,13 +3908,13 @@ function _ejecutarLogout() {
   if (err) err.style.display = 'none';
 
   if (typeof window._resetLoginBtn === 'function') window._resetLoginBtn();
-  // Ocultar FAB al cerrar sesión
+  // Ocultar FAB al cerrar sesiÃ³n
   var _fab = document.getElementById('fab-container');
   if (_fab) _fab.classList.add('hidden');
-  notify('Sesión cerrada');
+  notify('SesiÃ³n cerrada');
 }
 
-// ── ABRIR PANEL
+// â”€â”€ ABRIR PANEL
 // Interceptar errores de getContext en elementos null
 window.addEventListener('error', function(e) {
   if (e.message && e.message.includes('getContext')) {
@@ -3835,9 +3930,9 @@ var PERMISOS_DEFAULT = {
   tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal','caja','gastos','clientes','productos','kits','tesoreria'] }
 };
 var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
-// Fuente única para decisiones de permisos en botones/acciones.
-// Mantiene compatibilidad con la solapa Configuración → Roles, que hoy gobierna
-// visibilidad/acceso por módulo. Las acciones finas usan esta base para evitar
+// Fuente Ãºnica para decisiones de permisos en botones/acciones.
+// Mantiene compatibilidad con la solapa ConfiguraciÃ³n â†’ Roles, que hoy gobierna
+// visibilidad/acceso por mÃ³dulo. Las acciones finas usan esta base para evitar
 // validaciones dispersas por nombre de rol.
 function rolActualNormalizado() {
   return window.SisVentas && window.SisVentas.Access
@@ -3872,7 +3967,7 @@ function toggleNotificacionesPanel() {
   var estaAbierta = pagNotif && pagNotif.classList.contains('active');
 
   if (estaAbierta) {
-    // Volver a la página anterior
+    // Volver a la pÃ¡gina anterior
     if (_paginaAntesDeNotif) {
       showPage(_paginaAntesDeNotif.id, _paginaAntesDeNotif.el);
     } else {
@@ -3889,18 +3984,18 @@ function toggleNotificacionesPanel() {
 }
 
 function showPage(id, el) {
-  if (!isAuthenticated) { notify('Primero iniciá sesión'); return; }
+  if (!isAuthenticated) { notify('Primero iniciÃ¡ sesiÃ³n'); return; }
   if (window.SisVentas && window.SisVentas.Access) {
     var resolvedPage = window.SisVentas.Access.resolvePage(id);
     if (resolvedPage.redirected) {
-      notify('No tenés permiso para acceder a este módulo.');
+      notify('No tenÃ©s permiso para acceder a este mÃ³dulo.');
       id = resolvedPage.page;
       el = document.querySelector('[onclick*="' + id + '"]');
     }
   }
   var page = document.getElementById('page-' + id);
-  if (!page) { notify('Módulo no disponible'); return; }
-  // Validar permisos dinámicos (Configuración → Roles)
+  if (!page) { notify('MÃ³dulo no disponible'); return; }
+  // Validar permisos dinÃ¡micos (ConfiguraciÃ³n â†’ Roles)
   if (!permisoModulo(id)) {
     notify('Acceso restringido para tu rol');
     return;
@@ -3910,7 +4005,7 @@ function showPage(id, el) {
     if (btnVolver) btnVolver.style.display = 'none';
     window._cobOrigenVentaId = null;
   }
-  // Ocultar todas las páginas
+  // Ocultar todas las pÃ¡ginas
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   page.classList.add('active');
@@ -3925,7 +4020,7 @@ function showPage(id, el) {
   setTimeout(_setTitulo, 50);
   setTimeout(_setTitulo, 200);
 
-  // Lógica por módulo
+  // LÃ³gica por mÃ³dulo
   if (id === 'empleados')      { if(typeof volverlista==='function') volverlista(); setTimeout(function(){ if(typeof renderTablaEmpleados==='function') renderTablaEmpleados(); }, 100); }
   if (id === 'clientes')      { window._histClienteHuella = null; setTimeout(function(){ if(typeof renderTablaClientes==='function'){ var inp=document.querySelector('#page-clientes .search-input'); renderTablaClientes(inp?inp.value:''); } if(typeof actualizarStatClientes==='function') actualizarStatClientes(); }, 100); }
   if (id === 'venta') {
@@ -3998,7 +4093,7 @@ function showPage(id, el) {
   // FAB y Home en mobile
   if (typeof actualizarFabYHome === 'function') actualizarFabYHome(id);
   // Cerrar sidebar en mobile
-  // Scroll al top al cambiar de página
+  // Scroll al top al cambiar de pÃ¡gina
   var contentEl = document.querySelector('.content');
   if (contentEl) contentEl.scrollTop = 0;
 
@@ -4022,10 +4117,10 @@ function applyRole() {
   var isAdministrativo= currentRole === 'administrativo';
   var isVendedor      = currentRole === 'vendedor';
 
-  // Cambiar label "Mi cuenta" / "Cuentas" según rol
+  // Cambiar label "Mi cuenta" / "Cuentas" segÃºn rol
   var labelCtaemp = document.getElementById('nav-label-ctaemp');
   if (labelCtaemp) labelCtaemp.textContent = isAdmin ? 'Cuentas' : 'Mi cuenta';
-  var rolLabels = { admin:'Admin', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var rolLabels = { admin:'Admin', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'TÃ©cnico' };
   var rolClases = { admin:'admin', administrativo:'vendedor', vendedor:'vendedor', tecnico:'vendedor' };
 
   var badge = document.getElementById('role-badge-el');
@@ -4054,8 +4149,8 @@ function applyRole() {
   });
 
   if (typeof applyDashWidgets === 'function') applyDashWidgets();
-  // del rol actual. Esto evita que queden ocultos ítems de una sesión anterior con
-  // un rol más restrictivo (ej: cerrar sesión de vendedor y entrar como admin).
+  // del rol actual. Esto evita que queden ocultos Ã­tems de una sesiÃ³n anterior con
+  // un rol mÃ¡s restrictivo (ej: cerrar sesiÃ³n de vendedor y entrar como admin).
   document.querySelectorAll('.nav-item[onclick]').forEach(function(el) {
     el.style.display = '';
   });
@@ -4079,21 +4174,21 @@ function applyRole() {
   }
 }
 // cargarUsuariosLogin eliminada
-// la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
+// la API debe validar sesiÃ³n, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.33.3-firebase',
-  DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
+  VERSION: 'v1.34.1-firebase',
+  DEMO_USERS: Object.freeze({}), // Sin usuarios demo â€” auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
   ADMINISTRATIVO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados']),
   VENDEDOR_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados','proveedores','ordenes','gastos','reportes','estadisticas'])
 });
 
-// Sincronizar todos los elementos de versión en el DOM con APP_CONFIG.VERSION
+// Sincronizar todos los elementos de versiÃ³n en el DOM con APP_CONFIG.VERSION
 (function() {
   var ver = APP_CONFIG.VERSION.replace('-firebase','');
-  var verCompleta = ver + ' · Firebase';
+  var verCompleta = ver + ' Â· Firebase';
   // Login sidebar
   var loginLbl = document.getElementById('login-version-lbl');
   if (loginLbl) loginLbl.textContent = verCompleta;
@@ -4105,13 +4200,13 @@ const APP_CONFIG = Object.freeze({
   if (sVer) sVer.textContent = verCompleta;
 })();
 
-// Compara la versión que está corriendo en pantalla contra la que realmente está
-// que el propio chequeo caiga en el mismo caché que estamos tratando de detectar).
-// SISTEMA DE VERSIÓN EN TIEMPO REAL VÍA FIREBASE
-// En vez de hacer polling contra GitHub Pages (que tiene CDN con caché
+// Compara la versiÃ³n que estÃ¡ corriendo en pantalla contra la que realmente estÃ¡
+// que el propio chequeo caiga en el mismo cachÃ© que estamos tratando de detectar).
+// SISTEMA DE VERSIÃ“N EN TIEMPO REAL VÃA FIREBASE
+// En vez de hacer polling contra GitHub Pages (que tiene CDN con cachÃ©
 // de hasta 10 minutos y no es confiable), escuchamos el nodo
-// sisventas/config/version en Firebase Realtime DB — que es tiempo
-// real garantizado. Cuando subís una versión nueva, actualizás ese
+// sisventas/config/version en Firebase Realtime DB â€” que es tiempo
+// real garantizado. Cuando subÃ­s una versiÃ³n nueva, actualizÃ¡s ese
 // nodo y todos los clientes conectados se actualizan al instante.
 
 var _listenerVersionActivo = false;
@@ -4139,7 +4234,7 @@ function _versionMasNueva(a, b) {
   return false;
 }
 
-// Punto de entrada único para disparar la actualización
+// Punto de entrada Ãºnico para disparar la actualizaciÃ³n
 function _dispararActualizacion(versionNueva) {
   if (_actualizandoAhora) return;
   if (!_versionMasNueva(versionNueva, APP_CONFIG.VERSION)) return;
@@ -4147,7 +4242,7 @@ function _dispararActualizacion(versionNueva) {
   actualizarAutomaticamente(APP_CONFIG.VERSION, versionNueva);
 }
 
-// Chequea GitHub directamente y actualiza si hay versión nueva
+// Chequea GitHub directamente y actualiza si hay versiÃ³n nueva
 function _chequearGitHub(callback) {
   fetch('./js/core/version.js?_v=' + Date.now(), {
     cache: 'no-store',
@@ -4163,7 +4258,7 @@ function _chequearGitHub(callback) {
         if (window.fbDB) {
           window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), vGitHub).catch(function(){});
         }
-        // Disparar la actualización directamente — no esperar al listener
+        // Disparar la actualizaciÃ³n directamente â€” no esperar al listener
         _dispararActualizacion(vGitHub);
       }
       if (callback) callback(vGitHub);
@@ -4176,7 +4271,7 @@ function iniciarListenerVersion() {
   if (!window.fbDB) return;
   _listenerVersionActivo = true;
 
-  // Listener Firebase — detecta cuando OTRO cliente actualiza el nodo
+  // Listener Firebase â€” detecta cuando OTRO cliente actualiza el nodo
   window.fbOnValue(
     window.fbRef(window.fbDB, 'sisventas/config/version'),
     function(snap) {
@@ -4185,7 +4280,7 @@ function iniciarListenerVersion() {
       if (_versionMasNueva(versionFirebase, APP_CONFIG.VERSION)) {
         _dispararActualizacion(versionFirebase);
       }
-      // (no volver atrás ni hacer return — dejar que el listener siga activo)
+      // (no volver atrÃ¡s ni hacer return â€” dejar que el listener siga activo)
       if (_versionMasNueva(APP_CONFIG.VERSION, versionFirebase)) {
         window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), APP_CONFIG.VERSION)
           .catch(function(){});
@@ -4193,7 +4288,7 @@ function iniciarListenerVersion() {
     }
   );
 
-  // Polling GitHub cada 2 min — respaldo principal contra el CDN de GitHub Pages
+  // Polling GitHub cada 2 min â€” respaldo principal contra el CDN de GitHub Pages
   setInterval(function() { _chequearGitHub(); }, 2 * 60 * 1000);
 }
 
@@ -4224,24 +4319,24 @@ function actualizarAutomaticamente(versionActual, versionNueva) {
   overlay.id = 'overlay-actualizando';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg,#080e1a);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px';
   overlay.innerHTML =
-    // Logo / ícono de la app (igual que el favicon)
+    // Logo / Ã­cono de la app (igual que el favicon)
     '<svg width="48" height="48" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:4px">' +
       '<rect width="100" height="100" rx="20" fill="#1a2332"/>' +
       '<path d="M30 65 L50 30 L70 65 M38 50 L62 50" stroke="#3ddc84" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
     '</svg>' +
     '<div style="font-weight:700;font-size:18px;color:var(--text,#fff);letter-spacing:.3px">Actualizando SisVentas</div>' +
-    // Versión de → a
+    // VersiÃ³n de â†’ a
     (verActual && verNueva ?
       '<div style="display:flex;align-items:center;gap:10px;font-size:13px">' +
         '<span style="color:var(--text3,#6b7fa3);font-family:monospace">' + verActual + '</span>' +
         '<i class="ti ti-arrow-right" style="color:var(--green,#3ddc84);font-size:14px"></i>' +
         '<span style="color:var(--green,#3ddc84);font-family:monospace;font-weight:600">' + verNueva + '</span>' +
       '</div>'
-    : '<div style="font-size:13px;color:var(--text3,#6b7fa3)">Descargando versión nueva...</div>') +
+    : '<div style="font-size:13px;color:var(--text3,#6b7fa3)">Descargando versiÃ³n nueva...</div>') +
     '<div style="width:220px;height:3px;background:var(--bg2,#1a2332);border-radius:4px;overflow:hidden;margin-top:12px">' +
       '<div id="upd-bar" style="height:100%;width:0%;background:var(--green,#3ddc84);border-radius:4px;transition:width 2.5s linear"></div>' +
     '</div>' +
-    '<div style="font-size:11px;color:var(--text3,#6b7fa3);margin-top:4px">No cerrés esta ventana</div>';
+    '<div style="font-size:11px;color:var(--text3,#6b7fa3);margin-top:4px">No cerrÃ©s esta ventana</div>';
   document.body.appendChild(overlay);
 
   setTimeout(function(){ var b = document.getElementById('upd-bar'); if(b) b.style.width='100%'; }, 50);
@@ -4279,13 +4374,13 @@ function restaurarPaginaPostActualizacion() {
     sessionStorage.removeItem('sisventas_pagina_previa');
     sessionStorage.removeItem('sisventas_version_previa');
 
-    // Navegar al módulo donde estaba el usuario
+    // Navegar al mÃ³dulo donde estaba el usuario
     setTimeout(function() {
       if (typeof showPage === 'function') {
         var btn = document.querySelector('[onclick*="' + pagPrevia + '"]');
         showPage(pagPrevia, btn);
       }
-      // Mostrar popup de actualización exitosa
+      // Mostrar popup de actualizaciÃ³n exitosa
       _mostrarPopupActualizacion(verPrevia, APP_CONFIG.VERSION);
     }, 1500);
   } catch(e){}
@@ -4303,13 +4398,13 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.35)';
   overlay.innerHTML =
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:32px 36px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5);text-align:center;position:relative;border:0.5px solid var(--border2)">' +
-      // Ícono animado
+      // Ãcono animado
       '<div style="width:64px;height:64px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">' +
         '<i class="ti ti-rocket" style="font-size:28px;color:var(--green)"></i>' +
       '</div>' +
-      // Título
-      '<div style="font-weight:700;font-size:20px;color:var(--text);margin-bottom:6px">¡Sistema actualizado!</div>' +
-      '<div style="font-size:13px;color:var(--text3);margin-bottom:20px">SisVentas se actualizó automáticamente con las últimas mejoras de Nixa</div>' +
+      // TÃ­tulo
+      '<div style="font-weight:700;font-size:20px;color:var(--text);margin-bottom:6px">Â¡Sistema actualizado!</div>' +
+      '<div style="font-size:13px;color:var(--text3);margin-bottom:20px">SisVentas se actualizÃ³ automÃ¡ticamente con las Ãºltimas mejoras de Nixa</div>' +
       // Versiones
       (desdeStr ?
         '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;padding:10px 16px;background:var(--bg3);border-radius:var(--radius)">' +
@@ -4320,12 +4415,12 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
       : '<div style="font-family:monospace;font-size:16px;font-weight:700;color:var(--green);margin-bottom:20px">' + hastaStr + '</div>') +
       // Mensaje
       '<div style="font-size:12px;color:var(--text3);margin-bottom:24px;line-height:1.6">' +
-        'Todo funcionando correctamente.<br>Seguís exactamente donde estabas.' +
+        'Todo funcionando correctamente.<br>SeguÃ­s exactamente donde estabas.' +
       '</div>' +
-      // Botón
+      // BotÃ³n
       '<button onclick="document.getElementById(\'popup-actualizado\').remove()" ' +
         'style="width:100%;padding:12px;border-radius:var(--radius);border:none;background:var(--green);color:#080e1a;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;letter-spacing:.3px">' +
-        '✓ Entendido, ¡gracias!' +
+        'âœ“ Entendido, Â¡gracias!' +
       '</button>' +
     '</div>';
 
@@ -4346,17 +4441,17 @@ function mostrarAvisoVersionNueva(versionNueva) {
   div.id = 'aviso-version-nueva';
   div.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;background:var(--bg2,#1a2332);border:0.5px solid var(--green,#3ddc84);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:13px;color:#fff;max-width:92vw';
   div.innerHTML =
-    '<span>Hay una versión nueva ('+versionNueva.replace('-firebase','')+') — guardá tu venta y actualizá cuando puedas.</span>' +
+    '<span>Hay una versiÃ³n nueva ('+versionNueva.replace('-firebase','')+') â€” guardÃ¡ tu venta y actualizÃ¡ cuando puedas.</span>' +
     '<button onclick="actualizarAutomaticamente()" style="background:#3ddc84;color:#080e1a;border:none;border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;white-space:nowrap;cursor:pointer">Actualizar ahora</button>';
   document.body.appendChild(div);
 }
 
-// Fuerza una recarga real saltando el caché del navegador.
+// Fuerza una recarga real saltando el cachÃ© del navegador.
 function forzarActualizacionApp() {
   actualizarAutomaticamente(APP_CONFIG.VERSION, '');
 }
-// Chequeo de versión: arranca con firebase-ready (cubre sesiones ya abiertas)
-// y también en _completarLogin (cubre nuevos logins). El setInterval de 5min
+// Chequeo de versiÃ³n: arranca con firebase-ready (cubre sesiones ya abiertas)
+// y tambiÃ©n en _completarLogin (cubre nuevos logins). El setInterval de 5min
 document.addEventListener('firebase-ready', function() {
   setTimeout(function() {
     if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
@@ -4365,21 +4460,21 @@ document.addEventListener('firebase-ready', function() {
 });
 
 let isAuthenticated = false;
-let currentUserUid = ''; // uid de Firebase Auth — clave de presencia en Firebase
-let currentUserEmail = ''; // email normalizado — permite cruzar presencia con sisventas/usuarios
-// Convierte un string de número en cualquier formato regional a número JS (punto decimal).
+let currentUserUid = ''; // uid de Firebase Auth â€” clave de presencia en Firebase
+let currentUserEmail = ''; // email normalizado â€” permite cruzar presencia con sisventas/usuarios
+// Convierte un string de nÃºmero en cualquier formato regional a nÃºmero JS (punto decimal).
 // Casos que maneja:
-//   "105.245"     → 105245  (punto = miles, >3 dígitos después)
-//   "1.234,56"    → 1234.56 (formato AR: punto=miles, coma=decimal)
-//   "1,234.56"    → 1234.56 (formato US: coma=miles, punto=decimal)
-//   "105,245"     → 105245  (coma = miles, 3 dígitos después)
-//   "10,50"       → 10.50   (coma = decimal, 2 dígitos después)
-//   "$105.245"    → 105245  (símbolo $ ignorado)
-//   "105245"      → 105245  (sin separadores)
+//   "105.245"     â†’ 105245  (punto = miles, >3 dÃ­gitos despuÃ©s)
+//   "1.234,56"    â†’ 1234.56 (formato AR: punto=miles, coma=decimal)
+//   "1,234.56"    â†’ 1234.56 (formato US: coma=miles, punto=decimal)
+//   "105,245"     â†’ 105245  (coma = miles, 3 dÃ­gitos despuÃ©s)
+//   "10,50"       â†’ 10.50   (coma = decimal, 2 dÃ­gitos despuÃ©s)
+//   "$105.245"    â†’ 105245  (sÃ­mbolo $ ignorado)
+//   "105245"      â†’ 105245  (sin separadores)
 function normalizarNumeroExcel(texto) {
   if (!texto) return '';
   var t = String(texto).trim();
-  // Quitar símbolo $ y espacios
+  // Quitar sÃ­mbolo $ y espacios
   t = t.replace(/[$\s]/g, '');
   if (!t) return '';
 
@@ -4387,35 +4482,35 @@ function normalizarNumeroExcel(texto) {
   var tienePunto = t.indexOf('.') !== -1;
 
   if (tieneComa && tienePunto) {
-    // Ambos presentes — el que está último es el decimal
+    // Ambos presentes â€” el que estÃ¡ Ãºltimo es el decimal
     var posComa  = t.lastIndexOf(',');
     var posPunto = t.lastIndexOf('.');
     if (posComa > posPunto) {
-      // Formato AR: 1.234,56 — punto=miles, coma=decimal
+      // Formato AR: 1.234,56 â€” punto=miles, coma=decimal
       t = t.replace(/\./g, '').replace(',', '.');
     } else {
-      // Formato US: 1,234.56 — coma=miles, punto=decimal
+      // Formato US: 1,234.56 â€” coma=miles, punto=decimal
       t = t.replace(/,/g, '');
     }
   } else if (tienePunto && !tieneComa) {
     var partesPunto = t.split('.');
     var despuesPunto = partesPunto[partesPunto.length - 1];
     if (partesPunto.length > 2) {
-      // Múltiples puntos — son separadores de miles (ej: 1.234.567)
+      // MÃºltiples puntos â€” son separadores de miles (ej: 1.234.567)
       t = t.replace(/\./g, '');
     } else if (despuesPunto.length === 3) {
-      // Exactamente 3 dígitos después del punto → miles (ej: 105.245)
+      // Exactamente 3 dÃ­gitos despuÃ©s del punto â†’ miles (ej: 105.245)
       t = t.replace('.', '');
     }
-    // 1 o 2 dígitos después → decimal (ej: 10.50, 10.5) — dejar como está
+    // 1 o 2 dÃ­gitos despuÃ©s â†’ decimal (ej: 10.50, 10.5) â€” dejar como estÃ¡
   } else if (tieneComa && !tienePunto) {
     var partesComa = t.split(',');
     var despuesComa = partesComa[partesComa.length - 1];
     if (partesComa.length > 2 || despuesComa.length === 3) {
-      // Múltiples comas o 3 dígitos → separador de miles
+      // MÃºltiples comas o 3 dÃ­gitos â†’ separador de miles
       t = t.replace(/,/g, '');
     } else {
-      // 1 o 2 dígitos → decimal
+      // 1 o 2 dÃ­gitos â†’ decimal
       t = t.replace(',', '.');
     }
   }
@@ -4424,7 +4519,7 @@ function normalizarNumeroExcel(texto) {
   return isNaN(num) ? '' : String(num);
 }
 
-// Interceptar pegado en todos los inputs numéricos del sistema
+// Interceptar pegado en todos los inputs numÃ©ricos del sistema
 document.addEventListener('paste', function(e) {
   var target = e.target;
   if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
@@ -4442,11 +4537,11 @@ function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 // FORMATO DE MONTOS TIPO CALCULADORA
-// Mientras se escribe, se agregan separadores de miles automáticamente
+// Mientras se escribe, se agregan separadores de miles automÃ¡ticamente
 // (formato argentino: punto de miles, coma decimal). El punto del teclado
-// numérico actúa como la coma decimal, igual que en la calculadora de Windows.
+// numÃ©rico actÃºa como la coma decimal, igual que en la calculadora de Windows.
 // queda disponible en input.dataset.raw (string tipo "1234.56", listo para
-// parseFloat) y en la función getMontoRaw(input) para usar en los cálculos.
+// parseFloat) y en la funciÃ³n getMontoRaw(input) para usar en los cÃ¡lculos.
 
 // Usar esto en vez de parseFloat(input.value) para estos campos.
 function getMontoRaw(input) {
@@ -4454,7 +4549,7 @@ function getMontoRaw(input) {
   return parseFloat(input.dataset.raw || '0') || 0;
 }
 
-// Formatea un número a texto con separador de miles argentino, sin forzar
+// Formatea un nÃºmero a texto con separador de miles argentino, sin forzar
 // decimales si no los tiene (para que no se vea "1.234,00" mientras se escribe).
 function _formatMontoVisual(enteroStr, decStr, tieneComa) {
   var entero = enteroStr.replace(/^0+(?=\d)/, '') || '0'; // sin ceros a la izquierda, salvo "0" solo
@@ -4471,7 +4566,7 @@ function initMoneyInput(input) {
   input.inputMode = 'decimal';
   input.autocomplete = 'off';
 
-  // Valor inicial: lo que ya tenía el input (viene de value="..." en el HTML)
+  // Valor inicial: lo que ya tenÃ­a el input (viene de value="..." en el HTML)
   var inicial = parseFloat(input.value) || 0;
   input.dataset.raw = String(inicial);
   if (inicial !== 0) {
@@ -4482,7 +4577,7 @@ function initMoneyInput(input) {
   }
 
   input.addEventListener('keydown', function(e) {
-    // igual que en la calculadora de Windows — no escribe un "." literal de más.
+    // igual que en la calculadora de Windows â€” no escribe un "." literal de mÃ¡s.
     if (e.key === '.' || e.key === ',') {
       e.preventDefault();
       if (!input.dataset.tieneComa) {
@@ -4505,7 +4600,7 @@ function initMoneyInput(input) {
       input.dataset.raw = soloDigitos || '0';
       input.value = soloDigitos ? _formatMontoVisual(soloDigitos, '', false) : '';
     }
-    // Disparar un evento 'change'-like liviano para que el código que ya
+    // Disparar un evento 'change'-like liviano para que el cÃ³digo que ya
     // escucha oninput en el input siga funcionando con el valor correcto.
   }, true); // captura, para correr ANTES que el oninput inline del HTML
 
@@ -4523,7 +4618,7 @@ function _refrescarMoneyVisual(input) {
 }
 
 // Inicializa todos los inputs con data-money="1" dentro de un contenedor
-// (o todo el documento si no se pasa contenedor). Llamar después de cualquier
+// (o todo el documento si no se pasa contenedor). Llamar despuÃ©s de cualquier
 // innerHTML que inserte filas/formularios con campos de monto nuevos.
 function initMoneyInputsEn(contenedor) {
   var root = contenedor || document;
@@ -4582,7 +4677,7 @@ function appendAlert(container, type, iconClass, main, detail) {
   div.style.cssText = `background:var(--${type}-bg);border:0.5px solid var(--${type});border-radius:var(--radius);padding:9px 14px;font-size:13px;color:var(--${type});display:flex;align-items:center;gap:8px`;
   const icon = makeIcon(iconClass); icon.style.fontSize = '16px';
   const strong = document.createElement('strong'); strong.textContent = main;
-  div.append(icon, strong, document.createTextNode(' — ' + detail));
+  div.append(icon, strong, document.createTextNode(' â€” ' + detail));
   container.appendChild(div);
 }
 function secureLog(message) {
@@ -4590,49 +4685,49 @@ function secureLog(message) {
 }
 
 const SESSION_TIMEOUT = 30 * 60 * 1000;
-const titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Facturaciones',tesoreria:'Tesorería'};
+const titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Ã“rdenes de compra',estadisticas:'EstadÃ­sticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'ConfiguraciÃ³n',garantias:'GarantÃ­as',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Ã“rdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes tÃ©cnicos',creditofiscal:'Facturaciones',tesoreria:'TesorerÃ­a'};
 
 let sessionTimer = null, sessionStart = null, tiempoUI = null;
 
 var NOTIF_CONFIG = {
   stock_critico:    { label:'Stock sin existencia',      sub:'Cuando un producto llega a 0',                 canales:['App','WhatsApp'], activo:true,  urgente:true  },
-  stock_bajo:       { label:'Stock bajo del mínimo',     sub:'Cuando baja del stock mínimo configurado',     canales:['App'],           activo:true,  urgente:false },
-  ppto_vence_7:     { label:'Presupuesto vence en 7 días',sub:'Alerta preventiva para hacer seguimiento',    canales:['App','WhatsApp'], activo:true,  urgente:false },
-  ppto_vence_2:     { label:'Presupuesto vence en 2 días',sub:'Alerta urgente de vencimiento inminente',     canales:['App','WhatsApp'], activo:true,  urgente:true  },
-  ppto_sin_resp:    { label:'Presupuesto sin respuesta',  sub:'Enviado hace más de 5 días sin respuesta',    canales:['App'],           activo:true,  urgente:false },
-  deuda_30:         { label:'Deuda vencida +30 días',     sub:'Clientes con saldo pendiente hace más de 30d',canales:['App','Email'],   activo:true,  urgente:true  },
-  deuda_15:         { label:'Deuda vencida +15 días',     sub:'Clientes con saldo pendiente hace más de 15d',canales:['App'],           activo:true,  urgente:false },
-  ot_sin_tecnico:   { label:'OT sin técnico asignado',    sub:'Orden de trabajo creada sin asignar técnico', canales:['App'],           activo:true,  urgente:true  },
-  ot_hoy:           { label:'Instalación programada hoy', sub:'OTs con fecha de hoy pendientes de inicio',   canales:['App','WhatsApp'], activo:true,  urgente:false },
-  garantia_vence:   { label:'Garantía por vencer',        sub:'Garantías que vencen en los próximos 30 días',canales:['App'],           activo:true,  urgente:false },
-  caja_abierta:     { label:'Caja sin cerrar',            sub:'La caja quedó abierta después de las 20hs',   canales:['App'],           activo:true,  urgente:false },
+  stock_bajo:       { label:'Stock bajo del mÃ­nimo',     sub:'Cuando baja del stock mÃ­nimo configurado',     canales:['App'],           activo:true,  urgente:false },
+  ppto_vence_7:     { label:'Presupuesto vence en 7 dÃ­as',sub:'Alerta preventiva para hacer seguimiento',    canales:['App','WhatsApp'], activo:true,  urgente:false },
+  ppto_vence_2:     { label:'Presupuesto vence en 2 dÃ­as',sub:'Alerta urgente de vencimiento inminente',     canales:['App','WhatsApp'], activo:true,  urgente:true  },
+  ppto_sin_resp:    { label:'Presupuesto sin respuesta',  sub:'Enviado hace mÃ¡s de 5 dÃ­as sin respuesta',    canales:['App'],           activo:true,  urgente:false },
+  deuda_30:         { label:'Deuda vencida +30 dÃ­as',     sub:'Clientes con saldo pendiente hace mÃ¡s de 30d',canales:['App','Email'],   activo:true,  urgente:true  },
+  deuda_15:         { label:'Deuda vencida +15 dÃ­as',     sub:'Clientes con saldo pendiente hace mÃ¡s de 15d',canales:['App'],           activo:true,  urgente:false },
+  ot_sin_tecnico:   { label:'OT sin tÃ©cnico asignado',    sub:'Orden de trabajo creada sin asignar tÃ©cnico', canales:['App'],           activo:true,  urgente:true  },
+  ot_hoy:           { label:'InstalaciÃ³n programada hoy', sub:'OTs con fecha de hoy pendientes de inicio',   canales:['App','WhatsApp'], activo:true,  urgente:false },
+  garantia_vence:   { label:'GarantÃ­a por vencer',        sub:'GarantÃ­as que vencen en los prÃ³ximos 30 dÃ­as',canales:['App'],           activo:true,  urgente:false },
+  caja_abierta:     { label:'Caja sin cerrar',            sub:'La caja quedÃ³ abierta despuÃ©s de las 20hs',   canales:['App'],           activo:true,  urgente:false },
 };
 var FORMS_CFG = {
-  cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'Razón social si aplica'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
-  producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'Moneda',id:'np-moneda',t:'select',opts:['ARS','USD']},{l:'P. compra',id:'np-pc',t:'number',ph:'0'},{l:'P. venta',id:'np-pv',t:'number',ph:'0'}]},
-  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo-id',t:'select-cargo'},{l:'Fecha de inicio',id:'ne-fecha-ingreso',t:'date'},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
-  usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Empleado vinculado',id:'nu-emp-vinculado',t:'select-empleado'},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
+  cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'TelÃ©fono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa',id:'nc-empresa',t:'text',ph:'RazÃ³n social si aplica'},{l:'DirecciÃ³n',id:'nc-dir',t:'text',ph:'Calle y nÃºmero',full:true}]},
+  producto:  { title:'Nuevo producto',  fields:[{l:'CÃ³digo',id:'np-cod',t:'text',ph:'P-001'},{l:'CategorÃ­a',id:'np-cat',t:'select',opts:['Alarmas Garnet','CÃ¡maras Hikvision','CÃ¡maras Ezvis','DomÃ³tica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'DescripciÃ³n',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'Moneda',id:'np-moneda',t:'select',opts:['ARS','USD']},{l:'P. compra',id:'np-pc',t:'number',ph:'0'},{l:'P. venta',id:'np-pv',t:'number',ph:'0'}]},
+  empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo-id',t:'select-cargo'},{l:'Fecha de inicio',id:'ne-fecha-ingreso',t:'date'},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisiÃ³n']},{l:'% ComisiÃ³n propio (solo vendedor a comisiÃ³n)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'TelÃ©fono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
+  usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','TÃ©cnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Empleado vinculado',id:'nu-emp-vinculado',t:'select-empleado'},{l:'ContraseÃ±a inicial',id:'nu-pass',t:'password',ph:'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢'}]},
   proveedor: { title:'Nuevo proveedor', fields:[
-    {l:'Nombre / Razón social',id:'npv-nm',t:'text',ph:'Razón social',full:true},
-    {l:'Rubro',id:'npv-rub',t:'text',ph:'Ej: Alarmas, cámaras, domótica'},
-    {l:'WhatsApp / Teléfono',id:'npv-tel',t:'tel',ph:'011-xxxx-xxxx'},
+    {l:'Nombre / RazÃ³n social',id:'npv-nm',t:'text',ph:'RazÃ³n social',full:true},
+    {l:'Rubro',id:'npv-rub',t:'text',ph:'Ej: Alarmas, cÃ¡maras, domÃ³tica'},
+    {l:'WhatsApp / TelÃ©fono',id:'npv-tel',t:'tel',ph:'011-xxxx-xxxx'},
     {l:'Email',id:'npv-em',t:'email',ph:'contacto@proveedor.com'},
     {l:'Sitio web',id:'npv-web',t:'text',ph:'https://www.proveedor.com'},
     {l:'Usuario portal',id:'npv-user',t:'text',ph:'usuario de acceso web'},
-    {l:'Contraseña portal',id:'npv-pass',t:'password',ph:'••••••••'},
-    {l:'Condición de pago',id:'npv-cond',t:'select',opts:['Contado','15 días','30 días','60 días','Cuenta corriente']},
+    {l:'ContraseÃ±a portal',id:'npv-pass',t:'password',ph:'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢'},
+    {l:'CondiciÃ³n de pago',id:'npv-cond',t:'select',opts:['Contado','15 dÃ­as','30 dÃ­as','60 dÃ­as','Cuenta corriente']},
     {l:'Contacto comercial',id:'npv-contacto',t:'text',ph:'Nombre del vendedor'},
   ]},
-  evento:    { title:'Nuevo evento',    fields:[{l:'Fecha',id:'nev-f',t:'date'},{l:'Hora',id:'nev-h',t:'time'},{l:'Descripción',id:'nev-desc',t:'text',ph:'Ej: Instalación sistema alarma',full:true},{l:'Cliente',id:'nev-cli',t:'text',ph:'Nombre del cliente'},{l:'Empleado',id:'nev-emp',t:'select',opts:['— Seleccionar —']},{l:'Tipo',id:'nev-tipo',t:'select',opts:['Instalación','Mantenimiento','Visita técnica','Capacitación']}]},
-  ticket:    { title:'Nuevo ticket',    fields:[{l:'N° ticket',id:'ntk-num',t:'text',ph:'TK-0001'},{l:'Cliente',id:'ntk-cli',t:'text',ph:'Nombre del cliente',full:true},{l:'Equipo / N° serie',id:'ntk-eq',t:'text',ph:'SN-xxxxx'},{l:'Descripción del problema',id:'ntk-desc',t:'text',ph:'Describir el problema',full:true},{l:'Prioridad',id:'ntk-p',t:'select',opts:['Urgente','Media','Baja']},{l:'Estado',id:'ntk-est',t:'select',opts:['Abierto','En curso','Cerrado']},{l:'Técnico',id:'ntk-tec',t:'select',opts:['Sin asignar']}]},
-  garantia:  { title:'Nueva garantía',  fields:[{l:'Equipo',id:'ng2-eq',t:'text',ph:'Ej: Alarma Garnet PG-380',full:true},{l:'N° serie',id:'ng2-serie',t:'text',ph:'SN-xxxxx'},{l:'Cliente',id:'ng2-cli',t:'text',ph:'Nombre del cliente'},{l:'Fecha instalación',id:'ng2-inst',t:'date'},{l:'Duración (meses)',id:'ng2-meses',t:'select',opts:['3','6','12','24','36']},{l:'Venta vinculada',id:'ng2-venta',t:'text',ph:'Ej: #109696'}]},
-  servicio:  { title:'Nueva orden de servicio', fields:[{l:'N° de orden',id:'ns-num',t:'text',ph:'SV-0001'},{l:'Cliente',id:'ns-cli',t:'text',ph:'Nombre del cliente',full:true},{l:'Descripción',id:'ns-desc',t:'text',ph:'Qué se va a hacer',full:true},{l:'Técnico asignado',id:'ns-tec',t:'text',ph:'Nombre del técnico'},{l:'Fecha',id:'ns-fecha',t:'date'},{l:'Garantía',id:'ns-garantia',t:'text',ph:'Ej: 6 meses'},{l:'Estado',id:'ns-estado',t:'select',opts:['En curso','Finalizado','Pendiente']}]},
-  remito:    { title:'Nuevo remito',    fields:[{l:'N° remito',id:'nr-num',t:'text',ph:'R-0001'},{l:'Cliente',id:'nr-cli',t:'text',ph:'Nombre del cliente',full:true},{l:'Fecha',id:'nr-fecha',t:'date'},{l:'Venta vinculada',id:'nr-venta',t:'text',ph:'Ej: #109696'},{l:'Descripción',id:'nr-desc',t:'text',ph:'Descripción de lo entregado',full:true}]},
-  gasto:     { title:'Nuevo gasto',     fields:[{l:'Fecha',id:'ng-f',t:'date'},{l:'Tipo',id:'ng-tipo',t:'select',opts:['Fijo','Variable','Compra mercadería']},{l:'Descripción',id:'ng-desc',t:'text',ph:'Ej: Alquiler oficina',full:true},{l:'Categoría',id:'ng-cat',t:'select',opts:['Inmueble','Servicios','Personal','Transporte','Materiales','Marketing','Mercadería','Impuestos','Otro']},{l:'Monto ($)',id:'ng-monto',t:'number',ph:'0'},{l:'Medio de pago',id:'ng-medio',t:'select',opts:['Efectivo','Transferencia','Tarjeta','Cheque']}]},
+  evento:    { title:'Nuevo evento',    fields:[{l:'Fecha',id:'nev-f',t:'date'},{l:'Hora',id:'nev-h',t:'time'},{l:'DescripciÃ³n',id:'nev-desc',t:'text',ph:'Ej: InstalaciÃ³n sistema alarma',full:true},{l:'Cliente',id:'nev-cli',t:'text',ph:'Nombre del cliente'},{l:'Empleado',id:'nev-emp',t:'select',opts:['â€” Seleccionar â€”']},{l:'Tipo',id:'nev-tipo',t:'select',opts:['InstalaciÃ³n','Mantenimiento','Visita tÃ©cnica','CapacitaciÃ³n']}]},
+  ticket:    { title:'Nuevo ticket',    fields:[{l:'NÂ° ticket',id:'ntk-num',t:'text',ph:'TK-0001'},{l:'Cliente',id:'ntk-cli',t:'text',ph:'Nombre del cliente',full:true},{l:'Equipo / NÂ° serie',id:'ntk-eq',t:'text',ph:'SN-xxxxx'},{l:'DescripciÃ³n del problema',id:'ntk-desc',t:'text',ph:'Describir el problema',full:true},{l:'Prioridad',id:'ntk-p',t:'select',opts:['Urgente','Media','Baja']},{l:'Estado',id:'ntk-est',t:'select',opts:['Abierto','En curso','Cerrado']},{l:'TÃ©cnico',id:'ntk-tec',t:'select',opts:['Sin asignar']}]},
+  garantia:  { title:'Nueva garantÃ­a',  fields:[{l:'Equipo',id:'ng2-eq',t:'text',ph:'Ej: Alarma Garnet PG-380',full:true},{l:'NÂ° serie',id:'ng2-serie',t:'text',ph:'SN-xxxxx'},{l:'Cliente',id:'ng2-cli',t:'text',ph:'Nombre del cliente'},{l:'Fecha instalaciÃ³n',id:'ng2-inst',t:'date'},{l:'DuraciÃ³n (meses)',id:'ng2-meses',t:'select',opts:['3','6','12','24','36']},{l:'Venta vinculada',id:'ng2-venta',t:'text',ph:'Ej: #109696'}]},
+  servicio:  { title:'Nueva orden de servicio', fields:[{l:'NÂ° de orden',id:'ns-num',t:'text',ph:'SV-0001'},{l:'Cliente',id:'ns-cli',t:'text',ph:'Nombre del cliente',full:true},{l:'DescripciÃ³n',id:'ns-desc',t:'text',ph:'QuÃ© se va a hacer',full:true},{l:'TÃ©cnico asignado',id:'ns-tec',t:'text',ph:'Nombre del tÃ©cnico'},{l:'Fecha',id:'ns-fecha',t:'date'},{l:'GarantÃ­a',id:'ns-garantia',t:'text',ph:'Ej: 6 meses'},{l:'Estado',id:'ns-estado',t:'select',opts:['En curso','Finalizado','Pendiente']}]},
+  remito:    { title:'Nuevo remito',    fields:[{l:'NÂ° remito',id:'nr-num',t:'text',ph:'R-0001'},{l:'Cliente',id:'nr-cli',t:'text',ph:'Nombre del cliente',full:true},{l:'Fecha',id:'nr-fecha',t:'date'},{l:'Venta vinculada',id:'nr-venta',t:'text',ph:'Ej: #109696'},{l:'DescripciÃ³n',id:'nr-desc',t:'text',ph:'DescripciÃ³n de lo entregado',full:true}]},
+  gasto:     { title:'Nuevo gasto',     fields:[{l:'Fecha',id:'ng-f',t:'date'},{l:'Tipo',id:'ng-tipo',t:'select',opts:['Fijo','Variable','Compra mercaderÃ­a']},{l:'DescripciÃ³n',id:'ng-desc',t:'text',ph:'Ej: Alquiler oficina',full:true},{l:'CategorÃ­a',id:'ng-cat',t:'select',opts:['Inmueble','Servicios','Personal','Transporte','Materiales','Marketing','MercaderÃ­a','Impuestos','Otro']},{l:'Monto ($)',id:'ng-monto',t:'number',ph:'0'},{l:'Medio de pago',id:'ng-medio',t:'select',opts:['Efectivo','Transferencia','Tarjeta','Cheque']}]},
   ordencompra: { title:'Nueva orden de compra', fields:[
-    {l:'N° orden',id:'noc-num',t:'text',ph:'OC-0001'},
+    {l:'NÂ° orden',id:'noc-num',t:'text',ph:'OC-0001'},
     {l:'Proveedor',id:'noc-prov',t:'autocomplete-prov',ph:'Buscar proveedor...'},
-    {l:'Descripción / Producto',id:'noc-desc',t:'text',ph:'Ej: Cámara Hikvision 4MP x5 o Garnet PG-380',full:true},
+    {l:'DescripciÃ³n / Producto',id:'noc-desc',t:'text',ph:'Ej: CÃ¡mara Hikvision 4MP x5 o Garnet PG-380',full:true},
     {l:'Cantidad',id:'noc-cant',t:'number',ph:'1'},
     {l:'Monto estimado ($)',id:'noc-monto',t:'number',ph:'0'},
     {l:'Fecha',id:'noc-fecha',t:'date'},
@@ -4666,7 +4761,7 @@ function _flex(id){ _style(id,'display','flex'); }
 
 var PPTO_ESTADOS = {
   borrador:       { label:'Borrador',             badge:'badge-borrador',    icon:'ti-pencil',         orden:1 },
-  revision:       { label:'En revisión',          badge:'badge-revision',    icon:'ti-clock',          orden:2 },
+  revision:       { label:'En revisiÃ³n',          badge:'badge-revision',    icon:'ti-clock',          orden:2 },
   aprobado_int:   { label:'Aprobado internamente',badge:'badge-aprobado-int',icon:'ti-check',          orden:3 },
   enviado:        { label:'Enviado al cliente',   badge:'badge-enviado',     icon:'ti-send',           orden:4 },
   visto:          { label:'Visto por cliente',    badge:'badge-visto',       icon:'ti-eye',            orden:5 },
@@ -4679,7 +4774,7 @@ var PPTO_ESTADOS = {
 let currentRole = 'admin';
 
 // Fuente de verdad compartida para los bloques legacy y los parches finales.
-// Una variable declarada con `let` no se publica automáticamente en `window`;
+// Una variable declarada con `let` no se publica automÃ¡ticamente en `window`;
 // varios controles de permisos consultan `window.currentRole`.
 Object.defineProperty(window, 'currentRole', {
   configurable: true,
@@ -4713,7 +4808,7 @@ window.doLogin = function doLogin() {
 
   if (window.fbAuth && window.fbSignIn) {
     // v20.362: el campo de usuario vuelve a aceptar usuario corto (nixa) o email completo.
-    // El input ya no es type=email para evitar la validación nativa del navegador antes de autocompletar.
+    // El input ya no es type=email para evitar la validaciÃ³n nativa del navegador antes de autocompletar.
     var usuarioLogin = u.toLowerCase().replace(/\s+/g,'');
     var email = usuarioLogin.includes('@') ? usuarioLogin : usuarioLogin + '@sistemanixa.com';
     window._loginEnCurso = true;
@@ -4742,7 +4837,7 @@ window.doLogin = function doLogin() {
         var code = fbError ? fbError.code : 'desconocido';
         var msg  = fbError ? fbError.message : '';
         if(err) {
-          err.textContent = 'Error: ' + code + (msg ? ' — ' + msg.slice(0,80) : '');
+          err.textContent = 'Error: ' + code + (msg ? ' â€” ' + msg.slice(0,80) : '');
           err.style.display = 'block';
         }
       });
@@ -4763,8 +4858,8 @@ function _resolverRolYCompletarLogin(user, err) {
   currentUserUid = user.uid;
   currentUserEmail = emailLower;
 
-  // Timeout de emergencia: si en 8 segundos no completó el login,
-  // cerrar sesión y mostrar el login limpio para no quedar colgado.
+  // Timeout de emergencia: si en 8 segundos no completÃ³ el login,
+  // cerrar sesiÃ³n y mostrar el login limpio para no quedar colgado.
   var _loginTimeout = setTimeout(function() {
     if (!isAuthenticated) return;
     isAuthenticated = false;
@@ -4774,7 +4869,7 @@ function _resolverRolYCompletarLogin(user, err) {
     document.getElementById('screen-login').style.display = '';
     var errEl = document.getElementById('login-error');
     if (errEl) {
-      errEl.textContent = 'El servidor tardó demasiado en responder. Intentá de nuevo.';
+      errEl.textContent = 'El servidor tardÃ³ demasiado en responder. IntentÃ¡ de nuevo.';
       errEl.style.display = 'block';
     }
   }, 8000);
@@ -4790,9 +4885,9 @@ function _resolverRolYCompletarLogin(user, err) {
       var esAdmin = emailLower === 'nixa@sistemanixa.com' || emailLower.startsWith('admin@');
       currentRole = esAdmin ? 'admin' : 'vendedor';
       if (esAdmin) {
-        notify('⚠️ Ingresaste como Admin. Creá tu usuario en Usuarios → Nuevo usuario para quitar este aviso.');
+        notify('âš ï¸ Ingresaste como Admin. CreÃ¡ tu usuario en Usuarios â†’ Nuevo usuario para quitar este aviso.');
       } else {
-        notify('⚠️ Usuario no registrado en el sistema — rol limitado. Pedile al admin que te agregue.');
+        notify('âš ï¸ Usuario no registrado en el sistema â€” rol limitado. Pedile al admin que te agregue.');
       }
       _completarLogin(user.displayName || user.email.split('@')[0]);
       return;
@@ -4804,25 +4899,25 @@ function _resolverRolYCompletarLogin(user, err) {
       var loadingEl = document.getElementById('screen-loading');
       if (loadingEl) loadingEl.style.display = 'none';
       document.getElementById('screen-login').style.display = '';
-      if (err) { err.textContent = 'Tu cuenta está desactivada. Contactá al administrador.'; err.style.display = 'block'; }
+      if (err) { err.textContent = 'Tu cuenta estÃ¡ desactivada. ContactÃ¡ al administrador.'; err.style.display = 'block'; }
       return;
     }
     var r = (usuario.rol||'').toLowerCase();
     currentRole = (r==='admin'||r==='administrador') ? 'admin'
-                : (r==='tecnico'||r==='técnico')     ? 'tecnico'
+                : (r==='tecnico'||r==='tÃ©cnico')     ? 'tecnico'
                 : (r==='vendedor')                   ? 'vendedor'
                 : 'administrativo';
     _completarLogin(usuario.nombre || user.email.split('@')[0]);
   }
 
-  // Siempre leer frescos desde Firebase — no confiar en caché de sesión anterior
-  // que podría tener datos de otro usuario o de una versión vieja del código.
+  // Siempre leer frescos desde Firebase â€” no confiar en cachÃ© de sesiÃ³n anterior
+  // que podrÃ­a tener datos de otro usuario o de una versiÃ³n vieja del cÃ³digo.
   var _usuariosTimeout = setTimeout(function() {
-    console.warn('[Auth] fbGet usuarios timeout — usando fallback');
+    console.warn('[Auth] fbGet usuarios timeout â€” usando fallback');
     if (window.usuariosData && window.usuariosData.length) {
       aplicarRolYNombre(window.usuariosData);
     } else {
-      // Sin caché: asumir admin si es el email de nixa
+      // Sin cachÃ©: asumir admin si es el email de nixa
       var esAdminFallback = emailLower === 'nixa@sistemanixa.com' || emailLower.startsWith('admin@');
       currentRole = esAdminFallback ? 'admin' : 'vendedor';
       _completarLogin(user.displayName || user.email.split('@')[0]);
@@ -4833,7 +4928,7 @@ function _resolverRolYCompletarLogin(user, err) {
     clearTimeout(_usuariosTimeout);
     var data = snap.val();
     var lista = data ? Object.values(data) : [];
-    window.usuariosData = lista; // actualizar caché
+    window.usuariosData = lista; // actualizar cachÃ©
     aplicarRolYNombre(lista);
   }).catch(function() {
     clearTimeout(_usuariosTimeout);
@@ -4847,17 +4942,17 @@ function _resolverRolYCompletarLogin(user, err) {
       var loadingEl = document.getElementById('screen-loading');
       if (loadingEl) loadingEl.style.display = 'none';
       document.getElementById('screen-login').style.display = '';
-      if (err) { err.textContent = 'No se pudo verificar el rol. Verificá tu conexión.'; err.style.display = 'block'; }
+      if (err) { err.textContent = 'No se pudo verificar el rol. VerificÃ¡ tu conexiÃ³n.'; err.style.display = 'block'; }
     }
   });
 }
-// Aislado del flujo de login manual. Si Firebase detecta una sesión ya activa
-// al cargar la página, restaura directamente sin pedir credenciales de nuevo.
+// Aislado del flujo de login manual. Si Firebase detecta una sesiÃ³n ya activa
+// al cargar la pÃ¡gina, restaura directamente sin pedir credenciales de nuevo.
 var _sesionYaRestaurada = false;
 var _primeraVerificacionAuth = true;
 document.addEventListener('firebase-ready', function() {
   if (!window.fbOnAuth || !window.fbAuth) {
-    // Sin Firebase Auth disponible — mostrar login directamente
+    // Sin Firebase Auth disponible â€” mostrar login directamente
     _mostrarLoginSinSesion();
     return;
   }
@@ -4887,8 +4982,8 @@ function _mostrarLoginSinSesion() {
   if (loginEl)   loginEl.style.display = '';
 }
 
-// Red de seguridad: si después de 6 segundos Firebase nunca respondió
-// (sin internet, error de configuración, etc.), mostrar el login igual
+// Red de seguridad: si despuÃ©s de 6 segundos Firebase nunca respondiÃ³
+// (sin internet, error de configuraciÃ³n, etc.), mostrar el login igual
 // para no dejar al usuario trabado en la pantalla de carga indefinidamente.
 setTimeout(function() {
   if (_primeraVerificacionAuth && !isAuthenticated) {
@@ -4897,9 +4992,9 @@ setTimeout(function() {
   }
 }, 6000);
 
-// Timeout ABSOLUTO: si después de 12 segundos la app no está visible,
-// mostrar login sin importar qué — cubre casos donde Auth responde pero
-// fbGet de usuarios se cuelga sin error (modo avión con sesión cacheada)
+// Timeout ABSOLUTO: si despuÃ©s de 12 segundos la app no estÃ¡ visible,
+// mostrar login sin importar quÃ© â€” cubre casos donde Auth responde pero
+// fbGet de usuarios se cuelga sin error (modo aviÃ³n con sesiÃ³n cacheada)
 setTimeout(function() {
   if (window._loginEnCurso) return;
   var appScreen = document.getElementById('screen-app');
@@ -4909,11 +5004,11 @@ setTimeout(function() {
   if (!appVisible && loadingEl && loadingEl.style.display !== 'none') {
     if (loadingEl) loadingEl.style.display = 'none';
     if (loginEl)   loginEl.style.display = '';
-    // NO hacer fbSignOut aquí — puede interrumpir un login manual lento
+    // NO hacer fbSignOut aquÃ­ â€” puede interrumpir un login manual lento
   }
 }, 15000);
-// y aplica el cambio a online:false automáticamente, sin depender de que el
-// a diferencia de simplemente registrar el último login.
+// y aplica el cambio a online:false automÃ¡ticamente, sin depender de que el
+// a diferencia de simplemente registrar el Ãºltimo login.
 function registrarPresenciaOnline() {
   if (!window.fbDB || !window.fbOnDisconnect || !currentUserUid) return;
   var refPresencia = window.fbRef(window.fbDB, 'sisventas/presencia/' + currentUserUid);
@@ -4958,17 +5053,17 @@ function _verificarHaberesPendientes() {
     var habData = snap.val() || {};
     var empleados = Object.values(empData||{}).filter(function(e){ return e.activo !== false && e.cargoId; });
     if (!empleados.length) return;
-    // Ver si hay algún empleado activo sin haberes del mes pasado
+    // Ver si hay algÃºn empleado activo sin haberes del mes pasado
     var sinRegistrar = empleados.filter(function(e) {
       return !habData[e.fbKey] || !habData[e.fbKey][mesKey];
     });
     if (sinRegistrar.length > 0) {
-      // Mostrar notificación no intrusiva
-      var msg = '⚠️ No se registraron los haberes de ' + mesLbl + ' para ' +
+      // Mostrar notificaciÃ³n no intrusiva
+      var msg = 'âš ï¸ No se registraron los haberes de ' + mesLbl + ' para ' +
         sinRegistrar.length + ' empleado' + (sinRegistrar.length !== 1 ? 's' : '') + '. ';
       if (typeof notify === 'function') {
         setTimeout(function() {
-          notify(msg + 'Ir a Empleados → Registrar haberes del mes.', 8000);
+          notify(msg + 'Ir a Empleados â†’ Registrar haberes del mes.', 8000);
         }, 3000);
       }
     }
@@ -4989,13 +5084,13 @@ function _mostrarForzarCambioPassword(fbUser, errEl) {
   overlay.innerHTML =
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:420px;padding:28px;box-shadow:0 16px 48px rgba(0,0,0,.5)">' +
       '<div style="text-align:center;margin-bottom:20px">' +
-        '<div style="font-size:32px;margin-bottom:8px">🔐</div>' +
-        '<div style="font-weight:700;font-size:16px;margin-bottom:6px">Cambiá tu contraseña</div>' +
-        '<div style="font-size:13px;color:var(--text3)">Es tu primer ingreso al sistema.<br>Elegí una contraseña personal para continuar.</div>' +
+        '<div style="font-size:32px;margin-bottom:8px">ðŸ”</div>' +
+        '<div style="font-weight:700;font-size:16px;margin-bottom:6px">CambiÃ¡ tu contraseÃ±a</div>' +
+        '<div style="font-size:13px;color:var(--text3)">Es tu primer ingreso al sistema.<br>ElegÃ­ una contraseÃ±a personal para continuar.</div>' +
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:12px">' +
-        '<div class="fg"><label>Nueva contraseña</label><input type="password" id="forzar-pass-nueva" placeholder="Mínimo 6 caracteres" autocomplete="new-password" style="width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px"></div>' +
-        '<div class="fg"><label>Repetir contraseña</label><input type="password" id="forzar-pass-confirm" placeholder="Repetí la contraseña" autocomplete="new-password" style="width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px"></div>' +
+        '<div class="fg"><label>Nueva contraseÃ±a</label><input type="password" id="forzar-pass-nueva" placeholder="MÃ­nimo 6 caracteres" autocomplete="new-password" style="width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px"></div>' +
+        '<div class="fg"><label>Repetir contraseÃ±a</label><input type="password" id="forzar-pass-confirm" placeholder="RepetÃ­ la contraseÃ±a" autocomplete="new-password" style="width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px"></div>' +
         '<div id="forzar-pass-error" style="display:none;color:var(--red);font-size:12px;padding:8px 10px;background:rgba(239,68,68,.1);border-radius:6px"></div>' +
         '<button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="_confirmarCambioForzado()">' +
           '<i class="ti ti-check"></i> Guardar y entrar al sistema' +
@@ -5023,19 +5118,19 @@ async function _confirmarCambioForzado() {
     errEl.style.display = '';
   };
 
-  if (!nueva || !confirm) { mostrarError('Completá ambos campos'); return; }
-  if (nueva.length < 6)   { mostrarError('Mínimo 6 caracteres'); return; }
-  if (nueva !== confirm)  { mostrarError('Las contraseñas no coinciden'); return; }
+  if (!nueva || !confirm) { mostrarError('CompletÃ¡ ambos campos'); return; }
+  if (nueva.length < 6)   { mostrarError('MÃ­nimo 6 caracteres'); return; }
+  if (nueva !== confirm)  { mostrarError('Las contraseÃ±as no coinciden'); return; }
 
   var fbUser = window._fbUserPendingPass;
-  if (!fbUser) { mostrarError('Error: sesión no disponible'); return; }
+  if (!fbUser) { mostrarError('Error: sesiÃ³n no disponible'); return; }
 
   try {
     await window.fbUpdatePass(fbUser, nueva);
-    // Contraseña cambiada — ahora sí continuar con el login normal
+    // ContraseÃ±a cambiada â€” ahora sÃ­ continuar con el login normal
     document.getElementById('modal-forzar-pass').remove();
     window._fbUserPendingPass = null;
-    notify('✓ Contraseña guardada — bienvenido al sistema');
+    notify('âœ“ ContraseÃ±a guardada â€” bienvenido al sistema');
     _resolverRolYCompletarLogin(fbUser, null);
   } catch(e) {
     mostrarError('Error al guardar: ' + (e.message || e));
@@ -5046,8 +5141,8 @@ function _completarLogin(nombre) {
   currentUser = nombre;
   applyRole();
   registrarPresenciaOnline();
-  if (typeof registrarActividad === 'function') registrarActividad('Inicio de sesión', '');
-  // Iniciar listener de versión en tiempo real vía Firebase
+  if (typeof registrarActividad === 'function') registrarActividad('Inicio de sesiÃ³n', '');
+  // Iniciar listener de versiÃ³n en tiempo real vÃ­a Firebase
   if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
   if (typeof window.iniciarSyncNotificaciones === 'function') window.iniciarSyncNotificaciones();
   if (typeof restaurarPaginaPostActualizacion === 'function') restaurarPaginaPostActualizacion();
@@ -5057,10 +5152,10 @@ function _completarLogin(nombre) {
       .catch(function(){});
   }
 
-  // Mostrar versión en el sidebar
+  // Mostrar versiÃ³n en el sidebar
   var vSidebar = document.getElementById('s-version-el');
   if (vSidebar && APP_CONFIG && APP_CONFIG.VERSION) {
-    vSidebar.textContent = APP_CONFIG.VERSION.replace('-firebase','') + ' · Firebase';
+    vSidebar.textContent = APP_CONFIG.VERSION.replace('-firebase','') + ' Â· Firebase';
   }
 
   // Ocultar login, mostrar pantalla de carga
@@ -5077,7 +5172,7 @@ function _completarLogin(nombre) {
   var sname = document.getElementById('s-uname-el');
   if (sname) sname.textContent = nombre;
   var srole = document.getElementById('s-urole-el');
-  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'TÃ©cnico' };
   if (srole) srole.textContent = rolLabels[currentRole] || currentRole;
   var av = document.getElementById('s-avatar-el');
   if (av) {
@@ -5092,7 +5187,7 @@ function _completarLogin(nombre) {
     { pct: 55, txt: 'Cargando empleados y usuarios...' },
     { pct: 75, txt: 'Cargando equipos e informes...' },
     { pct: 90, txt: 'Preparando el dashboard...' },
-    { pct: 100, txt: '¡Listo!' },
+    { pct: 100, txt: 'Â¡Listo!' },
   ];
   var paso = 0;
   var iv = setInterval(function() {
@@ -5135,11 +5230,11 @@ function _completarLogin(nombre) {
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); cargarDashWidgets(); setTimeout(applyRole, 400); }, 400);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
 
-  // Mostrar app después de ~2.5 segundos (tiempo de carga de Firebase)
+  // Mostrar app despuÃ©s de ~2.5 segundos (tiempo de carga de Firebase)
   setTimeout(function() {
     clearInterval(iv);
     if (bar) bar.style.width = '100%';
-    if (msg) msg.textContent = '¡Listo!';
+    if (msg) msg.textContent = 'Â¡Listo!';
     setTimeout(function() {
       window._loginEnCurso = false;
       if (loadingEl) loadingEl.style.display = 'none';
@@ -5161,7 +5256,7 @@ function _completarLogin(nombre) {
   }, 2600);
 }
 
-// selCli definida arriba con parámetros (id, nombre, dir)
+// selCli definida arriba con parÃ¡metros (id, nombre, dir)
 document.addEventListener('click', function(e) { if (!e.target.closest('.sw')) _hide('cli-drop'); });
 function calcRow(inp) {
   const tr = inp.closest('tr');
@@ -5169,10 +5264,10 @@ function calcRow(inp) {
   const priceInp = tr.querySelector('.price');
   const p  = priceInp.dataset.moneyInit ? getMontoRaw(priceInp) : (parseFloat(priceInp.value) || 0);
   const dp = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
-  // Validar descuento por ítem contra el límite configurado
+  // Validar descuento por Ã­tem contra el lÃ­mite configurado
   if (dp > 0 && APROBACION_CONFIG && dp > APROBACION_CONFIG.descuentoLimite) {
     var discInp = tr.querySelector('.disc');
-    if (discInp) { discInp.style.borderColor = 'var(--amber)'; discInp.title = 'Supera el límite de ' + APROBACION_CONFIG.descuentoLimite + '% — requiere aprobación'; }
+    if (discInp) { discInp.style.borderColor = 'var(--amber)'; discInp.title = 'Supera el lÃ­mite de ' + APROBACION_CONFIG.descuentoLimite + '% â€” requiere aprobaciÃ³n'; }
   } else {
     var discInp2 = tr.querySelector('.disc');
     if (discInp2) { discInp2.style.borderColor = ''; discInp2.title = ''; }
@@ -5215,7 +5310,7 @@ function toggleIvaVenta(btn) {
 }
 
 function toggleIvaDetalle(btn, ventaId) {
-  var venta = (ventasList||[]).find(function(v){ return v.id === ventaId; });
+  var venta = _svResolverVentaRegistro(ventaId);
   if (!venta || !window.fbDB) return;
   var nuevoConIva = venta.conIva === false ? true : false;
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), { conIva: nuevoConIva })
@@ -5224,12 +5319,12 @@ function toggleIvaDetalle(btn, ventaId) {
       btn.innerHTML = '<i class="ti ti-receipt-tax"></i> ' + (nuevoConIva ? 'Con IVA' : 'Sin IVA');
       btn.style.color = nuevoConIva ? '' : 'var(--amber)';
       btn.style.borderColor = nuevoConIva ? '' : 'var(--amber)';
-      notify((nuevoConIva ? 'Con IVA activado' : 'Sin IVA — precio final sin impuesto'));
+      notify((nuevoConIva ? 'Con IVA activado' : 'Sin IVA â€” precio final sin impuesto'));
     });
 }
 
 function calcTotals() {
-  // Subtotal suma de netos por fila (ya con descuento por ítem)
+  // Subtotal suma de netos por fila (ya con descuento por Ã­tem)
   let s = 0;
   document.querySelectorAll('#det-body tr').forEach(function(tr) {
     var q  = parseFloat((tr.querySelector('.qty')||{}).value) || 0;
@@ -5244,7 +5339,7 @@ function calcTotals() {
   var descGenAmt = s * descGenPct / 100;
   var sConDesc   = s - descGenAmt;
 
-  // Toggle IVA — usa variable global
+  // Toggle IVA â€” usa variable global
   var conIva = typeof _ventaConIva !== 'undefined' ? _ventaConIva : true;
   var iva    = conIva ? sConDesc * 0.21 : 0;
 
@@ -5252,7 +5347,7 @@ function calcTotals() {
   var descRow = document.getElementById('t-desc-row');
   if (descRow) descRow.style.display = descGenPct > 0 ? '' : 'none';
   _set('t-desc', '-' + descGenPct + '% (-$' + Math.round(descGenAmt).toLocaleString('es-AR') + ')');
-  // Mostrar/ocultar línea de IVA
+  // Mostrar/ocultar lÃ­nea de IVA
   var ivaRow = document.getElementById('t-iva-row');
   if (ivaRow) ivaRow.style.display = conIva ? '' : 'none';
   _set('t-iva',  '$' + Math.round(iva).toLocaleString('es-AR'));
@@ -5328,7 +5423,7 @@ function obtenerCostoUnitarioDetalleVenta(item) {
   if (costoTotal > 0) return costoTotal / qty;
   return obtenerCostoUnitarioVenta(item.cod || item.codigo, item);
 }
-// la mano de obra NO se excluye porque representa un egreso real para el técnico).
+// la mano de obra NO se excluye porque representa un egreso real para el tÃ©cnico).
 // Margen % = (Total venta - Costo) / Total venta * 100
 var ventaRequiereAutorizacion = false;
 var ventaAutorizadaPorAdmin = false;
@@ -5381,7 +5476,7 @@ function calcMargenGanancia() {
     box.style.background = 'var(--red-bg)';
     pctEl.style.color = 'var(--red)';
     lblEl.style.color = 'var(--red)';
-    lblEl.innerHTML = '<i class="ti ti-alert-triangle"></i> Margen bajo — requiere autorización del admin para confirmar';
+    lblEl.innerHTML = '<i class="ti ti-alert-triangle"></i> Margen bajo â€” requiere autorizaciÃ³n del admin para confirmar';
     ventaRequiereAutorizacion = true;
   } else if (margenPct <= 20) {
     box.style.background = 'var(--amber-bg)';
@@ -5400,7 +5495,7 @@ function calcMargenGanancia() {
 }
 var rc = 20;
 
-// Crear fila de producto con búsqueda y stock
+// Crear fila de producto con bÃºsqueda y stock
 
 function addRow() {
   rc++;
@@ -5413,23 +5508,23 @@ function delRow(btn) { btn.closest('tr').remove(); calcTotals(); actualizarResum
 function toggleAll(cb) { document.querySelectorAll('#det-body input[type=checkbox]').forEach(c => c.checked = cb.checked); }
 
 function confirmarVenta() {
-  if (!document.getElementById('cli-inp').value) { notify('Seleccioná un cliente primero'); return; }
+  if (!document.getElementById('cli-inp').value) { notify('SeleccionÃ¡ un cliente primero'); return; }
 
-  // Validar descuento general contra límite configurado
+  // Validar descuento general contra lÃ­mite configurado
   var _descGen = parseFloat((document.getElementById('desc-general')||{}).value) || 0;
   if (_descGen > 0 && APROBACION_CONFIG && _descGen > APROBACION_CONFIG.descuentoLimite) {
     if (currentRole !== 'admin') {
-      notify('El descuento general ' + _descGen + '% supera el límite de ' + APROBACION_CONFIG.descuentoLimite + '%. Necesitás autorización del admin.');
+      notify('El descuento general ' + _descGen + '% supera el lÃ­mite de ' + APROBACION_CONFIG.descuentoLimite + '%. NecesitÃ¡s autorizaciÃ³n del admin.');
       return;
     }
-    if (!confirm('Descuento ' + _descGen + '% supera el límite configurado de ' + APROBACION_CONFIG.descuentoLimite + '%. ¿Autorizar como admin?')) return;
+    if (!confirm('Descuento ' + _descGen + '% supera el lÃ­mite configurado de ' + APROBACION_CONFIG.descuentoLimite + '%. Â¿Autorizar como admin?')) return;
   }
   if (ventaRequiereAutorizacion && !ventaAutorizadaPorAdmin) {
     if (currentRole === 'admin') {
-      if (!confirm('⚠️ El margen de ganancia de esta venta está por debajo del 15% (rojo).\n\n¿Autorizás confirmar la venta igual?')) return;
+      if (!confirm('âš ï¸ El margen de ganancia de esta venta estÃ¡ por debajo del 15% (rojo).\n\nÂ¿AutorizÃ¡s confirmar la venta igual?')) return;
       ventaAutorizadaPorAdmin = true;
     } else {
-      notify('⚠️ El margen de esta venta es muy bajo (rojo). Necesitás autorización del admin para confirmarla.');
+      notify('âš ï¸ El margen de esta venta es muy bajo (rojo). NecesitÃ¡s autorizaciÃ³n del admin para confirmarla.');
       return;
     }
   }
@@ -5443,7 +5538,7 @@ function confirmarVenta() {
     var s = stockData[cod];
     if (s) {
       var disp = s.real - s.reservado;
-      if (qty > disp) errores.push(cod + ': necesitás ' + qty + ', disponible ' + disp);
+      if (qty > disp) errores.push(cod + ': necesitÃ¡s ' + qty + ', disponible ' + disp);
     }
   });
   if (errores.length) { notify('Stock insuficiente: ' + errores[0]); return; }
@@ -5478,8 +5573,8 @@ function confirmarVenta() {
   var nuevaVenta = {
     id: obtenerProximoIdVenta(),
     cliente:  cli,
-    idCliente: idCliVal,        // ← ID real del cliente para filtrar en historial
-    clienteId: idCliVal,        // ← campo alternativo para compatibilidad
+    idCliente: idCliVal,        // â† ID real del cliente para filtrar en historial
+    clienteId: idCliVal,        // â† campo alternativo para compatibilidad
     empleado: (function(){
       var sel = document.querySelector('#venta-empleado');
       if (!sel || !sel.value) return '';
@@ -5575,7 +5670,7 @@ function confirmarVenta() {
     guardarPromise = Promise.resolve(null);
   }
   if (typeof registrarActividad === 'function') {
-    registrarActividad('Venta creada', nuevaVenta.id + ' — ' + cli + ' — $' + Math.round(nuevaVenta.total).toLocaleString('es-AR'));
+    registrarActividad('Venta creada', nuevaVenta.id + ' â€” ' + cli + ' â€” $' + Math.round(nuevaVenta.total).toLocaleString('es-AR'));
   }
 
   if (!window._editandoVentaId && !nuevaVenta.ventaEditada && typeof generarOTdesdeVenta === 'function') generarOTdesdeVenta(nuevaVenta.id, cli, dir);
@@ -5592,10 +5687,10 @@ function confirmarVenta() {
     if (typeof inicializarFilasVenta === 'function') inicializarFilasVenta();
   }, 300);
 
-  // Mostrar modal de confirmación — esperamos un poco para que el listener de
+  // Mostrar modal de confirmaciÃ³n â€” esperamos un poco para que el listener de
   // Firebase actualice ventasList con el fbKey real antes de buscarlo
   guardarPromise.then(function() {
-    // Si se editó una venta ya pagada y se habilitó comisión, generar la comisión ahora.
+    // Si se editÃ³ una venta ya pagada y se habilitÃ³ comisiÃ³n, generar la comisiÃ³n ahora.
     // Antes solo se generaba en registrarPago(), por eso al cambiar vendedor/comisionado
     // sobre una venta ya cobrada no se acreditaba nada en Mi Cuenta.
     try {
@@ -5611,12 +5706,12 @@ function confirmarVenta() {
     }, 800);
   }).catch(function(e) {
     console.error('[confirmarVenta]', e);
-    notify('Venta ' + nuevaVenta.id + ' confirmada ✓');
+    notify('Venta ' + nuevaVenta.id + ' confirmada âœ“');
   });
 }
 
 // Inicializar filas al cargar nueva venta
-// Modal de confirmación que aparece al guardar una venta, con acciones rápidas.
+// Modal de confirmaciÃ³n que aparece al guardar una venta, con acciones rÃ¡pidas.
 // Reemplaza el notify simple y da acceso inmediato al detalle y al cobro.
 function mostrarConfirmacionVenta(venta, fbKey) {
   // Remover cualquier modal previo por las dudas
@@ -5656,11 +5751,11 @@ function cerrarConfirmacionVenta() {
   if (m) m.remove();
 }
 
-// Abre el módulo de cobranzas con la venta precargada
+// Abre el mÃ³dulo de cobranzas con la venta precargada
 function abrirCobroRapido(ventaId, total, cliente) {
   // Recordar la venta de origen para poder volver
   window._cobOrigenVentaId = ventaId;
-  // Mostrar botón de volver al entrar desde una venta
+  // Mostrar botÃ³n de volver al entrar desde una venta
   setTimeout(function() {
     var btnVolver = document.getElementById('cob-volver-venta');
     if (btnVolver) btnVolver.style.display = '';
@@ -5704,14 +5799,14 @@ function inicializarFilasVenta() {
   calcTotals();
   actualizarResumenStock();
 
-  // Mostrar el próximo número de venta (mismo cálculo que usa confirmarVenta)
+  // Mostrar el prÃ³ximo nÃºmero de venta (mismo cÃ¡lculo que usa confirmarVenta)
   var numPreview = document.getElementById('vf-numero-preview');
   if (numPreview) {
     numPreview.value = obtenerProximoIdVenta();
   }
 
   // Siempre pre-seleccionar el usuario logueado al abrir nueva venta
-  // (no solo cuando está vacío, para evitar que quede otro de una venta anterior)
+  // (no solo cuando estÃ¡ vacÃ­o, para evitar que quede otro de una venta anterior)
   var selEmp = document.getElementById('venta-empleado');
   if (selEmp) {
     var match = Object.values(empData||{}).find(function(e){
@@ -5747,22 +5842,22 @@ function navegarAProductosPorCategoria(cat) {
 }
 var editingProdId = null;
 
-// Alertas de stock al entrar al módulo
+// Alertas de stock al entrar al mÃ³dulo
 function mostrarAlertasStock() {
   const cont = document.getElementById('stock-alerts');
   cont.replaceChildren();
   Object.values(prodData).forEach(p => {
     if (p.stock === 0) {
-      appendAlert(cont, 'red', 'ti ti-alert-circle', p.descripcion, `sin stock (mín: ${p.stockMin})`);
+      appendAlert(cont, 'red', 'ti ti-alert-circle', p.descripcion, `sin stock (mÃ­n: ${p.stockMin})`);
     } else if (p.stock < p.stockMin) {
-      appendAlert(cont, 'amber', 'ti ti-alert-triangle', p.descripcion, `stock bajo: ${p.stock} unidades (mín: ${p.stockMin})`);
+      appendAlert(cont, 'amber', 'ti ti-alert-triangle', p.descripcion, `stock bajo: ${p.stock} unidades (mÃ­n: ${p.stockMin})`);
     }
   });
 }
 
 var prodProveedoresActuales = [];
 var prodImagenArchivoTemp = null; // File pendiente de subir a Storage al guardar
-var prodImagenBase64Temp = null;  // Preview local mientras no se guardó
+var prodImagenBase64Temp = null;  // Preview local mientras no se guardÃ³
 var prodImagenUrlActual = '';     // URL final (sea de Storage o pegada a mano)
 
 function previewImagenProducto(input) {
@@ -5825,7 +5920,7 @@ function abrirFormProducto(id) {
   var descEl = document.getElementById('pf-descripcion');
   if (nomEl) nomEl.value = p.nombre || p.descripcion || '';
   if (descEl) descEl.value = p.descripcion || '';
-  // Poblar y seleccionar categoría
+  // Poblar y seleccionar categorÃ­a
   var catSel = document.getElementById('pf-categoria');
   if (catSel) {
     var cats = [...new Set(Object.values(prodData||{}).map(function(x){ return x.categoria||x.catId||''; }).filter(Boolean))].sort();
@@ -5872,7 +5967,7 @@ function abrirFormProducto(id) {
   if (prodProveedoresActuales.length && !prodProveedoresActuales[0].url && cwEl && cwEl.value) {
     var cwVal = cwEl.value.trim();
     var nombreProv0 = (prodProveedoresActuales[0].nombre || '').trim().toLowerCase();
-    var esSoloCodigo = /^\d+$/.test(cwVal); // solo dígitos, sin http
+    var esSoloCodigo = /^\d+$/.test(cwVal); // solo dÃ­gitos, sin http
     if (nombreProv0 === 'tecnoprices' && esSoloCodigo) {
       prodProveedoresActuales[0].url = 'https://www.tecnoprices.com/' + cwVal;
     } else {
@@ -5882,7 +5977,7 @@ function abrirFormProducto(id) {
   renderTablaProveedoresProducto();
   recalcularCompraDesdeProveedores();
   calcMargen();
-  setTimeout(function(){ initSearchableSelect("pf-categoria","Seleccionar categoría..."); },50);
+  setTimeout(function(){ initSearchableSelect("pf-categoria","Seleccionar categorÃ­a..."); },50);
 }
 
 function renderTablaProveedoresProducto() {
@@ -5920,20 +6015,20 @@ function renderTablaProveedoresProducto() {
       ? (sinIva
           ? '<span style="color:var(--amber);font-size:12px;font-weight:600">$'+costoReal.toLocaleString('es-AR')+'</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(+IVA)</span>'
           : '<span style="color:var(--text3);font-size:12px">incluido</span>')
-      : '<span style="color:var(--text3);font-size:12px">—</span>';
+      : '<span style="color:var(--text3);font-size:12px">â€”</span>';
     var tr = document.createElement('tr');
     if (esMasBarato) tr.style.background = 'var(--green-bg)';
     tr.innerHTML =
       '<td style="padding:6px 4px;min-width:110px"><input type="text" value="'+escapeHTML(pv.nombre||'')+'" placeholder="Ej: Biosegur" oninput="actualizarProveedorProducto('+i+',\'nombre\',this.value)" style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:13px;font-family:inherit"></td>' +
       '<td style="padding:6px 4px;text-align:right"><input type="number" value="'+(pv.precio||'')+'" placeholder="0" oninput="actualizarProveedorProducto('+i+',\'precio\',this.value)" style="width:90px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;text-align:right;font-size:13px;font-family:inherit"></td>' +
       '<td style="padding:6px 4px;text-align:center">' +
-        '<label style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px" title="El precio que cotiza el proveedor NO incluye IVA — el sistema sumará el 21% para calcular el costo real">' +
+        '<label style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px" title="El precio que cotiza el proveedor NO incluye IVA â€” el sistema sumarÃ¡ el 21% para calcular el costo real">' +
           '<input type="checkbox" '+(sinIva?'checked':'')+' onchange="actualizarProveedorProducto('+i+',\'sinIva\',this.checked);renderTablaProveedoresProducto();calcMargen();" style="accent-color:var(--amber);width:14px;height:14px;cursor:pointer">' +
         '</label>' +
       '</td>' +
       '<td style="padding:6px 4px;text-align:right;white-space:nowrap">'+costoRealFmt+'</td>' +
       '<td style="padding:6px 4px"><input type="url" value="'+escapeHTML(pv.url||'')+'" placeholder="https://proveedor.com/producto..." oninput="actualizarProveedorProducto('+i+',\'url\',this.value)" style="width:100%;min-width:150px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:12px;font-family:inherit;color:var(--blue)"></td>' +
-      '<td style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text3);white-space:nowrap">' + (pv.actualizado||'sin fecha') + (esMasBarato ? '<br><span class="badge b-green" style="font-size:9px">+ económico</span>' : '') + '</td>' +
+      '<td style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text3);white-space:nowrap">' + (pv.actualizado||'sin fecha') + (esMasBarato ? '<br><span class="badge b-green" style="font-size:9px">+ econÃ³mico</span>' : '') + '</td>' +
       '<td style="padding:6px 4px;text-align:right;white-space:nowrap">' +
         (pv.url ? '<a href="'+escapeHTML(pv.url)+'" target="_blank" class="btn btn-sm btn-icon" title="Abrir en proveedor"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></a>' : '') +
         '<button class="btn btn-sm btn-icon" onclick="quitarFilaProveedor('+i+')" title="Quitar"><i class="ti ti-trash" style="font-size:14px;color:var(--red)"></i></button>' +
@@ -5946,7 +6041,7 @@ function cotizarPreciosProveedores() {
   // Filtrar proveedores que tienen URL cargada
   var provConUrl = prodProveedoresActuales.filter(function(pv){ return pv.url && pv.url.trim(); });
   if (!provConUrl.length) {
-    notify('Cargá la URL del producto en al menos un proveedor antes de cotizar');
+    notify('CargÃ¡ la URL del producto en al menos un proveedor antes de cotizar');
     return;
   }
 
@@ -5966,10 +6061,10 @@ function cotizarPreciosProveedores() {
 
   // Llamar al asistente IA para buscar precios en las URLs
   var systemPrompt = 'Sos un asistente de precios para Nixa, empresa de seguridad en Argentina. ' +
-    'Para cada URL que te dé, buscá el precio actual del producto en esa página. ' +
-    'Respondé SOLO con JSON: {"resultados":[{"nombre":"proveedor","url":"...","precio":1234,"moneda":"ARS"}]}';
+    'Para cada URL que te dÃ©, buscÃ¡ el precio actual del producto en esa pÃ¡gina. ' +
+    'RespondÃ© SOLO con JSON: {"resultados":[{"nombre":"proveedor","url":"...","precio":1234,"moneda":"ARS"}]}';
 
-  var userMsg = 'Buscá el precio actual en estas páginas:\n' +
+  var userMsg = 'BuscÃ¡ el precio actual en estas pÃ¡ginas:\n' +
     provConUrl.map(function(pv){ return '- ' + pv.nombre + ': ' + pv.url; }).join('\n');
 
   fetch('https://asistente-171899432710.southamerica-east1.run.app', {
@@ -6004,12 +6099,12 @@ function cotizarPreciosProveedores() {
     calcMargen();
 
     // Mostrar resultado
-    var masBarato = res.masBarato ? ' | Más económico: <strong>' + res.masBarato + '</strong> $' + (res.precioOptimo||0).toLocaleString('es-AR') : '';
-    notify('✓ ' + actualizados + ' precio' + (actualizados !== 1 ? 's' : '') + ' actualizados' + (masBarato ? '' : ' — algunos no pudieron obtenerse'));
+    var masBarato = res.masBarato ? ' | MÃ¡s econÃ³mico: <strong>' + res.masBarato + '</strong> $' + (res.precioOptimo||0).toLocaleString('es-AR') : '';
+    notify('âœ“ ' + actualizados + ' precio' + (actualizados !== 1 ? 's' : '') + ' actualizados' + (masBarato ? '' : ' â€” algunos no pudieron obtenerse'));
     if (res.masBarato) {
-      // Mostrar toast con el más barato
+      // Mostrar toast con el mÃ¡s barato
       setTimeout(function() {
-        notify('Mejor precio: ' + res.masBarato + ' → $' + (res.precioOptimo||0).toLocaleString('es-AR'));
+        notify('Mejor precio: ' + res.masBarato + ' â†’ $' + (res.precioOptimo||0).toLocaleString('es-AR'));
       }, 1500);
     }
 
@@ -6021,7 +6116,7 @@ function cotizarPreciosProveedores() {
   })
   .catch(function(err) {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Cotizar precios online'; }
-    notify('Error al conectar con el servidor de cotización: ' + (err.message||''));
+    notify('Error al conectar con el servidor de cotizaciÃ³n: ' + (err.message||''));
     console.error('[Cotizador]', err);
   });
 }
@@ -6079,10 +6174,10 @@ function cambiarMonedaProducto() {
   if (compraLbl) compraLbl.textContent = esUSD ? 'USD' : '$';
   if (ventaLbl)  ventaLbl.textContent  = esUSD ? 'USD' : '$';
   if (hint) hint.textContent = esUSD
-    ? 'Se convierte a pesos automáticamente al vender, según cotización vigente'
+    ? 'Se convierte a pesos automÃ¡ticamente al vender, segÃºn cotizaciÃ³n vigente'
     : 'Precios cargados en pesos argentinos';
   if (badgeHead) badgeHead.innerHTML = esUSD
-    ? '<span class="badge b-blue">💵 USD</span>' : '<span class="badge b-gray">🇦🇷 ARS</span>';
+    ? '<span class="badge b-blue">ðŸ’µ USD</span>' : '<span class="badge b-gray">ðŸ‡¦ðŸ‡· ARS</span>';
   var equivBox = document.getElementById('pf-equiv-ars-box');
   if (equivBox) equivBox.style.display = esUSD ? '' : 'none';
   calcMargen();
@@ -6092,22 +6187,22 @@ async function buscarPreciosProveedores() {
   var nombre = (document.getElementById('pf-nombre')||{}).value || (document.getElementById('pf-descripcion')||{}).value || '';
   var codigo = (document.getElementById('pf-codigo')||{}).value || '';
   var termino = codigo || nombre;
-  if (!termino) { notify('Ingresá un nombre o código de producto primero'); return; }
+  if (!termino) { notify('IngresÃ¡ un nombre o cÃ³digo de producto primero'); return; }
 
   var btn = document.getElementById('btn-buscar-precios');
   var res = document.getElementById('pf-precios-resultado');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'â³ Buscando...'; }
   if (res) { res.style.display = 'flex'; res.innerHTML = '<div style="color:var(--text3);font-size:12px">Consultando proveedores...</div>'; }
 
   var precioActual = getMontoRaw(document.getElementById('pf-compra'));
-  var systemPrompt = 'Sos un asistente especializado en precios de materiales para instalaciones de seguridad y domótica en Argentina. ' +
-    'Buscá el precio de "' + termino + '" en estos proveedores argentinos: ' +
+  var systemPrompt = 'Sos un asistente especializado en precios de materiales para instalaciones de seguridad y domÃ³tica en Argentina. ' +
+    'BuscÃ¡ el precio de "' + termino + '" en estos proveedores argentinos: ' +
     '1) Biosegur (biosegur.com.ar) - usar URL: biosegur.com.ar/busqueda_avanzada.php?buscar=1&palabra=TERMINO ' +
     '2) Free Electron (free-electron.com.ar) - buscar en la web ' +
     '3) Tecnoprices (tecnoprices.com) - buscar en la web. ' +
-    'Para cada proveedor devolvé: nombre del producto encontrado, precio en pesos SIN IVA, URL del producto. ' +
-    'Si no encontrás el producto exacto, indicá el más similar. ' +
-    'Respondé en formato JSON así: {"resultados":[{"proveedor":"Biosegur","producto":"nombre","precio":12345,"url":"https://..."},...],"observaciones":"texto opcional"}';
+    'Para cada proveedor devolvÃ©: nombre del producto encontrado, precio en pesos SIN IVA, URL del producto. ' +
+    'Si no encontrÃ¡s el producto exacto, indicÃ¡ el mÃ¡s similar. ' +
+    'RespondÃ© en formato JSON asÃ­: {"resultados":[{"proveedor":"Biosegur","producto":"nombre","precio":12345,"url":"https://..."},...],"observaciones":"texto opcional"}';
 
   try {
     var resp = await fetch('https://asistente-171899432710.southamerica-east1.run.app', {
@@ -6135,9 +6230,9 @@ async function buscarPreciosProveedores() {
             var diffStr = diffPct !== null ? (diffPct > 0 ? '<span style="color:var(--red)">+'+diffPct+'%</span>' : '<span style="color:var(--green)">'+diffPct+'%</span>') : '';
             return '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg3);border-radius:var(--radius);' + (esMasBajo?'border:1px solid var(--green)':'') + '">' +
               '<div style="flex:1">' +
-                '<div style="font-size:11px;font-weight:600;color:var(--text2)">' + escapeHTML(r.proveedor||'') + (esMasBajo?' ✓ más barato':'') + '</div>' +
+                '<div style="font-size:11px;font-weight:600;color:var(--text2)">' + escapeHTML(r.proveedor||'') + (esMasBajo?' âœ“ mÃ¡s barato':'') + '</div>' +
                 '<div style="font-size:12px;color:var(--text)">' + escapeHTML(r.producto||'') + '</div>' +
-                (r.url ? '<a href="'+escapeHTML(r.url)+'" target="_blank" style="font-size:10px;color:var(--blue)">Ver producto ↗</a>' : '') +
+                (r.url ? '<a href="'+escapeHTML(r.url)+'" target="_blank" style="font-size:10px;color:var(--blue)">Ver producto â†—</a>' : '') +
               '</div>' +
               '<div style="text-align:right">' +
                 '<div style="font-size:13px;font-weight:600">$' + (r.precio||0).toLocaleString('es-AR') + '</div>' +
@@ -6169,11 +6264,11 @@ function pfUsarPrecio(precio) {
   if (gremioInp) gremioInp.value = precio;
   calcPrecioDesdeGremio();
   calcMargen();
-  notify('✓ Precio de compra actualizado a $' + precio.toLocaleString('es-AR'));
+  notify('âœ“ Precio de compra actualizado a $' + precio.toLocaleString('es-AR'));
 }
 
 function pfFormatearPrecio(val) {
-  // Redondear a 2 decimales máximo, eliminar decimales innecesarios
+  // Redondear a 2 decimales mÃ¡ximo, eliminar decimales innecesarios
   var n = parseFloat(val) || 0;
   return n % 1 === 0 ? String(Math.round(n)) : n.toFixed(2).replace(/\.?0+$/, '');
 }
@@ -6223,12 +6318,12 @@ function calcMargen() {
     document.getElementById('pf-margen').value = margen + '%';
     document.getElementById('pf-margen').style.color = margen >= 0 ? 'var(--green)' : 'var(--red)';
   } else {
-    document.getElementById('pf-margen').value = '—';
+    document.getElementById('pf-margen').value = 'â€”';
   }
   if (v > 0 && iva > 0) {
     document.getElementById('pf-venta-iva').value = '$' + Math.round(v * (1 + iva / 100)).toLocaleString('es-AR');
   } else {
-    document.getElementById('pf-venta-iva').value = v > 0 ? '$' + Math.round(v).toLocaleString('es-AR') : '—';
+    document.getElementById('pf-venta-iva').value = v > 0 ? '$' + Math.round(v).toLocaleString('es-AR') : 'â€”';
   }
   var monedaSel = document.getElementById('pf-moneda');
   var equivEl = document.getElementById('pf-equiv-ars');
@@ -6238,7 +6333,7 @@ function calcMargen() {
     if (v > 0 && cotiz > 0) {
       equivEl.value = '$' + Math.round(v * cotiz).toLocaleString('es-AR') + ' ARS (cotiz. ' + (tc.dolarConversion||'oficial') + ' $' + cotiz + ')';
     } else {
-      equivEl.value = cotiz ? '—' : 'Configurá el tipo de cambio primero';
+      equivEl.value = cotiz ? 'â€”' : 'ConfigurÃ¡ el tipo de cambio primero';
     }
   }
 }
@@ -6247,7 +6342,7 @@ function guardarProducto() {
   const cod  = document.getElementById('pf-codigo').value.trim();
   const nom  = (document.getElementById('pf-nombre')||{}).value.trim() || '';
   const desc = document.getElementById('pf-descripcion').value.trim();
-  if (!cod || (!nom && !desc)) { notify('Completá al menos código y nombre'); return; }
+  if (!cod || (!nom && !desc)) { notify('CompletÃ¡ al menos cÃ³digo y nombre'); return; }
 
   var proveedoresValidos = prodProveedoresActuales.filter(function(pv) {
     return (pv.nombre||'').trim() && parseFloat(pv.precio) > 0;
@@ -6293,7 +6388,7 @@ function guardarProducto() {
     datos.tcGuardado = tc;
     datos.tcFecha    = new Date().toISOString().slice(0,10);
   } else if (datos.moneda === 'USD') {
-    // Ya está en USD — guardar también equivalente ARS
+    // Ya estÃ¡ en USD â€” guardar tambiÃ©n equivalente ARS
     datos.ventaUSD  = datos.venta;
     datos.compraUSD = datos.compra;
     if (tc > 0) {
@@ -6315,17 +6410,17 @@ function guardarProducto() {
       fbGuardarProducto(datos);
       cerrarFormProducto();
     }).catch(function(e) {
-      notify('No se pudo subir la imagen: ' + e.message + ' — se guardó el producto sin imagen');
+      notify('No se pudo subir la imagen: ' + e.message + ' â€” se guardÃ³ el producto sin imagen');
       fbGuardarProducto(datos);
       cerrarFormProducto();
     });
-    return; // el guardado continúa async arriba
+    return; // el guardado continÃºa async arriba
   }
 
   if (prodImagenUrlActual) {
     datos.imagenUrl = prodImagenUrlActual;
   } else if (editingProdId && !document.getElementById('pf-imagen-url').value.trim()) {
-    datos.imagenUrl = null; // se quitó explícitamente
+    datos.imagenUrl = null; // se quitÃ³ explÃ­citamente
   }
 
   fbGuardarProducto(datos);
@@ -6347,8 +6442,8 @@ function verProducto(id) {
   _set('pd-nombre', p.nombre||p.descripcion||'');
   _set('pd-codigo-lbl', p.codigo||'');
   var catEl = document.getElementById('pd-cat-lbl');
-  if (catEl) catEl.innerHTML = '<span class="badge b-amber">' + (p.categoria||p.idcategoria||'—') + '</span>';
-  _set('pd-prov-lbl', (p.proveedor||p.nom_prov||'—') + (p.marca ? ' · '+p.marca : ''));
+  if (catEl) catEl.innerHTML = '<span class="badge b-amber">' + (p.categoria||p.idcategoria||'â€”') + '</span>';
+  _set('pd-prov-lbl', (p.proveedor||p.nom_prov||'â€”') + (p.marca ? ' Â· '+p.marca : ''));
 
   var pdImg = document.getElementById('pd-imagen-img');
   var pdIcon = document.getElementById('pd-imagen-placeholder');
@@ -6359,11 +6454,11 @@ function verProducto(id) {
   _set('pd-compra', '$' + (parseFloat(pc)||0).toLocaleString('es-AR'));
   _set('pd-venta',  '$' + (parseFloat(pv)||0).toLocaleString('es-AR'));
   _set('pd-venta-iva-lbl', 'c/IVA: $' + Math.round(pv*(1+iva/100)).toLocaleString('es-AR'));
-  var margen = pc > 0 ? ((pv-pc)/pc*100).toFixed(1) : '—';
-  _set('pd-margen', margen !== '—' ? margen + '%' : '—');
-  _set('pd-margen-abs', margen !== '—' ? '$' + (pv-pc).toLocaleString('es-AR') + ' por unidad' : '');
+  var margen = pc > 0 ? ((pv-pc)/pc*100).toFixed(1) : 'â€”';
+  _set('pd-margen', margen !== 'â€”' ? margen + '%' : 'â€”');
+  _set('pd-margen-abs', margen !== 'â€”' ? '$' + (pv-pc).toLocaleString('es-AR') + ' por unidad' : '');
   _set('pd-stock', stk);
-  _set('pd-stock-sub', 'mín: ' + stkMin + ' unidades');
+  _set('pd-stock-sub', 'mÃ­n: ' + stkMin + ' unidades');
   var sc = document.getElementById('pd-stock-card');
   var se = document.getElementById('pd-stock');
   if (sc && se) {
@@ -6392,9 +6487,9 @@ function verProducto(id) {
       var rows = lista.map(function(pv, i) {
         var esMasBarato = i === masBaratoIdx && lista.length > 1;
         return '<tr' + (esMasBarato ? ' style="background:var(--green-bg)"' : '') + '>' +
-          '<td style="padding:8px 4px">' + escapeHTML(pv.nombre||'—') + (esMasBarato ? ' <span class="badge b-green" style="font-size:9px;margin-left:4px"><i class="ti ti-check"></i> Más económico</span>' : '') + '</td>' +
+          '<td style="padding:8px 4px">' + escapeHTML(pv.nombre||'â€”') + (esMasBarato ? ' <span class="badge b-green" style="font-size:9px;margin-left:4px"><i class="ti ti-check"></i> MÃ¡s econÃ³mico</span>' : '') + '</td>' +
           '<td style="padding:8px 4px;text-align:right;font-weight:500">$' + Math.round(parseFloat(pv.precio)||0).toLocaleString('es-AR') + '</td>' +
-          '<td style="padding:8px 4px;text-align:right;color:var(--text3);font-size:12px">' + escapeHTML(pv.actualizado||'—') + '</td>' +
+          '<td style="padding:8px 4px;text-align:right;color:var(--text3);font-size:12px">' + escapeHTML(pv.actualizado||'â€”') + '</td>' +
         '</tr>';
       }).join('');
       provBox.innerHTML = '<table style="width:100%;font-size:13px"><tr><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio costo</th><th style="text-align:right">Actualizado</th></tr>' + rows + '</table>';
@@ -6412,7 +6507,7 @@ function cerrarDetalleProducto() {
 function editarDesdeDetalle() { abrirFormProducto(editingProdId); }
 
 // Mostrar alertas al navegar a productos
-// lógica productos integrada en showPage
+// lÃ³gica productos integrada en showPage
 function buscarEmpleado(v) { document.querySelectorAll('.er').forEach(tr => tr.style.display = tr.textContent.toLowerCase().includes(v.toLowerCase()) ? '' : 'none'); }
 function abrirFormPresupuesto() {
   document.querySelector('#page-presupuesto .card').style.display='none';
@@ -6494,8 +6589,8 @@ function calcPpTotales() {
 }
 var ppRowCount=2;
 
-// guardarPresupuesto definida abajo con implementación completa en Firebase
-// convertirVenta y verPresupuesto definidas en el módulo de presupuestos
+// guardarPresupuesto definida abajo con implementaciÃ³n completa en Firebase
+// convertirVenta y verPresupuesto definidas en el mÃ³dulo de presupuestos
 function buscarPresupuesto(v) { document.querySelectorAll('.pprow').forEach(tr=>tr.style.display=tr.textContent.toLowerCase().includes(v.toLowerCase())?'':'none'); }
 function filtrarEstadoPpto(v) { document.querySelectorAll('.pprow').forEach(tr=>tr.style.display=(!v||tr.dataset.estado===v)?'':'none'); }
 document.addEventListener('DOMContentLoaded',()=>{ const f=document.getElementById('cob-fecha'); if(f)f.value=new Date().toISOString().split('T')[0]; });
@@ -6523,7 +6618,7 @@ function buscarVentaCob(v) {
       '<span><strong style="font-family:monospace;font-size:12px">' + escapeHTML(venta.id||'') + '</strong>' +
       ' <span style="color:var(--text3);font-size:12px">' + escapeHTML(venta.cliente||'') + '</span></span>' +
       '<span style="font-size:12px;color:' + (saldo>0?'var(--amber)':'var(--green)') + '">' +
-        (saldo>0 ? 'Saldo: ' + fmtARS(saldo) : '✓ Cobrado') +
+        (saldo>0 ? 'Saldo: ' + fmtARS(saldo) : 'âœ“ Cobrado') +
       '</span>' +
       '</div>';
   }).join('');
@@ -6599,22 +6694,22 @@ function showCfgTab(id, el) {
   if (id === 'mantenimiento' && typeof mntInicializar === 'function') mntInicializar();
   if (id === 'asistente') aacfgInicializar();
 }
-// CONFIGURACIÓN DEL ASISTENTE DE VENTAS — editor visual
+// CONFIGURACIÃ“N DEL ASISTENTE DE VENTAS â€” editor visual
 var AACFG_RUBROS = {};       // Estado en memoria, espejo de Firebase
-var AACFG_RUBRO_ACTUAL = null;   // id del rubro que se está editando
-var AACFG_PASO_ACTUAL = null;    // índice del paso en edición, o null si es nuevo
-var AACFG_REGLA_ACTUAL = null;   // índice de la regla en edición, o null si es nueva
+var AACFG_RUBRO_ACTUAL = null;   // id del rubro que se estÃ¡ editando
+var AACFG_PASO_ACTUAL = null;    // Ã­ndice del paso en ediciÃ³n, o null si es nuevo
+var AACFG_REGLA_ACTUAL = null;   // Ã­ndice de la regla en ediciÃ³n, o null si es nueva
 var AACFG_CARGADO = false;
 
 function aacfgInicializar() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   if (AACFG_CARGADO) { aacfgVolverALista(); return; }
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/asistente/rubros')).then(function(snap) {
     var data = snap.val();
     if (data && Object.keys(data).length) {
       AACFG_RUBROS = data;
     } else {
-      // Firebase vacío todavía: usar la semilla migrada como punto de partida
+      // Firebase vacÃ­o todavÃ­a: usar la semilla migrada como punto de partida
       AACFG_RUBROS = JSON.parse(JSON.stringify(AACFG_SEMILLA_RUBROS));
       window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/asistente/rubros'), AACFG_RUBROS);
     }
@@ -6624,9 +6719,9 @@ function aacfgInicializar() {
 }
 
 function aacfgGuardarTodo() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/asistente/rubros'), AACFG_RUBROS)
-    .then(function(){ notify('✓ Guardado'); })
+    .then(function(){ notify('âœ“ Guardado'); })
     .catch(function(e){ notify('Error: '+e.message); });
 }
 function aacfgVolverALista() {
@@ -6652,7 +6747,7 @@ function aacfgRenderListaRubros() {
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
         '<div style="width:36px;height:36px;border-radius:8px;background:'+(r.color||'#888')+'22;color:'+(r.color||'#888')+';display:flex;align-items:center;justify-content:center"><i class="ti '+(r.icono||'ti-box')+'"></i></div>' +
         '<div style="flex:1"><div style="font-weight:500;font-size:14px">'+escapeHTML(r.nombre||id)+'</div>' +
-        '<div style="font-size:11px;color:var(--text3)">'+(r.pasos||[]).length+' preguntas · '+(r.reglas||[]).length+' reglas</div></div>' +
+        '<div style="font-size:11px;color:var(--text3)">'+(r.pasos||[]).length+' preguntas Â· '+(r.reglas||[]).length+' reglas</div></div>' +
         '<span class="badge '+(activo?'b-green':'b-amber')+'" style="font-size:10px">'+(activo?'Activo':'Inactivo')+'</span>' +
       '</div>' +
       '<button class="btn btn-sm" style="width:100%" onclick="aacfgAbrirRubro(\''+id+'\')"><i class="ti ti-settings"></i> Configurar</button>' +
@@ -6661,7 +6756,7 @@ function aacfgRenderListaRubros() {
 }
 
 function aacfgAbrirNuevoRubro() {
-  var nombre = prompt('Nombre del rubro nuevo (ej: "Cercos eléctricos"):');
+  var nombre = prompt('Nombre del rubro nuevo (ej: "Cercos elÃ©ctricos"):');
   if (!nombre || !nombre.trim()) return;
   var id = nombre.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
   if (AACFG_RUBROS[id]) { notify('Ya existe un rubro con ese nombre'); return; }
@@ -6701,13 +6796,13 @@ function aacfgRenderPasos() {
   var cont = document.getElementById('aacfg-pasos-lista');
   var r = AACFG_RUBROS[AACFG_RUBRO_ACTUAL];
   var pasos = r.pasos || [];
-  if (!pasos.length) { cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Sin preguntas todavía</div>'; return; }
-  var tipoLbl = { opciones:'Opción única', multi:'Múltiple', numero:'Número' };
+  if (!pasos.length) { cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Sin preguntas todavÃ­a</div>'; return; }
+  var tipoLbl = { opciones:'OpciÃ³n Ãºnica', multi:'MÃºltiple', numero:'NÃºmero' };
   cont.innerHTML = pasos.map(function(p, i) {
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius)">' +
       '<span style="font-size:11px;color:var(--text3);min-width:18px">'+(i+1)+'</span>' +
-      '<div style="flex:1"><div style="font-size:13px;font-weight:500">'+escapeHTML(p.titulo||'(sin título)')+'</div>' +
-      '<div style="font-size:11px;color:var(--text3)">'+tipoLbl[p.tipo]+' · campo: '+escapeHTML(p.id||'')+'</div></div>' +
+      '<div style="flex:1"><div style="font-size:13px;font-weight:500">'+escapeHTML(p.titulo||'(sin tÃ­tulo)')+'</div>' +
+      '<div style="font-size:11px;color:var(--text3)">'+tipoLbl[p.tipo]+' Â· campo: '+escapeHTML(p.id||'')+'</div></div>' +
       '<button class="btn btn-sm btn-icon" onclick="aacfgMoverPaso('+i+',-1)" title="Subir" '+(i===0?'disabled':'')+'><i class="ti ti-arrow-up" style="font-size:13px"></i></button>' +
       '<button class="btn btn-sm btn-icon" onclick="aacfgMoverPaso('+i+',1)" title="Bajar" '+(i===pasos.length-1?'disabled':'')+'><i class="ti ti-arrow-down" style="font-size:13px"></i></button>' +
       '<button class="btn btn-sm btn-icon" onclick="aacfgAbrirEditorPaso('+i+')" title="Editar"><i class="ti ti-edit" style="font-size:13px"></i></button>' +
@@ -6762,12 +6857,12 @@ function aacfgCambiarTipoPaso() {
 
 function aacfgRenderOpcionesPaso() {
   var cont = document.getElementById('aacfg-paso-opciones-lista');
-  if (!AACFG_OPCIONES_TEMP.length) { cont.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text3);font-size:12px">Sin opciones — agregá al menos una</div>'; return; }
+  if (!AACFG_OPCIONES_TEMP.length) { cont.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text3);font-size:12px">Sin opciones â€” agregÃ¡ al menos una</div>'; return; }
   cont.innerHTML = AACFG_OPCIONES_TEMP.map(function(o, i) {
     return '<div style="display:flex;gap:8px;align-items:center">' +
       '<input type="text" placeholder="id (ej: residencial)" value="'+escapeHTML(o.id||'')+'" style="width:120px" onchange="aacfgOpcionCambio('+i+',\'id\',this.value)">' +
-      '<input type="text" placeholder="Título visible" value="'+escapeHTML(o.titulo||'')+'" style="flex:1" onchange="aacfgOpcionCambio('+i+',\'titulo\',this.value)">' +
-      '<input type="text" placeholder="Descripción" value="'+escapeHTML(o.desc||'')+'" style="flex:1" onchange="aacfgOpcionCambio('+i+',\'desc\',this.value)">' +
+      '<input type="text" placeholder="TÃ­tulo visible" value="'+escapeHTML(o.titulo||'')+'" style="flex:1" onchange="aacfgOpcionCambio('+i+',\'titulo\',this.value)">' +
+      '<input type="text" placeholder="DescripciÃ³n" value="'+escapeHTML(o.desc||'')+'" style="flex:1" onchange="aacfgOpcionCambio('+i+',\'desc\',this.value)">' +
       '<input type="text" placeholder="ti-icono" value="'+escapeHTML(o.ico||'')+'" style="width:110px" onchange="aacfgOpcionCambio('+i+',\'ico\',this.value)">' +
       '<button class="btn btn-sm btn-icon" onclick="aacfgEliminarOpcionPaso('+i+')" style="color:var(--red)"><i class="ti ti-trash" style="font-size:13px"></i></button>' +
     '</div>';
@@ -6780,7 +6875,7 @@ function aacfgEliminarOpcionPaso(idx) { AACFG_OPCIONES_TEMP.splice(idx,1); aacfg
 
 function aacfgGuardarPaso() {
   var titulo = document.getElementById('aacfg-paso-titulo').value.trim();
-  if (!titulo) { notify('Ingresá el título de la pregunta'); return; }
+  if (!titulo) { notify('IngresÃ¡ el tÃ­tulo de la pregunta'); return; }
   var tipo = document.getElementById('aacfg-paso-tipo').value;
 
   var paso;
@@ -6801,7 +6896,7 @@ function aacfgGuardarPaso() {
     delete paso.opciones;
   } else {
     var opcionesValidas = AACFG_OPCIONES_TEMP.filter(function(o){ return (o.id||'').trim() && (o.titulo||'').trim(); });
-    if (!opcionesValidas.length) { notify('Agregá al menos una opción válida (con id y título)'); return; }
+    if (!opcionesValidas.length) { notify('AgregÃ¡ al menos una opciÃ³n vÃ¡lida (con id y tÃ­tulo)'); return; }
     paso.opciones = opcionesValidas;
   }
 
@@ -6816,7 +6911,7 @@ function aacfgGuardarPaso() {
 
 function aacfgEliminarPaso() {
   if (AACFG_PASO_ACTUAL === null) return;
-  if (!confirm('¿Eliminar esta pregunta?')) return;
+  if (!confirm('Â¿Eliminar esta pregunta?')) return;
   AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos.splice(AACFG_PASO_ACTUAL, 1);
   aacfgGuardarTodo();
   aacfgCerrarEditorPaso();
@@ -6828,14 +6923,14 @@ function aacfgAbrirReglas(id) {
   AACFG_RUBRO_ACTUAL = id;
   document.getElementById('aacfg-pantalla-preguntas').style.display = 'none';
   document.getElementById('aacfg-pantalla-reglas').style.display = '';
-  document.getElementById('aacfg-reglas-titulo').textContent = 'Reglas — ' + AACFG_RUBROS[id].nombre;
+  document.getElementById('aacfg-reglas-titulo').textContent = 'Reglas â€” ' + AACFG_RUBROS[id].nombre;
   aacfgRenderReglas();
 }
 
 function aacfgRenderReglas() {
   var cont = document.getElementById('aacfg-reglas-lista');
   var reglas = AACFG_RUBROS[AACFG_RUBRO_ACTUAL].reglas || [];
-  if (!reglas.length) { cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Sin reglas todavía</div>'; return; }
+  if (!reglas.length) { cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Sin reglas todavÃ­a</div>'; return; }
   cont.innerHTML = reglas.map(function(reg, i) {
     var condTxt = reg.condiciones && reg.condiciones.length
       ? reg.condiciones.map(function(c){ return escapeHTML(c.campo) + ' ' + (AACFG_OP_LABELS[c.op]||c.op) + ' ' + escapeHTML(Array.isArray(c.valor)?c.valor.join('/'):String(c.valor)); }).join(' y ')
@@ -6843,19 +6938,19 @@ function aacfgRenderReglas() {
     var cantTxt = aacfgDescribirCantidad(reg.cantidad);
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">' +
       '<div style="flex:1;font-size:13px"><span style="color:var(--text3)">Si</span> <b>'+condTxt+'</b><br>' +
-      '<span style="color:var(--text3)">→ Buscar:</span> '+escapeHTML(reg.accion?(reg.accion.clave||''):'')+' <span style="color:var(--text3)">· Cant:</span> '+cantTxt+'</div>' +
+      '<span style="color:var(--text3)">â†’ Buscar:</span> '+escapeHTML(reg.accion?(reg.accion.clave||''):'')+' <span style="color:var(--text3)">Â· Cant:</span> '+cantTxt+'</div>' +
       '<button class="btn btn-sm btn-icon" onclick="aacfgAbrirEditorRegla('+i+')"><i class="ti ti-edit" style="font-size:13px"></i></button>' +
     '</div>';
   }).join('');
 }
 
 function aacfgDescribirCantidad(c) {
-  if (!c) return '—';
+  if (!c) return 'â€”';
   if (c.modo === 'fija') return 'fija: '+c.valor;
   if (c.modo === 'igual_variable') return 'igual a "'+c.variable+'"';
-  if (c.modo === 'proporcional') return '"'+c.variable+'" × '+c.multiplicador+' ('+c.redondeo+')';
-  if (c.modo === 'dividido_entre') return '"'+c.variable+'" ÷ '+c.divisor+' ('+c.redondeo+')';
-  return '—';
+  if (c.modo === 'proporcional') return '"'+c.variable+'" Ã— '+c.multiplicador+' ('+c.redondeo+')';
+  if (c.modo === 'dividido_entre') return '"'+c.variable+'" Ã· '+c.divisor+' ('+c.redondeo+')';
+  return 'â€”';
 }
 var AACFG_CONDICIONES_TEMP = [];
 
@@ -6909,12 +7004,12 @@ function aacfgCambiarModoCantidad() {
 function aacfgRenderCondiciones() {
   var cont = document.getElementById('aacfg-regla-condiciones');
   var pasos = AACFG_RUBROS[AACFG_RUBRO_ACTUAL].pasos || [];
-  if (!AACFG_CONDICIONES_TEMP.length) { cont.innerHTML = '<div style="padding:10px;text-align:center;color:var(--text3);font-size:12px">Sin condiciones — se aplica siempre</div>'; return; }
+  if (!AACFG_CONDICIONES_TEMP.length) { cont.innerHTML = '<div style="padding:10px;text-align:center;color:var(--text3);font-size:12px">Sin condiciones â€” se aplica siempre</div>'; return; }
   cont.innerHTML = AACFG_CONDICIONES_TEMP.map(function(c, i) {
     var campoOpts = pasos.map(function(p){ return '<option value="'+p.id+'" '+(c.campo===p.id?'selected':'')+'>'+escapeHTML(p.titulo)+'</option>'; }).join('');
     var opOpts = Object.keys(AACFG_OP_LABELS).map(function(k){ return '<option value="'+k+'" '+(c.op===k?'selected':'')+'>'+AACFG_OP_LABELS[k]+'</option>'; }).join('');
     return '<div style="display:flex;gap:8px;align-items:center">' +
-      '<select style="flex:1" onchange="aacfgCondicionCambio('+i+',\'campo\',this.value)"><option value="">— pregunta —</option>'+campoOpts+'</select>' +
+      '<select style="flex:1" onchange="aacfgCondicionCambio('+i+',\'campo\',this.value)"><option value="">â€” pregunta â€”</option>'+campoOpts+'</select>' +
       '<select style="width:140px" onchange="aacfgCondicionCambio('+i+',\'op\',this.value)">'+opOpts+'</select>' +
       '<input type="text" placeholder="valor" value="'+escapeHTML(Array.isArray(c.valor)?c.valor.join(','):String(c.valor||''))+'" style="flex:1" onchange="aacfgCondicionCambio('+i+',\'valor\',this.value)">' +
       '<button class="btn btn-sm btn-icon" onclick="aacfgEliminarCondicion('+i+')" style="color:var(--red)"><i class="ti ti-trash" style="font-size:13px"></i></button>' +
@@ -6931,14 +7026,14 @@ function aacfgEliminarCondicion(idx) { AACFG_CONDICIONES_TEMP.splice(idx,1); aac
 
 function aacfgGuardarRegla() {
   var clave = document.getElementById('aacfg-regla-clave').value.trim();
-  if (!clave) { notify('Ingresá la palabra clave de búsqueda en Productos'); return; }
+  if (!clave) { notify('IngresÃ¡ la palabra clave de bÃºsqueda en Productos'); return; }
 
   var modo = document.getElementById('aacfg-regla-cant-modo').value;
   var cantidad = { modo: modo };
   if (modo === 'fija') cantidad.valor = parseInt(document.getElementById('aacfg-regla-cant-fija').value)||1;
   else {
     cantidad.variable = document.getElementById('aacfg-regla-cant-variable').value;
-    if (!cantidad.variable) { notify('Elegí la pregunta numérica que define la cantidad'); return; }
+    if (!cantidad.variable) { notify('ElegÃ­ la pregunta numÃ©rica que define la cantidad'); return; }
     if (modo === 'proporcional') { cantidad.multiplicador = parseFloat(document.getElementById('aacfg-regla-cant-mult').value)||1; cantidad.redondeo = document.getElementById('aacfg-regla-cant-redondeo').value; cantidad.minimo = 1; }
     if (modo === 'dividido_entre') { cantidad.divisor = parseFloat(document.getElementById('aacfg-regla-cant-div').value)||1; cantidad.redondeo = document.getElementById('aacfg-regla-cant-redondeo').value; }
   }
@@ -6966,13 +7061,13 @@ function aacfgGuardarRegla() {
 
 function aacfgEliminarRegla() {
   if (AACFG_REGLA_ACTUAL === null) return;
-  if (!confirm('¿Eliminar esta regla?')) return;
+  if (!confirm('Â¿Eliminar esta regla?')) return;
   AACFG_RUBROS[AACFG_RUBRO_ACTUAL].reglas.splice(AACFG_REGLA_ACTUAL, 1);
   aacfgGuardarTodo();
   aacfgCerrarEditorRegla();
   aacfgRenderReglas();
 }
-// migrados al sistema de configuración visual.
+// migrados al sistema de configuraciÃ³n visual.
 function aacfgEvaluarCondicion(c, respuestas) {
   var val = respuestas[c.campo];
   if (c.op === 'eq') return String(val) === String(c.valor);
@@ -7023,12 +7118,12 @@ function aacfgAbrirPreview() {
   var rubro = AACFG_RUBROS[AACFG_RUBRO_ACTUAL];
 
   if (!rubro.pasos || !rubro.pasos.length) {
-    cont.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Agregá al menos una pregunta para poder probar</div>';
+    cont.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">AgregÃ¡ al menos una pregunta para poder probar</div>';
     return;
   }
 
   // Vista previa simplificada: formulario con todas las preguntas a la vez,
-  // y al tocar "Calcular" corre el motor de reglas y muestra qué traería.
+  // y al tocar "Calcular" corre el motor de reglas y muestra quÃ© traerÃ­a.
   var html = '<div class="card"><div class="card-head"><span class="card-title">Respuestas de prueba</span></div><div class="form-grid">';
   rubro.pasos.forEach(function(p) {
     if (p.tipo === 'numero') {
@@ -7046,7 +7141,7 @@ function aacfgAbrirPreview() {
     }
   });
   html += '</div><div class="flex-end"><button class="btn btn-sm btn-primary" onclick="aacfgEjecutarPreview()"><i class="ti ti-player-play"></i> Calcular</button></div></div>';
-  html += '<div class="card" id="aacfg-prev-resultado-box" style="display:none"><div class="card-head"><span class="card-title">Productos que traería</span></div><div id="aacfg-prev-resultado"></div></div>';
+  html += '<div class="card" id="aacfg-prev-resultado-box" style="display:none"><div class="card-head"><span class="card-title">Productos que traerÃ­a</span></div><div id="aacfg-prev-resultado"></div></div>';
   cont.innerHTML = html;
 }
 
@@ -7069,14 +7164,14 @@ function aacfgEjecutarPreview() {
   var box = document.getElementById('aacfg-prev-resultado-box');
   var cont = document.getElementById('aacfg-prev-resultado');
   box.style.display = '';
-  if (!resultado.length) { cont.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Ninguna regla coincidió con estas respuestas</div>'; return; }
+  if (!resultado.length) { cont.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Ninguna regla coincidiÃ³ con estas respuestas</div>'; return; }
   var total = 0;
   cont.innerHTML = resultado.map(function(p) {
     var sub = (p.precio||0) * p.qty;
     total += sub;
     var sinPrecio = !p.precio || p.precio <= 0;
     return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)">' +
-      '<span style="font-size:13px">'+escapeHTML(p.nombre)+(sinPrecio?' <span class="badge b-red" style="font-size:9px">Sin precio</span>':'')+' × '+p.qty+'</span>' +
+      '<span style="font-size:13px">'+escapeHTML(p.nombre)+(sinPrecio?' <span class="badge b-red" style="font-size:9px">Sin precio</span>':'')+' Ã— '+p.qty+'</span>' +
       '<span style="font-size:13px;font-weight:500;color:'+(sinPrecio?'var(--red)':'')+'">$'+Math.round(sub).toLocaleString('es-AR')+'</span>' +
     '</div>';
   }).join('') + '<div style="display:flex;justify-content:space-between;padding:10px 0;font-weight:600"><span>Total</span><span>$'+Math.round(total).toLocaleString('es-AR')+'</span></div>';
@@ -7104,7 +7199,7 @@ function estaUsuarioOnline(email) {
   });
 }
 // de clientes/productos/empleados. Pensado para que el admin pueda auditar el uso
-// real del sistema sin ahogarse en ruido de navegación.
+// real del sistema sin ahogarse en ruido de navegaciÃ³n.
 function registrarActividad(accion, detalle) {
   if (!window.fbDB) return;
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/log_actividad'), {
@@ -7117,18 +7212,18 @@ function registrarActividad(accion, detalle) {
   }).catch(function(){});
 }
 
-var LOG_ACTIVIDAD_DATA = []; // últimos registros cargados, más reciente primero
+var LOG_ACTIVIDAD_DATA = []; // Ãºltimos registros cargados, mÃ¡s reciente primero
 
-/* v20.362: limpieza del historial de actividad — solo administrador. */
+/* v20.362: limpieza del historial de actividad â€” solo administrador. */
 async function limpiarLogActividad() {
   if (currentRole !== 'admin') { notify('Solo el administrador puede limpiar el registro'); return; }
-  if (!window.fbDB) { notify('Sin conexión'); return; }
-  if (!confirm('¿Borrar TODO el historial de actividad? Esta acción no se puede deshacer.')) return;
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
+  if (!confirm('Â¿Borrar TODO el historial de actividad? Esta acciÃ³n no se puede deshacer.')) return;
   try {
     await window.fbSet(window.fbRef(window.fbDB, 'sisventas/log_actividad'), null);
     LOG_ACTIVIDAD_DATA = [];
-    notify('✓ Historial de actividad limpiado');
-    if (typeof registrarActividad === 'function') registrarActividad('Historial limpiado', 'El administrador vació el registro de actividad');
+    notify('âœ“ Historial de actividad limpiado');
+    if (typeof registrarActividad === 'function') registrarActividad('Historial limpiado', 'El administrador vaciÃ³ el registro de actividad');
     if (typeof cargarLogActividad === 'function') cargarLogActividad();
   } catch(err) { notify('Error: ' + err.message); }
 }
@@ -7139,20 +7234,20 @@ function cargarLogActividad() {
     var data = snap.val() || {};
     LOG_ACTIVIDAD_DATA = Object.values(data).sort(function(a,b) {
       return (b.fecha||'').localeCompare(a.fecha||'');
-    }).slice(0, 300); // últimos 300 registros — suficiente para auditoría reciente sin sobrecargar la tabla
+    }).slice(0, 300); // Ãºltimos 300 registros â€” suficiente para auditorÃ­a reciente sin sobrecargar la tabla
     // Llenar selects de filtro con los usuarios y acciones que aparecen en el log
     var selUsu = document.getElementById('act-filtro-usuario');
     var selAcc = document.getElementById('act-filtro-accion');
     if (selUsu) {
       var usuarios = Array.from(new Set(LOG_ACTIVIDAD_DATA.map(function(l){ return l.usuario; }).filter(Boolean))).sort();
       var valActual = selUsu.value;
-      selUsu.innerHTML = '<option value="">— Todos los usuarios —</option>' + usuarios.map(function(u){ return '<option value="'+escapeHTML(u)+'">'+escapeHTML(u)+'</option>'; }).join('');
+      selUsu.innerHTML = '<option value="">â€” Todos los usuarios â€”</option>' + usuarios.map(function(u){ return '<option value="'+escapeHTML(u)+'">'+escapeHTML(u)+'</option>'; }).join('');
       selUsu.value = valActual;
     }
     if (selAcc) {
       var acciones = Array.from(new Set(LOG_ACTIVIDAD_DATA.map(function(l){ return l.accion; }).filter(Boolean))).sort();
       var valActualAcc = selAcc.value;
-      selAcc.innerHTML = '<option value="">— Todas las acciones —</option>' + acciones.map(function(a){ return '<option value="'+escapeHTML(a)+'">'+escapeHTML(a)+'</option>'; }).join('');
+      selAcc.innerHTML = '<option value="">â€” Todas las acciones â€”</option>' + acciones.map(function(a){ return '<option value="'+escapeHTML(a)+'">'+escapeHTML(a)+'</option>'; }).join('');
       selAcc.value = valActualAcc;
     }
     renderLogActividad();
@@ -7168,15 +7263,15 @@ function renderLogActividad() {
     return (!filtroUsu || l.usuario === filtroUsu) && (!filtroAcc || l.accion === filtroAcc);
   });
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px">Sin actividad registrada todavía</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px">Sin actividad registrada todavÃ­a</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(l) {
-    var fechaFmt = l.fecha ? new Date(l.fecha).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    var fechaFmt = l.fecha ? new Date(l.fecha).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'â€”';
     return '<tr>' +
       '<td style="font-size:12px;color:var(--text3);white-space:nowrap">' + escapeHTML(fechaFmt) + '</td>' +
-      '<td style="font-weight:500">' + escapeHTML(l.usuario||'—') + '</td>' +
-      '<td>' + escapeHTML(l.accion||'—') + '</td>' +
+      '<td style="font-weight:500">' + escapeHTML(l.usuario||'â€”') + '</td>' +
+      '<td>' + escapeHTML(l.accion||'â€”') + '</td>' +
       '<td style="color:var(--text3)">' + escapeHTML(l.detalle||'') + '</td>' +
     '</tr>';
   }).join('');
@@ -7189,9 +7284,9 @@ function cargarCargos() {
     if (!data) {
       // Primera vez: sembrar los 6 cargos reales de CATEGORIAS_SUEL
       var seed = {
-        'tecnico_c': { nombre:'Técnico C', categoriaBase:'TECNICO C', valorHora:6450, diasMes:23, valorHoraExtra:9700 },
-        'tecnico_b': { nombre:'Técnico B', categoriaBase:'TECNICO B', valorHora:6450, diasMes:23, valorHoraExtra:9700 },
-        'tecnico_a': { nombre:'Técnico A', categoriaBase:'TECNICO A', valorHora:5000, diasMes:23, valorHoraExtra:7500 },
+        'tecnico_c': { nombre:'TÃ©cnico C', categoriaBase:'TECNICO C', valorHora:6450, diasMes:23, valorHoraExtra:9700 },
+        'tecnico_b': { nombre:'TÃ©cnico B', categoriaBase:'TECNICO B', valorHora:6450, diasMes:23, valorHoraExtra:9700 },
+        'tecnico_a': { nombre:'TÃ©cnico A', categoriaBase:'TECNICO A', valorHora:5000, diasMes:23, valorHoraExtra:7500 },
         'administrativo': { nombre:'Administrativo', categoriaBase:'ADMINIS', valorHora:5800, diasMes:23, valorHoraExtra:8700 },
         'inicial': { nombre:'Inicial', categoriaBase:'INICIAL', valorHora:4500, diasMes:0, valorHoraExtra:6750 },
         'temporal': { nombre:'Temporal', categoriaBase:'A-TEMP', valorHora:4800, diasMes:0, valorHoraExtra:7200 }
@@ -7205,7 +7300,7 @@ function cargarCargos() {
     CARGOS_DATA = data;
     renderCargosConfig();
     // datos reales (ambos listeners de Firebase cargan en paralelo, sin orden
-    // garantizado) — por eso "Mensual (cargo)" quedaba en "—" hasta tocar algo que
+    // garantizado) â€” por eso "Mensual (cargo)" quedaba en "â€”" hasta tocar algo que
     // forzara un segundo render. Ahora se refresca solo apenas los cargos llegan.
     if (typeof renderTablaEmpleados === 'function') renderTablaEmpleados();
   });
@@ -7256,7 +7351,7 @@ function renderCargosConfig() {
 
 function cargosEditarRapido(id, campo, valor) {
   var c = CARGOS_DATA[id];
-  if (!c || !window.fbDB) { notify('Sin conexión'); return; }
+  if (!c || !window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var num = parseFloat(valor) || 0;
 
   // Recalcular columnas derivadas en la fila al instante (sin esperar a Firebase)
@@ -7270,7 +7365,7 @@ function cargosEditarRapido(id, campo, valor) {
   }
 
   window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/cargos/'+id+'/'+campo), num)
-    .then(function(){ notify('✓ Guardado'); })
+    .then(function(){ notify('âœ“ Guardado'); })
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
@@ -7298,7 +7393,7 @@ function cargosAbrirNuevo(idExistente) {
 function cargosGuardar() {
   var idExistente = document.getElementById('cargo-id-edit').value;
   var nombre = document.getElementById('cargo-nombre').value.trim();
-  if (!nombre) { notify('Ingresá un nombre para el cargo'); return; }
+  if (!nombre) { notify('IngresÃ¡ un nombre para el cargo'); return; }
 
   var datos = {
     nombre: nombre,
@@ -7311,10 +7406,10 @@ function cargosGuardar() {
   var id = idExistente || nombre.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
   if (!idExistente && CARGOS_DATA[id]) { notify('Ya existe un cargo con ese nombre'); return; }
 
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/cargos/'+id), datos)
     .then(function(){
-      notify('✓ Cargo guardado');
+      notify('âœ“ Cargo guardado');
       document.getElementById('modal-cargo').style.display = 'none';
     })
     .catch(function(e){ notify('Error: '+e.message); });
@@ -7327,7 +7422,7 @@ function cargosEliminar(id) {
     notify('No se puede eliminar: hay '+empleadosActivos.length+' empleado(s) activo(s) con este cargo');
     return;
   }
-  if (!confirm('¿Eliminar el cargo "'+(c.nombre||id)+'"?')) return;
+  if (!confirm('Â¿Eliminar el cargo "'+(c.nombre||id)+'"?')) return;
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/config/cargos/'+id))
     .then(function(){ notify('Cargo eliminado'); })
     .catch(function(e){ notify('Error: '+e.message); });
@@ -7339,7 +7434,7 @@ function recargarConfigTFAppEnUI() {
   var rub  = document.getElementById('cfg-tfapp-rubro');
   if (pv)   pv.value   = TFAPP_CONFIG.punto_venta || 2;
   if (prov) prov.value = TFAPP_CONFIG.provincia || '';
-  if (rub)  rub.value  = TFAPP_CONFIG.rubro || 'Seguridad y domótica';
+  if (rub)  rub.value  = TFAPP_CONFIG.rubro || 'Seguridad y domÃ³tica';
 }
 
 var TODOS_MODULOS = [
@@ -7349,39 +7444,39 @@ var TODOS_MODULOS = [
   { id:'detalle',        label:'Detalle venta' },
   { id:'cobranzas',      label:'Cobranzas' },
   { id:'cuentacorriente',label:'Cuenta corriente' },
-  { id:'ordentrabajo',   label:'Órdenes de trabajo (OT / instalaciones)' },
+  { id:'ordentrabajo',   label:'Ã“rdenes de trabajo (OT / instalaciones)' },
   { id:'clientes',       label:'Clientes' },
   { id:'productos',      label:'Productos' },
   { id:'empleados',      label:'Empleados' },
   { id:'vacaciones',     label:'Vacaciones' },
   { id:'usuarios',       label:'Usuarios' },
   { id:'reportes',       label:'Reportes' },
-  { id:'estadisticas',   label:'Estadísticas' },
+  { id:'estadisticas',   label:'EstadÃ­sticas' },
   { id:'gastos',         label:'Gastos' },
   { id:'caja',           label:'Caja diaria' },
   { id:'rentabilidad',   label:'Rentabilidad' },
   { id:'proveedores',    label:'Proveedores' },
-  { id:'ordenes',        label:'Órdenes de compra (proveedores)' },
-  { id:'creditofiscal',  label:'Facturaciones (Crédito Fiscal + Facturas Realizadas)' },
-  { id:'garantias',      label:'Garantías' },
+  { id:'ordenes',        label:'Ã“rdenes de compra (proveedores)' },
+  { id:'creditofiscal',  label:'Facturaciones (CrÃ©dito Fiscal + Facturas Realizadas)' },
+  { id:'garantias',      label:'GarantÃ­as' },
   { id:'soporte',        label:'Soporte' },
   { id:'remitos',        label:'Remitos' },
   { id:'agenda',         label:'Agenda' },
   { id:'servicios',      label:'Servicios' },
   { id:'informes',       label:'Informes' },
   { id:'equipos',        label:'Equipos' },
-  { id:'configuracion',  label:'Configuración' }
+  { id:'configuracion',  label:'ConfiguraciÃ³n' }
 ];
-// DASHBOARD WIDGETS — configuración por rol
+// DASHBOARD WIDGETS â€” configuraciÃ³n por rol
 var DASH_WIDGETS_DEF = [
-  { id: 'metricas_globales',  label: 'Métricas globales (ventas, deuda, IVA)',  defaults: { admin: true,  administrativo: false, tecnico: false } },
-  { id: 'grafico_barras',     label: 'Gráfico ventas 7 días',                   defaults: { admin: true,  administrativo: false, tecnico: false } },
-  { id: 'ots_pendientes',     label: 'Órdenes de trabajo pendientes',            defaults: { admin: true,  administrativo: false, tecnico: false } },
+  { id: 'metricas_globales',  label: 'MÃ©tricas globales (ventas, deuda, IVA)',  defaults: { admin: true,  administrativo: false, tecnico: false } },
+  { id: 'grafico_barras',     label: 'GrÃ¡fico ventas 7 dÃ­as',                   defaults: { admin: true,  administrativo: false, tecnico: false } },
+  { id: 'ots_pendientes',     label: 'Ã“rdenes de trabajo pendientes',            defaults: { admin: true,  administrativo: false, tecnico: false } },
   { id: 'rentabilidad',       label: 'Rentabilidad del mes',                     defaults: { admin: true,  administrativo: false, tecnico: false } },
   { id: 'mi_actividad',       label: 'Mi actividad (mis ventas y pptos)',         defaults: { admin: true,  administrativo: true,  tecnico: false } },
-  { id: 'mis_ots',            label: 'Mis órdenes de trabajo asignadas',          defaults: { admin: false, administrativo: false, tecnico: true  } },
-  { id: 'btn_ia',             label: '🤖 Botón Asistente IA',                    defaults: { admin: true,  administrativo: true,  tecnico: true  } },
-  { id: 'btn_chat',           label: '💬 Botón Chat interno',                    defaults: { admin: true,  administrativo: true,  tecnico: true  } },
+  { id: 'mis_ots',            label: 'Mis Ã³rdenes de trabajo asignadas',          defaults: { admin: false, administrativo: false, tecnico: true  } },
+  { id: 'btn_ia',             label: 'ðŸ¤– BotÃ³n Asistente IA',                    defaults: { admin: true,  administrativo: true,  tecnico: true  } },
+  { id: 'btn_chat',           label: 'ðŸ’¬ BotÃ³n Chat interno',                    defaults: { admin: true,  administrativo: true,  tecnico: true  } },
 ];
 
 var DASH_WIDGETS_CONFIG = {}; // se carga desde Firebase
@@ -7395,7 +7490,7 @@ function renderCfgDashWidgets() {
       var val = DASH_WIDGETS_CONFIG[w.id] !== undefined
         ? DASH_WIDGETS_CONFIG[w.id][rol]
         : w.defaults[rol];
-      // Admin siempre ve todo — checkbox deshabilitado
+      // Admin siempre ve todo â€” checkbox deshabilitado
       var disabled = rol === 'admin' ? 'disabled' : '';
       var checked  = (rol === 'admin' ? true : !!val) ? 'checked' : '';
       return '<td style="text-align:center;padding:10px 16px">' +
@@ -7421,7 +7516,7 @@ function guardarDashWidgets() {
   aplicarVisibilidadBotonesFlotantes();
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/dashWidgets'), config)
-      .then(function(){ notify('✓ Configuración de dashboard guardada'); });
+      .then(function(){ notify('âœ“ ConfiguraciÃ³n de dashboard guardada'); });
   }
 }
 
@@ -7453,7 +7548,7 @@ function cargarDashWidgets() {
     if (typeof aplicarVisibilidadBotonesFlotantes === 'function') aplicarVisibilidadBotonesFlotantes();
   }).catch(function(){
     renderCfgDashWidgets();
-    // Sin config — mostrar ambos por defecto
+    // Sin config â€” mostrar ambos por defecto
     var chatBtn = document.getElementById('chat-fab');
     if (chatBtn) { chatBtn._inicializado = true; chatBtn.style.display = 'flex'; }
   });
@@ -7500,8 +7595,8 @@ function cargarPermisosRoles() {
 
 function renderTablaRoles() {
   // Releer siempre el valor real desde Firebase antes de pintar, para evitar
-  // mostrar el valor por defecto si la carga inicial (al hacer login) todavía
-  // no había terminado cuando el admin entra a esta pestaña.
+  // mostrar el valor por defecto si la carga inicial (al hacer login) todavÃ­a
+  // no habÃ­a terminado cuando el admin entra a esta pestaÃ±a.
   if (window.fbDB) {
     window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/permisos')).then(function(snap) {
       var data = snap.val();
@@ -7517,9 +7612,9 @@ function _renderTablaRolesUI() {
   var cont = document.getElementById('cfg-roles-tabla');
   if (!cont) return;
   var roles = ['admin','administrativo','vendedor','tecnico'];
-  var rolLabels = { admin:'Admin', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var rolLabels = { admin:'Admin', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'TÃ©cnico' };
   var html = '<div style="overflow-x:auto"><table style="width:100%;font-size:13px">';
-  html += '<thead><tr><th style="text-align:left;padding:8px 12px;font-weight:600">Módulo</th>';
+  html += '<thead><tr><th style="text-align:left;padding:8px 12px;font-weight:600">MÃ³dulo</th>';
   roles.forEach(function(r){ html += '<th style="text-align:center;padding:8px 12px;font-weight:600">'+rolLabels[r]+'</th>'; });
   html += '</tr></thead><tbody>';
   TODOS_MODULOS.forEach(function(mod) {
@@ -7554,19 +7649,19 @@ function guardarPermisosRoles() {
   Object.assign(PERMISOS_ROLES, nuevos);
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB,'sisventas/config/permisos'), nuevos)
-      .then(function(){ notify('✓ Permisos guardados — aplican al próximo login'); });
+      .then(function(){ notify('âœ“ Permisos guardados â€” aplican al prÃ³ximo login'); });
   }
 }
 
 function restaurarPermisosDefault() {
-  if (!confirm('¿Restaurar los permisos de todos los roles a los valores por defecto del sistema?\nEsto descarta cualquier personalización guardada.')) return;
+  if (!confirm('Â¿Restaurar los permisos de todos los roles a los valores por defecto del sistema?\nEsto descarta cualquier personalizaciÃ³n guardada.')) return;
   PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
   renderTablaRoles();
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB,'sisventas/config/permisos'), PERMISOS_ROLES)
-      .then(function(){ notify('✓ Permisos restaurados a los valores por defecto'); });
+      .then(function(){ notify('âœ“ Permisos restaurados a los valores por defecto'); });
   } else {
-    notify('✓ Permisos restaurados (sin conexión, no se guardó)');
+    notify('âœ“ Permisos restaurados (sin conexiÃ³n, no se guardÃ³)');
   }
 }
 function toggleSidebar() {
@@ -7620,7 +7715,7 @@ function _parsearFechaFlexible(f) {
 
 // Normaliza cualquier fecha (DD/MM/YYYY o YYYY-MM-DD) a DD/MM/YYYY para mostrar
 function _mostrarFecha(f) {
-  if (!f) return '—';
+  if (!f) return 'â€”';
   // Quitar hora si viene pegada (ej: "25/06/2026 01:30" o "2026-06-25T01:30")
   var clean = String(f).trim().replace(/[T ].*$/, '').trim();
   if (clean.indexOf('/') !== -1) {
@@ -7671,9 +7766,9 @@ function calcRentabilidad() {
   else if (margen <= 20) { margenEl.style.color='var(--amber)'; margenSubEl.textContent='margen regular'; }
   else { margenEl.style.color='var(--green)'; margenSubEl.textContent='ganancia perfecta'; }
 
-  // Desglose de gastos por categoría para el estado de resultados
+  // Desglose de gastos por categorÃ­a para el estado de resultados
   var gastosPorCategoria = {};
-  // Contadores específicos de personal
+  // Contadores especÃ­ficos de personal
   var totalSueldos = 0, totalHsExtra = 0, totalAguinaldo = 0, totalOtrosPersonal = 0;
 
   gastosPeriodo.forEach(function(g) {
@@ -7681,7 +7776,7 @@ function calcRentabilidad() {
     var desc = (g.descripcion || '').toLowerCase();
     var tipo = (g.tipo || g.tipomov || '').toLowerCase();
 
-    // Detectar si es un gasto de personal y de qué tipo
+    // Detectar si es un gasto de personal y de quÃ© tipo
     var esPersonal = cat.toLowerCase() === 'personal' ||
                      desc.includes('sueldo') || desc.includes('salario') ||
                      desc.includes('haber') || desc.includes('aguinaldo') ||
@@ -7713,15 +7808,15 @@ function calcRentabilidad() {
   // Personal con desglose
   var totalPersonal = totalSueldos + totalHsExtra + totalAguinaldo + totalOtrosPersonal;
   if (totalPersonal > 0) {
-    filas.push({ concepto: 'Gastos — Personal', monto: -totalPersonal, esTotal:false, signo:-1, esGrupo:true });
-    if (totalSueldos > 0)    filas.push({ concepto: '↳ Sueldos', monto: -totalSueldos, signo:-1, esSubItem:true });
-    if (totalHsExtra > 0)    filas.push({ concepto: '↳ Horas extra', monto: -totalHsExtra, signo:-1, esSubItem:true });
-    if (totalAguinaldo > 0)  filas.push({ concepto: '↳ Aguinaldo (SAC)', monto: -totalAguinaldo, signo:-1, esSubItem:true });
-    if (totalOtrosPersonal > 0) filas.push({ concepto: '↳ Otros personal', monto: -totalOtrosPersonal, signo:-1, esSubItem:true });
+    filas.push({ concepto: 'Gastos â€” Personal', monto: -totalPersonal, esTotal:false, signo:-1, esGrupo:true });
+    if (totalSueldos > 0)    filas.push({ concepto: 'â†³ Sueldos', monto: -totalSueldos, signo:-1, esSubItem:true });
+    if (totalHsExtra > 0)    filas.push({ concepto: 'â†³ Horas extra', monto: -totalHsExtra, signo:-1, esSubItem:true });
+    if (totalAguinaldo > 0)  filas.push({ concepto: 'â†³ Aguinaldo (SAC)', monto: -totalAguinaldo, signo:-1, esSubItem:true });
+    if (totalOtrosPersonal > 0) filas.push({ concepto: 'â†³ Otros personal', monto: -totalOtrosPersonal, signo:-1, esSubItem:true });
   }
 
   Object.keys(gastosPorCategoria).forEach(function(cat) {
-    filas.push({ concepto: 'Gastos — ' + cat, monto: -gastosPorCategoria[cat], esTotal:false, signo:-1 });
+    filas.push({ concepto: 'Gastos â€” ' + cat, monto: -gastosPorCategoria[cat], esTotal:false, signo:-1 });
   });
   filas.push({ concepto: 'Utilidad neta', monto: utilidad, esTotal:true, signo: utilidad>=0?1:-1 });
 
@@ -7770,10 +7865,13 @@ function buscarCC(q) {
   var contador = document.getElementById('cc-contador');
   if (contador) contador.textContent = visibles + ' cliente' + (visibles !== 1 ? 's' : '');
 }
-function verCuentaClienteReal(nombre) {
-  var d = (window._ccMapActual || {})[nombre];
+function verCuentaClienteReal(clienteRef) {
+  var mapaCC = window._ccMapActual || {};
+  var d = mapaCC[clienteRef] || Object.values(mapaCC).find(function(item){ return item && item.nombre === clienteRef; });
   if (!d) { notify('Cliente sin datos de cuenta corriente'); return; }
+  var nombre = d.nombre || String(clienteRef || '');
   window._ccNombreActual = nombre;
+  window._ccClienteKeyActual = d.clienteFbKey || d.key || String(clienteRef || '');
   var card = document.querySelector('#page-cuentacorriente .card');
   var metrics = document.querySelector('#page-cuentacorriente .metrics');
   if (card) card.style.display = 'none';
@@ -7781,10 +7879,10 @@ function verCuentaClienteReal(nombre) {
   _block('cc-detail');
 
   var saldo = d.total - d.cobrado;
-  var initials = nombre.split(' ').filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase() || '—';
+  var initials = nombre.split(' ').filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase() || 'â€”';
   _set('cc-avatar', initials);
   _set('cc-nombre', nombre);
-  document.getElementById('cc-estado-lbl').innerHTML = saldo > 0 ? '<span class="badge b-amber">Pendiente</span>' : '<span class="badge b-green">Al día</span>';
+  document.getElementById('cc-estado-lbl').innerHTML = saldo > 0 ? '<span class="badge b-amber">Pendiente</span>' : '<span class="badge b-green">Al dÃ­a</span>';
   _set('cc-saldo-lbl', 'Saldo: $' + Math.round(saldo).toLocaleString('es-AR'));
   _set('cc-total', '$' + Math.round(d.total).toLocaleString('es-AR'));
   _set('cc-cobrado', '$' + Math.round(d.cobrado).toLocaleString('es-AR'));
@@ -7793,8 +7891,20 @@ function verCuentaClienteReal(nombre) {
   saldoEl.style.color = saldo > 0 ? 'var(--amber)' : 'var(--text3)';
   var card2 = document.getElementById('cc-saldo-card');
   card2.style.background = saldo > 0 ? 'var(--amber-bg)' : 'var(--bg3)';
+  function _ccVentaPertenece(v) {
+    var keys = [v && v.clienteFbKey, v && v.clienteKey, v && v.clienteId, v && v.idCliente, v && v.idClienteOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+    if (d.clienteFbKey && keys.indexOf(String(d.clienteFbKey)) >= 0) return true;
+    if (d.legacyId && keys.indexOf(String(d.legacyId)) >= 0) return true;
+    return !keys.length && v && _svTxtNombre(v.cliente) === _svTxtNombre(nombre);
+  }
+  function _ccPagoPertenece(p) {
+    var keys = [p && p.clienteFbKey, p && p.clienteKey, p && p.clienteId, p && p.idCliente].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+    if (d.clienteFbKey && keys.indexOf(String(d.clienteFbKey)) >= 0) return true;
+    if (d.legacyId && keys.indexOf(String(d.legacyId)) >= 0) return true;
+    return !keys.length && p && _svTxtNombre(p.cliente) === _svTxtNombre(nombre);
+  }
   var movs = [];
-  (ventasList||[]).filter(function(v){ return v.cliente === nombre; }).forEach(function(v) {
+  (ventasList||[]).filter(_ccVentaPertenece).forEach(function(v) {
     movs.push({
       fecha: v.fecha || '',
       concepto: 'Venta ' + (v.id||v.fbKey||''),
@@ -7805,14 +7915,14 @@ function verCuentaClienteReal(nombre) {
     });
   });
   var _pe = [];
-  (ventasList||[]).filter(function(v){ return v.cliente === nombre && v.pagos && v.pagos.length; }).forEach(function(v) {
+  (ventasList||[]).filter(function(v){ return _ccVentaPertenece(v) && v.pagos && v.pagos.length; }).forEach(function(v) {
     (v.pagos||[]).forEach(function(p) { _pe.push({ venta:v.id, cliente:nombre, monto:parseFloat(p.monto)||0, medio:p.medio||'Efectivo', fecha:p.fecha||'' }); });
   });
-  var _tp = (window._pagosListaActual||[]).filter(function(p){ return p.cliente === nombre; }).concat(_pe).sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); });
+  var _tp = (window._pagosListaActual||[]).filter(_ccPagoPertenece).concat(_pe).sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); });
   _tp.forEach(function(p) {
     movs.push({
       fecha: p.fecha || '',
-      concepto: 'Pago' + (p.venta ? ' — ' + p.venta : '') + (p.medio ? ' (' + p.medio + ')' : ''),
+      concepto: 'Pago' + (p.venta ? ' â€” ' + p.venta : '') + (p.medio ? ' (' + p.medio + ')' : ''),
       tipo: 'Pago',
       debe: 0,
       haber: parseFloat(p.monto)||0,
@@ -7830,8 +7940,8 @@ function verCuentaClienteReal(nombre) {
     return '<tr style="'+trStyle+'" '+trClick+' onmouseenter="if(this.onclick)this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
       '<td>' + escapeHTML(m.fecha) + '</td>' +
       '<td style="color:'+(ventaId?'var(--blue)':'')+'">'+escapeHTML(m.concepto)+(ventaId?' <i class="ti ti-external-link" style="font-size:10px;opacity:.6"></i>':'')+'</td>' +
-      '<td style="text-align:right">' + (m.debe ? '$'+Math.round(m.debe).toLocaleString('es-AR') : '—') + '</td>' +
-      '<td style="text-align:right;color:var(--green)">' + (m.haber ? '$'+Math.round(m.haber).toLocaleString('es-AR') : '—') + '</td>' +
+      '<td style="text-align:right">' + (m.debe ? '$'+Math.round(m.debe).toLocaleString('es-AR') : 'â€”') + '</td>' +
+      '<td style="text-align:right;color:var(--green)">' + (m.haber ? '$'+Math.round(m.haber).toLocaleString('es-AR') : 'â€”') + '</td>' +
       '<td style="text-align:right;font-weight:500">$' + Math.round(saldoCorrido).toLocaleString('es-AR') + '</td>' +
     '</tr>';
   }).join('');
@@ -7842,19 +7952,13 @@ function verCuentaClienteReal(nombre) {
 }
 
 function irAVentaDesdeCobranza(ventaId) {
-  if (!ventaId || ventaId === '—') return;
+  if (!ventaId || ventaId === 'â€”') return;
   var vid = String(ventaId).trim();
   var num = vid.replace(/[^0-9]/g, '');
-  var v = (ventasList||[]).find(function(x){
-    var xNum = String(x.id||'').replace(/[^0-9]/g,'');
-    var xFbNum = String(x.fbKey||'').replace(/[^0-9]/g,'');
-    return x.id === vid || x.fbKey === vid ||
-      (num && num.length >= 4 && (xNum === num || xFbNum === num ||
-        String(x.idOriginal||'').replace(/[^0-9]/g,'') === num));
-  });
+  var v = _svResolverVentaRegistro({ ventaId: vid, venta: vid, idVenta: vid });
   if (!v) { notify('Venta ' + vid + ' no encontrada'); return; }
   window._ventaDesdeHistorialOrigen = 'cobranzas';
-  // Navegar al módulo de ventas primero, luego mostrar el detalle
+  // Navegar al mÃ³dulo de ventas primero, luego mostrar el detalle
   window._ventaDesdeHistorialOrigen = 'cobranzas';
   // Ocultar la lista antes de navegar para evitar el flash
   var _lv = document.getElementById('ventas-list-view');
@@ -7869,6 +7973,8 @@ function irAVentaDesdeCobranza(ventaId) {
 function irACobranzasDesdeCC() {
   // Ir a cobranzas precargando el cliente actual
   var nombre = window._ccNombreActual || '';
+  var clienteKey = window._ccClienteKeyActual || '';
+  var ccData = clienteKey && window._ccMapActual ? window._ccMapActual[clienteKey] : null;
   showPage('cobranzas', document.querySelector('[onclick*=cobranzas]'));
   if (nombre) {
     setTimeout(function() {
@@ -7876,7 +7982,9 @@ function irACobranzasDesdeCC() {
       var cliEl = document.getElementById('cob-cliente');
       if (cliEl) cliEl.value = nombre;
       var ventasPendientes = (ventasList||[]).filter(function(v){
-        return v.cliente === nombre && v.estadoPago !== 'pago_total';
+        var keys = [v.clienteFbKey, v.clienteKey, v.clienteId, v.idCliente, v.idClienteOriginal].map(function(x){ return String(x||'').trim(); });
+        var porKey = ccData && ((ccData.clienteFbKey && keys.indexOf(String(ccData.clienteFbKey)) >= 0) || (ccData.legacyId && keys.indexOf(String(ccData.legacyId)) >= 0));
+        return (porKey || (!ccData && _svTxtNombre(v.cliente) === _svTxtNombre(nombre))) && v.estadoPago !== 'pago_total';
       }).sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); });
       if (ventasPendientes.length) {
         var vp = ventasPendientes[0];
@@ -7888,15 +7996,23 @@ function irACobranzasDesdeCC() {
 
 function verClienteDesdeCC() {
   var nombre = window._ccNombreActual || '';
-  if (!nombre) return;
-  var cli = (clientesData||[]).find(function(c){ return c.nombre === nombre || (c.nombre+' '+c.apellidos).trim() === nombre; });
+  var clienteKey = window._ccClienteKeyActual || '';
+  if (!nombre && !clienteKey) return;
+  var cli = (clientesData||[]).find(function(c){
+    var nombreCli = _svTxtNombre(c.nombre || '');
+    var nombreCompleto = _svTxtNombre((c.nombre||'') + ' ' + (c.apellidos||c.apellido||''));
+    var nombreBuscado = _svTxtNombre(nombre);
+    return String(c.fbKey||'') === String(clienteKey) ||
+      String(c.id||'') === String(clienteKey) ||
+      (!!nombreBuscado && (nombreCli === nombreBuscado || nombreCompleto === nombreBuscado));
+  });
   if (!cli) { notify('Cliente no encontrado en el sistema'); return; }
   showPage('clientes', document.querySelector('[onclick*=clientes]'));
   setTimeout(function(){ if (typeof verHistorialCliente === 'function') verHistorialCliente(cli.fbKey||String(cli.id), nombre); }, 200);
 }
 
 function verVentaDesdeHistorial(ventaId, trEl) {
-  var v = (ventasList||[]).find(function(x){ return x.id===ventaId || x.fbKey===ventaId; });
+  var v = _svResolverVentaRegistro(ventaId);
   if (!v) { notify('Venta no encontrada'); return; }
   window._ventaDesdeHistorialOrigen = 'cuentacorriente';
   // Ocultar lista para evitar flash
@@ -7909,7 +8025,7 @@ function verVentaDesdeHistorial(ventaId, trEl) {
   }, 200);
 }
 
-// Mantenida por compatibilidad si algo viejo todavía la referencia
+// Mantenida por compatibilidad si algo viejo todavÃ­a la referencia
 function verCuentaCliente(nombre) {
   verCuentaClienteReal(nombre);
 }
@@ -7918,21 +8034,21 @@ function verEmpleado(id) {
   if (!e) return;
   _hide('emp-list-view');
   _block('emp-detail-view');
-  var iniciales = (e.nombre||'—').trim().split(/\s+/).map(function(p){return p[0]||'';}).slice(0,2).join('').toUpperCase();
+  var iniciales = (e.nombre||'â€”').trim().split(/\s+/).map(function(p){return p[0]||'';}).slice(0,2).join('').toUpperCase();
   const av = document.getElementById('det-avatar');
-  av.textContent = iniciales || '—';
+  av.textContent = iniciales || 'â€”';
   av.style.background = 'var(--blue-bg)';
   av.style.color = 'var(--blue)';
-  _set('det-nombre',e.nombre||'—');
+  _set('det-nombre',e.nombre||'â€”');
   setChildren(document.getElementById('det-cat'), [makeBadge(e.cargo || 'Sin cargo', 'b-blue')]);
   setChildren(document.getElementById('det-estado'), [makeBadge(e.activo!==false ? 'Activo' : 'Inactivo', e.activo!==false ? 'b-green' : 'b-red')]);
-  _set('det-ingreso', e.fechaIngreso ? 'Ingresó: '+e.fechaIngreso : 'Fecha de inicio no cargada');
+  _set('det-ingreso', e.fechaIngreso ? 'IngresÃ³: '+e.fechaIngreso : 'Fecha de inicio no cargada');
   var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
-  _set('det-base', cargoInfo ? '$'+Math.round((parseFloat(cargoInfo.valorHora)||0)*8).toLocaleString('es-AR') : '—');
+  _set('det-base', cargoInfo ? '$'+Math.round((parseFloat(cargoInfo.valorHora)||0)*8).toLocaleString('es-AR') : 'â€”');
   var comCalc = (typeof calcularComisionEmpleado === 'function') ? calcularComisionEmpleado(e, new Date().toISOString().slice(0,7)) : null;
-  _set('det-comisiones', comCalc ? '$'+Math.round(comCalc.comision||0).toLocaleString('es-AR') : '—');
+  _set('det-comisiones', comCalc ? '$'+Math.round(comCalc.comision||0).toLocaleString('es-AR') : 'â€”');
   _set('det-comisiones-sub', 'este mes');
-  _set('det-hextra', cargoInfo ? '$'+Math.round(parseFloat(cargoInfo.valorHoraExtra)||0).toLocaleString('es-AR') : '—');
+  _set('det-hextra', cargoInfo ? '$'+Math.round(parseFloat(cargoInfo.valorHoraExtra)||0).toLocaleString('es-AR') : 'â€”');
   _set('det-hextra-sub', 'valor hora extra');
   var totalAprox = (cargoInfo ? (parseFloat(cargoInfo.valorHora)||0)*8*(parseFloat(cargoInfo.diasMes)||0) : 0) + (comCalc ? (comCalc.comision||0) : 0);
   _set('det-total', '$'+Math.round(totalAprox).toLocaleString('es-AR'));
@@ -7959,7 +8075,7 @@ function toggleUserPanel() {
     if (overlay) overlay.style.display = 'none';
     return;
   }
-  // Posicionar relativo al botón para evitar problemas de viewport/stacking
+  // Posicionar relativo al botÃ³n para evitar problemas de viewport/stacking
   var btn = document.getElementById('btn-gear');
   if (btn) {
     var rect = btn.getBoundingClientRect();
@@ -7990,7 +8106,7 @@ function actualizarPanelUsuario() {
   var iniciales = (currentUser||'Admin').split(' ').map(function(p){ return p[0]||''; }).slice(0,2).join('').toUpperCase() || 'AD';
   if (av) { av.className = 's-avatar ' + (isAdmin ? 'admin' : 'vendedor'); av.textContent = iniciales; }
   if (nm) nm.textContent = currentUser || (isAdmin ? 'Admin' : 'Vendedor');
-  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'TÃ©cnico' };
   if (rl) rl.textContent = rolLabels[currentRole] || currentRole;
   // Sincronizar toggle de modo oscuro
   var toggle = document.getElementById('dark-mode-toggle');
@@ -8013,7 +8129,7 @@ function checkPwdStrength(pwd) {
   if (/[0-9]/.test(pwd)) score++;
   if (/[^A-Za-z0-9]/.test(pwd)) score++;
   const colors = ['var(--border2)','var(--red)','var(--amber)','var(--green)','var(--green)'];
-  const labels = ['','Muy débil','Débil','Aceptable','Fuerte'];
+  const labels = ['','Muy dÃ©bil','DÃ©bil','Aceptable','Fuerte'];
   const bar = document.getElementById('pwd-strength');
   const lbl = document.getElementById('pwd-strength-label');
   if (bar) { bar.style.background = colors[score]; bar.style.width = (score*25)+'%'; }
@@ -8023,15 +8139,15 @@ async function cambiarPassword() {
   var _pa=document.getElementById('pwd-actual'); const actual = _pa?_pa.value:'';
   var _pn=document.getElementById('pwd-nueva'); const nueva = _pn?_pn.value:'';
   var _pc=document.getElementById('pwd-confirm'); const confirmar = _pc?_pc.value:'';
-  if (!actual||!nueva||!confirmar) { notify('Completá todos los campos'); return; }
-  if (nueva !== confirmar) { notify('Las contraseñas no coinciden'); return; }
-  if (nueva.length < 6) { notify('Mínimo 6 caracteres'); return; }
+  if (!actual||!nueva||!confirmar) { notify('CompletÃ¡ todos los campos'); return; }
+  if (nueva !== confirmar) { notify('Las contraseÃ±as no coinciden'); return; }
+  if (nueva.length < 6) { notify('MÃ­nimo 6 caracteres'); return; }
 
   var user = window.fbAuth && window.fbAuth.currentUser;
-  if (!user) { notify('No hay sesión activa'); return; }
+  if (!user) { notify('No hay sesiÃ³n activa'); return; }
 
-  // Reautenticar con la contraseña actual antes de cambiarla
-  // (Firebase requiere reautenticación reciente para operaciones sensibles)
+  // Reautenticar con la contraseÃ±a actual antes de cambiarla
+  // (Firebase requiere reautenticaciÃ³n reciente para operaciones sensibles)
   try {
     var { EmailAuthProvider, reauthenticateWithCredential } =
       await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
@@ -8039,8 +8155,8 @@ async function cambiarPassword() {
     await reauthenticateWithCredential(user, cred);
   } catch(e) {
     var msg = e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential'
-      ? 'La contraseña actual es incorrecta'
-      : 'Error al verificar contraseña: ' + e.message;
+      ? 'La contraseÃ±a actual es incorrecta'
+      : 'Error al verificar contraseÃ±a: ' + e.message;
     notify(msg);
     return;
   }
@@ -8051,14 +8167,14 @@ async function cambiarPassword() {
     if (_pa) _pa.value = '';
     if (_pn) _pn.value = '';
     if (_pc) _pc.value = '';
-    notify('✓ Contraseña actualizada correctamente');
+    notify('âœ“ ContraseÃ±a actualizada correctamente');
   } catch(e) {
     notify('Error al actualizar: ' + e.message);
   }
 }
 
-// los timers cuando la pestaña está en segundo plano o la pantalla se bloquea.
-// Por eso guardamos también un timestamp real en localStorage y lo recalculamos
+// los timers cuando la pestaÃ±a estÃ¡ en segundo plano o la pantalla se bloquea.
+// Por eso guardamos tambiÃ©n un timestamp real en localStorage y lo recalculamos
 function _marcarActividadSesion() {
   try { localStorage.setItem('sv_lastActivity', String(Date.now())); } catch(e) {}
 }
@@ -8067,7 +8183,7 @@ function resetSessionTimer() {
   clearTimeout(sessionTimer);
   _marcarActividadSesion();
   sessionTimer = setTimeout(function() {
-    notify('Sesión expirada por inactividad');
+    notify('SesiÃ³n expirada por inactividad');
     setTimeout(doLogoutAutomatico, 2000);
   }, SESSION_TIMEOUT);
 }
@@ -8084,7 +8200,7 @@ function startSessionTimer() {
     var er = document.getElementById('up-timeout');
     if (et) et.textContent = mins + ' min';
     if (er) { er.textContent = Math.max(0,rest) + ' min'; er.style.color = rest <= 5 ? 'var(--red)' : 'var(--amber)'; }
-  }, 10000); // actualizar cada 10 seg para que se vea más responsivo
+  }, 10000); // actualizar cada 10 seg para que se vea mÃ¡s responsivo
 }
 function stopSessionTimer() {
   clearTimeout(sessionTimer);
@@ -8096,8 +8212,8 @@ function stopSessionTimer() {
   document.addEventListener(ev, function() { if (typeof isAuthenticated !== 'undefined' && isAuthenticated) resetSessionTimer(); }, {passive:true});
 });
 
-// Chequeo real de inactividad al volver a la pestaña/pantalla.
-// background o el dispositivo bloqueado, así que acá comparamos contra el
+// Chequeo real de inactividad al volver a la pestaÃ±a/pantalla.
+// background o el dispositivo bloqueado, asÃ­ que acÃ¡ comparamos contra el
 // timestamp real guardado en localStorage en vez de confiar en que el
 // setTimeout se haya disparado a tiempo.
 function _chequearInactividadReal() {
@@ -8107,13 +8223,13 @@ function _chequearInactividadReal() {
   if (!last) return;
   var transcurrido = Date.now() - last;
   if (transcurrido >= SESSION_TIMEOUT) {
-    notify('Sesión expirada por inactividad');
+    notify('SesiÃ³n expirada por inactividad');
     setTimeout(doLogoutAutomatico, 1500);
   } else {
     // (el timer viejo pudo haber quedado desfasado por el tiempo congelado)
     clearTimeout(sessionTimer);
     sessionTimer = setTimeout(function() {
-      notify('Sesión expirada por inactividad');
+      notify('SesiÃ³n expirada por inactividad');
       setTimeout(doLogoutAutomatico, 2000);
     }, SESSION_TIMEOUT - transcurrido);
   }
@@ -8125,7 +8241,7 @@ window.addEventListener('pageshow', function() { _chequearInactividadReal(); });
 
 // Parchar doLogin y doLogout para integrar panel y timer
 // session timer y panel: integrados en doLogin/doLogout directamente
-// ── ejecutarImpresion: llama a la función correcta según contexto ──
+// â”€â”€ ejecutarImpresion: llama a la funciÃ³n correcta segÃºn contexto â”€â”€
 var _printContext = null;
 function ejecutarImpresion() {
   document.getElementById('modal-print').classList.remove('open');
@@ -8143,7 +8259,7 @@ function abrirModalImprimir(context, titulo) {
   var body  = document.getElementById('modal-print-body');
   if (!title || !body) { ejecutarImpresion(); return; }
   title.textContent = titulo || 'Imprimir';
-  body.innerHTML = '<div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:14px;font-size:13px;color:var(--text2)"><i class="ti ti-printer" style="font-size:16px;margin-right:8px;color:var(--text3)"></i><strong>' + escapeHTML(titulo||'') + '</strong><br><span style="font-size:12px;color:var(--text3)">Se abrirá una ventana para imprimir o guardar como PDF.</span></div>';
+  body.innerHTML = '<div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:14px;font-size:13px;color:var(--text2)"><i class="ti ti-printer" style="font-size:16px;margin-right:8px;color:var(--text3)"></i><strong>' + escapeHTML(titulo||'') + '</strong><br><span style="font-size:12px;color:var(--text3)">Se abrirÃ¡ una ventana para imprimir o guardar como PDF.</span></div>';
   document.getElementById('modal-print').classList.add('open');
 }
 function _imprimirOTReal() {
@@ -8158,49 +8274,51 @@ function _imprimirOTReal() {
     (function(){
       var dir = ot.dir || ot.direccion || '';
       if (!dir && ot.cliente) {
-        var c = (clientesData||[]).find(function(c){ return c.nombre===ot.cliente||(c.nombre+' '+(c.apellidos||'')).trim()===ot.cliente; });
+        var c = _svResolverClienteRegistro(ot, true);
         if (c) dir = c.direccion || c.domicilio || c.dir || '';
       }
       var matsHtml = '';
       var mats = ot.materiales || ot.items || [];
       if (mats.length) {
-        matsHtml = '<div style="margin-bottom:20px"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:8px">Materiales</div><table style="width:100%;border-collapse:collapse"><tr style="background:#f0f0f0"><th style="text-align:left;padding:6px 8px;font-size:11px">Descripción</th><th style="text-align:right;padding:6px 8px;font-size:11px">Presup.</th><th style="text-align:right;padding:6px 8px;font-size:11px">Instalado</th></tr>' +
+        matsHtml = '<div style="margin-bottom:20px"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:8px">Materiales</div><table style="width:100%;border-collapse:collapse"><tr style="background:#f0f0f0"><th style="text-align:left;padding:6px 8px;font-size:11px">DescripciÃ³n</th><th style="text-align:right;padding:6px 8px;font-size:11px">Presup.</th><th style="text-align:right;padding:6px 8px;font-size:11px">Instalado</th></tr>' +
           mats.map(function(m){ return '<tr style="border-bottom:0.5px solid #eee"><td style="padding:6px 8px">'+m.desc+'</td><td style="text-align:right;padding:6px 8px">'+m.vendida+'</td><td style="text-align:right;padding:6px 8px">'+m.instalada+'</td></tr>'; }).join('') + '</table></div>';
       }
-      // Notas técnicas
+      // Notas tÃ©cnicas
       var notasHtml = '';
       var notas = ot.notasTecnico || [];
       if (notas.length) {
-        notasHtml = '<div style="margin-bottom:20px"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:8px">Notas técnicas</div>' +
+        notasHtml = '<div style="margin-bottom:20px"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:8px">Notas tÃ©cnicas</div>' +
           notas.map(function(n){ return '<div style="padding:8px;background:#f9f9f9;border-radius:4px;margin-bottom:4px;font-size:12px">'+n.texto+'<span style="color:#999;font-size:10px;margin-left:8px">'+n.autor+'</span></div>'; }).join('') + '</div>';
       }
       return '<div class="grid">'+
-        '<div class="field"><label>Cliente</label><strong>'+escapeHTML(ot.cliente||'—')+'</strong></div>'+
-        '<div class="field"><label>Dirección</label>'+(dir?escapeHTML(dir):'<span style="color:#999">Sin dirección</span>')+'</div>'+
-        '<div class="field"><label>Técnico</label>'+escapeHTML(ot.tecnico||'Sin asignar')+'</div>'+
-        '<div class="field"><label>Venta vinculada</label>'+escapeHTML(ot.ventaId||'—')+'</div>'+
+        '<div class="field"><label>Cliente</label><strong>'+escapeHTML(ot.cliente||'â€”')+'</strong></div>'+
+        '<div class="field"><label>DirecciÃ³n</label>'+(dir?escapeHTML(dir):'<span style="color:#999">Sin direcciÃ³n</span>')+'</div>'+
+        '<div class="field"><label>TÃ©cnico</label>'+escapeHTML(ot.tecnico||'Sin asignar')+'</div>'+
+        '<div class="field"><label>Venta vinculada</label>'+escapeHTML(ot.ventaId||'â€”')+'</div>'+
       '</div>'+
-      (ot.obs?'<div class="field" style="margin-bottom:16px"><label>Descripción del trabajo</label>'+escapeHTML(ot.obs)+'</div>':'')+
+      (ot.obs?'<div class="field" style="margin-bottom:16px"><label>DescripciÃ³n del trabajo</label>'+escapeHTML(ot.obs)+'</div>':'')+
       matsHtml + notasHtml;
     })()+
     '<div class="firma"><div>' +
       (ot.firmaClienteUrl ? '<img src="'+ot.firmaClienteUrl+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
-      '<div class="firma-line">Firma del cliente'+(ot.firmaClienteUrl?' ✓':''+(ot.fechaFirma?' · '+ot.fechaFirma:''))+'</div></div>'+
-      '<div><div style="height:60px"></div><div class="firma-line">Firma del técnico</div></div></div>'+
+      '<div class="firma-line">Firma del cliente'+(ot.firmaClienteUrl?' âœ“':''+(ot.fechaFirma?' Â· '+ot.fechaFirma:''))+'</div></div>'+
+      '<div><div style="height:60px"></div><div class="firma-line">Firma del tÃ©cnico</div></div></div>'+
     '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
 function anularPago(fbKey) {
-  if (!confirm('¿Anular este cobro? Quedará registrado como anulado en rojo.')) return;
-  var motivo = prompt('Motivo de la anulación (opcional):') || '';
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (typeof window.tienePermiso === 'function' && !window.tienePermiso('cobranzas.anular', { args:[fbKey] })) { notify('No tenÃ©s permiso para anular cobros'); return; }
+  if (typeof window.tienePermiso !== 'function' && String(currentRole||'').toLowerCase() !== 'admin') { notify('No tenÃ©s permiso para anular cobros'); return; }
+  if (!confirm('Â¿Anular este cobro? QuedarÃ¡ registrado como anulado en rojo.')) return;
+  var motivo = prompt('Motivo de la anulaciÃ³n (opcional):') || '';
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/pagos/' + fbKey), {
     anulado: true,
     anuladoFecha: new Date().toISOString().slice(0,10),
     anuladoPor: currentUser || 'Admin',
     anuladoMotivo: motivo
-  }).then(function(){ notify('✓ Cobro anulado'); })
+  }).then(function(){ notify('âœ“ Cobro anulado'); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
 
@@ -8243,6 +8361,8 @@ function filtrarCobros(texto) {
 }
 
 function elimPago(fbKey) {
+  if (typeof window.tienePermiso === 'function' && !window.tienePermiso('cobranzas.anular', { args:[fbKey] })) { notify('No tenÃ©s permiso para eliminar cobros'); return; }
+  if (typeof window.tienePermiso !== 'function' && String(currentRole||'').toLowerCase() !== 'admin') { notify('No tenÃ©s permiso para eliminar cobros'); return; }
   if (!confirm('Eliminar este pago?')) return;
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + fbKey))
     .then(function(){ notify('Pago eliminado'); })
@@ -8256,14 +8376,14 @@ function fbCargarPagos() {
     var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); }).sort(function(a,b){
       // Ordenar por fecha desc, luego por ts desc como fallback
       var fa = (a.fecha||'').replace(/\//g,'-'); var fb2 = (b.fecha||'').replace(/\//g,'-');
-      // Normalizar DD-MM-YYYY → YYYY-MM-DD para comparar
+      // Normalizar DD-MM-YYYY â†’ YYYY-MM-DD para comparar
       var norm = function(f){ if (!f) return ''; var p=f.split('-'); return p.length===3&&p[2].length===4?p[2]+'-'+p[1]+'-'+p[0]:f; };
       var da = norm(fa), db2 = norm(fb2);
       if (da && db2 && da !== db2) return db2.localeCompare(da);
       return (b.ts||0)-(a.ts||0);
     }) : [];
     var pagosTbody = document.getElementById('pagos-tbody');
-    // Últimas 20 por defecto — el filtro muestra más si se busca
+    // Ãšltimas 20 por defecto â€” el filtro muestra mÃ¡s si se busca
     window._historialPagosCompleto = lista;
     window._historialPagosActual = lista;
     if (typeof filtrarCobranzas === 'function') {
@@ -8272,12 +8392,12 @@ function fbCargarPagos() {
       var listaCortada = lista.slice(0, 20);
       if (pagosTbody) {
         pagosTbody.innerHTML = listaCortada.length ? listaCortada.map(function(p, idx){
-        var ventaLink = (p.venta && !p.anulado) ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();irAVentaDesdeCobranza(\''+escapeHTML(p.venta)+'\');" title="Ver venta"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></button>' : '—';
+        var ventaLink = (p.venta && !p.anulado) ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();irAVentaDesdeCobranza(\''+escapeHTML(p.venta)+'\');" title="Ver venta"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></button>' : 'â€”';
         var _ed = p.fbKey && !p.anulado ? '<button class="btn btn-sm btn-icon" onclick="anularPago(\''+p.fbKey+'\')" title="Anular cobro" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-ban" style="font-size:13px"></i></button>' : '';
         var trStyle = p.anulado ? 'background:rgba(239,68,68,.08);opacity:.7' : '';
         var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : '<span style="color:var(--green);font-weight:500">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</span>';
         var reciboBtn = p.anulado ? '' : '<button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>';
-        return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" data-medio="'+escapeHTML(p.medio||'')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(formatoMedioPago(p.medio||'—'))+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap">'+reciboBtn+_ed+'</td></tr>';
+        return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" data-medio="'+escapeHTML(p.medio||'')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'â€”')+'</td><td>'+escapeHTML(p.cliente||'â€”')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'â€”')+'</td><td>'+escapeHTML(formatoMedioPago(p.medio||'â€”'))+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap">'+reciboBtn+_ed+'</td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
     }
@@ -8318,19 +8438,38 @@ function fbCargarPagos() {
     }
     // Cuenta corriente desde ventasList + pagos reales vinculados por ID/key
     var ccMap = {};
+    function _ccClienteKeyVenta(v){
+      return String(v.clienteFbKey || v.clienteKey || v.clienteId || v.idCliente || v.idClienteOriginal || v.cliente || 'Sin cliente').trim();
+    }
     (ventasList||[]).forEach(function(v){
-      if (!ccMap[v.cliente]) ccMap[v.cliente]={total:0,cobrado:0,ultimoPago:'—'};
+      if (!ccMap[v.cliente]) ccMap[v.cliente]={total:0,cobrado:0,ultimoPago:'â€”'};
       ccMap[v.cliente].total += parseFloat(v.total)||0;
       ccMap[v.cliente].cobrado += Math.min(parseFloat(v.total)||0, _ccPagadoVenta(v));
     });
-    lista.forEach(function(p){ if(ccMap[p.cliente]) ccMap[p.cliente].ultimoPago=p.fecha||'—'; });
+    lista.forEach(function(p){ if(ccMap[p.cliente]) ccMap[p.cliente].ultimoPago=p.fecha||'â€”'; });
+    var ccMapCanonico = {};
+    (ventasList||[]).forEach(function(v){
+      var key = _ccClienteKeyVenta(v);
+      if (!ccMapCanonico[key]) ccMapCanonico[key] = { key:key, clienteFbKey:v.clienteFbKey||v.clienteKey||'', legacyId:v.clienteId||v.idCliente||v.idClienteOriginal||'', nombre:v.cliente||'Sin cliente', total:0, cobrado:0, ultimoPago:'â€”' };
+      if (!ccMapCanonico[key].clienteFbKey && (v.clienteFbKey||v.clienteKey)) ccMapCanonico[key].clienteFbKey = v.clienteFbKey||v.clienteKey;
+      if (!ccMapCanonico[key].legacyId && (v.clienteId||v.idCliente||v.idClienteOriginal)) ccMapCanonico[key].legacyId = v.clienteId||v.idCliente||v.idClienteOriginal;
+      if (ccMapCanonico[key].nombre === 'Sin cliente' && v.cliente) ccMapCanonico[key].nombre = v.cliente;
+      ccMapCanonico[key].total += parseFloat(v.total)||0;
+      ccMapCanonico[key].cobrado += Math.min(parseFloat(v.total)||0, _ccPagadoVenta(v));
+    });
+    lista.forEach(function(p){
+      var keys = [p.clienteFbKey, p.clienteKey, p.clienteId, p.idCliente, p.cliente].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+      keys.some(function(k){ if(ccMapCanonico[k]) { ccMapCanonico[k].ultimoPago = p.fecha || 'â€”'; return true; } return false; });
+    });
+    ccMap = ccMapCanonico;
     window._ccMapActual = ccMap;
     var ccTbody = document.getElementById('cc-tbody');
     if (ccTbody) {
       var ccLista = Object.entries(ccMap).filter(function(e){ return e[1].total>0; }).sort(function(a,b){ return (b[1].total-b[1].cobrado)-(a[1].total-a[1].cobrado); });
       ccTbody.innerHTML = ccLista.length ? ccLista.map(function(e){
-        var nom=e[0],d=e[1]; var saldo=d.total-d.cobrado;
-        return '<tr class="ccrow" data-saldo="'+saldo+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(nom).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
+        var key=e[0],nom=e[0],d=e[1]; if(d && d.nombre) nom=d.nombre; var saldo=d.total-d.cobrado;
+        return '<tr class="ccrow" data-saldo="'+saldo+'" data-cliente-key="'+escapeHTML(key)+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(key).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al dÃ­a</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
+        return '<tr class="ccrow" data-saldo="'+saldo+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(nom).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al dÃ­a</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
       setTimeout(function(){ buscarCC((document.getElementById('cc-buscador')||{}).value||''); }, 0);
       var totalDeuda=ccLista.reduce(function(s,e){return s+(e[1].total-e[1].cobrado>0?e[1].total-e[1].cobrado:0);},0);
@@ -8385,14 +8524,14 @@ function renderEstadisticas() {
   var mesActual = _periodoActualReportes();
   var ventasMes = (ventasList||[]).filter(function(v){ return _fechaEnMes(v.fecha, mesActual); });
   var porEmp={};
-  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'—'; if(!porEmp[e])porEmp[e]={cant:0,monto:0,comision:0}; porEmp[e].cant++; porEmp[e].monto+=parseFloat(v.total)||0; porEmp[e].comision+=parseFloat(v.comision)||0; });
+  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'â€”'; if(!porEmp[e])porEmp[e]={cant:0,monto:0,comision:0}; porEmp[e].cant++; porEmp[e].monto+=parseFloat(v.total)||0; porEmp[e].comision+=parseFloat(v.comision)||0; });
   var estTbodyEmp=document.getElementById('est-tbody-emp');
   if(estTbodyEmp){
     var empLista=Object.entries(porEmp).sort(function(a,b){return b[1].monto-a[1].monto;});
     estTbodyEmp.innerHTML=empLista.length?empLista.map(function(e){return '<tr><td>'+escapeHTML(e[0])+'</td><td style="text-align:right">'+e[1].cant+'</td><td style="text-align:right">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(e[1].comision).toLocaleString('es-AR')+'</td></tr>';}).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sin datos del mes</td></tr>';
   }
   var porProd={};
-  ventasMes.forEach(function(v){(v.items||v.detalle||[]).forEach(function(it){var d=it.desc||it.descripcion||it.producto||'—';if(!porProd[d])porProd[d]={cant:0,monto:0};porProd[d].cant+=parseInt(it.qty||it.cantidad)||1;porProd[d].monto+=parseFloat(it.sub||it.subtotal||it.total)||0;});});
+  ventasMes.forEach(function(v){(v.items||v.detalle||[]).forEach(function(it){var d=it.desc||it.descripcion||it.producto||'â€”';if(!porProd[d])porProd[d]={cant:0,monto:0};porProd[d].cant+=parseInt(it.qty||it.cantidad)||1;porProd[d].monto+=parseFloat(it.sub||it.subtotal||it.total)||0;});});
   var estTbodyProd=document.getElementById('est-tbody-prod');
   if(estTbodyProd){
     var prodLista=Object.entries(porProd).sort(function(a,b){return b[1].cant-a[1].cant;}).slice(0,10);
@@ -8403,21 +8542,21 @@ function renderEstadisticas() {
   if(_e('est-total')) _e('est-total').textContent='$'+Math.round(totalMes).toLocaleString('es-AR');
   if(_e('est-total-sub')) _e('est-total-sub').textContent=ventasMes.length+' ventas del mes';
   var empTop=Object.entries(porEmp).sort(function(a,b){return b[1].monto-a[1].monto;})[0];
-  if(_e('est-mejor-vend')){_e('est-mejor-vend').textContent=empTop?empTop[0]:'—';if(_e('est-mejor-vend-sub'))_e('est-mejor-vend-sub').textContent=empTop?'$'+Math.round(empTop[1].monto).toLocaleString('es-AR'):'—';}
+  if(_e('est-mejor-vend')){_e('est-mejor-vend').textContent=empTop?empTop[0]:'â€”';if(_e('est-mejor-vend-sub'))_e('est-mejor-vend-sub').textContent=empTop?'$'+Math.round(empTop[1].monto).toLocaleString('es-AR'):'â€”';}
   var prodTop=Object.entries(porProd).sort(function(a,b){return b[1].cant-a[1].cant;})[0];
-  if(_e('est-prod-top')){_e('est-prod-top').textContent=prodTop?prodTop[0].slice(0,20):'—';if(_e('est-prod-top-sub'))_e('est-prod-top-sub').textContent=prodTop?prodTop[1].cant+' unidades':'—';}
+  if(_e('est-prod-top')){_e('est-prod-top').textContent=prodTop?prodTop[0].slice(0,20):'â€”';if(_e('est-prod-top-sub'))_e('est-prod-top-sub').textContent=prodTop?prodTop[1].cant+' unidades':'â€”';}
 
   var porMes={};
   (ventasList||[]).forEach(function(v){ var m=_fechaMes(v.fecha); if(!m) return; if(!porMes[m]) porMes[m]={cant:0,monto:0}; porMes[m].cant++; porMes[m].monto+=parseFloat(v.total)||0; });
   var mejorMes=Object.entries(porMes).sort(function(a,b){return b[1].monto-a[1].monto;})[0];
-  if(_e('est-mejor-mes')){ _e('est-mejor-mes').textContent=mejorMes?mejorMes[0]:'—'; if(_e('est-mejor-mes-sub')) _e('est-mejor-mes-sub').textContent=mejorMes?'$'+Math.round(mejorMes[1].monto).toLocaleString('es-AR'):'—'; }
+  if(_e('est-mejor-mes')){ _e('est-mejor-mes').textContent=mejorMes?mejorMes[0]:'â€”'; if(_e('est-mejor-mes-sub')) _e('est-mejor-mes-sub').textContent=mejorMes?'$'+Math.round(mejorMes[1].monto).toLocaleString('es-AR'):'â€”'; }
   var bar=_e('est-bar-meses');
   if(bar){
     var anio=mesActual.slice(0,4), max=1;
     var mesesLbl=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
     for(var i=1;i<=12;i++){ var mk=anio+'-'+String(i).padStart(2,'0'); max=Math.max(max,(porMes[mk]||{}).monto||0); }
     bar.innerHTML='';
-    for(var j=1;j<=12;j++){ var key=anio+'-'+String(j).padStart(2,'0'), monto=(porMes[key]||{}).monto||0; var h=Math.max(4,Math.round((monto/max)*92)); bar.innerHTML += '<div class="bc" title="'+key+' · $'+Math.round(monto).toLocaleString('es-AR')+'"><div class="bar '+(key===mesActual?'today':'')+'" style="height:'+h+'px"></div><span class="bar-lbl '+(key===mesActual?'today':'')+'">'+mesesLbl[j-1]+'</span></div>'; }
+    for(var j=1;j<=12;j++){ var key=anio+'-'+String(j).padStart(2,'0'), monto=(porMes[key]||{}).monto||0; var h=Math.max(4,Math.round((monto/max)*92)); bar.innerHTML += '<div class="bc" title="'+key+' Â· $'+Math.round(monto).toLocaleString('es-AR')+'"><div class="bar '+(key===mesActual?'today':'')+'" style="height:'+h+'px"></div><span class="bar-lbl '+(key===mesActual?'today':'')+'">'+mesesLbl[j-1]+'</span></div>'; }
   }
 
   // Cobros por medio de pago
@@ -8439,9 +8578,9 @@ function renderEstadisticas() {
   var totalCob=Object.values(porMedio).reduce(function(s,v){return s+v.monto;},0);
   var listaMed=Object.entries(porMedio).sort(function(a,b){return b[1].monto-a[1].monto;});
   var mpCards=_e('est-mp-cards');
-  if(mpCards)mpCards.innerHTML=listaMed.slice(0,4).map(function(e){var pct=totalCob>0?Math.round(e[1].monto/totalCob*100):0;return '<div class="metric"><div class="m-label">'+escapeHTML(e[0])+'</div><div class="m-value" style="color:var(--blue)">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</div><div class="m-sub">'+e[1].cant+' cobro'+(e[1].cant!==1?'s':'')+' · '+pct+'%</div></div>';}).join('')||'<div style="color:var(--text3);font-size:13px;padding:8px">Sin cobros</div>';
+  if(mpCards)mpCards.innerHTML=listaMed.slice(0,4).map(function(e){var pct=totalCob>0?Math.round(e[1].monto/totalCob*100):0;return '<div class="metric"><div class="m-label">'+escapeHTML(e[0])+'</div><div class="m-value" style="color:var(--blue)">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</div><div class="m-sub">'+e[1].cant+' cobro'+(e[1].cant!==1?'s':'')+' Â· '+pct+'%</div></div>';}).join('')||'<div style="color:var(--text3);font-size:13px;padding:8px">Sin cobros</div>';
   var tbMed=_e('est-tbody-medios');
-  if(tbMed)tbMed.innerHTML=listaMed.length?listaMed.map(function(e){var pct=totalCob>0?Math.round(e[1].monto/totalCob*100):0;return '<tr><td style="padding:8px 0">'+escapeHTML(e[0])+'</td><td style="text-align:right;color:var(--text3)">'+e[1].cant+'</td><td style="text-align:right;font-weight:600">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+pct+'%</td></tr>';}).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sin cobros en el período</td></tr>';
+  if(tbMed)tbMed.innerHTML=listaMed.length?listaMed.map(function(e){var pct=totalCob>0?Math.round(e[1].monto/totalCob*100):0;return '<tr><td style="padding:8px 0">'+escapeHTML(e[0])+'</td><td style="text-align:right;color:var(--text3)">'+e[1].cant+'</td><td style="text-align:right;font-weight:600">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+pct+'%</td></tr>';}).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sin cobros en el perÃ­odo</td></tr>';
 }
 function renderReportes() {
   var mesActual=_periodoActualReportes();
@@ -8458,12 +8597,12 @@ function renderReportes() {
   if(_e('rep-iva')) _e('rep-iva').textContent='$'+Math.round(ivaDecl).toLocaleString('es-AR');
   if(_e('rep-iva-sub')) _e('rep-iva-sub').textContent='vence 20/'+meses[new Date().getMonth()];
   var porEmp={};
-  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'—'; if(!porEmp[e]) porEmp[e]={cat:'—',ventas:0,monto:0,comision:0,hextra:0,base:0}; porEmp[e].ventas++; porEmp[e].monto+=parseFloat(v.total)||0; porEmp[e].comision+=parseFloat(v.comision)||0; });
-  Object.values(empData||{}).forEach(function(emp){ var n=emp.nombre||'—'; if(!porEmp[n]) porEmp[n]={cat:'—',ventas:0,monto:0,comision:0,hextra:0,base:0}; porEmp[n].cat=emp.cargo||emp.categoria||'—'; var c=emp.cargoId?(CARGOS_DATA||{})[emp.cargoId]:null; porEmp[n].base=c?Math.round((parseFloat(c.valorHora)||0)*8*(parseFloat(c.diasMes)||0)):(parseFloat(emp.sueldoBase)||0); });
+  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'â€”'; if(!porEmp[e]) porEmp[e]={cat:'â€”',ventas:0,monto:0,comision:0,hextra:0,base:0}; porEmp[e].ventas++; porEmp[e].monto+=parseFloat(v.total)||0; porEmp[e].comision+=parseFloat(v.comision)||0; });
+  Object.values(empData||{}).forEach(function(emp){ var n=emp.nombre||'â€”'; if(!porEmp[n]) porEmp[n]={cat:'â€”',ventas:0,monto:0,comision:0,hextra:0,base:0}; porEmp[n].cat=emp.cargo||emp.categoria||'â€”'; var c=emp.cargoId?(CARGOS_DATA||{})[emp.cargoId]:null; porEmp[n].base=c?Math.round((parseFloat(c.valorHora)||0)*8*(parseFloat(c.diasMes)||0)):(parseFloat(emp.sueldoBase)||0); });
   var tbody=_e('emp-resumen-tbody');
   if(tbody){
     var lista=Object.entries(porEmp).filter(function(e){return e[1].ventas>0 || e[1].comision>0 || e[1].base>0;}).sort(function(a,b){return b[1].monto-a[1].monto;});
-    tbody.innerHTML=lista.length?lista.map(function(e){ var x=e[1], total=x.comision+x.hextra+x.base; return '<tr><td>'+escapeHTML(e[0])+'</td><td>'+escapeHTML(x.cat||'—')+'</td><td>'+x.ventas+'</td><td>$'+Math.round(x.monto).toLocaleString('es-AR')+'</td><td style="color:var(--green)">$'+Math.round(x.comision).toLocaleString('es-AR')+'</td><td>$'+Math.round(x.hextra).toLocaleString('es-AR')+'</td><td>$'+Math.round(x.base).toLocaleString('es-AR')+'</td><td style="font-weight:600">$'+Math.round(total).toLocaleString('es-AR')+'</td></tr>'; }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
+    tbody.innerHTML=lista.length?lista.map(function(e){ var x=e[1], total=x.comision+x.hextra+x.base; return '<tr><td>'+escapeHTML(e[0])+'</td><td>'+escapeHTML(x.cat||'â€”')+'</td><td>'+x.ventas+'</td><td>$'+Math.round(x.monto).toLocaleString('es-AR')+'</td><td style="color:var(--green)">$'+Math.round(x.comision).toLocaleString('es-AR')+'</td><td>$'+Math.round(x.hextra).toLocaleString('es-AR')+'</td><td>$'+Math.round(x.base).toLocaleString('es-AR')+'</td><td style="font-weight:600">$'+Math.round(total).toLocaleString('es-AR')+'</td></tr>'; }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
   }
 }
 function fbCargarServicios() {
@@ -8475,22 +8614,25 @@ function fbCargarServicios() {
     if(!tbody) return;
     var estCls={Finalizado:'b-green','En curso':'b-blue',Pendiente:'b-amber'};
     if (!lista.length) {
-      tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin órdenes de servicio</td></tr>';
+      tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin Ã³rdenes de servicio</td></tr>';
     } else {
       var html = '';
+      var puedeEliminarServicios = typeof window.tienePermiso === 'function'
+        ? window.tienePermiso('registros.eliminar', { args:['servicios'] })
+        : String(currentRole || '').toLowerCase() === 'admin';
       lista.forEach(function(s) {
         var cls = estCls[s.estado] || 'b-blue';
         var fkey = s.fbKey || '';
         html += '<tr>';
-        html += '<td style="font-family:monospace;font-size:12px">' + escapeHTML(s.numero||'—') + '</td>';
-        html += '<td>' + escapeHTML(s.descripcion||'—') + '</td>';
-        html += '<td>' + escapeHTML(s.cliente||'—') + '</td>';
-        html += '<td style="color:var(--text3)">' + escapeHTML(s.fecha||'—') + '</td>';
-        html += '<td>' + escapeHTML(s.tecnico||'—') + '</td>';
-        html += '<td style="text-align:right">' + escapeHTML(s.garantia||'—') + '</td>';
+        html += '<td style="font-family:monospace;font-size:12px">' + escapeHTML(s.numero||'â€”') + '</td>';
+        html += '<td>' + escapeHTML(s.descripcion||'â€”') + '</td>';
+        html += '<td>' + escapeHTML(s.cliente||'â€”') + '</td>';
+        html += '<td style="color:var(--text3)">' + escapeHTML(s.fecha||'â€”') + '</td>';
+        html += '<td>' + escapeHTML(s.tecnico||'â€”') + '</td>';
+        html += '<td style="text-align:right">' + escapeHTML(s.garantia||'â€”') + '</td>';
         html += '<td style="text-align:right">';
-        html += '<span class="badge ' + cls + '">' + escapeHTML(s.estado||'—') + '</span>';
-        html += '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(' + "'" + 'servicios' + "'" + ',' + "'" + fkey + "'" + ')" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:12px"></i></button>';
+        html += '<span class="badge ' + cls + '">' + escapeHTML(s.estado||'â€”') + '</span>';
+        if (puedeEliminarServicios) html += '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(' + "'" + 'servicios' + "'" + ',' + "'" + fkey + "'" + ')" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:12px"></i></button>';
         html += '</td></tr>';
       });
       tbody.innerHTML = html;
@@ -8509,11 +8651,11 @@ function fbCargarCaja() {
   if (scopeEl) {
     scopeEl.innerHTML = esAdmin
       ? '<i class="ti ti-users" style="font-size:13px"></i> Viendo caja consolidada de todos los usuarios'
-      : '<i class="ti ti-user" style="font-size:13px"></i> Viendo tu caja personal del día';
+      : '<i class="ti ti-user" style="font-size:13px"></i> Viendo tu caja personal del dÃ­a';
   }
 
   if (esAdmin) {
-    // Admin/administrativo ve la caja consolidada de todos los usuarios del día
+    // Admin/administrativo ve la caja consolidada de todos los usuarios del dÃ­a
     window.fbOnValue(window.fbRef(window.fbDB,'sisventas/caja/'+hoy),function(snap){
       var data = snap.val()||{};
       var apertura=0, ingresos=0, egresos=0;
@@ -8533,7 +8675,7 @@ function fbCargarCaja() {
       _renderMovimientosCaja(todosLosMovs);
     });
   } else {
-    // Vendedor/técnico ve solo su propia caja del día
+    // Vendedor/tÃ©cnico ve solo su propia caja del dÃ­a
     var usuarioKey = (currentUser||'sinusuario').replace(/[.\#\$\[\]\/]/g,'_');
     window.fbOnValue(window.fbRef(window.fbDB,'sisventas/caja/'+hoy+'/'+usuarioKey),function(snap){
       var d = snap.val()||{};
@@ -8557,10 +8699,10 @@ function _renderMovimientosCaja(lista) {
   lista.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
   cont.innerHTML = lista.map(function(m) {
     var color = m.tipo === 'Ingreso' ? 'var(--green)' : 'var(--red)';
-    var signo = m.tipo === 'Ingreso' ? '+' : '−';
+    var signo = m.tipo === 'Ingreso' ? '+' : 'âˆ’';
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">' +
       '<div><div style="font-size:13px;font-weight:500">' + escapeHTML(m.concepto||'') + '</div>' +
-      '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(m.medio||'') + ' · ' + escapeHTML(m.hora||'') + ' · ' + escapeHTML(m.usuario||'') + '</div></div>' +
+      '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(m.medio||'') + ' Â· ' + escapeHTML(m.hora||'') + ' Â· ' + escapeHTML(m.usuario||'') + '</div></div>' +
       '<div style="font-weight:600;color:' + color + '">' + signo + '$' + Math.round(m.monto||0).toLocaleString('es-AR') + '</div>' +
     '</div>';
   }).join('');
@@ -8574,14 +8716,14 @@ function _renderCajaUI(apertura, ingresos, egresos) {
   if(_e('caja-egresos'))  _e('caja-egresos').textContent='$'+Math.round(egresos).toLocaleString('es-AR');
   if(_e('caja-saldo'))    _e('caja-saldo').textContent='$'+Math.round(saldo).toLocaleString('es-AR');
 }
-// EXPORTAR EXCEL — SheetJS (CDN)
+// EXPORTAR EXCEL â€” SheetJS (CDN)
 
 function cargarSheetJS(callback) {
   if (window.XLSX) { callback(); return; }
   var s = document.createElement('script');
   s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
   s.onload = callback;
-  s.onerror = function(){ notify('Error al cargar librería Excel'); };
+  s.onerror = function(){ notify('Error al cargar librerÃ­a Excel'); };
   document.head.appendChild(s);
 }
 
@@ -8589,10 +8731,10 @@ function exportarExcel(titulo) {
   cargarSheetJS(function() {
     var wb = window.XLSX.utils.book_new();
     var rows = [];
-    var nombre = (titulo || 'exportacion').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s_-]/g, '').trim();
+    var nombre = (titulo || 'exportacion').replace(/[^a-zA-Z0-9Ã¡Ã©Ã­Ã³ÃºÃÃ‰ÃÃ“ÃšÃ±Ã‘\s_-]/g, '').trim();
 
     if (titulo === 'Listado de ventas' || titulo === 'Reporte de ventas') {
-      rows = [['#','Cliente','Fecha','Total','Pago','Instalación']];
+      rows = [['#','Cliente','Fecha','Total','Pago','InstalaciÃ³n']];
       (ventasList || []).forEach(function(v) {
         rows.push([v.id||'', v.cliente||'', v.fecha||'', parseFloat(v.total)||0, v.estadoPago||'', v.estadoInst||'']);
       });
@@ -8606,8 +8748,8 @@ function exportarExcel(titulo) {
         rows.push([e.nombre||'', e.cargo||'', base, com, hex, base+com+hex]);
       });
 
-    } else if (titulo === 'Gastos del período') {
-      rows = [['Fecha','Descripción','Categoría','Tipo','Monto','Estado']];
+    } else if (titulo === 'Gastos del perÃ­odo') {
+      rows = [['Fecha','DescripciÃ³n','CategorÃ­a','Tipo','Monto','Estado']];
       var tbody = document.getElementById('gastos-tbody');
       if (tbody) {
         tbody.querySelectorAll('tr').forEach(function(tr) {
@@ -8626,7 +8768,7 @@ function exportarExcel(titulo) {
       }
 
     } else {
-      // Genérico: exportar la primera tabla visible de la página activa
+      // GenÃ©rico: exportar la primera tabla visible de la pÃ¡gina activa
       var activePage = document.querySelector('.page.active');
       if (!activePage) { notify('No hay datos para exportar'); return; }
       var tabla = activePage.querySelector('table');
@@ -8639,7 +8781,7 @@ function exportarExcel(titulo) {
     if (rows.length <= 1) { notify('Sin datos para exportar'); return; }
 
     var ws = window.XLSX.utils.aoa_to_sheet(rows);
-    // Ancho de columnas automático
+    // Ancho de columnas automÃ¡tico
     var cols = rows[0].map(function(_, i) {
       var max = rows.reduce(function(m,r){ return Math.max(m, String(r[i]||'').length); }, 10);
       return { wch: Math.min(max + 2, 40) };
@@ -8647,7 +8789,7 @@ function exportarExcel(titulo) {
     ws['!cols'] = cols;
     window.XLSX.utils.book_append_sheet(wb, ws, nombre.slice(0,31));
     window.XLSX.writeFile(wb, nombre + '.xlsx');
-    notify('✓ Excel descargado');
+    notify('âœ“ Excel descargado');
   });
 }
 // EXPORTAR PDF / IMPRIMIR
@@ -8661,7 +8803,7 @@ function exportarPDF(titulo) {
     imprimirSeccion('page-rentabilidad', 'Reporte de rentabilidad');
     return;
   }
-  // Genérico: imprimir la sección activa
+  // GenÃ©rico: imprimir la secciÃ³n activa
   var activePage = document.querySelector('.page.active');
   if (activePage) imprimirSeccion(activePage.id, titulo||'Reporte');
 }
@@ -8673,7 +8815,7 @@ function generarPDFVenta() {
 
 function imprimirSeccion(pageId, titulo) {
   var page = document.getElementById(pageId);
-  if (!page) { notify('Sección no disponible'); return; }
+  if (!page) { notify('SecciÃ³n no disponible'); return; }
   var empresa = {
     nombre: (document.getElementById('cfg-empresa-nombre')||{}).value || 'Nixa',
     dir:    (document.getElementById('cfg-empresa-dir')||{}).value || 'Patagones 390, Mar del Plata',
@@ -8698,14 +8840,12 @@ function imprimirSeccion(pageId, titulo) {
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
-// tiene teléfono cargado, abre además su chat de WhatsApp para adjuntarlo manualmente.
+// tiene telÃ©fono cargado, abre ademÃ¡s su chat de WhatsApp para adjuntarlo manualmente.
 function pdfYWhatsappVenta(ventaId) {
-  var v = (ventasList||[]).find(function(x){ return x.id === ventaId || x.fbKey === ventaId; }) || window._ventaDetalleActual;
+  var v = _svResolverVentaRegistro(ventaId) || window._ventaDetalleActual;
   if (!v) { notify('Venta no encontrada'); return; }
 
-  var cli = (clientesData||[]).find(function(c){
-    return c.nombre === v.cliente || String(c.id) === String(v.idCliente || v.clienteId);
-  });
+  var cli = _svResolverClienteRegistro(v, true);
   var tel = cli && (cli.telefono || cli.tel || cli.celular || '');
   tel = tel ? tel.replace(/\D/g,'') : '';
   if (tel && tel.length < 8) tel = '';
@@ -8713,16 +8853,16 @@ function pdfYWhatsappVenta(ventaId) {
   var total = '$' + Math.round(parseFloat(v.total)||0).toLocaleString('es-AR');
   var msg = encodeURIComponent(
     'Hola ' + (v.cliente||'') + ', te enviamos el comprobante de tu compra ' + (v.id||'') +
-    ' por un total de ' + total + '.\n\nTe lo adjuntamos a continuación.'
+    ' por un total de ' + total + '.\n\nTe lo adjuntamos a continuaciÃ³n.'
   );
 
   if (tel) {
     var wa = 'https://wa.me/54' + tel + '?text=' + msg;
     window.open(wa, '_blank');
-    notify('Se abrió WhatsApp del cliente — generá el PDF desde el diálogo de impresión y adjuntalo ahí');
+    notify('Se abriÃ³ WhatsApp del cliente â€” generÃ¡ el PDF desde el diÃ¡logo de impresiÃ³n y adjuntalo ahÃ­');
     setTimeout(function(){ imprimirVentaActual(); }, 800);
   } else {
-    notify('El cliente no tiene teléfono registrado — se abre el comprobante para guardarlo como PDF');
+    notify('El cliente no tiene telÃ©fono registrado â€” se abre el comprobante para guardarlo como PDF');
     setTimeout(function(){ imprimirVentaActual(); }, 300);
   }
 }
@@ -8768,19 +8908,15 @@ function imprimirVentaActual() {
     ? '<img src="'+window.logoEmpresaUrl+'" style="height:50px;object-fit:contain">'
     : '<div style="font-size:24px;font-weight:700;letter-spacing:-.5px">'+empresa.nombre+'</div>';
 
-  // Datos del cliente desde clientesData
-  var cliData = null;
-  if (clientesData) {
-    cliData = clientesData.find(function(c){ return c.id == v.idCliente || c.id == v.clienteId; });
-    if (!cliData) cliData = clientesData.find(function(c){ return (c.nombre||'').toLowerCase().trim() === (v.cliente||'').toLowerCase().trim(); });
-  }
+  // Datos del cliente desde clientesData por ID real; nombre solo como fallback dentro del resolvedor.
+  var cliData = resolverClienteDeVenta(v);
   var cliDir  = (cliData && (cliData.dir||cliData.direccion)) || v.dir || '';
   var cliDni  = (cliData && cliData.dni) || '';
-  var cliCuit = (cliData && cliData.cuit) || '';
+  var cliCuit = obtenerCuitClienteVenta(v) || (cliData && (cliData.cuit||cliData.CUIT||cliData.cuitDni||cliData.documentoFiscal)) || '';
   var cliTel  = (cliData && (cliData.telefono||cliData.tel)) || '';
 
   // Estado de pago legible
-  var estadoPagoLbl = { pendiente_pago:'Pendiente de pago', seniado:'Señado', pago_total:'Pago total' }[v.estadoPago] || v.estadoPago || '—';
+  var estadoPagoLbl = { pendiente_pago:'Pendiente de pago', seniado:'SeÃ±ado', pago_total:'Pago total' }[v.estadoPago] || v.estadoPago || 'â€”';
 
   // Items
   var nCols = 5;
@@ -8792,7 +8928,7 @@ function imprimirVentaActual() {
     var sub   = '$' + (parseFloat(it.sub)||0).toLocaleString('es-AR');
     var punitCell;
     if (!conDetalle) {
-      punitCell = '<td style="text-align:right;color:#ccc">—</td>';
+      punitCell = '<td style="text-align:right;color:#ccc">â€”</td>';
     } else if (disc > 0) {
       var punitDesc = punitVal * (1 - disc/100);
       punitCell = '<td style="text-align:right">' +
@@ -8808,11 +8944,11 @@ function imprimirVentaActual() {
       '<td>'+escapeHTML(it.desc||it.nombre||'')+'</td>' +
       '<td style="text-align:right">'+it.qty+'</td>' +
       punitCell +
-      '<td style="text-align:right;font-weight:600">'+(conDetalle ? sub : '<span style="color:#ccc">—</span>')+'</td>' +
+      '<td style="text-align:right;font-weight:600">'+(conDetalle ? sub : '<span style="color:#ccc">â€”</span>')+'</td>' +
     '</tr>';
   }).join('');
 
-  // Tipo de comprobante — factura, nota de crédito, o comprobante interno
+  // Tipo de comprobante â€” factura, nota de crÃ©dito, o comprobante interno
   var tipoComp = (v.factura && v.factura.tipo)
     ? v.factura.tipo
     : (v.notaCredito && v.notaCredito.tipo)
@@ -8828,7 +8964,7 @@ function imprimirVentaActual() {
   var caeVto    = (v.factura && v.factura.cae_vencimiento) || '';
   var cuitEmp   = empresa.cuit.replace(/\D/g,'');
 
-  // QR AFIP: URL estándar de verificación
+  // QR AFIP: URL estÃ¡ndar de verificaciÃ³n
   var qrData = '';
   var qrImg  = '';
   if (caeNum) {
@@ -8853,7 +8989,7 @@ function imprimirVentaActual() {
     var qrJson   = JSON.stringify(qrObj);
     var qrBase64 = btoa(qrJson);
     var qrUrl    = 'https://www.afip.gob.ar/fe/qr/?p=' + qrBase64;
-    // QR via API pública (no requiere librería)
+    // QR via API pÃºblica (no requiere librerÃ­a)
     qrImg = '<img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data='+encodeURIComponent(qrUrl)+'" width="90" height="90" style="display:block">';
   }
 
@@ -8901,12 +9037,12 @@ function imprimirVentaActual() {
         '<div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.7">' +
           escapeHTML(empresa.dir) + '<br>' +
           (empresa.cuit ? 'CUIT: ' + escapeHTML(empresa.cuit) + '<br>' : '') +
-          'Condición IVA: Responsable Inscripto' +
+          'CondiciÃ³n IVA: Responsable Inscripto' +
         '</div>' +
       '</div>' +
       '<div class="comp-area">' +
         '<div class="tipo-badge">'+escapeHTML(tipoComp)+'</div>' +
-        (nroComp ? '<div style="font-size:11px;color:#64748b;margin-bottom:4px">PDV <strong>'+pdv+'</strong> — Nro. <strong>'+nroComp+'</strong></div>' : '') +
+        (nroComp ? '<div style="font-size:11px;color:#64748b;margin-bottom:4px">PDV <strong>'+pdv+'</strong> â€” Nro. <strong>'+nroComp+'</strong></div>' : '') +
         '<div class="comp-num">#'+escapeHTML(String(v.id||''))+'</div>' +
         '<div class="comp-fecha">'+_mostrarFecha(v.fecha)+'</div>' +
       '</div>' +
@@ -8914,15 +9050,15 @@ function imprimirVentaActual() {
     '<div class="info-grid">' +
       '<div class="info-box">' +
         '<div class="info-lbl">Cliente</div>' +
-        '<div class="info-val">'+escapeHTML(v.cliente||'—')+'</div>' +
+        '<div class="info-val">'+escapeHTML(v.cliente||'â€”')+'</div>' +
         (cliDir  ? '<div class="info-sub">'+escapeHTML(cliDir)+'</div>' : '') +
         (cliTel  ? '<div class="info-sub">Tel: '+escapeHTML(cliTel)+'</div>' : '') +
         (cliDni  ? '<div class="info-sub">DNI: '+escapeHTML(cliDni)+'</div>' : '') +
         (cliCuit ? '<div class="info-sub">CUIT: '+escapeHTML(cliCuit)+'</div>' : '') +
-        '<div class="info-sub" style="margin-top:5px;color:#64748b">Condición IVA: <strong>'+condIVA+'</strong></div>' +
+        '<div class="info-sub" style="margin-top:5px;color:#64748b">CondiciÃ³n IVA: <strong>'+condIVA+'</strong></div>' +
       '</div>' +
       '<div class="info-box">' +
-        '<div class="info-lbl">Datos de la operación</div>' +
+        '<div class="info-lbl">Datos de la operaciÃ³n</div>' +
         '<div class="info-sub">Estado de pago: <strong>'+estadoPagoLbl+'</strong></div>' +
         (formaPago ? '<div class="info-sub">Forma de pago: <strong>'+escapeHTML(formaPago)+'</strong></div>' : '') +
         (v.empleado ? '<div class="info-sub">Vendedor: <strong>'+escapeHTML(v.empleado)+'</strong></div>' : '') +
@@ -8931,8 +9067,8 @@ function imprimirVentaActual() {
     '</div>' +
     '<table class="items-table">' +
       '<thead><tr>' +
-        '<th style="width:90px">Código</th>' +
-        '<th>Descripción</th>' +
+        '<th style="width:90px">CÃ³digo</th>' +
+        '<th>DescripciÃ³n</th>' +
         '<th class="tr" style="width:55px">Cant.</th>' +
         '<th class="tr" style="width:120px">P. unit.</th>' +
         '<th class="tr" style="width:110px">Subtotal</th>' +
@@ -8970,7 +9106,7 @@ function imprimirVentaActual() {
       '<div class="nc-section">' +
         (qrImg ? '<div>'+qrImg+'<div style="font-size:9px;color:#666;text-align:center;margin-top:3px">Verificar en AFIP</div></div>' : '') +
         '<div class="cae-texts">' +
-          '<div class="nc-title">'+escapeHTML(v.notaCredito.tipo||'Nota de Crédito')+'</div>' +
+          '<div class="nc-title">'+escapeHTML(v.notaCredito.tipo||'Nota de CrÃ©dito')+'</div>' +
           '<div style="font-size:11px;color:#555;margin-bottom:4px">Anula la factura original</div>' +
           '<div style="font-size:11px;color:#555">CAE NC: <span class="cae-num">'+escapeHTML(v.notaCredito.cae)+'</span></div>' +
           (v.factura && v.factura.cae ? '<div class="cae-vto">Factura original CAE: '+escapeHTML(v.factura.cae)+'</div>' : '') +
@@ -8980,24 +9116,24 @@ function imprimirVentaActual() {
       '<div class="cae-section">' +
         (qrImg ? '<div>'+qrImg+'<div style="font-size:9px;color:#666;text-align:center;margin-top:3px">Verificar en AFIP</div></div>' : '') +
         '<div class="cae-texts">' +
-          '<div class="cae-title">'+escapeHTML(v.factura.tipo||'Factura Electrónica')+'  ·  Comprobante válido ante AFIP</div>' +
-          '<div style="font-size:11px;color:#475569;margin-bottom:6px">PDV '+pdv+(nroComp?' — Nro. comprobante: '+nroComp:'')+'</div>' +
-          '<div>CAE Nº: <span class="cae-num">'+escapeHTML(caeNum)+'</span></div>' +
+          '<div class="cae-title">'+escapeHTML(v.factura.tipo||'Factura ElectrÃ³nica')+'  Â·  Comprobante vÃ¡lido ante AFIP</div>' +
+          '<div style="font-size:11px;color:#475569;margin-bottom:6px">PDV '+pdv+(nroComp?' â€” Nro. comprobante: '+nroComp:'')+'</div>' +
+          '<div>CAE NÂº: <span class="cae-num">'+escapeHTML(caeNum)+'</span></div>' +
           (caeVto ? '<div class="cae-vto">Vencimiento CAE: '+escapeHTML(caeVto)+'</div>' : '') +
         '</div>' +
       '</div>'
     :
-      '<div class="no-comprobante">Comprobante interno — sin CAE electrónico emitido ante AFIP</div>'
+      '<div class="no-comprobante">Comprobante interno â€” sin CAE electrÃ³nico emitido ante AFIP</div>'
     ) +
     '<div class="footer">' +
       '<div class="footer-legal">' +
-        escapeHTML(empresa.nombre) + ' · ' + escapeHTML(empresa.dir) + '<br>' +
-        (empresa.cuit ? 'CUIT: ' + escapeHTML(empresa.cuit) + ' · ' : '') +
-        'Responsable Inscripto · IVA Responsable Inscripto<br>' +
-        'Documento no válido como factura si no posee CAE emitido por AFIP' +
+        escapeHTML(empresa.nombre) + ' Â· ' + escapeHTML(empresa.dir) + '<br>' +
+        (empresa.cuit ? 'CUIT: ' + escapeHTML(empresa.cuit) + ' Â· ' : '') +
+        'Responsable Inscripto Â· IVA Responsable Inscripto<br>' +
+        'Documento no vÃ¡lido como factura si no posee CAE emitido por AFIP' +
       '</div>' +
       '<div style="text-align:right;font-size:10px;color:#94a3b8">' +
-        'SisVentas · Nixa<br>' +
+        'SisVentas Â· Nixa<br>' +
         'Generado el ' + new Date().toLocaleDateString('es-AR') +
       '</div>' +
     '</div>' +
@@ -9013,7 +9149,7 @@ function imprimirVentaActual() {
 
 function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
   // v20.362: un usuario sin permiso de Gastos no puede abrir el formulario administrativo.
-  // Para técnicos, la acción de "gasto" deriva al reembolso/gasto rápido propio.
+  // Para tÃ©cnicos, la acciÃ³n de "gasto" deriva al reembolso/gasto rÃ¡pido propio.
   if (tipo === 'gasto' && !permisoModulo('gastos')) {
     if (typeof abrirGastoRapido === 'function') abrirGastoRapido();
     else notify('Acceso restringido para tu rol');
@@ -9059,7 +9195,7 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
       inp = document.createElement('select');
       inp.id = f.id;
       var optVacioEmp = document.createElement('option');
-      optVacioEmp.value = ''; optVacioEmp.textContent = '— Sin vincular —';
+      optVacioEmp.value = ''; optVacioEmp.textContent = 'â€” Sin vincular â€”';
       inp.appendChild(optVacioEmp);
       Object.values(empData||{})
         .filter(function(e){ return e.activo !== false; })
@@ -9077,7 +9213,7 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
       inp = document.createElement('select');
       inp.id = f.id;
       var optVacio = document.createElement('option');
-      optVacio.value = ''; optVacio.textContent = '— Sin cargo asignado —';
+      optVacio.value = ''; optVacio.textContent = 'â€” Sin cargo asignado â€”';
       inp.appendChild(optVacio);
       var idsCargo = Object.keys(CARGOS_DATA||{}).sort(function(a,b){ return (CARGOS_DATA[a].nombre||'').localeCompare(CARGOS_DATA[b].nombre||''); });
       idsCargo.forEach(function(cid) {
@@ -9187,7 +9323,7 @@ function guardarNuevoGenerico() {
       nuevo.fbKey = cliExistente.fbKey;
     }
 
-    window._editingClienteId = null; // limpiar para la próxima vez
+    window._editingClienteId = null; // limpiar para la prÃ³xima vez
     if (typeof fbGuardarCliente === 'function') {
       fbGuardarCliente(nuevo);
     } else {
@@ -9220,7 +9356,7 @@ function guardarNuevoGenerico() {
       fbGuardarProducto(nuevo);
     }
     if (typeof registrarActividad === 'function') {
-      registrarActividad('Producto guardado', nuevo.codigo + ' — ' + nuevo.nombre);
+      registrarActividad('Producto guardado', nuevo.codigo + ' â€” ' + nuevo.nombre);
     }
 
   } else if (tipo === 'empleado') {
@@ -9240,7 +9376,7 @@ function guardarNuevoGenerico() {
       activo:    (obj.activo || 'Activo') !== 'Inactivo'
     };
     if (!fbKeyEmp) datosEmp.historial = [{ tipo:'alta', motivo:'Ingreso', fecha: new Date().toISOString().split('T')[0], usuario: currentUser||'' }];
-    if (!datosEmp.nombre.trim()) { notify('Ingresá nombre y apellido'); return; }
+    if (!datosEmp.nombre.trim()) { notify('IngresÃ¡ nombre y apellido'); return; }
     if (window.fbDB) {
       if (fbKeyEmp) {
         window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKeyEmp), datosEmp)
@@ -9256,12 +9392,12 @@ function guardarNuevoGenerico() {
         datosEmp.ts = Date.now();
         window.fbPush(window.fbRef(window.fbDB, 'sisventas/empleados'), datosEmp)
           .then(function(){
-            notify('Empleado guardado — Legajo N° '+datosEmp.legajo);
-            if (typeof registrarActividad === 'function') registrarActividad('Empleado creado', datosEmp.nombre + ' — Legajo N° ' + datosEmp.legajo);
+            notify('Empleado guardado â€” Legajo NÂ° '+datosEmp.legajo);
+            if (typeof registrarActividad === 'function') registrarActividad('Empleado creado', datosEmp.nombre + ' â€” Legajo NÂ° ' + datosEmp.legajo);
           })
           .catch(function(e){ notify('Error: '+e.message); });
       }
-    } else { notify('Sin conexión'); }
+    } else { notify('Sin conexiÃ³n'); }
 
   } else if (tipo === 'gasto') {
     var fbKey = window._modalFbKey;
@@ -9280,7 +9416,7 @@ function guardarNuevoGenerico() {
         : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), datos));
       promesa.then(function() { notify(fbKey ? 'Gasto actualizado' : 'Gasto registrado'); })
              .catch(function(e) { notify('Error: ' + e.message); });
-    } else { notify('Sin conexión'); }
+    } else { notify('Sin conexiÃ³n'); }
 
   } else if (tipo === 'proveedor') {
     var fbKey = window._modalFbKey;
@@ -9302,7 +9438,7 @@ function guardarNuevoGenerico() {
         : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/proveedores'), datos));
       promesa.then(function() { notify(fbKey ? 'Proveedor actualizado' : 'Proveedor guardado'); })
              .catch(function(e) { notify('Error: ' + e.message); });
-    } else { notify('Sin conexión'); }
+    } else { notify('Sin conexiÃ³n'); }
 
   } else if (tipo === 'usuario') {
     var fbKeyUsu = window._modalFbKey;
@@ -9320,7 +9456,7 @@ function guardarNuevoGenerico() {
             lbl.textContent = 'Empleado vinculado';
             var sel = document.createElement('select');
             sel.id = 'nu-emp-vinculado';
-            var opts = '<option value="">— Sin vincular —</option>';
+            var opts = '<option value="">â€” Sin vincular â€”</option>';
             Object.values(empData||{}).filter(function(e){ return e.activo !== false; })
               .sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); })
               .forEach(function(e){ opts += '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+'</option>'; });
@@ -9342,9 +9478,9 @@ function guardarNuevoGenerico() {
       'Administrador':'admin','administrador':'admin',
       'Administrativo':'administrativo','administrativo':'administrativo',
       'Vendedor':'vendedor','vendedor':'vendedor',
-      'Técnico':'tecnico','Tecnico':'tecnico','técnico':'tecnico','tecnico':'tecnico'
+      'TÃ©cnico':'tecnico','Tecnico':'tecnico','tÃ©cnico':'tecnico','tecnico':'tecnico'
     };
-    var rolFinal = rolMap[rolRaw] || rolRaw.toLowerCase().replace(/[áéíóú]/g,function(c){return{á:'a',é:'e',í:'i',ó:'o',ú:'u'}[c];}) || 'administrativo';
+    var rolFinal = rolMap[rolRaw] || rolRaw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') || 'administrativo';
     var login    = (obj.user||'').replace('@sistemanixa.com','').replace(/\s/g,'').toLowerCase();
     var email    = login + '@sistemanixa.com';
     var pass     = (obj.pass||'').trim();
@@ -9363,20 +9499,20 @@ function guardarNuevoGenerico() {
       datosUsu.claveActualizadaTs = Date.now();
       datosUsu.claveActualizadaPor = currentUser || '';
     }
-    if (!datosUsu.nombre) { notify('Ingresá el nombre completo'); return; }
-    if (!login)           { notify('Ingresá el nombre de usuario'); return; }
+    if (!datosUsu.nombre) { notify('IngresÃ¡ el nombre completo'); return; }
+    if (!login)           { notify('IngresÃ¡ el nombre de usuario'); return; }
 
     if (fbKeyUsu) {
       window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/usuarios/'+fbKeyUsu), datosUsu)
-        .then(function(){ notify('✓ Usuario actualizado'); })
+        .then(function(){ notify('âœ“ Usuario actualizado'); })
         .catch(function(e){ notify('Error: '+e.message); });
 
     } else {
-      if (!pass) { notify('Ingresá una contraseña inicial para el usuario'); return; }
-      if (pass.length < 6) { notify('La contraseña debe tener al menos 6 caracteres'); return; }
+      if (!pass) { notify('IngresÃ¡ una contraseÃ±a inicial para el usuario'); return; }
+      if (pass.length < 6) { notify('La contraseÃ±a debe tener al menos 6 caracteres'); return; }
 
       var adminEmail = window.fbAuth.currentUser ? window.fbAuth.currentUser.email : null;
-      var adminPass  = null; // no podemos recuperarla, usamos re-autenticación
+      var adminPass  = null; // no podemos recuperarla, usamos re-autenticaciÃ³n
 
       notify('Creando usuario en Firebase Auth...');
 
@@ -9387,24 +9523,24 @@ function guardarNuevoGenerico() {
           return window.fbPush(window.fbRef(window.fbDB, 'sisventas/usuarios'), datosUsu);
         })
         .then(function() {
-          notify('✓ Usuario ' + email + ' creado correctamente');
-          // Volver a loguear al admin automáticamente
-          // Firebase Auth cambió la sesión al nuevo usuario — necesitamos restaurar
-          // Lo hacemos cerrando sesión del nuevo y pidiendo al admin que reingrese
-          // O mejor: usamos una segunda instancia de Auth (no disponible fácilmente)
-          // Solución práctica: avisar y cerrar sesión para que el admin reingrese
+          notify('âœ“ Usuario ' + email + ' creado correctamente');
+          // Volver a loguear al admin automÃ¡ticamente
+          // Firebase Auth cambiÃ³ la sesiÃ³n al nuevo usuario â€” necesitamos restaurar
+          // Lo hacemos cerrando sesiÃ³n del nuevo y pidiendo al admin que reingrese
+          // O mejor: usamos una segunda instancia de Auth (no disponible fÃ¡cilmente)
+          // SoluciÃ³n prÃ¡ctica: avisar y cerrar sesiÃ³n para que el admin reingrese
           setTimeout(function() {
-            var msg = 'Usuario creado. Por seguridad de Firebase, necesitás volver a ingresar con tu cuenta de admin.';
-            if (confirm(msg + '\n\n¿Cerrar sesión ahora?')) {
+            var msg = 'Usuario creado. Por seguridad de Firebase, necesitÃ¡s volver a ingresar con tu cuenta de admin.';
+            if (confirm(msg + '\n\nÂ¿Cerrar sesiÃ³n ahora?')) {
               doLogout();
             }
           }, 800);
         })
         .catch(function(e) {
           var msg = e.code === 'auth/email-already-in-use'
-            ? 'Ese email ya existe en Firebase Auth. El usuario puede usar "Olvidé mi contraseña" para acceder.'
+            ? 'Ese email ya existe en Firebase Auth. El usuario puede usar "OlvidÃ© mi contraseÃ±a" para acceder.'
             : e.code === 'auth/weak-password'
-            ? 'La contraseña es muy débil. Usá al menos 6 caracteres.'
+            ? 'La contraseÃ±a es muy dÃ©bil. UsÃ¡ al menos 6 caracteres.'
             : 'Error al crear usuario: ' + (e.message||e.code);
           notify(msg);
         });
@@ -9420,7 +9556,7 @@ function guardarNuevoGenerico() {
 
   } else if (tipo === 'servicio') {
     var numSv = obj.num || ('SV-' + String((window._servData||[]).length + 1).padStart(4,'0'));
-    guardarServicio({ numero:numSv, cliente:obj.cli, descripcion:obj.desc, tecnico:obj.tec||'Sin asignar', fecha:obj.fecha||new Date().toISOString().split('T')[0], garantia:obj.garantia||'—', estado:obj.estado||'En curso' });
+    guardarServicio({ numero:numSv, cliente:obj.cli, descripcion:obj.desc, tecnico:obj.tec||'Sin asignar', fecha:obj.fecha||new Date().toISOString().split('T')[0], garantia:obj.garantia||'â€”', estado:obj.estado||'En curso' });
 
   } else if (tipo === 'evento') {
     guardarEvento({ fecha:obj.f, hora:obj.h, descripcion:obj.desc, cliente:obj.cli, empleado:obj.emp, tipo:obj.tipo, estado:'pendiente' });
@@ -9446,7 +9582,7 @@ function guardarNuevoGenerico() {
         : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/ordenes'), datos));
       promesa.then(function(){ notify(fbKey ? 'Orden actualizada' : 'Orden creada'); })
              .catch(function(e){ notify('Error: '+e.message); });
-    } else { notify('Sin conexión'); }
+    } else { notify('Sin conexiÃ³n'); }
 
   } else {
     notify('Registro guardado');
@@ -9464,11 +9600,11 @@ function guardarTipoCambio(btn) {
     actualizacionAuto:  (document.getElementById('cfg-tc-auto')||{}).value || 'manual',
     actualizadoManualEn: Date.now()
   };
-  window.TIPO_CAMBIO_CONFIG = datos; // caché en memoria para uso inmediato en ventas/presupuestos
+  window.TIPO_CAMBIO_CONFIG = datos; // cachÃ© en memoria para uso inmediato en ventas/presupuestos
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos)
-      .then(function(){ notify('✓ Tipo de cambio guardado'); });
-  } else { notify('Sin conexión'); }
+      .then(function(){ notify('âœ“ Tipo de cambio guardado'); });
+  } else { notify('Sin conexiÃ³n'); }
   var orig = btn.innerHTML;
   btn.innerHTML = '<i class="ti ti-check"></i> Guardado'; btn.disabled=true;
   setTimeout(function(){ btn.innerHTML=orig; btn.disabled=false; }, 2000);
@@ -9509,30 +9645,30 @@ function actualizarDolarAPI(silencioso, _esReintento) {
         fuenteFecha: oficial ? oficial.fechaActualizacion : ''
       };
       window.TIPO_CAMBIO_CONFIG = datos;
-      if (!window.fbDB) { if (!silencioso) notify('Cotización obtenida pero sin conexión a Firebase — no se guardó'); return; }
+      if (!window.fbDB) { if (!silencioso) notify('CotizaciÃ³n obtenida pero sin conexiÃ³n a Firebase â€” no se guardÃ³'); return; }
 
       window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos)
         .then(function() {
           var lblEl = document.getElementById('cfg-tc-actualizado');
           if (lblEl) lblEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-          if (!silencioso) notify('✓ Cotización actualizada — Oficial $'+datos.oficial+' · Blue $'+datos.blue+' · MEP $'+datos.mep);
+          if (!silencioso) notify('âœ“ CotizaciÃ³n actualizada â€” Oficial $'+datos.oficial+' Â· Blue $'+datos.blue+' Â· MEP $'+datos.mep);
         })
         .catch(function(e) {
           console.error('[dolarAPI] Error guardando en Firebase:', e);
-          if (!silencioso) notify('Se obtuvo la cotización pero no se pudo guardar en Firebase: ' + e.message);
+          if (!silencioso) notify('Se obtuvo la cotizaciÃ³n pero no se pudo guardar en Firebase: ' + e.message);
         });
     })
     .catch(function(e) {
       if (timeoutId) clearTimeout(timeoutId);
       console.error('[dolarAPI] Error al consultar dolarapi.com:', e);
-      // Un solo reintento automático silencioso antes de mostrar el error al usuario.
+      // Un solo reintento automÃ¡tico silencioso antes de mostrar el error al usuario.
       if (!_esReintento) { setTimeout(function(){ actualizarDolarAPI(silencioso, true); }, 1200); return; }
       if (silencioso) return;
       var msg;
-      if (e.name === 'AbortError') msg = 'dolarapi.com tardó demasiado en responder (timeout) — probá de nuevo';
-      else if (!navigator.onLine) msg = 'Tu dispositivo está sin conexión a internet';
-      else if (e.message && e.message.indexOf('http_') === 0) msg = 'dolarapi.com respondió con error (' + e.message.replace('http_','') + ') — puede estar caído, probá en unos minutos';
-      else msg = 'No se pudo conectar con dolarapi.com (' + (e.message||'error de red') + ') — si tenés internet, puede ser un bloqueo de red local';
+      if (e.name === 'AbortError') msg = 'dolarapi.com tardÃ³ demasiado en responder (timeout) â€” probÃ¡ de nuevo';
+      else if (!navigator.onLine) msg = 'Tu dispositivo estÃ¡ sin conexiÃ³n a internet';
+      else if (e.message && e.message.indexOf('http_') === 0) msg = 'dolarapi.com respondiÃ³ con error (' + e.message.replace('http_','') + ') â€” puede estar caÃ­do, probÃ¡ en unos minutos';
+      else msg = 'No se pudo conectar con dolarapi.com (' + (e.message||'error de red') + ') â€” si tenÃ©s internet, puede ser un bloqueo de red local';
       notify(msg);
     })
     .finally(function() {
@@ -9549,7 +9685,7 @@ function chequearActualizacionAutoDolar() {
     var ultima = d.actualizadoApiEn || 0;
     var unDiaMs = 24*60*60*1000;
     if (Date.now() - ultima > unDiaMs) {
-      actualizarDolarAPI(true); // silencioso, sin notificación molesta
+      actualizarDolarAPI(true); // silencioso, sin notificaciÃ³n molesta
     }
   });
 }
@@ -9561,26 +9697,26 @@ function guardarPreferenciasSistema(btn) {
   };
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB,'sisventas/config/preferencias'), datos)
-      .then(function(){ notify('✓ Preferencias guardadas'); });
-  } else { notify('Sin conexión'); }
+      .then(function(){ notify('âœ“ Preferencias guardadas'); });
+  } else { notify('Sin conexiÃ³n'); }
   var orig = btn.innerHTML;
   btn.innerHTML = '<i class="ti ti-check"></i> Guardado'; btn.disabled=true;
   setTimeout(function(){ btn.innerHTML=orig; btn.disabled=false; }, 2000);
 }
 function guardarAlicuotaIVA(inputId, clave) {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var valor = parseFloat((document.getElementById(inputId)||{}).value) || 0;
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/impuestos')).then(function(snap) {
     var actual = snap.val() || {};
     actual[clave] = valor;
     window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/impuestos'), actual)
-      .then(function(){ notify('✓ Alícuota guardada: ' + valor + '%'); })
+      .then(function(){ notify('âœ“ AlÃ­cuota guardada: ' + valor + '%'); })
       .catch(function(e){ notify('Error: '+e.message); });
   });
 }
 
 function guardarImpuestosGenerales() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var datos = {
     ingresosBrutos:      parseFloat((document.getElementById('imp-ingbrutos')||{}).value) || 0,
     percepcionIva:       parseFloat((document.getElementById('imp-percepcion')||{}).value) || 0,
@@ -9591,7 +9727,7 @@ function guardarImpuestosGenerales() {
     var actual = snap.val() || {};
     Object.assign(actual, datos);
     window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/impuestos'), actual)
-      .then(function(){ notify('✓ Impuestos guardados'); })
+      .then(function(){ notify('âœ“ Impuestos guardados'); })
       .catch(function(e){ notify('Error: '+e.message); });
   });
 }
@@ -9616,7 +9752,7 @@ function guardarConfiguracion(btn) {
   btn.innerHTML = '<i class="ti ti-check"></i> Guardado';
   btn.disabled = true;
   setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2000);
-  notify('Configuración guardada');
+  notify('ConfiguraciÃ³n guardada');
 }
 
 function cargarConfigGeneral() {
@@ -9688,14 +9824,14 @@ function guardarLogoEmpresa() {
     window.logoEmpresaUrl = base64;
 
     var onOk = function() {
-      if (status) status.textContent = 'Logo guardado ✓';
+      if (status) status.textContent = 'Logo guardado âœ“';
       var saveBtn = document.getElementById('cfg-logo-save-btn');
       var delBtn  = document.getElementById('cfg-logo-delete-btn');
       var img     = document.getElementById('cfg-logo-img');
       if (saveBtn) saveBtn.style.display = 'none';
       if (delBtn)  delBtn.style.display  = '';
       if (img)     img.style.opacity     = '1';
-      notify('Logo guardado ✓');
+      notify('Logo guardado âœ“');
     };
 
     if (window.fbDB && window.fbSet && window.fbRef) {
@@ -9720,7 +9856,7 @@ function guardarLogoEmpresa() {
 }
 
 function eliminarLogoEmpresa() {
-  if (!confirm('¿Eliminar el logo?')) return;
+  if (!confirm('Â¿Eliminar el logo?')) return;
   window.logoEmpresaUrl = null;
   var img = document.getElementById('cfg-logo-img');
   var ph  = document.getElementById('cfg-logo-placeholder');
@@ -9773,7 +9909,7 @@ function guardarDatosEmpresa(btn) {
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB,'sisventas/config/empresa'), datos)
       .then(function(){ notify('Datos de la empresa guardados'); });
-  } else { notify('Sin conexión'); }
+  } else { notify('Sin conexiÃ³n'); }
   var orig = btn.innerHTML;
   btn.innerHTML = '<i class="ti ti-check"></i> Guardado'; btn.disabled=true;
   setTimeout(function(){ btn.innerHTML=orig; btn.disabled=false; }, 2000);
@@ -9786,10 +9922,10 @@ function abrirPortalProveedor(fbKey) {
     var url = p.web.startsWith('http') ? p.web : 'https://' + p.web;
     if (p.usuario || p.password) {
       // Copiar credenciales al portapapeles sin mostrarlas en pantalla
-      var creds = 'Usuario: ' + (p.usuario||'—') + '\nContraseña: ' + (p.password||'—');
+      var creds = 'Usuario: ' + (p.usuario||'â€”') + '\nContraseÃ±a: ' + (p.password||'â€”');
       if (navigator.clipboard) {
         navigator.clipboard.writeText(creds).then(function(){
-          notify('Credenciales copiadas al portapapeles · Abriendo portal...');
+          notify('Credenciales copiadas al portapapeles Â· Abriendo portal...');
           setTimeout(function(){ window.open(url, '_blank'); }, 800);
         });
       } else {
@@ -9800,7 +9936,7 @@ function abrirPortalProveedor(fbKey) {
     window.open(url, '_blank');
   }, { onlyOnce: true });
 }
-// ÓRDENES DE COMPRA
+// Ã“RDENES DE COMPRA
 
 var ordenesData = [];
 
@@ -9822,7 +9958,7 @@ function renderOrdenesFiltradas() {
   var filtroEstado = (document.getElementById('oc-filtro-estado')||{}).value || '';
   var lista = filtroEstado ? ordenesData.filter(function(o){ return o.estado === filtroEstado; }) : ordenesData;
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin órdenes de compra</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin Ã³rdenes de compra</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(o) {
@@ -9832,12 +9968,12 @@ function renderOrdenesFiltradas() {
       recibida:  '<span class="badge b-green">Recibida</span>',
       cancelada: '<span class="badge b-red">Cancelada</span>'
     }[o.estado] || '<span class="badge b-blue">'+escapeHTML(o.estado||'')+'</span>';
-    var fecha = o.fecha ? o.fecha.split('-').reverse().join('/') : '—';
+    var fecha = o.fecha ? o.fecha.split('-').reverse().join('/') : 'â€”';
     return '<tr>' +
-      '<td style="font-family:monospace;font-size:12px;font-weight:500">' + escapeHTML(o.numero||'—') + '</td>' +
-      '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(o.proveedor||'—') + '</td>' +
-      '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(o.descripcion||'—') + '</td>' +
-      '<td class="tr">' + (o.cantidad||'—') + '</td>' +
+      '<td style="font-family:monospace;font-size:12px;font-weight:500">' + escapeHTML(o.numero||'â€”') + '</td>' +
+      '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(o.proveedor||'â€”') + '</td>' +
+      '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(o.descripcion||'â€”') + '</td>' +
+      '<td class="tr">' + (o.cantidad||'â€”') + '</td>' +
       '<td class="tr;font-weight:500">$' + (parseFloat(o.monto)||0).toLocaleString('es-AR') + '</td>' +
       '<td style="color:var(--text3);font-size:12px">' + fecha + '</td>' +
       '<td class="tr">' + estBadge + '</td>' +
@@ -9850,11 +9986,11 @@ function renderOrdenesFiltradas() {
 function renderDashOrdenes() {
   var mesActual = new Date().toISOString().slice(0,7); // YYYY-MM
   var delMes = ordenesData.filter(function(o){ return (o.fecha||'').slice(0,7) === mesActual; });
-  // Métricas
+  // MÃ©tricas
   var totalMes  = delMes.reduce(function(s,o){ return s+(parseFloat(o.monto)||0); }, 0);
   var cantMes   = delMes.length;
   var pendMes   = delMes.filter(function(o){ return o.estado === 'enviada'; }).length;
-  // Proveedores únicos con compras en el mes
+  // Proveedores Ãºnicos con compras en el mes
   var provsUnicos = [...new Set(delMes.map(function(o){ return o.proveedor; }).filter(Boolean))];
   var el = function(id){ return document.getElementById(id); };
   if (el('oc-met-total'))   el('oc-met-total').textContent   = '$' + Math.round(totalMes).toLocaleString('es-AR');
@@ -9865,7 +10001,7 @@ function renderDashOrdenes() {
   var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   var d = new Date();
   if (el('oc-mes-label')) el('oc-mes-label').textContent = meses[d.getMonth()] + ' ' + d.getFullYear();
-  // Proveedores top: agrupar por proveedor, sumar montos y contar órdenes
+  // Proveedores top: agrupar por proveedor, sumar montos y contar Ã³rdenes
   var porProv = {};
   delMes.forEach(function(o) {
     var prov = o.proveedor || '(Sin proveedor)';
@@ -9878,7 +10014,7 @@ function renderDashOrdenes() {
   var contenedor = el('oc-provs-top');
   if (!contenedor) return;
   if (!topProvs.length) {
-    contenedor.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin órdenes en el mes</div>';
+    contenedor.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin Ã³rdenes en el mes</div>';
     return;
   }
   var maxMonto = topProvs[0][1].monto || 1;
@@ -9900,8 +10036,8 @@ function renderDashOrdenes() {
         '</div>' +
         '<div style="font-size:11px;color:var(--text3)">' +
           datos.cant + ' orden'+(datos.cant>1?'es':'') +
-          (recibidas ? ' · <span style="color:var(--green)">'+recibidas+' recibida'+(recibidas>1?'s':'')+'</span>' : '') +
-          (pendients ? ' · <span style="color:var(--amber)">'+pendients+' pendiente'+(pendients>1?'s':'')+'</span>' : '') +
+          (recibidas ? ' Â· <span style="color:var(--green)">'+recibidas+' recibida'+(recibidas>1?'s':'')+'</span>' : '') +
+          (pendients ? ' Â· <span style="color:var(--amber)">'+pendients+' pendiente'+(pendients>1?'s':'')+'</span>' : '') +
         '</div>' +
       '</div>' +
     '</div>';
@@ -9925,10 +10061,10 @@ function editarOrden(fbKey) {
     }, fbKey);
   }, { onlyOnce: true });
 }
-// MÓDULO EQUIPOS INSTALADOS
+// MÃ“DULO EQUIPOS INSTALADOS
 
 var equiposData   = [];
-var equipoActual  = null;  // fbKey del equipo en edición
+var equipoActual  = null;  // fbKey del equipo en ediciÃ³n
 var relFotosTemp  = [];    // fotos del relevamiento pendientes de subir
 var eqFotosTemp   = [];    // fotos del equipo pendientes de subir
 var scannerStream = null;
@@ -9939,17 +10075,17 @@ var relTipoSel    = '';
 var CHECKLISTS_EQ = {
   instalacion: [
     'Equipo encendido y probado',
-    'Sensores/cámaras correctamente posicionados',
+    'Sensores/cÃ¡maras correctamente posicionados',
     'Cableado ordenado y seguro',
     'Zona de cobertura verificada',
-    'Comunicación con central OK',
+    'ComunicaciÃ³n con central OK',
     'App/acceso remoto configurado',
-    'Usuario y contraseña entregados al cliente',
+    'Usuario y contraseÃ±a entregados al cliente',
     'Cliente capacitado en el uso',
   ],
   mantenimiento: [
     'Limpieza de equipo realizada',
-    'Batería/alimentación verificada',
+    'BaterÃ­a/alimentaciÃ³n verificada',
     'Firmware actualizado',
     'Sensores testeados',
     'Comunicaciones verificadas',
@@ -9958,21 +10094,21 @@ var CHECKLISTS_EQ = {
   ],
   reparacion: [
     'Falla identificada y documentada',
-    'Repuesto instalado / reparación realizada',
-    'Equipo probado post-reparación',
+    'Repuesto instalado / reparaciÃ³n realizada',
+    'Equipo probado post-reparaciÃ³n',
     'Causas de la falla evaluadas',
     'Medidas preventivas aplicadas',
   ],
   relevamiento: [
     'Fotos del estado actual tomadas',
-    'N° de serie registrado',
-    'Instalación inspeccionada',
+    'NÂ° de serie registrado',
+    'InstalaciÃ³n inspeccionada',
     'Observaciones anotadas',
-    'Próximo mantenimiento sugerido',
+    'PrÃ³ximo mantenimiento sugerido',
   ],
   garantia: [
-    'Falla cubierta por garantía confirmada',
-    'Reposición / reparación realizada',
+    'Falla cubierta por garantÃ­a confirmada',
+    'ReposiciÃ³n / reparaciÃ³n realizada',
     'Equipo funcionando correctamente',
     'Cliente conforme',
   ],
@@ -9995,7 +10131,7 @@ function fbCargarEquipos() {
   });
 }
 
-// Métricas
+// MÃ©tricas
 function actualizarMetricasEquipos() {
   var hoy = new Date().toISOString().split('T')[0];
   var conGar = equiposData.filter(function(e){
@@ -10032,16 +10168,17 @@ function renderEquiposCards() {
   if (!grid) return;
   if (!lista.length) {
     grid.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px;grid-column:1/-1;font-size:13px">' +
-      (busq||cat||est ? 'Sin resultados para la búsqueda' : 'Sin equipos registrados. Tocá + Registrar equipo para comenzar.') + '</div>';
+      (busq||cat||est ? 'Sin resultados para la bÃºsqueda' : 'Sin equipos registrados. TocÃ¡ + Registrar equipo para comenzar.') + '</div>';
     return;
   }
-  var catColors = {Alarmas:'#ef4444',Cámaras:'#3b82f6',Domótica:'#8b5cf6',Redes:'#06b6d4','UPS / Solar':'#f59e0b','Control de acceso':'#10b981',Otro:'#6b7280'};
+  var catColors = {Alarmas:'#ef4444','Camaras':'#3b82f6','Domotica':'#8b5cf6',Redes:'#06b6d4','UPS / Solar':'#f59e0b','Control de acceso':'#10b981',Otro:'#6b7280'};
   grid.innerHTML = lista.map(function(e) {
-    var color  = catColors[e.categoria] || '#6b7280';
+    var catKey = String(e.categoria||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    var color  = catColors[e.categoria] || catColors[catKey] || '#6b7280';
     var estMap = {operativo:{txt:'Operativo',cls:'green'},alerta:{txt:'Con alerta',cls:'amber'},mantenimiento:{txt:'En mant.',cls:'blue'},baja:{txt:'De baja',cls:'red'}};
-    var est    = estMap[e.estado] || {txt:'—',cls:'text3'};
-    // Fecha vencimiento garantía
-    var garTxt = '—';
+    var est    = estMap[e.estado] || {txt:'â€”',cls:'text3'};
+    // Fecha vencimiento garantÃ­a
+    var garTxt = 'â€”';
     if (e.fechaInstalacion && e.garantiaMeses && parseInt(e.garantiaMeses) > 0) {
       var v = new Date(e.fechaInstalacion);
       v.setMonth(v.getMonth() + parseInt(e.garantiaMeses));
@@ -10056,10 +10193,10 @@ function renderEquiposCards() {
           '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px">'+escapeHTML(e.descripcion||e.modelo||'Sin nombre')+'</div>' +
           '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(e.modelo||'')+'</div>' +
         '</div>' +
-        '<span class="eq-cat-badge" style="background:'+color+'22;color:'+color+'">'+escapeHTML(e.categoria||'—')+'</span>' +
+        '<span class="eq-cat-badge" style="background:'+color+'22;color:'+color+'">'+escapeHTML(e.categoria||'â€”')+'</span>' +
       '</div>' +
       '<div class="eq-card-row"><i class="ti ti-user"></i>'+escapeHTML(e.cliente||'Sin cliente')+'</div>' +
-      '<div class="eq-card-row"><i class="ti ti-map-pin"></i>'+escapeHTML(e.dir||'Sin dirección')+'</div>' +
+      '<div class="eq-card-row"><i class="ti ti-map-pin"></i>'+escapeHTML(e.dir||'Sin direcciÃ³n')+'</div>' +
       (e.serie ? '<div class="eq-card-row"><i class="ti ti-barcode"></i>'+escapeHTML(e.serie)+'</div>' : '') +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border)">' +
         '<div style="display:flex;align-items:center;gap:5px;font-size:12px">' +
@@ -10100,10 +10237,10 @@ function abrirFichaEquipo(fbKey) {
   _v('eq-f-estado',    eq.estado||'operativo');
   _v('eq-f-venta',     eq.venta||'');
   _v('eq-f-obs',       eq.obs||'');
-  // Llenar select técnico
+  // Llenar select tÃ©cnico
   var selTec = document.getElementById('eq-f-tecnico');
   if (selTec) {
-    var opts = '<option value="">— Seleccionar —</option>';
+    var opts = '<option value="">â€” Seleccionar â€”</option>';
     Object.values(empData||{}).forEach(function(e){ if(e.activo!==false) opts+='<option value="'+escapeHTML(e.nombre)+'">'+escapeHTML(e.nombre)+'</option>'; });
     selTec.innerHTML = opts;
     selTec.value = eq.tecnico||'';
@@ -10130,7 +10267,7 @@ function abrirNuevoEquipo() {
   renderHistorialEquipo({});
   var selTec = document.getElementById('eq-f-tecnico');
   if (selTec) {
-    var opts = '<option value="">— Seleccionar —</option>';
+    var opts = '<option value="">â€” Seleccionar â€”</option>';
     Object.values(empData||{}).forEach(function(e){ if(e.activo!==false) opts+='<option>'+escapeHTML(e.nombre)+'</option>'; });
     selTec.innerHTML = opts;
   }
@@ -10145,7 +10282,7 @@ function volverListaEquipos() {
 }
 
 function guardarEquipo() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var g = function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
   var datos = {
     categoria:       g('eq-f-cat'),
@@ -10162,7 +10299,7 @@ function guardarEquipo() {
     venta:           g('eq-f-venta'),
     obs:             g('eq-f-obs'),
   };
-  if (!datos.descripcion && !datos.modelo) { notify('Ingresá descripción o modelo'); return; }
+  if (!datos.descripcion && !datos.modelo) { notify('IngresÃ¡ descripciÃ³n o modelo'); return; }
   var promesa = equipoActual
     ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/equipos/'+equipoActual), datos)
     : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/equipos'), datos).then(function(ref){ equipoActual = ref.key; return ref; }));
@@ -10200,7 +10337,7 @@ function renderFotosEquipo(fotosObj) {
   if (!grid) return;
   var fotos = Object.values(fotosObj||{});
   if (!fotos.length) {
-    grid.innerHTML = '<div class="foto-placeholder" style="color:var(--text3);font-size:12px;text-align:center;padding:20px;grid-column:1/-1">Sin fotos. Tocá el botón para agregar.</div>';
+    grid.innerHTML = '<div class="foto-placeholder" style="color:var(--text3);font-size:12px;text-align:center;padding:20px;grid-column:1/-1">Sin fotos. TocÃ¡ el botÃ³n para agregar.</div>';
     return;
   }
   grid.innerHTML = fotos.map(function(f){
@@ -10225,18 +10362,18 @@ function subirFotosEquipo() {
   });
 }
 function abrirRelevamiento() {
-  if (!equipoActual) { notify('Guardá el equipo primero'); return; }
+  if (!equipoActual) { notify('GuardÃ¡ el equipo primero'); return; }
   var eq = equiposData.find(function(e){ return e.fbKey === equipoActual; });
   relFotosTemp = [];
   relTipoSel   = '';
   relEstadoSel = eq ? (eq.estado||'operativo') : 'operativo';
-  document.getElementById('rel-equipo-nombre').textContent  = eq ? (eq.descripcion||eq.modelo||'—') : '—';
-  document.getElementById('rel-equipo-cliente').textContent = eq ? (eq.cliente||'—') : '—';
-  document.getElementById('rel-equipo-serie').textContent   = eq ? ('N° serie: '+(eq.serie||'—')) : '—';
+  document.getElementById('rel-equipo-nombre').textContent  = eq ? (eq.descripcion||eq.modelo||'â€”') : 'â€”';
+  document.getElementById('rel-equipo-cliente').textContent = eq ? (eq.cliente||'â€”') : 'â€”';
+  document.getElementById('rel-equipo-serie').textContent   = eq ? ('NÂ° serie: '+(eq.serie||'â€”')) : 'â€”';
   document.getElementById('rel-trabajo').value = '';
   document.getElementById('rel-prox-visita').value = '';
   document.getElementById('rel-fotos-grid').innerHTML = '';
-  document.getElementById('rel-checklist').innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:12px">Seleccioná un tipo de intervención</div>';
+  document.getElementById('rel-checklist').innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:12px">SeleccionÃ¡ un tipo de intervenciÃ³n</div>';
   document.querySelectorAll('.btn-tipo-rel').forEach(function(b){ b.classList.remove('activo'); });
   document.querySelectorAll('.btn-estado-rel').forEach(function(b){
     b.style.background = 'var(--bg3)'; b.style.border = '1px solid var(--border)'; b.style.color = 'var(--text)';
@@ -10287,10 +10424,10 @@ function agregarFotosRel(input) {
 }
 
 function guardarRelevamiento() {
-  if (!equipoActual || !window.fbDB) { notify('Sin conexión'); return; }
-  if (!relTipoSel) { notify('Seleccioná el tipo de intervención'); return; }
+  if (!equipoActual || !window.fbDB) { notify('Sin conexiÃ³n'); return; }
+  if (!relTipoSel) { notify('SeleccionÃ¡ el tipo de intervenciÃ³n'); return; }
   var trabajo = document.getElementById('rel-trabajo').value.trim();
-  if (!trabajo) { notify('Describí el trabajo realizado'); return; }
+  if (!trabajo) { notify('DescribÃ­ el trabajo realizado'); return; }
   // Recopilar checklist
   var checks = {};
   document.querySelectorAll('#rel-checklist .check-item').forEach(function(el, i){
@@ -10320,7 +10457,7 @@ function guardarRelevamiento() {
         });
       });
     }
-    notify('Relevamiento guardado ✓');
+    notify('Relevamiento guardado âœ“');
     cerrarRelevamiento();
     // Recargar ficha
     setTimeout(function(){ abrirFichaEquipo(equipoActual); }, 800);
@@ -10338,29 +10475,29 @@ function renderHistorialEquipo(intervObj) {
     cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Sin intervenciones registradas</div>';
     return;
   }
-  var tipoIcon = {instalacion:'📦',mantenimiento:'🔧',reparacion:'🛠️',relevamiento:'🔍',garantia:'🛡️',otro:'📋'};
+  var tipoIcon = {instalacion:'ðŸ“¦',mantenimiento:'ðŸ”§',reparacion:'ðŸ› ï¸',relevamiento:'ðŸ”',garantia:'ðŸ›¡ï¸',otro:'ðŸ“‹'};
   var estClr   = {operativo:'var(--green)',alerta:'var(--amber)',mantenimiento:'var(--blue)',baja:'var(--red)'};
   cont.innerHTML = lista.map(function(iv){
-    var fecha = iv.fecha ? new Date(iv.fecha).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    var fecha = iv.fecha ? new Date(iv.fecha).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : 'â€”';
     var checks = iv.checks ? Object.values(iv.checks) : [];
     var ok = checks.filter(function(c){ return c.ok; }).length;
     var cantFotos = iv.fotos ? Object.keys(iv.fotos).length : 0;
     return '<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">' +
         '<div style="display:flex;align-items:center;gap:8px">' +
-          '<span style="font-size:18px">'+(tipoIcon[iv.tipo]||'📋')+'</span>' +
+          '<span style="font-size:18px">'+(tipoIcon[iv.tipo]||'ðŸ“‹')+'</span>' +
           '<div>' +
-            '<div style="font-size:13px;font-weight:500">'+(iv.tipo?iv.tipo.charAt(0).toUpperCase()+iv.tipo.slice(1):'—')+'</div>' +
-            '<div style="font-size:11px;color:var(--text3)">'+(iv.tecnico||'—')+' · '+fecha+'</div>' +
+            '<div style="font-size:13px;font-weight:500">'+(iv.tipo?iv.tipo.charAt(0).toUpperCase()+iv.tipo.slice(1):'â€”')+'</div>' +
+            '<div style="font-size:11px;color:var(--text3)">'+(iv.tecnico||'â€”')+' Â· '+fecha+'</div>' +
           '</div>' +
         '</div>' +
         '<span style="font-size:11px;font-weight:600;color:'+(estClr[iv.estado]||'var(--text3)')+'">'+((iv.estado||'').charAt(0).toUpperCase()+(iv.estado||'').slice(1))+'</span>' +
       '</div>' +
       '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">'+escapeHTML(iv.trabajo||'')+'</div>' +
       '<div style="display:flex;gap:12px;font-size:11px;color:var(--text3)">' +
-        (checks.length ? '<span>✓ '+ok+'/'+checks.length+' checks</span>' : '') +
-        (cantFotos ? '<span>📷 '+cantFotos+' foto'+(cantFotos>1?'s':'')+'</span>' : '') +
-        (iv.proxVisita ? '<span>📅 Próx: '+iv.proxVisita.split('-').reverse().join('/')+'</span>' : '') +
+        (checks.length ? '<span>âœ“ '+ok+'/'+checks.length+' checks</span>' : '') +
+        (cantFotos ? '<span>ðŸ“· '+cantFotos+' foto'+(cantFotos>1?'s':'')+'</span>' : '') +
+        (iv.proxVisita ? '<span>ðŸ“… PrÃ³x: '+iv.proxVisita.split('-').reverse().join('/')+'</span>' : '') +
       '</div>' +
     '</div>';
   }).join('');
@@ -10370,7 +10507,7 @@ function abrirScannerSerie(targetField) {
   var modal = document.getElementById('modal-scanner');
   if (!modal) return;
   modal.style.display = 'flex';
-  // Pedir acceso a cámara
+  // Pedir acceso a cÃ¡mara
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} } })
     .then(function(stream) {
       scannerStream = stream;
@@ -10378,7 +10515,7 @@ function abrirScannerSerie(targetField) {
       video.srcObject = stream;
     })
     .catch(function(err) {
-      notify('No se pudo acceder a la cámara: ' + err.message);
+      notify('No se pudo acceder a la cÃ¡mara: ' + err.message);
       cerrarScanner();
       // Fallback: prompt manual
       capturarManual();
@@ -10398,14 +10535,14 @@ function capturarFrame() {
   canvas.height = video.videoHeight;
   var ctx = canvas.getContext('2d');
   ctx.drawImage(video, 0, 0);
-  // Recortar zona central (el rectángulo de escaneo)
+  // Recortar zona central (el rectÃ¡ngulo de escaneo)
   var x = Math.floor(canvas.width/2 - 140);
   var y = Math.floor(canvas.height/2 - 60);
   var imgData = ctx.getImageData(x, y, 280, 120);
   // Mostrar la imagen capturada brevemente
   var resultado = document.getElementById('scanner-resultado');
-  resultado.textContent = '📸 Imagen capturada. Usá la entrada manual para escribir el N° de serie visto.';
-  // ofrecemos el resultado visual para que el técnico lo tipee
+  resultado.textContent = 'ðŸ“¸ Imagen capturada. UsÃ¡ la entrada manual para escribir el NÂ° de serie visto.';
+  // ofrecemos el resultado visual para que el tÃ©cnico lo tipee
   setTimeout(function() {
     capturarManual();
   }, 1500);
@@ -10413,11 +10550,11 @@ function capturarFrame() {
 
 function capturarManual() {
   cerrarScanner();
-  var serie = prompt('Ingresá el N° de serie:');
+  var serie = prompt('IngresÃ¡ el NÂ° de serie:');
   if (serie && serie.trim()) {
     var campo = document.getElementById(scannerTargetField);
     if (campo) { campo.value = serie.trim(); campo.focus(); }
-    notify('N° de serie cargado: ' + serie.trim());
+    notify('NÂ° de serie cargado: ' + serie.trim());
   }
 }
 
@@ -10443,11 +10580,11 @@ function editarProveedor(fbKey) {
 function cerrarCaja() {
   var saldoTexto = (document.getElementById('caja-saldo')||{}).textContent || '$0';
   var saldoCalculado = parseFloat(normalizarNumeroExcel(saldoTexto)) || 0;
-  const saldo = prompt('Saldo calculado por el sistema: $' + Math.round(saldoCalculado).toLocaleString('es-AR') + '\n\nIngresá el saldo real contado en caja ($):');
+  const saldo = prompt('Saldo calculado por el sistema: $' + Math.round(saldoCalculado).toLocaleString('es-AR') + '\n\nIngresÃ¡ el saldo real contado en caja ($):');
   if (saldo === null) return;
   const real = (function(s){ return parseFloat(String(s).replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,''))||0; })(saldo);
   const diff = real - saldoCalculado;
-  if (diff === 0) notify('✓ Caja cerrada sin diferencias');
+  if (diff === 0) notify('âœ“ Caja cerrada sin diferencias');
   else notify('Caja cerrada. ' + (diff > 0 ? 'Sobrante' : 'Faltante') + ': $' + Math.abs(diff).toLocaleString('es-AR'));
 
   if (window.fbDB) {
@@ -10459,21 +10596,21 @@ function cerrarCaja() {
   }
 }
 function registrarMovCaja() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var tipo = document.getElementById('cm-tipo').value;
   var monto = getMontoRaw(document.getElementById('cm-monto'));
   var concepto = document.getElementById('cm-concepto').value.trim();
   var medio = document.getElementById('cm-medio').value;
 
-  if (!monto) { notify('Ingresá el monto'); return; }
-  if (!concepto) { notify('Ingresá el concepto'); return; }
+  if (!monto) { notify('IngresÃ¡ el monto'); return; }
+  if (!concepto) { notify('IngresÃ¡ el concepto'); return; }
 
   var hoy = new Date().toISOString().split('T')[0];
   var esAdmin = (currentRole === 'admin' || currentRole === 'administrativo');
   var usuarioKey = (currentUser||'sinusuario').replace(/[.\#\$\[\]\/]/g,'_');
   // Mismo criterio de scope que fbCargarCaja: admin/administrativo a la caja
-  // consolidada bajo su propia clave de usuario (se suma con los demás al leer);
-  // vendedor/técnico siempre a su propia sub-rama.
+  // consolidada bajo su propia clave de usuario (se suma con los demÃ¡s al leer);
+  // vendedor/tÃ©cnico siempre a su propia sub-rama.
   var basePath = 'sisventas/caja/' + hoy + '/' + usuarioKey;
 
   window.fbGet(window.fbRef(window.fbDB, basePath)).then(function(snap) {
@@ -10494,7 +10631,7 @@ function registrarMovCaja() {
       var mov = { tipo, monto, concepto, medio, usuario: currentUser||'', ts: Date.now(), hora: new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) };
       window.fbPush(window.fbRef(window.fbDB, basePath + '_movs'), mov);
 
-      notify('✓ Movimiento de caja registrado');
+      notify('âœ“ Movimiento de caja registrado');
       _hide('caja-mov-form');
       _setMontoInput(document.getElementById('cm-monto'), 0);
       document.getElementById('cm-concepto').value = '';
@@ -10536,9 +10673,9 @@ function previewFotoGastoRapido(input) {
 function guardarGastoRapido() {
   var monto = getMontoRaw(document.getElementById('gr-monto'));
   var desc  = document.getElementById('gr-descripcion').value.trim();
-  if (!desc)  { notify('Ingresá una descripción'); return; }
-  if (!monto) { notify('Ingresá el monto'); return; }
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!desc)  { notify('IngresÃ¡ una descripciÃ³n'); return; }
+  if (!monto) { notify('IngresÃ¡ el monto'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
 
   var pagueYo = document.getElementById('gr-pagado-yo').checked;
   var miEmpleado = null;
@@ -10555,7 +10692,7 @@ function guardarGastoRapido() {
     categoria:      document.getElementById('gr-categoria').value,
     descripcion:    desc,
     monto:          monto,
-    montoPagado:    pagueYo ? 0 : monto,  // si lo pagó un técnico, queda pendiente hasta reembolso
+    montoPagado:    pagueYo ? 0 : monto,  // si lo pagÃ³ un tÃ©cnico, queda pendiente hasta reembolso
     estado:         pagueYo ? 'pendiente' : 'pagado',
     medio:          document.getElementById('gr-medio').value,
     proveedor:      '',
@@ -10572,9 +10709,9 @@ function guardarGastoRapido() {
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), datos)
     .then(function() {
       if (miEmpleado) {
-        notify('✓ Gasto cargado · $'+monto.toLocaleString('es-AR')+' visible en tu cuenta corriente');
+        notify('âœ“ Gasto cargado Â· $'+monto.toLocaleString('es-AR')+' visible en tu cuenta corriente');
       } else {
-        notify('✓ Gasto cargado correctamente');
+        notify('âœ“ Gasto cargado correctamente');
       }
       cerrarGastoRapido();
     })
@@ -10593,10 +10730,10 @@ function limpiarCtaEmpSinSeleccion() {
     window._ctaEmpUnsubscribe = null;
   }
   ['ctaemp-base','ctaemp-total','ctaemp-haberes','ctaemp-adelantos'].forEach(function(id){
-    var el=document.getElementById(id); if(el) el.textContent='—';
+    var el=document.getElementById(id); if(el) el.textContent='â€”';
   });
   var tbody=document.getElementById('ctaemp-tbody');
-  if(tbody) tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Seleccioná un empleado</td></tr>';
+  if(tbody) tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">SeleccionÃ¡ un empleado</td></tr>';
   var pagosBody=document.getElementById('ctaemp-pagos-tbody');
   if(pagosBody) pagosBody.innerHTML='';
   var pagosResumen=document.getElementById('ctaemp-pagos-resumen');
@@ -10614,7 +10751,7 @@ function iniciarCtaEmp() {
   var lista = Object.values(empData || {}).filter(function(e){ return e.activo !== false; });
   var esAdmin = (currentRole === 'admin');
 
-  // 1) Por empleadoFbKey guardado en el usuario (método correcto)
+  // 1) Por empleadoFbKey guardado en el usuario (mÃ©todo correcto)
   // 2) Fallback: por email o nombre
   var usuActual = (window.usuariosData||[]).find(function(u){
     return (u.mail||'').toLowerCase() === (currentUserEmail||'').toLowerCase() ||
@@ -10638,7 +10775,7 @@ function iniciarCtaEmp() {
   }
 
   if (esAdmin) {
-    var opts = '<option value="">— Seleccionar —</option>';
+    var opts = '<option value="">â€” Seleccionar â€”</option>';
     lista.forEach(function(e) {
       var selected = propioEmp && (e.fbKey||e.id) === (propioEmp.fbKey||propioEmp.id) ? ' selected' : '';
       opts += '<option value="'+(e.fbKey||e.id)+'"'+selected+'>'+escapeHTML(e.nombre)+'</option>';
@@ -10652,7 +10789,7 @@ function iniciarCtaEmp() {
       limpiarCtaEmpSinSeleccion();
     }
   } else {
-    // Técnico/vendedor: solo su propia cuenta
+    // TÃ©cnico/vendedor: solo su propia cuenta
     if (propioEmp) {
       sel.innerHTML = '<option value="'+(propioEmp.fbKey||propioEmp.id)+'">'+escapeHTML(propioEmp.nombre)+'</option>';
       sel.value = propioEmp.fbKey || propioEmp.id;
@@ -10751,9 +10888,9 @@ function cargarCtaEmp(empFbKey) {
     return;
   }
   var limpia = ['ctaemp-base','ctaemp-haberes','ctaemp-adelantos','ctaemp-total'];
-  limpia.forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent='…'; });
+  limpia.forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent='â€¦'; });
   var tbodyLimpia = document.getElementById('ctaemp-tbody');
-  if (tbodyLimpia) tbodyLimpia.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Cargando…</td></tr>';
+  if (tbodyLimpia) tbodyLimpia.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Cargandoâ€¦</td></tr>';
   movsEmpData = [];
   var banner = document.getElementById('ctaemp-migracion-banner');
   if (banner) banner.remove();
@@ -10837,13 +10974,13 @@ function setCtaEmpPeriodo(tipo) {
   renderMovsEmp();
 }
 function irAVentaDesdeComision(ventaId) {
-  if (!ventaId) { notify('La comisión no tiene venta vinculada'); return; }
+  if (!ventaId) { notify('La comisiÃ³n no tiene venta vinculada'); return; }
   verDetalleVentaDesdeId(ventaId);
 }
 function renderComisionesDelMes(emp) {
   var card = document.getElementById('ctaemp-comision-card');
   if (!card) return;
-  if (emp.tipoEmpleado !== 'Vendedor a comisión') {
+  if (emp.tipoEmpleado !== 'Vendedor a comisiÃ³n') {
     card.style.display = 'none';
     return;
   }
@@ -10869,7 +11006,7 @@ function renderComisionesDelMes(emp) {
   });
 
   document.getElementById('ctaemp-com-total').textContent = '$' + Math.round(totalGenerado).toLocaleString('es-AR');
-  document.getElementById('ctaemp-com-cant').textContent = ventasDelVendedor.length + ' venta' + (ventasDelVendedor.length !== 1 ? 's' : '') + ' ' + mesCta + ' · ' + pct + '% de comisión';
+  document.getElementById('ctaemp-com-cant').textContent = ventasDelVendedor.length + ' venta' + (ventasDelVendedor.length !== 1 ? 's' : '') + ' ' + mesCta + ' Â· ' + pct + '% de comisiÃ³n';
   document.getElementById('ctaemp-com-cobrado').textContent = '$' + Math.round(totalCobrado).toLocaleString('es-AR');
   document.getElementById('ctaemp-com-pendiente').textContent = '$' + Math.round(totalPendiente).toLocaleString('es-AR');
 }
@@ -10932,23 +11069,23 @@ function _renderPagosRealizadosEmp(listaMovs, mes) {
   var pagos = _ctaEmpPagosRealizadosEnMes(listaMovs || [], mes || _ctaEmpPeriodoMes());
   card.style.display = '';
   if (!pagos.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:18px">Sin pagos registrados en este período</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:18px">Sin pagos registrados en este perÃ­odo</td></tr>';
     if (resumen) resumen.textContent = '0 pagos';
     return;
   }
   var total = pagos.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
-  if (resumen) resumen.textContent = pagos.length + ' pago' + (pagos.length!==1?'s':'') + ' · $' + Math.round(total).toLocaleString('es-AR');
+  if (resumen) resumen.textContent = pagos.length + ' pago' + (pagos.length!==1?'s':'') + ' Â· $' + Math.round(total).toLocaleString('es-AR');
   tbody.innerHTML = pagos.map(function(x){
     var compBtn = x.comprobante && x.comprobante.data
       ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();abrirComprobanteMovEmp(\''+x.mov.fbKey+'\','+x.idx+')" title="Ver comprobante"><i class="ti ti-paperclip" style="font-size:14px;color:var(--blue)"></i></button>'
-      : '<span style="color:var(--text3);font-size:11px">—</span>';
-    var concepto = x.concepto || ({sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',gasto_empresa:'Gasto empresa'}[x.mov.tipo] || x.mov.tipo || 'Movimiento');
+      : '<span style="color:var(--text3);font-size:11px">â€”</span>';
+    var concepto = x.concepto || ({sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'ComisiÃ³n',hextra:'H. extra',gasto_empresa:'Gasto empresa'}[x.mov.tipo] || x.mov.tipo || 'Movimiento');
     return '<tr>'+ 
-      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML((x.fecha||'').split('-').reverse().join('/')||'—')+'</td>'+ 
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML((x.fecha||'').split('-').reverse().join('/')||'â€”')+'</td>'+ 
       '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(concepto)+'</td>'+ 
       '<td class="tr" style="font-weight:600;color:var(--green)">$'+Math.round(x.monto).toLocaleString('es-AR')+'</td>'+ 
-      '<td>'+escapeHTML(x.medio||'—')+'</td>'+ 
-      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(x.usuario||'—')+'</td>'+ 
+      '<td>'+escapeHTML(x.medio||'â€”')+'</td>'+ 
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(x.usuario||'â€”')+'</td>'+ 
       '<td class="tr">'+compBtn+'</td>'+ 
     '</tr>';
   }).join('');
@@ -10960,7 +11097,7 @@ function abrirComprobanteMovEmp(movFbKey, idx) {
   var comp = pagos[idx] && pagos[idx].comprobante;
   if (!comp || !comp.data) { notify('Ese pago no tiene comprobante adjunto'); return; }
   var w = window.open('', '_blank');
-  if (!w) { notify('El navegador bloqueó la ventana del comprobante'); return; }
+  if (!w) { notify('El navegador bloqueÃ³ la ventana del comprobante'); return; }
   if ((comp.tipo||'').includes('pdf')) w.document.write('<iframe src="'+comp.data+'" style="border:0;width:100%;height:100vh"></iframe>');
   else w.document.write('<img src="'+comp.data+'" style="max-width:100%;height:auto;display:block;margin:0 auto;background:#111">');
 }
@@ -11083,22 +11220,22 @@ function renderMovsEmp() {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin movimientos registrados</td></tr>';
   } else {
     tbody.innerHTML = lista.map(function(m) {
-      var tipoLabel = {sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[m.tipo]||m.tipo;
+      var tipoLabel = {sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'ComisiÃ³n',hextra:'H. extra',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[m.tipo]||m.tipo;
       var tipoCls   = {sueldo:'b-blue',comision:'b-green',hextra:'b-green',adelanto:'b-red',transporte:'b-amber',materiales:'b-amber',gasto_empresa:'b-amber',otro:'b-blue'}[m.tipo]||'b-blue';
       var esEgreso  = ['adelanto'].includes(m.tipo);
       var montoColor = esEgreso ? 'var(--red)' : 'var(--green)';
       var estadoCalc = _movEmpEstadoCalculado(m);
       var estBadge  = {pendiente:'<span class="badge b-amber">Pendiente</span>',aprobado:'<span class="badge b-blue">Aprobado</span>',pagado_parcial:'<span class="badge b-amber">Pago parcial</span>',pagado:'<span class="badge b-green">Pagado</span>',rechazado:'<span class="badge b-red">Rechazado</span>',anulado:'<span class="badge b-red">Anulado</span>'}[estadoCalc]||('<span class="badge">'+estadoCalc+'</span>');
       var aprobBtn  = (_puedeAprobarMovEmp(m) && m.tipo === 'comision')
-        ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="event.stopPropagation();aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
-          '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
+        ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="event.stopPropagation();aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">âœ“ Aprobar</button>' +
+          '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">âœ— Rechazar</button>'
         : '';
-      var fotoBtn   = m.fotoUrl ? '<a href="'+m.fotoUrl+'" target="_blank" class="btn btn-sm btn-icon" title="Ver comprobante"><i class="ti ti-photo" style="font-size:14px"></i></a>' : '<span style="color:var(--text3);font-size:11px">—</span>';
+      var fotoBtn   = m.fotoUrl ? '<a href="'+m.fotoUrl+'" target="_blank" class="btn btn-sm btn-icon" title="Ver comprobante"><i class="ti ti-photo" style="font-size:14px"></i></a>' : '<span style="color:var(--text3);font-size:11px">â€”</span>';
       var fechaRaw = _movEmpFechaVisual(m);
-      var fecha = fechaRaw ? fechaRaw.split('-').reverse().join('/') : '—';
-      // Descripción: puede estar en 'descripcion', 'desc', o 'detalle'
+      var fecha = fechaRaw ? fechaRaw.split('-').reverse().join('/') : 'â€”';
+      // DescripciÃ³n: puede estar en 'descripcion', 'desc', o 'detalle'
       var descTexto = m.descripcion || m.desc || m.detalle || '';
-      // Navegación: gastos de empresa van al módulo gastos, otros muestran detalle
+      // NavegaciÃ³n: gastos de empresa van al mÃ³dulo gastos, otros muestran detalle
       var trClick = '';
       if (m.tipo === 'gasto_empresa' && m.gastoFbKey) {
         trClick = 'onclick="irAGastoDesdeCtaEmp(this)" data-gasto="' + m.gastoFbKey + '" style="cursor:pointer"';
@@ -11116,10 +11253,10 @@ function renderMovsEmp() {
         '<td class="tr">'+ fotoBtn +'</td>' +
         '<td style="white-space:nowrap">' +
           (_puedeAprobarMovEmp(m) && m.tipo === 'comision'
-            ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green);font-size:11px;padding:3px 8px" onclick="event.stopPropagation();aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
-              '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 8px;margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
+            ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green);font-size:11px;padding:3px 8px" onclick="event.stopPropagation();aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">âœ“ Aprobar</button>' +
+              '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 8px;margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">âœ— Rechazar</button>'
             : (_puedeAprobarMovEmp(m) ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button>' : '')) +
-          (_esRolAdminOAdministrativo() && m._fuente !== 'gastos' ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();eliminarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' : '') +
+          (String(currentRole || '').toLowerCase() === 'admin' && m._fuente !== 'gastos' ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();eliminarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' : '') +
         '</td>' +
       '</tr>';
     }).join('');
@@ -11162,15 +11299,15 @@ function verDetalleMovEmp(tr) {
   var fbKey = tr.dataset.fbkey;
   var mov = movsEmpData.find(function(m){ return m.fbKey === fbKey; });
   if (!mov) return;
-  var tipoLabel = {sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[mov.tipo]||mov.tipo;
-  var desc = mov.descripcion || mov.desc || mov.detalle || 'Sin descripción';
+  var tipoLabel = {sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'ComisiÃ³n',hextra:'H. extra',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[mov.tipo]||mov.tipo;
+  var desc = mov.descripcion || mov.desc || mov.detalle || 'Sin descripciÃ³n';
   var fechaRaw = _movEmpFechaVisual(mov);
-  var fecha = fechaRaw ? fechaRaw.split('-').reverse().join('/') : '—';
-  notify(tipoLabel + ' · ' + fecha + ' · $' + (parseFloat(mov.monto)||0).toLocaleString('es-AR') + (desc ? ' — ' + desc : ''));
+  var fecha = fechaRaw ? fechaRaw.split('-').reverse().join('/') : 'â€”';
+  notify(tipoLabel + ' Â· ' + fecha + ' Â· $' + (parseFloat(mov.monto)||0).toLocaleString('es-AR') + (desc ? ' â€” ' + desc : ''));
 }
 
 function abrirNuevoMovEmp() {
-  if (!ctaEmpActual) { notify('Seleccioná un empleado primero'); return; }
+  if (!ctaEmpActual) { notify('SeleccionÃ¡ un empleado primero'); return; }
   var modal = document.getElementById('modal-movi-emp');
   if (!modal) return;
   document.getElementById('movi-fecha').value = new Date().toISOString().split('T')[0];
@@ -11219,7 +11356,7 @@ function onMoviTipoChange() {
 
   if (wrap) wrap.style.display = ['transporte','materiales'].includes(tipo) ? '' : 'none';
 
-  // Comisión manual del admin → pendiente para que la apruebe explícitamente
+  // ComisiÃ³n manual del admin â†’ pendiente para que la apruebe explÃ­citamente
   if (tipo === 'comision') {
     if (estado) estado.value = 'pendiente';
     if (!nota) {
@@ -11228,7 +11365,7 @@ function onMoviTipoChange() {
       nota.style.cssText = 'font-size:12px;color:var(--amber);padding:8px 10px;background:var(--amber-bg);border-radius:6px;margin-top:4px';
       document.getElementById('movi-estado').parentElement.after(nota);
     }
-    nota.textContent = '💡 La comisión quedará pendiente de aprobación. Aprobala desde la cuenta corriente del empleado.';
+    nota.textContent = 'ðŸ’¡ La comisiÃ³n quedarÃ¡ pendiente de aprobaciÃ³n. Aprobala desde la cuenta corriente del empleado.';
     nota.style.display = '';
   } else {
     if (nota) nota.style.display = 'none';
@@ -11249,9 +11386,9 @@ function onFotoSeleccionada(input) {
 }
 
 function guardarMovEmp() {
-  if (!ctaEmpActual || !window.fbDB) { notify('Sin conexión o empleado no seleccionado'); return; }
+  if (!ctaEmpActual || !window.fbDB) { notify('Sin conexiÃ³n o empleado no seleccionado'); return; }
   var monto = getMontoRaw(document.getElementById('movi-monto'));
-  if (!monto) { notify('Ingresá un monto'); return; }
+  if (!monto) { notify('IngresÃ¡ un monto'); return; }
   var empActual = Object.values(empData||{}).find(function(e){ return e.fbKey === ctaEmpActual; });
   var esAdmin = String(currentRole||'').toLowerCase() === 'admin';
   var tipoElegido = document.getElementById('movi-tipo').value;
@@ -11286,7 +11423,7 @@ function guardarMovEmp() {
       empleadoNombre: nuevo.empleadoNombre,
       creadoPor:   currentUser || 'admin',
       ts:          Date.now()
-    }).then(function(){ notify('✓ Gasto periódico registrado — se repetirá el día ' + dia + ' de cada mes'); });
+    }).then(function(){ notify('âœ“ Gasto periÃ³dico registrado â€” se repetirÃ¡ el dÃ­a ' + dia + ' de cada mes'); });
   }
   var fileInput = document.getElementById('movi-foto-input');
   var file = fileInput && fileInput.files[0];
@@ -11345,9 +11482,9 @@ async function _crearGastoComisionDesdeMovimiento(empFbKey, movFbKey, mov) {
   var estadoGasto = (estadoMov === 'pagado' || pagado >= monto) ? 'pagado' : (estadoMov === 'pagado_parcial' || pagado > 0 ? 'pagado_parcial' : 'pendiente_pago');
   var gasto = {
     fecha: fecha,
-    descripcion: mov.descripcion || ('Comisión venta ' + (mov.ventaId||'')),
+    descripcion: mov.descripcion || ('ComisiÃ³n venta ' + (mov.ventaId||'')),
     categoria: 'Personal',
-    tipo: 'Comisión',
+    tipo: 'ComisiÃ³n',
     tipoPagable: 'comision',
     monto: monto,
     montoPagado: pagado || 0,
@@ -11378,7 +11515,7 @@ async function _crearGastoComisionDesdeMovimiento(empFbKey, movFbKey, mov) {
 function aprobarComision(movFbKey, empFbKey) {
   if (!window.fbDB) return;
   if (currentRole !== 'admin') { notify('Solo el administrador puede aprobar comisiones'); return; }
-  if (!confirm('¿Aprobar esta comisión?')) return;
+  if (!confirm('Â¿Aprobar esta comisiÃ³n?')) return;
   var refMov = window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey);
   window.fbGet(refMov).then(function(snap){
     var mov = snap.val() || {};
@@ -11392,10 +11529,10 @@ function aprobarComision(movFbKey, empFbKey) {
       fechaAprobacion: fechaApr
     }).then(function(){ return _crearGastoComisionDesdeMovimiento(empFbKey, movFbKey, mov); });
   }).then(function(){
-    notify('✓ Comisión aprobada — gasto generado y pendiente de pago');
+    notify('âœ“ ComisiÃ³n aprobada â€” gasto generado y pendiente de pago');
     if (typeof fbCargarGastos === 'function') fbCargarGastos();
     if (typeof cargarCtaEmp === 'function') cargarCtaEmp();
-  }).catch(function(e){ notify('Error aprobando comisión: ' + e.message); });
+  }).catch(function(e){ notify('Error aprobando comisiÃ³n: ' + e.message); });
 }
 
 function rechazarComision(movFbKey, empFbKey) {
@@ -11407,26 +11544,26 @@ function rechazarComision(movFbKey, empFbKey) {
     rechazadoPor: currentUser || '',
     motivoRechazo: motivo,
     fechaRechazo: new Date().toISOString().slice(0,10)
-  }).then(function(){ notify('Comisión rechazada'); });
+  }).then(function(){ notify('ComisiÃ³n rechazada'); });
 }
 
 function aprobarMovEmp(movKey, empKey) {
   if (!window.fbDB) return;
-  if (!_esRolAdminOAdministrativo()) { notify('No tenés permiso para aprobar movimientos'); return; }
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede aprobar movimientos'); return; }
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey), {
     estado: 'aprobado',
     aprobadoPor: currentUser || '',
     fechaAprobacion: new Date().toISOString().slice(0,10)
-  }).then(function(){ notify('Movimiento aprobado — queda pendiente de pago'); });
+  }).then(function(){ notify('Movimiento aprobado â€” queda pendiente de pago'); });
 }
 
 function eliminarMovEmp(movKey, empKey) {
-  if (!_esRolAdminOAdministrativo()) { notify('No tenés permiso para eliminar movimientos'); return; }
-  if (!confirm('¿Eliminar este movimiento?')) return;
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede eliminar movimientos'); return; }
+  if (!confirm('Â¿Eliminar este movimiento?')) return;
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey))
     .then(function(){ notify('Movimiento eliminado'); });
 }
-// FUNCIONES CRUD FALTANTES — implementación completa
+// FUNCIONES CRUD FALTANTES â€” implementaciÃ³n completa
 function editarVenta(id) {
   var v = (ventasList||[]).find(function(x){ return x.id === id || x.fbKey === id; });
   if (!v) { notify('Venta no encontrada'); return; }
@@ -11437,17 +11574,17 @@ function eliminarVenta(fbKey) {
   var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!v) return;
 
-  // BLOQUEO FISCAL — una venta con factura electrónica emitida no puede eliminarse
+  // BLOQUEO FISCAL â€” una venta con factura electrÃ³nica emitida no puede eliminarse
   if (v.factura && v.factura.cae) {
     var msg =
-      '⚠️ Esta venta tiene una factura electrónica emitida.\n\n' +
+      'âš ï¸ Esta venta tiene una factura electrÃ³nica emitida.\n\n' +
       'Tipo: ' + (v.factura.tipo||'Factura') + '\n' +
       'CAE: ' + v.factura.cae + '\n\n' +
-      'No se puede eliminar — hacerlo sería una irregularidad fiscal.\n\n' +
-      '¿Qué podés hacer?\n' +
-      '• Emitir una nota de crédito en ARCA/TusFacturasApp para anular el comprobante\n' +
-      '• Marcar la venta como "Anulada" en el sistema (queda registrada pero invisible en las listas)\n\n' +
-      '¿Querés marcarla como Anulada?';
+      'No se puede eliminar â€” hacerlo serÃ­a una irregularidad fiscal.\n\n' +
+      'Â¿QuÃ© podÃ©s hacer?\n' +
+      'â€¢ Emitir una nota de crÃ©dito en ARCA/TusFacturasApp para anular el comprobante\n' +
+      'â€¢ Marcar la venta como "Anulada" en el sistema (queda registrada pero invisible en las listas)\n\n' +
+      'Â¿QuerÃ©s marcarla como Anulada?';
     if (!confirm(msg)) return;
     window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey), {
       anulada: true,
@@ -11456,19 +11593,19 @@ function eliminarVenta(fbKey) {
       anuladaPor: currentUser || 'Admin'
     })
     .then(function() {
-      notify('Venta marcada como anulada — el comprobante CAE sigue vigente en ARCA');
+      notify('Venta marcada como anulada â€” el comprobante CAE sigue vigente en ARCA');
       volverListaVentas();
     })
     .catch(function(e){ notify('Error: ' + e.message); });
     return;
   }
 
-  if (!confirm('¿Eliminar venta ' + v.id + '?\nEsta acción no se puede deshacer.')) return;
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!confirm('Â¿Eliminar venta ' + v.id + '?\nEsta acciÃ³n no se puede deshacer.')) return;
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
 
-  var otVinculada = (otData||[]).find(function(o){ return o.ventaId === v.id; });
+  var otVinculadas = (otData||[]).filter(function(o){ return _svRegistroPerteneceVenta(o, v); });
 
-  var pagosVinculados = (window._pagosListaActual||[]).filter(function(p){ return p.venta === v.id && p.fbKey; });
+  var pagosVinculados = (window._pagosListaActual||[]).filter(function(p){ return _svRegistroPerteneceVenta(p, v) && p.fbKey; });
 
   var promesas = [window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey))];
 
@@ -11477,17 +11614,19 @@ function eliminarVenta(fbKey) {
     promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + p.fbKey)));
   });
 
-  // Eliminar OT vinculada
-  if (otVinculada && otVinculada.fbKey) {
-    promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey)));
-  }
+  // Eliminar OT vinculadas
+  otVinculadas.forEach(function(otVinculada) {
+    if (otVinculada && otVinculada.fbKey) {
+      promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey)));
+    }
+  });
 
   Promise.all(promesas)
     .then(function() {
       var partes = ['Venta eliminada'];
       if (pagosVinculados.length) partes.push(pagosVinculados.length + ' pago' + (pagosVinculados.length !== 1 ? 's' : '') + ' eliminado' + (pagosVinculados.length !== 1 ? 's' : ''));
-      if (otVinculada) partes.push('OT vinculada eliminada');
-      notify('✓ ' + partes.join(' · '));
+      if (otVinculadas.length) partes.push(otVinculadas.length + ' OT vinculada' + (otVinculadas.length !== 1 ? 's' : '') + ' eliminada' + (otVinculadas.length !== 1 ? 's' : ''));
+      notify('âœ“ ' + partes.join(' Â· '));
       volverListaVentas();
     })
     .catch(function(e){ notify('Error: ' + e.message); });
@@ -11508,7 +11647,7 @@ document.addEventListener('click', function(){ cerrarMenusPpto(); });
 function eliminarPptoDesdeTabla(pptoId) {
   var p = (pptoData||[]).find(function(x){ return x.id === pptoId; });
   if (!p || !p.fbKey) return notify('No se encontro el presupuesto');
-  if (!confirm('¿Eliminar el presupuesto ' + pptoId + '? Esta accion no se puede deshacer.')) return;
+  if (!confirm('Â¿Eliminar el presupuesto ' + pptoId + '? Esta accion no se puede deshacer.')) return;
   window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + p.fbKey))
     .then(function(){ notify('Presupuesto eliminado'); })
     .catch(function(e){ notify('Error: ' + e.message); });
@@ -11517,7 +11656,7 @@ function eliminarPptoDesdeTabla(pptoId) {
 function anularPptoDesdeTabla(pptoId) {
   var p = (pptoData||[]).find(function(x){ return x.id === pptoId; });
   if (!p || !p.fbKey) return notify('No se encontro el presupuesto');
-  if (!confirm('¿Anular el presupuesto ' + pptoId + '? Quedara registrado como anulado.')) return;
+  if (!confirm('Â¿Anular el presupuesto ' + pptoId + '? Quedara registrado como anulado.')) return;
   var upd = {
     estado: 'anulado',
     audit: (p.audit||[]).concat([{ accion:'Anulado', fecha: new Date().toISOString().slice(0,10), user: currentUser||'Admin' }])
@@ -11536,7 +11675,7 @@ function imprimirPptoDesdeTabla(pptoId) {
 
 function eliminarPpto(fbKey) {
   var p = (pptoData||[]).find(function(x){ return x.fbKey === fbKey; });
-  if (!confirm('¿Eliminar presupuesto ' + ((p||{}).numero||'') + '?')) return;
+  if (!confirm('Â¿Eliminar presupuesto ' + ((p||{}).numero||'') + '?')) return;
   if (!window.fbDB) return;
   window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + fbKey))
     .then(function(){ notify('Presupuesto eliminado'); })
@@ -11582,21 +11721,21 @@ function imprimirPresupuesto() {
       var qty  = tds[2] ? tds[2].querySelector('input') ? tds[2].querySelector('input').value : tds[2].textContent.trim() : '';
       var precio = tds[3] ? tds[3].querySelector('input') ? tds[3].querySelector('input').value : tds[3].textContent.trim() : '';
       var sub  = tds[4] ? tds[4].textContent.trim() : '';
-      if (desc && desc !== 'Seleccioná un producto') {
+      if (desc && desc !== 'SeleccionÃ¡ un producto') {
         if (_pptoConDetalle) {
           items += '<tr><td>'+cod+'</td><td>'+desc+'</td><td style="text-align:right">'+qty+'</td><td style="text-align:right">'+precio+'</td><td style="text-align:right;font-weight:600">'+sub+'</td></tr>';
         } else {
-          // Sin detalle: mostrar ítem pero sin precio ni subtotal
-          items += '<tr><td>'+cod+'</td><td>'+desc+'</td><td style="text-align:right">'+qty+'</td><td style="text-align:right;color:#ccc">—</td><td style="text-align:right;color:#ccc">—</td></tr>';
+          // Sin detalle: mostrar Ã­tem pero sin precio ni subtotal
+          items += '<tr><td>'+cod+'</td><td>'+desc+'</td><td style="text-align:right">'+qty+'</td><td style="text-align:right;color:#ccc">â€”</td><td style="text-align:right;color:#ccc">â€”</td></tr>';
         }
       }
     }
   });
 
-  var num  = g('pp-numero') || g('ppto-det-numero') || '—';
-  var cli  = g('pp-cli')    || g('ppto-det-cliente') || '—';
+  var num  = g('pp-numero') || g('ppto-det-numero') || 'â€”';
+  var cli  = g('pp-cli')    || g('ppto-det-cliente') || 'â€”';
   var fecha = g('pp-fecha') || g('ppto-det-fecha')   || new Date().toLocaleDateString('es-AR');
-  var venc  = g('pp-vencimiento') || g('ppto-det-venc') || '—';
+  var venc  = g('pp-vencimiento') || g('ppto-det-venc') || 'â€”';
   var sub   = g('pp-sub')   || g('ppto-det-sub')     || '$0';
   var desc  = g('pp-desc-amt') || g('ppto-det-desc-amt') || '$0';
   var iva   = g('ppto-det-iva')  || '$0';
@@ -11647,8 +11786,8 @@ function imprimirPresupuesto() {
         '<div class="tipo-badge">PRESUPUESTO</div>'+
         '<div class="comp-num">'+num+'</div>'+
         '<div class="comp-fecha">'+fecha+'</div>'+
-        '<div class="comp-fecha" style="color:#d97706">Válido hasta: '+venc+'</div>'+
-        (p.tcGuardado ? '<div class="comp-fecha" style="color:#888;font-size:10px">TC referencia: $'+parseFloat(p.tcGuardado).toLocaleString('es-AR')+(p.tcFechaGuardado?' ('+p.tcFechaGuardado+')':'')+' · Precios en USD, se factura al TC del día del pago</div>' : '')+
+        '<div class="comp-fecha" style="color:#d97706">VÃ¡lido hasta: '+venc+'</div>'+
+        (p.tcGuardado ? '<div class="comp-fecha" style="color:#888;font-size:10px">TC referencia: $'+parseFloat(p.tcGuardado).toLocaleString('es-AR')+(p.tcFechaGuardado?' ('+p.tcFechaGuardado+')':'')+' Â· Precios en USD, se factura al TC del dÃ­a del pago</div>' : '')+
       '</div>'+
     '</div>'+
 
@@ -11658,7 +11797,7 @@ function imprimirPresupuesto() {
         '<div class="info-val">'+cli+'</div>'+
       '</div>'+
       '<div class="info-box">'+
-        '<div class="info-lbl">Condición de pago</div>'+
+        '<div class="info-lbl">CondiciÃ³n de pago</div>'+
         '<div class="info-sub">A convenir</div>'+
         (obs ? '<div class="info-sub" style="margin-top:6px">'+obs+'</div>' : '')+
       '</div>'+
@@ -11666,13 +11805,13 @@ function imprimirPresupuesto() {
 
     '<table>'+
       '<thead><tr>'+
-        '<th style="width:90px">Código</th>'+
-        '<th>Descripción</th>'+
+        '<th style="width:90px">CÃ³digo</th>'+
+        '<th>DescripciÃ³n</th>'+
         '<th class="tr" style="width:55px">Cant.</th>'+
         '<th class="tr" style="width:110px">P. unit.</th>'+
         '<th class="tr" style="width:110px">Subtotal</th>'+
       '</tr></thead>'+
-      '<tbody>'+(items||'<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:16px">Sin ítems</td></tr>')+'</tbody>'+
+      '<tbody>'+(items||'<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:16px">Sin Ã­tems</td></tr>')+'</tbody>'+
       '<tfoot>'+
         (_pptoConDetalle ? (
           '<tr class="tfoot-row tfoot-first"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#64748b">Subtotal</td><td style="text-align:right">'+sub+'</td></tr>'+
@@ -11687,14 +11826,14 @@ function imprimirPresupuesto() {
 
     '<div class="validez">'+
       'Este presupuesto tiene validez hasta el <strong>'+venc+'</strong>. '+
-      'Los precios incluyen IVA según corresponda. '+
+      'Los precios incluyen IVA segÃºn corresponda. '+
       'Precios en pesos argentinos. Sujeto a disponibilidad de stock.'+
     '</div>'+
 
     '<div class="footer">'+
-      '<div class="footer-legal">'+empresa.nombre+' · '+empresa.dir+(empresa.cuit?' · CUIT: '+empresa.cuit:'')+
-      '<br>Documento no vinculante — válido como presupuesto comercial hasta la fecha indicada.</div>'+
-      '<div style="text-align:right;font-size:10px;color:#94a3b8">SisVentas · Nixa<br>'+fecha+'</div>'+
+      '<div class="footer-legal">'+empresa.nombre+' Â· '+empresa.dir+(empresa.cuit?' Â· CUIT: '+empresa.cuit:'')+
+      '<br>Documento no vinculante â€” vÃ¡lido como presupuesto comercial hasta la fecha indicada.</div>'+
+      '<div style="text-align:right;font-size:10px;color:#94a3b8">SisVentas Â· Nixa<br>'+fecha+'</div>'+
     '</div>'+
 
     '<div class="no-print" style="margin-top:20px;text-align:center">'+
@@ -11714,23 +11853,15 @@ function registrarPago() {
   var refEl  = document.getElementById('cob-ref');
   var obsEl  = document.getElementById('cob-obs');
   var obs    = obsEl ? obsEl.value : (refEl ? refEl.value.trim() : '');
-  if (!venta) { notify('Seleccioná una venta'); return; }
-  if (!monto) { notify('Ingresá un monto'); return; }
-  if (!medio) { notify('Seleccioná un medio de pago'); if (medioEl) medioEl.focus(); return; }
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!venta) { notify('SeleccionÃ¡ una venta'); return; }
+  if (!monto) { notify('IngresÃ¡ un monto'); return; }
+  if (!medio) { notify('SeleccionÃ¡ un medio de pago'); if (medioEl) medioEl.focus(); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
 
   var ventaIdInput = venta.trim();
-  var ventaObj = (ventasList||[]).find(function(v) {
-    var idV = String(v.id||'');
-    // Coincidencia exacta
-    if (idV === ventaIdInput) return true;
-    // Comparar solo los números
-    var numInput = ventaIdInput.replace(/[^0-9]/g,'');
-    var numV     = idV.replace(/[^0-9]/g,'');
-    return numInput && numV && numInput === numV;
-  });
+  var ventaObj = _svResolverVentaRegistro({ venta:ventaIdInput, ventaId:ventaIdInput, idVenta:ventaIdInput });
 
-  // Usar el ID correcto de la venta (el que está en Firebase, ya migrado)
+  // Usar el ID correcto de la venta (el que estÃ¡ en Firebase, ya migrado)
   var ventaIdGuardar = ventaObj ? (ventaObj.id || ventaIdInput) : ventaIdInput;
 
   var pago = {
@@ -11762,11 +11893,11 @@ function registrarPago() {
           generarComisionesVenta(ventaObj, nuevoTotal);
         }
       }
-      notify('✓ Pago registrado correctamente');
+      notify('âœ“ Pago registrado correctamente');
       if (typeof registrarActividad === 'function') {
-        registrarActividad('Pago registrado', venta + ' — ' + (pago.cliente||'') + ' — $' + Math.round(monto).toLocaleString('es-AR') + ' (' + medio + ')');
+        registrarActividad('Pago registrado', venta + ' â€” ' + (pago.cliente||'') + ' â€” $' + Math.round(monto).toLocaleString('es-AR') + ' (' + medio + ')');
       }
-      // ── FLUJO POST-PAGO: si es la primera seña, habilitar agenda y generar OT
+      // â”€â”€ FLUJO POST-PAGO: si es la primera seÃ±a, habilitar agenda y generar OT
       if (ventaObj && !ventaObj.otGenerada) {
         flujoPostPago(ventaObj, monto);
       }
@@ -11786,9 +11917,9 @@ function registrarPago() {
 
 function verReciboDesdeHistorial(idx) {
   var lista = window._historialPagosActual;
-  if (!lista || !lista[idx]) { notify('No se encontró el pago'); return; }
+  if (!lista || !lista[idx]) { notify('No se encontrÃ³ el pago'); return; }
   var p = lista[idx];
-  var ventaObj = (ventasList||[]).find(function(v){ return v.id === p.venta; }) || null;
+  var ventaObj = _svResolverVentaRegistro(p) || null;
   window._ultimoPago = p;
   window._ultimoPagoVenta = ventaObj;
   imprimirRecibo();
@@ -11807,7 +11938,7 @@ function imprimirRecibo() {
     ? '<img src="'+window.logoEmpresaUrl+'" style="height:45px;object-fit:contain">'
     : '<div style="font-size:22px;font-weight:700">'+empresa.nombre+'</div>';
   var numRecibo = 'R-' + String(Date.now()).slice(-6);
-  var totalVenta = ventaObj ? '$'+(parseFloat(ventaObj.total)||0).toLocaleString('es-AR') : '—';
+  var totalVenta = ventaObj ? '$'+(parseFloat(ventaObj.total)||0).toLocaleString('es-AR') : 'â€”';
   var pagosAnt   = ventaObj ? '$'+(parseFloat(ventaObj.totalPagado||0) - pago.monto).toLocaleString('es-AR') : '$0';
 
   var w = window.open('','_blank','width=700,height=500');
@@ -11852,7 +11983,7 @@ function imprimirRecibo() {
 }
 function crearOT(ventaData) {
   // Crear OT desde una venta
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var ot = {
     ventaId:    ventaData ? ventaData.id : '',
     ventaFbKey: ventaData ? (ventaData.fbKey||'') : '',
@@ -11872,7 +12003,7 @@ function crearOT(ventaData) {
     : window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot);
   return crearPromesa
     .then(function(ref){
-      notify('✓ Orden de trabajo creada');
+      notify('âœ“ Orden de trabajo creada');
       showPage('ordentrabajo', null);
       setTimeout(function(){ verOT(ref.key); }, 500);
     })
@@ -11885,7 +12016,7 @@ function nuevaOT() {
 }
 
 function eliminarOT(fbKey) {
-  if (!confirm('¿Eliminar esta Orden de Trabajo? Esta acción no se puede deshacer.')) return;
+  if (!confirm('Â¿Eliminar esta Orden de Trabajo? Esta acciÃ³n no se puede deshacer.')) return;
   if (!window.fbDB) return;
   window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + fbKey))
     .then(function(){ notify('OT eliminada'); volverListaOT(); })
@@ -11902,34 +12033,34 @@ function buscarProveedor(val) {
 function guardarGarantia(datos) {
   if (!window.fbDB) return;
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/garantias'), Object.assign(datos||{}, { ts: Date.now(), usuario: currentUser }))
-    .then(function(){ notify('Garantía registrada'); });
+    .then(function(){ notify('GarantÃ­a registrada'); });
 }
-// MÓDULO SOPORTE / RECLAMOS — flujo unificado
+// MÃ“DULO SOPORTE / RECLAMOS â€” flujo unificado
 // Ruta Firebase: sisventas/reclamos
 var SP_DATA = {};   // espejo en memoria
 var SP_MODAL_KEY = null;  // fbKey del reclamo abierto en modal
 
 var SP_ESTADOS = {
   nuevo:       { label:'Nuevo',            color:'var(--blue)',   badge:'b-blue'   },
-  diagnostico: { label:'En diagnóstico',   color:'var(--amber)',  badge:'b-amber'  },
+  diagnostico: { label:'En diagnÃ³stico',   color:'var(--amber)',  badge:'b-amber'  },
   visita:      { label:'Visita requerida', color:'var(--red)',    badge:'b-red'    },
   ot_activa:   { label:'OT activa',        color:'var(--purple)', badge:'b-purple' },
   cerrado:     { label:'Cerrado',          color:'var(--green)',  badge:'b-green'  }
 };
-// CRÉDITO FISCAL — IVA Compras (comprobantes recibidos AFIP)
+// CRÃ‰DITO FISCAL â€” IVA Compras (comprobantes recibidos AFIP)
 // Ruta Firebase: sisventas/comprobantesCompra/{id}
-// Factura de Crédito Electrónica A generan crédito fiscal computable.
-var CF_DATA = [];          // todos los comprobantes (acumulado histórico)
+// Factura de CrÃ©dito ElectrÃ³nica A generan crÃ©dito fiscal computable.
+var CF_DATA = [];          // todos los comprobantes (acumulado histÃ³rico)
 var CF_PERIODO_ACTIVO = null;
 
 var CF_TIPOS_COMP = {
-  '1':'Factura A','2':'Nota Débito A','3':'Nota Crédito A',
-  '6':'Factura B','7':'Nota Débito B','8':'Nota Crédito B',
-  '11':'Nota Débito C','12':'Nota Crédito C','13':'Remito',
+  '1':'Factura A','2':'Nota DÃ©bito A','3':'Nota CrÃ©dito A',
+  '6':'Factura B','7':'Nota DÃ©bito B','8':'Nota CrÃ©dito B',
+  '11':'Nota DÃ©bito C','12':'Nota CrÃ©dito C','13':'Remito',
   '51':'Factura M','81':'Tique Factura A','82':'Tique Factura B',
-  '83':'Tique','86':'Despacho de Importación',
-  '112':'Ticket de Sorteo','201':'Factura de Crédito Electrónica A',
-  '206':'Factura de Crédito Electrónica B'
+  '83':'Tique','86':'Despacho de ImportaciÃ³n',
+  '112':'Ticket de Sorteo','201':'Factura de CrÃ©dito ElectrÃ³nica A',
+  '206':'Factura de CrÃ©dito ElectrÃ³nica B'
 };
 var CF_TIPOS_CON_CREDITO = ['1','2','3','81','201'];
 function cfEsCreditoFiscal(tipo) { return CF_TIPOS_CON_CREDITO.includes(String(tipo)); }
@@ -11965,12 +12096,12 @@ function cfCargar() {
   });
 }
 // o emitidos (facturas realizadas) mirando las columnas del encabezado.
-// Recibidos: tienen columna "Denominación Emisor" o "Cuit Emisor"
-// Emitidos:  tienen columna "Denominación Receptor" o "Nro. Doc. Receptor"
+// Recibidos: tienen columna "DenominaciÃ³n Emisor" o "Cuit Emisor"
+// Emitidos:  tienen columna "DenominaciÃ³n Receptor" o "Nro. Doc. Receptor"
 function detectarTipoCSVAfip(text) {
   var firstLine = (text.split('\n')[0] || '').toLowerCase();
-  if (firstLine.includes('denominación emisor') || firstLine.includes('cuit emisor') || firstLine.includes('denominacion emisor')) return 'recibidos';
-  if (firstLine.includes('denominación receptor') || firstLine.includes('nro. doc. receptor') || firstLine.includes('denominacion receptor')) return 'emitidos';
+  if (firstLine.includes('denominaciÃ³n emisor') || firstLine.includes('cuit emisor') || firstLine.includes('denominacion emisor')) return 'recibidos';
+  if (firstLine.includes('denominaciÃ³n receptor') || firstLine.includes('nro. doc. receptor') || firstLine.includes('denominacion receptor')) return 'emitidos';
   return 'desconocido';
 }
 
@@ -11981,7 +12112,7 @@ function cfCargarCSV(input) {
   reader.onload = function(e) {
     var tipo = detectarTipoCSVAfip(e.target.result);
     if (tipo === 'emitidos') {
-      if (confirm('Este archivo parece ser de Comprobantes Emitidos — corresponde a "Facturas Emitidas", no a "Facturas Recibidas".\n\n¿Querés cargarlo en Facturas Recibidas?')) {
+      if (confirm('Este archivo parece ser de Comprobantes Emitidos â€” corresponde a "Facturas Emitidas", no a "Facturas Recibidas".\n\nÂ¿QuerÃ©s cargarlo en Facturas Recibidas?')) {
         showFactTab('fv', document.querySelector('.fact-tab:last-child'));
         fvProcesarTexto(e.target.result);
       }
@@ -12000,7 +12131,7 @@ function fvCargarCSV(input) {
   reader.onload = function(e) {
     var tipo = detectarTipoCSVAfip(e.target.result);
     if (tipo === 'recibidos') {
-      if (confirm('Este archivo parece ser de Comprobantes Recibidos — corresponde a "Facturas Recibidas", no a "Facturas Emitidas".\n\n¿Querés cargarlo en Facturas Recibidas?')) {
+      if (confirm('Este archivo parece ser de Comprobantes Recibidos â€” corresponde a "Facturas Recibidas", no a "Facturas Emitidas".\n\nÂ¿QuerÃ©s cargarlo en Facturas Recibidas?')) {
         showFactTab('cf', document.querySelector('.fact-tab:first-child'));
         cfProcesarArchivo(file);
       }
@@ -12014,7 +12145,7 @@ function fvCargarCSV(input) {
 function fvProcesarTexto(text) {
   try {
     var rows = fvParsearCSV(text);
-    if (!rows.length) { notify('El archivo no tiene datos válidos'); return; }
+    if (!rows.length) { notify('El archivo no tiene datos vÃ¡lidos'); return; }
     fvSubirAFirebase(rows);
   } catch(err) {
     notify('Error al procesar el CSV: ' + err.message);
@@ -12026,7 +12157,7 @@ function cfProcesarArchivo(file) {
   reader.onload = function(e) {
     try {
       var rows = cfParsearCSV(e.target.result);
-      if (!rows.length) { notify('El archivo no tiene datos válidos'); return; }
+      if (!rows.length) { notify('El archivo no tiene datos vÃ¡lidos'); return; }
       cfSubirAFirebase(rows);
     } catch(err) {
       notify('Error al procesar el CSV: ' + err.message);
@@ -12051,12 +12182,12 @@ function cfParsearCSV(text) {
     var obj = {};
     headers.forEach(function(h,i){ obj[h]=vals[i]||''; });
     return {
-      fecha:      obj['Fecha de Emisión']||'',
+      fecha:      obj['Fecha de EmisiÃ³n']||'',
       tipo:       obj['Tipo de Comprobante']||'',
       ptoVta:     obj['Punto de Venta']||'',
-      nroDoc:     obj['Número Desde']||'',
+      nroDoc:     obj['NÃºmero Desde']||'',
       cuitEmisor: obj['Nro. Doc. Emisor']||'',
-      nombre:     obj['Denominación Emisor']||'',
+      nombre:     obj['DenominaciÃ³n Emisor']||'',
       moneda:     obj['Moneda']||'$',
       tipoCambio: cfNum(obj['Tipo Cambio']) || 1,
       neto:       cfNum(obj['Imp. Neto Gravado Total']),
@@ -12094,7 +12225,7 @@ function cfParsearCSV(text) {
 }
 
 function cfSubirAFirebase(rows) {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var nuevos = 0, existentes = 0;
   var promesas = rows.map(function(r) {
     var key = r.cuitEmisor + '_' + r.tipo + '_' + r.ptoVta + '_' + r.nroDoc;
@@ -12105,8 +12236,8 @@ function cfSubirAFirebase(rows) {
       Object.assign({}, r, { cargadoPor: currentUser||'', ts: Date.now() }));
   });
   Promise.all(promesas).then(function() {
-    document.getElementById('cf-drop-txt').textContent = '✓ ' + nuevos + ' comprobantes nuevos cargados' + (existentes ? ' · '+existentes+' ya existían' : '');
-    notify('✓ ' + nuevos + ' comprobantes nuevos importados' + (existentes ? ' ('+existentes+' ya estaban cargados)' : ''));
+    document.getElementById('cf-drop-txt').textContent = 'âœ“ ' + nuevos + ' comprobantes nuevos cargados' + (existentes ? ' Â· '+existentes+' ya existÃ­an' : '');
+    notify('âœ“ ' + nuevos + ' comprobantes nuevos importados' + (existentes ? ' ('+existentes+' ya estaban cargados)' : ''));
     if (nuevos > 0) setTimeout(function(){ if(typeof cfRenderTodo==='function') cfRenderTodo(); }, 1500);
   }).catch(function(e){ notify('Error: '+e.message); });
 }
@@ -12138,7 +12269,7 @@ function cfActualizarPeriodosUI() {
       var d = new Date(p+'-01T12:00:00');
       var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
       var activo = p === CF_PERIODO_ACTIVO;
-      var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();cfEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar período"></i>' : '';
+      var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();cfEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar perÃ­odo"></i>' : '';
       return '<span onclick="cfSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
     }).join('');
   }
@@ -12147,16 +12278,16 @@ function cfActualizarPeriodosUI() {
 }
 
 function cfEliminarPeriodo(periodo) {
-  if (currentRole !== 'admin') { notify('Solo un administrador puede eliminar un período'); return; }
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (currentRole !== 'admin') { notify('Solo un administrador puede eliminar un perÃ­odo'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var d = new Date(periodo+'-01T12:00:00');
   var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
   var comps = CF_DATA.filter(function(c){ return (c.fecha||'').slice(0,7) === periodo; });
-  if (!confirm('⚠️ ATENCIÓN: Esto borra los '+comps.length+' comprobantes de '+lbl+' de FIREBASE (base de datos).\n\nNo es solo ocultar la vista — los datos se eliminan permanentemente.\nPodés volver a cargar el CSV después si los necesitás.\n\n¿Confirmar eliminación?')) return;
+  if (!confirm('âš ï¸ ATENCIÃ“N: Esto borra los '+comps.length+' comprobantes de '+lbl+' de FIREBASE (base de datos).\n\nNo es solo ocultar la vista â€” los datos se eliminan permanentemente.\nPodÃ©s volver a cargar el CSV despuÃ©s si los necesitÃ¡s.\n\nÂ¿Confirmar eliminaciÃ³n?')) return;
   var promesas = comps.map(function(c){ return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/comprobantesCompra/'+c.fbKey)); });
   Promise.all(promesas).then(function(){
     if (CF_PERIODO_ACTIVO === periodo) CF_PERIODO_ACTIVO = null;
-    notify('✓ Período '+lbl+' eliminado de Firebase ('+comps.length+' comprobantes)');
+    notify('âœ“ PerÃ­odo '+lbl+' eliminado de Firebase ('+comps.length+' comprobantes)');
     if (typeof fvRenderCompensacion === 'function') fvRenderCompensacion();
     if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
   }).catch(function(e){ notify('Error: '+e.message); });
@@ -12175,8 +12306,8 @@ function cfRenderTodo() {
 
   var lbl = CF_PERIODO_ACTIVO
     ? new Date(CF_PERIODO_ACTIVO+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'})
-    : 'todos los períodos';
-  document.getElementById('cf-totales-titulo').textContent = 'Totales — ' + lbl;
+    : 'todos los perÃ­odos';
+  document.getElementById('cf-totales-titulo').textContent = 'Totales â€” ' + lbl;
   document.getElementById('cf-totales-qty').textContent = comps.length + ' comprobantes';
 
   cfRenderMetricas(comps);
@@ -12201,9 +12332,9 @@ function cfRenderMetricas(comps) {
   var iva105    = compsA.reduce(function(s,c){ return s+c.iva105*cfSigno(c); }, 0);
 
   document.getElementById('cf-metrics-box').innerHTML =
-    cfMetricCard('Crédito fiscal real', cfPesos(totalIVA), 'solo Facturas A · IVA computable', 'green') +
-    cfMetricCard('IVA 21% (Fact. A)', cfPesos(iva21), 'alícuota general', 'blue') +
-    cfMetricCard('IVA 10,5% (Fact. A)', cfPesos(iva105), 'alícuota reducida', 'amber') +
+    cfMetricCard('CrÃ©dito fiscal real', cfPesos(totalIVA), 'solo Facturas A Â· IVA computable', 'green') +
+    cfMetricCard('IVA 21% (Fact. A)', cfPesos(iva21), 'alÃ­cuota general', 'blue') +
+    cfMetricCard('IVA 10,5% (Fact. A)', cfPesos(iva105), 'alÃ­cuota reducida', 'amber') +
     cfMetricCard('Neto gravado (Fact. A)', cfPesos(totalNeto), 'base imponible computable', '');
 }
 
@@ -12226,7 +12357,7 @@ function cfRenderAlicuotas(comps) {
       '<div style="font-family:monospace;font-size:13px;min-width:120px;text-align:right">'+cfPesos(a.val)+'</div>' +
       '<div style="font-size:11px;color:var(--text3);min-width:36px;text-align:right">'+pct+'%</div>' +
     '</div>';
-  }).join('') : '<div style="color:var(--text3);font-size:12px">Sin IVA computable en este período</div>';
+  }).join('') : '<div style="color:var(--text3);font-size:12px">Sin IVA computable en este perÃ­odo</div>';
 }
 
 function cfRenderTipos(comps) {
@@ -12237,7 +12368,7 @@ function cfRenderTipos(comps) {
   });
   document.getElementById('cf-tipos-box').innerHTML = Object.entries(tipos)
     .sort(function(a,b){ return b[1]-a[1]; })
-    .map(function(e){ return '<span class="badge b-gray" style="font-size:11px">'+e[0]+' ×'+e[1]+'</span>'; })
+    .map(function(e){ return '<span class="badge b-gray" style="font-size:11px">'+e[0]+' Ã—'+e[1]+'</span>'; })
     .join('');
 }
 function cfFiltrarHistorial(val) { cfRenderHistorial(cfGetCompFiltrados(), val); }
@@ -12275,8 +12406,8 @@ function cfRenderProvRow(p, idx) {
     '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
       '<div>' +
         '<div style="font-weight:600;font-size:13px">'+escapeHTML(p.nombre)+'</div>' +
-        '<div style="font-size:11px;color:var(--text3);margin-top:2px">CUIT '+p.cuit+' · '+p.comps.length+' comprobante'+(p.comps.length!==1?'s':'') +
-          (compA.length ? ' · '+compA.length+' con crédito fiscal' : ' · sin crédito fiscal computable') + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px">CUIT '+p.cuit+' Â· '+p.comps.length+' comprobante'+(p.comps.length!==1?'s':'') +
+          (compA.length ? ' Â· '+compA.length+' con crÃ©dito fiscal' : ' Â· sin crÃ©dito fiscal computable') + '</div>' +
       '</div>' +
       '<div style="text-align:right">' +
         '<div style="font-size:14px;font-weight:700;color:'+(p.totalIVA>0?'var(--green)':'var(--text3)')+'">'+cfPesos(p.totalIVA)+' IVA</div>' +
@@ -12285,7 +12416,7 @@ function cfRenderProvRow(p, idx) {
     '</div>' +
     '<div id="'+id+'-det" style="display:none;margin-top:12px">' +
       '<div class="table-wrap"><table>' +
-        '<thead><tr><th>Fecha</th><th>Tipo</th><th>N° Comp.</th><th class="tr">Neto</th><th class="tr">IVA</th><th class="tr">Total</th></tr></thead>' +
+        '<thead><tr><th>Fecha</th><th>Tipo</th><th>NÂ° Comp.</th><th class="tr">Neto</th><th class="tr">IVA</th><th class="tr">Total</th></tr></thead>' +
         '<tbody>' + p.comps.map(function(c) {
           var tipoNom = CF_TIPOS_COMP[c.tipo] || 'Tipo '+c.tipo;
           var computa = cfEsCreditoFiscal(c.tipo);
@@ -12298,12 +12429,12 @@ function cfRenderProvRow(p, idx) {
             '</td>' +
             '<td style="font-family:monospace;font-size:12px">'+numFmt+'</td>' +
             '<td class="tr" style="font-family:monospace">'+cfPesos(c.neto)+'</td>' +
-            '<td class="tr" style="font-family:monospace;color:'+(esNC?'var(--red)':(computa?'var(--green)':'var(--text3)'))+';font-weight:'+(computa?'600':'400')+'">'+(computa?(esNC?'-':'')+cfPesos(c.totalIVA):(c.totalIVA>0?'(no computa)':'—'))+'</td>' +
+            '<td class="tr" style="font-family:monospace;color:'+(esNC?'var(--red)':(computa?'var(--green)':'var(--text3)'))+';font-weight:'+(computa?'600':'400')+'">'+(computa?(esNC?'-':'')+cfPesos(c.totalIVA):(c.totalIVA>0?'(no computa)':'â€”'))+'</td>' +
             '<td class="tr" style="font-family:monospace">'+cfPesos(c.total)+'</td>' +
           '</tr>';
         }).join('') + '</tbody>' +
         '<tfoot><tr style="border-top:1px solid var(--border);font-weight:700">' +
-          '<td colspan="3" style="font-size:11px;color:var(--text3)">CRÉDITO FISCAL COMPUTABLE</td>' +
+          '<td colspan="3" style="font-size:11px;color:var(--text3)">CRÃ‰DITO FISCAL COMPUTABLE</td>' +
           '<td class="tr" style="font-family:monospace">'+cfPesos(compA.reduce(function(s,c){return s+c.neto;},0))+'</td>' +
           '<td class="tr" style="font-family:monospace;color:var(--green)">'+cfPesos(p.totalIVA)+'</td>' +
           '<td class="tr" style="font-family:monospace">'+cfPesos(p.total)+'</td>' +
@@ -12321,12 +12452,12 @@ function cfToggleProv(id) {
   det.style.display = abierto ? 'none' : '';
   if (row) row.style.borderLeftColor = abierto ? 'transparent' : 'var(--green)';
 }
-// FACTURAS REALIZADAS — Débito Fiscal (comprobantes emitidos AFIP)
+// FACTURAS REALIZADAS â€” DÃ©bito Fiscal (comprobantes emitidos AFIP)
 // Ruta Firebase: sisventas/comprobantesVenta/{id}
-// Factura A / M / Tique Fact. A / Factura de Crédito Electrónica A
-// discriminan IVA explícito (débito fiscal computable).
+// Factura A / M / Tique Fact. A / Factura de CrÃ©dito ElectrÃ³nica A
+// discriminan IVA explÃ­cito (dÃ©bito fiscal computable).
 // Factura B es a consumidor final: el IVA va incluido en el precio.
-var FV_DATA = [];          // todos los comprobantes emitidos (acumulado histórico)
+var FV_DATA = [];          // todos los comprobantes emitidos (acumulado histÃ³rico)
 var FV_PERIODO_ACTIVO = null;
 var FV_TIPOS_CON_IVA_DISCRIMINADO = ['1','2','3','51','81','201'];
 function fvConIvaDiscriminado(tipo) { return FV_TIPOS_CON_IVA_DISCRIMINADO.includes(String(tipo)); }
@@ -12380,7 +12511,7 @@ function fvProcesarArchivo(file) {
   reader.onload = function(e) {
     try {
       var rows = fvParsearCSV(e.target.result);
-      if (!rows.length) { notify('El archivo no tiene datos válidos'); return; }
+      if (!rows.length) { notify('El archivo no tiene datos vÃ¡lidos'); return; }
       fvSubirAFirebase(rows);
     } catch(err) {
       notify('Error al procesar el CSV: ' + err.message);
@@ -12405,12 +12536,12 @@ function fvParsearCSV(text) {
     var obj = {};
     headers.forEach(function(h,i){ obj[h]=vals[i]||''; });
     return {
-      fecha:        obj['Fecha de Emisión']||'',
+      fecha:        obj['Fecha de EmisiÃ³n']||'',
       tipo:         obj['Tipo de Comprobante']||'',
       ptoVta:       obj['Punto de Venta']||'',
-      nroDoc:       obj['Número Desde']||'',
+      nroDoc:       obj['NÃºmero Desde']||'',
       cuitReceptor: obj['Nro. Doc. Receptor']||'',
-      nombre:       obj['Denominación Receptor']||'',
+      nombre:       obj['DenominaciÃ³n Receptor']||'',
       neto:         cfNum(obj['Imp. Neto Gravado Total']),
       iva105:       cfNum(obj['IVA 10,5%']),
       neto105:      cfNum(obj['Imp. Neto Gravado IVA 10,5%']),
@@ -12426,7 +12557,7 @@ function fvParsearCSV(text) {
 }
 
 function fvSubirAFirebase(rows) {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var nuevos = 0, existentes = 0;
   var promesas = rows.map(function(r) {
     var key = r.cuitReceptor + '_' + r.tipo + '_' + r.ptoVta + '_' + r.nroDoc;
@@ -12437,8 +12568,8 @@ function fvSubirAFirebase(rows) {
       Object.assign({}, r, { cargadoPor: currentUser||'', ts: Date.now() }));
   });
   Promise.all(promesas).then(function() {
-    document.getElementById('fv-drop-txt').textContent = '✓ ' + nuevos + ' comprobantes nuevos cargados' + (existentes ? ' · '+existentes+' ya existían' : '');
-    notify('✓ ' + nuevos + ' comprobantes nuevos importados' + (existentes ? ' ('+existentes+' ya estaban cargados)' : ''));
+    document.getElementById('fv-drop-txt').textContent = 'âœ“ ' + nuevos + ' comprobantes nuevos cargados' + (existentes ? ' Â· '+existentes+' ya existÃ­an' : '');
+    notify('âœ“ ' + nuevos + ' comprobantes nuevos importados' + (existentes ? ' ('+existentes+' ya estaban cargados)' : ''));
   }).catch(function(e){ notify('Error: '+e.message); });
 }
 function fvActualizarPeriodosUI() {
@@ -12469,7 +12600,7 @@ function fvActualizarPeriodosUI() {
       var d = new Date(p+'-01T12:00:00');
       var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
       var activo = p === FV_PERIODO_ACTIVO;
-      var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();fvEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar período"></i>' : '';
+      var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();fvEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar perÃ­odo"></i>' : '';
       return '<span onclick="fvSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
     }).join('');
   }
@@ -12478,16 +12609,16 @@ function fvActualizarPeriodosUI() {
 }
 
 function fvEliminarPeriodo(periodo) {
-  if (currentRole !== 'admin') { notify('Solo un administrador puede eliminar un período'); return; }
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (currentRole !== 'admin') { notify('Solo un administrador puede eliminar un perÃ­odo'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var d = new Date(periodo+'-01T12:00:00');
   var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
   var comps = FV_DATA.filter(function(c){ return (c.fecha||'').slice(0,7) === periodo; });
-  if (!confirm('⚠️ ATENCIÓN: Esto borra los '+comps.length+' comprobantes de '+lbl+' de FIREBASE (base de datos).\n\nNo es solo ocultar la vista — los datos se eliminan permanentemente.\nPodés volver a cargar el CSV después si los necesitás.\n\n¿Confirmar eliminación?')) return;
+  if (!confirm('âš ï¸ ATENCIÃ“N: Esto borra los '+comps.length+' comprobantes de '+lbl+' de FIREBASE (base de datos).\n\nNo es solo ocultar la vista â€” los datos se eliminan permanentemente.\nPodÃ©s volver a cargar el CSV despuÃ©s si los necesitÃ¡s.\n\nÂ¿Confirmar eliminaciÃ³n?')) return;
   var promesas = comps.map(function(c){ return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/'+c.fbKey)); });
   Promise.all(promesas).then(function(){
     if (FV_PERIODO_ACTIVO === periodo) FV_PERIODO_ACTIVO = null;
-    notify('✓ Período '+lbl+' eliminado de Firebase ('+comps.length+' comprobantes)');
+    notify('âœ“ PerÃ­odo '+lbl+' eliminado de Firebase ('+comps.length+' comprobantes)');
     fvRenderCompensacion();
     if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
   }).catch(function(e){ notify('Error: '+e.message); });
@@ -12519,8 +12650,8 @@ function fvRenderTodo() {
 
   var lbl = FV_PERIODO_ACTIVO
     ? new Date(FV_PERIODO_ACTIVO+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'})
-    : 'todos los períodos';
-  document.getElementById('fv-totales-titulo').textContent = 'Totales — ' + lbl;
+    : 'todos los perÃ­odos';
+  document.getElementById('fv-totales-titulo').textContent = 'Totales â€” ' + lbl;
   document.getElementById('fv-totales-qty').textContent = comps.length + ' comprobantes';
 
   fvRenderMetricas(comps);
@@ -12537,10 +12668,10 @@ function fvRenderMetricas(comps) {
   var iva105     = comps.reduce(function(s,c){ return s+fvMontoFirmado(c,'iva105'); }, 0);
 
   document.getElementById('fv-metrics-box').innerHTML =
-    cfMetricCard('Débito fiscal (IVA a ingresar)', cfPesos(totalIVA), 'facturas menos notas de crédito', 'red') +
-    cfMetricCard('Total facturado', cfPesos(totalFact), 'facturas menos notas de crédito', '') +
-    cfMetricCard('IVA 21%', cfPesos(iva21), 'alícuota general neta', 'blue') +
-    cfMetricCard('IVA 10,5%', cfPesos(iva105), 'alícuota reducida neta', 'amber');
+    cfMetricCard('DÃ©bito fiscal (IVA a ingresar)', cfPesos(totalIVA), 'facturas menos notas de crÃ©dito', 'red') +
+    cfMetricCard('Total facturado', cfPesos(totalFact), 'facturas menos notas de crÃ©dito', '') +
+    cfMetricCard('IVA 21%', cfPesos(iva21), 'alÃ­cuota general neta', 'blue') +
+    cfMetricCard('IVA 10,5%', cfPesos(iva105), 'alÃ­cuota reducida neta', 'amber');
 }
 
 function fvRenderAlicuotas(comps) {
@@ -12561,7 +12692,7 @@ function fvRenderAlicuotas(comps) {
       '<div style="font-family:monospace;font-size:13px;min-width:120px;text-align:right">'+cfPesos(a.val)+'</div>' +
       '<div style="font-size:11px;color:var(--text3);min-width:36px;text-align:right">'+pct+'%</div>' +
     '</div>';
-  }).join('') : '<div style="color:var(--text3);font-size:12px">Sin IVA discriminado en este período</div>';
+  }).join('') : '<div style="color:var(--text3);font-size:12px">Sin IVA discriminado en este perÃ­odo</div>';
 }
 
 function fvRenderTipos(comps) {
@@ -12572,7 +12703,7 @@ function fvRenderTipos(comps) {
   });
   document.getElementById('fv-tipos-box').innerHTML = Object.entries(tipos)
     .sort(function(a,b){ return b[1]-a[1]; })
-    .map(function(e){ return '<span class="badge b-gray" style="font-size:11px">'+e[0]+' ×'+e[1]+'</span>'; })
+    .map(function(e){ return '<span class="badge b-gray" style="font-size:11px">'+e[0]+' Ã—'+e[1]+'</span>'; })
     .join('');
 }
 function fvFiltrarHistorial(val) { fvRenderHistorial(fvGetCompFiltrados(), val); }
@@ -12582,7 +12713,7 @@ function fvRenderHistorial(comps, filtro) {
   comps.forEach(function(c) {
     var k = c.cuitReceptor || ('CF_' + (c.nombre || 'Consumidor Final'));
     var nombre = c.nombre || (c.cuitReceptor ? c.cuitReceptor : 'Consumidor Final');
-    if (!clientes[k]) clientes[k] = { cuit: c.cuitReceptor||'—', nombre: nombre, comps:[], totalIVA:0, total:0 };
+    if (!clientes[k]) clientes[k] = { cuit: c.cuitReceptor||'â€”', nombre: nombre, comps:[], totalIVA:0, total:0 };
     clientes[k].comps.push(c);
     clientes[k].totalIVA += fvMontoFirmado(c,'totalIVA');
     clientes[k].total += fvMontoFirmado(c,'total');
@@ -12610,8 +12741,8 @@ function fvRenderClienteRow(p, idx) {
     '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
       '<div>' +
         '<div style="font-weight:600;font-size:13px">'+escapeHTML(p.nombre)+'</div>' +
-        '<div style="font-size:11px;color:var(--text3);margin-top:2px">CUIT '+p.cuit+' · '+p.comps.length+' comprobante'+(p.comps.length!==1?'s':'') +
-          (compConIva.length ? ' · '+compConIva.length+' con IVA discriminado' : ' · sin IVA discriminado') + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px">CUIT '+p.cuit+' Â· '+p.comps.length+' comprobante'+(p.comps.length!==1?'s':'') +
+          (compConIva.length ? ' Â· '+compConIva.length+' con IVA discriminado' : ' Â· sin IVA discriminado') + '</div>' +
       '</div>' +
       '<div style="text-align:right">' +
         '<div style="font-size:14px;font-weight:700;color:'+(p.totalIVA>0?'var(--red)':'var(--text3)')+'">'+cfPesos(p.totalIVA)+' IVA</div>' +
@@ -12620,7 +12751,7 @@ function fvRenderClienteRow(p, idx) {
     '</div>' +
     '<div id="'+id+'-det" style="display:none;margin-top:12px">' +
       '<div class="table-wrap"><table>' +
-        '<thead><tr><th>Fecha</th><th>Tipo</th><th>N° Comp.</th><th class="tr">Neto</th><th class="tr">IVA</th><th class="tr">Total</th></tr></thead>' +
+        '<thead><tr><th>Fecha</th><th>Tipo</th><th>NÂ° Comp.</th><th class="tr">Neto</th><th class="tr">IVA</th><th class="tr">Total</th></tr></thead>' +
         '<tbody>' + p.comps.map(function(c) {
           var tipoNom = CF_TIPOS_COMP[c.tipo] || 'Tipo '+c.tipo;
           var conIva = fvConIvaDiscriminado(c.tipo);
@@ -12631,7 +12762,7 @@ function fvRenderClienteRow(p, idx) {
             '<td><span class="badge '+(esNC?'b-red':(conIva?'b-blue':'b-gray'))+'" style="font-size:10px">'+tipoNom+'</span></td>' +
             '<td style="font-family:monospace;font-size:12px">'+numFmt+'</td>' +
             '<td class="tr" style="font-family:monospace;color:'+(esNC?'var(--red)':'inherit')+'">'+fvPesosFirmado(c,'neto')+'</td>' +
-            '<td class="tr" style="font-family:monospace;color:'+(conIva?'var(--red)':'var(--text3)')+';font-weight:'+(conIva?'600':'400')+'">'+(conIva?fvPesosFirmado(c,'totalIVA'):(c.totalIVA>0?fvPesosFirmado(c,'totalIVA'):'—'))+'</td>' +
+            '<td class="tr" style="font-family:monospace;color:'+(conIva?'var(--red)':'var(--text3)')+';font-weight:'+(conIva?'600':'400')+'">'+(conIva?fvPesosFirmado(c,'totalIVA'):(c.totalIVA>0?fvPesosFirmado(c,'totalIVA'):'â€”'))+'</td>' +
             '<td class="tr" style="font-family:monospace;color:'+(esNC?'var(--red)':'inherit')+'">'+fvPesosFirmado(c,'total')+'</td>' +
           '</tr>';
         }).join('') + '</tbody>' +
@@ -12654,7 +12785,7 @@ function fvToggleCliente(id) {
   det.style.display = abierto ? 'none' : '';
   if (row) row.style.borderLeftColor = abierto ? 'transparent' : 'var(--blue)';
 }
-// periodo: 'YYYY-MM' o null/undefined para todos los períodos cargados.
+// periodo: 'YYYY-MM' o null/undefined para todos los perÃ­odos cargados.
 function calcularCompensacionIVA(periodo) {
   var compCF = (CF_DATA||[]).filter(function(c){ return !periodo || (c.fecha||'').startsWith(periodo); });
   var compFV = (FV_DATA||[]).filter(function(c){ return !periodo || (c.fecha||'').startsWith(periodo); });
@@ -12671,18 +12802,18 @@ function fvRenderCompensacion() {
   var hayDatos = (CF_DATA && CF_DATA.length) || (FV_DATA && FV_DATA.length);
   card.style.display = hayDatos ? '' : 'none';
   if (!hayDatos) return;
-  // Sigue el período de la pestaña que el usuario está mirando en este momento.
+  // Sigue el perÃ­odo de la pestaÃ±a que el usuario estÃ¡ mirando en este momento.
   var periodo = FACT_TAB_ACTIVA === 'fv'
     ? (FV_PERIODO_ACTIVO || CF_PERIODO_ACTIVO || null)
     : (CF_PERIODO_ACTIVO || FV_PERIODO_ACTIVO || null);
   var c = calcularCompensacionIVA(periodo);
-  var lblPeriodo = periodo ? new Date(periodo+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'}) : 'todos los períodos';
+  var lblPeriodo = periodo ? new Date(periodo+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'}) : 'todos los perÃ­odos';
   var aFavor = c.saldo <= 0;
   box.innerHTML =
     '<div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr))">' +
-      cfMetricCard('Débito fiscal', cfPesos(c.debito), 'facturas realizadas · '+lblPeriodo, 'red') +
-      cfMetricCard('Crédito fiscal', cfPesos(c.credito), 'crédito fiscal · '+lblPeriodo, 'green') +
-      cfMetricCard(aFavor ? 'Saldo a favor' : 'A compensar (pagar)', cfPesos(Math.abs(c.saldo)), aFavor ? 'crédito disponible para el próximo período' : 'IVA neto a ingresar a AFIP', aFavor ? 'blue' : 'amber') +
+      cfMetricCard('DÃ©bito fiscal', cfPesos(c.debito), 'facturas realizadas Â· '+lblPeriodo, 'red') +
+      cfMetricCard('CrÃ©dito fiscal', cfPesos(c.credito), 'crÃ©dito fiscal Â· '+lblPeriodo, 'green') +
+      cfMetricCard(aFavor ? 'Saldo a favor' : 'A compensar (pagar)', cfPesos(Math.abs(c.saldo)), aFavor ? 'crÃ©dito disponible para el prÃ³ximo perÃ­odo' : 'IVA neto a ingresar a AFIP', aFavor ? 'blue' : 'amber') +
     '</div>';
 }
 
@@ -12747,7 +12878,7 @@ function spRenderLista() {
       '<div style="flex:1;min-width:0">' +
         '<div style="font-weight:500;font-size:13px">' + escapeHTML(r.cliente||'Sin cliente') + '</div>' +
         '<div style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(r.descripcion||'') + '</div>' +
-        (notaTxt ? '<div style="font-size:11px;color:var(--text2);margin-top:2px">↳ ' + notaTxt + '</div>' : '') +
+        (notaTxt ? '<div style="font-size:11px;color:var(--text2);margin-top:2px">â†³ ' + notaTxt + '</div>' : '') +
       '</div>' +
       '<div style="flex-shrink:0;text-align:right">' +
         '<span class="badge ' + est.badge + '" style="font-size:10px">' + est.label + '</span>' + otLink +
@@ -12791,13 +12922,22 @@ function spSelCliente(nombre, id) {
 
 function spGuardarNuevo() {
   var cli = document.getElementById('sp-nuevo-cli').value.trim();
+  var cliSel = document.getElementById('sp-nuevo-cli-id').value;
   var desc = document.getElementById('sp-nuevo-desc').value.trim();
-  if (!cli) { notify('Ingresá el cliente'); return; }
-  if (!desc) { notify('Ingresá la descripción del problema'); return; }
+  if (!cli) { notify('IngresÃ¡ el cliente'); return; }
+  if (!desc) { notify('IngresÃ¡ la descripciÃ³n del problema'); return; }
+  var clienteRef = (typeof window._svResolverClienteRegistro === 'function')
+    ? window._svResolverClienteRegistro({ cliente:cli, clienteId:cliSel, idCliente:cliSel, clienteFbKey:cliSel }, true)
+    : null;
+  var clienteIdReclamo = (clienteRef && (clienteRef.id || clienteRef.numero || '')) || cliSel || '';
+  var clienteFbKeyReclamo = (clienteRef && clienteRef.fbKey) || cliSel || '';
 
   var reclamo = {
     cliente:     cli,
-    clienteId:   document.getElementById('sp-nuevo-cli-id').value,
+    clienteId:   clienteIdReclamo,
+    idCliente:   clienteIdReclamo,
+    clienteFbKey: clienteFbKeyReclamo,
+    clienteKey:   clienteFbKeyReclamo,
     descripcion: desc,
     estado:      'nuevo',
     ts:          Date.now(),
@@ -12805,10 +12945,10 @@ function spGuardarNuevo() {
     historial:   [{ texto:'Reclamo registrado', autor: currentUser||'sistema', ts: Date.now() }]
   };
 
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/reclamos'), reclamo)
     .then(function() {
-      notify('✓ Reclamo registrado');
+      notify('âœ“ Reclamo registrado');
       document.getElementById('sp-modal-nuevo').style.display = 'none';
     })
     .catch(function(e){ notify('Error: '+e.message); });
@@ -12819,9 +12959,9 @@ function spAbrirModal(fbKey) {
   SP_MODAL_KEY = fbKey;
 
   var est = SP_ESTADOS[r.estado] || SP_ESTADOS.nuevo;
-  document.getElementById('sp-modal-titulo').textContent = 'Reclamo — ' + (r.cliente||'');
-  document.getElementById('sp-modal-cliente').textContent = r.cliente||'—';
-  document.getElementById('sp-modal-desc').textContent = r.descripcion||'—';
+  document.getElementById('sp-modal-titulo').textContent = 'Reclamo â€” ' + (r.cliente||'');
+  document.getElementById('sp-modal-cliente').textContent = r.cliente||'â€”';
+  document.getElementById('sp-modal-desc').textContent = r.descripcion||'â€”';
   document.getElementById('sp-modal-fecha').textContent = spFormatFecha(r.ts);
   document.getElementById('sp-modal-estado-badge').innerHTML = '<span class="badge '+est.badge+'">'+est.label+'</span>';
 
@@ -12843,12 +12983,12 @@ function spAbrirModal(fbKey) {
   histEl.innerHTML = hist.map(function(h) {
     return '<div style="background:var(--bg3);border-radius:var(--radius);padding:8px 12px">' +
       '<div style="font-size:12px">' + escapeHTML(h.texto||'') + '</div>' +
-      '<div style="font-size:10px;color:var(--text3);margin-top:2px">' + escapeHTML(h.autor||'') + ' · ' + spFormatFecha(h.ts) + '</div>' +
+      '<div style="font-size:10px;color:var(--text3);margin-top:2px">' + escapeHTML(h.autor||'') + ' Â· ' + spFormatFecha(h.ts) + '</div>' +
     '</div>';
-  }).join('') || '<div style="text-align:center;color:var(--text3);font-size:12px;padding:12px">Sin notas todavía</div>';
+  }).join('') || '<div style="text-align:center;color:var(--text3);font-size:12px;padding:12px">Sin notas todavÃ­a</div>';
   histEl.scrollTop = histEl.scrollHeight;
 
-  // Acciones según estado
+  // Acciones segÃºn estado
   spRenderAcciones(r.estado);
   document.getElementById('sp-modal').style.display = 'flex';
 }
@@ -12863,15 +13003,15 @@ function spRenderAcciones(estado) {
   var btns = [];
 
   if (estado === 'nuevo') {
-    btns.push('<button class="btn btn-sm btn-primary" onclick="spCambiarEstado(\'diagnostico\')"><i class="ti ti-search"></i> Tomar diagnóstico remoto</button>');
+    btns.push('<button class="btn btn-sm btn-primary" onclick="spCambiarEstado(\'diagnostico\')"><i class="ti ti-search"></i> Tomar diagnÃ³stico remoto</button>');
     btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--green)"><i class="ti ti-check"></i> Resolver sin visita (cerrar)</button>');
   }
   if (estado === 'diagnostico') {
     btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--green)"><i class="ti ti-check"></i> Resuelto de forma remota (cerrar)</button>');
-    btns.push('<button class="btn btn-sm" onclick="spSolicitarVisita()" style="color:var(--red)"><i class="ti ti-truck"></i> Requiere visita técnica</button>');
+    btns.push('<button class="btn btn-sm" onclick="spSolicitarVisita()" style="color:var(--red)"><i class="ti ti-truck"></i> Requiere visita tÃ©cnica</button>');
   }
   if (estado === 'visita') {
-    btns.push('<button class="btn btn-sm btn-primary" onclick="spGenerarOT()"><i class="ti ti-file-plus"></i> Generar OT y asignar técnico</button>');
+    btns.push('<button class="btn btn-sm btn-primary" onclick="spGenerarOT()"><i class="ti ti-file-plus"></i> Generar OT y asignar tÃ©cnico</button>');
   }
   if (estado === 'ot_activa') {
     btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--green)"><i class="ti ti-check"></i> Marcar como resuelto (cerrar)</button>');
@@ -12891,7 +13031,7 @@ function spAgregarNota() {
   var hist = r.historial ? r.historial.slice() : [];
   hist.push({ texto, autor: currentUser||'sistema', ts: Date.now() });
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/reclamos/' + SP_MODAL_KEY), { historial: hist })
-    .then(function(){ inp.value = ''; notify('✓ Nota agregada'); })
+    .then(function(){ inp.value = ''; notify('âœ“ Nota agregada'); })
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
@@ -12904,7 +13044,7 @@ function spCambiarEstado(nuevoEstado, extraDatos) {
   var update = Object.assign({ estado: nuevoEstado, historial: hist }, extraDatos||{});
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/reclamos/' + SP_MODAL_KEY), update)
     .then(function(){
-      notify('✓ ' + (est?est.label:'Estado actualizado'));
+      notify('âœ“ ' + (est?est.label:'Estado actualizado'));
       if (nuevoEstado === 'cerrado') spCerrarModal();
     })
     .catch(function(e){ notify('Error: '+e.message); });
@@ -12921,11 +13061,11 @@ function spGenerarOT() {
   var prods = prodData ? Object.values(prodData) : [];
   var prodVisita = prods.find(function(p) {
     var nombre = (p.nombre||p.descripcion||'').toLowerCase();
-    return p.esManoDeObra || nombre.includes('visita') || nombre.includes('técnica') || nombre.includes('mano de obra');
+    return p.esManoDeObra || nombre.includes('visita') || nombre.includes('tÃ©cnica') || nombre.includes('mano de obra');
   });
 
   if (!prodVisita) {
-    notify('No se encontró un producto de visita técnica en el catálogo. Cargá uno con la opción "Es mano de obra" activada.');
+    notify('No se encontrÃ³ un producto de visita tÃ©cnica en el catÃ¡logo. CargÃ¡ uno con la opciÃ³n "Es mano de obra" activada.');
     return;
   }
 
@@ -12935,8 +13075,8 @@ function spGenerarOT() {
   var opciones = tecnicos.length
     ? tecnicos.map(function(t,i){ return i+') '+t.nombre; }).join('\n')
     : '(sin empleados cargados)';
-  var selIdx = prompt('Elegí el técnico asignado:\n' + opciones);
-  if (selIdx === null) return; // canceló
+  var selIdx = prompt('ElegÃ­ el tÃ©cnico asignado:\n' + opciones);
+  if (selIdx === null) return; // cancelÃ³
   var tecnico = (tecnicos[parseInt(selIdx)]) ? tecnicos[parseInt(selIdx)].nombre : 'Sin asignar';
 
   var punit = parseFloat(prodVisita.venta) || 0;
@@ -12945,20 +13085,29 @@ function spGenerarOT() {
   var total = sub + iva;
   var ventaId = '#SP-' + String(Date.now()).slice(-5);
   var fechaHoy = new Date().toISOString().split('T')[0];
+  var clienteRefReclamo = (typeof window._svResolverClienteRegistro === 'function')
+    ? window._svResolverClienteRegistro(r, true)
+    : null;
+  var reclamoClienteId = r.clienteId || r.idCliente || (clienteRefReclamo && (clienteRefReclamo.id || clienteRefReclamo.numero || '')) || '';
+  var reclamoClienteFbKey = r.clienteFbKey || r.clienteKey || (clienteRefReclamo && clienteRefReclamo.fbKey) || '';
 
   var nuevaVenta = {
     id:         ventaId,
     cliente:    r.cliente||'',
-    clienteId:  r.clienteId||'',
+    clienteId:  reclamoClienteId,
+    idCliente:  reclamoClienteId,
+    clienteFbKey: reclamoClienteFbKey,
+    clienteKey:   reclamoClienteFbKey,
     empleado:   tecnico,
     fecha:      fechaHoy,
     estadoPago: 'pendiente_pago',
     estadoInst: 'pendiente_inst',
     origen:     'reclamo',
     reclamoKey: SP_MODAL_KEY,
+    reclamoId:  r.id || r.numero || SP_MODAL_KEY,
     items: [{
       cod:   prodVisita.codigo||'',
-      desc:  prodVisita.nombre||prodVisita.descripcion||'Visita técnica',
+      desc:  prodVisita.nombre||prodVisita.descripcion||'Visita tÃ©cnica',
       qty:   1,
       punit: punit,
       sub:   sub
@@ -12968,7 +13117,7 @@ function spGenerarOT() {
     total:    total,
     pagos:    [],
     obs:      'Generada desde reclamo: ' + (r.descripcion||''),
-    audit: [{ fecha: fechaHoy, usuario: currentUser||'Sistema', accion: 'Venta creada automáticamente desde reclamo de soporte' }]
+    audit: [{ fecha: fechaHoy, usuario: currentUser||'Sistema', accion: 'Venta creada automÃ¡ticamente desde reclamo de soporte' }]
   };
 
   window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), nuevaVenta)
@@ -12980,8 +13129,12 @@ function spGenerarOT() {
         id:          '',
         ventaId:     ventaId,
         ventaFbKey:  ventaFbKey,
+        ventaKey:    ventaFbKey,
         cliente:     r.cliente||'',
-        clienteId:   r.clienteId||'',
+        clienteId:   reclamoClienteId,
+        idCliente:   reclamoClienteId,
+        clienteFbKey: reclamoClienteFbKey,
+        clienteKey:   reclamoClienteFbKey,
         estado:      'pendiente',
         tecnico:     tecnico,
         fecha:       fechaHoy,
@@ -12992,6 +13145,7 @@ function spGenerarOT() {
         tipoVisita:  'Reclamo post-venta',
         origen:      'reclamo',
         reclamoKey:  SP_MODAL_KEY,
+        reclamoId:   r.id || r.numero || SP_MODAL_KEY,
         progreso:    0,
         checks: {
           preparacion: CHECKLISTS.preparacion.map(function(){ return false; }),
@@ -13003,18 +13157,21 @@ function spGenerarOT() {
       };
 
       var crearOTReclamo = typeof window.crearRegistroOTSeguro === 'function'
-        ? window.crearRegistroOTSeguro(ot)
+        ? window.crearRegistroOTSeguro(ot, { evitarDoble:true })
         : window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot);
       return crearOTReclamo
         .then(function(otRef) {
           var otFbKey = otRef.key;
+          var otIdGenerada = ot.id || '';
           spCambiarEstado('ot_activa', {
             otKey:      otFbKey,
+            otId:       otIdGenerada,
             ventaKey:   ventaFbKey,
+            ventaFbKey: ventaFbKey,
             ventaId:    ventaId,
             tecnico:    tecnico
           });
-          notify('✓ Venta y OT generadas. Técnico: ' + tecnico + ' · Total: $' + total.toLocaleString('es-AR'));
+          notify('âœ“ Venta y OT generadas. TÃ©cnico: ' + tecnico + ' Â· Total: $' + total.toLocaleString('es-AR'));
         });
     })
     .catch(function(e){ notify('Error: '+e.message); });
@@ -13030,7 +13187,7 @@ function spVerVenta(ventaId) {
   spCerrarModal();
   showPage('ventas', document.querySelector('[onclick*="ventas"]'));
   setTimeout(function(){
-    var v = (ventasList||[]).find(function(x){ return x.id === ventaId; });
+    var v = _svResolverVentaRegistro(ventaId);
     if (v && v.fbKey) verVenta(v.fbKey);
   }, 600);
 }
@@ -13066,28 +13223,28 @@ function fbCargarGarantias() {
     var tbody = document.querySelector('#page-garantias tbody');
     if (!tbody) return;
     if (!lista.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin garantías registradas</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin garantÃ­as registradas</td></tr>';
       return;
     }
     tbody.innerHTML = lista.map(function(g){
       var hoy = new Date();
       var venc = g.fechaVenc ? new Date(g.fechaVenc) : null;
       var diasRest = venc ? Math.round((venc-hoy)/86400000) : null;
-      var estBadge = !venc ? '<span class="badge b-blue">—</span>'
+      var estBadge = !venc ? '<span class="badge b-blue">â€”</span>'
         : diasRest > 30 ? '<span class="badge b-green">Vigente</span>'
         : diasRest > 0  ? '<span class="badge b-amber">Vence pronto</span>'
         : '<span class="badge b-red">Vencida</span>';
       return '<tr>'+
-        '<td>'+escapeHTML(g.equipo||'—')+'</td>'+
-        '<td style="font-family:monospace;font-size:12px">'+escapeHTML(g.serie||'—')+'</td>'+
-        '<td>'+escapeHTML(g.cliente||'—')+'</td>'+
-        '<td style="color:var(--text3)">'+escapeHTML(g.fechaInst||'—')+'</td>'+
-        '<td style="color:var(--text3)">'+escapeHTML(g.fechaVenc||'—')+'</td>'+
-        '<td style="text-align:right">'+escapeHTML(String(g.meses||'—')+' meses')+'</td>'+
+        '<td>'+escapeHTML(g.equipo||'â€”')+'</td>'+
+        '<td style="font-family:monospace;font-size:12px">'+escapeHTML(g.serie||'â€”')+'</td>'+
+        '<td>'+escapeHTML(g.cliente||'â€”')+'</td>'+
+        '<td style="color:var(--text3)">'+escapeHTML(g.fechaInst||'â€”')+'</td>'+
+        '<td style="color:var(--text3)">'+escapeHTML(g.fechaVenc||'â€”')+'</td>'+
+        '<td style="text-align:right">'+escapeHTML(String(g.meses||'â€”')+' meses')+'</td>'+
         '<td style="text-align:right">'+estBadge+'</td>'+
       '</tr>';
     }).join('');
-    // Métricas
+    // MÃ©tricas
     var activas = lista.filter(function(g){ return g.fechaVenc && new Date(g.fechaVenc) > new Date(); }).length;
     var pronto  = lista.filter(function(g){ if(!g.fechaVenc) return false; var d=Math.round((new Date(g.fechaVenc)-new Date())/86400000); return d>0&&d<=30; }).length;
     var vencidas= lista.filter(function(g){ return g.fechaVenc && new Date(g.fechaVenc) < new Date(); }).length;
@@ -13112,16 +13269,19 @@ function fbCargarTickets() {
     }
     var prioCls = {Urgente:'b-red',Media:'b-amber',Baja:'b-blue'};
     var estCls  = {Abierto:'b-blue','En curso':'b-amber',Cerrado:'b-green'};
+    var puedeEliminarTickets = typeof window.tienePermiso === 'function'
+      ? window.tienePermiso('registros.eliminar', { args:['tickets'] })
+      : String(currentRole || '').toLowerCase() === 'admin';
     tbody.innerHTML = lista.map(function(t){
       return '<tr>'+
-        '<td style="font-family:monospace;font-size:12px">'+(t.numero||'—')+'</td>'+
-        '<td>'+escapeHTML(t.descripcion||'—')+'</td>'+
-        '<td>'+escapeHTML(t.cliente||'—')+'</td>'+
-        '<td style="color:var(--text3)">'+escapeHTML(t.equipo||'—')+'</td>'+
+        '<td style="font-family:monospace;font-size:12px">'+(t.numero||'â€”')+'</td>'+
+        '<td>'+escapeHTML(t.descripcion||'â€”')+'</td>'+
+        '<td>'+escapeHTML(t.cliente||'â€”')+'</td>'+
+        '<td style="color:var(--text3)">'+escapeHTML(t.equipo||'â€”')+'</td>'+
         '<td>'+escapeHTML(t.tecnico||'Sin asignar')+'</td>'+
-        '<td style="text-align:right"><span class="badge '+(prioCls[t.prioridad]||'b-blue')+'">'+escapeHTML(t.prioridad||'—')+'</span></td>'+
-        '<td style="text-align:right"><span class="badge '+(estCls[t.estado]||'b-blue')+'">'+escapeHTML(t.estado||'—')+'</span>'+
-        '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'tickets\',\''+t.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:12px"></i></button></td>'+
+        '<td style="text-align:right"><span class="badge '+(prioCls[t.prioridad]||'b-blue')+'">'+escapeHTML(t.prioridad||'â€”')+'</span></td>'+
+        '<td style="text-align:right"><span class="badge '+(estCls[t.estado]||'b-blue')+'">'+escapeHTML(t.estado||'â€”')+'</span>'+
+        (puedeEliminarTickets ? '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'tickets\',\''+t.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:12px"></i></button>' : '') + '</td>'+
       '</tr>';
     }).join('');
     var _e = function(id){ return document.getElementById(id); };
@@ -13143,27 +13303,30 @@ function fbCargarRemitos() {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Sin remitos registrados</td></tr>';
       return;
     }
+    var puedeEliminarRemitos = typeof window.tienePermiso === 'function'
+      ? window.tienePermiso('registros.eliminar', { args:['remitos'] })
+      : String(currentRole || '').toLowerCase() === 'admin';
     tbody.innerHTML = lista.map(function(r){
       var estBadge = r.estado === 'entregado' ? '<span class="badge b-green">Entregado</span>' : '<span class="badge b-amber">Pendiente</span>';
       return '<tr>'+
-        '<td style="font-family:monospace;font-size:12px">'+escapeHTML(r.numero||'—')+'</td>'+
-        '<td>'+escapeHTML(r.cliente||'—')+'</td>'+
-        '<td style="color:var(--text3)">'+escapeHTML(r.fecha||'—')+'</td>'+
-        '<td>'+escapeHTML(r.venta||'—')+'</td>'+
+        '<td style="font-family:monospace;font-size:12px">'+escapeHTML(r.numero||'â€”')+'</td>'+
+        '<td>'+escapeHTML(r.cliente||'â€”')+'</td>'+
+        '<td style="color:var(--text3)">'+escapeHTML(r.fecha||'â€”')+'</td>'+
+        '<td>'+escapeHTML(r.venta||'â€”')+'</td>'+
         '<td style="text-align:right">'+estBadge+'</td>'+
         '<td style="text-align:right">'+
           '<button class="btn btn-sm btn-icon" onclick="imprimirRemito(\''+r.fbKey+'\')" title="Imprimir"><i class="ti ti-printer" style="font-size:14px"></i></button>'+
-          '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'remitos\',\''+r.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>'+
+          (puedeEliminarRemitos ? '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'remitos\',\''+r.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' : '') +
         '</td>'+
       '</tr>';
     }).join('');
   });
 }
-// AGENDA — Calendario visual Día/Semana/Mes
+// AGENDA â€” Calendario visual DÃ­a/Semana/Mes
 // Tres tipos de evento:
-//   🟢 instalacion — viene de OT con fecha asignada
-//   🔵 reclamo     — viene de reclamo con OT fechada
-//   🟡 interno     — creado manualmente en Agenda
+//   ðŸŸ¢ instalacion â€” viene de OT con fecha asignada
+//   ðŸ”µ reclamo     â€” viene de reclamo con OT fechada
+//   ðŸŸ¡ interno     â€” creado manualmente en Agenda
 var AG_DATA = [];         // eventos internos de sisventas/agenda
 var AG_VISTA = 'mes';     // 'mes' | 'semana' | 'dia'
 var AG_CURSOR = new Date(); // fecha actual del calendario
@@ -13224,7 +13387,7 @@ function agGetTodosEventos() {
       tipo: esReclamo ? 'reclamo' : 'instalacion',
       fecha: ot.fecha, hora: ot.hora||'',
       titulo: ot.cliente||'Sin cliente',
-      subtitulo: (ot.tipoVisita||'Instalación') + (ot.tecnico ? ' · ' + ot.tecnico : ''),
+      subtitulo: (ot.tipoVisita||'InstalaciÃ³n') + (ot.tecnico ? ' Â· ' + ot.tecnico : ''),
       notas: ot.obs||'',
       fbKey: ot.fbKey||ot.id, ref: ot, otId: ot.id
     });
@@ -13304,12 +13467,12 @@ function agRenderMes() {
   var diaInicio = (primerDia.getDay()+6)%7;
 
   var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border)">';
-  var dias = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  var dias = ['Lun','Mar','MiÃ©','Jue','Vie','SÃ¡b','Dom'];
   dias.forEach(function(d){
     html += '<div style="background:var(--bg2);text-align:center;font-size:11px;font-weight:600;color:var(--text3);padding:6px 0;text-transform:uppercase">'+d+'</div>';
   });
 
-  // Celdas vacías antes del primer día
+  // Celdas vacÃ­as antes del primer dÃ­a
   for (var i=0; i<diaInicio; i++) {
     html += '<div style="background:var(--bg2);min-height:80px;padding:4px"></div>';
   }
@@ -13331,12 +13494,12 @@ function agRenderMes() {
       '</div>';
     });
     if (evsDelDia.length > 3) {
-      html += '<div style="font-size:10px;color:var(--text3)">+'+(evsDelDia.length-3)+' más</div>';
+      html += '<div style="font-size:10px;color:var(--text3)">+'+(evsDelDia.length-3)+' mÃ¡s</div>';
     }
     html += '</div>';
   }
 
-  // Celdas vacías al final
+  // Celdas vacÃ­as al final
   var totalCeldas = diaInicio + totalDias;
   var resto = totalCeldas % 7;
   if (resto > 0) {
@@ -13407,7 +13570,7 @@ function agRenderSemana(lunes) {
     fechas.push(d);
   }
 
-  var dias = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  var dias = ['Lun','Mar','MiÃ©','Jue','Vie','SÃ¡b','Dom'];
   var html = '<div style="display:grid;grid-template-columns:48px repeat(7,1fr);gap:0;border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">';
 
   // Header
@@ -13514,7 +13677,7 @@ function agRenderDia(fecha) {
   }
 
   html += '</div>';
-  if (!evs.length) html = '<div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">Sin eventos para este día — <button class="btn btn-sm btn-primary" onclick="agAbrirNuevoEvento()">+ Crear evento interno</button></div>';
+  if (!evs.length) html = '<div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">Sin eventos para este dÃ­a â€” <button class="btn btn-sm btn-primary" onclick="agAbrirNuevoEvento()">+ Crear evento interno</button></div>';
   return html;
 }
 function agClickDia(fechaStr) {
@@ -13532,26 +13695,26 @@ function agVerEvento(fbKey, tipo) {
     if (!ev) return;
     if (tit) tit.textContent = 'Evento interno';
     cont.innerHTML =
-      agPanelFila('Descripción', ev.descripcion||'—') +
-      agPanelFila('Fecha', ev.fecha||'—') +
-      agPanelFila('Hora', ev.hora||'—') +
-      agPanelFila('Responsable', ev.empleado||'—') +
-      agPanelFila('Notas', ev.notas||'—') +
+      agPanelFila('DescripciÃ³n', ev.descripcion||'â€”') +
+      agPanelFila('Fecha', ev.fecha||'â€”') +
+      agPanelFila('Hora', ev.hora||'â€”') +
+      agPanelFila('Responsable', ev.empleado||'â€”') +
+      agPanelFila('Notas', ev.notas||'â€”') +
       '<button class="btn btn-sm" onclick="agEliminarEvento(\''+fbKey+'\')" style="color:var(--red);margin-top:8px"><i class="ti ti-trash"></i> Eliminar evento</button>';
   } else {
-    // OT (instalación o reclamo)
+    // OT (instalaciÃ³n o reclamo)
     var ot = (otData||[]).find(function(o){ return (o.fbKey||o.id) === fbKey; });
     if (!ot) return;
     var col = AG_COLORES[tipo] || AG_COLORES.instalacion;
-    if (tit) tit.innerHTML = '<span style="color:'+col.text+'">' + (tipo==='reclamo'?'Reclamo/Servicio':'Instalación') + '</span>';
+    if (tit) tit.innerHTML = '<span style="color:'+col.text+'">' + (tipo==='reclamo'?'Reclamo/Servicio':'InstalaciÃ³n') + '</span>';
     cont.innerHTML =
-      agPanelFila('Cliente', ot.cliente||'—') +
-      agPanelFila('Fecha', ot.fecha||'—') +
+      agPanelFila('Cliente', ot.cliente||'â€”') +
+      agPanelFila('Fecha', ot.fecha||'â€”') +
       agPanelFila('Hora', ot.hora||'Sin hora asignada') +
-      agPanelFila('Técnico', ot.tecnico||'Sin asignar') +
-      agPanelFila('Tipo', ot.tipoVisita||'—') +
-      agPanelFila('Dirección', ot.dir||'—') +
-      agPanelFila('Notas', ot.obs||'—') +
+      agPanelFila('TÃ©cnico', ot.tecnico||'Sin asignar') +
+      agPanelFila('Tipo', ot.tipoVisita||'â€”') +
+      agPanelFila('DirecciÃ³n', ot.dir||'â€”') +
+      agPanelFila('Notas', ot.obs||'â€”') +
       agPanelFila('Progreso', (ot.progreso||0)+'%') +
       '<button class="btn btn-sm btn-primary" onclick="agIrAOT(\''+escapeHTML(ot.id||fbKey)+'\')" style="margin-top:8px;width:100%"><i class="ti ti-external-link"></i> Abrir OT completa</button>';
   }
@@ -13590,8 +13753,8 @@ function agAbrirNuevoEvento() {
 function agGuardarEvento() {
   var desc  = document.getElementById('ag-ev-desc').value.trim();
   var fecha = document.getElementById('ag-ev-fecha').value;
-  if (!desc) { notify('Ingresá la descripción del evento'); return; }
-  if (!fecha) { notify('Ingresá la fecha'); return; }
+  if (!desc) { notify('IngresÃ¡ la descripciÃ³n del evento'); return; }
+  if (!fecha) { notify('IngresÃ¡ la fecha'); return; }
   var ev = {
     descripcion: desc,
     fecha, hora: document.getElementById('ag-ev-hora').value,
@@ -13599,14 +13762,14 @@ function agGuardarEvento() {
     notas: document.getElementById('ag-ev-notas').value,
     tipo: 'interno', ts: Date.now(), usuario: currentUser||''
   };
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/agenda'), ev)
-    .then(function(){ notify('✓ Evento guardado'); document.getElementById('ag-modal-nuevo').style.display='none'; })
+    .then(function(){ notify('âœ“ Evento guardado'); document.getElementById('ag-modal-nuevo').style.display='none'; })
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
 function agEliminarEvento(fbKey) {
-  if (!confirm('¿Eliminar este evento?')) return;
+  if (!confirm('Â¿Eliminar este evento?')) return;
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/agenda/'+fbKey))
     .then(function(){ notify('Evento eliminado'); _hide('ag-panel-evento'); })
     .catch(function(e){ notify('Error: '+e.message); });
@@ -13622,10 +13785,10 @@ function imprimirRemito(fbKey) {
     var w = window.open('','_blank','width=700,height=500');
     w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Remito '+r.numero+'</title>'+
       '<style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:24px}.firma{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:60px}.firma-line{border-top:1px solid #222;padding-top:6px;font-size:11px;color:#666;text-align:center}@media print{body{margin:20px}}</style></head><body>'+
-      '<div class="header"><div>'+logo+'<div style="font-size:11px;color:#666">'+empresa.dir+'</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:700">REMITO</div><div>'+escapeHTML(r.numero||'—')+'</div><div style="font-size:12px;color:#666">'+escapeHTML(r.fecha||'')+'</div></div></div>'+
-      '<p><strong>Cliente:</strong> '+escapeHTML(r.cliente||'—')+'</p>'+
-      '<p><strong>Venta vinculada:</strong> '+escapeHTML(r.venta||'—')+'</p>'+
-      '<p><strong>Descripción:</strong> '+escapeHTML(r.descripcion||'—')+'</p>'+
+      '<div class="header"><div>'+logo+'<div style="font-size:11px;color:#666">'+empresa.dir+'</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:700">REMITO</div><div>'+escapeHTML(r.numero||'â€”')+'</div><div style="font-size:12px;color:#666">'+escapeHTML(r.fecha||'')+'</div></div></div>'+
+      '<p><strong>Cliente:</strong> '+escapeHTML(r.cliente||'â€”')+'</p>'+
+      '<p><strong>Venta vinculada:</strong> '+escapeHTML(r.venta||'â€”')+'</p>'+
+      '<p><strong>DescripciÃ³n:</strong> '+escapeHTML(r.descripcion||'â€”')+'</p>'+
       '<div class="firma"><div><div class="firma-line">Firma receptor</div></div><div><div class="firma-line">Firma Nixa</div></div></div>'+
       '</body></html>');
     w.document.close();
@@ -13658,8 +13821,8 @@ var AACFG_SEMILLA_RUBROS = {
     "pasos": [
       {
         "id": "tipo_prop",
-        "titulo": "¿Qué tipo de propiedad es?",
-        "desc": "Esto determina el panel más adecuado",
+        "titulo": "Â¿QuÃ© tipo de propiedad es?",
+        "desc": "Esto determina el panel mÃ¡s adecuado",
         "tipo": "opciones",
         "opciones": [
           {
@@ -13678,14 +13841,14 @@ var AACFG_SEMILLA_RUBROS = {
             "id": "industrial",
             "ico": "ti-building-factory-2",
             "titulo": "Industrial",
-            "desc": "Galpón, fábrica, depósito"
+            "desc": "GalpÃ³n, fÃ¡brica, depÃ³sito"
           }
         ]
       },
       {
         "id": "zonas",
-        "titulo": "¿Cuántas zonas necesita proteger?",
-        "desc": "Cada zona es un sector independiente (habitación, local, puerta, etc.)",
+        "titulo": "Â¿CuÃ¡ntas zonas necesita proteger?",
+        "desc": "Cada zona es un sector independiente (habitaciÃ³n, local, puerta, etc.)",
         "tipo": "numero",
         "min": 1,
         "max": 64,
@@ -13694,7 +13857,7 @@ var AACFG_SEMILLA_RUBROS = {
       },
       {
         "id": "comunicacion",
-        "titulo": "¿Cómo quiere recibir alertas?",
+        "titulo": "Â¿CÃ³mo quiere recibir alertas?",
         "desc": "El sistema puede avisar al celular cuando se activa la alarma",
         "tipo": "opciones",
         "opciones": [
@@ -13714,38 +13877,38 @@ var AACFG_SEMILLA_RUBROS = {
             "id": "ip",
             "ico": "ti-world",
             "titulo": "Por App / Internet",
-            "desc": "Notificación a la app"
+            "desc": "NotificaciÃ³n a la app"
           },
           {
             "id": "gsm_ip",
             "ico": "ti-broadcast",
             "titulo": "GSM + App combinado",
-            "desc": "Máxima cobertura"
+            "desc": "MÃ¡xima cobertura"
           }
         ]
       },
       {
         "id": "sensores",
-        "titulo": "¿Qué tipo de detección necesita?",
-        "desc": "Podés combinar tipos según las áreas a proteger",
+        "titulo": "Â¿QuÃ© tipo de detecciÃ³n necesita?",
+        "desc": "PodÃ©s combinar tipos segÃºn las Ã¡reas a proteger",
         "tipo": "multi",
         "opciones": [
           {
             "id": "pir",
             "ico": "ti-eye",
             "titulo": "Movimiento (PIR)",
-            "desc": "Detección de movimiento estándar"
+            "desc": "DetecciÃ³n de movimiento estÃ¡ndar"
           },
           {
             "id": "mag",
             "ico": "ti-door",
-            "titulo": "Contacto magnético",
+            "titulo": "Contacto magnÃ©tico",
             "desc": "Apertura de puertas/ventanas"
           },
           {
             "id": "doble",
             "ico": "ti-shield",
-            "titulo": "Doble tecnología",
+            "titulo": "Doble tecnologÃ­a",
             "desc": "Menos falsas alarmas"
           },
           {
@@ -13758,15 +13921,15 @@ var AACFG_SEMILLA_RUBROS = {
       },
       {
         "id": "accesorios",
-        "titulo": "¿Necesita accesorios adicionales?",
-        "desc": "Podés seleccionar varios",
+        "titulo": "Â¿Necesita accesorios adicionales?",
+        "desc": "PodÃ©s seleccionar varios",
         "tipo": "multi",
         "opciones": [
           {
             "id": "sirena_ext",
             "ico": "ti-volume",
             "titulo": "Sirena exterior",
-            "desc": "Disuasión visible"
+            "desc": "DisuasiÃ³n visible"
           },
           {
             "id": "sirena_int",
@@ -13783,7 +13946,7 @@ var AACFG_SEMILLA_RUBROS = {
           {
             "id": "bateria",
             "ico": "ti-battery",
-            "titulo": "Batería de respaldo",
+            "titulo": "BaterÃ­a de respaldo",
             "desc": "Funciona sin luz"
           }
         ]
@@ -13872,13 +14035,13 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Módulo GSM Garnet"
+          "clave": "MÃ³dulo GSM Garnet"
         },
         "cantidad": {
           "modo": "fija",
           "valor": 1
         },
-        "refNombre": "Módulo GSM Garnet",
+        "refNombre": "MÃ³dulo GSM Garnet",
         "refSku": "GSM-MOD",
         "refPrecio": 35000
       },
@@ -13896,13 +14059,13 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Módulo IP Garnet"
+          "clave": "MÃ³dulo IP Garnet"
         },
         "cantidad": {
           "modo": "fija",
           "valor": 1
         },
-        "refNombre": "Módulo IP Garnet",
+        "refNombre": "MÃ³dulo IP Garnet",
         "refSku": "IP-MOD",
         "refPrecio": 28000
       },
@@ -13941,7 +14104,7 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Contacto magnético Garnet"
+          "clave": "Contacto magnÃ©tico Garnet"
         },
         "cantidad": {
           "modo": "proporcional",
@@ -13950,7 +14113,7 @@ var AACFG_SEMILLA_RUBROS = {
           "redondeo": "arriba",
           "minimo": 1
         },
-        "refNombre": "Contacto magnético Garnet",
+        "refNombre": "Contacto magnÃ©tico Garnet",
         "refSku": "MAG-01",
         "refPrecio": 5500
       },
@@ -13965,7 +14128,7 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Detector doble tecnología Garnet DT"
+          "clave": "Detector doble tecnologÃ­a Garnet DT"
         },
         "cantidad": {
           "modo": "proporcional",
@@ -14073,13 +14236,13 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Batería 12V 7Ah"
+          "clave": "BaterÃ­a 12V 7Ah"
         },
         "cantidad": {
           "modo": "fija",
           "valor": 1
         },
-        "refNombre": "Batería 12V 7Ah",
+        "refNombre": "BaterÃ­a 12V 7Ah",
         "refSku": "BAT-7A",
         "refPrecio": 18000
       },
@@ -14101,7 +14264,7 @@ var AACFG_SEMILLA_RUBROS = {
     ]
   },
   "camaras": {
-    "nombre": "Cámaras",
+    "nombre": "CÃ¡maras",
     "color": "#1d4ed8",
     "icono": "ti-camera",
     "activo": true,
@@ -14109,8 +14272,8 @@ var AACFG_SEMILLA_RUBROS = {
     "pasos": [
       {
         "id": "tipo_cam",
-        "titulo": "¿Dónde van las cámaras?",
-        "desc": "Determina el tipo de cámara más adecuado",
+        "titulo": "Â¿DÃ³nde van las cÃ¡maras?",
+        "desc": "Determina el tipo de cÃ¡mara mÃ¡s adecuado",
         "tipo": "opciones",
         "opciones": [
           {
@@ -14129,13 +14292,13 @@ var AACFG_SEMILLA_RUBROS = {
             "id": "mixto",
             "ico": "ti-refresh",
             "titulo": "Interior y exterior",
-            "desc": "Combinación de ambos"
+            "desc": "CombinaciÃ³n de ambos"
           }
         ]
       },
       {
         "id": "marca_linea",
-        "titulo": "¿Qué marca y tipo de cámara?",
+        "titulo": "Â¿QuÃ© marca y tipo de cÃ¡mara?",
         "desc": "EZVIZ PTZ permite mover y seguir movimiento a control remoto",
         "tipo": "opciones",
         "opciones": [
@@ -14143,13 +14306,13 @@ var AACFG_SEMILLA_RUBROS = {
             "id": "hikvision",
             "ico": "ti-camera",
             "titulo": "Hikvision",
-            "desc": "Línea estándar de cámaras fijas"
+            "desc": "LÃ­nea estÃ¡ndar de cÃ¡maras fijas"
           },
           {
             "id": "ezviz_fija",
             "ico": "ti-video",
             "titulo": "EZVIZ fija",
-            "desc": "Cámara IP fija, sin movimiento"
+            "desc": "CÃ¡mara IP fija, sin movimiento"
           },
           {
             "id": "ezviz_ptz",
@@ -14161,76 +14324,76 @@ var AACFG_SEMILLA_RUBROS = {
       },
       {
         "id": "cantidad_cam",
-        "titulo": "¿Cuántas cámaras necesita?",
-        "desc": "Podés ajustar la cantidad después",
+        "titulo": "Â¿CuÃ¡ntas cÃ¡maras necesita?",
+        "desc": "PodÃ©s ajustar la cantidad despuÃ©s",
         "tipo": "numero",
         "min": 1,
         "max": 64,
         "default": 4,
-        "label": "cámaras"
+        "label": "cÃ¡maras"
       },
       {
         "id": "resolucion",
-        "titulo": "¿Qué resolución necesita?",
-        "desc": "A mayor resolución, mejor imagen pero mayor almacenamiento",
+        "titulo": "Â¿QuÃ© resoluciÃ³n necesita?",
+        "desc": "A mayor resoluciÃ³n, mejor imagen pero mayor almacenamiento",
         "tipo": "opciones",
         "opciones": [
           {
             "id": "2mp",
             "ico": "ti-camera",
-            "titulo": "2 MP — Full HD",
+            "titulo": "2 MP â€” Full HD",
             "desc": "Ideal para uso residencial"
           },
           {
             "id": "4mp",
             "ico": "ti-search",
-            "titulo": "4 MP — Ultra HD",
+            "titulo": "4 MP â€” Ultra HD",
             "desc": "Comercios y oficinas"
           },
           {
             "id": "8mp",
             "ico": "ti-target",
-            "titulo": "8 MP — 4K",
-            "desc": "Máxima definición, uso profesional"
+            "titulo": "8 MP â€” 4K",
+            "desc": "MÃ¡xima definiciÃ³n, uso profesional"
           }
         ]
       },
       {
         "id": "grabacion",
-        "titulo": "¿Cuántos días de grabación necesita?",
-        "desc": "Determina el tamaño del disco duro del NVR/DVR",
+        "titulo": "Â¿CuÃ¡ntos dÃ­as de grabaciÃ³n necesita?",
+        "desc": "Determina el tamanio del disco duro del NVR/DVR",
         "tipo": "opciones",
         "opciones": [
           {
             "id": "7dias",
             "ico": "ti-calendar",
-            "titulo": "7 días",
-            "desc": "Uso básico residencial"
+            "titulo": "7 dÃ­as",
+            "desc": "Uso bÃ¡sico residencial"
           },
           {
             "id": "15dias",
             "ico": "ti-calendar-stats",
-            "titulo": "15 días",
+            "titulo": "15 dÃ­as",
             "desc": "Recomendado para comercios"
           },
           {
             "id": "30dias",
             "ico": "ti-calendar-event",
-            "titulo": "30 días",
-            "desc": "Máxima cobertura"
+            "titulo": "30 dÃ­as",
+            "desc": "MÃ¡xima cobertura"
           }
         ]
       },
       {
         "id": "acceso_remoto",
-        "titulo": "¿Necesita ver las cámaras desde el celular?",
+        "titulo": "Â¿Necesita ver las cÃ¡maras desde el celular?",
         "desc": "Acceso remoto por app",
         "tipo": "opciones",
         "opciones": [
           {
             "id": "si",
             "ico": "ti-device-mobile",
-            "titulo": "Sí, desde el celular",
+            "titulo": "SÃ­, desde el celular",
             "desc": "App gratuita"
           },
           {
@@ -14261,7 +14424,7 @@ var AACFG_SEMILLA_RUBROS = {
           "modo": "igual_variable",
           "variable": "cantidad_cam"
         },
-        "refNombre": "Cámara EZVIZ domo PTZ",
+        "refNombre": "CÃ¡mara EZVIZ domo PTZ",
         "refSku": "",
         "refPrecio": 0
       },
@@ -14283,7 +14446,7 @@ var AACFG_SEMILLA_RUBROS = {
           "modo": "igual_variable",
           "variable": "cantidad_cam"
         },
-        "refNombre": "Cámara EZVIZ fija",
+        "refNombre": "CÃ¡mara EZVIZ fija",
         "refSku": "",
         "refPrecio": 0
       },
@@ -14308,13 +14471,13 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Cámara Hikvision DS-2CD2123G2-I 2MP domo"
+          "clave": "CÃ¡mara Hikvision DS-2CD2123G2-I 2MP domo"
         },
         "cantidad": {
           "modo": "igual_variable",
           "variable": "cantidad_cam"
         },
-        "refNombre": "Cámara Hikvision DS-2CD2123G2-I 2MP domo",
+        "refNombre": "CÃ¡mara Hikvision DS-2CD2123G2-I 2MP domo",
         "refSku": "DS-2CD2123G2",
         "refPrecio": 55000
       },
@@ -14339,13 +14502,13 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Cámara Hikvision DS-2CD2143G2-I 2MP bullet"
+          "clave": "CÃ¡mara Hikvision DS-2CD2143G2-I 2MP bullet"
         },
         "cantidad": {
           "modo": "igual_variable",
           "variable": "cantidad_cam"
         },
-        "refNombre": "Cámara Hikvision DS-2CD2143G2-I 2MP bullet",
+        "refNombre": "CÃ¡mara Hikvision DS-2CD2143G2-I 2MP bullet",
         "refSku": "DS-2CD2143G2",
         "refPrecio": 65000
       },
@@ -14370,7 +14533,7 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Cámara Hikvision 2MP domo interior"
+          "clave": "CÃ¡mara Hikvision 2MP domo interior"
         },
         "cantidad": {
           "modo": "proporcional",
@@ -14379,7 +14542,7 @@ var AACFG_SEMILLA_RUBROS = {
           "redondeo": "arriba",
           "minimo": 0
         },
-        "refNombre": "Cámara Hikvision 2MP domo interior",
+        "refNombre": "CÃ¡mara Hikvision 2MP domo interior",
         "refSku": "DS-2CD2123G2",
         "refPrecio": 55000
       },
@@ -14404,7 +14567,7 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Cámara Hikvision 2MP bullet exterior"
+          "clave": "CÃ¡mara Hikvision 2MP bullet exterior"
         },
         "cantidad": {
           "modo": "proporcional",
@@ -14413,7 +14576,7 @@ var AACFG_SEMILLA_RUBROS = {
           "redondeo": "abajo",
           "minimo": 0
         },
-        "refNombre": "Cámara Hikvision 2MP bullet exterior",
+        "refNombre": "CÃ¡mara Hikvision 2MP bullet exterior",
         "refSku": "DS-2CD2143G2",
         "refPrecio": 65000
       },
@@ -14433,13 +14596,13 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Cámara Hikvision DS-2CD2143G2 4MP"
+          "clave": "CÃ¡mara Hikvision DS-2CD2143G2 4MP"
         },
         "cantidad": {
           "modo": "igual_variable",
           "variable": "cantidad_cam"
         },
-        "refNombre": "Cámara Hikvision DS-2CD2143G2 4MP",
+        "refNombre": "CÃ¡mara Hikvision DS-2CD2143G2 4MP",
         "refSku": "DS-2CD2143G2-4",
         "refPrecio": 85000
       },
@@ -14459,13 +14622,13 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Cámara Hikvision DS-2CD2083G2 8MP 4K"
+          "clave": "CÃ¡mara Hikvision DS-2CD2083G2 8MP 4K"
         },
         "cantidad": {
           "modo": "igual_variable",
           "variable": "cantidad_cam"
         },
-        "refNombre": "Cámara Hikvision DS-2CD2083G2 8MP 4K",
+        "refNombre": "CÃ¡mara Hikvision DS-2CD2083G2 8MP 4K",
         "refSku": "DS-2CD2083G2",
         "refPrecio": 135000
       },
@@ -14637,13 +14800,13 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Switch PoE para cámaras 8 puertos"
+          "clave": "Switch PoE para cÃ¡maras 8 puertos"
         },
         "cantidad": {
           "modo": "fija",
           "valor": 1
         },
-        "refNombre": "Switch PoE para cámaras 8 puertos",
+        "refNombre": "Switch PoE para cÃ¡maras 8 puertos",
         "refSku": "SW-POE8",
         "refPrecio": 55000
       }
@@ -14658,7 +14821,7 @@ var AACFG_SEMILLA_RUBROS = {
     "pasos": [
       {
         "id": "tipo_edif",
-        "titulo": "¿Qué tipo de edificio es?",
+        "titulo": "Â¿QuÃ© tipo de edificio es?",
         "desc": "",
         "tipo": "opciones",
         "opciones": [
@@ -14672,20 +14835,20 @@ var AACFG_SEMILLA_RUBROS = {
             "id": "edificio",
             "ico": "ti-building",
             "titulo": "Edificio",
-            "desc": "Múltiples departamentos"
+            "desc": "MÃºltiples departamentos"
           },
           {
             "id": "countries",
             "ico": "ti-buildings",
             "titulo": "Barrio / Countries",
-            "desc": "Múltiples accesos"
+            "desc": "MÃºltiples accesos"
           }
         ]
       },
       {
         "id": "cant_monitor",
-        "titulo": "¿Cuántos monitores interiores necesita?",
-        "desc": "Un monitor por unidad o habitación donde atender el llamado",
+        "titulo": "Â¿CuÃ¡ntos monitores interiores necesita?",
+        "desc": "Un monitor por unidad o habitaciÃ³n donde atender el llamado",
         "tipo": "numero",
         "min": 1,
         "max": 32,
@@ -14694,7 +14857,7 @@ var AACFG_SEMILLA_RUBROS = {
       },
       {
         "id": "cant_panel",
-        "titulo": "¿Cuántos paneles exteriores (botoneras) necesita?",
+        "titulo": "Â¿CuÃ¡ntos paneles exteriores (botoneras) necesita?",
         "desc": "Uno por puerta de acceso",
         "tipo": "numero",
         "min": 1,
@@ -14704,15 +14867,15 @@ var AACFG_SEMILLA_RUBROS = {
       },
       {
         "id": "apertura",
-        "titulo": "¿Necesita abrir la puerta desde el monitor?",
+        "titulo": "Â¿Necesita abrir la puerta desde el monitor?",
         "desc": "",
         "tipo": "opciones",
         "opciones": [
           {
             "id": "si",
             "ico": "ti-lock-open",
-            "titulo": "Sí, con cerradura eléctrica",
-            "desc": "Se incluye chapa eléctrica"
+            "titulo": "SÃ­, con cerradura elÃ©ctrica",
+            "desc": "Se incluye chapa elÃ©ctrica"
           },
           {
             "id": "no",
@@ -14765,13 +14928,13 @@ var AACFG_SEMILLA_RUBROS = {
         ],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Chapa eléctrica 12V"
+          "clave": "Chapa elÃ©ctrica 12V"
         },
         "cantidad": {
           "modo": "igual_variable",
           "variable": "cant_panel"
         },
-        "refNombre": "Chapa eléctrica 12V",
+        "refNombre": "Chapa elÃ©ctrica 12V",
         "refSku": "CHAPA-12V",
         "refPrecio": 28000
       },
@@ -14843,7 +15006,7 @@ var AACFG_SEMILLA_RUBROS = {
     "pasos": [
       {
         "id": "tipo_acceso",
-        "titulo": "¿Qué tipo de identificación necesita?",
+        "titulo": "Â¿QuÃ© tipo de identificaciÃ³n necesita?",
         "desc": "",
         "tipo": "opciones",
         "opciones": [
@@ -14857,13 +15020,13 @@ var AACFG_SEMILLA_RUBROS = {
             "id": "huella",
             "ico": "ti-hand-click",
             "titulo": "Huella digital",
-            "desc": "Acceso biométrico"
+            "desc": "Acceso biomÃ©trico"
           },
           {
             "id": "facial",
             "ico": "ti-mood-smile",
             "titulo": "Reconocimiento facial",
-            "desc": "Máxima seguridad"
+            "desc": "MÃ¡xima seguridad"
           },
           {
             "id": "combinado",
@@ -14875,7 +15038,7 @@ var AACFG_SEMILLA_RUBROS = {
       },
       {
         "id": "cant_lectores",
-        "titulo": "¿Cuántos puntos de acceso necesita controlar?",
+        "titulo": "Â¿CuÃ¡ntos puntos de acceso necesita controlar?",
         "desc": "Puertas, torniquetes, barreras",
         "tipo": "numero",
         "min": 1,
@@ -14885,7 +15048,7 @@ var AACFG_SEMILLA_RUBROS = {
       },
       {
         "id": "cant_usuarios",
-        "titulo": "¿Cuántas personas van a usar el sistema?",
+        "titulo": "Â¿CuÃ¡ntas personas van a usar el sistema?",
         "desc": "Determina la capacidad del controlador",
         "tipo": "opciones",
         "opciones": [
@@ -14893,7 +15056,7 @@ var AACFG_SEMILLA_RUBROS = {
             "id": "hasta50",
             "ico": "ti-users",
             "titulo": "Hasta 50 personas",
-            "desc": "Pequeña empresa"
+            "desc": "PequeÃ±a empresa"
           },
           {
             "id": "hasta200",
@@ -14904,7 +15067,7 @@ var AACFG_SEMILLA_RUBROS = {
           {
             "id": "mas200",
             "ico": "ti-building",
-            "titulo": "Más de 200",
+            "titulo": "MÃ¡s de 200",
             "desc": "Gran empresa o edificio"
           }
         ]
@@ -15017,13 +15180,13 @@ var AACFG_SEMILLA_RUBROS = {
         "condiciones": [],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Chapa eléctrica 12V"
+          "clave": "Chapa elÃ©ctrica 12V"
         },
         "cantidad": {
           "modo": "igual_variable",
           "variable": "cant_lectores"
         },
-        "refNombre": "Chapa eléctrica 12V",
+        "refNombre": "Chapa elÃ©ctrica 12V",
         "refSku": "CHAPA-12V",
         "refPrecio": 28000
       },
@@ -15032,13 +15195,13 @@ var AACFG_SEMILLA_RUBROS = {
         "condiciones": [],
         "accion": {
           "tipo": "buscar_db",
-          "clave": "Botón de salida"
+          "clave": "BotÃ³n de salida"
         },
         "cantidad": {
           "modo": "igual_variable",
           "variable": "cant_lectores"
         },
-        "refNombre": "Botón de salida",
+        "refNombre": "BotÃ³n de salida",
         "refSku": "BOTON-SAL",
         "refPrecio": 5500
       },
@@ -15149,7 +15312,7 @@ var AACFG_SEMILLA_RUBROS = {
     ]
   },
   "domotica": {
-    "nombre": "Domótica",
+    "nombre": "DomÃ³tica",
     "color": "#be185d",
     "icono": "ti-smart-home",
     "activo": true,
@@ -15157,14 +15320,14 @@ var AACFG_SEMILLA_RUBROS = {
     "pasos": [
       {
         "id": "tipo_control",
-        "titulo": "¿Qué quiere controlar?",
-        "desc": "Podés seleccionar más de una opción",
+        "titulo": "Â¿QuÃ© quiere controlar?",
+        "desc": "PodÃ©s seleccionar mÃ¡s de una opciÃ³n",
         "tipo": "multi",
         "opciones": [
           {
             "id": "luces",
             "ico": "ti-bulb",
-            "titulo": "Iluminación",
+            "titulo": "IluminaciÃ³n",
             "desc": "Encender/apagar y regular luces"
           },
           {
@@ -15201,7 +15364,7 @@ var AACFG_SEMILLA_RUBROS = {
       },
       {
         "id": "cant_puntos",
-        "titulo": "¿Cuántos puntos de control necesita?",
+        "titulo": "Â¿CuÃ¡ntos puntos de control necesita?",
         "desc": "Por ejemplo: 4 luces + 2 enchufes = 6 puntos",
         "tipo": "numero",
         "min": 1,
@@ -15211,7 +15374,7 @@ var AACFG_SEMILLA_RUBROS = {
       },
       {
         "id": "conexion",
-        "titulo": "¿Cómo se va a controlar?",
+        "titulo": "Â¿CÃ³mo se va a controlar?",
         "desc": "",
         "tipo": "opciones",
         "opciones": [
@@ -15237,7 +15400,7 @@ var AACFG_SEMILLA_RUBROS = {
       },
       {
         "id": "instalacion",
-        "titulo": "¿Dónde va instalado?",
+        "titulo": "Â¿DÃ³nde va instalado?",
         "desc": "",
         "tipo": "opciones",
         "opciones": [
@@ -15256,7 +15419,7 @@ var AACFG_SEMILLA_RUBROS = {
           {
             "id": "nuevo",
             "ico": "ti-hammer",
-            "titulo": "Construcción nueva",
+            "titulo": "ConstrucciÃ³n nueva",
             "desc": "Con obra en curso, cableado nuevo"
           }
         ]
@@ -15524,7 +15687,7 @@ var AACFG_SEMILLA_RUBROS = {
     "pasos": [
       {
         "id": "tipo_red",
-        "titulo": "¿Para qué es la red?",
+        "titulo": "Â¿Para quÃ© es la red?",
         "desc": "",
         "tipo": "opciones",
         "opciones": [
@@ -15538,59 +15701,59 @@ var AACFG_SEMILLA_RUBROS = {
             "id": "empresa",
             "ico": "ti-building",
             "titulo": "Empresa / oficina",
-            "desc": "Red corporativa con gestión"
+            "desc": "Red corporativa con gestiÃ³n"
           },
           {
             "id": "hotel",
             "ico": "ti-building-skyscraper",
             "titulo": "Hotel / alquiler",
-            "desc": "Con portal cautivo y gestión de huéspedes"
+            "desc": "Con portal cautivo y gestiÃ³n de huÃ©spedes"
           }
         ]
       },
       {
         "id": "superficie",
-        "titulo": "¿Cuántos m² necesita cubrir?",
+        "titulo": "Â¿CuÃ¡ntos mÂ² necesita cubrir?",
         "desc": "Calculamos la cantidad de access points necesarios",
         "tipo": "opciones",
         "opciones": [
           {
             "id": "hasta150",
             "ico": "ti-home",
-            "titulo": "Hasta 150 m²",
+            "titulo": "Hasta 150 mÂ²",
             "desc": "1-2 access points"
           },
           {
             "id": "hasta300",
             "ico": "ti-home-2",
-            "titulo": "150 a 300 m²",
+            "titulo": "150 a 300 mÂ²",
             "desc": "2-3 access points"
           },
           {
             "id": "hasta600",
             "ico": "ti-building",
-            "titulo": "300 a 600 m²",
+            "titulo": "300 a 600 mÂ²",
             "desc": "3-5 access points"
           },
           {
             "id": "mas600",
             "ico": "ti-building-factory-2",
-            "titulo": "Más de 600 m²",
-            "desc": "6 o más — cotización especial"
+            "titulo": "MÃ¡s de 600 mÂ²",
+            "desc": "6 o mÃ¡s â€” cotizaciÃ³n especial"
           }
         ]
       },
       {
         "id": "usuarios_red",
-        "titulo": "¿Cuántos dispositivos se conectan simultáneamente?",
-        "desc": "Celulares, computadoras, cámaras, etc.",
+        "titulo": "Â¿CuÃ¡ntos dispositivos se conectan simultÃ¡neamente?",
+        "desc": "Celulares, computadoras, cÃ¡maras, etc.",
         "tipo": "opciones",
         "opciones": [
           {
             "id": "hasta20",
             "ico": "ti-device-mobile",
             "titulo": "Hasta 20",
-            "desc": "Hogar o pequeña oficina"
+            "desc": "Hogar o pequeÃ±a oficina"
           },
           {
             "id": "hasta50",
@@ -15601,28 +15764,28 @@ var AACFG_SEMILLA_RUBROS = {
           {
             "id": "mas50",
             "ico": "ti-device-desktop",
-            "titulo": "Más de 50",
-            "desc": "Red densa — equipos enterprise"
+            "titulo": "MÃ¡s de 50",
+            "desc": "Red densa â€” equipos enterprise"
           }
         ]
       },
       {
         "id": "gestion",
-        "titulo": "¿Necesita gestión centralizada?",
+        "titulo": "Â¿Necesita gestiÃ³n centralizada?",
         "desc": "Controller Omada para gestionar toda la red desde una sola pantalla",
         "tipo": "opciones",
         "opciones": [
           {
             "id": "si",
             "ico": "ti-device-desktop",
-            "titulo": "Sí, con controller",
+            "titulo": "SÃ­, con controller",
             "desc": "Control centralizado de la red"
           },
           {
             "id": "no",
             "ico": "ti-broadcast",
             "titulo": "Solo access points",
-            "desc": "Configuración independiente"
+            "desc": "ConfiguraciÃ³n independiente"
           }
         ]
       }
@@ -15790,57 +15953,57 @@ var ASIST_RUBROS = {
     pasos: [
       {
         id: 'tipo_prop',
-        titulo: '¿Qué tipo de propiedad es?',
-        desc: 'Esto determina el panel más adecuado',
+        titulo: 'Â¿QuÃ© tipo de propiedad es?',
+        desc: 'Esto determina el panel mÃ¡s adecuado',
         tipo: 'opciones',
         opciones: [
           { id:'residencial', ico:'ti-home', titulo:'Residencial', desc:'Casa, departamento, PH' },
           { id:'comercial',   ico:'ti-building', titulo:'Comercial',   desc:'Local, oficina, negocio' },
-          { id:'industrial',  ico:'ti-building-factory-2', titulo:'Industrial',  desc:'Galpón, fábrica, depósito' }
+          { id:'industrial',  ico:'ti-building-factory-2', titulo:'Industrial',  desc:'GalpÃ³n, fÃ¡brica, depÃ³sito' }
         ]
       },
       {
         id: 'zonas',
-        titulo: '¿Cuántas zonas necesita proteger?',
-        desc: 'Cada zona es un sector independiente (habitación, local, puerta, etc.)',
+        titulo: 'Â¿CuÃ¡ntas zonas necesita proteger?',
+        desc: 'Cada zona es un sector independiente (habitaciÃ³n, local, puerta, etc.)',
         tipo: 'numero',
         min: 1, max: 64, default: 4,
         label: 'zonas'
       },
       {
         id: 'comunicacion',
-        titulo: '¿Cómo quiere recibir alertas?',
+        titulo: 'Â¿CÃ³mo quiere recibir alertas?',
         desc: 'El sistema puede avisar al celular cuando se activa la alarma',
         tipo: 'opciones',
         opciones: [
           { id:'solo_sirena', ico:'ti-volume', titulo:'Solo sirena local',     desc:'Sin aviso remoto' },
           { id:'gsm',         ico:'ti-device-mobile', titulo:'Por GSM / celular',     desc:'Llamadas o SMS al activarse' },
-          { id:'ip',          ico:'ti-world', titulo:'Por App / Internet',    desc:'Notificación a la app' },
-          { id:'gsm_ip',      ico:'ti-broadcast', titulo:'GSM + App combinado',  desc:'Máxima cobertura' }
+          { id:'ip',          ico:'ti-world', titulo:'Por App / Internet',    desc:'NotificaciÃ³n a la app' },
+          { id:'gsm_ip',      ico:'ti-broadcast', titulo:'GSM + App combinado',  desc:'MÃ¡xima cobertura' }
         ]
       },
       {
         id: 'sensores',
-        titulo: '¿Qué tipo de detección necesita?',
-        desc: 'Podés combinar tipos según las áreas a proteger',
+        titulo: 'Â¿QuÃ© tipo de detecciÃ³n necesita?',
+        desc: 'PodÃ©s combinar tipos segÃºn las Ã¡reas a proteger',
         tipo: 'multi',
         opciones: [
           { id:'pir',      ico:'ti-eye',  titulo:'Movimiento PIR',         desc:'Detecta movimiento en interiores' },
-          { id:'mag',      ico:'ti-door', titulo:'Magnéticos',              desc:'Puertas y ventanas' },
-          { id:'doble',    ico:'ti-bolt', titulo:'Doble tecnología PIR+MW', desc:'Mayor precisión, menos falsas alarmas' },
-          { id:'exterior', ico:'ti-tree', titulo:'Detector exterior',       desc:'Perímetro, patio, jardín' }
+          { id:'mag',      ico:'ti-door', titulo:'MagnÃ©ticos',              desc:'Puertas y ventanas' },
+          { id:'doble',    ico:'ti-bolt', titulo:'Doble tecnologÃ­a PIR+MW', desc:'Mayor precisiÃ³n, menos falsas alarmas' },
+          { id:'exterior', ico:'ti-tree', titulo:'Detector exterior',       desc:'PerÃ­metro, patio, jardÃ­n' }
         ]
       },
       {
         id: 'accesorios',
-        titulo: '¿Qué accesorios necesita?',
-        desc: 'Seleccioná los que apliquen',
+        titulo: 'Â¿QuÃ© accesorios necesita?',
+        desc: 'SeleccionÃ¡ los que apliquen',
         tipo: 'multi',
         opciones: [
           { id:'sirena_ext',  ico:'ti-speakerphone', titulo:'Sirena exterior',    desc:'Visible desde la calle' },
           { id:'sirena_int',  ico:'ti-bell', titulo:'Sirena interior',    desc:'Bocina interna' },
           { id:'teclado',     ico:'ti-keyboard',  titulo:'Teclado adicional', desc:'Segundo punto de control' },
-          { id:'bateria',     ico:'ti-battery', titulo:'Batería extra',      desc:'Mayor autonomía ante corte de luz' }
+          { id:'bateria',     ico:'ti-battery', titulo:'BaterÃ­a extra',      desc:'Mayor autonomÃ­a ante corte de luz' }
         ]
       }
     ],
@@ -15848,68 +16011,68 @@ var ASIST_RUBROS = {
   },
 
   camaras: {
-    nombre: 'Cámaras Hikvision',
+    nombre: 'CÃ¡maras Hikvision',
     color: '#1d4ed8',
     pasos: [
       {
         id: 'tipo_cam',
-        titulo: '¿Dónde van las cámaras?',
-        desc: 'Determina el tipo de cámara más adecuado',
+        titulo: 'Â¿DÃ³nde van las cÃ¡maras?',
+        desc: 'Determina el tipo de cÃ¡mara mÃ¡s adecuado',
         tipo: 'opciones',
         opciones: [
           { id:'interior',  ico:'ti-home', titulo:'Solo interiores',    desc:'Pasillos, halls, oficinas' },
           { id:'exterior',  ico:'ti-cloud-rain', titulo:'Solo exteriores',    desc:'Entradas, estacionamientos' },
-          { id:'mixto',     ico:'ti-refresh', titulo:'Interior y exterior', desc:'Combinación de ambos' }
+          { id:'mixto',     ico:'ti-refresh', titulo:'Interior y exterior', desc:'CombinaciÃ³n de ambos' }
         ]
       },
       {
         id: 'marca_linea',
-        titulo: '¿Qué marca y tipo de cámara?',
+        titulo: 'Â¿QuÃ© marca y tipo de cÃ¡mara?',
         desc: 'EZVIZ PTZ permite mover y seguir movimiento a control remoto',
         tipo: 'opciones',
         opciones: [
-          { id:'hikvision',   ico:'ti-camera', titulo:'Hikvision',        desc:'Línea estándar de cámaras fijas' },
-          { id:'ezviz_fija',  ico:'ti-video',  titulo:'EZVIZ fija',       desc:'Cámara IP fija, sin movimiento' },
+          { id:'hikvision',   ico:'ti-camera', titulo:'Hikvision',        desc:'LÃ­nea estÃ¡ndar de cÃ¡maras fijas' },
+          { id:'ezviz_fija',  ico:'ti-video',  titulo:'EZVIZ fija',       desc:'CÃ¡mara IP fija, sin movimiento' },
           { id:'ezviz_ptz',   ico:'ti-rotate-2', titulo:'EZVIZ domo PTZ',   desc:'Domo motorizado, gira y sigue movimiento' }
         ]
       },
       {
         id: 'cantidad_cam',
-        titulo: '¿Cuántas cámaras necesita?',
-        desc: 'Podés ajustar la cantidad después',
+        titulo: 'Â¿CuÃ¡ntas cÃ¡maras necesita?',
+        desc: 'PodÃ©s ajustar la cantidad despuÃ©s',
         tipo: 'numero',
         min: 1, max: 64, default: 4,
-        label: 'cámaras'
+        label: 'cÃ¡maras'
       },
       {
         id: 'resolucion',
-        titulo: '¿Qué resolución necesita?',
-        desc: 'A mayor resolución, mejor imagen pero mayor almacenamiento',
+        titulo: 'Â¿QuÃ© resoluciÃ³n necesita?',
+        desc: 'A mayor resoluciÃ³n, mejor imagen pero mayor almacenamiento',
         tipo: 'opciones',
         opciones: [
-          { id:'2mp',  ico:'ti-camera', titulo:'2 MP — Full HD',    desc:'Ideal para uso residencial' },
-          { id:'4mp',  ico:'ti-search', titulo:'4 MP — Ultra HD',   desc:'Comercios y oficinas' },
-          { id:'8mp',  ico:'ti-target', titulo:'8 MP — 4K',         desc:'Máxima definición, uso profesional' }
+          { id:'2mp',  ico:'ti-camera', titulo:'2 MP â€” Full HD',    desc:'Ideal para uso residencial' },
+          { id:'4mp',  ico:'ti-search', titulo:'4 MP â€” Ultra HD',   desc:'Comercios y oficinas' },
+          { id:'8mp',  ico:'ti-target', titulo:'8 MP â€” 4K',         desc:'MÃ¡xima definiciÃ³n, uso profesional' }
         ]
       },
       {
         id: 'grabacion',
-        titulo: '¿Cuántos días de grabación necesita?',
-        desc: 'Determina el tamaño del disco duro del NVR/DVR',
+        titulo: 'Â¿CuÃ¡ntos dÃ­as de grabaciÃ³n necesita?',
+        desc: 'Determina el tamanio del disco duro del NVR/DVR',
         tipo: 'opciones',
         opciones: [
-          { id:'7dias',  ico:'ti-calendar', titulo:'7 días',  desc:'Uso básico residencial' },
-          { id:'15dias', ico:'ti-calendar-stats', titulo:'15 días', desc:'Recomendado para comercios' },
-          { id:'30dias', ico:'ti-calendar-event', titulo:'30 días', desc:'Máxima cobertura' }
+          { id:'7dias',  ico:'ti-calendar', titulo:'7 dÃ­as',  desc:'Uso bÃ¡sico residencial' },
+          { id:'15dias', ico:'ti-calendar-stats', titulo:'15 dÃ­as', desc:'Recomendado para comercios' },
+          { id:'30dias', ico:'ti-calendar-event', titulo:'30 dÃ­as', desc:'MÃ¡xima cobertura' }
         ]
       },
       {
         id: 'acceso_remoto',
-        titulo: '¿Necesita ver las cámaras desde el celular?',
+        titulo: 'Â¿Necesita ver las cÃ¡maras desde el celular?',
         desc: 'Acceso remoto por app Hik-Connect',
         tipo: 'opciones',
         opciones: [
-          { id:'si',  ico:'ti-device-mobile', titulo:'Sí, desde el celular', desc:'App gratuita Hik-Connect' },
+          { id:'si',  ico:'ti-device-mobile', titulo:'SÃ­, desde el celular', desc:'App gratuita Hik-Connect' },
           { id:'no',  ico:'ti-device-desktop', titulo:'Solo desde el monitor local', desc:'Sin acceso remoto' }
         ]
       }
@@ -15923,26 +16086,26 @@ var ASIST_RUBROS = {
     pasos: [
       {
         id: 'tipo_edif',
-        titulo: '¿Qué tipo de edificio es?',
+        titulo: 'Â¿QuÃ© tipo de edificio es?',
         desc: '',
         tipo: 'opciones',
         opciones: [
           { id:'casa',      ico:'ti-home', titulo:'Casa o PH',          desc:'1 unidad' },
-          { id:'edificio',  ico:'ti-building', titulo:'Edificio',           desc:'Múltiples departamentos' },
-          { id:'countries', ico:'ti-buildings', titulo:'Barrio / Countries', desc:'Múltiples accesos' }
+          { id:'edificio',  ico:'ti-building', titulo:'Edificio',           desc:'MÃºltiples departamentos' },
+          { id:'countries', ico:'ti-buildings', titulo:'Barrio / Countries', desc:'MÃºltiples accesos' }
         ]
       },
       {
         id: 'cant_monitor',
-        titulo: '¿Cuántos monitores interiores necesita?',
-        desc: 'Un monitor por unidad o habitación donde atender el llamado',
+        titulo: 'Â¿CuÃ¡ntos monitores interiores necesita?',
+        desc: 'Un monitor por unidad o habitaciÃ³n donde atender el llamado',
         tipo: 'numero',
         min: 1, max: 32, default: 1,
         label: 'monitores'
       },
       {
         id: 'cant_panel',
-        titulo: '¿Cuántos paneles exteriores (botoneras) necesita?',
+        titulo: 'Â¿CuÃ¡ntos paneles exteriores (botoneras) necesita?',
         desc: 'Uno por puerta de acceso',
         tipo: 'numero',
         min: 1, max: 8, default: 1,
@@ -15950,11 +16113,11 @@ var ASIST_RUBROS = {
       },
       {
         id: 'apertura',
-        titulo: '¿Necesita abrir la puerta desde el monitor?',
+        titulo: 'Â¿Necesita abrir la puerta desde el monitor?',
         desc: '',
         tipo: 'opciones',
         opciones: [
-          { id:'si',  ico:'ti-lock-open', titulo:'Sí, con cerradura eléctrica', desc:'Se incluye chapa eléctrica' },
+          { id:'si',  ico:'ti-lock-open', titulo:'SÃ­, con cerradura elÃ©ctrica', desc:'Se incluye chapa elÃ©ctrica' },
           { id:'no',  ico:'ti-door', titulo:'Solo video y audio',           desc:'Sin apertura remota' }
         ]
       }
@@ -15968,19 +16131,19 @@ var ASIST_RUBROS = {
     pasos: [
       {
         id: 'tipo_acceso',
-        titulo: '¿Qué tipo de identificación necesita?',
+        titulo: 'Â¿QuÃ© tipo de identificaciÃ³n necesita?',
         desc: '',
         tipo: 'opciones',
         opciones: [
           { id:'tarjeta',    ico:'ti-credit-card', titulo:'Tarjeta / llavero RFID', desc:'Acceso con tarjeta de proximidad' },
-          { id:'huella',     ico:'ti-hand-click', titulo:'Huella digital',          desc:'Acceso biométrico' },
-          { id:'facial',     ico:'ti-mood-smile', titulo:'Reconocimiento facial',   desc:'Máxima seguridad' },
+          { id:'huella',     ico:'ti-hand-click', titulo:'Huella digital',          desc:'Acceso biomÃ©trico' },
+          { id:'facial',     ico:'ti-mood-smile', titulo:'Reconocimiento facial',   desc:'MÃ¡xima seguridad' },
           { id:'combinado',  ico:'ti-lock', titulo:'Combinado',               desc:'Tarjeta + huella o PIN' }
         ]
       },
       {
         id: 'cant_lectores',
-        titulo: '¿Cuántos puntos de acceso necesita controlar?',
+        titulo: 'Â¿CuÃ¡ntos puntos de acceso necesita controlar?',
         desc: 'Puertas, torniquetes, barreras',
         tipo: 'numero',
         min: 1, max: 32, default: 1,
@@ -15988,13 +16151,13 @@ var ASIST_RUBROS = {
       },
       {
         id: 'cant_usuarios',
-        titulo: '¿Cuántas personas van a usar el sistema?',
+        titulo: 'Â¿CuÃ¡ntas personas van a usar el sistema?',
         desc: 'Determina la capacidad del controlador',
         tipo: 'opciones',
         opciones: [
-          { id:'hasta50',    ico:'ti-users', titulo:'Hasta 50 personas',   desc:'Pequeña empresa' },
+          { id:'hasta50',    ico:'ti-users', titulo:'Hasta 50 personas',   desc:'PequeÃ±a empresa' },
           { id:'hasta200',   ico:'ti-users-group', titulo:'50 a 200 personas', desc:'Empresa mediana' },
-          { id:'mas200',     ico:'ti-building', titulo:'Más de 200',          desc:'Gran empresa o edificio' }
+          { id:'mas200',     ico:'ti-building', titulo:'MÃ¡s de 200',          desc:'Gran empresa o edificio' }
         ]
       }
     ],
@@ -16002,16 +16165,16 @@ var ASIST_RUBROS = {
   },
 
   domotica: {
-    nombre: 'Domótica Sonoff',
+    nombre: 'DomÃ³tica Sonoff',
     color: '#be185d',
     pasos: [
       {
         id: 'tipo_control',
-        titulo: '¿Qué quiere controlar?',
-        desc: 'Podés seleccionar más de una opción',
+        titulo: 'Â¿QuÃ© quiere controlar?',
+        desc: 'PodÃ©s seleccionar mÃ¡s de una opciÃ³n',
         tipo: 'multi',
         opciones: [
-          { id:'luces',      ico:'ti-bulb', titulo:'Iluminación',         desc:'Encender/apagar y regular luces' },
+          { id:'luces',      ico:'ti-bulb', titulo:'IluminaciÃ³n',         desc:'Encender/apagar y regular luces' },
           { id:'persianas',  ico:'ti-window', titulo:'Persianas / cortinas', desc:'Control motorizado de aberturas' },
           { id:'enchufes',   ico:'ti-plug', titulo:'Enchufes inteligentes', desc:'Control de aparatos por app' },
           { id:'clima',      ico:'ti-snowflake',  titulo:'Aire acondicionado',  desc:'Control remoto del AC' },
@@ -16021,7 +16184,7 @@ var ASIST_RUBROS = {
       },
       {
         id: 'cant_puntos',
-        titulo: '¿Cuántos puntos de control necesita?',
+        titulo: 'Â¿CuÃ¡ntos puntos de control necesita?',
         desc: 'Por ejemplo: 4 luces + 2 enchufes = 6 puntos',
         tipo: 'numero',
         min: 1, max: 100, default: 6,
@@ -16029,7 +16192,7 @@ var ASIST_RUBROS = {
       },
       {
         id: 'conexion',
-        titulo: '¿Cómo se va a controlar?',
+        titulo: 'Â¿CÃ³mo se va a controlar?',
         desc: '',
         tipo: 'opciones',
         opciones: [
@@ -16040,13 +16203,13 @@ var ASIST_RUBROS = {
       },
       {
         id: 'instalacion',
-        titulo: '¿Dónde va instalado?',
+        titulo: 'Â¿DÃ³nde va instalado?',
         desc: '',
         tipo: 'opciones',
         opciones: [
           { id:'residencial', ico:'ti-home', titulo:'Residencial',  desc:'Casa, departamento' },
           { id:'comercial',   ico:'ti-building', titulo:'Comercial',    desc:'Local u oficina' },
-          { id:'nuevo',       ico:'ti-hammer', titulo:'Construcción nueva', desc:'Con obra en curso, cableado nuevo' }
+          { id:'nuevo',       ico:'ti-hammer', titulo:'ConstrucciÃ³n nueva', desc:'Con obra en curso, cableado nuevo' }
         ]
       }
     ],
@@ -16059,46 +16222,46 @@ var ASIST_RUBROS = {
     pasos: [
       {
         id: 'tipo_red',
-        titulo: '¿Para qué es la red?',
+        titulo: 'Â¿Para quÃ© es la red?',
         desc: '',
         tipo: 'opciones',
         opciones: [
           { id:'hogar',    ico:'ti-home', titulo:'Hogar / residencial', desc:'Cobertura WiFi en la vivienda' },
-          { id:'empresa',  ico:'ti-building', titulo:'Empresa / oficina',   desc:'Red corporativa con gestión' },
-          { id:'hotel',    ico:'ti-building-skyscraper', titulo:'Hotel / alquiler',    desc:'Con portal cautivo y gestión de huéspedes' }
+          { id:'empresa',  ico:'ti-building', titulo:'Empresa / oficina',   desc:'Red corporativa con gestiÃ³n' },
+          { id:'hotel',    ico:'ti-building-skyscraper', titulo:'Hotel / alquiler',    desc:'Con portal cautivo y gestiÃ³n de huÃ©spedes' }
         ]
       },
       {
         id: 'superficie',
-        titulo: '¿Cuántos m² necesita cubrir?',
+        titulo: 'Â¿CuÃ¡ntos mÂ² necesita cubrir?',
         desc: 'Calculamos la cantidad de access points necesarios',
         tipo: 'opciones',
         opciones: [
-          { id:'hasta150',  ico:'ti-home', titulo:'Hasta 150 m²',  desc:'1-2 access points' },
-          { id:'hasta300',  ico:'ti-home-2', titulo:'150 a 300 m²',  desc:'2-3 access points' },
-          { id:'hasta600',  ico:'ti-building', titulo:'300 a 600 m²',  desc:'3-5 access points' },
-          { id:'mas600',    ico:'ti-building-factory-2', titulo:'Más de 600 m²', desc:'6 o más — cotización especial' }
+          { id:'hasta150',  ico:'ti-home', titulo:'Hasta 150 mÂ²',  desc:'1-2 access points' },
+          { id:'hasta300',  ico:'ti-home-2', titulo:'150 a 300 mÂ²',  desc:'2-3 access points' },
+          { id:'hasta600',  ico:'ti-building', titulo:'300 a 600 mÂ²',  desc:'3-5 access points' },
+          { id:'mas600',    ico:'ti-building-factory-2', titulo:'MÃ¡s de 600 mÂ²', desc:'6 o mÃ¡s â€” cotizaciÃ³n especial' }
         ]
       },
       {
         id: 'usuarios_red',
-        titulo: '¿Cuántos dispositivos se conectan simultáneamente?',
-        desc: 'Celulares, computadoras, cámaras, etc.',
+        titulo: 'Â¿CuÃ¡ntos dispositivos se conectan simultÃ¡neamente?',
+        desc: 'Celulares, computadoras, cÃ¡maras, etc.',
         tipo: 'opciones',
         opciones: [
-          { id:'hasta20',  ico:'ti-device-mobile', titulo:'Hasta 20',  desc:'Hogar o pequeña oficina' },
+          { id:'hasta20',  ico:'ti-device-mobile', titulo:'Hasta 20',  desc:'Hogar o pequeÃ±a oficina' },
           { id:'hasta50',  ico:'ti-device-laptop', titulo:'20 a 50',   desc:'Empresa mediana' },
-          { id:'mas50',    ico:'ti-device-desktop', titulo:'Más de 50', desc:'Red densa — equipos enterprise' }
+          { id:'mas50',    ico:'ti-device-desktop', titulo:'MÃ¡s de 50', desc:'Red densa â€” equipos enterprise' }
         ]
       },
       {
         id: 'gestion',
-        titulo: '¿Necesita gestión centralizada?',
+        titulo: 'Â¿Necesita gestiÃ³n centralizada?',
         desc: 'Controller Omada para gestionar toda la red desde una sola pantalla',
         tipo: 'opciones',
         opciones: [
-          { id:'si',  ico:'ti-device-desktop', titulo:'Sí, con controller', desc:'Control centralizado de la red' },
-          { id:'no',  ico:'ti-broadcast', titulo:'Solo access points',  desc:'Configuración independiente' }
+          { id:'si',  ico:'ti-device-desktop', titulo:'SÃ­, con controller', desc:'Control centralizado de la red' },
+          { id:'no',  ico:'ti-broadcast', titulo:'Solo access points',  desc:'ConfiguraciÃ³n independiente' }
         ]
       }
     ],
@@ -16168,7 +16331,7 @@ function seleccionarOpcion(id, tipo) {
       btn.classList.toggle('selected', asistState.multiSel.includes(opId));
     });
   } else {
-    // Selección única → avanza automáticamente
+    // SelecciÃ³n Ãºnica â†’ avanza automÃ¡ticamente
     var cfg  = ASIST_RUBROS[asistState.rubro];
     var paso = cfg.pasos[asistState.paso];
     asistState.respuestas[paso.id] = id;
@@ -16179,7 +16342,7 @@ function seleccionarOpcion(id, tipo) {
 function asistConfirmarMulti() {
   var cfg  = ASIST_RUBROS[asistState.rubro];
   var paso = cfg.pasos[asistState.paso];
-  if (!asistState.multiSel.length) { notify('Seleccioná al menos una opción'); return; }
+  if (!asistState.multiSel.length) { notify('SeleccionÃ¡ al menos una opciÃ³n'); return; }
   asistState.respuestas[paso.id] = asistState.multiSel.slice();
   asistAvanzar();
 }
@@ -16230,7 +16393,7 @@ function mostrarResumenAsistente() {
   document.getElementById('asist-preguntas').style.display = 'none';
   document.getElementById('asist-resumen').style.display   = '';
   var cfg = ASIST_RUBROS[asistState.rubro];
-  document.getElementById('asist-res-titulo').textContent  = 'Sistema recomendado — '+cfg.nombre;
+  document.getElementById('asist-res-titulo').textContent  = 'Sistema recomendado â€” '+cfg.nombre;
   document.getElementById('asist-res-sub').textContent     = resumirRespuestas();
   asistProductosSel = cfg.calcularProductos(asistState.respuestas);
   renderProductosAsistente();
@@ -16242,7 +16405,7 @@ function resumirRespuestas() {
     var v = Array.isArray(e[1]) ? e[1].join(', ') : e[1];
     partes.push(v);
   });
-  return partes.join(' · ');
+  return partes.join(' Â· ');
 }
 
 function renderProductosAsistente() {
@@ -16254,11 +16417,11 @@ function renderProductosAsistente() {
     total += sub;
     return '<div class="asist-prod-row">' +
       '<div class="asist-prod-info">' +
-        '<div class="asist-prod-nombre">'+escapeHTML(p.nombre)+(sinPrecio ? ' <span class="badge b-red" style="font-size:9px" title="Sin precio cargado en el sistema — no se puede cotizar hasta corregirlo">Sin precio</span>' : '')+'</div>' +
+        '<div class="asist-prod-nombre">'+escapeHTML(p.nombre)+(sinPrecio ? ' <span class="badge b-red" style="font-size:9px" title="Sin precio cargado en el sistema â€” no se puede cotizar hasta corregirlo">Sin precio</span>' : '')+'</div>' +
         '<div class="asist-prod-sku">'+escapeHTML(p.sku||'')+'</div>' +
       '</div>' +
       '<div class="asist-qty">' +
-        '<button onclick="asistCambiarQty('+i+',-1)" '+(sinPrecio?'disabled':'')+'>−</button>' +
+        '<button onclick="asistCambiarQty('+i+',-1)" '+(sinPrecio?'disabled':'')+'>âˆ’</button>' +
         '<input type="number" value="'+p.qty+'" min="0" max="200" onchange="asistSetQty('+i+',this.value)" class="asist-qty-inp-'+i+'" '+(sinPrecio?'disabled title="Sin precio cargado, no se puede modificar la cantidad"':'')+'>' +
         '<button onclick="asistCambiarQty('+i+',1)" '+(sinPrecio?'disabled':'')+'>+</button>' +
       '</div>' +
@@ -16277,14 +16440,14 @@ function renderProductosAsistente() {
 
 function asistCambiarQty(idx, delta) {
   var p = asistProductosSel[idx];
-  if (!p.precio || p.precio <= 0) { notify('Este ítem no tiene precio cargado, no se puede modificar la cantidad'); return; }
+  if (!p.precio || p.precio <= 0) { notify('Este Ã­tem no tiene precio cargado, no se puede modificar la cantidad'); return; }
   var nuevaQty = Math.max(0, Math.min(200, (p.qty||0) + delta));
   p.qty = nuevaQty;
   renderProductosAsistente();
 }
 function asistSetQty(idx, val) {
   var p = asistProductosSel[idx];
-  if (!p.precio || p.precio <= 0) { notify('Este ítem no tiene precio cargado, no se puede modificar la cantidad'); renderProductosAsistente(); return; }
+  if (!p.precio || p.precio <= 0) { notify('Este Ã­tem no tiene precio cargado, no se puede modificar la cantidad'); renderProductosAsistente(); return; }
   var nuevaQty = Math.max(0, Math.min(200, parseInt(val)||0));
   p.qty = nuevaQty;
   renderProductosAsistente();
@@ -16316,10 +16479,10 @@ function asistGenerarPresupuesto() {
     usuario:     currentUser||''
   };
 
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   window.fbPush(window.fbRef(window.fbDB, FB_PATHS.presupuestos), ppto)
     .then(function() {
-      notify('✓ Presupuesto '+numPpto+' creado — $'+total.toLocaleString('es-AR'));
+      notify('âœ“ Presupuesto '+numPpto+' creado â€” $'+total.toLocaleString('es-AR'));
       // Volver al inicio del asistente
       setTimeout(function() {
         document.getElementById('asist-resumen').style.display  = 'none';
@@ -16341,7 +16504,7 @@ function buscarProductoEnDB(palabrasClave, qty) {
   });
   if (mejor) {
     var precioReal = parseFloat(mejor.venta) || 0;
-    if (precioReal <= 0) return null; // sin precio de venta válido, usar el de referencia en vez de cotizar gratis
+    if (precioReal <= 0) return null; // sin precio de venta vÃ¡lido, usar el de referencia en vez de cotizar gratis
     return { nombre: mejor.descripcion||mejor.nombre, sku: mejor.codigo, precio: precioReal, qty: qty };
   }
   return null;
@@ -16356,22 +16519,22 @@ function prod(nombre, sku, precio, qty) {
 function calcularProductosAlarma(r) {
   var zonas = r.zonas || 4;
   var lista = [];
-  // Panel según zonas
+  // Panel segÃºn zonas
   if (zonas <= 8)       lista.push(prod('Panel Garnet PG-380', 'PG-380',  85000, 1));
   else if (zonas <= 16) lista.push(prod('Panel Garnet PG-380 A', 'PG-380A', 110000, 1));
   else if (zonas <= 32) lista.push(prod('Panel Garnet PG-396', 'PG-396',  185000, 1));
   else                  lista.push(prod('Panel Garnet PG-396 Plus', 'PG-396+', 220000, 1));
   // Teclado
   lista.push(prod('Teclado LCD Garnet KP-140', 'KP-140', 45000, 1));
-  // Comunicación
+  // ComunicaciÃ³n
   var com = r.comunicacion;
-  if (com==='gsm'||com==='gsm_ip')   lista.push(prod('Módulo GSM Garnet', 'GSM-MOD', 35000, 1));
-  if (com==='ip'||com==='gsm_ip')    lista.push(prod('Módulo IP Garnet', 'IP-MOD', 28000, 1));
+  if (com==='gsm'||com==='gsm_ip')   lista.push(prod('MÃ³dulo GSM Garnet', 'GSM-MOD', 35000, 1));
+  if (com==='ip'||com==='gsm_ip')    lista.push(prod('MÃ³dulo IP Garnet', 'IP-MOD', 28000, 1));
   // Sensores
   var sens = r.sensores || ['pir'];
   var cantPIR = 0, cantMag = 0;
   if (sens.includes('pir'))      { cantPIR = Math.ceil(zonas*0.6); lista.push(prod('Sensor PIR Garnet 426i', '426i', 18000, Math.max(1,cantPIR))); }
-  if (sens.includes('mag'))      { cantMag = Math.ceil(zonas*0.4); lista.push(prod('Contacto magnético Garnet', 'MAG-01', 5500, Math.max(1,cantMag))); }
+  if (sens.includes('mag'))      { cantMag = Math.ceil(zonas*0.4); lista.push(prod('Contacto magnÃ©tico Garnet', 'MAG-01', 5500, Math.max(1,cantMag))); }
   if (sens.includes('doble'))    lista.push(prod('Detector doble tec. Garnet DT', 'DT-200', 28000, Math.ceil(zonas*0.5)));
   if (sens.includes('exterior')) lista.push(prod('Detector exterior Garnet', 'EXT-100', 35000, 2));
   // Accesorios
@@ -16379,7 +16542,7 @@ function calcularProductosAlarma(r) {
   if (acc.includes('sirena_ext')) lista.push(prod('Sirena exterior Garnet', 'SIR-EXT', 22000, 1));
   if (acc.includes('sirena_int')) lista.push(prod('Sirena interior Garnet', 'SIR-INT', 12000, 1));
   if (acc.includes('teclado'))    lista.push(prod('Teclado adicional KP-140', 'KP-140B', 45000, 1));
-  if (acc.includes('bateria'))    lista.push(prod('Batería 12V 7Ah', 'BAT-7A', 18000, 1));
+  if (acc.includes('bateria'))    lista.push(prod('BaterÃ­a 12V 7Ah', 'BAT-7A', 18000, 1));
   // Fuente siempre
   lista.push(prod('Fuente switching 2A Garnet', 'FTE-2A', 12000, 1));
   return lista;
@@ -16388,40 +16551,40 @@ function calcularProductosAlarma(r) {
 function calcularProductosCamaras(r) {
   var cant = r.cantidad_cam || 4;
   var lista = [];
-  // Cámara según resolución y lugar
+  // CÃ¡mara segÃºn resoluciÃ³n y lugar
   var donde = r.tipo_cam;
   var res   = r.resolucion;
   var marca = r.marca_linea || 'hikvision';
 
   if (marca === 'ezviz_ptz') {
-    // se muestra un ítem marcado "sin precio" (no se inventa un precio de referencia,
-    // porque el catálogo real cargado en Productos es el que manda en este caso).
+    // se muestra un Ã­tem marcado "sin precio" (no se inventa un precio de referencia,
+    // porque el catÃ¡logo real cargado en Productos es el que manda en este caso).
     var ezvizPtz = buscarProductoEnDB('ezviz ptz', cant) || buscarProductoEnDB('ezviz domo', cant);
-    lista.push(ezvizPtz || { nombre: 'Cámara EZVIZ domo PTZ (no encontrada en Productos)', sku: '', precio: 0, qty: cant });
+    lista.push(ezvizPtz || { nombre: 'CÃ¡mara EZVIZ domo PTZ (no encontrada en Productos)', sku: '', precio: 0, qty: cant });
   } else if (marca === 'ezviz_fija') {
     var ezvizFija = buscarProductoEnDB('ezviz fija', cant) || buscarProductoEnDB('ezviz ip', cant);
-    lista.push(ezvizFija || { nombre: 'Cámara EZVIZ fija (no encontrada en Productos)', sku: '', precio: 0, qty: cant });
+    lista.push(ezvizFija || { nombre: 'CÃ¡mara EZVIZ fija (no encontrada en Productos)', sku: '', precio: 0, qty: cant });
   } else if (res==='2mp') {
-    if (donde==='interior')  lista.push(prod('Cámara Hikvision DS-2CD2123G2-I 2MP domo', 'DS-2CD2123G2', 55000, cant));
-    else if (donde==='exterior') lista.push(prod('Cámara Hikvision DS-2CD2143G2-I 2MP bullet', 'DS-2CD2143G2', 65000, cant));
+    if (donde==='interior')  lista.push(prod('CÃ¡mara Hikvision DS-2CD2123G2-I 2MP domo', 'DS-2CD2123G2', 55000, cant));
+    else if (donde==='exterior') lista.push(prod('CÃ¡mara Hikvision DS-2CD2143G2-I 2MP bullet', 'DS-2CD2143G2', 65000, cant));
     else { // mixto
-      lista.push(prod('Cámara Hikvision 2MP domo interior', 'DS-2CD2123G2', 55000, Math.ceil(cant/2)));
-      lista.push(prod('Cámara Hikvision 2MP bullet exterior', 'DS-2CD2143G2', 65000, Math.floor(cant/2)));
+      lista.push(prod('CÃ¡mara Hikvision 2MP domo interior', 'DS-2CD2123G2', 55000, Math.ceil(cant/2)));
+      lista.push(prod('CÃ¡mara Hikvision 2MP bullet exterior', 'DS-2CD2143G2', 65000, Math.floor(cant/2)));
     }
   } else if (res==='4mp') {
-    lista.push(prod('Cámara Hikvision DS-2CD2143G2 4MP', 'DS-2CD2143G2-4', 85000, cant));
+    lista.push(prod('CÃ¡mara Hikvision DS-2CD2143G2 4MP', 'DS-2CD2143G2-4', 85000, cant));
   } else {
-    lista.push(prod('Cámara Hikvision DS-2CD2083G2 8MP 4K', 'DS-2CD2083G2', 135000, cant));
+    lista.push(prod('CÃ¡mara Hikvision DS-2CD2083G2 8MP 4K', 'DS-2CD2083G2', 135000, cant));
   }
-  // NVR según cantidad
+  // NVR segÃºn cantidad
   var chNVR = cant<=4?4:cant<=8?8:cant<=16?16:32;
-  // Disco según días
+  // Disco segÃºn dÃ­as
   var gbPorCam = res==='8mp'?60:res==='4mp'?40:25;
   var gbTotal  = gbPorCam * cant * (r.grabacion==='30dias'?30:r.grabacion==='15dias'?15:7);
   var disco = gbTotal<=1000?'1TB':gbTotal<=2000?'2TB':'4TB';
   lista.push(prod('NVR Hikvision '+chNVR+'ch DS-7'+chNVR+'NI-K1', 'NVR-'+chNVR, chNVR<=4?95000:chNVR<=8?130000:185000, 1));
   lista.push(prod('Disco duro '+disco+' Seagate Skyhawk', 'HDD-'+disco, disco==='1TB'?45000:disco==='2TB'?75000:130000, 1));
-  if (r.acceso_remoto==='si') lista.push(prod('Switch PoE para cámaras 8 puertos', 'SW-POE8', 55000, 1));
+  if (r.acceso_remoto==='si') lista.push(prod('Switch PoE para cÃ¡maras 8 puertos', 'SW-POE8', 55000, 1));
   return lista;
 }
 
@@ -16431,7 +16594,7 @@ function calcularProductosVideoportero(r) {
   var panel = r.cant_panel  || 1;
   lista.push(prod('Panel exterior Hikvision DS-KD8003-IME1', 'DS-KD8003', 145000, panel));
   lista.push(prod('Monitor interior Hikvision DS-KH6320-WTE1', 'DS-KH6320', 95000, monit));
-  if (r.apertura==='si') lista.push(prod('Chapa eléctrica 12V', 'CHAPA-12V', 28000, panel));
+  if (r.apertura==='si') lista.push(prod('Chapa elÃ©ctrica 12V', 'CHAPA-12V', 28000, panel));
   if (monit > 1 || panel > 1) lista.push(prod('Switch Hikvision PoE 4 puertos', 'SW-POE4', 35000, 1));
   lista.push(prod('Fuente switching 2A', 'FTE-2A', 12000, 1));
   return lista;
@@ -16447,8 +16610,8 @@ function calcularProductosAcceso(r) {
   else lista.push(prod('Terminal multi Hikvision DS-K1T805BMF', 'DS-K1T805BMF', 120000, lectores));
   // Controlador
   lista.push(prod('Controlador de acceso Hikvision DS-K2602G', 'DS-K2602G', 135000, Math.ceil(lectores/2)));
-  lista.push(prod('Chapa eléctrica 12V', 'CHAPA-12V', 28000, lectores));
-  lista.push(prod('Botón de salida', 'BOTON-SAL', 5500, lectores));
+  lista.push(prod('Chapa elÃ©ctrica 12V', 'CHAPA-12V', 28000, lectores));
+  lista.push(prod('BotÃ³n de salida', 'BOTON-SAL', 5500, lectores));
   lista.push(prod('Fuente switching 3A', 'FTE-3A', 18000, Math.ceil(lectores/2)));
   // Tarjetas o llaveros
   var usuarios = r.cant_usuarios==='hasta50'?30:r.cant_usuarios==='hasta200'?100:200;
@@ -16462,7 +16625,7 @@ function calcularProductosDomotica(r) {
   var puntos = parseInt(r.cant_puntos)||6;
   var con   = r.conexion;
 
-  // Módulos según tipo de control
+  // MÃ³dulos segÃºn tipo de control
   if (ctrl.includes('luces')) {
     // Sonoff MINI R2 (1 canal) o MINI DIM (regulable)
     var cantLuces = Math.ceil(puntos * 0.5);
@@ -16487,7 +16650,7 @@ function calcularProductosDomotica(r) {
     lista.push(prod('Sonoff SNZB-03 sensor movimiento Zigbee', 'SNZB-03', 17500, 1));
   }
 
-  // Hub / Gateway según conexión
+  // Hub / Gateway segÃºn conexiÃ³n
   if (con === 'local') {
     lista.push(prod('Sonoff iHost Smart Home Hub local', 'IHOST', 95000, 1));
   } else if (ctrl.includes('sensores') || puntos > 8) {
@@ -16514,14 +16677,14 @@ function calcularProductosRedes(r) {
   if (cantAP > 1) lista.push(prod('Switch PoE Omada TL-SG2210P 8 puertos', 'TL-SG2210P', 78000, Math.ceil(cantAP/8)));
   return lista;
 }
-// MÓDULO VACACIONES
+// MÃ“DULO VACACIONES
 
 function diasVacPorAntiguedad(fechaIngreso) {
   if (!fechaIngreso) return 14;
-  var años = (new Date()-new Date(fechaIngreso))/(365.25*86400000);
-  if (años<5)  return 14;
-  if (años<10) return 21;
-  if (años<20) return 28;
+  var anios = (new Date()-new Date(fechaIngreso))/(365.25*86400000);
+  if (anios<5)  return 14;
+  if (anios<10) return 21;
+  if (anios<20) return 28;
   return 35;
 }
 
@@ -16530,7 +16693,7 @@ function fbCargarVacaciones() {
   window.fbOnValue(window.fbRef(window.fbDB,'sisventas/vacaciones'), function(snap){
     var data = snap.val()||{};
     var periodos = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); });
-    window._vacPeriodos = periodos; // caché en memoria
+    window._vacPeriodos = periodos; // cachÃ© en memoria
     if (document.getElementById('page-vacaciones') && document.getElementById('page-vacaciones').classList.contains('active')) {
       renderTablaVacaciones(periodos);
       renderPeriodosVacaciones(periodos);
@@ -16559,7 +16722,7 @@ function renderModuloVacaciones() {
 
 function renderTablaVacaciones(periodos) {
   var tbody = document.getElementById('vac-tbody'); if (!tbody) return;
-  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false && e.tipoEmpleado !== 'Vendedor a comisión'; });
+  var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false && e.tipoEmpleado !== 'Vendedor a comisiÃ³n'; });
   if (!empleados.length && Object.keys(empData||{}).length === 0) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Cargando empleados...</td></tr>';
     setTimeout(function(){ renderTablaVacaciones(periodos); }, 600);
@@ -16570,23 +16733,23 @@ function renderTablaVacaciones(periodos) {
   tbody.innerHTML = empleados.map(function(emp){
     var ingreso = emp.fechaIngreso || (emp.historial ? Object.values(emp.historial).sort(function(a,b){return (a.fecha||'').localeCompare(b.fecha||'');})[0] ? Object.values(emp.historial).sort(function(a,b){return a.fecha.localeCompare(b.fecha);})[0].fecha : null : null);
     var diasCorr = diasVacPorAntiguedad(ingreso);
-    var año = new Date().getFullYear();
-    var periEmp = periodos.filter(function(p){ return p.empleadoId===emp.fbKey && String(p.desde||'').slice(0,4)===String(año); });
+    var anio = new Date().getFullYear();
+    var periEmp = periodos.filter(function(p){ return p.empleadoId===emp.fbKey && String(p.desde||'').slice(0,4)===String(anio); });
     var tomados = periEmp.reduce(function(s,p){ return s+(parseInt(p.dias)||0); },0);
     var disp    = diasCorr-tomados;
     var activo  = periEmp.some(function(p){ return p.desde<=hoy&&p.hasta>=hoy; });
     if (activo) enLicencia++;
     if (disp>0) conPendientes++;
-    var años    = ingreso ? Math.floor((new Date()-new Date(ingreso))/(365.25*86400000)) : null;
-    var antiguedad = años===null?'—':años<1?'< 1 año':años+' año'+(años!==1?'s':'');
+    var anios    = ingreso ? Math.floor((new Date()-new Date(ingreso))/(365.25*86400000)) : null;
+    var antiguedad = anios===null?'â€”':anios<1?'< 1 anio':anios+' anio'+(anios!==1?'s':'');
     return '<tr>'+
-      '<td style="font-family:monospace;color:var(--text3)">'+String(emp.legajo||'—').padStart(4,'0')+'</td>'+
-      '<td style="font-weight:500">'+escapeHTML(emp.nombre||'—')+'</td>'+
+      '<td style="font-family:monospace;color:var(--text3)">'+String(emp.legajo||'â€”').padStart(4,'0')+'</td>'+
+      '<td style="font-weight:500">'+escapeHTML(emp.nombre||'â€”')+'</td>'+
       '<td style="font-size:12px;color:var(--text3)">'+antiguedad+'</td>'+
       '<td class="tr" style="font-weight:500">'+diasCorr+' d.</td>'+
       '<td class="tr" style="color:var(--text3)">'+tomados+' d.</td>'+
       '<td class="tr"><span style="font-weight:700;color:'+(disp>0?'var(--green)':disp===0?'var(--text3)':'var(--red)')+'">'+disp+' d.</span></td>'+
-      '<td style="font-size:12px">'+(activo?'<span class="badge b-blue">En licencia</span>':periEmp.length?escapeHTML(periEmp[periEmp.length-1].desde):'—')+'</td>'+
+      '<td style="font-size:12px">'+(activo?'<span class="badge b-blue">En licencia</span>':periEmp.length?escapeHTML(periEmp[periEmp.length-1].desde):'â€”')+'</td>'+
       '<td><button class="btn btn-sm btn-icon" onclick="abrirModalVacaciones(\''+emp.fbKey+'\')" title="Registrar"><i class="ti ti-plus" style="font-size:14px"></i></button></td>'+
     '</tr>';
   }).join('');
@@ -16597,13 +16760,13 @@ function renderTablaVacaciones(periodos) {
 function renderPeriodosVacaciones(periodos) {
   var tbody = document.getElementById('vac-periodos-tbody'); if (!tbody) return;
   var hoy = new Date().toISOString().split('T')[0];
-  if (!periodos.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Sin períodos registrados</td></tr>'; return; }
+  if (!periodos.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Sin perÃ­odos registrados</td></tr>'; return; }
   tbody.innerHTML = periodos.sort(function(a,b){ return (b.desde||'').localeCompare(a.desde||''); }).map(function(p){
     var badge = p.hasta<hoy?'<span class="badge b-green">Finalizado</span>':p.desde<=hoy?'<span class="badge b-blue">En curso</span>':'<span class="badge b-amber">Programado</span>';
     return '<tr>'+
-      '<td style="font-weight:500">'+escapeHTML(p.empleadoNombre||'—')+'</td>'+
-      '<td>'+escapeHTML(p.desde||'—')+'</td>'+
-      '<td>'+escapeHTML(p.hasta||'—')+'</td>'+
+      '<td style="font-weight:500">'+escapeHTML(p.empleadoNombre||'â€”')+'</td>'+
+      '<td>'+escapeHTML(p.desde||'â€”')+'</td>'+
+      '<td>'+escapeHTML(p.hasta||'â€”')+'</td>'+
       '<td class="tr" style="font-weight:500">'+p.dias+' d.</td>'+
       '<td class="tr">'+badge+'</td>'+
       '<td><button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'vacaciones\',\''+p.fbKey+'\')" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:13px"></i></button></td>'+
@@ -16616,19 +16779,19 @@ function abrirModalVacaciones(empFbKey) {
   var emp = empFbKey ? Object.values(empData||{}).find(function(e){ return e.fbKey===empFbKey; }) : null;
   var modal=document.getElementById('modal-nuevo'), modalTitle=document.getElementById('modal-nuevo-title'), modalBody=document.getElementById('modal-nuevo-body');
   if (!modal) return;
-  modalTitle.textContent = emp?'Vacaciones — '+emp.nombre:'Registrar período';
-  var selEmp = !empFbKey ? '<div class="fg full"><label>Empleado</label><select id="vac-emp-sel" style="width:100%"><option value="">— Seleccionar —</option>'+Object.values(empData||{}).filter(function(e){return e.activo!==false;}).map(function(e){return '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+'</option>';}).join('')+'</select></div>' : '';
+  modalTitle.textContent = emp?'Vacaciones â€” '+emp.nombre:'Registrar perÃ­odo';
+  var selEmp = !empFbKey ? '<div class="fg full"><label>Empleado</label><select id="vac-emp-sel" style="width:100%"><option value="">â€” Seleccionar â€”</option>'+Object.values(empData||{}).filter(function(e){return e.activo!==false;}).map(function(e){return '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+'</option>';}).join('')+'</select></div>' : '';
   modalBody.innerHTML = '<div class="form-grid">'+selEmp+
     '<div class="fg"><label>Desde</label><input type="date" id="vac-desde" style="width:100%" oninput="calcDiasVac()"></div>'+
     '<div class="fg"><label>Hasta</label><input type="date" id="vac-hasta" style="width:100%" oninput="calcDiasVac()"></div>'+
-    '<div class="fg full"><label>Días</label><input type="number" id="vac-dias" style="width:100%"></div>'+
+    '<div class="fg full"><label>DÃ­as</label><input type="number" id="vac-dias" style="width:100%"></div>'+
     '<div class="fg full"><label>Observaciones</label><input type="text" id="vac-obs" placeholder="Opcional" style="width:100%"></div>'+
   '</div>'+
   '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">'+
     '<button class="btn" onclick="document.getElementById(\'modal-nuevo\').classList.remove(\'open\')">Cancelar</button>'+
-    '<button class="btn btn-primary" onclick="guardarPeriodoVac()"><i class="ti ti-check"></i> Guardar período</button>'+
+    '<button class="btn btn-primary" onclick="guardarPeriodoVac()"><i class="ti ti-check"></i> Guardar perÃ­odo</button>'+
   '</div>';
-  // texto/onclick, así no queda "pegado" para la próxima vez que se use el modal)
+  // texto/onclick, asÃ­ no queda "pegado" para la prÃ³xima vez que se use el modal)
   var botonesFooter = modal.querySelectorAll('.modal > .flex-end button');
   botonesFooter.forEach(function(b){ b.style.display = 'none'; });
   modal.classList.add('open');
@@ -16643,16 +16806,16 @@ function guardarPeriodoVac() {
   var fkey = window._modalVacEmpKey || (document.getElementById('vac-emp-sel')?document.getElementById('vac-emp-sel').value:'');
   var desde=document.getElementById('vac-desde').value, hasta=document.getElementById('vac-hasta').value;
   var dias=parseInt(document.getElementById('vac-dias').value)||0;
-  if (!fkey||!desde||!hasta) { notify('Completá los datos'); return; }
+  if (!fkey||!desde||!hasta) { notify('CompletÃ¡ los datos'); return; }
   var emp=Object.values(empData||{}).find(function(e){return e.fbKey===fkey;});
   window.fbPush(window.fbRef(window.fbDB,'sisventas/vacaciones'), {
     empleadoId:fkey, empleadoNombre:emp?emp.nombre:'', desde:desde, hasta:hasta, dias:dias,
     obs:document.getElementById('vac-obs').value, ts:Date.now()
-  }).then(function(){ notify('✓ Período registrado'); cerrarModalNuevoGenerico(); renderModuloVacaciones(); });
+  }).then(function(){ notify('âœ“ PerÃ­odo registrado'); cerrarModalNuevoGenerico(); renderModuloVacaciones(); });
 }
 
 function toggleActivoCliente(cid) {
-  var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid); });
+  var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid) || String(c.fbKey||'') === String(cid); });
   if (!cli || !cli.fbKey || !window.fbDB) return;
   var nuevoEstado = cli.activo === false;
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey), { activo: nuevoEstado })
@@ -16665,8 +16828,8 @@ function abrirModalEstadoEmpleado(fbKey, estadoActual) {
   var estaActivo = estadoActual;
   var titulo = estaActivo ? 'Dar de baja: '+escapeHTML(emp.nombre) : 'Reactivar: '+escapeHTML(emp.nombre);
   var motivos = estaActivo
-    ? ['Renuncia','Despido','Licencia','Suspensión','Jubilación','Fin de contrato','Otro']
-    : ['Reingreso','Fin de licencia','Recontratación','Otro'];
+    ? ['Renuncia','Despido','Licencia','SuspensiÃ³n','JubilaciÃ³n','Fin de contrato','Otro']
+    : ['Reingreso','Fin de licencia','RecontrataciÃ³n','Otro'];
 
   var html = '<div style="display:flex;flex-direction:column;gap:14px">' +
     '<div class="fg"><label>Motivo</label><select id="emp-estado-motivo" style="width:100%">' +
@@ -16679,14 +16842,14 @@ function abrirModalEstadoEmpleado(fbKey, estadoActual) {
     '</div>' +
   '</div>';
 
-  // Usar modal genérico de confirmación
+  // Usar modal genÃ©rico de confirmaciÃ³n
   var modal = document.getElementById('modal-nuevo');
   var modalTitle = document.getElementById('modal-nuevo-title');
   var modalBody  = document.getElementById('modal-nuevo-body');
   if (!modal || !modalTitle || !modalBody) return;
   modalTitle.textContent = titulo;
   modalBody.innerHTML = html;
-  // (nunca se muta su texto/onclick, así no queda "pegado" para la próxima vez que se use el modal)
+  // (nunca se muta su texto/onclick, asÃ­ no queda "pegado" para la prÃ³xima vez que se use el modal)
   var botonesFooter = modal.querySelectorAll('.modal > .flex-end button');
   botonesFooter.forEach(function(b){ b.style.display = 'none'; });
   modal.classList.add('open');
@@ -16709,7 +16872,7 @@ function confirmarEstadoEmpleado(fbKey, nuevoEstado, motivo, fecha, obs) {
     activo:    nuevoEstado,
     historial: historial
   }).then(function(){
-    notify(nuevoEstado ? '✓ '+emp.nombre+' reactivado' : '✓ '+emp.nombre+' dado de baja ('+motivo+')');
+    notify(nuevoEstado ? 'âœ“ '+emp.nombre+' reactivado' : 'âœ“ '+emp.nombre+' dado de baja ('+motivo+')');
   });
 }
 
@@ -16721,13 +16884,13 @@ function abrirLegajoEmpleado(fbKey) {
   var emp = Object.values(empData||{}).find(function(e){ return e.fbKey===fbKey; });
   if (!emp) return;
   var historial = emp.historial ? Object.values(emp.historial).sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); }) : [];
-  var tipoIcon = { alta:'🟢', baja:'🔴', licencia:'🟡' };
+  var tipoIcon = { alta:'ðŸŸ¢', baja:'ðŸ”´', licencia:'ðŸŸ¡' };
   var htmlHist = historial.length
     ? historial.map(function(h){
         return '<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border)">' +
-          '<span style="font-size:16px">'+(tipoIcon[h.tipo]||'📋')+'</span>' +
+          '<span style="font-size:16px">'+(tipoIcon[h.tipo]||'ðŸ“‹')+'</span>' +
           '<div><div style="font-size:13px;font-weight:500;text-transform:capitalize">'+escapeHTML(h.tipo)+'</div>' +
-          '<div style="font-size:12px;color:var(--text3)">'+escapeHTML(h.fecha||'—')+' · '+escapeHTML(h.motivo||'—')+'</div>' +
+          '<div style="font-size:12px;color:var(--text3)">'+escapeHTML(h.fecha||'â€”')+' Â· '+escapeHTML(h.motivo||'â€”')+'</div>' +
           (h.obs?'<div style="font-size:12px;color:var(--text3);margin-top:2px">'+escapeHTML(h.obs)+'</div>':'') +
           '<div style="font-size:11px;color:var(--text3);margin-top:2px">Registrado por: '+escapeHTML(h.usuario||'Sistema')+'</div>' +
           '</div></div>';
@@ -16743,16 +16906,16 @@ function abrirLegajoEmpleado(fbKey) {
   var modalTitle = document.getElementById('modal-nuevo-title');
   var modalBody  = document.getElementById('modal-nuevo-body');
   if (!modal) return;
-  modalTitle.textContent = 'Legajo N° ' + String(emp.legajo||'—').padStart(4,'0') + ' — ' + emp.nombre;
+  modalTitle.textContent = 'Legajo NÂ° ' + String(emp.legajo||'â€”').padStart(4,'0') + ' â€” ' + emp.nombre;
   modalBody.innerHTML =
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">' +
-      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">DNI</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.dni||'—')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">DNI</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.dni||'â€”')+'</div></div>' +
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Cargo</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.cargo||'Sin cargo asignado')+'</div></div>' +
-      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Teléfono</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.telefono||emp.tel||'—')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">TelÃ©fono</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.telefono||emp.tel||'â€”')+'</div></div>' +
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Estado</div><div style="font-size:14px;font-weight:600;margin-top:2px;color:'+estadoColor+'">'+estadoTxt+'</div></div>' +
-      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Fecha de inicio</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.fechaIngreso||'—')+'</div></div>' +
-      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Mensual (según cargo)</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+(cargoInfo?'$'+mensualCargo.toLocaleString('es-AR'):'—')+'</div></div>' +
-      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Valor hora extra</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+(cargoInfo?'$'+horaExtraCargo.toLocaleString('es-AR'):'—')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Fecha de inicio</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.fechaIngreso||'â€”')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Mensual (segÃºn cargo)</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+(cargoInfo?'$'+mensualCargo.toLocaleString('es-AR'):'â€”')+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Valor hora extra</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+(cargoInfo?'$'+horaExtraCargo.toLocaleString('es-AR'):'â€”')+'</div></div>' +
     '</div>' +
     '<div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Historial de altas y bajas</div>' +
     htmlHist +
@@ -16760,7 +16923,7 @@ function abrirLegajoEmpleado(fbKey) {
       '<button class="btn btn-sm btn-primary" onclick="editarEmpleado(\''+fbKey+'\')"><i class="ti ti-edit"></i> Editar datos</button>' +
       '<button class="btn btn-sm" onclick="abrirModalEstadoEmpleado(\''+fbKey+'\','+(emp.activo!==false)+');"><i class="ti ti-refresh"></i> Cambiar estado</button>' +
     '</div>';
-  // Ocultar botón guardar genérico
+  // Ocultar botÃ³n guardar genÃ©rico
   var btnGuardar = modal.querySelector('.btn-primary[onclick*="guardarNuevo"]');
   if (btnGuardar) btnGuardar.style.display = 'none';
   modal.classList.add('open');
@@ -16793,7 +16956,7 @@ function editarEmpleado(fbKey) {
 function _normalizarRolUsuarioSistema(rol) {
   var r = String(rol || '').toLowerCase();
   if (r === 'admin' || r === 'administrador') return 'admin';
-  if (r === 'tecnico' || r === 'técnico') return 'tecnico';
+  if (r === 'tecnico' || r === 'tÃ©cnico') return 'tecnico';
   if (r === 'vendedor') return 'vendedor';
   return 'administrativo';
 }
@@ -16803,11 +16966,11 @@ function _emailUsuarioSistema(u) {
 }
 
 function _actualizarCabeceraSesion() {
-  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'TÃ©cnico' };
   var sname = document.getElementById('s-uname-el');
-  if (sname) sname.textContent = currentUser || '—';
+  if (sname) sname.textContent = currentUser || 'â€”';
   var srole = document.getElementById('s-urole-el');
-  if (srole) srole.textContent = rolLabels[currentRole] || currentRole || '—';
+  if (srole) srole.textContent = rolLabels[currentRole] || currentRole || 'â€”';
   var av = document.getElementById('s-avatar-el');
   if (av) {
     var nombre = currentUser || '';
@@ -16820,11 +16983,11 @@ function _mostrarBannerImpersonacion() {
   var viejo = document.getElementById('impersonacion-banner');
   if (viejo) viejo.remove();
   if (!window._impersonacionOriginal) return;
-  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'Técnico' };
+  var rolLabels = { admin:'Administrador', administrativo:'Administrativo', vendedor:'Vendedor', tecnico:'TÃ©cnico' };
   var div = document.createElement('div');
   div.id = 'impersonacion-banner';
   div.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:12000;background:var(--amber-bg);color:var(--amber);border-bottom:0.5px solid var(--amber);padding:8px 14px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.12)';
-  div.innerHTML = '<span><i class="ti ti-user-search" style="margin-right:6px"></i>Viendo como <strong>' + escapeHTML(currentUser || 'usuario') + '</strong> · ' + escapeHTML(rolLabels[currentRole] || currentRole || '') + '</span>' +
+  div.innerHTML = '<span><i class="ti ti-user-search" style="margin-right:6px"></i>Viendo como <strong>' + escapeHTML(currentUser || 'usuario') + '</strong> Â· ' + escapeHTML(rolLabels[currentRole] || currentRole || '') + '</span>' +
     '<button class="btn btn-sm" onclick="finalizarImpersonacionUsuario()" style="background:var(--text);color:var(--bg2);border-color:var(--text)"><i class="ti ti-arrow-back-up"></i> Volver a Admin</button>';
   document.body.appendChild(div);
 }
@@ -16834,7 +16997,7 @@ function iniciarImpersonacionUsuario(fbKey) {
   var u = (window.usuariosData || []).find(function(x){ return x.fbKey === fbKey; });
   if (!u) { notify('Usuario no encontrado'); return; }
   var nuevoRol = _normalizarRolUsuarioSistema(u.rol);
-  if (nuevoRol === 'admin') { notify('Ya estás en vista administrador'); return; }
+  if (nuevoRol === 'admin') { notify('Ya estÃ¡s en vista administrador'); return; }
   if (!window._impersonacionOriginal) {
     window._impersonacionOriginal = {
       user: currentUser,
@@ -16843,7 +17006,7 @@ function iniciarImpersonacionUsuario(fbKey) {
       uid: currentUserUid
     };
   }
-  if (typeof registrarActividad === 'function') registrarActividad('Vista como usuario', (u.nombre || u.login || '') + ' · ' + nuevoRol);
+  if (typeof registrarActividad === 'function') registrarActividad('Vista como usuario', (u.nombre || u.login || '') + ' Â· ' + nuevoRol);
   currentUser = u.nombre || u.login || _emailUsuarioSistema(u).split('@')[0] || 'Usuario';
   currentRole = nuevoRol;
   currentUserEmail = String(_emailUsuarioSistema(u) || '').toLowerCase();
@@ -16887,7 +17050,7 @@ function toggleVerClaveUsuario(id) {
   if (!el) return;
   var visible = el.getAttribute('data-visible') === '1';
   var clave = el.getAttribute('data-clave') || '';
-  el.textContent = visible ? '••••••••' : clave;
+  el.textContent = visible ? 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢' : clave;
   el.setAttribute('data-visible', visible ? '0' : '1');
 }
 
@@ -16905,8 +17068,8 @@ function gestionarClaveUsuario(fbKey) {
     claveActualizadaTs: Date.now(),
     claveActualizadaPor: currentUser || ''
   }).then(function(){
-    notify('✓ Clave registrada actualizada');
-    if (confirm('Clave registrada actualizada. ¿Enviar también email de reseteo de Firebase al usuario?')) {
+    notify('âœ“ Clave registrada actualizada');
+    if (confirm('Clave registrada actualizada. Â¿Enviar tambiÃ©n email de reseteo de Firebase al usuario?')) {
       resetPasswordUsuario(u.mail || ((u.login||'') + '@sistemanixa.com'));
     }
   }).catch(function(e){ notify('Error: ' + e.message); });
@@ -16921,13 +17084,13 @@ function toggleActivoUsuario(fbKey, estadoActual) {
 
 function resetPasswordUsuario(email) {
   if (!email) { notify('Sin email registrado'); return; }
-  if (!confirm('¿Enviar email de reseteo de contraseña a ' + email + '?')) return;
-  if (!window.fbResetPass || !window.fbAuth) { notify('Sin conexión a Firebase Auth'); return; }
+  if (!confirm('Â¿Enviar email de reseteo de contraseÃ±a a ' + email + '?')) return;
+  if (!window.fbResetPass || !window.fbAuth) { notify('Sin conexiÃ³n a Firebase Auth'); return; }
   window.fbResetPass(window.fbAuth, email)
-    .then(function() { notify('✓ Email de reseteo enviado a ' + email); })
+    .then(function() { notify('âœ“ Email de reseteo enviado a ' + email); })
     .catch(function(e) {
       var msg = e.code === 'auth/user-not-found'
-        ? 'Este email no existe en Firebase Auth — el usuario nunca fue creado desde el sistema'
+        ? 'Este email no existe en Firebase Auth â€” el usuario nunca fue creado desde el sistema'
         : 'Error: ' + e.message;
       notify(msg);
     });
@@ -16938,7 +17101,7 @@ function editarUsuario(fbKey) {
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/usuarios/' + fbKey), function(snap) {
     var u = snap.val();
     if (!u) { notify('Usuario no encontrado'); return; }
-    var rolInverso = {admin:'Administrador',administrativo:'Administrativo',vendedor:'Vendedor',tecnico:'Técnico'};
+    var rolInverso = {admin:'Administrador',administrativo:'Administrativo',vendedor:'Vendedor',tecnico:'TÃ©cnico'};
     var datos = {
       nm:             u.nombre || '',
       user:           u.login || u.mail || '',
@@ -16964,8 +17127,8 @@ function eliminarRegistro(coleccion, fbKey) {
     informes:'este informe', equipos:'este equipo', usuarios:'este usuario'
   };
   var nombre = nombres[coleccion] || 'este registro';
-  if (!confirm('¿Eliminar ' + nombre + '? Esta acción no se puede deshacer.')) return;
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!confirm('Â¿Eliminar ' + nombre + '? Esta acciÃ³n no se puede deshacer.')) return;
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/' + coleccion + '/' + fbKey))
     .then(function(){ notify('Eliminado correctamente'); })
     .catch(function(e){ notify('Error al eliminar: ' + e.message); });
@@ -16973,27 +17136,25 @@ function eliminarRegistro(coleccion, fbKey) {
 
 function eliminarCliente(el) {
   var cid = el.dataset.cid;
-  var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid); });
+  var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid) || String(c.fbKey||'') === String(cid); });
   if (!cli) return;
 
-  // para que el usuario sepa exactamente qué se va a borrar.
+  // para que el usuario sepa exactamente quÃ© se va a borrar.
   var ventasCli = (ventasList||[]).filter(function(v){
-    return String(v.idCliente||v.clienteId||'') === String(cli.id) ||
-           (v.cliente||'').toLowerCase().trim() === (cli.nombre||'').toLowerCase().trim();
+    return _svRegistroPerteneceCliente(v, cli, true);
   });
   var pptosCli = (pptoData||[]).filter(function(p){
-    return (p.cliente||'').toLowerCase().trim() === (cli.nombre||'').toLowerCase().trim();
+    return _svRegistroPerteneceCliente(p, cli, true);
   });
   var otSueltasCli = (otData||[]).filter(function(o){
-    var deAlgunaVenta = ventasCli.some(function(v){ return v.id === o.ventaId; });
+    var deAlgunaVenta = ventasCli.some(function(v){ return _svRegistroPerteneceVenta(o, v); });
     if (deAlgunaVenta) return false; // esa OT ya se borra en cascada con su venta
-    return String(o.clienteId||'') === String(cli.id) ||
-           (o.cliente||'').toLowerCase().trim() === (cli.nombre||'').toLowerCase().trim();
+    return _svRegistroPerteneceCliente(o, cli, true);
   });
   var pagosSueltosCli = (window._pagosListaActual||[]).filter(function(p){
-    var deAlgunaVenta = ventasCli.some(function(v){ return v.id === p.venta; });
+    var deAlgunaVenta = ventasCli.some(function(v){ return _svRegistroPerteneceVenta(p, v); });
     if (deAlgunaVenta) return false; // ya se borra en cascada con la venta
-    return (p.cliente||'').toLowerCase().trim() === (cli.nombre||'').toLowerCase().trim();
+    return _svRegistroPerteneceCliente(p, cli, true);
   });
 
   var resumen = [];
@@ -17002,28 +17163,30 @@ function eliminarCliente(el) {
   if (otSueltasCli.length)   resumen.push(otSueltasCli.length + ' OT suelta' + (otSueltasCli.length!==1?'s':''));
   if (pagosSueltosCli.length) resumen.push(pagosSueltosCli.length + ' pago' + (pagosSueltosCli.length!==1?'s':'') + ' suelto' + (pagosSueltosCli.length!==1?'s':''));
 
-  var msg = '¿Eliminar cliente "' + (cli.nombre||'') + '"?\n\nEsta acción no se puede deshacer.';
+  var msg = 'Â¿Eliminar cliente "' + (cli.nombre||'') + '"?\n\nEsta acciÃ³n no se puede deshacer.';
   if (resumen.length) {
-    msg += '\n\nTambién se eliminará todo lo asociado:\n• ' + resumen.join('\n• ');
+    msg += '\n\nTambiÃ©n se eliminarÃ¡ todo lo asociado:\nâ€¢ ' + resumen.join('\nâ€¢ ');
   }
   if (!confirm(msg)) return;
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var ventaFacturada = ventasCli.find(function(v){ return v.factura && v.factura.cae; });
   if (ventaFacturada) {
-    notify('No se puede eliminar: el cliente tiene la venta ' + ventaFacturada.id + ' con factura electrónica (CAE) emitida. Anulá esa factura con una nota de crédito en ARCA antes de eliminar el cliente.');
+    notify('No se puede eliminar: el cliente tiene la venta ' + ventaFacturada.id + ' con factura electrÃ³nica (CAE) emitida. AnulÃ¡ esa factura con una nota de crÃ©dito en ARCA antes de eliminar el cliente.');
     return;
   }
 
   var promesas = [];
-  // (borra también la OT vinculada y los pagos de esa venta)
+  // (borra tambiÃ©n la OT vinculada y los pagos de esa venta)
   ventasCli.forEach(function(v) {
     if (!v.fbKey) return;
     promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + v.fbKey)));
-    var otVinculada = (otData||[]).find(function(o){ return o.ventaId === v.id; });
-    if (otVinculada && otVinculada.fbKey) {
-      promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey)));
-    }
-    var pagosVenta = (window._pagosListaActual||[]).filter(function(p){ return p.venta === v.id && p.fbKey; });
+    var otVinculadas = (otData||[]).filter(function(o){ return _svRegistroPerteneceVenta(o, v); });
+    otVinculadas.forEach(function(otVinculada) {
+      if (otVinculada && otVinculada.fbKey) {
+        promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey)));
+      }
+    });
+    var pagosVenta = (window._pagosListaActual||[]).filter(function(p){ return _svRegistroPerteneceVenta(p, v) && p.fbKey; });
     pagosVenta.forEach(function(p) {
       promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + p.fbKey)));
     });
@@ -17034,7 +17197,7 @@ function eliminarCliente(el) {
     if (p.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + p.fbKey)));
   });
 
-  // OT sueltas del cliente (sin venta asociada, ej. service/garantía directo)
+  // OT sueltas del cliente (sin venta asociada, ej. service/garantÃ­a directo)
   otSueltasCli.forEach(function(o) {
     if (o.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + o.fbKey)));
   });
@@ -17048,9 +17211,9 @@ function eliminarCliente(el) {
 
   Promise.all(promesas)
     .then(function() {
-      notify('✓ Cliente y todo lo asociado eliminado' + (resumen.length ? ' (' + resumen.join(', ') + ')' : ''));
+      notify('âœ“ Cliente y todo lo asociado eliminado' + (resumen.length ? ' (' + resumen.join(', ') + ')' : ''));
       if (typeof registrarActividad === 'function') {
-        registrarActividad('Cliente eliminado en cascada', (cli.nombre||'') + ' — ' + resumen.join(', '));
+        registrarActividad('Cliente eliminado en cascada', (cli.nombre||'') + ' â€” ' + resumen.join(', '));
       }
     })
     .catch(function(e){ notify('Error al eliminar: ' + e.message); });
@@ -17060,7 +17223,7 @@ function eliminarProducto(el) {
   var pid = el.dataset.pid;
   var prod = prodData ? Object.values(prodData).find(function(p){ return String(p.fbKey) === String(pid); }) : null;
   if (!prod) return;
-  if (!confirm('¿Eliminar producto "' + (prod.nombre||prod.descripcion||'') + '"?')) return;
+  if (!confirm('Â¿Eliminar producto "' + (prod.nombre||prod.descripcion||'') + '"?')) return;
   if (prod.fbKey && window.fbDB) {
     window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + prod.fbKey))
       .then(function(){ notify('Producto eliminado'); })
@@ -17070,12 +17233,12 @@ function eliminarProducto(el) {
 
 function eliminarEmpleado(fbKey) {
   var emp = Object.values(empData||{}).find(function(e){ return (e.fbKey||String(e.id)) === String(fbKey); });
-  if (!confirm('¿Eliminar empleado "' + ((emp||{}).nombre||'') + '"?')) return;
+  if (!confirm('Â¿Eliminar empleado "' + ((emp||{}).nombre||'') + '"?')) return;
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKey))
     .then(function(){ notify('Empleado eliminado'); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
-// INFORMES TÉCNICOS
+// INFORMES TÃ‰CNICOS
 
 var informesData = [];
 var informeActualId = null;
@@ -17105,13 +17268,13 @@ function renderTablaInformes() {
   }
   tbody.innerHTML = lista.map(function(inf) {
     var estBadge = {borrador:'<span class="badge b-amber">Borrador</span>',completado:'<span class="badge b-blue">Completado</span>',enviado:'<span class="badge b-green">Enviado</span>'}[inf.estado]||inf.estado;
-    var tipoBadge = {seguro:'<span class="badge b-red">Seguro</span>',garantia:'<span class="badge b-purple">Garantía</span>',mantenimiento:'<span class="badge b-blue">Mantenimiento</span>',instalacion:'<span class="badge b-green">Instalación</span>',tecnico:'<span class="badge b-blue">Técnico</span>'}[inf.tipo]||'<span class="badge b-blue">Técnico</span>';
-    var fecha = inf.fecha ? inf.fecha.split('-').reverse().join('/') : '—';
+    var tipoBadge = {seguro:'<span class="badge b-red">Seguro</span>',garantia:'<span class="badge b-purple">GarantÃ­a</span>',mantenimiento:'<span class="badge b-blue">Mantenimiento</span>',instalacion:'<span class="badge b-green">InstalaciÃ³n</span>',tecnico:'<span class="badge b-blue">TÃ©cnico</span>'}[inf.tipo]||'<span class="badge b-blue">TÃ©cnico</span>';
+    var fecha = inf.fecha ? inf.fecha.split('-').reverse().join('/') : 'â€”';
     return '<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="editarInforme(\''+inf.fbKey+'\')">' +
-      '<td style="font-family:monospace;font-size:12px;font-weight:500">'+ escapeHTML(inf.numero||'—') +'</td>' +
+      '<td style="font-family:monospace;font-size:12px;font-weight:500">'+ escapeHTML(inf.numero||'â€”') +'</td>' +
       '<td style="color:var(--text3);font-size:12px">'+ fecha +'</td>' +
-      '<td><div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(inf.cliente||'—') +'</div><div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(inf.equipo||'') +'</div></td>' +
-      '<td style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(inf.tecnico||'—') +'</td>' +
+      '<td><div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(inf.cliente||'â€”') +'</div><div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(inf.equipo||'') +'</div></td>' +
+      '<td style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ escapeHTML(inf.tecnico||'â€”') +'</td>' +
       '<td class="tr">'+ tipoBadge +'</td>' +
       '<td class="tr">'+ estBadge +'</td>' +
       '<td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="editarInforme(\''+inf.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
@@ -17124,7 +17287,7 @@ function filtrarInformes() { renderTablaInformes(); }
 
 function abrirNuevoInforme() {
   informeActualId = null;
-  document.getElementById('inf-form-titulo').textContent = 'Nuevo informe técnico';
+  document.getElementById('inf-form-titulo').textContent = 'Nuevo informe tÃ©cnico';
   ['inf-numero','inf-fecha','inf-cliente','inf-dir','inf-equipo','inf-serie','inf-venta',
    'inf-motivo','inf-diagnostico','inf-acciones','inf-materiales','inf-preventivas','inf-obs',
    'inf-receptor','inf-receptor-dni'].forEach(function(id){
@@ -17132,13 +17295,13 @@ function abrirNuevoInforme() {
     if (el) el.value = '';
   });
   document.getElementById('inf-fecha').value = new Date().toISOString().split('T')[0];
-  // Número automático
+  // NÃºmero automÃ¡tico
   var num = 'IT-' + String(informesData.length + 1).padStart(4,'0');
   document.getElementById('inf-numero').value = num;
-  // Llenar select técnico
+  // Llenar select tÃ©cnico
   var selTec = document.getElementById('inf-tecnico');
   if (selTec) {
-    var opts = '<option value="">— Seleccionar —</option>';
+    var opts = '<option value="">â€” Seleccionar â€”</option>';
     Object.values(empData||{}).filter(function(e){ return e.activo !== false; }).forEach(function(e){
       opts += '<option value="'+escapeHTML(e.nombre)+'">'+escapeHTML(e.nombre)+'</option>';
     });
@@ -17179,7 +17342,7 @@ function volverListaInformes() {
 }
 
 function guardarInforme(estado) {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var g = function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
   var inf = {
     numero:      g('inf-numero'),
@@ -17203,7 +17366,7 @@ function guardarInforme(estado) {
     estado:      estado,
     ts:          Date.now()
   };
-  if (!inf.cliente) { notify('Ingresá el cliente'); return; }
+  if (!inf.cliente) { notify('IngresÃ¡ el cliente'); return; }
   var promesa = informeActualId
     ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/informes/'+informeActualId), inf)
     : window.fbPush(window.fbRef(window.fbDB, 'sisventas/informes'), inf);
@@ -17226,31 +17389,31 @@ function imprimirInforme() {
     '@media print{body{margin:20px}}</style></head><body>' +
     '<div class="header"><div>' +
     (window.logoEmpresaUrl ? '<img src="'+window.logoEmpresaUrl+'" style="height:50px;object-fit:contain;margin-bottom:4px"><br>' : '<div class="logo">NIXA</div>') +
-    '<div style="font-size:11px;color:#555">Seguridad y Automatización del Hogar</div><div style="font-size:11px">Patagones 390, Mar del Plata</div></div>' +
-    '<div style="text-align:right"><div style="font-size:16px;font-weight:600">Informe Técnico</div><div style="font-size:13px">N° '+g('inf-numero')+'</div><div style="font-size:12px;color:#555">Fecha: '+g('inf-fecha').split('-').reverse().join('/')+'</div></div></div>' +
-    '<section><h2>Datos del servicio</h2><div class="grid"><div><label>Cliente</label><p>'+g('inf-cliente')+'</p></div><div><label>Dirección</label><p>'+g('inf-dir')+'</p></div><div><label>Equipo / Sistema</label><p>'+g('inf-equipo')+'</p></div><div><label>N° serie / Modelo</label><p>'+g('inf-serie')+'</p></div><div><label>Técnico</label><p>'+g('inf-tecnico')+'</p></div><div><label>Tipo de informe</label><p>'+g('inf-tipo')+'</p></div></div></section>' +
+    '<div style="font-size:11px;color:#555">Seguridad y AutomatizaciÃ³n del Hogar</div><div style="font-size:11px">Patagones 390, Mar del Plata</div></div>' +
+    '<div style="text-align:right"><div style="font-size:16px;font-weight:600">Informe TÃ©cnico</div><div style="font-size:13px">NÂ° '+g('inf-numero')+'</div><div style="font-size:12px;color:#555">Fecha: '+g('inf-fecha').split('-').reverse().join('/')+'</div></div></div>' +
+    '<section><h2>Datos del servicio</h2><div class="grid"><div><label>Cliente</label><p>'+g('inf-cliente')+'</p></div><div><label>DirecciÃ³n</label><p>'+g('inf-dir')+'</p></div><div><label>Equipo / Sistema</label><p>'+g('inf-equipo')+'</p></div><div><label>NÂ° serie / Modelo</label><p>'+g('inf-serie')+'</p></div><div><label>TÃ©cnico</label><p>'+g('inf-tecnico')+'</p></div><div><label>Tipo de informe</label><p>'+g('inf-tipo')+'</p></div></div></section>' +
     (g('inf-motivo') ? '<section><h2>Motivo de la visita</h2><p>'+g('inf-motivo').replace(/\n/g,'<br>')+'</p></section>' : '') +
-    (g('inf-diagnostico') ? '<section><h2>Diagnóstico</h2><p>'+g('inf-diagnostico').replace(/\n/g,'<br>')+'</p></section>' : '') +
+    (g('inf-diagnostico') ? '<section><h2>DiagnÃ³stico</h2><p>'+g('inf-diagnostico').replace(/\n/g,'<br>')+'</p></section>' : '') +
     (g('inf-acciones') ? '<section><h2>Acciones correctivas realizadas</h2><p>'+g('inf-acciones').replace(/\n/g,'<br>')+'</p></section>' : '') +
     (g('inf-materiales') ? '<section><h2>Materiales utilizados</h2><p>'+g('inf-materiales').replace(/\n/g,'<br>')+'</p></section>' : '') +
     (g('inf-preventivas') ? '<section><h2>Medidas preventivas recomendadas</h2><p>'+g('inf-preventivas').replace(/\n/g,'<br>')+'</p></section>' : '') +
     (g('inf-obs') ? '<section><h2>Observaciones</h2><p>'+g('inf-obs').replace(/\n/g,'<br>')+'</p></section>' : '') +
     '<section><h2>Conformidad del cliente</h2><div class="grid"><div><label>Nombre quien recibe</label><p>'+g('inf-receptor')+'</p></div><div><label>DNI</label><p>'+g('inf-receptor-dni')+'</p></div><div><label>Resultado</label><p>'+g('inf-resultado')+'</p></div></div></section>' +
-    '<div class="firma"><div><div class="firma-line">Firma del técnico: '+g('inf-tecnico')+'</div></div><div><div class="firma-line">Firma del cliente: '+g('inf-receptor')+'</div></div></div>' +
+    '<div class="firma"><div><div class="firma-line">Firma del tÃ©cnico: '+g('inf-tecnico')+'</div></div><div><div class="firma-line">Firma del cliente: '+g('inf-receptor')+'</div></div></div>' +
     '</body></html>';
   w.document.write(html);
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }
-// MÓDULO GASTOS — lógica completa
+// MÃ“DULO GASTOS â€” lÃ³gica completa
 
 var gastosData = [];
 var gastoActualFbKey = null;
 var gastoFotoBase64 = null;
 
 
-// v20.362 — Migración definitiva de pagables legacy a Gastos.
-// Desde esta versión, Gastos es la fuente real para SAC y Horas Extra.
+// v20.362 â€” MigraciÃ³n definitiva de pagables legacy a Gastos.
+// Desde esta versiÃ³n, Gastos es la fuente real para SAC y Horas Extra.
 // Las ramas legacy (aguinaldos / ctaemp / hsextra_solicitudes) solo se leen para migrar registros viejos.
 var _migracionPagablesLegacyEjecutada = false;
 var _migracionPagablesLegacyEnCurso = false;
@@ -17326,10 +17489,10 @@ async function _migrarPagablesLegacyAGastos() {
         var fecha = _pagableNormFecha(r.fecha) || new Date().toISOString().slice(0,10);
         var legacyKey = 'aguinaldos/' + empKey + '/' + semKey;
         if (_pagableGastoExistente('aguinaldo', empKey, monto, fecha, semKey, legacyKey)) return;
-        var semLbl = String(semKey).replace('_S1',' — 1er semestre').replace('_S2',' — 2do semestre');
+        var semLbl = String(semKey).replace('_S1',' â€” 1er semestre').replace('_S2',' â€” 2do semestre');
         var gasto = _pagableGastoBase({
           tipoPagable:'aguinaldo', tipo:'Fijo', fecha:fecha, monto:monto,
-          descripcion:'Aguinaldo ' + (emp.nombre || r.empleadoNombre || empKey) + ' — ' + semLbl,
+          descripcion:'Aguinaldo ' + (emp.nombre || r.empleadoNombre || empKey) + ' â€” ' + semLbl,
           empleadoFbKey:empKey, empleadoNombre:emp.nombre || r.empleadoNombre || '', semestre:semKey,
           mejorSueldo:r.mejorSueldo || null, origenLegacy:'aguinaldos', legacyKey:legacyKey, ts:r.ts || Date.now()
         });
@@ -17358,7 +17521,7 @@ async function _migrarPagablesLegacyAGastos() {
         if (_pagableGastoExistente(tipo, empKey, monto, fecha, semKey, legacyKey)) return;
         var gasto = _pagableGastoBase({
           tipoPagable:tipo, tipo: tipo === 'aguinaldo' ? 'Fijo' : 'Variable', fecha:fecha, monto:monto,
-          descripcion:(m.descripcion || (tipo === 'hextra' ? 'Hs extra aprobadas' : 'Aguinaldo')) + ' — ' + (emp.nombre || m.empleadoNombre || ''),
+          descripcion:(m.descripcion || (tipo === 'hextra' ? 'Hs extra aprobadas' : 'Aguinaldo')) + ' â€” ' + (emp.nombre || m.empleadoNombre || ''),
           empleadoFbKey:empKey, empleadoNombre:emp.nombre || m.empleadoNombre || '', semestre:semKey,
           mejorSueldo:m.mejorSueldo || null, hsExtra:m.hsExtra || null, origenLegacy:'ctaemp', legacyKey:legacyKey, ts:m.ts || Date.now()
         });
@@ -17388,7 +17551,7 @@ async function _migrarPagablesLegacyAGastos() {
       if (_pagableGastoExistente('hextra', empKey, monto, fecha, '', legacyKey)) return;
       var gasto = _pagableGastoBase({
         tipoPagable:'hextra', tipo:'Variable', fecha:fecha, monto:monto,
-        descripcion:'Hs extra ' + (sol.empNombre || emp.nombre || '') + ' — ' + (sol.descripcion || '') + ' (' + (sol.horas||0) + ' hs)',
+        descripcion:'Hs extra ' + (sol.empNombre || emp.nombre || '') + ' â€” ' + (sol.descripcion || '') + ' (' + (sol.horas||0) + ' hs)',
         empleadoFbKey:empKey, empleadoNombre:sol.empNombre || emp.nombre || '', hsExtra:sol.horas || null,
         origenLegacy:'hsextra_solicitudes', legacyKey:legacyKey, ts:sol.aprobadoTs || sol.ts || Date.now()
       });
@@ -17400,13 +17563,13 @@ async function _migrarPagablesLegacyAGastos() {
 
     if (writes.length) {
       await Promise.all(writes);
-      if (typeof registrarActividad === 'function') registrarActividad('Migración pagables legacy', creados + ' registro(s) migrados a Gastos');
-      if (typeof notify === 'function') notify('✓ Migración completada: ' + creados + ' SAC/hs extra quedaron en Gastos');
+      if (typeof registrarActividad === 'function') registrarActividad('MigraciÃ³n pagables legacy', creados + ' registro(s) migrados a Gastos');
+      if (typeof notify === 'function') notify('âœ“ MigraciÃ³n completada: ' + creados + ' SAC/hs extra quedaron en Gastos');
     }
     window._ultimaMigracionPagablesLegacy = { ejecutada:true, creados:creados, ts:Date.now() };
-    if (!writes.length) console.info('[Migración pagables legacy] Sin registros nuevos para migrar.');
+    if (!writes.length) console.info('[MigraciÃ³n pagables legacy] Sin registros nuevos para migrar.');
   } catch(e) {
-    console.warn('[Migración pagables legacy]', e);
+    console.warn('[MigraciÃ³n pagables legacy]', e);
   } finally {
     _migracionPagablesLegacyEnCurso = false;
   }
@@ -17443,7 +17606,7 @@ function fbCargarGastos() {
     actualizarMetricasGastos();
     var pageDash = document.getElementById('page-dashboard');
     if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
-    // v20.362: la migración legacy queda controlada desde Configuración > Mantenimiento.
+    // v20.362: la migraciÃ³n legacy queda controlada desde ConfiguraciÃ³n > Mantenimiento.
   },function(error){
     console.error('[Gastos]',error);
     _gastosUnsubscribe=null;
@@ -17454,7 +17617,7 @@ function fbCargarGastos() {
   return _gastosUnsubscribe;
 }
 
-/* v20.341: generarGastosFijosMes() eliminada. Los gastos fijos mensuales los genera el admin manualmente; la generación automática duplicaba registros (p.ej. 'Haber ... — junio de 2026 — Julio 2026') cuando el guion de la descripción no coincidía con la regex de recorte. */
+/* v20.341: generarGastosFijosMes() eliminada. Los gastos fijos mensuales los genera el admin manualmente; la generaciÃ³n automÃ¡tica duplicaba registros (p.ej. 'Haber ... â€” junio de 2026 â€” Julio 2026') cuando el guion de la descripciÃ³n no coincidÃ­a con la regex de recorte. */
 function mesLabel() {
   var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   var d = new Date();
@@ -17478,7 +17641,7 @@ function _filtrarGastosPorKPI(tipo) {
   } else if (tipo === 'vence') {
     if (fMes) fMes.value = '';
     if (fEstado) fEstado.value = 'pendiente';
-    // Filtrar solo los que vencen esta semana — usar búsqueda temporal
+    // Filtrar solo los que vencen esta semana â€” usar bÃºsqueda temporal
     var hoy = new Date().toISOString().split('T')[0];
     var enUnaSemana = new Date(Date.now()+7*86400000).toISOString().split('T')[0];
     window._filtroGastosKpiVence = { desde: hoy, hasta: enUnaSemana };
@@ -17508,7 +17671,7 @@ function actualizarMetricasGastos() {
   var vencenProx = pendientes.filter(function(g){ return g.vencimiento && g.vencimiento<=enUnaSemana; });
   var vencTotal  = vencenProx.reduce(function(s,g){ return s+restoGasto(g); },0);
   var reembolso  = gastosData.filter(function(g){
-    // Reembolsable: tiene empleadoId, no está pagado y no está marcado como reembolsado
+    // Reembolsable: tiene empleadoId, no estÃ¡ pagado y no estÃ¡ marcado como reembolsado
     return g.empleadoId && normalizarEstadoGasto(g) !== 'pagado' && !g.reembolsado;
   });
   var reembTotal = reembolso.reduce(function(s,g){ return s+restoGasto(g); },0);
@@ -17530,8 +17693,8 @@ function actualizarMetricasGastos() {
       alertasBox.style.display = '';
       alertasBox.innerHTML = '<div style="background:var(--red-bg);border:0.5px solid var(--red);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--red)">' +
         '<i class="ti ti-alert-circle" style="margin-right:8px"></i>' +
-        '<strong>'+vencenProx.length+' gasto'+(vencenProx.length!==1?'s vencen':'vence')+' en los próximos 7 días:</strong> ' +
-        vencenProx.map(function(g){ return escapeHTML(g.descripcion||'—')+' ('+escapeHTML(g.vencimiento||'')+',$'+Math.round(restoGasto(g)).toLocaleString('es-AR')+')'; }).join(' · ') +
+        '<strong>'+vencenProx.length+' gasto'+(vencenProx.length!==1?'s vencen':'vence')+' en los prÃ³ximos 7 dÃ­as:</strong> ' +
+        vencenProx.map(function(g){ return escapeHTML(g.descripcion||'â€”')+' ('+escapeHTML(g.vencimiento||'')+',$'+Math.round(restoGasto(g)).toLocaleString('es-AR')+')'; }).join(' Â· ') +
       '</div>';
     } else {
       alertasBox.style.display = 'none';
@@ -17653,11 +17816,11 @@ function actualizarResumenPagoMultiple() {
     return s + (g ? restoGasto(g) : 0);
   }, 0);
   var el = document.getElementById('gas-multi-resumen');
-  if (el) el.textContent = keys.length + ' seleccionado' + (keys.length!==1?'s':'') + ' · $' + Math.round(total).toLocaleString('es-AR');
+  if (el) el.textContent = keys.length + ' seleccionado' + (keys.length!==1?'s':'') + ' Â· $' + Math.round(total).toLocaleString('es-AR');
   var btn = document.getElementById('btn-gastos-multiple');
   if (btn) {
     btn.className = _gastosPagoMultipleActivo ? 'btn btn-sm btn-primary' : 'btn btn-sm';
-    btn.innerHTML = _gastosPagoMultipleActivo ? '<i class="ti ti-x"></i> Salir pago múltiple' : '<i class="ti ti-checklist"></i> Pago múltiple';
+    btn.innerHTML = _gastosPagoMultipleActivo ? '<i class="ti ti-x"></i> Salir pago mÃºltiple' : '<i class="ti ti-checklist"></i> Pago mÃºltiple';
   }
 }
 
@@ -17671,7 +17834,7 @@ function abrirPagoMultipleGastos() {
     var g = (gastosData||[]).find(function(x){ return x.fbKey === k; });
     return g && gastoSeleccionableParaPago(g);
   });
-  if (!keys.length) { notify('Seleccioná al menos un gasto pendiente'); return; }
+  if (!keys.length) { notify('SeleccionÃ¡ al menos un gasto pendiente'); return; }
   _gastoFbKeyPago = null;
   _gastoPagoMultipleKeys = keys;
   _pagoGastoComprobante = null;
@@ -17682,7 +17845,7 @@ function abrirPagoMultipleGastos() {
   if (inpComp) inpComp.value = '';
   if (lblComp) lblComp.textContent = 'Opcional: adjuntar transferencia / ticket';
   if (prevComp) { prevComp.style.display = 'none'; prevComp.innerHTML = ''; }
-  document.getElementById('mpg-titulo').textContent = 'Pago múltiple: ' + keys.length + ' gastos  (total $' + Math.round(total).toLocaleString('es-AR') + ')';
+  document.getElementById('mpg-titulo').textContent = 'Pago mÃºltiple: ' + keys.length + ' gastos  (total $' + Math.round(total).toLocaleString('es-AR') + ')';
   _setMontoInput(document.getElementById('mpg-monto'), total);
   document.getElementById('modal-pago-gasto').style.display = 'flex';
 }
@@ -17699,31 +17862,31 @@ function aprobarComisionDesdeGasto(gastoFbKey) {
   if (currentRole !== 'admin') { notify('Solo el administrador puede aprobar comisiones'); return; }
   var g = (gastosData||[]).find(function(x){ return x.fbKey === gastoFbKey; });
   if (!g) { notify('Gasto no encontrado'); return; }
-  if (String(g.tipoPagable||'').toLowerCase() !== 'comision') { notify('No es una comisión'); return; }
-  if (!confirm('¿Aprobar esta comisión?')) return;
+  if (String(g.tipoPagable||'').toLowerCase() !== 'comision') { notify('No es una comisiÃ³n'); return; }
+  if (!confirm('Â¿Aprobar esta comisiÃ³n?')) return;
   var fechaApr = new Date().toISOString().slice(0,10);
   var upG = { estado:'pendiente_pago', aprobadoPor:currentUser||'', fechaAprobacion:fechaApr, aprobadoTs:Date.now() };
   var prom = window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), upG);
   prom = prom.then(function(){ return _buscarCtaempMovimientoPorLegacyKey(g.legacyKey); }).then(function(info){
     if (info && info.ref) return window.fbUpdate(info.ref, { estado:'aprobado', aprobadoPor:currentUser||'', fechaAprobacion:fechaApr, aprobadoTs:Date.now(), gastoFbKey:gastoFbKey, migradoAGastos:true });
   });
-  prom.then(function(){ notify('✓ Comisión aprobada — pendiente de pago'); if(typeof fbCargarGastos==='function') fbCargarGastos(); if(typeof cargarCtaEmp==='function') cargarCtaEmp(); })
-      .catch(function(e){ notify('Error aprobando comisión: ' + e.message); });
+  prom.then(function(){ notify('âœ“ ComisiÃ³n aprobada â€” pendiente de pago'); if(typeof fbCargarGastos==='function') fbCargarGastos(); if(typeof cargarCtaEmp==='function') cargarCtaEmp(); })
+      .catch(function(e){ notify('Error aprobando comisiÃ³n: ' + e.message); });
 }
 
 function rechazarComisionDesdeGasto(gastoFbKey) {
   if (currentRole !== 'admin') { notify('Solo el administrador puede rechazar comisiones'); return; }
   var g = (gastosData||[]).find(function(x){ return x.fbKey === gastoFbKey; });
   if (!g) { notify('Gasto no encontrado'); return; }
-  if (String(g.tipoPagable||'').toLowerCase() !== 'comision') { notify('No es una comisión'); return; }
+  if (String(g.tipoPagable||'').toLowerCase() !== 'comision') { notify('No es una comisiÃ³n'); return; }
   var motivo = prompt('Motivo del rechazo (opcional):') || '';
   var fechaRech = new Date().toISOString().slice(0,10);
   var prom = window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), { estado:'rechazado', rechazadoPor:currentUser||'', fechaRechazo:fechaRech, motivoRechazo:motivo });
   prom = prom.then(function(){ return _buscarCtaempMovimientoPorLegacyKey(g.legacyKey); }).then(function(info){
     if (info && info.ref) return window.fbUpdate(info.ref, { estado:'rechazado', rechazadoPor:currentUser||'', fechaRechazo:fechaRech, motivoRechazo:motivo, gastoFbKey:gastoFbKey, migradoAGastos:true });
   });
-  prom.then(function(){ notify('Comisión rechazada'); if(typeof fbCargarGastos==='function') fbCargarGastos(); if(typeof cargarCtaEmp==='function') cargarCtaEmp(); })
-      .catch(function(e){ notify('Error rechazando comisión: ' + e.message); });
+  prom.then(function(){ notify('ComisiÃ³n rechazada'); if(typeof fbCargarGastos==='function') fbCargarGastos(); if(typeof cargarCtaEmp==='function') cargarCtaEmp(); })
+      .catch(function(e){ notify('Error rechazando comisiÃ³n: ' + e.message); });
 }
 
 function renderTablaGastos() {
@@ -17759,7 +17922,7 @@ function renderTablaGastos() {
 
   tbody.innerHTML = lista.map(function(g) {
     var fecha = (g.fecha||'').split('-').reverse().join('/');
-    var venc  = g.vencimiento ? g.vencimiento.split('-').reverse().join('/') : '—';
+    var venc  = g.vencimiento ? g.vencimiento.split('-').reverse().join('/') : 'â€”';
     var resta = restoGasto(g);
     var tipoNorm = normalizarTipoGasto(g);
     var estadoNorm = normalizarEstadoGasto(g);
@@ -17767,7 +17930,7 @@ function renderTablaGastos() {
                   : tipoNorm==='Compra' ? '<span class="badge b-purple">Compra</span>'
                   : '<span class="badge b-amber">Variable</span>';
     var pagoPor = g.empleadoId
-      ? '<span title="Pagó: '+escapeHTML(g.empleadoNombre||'Técnico')+'" style="color:var(--blue);font-size:12px"><i class="ti ti-user"></i> '+escapeHTML((g.empleadoNombre||'').split(' ')[0])+'</span>'
+      ? '<span title="PagÃ³: '+escapeHTML(g.empleadoNombre||'TÃ©cnico')+'" style="color:var(--blue);font-size:12px"><i class="ti ti-user"></i> '+escapeHTML((g.empleadoNombre||'').split(' ')[0])+'</span>'
       : '<span style="color:var(--text3);font-size:12px">Empresa</span>';
     var btnPagar = estadoNorm!=='pagado'
       ? '<button class="btn btn-sm btn-icon" onclick="abrirPagoGasto(\''+g.fbKey+'\')" title="Registrar pago" style="color:var(--green)"><i class="ti ti-cash" style="font-size:14px"></i></button>'
@@ -17779,8 +17942,8 @@ function renderTablaGastos() {
       : '';
     return '<tr>' + bulkTd +
       '<td style="color:var(--text3);font-size:12px">'+fecha+'</td>' +
-      '<td style="font-weight:500">'+escapeHTML(g.descripcion||'—')+'</td>' +
-      '<td style="color:var(--text3);font-size:12px">'+escapeHTML(g.categoria||'—')+'</td>' +
+      '<td style="font-weight:500">'+escapeHTML(g.descripcion||'â€”')+'</td>' +
+      '<td style="color:var(--text3);font-size:12px">'+escapeHTML(g.categoria||'â€”')+'</td>' +
       '<td>'+tipoBadge+'</td>' +
       '<td class="tr" style="font-weight:500">$'+(parseFloat(g.monto)||0).toLocaleString('es-AR')+'</td>' +
       '<td class="tr" style="color:var(--green)">$'+totalPagadoGasto(g).toLocaleString('es-AR')+'</td>' +
@@ -17818,7 +17981,7 @@ function abrirFormGasto(fbKey) {
   // Llenar select de empleados
   var sel = document.getElementById('g-tecnico-id');
   if (sel) {
-    var opts = '<option value="">— Seleccionar empleado —</option>';
+    var opts = '<option value="">â€” Seleccionar empleado â€”</option>';
     Object.values(empData||{}).filter(function(e){ return e.activo!==false; }).forEach(function(e){
       opts += '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+'</option>';
     });
@@ -17921,8 +18084,8 @@ function guardarGastoCompleto() {
   var monto  = getMontoRaw(document.getElementById('g-monto'));
   var pagado = getMontoRaw(document.getElementById('g-monto-pagado'));
   var desc   = document.getElementById('g-descripcion').value.trim();
-  if (!desc)  { notify('Ingresá una descripción'); return; }
-  if (!monto) { notify('Ingresá el monto'); return; }
+  if (!desc)  { notify('IngresÃ¡ una descripciÃ³n'); return; }
+  if (!monto) { notify('IngresÃ¡ el monto'); return; }
   var estado = pagado >= monto ? 'pagado' : pagado > 0 ? 'pagado_parcial' : 'pendiente';
   var pagoTecnico = document.getElementById('g-pagado-tecnico').checked;
   var tecnicoId   = pagoTecnico ? document.getElementById('g-tecnico-id').value : null;
@@ -17931,7 +18094,7 @@ function guardarGastoCompleto() {
     var emp = Object.values(empData||{}).find(function(e){ return e.fbKey===tecnicoId; });
     tecnicoNom = emp ? emp.nombre : '';
   }
-  var tipo = document.getElementById('g-tipo').value.split('—')[0].trim();
+  var tipo = document.getElementById('g-tipo').value.split('â€”')[0].trim();
   var datos = {
     fecha:         document.getElementById('g-fecha').value,
     vencimiento:   document.getElementById('g-vencimiento').value,
@@ -17966,7 +18129,7 @@ function guardarGastoCompleto() {
       });
     }
   }
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var promesa = gastoActualFbKey
     ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+gastoActualFbKey), datos)
     : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), datos));
@@ -17986,7 +18149,7 @@ function guardarGastoCompleto() {
         usuario:   currentUser||''
       };
       window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/'+tecnicoId), mov);
-      notify('✓ Acreditado $'+monto.toLocaleString('es-AR')+' a '+tecnicoNom);
+      notify('âœ“ Acreditado $'+monto.toLocaleString('es-AR')+' a '+tecnicoNom);
     }
     cerrarFormGasto();
   }).catch(function(e){ notify('Error: '+e.message); });
@@ -18072,7 +18235,7 @@ function generarComisionesVenta(venta, montoCobrado) {
   if (!window.fbDB || !venta) return;
   if (venta.comisionHabilitada !== true) return;
 
-  // Base de comisión = subtotal bruto - descuentos - costo de compra x cantidad.
+  // Base de comisiÃ³n = subtotal bruto - descuentos - costo de compra x cantidad.
   var itemsVenta = venta.items || [];
   var subtotalBruto = itemsVenta.length ? itemsVenta.reduce(function(s, it) {
     return s + ((parseFloat(it.qty)||1) * (parseFloat(it.punit)||0));
@@ -18093,7 +18256,7 @@ function generarComisionesVenta(venta, montoCobrado) {
 
   if (ganancia <= 0) return;
 
-  // Tope máximo de comisión global (configurable en APROBACION_CONFIG)
+  // Tope mÃ¡ximo de comisiÃ³n global (configurable en APROBACION_CONFIG)
   var maxComisionPct = parseFloat(
     (APROBACION_CONFIG && APROBACION_CONFIG.maxComisionPct != null)
       ? APROBACION_CONFIG.maxComisionPct
@@ -18122,7 +18285,7 @@ function generarComisionesVenta(venta, montoCobrado) {
   if (!vendedores.length) return;
 
   // Regla:
-  // 1 vendedor: su % pero no más que maxComisionPct
+  // 1 vendedor: su % pero no mÃ¡s que maxComisionPct
   var pctsPorEmp = vendedores.map(function(emp) {
     return _pctComisionEmpleadoVenta(emp);
   });
@@ -18138,7 +18301,7 @@ function generarComisionesVenta(venta, montoCobrado) {
       var pctCadaUno = maxComisionPct / vendedores.length;
       pctEfectivos = vendedores.map(function(){ return pctCadaUno; });
     } else {
-      // No supera el tope — cada uno recibe su % propio
+      // No supera el tope â€” cada uno recibe su % propio
       pctEfectivos = pctsPorEmp;
     }
   }
@@ -18149,12 +18312,12 @@ function generarComisionesVenta(venta, montoCobrado) {
     var monto = Math.round(ganancia * pctCada / 100);
     if (monto <= 0) return;
 
-    var ajustado = pctsPorEmp[i] > pctCada; // se auto-ajustó al tope
-    var esVendedorComision = (emp.tipoEmpleado === 'Vendedor a comisión' || emp.esVendedor);
+    var ajustado = pctsPorEmp[i] > pctCada; // se auto-ajustÃ³ al tope
+    var esVendedorComision = (emp.tipoEmpleado === 'Vendedor a comisiÃ³n' || emp.esVendedor);
 
     var movimiento = {
       tipo:        'comision',
-      estado:      'pendiente', // siempre queda para revisión/aprobación
+      estado:      'pendiente', // siempre queda para revisiÃ³n/aprobaciÃ³n
       aprobadoPor: '',
       aprobadoTs:  null,
       monto:       monto,
@@ -18165,9 +18328,9 @@ function generarComisionesVenta(venta, montoCobrado) {
       ventaId:     venta.id || '',
       ventaFbKey:  venta.fbKey || '',
       cliente:     venta.cliente || '',
-      descripcion: 'Comisión venta ' + (venta.id||'') + ' · ' + pctCada + '% sobre ganancia $' + Math.round(ganancia).toLocaleString('es-AR') +
-        (ajustado ? ' (ajustado al tope máximo de ' + maxComisionPct + '%)' : '') +
-        (vendedores.length > 1 ? ' · entre ' + vendedores.length + ' comisionados' : ''),
+      descripcion: 'ComisiÃ³n venta ' + (venta.id||'') + ' Â· ' + pctCada + '% sobre ganancia $' + Math.round(ganancia).toLocaleString('es-AR') +
+        (ajustado ? ' (ajustado al tope mÃ¡ximo de ' + maxComisionPct + '%)' : '') +
+        (vendedores.length > 1 ? ' Â· entre ' + vendedores.length + ' comisionados' : ''),
       fecha:       new Date().toISOString().slice(0,10),
       ts:          Date.now(),
       empleadoNombre: emp.nombre || ''
@@ -18177,7 +18340,7 @@ function generarComisionesVenta(venta, montoCobrado) {
       if (yaExiste) return;
       window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + emp.fbKey), movimiento)
         .then(function(refMov) {
-          try { _crearGastoComisionDesdeMovimiento(emp.fbKey, refMov.key, Object.assign({}, movimiento, { fbKey: refMov.key })); } catch(_e) { console.warn('[comisión gasto pendiente]', _e); }
+          try { _crearGastoComisionDesdeMovimiento(emp.fbKey, refMov.key, Object.assign({}, movimiento, { fbKey: refMov.key })); } catch(_e) { console.warn('[comisiÃ³n gasto pendiente]', _e); }
           if (venta.fbKey) {
             window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), { comisionesGeneradas: true }).catch(function(){});
           }
@@ -18192,7 +18355,7 @@ function generarComisionesVenta(venta, montoCobrado) {
             ts:      Date.now(),
             leida:   false
           });
-          notify('💰 Comisión generada para ' + (emp.nombre||'') + ' — pendiente de aprobación admin');
+          notify('ðŸ’° ComisiÃ³n generada para ' + (emp.nombre||'') + ' â€” pendiente de aprobaciÃ³n admin');
         });
     });
   });
@@ -18260,7 +18423,7 @@ function _registrarPagoGastoUnitario(fbKey, montoNuevo, medio, comprobante, lote
 function confirmarPagoGasto() {
   var medio = document.getElementById('mpg-medio').value;
   var montoNuevo = getMontoRaw(document.getElementById('mpg-monto'));
-  if (!montoNuevo || montoNuevo <= 0) { notify('Ingresá un monto válido'); return; }
+  if (!montoNuevo || montoNuevo <= 0) { notify('IngresÃ¡ un monto vÃ¡lido'); return; }
 
   var keys = (_gastoPagoMultipleKeys && _gastoPagoMultipleKeys.length) ? _gastoPagoMultipleKeys.slice() : (_gastoFbKeyPago ? [_gastoFbKeyPago] : []);
   if (!keys.length) return;
@@ -18286,7 +18449,7 @@ function confirmarPagoGasto() {
     }).catch(function(){});
   }
   Promise.all(promesas).then(function(){
-    notify(keys.length > 1 ? '✓ Pago múltiple registrado' : '✓ Pago registrado');
+    notify(keys.length > 1 ? 'âœ“ Pago mÃºltiple registrado' : 'âœ“ Pago registrado');
     document.getElementById('modal-pago-gasto').style.display = 'none';
     _gastoFbKeyPago = null;
     _gastoPagoMultipleKeys = [];
@@ -18306,18 +18469,18 @@ function verPagosGasto(fbKey) {
   if (!g) return;
   var body = document.getElementById('hpg-body');
   var tit = document.getElementById('hpg-titulo');
-  if (tit) tit.textContent = 'Pagos — ' + (g.descripcion||'Gasto');
+  if (tit) tit.textContent = 'Pagos â€” ' + (g.descripcion||'Gasto');
   var pagos = _gastoPagosArray(g);
   if (!pagos.length) {
-    body.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:12px;text-align:center">Sin pagos registrados todavía</div>';
+    body.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:12px;text-align:center">Sin pagos registrados todavÃ­a</div>';
   } else {
     body.innerHTML = pagos.map(function(p, idx){
       var comp = p.comprobante && p.comprobante.data
         ? '<button class="btn btn-sm" onclick="abrirComprobantePago(\''+fbKey+'\','+idx+')"><i class="ti ti-paperclip"></i> Ver comprobante</button>'
         : '<span style="font-size:12px;color:var(--text3)">Sin comprobante</span>';
       return '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px">'+
-        '<div><div style="font-size:13px;font-weight:600">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+' · '+escapeHTML(p.medio||'')+'</div>'+
-        '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML((p.fecha||'').split('-').reverse().join('/')||'')+' · '+escapeHTML(p.usuario||'Sistema')+'</div></div>'+comp+'</div>';
+        '<div><div style="font-size:13px;font-weight:600">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+' Â· '+escapeHTML(p.medio||'')+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML((p.fecha||'').split('-').reverse().join('/')||'')+' Â· '+escapeHTML(p.usuario||'Sistema')+'</div></div>'+comp+'</div>';
     }).join('');
   }
   document.getElementById('modal-hist-pago-gasto').style.display = 'flex';
@@ -18329,7 +18492,7 @@ function abrirComprobantePago(fbKey, idx) {
   var comp = pagos[idx] && pagos[idx].comprobante;
   if (!comp || !comp.data) { notify('Ese pago no tiene comprobante adjunto'); return; }
   var w = window.open('', '_blank');
-  if (!w) { notify('El navegador bloqueó la ventana del comprobante'); return; }
+  if (!w) { notify('El navegador bloqueÃ³ la ventana del comprobante'); return; }
   if ((comp.tipo||'').includes('pdf')) {
     w.document.write('<iframe src="'+comp.data+'" style="border:0;width:100%;height:100vh"></iframe>');
   } else {
@@ -18351,14 +18514,14 @@ function toggleProveedorBase(fbKey) {
     updates['sisventas/proveedores/' + p.fbKey + '/favorito'] = (p.fbKey === fbKey && !eraBase);
   });
   window.fbUpdate(window.fbRef(window.fbDB), updates).then(function() {
-    notify(eraBase ? 'Proveedor base quitado' : '⭐ Proveedor base actualizado');
+    notify(eraBase ? 'Proveedor base quitado' : 'â­ Proveedor base actualizado');
   });
 }
 
 function actualizarProveedorBaseEnForm() {
   var base = (proveedoresData||[]).find(function(p){ return p.base || p.favorito; });
   var lbl = document.getElementById('pf-proveedor-base-lbl');
-  if (lbl) lbl.textContent = base ? '⭐ Proveedor base: ' + (base.nombre||'') : '';
+  if (lbl) lbl.textContent = base ? 'â­ Proveedor base: ' + (base.nombre||'') : '';
 }
 
 function getProveedorBase() {
@@ -18381,21 +18544,21 @@ function fbCargarProveedores() {
       tbody.innerHTML = lista.map(function(p) {
         var estadoBadge = '<label class="toggle-sw" title="' + (p.activo !== false ? 'Activo' : 'Inactivo') + '"><input type="checkbox" ' + (p.activo !== false ? 'checked' : '') + ' onchange="toggleActivoRegistro(\'proveedores\',\''+p.fbKey+'\',' + (p.activo !== false) + ')"><span class="toggle-knob"></span></label>';
         var tel = (p.telefono || p.tel || '').replace(/[\s\-\(\)]/g,'');
-        var waBtn = tel ? '<a href="https://wa.me/549'+tel+'" target="_blank" class="btn btn-sm btn-icon" title="WhatsApp"><i class="ti ti-brand-whatsapp" style="font-size:14px;color:#25d366"></i></a>' : '<span style="color:var(--text3);font-size:12px">—</span>';
-        var webBtn = p.web ? '<a href="'+(p.web.startsWith('http')?p.web:'https://'+p.web)+'" target="_blank" class="btn btn-sm btn-icon" title="Abrir web"><i class="ti ti-external-link" style="font-size:14px"></i></a>' : '<span style="color:var(--text3);font-size:12px">—</span>';
+        var waBtn = tel ? '<a href="https://wa.me/549'+tel+'" target="_blank" class="btn btn-sm btn-icon" title="WhatsApp"><i class="ti ti-brand-whatsapp" style="font-size:14px;color:#25d366"></i></a>' : '<span style="color:var(--text3);font-size:12px">â€”</span>';
+        var webBtn = p.web ? '<a href="'+(p.web.startsWith('http')?p.web:'https://'+p.web)+'" target="_blank" class="btn btn-sm btn-icon" title="Abrir web"><i class="ti ti-external-link" style="font-size:14px"></i></a>' : '<span style="color:var(--text3);font-size:12px">â€”</span>';
         var credBtn = (p.web && p.usuario) ? '<button class="btn btn-sm btn-icon" onclick="abrirPortalProveedor(\''+p.fbKey+'\')" title="Ingresar al portal"><i class="ti ti-login" style="font-size:14px;color:var(--blue)"></i></button>' : '';
         var esBase = p.base === true || p.favorito === true;
         return '<tr data-fbkey="'+p.fbKey+'">' +
           '<td>' +
             '<button onclick="toggleProveedorBase(\''+ p.fbKey +'\')" ' +
-              'title="'+(esBase?'Proveedor base — click para quitar':'Marcar como proveedor base')+'" ' +
+              'title="'+(esBase?'Proveedor base â€” click para quitar':'Marcar como proveedor base')+'" ' +
               'style="background:none;border:none;cursor:pointer;font-size:16px;padding:0 6px 0 0;line-height:1;color:'+(esBase?'var(--amber)':'var(--border2)')+'">'+
               '<i class="ti '+(esBase?'ti-star-filled':'ti-star')+'" style="font-size:16px"></i></button>' +
             '<span style="font-weight:'+(esBase?'600':'500')+'">'+escapeHTML(p.nombre||'')+'</span>' +
           '</td>' +
           '<td style="color:var(--text3)">'+ escapeHTML(p.rubro||'') +'</td>' +
-          '<td style="color:var(--text3)">'+ escapeHTML(p.contacto||'—') +'</td>' +
-          '<td>'+ escapeHTML(p.condPago||'—') +'</td>' +
+          '<td style="color:var(--text3)">'+ escapeHTML(p.contacto||'â€”') +'</td>' +
+          '<td>'+ escapeHTML(p.condPago||'â€”') +'</td>' +
           '<td style="text-align:center">'+ waBtn +'</td>' +
           '<td style="text-align:center">'+ webBtn + credBtn +'</td>' +
           '<td style="text-align:right">'+ estadoBadge +'</td>' +
@@ -18409,22 +18572,22 @@ function fbCargarProveedores() {
     actualizarProveedorBaseEnForm();
   });
 }
-// MÓDULO PRESUPUESTOS — ESTADOS + TIMELINE
+// MÃ“DULO PRESUPUESTOS â€” ESTADOS + TIMELINE
 
-// Configuración de estados
+// ConfiguraciÃ³n de estados
 var APROBACION_CONFIG = {
-  montoLimite: 200000,   // ARS — presupuestos sobre este monto requieren admin
-  descuentoLimite: 10,   // % — descuentos sobre este % requieren admin
-  maxComisionPct: 10,    // % máximo de comisión sobre la ganancia (global)
+  montoLimite: 200000,   // ARS â€” presupuestos sobre este monto requieren admin
+  descuentoLimite: 10,   // % â€” descuentos sobre este % requieren admin
+  maxComisionPct: 10,    // % mÃ¡ximo de comisiÃ³n sobre la ganancia (global)
 };
 var ACCIONES_CONFIG = {
-  enviar_revision:  { label:'Enviar a revisión',        icon:'ti-clock',         cls:'btn btn-sm',         fn:'pptoAccion("enviar_revision")' },
+  enviar_revision:  { label:'Enviar a revisiÃ³n',        icon:'ti-clock',         cls:'btn btn-sm',         fn:'pptoAccion("enviar_revision")' },
   aprobar_directo:  { label:'Aprobar directamente',     icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar_directo")' },
   aprobar:          { label:'Aprobar presupuesto',      icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar")' },
   rechazar:         { label:'Rechazar',                 icon:'ti-x',             cls:'btn btn-sm',         fn:'pptoAccion("rechazar")',  style:'color:var(--red);border-color:var(--red-bg)' },
   enviar_cliente:   { label:'Enviar al cliente',        icon:'ti-send',          cls:'btn btn-sm btn-primary', fn:'pptoAccion("enviar_cliente")' },
   marcar_visto:     { label:'Marcar como visto',        icon:'ti-eye',           cls:'btn btn-sm',         fn:'pptoAccion("marcar_visto")' },
-  marcar_aceptado:  { label:'Registrar aceptación',     icon:'ti-thumb-up',      cls:'btn btn-sm btn-primary', fn:'pptoAccion("marcar_aceptado")' },
+  marcar_aceptado:  { label:'Registrar aceptaciÃ³n',     icon:'ti-thumb-up',      cls:'btn btn-sm btn-primary', fn:'pptoAccion("marcar_aceptado")' },
   convertir_venta:  { label:'Convertir a venta',        icon:'ti-arrow-right',   cls:'btn btn-sm btn-primary', fn:'pptoAccion("convertir_venta")' },
   ver_venta:        { label:'Ver venta generada',       icon:'ti-list-details',  cls:'btn btn-sm',         fn:'pptoAccion("ver_venta")' },
   editar_ppto:      { label:'Editar presupuesto',      icon:'ti-edit',          cls:'btn btn-sm',         fn:'pptoAccion("editar_ppto")', style:'color:var(--blue);border-color:var(--blue)' },
@@ -18460,13 +18623,13 @@ var PPTO_ACCIONES = {
 
 // Acciones disponibles por rol y estado
 
-// Configuración de acciones
+// ConfiguraciÃ³n de acciones
 
 // Datos demo
 
 var pptoActualId = null;
 
-// Configuración de aprobación
+// ConfiguraciÃ³n de aprobaciÃ³n
 
 function checkAprobacion() {
   var _ptt=document.getElementById('pp-total'); const total = parseFloat(normalizarNumeroExcel(_ptt?_ptt.textContent:'0')) || 0;
@@ -18475,10 +18638,10 @@ function checkAprobacion() {
   const txt    = document.getElementById('form-alerta-txt');
   if (!alerta) return;
   let motivo = '';
-  if (total > APROBACION_CONFIG.montoLimite) motivo = `Total $${Math.round(total).toLocaleString('es-AR')} supera el límite de aprobación ($${(parseFloat(APROBACION_CONFIG.montoLimite)||0).toLocaleString('es-AR')}).`;
-  if (desc > APROBACION_CONFIG.descuentoLimite) motivo = `Descuento ${desc}% supera el máximo permitido sin aprobación (${APROBACION_CONFIG.descuentoLimite}%).`;
+  if (total > APROBACION_CONFIG.montoLimite) motivo = `Total $${Math.round(total).toLocaleString('es-AR')} supera el lÃ­mite de aprobaciÃ³n ($${(parseFloat(APROBACION_CONFIG.montoLimite)||0).toLocaleString('es-AR')}).`;
+  if (desc > APROBACION_CONFIG.descuentoLimite) motivo = `Descuento ${desc}% supera el mÃ¡ximo permitido sin aprobaciÃ³n (${APROBACION_CONFIG.descuentoLimite}%).`;
   alerta.style.display = motivo ? 'flex' : 'none';
-  if (txt) txt.textContent = motivo + ' Al guardar se enviará a revisión del administrador.';
+  if (txt) txt.textContent = motivo + ' Al guardar se enviarÃ¡ a revisiÃ³n del administrador.';
 }
 
 // Renderizar badge de estado
@@ -18489,12 +18652,12 @@ function pptoStateBadge(estado) {
 
 // Renderizar tabla principal
 function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
-  // Mostrar encabezado solo con búsqueda activa
+  // Mostrar encabezado solo con bÃºsqueda activa
 
   const tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
   let rows = pptoData;
-  // Ocultar anulados por defecto — solo mostrar si se filtra explícitamente
+  // Ocultar anulados por defecto â€” solo mostrar si se filtra explÃ­citamente
   if (filtroEstado === '__todos__') {
     // Mostrar todo sin filtro de estado
   } else if (filtroEstado === 'anulado') {
@@ -18506,10 +18669,16 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
     rows = rows.filter(p => p.estado !== 'anulado' && p.estado !== 'convertido');
   }
   if (filtroTexto)  rows = rows.filter(p => (p.cliente + p.id).toLowerCase().includes(filtroTexto.toLowerCase()));
+  var puedeAnularPptoTabla = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('presupuestos.anular')
+    : String(currentRole || '').toLowerCase() === 'admin';
+  var puedeEliminarPptoTabla = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('presupuestos.eliminar')
+    : String(currentRole || '').toLowerCase() === 'admin';
   tbody.innerHTML = rows.map(p => {
     const e = PPTO_ESTADOS[p.estado] || {};
     const totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
-    const alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
+    const alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobaciÃ³n"></i>' : '';
     return `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verPpto('${p.id}')">
       <td style="font-weight:500">${escapeHTML(p.id)}${alerta}</td>
       <td>${escapeHTML(p.cliente)}</td>
@@ -18531,15 +18700,16 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
           <button class="ppto-menu-item" onclick="cerrarMenusPpto();abrirEditorPpto('${p.id}')" style="color:var(--blue)">
             <i class="ti ti-edit" style="font-size:13px"></i> Editar
           </button>` : ''}
-          ${p.estado !== 'convertido' && p.estado !== 'anulado' ? `
+          ${puedeAnularPptoTabla && p.estado !== 'convertido' && p.estado !== 'anulado' ? `
           <div style="border-top:1px solid var(--border);margin:4px 0"></div>
           <button class="ppto-menu-item" onclick="cerrarMenusPpto();anularPptoDesdeTabla('${p.id}')" style="color:var(--amber)">
             <i class="ti ti-ban" style="font-size:13px"></i> Anular
           </button>` : ''}
+          ${puedeEliminarPptoTabla ? `
           <div style="border-top:1px solid var(--border);margin:4px 0"></div>
           <button class="ppto-menu-item" onclick="cerrarMenusPpto();eliminarPptoDesdeTabla('${p.id}')" style="color:var(--red)">
             <i class="ti ti-trash" style="font-size:13px"></i> Eliminar
-          </button>
+          </button>` : ''}
         </div>
       </td>
     </tr>`;
@@ -18654,7 +18824,7 @@ function abrirEditorPpto(id) {
       btnIva.style.borderColor = _pptoConIva ? '' : 'var(--amber)';
     }
     if (typeof calcPpTotales === 'function') calcPpTotales();
-    notify('Editando presupuesto ' + (p.id||'') + ' — guardá cuando termines');
+    notify('Editando presupuesto ' + (p.id||'') + ' â€” guardÃ¡ cuando termines');
   }, 300);
 }
 
@@ -18669,11 +18839,11 @@ function editarPptoParaMigrar(id) {
   abrirNuevoPresupuesto();
 
   setTimeout(function() {
-    // Número
+    // NÃºmero
     var numEl = document.getElementById('pp-numero');
     if (numEl) numEl.value = p.id;
 
-    // Cliente — el campo es un buscador, seteamos el valor directamente
+    // Cliente â€” el campo es un buscador, seteamos el valor directamente
     var cliEl = document.getElementById('pp-cli');
     if (cliEl) cliEl.value = p.cliente || '';
 
@@ -18706,7 +18876,7 @@ function editarPptoParaMigrar(id) {
     pptoCargarItemsEnEditor(p);
 
     calcPpTotales();
-    notify('Presupuesto ' + p.id + ' abierto para editar — agregá los ítems y guardá');
+    notify('Presupuesto ' + p.id + ' abierto para editar â€” agregÃ¡ los Ã­tems y guardÃ¡');
   }, 150);
 }
 
@@ -18718,7 +18888,7 @@ function verPpto(id) {
   _block('ppto-detalle-view');
   _hide('ppto-form-view');
 
-  // Info básica
+  // Info bÃ¡sica
   _set('ppto-det-numero',p.id);
   document.getElementById('ppto-det-estado-badge').innerHTML = pptoStateBadge(p.estado);
   _set('ppto-det-meta','Creado por ' + (p.empleado || p.usuario || 'Usuario no registrado'));
@@ -18729,11 +18899,11 @@ function verPpto(id) {
   document.getElementById('ppto-det-total').value = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
   document.getElementById('ppto-det-desc').value = (p.descuento || 0) + '%';
 
-  // Mostrar totales — para presupuestos nuevos usa los campos guardados,
-  // para los viejos (sin subtotal guardado) recalcula desde los ítems
+  // Mostrar totales â€” para presupuestos nuevos usa los campos guardados,
+  // para los viejos (sin subtotal guardado) recalcula desde los Ã­tems
   var _descPct = parseFloat(p.descuento) || 0; // siempre es porcentaje
 
-  // Subtotal = suma de ítems (qty * punit con descuento por ítem)
+  // Subtotal = suma de Ã­tems (qty * punit con descuento por Ã­tem)
   var _sub = parseFloat(p.subtotal) || 0;
   if (!_sub && p.items && p.items.length) {
     _sub = p.items.reduce(function(s, it) {
@@ -18743,7 +18913,7 @@ function verPpto(id) {
       return s + Math.round(q * pu * (1 - d/100));
     }, 0);
   }
-  if (!_sub) _sub = parseFloat(p.total) || 0; // último fallback
+  if (!_sub) _sub = parseFloat(p.total) || 0; // Ãºltimo fallback
 
   var _descAmt = parseFloat(p.descuentoAmt) || Math.round(_sub * _descPct / 100);
   var _conIva  = p.conIva !== false;
@@ -18759,7 +18929,7 @@ function verPpto(id) {
   _s('ppto-det-iva',      _iva);
   _s('ppto-det-total2',   _total);
 
-  // Alerta aprobación
+  // Alerta aprobaciÃ³n
   const alertaEl = document.getElementById('ppto-alerta-aprobacion');
   const motivoEl = document.getElementById('ppto-alerta-motivo');
   if (p.requiereAprobacion) {
@@ -18780,14 +18950,14 @@ function verPpto(id) {
       : '';
   }
   renderAcciones(p);
-  // Opción B — mostrar alerta si el presupuesto perdió valor
+  // OpciÃ³n B â€” mostrar alerta si el presupuesto perdiÃ³ valor
   var dep = checkDepreciacionPpto(p);
   var depBox = document.getElementById('ppto-depreciacion-box');
   if (dep && depBox) {
     depBox.style.display = '';
     depBox.innerHTML = '<div style="background:rgba(251,191,36,.1);border:1px solid var(--amber);border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:12px">' +
-      '<div><div style="font-size:12px;font-weight:600;color:var(--amber)">⚠️ Depreciación del +' + dep.pct + '% desde la emisión</div>' +
-      '<div style="font-size:11px;color:var(--text3)">TC guardado: $' + dep.tcGuardado.toLocaleString('es-AR') + ' → TC actual: $' + dep.tcActual.toLocaleString('es-AR') + ' · Total actualizado: $' + dep.totalActualizado.toLocaleString('es-AR') + '</div></div>' +
+      '<div><div style="font-size:12px;font-weight:600;color:var(--amber)">âš ï¸ DepreciaciÃ³n del +' + dep.pct + '% desde la emisiÃ³n</div>' +
+      '<div style="font-size:11px;color:var(--text3)">TC guardado: $' + dep.tcGuardado.toLocaleString('es-AR') + ' â†’ TC actual: $' + dep.tcActual.toLocaleString('es-AR') + ' Â· Total actualizado: $' + dep.totalActualizado.toLocaleString('es-AR') + '</div></div>' +
       '<button class="btn btn-sm" style="white-space:nowrap;border-color:var(--amber);color:var(--amber)" onclick="recotizarPpto()"><i class="ti ti-refresh"></i> Recotizar</button></div>';
   } else if (depBox) {
     depBox.style.display = 'none';
@@ -18796,10 +18966,10 @@ function verPpto(id) {
   // Audit log
   renderAudit(p);
 
-  // Ítems reales del presupuesto — reemplaza el contenido de ejemplo
+  // Ãtems reales del presupuesto â€” reemplaza el contenido de ejemplo
   var itemsBody = document.getElementById('ppto-det-items');
   if (itemsBody) {
-    // Diagnóstico: mostrar en consola el formato real de los items
+    // DiagnÃ³stico: mostrar en consola el formato real de los items
 
     // Normalizar: Firebase a veces guarda arrays como objetos {0:{...}, 1:{...}}
     var items;
@@ -18821,12 +18991,12 @@ function verPpto(id) {
         '<td class="tr">$'+Math.round(punit).toLocaleString('es-AR')+'</td>' +
         '<td class="tr" style="font-weight:500">$'+Math.round(sub).toLocaleString('es-AR')+'</td></tr>';
     }).join('') :
-    // Sin items: mostrar mensaje con opción de ir a editar
+    // Sin items: mostrar mensaje con opciÃ³n de ir a editar
     '<tr><td colspan="5" style="padding:16px;text-align:center">' +
-      '<div style="color:var(--text3);font-size:13px;margin-bottom:8px">Este presupuesto no tiene ítems guardados en Firebase.</div>' +
+      '<div style="color:var(--text3);font-size:13px;margin-bottom:8px">Este presupuesto no tiene Ã­tems guardados en Firebase.</div>' +
       '<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Total del presupuesto: <strong>$' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '</strong></div>' +
       '<button class="btn btn-sm" onclick="editarPptoParaMigrar(\'' + p.id + '\')" style="color:var(--blue);border-color:var(--blue)">' +
-        '<i class="ti ti-edit"></i> Abrir para editar y guardar ítems' +
+        '<i class="ti ti-edit"></i> Abrir para editar y guardar Ã­tems' +
       '</button>' +
     '</td></tr>';
   }
@@ -18872,7 +19042,7 @@ function checkDepreciacionPpto(p) {
   var tcActual = parseFloat(tc[tipoCfg]) || 0;
   if (!tcActual || !p.tcGuardado) return null;
   var factor = tcActual / parseFloat(p.tcGuardado);
-  if (factor < 1.10) return null; // menos del 10% de variación — no alertar
+  if (factor < 1.10) return null; // menos del 10% de variaciÃ³n â€” no alertar
   return {
     factor:    factor,
     pct:       Math.round((factor - 1) * 100),
@@ -18887,8 +19057,8 @@ function recotizarPpto() {
   var p = (pptoData||[]).find(function(x){ return x.id === pptoActualId || x.fbKey === pptoActualId; });
   if (!p) return;
   var dep = checkDepreciacionPpto(p);
-  if (!dep) { notify('No hay variación significativa del TC para recotizar'); return; }
-  if (!confirm('¿Recotizar el presupuesto al TC actual?\n\nTC original: $' + dep.tcGuardado.toLocaleString('es-AR') + '\nTC actual: $' + dep.tcActual.toLocaleString('es-AR') + ' (+' + dep.pct + '%)\n\nTotal original: $' + dep.totalOriginal.toLocaleString('es-AR') + '\nTotal actualizado: $' + dep.totalActualizado.toLocaleString('es-AR') + '\n\nEsto creará una nueva versión del presupuesto.')) return;
+  if (!dep) { notify('No hay variaciÃ³n significativa del TC para recotizar'); return; }
+  if (!confirm('Â¿Recotizar el presupuesto al TC actual?\n\nTC original: $' + dep.tcGuardado.toLocaleString('es-AR') + '\nTC actual: $' + dep.tcActual.toLocaleString('es-AR') + ' (+' + dep.pct + '%)\n\nTotal original: $' + dep.totalOriginal.toLocaleString('es-AR') + '\nTotal actualizado: $' + dep.totalActualizado.toLocaleString('es-AR') + '\n\nEsto crearÃ¡ una nueva versiÃ³n del presupuesto.')) return;
   // Crear nuevo presupuesto con precios actualizados
   var nuevo = Object.assign({}, p, {
     id: p.id + '-R',
@@ -18909,7 +19079,7 @@ function recotizarPpto() {
   });
   if (window.fbDB) {
     window.fbPush(window.fbRef(window.fbDB, 'sisventas/presupuestos'), Object.assign(nuevo, { ts: Date.now() }))
-      .then(function(r){ nuevo.fbKey = r.key; notify('✓ Presupuesto recotizado creado: ' + nuevo.id); });
+      .then(function(r){ nuevo.fbKey = r.key; notify('âœ“ Presupuesto recotizado creado: ' + nuevo.id); });
   }
 }
 
@@ -18946,21 +19116,19 @@ function renderAudit(p) {
       </div>
       <div>
         <div style="font-size:13px;color:var(--text)">${escapeHTML(e.accion)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHTML(e.usuario)} · ${escapeHTML(e.fecha)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHTML(e.usuario)} Â· ${escapeHTML(e.fecha)}</div>
       </div>
     </div>`).join('');
   (p.audit || []).reverse(); // restaurar orden original
 }
 
-// Ejecutar una acción sobre el presupuesto actual
-// Enviar presupuesto al cliente por WhatsApp (si tiene teléfono) o imprimir PDF
+// Ejecutar una acciÃ³n sobre el presupuesto actual
+// Enviar presupuesto al cliente por WhatsApp (si tiene telÃ©fono) o imprimir PDF
 function pptoEnviarCliente() {
   var p = (pptoData||[]).find(function(x){ return x.id === pptoActualId || x.fbKey === pptoActualId; });
   if (!p) { notify('Presupuesto no encontrado'); return; }
 
-  var cli = (clientesData||[]).find(function(c){
-    return c.nombre === p.cliente || String(c.id) === String(p.idCliente);
-  });
+  var cli = _svResolverClienteRegistro(p, true);
   var tel = cli && (cli.telefono || cli.tel || cli.celular || '');
   tel = tel ? tel.replace(/\D/g,'') : '';
   if (tel && tel.length < 8) tel = '';
@@ -18971,22 +19139,22 @@ function pptoEnviarCliente() {
   var msg = encodeURIComponent(
     'Hola ' + (p.cliente||'') + ', te enviamos el presupuesto ' + (p.id||'') +
     ' por un total de ' + total + '.' +
-    (vence ? ' Válido hasta el ' + vence + '.' : '') +
+    (vence ? ' VÃ¡lido hasta el ' + vence + '.' : '') +
     '\n\nPodemos coordinarlo cuando quieras.'
   );
 
   if (tel) {
-    // Tiene teléfono: abrir WhatsApp + imprimir PDF
+    // Tiene telÃ©fono: abrir WhatsApp + imprimir PDF
     var wa = 'https://wa.me/54' + tel + '?text=' + msg;
     window.open(wa, '_blank');
     setTimeout(function(){ imprimirPresupuesto(); }, 800);
   } else {
-    // Sin teléfono: solo PDF
-    notify('El cliente no tiene teléfono registrado — se abre el PDF para enviar manualmente');
+    // Sin telÃ©fono: solo PDF
+    notify('El cliente no tiene telÃ©fono registrado â€” se abre el PDF para enviar manualmente');
     setTimeout(function(){ imprimirPresupuesto(); }, 300);
   }
 
-  // Igual registrar que se envió
+  // Igual registrar que se enviÃ³
   pptoAccion('enviar_cliente');
 }
 
@@ -18997,26 +19165,33 @@ function pptoAccion(accion) {
   const usuario = currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor');
 
   const transiciones = {
-    enviar_revision:  { nuevoEstado:'revision',     msg:'Enviado a revisión interna',      auditMsg:'Enviado a revisión interna' },
+    enviar_revision:  { nuevoEstado:'revision',     msg:'Enviado a revisiÃ³n interna',      auditMsg:'Enviado a revisiÃ³n interna' },
     aprobar_directo:  { nuevoEstado:'aprobado_int', msg:'Presupuesto aprobado',            auditMsg:'Aprobado directamente por admin' },
     aprobar:          { nuevoEstado:'aprobado_int', msg:'Presupuesto aprobado',            auditMsg:'Aprobado internamente' },
     rechazar:         { nuevoEstado:'rechazado',    msg:'Presupuesto rechazado',           auditMsg:'Rechazado' },
     enviar_cliente:   { nuevoEstado:'enviado',      msg:'Enviado al cliente',              auditMsg:'Enviado al cliente' },
-    marcar_visto:     { nuevoEstado:'visto',        msg:'Marcado como visto por cliente',  auditMsg:'Cliente marcó como visto' },
-    marcar_aceptado:  { nuevoEstado:'aceptado',     msg:'Aceptación registrada',           auditMsg:'Aceptación del cliente registrada' },
+    marcar_visto:     { nuevoEstado:'visto',        msg:'Marcado como visto por cliente',  auditMsg:'Cliente marcÃ³ como visto' },
+    marcar_aceptado:  { nuevoEstado:'aceptado',     msg:'AceptaciÃ³n registrada',           auditMsg:'AceptaciÃ³n del cliente registrada' },
     reactivar:        { nuevoEstado:'borrador',     msg:'Presupuesto reactivado',          auditMsg:'Reactivado como borrador' },
     modificar_precio: { nuevoEstado: p.estado,      msg:'',                                auditMsg:'' },
   };
 
   if (accion === 'convertir_venta') {
-    if (!confirm('¿Convertir este presupuesto en venta? El estado de pago inicial será Pendiente de pago.')) return;
-    if (!window.fbDB) { notify('Sin conexión'); return; }
+    if (!confirm('Â¿Convertir este presupuesto en venta? El estado de pago inicial serÃ¡ Pendiente de pago.')) return;
+    if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
     var numVenta = obtenerProximoIdVenta();
+    var clienteRefPpto = (typeof window._svResolverClienteRegistro === 'function')
+      ? window._svResolverClienteRegistro(p, true)
+      : null;
+    var clienteIdPpto = p.clienteId || p.idCliente || (clienteRefPpto && (clienteRefPpto.id || clienteRefPpto.numero || '')) || '';
+    var clienteFbKeyPpto = p.clienteFbKey || p.clienteKey || (clienteRefPpto && clienteRefPpto.fbKey) || '';
     var venta = {
       id:           numVenta,
       cliente:      p.cliente || '',
-      clienteId:    p.clienteId || p.idCliente || '',
-      idCliente:    p.clienteId || p.idCliente || '',
+      clienteId:    clienteIdPpto,
+      idCliente:    clienteIdPpto,
+      clienteFbKey: clienteFbKeyPpto,
+      clienteKey:   clienteFbKeyPpto,
       fecha:        new Date().toISOString().slice(0,10),
       empleado:     p.empleado || currentUser || '',
       comisionado2: (document.getElementById('venta-comisionado2')||{}).value || '',
@@ -19030,22 +19205,28 @@ function pptoAccion(accion) {
       estadoPago:   'pendiente_pago',
       estadoInst:   'pendiente_inst',
       pptoOrigen:   p.id || '',
+      presupuestoId: p.id || '',
+      presupuestoFbKey: p.fbKey || '',
       numeroSecuencial: true,
       observaciones: 'Generado desde presupuesto ' + (p.id||''),
       ts:           Date.now()
     };
     window.fbPush(window.fbRef(window.fbDB, 'sisventas/ventas'), venta)
-      .then(function() {
+      .then(function(ref) {
+        var ventaFbKeyNueva = ref && ref.key ? ref.key : '';
         if (p.fbKey) {
           window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+p.fbKey), {
             estado: 'convertido',
-            ventaId: numVenta
+            ventaId: numVenta,
+            ventaGeneradaId: numVenta,
+            ventaFbKey: ventaFbKeyNueva,
+            ventaGeneradaFbKey: ventaFbKeyNueva
           });
         }
-        notify('✓ Venta ' + numVenta + ' creada desde ' + p.id);
+        notify('âœ“ Venta ' + numVenta + ' creada desde ' + p.id);
         showPage('detalle', document.querySelector('[onclick*=detalle]'));
         setTimeout(function() {
-          if (typeof verDetalleVenta === 'function') verDetalleVenta(numVenta);
+          if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaFbKeyNueva || numVenta);
         }, 300);
       })
       .catch(function(e){ notify('Error: '+e.message); });
@@ -19053,10 +19234,11 @@ function pptoAccion(accion) {
   }
 
   if (accion === 'ver_venta') {
-    if (p.ventaId) {
+    var ventaVinculada = p.ventaGeneradaFbKey || p.ventaFbKey || p.ventaGeneradaId || p.ventaId;
+    if (ventaVinculada) {
       showPage('detalle', document.querySelector('[onclick*=detalle]'));
       setTimeout(function() {
-        if (typeof verDetalleVenta === 'function') verDetalleVenta(p.ventaId);
+        if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaVinculada);
       }, 150);
     } else {
       notify('Esta presupuesto no tiene venta vinculada');
@@ -19089,11 +19271,11 @@ function pptoAccion(accion) {
       requiereAprobacion: false,
       audit: p.audit
     }).then(function(){
-      notify('✓ ' + t.msg);
+      notify('âœ“ ' + t.msg);
     }).catch(function(e){ notify('Error guardando estado: ' + e.message); });
   } else {
-    if (!p.fbKey) notify('Error: presupuesto sin fbKey — no se puede guardar');
-    else notify('Error: sin conexión a Firebase');
+    if (!p.fbKey) notify('Error: presupuesto sin fbKey â€” no se puede guardar');
+    else notify('Error: sin conexiÃ³n a Firebase');
     return;
   }
   verPpto(p.id);
@@ -19142,7 +19324,7 @@ function actualizarValoresPpto() {
 
 function guardarPresupuesto(modo) {
   var _cli=document.getElementById('pp-cli'); const cli = _cli?_cli.value.trim():'';
-  if (!cli) { notify('Seleccioná un cliente'); return; }
+  if (!cli) { notify('SeleccionÃ¡ un cliente'); return; }
   var _d3=document.getElementById('pp-descuento'); const desc = parseFloat(_d3?_d3.value:0) || 0;
   var _tt=document.getElementById('pp-total'); const totalTxt = (_tt?_tt.textContent:'') || '$0';
   const total = parseFloat(normalizarNumeroExcel(totalTxt)) || 0;
@@ -19156,11 +19338,11 @@ function guardarPresupuesto(modo) {
 
   var items = getPpItems();
 
-  if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
+  if (!items.length) { notify('AgregÃ¡ al menos un producto al presupuesto'); return; }
 
   const reqAprobacion = (total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite);
   const estadoFinal = reqAprobacion ? 'revision' : modo;
-  const motivo = reqAprobacion ? (desc > APROBACION_CONFIG.descuentoLimite ? `Descuento ${desc}% supera el límite` : `Total supera el límite de aprobación`) : '';
+  const motivo = reqAprobacion ? (desc > APROBACION_CONFIG.descuentoLimite ? `Descuento ${desc}% supera el lÃ­mite` : `Total supera el lÃ­mite de aprobaciÃ³n`) : '';
   const nuevo = {
     id: 'PP-00' + (pptoData.length + 10),
     cliente: cli, empleado: currentUser || '', usuario: currentUser || '',
@@ -19172,7 +19354,7 @@ function guardarPresupuesto(modo) {
     estado: estadoFinal,
     requiereAprobacion: reqAprobacion,
     motivo,
-    audit: [{ fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor'), accion: estadoFinal === 'revision' ? 'Creado y enviado a revisión automáticamente por regla de aprobación' : 'Presupuesto creado como borrador' }]
+    audit: [{ fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor'), accion: estadoFinal === 'revision' ? 'Creado y enviado a revisiÃ³n automÃ¡ticamente por regla de aprobaciÃ³n' : 'Presupuesto creado como borrador' }]
   };
   if (window._pptoEditandoFbKey) {
     var pptoOriginalEdit = (pptoData||[]).find(function(x){ return x.fbKey === window._pptoEditandoFbKey || x.id === window._pptoEditandoId; }) || {};
@@ -19189,13 +19371,13 @@ function guardarPresupuesto(modo) {
   } else {
     pptoData.unshift(nuevo);
   }
-  if (reqAprobacion) notify('Presupuesto enviado a revisión — requiere aprobación del admin');
+  if (reqAprobacion) notify('Presupuesto enviado a revisiÃ³n â€” requiere aprobaciÃ³n del admin');
   else if (modo === 'borrador') notify('Borrador guardado como ' + nuevo.id);
-  else notify('Enviado a revisión como ' + nuevo.id);
+  else notify('Enviado a revisiÃ³n como ' + nuevo.id);
   volverListaPpto();
 }
 
-// Navegación
+// NavegaciÃ³n
 function volverListaPpto() {
   _block('ppto-list-view');
   _hide('ppto-detalle-view');
@@ -19241,30 +19423,30 @@ function tabPpto(tipo, btn) {
   renderPptoTabla(mapa[tipo] || '');
 }
 
-// Inicializar tabla al entrar al módulo
-// MÓDULO ÓRDENES DE TRABAJO
+// Inicializar tabla al entrar al mÃ³dulo
+// MÃ“DULO Ã“RDENES DE TRABAJO
 
-// Checklists por tipo de instalación
+// Checklists por tipo de instalaciÃ³n
 var CHECKLISTS = {
   preparacion: [
     'Revisar orden de trabajo y materiales requeridos',
     'Verificar stock disponible antes de salir',
     'Contactar al cliente para confirmar horario',
     'Preparar herramientas necesarias',
-    'Verificar vehículo y combustible',
+    'Verificar vehÃ­culo y combustible',
   ],
   instalacion: [
-    'Instalación de equipos en sitio',
+    'InstalaciÃ³n de equipos en sitio',
     'Cableado y conexionado',
-    'Configuración y prueba de funcionamiento',
+    'ConfiguraciÃ³n y prueba de funcionamiento',
   ],
   verificacion: [
     'Prueba integral del sistema completo',
-    'Capacitación al cliente sobre uso',
-    'Entrega de manuales y garantías',
-    'Fotografías del trabajo finalizado',
+    'CapacitaciÃ³n al cliente sobre uso',
+    'Entrega de manuales y garantÃ­as',
+    'FotografÃ­as del trabajo finalizado',
     'Completar acta de entrega',
-    'Registrar número de serie de equipos instalados',
+    'Registrar nÃºmero de serie de equipos instalados',
   ],
 };
 
@@ -19282,11 +19464,11 @@ function otBadge(estado) {
     completada:       ['badge b-green','Completada'],
     con_observaciones:['badge b-amber','Con observaciones'],
   };
-  const [cls, label] = map[estado] || ['badge','—'];
+  const [cls, label] = map[estado] || ['badge','â€”'];
   return `<span class="${cls}">${label}</span>`;
 }
 
-// Renderizar OTs — diferenciado por rol
+// Renderizar OTs â€” diferenciado por rol
 function renderOTTabla(filtro) {
   var hoy = new Date().toISOString().split('T')[0];
   var mes = hoy.slice(0,7);
@@ -19297,7 +19479,7 @@ function renderOTTabla(filtro) {
     filtro = sel ? sel.value : '';
   }
 
-  // Métricas (iguales para todos)
+  // MÃ©tricas (iguales para todos)
   var esCompletadaOT = function(o){ return String(o && (o.estado || '')).toLowerCase() === 'completada'; };
   if (_e('ot-met-abiertas')) _e('ot-met-abiertas').textContent = otData.filter(function(o){ return !esCompletadaOT(o); }).length;
   if (_e('ot-met-hoy'))      _e('ot-met-hoy').textContent      = otData.filter(function(o){ return String(o.fecha||'').slice(0,10) === hoy; }).length;
@@ -19317,7 +19499,7 @@ function _otTarjeta(o, hoy) {
   var esPrioridad = o.prioridad === true || o.prioridad === 'true';
   var esAtrasada  = o.fecha && o.fecha < hoy && o.estado !== 'completada';
   var borderColor = esPrioridad || esAtrasada ? 'var(--red)' : o.fecha === hoy ? 'var(--amber)' : 'var(--border)';
-  var tipo = o.tipoVisita || o.tipo || 'Instalación nueva';
+  var tipo = o.tipoVisita || o.tipo || 'InstalaciÃ³n nueva';
   var tipoIco = tipo.toLowerCase().includes('reclamo') ? 'ti-headset' : tipo.toLowerCase().includes('mant') ? 'ti-tool' : 'ti-bolt';
   var tipoColor = tipo.toLowerCase().includes('reclamo') ? 'var(--red)' : tipo.toLowerCase().includes('mant') ? 'var(--amber)' : 'var(--blue)';
   var visitasPrev = _contarVisitasPrevias(o.cliente, o.dir, o.id);
@@ -19328,10 +19510,10 @@ function _otTarjeta(o, hoy) {
           (esPrioridad ? '<span class="badge b-red" style="font-size:10px"><i class="ti ti-flame" style="font-size:10px"></i> PRIORIDAD</span>' : '') +
           (esAtrasada  ? '<span class="badge b-red" style="font-size:10px">ATRASADA</span>' : '') +
           '<span style="font-size:12px;font-weight:600;font-family:monospace">'+escapeHTML(o.id||'')+'</span>' +
-          (visitasPrev > 0 ? '<span style="font-size:11px;color:var(--amber)"><i class="ti ti-repeat"></i> Visita N°'+(visitasPrev+1)+'</span>' : '') +
+          (visitasPrev > 0 ? '<span style="font-size:11px;color:var(--amber)"><i class="ti ti-repeat"></i> Visita NÂ°'+(visitasPrev+1)+'</span>' : '') +
         '</div>' +
         '<div style="font-size:14px;font-weight:500;margin-bottom:2px">'+escapeHTML(o.cliente||'Sin cliente')+'</div>' +
-        '<div style="font-size:12px;color:var(--text3)"><i class="ti ti-map-pin" style="font-size:11px"></i> '+escapeHTML(o.dir||'Sin dirección')+'</div>' +
+        '<div style="font-size:12px;color:var(--text3)"><i class="ti ti-map-pin" style="font-size:11px"></i> '+escapeHTML(o.dir||'Sin direcciÃ³n')+'</div>' +
         (o.obs ? '<div style="font-size:12px;color:var(--text2);margin-top:4px;font-style:italic">'+escapeHTML(o.obs)+'</div>' : '') +
       '</div>' +
       '<div style="text-align:right;flex-shrink:0">' +
@@ -19394,7 +19576,7 @@ function _renderOTVistaAdmin(filtro, hoy) {
 
   var selTec = document.getElementById('ot-filtro-tecnico');
   if (selTec && selTec.options.length <= 1) {
-    // Combinar técnicos de OTs existentes + empleados activos
+    // Combinar tÃ©cnicos de OTs existentes + empleados activos
     var tecDeOTs = new Set(otData.map(function(o){ return o.tecnico; }).filter(Boolean));
     var tecDeEmps = Object.values(empData||{}).filter(function(e){ return e.activo !== false; }).map(function(e){ return e.nombre; });
     var todosTecs = [...new Set([...tecDeOTs, ...tecDeEmps, 'Inicial'])].sort();
@@ -19428,17 +19610,17 @@ function _renderOTVistaAdmin(filtro, hoy) {
     var esAtrasada  = o.fecha && o.fecha < hoy && o.estado !== 'completada';
     var rowColor    = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : o.fecha === hoy ? 'background:rgba(245,158,11,.04)' : '';
     var visitasPrev = _contarVisitasPrevias(o.cliente, o.dir, o.id);
-    var iconoRep    = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+    var iconoRep    = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita NÂ°'+(visitasPrev+1)+'"></i>' : '';
     return '<tr style="'+rowColor+'">' +
       '<td style="text-align:center">' +
         (esPrioridad ? '<i class="ti ti-flame" style="color:var(--red);font-size:14px" title="Prioridad"></i>' : '') +
         (esAtrasada && !esPrioridad ? '<i class="ti ti-clock" style="color:var(--amber);font-size:14px" title="Atrasada"></i>' : '') +
       '</td>' +
       '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+escapeHTML(o.id||'')+'</td>' +
-      '<td>'+escapeHTML(o.cliente||'—')+'</td>' +
+      '<td>'+escapeHTML(o.cliente||'â€”')+'</td>' +
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(o.tecnico||'Sin asignar')+'</td>' +
       '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':o.fecha===hoy?'var(--amber)':'var(--text3)')+'">'+escapeHTML(o.fecha||'Sin fecha')+(o.hora?' '+o.hora:'')+'</td>' +
-      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(o.tipoVisita||o.tipo||'—')+'</td>' +
+      '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(o.tipoVisita||o.tipo||'â€”')+'</td>' +
       '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
       '<td>'+otBadge(o.estado)+'</td>' +
       '<td style="white-space:nowrap">' +
@@ -19447,7 +19629,7 @@ function _renderOTVistaAdmin(filtro, hoy) {
       '</td>' +
     '</tr>';
   }).join('');
-  if (!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin órdenes</td></tr>';
+  if (!rows.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Sin Ã³rdenes</td></tr>';
 }
 
 function filtrarOT(v) { renderOTTabla(v); }
@@ -19475,9 +19657,9 @@ function _otResolverDireccionCliente(ot) {
   var dir = leerDir(ot);
   if (dir) return dir;
 
-  // 1) Buscar dirección desde la venta origen, si la OT nació desde una venta.
+  // 1) Buscar direcciÃ³n desde la venta origen, si la OT naciÃ³ desde una venta.
   if (ot && ot.ventaId && Array.isArray(ventasList)) {
-    var ventaOrigen = ventasList.find(function(v){ return v.id === ot.ventaId || v.numero === ot.ventaId || v.fbKey === ot.ventaId; });
+    var ventaOrigen = _svResolverVentaRegistro(ot);
     dir = leerDir(ventaOrigen);
     if (dir) return dir;
     if (ventaOrigen && ventaOrigen.clienteObj) {
@@ -19495,7 +19677,7 @@ function _otResolverDireccionCliente(ot) {
     if (dir) return dir;
   }
 
-  // 3) Buscar por nombre de cliente, tolerando mayúsculas, espacios y apellido.
+  // 3) Buscar por nombre de cliente, tolerando mayÃºsculas, espacios y apellido.
   var nombreOT = String((ot && ot.cliente) || '').toLowerCase().trim();
   if (nombreOT) {
     var cliOT = clientesArr.find(function(c){
@@ -19512,7 +19694,7 @@ function _otResolverDireccionCliente(ot) {
 
 function abrirDireccionEnMaps() {
   var dir = window._otDireccionActual || (document.getElementById('ot-det-dir')||{}).value || '';
-  if (!dir) { notify('No hay dirección cargada para esta OT'); return; }
+  if (!dir) { notify('No hay direcciÃ³n cargada para esta OT'); return; }
   var url = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(dir + ', Mar del Plata, Argentina');
   window.open(url, '_blank');
 }
@@ -19521,7 +19703,7 @@ function otResolverOrigen(ot) {
   if (!ot) return 'manual';
   var origen = String(ot.origen || '').toLowerCase().trim();
   if (origen === 'reclamo' || ot.reclamoKey || String(ot.tipoVisita||'').toLowerCase().includes('reclamo')) return 'reclamo';
-  if (origen === 'venta' || origen === 'pago_seña' || origen === 'pago_sena' || ot.ventaId || ot.ventaFbKey || ot.origenVenta) return 'venta';
+  if (origen === 'venta' || origen === 'pago_seÃ±a' || origen === 'pago_sena' || ot.ventaId || ot.ventaFbKey || ot.origenVenta) return 'venta';
   return 'manual';
 }
 
@@ -19609,7 +19791,7 @@ function verOT(id) {
     clienteInp.readOnly = !puedeEditarOrigen;
     clienteInp.style.background = puedeEditarOrigen ? '' : 'var(--bg3)';
     clienteInp.style.cursor = puedeEditarOrigen ? '' : 'not-allowed';
-    clienteInp.placeholder = puedeEditarOrigen ? 'Ingresá el cliente' : '';
+    clienteInp.placeholder = puedeEditarOrigen ? 'IngresÃ¡ el cliente' : '';
   }
   document.getElementById('ot-det-fecha').value = ot.fecha||'';
   document.getElementById('ot-det-hora').value = ot.hora||'';
@@ -19619,10 +19801,10 @@ function verOT(id) {
     ot.dir = dirOT;
     if (typeof fbGuardarOT === 'function') {
       window._otGuardandoLocalHasta = Date.now() + 2500;
-      fbGuardarOT(ot).catch(function(e){ console.warn('No se pudo guardar dirección resuelta en OT:', e); });
+      fbGuardarOT(ot).catch(function(e){ console.warn('No se pudo guardar direcciÃ³n resuelta en OT:', e); });
     }
   }
-  // Mostrar/ocultar botón de Maps según si hay dirección
+  // Mostrar/ocultar botÃ³n de Maps segÃºn si hay direcciÃ³n
   var mapsBtn = document.getElementById('ot-det-dir-maps-btn');
   if (mapsBtn) mapsBtn.style.display = dirOT ? '' : 'none';
   window._otDireccionActual = dirOT;
@@ -19636,17 +19818,17 @@ function verOT(id) {
   }
 
   var tipoSel = document.getElementById('ot-det-tipovisita');
-  if (tipoSel) tipoSel.value = ot.tipoVisita || 'Instalación nueva';
+  if (tipoSel) tipoSel.value = ot.tipoVisita || 'InstalaciÃ³n nueva';
 
-  // Técnico (select — poblar con empleados activos)
+  // TÃ©cnico (select â€” poblar con empleados activos)
   var tecSel = document.getElementById('ot-det-tecnico');
   if (tecSel) {
-    // Poblar opciones si aún no están
+    // Poblar opciones si aÃºn no estÃ¡n
     if (tecSel.options.length <= 1) {
       var emps = Object.values(empData||{}).filter(function(e){
         if (e.activo === false) return false;
         var cat = (e.categoriaBase || e.cargo || '').toUpperCase();
-        return cat.includes('TECNICO') || cat.includes('TÉCNICO');
+        return cat.includes('TECNICO') || cat.includes('TÃ‰CNICO');
       }).sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
       emps.forEach(function(e){
         if ([...tecSel.options].some(function(o){ return o.value === e.nombre; })) return;
@@ -19663,7 +19845,7 @@ function verOT(id) {
   var repetidaLbl = document.getElementById('ot-det-repetida-lbl');
   if (visitasPrev > 0 && repetidaBox && repetidaLbl) {
     repetidaBox.style.display = '';
-    repetidaLbl.innerHTML = '<i class="ti ti-alert-triangle"></i> Visita N° '+(visitasPrev+1)+' — ya hay '+visitasPrev+' visita'+(visitasPrev!==1?'s':'')+ ' previa'+(visitasPrev!==1?'s':'')+' registrada'+(visitasPrev!==1?'s':'')+'.';
+    repetidaLbl.innerHTML = '<i class="ti ti-alert-triangle"></i> Visita NÂ° '+(visitasPrev+1)+' â€” ya hay '+visitasPrev+' visita'+(visitasPrev!==1?'s':'')+ ' previa'+(visitasPrev!==1?'s':'')+' registrada'+(visitasPrev!==1?'s':'')+'.';
   } else if (repetidaBox) {
     repetidaBox.style.display = 'none';
   }
@@ -19687,7 +19869,7 @@ function verOT(id) {
         histEl.innerHTML = hist.map(function(h) {
           return '<div style="background:var(--bg3);border-radius:var(--radius);padding:8px 12px">' +
             '<div style="font-size:12px">'+escapeHTML(h.texto||'')+'</div>' +
-            '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+escapeHTML(h.autor||'')+' · '+spFormatFecha(h.ts)+'</div>' +
+            '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+escapeHTML(h.autor||'')+' Â· '+spFormatFecha(h.ts)+'</div>' +
           '</div>';
         }).join('') || '<div style="color:var(--text3);font-size:12px">Sin notas en el reclamo</div>';
       }
@@ -19751,7 +19933,7 @@ function verOT(id) {
       '</tr>';
     }).join('')
     : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sin materiales' +
-      (ot.ventaId ? ' — la venta origen no tiene ítems registrados' : ' — OT sin venta vinculada') +
+      (ot.ventaId ? ' â€” la venta origen no tiene Ã­tems registrados' : ' â€” OT sin venta vinculada') +
       '</td></tr>';
   }
 
@@ -19760,7 +19942,7 @@ function verOT(id) {
   if (auditEl) auditEl.innerHTML = [...(ot.audit||[])].reverse().map(function(e) {
     return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">' +
       '<div style="width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-history" style="font-size:12px;color:var(--text3)"></i></div>' +
-      '<div><div style="font-size:13px">'+escapeHTML(e.accion||'')+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML(e.usuario||'')+' · '+escapeHTML(e.fecha||'')+'</div></div>' +
+      '<div><div style="font-size:13px">'+escapeHTML(e.accion||'')+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML(e.usuario||'')+' Â· '+escapeHTML(e.fecha||'')+'</div></div>' +
     '</div>';
   }).join('');
   document.dispatchEvent(new CustomEvent('sisventas:ot-opened',{detail:{id:id,ot:ot}}));
@@ -19770,7 +19952,7 @@ function otActualizarMaterial(inp, cod) {
   var ot = otData.find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
   if (!ot || !ot.fbKey || !window.fbDB) return;
 
-  // Reconstruir el array de ítems con el nuevo valor
+  // Reconstruir el array de Ã­tems con el nuevo valor
   var filas = document.querySelectorAll('#ot-materiales tr');
   var items = [];
   filas.forEach(function(tr) {
@@ -19847,7 +20029,7 @@ function otFiltrarSelectorProductos(texto) {
   if (!lista.length) { cont.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px">Sin resultados</div>'; return; }
   cont.innerHTML = lista.map(function(p) {
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="otAgregarAlCarrito(\''+p.fbKey+'\')">' +
-      '<div><div style="font-size:13px">'+escapeHTML(p.nombre||'')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(p.codigo||'')+' · $'+Math.round(p.venta||0).toLocaleString('es-AR')+'</div></div>' +
+      '<div><div style="font-size:13px">'+escapeHTML(p.nombre||'')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(p.codigo||'')+' Â· $'+Math.round(p.venta||0).toLocaleString('es-AR')+'</div></div>' +
       '<i class="ti ti-plus" style="color:var(--blue)"></i>' +
     '</div>';
   }).join('');
@@ -19893,7 +20075,7 @@ function otQuitarCarrito(idx) {
 }
 
 function otConfirmarVentaAdicional() {
-  if (!_otCarritoAdicional.length) { notify('Agregá al menos un producto'); return; }
+  if (!_otCarritoAdicional.length) { notify('AgregÃ¡ al menos un producto'); return; }
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB) return;
 
@@ -19927,7 +20109,7 @@ function otConfirmarVentaAdicional() {
       ts:      Date.now(),
       leida:   false
     });
-    notify('✓ Venta adicional generada por $' + Math.round(total).toLocaleString('es-AR') + ' — admin notificado');
+    notify('âœ“ Venta adicional generada por $' + Math.round(total).toLocaleString('es-AR') + ' â€” admin notificado');
     otCerrarSelectorProductos();
   }).catch(function(e){ notify('Error: ' + e.message); });
 }
@@ -19940,7 +20122,7 @@ function firmaInicializar() {
   var canvas = document.getElementById('firma-canvas');
   if (!canvas) return;
 
-  // Ajustar tamaño real del canvas al tamaño CSS
+  // Ajustar tamanio real del canvas al tamanio CSS
   var rect = canvas.getBoundingClientRect();
   canvas.width  = rect.width  * window.devicePixelRatio;
   canvas.height = rect.height * window.devicePixelRatio;
@@ -20005,7 +20187,7 @@ function firmaAutoguardar() {
 
   // Subir a Firebase Storage
   if (!window.fbStorage || !window.fbDB) {
-    // Sin storage — guardar como dataURL en Firebase (solo si es pequeña)
+    // Sin storage â€” guardar como dataURL en Firebase (solo si es pequeÃ±a)
     firmaGuardarEnOT(dataUrl);
     return;
   }
@@ -20065,13 +20247,16 @@ function otCargarCredenciales(ot) {
   var lista = document.getElementById('ot-cred-lista');
   if (!box || !lista) return;
 
-  var cli = (clientesData||[]).find(function(c){
-    return c.nombre === ot.cliente || String(c.id) === String(ot.clienteId||'');
-  });
+  var cli = _svResolverClienteRegistro(ot, true);
   if (!cli || !window.fbDB) { box.style.display='none'; return; }
 
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/credenciales/'+cli.id)).then(function(snap) {
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/credencialesPorCliente/'+(cli.fbKey||''))).then(function(snap) {
     var data = snap.val();
+    if (!data && cli.id) {
+      return window.fbGet(window.fbRef(window.fbDB, 'sisventas/credenciales/'+cli.id)).then(function(legacySnap){ return legacySnap.val(); });
+    }
+    return data;
+  }).then(function(data) {
     if (!data) { box.style.display='none'; return; }
     box.style.display = '';
     var items = Object.values(data);
@@ -20083,10 +20268,10 @@ function otCargarCredenciales(ot) {
           '<div style="font-weight:500;font-size:13px">'+escapeHTML(c.desc||c.tipo||'')+'</div>' +
           '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;margin-top:6px">' +
             (c.user ? '<div><span style="font-size:10px;color:var(--text3);display:block">Usuario</span><span style="font-family:monospace;font-size:13px">'+escapeHTML(c.user)+'</span></div>' : '') +
-            (c.pass ? '<div><span style="font-size:10px;color:var(--text3);display:block">Contraseña</span>' +
+            (c.pass ? '<div><span style="font-size:10px;color:var(--text3);display:block">ContraseÃ±a</span>' +
               '<div style="display:flex;align-items:center;gap:6px">' +
-                '<span class="ot-cred-pass" style="font-family:monospace;font-size:13px">••••••••</span>' +
-                '<button onclick="this.previousElementSibling.textContent=this.previousElementSibling.textContent===\'••••••••\'?\''+escapeHTML(c.pass||'')+'\':\'••••••••\'" style="background:none;border:none;cursor:pointer;color:var(--text3)"><i class="ti ti-eye" style="font-size:13px"></i></button>' +
+                '<span class="ot-cred-pass" style="font-family:monospace;font-size:13px">â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢</span>' +
+                '<button onclick="this.previousElementSibling.textContent=this.previousElementSibling.textContent===\'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢\'?\''+escapeHTML(c.pass||'')+'\':\'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢\'" style="background:none;border:none;cursor:pointer;color:var(--text3)"><i class="ti ti-eye" style="font-size:13px"></i></button>' +
               '</div></div>' : '') +
             (c.ip ? '<div><span style="font-size:10px;color:var(--text3);display:block">IP / Sistema</span><span style="font-family:monospace;font-size:12px">'+escapeHTML(c.ip)+(c.puerto?':'+escapeHTML(c.puerto):'')+'</span></div>' : '') +
           '</div>' +
@@ -20108,29 +20293,29 @@ function otRenderNotas(ot) {
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
         '<div style="font-size:13px;flex:1">'+escapeHTML(n.texto||'')+'</div>' +
         (esPropia && currentRole !== 'admin' && esAdmin ? '' :
-         esPropia ? '' : '<span title="Nota del administrador — solo lectura" style="font-size:11px;color:var(--text3)">🔒</span>') +
+         esPropia ? '' : '<span title="Nota del administrador â€” solo lectura" style="font-size:11px;color:var(--text3)">ðŸ”’</span>') +
       '</div>' +
       '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+
         '<span style="font-weight:500;color:'+(esPropia?'var(--blue)':'var(--text3)')+'">'+escapeHTML(n.autor||'')+'</span>' +
-        ' · '+spFormatFecha(n.ts)+
+        ' Â· '+spFormatFecha(n.ts)+
       '</div>' +
       (n.fotoUrl ? '<img src="'+escapeHTML(n.fotoUrl)+'" style="max-width:100%;border-radius:6px;margin-top:8px;max-height:200px;object-fit:cover">' : '') +
     '</div>';
-  }).join('') : '<div style="font-size:12px;color:var(--text3);text-align:center;padding:12px">Sin notas técnicas todavía</div>';
+  }).join('') : '<div style="font-size:12px;color:var(--text3);text-align:center;padding:12px">Sin notas tÃ©cnicas todavÃ­a</div>';
   if (fotosCont) fotosCont.innerHTML = '';
 }
 
 function otAgregarNota() {
   var inp = document.getElementById('ot-nota-nueva');
   var texto = inp ? inp.value.trim() : '';
-  if (!texto) { notify('Ingresá el texto de la nota'); return; }
+  if (!texto) { notify('IngresÃ¡ el texto de la nota'); return; }
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB) return;
   var notas = ot.notasTecnico ? ot.notasTecnico.slice() : [];
-  notas.push({ texto, autor: currentUser||'Técnico', ts: Date.now() });
+  notas.push({ texto, autor: currentUser||'TÃ©cnico', ts: Date.now() });
   var key = ot.fbKey || otActualId;
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico: notas })
-    .then(function(){ inp.value=''; notify('✓ Nota agregada'); })
+    .then(function(){ inp.value=''; notify('âœ“ Nota agregada'); })
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
@@ -20150,10 +20335,10 @@ function otAgregarFoto(input) {
     return window.fbGetDownloadURL(sRef);
   }).then(function(url) {
     var notas = ot.notasTecnico ? ot.notasTecnico.slice() : [];
-    notas.push({ texto: texto||'Foto', autor: currentUser||'Técnico', ts: Date.now(), fotoUrl: url });
+    notas.push({ texto: texto||'Foto', autor: currentUser||'TÃ©cnico', ts: Date.now(), fotoUrl: url });
     var key = ot.fbKey || otActualId;
     return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico: notas });
-  }).then(function(){ if(inp) inp.value=''; notify('✓ Foto adjuntada'); })
+  }).then(function(){ if(inp) inp.value=''; notify('âœ“ Foto adjuntada'); })
   .catch(function(e){ notify('Error: '+e.message); });
 }
 
@@ -20181,14 +20366,14 @@ function renderChecklist(containerId, checks, labels, otId, fase) {
     </div>`).join('');
 }
 
-// Toggle un ítem del checklist
+// Toggle un Ã­tem del checklist
 function toggleCheckOT(otId, fase, idx) {
   const ot = otData.find(o => o.id === otId || o.fbKey === otId);
   if (!ot || ot.estado === 'completada') return;
   ot.checks[fase][idx] = !ot.checks[fase][idx];
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   if (!ot.audit) ot.audit = [];
-  ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: (ot.checks[fase][idx] ? '✓ ' : '✗ ') + CHECKLISTS[fase][idx] });
+  ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: (ot.checks[fase][idx] ? 'âœ“ ' : 'âœ— ') + CHECKLISTS[fase][idx] });
   actualizarProgreso(ot);
   renderChecklist(`checklist-${fase}`, ot.checks[fase], CHECKLISTS[fase], otId, fase);
   if (typeof fbGuardarOT === 'function') {
@@ -20212,7 +20397,7 @@ function actualizarProgreso(ot) {
     ot.fechaCompletada = ot.fechaCompletada || hoyCierre;
     const badge = document.getElementById('ot-det-estado-badge');
     if (badge) badge.innerHTML = otBadge('completada');
-    notify('¡Checklist completo! Podés finalizar la OT.');
+    notify('Â¡Checklist completo! PodÃ©s finalizar la OT.');
   }
 }
 
@@ -20221,7 +20406,7 @@ function completarOT() {
   const ot = otData.find(o => o.id === otActualId || o.fbKey === otActualId);
   if (!ot) return;
   var _oc=document.getElementById('ot-acta-conf'); const conf = _oc?_oc.value:'';
-  if (!conf) { notify('Seleccioná la conformidad del cliente'); return; }
+  if (!conf) { notify('SeleccionÃ¡ la conformidad del cliente'); return; }
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.estado = 'completada';
   ot.progreso = 100;
@@ -20230,26 +20415,26 @@ function completarOT() {
   ot.fechaCompletada = ot.fechaCompletada || hoyCierre;
   if (!ot.audit) ot.audit = [];
   ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: 'OT marcada como completada. Conformidad: ' + conf });
-  ot.audit.push({ fecha: ahora, usuario: 'Sistema', accion: 'Garantía activada automáticamente' });
+  ot.audit.push({ fecha: ahora, usuario: 'Sistema', accion: 'GarantÃ­a activada automÃ¡ticamente' });
   document.getElementById('ot-det-estado-badge').innerHTML = otBadge('completada');
 
   if (ot.ventaId && window.fbDB) {
-    var ventaVinculada = (ventasList||[]).find(function(v){ return v.id === ot.ventaId; });
+    var ventaVinculada = _svResolverVentaRegistro(ot);
     if (ventaVinculada && ventaVinculada.fbKey && ventaVinculada.estadoInst !== 'instalado') {
       window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaVinculada.fbKey), { estadoInst: 'instalado' })
-        .catch(function(e){ console.error('Error al actualizar estado de instalación de la venta:', e); });
+        .catch(function(e){ console.error('Error al actualizar estado de instalaciÃ³n de la venta:', e); });
     }
   }
 
   if (typeof fbGuardarOT === 'function') {
     fbGuardarOT(ot)
       .then(function() {
-        notify('✓ OT completada y guardada en Firebase');
+        notify('âœ“ OT completada y guardada en Firebase');
         volverListaOT();
       })
       .catch(function(e) { notify('OT completada pero error al guardar: ' + e.message); });
   } else {
-    notify('Orden de trabajo completada. Garantía activada.');
+    notify('Orden de trabajo completada. GarantÃ­a activada.');
     volverListaOT();
   }
 }
@@ -20292,7 +20477,7 @@ function actualizarOT() {
 
   var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   if (!ot.audit) ot.audit = [];
-  ot.audit.push({ fecha: ahora, usuario: currentUser || 'Sistema', accion: 'Datos de la OT actualizados' + (ot.prioridad ? ' · Marcada como PRIORIDAD' : '') });
+  ot.audit.push({ fecha: ahora, usuario: currentUser || 'Sistema', accion: 'Datos de la OT actualizados' + (ot.prioridad ? ' Â· Marcada como PRIORIDAD' : '') });
 
   if (typeof fbGuardarOT === 'function') fbGuardarOT(ot);
   notify('OT actualizada');
@@ -20321,8 +20506,8 @@ function volverListaOT() {
   document.dispatchEvent(new CustomEvent('sisventas:ot-closed'));
 }
 
-// Normaliza cliente+dirección para detectar si es la misma instalación,
-// tolerando diferencias menores de mayúsculas/espacios/tildes simples.
+// Normaliza cliente+direcciÃ³n para detectar si es la misma instalaciÃ³n,
+// tolerando diferencias menores de mayÃºsculas/espacios/tildes simples.
 function _claveInstalacion(cliente, dir) {
   function limpiar(s) {
     return (s||'').toLowerCase().trim()
@@ -20331,7 +20516,7 @@ function _claveInstalacion(cliente, dir) {
   }
   return limpiar(cliente) + '|' + limpiar(dir);
 }
-// sin contar la OT actual. Sirve para marcar automáticamente cuándo una visita es una repetición.
+// sin contar la OT actual. Sirve para marcar automÃ¡ticamente cuÃ¡ndo una visita es una repeticiÃ³n.
 function _contarVisitasPrevias(cliente, dir, otIdExcluir) {
   var clave = _claveInstalacion(cliente, dir);
   return (otData||[]).filter(function(o) {
@@ -20340,26 +20525,35 @@ function _contarVisitasPrevias(cliente, dir, otIdExcluir) {
 }
 
 function generarOTdesdeVenta(ventaId, cliente, dir) {
-  var existente=(otData||[]).find(function(ot){return String(ot&&ot.ventaId||'')===String(ventaId||'');});
-  if(existente) return existente.id||existente.fbKey||'';
   var venta=(ventasList||[]).find(function(item){
     return String(item.id||item.numero||item.fbKey||'')===String(ventaId||'') ||
       (String(ventaId||'').replace(/\D/g,'') && String(item.id||item.numero||item.fbKey||'').replace(/\D/g,'')===String(ventaId||'').replace(/\D/g,''));
   })||null;
+  var ventaRef = venta || { id: ventaId, numero: ventaId, ventaId: ventaId };
+  var existente=(otData||[]).find(function(ot){return _svRegistroPerteneceVenta(ot, ventaRef);});
+  if(existente) return existente.id||existente.fbKey||'';
   if(!dir||!String(dir).trim()||String(dir).trim()==='Sin definir'){
     if(typeof window._otResolverDireccionCliente==='function'){
       dir=window._otResolverDireccionCliente({ventaId:ventaId,cliente:cliente,clienteId:venta&&(venta.clienteId||venta.idCliente||venta.id_cli),ventaObj:venta})||'';
     }
   }
   var visitasPrevias = _contarVisitasPrevias(cliente, dir, null);
+  function idOTLocalSeguro() {
+    var max = 0;
+    (otData||[]).forEach(function(o){
+      var m = String(o && o.id || '').match(/OT-(\d+)/i);
+      if (m) max = Math.max(max, parseInt(m[1], 10) || 0);
+    });
+    return 'OT-' + String(max + 1).padStart(3, '0');
+  }
   const nuevo = {
-    id: 'OT-0' + (otData.length + 19),
-    ventaId, ventaFbKey:venta&&(venta.fbKey||''), cliente, clienteId:venta&&(venta.clienteId||''), tecnico: 'Sin asignar',
+    id: idOTLocalSeguro(),
+    ventaId, ventaFbKey:venta&&(venta.fbKey||''), ventaKey:venta&&(venta.fbKey||''), cliente, clienteId:venta&&(venta.clienteId||venta.idCliente||''), clienteFbKey:venta&&(venta.clienteFbKey||venta.clienteKey||''), tecnico: 'Sin asignar',
     origen:'venta',
     fecha: '', hora: '09:00', duracion: '4 horas',
-    dir: dir || 'Sin definir', obs: 'Generada automáticamente desde ' + ventaId,
+    dir: dir || 'Sin definir', obs: 'Generada automÃ¡ticamente desde ' + ventaId,
     estado: 'pendiente', progreso: 0,
-    tipoVisita: visitasPrevias > 0 ? 'Mantenimiento' : 'Instalación nueva',
+    tipoVisita: visitasPrevias > 0 ? 'Mantenimiento' : 'InstalaciÃ³n nueva',
     esRepetida: visitasPrevias > 0,
     visitaNro: visitasPrevias + 1,
     checks: {
@@ -20368,19 +20562,23 @@ function generarOTdesdeVenta(ventaId, cliente, dir) {
       verificacion: CHECKLISTS.verificacion.map(() => false),
     },
     materiales: venta ? otNormalizarMateriales(venta.items||[], []) : [],
-    audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: 'Sistema', accion: 'OT generada automáticamente desde venta ' + ventaId + (visitasPrevias > 0 ? ' (visita Nº ' + (visitasPrevias+1) + ' a esta instalación)' : '') }]
+    audit: [{ fecha: new Date().toLocaleDateString('es-AR'), usuario: 'Sistema', accion: 'OT generada automÃ¡ticamente desde venta ' + ventaId + (visitasPrevias > 0 ? ' (visita NÂº ' + (visitasPrevias+1) + ' a esta instalaciÃ³n)' : '') }]
   };
-  otData.unshift(nuevo);
-  if (typeof fbGuardarOT === 'function') {
+  if (typeof window.crearRegistroOTSeguro === 'function' && window.fbDB) {
+    window.crearRegistroOTSeguro(nuevo, { evitarDoble:true }).then(function(ref) {
+      if (ref && ref.key) nuevo.fbKey = ref.key;
+    }).catch(function(e){ notify('No se pudo crear la OT: ' + e.message); });
+  } else if (typeof fbGuardarOT === 'function') {
+    otData.unshift(nuevo);
     fbGuardarOT(nuevo).then(function(fbKey) { if (fbKey) nuevo.fbKey = fbKey; });
   }
   return nuevo.id;
 }
 
-// Inicializar al entrar al módulo
+// Inicializar al entrar al mÃ³dulo
 // KPIs DASHBOARD
-// ══════════════════════════════════════════════
-// TABLERO EJECUTIVO — datos reales
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// TABLERO EJECUTIVO â€” datos reales
 function renderTablero() {
   var anioSel = parseInt((document.getElementById('tab-anio-sel')||{}).value) || new Date().getFullYear();
   var mesActual = new Date().toISOString().slice(0,7);
@@ -20397,20 +20595,20 @@ function renderTablero() {
     ? ventasConMargen.reduce(function(s,v){ return s+(parseFloat(v.margenPct)||0); },0)/ventasConMargen.length
     : null;
 
-  // Clientes únicos que compraron en el año
+  // Clientes Ãºnicos que compraron en el anio
   var clientesActivos = new Set(ventas.map(function(v){ return v.cliente||v.clienteId; })).size;
 
   _e('tab-anio-label', anioSel);
   _e('tab-ventas-acum', '$'+Math.round(totalAnio).toLocaleString('es-AR'));
-  _e('tab-ventas-sub', ventas.length + ' ventas en el año');
-  _e('tab-margen', margenProm !== null ? Math.round(margenProm)+'%' : '—');
+  _e('tab-ventas-sub', ventas.length + ' ventas en el anio');
+  _e('tab-margen', margenProm !== null ? Math.round(margenProm)+'%' : 'â€”');
   _e('tab-margen-sub', 'promedio de ventas con margen');
   _e('tab-clientes', clientesActivos);
   _e('tab-clientes-sub', 'compraron en ' + anioSel);
   _e('tab-ticket', '$'+Math.round(ticketProm).toLocaleString('es-AR'));
   _e('tab-ticket-sub', 'ticket promedio anual');
 
-  // Gráfico de barras mensual
+  // GrÃ¡fico de barras mensual
   var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   var datosPorMes = MESES.map(function(m, i) {
     var mes = String(anioSel) + '-' + String(i+1).padStart(2,'0');
@@ -20429,7 +20627,7 @@ function renderTablero() {
       var hv = Math.round((d.ventas/maxVal)*100);
       var hg = Math.round((d.gastos/maxVal)*100);
       var esMes = d.esMesActual;
-      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px" title="'+d.mes+' — Ventas: $'+Math.round(d.ventas).toLocaleString('es-AR')+' / Gastos: $'+Math.round(d.gastos).toLocaleString('es-AR')+'">' +
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px" title="'+d.mes+' â€” Ventas: $'+Math.round(d.ventas).toLocaleString('es-AR')+' / Gastos: $'+Math.round(d.gastos).toLocaleString('es-AR')+'">' +
         '<div style="width:100%;display:flex;gap:2px;align-items:flex-end;height:100px">' +
           '<div style="flex:1;background:'+(esMes?'var(--green)':'var(--green-bg)')+';border:1px solid var(--green);border-radius:3px 3px 0 0;height:'+hv+'%;min-height:'+(d.ventas>0?'2px':'0')+'"></div>' +
           '<div style="flex:1;background:'+(esMes?'var(--red)':'var(--red-bg)')+';border:1px solid var(--red);border-radius:3px 3px 0 0;height:'+hg+'%;min-height:'+(d.gastos>0?'2px':'0')+'"></div>' +
@@ -20494,14 +20692,14 @@ function renderTablero() {
     .reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
   var otsPend = (otData||[]).filter(function(ot){ return ot.estado !== 'completada'; }).length;
 
-  _e('tab-cobrado-mes', pctCobrado !== null ? pctCobrado+'%' : '—');
+  _e('tab-cobrado-mes', pctCobrado !== null ? pctCobrado+'%' : 'â€”');
   _e('tab-pendiente', '$'+Math.round(pendienteCobro).toLocaleString('es-AR'));
   _e('tab-pendiente-sub', ventasPendientes.length + ' venta' + (ventasPendientes.length!==1?'s':'') + ' sin cobrar');
   _e('tab-gastos-mes', '$'+Math.round(gastosMes).toLocaleString('es-AR'));
   _e('tab-gastos-sub', (gastosList||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; }).length + ' gastos este mes');
   _e('tab-ots-pend', otsPend);
 }
-// Misma fuente que la tarjeta "Compensación de IVA" en Facturaciones — debe coincidir siempre.
+// Misma fuente que la tarjeta "CompensaciÃ³n de IVA" en Facturaciones â€” debe coincidir siempre.
 function actualizarKpiIvaDashboard() {
   var hoyDate = new Date();
   var mesActual = hoyDate.getFullYear() + '-' + String(hoyDate.getMonth()+1).padStart(2,'0');
@@ -20515,7 +20713,7 @@ function actualizarKpiIvaDashboard() {
   var ivaMesEl = document.getElementById('kpi-iva-mes');
   if (ivaMesEl) {
     var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-    ivaMesEl.textContent = (aFavor ? 'a favor · ' : 'a pagar · ') + meses[hoyDate.getMonth()] + ' ' + hoyDate.getFullYear();
+    ivaMesEl.textContent = (aFavor ? 'a favor Â· ' : 'a pagar Â· ') + meses[hoyDate.getMonth()] + ' ' + hoyDate.getFullYear();
   }
 }
 
@@ -20600,7 +20798,7 @@ function renderDashMiCuenta() {
     if(el('dash-mc-total'))      el('dash-mc-total').textContent      = fmt(totalCobrar);
     if(el('dash-mc-comisiones')) el('dash-mc-comisiones').textContent = fmt(totalComPend + totalComAprob);
     if(el('dash-mc-comisiones-sub')) el('dash-mc-comisiones-sub').textContent =
-      comisionesPend.length + ' pendiente' + (comisionesPend.length !== 1 ? 's' : '') + ' · ' + comisionesAprob.length + ' aprobada' + (comisionesAprob.length !== 1 ? 's' : '') + ' sin pagar';
+      comisionesPend.length + ' pendiente' + (comisionesPend.length !== 1 ? 's' : '') + ' Â· ' + comisionesAprob.length + ' aprobada' + (comisionesAprob.length !== 1 ? 's' : '') + ' sin pagar';
     if(el('dash-mc-adelantos'))  el('dash-mc-adelantos').textContent  = fmt(totalAdelanto);
 
     var hsexBox = el('dash-mc-hsextra-box');
@@ -20639,17 +20837,17 @@ function renderDashMiCuenta() {
         histBody.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px">Sin movimientos este mes</div>';
       } else {
         var colorTipo = { sueldo:'var(--blue)', hextra:'var(--amber)', comision:'var(--green)', adelanto:'var(--red)', gasto_empresa:'var(--text3)', transporte:'var(--text3)', aguinaldo:'var(--blue)' };
-        var labelTipo = { sueldo:'Sueldo', hextra:'Hs. extra', comision:'Comisión', adelanto:'Adelanto', gasto_empresa:'Gasto', transporte:'Transporte', aguinaldo:'Aguinaldo' };
+        var labelTipo = { sueldo:'Sueldo', hextra:'Hs. extra', comision:'ComisiÃ³n', adelanto:'Adelanto', gasto_empresa:'Gasto', transporte:'Transporte', aguinaldo:'Aguinaldo' };
         histBody.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
           movsHist.map(function(m) {
             var estadoCalc = _movEmpEstadoCalculado(m);
             var color  = colorTipo[m.tipo] || 'var(--text)';
-            var label  = labelTipo[m.tipo] || m.tipo || '—';
+            var label  = labelTipo[m.tipo] || m.tipo || 'â€”';
             var esEgreso = m.tipo === 'adelanto';
             var montoMostrar = _movEmpSaldoPendiente(m) || (parseFloat(m.monto)||0);
             var monto  = (esEgreso ? '-' : '') + '$' + Math.round(montoMostrar).toLocaleString('es-AR');
             var estadoColor = estadoCalc === 'pendiente' ? 'var(--amber)' : (estadoCalc === 'pagado' || estadoCalc === 'aprobado') ? 'var(--green)' : 'var(--text3)';
-            var estadoLabel = {pendiente:'Pendiente',aprobado:'Aprobado',pagado:'Pagado',pagado_parcial:'Pago parcial',rechazado:'Rechazado',anulado:'Anulado'}[estadoCalc] || estadoCalc || '—';
+            var estadoLabel = {pendiente:'Pendiente',aprobado:'Aprobado',pagado:'Pagado',pagado_parcial:'Pago parcial',rechazado:'Rechazado',anulado:'Anulado'}[estadoCalc] || estadoCalc || 'â€”';
             var fechaRaw = _movEmpFechaVisual(m);
             return '<tr style="border-bottom:0.5px solid var(--border)">' +
               '<td style="padding:8px 0;width:80px;font-size:11px;color:var(--text3)">' + (fechaRaw||'').slice(0,10) + '</td>' +
@@ -20687,7 +20885,7 @@ function renderDashAdministrativo() {
   if(el('dash-adm-ventas-sub'))el('dash-adm-ventas-sub').textContent= misVentas.length + ' este mes';
   if(el('dash-adm-conv'))      el('dash-adm-conv').textContent      = tasaConv + '%';
 
-  // Últimas ventas del administrativo
+  // Ãšltimas ventas del administrativo
   var cont = el('dash-adm-ultventas');
   if (!cont) return;
   var ults = misVentas.slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); }).slice(0,5);
@@ -20695,7 +20893,7 @@ function renderDashAdministrativo() {
     cont.innerHTML = '<div style="text-align:center;color:var(--text3);padding:12px;font-size:13px">Sin ventas este mes</div>';
     return;
   }
-  cont.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Mis últimas ventas</div>' +
+  cont.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Mis Ãºltimas ventas</div>' +
     ults.map(function(v) {
       return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--radius)">' +
         '<div style="flex:1"><div style="font-size:13px;font-weight:500">'+escapeHTML(v.cliente||'')+'</div>' +
@@ -20712,19 +20910,19 @@ function renderDashMisOTs() {
     return (o.tecnico||'') === (currentUser||'') && o.estado !== 'completada';
   }).sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); });
   if (!mis.length) {
-    cont.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px;font-size:13px">No tenés OTs pendientes asignadas</div>';
+    cont.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px;font-size:13px">No tenÃ©s OTs pendientes asignadas</div>';
     return;
   }
   cont.innerHTML = mis.map(function(o) {
     var dir = o.dir || o.direccion || '';
     if (!dir && o.cliente) {
-      var c = (clientesData||[]).find(function(c){ return c.nombre===o.cliente; });
+      var c = _svResolverClienteRegistro(o, true);
       if (c) dir = c.direccion || c.domicilio || '';
     }
     var estadoColor = o.estado==='en_curso'?'var(--blue)':o.estado==='pendiente'?'var(--amber)':'var(--text3)';
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius);cursor:pointer" onclick="showPage(\'ordentrabajo\',null);setTimeout(function(){verOT(\''+o.fbKey+'\')},300)">' +
       '<div style="flex:1">' +
-        '<div style="font-weight:500;font-size:13px">'+escapeHTML(o.cliente||'—')+'</div>' +
+        '<div style="font-weight:500;font-size:13px">'+escapeHTML(o.cliente||'â€”')+'</div>' +
         (dir?'<div style="font-size:11px;color:var(--text3)"><i class="ti ti-map-pin" style="font-size:10px"></i> '+escapeHTML(dir)+'</div>':'') +
         '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(o.descripcion||o.desc||'')+'</div>' +
       '</div>' +
@@ -20738,7 +20936,7 @@ function renderDashMisOTs() {
 
 function renderKPIsDashboard() {
   var hoyDate = new Date();
-  var hoy  = hoyDate.toLocaleDateString('es-AR'); // DD/MM/YYYY — formato real que usa el sistema
+  var hoy  = hoyDate.toLocaleDateString('es-AR'); // DD/MM/YYYY â€” formato real que usa el sistema
   var ayerDate = new Date(Date.now()-86400000);
   var ayer = ayerDate.toLocaleDateString('es-AR');
   var esAdmin = (currentRole === 'admin' || currentRole === 'administrativo');
@@ -20757,10 +20955,10 @@ function renderKPIsDashboard() {
   _set('kpi-ventas-hoy', '$' + Math.round(totalHoy).toLocaleString('es-AR'));
   var diffEl = document.getElementById('kpi-ventas-diff');
   if (diffEl) {
-    diffEl.textContent = (diffPct >= 0 ? '↑ +' : '↓ ') + diffPct + '% vs ayer';
+    diffEl.textContent = (diffPct >= 0 ? 'â†‘ +' : 'â†“ ') + diffPct + '% vs ayer';
     diffEl.style.color = diffPct >= 0 ? 'var(--green)' : 'var(--red)';
   }
-  // Mismo criterio que usa Cobranzas: si está en pago_total el saldo es 0,
+  // Mismo criterio que usa Cobranzas: si estÃ¡ en pago_total el saldo es 0,
   // sino se resta lo ya cobrado (campo real: totalPagado)
   var ventasDeuda = esAdmin ? todasVentas : ventas;
   function _saldoPendienteVenta(v) {
@@ -20786,7 +20984,7 @@ function renderKPIsDashboard() {
   var pptoSubEl = document.getElementById('kpi-pptos-sub');
   if (pptoSubEl) pptoSubEl.textContent = pptosActivos.length + ' activos';
   var pptoConvEl = document.getElementById('kpi-pptos-conv');
-  if (pptoConvEl) pptoConvEl.textContent = pptosConvertidos.length + ' convertidos · ' + tasaConv + '% conversión';
+  if (pptoConvEl) pptoConvEl.textContent = pptosConvertidos.length + ' convertidos Â· ' + tasaConv + '% conversiÃ³n';
   actualizarKpiIvaDashboard();
   var dias7 = [];
   for (var i = 6; i >= 0; i--) {
@@ -20836,7 +21034,7 @@ function renderKPIsDashboard() {
     if (ultimas.length) {
       ultVentasEl.innerHTML = ultimas.map(function(v) {
         var estadoLbl = v.estadoPago === 'pago_total' ? '<span class="badge b-green">Pagado</span>'
-                       : v.estadoPago === 'seniado' ? '<span class="badge b-blue">Señado</span>'
+                       : v.estadoPago === 'seniado' ? '<span class="badge b-blue">SeÃ±ado</span>'
                        : '<span class="badge b-amber">Pendiente</span>';
         var subtotal = parseFloat(v.subtotal) || 0;
         var iva = parseFloat(v.iva) || 0;
@@ -20863,14 +21061,14 @@ function renderKPIsDashboard() {
     if (ultimasM.length) {
       ultVentasMobileEl.innerHTML = ultimasM.map(function(v) {
         var estadoLbl = v.estadoPago === 'pago_total' ? '<span class="badge b-green">Pagado</span>'
-                       : v.estadoPago === 'seniado' ? '<span class="badge b-blue">Señado</span>'
+                       : v.estadoPago === 'seniado' ? '<span class="badge b-blue">SeÃ±ado</span>'
                        : '<span class="badge b-amber">Pendiente</span>';
         var total = parseFloat(v.total) || 0;
         var vid = escapeHTML(v.id||'');
         return '<div onclick="verDetalleVentaDesdeId(\'' + vid + '\')" style="display:flex;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer">' +
           '<span style="flex:1;min-width:0">' +
             '<div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(v.cliente||'') + '</div>' +
-            '<div style="font-size:11px;color:var(--text3)">' + vid + ' · ' + _mostrarFecha(v.fecha) + '</div>' +
+            '<div style="font-size:11px;color:var(--text3)">' + vid + ' Â· ' + _mostrarFecha(v.fecha) + '</div>' +
           '</span>' +
           '<span style="flex-shrink:0;margin-left:12px;font-weight:600;font-size:13px">$' + total.toLocaleString('es-AR') + '</span>' +
           '<span style="flex-shrink:0;margin-left:8px;min-width:68px;text-align:right">' + estadoLbl + '</span>' +
@@ -20896,7 +21094,7 @@ function renderKPIsDashboard() {
             (function(){
               var dir = o.dir || o.direccion || '';
               if (!dir && o.cliente) {
-                var c = (clientesData||[]).find(function(c){ return c.nombre===o.cliente||(c.nombre+' '+c.apellidos).trim()===o.cliente; });
+                var c = _svResolverClienteRegistro(o, true);
                 if (c) dir = c.direccion || c.domicilio || c.dir || '';
               }
               return dir ? '<div style="font-size:11px;color:var(--text3);margin-top:2px"><i class="ti ti-map-pin" style="font-size:10px"></i> ' + escapeHTML(dir) + '</div>' : '';
@@ -20921,17 +21119,17 @@ function renderRentabilidadDashboard(todasVentas) {
 
   var hoy = new Date();
   var mesActual = hoy.getMonth();
-  var añoActual = hoy.getFullYear();
+  var anioActual = hoy.getFullYear();
 
   var ventasDelMes = (todasVentas||[]).filter(function(v) {
     var f = v.fecha || '';
     var partes;
     if (f.indexOf('-') !== -1) { // YYYY-MM-DD
       partes = f.split('-');
-      return parseInt(partes[1])-1 === mesActual && parseInt(partes[0]) === añoActual;
+      return parseInt(partes[1])-1 === mesActual && parseInt(partes[0]) === anioActual;
     } else if (f.indexOf('/') !== -1) { // DD/MM/YYYY
       partes = f.split('/');
-      return parseInt(partes[1])-1 === mesActual && parseInt(partes[2]) === añoActual;
+      return parseInt(partes[1])-1 === mesActual && parseInt(partes[2]) === anioActual;
     }
     return false;
   });
@@ -20941,7 +21139,7 @@ function renderRentabilidadDashboard(todasVentas) {
     var f = g.fecha || '';
     if (f.indexOf('-') === -1) return false;
     var partes = f.split('-');
-    return parseInt(partes[1])-1 === mesActual && parseInt(partes[0]) === añoActual;
+    return parseInt(partes[1])-1 === mesActual && parseInt(partes[0]) === anioActual;
   });
   var gastosMes = gastosDelMes.reduce(function(s,g){ return s + (parseFloat(g.monto)||0); }, 0);
 
@@ -20995,39 +21193,49 @@ function verDetalleVentaDesdeId(ventaId) {
     if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaId);
   }, 150);
 }
-// HERRAMIENTA: MIGRAR COBROS HISTÓRICOS (desde Configuración)
-// ══════════════════════════════════════════════════════════════════════════════
+// HERRAMIENTA: MIGRAR COBROS HISTÃ“RICOS (desde ConfiguraciÃ³n)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function moverVentaAPresupuesto(ventaId) {
-  var v = (ventasList||[]).find(function(x){ return x.id===ventaId || x.fbKey===ventaId; });
+  var permitidoMover = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('ventas.moverPresupuesto', { args:[ventaId] })
+    : (typeof esAdminOAdministrativo === 'function' ? esAdminOAdministrativo() : ['admin','administrativo'].indexOf(String(currentRole||'').toLowerCase()) >= 0);
+  if (!permitidoMover) { notify('No tenÃ©s permiso para mover ventas a presupuestos'); return; }
+  var v = _svResolverVentaRegistro(ventaId);
   if (!v) { notify('Venta no encontrada'); return; }
   var diasVencInput = document.getElementById('cfg-dias-venc');
   var diasVenc = diasVencInput ? (parseInt(diasVencInput.value)||10) : 10;
-  if (!confirm('¿Mover la venta ' + ventaId + ' a Presupuestos?\n\nSe creará un presupuesto que vence en ' + diasVenc + ' día' + (diasVenc !== 1 ? 's' : '') + ', y la venta original se ELIMINARÁ del listado de ventas.\n\nEsta acción no se puede deshacer.')) return;
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (!confirm('Â¿Mover la venta ' + ventaId + ' a Presupuestos?\n\nSe crearÃ¡ un presupuesto que vence en ' + diasVenc + ' dÃ­a' + (diasVenc !== 1 ? 's' : '') + ', y la venta original se ELIMINARÃ del listado de ventas.\n\nEsta acciÃ³n no se puede deshacer.')) return;
+  if (!window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var ahora   = new Date().toISOString().split('T')[0];
   var vence   = new Date(Date.now() + diasVenc*86400000).toISOString().split('T')[0];
   var numPpto = 'PP-' + String(Date.now()).slice(-5);
   var ppto = {
     id: numPpto, cliente: v.cliente||'', empleado: v.empleado||v.usuario||currentUser||'',
-    clienteId: v.clienteId||v.idCliente||'', idCliente: v.clienteId||v.idCliente||'',
+    clienteId: v.clienteId||v.idCliente||'', idCliente: v.clienteId||v.idCliente||'', clienteFbKey: v.clienteFbKey||v.clienteKey||'',
     usuario: currentUser||'', fecha: ahora, vence: vence,
     items: v.items||[], subtotal: parseFloat(v.subtotal||v.total)||0,
     descuento: parseFloat(v.descuento)||0, iva: 0,
     total: parseFloat(v.total)||0, estado: 'enviado',
-    ventaOrigenId: ventaId, observaciones: 'Movido desde venta '+ventaId,
-    audit: [{ fecha:ahora, usuario:currentUser||'', accion:'Creado desde venta '+ventaId }],
+    ventaOrigenId: v.id || ventaId, ventaOrigenFbKey: v.fbKey || '', observaciones: 'Movido desde venta '+(v.id || ventaId),
+    audit: [{ fecha:ahora, usuario:currentUser||'', accion:'Creado desde venta '+(v.id || ventaId) }],
     ts: Date.now()
   };
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/presupuestos'), ppto)
     .then(function() {
-      // Eliminar la venta original — ya está movida a presupuestos
-      if (v.fbKey) {
-        return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/ventas/' + v.fbKey));
-      }
+      // Eliminar la venta original â€” ya estÃ¡ movida a presupuestos
+      var promesas = [];
+      (window._pagosListaActual||[]).filter(function(p){ return _svRegistroPerteneceVenta(p, v) && p.fbKey; }).forEach(function(p) {
+        promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + p.fbKey)));
+      });
+      (otData||[]).filter(function(o){ return _svRegistroPerteneceVenta(o, v) && o.fbKey; }).forEach(function(o) {
+        promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + o.fbKey)));
+      });
+      if (v.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/ventas/' + v.fbKey)));
+      return Promise.all(promesas);
     })
     .then(function() {
-      notify('✓ Presupuesto ' + numPpto + ' creado · Venta original eliminada · Vence ' + vence);
+      notify('âœ“ Presupuesto ' + numPpto + ' creado Â· Venta original eliminada Â· Vence ' + vence);
       showPage('presupuesto', document.querySelector('[onclick*="presupuesto"]'));
     })
     .catch(function(e){ notify('Error: '+e.message); });
@@ -21052,20 +21260,20 @@ function renderVentaTimeline(containerId, estadoActual) {
 function ventaEstadoBadge(est) {
   const map = {
     pendiente_pago: ['badge b-amber','Pendiente pago'],
-    seniado:        ['badge b-blue', 'Señado'],
+    seniado:        ['badge b-blue', 'SeÃ±ado'],
     pago_total:     ['badge b-green','Pago total'],
     anulada:        ['badge','Anulada'],
   };
-  const [cls, lbl] = map[est] || ['badge','—'];
+  const [cls, lbl] = map[est] || ['badge','â€”'];
   return `<span class="${cls}" style="${est==='anulada'?'background:rgba(239,68,68,.15);color:#f87171;border:0.5px solid rgba(239,68,68,.3)':''}">${lbl}</span>`;
 }
 
 function ventaEstadoInstBadge(est) {
   const map = {
     pendiente_inst: ['badge b-amber','No instalado'],
-    en_instalacion: ['badge b-blue', 'En instalación'],
+    en_instalacion: ['badge b-blue', 'En instalaciÃ³n'],
     instalado:      ['badge b-green','Instalado'],
-    con_garantia:   ['badge b-green','Con garantía'],
+    con_garantia:   ['badge b-green','Con garantÃ­a'],
   };
   const [cls, lbl] = map[est] || ['badge b-amber','No instalado'];
   return `<span class="${cls}">${lbl}</span>`;
@@ -21091,29 +21299,32 @@ function verHistorialCliente(id, nombre) {
   var avisoHcEl = document.getElementById('hc-aviso-cambio-externo');
   if (avisoHcEl) avisoHcEl.style.display = 'none';
 
-  if (typeof credSetCliente === 'function') credSetCliente(cli.id);
+  if (typeof credSetCliente === 'function') credSetCliente(cli.fbKey || cli.id, cli);
 
   // Header
   var iniciales = (cli.nombre||'').split(' ').slice(0,2).map(function(p){ return p[0]||''; }).join('').toUpperCase() || '?';
-  _set('hc-titulo','Historial — ' + cli.nombre);
+  _set('hc-titulo','Historial â€” ' + cli.nombre);
   _set('hc-avatar', cli.iniciales || iniciales);
   _set('hc-nombre',cli.nombre);
-  document.getElementById('hc-tel').innerHTML = '<i class="ti ti-phone" style="font-size:12px"></i> ' + (cli.tel||cli.telefono||'—');
-  document.getElementById('hc-email').innerHTML = '<i class="ti ti-mail" style="font-size:12px"></i> ' + (cli.email||cli.mail||'—');
-  document.getElementById('hc-dir').innerHTML = '<i class="ti ti-map-pin" style="font-size:12px"></i> ' + (cli.dir||'—');
+  document.getElementById('hc-tel').innerHTML = '<i class="ti ti-phone" style="font-size:12px"></i> ' + (cli.tel||cli.telefono||'â€”');
+  document.getElementById('hc-email').innerHTML = '<i class="ti ti-mail" style="font-size:12px"></i> ' + (cli.email||cli.mail||'â€”');
+  document.getElementById('hc-dir').innerHTML = '<i class="ti ti-map-pin" style="font-size:12px"></i> ' + (cli.dir||'â€”');
   var cliActivo = cli.estado === 'activo' || cli.activo !== false;
   document.getElementById('hc-estado-badge').innerHTML =
-    '<label class="toggle-sw" title="' + (cliActivo ? 'Activo — clic para dar de baja' : 'Inactivo — clic para reactivar') + '">' +
+    '<label class="toggle-sw" title="' + (cliActivo ? 'Activo â€” clic para dar de baja' : 'Inactivo â€” clic para reactivar') + '">' +
     '<input type="checkbox" ' + (cliActivo ? 'checked' : '') + ' onchange="toggleActivoCliente(\'' + cli.id + '\')">' +
     '<span class="toggle-knob"></span></label>' +
     '<span style="font-size:12px;color:var(--text3);margin-left:8px">' + (cliActivo ? 'Activo' : 'Inactivo') + '</span>';
 
-  // Filtro estricto por ID — nunca por nombre para evitar mezclar sucursales
+  // Filtro estricto por ID â€” nunca por nombre para evitar mezclar sucursales
   function filtrarPorCliente(lista) {
+    var idsCliente = [cli.fbKey, cli.id, cli.codigo, id].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
     return (lista || []).filter(function(v) {
-      return String(v.idClienteOriginal) === String(id) ||
-             String(v.clienteId)         === String(id) ||
-             String(v.idCliente)         === String(id);
+      return idsCliente.indexOf(String(v.clienteFbKey||'').trim()) >= 0 ||
+             idsCliente.indexOf(String(v.clienteKey||'').trim()) >= 0 ||
+             idsCliente.indexOf(String(v.idClienteOriginal||'').trim()) >= 0 ||
+             idsCliente.indexOf(String(v.clienteId||'').trim()) >= 0 ||
+             idsCliente.indexOf(String(v.idCliente||'').trim()) >= 0;
     });
   }
 
@@ -21130,7 +21341,7 @@ function verHistorialCliente(id, nombre) {
     saldoEl.textContent = '$' + Math.round(saldoDisplay).toLocaleString('es-AR');
     saldoEl.style.color = saldoDisplay > 0 ? 'var(--amber)' : 'var(--green)';
   }
-  _set('hc-saldo-sub', saldoDisplay > 0 ? 'pendiente de cobro' : 'al día');
+  _set('hc-saldo-sub', saldoDisplay > 0 ? 'pendiente de cobro' : 'al dÃ­a');
   _set('hc-equipos', vReales.length || (cli.equipos||0));
   _set('hc-garantia-sub', 'ventas registradas');
 
@@ -21153,7 +21364,21 @@ function verHistorialCliente(id, nombre) {
 
   // Tab pagos
   const pBody = document.getElementById('hc-pagos-body');
-  const todosLosPagos = ventas.flatMap(v => v.pagos.map(p => ({...p, ventaId:v.id})));
+  var idsClientePagos = [cli.fbKey, cli.id, cli.codigo, id].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+  const pagosEmbHist = ventas.flatMap(v => (Array.isArray(v.pagos) ? v.pagos : []).map(p => ({...p, ventaId:v.id, ventaFbKey:v.fbKey||''})));
+  const pagosGlobalHist = (window._pagosListaActual||[]).filter(function(p){
+    return idsClientePagos.indexOf(String(p.clienteFbKey||'').trim()) >= 0 ||
+      idsClientePagos.indexOf(String(p.clienteKey||'').trim()) >= 0 ||
+      idsClientePagos.indexOf(String(p.clienteId||'').trim()) >= 0 ||
+      idsClientePagos.indexOf(String(p.idCliente||'').trim()) >= 0;
+  });
+  const pagosVistosHist = {};
+  const todosLosPagos = pagosGlobalHist.concat(pagosEmbHist).filter(function(p){
+    var k = String(p.fbKey || p.id || p.key || '') || [p.fecha||'',p.monto||0,p.medio||p.medioPago||'',p.venta||p.ventaId||p.ventaFbKey||''].join('|');
+    if (pagosVistosHist[k]) return false;
+    pagosVistosHist[k] = true;
+    return true;
+  });
   pBody.innerHTML = todosLosPagos.length ? todosLosPagos.map(p => `<tr>
     <td>${escapeHTML(p.fecha)}</td>
     <td style="font-weight:500">${escapeHTML(p.ventaId)}</td>
@@ -21162,13 +21387,10 @@ function verHistorialCliente(id, nombre) {
     <td class="tr" style="color:${p.saldo>0?'var(--amber)':'var(--text3)'}">$${(parseFloat(p.saldo)||0).toLocaleString('es-AR')}</td>
   </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin pagos registrados</td></tr>';
 
-  // Tab presupuestos — filtrar por ID, no por nombre
+  // Tab presupuestos â€” filtrar por ID real; nombre solo como compatibilidad legacy
   var pptos = typeof pptoData !== 'undefined' ? pptoData.filter(function(p) {
-    return String(p.clienteId) === String(id) || String(p.idCliente) === String(id);
+    return _svRegistroPerteneceCliente(p, cli, true);
   }) : [];
-  if (!pptos.length && typeof pptoData !== 'undefined') {
-    pptos = pptoData.filter(function(p){ return p.cliente === cli.nombre && cli.nombre; });
-  }
   const ppBody = document.getElementById('hc-ppto-body');
   ppBody.innerHTML = pptos.length ? pptos.map(p => `<tr>
     <td style="font-weight:500">${escapeHTML(p.id)}</td>
@@ -21179,7 +21401,7 @@ function verHistorialCliente(id, nombre) {
   </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin presupuestos</td></tr>';
 
   // Tab tickets
-  const tickets = ventas.flatMap(v => v.tickets);
+  const tickets = ventas.flatMap(v => Array.isArray(v.tickets) ? v.tickets : []);
   const tBody = document.getElementById('hc-tickets-body');
   tBody.innerHTML = tickets.length ? tickets.map(t => `<tr>
     <td style="font-weight:500">${escapeHTML(t.n)}</td>
@@ -21189,7 +21411,7 @@ function verHistorialCliente(id, nombre) {
   </tr>`).join('') : '<tr><td colspan="4" style="color:var(--text3);text-align:center;padding:16px">Sin tickets</td></tr>';
 
   // Tab equipos
-  const equipos = ventas.flatMap(v => v.equipos.map(e => ({...e, ventaId:v.id})));
+  const equipos = ventas.flatMap(v => (Array.isArray(v.equipos) ? v.equipos : []).map(e => ({...e, ventaId:v.id})));
   const eBody = document.getElementById('hc-eq-body');
   eBody.innerHTML = equipos.length ? equipos.map(e => `<tr>
     <td>${escapeHTML(e.eq)}</td>
@@ -21205,7 +21427,7 @@ function verHistorialCliente(id, nombre) {
   // Activar tab ventas por defecto para no cambiar el flujo actual
   switchHistTab('ventas', document.querySelector('.hist-tab-btn[onclick*="ventas"]'));
 
-  // Huella para detectar cambios externos mientras se está mirando este historial
+  // Huella para detectar cambios externos mientras se estÃ¡ mirando este historial
   window._histClienteHuella = JSON.stringify({cli: cli, ventas: ventas});
 }
 
@@ -21213,7 +21435,7 @@ function renderClienteTimeline(cli, ventas, pptos, pagos) {
   var body = document.getElementById('hc-timeline-body');
   if (!body || !cli) return;
   function safe(v){ return (typeof escapeHTML === 'function') ? escapeHTML(v || '') : String(v || '').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-  function fecha(v){ return (v || '').slice(0,10) || '—'; }
+  function fecha(v){ return (v || '').slice(0,10) || 'â€”'; }
   function ts(v){ var d = Date.parse(fecha(v)); return isNaN(d) ? 0 : d; }
   function money(v){ return '$' + Math.round(parseFloat(v)||0).toLocaleString('es-AR'); }
   var eventos = [];
@@ -21224,7 +21446,7 @@ function renderClienteTimeline(cli, ventas, pptos, pagos) {
       icon: 'ti-file-description',
       color: 'var(--blue)',
       titulo: 'Presupuesto ' + (p.id || p.numero || ''),
-      detalle: (p.estado || '—') + ' · ' + money(p.total),
+      detalle: (p.estado || 'â€”') + ' Â· ' + money(p.total),
       accion: p.id ? 'verPpto(\'' + String(p.id).replace(/'/g,"\\'") + '\')' : ''
     });
     if (p.estado === 'convertido' || p.ventaId || p.ventaGeneradaId) {
@@ -21238,17 +21460,17 @@ function renderClienteTimeline(cli, ventas, pptos, pagos) {
       icon: 'ti-receipt',
       color: 'var(--green)',
       titulo: 'Venta ' + (v.id || v.numero || ''),
-      detalle: (v.estadoPago || '—') + ' · ' + money(v.total),
+      detalle: (v.estadoPago || 'â€”') + ' Â· ' + money(v.total),
       accion: v.id ? 'verDetalleVenta(\'' + String(v.id).replace(/'/g,"\\'") + '\')' : ''
     });
-    var ot = (typeof otData !== 'undefined' ? (otData || []) : []).find(function(o){ return String(o.ventaId || o.idVenta || '') === String(v.id || ''); });
+    var ot = (typeof otData !== 'undefined' ? (otData || []) : []).find(function(o){ return _svRegistroPerteneceVenta(o, v); });
     if (ot) {
       eventos.push({
         fecha: ot.fecha || ot.fechaProgramada || v.fecha || '',
         icon: 'ti-clipboard-list',
         color: ot.estado === 'completada' ? 'var(--green)' : 'var(--amber)',
         titulo: 'OT ' + (ot.id || ot.numero || ''),
-        detalle: (ot.estado || 'pendiente') + (ot.tecnico ? ' · ' + ot.tecnico : ''),
+        detalle: (ot.estado || 'pendiente') + (ot.tecnico ? ' Â· ' + ot.tecnico : ''),
         accion: (ot.fbKey || ot.id) ? 'verOT(\'' + String(ot.fbKey || ot.id).replace(/'/g,"\\'") + '\')' : ''
       });
     }
@@ -21259,15 +21481,15 @@ function renderClienteTimeline(cli, ventas, pptos, pagos) {
       fecha: p.fecha || p.createdAt || '',
       icon: 'ti-cash',
       color: 'var(--green)',
-      titulo: 'Pago recibido' + (p.ventaId ? ' · ' + p.ventaId : ''),
-      detalle: (p.medio || '—') + ' · ' + money(p.monto),
+      titulo: 'Pago recibido' + (p.ventaId ? ' Â· ' + p.ventaId : ''),
+      detalle: (p.medio || 'â€”') + ' Â· ' + money(p.monto),
       accion: p.ventaId ? 'verDetalleVenta(\'' + String(p.ventaId).replace(/'/g,"\\'") + '\')' : ''
     });
   });
 
   var otsSueltas = (typeof otData !== 'undefined' ? (otData || []) : []).filter(function(o){
-    if (o.ventaId || o.idVenta) return false;
-    return String(o.clienteId || o.idCliente || '') === String(cli.id || cli.fbKey || '') || (o.cliente && cli.nombre && o.cliente === cli.nombre);
+    if (o.ventaId || o.idVenta || o.ventaFbKey || o.ventaKey) return false;
+    return _svRegistroPerteneceCliente(o, cli, true);
   });
   otsSueltas.forEach(function(o){
     eventos.push({
@@ -21275,7 +21497,7 @@ function renderClienteTimeline(cli, ventas, pptos, pagos) {
       icon: 'ti-clipboard-list',
       color: o.estado === 'completada' ? 'var(--green)' : 'var(--amber)',
       titulo: 'OT ' + (o.id || o.numero || ''),
-      detalle: (o.estado || 'pendiente') + (o.tecnico ? ' · ' + o.tecnico : ''),
+      detalle: (o.estado || 'pendiente') + (o.tecnico ? ' Â· ' + o.tecnico : ''),
       accion: (o.fbKey || o.id) ? 'verOT(\'' + String(o.fbKey || o.id).replace(/'/g,"\\'") + '\')' : ''
     });
   });
@@ -21287,7 +21509,7 @@ function renderClienteTimeline(cli, ventas, pptos, pagos) {
       '<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;color:' + e.color + ';flex-shrink:0"><i class="ti ' + e.icon + '"></i></div>' +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-size:13px;font-weight:600;color:var(--text)">' + safe(e.titulo) + '</div>' +
-        '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + safe(fecha(e.fecha)) + ' · ' + safe(e.detalle) + '</div>' +
+        '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + safe(fecha(e.fecha)) + ' Â· ' + safe(e.detalle) + '</div>' +
       '</div>' + btn +
     '</div>';
   }).join('') : '<div style="text-align:center;color:var(--text3);padding:18px">Sin movimientos para mostrar</div>';
@@ -21302,21 +21524,51 @@ function switchHistTab(tab, btn) {
   if (tab === 'credenciales') credCargar();
 }
 // CREDENCIALES DEL CLIENTE
-// Ruta Firebase: sisventas/credenciales/{clienteId}/{credKey}
+// Ruta nueva: sisventas/credencialesPorCliente/{clienteFbKey}/{credKey}
+// Ruta legacy de respaldo: sisventas/credenciales/{clienteId}/{credKey}
 var _credClienteId = null;
+var _credClienteLegacyId = null;
 var _credEditKey = null;
 
 var CRED_TIPO_LABELS = {
-  dvr:'DVR / NVR', alarma:'Panel de alarma', app:'App móvil',
-  router:'Router / Red', camara:'Cámara IP', domotica:'Domótica', otro:'Otro'
+  dvr:'DVR / NVR', alarma:'Panel de alarma', app:'App mÃ³vil',
+  router:'Router / Red', camara:'CÃ¡mara IP', domotica:'DomÃ³tica', otro:'Otro'
 };
 var CRED_TIPO_ICONOS = {
   dvr:'ti-device-desktop-analytics', alarma:'ti-shield-check', app:'ti-device-mobile',
   router:'ti-router', camara:'ti-camera', domotica:'ti-smart-home', otro:'ti-key'
 };
 
-function credSetCliente(clienteId) {
-  _credClienteId = String(clienteId);
+function credSetCliente(clienteId, clienteObj) {
+  clienteObj = clienteObj || {};
+  _credClienteId = String(clienteObj.fbKey || clienteId || '');
+  _credClienteLegacyId = String(clienteObj.id || clienteObj.codigo || clienteId || '');
+}
+function credRutaNueva(itemKey) {
+  return 'sisventas/credencialesPorCliente/' + _credClienteId + (itemKey ? '/' + itemKey : '');
+}
+function credRutaLegacy(itemKey) {
+  return 'sisventas/credenciales/' + _credClienteLegacyId + (itemKey ? '/' + itemKey : '');
+}
+function credGetGrupo() {
+  return window.fbGet(window.fbRef(window.fbDB, credRutaNueva())).then(function(snap) {
+    var data = snap.val();
+    if (data) return { data:data, fuente:'nueva' };
+    if (!_credClienteLegacyId || _credClienteLegacyId === _credClienteId) return { data:null, fuente:'nueva' };
+    return window.fbGet(window.fbRef(window.fbDB, credRutaLegacy())).then(function(legacySnap) {
+      return { data: legacySnap.val(), fuente:'legacy' };
+    });
+  });
+}
+function credGetItem(fbKey) {
+  return window.fbGet(window.fbRef(window.fbDB, credRutaNueva(fbKey))).then(function(snap) {
+    var data = snap.val();
+    if (data) return { data:data, fuente:'nueva' };
+    if (!_credClienteLegacyId || _credClienteLegacyId === _credClienteId) return { data:null, fuente:'nueva' };
+    return window.fbGet(window.fbRef(window.fbDB, credRutaLegacy(fbKey))).then(function(legacySnap) {
+      return { data: legacySnap.val(), fuente:'legacy' };
+    });
+  });
 }
 
 function credCargar() {
@@ -21325,8 +21577,8 @@ function credCargar() {
   if (!lista) return;
   lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Cargando...</div>';
   credCerrarEditor();
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/credenciales/' + _credClienteId)).then(function(snap) {
-    var data = snap.val();
+  credGetGrupo().then(function(res) {
+    var data = res.data;
     if (!data) {
       lista.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin credenciales cargadas para este cliente</div>';
       return;
@@ -21344,12 +21596,12 @@ function credCargar() {
           '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">'+lbl+'</div>' +
           '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">' +
             (c.user ? '<div><span style="font-size:10px;color:var(--text3);display:block">Usuario</span><span style="font-size:13px;font-family:monospace">'+escapeHTML(c.user)+'</span></div>' : '') +
-            (c.pass ? '<div><span style="font-size:10px;color:var(--text3);display:block">Contraseña</span>' +
+            (c.pass ? '<div><span style="font-size:10px;color:var(--text3);display:block">ContraseÃ±a</span>' +
               '<div style="display:flex;align-items:center;gap:6px">' +
-                '<span style="font-size:13px;font-family:monospace" id="cred-pass-view-'+c.fbKey+'">••••••••</span>' +
+                '<span style="font-size:13px;font-family:monospace" id="cred-pass-view-'+c.fbKey+'">â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢</span>' +
                 '<button onclick="credMostrarPass(\''+c.fbKey+'\',\''+escapeHTML(c.pass||'').replace(/'/g,"\\'")+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:0" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
               '</div></div>' : '') +
-            (c.ip ? '<div><span style="font-size:10px;color:var(--text3);display:block">IP / Dirección</span><span style="font-size:12px;font-family:monospace">'+escapeHTML(c.ip)+(c.puerto?':'+escapeHTML(c.puerto):'')+'</span></div>' : '') +
+            (c.ip ? '<div><span style="font-size:10px;color:var(--text3);display:block">IP / DirecciÃ³n</span><span style="font-size:12px;font-family:monospace">'+escapeHTML(c.ip)+(c.puerto?':'+escapeHTML(c.puerto):'')+'</span></div>' : '') +
           '</div>' +
           (c.notas ? '<div style="margin-top:8px;font-size:12px;color:var(--text2);font-style:italic">'+escapeHTML(c.notas)+'</div>' : '') +
         '</div>' +
@@ -21362,11 +21614,11 @@ function credCargar() {
 function credMostrarPass(key, pass) {
   var el = document.getElementById('cred-pass-view-' + key);
   if (!el) return;
-  if (el.textContent === '••••••••') {
+  if (el.textContent === 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢') {
     el.textContent = pass;
-    setTimeout(function(){ if(el) el.textContent='••••••••'; }, 10000); // ocultar después de 10s
+    setTimeout(function(){ if(el) el.textContent='â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢'; }, 10000); // ocultar despuÃ©s de 10s
   } else {
-    el.textContent = '••••••••';
+    el.textContent = 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢';
   }
 }
 
@@ -21399,8 +21651,8 @@ function credAgregarNueva() {
 function credAbrirEditor(fbKey) {
   if (currentRole !== 'admin' && currentRole !== 'administrativo') return;
   _credEditKey = fbKey;
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/credenciales/'+_credClienteId+'/'+fbKey)).then(function(snap) {
-    var c = snap.val(); if (!c) return;
+  credGetItem(fbKey).then(function(res) {
+    var c = res.data; if (!c) return;
     document.getElementById('hc-cred-editor-titulo').textContent = 'Editar credencial';
     document.getElementById('cred-tipo').value  = c.tipo  || 'dvr';
     document.getElementById('cred-desc').value  = c.desc  || '';
@@ -21424,12 +21676,12 @@ function credCerrarEditor() {
 }
 
 function credGuardar() {
-  if (!_credClienteId || !window.fbDB) { notify('Sin conexión'); return; }
+  if (!_credClienteId || !window.fbDB) { notify('Sin conexiÃ³n'); return; }
   var tipo  = document.getElementById('cred-tipo').value;
   var desc  = document.getElementById('cred-desc').value.trim();
   var user  = document.getElementById('cred-user').value.trim();
   var pass  = document.getElementById('cred-pass').value.trim();
-  if (!user && !pass) { notify('Ingresá al menos usuario o contraseña'); return; }
+  if (!user && !pass) { notify('IngresÃ¡ al menos usuario o contraseÃ±a'); return; }
   var datos = {
     tipo, desc: desc || CRED_TIPO_LABELS[tipo],
     user, pass,
@@ -21439,12 +21691,12 @@ function credGuardar() {
     ts:      Date.now(),
     editadoPor: currentUser || ''
   };
-  var path = 'sisventas/credenciales/' + _credClienteId + '/' + (_credEditKey || '');
+  var path = credRutaNueva(_credEditKey || '');
   var op = _credEditKey
     ? window.fbUpdate(window.fbRef(window.fbDB, path), datos)
-    : window.fbPush(window.fbRef(window.fbDB, 'sisventas/credenciales/' + _credClienteId), datos);
+    : window.fbPush(window.fbRef(window.fbDB, credRutaNueva()), datos);
   op.then(function() {
-    notify('✓ Credencial guardada');
+    notify('âœ“ Credencial guardada');
     credCerrarEditor();
     credCargar();
   }).catch(function(e){ notify('Error: '+e.message); });
@@ -21452,14 +21704,14 @@ function credGuardar() {
 
 function credEliminar() {
   if (!_credEditKey || !_credClienteId) return;
-  if (!confirm('¿Eliminar esta credencial? No se puede deshacer.')) return;
-  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/credenciales/'+_credClienteId+'/'+_credEditKey))
+  if (!confirm('Â¿Eliminar esta credencial? No se puede deshacer.')) return;
+  window.fbRemove(window.fbRef(window.fbDB, credRutaNueva(_credEditKey)))
     .then(function(){ notify('Credencial eliminada'); credCerrarEditor(); credCargar(); })
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
 function verDetalleVenta(ventaId) {
-  var venta = ventasList ? ventasList.find(function(v){ return v.id === ventaId; }) : null;
+  var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('Venta no encontrada'); return; }
   window._ventaDetActualId = ventaId;
 
@@ -21482,14 +21734,14 @@ function renderDetalleVenta(v) {
 
   var ESTADO_PAGO = {
     'pendiente_pago': { label:'Pendiente de pago', color:'var(--amber)', icon:'ti-clock' },
-    'seniado':        { label:'Señado',             color:'var(--blue)',  icon:'ti-coin' },
+    'seniado':        { label:'SeÃ±ado',             color:'var(--blue)',  icon:'ti-coin' },
     'pago_total':     { label:'Pago total',         color:'var(--green)', icon:'ti-check' },
   };
   var ESTADO_INST = {
     'pendiente_inst': { label:'No instalado',   color:'var(--amber)', icon:'ti-clock' },
-    'en_instalacion': { label:'En instalación', color:'var(--blue)',  icon:'ti-tools' },
+    'en_instalacion': { label:'En instalaciÃ³n', color:'var(--blue)',  icon:'ti-tools' },
     'instalado':      { label:'Instalado',      color:'var(--green)', icon:'ti-check' },
-    'con_garantia':   { label:'Con garantía',   color:'var(--purple)',icon:'ti-shield-check' },
+    'con_garantia':   { label:'Con garantÃ­a',   color:'var(--purple)',icon:'ti-shield-check' },
   };
 
   function _estadoPagoPorImporteDetalle(totalVenta, pagadoVenta) {
@@ -21511,14 +21763,14 @@ function renderDetalleVenta(v) {
       var tipo = f.tipo || f.tipoComprobante || f.comprobanteTipo || f.comprobante_tipo || f.cbteTipo || 'Factura';
       var numero = f.numero || f.nro || f.numeroComprobante || f.comprobante || f.cbteNumero || f.numeroDesde || '';
       if (numero) return String(tipo) + ' ' + String(numero);
-      if (f.cae) return 'Emitida · CAE ' + String(f.cae);
+      if (f.cae) return 'Emitida Â· CAE ' + String(f.cae);
       return 'Emitida';
     }
     return String(f);
   }
 
   function _formatearOTAsociadaDetalleVenta(venta) {
-    if (!venta) return '—';
+    if (!venta) return 'â€”';
     var raw = String(venta.otId || venta.ordenTrabajoId || venta.ot || '').trim();
     var idsVenta = [venta.id, venta.fbKey, venta.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
     var ot = (window.otData || []).find(function(o){
@@ -21530,11 +21782,11 @@ function renderDetalleVenta(v) {
     });
     if (ot) return String(ot.id || ot.numero || 'OT vinculada');
     if (raw && /^OT[-\s]?\d+/i.test(raw)) return raw;
-    return raw ? 'OT vinculada' : '—';
+    return raw ? 'OT vinculada' : 'â€”';
   }
 
-  var ep = ESTADO_PAGO[v.estadoPago] || { label: v.estadoPago||'—', color:'var(--text3)', icon:'ti-minus' };
-  var ei = ESTADO_INST[v.estadoInst] || { label: v.estadoInst||'—', color:'var(--text3)', icon:'ti-minus' };
+  var ep = ESTADO_PAGO[v.estadoPago] || { label: v.estadoPago||'â€”', color:'var(--text3)', icon:'ti-minus' };
+  var ei = ESTADO_INST[v.estadoInst] || { label: v.estadoInst||'â€”', color:'var(--text3)', icon:'ti-minus' };
   var total    = parseFloat(v.total) || 0;
   var descuento = parseFloat(v.descuento) || 0; // monto en pesos
   var iva      = parseFloat(v.iva) || 0;
@@ -21552,7 +21804,7 @@ function renderDetalleVenta(v) {
     if (totalSinIva > 0) total = totalSinIva;
   }
 
-  // Subtotal: si no está guardado, calcularlo desde los ítems
+  // Subtotal: si no estÃ¡ guardado, calcularlo desde los Ã­tems
   var subtotal = parseFloat(v.subtotal) || 0;
   if (!subtotal && v.items && v.items.length) {
     subtotal = v.items.reduce(function(s, it) {
@@ -21572,11 +21824,14 @@ function renderDetalleVenta(v) {
   }
   var gananciaDetalle = netoDetalle - costoDetalle;
   var margenDetalle = netoDetalle > 0 ? (gananciaDetalle / netoDetalle * 100) : 0;
+  var idsVentaDetalle = [v.fbKey, v.id, v.numero, v.nro, v.codigo].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
   var ventaIdNum = String(v.id||'').replace(/[^0-9]/g,'');
   var pagosGlobales = (window._historialPagosCompleto||[]).filter(function(p) {
-    var pVenta = String(p.venta||p.ventaId||'');
+    if (p && (p.anulado || String(p.estado||'').toLowerCase()==='anulado')) return false;
+    var pVenta = String(p.ventaFbKey||p.ventaKey||p.venta||p.ventaId||p.idVenta||p.nroVenta||p.numeroVenta||'');
     var pNum   = pVenta.replace(/[^0-9]/g,'');
-    return pVenta === v.id || pVenta === v.fbKey || (ventaIdNum && pNum === ventaIdNum);
+    if (idsVentaDetalle.indexOf(pVenta) >= 0) return true;
+    return ventaIdNum && pNum === ventaIdNum;
   });
   var pagosEmbebidos = Array.isArray(v.pagos) ? v.pagos : [];
   // Unir fuentes de pago sin duplicar. El estado visual sale del importe real, no del flag legacy.
@@ -21603,6 +21858,12 @@ function renderDetalleVenta(v) {
   var otAsociada = _formatearOTAsociadaDetalleVenta(v);
   var facturaTxt = _formatearFacturaDetalleVenta(v);
   var puedeVerInternosVenta = (currentRole === 'admin');
+  var puedeMoverVentaAPptoDetalle = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('ventas.moverPresupuesto')
+    : (typeof esAdminOAdministrativo === 'function' ? esAdminOAdministrativo() : ['admin','administrativo'].indexOf(String(currentRole||'').toLowerCase()) >= 0);
+  var puedeEliminarVentaDetalle = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('ventas.eliminar')
+    : String(currentRole || '').toLowerCase() === 'admin';
   var metricVentaHtml = '<div class="metrics" id="venta-detalle-metricas" style="margin-bottom:12px;grid-template-columns:repeat(' + (puedeVerInternosVenta ? '4' : '3') + ',minmax(0,1fr))">' +
     '<div class="metric"><div class="m-label">Total venta</div><div class="m-value">$' + Math.round(total).toLocaleString('es-AR') + '</div><div class="m-sub">' + ep.label + '</div></div>' +
     '<div class="metric"><div class="m-label">Pagado</div><div class="m-value" style="color:var(--green)">$' + Math.round(pagado).toLocaleString('es-AR') + '</div><div class="m-sub">' + porcPagado.toFixed(0) + '% de la venta</div></div>' +
@@ -21610,38 +21871,38 @@ function renderDetalleVenta(v) {
     (puedeVerInternosVenta ? '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">$' + Math.round(gananciaDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">margen ' + margenDetalle.toFixed(1) + '%</div></div>' : '') +
   '</div>' +
   '<div class="metrics" id="venta-detalle-seguimiento" style="margin-bottom:12px;grid-template-columns:repeat(4,minmax(0,1fr))">' +
-    '<div class="metric"><div class="m-label">Facturación</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(facturaTxt)) + '</div><div class="m-sub">estado fiscal</div></div>' +
-    '<div class="metric"><div class="m-label">Instalación</div><div class="m-value" style="font-size:18px;color:' + ei.color + '">' + ei.label + '</div><div class="m-sub">estado OT/inst.</div></div>' +
-    '<div class="metric"><div class="m-label">OT asociada</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(otAsociada || '—')) + '</div><div class="m-sub">seguimiento técnico</div></div>' +
-    '<div class="metric"><div class="m-label">Última modif.</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(v.editadoEn || v.actualizado || v.fecha || '—')) + '</div><div class="m-sub">auditoría de venta</div></div>' +
+    '<div class="metric"><div class="m-label">FacturaciÃ³n</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(facturaTxt)) + '</div><div class="m-sub">estado fiscal</div></div>' +
+    '<div class="metric"><div class="m-label">InstalaciÃ³n</div><div class="m-value" style="font-size:18px;color:' + ei.color + '">' + ei.label + '</div><div class="m-sub">estado OT/inst.</div></div>' +
+    '<div class="metric"><div class="m-label">OT asociada</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(otAsociada || 'â€”')) + '</div><div class="m-sub">seguimiento tÃ©cnico</div></div>' +
+    '<div class="metric"><div class="m-label">Ãšltima modif.</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(v.editadoEn || v.actualizado || v.fecha || 'â€”')) + '</div><div class="m-sub">auditorÃ­a de venta</div></div>' +
   '</div>';
 
   dv.innerHTML =
-    // Header — fila 1: volver + título
+    // Header â€” fila 1: volver + tÃ­tulo
     '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">' +
       '<button class="btn btn-sm" onclick="volverListaVentas()">' +
         '<i class="ti ti-arrow-left"></i> Volver' +
       '</button>' +
       '<div style="flex:1;min-width:140px">' +
         '<div style="font-size:18px;font-weight:700">Venta ' + v.id + '</div>' +
-        '<div style="font-size:13px;color:var(--text3)">' + v.fecha + ' · ' + (v.usuario||'Sistema') + '</div>' +
+        '<div style="font-size:13px;color:var(--text3)">' + v.fecha + ' Â· ' + (v.usuario||'Sistema') + '</div>' +
       '</div>' +
     '</div>' +
-    // Header — fila 2: acciones (envuelve en mobile)
+    // Header â€” fila 2: acciones (envuelve en mobile)
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap">' +
       (v.factura
         ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="verFacturaEmitida(\''+v.factura.pdf_url+'\',\''+v.factura.cae+'\')" title="CAE: '+v.factura.cae+'"><i class="ti ti-file-check"></i> Facturada</button>'
         : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
       ) +
       (puedeEditarVentaPermiso(v) ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirEditorVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Editar"><i class="ti ti-edit"></i> Editar</button>' : '') +
-      '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' +
+      (puedeMoverVentaAPptoDetalle ? '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' : '') +
       '<button class="btn btn-sm" id="venta-detalle-toggle" onclick="toggleVentaDetalle()" title="Cambia si el comprobante muestra precios o no" style="gap:6px">' +
         '<i class="ti ti-eye" id="venta-detalle-icon"></i> <span id="venta-detalle-label">Con detalle</span>' +
       '</button>' +
       (currentRole === 'admin' ? '<button class="btn btn-sm" onclick="toggleCostoCompraDetalleVenta()" title="Muestra u oculta la columna de precio de compra" style="gap:6px;color:var(--amber);border-color:var(--amber)"><i class="ti ' + (window._mostrarCostoCompraDetalleVenta ? 'ti-eye-off' : 'ti-eye') + '"></i> ' + (window._mostrarCostoCompraDetalleVenta ? 'Ocultar compra' : 'Ver compra') + '</button>' : '') +
       '<button class="btn btn-sm" onclick="imprimirVentaActual()" title="Abre el comprobante para imprimir o guardar como PDF"><i class="ti ti-printer"></i> Imprimir comprobante</button>' +
       '<button class="btn btn-sm" style="color:var(--green2,var(--green));border-color:var(--green2,var(--green))" onclick="pdfYWhatsappVenta(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Generar PDF y abrir WhatsApp del cliente"><i class="ti ti-brand-whatsapp"></i> PDF / WhatsApp</button>' +
-      '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="eliminarVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Eliminar venta (también elimina la OT y los pagos vinculados)"><i class="ti ti-trash"></i> Eliminar</button>' +
+      (puedeEliminarVentaDetalle ? '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="eliminarVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Eliminar venta (tambiÃ©n elimina la OT y los pagos vinculados)"><i class="ti ti-trash"></i> Eliminar</button>' : '') +
     '</div>' +
 
     metricVentaHtml +
@@ -21651,7 +21912,7 @@ function renderDetalleVenta(v) {
       '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">' +
         '<div style="flex:1;min-width:200px">' +
           '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Cliente</div>' +
-          '<div style="font-size:16px;font-weight:600">' + (v.cliente||'—') + '</div>' +
+          '<div style="font-size:16px;font-weight:600">' + (v.cliente||'â€”') + '</div>' +
           (v.descripcion ? '<div style="font-size:12px;color:var(--text3);margin-top:4px">' + v.descripcion + '</div>' : '') +
         '</div>' +
         '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
@@ -21662,7 +21923,7 @@ function renderDetalleVenta(v) {
           '</div>' +
           '<div style="text-align:center;padding:8px 16px;background:var(--bg3);border-radius:8px">' +
             '<i class="ti ' + ei.icon + '" style="color:' + ei.color + ';font-size:20px;display:block;margin-bottom:4px"></i>' +
-            '<div style="font-size:11px;color:var(--text3)">Instalación</div>' +
+            '<div style="font-size:11px;color:var(--text3)">InstalaciÃ³n</div>' +
             '<div style="font-size:13px;font-weight:600;color:' + ei.color + '">' + ei.label + '</div>' +
           '</div>' +
         '</div>' +
@@ -21675,7 +21936,7 @@ function renderDetalleVenta(v) {
       (items.length
         ? '<table style="width:100%;border-collapse:collapse">' +
             '<thead><tr>' +
-              '<th style="text-align:left;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Descripción</th>' +
+              '<th style="text-align:left;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">DescripciÃ³n</th>' +
               '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 4px;border-bottom:1px solid var(--border2)">Cant.</th>' +
               (currentRole === 'admin' && window._mostrarCostoCompraDetalleVenta ? '<th style="text-align:right;font-size:11px;color:var(--amber);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">P. compra</th>' : '') +
               '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">P. Unit.</th>' +
@@ -21710,7 +21971,7 @@ function renderDetalleVenta(v) {
               '<div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;padding:8px 0;border-top:1.5px solid var(--border2);margin-top:4px"><span>Total</span><span>$' + (parseFloat(total)||0).toLocaleString('es-AR') + '</span></div>' +
             '</div>' +
           '</div>'
-        : '<div style="text-align:center;padding:20px;color:var(--text3)">Sin ítems registrados</div>'
+        : '<div style="text-align:center;padding:20px;color:var(--text3)">Sin Ã­tems registrados</div>'
       ) +
     '</div>' +
 
@@ -21718,9 +21979,9 @@ function renderDetalleVenta(v) {
       '<div class="card" style="margin-bottom:12px">' +
         '<div style="font-weight:600;margin-bottom:12px">Rentabilidad interna</div>' +
         '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">' +
-          '<div class="metric"><div class="m-label">Neto venta</div><div class="m-value">$' + Math.round(netoDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">subtotal − descuentos</div></div>' +
-          '<div class="metric"><div class="m-label">Costo productos</div><div class="m-value" style="color:var(--amber)">$' + Math.round(costoDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">compra × cantidad</div></div>' +
-          '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">$' + Math.round(gananciaDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">neto − costo</div></div>' +
+          '<div class="metric"><div class="m-label">Neto venta</div><div class="m-value">$' + Math.round(netoDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">subtotal âˆ’ descuentos</div></div>' +
+          '<div class="metric"><div class="m-label">Costo productos</div><div class="m-value" style="color:var(--amber)">$' + Math.round(costoDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">compra Ã— cantidad</div></div>' +
+          '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">$' + Math.round(gananciaDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">neto âˆ’ costo</div></div>' +
           '<div class="metric"><div class="m-label">Margen</div><div class="m-value">' + margenDetalle.toFixed(1) + '%</div><div class="m-sub">sobre neto</div></div>' +
         '</div>' +
       '</div>' : '') +
@@ -21739,9 +22000,9 @@ function renderDetalleVenta(v) {
             return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid var(--border)">' +
               '<div>' +
                 '<div style="font-size:13px;font-weight:500">$' + (parseFloat(p.monto)||0).toLocaleString('es-AR') + '</div>' +
-                '<div style="font-size:11px;color:var(--text3)">' + (p.fecha||'') + ' · ' + (p.medio||'Efectivo') + (p.nota?' · '+p.nota:'') + '</div>' +
+                '<div style="font-size:11px;color:var(--text3)">' + (p.fecha||'') + ' Â· ' + (p.medio||'Efectivo') + (p.nota?' Â· '+p.nota:'') + '</div>' +
               '</div>' +
-              '<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:var(--green-bg);color:var(--green)">✓</span>' +
+              '<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:var(--green-bg);color:var(--green)">âœ“</span>' +
             '</div>';
           }).join('') +
           (saldo > 0
@@ -21761,13 +22022,13 @@ function renderDetalleVenta(v) {
       '</div>' +
     '</div>' +
 
-    // Auditoría
+    // AuditorÃ­a
     (v.audit && v.audit.length
       ? '<div class="card">' +
-          '<div style="font-weight:600;margin-bottom:10px;font-size:13px;color:var(--text2)">Auditoría</div>' +
+          '<div style="font-weight:600;margin-bottom:10px;font-size:13px;color:var(--text2)">AuditorÃ­a</div>' +
           v.audit.map(function(a) {
             return '<div style="font-size:12px;color:var(--text3);padding:4px 0;border-bottom:.5px solid var(--border)">' +
-              (a.fecha||'') + ' · ' + (a.usuario||'') + ' — ' + (a.accion||'') +
+              (a.fecha||'') + ' Â· ' + (a.usuario||'') + ' â€” ' + (a.accion||'') +
             '</div>';
           }).join('') +
         '</div>'
@@ -21775,7 +22036,11 @@ function renderDetalleVenta(v) {
 }
 
 function toggleCSF(vid, fk) {
-  var v = (ventasList||[]).find(function(x){ return x.id === vid; });
+  var permitidoCSF = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('ventas.contadoSinFactura', { args:[vid, fk] })
+    : String(currentRole || '').toLowerCase() === 'admin';
+  if (!permitidoCSF) { notify('Solo un admin puede cambiar contado sin factura'); return; }
+  var v = _svResolverVentaRegistro(vid);
   if (!v || !fk) return;
   var csf = v.contadoSinFactura === true;
   var t = parseFloat(v.total)||0;
@@ -21789,8 +22054,8 @@ function toggleCSF(vid, fk) {
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
-// Mantenida por compatibilidad — ahora todo registro de pago pasa por el
-// módulo de Cobranzas (irACobranzasConVenta), para que quede centralizado.
+// Mantenida por compatibilidad â€” ahora todo registro de pago pasa por el
+// mÃ³dulo de Cobranzas (irACobranzasConVenta), para que quede centralizado.
 function registrarPagoVenta(ventaId) {
   irACobranzasConVenta(ventaId);
 }
@@ -21807,14 +22072,14 @@ function reservarStock(cod, cantidad) {
   const disp = stockData[cod].real - stockData[cod].reservado;
   if (cantidad > disp) { notify('Sin stock suficiente para ' + cod); return false; }
   stockData[cod].reservado += cantidad;
-  notify('Stock reservado: ' + cod + ' × ' + cantidad);
+  notify('Stock reservado: ' + cod + ' Ã— ' + cantidad);
   return true;
 }
-// NOTIFICACIONES INTELIGENTES AUTOMÁTICAS
+// NOTIFICACIONES INTELIGENTES AUTOMÃTICAS
 
-// Configuración de alertas (qué activa cada tipo)
+// ConfiguraciÃ³n de alertas (quÃ© activa cada tipo)
 
-// Estado de notificaciones leídas
+// Estado de notificaciones leÃ­das
 
 function generarNotificaciones() {
   try {
@@ -21827,18 +22092,18 @@ function generarNotificaciones() {
       todasNotifs.push({
         id: 'stock_crit_' + cod, tipo:'stock', urgente:true,
         icono:'ti-alert-circle', color:'red',
-        titulo: 'Sin stock — ' + s.desc,
-        sub: 'Stock disponible: 0. Stock mínimo configurado: 3 unidades.',
-        tiempo: 'Ahora · Sistema',
+        titulo: 'Sin stock â€” ' + s.desc,
+        sub: 'Stock disponible: 0. Stock mÃ­nimo configurado: 3 unidades.',
+        tiempo: 'Ahora Â· Sistema',
         accion: { label:'Ordenar', fn:"showPage('ordenes',document.querySelector('[onclick*=ordenes]'))" },
       });
     } else if (disp > 0 && disp < (s.stockMin || 5) && NOTIF_CONFIG.stock_bajo.activo) {
       todasNotifs.push({
         id: 'stock_bajo_' + cod, tipo:'stock', urgente:false,
         icono:'ti-alert-triangle', color:'amber',
-        titulo: 'Stock bajo — ' + s.desc,
-        sub: disp + ' unidades disponibles (' + s.reservado + ' reservadas). Mínimo: ' + (s.stockMin || 5) + '.',
-        tiempo: 'Hace 2 horas · Sistema',
+        titulo: 'Stock bajo â€” ' + s.desc,
+        sub: disp + ' unidades disponibles (' + s.reservado + ' reservadas). MÃ­nimo: ' + (s.stockMin || 5) + '.',
+        tiempo: 'Hace 2 horas Â· Sistema',
         accion: { label:'Ordenar', fn:"showPage('ordenes',document.querySelector('[onclick*=ordenes]'))" },
       });
     }
@@ -21866,42 +22131,42 @@ function generarNotificaciones() {
         todasNotifs.push({
           id: 'ppto_v2_' + p.id, tipo:'presupuesto', urgente:true,
           icono:'ti-file-description', color:'red',
-          titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' día(s)',
-          sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Estado: ' + (pptoEstadoLabel(p.estado)) + '.',
-          tiempo: 'Hoy · Sistema',
+          titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' dÃ­a(s)',
+          sub: p.cliente + ' â€” $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Estado: ' + (pptoEstadoLabel(p.estado)) + '.',
+          tiempo: 'Hoy Â· Sistema',
           accion: { label:'Ver', fn:"verPpto('" + p.id + "');showPage('presupuesto',document.querySelector('[onclick*=presupuesto]'))" },
         });
       } else if (dias <= 7 && dias > 2 && NOTIF_CONFIG.ppto_vence_7.activo) {
         todasNotifs.push({
           id: 'ppto_v7_' + p.id, tipo:'presupuesto', urgente:false,
           icono:'ti-file-description', color:'amber',
-          titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' días',
-          sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Sin respuesta del cliente.',
-          tiempo: 'Hoy · Sistema',
+          titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' dÃ­as',
+          sub: p.cliente + ' â€” $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Sin respuesta del cliente.',
+          tiempo: 'Hoy Â· Sistema',
           accion: { label:'Ver', fn:"verPpto('" + p.id + "');showPage('presupuesto',document.querySelector('[onclick*=presupuesto]'))" },
         });
       }
 
-      // Presupuesto enviado sin respuesta hace +5 días
+      // Presupuesto enviado sin respuesta hace +5 dÃ­as
       if (p.estado === 'enviado' && NOTIF_CONFIG.ppto_sin_resp.activo) {
         todasNotifs.push({
           id: 'ppto_sinresp_' + p.id, tipo:'presupuesto', urgente:false,
           icono:'ti-clock', color:'amber',
-          titulo: 'Sin respuesta — Presupuesto ' + p.id,
-          sub: p.cliente + ' — Enviado el ' + p.fecha + '. Sin confirmación del cliente.',
-          tiempo: 'Hace 5 días · Sistema',
+          titulo: 'Sin respuesta â€” Presupuesto ' + p.id,
+          sub: p.cliente + ' â€” Enviado el ' + p.fecha + '. Sin confirmaciÃ³n del cliente.',
+          tiempo: 'Hace 5 dÃ­as Â· Sistema',
           accion: { label:'Ver', fn:"verPpto('" + p.id + "');showPage('presupuesto',document.querySelector('[onclick*=presupuesto]'))" },
         });
       }
 
-      // Requiere aprobación admin
+      // Requiere aprobaciÃ³n admin
       if (p.requiereAprobacion && p.estado === 'revision') {
         todasNotifs.push({
           id: 'ppto_aprob_' + p.id, tipo:'presupuesto', urgente:true,
           icono:'ti-shield-check', color:'amber',
-          titulo: 'Requiere aprobación — ' + p.id,
-          sub: p.cliente + ' — ' + p.motivo,
-          tiempo: 'Pendiente · Sistema',
+          titulo: 'Requiere aprobaciÃ³n â€” ' + p.id,
+          sub: p.cliente + ' â€” ' + p.motivo,
+          tiempo: 'Pendiente Â· Sistema',
           accion: { label:'Aprobar', fn:"verPpto('" + p.id + "');showPage('presupuesto',document.querySelector('[onclick*=presupuesto]'))" },
         });
       }
@@ -21915,9 +22180,9 @@ function generarNotificaciones() {
       todasNotifs.push({
         id: 'deuda30_' + d.cliente.replace(/\W/g,''), tipo:'deuda', urgente:true,
         icono:'ti-wallet', color:'red',
-        titulo: 'Deuda vencida — ' + d.cliente,
-        sub: '$' + (parseFloat(d.monto)||0).toLocaleString('es-AR') + ' pendientes hace ' + d.dias + ' días. Requiere gestión urgente.',
-        tiempo: 'Hace ' + d.dias + ' días · Sistema',
+        titulo: 'Deuda vencida â€” ' + d.cliente,
+        sub: '$' + (parseFloat(d.monto)||0).toLocaleString('es-AR') + ' pendientes hace ' + d.dias + ' dÃ­as. Requiere gestiÃ³n urgente.',
+        tiempo: 'Hace ' + d.dias + ' dÃ­as Â· Sistema',
         accion: { label:'Ver cuenta', fn:"showPage('cuentacorriente',document.querySelector('[onclick*=cuentacorriente]'))" },
       });
     });
@@ -21928,9 +22193,9 @@ function generarNotificaciones() {
       todasNotifs.push({
         id: 'deuda15_' + d.cliente.replace(/\W/g,''), tipo:'deuda', urgente:false,
         icono:'ti-coin', color:'amber',
-        titulo: 'Saldo pendiente — ' + d.cliente,
-        sub: '$' + (parseFloat(d.monto)||0).toLocaleString('es-AR') + ' sin cobrar hace ' + d.dias + ' días.',
-        tiempo: 'Hace ' + d.dias + ' días · Sistema',
+        titulo: 'Saldo pendiente â€” ' + d.cliente,
+        sub: '$' + (parseFloat(d.monto)||0).toLocaleString('es-AR') + ' sin cobrar hace ' + d.dias + ' dÃ­as.',
+        tiempo: 'Hace ' + d.dias + ' dÃ­as Â· Sistema',
         accion: { label:'Ver cuenta', fn:"showPage('cuentacorriente',document.querySelector('[onclick*=cuentacorriente]'))" },
       });
     });
@@ -21939,14 +22204,14 @@ function generarNotificaciones() {
     otData.forEach(ot => {
       if (ot.estado === 'completada') return;
 
-      // OT sin técnico
+      // OT sin tÃ©cnico
       if ((ot.tecnico === 'Sin asignar' || !ot.tecnico) && NOTIF_CONFIG.ot_sin_tecnico.activo) {
         todasNotifs.push({
           id: 'ot_tec_' + ot.id, tipo:'ot', urgente:true,
           icono:'ti-user-exclamation', color:'red',
-          titulo: 'Sin técnico — ' + ot.id,
-          sub: ot.cliente + ' — Orden de trabajo sin técnico asignado.',
-          tiempo: 'Pendiente · Sistema',
+          titulo: 'Sin tÃ©cnico â€” ' + ot.id,
+          sub: ot.cliente + ' â€” Orden de trabajo sin tÃ©cnico asignado.',
+          tiempo: 'Pendiente Â· Sistema',
           accion: { label:'Asignar', fn:"verOT('" + ot.id + "');showPage('ordentrabajo',document.querySelector('[onclick*=ordentrabajo]'))" },
         });
       }
@@ -21958,9 +22223,9 @@ function generarNotificaciones() {
         todasNotifs.push({
           id: 'ot_hoy_' + ot.id, tipo:'ot', urgente:false,
           icono:'ti-tool', color:'blue',
-          titulo: 'Instalación hoy — ' + ot.id,
-          sub: ot.cliente + ' · ' + ot.tecnico + ' · ' + ot.hora + 'hs · ' + ot.dir,
-          tiempo: 'Hoy · Agenda',
+          titulo: 'InstalaciÃ³n hoy â€” ' + ot.id,
+          sub: ot.cliente + ' Â· ' + ot.tecnico + ' Â· ' + ot.hora + 'hs Â· ' + ot.dir,
+          tiempo: 'Hoy Â· Agenda',
           accion: { label:'Ver OT', fn:"verOT('" + ot.id + "');showPage('ordentrabajo',document.querySelector('[onclick*=ordentrabajo]'))" },
         });
       }
@@ -21970,9 +22235,9 @@ function generarNotificaciones() {
         todasNotifs.push({
           id: 'ot_parada_' + ot.id, tipo:'ot', urgente:false,
           icono:'ti-clock-pause', color:'amber',
-          titulo: 'OT sin avance — ' + ot.id,
-          sub: ot.cliente + ' — En progreso pero con menos del 20% completado.',
-          tiempo: 'Ayer · Sistema',
+          titulo: 'OT sin avance â€” ' + ot.id,
+          sub: ot.cliente + ' â€” En progreso pero con menos del 20% completado.',
+          tiempo: 'Ayer Â· Sistema',
           accion: { label:'Ver OT', fn:"verOT('" + ot.id + "');showPage('ordentrabajo',document.querySelector('[onclick*=ordentrabajo]'))" },
         });
       }
@@ -21992,7 +22257,7 @@ function generarNotificaciones() {
 }
 
 function pptoEstadoLabel(est) {
-  const m = { borrador:'Borrador', revision:'En revisión', aprobado_int:'Aprobado internamente', enviado:'Enviado al cliente', visto:'Visto', aceptado:'Aceptado', rechazado:'Rechazado', vencido:'Vencido', convertido:'Convertido' };
+  const m = { borrador:'Borrador', revision:'En revisiÃ³n', aprobado_int:'Aprobado internamente', enviado:'Enviado al cliente', visto:'Visto', aceptado:'Aceptado', rechazado:'Rechazado', vencido:'Vencido', convertido:'Convertido' };
   return m[est] || est;
 }
 
@@ -22021,7 +22286,7 @@ function toggleNotifConfig(key, val) {
   notify(NOTIF_CONFIG[key].label + (val ? ' activada' : ' desactivada'));
 }
 
-// MÓDULO DETALLE DE VENTAS
+// MÃ“DULO DETALLE DE VENTAS
 
 // Datos completos de ventas
 
@@ -22045,12 +22310,12 @@ function renderVentasTabla(lista) {
     <td class="tr" style="white-space:nowrap">${ventaEstadoInstBadge(v.estadoInst)}</td>
     <td style="text-align:center;white-space:nowrap">
       ${v.notaCredito && v.notaCredito.cae
-        ? `<span title="Factura anulada con NC — CAE NC: ${escapeHTML(v.notaCredito.cae)}" style="display:inline-flex;align-items:center;gap:3px">
+        ? `<span title="Factura anulada con NC â€” CAE NC: ${escapeHTML(v.notaCredito.cae)}" style="display:inline-flex;align-items:center;gap:3px">
             <i class="ti ti-file-check" style="font-size:13px;color:var(--text3);text-decoration:line-through;opacity:.5"></i>
             <i class="ti ti-file-minus" style="font-size:15px;color:var(--red)"></i>
            </span>`
         : v.factura && v.factura.cae
-          ? `<span title="Factura emitida — CAE: ${escapeHTML(v.factura.cae)}" style="color:var(--green)"><i class="ti ti-file-check" style="font-size:15px"></i></span>`
+          ? `<span title="Factura emitida â€” CAE: ${escapeHTML(v.factura.cae)}" style="color:var(--green)"><i class="ti ti-file-check" style="font-size:15px"></i></span>`
           : ''}
     </td>
     <td onclick="event.stopPropagation()" style="text-align:center">
@@ -22126,7 +22391,7 @@ function _actualizarBannerFiltroVentas() {
     partes.push(tabLbl);
   }
   if (f.estado) {
-    var estLbl = {pendiente_pago:'Pendiente pago', seniado:'Señado', pago_total:'Pago total', en_instalacion:'En instalación', instalado:'Instalado', con_garantia:'Con garantía'}[f.estado] || f.estado;
+    var estLbl = {pendiente_pago:'Pendiente pago', seniado:'SeÃ±ado', pago_total:'Pago total', en_instalacion:'En instalaciÃ³n', instalado:'Instalado', con_garantia:'Con garantÃ­a'}[f.estado] || f.estado;
     partes.push(estLbl);
   }
   if (f.mes) {
@@ -22136,7 +22401,7 @@ function _actualizarBannerFiltroVentas() {
   if (f.texto) partes.push('"' + f.texto + '"');
 
   if (partes.length) {
-    txtEl.textContent = 'Mostrando solo: ' + partes.join(' · ') + ' — puede haber ventas nuevas ocultas por este filtro';
+    txtEl.textContent = 'Mostrando solo: ' + partes.join(' Â· ') + ' â€” puede haber ventas nuevas ocultas por este filtro';
     banner.style.display = 'flex';
   } else {
     banner.style.display = 'none';
@@ -22190,9 +22455,9 @@ function _aliasesComisionCargo(cargoId) {
   var base = _normComisionKey(c.categoriaBase || c.nombre || cargoId);
   var idn  = _normComisionKey(cargoId);
   // Compatibilidad con claves usadas en versiones anteriores.
-  if (idn === 'tecnico_c' || base === 'tecnico_c') arr.push('Cat. 39', 'cat_39', 'TECNICO C', 'Técnico C');
-  if (idn === 'tecnico_b' || base === 'tecnico_b') arr.push('Cat. 15', 'cat_15', 'TECNICO B', 'Técnico B');
-  if (idn === 'tecnico_a' || base === 'tecnico_a') arr.push('Cat. 08', 'cat_08', 'TECNICO A', 'Técnico A');
+  if (idn === 'tecnico_c' || base === 'tecnico_c') arr.push('Cat. 39', 'cat_39', 'TECNICO C', 'TÃ©cnico C');
+  if (idn === 'tecnico_b' || base === 'tecnico_b') arr.push('Cat. 15', 'cat_15', 'TECNICO B', 'TÃ©cnico B');
+  if (idn === 'tecnico_a' || base === 'tecnico_a') arr.push('Cat. 08', 'cat_08', 'TECNICO A', 'TÃ©cnico A');
   if (idn === 'administrativo' || base === 'adminis' || base === 'administrativo') arr.push('ADMINIS', 'Administrativo');
   if (idn === 'inicial' || base === 'inicial') arr.push('INICIAL', 'Inicial');
   if (idn === 'temporal' || base === 'a_temp' || base === 'temporal') arr.push('A-TEMP', 'Temporal');
@@ -22223,10 +22488,10 @@ function guardarConfigComisionCargo(cargoId, cfg) {
   };
 }
 
-/* v20.362: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults históricos
-   ('Cat. 39', etc.) hacían fallar TODO fbSet de comisiones, por eso nada persistía.
-   Este helper renombra las claves inválidas con _normComisionKey ('Cat. 39' → 'cat_39'),
-   que la lectura ya resuelve vía _aliasesComisionCargo. */
+/* v20.362: Firebase RTDB no acepta . # $ / [ ] en claves. Los defaults histÃ³ricos
+   ('Cat. 39', etc.) hacÃ­an fallar TODO fbSet de comisiones, por eso nada persistÃ­a.
+   Este helper renombra las claves invÃ¡lidas con _normComisionKey ('Cat. 39' â†’ 'cat_39'),
+   que la lectura ya resuelve vÃ­a _aliasesComisionCargo. */
 function _comisionesParaFirebase() {
   var out = {};
   Object.keys(CONFIG_COMISIONES || {}).forEach(function(k) {
@@ -22242,7 +22507,7 @@ function renderComisionesConfig() {
   if (!tbody) return;
   var ids = Object.keys(CARGOS_DATA || {});
   if (!ids.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">No hay cargos creados aún. Creá los cargos en la solapa <strong>Cargos</strong> primero.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">No hay cargos creados aÃºn. CreÃ¡ los cargos en la solapa <strong>Cargos</strong> primero.</td></tr>';
     return;
   }
   ids.sort(function(a,b){ return ((CARGOS_DATA[a]||{}).nombre||a).localeCompare(((CARGOS_DATA[b]||{}).nombre||b)); });
@@ -22250,7 +22515,7 @@ function renderComisionesConfig() {
     return '<input type="number" value="'+(parseFloat(val)||0)+'" style="width:'+w+'px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">';
   };
   tbody.innerHTML =
-    '<tr><th>Cargo</th><th style="text-align:right">% sobre venta</th><th style="text-align:right">Mínimo garantizado</th><th style="text-align:right">Tope máximo</th><th></th></tr>' +
+    '<tr><th>Cargo</th><th style="text-align:right">% sobre venta</th><th style="text-align:right">MÃ­nimo garantizado</th><th style="text-align:right">Tope mÃ¡ximo</th><th></th></tr>' +
     ids.map(function(id) {
       var c = CARGOS_DATA[id] || {};
       var com = obtenerConfigComisionCargo(id) || {};
@@ -22270,14 +22535,14 @@ function guardarFilaConfig(btn) {
   var inputs = tr.querySelectorAll('input[type=number]');
   var cargoId = tr.dataset.cargoId;
   var vals = Array.from(inputs).map(function(i){ return parseFloat(i.value)||0; });
-  if (!cargoId) { notify('Fila sin cargo ID — recargá la solapa de comisiones'); return; }
+  if (!cargoId) { notify('Fila sin cargo ID â€” recargÃ¡ la solapa de comisiones'); return; }
   guardarConfigComisionCargo(cargoId, { pct: vals[0]||0, min: vals[1]||0, max: vals[2]||0 });
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/comisiones'), _comisionesParaFirebase())
-      .then(function(){ notify('✓ Comisión guardada para ' + ((CARGOS_DATA[cargoId]||{}).nombre || cargoId)); })
+      .then(function(){ notify('âœ“ ComisiÃ³n guardada para ' + ((CARGOS_DATA[cargoId]||{}).nombre || cargoId)); })
       .catch(function(e){ notify('Error: '+e.message); });
   } else {
-    notify('Sin conexión a Firebase');
+    notify('Sin conexiÃ³n a Firebase');
   }
   var icon = btn.querySelector('i');
   if (icon) { icon.className = 'ti ti-check-circle'; btn.style.color='var(--green)'; }
@@ -22316,7 +22581,7 @@ function obtenerMedioPagoConfig(medio) {
 }
 function formatoMedioPago(medio) {
   var n = String(medio || '').trim();
-  if (!n) return '—';
+  if (!n) return 'â€”';
   var cfg = obtenerMedioPagoConfig(n);
   if (!cfg) return n;
   var tipo = String(cfg.tipo || 'otro').trim();
@@ -22362,7 +22627,7 @@ function renderMediosPagoConfig() {
 function agregarMedioPago() {
   var nombre = (document.getElementById('cfg-mp-nombre').value || '').trim();
   var tipo   = document.getElementById('cfg-mp-tipo').value;
-  if (!nombre) { notify('Ingresá un nombre'); return; }
+  if (!nombre) { notify('IngresÃ¡ un nombre'); return; }
   if (MEDIOS_PAGO_CONFIG.find(function(m){ return m.nombre.toLowerCase() === nombre.toLowerCase(); })) {
     notify('Ya existe un medio con ese nombre'); return;
   }
@@ -22374,7 +22639,7 @@ function agregarMedioPago() {
 function eliminarMedioPago(idx) {
   var m = MEDIOS_PAGO_CONFIG[idx];
   if (!m) return;
-  if (!confirm('¿Eliminar "' + m.nombre + '"? Los cobros ya registrados con este medio no se modifican.')) return;
+  if (!confirm('Â¿Eliminar "' + m.nombre + '"? Los cobros ya registrados con este medio no se modifican.')) return;
   MEDIOS_PAGO_CONFIG.splice(idx, 1);
   guardarMediosPago();
 }
@@ -22383,7 +22648,7 @@ function guardarMediosPago() {
   if (!window.fbDB) return;
   window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/mediosPago'), MEDIOS_PAGO_CONFIG)
     .then(function() {
-      notify('✓ Medios de pago guardados');
+      notify('âœ“ Medios de pago guardados');
       renderMediosPagoConfig();
       poblarSelectoresMediosPago();
     }).catch(function(e){ notify('Error: ' + e.message); });
@@ -22401,7 +22666,7 @@ function poblarSelectoresMediosPago() {
     var el = document.getElementById(id);
     if (!el) return;
     var actual = el.value;
-    el.innerHTML = id === 'cob-filtro-medio' ? htmlFiltro : '<option value="">— Seleccionar —</option>' + html;
+    el.innerHTML = id === 'cob-filtro-medio' ? htmlFiltro : '<option value="">â€” Seleccionar â€”</option>' + html;
     if (actual) el.value = actual;
   });
 }
@@ -22432,11 +22697,11 @@ function guardarMaxComisionPct() {
   var val = parseFloat(el ? el.value : 10) || 10;
   APROBACION_CONFIG.maxComisionPct = val;
   window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/maxComisionPct'), val)
-    .then(function(){ notify('✓ Tope máximo de comisión guardado: ' + val + '%'); })
+    .then(function(){ notify('âœ“ Tope mÃ¡ximo de comisiÃ³n guardado: ' + val + '%'); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
 
-/* v20.342: guardarHorasExtra() eliminada — leía inputs cfg-hextra-* inexistentes y escribía sisventas/config/horasExtra, que ningún cálculo lee. El valor de hora extra vive en cada cargo (valorHoraExtra). */
+/* v20.342: guardarHorasExtra() eliminada â€” leÃ­a inputs cfg-hextra-* inexistentes y escribÃ­a sisventas/config/horasExtra, que ningÃºn cÃ¡lculo lee. El valor de hora extra vive en cada cargo (valorHoraExtra). */
 
 function actualizarInputsComisiones() {
   var tabla = document.querySelector('#cfg-comisiones-tbody');
@@ -22453,9 +22718,9 @@ function actualizarInputsComisiones() {
 
 function obtenerCategoriaEmpleado(emp) {
   var cargo = (emp.cargo||'').toUpperCase();
-  if (cargo.includes('TECNICO C')||cargo.includes('TÉCNICO C')) return 'TECNICO C';
-  if (cargo.includes('TECNICO B')||cargo.includes('TÉCNICO B')) return 'TECNICO B';
-  if (cargo.includes('TECNICO A')||cargo.includes('TÉCNICO A')) return 'TECNICO A';
+  if (cargo.includes('TECNICO C')||cargo.includes('TÃ‰CNICO C')) return 'TECNICO C';
+  if (cargo.includes('TECNICO B')||cargo.includes('TÃ‰CNICO B')) return 'TECNICO B';
+  if (cargo.includes('TECNICO A')||cargo.includes('TÃ‰CNICO A')) return 'TECNICO A';
   if (cargo.includes('ADMIN'))   return 'ADMINIS';
   if (cargo.includes('INICIAL')) return 'INICIAL';
   if (cargo.includes('TEMP'))    return 'A-TEMP';
@@ -22488,15 +22753,15 @@ function calcularComisionEmpleado(emp, mesAMM) {
   };
 }
 
-// Editar alícuota IVA
+// Editar alÃ­cuota IVA
 function editarIVA(btn) {
   const tr = btn.closest('tr');
   const inp = tr.querySelector('input[type=number]');
-  var _td=tr.querySelector('td'); const nombre = (_td?_td.textContent:'') || 'alícuota';
+  var _td=tr.querySelector('td'); const nombre = (_td?_td.textContent:'') || 'alÃ­cuota';
   if (inp) {
     inp.focus();
     inp.select();
-    notify('Editá el valor y presioná Enter para confirmar');
+    notify('EditÃ¡ el valor y presionÃ¡ Enter para confirmar');
     inp.addEventListener('keydown', function handler(e) {
       if (e.key === 'Enter') {
         notify(nombre + ' actualizada a ' + inp.value + '%');
@@ -22509,12 +22774,12 @@ function editarIVA(btn) {
 // Ver equipo instalado
 function verEquipo(serie, cliente) {
   // Navegar a historial del cliente
-  const cli = clientesData ? clientesData.find(c => c.nombre.includes(cliente.split(',')[0])) : null;
+  const cli = _svResolverClienteRegistro({ cliente: cliente }, true);
   if (cli) {
     verHistorialCliente(cli.id, cli.nombre);
     setTimeout(() => switchHistTab('equipos', document.querySelectorAll('.hist-tab-btn')[4]), 200);
   } else {
-    notify('Equipo ' + serie + ' — ' + cliente);
+    notify('Equipo ' + serie + ' â€” ' + cliente);
   }
 }
 
@@ -22536,7 +22801,7 @@ function editarCliente(id) {
       Object.entries(campos).forEach(function(kv) {
         var el = document.getElementById(kv[0]); if (el) el.value = kv[1];
       });
-      _set('modal-nuevo-title', 'Editar cliente — ' + cli.nombre);
+      _set('modal-nuevo-title', 'Editar cliente â€” ' + cli.nombre);
     }, 50);
   }
 }
@@ -22548,7 +22813,7 @@ function toggleFab() {
   if (main) main.classList.toggle('open', fabOpen);
 
   if (fabOpen) {
-    // Crear acciones dinámicamente
+    // Crear acciones dinÃ¡micamente
     var existing = document.getElementById('fab-actions');
     if (existing) existing.remove();
     var accionesBase = [
@@ -22559,7 +22824,7 @@ function toggleFab() {
       { label: 'Agendar evento',    color: '#4a3ab0', icon: 'ti-calendar-plus',    accion: 'agenda' },
       { label: 'Asistente IA',      color: 'linear-gradient(135deg,#6366f1,#8b5cf6)', icon: 'ti-robot', accion: 'ia' }
     ];
-    // Filtrar IA según config de widgets
+    // Filtrar IA segÃºn config de widgets
     var iaPermitida = DASH_WIDGETS_CONFIG['btn_ia'] !== undefined
       ? !!DASH_WIDGETS_CONFIG['btn_ia'][currentRole]
       : true;
@@ -22648,7 +22913,7 @@ function actualizarFabYHome(id) {
     fab.classList.remove('hidden');
     if (btnHome) btnHome.style.display = 'none';
   } else {
-    // En cualquier otro módulo: FAB oculto, Home visible
+    // En cualquier otro mÃ³dulo: FAB oculto, Home visible
     fab.classList.add('hidden');
     closeFab();
     if (btnHome) btnHome.style.display = 'flex';
@@ -22664,7 +22929,7 @@ function filterDropProv(inp) {
   var html = matches.slice(0,8).map(function(p) {
     return '<div style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px" ' +
       'onmousedown="event.preventDefault();document.getElementById(\''+inp.id+'\').value=\''+escapeHTML(p.nombre).replace(/'/g,"\\'")+'\';_ocultarDropGlobal();">' +
-      escapeHTML(p.nombre)+(p.rubro?'<span style="color:var(--text3);font-size:11px"> · '+escapeHTML(p.rubro)+'</span>':'')+
+      escapeHTML(p.nombre)+(p.rubro?'<span style="color:var(--text3);font-size:11px"> Â· '+escapeHTML(p.rubro)+'</span>':'')+
     '</div>';
   }).join('');
   _mostrarDropGlobal(inp, html);
@@ -22699,12 +22964,12 @@ function _gFilterDropSel(inputId, valor, fbKey) {
   // Callback especial para presupuesto
   if (inputId === 'pp-cli') {
     var cli = fbKey
-      ? (clientesData||[]).find(function(c){ return (c.fbKey||c.id)=== fbKey; })
-      : (clientesData||[]).find(function(c){ return c.nombre===valor; });
+      ? (clientesData||[]).find(function(c){ return String(c.fbKey||c.id||'') === String(fbKey||''); })
+      : _svResolverClienteRegistro({ cliente: valor }, true);
     if (cli) {
       var idEl = _get('pp-cli-id');
       if (idEl) idEl.value = cli.id || cli.fbKey || '';
-      // Autocompletar dirección si hay campo
+      // Autocompletar direcciÃ³n si hay campo
       var dirEl = _get('pp-dir') || _get('pp-cli-dir');
       if (dirEl) dirEl.value = cli.direccion || cli.dir || cli.domicilio || '';
     }
@@ -22729,17 +22994,17 @@ function _abrirAltaRapidaCliente(inputOrigen, nombrePrevio) {
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:500px;box-shadow:0 16px 48px rgba(0,0,0,.5)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border)">' +
         '<div><div style="font-weight:700;font-size:15px"><i class="ti ti-user-plus" style="margin-right:8px;color:var(--blue)"></i>Nuevo cliente</div>' +
-        '<div style="font-size:12px;color:var(--text3);margin-top:2px">Datos mínimos — completá más desde Clientes</div></div>' +
+        '<div style="font-size:12px;color:var(--text3);margin-top:2px">Datos mÃ­nimos â€” completÃ¡ mÃ¡s desde Clientes</div></div>' +
         '<button onclick="document.getElementById(\'modal-alta-rapida-cli\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px"><i class="ti ti-x"></i></button>' +
       '</div>' +
       '<div style="padding:20px;display:flex;flex-direction:column;gap:12px">' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
           '<div class="fg"><label>Nombre</label><input type="text" id="arc-nombre" value="' + escapeHTML(nombrePre) + '" placeholder="Juan" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
-          '<div class="fg"><label>Apellido</label><input type="text" id="arc-apellido" value="' + escapeHTML(apellidoPre) + '" placeholder="García" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+          '<div class="fg"><label>Apellido</label><input type="text" id="arc-apellido" value="' + escapeHTML(apellidoPre) + '" placeholder="GarcÃ­a" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
         '</div>' +
-        '<div class="fg"><label>Dirección</label><input type="text" id="arc-dir" placeholder="Av. Colón 1234" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+        '<div class="fg"><label>DirecciÃ³n</label><input type="text" id="arc-dir" placeholder="Av. ColÃ³n 1234" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
-          '<div class="fg"><label>Teléfono</label><input type="tel" id="arc-tel" placeholder="223-xxxxxxx" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+          '<div class="fg"><label>TelÃ©fono</label><input type="tel" id="arc-tel" placeholder="223-xxxxxxx" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
           '<div class="fg"><label>CUIT / DNI</label><input type="text" id="arc-cuit" placeholder="20-12345678-9" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
         '</div>' +
         '<div class="fg"><label>Email</label><input type="email" id="arc-email" placeholder="cliente@email.com" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
@@ -22757,7 +23022,7 @@ function _abrirAltaRapidaCliente(inputOrigen, nombrePrevio) {
 async function _guardarAltaRapidaCliente(inputOrigen) {
   var nombre   = (document.getElementById('arc-nombre').value||'').trim();
   var apellido = (document.getElementById('arc-apellido').value||'').trim();
-  if (!nombre && !apellido) { notify('Ingresá al menos el nombre'); return; }
+  if (!nombre && !apellido) { notify('IngresÃ¡ al menos el nombre'); return; }
   var nombreCompleto = [nombre, apellido].filter(Boolean).join(' ');
   var maxId = 0;
   (clientesData||[]).forEach(function(c){ var n=parseInt(String(c.id||'').replace(/[^0-9]/g,''))||0; if(n>maxId)maxId=n; });
@@ -22775,7 +23040,7 @@ async function _guardarAltaRapidaCliente(inputOrigen) {
     clientesData.unshift(nuevo);
     _gFilterDropSel(inputOrigen, nombreCompleto, nuevo.fbKey);
     document.getElementById('modal-alta-rapida-cli').remove();
-    notify('✓ Cliente "'+nombreCompleto+'" creado y seleccionado');
+    notify('âœ“ Cliente "'+nombreCompleto+'" creado y seleccionado');
   } catch(e) { notify('Error: '+e.message); }
 }
 document.addEventListener('click', function(e) {
@@ -22797,7 +23062,7 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
           <span class="prod-sel-cod">${escapeHTML(cod)}</span>
           <i class="ti ti-chevron-down" style="font-size:11px;color:var(--text3);margin-left:4px;flex-shrink:0"></i>
         </div>
-        <button class="btn-busq-avanz" onclick="abrirBusquedaAvanzada(this.closest('tr'))" title="Búsqueda avanzada por categoría y marca"
+        <button class="btn-busq-avanz" onclick="abrirBusquedaAvanzada(this.closest('tr'))" title="BÃºsqueda avanzada por categorÃ­a y marca"
           style="flex-shrink:0;width:26px;height:26px;border-radius:6px;border:0.5px solid var(--border2);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:background .12s"
           onmouseenter="this.style.background='var(--bg3)';this.style.color='var(--text)'"
           onmouseleave="this.style.background='transparent';this.style.color='var(--text3)'">
@@ -22834,10 +23099,10 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
 }
 
 // Abrir el dropdown selector de un producto
-// DROPDOWN GLOBAL DE PRODUCTOS — position:fixed
-// Solución definitiva: un único dropdown fuera de la tabla,
+// DROPDOWN GLOBAL DE PRODUCTOS â€” position:fixed
+// SoluciÃ³n definitiva: un Ãºnico dropdown fuera de la tabla,
 // posicionado con getBoundingClientRect() para no ser cortado
-// por ningún ancestro con overflow.
+// por ningÃºn ancestro con overflow.
 var _prodDropTR = null; // fila actualmente asociada al dropdown
 
 function _crearDropGlobal() {
@@ -22847,7 +23112,7 @@ function _crearDropGlobal() {
   d.style.cssText = 'display:none;position:fixed;z-index:9999;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);box-shadow:0 4px 20px rgba(0,0,0,.18);min-width:300px;max-width:480px;overflow:visible';
   d.innerHTML =
     '<div style="padding:7px 10px;border-bottom:0.5px solid var(--border)">' +
-      '<input id="prod-drop-inp" placeholder="Buscar por código o nombre..." autocomplete="off" ' +
+      '<input id="prod-drop-inp" placeholder="Buscar por cÃ³digo o nombre..." autocomplete="off" ' +
         'style="width:100%;border:none;background:transparent;font-size:12px;font-family:inherit;outline:none;color:var(--text)">' +
     '</div>' +
     '<div id="prod-drop-list" style="max-height:240px;overflow-y:auto"></div>';
@@ -22887,7 +23152,7 @@ function abrirSelectorProducto(selectorEl) {
 
   _prodDropTR = tr;
 
-  // Posicionar bajo el botón
+  // Posicionar bajo el botÃ³n
   var rect = selectorEl.getBoundingClientRect();
   drop.style.top  = (rect.bottom + 4) + 'px';
   drop.style.left = rect.left + 'px';
@@ -22920,21 +23185,21 @@ function _renderDropGlobal(filtro) {
     var stk = stockData ? (stockData[p.codigo] || {real:0, reservado:0}) : {real:0, reservado:0};
     var disp = stk.real - stk.reservado;
     var stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--text3)';
-    var esUSD = p.moneda === 'USD' || !p.moneda; // sin campo moneda = USD (así están cargados los productos)
+    var esUSD = p.moneda === 'USD' || !p.moneda; // sin campo moneda = USD (asÃ­ estÃ¡n cargados los productos)
     var pvNum = parseFloat(p.venta) || 0;
     var tc2 = window.TIPO_CAMBIO_CONFIG || {};
     var cotiz2 = parseFloat(tc2[tc2.dolarConversion || 'oficial']) || 0;
     var precioLbl = 'USD ' + pvNum.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
-    var equivARS2 = cotiz2 > 0 && pvNum > 0 ? ' · $' + Math.round(pvNum * cotiz2).toLocaleString('es-AR') : '';
+    var equivARS2 = cotiz2 > 0 && pvNum > 0 ? ' Â· $' + Math.round(pvNum * cotiz2).toLocaleString('es-AR') : '';
     var monedaProd = p.moneda || 'ARS';
     var precioProd = monedaProd === 'USD' ? (p.venta||0) : (p.ventaARS || p.venta || 0);
     return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+precioProd+'" data-moneda="'+monedaProd+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
       '<div>' +
-        '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' — '+escapeHTML(p.nombre||p.descripcion||'')+'</div>' +
+        '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' â€” '+escapeHTML(p.nombre||p.descripcion||'')+'</div>' +
         (p.descripcion && p.descripcion !== p.nombre && p.descripcion !== '-' ?
           '<div style="font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:380px">'+escapeHTML(p.descripcion)+'</div>' : '') +
       '</div>' +
-      '<div style="font-size:11px;color:var(--text3);white-space:nowrap;margin-left:8px"><span class="badge b-blue" style="font-size:9px;margin-right:3px">USD</span>'+precioLbl+equivARS2+' · <span style="color:'+stkColor+'">'+disp+' disp.</span></div>' +
+      '<div style="font-size:11px;color:var(--text3);white-space:nowrap;margin-left:8px"><span class="badge b-blue" style="font-size:9px;margin-right:3px">USD</span>'+precioLbl+equivARS2+' Â· <span style="color:'+stkColor+'">'+disp+' disp.</span></div>' +
     '</div>';
   }).join('') : '<div style="padding:14px;font-size:12px;color:var(--text3);text-align:center">Sin resultados</div>';
 }
@@ -22946,10 +23211,10 @@ function _selProdGlobal(item) {
   var moneda = item.dataset.moneda || 'ARS';
 
   var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod || p.nombre === desc; });
-  // Mano de obra: precio siempre se muestra en ARS, pero si el producto está
-  // cargado en USD hay que convertirlo en vivo a la cotización actual — no
+  // Mano de obra: precio siempre se muestra en ARS, pero si el producto estÃ¡
+  // cargado en USD hay que convertirlo en vivo a la cotizaciÃ³n actual â€” no
   // alcanza con ventaARS guardado porque puede no existir (ej. producto
-  // cargado cuando no había cotización configurada).
+  // cargado cuando no habÃ­a cotizaciÃ³n configurada).
   if (prod && prod.esManoDeObra) {
     if (prod.moneda === 'USD') {
       var tcMO = (window.TIPO_CAMBIO_CONFIG || {});
@@ -22958,9 +23223,9 @@ function _selProdGlobal(item) {
       if (tcValMO > 0) {
         precio = Math.round((parseFloat(prod.venta)||0) * tcValMO);
       } else if (prod.ventaARS) {
-        precio = prod.ventaARS; // fallback si no hay cotización cargada ahora mismo
+        precio = prod.ventaARS; // fallback si no hay cotizaciÃ³n cargada ahora mismo
       } else {
-        notify('⚠️ Mano de obra "' + (prod.nombre||'') + '" está en USD y no hay cotización configurada — el precio puede ser incorrecto');
+        notify('âš ï¸ Mano de obra "' + (prod.nombre||'') + '" estÃ¡ en USD y no hay cotizaciÃ³n configurada â€” el precio puede ser incorrecto');
       }
     } else {
       precio = prod.ventaARS || prod.venta || 0;
@@ -22971,10 +23236,10 @@ function _selProdGlobal(item) {
     var esFilaPpto = _prodDropTR && _prodDropTR.closest('#pp-body');
     var monedaVenta = (esFilaPpto ? window._pptoMonedaActual : window._ventaMonedaActual) || 'ARS';
     if (monedaVenta === 'ARS' && moneda === 'USD') {
-      // Config dice ARS: forzar conversión aunque el producto sea USD
-      // (la conversión la hace el bloque de abajo)
+      // Config dice ARS: forzar conversiÃ³n aunque el producto sea USD
+      // (la conversiÃ³n la hace el bloque de abajo)
     } else if (monedaVenta === 'USD' && moneda === 'ARS') {
-      // Config dice USD: convertir ARS → USD
+      // Config dice USD: convertir ARS â†’ USD
       var tc = (window.TIPO_CAMBIO_CONFIG || {});
       var tipoCfg = tc.dolarConversion || 'oficial';
       var tcVal = parseFloat(tc[tipoCfg]) || 0;
@@ -22993,7 +23258,7 @@ function _selProdGlobal(item) {
       precioOriginalUSD = precio;
       precio = Math.round(precio * cotizUsada);
     } else {
-      notify('⚠️ Configurá el tipo de cambio en Configuración antes de vender productos en USD');
+      notify('âš ï¸ ConfigurÃ¡ el tipo de cambio en ConfiguraciÃ³n antes de vender productos en USD');
     }
   }
 
@@ -23010,7 +23275,7 @@ function _selProdGlobal(item) {
       descSpan.className = 'desc-txt-clean';
       descSpan.textContent = desc;
       descTxt.appendChild(descSpan);
-      // para que el toggle ARS/USD pueda reconvertir sin perder precisión
+      // para que el toggle ARS/USD pueda reconvertir sin perder precisiÃ³n
     }
     if (priceInp) {
       priceInp.value = precio;
@@ -23059,19 +23324,19 @@ function toggleMonedaVenta() {
   if (label) { label.textContent = _ventaMonedaActual; label.style.color = esUSD ? 'var(--blue)' : 'var(--text3)'; }
 
   _reconvertirFilasAMoneda('#det-body', _ventaMonedaActual);
-  notify('Moneda de venta: ' + _ventaMonedaActual + ' — todos los productos convertidos');
+  notify('Moneda de venta: ' + _ventaMonedaActual + ' â€” todos los productos convertidos');
 }
 
-// Recorre todas las filas de una tabla de ítems (venta o presupuesto) y
+// Recorre todas las filas de una tabla de Ã­tems (venta o presupuesto) y
 // convierte el precio unitario de cada una a la moneda indicada, usando la
-// cotización actual configurada. Mantiene el precio "ancla" en USD de cada
+// cotizaciÃ³n actual configurada. Mantiene el precio "ancla" en USD de cada
 // fila (data-precio-usd) para poder ir y volver de ARS a USD sin acumular
 // error de redondeo.
 function _reconvertirFilasAMoneda(tbodySelector, monedaDestino) {
   var tc = (window.TIPO_CAMBIO_CONFIG || {});
   var tcVal = parseFloat(tc[tc.dolarConversion || 'oficial']) || 0;
   if (tcVal <= 0) {
-    notify('⚠️ Configurá el tipo de cambio en Configuración para convertir entre ARS y USD');
+    notify('âš ï¸ ConfigurÃ¡ el tipo de cambio en ConfiguraciÃ³n para convertir entre ARS y USD');
     return;
   }
 
@@ -23079,13 +23344,13 @@ function _reconvertirFilasAMoneda(tbodySelector, monedaDestino) {
     var priceInp = tr.querySelector('.price');
     if (!priceInp) return;
 
-    // (asumiendo que el valor actual está en ARS, que es el caso por defecto).
+    // (asumiendo que el valor actual estÃ¡ en ARS, que es el caso por defecto).
     if (!priceInp.dataset.precioUsd) {
       var valorActual = priceInp.dataset.moneyInit ? getMontoRaw(priceInp) : (parseFloat(priceInp.value)||0);
       if (valorActual > 0) {
         priceInp.dataset.precioUsd = parseFloat((valorActual / tcVal).toFixed(2));
       } else {
-        return; // fila vacía, nada que convertir
+        return; // fila vacÃ­a, nada que convertir
       }
     }
 
@@ -23112,7 +23377,7 @@ function iniciarMonedaVenta() {
   var monedaCfg = cfg.monedaPresupuestos || 'ARS';
   var toggle = document.getElementById('venta-moneda-toggle');
   if (toggle) {
-    // Mostrar toggle siempre en modo "ambos", o si no hay config aún → default ambos
+    // Mostrar toggle siempre en modo "ambos", o si no hay config aÃºn â†’ default ambos
     if (monedaCfg === 'ambos' || !cfg.monedaPresupuestos) {
       toggle.style.display = 'flex';
       _ventaMonedaActual = 'ARS'; // default pesos
@@ -23129,7 +23394,7 @@ function iniciarMonedaVenta() {
   }
 }
 
-var _pptoMonedaActual = 'ARS'; // 'ARS' o 'USD' — equivalente a _ventaMonedaActual pero para presupuestos
+var _pptoMonedaActual = 'ARS'; // 'ARS' o 'USD' â€” equivalente a _ventaMonedaActual pero para presupuestos
 
 function toggleMonedaPpto() {
   _pptoMonedaActual = _pptoMonedaActual === 'ARS' ? 'USD' : 'ARS';
@@ -23143,7 +23408,7 @@ function toggleMonedaPpto() {
   if (label) { label.textContent = _pptoMonedaActual; label.style.color = esUSD ? 'var(--blue)' : 'var(--text3)'; }
 
   _reconvertirFilasAMoneda('#pp-body', _pptoMonedaActual);
-  notify('Moneda de presupuesto: ' + _pptoMonedaActual + ' — todos los productos convertidos');
+  notify('Moneda de presupuesto: ' + _pptoMonedaActual + ' â€” todos los productos convertidos');
   if (typeof calcPpTotales === 'function') calcPpTotales();
 }
 
@@ -23170,8 +23435,8 @@ function iniciarMonedaPpto() {
 
 function filtrarSelectorProducto(inp) { _renderDropGlobal(inp.value); }
 function selProductoEnFila(item, cod, desc, precio) { _selProdGlobal(item); }
-// BÚSQUEDA AVANZADA DE PRODUCTOS
-// Modal con filtros por categoría, marca y texto libre.
+// BÃšSQUEDA AVANZADA DE PRODUCTOS
+// Modal con filtros por categorÃ­a, marca y texto libre.
 var _busqAvanzTR = null; // fila a la que se va a cargar el producto
 
 function abrirBusquedaAvanzada(tr) {
@@ -23179,7 +23444,7 @@ function abrirBusquedaAvanzada(tr) {
   var prev = document.getElementById('modal-busq-avanz');
   if (prev) prev.remove();
 
-  // Construir listas únicas de categorías y marcas, normalizadas
+  // Construir listas Ãºnicas de categorÃ­as y marcas, normalizadas
   var productos = Object.values(prodData || {}).filter(function(p){ return p.activo !== false; });
   var cats  = [...new Set(productos.map(function(p){ return (p.categoria||'').trim().toUpperCase(); }).filter(Boolean))].sort();
   var marcas = [...new Set(productos.map(function(p){ return (p.marca||'').trim().toUpperCase(); }).filter(Boolean))].sort();
@@ -23191,20 +23456,20 @@ function abrirBusquedaAvanzada(tr) {
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:700px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
       // Header
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
-        '<div style="font-weight:700;font-size:15px"><i class="ti ti-filter" style="margin-right:8px;color:var(--green)"></i>Búsqueda avanzada de productos</div>' +
+        '<div style="font-weight:700;font-size:15px"><i class="ti ti-filter" style="margin-right:8px;color:var(--green)"></i>BÃºsqueda avanzada de productos</div>' +
         '<button onclick="cerrarBusquedaAvanzada()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;line-height:1;padding:4px"><i class="ti ti-x"></i></button>' +
       '</div>' +
       // Filtros
       '<div style="padding:14px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:10px">' +
-        '<input id="ba-texto" placeholder="Buscar por código, nombre o descripción..." oninput="renderBusqAvanz()" autocomplete="off"' +
+        '<input id="ba-texto" placeholder="Buscar por cÃ³digo, nombre o descripciÃ³n..." oninput="renderBusqAvanz()" autocomplete="off"' +
           'style="width:100%;padding:8px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box">' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
           '<select id="ba-cat" onchange="renderBusqAvanz()" style="flex:1;min-width:160px;padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">' +
-            '<option value="">— Todas las categorías —</option>' +
+            '<option value="">â€” Todas las categorÃ­as â€”</option>' +
             cats.map(function(c){ return '<option value="'+escapeHTML(c)+'">'+escapeHTML(c)+'</option>'; }).join('') +
           '</select>' +
           '<select id="ba-marca" onchange="renderBusqAvanz()" style="flex:1;min-width:140px;padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">' +
-            '<option value="">— Todas las marcas —</option>' +
+            '<option value="">â€” Todas las marcas â€”</option>' +
             marcas.map(function(m){ return '<option value="'+escapeHTML(m)+'">'+escapeHTML(m)+'</option>'; }).join('') +
           '</select>' +
           '<button onclick="document.getElementById(\'ba-texto\').value=\'\';document.getElementById(\'ba-cat\').value=\'\';document.getElementById(\'ba-marca\').value=\'\';renderBusqAvanz()" ' +
@@ -23276,7 +23541,7 @@ function renderBusqAvanz() {
       'style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:var(--radius);cursor:pointer;margin-bottom:4px;border:0.5px solid var(--border)"' +
       ' onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
       '<div style="min-width:0">' +
-        '<div style="font-weight:600;font-size:13px;color:var(--text)">' + escapeHTML(p.codigo) + ' <span style="font-weight:400;color:var(--text2)">— ' + escapeHTML(p.nombre||p.descripcion||'') + '</span></div>' +
+        '<div style="font-weight:600;font-size:13px;color:var(--text)">' + escapeHTML(p.codigo) + ' <span style="font-weight:400;color:var(--text2)">â€” ' + escapeHTML(p.nombre||p.descripcion||'') + '</span></div>' +
         '<div style="font-size:11px;color:var(--text3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap">' +
           (p.categoria ? '<span>'+escapeHTML(p.categoria)+'</span>' : '') +
           (p.marca ? '<span style="color:var(--blue)">'+escapeHTML(p.marca)+'</span>' : '') +
@@ -23284,16 +23549,16 @@ function renderBusqAvanz() {
       '</div>' +
       '<div style="text-align:right;flex-shrink:0;margin-left:12px">' +
         '<div style="font-weight:600;font-size:13px;color:var(--text)"><span class="badge b-blue" style="font-size:9px;margin-right:3px">USD</span>' + precioUSD + '</div>' +
-        (equivARS3 ? '<div style="font-size:11px;color:var(--text3)">≈ ' + equivARS3 + ' ARS</div>' : '') +
+        (equivARS3 ? '<div style="font-size:11px;color:var(--text3)">â‰ˆ ' + equivARS3 + ' ARS</div>' : '') +
         '<div style="font-size:11px;color:'+stkColor+'">' + disp + ' disp.</div>' +
       '</div>' +
     '</div>';
-  }).join('') + (productos.length > 120 ? '<div style="padding:10px;text-align:center;font-size:11px;color:var(--text3)">Mostrando los primeros 120 resultados — usá los filtros para acotar</div>' : '');
+  }).join('') + (productos.length > 120 ? '<div style="padding:10px;text-align:center;font-size:11px;color:var(--text3)">Mostrando los primeros 120 resultados â€” usÃ¡ los filtros para acotar</div>' : '');
 }
 
 function seleccionarProdAvanz(cod, nombre, precio, moneda) {
   if (!_busqAvanzTR) { cerrarBusquedaAvanzada(); return; }
-  // Simular la selección como si viniera del dropdown normal
+  // Simular la selecciÃ³n como si viniera del dropdown normal
   var fakeItem = { dataset: { cod: cod, desc: nombre, precio: precio, moneda: moneda } };
   _prodDropTR = _busqAvanzTR;
   _selProdGlobal(fakeItem);
@@ -23305,9 +23570,9 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// addRow: usa crearFilaProducto (definida en módulo nueva venta)
+// addRow: usa crearFilaProducto (definida en mÃ³dulo nueva venta)
 
-// Presupuesto: addPpRow usa crearFilaProducto (idéntico a nueva venta)
+// Presupuesto: addPpRow usa crearFilaProducto (idÃ©ntico a nueva venta)
 function addPpRow() {
   // Usar el mismo componente que nueva venta para consistencia total
   var body = document.getElementById('pp-body');
@@ -23320,7 +23585,7 @@ function addPpRow() {
   body.appendChild(tr);
 }
 
-// Extrae los ítems del pp-body igual que nueva venta extrae de det-body
+// Extrae los Ã­tems del pp-body igual que nueva venta extrae de det-body
 function getPpItems() {
   var filas = Array.from(document.querySelectorAll('#pp-body tr'));
   return filas.map(function(tr) {
@@ -23333,11 +23598,11 @@ function getPpItems() {
     var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
     var sub   = Math.round(qty * punit * (1 - disc/100));
     return { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub };
-  }).filter(function(it){ return (it.desc && it.desc.trim() && it.desc !== 'Seleccioná un producto') || it.punit > 0; });
+  }).filter(function(it){ return (it.desc && it.desc.trim() && it.desc !== 'SeleccionÃ¡ un producto') || it.punit > 0; });
 }
 function stockBadgeHTML(cod, qty) {
   var s = stockData ? stockData[cod] : null;
-  if (!s) return '<span class="stock-indicator">—</span>';
+  if (!s) return '<span class="stock-indicator">â€”</span>';
   var disp = s.real - s.reservado;
   if (disp <= 0)
     return '<span class="stock-indicator stock-error"><i class="ti ti-alert-circle" style="font-size:10px"></i> Sin stock</span>';
@@ -23369,7 +23634,7 @@ function actualizarResumenStock() {
     var cod = selCod ? selCod.textContent : '';
     var qty = parseInt((tr.querySelector('.qty')||{}).value) || 1;
     var s = stockData ? stockData[cod] : null;
-    if (!s || cod === '—') return null;
+    if (!s || cod === 'â€”') return null;
     var disp = s.real - s.reservado;
     return { cod:cod, desc:s.desc, qty:qty, real:s.real, reservado:s.reservado, disp:disp, ok:qty<=disp };
   }).filter(Boolean);
@@ -23377,7 +23642,7 @@ function actualizarResumenStock() {
   resumen.style.display = 'block';
   body.innerHTML = items.map(function(i) {
     return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px">' +
-      '<span style="color:var(--text2);flex:1">'+escapeHTML(i.cod)+' — '+escapeHTML(i.desc)+'</span>' +
+      '<span style="color:var(--text2);flex:1">'+escapeHTML(i.cod)+' â€” '+escapeHTML(i.desc)+'</span>' +
       '<span style="display:flex;gap:8px;align-items:center;flex-shrink:0">' +
         '<span style="font-size:11px;color:var(--text3)">Disp: '+i.disp+'</span>' +
         '<span style="font-weight:500">Pedir: '+i.qty+'</span>' +
@@ -23388,3 +23653,5 @@ function actualizarResumenStock() {
     '</div>';
   }).join('');
 }
+
+
