@@ -1,4 +1,4 @@
-/* v1.36.13 ? Cierre operativo: auditor?a final no destructiva */
+/* v1.36.15 ? Cierre operativo: auditor?a final no destructiva */
 (function(){
   'use strict';
 
@@ -33,6 +33,9 @@
   }
 
   function auditarPermisos(){
+    if(window.SisVentas && window.SisVentas.Security && typeof window.SisVentas.Security.aplicarProtecciones === 'function'){
+      window.SisVentas.Security.aplicarProtecciones();
+    }
     var faltan = FUNCIONES_PROTEGIDAS.filter(function(nombre){
       return typeof window[nombre] === 'function' && !window[nombre]._svPermisoProtegido;
     });
@@ -48,6 +51,7 @@
     var inestables = tables.filter(function(t){
       var th = t.querySelectorAll('th').length;
       if(th < 2) return false;
+      if(t.classList.contains('sv-resizable-table') || t.closest('.table-wrap,.sv-auto-grid-wrap,.sv-resizable-wrap')) return false;
       return !t.id && !t.querySelector('tbody[id]') && !t.querySelector('thead[id]');
     });
     var sinScroll = tables.filter(function(t){

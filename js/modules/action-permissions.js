@@ -97,7 +97,7 @@
     window[nombre]=protegida;
   }
 
-  [
+  var PROTECCIONES_ACCION = [
     ['registrarPago','cobranzas.registrar'],
     ['anularPago','cobranzas.anular'],
     ['elimPago','cobranzas.anular'],
@@ -139,7 +139,17 @@
     ['guardarDatosEmpresa','configuracion.editar'],
     ['guardarPermisosRoles','configuracion.editar'],
     ['restaurarPermisosDefault','configuracion.editar']
-  ].forEach(function(item){ proteger(item[0],item[1]); });
+  ];
+
+  function aplicarProtecciones(){
+    PROTECCIONES_ACCION.forEach(function(item){ proteger(item[0],item[1]); });
+  }
+  SV.Security.aplicarProtecciones = aplicarProtecciones;
+  window.svAplicarProteccionesAccion = aplicarProtecciones;
+  aplicarProtecciones();
+  setTimeout(aplicarProtecciones, 300);
+  setTimeout(aplicarProtecciones, 1200);
+  document.addEventListener('sisventas:page-changed', aplicarProtecciones);
 
   function safeString(v){
     try { return JSON.stringify(v, function(k,val){ if (typeof val === 'function') return undefined; if (String(k).toLowerCase().indexOf('pass') >= 0) return '***'; return val; }).slice(0, 9000); }
@@ -200,6 +210,9 @@
     };
     window.registrarPago._sv311 = true;
   }
+
+  aplicarProtecciones();
+  setTimeout(aplicarProtecciones, 1800);
 
   var guardarProductoPrev311 = window.guardarProducto;
   if (typeof guardarProductoPrev311 === 'function' && !guardarProductoPrev311._sv311) {

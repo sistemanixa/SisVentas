@@ -1,4 +1,4 @@
-/* v1.36.13 — Preparación para versión mayor 2.0 */
+/* v1.36.15 — Preparación para versión mayor 2.0 */
 (function(){
   'use strict';
 
@@ -7,6 +7,12 @@
   function setText(id, txt){ var el=document.getElementById(id); if(el) el.textContent = txt; }
   function badgeClass(status){ return status === 'ok' ? 'b-green' : status === 'blocker' ? 'b-red' : 'b-amber'; }
   function hasFn(name){ return typeof window[name] === 'function'; }
+  function hasFeature(def){
+    if(def.fn && hasFn(def.fn)) return true;
+    if(def.anyFn && def.anyFn.some(hasFn)) return true;
+    if(def.object && def.method && window[def.object] && typeof window[def.object][def.method] === 'function') return true;
+    return false;
+  }
   function hasEl(id){ return !!document.getElementById(id); }
   function scriptLoaded(src){ return !!document.querySelector('script[src*="'+src+'"]'); }
 
@@ -25,6 +31,7 @@
     'dolar-historico.js',
     'ops-hardening.js',
     'v2-readiness.js',
+    'v2-audit.js',
     'role-guard.js'
   ];
 
@@ -35,8 +42,9 @@
     { id:'permissions', label:'Permisos finos por acción', fn:'tienePermiso', weight:9, critical:true },
     { id:'admin-check', label:'Control de rol administrativo', fn:'esAdminSV', weight:7, critical:true },
     { id:'metrics', label:'Métricas centralizadas de ventas', fn:'svResumenVentas', weight:8, critical:false },
-    { id:'print', label:'Impresión desacoplada', fn:'svPrepararVentaImpresion', weight:5, critical:false },
-    { id:'dolar', label:'Histórico horario del dólar', fn:'svDolarHistoricoEvaluar', weight:5, critical:false }
+    { id:'print', label:'Impresión desacoplada', anyFn:['imprimirVentaActual','imprimirPresupuesto','imprimirRecibo','imprimirRemito'], weight:5, critical:false },
+    { id:'dolar', label:'Histórico horario del dólar', object:'SisVentasDolarHistorico', method:'guardarPunto', weight:5, critical:false }
+    ,{ id:'v2-audit', label:'Auditoría V2 de datos y módulos', fn:'svAuditoriaV2', weight:8, critical:false }
   ];
 
   var REQUIRED_UI = [
@@ -108,7 +116,7 @@
     });
 
     REQUIRED_FUNCTIONS.forEach(function(def){
-      add('Funciones críticas', def.id, def.label, hasFn(def.fn), def.weight, def.critical, hasFn(def.fn) ? 'Disponible en runtime' : 'No disponible en runtime');
+      add('Funciones críticas', def.id, def.label, hasFeature(def), def.weight, def.critical, hasFeature(def) ? 'Disponible en runtime' : 'No disponible en runtime');
     });
 
     REQUIRED_UI.forEach(function(def){
