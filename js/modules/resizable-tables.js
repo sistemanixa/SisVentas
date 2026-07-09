@@ -26,11 +26,14 @@
 
   function tableKey(table) {
     if (table.id) return table.id;
+    var tbody = table.querySelector('tbody[id]');
+    if (tbody && tbody.id) return pageId(table) + ':tbody:' + tbody.id;
+    var thead = table.querySelector('thead[id]');
+    if (thead && thead.id) return pageId(table) + ':thead:' + thead.id;
     var headers = tableHeaders(table).map(function (th) {
       return (th.textContent || '').trim().replace(/\s+/g, '-').slice(0, 24);
     }).filter(Boolean).join('|');
-    var index = Array.from(document.querySelectorAll('.table-wrap table, .sv-auto-grid-wrap table, .card table')).indexOf(table);
-    return pageId(table) + ':' + index + ':' + headers;
+    return pageId(table) + ':headers:' + headers;
   }
 
   function storageKey(table) {
@@ -100,6 +103,7 @@
     if (headers.length < 2) return;
 
     table.classList.add('sv-resizable-table');
+    table.dataset.svResizableKey = tableKey(table);
     wrap.classList.add('sv-resizable-wrap');
     applySavedWidths(table);
 
