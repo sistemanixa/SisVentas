@@ -33,7 +33,7 @@
     var max=Math.max.apply(null,serie.map(function(x){return Math.abs(x);})); if(!max) max=1;
     var steps=[max, max*.5, 0];
     var html='<div class="sv334-chart-wrap"><div class="sv334-axis-y"><span>'+fmtCompact(steps[0])+'</span><span>'+fmtCompact(steps[1])+'</span><span>$0</span></div><div class="sv334-bars-area">';
-    serie.forEach(function(v,i){ var h=Math.max(4,Math.round(Math.abs(v)/max*96)); var cls=(v<0?'neg':(i===serie.length-1?'today':'pos')); var left=((i+.5)/serie.length*100).toFixed(3)+'%'; html+='<div class="sv334-bc" title="'+esc(labels[i])+' · '+money(v)+'"><div class="sv334-bar '+cls+'" style="height:'+h+'px"></div><span class="sv334-lbl" style="left:'+left+'">'+esc(labels[i])+'</span></div>'; });
+    serie.forEach(function(v,i){ var h=Math.max(4,Math.round(Math.abs(v)/max*118)); var cls=(v<0?'neg':(i===serie.length-1?'today':'pos')); var left=((i+.5)/serie.length*100).toFixed(3)+'%'; html+='<div class="sv334-bc" title="'+esc(labels[i])+' · '+money(v)+'"><div class="sv334-bar '+cls+'" style="height:'+h+'px"></div><span class="sv334-lbl" style="left:'+left+'">'+esc(labels[i])+'</span></div>'; });
     html+='</div></div>'; el.innerHTML=html; if(clickPage) el.onclick=function(){ if(typeof showPage==='function') showPage(clickPage,document.querySelector('[onclick*='+clickPage+']')); };
   }
   function drawLine(containerId, serie, labels){

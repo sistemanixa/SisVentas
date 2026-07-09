@@ -1,4 +1,4 @@
-/* v1.36.10 — Cierre operativo: auditoría final no destructiva */
+/* v1.36.11 ? Cierre operativo: auditor?a final no destructiva */
 (function(){
   'use strict';
 
@@ -82,7 +82,7 @@
   }
 
   async function auditarDolar(){
-    var out = { puntos:0, ultimo:'—', ok:true };
+    var out = { puntos:0, ultimo:'?', ok:true };
     if(!window.fbDB || !window.fbGet || !window.fbRef) return out;
     var ultimo = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/dolarHistoricoUltimo')).then(function(s){ return s.val() || {}; }).catch(function(){ out.ok=false; return {}; });
     if(ultimo && ultimo.ts) out.ultimo = new Date(ultimo.ts).toLocaleString('es-AR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
@@ -93,7 +93,7 @@
 
   function row(estado, titulo, detalle){
     var cls = estado === 'ok' ? 'b-green' : estado === 'alto' ? 'b-red' : 'b-amber';
-    var label = estado === 'ok' ? 'OK' : estado === 'alto' ? 'Atención' : 'Revisar';
+    var label = estado === 'ok' ? 'OK' : estado === 'alto' ? 'Atenci?n' : 'Revisar';
     return '<div style="display:grid;grid-template-columns:90px minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border-bottom:0.5px solid var(--border)">'+
       '<span class="badge '+cls+'">'+label+'</span>'+
       '<div><div style="font-size:13px;color:var(--text);font-weight:600">'+esc(titulo)+'</div><div style="font-size:12px;color:var(--text3);margin-top:2px;line-height:1.35">'+esc(detalle)+'</div></div>'+
@@ -141,17 +141,17 @@
       badge.className = 'badge ' + badgeClass(problemas);
       badge.textContent = problemas ? (problemas + ' punto(s)') : 'Cierre OK';
     }
-    setText('mnt-op-rel', data.relaciones.criticos ? data.relaciones.criticos+' críticos' : data.relaciones.total+' avisos');
+    setText('mnt-op-rel', data.relaciones.criticos ? data.relaciones.criticos+' cr?ticos' : data.relaciones.total+' avisos');
     setText('mnt-op-sec', data.permisos.faltan.length ? data.permisos.faltan.length+' sin wrapper' : 'OK');
     setText('mnt-op-grid', (data.grids.inestables + data.grids.sinScroll) ? ((data.grids.inestables + data.grids.sinScroll)+' revisar') : 'OK');
     setText('mnt-op-dolar', data.dolar.puntos + ' puntos');
     if(box){
       var html = '';
-      html += row(data.relaciones.criticos ? 'alto' : (data.relaciones.altos || data.relaciones.automaticos ? 'medio' : 'ok'), 'Relaciones por ID', 'Avisos: '+data.relaciones.total+' · críticos: '+data.relaciones.criticos+' · automáticos seguros: '+data.relaciones.automaticos+'.');
-      html += row(data.permisos.faltan.length ? 'alto' : 'ok', 'Permisos peligrosos', data.permisos.faltan.length ? ('Faltan wrappers: '+data.permisos.faltan.join(', ')) : 'Acciones críticas conocidas protegidas por el módulo de permisos.');
-      html += row((data.grids.inestables || data.grids.sinScroll) ? 'medio' : 'ok', 'Tablas y grids', 'Tablas: '+data.grids.total+' · ajustables/scroll: '+data.grids.ajustables+' · sin clave estable: '+data.grids.inestables+' · sin contenedor scroll: '+data.grids.sinScroll+'.');
-      html += row((data.credenciales.huerfanasNueva || data.credenciales.huerfanasLegacy) ? 'medio' : 'ok', 'Credenciales ↔ clientes', 'Nueva ruta: '+data.credenciales.totalNueva+' · legacy: '+data.credenciales.totalLegacy+' · huérfanas: '+(data.credenciales.huerfanasNueva + data.credenciales.huerfanasLegacy)+(data.credenciales.sinLeer?' · no se pudo leer completo':'')+'.');
-      html += row(data.dolar.ok ? 'ok' : 'medio', 'Histórico del dólar', 'Puntos guardados: '+data.dolar.puntos+' · último: '+data.dolar.ultimo+'.');
+      html += row(data.relaciones.criticos ? 'alto' : (data.relaciones.altos || data.relaciones.automaticos ? 'medio' : 'ok'), 'Relaciones por ID', 'Avisos: '+data.relaciones.total+' ? cr?ticos: '+data.relaciones.criticos+' ? autom?ticos seguros: '+data.relaciones.automaticos+'.');
+      html += row(data.permisos.faltan.length ? 'alto' : 'ok', 'Permisos peligrosos', data.permisos.faltan.length ? ('Faltan wrappers: '+data.permisos.faltan.join(', ')) : 'Acciones cr?ticas conocidas protegidas por el m?dulo de permisos.');
+      html += row((data.grids.inestables || data.grids.sinScroll) ? 'medio' : 'ok', 'Tablas y grids', 'Tablas: '+data.grids.total+' ? ajustables/scroll: '+data.grids.ajustables+' ? sin clave estable: '+data.grids.inestables+' ? sin contenedor scroll: '+data.grids.sinScroll+'.');
+      html += row((data.credenciales.huerfanasNueva || data.credenciales.huerfanasLegacy) ? 'medio' : 'ok', 'Credenciales ? clientes', 'Nueva ruta: '+data.credenciales.totalNueva+' ? legacy: '+data.credenciales.totalLegacy+' ? hu?rfanas: '+(data.credenciales.huerfanasNueva + data.credenciales.huerfanasLegacy)+(data.credenciales.sinLeer?' ? no se pudo leer completo':'')+'.');
+      html += row(data.dolar.ok ? 'ok' : 'medio', 'Hist?rico del d?lar', 'Puntos guardados: '+data.dolar.puntos+' ? ?ltimo: '+data.dolar.ultimo+'.');
       box.innerHTML = html;
     }
     if(typeof window.mntLog === 'function') window.mntLog('Resumen operativo: '+(problemas || 0)+' punto(s) para revisar.');

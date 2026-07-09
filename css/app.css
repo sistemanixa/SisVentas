@@ -1152,3 +1152,13 @@ body.modal-secure-open{overflow:hidden!important}
 .sv334-bars-area,.sv334-svg-wrap{height:138px!important;background:linear-gradient(180deg,rgba(255,255,255,.020),rgba(255,255,255,.006))!important}
 .sv334-chart-wrap,.sv334-line-wrap{height:158px!important}
 .sv334-svg{height:138px!important}
+
+/* v1.36.11 — Dashboard ejecutivo: barras y líneas con el mismo alto útil */
+.sv334-chart-wrap,.sv334-line-wrap{height:168px!important;min-height:168px!important}
+.sv334-bars-area,.sv334-svg-wrap{height:148px!important;min-height:148px!important}
+.sv334-svg{height:148px!important}
+.sv334-bars-area{padding:10px 8px 24px 8px!important;align-items:flex-end!important}
+.sv334-bc{height:118px!important;align-self:flex-end!important}
+.sv334-bar{max-height:118px!important}
+@media(max-width:1199px){.sv334-chart-wrap,.sv334-line-wrap{height:158px!important;min-height:158px!important}.sv334-bars-area,.sv334-svg-wrap,.sv334-svg{height:138px!important;min-height:138px!important}.sv334-bc{height:108px!important}.sv334-bar{max-height:108px!important}}
+@media(max-width:700px){.sv334-chart-wrap,.sv334-line-wrap{height:142px!important;min-height:142px!important}.sv334-bars-area,.sv334-svg-wrap,.sv334-svg{height:122px!important;min-height:122px!important}.sv334-bc{height:92px!important}.sv334-bar{max-height:92px!important}}

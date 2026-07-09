@@ -1,4 +1,4 @@
-/* v1.36.10 — Columnas ajustables para tablas/listas */
+/* v1.36.11 ? Columnas ajustables para tablas/listas */
 (function () {
   'use strict';
 
@@ -9,17 +9,17 @@
   var DEFAULT_WIDTH_BY_HEADER = {
     'fecha': 76,
     'descripcion': 170,
-    'descripción': 170,
+    'descripci?n': 170,
     'concepto': 170,
     'cliente': 150,
     'categoria': 98,
-    'categoría': 98,
+    'categor?a': 98,
     'tipo': 86,
     'monto': 96,
     'pagado': 96,
     'vencimiento': 104,
     'estado': 82,
-    'pagó': 74,
+    'pag?': 74,
     'pago': 74,
     'comprobante': 92,
     'usuario': 116
@@ -239,7 +239,7 @@
       if (th.querySelector('.sv-col-resizer')) return;
       var handle = document.createElement('span');
       handle.className = 'sv-col-resizer';
-      handle.title = 'Arrastrá para cambiar el ancho. Doble clic para resetear.';
+      handle.title = 'Arrastr? para cambiar el ancho. Doble clic para resetear.';
       th.appendChild(handle);
 
       var startX = 0;
