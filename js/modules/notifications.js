@@ -16,11 +16,13 @@
     return tecnico?source.filter(notifPermitidaTecnico):source;
   }
   // Notificaciones: urgent filter + estados persistidos por usuario
-  function currentEmail(){
-    return String(global.currentUserEmail||(global.fbAuth&&global.fbAuth.currentUser&&global.fbAuth.currentUser.email)||'').toLowerCase();
+  function currentIdentity(){
+    var authEmail = global.fbAuth && global.fbAuth.currentUser && global.fbAuth.currentUser.email;
+    var id = global.currentUserEmail || authEmail || global.currentUser || global.currentUserName || 'local';
+    return String(id || 'local').toLowerCase();
   }
   function notifStorageKey(){
-    var u = String(currentEmail() || window.currentUser || 'local').toLowerCase().replace(/[^a-z0-9]+/g,'_');
+    var u = currentIdentity().replace(/[^a-z0-9]+/g,'_');
     return 'sv_notif_state_v3_' + u;
   }
   function nKey(id){ return String(id||'').replace(/[.#$\[\]/]/g,'_'); }
@@ -36,9 +38,9 @@
     if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif();
   }
   function iniciarSyncNotificaciones(){
-    var email=currentEmail();
-    if(!email||!global.fbDB||!global.fbOnValue) return;
-    var userKey=nKey(email);
+    var identity=currentIdentity();
+    if(!identity||identity==='local'||!global.fbDB||!global.fbOnValue) return;
+    var userKey=nKey(identity);
     if(notifStateUser===userKey&&typeof notifStateUnsubscribe==='function') return;
     if(typeof notifStateUnsubscribe==='function') notifStateUnsubscribe();
     notifStateUser=userKey;
@@ -63,9 +65,9 @@
     notifState[k]=Object.assign(notifState[k]||{},patch,{updatedAt:new Date().toISOString(),usuario:svCurrentUserName()});
     saveState(notifState);
     iniciarSyncNotificaciones();
-    var email=currentEmail();
-    if (window.fbDB && email) {
-      window.fbSet(window.fbRef(window.fbDB,'sisventas/notificaciones_estado/'+nKey(email)+'/'+k),notifState[k]).catch(function(error){console.error('[Notificaciones] Error guardando estado',error);});
+    var identity=currentIdentity();
+    if (window.fbDB && identity && identity !== 'local') {
+      window.fbSet(window.fbRef(window.fbDB,'sisventas/notificaciones_estado/'+nKey(identity)+'/'+k),notifState[k]).catch(function(error){console.error('[Notificaciones] Error guardando estado',error);});
     }
   }
   function visibleNotif(n, filtro){
@@ -115,7 +117,7 @@
     var b=document.getElementById('notif-badge'); if(b) b.style.display=count?'block':'none';
   };
   function actualizarNotificacionesAutomaticamente(){
-    if(!currentEmail()) return;
+    if(!currentIdentity() || currentIdentity()==='local') return;
     iniciarSyncNotificaciones();
     if(typeof global.generarNotificaciones==='function') global.generarNotificaciones();
   }
