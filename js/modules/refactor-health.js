@@ -6,7 +6,10 @@
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function setText(id, value){ var el=document.getElementById(id); if(el) el.textContent=value; }
   function hasAny(obj, keys){ return keys.some(function(k){ return !!norm(obj && obj[k]); }); }
-  function baseRef(rec){ return norm((rec && (rec.fbKey || rec.id || rec.numero || rec.codigo || rec.ventaId || rec.clienteId)) || ''); }
+  function baseRef(rec){
+    if(!rec) return '';
+    return norm(rec.fbKey || rec.id || rec.numero || rec.codigo || rec.ventaId || rec.venta || rec.nroVenta || rec.numeroVenta || rec.clienteId || rec.cliente || ((rec.fecha||rec.monto) ? ((rec.fecha||'')+' $'+(rec.monto||'')) : ''));
+  }
   function rutaYaVerificada(path, value){
     var m = window._svRutasNormalizadasVerificadas || {};
     return !!(path && m[path] && valoresIguales(m[path], value));
@@ -48,6 +51,18 @@
   function issue(list, sev, tipo, msg, rec, sugerencia){
     list.push({sev:sev||'medio', tipo:tipo, msg:msg, ref:baseRef(rec), sugerencia:sugerencia||''});
   }
+  async function cargarRutasNormalizadasVerificadas(){
+    if(window._svNormalizacionesVerificadasCargadas || !window.fbDB || !window.fbGet || !window.fbRef) return;
+    window._svNormalizacionesVerificadasCargadas = true;
+    var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/mantenimiento/normalizaciones')).catch(function(){ return { val:function(){ return null; } }; });
+    var data = snap && typeof snap.val === 'function' ? snap.val() : null;
+    Object.values(data || {}).forEach(function(reg){
+      if(!reg || reg.verificacion && reg.verificacion.ok === false) return;
+      arr(reg.updatesLista).forEach(function(x){
+        if(x && x.ruta) marcarRutaVerificada(x.ruta, x.valor);
+      });
+    });
+  }
   function relacionesVerificadasPara(rec, pares){
     if(!rec || !rec.fbKey) return false;
     return pares.every(function(par){
@@ -80,7 +95,11 @@
       if(!p) return;
       var c = resolverCliente(p);
       if(!hasAny(p,['clienteFbKey','clienteKey']) && c && c.fbKey && !relacionesVerificadasPara(p,[{col:'presupuestos',campo:'clienteFbKey',valor:c.fbKey},{col:'presupuestos',campo:'clienteKey',valor:c.fbKey}])) issue(issues,'medio','presupuesto','Presupuesto sin clienteFbKey aunque el cliente se puede resolver',p,'Normalizar clienteFbKey.');
-      if((p.ventaId || p.ventaGeneradaId) && !hasAny(p,['ventaFbKey','ventaGeneradaFbKey'])) issue(issues,'alto','presupuesto','Presupuesto convertido sin ventaFbKey/ventaGeneradaFbKey',p,'Completar vinculo a venta generada.');
+      if((p.ventaId || p.ventaGeneradaId) && !hasAny(p,['ventaFbKey','ventaGeneradaFbKey'])){
+        var v = resolverVenta({ ventaFbKey:p.ventaFbKey || p.ventaGeneradaFbKey, ventaId:p.ventaId || p.ventaGeneradaId });
+        if(v && v.fbKey && relacionesVerificadasPara(p,[{col:'presupuestos',campo:'ventaFbKey',valor:v.fbKey},{col:'presupuestos',campo:'ventaGeneradaFbKey',valor:v.fbKey}])) return;
+        issue(issues, v && v.fbKey ? 'medio' : 'alto', 'presupuesto', 'Presupuesto convertido sin ventaFbKey/ventaGeneradaFbKey' + (v && v.fbKey ? ' aunque la venta se puede resolver' : ''), p, v && v.fbKey ? 'Normalizar vinculo a venta generada.' : 'Revisar venta generada inexistente/eliminada: '+(p.ventaId || p.ventaGeneradaId));
+      }
     });
   }
   function auditarPagos(issues){
@@ -91,6 +110,7 @@
       if(tieneRef && !venta) issue(issues,'alto','pago','Pago con referencia de venta que no se pudo resolver',p,'Revisar venta eliminada/anulada o completar ventaFbKey.');
       if(!hasAny(p,['ventaFbKey','ventaKey']) && venta && venta.fbKey && !relacionesVerificadasPara(p,[{col:'pagos',campo:'ventaFbKey',valor:venta.fbKey},{col:'pagos',campo:'ventaKey',valor:venta.fbKey}])) issue(issues,'medio','pago','Pago sin ventaFbKey aunque la venta se puede resolver',p,'Normalizar ventaFbKey.');
       var c = resolverCliente(p) || (venta && resolverCliente(venta));
+      if(!p.fbKey) return; // pagos embebidos legacy dentro de ventas: heredan cliente/venta y no viven en /sisventas/pagos
       if(!hasAny(p,['clienteFbKey','clienteKey']) && c && c.fbKey && !relacionesVerificadasPara(p,[{col:'pagos',campo:'clienteFbKey',valor:c.fbKey},{col:'pagos',campo:'clienteKey',valor:c.fbKey}])) issue(issues,'bajo','pago','Pago sin clienteFbKey aunque el cliente se puede resolver',p,'Normalizar clienteFbKey.');
     });
   }
@@ -132,7 +152,7 @@
     issues.sort(function(a,b){ return sevPeso(a.sev)-sevPeso(b.sev) || String(a.tipo).localeCompare(String(b.tipo)); });
     var porTipo = issues.reduce(function(acc,it){ acc[it.tipo]=(acc[it.tipo]||0)+1; return acc; }, {});
     var porSev = issues.reduce(function(acc,it){ acc[it.sev]=(acc[it.sev]||0)+1; return acc; }, {});
-    return { version:'v1.34.7', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
+    return { version:'v1.34.8', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
   };
 
   window.svGenerarPlanNormalizacionRelaciones = function(){
@@ -205,7 +225,7 @@
       }
     });
     return {
-      version:'v1.34.7',
+      version:'v1.34.8',
       fecha:new Date().toISOString(),
       totalCambios:Object.keys(updates).length,
       updates:updates,
@@ -363,6 +383,11 @@
   };
 
   window.svRenderAuditoriaRelaciones = function(){
+    if(!window._svNormalizacionesVerificadasCargadas && window.fbDB && window.fbGet && window.fbRef) {
+      cargarRutasNormalizadasVerificadas().then(function(){
+        if(typeof window.svRenderAuditoriaRelaciones === 'function') window.svRenderAuditoriaRelaciones();
+      });
+    }
     var box=document.getElementById('mnt-relaciones-lista');
     var badge=document.getElementById('mnt-relaciones-count');
     var res=window.svAuditarRelaciones();
