@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.35.5-firebase',
+  VERSION: 'v1.35.6-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -17756,6 +17756,11 @@ function normalizarTipoGasto(g) {
   return (g && g.tipo) || 'Variable';
 }
 
+function puedeAdministrarGastos() {
+  var rol = String(currentRole || '').toLowerCase();
+  return rol === 'admin' || rol === 'administrativo';
+}
+
 function restoGasto(g) {
   return Math.max(0, (parseFloat(g && g.monto)||0) - totalPagadoGasto(g));
 }
@@ -18000,6 +18005,18 @@ function abrirFormGasto(fbKey) {
   document.getElementById('g-pagado-tecnico').checked = false;
   document.getElementById('g-tecnico-box').style.display = 'none';
   document.getElementById('g-foto-preview').innerHTML = '';
+  var adminGastos = puedeAdministrarGastos();
+  var tipoGastoEl = document.getElementById('g-tipo');
+  var montoPagadoEl = document.getElementById('g-monto-pagado');
+  if (tipoGastoEl) {
+    Array.prototype.forEach.call(tipoGastoEl.options || [], function(opt) {
+      opt.disabled = !adminGastos && opt.value === 'Fijo';
+    });
+  }
+  if (montoPagadoEl) {
+    montoPagadoEl.readOnly = !adminGastos;
+    if (!adminGastos) montoPagadoEl.title = 'Solo administración registra pagos o aprobaciones';
+  }
   // Llenar select de empleados
   var sel = document.getElementById('g-tecnico-id');
   if (sel) {
@@ -18015,6 +18032,7 @@ function abrirFormGasto(fbKey) {
       document.getElementById('g-fecha').value       = g.fecha||hoy;
       document.getElementById('g-vencimiento').value = g.vencimiento||'';
       document.getElementById('g-tipo').value        = g.tipo||'Variable';
+      if (!adminGastos && document.getElementById('g-tipo').value === 'Fijo') document.getElementById('g-tipo').value = 'Variable';
       document.getElementById('g-categoria').value   = g.categoria||'Otro';
       document.getElementById('g-descripcion').value = g.descripcion||'';
       _setMontoInput(document.getElementById('g-monto'), g.monto||0);
@@ -18108,6 +18126,7 @@ function guardarGastoCompleto() {
   var desc   = document.getElementById('g-descripcion').value.trim();
   if (!desc)  { notify('Ingresá una descripción'); return; }
   if (!monto) { notify('Ingresá el monto'); return; }
+  var adminGastos = puedeAdministrarGastos();
   var estado = pagado >= monto ? 'pagado' : pagado > 0 ? 'pagado_parcial' : 'pendiente';
   var pagoTecnico = document.getElementById('g-pagado-tecnico').checked;
   var tecnicoId   = pagoTecnico ? document.getElementById('g-tecnico-id').value : null;
@@ -18117,6 +18136,13 @@ function guardarGastoCompleto() {
     tecnicoNom = emp ? emp.nombre : '';
   }
   var tipo = document.getElementById('g-tipo').value.split('—')[0].trim();
+  if (!adminGastos && tipo === 'Fijo') { notify('Solo administración puede cargar gastos fijos'); return; }
+  if (!adminGastos && pagado > 0) { notify('Solo administración puede registrar pagos de gastos'); return; }
+  if (!adminGastos) {
+    tipo = 'Variable';
+    pagado = 0;
+    estado = 'pendiente';
+  }
   var datos = {
     fecha:         document.getElementById('g-fecha').value,
     vencimiento:   document.getElementById('g-vencimiento').value,
@@ -18159,6 +18185,9 @@ function guardarGastoCompleto() {
     if (gastoActualFbKey && gastoOriginal) {
       sincronizarMedioPagoCuentaEmpleado(gastoOriginal, gastoActualFbKey, datos.medio);
     }
+    if (typeof registrarActividad === 'function') {
+      registrarActividad(gastoActualFbKey ? 'Gasto editado' : 'Gasto creado', desc + ' · $' + Math.round(monto).toLocaleString('es-AR') + ' · ' + datos.tipo + ' · ' + datos.estado);
+    }
     notify(gastoActualFbKey ? 'Gasto actualizado' : 'Gasto registrado');
     if (tecnicoId && !gastoActualFbKey) {
       var mov = {
@@ -18180,6 +18209,7 @@ function guardarGastoCompleto() {
 var _gastoFbKeyPago = null;
 var _pagoGastoComprobante = null;
 function abrirPagoGasto(fbKey) {
+  if (!puedeAdministrarGastos()) { notify('Solo administración puede registrar pagos de gastos'); return; }
   var g = gastosData.find(function(x){ return x.fbKey===fbKey; });
   if (!g) return;
   _gastoFbKeyPago = fbKey;
@@ -18443,6 +18473,7 @@ function _registrarPagoGastoUnitario(fbKey, montoNuevo, medio, comprobante, lote
 }
 
 function confirmarPagoGasto() {
+  if (!puedeAdministrarGastos()) { notify('Solo administración puede registrar pagos de gastos'); return; }
   var medio = document.getElementById('mpg-medio').value;
   var montoNuevo = getMontoRaw(document.getElementById('mpg-monto'));
   if (!montoNuevo || montoNuevo <= 0) { notify('Ingresá un monto válido'); return; }
@@ -18471,6 +18502,9 @@ function confirmarPagoGasto() {
     }).catch(function(){});
   }
   Promise.all(promesas).then(function(){
+    if (typeof registrarActividad === 'function') {
+      registrarActividad(keys.length > 1 ? 'Pago múltiple de gastos' : 'Pago de gasto', keys.length + ' gasto(s) · $' + Math.round(montoNuevo).toLocaleString('es-AR') + ' · ' + medio);
+    }
     notify(keys.length > 1 ? '✓ Pago múltiple registrado' : '✓ Pago registrado');
     document.getElementById('modal-pago-gasto').style.display = 'none';
     _gastoFbKeyPago = null;
@@ -23675,6 +23709,7 @@ function actualizarResumenStock() {
     '</div>';
   }).join('');
 }
+
 
 
 

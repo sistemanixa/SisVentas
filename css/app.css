@@ -146,7 +146,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 .sv-auto-grid-wrap,.table-wrap{display:block;width:100%;max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
 .sv-auto-grid-wrap>table,.table-wrap>table{width:max-content;min-width:100%;max-width:none!important}
 .sv-scroll-panel{max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
-.sv-resizable-wrap{position:relative}
+.sv-resizable-wrap{position:relative;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch}
 .sv-resizable-table{table-layout:fixed;width:max-content;min-width:100%;max-width:none!important}
 .sv-resizable-table th,.sv-resizable-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-resizable-table th{position:relative;user-select:none}

@@ -22,6 +22,8 @@
     if (!moduleId) return false;
     var role = current();
     if (role === 'admin') return true;
+    permissions = permissions || global.PERMISOS_ROLES;
+    defaults = defaults || global.PERMISOS_DEFAULT;
     var config = (permissions && permissions[role]) ||
       (defaults && defaults[role]) || { bloqueados: [] };
     return (config.bloqueados || []).indexOf(moduleId) === -1;
@@ -47,6 +49,9 @@
   });
 
   function resolvePage(page) {
+    if (!canAccess(page)) {
+      return { page: 'dashboard', redirected: true };
+    }
     if (current() === 'tecnico' && technicianDenied[page]) {
       return { page: 'ctaemp', redirected: true };
     }
