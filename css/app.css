@@ -146,6 +146,15 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 .sv-auto-grid-wrap,.table-wrap{display:block;width:100%;max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
 .sv-auto-grid-wrap>table,.table-wrap>table{width:max-content;min-width:100%;max-width:none!important}
 .sv-scroll-panel{max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
+.sv-resizable-wrap{position:relative}
+.sv-resizable-table{table-layout:fixed;width:max-content;min-width:100%;max-width:none!important}
+.sv-resizable-table th,.sv-resizable-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-resizable-table th{position:relative;user-select:none}
+.sv-resizable-table th.tr,.sv-resizable-table td.tr{text-align:right}
+.sv-col-resizer{position:absolute;top:0;right:-5px;width:10px;height:100%;cursor:col-resize;z-index:4;touch-action:none}
+.sv-col-resizer:after{content:'';position:absolute;top:7px;bottom:7px;left:4px;width:2px;border-radius:999px;background:transparent;transition:background .12s,box-shadow .12s}
+.sv-col-resizer:hover:after,body.sv-resizing-columns .sv-col-resizer:after{background:var(--blue);box-shadow:0 0 0 2px var(--blue-bg)}
+body.sv-resizing-columns{cursor:col-resize!important;user-select:none!important}
 
 /* ── TABLES ── */
 table{width:100%;border-collapse:collapse;touch-action:pan-x pan-y}
@@ -303,6 +312,16 @@ tr:hover td{color:var(--text)}
   .ag-mes-puntos{display:flex;max-width:100%;gap:2px}
   .ag-mes-puntos i{display:block;width:5px;height:5px;border-radius:50%}
   .ag-mes-cantidad{font-size:9px;color:var(--text3);line-height:1}
+  .ag-mes-lista-movil{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+  .ag-mes-lista-head{display:flex;align-items:center;justify-content:space-between;color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.45px}
+  .ag-mes-lista-head small{text-transform:none;letter-spacing:0;color:var(--text3);font-size:11px}
+  .ag-mes-lista-vacia{padding:14px;border:1px dashed var(--border2);border-radius:var(--radius);color:var(--text3);font-size:12px;text-align:center}
+  .ag-mes-lista-item{display:grid;grid-template-columns:74px minmax(0,1fr);gap:9px;width:100%;padding:9px 10px;border:0;border-left:3px solid;border-radius:var(--radius);background:var(--bg3);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+  .ag-mes-lista-fecha{display:flex;flex-direction:column;gap:2px;font-size:11px;font-weight:700;text-transform:capitalize}
+  .ag-mes-lista-fecha small,.ag-mes-lista-info small{font-size:10px;color:var(--text3);font-weight:400;text-transform:none}
+  .ag-mes-lista-info{min-width:0;display:flex;flex-direction:column;gap:2px}
+  .ag-mes-lista-info strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
+  .ag-mes-lista-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ag-semana-movil{display:flex;min-width:0!important;flex-direction:column;gap:8px}
   .ag-semana-dia{overflow:hidden;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)}
   .ag-semana-dia.es-hoy{border-color:var(--blue)}

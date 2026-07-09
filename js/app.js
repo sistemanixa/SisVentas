@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.35.1-firebase',
+  VERSION: 'v1.35.2-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13549,7 +13549,28 @@ function agRenderMesMovil() {
   for (var final = usadas % 7; final > 0 && final < 7; final++) {
     html += '<div class="ag-mes-celda ag-mes-vacia"></div>';
   }
-  return html + '</div>';
+  html += '</div>';
+
+  var eventosMes = evs.filter(function(ev) {
+    return ev.fecha && ev.fecha.slice(0, 7) === (anio + '-' + String(mes + 1).padStart(2, '0'));
+  });
+  html += '<div class="ag-mes-lista-movil">';
+  html += '<div class="ag-mes-lista-head"><span>Agenda del mes</span><small>' + eventosMes.length + ' evento' + (eventosMes.length === 1 ? '' : 's') + '</small></div>';
+  if (!eventosMes.length) {
+    html += '<div class="ag-mes-lista-vacia">Sin eventos programados este mes.</div>';
+  } else {
+    eventosMes.forEach(function(ev) {
+      var color = AG_COLORES[ev.tipo] || AG_COLORES.interno;
+      var fecha = new Date((ev.fecha || '') + 'T12:00:00');
+      var fechaTxt = isNaN(fecha.getTime()) ? (ev.fecha || '—') : fecha.toLocaleDateString('es-AR', { weekday:'short', day:'numeric', month:'short' });
+      html += '<button type="button" class="ag-mes-lista-item" onclick="agVerEvento(\'' + escapeHTML(ev.fbKey || '') + '\',\'' + ev.tipo + '\')" style="border-left-color:' + color.border + '">';
+      html += '<span class="ag-mes-lista-fecha" style="color:' + color.text + '">' + escapeHTML(fechaTxt) + '<small>' + escapeHTML(ev.hora ? ev.hora.slice(0, 5) : 'Sin hora') + '</small></span>';
+      html += '<span class="ag-mes-lista-info"><strong>' + escapeHTML(ev.titulo || 'Evento') + '</strong><small>' + escapeHTML(ev.subtitulo || ev.notas || '') + '</small></span>';
+      html += '</button>';
+    });
+  }
+  html += '</div>';
+  return html;
 }
 function agInicioSemana(fecha) {
   var d = new Date(fecha);
@@ -23654,5 +23675,6 @@ function actualizarResumenStock() {
     '</div>';
   }).join('');
 }
+
 
 
