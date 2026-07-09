@@ -143,6 +143,50 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 #ag-calendario[data-view="semana"]>div{min-width:860px}
 #ag-calendario[data-view="dia"]>div{min-width:100%}
 .agenda-scroll-hint{display:none}
+#page-agenda.agenda-compact #agenda-calendar-card{padding:10px!important;overflow:hidden!important}
+#page-agenda.agenda-compact .agenda-toolbar{display:grid!important;grid-template-columns:minmax(0,1fr);align-items:stretch!important}
+#page-agenda.agenda-compact .agenda-nav{width:100%;display:grid!important;grid-template-columns:36px minmax(0,1fr) 36px auto;gap:5px!important}
+#page-agenda.agenda-compact .agenda-nav #ag-titulo{min-width:0!important;font-size:13px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-agenda.agenda-compact .agenda-actions{width:100%;flex-wrap:nowrap!important;overflow-x:auto;padding-bottom:3px;-webkit-overflow-scrolling:touch}
+#page-agenda.agenda-compact .agenda-actions>*{flex-shrink:0}
+#page-agenda.agenda-compact .agenda-legend{display:none!important}
+#page-agenda.agenda-compact .agenda-scroll-hint{display:none!important}
+#page-agenda.agenda-compact #ag-calendario{overflow:visible!important;padding-bottom:0!important}
+#page-agenda.agenda-compact #ag-calendario[data-view="mes"]>div,
+#page-agenda.agenda-compact #ag-calendario[data-view="semana"]>div{min-width:0!important;width:100%!important}
+#page-agenda.agenda-compact .ag-mes-movil{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+#page-agenda.agenda-compact .ag-mes-dia-nombre{background:var(--bg3);padding:7px 0;text-align:center;color:var(--text3);font-size:10px;font-weight:700}
+#page-agenda.agenda-compact .ag-mes-celda{position:relative;display:flex;min-width:0;min-height:54px;padding:6px 2px;align-items:center;flex-direction:column;gap:4px;border:0;background:var(--bg2);color:var(--text);font:inherit}
+#page-agenda.agenda-compact button.ag-mes-celda{cursor:pointer}
+#page-agenda.agenda-compact .ag-mes-celda.es-finde{background:var(--bg)}
+#page-agenda.agenda-compact .ag-mes-celda.es-hoy{background:var(--blue-bg);color:var(--blue);font-weight:700;box-shadow:inset 0 0 0 1px var(--blue)}
+#page-agenda.agenda-compact .ag-mes-vacia{background:var(--bg)}
+#page-agenda.agenda-compact .ag-mes-numero{font-size:12px;line-height:1}
+#page-agenda.agenda-compact .ag-mes-puntos{display:flex;max-width:100%;gap:2px}
+#page-agenda.agenda-compact .ag-mes-puntos i{display:block;width:5px;height:5px;border-radius:50%}
+#page-agenda.agenda-compact .ag-mes-cantidad{font-size:9px;color:var(--text3);line-height:1}
+#page-agenda.agenda-compact .ag-mes-lista-movil{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+#page-agenda.agenda-compact .ag-mes-lista-head{display:flex;align-items:center;justify-content:space-between;color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.45px}
+#page-agenda.agenda-compact .ag-mes-lista-head small{text-transform:none;letter-spacing:0;color:var(--text3);font-size:11px}
+#page-agenda.agenda-compact .ag-mes-lista-vacia{padding:14px;border:1px dashed var(--border2);border-radius:var(--radius);color:var(--text3);font-size:12px;text-align:center}
+#page-agenda.agenda-compact .ag-mes-lista-item{display:grid;grid-template-columns:74px minmax(0,1fr);gap:9px;width:100%;padding:9px 10px;border:0;border-left:3px solid;border-radius:var(--radius);background:var(--bg3);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+#page-agenda.agenda-compact .ag-mes-lista-fecha{display:flex;flex-direction:column;gap:2px;font-size:11px;font-weight:700;text-transform:capitalize}
+#page-agenda.agenda-compact .ag-mes-lista-fecha small,
+#page-agenda.agenda-compact .ag-mes-lista-info small{font-size:10px;color:var(--text3);font-weight:400;text-transform:none}
+#page-agenda.agenda-compact .ag-mes-lista-info{min-width:0;display:flex;flex-direction:column;gap:2px}
+#page-agenda.agenda-compact .ag-mes-lista-info strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
+#page-agenda.agenda-compact .ag-mes-lista-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#page-agenda.agenda-compact .ag-semana-movil{display:flex;min-width:0!important;flex-direction:column;gap:8px}
+#page-agenda.agenda-compact .ag-semana-dia{overflow:hidden;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)}
+#page-agenda.agenda-compact .ag-semana-dia.es-hoy{border-color:var(--blue)}
+#page-agenda.agenda-compact .ag-semana-fecha{display:flex;width:100%;padding:9px 10px;align-items:center;justify-content:space-between;border:0;background:var(--bg3);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+#page-agenda.agenda-compact .ag-semana-dia.es-hoy .ag-semana-fecha{background:var(--blue-bg);color:var(--blue)}
+#page-agenda.agenda-compact .ag-semana-fecha strong{text-transform:capitalize;font-size:13px}
+#page-agenda.agenda-compact .ag-semana-fecha span{color:var(--text3);font-size:10px}
+#page-agenda.agenda-compact .ag-semana-eventos{display:flex;flex-direction:column;gap:5px;padding:7px}
+#page-agenda.agenda-compact .ag-semana-evento{display:grid;grid-template-columns:52px minmax(0,1fr);gap:7px;width:100%;padding:7px 8px;border:0;border-left:3px solid;border-radius:4px;color:var(--text);font:inherit;text-align:left;cursor:pointer}
+#page-agenda.agenda-compact .ag-semana-evento span{font-size:10px}
+#page-agenda.agenda-compact .ag-semana-evento strong{min-width:0;overflow:hidden;font-size:11px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
 .sv-auto-grid-wrap,.table-wrap{display:block;width:100%;max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
 .sv-auto-grid-wrap>table,.table-wrap>table{width:max-content;min-width:100%;max-width:none!important}
 .sv-scroll-panel{max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}

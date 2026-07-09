@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.35.8-firebase',
+  VERSION: 'v1.35.9-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13433,15 +13433,20 @@ function agCambiarVista(vista, btn) {
 }
 
 function agEsPantallaMovil() {
-  return window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
+  var cont = document.getElementById('agenda-calendar-card') || document.getElementById('page-agenda');
+  var ancho = cont && cont.getBoundingClientRect ? cont.getBoundingClientRect().width : 0;
+  return (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) || (ancho > 0 && ancho <= 1120);
 }
 
 function agRenderCalendario() {
   var cont = document.getElementById('ag-calendario');
   if (!cont) return;
+  var pageAgenda = document.getElementById('page-agenda');
+  var compacto = agEsPantallaMovil();
+  if (pageAgenda) pageAgenda.classList.toggle('agenda-compact', compacto);
   cont.dataset.view = AG_VISTA;
   var scrollHint=document.getElementById('agenda-scroll-hint');
-  if(scrollHint) scrollHint.style.display=agEsPantallaMovil() || AG_VISTA==='dia'?'none':'';
+  if(scrollHint) scrollHint.style.display=compacto || AG_VISTA==='dia'?'none':'';
   var tit = document.getElementById('ag-titulo');
   if (AG_VISTA === 'mes') {
     if (tit) tit.textContent = AG_CURSOR.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
@@ -23709,6 +23714,7 @@ function actualizarResumenStock() {
     '</div>';
   }).join('');
 }
+
 
 
 
