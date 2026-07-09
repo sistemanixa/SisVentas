@@ -1079,6 +1079,37 @@ body.modal-secure-open{overflow:hidden!important}
 .emp-actions-358 .btn{min-height:34px;white-space:nowrap}
 @media(max-width:900px){.emp-actions-358{width:100%;display:grid!important;grid-template-columns:1fr 1fr;gap:8px}.emp-actions-358 .btn{width:100%;justify-content:center}}
 
+/* v1.36.9 — Ajuste visual uniforme: menos brillo, más consistencia */
+.card,.sv334-analytics-card,.sv334-graph,.sv-rent-compare{background:linear-gradient(145deg,rgba(255,255,255,.028),rgba(255,255,255,.008)),var(--bg2)!important;border-color:rgba(120,130,160,.22)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)!important}
+.card:hover,.sv334-analytics-card:hover{transform:translateY(-1px);border-color:rgba(120,130,160,.38)!important;box-shadow:0 14px 34px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.03)!important}
+.metric,.sv334-mini-card,.sv334-q{background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.01)),var(--bg3)!important;border:0.5px solid rgba(120,130,160,.18)!important}
+#dash-rentabilidad-card{background:linear-gradient(145deg,rgba(74,222,128,.045),rgba(96,165,250,.025)),var(--bg2)!important}
+#dash-rentabilidad-card:before{display:none!important}
+#dash-rentabilidad-card .metric{background:linear-gradient(145deg,rgba(255,255,255,.034),rgba(255,255,255,.01)),var(--bg3)!important}
+.sv-rent-compare{padding:13px!important}
+.sv-rent-track{height:13px!important;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.014))!important;box-shadow:inset 0 1px 5px rgba(0,0,0,.22),0 0 0 1px rgba(255,255,255,.025)!important}
+.sv-rent-track:after{opacity:.55}
+.sv-rent-fill-ing{background:linear-gradient(90deg,rgba(45,223,123,.88),var(--green))!important;box-shadow:0 0 12px rgba(74,222,128,.14)!important}
+.sv-rent-fill-gas{background:linear-gradient(90deg,rgba(251,111,111,.88),var(--red))!important;box-shadow:0 0 12px rgba(248,113,113,.14)!important}
+.sv334-chart-wrap,.sv334-line-wrap{height:158px!important}
+.sv334-bars-area,.sv334-svg-wrap{height:138px!important;box-sizing:border-box;background:linear-gradient(180deg,rgba(255,255,255,.020),rgba(255,255,255,.006))!important;border-color:rgba(120,130,160,.22)!important}
+.sv334-svg{height:138px!important}
+.sv334-bars-area{padding-bottom:24px!important}
+.sv334-xlabels{height:20px!important}
+.sidebar{background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.004)),var(--bg2)!important}
+.nav-item{position:relative;overflow:hidden;transition:transform .16s ease,background .16s ease,color .16s ease,border-color .16s ease!important}
+.nav-item:before{content:'';position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:999px;background:linear-gradient(180deg,var(--blue),var(--green));opacity:0;transform:scaleY(.35);transition:opacity .16s ease,transform .16s ease}
+.nav-item:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(96,165,250,.10),transparent 62%);opacity:0;transition:opacity .16s ease;pointer-events:none}
+.nav-item:hover{transform:translateX(2px);background:rgba(96,165,250,.055)!important;border-color:rgba(120,130,160,.20)!important}
+.nav-item:hover:before,.nav-item.active:before{opacity:1;transform:scaleY(1)}
+.nav-item:hover:after,.nav-item.active:after{opacity:1}
+.nav-item.active{background:linear-gradient(90deg,rgba(96,165,250,.12),rgba(255,255,255,.012))!important;border-color:rgba(120,130,160,.24)!important}
+.nav-item i{position:relative;z-index:1;transition:transform .16s ease,color .16s ease}
+.nav-item span,.nav-item{z-index:0}
+.nav-item:hover i,.nav-item.active i{transform:scale(1.08);color:var(--blue)}
+@media(max-width:1199px){.sv334-chart-wrap,.sv334-line-wrap{height:148px!important}.sv334-bars-area,.sv334-svg-wrap,.sv334-svg{height:128px!important}}
+@media(max-width:700px){.sv334-chart-wrap,.sv334-line-wrap{height:134px!important}.sv334-bars-area,.sv334-svg-wrap,.sv334-svg{height:114px!important}}
+
 /* v1.36.7 — Dashboard: gráficos y rentabilidad con estilo moderno */
 #dash-rentabilidad-card{position:relative;overflow:hidden!important;background:radial-gradient(circle at 6% 0,rgba(74,222,128,.16),transparent 28%),radial-gradient(circle at 92% 10%,rgba(96,165,250,.14),transparent 32%),linear-gradient(145deg,rgba(255,255,255,.035),rgba(15,17,23,.08)),var(--bg2)!important}
 #dash-rentabilidad-card:before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,transparent,rgba(255,255,255,.045),transparent);transform:translateX(-80%);transition:transform .6s ease}
@@ -1109,3 +1140,15 @@ body.modal-secure-open{overflow:hidden!important}
 .sv334-analytics-card{background:radial-gradient(circle at 12% 0,rgba(96,165,250,.16),transparent 30%),radial-gradient(circle at 92% 8%,rgba(139,92,246,.12),transparent 34%),linear-gradient(145deg,rgba(255,255,255,.04),rgba(15,17,23,.08)),var(--bg2)!important}
 .sv334-graph{background:linear-gradient(145deg,rgba(255,255,255,.032),rgba(255,255,255,.01))!important;border-color:rgba(120,130,160,.20)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
 .sv334-bars-area,.sv334-svg-wrap{background:radial-gradient(circle at top,rgba(96,165,250,.08),transparent 42%),linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.006))!important}
+
+/* v1.36.9-final — prevalece sobre el bloque visual anterior */
+#dash-rentabilidad-card{background:linear-gradient(145deg,rgba(74,222,128,.045),rgba(96,165,250,.025)),var(--bg2)!important}
+#dash-rentabilidad-card:before{display:none!important;content:none!important}
+#dash-rentabilidad-card .metric{background:linear-gradient(145deg,rgba(255,255,255,.034),rgba(255,255,255,.01)),var(--bg3)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)!important}
+.sv-rent-track{height:13px!important;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.014))!important;box-shadow:inset 0 1px 5px rgba(0,0,0,.22),0 0 0 1px rgba(255,255,255,.025)!important}
+.sv-rent-fill-ing{background:linear-gradient(90deg,rgba(45,223,123,.88),var(--green))!important;box-shadow:0 0 12px rgba(74,222,128,.14)!important}
+.sv-rent-fill-gas{background:linear-gradient(90deg,rgba(251,111,111,.88),var(--red))!important;box-shadow:0 0 12px rgba(248,113,113,.14)!important}
+.sv334-analytics-card{background:linear-gradient(145deg,rgba(255,255,255,.028),rgba(255,255,255,.008)),var(--bg2)!important}
+.sv334-bars-area,.sv334-svg-wrap{height:138px!important;background:linear-gradient(180deg,rgba(255,255,255,.020),rgba(255,255,255,.006))!important}
+.sv334-chart-wrap,.sv334-line-wrap{height:158px!important}
+.sv334-svg{height:138px!important}
