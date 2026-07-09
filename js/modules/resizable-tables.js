@@ -1,11 +1,29 @@
-/* v1.36.4 — Columnas ajustables para tablas/listas */
+/* v1.36.5 — Columnas ajustables para tablas/listas */
 (function () {
   'use strict';
 
-  var STORAGE_PREFIX = 'sisventas.tableWidth.';
+  var STORAGE_PREFIX = 'sisventas.tableWidth.v2.';
   var MIN_WIDTH = 54;
   var MAX_WIDTH = 720;
   var scheduled = false;
+  var DEFAULT_WIDTH_BY_HEADER = {
+    'fecha': 76,
+    'descripcion': 170,
+    'descripción': 170,
+    'concepto': 170,
+    'cliente': 150,
+    'categoria': 98,
+    'categoría': 98,
+    'tipo': 86,
+    'monto': 96,
+    'pagado': 96,
+    'vencimiento': 104,
+    'estado': 82,
+    'pagó': 74,
+    'pago': 74,
+    'comprobante': 92,
+    'usuario': 116
+  };
 
   function ready(fn) {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
@@ -18,10 +36,14 @@
   }
 
   function tableHeaders(table) {
-    var headers = Array.from(table.querySelectorAll('thead th'));
+    var headers = Array.from(table.querySelectorAll('thead th')).filter(function (th) {
+      return !isHidden(th);
+    });
     if (headers.length) return headers;
     var firstRow = table.querySelector('tr');
-    return firstRow ? Array.from(firstRow.querySelectorAll('th')) : [];
+    return firstRow ? Array.from(firstRow.querySelectorAll('th')).filter(function (th) {
+      return !isHidden(th);
+    }) : [];
   }
 
   function tableKey(table) {
@@ -66,14 +88,57 @@
     return colgroup;
   }
 
+  function isHidden(el) {
+    if (!el) return true;
+    if (el.hidden) return true;
+    if (el.style && el.style.display === 'none') return true;
+    try {
+      return window.getComputedStyle(el).display === 'none';
+    } catch (_) {
+      return false;
+    }
+  }
+
   function normalizeWidth(width) {
     return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(width || MIN_WIDTH)));
   }
 
   function columnCells(table, index) {
     return Array.from(table.querySelectorAll('tr')).map(function (row) {
-      return row.children[index] || null;
+      var visible = Array.from(row.children).filter(function (cell) {
+        return !isHidden(cell);
+      });
+      return visible[index] || null;
     }).filter(Boolean);
+  }
+
+  function defaultWidthForHeader(th) {
+    var text = ((th && th.textContent) || '').trim().toLowerCase();
+    text = text.replace(/\s+/g, ' ');
+    if (!text) return 58;
+    if (DEFAULT_WIDTH_BY_HEADER[text]) return DEFAULT_WIDTH_BY_HEADER[text];
+    if (text.indexOf('descrip') >= 0) return DEFAULT_WIDTH_BY_HEADER.descripcion;
+    if (text.indexOf('venc') >= 0) return DEFAULT_WIDTH_BY_HEADER.vencimiento;
+    if (text.indexOf('monto') >= 0 || text.indexOf('total') >= 0) return DEFAULT_WIDTH_BY_HEADER.monto;
+    return 110;
+  }
+
+  function updateOverflowTitles(table) {
+    Array.from(table.querySelectorAll('th,td')).forEach(function (cell) {
+      if (cell.querySelector && cell.querySelector('.sv-col-resizer')) return;
+      var text = (cell.textContent || '').trim().replace(/\s+/g, ' ');
+      if (!text) return;
+      var clipped = cell.scrollWidth > cell.clientWidth + 2;
+      if (clipped) {
+        if (!cell.title || cell.dataset.svAutoTitle === '1') {
+          cell.title = text;
+          cell.dataset.svAutoTitle = '1';
+        }
+      } else if (cell.dataset.svAutoTitle === '1') {
+        cell.removeAttribute('title');
+        delete cell.dataset.svAutoTitle;
+      }
+    });
   }
 
   function applyColumnWidth(table, index, width) {
@@ -85,6 +150,7 @@
       cell.style.maxWidth = safeWidth + 'px';
       cell.style.minWidth = MIN_WIDTH + 'px';
     });
+    updateOverflowTitles(table);
     return safeWidth;
   }
 
@@ -96,6 +162,7 @@
       cell.style.maxWidth = '';
       cell.style.minWidth = MIN_WIDTH + 'px';
     });
+    updateOverflowTitles(table);
   }
 
   function setColumnWidth(table, index, width) {
@@ -109,7 +176,8 @@
     var widths = loadWidths(table);
     delete widths[index];
     saveWidths(table, widths);
-    clearColumnWidth(table, index);
+    var headers = tableHeaders(table);
+    applyColumnWidth(table, index, defaultWidthForHeader(headers[index]));
   }
 
   function applySavedWidths(table) {
@@ -120,8 +188,9 @@
     headers.forEach(function (th, index) {
       var saved = parseInt(widths[index], 10);
       if (saved > 0) applyColumnWidth(table, index, saved);
-      else clearColumnWidth(table, index);
+      else applyColumnWidth(table, index, defaultWidthForHeader(th));
     });
+    updateOverflowTitles(table);
   }
 
   function initTable(table) {
@@ -137,6 +206,11 @@
     applySavedWidths(table);
 
     headers.forEach(function (th, index) {
+      if (th.dataset.svResizableIndex !== String(index)) {
+        var oldHandle = th.querySelector('.sv-col-resizer');
+        if (oldHandle) oldHandle.remove();
+      }
+      th.dataset.svResizableIndex = String(index);
       th.classList.add('sv-resizable-th');
       if (th.querySelector('.sv-col-resizer')) return;
       var handle = document.createElement('span');
