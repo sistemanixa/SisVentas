@@ -1,4 +1,4 @@
-/* v1.35.2 — Columnas ajustables para tablas/listas */
+/* v1.36.4 — Columnas ajustables para tablas/listas */
 (function () {
   'use strict';
 
@@ -66,10 +66,40 @@
     return colgroup;
   }
 
-  function setColumnWidth(table, index, width) {
-    var safeWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(width || MIN_WIDTH)));
+  function normalizeWidth(width) {
+    return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(width || MIN_WIDTH)));
+  }
+
+  function columnCells(table, index) {
+    return Array.from(table.querySelectorAll('tr')).map(function (row) {
+      return row.children[index] || null;
+    }).filter(Boolean);
+  }
+
+  function applyColumnWidth(table, index, width) {
+    var safeWidth = normalizeWidth(width);
     var colgroup = ensureColgroup(table, tableHeaders(table).length);
     if (colgroup.children[index]) colgroup.children[index].style.width = safeWidth + 'px';
+    columnCells(table, index).forEach(function (cell) {
+      cell.style.width = safeWidth + 'px';
+      cell.style.maxWidth = safeWidth + 'px';
+      cell.style.minWidth = MIN_WIDTH + 'px';
+    });
+    return safeWidth;
+  }
+
+  function clearColumnWidth(table, index) {
+    var colgroup = table.querySelector('colgroup.sv-resizable-cols');
+    if (colgroup && colgroup.children[index]) colgroup.children[index].style.width = '';
+    columnCells(table, index).forEach(function (cell) {
+      cell.style.width = '';
+      cell.style.maxWidth = '';
+      cell.style.minWidth = MIN_WIDTH + 'px';
+    });
+  }
+
+  function setColumnWidth(table, index, width) {
+    var safeWidth = applyColumnWidth(table, index, width);
     var widths = loadWidths(table);
     widths[index] = safeWidth;
     saveWidths(table, widths);
@@ -79,19 +109,18 @@
     var widths = loadWidths(table);
     delete widths[index];
     saveWidths(table, widths);
-    var colgroup = table.querySelector('colgroup.sv-resizable-cols');
-    if (colgroup && colgroup.children[index]) colgroup.children[index].style.width = '';
+    clearColumnWidth(table, index);
   }
 
   function applySavedWidths(table) {
     var headers = tableHeaders(table);
     if (!headers.length) return;
-    var colgroup = ensureColgroup(table, headers.length);
+    ensureColgroup(table, headers.length);
     var widths = loadWidths(table);
     headers.forEach(function (th, index) {
       var saved = parseInt(widths[index], 10);
-      if (saved > 0 && colgroup.children[index]) colgroup.children[index].style.width = saved + 'px';
-      th.style.minWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(th.getBoundingClientRect().width || MIN_WIDTH))) + 'px';
+      if (saved > 0) applyColumnWidth(table, index, saved);
+      else clearColumnWidth(table, index);
     });
   }
 
@@ -151,7 +180,7 @@
         }
         dragging = true;
         startX = clientX;
-        startWidth = th.getBoundingClientRect().width;
+        startWidth = normalizeWidth(th.getBoundingClientRect().width);
         document.body.classList.add('sv-resizing-columns');
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', stop);

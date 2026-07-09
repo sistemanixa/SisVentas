@@ -1,4 +1,4 @@
-﻿/* v1.36.2 — Centro de diagnóstico y mantenimiento de base de datos */
+﻿/* v1.36.3 — Centro de diagnóstico y mantenimiento de base de datos */
 var MNT_STATE = { analizado:false, integridadOK:false, pendientes:0, diag:null, inicializado:false };
 function mntInicializar(){ if (MNT_STATE.inicializado) return; MNT_STATE.inicializado=true; mntLog('Centro de mantenimiento cargado.'); mntRenderMigraciones(null); }
 function mntLog(msg){ var el=document.getElementById('mnt-console'); if(!el) return; var hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); el.textContent+='['+hora+'] '+msg+'\n'; el.scrollTop=el.scrollHeight; }
@@ -243,6 +243,7 @@ async function mntLimpiarLegacy(){
   await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:mntVersion(),fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
   mntLog('Limpieza finalizada. Elementos removidos: '+borrados); notify('✓ Limpieza legacy finalizada'); await mntAnalizarBase();
 }
+
 
 
 

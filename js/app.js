@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.36.2-firebase',
+  VERSION: 'v1.36.4-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -9604,7 +9604,12 @@ function guardarTipoCambio(btn) {
   window.TIPO_CAMBIO_CONFIG = datos; // caché en memoria para uso inmediato en ventas/presupuestos
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos)
-      .then(function(){ notify('✓ Tipo de cambio guardado'); });
+      .then(function(){
+        if (window.SisVentasDolarHistorico && typeof window.SisVentasDolarHistorico.guardarPunto === 'function') {
+          window.SisVentasDolarHistorico.guardarPunto(datos, 'manual').catch(function(e){ console.warn('[dolarHistorico] manual', e); });
+        }
+        notify('✓ Tipo de cambio guardado');
+      });
   } else { notify('Sin conexión'); }
   var orig = btn.innerHTML;
   btn.innerHTML = '<i class="ti ti-check"></i> Guardado'; btn.disabled=true;
@@ -9617,7 +9622,7 @@ function actualizarDolarAPI(silencioso, _esReintento) {
   var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   var timeoutId = controller ? setTimeout(function(){ controller.abort(); }, 8000) : null;
 
-  fetch('https://dolarapi.com/v1/dolares', controller ? {signal: controller.signal} : {})
+  return fetch('https://dolarapi.com/v1/dolares', controller ? {signal: controller.signal} : {})
     .then(function(r) {
       if (timeoutId) clearTimeout(timeoutId);
       if (!r.ok) throw new Error('http_' + r.status);
@@ -9650,6 +9655,9 @@ function actualizarDolarAPI(silencioso, _esReintento) {
 
       window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos)
         .then(function() {
+          if (window.SisVentasDolarHistorico && typeof window.SisVentasDolarHistorico.guardarPunto === 'function') {
+            window.SisVentasDolarHistorico.guardarPunto(datos, 'api').catch(function(e){ console.warn('[dolarHistorico] api', e); });
+          }
           var lblEl = document.getElementById('cfg-tc-actualizado');
           if (lblEl) lblEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
           if (!silencioso) notify('✓ Cotización actualizada — Oficial $'+datos.oficial+' · Blue $'+datos.blue+' · MEP $'+datos.mep);
@@ -23722,6 +23730,7 @@ function actualizarResumenStock() {
     '</div>';
   }).join('');
 }
+
 
 
 
