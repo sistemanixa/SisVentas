@@ -196,8 +196,8 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 .sv-resizable-table th{position:relative;user-select:none}
 .sv-resizable-table th.tr,.sv-resizable-table td.tr{text-align:right}
 .sv-col-resizer{position:absolute;top:0;right:-5px;width:10px;height:100%;cursor:col-resize;z-index:4;touch-action:none}
-.sv-col-resizer:after{content:'';position:absolute;top:7px;bottom:7px;left:4px;width:2px;border-radius:999px;background:transparent;transition:background .12s,box-shadow .12s}
-.sv-col-resizer:hover:after,body.sv-resizing-columns .sv-col-resizer:after{background:var(--blue);box-shadow:0 0 0 2px var(--blue-bg)}
+.sv-col-resizer:after{content:'';position:absolute;top:7px;bottom:7px;left:4px;width:2px;border-radius:999px;background:rgba(120,130,160,.16);transition:background .12s,box-shadow .12s}
+.sv-resizable-th:hover .sv-col-resizer:after,.sv-col-resizer:hover:after,body.sv-resizing-columns .sv-col-resizer:after{background:var(--blue);box-shadow:0 0 0 2px var(--blue-bg)}
 body.sv-resizing-columns{cursor:col-resize!important;user-select:none!important}
 
 /* ── TABLES ── */

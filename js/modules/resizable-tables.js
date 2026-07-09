@@ -17,9 +17,16 @@
     return (page && page.id) || 'global';
   }
 
+  function tableHeaders(table) {
+    var headers = Array.from(table.querySelectorAll('thead th'));
+    if (headers.length) return headers;
+    var firstRow = table.querySelector('tr');
+    return firstRow ? Array.from(firstRow.querySelectorAll('th')) : [];
+  }
+
   function tableKey(table) {
     if (table.id) return table.id;
-    var headers = Array.from(table.querySelectorAll('thead th')).map(function (th) {
+    var headers = tableHeaders(table).map(function (th) {
       return (th.textContent || '').trim().replace(/\s+/g, '-').slice(0, 24);
     }).filter(Boolean).join('|');
     var index = Array.from(document.querySelectorAll('.table-wrap table, .sv-auto-grid-wrap table, .card table')).indexOf(table);
@@ -58,7 +65,7 @@
 
   function setColumnWidth(table, index, width) {
     var safeWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(width || MIN_WIDTH)));
-    var colgroup = ensureColgroup(table, table.querySelectorAll('thead th').length);
+    var colgroup = ensureColgroup(table, tableHeaders(table).length);
     if (colgroup.children[index]) colgroup.children[index].style.width = safeWidth + 'px';
     var widths = loadWidths(table);
     widths[index] = safeWidth;
@@ -74,7 +81,7 @@
   }
 
   function applySavedWidths(table) {
-    var headers = Array.from(table.querySelectorAll('thead th'));
+    var headers = tableHeaders(table);
     if (!headers.length) return;
     var colgroup = ensureColgroup(table, headers.length);
     var widths = loadWidths(table);
@@ -86,13 +93,12 @@
   }
 
   function initTable(table) {
-    if (!table || table.dataset.svResizableReady === '1') return;
+    if (!table) return;
     var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .card');
     if (!wrap) return;
-    var headers = Array.from(table.querySelectorAll('thead th'));
+    var headers = tableHeaders(table);
     if (headers.length < 2) return;
 
-    table.dataset.svResizableReady = '1';
     table.classList.add('sv-resizable-table');
     wrap.classList.add('sv-resizable-wrap');
     applySavedWidths(table);
@@ -162,6 +168,7 @@
         resetColumn(table, index);
       });
     });
+    table.dataset.svResizableReady = '1';
   }
 
   function scan() {

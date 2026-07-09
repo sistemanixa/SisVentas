@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.35.9-firebase',
+  VERSION: 'v1.36.1-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5770,12 +5770,12 @@ function volverADetalleVenta() {
   if (btnVolver) btnVolver.style.display = 'none';
   window._cobOrigenVentaId = null;
   if (ventaId && typeof showPage === 'function') {
-    showPage('ventas');
+    showPage('detalle');
     setTimeout(function() {
       if (typeof verVenta === 'function') verVenta(ventaId);
     }, 300);
   } else if (typeof showPage === 'function') {
-    showPage('ventas');
+    showPage('detalle');
   }
 }
 
@@ -13186,7 +13186,7 @@ function spVerOT(otKey) {
 
 function spVerVenta(ventaId) {
   spCerrarModal();
-  showPage('ventas', document.querySelector('[onclick*="ventas"]'));
+  showPage('detalle', document.querySelector('[onclick*="detalle"]'));
   setTimeout(function(){
     var v = _svResolverVentaRegistro(ventaId);
     if (v && v.fbKey) verVenta(v.fbKey);
@@ -17924,8 +17924,14 @@ function rechazarComisionDesdeGasto(gastoFbKey) {
 function renderTablaGastos() {
   var tbody = document.getElementById('gastos-tbody');
   if (!tbody) return;
+  function refrescarColumnasGastos(){
+    if (window.SisVentas && typeof window.SisVentas.initResizableTables === 'function') {
+      setTimeout(window.SisVentas.initResizableTables, 30);
+    }
+  }
   if (!_gastosDataReady) {
     tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:'+(_gastosCargaError?'var(--red)':'var(--text3)')+';padding:24px">'+(_gastosCargaError||'<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>Cargando gastos...')+'</td></tr>';
+    refrescarColumnasGastos();
     return;
   }
   var lista = gastosFiltradosActuales();
@@ -17937,6 +17943,7 @@ function renderTablaGastos() {
 
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr>';
+    refrescarColumnasGastos();
     return;
   }
 
@@ -17988,6 +17995,7 @@ function renderTablaGastos() {
       '</td>' +
     '</tr>';
   }).join('');
+  refrescarColumnasGastos();
 }
 
 function filtrarGastos() { renderTablaGastos(); }
@@ -23714,6 +23722,8 @@ function actualizarResumenStock() {
     '</div>';
   }).join('');
 }
+
+
 
 
 
