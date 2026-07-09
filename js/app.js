@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.35.6-firebase',
+  VERSION: 'v1.35.7-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -21086,7 +21086,7 @@ function renderKPIsDashboard() {
   if (typeof dashRenderEvolucionMensual === 'function') dashRenderEvolucionMensual(ventas);
   var ultVentasEl = document.getElementById('dash-ultimas-ventas');
   if (ultVentasEl) {
-    var ultimas = ventas.slice(0, 10);
+    var ultimas = ventas.slice(0, 5);
     if (ultimas.length) {
       ultVentasEl.innerHTML = ultimas.map(function(v) {
         var estadoLbl = v.estadoPago === 'pago_total' ? '<span class="badge b-green">Pagado</span>'
@@ -21113,7 +21113,7 @@ function renderKPIsDashboard() {
   }
   var ultVentasMobileEl = document.getElementById('dash-ventas-mobile-lista');
   if (ultVentasMobileEl) {
-    var ultimasM = ventas.slice(0, 10);
+    var ultimasM = ventas.slice(0, 5);
     if (ultimasM.length) {
       ultVentasMobileEl.innerHTML = ultimasM.map(function(v) {
         var estadoLbl = v.estadoPago === 'pago_total' ? '<span class="badge b-green">Pagado</span>'
@@ -23709,6 +23709,7 @@ function actualizarResumenStock() {
     '</div>';
   }).join('');
 }
+
 
 
 
