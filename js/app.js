@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.34.8-firebase',
+  VERSION: 'v1.35.1-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7473,7 +7473,7 @@ var DASH_WIDGETS_DEF = [
   { id: 'grafico_barras',     label: 'Gráfico ventas 7 días',                   defaults: { admin: true,  administrativo: false, tecnico: false } },
   { id: 'ots_pendientes',     label: 'Órdenes de trabajo pendientes',            defaults: { admin: true,  administrativo: false, tecnico: false } },
   { id: 'rentabilidad',       label: 'Rentabilidad del mes',                     defaults: { admin: true,  administrativo: false, tecnico: false } },
-  { id: 'mi_actividad',       label: 'Mi actividad (mis ventas y pptos)',         defaults: { admin: true,  administrativo: true,  tecnico: false } },
+  { id: 'mi_actividad',       label: 'Mi actividad (mis ventas y pptos)',         defaults: { admin: false, administrativo: true,  tecnico: false } },
   { id: 'mis_ots',            label: 'Mis órdenes de trabajo asignadas',          defaults: { admin: false, administrativo: false, tecnico: true  } },
   { id: 'btn_ia',             label: '🤖 Botón Asistente IA',                    defaults: { admin: true,  administrativo: true,  tecnico: true  } },
   { id: 'btn_chat',           label: '💬 Botón Chat interno',                    defaults: { admin: true,  administrativo: true,  tecnico: true  } },
@@ -7490,9 +7490,10 @@ function renderCfgDashWidgets() {
       var val = DASH_WIDGETS_CONFIG[w.id] !== undefined
         ? DASH_WIDGETS_CONFIG[w.id][rol]
         : w.defaults[rol];
-      // Admin siempre ve todo — checkbox deshabilitado
+      var adminNoAplica = rol === 'admin' && w.id === 'mi_actividad';
+      // Admin ve todo salvo widgets personales que no aplican al rol.
       var disabled = rol === 'admin' ? 'disabled' : '';
-      var checked  = (rol === 'admin' ? true : !!val) ? 'checked' : '';
+      var checked  = (adminNoAplica ? false : (rol === 'admin' ? true : !!val)) ? 'checked' : '';
       return '<td style="text-align:center;padding:10px 16px">' +
         '<input type="checkbox" id="dw_'+w.id+'_'+rol+'" '+checked+' '+disabled+
         ' style="width:16px;height:16px;accent-color:var(--blue);cursor:'+(disabled?'not-allowed':'pointer')+'"></td>';
@@ -7507,7 +7508,7 @@ function guardarDashWidgets() {
   var config = {};
   DASH_WIDGETS_DEF.forEach(function(w) {
     config[w.id] = {
-      admin:          true,
+      admin:          w.id === 'mi_actividad' ? false : true,
       administrativo: !!(document.getElementById('dw_'+w.id+'_administrativo')||{}).checked,
       tecnico:        !!(document.getElementById('dw_'+w.id+'_tecnico')||{}).checked
     };

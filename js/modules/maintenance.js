@@ -1,4 +1,4 @@
-/* v20.362 — Centro de diagnóstico y mantenimiento de base de datos */
+/* v1.35.1 — Centro de diagnóstico y mantenimiento de base de datos */
 var MNT_STATE = { analizado:false, integridadOK:false, pendientes:0, diag:null, inicializado:false };
 function mntInicializar(){ if (MNT_STATE.inicializado) return; MNT_STATE.inicializado=true; mntLog('Centro de mantenimiento cargado.'); mntRenderMigraciones(null); }
 function mntLog(msg){ var el=document.getElementById('mnt-console'); if(!el) return; var hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); el.textContent+='['+hora+'] '+msg+'\n'; el.scrollTop=el.scrollHeight; }
@@ -6,6 +6,7 @@ function mntSetEstado(txt, cls){ var el=document.getElementById('mnt-estado-gene
 function mntSetText(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
 function mntObjCount(o){ return o && typeof o==='object' ? Object.keys(o).length : 0; }
 function mntMoney(n){ return Math.round(parseFloat(n)||0); }
+function mntVersion(){ return (window.APP_CONFIG && APP_CONFIG.VERSION) || (window.SISVENTAS_PWA_VERSION || 'v1'); }
 function mntRequireAdmin(accion){ if(String(window.currentRole||'').toLowerCase()==='admin') return true; if(typeof notify==='function') notify('Solo el administrador puede ejecutar '+(accion||'esta accion')); return false; }
 function mntFecha(f){ return (typeof _pagableNormFecha==='function') ? _pagableNormFecha(f) : (f||new Date().toISOString().slice(0,10)); }
 function mntEmpByKey(empKey){ try { return (empData && Object.values(empData).find(function(e){ return String(e.fbKey||e.id||'')===String(empKey||''); })) || {}; } catch(e){ return {}; } }
@@ -25,16 +26,41 @@ async function mntAnalizarBase(){
   Object.keys(agu).forEach(function(empKey){ Object.keys(agu[empKey]||{}).forEach(function(semKey){ var r=agu[empKey][semKey]||{}; var monto=mntMoney(r.aguinaldo||r.monto||0); if(monto<=0) return; aguTotal++; var leg='aguinaldos/'+empKey+'/'+semKey; if(mntGastoExiste(gastos,'aguinaldo',empKey,monto,r.fecha,semKey,leg)) aguMigr++; else aguPend++; }); });
   var hsAprob=0, hsPend=0, hsMigr=0;
   Object.keys(hs).forEach(function(solKey){ var sol=hs[solKey]||{}; if(String(sol.estado||'').toLowerCase()!=='aprobado') return; var empKey=sol.empFbKey||sol.empleadoFbKey||sol.empleadoId||''; var monto=mntMoney(sol.monto||0); var leg='hsextra_solicitudes/'+solKey; hsAprob++; if(mntGastoExiste(gastos,'hextra',empKey,monto,sol.fecha,'',leg)) hsMigr++; else hsPend++; });
-  var ctaPagables=0, ctaPend=0, ctaMigr=0;
-  Object.keys(cta).forEach(function(empKey){ Object.keys(cta[empKey]||{}).forEach(function(mKey){ var m=cta[empKey][mKey]||{}; var tipo=String(m.tipo||'').toLowerCase(); var est=String(m.estado||'').toLowerCase(); if(tipo==='comision' && est!=='aprobado' && est!=='pagado_parcial' && est!=='pagado') return; if(tipo!=='hextra'&&tipo!=='aguinaldo'&&tipo!=='comision') return; var monto=mntMoney(m.monto||0); if(monto<=0) return; ctaPagables++; var leg='ctaemp/'+empKey+'/'+mKey; if(mntGastoExiste(gastos,tipo,empKey,monto,m.fecha,m.semestre||'',leg)) ctaMigr++; else ctaPend++; }); });
+  var ctaPagables=0, ctaPend=0, ctaMigr=0, comPagables=0, comPend=0, comMigr=0;
+  Object.keys(cta).forEach(function(empKey){ Object.keys(cta[empKey]||{}).forEach(function(mKey){ var m=cta[empKey][mKey]||{}; var tipo=String(m.tipo||'').toLowerCase(); var est=String(m.estado||'').toLowerCase(); if(tipo==='comision' && est!=='aprobado' && est!=='pagado_parcial' && est!=='pagado') return; if(tipo!=='hextra'&&tipo!=='aguinaldo'&&tipo!=='comision') return; var monto=mntMoney(m.monto||0); if(monto<=0) return; ctaPagables++; if(tipo==='comision') comPagables++; var leg='ctaemp/'+empKey+'/'+mKey; if(mntGastoExiste(gastos,tipo,empKey,monto,m.fecha,m.semestre||'',leg)) { ctaMigr++; if(tipo==='comision') comMigr++; } else { ctaPend++; if(tipo==='comision') comPend++; } }); });
   var pendientes=aguPend+hsPend+ctaPend;
-  MNT_STATE={analizado:true,integridadOK:false,pendientes:pendientes,diag:{gastos:mntObjCount(gastosObj),aguTotal:aguTotal,aguPend:aguPend,aguMigr:aguMigr,hsAprob:hsAprob,hsPend:hsPend,hsMigr:hsMigr,ctaPagables:ctaPagables,ctaPend:ctaPend,ctaMigr:ctaMigr,migraciones:migr,empleados:mntObjCount(data[5]),clientes:mntObjCount(data[6]),productos:mntObjCount(data[7]),ventas:mntObjCount(data[8])}};
+  MNT_STATE={analizado:true,integridadOK:false,pendientes:pendientes,diag:{gastos:mntObjCount(gastosObj),aguTotal:aguTotal,aguPend:aguPend,aguMigr:aguMigr,hsAprob:hsAprob,hsPend:hsPend,hsMigr:hsMigr,ctaPagables:ctaPagables,ctaPend:ctaPend,ctaMigr:ctaMigr,comPagables:comPagables,comPend:comPend,comMigr:comMigr,migraciones:migr,empleados:mntObjCount(data[5]),clientes:mntObjCount(data[6]),productos:mntObjCount(data[7]),ventas:mntObjCount(data[8])}};
   mntSetText('mnt-kpi-gastos',MNT_STATE.diag.gastos); mntSetText('mnt-kpi-agu',aguTotal); mntSetText('mnt-kpi-hs',hsAprob); mntSetText('mnt-kpi-pend',pendientes);
   mntSetEstado(pendientes?'Requiere migración':'Base consistente',pendientes?'b-amber':'b-green');
-  mntLog('Gastos: '+MNT_STATE.diag.gastos); mntLog('Aguinaldos legacy: '+aguTotal+' ('+aguPend+' pendientes, '+aguMigr+' ya migrados)'); mntLog('Horas extra aprobadas legacy: '+hsAprob+' ('+hsPend+' pendientes, '+hsMigr+' ya migradas)'); mntLog('Cuenta empleado legacy pagable: '+ctaPagables+' ('+ctaPend+' pendientes, '+ctaMigr+' ya migrados)');
+  mntLog('Gastos: '+MNT_STATE.diag.gastos); mntLog('Aguinaldos legacy: '+aguTotal+' ('+aguPend+' pendientes, '+aguMigr+' ya migrados)'); mntLog('Horas extra aprobadas legacy: '+hsAprob+' ('+hsPend+' pendientes, '+hsMigr+' ya migradas)'); mntLog('Cuenta empleado legacy pagable: '+ctaPagables+' ('+ctaPend+' pendientes, '+ctaMigr+' ya migrados)'); mntLog('Comisiones legacy pagables: '+comPagables+' ('+comPend+' pendientes, '+comMigr+' ya migradas)');
   mntRenderMigraciones(migr); var btn=document.getElementById('mnt-btn-limpiar'); if(btn) btn.disabled=true;
 }
-function mntRenderMigraciones(migr){ var box=document.getElementById('mnt-migraciones-lista'); if(!box) return; migr=migr||{}; var defs=[['001-sac-gastos','Aguinaldos legacy → Gastos'],['002-horasextras-gastos','Horas extra legacy → Gastos'],['003-ctaemp-pagables-gastos','Cuenta empleado pagable legacy → Gastos'],['004-comisiones-gastos','Comisiones aprobadas → Gastos']]; box.innerHTML=defs.map(function(d){ var m=migr[d[0]]||{}; var ok=String(m.estado||'').toLowerCase()==='ok'; return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3)"><div><div style="font-size:13px;font-weight:600;color:var(--text)">'+d[0]+'</div><div style="font-size:12px;color:var(--text2)">'+d[1]+'</div></div><div style="text-align:right"><span class="badge '+(ok?'b-green':'b-amber')+'">'+(ok?'Ejecutada':'Pendiente')+'</span><div style="font-size:11px;color:var(--text3);margin-top:4px">'+(m.fecha||'—')+'</div></div></div>'; }).join(''); }
+function mntMigracionEstado(def, migr, diag){
+  var m=migr[def.id]||{};
+  var ok=String(m.estado||'').toLowerCase()==='ok';
+  if(!MNT_STATE.analizado && !ok) return {cls:'b-amber',txt:'Sin analizar',sub:'—'};
+  var total=def.total(diag||{});
+  var pendientes=def.pend(diag||{});
+  if(ok) return {cls:'b-green',txt:'Ejecutada',sub:m.fecha||'—'};
+  if(pendientes>0) return {cls:'b-amber',txt:'Pendiente',sub:pendientes+' por migrar'};
+  if(total>0) return {cls:'b-green',txt:'Ya cubierto',sub:'0 pendientes'};
+  return {cls:'b-green',txt:'Sin pendientes',sub:'No aplica'};
+}
+function mntRenderMigraciones(migr){
+  var box=document.getElementById('mnt-migraciones-lista'); if(!box) return;
+  migr=migr||{};
+  var diag=MNT_STATE.diag||{};
+  var defs=[
+    {id:'001-sac-gastos',label:'Aguinaldos legacy → Gastos',total:function(d){return d.aguTotal||0;},pend:function(d){return d.aguPend||0;}},
+    {id:'002-horasextras-gastos',label:'Horas extra legacy → Gastos',total:function(d){return d.hsAprob||0;},pend:function(d){return d.hsPend||0;}},
+    {id:'003-ctaemp-pagables-gastos',label:'Cuenta empleado pagable legacy → Gastos',total:function(d){return d.ctaPagables||0;},pend:function(d){return d.ctaPend||0;}},
+    {id:'004-comisiones-gastos',label:'Comisiones aprobadas → Gastos',total:function(d){return d.comPagables||0;},pend:function(d){return d.comPend||0;}}
+  ];
+  box.innerHTML=defs.map(function(d){
+    var e=mntMigracionEstado(d,migr,diag);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3)"><div><div style="font-size:13px;font-weight:600;color:var(--text)">'+d.id+'</div><div style="font-size:12px;color:var(--text2)">'+d.label+'</div></div><div style="text-align:right"><span class="badge '+e.cls+'">'+e.txt+'</span><div style="font-size:11px;color:var(--text3);margin-top:4px">'+e.sub+'</div></div></div>';
+  }).join('');
+}
 async function mntMigrarLegacy(){
   if(!mntRequireAdmin('migraciones de mantenimiento')) return;
   if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
@@ -61,7 +87,8 @@ async function mntMigrarLegacy(){
   var creados=window._ultimaMigracionPagablesLegacy&&typeof window._ultimaMigracionPagablesLegacy.creados==='number'?window._ultimaMigracionPagablesLegacy.creados:creadosAntes;
   creados += comCreadas;
   var usuario=currentUser||(currentUserData&&currentUserData.nombre)||'Admin'; var fecha=new Date().toISOString();
-  await window.fbUpdate(window.fbRef(window.fbDB),{'sisventas/migraciones/001-sac-gastos':{estado:'OK',version:'v20.362',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/002-horasextras-gastos':{estado:'OK',version:'v20.362',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/003-ctaemp-pagables-gastos':{estado:'OK',version:'v20.362',fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/004-comisiones-gastos':{estado:'OK',version:'v20.362',fecha:fecha,usuario:usuario,registrosNuevos:comCreadas}}).catch(function(e){mntLog('No se pudo guardar historial: '+e.message);});
+  var ver=mntVersion();
+  await window.fbUpdate(window.fbRef(window.fbDB),{'sisventas/migraciones/001-sac-gastos':{estado:'OK',version:ver,fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/002-horasextras-gastos':{estado:'OK',version:ver,fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/003-ctaemp-pagables-gastos':{estado:'OK',version:ver,fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/004-comisiones-gastos':{estado:'OK',version:ver,fecha:fecha,usuario:usuario,registrosNuevos:comCreadas}}).catch(function(e){mntLog('No se pudo guardar historial: '+e.message);});
   mntLog('Migración finalizada. Registros nuevos creados: '+creados+'. Tiempo: '+((Date.now()-antes)/1000).toFixed(2)+' s'); notify('✓ Migración finalizada'); await mntAnalizarBase();
 }
 async function mntVerificarIntegridad(){ if(!MNT_STATE.analizado) await mntAnalizarBase(); mntLog('Verificando integridad...'); var d=MNT_STATE.diag||{}; var issues=[]; if((d.aguPend||0)>0) issues.push('Aguinaldos sin gasto: '+d.aguPend); if((d.hsPend||0)>0) issues.push('Horas extra aprobadas sin gasto: '+d.hsPend); if((d.ctaPend||0)>0) issues.push('Movimientos de cuenta empleado sin gasto: '+d.ctaPend); if(!issues.length){MNT_STATE.integridadOK=true; mntSetEstado('Integridad OK','b-green'); var btn=document.getElementById('mnt-btn-limpiar'); if(btn) btn.disabled=false; mntLog('Integridad OK. La limpieza segura ya está habilitada.'); notify('✓ Integridad OK');} else {MNT_STATE.integridadOK=false; mntSetEstado('Integridad pendiente','b-amber'); var btn2=document.getElementById('mnt-btn-limpiar'); if(btn2) btn2.disabled=true; issues.forEach(mntLog); notify('Hay pendientes por migrar');} }
@@ -153,7 +180,7 @@ async function mntEliminarDuplicadosGastosFijos(){
   var updates={}; keys.forEach(function(k){ updates['sisventas/gastos/'+k]=null; });
   await window.fbUpdate(window.fbRef(window.fbDB),updates).then(function(){
     mntLog('Duplicados eliminados: '+keys.length);
-    return window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/duplicados_fijos/'+Date.now()),{version:'v20.362',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:keys.length,keys:keys});
+    return window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/duplicados_fijos/'+Date.now()),{version:mntVersion(),fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:keys.length,keys:keys});
   }).catch(function(e){ mntLog('Error eliminando duplicados: '+e.message); notify('Error: '+e.message); });
   notify('✓ Duplicados fijos eliminados');
   await mntAnalizarDuplicadosGastosFijos();
@@ -213,6 +240,6 @@ async function mntLimpiarLegacy(){
   }
   if(ctaOmitidos) mntLog('Movimientos ctaemp conservados por no tener gasto real: '+ctaOmitidos);
 
-  await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:'v20.362',fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
+  await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:mntVersion(),fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
   mntLog('Limpieza finalizada. Elementos removidos: '+borrados); notify('✓ Limpieza legacy finalizada'); await mntAnalizarBase();
 }

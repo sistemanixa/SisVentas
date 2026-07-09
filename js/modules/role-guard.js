@@ -14,7 +14,8 @@
   function setNav(page, visible){ navByPage(page).forEach(function(el){ el.style.display=visible?'':'none'; }); }
   window.sv361ApplyRoleGuard=function(){
     var admin=esAdmin(), tec=esTecnico();
-    ['dash-metricas-globales','dash-row2-admin','dash-actividad-card','dash-rentabilidad-card','dash-ultimas-ventas-card','dash-administrativo-card','ventas-list-stats-global'].forEach(function(id){ if(admin) show(id); else hide(id); });
+    ['dash-metricas-globales','dash-row2-admin','dash-actividad-card','dash-rentabilidad-card','dash-ultimas-ventas-card','ventas-list-stats-global'].forEach(function(id){ if(admin) show(id); else hide(id); });
+    hide('dash-administrativo-card');
     if(!admin){ var pageDash=q('page-dashboard'); if(pageDash){ Array.prototype.forEach.call(pageDash.querySelectorAll('.metrics.no-tecnico,.row2.admin-only,.card.admin-only'),function(el){el.style.display='none';}); } }
     var restrictedTech=['gastos','caja','tesoreria','rentabilidad','proveedores','ordenes','creditofiscal','usuarios','configuracion','detalle','cobranzas','cuentacorriente','reportes','estadisticas','presupuesto','venta'];
     restrictedTech.forEach(function(p){ if(tec) setNav(p,false); });

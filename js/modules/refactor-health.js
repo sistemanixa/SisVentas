@@ -51,6 +51,41 @@
   function issue(list, sev, tipo, msg, rec, sugerencia){
     list.push({sev:sev||'medio', tipo:tipo, msg:msg, ref:baseRef(rec), sugerencia:sugerencia||''});
   }
+  function firmaAviso(x){
+    return [x && x.sev, x && x.tipo, x && x.msg, x && x.ref, x && x.sugerencia].map(function(v){ return String(v||'').trim(); }).join('|');
+  }
+  function esAvisoHistorico(x){
+    var t = String((x && x.msg) || '') + ' ' + String((x && x.sugerencia) || '');
+    return /inexistente|eliminad|venta eliminada|no se pudo resolver|referencia de venta que no se pudo resolver/i.test(t);
+  }
+  function avisoArchivado(x){
+    var m = window._svAvisosRelacionesArchivados || {};
+    return !!m[firmaAviso(x)];
+  }
+  function clasificarAvisos(res, plan){
+    var issues = (res && res.issues) || [];
+    var criticos = issues.filter(function(x){ return x.sev === 'critico' && !avisoArchivado(x); });
+    var historicos = issues.filter(function(x){ return esAvisoHistorico(x) && !avisoArchivado(x); });
+    var activos = issues.filter(function(x){ return !esAvisoHistorico(x) && !avisoArchivado(x); });
+    var archivados = issues.filter(avisoArchivado);
+    return {
+      criticos: criticos,
+      historicos: historicos,
+      activos: activos,
+      archivados: archivados,
+      automaticos: plan && plan.totalCambios ? plan.totalCambios : 0
+    };
+  }
+  async function cargarAvisosArchivados(){
+    if(window._svAvisosArchivadosCargados || !window.fbDB || !window.fbGet || !window.fbRef) return;
+    window._svAvisosArchivadosCargados = true;
+    var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/mantenimiento/auditoria_relaciones_archivadas')).catch(function(){ return { val:function(){ return null; } }; });
+    var data = snap && typeof snap.val === 'function' ? snap.val() : null;
+    window._svAvisosRelacionesArchivados = {};
+    Object.values(data || {}).forEach(function(r){
+      if(r && r.firma) window._svAvisosRelacionesArchivados[r.firma] = true;
+    });
+  }
   async function cargarRutasNormalizadasVerificadas(){
     if(window._svNormalizacionesVerificadasCargadas || !window.fbDB || !window.fbGet || !window.fbRef) return;
     window._svNormalizacionesVerificadasCargadas = true;
@@ -152,7 +187,7 @@
     issues.sort(function(a,b){ return sevPeso(a.sev)-sevPeso(b.sev) || String(a.tipo).localeCompare(String(b.tipo)); });
     var porTipo = issues.reduce(function(acc,it){ acc[it.tipo]=(acc[it.tipo]||0)+1; return acc; }, {});
     var porSev = issues.reduce(function(acc,it){ acc[it.sev]=(acc[it.sev]||0)+1; return acc; }, {});
-    return { version:'v1.34.8', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
+    return { version:'v1.35.1', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
   };
 
   window.svGenerarPlanNormalizacionRelaciones = function(){
@@ -225,7 +260,7 @@
       }
     });
     return {
-      version:'v1.34.8',
+      version:'v1.35.1',
       fecha:new Date().toISOString(),
       totalCambios:Object.keys(updates).length,
       updates:updates,
@@ -256,6 +291,38 @@
   window.svCopiarPlanNormalizacionRelaciones = function(){
     var plan = window.svGenerarPlanNormalizacionRelaciones();
     copiarTexto(JSON.stringify(plan,null,2), 'Plan copiado ('+plan.totalCambios+' cambios)');
+  };
+  window.svArchivarAvisosHistoricosRelaciones = async function(){
+    if(String(window.currentRole || '').toLowerCase() !== 'admin') { if(typeof notify==='function') notify('Solo el administrador puede archivar avisos'); return false; }
+    if(!window.fbDB || !window.fbUpdate || !window.fbRef) { if(typeof notify==='function') notify('Sin conexion Firebase'); return false; }
+    var res = window._svUltimaAuditoriaRelaciones || window.svAuditarRelaciones();
+    var plan = window.svGenerarPlanNormalizacionRelaciones();
+    var cls = clasificarAvisos(res, plan);
+    if(!cls.historicos.length) { if(typeof notify==='function') notify('No hay avisos historicos para archivar'); return false; }
+    if(!confirm('Se archivaran '+cls.historicos.length+' aviso(s) historicos/manuales. No se borran datos ni se crean vinculos. Continuar?')) return false;
+    var now = Date.now(), usuario = window.currentUser || (window.currentUserData && window.currentUserData.nombre) || 'Admin';
+    var updates = {};
+    cls.historicos.forEach(function(x, i){
+      var firma = firmaAviso(x);
+      updates['sisventas/mantenimiento/auditoria_relaciones_archivadas/'+now+'_'+i] = {
+        firma: firma,
+        sev: x.sev || '',
+        tipo: x.tipo || '',
+        msg: x.msg || '',
+        ref: x.ref || '',
+        sugerencia: x.sugerencia || '',
+        fecha: new Date().toISOString(),
+        usuario: usuario,
+        version: (window.APP_CONFIG && APP_CONFIG.VERSION) || window.SISVENTAS_PWA_VERSION || ''
+      };
+      window._svAvisosRelacionesArchivados = window._svAvisosRelacionesArchivados || {};
+      window._svAvisosRelacionesArchivados[firma] = true;
+    });
+    await window.fbUpdate(window.fbRef(window.fbDB), updates);
+    if(typeof window.registrarActividad === 'function') window.registrarActividad('Auditoria relaciones', cls.historicos.length+' aviso(s) historicos archivados');
+    if(typeof notify==='function') notify('Avisos historicos archivados: '+cls.historicos.length);
+    if(typeof window.svRenderAuditoriaRelaciones === 'function') window.svRenderAuditoriaRelaciones();
+    return true;
   };
   function descargarJSON(nombre, obj){
     var blob = new Blob([JSON.stringify(obj,null,2)], {type:'application/json'});
@@ -388,28 +455,50 @@
         if(typeof window.svRenderAuditoriaRelaciones === 'function') window.svRenderAuditoriaRelaciones();
       });
     }
+    if(!window._svAvisosArchivadosCargados && window.fbDB && window.fbGet && window.fbRef) {
+      cargarAvisosArchivados().then(function(){
+        if(typeof window.svRenderAuditoriaRelaciones === 'function') window.svRenderAuditoriaRelaciones();
+      });
+    }
     var box=document.getElementById('mnt-relaciones-lista');
     var badge=document.getElementById('mnt-relaciones-count');
     var res=window.svAuditarRelaciones();
     var plan=window.svGenerarPlanNormalizacionRelaciones();
+    var grupos = clasificarAvisos(res, plan);
     window._svUltimaAuditoriaRelaciones = res;
-    if(badge){ badge.className='badge '+(res.total?'b-amber':'b-green'); badge.textContent=res.total ? (res.total+' aviso(s)') : 'Relaciones OK'; }
+    if(badge){
+      var visibles = grupos.criticos.length + grupos.activos.length + grupos.historicos.length;
+      badge.className='badge '+(grupos.criticos.length?'b-red':(visibles || grupos.automaticos?'b-amber':'b-green'));
+      badge.textContent=grupos.criticos.length ? (grupos.criticos.length+' critico(s)') : (visibles ? (visibles+' aviso(s)') : 'Relaciones OK');
+    }
     var acciones = '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px;border-bottom:0.5px solid var(--border);background:var(--bg2)">'+
       '<button class="btn btn-sm" onclick="svCopiarAuditoriaRelaciones()"><i class="ti ti-copy"></i> Copiar informe</button>'+
       '<button class="btn btn-sm" onclick="svDescargarAuditoriaRelaciones()"><i class="ti ti-download"></i> Descargar JSON</button>'+
       '<button class="btn btn-sm" onclick="svCopiarPlanNormalizacionRelaciones()"><i class="ti ti-clipboard-check"></i> Copiar plan seguro</button>'+
       '<button class="btn btn-sm" onclick="svDescargarPlanNormalizacionRelaciones()"><i class="ti ti-file-download"></i> Descargar plan</button>'+
-      '<button class="btn btn-sm btn-primary" onclick="svAplicarPlanNormalizacionRelaciones()"><i class="ti ti-database-check"></i> Aplicar plan seguro</button>'+
-      '<span style="font-size:12px;color:var(--text3);align-self:center">Criticos: '+(res.porSeveridad.critico||0)+' - Altos: '+(res.porSeveridad.alto||0)+' - Plan: '+plan.totalCambios+' cambios</span>'+
+      '<button class="btn btn-sm btn-primary" '+(plan.totalCambios?'':'disabled')+' onclick="svAplicarPlanNormalizacionRelaciones()"><i class="ti ti-database-check"></i> Aplicar plan seguro</button>'+
+      '<button class="btn btn-sm" '+(grupos.historicos.length?'':'disabled')+' onclick="svArchivarAvisosHistoricosRelaciones()"><i class="ti ti-archive"></i> Archivar historicos</button>'+
+      '<span style="font-size:12px;color:var(--text3);align-self:center">Criticos: '+grupos.criticos.length+' - Automaticos: '+plan.totalCambios+' - Historicos: '+grupos.historicos.length+(grupos.archivados.length?' - Archivados: '+grupos.archivados.length:'')+'</span>'+
     '</div>';
-    if(box){
-      if(!res.total) box.innerHTML=acciones+'<div style="font-size:13px;color:var(--green);padding:12px;text-align:center">No se detectaron vinculos flojos en memoria.</div>';
-      else box.innerHTML=acciones+res.issues.slice(0,120).map(function(x){
-        return '<div style="display:grid;grid-template-columns:86px 94px minmax(0,1fr) 120px;gap:8px;align-items:center;padding:8px 10px;border-bottom:0.5px solid var(--border)">'+
-          '<span class="badge '+sevClass(x.sev)+'">'+esc(x.sev)+'</span><span class="badge b-blue">'+esc(x.tipo)+'</span><div style="font-size:12px;color:var(--text2);overflow-wrap:anywhere">'+esc(x.msg)+(x.sugerencia?'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+esc(x.sugerencia)+'</div>':'')+'</div><div style="font-size:11px;color:var(--text3);text-align:right;overflow:hidden;text-overflow:ellipsis">'+esc(x.ref||'-')+'</div></div>';
-      }).join('') + (res.total>120 ? '<div style="padding:10px;color:var(--text3);font-size:12px;text-align:center">Se muestran 120 de '+res.total+' avisos.</div>' : '');
+    function renderGrupo(titulo, lista, vacio, color){
+      if(!lista.length) return vacio ? '<div style="font-size:13px;color:'+color+';padding:12px;text-align:center">'+vacio+'</div>' : '';
+      return '<div style="padding:8px 10px;background:var(--bg);border-bottom:0.5px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">'+esc(titulo)+'</div>'+
+        lista.slice(0,120).map(function(x){
+          return '<div style="display:grid;grid-template-columns:86px 94px minmax(0,1fr) 120px;gap:8px;align-items:center;padding:8px 10px;border-bottom:0.5px solid var(--border)">'+
+            '<span class="badge '+sevClass(x.sev)+'">'+esc(x.sev)+'</span><span class="badge b-blue">'+esc(x.tipo)+'</span><div style="font-size:12px;color:var(--text2);overflow-wrap:anywhere">'+esc(x.msg)+(x.sugerencia?'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+esc(x.sugerencia)+'</div>':'')+'</div><div style="font-size:11px;color:var(--text3);text-align:right;overflow:hidden;text-overflow:ellipsis">'+esc(x.ref||'-')+'</div></div>';
+        }).join('') + (lista.length>120 ? '<div style="padding:10px;color:var(--text3);font-size:12px;text-align:center">Se muestran 120 de '+lista.length+' avisos.</div>' : '');
     }
-    if(typeof window.mntLog === 'function') window.mntLog('Auditoria de relaciones: '+res.total+' aviso(s). Plan seguro: '+plan.totalCambios+' cambio(s).');
+    if(box){
+      var html = acciones;
+      html += renderGrupo('Criticos', grupos.criticos, '', 'var(--red)');
+      html += renderGrupo('Activos / revisables', grupos.activos.filter(function(x){ return x.sev !== 'critico'; }), '', 'var(--amber)');
+      html += renderGrupo('Historicos / manuales', grupos.historicos, '', 'var(--amber)');
+      if(!grupos.criticos.length && !grupos.activos.length && !grupos.historicos.length) {
+        html += '<div style="font-size:13px;color:var(--green);padding:12px;text-align:center">No hay vinculos automaticos pendientes. '+(grupos.archivados.length?grupos.archivados.length+' aviso(s) historicos archivados.':'Relaciones OK.')+'</div>';
+      }
+      box.innerHTML = html;
+    }
+    if(typeof window.mntLog === 'function') window.mntLog('Auditoria de relaciones: criticos '+grupos.criticos.length+', automaticos '+plan.totalCambios+', historicos '+grupos.historicos.length+'.');
     return res;
   };
 
