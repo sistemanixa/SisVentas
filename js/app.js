@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.36.5-firebase',
+  VERSION: 'v1.36.8-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4950,6 +4950,7 @@ function _resolverRolYCompletarLogin(user, err) {
 // al cargar la página, restaura directamente sin pedir credenciales de nuevo.
 var _sesionYaRestaurada = false;
 var _primeraVerificacionAuth = true;
+window._restaurandoSesionInicial = false;
 document.addEventListener('firebase-ready', function() {
   if (!window.fbOnAuth || !window.fbAuth) {
     // Sin Firebase Auth disponible — mostrar login directamente
@@ -4960,6 +4961,7 @@ document.addEventListener('firebase-ready', function() {
     if (user && !_sesionYaRestaurada && !isAuthenticated) {
       _sesionYaRestaurada = true;
       _primeraVerificacionAuth = false;
+      window._restaurandoSesionInicial = true;
       var appScreen = document.getElementById('screen-app');
       if (appScreen && !appScreen.classList.contains('visible')) {
         isAuthenticated = true;
@@ -4978,7 +4980,11 @@ document.addEventListener('firebase-ready', function() {
 function _mostrarLoginSinSesion() {
   var loadingEl = document.getElementById('screen-loading');
   var loginEl   = document.getElementById('screen-login');
-  if (loadingEl) loadingEl.style.display = 'none';
+  window._restaurandoSesionInicial = false;
+  if (loadingEl) {
+    loadingEl.classList.remove('sv-intro-loading', 'sv-boot-exit');
+    loadingEl.style.display = 'none';
+  }
   if (loginEl)   loginEl.style.display = '';
 }
 
@@ -5164,8 +5170,15 @@ function _completarLogin(nombre) {
   var bar       = document.getElementById('loading-bar');
   var msg       = document.getElementById('loading-msg');
   var logoEl    = document.getElementById('loading-logo');
-  if (loadingEl) loadingEl.style.display = 'flex';
-  if (logoEl && window.logoEmpresaUrl) {
+  var modoIntroRecarga = window._restaurandoSesionInicial === true && !window._loginEnCurso;
+  if (loadingEl) {
+    loadingEl.classList.remove('sv-boot-exit');
+    loadingEl.classList.toggle('sv-intro-loading', modoIntroRecarga);
+    loadingEl.style.display = 'flex';
+  }
+  if (logoEl && modoIntroRecarga) {
+    logoEl.innerHTML = '<img src="nixa-icon-192.png" alt="NIXA">';
+  } else if (logoEl && window.logoEmpresaUrl) {
     logoEl.innerHTML = '<img src="'+window.logoEmpresaUrl+'" style="height:48px;object-fit:contain">';
   }
 
@@ -5237,7 +5250,14 @@ function _completarLogin(nombre) {
     if (msg) msg.textContent = '¡Listo!';
     setTimeout(function() {
       window._loginEnCurso = false;
-      if (loadingEl) loadingEl.style.display = 'none';
+      if (loadingEl) loadingEl.classList.add('sv-boot-exit');
+      setTimeout(function(){
+        if (loadingEl) {
+          loadingEl.style.display = 'none';
+          loadingEl.classList.remove('sv-boot-exit', 'sv-intro-loading');
+        }
+        window._restaurandoSesionInicial = false;
+      }, modoIntroRecarga ? 280 : 0);
       document.getElementById('screen-app').classList.add('visible');
       if (typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
       if (typeof applyDashWidgets === 'function') applyDashWidgets();

@@ -27,6 +27,25 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 /* ── LOGIN ── */
 #screen-login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:10000}
+#screen-loading.sv-boot-screen{position:fixed;inset:0;z-index:998;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 38%,rgba(96,165,250,.13),transparent 28%),radial-gradient(circle at 50% 62%,rgba(74,222,128,.09),transparent 26%),var(--bg);flex-direction:column;color:var(--text)}
+.sv-boot-aura{position:absolute;width:360px;height:360px;border-radius:50%;background:conic-gradient(from 160deg,rgba(96,165,250,.05),rgba(74,222,128,.22),rgba(139,92,246,.12),rgba(96,165,250,.05));filter:blur(18px);animation:svBootSpin 4.8s linear infinite;opacity:.85}
+.sv-boot-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;animation:svBootIn .55s ease both}
+.sv-boot-logo{width:104px;height:104px;border-radius:28px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.02));border:0.5px solid rgba(120,130,160,.28);box-shadow:0 22px 70px rgba(0,0,0,.30),0 0 0 8px rgba(96,165,250,.035);animation:svBootPulse 1.55s ease-in-out infinite}
+.sv-boot-logo img{width:78px;height:78px;object-fit:contain;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35))}
+.sv-boot-brand{font-size:25px;font-weight:800;letter-spacing:-.7px;margin-top:5px}
+.sv-boot-sub{font-size:12px;color:var(--text3);letter-spacing:.35px;text-transform:uppercase}
+.sv-boot-progress{width:210px;height:4px;margin-top:12px;overflow:hidden;border-radius:999px;background:rgba(120,130,160,.20)}
+.sv-boot-bar{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--green));transition:width .42s ease;box-shadow:0 0 18px rgba(74,222,128,.30)}
+.sv-boot-msg{font-size:12px;color:var(--text3);min-height:18px}
+#screen-loading.sv-intro-loading .sv-boot-progress{width:74px;height:74px;margin-top:14px;border-radius:50%;background:conic-gradient(var(--green) 0 70deg,rgba(120,130,160,.15) 70deg 360deg);animation:svBootSpin 1.1s linear infinite;position:relative}
+#screen-loading.sv-intro-loading .sv-boot-progress:after{content:'';position:absolute;inset:8px;border-radius:50%;background:var(--bg)}
+#screen-loading.sv-intro-loading .sv-boot-bar{display:none}
+#screen-loading.sv-intro-loading .sv-boot-msg{display:none}
+#screen-loading.sv-boot-exit{animation:svBootFade .28s ease forwards}
+@keyframes svBootIn{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes svBootPulse{0%,100%{transform:scale(1);box-shadow:0 22px 70px rgba(0,0,0,.30),0 0 0 8px rgba(96,165,250,.035)}50%{transform:scale(1.035);box-shadow:0 28px 86px rgba(0,0,0,.36),0 0 0 14px rgba(74,222,128,.055)}}
+@keyframes svBootSpin{to{transform:rotate(360deg)}}
+@keyframes svBootFade{to{opacity:0;transform:scale(1.015)}}
 .login-box{width:360px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-xl);padding:40px 36px}
 .login-logo{text-align:center;margin-bottom:32px}
 .login-brand{font-size:28px;font-weight:700;letter-spacing:1px;color:var(--text)}
@@ -1059,3 +1078,34 @@ body.modal-secure-open{overflow:hidden!important}
 .emp-actions-358{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .emp-actions-358 .btn{min-height:34px;white-space:nowrap}
 @media(max-width:900px){.emp-actions-358{width:100%;display:grid!important;grid-template-columns:1fr 1fr;gap:8px}.emp-actions-358 .btn{width:100%;justify-content:center}}
+
+/* v1.36.7 — Dashboard: gráficos y rentabilidad con estilo moderno */
+#dash-rentabilidad-card{position:relative;overflow:hidden!important;background:radial-gradient(circle at 6% 0,rgba(74,222,128,.16),transparent 28%),radial-gradient(circle at 92% 10%,rgba(96,165,250,.14),transparent 32%),linear-gradient(145deg,rgba(255,255,255,.035),rgba(15,17,23,.08)),var(--bg2)!important}
+#dash-rentabilidad-card:before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,transparent,rgba(255,255,255,.045),transparent);transform:translateX(-80%);transition:transform .6s ease}
+#dash-rentabilidad-card:hover:before{transform:translateX(80%)}
+#dash-rentabilidad-card .card-head,#dash-rentabilidad-card .metrics,#dash-rentabilidad-card .sv-rent-compare{position:relative;z-index:1}
+#dash-rentabilidad-card .metric{background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.014))!important;border-color:rgba(120,130,160,.20)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+.sv-rent-compare{margin-top:4px;padding:14px;border:0.5px solid rgba(120,130,160,.18);border-radius:var(--radius-lg);background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.01))}
+.sv-rent-bars{display:grid;gap:12px}
+.sv-rent-row-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px;font-size:11px;color:var(--text2);letter-spacing:.25px}
+.sv-rent-row-head span{display:inline-flex;align-items:center;gap:6px;text-transform:uppercase;color:var(--text3)}
+.sv-rent-row-head i{font-size:15px}
+.sv-rent-row-head strong{font-size:12px;color:var(--text);font-weight:800;white-space:nowrap}
+.sv-rent-row-ing .sv-rent-row-head i,.sv-rent-row-ing .sv-rent-row-head strong{color:var(--green)}
+.sv-rent-row-gas .sv-rent-row-head i,.sv-rent-row-gas .sv-rent-row-head strong{color:var(--red)}
+.sv-rent-track{height:15px;position:relative;overflow:hidden;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018));box-shadow:inset 0 1px 6px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.035)}
+.sv-rent-track:after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 1px,transparent 1px 28px);pointer-events:none}
+.sv-rent-fill{height:100%;min-width:7px;border-radius:999px;position:relative;transition:width .55s cubic-bezier(.2,.9,.2,1);box-shadow:0 0 22px rgba(255,255,255,.08)}
+.sv-rent-fill:after{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(255,255,255,.32),transparent 55%)}
+.sv-rent-fill-ing{background:linear-gradient(90deg,#2ddf7b,#77f7a6,var(--green))!important;box-shadow:0 0 22px rgba(74,222,128,.24)}
+.sv-rent-fill-gas{background:linear-gradient(90deg,#fb6f6f,#ff9c9c,var(--red))!important;box-shadow:0 0 22px rgba(248,113,113,.24)}
+#dash-row2-admin .bar-area,#dash-bar-area{height:148px;padding:12px 10px 18px;border:0.5px solid rgba(120,130,160,.18);border-radius:var(--radius-lg);background:radial-gradient(circle at top,rgba(96,165,250,.09),transparent 45%),linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.006));position:relative}
+#dash-row2-admin .bar-area:before,#dash-bar-area:before{content:'';position:absolute;left:12px;right:12px;top:35%;border-top:0.5px dashed rgba(120,130,160,.22)}
+#dash-row2-admin .bar-area:after,#dash-bar-area:after{content:'';position:absolute;left:12px;right:12px;top:67%;border-top:0.5px dashed rgba(120,130,160,.16)}
+#dash-row2-admin .bc,#dash-bar-area .bc{position:relative;z-index:1}
+#dash-row2-admin .bar,#dash-bar-area .bar{border-radius:10px 10px 4px 4px;background:linear-gradient(180deg,#9cc5ff,var(--blue))!important;box-shadow:0 10px 24px rgba(96,165,250,.13),inset 0 1px 0 rgba(255,255,255,.24)}
+#dash-row2-admin .bar:hover,#dash-row2-admin .bar.today,#dash-bar-area .bar:hover,#dash-bar-area .bar.today{background:linear-gradient(180deg,#7df7a5,var(--green))!important;box-shadow:0 12px 26px rgba(74,222,128,.18),inset 0 1px 0 rgba(255,255,255,.28)}
+.bar-lbl.today{color:var(--green)!important}
+.sv334-analytics-card{background:radial-gradient(circle at 12% 0,rgba(96,165,250,.16),transparent 30%),radial-gradient(circle at 92% 8%,rgba(139,92,246,.12),transparent 34%),linear-gradient(145deg,rgba(255,255,255,.04),rgba(15,17,23,.08)),var(--bg2)!important}
+.sv334-graph{background:linear-gradient(145deg,rgba(255,255,255,.032),rgba(255,255,255,.01))!important;border-color:rgba(120,130,160,.20)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+.sv334-bars-area,.sv334-svg-wrap{background:radial-gradient(circle at top,rgba(96,165,250,.08),transparent 42%),linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.006))!important}

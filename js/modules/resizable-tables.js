@@ -1,4 +1,4 @@
-/* v1.36.5 — Columnas ajustables para tablas/listas */
+/* v1.36.8 — Columnas ajustables para tablas/listas */
 (function () {
   'use strict';
 
@@ -103,12 +103,34 @@
     return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(width || MIN_WIDTH)));
   }
 
+  function totalColumnCount(table) {
+    return Array.from(table.querySelectorAll('tr')).reduce(function (max, row) {
+      return Math.max(max, row.children ? row.children.length : 0);
+    }, 0);
+  }
+
+  function physicalIndexForHeader(th) {
+    if (!th || !th.parentNode) return -1;
+    return Array.prototype.indexOf.call(th.parentNode.children, th);
+  }
+
+  function physicalIndexForVisibleIndex(table, index) {
+    var headers = tableHeaders(table);
+    var headerIndex = physicalIndexForHeader(headers[index]);
+    if (headerIndex >= 0) return headerIndex;
+    var firstRow = table.querySelector('tr');
+    if (!firstRow) return index;
+    var visible = Array.from(firstRow.children).filter(function (cell) {
+      return !isHidden(cell);
+    });
+    var cell = visible[index];
+    return cell ? Array.prototype.indexOf.call(firstRow.children, cell) : index;
+  }
+
   function columnCells(table, index) {
+    var physicalIndex = physicalIndexForVisibleIndex(table, index);
     return Array.from(table.querySelectorAll('tr')).map(function (row) {
-      var visible = Array.from(row.children).filter(function (cell) {
-        return !isHidden(cell);
-      });
-      return visible[index] || null;
+      return row.children[physicalIndex] || null;
     }).filter(Boolean);
   }
 
@@ -143,8 +165,9 @@
 
   function applyColumnWidth(table, index, width) {
     var safeWidth = normalizeWidth(width);
-    var colgroup = ensureColgroup(table, tableHeaders(table).length);
-    if (colgroup.children[index]) colgroup.children[index].style.width = safeWidth + 'px';
+    var physicalIndex = physicalIndexForVisibleIndex(table, index);
+    var colgroup = ensureColgroup(table, totalColumnCount(table));
+    if (colgroup.children[physicalIndex]) colgroup.children[physicalIndex].style.width = safeWidth + 'px';
     columnCells(table, index).forEach(function (cell) {
       cell.style.width = safeWidth + 'px';
       cell.style.maxWidth = safeWidth + 'px';
@@ -155,8 +178,9 @@
   }
 
   function clearColumnWidth(table, index) {
+    var physicalIndex = physicalIndexForVisibleIndex(table, index);
     var colgroup = table.querySelector('colgroup.sv-resizable-cols');
-    if (colgroup && colgroup.children[index]) colgroup.children[index].style.width = '';
+    if (colgroup && colgroup.children[physicalIndex]) colgroup.children[physicalIndex].style.width = '';
     columnCells(table, index).forEach(function (cell) {
       cell.style.width = '';
       cell.style.maxWidth = '';
@@ -183,7 +207,7 @@
   function applySavedWidths(table) {
     var headers = tableHeaders(table);
     if (!headers.length) return;
-    ensureColgroup(table, headers.length);
+    ensureColgroup(table, totalColumnCount(table));
     var widths = loadWidths(table);
     headers.forEach(function (th, index) {
       var saved = parseInt(widths[index], 10);
