@@ -70,7 +70,7 @@
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v1.35.7';
+  SV.Cache.version = 'v1.35.8';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -258,6 +258,7 @@
   });
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(SV.Metrics.refresh, 500); });
 })();
+
 
 
 

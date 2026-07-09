@@ -1,6 +1,26 @@
-/* v1.35.7 — Orden y límites visuales del dashboard */
+/* v1.35.8 — Orden, límites y visibilidad fina del dashboard */
 (function(){
   'use strict';
+
+  function norm(v){
+    return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  }
+
+  function rolActual(){
+    var r = norm(window.currentRole || window.currentUserRole || '');
+    var badge = document.getElementById('role-badge-el');
+    var side = document.getElementById('s-urole-el');
+    var txt = norm([r, badge ? badge.textContent : '', side ? side.textContent : ''].join(' '));
+    if(txt.indexOf('admin') >= 0 || txt.indexOf('administrador') >= 0) return 'admin';
+    if(txt.indexOf('administrativo') >= 0) return 'administrativo';
+    if(txt.indexOf('vendedor') >= 0) return 'vendedor';
+    if(txt.indexOf('tecnico') >= 0) return 'tecnico';
+    return r;
+  }
+
+  function esAdmin(){
+    return rolActual() === 'admin';
+  }
 
   function pageDashboard(){
     return document.getElementById('page-dashboard');
@@ -38,9 +58,27 @@
     if(ventasMob) ventasMob.dataset.limit = '5';
   }
 
+  function aplicarVisibilidad(){
+    var miActividad = document.getElementById('dash-administrativo-card');
+    if(miActividad && esAdmin()){
+      miActividad.style.display = 'none';
+      miActividad.dataset.adminHidden = 'true';
+    }
+    var actividadGlobal = document.getElementById('dash-actividad-card');
+    if(actividadGlobal){
+      actividadGlobal.dataset.dashboardKind = 'global-activity';
+      actividadGlobal.dataset.limit = '5';
+    }
+    var rent = document.getElementById('dash-rentabilidad-card');
+    if(rent) rent.dataset.dashboardKind = 'monthly-profit';
+    var ventas = document.getElementById('dash-ultimas-ventas-card');
+    if(ventas) ventas.dataset.dashboardKind = 'latest-sales';
+  }
+
   function aplicar(){
     ordenarDashboard();
     marcarLimites();
+    aplicarVisibilidad();
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', aplicar);
