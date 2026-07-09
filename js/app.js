@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.36.11-firebase',
+  VERSION: 'v1.36.13-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -21181,13 +21181,22 @@ function renderKPIsDashboard() {
     if (!esAdmin) {
       otsPend = otsPend.filter(function(o){ return (o.tecnico||'').toLowerCase() === (currentUser||'').toLowerCase(); });
     }
+    otsPend.sort(function(a,b){
+      var ak = String(a.fecha || '9999-99-99') + ' ' + String(a.hora || '99:99');
+      var bk = String(b.fecha || '9999-99-99') + ' ' + String(b.hora || '99:99');
+      return ak.localeCompare(bk);
+    });
     if (!otsPend.length) {
       otTabla.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:12px">Sin OTs pendientes</td></tr>';
     } else {
       otTabla.innerHTML = otsPend.slice(0,6).map(function(o) {
         var badge = otBadge(o.estado);
+        var fechaOT = o.fecha ? _mostrarFecha(o.fecha) : 'Sin fecha';
+        var horaOT = o.hora ? String(o.hora).slice(0,5) : 'Sin hora';
+        var fechaHoraOT = fechaOT + ' · ' + horaOT;
         return '<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="abrirOTDesdeId(\'' + escapeHTML(o.fbKey||o.id||'') + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
           '<td><div style="font-weight:500">' + escapeHTML(o.cliente||'') + '</div><div style="font-size:11px;color:var(--blue);margin-top:2px;font-family:monospace">' + escapeHTML(o.id||'OT') + '</div>' +
+            '<div style="font-size:11px;color:var(--amber);margin-top:2px"><i class="ti ti-calendar-time" style="font-size:10px"></i> ' + escapeHTML(fechaHoraOT) + '</div>' +
             (function(){
               var dir = o.dir || o.direccion || '';
               if (!dir && o.cliente) {
