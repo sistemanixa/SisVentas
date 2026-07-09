@@ -1,4 +1,4 @@
-/* v1.36.15 — Preparación para versión mayor 2.0 */
+/* v1.36.16 — Preparación para versión mayor 2.0 */
 (function(){
   'use strict';
 
@@ -124,7 +124,8 @@
     });
 
     var rel = relationSnapshot();
-    add('Datos', 'relations-clean', 'Relaciones sin cambios automáticos pendientes', rel.seguros === 0 && rel.criticos === 0, 12, true, 'Avisos: '+rel.total+' · críticos: '+rel.criticos+' · plan seguro: '+rel.seguros);
+    add('Datos', 'relations-critical-clean', 'Relaciones sin críticos', rel.criticos === 0, 12, true, 'Avisos: '+rel.total+' · críticos: '+rel.criticos+' · plan seguro disponible: '+rel.seguros);
+    add('Datos', 'relations-safe-plan', 'Plan seguro de relaciones aplicado', rel.seguros === 0, 6, false, rel.seguros ? ('Hay '+rel.seguros+' cambio(s) seguros disponibles. Aplicalos desde Auditoría de relaciones y volvé a evaluar.') : 'Sin cambios automáticos pendientes');
     add('Datos', 'relations-high', 'Sin relaciones altas sin decisión', rel.altos === 0, 5, false, 'Altos: '+rel.altos+' (pueden requerir decisión humana)');
 
     var ds = dataSnapshot();
