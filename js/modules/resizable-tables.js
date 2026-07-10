@@ -1,4 +1,4 @@
-/* v1.36.16 ? Columnas ajustables para tablas/listas */
+/* v1.36.17 — Columnas ajustables para tablas/listas */
 (function () {
   'use strict';
 
@@ -322,3 +322,4 @@
     window.SisVentas.initResizableTables = scan;
   });
 })();
+
