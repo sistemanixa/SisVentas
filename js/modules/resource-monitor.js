@@ -1,4 +1,4 @@
-/* v1.36.21 — Monitor temporal compacto y liviano de recursos para admin */
+/* v1.36.22 — Monitor temporal compacto y liviano de recursos para admin */
 (function(){
   'use strict';
 

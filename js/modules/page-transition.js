@@ -1,4 +1,4 @@
-/* v1.36.21 — Aviso liviano entre módulos sin bloqueo visual */
+/* v1.36.22 — Aviso liviano entre módulos sin bloqueo visual */
 (function(){
   'use strict';
 

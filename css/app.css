@@ -1172,7 +1172,9 @@ body.modal-secure-open{overflow:hidden!important}
 @media(max-width:1199px){.sv334-chart-wrap,.sv334-line-wrap{height:158px!important;min-height:158px!important}.sv334-bars-area,.sv334-svg-wrap,.sv334-svg{height:138px!important;min-height:138px!important}.sv334-bc{height:108px!important}.sv334-bar{max-height:108px!important}}
 @media(max-width:700px){.sv334-chart-wrap,.sv334-line-wrap{height:142px!important;min-height:142px!important}.sv334-bars-area,.sv334-svg-wrap,.sv334-svg{height:122px!important;min-height:122px!important}.sv334-bc{height:92px!important}.sv334-bar{max-height:92px!important}}
 
-/* v1.36.21 — Line chart ejecutivo y monitor compacto de recursos */
+/* v1.36.22 — Line chart ejecutivo y monitor compacto de recursos */
+.page.active .card{content-visibility:auto;contain-intrinsic-size:180px}
+.page.active .row2,.page.active .metrics{content-visibility:auto;contain-intrinsic-size:120px}
 .sv334-svg-wrap{overflow:hidden!important}
 .sv334-line-grid{stroke:rgba(120,130,160,.18);stroke-width:.7;vector-effect:non-scaling-stroke;stroke-dasharray:5 5}
 .sv334-line-area{opacity:.82}

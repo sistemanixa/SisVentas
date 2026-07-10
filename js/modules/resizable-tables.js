@@ -1,4 +1,4 @@
-/* v1.36.21 — Columnas ajustables para tablas/listas */
+/* v1.36.22 — Columnas ajustables optimizadas para página activa */
 (function () {
   'use strict';
 
@@ -6,6 +6,7 @@
   var MIN_WIDTH = 54;
   var MAX_WIDTH = 720;
   var scheduled = false;
+  var scheduleTimer = 0;
   var DEFAULT_WIDTH_BY_HEADER = {
     'fecha': 76,
     'descripcion': 170,
@@ -223,9 +224,17 @@
     if (!wrap) return;
     var headers = tableHeaders(table);
     if (headers.length < 2) return;
+    var key = tableKey(table);
+    var rowCount = table.rows ? table.rows.length : table.querySelectorAll('tr').length;
+    if (table.dataset.svResizableReady === '1' &&
+        table.dataset.svResizableKey === key &&
+        table.dataset.svResizableRows === String(rowCount)) {
+      return;
+    }
 
     table.classList.add('sv-resizable-table');
-    table.dataset.svResizableKey = tableKey(table);
+    table.dataset.svResizableKey = key;
+    table.dataset.svResizableRows = String(rowCount);
     wrap.classList.add('sv-resizable-wrap');
     applySavedWidths(table);
 
@@ -304,22 +313,45 @@
 
   function scan() {
     scheduled = false;
-    document.querySelectorAll('.table-wrap table, .sv-auto-grid-wrap table, .card table').forEach(initTable);
+    scheduleTimer = 0;
+    var active = document.querySelector('.page.active');
+    var root = active || document.body;
+    root.querySelectorAll('.table-wrap table, .sv-auto-grid-wrap table, .card table').forEach(initTable);
   }
 
   function scheduleScan() {
     if (scheduled) return;
     scheduled = true;
-    window.requestAnimationFrame(scan);
+    clearTimeout(scheduleTimer);
+    scheduleTimer = setTimeout(function () {
+      if (window.requestIdleCallback) window.requestIdleCallback(scan, { timeout: 500 });
+      else window.requestAnimationFrame(scan);
+    }, 180);
+  }
+
+  function mutationTouchesActivePage(mutations) {
+    var active = document.querySelector('.page.active');
+    if (!active) return true;
+    return Array.from(mutations || []).some(function (mutation) {
+      if (active.contains(mutation.target)) return true;
+      return Array.from(mutation.addedNodes || []).some(function (node) {
+        return node && node.nodeType === 1 && (
+          active.contains(node) ||
+          (node.matches && (node.matches('table,.table-wrap,.sv-auto-grid-wrap,.card') || !!node.querySelector('table,.table-wrap,.sv-auto-grid-wrap,.card')))
+        );
+      });
+    });
   }
 
   ready(function () {
     scan();
-    var observer = new MutationObserver(scheduleScan);
+    var observer = new MutationObserver(function (mutations) {
+      if (mutationTouchesActivePage(mutations)) scheduleScan();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('resize', scheduleScan);
+    document.addEventListener('sisventas:page-changed', scheduleScan);
     window.SisVentas = window.SisVentas || {};
     window.SisVentas.initResizableTables = scan;
   });
 })();
-

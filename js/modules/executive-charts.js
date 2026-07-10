@@ -63,8 +63,14 @@
   function ensureRent(){ var page=document.getElementById('page-rentabilidad'); if(!page||document.getElementById('sv334-rent-card')) return; var metrics=page.querySelector('.metrics'); if(metrics) metrics.insertAdjacentHTML('afterend',cardVentas('rent')); else page.insertAdjacentHTML('afterbegin',cardVentas('rent')); }
   function calcSales(){
     var vs=ventas(), d7=dias7(), m12=meses12();
-    var daily=d7.map(function(d){return vs.filter(function(v){return fechaKey(v.fecha)===d.key;}).reduce(function(s,v){return s+totalVenta(v);},0);});
-    var monthly=m12.map(function(m){return vs.filter(function(v){return mesKey(v.fecha)===m.key;}).reduce(function(s,v){return s+totalVenta(v);},0);});
+    var porDia={}, porMes={};
+    vs.forEach(function(v){
+      var total=totalVenta(v), fk=fechaKey(v.fecha), mk=mesKey(v.fecha);
+      porDia[fk]=(porDia[fk]||0)+total;
+      porMes[mk]=(porMes[mk]||0)+total;
+    });
+    var daily=d7.map(function(d){return porDia[d.key]||0;});
+    var monthly=m12.map(function(m){return porMes[m.key]||0;});
     var today=daily[daily.length-1]||0, week=daily.reduce(function(s,x){return s+x;},0), month=monthly[monthly.length-1]||0, prevMonth=monthly[monthly.length-2]||0;
     var mejorDia=d7.map(function(d,i){return {lbl:diasLbl[d.dow],v:daily[i]};}).sort(function(a,b){return b.v-a.v;})[0]||{lbl:'—',v:0};
     var prom=month/(new Date().getDate()||1);
@@ -72,12 +78,21 @@
   }
   function calcRent(){
     var vs=ventas(), gs=gastos(), d7=dias7(), m12=meses12();
-    function ingresoDia(k){return vs.filter(function(v){return fechaKey(v.fecha)===k;}).reduce(function(s,v){return s+totalVenta(v);},0);} function egresoDia(k){return gs.filter(function(g){return fechaKey(g.fecha)===k;}).reduce(function(s,g){return s+gastoMonto(g);},0);}
-    function ingresoMes(k){return vs.filter(function(v){return mesKey(v.fecha)===k;}).reduce(function(s,v){return s+totalVenta(v);},0);} function egresoMes(k){return gs.filter(function(g){return mesKey(g.fecha)===k;}).reduce(function(s,g){return s+gastoMonto(g);},0);}
-    var daily=d7.map(function(d){return ingresoDia(d.key)-egresoDia(d.key);});
-    var monthly=m12.map(function(m){return ingresoMes(m.key)-egresoMes(m.key);});
+    var ingDia={}, egrDia={}, ingMes={}, egrMes={};
+    vs.forEach(function(v){
+      var total=totalVenta(v), fk=fechaKey(v.fecha), mk=mesKey(v.fecha);
+      ingDia[fk]=(ingDia[fk]||0)+total;
+      ingMes[mk]=(ingMes[mk]||0)+total;
+    });
+    gs.forEach(function(g){
+      var total=gastoMonto(g), fk=fechaKey(g.fecha), mk=mesKey(g.fecha);
+      egrDia[fk]=(egrDia[fk]||0)+total;
+      egrMes[mk]=(egrMes[mk]||0)+total;
+    });
+    var daily=d7.map(function(d){return (ingDia[d.key]||0)-(egrDia[d.key]||0);});
+    var monthly=m12.map(function(m){return (ingMes[m.key]||0)-(egrMes[m.key]||0);});
     var mesActual=m12[m12.length-1].key;
-    var ingresos=ingresoMes(mesActual), egresos=egresoMes(mesActual), utilidad=ingresos-egresos, prev=monthly[monthly.length-2]||0;
+    var ingresos=ingMes[mesActual]||0, egresos=egrMes[mesActual]||0, utilidad=ingresos-egresos, prev=monthly[monthly.length-2]||0;
     var best=d7.map(function(d,i){return {lbl:diasLbl[d.dow],v:daily[i]};}).sort(function(a,b){return b.v-a.v;})[0]||{lbl:'—',v:0};
     return {daily:daily,dailyLabels:d7.map(function(d,i){return i===6?'Hoy':diasLbl[d.dow];}),monthly:monthly,monthLabels:m12.map(function(m){return mesesLbl[m.date.getMonth()];}),ingresos:ingresos,egresos:egresos,utilidad:utilidad,prevMonth:prev,best:best,avg:utilidad/(new Date().getDate()||1),margen:ingresos?Math.round(utilidad/ingresos*100):0};
   }
