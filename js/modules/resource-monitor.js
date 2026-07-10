@@ -1,4 +1,4 @@
-/* v1.36.19 — Monitor temporal compacto de recursos para admin */
+/* v1.36.21 — Monitor temporal compacto y liviano de recursos para admin */
 (function(){
   'use strict';
 
@@ -8,6 +8,8 @@
   var loadPct = 0;
   var lastDownload = 0;
   var uploadBytes = 0;
+  var MONITOR_INTERVAL_MS = 5000;
+  var lastRenderPage = '';
 
   function rol(){
     try {
@@ -81,9 +83,14 @@
 
   function downloadBytes(){
     try {
-      return performance.getEntriesByType('resource').reduce(function(sum, entry){
-        return sum + (entry.transferSize || entry.encodedBodySize || 0);
-      }, 0);
+      var entries = performance.getEntriesByType('resource');
+      var start = Math.max(0, entries.length - 180);
+      var sum = 0;
+      for(var i=start; i<entries.length; i++){
+        var entry = entries[i];
+        sum += (entry.transferSize || entry.encodedBodySize || 0);
+      }
+      return sum;
     } catch(e){ return 0; }
   }
 
@@ -175,10 +182,22 @@
 
   function tick(){
     var now = performance.now();
-    var expected = 1500;
+    var expected = MONITOR_INTERVAL_MS;
     var lag = Math.max(0, now - lastTick - expected);
     lastTick = now;
-    loadPct = Math.max(0, Math.min(100, (lag / expected) * 360));
+    loadPct = Math.max(0, Math.min(100, (lag / expected) * 520));
+    render();
+  }
+
+  function currentPage(){
+    var active = document.querySelector('.page.active');
+    return active ? active.id : '';
+  }
+
+  function renderAfterNavigation(){
+    var page = currentPage();
+    if(page === lastRenderPage) return;
+    lastRenderPage = page;
     render();
   }
 
@@ -187,14 +206,15 @@
     started = true;
     patchNetwork();
     lastDownload = downloadBytes();
+    lastRenderPage = currentPage();
     render();
-    timer = setInterval(tick, 1500);
+    timer = setInterval(tick, MONITOR_INTERVAL_MS);
   }
 
   window.svResourceMonitorSnapshot = snapshot;
   window.svRenderResourceMonitor = render;
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(start, 350); });
-  document.addEventListener('sisventas:page-changed', function(){ setTimeout(render, 80); });
-  document.addEventListener('sisventas:role-changed', function(){ setTimeout(render, 80); });
+  document.addEventListener('sisventas:page-changed', function(){ setTimeout(renderAfterNavigation, 140); });
+  document.addEventListener('sisventas:role-changed', function(){ setTimeout(render, 140); });
   document.addEventListener('firebase-ready', function(){ setTimeout(render, 700); });
 })();

@@ -1,4 +1,4 @@
-/* v1.36.19 — Columnas ajustables para tablas/listas */
+/* v1.36.21 — Columnas ajustables para tablas/listas */
 (function () {
   'use strict';
 

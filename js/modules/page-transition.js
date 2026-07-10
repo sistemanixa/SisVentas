@@ -1,4 +1,4 @@
-/* v1.36.19 — Aviso liviano entre módulos sin bloqueo visual */
+/* v1.36.21 — Aviso liviano entre módulos sin bloqueo visual */
 (function(){
   'use strict';
 
@@ -160,5 +160,4 @@
 
   document.addEventListener('visibilitychange', cleanupAll);
   window.addEventListener('pageshow', function(){ setTimeout(cleanupAll, 120); });
-  setInterval(cleanupAll, 1500);
 })();
