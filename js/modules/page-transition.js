@@ -1,4 +1,4 @@
-/* v1.36.18 — Anti pantallazo entre módulos con salida segura */
+/* v1.36.19 — Aviso liviano entre módulos sin bloqueo visual */
 (function(){
   'use strict';
 
@@ -35,7 +35,7 @@
   var timers = {};
   var hardTimers = {};
   var seq = 0;
-  var MAX_VISIBLE_MS = 1100;
+  var MAX_VISIBLE_MS = 650;
 
   function pageId(id){
     return String(id || '').replace(/^page-/, '');
@@ -66,7 +66,8 @@
     var page = pageEl(id);
     if(!page) return 0;
     var token = ++seq;
-    var safeMs = Math.min(Math.max(ms || HEAVY_PAGES[id] || 360, 220), MAX_VISIBLE_MS);
+    cleanupAll(true);
+    var safeMs = Math.min(Math.max(ms || HEAVY_PAGES[id] || 280, 180), MAX_VISIBLE_MS);
     page.dataset.svTransitionToken = String(token);
     page.dataset.svTransitionStarted = String(Date.now());
     page.classList.add('sv-page-transitioning');
@@ -101,10 +102,10 @@
     clearTimeout(hardTimers[id]);
   }
 
-  function cleanupAll(){
+  function cleanupAll(force){
     Array.prototype.forEach.call(document.querySelectorAll('.page.sv-page-transitioning'), function(page){
       var started = Number(page.dataset.svTransitionStarted || 0);
-      if(!started || Date.now() - started > MAX_VISIBLE_MS + 220) forceEnd(page.id);
+      if(force || !started || Date.now() - started > MAX_VISIBLE_MS + 120) forceEnd(page.id);
     });
   }
 

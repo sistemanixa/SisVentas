@@ -135,15 +135,16 @@ body.dark-mode ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);borde
 body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)}
 .page{display:none;width:100%;box-sizing:border-box}
 .page.active{display:block}
-.page.sv-page-transitioning{position:relative;min-height:280px}
-.page.sv-page-transitioning > *:not(.sv-page-transition-loader){visibility:hidden!important}
-.sv-page-transition-loader{position:absolute;inset:0;z-index:20;display:flex;align-items:flex-start;justify-content:center;padding:18px;background:linear-gradient(180deg,rgba(15,17,23,.94),rgba(15,17,23,.76))}
-.sv-page-transition-box{display:flex;align-items:center;gap:12px;max-width:360px;width:min(360px,100%);border:0.5px solid rgba(120,130,160,.28);border-radius:16px;padding:14px 16px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.012)),var(--bg2);box-shadow:0 14px 34px rgba(0,0,0,.20)}
-.sv-page-transition-spin{width:42px;height:42px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(96,165,250,.12);color:var(--blue);flex-shrink:0}
-.sv-page-transition-spin i{font-size:22px;animation:sv-page-spin .9s linear infinite}
-.sv-page-transition-title{font-size:14px;font-weight:800;color:var(--text)}
-.sv-page-transition-sub{font-size:12px;color:var(--text3);margin-top:3px}
+.page.sv-page-transitioning{position:relative}
+.page.sv-page-transitioning > *:not(.sv-page-transition-loader){visibility:visible!important}
+.sv-page-transition-loader{position:fixed;top:46px;left:50%;transform:translateX(-50%);z-index:34;display:flex;align-items:flex-start;justify-content:center;padding:0;background:transparent;pointer-events:none;animation:sv-page-toast-out .45s ease .55s forwards}
+.sv-page-transition-box{display:flex;align-items:center;gap:9px;max-width:300px;width:auto;border:0.5px solid rgba(120,130,160,.26);border-radius:999px;padding:8px 12px;background:rgba(24,27,36,.88);backdrop-filter:blur(10px);box-shadow:0 12px 28px rgba(0,0,0,.18)}
+.sv-page-transition-spin{width:28px;height:28px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(96,165,250,.12);color:var(--blue);flex-shrink:0}
+.sv-page-transition-spin i{font-size:17px;animation:sv-page-spin .9s linear infinite}
+.sv-page-transition-title{font-size:12px;font-weight:800;color:var(--text);white-space:nowrap}
+.sv-page-transition-sub{display:none}
 @keyframes sv-page-spin{to{transform:rotate(360deg)}}
+@keyframes sv-page-toast-out{to{opacity:0;transform:translateX(-50%) translateY(-6px);visibility:hidden}}
 
 /* ── METRICS ── */
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
@@ -1172,7 +1173,7 @@ body.modal-secure-open{overflow:hidden!important}
 @media(max-width:1199px){.sv334-chart-wrap,.sv334-line-wrap{height:158px!important;min-height:158px!important}.sv334-bars-area,.sv334-svg-wrap,.sv334-svg{height:138px!important;min-height:138px!important}.sv334-bc{height:108px!important}.sv334-bar{max-height:108px!important}}
 @media(max-width:700px){.sv334-chart-wrap,.sv334-line-wrap{height:142px!important;min-height:142px!important}.sv334-bars-area,.sv334-svg-wrap,.sv334-svg{height:122px!important;min-height:122px!important}.sv334-bc{height:92px!important}.sv334-bar{max-height:92px!important}}
 
-/* v1.36.18 ? Line chart ejecutivo y monitor compacto de recursos */
+/* v1.36.19 — Line chart ejecutivo y monitor compacto de recursos */
 .sv334-svg-wrap{overflow:hidden!important}
 .sv334-line-grid{stroke:rgba(120,130,160,.18);stroke-width:.7;vector-effect:non-scaling-stroke;stroke-dasharray:5 5}
 .sv334-line-area{opacity:.82}

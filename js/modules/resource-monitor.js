@@ -1,4 +1,4 @@
-/* v1.36.18 — Monitor temporal compacto de recursos para admin */
+/* v1.36.19 — Monitor temporal compacto de recursos para admin */
 (function(){
   'use strict';
 
