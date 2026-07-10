@@ -1,4 +1,4 @@
-/* v1.36.17 — Anti pantallazo entre módulos */
+/* v1.36.18 — Anti pantallazo entre módulos con salida segura */
 (function(){
   'use strict';
 
@@ -33,7 +33,9 @@
   };
 
   var timers = {};
+  var hardTimers = {};
   var seq = 0;
+  var MAX_VISIBLE_MS = 1100;
 
   function pageId(id){
     return String(id || '').replace(/^page-/, '');
@@ -64,11 +66,15 @@
     var page = pageEl(id);
     if(!page) return 0;
     var token = ++seq;
+    var safeMs = Math.min(Math.max(ms || HEAVY_PAGES[id] || 360, 220), MAX_VISIBLE_MS);
     page.dataset.svTransitionToken = String(token);
+    page.dataset.svTransitionStarted = String(Date.now());
     page.classList.add('sv-page-transitioning');
     ensureLoader(page, id);
     clearTimeout(timers[id]);
-    timers[id] = setTimeout(function(){ end(id, token); }, ms || HEAVY_PAGES[id] || 420);
+    clearTimeout(hardTimers[id]);
+    timers[id] = setTimeout(function(){ end(id, token); }, safeMs);
+    hardTimers[id] = setTimeout(function(){ forceEnd(id); }, safeMs + 160);
     return token;
   }
 
@@ -79,6 +85,27 @@
     if(token && page.dataset.svTransitionToken !== String(token)) return;
     page.classList.remove('sv-page-transitioning');
     delete page.dataset.svTransitionToken;
+    delete page.dataset.svTransitionStarted;
+    clearTimeout(timers[id]);
+    clearTimeout(hardTimers[id]);
+  }
+
+  function forceEnd(id){
+    id = pageId(id);
+    var page = pageEl(id);
+    if(!page) return;
+    page.classList.remove('sv-page-transitioning');
+    delete page.dataset.svTransitionToken;
+    delete page.dataset.svTransitionStarted;
+    clearTimeout(timers[id]);
+    clearTimeout(hardTimers[id]);
+  }
+
+  function cleanupAll(){
+    Array.prototype.forEach.call(document.querySelectorAll('.page.sv-page-transitioning'), function(page){
+      var started = Number(page.dataset.svTransitionStarted || 0);
+      if(!started || Date.now() - started > MAX_VISIBLE_MS + 220) forceEnd(page.id);
+    });
   }
 
   function wrapShowPage(){
@@ -92,7 +119,8 @@
       var result = original.apply(this, arguments);
       if(ms){
         requestAnimationFrame(function(){
-          setTimeout(function(){ end(clean, token); }, ms);
+          setTimeout(function(){ end(clean, token); }, Math.min(ms, MAX_VISIBLE_MS));
+          setTimeout(function(){ forceEnd(clean); }, Math.min(ms, MAX_VISIBLE_MS) + 180);
         });
       }
       return result;
@@ -112,6 +140,8 @@
   window.svPageTransition = {
     begin: begin,
     end: end,
+    forceEnd: forceEnd,
+    cleanupAll: cleanupAll,
     endActiveSoon: endActiveSoon
   };
 
@@ -126,4 +156,8 @@
     }
     endActiveSoon();
   });
+
+  document.addEventListener('visibilitychange', cleanupAll);
+  window.addEventListener('pageshow', function(){ setTimeout(cleanupAll, 120); });
+  setInterval(cleanupAll, 1500);
 })();

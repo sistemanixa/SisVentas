@@ -1,4 +1,4 @@
-/* v1.36.17 — Monitor temporal de recursos para dashboard admin */
+/* v1.36.18 — Monitor temporal compacto de recursos para admin */
 (function(){
   'use strict';
 
@@ -103,30 +103,21 @@
     return (c.effectiveType ? c.effectiveType.toUpperCase() + ' · ' : '') + down;
   }
 
-  function activeDashboard(){
-    var page = document.getElementById('page-dashboard');
-    return page && page.classList.contains('active');
-  }
-
   function ensureCard(){
-    var page = document.getElementById('page-dashboard');
-    if(!page) return null;
     var card = document.getElementById('sv-resource-monitor-card');
     if(card) return card;
     card = document.createElement('div');
     card.id = 'sv-resource-monitor-card';
-    card.className = 'card admin-only sv-rm-card';
+    card.className = 'admin-only sv-rm-card sv-rm-compact';
     card.innerHTML =
-      '<div class="sv-rm-head"><div><div class="section-title"><i class="ti ti-activity"></i> Monitor de recursos</div><div class="sv-rm-sub">Lectura local estimada del navegador</div></div><span class="badge b-blue" id="sv-rm-state">Activo</span></div>'+
-      '<div class="sv-rm-grid">'+
-        '<div class="sv-rm-item"><div class="sv-rm-label">Memoria</div><div class="sv-rm-value" id="sv-rm-memory">—</div><div class="sv-rm-meter"><span id="sv-rm-memory-bar"></span></div><div class="sv-rm-detail" id="sv-rm-memory-detail">—</div></div>'+
-        '<div class="sv-rm-item"><div class="sv-rm-label">Procesador</div><div class="sv-rm-value" id="sv-rm-cpu">—</div><div class="sv-rm-meter"><span id="sv-rm-cpu-bar"></span></div><div class="sv-rm-detail">Carga estimada de la interfaz</div></div>'+
-        '<div class="sv-rm-item"><div class="sv-rm-label">Descarga</div><div class="sv-rm-value" id="sv-rm-down">—</div><div class="sv-rm-detail" id="sv-rm-conn">—</div></div>'+
-        '<div class="sv-rm-item"><div class="sv-rm-label">Subida</div><div class="sv-rm-value" id="sv-rm-up">—</div><div class="sv-rm-detail">Datos enviados por formularios/API</div></div>'+
+      '<div class="sv-rm-title"><i class="ti ti-activity"></i><span>Recursos</span><span class="badge b-blue" id="sv-rm-state">OK</span></div>'+
+      '<div class="sv-rm-strip">'+
+        '<div class="sv-rm-mini" title="Memoria JS"><span>Mem</span><strong id="sv-rm-memory">—</strong><em id="sv-rm-memory-detail">—</em><div class="sv-rm-meter"><span id="sv-rm-memory-bar"></span></div></div>'+
+        '<div class="sv-rm-mini" title="Carga estimada de la interfaz"><span>CPU</span><strong id="sv-rm-cpu">—</strong><em>UI estimada</em><div class="sv-rm-meter"><span id="sv-rm-cpu-bar"></span></div></div>'+
+        '<div class="sv-rm-mini" title="Descarga estimada del ciclo"><span>Down</span><strong id="sv-rm-down">—</strong><em id="sv-rm-conn">—</em></div>'+
+        '<div class="sv-rm-mini" title="Subida estimada por formularios/API"><span>Up</span><strong id="sv-rm-up">—</strong><em>fetch/xhr</em></div>'+
       '</div>';
-    var anchor = document.getElementById('dash-row2-admin') || page.querySelector('.metrics') || page.firstElementChild;
-    if(anchor && anchor.parentNode) anchor.insertAdjacentElement('afterend', card);
-    else page.appendChild(card);
+    document.body.appendChild(card);
     return card;
   }
 
@@ -165,8 +156,7 @@
       card.style.display = 'none';
       return;
     }
-    card.style.display = activeDashboard() ? '' : 'none';
-    if(card.style.display === 'none') return;
+    card.style.display = '';
     var s = snapshot();
     setText('sv-rm-memory', s.memory.label);
     setText('sv-rm-memory-detail', s.memory.detail);
