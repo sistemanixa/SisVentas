@@ -1,4 +1,4 @@
-/* v1.36.22 — Columnas ajustables optimizadas para página activa */
+/* v1.36.23 — Columnas ajustables optimizadas para página activa */
 (function () {
   'use strict';
 

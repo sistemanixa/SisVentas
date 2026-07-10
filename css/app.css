@@ -1198,3 +1198,29 @@ body.modal-secure-open{overflow:hidden!important}
 .sv-rm-meter span.danger{background:linear-gradient(90deg,var(--red),#fb7185)}
 @media(max-width:1100px){.sv-rm-card.sv-rm-compact{left:auto;right:10px;transform:none;max-width:calc(100vw - 180px)}.sv-rm-card.sv-rm-compact:hover{transform:translateY(1px)}.sv-rm-mini{min-width:72px}}
 @media(max-width:760px){.sv-rm-card.sv-rm-compact{top:auto;bottom:10px;right:76px;max-width:calc(100vw - 92px);overflow-x:auto;border-radius:16px}.sv-rm-title span:not(.badge){display:none}.sv-rm-mini{min-width:70px}.sv-rm-mini em{display:none}.sv-page-transition-loader{padding:12px}.sv-page-transition-box{max-width:100%;padding:12px 14px}}
+
+/* v1.36.23 - full width modules and grids */
+.content{max-width:none!important}
+.page.active{width:100%!important;max-width:none!important;min-width:0!important}
+.page.active > *,
+.page.active .card,
+.page.active .metrics,
+.page.active .row2{max-width:none!important}
+.page.active .card{width:100%!important}
+.page.active .table-wrap,
+.page.active .sv-auto-grid-wrap,
+.page.active .sv-resizable-wrap,
+.page.active .sv-scroll-panel{width:100%!important;max-width:100%!important;min-width:0!important}
+.page.active table{max-width:none!important}
+.page.active .table-wrap > table,
+.page.active .sv-auto-grid-wrap > table,
+.page.active table.sv-resizable-table{width:max-content!important;min-width:100%!important}
+.page.active .dt{width:100%!important;min-width:100%!important}
+#page-presupuesto,
+#page-presupuesto #ppto-list-view,
+#page-presupuesto #ppto-detalle-view,
+#page-presupuesto #ppto-form-view{width:100%!important;max-width:none!important;min-width:0!important}
+#page-presupuesto .card,
+#page-presupuesto .table-wrap,
+#page-presupuesto .sv-resizable-wrap{width:100%!important;max-width:none!important}
+#page-presupuesto #ppto-tabla{min-width:100%!important}

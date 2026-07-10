@@ -1,4 +1,4 @@
-/* v1.36.22 — Cierre operativo: auditor?a final no destructiva */
+/* v1.36.23 — Cierre operativo: auditor?a final no destructiva */
 (function(){
   'use strict';
 
