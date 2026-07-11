@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v1.36.23-firebase' -->
+<!-- VERSION: 'v1.36.25-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.js?v=1.36.23"></script>
+<script src="./js/core/version.js?v=1.36.25"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -22,12 +22,12 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
-<script src="./js/core/login.js?v=1.36.23"></script>
-<script src="./js/core/access-control.js?v=1.36.23"></script>
-<link rel="stylesheet" href="./css/app.css?v=1.36.23">
+<script src="./js/core/login.js?v=1.36.25"></script>
+<script src="./js/core/access-control.js?v=1.36.25"></script>
+<link rel="stylesheet" href="./css/app.css?v=1.36.25">
 
   <!-- Firebase SDK -->
-  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=1.36.23"></script>
+  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=1.36.25"></script>
 </head>
 <body>
 
@@ -51,9 +51,10 @@
 <div id="screen-login" style="display:none">
   <div class="login-box">
     <div class="login-logo">
+      <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v1.36.23 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v1.36.25 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -229,6 +230,7 @@
         </button>
         <span class="page-title" id="page-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Dashboard</span>
       </div>
+      <div class="topbar-center" id="topbar-resource-monitor-slot" aria-label="Monitor de recursos"></div>
       <div class="topbar-right">
         <span class="topbar-date" id="topbar-date"></span>
         <span id="fb-status" style="font-size:11px;color:var(--text3)"></span>
@@ -1453,7 +1455,7 @@
                   <img id="cfg-logo-img" src="" style="display:none;max-width:100%;max-height:100%;object-fit:contain">
                   <span id="cfg-logo-placeholder" style="font-size:12px;color:var(--text3);text-align:center;padding:8px">Sin logo<br>cargado</span>
                 </div>
-                <div style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center">Máx. 500KB · PNG o JPG</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center">Máx. 2MB · PNG o JPG</div>
               </div>
               <!-- Acciones -->
               <div style="flex:1;display:flex;flex-direction:column;gap:10px;justify-content:center">
@@ -1465,6 +1467,23 @@
                 </div>
                 <input type="file" id="cfg-logo-input" accept="image/png,image/jpeg,image/jpg" style="display:none" onchange="previewLogo(this)">
                 <div id="cfg-logo-status" style="font-size:12px;color:var(--text3)"></div>
+              </div>
+            </div>
+            <div id="cfg-logo-cropper" class="sv-logo-cropper" style="display:none">
+              <div class="sv-logo-crop-head">
+                <div>
+                  <strong>Encuadrar logo</strong>
+                  <span>Mové y ajustá el zoom para que ocupe todo el espacio.</span>
+                </div>
+                <button class="btn btn-sm" onclick="resetLogoCrop()">Rellenar marco</button>
+              </div>
+              <div class="sv-logo-crop-stage" id="cfg-logo-crop-stage">
+                <img id="cfg-logo-crop-img" src="" alt="Logo para recortar">
+              </div>
+              <div class="sv-logo-crop-controls">
+                <label>Zoom <input type="range" id="cfg-logo-crop-zoom" min="1" max="3" step="0.01" value="1" oninput="updateLogoCropFromControls()"></label>
+                <label>Horizontal <input type="range" id="cfg-logo-crop-x" min="-100" max="100" step="1" value="0" oninput="updateLogoCropFromControls()"></label>
+                <label>Vertical <input type="range" id="cfg-logo-crop-y" min="-100" max="100" step="1" value="0" oninput="updateLogoCropFromControls()"></label>
               </div>
             </div>
           </div>
@@ -1957,7 +1976,7 @@
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v1.36.23
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v1.36.25
 Listo para analizar.
 </pre>
           </div>
@@ -4536,8 +4555,8 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.js?v=1.36.23"></script>
-<script src="./js/core/data-query.js?v=1.36.23"></script>
+<script src="./js/app.js?v=1.36.25"></script>
+<script src="./js/core/data-query.js?v=1.36.25"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
 <div id="user-panel-overlay" style="display:none;position:fixed;inset:0;z-index:9990" onclick="cerrarUserPanel()"></div>
@@ -4574,7 +4593,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v1.36.23</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v1.36.25</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -4705,7 +4724,7 @@ Listo para analizar.
   style="display:none;position:fixed;bottom:10px;left:10px;z-index:9998;background:#333;color:#0f0;border:1px solid #0f0;padding:4px 8px;font-size:10px;font-family:monospace;border-radius:4px;cursor:pointer">
   DEBUG
 </button>
-<script src="./js/core/error-monitor.js?v=1.36.23"></script>
+<script src="./js/core/error-monitor.js?v=1.36.25"></script>
 
 <!-- FAB FLOTANTE -->
 <div class="fab-container" id="fab-container">
@@ -4798,55 +4817,55 @@ Listo para analizar.
   </div>
 </div>
 
-<script src="./js/modules/treasury.js?v=1.36.23"></script>
+<script src="./js/modules/treasury.js?v=1.36.25"></script>
 
-<script src="./js/modules/ot-data-sync.js?v=1.36.23"></script>
-<script src="./js/modules/notifications.js?v=1.36.23"></script>
+<script src="./js/modules/ot-data-sync.js?v=1.36.25"></script>
+<script src="./js/modules/notifications.js?v=1.36.25"></script>
 
-<script src="./js/modules/finance-details.js?v=1.36.23"></script>
+<script src="./js/modules/finance-details.js?v=1.36.25"></script>
 
-<script src="./js/modules/ot-workflow.js?v=1.36.23"></script>
-
-
-<script src="./js/modules/dashboard-permissions.js?v=1.36.23"></script>
+<script src="./js/modules/ot-workflow.js?v=1.36.25"></script>
 
 
-<script src="./js/modules/sales-metrics.js?v=1.36.23"></script>
+<script src="./js/modules/dashboard-permissions.js?v=1.36.25"></script>
 
 
-<script src="./js/core/relation-compatibility.js?v=1.36.23"></script>
+<script src="./js/modules/sales-metrics.js?v=1.36.25"></script>
 
 
-<script src="./js/modules/action-permissions.js?v=1.36.23"></script>
+<script src="./js/core/relation-compatibility.js?v=1.36.25"></script>
 
 
-<script src="./js/core/metrics-cache.js?v=1.36.23"></script>
+<script src="./js/modules/action-permissions.js?v=1.36.25"></script>
 
 
-<script src="./js/modules/ot-admin.js?v=1.36.23"></script>
+<script src="./js/core/metrics-cache.js?v=1.36.25"></script>
 
 
-<script src="./js/modules/dashboard-filters.js?v=1.36.23"></script>
-
-<script src="./js/modules/activity-history.js?v=1.36.23"></script>
+<script src="./js/modules/ot-admin.js?v=1.36.25"></script>
 
 
-<script src="./js/modules/payroll-selector.js?v=1.36.23"></script>
+<script src="./js/modules/dashboard-filters.js?v=1.36.25"></script>
+
+<script src="./js/modules/activity-history.js?v=1.36.25"></script>
 
 
-
-<script src="./js/modules/configuration-mobile.js?v=1.36.23"></script>
+<script src="./js/modules/payroll-selector.js?v=1.36.25"></script>
 
 
 
-<script src="./js/modules/sales-dashboard.js?v=1.36.23"></script>
-
-
-<script src="./js/modules/dashboard-ot-layout.js?v=1.36.23"></script>
+<script src="./js/modules/configuration-mobile.js?v=1.36.25"></script>
 
 
 
-<script src="./js/modules/executive-charts.js?v=1.36.23"></script>
+<script src="./js/modules/sales-dashboard.js?v=1.36.25"></script>
+
+
+<script src="./js/modules/dashboard-ot-layout.js?v=1.36.25"></script>
+
+
+
+<script src="./js/modules/executive-charts.js?v=1.36.25"></script>
 
 
 <!-- ══════════════════════════════════════════════════════════════════════════════
@@ -4933,43 +4952,43 @@ Listo para analizar.
   #sv335-dashboard-divider,#sv335-dashboard-reset{display:none!important}
 }
 </style>
-<script src="./js/modules/dashboard-layout.js?v=1.36.23"></script>
+<script src="./js/modules/dashboard-layout.js?v=1.36.25"></script>
 
-<script src="./js/modules/dashboard-polish.js?v=1.36.23"></script>
-
-
-
-<script src="./js/modules/print-layout.js?v=1.36.23"></script>
-
-
-<script src="./js/modules/pwa-install.js?v=1.36.23"></script>
-
-
-<script src="./js/modules/payroll-duplicate-guard.js?v=1.36.23"></script>
+<script src="./js/modules/dashboard-polish.js?v=1.36.25"></script>
 
 
 
-<script src="./js/modules/payroll-legacy-migration.js?v=1.36.23"></script>
+<script src="./js/modules/print-layout.js?v=1.36.25"></script>
 
 
-<script src="./js/modules/payroll.js?v=1.36.23"></script>
+<script src="./js/modules/pwa-install.js?v=1.36.25"></script>
 
 
-<script src="./js/modules/maintenance.js?v=1.36.23"></script>
+<script src="./js/modules/payroll-duplicate-guard.js?v=1.36.25"></script>
 
 
-<script src="./js/modules/refactor-health.js?v=1.36.23"></script>
 
-<script src="./js/modules/resizable-tables.js?v=1.36.23"></script>
+<script src="./js/modules/payroll-legacy-migration.js?v=1.36.25"></script>
 
-<script src="./js/modules/dolar-historico.js?v=1.36.23"></script>
-<script src="./js/modules/ops-hardening.js?v=1.36.23"></script>
-<script src="./js/modules/v2-readiness.js?v=1.36.23"></script>
-<script src="./js/modules/v2-audit.js?v=1.36.23"></script>
-<script src="./js/modules/page-transition.js?v=1.36.23"></script>
-<script src="./js/modules/resource-monitor.js?v=1.36.23"></script>
 
-<script src="./js/modules/role-guard.js?v=1.36.23"></script>
+<script src="./js/modules/payroll.js?v=1.36.25"></script>
+
+
+<script src="./js/modules/maintenance.js?v=1.36.25"></script>
+
+
+<script src="./js/modules/refactor-health.js?v=1.36.25"></script>
+
+<script src="./js/modules/resizable-tables.js?v=1.36.25"></script>
+
+<script src="./js/modules/dolar-historico.js?v=1.36.25"></script>
+<script src="./js/modules/ops-hardening.js?v=1.36.25"></script>
+<script src="./js/modules/v2-readiness.js?v=1.36.25"></script>
+<script src="./js/modules/v2-audit.js?v=1.36.25"></script>
+<script src="./js/modules/page-transition.js?v=1.36.25"></script>
+<script src="./js/modules/resource-monitor.js?v=1.36.25"></script>
+
+<script src="./js/modules/role-guard.js?v=1.36.25"></script>
 
 </body>
 </html>

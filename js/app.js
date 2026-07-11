@@ -4177,7 +4177,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v1.36.23-firebase',
+  VERSION: 'v1.36.25-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5176,11 +5176,7 @@ function _completarLogin(nombre) {
     loadingEl.classList.toggle('sv-intro-loading', modoIntroRecarga);
     loadingEl.style.display = 'flex';
   }
-  if (logoEl && modoIntroRecarga) {
-    logoEl.innerHTML = '<img src="nixa-icon-192.png" alt="NIXA">';
-  } else if (logoEl && window.logoEmpresaUrl) {
-    logoEl.innerHTML = '<img src="'+window.logoEmpresaUrl+'" style="height:48px;object-fit:contain">';
-  }
+  aplicarLogoSistema(logoActualUrl());
 
   var sname = document.getElementById('s-uname-el');
   if (sname) sname.textContent = nombre;
@@ -9822,14 +9818,111 @@ function cargarConfigGeneral() {
   });
 }
 var _logoFileEmpresa = null;
+var _logoCropOriginal = '';
+var _logoCropImage = null;
+var _logoCropState = { scale:1, x:0, y:0 };
+var LOGO_CROP_W = 560;
+var LOGO_CROP_H = 360;
+
+function logoFallbackUrl() {
+  return 'nixa-icon-192.png';
+}
+
+function logoActualUrl() {
+  return window.logoEmpresaUrl || logoFallbackUrl();
+}
+
+function aplicarLogoSistema(url) {
+  var src = url || logoFallbackUrl();
+  var loadingLogo = document.getElementById('loading-logo');
+  if (loadingLogo) {
+    loadingLogo.innerHTML = '<img src="'+src+'" alt="Logo">';
+  }
+  var loginLogo = document.querySelector('#login-logo-mark img');
+  if (loginLogo) loginLogo.src = src;
+}
+
+function updateLogoCropPreview() {
+  var cropImg = document.getElementById('cfg-logo-crop-img');
+  if (!cropImg || !_logoCropImage) return;
+  var cover = Math.max(LOGO_CROP_W / _logoCropImage.naturalWidth, LOGO_CROP_H / _logoCropImage.naturalHeight);
+  var w = _logoCropImage.naturalWidth * cover * _logoCropState.scale;
+  var h = _logoCropImage.naturalHeight * cover * _logoCropState.scale;
+  var maxX = Math.max(0, (w - LOGO_CROP_W) / 2);
+  var maxY = Math.max(0, (h - LOGO_CROP_H) / 2);
+  var px = (_logoCropState.x / 100) * maxX;
+  var py = (_logoCropState.y / 100) * maxY;
+  cropImg.style.width = w + 'px';
+  cropImg.style.height = h + 'px';
+  cropImg.style.transform = 'translate(calc(-50% + '+px+'px), calc(-50% + '+py+'px))';
+  var prev = document.getElementById('cfg-logo-img');
+  if (prev) {
+    prev.src = renderLogoCropToDataUrl(0.86);
+    prev.style.display = 'block';
+    prev.style.width = '100%';
+    prev.style.height = '100%';
+    prev.style.maxWidth = 'none';
+    prev.style.maxHeight = 'none';
+    prev.style.objectFit = 'cover';
+  }
+}
+
+function updateLogoCropFromControls() {
+  var z = document.getElementById('cfg-logo-crop-zoom');
+  var x = document.getElementById('cfg-logo-crop-x');
+  var y = document.getElementById('cfg-logo-crop-y');
+  _logoCropState.scale = Math.max(1, Number(z && z.value || 1));
+  _logoCropState.x = Number(x && x.value || 0);
+  _logoCropState.y = Number(y && y.value || 0);
+  updateLogoCropPreview();
+}
+
+function resetLogoCrop() {
+  _logoCropState = { scale:1, x:0, y:0 };
+  var z = document.getElementById('cfg-logo-crop-zoom');
+  var x = document.getElementById('cfg-logo-crop-x');
+  var y = document.getElementById('cfg-logo-crop-y');
+  if (z) z.value = '1';
+  if (x) x.value = '0';
+  if (y) y.value = '0';
+  updateLogoCropPreview();
+}
+
+function renderLogoCropToDataUrl(quality) {
+  if (!_logoCropImage) return _logoCropOriginal || '';
+  var canvas = document.createElement('canvas');
+  canvas.width = LOGO_CROP_W;
+  canvas.height = LOGO_CROP_H;
+  var ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,LOGO_CROP_W,LOGO_CROP_H);
+  var cover = Math.max(LOGO_CROP_W / _logoCropImage.naturalWidth, LOGO_CROP_H / _logoCropImage.naturalHeight);
+  var w = _logoCropImage.naturalWidth * cover * _logoCropState.scale;
+  var h = _logoCropImage.naturalHeight * cover * _logoCropState.scale;
+  var maxX = Math.max(0, (w - LOGO_CROP_W) / 2);
+  var maxY = Math.max(0, (h - LOGO_CROP_H) / 2);
+  var dx = (LOGO_CROP_W - w) / 2 + (_logoCropState.x / 100) * maxX;
+  var dy = (LOGO_CROP_H - h) / 2 + (_logoCropState.y / 100) * maxY;
+  ctx.drawImage(_logoCropImage, dx, dy, w, h);
+  return canvas.toDataURL('image/png', quality || 0.92);
+}
 
 function previewLogo(input) {
   var file = input.files[0];
   if (!file) return;
-  if (file.size > 500 * 1024) { notify('El logo no puede superar 500KB'); input.value=''; return; }
+  if (file.size > 2 * 1024 * 1024) { notify('El logo no puede superar 2MB'); input.value=''; return; }
   _logoFileEmpresa = file;
   var reader = new FileReader();
   reader.onload = function(e) {
+    _logoCropOriginal = e.target.result;
+    _logoCropImage = new Image();
+    _logoCropImage.onload = function() {
+      var cropper = document.getElementById('cfg-logo-cropper');
+      var cropImg = document.getElementById('cfg-logo-crop-img');
+      if (cropImg) cropImg.src = _logoCropOriginal;
+      if (cropper) cropper.style.display = 'block';
+      resetLogoCrop();
+    };
+    _logoCropImage.src = _logoCropOriginal;
     var img = document.getElementById('cfg-logo-img');
     var ph  = document.getElementById('cfg-logo-placeholder');
     var sb  = document.getElementById('cfg-logo-save-btn');
@@ -9837,19 +9930,17 @@ function previewLogo(input) {
     img.style.display = 'block';
     if (ph) ph.style.display = 'none';
     if (sb) sb.style.display = '';
-    document.getElementById('cfg-logo-status').textContent = 'Archivo listo: ' + file.name;
+    document.getElementById('cfg-logo-status').textContent = 'Archivo listo para encuadrar: ' + file.name;
   };
   reader.readAsDataURL(file);
 }
 
 function guardarLogoEmpresa() {
-  if (!_logoFileEmpresa) return;
+  if (!_logoFileEmpresa && !_logoCropOriginal) return;
   var status = document.getElementById('cfg-logo-status');
   if (status) status.textContent = 'Guardando...';
-
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var base64 = e.target.result;
+  try {
+    var base64 = renderLogoCropToDataUrl(0.92) || _logoCropOriginal;
     window.logoEmpresaUrl = base64;
 
     var onOk = function() {
@@ -9860,6 +9951,11 @@ function guardarLogoEmpresa() {
       if (saveBtn) saveBtn.style.display = 'none';
       if (delBtn)  delBtn.style.display  = '';
       if (img)     img.style.opacity     = '1';
+      var cropper = document.getElementById('cfg-logo-cropper');
+      if (cropper) cropper.style.display = 'none';
+      _logoFileEmpresa = null;
+      _logoCropOriginal = '';
+      aplicarLogoSistema(base64);
       notify('Logo guardado ✓');
     };
 
@@ -9877,11 +9973,9 @@ function guardarLogoEmpresa() {
       try { localStorage.setItem('nixa_logo', base64); } catch(ex) {}
       onOk();
     }
-  };
-  reader.onerror = function() {
+  } catch(e) {
     if (status) status.textContent = 'Error al leer el archivo';
-  };
-  reader.readAsDataURL(_logoFileEmpresa);
+  }
 }
 
 function eliminarLogoEmpresa() {
@@ -9891,19 +9985,24 @@ function eliminarLogoEmpresa() {
   var ph  = document.getElementById('cfg-logo-placeholder');
   if (img) { img.src=''; img.style.display='none'; }
   if (ph)  ph.style.display='';
+  var cropper = document.getElementById('cfg-logo-cropper');
+  if (cropper) cropper.style.display = 'none';
   document.getElementById('cfg-logo-delete-btn').style.display='none';
   document.getElementById('cfg-logo-status').textContent='';
   if (window.fbDB) window.fbSet(window.fbRef(window.fbDB,'sisventas/config/logoUrl'), null);
   try { localStorage.removeItem('nixa_logo'); } catch(e){}
+  aplicarLogoSistema(logoFallbackUrl());
   notify('Logo eliminado');
 }
 
 function cargarLogoGuardado() {
+  aplicarLogoSistema(logoActualUrl());
   // Intentar desde Firebase primero
   if (window.fbDB) {
     window.fbOnValue(window.fbRef(window.fbDB,'sisventas/config/logoUrl'), function(snap) {
       var url = snap.val();
       if (url) aplicarLogo(url);
+      else aplicarLogoSistema(logoFallbackUrl());
     });
   } else {
     // Fallback localStorage
@@ -9916,10 +10015,11 @@ function cargarLogoGuardado() {
 
 function aplicarLogo(url) {
   window.logoEmpresaUrl = url;
+  aplicarLogoSistema(url);
   var img = document.getElementById('cfg-logo-img');
   var ph  = document.getElementById('cfg-logo-placeholder');
   var db  = document.getElementById('cfg-logo-delete-btn');
-  if (img) { img.src = url; img.style.display = 'block'; }
+  if (img) { img.src = url; img.style.display = 'block'; img.style.width='100%'; img.style.height='100%'; img.style.maxWidth='none'; img.style.maxHeight='none'; img.style.objectFit='cover'; }
   if (ph)  ph.style.display = 'none';
   if (db)  db.style.display = '';
   var fav = document.getElementById('favicon-link');

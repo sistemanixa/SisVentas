@@ -1,4 +1,4 @@
-/* v1.36.23 — Monitor temporal compacto y liviano de recursos para admin */
+/* v1.36.24 — Monitor anclado al centro de la barra superior en PC */
 (function(){
   'use strict';
 
@@ -112,7 +112,11 @@
 
   function ensureCard(){
     var card = document.getElementById('sv-resource-monitor-card');
-    if(card) return card;
+    var slot = document.getElementById('topbar-resource-monitor-slot');
+    if(card) {
+      if(slot && card.parentNode !== slot) slot.appendChild(card);
+      return card;
+    }
     card = document.createElement('div');
     card.id = 'sv-resource-monitor-card';
     card.className = 'admin-only sv-rm-card sv-rm-compact';
@@ -124,7 +128,8 @@
         '<div class="sv-rm-mini" title="Descarga estimada del ciclo"><span>Down</span><strong id="sv-rm-down">—</strong><em id="sv-rm-conn">—</em></div>'+
         '<div class="sv-rm-mini" title="Subida estimada por formularios/API"><span>Up</span><strong id="sv-rm-up">—</strong><em>fetch/xhr</em></div>'+
       '</div>';
-    document.body.appendChild(card);
+    if(slot) slot.appendChild(card);
+    else document.body.appendChild(card);
     return card;
   }
 
