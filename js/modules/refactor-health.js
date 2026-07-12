@@ -98,6 +98,12 @@
       });
     });
   }
+  window.svPrepararAuditoriaRelaciones = function(){
+    return Promise.all([
+      cargarRutasNormalizadasVerificadas(),
+      cargarAvisosArchivados()
+    ]).then(function(){ return true; }).catch(function(){ return false; });
+  };
   function relacionesVerificadasPara(rec, pares){
     if(!rec || !rec.fbKey) return false;
     return pares.every(function(par){
@@ -187,7 +193,7 @@
     issues.sort(function(a,b){ return sevPeso(a.sev)-sevPeso(b.sev) || String(a.tipo).localeCompare(String(b.tipo)); });
     var porTipo = issues.reduce(function(acc,it){ acc[it.tipo]=(acc[it.tipo]||0)+1; return acc; }, {});
     var porSev = issues.reduce(function(acc,it){ acc[it.sev]=(acc[it.sev]||0)+1; return acc; }, {});
-    return { version:'v1.36.26', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
+    return { version:'v1.36.27', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
   };
 
   window.svGenerarPlanNormalizacionRelaciones = function(){
@@ -260,7 +266,7 @@
       }
     });
     return {
-      version:'v1.36.26',
+      version:'v1.36.27',
       fecha:new Date().toISOString(),
       totalCambios:Object.keys(updates).length,
       updates:updates,
@@ -472,13 +478,8 @@
       badge.textContent=grupos.criticos.length ? (grupos.criticos.length+' critico(s)') : (visibles ? (visibles+' aviso(s)') : 'Relaciones OK');
     }
     var acciones = '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px;border-bottom:0.5px solid var(--border);background:var(--bg2)">'+
-      '<button class="btn btn-sm" onclick="svCopiarAuditoriaRelaciones()"><i class="ti ti-copy"></i> Copiar informe</button>'+
-      '<button class="btn btn-sm" onclick="svDescargarAuditoriaRelaciones()"><i class="ti ti-download"></i> Descargar JSON</button>'+
-      '<button class="btn btn-sm" onclick="svCopiarPlanNormalizacionRelaciones()"><i class="ti ti-clipboard-check"></i> Copiar plan seguro</button>'+
-      '<button class="btn btn-sm" onclick="svDescargarPlanNormalizacionRelaciones()"><i class="ti ti-file-download"></i> Descargar plan</button>'+
-      '<button class="btn btn-sm btn-primary" '+(plan.totalCambios?'':'disabled')+' onclick="svAplicarPlanNormalizacionRelaciones()"><i class="ti ti-database-check"></i> Aplicar plan seguro</button>'+
-      '<button class="btn btn-sm" '+(grupos.historicos.length?'':'disabled')+' onclick="svArchivarAvisosHistoricosRelaciones()"><i class="ti ti-archive"></i> Archivar historicos</button>'+
-      '<span style="font-size:12px;color:var(--text3);align-self:center">Criticos: '+grupos.criticos.length+' - Automaticos: '+plan.totalCambios+' - Historicos: '+grupos.historicos.length+(grupos.archivados.length?' - Archivados: '+grupos.archivados.length:'')+'</span>'+
+      '<span class="badge '+(grupos.criticos.length?'b-red':(plan.totalCambios?'b-amber':'b-green'))+'">'+(grupos.criticos.length?'Revisar críticos':(plan.totalCambios?'Plan seguro disponible':'Sin automáticos pendientes'))+'</span>'+
+      '<span style="font-size:12px;color:var(--text3);align-self:center">Críticos: '+grupos.criticos.length+' · Automáticos: '+plan.totalCambios+' · Históricos/manuales: '+grupos.historicos.length+(grupos.archivados.length?' · Archivados: '+grupos.archivados.length:'')+'</span>'+
     '</div>';
     function renderGrupo(titulo, lista, vacio, color){
       if(!lista.length) return vacio ? '<div style="font-size:13px;color:'+color+';padding:12px;text-align:center">'+vacio+'</div>' : '';

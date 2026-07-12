@@ -21,7 +21,10 @@
     'guardarPermisosRoles','restaurarPermisosDefault'
   ];
 
-  function auditarRelaciones(){
+  async function auditarRelaciones(){
+    if(typeof window.svPrepararAuditoriaRelaciones === 'function') {
+      await window.svPrepararAuditoriaRelaciones();
+    }
     var res = typeof window.svAuditarRelaciones === 'function' ? window.svAuditarRelaciones() : { total:0, porSeveridad:{}, issues:[] };
     var plan = typeof window.svGenerarPlanNormalizacionRelaciones === 'function' ? window.svGenerarPlanNormalizacionRelaciones() : { totalCambios:0 };
     return {
@@ -105,7 +108,7 @@
   }
 
   async function auditarTodo(){
-    var relaciones = auditarRelaciones();
+    var relaciones = await auditarRelaciones();
     var permisos = auditarPermisos();
     var grids = auditarGrids();
     var cred = await auditarCredenciales();
@@ -168,4 +171,3 @@
     }, 400);
   });
 })();
-

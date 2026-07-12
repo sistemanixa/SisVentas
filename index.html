@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v1.36.26-firebase' -->
+<!-- VERSION: 'v1.36.27-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.js?v=1.36.26"></script>
+<script src="./js/core/version.js?v=1.36.27"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -22,12 +22,12 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
-<script src="./js/core/login.js?v=1.36.26"></script>
-<script src="./js/core/access-control.js?v=1.36.26"></script>
-<link rel="stylesheet" href="./css/app.css?v=1.36.26">
+<script src="./js/core/login.js?v=1.36.27"></script>
+<script src="./js/core/access-control.js?v=1.36.27"></script>
+<link rel="stylesheet" href="./css/app.css?v=1.36.27">
 
   <!-- Firebase SDK -->
-  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=1.36.26"></script>
+  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=1.36.27"></script>
 </head>
 <body>
 
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v1.36.26 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v1.36.27 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -1860,7 +1860,7 @@
               <span id="mnt-estado-general" class="badge b-amber">Sin analizar</span>
             </div>
             <div class="mnt-hero-copy">
-              Revisá salud de datos, permisos, relaciones y preparación 2.0 desde un solo lugar. Las acciones destructivas quedan separadas abajo y requieren confirmación.
+              Un único examen seguro revisa base, integridad, relaciones, permisos, grids, datos V2 y preparación para 2.0. No borra ni modifica datos.
             </div>
             <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px" class="metrics" id="mnt-metricas">
               <div class="metric"><div class="m-label">Gastos</div><div class="m-value" id="mnt-kpi-gastos">—</div><div class="m-sub">fuente actual</div></div>
@@ -1868,35 +1868,12 @@
               <div class="metric"><div class="m-label">Horas extra legacy</div><div class="m-value" id="mnt-kpi-hs">—</div><div class="m-sub">solicitudes aprobadas</div></div>
               <div class="metric"><div class="m-label">Pendientes</div><div class="m-value" id="mnt-kpi-pend">—</div><div class="m-sub">por migrar</div></div>
             </div>
-            <div class="mnt-actions-grid">
-              <div class="mnt-action-group">
-                <div class="mnt-action-title"><i class="ti ti-stethoscope"></i> Diagnóstico</div>
-                <div class="mnt-action-buttons">
-                  <button class="btn btn-sm btn-primary" onclick="mntAnalizarBase()"><i class="ti ti-search"></i> Analizar base</button>
-                  <button class="btn btn-sm" onclick="svRenderResumenOperativo()"><i class="ti ti-activity"></i> Resumen operativo</button>
-                  <button class="btn btn-sm" onclick="svRenderPreparacionV2()"><i class="ti ti-rocket"></i> Rumbo a 2.0</button>
-                  <button class="btn btn-sm" onclick="svRenderAuditoriaV2()"><i class="ti ti-scan"></i> Auditoría V2</button>
-                </div>
+            <div class="mnt-exam-box">
+              <button class="btn btn-primary mnt-exam-btn" id="mnt-btn-examinar" onclick="mntExaminarTodo(this)"><i class="ti ti-stethoscope"></i> Examinar</button>
+              <div class="mnt-exam-info">
+                <strong id="mnt-exam-title">Listo para examinar</strong>
+                <span id="mnt-exam-status">Se ejecutan solo controles seguros. Las herramientas de limpieza quedan fuera del flujo principal.</span>
               </div>
-              <div class="mnt-action-group">
-                <div class="mnt-action-title"><i class="ti ti-shield-check"></i> Integridad</div>
-                <div class="mnt-action-buttons">
-                  <button class="btn btn-sm" onclick="mntVerificarIntegridad()"><i class="ti ti-shield-check"></i> Verificar integridad</button>
-                  <button class="btn btn-sm" onclick="svRenderAuditoriaRelaciones()"><i class="ti ti-link"></i> Auditar relaciones</button>
-                  <button class="btn btn-sm" onclick="mntAnalizarDuplicadosGastosFijos()"><i class="ti ti-copy"></i> Buscar duplicados fijos</button>
-                </div>
-              </div>
-              <details class="mnt-action-group mnt-danger-zone">
-                <summary><span class="mnt-action-title"><i class="ti ti-alert-triangle"></i> Acciones sensibles</span><span>Mostrar</span></summary>
-                <div class="mnt-action-buttons">
-                  <button class="btn btn-sm" onclick="mntMigrarLegacy()"><i class="ti ti-database-import"></i> Migrar legacy a Gastos</button>
-                  <button class="btn btn-sm btn-danger" id="mnt-btn-eliminar-dup-fijos" onclick="mntEliminarDuplicadosGastosFijos()" disabled><i class="ti ti-trash-x"></i> Eliminar duplicados fijos</button>
-                  <button class="btn btn-sm btn-danger" id="mnt-btn-limpiar" onclick="mntLimpiarLegacy()" disabled><i class="ti ti-trash"></i> Limpiar legacy migrado</button>
-                </div>
-              </details>
-            </div>
-            <div class="mnt-safe-note">
-              La limpieza no borra solicitudes pendientes: solo elimina estructuras o registros antiguos ya migrados y vinculados a Gastos. La herramienta de duplicados conserva el registro más antiguo de cada gasto fijo del mismo mes y marca para borrar solo las copias idénticas o equivalentes.
             </div>
           </div>
           <div class="mnt-main-grid">
@@ -1911,12 +1888,8 @@
               <div class="metric"><div class="m-label">Grids</div><div class="m-value" id="mnt-op-grid">—</div><div class="m-sub">tablas / scroll</div></div>
               <div class="metric"><div class="m-label">Dólar</div><div class="m-value" id="mnt-op-dolar">—</div><div class="m-sub">histórico horario</div></div>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-              <button class="btn btn-sm btn-primary" onclick="svRenderResumenOperativo()"><i class="ti ti-refresh"></i> Auditar ahora</button>
-              <button class="btn btn-sm" onclick="svCopiarAuditoriaOperativa()"><i class="ti ti-copy"></i> Copiar JSON</button>
-            </div>
             <div id="mnt-operativo-lista" style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg3)">
-              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Ejecutá “Resumen operativo” para ver el cierre de relaciones, permisos, grids, credenciales y dólar.</div>
+              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Presioná “Examinar” para ver el cierre de relaciones, permisos, grids, credenciales y dólar.</div>
             </div>
           </div>
           <div class="card mnt-primary-card" id="mnt-v2-card">
@@ -1933,12 +1906,8 @@
               <div class="metric"><div class="m-label">Módulos</div><div class="m-value" id="mnt-v2-modulos">—</div><div class="m-sub">separados activos</div></div>
               <div class="metric"><div class="m-label">Pruebas</div><div class="m-value" id="mnt-v2-tests">—</div><div class="m-sub">guardas release</div></div>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-              <button class="btn btn-sm btn-primary" onclick="svRenderPreparacionV2()"><i class="ti ti-refresh"></i> Evaluar 2.0</button>
-              <button class="btn btn-sm" onclick="svCopiarPreparacionV2()"><i class="ti ti-copy"></i> Copiar informe</button>
-            </div>
             <div id="mnt-v2-lista" style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg3)">
-              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Ejecutá “Rumbo a 2.0” para ver qué falta antes de subir a versión mayor.</div>
+              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Presioná “Examinar” para ver qué falta antes de subir a versión mayor.</div>
             </div>
           </div>
           <div class="card mnt-primary-card" id="mnt-v2-audit-card">
@@ -1955,12 +1924,8 @@
               <div class="metric"><div class="m-label">Claves</div><div class="m-value" id="mnt-v2-audit-keys">—</div><div class="m-sub">fbKey faltantes</div></div>
               <div class="metric"><div class="m-label">Módulos</div><div class="m-value" id="mnt-v2-audit-mod">—</div><div class="m-sub">scripts separados</div></div>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-              <button class="btn btn-sm btn-primary" onclick="svRenderAuditoriaV2()"><i class="ti ti-refresh"></i> Auditar V2</button>
-              <button class="btn btn-sm" onclick="svCopiarAuditoriaV2()"><i class="ti ti-copy"></i> Copiar informe</button>
-            </div>
             <div id="mnt-v2-audit-lista" style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg3)">
-              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Ejecutá “Auditoría V2” para revisar datos, duplicados, claves y módulos.</div>
+              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Presioná “Examinar” para revisar datos, duplicados, claves y módulos.</div>
             </div>
           </div>
           </div>
@@ -1993,7 +1958,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v1.36.26
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v1.36.27
 Listo para analizar.
 </pre>
           </div>
@@ -4572,8 +4537,8 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.js?v=1.36.26"></script>
-<script src="./js/core/data-query.js?v=1.36.26"></script>
+<script src="./js/app.js?v=1.36.27"></script>
+<script src="./js/core/data-query.js?v=1.36.27"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
 <div id="user-panel-overlay" style="display:none;position:fixed;inset:0;z-index:9990" onclick="cerrarUserPanel()"></div>
@@ -4610,7 +4575,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v1.36.26</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v1.36.27</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -4741,7 +4706,7 @@ Listo para analizar.
   style="display:none;position:fixed;bottom:10px;left:10px;z-index:9998;background:#333;color:#0f0;border:1px solid #0f0;padding:4px 8px;font-size:10px;font-family:monospace;border-radius:4px;cursor:pointer">
   DEBUG
 </button>
-<script src="./js/core/error-monitor.js?v=1.36.26"></script>
+<script src="./js/core/error-monitor.js?v=1.36.27"></script>
 
 <!-- FAB FLOTANTE -->
 <div class="fab-container" id="fab-container">
@@ -4834,55 +4799,55 @@ Listo para analizar.
   </div>
 </div>
 
-<script src="./js/modules/treasury.js?v=1.36.26"></script>
+<script src="./js/modules/treasury.js?v=1.36.27"></script>
 
-<script src="./js/modules/ot-data-sync.js?v=1.36.26"></script>
-<script src="./js/modules/notifications.js?v=1.36.26"></script>
+<script src="./js/modules/ot-data-sync.js?v=1.36.27"></script>
+<script src="./js/modules/notifications.js?v=1.36.27"></script>
 
-<script src="./js/modules/finance-details.js?v=1.36.26"></script>
+<script src="./js/modules/finance-details.js?v=1.36.27"></script>
 
-<script src="./js/modules/ot-workflow.js?v=1.36.26"></script>
-
-
-<script src="./js/modules/dashboard-permissions.js?v=1.36.26"></script>
+<script src="./js/modules/ot-workflow.js?v=1.36.27"></script>
 
 
-<script src="./js/modules/sales-metrics.js?v=1.36.26"></script>
+<script src="./js/modules/dashboard-permissions.js?v=1.36.27"></script>
 
 
-<script src="./js/core/relation-compatibility.js?v=1.36.26"></script>
+<script src="./js/modules/sales-metrics.js?v=1.36.27"></script>
 
 
-<script src="./js/modules/action-permissions.js?v=1.36.26"></script>
+<script src="./js/core/relation-compatibility.js?v=1.36.27"></script>
 
 
-<script src="./js/core/metrics-cache.js?v=1.36.26"></script>
+<script src="./js/modules/action-permissions.js?v=1.36.27"></script>
 
 
-<script src="./js/modules/ot-admin.js?v=1.36.26"></script>
+<script src="./js/core/metrics-cache.js?v=1.36.27"></script>
 
 
-<script src="./js/modules/dashboard-filters.js?v=1.36.26"></script>
-
-<script src="./js/modules/activity-history.js?v=1.36.26"></script>
+<script src="./js/modules/ot-admin.js?v=1.36.27"></script>
 
 
-<script src="./js/modules/payroll-selector.js?v=1.36.26"></script>
+<script src="./js/modules/dashboard-filters.js?v=1.36.27"></script>
+
+<script src="./js/modules/activity-history.js?v=1.36.27"></script>
 
 
-
-<script src="./js/modules/configuration-mobile.js?v=1.36.26"></script>
+<script src="./js/modules/payroll-selector.js?v=1.36.27"></script>
 
 
 
-<script src="./js/modules/sales-dashboard.js?v=1.36.26"></script>
-
-
-<script src="./js/modules/dashboard-ot-layout.js?v=1.36.26"></script>
+<script src="./js/modules/configuration-mobile.js?v=1.36.27"></script>
 
 
 
-<script src="./js/modules/executive-charts.js?v=1.36.26"></script>
+<script src="./js/modules/sales-dashboard.js?v=1.36.27"></script>
+
+
+<script src="./js/modules/dashboard-ot-layout.js?v=1.36.27"></script>
+
+
+
+<script src="./js/modules/executive-charts.js?v=1.36.27"></script>
 
 
 <!-- ══════════════════════════════════════════════════════════════════════════════
@@ -4969,43 +4934,43 @@ Listo para analizar.
   #sv335-dashboard-divider,#sv335-dashboard-reset{display:none!important}
 }
 </style>
-<script src="./js/modules/dashboard-layout.js?v=1.36.26"></script>
+<script src="./js/modules/dashboard-layout.js?v=1.36.27"></script>
 
-<script src="./js/modules/dashboard-polish.js?v=1.36.26"></script>
-
-
-
-<script src="./js/modules/print-layout.js?v=1.36.26"></script>
-
-
-<script src="./js/modules/pwa-install.js?v=1.36.26"></script>
-
-
-<script src="./js/modules/payroll-duplicate-guard.js?v=1.36.26"></script>
+<script src="./js/modules/dashboard-polish.js?v=1.36.27"></script>
 
 
 
-<script src="./js/modules/payroll-legacy-migration.js?v=1.36.26"></script>
+<script src="./js/modules/print-layout.js?v=1.36.27"></script>
 
 
-<script src="./js/modules/payroll.js?v=1.36.26"></script>
+<script src="./js/modules/pwa-install.js?v=1.36.27"></script>
 
 
-<script src="./js/modules/maintenance.js?v=1.36.26"></script>
+<script src="./js/modules/payroll-duplicate-guard.js?v=1.36.27"></script>
 
 
-<script src="./js/modules/refactor-health.js?v=1.36.26"></script>
 
-<script src="./js/modules/resizable-tables.js?v=1.36.26"></script>
+<script src="./js/modules/payroll-legacy-migration.js?v=1.36.27"></script>
 
-<script src="./js/modules/dolar-historico.js?v=1.36.26"></script>
-<script src="./js/modules/ops-hardening.js?v=1.36.26"></script>
-<script src="./js/modules/v2-readiness.js?v=1.36.26"></script>
-<script src="./js/modules/v2-audit.js?v=1.36.26"></script>
-<script src="./js/modules/page-transition.js?v=1.36.26"></script>
-<script src="./js/modules/resource-monitor.js?v=1.36.26"></script>
 
-<script src="./js/modules/role-guard.js?v=1.36.26"></script>
+<script src="./js/modules/payroll.js?v=1.36.27"></script>
+
+
+<script src="./js/modules/maintenance.js?v=1.36.27"></script>
+
+
+<script src="./js/modules/refactor-health.js?v=1.36.27"></script>
+
+<script src="./js/modules/resizable-tables.js?v=1.36.27"></script>
+
+<script src="./js/modules/dolar-historico.js?v=1.36.27"></script>
+<script src="./js/modules/ops-hardening.js?v=1.36.27"></script>
+<script src="./js/modules/v2-readiness.js?v=1.36.27"></script>
+<script src="./js/modules/v2-audit.js?v=1.36.27"></script>
+<script src="./js/modules/page-transition.js?v=1.36.27"></script>
+<script src="./js/modules/resource-monitor.js?v=1.36.27"></script>
+
+<script src="./js/modules/role-guard.js?v=1.36.27"></script>
 
 </body>
 </html>

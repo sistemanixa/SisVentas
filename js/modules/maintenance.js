@@ -4,6 +4,10 @@ function mntInicializar(){ if (MNT_STATE.inicializado) return; MNT_STATE.inicial
 function mntLog(msg){ var el=document.getElementById('mnt-console'); if(!el) return; var hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); el.textContent+='['+hora+'] '+msg+'\n'; el.scrollTop=el.scrollHeight; }
 function mntSetEstado(txt, cls){ var el=document.getElementById('mnt-estado-general'); if(!el) return; el.className='badge '+(cls||'b-amber'); el.textContent=txt; }
 function mntSetText(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
+function mntExamStatus(titulo, detalle){
+  mntSetText('mnt-exam-title', titulo || '');
+  mntSetText('mnt-exam-status', detalle || '');
+}
 function mntObjCount(o){ return o && typeof o==='object' ? Object.keys(o).length : 0; }
 function mntMoney(n){ return Math.round(parseFloat(n)||0); }
 function mntVersion(){ return (window.APP_CONFIG && APP_CONFIG.VERSION) || (window.SISVENTAS_PWA_VERSION || 'v1'); }
@@ -34,6 +38,61 @@ async function mntAnalizarBase(){
   mntSetEstado(pendientes?'Requiere migración':'Base consistente',pendientes?'b-amber':'b-green');
   mntLog('Gastos: '+MNT_STATE.diag.gastos); mntLog('Aguinaldos legacy: '+aguTotal+' ('+aguPend+' pendientes, '+aguMigr+' ya migrados)'); mntLog('Horas extra aprobadas legacy: '+hsAprob+' ('+hsPend+' pendientes, '+hsMigr+' ya migradas)'); mntLog('Cuenta empleado legacy pagable: '+ctaPagables+' ('+ctaPend+' pendientes, '+ctaMigr+' ya migrados)'); mntLog('Comisiones legacy pagables: '+comPagables+' ('+comPend+' pendientes, '+comMigr+' ya migradas)');
   mntRenderMigraciones(migr); var btn=document.getElementById('mnt-btn-limpiar'); if(btn) btn.disabled=true;
+}
+async function mntExaminarTodo(btn){
+  if(window._mntExamenEnCurso) return;
+  if(!mntRequireAdmin('el examen de mantenimiento')) return;
+  if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
+  window._mntExamenEnCurso = true;
+  var original = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .9s linear infinite"></i> Examinando...'; }
+  try{
+    mntSetEstado('Examinando...','b-amber');
+    mntExamStatus('Examinando sistema', 'Analizando base de datos...');
+    await mntAnalizarBase();
+
+    mntExamStatus('Examinando sistema', 'Verificando integridad...');
+    await mntVerificarIntegridad();
+
+    if(typeof window.svPrepararAuditoriaRelaciones === 'function') {
+      mntExamStatus('Examinando sistema', 'Preparando auditoría de relaciones...');
+      await window.svPrepararAuditoriaRelaciones();
+    }
+
+    if(typeof window.svRenderResumenOperativo === 'function') {
+      mntExamStatus('Examinando sistema', 'Generando resumen operativo...');
+      await window.svRenderResumenOperativo();
+    }
+
+    if(typeof window.svRenderPreparacionV2 === 'function') {
+      mntExamStatus('Examinando sistema', 'Evaluando preparación 2.0...');
+      await window.svRenderPreparacionV2();
+    }
+
+    if(typeof window.svRenderAuditoriaV2 === 'function') {
+      mntExamStatus('Examinando sistema', 'Auditando datos y módulos...');
+      await window.svRenderAuditoriaV2();
+    }
+
+    if(typeof window.svRenderAuditoriaRelaciones === 'function') {
+      mntExamStatus('Examinando sistema', 'Revisando relaciones históricas...');
+      window.svRenderAuditoriaRelaciones();
+    }
+
+    await mntAnalizarDuplicadosGastosFijos();
+
+    var pendientes = MNT_STATE && MNT_STATE.pendientes || 0;
+    mntSetEstado(pendientes ? 'Revisar pendientes' : 'Examen OK', pendientes ? 'b-amber' : 'b-green');
+    mntExamStatus(pendientes ? 'Examen finalizado con pendientes' : 'Examen finalizado', pendientes ? ('Hay '+pendientes+' registro(s) legacy para revisar antes de limpiar.') : 'No se detectaron pendientes automáticos críticos.');
+    if(typeof notify === 'function') notify('Examen de mantenimiento finalizado');
+  }catch(e){
+    mntSetEstado('Error en examen','b-red');
+    mntExamStatus('No se pudo completar', e && e.message ? e.message : String(e));
+    if(typeof notify === 'function') notify('Error en mantenimiento: '+(e && e.message ? e.message : e));
+  }finally{
+    window._mntExamenEnCurso = false;
+    if(btn){ btn.disabled = false; btn.innerHTML = original || '<i class="ti ti-stethoscope"></i> Examinar'; }
+  }
 }
 function mntMigracionEstado(def, migr, diag){
   var m=migr[def.id]||{};

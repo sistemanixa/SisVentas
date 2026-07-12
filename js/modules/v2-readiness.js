@@ -174,7 +174,10 @@
     else window.prompt('Copiar informe 2.0:', txt);
   };
 
-  window.svRenderPreparacionV2 = function(){
+  window.svRenderPreparacionV2 = async function(){
+    if(typeof window.svPrepararAuditoriaRelaciones === 'function') {
+      await window.svPrepararAuditoriaRelaciones();
+    }
     var data = evaluar();
     window._svUltimaPreparacionV2 = data;
     var badge = document.getElementById('mnt-v2-count');
@@ -205,4 +208,3 @@
     }, 700);
   });
 })();
-
