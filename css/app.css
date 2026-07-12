@@ -140,7 +140,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 .page.active{display:block}
 .page.sv-page-transitioning{position:relative}
 .page.sv-page-transitioning > *:not(.sv-page-transition-loader){visibility:visible!important}
-.sv-page-transition-loader{position:fixed;inset:0;z-index:34;display:flex;align-items:flex-start;justify-content:center;padding-top:86px;background:rgba(5,7,12,.76);pointer-events:none;animation:sv-page-toast-out .45s ease .55s forwards}
+.sv-page-transition-loader{position:fixed;inset:0;z-index:34;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,7,12,.76);pointer-events:none;animation:sv-page-toast-out .45s ease .55s forwards}
 .sv-page-transition-box{display:flex;align-items:center;gap:12px;max-width:360px;width:min(360px,calc(100vw - 32px));border:0.5px solid rgba(120,130,160,.42);border-radius:16px;padding:14px 18px;background:rgba(28,31,42,.96);box-shadow:0 14px 34px rgba(0,0,0,.24)}
 .sv-page-transition-spin{width:38px;height:38px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:rgba(96,165,250,.16);color:var(--blue);flex-shrink:0}
 .sv-page-transition-spin i{font-size:21px;animation:sv-page-spin .9s linear infinite}
@@ -1200,8 +1200,8 @@ body.modal-secure-open{overflow:hidden!important}
 .sv-rm-meter span.warn{background:linear-gradient(90deg,var(--amber),#fbbf24)}
 .sv-rm-meter span.danger{background:linear-gradient(90deg,var(--red),#fb7185)}
 @media(max-width:1280px){.sv-rm-card.sv-rm-compact{max-width:min(520px,calc(100vw - 460px))}.sv-rm-mini{min-width:68px}.sv-rm-mini em{display:none}}
-@media(max-width:1100px){.topbar{grid-template-columns:minmax(0,1fr) auto}.topbar-center{display:none}.sv-rm-card.sv-rm-compact{position:fixed;top:auto;bottom:10px;right:76px;max-width:calc(100vw - 92px);overflow-x:auto;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.12)}}
-@media(max-width:760px){.sv-rm-title span:not(.badge){display:none}.sv-rm-mini{min-width:70px}.sv-rm-mini em{display:none}.sv-page-transition-loader{padding:12px}.sv-page-transition-box{max-width:100%;padding:12px 14px}}
+@media(max-width:1100px){.topbar{grid-template-columns:minmax(0,1fr) auto}.topbar-center{display:none}.sv-rm-card.sv-rm-compact{display:none!important}}
+@media(max-width:760px){.sv-page-transition-loader{padding:16px}.sv-page-transition-box{max-width:100%;padding:12px 14px}}
 
 /* v1.36.27 - full width modules and grids */
 .content{max-width:none!important}

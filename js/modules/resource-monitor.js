@@ -29,6 +29,25 @@
     return r === 'admin' || r === 'administrador';
   }
 
+  function esPantallaChica(){
+    try {
+      return !!(window.matchMedia && window.matchMedia('(max-width: 1100px)').matches);
+    } catch(e){ return false; }
+  }
+
+  function puedeMonitorear(){
+    return esAdmin() && !esPantallaChica();
+  }
+
+  function pausarMonitor(){
+    if(timer){
+      clearInterval(timer);
+      timer = null;
+    }
+    var card = document.getElementById('sv-resource-monitor-card');
+    if(card) card.style.display = 'none';
+  }
+
   function bytes(v){
     v = Number(v || 0);
     if(v >= 1073741824) return (v / 1073741824).toFixed(1) + ' GB';
@@ -164,7 +183,7 @@
   function render(){
     var card = ensureCard();
     if(!card) return;
-    if(!esAdmin()){
+    if(!puedeMonitorear()){
       card.style.display = 'none';
       return;
     }
@@ -186,6 +205,10 @@
   }
 
   function tick(){
+    if(!puedeMonitorear()){
+      pausarMonitor();
+      return;
+    }
     var now = performance.now();
     var expected = MONITOR_INTERVAL_MS;
     var lag = Math.max(0, now - lastTick - expected);
@@ -200,6 +223,10 @@
   }
 
   function renderAfterNavigation(){
+    if(!puedeMonitorear()){
+      pausarMonitor();
+      return;
+    }
     var page = currentPage();
     if(page === lastRenderPage) return;
     lastRenderPage = page;
@@ -212,14 +239,37 @@
     patchNetwork();
     lastDownload = downloadBytes();
     lastRenderPage = currentPage();
+    if(!puedeMonitorear()){
+      pausarMonitor();
+      return;
+    }
     render();
     timer = setInterval(tick, MONITOR_INTERVAL_MS);
+  }
+
+  function reactivarSiCorresponde(){
+    if(!puedeMonitorear()){
+      pausarMonitor();
+      return;
+    }
+    if(!started){
+      start();
+      return;
+    }
+    if(!timer){
+      lastTick = performance.now();
+      render();
+      timer = setInterval(tick, MONITOR_INTERVAL_MS);
+      return;
+    }
+    render();
   }
 
   window.svResourceMonitorSnapshot = snapshot;
   window.svRenderResourceMonitor = render;
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(start, 350); });
   document.addEventListener('sisventas:page-changed', function(){ setTimeout(renderAfterNavigation, 140); });
-  document.addEventListener('sisventas:role-changed', function(){ setTimeout(render, 140); });
-  document.addEventListener('firebase-ready', function(){ setTimeout(render, 700); });
+  document.addEventListener('sisventas:role-changed', function(){ setTimeout(reactivarSiCorresponde, 140); });
+  document.addEventListener('firebase-ready', function(){ setTimeout(reactivarSiCorresponde, 700); });
+  window.addEventListener('resize', function(){ setTimeout(reactivarSiCorresponde, 160); }, { passive:true });
 })();
