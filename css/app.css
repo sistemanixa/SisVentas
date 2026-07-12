@@ -481,6 +481,8 @@ tr:hover td{color:var(--text)}
 .cfg-tab{padding:7px 14px;border-radius:var(--radius);border:none;background:transparent;color:var(--text2);font-size:13px;font-family:inherit;cursor:pointer;transition:all .12s}
 .cfg-tab:hover{background:var(--bg2);color:var(--text)}
 .cfg-tab.active{background:var(--bg2);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.cfg-tabs-main{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-bottom:16px;background:var(--bg3);padding:5px;border-radius:var(--radius-lg);max-width:100%;overflow:visible}
+.cfg-tabs-main .cfg-tab{white-space:nowrap;flex:0 0 auto}
 
 /* ── FACTURACIONES TABS ── */
 .fact-tab{padding:7px 14px;border-radius:var(--radius);border:none;background:transparent;color:var(--text2);font-size:13px;font-family:inherit;cursor:pointer;transition:all .12s}
@@ -1013,6 +1015,11 @@ body.modal-secure-open{overflow:hidden!important}
   .page-title{font-size:15px!important}
   .role-badge{padding:4px 8px!important}
   #notif-lista > div > div:nth-child(3){grid-template-columns:1fr!important}
+}
+
+@media (max-width: 760px){
+  #cfg-tabs-main.cfg-tabs-main{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;overflow:visible!important;white-space:normal!important;padding:6px!important;margin-bottom:12px!important;position:static!important}
+  #cfg-tabs-main .cfg-tab{width:100%!important;min-width:0!important;white-space:normal!important;flex:initial!important;padding:10px 8px!important;text-align:center!important}
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════

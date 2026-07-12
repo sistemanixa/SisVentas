@@ -29,7 +29,8 @@
   .icon-btn{width:42px!important;height:42px!important;border-radius:14px!important}
   .hamburger.icon-btn{width:42px!important;height:42px!important}
   .cfg-panel > .card{margin-top:8px!important}
-  #page-configuracion > div:first-child{position:sticky!important;top:-1px!important;z-index:20!important;overflow-x:auto!important;white-space:nowrap!important;padding:6px!important;margin:0 -2px 8px!important;scrollbar-width:none!important}
+  #page-configuracion > div:first-child:not(#cfg-tabs-main){position:sticky!important;top:-1px!important;z-index:20!important;overflow-x:auto!important;white-space:nowrap!important;padding:6px!important;margin:0 -2px 8px!important;scrollbar-width:none!important}
+  #cfg-tabs-main{position:static!important;overflow:visible!important;white-space:normal!important;scrollbar-width:none!important}
   #page-configuracion > div:first-child::-webkit-scrollbar{display:none!important}
   .cfg-tab{font-size:14px!important;padding:10px 16px!important;flex:0 0 auto!important;border-radius:12px!important}
   #page-configuracion select,.cfg-panel select{width:100%!important;max-width:100%!important;height:42px!important;border-radius:10px!important;background:var(--bg3)!important;color:var(--text)!important;border:0.5px solid var(--border2)!important;padding:8px 12px!important}

@@ -149,7 +149,7 @@
       datos: ds,
       modulosCargados: REQUIRED_MODULES.filter(scriptLoaded).length,
       modulosEsperados: REQUIRED_MODULES.length,
-      pruebasRelease: 62,
+      pruebasRelease: 71,
       items: items
     };
   }
