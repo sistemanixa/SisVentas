@@ -16,7 +16,6 @@
     informes: 500,
     equipos: 500,
     agenda: 620,
-    notificaciones: 420,
     rentabilidad: 520,
     estadisticas: 560,
     tablero: 560,
@@ -151,10 +150,6 @@
 
   document.addEventListener('sisventas:page-changed', function(event){
     var id = event.detail && event.detail.page;
-    if(id && HEAVY_PAGES[id]) {
-      var page = pageEl(id);
-      if(page && !page.classList.contains('sv-page-transitioning')) begin(id, Math.min(HEAVY_PAGES[id], 360));
-    }
     endActiveSoon();
   });
 
