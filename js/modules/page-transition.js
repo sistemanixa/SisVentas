@@ -33,8 +33,10 @@
 
   var timers = {};
   var hardTimers = {};
+  var showTimers = {};
   var seq = 0;
   var MAX_VISIBLE_MS = 650;
+  var DISPLAY_DELAY_MS = 140;
 
   function pageId(id){
     return String(id || '').replace(/^page-/, '');
@@ -69,8 +71,13 @@
     var safeMs = Math.min(Math.max(ms || HEAVY_PAGES[id] || 280, 180), MAX_VISIBLE_MS);
     page.dataset.svTransitionToken = String(token);
     page.dataset.svTransitionStarted = String(Date.now());
-    page.classList.add('sv-page-transitioning');
-    ensureLoader(page, id);
+    clearTimeout(showTimers[id]);
+    showTimers[id] = setTimeout(function(){
+      var current = pageEl(id);
+      if(!current || current.dataset.svTransitionToken !== String(token)) return;
+      current.classList.add('sv-page-transitioning');
+      ensureLoader(current, id);
+    }, DISPLAY_DELAY_MS);
     clearTimeout(timers[id]);
     clearTimeout(hardTimers[id]);
     timers[id] = setTimeout(function(){ end(id, token); }, safeMs);
@@ -86,6 +93,7 @@
     page.classList.remove('sv-page-transitioning');
     delete page.dataset.svTransitionToken;
     delete page.dataset.svTransitionStarted;
+    clearTimeout(showTimers[id]);
     clearTimeout(timers[id]);
     clearTimeout(hardTimers[id]);
   }
@@ -97,11 +105,17 @@
     page.classList.remove('sv-page-transitioning');
     delete page.dataset.svTransitionToken;
     delete page.dataset.svTransitionStarted;
+    clearTimeout(showTimers[id]);
     clearTimeout(timers[id]);
     clearTimeout(hardTimers[id]);
   }
 
   function cleanupAll(force){
+    if(force){
+      Object.keys(showTimers).forEach(function(id){ clearTimeout(showTimers[id]); });
+      Object.keys(timers).forEach(function(id){ clearTimeout(timers[id]); });
+      Object.keys(hardTimers).forEach(function(id){ clearTimeout(hardTimers[id]); });
+    }
     Array.prototype.forEach.call(document.querySelectorAll('.page.sv-page-transitioning'), function(page){
       var started = Number(page.dataset.svTransitionStarted || 0);
       if(force || !started || Date.now() - started > MAX_VISIBLE_MS + 120) forceEnd(page.id);
