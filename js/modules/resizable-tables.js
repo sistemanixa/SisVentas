@@ -220,6 +220,7 @@
 
   function initTable(table) {
     if (!table) return;
+    if (table.dataset && table.dataset.svNoResize === '1') return;
     var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .card');
     if (!wrap) return;
     var headers = tableHeaders(table);

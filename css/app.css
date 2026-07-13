@@ -1278,3 +1278,11 @@ body.modal-secure-open{overflow:hidden!important}
 #page-productos #prod-tbl col:nth-child(4){width:auto!important}
 #page-productos #prod-tbl td,
 #page-productos #prod-tbl th{box-sizing:border-box}
+#gas-tbl{table-layout:fixed!important;width:max-content!important;min-width:100%!important}
+#gas-tbl th,#gas-tbl td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#gas-tbl th.gas-resizable-th{position:relative;user-select:none}
+.gas-col-resizer{position:absolute;top:0;right:-4px;width:9px;height:100%;cursor:col-resize;z-index:8;touch-action:none}
+.gas-col-resizer:after{content:"";position:absolute;top:18%;bottom:18%;left:4px;width:1px;background:rgba(148,163,184,.38);border-radius:2px;transition:background .12s,box-shadow .12s}
+#gas-tbl th.gas-resizable-th:hover .gas-col-resizer:after,
+.gas-col-resizer:hover:after,
+body.gas-resizing-columns .gas-col-resizer:after{background:var(--blue);box-shadow:0 0 0 2px var(--blue-bg)}

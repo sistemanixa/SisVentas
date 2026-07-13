@@ -4186,7 +4186,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.1-firebase',
+  VERSION: 'v2.0.2-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11905,10 +11905,67 @@ function toggleMenuPpto(e, menuId) {
 function cerrarMenusPpto() {
   document.querySelectorAll('.ppto-dropdown-menu').forEach(function(m){ m.style.display='none'; });
 }
+function cerrarMenuPptoGlobal() {
+  var m = document.getElementById('ppto-menu-global');
+  if (m) m.remove();
+}
+function abrirMenuPpto(event, pptoId) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  cerrarMenuPptoGlobal();
+  var p = buscarPptoPorRef(pptoId);
+  if (!p) { notify('Presupuesto no encontrado'); return; }
+  var puedeAnular = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('presupuestos.anular')
+    : String(currentRole || '').toLowerCase() === 'admin';
+  var puedeEliminar = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('presupuestos.eliminar')
+    : String(currentRole || '').toLowerCase() === 'admin';
+  var menu = document.createElement('div');
+  menu.id = 'ppto-menu-global';
+  menu.className = 'ppto-dropdown-menu';
+  menu.style.cssText = 'position:fixed;display:block;background:var(--bg2);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.38);z-index:999999;min-width:180px;padding:4px 0';
+  menu.addEventListener('click', function(ev){ ev.stopPropagation(); });
+  menu.addEventListener('mousedown', function(ev){ ev.stopPropagation(); });
+  function item(label, icon, fn, color) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ppto-menu-item';
+    if (color) b.style.color = color;
+    b.innerHTML = '<i class="ti '+icon+'" style="font-size:13px"></i> ' + label;
+    b.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); cerrarMenuPptoGlobal(); fn(); });
+    menu.appendChild(b);
+  }
+  function sep() {
+    var d = document.createElement('div');
+    d.style.cssText = 'border-top:1px solid var(--border);margin:4px 0';
+    menu.appendChild(d);
+  }
+  item('Ver detalle', 'ti-eye', function(){ verPpto(p.id || p.fbKey); });
+  item('Imprimir', 'ti-printer', function(){ imprimirPptoDesdeTabla(p.id || p.fbKey); });
+  if (puedeEditarPresupuestoPermiso(p)) item('Editar', 'ti-edit', function(){ abrirEditorPpto(p.id || p.fbKey); }, 'var(--blue)');
+  if (puedeAnular && p.estado !== 'convertido' && p.estado !== 'anulado') {
+    sep();
+    item('Anular', 'ti-ban', function(){ anularPptoDesdeTabla(p.id || p.fbKey); }, 'var(--amber)');
+  }
+  if (puedeEliminar) {
+    sep();
+    item('Eliminar', 'ti-trash', function(){ eliminarPptoDesdeTabla(p.id || p.fbKey); }, 'var(--red)');
+  }
+  document.body.appendChild(menu);
+  var btn = event && (event.currentTarget || event.target);
+  var r = btn ? btn.getBoundingClientRect() : {left:12,right:192,top:80,bottom:110};
+  var w = menu.offsetWidth || 180;
+  var h = menu.offsetHeight || 220;
+  var left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w));
+  var top = r.bottom + 6;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+}
 // Cerrar al hacer click fuera
-document.addEventListener('click', function(){ cerrarMenusPpto(); });
-window.addEventListener('scroll', cerrarMenusPpto, true);
-window.addEventListener('resize', cerrarMenusPpto);
+document.addEventListener('click', function(){ cerrarMenusPpto(); cerrarMenuPptoGlobal(); });
+window.addEventListener('scroll', function(){ cerrarMenusPpto(); cerrarMenuPptoGlobal(); }, true);
+window.addEventListener('resize', function(){ cerrarMenusPpto(); cerrarMenuPptoGlobal(); });
 
 function buscarPptoPorRef(pptoId) {
   return (pptoData||[]).find(function(x){ return x.id === pptoId || x.fbKey === pptoId; });
@@ -12167,10 +12224,8 @@ function registrarPago() {
       if (typeof registrarActividad === 'function') {
         registrarActividad('Pago registrado', venta + ' — ' + (pago.cliente||'') + ' — $' + Math.round(monto).toLocaleString('es-AR') + ' (' + medio + ')');
       }
-      // ── FLUJO POST-PAGO: si es la primera seña, habilitar agenda y generar OT
-      if (ventaObj && !ventaObj.otGenerada) {
-        flujoPostPago(ventaObj, monto);
-      }
+      // Cobrar una venta no debe crear OT. La OT se genera únicamente desde el
+      // flujo comercial/técnico correspondiente, no desde Cobranzas.
       // Ofrecer imprimir recibo
       window._ultimoPagoId = ref.key;
       window._ultimoPago   = pago;
@@ -18194,9 +18249,7 @@ function renderTablaGastos() {
   var tbody = document.getElementById('gastos-tbody');
   if (!tbody) return;
   function refrescarColumnasGastos(){
-    if (window.SisVentas && typeof window.SisVentas.initResizableTables === 'function') {
-      setTimeout(window.SisVentas.initResizableTables, 30);
-    }
+    if (typeof initGastosColumnResize === 'function') setTimeout(initGastosColumnResize, 30);
   }
   if (!_gastosDataReady) {
     tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:'+(_gastosCargaError?'var(--red)':'var(--text3)')+';padding:24px">'+(_gastosCargaError||'<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>Cargando gastos...')+'</td></tr>';
@@ -18265,6 +18318,91 @@ function renderTablaGastos() {
     '</tr>';
   }).join('');
   refrescarColumnasGastos();
+}
+
+function initGastosColumnResize() {
+  var table = document.getElementById('gas-tbl');
+  if (!table) return;
+  var headers = Array.from(table.querySelectorAll('thead th'));
+  if (!headers.length) return;
+  var key = 'sisventas.gastos.colWidths.v1';
+  var defaults = [34, 82, 230, 110, 86, 105, 105, 112, 92, 92, 124];
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch(e) { saved = {}; }
+  var colgroup = table.querySelector('colgroup.gas-cols');
+  if (!colgroup) {
+    colgroup = document.createElement('colgroup');
+    colgroup.className = 'gas-cols';
+    table.insertBefore(colgroup, table.firstChild);
+  }
+  while (colgroup.children.length < headers.length) colgroup.appendChild(document.createElement('col'));
+  while (colgroup.children.length > headers.length) colgroup.removeChild(colgroup.lastElementChild);
+  function setWidth(i, w, persist) {
+    w = Math.max(42, Math.min(620, Math.round(w || defaults[i] || 100)));
+    if (colgroup.children[i]) colgroup.children[i].style.width = w + 'px';
+    Array.from(table.rows).forEach(function(row){
+      var cell = row.children[i];
+      if (!cell) return;
+      cell.style.width = w + 'px';
+      cell.style.maxWidth = w + 'px';
+      cell.style.minWidth = '42px';
+      cell.style.overflow = 'hidden';
+      cell.style.textOverflow = 'ellipsis';
+      cell.style.whiteSpace = 'nowrap';
+    });
+    if (persist) {
+      saved[i] = w;
+      try { localStorage.setItem(key, JSON.stringify(saved)); } catch(e) {}
+    }
+  }
+  headers.forEach(function(th, i){
+    setWidth(i, parseInt(saved[i],10) || defaults[i] || th.getBoundingClientRect().width || 100, false);
+    th.classList.add('gas-resizable-th');
+    var old = th.querySelector('.gas-col-resizer');
+    if (old) old.remove();
+    if (i === headers.length - 1) return;
+    var handle = document.createElement('span');
+    handle.className = 'gas-col-resizer';
+    handle.title = 'Arrastrá para cambiar el ancho. Doble clic para resetear.';
+    th.appendChild(handle);
+    var startX = 0, startW = 0, dragging = false;
+    function move(clientX) { if (dragging) setWidth(i, startW + (clientX - startX), true); }
+    function stop() {
+      if (!dragging) return;
+      dragging = false;
+      document.body.classList.remove('gas-resizing-columns');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', stop);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', stop);
+    }
+    function onMove(ev){ move(ev.clientX); }
+    function onTouchMove(ev){ if (ev.touches && ev.touches[0]) { move(ev.touches[0].clientX); ev.preventDefault(); } }
+    function start(clientX, ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      dragging = true;
+      startX = clientX;
+      startW = th.getBoundingClientRect().width;
+      document.body.classList.add('gas-resizing-columns');
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', stop);
+      document.addEventListener('touchmove', onTouchMove, { passive:false });
+      document.addEventListener('touchend', stop);
+    }
+    handle.addEventListener('mousedown', function(ev){ start(ev.clientX, ev); });
+    handle.addEventListener('touchstart', function(ev){ if (ev.touches && ev.touches[0]) start(ev.touches[0].clientX, ev); }, { passive:false });
+    handle.addEventListener('dblclick', function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      delete saved[i];
+      try { localStorage.setItem(key, JSON.stringify(saved)); } catch(e) {}
+      setWidth(i, defaults[i] || 100, false);
+    });
+  });
+  table.style.tableLayout = 'fixed';
+  table.style.width = 'max-content';
+  table.style.minWidth = '100%';
 }
 
 function filtrarGastos() { renderTablaGastos(); }
@@ -19024,7 +19162,6 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
     const totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
     const alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
     const pptoRef = JSON.stringify(p.id || p.fbKey || '');
-    const menuId = 'menu-ppto-' + pptoDomKey(p);
     return `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verPpto(${pptoRef})">
       <td style="font-weight:500">${escapeHTML(p.id)}${alerta}</td>
       <td>${escapeHTML(p.cliente)}</td>
@@ -19032,31 +19169,9 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
       <td>${escapeHTML(p.vence)}</td>
       <td>${pptoStateBadge(p.estado)}</td>
       <td onclick="event.stopPropagation()" style="position:relative">
-        <button class="btn btn-sm btn-icon" onclick="toggleMenuPpto(event,'${menuId}')" title="Acciones">
+        <button class="btn btn-sm btn-icon" onclick="abrirMenuPpto(event,${pptoRef})" title="Acciones">
           <i class="ti ti-dots-vertical" style="font-size:15px"></i>
         </button>
-        <div id="${menuId}" class="ppto-dropdown-menu" style="display:none;position:fixed;background:var(--bg2);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:99999;min-width:170px;padding:4px 0">
-          <button class="ppto-menu-item" onclick="cerrarMenusPpto();verPpto(${pptoRef})">
-            <i class="ti ti-eye" style="font-size:13px"></i> Ver detalle
-          </button>
-          <button class="ppto-menu-item" onclick="cerrarMenusPpto();imprimirPptoDesdeTabla(${pptoRef})">
-            <i class="ti ti-printer" style="font-size:13px"></i> Imprimir
-          </button>
-          ${puedeEditarPresupuestoPermiso(p) ? `
-          <button class="ppto-menu-item" onclick="cerrarMenusPpto();abrirEditorPpto(${pptoRef})" style="color:var(--blue)">
-            <i class="ti ti-edit" style="font-size:13px"></i> Editar
-          </button>` : ''}
-          ${puedeAnularPptoTabla && p.estado !== 'convertido' && p.estado !== 'anulado' ? `
-          <div style="border-top:1px solid var(--border);margin:4px 0"></div>
-          <button class="ppto-menu-item" onclick="cerrarMenusPpto();anularPptoDesdeTabla(${pptoRef})" style="color:var(--amber)">
-            <i class="ti ti-ban" style="font-size:13px"></i> Anular
-          </button>` : ''}
-          ${puedeEliminarPptoTabla ? `
-          <div style="border-top:1px solid var(--border);margin:4px 0"></div>
-          <button class="ppto-menu-item" onclick="cerrarMenusPpto();eliminarPptoDesdeTabla(${pptoRef})" style="color:var(--red)">
-            <i class="ti ti-trash" style="font-size:13px"></i> Eliminar
-          </button>` : ''}
-        </div>
       </td>
     </tr>`;
   }).join('');
