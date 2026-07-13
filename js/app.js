@@ -5443,16 +5443,17 @@ function obtenerCostoUnitarioDetalleVenta(item) {
 // Margen % = (Total venta - Costo) / Total venta * 100
 var ventaRequiereAutorizacion = false;
 var ventaAutorizadaPorAdmin = false;
+window._mostrarMargenGanancia = false;
 
 function toggleMargenGanancia() {
   var box  = document.getElementById('margen-ganancia-box');
   var ico  = document.getElementById('margen-eye-icon');
   var lbl  = document.getElementById('margen-eye-lbl');
   if (!box) return;
-  var visible = box.style.display !== 'none';
-  box.style.display = visible ? 'none' : '';
-  if (ico) ico.className = visible ? 'ti ti-eye' : 'ti ti-eye-off';
-  if (lbl) lbl.textContent = visible ? 'Ver margen de ganancia' : 'Ocultar margen';
+  window._mostrarMargenGanancia = !window._mostrarMargenGanancia;
+  if (ico) ico.className = window._mostrarMargenGanancia ? 'ti ti-eye-off' : 'ti ti-eye';
+  if (lbl) lbl.textContent = window._mostrarMargenGanancia ? 'Ocultar margen' : 'Ver margen de ganancia';
+  calcMargenGanancia();
 }
 
 function calcMargenGanancia() {
@@ -5478,7 +5479,6 @@ function calcMargenGanancia() {
     ventaRequiereAutorizacion = false;
     return;
   }
-  box.style.display = '';
 
   var margenPct = ((total - costoTotal) / total) * 100;
   var pctEl = document.getElementById('margen-ganancia-pct');
@@ -5508,6 +5508,7 @@ function calcMargenGanancia() {
     ventaRequiereAutorizacion = false;
   }
   if (margenPct >= 15) ventaAutorizadaPorAdmin = false; // reset si vuelve a estar en rango normal
+  box.style.display = window._mostrarMargenGanancia ? '' : 'none';
 }
 var rc = 20;
 
@@ -5700,6 +5701,13 @@ function confirmarVenta() {
     ['t-sub','t-iva','t-tot'].forEach(function(id){ _set(id,'$0'); });
     ventaAutorizadaPorAdmin = false;
     ventaRequiereAutorizacion = false;
+    window._mostrarMargenGanancia = false;
+    var margenBox = document.getElementById('margen-ganancia-box');
+    var margenIco = document.getElementById('margen-eye-icon');
+    var margenLbl = document.getElementById('margen-eye-lbl');
+    if (margenBox) margenBox.style.display = 'none';
+    if (margenIco) margenIco.className = 'ti ti-eye';
+    if (margenLbl) margenLbl.textContent = 'Ver margen de ganancia';
     if (typeof inicializarFilasVenta === 'function') inicializarFilasVenta();
   }, 300);
 
@@ -6602,6 +6610,56 @@ function calcPpTotales() {
   if (ivaRow) ivaRow.style.display = conIva ? '' : 'none';
   _set('pp-iva',  '$' + iva.toLocaleString('es-AR'));
   _set('pp-total','$' + (base + iva).toLocaleString('es-AR'));
+  if (typeof calcMargenPpto === 'function') calcMargenPpto();
+}
+window._mostrarMargenPpto = false;
+
+function toggleMargenPpto() {
+  var ico = document.getElementById('ppto-margen-eye-icon');
+  var lbl = document.getElementById('ppto-margen-eye-lbl');
+  window._mostrarMargenPpto = !window._mostrarMargenPpto;
+  if (ico) ico.className = window._mostrarMargenPpto ? 'ti ti-eye-off' : 'ti ti-eye';
+  if (lbl) lbl.textContent = window._mostrarMargenPpto ? 'Ocultar margen' : 'Ver margen de ganancia';
+  calcMargenPpto();
+}
+
+function calcMargenPpto() {
+  var box = document.getElementById('ppto-margen-ganancia-box');
+  if (!box) return;
+  var totalTxt = (document.getElementById('pp-total')||{}).textContent || '$0';
+  var total = parseFloat(typeof normalizarNumeroExcel === 'function' ? normalizarNumeroExcel(totalTxt) : String(totalTxt).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.')) || 0;
+  var costoTotal = 0;
+  Array.from(document.querySelectorAll('#pp-body tr')).forEach(function(tr) {
+    var selCod = tr.querySelector('.prod-sel-cod');
+    var cod = selCod ? selCod.textContent.trim() : '';
+    var qty = parseFloat((tr.querySelector('.qty,.ppqty')||{}).value) || 0;
+    var prod = typeof obtenerProductoPorCodigoVenta === 'function' ? obtenerProductoPorCodigoVenta(cod, null) : null;
+    var costoUnit = typeof obtenerCostoUnitarioVenta === 'function'
+      ? obtenerCostoUnitarioVenta(cod, { cotizacionUsada: parseFloat(tr.dataset.cotizacionUsada)||0, monedaOriginal: tr.dataset.monedaOriginal || (prod && prod.moneda) || '' })
+      : 0;
+    costoTotal += costoUnit * qty;
+  });
+  if (total <= 0) { box.style.display = 'none'; return; }
+  var margenPct = ((total - costoTotal) / total) * 100;
+  var pctEl = document.getElementById('ppto-margen-ganancia-pct');
+  var lblEl = document.getElementById('ppto-margen-ganancia-label');
+  var costoEl = document.getElementById('ppto-margen-ganancia-costo');
+  if (pctEl) pctEl.textContent = margenPct.toFixed(1) + '%';
+  if (costoEl) costoEl.textContent = 'Costo: $' + Math.round(costoTotal).toLocaleString('es-AR') + ' (productos + mano de obra)';
+  if (margenPct < 15) {
+    box.style.background = 'var(--red-bg)';
+    if (pctEl) pctEl.style.color = 'var(--red)';
+    if (lblEl) { lblEl.style.color = 'var(--red)'; lblEl.innerHTML = '<i class="ti ti-alert-triangle"></i> Margen bajo'; }
+  } else if (margenPct <= 20) {
+    box.style.background = 'var(--amber-bg)';
+    if (pctEl) pctEl.style.color = 'var(--amber)';
+    if (lblEl) { lblEl.style.color = 'var(--amber)'; lblEl.innerHTML = '<i class="ti ti-info-circle"></i> Margen regular'; }
+  } else {
+    box.style.background = 'var(--green-bg)';
+    if (pctEl) pctEl.style.color = 'var(--green)';
+    if (lblEl) { lblEl.style.color = 'var(--green)'; lblEl.innerHTML = '<i class="ti ti-check"></i> Ganancia perfecta'; }
+  }
+  box.style.display = window._mostrarMargenPpto ? '' : 'none';
 }
 var ppRowCount=2;
 
@@ -11762,30 +11820,45 @@ function eliminarVenta(fbKey) {
 }
 function toggleMenuPpto(e, menuId) {
   e.stopPropagation();
+  e.preventDefault();
   var ya = document.getElementById(menuId);
   var abierto = ya && ya.style.display === 'block';
   cerrarMenusPpto();
-  if (!abierto && ya) ya.style.display = 'block';
+  if (!abierto && ya) {
+    ya.style.display = 'block';
+    var btn = e.currentTarget || e.target;
+    var r = btn.getBoundingClientRect();
+    var w = ya.offsetWidth || 170;
+    var left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w));
+    ya.style.left = left + 'px';
+    ya.style.top = Math.min(window.innerHeight - ya.offsetHeight - 8, r.bottom + 4) + 'px';
+  }
 }
 function cerrarMenusPpto() {
   document.querySelectorAll('.ppto-dropdown-menu').forEach(function(m){ m.style.display='none'; });
 }
 // Cerrar al hacer click fuera
 document.addEventListener('click', function(){ cerrarMenusPpto(); });
+window.addEventListener('scroll', cerrarMenusPpto, true);
+window.addEventListener('resize', cerrarMenusPpto);
+
+function buscarPptoPorRef(pptoId) {
+  return (pptoData||[]).find(function(x){ return x.id === pptoId || x.fbKey === pptoId; });
+}
 
 function eliminarPptoDesdeTabla(pptoId) {
-  var p = (pptoData||[]).find(function(x){ return x.id === pptoId; });
+  var p = buscarPptoPorRef(pptoId);
   if (!p || !p.fbKey) return notify('No se encontro el presupuesto');
-  if (!confirm('¿Eliminar el presupuesto ' + pptoId + '? Esta accion no se puede deshacer.')) return;
+  if (!confirm('¿Eliminar el presupuesto ' + (p.id || pptoId) + '? Esta accion no se puede deshacer.')) return;
   window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + p.fbKey))
     .then(function(){ notify('Presupuesto eliminado'); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
 
 function anularPptoDesdeTabla(pptoId) {
-  var p = (pptoData||[]).find(function(x){ return x.id === pptoId; });
+  var p = buscarPptoPorRef(pptoId);
   if (!p || !p.fbKey) return notify('No se encontro el presupuesto');
-  if (!confirm('¿Anular el presupuesto ' + pptoId + '? Quedara registrado como anulado.')) return;
+  if (!confirm('¿Anular el presupuesto ' + (p.id || pptoId) + '? Quedara registrado como anulado.')) return;
   var upd = {
     estado: 'anulado',
     audit: (p.audit||[]).concat([{ accion:'Anulado', fecha: new Date().toISOString().slice(0,10), user: currentUser||'Admin' }])
@@ -11796,9 +11869,9 @@ function anularPptoDesdeTabla(pptoId) {
 }
 
 function imprimirPptoDesdeTabla(pptoId) {
-  var p = (pptoData||[]).find(function(x){ return x.id === pptoId; });
+  var p = buscarPptoPorRef(pptoId);
   if (!p) return;
-  pptoActualId = pptoId;
+  pptoActualId = p.id || pptoId;
   imprimirPresupuesto();
 }
 
@@ -18847,6 +18920,10 @@ function pptoStateBadge(estado) {
   return `<span class="badge ${e.badge}">${e.label}</span>`;
 }
 
+function pptoDomKey(p) {
+  return String((p && (p.fbKey || p.id)) || '').replace(/[^a-zA-Z0-9_-]/g, '_') || ('ppto_' + Date.now());
+}
+
 // Renderizar tabla principal
 function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
   // Mostrar encabezado solo con búsqueda activa
@@ -18876,35 +18953,37 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
     const e = PPTO_ESTADOS[p.estado] || {};
     const totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
     const alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
-    return `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verPpto('${p.id}')">
+    const pptoRef = JSON.stringify(p.id || p.fbKey || '');
+    const menuId = 'menu-ppto-' + pptoDomKey(p);
+    return `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verPpto(${pptoRef})">
       <td style="font-weight:500">${escapeHTML(p.id)}${alerta}</td>
       <td>${escapeHTML(p.cliente)}</td>
       <td class="tr" style="font-weight:500">${totalFmt}</td>
       <td>${escapeHTML(p.vence)}</td>
       <td>${pptoStateBadge(p.estado)}</td>
       <td onclick="event.stopPropagation()" style="position:relative">
-        <button class="btn btn-sm btn-icon" onclick="toggleMenuPpto(event,'menu-ppto-${p.id}')" title="Acciones">
+        <button class="btn btn-sm btn-icon" onclick="toggleMenuPpto(event,'${menuId}')" title="Acciones">
           <i class="ti ti-dots-vertical" style="font-size:15px"></i>
         </button>
-        <div id="menu-ppto-${p.id}" class="ppto-dropdown-menu" style="display:none;position:absolute;right:0;top:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:999;min-width:170px;padding:4px 0">
-          <button class="ppto-menu-item" onclick="cerrarMenusPpto();verPpto('${p.id}')">
+        <div id="${menuId}" class="ppto-dropdown-menu" style="display:none;position:fixed;background:var(--bg2);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:99999;min-width:170px;padding:4px 0">
+          <button class="ppto-menu-item" onclick="cerrarMenusPpto();verPpto(${pptoRef})">
             <i class="ti ti-eye" style="font-size:13px"></i> Ver detalle
           </button>
-          <button class="ppto-menu-item" onclick="cerrarMenusPpto();imprimirPptoDesdeTabla('${p.id}')">
+          <button class="ppto-menu-item" onclick="cerrarMenusPpto();imprimirPptoDesdeTabla(${pptoRef})">
             <i class="ti ti-printer" style="font-size:13px"></i> Imprimir
           </button>
           ${puedeEditarPresupuestoPermiso(p) ? `
-          <button class="ppto-menu-item" onclick="cerrarMenusPpto();abrirEditorPpto('${p.id}')" style="color:var(--blue)">
+          <button class="ppto-menu-item" onclick="cerrarMenusPpto();abrirEditorPpto(${pptoRef})" style="color:var(--blue)">
             <i class="ti ti-edit" style="font-size:13px"></i> Editar
           </button>` : ''}
           ${puedeAnularPptoTabla && p.estado !== 'convertido' && p.estado !== 'anulado' ? `
           <div style="border-top:1px solid var(--border);margin:4px 0"></div>
-          <button class="ppto-menu-item" onclick="cerrarMenusPpto();anularPptoDesdeTabla('${p.id}')" style="color:var(--amber)">
+          <button class="ppto-menu-item" onclick="cerrarMenusPpto();anularPptoDesdeTabla(${pptoRef})" style="color:var(--amber)">
             <i class="ti ti-ban" style="font-size:13px"></i> Anular
           </button>` : ''}
           ${puedeEliminarPptoTabla ? `
           <div style="border-top:1px solid var(--border);margin:4px 0"></div>
-          <button class="ppto-menu-item" onclick="cerrarMenusPpto();eliminarPptoDesdeTabla('${p.id}')" style="color:var(--red)">
+          <button class="ppto-menu-item" onclick="cerrarMenusPpto();eliminarPptoDesdeTabla(${pptoRef})" style="color:var(--red)">
             <i class="ti ti-trash" style="font-size:13px"></i> Eliminar
           </button>` : ''}
         </div>
@@ -19078,9 +19157,9 @@ function editarPptoParaMigrar(id) {
 }
 
 function verPpto(id) {
-  const p = pptoData.find(x => x.id === id);
+  const p = pptoData.find(x => x.id === id || x.fbKey === id);
   if (!p) return;
-  pptoActualId = id;
+  pptoActualId = p.id || id;
   _hide('ppto-list-view');
   _block('ppto-detalle-view');
   _hide('ppto-form-view');
@@ -19608,6 +19687,13 @@ function abrirNuevoPresupuesto() {
   _pptoConIva = true;
   var btnIva = document.getElementById('btn-toggle-iva-ppto');
   if (btnIva) { btnIva.innerHTML = '<i class="ti ti-receipt-tax"></i> Con IVA'; btnIva.style.color = ''; btnIva.style.borderColor = ''; }
+  window._mostrarMargenPpto = false;
+  var margenPptoBox = document.getElementById('ppto-margen-ganancia-box');
+  var margenPptoIco = document.getElementById('ppto-margen-eye-icon');
+  var margenPptoLbl = document.getElementById('ppto-margen-eye-lbl');
+  if (margenPptoBox) margenPptoBox.style.display = 'none';
+  if (margenPptoIco) margenPptoIco.className = 'ti ti-eye';
+  if (margenPptoLbl) margenPptoLbl.textContent = 'Ver margen de ganancia';
   if (typeof iniciarMonedaPpto === 'function') iniciarMonedaPpto();
   calcPpTotales();
 }

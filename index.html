@@ -545,8 +545,8 @@
               </div>
             </div>
           </div>
-          <!-- Margen de ganancia — oculto por defecto, solo admin, toggle manual -->
-          <div class="admin-only" style="margin-top:8px">
+          <!-- Margen de ganancia — oculto por defecto, solo admin/administrativo, toggle manual -->
+          <div class="admin-o-administrativo" style="margin-top:8px">
             <button onclick="toggleMargenGanancia()" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:0">
               <i class="ti ti-eye" id="margen-eye-icon" style="font-size:12px"></i>
               <span id="margen-eye-lbl">Ver margen de ganancia</span>
@@ -868,6 +868,20 @@
         <div class="tl iva" id="pp-iva-row"><span>IVA 21%</span><span id="pp-iva">$0</span></div>
         <div class="tl final"><span>Total</span><span id="pp-total">$0</span></div>
       </div></div>
+      <div class="admin-o-administrativo" style="margin-top:8px">
+        <button onclick="toggleMargenPpto()" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:0">
+          <i class="ti ti-eye" id="ppto-margen-eye-icon" style="font-size:12px"></i>
+          <span id="ppto-margen-eye-lbl">Ver margen de ganancia</span>
+        </button>
+        <div id="ppto-margen-ganancia-box" style="display:none;margin-top:8px;padding:10px 14px;border-radius:var(--radius);box-sizing:border-box;max-width:320px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Margen de ganancia</span>
+            <span id="ppto-margen-ganancia-pct" style="font-size:18px;font-weight:700">—</span>
+          </div>
+          <div id="ppto-margen-ganancia-label" style="font-size:12px;margin-top:4px">—</div>
+          <div id="ppto-margen-ganancia-costo" style="font-size:11px;color:var(--text3);margin-top:6px">Costo: $0 (productos + mano de obra)</div>
+        </div>
+      </div>
       <div class="flex-end">
         <button class="btn" id="btn-toggle-iva-ppto" onclick="toggleIvaPpto(this)" style="min-width:110px">
           <i class="ti ti-receipt-tax"></i> Con IVA
