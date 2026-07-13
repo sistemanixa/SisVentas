@@ -4,7 +4,14 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 (function(){
   function arr(x){ if(Array.isArray(x)) return x; if(x&&typeof x==='object') return Object.keys(x).map(function(k){return Object.assign({fbKey:k},x[k]||{});}); return []; }
-  function num(v){ return parseFloat(String(v||0).replace(/\./g,'').replace(',','.'))||0; }
+  function num(v){
+    if(typeof v === 'number') return Number.isFinite(v) ? v : 0;
+    var s = String(v == null ? '' : v).trim();
+    if(!s) return 0;
+    s = s.replace(/[^\d,.-]/g,'');
+    if(s.indexOf(',') >= 0) s = s.replace(/\./g,'').replace(',','.');
+    return parseFloat(s) || 0;
+  }
   function money(v){ return (typeof window.money==='function') ? window.money(v) : ('$'+Math.round(num(v)).toLocaleString('es-AR')); }
   function esc(v){ return (typeof window.escapeHTML==='function') ? window.escapeHTML(v) : String(v||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function pad(n){ return String(n).padStart(2,'0'); }
