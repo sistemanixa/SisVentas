@@ -667,6 +667,8 @@ function renderTablaProductos(filtro) {
   if (!tbody) return;
   var lista = prodData ? Object.values(prodData) : [];
   poblarSelectCategorias();
+  var catFiltro = window._prodCategoriaFiltro || (document.getElementById('filter-cat')||{}).value || '';
+  if (catFiltro) lista = lista.filter(function(p){ return String(p.categoria || p.catId || 'Sin categoría') === String(catFiltro); });
   // Mostrar thead solo cuando hay búsqueda activa
   var thead = document.getElementById('prod-tbl-thead');
   if (thead) thead.style.visibility = (filtro && filtro.trim()) ? 'visible' : 'collapse';
@@ -3945,10 +3947,12 @@ function esTecnico() { return rolActualNormalizado() === 'tecnico'; }
 function esAdminOAdministrativo() { return esAdmin() || esAdministrativo(); }
 function permisoModulo(idModulo) {
   if (window.SisVentas && window.SisVentas.Access) {
+    if (idModulo === 'tesoreria' && !esAdmin()) return false;
     return window.SisVentas.Access.canAccess(idModulo, PERMISOS_ROLES, PERMISOS_DEFAULT);
   }
   if (!idModulo) return false;
   if (esAdmin()) return true;
+  if (idModulo === 'tesoreria') return false;
   var cfg = (PERMISOS_ROLES[rolActualNormalizado()] || PERMISOS_DEFAULT[rolActualNormalizado()] || { bloqueados: [] });
   return (cfg.bloqueados || []).indexOf(idModulo) === -1;
 }
@@ -4164,6 +4168,11 @@ function applyRole() {
       }
     });
   }
+  // Tesorería queda reservada al administrador aunque una configuración vieja
+  // de roles no la tenga bloqueada.
+  document.querySelectorAll('.nav-item[onclick*="tesoreria"]').forEach(function(el){
+    el.style.display = isAdmin ? '' : 'none';
+  });
   // Los guards agregados al final del archivo deben reaccionar al cambio de rol,
   // no volver a aplicar estilos mediante un intervalo permanente.
   if (typeof window.sv361ApplyRoleGuard === 'function') {
@@ -4177,11 +4186,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.0-firebase',
+  VERSION: 'v2.0.1-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
-  ADMINISTRATIVO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados']),
+  ADMINISTRATIVO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados','tesoreria']),
   VENDEDOR_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','empleados','proveedores','ordenes','gastos','reportes','estadisticas'])
 });
 
@@ -4672,12 +4681,23 @@ function makeBadge(text, className) {
   span.textContent = text;
   return span;
 }
-function appendAlert(container, type, iconClass, main, detail) {
+function appendAlert(container, type, iconClass, main, detail, action) {
   const div = document.createElement('div');
-  div.style.cssText = `background:var(--${type}-bg);border:0.5px solid var(--${type});border-radius:var(--radius);padding:9px 14px;font-size:13px;color:var(--${type});display:flex;align-items:center;gap:8px`;
+  div.style.cssText = `background:var(--${type}-bg);border:0.5px solid var(--${type});border-radius:var(--radius);padding:9px 14px;font-size:13px;color:var(--${type});display:flex;align-items:center;gap:8px;justify-content:space-between`;
   const icon = makeIcon(iconClass); icon.style.fontSize = '16px';
   const strong = document.createElement('strong'); strong.textContent = main;
-  div.append(icon, strong, document.createTextNode(' — ' + detail));
+  const text = document.createElement('span');
+  text.style.cssText = 'display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  text.append(icon, strong, document.createTextNode(' — ' + detail));
+  div.appendChild(text);
+  if (action && typeof action.fn === 'function') {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-sm';
+    btn.style.cssText = 'flex-shrink:0;color:var(--'+type+');border-color:var(--'+type+')';
+    btn.textContent = action.label || 'Ver';
+    btn.addEventListener('click', function(ev){ ev.stopPropagation(); action.fn(); });
+    div.appendChild(btn);
+  }
   container.appendChild(div);
 }
 function secureLog(message) {
@@ -5850,11 +5870,10 @@ function inicializarFilasVenta() {
   if (fechaInp && !fechaInp.value) fechaInp.value = new Date().toISOString().slice(0,10);
 }
 function filtrarCategoria(v) {
+  window._prodCategoriaFiltro = v || '';
   var sel = document.getElementById('filter-cat');
   if (sel && v) sel.value = v;
-  document.querySelectorAll('.pr').forEach(function(tr) {
-    tr.style.display = (!v || tr.dataset.cat === v) ? '' : 'none';
-  });
+  renderTablaProductos((document.getElementById('prod-search')||{}).value || '');
 }
 
 function navegarAProductosPorCategoria(cat) {
@@ -5864,6 +5883,26 @@ function navegarAProductosPorCategoria(cat) {
     if (sel) { sel.value = cat; filtrarCategoria(cat); }
   }, 300);
 }
+
+function navegarAProducto(prodRef) {
+  var p = Object.values(prodData || {}).find(function(x){
+    return String(x.fbKey || '') === String(prodRef) ||
+           String(x.id || '') === String(prodRef) ||
+           String(x.codigo || '') === String(prodRef);
+  });
+  showPage('productos', document.querySelector('[onclick*="productos"]'));
+  setTimeout(function() {
+    var q = p ? (p.codigo || p.nombre || p.descripcion || '') : String(prodRef || '');
+    var inp = document.getElementById('prod-search');
+    var sel = document.getElementById('filter-cat');
+    if (sel) sel.value = '';
+    window._prodCategoriaFiltro = '';
+    if (inp) inp.value = q;
+    renderTablaProductos(q);
+    var card = document.getElementById('prod-list-view');
+    if (card) card.scrollIntoView({ behavior:'smooth', block:'start' });
+  }, 250);
+}
 var editingProdId = null;
 
 // Alertas de stock al entrar al módulo
@@ -5871,10 +5910,12 @@ function mostrarAlertasStock() {
   const cont = document.getElementById('stock-alerts');
   cont.replaceChildren();
   Object.values(prodData).forEach(p => {
+    const ref = p.fbKey || p.id || p.codigo || p.descripcion || '';
+    const accion = { label:'Ver', fn:function(){ navegarAProducto(ref); } };
     if (p.stock === 0) {
-      appendAlert(cont, 'red', 'ti ti-alert-circle', p.descripcion, `sin stock (mín: ${p.stockMin})`);
+      appendAlert(cont, 'red', 'ti ti-alert-circle', p.descripcion, `sin stock (mín: ${p.stockMin})`, accion);
     } else if (p.stock < p.stockMin) {
-      appendAlert(cont, 'amber', 'ti ti-alert-triangle', p.descripcion, `stock bajo: ${p.stock} unidades (mín: ${p.stockMin})`);
+      appendAlert(cont, 'amber', 'ti ti-alert-triangle', p.descripcion, `stock bajo: ${p.stock} unidades (mín: ${p.stockMin})`, accion);
     }
   });
 }
@@ -5966,7 +6007,7 @@ function abrirFormProducto(id) {
   if (mdEl) mdEl.value = p.margenDeseado || '';
   document.getElementById('pf-iva').value = p.iva || 21;
   document.getElementById('pf-stock').value = p.stock !== undefined ? p.stock : '';
-  document.getElementById('pf-stock-min').value = p.stockMin || '';
+  document.getElementById('pf-stock-min').value = p.stockMin || (id ? '' : (window._stockMinDefault || 5));
   document.getElementById('pf-estado').value = p.estado || 'activo';
   document.getElementById('pf-unidad').value = p.unidad || 'Unidad';
   document.getElementById('pf-es-mano-obra').checked = !!p.esManoDeObra;
@@ -9775,9 +9816,21 @@ function chequearActualizacionAutoDolar() {
 
 function guardarPreferenciasSistema(btn) {
   var diasVencEl = document.getElementById('cfg-dias-venc');
+  var stockMinEl = document.getElementById('cfg-stock-min-def');
+  var descMaxEl  = document.getElementById('cfg-desc-max-ppto');
+  var montoMaxEl = document.getElementById('cfg-monto-max-ppto');
   var datos = {
-    diasVencimiento: parseInt((diasVencEl||{}).value) || 15
+    diasVencimiento: parseInt((diasVencEl||{}).value) || 15,
+    stockMinDefault: parseInt((stockMinEl||{}).value) || 5,
+    descuentoLimite: parseFloat((descMaxEl||{}).value) || 10,
+    montoLimite: parseFloat((montoMaxEl||{}).value) || 200000
   };
+  window._diasVencimientoConfig = datos.diasVencimiento;
+  window._stockMinDefault = datos.stockMinDefault;
+  if (window.APROBACION_CONFIG) {
+    APROBACION_CONFIG.descuentoLimite = datos.descuentoLimite;
+    APROBACION_CONFIG.montoLimite = datos.montoLimite;
+  }
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB,'sisventas/config/preferencias'), datos)
       .then(function(){ notify('✓ Preferencias guardadas'); });
@@ -9871,8 +9924,19 @@ function cargarConfigGeneral() {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/preferencias')).then(function(snap) {
     var d = snap.val(); if (!d) return;
     var dv = document.getElementById('cfg-dias-venc');
+    var sm = document.getElementById('cfg-stock-min-def');
+    var dl = document.getElementById('cfg-desc-max-ppto');
+    var ml = document.getElementById('cfg-monto-max-ppto');
     if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
+    if (sm && d.stockMinDefault !== undefined) sm.value = d.stockMinDefault;
+    if (dl && d.descuentoLimite !== undefined) dl.value = d.descuentoLimite;
+    if (ml && d.montoLimite !== undefined) ml.value = d.montoLimite;
     window._diasVencimientoConfig = d.diasVencimiento || 15;
+    window._stockMinDefault = d.stockMinDefault || 5;
+    if (window.APROBACION_CONFIG) {
+      APROBACION_CONFIG.descuentoLimite = d.descuentoLimite !== undefined ? parseFloat(d.descuentoLimite) || 10 : APROBACION_CONFIG.descuentoLimite;
+      APROBACION_CONFIG.montoLimite = d.montoLimite !== undefined ? parseFloat(d.montoLimite) || 200000 : APROBACION_CONFIG.montoLimite;
+    }
   });
 }
 var _logoFileEmpresa = null;
@@ -11825,13 +11889,17 @@ function toggleMenuPpto(e, menuId) {
   var abierto = ya && ya.style.display === 'block';
   cerrarMenusPpto();
   if (!abierto && ya) {
+    if (ya.parentElement !== document.body) document.body.appendChild(ya);
     ya.style.display = 'block';
     var btn = e.currentTarget || e.target;
     var r = btn.getBoundingClientRect();
     var w = ya.offsetWidth || 170;
+    var h = ya.offsetHeight || 190;
     var left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w));
+    var top = r.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
     ya.style.left = left + 'px';
-    ya.style.top = Math.min(window.innerHeight - ya.offsetHeight - 8, r.bottom + 4) + 'px';
+    ya.style.top = top + 'px';
   }
 }
 function cerrarMenusPpto() {
@@ -18850,6 +18918,7 @@ var APROBACION_CONFIG = {
   descuentoLimite: 10,   // % — descuentos sobre este % requieren admin
   maxComisionPct: 10,    // % máximo de comisión sobre la ganancia (global)
 };
+window.APROBACION_CONFIG = APROBACION_CONFIG;
 var ACCIONES_CONFIG = {
   enviar_revision:  { label:'Enviar a revisión',        icon:'ti-clock',         cls:'btn btn-sm',         fn:'pptoAccion("enviar_revision")' },
   aprobar_directo:  { label:'Aprobar directamente',     icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar_directo")' },
@@ -18930,6 +18999,7 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
 
   const tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
+  document.querySelectorAll('body > .ppto-dropdown-menu').forEach(function(m){ m.remove(); });
   let rows = pptoData;
   // Ocultar anulados por defecto — solo mostrar si se filtra explícitamente
   if (filtroEstado === '__todos__') {

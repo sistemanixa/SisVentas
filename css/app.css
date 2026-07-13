@@ -1270,3 +1270,11 @@ body.modal-secure-open{overflow:hidden!important}
 #mnt-console{min-height:150px!important;max-height:230px!important}
 @media(max-width:1180px){.mnt-main-grid{grid-template-columns:1fr}.mnt-main-grid #mnt-v2-audit-card{grid-column:auto}}
 @media(max-width:700px){#cfg-mantenimiento .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}.mnt-exam-box{align-items:stretch;flex-direction:column}.mnt-exam-btn{width:100%}}
+#page-productos,
+#page-productos #prod-list-view,
+#page-productos #prod-list-view > .card{width:100%!important;max-width:none!important}
+#page-productos .prod-table-wrap{width:100%!important;max-width:100%!important}
+#page-productos #prod-tbl{width:100%!important;min-width:100%!important;table-layout:fixed!important}
+#page-productos #prod-tbl col:nth-child(4){width:auto!important}
+#page-productos #prod-tbl td,
+#page-productos #prod-tbl th{box-sizing:border-box}
