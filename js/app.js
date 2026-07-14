@@ -2924,8 +2924,6 @@ function fbCargarTodo() {
   fbCargarPagos();
   fbCargarServicios();
   fbCargarCaja();
-  /* v20.341: generación automática de gastos fijos ELIMINADA.
-     La carga mensual la realiza el administrador manualmente. */
 }
 function fbCargarClientes() {
   if (!window.fbDB) return;
@@ -2936,10 +2934,7 @@ function fbCargarClientes() {
       clientesData = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
       });
-      // Ordenar por nombre
       clientesData.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
-      // Siempre actualizar la tabla preservando el filtro activo
-      console.log('[Firebase] Clientes cargados:', clientesData ? clientesData.length : 0);
       if (typeof renderTablaClientes === 'function') {
         var _cliInp = document.querySelector('#page-clientes .search-input');
         renderTablaClientes(_cliInp ? _cliInp.value : '');
@@ -4186,7 +4181,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.4-firebase',
+  VERSION: 'v2.0.5-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -17056,13 +17051,10 @@ function fbCargarVacaciones() {
 
 function renderModuloVacaciones() {
   var periodos = window._vacPeriodos || [];
-  var empCount = Object.keys(empData||{}).length;
-  console.log('[VAC] renderModuloVacaciones - periodos:', periodos.length, 'empData:', empCount);
   if (!periodos.length && window.fbDB) {
     window.fbGet(window.fbRef(window.fbDB,'sisventas/vacaciones')).then(function(snap){
       var data = snap.val()||{};
       periodos = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); });
-      console.log('[VAC] fbGet OK - periodos:', periodos.length);
       window._vacPeriodos = periodos;
       renderTablaVacaciones(periodos);
       renderPeriodosVacaciones(periodos);
@@ -19061,13 +19053,10 @@ function fbCargarProveedores() {
     actualizarProveedorBaseEnForm();
   });
 }
-// MÓDULO PRESUPUESTOS — ESTADOS + TIMELINE
-
-// Configuración de estados
 var APROBACION_CONFIG = {
-  montoLimite: 200000,   // ARS — presupuestos sobre este monto requieren admin
-  descuentoLimite: 10,   // % — descuentos sobre este % requieren admin
-  maxComisionPct: 10,    // % máximo de comisión sobre la ganancia (global)
+  montoLimite: 200000,
+  descuentoLimite: 10,
+  maxComisionPct: 10,
 };
 window.APROBACION_CONFIG = APROBACION_CONFIG;
 var ACCIONES_CONFIG = {
@@ -19111,15 +19100,7 @@ var PPTO_ACCIONES = {
   }
 };
 
-// Acciones disponibles por rol y estado
-
-// Configuración de acciones
-
-// Datos demo
-
 var pptoActualId = null;
-
-// Configuración de aprobación
 
 function checkAprobacion() {
   var _ptt=document.getElementById('pp-total'); const total = parseFloat(normalizarNumeroExcel(_ptt?_ptt.textContent:'0')) || 0;
@@ -19134,7 +19115,6 @@ function checkAprobacion() {
   if (txt) txt.textContent = motivo + ' Al guardar se enviará a revisión del administrador.';
 }
 
-// Renderizar badge de estado
 function pptoStateBadge(estado) {
   const e = PPTO_ESTADOS[estado] || { label: estado, badge: 'badge-borrador' };
   return `<span class="badge ${e.badge}">${e.label}</span>`;
@@ -19144,23 +19124,17 @@ function pptoDomKey(p) {
   return String((p && (p.fbKey || p.id)) || '').replace(/[^a-zA-Z0-9_-]/g, '_') || ('ppto_' + Date.now());
 }
 
-// Renderizar tabla principal
 function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
-  // Mostrar encabezado solo con búsqueda activa
-
   const tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
   document.querySelectorAll('body > .ppto-dropdown-menu').forEach(function(m){ m.remove(); });
   let rows = pptoData;
-  // Ocultar anulados por defecto — solo mostrar si se filtra explícitamente
   if (filtroEstado === '__todos__') {
-    // Mostrar todo sin filtro de estado
   } else if (filtroEstado === 'anulado') {
     rows = rows.filter(p => p.estado === 'anulado');
   } else if (filtroEstado) {
     rows = rows.filter(p => p.estado === filtroEstado);
   } else {
-    // Por defecto ocultar anulados Y convertidos
     rows = rows.filter(p => p.estado !== 'anulado' && p.estado !== 'convertido');
   }
   if (filtroTexto)  rows = rows.filter(p => (p.cliente + p.id).toLowerCase().includes(filtroTexto.toLowerCase()));
@@ -19944,7 +19918,6 @@ var CHECKLISTS = {
   ],
 };
 
-// Datos demo de OTs
 
 var otActualId = null;
 
@@ -21758,7 +21731,6 @@ function renderVentaTimeline(containerId, estadoActual) {
     </div>`;
   }).join('') + '</div>';
 }
-// DATOS DEMO VENTAS CON ESTADOS
 
 function ventaEstadoBadge(est) {
   const map = {
@@ -23203,8 +23175,6 @@ function guardarMaxComisionPct() {
     .then(function(){ notify('✓ Tope máximo de comisión guardado: ' + val + '%'); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
-
-/* v20.342: guardarHorasExtra() eliminada — leía inputs cfg-hextra-* inexistentes y escribía sisventas/config/horasExtra, que ningún cálculo lee. El valor de hora extra vive en cada cargo (valorHoraExtra). */
 
 function actualizarInputsComisiones() {
   var tabla = document.querySelector('#cfg-comisiones-tbody');

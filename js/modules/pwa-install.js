@@ -9,7 +9,6 @@
   function notify(msg, type){
     try { if (typeof toast === 'function') return toast(msg, type || 'info'); } catch(e){}
     try { if (typeof showNotif === 'function') return showNotif(msg); } catch(e){}
-    console.log('[PWA]', msg);
   }
   function ensureInstallButton(){
     var btn = document.getElementById('sv339-install-app-btn');
@@ -65,7 +64,6 @@
     }
     navigator.serviceWorker.register('./sw.js', { scope: './' })
       .then(function(reg){
-        console.log('[PWA] Service Worker registrado:', reg.scope);
         if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
       })
       .catch(function(err){ console.warn('[PWA] No se pudo registrar sw.js:', err); });
