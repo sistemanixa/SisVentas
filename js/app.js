@@ -4181,7 +4181,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.5-firebase',
+  VERSION: 'v2.0.6-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -11903,61 +11903,71 @@ function cerrarMenusPpto() {
 function cerrarMenuPptoGlobal() {
   var m = document.getElementById('ppto-menu-global');
   if (m) m.remove();
-  document.querySelectorAll('.ppto-actions-inline-row').forEach(function(row){ row.remove(); });
 }
-function cerrarAccionesPptoInline() {
-  document.querySelectorAll('.ppto-actions-inline-row').forEach(function(row){ row.remove(); });
-}
-function mostrarAccionesPptoInline(pptoId, sourceRow) {
-  var tbody = document.getElementById('ppto-tbody-main');
-  if (!tbody || !sourceRow) return;
-  var alreadyOpen = sourceRow.nextElementSibling && sourceRow.nextElementSibling.classList.contains('ppto-actions-inline-row');
-  cerrarAccionesPptoInline();
-  if (alreadyOpen) return;
+function mostrarMenuPptoFlotante(pptoId, anchorBtn) {
+  if (!anchorBtn) { notify('No se pudo ubicar el botón de acciones'); return; }
   var p = buscarPptoPorRef(pptoId);
   if (!p) { notify('Presupuesto no encontrado'); return; }
+  cerrarMenuPptoGlobal();
   var puedeAnular = typeof window.tienePermiso === 'function'
     ? window.tienePermiso('presupuestos.anular')
     : String(currentRole || '').toLowerCase() === 'admin';
   var puedeEliminar = typeof window.tienePermiso === 'function'
     ? window.tienePermiso('presupuestos.eliminar')
     : String(currentRole || '').toLowerCase() === 'admin';
-  var ref = p.id || p.fbKey;
-  var actionRow = document.createElement('tr');
-  actionRow.className = 'ppto-actions-inline-row';
-  var td = document.createElement('td');
-  td.colSpan = 6;
-  var box = document.createElement('div');
-  box.className = 'ppto-actions-inline';
-  function item(label, icon, fn, tone) {
+  var menu = document.createElement('div');
+  menu.id = 'ppto-menu-global';
+  menu.className = 'ppto-dropdown-menu ppto-menu-floating';
+  menu.addEventListener('click', function(ev){ ev.stopPropagation(); });
+  menu.addEventListener('mousedown', function(ev){ ev.stopPropagation(); });
+  function item(label, icon, fn, color) {
     var b = document.createElement('button');
     b.type = 'button';
-    b.className = 'btn btn-sm ppto-inline-action' + (tone ? ' '+tone : '');
+    b.className = 'ppto-menu-item';
+    if (color) b.style.color = color;
     b.innerHTML = '<i class="ti '+icon+'"></i><span>'+label+'</span>';
     b.addEventListener('click', function(ev) {
       ev.preventDefault();
       ev.stopPropagation();
-      cerrarAccionesPptoInline();
+      cerrarMenuPptoGlobal();
       fn();
     });
-    box.appendChild(b);
+    menu.appendChild(b);
   }
+  function sep() {
+    var d = document.createElement('div');
+    d.className = 'ppto-menu-sep';
+    menu.appendChild(d);
+  }
+  var ref = p.id || p.fbKey;
   item('Ver detalle', 'ti-eye', function(){ verPpto(ref); });
   item('Imprimir', 'ti-printer', function(){ imprimirPptoDesdeTabla(ref); });
-  if (puedeEditarPresupuestoPermiso(p)) item('Editar', 'ti-edit', function(){ abrirEditorPpto(ref); }, 'is-blue');
+  if (puedeEditarPresupuestoPermiso(p)) item('Editar', 'ti-edit', function(){ abrirEditorPpto(ref); }, 'var(--blue)');
   if (puedeAnular && p.estado !== 'convertido' && p.estado !== 'anulado') {
-    item('Anular', 'ti-ban', function(){ anularPptoDesdeTabla(ref); }, 'is-amber');
+    sep();
+    item('Anular', 'ti-ban', function(){ anularPptoDesdeTabla(ref); }, 'var(--amber)');
   }
-  if (puedeEliminar) item('Eliminar', 'ti-trash', function(){ eliminarPptoDesdeTabla(ref); }, 'is-red');
-  td.appendChild(box);
-  actionRow.appendChild(td);
-  sourceRow.insertAdjacentElement('afterend', actionRow);
+  if (puedeEliminar) {
+    sep();
+    item('Eliminar', 'ti-trash', function(){ eliminarPptoDesdeTabla(ref); }, 'var(--red)');
+  }
+  document.body.appendChild(menu);
+  var rect = anchorBtn.getBoundingClientRect();
+  var offsetX = 10;
+  var offsetY = 8;
+  var menuW = menu.offsetWidth || 190;
+  var menuH = menu.offsetHeight || 220;
+  var left = rect.right + offsetX - menuW;
+  var top = rect.bottom + offsetY;
+  if (left < 8) left = rect.left + offsetX;
+  if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+  if (top + menuH > window.innerHeight - 8) top = Math.max(8, rect.top - menuH - offsetY);
+  menu.style.left = Math.round(left) + 'px';
+  menu.style.top = Math.round(top) + 'px';
 }
-function abrirMenuPpto(event, pptoId, sourceRow) {
+function abrirMenuPpto(event, pptoId, anchorBtn) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
-  cerrarMenuPptoGlobal();
-  if (!sourceRow) { notify('No se pudo ubicar la fila del presupuesto'); return; }
-  mostrarAccionesPptoInline(pptoId, sourceRow);
+  mostrarMenuPptoFlotante(pptoId, anchorBtn);
 }
 // Cerrar al hacer click fuera
 document.addEventListener('click', function(){ cerrarMenusPpto(); cerrarMenuPptoGlobal(); });
@@ -18242,12 +18252,8 @@ function rechazarComisionDesdeGasto(gastoFbKey) {
 function renderTablaGastos() {
   var tbody = document.getElementById('gastos-tbody');
   if (!tbody) return;
-  function refrescarColumnasGastos(){
-    if (typeof initGastosColumnResize === 'function') setTimeout(initGastosColumnResize, 30);
-  }
   if (!_gastosDataReady) {
     tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:'+(_gastosCargaError?'var(--red)':'var(--text3)')+';padding:24px">'+(_gastosCargaError||'<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>Cargando gastos...')+'</td></tr>';
-    refrescarColumnasGastos();
     return;
   }
   var lista = gastosFiltradosActuales();
@@ -18259,7 +18265,6 @@ function renderTablaGastos() {
 
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Sin gastos registrados</td></tr>';
-    refrescarColumnasGastos();
     return;
   }
 
@@ -18311,103 +18316,6 @@ function renderTablaGastos() {
       '</td>' +
     '</tr>';
   }).join('');
-  refrescarColumnasGastos();
-}
-
-function initGastosColumnResize() {
-  var table = document.getElementById('gas-tbl');
-  if (!table) return;
-  var headers = Array.from(table.querySelectorAll('thead th'));
-  if (!headers.length) return;
-  var key = 'sisventas.gastos.colWidths.v2';
-  var defaults = [44, 84, 270, 112, 86, 104, 104, 112, 92, 92, 124];
-  var saved = {};
-  try { saved = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch(e) { saved = {}; }
-  Array.from(table.rows).forEach(function(row){
-    Array.from(row.children || []).forEach(function(cell){
-      cell.style.width = '';
-      cell.style.maxWidth = '';
-      cell.style.minWidth = '';
-    });
-  });
-  var colgroup = table.querySelector('colgroup.gas-cols');
-  if (!colgroup) {
-    colgroup = document.createElement('colgroup');
-    colgroup.className = 'gas-cols';
-    table.insertBefore(colgroup, table.firstChild);
-  }
-  while (colgroup.children.length < headers.length) colgroup.appendChild(document.createElement('col'));
-  while (colgroup.children.length > headers.length) colgroup.removeChild(colgroup.lastElementChild);
-  var widths = headers.map(function(th, i){
-    return Math.max(42, Math.min(620, Math.round(parseInt(saved[i],10) || defaults[i] || th.getBoundingClientRect().width || 100)));
-  });
-  function applyAllWidths() {
-    var total = 0;
-    widths.forEach(function(w, i){
-      w = Math.max(42, Math.min(620, Math.round(w || defaults[i] || 100)));
-      widths[i] = w;
-      total += w;
-      if (colgroup.children[i]) colgroup.children[i].style.width = w + 'px';
-    });
-    table.style.tableLayout = 'fixed';
-    table.style.width = total + 'px';
-    table.style.minWidth = '0';
-  }
-  function setWidth(i, w) {
-    widths[i] = Math.max(42, Math.min(620, Math.round(w || defaults[i] || 100)));
-    applyAllWidths();
-  }
-  function persistWidths() {
-    widths.forEach(function(w, i){ saved[i] = w; });
-    try { localStorage.setItem(key, JSON.stringify(saved)); } catch(e) {}
-  }
-  applyAllWidths();
-  headers.forEach(function(th, i){
-    th.classList.add('gas-resizable-th');
-    var old = th.querySelector('.gas-col-resizer');
-    if (old) old.remove();
-    if (i === headers.length - 1) return;
-    var handle = document.createElement('span');
-    handle.className = 'gas-col-resizer';
-    handle.title = 'Arrastrá para cambiar el ancho. Doble clic para resetear.';
-    th.appendChild(handle);
-    var startX = 0, startW = 0, dragging = false;
-    function move(clientX) { if (dragging) setWidth(i, startW + (clientX - startX)); }
-    function stop() {
-      if (!dragging) return;
-      dragging = false;
-      document.body.classList.remove('gas-resizing-columns');
-      persistWidths();
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', stop);
-      document.removeEventListener('touchmove', onTouchMove);
-      document.removeEventListener('touchend', stop);
-    }
-    function onMove(ev){ move(ev.clientX); }
-    function onTouchMove(ev){ if (ev.touches && ev.touches[0]) { move(ev.touches[0].clientX); ev.preventDefault(); } }
-    function start(clientX, ev) {
-      ev.preventDefault();
-      ev.stopPropagation();
-      dragging = true;
-      startX = clientX;
-      startW = widths[i] || th.getBoundingClientRect().width;
-      document.body.classList.add('gas-resizing-columns');
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', stop);
-      document.addEventListener('touchmove', onTouchMove, { passive:false });
-      document.addEventListener('touchend', stop);
-    }
-    handle.addEventListener('mousedown', function(ev){ start(ev.clientX, ev); });
-    handle.addEventListener('touchstart', function(ev){ if (ev.touches && ev.touches[0]) start(ev.touches[0].clientX, ev); }, { passive:false });
-    handle.addEventListener('dblclick', function(ev){
-      ev.preventDefault();
-      ev.stopPropagation();
-      delete saved[i];
-      try { localStorage.setItem(key, JSON.stringify(saved)); } catch(e) {}
-      setWidth(i, defaults[i] || 100);
-      persistWidths();
-    });
-  });
 }
 
 function filtrarGastos() { renderTablaGastos(); }
@@ -19169,7 +19077,7 @@ function initPptoTablaEventos() {
     if (btn) {
       ev.preventDefault();
       ev.stopPropagation();
-      abrirMenuPpto(ev, btn.dataset.pptoRef || '', btn.closest('tr'));
+      abrirMenuPpto(ev, btn.dataset.pptoRef || '', btn);
       return;
     }
     var row = ev.target.closest && ev.target.closest('.ppto-row');
