@@ -3,6 +3,7 @@
   'use strict';
 
   var STORAGE_PREFIX = 'sisventas.tableWidth.v2.';
+  var STORAGE_PERCENT_PREFIX = 'sisventas.tablePercent.v1.';
   var MIN_WIDTH = 54;
   var MAX_WIDTH = 720;
   var scheduled = false;
@@ -63,6 +64,10 @@
     return STORAGE_PREFIX + tableKey(table);
   }
 
+  function percentStorageKey(table) {
+    return STORAGE_PERCENT_PREFIX + tableKey(table);
+  }
+
   function loadWidths(table) {
     try {
       return JSON.parse(localStorage.getItem(storageKey(table)) || '{}') || {};
@@ -75,6 +80,27 @@
     try {
       localStorage.setItem(storageKey(table), JSON.stringify(widths || {}));
     } catch (_) {}
+  }
+
+  function loadPercentages(table) {
+    try {
+      return JSON.parse(localStorage.getItem(percentStorageKey(table)) || '{}') || {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function savePercentages(table, percentages) {
+    try {
+      localStorage.setItem(percentStorageKey(table), JSON.stringify(percentages || {}));
+    } catch (_) {}
+  }
+
+  function hasSavedPercentages(table) {
+    var data = loadPercentages(table);
+    return Object.keys(data).some(function (key) {
+      return parseFloat(data[key]) > 0;
+    });
   }
 
   function ensureColgroup(table, count) {
@@ -164,6 +190,72 @@
     });
   }
 
+  function normalizePercent(value) {
+    var n = parseFloat(String(value || '').replace(',', '.'));
+    if (!isFinite(n) || n < 0) return 0;
+    return Math.round(n * 10) / 10;
+  }
+
+  function defaultPercentages(table) {
+    var headers = tableHeaders(table);
+    var pesos = headers.map(function (th) {
+      return defaultWidthForHeader(th);
+    });
+    var total = pesos.reduce(function (s, n) { return s + n; }, 0) || 1;
+    var data = {};
+    headers.forEach(function (_th, index) {
+      data[index] = Math.round((pesos[index] / total) * 1000) / 10;
+    });
+    return data;
+  }
+
+  function currentPercentages(table) {
+    var saved = loadPercentages(table);
+    if (Object.keys(saved).length) return saved;
+    return defaultPercentages(table);
+  }
+
+  function clearPixelWidths(table) {
+    var colgroup = table.querySelector('colgroup.sv-resizable-cols');
+    if (colgroup) colgroup.remove();
+    Array.from(table.querySelectorAll('th,td')).forEach(function (cell) {
+      cell.style.width = '';
+      cell.style.maxWidth = '';
+      cell.style.minWidth = '';
+    });
+  }
+
+  function applyPercentProfile(table, percentages) {
+    var headers = tableHeaders(table);
+    if (!table || !headers.length) return;
+    clearPixelWidths(table);
+    var colgroup = ensureColgroup(table, totalColumnCount(table));
+    table.classList.add('sv-percent-table');
+    table.style.width = '100%';
+    table.style.tableLayout = 'fixed';
+    headers.forEach(function (_th, index) {
+      var pct = normalizePercent(percentages[index]);
+      var physicalIndex = physicalIndexForVisibleIndex(table, index);
+      if (colgroup.children[physicalIndex]) {
+        colgroup.children[physicalIndex].style.width = (pct > 0 ? pct : 1) + '%';
+      }
+      columnCells(table, index).forEach(function (cell) {
+        cell.style.width = '';
+        cell.style.maxWidth = '';
+        cell.style.minWidth = '0';
+        cell.style.overflow = 'hidden';
+        cell.style.textOverflow = 'ellipsis';
+      });
+    });
+    updateOverflowTitles(table);
+  }
+
+  function applySavedPercentProfile(table) {
+    if (!hasSavedPercentages(table)) return false;
+    applyPercentProfile(table, loadPercentages(table));
+    return true;
+  }
+
   function applyColumnWidth(table, index, width) {
     var safeWidth = normalizeWidth(width);
     var physicalIndex = physicalIndexForVisibleIndex(table, index);
@@ -220,7 +312,10 @@
 
   function initTable(table) {
     if (!table) return;
-    if (table.dataset && table.dataset.svNoResize === '1') return;
+    if (table.dataset && table.dataset.svNoResize === '1') {
+      applySavedPercentProfile(table);
+      return;
+    }
     var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .card');
     if (!wrap) return;
     var headers = tableHeaders(table);
@@ -237,7 +332,7 @@
     table.dataset.svResizableKey = key;
     table.dataset.svResizableRows = String(rowCount);
     wrap.classList.add('sv-resizable-wrap');
-    applySavedWidths(table);
+    if (!applySavedPercentProfile(table)) applySavedWidths(table);
 
     headers.forEach(function (th, index) {
       if (th.dataset.svResizableIndex !== String(index)) {
@@ -320,6 +415,119 @@
     root.querySelectorAll('.table-wrap table, .sv-auto-grid-wrap table, .card table').forEach(initTable);
   }
 
+  function escapeHTML(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+      return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch];
+    });
+  }
+
+  function openPercentEditor(tableOrId) {
+    var table = typeof tableOrId === 'string' ? document.getElementById(tableOrId) : tableOrId;
+    if (!table) {
+      if (window.notify) window.notify('Tabla no encontrada');
+      return;
+    }
+    if (window.currentRole && window.currentRole !== 'admin') {
+      if (window.notify) window.notify('Solo el administrador puede configurar columnas');
+      return;
+    }
+    var old = document.getElementById('sv-column-percent-modal');
+    if (old) old.remove();
+    var headers = tableHeaders(table);
+    if (!headers.length) {
+      if (window.notify) window.notify('Esta tabla no tiene columnas configurables');
+      return;
+    }
+    var values = currentPercentages(table);
+    var overlay = document.createElement('div');
+    overlay.id = 'sv-column-percent-modal';
+    overlay.className = 'sv-column-percent-overlay';
+    overlay.innerHTML =
+      '<div class="sv-column-percent-panel">' +
+        '<div class="sv-column-percent-head">' +
+          '<div><strong>Anchos de columnas</strong><span>Modificá los porcentajes y la tabla cambia en vivo.</span></div>' +
+          '<button class="btn btn-sm btn-icon" type="button" data-sv-close><i class="ti ti-x"></i></button>' +
+        '</div>' +
+        '<div class="sv-column-percent-list">' +
+          headers.map(function (th, index) {
+            var label = (th.textContent || ('Columna ' + (index + 1))).replace(/\s+/g, ' ').trim();
+            return '<label class="sv-column-percent-row">' +
+              '<span>'+escapeHTML(label || ('Columna ' + (index + 1)))+'</span>' +
+              '<input type="number" min="0" max="100" step="0.5" data-col-index="'+index+'" value="'+escapeHTML(values[index] || 0)+'">' +
+              '<em>%</em>' +
+            '</label>';
+          }).join('') +
+        '</div>' +
+        '<div class="sv-column-percent-total">Total: <strong id="sv-column-percent-total">0%</strong></div>' +
+        '<div class="sv-column-percent-actions">' +
+          '<button class="btn btn-sm" type="button" data-sv-default>Usar base sugerida</button>' +
+          '<button class="btn btn-sm" type="button" data-sv-reset>Quitar perfil</button>' +
+          '<button class="btn btn-sm btn-primary" type="button" data-sv-save>Guardar</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    function readInputs() {
+      var data = {};
+      overlay.querySelectorAll('input[data-col-index]').forEach(function (input) {
+        data[input.dataset.colIndex] = normalizePercent(input.value);
+      });
+      return data;
+    }
+
+    function refreshTotal(data) {
+      var total = Object.keys(data).reduce(function (s, key) { return s + normalizePercent(data[key]); }, 0);
+      var el = document.getElementById('sv-column-percent-total');
+      if (el) {
+        el.textContent = (Math.round(total * 10) / 10) + '%';
+        el.style.color = Math.abs(total - 100) <= 0.5 ? 'var(--green)' : 'var(--amber)';
+      }
+    }
+
+    function applyLive() {
+      var data = readInputs();
+      applyPercentProfile(table, data);
+      refreshTotal(data);
+    }
+
+    overlay.addEventListener('input', function (ev) {
+      if (ev.target && ev.target.matches('input[data-col-index]')) applyLive();
+    });
+    overlay.addEventListener('click', function (ev) {
+      if (ev.target === overlay || ev.target.closest('[data-sv-close]')) {
+        overlay.remove();
+        return;
+      }
+      if (ev.target.closest('[data-sv-default]')) {
+        var defs = defaultPercentages(table);
+        overlay.querySelectorAll('input[data-col-index]').forEach(function (input) {
+          input.value = defs[input.dataset.colIndex] || 0;
+        });
+        applyLive();
+        return;
+      }
+      if (ev.target.closest('[data-sv-reset]')) {
+        try { localStorage.removeItem(percentStorageKey(table)); } catch (_) {}
+        clearPixelWidths(table);
+        table.classList.remove('sv-percent-table');
+        table.style.width = '';
+        table.style.tableLayout = '';
+        overlay.remove();
+        scan();
+        if (window.notify) window.notify('Perfil de columnas quitado');
+        return;
+      }
+      if (ev.target.closest('[data-sv-save]')) {
+        var data = readInputs();
+        savePercentages(table, data);
+        applyPercentProfile(table, data);
+        overlay.remove();
+        if (window.notify) window.notify('✓ Anchos de columnas guardados');
+      }
+    });
+    applyLive();
+  }
+
   function scheduleScan() {
     if (scheduled) return;
     scheduled = true;
@@ -354,5 +562,7 @@
     document.addEventListener('sisventas:page-changed', scheduleScan);
     window.SisVentas = window.SisVentas || {};
     window.SisVentas.initResizableTables = scan;
+    window.SisVentas.openColumnPercentEditor = openPercentEditor;
+    window.SisVentas.applyColumnPercentProfiles = scan;
   });
 })();
