@@ -1278,7 +1278,7 @@ body.modal-secure-open{overflow:hidden!important}
 #page-productos #prod-tbl col:nth-child(4){width:auto!important}
 #page-productos #prod-tbl td,
 #page-productos #prod-tbl th{box-sizing:border-box}
-#gas-tbl{table-layout:fixed!important;width:max-content!important;min-width:100%!important}
+#gas-tbl{table-layout:fixed!important;width:max-content!important;min-width:0!important}
 #gas-tbl th,#gas-tbl td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #gas-tbl th.gas-resizable-th{position:relative;user-select:none}
 .gas-col-resizer{position:absolute;top:0;right:-4px;width:9px;height:100%;cursor:col-resize;z-index:8;touch-action:none}
@@ -1286,3 +1286,9 @@ body.modal-secure-open{overflow:hidden!important}
 #gas-tbl th.gas-resizable-th:hover .gas-col-resizer:after,
 .gas-col-resizer:hover:after,
 body.gas-resizing-columns .gas-col-resizer:after{background:var(--blue);box-shadow:0 0 0 2px var(--blue-bg)}
+.ppto-actions-inline-row td{padding:8px 0 12px!important;background:rgba(15,23,42,.22);border-bottom:1px solid var(--border)}
+.ppto-actions-inline{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:8px 14px;border:1px solid rgba(148,163,184,.18);border-radius:12px;background:rgba(30,41,59,.38)}
+.ppto-inline-action{display:inline-flex;align-items:center;gap:7px;min-height:32px}
+.ppto-inline-action.is-blue{color:var(--blue)}
+.ppto-inline-action.is-amber{color:var(--amber)}
+.ppto-inline-action.is-red{color:var(--red)}
