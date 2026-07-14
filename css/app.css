@@ -1235,6 +1235,12 @@ body.modal-secure-open{overflow:hidden!important}
 #page-presupuesto .table-wrap,
 #page-presupuesto .sv-resizable-wrap{width:100%!important;max-width:none!important}
 #page-presupuesto #ppto-tabla{min-width:100%!important}
+#page-presupuesto #ppto-tabla th:nth-child(3),
+#page-presupuesto #ppto-tabla td:nth-child(3){text-align:left!important}
+.sv-card-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-left:auto}
+.sv-card-head-actions .btn{flex:0 0 auto}
+.sv-column-percent-btn{border-color:rgba(120,130,160,.35)!important;background:rgba(120,130,160,.08)!important;color:var(--text2)!important}
+.sv-column-percent-btn:hover{background:rgba(120,130,160,.16)!important;color:var(--text)!important}
 
 /* v2.0.10 - agenda y grillas a pantalla completa */
 #page-agenda.page.active{display:flex!important;flex-direction:column;width:100%!important;min-height:calc(100vh - 98px)!important}
@@ -1242,10 +1248,15 @@ body.modal-secure-open{overflow:hidden!important}
 #page-agenda #agenda-calendar-card{display:flex!important;flex-direction:column!important;flex:1 1 auto!important;min-height:calc(100vh - 245px)!important;width:100%!important;max-width:none!important}
 #page-agenda #agenda-calendar-card > .agenda-toolbar{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;width:100%;min-width:0;flex-shrink:0}
 #page-agenda #agenda-calendar-card > .agenda-scroll-hint{flex-shrink:0}
-#page-agenda #ag-calendario{display:block!important;flex:1 1 auto!important;width:100%!important;max-width:none!important;margin-top:8px!important}
+#page-agenda #ag-calendario{display:block!important;flex:1 1 auto!important;width:100%!important;max-width:none!important;margin-top:8px!important;min-height:0!important}
 #page-agenda #ag-calendario[data-view="mes"]>div,
 #page-agenda #ag-calendario[data-view="semana"]>div,
 #page-agenda #ag-calendario[data-view="dia"]>div{width:100%!important;min-width:100%!important}
+#page-agenda #ag-calendario[data-view="mes"]{display:flex!important;flex-direction:column!important;overflow:hidden!important}
+#page-agenda #ag-calendario[data-view="mes"]>.ag-mes-desktop{flex:1 1 auto!important;height:100%!important;min-height:0!important}
+#page-agenda #ag-calendario[data-view="mes"] .ag-mes-head,
+#page-agenda #ag-calendario[data-view="mes"] .ag-mes-cell{min-height:0!important}
+#page-agenda #ag-calendario[data-view="mes"] .ag-mes-cell{overflow:hidden}
 .page.active .card > table,
 .page.active .card > div > table{width:100%!important;min-width:100%!important}
 .page.active .table-wrap{display:block!important}

@@ -4251,7 +4251,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.12-firebase',
+  VERSION: 'v2.0.14-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13873,15 +13873,16 @@ function agRenderMes() {
   // Lun=0 ... Dom=6
   var diaInicio = (primerDia.getDay()+6)%7;
 
-  var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border)">';
+  var filasMes = Math.ceil((diaInicio + totalDias) / 7);
+  var html = '<div class="ag-mes-desktop" style="display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:28px repeat('+filasMes+',minmax(88px,1fr));gap:1px;background:var(--border)">';
   var dias = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
   dias.forEach(function(d){
-    html += '<div style="background:var(--bg2);text-align:center;font-size:11px;font-weight:600;color:var(--text3);padding:6px 0;text-transform:uppercase">'+d+'</div>';
+    html += '<div class="ag-mes-head" style="background:var(--bg2);text-align:center;font-size:11px;font-weight:600;color:var(--text3);padding:6px 0;text-transform:uppercase">'+d+'</div>';
   });
 
   // Celdas vacías antes del primer día
   for (var i=0; i<diaInicio; i++) {
-    html += '<div style="background:var(--bg2);min-height:80px;padding:4px"></div>';
+    html += '<div class="ag-mes-cell ag-mes-empty" style="background:var(--bg2);padding:4px"></div>';
   }
 
   for (var d=1; d<=totalDias; d++) {
@@ -13891,7 +13892,7 @@ function agRenderMes() {
     var evsDelDia = evs.filter(function(e){ return e.fecha===fechaStr; });
     var esLaboral = !esFinde;
 
-    html += '<div onclick="agClickDia(\''+fechaStr+'\')" style="background:'+(esHoy?'var(--blue-bg)':esFinde?'var(--bg)':'var(--bg2)')+';min-height:80px;padding:4px;cursor:pointer;transition:background .1s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\''+(esHoy?'var(--blue-bg)':esFinde?'var(--bg)':'var(--bg2)')+'\'">';
+    html += '<div class="ag-mes-cell" onclick="agClickDia(\''+fechaStr+'\')" style="background:'+(esHoy?'var(--blue-bg)':esFinde?'var(--bg)':'var(--bg2)')+';padding:4px;cursor:pointer;transition:background .1s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\''+(esHoy?'var(--blue-bg)':esFinde?'var(--bg)':'var(--bg2)')+'\'">';
     html += '<div style="font-size:12px;font-weight:'+(esHoy?'700':'400')+';color:'+(esHoy?'var(--blue)':esFinde?'var(--text3)':'var(--text)')+';margin-bottom:3px">'+d+'</div>';
 
     evsDelDia.slice(0,3).forEach(function(ev) {
@@ -13911,7 +13912,7 @@ function agRenderMes() {
   var resto = totalCeldas % 7;
   if (resto > 0) {
     for (var j=0; j<(7-resto); j++) {
-      html += '<div style="background:var(--bg);min-height:80px;padding:4px"></div>';
+      html += '<div class="ag-mes-cell ag-mes-empty" style="background:var(--bg);padding:4px"></div>';
     }
   }
   html += '</div>';

@@ -225,6 +225,16 @@
         9: 4
       };
     }
+    if (table && table.id === 'ppto-tabla') {
+      return {
+        0: 17,
+        1: 23,
+        2: 15,
+        3: 16,
+        4: 16,
+        5: 13
+      };
+    }
     var pesos = headers.map(function (th) {
       return defaultWidthForHeader(th);
     });
@@ -237,7 +247,7 @@
   }
 
   function shouldApplyDefaultPercentProfile(table) {
-    return !!(table && (table.id === 'prod-tbl' || table.id === 'gas-tbl'));
+    return !!(table && (table.id === 'prod-tbl' || table.id === 'gas-tbl' || table.id === 'ppto-tabla'));
   }
 
   function currentPercentages(table) {
@@ -477,7 +487,6 @@
     if (card.querySelector('.sv-column-percent-btn,[onclick*="openColumnPercentEditor"]')) return;
     var head = card.querySelector('.card-head');
     if (!head) return;
-    var target = head.children && head.children.length > 1 ? head.children[head.children.length - 1] : head;
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn btn-sm admin-only sv-column-percent-btn';
@@ -488,8 +497,14 @@
       event.stopPropagation();
       openPercentEditor(table);
     });
-    if (target && target !== head && target.appendChild) target.appendChild(btn);
-    else head.appendChild(btn);
+    var actions = head.querySelector('.sv-card-head-actions');
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'sv-card-head-actions';
+      while (head.children.length > 1) actions.appendChild(head.children[1]);
+      head.appendChild(actions);
+    }
+    actions.appendChild(btn);
   }
 
   function openPercentEditor(tableOrId) {
