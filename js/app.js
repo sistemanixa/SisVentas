@@ -3129,6 +3129,72 @@ function fechaVentaTimestamp(fecha, respaldoTs) {
   return Number.isNaN(nativo) ? (parseFloat(respaldoTs)||0) : nativo;
 }
 
+function fechaVentaOrdenISO(fecha, respaldoTs) {
+  var ts = fechaVentaTimestamp(fecha, respaldoTs);
+  if (!ts) return '';
+  var d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0');
+}
+
+function ventaFechaOrden(v) {
+  v = v || {};
+  return String(v.fechaOrden || v.fechaISO || fechaVentaOrdenISO(v.fecha, v.ts) || '').slice(0, 10);
+}
+
+function ventasInicioPeriodoRecienteISO() {
+  var hoy = new Date();
+  var inicio = new Date(hoy.getFullYear(), hoy.getMonth() - 2, 1);
+  return inicio.getFullYear() + '-' + String(inicio.getMonth()+1).padStart(2,'0') + '-01';
+}
+
+function ventaDentroPeriodoReciente(v, desdeISO) {
+  var fecha = ventaFechaOrden(v);
+  if (!fecha) return true; // si una venta antigua no se puede interpretar, no la escondemos silenciosamente
+  return fecha >= desdeISO;
+}
+
+function procesarVentasSnapshot(data, opciones) {
+  opciones = opciones || {};
+  var desdeISO = opciones.desdeISO || ventasInicioPeriodoRecienteISO();
+  var rows = Object.entries(data || {}).map(function(e) {
+    var venta = Object.assign({ fbKey: e[0] }, e[1]);
+    venta.fechaOrden = ventaFechaOrden(venta);
+    return venta;
+  });
+  if (opciones.filtrarPeriodo !== false) {
+    rows = rows.filter(function(v){ return ventaDentroPeriodoReciente(v, desdeISO); });
+  }
+  ventasList = rows.sort(function(a,b) {
+    var diferencia = fechaVentaTimestamp(b.fechaOrden || b.fecha, b.ts) - fechaVentaTimestamp(a.fechaOrden || a.fecha, a.ts);
+    return diferencia || ((b.ts||0) - (a.ts||0));
+  });
+  window.ventasList = ventasList;
+  if (opciones.normalizarFechaOrden && window.fbDB && window.fbUpdate) {
+    var updates = {};
+    rows.forEach(function(v) {
+      if (v.fbKey && v.fechaOrden && !(data[v.fbKey] || {}).fechaOrden) {
+        updates[FB_PATHS.ventas + '/' + v.fbKey + '/fechaOrden'] = v.fechaOrden;
+      }
+    });
+    if (Object.keys(updates).length) {
+      window.fbUpdate(window.fbRef(window.fbDB), updates).catch(function(e){
+        console.warn('[Ventas] No se pudo normalizar fechaOrden', e);
+      });
+    }
+  }
+  if (typeof _aplicarFiltrosVentas === 'function') _aplicarFiltrosVentas();
+  else if (typeof renderVentasTabla === 'function') renderVentasTabla();
+  if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
+  var detalleEl2 = document.getElementById('venta-detalle-view');
+  if (detalleEl2 && detalleEl2.style.display === 'block' && window._ventaDetActualId && typeof verDetalleVenta === 'function') {
+    verDetalleVenta(window._ventaDetActualId);
+  }
+  if (typeof _chequearCambioHistCliente === 'function') _chequearCambioHistCliente();
+  var pageDash = document.getElementById('page-dashboard');
+  if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
+}
+
 function obtenerProximoIdVenta() {
   var maxId = 0;
   (ventasList||[]).forEach(function(venta) {
@@ -3147,28 +3213,53 @@ function obtenerProximoIdVenta() {
 
 function fbCargarVentas() {
   if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.ventas), function(snap) {
-    var data = snap.val();
-    if (data) {
-      ventasList = Object.entries(data).map(function(e) {
-        return Object.assign({ fbKey: e[0] }, e[1]);
-      }).sort(function(a,b) {
-        var diferencia = fechaVentaTimestamp(b.fecha, b.ts) - fechaVentaTimestamp(a.fecha, a.ts);
-        return diferencia || ((b.ts||0) - (a.ts||0));
-      });
-      window.ventasList = ventasList;
-      if (typeof _aplicarFiltrosVentas === 'function') _aplicarFiltrosVentas();
-      else if (typeof renderVentasTabla === 'function') renderVentasTabla();
-      if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
-      // (por ejemplo, si otro usuario registró un pago o cambió el estado mientras lo estabas mirando)
-      var detalleEl2 = document.getElementById('venta-detalle-view');
-      if (detalleEl2 && detalleEl2.style.display === 'block' && window._ventaDetActualId && typeof verDetalleVenta === 'function') {
-        verDetalleVenta(window._ventaDetActualId);
-      }
-      if (typeof _chequearCambioHistCliente === 'function') _chequearCambioHistCliente();
-      var pageDash = document.getElementById('page-dashboard');
-      if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
+  if (window._ventasListenerActivo) return;
+  window._ventasListenerActivo = true;
+  var desdeISO = ventasInicioPeriodoRecienteISO();
+  var baseRef = window.fbRef(window.fbDB, FB_PATHS.ventas);
+
+  function iniciarEscuchaRango() {
+    var target = baseRef;
+    var puedeConsultar = window.fbQuery && window.fbOrderByChild && window.fbStartAt;
+    if (puedeConsultar) {
+      target = window.fbQuery(baseRef, window.fbOrderByChild('fechaOrden'), window.fbStartAt(desdeISO));
     }
+    window.fbOnValue(target, function(snap) {
+      procesarVentasSnapshot(snap.val(), {
+        desdeISO: desdeISO,
+        filtrarPeriodo: !puedeConsultar,
+        normalizarFechaOrden: false
+      });
+    }, function(error) {
+      console.warn('[Ventas] Consulta por rango no disponible, usando respaldo filtrado', error);
+      window.fbOnValue(baseRef, function(snap) {
+        procesarVentasSnapshot(snap.val(), {
+          desdeISO: desdeISO,
+          filtrarPeriodo: true,
+          normalizarFechaOrden: true
+        });
+      });
+    });
+  }
+
+  var marcaLocal = 'sisventas.ventas.fechaOrden.v1';
+  var yaNormalizado = false;
+  try { yaNormalizado = localStorage.getItem(marcaLocal) === '1'; } catch (_) {}
+  if (yaNormalizado || !window.fbGet) {
+    iniciarEscuchaRango();
+    return;
+  }
+  window.fbGet(baseRef).then(function(snap) {
+    procesarVentasSnapshot(snap.val(), {
+      desdeISO: desdeISO,
+      filtrarPeriodo: true,
+      normalizarFechaOrden: true
+    });
+    try { localStorage.setItem(marcaLocal, '1'); } catch (_) {}
+    iniciarEscuchaRango();
+  }).catch(function(error) {
+    console.warn('[Ventas] No se pudo preparar fechaOrden, iniciando escucha directa', error);
+    iniciarEscuchaRango();
   });
 }
 
@@ -3332,6 +3423,9 @@ function abrirEditorVenta(fbKey) {
 
 function fbGuardarVenta(venta) {
   if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
+  venta = venta || {};
+  if (!venta.fechaOrden) venta.fechaOrden = fechaVentaOrdenISO(venta.fecha, venta.ts || Date.now());
+  if (!venta.ts) venta.ts = Date.now();
   var r = window.fbRef(window.fbDB, FB_PATHS.ventas);
   if (venta.fbKey) {
     return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), venta)
@@ -4251,7 +4345,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.14-firebase',
+  VERSION: 'v2.0.15-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5695,6 +5789,8 @@ function confirmarVenta() {
     comisionHabilitada: (function(){ var cb=document.getElementById('venta-generar-comision'); return currentRole === 'admin' ? !!(cb && cb.checked) : true; })(),
     creadaPorRol: currentRole || '',
     fecha: fechaHoy,
+    fechaOrden: fechaVentaOrdenISO(fechaHoy, Date.now()),
+    ts: Date.now(),
     estadoPago: 'pendiente_pago',
     estadoInst: 'pendiente_inst',
     total: 0, subtotal: 0, iva: 0, descuento: 0,
@@ -13502,6 +13598,8 @@ function spGenerarOT() {
     clienteKey:   reclamoClienteFbKey,
     empleado:   tecnico,
     fecha:      fechaHoy,
+    fechaOrden: fechaVentaOrdenISO(fechaHoy, Date.now()),
+    ts:         Date.now(),
     estadoPago: 'pendiente_pago',
     estadoInst: 'pendiente_inst',
     origen:     'reclamo',
@@ -19633,6 +19731,7 @@ function pptoAccion(accion, opts) {
       : null;
     var clienteIdPpto = p.clienteId || p.idCliente || (clienteRefPpto && (clienteRefPpto.id || clienteRefPpto.numero || '')) || '';
     var clienteFbKeyPpto = p.clienteFbKey || p.clienteKey || (clienteRefPpto && clienteRefPpto.fbKey) || '';
+    var fechaVentaPpto = new Date().toISOString().slice(0,10);
     var venta = {
       id:           numVenta,
       cliente:      p.cliente || '',
@@ -19640,7 +19739,8 @@ function pptoAccion(accion, opts) {
       idCliente:    clienteIdPpto,
       clienteFbKey: clienteFbKeyPpto,
       clienteKey:   clienteFbKeyPpto,
-      fecha:        new Date().toISOString().slice(0,10),
+      fecha:        fechaVentaPpto,
+      fechaOrden:   fechaVentaPpto,
       empleado:     p.empleado || currentUser || '',
       comisionado2: (document.getElementById('venta-comisionado2')||{}).value || '',
       conIva:       typeof _ventaConIva !== 'undefined' ? _ventaConIva : true,
@@ -20545,6 +20645,7 @@ function otConfirmarVentaAdicional() {
   });
   var total = items.reduce(function(s,i){ return s+i.sub; }, 0);
 
+  var fechaVentaAdicional = new Date().toISOString().slice(0,10);
   var venta = {
     cliente:      ot.cliente || '',
     items:        items,
@@ -20554,7 +20655,8 @@ function otConfirmarVentaAdicional() {
     otId:         ot.fbKey || ot.id,
     origenOT:     true,
     nota:         'Venta adicional generada desde OT ' + (ot.id||''),
-    fecha:        new Date().toISOString().slice(0,10),
+    fecha:        fechaVentaAdicional,
+    fechaOrden:   fechaVentaAdicional,
     ts:           Date.now()
   };
 
