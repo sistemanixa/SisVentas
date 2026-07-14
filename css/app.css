@@ -1236,6 +1236,21 @@ body.modal-secure-open{overflow:hidden!important}
 #page-presupuesto .sv-resizable-wrap{width:100%!important;max-width:none!important}
 #page-presupuesto #ppto-tabla{min-width:100%!important}
 
+/* v2.0.10 - agenda y grillas a pantalla completa */
+#page-agenda.page.active{display:flex!important;flex-direction:column;width:100%!important;min-height:calc(100vh - 98px)!important}
+#page-agenda.page.active .metrics{flex-shrink:0;width:100%!important}
+#page-agenda #agenda-calendar-card{display:flex!important;flex:1 1 auto!important;min-height:calc(100vh - 245px)!important;width:100%!important;max-width:none!important}
+#page-agenda #agenda-calendar-card > div{display:flex;flex-direction:column;width:100%;min-width:0}
+#page-agenda #ag-calendario{flex:1 1 auto!important;width:100%!important;max-width:none!important}
+#page-agenda #ag-calendario[data-view="mes"]>div,
+#page-agenda #ag-calendario[data-view="semana"]>div,
+#page-agenda #ag-calendario[data-view="dia"]>div{width:100%!important;min-width:100%!important}
+.page.active .card > table,
+.page.active .card > div > table{width:100%!important;min-width:100%!important}
+.page.active .table-wrap{display:block!important}
+.page.active .table-wrap > table:not(#gas-tbl):not(#prod-tbl){width:100%!important;min-width:100%!important}
+.page.active .sv-percent-table{width:100%!important;min-width:100%!important}
+
 /* v1.36.27 - logo unificado y recorte en configuracion */
 .sv-logo-cropper{margin-top:16px;padding:14px;border:0.5px solid var(--border);border-radius:var(--radius-lg);background:var(--bg3)}
 .sv-logo-crop-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
@@ -1278,6 +1293,8 @@ body.modal-secure-open{overflow:hidden!important}
 #page-productos #prod-tbl td,
 #page-productos #prod-tbl th{box-sizing:border-box}
 #page-gastos #gas-tbl{table-layout:auto!important;width:auto!important;min-width:0!important;max-width:none!important}
+#page-productos #prod-tbl.sv-percent-table,
+#page-gastos #gas-tbl.sv-percent-table{table-layout:fixed!important;width:100%!important;min-width:100%!important;max-width:none!important}
 #gas-tbl th,#gas-tbl td{white-space:nowrap}
 #gas-tbl .gas-desc-cell{max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-percent-table th,.sv-percent-table td{overflow:hidden;text-overflow:ellipsis}

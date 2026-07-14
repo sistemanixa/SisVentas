@@ -4251,7 +4251,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.9-firebase',
+  VERSION: 'v2.0.10-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -13836,7 +13836,7 @@ function agCambiarVista(vista, btn) {
 function agEsPantallaMovil() {
   var cont = document.getElementById('agenda-calendar-card') || document.getElementById('page-agenda');
   var ancho = cont && cont.getBoundingClientRect ? cont.getBoundingClientRect().width : 0;
-  return (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) || (ancho > 0 && ancho <= 1120);
+  return (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) || (ancho > 0 && ancho <= 900);
 }
 
 function agRenderCalendario() {
