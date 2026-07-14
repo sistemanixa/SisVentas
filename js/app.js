@@ -2272,6 +2272,57 @@ function abrirModalHsExtra() {
   }
 }
 
+function _hsexMesActual() {
+  return new Date().toISOString().slice(0,7);
+}
+
+function _hsexDiasMes(mesISO) {
+  var partes = String(mesISO || _hsexMesActual()).split('-');
+  var anio = parseInt(partes[0], 10) || new Date().getFullYear();
+  var mes = parseInt(partes[1], 10) || (new Date().getMonth() + 1);
+  var total = new Date(anio, mes, 0).getDate();
+  var dias = [];
+  for (var d = 1; d <= total; d++) {
+    var fecha = anio + '-' + String(mes).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    dias.push({ fecha: fecha, dia: d, label: new Date(anio, mes - 1, d).toLocaleDateString('es-AR', { weekday:'short', day:'2-digit' }) });
+  }
+  return dias;
+}
+
+function renderHsExtraCalendarGrid() {
+  var mesEl = document.getElementById('hsex-mes');
+  var body = document.getElementById('hsex-calendar-body');
+  if (!mesEl || !body) return;
+  var dias = _hsexDiasMes(mesEl.value || _hsexMesActual());
+  body.innerHTML = dias.map(function(d) {
+    return '<div class="hsex-day-row" data-fecha="'+d.fecha+'">' +
+      '<div class="hsex-day-label">'+escapeHTML(d.label)+'</div>' +
+      '<input class="hsex-horas-input" type="number" min="0" step="0.5" placeholder="0" oninput="recalcularHsExtraCalendar()">' +
+      '<input class="hsex-lugar-input" type="text" placeholder="Dónde / OT / cliente" oninput="recalcularHsExtraCalendar()">' +
+    '</div>';
+  }).join('');
+  recalcularHsExtraCalendar();
+}
+
+function recalcularHsExtraCalendar() {
+  var total = 0;
+  var diasCargados = 0;
+  document.querySelectorAll('#hsex-calendar-body .hsex-day-row').forEach(function(row) {
+    var hs = parseFloat((row.querySelector('.hsex-horas-input') || {}).value) || 0;
+    if (hs > 0) {
+      total += hs;
+      diasCargados++;
+      row.classList.add('hsex-day-active');
+    } else {
+      row.classList.remove('hsex-day-active');
+    }
+  });
+  var totalEl = document.getElementById('hsex-total-hs');
+  var diasEl = document.getElementById('hsex-total-dias');
+  if (totalEl) totalEl.textContent = total.toLocaleString('es-AR') + ' hs';
+  if (diasEl) diasEl.textContent = diasCargados + ' día' + (diasCargados === 1 ? '' : 's') + ' cargado' + (diasCargados === 1 ? '' : 's');
+}
+
 function abrirFormCargaHsExtra() {
   var miEmp = Object.values(empData||{}).find(function(e){
     return (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
@@ -2286,18 +2337,22 @@ function abrirFormCargaHsExtra() {
   overlay.id = 'modal-hsextra';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
   overlay.innerHTML =
-    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:500px;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:860px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,.4);overflow:hidden">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border)">' +
         '<div style="font-weight:700;font-size:15px"><i class="ti ti-clock-plus" style="margin-right:8px;color:var(--amber)"></i>Cargar horas extra</div>' +
         '<button onclick="document.getElementById(\'modal-hsextra\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px"><i class="ti ti-x"></i></button>' +
       '</div>' +
-      '<div style="padding:20px;display:flex;flex-direction:column;gap:14px">' +
+      '<div style="padding:20px;display:flex;flex-direction:column;gap:14px;overflow:auto">' +
         '<div style="background:var(--bg3);border-radius:8px;padding:10px 14px;font-size:13px">' +
           '<span style="color:var(--text3)">Empleado: </span><strong>' + escapeHTML(miEmp.nombre||'') + '</strong>' +
         '</div>' +
-        '<div class="fg"><label>Fecha</label><input type="date" id="hsex-fecha" value="' + hoy + '" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
-        '<div class="fg"><label>Cantidad de horas</label><input type="number" id="hsex-hs" placeholder="0" min="0.5" step="0.5" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
-        '<div class="fg"><label>Descripción / Justificación</label><textarea id="hsex-desc" placeholder="Ej: Instalación en Rivadavia 1234 — sistema de alarma. Trabajo adicional fuera del horario habitual." rows="3" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;resize:vertical"></textarea></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+          '<div class="fg"><label>Mes</label><input type="month" id="hsex-mes" value="' + hoy.slice(0,7) + '" onchange="renderHsExtraCalendarGrid()" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit"></div>' +
+          '<div class="hsex-summary"><strong id="hsex-total-hs">0 hs</strong><span id="hsex-total-dias">0 días cargados</span></div>' +
+        '</div>' +
+        '<div class="hsex-calendar-head"><span>Día</span><span>Horas</span><span>Dónde / cliente / OT</span></div>' +
+        '<div id="hsex-calendar-body" class="hsex-calendar-body"></div>' +
+        '<div class="fg"><label>Observaciones generales</label><textarea id="hsex-desc" placeholder="Opcional: comentario general para el administrador." rows="2" style="width:100%;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:inherit;resize:vertical"></textarea></div>' +
       '</div>' +
       '<div style="padding:14px 20px;border-top:0.5px solid var(--border);display:flex;gap:10px;justify-content:flex-end">' +
         '<button class="btn" onclick="document.getElementById(\'modal-hsextra\').remove()">Cancelar</button>' +
@@ -2308,20 +2363,35 @@ function abrirFormCargaHsExtra() {
     '</div>';
 
   document.body.appendChild(overlay);
+  renderHsExtraCalendarGrid();
   overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
 }
 
 async function enviarSolicitudHsExtra(empFbKey, empNombre) {
-  var fecha = document.getElementById('hsex-fecha').value;
-  var hs    = parseFloat(document.getElementById('hsex-hs').value) || 0;
+  var detalleDias = [];
+  document.querySelectorAll('#hsex-calendar-body .hsex-day-row').forEach(function(row) {
+    var horas = parseFloat((row.querySelector('.hsex-horas-input') || {}).value) || 0;
+    if (horas <= 0) return;
+    var lugar = ((row.querySelector('.hsex-lugar-input') || {}).value || '').trim();
+    detalleDias.push({ fecha: row.dataset.fecha || '', horas: horas, lugar: lugar });
+  });
+  var fecha = detalleDias.length ? detalleDias[0].fecha : (document.getElementById('hsex-fecha')||{}).value;
+  var hs    = detalleDias.reduce(function(s, d){ return s + (parseFloat(d.horas)||0); }, 0);
   var desc  = (document.getElementById('hsex-desc').value || '').trim();
-  if (!fecha) { notify('Ingresá la fecha'); return; }
+  var sinLugar = detalleDias.some(function(d){ return !d.lugar; });
+  if (!fecha) { notify('Cargá al menos un día'); return; }
   if (hs <= 0) { notify('Ingresá la cantidad de horas'); return; }
-  if (!desc)   { notify('Ingresá una descripción/justificación'); return; }
+  if (sinLugar) { notify('Completá dónde hiciste las horas en cada día cargado'); return; }
+  var resumenDias = detalleDias.map(function(d){
+    var f = (d.fecha||'').split('-').reverse().join('/');
+    return f + ': ' + d.horas + ' hs en ' + d.lugar;
+  }).join(' · ');
+  var descripcionFinal = resumenDias + (desc ? ' — ' + desc : '');
   try {
     await window.fbPush(window.fbRef(window.fbDB, 'sisventas/hsextra_solicitudes'), {
       empFbKey: empFbKey, empNombre: empNombre,
-      fecha: fecha, horas: hs, descripcion: desc,
+      fecha: fecha, mes: (document.getElementById('hsex-mes')||{}).value || fecha.slice(0,7),
+      horas: hs, descripcion: descripcionFinal, detalleDias: detalleDias,
       estado: 'pendiente', ts: Date.now(), enviadoPor: currentUser || empNombre
     });
     document.getElementById('modal-hsextra').remove();
@@ -4181,7 +4251,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.7-firebase',
+  VERSION: 'v2.0.8-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -18283,6 +18353,8 @@ function renderTablaGastos() {
   tbody.innerHTML = lista.map(function(g) {
     var fecha = (g.fecha||'').split('-').reverse().join('/');
     var venc  = g.vencimiento ? g.vencimiento.split('-').reverse().join('/') : '—';
+    var descCompleta = String(g.descripcion || '—');
+    var descCorta = descCompleta.length > 82 ? descCompleta.slice(0, 82).trim() + '…' : descCompleta;
     var resta = restoGasto(g);
     var tipoNorm = normalizarTipoGasto(g);
     var estadoNorm = normalizarEstadoGasto(g);
@@ -18302,7 +18374,7 @@ function renderTablaGastos() {
       : '';
     return '<tr>' + bulkTd +
       '<td style="color:var(--text3);font-size:12px">'+fecha+'</td>' +
-      '<td style="font-weight:500">'+escapeHTML(g.descripcion||'—')+'</td>' +
+      '<td class="gas-desc-cell" title="'+escapeHTML(descCompleta)+'" style="font-weight:500">'+escapeHTML(descCorta)+'</td>' +
       '<td style="color:var(--text3);font-size:12px">'+escapeHTML(g.categoria||'—')+'</td>' +
       '<td>'+tipoBadge+'</td>' +
       '<td class="tr" style="font-weight:500">$'+(parseFloat(g.monto)||0).toLocaleString('es-AR')+'</td>' +
@@ -18969,8 +19041,8 @@ var APROBACION_CONFIG = {
 window.APROBACION_CONFIG = APROBACION_CONFIG;
 var ACCIONES_CONFIG = {
   enviar_revision:  { label:'Enviar a revisión',        icon:'ti-clock',         cls:'btn btn-sm',         fn:'pptoAccion("enviar_revision")' },
-  aprobar_directo:  { label:'Aprobar directamente',     icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar_directo")' },
-  aprobar:          { label:'Aprobar presupuesto',      icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar")' },
+  aprobar_directo:  { label:'Aprobar y convertir',      icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar_directo")' },
+  aprobar:          { label:'Aprobar y convertir',      icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar")' },
   rechazar:         { label:'Rechazar',                 icon:'ti-x',             cls:'btn btn-sm',         fn:'pptoAccion("rechazar")',  style:'color:var(--red);border-color:var(--red-bg)' },
   enviar_cliente:   { label:'Enviar al cliente',        icon:'ti-send',          cls:'btn btn-sm btn-primary', fn:'pptoAccion("enviar_cliente")' },
   marcar_visto:     { label:'Marcar como visto',        icon:'ti-eye',           cls:'btn btn-sm',         fn:'pptoAccion("marcar_visto")' },
@@ -19527,11 +19599,17 @@ function pptoEnviarCliente() {
   pptoAccion('enviar_cliente');
 }
 
-function pptoAccion(accion) {
+function pptoAccion(accion, opts) {
+  opts = opts || {};
   const p = pptoData.find(x => x.id === pptoActualId || x.fbKey === pptoActualId);
   if (!p) { notify('Presupuesto no encontrado'); return; }
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   const usuario = currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor');
+
+  if (accion === 'aprobar' || accion === 'aprobar_directo') {
+    if (!confirm('¿Aprobar este presupuesto y convertirlo automáticamente en venta?')) return;
+    return pptoAccion('convertir_venta', { skipConfirm: true, aprobadoPor: usuario, aprobadoEn: ahora });
+  }
 
   const transiciones = {
     enviar_revision:  { nuevoEstado:'revision',     msg:'Enviado a revisión interna',      auditMsg:'Enviado a revisión interna' },
@@ -19546,7 +19624,7 @@ function pptoAccion(accion) {
   };
 
   if (accion === 'convertir_venta') {
-    if (!confirm('¿Convertir este presupuesto en venta? El estado de pago inicial será Pendiente de pago.')) return;
+    if (!opts.skipConfirm && !confirm('¿Convertir este presupuesto en venta? El estado de pago inicial será Pendiente de pago.')) return;
     if (!window.fbDB) { notify('Sin conexión'); return; }
     var numVenta = obtenerProximoIdVenta();
     var clienteRefPpto = (typeof window._svResolverClienteRegistro === 'function')
@@ -19583,13 +19661,20 @@ function pptoAccion(accion) {
     window.fbPush(window.fbRef(window.fbDB, 'sisventas/ventas'), venta)
       .then(function(ref) {
         var ventaFbKeyNueva = ref && ref.key ? ref.key : '';
+        var auditConversion = (p.audit || []).concat([{
+          fecha: opts.aprobadoEn || ahora,
+          usuario: opts.aprobadoPor || usuario,
+          accion: opts.aprobadoPor ? 'Aprobado y convertido automáticamente a venta' : 'Convertido a venta'
+        }]);
         if (p.fbKey) {
           window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+p.fbKey), {
             estado: 'convertido',
+            requiereAprobacion: false,
             ventaId: numVenta,
             ventaGeneradaId: numVenta,
             ventaFbKey: ventaFbKeyNueva,
-            ventaGeneradaFbKey: ventaFbKeyNueva
+            ventaGeneradaFbKey: ventaFbKeyNueva,
+            audit: auditConversion
           });
         }
         notify('✓ Venta ' + numVenta + ' creada desde ' + p.id);
