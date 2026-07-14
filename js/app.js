@@ -4186,7 +4186,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.2-firebase',
+  VERSION: 'v2.0.3-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -18329,6 +18329,14 @@ function initGastosColumnResize() {
   var defaults = [34, 82, 230, 110, 86, 105, 105, 112, 92, 92, 124];
   var saved = {};
   try { saved = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch(e) { saved = {}; }
+  var userSized = Object.keys(saved).length > 0;
+  Array.from(table.rows).forEach(function(row){
+    Array.from(row.children || []).forEach(function(cell){
+      cell.style.width = '';
+      cell.style.maxWidth = '';
+      cell.style.minWidth = '';
+    });
+  });
   var colgroup = table.querySelector('colgroup.gas-cols');
   if (!colgroup) {
     colgroup = document.createElement('colgroup');
@@ -18337,26 +18345,38 @@ function initGastosColumnResize() {
   }
   while (colgroup.children.length < headers.length) colgroup.appendChild(document.createElement('col'));
   while (colgroup.children.length > headers.length) colgroup.removeChild(colgroup.lastElementChild);
-  function setWidth(i, w, persist) {
-    w = Math.max(42, Math.min(620, Math.round(w || defaults[i] || 100)));
-    if (colgroup.children[i]) colgroup.children[i].style.width = w + 'px';
-    Array.from(table.rows).forEach(function(row){
-      var cell = row.children[i];
-      if (!cell) return;
-      cell.style.width = w + 'px';
-      cell.style.maxWidth = w + 'px';
-      cell.style.minWidth = '42px';
-      cell.style.overflow = 'hidden';
-      cell.style.textOverflow = 'ellipsis';
-      cell.style.whiteSpace = 'nowrap';
-    });
-    if (persist) {
-      saved[i] = w;
-      try { localStorage.setItem(key, JSON.stringify(saved)); } catch(e) {}
-    }
+  var widths = headers.map(function(th, i){
+    return Math.max(42, Math.min(620, Math.round(parseInt(saved[i],10) || defaults[i] || th.getBoundingClientRect().width || 100)));
+  });
+  if (!userSized) {
+    var wrap = table.closest('.table-wrap') || table.parentElement;
+    var target = wrap ? wrap.clientWidth : 0;
+    var sumBase = widths.reduce(function(s,w){ return s + w; }, 0);
+    var extra = Math.max(0, target - sumBase);
+    if (extra > 0) widths[1] += extra; // al iniciar, Descripción absorbe el ancho libre.
   }
+  function applyAllWidths() {
+    var total = 0;
+    widths.forEach(function(w, i){
+      w = Math.max(42, Math.min(620, Math.round(w || defaults[i] || 100)));
+      widths[i] = w;
+      total += w;
+      if (colgroup.children[i]) colgroup.children[i].style.width = w + 'px';
+    });
+    table.style.tableLayout = 'fixed';
+    table.style.width = total + 'px';
+    table.style.minWidth = '100%';
+  }
+  function setWidth(i, w) {
+    widths[i] = Math.max(42, Math.min(620, Math.round(w || defaults[i] || 100)));
+    applyAllWidths();
+  }
+  function persistWidths() {
+    widths.forEach(function(w, i){ saved[i] = w; });
+    try { localStorage.setItem(key, JSON.stringify(saved)); } catch(e) {}
+  }
+  applyAllWidths();
   headers.forEach(function(th, i){
-    setWidth(i, parseInt(saved[i],10) || defaults[i] || th.getBoundingClientRect().width || 100, false);
     th.classList.add('gas-resizable-th');
     var old = th.querySelector('.gas-col-resizer');
     if (old) old.remove();
@@ -18366,11 +18386,12 @@ function initGastosColumnResize() {
     handle.title = 'Arrastrá para cambiar el ancho. Doble clic para resetear.';
     th.appendChild(handle);
     var startX = 0, startW = 0, dragging = false;
-    function move(clientX) { if (dragging) setWidth(i, startW + (clientX - startX), true); }
+    function move(clientX) { if (dragging) setWidth(i, startW + (clientX - startX)); }
     function stop() {
       if (!dragging) return;
       dragging = false;
       document.body.classList.remove('gas-resizing-columns');
+      persistWidths();
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', stop);
       document.removeEventListener('touchmove', onTouchMove);
@@ -18383,7 +18404,7 @@ function initGastosColumnResize() {
       ev.stopPropagation();
       dragging = true;
       startX = clientX;
-      startW = th.getBoundingClientRect().width;
+      startW = widths[i] || th.getBoundingClientRect().width;
       document.body.classList.add('gas-resizing-columns');
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', stop);
@@ -18397,12 +18418,10 @@ function initGastosColumnResize() {
       ev.stopPropagation();
       delete saved[i];
       try { localStorage.setItem(key, JSON.stringify(saved)); } catch(e) {}
-      setWidth(i, defaults[i] || 100, false);
+      setWidth(i, defaults[i] || 100);
+      persistWidths();
     });
   });
-  table.style.tableLayout = 'fixed';
-  table.style.width = 'max-content';
-  table.style.minWidth = '100%';
 }
 
 function filtrarGastos() { renderTablaGastos(); }
@@ -19151,31 +19170,44 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
     rows = rows.filter(p => p.estado !== 'anulado' && p.estado !== 'convertido');
   }
   if (filtroTexto)  rows = rows.filter(p => (p.cliente + p.id).toLowerCase().includes(filtroTexto.toLowerCase()));
-  var puedeAnularPptoTabla = typeof window.tienePermiso === 'function'
-    ? window.tienePermiso('presupuestos.anular')
-    : String(currentRole || '').toLowerCase() === 'admin';
-  var puedeEliminarPptoTabla = typeof window.tienePermiso === 'function'
-    ? window.tienePermiso('presupuestos.eliminar')
-    : String(currentRole || '').toLowerCase() === 'admin';
   tbody.innerHTML = rows.map(p => {
     const e = PPTO_ESTADOS[p.estado] || {};
     const totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
     const alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
-    const pptoRef = JSON.stringify(p.id || p.fbKey || '');
-    return `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verPpto(${pptoRef})">
+    const pptoRef = escapeHTML(p.id || p.fbKey || '');
+    return `<tr class="ppto-row" data-ppto-ref="${pptoRef}" style="cursor:pointer;touch-action:pan-x pan-y">
       <td style="font-weight:500">${escapeHTML(p.id)}${alerta}</td>
       <td>${escapeHTML(p.cliente)}</td>
       <td class="tr" style="font-weight:500">${totalFmt}</td>
       <td>${escapeHTML(p.vence)}</td>
       <td>${pptoStateBadge(p.estado)}</td>
-      <td onclick="event.stopPropagation()" style="position:relative">
-        <button class="btn btn-sm btn-icon" onclick="abrirMenuPpto(event,${pptoRef})" title="Acciones">
+      <td style="position:relative">
+        <button class="btn btn-sm btn-icon ppto-actions-btn" type="button" data-ppto-ref="${pptoRef}" title="Acciones">
           <i class="ti ti-dots-vertical" style="font-size:15px"></i>
         </button>
       </td>
     </tr>`;
   }).join('');
+  initPptoTablaEventos();
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sin resultados</td></tr>';
+}
+
+function initPptoTablaEventos() {
+  var tbody = document.getElementById('ppto-tbody-main');
+  if (!tbody || tbody.dataset.pptoEventsReady === '1') return;
+  tbody.dataset.pptoEventsReady = '1';
+  tbody.addEventListener('click', function(ev) {
+    var btn = ev.target.closest && ev.target.closest('.ppto-actions-btn');
+    if (btn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      abrirMenuPpto(ev, btn.dataset.pptoRef || '');
+      return;
+    }
+    var row = ev.target.closest && ev.target.closest('.ppto-row');
+    if (!row || !tbody.contains(row)) return;
+    verPpto(row.dataset.pptoRef || '');
+  });
 }
 
 // Ver detalle de un presupuesto
