@@ -1239,9 +1239,10 @@ body.modal-secure-open{overflow:hidden!important}
 /* v2.0.10 - agenda y grillas a pantalla completa */
 #page-agenda.page.active{display:flex!important;flex-direction:column;width:100%!important;min-height:calc(100vh - 98px)!important}
 #page-agenda.page.active .metrics{flex-shrink:0;width:100%!important}
-#page-agenda #agenda-calendar-card{display:flex!important;flex:1 1 auto!important;min-height:calc(100vh - 245px)!important;width:100%!important;max-width:none!important}
-#page-agenda #agenda-calendar-card > div{display:flex;flex-direction:column;width:100%;min-width:0}
-#page-agenda #ag-calendario{flex:1 1 auto!important;width:100%!important;max-width:none!important}
+#page-agenda #agenda-calendar-card{display:flex!important;flex-direction:column!important;flex:1 1 auto!important;min-height:calc(100vh - 245px)!important;width:100%!important;max-width:none!important}
+#page-agenda #agenda-calendar-card > .agenda-toolbar{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;width:100%;min-width:0;flex-shrink:0}
+#page-agenda #agenda-calendar-card > .agenda-scroll-hint{flex-shrink:0}
+#page-agenda #ag-calendario{display:block!important;flex:1 1 auto!important;width:100%!important;max-width:none!important;margin-top:8px!important}
 #page-agenda #ag-calendario[data-view="mes"]>div,
 #page-agenda #ag-calendario[data-view="semana"]>div,
 #page-agenda #ag-calendario[data-view="dia"]>div{width:100%!important;min-width:100%!important}
@@ -1294,7 +1295,7 @@ body.modal-secure-open{overflow:hidden!important}
 #page-productos #prod-tbl th{box-sizing:border-box}
 #page-gastos #gas-tbl{table-layout:auto!important;width:auto!important;min-width:0!important;max-width:none!important}
 #page-productos #prod-tbl.sv-percent-table,
-#page-gastos #gas-tbl.sv-percent-table{table-layout:fixed!important;width:100%!important;min-width:100%!important;max-width:none!important}
+#page-gastos #gas-tbl.sv-percent-table{table-layout:fixed!important;width:var(--sv-percent-total-width,100%)!important;min-width:100%!important;max-width:none!important}
 #gas-tbl th,#gas-tbl td{white-space:nowrap}
 #gas-tbl .gas-desc-cell{max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-percent-table th,.sv-percent-table td{overflow:hidden;text-overflow:ellipsis}
@@ -1309,6 +1310,7 @@ body.modal-secure-open{overflow:hidden!important}
 .sv-column-percent-row input{width:100%;padding:6px 8px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);font-family:inherit;text-align:right}
 .sv-column-percent-row em{font-style:normal;color:var(--text3);font-size:12px}
 .sv-column-percent-total{padding:0 18px 12px;color:var(--text3);font-size:12px}
+.sv-column-percent-total span{margin-left:6px;color:var(--text3)}
 .sv-column-percent-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--border)}
 @media (max-width: 720px){.sv-column-percent-list{grid-template-columns:1fr}.sv-column-percent-overlay{align-items:flex-end;padding:10px}.sv-column-percent-panel{max-height:94vh}}
 .hsex-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg3);padding:9px 12px}

@@ -198,6 +198,33 @@
 
   function defaultPercentages(table) {
     var headers = tableHeaders(table);
+    if (table && table.id === 'prod-tbl') {
+      return {
+        0: 5,
+        1: 4,
+        2: 30,
+        3: 50,
+        4: 3,
+        5: 8,
+        6: 8,
+        7: 6,
+        8: 3
+      };
+    }
+    if (table && table.id === 'gas-tbl') {
+      return {
+        0: 6,
+        1: 38,
+        2: 9,
+        3: 7,
+        4: 9,
+        5: 9,
+        6: 9,
+        7: 7,
+        8: 7,
+        9: 4
+      };
+    }
     var pesos = headers.map(function (th) {
       return defaultWidthForHeader(th);
     });
@@ -207,6 +234,10 @@
       data[index] = Math.round((pesos[index] / total) * 1000) / 10;
     });
     return data;
+  }
+
+  function shouldApplyDefaultPercentProfile(table) {
+    return !!(table && (table.id === 'prod-tbl' || table.id === 'gas-tbl'));
   }
 
   function currentPercentages(table) {
@@ -230,8 +261,12 @@
     if (!table || !headers.length) return;
     clearPixelWidths(table);
     var colgroup = ensureColgroup(table, totalColumnCount(table));
+    var totalPct = Object.keys(percentages || {}).reduce(function (sum, key) {
+      return sum + normalizePercent(percentages[key]);
+    }, 0);
     table.classList.add('sv-percent-table');
-    table.style.width = '100%';
+    table.style.setProperty('--sv-percent-total-width', Math.max(100, Math.round(totalPct * 10) / 10) + '%');
+    table.style.width = 'var(--sv-percent-total-width, 100%)';
     table.style.tableLayout = 'fixed';
     headers.forEach(function (_th, index) {
       var pct = normalizePercent(percentages[index]);
@@ -251,8 +286,12 @@
   }
 
   function applySavedPercentProfile(table) {
-    if (!hasSavedPercentages(table)) return false;
-    applyPercentProfile(table, loadPercentages(table));
+    if (hasSavedPercentages(table)) {
+      applyPercentProfile(table, loadPercentages(table));
+      return true;
+    }
+    if (!shouldApplyDefaultPercentProfile(table)) return false;
+    applyPercentProfile(table, defaultPercentages(table));
     return true;
   }
 
@@ -312,6 +351,7 @@
 
   function initTable(table) {
     if (!table) return;
+    ensurePercentButton(table);
     if (table.dataset && table.dataset.svNoResize === '1') {
       applySavedPercentProfile(table);
       return;
@@ -421,6 +461,37 @@
     });
   }
 
+  function tableLabel(table) {
+    var card = table && table.closest ? table.closest('.card') : null;
+    var title = card && card.querySelector('.card-title');
+    if (title && title.textContent) return title.textContent.trim();
+    if (table && table.id) return table.id;
+    return 'tabla';
+  }
+
+  function ensurePercentButton(table) {
+    if (!table || !tableHeaders(table).length) return;
+    if (window.currentRole && window.currentRole !== 'admin') return;
+    var card = table.closest('.card');
+    if (!card) return;
+    if (card.querySelector('.sv-column-percent-btn,[onclick*="openColumnPercentEditor"]')) return;
+    var head = card.querySelector('.card-head');
+    if (!head) return;
+    var target = head.children && head.children.length > 1 ? head.children[head.children.length - 1] : head;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm admin-only sv-column-percent-btn';
+    btn.title = 'Configurar ancho porcentual de columnas de ' + tableLabel(table);
+    btn.innerHTML = '<i class="ti ti-columns"></i> Columnas %';
+    btn.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      openPercentEditor(table);
+    });
+    if (target && target !== head && target.appendChild) target.appendChild(btn);
+    else head.appendChild(btn);
+  }
+
   function openPercentEditor(tableOrId) {
     var table = typeof tableOrId === 'string' ? document.getElementById(tableOrId) : tableOrId;
     if (!table) {
@@ -458,7 +529,7 @@
             '</label>';
           }).join('') +
         '</div>' +
-        '<div class="sv-column-percent-total">Total: <strong id="sv-column-percent-total">0%</strong></div>' +
+        '<div class="sv-column-percent-total">Total: <strong id="sv-column-percent-total">0%</strong><span id="sv-column-percent-hint"></span></div>' +
         '<div class="sv-column-percent-actions">' +
           '<button class="btn btn-sm" type="button" data-sv-default>Usar base sugerida</button>' +
           '<button class="btn btn-sm" type="button" data-sv-reset>Quitar perfil</button>' +
@@ -478,9 +549,13 @@
     function refreshTotal(data) {
       var total = Object.keys(data).reduce(function (s, key) { return s + normalizePercent(data[key]); }, 0);
       var el = document.getElementById('sv-column-percent-total');
+      var hint = document.getElementById('sv-column-percent-hint');
       if (el) {
         el.textContent = (Math.round(total * 10) / 10) + '%';
-        el.style.color = Math.abs(total - 100) <= 0.5 ? 'var(--green)' : 'var(--amber)';
+        el.style.color = Math.abs(total - 100) <= 0.5 ? 'var(--green)' : (total > 100 ? 'var(--blue)' : 'var(--amber)');
+      }
+      if (hint) {
+        hint.textContent = total > 100 ? ' · queda más ancho y se desplaza horizontalmente' : (total < 99.5 ? ' · queda espacio libre' : '');
       }
     }
 
@@ -510,6 +585,7 @@
         try { localStorage.removeItem(percentStorageKey(table)); } catch (_) {}
         clearPixelWidths(table);
         table.classList.remove('sv-percent-table');
+        table.style.removeProperty('--sv-percent-total-width');
         table.style.width = '';
         table.style.tableLayout = '';
         overlay.remove();
