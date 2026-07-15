@@ -645,6 +645,12 @@ body.modal-secure-open{overflow:hidden!important}
 .product-hero-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--blue)!important}
 .product-hero-edit{align-self:flex-start;flex-shrink:0}
 @media(max-width:760px){.product-hero{align-items:flex-start;gap:14px;padding:16px}.product-hero-img{width:78px;height:78px;border-radius:16px}.product-hero-img i{font-size:34px}.product-hero-name{font-size:20px}.product-hero-edit{margin-left:auto}}
+.prod-row-img{width:64px;height:64px;border-radius:14px;object-fit:cover;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(30,41,59,.92),rgba(15,23,42,.76));border:1px solid rgba(255,255,255,.10);box-shadow:0 10px 24px rgba(0,0,0,.18);flex-shrink:0;overflow:hidden}
+.prod-row-img-placeholder i{font-size:25px;color:var(--text3)}
+#prod-tbl td:first-child{padding-top:10px!important;padding-bottom:10px!important}
+@media(max-width:760px){.prod-row-img{width:54px;height:54px;border-radius:12px}.prod-row-img-placeholder i{font-size:22px}}
+.btn-ver-compra-prod{color:var(--amber)!important;border-color:var(--amber)!important;background:rgba(251,191,36,.05)!important;white-space:nowrap;gap:6px}
+.btn-ver-compra-prod:hover{background:rgba(251,191,36,.13)!important;box-shadow:0 0 0 2px rgba(251,191,36,.10)}
 .venta-resumen-stock{background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-top:12px;display:none}
 
 /* ── FAB (Botón flotante) ── */
