@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.15-firebase' -->
+<!-- VERSION: 'v2.0.16-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.15 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.16 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -307,6 +307,11 @@
             <div class="m-value" id="kpi-pptos">0</div>
             <div class="m-sub m-warn"><span id="kpi-pptos-sub">cargando...</span></div>
             <div class="m-sub" id="kpi-pptos-conv" style="color:var(--green);font-size:10px;margin-top:2px"></div>
+          </div>
+          <div class="metric admin-o-administrativo no-vendedor" id="dash-dolar-card" style="cursor:pointer;touch-action:pan-x pan-y" onclick="abrirHistoricoDolarDashboard()" title="Ver histórico del dólar">
+            <div class="m-label">Dólar</div>
+            <div class="m-value" id="dash-dolar-valor" style="color:var(--blue)">$0</div>
+            <div class="m-sub" id="dash-dolar-sub">cargando...</div>
           </div>
           <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiNavegar('iva')" title="Ver Facturaciones">
             <div class="m-label">IVA a compensar</div>
@@ -1445,6 +1450,7 @@
         <!-- TABS -->
         <div id="cfg-tabs-main" class="cfg-tabs-main">
           <button class="cfg-tab active" onclick="showCfgTab('general',this)">General</button>
+          <button class="cfg-tab admin-o-administrativo" data-cfg-tab="dolar" onclick="showCfgDolarTab(this)">Dólar</button>
           <button class="cfg-tab" onclick="showCfgTab('cargos',this)">Cargos</button>
           <button class="cfg-tab" onclick="showCfgTab('comisiones',this)">Comisiones</button>
           <button class="cfg-tab" onclick="showCfgTab('impuestos',this)">Impuestos</button>
@@ -1463,7 +1469,7 @@
 
         <!-- TAB: GENERAL -->
         <div id="cfg-general" class="cfg-panel">
-          <div class="card">
+          <div class="card" id="cfg-dolar-historico-card">
             <div class="card-head"><span class="card-title">Logo de la empresa</span></div>
             <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
               <!-- Preview -->
@@ -1974,7 +1980,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.15
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.16
 Listo para analizar.
 </pre>
           </div>
@@ -3321,11 +3327,12 @@ Listo para analizar.
                   <div style="font-size:11px;color:var(--text3);margin-top:4px">Precio de lista del gremio en pesos</div>
                 </div>
                 <div class="fg">
-                  <label>% Margen deseado</label>
+                  <label>% Margen deseado <span style="color:var(--text3);font-weight:400">(sobre venta)</span></label>
                   <div style="display:flex;align-items:center;gap:6px">
                     <input type="number" id="pf-margen-deseado" placeholder="40" min="0" max="99" style="width:80px" oninput="calcPrecioDesdeGremio()">
                     <span style="color:var(--text3);font-size:13px">%</span>
                   </div>
+                  <div style="font-size:11px;color:var(--text3);margin-top:4px">Ej.: 30% significa que el costo representa el 70% del precio de venta.</div>
                   <div style="font-size:11px;color:var(--text3);margin-top:4px">Ej: 40 = ganás 40% sobre el costo</div>
                 </div>
                 <div class="fg">
@@ -3346,7 +3353,7 @@ Listo para analizar.
             </div>
               <div class="fg"><label>Precio de compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input data-money="1" id="pf-compra" placeholder="0" oninput="calcMargen()"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
               <div class="fg"><label>Precio de venta (<span id="pf-venta-moneda-lbl">$</span>)</label><input data-money="1" id="pf-venta" placeholder="0" oninput="calcMargen()"></div>
-              <div class="fg"><label>Margen calculado</label><input type="text" id="pf-margen" readonly placeholder="—" style="color:var(--green);font-weight:500"></div>
+              <div class="fg"><label>Margen calculado</label><input type="text" id="pf-margen" readonly placeholder="—" style="color:var(--green);font-weight:500" title="Muestra margen sobre costo y sobre venta para evitar confusiones"></div>
               <div class="fg"><label>IVA</label>
                 <select id="pf-iva">
                   <option value="21">21%</option>
@@ -4582,7 +4589,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.15</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.16</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">

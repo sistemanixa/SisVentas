@@ -4345,7 +4345,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.15-firebase',
+  VERSION: 'v2.0.16-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6540,9 +6540,14 @@ function calcMargen() {
   const v = getMontoRaw(document.getElementById('pf-venta'));
   const iva = parseFloat(document.getElementById('pf-iva').value) || 0;
   if (c > 0 && v > 0) {
-    const margen = ((v - c) / c * 100).toFixed(1);
-    document.getElementById('pf-margen').value = margen + '%';
-    document.getElementById('pf-margen').style.color = margen >= 0 ? 'var(--green)' : 'var(--red)';
+    const margenCosto = ((v - c) / c * 100);
+    const margenVenta = ((v - c) / v * 100);
+    var margenEl = document.getElementById('pf-margen');
+    if (margenEl) {
+      margenEl.value = margenCosto.toFixed(1) + '% costo · ' + margenVenta.toFixed(1) + '% venta';
+      margenEl.title = 'Sobre costo: ' + margenCosto.toFixed(1) + '%. Sobre venta: ' + margenVenta.toFixed(1) + '%.';
+      margenEl.style.color = margenVenta >= 0 ? 'var(--green)' : 'var(--red)';
+    }
   } else {
     document.getElementById('pf-margen').value = '—';
   }
@@ -6956,10 +6961,12 @@ function showCfgTab(id, el) {
     notify('Acceso restringido para tu rol');
     return;
   }
+  var generalPanel = document.getElementById('cfg-general');
+  if (generalPanel) generalPanel.classList.remove('cfg-dolar-only');
   document.querySelectorAll('.cfg-panel').forEach(function(p){ p.style.display = 'none'; });
   document.querySelectorAll('.cfg-tab').forEach(function(t){ t.classList.remove('active'); });
   document.getElementById('cfg-' + id).style.display = 'block';
-  el.classList.add('active');
+  if (el) el.classList.add('active');
   if (id === 'roles') { renderTablaRoles(); cargarDashWidgets(); }
   if (id === 'facturacion' && typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
   if (id === 'productos' && typeof actualizarStatProductos === 'function') setTimeout(actualizarStatProductos, 200);
@@ -6969,6 +6976,12 @@ function showCfgTab(id, el) {
   if (id === 'actividad') cargarLogActividad();
   if (id === 'mantenimiento' && typeof mntInicializar === 'function') mntInicializar();
   if (id === 'asistente') aacfgInicializar();
+}
+function showCfgDolarTab(el) {
+  showCfgTab('general', el);
+  var generalPanel = document.getElementById('cfg-general');
+  if (generalPanel) generalPanel.classList.add('cfg-dolar-only');
+  if (typeof dolarHistoricoCargar === 'function') setTimeout(dolarHistoricoCargar, 120);
 }
 // CONFIGURACIÓN DEL ASISTENTE DE VENTAS — editor visual
 var AACFG_RUBROS = {};       // Estado en memoria, espejo de Firebase
@@ -9867,6 +9880,30 @@ function guardarNuevoGenerico() {
 
   cerrarModalNuevoGenerico();
 }
+function actualizarDolarDashboard() {
+  var valorEl = document.getElementById('dash-dolar-valor');
+  var subEl = document.getElementById('dash-dolar-sub');
+  if (!valorEl && !subEl) return;
+  var cfg = window.TIPO_CAMBIO_CONFIG || {};
+  var tipo = cfg.dolarConversion || 'oficial';
+  var valor = parseFloat(cfg[tipo]) || parseFloat(cfg.oficial) || parseFloat(cfg.blue) || parseFloat(cfg.mep) || 0;
+  var tipoLabel = tipo === 'mep' ? 'MEP' : (tipo ? tipo.charAt(0).toUpperCase() + tipo.slice(1) : 'Oficial');
+  var ts = Math.max(parseFloat(cfg.actualizadoApiEn) || 0, parseFloat(cfg.actualizadoManualEn) || 0);
+  if (valorEl) valorEl.textContent = valor > 0 ? '$' + Math.round(valor).toLocaleString('es-AR') : '$0';
+  if (subEl) {
+    subEl.textContent = valor > 0
+      ? tipoLabel + (ts ? ' · ' + new Date(ts).toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'}) + ' ' + new Date(ts).toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) : '')
+      : 'sin cotización';
+    subEl.style.color = valor > 0 ? 'var(--text3)' : 'var(--amber)';
+  }
+}
+function abrirHistoricoDolarDashboard() {
+  showPage('configuracion', document.querySelector('[onclick*="configuracion"]'));
+  setTimeout(function() {
+    var btn = document.querySelector('[data-cfg-tab="dolar"]');
+    if (typeof showCfgDolarTab === 'function') showCfgDolarTab(btn);
+  }, 160);
+}
 function guardarTipoCambio(btn) {
   var datos = {
     oficial: parseFloat((document.getElementById('cfg-dolar-oficial')||{}).value) || 0,
@@ -9878,6 +9915,7 @@ function guardarTipoCambio(btn) {
     actualizadoManualEn: Date.now()
   };
   window.TIPO_CAMBIO_CONFIG = datos; // caché en memoria para uso inmediato en ventas/presupuestos
+  actualizarDolarDashboard();
   if (window.fbDB) {
     window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos)
       .then(function(){
@@ -9927,6 +9965,7 @@ function actualizarDolarAPI(silencioso, _esReintento) {
         fuenteFecha: oficial ? oficial.fechaActualizacion : ''
       };
       window.TIPO_CAMBIO_CONFIG = datos;
+      actualizarDolarDashboard();
       if (!window.fbDB) { if (!silencioso) notify('Cotización obtenida pero sin conexión a Firebase — no se guardó'); return; }
 
       window.fbSet(window.fbRef(window.fbDB,'sisventas/config/tipoCambio'), datos)
@@ -9966,6 +10005,7 @@ function chequearActualizacionAutoDolar() {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tipoCambio')).then(function(snap) {
     var d = snap.val(); if (!d) return;
     window.TIPO_CAMBIO_CONFIG = d;
+    actualizarDolarDashboard();
     if (d.actualizacionAuto !== 'diaria') return;
     var ultima = d.actualizadoApiEn || 0;
     var unDiaMs = 24*60*60*1000;
@@ -10067,6 +10107,7 @@ function cargarConfigGeneral() {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tipoCambio')).then(function(snap) {
     var d = snap.val(); if (!d) return;
     window.TIPO_CAMBIO_CONFIG = d;
+    actualizarDolarDashboard();
     var o=document.getElementById('cfg-dolar-oficial'), b=document.getElementById('cfg-dolar-blue'), m=document.getElementById('cfg-dolar-mep');
     var mp=document.getElementById('cfg-moneda-presupuestos'), dc=document.getElementById('cfg-dolar-conversion'), ta=document.getElementById('cfg-tc-auto');
     if (o && d.oficial) o.value = d.oficial;
@@ -21548,6 +21589,7 @@ function renderKPIsDashboard() {
   if (pptoSubEl) pptoSubEl.textContent = pptosActivos.length + ' activos';
   var pptoConvEl = document.getElementById('kpi-pptos-conv');
   if (pptoConvEl) pptoConvEl.textContent = pptosConvertidos.length + ' convertidos · ' + tasaConv + '% conversión';
+  actualizarDolarDashboard();
   actualizarKpiIvaDashboard();
   var dias7 = [];
   for (var i = 6; i >= 0; i--) {

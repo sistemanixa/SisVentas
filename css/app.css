@@ -1226,6 +1226,10 @@ body.modal-secure-open{overflow:hidden!important}
 .page.active .table-wrap > table,
 .page.active .sv-auto-grid-wrap > table,
 .page.active table.sv-resizable-table{width:max-content!important;min-width:100%!important}
+.page.active .table-wrap > table.sv-percent-table,
+.page.active .sv-auto-grid-wrap > table.sv-percent-table,
+.page.active table.sv-resizable-table.sv-percent-table,
+.page.active table.sv-percent-table{table-layout:fixed!important;width:var(--sv-percent-total-width,100%)!important;min-width:100%!important;max-width:none!important}
 .page.active .dt{width:100%!important;min-width:100%!important}
 #page-presupuesto,
 #page-presupuesto #ppto-list-view,
@@ -1241,6 +1245,12 @@ body.modal-secure-open{overflow:hidden!important}
 .sv-card-head-actions .btn{flex:0 0 auto}
 .sv-column-percent-btn{border-color:rgba(120,130,160,.35)!important;background:rgba(120,130,160,.08)!important;color:var(--text2)!important}
 .sv-column-percent-btn:hover{background:rgba(120,130,160,.16)!important;color:var(--text)!important}
+.sv-column-percent-head{cursor:move;user-select:none}
+.sv-column-percent-head button{cursor:pointer}
+.sv-column-percent-panel.is-dragging{border-color:rgba(96,165,250,.55)!important;box-shadow:0 28px 80px rgba(0,0,0,.58)!important}
+#cfg-general #cfg-dolar-historico-card{display:none}
+#cfg-general.cfg-dolar-only > .card{display:none!important}
+#cfg-general.cfg-dolar-only #cfg-dolar-historico-card{display:block!important}
 
 /* v2.0.10 - agenda y grillas a pantalla completa */
 #page-agenda.page.active{display:flex!important;flex-direction:column;width:100%!important;min-height:calc(100vh - 98px)!important}
@@ -1261,7 +1271,7 @@ body.modal-secure-open{overflow:hidden!important}
 .page.active .card > div > table{width:100%!important;min-width:100%!important}
 .page.active .table-wrap{display:block!important}
 .page.active .table-wrap > table:not(#gas-tbl):not(#prod-tbl){width:100%!important;min-width:100%!important}
-.page.active .sv-percent-table{width:100%!important;min-width:100%!important}
+.page.active .sv-percent-table{width:var(--sv-percent-total-width,100%)!important;min-width:100%!important}
 
 /* v1.36.27 - logo unificado y recorte en configuracion */
 .sv-logo-cropper{margin-top:16px;padding:14px;border:0.5px solid var(--border);border-radius:var(--radius-lg);background:var(--bg3)}
@@ -1310,6 +1320,10 @@ body.modal-secure-open{overflow:hidden!important}
 #gas-tbl th,#gas-tbl td{white-space:nowrap}
 #gas-tbl .gas-desc-cell{max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-percent-table th,.sv-percent-table td{overflow:hidden;text-overflow:ellipsis}
+.page.active .table-wrap > table.sv-percent-table,
+.page.active .sv-auto-grid-wrap > table.sv-percent-table,
+.page.active table.sv-resizable-table.sv-percent-table,
+.page.active table.sv-percent-table{table-layout:fixed!important;width:var(--sv-percent-total-width,100%)!important;min-width:100%!important;max-width:none!important}
 .sv-column-percent-overlay{position:fixed;inset:0;z-index:1000000;background:rgba(0,0,0,.52);display:flex;align-items:center;justify-content:center;padding:18px}
 .sv-column-percent-panel{width:min(720px,96vw);max-height:88vh;overflow:hidden;display:flex;flex-direction:column;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.48)}
 .sv-column-percent-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:16px 18px;border-bottom:1px solid var(--border)}

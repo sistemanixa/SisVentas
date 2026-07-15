@@ -82,6 +82,7 @@
     setText('dh-blue', money(ultimo.blue));
     setText('dh-mep', money(ultimo.mep));
     setText('dh-count', rows.length);
+    if (typeof window.actualizarDolarDashboard === 'function') window.actualizarDolarDashboard();
   }
 
   function renderTabla(rows){

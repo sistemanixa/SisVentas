@@ -530,7 +530,7 @@
     overlay.className = 'sv-column-percent-overlay';
     overlay.innerHTML =
       '<div class="sv-column-percent-panel">' +
-        '<div class="sv-column-percent-head">' +
+        '<div class="sv-column-percent-head" data-sv-drag-handle title="Arrastrá para mover">' +
           '<div><strong>Anchos de columnas</strong><span>Modificá los porcentajes y la tabla cambia en vivo.</span></div>' +
           '<button class="btn btn-sm btn-icon" type="button" data-sv-close><i class="ti ti-x"></i></button>' +
         '</div>' +
@@ -552,6 +552,49 @@
         '</div>' +
       '</div>';
     document.body.appendChild(overlay);
+    var panel = overlay.querySelector('.sv-column-percent-panel');
+    var dragHandle = overlay.querySelector('[data-sv-drag-handle]');
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+    function fijarPanelParaArrastre() {
+      if (!panel) return null;
+      var rect = panel.getBoundingClientRect();
+      panel.style.position = 'fixed';
+      panel.style.left = rect.left + 'px';
+      panel.style.top = rect.top + 'px';
+      panel.style.margin = '0';
+      panel.style.transform = 'none';
+      return rect;
+    }
+    if (panel && dragHandle) {
+      dragHandle.addEventListener('pointerdown', function (ev) {
+        if (ev.target && ev.target.closest('button,input,select,textarea,a')) return;
+        var rect = fijarPanelParaArrastre();
+        if (!rect) return;
+        ev.preventDefault();
+        var startX = ev.clientX;
+        var startY = ev.clientY;
+        var startLeft = rect.left;
+        var startTop = rect.top;
+        panel.classList.add('is-dragging');
+        if (dragHandle.setPointerCapture) {
+          try { dragHandle.setPointerCapture(ev.pointerId); } catch (_) {}
+        }
+        function onMove(moveEv) {
+          var maxLeft = Math.max(8, window.innerWidth - rect.width - 8);
+          var maxTop = Math.max(8, window.innerHeight - rect.height - 8);
+          panel.style.left = clamp(startLeft + moveEv.clientX - startX, 8, maxLeft) + 'px';
+          panel.style.top = clamp(startTop + moveEv.clientY - startY, 8, maxTop) + 'px';
+        }
+        function onUp() {
+          panel.classList.remove('is-dragging');
+          document.removeEventListener('pointermove', onMove);
+        }
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp, { once: true });
+      });
+    }
 
     function readInputs() {
       var data = {};
