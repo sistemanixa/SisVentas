@@ -4494,7 +4494,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.26-firebase',
+  VERSION: 'v2.0.27-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6273,6 +6273,50 @@ var prodImagenArchivoTemp = null; // File pendiente de subir a Storage al guarda
 var prodImagenBase64Temp = null;  // Preview local mientras no se guardó
 var prodImagenUrlActual = '';     // URL final (sea de Storage o pegada a mano)
 
+function obtenerDolarReferenciaProducto() {
+  var cfg = window.TIPO_CAMBIO_CONFIG || {};
+  var tipo = cfg.dolarConversion || 'oficial';
+  var valor = parseFloat(cfg[tipo]) || parseFloat(cfg.oficial) || parseFloat(cfg.blue) || parseFloat(cfg.mep) || 0;
+  if (!valor && window._tipoCambioActual && window._tipoCambioActual.venta) {
+    tipo = 'venta';
+    valor = parseFloat(window._tipoCambioActual.venta) || 0;
+  }
+  return { tipo: tipo, valor: valor };
+}
+
+function normalizarUrlProveedorProducto(url) {
+  var u = String(url || '').trim();
+  if (!u) return '';
+  if (/^https?:\/\//i.test(u)) return u;
+  if (/^\d+$/.test(u)) return 'https://www.tecnoprices.com/' + u;
+  return u;
+}
+
+function completarReferenciaProveedorProducto(pv, urlFallback, origen) {
+  pv = Object.assign({}, pv || {});
+  var tc = obtenerDolarReferenciaProducto();
+  var precio = parseFloat(pv.precio) || parseFloat(pv.precioArsPublicado) || 0;
+  var url = normalizarUrlProveedorProducto(pv.url || urlFallback || '');
+  var costoReal = precio > 0 && pv.sinIva ? precio * 1.21 : precio;
+  pv.nombre = String(pv.nombre || pv.proveedor || '').trim();
+  pv.precio = Math.round(precio * 100) / 100;
+  pv.precioArsPublicado = pv.precio;
+  pv.monedaPublicada = pv.monedaPublicada || 'ARS';
+  pv.sinIva = !!pv.sinIva;
+  pv.costoRealArs = Math.round(costoReal * 100) / 100;
+  pv.url = url;
+  if (tc.valor > 0 && pv.precio > 0) {
+    pv.dolarUsado = tc.valor;
+    pv.dolarTipo = tc.tipo;
+    pv.precioUsdReferencia = Math.round((pv.precio / tc.valor) * 100) / 100;
+    pv.costoRealUsdReferencia = Math.round((pv.costoRealArs / tc.valor) * 100) / 100;
+  }
+  pv.actualizado = pv.actualizado || new Date().toISOString().slice(0,10);
+  pv.actualizadoEn = pv.actualizadoEn || Date.now();
+  pv.actualizadoOrigen = origen || pv.actualizadoOrigen || 'manual';
+  return pv;
+}
+
 function previewImagenProducto(input) {
   var file = input.files[0];
   if (!file) return;
@@ -6373,18 +6417,18 @@ function abrirFormProducto(id) {
     _mostrarPreviewImagenProducto(p.imagenUrl);
   }
   if (Array.isArray(p.proveedores) && p.proveedores.length) {
-    prodProveedoresActuales = p.proveedores.slice();
+    prodProveedoresActuales = p.proveedores.map(function(pv){ return completarReferenciaProveedorProducto(pv, p.codWeb || p.urlProveedor || '', pv.actualizadoOrigen || 'legacy'); });
   } else if (p.proveedor) {
-    prodProveedoresActuales = [{ nombre: p.proveedor, precio: parseFloat(p.compra)||0, actualizado: p.fechaActualizacionPrecio || '', url: '' }];
+    prodProveedoresActuales = [completarReferenciaProveedorProducto({ nombre: p.proveedor, precio: parseFloat(p.compra)||0, actualizado: p.fechaActualizacionPrecio || '', url: p.codWeb || p.urlProveedor || '' }, p.codWeb || p.urlProveedor || '', 'legacy')];
   } else {
     prodProveedoresActuales = [];
   }
   if (prodProveedoresActuales.length && !prodProveedoresActuales[0].url && cwEl && cwEl.value) {
-    var cwVal = cwEl.value.trim();
+    var cwVal = normalizarUrlProveedorProducto(cwEl.value.trim());
     var nombreProv0 = (prodProveedoresActuales[0].nombre || '').trim().toLowerCase();
     var esSoloCodigo = /^\d+$/.test(cwVal); // solo dígitos, sin http
     if (nombreProv0 === 'tecnoprices' && esSoloCodigo) {
-      prodProveedoresActuales[0].url = 'https://www.tecnoprices.com/' + cwVal;
+      prodProveedoresActuales[0].url = normalizarUrlProveedorProducto(cwVal);
     } else {
       prodProveedoresActuales[0].url = cwVal;
     }
@@ -6426,10 +6470,11 @@ function renderTablaProveedoresProducto() {
     var sinIva = !!pv.sinIva;
     var precioRaw = parseFloat(pv.precio) || 0;
     var costoReal = sinIva ? Math.round(precioRaw * 1.21) : precioRaw;
+    var dolarInfo = pv.dolarUsado ? '<br><span style="font-size:10px;color:var(--blue);font-weight:400">USD ref. '+(parseFloat(pv.costoRealUsdReferencia || pv.precioUsdReferencia)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})+' · $'+Math.round(parseFloat(pv.dolarUsado)||0).toLocaleString('es-AR')+'</span>' : '';
     var costoRealFmt = costoReal > 0
       ? (sinIva
-          ? '<span style="color:var(--amber);font-size:12px;font-weight:600">$'+costoReal.toLocaleString('es-AR')+'</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(+IVA)</span>'
-          : '<span style="color:var(--text3);font-size:12px">incluido</span>')
+          ? '<span style="color:var(--amber);font-size:12px;font-weight:600">$'+costoReal.toLocaleString('es-AR')+'</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(+IVA)</span>'+dolarInfo
+          : '<span style="color:var(--text3);font-size:12px">incluido</span>'+dolarInfo)
       : '<span style="color:var(--text3);font-size:12px">—</span>';
     var tr = document.createElement('tr');
     if (esMasBarato) tr.style.background = 'var(--green-bg)';
@@ -6443,7 +6488,7 @@ function renderTablaProveedoresProducto() {
       '</td>' +
       '<td style="padding:6px 4px;text-align:right;white-space:nowrap">'+costoRealFmt+'</td>' +
       '<td style="padding:6px 4px"><input type="url" value="'+escapeHTML(pv.url||'')+'" placeholder="https://proveedor.com/producto..." oninput="actualizarProveedorProducto('+i+',\'url\',this.value)" style="width:100%;min-width:150px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:12px;font-family:inherit;color:var(--blue)"></td>' +
-      '<td style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text3);white-space:nowrap">' + (pv.actualizado||'sin fecha') + (esMasBarato ? '<br><span class="badge b-green" style="font-size:9px">+ económico</span>' : '') + '</td>' +
+      '<td style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text3);white-space:nowrap">' + (pv.actualizado||'sin fecha') + (pv.actualizadoOrigen ? '<br><span style="font-size:10px;color:var(--text3)">'+escapeHTML(pv.actualizadoOrigen)+'</span>' : '') + (esMasBarato ? '<br><span class="badge b-green" style="font-size:9px">+ económico</span>' : '') + '</td>' +
       '<td style="padding:6px 4px;text-align:right;white-space:nowrap">' +
         (pv.url ? '<a href="'+escapeHTML(pv.url)+'" target="_blank" class="btn btn-sm btn-icon" title="Abrir en proveedor"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></a>' : '') +
         '<button class="btn btn-sm btn-icon" onclick="quitarFilaProveedor('+i+')" title="Quitar"><i class="ti ti-trash" style="font-size:14px;color:var(--red)"></i></button>' +
@@ -6533,9 +6578,13 @@ function cotizarPreciosProveedores() {
         return (urlRes && pv.url === urlRes) || (nombreRes && String(pv.nombre || '').trim().toLowerCase() === nombreRes);
       });
       if (match && precio > 0 && !r.error) {
-        prodProveedoresActuales[match.idx].precio = precio;
-        prodProveedoresActuales[match.idx].url = urlRes || prodProveedoresActuales[match.idx].url || match.url;
-        prodProveedoresActuales[match.idx].actualizado = new Date().toISOString().slice(0,10);
+        prodProveedoresActuales[match.idx] = completarReferenciaProveedorProducto(Object.assign({}, prodProveedoresActuales[match.idx], {
+          precio: precio,
+          url: urlRes || prodProveedoresActuales[match.idx].url || match.url,
+          actualizado: new Date().toISOString().slice(0,10),
+          actualizadoEn: Date.now(),
+          actualizadoOrigen: 'scraping'
+        }), '', 'scraping');
         actualizados++;
       }
       filasResultado.push(
@@ -6587,7 +6636,7 @@ function cotizarPreciosProveedores() {
 }
 
 function agregarFilaProveedor() {
-  prodProveedoresActuales.push({ nombre:'', precio:0, actualizado: new Date().toISOString().split('T')[0] });
+  prodProveedoresActuales.push(completarReferenciaProveedorProducto({ nombre:'', precio:0, actualizado: new Date().toISOString().split('T')[0], actualizadoOrigen:'manual' }, (document.getElementById('pf-cod-web')||{}).value || '', 'manual'));
   renderTablaProveedoresProducto();
 }
 
@@ -6601,7 +6650,14 @@ function quitarFilaProveedor(idx) {
 function actualizarProveedorProducto(idx, campo, valor) {
   if (!prodProveedoresActuales[idx]) return;
   prodProveedoresActuales[idx][campo] = campo === 'precio' ? (parseFloat(valor)||0) : valor;
-  if (campo === 'precio') prodProveedoresActuales[idx].actualizado = new Date().toISOString().split('T')[0];
+  if (campo === 'precio') {
+    prodProveedoresActuales[idx].actualizado = new Date().toISOString().split('T')[0];
+    prodProveedoresActuales[idx].actualizadoEn = Date.now();
+    prodProveedoresActuales[idx].actualizadoOrigen = 'manual';
+  }
+  if (campo === 'precio' || campo === 'url' || campo === 'sinIva') {
+    prodProveedoresActuales[idx] = completarReferenciaProveedorProducto(prodProveedoresActuales[idx], (document.getElementById('pf-cod-web')||{}).value || '', prodProveedoresActuales[idx].actualizadoOrigen || 'manual');
+  }
   recalcularCompraDesdeProveedores();
   calcMargen();
   if (campo === 'precio') renderTablaProveedoresProducto();
@@ -6814,19 +6870,26 @@ function guardarProducto() {
   const nom  = (document.getElementById('pf-nombre')||{}).value.trim() || '';
   const desc = document.getElementById('pf-descripcion').value.trim();
   if (!cod || (!nom && !desc)) { notify('Completá al menos código y nombre'); return; }
+  var urlGeneralProveedor = normalizarUrlProveedorProducto((document.getElementById('pf-cod-web')||{}).value || '');
 
   var proveedoresValidos = prodProveedoresActuales.filter(function(pv) {
     return (pv.nombre||'').trim() || (pv.url||'').trim() || parseFloat(pv.precio) > 0;
   }).map(function(pv) {
-    return { nombre: (pv.nombre||'').trim(), precio: parseFloat(pv.precio)||0, sinIva: !!pv.sinIva, actualizado: pv.actualizado||'', url: pv.url||'' };
+    return completarReferenciaProveedorProducto(pv, urlGeneralProveedor, pv.actualizadoOrigen || 'manual');
   });
+  var proveedorSinUrl = proveedoresValidos.find(function(pv){ return !pv.url; });
+  if (proveedorSinUrl) {
+    notify('Completá la URL del proveedor o la URL general del producto antes de guardar');
+    return;
+  }
   var proveedorPrincipal = proveedoresValidos.length
     ? proveedoresValidos.reduce(function(min, pv){
-        var cPv  = (parseFloat(pv.precio)||0) * (pv.sinIva ? 1.21 : 1);
-        var cMin = (parseFloat(min.precio)||0) * (min.sinIva ? 1.21 : 1);
+        var cPv  = parseFloat(pv.costoRealArs) || ((parseFloat(pv.precio)||0) * (pv.sinIva ? 1.21 : 1));
+        var cMin = parseFloat(min.costoRealArs) || ((parseFloat(min.precio)||0) * (min.sinIva ? 1.21 : 1));
         return cPv > 0 && cPv < cMin ? pv : min;
       }, proveedoresValidos[0])
     : null;
+  var dolarRef = obtenerDolarReferenciaProducto();
 
   var datos = {
     codigo:       cod,
@@ -6847,16 +6910,29 @@ function guardarProducto() {
     esManoDeObra: document.getElementById('pf-es-mano-obra').checked,
     precioGremio: getMontoRaw(document.getElementById('pf-precio-gremio')),
     margenDeseado: parseFloat(document.getElementById('pf-margen-deseado').value) || 0,
-    codWeb:  (document.getElementById('pf-cod-web')||{}).value || '',
+    codWeb:  urlGeneralProveedor,
     imagenUrl: (document.getElementById('pf-imagen-url')||{}).value || ''
   };
-  var tc = (window._tipoCambioActual && window._tipoCambioActual.venta) || 0;
+  if (proveedorPrincipal) {
+    datos.proveedorUrl = proveedorPrincipal.url || '';
+    datos.proveedorActualizado = proveedorPrincipal.actualizado || '';
+    datos.precioArsPublicado = proveedorPrincipal.precioArsPublicado || proveedorPrincipal.precio || datos.compra;
+    datos.costoRealArs = proveedorPrincipal.costoRealArs || datos.compra;
+    datos.precioUsdReferencia = proveedorPrincipal.precioUsdReferencia || 0;
+    datos.costoRealUsdReferencia = proveedorPrincipal.costoRealUsdReferencia || 0;
+    datos.dolarUsado = proveedorPrincipal.dolarUsado || dolarRef.valor || 0;
+    datos.dolarTipo = proveedorPrincipal.dolarTipo || dolarRef.tipo || 'oficial';
+    datos.precioActualizadoOrigen = proveedorPrincipal.actualizadoOrigen || 'manual';
+    datos.precioActualizadoEn = proveedorPrincipal.actualizadoEn || Date.now();
+  }
+  var tc = dolarRef.valor || 0;
   if (datos.moneda === 'ARS' && tc > 0) {
     datos.ventaUSD   = parseFloat((datos.venta  / tc).toFixed(2));
     datos.compraUSD  = parseFloat((datos.compra / tc).toFixed(2));
     datos.ventaARS   = datos.venta;
     datos.compraARS  = datos.compra;
     datos.tcGuardado = tc;
+    datos.tcTipoGuardado = dolarRef.tipo;
     datos.tcFecha    = new Date().toISOString().slice(0,10);
   } else if (datos.moneda === 'USD') {
     // Ya está en USD — guardar también equivalente ARS
