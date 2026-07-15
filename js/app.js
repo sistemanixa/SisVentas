@@ -4525,7 +4525,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.33-firebase',
+  VERSION: 'v2.0.35-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6371,6 +6371,25 @@ function urlsProveedorEquivalentes(a, b) {
   return !!ua && !!ub && ua === ub;
 }
 
+function resultadoCotizacionUsaUrlExacta(match, resultado, respuesta) {
+  if (!match || !match.urlProducto) return true;
+  resultado = resultado || {};
+  respuesta = respuesta || {};
+  var urlRes = String(resultado.url || '').trim();
+  if (!urlRes || !urlsProveedorEquivalentes(match.url, urlRes)) return false;
+  var textoControl = [
+    resultado.error,
+    resultado.observaciones,
+    resultado.producto,
+    resultado.detalle,
+    respuesta.observaciones
+  ].filter(Boolean).join(' ').toLowerCase();
+  if (/no fue accesible|no accesible|inaccesible|categor[ií]a|p[aá]gina de categor|resultado de b[uú]squeda|b[uú]squeda|requiere login|iniciar sesi[oó]n|verificaci[oó]n manual|producto parecido|otra secci[oó]n/.test(textoControl)) {
+    return false;
+  }
+  return true;
+}
+
 function parsePrecioProveedorARS(valor) {
   if (typeof valor === 'number') return valor;
   var s = String(valor || '').replace(/[^\d,.-]/g, '').trim();
@@ -6433,6 +6452,17 @@ function precioGremioARSDesdeProducto(p) {
     return Math.round(compraLegacy * tc.valor * 100) / 100;
   }
   return compraLegacy || 0;
+}
+
+function asegurarMargenProductoDefaultEnForm() {
+  var margenEl = document.getElementById('pf-margen-deseado');
+  if (!margenEl) return margenProductoDefault();
+  var margen = parseFloat(margenEl.value);
+  if (!isFinite(margen) || margen <= 0) {
+    margen = margenProductoDefault();
+    margenEl.value = margen;
+  }
+  return margen;
 }
 
 function previewImagenProducto(input) {
@@ -6660,6 +6690,7 @@ function cotizarPreciosProveedores() {
   var systemPrompt = 'Sos un asistente de precios para Nixa, empresa de seguridad en Argentina. ' +
     'Para cada proveedor recibido, si la URL está marcada como URL exacta del producto, usá EXCLUSIVAMENTE esa URL. ' +
     'No busques páginas de categoría, cache, productos parecidos ni otras secciones del mismo sitio cuando la URL es exacta. ' +
+    'Si usaste una URL distinta a la recibida, aunque sea del mismo producto, devolvé precio 0. ' +
     'El precio buscado es el precio principal visible de compra/lista/gremio SIN IVA en pesos argentinos, no el precio con IVA. ' +
     'Si esa URL requiere iniciar sesión o no podés ver el precio exacto, devolvé precio 0 y error "requiere login o verificación manual". ' +
     'Si la URL es la web general del proveedor, recién ahí buscá por código/nombre y solo aceptá coincidencia clara. ' +
@@ -6705,14 +6736,19 @@ function cotizarPreciosProveedores() {
       if (!match && precio > 0) {
         rechazo = 'No se actualizó: el precio no proviene de la URL exacta cargada.';
       }
-      if (match && precio > 0) {
+      if (match && precio > 0 && !resultadoCotizacionUsaUrlExacta(match, r, res)) {
+        rechazo = 'No se actualizó: la respuesta no confirmó la URL exacta del producto.';
+        match = null;
+      }
+      var aceptado = !!(match && precio > 0);
+      if (aceptado) {
         prodProveedoresActuales[match.idx] = completarReferenciaProveedorProducto(Object.assign({}, prodProveedoresActuales[match.idx], {
           precio: precio,
           url: urlRes || prodProveedoresActuales[match.idx].url || match.url,
           actualizado: new Date().toISOString().slice(0,10),
           actualizadoEn: Date.now(),
-          actualizadoOrigen: 'scraping'
-        }), '', 'scraping');
+          actualizadoOrigen: 'scraping-url-exacta'
+        }), '', 'scraping-url-exacta');
         actualizados++;
       }
       filasResultado.push(
@@ -6720,7 +6756,7 @@ function cotizarPreciosProveedores() {
           '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
           '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || r.producto || r.error || 'Sin coincidencia clara') + '</div>' +
           (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
-          '<div style="font-weight:700;color:' + (precio > 0 ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + Math.round(precio).toLocaleString('es-AR') + '</div>' +
+          '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + Math.round(precio).toLocaleString('es-AR') + '</div>' +
         '</div>'
       );
     });
@@ -6806,6 +6842,10 @@ function recalcularCompraDesdeProveedores() {
 
   var compraEl = document.getElementById('pf-compra');
   if (compraEl) _setMontoInput(compraEl, costoCompra);
+  var gremioEl = document.getElementById('pf-precio-gremio');
+  if (gremioEl) _setMontoInput(gremioEl, costoCompra);
+  asegurarMargenProductoDefaultEnForm();
+  if (costoCompra > 0) calcPrecioDesdeGremio();
 }
 
 function cerrarFormProducto() {
@@ -6912,6 +6952,7 @@ function pfUsarPrecio(precio) {
   var gremioInp = document.getElementById('pf-precio-gremio');
   if (compraInp) _setMontoInput(compraInp, precio);
   if (gremioInp) _setMontoInput(gremioInp, precio);
+  asegurarMargenProductoDefaultEnForm();
   calcPrecioDesdeGremio();
   calcMargen();
   notify('✓ Precio de compra actualizado a $' + precio.toLocaleString('es-AR'));
@@ -6925,10 +6966,7 @@ function pfFormatearPrecio(val) {
 
 function calcPrecioDesdeGremio() {
   var gremio  = getMontoRaw(document.getElementById('pf-precio-gremio'));
-  var margenEl = document.getElementById('pf-margen-deseado');
-  var margen  = parseFloat((margenEl||{}).value);
-  if (!isFinite(margen) || margen <= 0) margen = margenProductoDefault();
-  if (margenEl && !margenEl.value) margenEl.value = margen;
+  var margen  = asegurarMargenProductoDefaultEnForm();
   var calcEl  = document.getElementById('pf-precio-calculado');
   var usdEl   = document.getElementById('pf-precio-usd-equiv');
   if (!gremio || !margen) { if (calcEl) calcEl.value = ''; return; }
