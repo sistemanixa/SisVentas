@@ -4525,7 +4525,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.32-firebase',
+  VERSION: 'v2.0.33-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6330,6 +6330,11 @@ var prodImagenArchivoTemp = null; // File pendiente de subir a Storage al guarda
 var prodImagenBase64Temp = null;  // Preview local mientras no se guardó
 var prodImagenUrlActual = '';     // URL final (sea de Storage o pegada a mano)
 
+function margenProductoDefault() {
+  var n = parseFloat(window._margenProductoDefault);
+  return isFinite(n) && n >= 0 ? n : 30;
+}
+
 function obtenerDolarReferenciaProducto() {
   var cfg = window.TIPO_CAMBIO_CONFIG || {};
   var tipo = cfg.dolarConversion || 'oficial';
@@ -6511,7 +6516,7 @@ function abrirFormProducto(id) {
   var mdEl = document.getElementById('pf-margen-deseado');
   var rawGremio = precioGremioARSDesdeProducto(p);
   if (pgEl) _setMontoInput(pgEl, rawGremio);
-  if (mdEl) mdEl.value = p.margenDeseado || '';
+  if (mdEl) mdEl.value = parseFloat(p.margenDeseado) > 0 ? p.margenDeseado : margenProductoDefault();
   document.getElementById('pf-iva').value = p.iva || 21;
   document.getElementById('pf-stock').value = p.stock !== undefined ? p.stock : '';
   document.getElementById('pf-stock-min').value = p.stockMin || (id ? '' : (window._stockMinDefault || 5));
@@ -6920,7 +6925,10 @@ function pfFormatearPrecio(val) {
 
 function calcPrecioDesdeGremio() {
   var gremio  = getMontoRaw(document.getElementById('pf-precio-gremio'));
-  var margen  = parseFloat(document.getElementById('pf-margen-deseado').value) || 0;
+  var margenEl = document.getElementById('pf-margen-deseado');
+  var margen  = parseFloat((margenEl||{}).value);
+  if (!isFinite(margen) || margen <= 0) margen = margenProductoDefault();
+  if (margenEl && !margenEl.value) margenEl.value = margen;
   var calcEl  = document.getElementById('pf-precio-calculado');
   var usdEl   = document.getElementById('pf-precio-usd-equiv');
   if (!gremio || !margen) { if (calcEl) calcEl.value = ''; return; }
@@ -7033,7 +7041,7 @@ function guardarProducto() {
     unidad:       document.getElementById('pf-unidad').value,
     esManoDeObra: document.getElementById('pf-es-mano-obra').checked,
     precioGremio: getMontoRaw(document.getElementById('pf-precio-gremio')),
-    margenDeseado: parseFloat(document.getElementById('pf-margen-deseado').value) || 0,
+    margenDeseado: parseFloat(document.getElementById('pf-margen-deseado').value) || margenProductoDefault(),
     codWeb:  urlGeneralProveedor,
     imagenUrl: (document.getElementById('pf-imagen-url')||{}).value || ''
   };
@@ -10476,18 +10484,21 @@ window.aplicarVisibilidadMonitorRecursos = aplicarVisibilidadMonitorRecursos;
 function guardarPreferenciasSistema(btn) {
   var diasVencEl = document.getElementById('cfg-dias-venc');
   var stockMinEl = document.getElementById('cfg-stock-min-def');
+  var margenProdEl = document.getElementById('cfg-margen-prod-def');
   var descMaxEl  = document.getElementById('cfg-desc-max-ppto');
   var montoMaxEl = document.getElementById('cfg-monto-max-ppto');
   var monitorEl  = document.getElementById('cfg-mostrar-monitor-recursos');
   var datos = {
     diasVencimiento: parseInt((diasVencEl||{}).value) || 15,
     stockMinDefault: parseInt((stockMinEl||{}).value) || 5,
+    margenProductoDefault: parseFloat((margenProdEl||{}).value) || 30,
     descuentoLimite: parseFloat((descMaxEl||{}).value) || 10,
     montoLimite: parseFloat((montoMaxEl||{}).value) || 200000,
     mostrarMonitorRecursos: !monitorEl || monitorEl.checked
   };
   window._diasVencimientoConfig = datos.diasVencimiento;
   window._stockMinDefault = datos.stockMinDefault;
+  window._margenProductoDefault = datos.margenProductoDefault;
   aplicarVisibilidadMonitorRecursos(datos.mostrarMonitorRecursos);
   if (window.APROBACION_CONFIG) {
     APROBACION_CONFIG.descuentoLimite = datos.descuentoLimite;
@@ -10588,17 +10599,20 @@ function cargarConfigGeneral() {
     var d = snap.val(); if (!d) return;
     var dv = document.getElementById('cfg-dias-venc');
     var sm = document.getElementById('cfg-stock-min-def');
+    var mpd = document.getElementById('cfg-margen-prod-def');
     var dl = document.getElementById('cfg-desc-max-ppto');
     var ml = document.getElementById('cfg-monto-max-ppto');
     var rm = document.getElementById('cfg-mostrar-monitor-recursos');
     if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
     if (sm && d.stockMinDefault !== undefined) sm.value = d.stockMinDefault;
+    if (mpd) mpd.value = d.margenProductoDefault !== undefined ? d.margenProductoDefault : 30;
     if (dl && d.descuentoLimite !== undefined) dl.value = d.descuentoLimite;
     if (ml && d.montoLimite !== undefined) ml.value = d.montoLimite;
     if (rm) rm.checked = d.mostrarMonitorRecursos !== false;
     aplicarVisibilidadMonitorRecursos(d.mostrarMonitorRecursos !== false);
     window._diasVencimientoConfig = d.diasVencimiento || 15;
     window._stockMinDefault = d.stockMinDefault || 5;
+    window._margenProductoDefault = d.margenProductoDefault !== undefined ? parseFloat(d.margenProductoDefault) || 30 : 30;
     if (window.APROBACION_CONFIG) {
       APROBACION_CONFIG.descuentoLimite = d.descuentoLimite !== undefined ? parseFloat(d.descuentoLimite) || 10 : APROBACION_CONFIG.descuentoLimite;
       APROBACION_CONFIG.montoLimite = d.montoLimite !== undefined ? parseFloat(d.montoLimite) || 200000 : APROBACION_CONFIG.montoLimite;
