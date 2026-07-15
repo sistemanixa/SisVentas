@@ -80,25 +80,44 @@
     var mes = opts.mes || ymActual();
     var fuente = typeof window.obtenerVentasSisVentas === 'function' ? window.obtenerVentasSisVentas() : (window.ventasList || window.ventasData || []);
     var ventas = arr(fuente).filter(function(v){ return v && (!v.anulada || v.notaCredito); });
+    var fuentePendiente = typeof window.obtenerVentasPendientesHistoricasSisVentas === 'function'
+      ? window.obtenerVentasPendientesHistoricasSisVentas()
+      : [];
+    var ventasPendientesHistoricas = arr(fuentePendiente).filter(function(v){ return v && (!v.anulada || v.notaCredito); });
+    if (!ventasPendientesHistoricas.length) {
+      ventasPendientesHistoricas = ventas.filter(function(v){ return !esPagoTotal(v); });
+    }
     var ventasMes = ventas.filter(function(v){ return fechaISO(v).slice(0,7) === mes; });
-    var totalMes = 0, cobradoMes = 0, pendienteMes = 0, ivaMes = 0, pendCobroCant = 0, pendInstCant = 0, facturadasCant = 0;
+    var totalMes = 0, cobradoMes = 0, ivaMes = 0, pendInstCant = 0, facturadasCant = 0;
     ventasMes.forEach(function(v){
       var total = totalVenta(v), pagado = Math.min(total, pagadoVenta(v));
       totalMes += total; cobradoMes += pagado; ivaMes += ivaVenta(v);
-      var saldo = Math.max(0, total - pagado);
-      if (saldo > 0.5) { pendienteMes += saldo; pendCobroCant++; }
       if (!esInstalado(v)) pendInstCant++;
       if (v.factura || v.facturaCAE || (v.facturacion && v.facturacion.cae)) facturadasCant++;
+    });
+    var pendienteTotal = 0, pendCobroCant = 0;
+    var clientesPendientes = {};
+    ventasPendientesHistoricas.forEach(function(v){
+      var total = totalVenta(v), pagado = Math.min(total, pagadoVenta(v));
+      var saldo = Math.max(0, total - pagado);
+      if (saldo > 0.5) {
+        pendienteTotal += saldo;
+        pendCobroCant++;
+        var cliKey = String(v.clienteFbKey || v.clienteId || v.cliente || '').trim();
+        if (cliKey) clientesPendientes[cliKey] = true;
+      }
     });
     return {
       mes: mes,
       ventas: ventas,
       ventasMes: ventasMes,
+      ventasPendientesHistoricas: ventasPendientesHistoricas,
       totalMes: totalMes,
       cantidadMes: ventasMes.length,
       cobradoMes: cobradoMes,
-      pendienteCobroMes: pendienteMes,
+      pendienteCobroTotal: pendienteTotal,
       pendienteCobroCant: pendCobroCant,
+      pendienteClientesCant: Object.keys(clientesPendientes).length,
       pendienteInstalacionCant: pendInstCant,
       ivaMes: ivaMes,
       facturadasCant: facturadasCant,
@@ -123,11 +142,11 @@
     var mesLabel = (function(){ var p=r.mes.split('-'); return p[1]+'/'+p[0]; })();
     setTxt('vm-total-mes', money(r.totalMes));
     setTxt('vm-cobrado', money(r.cobradoMes));
-    setTxt('vm-pendiente', money(r.pendienteCobroMes));
+    setTxt('vm-pendiente', money(r.pendienteCobroTotal));
     setTxt('vm-iva', money(r.ivaMes));
     setSubForValue('vm-total-mes', r.cantidadMes + (r.cantidadMes===1 ? ' venta' : ' ventas') + ' en ' + mesLabel);
     setSubForValue('vm-cobrado', 'pagado sobre ventas del mes');
-    setSubForValue('vm-pendiente', r.pendienteCobroCant + (r.pendienteCobroCant===1 ? ' venta' : ' ventas') + ' sin cobrar del mes');
+    setSubForValue('vm-pendiente', r.pendienteCobroCant + (r.pendienteCobroCant===1 ? ' venta' : ' ventas') + ' históricas sin cobrar');
     setSubForValue('vm-iva', 'IVA real del mes');
   };
   function refrescarVentas310(){

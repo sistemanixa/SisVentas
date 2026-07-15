@@ -3314,6 +3314,36 @@ function procesarVentasSnapshot(data, opciones) {
   if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
 }
 
+function procesarVentasPendientesHistoricasSnapshot(data) {
+  var rows = Object.entries(data || {}).map(function(e) {
+    var venta = Object.assign({ fbKey: e[0] }, e[1]);
+    venta.fechaOrden = ventaFechaOrden(venta);
+    return venta;
+  }).filter(function(v) {
+    if (!v || (v.anulada && !v.notaCredito)) return false;
+    if (typeof ventaTienePagoTotal === 'function') return !ventaTienePagoTotal(v);
+    return String(v.estadoPago || '').toLowerCase() !== 'pago_total';
+  }).sort(function(a,b) {
+    var diferencia = fechaVentaTimestamp(b.fechaOrden || b.fecha, b.ts) - fechaVentaTimestamp(a.fechaOrden || a.fecha, a.ts);
+    return diferencia || ((b.ts||0) - (a.ts||0));
+  });
+  window.ventasPendientesHistoricasList = rows;
+  if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
+  var pageDash = document.getElementById('page-dashboard');
+  if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
+}
+
+function fbCargarVentasPendientesHistoricas() {
+  if (!window.fbDB || !window.fbGet || window._ventasPendientesHistoricasCargadas) return;
+  window._ventasPendientesHistoricasCargadas = true;
+  window.fbGet(window.fbRef(window.fbDB, FB_PATHS.ventas)).then(function(snap) {
+    procesarVentasPendientesHistoricasSnapshot(snap.val());
+  }).catch(function(error) {
+    window._ventasPendientesHistoricasCargadas = false;
+    console.warn('[Ventas] No se pudo cargar deuda historica', error);
+  });
+}
+
 function obtenerProximoIdVenta() {
   var maxId = 0;
   (ventasList||[]).forEach(function(venta) {
@@ -3334,6 +3364,7 @@ function fbCargarVentas() {
   if (!window.fbDB) return;
   if (window._ventasListenerActivo) return;
   window._ventasListenerActivo = true;
+  fbCargarVentasPendientesHistoricas();
   var desdeISO = ventasInicioPeriodoRecienteISO();
   var baseRef = window.fbRef(window.fbDB, FB_PATHS.ventas);
 
@@ -4494,7 +4525,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.30-firebase',
+  VERSION: 'v2.0.32-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5068,6 +5099,10 @@ var prodData = {};
 var otData = [];
 var ventasList = [];
 window.obtenerVentasSisVentas = function(){ return ventasList || []; };
+window.ventasPendientesHistoricasList = [];
+window.obtenerVentasPendientesHistoricasSisVentas = function(){
+  return window.ventasPendientesHistoricasList || [];
+};
 var empData = {};
 var clientesData = [];
 
@@ -6314,6 +6349,23 @@ function normalizarUrlProveedorProducto(url) {
   return u;
 }
 
+function normalizarUrlComparacionProveedor(url) {
+  var u = normalizarUrlProveedorProducto(url);
+  return String(u || '')
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '')
+    .replace(/[?#].*$/, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
+}
+
+function urlsProveedorEquivalentes(a, b) {
+  var ua = normalizarUrlComparacionProveedor(a);
+  var ub = normalizarUrlComparacionProveedor(b);
+  return !!ua && !!ub && ua === ub;
+}
+
 function parsePrecioProveedorARS(valor) {
   if (typeof valor === 'number') return valor;
   var s = String(valor || '').replace(/[^\d,.-]/g, '').trim();
@@ -6601,10 +6653,13 @@ function cotizarPreciosProveedores() {
 
   // Llamar al asistente IA para buscar precios en las URLs
   var systemPrompt = 'Sos un asistente de precios para Nixa, empresa de seguridad en Argentina. ' +
-    'Para cada proveedor recibido, si la URL es del producto exacto, obtené el precio actual de esa página. ' +
-    'Si la URL es la web general del proveedor, buscá allí el producto por código/nombre. ' +
+    'Para cada proveedor recibido, si la URL está marcada como URL exacta del producto, usá EXCLUSIVAMENTE esa URL. ' +
+    'No busques páginas de categoría, cache, productos parecidos ni otras secciones del mismo sitio cuando la URL es exacta. ' +
+    'El precio buscado es el precio principal visible de compra/lista/gremio SIN IVA en pesos argentinos, no el precio con IVA. ' +
+    'Si esa URL requiere iniciar sesión o no podés ver el precio exacto, devolvé precio 0 y error "requiere login o verificación manual". ' +
+    'Si la URL es la web general del proveedor, recién ahí buscá por código/nombre y solo aceptá coincidencia clara. ' +
     'No inventes precios: si no hay coincidencia clara, devolvé precio 0 y error. ' +
-    'Respondé SOLO con JSON: {"resultados":[{"proveedor":"nombre","url":"...","producto":"nombre encontrado","precio":1234,"moneda":"ARS","error":""}],"observaciones":"..."}';
+    'Respondé SOLO con JSON: {"resultados":[{"proveedor":"nombre","url":"url exacta usada","producto":"nombre encontrado","precio":1234,"moneda":"ARS","error":""}],"observaciones":"..."}';
 
   var userMsg = 'Producto a cotizar: ' + termino + '\nProveedores:\n' +
     provCotizables.map(function(pv){
@@ -6636,9 +6691,15 @@ function cotizarPreciosProveedores() {
       var nombreRes = String(r.proveedor || r.nombre || '').trim().toLowerCase();
       var urlRes = String(r.url || '').trim();
       var match = provCotizables.find(function(pv) {
-        return (urlRes && pv.url === urlRes) || (nombreRes && String(pv.nombre || '').trim().toLowerCase() === nombreRes);
+        if (urlRes && urlsProveedorEquivalentes(pv.url, urlRes)) return true;
+        if (pv.urlProducto) return false;
+        return nombreRes && String(pv.nombre || '').trim().toLowerCase() === nombreRes;
       });
-      if (!match && provCotizables.length === 1 && precio > 0) match = provCotizables[0];
+      if (!match && provCotizables.length === 1 && precio > 0 && !provCotizables[0].urlProducto) match = provCotizables[0];
+      var rechazo = '';
+      if (!match && precio > 0) {
+        rechazo = 'No se actualizó: el precio no proviene de la URL exacta cargada.';
+      }
       if (match && precio > 0) {
         prodProveedoresActuales[match.idx] = completarReferenciaProveedorProducto(Object.assign({}, prodProveedoresActuales[match.idx], {
           precio: precio,
@@ -6652,7 +6713,7 @@ function cotizarPreciosProveedores() {
       filasResultado.push(
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">' +
           '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
-          '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(r.producto || r.error || 'Sin coincidencia clara') + '</div>' +
+          '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || r.producto || r.error || 'Sin coincidencia clara') + '</div>' +
           (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
           '<div style="font-weight:700;color:' + (precio > 0 ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + Math.round(precio).toLocaleString('es-AR') + '</div>' +
         '</div>'
