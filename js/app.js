@@ -647,8 +647,8 @@ function _renderFilaProd(p) {
   var pvFmt = (parseFloat(pv)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
   var equivARS = cotiz > 0 && pv > 0 ? '<br><span style="font-size:10px;color:var(--text3);font-weight:400">$ '+Math.round(pv*cotiz).toLocaleString('es-AR')+' ARS</span>' : '';
   return '<tr class="cr pr" data-pid="'+pid+'" data-cat="'+(p.categoria||'')+'" onclick="verProductoById(this)" style="cursor:pointer">' +
-    '<td>'+(p.imagenUrl?'<img src="'+escapeHTML(p.imagenUrl)+'" style="width:44px;height:44px;border-radius:6px;object-fit:cover" onerror="this.style.display=\'none\'">'
-      :'<div style="width:44px;height:44px;border-radius:6px;background:var(--bg3);display:flex;align-items:center;justify-content:center"><i class="ti ti-photo" style="font-size:18px;color:var(--text3)"></i></div>')+'</td>'+
+    '<td>'+(p.imagenUrl?'<img class="prod-row-img" src="'+escapeHTML(p.imagenUrl)+'" onerror="this.style.display=\'none\'">'
+      :'<div class="prod-row-img prod-row-img-placeholder"><i class="ti ti-photo"></i></div>')+'</td>'+
     '<td style="font-family:monospace;font-size:12px">'+(p.codigo||'')+'</td>'+
     '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.esManoDeObra?'<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px"></i>':'')+(p.nombre||p.descripcion||'')+'</td>'+
     '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.descripcion||'—')+'</td>'+
@@ -2931,14 +2931,17 @@ function actualizarSelectEmpleados() {
 
 // Estado de conexión
 var fbConectado = false;
+var fbOnline = false;
 var fbEsperandoReady = [];
 
 document.addEventListener('firebase-ready', function() {
   fbConectado = true;
+  fbOnline = !!navigator.onLine;
 
   // Ejecutar callbacks pendientes
   fbEsperandoReady.forEach(function(fn) { try { fn(); } catch(e) {} });
   fbEsperandoReady = [];
+  if (typeof iniciarMonitorConexionFirebase === 'function') iniciarMonitorConexionFirebase();
   // NO cargar datos aquí — se cargan después del login (auth requerida)
 });
 
@@ -3103,12 +3106,26 @@ function fbCargarProductos() {
 function fbGuardarProducto(prod) {
   if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
   var r = window.fbRef(window.fbDB, FB_PATHS.productos);
+  function refrescarProductoGuardado() {
+    try {
+      if (prod.fbKey && prodData) {
+        Object.keys(prodData).forEach(function(k) {
+          if (String(prodData[k].fbKey || '') === String(prod.fbKey)) {
+            prodData[k] = Object.assign({}, prodData[k], prod);
+          }
+        });
+      }
+      if (typeof renderTablaProductos === 'function') renderTablaProductos((document.getElementById('prod-search')||{}).value || '');
+      if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
+      if (typeof mostrarAlertasStock === 'function') mostrarAlertasStock();
+    } catch(e) {}
+  }
   if (prod.fbKey) {
     window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + prod.fbKey), prod)
-      .then(function() { notify('Producto actualizado ✓'); });
+      .then(function() { refrescarProductoGuardado(); notify('Producto actualizado ✓'); });
   } else {
     window.fbPush(r, prod)
-      .then(function() { notify('Producto guardado ✓'); });
+      .then(function(ref) { prod.fbKey = ref && ref.key ? ref.key : prod.fbKey; refrescarProductoGuardado(); notify('Producto guardado ✓'); });
   }
 }
 
@@ -3576,18 +3593,48 @@ function fbSeedDatos() {
   setTimeout(function() { notify('✓ Datos demo cargados en Firebase'); }, 2000);
 }
 function fbMostrarEstadoConexion() {
-  var badge = document.getElementById('fb-status');
-  if (!badge) return;
-  if (fbConectado) {
-    badge.innerHTML = '<i class="ti ti-wifi" style="font-size:11px"></i> Online';
-    badge.style.color = 'var(--green)';
-  } else {
-    badge.innerHTML = '<i class="ti ti-wifi-off" style="font-size:11px"></i> Offline';
-    badge.style.color = 'var(--amber)';
-  }
+  var badges = [document.getElementById('fb-status'), document.getElementById('fb-status-cfg')].filter(Boolean);
+  if (!badges.length) return;
+  var sinInternet = typeof navigator !== 'undefined' && navigator.onLine === false;
+  var label = fbOnline ? 'Online' : (sinInternet ? 'Sin internet' : 'Reconectando');
+  var icon = fbOnline ? 'ti-wifi' : 'ti-wifi-off';
+  var color = fbOnline ? 'var(--green)' : 'var(--amber)';
+  var title = fbOnline
+    ? 'Conectado en tiempo real a Firebase'
+    : (sinInternet ? 'El dispositivo informa que no tiene internet' : 'Firebase todavía no confirmó conexión activa');
+  badges.forEach(function(badge) {
+    badge.innerHTML = '<i class="ti '+icon+'" style="font-size:11px"></i> ' + label;
+    badge.style.color = color;
+    badge.title = title;
+  });
 }
 
-document.addEventListener('firebase-ready', fbMostrarEstadoConexion);
+var _monitorConexionFirebaseActivo = false;
+function iniciarMonitorConexionFirebase() {
+  if (_monitorConexionFirebaseActivo || !window.fbDB || !window.fbOnValue || !window.fbRef) {
+    fbMostrarEstadoConexion();
+    return;
+  }
+  _monitorConexionFirebaseActivo = true;
+  window.fbOnValue(window.fbRef(window.fbDB, '.info/connected'), function(snap) {
+    fbOnline = snap.val() === true;
+    fbMostrarEstadoConexion();
+  });
+}
+
+window.addEventListener('online', function() {
+  fbMostrarEstadoConexion();
+  if (typeof iniciarMonitorConexionFirebase === 'function') iniciarMonitorConexionFirebase();
+});
+window.addEventListener('offline', function() {
+  fbOnline = false;
+  fbMostrarEstadoConexion();
+});
+
+document.addEventListener('firebase-ready', function() {
+  iniciarMonitorConexionFirebase();
+  fbMostrarEstadoConexion();
+});
 
 // Por si el orden de carga causa problemas
 // doLogin definida abajo y expuesta en window
@@ -4345,7 +4392,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.19-firebase',
+  VERSION: 'v2.0.21-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6049,10 +6096,16 @@ function navegarAProducto(prodRef) {
   var p = Object.values(prodData || {}).find(function(x){
     return String(x.fbKey || '') === String(prodRef) ||
            String(x.id || '') === String(prodRef) ||
-           String(x.codigo || '') === String(prodRef);
+           String(x.codigo || '') === String(prodRef) ||
+           String(x.nombre || '').trim().toLowerCase() === String(prodRef || '').trim().toLowerCase() ||
+           String(x.descripcion || '').trim().toLowerCase() === String(prodRef || '').trim().toLowerCase();
   });
   showPage('productos', document.querySelector('[onclick*="productos"]'));
   setTimeout(function() {
+    if (p && typeof verProducto === 'function') {
+      verProducto(p.fbKey);
+      return;
+    }
     var q = p ? (p.codigo || p.nombre || p.descripcion || '') : String(prodRef || '');
     var inp = document.getElementById('prod-search');
     var sel = document.getElementById('filter-cat');
@@ -6064,19 +6117,51 @@ function navegarAProducto(prodRef) {
     if (card) card.scrollIntoView({ behavior:'smooth', block:'start' });
   }, 250);
 }
+function productoRefDesdeItem(item) {
+  item = item || {};
+  var candidatos = [
+    item.productoFbKey, item.productoKey, item.fbKeyProducto,
+    item.idProducto, item.productoId, item.cod, item.codigo,
+    item.nombre, item.desc, item.descripcion
+  ].map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+  for (var i = 0; i < candidatos.length; i++) {
+    var ref = candidatos[i];
+    var p = Object.values(prodData || {}).find(function(x) {
+      return String(x.fbKey || '') === ref ||
+             String(x.id || '') === ref ||
+             String(x.codigo || '') === ref ||
+             String(x.nombre || '').trim().toLowerCase() === ref.toLowerCase() ||
+             String(x.descripcion || '').trim().toLowerCase() === ref.toLowerCase();
+    });
+    if (p) return p.fbKey || p.codigo || ref;
+  }
+  return candidatos[0] || '';
+}
+function jsStringAttr(valor) {
+  return String(valor || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+}
+function botonVerCompraProducto(item) {
+  var prodRef = productoRefDesdeItem(item);
+  if (!prodRef) return '<span style="color:var(--text3);font-size:11px">—</span>';
+  return '<button class="btn btn-sm btn-ver-compra-prod" onclick="event.stopPropagation();navegarAProducto(\''+jsStringAttr(prodRef)+'\')" title="Ver ficha de compra del producto">' +
+    '<i class="ti ti-eye"></i> Ver compra' +
+  '</button>';
+}
 var editingProdId = null;
 
 // Alertas de stock al entrar al módulo
 function mostrarAlertasStock() {
   const cont = document.getElementById('stock-alerts');
+  if (!cont) return;
   cont.replaceChildren();
   Object.values(prodData).forEach(p => {
     const ref = p.fbKey || p.id || p.codigo || p.descripcion || '';
+    const nombreAlerta = p.nombre || p.descripcion || p.codigo || 'Producto sin nombre';
     const accion = { label:'Ver', fn:function(){ navegarAProducto(ref); } };
     if (p.stock === 0) {
-      appendAlert(cont, 'red', 'ti ti-alert-circle', p.descripcion, `sin stock (mín: ${p.stockMin})`, accion);
+      appendAlert(cont, 'red', 'ti ti-alert-circle', nombreAlerta, `sin stock (mín: ${p.stockMin})`, accion);
     } else if (p.stock < p.stockMin) {
-      appendAlert(cont, 'amber', 'ti ti-alert-triangle', p.descripcion, `stock bajo: ${p.stock} unidades (mín: ${p.stockMin})`, accion);
+      appendAlert(cont, 'amber', 'ti ti-alert-triangle', nombreAlerta, `stock bajo: ${p.stock} unidades (mín: ${p.stockMin})`, accion);
     }
   });
 }
@@ -19617,13 +19702,16 @@ function verPpto(id) {
       var qty   = parseFloat(it.qty   || it.cantidad || 1) || 1;
       var punit = parseFloat(it.punit || it.precio   || it.precioUnitario || 0) || 0;
       var sub   = parseFloat(it.sub   || it.subtotal || (punit * qty)) || 0;
-      return '<tr><td>'+escapeHTML(cod)+'</td><td>'+escapeHTML(desc)+'</td>' +
+      var prodRef = productoRefDesdeItem(it);
+      var clickAttrs = prodRef ? ' onclick="navegarAProducto(\''+jsStringAttr(prodRef)+'\')" title="Ver producto" style="cursor:pointer"' : '';
+      return '<tr'+clickAttrs+'><td>'+escapeHTML(cod)+'</td><td>'+escapeHTML(desc)+'</td>' +
         '<td class="tr">'+qty+'</td>' +
         '<td class="tr">$'+Math.round(punit).toLocaleString('es-AR')+'</td>' +
-        '<td class="tr" style="font-weight:500">$'+Math.round(sub).toLocaleString('es-AR')+'</td></tr>';
+        '<td class="tr" style="font-weight:500">$'+Math.round(sub).toLocaleString('es-AR')+'</td>' +
+        '<td class="tr">'+botonVerCompraProducto(it)+'</td></tr>';
     }).join('') :
     // Sin items: mostrar mensaje con opción de ir a editar
-    '<tr><td colspan="5" style="padding:16px;text-align:center">' +
+    '<tr><td colspan="6" style="padding:16px;text-align:center">' +
       '<div style="color:var(--text3);font-size:13px;margin-bottom:8px">Este presupuesto no tiene ítems guardados en Firebase.</div>' +
       '<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Total del presupuesto: <strong>$' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '</strong></div>' +
       '<button class="btn btn-sm" onclick="editarPptoParaMigrar(\'' + p.id + '\')" style="color:var(--blue);border-color:var(--blue)">' +
@@ -22604,11 +22692,14 @@ function renderDetalleVenta(v) {
               (currentRole === 'admin' && window._mostrarCostoCompraDetalleVenta ? '<th style="text-align:right;font-size:11px;color:var(--amber);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">P. compra</th>' : '') +
               '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">P. Unit.</th>' +
               '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Subtotal</th>' +
+              '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Acción</th>' +
             '</tr></thead><tbody>' +
             items.map(function(it) {
               var sub = it.sub || (it.qty * it.punit);
               var costoUnit = obtenerCostoUnitarioDetalleVenta(it);
-              return '<tr>' +
+              var prodRef = productoRefDesdeItem(it);
+              var clickAttrs = prodRef ? ' onclick="navegarAProducto(\''+jsStringAttr(prodRef)+'\')" title="Ver producto" style="cursor:pointer"' : '';
+              return '<tr'+clickAttrs+'>' +
                 '<td style="padding:8px 0;border-bottom:.5px solid var(--border)">' +
                   (it.cod ? '<span style="font-family:monospace;font-size:11px;color:var(--text3);margin-right:6px">' + it.cod + '</span>' : '') +
                   '<span style="font-size:13px">' + (it.desc||'') + '</span>' +
@@ -22617,6 +22708,7 @@ function renderDetalleVenta(v) {
                 (currentRole === 'admin' && window._mostrarCostoCompraDetalleVenta ? '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px;color:var(--amber)">$' + Math.round(costoUnit || 0).toLocaleString('es-AR') + '</td>' : '') +
                 '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px">$' + (it.punit||0).toLocaleString('es-AR') + '</td>' +
                 '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">$' + (sub||0).toLocaleString('es-AR') + '</td>' +
+                '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px">' + botonVerCompraProducto(it) + '</td>' +
               '</tr>';
             }).join('') +
           '</tbody></table>' +
