@@ -4345,7 +4345,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.16-firebase',
+  VERSION: 'v2.0.17-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6264,34 +6264,57 @@ function renderTablaProveedoresProducto() {
 }
 
 function cotizarPreciosProveedores() {
-  // Filtrar proveedores que tienen URL cargada
-  var provConUrl = prodProveedoresActuales.filter(function(pv){ return pv.url && pv.url.trim(); });
-  if (!provConUrl.length) {
-    notify('Cargá la URL del producto en al menos un proveedor antes de cotizar');
+  var nombreProducto = (document.getElementById('pf-nombre')||{}).value || (document.getElementById('pf-descripcion')||{}).value || '';
+  var codigoProducto = (document.getElementById('pf-codigo')||{}).value || '';
+  var termino = (codigoProducto + ' ' + nombreProducto).trim();
+  function proveedorMaestro(nombre) {
+    var n = String(nombre || '').trim().toLowerCase();
+    if (!n) return null;
+    return (proveedoresData || []).find(function(p) {
+      return String(p.nombre || '').trim().toLowerCase() === n;
+    }) || null;
+  }
+  var provCotizables = prodProveedoresActuales.map(function(pv, idx) {
+    var maestro = proveedorMaestro(pv.nombre);
+    var webBase = maestro && (maestro.web || maestro.url || maestro.portal || maestro.sitio || '');
+    return {
+      idx: idx,
+      nombre: pv.nombre || (maestro && maestro.nombre) || 'Proveedor',
+      url: (pv.url || webBase || '').trim(),
+      urlProducto: !!(pv.url && pv.url.trim()),
+      precioActual: parseFloat(pv.precio) || 0
+    };
+  }).filter(function(pv) {
+    return pv.nombre && pv.url;
+  });
+  if (!prodProveedoresActuales.length) {
+    notify('Agregá al menos un proveedor para este producto');
+    return;
+  }
+  if (!provCotizables.length) {
+    notify('Agregá una URL del producto o cargá la web del proveedor en el módulo Proveedores');
     return;
   }
 
   var btn = document.getElementById('btn-cotizar-prov');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Consultando...'; }
-
-  // Llamar a la Cloud Function
-  var payload = {
-    proveedores: provConUrl.map(function(pv) {
-      return {
-        nombre: pv.nombre || 'proveedor',
-        url:    pv.url.trim(),
-        loginRequerido: true
-      };
-    })
-  };
+  var box = document.getElementById('pf-proveedores-cotizacion-resultado');
+  if (box) {
+    box.style.display = 'block';
+    box.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Consultando ' + provCotizables.length + ' proveedor' + (provCotizables.length !== 1 ? 'es' : '') + '...';
+  }
 
   // Llamar al asistente IA para buscar precios en las URLs
   var systemPrompt = 'Sos un asistente de precios para Nixa, empresa de seguridad en Argentina. ' +
-    'Para cada URL que te dé, buscá el precio actual del producto en esa página. ' +
-    'Respondé SOLO con JSON: {"resultados":[{"nombre":"proveedor","url":"...","precio":1234,"moneda":"ARS"}]}';
+    'Para cada proveedor recibido, si la URL es del producto exacto, obtené el precio actual de esa página. ' +
+    'Si la URL es la web general del proveedor, buscá allí el producto por código/nombre. ' +
+    'No inventes precios: si no hay coincidencia clara, devolvé precio 0 y error. ' +
+    'Respondé SOLO con JSON: {"resultados":[{"proveedor":"nombre","url":"...","producto":"nombre encontrado","precio":1234,"moneda":"ARS","error":""}],"observaciones":"..."}';
 
-  var userMsg = 'Buscá el precio actual en estas páginas:\n' +
-    provConUrl.map(function(pv){ return '- ' + pv.nombre + ': ' + pv.url; }).join('\n');
+  var userMsg = 'Producto a cotizar: ' + termino + '\nProveedores:\n' +
+    provCotizables.map(function(pv){
+      return '- ' + pv.nombre + ': ' + pv.url + (pv.urlProducto ? ' (URL exacta del producto)' : ' (web del proveedor)');
+    }).join('\n');
 
   fetch('https://asistente-171899432710.southamerica-east1.run.app', {
     method: 'POST',
@@ -6300,31 +6323,54 @@ function cotizarPreciosProveedores() {
   })
   .then(function(r){ return r.json(); })
   .then(function(resp) {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Cotizar precios online'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Cotizar online'; }
     var texto = (resp.content && resp.content[0] && resp.content[0].text) || '';
     var jsonMatch = texto.match(/\{[\s\S]*\}/);
     var res = null;
     if (jsonMatch) { try { res = JSON.parse(jsonMatch[0]); } catch(e){} }
-    if (!res || !res.resultados) { notify('No se pudo obtener precios'); return; }
+    if (!res || !res.resultados) {
+      if (box) box.innerHTML = '<span style="color:var(--amber)">No se pudo interpretar la cotización.</span>';
+      notify('No se pudo obtener precios');
+      return;
+    }
 
     var actualizados = 0;
+    var filasResultado = [];
     res.resultados.forEach(function(r) {
-      if (r.precio !== null && !r.error) {
-        prodProveedoresActuales.forEach(function(pv, i) {
-          if (pv.url && pv.url.trim() === r.url) {
-            prodProveedoresActuales[i].precio     = r.precio;
-            prodProveedoresActuales[i].actualizado = new Date().toISOString().slice(0,10);
-            actualizados++;
-          }
-        });
+      var precio = parseFloat(r.precio) || 0;
+      var nombreRes = String(r.proveedor || r.nombre || '').trim().toLowerCase();
+      var urlRes = String(r.url || '').trim();
+      var match = provCotizables.find(function(pv) {
+        return (urlRes && pv.url === urlRes) || (nombreRes && String(pv.nombre || '').trim().toLowerCase() === nombreRes);
+      });
+      if (match && precio > 0 && !r.error) {
+        prodProveedoresActuales[match.idx].precio = precio;
+        prodProveedoresActuales[match.idx].url = urlRes || prodProveedoresActuales[match.idx].url || match.url;
+        prodProveedoresActuales[match.idx].actualizado = new Date().toISOString().slice(0,10);
+        actualizados++;
       }
+      filasResultado.push(
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">' +
+          '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
+          '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(r.producto || r.error || 'Sin coincidencia clara') + '</div>' +
+          (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
+          '<div style="font-weight:700;color:' + (precio > 0 ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + Math.round(precio).toLocaleString('es-AR') + '</div>' +
+        '</div>'
+      );
     });
 
     renderTablaProveedoresProducto();
     recalcularCompraDesdeProveedores();
     calcMargen();
 
-    // Mostrar resultado
+    if (box) {
+      box.style.display = 'block';
+      box.innerHTML =
+        '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><strong>Resultado de cotización</strong><span style="color:var(--green)">' + actualizados + ' actualizado' + (actualizados !== 1 ? 's' : '') + '</span></div>' +
+        filasResultado.join('') +
+        (res.observaciones ? '<div style="font-size:11px;color:var(--text3);margin-top:8px">' + escapeHTML(res.observaciones) + '</div>' : '') +
+        '<div style="font-size:11px;color:var(--amber);margin-top:8px"><i class="ti ti-alert-circle"></i> Revisá el resultado y tocá Guardar producto para conservar proveedores y precios.</div>';
+    }
     var masBarato = res.masBarato ? ' | Más económico: <strong>' + res.masBarato + '</strong> $' + (res.precioOptimo||0).toLocaleString('es-AR') : '';
     notify('✓ ' + actualizados + ' precio' + (actualizados !== 1 ? 's' : '') + ' actualizados' + (masBarato ? '' : ' — algunos no pudieron obtenerse'));
     if (res.masBarato) {
@@ -6341,7 +6387,11 @@ function cotizarPreciosProveedores() {
     }
   })
   .catch(function(err) {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Cotizar precios online'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Cotizar online'; }
+    if (box) {
+      box.style.display = 'block';
+      box.innerHTML = '<span style="color:var(--red)">Error al conectar con el servidor de cotización: ' + escapeHTML(err.message || '') + '</span>';
+    }
     notify('Error al conectar con el servidor de cotización: ' + (err.message||''));
     console.error('[Cotizador]', err);
   });
@@ -6576,9 +6626,9 @@ function guardarProducto() {
   if (!cod || (!nom && !desc)) { notify('Completá al menos código y nombre'); return; }
 
   var proveedoresValidos = prodProveedoresActuales.filter(function(pv) {
-    return (pv.nombre||'').trim() && parseFloat(pv.precio) > 0;
+    return (pv.nombre||'').trim() || (pv.url||'').trim() || parseFloat(pv.precio) > 0;
   }).map(function(pv) {
-    return { nombre: pv.nombre.trim(), precio: parseFloat(pv.precio)||0, actualizado: pv.actualizado||'', url: pv.url||'' };
+    return { nombre: (pv.nombre||'').trim(), precio: parseFloat(pv.precio)||0, sinIva: !!pv.sinIva, actualizado: pv.actualizado||'', url: pv.url||'' };
   });
   var proveedorPrincipal = proveedoresValidos.length
     ? proveedoresValidos.reduce(function(min, pv){

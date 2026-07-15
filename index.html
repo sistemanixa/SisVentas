@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.16-firebase' -->
+<!-- VERSION: 'v2.0.17-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.16 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.17 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -500,18 +500,8 @@
               <button class="btn btn-sm" onclick="addRow()"><i class="ti ti-plus"></i> Agregar fila</button>
             </div>
           </div>
-          <div style="overflow-x:auto;overflow-y:visible">
-            <table class="tbl-sheet" style="table-layout:fixed;width:100%">
-              <colgroup>
-                <col style="width:130px">
-                <col>
-                <col style="width:58px">
-                <col style="width:85px">
-                <col style="width:85px">
-                <col style="width:65px">
-                <col style="width:80px">
-                <col style="width:32px">
-              </colgroup>
+          <div class="table-wrap">
+            <table id="venta-items-tbl" class="tbl-sheet">
               <thead><tr>
                 <th>CÓDIGO</th>
                 <th>PRODUCTO</th>
@@ -647,17 +637,7 @@
       </div>
 
       <div class="table-wrap">
-        <table style="table-layout:fixed;width:100%">
-          <colgroup>
-            <col style="width:80px">
-            <col>
-            <col style="width:90px">
-            <col style="width:100px">
-            <col style="width:110px">
-            <col style="width:110px">
-            <col style="width:36px">
-            <col style="width:40px">
-          </colgroup>
+        <table id="ventas-tbl">
           <thead>
             <tr>
               <th>#</th>
@@ -1980,7 +1960,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.16
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.17
 Listo para analizar.
 </pre>
           </div>
@@ -3290,19 +3270,23 @@ Listo para analizar.
           </div>
           <div class="card">
             <div class="card-head">
-              <span class="card-title">Proveedores y precios de costo</span>
-              <button class="btn btn-sm" onclick="agregarFilaProveedor()"><i class="ti ti-plus"></i> Agregar proveedor</button>
-            <button class="btn btn-sm" onclick="cotizarPreciosProveedores()" style="color:var(--blue);border-color:var(--blue)" id="btn-cotizar-prov" title="Consulta el precio actual en cada proveedor que tenga URL cargada">
-              <i class="ti ti-refresh"></i> Cotizar precios online
-            </button>
+              <span class="card-title">Proveedores del producto</span>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span style="font-size:11px;color:var(--amber)"><i class="ti ti-device-floppy"></i> Se guardan al guardar el producto</span>
+                <button class="btn btn-sm" onclick="agregarFilaProveedor()"><i class="ti ti-plus"></i> Agregar proveedor</button>
+                <button class="btn btn-sm" onclick="cotizarPreciosProveedores()" style="color:var(--blue);border-color:var(--blue)" id="btn-cotizar-prov" title="Cotiza usando la URL del producto o la web configurada del proveedor">
+                  <i class="ti ti-refresh"></i> Cotizar online
+                </button>
+              </div>
             </div>
             <div style="font-size:12px;color:var(--text3);margin-bottom:10px">
-              <i class="ti ti-info-circle"></i> Cargá el precio de cada proveedor. El sistema marca automáticamente el más económico.
+              <i class="ti ti-info-circle"></i> Cargá uno o más proveedores de este producto. Podés poner la URL exacta del producto o dejarla vacía si el proveedor ya tiene web cargada en el módulo Proveedores. El costo más económico actualiza el precio de compra.
             </div>
             <table id="pf-proveedores-tbl" style="width:100%">
               <tr><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio de costo ($)</th><th style="text-align:center;white-space:nowrap" title="Si el proveedor cotiza sin IVA, el sistema suma el 21% para calcular tu costo real">Sin IVA <i class="ti ti-info-circle" style="font-size:11px;color:var(--text3)"></i></th><th style="text-align:right;color:var(--amber)">Costo real</th><th>URL</th><th style="text-align:right">Actualizado</th><th></th></tr>
             </table>
             <div id="pf-proveedores-vacio" style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Sin proveedores cargados — agregá al menos uno</div>
+            <div id="pf-proveedores-cotizacion-resultado" style="display:none;margin-top:12px;padding:10px 12px;border:0.5px solid rgba(96,165,250,.24);background:rgba(59,130,246,.06);border-radius:var(--radius);font-size:12px;color:var(--text2)"></div>
           </div>
           <div class="card">
             <div class="card-head">
@@ -3341,15 +3325,6 @@ Listo para analizar.
                   <div style="font-size:11px;color:var(--text3);margin-top:4px" id="pf-precio-usd-equiv">= USD —</div>
                 </div>
               </div>
-            </div>
-            <!-- Búsqueda de precios en proveedores -->
-            <div style="padding:10px 14px;background:rgba(34,197,94,.06);border-radius:var(--radius);margin-bottom:12px;border:0.5px solid rgba(34,197,94,.2)">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.5px">🔍 Precios en proveedores</div>
-                <button class="btn btn-sm" onclick="buscarPreciosProveedores()" id="btn-buscar-precios" style="font-size:11px;color:var(--green);border-color:var(--green)">Buscar ahora</button>
-              </div>
-              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Busca el precio en Biosegur, Free Electron y Tecnoprices usando la IA</div>
-              <div id="pf-precios-resultado" style="display:none;flex-direction:column;gap:6px"></div>
             </div>
               <div class="fg"><label>Precio de compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input data-money="1" id="pf-compra" placeholder="0" oninput="calcMargen()"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
               <div class="fg"><label>Precio de venta (<span id="pf-venta-moneda-lbl">$</span>)</label><input data-money="1" id="pf-venta" placeholder="0" oninput="calcMargen()"></div>
@@ -4589,7 +4564,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.16</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.17</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">

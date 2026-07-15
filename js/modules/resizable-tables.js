@@ -235,6 +235,30 @@
         5: 13
       };
     }
+    if (table && table.id === 'ventas-tbl') {
+      return {
+        0: 7,
+        1: 40,
+        2: 10,
+        3: 10,
+        4: 10,
+        5: 10,
+        6: 7,
+        7: 6
+      };
+    }
+    if (table && table.id === 'venta-items-tbl') {
+      return {
+        0: 9,
+        1: 38,
+        2: 8,
+        3: 10,
+        4: 11,
+        5: 8,
+        6: 12,
+        7: 4
+      };
+    }
     var pesos = headers.map(function (th) {
       return defaultWidthForHeader(th);
     });
@@ -247,7 +271,7 @@
   }
 
   function shouldApplyDefaultPercentProfile(table) {
-    return !!(table && (table.id === 'prod-tbl' || table.id === 'gas-tbl' || table.id === 'ppto-tabla'));
+    return !!(table && (table.id === 'prod-tbl' || table.id === 'gas-tbl' || table.id === 'ppto-tabla' || table.id === 'ventas-tbl' || table.id === 'venta-items-tbl'));
   }
 
   function currentPercentages(table) {
