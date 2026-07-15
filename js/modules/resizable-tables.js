@@ -8,6 +8,7 @@
   var MAX_WIDTH = 720;
   var scheduled = false;
   var scheduleTimer = 0;
+  var percentDrafts = {};
   var DEFAULT_WIDTH_BY_HEADER = {
     'fecha': 76,
     'descripcion': 170,
@@ -66,6 +67,10 @@
 
   function percentStorageKey(table) {
     return STORAGE_PERCENT_PREFIX + tableKey(table);
+  }
+
+  function percentDraftKey(table) {
+    return tableKey(table);
   }
 
   function loadWidths(table) {
@@ -275,6 +280,8 @@
   }
 
   function currentPercentages(table) {
+    var draft = percentDrafts[percentDraftKey(table)];
+    if (draft && Object.keys(draft).length) return draft;
     var saved = loadPercentages(table);
     if (Object.keys(saved).length) return saved;
     return defaultPercentages(table);
@@ -320,6 +327,11 @@
   }
 
   function applySavedPercentProfile(table) {
+    var draft = percentDrafts[percentDraftKey(table)];
+    if (draft && Object.keys(draft).length) {
+      applyPercentProfile(table, draft);
+      return true;
+    }
     if (hasSavedPercentages(table)) {
       applyPercentProfile(table, loadPercentages(table));
       return true;
@@ -549,6 +561,7 @@
       return;
     }
     var values = currentPercentages(table);
+    percentDrafts[percentDraftKey(table)] = Object.assign({}, values);
     var overlay = document.createElement('div');
     overlay.id = 'sv-column-percent-modal';
     overlay.className = 'sv-column-percent-overlay';
@@ -643,6 +656,7 @@
 
     function applyLive() {
       var data = readInputs();
+      percentDrafts[percentDraftKey(table)] = Object.assign({}, data);
       applyPercentProfile(table, data);
       refreshTotal(data);
     }
@@ -652,7 +666,9 @@
     });
     overlay.addEventListener('click', function (ev) {
       if (ev.target === overlay || ev.target.closest('[data-sv-close]')) {
+        delete percentDrafts[percentDraftKey(table)];
         overlay.remove();
+        scan();
         return;
       }
       if (ev.target.closest('[data-sv-default]')) {
@@ -665,6 +681,7 @@
       }
       if (ev.target.closest('[data-sv-reset]')) {
         try { localStorage.removeItem(percentStorageKey(table)); } catch (_) {}
+        delete percentDrafts[percentDraftKey(table)];
         clearPixelWidths(table);
         table.classList.remove('sv-percent-table');
         table.style.removeProperty('--sv-percent-total-width');
@@ -678,6 +695,7 @@
       if (ev.target.closest('[data-sv-save]')) {
         var data = readInputs();
         savePercentages(table, data);
+        delete percentDrafts[percentDraftKey(table)];
         applyPercentProfile(table, data);
         overlay.remove();
         if (window.notify) window.notify('✓ Anchos de columnas guardados');
