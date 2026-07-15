@@ -4494,7 +4494,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.27-firebase',
+  VERSION: 'v2.0.28-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5960,6 +5960,8 @@ function confirmarVenta() {
         monedaOriginal: tr.dataset.monedaOriginal || (prodItemCosto && prodItemCosto.moneda) || ''
       });
       item.pid = prodItemCosto ? (prodItemCosto.fbKey || prodItemCosto.id || '') : '';
+      item.productoFbKey = item.pid || tr.dataset.productoFbKey || '';
+      item.imagenUrl = prodItemCosto && prodItemCosto.imagenUrl ? prodItemCosto.imagenUrl : '';
       item.costoUnitarioCompra = Math.round(costoUnitarioItem * 100) / 100;
       item.costoTotalCompra = Math.round(costoUnitarioItem * qty * 100) / 100;
       if (tr.dataset.monedaOriginal === 'USD') {
@@ -6222,7 +6224,7 @@ function navegarAProducto(prodRef) {
 function productoRefDesdeItem(item) {
   item = item || {};
   var candidatos = [
-    item.productoFbKey, item.productoKey, item.fbKeyProducto,
+    item.pid, item.productoFbKey, item.productoKey, item.fbKeyProducto,
     item.idProducto, item.productoId, item.cod, item.codigo,
     item.nombre, item.desc, item.descripcion
   ].map(function(x){ return String(x || '').trim(); }).filter(Boolean);
@@ -6238,6 +6240,26 @@ function productoRefDesdeItem(item) {
     if (p) return p.fbKey || p.codigo || ref;
   }
   return candidatos[0] || '';
+}
+function productoDesdeItem(item) {
+  var ref = productoRefDesdeItem(item);
+  if (!ref) return null;
+  return Object.values(prodData || {}).find(function(x) {
+    return String(x.fbKey || '') === String(ref) ||
+           String(x.id || '') === String(ref) ||
+           String(x.codigo || '') === String(ref) ||
+           String(x.nombre || '').trim().toLowerCase() === String(ref).trim().toLowerCase() ||
+           String(x.descripcion || '').trim().toLowerCase() === String(ref).trim().toLowerCase();
+  }) || null;
+}
+function imagenProductoItemHTML(item, extraClass) {
+  var prod = productoDesdeItem(item);
+  var src = (prod && prod.imagenUrl) || item.imagenUrl || item.productoImagenUrl || '';
+  var cls = escapeHTML('item-prod-img ' + (extraClass || ''));
+  if (src) {
+    return '<img class="'+cls+'" src="'+escapeHTML(src)+'">';
+  }
+  return '<span class="'+cls+' item-prod-img-placeholder"><i class="ti ti-photo"></i></span>';
 }
 function jsStringAttr(valor) {
   return String(valor || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
@@ -6292,6 +6314,21 @@ function normalizarUrlProveedorProducto(url) {
   return u;
 }
 
+function parsePrecioProveedorARS(valor) {
+  if (typeof valor === 'number') return valor;
+  var s = String(valor || '').replace(/[^\d,.-]/g, '').trim();
+  if (!s) return 0;
+  if (typeof normalizarNumeroExcel === 'function') {
+    var nExcel = parseFloat(normalizarNumeroExcel(s));
+    if (nExcel > 0) return nExcel;
+  }
+  var lastComma = s.lastIndexOf(',');
+  var lastDot = s.lastIndexOf('.');
+  if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
+  else if (lastDot > lastComma) s = s.replace(/,/g, '');
+  return parseFloat(s) || 0;
+}
+
 function completarReferenciaProveedorProducto(pv, urlFallback, origen) {
   pv = Object.assign({}, pv || {});
   var tc = obtenerDolarReferenciaProducto();
@@ -6315,6 +6352,30 @@ function completarReferenciaProveedorProducto(pv, urlFallback, origen) {
   pv.actualizadoEn = pv.actualizadoEn || Date.now();
   pv.actualizadoOrigen = origen || pv.actualizadoOrigen || 'manual';
   return pv;
+}
+
+function precioGremioARSDesdeProducto(p) {
+  p = p || {};
+  var proveedorPrincipal = Array.isArray(p.proveedores) && p.proveedores.length ? p.proveedores[0] : null;
+  var tc = obtenerDolarReferenciaProducto();
+  var candidatos = [
+    p.precioArsPublicado,
+    p.costoRealArs,
+    p.precioGremio,
+    p.compraARS,
+    proveedorPrincipal && proveedorPrincipal.precioArsPublicado,
+    proveedorPrincipal && proveedorPrincipal.costoRealArs,
+    proveedorPrincipal && proveedorPrincipal.precio
+  ];
+  for (var i = 0; i < candidatos.length; i++) {
+    var n = parseFloat(candidatos[i]);
+    if (n > 0) return n;
+  }
+  var compraLegacy = parseFloat(p.compra) || 0;
+  if (compraLegacy > 0 && String(p.moneda || '').toUpperCase() === 'USD' && tc.valor > 0) {
+    return Math.round(compraLegacy * tc.valor * 100) / 100;
+  }
+  return compraLegacy || 0;
 }
 
 function previewImagenProducto(input) {
@@ -6396,7 +6457,7 @@ function abrirFormProducto(id) {
   // Cargar campos de calculadora de precio
   var pgEl = document.getElementById('pf-precio-gremio');
   var mdEl = document.getElementById('pf-margen-deseado');
-  var rawGremio = p.precioGremio || p.compraARS || p.compra || 0;
+  var rawGremio = precioGremioARSDesdeProducto(p);
   if (pgEl) _setMontoInput(pgEl, rawGremio);
   if (mdEl) mdEl.value = p.margenDeseado || '';
   document.getElementById('pf-iva').value = p.iva || 21;
@@ -6406,7 +6467,7 @@ function abrirFormProducto(id) {
   document.getElementById('pf-unidad').value = p.unidad || 'Unidad';
   document.getElementById('pf-es-mano-obra').checked = !!p.esManoDeObra;
   var monedaSel = document.getElementById('pf-moneda');
-  if (monedaSel) monedaSel.value = p.moneda || 'ARS';
+  if (monedaSel) monedaSel.value = 'ARS';
   cambiarMonedaProducto();
 
   // Imagen del producto
@@ -6419,7 +6480,7 @@ function abrirFormProducto(id) {
   if (Array.isArray(p.proveedores) && p.proveedores.length) {
     prodProveedoresActuales = p.proveedores.map(function(pv){ return completarReferenciaProveedorProducto(pv, p.codWeb || p.urlProveedor || '', pv.actualizadoOrigen || 'legacy'); });
   } else if (p.proveedor) {
-    prodProveedoresActuales = [completarReferenciaProveedorProducto({ nombre: p.proveedor, precio: parseFloat(p.compra)||0, actualizado: p.fechaActualizacionPrecio || '', url: p.codWeb || p.urlProveedor || '' }, p.codWeb || p.urlProveedor || '', 'legacy')];
+    prodProveedoresActuales = [completarReferenciaProveedorProducto({ nombre: p.proveedor, precio: precioGremioARSDesdeProducto(p), actualizado: p.fechaActualizacionPrecio || '', url: p.codWeb || p.urlProveedor || '' }, p.codWeb || p.urlProveedor || '', 'legacy')];
   } else {
     prodProveedoresActuales = [];
   }
@@ -6571,13 +6632,14 @@ function cotizarPreciosProveedores() {
     var actualizados = 0;
     var filasResultado = [];
     res.resultados.forEach(function(r) {
-      var precio = parseFloat(r.precio) || 0;
+      var precio = parsePrecioProveedorARS(r.precio);
       var nombreRes = String(r.proveedor || r.nombre || '').trim().toLowerCase();
       var urlRes = String(r.url || '').trim();
       var match = provCotizables.find(function(pv) {
         return (urlRes && pv.url === urlRes) || (nombreRes && String(pv.nombre || '').trim().toLowerCase() === nombreRes);
       });
-      if (match && precio > 0 && !r.error) {
+      if (!match && provCotizables.length === 1 && precio > 0) match = provCotizables[0];
+      if (match && precio > 0) {
         prodProveedoresActuales[match.idx] = completarReferenciaProveedorProducto(Object.assign({}, prodProveedoresActuales[match.idx], {
           precio: precio,
           url: urlRes || prodProveedoresActuales[match.idx].url || match.url,
@@ -6696,8 +6758,8 @@ function cambiarMonedaProducto() {
   if (compraLbl) compraLbl.textContent = esUSD ? 'USD' : '$';
   if (ventaLbl)  ventaLbl.textContent  = esUSD ? 'USD' : '$';
   if (hint) hint.textContent = esUSD
-    ? 'Se convierte a pesos automáticamente al vender, según cotización vigente'
-    : 'Precios cargados en pesos argentinos';
+    ? 'Carga manual en dólares. Usalo solo si este producto realmente se maneja en USD.'
+    : 'Precio gremio/costo cargado en pesos. El sistema guarda aparte la referencia USD con el dólar vigente.';
   if (badgeHead) badgeHead.innerHTML = esUSD
     ? '<span class="badge b-blue">💵 USD</span>' : '<span class="badge b-gray">🇦🇷 ARS</span>';
   var equivBox = document.getElementById('pf-equiv-ars-box');
@@ -6782,8 +6844,8 @@ async function buscarPreciosProveedores() {
 function pfUsarPrecio(precio) {
   var compraInp = document.getElementById('pf-compra');
   var gremioInp = document.getElementById('pf-precio-gremio');
-  if (compraInp) compraInp.value = precio;
-  if (gremioInp) gremioInp.value = precio;
+  if (compraInp) _setMontoInput(compraInp, precio);
+  if (gremioInp) _setMontoInput(gremioInp, precio);
   calcPrecioDesdeGremio();
   calcMargen();
   notify('✓ Precio de compra actualizado a $' + precio.toLocaleString('es-AR'));
@@ -6810,9 +6872,10 @@ function calcPrecioDesdeGremio() {
   if (pfVenta)  _setMontoInput(pfVenta, precioVenta);
   if (pfCompra) _setMontoInput(pfCompra, gremio);
   // Mostrar equivalente USD
-  var tc = (window._tipoCambioActual && window._tipoCambioActual.venta) || 0;
+  var dolarRef = obtenerDolarReferenciaProducto();
+  var tc = dolarRef.valor || 0;
   if (tc && usdEl) {
-    usdEl.textContent = '= USD ' + (precioVenta / tc).toFixed(2) + ' (TC $' + Math.round(tc).toLocaleString('es-AR') + ')';
+    usdEl.textContent = '= USD ' + (precioVenta / tc).toFixed(2) + ' (' + dolarRef.tipo + ' $' + Math.round(tc).toLocaleString('es-AR') + ')';
   } else if (usdEl) {
     usdEl.textContent = 'TC no disponible';
   }
@@ -19683,6 +19746,7 @@ function pptoCargarItemsEnEditor(p) {
     return item.desc || item.cod || item.punit > 0;
   }).forEach(function(item) {
     var tr = crearFilaProducto(item.cod, item.desc, item.punit, item.qty, item.disc);
+    if (item.pid || item.productoFbKey || item.productoKey) tr.dataset.productoFbKey = item.pid || item.productoFbKey || item.productoKey;
     if (item.monedaOriginal) tr.dataset.monedaOriginal = item.monedaOriginal;
     if (item.precioUsdOriginal) tr.dataset.precioUsdOriginal = item.precioUsdOriginal;
     if (item.cotizacionUsada) tr.dataset.cotizacionUsada = item.cotizacionUsada;
@@ -19909,7 +19973,7 @@ function verPpto(id) {
       var sub   = parseFloat(it.sub   || it.subtotal || (punit * qty)) || 0;
       var prodRef = productoRefDesdeItem(it);
       var clickAttrs = prodRef ? ' onclick="navegarAProducto(\''+jsStringAttr(prodRef)+'\')" title="Ver producto" style="cursor:pointer"' : '';
-      return '<tr'+clickAttrs+'><td>'+escapeHTML(cod)+'</td><td>'+escapeHTML(desc)+'</td>' +
+      return '<tr'+clickAttrs+'><td>'+escapeHTML(cod)+'</td><td><div class="item-prod-mini-line">'+imagenProductoItemHTML(it, '')+'<span>'+escapeHTML(desc)+'</span></div></td>' +
         '<td class="tr">'+qty+'</td>' +
         '<td class="tr">$'+Math.round(punit).toLocaleString('es-AR')+'</td>' +
         '<td class="tr" style="font-weight:500">$'+Math.round(sub).toLocaleString('es-AR')+'</td>' +
@@ -22919,8 +22983,12 @@ function renderDetalleVenta(v) {
               var clickAttrs = prodRef ? ' onclick="navegarAProducto(\''+jsStringAttr(prodRef)+'\')" title="Ver producto" style="cursor:pointer"' : '';
               return '<tr'+clickAttrs+'>' +
                 '<td style="padding:8px 0;border-bottom:.5px solid var(--border)">' +
+                  '<div class="item-prod-mini-line">' +
+                  imagenProductoItemHTML(it, '') +
+                  '<span>' +
                   (it.cod ? '<span style="font-family:monospace;font-size:11px;color:var(--text3);margin-right:6px">' + it.cod + '</span>' : '') +
                   '<span style="font-size:13px">' + (it.desc||'') + '</span>' +
+                  '</span></div>' +
                 '</td>' +
                 '<td style="text-align:right;padding:8px 4px;border-bottom:.5px solid var(--border);font-size:13px">' + (it.qty||1) + '</td>' +
                 (currentRole === 'admin' && window._mostrarCostoCompraDetalleVenta ? '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px;color:var(--amber)">$' + Math.round(costoUnit || 0).toLocaleString('es-AR') + '</td>' : '') +
@@ -24023,6 +24091,8 @@ document.addEventListener('click', function(e) {
 // prodData tiene todos los productos disponibles
 function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
   const tr = document.createElement('tr');
+  var prodInicial = obtenerProductoPorCodigoVenta(cod, { cod: cod, desc: desc });
+  if (prodInicial && prodInicial.fbKey) tr.dataset.productoFbKey = prodInicial.fbKey;
   const stockBadge = stockBadgeHTML(cod, qty || 1);
   const dp = parseFloat(desc_pct) || 0;
   const precioFinal = dp > 0 ? Math.round((qty||1) * precio * (1 - dp/100)) : Math.round((qty||1) * (precio||0));
@@ -24048,7 +24118,12 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
         <div class="prod-drop-list"></div>
       </div>
     </td>
-    <td><span class="desc-txt" style="font-size:13px;color:var(--text2)">${escapeHTML(desc)}</span></td>
+    <td>
+      <div class="item-prod-cell">
+        ${imagenProductoItemHTML({ pid: prodInicial && prodInicial.fbKey, cod: cod, desc: desc }, 'item-prod-img-edit')}
+        <span class="desc-txt" style="font-size:13px;color:var(--text2)">${escapeHTML(desc)}</span>
+      </div>
+    </td>
     <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right;background:var(--bg);color:var(--text);border:0.5px solid var(--border3);border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;outline:none"></td>
     <td class="stock-cell" style="text-align:right;white-space:nowrap;max-width:90px;background:inherit"><span class="stock-ind" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis">${stockBadge}</span></td>
     <td><input value="${precio||0}" data-money="1" class="price" oninput="calcRow(this)" style="width:80px;text-align:right;background:var(--bg);color:var(--text);border:0.5px solid var(--border3);border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;outline:none"></td>
@@ -24235,11 +24310,22 @@ function _selProdGlobal(item) {
 
   if (_prodDropTR) {
     var tr = _prodDropTR;
+    if (prod && (prod.fbKey || prod.id)) tr.dataset.productoFbKey = prod.fbKey || prod.id;
     var selCod   = tr.querySelector('.prod-sel-cod');
     var descTxt  = tr.querySelector('.desc-txt');
+    var imgBox   = tr.querySelector('.item-prod-img');
     var priceInp = tr.querySelector('.price');
     var ppPrice  = tr.querySelector('.ppprice');
     if (selCod)   selCod.textContent = cod;
+    if (imgBox && prod && prod.imagenUrl) {
+      var nuevoImgWrap = document.createElement('div');
+      nuevoImgWrap.innerHTML = imagenProductoItemHTML({ pid: prod.fbKey || prod.id, imagenUrl: prod.imagenUrl }, 'item-prod-img-edit');
+      imgBox.replaceWith(nuevoImgWrap.firstChild);
+    } else if (imgBox && prod && !prod.imagenUrl) {
+      var nuevoPhWrap = document.createElement('div');
+      nuevoPhWrap.innerHTML = imagenProductoItemHTML({ pid: prod.fbKey || prod.id }, 'item-prod-img-edit');
+      imgBox.replaceWith(nuevoPhWrap.firstChild);
+    }
     if (descTxt)  {
       descTxt.innerHTML = '';
       var descSpan = document.createElement('span');
@@ -24568,7 +24654,18 @@ function getPpItems() {
     var punit = priceInpPp ? (priceInpPp.dataset.moneyInit ? getMontoRaw(priceInpPp) : (parseFloat(priceInpPp.value) || 0)) : 0;
     var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
     var sub   = Math.round(qty * punit * (1 - disc/100));
-    return { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub };
+    var prod = typeof obtenerProductoPorCodigoVenta === 'function' ? obtenerProductoPorCodigoVenta(cod, { cod: cod, desc: desc }) : null;
+    return {
+      cod: cod,
+      desc: desc,
+      qty: qty,
+      punit: punit,
+      disc: disc,
+      sub: sub,
+      pid: prod ? (prod.fbKey || prod.id || '') : (tr.dataset.productoFbKey || ''),
+      productoFbKey: prod ? (prod.fbKey || prod.id || '') : (tr.dataset.productoFbKey || ''),
+      imagenUrl: prod && prod.imagenUrl ? prod.imagenUrl : ''
+    };
   }).filter(function(it){ return (it.desc && it.desc.trim() && it.desc !== 'Seleccioná un producto') || it.punit > 0; });
 }
 function stockBadgeHTML(cod, qty) {

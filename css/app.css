@@ -651,6 +651,13 @@ body.modal-secure-open{overflow:hidden!important}
 @media(max-width:760px){.prod-row-img{width:54px;height:54px;border-radius:12px}.prod-row-img-placeholder i{font-size:22px}}
 .btn-ver-compra-prod{color:var(--amber)!important;border-color:var(--amber)!important;background:rgba(251,191,36,.05)!important;white-space:nowrap;gap:6px}
 .btn-ver-compra-prod:hover{background:rgba(251,191,36,.13)!important;box-shadow:0 0 0 2px rgba(251,191,36,.10)}
+.item-prod-cell{display:flex;align-items:center;gap:10px;min-width:0}
+.item-prod-img{width:42px;height:42px;border-radius:10px;object-fit:cover;display:inline-flex;align-items:center;justify-content:center;flex:0 0 42px;background:linear-gradient(135deg,rgba(30,41,59,.92),rgba(15,23,42,.76));border:1px solid rgba(255,255,255,.10);box-shadow:0 8px 18px rgba(0,0,0,.16);overflow:hidden}
+.item-prod-img i{font-size:18px;color:var(--text3)}
+.item-prod-img-edit{width:46px;height:46px;border-radius:11px}
+.item-prod-mini-line{display:flex;align-items:center;gap:8px;min-width:0}
+.item-prod-mini-line .item-prod-img{width:34px;height:34px;flex-basis:34px;border-radius:9px}
+@media(max-width:760px){.item-prod-img{width:36px;height:36px;flex-basis:36px}.item-prod-img-edit{width:40px;height:40px}.item-prod-mini-line .item-prod-img{width:30px;height:30px;flex-basis:30px}}
 .venta-resumen-stock{background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-top:12px;display:none}
 
 /* ── FAB (Botón flotante) ── */
