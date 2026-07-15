@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.22-firebase' -->
+<!-- VERSION: 'v2.0.26-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.22 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.26 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -394,23 +394,29 @@
           <div id="dash-adm-ultventas" style="display:flex;flex-direction:column;gap:6px"></div>
         </div>
 
-        <div class="card admin-only" id="dash-rentabilidad-card" style="display:none">
+        <div class="card admin-only sv-rent-modern" id="dash-rentabilidad-card" style="display:none">
           <div class="card-head">
-            <span class="card-title"><i class="ti ti-chart-line"></i> Rentabilidad del mes</span>
+            <span class="card-title"><i class="ti ti-chart-dots"></i> Rentabilidad del mes</span>
             <button class="btn btn-sm" style="touch-action:manipulation" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))"><i class="ti ti-external-link"></i> Ver reporte completo</button>
           </div>
-          <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;touch-action:pan-x pan-y">
-            <div class="metric" style="cursor:pointer;touch-action:manipulation" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver detalle de ventas">
-              <div class="m-label">Ingresos del mes</div><div class="m-value" id="dash-rent-ingresos" style="color:var(--green)">$0</div><div class="m-sub">total facturado</div>
+          <div class="sv-rent-modern-grid">
+            <div class="sv-rent-main" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))" title="Ver reporte completo">
+              <div class="sv-rent-pill" id="dash-rent-margen-sub">—</div>
+              <div class="sv-rent-main-label">Resultado estimado</div>
+              <div class="sv-rent-main-value" id="dash-rent-utilidad">$0</div>
+              <div class="sv-rent-main-meta">Margen <strong id="dash-rent-margen">—</strong></div>
             </div>
-            <div class="metric" style="cursor:pointer;touch-action:manipulation" onclick="showPage('gastos',document.querySelector('[onclick*=gastos]'))" title="Ver módulo de gastos">
-              <div class="m-label">Gastos del mes</div><div class="m-value" id="dash-rent-gastos" style="color:var(--red)">$0</div><div class="m-sub">gastos cargados</div>
-            </div>
-            <div class="metric" style="cursor:pointer;touch-action:manipulation" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))" title="Ver reporte completo">
-              <div class="m-label">Utilidad estimada</div><div class="m-value" id="dash-rent-utilidad">$0</div><div class="m-sub">ingresos − gastos</div>
-            </div>
-            <div class="metric" style="cursor:pointer;touch-action:manipulation" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))" title="Ver reporte completo">
-              <div class="m-label">Margen</div><div class="m-value" id="dash-rent-margen">—</div><div class="m-sub" id="dash-rent-margen-sub">—</div>
+            <div class="sv-rent-side">
+              <button class="sv-rent-mini sv-rent-income" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver detalle de ventas">
+                <span><i class="ti ti-arrow-up-right"></i> Ingresos</span>
+                <strong id="dash-rent-ingresos">$0</strong>
+                <em>total facturado</em>
+              </button>
+              <button class="sv-rent-mini sv-rent-expense" onclick="showPage('gastos',document.querySelector('[onclick*=gastos]'))" title="Ver módulo de gastos">
+                <span><i class="ti ti-arrow-down-right"></i> Gastos</span>
+                <strong id="dash-rent-gastos">$0</strong>
+                <em>gastos cargados</em>
+              </button>
             </div>
           </div>
           <div class="sv-rent-compare">
@@ -1595,6 +1601,13 @@
               <div class="fg"><label>Stock mínimo por defecto</label><input type="number" id="cfg-stock-min-def" value="5" min="0"></div>
               <div class="fg"><label>Descuento máximo sin aprobación (%)</label><input type="number" id="cfg-desc-max-ppto" value="10" min="0" max="100"></div>
               <div class="fg"><label>Monto máximo sin aprobación ($)</label><input type="number" id="cfg-monto-max-ppto" value="200000" min="0"></div>
+              <div class="fg" style="grid-column:1/-1">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--text2);font-size:13px">
+                  <input type="checkbox" id="cfg-mostrar-monitor-recursos" checked onchange="aplicarVisibilidadMonitorRecursos(this.checked)">
+                  Mostrar monitor de recursos en la barra superior
+                </label>
+                <div style="font-size:11px;color:var(--text3);margin-top:4px">Permite ver memoria, carga estimada y tráfico. En móviles permanece oculto automáticamente.</div>
+              </div>
             </div>
             <div style="font-size:11px;color:var(--text3);margin-top:4px">Estos valores se guardan en Firebase y se aplican al crear productos/presupuestos.</div>
             <div class="flex-end"><button class="btn btn-primary" onclick="guardarPreferenciasSistema(this)"><i class="ti ti-check"></i> Guardar cambios</button></div>
@@ -1960,7 +1973,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.22
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.26
 Listo para analizar.
 </pre>
           </div>
@@ -3174,10 +3187,10 @@ Listo para analizar.
       <!-- ── PRODUCTOS ── -->
       <div id="page-productos" class="page">
         <div class="metrics" style="margin-bottom:12px">
-          <div class="metric"><div class="m-label">Total productos</div><div class="m-value" id="stat-prod-total">—</div><div class="m-sub">en catálogo</div></div>
-          <div class="metric"><div class="m-label">Con stock</div><div class="m-value" id="stat-prod-stock" style="color:var(--green)">—</div><div class="m-sub">disponibles</div></div>
-          <div class="metric"><div class="m-label">Sin precio</div><div class="m-value" id="stat-prod-sinprecio" style="color:var(--amber)">—</div><div class="m-sub">requieren precio</div></div>
-          <div class="metric"><div class="m-label">Más vendido</div><div class="m-value" id="stat-prod-top" style="font-size:11px;line-height:1.3">—</div><div class="m-sub">del mes</div></div>
+          <div class="metric"><div class="m-label" id="stat-prod-total-label">Total productos</div><div class="m-value" id="stat-prod-total">—</div><div class="m-sub" id="stat-prod-total-sub">en catálogo</div></div>
+          <div class="metric"><div class="m-label" id="stat-prod-stock-label">Con stock</div><div class="m-value" id="stat-prod-stock" style="color:var(--green)">—</div><div class="m-sub" id="stat-prod-stock-sub">disponibles</div></div>
+          <div class="metric"><div class="m-label" id="stat-prod-sinprecio-label">Sin precio</div><div class="m-value" id="stat-prod-sinprecio" style="color:var(--amber)">—</div><div class="m-sub" id="stat-prod-sinprecio-sub">requieren precio</div></div>
+          <div class="metric"><div class="m-label" id="stat-prod-top-label">Más vendido</div><div class="m-value" id="stat-prod-top" style="font-size:11px;line-height:1.3">—</div><div class="m-sub" id="stat-prod-top-sub">del mes</div></div>
         </div>
 
         <!-- ALERTAS STOCK -->
@@ -3203,8 +3216,17 @@ Listo para analizar.
                 <button class="btn btn-sm" id="btn-colapsar-cats" onclick="toggleTodasCats()" title="Colapsar/expandir todos los grupos"><i class="ti ti-layout-list" id="icon-colapsar-cats"></i> <span id="label-colapsar-cats">Colapsar todo</span></button>
               </div>
             </div>
-            <div style="margin-bottom:14px">
-              <input class="search-input" id="prod-search" style="width:100%" placeholder="Buscar por código, descripción o proveedor..." oninput="buscarProducto(this.value)">
+            <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input class="search-input" id="prod-search" style="width:min(520px,100%);flex:0 1 520px" placeholder="Buscar producto..." oninput="buscarProducto(this.value)">
+              <select class="search-input" id="prod-search-field" style="width:190px;flex:0 0 190px" onchange="buscarProducto((document.getElementById('prod-search')||{}).value||'')">
+                <option value="todo">Buscar en todo</option>
+                <option value="nombre">Nombre</option>
+                <option value="marca">Marca</option>
+                <option value="codigo">Código</option>
+                <option value="descripcion">Descripción</option>
+                <option value="proveedor">Proveedor</option>
+                <option value="categoria">Categoría</option>
+              </select>
             </div>
             <div class="table-wrap prod-table-wrap">
               <table id="prod-tbl" data-sv-no-resize="1">
@@ -4563,7 +4585,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.22</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.26</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">

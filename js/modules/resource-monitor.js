@@ -10,6 +10,14 @@
   var uploadBytes = 0;
   var MONITOR_INTERVAL_MS = 5000;
   var lastRenderPage = '';
+  var monitorVisible = leerVisibilidadGuardada();
+
+  function leerVisibilidadGuardada(){
+    try {
+      var raw = localStorage.getItem('sisventas.resourceMonitor.visible');
+      return raw !== '0' && raw !== 'false';
+    } catch(e){ return true; }
+  }
 
   function rol(){
     try {
@@ -36,7 +44,7 @@
   }
 
   function puedeMonitorear(){
-    return esAdmin() && !esPantallaChica();
+    return monitorVisible && esAdmin() && !esPantallaChica();
   }
 
   function pausarMonitor(){
@@ -265,8 +273,21 @@
     render();
   }
 
+  function setResourceMonitorVisible(visible){
+    monitorVisible = visible !== false && String(visible) !== 'false' && String(visible) !== '0';
+    try { localStorage.setItem('sisventas.resourceMonitor.visible', monitorVisible ? '1' : '0'); } catch(e){}
+    if(!monitorVisible){
+      pausarMonitor();
+      return;
+    }
+    reactivarSiCorresponde();
+  }
+
   window.svResourceMonitorSnapshot = snapshot;
   window.svRenderResourceMonitor = render;
+  window.setResourceMonitorVisible = setResourceMonitorVisible;
+  window.SisVentas = window.SisVentas || {};
+  window.SisVentas.setResourceMonitorVisible = setResourceMonitorVisible;
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(start, 350); });
   document.addEventListener('sisventas:page-changed', function(){ setTimeout(renderAfterNavigation, 140); });
   document.addEventListener('sisventas:role-changed', function(){ setTimeout(reactivarSiCorresponde, 140); });

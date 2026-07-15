@@ -627,6 +627,37 @@ function poblarSelectCategorias() {
 
 var _prodCatsAbiertas = {}; // undefined = abierta por defecto, false = cerrada
 
+function _prodTextosBusqueda(p) {
+  p = p || {};
+  var proveedores = [];
+  if (Array.isArray(p.proveedores)) {
+    proveedores = p.proveedores.map(function(pr){ return pr && (pr.nombre || pr.proveedor || pr.name || pr.url) || ''; });
+  }
+  if (p.proveedor) proveedores.push(p.proveedor);
+  if (p.proveedorNombre) proveedores.push(p.proveedorNombre);
+  return {
+    todo: [
+      p.codigo, p.sku, p.nombre, p.descripcion, p.marca, p.categoria, p.catId,
+      p.proveedor, p.proveedorNombre, proveedores.join(' ')
+    ].join(' '),
+    nombre: p.nombre || p.descripcion || '',
+    marca: p.marca || '',
+    codigo: [p.codigo, p.sku].join(' '),
+    descripcion: p.descripcion || '',
+    proveedor: proveedores.join(' '),
+    categoria: p.categoria || p.catId || ''
+  };
+}
+
+function _prodCoincideBusqueda(p, filtro) {
+  var q = String(filtro || '').toLowerCase().trim();
+  if (!q) return true;
+  var campo = (document.getElementById('prod-search-field') || {}).value || 'todo';
+  var textos = _prodTextosBusqueda(p);
+  var base = String(textos[campo] !== undefined ? textos[campo] : textos.todo).toLowerCase();
+  return q.split(/\s+/).every(function(parte){ return base.includes(parte); });
+}
+
 function _renderFilaProd(p) {
   var stk = parseInt(p.stock) || 0;
   var stkColor = stk <= 0 ? 'var(--red)' : stk <= (p.stockMin||2) ? 'var(--amber)' : 'var(--green)';
@@ -675,13 +706,7 @@ function renderTablaProductos(filtro) {
 
   // Con búsqueda activa → vista plana
   if (filtro && filtro.trim()) {
-    var f = filtro.toLowerCase();
-    lista = lista.filter(function(p) {
-      return (p.nombre||'').toLowerCase().includes(f) ||
-             (p.codigo||'').toLowerCase().includes(f) ||
-             (p.descripcion||'').toLowerCase().includes(f) ||
-             (p.categoria||'').toLowerCase().includes(f);
-    });
+    lista = lista.filter(function(p) { return _prodCoincideBusqueda(p, filtro); });
     lista.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
     if (!lista.length) {
       tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados para "'+escapeHTML(filtro)+'"</td></tr>';
@@ -957,10 +982,87 @@ function actualizarStatProductos() {
   Object.entries(conteo).forEach(function(e){ if(e[1]>maxQty){ maxQty=e[1]; topProd=e[0]; } });
   if (topProd.length > 18) topProd = topProd.slice(0,16)+'…';
   var _s = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+  _s('stat-prod-total-label', 'Total productos');
+  _s('stat-prod-stock-label', 'Con stock');
+  _s('stat-prod-sinprecio-label', 'Sin precio');
+  _s('stat-prod-top-label', 'Más vendido');
+  _s('stat-prod-total-sub', 'en catálogo');
+  _s('stat-prod-stock-sub', 'disponibles');
+  _s('stat-prod-sinprecio-sub', 'requieren precio');
+  _s('stat-prod-top-sub', 'del mes');
   _s('stat-prod-total',    total);
   _s('stat-prod-stock',    conStock);
   _s('stat-prod-sinprecio',sinPrecio);
   _s('stat-prod-top',      topProd);
+}
+
+function productoCoincideItemVenta(producto, item) {
+  producto = producto || {};
+  item = item || {};
+  var prodKeys = [
+    producto.fbKey, producto.id, producto.codigo, producto.cod, producto.sku,
+    producto.nombre, producto.descripcion
+  ].map(function(v){ return String(v || '').trim(); }).filter(Boolean);
+  var itemKeys = [
+    item.pid, item.productoFbKey, item.productoKey, item.fbKeyProducto,
+    item.idProducto, item.productoId, item.cod, item.codigo, item.sku,
+    item.nombre, item.desc, item.descripcion, item.producto
+  ].map(function(v){ return String(v || '').trim(); }).filter(Boolean);
+  if (!prodKeys.length || !itemKeys.length) return false;
+  var prodCodes = prodKeys.map(function(v){ return normalizarCodigoProducto ? normalizarCodigoProducto(v) : v.toLowerCase(); });
+  var itemCodes = itemKeys.map(function(v){ return normalizarCodigoProducto ? normalizarCodigoProducto(v) : v.toLowerCase(); });
+  return prodCodes.some(function(pk){
+    if (!pk) return false;
+    return itemCodes.some(function(ik){ return ik === pk; });
+  });
+}
+
+function calcularMetricasProducto(producto) {
+  var prods = Object.values(prodData || {});
+  var cat = producto && (producto.categoria || producto.catId || '');
+  var enCategoria = cat ? prods.filter(function(p){ return String(p.categoria || p.catId || '') === String(cat); }).length : 0;
+  var unidades = 0;
+  var ventasConProducto = 0;
+  (ventasList || []).forEach(function(v) {
+    var items = v.items || v.detalle || v.productos || [];
+    var aparece = false;
+    items.forEach(function(it) {
+      if (!productoCoincideItemVenta(producto, it)) return;
+      aparece = true;
+      unidades += parseFloat(it.qty || it.cantidad || it.cant || 1) || 1;
+    });
+    if (aparece) ventasConProducto += 1;
+  });
+  var pv = parseFloat((producto || {}).venta || (producto || {}).precio_venta || 0) || 0;
+  var pc = parseFloat((producto || {}).compra || (producto || {}).precio_compra || 0) || 0;
+  var margen = pv > 0 && pc > 0 ? Math.round(((pv - pc) / pv) * 1000) / 10 : null;
+  return {
+    total: prods.length,
+    categoria: cat || 'Sin categoría',
+    enCategoria: enCategoria,
+    unidades: unidades,
+    ventas: ventasConProducto,
+    margen: margen,
+    stock: parseInt((producto || {}).stock) || 0
+  };
+}
+
+function actualizarStatProductoActual(producto) {
+  if (!producto || !producto.fbKey && !producto.codigo && !producto.nombre) { actualizarStatProductos(); return; }
+  var m = calcularMetricasProducto(producto);
+  var _s = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+  _s('stat-prod-total-label', 'Total productos');
+  _s('stat-prod-total', m.total);
+  _s('stat-prod-total-sub', 'en catálogo');
+  _s('stat-prod-stock-label', 'En su categoría');
+  _s('stat-prod-stock', m.enCategoria);
+  _s('stat-prod-stock-sub', m.categoria);
+  _s('stat-prod-sinprecio-label', 'Vendido');
+  _s('stat-prod-sinprecio', Math.round(m.unidades));
+  _s('stat-prod-sinprecio-sub', m.ventas + ' venta' + (m.ventas === 1 ? '' : 's'));
+  _s('stat-prod-top-label', 'Margen / stock');
+  _s('stat-prod-top', (m.margen === null ? '—' : (m.margen + '%')) + ' · ' + m.stock);
+  _s('stat-prod-top-sub', 'margen venta · unidades');
 }
 
 // FLUJO COMPLETO DE VENTAS
@@ -4392,7 +4494,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.22-firebase',
+  VERSION: 'v2.0.26-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6226,6 +6328,8 @@ function abrirFormProducto(id) {
   _block('prod-form-view');
   _set('prod-form-title',id ? 'Editar producto' : 'Nuevo producto');
   const p = id ? (Object.values(prodData||{}).find(function(x){ return String(x.fbKey) === String(id); }) || {}) : {};
+  if (id) actualizarStatProductoActual(p);
+  else actualizarStatProductos();
   document.getElementById('pf-codigo').value = p.codigo || '';
   var nomEl = document.getElementById('pf-nombre');
   var descEl = document.getElementById('pf-descripcion');
@@ -6523,6 +6627,7 @@ function recalcularCompraDesdeProveedores() {
 function cerrarFormProducto() {
   _hide('prod-form-view');
   _block('prod-list-view');
+  actualizarStatProductos();
 }
 
 function cambiarMonedaProducto() {
@@ -6800,6 +6905,7 @@ function verProducto(id) {
   }
   if (!p) { notify('Producto no encontrado'); return; }
   _hide('prod-list-view'); _hide('prod-form-view'); _block('prod-detail-view');
+  actualizarStatProductoActual(p);
   var pv = parseFloat(p.venta||p.precio_venta||0)||0;
   var pc = parseFloat(p.compra||p.precio_compra||0)||0;
   var iva = parseFloat(p.iva||21);
@@ -6868,6 +6974,7 @@ function verProducto(id) {
 function cerrarDetalleProducto() {
   _hide('prod-detail-view');
   _block('prod-list-view');
+  actualizarStatProductos();
 }
 
 function editarDesdeDetalle() { abrirFormProducto(editingProdId); }
@@ -10150,19 +10257,38 @@ function chequearActualizacionAutoDolar() {
   });
 }
 
+function aplicarVisibilidadMonitorRecursos(visible) {
+  var mostrar = visible !== false && String(visible) !== 'false' && String(visible) !== '0';
+  var chk = document.getElementById('cfg-mostrar-monitor-recursos');
+  if (chk) chk.checked = mostrar;
+  try { localStorage.setItem('sisventas.resourceMonitor.visible', mostrar ? '1' : '0'); } catch(e) {}
+  if (window.SisVentas && typeof window.SisVentas.setResourceMonitorVisible === 'function') {
+    window.SisVentas.setResourceMonitorVisible(mostrar);
+  } else if (typeof window.setResourceMonitorVisible === 'function') {
+    window.setResourceMonitorVisible(mostrar);
+  } else {
+    var card = document.getElementById('sv-resource-monitor-card');
+    if (card) card.style.display = mostrar ? '' : 'none';
+  }
+}
+window.aplicarVisibilidadMonitorRecursos = aplicarVisibilidadMonitorRecursos;
+
 function guardarPreferenciasSistema(btn) {
   var diasVencEl = document.getElementById('cfg-dias-venc');
   var stockMinEl = document.getElementById('cfg-stock-min-def');
   var descMaxEl  = document.getElementById('cfg-desc-max-ppto');
   var montoMaxEl = document.getElementById('cfg-monto-max-ppto');
+  var monitorEl  = document.getElementById('cfg-mostrar-monitor-recursos');
   var datos = {
     diasVencimiento: parseInt((diasVencEl||{}).value) || 15,
     stockMinDefault: parseInt((stockMinEl||{}).value) || 5,
     descuentoLimite: parseFloat((descMaxEl||{}).value) || 10,
-    montoLimite: parseFloat((montoMaxEl||{}).value) || 200000
+    montoLimite: parseFloat((montoMaxEl||{}).value) || 200000,
+    mostrarMonitorRecursos: !monitorEl || monitorEl.checked
   };
   window._diasVencimientoConfig = datos.diasVencimiento;
   window._stockMinDefault = datos.stockMinDefault;
+  aplicarVisibilidadMonitorRecursos(datos.mostrarMonitorRecursos);
   if (window.APROBACION_CONFIG) {
     APROBACION_CONFIG.descuentoLimite = datos.descuentoLimite;
     APROBACION_CONFIG.montoLimite = datos.montoLimite;
@@ -10264,10 +10390,13 @@ function cargarConfigGeneral() {
     var sm = document.getElementById('cfg-stock-min-def');
     var dl = document.getElementById('cfg-desc-max-ppto');
     var ml = document.getElementById('cfg-monto-max-ppto');
+    var rm = document.getElementById('cfg-mostrar-monitor-recursos');
     if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
     if (sm && d.stockMinDefault !== undefined) sm.value = d.stockMinDefault;
     if (dl && d.descuentoLimite !== undefined) dl.value = d.descuentoLimite;
     if (ml && d.montoLimite !== undefined) ml.value = d.montoLimite;
+    if (rm) rm.checked = d.mostrarMonitorRecursos !== false;
+    aplicarVisibilidadMonitorRecursos(d.mostrarMonitorRecursos !== false);
     window._diasVencimientoConfig = d.diasVencimiento || 15;
     window._stockMinDefault = d.stockMinDefault || 5;
     if (window.APROBACION_CONFIG) {
@@ -21901,28 +22030,41 @@ function renderRentabilidadDashboard(todasVentas) {
   _set('dash-rent-ingresos', '$' + Math.round(ingresosMes).toLocaleString('es-AR'));
   _set('dash-rent-gastos', '$' + Math.round(gastosMes).toLocaleString('es-AR'));
   var utilEl = document.getElementById('dash-rent-utilidad');
-  utilEl.textContent = '$' + Math.round(utilidad).toLocaleString('es-AR');
-  utilEl.style.color = utilidad >= 0 ? 'var(--green)' : 'var(--red)';
+  if (utilEl) {
+    utilEl.textContent = '$' + Math.round(utilidad).toLocaleString('es-AR');
+    utilEl.style.color = utilidad >= 0 ? 'var(--green)' : 'var(--red)';
+  }
 
   var margenEl = document.getElementById('dash-rent-margen');
   var margenSubEl = document.getElementById('dash-rent-margen-sub');
-  margenEl.textContent = margenPct.toFixed(1) + '%';
+  if (margenEl) margenEl.textContent = margenPct.toFixed(1) + '%';
+  card.classList.remove('is-positive','is-warning','is-negative');
   if (margenPct < 15) {
-    margenEl.style.color = 'var(--red)'; margenSubEl.textContent = 'margen bajo';
+    if (margenEl) margenEl.style.color = 'var(--red)';
+    if (margenSubEl) margenSubEl.textContent = utilidad < 0 ? 'pérdida del mes' : 'margen bajo';
+    card.classList.add('is-negative');
   } else if (margenPct <= 20) {
-    margenEl.style.color = 'var(--amber)'; margenSubEl.textContent = 'margen regular';
+    if (margenEl) margenEl.style.color = 'var(--amber)';
+    if (margenSubEl) margenSubEl.textContent = 'margen regular';
+    card.classList.add('is-warning');
   } else {
-    margenEl.style.color = 'var(--green)'; margenSubEl.textContent = 'ganancia perfecta';
+    if (margenEl) margenEl.style.color = 'var(--green)';
+    if (margenSubEl) margenSubEl.textContent = 'saludable';
+    card.classList.add('is-positive');
   }
 
   // Barras comparativas, escaladas contra el mayor de los dos valores
   var maxVal = Math.max(ingresosMes, gastosMes, 1);
   var pctIng = Math.round(ingresosMes / maxVal * 100);
   var pctGas = Math.round(gastosMes / maxVal * 100);
-  document.getElementById('dash-rent-bar-ing').style.width = pctIng + '%';
-  document.getElementById('dash-rent-bar-gas').style.width = pctGas + '%';
-  document.getElementById('dash-rent-bar-ing-lbl').textContent = '$' + Math.round(ingresosMes).toLocaleString('es-AR');
-  document.getElementById('dash-rent-bar-gas-lbl').textContent = '$' + Math.round(gastosMes).toLocaleString('es-AR');
+  var barIng = document.getElementById('dash-rent-bar-ing');
+  var barGas = document.getElementById('dash-rent-bar-gas');
+  var lblIng = document.getElementById('dash-rent-bar-ing-lbl');
+  var lblGas = document.getElementById('dash-rent-bar-gas-lbl');
+  if (barIng) barIng.style.width = pctIng + '%';
+  if (barGas) barGas.style.width = pctGas + '%';
+  if (lblIng) lblIng.textContent = '$' + Math.round(ingresosMes).toLocaleString('es-AR');
+  if (lblGas) lblGas.textContent = '$' + Math.round(gastosMes).toLocaleString('es-AR');
 }
 
 function kpiNavegar(tipo) {
