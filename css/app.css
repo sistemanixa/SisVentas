@@ -1528,3 +1528,77 @@ body.modal-secure-open{overflow:hidden!important}
 @media(max-width:620px){
   #dash-rentabilidad-card.sv-rent-compact .sv-rent-metrics{grid-template-columns:1fr!important}
 }
+
+/* v2.0.30 - Switch visual para preferencias booleanas */
+.sv-switch-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:max-content;
+  max-width:100%;
+  cursor:pointer;
+  text-transform:none!important;
+  letter-spacing:0!important;
+  color:var(--text2)!important;
+  user-select:none;
+}
+.sv-switch-row input{
+  position:absolute;
+  opacity:0;
+  width:1px;
+  height:1px;
+  pointer-events:none;
+}
+.sv-switch-ui{
+  position:relative;
+  flex:0 0 auto;
+  width:50px;
+  height:28px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.24);
+  background:linear-gradient(180deg,rgba(120,130,160,.20),rgba(15,23,42,.72));
+  box-shadow:inset 0 1px 5px rgba(0,0,0,.30);
+  transition:background .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.sv-switch-ui:before{
+  content:'';
+  position:absolute;
+  top:3px;
+  left:3px;
+  width:20px;
+  height:20px;
+  border-radius:999px;
+  background:linear-gradient(180deg,#fff,#cbd5e1);
+  box-shadow:0 5px 12px rgba(0,0,0,.32);
+  transition:transform .18s ease,background .18s ease;
+}
+.sv-switch-row input:checked + .sv-switch-ui{
+  border-color:rgba(74,222,128,.44);
+  background:linear-gradient(90deg,rgba(34,197,94,.72),rgba(96,165,250,.42));
+  box-shadow:0 0 18px rgba(74,222,128,.14),inset 0 1px 5px rgba(0,0,0,.22);
+}
+.sv-switch-row input:checked + .sv-switch-ui:before{
+  transform:translateX(22px);
+  background:linear-gradient(180deg,#ecfdf5,#bbf7d0);
+}
+.sv-switch-row input:focus-visible + .sv-switch-ui{
+  outline:2px solid rgba(96,165,250,.65);
+  outline-offset:3px;
+}
+.sv-switch-text{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+}
+.sv-switch-text strong{
+  font-size:13px;
+  color:var(--text);
+  line-height:1.2;
+}
+.sv-switch-text em{
+  font-style:normal;
+  font-size:11px;
+  color:var(--text3);
+  line-height:1.25;
+}
