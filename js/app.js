@@ -3789,6 +3789,7 @@ var TFAPP_CONFIG = {
 var SISVENTAS_FUNCTIONS = {
   emitirFactura: 'https://southamerica-east1-nixa-sisventas.cloudfunctions.net/emitirFactura',
   testTFApp:     'https://southamerica-east1-nixa-sisventas.cloudfunctions.net/testTFApp',
+  cotizadorProveedor: 'https://cotizador-171899432710.southamerica-east1.run.app',
   frontendKey:   '9551f2780845e7773b784c6d9b505dd6041d8052f0fe8e1f51959015767ffa5a'
 };
 
@@ -4525,7 +4526,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.35-firebase',
+  VERSION: 'v2.0.36-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6662,6 +6663,7 @@ function cotizarPreciosProveedores() {
     return {
       idx: idx,
       nombre: pv.nombre || (maestro && maestro.nombre) || 'Proveedor',
+      proveedorKey: pv.proveedorKey || pv.proveedorFbKey || pv.fbKey || pv.key || (maestro && (maestro.fbKey || maestro.key || maestro.id)) || '',
       url: (pv.url || webBase || '').trim(),
       urlProducto: !!(pv.url && pv.url.trim()),
       precioActual: parseFloat(pv.precio) || 0
@@ -6686,117 +6688,32 @@ function cotizarPreciosProveedores() {
     box.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Consultando ' + provCotizables.length + ' proveedor' + (provCotizables.length !== 1 ? 'es' : '') + '...';
   }
 
-  // Llamar al asistente IA para buscar precios en las URLs
-  var systemPrompt = 'Sos un asistente de precios para Nixa, empresa de seguridad en Argentina. ' +
-    'Para cada proveedor recibido, si la URL está marcada como URL exacta del producto, usá EXCLUSIVAMENTE esa URL. ' +
-    'No busques páginas de categoría, cache, productos parecidos ni otras secciones del mismo sitio cuando la URL es exacta. ' +
-    'Si usaste una URL distinta a la recibida, aunque sea del mismo producto, devolvé precio 0. ' +
-    'El precio buscado es el precio principal visible de compra/lista/gremio SIN IVA en pesos argentinos, no el precio con IVA. ' +
-    'Si esa URL requiere iniciar sesión o no podés ver el precio exacto, devolvé precio 0 y error "requiere login o verificación manual". ' +
-    'Si la URL es la web general del proveedor, recién ahí buscá por código/nombre y solo aceptá coincidencia clara. ' +
-    'No inventes precios: si no hay coincidencia clara, devolvé precio 0 y error. ' +
-    'Respondé SOLO con JSON: {"resultados":[{"proveedor":"nombre","url":"url exacta usada","producto":"nombre encontrado","precio":1234,"moneda":"ARS","error":""}],"observaciones":"..."}';
-
-  var userMsg = 'Producto a cotizar: ' + termino + '\nProveedores:\n' +
-    provCotizables.map(function(pv){
-      return '- ' + pv.nombre + ': ' + pv.url + (pv.urlProducto ? ' (URL exacta del producto)' : ' (web del proveedor)');
-    }).join('\n');
-
-  fetch('https://asistente-171899432710.southamerica-east1.run.app', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Frontend-Key': SISVENTAS_FUNCTIONS.frontendKey },
-    body: JSON.stringify({ system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(resp) {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Cotizar online'; }
-    var texto = (resp.content && resp.content[0] && resp.content[0].text) || '';
-    var jsonMatch = texto.match(/\{[\s\S]*\}/);
-    var res = null;
-    if (jsonMatch) { try { res = JSON.parse(jsonMatch[0]); } catch(e){} }
-    if (!res || !res.resultados) {
-      if (box) box.innerHTML = '<span style="color:var(--amber)">No se pudo interpretar la cotización.</span>';
-      notify('No se pudo obtener precios');
-      return;
-    }
-
-    var actualizados = 0;
-    var filasResultado = [];
-    res.resultados.forEach(function(r) {
-      var precio = parsePrecioProveedorARS(r.precio);
-      var nombreRes = String(r.proveedor || r.nombre || '').trim().toLowerCase();
-      var urlRes = String(r.url || '').trim();
-      var match = provCotizables.find(function(pv) {
-        if (urlRes && urlsProveedorEquivalentes(pv.url, urlRes)) return true;
-        if (pv.urlProducto) return false;
-        return nombreRes && String(pv.nombre || '').trim().toLowerCase() === nombreRes;
+  cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProducto)
+    .then(function(resReal) {
+      if (resReal) {
+        var actualizadosReal = procesarResultadoCotizacionProveedores(resReal, provCotizables, box);
+        if (actualizadosReal > 0 || provCotizables.every(function(pv){ return pv.urlProducto && pv.proveedorKey; })) {
+          restaurarBotonCotizacionProveedores();
+          return null;
+        }
+      }
+      if (box) {
+        box.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> El cotizador real no resolvió todo. Consultando respaldo...';
+      }
+      return cotizarProveedoresAsistente(provCotizables, termino).then(function(resFallback) {
+        procesarResultadoCotizacionProveedores(resFallback, provCotizables, box);
+        restaurarBotonCotizacionProveedores();
       });
-      if (!match && provCotizables.length === 1 && precio > 0 && !provCotizables[0].urlProducto) match = provCotizables[0];
-      var rechazo = '';
-      if (!match && precio > 0) {
-        rechazo = 'No se actualizó: el precio no proviene de la URL exacta cargada.';
+    })
+    .catch(function(err) {
+      restaurarBotonCotizacionProveedores();
+      if (box) {
+        box.style.display = 'block';
+        box.innerHTML = '<span style="color:var(--red)">Error al conectar con el servidor de cotización: ' + escapeHTML(err.message || '') + '</span>';
       }
-      if (match && precio > 0 && !resultadoCotizacionUsaUrlExacta(match, r, res)) {
-        rechazo = 'No se actualizó: la respuesta no confirmó la URL exacta del producto.';
-        match = null;
-      }
-      var aceptado = !!(match && precio > 0);
-      if (aceptado) {
-        prodProveedoresActuales[match.idx] = completarReferenciaProveedorProducto(Object.assign({}, prodProveedoresActuales[match.idx], {
-          precio: precio,
-          url: urlRes || prodProveedoresActuales[match.idx].url || match.url,
-          actualizado: new Date().toISOString().slice(0,10),
-          actualizadoEn: Date.now(),
-          actualizadoOrigen: 'scraping-url-exacta'
-        }), '', 'scraping-url-exacta');
-        actualizados++;
-      }
-      filasResultado.push(
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">' +
-          '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
-          '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || r.producto || r.error || 'Sin coincidencia clara') + '</div>' +
-          (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
-          '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + Math.round(precio).toLocaleString('es-AR') + '</div>' +
-        '</div>'
-      );
+      notify('Error al conectar con el servidor de cotización: ' + (err.message||''));
+      console.error('[Cotizador]', err);
     });
-
-    renderTablaProveedoresProducto();
-    recalcularCompraDesdeProveedores();
-    calcMargen();
-
-    if (box) {
-      box.style.display = 'block';
-      box.innerHTML =
-        '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><strong>Resultado de cotización</strong><span style="color:var(--green)">' + actualizados + ' actualizado' + (actualizados !== 1 ? 's' : '') + '</span></div>' +
-        filasResultado.join('') +
-        (res.observaciones ? '<div style="font-size:11px;color:var(--text3);margin-top:8px">' + escapeHTML(res.observaciones) + '</div>' : '') +
-        '<div style="font-size:11px;color:var(--amber);margin-top:8px"><i class="ti ti-alert-circle"></i> Revisá el resultado y tocá Guardar producto para conservar proveedores y precios.</div>';
-    }
-    var masBarato = res.masBarato ? ' | Más económico: <strong>' + res.masBarato + '</strong> $' + (res.precioOptimo||0).toLocaleString('es-AR') : '';
-    notify('✓ ' + actualizados + ' precio' + (actualizados !== 1 ? 's' : '') + ' actualizados' + (masBarato ? '' : ' — algunos no pudieron obtenerse'));
-    if (res.masBarato) {
-      // Mostrar toast con el más barato
-      setTimeout(function() {
-        notify('Mejor precio: ' + res.masBarato + ' → $' + (res.precioOptimo||0).toLocaleString('es-AR'));
-      }, 1500);
-    }
-
-    // Errores
-    var errores = res.resultados.filter(function(r){ return r.error; });
-    if (errores.length) {
-      console.warn('[Cotizador] Errores:', errores);
-    }
-  })
-  .catch(function(err) {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Cotizar online'; }
-    if (box) {
-      box.style.display = 'block';
-      box.innerHTML = '<span style="color:var(--red)">Error al conectar con el servidor de cotización: ' + escapeHTML(err.message || '') + '</span>';
-    }
-    notify('Error al conectar con el servidor de cotización: ' + (err.message||''));
-    console.error('[Cotizador]', err);
-  });
 }
 
 function agregarFilaProveedor() {
@@ -6825,6 +6742,174 @@ function actualizarProveedorProducto(idx, campo, valor) {
   recalcularCompraDesdeProveedores();
   calcMargen();
   if (campo === 'precio') renderTablaProveedoresProducto();
+}
+
+function restaurarBotonCotizacionProveedores() {
+  var btn = document.getElementById('btn-cotizar-prov');
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-refresh"></i> Cotizar online';
+  }
+}
+
+function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
+  if (!res || !Array.isArray(res.resultados)) {
+    if (box) box.innerHTML = '<span style="color:var(--amber)">No se pudo interpretar la cotización.</span>';
+    notify('No se pudo obtener precios');
+    return 0;
+  }
+
+  var actualizados = 0;
+  var filasResultado = [];
+  res.resultados.forEach(function(r) {
+    var precio = parsePrecioProveedorARS(r.precio || r.precioArs || r.precioARS);
+    var nombreRes = String(r.proveedor || r.nombre || '').trim().toLowerCase();
+    var urlRes = String(r.url || '').trim();
+    var proveedorKeyRes = String(r.proveedorKey || '').trim();
+    var match = provCotizables.find(function(pv) {
+      if (proveedorKeyRes && String(pv.proveedorKey || '') === proveedorKeyRes) return true;
+      if (urlRes && urlsProveedorEquivalentes(pv.url, urlRes)) return true;
+      if (pv.urlProducto) return false;
+      return nombreRes && String(pv.nombre || '').trim().toLowerCase() === nombreRes;
+    });
+    if (!match && provCotizables.length === 1 && precio > 0 && !provCotizables[0].urlProducto) match = provCotizables[0];
+
+    var rechazo = '';
+    if (!match && precio > 0) {
+      rechazo = 'No se actualizó: el precio no proviene de la URL exacta cargada.';
+    }
+    if (match && precio > 0 && !resultadoCotizacionUsaUrlExacta(match, r, res)) {
+      rechazo = 'No se actualizó: la respuesta no confirmó la URL exacta del producto.';
+      match = null;
+    }
+
+    var aceptado = !!(match && precio > 0);
+    if (aceptado) {
+      prodProveedoresActuales[match.idx] = completarReferenciaProveedorProducto(Object.assign({}, prodProveedoresActuales[match.idx], {
+        precio: precio,
+        url: urlRes || prodProveedoresActuales[match.idx].url || match.url,
+        actualizado: new Date().toISOString().slice(0,10),
+        actualizadoEn: Date.now(),
+        actualizadoOrigen: r.fuente || r.origen || 'scraping-url-exacta',
+        sinIva: r.sinIva !== undefined ? !!r.sinIva : prodProveedoresActuales[match.idx].sinIva
+      }), '', r.fuente || r.origen || 'scraping-url-exacta');
+      actualizados++;
+    }
+
+    filasResultado.push(
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">' +
+        '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
+        '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || r.producto || r.error || r.mensaje || 'Sin coincidencia clara') + '</div>' +
+        (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
+        '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + Math.round(precio).toLocaleString('es-AR') + '</div>' +
+      '</div>'
+    );
+  });
+
+  renderTablaProveedoresProducto();
+  recalcularCompraDesdeProveedores();
+  calcMargen();
+
+  if (box) {
+    box.style.display = 'block';
+    box.innerHTML =
+      '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><strong>Resultado de cotización</strong><span style="color:var(--green)">' + actualizados + ' actualizado' + (actualizados !== 1 ? 's' : '') + '</span></div>' +
+      filasResultado.join('') +
+      (res.observaciones ? '<div style="font-size:11px;color:var(--text3);margin-top:8px">' + escapeHTML(res.observaciones) + '</div>' : '') +
+      '<div style="font-size:11px;color:var(--amber);margin-top:8px"><i class="ti ti-alert-circle"></i> Revisá el resultado y tocá Guardar producto para conservar proveedores y precios.</div>';
+  }
+
+  notify('✓ ' + actualizados + ' precio' + (actualizados !== 1 ? 's' : '') + ' actualizados' + (actualizados ? '' : ' — algunos no pudieron obtenerse'));
+  return actualizados;
+}
+
+function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProducto) {
+  var directos = provCotizables.filter(function(pv) {
+    return pv.urlProducto && pv.proveedorKey && pv.url && SISVENTAS_FUNCTIONS.cotizadorProveedor;
+  });
+  if (!directos.length) return Promise.resolve(null);
+
+  return Promise.all(directos.map(function(pv) {
+    return fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Frontend-Key': SISVENTAS_FUNCTIONS.frontendKey },
+      body: JSON.stringify({
+        proveedorKey: pv.proveedorKey,
+        url: pv.url,
+        codigo: codigoProducto || '',
+        producto: nombreProducto || ''
+      })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (data && data.ok) {
+        return {
+          proveedor: data.proveedor || pv.nombre,
+          proveedorKey: pv.proveedorKey,
+          url: data.url || pv.url,
+          producto: data.producto || nombreProducto,
+          precio: data.precioArs || data.precio || 0,
+          sinIva: data.sinIva !== undefined ? data.sinIva : true,
+          fuente: data.fuente || 'cotizador-cloud-run'
+        };
+      }
+      return {
+        proveedor: pv.nombre,
+        proveedorKey: pv.proveedorKey,
+        url: pv.url,
+        producto: nombreProducto,
+        precio: 0,
+        error: (data && (data.error || data.mensaje)) || 'No se pudo cotizar con el servicio real'
+      };
+    })
+    .catch(function(err) {
+      return {
+        proveedor: pv.nombre,
+        proveedorKey: pv.proveedorKey,
+        url: pv.url,
+        producto: nombreProducto,
+        precio: 0,
+        error: err.message || 'Error del cotizador real'
+      };
+    });
+  })).then(function(resultados) {
+    return {
+      resultados: resultados,
+      observaciones: 'Cotización realizada con el servicio real de proveedores. Si un proveedor no actualiza, se mantiene el valor anterior.'
+    };
+  });
+}
+
+function cotizarProveedoresAsistente(provCotizables, termino) {
+  var systemPrompt = 'Sos un asistente de precios para Nixa, empresa de seguridad en Argentina. ' +
+    'Para cada proveedor recibido, si la URL está marcada como URL exacta del producto, usá EXCLUSIVAMENTE esa URL. ' +
+    'No busques páginas de categoría, cache, productos parecidos ni otras secciones del mismo sitio cuando la URL es exacta. ' +
+    'Si usaste una URL distinta a la recibida, aunque sea del mismo producto, devolvé precio 0. ' +
+    'El precio buscado es el precio principal visible de compra/lista/gremio SIN IVA en pesos argentinos, no el precio con IVA. ' +
+    'Si esa URL requiere iniciar sesión o no podés ver el precio exacto, devolvé precio 0 y error "requiere login o verificación manual". ' +
+    'Si la URL es la web general del proveedor, recién ahí buscá por código/nombre y solo aceptá coincidencia clara. ' +
+    'No inventes precios: si no hay coincidencia clara, devolvé precio 0 y error. ' +
+    'Respondé SOLO con JSON: {"resultados":[{"proveedor":"nombre","url":"url exacta usada","producto":"nombre encontrado","precio":1234,"moneda":"ARS","error":""}],"observaciones":"..."}';
+
+  var userMsg = 'Producto a cotizar: ' + termino + '\nProveedores:\n' +
+    provCotizables.map(function(pv){
+      return '- ' + pv.nombre + ': ' + pv.url + (pv.urlProducto ? ' (URL exacta del producto)' : ' (web del proveedor)');
+    }).join('\n');
+
+  return fetch('https://asistente-171899432710.southamerica-east1.run.app', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Frontend-Key': SISVENTAS_FUNCTIONS.frontendKey },
+    body: JSON.stringify({ system: systemPrompt, messages: [{ role: 'user', content: userMsg }] })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(resp) {
+    var texto = (resp.content && resp.content[0] && resp.content[0].text) || '';
+    var jsonMatch = texto.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try { return JSON.parse(jsonMatch[0]); } catch(e) {}
+    }
+    return null;
+  });
 }
 
 function recalcularCompraDesdeProveedores() {
