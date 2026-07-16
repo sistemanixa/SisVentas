@@ -89,17 +89,19 @@ async function completarLoginBiosegur(page, proveedor) {
     throw new Error('El proveedor BIOSEGUR no tiene usuario y contraseña cargados');
   }
 
-  await clickSiExiste(page, [
-    'a:has-text("Mi cuenta")',
-    'button:has-text("Mi cuenta")',
-    'text=/Mi cuenta/i',
-    'text=/Ingresar/i',
-    'a:has-text("Ingresar")',
-    'button:has-text("Ingresar")'
-  ]);
+  const loginAbierto = await clickSiExiste(page, [
+    'a[onclick*="ajaxLogin"]:visible',
+    '#login_sup a:has-text("Ingresar"):visible',
+    'a:has-text("Ingresar"):visible',
+    'button:has-text("Ingresar"):visible'
+  ], 5000);
+  if (!loginAbierto) {
+    throw new Error('No se encontró el acceso visible para iniciar sesión en Biosegur');
+  }
+  await page.waitForTimeout(800);
 
-  const passInput = page.locator('input[type="password"]:visible').first();
-  await passInput.waitFor({ state: 'visible', timeout: 10000 });
+  const passInput = page.locator('#ModalLogin input[type="password"]:visible, input[type="password"]:visible').first();
+  await passInput.waitFor({ state: 'visible', timeout: 15000 });
 
   const userInput = page.locator(
     '.modal:visible input:not([type="password"]):not([type="hidden"]), ' +
