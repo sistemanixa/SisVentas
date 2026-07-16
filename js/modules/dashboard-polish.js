@@ -11,8 +11,9 @@
     var badge = document.getElementById('role-badge-el');
     var side = document.getElementById('s-urole-el');
     var txt = norm([r, badge ? badge.textContent : '', side ? side.textContent : ''].join(' '));
-    if(txt.indexOf('admin') >= 0 || txt.indexOf('administrador') >= 0) return 'admin';
+    // "administrativo" contiene la palabra "admin": comprobarlo primero.
     if(txt.indexOf('administrativo') >= 0) return 'administrativo';
+    if(txt.indexOf('admin') >= 0 || txt.indexOf('administrador') >= 0) return 'admin';
     if(txt.indexOf('vendedor') >= 0) return 'vendedor';
     if(txt.indexOf('tecnico') >= 0) return 'tecnico';
     return r;
@@ -60,9 +61,11 @@
 
   function aplicarVisibilidad(){
     var miActividad = document.getElementById('dash-administrativo-card');
-    if(miActividad && esAdmin()){
-      miActividad.style.display = 'none';
-      miActividad.dataset.adminHidden = 'true';
+    if(miActividad){
+      var ocultar = esAdmin();
+      miActividad.style.display = ocultar ? 'none' : '';
+      if(ocultar) miActividad.dataset.adminHidden = 'true';
+      else delete miActividad.dataset.adminHidden;
     }
     var actividadGlobal = document.getElementById('dash-actividad-card');
     if(actividadGlobal){
@@ -86,6 +89,7 @@
   document.addEventListener('sisventas:page-changed', function(event){
     if(!event.detail || event.detail.page === 'dashboard') setTimeout(aplicar, 60);
   });
+  document.addEventListener('sisventas:role-changed', function(){ setTimeout(aplicar, 60); });
   document.addEventListener('firebase-ready', function(){ setTimeout(aplicar, 250); });
   window.SisVentas = window.SisVentas || {};
   window.SisVentas.aplicarDashboardPolish = aplicar;

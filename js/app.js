@@ -3197,6 +3197,7 @@ function fbCargarProductos() {
       });
       if (typeof renderTablaProductos === 'function') renderTablaProductos();
       if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
+      if (typeof actualizarVigenciaPreciosDashboard === 'function') actualizarVigenciaPreciosDashboard();
       // la misma variable editingProdId), refrescarlo — es de solo lectura
       var prodDetEl = document.getElementById('prod-detail-view');
       if (prodDetEl && prodDetEl.style.display === 'block' && typeof editingProdId !== 'undefined' && editingProdId && typeof verProducto === 'function') {
@@ -4495,6 +4496,33 @@ function applyRole() {
   });
 
   if (typeof applyDashWidgets === 'function') applyDashWidgets();
+  // El tipo de cambio es información operativa obligatoria para ambos roles.
+  // No debe quedar oculto por preferencias de widgets de una sesión anterior.
+  var dolarDash = document.getElementById('dash-dolar-card');
+  if (dolarDash) dolarDash.style.display = (isAdmin || isAdministrativo) ? '' : 'none';
+  if (typeof actualizarDolarDashboard === 'function') actualizarDolarDashboard();
+  var preciosDash = document.getElementById('dash-precios-vigencia-card');
+  if (preciosDash) preciosDash.style.display = (isAdmin || isAdministrativo) ? '' : 'none';
+  if (typeof actualizarVigenciaPreciosDashboard === 'function') actualizarVigenciaPreciosDashboard();
+
+  // Limpiar y reconstruir el dashboard al cambiar de usuario/rol.
+  var dashAdm = document.getElementById('dash-administrativo-card');
+  var dashTec = document.getElementById('dash-tecnico-card');
+  var dashMiCuenta = document.getElementById('dash-micuenta-card');
+  var dashHistorial = document.getElementById('dash-historial-mes-card');
+  if (dashAdm) dashAdm.style.display = (isAdministrativo || isVendedor) ? '' : 'none';
+  if (dashTec) dashTec.style.display = isTecnico ? '' : 'none';
+  if (isAdmin) {
+    if (dashMiCuenta) dashMiCuenta.style.display = 'none';
+    if (dashHistorial) dashHistorial.style.display = 'none';
+  }
+  if (isAdministrativo || isVendedor) {
+    if (typeof renderDashAdministrativo === 'function') renderDashAdministrativo();
+    if (typeof renderDashMiCuenta === 'function') renderDashMiCuenta();
+  } else if (isTecnico) {
+    if (typeof renderDashMisOTs === 'function') renderDashMisOTs();
+    if (typeof renderDashMiCuenta === 'function') renderDashMiCuenta();
+  }
   // del rol actual. Esto evita que queden ocultos ítems de una sesión anterior con
   // un rol más restrictivo (ej: cerrar sesión de vendedor y entrar como admin).
   document.querySelectorAll('.nav-item[onclick]').forEach(function(el) {
@@ -4528,7 +4556,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.43-firebase',
+  VERSION: 'v2.0.44-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6471,6 +6499,40 @@ function precioGremioARSDesdeProducto(p) {
     return Math.round(compraLegacy * tc.valor * 100) / 100;
   }
   return compraLegacy || 0;
+}
+
+var PRECIO_VIGENCIA_MS = 24 * 60 * 60 * 1000;
+
+function timestampPrecioProducto(p) {
+  p = p || {};
+  var tiempos = [p.precioActualizadoEn, p.actualizadoEn];
+  (Array.isArray(p.proveedores) ? p.proveedores : []).forEach(function(pv) {
+    tiempos.push(pv && pv.actualizadoEn);
+    if (pv && pv.actualizado) tiempos.push(Date.parse(pv.actualizado + 'T12:00:00'));
+  });
+  return tiempos.map(function(x){ return parseFloat(x) || 0; }).reduce(function(max, x){ return Math.max(max, x); }, 0);
+}
+
+function estadoVigenciaPrecioProducto(p) {
+  var ts = timestampPrecioProducto(p);
+  if (!ts) return { estado:'sin_verificar', vigente:false, ts:0, texto:'Sin verificar' };
+  var edad = Math.max(0, Date.now() - ts);
+  if (edad <= PRECIO_VIGENCIA_MS) return { estado:'vigente', vigente:true, ts:ts, texto:'Actualizado' };
+  var dias = Math.max(1, Math.floor(edad / 86400000));
+  return { estado:'vencido', vigente:false, ts:ts, texto:'Hace ' + dias + ' día' + (dias !== 1 ? 's' : '') };
+}
+
+function actualizarVigenciaPreciosDashboard() {
+  var valorEl = document.getElementById('dash-precios-vigencia');
+  var subEl = document.getElementById('dash-precios-vigencia-sub');
+  if (!valorEl || !subEl) return;
+  var productos = Object.values(prodData || {}).filter(function(p){ return p && p.activo !== false && p.estado !== 'inactivo'; });
+  var vencidos = productos.filter(function(p){ return !estadoVigenciaPrecioProducto(p).vigente; });
+  valorEl.textContent = vencidos.length ? String(vencidos.length) : 'OK';
+  valorEl.style.color = vencidos.length ? 'var(--amber)' : 'var(--green)';
+  subEl.textContent = vencidos.length
+    ? vencidos.length + ' de ' + productos.length + ' requieren revisión'
+    : (productos.length ? 'todos actualizados' : 'sin productos');
 }
 
 function asegurarMargenProductoDefaultEnForm() {
@@ -20701,6 +20763,19 @@ function guardarPresupuesto(modo) {
   var items = getPpItems();
 
   if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
+  var preciosNoVigentes = items.filter(function(it) {
+    var prod = Object.values(prodData || {}).find(function(p){ return String(p.codigo || '') === String(it.cod || ''); });
+    return prod && !estadoVigenciaPrecioProducto(prod).vigente;
+  });
+  if (preciosNoVigentes.length) {
+    var nombresNoVigentes = preciosNoVigentes.slice(0,5).map(function(it){ return it.cod || it.desc; }).join(', ');
+    var seguir = confirm(
+      'Hay ' + preciosNoVigentes.length + ' producto' + (preciosNoVigentes.length !== 1 ? 's' : '') + ' con precios de más de 24 horas o sin verificar:\n\n' +
+      nombresNoVigentes + (preciosNoVigentes.length > 5 ? '…' : '') + '\n\n' +
+      'Aceptar: guardar igualmente conservando estos valores.\nCancelar: volver y actualizar los productos antes de enviar.'
+    );
+    if (!seguir) return;
+  }
 
   const reqAprobacion = (total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite);
   const estadoFinal = reqAprobacion ? 'revision' : modo;
@@ -22365,6 +22440,7 @@ function renderKPIsDashboard() {
   var pptoConvEl = document.getElementById('kpi-pptos-conv');
   if (pptoConvEl) pptoConvEl.textContent = pptosConvertidos.length + ' convertidos · ' + tasaConv + '% conversión';
   actualizarDolarDashboard();
+  actualizarVigenciaPreciosDashboard();
   actualizarKpiIvaDashboard();
   var dias7 = [];
   for (var i = 6; i >= 0; i--) {
@@ -24607,9 +24683,13 @@ function _renderDropGlobal(filtro) {
     var equivARS2 = cotiz2 > 0 && pvNum > 0 ? ' · $' + Math.round(pvNum * cotiz2).toLocaleString('es-AR') : '';
     var monedaProd = p.moneda || 'ARS';
     var precioProd = monedaProd === 'USD' ? (p.venta||0) : (p.ventaARS || p.venta || 0);
+    var vigencia = estadoVigenciaPrecioProducto(p);
+    var vigenciaHtml = vigencia.vigente
+      ? '<span class="badge b-green" style="font-size:9px;margin-left:4px">Precio vigente</span>'
+      : '<span class="badge b-amber" style="font-size:9px;margin-left:4px">' + escapeHTML(vigencia.texto) + '</span>';
     return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+precioProd+'" data-moneda="'+monedaProd+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
       '<div>' +
-        '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' — '+escapeHTML(p.nombre||p.descripcion||'')+'</div>' +
+        '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' — '+escapeHTML(p.nombre||p.descripcion||'')+vigenciaHtml+'</div>' +
         (p.descripcion && p.descripcion !== p.nombre && p.descripcion !== '-' ?
           '<div style="font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:380px">'+escapeHTML(p.descripcion)+'</div>' : '') +
       '</div>' +
@@ -24625,6 +24705,7 @@ function _selProdGlobal(item) {
   var moneda = item.dataset.moneda || 'ARS';
 
   var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod || p.nombre === desc; });
+  var vigenciaPrecio = prod ? estadoVigenciaPrecioProducto(prod) : null;
   // Mano de obra: precio siempre se muestra en ARS, pero si el producto está
   // cargado en USD hay que convertirlo en vivo a la cotización actual — no
   // alcanza con ventaARS guardado porque puede no existir (ej. producto
@@ -24679,6 +24760,13 @@ function _selProdGlobal(item) {
   if (_prodDropTR) {
     var tr = _prodDropTR;
     if (prod && (prod.fbKey || prod.id)) tr.dataset.productoFbKey = prod.fbKey || prod.id;
+    if (vigenciaPrecio) {
+      tr.dataset.precioVigencia = vigenciaPrecio.estado;
+      tr.dataset.precioActualizadoEn = String(vigenciaPrecio.ts || 0);
+      if (!vigenciaPrecio.vigente && tr.closest('#pp-body')) {
+        notify('⚠ Precio de "' + (prod.nombre || prod.codigo || 'producto') + '" ' + vigenciaPrecio.texto.toLowerCase() + '. Conviene actualizarlo antes de enviar el presupuesto.');
+      }
+    }
     var selCod   = tr.querySelector('.prod-sel-cod');
     var descTxt  = tr.querySelector('.desc-txt');
     var imgBox   = tr.querySelector('.item-prod-img');
@@ -25032,6 +25120,8 @@ function getPpItems() {
       sub: sub,
       pid: prod ? (prod.fbKey || prod.id || '') : (tr.dataset.productoFbKey || ''),
       productoFbKey: prod ? (prod.fbKey || prod.id || '') : (tr.dataset.productoFbKey || ''),
+      precioActualizadoEn: prod ? timestampPrecioProducto(prod) : (parseFloat(tr.dataset.precioActualizadoEn) || 0),
+      precioVigencia: prod ? estadoVigenciaPrecioProducto(prod).estado : (tr.dataset.precioVigencia || 'sin_verificar'),
       imagenUrl: prod && prod.imagenUrl ? prod.imagenUrl : ''
     };
   }).filter(function(it){ return (it.desc && it.desc.trim() && it.desc !== 'Seleccioná un producto') || it.punit > 0; });
