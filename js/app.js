@@ -4526,7 +4526,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.39-firebase',
+  VERSION: 'v2.0.40-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6714,12 +6714,10 @@ function cotizarPreciosProveedores() {
         }
       }
       if (box) {
-        box.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> El cotizador real no resolvió todo. Consultando respaldo...';
+        box.innerHTML = '<span style="color:var(--amber)">No se pudo llamar al cotizador real. Revisá que el proveedor tenga URL exacta y credenciales cargadas.</span>';
       }
-      return cotizarProveedoresAsistente(provCotizables, termino).then(function(resFallback) {
-        procesarResultadoCotizacionProveedores(resFallback, provCotizables, box);
-        restaurarBotonCotizacionProveedores();
-      });
+      restaurarBotonCotizacionProveedores();
+      return null;
     })
     .catch(function(err) {
       restaurarBotonCotizacionProveedores();
@@ -6815,7 +6813,7 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
     filasResultado.push(
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">' +
         '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
-        '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || r.producto || r.error || r.mensaje || 'Sin coincidencia clara') + '</div>' +
+        '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || (precio > 0 ? r.producto : (r.error || r.mensaje || r.producto)) || 'Sin coincidencia clara') + '</div>' +
         (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
         '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + Math.round(precio).toLocaleString('es-AR') + '</div>' +
       '</div>'
@@ -7261,8 +7259,17 @@ function verProducto(id) {
   if (!p) { notify('Producto no encontrado'); return; }
   _hide('prod-list-view'); _hide('prod-form-view'); _block('prod-detail-view');
   actualizarStatProductoActual(p);
-  var pv = parseFloat(p.venta||p.precio_venta||0)||0;
-  var pc = parseFloat(p.compra||p.precio_compra||0)||0;
+  var pc = precioGremioARSDesdeProducto(p);
+  var pv = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || p.venta || p.precio_venta || 0) || 0;
+  if (pv > 0 && pv < 100 && String(p.moneda || '').toUpperCase() === 'USD') {
+    var dolarFicha = obtenerDolarReferenciaProducto();
+    if (dolarFicha.valor > 0) pv = Math.round(pv * dolarFicha.valor * 100) / 100;
+  }
+  if (pc > 100 && (!pv || pv < pc * 0.2)) {
+    var margenFicha = parseFloat(p.margenDeseado);
+    if (!isFinite(margenFicha) || margenFicha <= 0 || margenFicha >= 95) margenFicha = margenProductoDefault();
+    pv = Math.round(pc / (1 - margenFicha / 100));
+  }
   var iva = parseFloat(p.iva||21);
   var stk = parseInt(p.stock)||0;
   var stkMin = parseInt(p.stockMin)||2;
@@ -7309,13 +7316,16 @@ function verProducto(id) {
     } else {
       var masBaratoIdx = 0;
       lista.forEach(function(pv, i) {
-        if ((parseFloat(pv.precio)||Infinity) < (parseFloat(lista[masBaratoIdx].precio)||Infinity)) masBaratoIdx = i;
+        var precioPv = completarReferenciaProveedorProducto(pv, pv.url || '', pv.actualizadoOrigen || '').precio || 0;
+        var precioMejor = completarReferenciaProveedorProducto(lista[masBaratoIdx], lista[masBaratoIdx].url || '', lista[masBaratoIdx].actualizadoOrigen || '').precio || 0;
+        if ((precioPv || Infinity) < (precioMejor || Infinity)) masBaratoIdx = i;
       });
       var rows = lista.map(function(pv, i) {
+        var pvNormalizado = completarReferenciaProveedorProducto(pv, pv.url || '', pv.actualizadoOrigen || '');
         var esMasBarato = i === masBaratoIdx && lista.length > 1;
         return '<tr' + (esMasBarato ? ' style="background:var(--green-bg)"' : '') + '>' +
           '<td style="padding:8px 4px">' + escapeHTML(pv.nombre||'—') + (esMasBarato ? ' <span class="badge b-green" style="font-size:9px;margin-left:4px"><i class="ti ti-check"></i> Más económico</span>' : '') + '</td>' +
-          '<td style="padding:8px 4px;text-align:right;font-weight:500">$' + Math.round(parseFloat(pv.precio)||0).toLocaleString('es-AR') + '</td>' +
+          '<td style="padding:8px 4px;text-align:right;font-weight:500">$' + Math.round(parseFloat(pvNormalizado.precio)||0).toLocaleString('es-AR') + '</td>' +
           '<td style="padding:8px 4px;text-align:right;color:var(--text3);font-size:12px">' + escapeHTML(pv.actualizado||'—') + '</td>' +
         '</tr>';
       }).join('');
