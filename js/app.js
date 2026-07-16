@@ -23543,7 +23543,7 @@ function generarNotificaciones() {
           titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' día(s)',
           sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Estado: ' + (pptoEstadoLabel(p.estado)) + '.',
           tiempo: 'Hoy · Sistema',
-          accion: { label:'Ver', fn:"verPpto('" + p.id + "');showPage('presupuesto',document.querySelector('[onclick*=presupuesto]'))" },
+          accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
         });
       } else if (dias <= 7 && dias > 2 && NOTIF_CONFIG.ppto_vence_7.activo) {
         todasNotifs.push({
@@ -23552,7 +23552,7 @@ function generarNotificaciones() {
           titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' días',
           sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Sin respuesta del cliente.',
           tiempo: 'Hoy · Sistema',
-          accion: { label:'Ver', fn:"verPpto('" + p.id + "');showPage('presupuesto',document.querySelector('[onclick*=presupuesto]'))" },
+          accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
         });
       }
 
@@ -23564,7 +23564,7 @@ function generarNotificaciones() {
           titulo: 'Sin respuesta — Presupuesto ' + p.id,
           sub: p.cliente + ' — Enviado el ' + p.fecha + '. Sin confirmación del cliente.',
           tiempo: 'Hace 5 días · Sistema',
-          accion: { label:'Ver', fn:"verPpto('" + p.id + "');showPage('presupuesto',document.querySelector('[onclick*=presupuesto]'))" },
+          accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
         });
       }
 
@@ -23576,7 +23576,7 @@ function generarNotificaciones() {
           titulo: 'Requiere aprobación — ' + p.id,
           sub: p.cliente + ' — ' + p.motivo,
           tiempo: 'Pendiente · Sistema',
-          accion: { label:'Aprobar', fn:"verPpto('" + p.id + "');showPage('presupuesto',document.querySelector('[onclick*=presupuesto]'))" },
+          accion: { label:'Revisar', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
         });
       }
     });
@@ -23621,7 +23621,7 @@ function generarNotificaciones() {
           titulo: 'Sin técnico — ' + ot.id,
           sub: ot.cliente + ' — Orden de trabajo sin técnico asignado.',
           tiempo: 'Pendiente · Sistema',
-          accion: { label:'Asignar', fn:"verOT('" + ot.id + "');showPage('ordentrabajo',document.querySelector('[onclick*=ordentrabajo]'))" },
+          accion: { label:'Asignar técnico', fn:"abrirOTDesdeNotificacion('" + ot.id + "')" },
         });
       }
 
@@ -23635,7 +23635,7 @@ function generarNotificaciones() {
           titulo: 'Instalación hoy — ' + ot.id,
           sub: ot.cliente + ' · ' + ot.tecnico + ' · ' + ot.hora + 'hs · ' + ot.dir,
           tiempo: 'Hoy · Agenda',
-          accion: { label:'Ver OT', fn:"verOT('" + ot.id + "');showPage('ordentrabajo',document.querySelector('[onclick*=ordentrabajo]'))" },
+          accion: { label:'Ver OT', fn:"abrirOTDesdeNotificacion('" + ot.id + "')" },
         });
       }
 
@@ -23647,7 +23647,7 @@ function generarNotificaciones() {
           titulo: 'OT sin avance — ' + ot.id,
           sub: ot.cliente + ' — En progreso pero con menos del 20% completado.',
           tiempo: 'Ayer · Sistema',
-          accion: { label:'Ver OT', fn:"verOT('" + ot.id + "');showPage('ordentrabajo',document.querySelector('[onclick*=ordentrabajo]'))" },
+          accion: { label:'Ver OT', fn:"abrirOTDesdeNotificacion('" + ot.id + "')" },
         });
       }
     });
