@@ -4526,7 +4526,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.38-firebase',
+  VERSION: 'v2.0.39-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6410,24 +6410,35 @@ function completarReferenciaProveedorProducto(pv, urlFallback, origen) {
   pv = Object.assign({}, pv || {});
   var tc = obtenerDolarReferenciaProducto();
   var precio = parseFloat(pv.precio) || parseFloat(pv.precioArsPublicado) || 0;
+  var monedaDeclarada = String(pv.moneda || pv.monedaPublicada || pv.monedaPrecio || '').toUpperCase();
+  var origenTexto = String(origen || pv.actualizadoOrigen || '').toLowerCase();
+  var esLegacyUsd = precio > 0 && tc.valor > 0 && (
+    monedaDeclarada === 'USD' ||
+    ((origenTexto.indexOf('legacy') >= 0 || origenTexto === '') && precio < 100)
+  );
+  var precioUsdLegacy = esLegacyUsd ? precio : 0;
+  if (esLegacyUsd) {
+    precio = Math.round(precio * tc.valor * 100) / 100;
+  }
   var url = normalizarUrlProveedorProducto(pv.url || urlFallback || '');
   var costoReal = precio > 0 && pv.sinIva ? precio * 1.21 : precio;
   pv.nombre = String(pv.nombre || pv.proveedor || '').trim();
   pv.precio = Math.round(precio * 100) / 100;
   pv.precioArsPublicado = pv.precio;
-  pv.monedaPublicada = pv.monedaPublicada || 'ARS';
+  pv.monedaPublicada = 'ARS';
+  if (esLegacyUsd) pv.monedaOriginalLegacy = 'USD';
   pv.sinIva = !!pv.sinIva;
   pv.costoRealArs = Math.round(costoReal * 100) / 100;
   pv.url = url;
   if (tc.valor > 0 && pv.precio > 0) {
     pv.dolarUsado = tc.valor;
     pv.dolarTipo = tc.tipo;
-    pv.precioUsdReferencia = Math.round((pv.precio / tc.valor) * 100) / 100;
+    pv.precioUsdReferencia = precioUsdLegacy || Math.round((pv.precio / tc.valor) * 100) / 100;
     pv.costoRealUsdReferencia = Math.round((pv.costoRealArs / tc.valor) * 100) / 100;
   }
   pv.actualizado = pv.actualizado || new Date().toISOString().slice(0,10);
   pv.actualizadoEn = pv.actualizadoEn || Date.now();
-  pv.actualizadoOrigen = origen || pv.actualizadoOrigen || 'manual';
+  pv.actualizadoOrigen = esLegacyUsd ? 'legacy-usd-convertido-ars' : (origen || pv.actualizadoOrigen || 'manual');
   return pv;
 }
 
@@ -6446,7 +6457,12 @@ function precioGremioARSDesdeProducto(p) {
   ];
   for (var i = 0; i < candidatos.length; i++) {
     var n = parseFloat(candidatos[i]);
-    if (n > 0) return n;
+    if (n > 0) {
+      var monedaProv = String((proveedorPrincipal && (proveedorPrincipal.moneda || proveedorPrincipal.monedaPublicada || proveedorPrincipal.monedaPrecio)) || '').toUpperCase();
+      var origenProv = String((proveedorPrincipal && proveedorPrincipal.actualizadoOrigen) || '').toLowerCase();
+      var pareceUsdLegacy = tc.valor > 0 && n < 100 && (monedaProv === 'USD' || origenProv.indexOf('legacy') >= 0);
+      return pareceUsdLegacy ? Math.round(n * tc.valor * 100) / 100 : n;
+    }
   }
   var compraLegacy = parseFloat(p.compra) || 0;
   if (compraLegacy > 0 && String(p.moneda || '').toUpperCase() === 'USD' && tc.valor > 0) {
@@ -6555,7 +6571,7 @@ function abrirFormProducto(id) {
   document.getElementById('pf-unidad').value = p.unidad || 'Unidad';
   document.getElementById('pf-es-mano-obra').checked = !!p.esManoDeObra;
   var monedaSel = document.getElementById('pf-moneda');
-  if (monedaSel) monedaSel.value = 'ARS';
+  if (monedaSel) monedaSel.value = String(p.moneda || '').toUpperCase() === 'USD' ? 'USD' : 'ARS';
   cambiarMonedaProducto();
 
   // Imagen del producto

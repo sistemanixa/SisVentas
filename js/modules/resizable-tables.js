@@ -9,6 +9,8 @@
   var scheduled = false;
   var scheduleTimer = 0;
   var percentDrafts = {};
+  var globalProfiles = { loaded: false, loading: false, widths: {}, percentages: {} };
+  var globalSaveTimers = {};
   var DEFAULT_WIDTH_BY_HEADER = {
     'fecha': 76,
     'descripcion': 170,
@@ -73,7 +75,71 @@
     return tableKey(table);
   }
 
+  function safeFirebaseKey(key) {
+    return encodeURIComponent(String(key || 'tabla')).replace(/\./g, '%2E');
+  }
+
+  function globalProfileKey(table) {
+    return safeFirebaseKey(tableKey(table));
+  }
+
+  function canUseFirebase() {
+    return !!(window.fbDB && window.fbRef && window.fbGet && window.fbSet);
+  }
+
+  function globalDataFor(table, type) {
+    var store = type === 'widths' ? globalProfiles.widths : globalProfiles.percentages;
+    var key = globalProfileKey(table);
+    return (store && store[key] && store[key].data) || {};
+  }
+
+  function cargarPerfilesGlobales() {
+    if (globalProfiles.loaded || globalProfiles.loading || !canUseFirebase()) return;
+    globalProfiles.loading = true;
+    window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tableColumns'))
+      .then(function (snap) {
+        var val = snap && snap.val ? (snap.val() || {}) : {};
+        globalProfiles.widths = val.widths || {};
+        globalProfiles.percentages = val.percentages || {};
+        globalProfiles.loaded = true;
+        globalProfiles.loading = false;
+        scheduleScan();
+      })
+      .catch(function () {
+        globalProfiles.loading = false;
+      });
+  }
+
+  function guardarPerfilGlobal(table, type, data) {
+    var key = globalProfileKey(table);
+    if (type === 'widths') globalProfiles.widths[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
+    else globalProfiles.percentages[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
+    if (!canUseFirebase() || window.currentRole !== 'admin') return;
+    clearTimeout(globalSaveTimers[type + ':' + key]);
+    globalSaveTimers[type + ':' + key] = setTimeout(function () {
+      window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/tableColumns/' + type + '/' + key), {
+        tableKey: tableKey(table),
+        data: data || {},
+        updatedAt: Date.now(),
+        updatedBy: window.currentUser || window.currentUserEmail || 'admin'
+      }).catch(function () {
+        if (window.notify) window.notify('No se pudo guardar columnas globales en Firebase');
+      });
+    }, type === 'widths' ? 700 : 50);
+  }
+
+  function borrarPerfilGlobal(table, type) {
+    var key = globalProfileKey(table);
+    if (type === 'widths') delete globalProfiles.widths[key];
+    else delete globalProfiles.percentages[key];
+    if (!window.fbDB || !window.fbRef || !window.fbRemove || window.currentRole !== 'admin') return;
+    window.fbRemove(window.fbRef(window.fbDB, 'sisventas/config/tableColumns/' + type + '/' + key)).catch(function () {});
+  }
+
   function loadWidths(table) {
+    cargarPerfilesGlobales();
+    var global = globalDataFor(table, 'widths');
+    if (Object.keys(global).length) return global;
     try {
       return JSON.parse(localStorage.getItem(storageKey(table)) || '{}') || {};
     } catch (_) {
@@ -85,9 +151,13 @@
     try {
       localStorage.setItem(storageKey(table), JSON.stringify(widths || {}));
     } catch (_) {}
+    guardarPerfilGlobal(table, 'widths', widths || {});
   }
 
   function loadPercentages(table) {
+    cargarPerfilesGlobales();
+    var global = globalDataFor(table, 'percentages');
+    if (Object.keys(global).length) return global;
     try {
       return JSON.parse(localStorage.getItem(percentStorageKey(table)) || '{}') || {};
     } catch (_) {
@@ -99,6 +169,7 @@
     try {
       localStorage.setItem(percentStorageKey(table), JSON.stringify(percentages || {}));
     } catch (_) {}
+    guardarPerfilGlobal(table, 'percentages', percentages || {});
   }
 
   function hasSavedPercentages(table) {
@@ -681,6 +752,7 @@
       }
       if (ev.target.closest('[data-sv-reset]')) {
         try { localStorage.removeItem(percentStorageKey(table)); } catch (_) {}
+        borrarPerfilGlobal(table, 'percentages');
         delete percentDrafts[percentDraftKey(table)];
         clearPixelWidths(table);
         table.classList.remove('sv-percent-table');
@@ -729,6 +801,7 @@
   }
 
   ready(function () {
+    cargarPerfilesGlobales();
     scan();
     var observer = new MutationObserver(function (mutations) {
       if (mutationTouchesActivePage(mutations)) scheduleScan();
