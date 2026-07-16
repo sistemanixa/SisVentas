@@ -4528,7 +4528,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.42-firebase',
+  VERSION: 'v2.0.43-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6817,7 +6817,7 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
         '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
         '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || (precio > 0 ? String(r.producto || '') : (r.error || r.mensaje || (typeof r.producto === 'string' ? r.producto : 'Sin precio devuelto por el cotizador'))) || 'Sin coincidencia clara') + '</div>' +
         (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
-        '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + Math.round(precio).toLocaleString('es-AR') + '</div>' +
+        '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + precio.toLocaleString('es-AR', {minimumFractionDigits: precio % 1 ? 2 : 0, maximumFractionDigits: 2}) + '</div>' +
         (r.debug || r.raw ? '<details style="grid-column:1/-1;width:100%;margin-top:6px;color:var(--text3);font-size:11px"><summary style="cursor:pointer;color:var(--blue)">Ver diagnóstico técnico</summary><pre style="white-space:pre-wrap;overflow:auto;max-height:220px;background:rgba(0,0,0,.18);border:0.5px solid var(--border);border-radius:8px;padding:8px;margin-top:6px">' + escapeHTML(JSON.stringify({ error: r.error || r.mensaje || '', debug: r.debug || null, raw: r.raw || null }, null, 2)) + '</pre></details>' : '') +
       '</div>'
     );
@@ -6968,7 +6968,7 @@ function recalcularCompraDesdeProveedores() {
   }, prodProveedoresActuales[0]);
 
   var costoCompra = parseFloat(masBarato.precio) || 0;
-  if (masBarato.sinIva && costoCompra > 0) costoCompra = Math.round(costoCompra * 1.21);
+  if (masBarato.sinIva && costoCompra > 0) costoCompra = Math.round(costoCompra * 1.21 * 100) / 100;
 
   var compraEl = document.getElementById('pf-compra');
   if (compraEl) _setMontoInput(compraEl, costoCompra);
@@ -7109,8 +7109,8 @@ function calcPrecioDesdeGremio() {
   var usdEl   = document.getElementById('pf-precio-usd-equiv');
   if (!gremio || !margen) { if (calcEl) calcEl.value = ''; return; }
   // Precio venta = costo / (1 - margen/100)
-  var precioVenta = Math.round(gremio / (1 - margen / 100));
-  if (calcEl) calcEl.value = '$' + precioVenta.toLocaleString('es-AR');
+  var precioVenta = Math.round((gremio / (1 - margen / 100)) * 100) / 100;
+  if (calcEl) calcEl.value = '$' + precioVenta.toLocaleString('es-AR', {minimumFractionDigits: precioVenta % 1 ? 2 : 0, maximumFractionDigits: 2});
   // Cargar en el campo de precio venta
   var pfVenta = document.getElementById('pf-venta');
   var pfCompra = document.getElementById('pf-compra');
@@ -7148,8 +7148,8 @@ function calcMargen() {
     const margenVenta = ((v - c) / v * 100);
     var margenEl = document.getElementById('pf-margen');
     if (margenEl) {
-      margenEl.value = margenCosto.toFixed(1) + '% costo · ' + margenVenta.toFixed(1) + '% venta';
-      margenEl.title = 'Sobre costo: ' + margenCosto.toFixed(1) + '%. Sobre venta: ' + margenVenta.toFixed(1) + '%.';
+      margenEl.value = margenVenta.toFixed(1) + '% sobre venta';
+      margenEl.title = 'Ganancia sobre el precio de venta sin IVA: ' + margenVenta.toFixed(1) + '%. Equivale a un recargo de ' + margenCosto.toFixed(1) + '% sobre el costo.';
       margenEl.style.color = margenVenta >= 0 ? 'var(--green)' : 'var(--red)';
     }
   } else {
