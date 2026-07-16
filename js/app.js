@@ -4526,7 +4526,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.40-firebase',
+  VERSION: 'v2.0.41-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6813,9 +6813,10 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
     filasResultado.push(
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">' +
         '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
-        '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || (precio > 0 ? r.producto : (r.error || r.mensaje || r.producto)) || 'Sin coincidencia clara') + '</div>' +
+        '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || (precio > 0 ? String(r.producto || '') : (r.error || r.mensaje || (typeof r.producto === 'string' ? r.producto : 'Sin precio devuelto por el cotizador'))) || 'Sin coincidencia clara') + '</div>' +
         (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
         '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + Math.round(precio).toLocaleString('es-AR') + '</div>' +
+        (r.debug || r.raw ? '<details style="grid-column:1/-1;width:100%;margin-top:6px;color:var(--text3);font-size:11px"><summary style="cursor:pointer;color:var(--blue)">Ver diagnóstico técnico</summary><pre style="white-space:pre-wrap;overflow:auto;max-height:220px;background:rgba(0,0,0,.18);border:0.5px solid var(--border);border-radius:8px;padding:8px;margin-top:6px">' + escapeHTML(JSON.stringify({ error: r.error || r.mensaje || '', debug: r.debug || null, raw: r.raw || null }, null, 2)) + '</pre></details>' : '') +
       '</div>'
     );
   });
@@ -6851,20 +6852,46 @@ function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProduc
         proveedorKey: pv.proveedorKey,
         url: pv.url,
         codigo: codigoProducto || '',
-        producto: nombreProducto || ''
+        producto: nombreProducto || '',
+        debug: true
       })
     })
-    .then(function(r){ return r.json(); })
+    .then(function(r){
+      return r.text().then(function(txt) {
+        var data = null;
+        try { data = txt ? JSON.parse(txt) : null; } catch(e) {}
+        return { status: r.status, okHttp: r.ok, data: data, text: txt };
+      });
+    })
+    .then(function(resp) {
+      var data = resp.data;
+      if (!data) {
+        return {
+          proveedor: pv.nombre,
+          proveedorKey: pv.proveedorKey,
+          url: pv.url,
+          producto: nombreProducto,
+          precio: 0,
+          error: 'Respuesta inválida del cotizador HTTP ' + resp.status,
+          raw: resp.text
+        };
+      }
+      return data;
+    })
     .then(function(data) {
       if (data && data.ok) {
+        var precioOk = parseFloat(data.precioArs || data.precio || 0) || 0;
         return {
           proveedor: data.proveedor || pv.nombre,
           proveedorKey: pv.proveedorKey,
           url: data.url || pv.url,
-          producto: data.producto || nombreProducto,
-          precio: data.precioArs || data.precio || 0,
+          producto: typeof data.producto === 'string' ? data.producto : nombreProducto,
+          precio: precioOk,
           sinIva: data.sinIva !== undefined ? data.sinIva : true,
-          fuente: data.fuente || 'cotizador-cloud-run'
+          fuente: data.fuente || 'cotizador-cloud-run',
+          error: precioOk > 0 ? '' : 'El cotizador respondió OK pero no devolvió precio',
+          debug: data.debug || null,
+          raw: data
         };
       }
       return {
@@ -6873,7 +6900,9 @@ function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProduc
         url: pv.url,
         producto: nombreProducto,
         precio: 0,
-        error: (data && (data.error || data.mensaje)) || 'No se pudo cotizar con el servicio real'
+        error: (data && (data.error || data.mensaje)) || 'No se pudo cotizar con el servicio real',
+        debug: data && data.debug,
+        raw: data
       };
     })
     .catch(function(err) {

@@ -138,7 +138,11 @@ function extraerPrecioBiosegur(texto) {
   return parsePrecioArs(body);
 }
 
-async function cotizarBiosegur({ proveedor, url, codigo, producto }) {
+async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
+  const trace = [];
+  const addTrace = (step, data = {}) => {
+    trace.push({ step, at: new Date().toISOString(), ...data });
+  };
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     locale: 'es-AR',
@@ -150,19 +154,34 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto }) {
     const home = normalizarUrl(proveedor.web || 'https://www.biosegur.com.ar/');
     const urlExacta = normalizarUrl(url);
     if (!urlExacta) throw new Error('Falta URL exacta del producto');
+    addTrace('inicio', {
+      proveedor: proveedor.nombre || 'BIOSEGUR',
+      home,
+      urlExacta,
+      tieneUsuario: !!(proveedor.usuario || proveedor.user || proveedor.email),
+      tienePassword: !!(proveedor.password || proveedor.pass || proveedor.clave)
+    });
 
     await page.goto(home, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    addTrace('home_abierto', { urlActual: page.url() });
     await completarLoginBiosegur(page, proveedor);
+    addTrace('login_completado', { urlActual: page.url() });
 
     await page.goto(urlExacta, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+    addTrace('url_producto_abierta', { urlActual: page.url(), titulo: await page.title().catch(() => '') });
 
     const bodyText = await page.locator('body').innerText({ timeout: 15000 });
+    addTrace('texto_leido', {
+      caracteres: bodyText.length,
+      muestra: bodyText.slice(0, 900)
+    });
     if (/usuario.*clave|login/i.test(bodyText) && !/mi cuenta|salir/i.test(bodyText)) {
       throw new Error('La URL exacta abriÃ³ sin sesiÃ³n activa; no se puede leer precio gremio');
     }
 
     const precioArs = extraerPrecioBiosegur(bodyText);
+    addTrace('precio_extraido', { precioArs });
     if (!precioArs) {
       throw new Error('No se encontró precio visible en la URL exacta luego del login');
     }
@@ -172,14 +191,18 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto }) {
       ok: true,
       proveedor: proveedor.nombre || 'BIOSEGUR',
       codigo: codigo || '',
-      producto: producto || title || '',
+      producto: (typeof producto === 'string' && producto.trim()) ? producto : (title || ''),
       url: urlExacta,
       precioArs,
       sinIva: true,
       precioConIva: Math.round(precioArs * 1.21 * 100) / 100,
       fuente: 'biosegur_login_url_exacta',
-      fecha: new Date().toISOString()
+      fecha: new Date().toISOString(),
+      debug: debug ? { trace } : undefined
     };
+  } catch (e) {
+    e.trace = trace;
+    throw e;
   } finally {
     await context.close().catch(() => {});
     await browser.close().catch(() => {});
@@ -202,7 +225,8 @@ async function cotizar(reqBody) {
       proveedor,
       url,
       codigo: reqBody.codigo || '',
-      producto: reqBody.producto || ''
+      producto: reqBody.producto || '',
+      debug: !!reqBody.debug
     });
   }
 
@@ -239,7 +263,7 @@ const server = http.createServer(async (req, res) => {
     send(res, 200, resultado);
   } catch (e) {
     console.error('[cotizador]', e);
-    send(res, 500, { ok: false, error: true, mensaje: e.message || 'Error cotizando proveedor' });
+    send(res, 200, { ok: false, error: true, mensaje: e.message || 'Error cotizando proveedor', debug: { trace: e.trace || [] } });
   }
 });
 
