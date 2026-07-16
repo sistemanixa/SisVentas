@@ -4526,7 +4526,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.37-firebase',
+  VERSION: 'v2.0.38-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6942,10 +6942,12 @@ function cerrarFormProducto() {
 function cambiarMonedaProducto() {
   var sel = document.getElementById('pf-moneda');
   var esUSD = sel && sel.value === 'USD';
+  var switchEl = document.getElementById('pf-moneda-switch');
   var compraLbl = document.getElementById('pf-compra-moneda-lbl');
   var ventaLbl  = document.getElementById('pf-venta-moneda-lbl');
   var hint      = document.getElementById('pf-moneda-hint');
   var badgeHead = document.getElementById('pf-moneda-badge-head');
+  if (switchEl) switchEl.classList.toggle('is-usd', !!esUSD);
   if (compraLbl) compraLbl.textContent = esUSD ? 'USD' : '$';
   if (ventaLbl)  ventaLbl.textContent  = esUSD ? 'USD' : '$';
   if (hint) hint.textContent = esUSD
@@ -6956,6 +6958,12 @@ function cambiarMonedaProducto() {
   var equivBox = document.getElementById('pf-equiv-ars-box');
   if (equivBox) equivBox.style.display = esUSD ? '' : 'none';
   calcMargen();
+}
+
+function setMonedaProducto(moneda) {
+  var sel = document.getElementById('pf-moneda');
+  if (sel) sel.value = moneda === 'USD' ? 'USD' : 'ARS';
+  cambiarMonedaProducto();
 }
 
 async function buscarPreciosProveedores() {
