@@ -64,15 +64,6 @@
       window.addEventListener('mouseup', end);
       window.addEventListener('touchend', end);
     }
-    if(!document.getElementById('sv335-dashboard-reset')){
-      var reset = document.createElement('button');
-      reset.id = 'sv335-dashboard-reset';
-      reset.type = 'button';
-      reset.textContent = 'Restablecer ancho';
-      reset.title = 'Volver al ancho recomendado';
-      reset.onclick = function(){ applyPct(DEFAULT); savePct(DEFAULT); };
-      row.appendChild(reset);
-    }
     applyPct(getSaved());
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensure); else ensure();
