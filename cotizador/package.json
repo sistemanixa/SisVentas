@@ -10,6 +10,6 @@
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",
-    "playwright": "^1.49.1"
+    "playwright": "1.61.1"
   }
 }

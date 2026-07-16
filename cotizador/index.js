@@ -90,6 +90,9 @@ async function completarLoginBiosegur(page, proveedor) {
   }
 
   await clickSiExiste(page, [
+    'a:has-text("Mi cuenta")',
+    'button:has-text("Mi cuenta")',
+    'text=/Mi cuenta/i',
     'text=/Ingresar/i',
     'a:has-text("Ingresar")',
     'button:has-text("Ingresar")'
@@ -143,14 +146,19 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
   const addTrace = (step, data = {}) => {
     trace.push({ step, at: new Date().toISOString(), ...data });
   };
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    locale: 'es-AR',
-    timezoneId: 'America/Argentina/Buenos_Aires'
-  });
-  const page = await context.newPage();
+  let browser = null;
+  let context = null;
+  let page = null;
 
   try {
+    addTrace('navegador_iniciando', { playwright: require('playwright/package.json').version });
+    browser = await chromium.launch({ headless: true });
+    addTrace('navegador_iniciado');
+    context = await browser.newContext({
+      locale: 'es-AR',
+      timezoneId: 'America/Argentina/Buenos_Aires'
+    });
+    page = await context.newPage();
     const home = normalizarUrl(proveedor.web || 'https://www.biosegur.com.ar/');
     const urlExacta = normalizarUrl(url);
     if (!urlExacta) throw new Error('Falta URL exacta del producto');
@@ -204,8 +212,8 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
     e.trace = trace;
     throw e;
   } finally {
-    await context.close().catch(() => {});
-    await browser.close().catch(() => {});
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
   }
 }
 
