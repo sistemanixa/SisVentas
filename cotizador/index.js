@@ -95,14 +95,18 @@ async function completarLoginBiosegur(page, proveedor) {
     'button:has-text("Ingresar")'
   ]);
 
+  const passInput = page.locator('input[type="password"]:visible').first();
+  await passInput.waitFor({ state: 'visible', timeout: 10000 });
+
   const userInput = page.locator(
-    'input[type="email"], input[name*="usuario" i], input[name*="user" i], input[type="text"]'
-  ).filter({ hasNotText: '' }).first();
-  const passInput = page.locator('input[type="password"]').first();
+    '.modal:visible input:not([type="password"]):not([type="hidden"]), ' +
+    '[role="dialog"]:visible input:not([type="password"]):not([type="hidden"]), ' +
+    'form:has(input[type="password"]) input:not([type="password"]):not([type="hidden"]), ' +
+    'input[name*="usuario" i]:visible, input[name*="user" i]:visible, input[type="email"]:visible'
+  ).first();
 
   await userInput.waitFor({ state: 'visible', timeout: 10000 });
   await userInput.fill(usuario);
-  await passInput.waitFor({ state: 'visible', timeout: 10000 });
   await passInput.fill(password);
 
   const clicked = await clickSiExiste(page, [
@@ -117,12 +121,21 @@ async function completarLoginBiosegur(page, proveedor) {
   }
 
   await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1200);
 
   const body = await page.locator('body').innerText({ timeout: 10000 }).catch(() => '');
   if (/usuario.*clave|login/i.test(body) && !/mi cuenta|salir/i.test(body)) {
     throw new Error('No se pudo confirmar el inicio de sesión en Biosegur');
   }
+}
+
+function extraerPrecioBiosegur(texto) {
+  const body = String(texto || '');
+  const precioPrincipal = body.match(/\$\s*([0-9]{1,3}(?:[.\s][0-9]{3})*,[0-9]{2})\s*(?:\n|\r|\s)*\+\s*IVA/i);
+  if (precioPrincipal) return parsePrecioArs(`$ ${precioPrincipal[1]}`);
+  const precioGremio = body.match(/(?:precio|gremio|lista)[^\n\r$]{0,80}\$\s*([0-9]{1,3}(?:[.\s][0-9]{3})*,[0-9]{2})/i);
+  if (precioGremio) return parsePrecioArs(`$ ${precioGremio[1]}`);
+  return parsePrecioArs(body);
 }
 
 async function cotizarBiosegur({ proveedor, url, codigo, producto }) {
@@ -145,7 +158,11 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto }) {
     await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
 
     const bodyText = await page.locator('body').innerText({ timeout: 15000 });
-    const precioArs = parsePrecioArs(bodyText);
+    if (/usuario.*clave|login/i.test(bodyText) && !/mi cuenta|salir/i.test(bodyText)) {
+      throw new Error('La URL exacta abriÃ³ sin sesiÃ³n activa; no se puede leer precio gremio');
+    }
+
+    const precioArs = extraerPrecioBiosegur(bodyText);
     if (!precioArs) {
       throw new Error('No se encontró precio visible en la URL exacta luego del login');
     }
