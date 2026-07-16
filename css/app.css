@@ -156,6 +156,10 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 
 /* ── METRICS ── */
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
+#dash-metricas-globales{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:14px}
+#dash-metricas-globales>.metric{min-height:76px;padding:12px 14px}
+#dash-metricas-globales .m-value{font-size:20px}
+#dash-metricas-globales .m-sub{font-size:10px}
 .metric{background:var(--bg3);border-radius:var(--radius);padding:14px 16px;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease;border:0.5px solid transparent}
 .metric:hover{transform:translateY(-1px);border-color:rgba(120,130,160,.34);box-shadow:0 12px 30px rgba(0,0,0,.14);background:linear-gradient(145deg,rgba(96,165,250,.055),rgba(255,255,255,.018)),var(--bg3)}
 .metrics{}

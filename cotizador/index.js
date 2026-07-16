@@ -219,6 +219,86 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
   }
 }
 
+async function cotizarLoteBiosegur({ proveedor, items, debug }) {
+  const lote = Array.isArray(items) ? items.slice(0, 30) : [];
+  if (!lote.length) throw new Error('El lote no contiene productos');
+
+  let browser = null;
+  let context = null;
+  const trace = [];
+  const addTrace = (step, data = {}) => trace.push({ step, at: new Date().toISOString(), ...data });
+
+  try {
+    addTrace('lote_iniciando', { cantidad: lote.length });
+    browser = await chromium.launch({ headless: true });
+    context = await browser.newContext({ locale: 'es-AR', timezoneId: 'America/Argentina/Buenos_Aires' });
+    const page = await context.newPage();
+    const home = normalizarUrl(proveedor.web || 'https://www.biosegur.com.ar/');
+    await page.goto(home, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await completarLoginBiosegur(page, proveedor);
+    addTrace('lote_login_completado');
+
+    const resultados = [];
+    for (let i = 0; i < lote.length; i += 1) {
+      const item = lote[i] || {};
+      const urlExacta = normalizarUrl(item.url || item.urlProducto || '');
+      if (!urlExacta) {
+        resultados.push({ ok: false, error: true, codigo: item.codigo || '', mensaje: 'Falta URL exacta' });
+        continue;
+      }
+      try {
+        await page.goto(urlExacta, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.waitForLoadState('networkidle', { timeout: 7000 }).catch(() => {});
+        const bodyText = await page.locator('body').innerText({ timeout: 15000 });
+        if (/usuario.*clave|login/i.test(bodyText) && !/mi cuenta|salir/i.test(bodyText)) {
+          throw new Error('La sesión de Biosegur se cerró durante el lote');
+        }
+        const precioArs = extraerPrecioBiosegur(bodyText);
+        if (!precioArs) throw new Error('No se encontró un precio visible');
+        resultados.push({
+          ok: true,
+          proveedor: proveedor.nombre || 'BIOSEGUR',
+          codigo: item.codigo || '',
+          producto: item.producto || item.nombre || '',
+          url: urlExacta,
+          precioArs,
+          sinIva: true,
+          precioConIva: Math.round(precioArs * 1.21 * 100) / 100,
+          fuente: 'biosegur_lote_url_exacta',
+          fecha: new Date().toISOString()
+        });
+      } catch (e) {
+        resultados.push({ ok: false, error: true, codigo: item.codigo || '', url: urlExacta, mensaje: e.message || 'Error leyendo producto' });
+      }
+      addTrace('lote_progreso', { procesados: i + 1, total: lote.length });
+    }
+
+    return {
+      ok: true,
+      proveedor: proveedor.nombre || 'BIOSEGUR',
+      total: lote.length,
+      actualizados: resultados.filter((r) => r.ok).length,
+      fallidos: resultados.filter((r) => !r.ok).length,
+      resultados,
+      debug: debug ? { trace } : undefined
+    };
+  } finally {
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+}
+
+async function cotizarLote(reqBody) {
+  const proveedorKey = String(reqBody.proveedorKey || '').trim();
+  if (!proveedorKey) throw new Error('Falta proveedorKey');
+  const snap = await db.ref(`sisventas/proveedores/${proveedorKey}`).get();
+  const proveedor = snap.val();
+  if (!proveedor) throw new Error('Proveedor no encontrado en Firebase');
+  if (proveedor.activo === false) throw new Error('Proveedor inactivo');
+  if (!esBiosegur(proveedor, '')) throw new Error('El actualizador por lote está habilitado solamente para Biosegur');
+  return cotizarLoteBiosegur({ proveedor, items: reqBody.items, debug: !!reqBody.debug });
+}
+
 async function cotizar(reqBody) {
   const proveedorKey = String(reqBody.proveedorKey || '').trim();
   const url = reqBody.url || reqBody.urlProducto || '';
@@ -265,11 +345,11 @@ const server = http.createServer(async (req, res) => {
   try {
     const body = await readBody(req);
     const pathname = new URL(req.url, 'http://localhost').pathname;
-    if (pathname !== '/' && pathname !== '/cotizar' && pathname !== '/biosegur') {
+    if (pathname !== '/' && pathname !== '/cotizar' && pathname !== '/biosegur' && pathname !== '/cotizar-lote') {
       send(res, 404, { ok: false, error: true, mensaje: 'Ruta no encontrada' });
       return;
     }
-    const resultado = await cotizar(body);
+    const resultado = pathname === '/cotizar-lote' ? await cotizarLote(body) : await cotizar(body);
     send(res, 200, resultado);
   } catch (e) {
     console.error('[cotizador]', e);

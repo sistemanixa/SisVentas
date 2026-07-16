@@ -4556,7 +4556,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.46-firebase',
+  VERSION: 'v2.0.47-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6533,6 +6533,167 @@ function actualizarVigenciaPreciosDashboard() {
   subEl.textContent = vencidos.length
     ? vencidos.length + ' de ' + productos.length + ' requieren revisión'
     : (productos.length ? 'todos actualizados' : 'sin productos');
+}
+
+function productosBiosegurActualizables() {
+  return Object.values(prodData || {}).map(function(p) {
+    var proveedores = Array.isArray(p.proveedores) ? p.proveedores : [];
+    var idx = proveedores.findIndex(function(pv) {
+      return /biosegur/i.test(String((pv && (pv.nombre || pv.proveedor)) || '') + ' ' + String((pv && pv.url) || ''));
+    });
+    if (idx < 0) return null;
+    var pv = proveedores[idx] || {};
+    var proveedorKey = pv.proveedorKey || pv.proveedorFbKey || pv.key || '';
+    var url = String(pv.url || p.codWeb || p.proveedorUrl || '').trim();
+    if (!proveedorKey || !url) return null;
+    return { producto:p, proveedor:pv, proveedorIdx:idx, proveedorKey:String(proveedorKey), url:url };
+  }).filter(Boolean);
+}
+
+function cerrarActualizadorMasivoPrecios() {
+  var modal = document.getElementById('modal-actualizador-precios');
+  if (modal && modal.dataset.ejecutando !== '1') modal.remove();
+}
+
+function abrirActualizadorMasivoPrecios() {
+  if (!['admin','administrativo'].includes(String(currentRole || '').toLowerCase())) {
+    notify('Solo Admin y Administrativo pueden actualizar precios');
+    return;
+  }
+  var anterior = document.getElementById('modal-actualizador-precios');
+  if (anterior) anterior.remove();
+  var todos = productosBiosegurActualizables();
+  var pendientes = todos.filter(function(x){ return !estadoVigenciaPrecioProducto(x.producto).vigente; });
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-actualizador-precios';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10020;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML =
+    '<div style="width:min(620px,100%);background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)">' +
+        '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo Biosegur</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Una sola sesión de Biosegur por cada grupo de productos</div></div>' +
+        '<button class="icon-btn" onclick="cerrarActualizadorMasivoPrecios()"><i class="ti ti-x"></i></button>' +
+      '</div>' +
+      '<div style="padding:18px">' +
+        '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">' +
+          '<div class="metric"><div class="m-label">Productos Biosegur</div><div class="m-value">'+todos.length+'</div><div class="m-sub">con URL y proveedor vinculados</div></div>' +
+          '<div class="metric"><div class="m-label">Pendientes</div><div class="m-value" style="color:'+(pendientes.length?'var(--amber)':'var(--green)')+'">'+pendientes.length+'</div><div class="m-sub">más de 24 h o sin verificar</div></div>' +
+          '<div class="metric"><div class="m-label">Vigentes</div><div class="m-value" style="color:var(--green)">'+(todos.length-pendientes.length)+'</div><div class="m-sub">actualizados recientemente</div></div>' +
+        '</div>' +
+        '<div id="actualizador-precios-estado" style="font-size:12px;color:var(--text2);padding:10px 12px;background:var(--bg3);border-radius:8px;margin-bottom:12px">Listo para actualizar únicamente los productos pendientes.</div>' +
+        '<div style="height:8px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-bottom:14px"><div id="actualizador-precios-barra" style="height:100%;width:0;background:var(--green);transition:width .25s"></div></div>' +
+        '<div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="cerrarActualizadorMasivoPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-actualizar-biosegur-lote" onclick="ejecutarActualizadorMasivoBiosegur()" '+(!pendientes.length?'disabled':'')+'><i class="ti ti-refresh"></i> Actualizar '+pendientes.length+' pendientes</button></div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay._productosPendientes = pendientes;
+}
+
+function datosActualizadosProductoBiosegur(item, resultado) {
+  var p = item.producto;
+  var proveedores = (Array.isArray(p.proveedores) ? p.proveedores : []).map(function(x){ return Object.assign({}, x); });
+  var pv = Object.assign({}, proveedores[item.proveedorIdx] || {});
+  var precio = parsePrecioProveedorARS(resultado.precioArs || resultado.precio || 0);
+  var ahora = Date.now();
+  pv.precio = Math.round(precio * 100) / 100;
+  pv.precioArsPublicado = pv.precio;
+  pv.sinIva = resultado.sinIva !== false;
+  pv.costoRealArs = Math.round((pv.sinIva ? pv.precio * 1.21 : pv.precio) * 100) / 100;
+  pv.actualizado = new Date().toISOString().slice(0,10);
+  pv.actualizadoEn = ahora;
+  pv.actualizadoOrigen = resultado.fuente || 'biosegur_lote_url_exacta';
+  proveedores[item.proveedorIdx] = pv;
+
+  var principal = proveedores.filter(function(x){ return (parseFloat(x.precio)||0) > 0; }).reduce(function(min, x) {
+    var costoX = parseFloat(x.costoRealArs) || ((parseFloat(x.precio)||0) * (x.sinIva ? 1.21 : 1));
+    var costoMin = parseFloat(min.costoRealArs) || ((parseFloat(min.precio)||0) * (min.sinIva ? 1.21 : 1));
+    return costoX > 0 && costoX < costoMin ? x : min;
+  }, pv);
+  var costo = Math.round((parseFloat(principal.costoRealArs) || parseFloat(principal.precio) || 0) * 100) / 100;
+  var margen = parseFloat(p.margenDeseado);
+  if (!(margen > 0 && margen < 99)) margen = margenProductoDefault();
+  var venta = Math.round((costo / (1 - margen / 100)) * 100) / 100;
+  var tc = obtenerDolarReferenciaProducto();
+  var cambios = {
+    proveedores: proveedores,
+    compra: costo,
+    compraARS: costo,
+    costoRealArs: costo,
+    precioGremio: costo,
+    precioArsPublicado: parseFloat(principal.precioArsPublicado || principal.precio) || costo,
+    venta: venta,
+    ventaARS: venta,
+    precioActualizadoEn: ahora,
+    precioActualizadoOrigen: pv.actualizadoOrigen,
+    margenDeseado: margen
+  };
+  if (tc.valor > 0) {
+    cambios.compraUSD = Math.round((costo / tc.valor) * 100) / 100;
+    cambios.ventaUSD = Math.round((venta / tc.valor) * 100) / 100;
+    cambios.tcGuardado = tc.valor;
+    cambios.tcTipoGuardado = tc.tipo;
+  }
+  return cambios;
+}
+
+async function ejecutarActualizadorMasivoBiosegur() {
+  var modal = document.getElementById('modal-actualizador-precios');
+  if (!modal || modal.dataset.ejecutando === '1') return;
+  var pendientes = modal._productosPendientes || [];
+  if (!pendientes.length) return;
+  modal.dataset.ejecutando = '1';
+  var btn = document.getElementById('btn-actualizar-biosegur-lote');
+  var estado = document.getElementById('actualizador-precios-estado');
+  var barra = document.getElementById('actualizador-precios-barra');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Actualizando...'; }
+
+  var grupos = {};
+  pendientes.forEach(function(x){ (grupos[x.proveedorKey] = grupos[x.proveedorKey] || []).push(x); });
+  var procesados = 0, actualizados = 0, fallidos = 0;
+  try {
+    for (var proveedorKey of Object.keys(grupos)) {
+      var grupo = grupos[proveedorKey];
+      for (var inicio = 0; inicio < grupo.length; inicio += 20) {
+        var bloque = grupo.slice(inicio, inicio + 20);
+        if (estado) estado.textContent = 'Biosegur: procesando ' + (procesados + 1) + ' a ' + Math.min(procesados + bloque.length, pendientes.length) + ' de ' + pendientes.length + '…';
+        var resp = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar-lote', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', 'X-Frontend-Key':SISVENTAS_FUNCTIONS.frontendKey },
+          body:JSON.stringify({
+            proveedorKey:proveedorKey,
+            items:bloque.map(function(x){ return { codigo:x.producto.codigo || '', producto:x.producto.nombre || x.producto.descripcion || '', url:x.url }; })
+          })
+        }).then(function(r){ return r.json(); });
+        if (!resp || !resp.ok || !Array.isArray(resp.resultados)) throw new Error((resp && resp.mensaje) || 'Respuesta inválida del cotizador por lote');
+
+        for (var i = 0; i < bloque.length; i++) {
+          var item = bloque[i];
+          var resultado = resp.resultados.find(function(r){ return String(r.codigo || '') === String(item.producto.codigo || ''); });
+          if (resultado && resultado.ok && parsePrecioProveedorARS(resultado.precioArs || resultado.precio) > 0 && urlsProveedorEquivalentes(item.url, resultado.url)) {
+            var cambios = datosActualizadosProductoBiosegur(item, resultado);
+            await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + item.producto.fbKey), cambios);
+            Object.assign(item.producto, cambios);
+            actualizados++;
+          } else {
+            fallidos++;
+          }
+          procesados++;
+          if (barra) barra.style.width = Math.round(procesados / pendientes.length * 100) + '%';
+        }
+      }
+    }
+    if (estado) {
+      estado.innerHTML = '<strong style="color:var(--green)">Actualización terminada.</strong> ' + actualizados + ' actualizados' + (fallidos ? ' · <span style="color:var(--amber)">' + fallidos + ' no pudieron verificarse</span>' : '') + '.';
+    }
+    actualizarVigenciaPreciosDashboard();
+    if (typeof renderTablaProductos === 'function') renderTablaProductos();
+    if (btn) { btn.innerHTML = '<i class="ti ti-check"></i> Finalizado'; btn.disabled = true; }
+    notify('✓ Biosegur: ' + actualizados + ' precios actualizados');
+  } catch (e) {
+    if (estado) estado.innerHTML = '<span style="color:var(--red)">Se interrumpió la actualización: ' + escapeHTML(e.message || '') + '</span>';
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Reintentar pendientes'; }
+  } finally {
+    modal.dataset.ejecutando = '0';
+  }
 }
 
 function asegurarMargenProductoDefaultEnForm() {
