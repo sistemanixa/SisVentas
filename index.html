@@ -245,6 +245,15 @@
 
       <!-- ── DASHBOARD ── -->
       <div id="page-dashboard" class="page active">
+        <div class="card" id="dash-vacaciones-aviso" style="display:none;margin-bottom:12px;border-color:rgba(34,197,94,.45);background:linear-gradient(135deg,rgba(34,197,94,.12),rgba(59,130,246,.08))">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:30px;line-height:1">🏖️</div>
+            <div style="min-width:0">
+              <div id="dash-vacaciones-titulo" style="font-size:14px;font-weight:700;color:var(--green)">¡Tus vacaciones se acercan!</div>
+              <div id="dash-vacaciones-detalle" style="font-size:13px;color:var(--text2);margin-top:3px"></div>
+            </div>
+          </div>
+        </div>
         <!-- Mini cuenta personal — visible para todos menos admin si tienen empleado vinculado -->
         <div class="card" id="dash-micuenta-card" style="display:none;margin-bottom:12px">
           <div class="card-head">
@@ -1028,7 +1037,7 @@
               <div class="fg"><label id="ot-det-origen-label">Venta origen</label><input id="ot-det-venta" readonly onchange="actualizarOT()"><span id="ot-det-origen-badge" class="badge b-blue" style="display:none;margin-top:6px;width:max-content"></span></div>
               <div class="fg"><label>Cliente</label><input id="ot-det-cliente" readonly onchange="actualizarOT()"></div>
               <div class="fg no-tecnico"><label>Técnico asignado</label>
-                <select id="ot-det-tecnico" onchange="actualizarOT()">
+                <select id="ot-det-tecnico" onchange="cambiarTecnicoOT(this)">
                   <option value="">— Seleccionar técnico —</option>
                 </select>
               </div>

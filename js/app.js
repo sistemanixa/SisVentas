@@ -2127,6 +2127,7 @@ function fbCargarEmpleados() {
     });
 
     renderTablaEmpleados();
+    renderAvisoProximasVacaciones();
 
     // Select empleados en venta
     var selEmp  = document.getElementById('venta-empleado');
@@ -4386,6 +4387,7 @@ function showPage(id, el) {
     if (currentRole === 'tecnico') renderDashMisOTs();
     if (currentRole === 'administrativo' || currentRole === 'vendedor') renderDashAdministrativo();
     if (currentRole !== 'admin') renderDashMiCuenta();
+    renderAvisoProximasVacaciones();
   }, 100); }
   if (id === 'ctaemp')         { setTimeout(function(){
     if(typeof iniciarCtaEmp==='function') iniciarCtaEmp();
@@ -17926,6 +17928,7 @@ function fbCargarVacaciones() {
     var data = snap.val()||{};
     var periodos = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); });
     window._vacPeriodos = periodos; // caché en memoria
+    renderAvisoProximasVacaciones();
     if (document.getElementById('page-vacaciones') && document.getElementById('page-vacaciones').classList.contains('active')) {
       renderTablaVacaciones(periodos);
       renderPeriodosVacaciones(periodos);
@@ -17958,7 +17961,7 @@ function renderTablaVacaciones(periodos) {
     return;
   }
   var hoy = new Date().toISOString().split('T')[0];
-  var enLicencia=0, conPendientes=0;
+  var enLicencia=0, conPendientes=0, nombresPendientes=[];
   tbody.innerHTML = empleados.map(function(emp){
     var ingreso = emp.fechaIngreso || (emp.historial ? Object.values(emp.historial).sort(function(a,b){return (a.fecha||'').localeCompare(b.fecha||'');})[0] ? Object.values(emp.historial).sort(function(a,b){return a.fecha.localeCompare(b.fecha);})[0].fecha : null : null);
     var diasCorr = diasVacPorAntiguedad(ingreso);
@@ -17968,7 +17971,7 @@ function renderTablaVacaciones(periodos) {
     var disp    = diasCorr-tomados;
     var activo  = periEmp.some(function(p){ return p.desde<=hoy&&p.hasta>=hoy; });
     if (activo) enLicencia++;
-    if (disp>0) conPendientes++;
+    if (disp>0) { conPendientes++; nombresPendientes.push(emp.nombre||'Empleado'); }
     var anios    = ingreso ? Math.floor((new Date()-new Date(ingreso))/(365.25*86400000)) : null;
     var antiguedad = anios===null?'—':anios<1?'< 1 anio':anios+' anio'+(anios!==1?'s':'');
     return '<tr>'+
@@ -17984,6 +17987,13 @@ function renderTablaVacaciones(periodos) {
   }).join('');
   var _e=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
   _e('vac-total',empleados.length);_e('vac-pendientes',conPendientes);_e('vac-activas',enLicencia);
+  var pendientesEl=document.getElementById('vac-pendientes');
+  if (pendientesEl) {
+    var metric=pendientesEl.closest('.metric');
+    var sub=metric?metric.querySelector('.m-sub'):null;
+    if (sub) sub.textContent=conPendientes ? 'empleado'+(conPendientes===1?'':'s')+' con días disponibles' : 'sin saldos pendientes';
+    if (metric) metric.title=nombresPendientes.length ? 'Con días disponibles: '+nombresPendientes.join(', ') : 'Ningún empleado tiene días disponibles';
+  }
 }
 
 function renderPeriodosVacaciones(periodos) {
@@ -17992,18 +18002,23 @@ function renderPeriodosVacaciones(periodos) {
   if (!periodos.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Sin períodos registrados</td></tr>'; return; }
   tbody.innerHTML = periodos.sort(function(a,b){ return (b.desde||'').localeCompare(a.desde||''); }).map(function(p){
     var badge = p.hasta<hoy?'<span class="badge b-green">Finalizado</span>':p.desde<=hoy?'<span class="badge b-blue">En curso</span>':'<span class="badge b-amber">Programado</span>';
+    var acciones = currentRole==='admin'
+      ? '<button class="btn btn-sm btn-icon" onclick="abrirModalEditarVacaciones(\''+p.fbKey+'\')" title="Editar período"><i class="ti ti-edit" style="font-size:13px"></i></button>'+
+        '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'vacaciones\',\''+p.fbKey+'\')" title="Eliminar período" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:13px"></i></button>'
+      : '';
     return '<tr>'+
       '<td style="font-weight:500">'+escapeHTML(p.empleadoNombre||'—')+'</td>'+
       '<td>'+escapeHTML(p.desde||'—')+'</td>'+
       '<td>'+escapeHTML(p.hasta||'—')+'</td>'+
       '<td class="tr" style="font-weight:500">'+p.dias+' d.</td>'+
       '<td class="tr">'+badge+'</td>'+
-      '<td><button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'vacaciones\',\''+p.fbKey+'\')" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:13px"></i></button></td>'+
+      '<td style="white-space:nowrap">'+acciones+'</td>'+
     '</tr>';
   }).join('');
 }
 
 function abrirModalVacaciones(empFbKey) {
+  window._modalVacPeriodoKey = null;
   window._modalVacEmpKey = empFbKey;
   var emp = empFbKey ? Object.values(empData||{}).find(function(e){ return e.fbKey===empFbKey; }) : null;
   var modal=document.getElementById('modal-nuevo'), modalTitle=document.getElementById('modal-nuevo-title'), modalBody=document.getElementById('modal-nuevo-body');
@@ -18026,6 +18041,23 @@ function abrirModalVacaciones(empFbKey) {
   modal.classList.add('open');
 }
 
+function abrirModalEditarVacaciones(periodoKey) {
+  if (currentRole!=='admin') { notify('Solo el administrador puede editar vacaciones'); return; }
+  var p=(window._vacPeriodos||[]).find(function(x){return x.fbKey===periodoKey;});
+  if (!p) { notify('No se encontró el período'); return; }
+  abrirModalVacaciones(p.empleadoId);
+  window._modalVacPeriodoKey=periodoKey;
+  var titulo=document.getElementById('modal-nuevo-title');
+  if(titulo) titulo.textContent='Editar vacaciones — '+(p.empleadoNombre||'Empleado');
+  var desde=document.getElementById('vac-desde'), hasta=document.getElementById('vac-hasta'), dias=document.getElementById('vac-dias'), obs=document.getElementById('vac-obs');
+  if(desde) desde.value=p.desde||'';
+  if(hasta) hasta.value=p.hasta||'';
+  if(dias) dias.value=p.dias||'';
+  if(obs) obs.value=p.obs||'';
+  var guardar=document.querySelector('#modal-nuevo-body button.btn-primary');
+  if(guardar) guardar.innerHTML='<i class="ti ti-check"></i> Guardar cambios';
+}
+
 function calcDiasVac() {
   var d1=document.getElementById('vac-desde'), d2=document.getElementById('vac-hasta');
   if (d1&&d2&&d1.value&&d2.value) { var el=document.getElementById('vac-dias'); if(el) el.value=Math.max(0,Math.round((new Date(d2.value)-new Date(d1.value))/86400000)+1); }
@@ -18037,10 +18069,76 @@ function guardarPeriodoVac() {
   var dias=parseInt(document.getElementById('vac-dias').value)||0;
   if (!fkey||!desde||!hasta) { notify('Completá los datos'); return; }
   var emp=Object.values(empData||{}).find(function(e){return e.fbKey===fkey;});
-  window.fbPush(window.fbRef(window.fbDB,'sisventas/vacaciones'), {
+  if (hasta<desde || dias<=0) { notify('Revisá las fechas y la cantidad de días'); return; }
+  var payload={
     empleadoId:fkey, empleadoNombre:emp?emp.nombre:'', desde:desde, hasta:hasta, dias:dias,
     obs:document.getElementById('vac-obs').value, ts:Date.now()
-  }).then(function(){ notify('✓ Período registrado'); cerrarModalNuevoGenerico(); renderModuloVacaciones(); });
+  };
+  var periodoKey=window._modalVacPeriodoKey;
+  var operacion=periodoKey
+    ? window.fbUpdate(window.fbRef(window.fbDB,'sisventas/vacaciones/'+periodoKey),payload)
+    : window.fbPush(window.fbRef(window.fbDB,'sisventas/vacaciones'),payload);
+  operacion.then(function(){
+    notify(periodoKey?'✓ Período actualizado':'✓ Período registrado');
+    window._modalVacPeriodoKey=null;
+    cerrarModalNuevoGenerico();
+    renderModuloVacaciones();
+  });
+}
+
+function _normalizarNombreVacaciones(valor) {
+  return String(valor||'').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+}
+
+function _empleadoPorNombreVacaciones(nombre) {
+  var clave=_normalizarNombreVacaciones(nombre);
+  return Object.values(empData||{}).find(function(e){
+    return [_normalizarNombreVacaciones(e.nombre),_normalizarNombreVacaciones(e.usuario),_normalizarNombreVacaciones(e.email)].indexOf(clave)>=0;
+  })||null;
+}
+
+function periodoVacacionesPara(nombreTecnico, fecha) {
+  var emp=_empleadoPorNombreVacaciones(nombreTecnico);
+  var clave=_normalizarNombreVacaciones(nombreTecnico);
+  return (window._vacPeriodos||[]).find(function(p){
+    var mismo=emp ? p.empleadoId===emp.fbKey : _normalizarNombreVacaciones(p.empleadoNombre)===clave;
+    var estado=_normalizarNombreVacaciones(p.estado);
+    return mismo && estado!=='rechazado' && estado!=='cancelado' && p.desde<=fecha && p.hasta>=fecha;
+  })||null;
+}
+
+function cambiarTecnicoOT(select) {
+  var fecha=(document.getElementById('ot-det-fecha')||{}).value || new Date().toISOString().slice(0,10);
+  var periodo=select.value ? periodoVacacionesPara(select.value,fecha) : null;
+  if (periodo) {
+    var anterior=select.dataset.previousValue||'';
+    notify('⚠ '+select.value+' está de vacaciones del '+periodo.desde+' al '+periodo.hasta+'. Elegí otro técnico.');
+    select.value=anterior;
+    return false;
+  }
+  select.dataset.previousValue=select.value;
+  actualizarOT();
+  return true;
+}
+
+function renderAvisoProximasVacaciones() {
+  var box=document.getElementById('dash-vacaciones-aviso');
+  if(!box) return;
+  if(currentRole==='admin'){box.style.display='none';return;}
+  var emp=_empleadoPorNombreVacaciones(currentUser||'');
+  if(!emp){box.style.display='none';return;}
+  var hoy=new Date().toISOString().slice(0,10);
+  var proximas=(window._vacPeriodos||[]).filter(function(p){
+    var estado=_normalizarNombreVacaciones(p.estado);
+    return p.empleadoId===emp.fbKey && p.hasta>=hoy && estado!=='rechazado' && estado!=='cancelado';
+  }).sort(function(a,b){return (a.desde||'').localeCompare(b.desde||'');});
+  if(!proximas.length){box.style.display='none';return;}
+  var p=proximas[0], inicio=new Date(p.desde+'T00:00:00'), ahora=new Date(hoy+'T00:00:00');
+  var faltan=Math.max(0,Math.ceil((inicio-ahora)/86400000));
+  var titulo=document.getElementById('dash-vacaciones-titulo'), detalle=document.getElementById('dash-vacaciones-detalle');
+  if(titulo) titulo.textContent=faltan===0?'¡Hoy empiezan tus vacaciones! 🎉':'¡Faltan '+faltan+' día'+(faltan===1?'':'s')+' para tus vacaciones!';
+  if(detalle) detalle.textContent='Del '+p.desde+' al '+p.hasta+' · '+(p.dias||'—')+' días para descansar y recargar energías.';
+  box.style.display='block';
 }
 
 function toggleActivoCliente(cid) {
@@ -21107,6 +21205,7 @@ function verOT(id) {
       });
     }
     if (ot.tecnico) tecSel.value = ot.tecnico;
+    tecSel.dataset.previousValue=tecSel.value||'';
   }
 
   // Visita repetida
@@ -21623,7 +21722,15 @@ function otVerReclamo() {
 }
 
 function actualizarOTFecha() {
+  var tecSel=document.getElementById('ot-det-tecnico');
+  var fecha=(document.getElementById('ot-det-fecha')||{}).value || new Date().toISOString().slice(0,10);
+  var periodo=tecSel&&tecSel.value ? periodoVacacionesPara(tecSel.value,fecha) : null;
+  if(periodo) {
+    notify('⚠ '+tecSel.value+' está de vacaciones en esa fecha. Elegí otro técnico antes de guardar.');
+    return false;
+  }
   actualizarOT();
+  return true;
 }
 
 // Renderizar checklist de una fase
