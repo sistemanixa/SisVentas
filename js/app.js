@@ -4556,7 +4556,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.47-firebase',
+  VERSION: 'v2.0.48-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6543,7 +6543,14 @@ function productosBiosegurActualizables() {
     });
     if (idx < 0) return null;
     var pv = proveedores[idx] || {};
-    var proveedorKey = pv.proveedorKey || pv.proveedorFbKey || pv.key || '';
+    var nombrePv = String(pv.nombre || pv.proveedor || '').trim().toLowerCase();
+    var maestro = (proveedoresData || []).find(function(prov) {
+      var nombreMaestro = String((prov && prov.nombre) || '').trim().toLowerCase();
+      return (nombrePv && nombreMaestro === nombrePv) || (!nombrePv && /biosegur/i.test(nombreMaestro));
+    }) || (proveedoresData || []).find(function(prov) {
+      return /biosegur/i.test(String((prov && (prov.nombre || prov.web || prov.url)) || ''));
+    });
+    var proveedorKey = pv.proveedorKey || pv.proveedorFbKey || pv.key || (maestro && (maestro.fbKey || maestro.key || maestro.id)) || '';
     var url = String(pv.url || p.codWeb || p.proveedorUrl || '').trim();
     if (!proveedorKey || !url) return null;
     return { producto:p, proveedor:pv, proveedorIdx:idx, proveedorKey:String(proveedorKey), url:url };
