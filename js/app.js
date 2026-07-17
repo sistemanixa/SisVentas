@@ -3198,6 +3198,7 @@ function fbCargarProductos() {
       if (typeof renderTablaProductos === 'function') renderTablaProductos();
       if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
       if (typeof actualizarVigenciaPreciosDashboard === 'function') actualizarVigenciaPreciosDashboard();
+      if (typeof limpiarProveedoresManoDeObraExistentes === 'function') limpiarProveedoresManoDeObraExistentes();
       // la misma variable editingProdId), refrescarlo — es de solo lectura
       var prodDetEl = document.getElementById('prod-detail-view');
       if (prodDetEl && prodDetEl.style.display === 'block' && typeof editingProdId !== 'undefined' && editingProdId && typeof verProducto === 'function') {
@@ -4558,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.60-firebase',
+  VERSION: 'v2.0.61-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6598,6 +6599,43 @@ function proveedoresVinculadosProducto(p) {
   }];
 }
 
+function esProductoManoDeObra(p) {
+  p = p || {};
+  if (p.esManoDeObra === true || String(p.esManoDeObra || '').toLowerCase() === 'true') return true;
+  var categoria = String(p.categoria || p.catId || p.tipoProducto || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  var nombre = String(p.nombre || p.descripcion || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  return categoria.indexOf('mano de obra') >= 0 || /^mano de obra\b/.test(nombre);
+}
+
+var _limpiezaProveedoresManoObraEnCurso = false;
+function limpiarProveedoresManoDeObraExistentes() {
+  if (_limpiezaProveedoresManoObraEnCurso || !window.fbDB || !['admin','administrativo'].includes(String(currentRole || '').toLowerCase())) return;
+  var updates = {};
+  var cantidad = 0;
+  Object.values(prodData || {}).forEach(function(p) {
+    if (!p || !p.fbKey || !esProductoManoDeObra(p)) return;
+    var tieneProveedor = !!String(p.proveedor || p.nom_prov || '').trim()
+      || (Array.isArray(p.proveedores) && p.proveedores.length > 0)
+      || !!String(p.proveedorUrl || p.urlProveedor || p.codWeb || '').trim();
+    if (!tieneProveedor) return;
+    var base = FB_PATHS.productos + '/' + p.fbKey + '/';
+    updates[base + 'proveedores'] = null;
+    updates[base + 'proveedor'] = null;
+    updates[base + 'nom_prov'] = null;
+    updates[base + 'proveedorUrl'] = null;
+    updates[base + 'proveedorActualizado'] = null;
+    updates[base + 'urlProveedor'] = null;
+    updates[base + 'codWeb'] = null;
+    cantidad++;
+  });
+  if (!cantidad) return;
+  _limpiezaProveedoresManoObraEnCurso = true;
+  window.fbUpdate(window.fbRef(window.fbDB), updates)
+    .then(function(){ notify('Se quitaron proveedores de ' + cantidad + ' ítems de mano de obra'); })
+    .catch(function(e){ console.warn('[Productos] No se pudieron limpiar proveedores de mano de obra:', e); })
+    .finally(function(){ _limpiezaProveedoresManoObraEnCurso = false; });
+}
+
 function timestampPrecioProducto(p) {
   p = p || {};
   var tiempos = [p.precioActualizadoEn, p.actualizadoEn];
@@ -6621,7 +6659,7 @@ function actualizarVigenciaPreciosDashboard() {
   var valorEl = document.getElementById('dash-precios-vigencia');
   var subEl = document.getElementById('dash-precios-vigencia-sub');
   if (!valorEl || !subEl) return;
-  var productos = Object.values(prodData || {}).filter(function(p){ return p && p.activo !== false && p.estado !== 'inactivo'; });
+  var productos = Object.values(prodData || {}).filter(function(p){ return p && p.activo !== false && p.estado !== 'inactivo' && !esProductoManoDeObra(p); });
   var vencidos = productos.filter(function(p){ return !estadoVigenciaPrecioProducto(p).vigente; });
   valorEl.textContent = vencidos.length ? String(vencidos.length) : 'OK';
   valorEl.style.color = vencidos.length ? 'var(--amber)' : 'var(--green)';
@@ -6738,7 +6776,7 @@ function abrirGestionRevisionPrecios() {
   var anterior = document.getElementById('modal-revision-precios');
   if (anterior) anterior.remove();
   var productos = Object.values(prodData || {}).filter(function(p){
-    return p && p.activo !== false && p.estado !== 'inactivo' && !estadoVigenciaPrecioProducto(p).vigente;
+    return p && p.activo !== false && p.estado !== 'inactivo' && !esProductoManoDeObra(p) && !estadoVigenciaPrecioProducto(p).vigente;
   }).sort(function(a,b){ return String(a.nombre || a.descripcion || '').localeCompare(String(b.nombre || b.descripcion || '')); });
   var compatibles = productosBiosegurActualizables();
   var compatiblesKeys = {};
@@ -6756,15 +6794,17 @@ function abrirGestionRevisionPrecios() {
           var estado = estadoVigenciaPrecioProducto(p);
           var listaProveedores = proveedoresVinculadosProducto(p);
           var provs = listaProveedores.map(function(x){return x && (x.nombre||x.proveedor)||'';}).filter(Boolean).join(', ') || 'Sin proveedor';
+          var valorActual = precioGremioARSDesdeProducto(p);
           var auto = !!compatiblesKeys[String(p.fbKey || '')];
           var busqueda = [p.codigo,p.nombre,p.descripcion,provs].join(' ').toLowerCase();
           var fbKey = String(p.fbKey || '');
           var idProducto = fbKey.replace(/[^a-zA-Z0-9_-]/g,'');
           var editores = listaProveedores.length ? listaProveedores.map(function(pv, idx){
             var idUrl = idProducto + '-' + idx;
-            return '<div style="display:grid;grid-template-columns:minmax(130px,.55fr) minmax(260px,1.45fr) auto 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)"><strong>' + escapeHTML((pv && (pv.nombre || pv.proveedor)) || 'Proveedor') + '</strong><input id="revision-precios-url-' + idUrl + '" class="search-input" type="url" value="' + escapeHTML((pv && pv.url) || '') + '" placeholder="URL exacta del producto"><button class="btn btn-sm btn-primary" onclick="guardarUrlDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\',' + idx + ')"><i class="ti ti-device-floppy"></i> Guardar URL</button><span id="revision-precios-guardado-' + idUrl + '" style="font-size:10px;color:var(--text3)"></span></div>';
+            var valorProveedor = parseFloat((pv && (pv.costoRealArs || pv.precioArsPublicado || pv.precio)) || valorActual || 0) || 0;
+            return '<div style="display:grid;grid-template-columns:minmax(150px,.6fr) minmax(260px,1.4fr) auto 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)"><div><strong>' + escapeHTML((pv && (pv.nombre || pv.proveedor)) || 'Proveedor') + '</strong><div style="font-size:10px;color:var(--green);margin-top:3px">Valor actual: $' + valorProveedor.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div></div><input id="revision-precios-url-' + idUrl + '" class="search-input" type="url" value="' + escapeHTML((pv && pv.url) || '') + '" placeholder="URL exacta del producto"><button class="btn btn-sm btn-primary" onclick="guardarUrlDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\',' + idx + ')"><i class="ti ti-device-floppy"></i> Guardar URL</button><span id="revision-precios-guardado-' + idUrl + '" style="font-size:10px;color:var(--text3)"></span></div>';
           }).join('') : '<div style="color:var(--amber);font-size:12px;padding:8px 0 10px"><i class="ti ti-alert-circle"></i> Este producto no tiene proveedores vinculados.</div><div style="display:grid;grid-template-columns:minmax(180px,.7fr) minmax(260px,1.3fr) auto;gap:8px;align-items:center"><select id="revision-precios-proveedor-' + idProducto + '" class="search-input"><option value="">Seleccionar proveedor…</option>' + (proveedoresData || []).filter(function(pr){return pr && pr.activo !== false;}).sort(function(a,b){return String(a.nombre||'').localeCompare(String(b.nombre||''));}).map(function(pr){return '<option value="' + escapeHTML(String(pr.fbKey || pr.key || pr.id || '')) + '">' + escapeHTML(pr.nombre || 'Proveedor') + '</option>';}).join('') + '</select><input id="revision-precios-nueva-url-' + idProducto + '" class="search-input" type="url" placeholder="URL exacta del producto (puede completarse después)"><button class="btn btn-sm btn-primary" onclick="asignarProveedorDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')"><i class="ti ti-link-plus"></i> Vincular proveedor</button></div>';
-          return '<div data-revision-producto data-busqueda="' + escapeHTML(busqueda) + '" style="display:grid;grid-template-columns:110px minmax(180px,1fr) minmax(140px,.7fr) 120px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><button type="button" onclick="abrirProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')" title="Abrir ficha del producto" style="min-width:0;text-align:left;background:none;border:0;padding:0;cursor:pointer;color:inherit;font-family:inherit"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</div><small style="color:var(--text3)">' + escapeHTML(estado.texto) + '</small></button><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text3)" title="' + escapeHTML(provs) + '">' + escapeHTML(provs) + '</div><span style="color:' + (auto?'var(--green)':'var(--amber)') + '">' + (auto?'Automatizable':'Revisión manual') + '</span><button class="btn btn-sm" onclick="editarProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')"><i class="ti ti-link"></i> ' + (listaProveedores.length ? 'Cambiar URL' : 'Asignar proveedor') + '</button><div id="revision-precios-editor-' + idProducto + '" style="display:' + (listaProveedores.length ? 'none' : 'block') + ';grid-column:1/-1;background:var(--bg3);border-radius:8px;padding:8px 10px;margin-top:2px">' + editores + '</div></div>';
+          return '<div data-revision-producto data-busqueda="' + escapeHTML(busqueda) + '" style="display:grid;grid-template-columns:105px minmax(170px,1fr) minmax(120px,.65fr) 105px 115px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><button type="button" onclick="abrirProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')" title="Abrir ficha del producto" style="min-width:0;text-align:left;background:none;border:0;padding:0;cursor:pointer;color:inherit;font-family:inherit"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</div><small style="color:var(--text3)">' + escapeHTML(estado.texto) + '</small></button><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text3)" title="' + escapeHTML(provs) + '">' + escapeHTML(provs) + '</div><div title="Valor actual para comparar con la URL" style="font-weight:700;color:var(--green);white-space:nowrap">$' + valorActual.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '<small style="display:block;color:var(--text3);font-weight:400">valor actual</small></div><span style="color:' + (auto?'var(--green)':'var(--amber)') + '">' + (auto?'Automatizable':'Revisión manual') + '</span><button class="btn btn-sm" onclick="editarProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')"><i class="ti ti-link"></i> ' + (listaProveedores.length ? 'Cambiar URL' : 'Asignar proveedor') + '</button><div id="revision-precios-editor-' + idProducto + '" style="display:' + (listaProveedores.length ? 'none' : 'block') + ';grid-column:1/-1;background:var(--bg3);border-radius:8px;padding:8px 10px;margin-top:2px">' + editores + '</div></div>';
         }).join('') + '</div>' +
       '</div>' +
     '</div>';
@@ -6785,6 +6825,7 @@ function abrirGestionRevisionPrecios() {
 function productosBiosegurActualizables() {
   var salida = [];
   Object.values(prodData || {}).forEach(function(p) {
+    if (esProductoManoDeObra(p)) return;
     var proveedores = proveedoresVinculadosProducto(p);
     proveedores.forEach(function(pv, idx) {
       pv = pv || {};
@@ -7836,14 +7877,15 @@ function guardarProducto() {
   const nom  = (document.getElementById('pf-nombre')||{}).value.trim() || '';
   const desc = document.getElementById('pf-descripcion').value.trim();
   if (!cod || (!nom && !desc)) { notify('Completá al menos código y nombre'); return; }
+  var esManoObra = !!document.getElementById('pf-es-mano-obra').checked;
   var urlGeneralProveedor = normalizarUrlProveedorProducto((document.getElementById('pf-cod-web')||{}).value || '');
 
-  var proveedoresValidos = prodProveedoresActuales.filter(function(pv) {
+  var proveedoresValidos = esManoObra ? [] : prodProveedoresActuales.filter(function(pv) {
     return (pv.nombre||'').trim() || (pv.url||'').trim() || parseFloat(pv.precio) > 0;
   }).map(function(pv) {
     return completarReferenciaProveedorProducto(pv, urlGeneralProveedor, pv.actualizadoOrigen || 'manual');
   });
-  var proveedorSinUrl = proveedoresValidos.find(function(pv){ return !pv.url; });
+  var proveedorSinUrl = esManoObra ? null : proveedoresValidos.find(function(pv){ return !pv.url; });
   if (proveedorSinUrl) {
     notify('Completá la URL del proveedor o la URL general del producto antes de guardar');
     return;
@@ -7863,8 +7905,8 @@ function guardarProducto() {
     nombre:       document.getElementById('pf-nombre').value.trim() || desc,
     descripcion:  desc,
     categoria:    document.getElementById('pf-categoria').value,
-    proveedores:  proveedoresValidos,
-    proveedor:    proveedorPrincipal ? proveedorPrincipal.nombre : '',
+    proveedores:  esManoObra ? null : proveedoresValidos,
+    proveedor:    esManoObra ? null : (proveedorPrincipal ? proveedorPrincipal.nombre : ''),
     moneda:       (document.getElementById('pf-moneda')||{}).value || 'ARS',
     compra:       Math.round(getMontoRaw(document.getElementById('pf-compra')) * 100) / 100,
     venta:        Math.round(getMontoRaw(document.getElementById('pf-venta')) * 100) / 100,
@@ -7873,10 +7915,10 @@ function guardarProducto() {
     stockMin:     parseInt(document.getElementById('pf-stock-min').value) || 5,
     estado:       document.getElementById('pf-estado').value,
     unidad:       document.getElementById('pf-unidad').value,
-    esManoDeObra: document.getElementById('pf-es-mano-obra').checked,
+    esManoDeObra: esManoObra,
     precioGremio: getMontoRaw(document.getElementById('pf-precio-gremio')),
     margenDeseado: parseFloat(document.getElementById('pf-margen-deseado').value) || margenProductoDefault(),
-    codWeb:  urlGeneralProveedor,
+    codWeb:  esManoObra ? null : urlGeneralProveedor,
     imagenUrl: (document.getElementById('pf-imagen-url')||{}).value || ''
   };
   if (proveedorPrincipal) {
@@ -7890,6 +7932,10 @@ function guardarProducto() {
     datos.dolarTipo = proveedorPrincipal.dolarTipo || dolarRef.tipo || 'oficial';
     datos.precioActualizadoOrigen = proveedorPrincipal.actualizadoOrigen || 'manual';
     datos.precioActualizadoEn = proveedorPrincipal.actualizadoEn || Date.now();
+  } else if (esManoObra) {
+    datos.proveedorUrl = null;
+    datos.proveedorActualizado = null;
+    datos.urlProveedor = null;
   }
   var tc = dolarRef.valor || 0;
   if (datos.moneda === 'ARS' && tc > 0) {
