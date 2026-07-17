@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.62-firebase',
+  VERSION: 'v2.0.63-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7158,11 +7158,15 @@ async function ejecutarActualizadorMasivoBiosegur() {
       fallosEl.style.display = '';
       fallosEl.innerHTML = '<strong style="color:var(--amber)">Requieren revisión (conservaron su precio anterior):</strong>' + detalleFallos.map(function(f) {
         var idSeguro = String(f.fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(f.proveedorIdx,10)||0);
+        var urlSegura = /^https?:\/\//i.test(String(f.url || '').trim()) ? String(f.url || '').trim() : '';
+        var nombreProducto = '<strong>' + escapeHTML(f.codigo || 'Sin código') + '</strong> · ' + escapeHTML(f.producto);
+        if (urlSegura) nombreProducto = '<a href="' + escapeHTML(urlSegura) + '" target="_blank" rel="noopener noreferrer" title="Abrir producto en el proveedor" style="color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + nombreProducto + ' <i class="ti ti-external-link" style="font-size:11px;color:var(--blue)"></i></a>';
         return '<div data-fallo-producto style="padding:9px 0;border-bottom:0.5px solid var(--border)">' +
-          '<div><strong>' + escapeHTML(f.codigo || 'Sin código') + '</strong> · ' + escapeHTML(f.producto) + '</div>' +
+          '<div>' + nombreProducto + '</div>' +
           '<div style="color:var(--text3);margin-top:3px">' + escapeHTML(f.motivo) + '</div>' +
           '<div style="color:var(--text3);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px" title="' + escapeHTML(f.url) + '">' + escapeHTML(f.url) + '</div>' +
           '<div style="display:flex;gap:6px;margin-top:7px">' +
+            (urlSegura ? '<a class="btn btn-sm" href="' + escapeHTML(urlSegura) + '" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link"></i> Abrir proveedor</a>' : '') +
             '<button class="btn btn-sm" onclick="editarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"><i class="ti ti-link"></i> Cambiar URL</button>' +
             '<button class="btn btn-sm" style="color:var(--red)" onclick="eliminarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',this)"><i class="ti ti-trash"></i> Eliminar</button>' +
           '</div>' +
