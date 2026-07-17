@@ -65,6 +65,10 @@
     navigator.serviceWorker.register('./sw.js', { scope: './' })
       .then(function(reg){
         if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+        // Chrome puede espaciar sus chequeos; consultar al abrir y cada dos
+        // minutos mantiene la PWA alineada con cada deploy.
+        reg.update().catch(function(){});
+        setInterval(function(){ reg.update().catch(function(){}); }, 2 * 60 * 1000);
       })
       .catch(function(err){ console.warn('[PWA] No se pudo registrar sw.js:', err); });
   }

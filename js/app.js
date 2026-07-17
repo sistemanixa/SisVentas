@@ -3366,52 +3366,19 @@ function fbCargarVentas() {
   if (!window.fbDB) return;
   if (window._ventasListenerActivo) return;
   window._ventasListenerActivo = true;
-  fbCargarVentasPendientesHistoricas();
-  var desdeISO = ventasInicioPeriodoRecienteISO();
   var baseRef = window.fbRef(window.fbDB, FB_PATHS.ventas);
-
-  function iniciarEscuchaRango() {
-    var target = baseRef;
-    var puedeConsultar = window.fbQuery && window.fbOrderByChild && window.fbStartAt;
-    if (puedeConsultar) {
-      target = window.fbQuery(baseRef, window.fbOrderByChild('fechaOrden'), window.fbStartAt(desdeISO));
-    }
-    window.fbOnValue(target, function(snap) {
-      procesarVentasSnapshot(snap.val(), {
-        desdeISO: desdeISO,
-        filtrarPeriodo: !puedeConsultar,
-        normalizarFechaOrden: false
-      });
-    }, function(error) {
-      console.warn('[Ventas] Consulta por rango no disponible, usando respaldo filtrado', error);
-      window.fbOnValue(baseRef, function(snap) {
-        procesarVentasSnapshot(snap.val(), {
-          desdeISO: desdeISO,
-          filtrarPeriodo: true,
-          normalizarFechaOrden: true
-        });
-      });
-    });
-  }
-
-  var marcaLocal = 'sisventas.ventas.fechaOrden.v1';
-  var yaNormalizado = false;
-  try { yaNormalizado = localStorage.getItem(marcaLocal) === '1'; } catch (_) {}
-  if (yaNormalizado || !window.fbGet) {
-    iniciarEscuchaRango();
-    return;
-  }
-  window.fbGet(baseRef).then(function(snap) {
+  // Ventas y cuentas corrientes requieren todo el historial: el recorte de
+  // tres meses ocultaba saldos pendientes de clientes.
+  window.fbOnValue(baseRef, function(snap) {
     procesarVentasSnapshot(snap.val(), {
-      desdeISO: desdeISO,
-      filtrarPeriodo: true,
+      filtrarPeriodo: false,
       normalizarFechaOrden: true
     });
-    try { localStorage.setItem(marcaLocal, '1'); } catch (_) {}
-    iniciarEscuchaRango();
-  }).catch(function(error) {
-    console.warn('[Ventas] No se pudo preparar fechaOrden, iniciando escucha directa', error);
-    iniciarEscuchaRango();
+    procesarVentasPendientesHistoricasSnapshot(snap.val());
+  }, function(error) {
+    window._ventasListenerActivo = false;
+    console.error('[Ventas] No se pudo cargar el historial completo', error);
+    if (typeof notify === 'function') notify('No se pudo cargar el historial de ventas');
   });
 }
 
@@ -4556,7 +4523,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.49-firebase',
+  VERSION: 'v2.0.50-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
