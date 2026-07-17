@@ -4523,7 +4523,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.51-firebase',
+  VERSION: 'v2.0.52-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6528,7 +6528,11 @@ function productosBiosegurActualizables() {
     });
     var proveedorKey = pv.proveedorKey || pv.proveedorFbKey || pv.key || (maestro && (maestro.fbKey || maestro.key || maestro.id)) || '';
     var url = String(pv.url || p.codWeb || p.proveedorUrl || '').trim();
-    if (!proveedorKey || !url) return null;
+    // Una referencia rotulada Biosegur puede conservar por error una URL de
+    // otro proveedor. Nunca enviarla al lote Biosegur.
+    var host = '';
+    try { host = new URL(normalizarUrlProveedorProducto(url)).hostname.toLowerCase(); } catch (_) {}
+    if (!proveedorKey || !url || !/(^|\.)biosegur\.com\.ar$/.test(host)) return null;
     return { producto:p, proveedor:pv, proveedorIdx:idx, proveedorKey:String(proveedorKey), url:url };
   }).filter(Boolean);
 }

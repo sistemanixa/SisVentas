@@ -316,6 +316,8 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
     browser = await chromium.launch({ headless: true });
     context = await browser.newContext({ locale: 'es-AR', timezoneId: 'America/Argentina/Buenos_Aires' });
     const page = await context.newPage();
+    page.setDefaultTimeout(8000);
+    page.setDefaultNavigationTimeout(15000);
     const home = normalizarUrl(proveedor.web || 'https://www.biosegur.com.ar/');
     if (progresoRef) await progresoRef.update({ estado:'iniciando_sesion', actualizadoEn:Date.now() });
     await page.goto(home, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -340,9 +342,15 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
         continue;
       }
       try {
-        await page.goto(urlExacta, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await page.waitForLoadState('networkidle', { timeout: 7000 }).catch(() => {});
-        const bodyText = await page.locator('body').innerText({ timeout: 15000 });
+        const hostProducto = new URL(urlExacta).hostname.toLowerCase();
+        if (!/(^|\.)biosegur\.com\.ar$/.test(hostProducto)) {
+          throw new Error('La URL corresponde a otro proveedor; revisá la vinculación');
+        }
+        await page.goto(urlExacta, { waitUntil: 'domcontentloaded', timeout: 15000 });
+        const bodyText = await page.locator('body').innerText({ timeout: 8000 });
+        if (/producto\s+no\s+encontrado|no\s+existe\s+o\s+fue\s+desactivado|p[aá]gina\s+no\s+encontrada|error\s*404/i.test(bodyText)) {
+          throw new Error('Producto no encontrado o desactivado en el proveedor');
+        }
         if (/usuario.*clave|login/i.test(bodyText) && !/mi cuenta|salir/i.test(bodyText)) {
           throw new Error('La sesión de Biosegur se cerró durante el lote');
         }
