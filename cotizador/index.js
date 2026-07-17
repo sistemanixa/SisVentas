@@ -60,6 +60,14 @@ function esBiosegur(proveedor, url) {
   return txt.includes('biosegur');
 }
 
+function tipoProveedor(proveedor, url) {
+  const txt = `${proveedor.nombre || ''} ${proveedor.web || ''} ${url || ''}`.toLowerCase();
+  if (txt.includes('biosegur')) return 'biosegur';
+  if (txt.includes('free-electron') || txt.includes('free electron')) return 'free_electron';
+  if (txt.includes('tecnoprices')) return 'tecnoprices';
+  return '';
+}
+
 function parsePrecioArs(texto) {
   const s = String(texto || '');
   const matches = [...s.matchAll(/\$\s*([0-9]{1,3}(?:[.\s][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)/g)];
@@ -143,6 +151,73 @@ function extraerPrecioBiosegur(texto) {
   return parsePrecioArs(body);
 }
 
+function extraerDisponibilidadProveedor(texto) {
+  const body = normalizarTexto(texto);
+  if (/sin\s+stock|agotado|no\s+disponible|fuera\s+de\s+stock/.test(body)) return 'sin_stock';
+  if (/producto\s+con\s+stock|hay\s+stock|en\s+stock|disponible/.test(body)) return 'disponible';
+  return 'no_verificado';
+}
+
+async function cotizarProveedorConLogin({ proveedor, url, codigo, producto, debug, tipo }) {
+  const trace = [];
+  const addTrace = (step, data = {}) => trace.push({ step, at:new Date().toISOString(), ...data });
+  let browser = null;
+  let context = null;
+  try {
+    const usuario = proveedor.usuario || proveedor.user || proveedor.email || '';
+    const password = proveedor.password || proveedor.pass || proveedor.clave || '';
+    if (!usuario || !password) throw new Error('El proveedor no tiene usuario y contraseña cargados');
+    const urlExacta = normalizarUrl(url);
+    if (/large_default|\.jpe?g(?:\?|$)|\.png(?:\?|$)|\.webp(?:\?|$)/i.test(urlExacta)) {
+      throw new Error('La URL cargada corresponde a una imagen. Cambiala por la página exacta del producto');
+    }
+    browser = await chromium.launch({ headless:true });
+    context = await browser.newContext({ locale:'es-AR', timezoneId:'America/Argentina/Buenos_Aires' });
+    const page = await context.newPage();
+    addTrace('iniciando_sesion', { tipo, urlExacta });
+    if (tipo === 'free_electron') {
+      await page.goto('https://www.free-electron.com.ar/mi-cuenta', { waitUntil:'domcontentloaded', timeout:30000 });
+      await page.locator('form[action*="iniciar-sesion"] input[name="email"]').fill(usuario);
+      await page.locator('form[action*="iniciar-sesion"] input[name="password"]').fill(password);
+      await page.locator('form[action*="iniciar-sesion"] #submit-login').click();
+    } else {
+      await page.goto('https://www.tecnoprices.com/ingresar', { waitUntil:'domcontentloaded', timeout:30000 });
+      await page.locator('form[action="control.php"] input[name="usuario"]').fill(usuario);
+      await page.locator('form[action="control.php"] input[name="password"]').fill(password);
+      await page.locator('form[action="control.php"] button[type="submit"]').click();
+    }
+    await page.waitForLoadState('networkidle', { timeout:15000 }).catch(() => {});
+    addTrace('sesion_iniciada', { urlActual:page.url() });
+    await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
+    await page.waitForLoadState('networkidle', { timeout:10000 }).catch(() => {});
+    const bodyText = await page.locator('body').innerText({ timeout:15000 });
+    if (/iniciar sesi[oó]n para ver precios|ingresar para ver precios/i.test(bodyText)) throw new Error('No se pudo iniciar sesión o la cuenta no permite ver precios');
+    let textoPrecio = bodyText;
+    if (tipo === 'free_electron') {
+      textoPrecio = await page.locator('.product-prices .product-price').first().innerText({ timeout:10000 }).catch(() => bodyText);
+    }
+    const precioArs = parsePrecioArs(textoPrecio);
+    if (!precioArs) throw new Error('No se encontró un precio visible en la página exacta');
+    const disponibilidad = extraerDisponibilidadProveedor(bodyText);
+    const impuestosIncluidos = /impuestos\s+incluidos|iva\s+incluido/i.test(bodyText);
+    const sinIvaVisible = /\+\s*iva|sin\s+iva/i.test(bodyText);
+    return {
+      ok:true, proveedor:proveedor.nombre || (tipo === 'free_electron' ? 'FREE ELECTRON' : 'TECNOPRICES'),
+      codigo:codigo || '', producto:producto || await page.title().catch(() => ''), url:urlExacta,
+      precioArs, sinIva:impuestosIncluidos ? false : (sinIvaVisible ? true : tipo === 'tecnoprices'),
+      disponibilidadProveedor:disponibilidad,
+      disponibilidadProveedorTexto:disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
+      fuente:tipo + '_login_url_exacta', fecha:new Date().toISOString(), debug:debug ? { trace } : undefined
+    };
+  } catch (e) {
+    e.trace = trace;
+    throw e;
+  } finally {
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+}
+
 async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
   const trace = [];
   const addTrace = (step, data = {}) => {
@@ -191,6 +266,7 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
     }
 
     const precioArs = extraerPrecioBiosegur(bodyText);
+    const disponibilidad = extraerDisponibilidadProveedor(bodyText);
     addTrace('precio_extraido', { precioArs });
     if (!precioArs) {
       throw new Error('No se encontró precio visible en la URL exacta luego del login');
@@ -206,6 +282,8 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
       precioArs,
       sinIva: true,
       precioConIva: Math.round(precioArs * 1.21 * 100) / 100,
+      disponibilidadProveedor: disponibilidad,
+      disponibilidadProveedorTexto: disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
       fuente: 'biosegur_login_url_exacta',
       fecha: new Date().toISOString(),
       debug: debug ? { trace } : undefined
@@ -219,9 +297,13 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
   }
 }
 
-async function cotizarLoteBiosegur({ proveedor, items, debug }) {
+async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0, totalGlobal = 0, iniciadoEn = 0 }) {
   const lote = Array.isArray(items) ? items.slice(0, 30) : [];
   if (!lote.length) throw new Error('El lote no contiene productos');
+  const jobSeguro = String(jobId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+  const progresoRef = jobSeguro ? db.ref(`sisventas/procesos/cotizador/${jobSeguro}`) : null;
+  const inicioMs = parseInt(iniciadoEn, 10) || Date.now();
+  const totalTrabajo = Math.max(parseInt(totalGlobal, 10) || 0, offset + lote.length);
 
   let browser = null;
   let context = null;
@@ -230,10 +312,12 @@ async function cotizarLoteBiosegur({ proveedor, items, debug }) {
 
   try {
     addTrace('lote_iniciando', { cantidad: lote.length });
+    if (progresoRef) await progresoRef.set({ estado:'iniciando_navegador', proveedor:'BIOSEGUR', procesados:offset, total:totalTrabajo, inicioEn:inicioMs, actualizadoEn:Date.now() });
     browser = await chromium.launch({ headless: true });
     context = await browser.newContext({ locale: 'es-AR', timezoneId: 'America/Argentina/Buenos_Aires' });
     const page = await context.newPage();
     const home = normalizarUrl(proveedor.web || 'https://www.biosegur.com.ar/');
+    if (progresoRef) await progresoRef.update({ estado:'iniciando_sesion', actualizadoEn:Date.now() });
     await page.goto(home, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await completarLoginBiosegur(page, proveedor);
     addTrace('lote_login_completado');
@@ -242,6 +326,15 @@ async function cotizarLoteBiosegur({ proveedor, items, debug }) {
     for (let i = 0; i < lote.length; i += 1) {
       const item = lote[i] || {};
       const urlExacta = normalizarUrl(item.url || item.urlProducto || '');
+      if (progresoRef) await progresoRef.update({
+        estado:'procesando',
+        codigo:item.codigo || '',
+        producto:item.producto || item.nombre || '',
+        url:urlExacta,
+        procesados:offset + i,
+        total:totalTrabajo,
+        actualizadoEn:Date.now()
+      });
       if (!urlExacta) {
         resultados.push({ ok: false, error: true, codigo: item.codigo || '', mensaje: 'Falta URL exacta' });
         continue;
@@ -254,6 +347,7 @@ async function cotizarLoteBiosegur({ proveedor, items, debug }) {
           throw new Error('La sesión de Biosegur se cerró durante el lote');
         }
         const precioArs = extraerPrecioBiosegur(bodyText);
+        const disponibilidad = extraerDisponibilidadProveedor(bodyText);
         if (!precioArs) throw new Error('No se encontró un precio visible');
         resultados.push({
           ok: true,
@@ -264,6 +358,8 @@ async function cotizarLoteBiosegur({ proveedor, items, debug }) {
           precioArs,
           sinIva: true,
           precioConIva: Math.round(precioArs * 1.21 * 100) / 100,
+          disponibilidadProveedor: disponibilidad,
+          disponibilidadProveedorTexto: disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
           fuente: 'biosegur_lote_url_exacta',
           fecha: new Date().toISOString()
         });
@@ -271,7 +367,23 @@ async function cotizarLoteBiosegur({ proveedor, items, debug }) {
         resultados.push({ ok: false, error: true, codigo: item.codigo || '', url: urlExacta, mensaje: e.message || 'Error leyendo producto' });
       }
       addTrace('lote_progreso', { procesados: i + 1, total: lote.length });
+      if (progresoRef) {
+        const procesadosGlobal = offset + i + 1;
+        const transcurridoSeg = Math.max(1, Math.round((Date.now() - inicioMs) / 1000));
+        const promedioSeg = transcurridoSeg / Math.max(1, procesadosGlobal);
+        await progresoRef.update({
+          procesados:procesadosGlobal,
+          total:totalTrabajo,
+          transcurridoSeg,
+          estimadoRestanteSeg:Math.max(0, Math.round((totalTrabajo - procesadosGlobal) * promedioSeg)),
+          actualizados:resultados.filter((r) => r.ok).length,
+          fallidos:resultados.filter((r) => !r.ok).length,
+          actualizadoEn:Date.now()
+        });
+      }
     }
+
+    if (progresoRef) await progresoRef.update({ estado:'bloque_completado', codigo:'', producto:'', procesados:offset + lote.length, total:totalTrabajo, actualizadoEn:Date.now() });
 
     return {
       ok: true,
@@ -296,7 +408,15 @@ async function cotizarLote(reqBody) {
   if (!proveedor) throw new Error('Proveedor no encontrado en Firebase');
   if (proveedor.activo === false) throw new Error('Proveedor inactivo');
   if (!esBiosegur(proveedor, '')) throw new Error('El actualizador por lote está habilitado solamente para Biosegur');
-  return cotizarLoteBiosegur({ proveedor, items: reqBody.items, debug: !!reqBody.debug });
+  return cotizarLoteBiosegur({
+    proveedor,
+    items: reqBody.items,
+    debug: !!reqBody.debug,
+    jobId: reqBody.jobId || '',
+    offset: parseInt(reqBody.offset, 10) || 0,
+    totalGlobal: parseInt(reqBody.total, 10) || 0,
+    iniciadoEn: parseInt(reqBody.iniciadoEn, 10) || 0
+  });
 }
 
 async function cotizar(reqBody) {
@@ -310,7 +430,8 @@ async function cotizar(reqBody) {
   if (!proveedor) throw new Error('Proveedor no encontrado en Firebase');
   if (proveedor.activo === false) throw new Error('Proveedor inactivo');
 
-  if (esBiosegur(proveedor, url)) {
+  const tipo = tipoProveedor(proveedor, url);
+  if (tipo === 'biosegur') {
     return cotizarBiosegur({
       proveedor,
       url,
@@ -318,6 +439,10 @@ async function cotizar(reqBody) {
       producto: reqBody.producto || '',
       debug: !!reqBody.debug
     });
+  }
+
+  if (tipo === 'free_electron' || tipo === 'tecnoprices') {
+    return cotizarProveedorConLogin({ proveedor, url, codigo:reqBody.codigo || '', producto:reqBody.producto || '', debug:!!reqBody.debug, tipo });
   }
 
   throw new Error(`Proveedor no soportado todavía: ${proveedor.nombre || proveedorKey}`);

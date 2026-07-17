@@ -4556,7 +4556,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.48-firebase',
+  VERSION: 'v2.0.49-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4617,6 +4617,15 @@ function _versionMasNueva(a, b) {
 function _dispararActualizacion(versionNueva) {
   if (_actualizandoAhora) return;
   if (!_versionMasNueva(versionNueva, APP_CONFIG.VERSION)) return;
+  if (window._sisventasProcesoCriticoActivo) {
+    _versionNuevaDisponible = versionNueva;
+    _mostrarBotonActualizacion(versionNueva);
+    if (!window._sisventasActualizacionDiferidaAvisada) {
+      window._sisventasActualizacionDiferidaAvisada = true;
+      notify('Hay una versión nueva. Se aplicará cuando vos elijas, sin interrumpir la actualización de precios.');
+    }
+    return;
+  }
   _actualizandoAhora = true;
   actualizarAutomaticamente(APP_CONFIG.VERSION, versionNueva);
 }
@@ -6559,7 +6568,39 @@ function productosBiosegurActualizables() {
 
 function cerrarActualizadorMasivoPrecios() {
   var modal = document.getElementById('modal-actualizador-precios');
-  if (modal && modal.dataset.ejecutando !== '1') modal.remove();
+  if (modal && modal.dataset.ejecutando === '1') {
+    if (!modal._detenerSolicitado && confirm('¿Detener la actualización? Se terminará el bloque actual y no se iniciará el siguiente.')) {
+      modal._detenerSolicitado = true;
+      var estado = document.getElementById('actualizador-precios-estado');
+      if (estado) estado.textContent = 'Detención solicitada. Terminando el bloque actual…';
+    }
+    return;
+  }
+  if (modal && modal.dataset.ejecutando !== '1') {
+    modal.remove();
+    window._sisventasProcesoCriticoActivo = false;
+  }
+}
+
+function editarProductoFallidoActualizador(fbKey) {
+  cerrarActualizadorMasivoPrecios();
+  abrirFormProducto(String(fbKey || ''));
+}
+
+async function eliminarProductoFallidoActualizador(fbKey, boton) {
+  fbKey = String(fbKey || '');
+  var prod = Object.values(prodData || {}).find(function(p){ return String(p.fbKey || '') === fbKey; }) || {};
+  var nombre = prod.nombre || prod.descripcion || 'este producto';
+  if (!fbKey || !confirm('¿Eliminar el producto "' + String(nombre || '') + '"? Esta acción no se puede deshacer.')) return;
+  try {
+    await window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey));
+    var fila = boton && boton.closest ? boton.closest('[data-fallo-producto]') : null;
+    if (fila) fila.remove();
+    notify('Producto eliminado');
+    actualizarVigenciaPreciosDashboard();
+  } catch (e) {
+    notify('No se pudo eliminar: ' + (e.message || 'Error desconocido'));
+  }
 }
 
 function abrirActualizadorMasivoPrecios() {
@@ -6577,7 +6618,7 @@ function abrirActualizadorMasivoPrecios() {
   overlay.innerHTML =
     '<div style="width:min(620px,100%);background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)">' +
-        '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo Biosegur</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Una sola sesión de Biosegur por cada grupo de productos</div></div>' +
+        '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo Biosegur</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Procesamiento seguro en bloques de hasta 30 productos</div></div>' +
         '<button class="icon-btn" onclick="cerrarActualizadorMasivoPrecios()"><i class="ti ti-x"></i></button>' +
       '</div>' +
       '<div style="padding:18px">' +
@@ -6586,8 +6627,11 @@ function abrirActualizadorMasivoPrecios() {
           '<div class="metric"><div class="m-label">Pendientes</div><div class="m-value" style="color:'+(pendientes.length?'var(--amber)':'var(--green)')+'">'+pendientes.length+'</div><div class="m-sub">más de 24 h o sin verificar</div></div>' +
           '<div class="metric"><div class="m-label">Vigentes</div><div class="m-value" style="color:var(--green)">'+(todos.length-pendientes.length)+'</div><div class="m-sub">actualizados recientemente</div></div>' +
         '</div>' +
-        '<div id="actualizador-precios-estado" style="font-size:12px;color:var(--text2);padding:10px 12px;background:var(--bg3);border-radius:8px;margin-bottom:12px">Listo para actualizar únicamente los productos pendientes.</div>' +
+        '<div id="actualizador-precios-estado" style="font-size:12px;color:var(--text2);padding:10px 12px;background:var(--bg3);border-radius:8px;margin-bottom:8px">Listo para actualizar únicamente los productos pendientes.</div>' +
+        '<div id="actualizador-precios-producto" style="min-height:34px;font-size:11px;color:var(--text3);padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;margin-bottom:8px">Producto actual: —</div>' +
+        '<div id="actualizador-precios-tiempo" style="font-size:11px;color:var(--text3);display:flex;justify-content:space-between;gap:10px;margin-bottom:10px"><span>Transcurrido: —</span><span>Tiempo restante estimado: —</span></div>' +
         '<div style="height:8px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-bottom:14px"><div id="actualizador-precios-barra" style="height:100%;width:0;background:var(--green);transition:width .25s"></div></div>' +
+        '<div id="actualizador-precios-fallos" style="display:none;max-height:260px;overflow:auto;font-size:11px;padding:9px 10px;background:var(--amber-bg);border:0.5px solid var(--amber);border-radius:8px;margin-bottom:12px"></div>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="cerrarActualizadorMasivoPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-actualizar-biosegur-lote" onclick="ejecutarActualizadorMasivoBiosegur()" '+(!pendientes.length?'disabled':'')+'><i class="ti ti-refresh"></i> Actualizar '+pendientes.length+' pendientes</button></div>' +
       '</div>' +
     '</div>';
@@ -6608,6 +6652,9 @@ function datosActualizadosProductoBiosegur(item, resultado) {
   pv.actualizado = new Date().toISOString().slice(0,10);
   pv.actualizadoEn = ahora;
   pv.actualizadoOrigen = resultado.fuente || 'biosegur_lote_url_exacta';
+  pv.disponibilidadProveedor = resultado.disponibilidadProveedor || 'no_verificado';
+  pv.disponibilidadProveedorTexto = resultado.disponibilidadProveedorTexto || 'No verificado';
+  pv.disponibilidadActualizadaEn = ahora;
   proveedores[item.proveedorIdx] = pv;
 
   var principal = proveedores.filter(function(x){ return (parseFloat(x.precio)||0) > 0; }).reduce(function(min, x) {
@@ -6648,25 +6695,56 @@ async function ejecutarActualizadorMasivoBiosegur() {
   var pendientes = modal._productosPendientes || [];
   if (!pendientes.length) return;
   modal.dataset.ejecutando = '1';
+  modal._detenerSolicitado = false;
+  window._sisventasProcesoCriticoActivo = true;
   var btn = document.getElementById('btn-actualizar-biosegur-lote');
   var estado = document.getElementById('actualizador-precios-estado');
   var barra = document.getElementById('actualizador-precios-barra');
+  var productoActualEl = document.getElementById('actualizador-precios-producto');
+  var tiempoEl = document.getElementById('actualizador-precios-tiempo');
+  var fallosEl = document.getElementById('actualizador-precios-fallos');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Actualizando...'; }
 
   var grupos = {};
   pendientes.forEach(function(x){ (grupos[x.proveedorKey] = grupos[x.proveedorKey] || []).push(x); });
   var procesados = 0, actualizados = 0, fallidos = 0;
+  var detalleFallos = [];
+  var jobId = 'biosegur_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  var procesoIniciadoEn = Date.now();
+  var progresoRef = window.fbRef(window.fbDB, 'sisventas/procesos/cotizador/' + jobId);
+  function formatoTiempo(seg) {
+    seg = Math.max(0, Math.round(parseFloat(seg) || 0));
+    if (seg < 60) return seg + ' s';
+    var min = Math.floor(seg / 60), resto = seg % 60;
+    return min + ' min' + (resto ? ' ' + resto + ' s' : '');
+  }
+  var cancelarProgreso = window.fbOnValue(progresoRef, function(snap) {
+    var pr = snap.val() || {};
+    if (estado && pr.estado === 'iniciando_navegador') estado.textContent = 'Preparando navegador seguro de Biosegur…';
+    if (estado && pr.estado === 'iniciando_sesion') estado.textContent = 'Iniciando sesión en Biosegur…';
+    if (productoActualEl && pr.estado === 'procesando') {
+      productoActualEl.innerHTML = '<strong style="color:var(--text)">' + escapeHTML(pr.codigo || 'Sin código') + '</strong> · ' + escapeHTML(pr.producto || 'Producto Biosegur') + '<br><span style="opacity:.75">' + escapeHTML(pr.url || '') + '</span>';
+    }
+    if (estado && pr.total) estado.textContent = 'Biosegur: ' + (parseInt(pr.procesados,10)||0) + ' de ' + pr.total + ' procesados';
+    if (barra && pr.total) barra.style.width = Math.round((parseInt(pr.procesados,10)||0) / pr.total * 100) + '%';
+    if (tiempoEl) tiempoEl.innerHTML = '<span>Transcurrido: ' + formatoTiempo(pr.transcurridoSeg) + '</span><span>Tiempo restante estimado: ' + (pr.estimadoRestanteSeg != null ? formatoTiempo(pr.estimadoRestanteSeg) : 'calculando…') + '</span>';
+  });
   try {
     for (var proveedorKey of Object.keys(grupos)) {
       var grupo = grupos[proveedorKey];
-      for (var inicio = 0; inicio < grupo.length; inicio += 20) {
-        var bloque = grupo.slice(inicio, inicio + 20);
+      for (var inicio = 0; inicio < grupo.length; inicio += 30) {
+        if (modal._detenerSolicitado) break;
+        var bloque = grupo.slice(inicio, inicio + 30);
         if (estado) estado.textContent = 'Biosegur: procesando ' + (procesados + 1) + ' a ' + Math.min(procesados + bloque.length, pendientes.length) + ' de ' + pendientes.length + '…';
         var resp = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar-lote', {
           method:'POST',
           headers:{ 'Content-Type':'application/json', 'X-Frontend-Key':SISVENTAS_FUNCTIONS.frontendKey },
           body:JSON.stringify({
             proveedorKey:proveedorKey,
+            jobId:jobId,
+            offset:procesados,
+            total:pendientes.length,
+            iniciadoEn:procesoIniciadoEn,
             items:bloque.map(function(x){ return { codigo:x.producto.codigo || '', producto:x.producto.nombre || x.producto.descripcion || '', url:x.url }; })
           })
         }).then(function(r){ return r.json(); });
@@ -6682,24 +6760,54 @@ async function ejecutarActualizadorMasivoBiosegur() {
             actualizados++;
           } else {
             fallidos++;
+            detalleFallos.push({
+              fbKey:item.producto.fbKey || '',
+              codigo:item.producto.codigo || '',
+              producto:item.producto.nombre || item.producto.descripcion || '',
+              url:item.url || '',
+              motivo:(resultado && (resultado.mensaje || resultado.error)) || 'No se pudo verificar la URL o el precio'
+            });
           }
           procesados++;
           if (barra) barra.style.width = Math.round(procesados / pendientes.length * 100) + '%';
         }
       }
+      if (modal._detenerSolicitado) break;
     }
     if (estado) {
-      estado.innerHTML = '<strong style="color:var(--green)">Actualización terminada.</strong> ' + actualizados + ' actualizados' + (fallidos ? ' · <span style="color:var(--amber)">' + fallidos + ' no pudieron verificarse</span>' : '') + '.';
+      estado.innerHTML = modal._detenerSolicitado
+        ? '<strong style="color:var(--amber)">Actualización detenida.</strong> ' + procesados + ' de ' + pendientes.length + ' procesados.'
+        : '<strong style="color:var(--green)">Actualización terminada.</strong> ' + actualizados + ' actualizados' + (fallidos ? ' · <span style="color:var(--amber)">' + fallidos + ' no pudieron verificarse</span>' : '') + '.';
+    }
+    if (productoActualEl) productoActualEl.textContent = 'Proceso finalizado.';
+    if (fallosEl && detalleFallos.length) {
+      fallosEl.style.display = '';
+      fallosEl.innerHTML = '<strong style="color:var(--amber)">Requieren revisión (conservaron su precio anterior):</strong>' + detalleFallos.map(function(f) {
+        return '<div data-fallo-producto style="padding:9px 0;border-bottom:0.5px solid var(--border)">' +
+          '<div><strong>' + escapeHTML(f.codigo || 'Sin código') + '</strong> · ' + escapeHTML(f.producto) + '</div>' +
+          '<div style="color:var(--text3);margin-top:3px">' + escapeHTML(f.motivo) + '</div>' +
+          '<div style="color:var(--text3);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px" title="' + escapeHTML(f.url) + '">' + escapeHTML(f.url) + '</div>' +
+          '<div style="display:flex;gap:6px;margin-top:7px">' +
+            '<button class="btn btn-sm" onclick="editarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\')"><i class="ti ti-link"></i> Cambiar URL</button>' +
+            '<button class="btn btn-sm" style="color:var(--red)" onclick="eliminarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',this)"><i class="ti ti-trash"></i> Eliminar</button>' +
+          '</div></div>';
+      }).join('');
     }
     actualizarVigenciaPreciosDashboard();
     if (typeof renderTablaProductos === 'function') renderTablaProductos();
-    if (btn) { btn.innerHTML = '<i class="ti ti-check"></i> Finalizado'; btn.disabled = true; }
+    if (btn) {
+      btn.innerHTML = modal._detenerSolicitado ? '<i class="ti ti-x"></i> Cerrar' : '<i class="ti ti-check"></i> Finalizado';
+      btn.disabled = false;
+      btn.setAttribute('onclick', 'cerrarActualizadorMasivoPrecios()');
+    }
     notify('✓ Biosegur: ' + actualizados + ' precios actualizados');
   } catch (e) {
     if (estado) estado.innerHTML = '<span style="color:var(--red)">Se interrumpió la actualización: ' + escapeHTML(e.message || '') + '</span>';
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Reintentar pendientes'; }
   } finally {
     modal.dataset.ejecutando = '0';
+    if (typeof cancelarProgreso === 'function') cancelarProgreso();
+    setTimeout(function(){ if (window.fbRemove) window.fbRemove(progresoRef).catch(function(){}); }, 60000);
   }
 }
 
@@ -6868,6 +6976,8 @@ function renderTablaProveedoresProducto() {
     var precioRaw = parseFloat(pv.precio) || 0;
     var costoReal = sinIva ? Math.round(precioRaw * 1.21) : precioRaw;
     var dolarInfo = pv.dolarUsado ? '<br><span style="font-size:10px;color:var(--blue);font-weight:400">USD ref. '+(parseFloat(pv.costoRealUsdReferencia || pv.precioUsdReferencia)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})+' · $'+Math.round(parseFloat(pv.dolarUsado)||0).toLocaleString('es-AR')+'</span>' : '';
+    var dispPv = pv.disponibilidadProveedor || 'no_verificado';
+    var dispBadge = '<br><span class="badge ' + (dispPv === 'disponible' ? 'b-green' : dispPv === 'sin_stock' ? 'b-red' : '') + '" style="font-size:9px;margin-top:4px">' + escapeHTML(pv.disponibilidadProveedorTexto || (dispPv === 'disponible' ? 'Disponible' : dispPv === 'sin_stock' ? 'Sin stock' : 'No verificado')) + '</span>';
     var costoRealFmt = costoReal > 0
       ? (sinIva
           ? '<span style="color:var(--amber);font-size:12px;font-weight:600">$'+costoReal.toLocaleString('es-AR')+'</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(+IVA)</span>'+dolarInfo
@@ -6876,7 +6986,7 @@ function renderTablaProveedoresProducto() {
     var tr = document.createElement('tr');
     if (esMasBarato) tr.style.background = 'var(--green-bg)';
     tr.innerHTML =
-      '<td style="padding:6px 4px;min-width:110px"><input type="text" value="'+escapeHTML(pv.nombre||'')+'" placeholder="Ej: Biosegur" oninput="actualizarProveedorProducto('+i+',\'nombre\',this.value)" style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:13px;font-family:inherit"></td>' +
+      '<td style="padding:6px 4px;min-width:110px"><input type="text" value="'+escapeHTML(pv.nombre||'')+'" placeholder="Ej: Biosegur" oninput="actualizarProveedorProducto('+i+',\'nombre\',this.value)" style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:13px;font-family:inherit">'+dispBadge+'</td>' +
       '<td style="padding:6px 4px;text-align:right"><input type="number" value="'+(pv.precio||'')+'" placeholder="0" oninput="actualizarProveedorProducto('+i+',\'precio\',this.value)" style="width:90px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;text-align:right;font-size:13px;font-family:inherit"></td>' +
       '<td style="padding:6px 4px;text-align:center">' +
         '<label style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px" title="El precio que cotiza el proveedor NO incluye IVA — el sistema sumará el 21% para calcular el costo real">' +
@@ -7030,6 +7140,8 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
     }
 
     var aceptado = !!(match && precio > 0);
+    var disponibilidadRes = r.disponibilidadProveedor || 'no_verificado';
+    var disponibilidadLbl = r.disponibilidadProveedorTexto || (disponibilidadRes === 'disponible' ? 'Disponible' : disponibilidadRes === 'sin_stock' ? 'Sin stock' : 'No verificado');
     if (aceptado) {
       prodProveedoresActuales[match.idx] = completarReferenciaProveedorProducto(Object.assign({}, prodProveedoresActuales[match.idx], {
         precio: precio,
@@ -7037,6 +7149,9 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
         actualizado: new Date().toISOString().slice(0,10),
         actualizadoEn: Date.now(),
         actualizadoOrigen: r.fuente || r.origen || 'scraping-url-exacta',
+        disponibilidadProveedor: r.disponibilidadProveedor || 'no_verificado',
+        disponibilidadProveedorTexto: r.disponibilidadProveedorTexto || 'No verificado',
+        disponibilidadActualizadaEn: Date.now(),
         sinIva: r.sinIva !== undefined ? !!r.sinIva : prodProveedoresActuales[match.idx].sinIva
       }), '', r.fuente || r.origen || 'scraping-url-exacta');
       actualizados++;
@@ -7047,7 +7162,7 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
         '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
         '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || (precio > 0 ? String(r.producto || '') : (r.error || r.mensaje || (typeof r.producto === 'string' ? r.producto : 'Sin precio devuelto por el cotizador'))) || 'Sin coincidencia clara') + '</div>' +
         (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
-        '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap">$' + precio.toLocaleString('es-AR', {minimumFractionDigits: precio % 1 ? 2 : 0, maximumFractionDigits: 2}) + '</div>' +
+        '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap;text-align:right">$' + precio.toLocaleString('es-AR', {minimumFractionDigits: precio % 1 ? 2 : 0, maximumFractionDigits: 2}) + '<br><span style="font-size:10px;color:' + (disponibilidadRes === 'disponible' ? 'var(--green)' : disponibilidadRes === 'sin_stock' ? 'var(--red)' : 'var(--text3)') + '">' + escapeHTML(disponibilidadLbl) + '</span></div>' +
         (r.debug || r.raw ? '<details style="grid-column:1/-1;width:100%;margin-top:6px;color:var(--text3);font-size:11px"><summary style="cursor:pointer;color:var(--blue)">Ver diagnóstico técnico</summary><pre style="white-space:pre-wrap;overflow:auto;max-height:220px;background:rgba(0,0,0,.18);border:0.5px solid var(--border);border-radius:8px;padding:8px;margin-top:6px">' + escapeHTML(JSON.stringify({ error: r.error || r.mensaje || '', debug: r.debug || null, raw: r.raw || null }, null, 2)) + '</pre></details>' : '') +
       '</div>'
     );
@@ -7120,6 +7235,8 @@ function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProduc
           producto: typeof data.producto === 'string' ? data.producto : nombreProducto,
           precio: precioOk,
           sinIva: data.sinIva !== undefined ? data.sinIva : true,
+          disponibilidadProveedor: data.disponibilidadProveedor || 'no_verificado',
+          disponibilidadProveedorTexto: data.disponibilidadProveedorTexto || 'No verificado',
           fuente: data.fuente || 'cotizador-cloud-run',
           error: precioOk > 0 ? '' : 'El cotizador respondió OK pero no devolvió precio',
           debug: data.debug || null,
@@ -7584,10 +7701,12 @@ function verProducto(id) {
       var rows = lista.map(function(pv, i) {
         var pvNormalizado = completarReferenciaProveedorProducto(pv, pv.url || '', pv.actualizadoOrigen || '');
         var esMasBarato = i === masBaratoIdx && lista.length > 1;
+        var dispPv = pv.disponibilidadProveedor || 'no_verificado';
+        var dispTexto = pv.disponibilidadProveedorTexto || (dispPv === 'disponible' ? 'Disponible' : dispPv === 'sin_stock' ? 'Sin stock' : 'No verificado');
         return '<tr' + (esMasBarato ? ' style="background:var(--green-bg)"' : '') + '>' +
-          '<td style="padding:8px 4px">' + escapeHTML(pv.nombre||'—') + (esMasBarato ? ' <span class="badge b-green" style="font-size:9px;margin-left:4px"><i class="ti ti-check"></i> Más económico</span>' : '') + '</td>' +
-          '<td style="padding:8px 4px;text-align:right;font-weight:500">$' + Math.round(parseFloat(pvNormalizado.precio)||0).toLocaleString('es-AR') + '</td>' +
-          '<td style="padding:8px 4px;text-align:right;color:var(--text3);font-size:12px">' + escapeHTML(pv.actualizado||'—') + '</td>' +
+          '<td style="padding:8px 4px">' + escapeHTML(pv.nombre||'—') + (esMasBarato ? ' <span class="badge b-green" style="font-size:9px;margin-left:4px"><i class="ti ti-check"></i> Más económico</span>' : '') + '<br><span style="font-size:10px;color:' + (dispPv === 'disponible' ? 'var(--green)' : dispPv === 'sin_stock' ? 'var(--red)' : 'var(--text3)') + '">' + escapeHTML(dispTexto) + '</span></td>' +
+          '<td style="padding:8px 4px;text-align:right;font-weight:500">$' + (parseFloat(pvNormalizado.precio)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td>' +
+          '<td style="padding:8px 4px;text-align:right;color:var(--text3);font-size:12px">' + escapeHTML(_mostrarFecha(pv.actualizado||'')) + '</td>' +
         '</tr>';
       }).join('');
       provBox.innerHTML = '<table style="width:100%;font-size:13px"><tr><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio costo</th><th style="text-align:right">Actualizado</th></tr>' + rows + '</table>';
