@@ -408,6 +408,71 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
   }
 }
 
+async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset = 0, totalGlobal = 0, iniciadoEn = 0 }) {
+  const lote = Array.isArray(items) ? items.slice(0, 30) : [];
+  if (!lote.length) throw new Error('El lote no contiene productos');
+  const jobSeguro = String(jobId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+  const progresoRef = jobSeguro ? db.ref(`sisventas/procesos/cotizador/${jobSeguro}`) : null;
+  const inicioMs = parseInt(iniciadoEn, 10) || Date.now();
+  const totalTrabajo = Math.max(parseInt(totalGlobal, 10) || 0, offset + lote.length);
+  const nombreTipo = tipo === 'free_electron' ? 'FREE ELECTRON' : 'TECNOPRICES';
+  const dominioEsperado = tipo === 'free_electron' ? /(^|\.)free-electron\.com\.ar$/ : /(^|\.)tecnoprices\.com$/;
+  let browser = null, context = null;
+  try {
+    if (progresoRef) await progresoRef.set({ estado:'iniciando_navegador', proveedor:nombreTipo, procesados:offset, total:totalTrabajo, inicioEn:inicioMs, actualizadoEn:Date.now() });
+    browser = await chromium.launch({ headless:true });
+    context = await browser.newContext({ locale:'es-AR', timezoneId:'America/Argentina/Buenos_Aires' });
+    const page = await context.newPage();
+    page.setDefaultTimeout(8000);
+    page.setDefaultNavigationTimeout(15000);
+    const usuario = proveedor.usuario || proveedor.user || proveedor.email || '';
+    const password = proveedor.password || proveedor.pass || proveedor.clave || '';
+    if (!usuario || !password) throw new Error(`${nombreTipo} no tiene usuario y contraseña cargados`);
+    if (progresoRef) await progresoRef.update({ estado:'iniciando_sesion', proveedor:nombreTipo, actualizadoEn:Date.now() });
+    if (tipo === 'free_electron') {
+      await page.goto('https://www.free-electron.com.ar/mi-cuenta', { waitUntil:'domcontentloaded', timeout:15000 });
+      await page.locator('form[action*="iniciar-sesion"] input[name="email"]').fill(usuario);
+      await page.locator('form[action*="iniciar-sesion"] input[name="password"]').fill(password);
+      await page.locator('form[action*="iniciar-sesion"] #submit-login').click();
+    } else {
+      await page.goto('https://www.tecnoprices.com/ingresar', { waitUntil:'domcontentloaded', timeout:15000 });
+      await page.locator('form[action="control.php"] input[name="usuario"]').fill(usuario);
+      await page.locator('form[action="control.php"] input[name="password"]').fill(password);
+      await page.locator('form[action="control.php"] button[type="submit"]').click();
+    }
+    await page.waitForLoadState('domcontentloaded', { timeout:8000 }).catch(() => {});
+    const resultados = [];
+    for (let i=0; i<lote.length; i+=1) {
+      const item=lote[i] || {}, urlExacta=normalizarUrl(item.url || item.urlProducto || '');
+      if (progresoRef) await progresoRef.update({ estado:'procesando', proveedor:nombreTipo, codigo:item.codigo||'', producto:item.producto||item.nombre||'', url:urlExacta, procesados:offset+i, total:totalTrabajo, actualizadoEn:Date.now() });
+      try {
+        if (!urlExacta || !dominioEsperado.test(new URL(urlExacta).hostname.toLowerCase())) throw new Error('La URL corresponde a otro proveedor; revisá la vinculación');
+        await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:15000 });
+        const bodyText=await page.locator('body').innerText({ timeout:8000 });
+        if (/producto\s+no\s+encontrado|no\s+existe\s+o\s+fue\s+desactivado|p[aá]gina\s+no\s+encontrada|error\s*404/i.test(bodyText)) throw new Error('Producto no encontrado o desactivado en el proveedor');
+        if (/iniciar sesi[oó]n para ver precios|ingresar para ver precios/i.test(bodyText)) throw new Error('La sesión no permite ver precios');
+        let textoPrecio=bodyText;
+        if (tipo==='free_electron') textoPrecio=await page.locator('.product-prices .product-price').first().innerText({timeout:5000}).catch(()=>bodyText);
+        const precioArs=parsePrecioArs(textoPrecio);
+        if (!precioArs) throw new Error('No se encontró un precio visible');
+        const disponibilidad=extraerDisponibilidadProveedor(bodyText);
+        const impuestosIncluidos=/impuestos\s+incluidos|iva\s+incluido/i.test(bodyText);
+        const sinIvaVisible=/\+\s*iva|sin\s+iva/i.test(bodyText);
+        resultados.push({ok:true,proveedor:proveedor.nombre||nombreTipo,codigo:item.codigo||'',producto:item.producto||item.nombre||'',url:urlExacta,precioArs,sinIva:impuestosIncluidos?false:(sinIvaVisible?true:tipo==='tecnoprices'),disponibilidadProveedor:disponibilidad,disponibilidadProveedorTexto:disponibilidad==='disponible'?'Disponible':disponibilidad==='sin_stock'?'Sin stock':'No verificado',fuente:tipo+'_lote_url_exacta',fecha:new Date().toISOString()});
+      } catch(e) { resultados.push({ok:false,error:true,codigo:item.codigo||'',url:urlExacta,mensaje:e.message||'Error leyendo producto'}); }
+      if (progresoRef) {
+        const procesadosGlobal=offset+i+1, transcurridoSeg=Math.max(1,Math.round((Date.now()-inicioMs)/1000)), promedioSeg=transcurridoSeg/Math.max(1,procesadosGlobal);
+        await progresoRef.update({procesados:procesadosGlobal,total:totalTrabajo,transcurridoSeg,estimadoRestanteSeg:Math.max(0,Math.round((totalTrabajo-procesadosGlobal)*promedioSeg)),actualizados:resultados.filter(r=>r.ok).length,fallidos:resultados.filter(r=>!r.ok).length,actualizadoEn:Date.now()});
+      }
+    }
+    if (progresoRef) await progresoRef.update({estado:'bloque_completado',codigo:'',producto:'',procesados:offset+lote.length,total:totalTrabajo,actualizadoEn:Date.now()});
+    return {ok:true,proveedor:proveedor.nombre||nombreTipo,total:lote.length,actualizados:resultados.filter(r=>r.ok).length,fallidos:resultados.filter(r=>!r.ok).length,resultados};
+  } finally {
+    if (context) await context.close().catch(()=>{});
+    if (browser) await browser.close().catch(()=>{});
+  }
+}
+
 async function cotizarLote(reqBody) {
   const proveedorKey = String(reqBody.proveedorKey || '').trim();
   if (!proveedorKey) throw new Error('Falta proveedorKey');
@@ -415,6 +480,11 @@ async function cotizarLote(reqBody) {
   const proveedor = snap.val();
   if (!proveedor) throw new Error('Proveedor no encontrado en Firebase');
   if (proveedor.activo === false) throw new Error('Proveedor inactivo');
+  const primeraUrl = Array.isArray(reqBody.items) && reqBody.items[0] ? (reqBody.items[0].url || '') : '';
+  const tipoLote = tipoProveedor(proveedor, primeraUrl);
+  if (tipoLote === 'free_electron' || tipoLote === 'tecnoprices') {
+    return cotizarLoteProveedorLogin({ proveedor, items:reqBody.items, tipo:tipoLote, jobId:reqBody.jobId||'', offset:parseInt(reqBody.offset,10)||0, totalGlobal:parseInt(reqBody.total,10)||0, iniciadoEn:parseInt(reqBody.iniciadoEn,10)||0 });
+  }
   if (!esBiosegur(proveedor, '')) throw new Error('El actualizador por lote está habilitado solamente para Biosegur');
   return cotizarLoteBiosegur({
     proveedor,

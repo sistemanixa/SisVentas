@@ -1,2 +1,2 @@
 ﻿// SisVentas PWA version publicada.
-window.SISVENTAS_PWA_VERSION = 'v2.0.52';
+window.SISVENTAS_PWA_VERSION = 'v2.0.53';
