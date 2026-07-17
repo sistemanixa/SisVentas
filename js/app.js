@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.61-firebase',
+  VERSION: 'v2.0.62-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4596,6 +4596,27 @@ var _versionNuevaDisponible = null;
 var _actualizandoAhora = false; // evitar disparar dos veces
 var _verificacionVersionEnCurso = false;
 var _reintentoVersionTimer = null;
+var _pausaActualizacionAvisada = false;
+
+function _limpiarControlIntentosActualizacion() {
+  try {
+    sessionStorage.removeItem('sisventas_update_target');
+    sessionStorage.removeItem('sisventas_update_attempts');
+    sessionStorage.removeItem('sisventas_update_last_attempt');
+  } catch(e) {}
+  _pausaActualizacionAvisada = false;
+}
+
+// Si esta versión ya alcanzó (o superó) el objetivo guardado por una pestaña
+// anterior, el contador deja de tener sentido y no debe bloquear el futuro.
+(function limpiarIntentosCumplidosAlAbrir() {
+  try {
+    var objetivo = sessionStorage.getItem('sisventas_update_target') || '';
+    if (!objetivo || !_versionMasNueva(objetivo + '-firebase', APP_CONFIG.VERSION)) {
+      _limpiarControlIntentosActualizacion();
+    }
+  } catch(e) {}
+})();
 
 function _mostrarBotonActualizacion(versionNueva) {
   _versionNuevaDisponible = versionNueva;
@@ -4654,7 +4675,10 @@ function _verificarVersionPublicadaCompleta(versionObjetivo) {
 // por eso la recarga sólo comienza cuando los tres archivos principales coinciden.
 function _dispararActualizacion(versionNueva) {
   if (_actualizandoAhora) return;
-  if (!_versionMasNueva(versionNueva, APP_CONFIG.VERSION)) return;
+  if (!_versionMasNueva(versionNueva, APP_CONFIG.VERSION)) {
+    _limpiarControlIntentosActualizacion();
+    return;
+  }
   if (_verificacionVersionEnCurso) return;
   _verificacionVersionEnCurso = true;
   _verificarVersionPublicadaCompleta(versionNueva).then(function(publicada) {
@@ -4749,17 +4773,35 @@ function actualizarAutomaticamente(versionActual, versionNueva) {
   if (verNueva) {
     var claveObjetivo = 'sisventas_update_target';
     var claveIntentos = 'sisventas_update_attempts';
+    var claveUltimoIntento = 'sisventas_update_last_attempt';
     var objetivoAnterior = '';
     var intentos = 0;
+    var ahoraIntento = Date.now();
+    var ultimoIntento = 0;
     try {
       objetivoAnterior = sessionStorage.getItem(claveObjetivo) || '';
-      intentos = objetivoAnterior === verNueva ? (parseInt(sessionStorage.getItem(claveIntentos), 10) || 0) + 1 : 1;
+      ultimoIntento = parseInt(sessionStorage.getItem(claveUltimoIntento), 10) || 0;
+      // Un intento viejo no pertenece al mismo ciclo. Esto permite que una
+      // pestaña reabierta se recupere sola en lugar de quedar bloqueada.
+      intentos = objetivoAnterior === verNueva && (ahoraIntento - ultimoIntento) < 120000
+        ? (parseInt(sessionStorage.getItem(claveIntentos), 10) || 0) + 1
+        : 1;
       sessionStorage.setItem(claveObjetivo, verNueva);
       sessionStorage.setItem(claveIntentos, String(intentos));
+      sessionStorage.setItem(claveUltimoIntento, String(ahoraIntento));
     } catch(e) {}
     if (intentos > 2) {
       _actualizandoAhora = false;
-      notify('La actualización automática se pausó para evitar un ciclo. Se reintentará cuando la publicación esté estable.');
+      _mostrarBotonActualizacion(verNueva + '-firebase');
+      if (!_pausaActualizacionAvisada) {
+        _pausaActualizacionAvisada = true;
+        notify('La actualización esperará un minuto y volverá a intentarlo. También podés usar “Actualizar ahora”.');
+      }
+      clearTimeout(_reintentoVersionTimer);
+      _reintentoVersionTimer = setTimeout(function() {
+        _limpiarControlIntentosActualizacion();
+        _dispararActualizacion(verNueva + '-firebase');
+      }, 60000);
       return;
     }
   }
