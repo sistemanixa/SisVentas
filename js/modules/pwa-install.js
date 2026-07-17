@@ -62,7 +62,7 @@
       console.warn('[PWA] Chrome solo permite instalar PWAs en HTTPS o localhost.');
       return;
     }
-    navigator.serviceWorker.register('./sw.js', { scope: './' })
+    navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
       .then(function(reg){
         if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
         // Chrome puede espaciar sus chequeos; consultar al abrir y cada dos

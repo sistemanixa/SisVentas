@@ -4558,7 +4558,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.59-firebase',
+  VERSION: 'v2.0.60-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4593,6 +4593,8 @@ const APP_CONFIG = Object.freeze({
 var _listenerVersionActivo = false;
 var _versionNuevaDisponible = null;
 var _actualizandoAhora = false; // evitar disparar dos veces
+var _verificacionVersionEnCurso = false;
+var _reintentoVersionTimer = null;
 
 function _mostrarBotonActualizacion(versionNueva) {
   _versionNuevaDisponible = versionNueva;
@@ -4615,21 +4617,71 @@ function _versionMasNueva(a, b) {
   return false;
 }
 
-// Punto de entrada único para disparar la actualización
+function _extraerVersionPublicada(texto, tipo) {
+  var patrones = tipo === 'index'
+    ? [/VERSION:\s*['"]([^'"]+)['"]/]
+    : tipo === 'app'
+      ? [/VERSION:\s*['"]([^'"]+)['"]/]
+      : [/SISVENTAS_PWA_VERSION\s*=\s*['"]([^'"]+)['"]/];
+  for (var i = 0; i < patrones.length; i++) {
+    var match = String(texto || '').match(patrones[i]);
+    if (match) return String(match[1] || '').replace('-firebase','') + '-firebase';
+  }
+  return '';
+}
+
+function _verificarVersionPublicadaCompleta(versionObjetivo) {
+  var cb = Date.now();
+  var opciones = { cache:'no-store', headers:{ 'Pragma':'no-cache', 'Cache-Control':'no-cache' } };
+  return Promise.all([
+    fetch('./index.html?_deploy=' + cb, opciones).then(function(r){ return r.ok ? r.text() : ''; }),
+    fetch('./js/app.js?_deploy=' + cb, opciones).then(function(r){ return r.ok ? r.text() : ''; }),
+    fetch('./js/core/version.js?_deploy=' + cb, opciones).then(function(r){ return r.ok ? r.text() : ''; })
+  ]).then(function(contenidos) {
+    var versiones = [
+      _extraerVersionPublicada(contenidos[0], 'index'),
+      _extraerVersionPublicada(contenidos[1], 'app'),
+      _extraerVersionPublicada(contenidos[2], 'core')
+    ];
+    return versiones.every(function(v) {
+      return v && (v === versionObjetivo || _versionMasNueva(v, versionObjetivo));
+    });
+  }).catch(function() { return false; });
+}
+
+// Punto de entrada único: Firebase puede avisar antes de que termine el deploy,
+// por eso la recarga sólo comienza cuando los tres archivos principales coinciden.
 function _dispararActualizacion(versionNueva) {
   if (_actualizandoAhora) return;
   if (!_versionMasNueva(versionNueva, APP_CONFIG.VERSION)) return;
-  if (window._sisventasProcesoCriticoActivo) {
-    _versionNuevaDisponible = versionNueva;
-    _mostrarBotonActualizacion(versionNueva);
-    if (!window._sisventasActualizacionDiferidaAvisada) {
-      window._sisventasActualizacionDiferidaAvisada = true;
-      notify('Hay una versión nueva. Se aplicará cuando vos elijas, sin interrumpir la actualización de precios.');
+  if (_verificacionVersionEnCurso) return;
+  _verificacionVersionEnCurso = true;
+  _verificarVersionPublicadaCompleta(versionNueva).then(function(publicada) {
+    _verificacionVersionEnCurso = false;
+    if (!publicada) {
+      clearTimeout(_reintentoVersionTimer);
+      _reintentoVersionTimer = setTimeout(function(){ _dispararActualizacion(versionNueva); }, 30000);
+      return;
     }
-    return;
-  }
-  _actualizandoAhora = true;
-  actualizarAutomaticamente(APP_CONFIG.VERSION, versionNueva);
+    if (window.fbDB && window.fbGet && window.fbSet) {
+      var versionRef = window.fbRef(window.fbDB, 'sisventas/config/version');
+      window.fbGet(versionRef).then(function(snap) {
+        var vigente = snap.val() || '';
+        if (!vigente || _versionMasNueva(versionNueva, vigente)) return window.fbSet(versionRef, versionNueva);
+      }).catch(function(){});
+    }
+    if (window._sisventasProcesoCriticoActivo) {
+      _versionNuevaDisponible = versionNueva;
+      _mostrarBotonActualizacion(versionNueva);
+      if (!window._sisventasActualizacionDiferidaAvisada) {
+        window._sisventasActualizacionDiferidaAvisada = true;
+        notify('Hay una versión nueva lista. Se aplicará cuando vos elijas, sin interrumpir la actualización de precios.');
+      }
+      return;
+    }
+    _actualizandoAhora = true;
+    actualizarAutomaticamente(APP_CONFIG.VERSION, versionNueva);
+  });
 }
 
 // Chequea GitHub directamente y actualiza si hay versión nueva
@@ -4645,10 +4697,8 @@ function _chequearGitHub(callback) {
       if (!m) return;
       var vGitHub = m[1] + '-firebase';
       if (_versionMasNueva(vGitHub, APP_CONFIG.VERSION)) {
-        if (window.fbDB) {
-          window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), vGitHub).catch(function(){});
-        }
-        // Disparar la actualización directamente — no esperar al listener
+        // La verificación completa publica Firebase recién cuando todo el
+        // deploy está disponible; nunca anunciar una versión parcial.
         _dispararActualizacion(vGitHub);
       }
       if (callback) callback(vGitHub);
@@ -4670,11 +4720,8 @@ function iniciarListenerVersion() {
       if (_versionMasNueva(versionFirebase, APP_CONFIG.VERSION)) {
         _dispararActualizacion(versionFirebase);
       }
-      // (no volver atrás ni hacer return — dejar que el listener siga activo)
-      if (_versionMasNueva(APP_CONFIG.VERSION, versionFirebase)) {
-        window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), APP_CONFIG.VERSION)
-          .catch(function(){});
-      }
+      // Un cliente nunca vuelve a escribir su versión local en Firebase: una
+      // pestaña antigua no puede rebajar la versión global.
     }
   );
 
@@ -4697,6 +4744,24 @@ function iniciarChequeoPeriodicoVersion() {
 function actualizarAutomaticamente(versionActual, versionNueva) {
   var verActual = (versionActual || APP_CONFIG.VERSION || '').replace('-firebase','');
   var verNueva  = (versionNueva  || '').replace('-firebase','');
+
+  if (verNueva) {
+    var claveObjetivo = 'sisventas_update_target';
+    var claveIntentos = 'sisventas_update_attempts';
+    var objetivoAnterior = '';
+    var intentos = 0;
+    try {
+      objetivoAnterior = sessionStorage.getItem(claveObjetivo) || '';
+      intentos = objetivoAnterior === verNueva ? (parseInt(sessionStorage.getItem(claveIntentos), 10) || 0) + 1 : 1;
+      sessionStorage.setItem(claveObjetivo, verNueva);
+      sessionStorage.setItem(claveIntentos, String(intentos));
+    } catch(e) {}
+    if (intentos > 2) {
+      _actualizandoAhora = false;
+      notify('La actualización automática se pausó para evitar un ciclo. Se reintentará cuando la publicación esté estable.');
+      return;
+    }
+  }
 
   var prev = document.getElementById('overlay-actualizando');
   if (prev) prev.remove();
@@ -5557,12 +5622,6 @@ function _completarLogin(nombre) {
   if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
   if (typeof window.iniciarSyncNotificaciones === 'function') window.iniciarSyncNotificaciones();
   if (typeof restaurarPaginaPostActualizacion === 'function') restaurarPaginaPostActualizacion();
-  // la detectan en tiempo real sin depender del CDN de GitHub Pages.
-  if (currentRole === 'admin' && window.fbDB && APP_CONFIG && APP_CONFIG.VERSION) {
-    window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/version'), APP_CONFIG.VERSION)
-      .catch(function(){});
-  }
-
   // Mostrar versión en el sidebar
   var vSidebar = document.getElementById('s-version-el');
   if (vSidebar && APP_CONFIG && APP_CONFIG.VERSION) {

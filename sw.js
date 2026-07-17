@@ -1,6 +1,6 @@
-﻿/* SisVentas NIXA - Service Worker v2.0.48
-   Versión v2.0.59. Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v2.0.59';
+﻿/* SisVentas NIXA - Service Worker v2.0.60
+   Versión v2.0.60. Estrategia: red primero con cache de respaldo. */
+const CACHE = 'sisventas-v2.0.60';
 const SHELL = [
   './',
   './index.html',
@@ -80,8 +80,14 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
+  const esArchivoCritico = event.request.mode === 'navigate'
+    || /\/(?:index\.html|sw\.js|js\/app\.js|js\/core\/version\.js)$/.test(url.pathname);
+  const solicitudRed = esArchivoCritico
+    ? new Request(event.request, { cache: 'no-store' })
+    : event.request;
+
   event.respondWith(
-    fetch(event.request)
+    fetch(solicitudRed)
       .then((response) => {
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
