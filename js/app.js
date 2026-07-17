@@ -4523,7 +4523,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.53-firebase',
+  VERSION: 'v2.0.54-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6511,6 +6511,56 @@ function actualizarVigenciaPreciosDashboard() {
     : (productos.length ? 'todos actualizados' : 'sin productos');
 }
 
+function filtrarGestionRevisionPrecios(texto) {
+  var q = String(texto || '').toLowerCase().trim();
+  var visibles = 0;
+  document.querySelectorAll('#revision-precios-lista [data-revision-producto]').forEach(function(fila) {
+    var mostrar = !q || String(fila.dataset.busqueda || '').indexOf(q) >= 0;
+    fila.style.display = mostrar ? '' : 'none';
+    if (mostrar) visibles++;
+  });
+  var contador = document.getElementById('revision-precios-contador');
+  if (contador) contador.textContent = visibles + ' producto' + (visibles !== 1 ? 's' : '');
+}
+
+function editarProductoDesdeRevisionPrecios(fbKey) {
+  var modal = document.getElementById('modal-revision-precios');
+  if (modal) modal.remove();
+  showPage('productos', document.querySelector('[onclick*="productos"]'));
+  abrirFormProducto(String(fbKey || ''));
+}
+
+function abrirGestionRevisionPrecios() {
+  if (!['admin','administrativo'].includes(String(currentRole || '').toLowerCase())) return;
+  var anterior = document.getElementById('modal-revision-precios');
+  if (anterior) anterior.remove();
+  var productos = Object.values(prodData || {}).filter(function(p){
+    return p && p.activo !== false && p.estado !== 'inactivo' && !estadoVigenciaPrecioProducto(p).vigente;
+  }).sort(function(a,b){ return String(a.nombre || a.descripcion || '').localeCompare(String(b.nombre || b.descripcion || '')); });
+  var compatibles = productosBiosegurActualizables();
+  var compatiblesKeys = {};
+  compatibles.forEach(function(x){ compatiblesKeys[String(x.producto.fbKey || '')] = true; });
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-revision-precios';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10015;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML =
+    '<div style="width:min(900px,100%);max-height:92vh;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)"><div><div style="font-size:16px;font-weight:700"><i class="ti ti-clipboard-search" style="color:var(--amber);margin-right:7px"></i>Revisión de precios de productos</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Productos sin verificar o con actualización de más de 24 horas</div></div><button class="icon-btn" onclick="document.getElementById(\'modal-revision-precios\').remove()"><i class="ti ti-x"></i></button></div>' +
+      '<div style="padding:16px 18px;display:flex;flex-direction:column;min-height:0;flex:1">' +
+        '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"><div class="metric"><div class="m-label">Requieren revisión</div><div class="m-value" style="color:var(--amber)">' + productos.length + '</div><div class="m-sub">total del catálogo</div></div><div class="metric"><div class="m-label">Automatizables</div><div class="m-value" style="color:var(--green)">' + Object.keys(compatiblesKeys).length + '</div><div class="m-sub">Biosegur, Free o Tecnoprices</div></div><div class="metric"><div class="m-label">Gestión manual</div><div class="m-value">' + (productos.length-Object.keys(compatiblesKeys).length) + '</div><div class="m-sub">sin proveedor o URL compatible</div></div></div>' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><input class="search-input" style="flex:1;min-width:220px" placeholder="Buscar código, producto o proveedor…" oninput="filtrarGestionRevisionPrecios(this.value)"><span id="revision-precios-contador" style="font-size:11px;color:var(--text3)">' + productos.length + ' productos</span><button class="btn btn-primary" onclick="document.getElementById(\'modal-revision-precios\').remove();abrirActualizadorMasivoPrecios()" ' + (!compatibles.length?'disabled':'') + '><i class="ti ti-refresh"></i> Actualizar compatibles</button></div>' +
+        '<div id="revision-precios-lista" style="overflow:auto;border:0.5px solid var(--border);border-radius:10px">' + productos.map(function(p){
+          var estado = estadoVigenciaPrecioProducto(p);
+          var provs = (Array.isArray(p.proveedores)?p.proveedores:[]).map(function(x){return x && (x.nombre||x.proveedor)||'';}).filter(Boolean).join(', ') || p.proveedor || 'Sin proveedor';
+          var auto = !!compatiblesKeys[String(p.fbKey || '')];
+          var busqueda = [p.codigo,p.nombre,p.descripcion,provs].join(' ').toLowerCase();
+          return '<div data-revision-producto data-busqueda="' + escapeHTML(busqueda) + '" style="display:grid;grid-template-columns:110px minmax(180px,1fr) minmax(140px,.7fr) 120px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><div style="min-width:0"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)">' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</div><small style="color:var(--text3)">' + escapeHTML(estado.texto) + '</small></div><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text3)" title="' + escapeHTML(provs) + '">' + escapeHTML(provs) + '</div><span style="color:' + (auto?'var(--green)':'var(--amber)') + '">' + (auto?'Automatizable':'Revisión manual') + '</span><button class="btn btn-sm" onclick="editarProductoDesdeRevisionPrecios(\'' + escapeHTML(String(p.fbKey || '')) + '\')"><i class="ti ti-edit"></i> Gestionar</button></div>';
+        }).join('') + '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
 function productosBiosegurActualizables() {
   var salida = [];
   Object.values(prodData || {}).forEach(function(p) {
@@ -6556,9 +6606,28 @@ function cerrarActualizadorMasivoPrecios() {
   }
 }
 
-function editarProductoFallidoActualizador(fbKey) {
-  cerrarActualizadorMasivoPrecios();
-  abrirFormProducto(String(fbKey || ''));
+function editarProductoFallidoActualizador(fbKey, proveedorIdx) {
+  var editor = document.getElementById('actualizador-url-editor-' + String(fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(proveedorIdx,10)||0));
+  if (editor) editor.style.display = editor.style.display === 'none' ? 'flex' : 'none';
+}
+
+async function guardarUrlFallidoActualizador(fbKey, proveedorIdx) {
+  var idSeguro = String(fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(proveedorIdx,10)||0);
+  var input = document.getElementById('actualizador-url-input-' + idSeguro);
+  var url = normalizarUrlProveedorProducto(input ? input.value : '');
+  if (!fbKey || !url) { notify('Ingresá una URL válida'); return; }
+  try {
+    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey + '/proveedores/' + proveedorIdx), { url:url, actualizadoEn:0, actualizado:'' });
+    var prod = Object.values(prodData || {}).find(function(p){ return String(p.fbKey || '') === String(fbKey); });
+    if (prod && Array.isArray(prod.proveedores) && prod.proveedores[proveedorIdx]) {
+      prod.proveedores[proveedorIdx].url = url;
+      prod.proveedores[proveedorIdx].actualizadoEn = 0;
+      prod.proveedores[proveedorIdx].actualizado = '';
+    }
+    var editor = document.getElementById('actualizador-url-editor-' + idSeguro);
+    if (editor) editor.innerHTML = '<span style="color:var(--green)"><i class="ti ti-check"></i> URL guardada. Quedará pendiente para el próximo intento.</span>';
+    notify('URL actualizada sin perder el progreso');
+  } catch (e) { notify('No se pudo guardar la URL: ' + (e.message || 'Error')); }
 }
 
 async function eliminarProductoFallidoActualizador(fbKey, boton) {
@@ -6592,7 +6661,7 @@ function abrirActualizadorMasivoPrecios() {
   overlay.innerHTML =
     '<div style="width:min(620px,100%);background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)">' +
-        '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo de proveedores</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Biosegur · Free Electron · Tecnoprices</div></div>' +
+        '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo de precios de proveedores</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Biosegur · Free Electron · Tecnoprices</div></div>' +
         '<button class="icon-btn" onclick="cerrarActualizadorMasivoPrecios()"><i class="ti ti-x"></i></button>' +
       '</div>' +
       '<div style="padding:18px">' +
@@ -6759,6 +6828,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
             fallidos++;
             detalleFallos.push({
               fbKey:item.producto.fbKey || '',
+              proveedorIdx:item.proveedorIdx,
               codigo:item.producto.codigo || '',
               producto:item.producto.nombre || item.producto.descripcion || '',
               url:item.url || '',
@@ -6780,14 +6850,17 @@ async function ejecutarActualizadorMasivoBiosegur() {
     if (fallosEl && detalleFallos.length) {
       fallosEl.style.display = '';
       fallosEl.innerHTML = '<strong style="color:var(--amber)">Requieren revisión (conservaron su precio anterior):</strong>' + detalleFallos.map(function(f) {
+        var idSeguro = String(f.fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(f.proveedorIdx,10)||0);
         return '<div data-fallo-producto style="padding:9px 0;border-bottom:0.5px solid var(--border)">' +
           '<div><strong>' + escapeHTML(f.codigo || 'Sin código') + '</strong> · ' + escapeHTML(f.producto) + '</div>' +
           '<div style="color:var(--text3);margin-top:3px">' + escapeHTML(f.motivo) + '</div>' +
           '<div style="color:var(--text3);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px" title="' + escapeHTML(f.url) + '">' + escapeHTML(f.url) + '</div>' +
           '<div style="display:flex;gap:6px;margin-top:7px">' +
-            '<button class="btn btn-sm" onclick="editarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\')"><i class="ti ti-link"></i> Cambiar URL</button>' +
+            '<button class="btn btn-sm" onclick="editarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"><i class="ti ti-link"></i> Cambiar URL</button>' +
             '<button class="btn btn-sm" style="color:var(--red)" onclick="eliminarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',this)"><i class="ti ti-trash"></i> Eliminar</button>' +
-          '</div></div>';
+          '</div>' +
+          '<div id="actualizador-url-editor-' + idSeguro + '" style="display:none;gap:6px;align-items:center;margin-top:8px"><input id="actualizador-url-input-' + idSeguro + '" class="search-input" type="url" value="' + escapeHTML(f.url) + '" placeholder="URL exacta del producto" style="flex:1"><button class="btn btn-sm btn-primary" onclick="guardarUrlFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"><i class="ti ti-device-floppy"></i> Guardar</button></div>' +
+          '</div>';
       }).join('');
     }
     actualizarVigenciaPreciosDashboard();
