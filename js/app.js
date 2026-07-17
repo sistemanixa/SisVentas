@@ -4523,7 +4523,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.50-firebase',
+  VERSION: 'v2.0.51-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6678,6 +6678,8 @@ async function ejecutarActualizadorMasivoBiosegur() {
   var detalleFallos = [];
   var jobId = 'biosegur_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
   var procesoIniciadoEn = Date.now();
+  var ultimoProgresoEn = procesoIniciadoEn;
+  var ultimoEstimadoRestante = null;
   var progresoRef = window.fbRef(window.fbDB, 'sisventas/procesos/cotizador/' + jobId);
   function formatoTiempo(seg) {
     seg = Math.max(0, Math.round(parseFloat(seg) || 0));
@@ -6687,6 +6689,8 @@ async function ejecutarActualizadorMasivoBiosegur() {
   }
   var cancelarProgreso = window.fbOnValue(progresoRef, function(snap) {
     var pr = snap.val() || {};
+    if (snap.exists && snap.exists()) ultimoProgresoEn = Date.now();
+    if (pr.estimadoRestanteSeg != null) ultimoEstimadoRestante = parseFloat(pr.estimadoRestanteSeg) || 0;
     if (estado && pr.estado === 'iniciando_navegador') estado.textContent = 'Preparando navegador seguro de Biosegur…';
     if (estado && pr.estado === 'iniciando_sesion') estado.textContent = 'Iniciando sesión en Biosegur…';
     if (productoActualEl && pr.estado === 'procesando') {
@@ -6696,13 +6700,30 @@ async function ejecutarActualizadorMasivoBiosegur() {
     if (barra && pr.total) barra.style.width = Math.round((parseInt(pr.procesados,10)||0) / pr.total * 100) + '%';
     if (tiempoEl) tiempoEl.innerHTML = '<span>Transcurrido: ' + formatoTiempo(pr.transcurridoSeg) + '</span><span>Tiempo restante estimado: ' + (pr.estimadoRestanteSeg != null ? formatoTiempo(pr.estimadoRestanteSeg) : 'calculando…') + '</span>';
   });
+  // El servidor puede tardar mientras abre el navegador e inicia sesión. Este
+  // reloj local confirma que el proceso sigue activo aun antes del primer evento.
+  var relojProgreso = setInterval(function() {
+    if (!modal || modal.dataset.ejecutando !== '1') return;
+    var transcurrido = Math.floor((Date.now() - procesoIniciadoEn) / 1000);
+    var sinNovedades = Math.floor((Date.now() - ultimoProgresoEn) / 1000);
+    var textoDerecha = ultimoEstimadoRestante != null
+      ? 'Tiempo restante estimado: ' + formatoTiempo(Math.max(0, ultimoEstimadoRestante - sinNovedades))
+      : (sinNovedades >= 30 ? 'Biosegur está demorando en responder…' : 'Preparando datos, no cierres esta ventana');
+    if (tiempoEl) tiempoEl.innerHTML = '<span><i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:4px"></i>Activo · ' + formatoTiempo(transcurrido) + '</span><span>' + textoDerecha + '</span>';
+    if (barra && procesados === 0) {
+      barra.style.width = Math.min(12, 3 + (transcurrido % 10)) + '%';
+      barra.style.opacity = String(0.55 + ((transcurrido % 2) * 0.35));
+    }
+  }, 1000);
   try {
     for (var proveedorKey of Object.keys(grupos)) {
       var grupo = grupos[proveedorKey];
       for (var inicio = 0; inicio < grupo.length; inicio += 30) {
         if (modal._detenerSolicitado) break;
         var bloque = grupo.slice(inicio, inicio + 30);
-        if (estado) estado.textContent = 'Biosegur: procesando ' + (procesados + 1) + ' a ' + Math.min(procesados + bloque.length, pendientes.length) + ' de ' + pendientes.length + '…';
+        ultimoProgresoEn = Date.now();
+        if (estado) estado.innerHTML = '<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>Biosegur: preparando productos ' + (procesados + 1) + ' a ' + Math.min(procesados + bloque.length, pendientes.length) + ' de ' + pendientes.length + '…';
+        if (productoActualEl && bloque[0]) productoActualEl.innerHTML = 'Próximo: <strong style="color:var(--text)">' + escapeHTML(bloque[0].producto.codigo || 'Sin código') + '</strong> · ' + escapeHTML(bloque[0].producto.nombre || bloque[0].producto.descripcion || 'Producto Biosegur');
         var resp = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar-lote', {
           method:'POST',
           headers:{ 'Content-Type':'application/json', 'X-Frontend-Key':SISVENTAS_FUNCTIONS.frontendKey },
@@ -6772,6 +6793,8 @@ async function ejecutarActualizadorMasivoBiosegur() {
     if (estado) estado.innerHTML = '<span style="color:var(--red)">Se interrumpió la actualización: ' + escapeHTML(e.message || '') + '</span>';
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Reintentar pendientes'; }
   } finally {
+    clearInterval(relojProgreso);
+    if (barra) barra.style.opacity = '1';
     modal.dataset.ejecutando = '0';
     if (typeof cancelarProgreso === 'function') cancelarProgreso();
     setTimeout(function(){ if (window.fbRemove) window.fbRemove(progresoRef).catch(function(){}); }, 60000);
