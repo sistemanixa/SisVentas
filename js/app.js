@@ -4523,7 +4523,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.54-firebase',
+  VERSION: 'v2.0.55-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -14451,6 +14451,11 @@ function spCargar() {
     Object.entries(data).forEach(function(e) { SP_DATA[e[0]] = Object.assign({ fbKey: e[0] }, e[1]); });
     spRenderLista();
     spActualizarMetricas();
+    // Mantener el asistente abierto y sincronizado mientras cambia el estado.
+    if (SP_MODAL_KEY && SP_DATA[SP_MODAL_KEY]) {
+      var modalAbierto = document.getElementById('sp-modal');
+      if (modalAbierto && modalAbierto.style.display === 'flex') spAbrirModal(SP_MODAL_KEY);
+    }
   });
 }
 
@@ -14573,9 +14578,14 @@ function spGuardarNuevo() {
 
   if (!window.fbDB) { notify('Sin conexión'); return; }
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/reclamos'), reclamo)
-    .then(function() {
+    .then(function(ref) {
+      reclamo.fbKey = ref.key;
+      SP_DATA[ref.key] = reclamo;
       notify('✓ Reclamo registrado');
       document.getElementById('sp-modal-nuevo').style.display = 'none';
+      spRenderLista();
+      spActualizarMetricas();
+      spAbrirModal(ref.key);
     })
     .catch(function(e){ notify('Error: '+e.message); });
 }
@@ -14629,21 +14639,21 @@ function spRenderAcciones(estado) {
   var btns = [];
 
   if (estado === 'nuevo') {
-    btns.push('<button class="btn btn-sm btn-primary" onclick="spCambiarEstado(\'diagnostico\')"><i class="ti ti-search"></i> Tomar diagnóstico remoto</button>');
-    btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--green)"><i class="ti ti-check"></i> Resolver sin visita (cerrar)</button>');
+    btns.push('<button class="btn btn-sm btn-primary" onclick="spCambiarEstado(\'diagnostico\')"><i class="ti ti-headset"></i> Atacar de forma remota</button>');
+    btns.push('<button class="btn btn-sm" onclick="spPasarAVisitaYGenerarOT()" style="color:var(--red)"><i class="ti ti-truck"></i> Visita técnica · generar OT</button>');
   }
   if (estado === 'diagnostico') {
-    btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--green)"><i class="ti ti-check"></i> Resuelto de forma remota (cerrar)</button>');
-    btns.push('<button class="btn btn-sm" onclick="spSolicitarVisita()" style="color:var(--red)"><i class="ti ti-truck"></i> Requiere visita técnica</button>');
+    btns.push('<button class="btn btn-sm" onclick="spResolverRemoto()" style="color:var(--green)"><i class="ti ti-check"></i> Resuelto de forma remota</button>');
+    btns.push('<button class="btn btn-sm" onclick="spPasarAVisitaYGenerarOT()" style="color:var(--red)"><i class="ti ti-truck"></i> Pasar a visita técnica · generar OT</button>');
   }
   if (estado === 'visita') {
     btns.push('<button class="btn btn-sm btn-primary" onclick="spGenerarOT()"><i class="ti ti-file-plus"></i> Generar OT y asignar técnico</button>');
   }
   if (estado === 'ot_activa') {
-    btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--green)"><i class="ti ti-check"></i> Marcar como resuelto (cerrar)</button>');
+    btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\',{resolucion:\'visita_tecnica\',resuelto:true,cerradoEn:Date.now()})" style="color:var(--green)"><i class="ti ti-check"></i> Marcar resuelto por visita técnica</button>');
   }
   if (estado !== 'cerrado') {
-    btns.push('<button class="btn btn-sm" onclick="spCambiarEstado(\'cerrado\')" style="color:var(--text3);margin-top:4px"><i class="ti ti-x"></i> Cerrar sin resolver</button>');
+    btns.push('<button class="btn btn-sm" onclick="spCerrarSinResolver()" style="color:var(--text3);margin-top:4px"><i class="ti ti-x"></i> Cerrar sin resolver</button>');
   }
 
   cont.innerHTML = btns.join('');
@@ -14662,22 +14672,48 @@ function spAgregarNota() {
 }
 
 function spCambiarEstado(nuevoEstado, extraDatos) {
-  if (!SP_MODAL_KEY) return;
+  if (!SP_MODAL_KEY) return Promise.reject(new Error('No hay reclamo seleccionado'));
   var r = SP_DATA[SP_MODAL_KEY];
   var hist = r.historial ? r.historial.slice() : [];
   var est = SP_ESTADOS[nuevoEstado];
-  hist.push({ texto: 'Estado cambiado a: ' + (est?est.label:nuevoEstado), autor: currentUser||'sistema', ts: Date.now() });
+  var textoHistorial = extraDatos && extraDatos.resolucion === 'remota' ? 'Reclamo resuelto de forma remota'
+    : extraDatos && extraDatos.resolucion === 'visita_tecnica' ? 'Reclamo resuelto mediante visita técnica'
+    : extraDatos && extraDatos.resolucion === 'sin_resolver' ? 'Reclamo cerrado sin resolver'
+    : nuevoEstado === 'visita' ? 'Derivado a visita técnica; iniciando generación de OT'
+    : 'Estado cambiado a: ' + (est?est.label:nuevoEstado);
+  hist.push({ texto: textoHistorial, autor: currentUser||'sistema', ts: Date.now() });
   var update = Object.assign({ estado: nuevoEstado, historial: hist }, extraDatos||{});
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/reclamos/' + SP_MODAL_KEY), update)
+  return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/reclamos/' + SP_MODAL_KEY), update)
     .then(function(){
+      SP_DATA[SP_MODAL_KEY] = Object.assign({}, r, update, { fbKey:SP_MODAL_KEY });
       notify('✓ ' + (est?est.label:'Estado actualizado'));
-      if (nuevoEstado === 'cerrado') spCerrarModal();
+      spRenderLista();
+      spActualizarMetricas();
+      spAbrirModal(SP_MODAL_KEY);
+      return true;
     })
-    .catch(function(e){ notify('Error: '+e.message); });
+    .catch(function(e){ notify('Error: '+e.message); return false; });
 }
 
 function spSolicitarVisita() {
   spCambiarEstado('visita');
+}
+
+function spResolverRemoto() {
+  return spCambiarEstado('cerrado', { resolucion:'remota', resuelto:true, cerradoEn:Date.now() });
+}
+
+function spCerrarSinResolver() {
+  if (!confirm('¿Cerrar este reclamo sin resolver? Quedará registrado como cierre sin solución.')) return;
+  return spCambiarEstado('cerrado', { resolucion:'sin_resolver', resuelto:false, cerradoEn:Date.now() });
+}
+
+function spPasarAVisitaYGenerarOT() {
+  if (!SP_MODAL_KEY) return;
+  var r = SP_DATA[SP_MODAL_KEY] || {};
+  if (r.otKey) { notify('Este reclamo ya tiene una OT vinculada'); spAbrirModal(SP_MODAL_KEY); return; }
+  spCambiarEstado('visita', { visitaSolicitadaEn:Date.now() })
+    .then(function(actualizado){ if (actualizado) spGenerarOT(); });
 }
 
 function spGenerarOT() {
