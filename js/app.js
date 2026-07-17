@@ -4171,7 +4171,33 @@ function doLogoutAutomatico() {
   _ejecutarLogout();
 }
 
+function _cerrarInterfacesAlSalir() {
+  var actualizador = document.getElementById('modal-actualizador-precios');
+  if (actualizador) {
+    actualizador._detenerSolicitado = true;
+    actualizador._cerradoPorLogout = true;
+    if (actualizador._abortController && typeof actualizador._abortController.abort === 'function') {
+      try { actualizador._abortController.abort(); } catch (e) {}
+    }
+    actualizador.remove();
+  }
+  ['modal-revision-precios','popup-actualizado','modal-haberes-mes','modal-hsextra','modal-hsextra-admin','modal-aguinaldo','modal-factura','modal-nota-credito','modal-factura-emitida','modal-forzar-pass','modal-venta-confirmada','modal-alta-rapida-cli'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.remove();
+  });
+  document.querySelectorAll('.modal-overlay.open').forEach(function(el) { el.classList.remove('open'); });
+  document.querySelectorAll('#screen-app [id^="modal-"], #screen-app [id$="-modal"]').forEach(function(el) {
+    if (getComputedStyle(el).position === 'fixed') el.style.display = 'none';
+  });
+  document.body.classList.remove('modal-secure-open');
+  window._sisventasProcesoCriticoActivo = false;
+  window._sisventasActualizacionDiferidaAvisada = false;
+}
+
 function _ejecutarLogout() {
+  // Ninguna interfaz ni proceso del usuario anterior puede quedar por encima
+  // del login o continuar escribiendo después de expirar la sesión.
+  _cerrarInterfacesAlSalir();
   // 1. Volver al dashboard ANTES de ocultar la app, para que el próximo
   //    usuario que inicie sesión siempre arranque en dashboard, sin importar
   //    en qué módulo estaba el usuario anterior.
@@ -4532,7 +4558,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.57-firebase',
+  VERSION: 'v2.0.58-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6846,6 +6872,8 @@ async function ejecutarActualizadorMasivoBiosegur() {
   if (!pendientes.length) return;
   modal.dataset.ejecutando = '1';
   modal._detenerSolicitado = false;
+  modal._cerradoPorLogout = false;
+  modal._abortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
   window._sisventasProcesoCriticoActivo = true;
   var btn = document.getElementById('btn-actualizar-biosegur-lote');
   var estado = document.getElementById('actualizador-precios-estado');
@@ -6912,6 +6940,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
         var resp = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar-lote', {
           method:'POST',
           headers:{ 'Content-Type':'application/json', 'X-Frontend-Key':SISVENTAS_FUNCTIONS.frontendKey },
+          signal: modal._abortController ? modal._abortController.signal : undefined,
           body:JSON.stringify({
             proveedorKey:proveedorKey,
             jobId:jobId,
@@ -6979,12 +7008,16 @@ async function ejecutarActualizadorMasivoBiosegur() {
     }
     notify('✓ Proveedores: ' + actualizados + ' precios actualizados');
   } catch (e) {
-    if (estado) estado.innerHTML = '<span style="color:var(--red)">Se interrumpió la actualización: ' + escapeHTML(e.message || '') + '</span>';
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Reintentar pendientes'; }
+    if (!modal._cerradoPorLogout) {
+      if (estado) estado.innerHTML = '<span style="color:var(--red)">Se interrumpió la actualización: ' + escapeHTML(e.message || '') + '</span>';
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Reintentar pendientes'; }
+    }
   } finally {
     clearInterval(relojProgreso);
     if (barra) barra.style.opacity = '1';
     modal.dataset.ejecutando = '0';
+    modal._abortController = null;
+    window._sisventasProcesoCriticoActivo = false;
     if (typeof cancelarProgreso === 'function') cancelarProgreso();
     setTimeout(function(){ if (window.fbRemove) window.fbRemove(progresoRef).catch(function(){}); }, 60000);
   }
