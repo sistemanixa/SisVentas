@@ -4558,7 +4558,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.58-firebase',
+  VERSION: 'v2.0.59-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6514,6 +6514,31 @@ function precioGremioARSDesdeProducto(p) {
 
 var PRECIO_VIGENCIA_MS = 24 * 60 * 60 * 1000;
 
+function proveedoresVinculadosProducto(p) {
+  p = p || {};
+  if (Array.isArray(p.proveedores) && p.proveedores.length) {
+    return p.proveedores.map(function(pv) { return Object.assign({}, pv || {}); });
+  }
+  var nombreLegacy = String(p.proveedor || p.nom_prov || '').trim();
+  var urlLegacy = normalizarUrlProveedorProducto(p.codWeb || p.urlProveedor || p.url || '');
+  if (!nombreLegacy && !urlLegacy) return [];
+  var maestro = (proveedoresData || []).find(function(prov) {
+    return String((prov && prov.nombre) || '').trim().toLowerCase() === nombreLegacy.toLowerCase();
+  });
+  return [{
+    nombre: nombreLegacy || (maestro && maestro.nombre) || 'Proveedor',
+    proveedorKey: (maestro && (maestro.fbKey || maestro.key || maestro.id)) || '',
+    precio: parseFloat(p.precioArsPublicado || p.precioGremio || p.compraARS || p.compra || 0) || 0,
+    precioArsPublicado: parseFloat(p.precioArsPublicado || p.precioGremio || p.compraARS || p.compra || 0) || 0,
+    costoRealArs: parseFloat(p.costoRealArs || p.precioGremio || p.compraARS || p.compra || 0) || 0,
+    sinIva: !!p.sinIva,
+    url: urlLegacy,
+    actualizado: p.fechaActualizacionPrecio || '',
+    actualizadoEn: parseFloat(p.precioActualizadoEn || p.actualizadoEn || 0) || 0,
+    actualizadoOrigen: 'legacy'
+  }];
+}
+
 function timestampPrecioProducto(p) {
   p = p || {};
   var tiempos = [p.precioActualizadoEn, p.actualizadoEn];
@@ -6594,13 +6619,17 @@ async function guardarUrlDesdeRevisionPrecios(fbKey, proveedorIdx) {
   var url = normalizarUrlProveedorProducto(input ? input.value : '');
   if (!fbKey || !url) { notify('Ingresá la URL exacta del producto'); return; }
   try {
-    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey + '/proveedores/' + proveedorIdx), { url:url, actualizado:'', actualizadoEn:0 });
     var prod = Object.values(prodData || {}).find(function(p){ return String(p.fbKey || '') === String(fbKey); });
-    if (prod && Array.isArray(prod.proveedores) && prod.proveedores[proveedorIdx]) {
-      prod.proveedores[proveedorIdx].url = url;
-      prod.proveedores[proveedorIdx].actualizado = '';
-      prod.proveedores[proveedorIdx].actualizadoEn = 0;
-    }
+    var proveedores = proveedoresVinculadosProducto(prod);
+    if (!proveedores[proveedorIdx]) throw new Error('Proveedor no encontrado');
+    proveedores[proveedorIdx].url = url;
+    proveedores[proveedorIdx].actualizado = '';
+    proveedores[proveedorIdx].actualizadoEn = 0;
+    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey), {
+      proveedores: proveedores,
+      proveedor: proveedores[0].nombre || (prod && prod.proveedor) || ''
+    });
+    if (prod) prod.proveedores = proveedores;
     var estado = document.getElementById('revision-precios-guardado-' + idSeguro);
     if (estado) estado.innerHTML = '<span style="color:var(--green)"><i class="ti ti-check"></i> Guardada</span>';
     notify('URL guardada en el producto');
@@ -6666,12 +6695,12 @@ function abrirGestionRevisionPrecios() {
         '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><input class="search-input" style="flex:1;min-width:220px" placeholder="Buscar código, producto o proveedor…" oninput="filtrarGestionRevisionPrecios(this.value)"><span id="revision-precios-contador" style="font-size:11px;color:var(--text3)">' + productos.length + ' productos</span><button class="btn btn-primary" onclick="document.getElementById(\'modal-revision-precios\').remove();abrirActualizadorMasivoPrecios()" ' + (!compatibles.length?'disabled':'') + '><i class="ti ti-refresh"></i> Actualizar compatibles</button></div>' +
         '<div id="revision-precios-lista" style="overflow:auto;border:0.5px solid var(--border);border-radius:10px">' + productos.map(function(p){
           var estado = estadoVigenciaPrecioProducto(p);
-          var provs = (Array.isArray(p.proveedores)?p.proveedores:[]).map(function(x){return x && (x.nombre||x.proveedor)||'';}).filter(Boolean).join(', ') || p.proveedor || 'Sin proveedor';
+          var listaProveedores = proveedoresVinculadosProducto(p);
+          var provs = listaProveedores.map(function(x){return x && (x.nombre||x.proveedor)||'';}).filter(Boolean).join(', ') || 'Sin proveedor';
           var auto = !!compatiblesKeys[String(p.fbKey || '')];
           var busqueda = [p.codigo,p.nombre,p.descripcion,provs].join(' ').toLowerCase();
           var fbKey = String(p.fbKey || '');
           var idProducto = fbKey.replace(/[^a-zA-Z0-9_-]/g,'');
-          var listaProveedores = Array.isArray(p.proveedores) ? p.proveedores : [];
           var editores = listaProveedores.length ? listaProveedores.map(function(pv, idx){
             var idUrl = idProducto + '-' + idx;
             return '<div style="display:grid;grid-template-columns:minmax(130px,.55fr) minmax(260px,1.45fr) auto 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)"><strong>' + escapeHTML((pv && (pv.nombre || pv.proveedor)) || 'Proveedor') + '</strong><input id="revision-precios-url-' + idUrl + '" class="search-input" type="url" value="' + escapeHTML((pv && pv.url) || '') + '" placeholder="URL exacta del producto"><button class="btn btn-sm btn-primary" onclick="guardarUrlDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\',' + idx + ')"><i class="ti ti-device-floppy"></i> Guardar URL</button><span id="revision-precios-guardado-' + idUrl + '" style="font-size:10px;color:var(--text3)"></span></div>';
@@ -6697,7 +6726,7 @@ function abrirGestionRevisionPrecios() {
 function productosBiosegurActualizables() {
   var salida = [];
   Object.values(prodData || {}).forEach(function(p) {
-    var proveedores = Array.isArray(p.proveedores) ? p.proveedores : [];
+    var proveedores = proveedoresVinculadosProducto(p);
     proveedores.forEach(function(pv, idx) {
       pv = pv || {};
       var nombrePv = String(pv.nombre || pv.proveedor || '').trim().toLowerCase();
@@ -6817,7 +6846,7 @@ function abrirActualizadorMasivoPrecios() {
 
 function datosActualizadosProductoBiosegur(item, resultado) {
   var p = item.producto;
-  var proveedores = (Array.isArray(p.proveedores) ? p.proveedores : []).map(function(x){ return Object.assign({}, x); });
+  var proveedores = proveedoresVinculadosProducto(p);
   var pv = Object.assign({}, proveedores[item.proveedorIdx] || {});
   var precio = parsePrecioProveedorARS(resultado.precioArs || resultado.precio || 0);
   var ahora = Date.now();
