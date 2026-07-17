@@ -4296,6 +4296,9 @@ function toggleNotificacionesPanel() {
   }
 }
 
+var _svHistorialPaginas = [];
+var _svNavegandoAtras = false;
+
 function showPage(id, el) {
   if (!isAuthenticated) { notify('Primero iniciá sesión'); return; }
   if (window.SisVentas && window.SisVentas.Access) {
@@ -4312,6 +4315,12 @@ function showPage(id, el) {
   if (!permisoModulo(id)) {
     notify('Acceso restringido para tu rol');
     return;
+  }
+  var paginaActual = document.querySelector('.page.active');
+  var paginaActualId = paginaActual ? String(paginaActual.id || '').replace(/^page-/, '') : '';
+  if (!_svNavegandoAtras && paginaActualId && paginaActualId !== id) {
+    _svHistorialPaginas.push(paginaActualId);
+    if (_svHistorialPaginas.length > 30) _svHistorialPaginas.shift();
   }
   if (id === 'cobranzas' && el) {
     var btnVolver = document.getElementById('cob-volver-venta');
@@ -4523,7 +4532,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.55-firebase',
+  VERSION: 'v2.0.56-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6524,10 +6533,27 @@ function filtrarGestionRevisionPrecios(texto) {
 }
 
 function editarProductoDesdeRevisionPrecios(fbKey) {
-  var modal = document.getElementById('modal-revision-precios');
-  if (modal) modal.remove();
-  showPage('productos', document.querySelector('[onclick*="productos"]'));
-  abrirFormProducto(String(fbKey || ''));
+  var panel = document.getElementById('revision-precios-editor-' + String(fbKey || '').replace(/[^a-zA-Z0-9_-]/g,''));
+  if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+async function guardarUrlDesdeRevisionPrecios(fbKey, proveedorIdx) {
+  var idSeguro = String(fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(proveedorIdx,10)||0);
+  var input = document.getElementById('revision-precios-url-' + idSeguro);
+  var url = normalizarUrlProveedorProducto(input ? input.value : '');
+  if (!fbKey || !url) { notify('Ingresá la URL exacta del producto'); return; }
+  try {
+    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey + '/proveedores/' + proveedorIdx), { url:url, actualizado:'', actualizadoEn:0 });
+    var prod = Object.values(prodData || {}).find(function(p){ return String(p.fbKey || '') === String(fbKey); });
+    if (prod && Array.isArray(prod.proveedores) && prod.proveedores[proveedorIdx]) {
+      prod.proveedores[proveedorIdx].url = url;
+      prod.proveedores[proveedorIdx].actualizado = '';
+      prod.proveedores[proveedorIdx].actualizadoEn = 0;
+    }
+    var estado = document.getElementById('revision-precios-guardado-' + idSeguro);
+    if (estado) estado.innerHTML = '<span style="color:var(--green)"><i class="ti ti-check"></i> Guardada</span>';
+    notify('URL guardada en el producto');
+  } catch (e) { notify('No se pudo guardar la URL: ' + (e.message || 'Error')); }
 }
 
 function abrirGestionRevisionPrecios() {
@@ -6554,7 +6580,14 @@ function abrirGestionRevisionPrecios() {
           var provs = (Array.isArray(p.proveedores)?p.proveedores:[]).map(function(x){return x && (x.nombre||x.proveedor)||'';}).filter(Boolean).join(', ') || p.proveedor || 'Sin proveedor';
           var auto = !!compatiblesKeys[String(p.fbKey || '')];
           var busqueda = [p.codigo,p.nombre,p.descripcion,provs].join(' ').toLowerCase();
-          return '<div data-revision-producto data-busqueda="' + escapeHTML(busqueda) + '" style="display:grid;grid-template-columns:110px minmax(180px,1fr) minmax(140px,.7fr) 120px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><div style="min-width:0"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)">' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</div><small style="color:var(--text3)">' + escapeHTML(estado.texto) + '</small></div><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text3)" title="' + escapeHTML(provs) + '">' + escapeHTML(provs) + '</div><span style="color:' + (auto?'var(--green)':'var(--amber)') + '">' + (auto?'Automatizable':'Revisión manual') + '</span><button class="btn btn-sm" onclick="editarProductoDesdeRevisionPrecios(\'' + escapeHTML(String(p.fbKey || '')) + '\')"><i class="ti ti-edit"></i> Gestionar</button></div>';
+          var fbKey = String(p.fbKey || '');
+          var idProducto = fbKey.replace(/[^a-zA-Z0-9_-]/g,'');
+          var listaProveedores = Array.isArray(p.proveedores) ? p.proveedores : [];
+          var editores = listaProveedores.length ? listaProveedores.map(function(pv, idx){
+            var idUrl = idProducto + '-' + idx;
+            return '<div style="display:grid;grid-template-columns:minmax(130px,.55fr) minmax(260px,1.45fr) auto 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)"><strong>' + escapeHTML((pv && (pv.nombre || pv.proveedor)) || 'Proveedor') + '</strong><input id="revision-precios-url-' + idUrl + '" class="search-input" type="url" value="' + escapeHTML((pv && pv.url) || '') + '" placeholder="URL exacta del producto"><button class="btn btn-sm btn-primary" onclick="guardarUrlDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\',' + idx + ')"><i class="ti ti-device-floppy"></i> Guardar URL</button><span id="revision-precios-guardado-' + idUrl + '" style="font-size:10px;color:var(--text3)"></span></div>';
+          }).join('') : '<div style="color:var(--amber);font-size:12px;padding:8px 0"><i class="ti ti-alert-circle"></i> Este producto no tiene proveedores vinculados; primero debe asignarse uno.</div>';
+          return '<div data-revision-producto data-busqueda="' + escapeHTML(busqueda) + '" style="display:grid;grid-template-columns:110px minmax(180px,1fr) minmax(140px,.7fr) 120px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><div style="min-width:0"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)">' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</div><small style="color:var(--text3)">' + escapeHTML(estado.texto) + '</small></div><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text3)" title="' + escapeHTML(provs) + '">' + escapeHTML(provs) + '</div><span style="color:' + (auto?'var(--green)':'var(--amber)') + '">' + (auto?'Automatizable':'Revisión manual') + '</span><button class="btn btn-sm" onclick="editarProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')"><i class="ti ti-link"></i> Cambiar URL</button><div id="revision-precios-editor-' + idProducto + '" style="display:none;grid-column:1/-1;background:var(--bg3);border-radius:8px;padding:8px 10px;margin-top:2px">' + editores + '</div></div>';
         }).join('') + '</div>' +
       '</div>' +
     '</div>';
@@ -6942,7 +6975,11 @@ function quitarImagenProducto() {
   if (icon) icon.style.display = '';
 }
 
+var _prodVistaOrigen = 'lista';
+
 function abrirFormProducto(id) {
+  var detalle = document.getElementById('prod-detail-view');
+  _prodVistaOrigen = detalle && getComputedStyle(detalle).display !== 'none' ? 'detalle' : 'lista';
   editingProdId = id;
   _hide('prod-list-view');
   _hide('prod-detail-view');
@@ -7399,8 +7436,14 @@ function recalcularCompraDesdeProveedores() {
 
 function cerrarFormProducto() {
   _hide('prod-form-view');
+  if (_prodVistaOrigen === 'detalle' && editingProdId) {
+    verProducto(editingProdId);
+    _prodVistaOrigen = 'lista';
+    return;
+  }
   _block('prod-list-view');
   actualizarStatProductos();
+  _prodVistaOrigen = 'lista';
 }
 
 function cambiarMonedaProducto() {
@@ -7794,7 +7837,87 @@ function cerrarDetalleProducto() {
   actualizarStatProductos();
 }
 
-function editarDesdeDetalle() { abrirFormProducto(editingProdId); }
+function editarDesdeDetalle() {
+  _prodVistaOrigen = 'detalle';
+  abrirFormProducto(editingProdId);
+}
+
+function _svElementoVisible(el) {
+  if (!el || !el.isConnected) return false;
+  var estilo = getComputedStyle(el);
+  return estilo.display !== 'none' && estilo.visibility !== 'hidden' && el.getClientRects().length > 0;
+}
+
+function volverAtrasSisVentas() {
+  var modalRevision = document.getElementById('modal-revision-precios');
+  if (_svElementoVisible(modalRevision)) { modalRevision.remove(); return true; }
+
+  var actualizador = document.getElementById('modal-actualizador-precios');
+  if (_svElementoVisible(actualizador)) {
+    if (actualizador.dataset.ejecutando === '1') {
+      notify('La actualización sigue trabajando. Usá Cerrar si querés detenerla.');
+      return true;
+    }
+    cerrarActualizadorMasivoPrecios();
+    return true;
+  }
+
+  var modalesConClase = Array.from(document.querySelectorAll('.modal-overlay.open')).reverse();
+  if (modalesConClase.length) {
+    modalesConClase[0].classList.remove('open');
+    document.body.classList.remove('modal-secure-open');
+    return true;
+  }
+
+  var idsModal = ['sp-modal-nuevo','sp-modal','ag-modal-nuevo','modal-scanner','modal-relevamiento','modal-hist-pago-gasto','modal-pago-gasto','modal-movi-emp','modal-cargo','ot-selector-prod-modal','kit-selector-modal'];
+  for (var i = 0; i < idsModal.length; i++) {
+    var modal = document.getElementById(idsModal[i]);
+    if (_svElementoVisible(modal)) {
+      if (idsModal[i] === 'sp-modal' && typeof spCerrarModal === 'function') spCerrarModal();
+      else if (idsModal[i] === 'modal-scanner' && typeof cerrarScanner === 'function') cerrarScanner();
+      else if (idsModal[i] === 'modal-relevamiento' && typeof cerrarRelevamiento === 'function') cerrarRelevamiento();
+      else modal.style.display = 'none';
+      return true;
+    }
+  }
+
+  var emergentes = Array.from(document.querySelectorAll('[id^="modal-"], [id^="popup-"]')).filter(function(el) {
+    return _svElementoVisible(el) && getComputedStyle(el).position === 'fixed';
+  }).sort(function(a, b) {
+    return (parseInt(getComputedStyle(b).zIndex, 10) || 0) - (parseInt(getComputedStyle(a).zIndex, 10) || 0);
+  });
+  if (emergentes.length) {
+    emergentes[0].style.display = 'none';
+    emergentes[0].classList.remove('open');
+    document.body.classList.remove('modal-secure-open');
+    return true;
+  }
+
+  var formProducto = document.getElementById('prod-form-view');
+  if (_svElementoVisible(formProducto)) { cerrarFormProducto(); return true; }
+  var detalleProducto = document.getElementById('prod-detail-view');
+  if (_svElementoVisible(detalleProducto)) { cerrarDetalleProducto(); return true; }
+
+  while (_svHistorialPaginas.length) {
+    var anterior = _svHistorialPaginas.pop();
+    var actual = document.querySelector('.page.active');
+    var actualId = actual ? String(actual.id || '').replace(/^page-/, '') : '';
+    if (!anterior || anterior === actualId || !document.getElementById('page-' + anterior)) continue;
+    _svNavegandoAtras = true;
+    try { showPage(anterior, document.querySelector('.nav-item[onclick*="' + anterior + '"]')); }
+    finally { _svNavegandoAtras = false; }
+    return true;
+  }
+  return false;
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape' || e.defaultPrevented) return;
+  if (volverAtrasSisVentas()) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+}, true);
 
 // Mostrar alertas al navegar a productos
 // lógica productos integrada en showPage
