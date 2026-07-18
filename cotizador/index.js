@@ -65,7 +65,64 @@ function tipoProveedor(proveedor, url) {
   if (txt.includes('biosegur')) return 'biosegur';
   if (txt.includes('free-electron') || txt.includes('free electron')) return 'free_electron';
   if (txt.includes('tecnoprices')) return 'tecnoprices';
+  if (txt.includes('mercadolibre.com.ar') || txt.includes('mercado libre')) return 'mercado_libre';
   return '';
+}
+
+function esUrlMercadoLibre(url) {
+  try { return /(^|\.)mercadolibre\.com\.ar$/.test(new URL(normalizarUrl(url)).hostname.toLowerCase()); }
+  catch (_) { return false; }
+}
+
+async function extraerProductoMercadoLibre(page) {
+  const bodyText = await page.locator('body').innerText({ timeout:15000 });
+  if (/captcha|comprobemos que eres humano|verificaci[oó]n de seguridad/i.test(bodyText)) throw new Error('Mercado Libre solicitó una verificación de seguridad');
+  if (/publicaci[oó]n pausada|publicaci[oó]n finalizada|producto no disponible/i.test(bodyText)) throw new Error('La publicación de Mercado Libre no está disponible');
+  let precioArs = await page.locator('.ui-pdp-price__second-line .andes-money-amount').first().evaluate((el) => {
+    const fraccion = el.querySelector('.andes-money-amount__fraction');
+    const centavos = el.querySelector('.andes-money-amount__cents');
+    const entero = String(fraccion ? fraccion.textContent : '').replace(/[^0-9]/g, '');
+    const decimal = String(centavos ? centavos.textContent : '').replace(/[^0-9]/g, '').slice(0, 2);
+    return entero ? Number(entero + (decimal ? '.' + decimal : '')) : 0;
+  }).catch(() => 0);
+  let schema = null;
+  if (!precioArs) {
+    schema = await page.locator('script[type="application/ld+json"]').evaluateAll((scripts) => {
+      const recorrer = (v) => {
+        if (!v || typeof v !== 'object') return null;
+        if (String(v['@type'] || '').toLowerCase() === 'product' && v.offers) return v;
+        for (const k of Object.keys(v)) { const encontrado = recorrer(v[k]); if (encontrado) return encontrado; }
+        return null;
+      };
+      for (const script of scripts) {
+        try { const encontrado = recorrer(JSON.parse(script.textContent || '{}')); if (encontrado) return encontrado; } catch (_) {}
+      }
+      return null;
+    }).catch(() => null);
+    const oferta = schema && schema.offers ? (Array.isArray(schema.offers) ? schema.offers[0] : schema.offers) : null;
+    precioArs = parseFloat(oferta && (oferta.price || oferta.lowPrice)) || 0;
+  }
+  if (!precioArs) throw new Error('No se encontró el precio principal de la publicación');
+  const disponibilidad = /stock disponible|cantidad:\s*\d+|comprar ahora|agregar al carrito/i.test(bodyText) ? 'disponible' : extraerDisponibilidadProveedor(bodyText);
+  const titulo = await page.locator('h1.ui-pdp-title').first().innerText({ timeout:3000 }).catch(() => '');
+  return { precioArs, disponibilidad, titulo:titulo || (schema && schema.name) || '' };
+}
+
+async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) {
+  const urlExacta = normalizarUrl(url);
+  if (!esUrlMercadoLibre(urlExacta)) throw new Error('La URL no corresponde a Mercado Libre Argentina');
+  let browser = null, context = null;
+  try {
+    browser = await chromium.launch({ headless:true });
+    context = await browser.newContext({ locale:'es-AR', timezoneId:'America/Argentina/Buenos_Aires' });
+    const page = await context.newPage();
+    await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
+    const datos = await extraerProductoMercadoLibre(page);
+    return { ok:true, proveedor:proveedor.nombre || 'MERCADO LIBRE', codigo:codigo || '', producto:datos.titulo || producto || '', url:urlExacta, precioArs:datos.precioArs, sinIva:false, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad === 'disponible' ? 'Disponible' : datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado', fuente:'mercado_libre_url_exacta', fecha:new Date().toISOString(), debug:debug ? { titulo:datos.titulo } : undefined };
+  } finally {
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
 }
 
 function parsePrecioArs(texto) {
@@ -473,6 +530,46 @@ async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset
   }
 }
 
+async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, totalGlobal = 0, iniciadoEn = 0 }) {
+  const lote = Array.isArray(items) ? items.slice(0, 30) : [];
+  if (!lote.length) throw new Error('El lote no contiene productos');
+  const jobSeguro = String(jobId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+  const progresoRef = jobSeguro ? db.ref(`sisventas/procesos/cotizador/${jobSeguro}`) : null;
+  const inicioMs = parseInt(iniciadoEn, 10) || Date.now();
+  const totalTrabajo = Math.max(parseInt(totalGlobal, 10) || 0, offset + lote.length);
+  let browser = null, context = null;
+  try {
+    if (progresoRef) await progresoRef.set({ estado:'iniciando_navegador', proveedor:'MERCADO LIBRE', procesados:offset, total:totalTrabajo, inicioEn:inicioMs, actualizadoEn:Date.now() });
+    browser = await chromium.launch({ headless:true });
+    context = await browser.newContext({ locale:'es-AR', timezoneId:'America/Argentina/Buenos_Aires' });
+    const page = await context.newPage();
+    page.setDefaultTimeout(10000);
+    page.setDefaultNavigationTimeout(20000);
+    const resultados = [];
+    for (let i=0; i<lote.length; i+=1) {
+      const item = lote[i] || {}, urlExacta = normalizarUrl(item.url || item.urlProducto || '');
+      if (progresoRef) await progresoRef.update({ estado:'procesando', proveedor:'MERCADO LIBRE', codigo:item.codigo||'', producto:item.producto||item.nombre||'', url:urlExacta, procesados:offset+i, total:totalTrabajo, actualizadoEn:Date.now() });
+      try {
+        if (!esUrlMercadoLibre(urlExacta)) throw new Error('La URL no corresponde a Mercado Libre Argentina');
+        await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
+        const datos = await extraerProductoMercadoLibre(page);
+        resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, sinIva:false, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:'mercado_libre_lote_url_exacta', fecha:new Date().toISOString() });
+      } catch (e) {
+        resultados.push({ ok:false, error:true, codigo:item.codigo||'', url:urlExacta, mensaje:e.message||'Error leyendo la publicación' });
+      }
+      if (progresoRef) {
+        const procesadosGlobal=offset+i+1, transcurridoSeg=Math.max(1,Math.round((Date.now()-inicioMs)/1000)), promedioSeg=transcurridoSeg/Math.max(1,procesadosGlobal);
+        await progresoRef.update({ procesados:procesadosGlobal, total:totalTrabajo, transcurridoSeg, estimadoRestanteSeg:Math.max(0,Math.round((totalTrabajo-procesadosGlobal)*promedioSeg)), actualizados:resultados.filter(r=>r.ok).length, fallidos:resultados.filter(r=>!r.ok).length, actualizadoEn:Date.now() });
+      }
+    }
+    if (progresoRef) await progresoRef.update({ estado:'bloque_completado', codigo:'', producto:'', procesados:offset+lote.length, total:totalTrabajo, actualizadoEn:Date.now() });
+    return { ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', total:lote.length, actualizados:resultados.filter(r=>r.ok).length, fallidos:resultados.filter(r=>!r.ok).length, resultados };
+  } finally {
+    if (context) await context.close().catch(()=>{});
+    if (browser) await browser.close().catch(()=>{});
+  }
+}
+
 async function cotizarLote(reqBody) {
   const proveedorKey = String(reqBody.proveedorKey || '').trim();
   if (!proveedorKey) throw new Error('Falta proveedorKey');
@@ -484,6 +581,9 @@ async function cotizarLote(reqBody) {
   const tipoLote = tipoProveedor(proveedor, primeraUrl);
   if (tipoLote === 'free_electron' || tipoLote === 'tecnoprices') {
     return cotizarLoteProveedorLogin({ proveedor, items:reqBody.items, tipo:tipoLote, jobId:reqBody.jobId||'', offset:parseInt(reqBody.offset,10)||0, totalGlobal:parseInt(reqBody.total,10)||0, iniciadoEn:parseInt(reqBody.iniciadoEn,10)||0 });
+  }
+  if (tipoLote === 'mercado_libre') {
+    return cotizarLoteMercadoLibre({ proveedor, items:reqBody.items, jobId:reqBody.jobId||'', offset:parseInt(reqBody.offset,10)||0, totalGlobal:parseInt(reqBody.total,10)||0, iniciadoEn:parseInt(reqBody.iniciadoEn,10)||0 });
   }
   if (!esBiosegur(proveedor, '')) throw new Error('El actualizador por lote está habilitado solamente para Biosegur');
   return cotizarLoteBiosegur({
@@ -521,6 +621,10 @@ async function cotizar(reqBody) {
 
   if (tipo === 'free_electron' || tipo === 'tecnoprices') {
     return cotizarProveedorConLogin({ proveedor, url, codigo:reqBody.codigo || '', producto:reqBody.producto || '', debug:!!reqBody.debug, tipo });
+  }
+
+  if (tipo === 'mercado_libre') {
+    return cotizarMercadoLibre({ proveedor, url, codigo:reqBody.codigo || '', producto:reqBody.producto || '', debug:!!reqBody.debug });
   }
 
   throw new Error(`Proveedor no soportado todavía: ${proveedor.nombre || proveedorKey}`);
