@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.65-firebase',
+  VERSION: 'v2.0.66-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6841,7 +6841,7 @@ function abrirGestionRevisionPrecios() {
     '<div style="width:min(900px,100%);max-height:92vh;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)"><div><div style="font-size:16px;font-weight:700"><i class="ti ti-clipboard-search" style="color:var(--amber);margin-right:7px"></i>Revisión de precios de productos</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Productos sin verificar o con actualización de más de 24 horas</div></div><button class="icon-btn" onclick="document.getElementById(\'modal-revision-precios\').remove()"><i class="ti ti-x"></i></button></div>' +
       '<div style="padding:16px 18px;display:flex;flex-direction:column;min-height:0;flex:1">' +
-        '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"><div class="metric"><div class="m-label">Requieren revisión</div><div class="m-value" style="color:var(--amber)">' + productos.length + '</div><div class="m-sub">total del catálogo</div></div><div class="metric"><div class="m-label">Automatizables</div><div class="m-value" style="color:var(--green)">' + Object.keys(compatiblesKeys).length + '</div><div class="m-sub">Biosegur, Free, Tecnoprices o Mercado Libre</div></div><div class="metric"><div class="m-label">Gestión manual</div><div class="m-value">' + (productos.length-Object.keys(compatiblesKeys).length) + '</div><div class="m-sub">sin proveedor registrado o URL compatible</div></div></div>' +
+        '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"><div class="metric"><div class="m-label">Requieren revisión</div><div class="m-value" style="color:var(--amber)">' + productos.length + '</div><div class="m-sub">total del catálogo</div></div><div class="metric"><div class="m-label">Automatizables</div><div class="m-value" style="color:var(--green)">' + Object.keys(compatiblesKeys).length + '</div><div class="m-sub">Biosegur, Free o Tecnoprices</div></div><div class="metric"><div class="m-label">Gestión manual</div><div class="m-value">' + (productos.length-Object.keys(compatiblesKeys).length) + '</div><div class="m-sub">incluye Mercado Libre</div></div></div>' +
         '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><input class="search-input" style="flex:1;min-width:220px" placeholder="Buscar código, producto o proveedor…" oninput="filtrarGestionRevisionPrecios(this.value)"><span id="revision-precios-contador" style="font-size:11px;color:var(--text3)">' + productos.length + ' productos</span><button class="btn btn-primary" onclick="document.getElementById(\'modal-revision-precios\').remove();abrirActualizadorMasivoPrecios()" ' + (!compatibles.length?'disabled':'') + '><i class="ti ti-refresh"></i> Actualizar compatibles</button></div>' +
         '<div id="revision-precios-lista" style="overflow:auto;border:0.5px solid var(--border);border-radius:10px">' + productos.map(function(p){
           var estado = estadoVigenciaPrecioProducto(p);
@@ -6888,13 +6888,11 @@ function productosBiosegurActualizables() {
       try { host = new URL(normalizarUrlProveedorProducto(url)).hostname.toLowerCase(); } catch (_) {}
       var tipo = /(^|\.)biosegur\.com\.ar$/.test(host) ? 'biosegur'
         : /(^|\.)free-electron\.com\.ar$/.test(host) ? 'free_electron'
-        : /(^|\.)tecnoprices\.com$/.test(host) ? 'tecnoprices'
-        : /(^|\.)mercadolibre\.com\.ar$/.test(host) ? 'mercado_libre' : '';
+        : /(^|\.)tecnoprices\.com$/.test(host) ? 'tecnoprices' : '';
       if (!tipo) return;
       var nombreCompatible = tipo === 'biosegur' ? /biosegur/i.test(nombrePv)
         : tipo === 'free_electron' ? /free[\s-]*electron/i.test(nombrePv)
-        : tipo === 'tecnoprices' ? /tecnoprices/i.test(nombrePv)
-        : /mercado\s*libre/i.test(nombrePv);
+        : /tecnoprices/i.test(nombrePv);
       if (!nombreCompatible) return;
       var maestro = (proveedoresData || []).find(function(prov) {
         return prov && prov.activo !== false && String(prov.nombre || '').trim().toLowerCase() === nombrePv;
@@ -6979,7 +6977,7 @@ function abrirActualizadorMasivoPrecios() {
   overlay.innerHTML =
     '<div style="width:min(620px,100%);background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)">' +
-        '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo de precios de proveedores</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Biosegur · Free Electron · Tecnoprices · Mercado Libre</div></div>' +
+        '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo de precios de proveedores</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Biosegur · Free Electron · Tecnoprices</div></div>' +
         '<button class="icon-btn" onclick="cerrarActualizadorMasivoPrecios()"><i class="ti ti-x"></i></button>' +
       '</div>' +
       '<div style="padding:18px">' +
@@ -7424,16 +7422,24 @@ function cotizarPreciosProveedores() {
   var provCotizables = prodProveedoresActuales.map(function(pv, idx) {
     var maestro = proveedorMaestro(pv.nombre);
     var webBase = maestro && (maestro.web || maestro.url || maestro.portal || maestro.sitio || '');
+    var urlProveedor = (pv.url || webBase || '').trim();
+    var hostProveedor = '';
+    try { hostProveedor = new URL(normalizarUrlProveedorProducto(urlProveedor)).hostname.toLowerCase(); } catch (_) {}
+    var nombreProveedor = String(pv.nombre || (maestro && maestro.nombre) || '').trim().toLowerCase();
+    var automatizable = ((/(^|\.)biosegur\.com\.ar$/.test(hostProveedor) && /biosegur/i.test(nombreProveedor))
+      || (/(^|\.)free-electron\.com\.ar$/.test(hostProveedor) && /free[\s-]*electron/i.test(nombreProveedor))
+      || (/(^|\.)tecnoprices\.com$/.test(hostProveedor) && /tecnoprices/i.test(nombreProveedor)));
     return {
       idx: idx,
       nombre: pv.nombre || (maestro && maestro.nombre) || 'Proveedor',
       proveedorKey: (maestro && (maestro.fbKey || maestro.key || maestro.id)) || pv.proveedorKey || pv.proveedorFbKey || pv.fbKey || pv.key || '',
-      url: (pv.url || webBase || '').trim(),
+      url: urlProveedor,
       urlProducto: !!(pv.url && pv.url.trim()),
-      precioActual: parseFloat(pv.precio) || 0
+      precioActual: parseFloat(pv.precio) || 0,
+      automatizable: automatizable
     };
   }).filter(function(pv) {
-    return pv.nombre && pv.url;
+    return pv.nombre && pv.url && pv.automatizable;
   });
   var proveedorManual = prodProveedoresActuales.find(function(pv) {
     var nombre = String((pv && pv.nombre) || '').trim();
@@ -7448,7 +7454,14 @@ function cotizarPreciosProveedores() {
     return;
   }
   if (!provCotizables.length) {
-    notify('Agregá una URL del producto o cargá la web del proveedor en el módulo Proveedores');
+    var esMercadoLibreManual = prodProveedoresActuales.some(function(pv) {
+      return /mercado\s*libre/i.test(String((pv && pv.nombre) || '')) || /mercadolibre\.com\.ar/i.test(String((pv && pv.url) || ''));
+    });
+    if (esMercadoLibreManual) {
+      alert('Mercado Libre se gestiona manualmente por el momento.\n\nAbrí la publicación, ingresá el valor en Precio ARS y después guardá el producto.');
+    } else {
+      notify('Este proveedor requiere revisión manual o no tiene una URL compatible');
+    }
     return;
   }
 
