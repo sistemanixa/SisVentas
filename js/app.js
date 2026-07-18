@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.66-firebase',
+  VERSION: 'v2.0.67-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -23656,6 +23656,25 @@ function ventaEstadoInstBadge(est) {
 
 var clienteActualId = null;
 
+function calcularPagadoRealVenta(venta) {
+  venta = venta || {};
+  var pagosExternos = (window._historialPagosCompleto || []).concat(window._pagosListaActual || []).filter(function(p) {
+    if (!p || p.anulado || String(p.estado || '').toLowerCase() === 'anulado') return false;
+    return typeof _svRegistroPerteneceVenta === 'function' ? _svRegistroPerteneceVenta(p, venta) : false;
+  });
+  var pagosEmbebidos = Array.isArray(venta.pagos) ? venta.pagos : [];
+  var vistos = {};
+  var totalPagos = pagosExternos.concat(pagosEmbebidos).filter(function(p) {
+    if (!p || p.anulado || String(p.estado || '').toLowerCase() === 'anulado') return false;
+    var clave = String(p.fbKey || p.id || p.key || '') || [p.fecha || '', p.monto || 0, p.medio || p.medioPago || '', p.venta || p.ventaId || p.ventaFbKey || ''].join('|');
+    if (vistos[clave]) return false;
+    vistos[clave] = true;
+    return true;
+  }).reduce(function(s, p) { return s + (parseFloat(p.monto) || 0); }, 0);
+  var totalDirecto = parseFloat(venta.totalPagado || venta.pagado || venta.montoPagado) || 0;
+  return Math.max(totalPagos, totalDirecto);
+}
+
 function verHistorialCli(btn) {
   // Obtener datos del cliente desde la fila
   const tr = btn.closest('tr');
@@ -23705,8 +23724,10 @@ function verHistorialCliente(id, nombre) {
   // KPIs reales desde ventasList
   var vReales = filtrarPorCliente(ventasList);
   var totalReal = vReales.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
-  var saldoReal = vReales.filter(function(v){ return v.estadoPago !== 'pago_total'; })
-                         .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var saldoReal = vReales.reduce(function(s, v) {
+    var totalVenta = parseFloat(v.total) || 0;
+    return s + Math.max(0, totalVenta - calcularPagadoRealVenta(v));
+  }, 0);
   var totalDisplay = totalReal > 0 ? totalReal : (parseFloat(cli.total)||0);
   var saldoDisplay = totalReal > 0 ? saldoReal : (parseFloat(cli.saldo)||0);
   _set('hc-total','$' + Math.round(totalDisplay).toLocaleString('es-AR'));
@@ -24196,8 +24217,9 @@ function renderDetalleVenta(v) {
       return s + obtenerCostoItemVenta(it);
     },0);
   }
-  var gananciaDetalle = netoDetalle - costoDetalle;
-  var margenDetalle = netoDetalle > 0 ? (gananciaDetalle / netoDetalle * 100) : 0;
+  var costoDetalleInconsistente = costoDetalle > 0 && netoDetalle > 0 && costoDetalle > netoDetalle * 10;
+  var gananciaDetalle = costoDetalleInconsistente ? null : netoDetalle - costoDetalle;
+  var margenDetalle = !costoDetalleInconsistente && netoDetalle > 0 ? (gananciaDetalle / netoDetalle * 100) : null;
   var idsVentaDetalle = [v.fbKey, v.id, v.numero, v.nro, v.codigo].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
   var ventaIdNum = String(v.id||'').replace(/[^0-9]/g,'');
   var pagosGlobales = (window._historialPagosCompleto||[]).filter(function(p) {
@@ -24242,7 +24264,7 @@ function renderDetalleVenta(v) {
     '<div class="metric"><div class="m-label">Total venta</div><div class="m-value">$' + Math.round(total).toLocaleString('es-AR') + '</div><div class="m-sub">' + ep.label + '</div></div>' +
     '<div class="metric"><div class="m-label">Pagado</div><div class="m-value" style="color:var(--green)">$' + Math.round(pagado).toLocaleString('es-AR') + '</div><div class="m-sub">' + porcPagado.toFixed(0) + '% de la venta</div></div>' +
     '<div class="metric"><div class="m-label">Saldo</div><div class="m-value" style="color:' + (saldo > 0 ? 'var(--amber)' : 'var(--green)') + '">$' + Math.round(saldo).toLocaleString('es-AR') + '</div><div class="m-sub">' + (saldo > 0 ? 'pendiente de cobro' : 'cancelado') + '</div></div>' +
-    (puedeVerInternosVenta ? '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">$' + Math.round(gananciaDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">margen ' + margenDetalle.toFixed(1) + '%</div></div>' : '') +
+    (puedeVerInternosVenta ? '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (costoDetalleInconsistente ? 'var(--amber)' : gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (costoDetalleInconsistente ? 'A revisar' : '$' + Math.round(gananciaDetalle).toLocaleString('es-AR')) + '</div><div class="m-sub">' + (costoDetalleInconsistente ? 'costo inconsistente' : 'margen ' + margenDetalle.toFixed(1) + '%') + '</div></div>' : '') +
   '</div>' +
   '<div class="metrics" id="venta-detalle-seguimiento" style="margin-bottom:12px;grid-template-columns:repeat(4,minmax(0,1fr))">' +
     '<div class="metric"><div class="m-label">Facturación</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(facturaTxt)) + '</div><div class="m-sub">estado fiscal</div></div>' +
@@ -24362,10 +24384,11 @@ function renderDetalleVenta(v) {
         '<div style="font-weight:600;margin-bottom:12px">Rentabilidad interna</div>' +
         '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">' +
           '<div class="metric"><div class="m-label">Neto venta</div><div class="m-value">$' + Math.round(netoDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">subtotal − descuentos</div></div>' +
-          '<div class="metric"><div class="m-label">Costo productos</div><div class="m-value" style="color:var(--amber)">$' + Math.round(costoDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">compra × cantidad</div></div>' +
-          '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">$' + Math.round(gananciaDetalle).toLocaleString('es-AR') + '</div><div class="m-sub">neto − costo</div></div>' +
-          '<div class="metric"><div class="m-label">Margen</div><div class="m-value">' + margenDetalle.toFixed(1) + '%</div><div class="m-sub">sobre neto</div></div>' +
+          '<div class="metric"><div class="m-label">Costo productos</div><div class="m-value" style="color:var(--amber)">' + (costoDetalleInconsistente ? 'A revisar' : '$' + Math.round(costoDetalle).toLocaleString('es-AR')) + '</div><div class="m-sub">' + (costoDetalleInconsistente ? 'dato fuera de rango' : 'compra × cantidad') + '</div></div>' +
+          '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (costoDetalleInconsistente ? 'var(--amber)' : gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (costoDetalleInconsistente ? '—' : '$' + Math.round(gananciaDetalle).toLocaleString('es-AR')) + '</div><div class="m-sub">neto − costo</div></div>' +
+          '<div class="metric"><div class="m-label">Margen</div><div class="m-value">' + (costoDetalleInconsistente ? '—' : margenDetalle.toFixed(1) + '%') + '</div><div class="m-sub">sobre neto</div></div>' +
         '</div>' +
+        (costoDetalleInconsistente ? '<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--amber-bg);color:var(--amber);font-size:12px"><i class="ti ti-alert-triangle"></i> El costo guardado ($' + Math.round(costoDetalle).toLocaleString('es-AR') + ') supera ampliamente el importe de la venta. Revisá el precio de compra y la cantidad de los productos.</div>' : '') +
       '</div>' : '') +
 
     // Pagos
