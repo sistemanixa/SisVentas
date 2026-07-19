@@ -55,11 +55,13 @@
   function pagosDeVenta(v){
     var keys = ventaKeys(v);
     if(!keys.length) return [];
-    var pagos = arr(window._pagosListaActual || window._historialPagosCompleto || window.pagosData || window.pagosList);
+    var pagos = arr(window._historialPagosCompleto || window._pagosListaActual || window.pagosData || window.pagosList);
     var vistos = {};
     return pagos.filter(function(p){
       if(!p || p.anulado || norm(p.estado) === 'anulado') return false;
-      var match = pagoKeys(p).some(function(k){ return keys.indexOf(k) >= 0; });
+      var match = typeof window._svRegistroPerteneceVenta === 'function'
+        ? window._svRegistroPerteneceVenta(p, v)
+        : pagoKeys(p).some(function(k){ return keys.indexOf(k) >= 0; });
       if(!match) return false;
       var pk = String(p.fbKey || p.id || p.key || '') || [p.fecha || '', p.medio || p.medioPago || '', p.monto || 0, p.venta || p.ventaFbKey || ''].join('|');
       if(vistos[pk]) return false;
@@ -69,10 +71,8 @@
   }
   function pagadoVenta(v){
     var desdePagos = pagosDeVenta(v).reduce(function(s,p){ return s + numero(p && (p.monto || p.importe || p.total || p.pagado)); }, 0);
-    if (desdePagos > 0) return desdePagos;
     var directo = numero(v && (v.totalPagado != null ? v.totalPagado : v.pagado != null ? v.pagado : v.montoPagado));
-    if (directo > 0) return directo;
-    return esPagoTotal(v) ? totalVenta(v) : 0;
+    return Math.max(desdePagos, directo, esPagoTotal(v) ? totalVenta(v) : 0);
   }
   function ivaVenta(v){ return numero(v && (v.iva != null ? v.iva : v.ivaMonto != null ? v.ivaMonto : v.montoIva)); }
   window.svResumenVentas = function(opts){
@@ -80,33 +80,48 @@
     var mes = opts.mes || ymActual();
     var fuente = typeof window.obtenerVentasSisVentas === 'function' ? window.obtenerVentasSisVentas() : (window.ventasList || window.ventasData || []);
     var ventas = arr(fuente).filter(function(v){ return v && (!v.anulada || v.notaCredito); });
-    var fuentePendiente = typeof window.obtenerVentasPendientesHistoricasSisVentas === 'function'
-      ? window.obtenerVentasPendientesHistoricasSisVentas()
-      : [];
-    var ventasPendientesHistoricas = arr(fuentePendiente).filter(function(v){ return v && (!v.anulada || v.notaCredito); });
-    if (!ventasPendientesHistoricas.length) {
-      ventasPendientesHistoricas = ventas.filter(function(v){ return !esPagoTotal(v); });
-    }
+    var ventasPendientesHistoricas = ventas;
     var ventasMes = ventas.filter(function(v){ return fechaISO(v).slice(0,7) === mes; });
-    var totalMes = 0, cobradoMes = 0, ivaMes = 0, pendInstCant = 0, facturadasCant = 0;
+    var totalMes = 0, ivaMes = 0, pendInstCant = 0, facturadasCant = 0;
     ventasMes.forEach(function(v){
-      var total = totalVenta(v), pagado = Math.min(total, pagadoVenta(v));
-      totalMes += total; cobradoMes += pagado; ivaMes += ivaVenta(v);
+      var total = totalVenta(v);
+      totalMes += total; ivaMes += ivaVenta(v);
       if (!esInstalado(v)) pendInstCant++;
       if (v.factura || v.facturaCAE || (v.facturacion && v.facturacion.cae)) facturadasCant++;
     });
+    // La tarjeta mensual sigue la fecha real del cobro, aunque la venta sea de
+    // otro período.
+    var pagosMes = arr(window._historialPagosCompleto || window._pagosListaActual || window.pagosData || window.pagosList).filter(function(p){
+      return p && !p.anulado && norm(p.estado) !== 'anulado' && fechaISO(p).slice(0,7) === mes;
+    });
+    var cobradoMes = pagosMes.reduce(function(s,p){
+      return s + numero(p && (p.monto || p.importe || p.total || p.pagado));
+    }, 0);
     var pendienteTotal = 0, pendCobroCant = 0;
     var clientesPendientes = {};
-    ventasPendientesHistoricas.forEach(function(v){
-      var total = totalVenta(v), pagado = Math.min(total, pagadoVenta(v));
-      var saldo = Math.max(0, total - pagado);
-      if (saldo > 0.5) {
-        pendienteTotal += saldo;
-        pendCobroCant++;
-        var cliKey = String(v.clienteFbKey || v.clienteId || v.cliente || '').trim();
-        if (cliKey) clientesPendientes[cliKey] = true;
-      }
-    });
+    var mapaCC = window._ccMapActual;
+    if (mapaCC && Object.keys(mapaCC).length) {
+      Object.keys(mapaCC).forEach(function(k){
+        var d = mapaCC[k] || {};
+        var saldo = Math.max(0, numero(d.total) - numero(d.cobrado));
+        if (saldo > 0.5) {
+          pendienteTotal += saldo;
+          clientesPendientes[k] = true;
+        }
+      });
+      pendCobroCant = Object.keys(clientesPendientes).length;
+    } else {
+      ventasPendientesHistoricas.forEach(function(v){
+        var total = totalVenta(v), pagado = Math.min(total, pagadoVenta(v));
+        var saldo = Math.max(0, total - pagado);
+        if (saldo > 0.5) {
+          pendienteTotal += saldo;
+          pendCobroCant++;
+          var cliKey = String(v.clienteFbKey || v.clienteId || v.cliente || '').trim();
+          if (cliKey) clientesPendientes[cliKey] = true;
+        }
+      });
+    }
     return {
       mes: mes,
       ventas: ventas,
@@ -115,6 +130,7 @@
       totalMes: totalMes,
       cantidadMes: ventasMes.length,
       cobradoMes: cobradoMes,
+      cobrosMesCant: pagosMes.length,
       pendienteCobroTotal: pendienteTotal,
       pendienteCobroCant: pendCobroCant,
       pendienteClientesCant: Object.keys(clientesPendientes).length,
@@ -145,8 +161,8 @@
     setTxt('vm-pendiente', money(r.pendienteCobroTotal));
     setTxt('vm-iva', money(r.ivaMes));
     setSubForValue('vm-total-mes', r.cantidadMes + (r.cantidadMes===1 ? ' venta' : ' ventas') + ' en ' + mesLabel);
-    setSubForValue('vm-cobrado', 'pagado sobre ventas del mes');
-    setSubForValue('vm-pendiente', r.pendienteCobroCant + (r.pendienteCobroCant===1 ? ' venta' : ' ventas') + ' históricas sin cobrar');
+    setSubForValue('vm-cobrado', r.cobrosMesCant + (r.cobrosMesCant===1 ? ' pago registrado' : ' pagos registrados') + ' en ' + mesLabel);
+    setSubForValue('vm-pendiente', r.pendienteClientesCant + (r.pendienteClientesCant===1 ? ' cliente con saldo' : ' clientes con saldo'));
     setSubForValue('vm-iva', 'IVA real del mes');
   };
   function refrescarVentas310(){

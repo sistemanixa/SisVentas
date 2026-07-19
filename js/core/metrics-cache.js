@@ -70,7 +70,7 @@
   SV.Utils.medioTipo = medioTipo;
   SV.Utils.signoComprobante = signoComprobante;
 
-  SV.Cache.version = 'v2.0.89';
+  SV.Cache.version = 'v2.0.90';
   SV.Cache._builtAt = 0;
   SV.Cache.indexes = SV.Cache.indexes || {};
   SV.Cache.buildIndexes = function(force){
@@ -229,10 +229,13 @@
   function refrescarDashVentas312(){
     if(!(window.tienePermiso && window.tienePermiso('ventas.verDashboard'))) return;
     var m = SV.Metrics.ventas();
-    setText('vm-total-mes', money(m.ventasMes));
-    setText('vm-cobrado', money(m.cobradoMes));
-    setText('vm-pendiente', money(m.pendienteCobro));
-    setText('vm-iva', money(m.ivaMes));
+    // No reemplazar la cuenta corriente histórica por el saldo limitado a las
+    // ventas del mes. Compartir el mismo resumen conciliado que Ventas.
+    var resumen = typeof window.svResumenVentas === 'function' ? window.svResumenVentas() : null;
+    setText('vm-total-mes', money(resumen ? resumen.totalMes : m.ventasMes));
+    setText('vm-cobrado', money(resumen ? resumen.cobradoMes : m.cobradoMes));
+    setText('vm-pendiente', money(resumen ? resumen.pendienteCobroTotal : m.pendienteCobro));
+    setText('vm-iva', money(resumen ? resumen.ivaMes : m.ivaMes));
     setText('stat-ven-mes', money(m.ventasMes));
     setText('stat-ven-cant', String(m.cantidadMes));
     setText('stat-ven-pendiente', money(m.pendienteCobro));

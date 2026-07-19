@@ -4704,11 +4704,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.89-firebase',
+  VERSION: 'v2.0.90-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Al eliminar ítems de un presupuesto, subtotal, IVA y total se recalculan correctamente.',
-    'Presupuestos deja automáticamente una fila nueva lista después de cargar cada ítem.',
-    'Los precios sin verificar muestran una acción para actualizar el producto y volver al presupuesto.'
+    'Pendiente de cobro en Ventas ahora comparte exactamente la deuda conciliada del Dashboard.',
+    'Pagado este mes suma cobros por su fecha real, aunque correspondan a ventas anteriores.',
+    'Se eliminó la segunda rutina que sobrescribía las métricas correctas con valores mensuales.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
