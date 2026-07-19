@@ -4567,7 +4567,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.80-firebase',
+  VERSION: 'v2.0.81-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8679,6 +8679,23 @@ function _cfgVmPrecioVentaArs(p) {
   return venta;
 }
 
+function _cfgVmCostoActualArs(p) {
+  p = p || {};
+  var candidatos = [p.costoRealArs, p.precioGremio, p.compraARS];
+  for (var i = 0; i < candidatos.length; i++) {
+    var valor = parseFloat(candidatos[i]) || 0;
+    if (valor > 0) return valor;
+  }
+  return precioGremioARSDesdeProducto(p);
+}
+
+function _cfgVmValorAgregadoItem(p, costo, venta) {
+  var marcado = parseFloat((p || {}).margenDeseado);
+  if (marcado > 0 && marcado < 95) return marcado;
+  if (costo > 0 && venta > costo) return Math.round(((venta - costo) / venta * 100) * 100) / 100;
+  return margenProductoDefault();
+}
+
 function _cfgVmFirmaActual() {
   return [
     (document.getElementById('cfg-vm-alcance')||{}).value || '',
@@ -8765,21 +8782,26 @@ function cfgValoresMasivosPrevisualizar() {
 
     if (String(p.moneda || '').toUpperCase() === 'USD' && !(tc.valor > 0)) { omitidos += 1; return; }
     var anterior = _cfgVmPrecioVentaArs(p);
-    var costo = precioGremioARSDesdeProducto(p);
-    var baseNueva = 0;
+    var costoAnterior = _cfgVmCostoActualArs(p);
+    if (!(costoAnterior > 0)) { omitidos += 1; return; }
+    var valorAgregadoAnterior = _cfgVmValorAgregadoItem(p, costoAnterior, anterior);
+    var costoNuevo = costoAnterior;
+    var valorAgregadoNuevo = valorAgregadoAnterior;
     if (operacion === 'aumento') {
-      if (!(anterior > 0)) { omitidos += 1; return; }
-      baseNueva = anterior * (1 + porcentaje / 100);
+      costoNuevo = Math.round((costoAnterior * (1 + porcentaje / 100)) * 100) / 100;
     } else {
-      if (!(costo > 0)) { omitidos += 1; return; }
-      baseNueva = costo / (1 - porcentaje / 100);
+      valorAgregadoNuevo = porcentaje;
     }
+    var baseNueva = costoNuevo / (1 - valorAgregadoNuevo / 100);
     var nuevo = _cfgVmRedondearArriba(baseNueva, redondeo);
     if (!(nuevo > 0) || !isFinite(nuevo)) { omitidos += 1; return; }
     filas.push({
       producto: p,
       anterior: Math.round(anterior * 100) / 100,
-      costo: Math.round(costo * 100) / 100,
+      costoAnterior: Math.round(costoAnterior * 100) / 100,
+      costoNuevo: costoNuevo,
+      valorAgregadoAnterior: valorAgregadoAnterior,
+      valorAgregadoNuevo: valorAgregadoNuevo,
       nuevo: nuevo,
       porcentaje: porcentaje,
       operacion: operacion
@@ -8794,8 +8816,8 @@ function cfgValoresMasivosPrevisualizar() {
   var resumen = document.getElementById('cfg-vm-preview-resumen');
   if (resumen) {
     resumen.textContent = operacion === 'aumento'
-      ? 'Aumento de ' + porcentaje.toLocaleString('es-AR') + '% sobre el valor actual'
-      : 'Margen total de ' + porcentaje.toLocaleString('es-AR') + '% sobre venta';
+      ? 'Aumento de ' + porcentaje.toLocaleString('es-AR') + '% sobre el costo; conserva el valor agregado de cada ítem'
+      : 'Valor agregado fijo de ' + porcentaje.toLocaleString('es-AR') + '% sobre venta para todos los ítems';
     resumen.style.color = 'var(--text3)';
   }
   _set('cfg-vm-cantidad', filas.length);
@@ -8810,16 +8832,21 @@ function cfgValoresMasivosPrevisualizar() {
     body.innerHTML = filas.length ? filas.map(function(x) {
       var p = x.producto;
       var variacion = x.anterior > 0 ? ((x.nuevo / x.anterior - 1) * 100) : 0;
+      var valorAgregadoTexto = Math.abs(x.valorAgregadoAnterior - x.valorAgregadoNuevo) < 0.005
+        ? x.valorAgregadoNuevo.toFixed(1).replace('.', ',') + '%'
+        : x.valorAgregadoAnterior.toFixed(1).replace('.', ',') + '% → ' + x.valorAgregadoNuevo.toFixed(1).replace('.', ',') + '%';
       return '<tr>' +
         '<td style="white-space:nowrap">' + escapeHTML(p.codigo || '—') + '</td>' +
         '<td>' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</td>' +
         '<td>' + escapeHTML(_cfgVmEsManoDeObra(p) ? 'MANO DE OBRA' : (p.marca || 'Sin marca')) + '</td>' +
-        '<td style="text-align:right;color:var(--text3)">$' + Math.round(x.costo).toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;color:var(--text3)">$' + Math.round(x.costoAnterior).toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;color:' + (x.costoNuevo !== x.costoAnterior ? 'var(--amber)' : 'var(--text3)') + '">$' + Math.round(x.costoNuevo).toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;white-space:nowrap;color:var(--blue)">' + valorAgregadoTexto + '</td>' +
         '<td style="text-align:right">$' + Math.round(x.anterior).toLocaleString('es-AR') + '</td>' +
         '<td style="text-align:right;color:var(--green);font-weight:700">$' + Math.round(x.nuevo).toLocaleString('es-AR') + '</td>' +
         '<td style="text-align:right;color:' + (variacion >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (variacion >= 0 ? '+' : '') + variacion.toFixed(1).replace('.', ',') + '%</td>' +
       '</tr>';
-    }).join('') : '<tr><td colspan="7" style="text-align:center;padding:22px;color:var(--text3)">No hay productos con datos suficientes para aplicar este cambio.</td></tr>';
+    }).join('') : '<tr><td colspan="9" style="text-align:center;padding:22px;color:var(--text3)">No hay productos con datos suficientes para aplicar este cambio.</td></tr>';
   }
   var btn = document.getElementById('cfg-vm-aplicar');
   if (btn) btn.disabled = !filas.length;
@@ -8837,7 +8864,9 @@ async function cfgValoresMasivosAplicar() {
   var porcentaje = filas[0].porcentaje;
   var promedioAnterior = filas.reduce(function(s,x){ return s+x.anterior; },0) / filas.length;
   var promedioNuevo = filas.reduce(function(s,x){ return s+x.nuevo; },0) / filas.length;
-  var descripcion = operacion === 'aumento' ? 'aumentar ' + porcentaje + '% el valor actual' : 'fijar un margen total de ' + porcentaje + '%';
+  var descripcion = operacion === 'aumento'
+    ? 'aumentar ' + porcentaje + '% el costo y conservar el valor agregado individual'
+    : 'fijar un valor agregado de ' + porcentaje + '% sobre venta';
   if (!confirm('Se modificarán ' + filas.length + ' productos para ' + descripcion + '.\n\nPromedio anterior: $' + Math.round(promedioAnterior).toLocaleString('es-AR') + '\nPromedio nuevo: $' + Math.round(promedioNuevo).toLocaleString('es-AR') + '\n\n¿Querés continuar?')) return;
   if (!confirm('CONFIRMACIÓN FINAL\n\nEsta operación cambiará los precios del catálogo de forma masiva. Las ventas históricas no se modificarán.\n\n¿Aplicar ahora?')) return;
 
@@ -8850,6 +8879,19 @@ async function cfgValoresMasivosAplicar() {
     var p = x.producto;
     var base = p.fbKey + '/';
     var monedaUsd = String(p.moneda || '').toUpperCase() === 'USD';
+    if (operacion === 'aumento') {
+      cambios[base + 'costoRealArs'] = x.costoNuevo;
+      cambios[base + 'precioGremio'] = x.costoNuevo;
+      cambios[base + 'compraARS'] = x.costoNuevo;
+      if (monedaUsd) {
+        var costoNuevoUsd = Math.round((x.costoNuevo / tc.valor) * 100) / 100;
+        cambios[base + 'compra'] = costoNuevoUsd;
+        cambios[base + 'compraUSD'] = costoNuevoUsd;
+      } else {
+        cambios[base + 'compra'] = x.costoNuevo;
+        if (tc.valor > 0) cambios[base + 'compraUSD'] = Math.round((x.costoNuevo / tc.valor) * 100) / 100;
+      }
+    }
     cambios[base + 'ventaARS'] = x.nuevo;
     cambios[base + 'precioArsPublicadoVenta'] = x.nuevo;
     if (monedaUsd) {
@@ -8862,8 +8904,7 @@ async function cfgValoresMasivosAplicar() {
       cambios[base + 'venta'] = x.nuevo;
       if (tc.valor > 0) cambios[base + 'ventaUSD'] = Math.round((x.nuevo / tc.valor) * 100) / 100;
     }
-    var margenResultante = x.costo > 0 && x.nuevo > x.costo ? ((x.nuevo - x.costo) / x.nuevo * 100) : 0;
-    cambios[base + 'margenDeseado'] = operacion === 'margen' ? porcentaje : Math.round(margenResultante * 100) / 100;
+    cambios[base + 'margenDeseado'] = Math.round(x.valorAgregadoNuevo * 100) / 100;
     cambios[base + 'precioVentaActualizadoEn'] = ahora;
     cambios[base + 'precioVentaActualizadoOrigen'] = 'configuracion_masiva';
   });
