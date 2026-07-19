@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.72-firebase',
+  VERSION: 'v2.0.73-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6218,7 +6218,8 @@ function confirmarVenta() {
     registrarActividad('Venta creada', nuevaVenta.id + ' — ' + cli + ' — $' + Math.round(nuevaVenta.total).toLocaleString('es-AR'));
   }
 
-  if (!window._editandoVentaId && !nuevaVenta.ventaEditada && typeof generarOTdesdeVenta === 'function') generarOTdesdeVenta(nuevaVenta.id, cli, dir);
+  // La OT se habilita con el primer pago. Una venta todavía sin seña queda
+  // únicamente en estado comercial hasta que Cobranzas registre un importe.
 
   // Reset del formulario
   setTimeout(function() {
@@ -14072,6 +14073,18 @@ function imprimirPresupuesto() {
   w.document.close();
   setTimeout(function(){ w.print(); }, 600);
 }
+function asegurarOTVentaConPago(ventaObj, totalPagado) {
+  if (!ventaObj || !(parseFloat(totalPagado) > 0) || typeof generarOTdesdeVenta !== 'function') return '';
+  var existente = (otData || []).find(function(ot) {
+    return typeof _svRegistroPerteneceVenta === 'function' && _svRegistroPerteneceVenta(ot, ventaObj);
+  });
+  if (existente) return existente.id || existente.fbKey || '';
+  var ventaId = ventaObj.id || ventaObj.numero || ventaObj.fbKey || '';
+  if (!ventaId) return '';
+  var direccion = ventaObj.direccion || ventaObj.dir || ventaObj.direccionInstalacion || '';
+  return generarOTdesdeVenta(ventaId, ventaObj.cliente || '', direccion);
+}
+
 function registrarPago() {
   var venta  = document.getElementById('cob-venta').value.trim();
   var monto  = getMontoRaw(document.getElementById('cob-monto'));
@@ -14113,9 +14126,17 @@ function registrarPago() {
         var pagosAnt   = parseFloat(ventaObj.totalPagado)||0;
         var nuevoTotal = pagosAnt + monto;
         var nuevoEstado = nuevoTotal >= totalVenta ? 'pago_total' : nuevoTotal > 0 ? 'seniado' : 'pendiente_pago';
-        window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaObj.fbKey), {
+        var actualizarVentaPago = window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaObj.fbKey), {
           estadoPago: nuevoEstado,
           totalPagado: nuevoTotal
+        });
+        actualizarVentaPago.then(function() {
+          asegurarOTVentaConPago(Object.assign({}, ventaObj, {
+            estadoPago: nuevoEstado,
+            totalPagado: nuevoTotal
+          }), nuevoTotal);
+        }).catch(function(e) {
+          console.warn('[OT desde seña]', e);
         });
         if (nuevoEstado === 'pago_total') {
           generarComisionesVenta(ventaObj, nuevoTotal);
@@ -14125,8 +14146,7 @@ function registrarPago() {
       if (typeof registrarActividad === 'function') {
         registrarActividad('Pago registrado', venta + ' — ' + (pago.cliente||'') + ' — $' + Math.round(monto).toLocaleString('es-AR') + ' (' + medio + ')');
       }
-      // Cobrar una venta no debe crear OT. La OT se genera únicamente desde el
-      // flujo comercial/técnico correspondiente, no desde Cobranzas.
+      // Desde la primera seña Cobranzas asegura la OT; el pago total no es requisito.
       // Ofrecer imprimir recibo
       window._ultimoPagoId = ref.key;
       window._ultimoPago   = pago;
