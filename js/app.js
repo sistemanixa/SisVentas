@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.73-firebase',
+  VERSION: 'v2.0.74-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -25012,9 +25012,9 @@ function verVenta(id) {
 // Inicializar al entrar
 
 var CONFIG_COMISIONES = {
-  'Cat. 39': { pct: 2.5, min: 0, max: 999999 },
-  'Cat. 15': { pct: 1.5, min: 0, max: 999999 },
-  'Cat. 08': { pct: 1.0, min: 0, max: 999999 }
+  'Cat. 39': { pct: 2.5, min: 0, max: 0 },
+  'Cat. 15': { pct: 1.5, min: 0, max: 0 },
+  'Cat. 08': { pct: 1.0, min: 0, max: 0 }
 };
 
 function _normComisionKey(v) {
@@ -25057,10 +25057,13 @@ function obtenerConfigComisionCargo(cargoId) {
 
 function guardarConfigComisionCargo(cargoId, cfg) {
   if (!cargoId) return;
+  var maximo = parseFloat(cfg && cfg.max) || 0;
+  // Compatibilidad: 999999 era el marcador histórico de "sin tope".
+  if (maximo >= 999999) maximo = 0;
   CONFIG_COMISIONES[cargoId] = {
     pct: parseFloat(cfg && cfg.pct) || 0,
     min: parseFloat(cfg && cfg.min) || 0,
-    max: parseFloat(cfg && cfg.max) || 0
+    max: maximo
   };
 }
 
@@ -25087,11 +25090,13 @@ function renderComisionesConfig() {
     return;
   }
   ids.sort(function(a,b){ return ((CARGOS_DATA[a]||{}).nombre||a).localeCompare(((CARGOS_DATA[b]||{}).nombre||b)); });
-  var inp = function(val, w) {
-    return '<input type="number" value="'+(parseFloat(val)||0)+'" style="width:'+w+'px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">';
+  var inp = function(val, w, sinTope) {
+    var numero = parseFloat(val) || 0;
+    var valor = sinTope && (numero <= 0 || numero >= 999999) ? '' : numero;
+    return '<input type="number" value="'+valor+'" '+(sinTope?'placeholder="Sin tope" title="Dejá vacío para no aplicar un tope"':'')+' style="width:'+w+'px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">';
   };
   tbody.innerHTML =
-    '<tr><th>Cargo</th><th style="text-align:right">% sobre venta</th><th style="text-align:right">Mínimo garantizado</th><th style="text-align:right">Tope máximo</th><th></th></tr>' +
+    '<tr><th>Cargo</th><th style="text-align:right">% sobre venta</th><th style="text-align:right">Mínimo garantizado ($)</th><th style="text-align:right">Tope máximo ($)</th><th></th></tr>' +
     ids.map(function(id) {
       var c = CARGOS_DATA[id] || {};
       var com = obtenerConfigComisionCargo(id) || {};
@@ -25099,7 +25104,7 @@ function renderComisionesConfig() {
         '<td style="font-weight:500">'+escapeHTML(c.nombre||id)+'</td>' +
         '<td style="text-align:right">'+inp(com.pct||0, 60)+'%</td>' +
         '<td style="text-align:right">'+inp(com.min||0, 80)+'</td>' +
-        '<td style="text-align:right">'+inp(com.max||0, 80)+'</td>' +
+        '<td style="text-align:right">'+inp(com.max||0, 100, true)+'</td>' +
         '<td><button class="btn btn-sm btn-icon" onclick="guardarFilaConfig(this)" title="Guardar"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button></td>' +
       '</tr>';
     }).join('');
@@ -25286,7 +25291,11 @@ function actualizarInputsComisiones() {
     var inputs = tr.querySelectorAll('input[type=number]');
     if (inputs[0]) inputs[0].value = parseFloat(cfg.pct || 0) || 0;
     if (inputs[1]) inputs[1].value = parseFloat(cfg.min || 0) || 0;
-    if (inputs[2]) inputs[2].value = parseFloat(cfg.max || 0) || 0;
+    if (inputs[2]) {
+      var maximo = parseFloat(cfg.max || 0) || 0;
+      inputs[2].value = maximo > 0 && maximo < 999999 ? maximo : '';
+      inputs[2].placeholder = 'Sin tope';
+    }
   });
 }
 
@@ -25316,7 +25325,9 @@ function calcularComisionEmpleado(emp, mesAMM) {
 
   var totalVentas = ventas.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
   var comision    = totalVentas * (cfgCat.pct||0) / 100;
-  var comisionFinal = Math.max(cfgCat.min||0, Math.min(cfgCat.max||999999, comision));
+  var topeMaximo = parseFloat(cfgCat.max) || 0;
+  if (topeMaximo >= 999999) topeMaximo = 0;
+  var comisionFinal = Math.max(cfgCat.min||0, topeMaximo > 0 ? Math.min(topeMaximo, comision) : comision);
 
   return {
     totalVentas: totalVentas,

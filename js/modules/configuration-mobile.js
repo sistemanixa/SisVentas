@@ -120,9 +120,10 @@
     list.innerHTML='<div class="sv331-com-head"><span>Cargo</span><span>% venta</span><span>Mín.</span><span>Tope</span><span></span></div>'+ids.map(function(id){
       var c=CARGOS_DATA[id]||{}, com=(typeof obtenerConfigComisionCargo==='function'?obtenerConfigComisionCargo(id):((window.CONFIG_COMISIONES||{})[id]))||{};
       var maxv=parseFloat(com.max||0)||0;
-      return '<div class="sv331-com-row" data-cargo-id="'+esc331(id)+'"><div><div class="sv331-title" style="font-size:13px">'+esc331(c.nombre||id)+'</div></div>'+ 
-        '<input type="number" value="'+(parseFloat(com.pct)||0)+'"><input type="number" value="'+(parseFloat(com.min)||0)+'"><input type="number" value="'+(maxv||0)+'"><button class="btn btn-sm btn-icon" onclick="guardarComisionMobile331(\''+esc331(id)+'\',this)"><i class="ti ti-check" style="color:var(--green)"></i></button></div>';
-    }).join('')+'<div class="sv331-info-card">Usá el ✓ de cada fila para guardar la comisión de ese cargo individualmente. Los cargos se administran en la solapa <b>Cargos</b>.</div>';
+      if(maxv>=999999) maxv=0;
+      return '<div class="sv331-com-row" data-cargo-id="'+esc331(id)+'"><div><div class="sv331-title" style="font-size:13px">'+esc331(c.nombre||id)+'</div></div>'+
+        '<input type="number" value="'+(parseFloat(com.pct)||0)+'"><input type="number" value="'+(parseFloat(com.min)||0)+'"><input type="number" value="'+(maxv||'')+'" placeholder="Sin tope" title="Dejá vacío para no aplicar un tope"><button class="btn btn-sm btn-icon" onclick="guardarComisionMobile331(\''+esc331(id)+'\',this)"><i class="ti ti-check" style="color:var(--green)"></i></button></div>';
+    }).join('')+'<div class="sv331-info-card">El mínimo y el tope son montos en pesos. Dejá el tope vacío para indicar <b>Sin tope</b>.</div>';
     card.appendChild(list);
   }
   var actPage331=1, actPageSize331=8;
