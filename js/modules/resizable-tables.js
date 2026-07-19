@@ -347,7 +347,10 @@
   }
 
   function shouldApplyDefaultPercentProfile(table) {
-    return !!(table && (table.id === 'prod-tbl' || table.id === 'gas-tbl' || table.id === 'ppto-tabla' || table.id === 'ventas-tbl' || table.id === 'venta-items-tbl'));
+    return !!(table && (
+      table.id === 'prod-tbl' || table.id === 'gas-tbl' || table.id === 'ppto-tabla' ||
+      table.id === 'ventas-tbl' || table.id === 'venta-items-tbl' || pageId(table) === 'page-ctaemp'
+    ));
   }
 
   function currentPercentages(table) {
@@ -376,15 +379,21 @@
     var totalPct = Object.keys(percentages || {}).reduce(function (sum, key) {
       return sum + normalizePercent(percentages[key]);
     }, 0);
+    // En Mi cuenta las tablas deben aprovechar siempre todo el contenedor.
+    // Si un perfil viejo suma menos de 100%, conservar sus proporciones pero
+    // escalar visualmente las columnas para eliminar el espacio vacío lateral.
+    var completarAncho = pageId(table) === 'page-ctaemp' && totalPct > 0 && totalPct < 100;
+    var factorAncho = completarAncho ? (100 / totalPct) : 1;
     table.classList.add('sv-percent-table');
     table.style.setProperty('--sv-percent-total-width', Math.max(100, Math.round(totalPct * 10) / 10) + '%');
     table.style.width = 'var(--sv-percent-total-width, 100%)';
     table.style.tableLayout = 'fixed';
     headers.forEach(function (_th, index) {
       var pct = normalizePercent(percentages[index]);
+      var pctVisual = pct * factorAncho;
       var physicalIndex = physicalIndexForVisibleIndex(table, index);
       if (colgroup.children[physicalIndex]) {
-        colgroup.children[physicalIndex].style.width = (pct > 0 ? pct : 1) + '%';
+        colgroup.children[physicalIndex].style.width = (pctVisual > 0 ? pctVisual : 1) + '%';
       }
       columnCells(table, index).forEach(function (cell) {
         cell.style.width = '';

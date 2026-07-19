@@ -4649,11 +4649,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.85-firebase',
+  VERSION: 'v2.0.86-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Notificaciones ahora muestra un historial más limpio de comunicados.',
-    'El nuevo comunicado se redacta en un modal oscuro, centrado y optimizado para celular.',
-    'Después de enviarlo, el editor se cierra y continúa en el historial.'
+    'Las tablas de Mi cuenta ahora aprovechan todo el ancho disponible.',
+    'Los perfiles de columnas anteriores conservan su proporción sin dejar espacios vacíos.',
+    'En pantallas pequeñas se mantiene el desplazamiento horizontal cuando es necesario.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
