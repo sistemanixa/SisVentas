@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.76-firebase',
+  VERSION: 'v2.0.77-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7410,6 +7410,11 @@ function abrirFormProducto(id) {
       catSel.innerHTML += '<option value="'+escapeHTML(p.categoria)+'" selected>'+escapeHTML(p.categoria)+'</option>';
     }
   }
+  var marcaEl = document.getElementById('pf-marca');
+  var marcasListEl = document.getElementById('pf-marcas-list');
+  var marcasDisponibles = [...new Set(Object.values(prodData||{}).map(function(x){ return String(x.marca||'').trim().toUpperCase(); }).filter(Boolean))].sort();
+  if (marcaEl) marcaEl.value = String(p.marca || '').toUpperCase();
+  if (marcasListEl) marcasListEl.innerHTML = marcasDisponibles.map(function(m){ return '<option value="'+escapeHTML(m)+'"></option>'; }).join('');
   // Campo URL proveedor (codWeb)
   var cwEl = document.getElementById('pf-cod-web');
   if (cwEl) cwEl.value = p.codWeb || p.urlProveedor || '';
@@ -8097,6 +8102,7 @@ function guardarProducto() {
     descripcion:  desc,
     nombre:       document.getElementById('pf-nombre').value.trim() || desc,
     descripcion:  desc,
+    marca:        String((document.getElementById('pf-marca')||{}).value || '').trim().toUpperCase(),
     categoria:    document.getElementById('pf-categoria').value,
     proveedores:  esManoObra ? null : proveedoresValidos,
     proveedor:    esManoObra ? null : (proveedorPrincipal ? proveedorPrincipal.nombre : ''),
@@ -8593,9 +8599,238 @@ function calcSaldoTrasCobranza() {
   el.value='$'+Math.round(nuevo).toLocaleString('es-AR');
   el.style.color=nuevo===0?'var(--green)':'var(--amber)';
 }
+
+var _cfgValoresMasivosPreview = [];
+var _cfgValoresMasivosFirma = '';
+var _cfgValoresMasivosOmitidos = 0;
+
+function _cfgVmNormalizar(valor) {
+  return String(valor || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function _cfgVmEsManoDeObra(p) {
+  p = p || {};
+  return p.esManoDeObra === true || p.esManoObra === true || p.esManoDeObra === 1 || String(p.esManoDeObra || '').toLowerCase() === 'true';
+}
+
+function _cfgVmPrecioVentaArs(p) {
+  p = p || {};
+  var ventaArs = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || 0) || 0;
+  if (ventaArs > 0) return ventaArs;
+  var venta = parseFloat(p.venta || p.precio_venta || p.precioVenta || 0) || 0;
+  if (String(p.moneda || '').toUpperCase() === 'USD') {
+    var tc = obtenerDolarReferenciaProducto();
+    var ventaUsd = parseFloat(p.ventaUSD || venta) || 0;
+    return tc.valor > 0 ? ventaUsd * tc.valor : 0;
+  }
+  return venta;
+}
+
+function _cfgVmFirmaActual() {
+  return [
+    (document.getElementById('cfg-vm-alcance')||{}).value || '',
+    (document.getElementById('cfg-vm-marca')||{}).value || '',
+    (document.getElementById('cfg-vm-operacion')||{}).value || '',
+    (document.getElementById('cfg-vm-porcentaje')||{}).value || '',
+    (document.getElementById('cfg-vm-redondeo')||{}).value || ''
+  ].join('|');
+}
+
+function cfgValoresMasivosInvalidar() {
+  _cfgValoresMasivosFirma = '';
+  var btn = document.getElementById('cfg-vm-aplicar');
+  if (btn) btn.disabled = true;
+  var resumen = document.getElementById('cfg-vm-preview-resumen');
+  if (resumen && _cfgValoresMasivosPreview.length) {
+    resumen.textContent = 'La configuración cambió: recalculá la vista previa';
+    resumen.style.color = 'var(--amber)';
+  }
+}
+
+function cfgValoresMasivosCambiarAlcance() {
+  var alcance = (document.getElementById('cfg-vm-alcance')||{}).value || 'mano_obra';
+  var marcaBox = document.getElementById('cfg-vm-marca-box');
+  var operacion = document.getElementById('cfg-vm-operacion');
+  if (marcaBox) marcaBox.style.display = alcance === 'marca' ? '' : 'none';
+  if (operacion) operacion.value = alcance === 'marca' ? 'margen' : 'aumento';
+  cfgValoresMasivosInvalidar();
+}
+
+function renderCfgValoresMasivos() {
+  if (currentRole !== 'admin') return;
+  var marcas = [...new Set(Object.values(prodData || {}).map(function(p){ return String(p.marca || '').trim().toUpperCase(); }).filter(Boolean))].sort();
+  var lista = document.getElementById('cfg-vm-marcas-list');
+  if (lista) lista.innerHTML = marcas.map(function(m){ return '<option value="' + escapeHTML(m) + '"></option>'; }).join('');
+  cfgValoresMasivosCambiarAlcance();
+}
+
+function _cfgVmRedondearArriba(valor, multiplo) {
+  var n = parseFloat(valor) || 0;
+  var paso = parseFloat(multiplo) || 1;
+  if (paso <= 1) return Math.round(n * 100) / 100;
+  return Math.ceil((n - 0.0000001) / paso) * paso;
+}
+
+function cfgValoresMasivosPrevisualizar() {
+  if (currentRole !== 'admin') { notify('Solo el administrador puede cambiar valores masivamente'); return; }
+  var alcance = (document.getElementById('cfg-vm-alcance')||{}).value || 'mano_obra';
+  var operacion = (document.getElementById('cfg-vm-operacion')||{}).value || 'aumento';
+  var porcentaje = parseFloat((document.getElementById('cfg-vm-porcentaje')||{}).value);
+  var redondeo = parseFloat((document.getElementById('cfg-vm-redondeo')||{}).value) || 1;
+  var marcaBuscada = _cfgVmNormalizar((document.getElementById('cfg-vm-marca')||{}).value || '');
+
+  if (!(porcentaje >= 0)) { notify('Ingresá un porcentaje válido'); return; }
+  if (operacion === 'margen' && porcentaje >= 95) { notify('El margen total debe ser menor a 95%'); return; }
+  if (operacion === 'aumento' && porcentaje > 500) { notify('El aumento máximo permitido es 500%'); return; }
+  if (alcance === 'marca' && marcaBuscada.length < 2) { notify('Ingresá la marca que querés modificar'); return; }
+
+  var tc = obtenerDolarReferenciaProducto();
+  var filas = [];
+  var coincidencias = 0;
+  var omitidos = 0;
+  Object.values(prodData || {}).forEach(function(p) {
+    var coincide = false;
+    if (alcance === 'mano_obra') {
+      coincide = _cfgVmEsManoDeObra(p);
+    } else {
+      var marcaProducto = _cfgVmNormalizar(p.marca || '');
+      var textoProducto = _cfgVmNormalizar([p.nombre, p.descripcion, p.codigo].filter(Boolean).join(' '));
+      coincide = marcaProducto === marcaBuscada || textoProducto.indexOf(marcaBuscada) >= 0;
+    }
+    if (!coincide || !p.fbKey) return;
+    coincidencias += 1;
+
+    if (String(p.moneda || '').toUpperCase() === 'USD' && !(tc.valor > 0)) { omitidos += 1; return; }
+    var anterior = _cfgVmPrecioVentaArs(p);
+    var costo = precioGremioARSDesdeProducto(p);
+    var baseNueva = 0;
+    if (operacion === 'aumento') {
+      if (!(anterior > 0)) { omitidos += 1; return; }
+      baseNueva = anterior * (1 + porcentaje / 100);
+    } else {
+      if (!(costo > 0)) { omitidos += 1; return; }
+      baseNueva = costo / (1 - porcentaje / 100);
+    }
+    var nuevo = _cfgVmRedondearArriba(baseNueva, redondeo);
+    if (!(nuevo > 0) || !isFinite(nuevo)) { omitidos += 1; return; }
+    filas.push({
+      producto: p,
+      anterior: Math.round(anterior * 100) / 100,
+      costo: Math.round(costo * 100) / 100,
+      nuevo: nuevo,
+      porcentaje: porcentaje,
+      operacion: operacion
+    });
+  });
+
+  _cfgValoresMasivosPreview = filas;
+  _cfgValoresMasivosOmitidos = omitidos;
+  _cfgValoresMasivosFirma = _cfgVmFirmaActual();
+  var card = document.getElementById('cfg-vm-preview-card');
+  if (card) card.style.display = '';
+  var resumen = document.getElementById('cfg-vm-preview-resumen');
+  if (resumen) {
+    resumen.textContent = operacion === 'aumento'
+      ? 'Aumento de ' + porcentaje.toLocaleString('es-AR') + '% sobre el valor actual'
+      : 'Margen total de ' + porcentaje.toLocaleString('es-AR') + '% sobre venta';
+    resumen.style.color = 'var(--text3)';
+  }
+  _set('cfg-vm-cantidad', filas.length);
+  _set('cfg-vm-omitidos', omitidos + ' omitido' + (omitidos === 1 ? '' : 's') + ' de ' + coincidencias + ' coincidencia' + (coincidencias === 1 ? '' : 's'));
+  var promAnterior = filas.length ? filas.reduce(function(s,x){ return s + x.anterior; },0) / filas.length : 0;
+  var promNuevo = filas.length ? filas.reduce(function(s,x){ return s + x.nuevo; },0) / filas.length : 0;
+  _set('cfg-vm-prom-anterior', '$' + Math.round(promAnterior).toLocaleString('es-AR'));
+  _set('cfg-vm-prom-nuevo', '$' + Math.round(promNuevo).toLocaleString('es-AR'));
+
+  var body = document.getElementById('cfg-vm-preview-body');
+  if (body) {
+    body.innerHTML = filas.length ? filas.map(function(x) {
+      var p = x.producto;
+      var variacion = x.anterior > 0 ? ((x.nuevo / x.anterior - 1) * 100) : 0;
+      return '<tr>' +
+        '<td style="white-space:nowrap">' + escapeHTML(p.codigo || '—') + '</td>' +
+        '<td>' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</td>' +
+        '<td>' + escapeHTML(_cfgVmEsManoDeObra(p) ? 'MANO DE OBRA' : (p.marca || 'Sin marca')) + '</td>' +
+        '<td style="text-align:right;color:var(--text3)">$' + Math.round(x.costo).toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right">$' + Math.round(x.anterior).toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;color:var(--green);font-weight:700">$' + Math.round(x.nuevo).toLocaleString('es-AR') + '</td>' +
+        '<td style="text-align:right;color:' + (variacion >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (variacion >= 0 ? '+' : '') + variacion.toFixed(1).replace('.', ',') + '%</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="7" style="text-align:center;padding:22px;color:var(--text3)">No hay productos con datos suficientes para aplicar este cambio.</td></tr>';
+  }
+  var btn = document.getElementById('cfg-vm-aplicar');
+  if (btn) btn.disabled = !filas.length;
+}
+
+async function cfgValoresMasivosAplicar() {
+  if (currentRole !== 'admin') { notify('Solo el administrador puede realizar esta operación'); return; }
+  if (!_cfgValoresMasivosPreview.length || _cfgValoresMasivosFirma !== _cfgVmFirmaActual()) {
+    notify('Recalculá la vista previa antes de aplicar');
+    return;
+  }
+  if (!window.fbDB) { notify('Sin conexión con Firebase'); return; }
+  var filas = _cfgValoresMasivosPreview.slice();
+  var operacion = filas[0].operacion;
+  var porcentaje = filas[0].porcentaje;
+  var promedioAnterior = filas.reduce(function(s,x){ return s+x.anterior; },0) / filas.length;
+  var promedioNuevo = filas.reduce(function(s,x){ return s+x.nuevo; },0) / filas.length;
+  var descripcion = operacion === 'aumento' ? 'aumentar ' + porcentaje + '% el valor actual' : 'fijar un margen total de ' + porcentaje + '%';
+  if (!confirm('Se modificarán ' + filas.length + ' productos para ' + descripcion + '.\n\nPromedio anterior: $' + Math.round(promedioAnterior).toLocaleString('es-AR') + '\nPromedio nuevo: $' + Math.round(promedioNuevo).toLocaleString('es-AR') + '\n\n¿Querés continuar?')) return;
+  if (!confirm('CONFIRMACIÓN FINAL\n\nEsta operación cambiará los precios del catálogo de forma masiva. Las ventas históricas no se modificarán.\n\n¿Aplicar ahora?')) return;
+
+  var btn = document.getElementById('cfg-vm-aplicar');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Aplicando...'; }
+  var cambios = {};
+  var ahora = Date.now();
+  var tc = obtenerDolarReferenciaProducto();
+  filas.forEach(function(x) {
+    var p = x.producto;
+    var base = p.fbKey + '/';
+    var monedaUsd = String(p.moneda || '').toUpperCase() === 'USD';
+    cambios[base + 'ventaARS'] = x.nuevo;
+    cambios[base + 'precioArsPublicadoVenta'] = x.nuevo;
+    if (monedaUsd) {
+      var nuevoUsd = Math.round((x.nuevo / tc.valor) * 100) / 100;
+      cambios[base + 'venta'] = nuevoUsd;
+      cambios[base + 'ventaUSD'] = nuevoUsd;
+      cambios[base + 'tcGuardado'] = tc.valor;
+      cambios[base + 'tcTipoGuardado'] = tc.tipo;
+    } else {
+      cambios[base + 'venta'] = x.nuevo;
+      if (tc.valor > 0) cambios[base + 'ventaUSD'] = Math.round((x.nuevo / tc.valor) * 100) / 100;
+    }
+    var margenResultante = x.costo > 0 && x.nuevo > x.costo ? ((x.nuevo - x.costo) / x.nuevo * 100) : 0;
+    cambios[base + 'margenDeseado'] = operacion === 'margen' ? porcentaje : Math.round(margenResultante * 100) / 100;
+    cambios[base + 'precioVentaActualizadoEn'] = ahora;
+    cambios[base + 'precioVentaActualizadoOrigen'] = 'configuracion_masiva';
+  });
+
+  try {
+    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos), cambios);
+    if (typeof registrarActividad === 'function') {
+      registrarActividad('Precios actualizados masivamente', filas.length + ' producto' + (filas.length === 1 ? '' : 's') + ' — ' + descripcion);
+    }
+    notify('✓ Se actualizaron ' + filas.length + ' productos');
+    _cfgValoresMasivosPreview = [];
+    _cfgValoresMasivosFirma = '';
+    var resumen = document.getElementById('cfg-vm-preview-resumen');
+    if (resumen) { resumen.textContent = 'Cambios aplicados correctamente'; resumen.style.color = 'var(--green)'; }
+    if (typeof renderTablaProductos === 'function') renderTablaProductos();
+  } catch (e) {
+    notify('No se pudieron aplicar los cambios: ' + (e.message || 'Error'));
+    if (btn) btn.disabled = false;
+  } finally {
+    if (btn) btn.innerHTML = '<i class="ti ti-check"></i> Aplicar cambios';
+  }
+}
+
 function showCfgTab(id, el) {
   if (id === 'asistente' && currentRole !== 'admin' && currentRole !== 'administrativo') {
     notify('Acceso restringido para tu rol');
+    return;
+  }
+  if (id === 'valoresmasivos' && currentRole !== 'admin') {
+    notify('Solo el administrador puede modificar valores masivamente');
     return;
   }
   var generalPanel = document.getElementById('cfg-general');
@@ -8609,6 +8844,7 @@ function showCfgTab(id, el) {
   if (id === 'productos' && typeof actualizarStatProductos === 'function') setTimeout(actualizarStatProductos, 200);
   if (id === 'cargos') renderCargosConfig();
   if (id === 'comisiones') renderComisionesConfig();
+  if (id === 'valoresmasivos') renderCfgValoresMasivos();
   if (id === 'notificaciones' && typeof renderConfigAlertas === 'function') renderConfigAlertas();
   if (id === 'actividad') cargarLogActividad();
   if (id === 'mantenimiento' && typeof mntInicializar === 'function') mntInicializar();
