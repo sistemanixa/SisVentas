@@ -3198,6 +3198,7 @@ function fbCargarProductos() {
       if (typeof renderTablaProductos === 'function') renderTablaProductos();
       if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
       if (typeof actualizarVigenciaPreciosDashboard === 'function') actualizarVigenciaPreciosDashboard();
+      if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
       if (typeof limpiarProveedoresManoDeObraExistentes === 'function') limpiarProveedoresManoDeObraExistentes();
       // la misma variable editingProdId), refrescarlo — es de solo lectura
       var prodDetEl = document.getElementById('prod-detail-view');
@@ -4264,8 +4265,8 @@ var notifT;
 var PERMISOS_DEFAULT = {
   admin:          { bloqueados: [] },
   administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad','tesoreria'] },
-  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal','gastos','tesoreria'] },
-  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal','caja','gastos','clientes','productos','kits','tesoreria'] }
+  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal','gastos','tesoreria','actualizadorprecios'] },
+  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal','caja','gastos','clientes','productos','kits','tesoreria','actualizadorprecios'] }
 };
 var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 // Fuente única para decisiones de permisos en botones/acciones.
@@ -4282,6 +4283,7 @@ function esAdministrativo() { return rolActualNormalizado() === 'administrativo'
 function esTecnico() { return rolActualNormalizado() === 'tecnico'; }
 function esAdminOAdministrativo() { return esAdmin() || esAdministrativo(); }
 function permisoModulo(idModulo) {
+  if (idModulo === 'actualizadorprecios' && !esAdminOAdministrativo()) return false;
   if (window.SisVentas && window.SisVentas.Access) {
     if (idModulo === 'tesoreria' && !esAdmin()) return false;
     return window.SisVentas.Access.canAccess(idModulo, PERMISOS_ROLES, PERMISOS_DEFAULT);
@@ -4430,6 +4432,9 @@ function showPage(id, el) {
     if(kfv) kfv.style.display='none';
     if (typeof cargarKits === 'function') cargarKits();
   }
+  if (id === 'actualizadorprecios') {
+    setTimeout(function(){ if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios(); }, 50);
+  }
   if (id === 'productos')      {
     try { if(typeof mostrarAlertasStock==='function') mostrarAlertasStock(); } catch(e){}
     var plv=document.getElementById('prod-list-view');
@@ -4546,6 +4551,9 @@ function applyRole() {
   document.querySelectorAll('.nav-item[onclick*="tesoreria"]').forEach(function(el){
     el.style.display = isAdmin ? '' : 'none';
   });
+  document.querySelectorAll('.nav-item[onclick*="actualizadorprecios"]').forEach(function(el){
+    el.style.display = (isAdmin || isAdministrativo) ? '' : 'none';
+  });
   // Los guards agregados al final del archivo deben reaccionar al cambio de rol,
   // no volver a aplicar estilos mediante un intervalo permanente.
   if (typeof window.sv361ApplyRoleGuard === 'function') {
@@ -4559,7 +4567,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.78-firebase',
+  VERSION: 'v2.0.79-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5194,7 +5202,7 @@ function secureLog(message) {
 }
 
 const SESSION_TIMEOUT = 30 * 60 * 1000;
-const titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Facturaciones',tesoreria:'Tesorería'};
+const titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',kits:'Kits',actualizadorprecios:'Actualizador de precios',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Facturaciones',tesoreria:'Tesorería'};
 
 let sessionTimer = null, sessionStart = null, tiempoUI = null;
 
@@ -6917,6 +6925,47 @@ function productosBiosegurActualizables() {
   return salida;
 }
 
+function renderModuloActualizadorPrecios() {
+  if (!['admin','administrativo'].includes(String(currentRole || '').toLowerCase())) return;
+  var vinculados = productosBiosegurActualizables();
+  var porProducto = {};
+  vinculados.forEach(function(x) {
+    var key = String((x.producto || {}).fbKey || '');
+    if (key) porProducto[key] = x.producto;
+  });
+  var productos = Object.values(porProducto);
+  var pendientes = productos.filter(function(p){ return !estadoVigenciaPrecioProducto(p).vigente; });
+  _set('mod-ap-vinculados', productos.length);
+  _set('mod-ap-pendientes', pendientes.length);
+  _set('mod-ap-vigentes', Math.max(0, productos.length - pendientes.length));
+
+  var btn = document.getElementById('mod-ap-iniciar');
+  if (btn) {
+    btn.disabled = !vinculados.length;
+    btn.title = vinculados.length ? 'Iniciar actualización de proveedores compatibles' : 'No hay productos vinculados a proveedores compatibles';
+  }
+
+  var tipos = [
+    { id:'biosegur', nombre:'BIOSEGUR', icono:'ti-shield-check' },
+    { id:'free_electron', nombre:'FREE ELECTRON', icono:'ti-bolt' },
+    { id:'tecnoprices', nombre:'TECNOPRICES', icono:'ti-device-desktop-dollar' }
+  ];
+  var cont = document.getElementById('mod-ap-proveedores');
+  if (!cont) return;
+  cont.innerHTML = tipos.map(function(tipo) {
+    var enlaces = vinculados.filter(function(x){ return x.tipo === tipo.id; });
+    var keys = {};
+    enlaces.forEach(function(x){ var k=String((x.producto||{}).fbKey||''); if(k) keys[k]=x.producto; });
+    var listaProductos = Object.values(keys);
+    var pendientesTipo = listaProductos.filter(function(p){ return !estadoVigenciaPrecioProducto(p).vigente; }).length;
+    return '<div style="padding:16px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;gap:12px">' +
+      '<div style="width:40px;height:40px;border-radius:12px;background:rgba(96,165,250,.12);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ' + tipo.icono + '" style="font-size:20px"></i></div>' +
+      '<div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:800">' + tipo.nombre + '</div><div style="font-size:11px;color:var(--text3);margin-top:3px">' + listaProductos.length + ' vinculado' + (listaProductos.length === 1 ? '' : 's') + ' · ' + pendientesTipo + ' pendiente' + (pendientesTipo === 1 ? '' : 's') + '</div></div>' +
+      '<span class="badge ' + (pendientesTipo ? 'b-amber' : 'b-green') + '">' + (pendientesTipo ? 'Revisar' : 'Al día') + '</span>' +
+    '</div>';
+  }).join('');
+}
+
 function cerrarActualizadorMasivoPrecios() {
   var modal = document.getElementById('modal-actualizador-precios');
   if (modal && modal.dataset.ejecutando === '1') {
@@ -7042,6 +7091,7 @@ async function eliminarProductoFallidoActualizador(fbKey, boton) {
     var fila = boton && boton.closest ? boton.closest('[data-fallo-producto]') : null;
     if (fila) fila.remove();
     actualizarVigenciaPreciosDashboard();
+    if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
   }
 }
 
@@ -7297,6 +7347,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
       }).join('');
     }
     actualizarVigenciaPreciosDashboard();
+    if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
     if (typeof renderTablaProductos === 'function') renderTablaProductos();
     if (btn) {
       btn.innerHTML = modal._detenerSolicitado ? '<i class="ti ti-x"></i> Cerrar' : '<i class="ti ti-check"></i> Finalizado';
