@@ -4567,7 +4567,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.79-firebase',
+  VERSION: 'v2.0.80-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7101,7 +7101,11 @@ function abrirActualizadorMasivoPrecios() {
     return;
   }
   var anterior = document.getElementById('modal-actualizador-precios');
-  if (anterior) anterior.remove();
+  if (anterior) {
+    restaurarActualizadorMasivoPrecios();
+    notify('El actualizador ya estaba abierto');
+    return;
+  }
   var todos = productosBiosegurActualizables();
   var pendientes = todos.filter(function(x){ return !estadoVigenciaPrecioProducto(x.producto).vigente; });
   var overlay = document.createElement('div');
@@ -7136,6 +7140,7 @@ function abrirActualizadorMasivoPrecios() {
     '</button>';
   document.body.appendChild(overlay);
   overlay._productosPendientes = pendientes;
+  window._sisventasProcesoCriticoActivo = true;
 }
 
 function datosActualizadosProductoBiosegur(item, resultado) {
@@ -7367,7 +7372,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
     if (barra) barra.style.opacity = '1';
     modal.dataset.ejecutando = '0';
     modal._abortController = null;
-    window._sisventasProcesoCriticoActivo = false;
+    window._sisventasProcesoCriticoActivo = !!document.getElementById('modal-actualizador-precios');
     if (typeof cancelarProgreso === 'function') cancelarProgreso();
     setTimeout(function(){ if (window.fbRemove) window.fbRemove(progresoRef).catch(function(){}); }, 60000);
   }
@@ -8366,11 +8371,8 @@ function volverAtrasSisVentas() {
 
   var actualizador = document.getElementById('modal-actualizador-precios');
   if (_svElementoVisible(actualizador) && actualizador.dataset.minimizado !== '1') {
-    if (actualizador.dataset.ejecutando === '1') {
-      notify('La actualización sigue trabajando. Usá Cerrar si querés detenerla.');
-      return true;
-    }
-    cerrarActualizadorMasivoPrecios();
+    minimizarActualizadorMasivoPrecios();
+    notify(actualizador.dataset.ejecutando === '1' ? 'La actualización sigue trabajando en segundo plano' : 'El actualizador quedó minimizado');
     return true;
   }
 
@@ -8394,7 +8396,7 @@ function volverAtrasSisVentas() {
   }
 
   var emergentes = Array.from(document.querySelectorAll('[id^="modal-"], [id^="popup-"]')).filter(function(el) {
-    return _svElementoVisible(el) && getComputedStyle(el).position === 'fixed';
+    return el.id !== 'modal-actualizador-precios' && _svElementoVisible(el) && getComputedStyle(el).position === 'fixed';
   }).sort(function(a, b) {
     return (parseInt(getComputedStyle(b).zIndex, 10) || 0) - (parseInt(getComputedStyle(a).zIndex, 10) || 0);
   });
