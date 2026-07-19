@@ -4704,11 +4704,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.90-firebase',
+  VERSION: 'v2.0.91-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Pendiente de cobro en Ventas ahora comparte exactamente la deuda conciliada del Dashboard.',
-    'Pagado este mes suma cobros por su fecha real, aunque correspondan a ventas anteriores.',
-    'Se eliminó la segunda rutina que sobrescribía las métricas correctas con valores mensuales.'
+    'Los empleados ya no ven comisiones pendientes de aprobación, rechazadas ni anuladas.',
+    'Las comisiones aparecen para el empleado únicamente después de la aprobación del admin.',
+    'Dashboard y Mi cuenta comparten la misma regla de visibilidad de comisiones.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -13470,6 +13470,8 @@ function _ctaEmpEsGastoPersonalEmpleado(g, empFbKey) {
 
 function _ctaEmpTipoDesdeGasto(g) {
   if (!g) return 'gasto_empresa';
+  var tipoPagable = _ctaEmpNormalizarTxt(g.tipoPagable || g.origen || g.tipo || '');
+  if (tipoPagable === 'comision' || tipoPagable === 'comisión') return 'comision';
   var cat = _ctaEmpNormalizarTxt(g.categoria || '');
   var desc = _ctaEmpNormalizarTxt(g.descripcion || g.desc || g.detalle || '');
 
@@ -13488,6 +13490,24 @@ function _ctaEmpTipoDesdeGasto(g) {
 
   var tipoCat = String(g.categoria || '').toLowerCase();
   return ['gasto_empresa','transporte','materiales','otro'].includes(tipoCat) ? tipoCat : 'gasto_empresa';
+}
+
+function _ctaEmpEstadoDesdeGasto(g) {
+  if (!g) return 'pendiente';
+  var est = String(g.estado || '').toLowerCase();
+  if (est === 'rechazado' || est === 'anulado') return est;
+  var tipo = _ctaEmpTipoDesdeGasto(g);
+  if (tipo === 'comision') {
+    var monto = parseFloat(g.monto) || 0;
+    var pagado = totalPagadoGasto(g);
+    if (monto > 0 && pagado >= monto - 0.01) return 'pagado';
+    if (pagado > 0) return 'pagado_parcial';
+    // `pendiente_pago` existe también antes de la aprobación; la evidencia
+    // válida es la marca explícita que guarda el administrador al aprobar.
+    if (est === 'aprobado' || g.aprobadoTs || g.fechaAprobacion || g.aprobadoPor) return 'aprobado';
+    return 'pendiente';
+  }
+  return normalizarEstadoGasto(g);
 }
 
 function _ctaEmpEsSueldoMovimiento(m) {
@@ -13595,7 +13615,7 @@ function cargarCtaEmp(empFbKey) {
         descripcion: g.descripcion || g.desc || g.detalle || '',
         desc:       g.descripcion || g.desc || g.detalle || '',
         fecha:      g.fecha || '',
-        estado:     normalizarEstadoGasto(g),
+        estado:     _ctaEmpEstadoDesdeGasto(g),
         montoPagado: totalPagadoGasto(g),
         pagos:      g.pagos || {},
         gastoFbKey: g.fbKey,
@@ -13836,7 +13856,7 @@ function _movEmpEstadoCalculado(m) {
   var pagado = _movEmpTotalPagado(m);
   if (monto > 0 && pagado >= monto - 0.01) return 'pagado';
   if (pagado > 0) return 'pagado_parcial';
-  if (est === 'aprobado') return 'aprobado';
+  if (est === 'aprobado' || est === 'aprobada') return 'aprobado';
   return 'pendiente';
 }
 
@@ -13926,7 +13946,7 @@ function renderMovsEmp() {
   var haberes = listaPeriodo.filter(function(m){ return TIPOS_HABER.includes(m.tipo) && _movEmpEsCobrable(m); })
                             .reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
   // Total efectivamente abonado al empleado en el mes seleccionado, tomando fecha de pago.
-  var totalPagadoMes = _ctaEmpPagosRealizadosEnMes(movsEmpData, mesCta)
+  var totalPagadoMes = _ctaEmpPagosRealizadosEnMes(movsEmpData.filter(_ctaEmpMovVisibleParaRol), mesCta)
                             .reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
   var adelantos = listaPeriodo.filter(function(m){ return m.tipo === 'adelanto' && String(m.estado||'').toLowerCase() !== 'rechazado'; })
                               .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
@@ -23850,7 +23870,7 @@ function renderDashMiCuenta() {
         desc:        g.descripcion || g.desc || g.detalle || '',
         fecha:       g.fecha || '',
         mes:         g.mes || String(g.fecha || '').slice(0,7),
-        estado:      normalizarEstadoGasto(g),
+        estado:      _ctaEmpEstadoDesdeGasto(g),
         montoPagado: totalPagadoGasto(g),
         pagos:       g.pagos || {},
         gastoFbKey:  g.fbKey,
@@ -23864,14 +23884,17 @@ function renderDashMiCuenta() {
     var movs = ctaMovs.concat(gastosEmp).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
     var mesActual = _mesSistema(0);
     var movsMes = movs.filter(function(m){ return _movEmpEnPeriodo(m, mesActual); });
-    var comisionesPend  = movsMes.filter(function(m){ return m.tipo === 'comision' && _movEmpEstadoCalculado(m) === 'pendiente'; });
-    var comisionesAprob = movsMes.filter(function(m){ return m.tipo === 'comision' && _movEmpEstadoCalculado(m) === 'aprobado'; });
-    var adelantos       = movsMes.filter(function(m){ return m.tipo === 'adelanto' && String(m.estado||'').toLowerCase() !== 'rechazado'; });
+    // Un empleado sólo ve movimientos autorizados. Las comisiones pendientes,
+    // rechazadas o anuladas quedan reservadas al administrador.
+    var movsMesVisibles = movsMes.filter(_ctaEmpMovVisibleParaRol);
+    var comisionesAprob = movsMesVisibles.filter(function(m){
+      return m.tipo === 'comision' && ['aprobado','pagado_parcial','pagado'].includes(_movEmpEstadoCalculado(m));
+    });
+    var adelantos       = movsMesVisibles.filter(function(m){ return m.tipo === 'adelanto'; });
     var tiposHaber = ['sueldo','aguinaldo','hextra','comision','transporte','materiales','gasto_empresa','otro'];
-    var haberesCobrables = movsMes.filter(function(m){ return tiposHaber.includes(m.tipo) && _movEmpEsCobrable(m); });
+    var haberesCobrables = movsMesVisibles.filter(function(m){ return tiposHaber.includes(m.tipo) && _movEmpEsCobrable(m); });
 
     var totalHaberesPend = haberesCobrables.reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
-    var totalComPend     = comisionesPend.reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
     var totalComAprob    = comisionesAprob.reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
     var totalAdelanto    = adelantos.reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
     var totalAdelantoPend= adelantos.filter(function(m){ return _movEmpEsCobrable(m); }).reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
@@ -23880,9 +23903,9 @@ function renderDashMiCuenta() {
     var fmt = function(n){ return '$' + Math.round(n).toLocaleString('es-AR'); };
     var el = function(id){ return document.getElementById(id); };
     if(el('dash-mc-total'))      el('dash-mc-total').textContent      = fmt(totalCobrar);
-    if(el('dash-mc-comisiones')) el('dash-mc-comisiones').textContent = fmt(totalComPend + totalComAprob);
+    if(el('dash-mc-comisiones')) el('dash-mc-comisiones').textContent = fmt(totalComAprob);
     if(el('dash-mc-comisiones-sub')) el('dash-mc-comisiones-sub').textContent =
-      comisionesPend.length + ' pendiente' + (comisionesPend.length !== 1 ? 's' : '') + ' · ' + comisionesAprob.length + ' aprobada' + (comisionesAprob.length !== 1 ? 's' : '') + ' sin pagar';
+      comisionesAprob.length + ' aprobada' + (comisionesAprob.length !== 1 ? 's' : '') + ' visible' + (comisionesAprob.length !== 1 ? 's' : '');
     if(el('dash-mc-adelantos'))  el('dash-mc-adelantos').textContent  = fmt(totalAdelanto);
 
     var hsexBox = el('dash-mc-hsextra-box');
@@ -23916,7 +23939,7 @@ function renderDashMiCuenta() {
     var histBody = document.getElementById('dash-historial-mes-body');
     if (histCard && histBody) {
       histCard.style.display = '';
-      var movsHist = movsMes.slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); }).slice(0,6);
+      var movsHist = movsMesVisibles.slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); }).slice(0,6);
       if (!movsHist.length) {
         histBody.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px">Sin movimientos este mes</div>';
       } else {
