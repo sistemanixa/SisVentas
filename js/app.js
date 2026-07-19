@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.74-firebase',
+  VERSION: 'v2.0.75-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7036,17 +7036,12 @@ async function guardarUrlFallidoActualizador(fbKey, proveedorIdx) {
 
 async function eliminarProductoFallidoActualizador(fbKey, boton) {
   fbKey = String(fbKey || '');
-  var prod = Object.values(prodData || {}).find(function(p){ return String(p.fbKey || '') === fbKey; }) || {};
-  var nombre = prod.nombre || prod.descripcion || 'este producto';
-  if (!fbKey || !confirm('¿Eliminar el producto "' + String(nombre || '') + '"? Esta acción no se puede deshacer.')) return;
-  try {
-    await window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey));
+  if (!fbKey) { notify('No se pudo identificar el producto'); return; }
+  var eliminado = await eliminarProductoPorId(fbKey, false);
+  if (eliminado) {
     var fila = boton && boton.closest ? boton.closest('[data-fallo-producto]') : null;
     if (fila) fila.remove();
-    notify('Producto eliminado');
     actualizarVigenciaPreciosDashboard();
-  } catch (e) {
-    notify('No se pudo eliminar: ' + (e.message || 'Error desconocido'));
   }
 }
 
@@ -19629,8 +19624,8 @@ function eliminarProducto(el) {
 
 async function eliminarProductoPorId(pid, desdeDetalle) {
   var prod = prodData ? Object.values(prodData).find(function(p){ return String(p.fbKey) === String(pid); }) : null;
-  if (!prod) { notify('Producto no encontrado'); return; }
-  if (!prod.fbKey || !window.fbDB) { notify('No se pudo identificar el producto en Firebase'); return; }
+  if (!prod) { notify('Producto no encontrado'); return false; }
+  if (!prod.fbKey || !window.fbDB) { notify('No se pudo identificar el producto en Firebase'); return false; }
 
   var ventasProducto = [];
   try {
@@ -19642,15 +19637,15 @@ async function eliminarProductoPorId(pid, desdeDetalle) {
     }) : [];
   } catch (e) {
     notify('No se pudo comprobar el historial de ventas. Intentá nuevamente.');
-    return;
+    return false;
   }
 
   var nombre = prod.nombre || prod.descripcion || prod.codigo || 'este producto';
   var primeraAdvertencia = ventasProducto.length
     ? 'ADVERTENCIA 1 de 2\n\nEl producto "' + nombre + '" aparece en ' + ventasProducto.length + ' venta' + (ventasProducto.length === 1 ? '' : 's') + '.\n\nAl eliminarlo, las ventas históricas conservarán el nombre, precio y cantidades registrados. El producto desaparecerá del catálogo y ya no podrá seleccionarse en operaciones nuevas.\n\n¿Querés continuar?'
     : 'ADVERTENCIA 1 de 2\n\nEl producto "' + nombre + '" no aparece en ninguna venta registrada.\n\nAl eliminarlo desaparecerá del catálogo y ya no podrá seleccionarse en operaciones nuevas.\n\n¿Querés continuar?';
-  if (!confirm(primeraAdvertencia)) return;
-  if (!confirm('ADVERTENCIA 2 de 2\n\n¿Estás seguro de eliminar definitivamente "' + nombre + '"?\n\nEsta acción no se puede deshacer.')) return;
+  if (!confirm(primeraAdvertencia)) return false;
+  if (!confirm('ADVERTENCIA 2 de 2\n\n¿Estás seguro de eliminar definitivamente "' + nombre + '"?\n\nEsta acción no se puede deshacer.')) return false;
 
   try {
     await window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + prod.fbKey));
@@ -19659,8 +19654,10 @@ async function eliminarProductoPorId(pid, desdeDetalle) {
       registrarActividad('Producto eliminado', nombre + ' — ' + ventasProducto.length + ' venta' + (ventasProducto.length === 1 ? '' : 's') + ' histórica' + (ventasProducto.length === 1 ? '' : 's') + ' preservada' + (ventasProducto.length === 1 ? '' : 's'));
     }
     if (desdeDetalle) cerrarDetalleProducto();
+    return true;
   } catch (e) {
     notify('Error: ' + e.message);
+    return false;
   }
 }
 
