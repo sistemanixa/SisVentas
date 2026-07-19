@@ -3038,6 +3038,68 @@ var fbConectado = false;
 var fbOnline = false;
 var fbEsperandoReady = [];
 
+// La pantalla de inicio debe reflejar datos reales, no una animacion por tiempo.
+// Una vez que estos cuatro nodos respondieron, los listeners mantienen la memoria
+// actualizada en segundo plano y navegar entre modulos no vuelve a bloquear la UI.
+var _svCargaInicial = {
+  clientes:  { listo:false, etiqueta:'clientes' },
+  productos: { listo:false, etiqueta:'productos' },
+  ventas:    { listo:false, etiqueta:'ventas' },
+  pagos:     { listo:false, etiqueta:'cobros' }
+};
+var _svCargaInicialEsperas = [];
+
+function svEstadoCargaInicial() {
+  var claves = Object.keys(_svCargaInicial);
+  var listas = claves.filter(function(k){ return _svCargaInicial[k].listo; });
+  return { total:claves.length, listos:listas.length, completo:listas.length === claves.length };
+}
+
+function svPintarCargaInicial() {
+  var estado = svEstadoCargaInicial();
+  var bar = document.getElementById('loading-bar');
+  var msg = document.getElementById('loading-msg');
+  var pct = estado.total ? Math.round((estado.listos / estado.total) * 100) : 100;
+  if (bar) bar.style.width = pct + '%';
+  if (msg) {
+    if (estado.completo) msg.textContent = 'Datos principales listos';
+    else {
+      var pendientes = Object.keys(_svCargaInicial).filter(function(k){ return !_svCargaInicial[k].listo; })
+        .map(function(k){ return _svCargaInicial[k].etiqueta; });
+      msg.textContent = 'Sincronizando ' + pendientes.join(', ') + '... (' + estado.listos + '/' + estado.total + ')';
+    }
+  }
+  return estado;
+}
+
+function svMarcarDatoInicialListo(nombre) {
+  if (!_svCargaInicial[nombre] || _svCargaInicial[nombre].listo) return;
+  _svCargaInicial[nombre].listo = true;
+  var estado = svPintarCargaInicial();
+  if (!estado.completo) return;
+  var esperas = _svCargaInicialEsperas.splice(0);
+  esperas.forEach(function(resolver){ resolver(true); });
+}
+
+function svEsperarCargaInicial(maxMs) {
+  svPintarCargaInicial();
+  if (svEstadoCargaInicial().completo) return Promise.resolve(true);
+  return new Promise(function(resolve) {
+    var finalizado = false;
+    var resolver = function(completo) {
+      if (finalizado) return;
+      finalizado = true;
+      resolve(completo);
+    };
+    _svCargaInicialEsperas.push(resolver);
+    setTimeout(function(){
+      var idx = _svCargaInicialEsperas.indexOf(resolver);
+      if (idx >= 0) _svCargaInicialEsperas.splice(idx, 1);
+      resolver(false);
+    }, maxMs || 12000);
+  });
+}
+
 document.addEventListener('firebase-ready', function() {
   fbConectado = true;
   fbOnline = !!navigator.onLine;
@@ -3104,9 +3166,13 @@ function fbCargarTodo() {
 }
 function fbCargarClientes() {
   if (!window.fbDB) return;
+  if (window._clientesListenerActivo) return;
+  window._clientesListenerActivo = true;
   var r = window.fbRef(window.fbDB, FB_PATHS.clientes);
   window.fbOnValue(r, function(snap) {
     var data = snap.val();
+    svMarcarDatoInicialListo('clientes');
+    clientesData = [];
     if (data) {
       clientesData = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
@@ -3121,6 +3187,10 @@ function fbCargarClientes() {
       if (typeof actualizarSugerenciasCliente === 'function') actualizarSugerenciasCliente();
       if (typeof _chequearCambioHistCliente === 'function') _chequearCambioHistCliente();
     }
+  }, function(error) {
+    window._clientesListenerActivo = false;
+    console.error('[Clientes] No se pudo iniciar la sincronizacion', error);
+    svMarcarDatoInicialListo('clientes');
   });
 }
 // No refresca automático (perdería el scroll por el toggle display:none/block de showPage) — solo avisa.
@@ -3165,11 +3235,14 @@ function fbEliminarCliente(fbKey) {
 }
 function fbCargarProductos() {
   if (!window.fbDB) return;
+  if (window._productosListenerActivo) return;
+  window._productosListenerActivo = true;
   window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.productos), function(snap) {
     var data = snap.val();
+    svMarcarDatoInicialListo('productos');
+    prodData = {};
+    stockData = {};
     if (data) {
-      prodData = {};
-      stockData = {};
       var _seen = {}; // id → entrada preferida
       Object.entries(data).forEach(function(e) {
         var p = Object.assign({ fbKey: e[0] }, e[1]);
@@ -3207,6 +3280,10 @@ function fbCargarProductos() {
         verProducto(editingProdId);
       }
     }
+  }, function(error) {
+    window._productosListenerActivo = false;
+    console.error('[Productos] No se pudo iniciar la sincronizacion', error);
+    svMarcarDatoInicialListo('productos');
   });
 }
 
@@ -3373,6 +3450,7 @@ function fbCargarVentas() {
   // Ventas y cuentas corrientes requieren todo el historial: el recorte de
   // tres meses ocultaba saldos pendientes de clientes.
   window.fbOnValue(baseRef, function(snap) {
+    svMarcarDatoInicialListo('ventas');
     procesarVentasSnapshot(snap.val(), {
       filtrarPeriodo: false,
       normalizarFechaOrden: true
@@ -3382,6 +3460,7 @@ function fbCargarVentas() {
     window._ventasListenerActivo = false;
     console.error('[Ventas] No se pudo cargar el historial completo', error);
     if (typeof notify === 'function') notify('No se pudo cargar el historial de ventas');
+    svMarcarDatoInicialListo('ventas');
   });
 }
 
@@ -4570,11 +4649,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.82-firebase',
+  VERSION: 'v2.0.83-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Los avisos de actualización ahora muestran un resumen breve de los cambios.',
-    'El administrador puede enviar comunicados globales o por rol.',
-    'Cada comunicado exige confirmación y registra quién lo leyó.'
+    'El ingreso ahora espera la carga real de clientes, productos, ventas y cobros.',
+    'La navegación reutiliza los datos en memoria y actualiza en segundo plano.',
+    'Se evitó crear conexiones repetidas al entrar en Cobranzas.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -5715,25 +5794,9 @@ function _completarLogin(nombre) {
     av.textContent = partes.length >= 2 ? (partes[0][0]+(partes[1][0]||'')).toUpperCase() : nombre.slice(0,2).toUpperCase();
   }
 
-  // Secuencia de carga con progreso
-  var pasos = [
-    { pct: 15, txt: 'Cargando clientes y productos...' },
-    { pct: 35, txt: 'Cargando ventas y presupuestos...' },
-    { pct: 55, txt: 'Cargando empleados y usuarios...' },
-    { pct: 75, txt: 'Cargando equipos e informes...' },
-    { pct: 90, txt: 'Preparando el dashboard...' },
-    { pct: 100, txt: '¡Listo!' },
-  ];
-  var paso = 0;
-  var iv = setInterval(function() {
-    if (paso < pasos.length) {
-      if (bar) bar.style.width = pasos[paso].pct + '%';
-      if (msg) msg.textContent = pasos[paso].txt;
-      paso++;
-    } else {
-      clearInterval(iv);
-    }
-  }, 400);
+  // El progreso se completa cuando responden los nodos principales.
+  // Si ya estan en memoria (por ejemplo al volver al dashboard), es inmediato.
+  svPintarCargaInicial();
 
   // Iniciar carga de datos
   if (typeof startSessionTimer === 'function') startSessionTimer();
@@ -5765,11 +5828,14 @@ function _completarLogin(nombre) {
   if (typeof cargarPermisosRoles === 'function') setTimeout(function(){ cargarPermisosRoles(); cargarDashWidgets(); setTimeout(applyRole, 400); }, 400);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 600);
 
-  // Mostrar app después de ~2.5 segundos (tiempo de carga de Firebase)
-  setTimeout(function() {
-    clearInterval(iv);
-    if (bar) bar.style.width = '100%';
-    if (msg) msg.textContent = '¡Listo!';
+  // Esperar la primera respuesta real de clientes, productos, ventas y cobros.
+  // El limite evita dejar al usuario bloqueado si un nodo puntual falla; los
+  // listeners que hayan iniciado siguen sincronizando silenciosamente despues.
+  svEsperarCargaInicial(12000).then(function(cargaCompleta) {
+    if (bar && cargaCompleta) bar.style.width = '100%';
+    if (msg) msg.textContent = cargaCompleta
+      ? 'Datos principales listos'
+      : 'Ingresando con los datos disponibles; la sincronizacion continua...';
     setTimeout(function() {
       window._loginEnCurso = false;
       if (loadingEl) loadingEl.classList.add('sv-boot-exit');
@@ -5794,8 +5860,8 @@ function _completarLogin(nombre) {
       if (typeof actualizarFabYHome === 'function') actualizarFabYHome('dashboard');
       if (typeof _verificarHaberesPendientes === 'function') setTimeout(_verificarHaberesPendientes, 6000);
       notify('Bienvenido, ' + nombre + '!');
-    }, 400);
-  }, 2600);
+    }, cargaCompleta ? 120 : 450);
+  });
 }
 
 // selCli definida arriba con parámetros (id, nombre, dir)
@@ -10657,8 +10723,11 @@ function elimPago(fbKey) {
 
 function fbCargarPagos() {
   if (!window.fbDB) return;
+  if (window._pagosListenerActivo) return;
+  window._pagosListenerActivo = true;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/pagos'), function(snap) {
     var data = snap.val();
+    svMarcarDatoInicialListo('pagos');
     var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); }).sort(function(a,b){
       // Ordenar por fecha desc, luego por ts desc como fallback
       var fa = (a.fecha||'').replace(/\//g,'-'); var fb2 = (b.fecha||'').replace(/\//g,'-');
@@ -10784,6 +10853,10 @@ function fbCargarPagos() {
     if (ccDetEl && ccDetEl.style.display === 'block' && window._ccNombreActual && typeof verCuentaClienteReal === 'function') {
       verCuentaClienteReal(window._ccNombreActual);
     }
+  }, function(error) {
+    window._pagosListenerActivo = false;
+    console.error('[Cobros] No se pudo iniciar la sincronizacion', error);
+    svMarcarDatoInicialListo('pagos');
   });
 }
 function _mesSistema(offset) {
