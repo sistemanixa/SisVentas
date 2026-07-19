@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.77-firebase',
+  VERSION: 'v2.0.78-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -8661,6 +8661,16 @@ function renderCfgValoresMasivos() {
   var marcas = [...new Set(Object.values(prodData || {}).map(function(p){ return String(p.marca || '').trim().toUpperCase(); }).filter(Boolean))].sort();
   var lista = document.getElementById('cfg-vm-marcas-list');
   if (lista) lista.innerHTML = marcas.map(function(m){ return '<option value="' + escapeHTML(m) + '"></option>'; }).join('');
+  var vinculados = typeof productosBiosegurActualizables === 'function' ? productosBiosegurActualizables() : [];
+  var pendientesProv = vinculados.filter(function(x){ return !estadoVigenciaPrecioProducto(x.producto).vigente; });
+  _set('cfg-vm-prov-vinculados', vinculados.length);
+  _set('cfg-vm-prov-pendientes', pendientesProv.length);
+  _set('cfg-vm-prov-vigentes', Math.max(0, vinculados.length - pendientesProv.length));
+  var btnActualizador = document.getElementById('cfg-vm-abrir-actualizador');
+  if (btnActualizador) {
+    btnActualizador.disabled = !vinculados.length;
+    btnActualizador.title = vinculados.length ? 'Abrir el actualizador de proveedores' : 'No hay productos vinculados a proveedores compatibles';
+  }
   cfgValoresMasivosCambiarAlcance();
 }
 
