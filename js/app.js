@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.75-firebase',
+  VERSION: 'v2.0.76-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -25090,7 +25090,7 @@ function renderComisionesConfig() {
   var inp = function(val, w, sinTope) {
     var numero = parseFloat(val) || 0;
     var valor = sinTope && (numero <= 0 || numero >= 999999) ? '' : numero;
-    return '<input type="number" value="'+valor+'" '+(sinTope?'placeholder="Sin tope" title="Dejá vacío para no aplicar un tope"':'')+' style="width:'+w+'px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">';
+    return '<input class="cfg-comision-input" type="number" value="'+valor+'" '+(sinTope?'placeholder="Sin tope" title="Dejá vacío para no aplicar un tope"':'')+' style="width:'+w+'px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:4px 6px;text-align:right;font-size:13px;font-family:inherit">';
   };
   tbody.innerHTML =
     '<tr><th>Cargo</th><th style="text-align:right">% sobre venta</th><th style="text-align:right">Mínimo garantizado ($)</th><th style="text-align:right">Tope máximo ($)</th><th></th></tr>' +
