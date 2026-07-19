@@ -175,7 +175,7 @@ function _fechaEsDelMes(fecha, mesYYYYMM) {
   var f = (fecha||'').trim();
   if (!f || !mesYYYYMM) return false;
   // Formato yyyy-mm-dd (como guardan los pagos de cobranzas)
-  if (/^\d{4}-\d{2}-\d{2}$/.test(f)) return f.slice(0,7) === mesYYYYMM;
+  if (/^\d{4}-\d{2}/.test(f)) return f.slice(0,7) === mesYYYYMM;
   // Formato dd/mm/yyyy
   var partes = f.split('/');
   if (partes.length < 3) return false;
@@ -209,21 +209,21 @@ function renderMetricasVentas() {
   var ivaMes    = ventasMes.filter(function(v){ return v.factura; }).reduce(function(s,v){ return s+(parseFloat(v.iva)||0); }, 0);
   var cantMes   = ventasMes.length;
 
-  // Cobrado y pendiente (histórico total — para cuenta corriente)
-  var cobrado   = ventas.filter(function(v){ return v.estadoPago==='pago_total'; })
-                        .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
-  var pendiente = ventas.filter(function(v){ return v.estadoPago!=='pago_total'; })
-                        .reduce(function(s,v){ return s+((parseFloat(v.total)||0)-(parseFloat(v.totalPagado)||0)); }, 0);
-  var clisPend  = new Set(
-    ventas.filter(function(v){ return v.estadoPago!=='pago_total'; })
-          .map(function(v){ return v.cliente; })
-  ).size;
+  // Usar la cuenta corriente ya conciliada con el historial real de pagos.
+  // Antes esta pantalla sólo miraba `totalPagado` dentro de la venta, por eso
+  // podía mostrar $0 aunque el cobro existiera en sisventas/pagos.
+  var resumenCC = typeof _svResumenCuentaCorriente === 'function'
+    ? _svResumenCuentaCorriente(ventas)
+    : { pendiente:0, clientesConSaldo:0 };
+  var pendiente = resumenCC.pendiente;
+  var clisPend = resumenCC.clientesConSaldo;
 
-  // Pct cobrado del mes
-  var pctCobrado = totalMes > 0
-    ? Math.round(ventasMes.filter(function(v){ return v.estadoPago==='pago_total'; })
-        .reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0) / totalMes * 100)
-    : 0;
+  // "Pagado este mes" corresponde a la fecha real del cobro, aunque la venta
+  // sea de un mes anterior.
+  var pagosMes = (window._historialPagosCompleto || []).filter(function(p) {
+    return _svPagoValido(p) && _fechaEsDelMes(p.fecha, mesActual);
+  });
+  var cobrado = pagosMes.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
 
   _set('vm-total-mes', '$' + Math.round(totalMes).toLocaleString('es-AR'));
   _set('vm-cobrado',   '$' + Math.round(cobrado).toLocaleString('es-AR'));
@@ -235,7 +235,7 @@ function renderMetricasVentas() {
   if (subTotal) subTotal.textContent = cantMes + ' venta' + (cantMes!==1?'s':'') + ' en ' + mesLabel;
 
   var subCob = document.getElementById('vm-cobrado-sub');
-  if (subCob) subCob.textContent = pctCobrado + '% del total histórico';
+  if (subCob) subCob.textContent = pagosMes.length + ' pago' + (pagosMes.length!==1?'s':'') + ' registrado' + (pagosMes.length!==1?'s':'') + ' en ' + mesLabel;
 
   var subPend = document.getElementById('vm-pendiente-sub');
   if (subPend) subPend.textContent = clisPend + ' cliente' + (clisPend!==1?'s':'')+' con saldo';
@@ -3515,6 +3515,57 @@ function _svRegistroPerteneceVenta(reg, venta) {
   return claves.nums.some(function(n){ return numsReg.indexOf(n) >= 0; });
 }
 
+function _svPagoValido(p) {
+  return !!p && !p.anulado && String(p.estado || '').toLowerCase() !== 'anulado';
+}
+
+function _svMontoPagadoVenta(venta) {
+  if (!venta) return 0;
+  var pagosGlobales = (window._historialPagosCompleto || []).filter(function(p) {
+    return _svPagoValido(p) && _svRegistroPerteneceVenta(p, venta);
+  });
+  var pagosEmbebidos = Array.isArray(venta.pagos)
+    ? venta.pagos.filter(_svPagoValido)
+    : [];
+  // Los pagos globales son la fuente canónica. Los embebidos se conservan
+  // únicamente para ventas antiguas que todavía no fueron migradas.
+  var pagos = pagosGlobales.length ? pagosGlobales : pagosEmbebidos;
+  var desdePagos = pagos.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
+  var directo = parseFloat(venta.totalPagado || venta.pagado || venta.montoPagado) || 0;
+  return Math.max(desdePagos, directo);
+}
+
+function _svSaldoPendienteVenta(venta) {
+  if (!venta || (venta.anulada && !venta.notaCredito)) return 0;
+  var total = parseFloat(venta.total) || 0;
+  return Math.max(0, total - Math.min(total, _svMontoPagadoVenta(venta)));
+}
+
+function _svResumenCuentaCorriente(ventas) {
+  // Si Cobranzas ya armó su mapa, usarlo: es exactamente la misma fuente que
+  // actualiza el KPI de deuda del Dashboard.
+  var mapa = window._ccMapActual;
+  if (mapa && Object.keys(mapa).length && ventas === ventasList) {
+    var filas = Object.keys(mapa).map(function(k){ return mapa[k] || {}; });
+    var saldos = filas.map(function(d){ return Math.max(0, (parseFloat(d.total)||0) - (parseFloat(d.cobrado)||0)); });
+    return {
+      pendiente: saldos.reduce(function(s,n){ return s+n; }, 0),
+      clientesConSaldo: saldos.filter(function(n){ return n > 0; }).length
+    };
+  }
+  var porCliente = {};
+  (ventas || []).forEach(function(v) {
+    var saldo = _svSaldoPendienteVenta(v);
+    if (saldo <= 0) return;
+    var key = String(v.clienteFbKey || v.clienteKey || v.clienteId || v.idCliente || v.cliente || 'Sin cliente').trim();
+    porCliente[key] = (porCliente[key] || 0) + saldo;
+  });
+  return {
+    pendiente: Object.keys(porCliente).reduce(function(s,k){ return s + porCliente[k]; }, 0),
+    clientesConSaldo: Object.keys(porCliente).filter(function(k){ return porCliente[k] > 0; }).length
+  };
+}
+
 function _svResolverVentaRegistro(reg) {
   var ventas = Array.isArray(ventasList) ? ventasList : [];
   if (!reg || !ventas.length) return null;
@@ -3571,6 +3622,10 @@ function _svResolverClienteRegistro(reg, permitirNombre) {
 }
 
 window._svRegistroPerteneceVenta = _svRegistroPerteneceVenta;
+window._svPagoValido = _svPagoValido;
+window._svMontoPagadoVenta = _svMontoPagadoVenta;
+window._svSaldoPendienteVenta = _svSaldoPendienteVenta;
+window._svResumenCuentaCorriente = _svResumenCuentaCorriente;
 window._svResolverVentaRegistro = _svResolverVentaRegistro;
 window._svRegistroPerteneceCliente = _svRegistroPerteneceCliente;
 window._svResolverClienteRegistro = _svResolverClienteRegistro;
@@ -4649,11 +4704,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.87-firebase',
+  VERSION: 'v2.0.88-firebase',
   RELEASE_NOTES: Object.freeze([
-    'El editor de columnas permite alinear cada columna a izquierda, centro o derecha.',
-    'La alineación se previsualiza inmediatamente en encabezados y filas.',
-    'Las preferencias se guardan globalmente junto con los anchos de la tabla.'
+    'La deuda de Ventas ahora coincide con el Dashboard y descuenta los cobros reales.',
+    'Pagado este mes suma los pagos por su fecha de cobro, incluso de ventas anteriores.',
+    'Las métricas de Ventas se actualizan automáticamente al sincronizar los pagos.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -10853,6 +10908,9 @@ function fbCargarPagos() {
     if (ccDetEl && ccDetEl.style.display === 'block' && window._ccNombreActual && typeof verCuentaClienteReal === 'function') {
       verCuentaClienteReal(window._ccNombreActual);
     }
+    // Los indicadores de Ventas dependen del historial real de pagos. Volver a
+    // pintarlos cuando termina esta sincronización evita que queden en $0.
+    if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
   }, function(error) {
     window._pagosListenerActivo = false;
     console.error('[Cobros] No se pudo iniciar la sincronizacion', error);
@@ -23950,18 +24008,11 @@ function renderKPIsDashboard() {
     diffEl.textContent = (diffPct >= 0 ? '↑ +' : '↓ ') + diffPct + '% vs ayer';
     diffEl.style.color = diffPct >= 0 ? 'var(--green)' : 'var(--red)';
   }
-  // Mismo criterio que usa Cobranzas: si está en pago_total el saldo es 0,
-  // sino se resta lo ya cobrado (campo real: totalPagado)
+  // La deuda usa la misma conciliación de pagos que Ventas y Cobranzas.
   var ventasDeuda = esAdmin ? todasVentas : ventas;
-  function _saldoPendienteVenta(v) {
-    var total = parseFloat(v.total) || 0;
-    if (v.estadoPago === 'pago_total') return 0;
-    var pagado = parseFloat(v.totalPagado) || 0;
-    return total - pagado;
-  }
-  var ventasConDeuda = ventasDeuda.filter(function(v) { return _saldoPendienteVenta(v) > 0; });
-  var deudaTotal = ventasConDeuda.reduce(function(s,v){ return s + _saldoPendienteVenta(v); }, 0);
-  var clientesUnicos = new Set(ventasConDeuda.map(function(v){ return v.cliente; })).size;
+  var resumenDeuda = _svResumenCuentaCorriente(ventasDeuda);
+  var deudaTotal = resumenDeuda.pendiente;
+  var clientesUnicos = resumenDeuda.clientesConSaldo;
   _set('kpi-deuda', '$' + Math.round(deudaTotal).toLocaleString('es-AR'));
   var deudaSubEl = document.getElementById('kpi-deuda-sub');
   if (deudaSubEl) deudaSubEl.textContent = esAdmin ? (clientesUnicos + ' cliente' + (clientesUnicos !== 1 ? 's' : '') + ' con saldo') : 'mis ventas pendientes';
