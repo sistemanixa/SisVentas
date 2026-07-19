@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.70-firebase',
+  VERSION: 'v2.0.71-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7068,10 +7068,11 @@ function abrirActualizadorMasivoPrecios() {
         '<div style="display:flex;gap:5px"><button class="icon-btn" onclick="minimizarActualizadorMasivoPrecios()" title="Minimizar"><i class="ti ti-minus"></i></button><button class="icon-btn" onclick="cerrarActualizadorMasivoPrecios()" title="Cerrar"><i class="ti ti-x"></i></button></div>' +
       '</div>' +
       '<div style="padding:18px">' +
-        '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">' +
+        '<div class="metrics" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:14px">' +
           '<div class="metric"><div class="m-label">Productos vinculados</div><div class="m-value">'+todos.length+'</div><div class="m-sub">en proveedores compatibles</div></div>' +
           '<div class="metric"><div class="m-label">Pendientes</div><div class="m-value" style="color:'+(pendientes.length?'var(--amber)':'var(--green)')+'">'+pendientes.length+'</div><div class="m-sub">más de 24 h o sin verificar</div></div>' +
           '<div class="metric"><div class="m-label">Vigentes</div><div class="m-value" style="color:var(--green)">'+(todos.length-pendientes.length)+'</div><div class="m-sub">actualizados recientemente</div></div>' +
+          '<div class="metric"><div class="m-label">Actualizados ahora</div><div class="m-value" id="actualizador-precios-exitosos" style="color:var(--green)">0</div><div class="m-sub">correctos en esta ejecución</div></div>' +
         '</div>' +
         '<div id="actualizador-precios-estado" style="font-size:12px;color:var(--text2);padding:10px 12px;background:var(--bg3);border-radius:8px;margin-bottom:8px">Listo para actualizar los productos pendientes por proveedor.</div>' +
         '<div id="actualizador-precios-producto" style="min-height:34px;font-size:11px;color:var(--text3);padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;margin-bottom:8px">Producto actual: —</div>' +
@@ -7157,6 +7158,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
   var productoActualEl = document.getElementById('actualizador-precios-producto');
   var tiempoEl = document.getElementById('actualizador-precios-tiempo');
   var fallosEl = document.getElementById('actualizador-precios-fallos');
+  var exitososEl = document.getElementById('actualizador-precios-exitosos');
   var miniEstado = document.getElementById('actualizador-mini-estado');
   var miniPct = document.getElementById('actualizador-mini-pct');
   var miniBarra = document.getElementById('actualizador-mini-barra');
@@ -7166,6 +7168,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
   var grupos = {};
   pendientes.forEach(function(x){ (grupos[x.proveedorKey] = grupos[x.proveedorKey] || []).push(x); });
   var procesados = 0, actualizados = 0, fallidos = 0;
+  if (exitososEl) exitososEl.textContent = '0';
   var detalleFallos = [];
   var jobId = 'biosegur_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
   var procesoIniciadoEn = Date.now();
@@ -7249,6 +7252,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
             await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + item.producto.fbKey), cambios);
             Object.assign(item.producto, cambios);
             actualizados++;
+            if (exitososEl) exitososEl.textContent = String(actualizados);
           } else {
             fallidos++;
             detalleFallos.push({
@@ -7261,7 +7265,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
             });
           }
           procesados++;
-          actualizarProgresoVisual(procesados / pendientes.length * 100, procesados + ' de ' + pendientes.length + ' procesados');
+          actualizarProgresoVisual(procesados / pendientes.length * 100, actualizados + ' actualizados · ' + procesados + ' de ' + pendientes.length + ' procesados');
         }
       }
       if (modal._detenerSolicitado) break;
