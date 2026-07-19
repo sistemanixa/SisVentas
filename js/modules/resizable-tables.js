@@ -4,12 +4,13 @@
 
   var STORAGE_PREFIX = 'sisventas.tableWidth.v2.';
   var STORAGE_PERCENT_PREFIX = 'sisventas.tablePercent.v1.';
+  var STORAGE_ALIGN_PREFIX = 'sisventas.tableAlign.v1.';
   var MIN_WIDTH = 54;
   var MAX_WIDTH = 720;
   var scheduled = false;
   var scheduleTimer = 0;
   var percentDrafts = {};
-  var globalProfiles = { loaded: false, loading: false, widths: {}, percentages: {} };
+  var globalProfiles = { loaded: false, loading: false, widths: {}, percentages: {}, alignments: {} };
   var globalSaveTimers = {};
   var DEFAULT_WIDTH_BY_HEADER = {
     'fecha': 76,
@@ -38,6 +39,11 @@
   function pageId(table) {
     var page = table.closest('.page');
     return (page && page.id) || 'global';
+  }
+
+  function usesFullContainerWidth(table) {
+    var id = pageId(table);
+    return id === 'page-ctaemp' || id === 'page-ordenes';
   }
 
   function tableHeaders(table) {
@@ -75,6 +81,10 @@
     return tableKey(table);
   }
 
+  function alignStorageKey(table) {
+    return STORAGE_ALIGN_PREFIX + tableKey(table);
+  }
+
   function safeFirebaseKey(key) {
     return encodeURIComponent(String(key || 'tabla')).replace(/\./g, '%2E');
   }
@@ -88,7 +98,7 @@
   }
 
   function globalDataFor(table, type) {
-    var store = type === 'widths' ? globalProfiles.widths : globalProfiles.percentages;
+    var store = type === 'widths' ? globalProfiles.widths : (type === 'alignments' ? globalProfiles.alignments : globalProfiles.percentages);
     var key = globalProfileKey(table);
     return (store && store[key] && store[key].data) || {};
   }
@@ -101,6 +111,7 @@
         var val = snap && snap.val ? (snap.val() || {}) : {};
         globalProfiles.widths = val.widths || {};
         globalProfiles.percentages = val.percentages || {};
+        globalProfiles.alignments = val.alignments || {};
         globalProfiles.loaded = true;
         globalProfiles.loading = false;
         scheduleScan();
@@ -113,6 +124,7 @@
   function guardarPerfilGlobal(table, type, data) {
     var key = globalProfileKey(table);
     if (type === 'widths') globalProfiles.widths[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
+    else if (type === 'alignments') globalProfiles.alignments[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
     else globalProfiles.percentages[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
     if (!canUseFirebase() || window.currentRole !== 'admin') return;
     clearTimeout(globalSaveTimers[type + ':' + key]);
@@ -131,6 +143,7 @@
   function borrarPerfilGlobal(table, type) {
     var key = globalProfileKey(table);
     if (type === 'widths') delete globalProfiles.widths[key];
+    else if (type === 'alignments') delete globalProfiles.alignments[key];
     else delete globalProfiles.percentages[key];
     if (!window.fbDB || !window.fbRef || !window.fbRemove || window.currentRole !== 'admin') return;
     window.fbRemove(window.fbRef(window.fbDB, 'sisventas/config/tableColumns/' + type + '/' + key)).catch(function () {});
@@ -172,6 +185,29 @@
     guardarPerfilGlobal(table, 'percentages', percentages || {});
   }
 
+  function normalizeAlignment(value) {
+    var align = String(value || '').toLowerCase();
+    return align === 'center' || align === 'right' ? align : 'left';
+  }
+
+  function loadAlignments(table) {
+    cargarPerfilesGlobales();
+    var global = globalDataFor(table, 'alignments');
+    if (Object.keys(global).length) return global;
+    try {
+      return JSON.parse(localStorage.getItem(alignStorageKey(table)) || '{}') || {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveAlignments(table, alignments) {
+    try {
+      localStorage.setItem(alignStorageKey(table), JSON.stringify(alignments || {}));
+    } catch (_) {}
+    guardarPerfilGlobal(table, 'alignments', alignments || {});
+  }
+
   function hasSavedPercentages(table) {
     var data = loadPercentages(table);
     return Object.keys(data).some(function (key) {
@@ -182,9 +218,22 @@
   function ensureColgroup(table, count) {
     var colgroup = table.querySelector('colgroup.sv-resizable-cols');
     if (!colgroup) {
-      colgroup = document.createElement('colgroup');
-      colgroup.className = 'sv-resizable-cols';
-      table.insertBefore(colgroup, table.firstChild);
+      // Reutilizar el colgroup declarado por la tabla. Crear un segundo grupo
+      // agregaba columnas fantasma y dejaba media tarjeta vacía.
+      colgroup = Array.from(table.children).find(function (child) {
+        return child && child.tagName === 'COLGROUP';
+      }) || null;
+      if (colgroup) colgroup.classList.add('sv-resizable-cols');
+      else {
+        colgroup = document.createElement('colgroup');
+        colgroup.className = 'sv-resizable-cols';
+        table.insertBefore(colgroup, table.firstChild);
+      }
+    }
+    if (usesFullContainerWidth(table)) {
+      Array.from(table.children).forEach(function (child) {
+        if (child !== colgroup && child.tagName === 'COLGROUP') child.remove();
+      });
     }
     while (colgroup.children.length < count) colgroup.appendChild(document.createElement('col'));
     while (colgroup.children.length > count) colgroup.removeChild(colgroup.lastElementChild);
@@ -235,6 +284,53 @@
     return Array.from(table.querySelectorAll('tr')).map(function (row) {
       return row.children[physicalIndex] || null;
     }).filter(Boolean);
+  }
+
+  function defaultAlignmentForHeader(th) {
+    if (th && th.classList) {
+      if (th.classList.contains('tr')) return 'right';
+      if (th.classList.contains('tc')) return 'center';
+    }
+    return 'left';
+  }
+
+  function defaultAlignments(table) {
+    var data = {};
+    tableHeaders(table).forEach(function (th, index) {
+      data[index] = defaultAlignmentForHeader(th);
+    });
+    return data;
+  }
+
+  function currentAlignments(table) {
+    var saved = loadAlignments(table);
+    if (Object.keys(saved).length) return saved;
+    return defaultAlignments(table);
+  }
+
+  function applyAlignments(table, alignments) {
+    if (!table) return;
+    tableHeaders(table).forEach(function (_th, index) {
+      var align = normalizeAlignment((alignments || {})[index]);
+      columnCells(table, index).forEach(function (cell) {
+        cell.style.textAlign = align;
+      });
+    });
+  }
+
+  function clearAlignments(table) {
+    if (!table) return;
+    tableHeaders(table).forEach(function (_th, index) {
+      columnCells(table, index).forEach(function (cell) {
+        cell.style.textAlign = '';
+      });
+    });
+  }
+
+  function applySavedAlignments(table) {
+    var saved = loadAlignments(table);
+    if (Object.keys(saved).length) applyAlignments(table, saved);
+    else clearAlignments(table);
   }
 
   function defaultWidthForHeader(th) {
@@ -349,7 +445,7 @@
   function shouldApplyDefaultPercentProfile(table) {
     return !!(table && (
       table.id === 'prod-tbl' || table.id === 'gas-tbl' || table.id === 'ppto-tabla' ||
-      table.id === 'ventas-tbl' || table.id === 'venta-items-tbl' || pageId(table) === 'page-ctaemp'
+      table.id === 'ventas-tbl' || table.id === 'venta-items-tbl' || usesFullContainerWidth(table)
     ));
   }
 
@@ -382,7 +478,7 @@
     // En Mi cuenta las tablas deben aprovechar siempre todo el contenedor.
     // Si un perfil viejo suma menos de 100%, conservar sus proporciones pero
     // escalar visualmente las columnas para eliminar el espacio vacío lateral.
-    var completarAncho = pageId(table) === 'page-ctaemp' && totalPct > 0 && totalPct < 100;
+    var completarAncho = usesFullContainerWidth(table) && totalPct > 0 && totalPct < 100;
     var factorAncho = completarAncho ? (100 / totalPct) : 1;
     table.classList.add('sv-percent-table');
     table.style.setProperty('--sv-percent-total-width', Math.max(100, Math.round(totalPct * 10) / 10) + '%');
@@ -480,12 +576,14 @@
     ensurePercentButton(table);
     if (table.dataset && table.dataset.svNoResize === '1') {
       applySavedPercentProfile(table);
+      applySavedAlignments(table);
       return;
     }
     var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .card');
     if (!wrap) return;
     var headers = tableHeaders(table);
     if (headers.length < 2) return;
+    applySavedAlignments(table);
     var key = tableKey(table);
     var rowCount = table.rows ? table.rows.length : table.querySelectorAll('tr').length;
     if (table.dataset.svResizableReady === '1' &&
@@ -641,6 +739,7 @@
       return;
     }
     var values = currentPercentages(table);
+    var alignValues = currentAlignments(table);
     percentDrafts[percentDraftKey(table)] = Object.assign({}, values);
     var overlay = document.createElement('div');
     overlay.id = 'sv-column-percent-modal';
@@ -648,17 +747,23 @@
     overlay.innerHTML =
       '<div class="sv-column-percent-panel">' +
         '<div class="sv-column-percent-head" data-sv-drag-handle title="Arrastrá para mover">' +
-          '<div><strong>Anchos de columnas</strong><span>Modificá los porcentajes y la tabla cambia en vivo.</span></div>' +
+          '<div><strong>Columnas y alineación</strong><span>Modificá el ancho y elegí cómo alinear el contenido.</span></div>' +
           '<button class="btn btn-sm btn-icon" type="button" data-sv-close><i class="ti ti-x"></i></button>' +
         '</div>' +
         '<div class="sv-column-percent-list">' +
           headers.map(function (th, index) {
             var label = (th.textContent || ('Columna ' + (index + 1))).replace(/\s+/g, ' ').trim();
-            return '<label class="sv-column-percent-row">' +
+            var align = normalizeAlignment(alignValues[index]);
+            return '<div class="sv-column-percent-row">' +
               '<span>'+escapeHTML(label || ('Columna ' + (index + 1)))+'</span>' +
               '<input type="number" min="0" max="100" step="0.5" data-col-index="'+index+'" value="'+escapeHTML(values[index] || 0)+'">' +
               '<em>%</em>' +
-            '</label>';
+              '<select data-align-index="'+index+'" aria-label="Alineación de '+escapeHTML(label || ('columna ' + (index + 1)))+'">' +
+                '<option value="left"'+(align === 'left' ? ' selected' : '')+'>Izquierda</option>' +
+                '<option value="center"'+(align === 'center' ? ' selected' : '')+'>Centro</option>' +
+                '<option value="right"'+(align === 'right' ? ' selected' : '')+'>Derecha</option>' +
+              '</select>' +
+            '</div>';
           }).join('') +
         '</div>' +
         '<div class="sv-column-percent-total">Total: <strong id="sv-column-percent-total">0%</strong><span id="sv-column-percent-hint"></span></div>' +
@@ -721,6 +826,14 @@
       return data;
     }
 
+    function readAlignments() {
+      var data = {};
+      overlay.querySelectorAll('select[data-align-index]').forEach(function (select) {
+        data[select.dataset.alignIndex] = normalizeAlignment(select.value);
+      });
+      return data;
+    }
+
     function refreshTotal(data) {
       var total = Object.keys(data).reduce(function (s, key) { return s + normalizePercent(data[key]); }, 0);
       var el = document.getElementById('sv-column-percent-total');
@@ -730,7 +843,7 @@
         el.style.color = Math.abs(total - 100) <= 0.5 ? 'var(--green)' : (total > 100 ? 'var(--blue)' : 'var(--amber)');
       }
       if (hint) {
-        hint.textContent = total > 100 ? ' · queda más ancho y se desplaza horizontalmente' : (total < 99.5 ? ' · queda espacio libre' : '');
+        hint.textContent = total > 100 ? ' · queda más ancho y se desplaza horizontalmente' : (total < 99.5 ? (usesFullContainerWidth(table) ? ' · se distribuye hasta completar el ancho' : ' · queda espacio libre') : '');
       }
     }
 
@@ -738,36 +851,49 @@
       var data = readInputs();
       percentDrafts[percentDraftKey(table)] = Object.assign({}, data);
       applyPercentProfile(table, data);
+      applyAlignments(table, readAlignments());
       refreshTotal(data);
     }
 
     overlay.addEventListener('input', function (ev) {
       if (ev.target && ev.target.matches('input[data-col-index]')) applyLive();
     });
+    overlay.addEventListener('change', function (ev) {
+      if (ev.target && ev.target.matches('select[data-align-index]')) applyLive();
+    });
     overlay.addEventListener('click', function (ev) {
       if (ev.target === overlay || ev.target.closest('[data-sv-close]')) {
         delete percentDrafts[percentDraftKey(table)];
+        applySavedPercentProfile(table);
+        applySavedAlignments(table);
         overlay.remove();
         scan();
         return;
       }
       if (ev.target.closest('[data-sv-default]')) {
         var defs = defaultPercentages(table);
+        var alignDefs = defaultAlignments(table);
         overlay.querySelectorAll('input[data-col-index]').forEach(function (input) {
           input.value = defs[input.dataset.colIndex] || 0;
+        });
+        overlay.querySelectorAll('select[data-align-index]').forEach(function (select) {
+          select.value = alignDefs[select.dataset.alignIndex] || 'left';
         });
         applyLive();
         return;
       }
       if (ev.target.closest('[data-sv-reset]')) {
         try { localStorage.removeItem(percentStorageKey(table)); } catch (_) {}
+        try { localStorage.removeItem(alignStorageKey(table)); } catch (_) {}
         borrarPerfilGlobal(table, 'percentages');
+        borrarPerfilGlobal(table, 'alignments');
         delete percentDrafts[percentDraftKey(table)];
         clearPixelWidths(table);
         table.classList.remove('sv-percent-table');
         table.style.removeProperty('--sv-percent-total-width');
         table.style.width = '';
         table.style.tableLayout = '';
+        clearAlignments(table);
         overlay.remove();
         scan();
         if (window.notify) window.notify('Perfil de columnas quitado');
@@ -775,11 +901,14 @@
       }
       if (ev.target.closest('[data-sv-save]')) {
         var data = readInputs();
+        var alignData = readAlignments();
         savePercentages(table, data);
+        saveAlignments(table, alignData);
         delete percentDrafts[percentDraftKey(table)];
         applyPercentProfile(table, data);
+        applyAlignments(table, alignData);
         overlay.remove();
-        if (window.notify) window.notify('✓ Anchos de columnas guardados');
+        if (window.notify) window.notify('✓ Columnas y alineación guardadas');
       }
     });
     applyLive();

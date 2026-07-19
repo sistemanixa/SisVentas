@@ -4649,11 +4649,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.86-firebase',
+  VERSION: 'v2.0.87-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las tablas de Mi cuenta ahora aprovechan todo el ancho disponible.',
-    'Los perfiles de columnas anteriores conservan su proporción sin dejar espacios vacíos.',
-    'En pantallas pequeñas se mantiene el desplazamiento horizontal cuando es necesario.'
+    'El editor de columnas permite alinear cada columna a izquierda, centro o derecha.',
+    'La alineación se previsualiza inmediatamente en encabezados y filas.',
+    'Las preferencias se guardan globalmente junto con los anchos de la tabla.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
