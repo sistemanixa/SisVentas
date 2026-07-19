@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.68-firebase',
+  VERSION: 'v2.0.69-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6932,6 +6932,33 @@ function cerrarActualizadorMasivoPrecios() {
   }
 }
 
+function minimizarActualizadorMasivoPrecios() {
+  var modal = document.getElementById('modal-actualizador-precios');
+  if (!modal) return;
+  var panel = document.getElementById('actualizador-precios-panel');
+  var barraMini = document.getElementById('actualizador-precios-minimizado');
+  modal.dataset.minimizado = '1';
+  modal.style.background = 'transparent';
+  modal.style.pointerEvents = 'none';
+  if (panel) panel.style.display = 'none';
+  if (barraMini) {
+    barraMini.style.display = 'flex';
+    barraMini.style.pointerEvents = 'auto';
+  }
+}
+
+function restaurarActualizadorMasivoPrecios() {
+  var modal = document.getElementById('modal-actualizador-precios');
+  if (!modal) return;
+  var panel = document.getElementById('actualizador-precios-panel');
+  var barraMini = document.getElementById('actualizador-precios-minimizado');
+  modal.dataset.minimizado = '0';
+  modal.style.background = 'rgba(0,0,0,.58)';
+  modal.style.pointerEvents = 'auto';
+  if (panel) panel.style.display = '';
+  if (barraMini) barraMini.style.display = 'none';
+}
+
 function editarProductoFallidoActualizador(fbKey, proveedorIdx) {
   var editor = document.getElementById('actualizador-url-editor-' + String(fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(proveedorIdx,10)||0));
   if (editor) editor.style.display = editor.style.display === 'none' ? 'flex' : 'none';
@@ -6985,10 +7012,10 @@ function abrirActualizadorMasivoPrecios() {
   overlay.id = 'modal-actualizador-precios';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10020;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;padding:16px';
   overlay.innerHTML =
-    '<div style="width:min(620px,100%);background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden">' +
+    '<div id="actualizador-precios-panel" style="width:min(620px,100%);background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)">' +
         '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo de precios de proveedores</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Biosegur · Free Electron · Tecnoprices</div></div>' +
-        '<button class="icon-btn" onclick="cerrarActualizadorMasivoPrecios()"><i class="ti ti-x"></i></button>' +
+        '<div style="display:flex;gap:5px"><button class="icon-btn" onclick="minimizarActualizadorMasivoPrecios()" title="Minimizar"><i class="ti ti-minus"></i></button><button class="icon-btn" onclick="cerrarActualizadorMasivoPrecios()" title="Cerrar"><i class="ti ti-x"></i></button></div>' +
       '</div>' +
       '<div style="padding:18px">' +
         '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">' +
@@ -7001,9 +7028,15 @@ function abrirActualizadorMasivoPrecios() {
         '<div id="actualizador-precios-tiempo" style="font-size:11px;color:var(--text3);display:flex;justify-content:space-between;gap:10px;margin-bottom:10px"><span>Transcurrido: —</span><span>Tiempo restante estimado: —</span></div>' +
         '<div style="height:8px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-bottom:14px"><div id="actualizador-precios-barra" style="height:100%;width:0;background:var(--green);transition:width .25s"></div></div>' +
         '<div id="actualizador-precios-fallos" style="display:none;max-height:260px;overflow:auto;font-size:11px;padding:9px 10px;background:var(--amber-bg);border:0.5px solid var(--amber);border-radius:8px;margin-bottom:12px"></div>' +
-        '<div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="cerrarActualizadorMasivoPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-actualizar-biosegur-lote" onclick="ejecutarActualizadorMasivoBiosegur()" '+(!pendientes.length?'disabled':'')+'><i class="ti ti-refresh"></i> Actualizar '+pendientes.length+' pendientes</button></div>' +
+        '<div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="minimizarActualizadorMasivoPrecios()"><i class="ti ti-minus"></i> Minimizar</button><button class="btn" onclick="cerrarActualizadorMasivoPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-actualizar-biosegur-lote" onclick="ejecutarActualizadorMasivoBiosegur()" '+(!pendientes.length?'disabled':'')+'><i class="ti ti-refresh"></i> Actualizar '+pendientes.length+' pendientes</button></div>' +
       '</div>' +
-    '</div>';
+    '</div>' +
+    '<button id="actualizador-precios-minimizado" onclick="restaurarActualizadorMasivoPrecios()" style="display:none;position:fixed;left:12px;right:12px;bottom:10px;z-index:10021;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);color:var(--text);border:0.5px solid var(--border2);border-radius:12px;box-shadow:0 10px 35px rgba(0,0,0,.5);text-align:left;cursor:pointer;overflow:hidden">' +
+      '<i class="ti ti-refresh" id="actualizador-mini-icon" style="font-size:18px;color:var(--blue);flex:0 0 auto"></i>' +
+      '<div style="min-width:0;flex:1"><div id="actualizador-mini-titulo" style="font-size:12px;font-weight:700">Actualizador de precios</div><div id="actualizador-mini-estado" style="font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Listo para comenzar</div></div>' +
+      '<div id="actualizador-mini-pct" style="font-size:12px;font-weight:700;color:var(--green)">0%</div><i class="ti ti-chevron-up" style="color:var(--text3)"></i>' +
+      '<span style="position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--bg4)"><span id="actualizador-mini-barra" style="display:block;height:100%;width:0;background:var(--green);transition:width .25s"></span></span>' +
+    '</button>';
   document.body.appendChild(overlay);
   overlay._productosPendientes = pendientes;
 }
@@ -7074,6 +7107,10 @@ async function ejecutarActualizadorMasivoBiosegur() {
   var productoActualEl = document.getElementById('actualizador-precios-producto');
   var tiempoEl = document.getElementById('actualizador-precios-tiempo');
   var fallosEl = document.getElementById('actualizador-precios-fallos');
+  var miniEstado = document.getElementById('actualizador-mini-estado');
+  var miniPct = document.getElementById('actualizador-mini-pct');
+  var miniBarra = document.getElementById('actualizador-mini-barra');
+  var miniIcon = document.getElementById('actualizador-mini-icon');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Actualizando...'; }
 
   var grupos = {};
@@ -7084,7 +7121,16 @@ async function ejecutarActualizadorMasivoBiosegur() {
   var procesoIniciadoEn = Date.now();
   var ultimoProgresoEn = procesoIniciadoEn;
   var ultimoEstimadoRestante = null;
+  var progresoVisualMax = 0;
   var progresoRef = window.fbRef(window.fbDB, 'sisventas/procesos/cotizador/' + jobId);
+  function actualizarProgresoVisual(pct, detalle) {
+    pct = Math.max(0, Math.min(100, Math.round(parseFloat(pct) || 0)));
+    progresoVisualMax = Math.max(progresoVisualMax, pct);
+    if (barra) barra.style.width = progresoVisualMax + '%';
+    if (miniBarra) miniBarra.style.width = progresoVisualMax + '%';
+    if (miniPct) miniPct.textContent = progresoVisualMax + '%';
+    if (miniEstado && detalle) miniEstado.textContent = detalle;
+  }
   function formatoTiempo(seg) {
     seg = Math.max(0, Math.round(parseFloat(seg) || 0));
     if (seg < 60) return seg + ' s';
@@ -7102,7 +7148,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
       productoActualEl.innerHTML = '<strong style="color:var(--text)">' + escapeHTML(pr.codigo || 'Sin código') + '</strong> · ' + escapeHTML(pr.producto || 'Producto Biosegur') + '<br><span style="opacity:.75">' + escapeHTML(pr.url || '') + '</span>';
     }
     if (estado && pr.total) estado.textContent = proveedorProgreso + ': ' + (parseInt(pr.procesados,10)||0) + ' de ' + pr.total + ' procesados';
-    if (barra && pr.total) barra.style.width = Math.round((parseInt(pr.procesados,10)||0) / pr.total * 100) + '%';
+    if (pr.total) actualizarProgresoVisual((parseInt(pr.procesados,10)||0) / pr.total * 100, estado ? estado.textContent : 'Actualizando precios…');
     if (tiempoEl) tiempoEl.innerHTML = '<span>Transcurrido: ' + formatoTiempo(pr.transcurridoSeg) + '</span><span>Tiempo restante estimado: ' + (pr.estimadoRestanteSeg != null ? formatoTiempo(pr.estimadoRestanteSeg) : 'calculando…') + '</span>';
   });
   // El servidor puede tardar mientras abre el navegador e inicia sesión. Este
@@ -7115,10 +7161,10 @@ async function ejecutarActualizadorMasivoBiosegur() {
       ? 'Tiempo restante estimado: ' + formatoTiempo(Math.max(0, ultimoEstimadoRestante - sinNovedades))
       : (sinNovedades >= 30 ? 'El proveedor está demorando en responder…' : 'Preparando datos, no cierres esta ventana');
     if (tiempoEl) tiempoEl.innerHTML = '<span><i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:4px"></i>Activo · ' + formatoTiempo(transcurrido) + '</span><span>' + textoDerecha + '</span>';
-    if (barra && procesados === 0) {
-      barra.style.width = Math.min(12, 3 + (transcurrido % 10)) + '%';
-      barra.style.opacity = String(0.55 + ((transcurrido % 2) * 0.35));
-    }
+    // Antes del primer producto el avance real sigue en 0%. El indicador de
+    // actividad es el spinner; no simulamos porcentaje porque resultaba confuso.
+    if (procesados === 0) actualizarProgresoVisual(0, estado ? estado.textContent : textoDerecha);
+    if (miniEstado && estado) miniEstado.textContent = estado.textContent + ' · ' + formatoTiempo(transcurrido);
   }, 1000);
   try {
     for (var proveedorKey of Object.keys(grupos)) {
@@ -7165,7 +7211,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
             });
           }
           procesados++;
-          if (barra) barra.style.width = Math.round(procesados / pendientes.length * 100) + '%';
+          actualizarProgresoVisual(procesados / pendientes.length * 100, procesados + ' de ' + pendientes.length + ' procesados');
         }
       }
       if (modal._detenerSolicitado) break;
@@ -7176,6 +7222,13 @@ async function ejecutarActualizadorMasivoBiosegur() {
         : '<strong style="color:var(--green)">Actualización terminada.</strong> ' + actualizados + ' actualizados' + (fallidos ? ' · <span style="color:var(--amber)">' + fallidos + ' no pudieron verificarse</span>' : '') + '.';
     }
     if (productoActualEl) productoActualEl.textContent = 'Proceso finalizado.';
+    if (!modal._detenerSolicitado) {
+      actualizarProgresoVisual(100, actualizados + ' precios actualizados' + (fallidos ? ' · ' + fallidos + ' para revisar' : ''));
+      if (miniIcon) { miniIcon.className = 'ti ti-check'; miniIcon.style.color = 'var(--green)'; }
+    } else {
+      if (miniEstado) miniEstado.textContent = 'Actualización detenida · ' + procesados + ' de ' + pendientes.length + ' procesados';
+      if (miniIcon) { miniIcon.className = 'ti ti-player-stop'; miniIcon.style.color = 'var(--amber)'; }
+    }
     if (fallosEl && detalleFallos.length) {
       fallosEl.style.display = '';
       fallosEl.innerHTML = '<strong style="color:var(--amber)">Requieren revisión (conservaron su precio anterior):</strong>' + detalleFallos.map(function(f) {
@@ -7208,6 +7261,8 @@ async function ejecutarActualizadorMasivoBiosegur() {
     if (!modal._cerradoPorLogout) {
       if (estado) estado.innerHTML = '<span style="color:var(--red)">Se interrumpió la actualización: ' + escapeHTML(e.message || '') + '</span>';
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Reintentar pendientes'; }
+      if (miniEstado) miniEstado.textContent = 'Se interrumpió la actualización: ' + (e.message || 'Error');
+      if (miniIcon) { miniIcon.className = 'ti ti-alert-triangle'; miniIcon.style.color = 'var(--red)'; }
     }
   } finally {
     clearInterval(relojProgreso);
@@ -8206,7 +8261,7 @@ function volverAtrasSisVentas() {
   if (_svElementoVisible(modalRevision)) { modalRevision.remove(); return true; }
 
   var actualizador = document.getElementById('modal-actualizador-precios');
-  if (_svElementoVisible(actualizador)) {
+  if (_svElementoVisible(actualizador) && actualizador.dataset.minimizado !== '1') {
     if (actualizador.dataset.ejecutando === '1') {
       notify('La actualización sigue trabajando. Usá Cerrar si querés detenerla.');
       return true;
