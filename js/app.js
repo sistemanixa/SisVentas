@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.69-firebase',
+  VERSION: 'v2.0.70-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -6959,6 +6959,56 @@ function restaurarActualizadorMasivoPrecios() {
   if (barraMini) barraMini.style.display = 'none';
 }
 
+function abrirDesdeBarraActualizadorMinimizado() {
+  if (window._ignorarClickBarraActualizador) {
+    window._ignorarClickBarraActualizador = false;
+    return;
+  }
+  restaurarActualizadorMasivoPrecios();
+}
+
+function iniciarArrastreActualizador(evento) {
+  if (!evento || evento.button !== 0) return;
+  var barra = document.getElementById('actualizador-precios-minimizado');
+  if (!barra) return;
+  var rect = barra.getBoundingClientRect();
+  var inicioX = evento.clientX;
+  var inicioY = evento.clientY;
+  var movido = false;
+  barra.style.cursor = 'grabbing';
+  barra.setPointerCapture && barra.setPointerCapture(evento.pointerId);
+
+  function mover(e) {
+    var dx = e.clientX - inicioX;
+    var dy = e.clientY - inicioY;
+    if (!movido && Math.abs(dx) + Math.abs(dy) < 5) return;
+    movido = true;
+    e.preventDefault();
+    var maxX = Math.max(8, window.innerWidth - rect.width - 8);
+    var maxY = Math.max(8, window.innerHeight - rect.height - 8);
+    barra.style.left = Math.max(8, Math.min(maxX, rect.left + dx)) + 'px';
+    barra.style.top = Math.max(8, Math.min(maxY, rect.top + dy)) + 'px';
+    barra.style.right = 'auto';
+    barra.style.bottom = 'auto';
+    barra.style.transform = 'none';
+  }
+
+  function terminar(e) {
+    barra.removeEventListener('pointermove', mover);
+    barra.removeEventListener('pointerup', terminar);
+    barra.removeEventListener('pointercancel', terminar);
+    barra.style.cursor = 'grab';
+    if (barra.releasePointerCapture) {
+      try { barra.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+    if (movido) window._ignorarClickBarraActualizador = true;
+  }
+
+  barra.addEventListener('pointermove', mover);
+  barra.addEventListener('pointerup', terminar);
+  barra.addEventListener('pointercancel', terminar);
+}
+
 function editarProductoFallidoActualizador(fbKey, proveedorIdx) {
   var editor = document.getElementById('actualizador-url-editor-' + String(fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(proveedorIdx,10)||0));
   if (editor) editor.style.display = editor.style.display === 'none' ? 'flex' : 'none';
@@ -7031,7 +7081,7 @@ function abrirActualizadorMasivoPrecios() {
         '<div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="minimizarActualizadorMasivoPrecios()"><i class="ti ti-minus"></i> Minimizar</button><button class="btn" onclick="cerrarActualizadorMasivoPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-actualizar-biosegur-lote" onclick="ejecutarActualizadorMasivoBiosegur()" '+(!pendientes.length?'disabled':'')+'><i class="ti ti-refresh"></i> Actualizar '+pendientes.length+' pendientes</button></div>' +
       '</div>' +
     '</div>' +
-    '<button id="actualizador-precios-minimizado" onclick="restaurarActualizadorMasivoPrecios()" style="display:none;position:fixed;left:12px;right:12px;bottom:10px;z-index:10021;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);color:var(--text);border:0.5px solid var(--border2);border-radius:12px;box-shadow:0 10px 35px rgba(0,0,0,.5);text-align:left;cursor:pointer;overflow:hidden">' +
+    '<button id="actualizador-precios-minimizado" onclick="abrirDesdeBarraActualizadorMinimizado()" onpointerdown="iniciarArrastreActualizador(event)" title="Arrastrá para mover · clic para abrir" style="display:none;position:fixed;width:min(520px,calc(100% - 24px));left:50%;transform:translateX(-50%);bottom:10px;z-index:10021;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);color:var(--text);border:0.5px solid var(--border2);border-radius:12px;box-shadow:0 10px 35px rgba(0,0,0,.5);text-align:left;cursor:grab;touch-action:none;user-select:none;overflow:hidden">' +
       '<i class="ti ti-refresh" id="actualizador-mini-icon" style="font-size:18px;color:var(--blue);flex:0 0 auto"></i>' +
       '<div style="min-width:0;flex:1"><div id="actualizador-mini-titulo" style="font-size:12px;font-weight:700">Actualizador de precios</div><div id="actualizador-mini-estado" style="font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Listo para comenzar</div></div>' +
       '<div id="actualizador-mini-pct" style="font-size:12px;font-weight:700;color:var(--green)">0%</div><i class="ti ti-chevron-up" style="color:var(--text3)"></i>' +
