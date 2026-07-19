@@ -2965,6 +2965,7 @@ function fbCargarUsuarios() {
           };
         });
       renderTablaUsuarios();
+      if (typeof renderHistorialComunicados === 'function') renderHistorialComunicados();
     }
   });
 }
@@ -4174,6 +4175,7 @@ function doLogoutAutomatico() {
 }
 
 function _cerrarInterfacesAlSalir() {
+  if (typeof detenerSyncComunicados === 'function') detenerSyncComunicados();
   var actualizador = document.getElementById('modal-actualizador-precios');
   if (actualizador) {
     actualizador._detenerSolicitado = true;
@@ -4183,7 +4185,7 @@ function _cerrarInterfacesAlSalir() {
     }
     actualizador.remove();
   }
-  ['modal-revision-precios','popup-actualizado','modal-haberes-mes','modal-hsextra','modal-hsextra-admin','modal-aguinaldo','modal-factura','modal-nota-credito','modal-factura-emitida','modal-forzar-pass','modal-venta-confirmada','modal-alta-rapida-cli'].forEach(function(id) {
+  ['modal-revision-precios','modal-comunicado-global','popup-actualizado','modal-haberes-mes','modal-hsextra','modal-hsextra-admin','modal-aguinaldo','modal-factura','modal-nota-credito','modal-factura-emitida','modal-forzar-pass','modal-venta-confirmada','modal-alta-rapida-cli'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.remove();
   });
@@ -4418,6 +4420,7 @@ function showPage(id, el) {
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
   if (id === 'cobranzas')      { setTimeout(function(){ fbCargarPagos(); }, 50); }
   if (id === 'cuentacorriente'){ setTimeout(function(){ fbCargarPagos(); }, 50); }
+  if (id === 'notificaciones')  { setTimeout(function(){ if(typeof renderHistorialComunicados==='function') renderHistorialComunicados(); }, 50); }
   if (id === 'configuracion')   { setTimeout(function(){
     try{ if(typeof cargarConfigGeneral==='function') cargarConfigGeneral(); }catch(e){}
     try{ if(typeof cargarConfigImpuestos==='function') cargarConfigImpuestos(); }catch(e){}
@@ -4567,7 +4570,12 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.81-firebase',
+  VERSION: 'v2.0.82-firebase',
+  RELEASE_NOTES: Object.freeze([
+    'Los avisos de actualización ahora muestran un resumen breve de los cambios.',
+    'El administrador puede enviar comunicados globales o por rol.',
+    'Cada comunicado exige confirmación y registra quién lo leyó.'
+  ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -4898,19 +4906,22 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
 
   var desdeStr = verAnterior ? verAnterior.replace('-firebase','') : '';
   var hastaStr = (verNueva||'').replace('-firebase','');
+  var notasVersion = (APP_CONFIG.RELEASE_NOTES || []).map(function(nota) {
+    return '<div style="display:flex;align-items:flex-start;gap:8px;text-align:left"><i class="ti ti-check" style="color:var(--green);font-size:14px;margin-top:2px;flex-shrink:0"></i><span>' + escapeHTML(nota) + '</span></div>';
+  }).join('');
 
   var overlay = document.createElement('div');
   overlay.id = 'popup-actualizado';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.35)';
   overlay.innerHTML =
-    '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:32px 36px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5);text-align:center;position:relative;border:0.5px solid var(--border2)">' +
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:30px 32px;max-width:480px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);text-align:center;position:relative;border:0.5px solid var(--border2)">' +
       // Ícono animado
       '<div style="width:64px;height:64px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">' +
         '<i class="ti ti-rocket" style="font-size:28px;color:var(--green)"></i>' +
       '</div>' +
       // Título
       '<div style="font-weight:700;font-size:20px;color:var(--text);margin-bottom:6px">¡Sistema actualizado!</div>' +
-      '<div style="font-size:13px;color:var(--text3);margin-bottom:20px">SisVentas se actualizó automáticamente con las últimas mejoras de Nixa</div>' +
+      '<div style="font-size:13px;color:var(--text3);margin-bottom:20px">SisVentas se actualizó automáticamente</div>' +
       // Versiones
       (desdeStr ?
         '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;padding:10px 16px;background:var(--bg3);border-radius:var(--radius)">' +
@@ -4919,10 +4930,9 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
           '<span style="font-family:monospace;font-size:14px;font-weight:700;color:var(--green)">' + hastaStr + '</span>' +
         '</div>'
       : '<div style="font-family:monospace;font-size:16px;font-weight:700;color:var(--green);margin-bottom:20px">' + hastaStr + '</div>') +
-      // Mensaje
-      '<div style="font-size:12px;color:var(--text3);margin-bottom:24px;line-height:1.6">' +
-        'Todo funcionando correctamente.<br>Seguís exactamente donde estabas.' +
-      '</div>' +
+      // Resumen de cambios
+      (notasVersion ? '<div style="padding:12px 14px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text2);line-height:1.45;margin-bottom:20px;display:flex;flex-direction:column;gap:8px"><div style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.5px">Qué cambió</div>' + notasVersion + '</div>' : '') +
+      '<div style="font-size:11px;color:var(--text3);margin-bottom:20px">Todo funcionando correctamente. Seguís exactamente donde estabas.</div>' +
       // Botón
       '<button onclick="document.getElementById(\'popup-actualizado\').remove()" ' +
         'style="width:100%;padding:12px;border-radius:var(--radius);border:none;background:var(--green);color:#080e1a;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;letter-spacing:.3px">' +
@@ -5672,6 +5682,7 @@ function _completarLogin(nombre) {
   // Iniciar listener de versión en tiempo real vía Firebase
   if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
   if (typeof window.iniciarSyncNotificaciones === 'function') window.iniciarSyncNotificaciones();
+  if (typeof iniciarSyncComunicados === 'function') setTimeout(iniciarSyncComunicados, 3300);
   if (typeof restaurarPaginaPostActualizacion === 'function') restaurarPaginaPostActualizacion();
   // Mostrar versión en el sidebar
   var vSidebar = document.getElementById('s-version-el');
@@ -8366,6 +8377,11 @@ function _svElementoVisible(el) {
 }
 
 function volverAtrasSisVentas() {
+  var comunicadoBloqueante = document.getElementById('modal-comunicado-global');
+  if (_svElementoVisible(comunicadoBloqueante)) {
+    notify('Presioná “Entendido” para confirmar la lectura y continuar');
+    return true;
+  }
   var modalRevision = document.getElementById('modal-revision-precios');
   if (_svElementoVisible(modalRevision)) { modalRevision.remove(); return true; }
 
@@ -8949,7 +8965,10 @@ function showCfgTab(id, el) {
   if (id === 'cargos') renderCargosConfig();
   if (id === 'comisiones') renderComisionesConfig();
   if (id === 'valoresmasivos') renderCfgValoresMasivos();
-  if (id === 'notificaciones' && typeof renderConfigAlertas === 'function') renderConfigAlertas();
+  if (id === 'notificaciones') {
+    if (typeof renderConfigAlertas === 'function') renderConfigAlertas();
+    if (typeof renderHistorialComunicados === 'function') renderHistorialComunicados();
+  }
   if (id === 'actividad') cargarLogActividad();
   if (id === 'mantenimiento' && typeof mntInicializar === 'function') mntInicializar();
   if (id === 'asistente') aacfgInicializar();
@@ -24991,6 +25010,183 @@ function reservarStock(cod, cantidad) {
 // NOTIFICACIONES INTELIGENTES AUTOMÁTICAS
 
 // Configuración de alertas (qué activa cada tipo)
+
+// COMUNICADOS INTERNOS BLOQUEANTES — envío por rol y comprobante de lectura
+var COMUNICADOS_DATA = [];
+var COMUNICADOS_LECTURAS = {};
+var _comunicadosUnsub = null;
+var _comunicadosLecturasUnsub = null;
+var _comunicadosCargados = false;
+var _comunicadosLecturasCargadas = false;
+
+function _comunicadoKey(valor) {
+  return String(valor || '').trim().replace(/[.#$\[\]\/]/g, '_') || 'usuario';
+}
+
+function _comunicadoUsuarioKey() {
+  return _comunicadoKey(currentUserUid || currentUserEmail || currentUser || 'usuario');
+}
+
+function _comunicadoRolNormalizado(rol) {
+  var r = String(rol || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (r === 'administrador') return 'admin';
+  return r;
+}
+
+function _comunicadoAplicaUsuario(comunicado, rol) {
+  var destino = String((comunicado || {}).destino || 'todos').toLowerCase();
+  return destino === 'todos' || destino === _comunicadoRolNormalizado(rol);
+}
+
+function _comunicadoDestinoLabel(destino) {
+  return { todos:'Global', tecnico:'Técnicos', administrativo:'Administrativos', vendedor:'Vendedores' }[destino] || destino || 'Global';
+}
+
+function iniciarSyncComunicados() {
+  if (!window.fbDB || !window.fbOnValue || !currentUser) return;
+  detenerSyncComunicados();
+  _comunicadosUnsub = window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/comunicados'), function(snap) {
+    var data = snap.val() || {};
+    COMUNICADOS_DATA = Object.entries(data).map(function(e){ return Object.assign({ fbKey:e[0] }, e[1] || {}); }).sort(function(a,b){ return (b.creadoEn||0)-(a.creadoEn||0); });
+    _comunicadosCargados = true;
+    renderHistorialComunicados();
+    mostrarComunicadoPendiente();
+  }, function(e){ console.error('[Comunicados] Error de lectura:', e); });
+  _comunicadosLecturasUnsub = window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/comunicados_lecturas'), function(snap) {
+    COMUNICADOS_LECTURAS = snap.val() || {};
+    _comunicadosLecturasCargadas = true;
+    renderHistorialComunicados();
+    mostrarComunicadoPendiente();
+  }, function(e){ console.error('[Comunicados] Error de lecturas:', e); });
+}
+
+function detenerSyncComunicados() {
+  if (typeof _comunicadosUnsub === 'function') _comunicadosUnsub();
+  if (typeof _comunicadosLecturasUnsub === 'function') _comunicadosLecturasUnsub();
+  _comunicadosUnsub = null;
+  _comunicadosLecturasUnsub = null;
+  COMUNICADOS_DATA = [];
+  COMUNICADOS_LECTURAS = {};
+  _comunicadosCargados = false;
+  _comunicadosLecturasCargadas = false;
+}
+
+function mostrarComunicadoPendiente() {
+  if (!currentUser || !currentRole || !_comunicadosCargados || !_comunicadosLecturasCargadas) return;
+  var usuarioKey = _comunicadoUsuarioKey();
+  var pendientes = COMUNICADOS_DATA.filter(function(c) {
+    return c && c.activo !== false && _comunicadoAplicaUsuario(c, currentRole) && !((COMUNICADOS_LECTURAS[c.fbKey] || {})[usuarioKey]);
+  }).sort(function(a,b){ return (a.creadoEn||0)-(b.creadoEn||0); });
+  var comunicado = pendientes[0];
+  var existente = document.getElementById('modal-comunicado-global');
+  if (!comunicado) { if (existente) existente.remove(); return; }
+  if (existente && existente.dataset.comunicadoId === comunicado.fbKey) return;
+  if (existente) existente.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-comunicado-global';
+  overlay.dataset.comunicadoId = comunicado.fbKey;
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:100200;background:rgba(3,6,14,.82);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:18px';
+  var fecha = comunicado.creadoEn ? new Date(comunicado.creadoEn).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}) : '';
+  overlay.innerHTML =
+    '<div role="alertdialog" aria-modal="true" style="width:min(560px,100%);max-height:88vh;overflow:auto;background:var(--bg2);border:1px solid rgba(96,165,250,.35);border-radius:20px;box-shadow:0 28px 90px rgba(0,0,0,.65);padding:26px">' +
+      '<div style="width:58px;height:58px;border-radius:18px;background:var(--blue-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;margin-bottom:18px"><i class="ti ti-speakerphone" style="font-size:28px"></i></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><span class="badge b-blue">' + escapeHTML(_comunicadoDestinoLabel(comunicado.destino)) + '</span><span style="font-size:11px;color:var(--text3)">' + escapeHTML(fecha) + '</span></div>' +
+      '<div style="font-size:21px;font-weight:800;color:var(--text);line-height:1.2;margin-bottom:12px">' + escapeHTML(comunicado.titulo || 'Comunicado interno') + '</div>' +
+      '<div style="font-size:14px;color:var(--text2);line-height:1.65;white-space:pre-wrap;padding:15px 16px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:14px">' + escapeHTML(comunicado.mensaje || '') + '</div>' +
+      '<div style="font-size:11px;color:var(--text3);margin-bottom:20px">Enviado por ' + escapeHTML(comunicado.creadoPor || 'Administración') + '. Debés confirmar la lectura para continuar.</div>' +
+      '<button id="btn-entendido-comunicado" onclick="confirmarLecturaComunicado(\'' + escapeHTML(comunicado.fbKey) + '\')" style="width:100%;padding:12px 16px;border:0;border-radius:var(--radius);background:var(--blue);color:#07101f;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer"><i class="ti ti-check"></i> Entendido</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+async function confirmarLecturaComunicado(comunicadoId) {
+  var id = String(comunicadoId || '');
+  var btn = document.getElementById('btn-entendido-comunicado');
+  if (!id || !window.fbDB) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando lectura...'; }
+  var usuarioKey = _comunicadoUsuarioKey();
+  var lectura = { usuario:currentUser || currentUserEmail || 'Usuario', email:currentUserEmail || '', rol:currentRole || '', leidoEn:Date.now() };
+  try {
+    await window.fbSet(window.fbRef(window.fbDB, 'sisventas/comunicados_lecturas/' + id + '/' + usuarioKey), lectura);
+    COMUNICADOS_LECTURAS[id] = COMUNICADOS_LECTURAS[id] || {};
+    COMUNICADOS_LECTURAS[id][usuarioKey] = lectura;
+    var modal = document.getElementById('modal-comunicado-global');
+    if (modal) modal.remove();
+    notify('Lectura confirmada');
+    mostrarComunicadoPendiente();
+  } catch (e) {
+    notify('No se pudo confirmar la lectura: ' + (e.message || 'Error'));
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Entendido'; }
+  }
+}
+
+async function enviarComunicadoGlobal() {
+  if (currentRole !== 'admin') { notify('Solo el administrador puede enviar comunicados'); return; }
+  var titulo = String((document.getElementById('comunicado-titulo')||{}).value || '').trim();
+  var mensaje = String((document.getElementById('comunicado-mensaje')||{}).value || '').trim();
+  var destino = String((document.getElementById('comunicado-destino')||{}).value || 'todos');
+  if (!titulo || !mensaje) { notify('Completá el título y el mensaje'); return; }
+  if (!confirm('¿Enviar este comunicado a ' + _comunicadoDestinoLabel(destino).toLowerCase() + '?\n\nEl sistema quedará bloqueado para cada destinatario hasta que confirme la lectura.')) return;
+  var btn = document.getElementById('btn-enviar-comunicado');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Enviando...'; }
+  try {
+    var ref = await window.fbPush(window.fbRef(window.fbDB, 'sisventas/comunicados'), { titulo:titulo, mensaje:mensaje, destino:destino, activo:true, creadoEn:Date.now(), creadoPor:currentUser || 'Admin', creadoPorEmail:currentUserEmail || '' });
+    if (destino === 'todos' && ref && ref.key) {
+      var lecturaRemitente = { usuario:currentUser || 'Admin', email:currentUserEmail || '', rol:currentRole, leidoEn:Date.now(), remitente:true };
+      COMUNICADOS_LECTURAS[ref.key] = COMUNICADOS_LECTURAS[ref.key] || {};
+      COMUNICADOS_LECTURAS[ref.key][_comunicadoUsuarioKey()] = lecturaRemitente;
+      await window.fbSet(window.fbRef(window.fbDB, 'sisventas/comunicados_lecturas/' + ref.key + '/' + _comunicadoUsuarioKey()), lecturaRemitente);
+    }
+    var tituloEl = document.getElementById('comunicado-titulo');
+    var mensajeEl = document.getElementById('comunicado-mensaje');
+    if (tituloEl) tituloEl.value = '';
+    if (mensajeEl) mensajeEl.value = '';
+    notify('✓ Comunicado enviado a ' + _comunicadoDestinoLabel(destino).toLowerCase());
+    if (typeof registrarActividad === 'function') registrarActividad('Comunicado interno enviado', _comunicadoDestinoLabel(destino) + ' — ' + titulo);
+  } catch (e) {
+    notify('No se pudo enviar: ' + (e.message || 'Error'));
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar comunicado'; }
+  }
+}
+
+function _comunicadoUsuariosEsperados(comunicado) {
+  return (window.usuariosData || []).filter(function(u) {
+    return u && u.activo !== false && _comunicadoAplicaUsuario(comunicado, _comunicadoRolNormalizado(u.rol));
+  });
+}
+
+function renderHistorialComunicados() {
+  var cont = document.getElementById('comunicados-historial');
+  if (!cont || currentRole !== 'admin') return;
+  var lista = COMUNICADOS_DATA.slice(0, 30);
+  if (!lista.length) { cont.innerHTML = '<div style="padding:22px;text-align:center;color:var(--text3)">Todavía no se enviaron comunicados.</div>'; return; }
+  cont.innerHTML = lista.map(function(c) {
+    var lecturas = Object.values(COMUNICADOS_LECTURAS[c.fbKey] || {});
+    var esperados = _comunicadoUsuariosEsperados(c);
+    var fecha = c.creadoEn ? new Date(c.creadoEn).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}) : '';
+    var resumenLecturas = lecturas.length ? lecturas.map(function(l){
+      var nombreLectura = l.usuario || l.email || 'Usuario';
+      var fechaLectura = l.leidoEn ? new Date(l.leidoEn).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}) : '';
+      return '<span class="badge b-green" title="Leído ' + escapeHTML(fechaLectura) + '"><i class="ti ti-check"></i> ' + escapeHTML(nombreLectura) + '</span>';
+    }).join(' ') : '<span style="font-size:11px;color:var(--text3)">Nadie confirmó todavía</span>';
+    return '<div style="padding:14px 15px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius)">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap"><div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="font-size:13px">' + escapeHTML(c.titulo || 'Comunicado') + '</strong><span class="badge b-blue">' + escapeHTML(_comunicadoDestinoLabel(c.destino)) + '</span>' + (c.activo === false ? '<span class="badge">Finalizado</span>' : '<span class="badge b-green">Activo</span>') + '</div><div style="font-size:12px;color:var(--text2);margin-top:5px;white-space:pre-wrap">' + escapeHTML(c.mensaje || '') + '</div><div style="font-size:10px;color:var(--text3);margin-top:6px">' + escapeHTML(fecha) + ' · ' + escapeHTML(c.creadoPor || '') + '</div></div>' +
+      '<div style="text-align:right"><div style="font-size:18px;font-weight:800;color:var(--green)">' + lecturas.length + (esperados.length ? ' / ' + esperados.length : '') + '</div><div style="font-size:10px;color:var(--text3)">confirmaron</div>' + (c.activo !== false ? '<button class="btn btn-sm" style="margin-top:7px" onclick="finalizarComunicado(\'' + escapeHTML(c.fbKey) + '\')"><i class="ti ti-square-x"></i> Finalizar</button>' : '') + '</div></div>' +
+      '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:10px">' + resumenLecturas + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function finalizarComunicado(comunicadoId) {
+  if (currentRole !== 'admin' || !comunicadoId) return;
+  if (!confirm('¿Finalizar este comunicado? Dejará de bloquear a quienes todavía no lo hayan leído, pero conservará el historial.')) return;
+  try {
+    await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/comunicados/' + comunicadoId), { activo:false, finalizadoEn:Date.now(), finalizadoPor:currentUser || 'Admin' });
+    notify('Comunicado finalizado');
+  } catch (e) { notify('No se pudo finalizar: ' + (e.message || 'Error')); }
+}
 
 // Estado de notificaciones leídas
 
