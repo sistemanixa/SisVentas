@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.67-firebase',
+  VERSION: 'v2.0.68-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5938,6 +5938,23 @@ function toggleCostoCompraDetalleVenta() {
   if (window._ventaDetalleActual) renderDetalleVenta(window._ventaDetalleActual);
 }
 
+window._mostrarMargenDetalleVenta = false;
+function toggleMargenDetalleVenta() {
+  window._mostrarMargenDetalleVenta = !window._mostrarMargenDetalleVenta;
+  if (window._ventaDetalleActual) renderDetalleVenta(window._ventaDetalleActual);
+}
+
+window._mostrarCostoCompraDetallePpto = false;
+window._mostrarMargenDetallePpto = false;
+function toggleCostoCompraDetallePpto() {
+  window._mostrarCostoCompraDetallePpto = !window._mostrarCostoCompraDetallePpto;
+  if (pptoActualId) verPpto(pptoActualId);
+}
+function toggleMargenDetallePpto() {
+  window._mostrarMargenDetallePpto = !window._mostrarMargenDetallePpto;
+  if (pptoActualId) verPpto(pptoActualId);
+}
+
 function obtenerCostoUnitarioDetalleVenta(item) {
   item = item || {};
   var qty = parseFloat(item.qty || item.cantidad || 1) || 1;
@@ -6442,13 +6459,6 @@ function imagenProductoItemHTML(item, extraClass) {
 }
 function jsStringAttr(valor) {
   return String(valor || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
-}
-function botonVerCompraProducto(item) {
-  var prodRef = productoRefDesdeItem(item);
-  if (!prodRef) return '<span style="color:var(--text3);font-size:11px">—</span>';
-  return '<button class="btn btn-sm btn-ver-compra-prod" onclick="event.stopPropagation();navegarAProducto(\''+jsStringAttr(prodRef)+'\')" title="Ver ficha de compra del producto">' +
-    '<i class="ti ti-eye"></i> Ver compra' +
-  '</button>';
 }
 var editingProdId = null;
 
@@ -12968,6 +12978,7 @@ function cargarCtaEmp(empFbKey) {
       };
     });
     movsEmpData = ctaMovs.concat(gastosEmp).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    if (emp) renderComisionesDelMes(emp);
     renderMovsEmp();
     _ctaEmpActualizarBannerDuplicadosLegacy();
   });
@@ -13000,14 +13011,26 @@ function renderComisionesDelMes(emp) {
   var pct = parseFloat(emp.pctComisionPropio) || 0;
   var mesCta = _ctaEmpPeriodoMes();
 
+  var idsComisionesVisibles = null;
+  if (currentRole !== 'admin') {
+    idsComisionesVisibles = {};
+    (movsEmpData || []).filter(_ctaEmpMovVisibleParaRol).forEach(function(m) {
+      if (m.tipo === 'comision') {
+        if (m.ventaId) idsComisionesVisibles[String(m.ventaId)] = m;
+        if (m.ventaFbKey) idsComisionesVisibles[String(m.ventaFbKey)] = m;
+      }
+    });
+  }
   var ventasDelVendedor = (ventasList||[]).filter(function(v) {
     var esVendedor = (v.empleado === emp.nombre) || (v.vendedor === emp.nombre) || (v.empleado2 === emp.nombre) || (v.comisionado2 === emp.nombre);
-    return esVendedor && _fechaEnMes(v.fecha, mesCta);
+    var visible = !idsComisionesVisibles || idsComisionesVisibles[String(v.id || '')] || idsComisionesVisibles[String(v.fbKey || '')];
+    return esVendedor && visible && _fechaEnMes(v.fecha, mesCta);
   });
 
   var totalGenerado = 0, totalCobrado = 0, totalPendiente = 0;
   ventasDelVendedor.forEach(function(v) {
-    var comisionVenta = (parseFloat(v.total)||0) * (pct/100);
+    var movComision = idsComisionesVisibles && (idsComisionesVisibles[String(v.id || '')] || idsComisionesVisibles[String(v.fbKey || '')]);
+    var comisionVenta = movComision ? (parseFloat(movComision.monto)||0) : (parseFloat(v.total)||0) * (pct/100);
     totalGenerado += comisionVenta;
     if (v.estadoPago === 'pago_total') {
       totalCobrado += comisionVenta;
@@ -21248,9 +21271,12 @@ function verPpto(id) {
   // Acciones
   var headerAcciones = document.getElementById('ppto-acciones-header');
   if (headerAcciones) {
-    headerAcciones.innerHTML = puedeEditarPresupuestoPermiso(p)
+    headerAcciones.innerHTML = (puedeEditarPresupuestoPermiso(p)
       ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirEditorPpto(\'' + escapeHTML(p.id||p.fbKey||'') + '\')"><i class="ti ti-edit"></i> Editar</button>'
-      : '';
+      : '') + (currentRole === 'admin'
+      ? '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="toggleCostoCompraDetallePpto()"><i class="ti '+(window._mostrarCostoCompraDetallePpto?'ti-eye-off':'ti-eye')+'"></i> '+(window._mostrarCostoCompraDetallePpto?'Ocultar valores de compra':'Ver valores de compra')+'</button>' +
+        '<button class="btn btn-sm" onclick="toggleMargenDetallePpto()"><i class="ti '+(window._mostrarMargenDetallePpto?'ti-eye-off':'ti-eye')+'"></i> '+(window._mostrarMargenDetallePpto?'Ocultar margen':'Ver margen de ganancia')+'</button>'
+      : '');
   }
   renderAcciones(p);
   // Opción B — mostrar alerta si el presupuesto perdió valor
@@ -21283,6 +21309,10 @@ function verPpto(id) {
     } else {
       items = [];
     }
+    var itemsHead = document.getElementById('ppto-det-items-head');
+    if (itemsHead) itemsHead.innerHTML = '<th>Código</th><th>Descripción</th><th class="tr">Cant.</th>' +
+      (currentRole === 'admin' && window._mostrarCostoCompraDetallePpto ? '<th class="tr" style="color:var(--amber)">P. compra</th>' : '') +
+      '<th class="tr">P. unit.</th><th class="tr">Subtotal</th>';
     itemsBody.innerHTML = items.length ? items.map(function(it) {
       var cod   = it.cod   || it.codigo      || '';
       var desc  = it.desc  || it.descripcion || it.nombre || '';
@@ -21293,18 +21323,33 @@ function verPpto(id) {
       var clickAttrs = prodRef ? ' onclick="navegarAProducto(\''+jsStringAttr(prodRef)+'\')" title="Ver producto" style="cursor:pointer"' : '';
       return '<tr'+clickAttrs+'><td>'+escapeHTML(cod)+'</td><td><div class="item-prod-mini-line">'+imagenProductoItemHTML(it, '')+'<span>'+escapeHTML(desc)+'</span></div></td>' +
         '<td class="tr">'+qty+'</td>' +
+        (currentRole === 'admin' && window._mostrarCostoCompraDetallePpto ? '<td class="tr" style="color:var(--amber)">$'+Math.round(obtenerCostoUnitarioDetalleVenta(it)).toLocaleString('es-AR')+'</td>' : '') +
         '<td class="tr">$'+Math.round(punit).toLocaleString('es-AR')+'</td>' +
-        '<td class="tr" style="font-weight:500">$'+Math.round(sub).toLocaleString('es-AR')+'</td>' +
-        '<td class="tr">'+botonVerCompraProducto(it)+'</td></tr>';
+        '<td class="tr" style="font-weight:500">$'+Math.round(sub).toLocaleString('es-AR')+'</td></tr>';
     }).join('') :
     // Sin items: mostrar mensaje con opción de ir a editar
-    '<tr><td colspan="6" style="padding:16px;text-align:center">' +
+    '<tr><td colspan="'+(currentRole === 'admin' && window._mostrarCostoCompraDetallePpto ? '6' : '5')+'" style="padding:16px;text-align:center">' +
       '<div style="color:var(--text3);font-size:13px;margin-bottom:8px">Este presupuesto no tiene ítems guardados en Firebase.</div>' +
       '<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Total del presupuesto: <strong>$' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '</strong></div>' +
       '<button class="btn btn-sm" onclick="editarPptoParaMigrar(\'' + p.id + '\')" style="color:var(--blue);border-color:var(--blue)">' +
         '<i class="ti ti-edit"></i> Abrir para editar y guardar ítems' +
       '</button>' +
     '</td></tr>';
+
+    var margenBoxPpto = document.getElementById('ppto-det-margen-box');
+    var margenContenidoPpto = document.getElementById('ppto-det-margen-contenido');
+    if (margenBoxPpto) margenBoxPpto.style.display = currentRole === 'admin' && window._mostrarMargenDetallePpto ? '' : 'none';
+    if (margenContenidoPpto && currentRole === 'admin' && window._mostrarMargenDetallePpto) {
+      var costoPpto = items.reduce(function(s, it){ return s + obtenerCostoItemVenta(it); }, 0);
+      var netoPpto = Math.max(0, _base);
+      var gananciaPpto = netoPpto - costoPpto;
+      var margenPpto = netoPpto > 0 ? gananciaPpto / netoPpto * 100 : 0;
+      margenContenidoPpto.innerHTML = '<div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr))">' +
+        '<div class="metric"><div class="m-label">Neto presupuesto</div><div class="m-value">$'+Math.round(netoPpto).toLocaleString('es-AR')+'</div><div class="m-sub">sin IVA</div></div>' +
+        '<div class="metric"><div class="m-label">Costo productos</div><div class="m-value" style="color:var(--amber)">$'+Math.round(costoPpto).toLocaleString('es-AR')+'</div><div class="m-sub">compra × cantidad</div></div>' +
+        '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:'+(gananciaPpto >= 0 ? 'var(--green)' : 'var(--red)')+'">$'+Math.round(gananciaPpto).toLocaleString('es-AR')+'</div><div class="m-sub">neto − costo</div></div>' +
+        '<div class="metric"><div class="m-label">Margen</div><div class="m-value">'+margenPpto.toFixed(1)+'%</div><div class="m-sub">sobre neto</div></div></div>';
+    }
   }
 }
 
@@ -24260,11 +24305,12 @@ function renderDetalleVenta(v) {
   var puedeEliminarVentaDetalle = typeof window.tienePermiso === 'function'
     ? window.tienePermiso('ventas.eliminar')
     : String(currentRole || '').toLowerCase() === 'admin';
-  var metricVentaHtml = '<div class="metrics" id="venta-detalle-metricas" style="margin-bottom:12px;grid-template-columns:repeat(' + (puedeVerInternosVenta ? '4' : '3') + ',minmax(0,1fr))">' +
+  var mostrarMargenDetalleVenta = puedeVerInternosVenta && window._mostrarMargenDetalleVenta;
+  var metricVentaHtml = '<div class="metrics" id="venta-detalle-metricas" style="margin-bottom:12px;grid-template-columns:repeat(' + (mostrarMargenDetalleVenta ? '4' : '3') + ',minmax(0,1fr))">' +
     '<div class="metric"><div class="m-label">Total venta</div><div class="m-value">$' + Math.round(total).toLocaleString('es-AR') + '</div><div class="m-sub">' + ep.label + '</div></div>' +
     '<div class="metric"><div class="m-label">Pagado</div><div class="m-value" style="color:var(--green)">$' + Math.round(pagado).toLocaleString('es-AR') + '</div><div class="m-sub">' + porcPagado.toFixed(0) + '% de la venta</div></div>' +
     '<div class="metric"><div class="m-label">Saldo</div><div class="m-value" style="color:' + (saldo > 0 ? 'var(--amber)' : 'var(--green)') + '">$' + Math.round(saldo).toLocaleString('es-AR') + '</div><div class="m-sub">' + (saldo > 0 ? 'pendiente de cobro' : 'cancelado') + '</div></div>' +
-    (puedeVerInternosVenta ? '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (costoDetalleInconsistente ? 'var(--amber)' : gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (costoDetalleInconsistente ? 'A revisar' : '$' + Math.round(gananciaDetalle).toLocaleString('es-AR')) + '</div><div class="m-sub">' + (costoDetalleInconsistente ? 'costo inconsistente' : 'margen ' + margenDetalle.toFixed(1) + '%') + '</div></div>' : '') +
+    (mostrarMargenDetalleVenta ? '<div class="metric"><div class="m-label">Ganancia</div><div class="m-value" style="color:' + (costoDetalleInconsistente ? 'var(--amber)' : gananciaDetalle >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (costoDetalleInconsistente ? 'A revisar' : '$' + Math.round(gananciaDetalle).toLocaleString('es-AR')) + '</div><div class="m-sub">' + (costoDetalleInconsistente ? 'costo inconsistente' : 'margen ' + margenDetalle.toFixed(1) + '%') + '</div></div>' : '') +
   '</div>' +
   '<div class="metrics" id="venta-detalle-seguimiento" style="margin-bottom:12px;grid-template-columns:repeat(4,minmax(0,1fr))">' +
     '<div class="metric"><div class="m-label">Facturación</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(facturaTxt)) + '</div><div class="m-sub">estado fiscal</div></div>' +
@@ -24295,7 +24341,8 @@ function renderDetalleVenta(v) {
       '<button class="btn btn-sm" id="venta-detalle-toggle" onclick="toggleVentaDetalle()" title="Cambia si el comprobante muestra precios o no" style="gap:6px">' +
         '<i class="ti ti-eye" id="venta-detalle-icon"></i> <span id="venta-detalle-label">Con detalle</span>' +
       '</button>' +
-      (currentRole === 'admin' ? '<button class="btn btn-sm" onclick="toggleCostoCompraDetalleVenta()" title="Muestra u oculta la columna de precio de compra" style="gap:6px;color:var(--amber);border-color:var(--amber)"><i class="ti ' + (window._mostrarCostoCompraDetalleVenta ? 'ti-eye-off' : 'ti-eye') + '"></i> ' + (window._mostrarCostoCompraDetalleVenta ? 'Ocultar compra' : 'Ver compra') + '</button>' : '') +
+      (currentRole === 'admin' ? '<button class="btn btn-sm" onclick="toggleCostoCompraDetalleVenta()" title="Muestra u oculta la columna de precio de compra" style="gap:6px;color:var(--amber);border-color:var(--amber)"><i class="ti ' + (window._mostrarCostoCompraDetalleVenta ? 'ti-eye-off' : 'ti-eye') + '"></i> ' + (window._mostrarCostoCompraDetalleVenta ? 'Ocultar valores de compra' : 'Ver valores de compra') + '</button>' : '') +
+      (currentRole === 'admin' ? '<button class="btn btn-sm" onclick="toggleMargenDetalleVenta()" title="Muestra u oculta la rentabilidad interna" style="gap:6px"><i class="ti ' + (window._mostrarMargenDetalleVenta ? 'ti-eye-off' : 'ti-eye') + '"></i> ' + (window._mostrarMargenDetalleVenta ? 'Ocultar margen' : 'Ver margen de ganancia') + '</button>' : '') +
       '<button class="btn btn-sm" onclick="imprimirVentaActual()" title="Abre el comprobante para imprimir o guardar como PDF"><i class="ti ti-printer"></i> Imprimir comprobante</button>' +
       '<button class="btn btn-sm" style="color:var(--green2,var(--green));border-color:var(--green2,var(--green))" onclick="pdfYWhatsappVenta(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Generar PDF y abrir WhatsApp del cliente"><i class="ti ti-brand-whatsapp"></i> PDF / WhatsApp</button>' +
       (puedeEliminarVentaDetalle ? '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="eliminarVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Eliminar venta (también elimina la OT y los pagos vinculados)"><i class="ti ti-trash"></i> Eliminar</button>' : '') +
@@ -24337,7 +24384,6 @@ function renderDetalleVenta(v) {
               (currentRole === 'admin' && window._mostrarCostoCompraDetalleVenta ? '<th style="text-align:right;font-size:11px;color:var(--amber);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">P. compra</th>' : '') +
               '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">P. Unit.</th>' +
               '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Subtotal</th>' +
-              '<th style="text-align:right;font-size:11px;color:var(--text3);font-weight:500;padding:6px 0;border-bottom:1px solid var(--border2)">Acción</th>' +
             '</tr></thead><tbody>' +
             items.map(function(it) {
               var sub = it.sub || (it.qty * it.punit);
@@ -24357,7 +24403,6 @@ function renderDetalleVenta(v) {
                 (currentRole === 'admin' && window._mostrarCostoCompraDetalleVenta ? '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px;color:var(--amber)">$' + Math.round(costoUnit || 0).toLocaleString('es-AR') + '</td>' : '') +
                 '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px">$' + (it.punit||0).toLocaleString('es-AR') + '</td>' +
                 '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">$' + (sub||0).toLocaleString('es-AR') + '</td>' +
-                '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px">' + botonVerCompraProducto(it) + '</td>' +
               '</tr>';
             }).join('') +
           '</tbody></table>' +
@@ -24379,7 +24424,7 @@ function renderDetalleVenta(v) {
       ) +
     '</div>' +
 
-    (puedeVerInternosVenta ?
+    (mostrarMargenDetalleVenta ?
       '<div class="card" style="margin-bottom:12px">' +
         '<div style="font-weight:600;margin-bottom:12px">Rentabilidad interna</div>' +
         '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">' +

@@ -104,12 +104,26 @@
     if (!lista) return;
     var pct = parseFloat(emp.pctComisionPropio) || 0;
     var mes = mesActualCta();
-    var ventas = (window.ventasList||[]).filter(function(v){ return ventaDelEmpleado(v, emp) && fechaEnMes(v.fecha, mes); });
+    var idsVisibles = null;
+    if (String(window.currentRole || currentRole || '').toLowerCase() !== 'admin') {
+      idsVisibles = {};
+      (window.movsEmpData || movsEmpData || []).forEach(function(m){
+        var est = String(m.estado || '').toLowerCase();
+        if (m.tipo !== 'comision' || ['aprobado','pagado','pagado_parcial'].indexOf(est) < 0) return;
+        if (m.ventaId) idsVisibles[String(m.ventaId)] = m;
+        if (m.ventaFbKey) idsVisibles[String(m.ventaFbKey)] = m;
+      });
+    }
+    var ventas = (window.ventasList||[]).filter(function(v){
+      var visible = !idsVisibles || idsVisibles[String(v.id || '')] || idsVisibles[String(v.fbKey || '')];
+      return ventaDelEmpleado(v, emp) && visible && fechaEnMes(v.fecha, mes);
+    });
     var totalGanancia = 0, totalComision = 0, totalCosto = 0;
     var rows = ventas.map(function(v){
       var g = gananciaVenta(v);
       var base = Math.max(g.ganancia, 0);
-      var com = parseFloat(v.comisionMonto || v.comision || 0);
+      var movVisible = idsVisibles && (idsVisibles[String(v.id || '')] || idsVisibles[String(v.fbKey || '')]);
+      var com = movVisible ? (parseFloat(movVisible.monto)||0) : parseFloat(v.comisionMonto || v.comision || 0);
       if (!com) com = base * (pct/100);
       totalGanancia += g.ganancia;
       totalComision += com;
