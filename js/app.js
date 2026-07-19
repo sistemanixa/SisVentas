@@ -4559,7 +4559,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.71-firebase',
+  VERSION: 'v2.0.72-firebase',
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -7076,7 +7076,7 @@ function abrirActualizadorMasivoPrecios() {
         '</div>' +
         '<div id="actualizador-precios-estado" style="font-size:12px;color:var(--text2);padding:10px 12px;background:var(--bg3);border-radius:8px;margin-bottom:8px">Listo para actualizar los productos pendientes por proveedor.</div>' +
         '<div id="actualizador-precios-producto" style="min-height:34px;font-size:11px;color:var(--text3);padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;margin-bottom:8px">Producto actual: —</div>' +
-        '<div id="actualizador-precios-tiempo" style="font-size:11px;color:var(--text3);display:flex;justify-content:space-between;gap:10px;margin-bottom:10px"><span>Transcurrido: —</span><span>Tiempo restante estimado: —</span></div>' +
+        '<div id="actualizador-precios-tiempo" style="font-size:11px;color:var(--text3);display:flex;justify-content:space-between;gap:10px;margin-bottom:10px"><span>Transcurrido: —</span><span>Esperando respuesta del proveedor</span></div>' +
         '<div style="height:8px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-bottom:14px"><div id="actualizador-precios-barra" style="height:100%;width:0;background:var(--green);transition:width .25s"></div></div>' +
         '<div id="actualizador-precios-fallos" style="display:none;max-height:260px;overflow:auto;font-size:11px;padding:9px 10px;background:var(--amber-bg);border:0.5px solid var(--amber);border-radius:8px;margin-bottom:12px"></div>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="minimizarActualizadorMasivoPrecios()"><i class="ti ti-minus"></i> Minimizar</button><button class="btn" onclick="cerrarActualizadorMasivoPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-actualizar-biosegur-lote" onclick="ejecutarActualizadorMasivoBiosegur()" '+(!pendientes.length?'disabled':'')+'><i class="ti ti-refresh"></i> Actualizar '+pendientes.length+' pendientes</button></div>' +
@@ -7172,8 +7172,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
   var detalleFallos = [];
   var jobId = 'biosegur_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
   var procesoIniciadoEn = Date.now();
-  var ultimoProgresoEn = procesoIniciadoEn;
-  var ultimoEstimadoRestante = null;
+  var ultimaRespuestaProveedorEn = 0;
   var progresoVisualMax = 0;
   var progresoRef = window.fbRef(window.fbDB, 'sisventas/procesos/cotizador/' + jobId);
   function actualizarProgresoVisual(pct, detalle) {
@@ -7192,8 +7191,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
   }
   var cancelarProgreso = window.fbOnValue(progresoRef, function(snap) {
     var pr = snap.val() || {};
-    if (snap.exists && snap.exists()) ultimoProgresoEn = Date.now();
-    if (pr.estimadoRestanteSeg != null) ultimoEstimadoRestante = parseFloat(pr.estimadoRestanteSeg) || 0;
+    if (snap.exists && snap.exists()) ultimaRespuestaProveedorEn = Date.now();
     var proveedorProgreso = pr.proveedor || 'Proveedor';
     if (estado && pr.estado === 'iniciando_navegador') estado.textContent = 'Preparando navegador seguro de ' + proveedorProgreso + '…';
     if (estado && pr.estado === 'iniciando_sesion') estado.textContent = 'Iniciando sesión en ' + proveedorProgreso + '…';
@@ -7202,17 +7200,17 @@ async function ejecutarActualizadorMasivoBiosegur() {
     }
     if (estado && pr.total) estado.textContent = proveedorProgreso + ': ' + (parseInt(pr.procesados,10)||0) + ' de ' + pr.total + ' procesados';
     if (pr.total) actualizarProgresoVisual((parseInt(pr.procesados,10)||0) / pr.total * 100, estado ? estado.textContent : 'Actualizando precios…');
-    if (tiempoEl) tiempoEl.innerHTML = '<span>Transcurrido: ' + formatoTiempo(pr.transcurridoSeg) + '</span><span>Tiempo restante estimado: ' + (pr.estimadoRestanteSeg != null ? formatoTiempo(pr.estimadoRestanteSeg) : 'calculando…') + '</span>';
+    if (tiempoEl) tiempoEl.innerHTML = '<span>Transcurrido: ' + formatoTiempo(pr.transcurridoSeg) + '</span><span>Última respuesta: ahora</span>';
   });
   // El servidor puede tardar mientras abre el navegador e inicia sesión. Este
   // reloj local confirma que el proceso sigue activo aun antes del primer evento.
   var relojProgreso = setInterval(function() {
     if (!modal || modal.dataset.ejecutando !== '1') return;
     var transcurrido = Math.floor((Date.now() - procesoIniciadoEn) / 1000);
-    var sinNovedades = Math.floor((Date.now() - ultimoProgresoEn) / 1000);
-    var textoDerecha = ultimoEstimadoRestante != null
-      ? 'Tiempo restante estimado: ' + formatoTiempo(Math.max(0, ultimoEstimadoRestante - sinNovedades))
-      : (sinNovedades >= 30 ? 'El proveedor está demorando en responder…' : 'Preparando datos, no cierres esta ventana');
+    var sinNovedades = ultimaRespuestaProveedorEn ? Math.floor((Date.now() - ultimaRespuestaProveedorEn) / 1000) : 0;
+    var textoDerecha = ultimaRespuestaProveedorEn
+      ? 'Última respuesta: ' + (sinNovedades < 2 ? 'ahora' : 'hace ' + formatoTiempo(sinNovedades))
+      : 'Esperando primera respuesta del proveedor';
     if (tiempoEl) tiempoEl.innerHTML = '<span><i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:4px"></i>Activo · ' + formatoTiempo(transcurrido) + '</span><span>' + textoDerecha + '</span>';
     // Antes del primer producto el avance real sigue en 0%. El indicador de
     // actividad es el spinner; no simulamos porcentaje porque resultaba confuso.
@@ -7225,7 +7223,6 @@ async function ejecutarActualizadorMasivoBiosegur() {
       for (var inicio = 0; inicio < grupo.length; inicio += 30) {
         if (modal._detenerSolicitado) break;
         var bloque = grupo.slice(inicio, inicio + 30);
-        ultimoProgresoEn = Date.now();
         var nombreGrupo = (bloque[0] && bloque[0].proveedor && (bloque[0].proveedor.nombre || bloque[0].proveedor.proveedor)) || 'Proveedor';
         if (estado) estado.innerHTML = '<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>' + escapeHTML(nombreGrupo) + ': preparando productos ' + (procesados + 1) + ' a ' + Math.min(procesados + bloque.length, pendientes.length) + ' de ' + pendientes.length + '…';
         if (productoActualEl && bloque[0]) productoActualEl.innerHTML = 'Próximo: <strong style="color:var(--text)">' + escapeHTML(bloque[0].producto.codigo || 'Sin código') + '</strong> · ' + escapeHTML(bloque[0].producto.nombre || bloque[0].producto.descripcion || 'Producto Biosegur');
