@@ -4649,11 +4649,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.84-firebase',
+  VERSION: 'v2.0.85-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La conversión de presupuesto a venta conserva correctamente descuentos e IVA.',
-    'El porcentaje del presupuesto ahora se transforma en el monto real de descuento.',
-    'Las ventas convertidas anteriormente con este error se corrigen al abrirlas.'
+    'Notificaciones ahora muestra un historial más limpio de comunicados.',
+    'El nuevo comunicado se redacta en un modal oscuro, centrado y optimizado para celular.',
+    'Después de enviarlo, el editor se cierra y continúa en el historial.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -25268,6 +25268,38 @@ async function confirmarLecturaComunicado(comunicadoId) {
   }
 }
 
+function actualizarContadorComunicado() {
+  var mensaje = document.getElementById('comunicado-mensaje');
+  var contador = document.getElementById('comunicado-contador');
+  if (contador) contador.textContent = String((mensaje && mensaje.value ? mensaje.value.length : 0)) + ' / 1200';
+}
+
+function abrirModalComunicado() {
+  if (currentRole !== 'admin') { notify('Solo el administrador puede crear comunicados'); return; }
+  var modal = document.getElementById('modal-nuevo-comunicado');
+  if (!modal) return;
+  modal.classList.add('open');
+  document.body.classList.add('modal-secure-open');
+  var mensaje = document.getElementById('comunicado-mensaje');
+  if (mensaje && !mensaje.dataset.contadorVinculado) {
+    mensaje.dataset.contadorVinculado = '1';
+    mensaje.addEventListener('input', actualizarContadorComunicado);
+  }
+  actualizarContadorComunicado();
+  setTimeout(function(){
+    var titulo = document.getElementById('comunicado-titulo');
+    if (titulo) titulo.focus();
+  }, 80);
+}
+
+function cerrarModalComunicado(forzar) {
+  var modal = document.getElementById('modal-nuevo-comunicado');
+  if (!modal || (modal.dataset.enviando === '1' && forzar !== true)) return;
+  modal.classList.remove('open');
+  modal.dataset.enviando = '0';
+  document.body.classList.remove('modal-secure-open');
+}
+
 async function enviarComunicadoGlobal() {
   if (currentRole !== 'admin') { notify('Solo el administrador puede enviar comunicados'); return; }
   var titulo = String((document.getElementById('comunicado-titulo')||{}).value || '').trim();
@@ -25276,6 +25308,8 @@ async function enviarComunicadoGlobal() {
   if (!titulo || !mensaje) { notify('Completá el título y el mensaje'); return; }
   if (!confirm('¿Enviar este comunicado a ' + _comunicadoDestinoLabel(destino).toLowerCase() + '?\n\nEl sistema quedará bloqueado para cada destinatario hasta que confirme la lectura.')) return;
   var btn = document.getElementById('btn-enviar-comunicado');
+  var modalEditor = document.getElementById('modal-nuevo-comunicado');
+  if (modalEditor) modalEditor.dataset.enviando = '1';
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Enviando...'; }
   try {
     var ref = await window.fbPush(window.fbRef(window.fbDB, 'sisventas/comunicados'), { titulo:titulo, mensaje:mensaje, destino:destino, activo:true, creadoEn:Date.now(), creadoPor:currentUser || 'Admin', creadoPorEmail:currentUserEmail || '' });
@@ -25289,11 +25323,15 @@ async function enviarComunicadoGlobal() {
     var mensajeEl = document.getElementById('comunicado-mensaje');
     if (tituloEl) tituloEl.value = '';
     if (mensajeEl) mensajeEl.value = '';
+    actualizarContadorComunicado();
     notify('✓ Comunicado enviado a ' + _comunicadoDestinoLabel(destino).toLowerCase());
     if (typeof registrarActividad === 'function') registrarActividad('Comunicado interno enviado', _comunicadoDestinoLabel(destino) + ' — ' + titulo);
+    cerrarModalComunicado(true);
+    renderHistorialComunicados();
   } catch (e) {
     notify('No se pudo enviar: ' + (e.message || 'Error'));
   } finally {
+    if (modalEditor) modalEditor.dataset.enviando = '0';
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar comunicado'; }
   }
 }

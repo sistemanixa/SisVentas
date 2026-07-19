@@ -518,6 +518,42 @@ body.modal-secure-open{overflow:hidden!important}
 .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .modal-title{font-size:15px;font-weight:500;color:var(--text)}
 
+/* Editor de comunicados: modal oscuro y desacoplado del historial */
+.comunicado-editor-overlay{z-index:12150;background:rgba(2,5,12,.84);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:18px}
+.modal.comunicado-editor-modal{width:min(720px,96vw);max-width:720px;padding:0!important;overflow:hidden;background:linear-gradient(155deg,#181d2a 0%,#10141e 58%,#0b0f17 100%);border:1px solid rgba(126,156,220,.24);border-radius:22px;box-shadow:0 32px 100px rgba(0,0,0,.72),0 0 0 1px rgba(255,255,255,.025)}
+.comunicado-editor-head{display:flex;align-items:flex-start;gap:14px;padding:24px 26px 20px;border-bottom:1px solid rgba(255,255,255,.07);background:radial-gradient(circle at 8% 0%,rgba(59,130,246,.14),transparent 38%)}
+.comunicado-editor-icon{width:50px;height:50px;flex:0 0 50px;border-radius:15px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,rgba(59,130,246,.24),rgba(59,130,246,.08));border:1px solid rgba(96,165,250,.28);color:#78a9ff;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.comunicado-editor-icon i{font-size:24px}
+.comunicado-editor-kicker{font-size:10px;letter-spacing:1.6px;font-weight:700;color:#78a9ff;margin-bottom:5px}
+.comunicado-editor-title{font-size:20px;line-height:1.2;font-weight:750;color:#f5f7fb}
+.comunicado-editor-subtitle{font-size:12px;line-height:1.45;color:#8790a4;margin-top:6px;max-width:520px}
+.comunicado-editor-close{flex:0 0 auto;color:#7f899e;background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.08)}
+.comunicado-editor-close:hover{color:#f2f5fb;background:rgba(255,255,255,.08)}
+.comunicado-editor-body{padding:22px 26px 24px}
+.comunicado-editor-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.35fr);gap:14px}
+.comunicado-editor-modal .fg label{color:#768097;letter-spacing:.75px;font-size:10px;font-weight:650}
+.comunicado-editor-modal input,.comunicado-editor-modal select,.comunicado-editor-modal textarea{width:100%;background:#090d15!important;color:#eef2f9!important;border:1px solid rgba(129,148,188,.2)!important;border-radius:11px!important;box-shadow:inset 0 1px 4px rgba(0,0,0,.22);font-family:inherit}
+.comunicado-editor-modal input,.comunicado-editor-modal select{height:45px;padding:0 13px}
+.comunicado-editor-modal textarea{min-height:158px;padding:13px 14px;line-height:1.55;resize:vertical}
+.comunicado-editor-modal input::placeholder,.comunicado-editor-modal textarea::placeholder{color:#4e576a}
+.comunicado-editor-modal input:focus,.comunicado-editor-modal select:focus,.comunicado-editor-modal textarea:focus{outline:none;border-color:rgba(96,165,250,.62)!important;box-shadow:0 0 0 3px rgba(59,130,246,.1),inset 0 1px 4px rgba(0,0,0,.22)}
+.comunicado-editor-message{margin-top:15px}
+.comunicado-editor-hint{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;color:#667086;font-size:10px}
+.comunicado-editor-hint span:first-child{display:flex;align-items:center;gap:5px}
+.comunicado-editor-footer{display:flex;align-items:center;justify-content:flex-end;gap:9px;padding:16px 26px 20px;border-top:1px solid rgba(255,255,255,.07);background:rgba(3,6,12,.25)}
+.comunicado-editor-footer .btn{min-height:40px;padding-left:17px;padding-right:17px}
+@media(max-width:640px){
+  .comunicado-editor-overlay{align-items:center!important;padding:10px}
+  .modal.comunicado-editor-modal{width:100%!important;max-width:100%!important;max-height:94vh;border-radius:18px!important}
+  .comunicado-editor-head{padding:19px 17px 16px;gap:11px}
+  .comunicado-editor-icon{width:42px;height:42px;flex-basis:42px;border-radius:13px}
+  .comunicado-editor-title{font-size:18px}
+  .comunicado-editor-body{padding:18px 17px}
+  .comunicado-editor-grid{grid-template-columns:1fr}
+  .comunicado-editor-modal textarea{min-height:135px}
+  .comunicado-editor-footer{padding:14px 17px 17px}
+}
+
 /* PANEL USUARIO */
 .up-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;color:var(--text2);font-size:13px;transition:background .12s}
 .up-item:hover{background:var(--bg3);color:var(--text)}
