@@ -4649,11 +4649,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.83-firebase',
+  VERSION: 'v2.0.84-firebase',
   RELEASE_NOTES: Object.freeze([
-    'El ingreso ahora espera la carga real de clientes, productos, ventas y cobros.',
-    'La navegación reutiliza los datos en memoria y actualiza en segundo plano.',
-    'Se evitó crear conexiones repetidas al entrar en Cobranzas.'
+    'La conversión de presupuesto a venta conserva correctamente descuentos e IVA.',
+    'El porcentaje del presupuesto ahora se transforma en el monto real de descuento.',
+    'Las ventas convertidas anteriormente con este error se corrigen al abrirlas.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -21633,6 +21633,44 @@ function pptoNormalizarItemGuardado(item) {
   };
 }
 
+// Presupuesto y venta usan contratos distintos para los descuentos:
+// - presupuesto.descuento = porcentaje general
+// - venta.descuento = monto total en pesos (items + descuento general)
+// Centralizar la conversion evita copiar un 22% como si fueran $22.
+function pptoDatosParaVenta(p) {
+  p = p || {};
+  var origenItems = Array.isArray(p.items) ? p.items : (p.items && typeof p.items === 'object' ? Object.values(p.items) : []);
+  var items = origenItems.map(function(item) {
+    var normalizado = pptoNormalizarItemGuardado(item);
+    var subCalculado = Math.round(normalizado.qty * normalizado.punit * (1 - normalizado.disc / 100));
+    return Object.assign({}, item, normalizado, {
+      sub: pptoNumeroGuardado(item.sub ?? item.subtotal ?? item.totalItem ?? item.importe) || subCalculado
+    });
+  });
+  var subtotalBruto = items.reduce(function(s, item){
+    return s + (pptoNumeroGuardado(item.qty) * pptoNumeroGuardado(item.punit));
+  }, 0);
+  var subtotalItems = items.reduce(function(s, item){ return s + pptoNumeroGuardado(item.sub); }, 0);
+  var descuentoPct = pptoNumeroGuardado(p.descuentoGeneral ?? p.descuentoPct ?? p.porcentajeDescuento ?? p.descuento);
+  var descuentoGeneral = pptoNumeroGuardado(p.descuentoAmt);
+  if (!descuentoGeneral && descuentoPct > 0) descuentoGeneral = Math.round(subtotalItems * descuentoPct / 100);
+  var descuentoItems = Math.max(0, subtotalBruto - subtotalItems);
+  var subtotalNeto = Math.max(0, subtotalItems - descuentoGeneral);
+  var conIva = p.conIva !== false;
+  var iva = conIva ? pptoNumeroGuardado(p.iva) : 0;
+  if (conIva && !iva && !pptoNumeroGuardado(p.total)) iva = Math.round(subtotalNeto * 0.21);
+  var total = pptoNumeroGuardado(p.total) || (subtotalNeto + iva);
+  return {
+    items: items,
+    descuentoPct: descuentoPct,
+    descuentoMontoTotal: Math.round(descuentoItems + descuentoGeneral),
+    subtotalNeto: Math.round(subtotalNeto),
+    iva: Math.round(iva),
+    conIva: conIva,
+    total: total
+  };
+}
+
 function pptoCargarItemsEnEditor(p) {
   var body = document.getElementById('pp-body');
   if (!body) return;
@@ -22098,6 +22136,7 @@ function pptoAccion(accion, opts) {
     var clienteIdPpto = p.clienteId || p.idCliente || (clienteRefPpto && (clienteRefPpto.id || clienteRefPpto.numero || '')) || '';
     var clienteFbKeyPpto = p.clienteFbKey || p.clienteKey || (clienteRefPpto && clienteRefPpto.fbKey) || '';
     var fechaVentaPpto = new Date().toISOString().slice(0,10);
+    var datosVentaPpto = pptoDatosParaVenta(p);
     var venta = {
       id:           numVenta,
       cliente:      p.cliente || '',
@@ -22109,19 +22148,21 @@ function pptoAccion(accion, opts) {
       fechaOrden:   fechaVentaPpto,
       empleado:     p.empleado || currentUser || '',
       comisionado2: (document.getElementById('venta-comisionado2')||{}).value || '',
-      conIva:       typeof _ventaConIva !== 'undefined' ? _ventaConIva : true,
+      conIva:       datosVentaPpto.conIva,
       usuario:      currentUser || '',
-      items:        p.items   || [],
-      subtotal:     parseFloat(p.subtotal || p.total) || 0,
-      descuento:    parseFloat(p.descuento) || 0,
-      iva:          0,
-      total:        parseFloat(p.total) || 0,
+      items:        datosVentaPpto.items,
+      subtotal:     datosVentaPpto.subtotalNeto,
+      descuento:    datosVentaPpto.descuentoMontoTotal,
+      descuentoGeneral: datosVentaPpto.descuentoPct,
+      iva:          datosVentaPpto.iva,
+      total:        datosVentaPpto.total,
       estadoPago:   'pendiente_pago',
       estadoInst:   'pendiente_inst',
       pptoOrigen:   p.id || '',
       presupuestoId: p.id || '',
       presupuestoFbKey: p.fbKey || '',
       numeroSecuencial: true,
+      conversionPptoNormalizada: true,
       observaciones: 'Generado desde presupuesto ' + (p.id||''),
       ts:           Date.now()
     };
@@ -24705,9 +24746,42 @@ function credEliminar() {
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
+function normalizarVentaLegacyDesdePresupuesto(venta) {
+  if (!venta || venta.conversionPptoNormalizada === true || !(venta.pptoOrigen || venta.presupuestoId || venta.presupuestoFbKey)) return venta;
+  var ppto = (pptoData || []).find(function(p) {
+    return (venta.presupuestoFbKey && p.fbKey === venta.presupuestoFbKey) ||
+           (venta.pptoOrigen && p.id === venta.pptoOrigen) ||
+           (venta.presupuestoId && p.id === venta.presupuestoId);
+  });
+  if (!ppto) return venta;
+  var datos = pptoDatosParaVenta(ppto);
+  var descuentoActual = pptoNumeroGuardado(venta.descuento);
+  var eraCopiaDelPorcentaje = Math.abs(descuentoActual - datos.descuentoPct) < 0.001;
+  var perdioIva = datos.iva > 0 && pptoNumeroGuardado(venta.iva) === 0;
+  if (!eraCopiaDelPorcentaje && !perdioIva) return venta;
+
+  var updates = {
+    items: datos.items,
+    subtotal: datos.subtotalNeto,
+    descuento: datos.descuentoMontoTotal,
+    descuentoGeneral: datos.descuentoPct,
+    iva: datos.iva,
+    conIva: datos.conIva,
+    total: datos.total,
+    conversionPptoNormalizada: true
+  };
+  Object.assign(venta, updates);
+  if (window.fbDB && window.fbUpdate && venta.fbKey) {
+    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), updates)
+      .catch(function(error){ console.error('[Ventas] No se pudo corregir la conversion del presupuesto', error); });
+  }
+  return venta;
+}
+
 function verDetalleVenta(ventaId) {
   var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('Venta no encontrada'); return; }
+  venta = normalizarVentaLegacyDesdePresupuesto(venta);
   window._ventaDetActualId = ventaId;
 
   var lv  = document.getElementById('ventas-list-view');
