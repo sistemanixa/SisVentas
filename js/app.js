@@ -4704,11 +4704,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.88-firebase',
+  VERSION: 'v2.0.89-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La deuda de Ventas ahora coincide con el Dashboard y descuenta los cobros reales.',
-    'Pagado este mes suma los pagos por su fecha de cobro, incluso de ventas anteriores.',
-    'Las métricas de Ventas se actualizan automáticamente al sincronizar los pagos.'
+    'Al eliminar ítems de un presupuesto, subtotal, IVA y total se recalculan correctamente.',
+    'Presupuestos deja automáticamente una fila nueva lista después de cargar cada ítem.',
+    'Los precios sin verificar muestran una acción para actualizar el producto y volver al presupuesto.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -6185,7 +6185,21 @@ function addRow() {
   document.addEventListener('click', e => { if (!e.target.closest('.prod-search-drop') && !e.target.classList.contains('cod-inp')) document.querySelectorAll('.prod-search-drop').forEach(d => d.style.display='none'); }, {once:true});
 }
 
-function delRow(btn) { btn.closest('tr').remove(); calcTotals(); actualizarResumenStock(); }
+function delRow(btn) {
+  var tr = btn && btn.closest ? btn.closest('tr') : null;
+  if (!tr) return;
+  var esPresupuesto = !!tr.closest('#pp-body');
+  tr.remove();
+  if (esPresupuesto) {
+    // El tachito compartía la rutina de Nueva venta y dejaba los totales del
+    // presupuesto sin recalcular. Mantener además una fila lista para cargar.
+    if (typeof _pptoAsegurarFilaVacia === 'function') _pptoAsegurarFilaVacia();
+    if (typeof calcPpTotales === 'function') calcPpTotales();
+    return;
+  }
+  calcTotals();
+  actualizarResumenStock();
+}
 function toggleAll(cb) { document.querySelectorAll('#det-body input[type=checkbox]').forEach(c => c.checked = cb.checked); }
 
 function confirmarVenta() {
@@ -8059,6 +8073,20 @@ function recalcularCompraDesdeProveedores() {
 
 function cerrarFormProducto() {
   _hide('prod-form-view');
+  if (window._retornoEdicionProductoPpto) {
+    window._retornoEdicionProductoPpto = false;
+    _prodVistaOrigen = 'lista';
+    showPage('presupuesto', document.querySelector('[onclick*="presupuesto"]'));
+    setTimeout(function() {
+      _hide('ppto-list-view');
+      _hide('ppto-detalle-view');
+      _block('ppto-form-view');
+      if (typeof _pptoAsegurarFilaVacia === 'function') _pptoAsegurarFilaVacia();
+      if (typeof calcPpTotales === 'function') calcPpTotales();
+      notify('Volviste al presupuesto. Seleccioná nuevamente el producto para tomar el valor actualizado.');
+    }, 80);
+    return;
+  }
   if (_prodVistaOrigen === 'detalle' && editingProdId) {
     verProducto(editingProdId, _prodDetalleOrigenAntesForm);
     _prodVistaOrigen = 'lista';
@@ -8319,10 +8347,16 @@ function guardarProducto() {
     datos.dolarTipo = proveedorPrincipal.dolarTipo || dolarRef.tipo || 'oficial';
     datos.precioActualizadoOrigen = proveedorPrincipal.actualizadoOrigen || 'manual';
     datos.precioActualizadoEn = proveedorPrincipal.actualizadoEn || Date.now();
-  } else if (esManoObra) {
-    datos.proveedorUrl = null;
-    datos.proveedorActualizado = null;
-    datos.urlProveedor = null;
+  } else {
+    // Un producto o servicio sin proveedor se revisa manualmente. Guardar la
+    // edición también debe dejar constancia de que su precio fue verificado.
+    datos.precioActualizadoEn = Date.now();
+    datos.precioActualizadoOrigen = 'manual';
+    if (esManoObra) {
+      datos.proveedorUrl = null;
+      datos.proveedorActualizado = null;
+      datos.urlProveedor = null;
+    }
   }
   var tc = dolarRef.valor || 0;
   if (datos.moneda === 'ARS' && tc > 0) {
@@ -21748,7 +21782,7 @@ function pptoCargarItemsEnEditor(p) {
     });
     body.appendChild(tr);
   });
-  if (!body.children.length) addPpRow();
+  _pptoAsegurarFilaVacia();
 }
 
 function abrirEditorPpto(id) {
@@ -26575,6 +26609,8 @@ function _selProdGlobal(item) {
   var precio = parseFloat(item.dataset.precio) || 0;
   var moneda = item.dataset.moneda || 'ARS';
 
+  var filaSeleccionada = _prodDropTR;
+  var esFilaPpto = !!(filaSeleccionada && filaSeleccionada.closest('#pp-body'));
   var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod || p.nombre === desc; });
   var vigenciaPrecio = prod ? estadoVigenciaPrecioProducto(prod) : null;
   // Mano de obra: precio siempre se muestra en ARS, pero si el producto está
@@ -26599,7 +26635,6 @@ function _selProdGlobal(item) {
     moneda = 'ARS';
   } else {
     // Respetar moneda de venta seleccionada por el toggle
-    var esFilaPpto = _prodDropTR && _prodDropTR.closest('#pp-body');
     var monedaVenta = (esFilaPpto ? window._pptoMonedaActual : window._ventaMonedaActual) || 'ARS';
     if (monedaVenta === 'ARS' && moneda === 'USD') {
       // Config dice ARS: forzar conversión aunque el producto sea USD
@@ -26634,9 +26669,6 @@ function _selProdGlobal(item) {
     if (vigenciaPrecio) {
       tr.dataset.precioVigencia = vigenciaPrecio.estado;
       tr.dataset.precioActualizadoEn = String(vigenciaPrecio.ts || 0);
-      if (!vigenciaPrecio.vigente && tr.closest('#pp-body')) {
-        notify('⚠ Precio de "' + (prod.nombre || prod.codigo || 'producto') + '" ' + vigenciaPrecio.texto.toLowerCase() + '. Conviene actualizarlo antes de enviar el presupuesto.');
-      }
     }
     var selCod   = tr.querySelector('.prod-sel-cod');
     var descTxt  = tr.querySelector('.desc-txt');
@@ -26693,6 +26725,13 @@ function _selProdGlobal(item) {
   var drop = document.getElementById('prod-drop-global');
   if (drop) drop.style.display = 'none';
   _prodDropTR = null;
+  if (esFilaPpto) {
+    // Al completar una fila, dejar inmediatamente la siguiente preparada.
+    _pptoAsegurarFilaVacia();
+    if (vigenciaPrecio && !vigenciaPrecio.vigente && prod) {
+      setTimeout(function(){ mostrarAvisoPrecioNoVigentePpto(prod, vigenciaPrecio); }, 0);
+    }
+  }
 }
 var _ventaMonedaActual = 'ARS'; // 'ARS' o 'USD'
 
@@ -26957,6 +26996,25 @@ document.addEventListener('click', function(e) {
 // addRow: usa crearFilaProducto (definida en módulo nueva venta)
 
 // Presupuesto: addPpRow usa crearFilaProducto (idéntico a nueva venta)
+function _pptoFilaEstaVacia(tr) {
+  if (!tr) return false;
+  var cod = String(((tr.querySelector('.prod-sel-cod')||{}).textContent) || '').trim();
+  var descEl = tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt');
+  var desc = String((descEl && descEl.textContent) || '').trim();
+  var priceEl = tr.querySelector('.price,.ppprice');
+  var precio = priceEl ? (priceEl.dataset.moneyInit ? getMontoRaw(priceEl) : (parseFloat(priceEl.value)||0)) : 0;
+  return !cod && !desc && precio === 0;
+}
+
+function _pptoAsegurarFilaVacia() {
+  var body = document.getElementById('pp-body');
+  if (!body) return null;
+  var filas = Array.from(body.querySelectorAll('tr'));
+  var vacia = filas.find(_pptoFilaEstaVacia);
+  if (vacia) return vacia;
+  return addPpRow();
+}
+
 function addPpRow() {
   // Usar el mismo componente que nueva venta para consistencia total
   var body = document.getElementById('pp-body');
@@ -26967,6 +27025,41 @@ function addPpRow() {
     inp.addEventListener('input', function() { calcRow(inp); calcPpTotales(); });
   });
   body.appendChild(tr);
+  return tr;
+}
+
+function mostrarAvisoPrecioNoVigentePpto(prod, vigencia) {
+  if (!prod) return;
+  var previo = document.getElementById('modal-precio-no-vigente-ppto');
+  if (previo) previo.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-precio-no-vigente-ppto';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10020;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:18px';
+  overlay.innerHTML =
+    '<div style="width:min(480px,100%);background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);box-shadow:0 20px 60px rgba(0,0,0,.55);overflow:hidden">' +
+      '<div style="padding:18px 20px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px">' +
+        '<div style="width:38px;height:38px;border-radius:10px;background:var(--amber-bg);color:var(--amber);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-alert-triangle" style="font-size:20px"></i></div>' +
+        '<div><div style="font-size:15px;font-weight:700">Precio pendiente de actualización</div><div style="font-size:11px;color:var(--text3);margin-top:3px">' + escapeHTML((vigencia && vigencia.texto) || 'Sin verificar') + '</div></div>' +
+      '</div>' +
+      '<div style="padding:18px 20px">' +
+        '<div style="font-size:13px;color:var(--text2);line-height:1.5">El ítem <strong style="color:var(--text)">' + escapeHTML(prod.codigo || '') + ' — ' + escapeHTML(prod.nombre || prod.descripcion || 'Producto') + '</strong> se agregó al presupuesto, pero su valor necesita revisión.</div>' +
+        '<div style="font-size:12px;color:var(--text3);margin-top:10px">Podés seguir cargando o ir ahora a editar el producto. Al cerrar la edición volverás a este presupuesto sin perder lo cargado.</div>' +
+      '</div>' +
+      '<div style="padding:14px 20px;border-top:0.5px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn" onclick="document.getElementById(\'modal-precio-no-vigente-ppto\').remove()">Seguir cargando</button>' +
+        '<button class="btn btn-primary" onclick="irAActualizarProductoDesdePpto(\'' + escapeHTML(String(prod.fbKey || prod.id || '')).replace(/'/g,"\\'") + '\')"><i class="ti ti-edit"></i> Actualizar producto</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+function irAActualizarProductoDesdePpto(fbKey) {
+  var modal = document.getElementById('modal-precio-no-vigente-ppto');
+  if (modal) modal.remove();
+  if (!fbKey) { notify('No se pudo identificar el producto'); return; }
+  window._retornoEdicionProductoPpto = true;
+  showPage('productos', document.querySelector('[onclick*="productos"]'));
+  setTimeout(function(){ abrirFormProducto(fbKey); }, 100);
 }
 
 // Extrae los ítems del pp-body igual que nueva venta extrae de det-body
