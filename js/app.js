@@ -4840,7 +4840,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.108-firebase',
+  VERSION: 'v2.0.109-firebase',
   RELEASE_NOTES: Object.freeze([
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
@@ -7011,16 +7011,25 @@ function limpiarProveedoresManoDeObraExistentes() {
 function timestampPrecioProducto(p) {
   p = p || {};
   var tiempos = [p.precioActualizadoEn, p.actualizadoEn];
+  function agregarFechaPrecio(valor) {
+    if (!valor) return;
+    if (typeof valor === 'number') { tiempos.push(valor); return; }
+    var fecha = String(valor).trim();
+    var partesAr = fecha.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    var partesIso = fecha.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    var tsFecha = partesAr
+      ? new Date(+partesAr[3], +partesAr[2] - 1, +partesAr[1], 23, 59, 59, 999).getTime()
+      : partesIso
+        ? new Date(+partesIso[1], +partesIso[2] - 1, +partesIso[3], 23, 59, 59, 999).getTime()
+        : Date.parse(fecha);
+    if (isFinite(tsFecha)) tiempos.push(tsFecha);
+  }
+  agregarFechaPrecio(p.fechaActualizacionPrecio);
+  agregarFechaPrecio(p.proveedorActualizado);
+  agregarFechaPrecio(p.actualizado);
   (Array.isArray(p.proveedores) ? p.proveedores : []).forEach(function(pv) {
     tiempos.push(pv && pv.actualizadoEn);
-    if (pv && pv.actualizado) {
-      var fecha = String(pv.actualizado).trim();
-      var partesAr = fecha.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      var tsFecha = partesAr
-        ? new Date(+partesAr[3], +partesAr[2] - 1, +partesAr[1], 23, 59, 59, 999).getTime()
-        : Date.parse(fecha + (fecha.indexOf('T') >= 0 ? '' : 'T23:59:59'));
-      if (isFinite(tsFecha)) tiempos.push(tsFecha);
-    }
+    if (pv) agregarFechaPrecio(pv.actualizado || pv.fechaActualizacionPrecio || pv.fechaActualizacion);
   });
   return tiempos.map(function(x){ return parseFloat(x) || 0; }).reduce(function(max, x){ return Math.max(max, x); }, 0);
 }
@@ -22947,9 +22956,7 @@ function guardarPresupuesto(modo) {
     var prod = Object.values(prodData || {}).find(function(p){ return String(p.codigo || '') === String(it.cod || ''); });
     return prod && !estadoVigenciaPrecioProducto(prod).vigente;
   });
-  // Un borrador debe poder guardarse en cualquier momento: la vigencia se
-  // controla recién cuando el usuario intenta enviarlo a revisión.
-  if (modo !== 'borrador' && preciosNoVigentes.length) {
+  if (preciosNoVigentes.length) {
     var nombresNoVigentes = preciosNoVigentes.slice(0,5).map(function(it){ return it.cod || it.desc; }).join(', ');
     var seguir = confirm(
       'Hay ' + preciosNoVigentes.length + ' producto' + (preciosNoVigentes.length !== 1 ? 's' : '') + ' con precios de más de 24 horas o sin verificar:\n\n' +
