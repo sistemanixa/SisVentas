@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.117-firebase' -->
+<!-- VERSION: 'v2.0.118-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.117 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.118 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -418,13 +418,13 @@
 
         <div class="card admin-only sv-rent-compact" id="dash-rentabilidad-card" style="display:none">
           <div class="card-head">
-            <span class="card-title"><i class="ti ti-chart-dots"></i> Rentabilidad del mes</span>
+            <span class="card-title"><i class="ti ti-chart-dots"></i> Resumen operativo del mes</span>
             <button class="btn btn-sm" style="touch-action:manipulation" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))"><i class="ti ti-external-link"></i> Ver reporte completo</button>
           </div>
           <div id="dash-rent-auditoria" style="display:none;align-items:center;gap:8px;margin:0 20px 12px;padding:9px 12px;border:1px solid rgba(245,158,11,.3);background:var(--amber-bg);color:var(--amber);border-radius:8px;font-size:11px"></div>
           <div class="metrics sv-rent-metrics">
             <div class="metric sv-kpi-card" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver detalle de ventas">
-              <div class="m-label"><i class="ti ti-arrow-up-right"></i> Ingresos netos del mes</div>
+              <div class="m-label"><i class="ti ti-arrow-up-right"></i> Ventas netas del mes</div>
               <div class="m-value m-up" id="dash-rent-ingresos">$0</div>
               <div class="m-sub">sin IVA · con descuentos</div>
             </div>
@@ -434,12 +434,12 @@
               <div class="m-sub" id="dash-rent-gastos-sub">mismo total que el módulo Gastos</div>
             </div>
             <div class="metric sv-kpi-card" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))" title="Ver reporte completo">
-              <div class="m-label">Resultado neto</div>
+              <div class="m-label">Resultado del mes</div>
               <div class="m-value" id="dash-rent-utilidad">$0</div>
-              <div class="m-sub">lo que queda en la empresa</div>
+              <div class="m-sub">ventas netas − gastos pagados</div>
             </div>
             <div class="metric sv-kpi-card" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))" title="Ver reporte completo">
-              <div class="m-label">Margen</div>
+              <div class="m-label">Resultado / ventas</div>
               <div class="m-value" id="dash-rent-margen">—</div>
               <div class="m-sub" id="dash-rent-margen-sub">margen</div>
             </div>
@@ -448,7 +448,7 @@
           <div class="sv-rent-viz2">
             <div class="sv-rent-viz2-chart">
               <div class="sv-rent-viz2-head">
-                <div><span>Movimiento del mes</span><strong>Ingresos netos vs. costos + gastos</strong></div>
+                <div><span>Movimiento del mes</span><strong>Ventas netas vs. gastos pagados</strong></div>
                 <span class="sv-rent-viz2-scale"><i class="ti ti-chart-bar"></i> Escala comparativa</span>
               </div>
               <div class="sv-rent-viz2-plot">
@@ -456,18 +456,18 @@
                 <div class="sv-rent-viz2-column sv-rent-viz2-income">
                   <div class="sv-rent-viz2-amount" id="dash-rent-bar-ing-lbl">$0</div>
                   <div class="sv-rent-viz2-barbox"><div id="dash-rent-bar-ing" class="sv-rent-viz2-bar" style="height:0%"><span></span></div></div>
-                  <div class="sv-rent-viz2-label"><i class="ti ti-arrow-up-right"></i> Ingresos</div>
+                  <div class="sv-rent-viz2-label"><i class="ti ti-arrow-up-right"></i> Ventas netas</div>
                 </div>
                 <div class="sv-rent-viz2-column sv-rent-viz2-expense">
                   <div class="sv-rent-viz2-amount" id="dash-rent-bar-gas-lbl">$0</div>
                   <div class="sv-rent-viz2-barbox"><div id="dash-rent-bar-gas" class="sv-rent-viz2-bar" style="height:0%"><span></span></div></div>
-                  <div class="sv-rent-viz2-label"><i class="ti ti-arrow-down-right"></i> Egresos</div>
+                  <div class="sv-rent-viz2-label"><i class="ti ti-arrow-down-right"></i> Gastos pagados</div>
                 </div>
               </div>
             </div>
             <div class="sv-rent-viz2-summary">
               <div class="sv-rent-viz2-ring" id="dash-rent-ratio-ring" style="--sv-ratio-angle:0deg">
-                <div><strong id="dash-rent-ratio">0%</strong><span>egreso / ingreso</span></div>
+                <div><strong id="dash-rent-ratio">0%</strong><span>gasto / venta</span></div>
               </div>
               <div class="sv-rent-viz2-result">
                 <span id="dash-rent-result-label">Balance del mes</span>
@@ -476,7 +476,7 @@
               </div>
               <div class="sv-rent-viz2-counts">
                 <span><i class="ti ti-receipt"></i><strong id="dash-rent-sales-count">0</strong> ventas</span>
-                <span><i class="ti ti-cash"></i><strong id="dash-rent-expenses-count">0</strong> gastos</span>
+                <span><i class="ti ti-cash"></i><strong id="dash-rent-expenses-count">0</strong> gastos pagados</span>
               </div>
             </div>
           </div>
@@ -2162,7 +2162,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.117
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.118
 Listo para analizar.
 </pre>
           </div>
@@ -4843,7 +4843,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.117</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.118</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">

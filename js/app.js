@@ -4840,8 +4840,9 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.117-firebase',
+  VERSION: 'v2.0.118-firebase',
   RELEASE_NOTES: Object.freeze([
+    'El resumen operativo compara ventas netas contra gastos realmente pagados, sin duplicar el costo de mercadería.',
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
     'Se redujo el código conservando las funciones dinámicas, de migración y diagnóstico.'
@@ -24981,24 +24982,25 @@ function renderRentabilidadDashboard(todasVentas) {
     hasta: new Date(anioActual, mesActual + 1, 0, 23, 59, 59)
   }, todasVentas || [], gastosData || []);
   var ventasDelMes = resumenMes.ventas;
-  var gastosDelMes = resumenMes.gastos;
   var ingresosMes = resumenMes.ingresosNetos;
-  var egresosMes = resumenMes.egresos;
   var gastosPagadosMes = resumenGastosPagadosMes(gastosData || [], hoy);
-  var utilidad = resumenMes.resultadoNeto;
-  var margenPct = resumenMes.margenNeto;
+  // Este resumen compara dos fuentes visibles y comprobables: las ventas netas
+  // del mes y los pagos del módulo Gastos. El costo histórico de los ítems se
+  // analiza en el reporte completo, pero no se suma nuevamente acá porque puede
+  // representar mercadería cuya compra ya fue registrada como gasto.
+  var egresosMes = gastosPagadosMes.total;
+  var utilidad = ingresosMes - egresosMes;
+  var margenPct = ingresosMes > 0 ? utilidad / ingresosMes * 100 : 0;
   var auditDash = document.getElementById('dash-rent-auditoria');
   if (auditDash) {
-    auditDash.style.display = resumenMes.costosCorregidos.length ? 'flex' : 'none';
-    auditDash.innerHTML = resumenMes.costosCorregidos.length
-      ? '<i class="ti ti-shield-check"></i><span>Se excluyeron ' + resumenMes.costosCorregidos.length + ' conversiones duplicadas ARS→USD detectadas en costos históricos.</span>'
-      : '';
+    auditDash.style.display = 'none';
+    auditDash.innerHTML = '';
   }
 
   _set('dash-rent-ingresos', '$' + Math.round(ingresosMes).toLocaleString('es-AR'));
   _set('dash-rent-gastos', '$' + Math.round(gastosPagadosMes.total).toLocaleString('es-AR'));
-  _set('dash-rent-gastos-sub', gastosPagadosMes.pagados.length + ' pagado' + (gastosPagadosMes.pagados.length !== 1 ? 's' : '') + ' · egreso contable total $' + Math.round(egresosMes).toLocaleString('es-AR'));
-  _set('dash-rent-egresos-desglose', 'Egreso usado para calcular rentabilidad: productos vendidos $' + Math.round(resumenMes.costoProductos).toLocaleString('es-AR') + ' + comisiones $' + Math.round(resumenMes.comisiones).toLocaleString('es-AR') + ' + otros gastos $' + Math.round(resumenMes.otrosGastos).toLocaleString('es-AR') + ' = $' + Math.round(egresosMes).toLocaleString('es-AR'));
+  _set('dash-rent-gastos-sub', gastosPagadosMes.pagados.length + ' pagado' + (gastosPagadosMes.pagados.length !== 1 ? 's' : '') + ' · mismo total que el módulo Gastos');
+  _set('dash-rent-egresos-desglose', 'Cálculo transparente: ventas netas $' + Math.round(ingresosMes).toLocaleString('es-AR') + ' − gastos pagados $' + Math.round(egresosMes).toLocaleString('es-AR') + ' = resultado $' + Math.round(utilidad).toLocaleString('es-AR') + '. El costo de productos no se vuelve a sumar en este resumen.');
   var utilEl = document.getElementById('dash-rent-utilidad');
   if (utilEl) {
     utilEl.textContent = '$' + Math.round(utilidad).toLocaleString('es-AR');
@@ -25011,7 +25013,7 @@ function renderRentabilidadDashboard(todasVentas) {
   card.classList.remove('is-positive','is-warning','is-negative');
   if (margenPct < 15) {
     if (margenEl) margenEl.style.color = 'var(--red)';
-    if (margenSubEl) margenSubEl.textContent = utilidad < 0 ? 'pérdida del mes' : 'margen bajo';
+    if (margenSubEl) margenSubEl.textContent = utilidad < 0 ? 'gastos mayores que ventas' : 'resultado positivo bajo';
     card.classList.add('is-negative');
   } else if (margenPct <= 20) {
     if (margenEl) margenEl.style.color = 'var(--amber)';
@@ -25054,8 +25056,8 @@ function renderRentabilidadDashboard(todasVentas) {
   if (ratioEl) ratioEl.textContent = ratioGasto.toFixed(1) + '%';
   if (ratioSub) {
     ratioSub.textContent = ingresosMes > 0
-      ? '$' + Math.round(egresosMes / ingresosMes * 100).toLocaleString('es-AR') + ' de costos y gastos por cada $100 ingresados'
-      : (egresosMes > 0 ? 'Hay costos o gastos registrados sin ingresos este mes' : 'Sin movimientos registrados');
+      ? '$' + Math.round(egresosMes / ingresosMes * 100).toLocaleString('es-AR') + ' pagados en gastos por cada $100 vendidos sin IVA'
+      : (egresosMes > 0 ? 'Hay gastos pagados sin ventas registradas este mes' : 'Sin movimientos registrados');
   }
   if (resultLabel) resultLabel.textContent = utilidad >= 0 ? 'Superávit del mes' : 'Déficit del mes';
   if (resultValue) {
@@ -25063,7 +25065,7 @@ function renderRentabilidadDashboard(todasVentas) {
     resultValue.style.color = utilidad >= 0 ? 'var(--green)' : 'var(--red)';
   }
   if (salesCount) salesCount.textContent = ventasDelMes.length.toLocaleString('es-AR');
-  if (expensesCount) expensesCount.textContent = gastosDelMes.length.toLocaleString('es-AR');
+  if (expensesCount) expensesCount.textContent = gastosPagadosMes.pagados.length.toLocaleString('es-AR');
 }
 
 function kpiNavegar(tipo) {
