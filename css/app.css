@@ -1599,6 +1599,60 @@ body.modal-secure-open{overflow:hidden!important}
   #dash-rentabilidad-card.sv-rent-compact .sv-rent-metrics{grid-template-columns:1fr!important}
 }
 
+/* v2.0.100 - Visual financiero moderno del comparativo mensual */
+.sv-rent-viz2{
+  display:grid;
+  grid-template-columns:minmax(0,1.7fr) minmax(260px,.72fr);
+  min-height:248px;
+  border:1px solid rgba(148,163,184,.16);
+  border-radius:20px;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 12% 15%,rgba(96,165,250,.07),transparent 32%),
+    linear-gradient(145deg,rgba(255,255,255,.027),rgba(255,255,255,.007));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+.sv-rent-viz2-chart{padding:18px 22px 16px;min-width:0}
+.sv-rent-viz2-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.sv-rent-viz2-head>div{display:flex;flex-direction:column;gap:4px}
+.sv-rent-viz2-head span{color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+.sv-rent-viz2-head strong{font-size:14px;color:var(--text);font-weight:700}
+.sv-rent-viz2-scale{display:inline-flex!important;align-items:center;gap:5px;padding:5px 8px;border:1px solid rgba(148,163,184,.14);border-radius:999px;background:rgba(255,255,255,.025);letter-spacing:.04em!important;white-space:nowrap}
+.sv-rent-viz2-plot{position:relative;height:174px;margin-top:10px;display:flex;justify-content:center;align-items:stretch;gap:clamp(42px,10vw,120px);padding:4px 56px 0}
+.sv-rent-viz2-grid{position:absolute;inset:22px 0 34px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}
+.sv-rent-viz2-grid:after,.sv-rent-viz2-grid span{content:'';display:block;border-top:1px dashed rgba(148,163,184,.105)}
+.sv-rent-viz2-column{position:relative;z-index:1;width:min(150px,32%);display:grid;grid-template-rows:24px 1fr 25px;gap:5px;text-align:center}
+.sv-rent-viz2-amount{font-size:13px;font-weight:800;letter-spacing:-.015em;white-space:nowrap}
+.sv-rent-viz2-income .sv-rent-viz2-amount{color:#86efac}
+.sv-rent-viz2-expense .sv-rent-viz2-amount{color:#fca5a5}
+.sv-rent-viz2-barbox{position:relative;height:100%;display:flex;align-items:flex-end;justify-content:center;padding:0 18px;border-bottom:1px solid rgba(148,163,184,.22)}
+.sv-rent-viz2-bar{position:relative;width:100%;min-height:0;border-radius:12px 12px 5px 5px;transition:height .65s cubic-bezier(.2,.85,.2,1);overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,.22)}
+.sv-rent-viz2-bar>span{position:absolute;inset:0;background:linear-gradient(115deg,transparent 10%,rgba(255,255,255,.23) 48%,transparent 72%);transform:translateX(-82%);animation:svRentShine 4.8s ease-in-out infinite}
+.sv-rent-viz2-income .sv-rent-viz2-bar{background:linear-gradient(180deg,#86efac 0%,#22c55e 52%,#15803d 100%);box-shadow:0 14px 30px rgba(34,197,94,.16)}
+.sv-rent-viz2-expense .sv-rent-viz2-bar{background:linear-gradient(180deg,#fca5a5 0%,#ef4444 52%,#b91c1c 100%);box-shadow:0 14px 30px rgba(239,68,68,.15)}
+.sv-rent-viz2-label{display:flex;align-items:center;justify-content:center;gap:5px;color:var(--text2);font-size:11px;font-weight:650}
+.sv-rent-viz2-income .sv-rent-viz2-label i{color:var(--green)}
+.sv-rent-viz2-expense .sv-rent-viz2-label i{color:var(--red)}
+.sv-rent-viz2-summary{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;border-left:1px solid rgba(148,163,184,.14);background:linear-gradient(160deg,rgba(15,23,42,.34),rgba(255,255,255,.012));text-align:center}
+.sv-rent-viz2-ring{--sv-ring-color:var(--green);position:relative;width:112px;height:112px;border-radius:50%;padding:10px;background:conic-gradient(var(--sv-ring-color) 0 var(--sv-ratio-angle),rgba(148,163,184,.105) var(--sv-ratio-angle) 360deg);box-shadow:0 0 34px color-mix(in srgb,var(--sv-ring-color) 13%,transparent)}
+.sv-rent-viz2-ring:before{content:'';position:absolute;inset:8px;border-radius:50%;background:var(--bg2);border:1px solid rgba(148,163,184,.13)}
+.sv-rent-viz2-ring>div{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.sv-rent-viz2-ring strong{font-size:23px;line-height:1;font-weight:850;letter-spacing:-.04em;color:var(--text)}
+.sv-rent-viz2-ring span{margin-top:5px;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.sv-rent-viz2-ring.is-warning{--sv-ring-color:var(--amber)}
+.sv-rent-viz2-ring.is-over{--sv-ring-color:var(--red)}
+.sv-rent-viz2-result{margin-top:12px;display:flex;flex-direction:column;align-items:center}
+.sv-rent-viz2-result>span{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.sv-rent-viz2-result>strong{margin-top:4px;font-size:18px;font-weight:800}
+.sv-rent-viz2-result>small{margin-top:5px;max-width:220px;color:var(--text3);font-size:10px;line-height:1.35}
+.sv-rent-viz2-counts{width:100%;display:flex;justify-content:center;gap:14px;margin-top:13px;padding-top:11px;border-top:1px solid rgba(148,163,184,.12);color:var(--text3);font-size:10px}
+.sv-rent-viz2-counts span{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.sv-rent-viz2-counts strong{color:var(--text2);font-size:11px}
+@keyframes svRentShine{0%,65%{transform:translateX(-82%)}85%,100%{transform:translateX(115%)}}
+@media(prefers-reduced-motion:reduce){.sv-rent-viz2-bar,.sv-rent-viz2-bar>span{transition:none;animation:none}}
+@media(max-width:900px){.sv-rent-viz2{grid-template-columns:1fr}.sv-rent-viz2-summary{border-left:0;border-top:1px solid rgba(148,163,184,.14);flex-direction:row;gap:22px;text-align:left}.sv-rent-viz2-result{margin-top:0;align-items:flex-start}.sv-rent-viz2-counts{width:auto;margin-top:0;padding:0 0 0 18px;border-top:0;border-left:1px solid rgba(148,163,184,.12);flex-direction:column;gap:7px}}
+@media(max-width:620px){.sv-rent-viz2-chart{padding:15px 12px}.sv-rent-viz2-plot{gap:24px;padding-inline:16px}.sv-rent-viz2-column{width:42%}.sv-rent-viz2-barbox{padding-inline:12px}.sv-rent-viz2-summary{flex-direction:column;text-align:center}.sv-rent-viz2-result{align-items:center}.sv-rent-viz2-counts{width:100%;padding:10px 0 0;border-left:0;border-top:1px solid rgba(148,163,184,.12);flex-direction:row}}
+
 /* v2.0.30 - Switch visual para preferencias booleanas */
 .sv-switch-row{
   display:flex;

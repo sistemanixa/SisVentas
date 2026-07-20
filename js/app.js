@@ -4867,11 +4867,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.99-firebase',
+  VERSION: 'v2.0.100-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La factura emitida vuelve a abrir una ficha rápida con sus datos y el comprobante.',
-    'El administrador puede emitir la nota de crédito desde la misma ficha fiscal.',
-    'El detalle de venta aplica las columnas antes de mostrarse para evitar saltos visuales.'
+    'El comparativo de rentabilidad estrena un gráfico vertical más moderno.',
+    'Se incorporó la relación de gastos por cada $100 ingresados.',
+    'El resumen visual identifica de inmediato el superávit o déficit del mes.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -24708,7 +24708,7 @@ function renderRentabilidadDashboard(todasVentas) {
     card.classList.add('is-positive');
   }
 
-  // Barras comparativas, escaladas contra el mayor de los dos valores
+  // Visual comparativo, escalado contra el mayor de los dos valores.
   var maxVal = Math.max(ingresosMes, gastosMes, 1);
   var pctIng = Math.round(ingresosMes / maxVal * 100);
   var pctGas = Math.round(gastosMes / maxVal * 100);
@@ -24716,10 +24716,39 @@ function renderRentabilidadDashboard(todasVentas) {
   var barGas = document.getElementById('dash-rent-bar-gas');
   var lblIng = document.getElementById('dash-rent-bar-ing-lbl');
   var lblGas = document.getElementById('dash-rent-bar-gas-lbl');
-  if (barIng) barIng.style.width = pctIng + '%';
-  if (barGas) barGas.style.width = pctGas + '%';
+  if (barIng) barIng.style.height = (ingresosMes > 0 ? Math.max(5, pctIng) : 0) + '%';
+  if (barGas) barGas.style.height = (gastosMes > 0 ? Math.max(5, pctGas) : 0) + '%';
   if (lblIng) lblIng.textContent = '$' + Math.round(ingresosMes).toLocaleString('es-AR');
   if (lblGas) lblGas.textContent = '$' + Math.round(gastosMes).toLocaleString('es-AR');
+
+  var ratioGasto = ingresosMes > 0 ? (gastosMes / ingresosMes * 100) : (gastosMes > 0 ? 100 : 0);
+  var ratioVisible = Math.max(0, Math.min(100, ratioGasto));
+  var ratioRing = document.getElementById('dash-rent-ratio-ring');
+  var ratioEl = document.getElementById('dash-rent-ratio');
+  var ratioSub = document.getElementById('dash-rent-ratio-sub');
+  var resultLabel = document.getElementById('dash-rent-result-label');
+  var resultValue = document.getElementById('dash-rent-result-value');
+  var salesCount = document.getElementById('dash-rent-sales-count');
+  var expensesCount = document.getElementById('dash-rent-expenses-count');
+  if (ratioRing) {
+    ratioRing.style.setProperty('--sv-ratio-angle', (ratioVisible * 3.6).toFixed(1) + 'deg');
+    ratioRing.classList.remove('is-warning','is-over');
+    if (ratioGasto > 100) ratioRing.classList.add('is-over');
+    else if (ratioGasto >= 80) ratioRing.classList.add('is-warning');
+  }
+  if (ratioEl) ratioEl.textContent = ratioGasto.toFixed(1) + '%';
+  if (ratioSub) {
+    ratioSub.textContent = ingresosMes > 0
+      ? '$' + Math.round(gastosMes / ingresosMes * 100).toLocaleString('es-AR') + ' gastados por cada $100 ingresados'
+      : (gastosMes > 0 ? 'Hay gastos registrados sin ingresos este mes' : 'Sin movimientos registrados');
+  }
+  if (resultLabel) resultLabel.textContent = utilidad >= 0 ? 'Superávit del mes' : 'Déficit del mes';
+  if (resultValue) {
+    resultValue.textContent = (utilidad < 0 ? '-$' : '$') + Math.round(Math.abs(utilidad)).toLocaleString('es-AR');
+    resultValue.style.color = utilidad >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+  if (salesCount) salesCount.textContent = ventasDelMes.length.toLocaleString('es-AR');
+  if (expensesCount) expensesCount.textContent = gastosDelMes.length.toLocaleString('es-AR');
 }
 
 function kpiNavegar(tipo) {
