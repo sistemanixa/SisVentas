@@ -4779,11 +4779,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.93-firebase',
+  VERSION: 'v2.0.94-firebase',
   RELEASE_NOTES: Object.freeze([
-    'El cierre manual y por inactividad ahora revoca y confirma la sesión real de Firebase.',
-    'Detalle de venta ordena primero “A presupuesto” e incorpora configuración de columnas.',
-    'El margen de ganancia ahora usa la misma tarjeta inferior en ventas y presupuestos.'
+    'La aprobación del administrador ahora es únicamente interna y ya no crea una venta.',
+    'El administrativo responsable recibe el aviso y puede imprimir, enviar o convertir el presupuesto.',
+    'Al registrar la aceptación del cliente, el presupuesto se convierte automáticamente en venta.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -21661,12 +21661,12 @@ var APROBACION_CONFIG = {
 window.APROBACION_CONFIG = APROBACION_CONFIG;
 var ACCIONES_CONFIG = {
   enviar_revision:  { label:'Enviar a revisión',        icon:'ti-clock',         cls:'btn btn-sm',         fn:'pptoAccion("enviar_revision")' },
-  aprobar_directo:  { label:'Aprobar y convertir',      icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar_directo")' },
-  aprobar:          { label:'Aprobar y convertir',      icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar")' },
+  aprobar_directo:  { label:'Aprobar presupuesto',      icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar_directo")' },
+  aprobar:          { label:'Aprobar presupuesto',      icon:'ti-check',         cls:'btn btn-sm btn-primary', fn:'pptoAccion("aprobar")' },
   rechazar:         { label:'Rechazar',                 icon:'ti-x',             cls:'btn btn-sm',         fn:'pptoAccion("rechazar")',  style:'color:var(--red);border-color:var(--red-bg)' },
-  enviar_cliente:   { label:'Enviar al cliente',        icon:'ti-send',          cls:'btn btn-sm btn-primary', fn:'pptoAccion("enviar_cliente")' },
+  enviar_cliente:   { label:'Enviar al cliente',        icon:'ti-send',          cls:'btn btn-sm btn-primary', fn:'pptoEnviarCliente()' },
   marcar_visto:     { label:'Marcar como visto',        icon:'ti-eye',           cls:'btn btn-sm',         fn:'pptoAccion("marcar_visto")' },
-  marcar_aceptado:  { label:'Registrar aceptación',     icon:'ti-thumb-up',      cls:'btn btn-sm btn-primary', fn:'pptoAccion("marcar_aceptado")' },
+  marcar_aceptado:  { label:'Registrar aceptación y convertir', icon:'ti-thumb-up', cls:'btn btn-sm btn-primary', fn:'pptoAccion("marcar_aceptado")' },
   convertir_venta:  { label:'Convertir a venta',        icon:'ti-arrow-right',   cls:'btn btn-sm btn-primary', fn:'pptoAccion("convertir_venta")' },
   ver_venta:        { label:'Ver venta generada',       icon:'ti-list-details',  cls:'btn btn-sm',         fn:'pptoAccion("ver_venta")' },
   editar_ppto:      { label:'Editar presupuesto',      icon:'ti-edit',          cls:'btn btn-sm',         fn:'pptoAccion("editar_ppto")', style:'color:var(--blue);border-color:var(--blue)' },
@@ -21676,6 +21676,17 @@ var ACCIONES_CONFIG = {
   eliminar:         { label:'Eliminar',                 icon:'ti-trash',         cls:'btn btn-sm',         fn:'eliminarPpto(window.pptoActualId)', style:'color:var(--red);border-color:var(--red-bg)' },
 };
 var PPTO_ACCIONES = {
+  administrativo: {
+    borrador:     ['enviar_revision','imprimir'],
+    revision:     [],
+    aprobado_int: ['imprimir','enviar_cliente','convertir_venta'],
+    enviado:      ['imprimir','marcar_visto','marcar_aceptado','convertir_venta'],
+    visto:        ['imprimir','marcar_aceptado','convertir_venta'],
+    aceptado:     ['convertir_venta'],
+    rechazado:    [],
+    vencido:      [],
+    convertido:   ['ver_venta'],
+  },
   vendedor: {
     borrador:     ['enviar_revision'],
     revision:     [],
@@ -21690,10 +21701,10 @@ var PPTO_ACCIONES = {
   admin: {
     borrador:     ['enviar_revision','aprobar_directo','editar_ppto'],
     revision:     ['aprobar','rechazar','editar_ppto'],
-    aprobado_int: ['enviar_cliente','modificar_precio'],
-    enviado:      ['marcar_visto','marcar_aceptado','rechazar'],
-    visto:        ['marcar_aceptado','rechazar'],
-    aceptado:     ['convertir_venta','editar_ppto'],
+    aprobado_int: ['imprimir','modificar_precio'],
+    enviado:      ['imprimir','modificar_precio'],
+    visto:        ['imprimir','modificar_precio'],
+    aceptado:     ['imprimir'],
     rechazado:    ['reactivar'],
     vencido:      ['reactivar'],
     convertido:   ['ver_venta'],
@@ -22259,6 +22270,10 @@ function renderAudit(p) {
 function pptoEnviarCliente() {
   var p = (pptoData||[]).find(function(x){ return x.id === pptoActualId || x.fbKey === pptoActualId; });
   if (!p) { notify('Presupuesto no encontrado'); return; }
+  if (!pptoAccionPermitidaParaRol(p, 'enviar_cliente')) {
+    notify('Este presupuesto todavía no está habilitado para enviar al cliente');
+    return;
+  }
 
   var cli = _svResolverClienteRegistro(p, true);
   var tel = cli && (cli.telefono || cli.tel || cli.celular || '');
@@ -22290,16 +22305,37 @@ function pptoEnviarCliente() {
   pptoAccion('enviar_cliente');
 }
 
+function pptoAccionPermitidaParaRol(p, accion) {
+  if (!p || !accion) return false;
+  var accionesRol = PPTO_ACCIONES[currentRole] || {};
+  return (accionesRol[p.estado] || []).indexOf(accion) >= 0;
+}
+
 function pptoAccion(accion, opts) {
   opts = opts || {};
   const p = pptoData.find(x => x.id === pptoActualId || x.fbKey === pptoActualId);
   if (!p) { notify('Presupuesto no encontrado'); return; }
+  if (!opts.skipPermission && !pptoAccionPermitidaParaRol(p, accion)) {
+    notify('Esta acción no está habilitada para tu rol en el estado actual del presupuesto');
+    return;
+  }
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   const usuario = currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor');
 
   if (accion === 'aprobar' || accion === 'aprobar_directo') {
-    if (!confirm('¿Aprobar este presupuesto y convertirlo automáticamente en venta?')) return;
-    return pptoAccion('convertir_venta', { skipConfirm: true, aprobadoPor: usuario, aprobadoEn: ahora });
+    if (!confirm('¿Aprobar internamente este presupuesto?\n\nNo se creará ninguna venta. El administrativo recibirá una notificación para imprimirlo, enviarlo al cliente o convertirlo cuando corresponda.')) return;
+    opts.aprobadoPor = usuario;
+    opts.aprobadoEn = ahora;
+  }
+
+  if (accion === 'marcar_aceptado') {
+    if (!confirm('¿Registrar la aceptación del cliente y convertir este presupuesto en venta?\n\nLa venta se creará con estado Pendiente de pago.')) return;
+    return pptoAccion('convertir_venta', {
+      skipConfirm: true,
+      skipPermission: true,
+      aceptadoPor: usuario,
+      aceptadoEn: ahora
+    });
   }
 
   const transiciones = {
@@ -22358,9 +22394,9 @@ function pptoAccion(accion, opts) {
       .then(function(ref) {
         var ventaFbKeyNueva = ref && ref.key ? ref.key : '';
         var auditConversion = (p.audit || []).concat([{
-          fecha: opts.aprobadoEn || ahora,
-          usuario: opts.aprobadoPor || usuario,
-          accion: opts.aprobadoPor ? 'Aprobado y convertido automáticamente a venta' : 'Convertido a venta'
+          fecha: opts.aceptadoEn || ahora,
+          usuario: opts.aceptadoPor || usuario,
+          accion: opts.aceptadoPor ? 'Aceptación del cliente registrada y convertido a venta' : 'Convertido manualmente a venta'
         }]);
         if (p.fbKey) {
           window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+p.fbKey), {
@@ -22410,18 +22446,30 @@ function pptoAccion(accion, opts) {
   if (!t) return;
 
   p.estado = t.nuevoEstado;
-  p.requiereAprobacion = false;
+  p.requiereAprobacion = accion === 'enviar_revision';
+  if (opts.aprobadoPor) {
+    p.aprobadoPor = opts.aprobadoPor;
+    p.aprobadoEn = opts.aprobadoEn || ahora;
+    p.aprobadoUid = currentUserUid || '';
+  }
   p.audit = p.audit || [];
   p.audit.push({ fecha:ahora, usuario, accion: t.auditMsg });
 
   if (window.fbDB && p.fbKey) {
     if (!window.fbUpdate) { notify('Error: fbUpdate no disponible'); return; }
-    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
+    var actualizacionEstadoPpto = {
       estado: t.nuevoEstado,
-      requiereAprobacion: false,
+      requiereAprobacion: accion === 'enviar_revision',
       audit: p.audit
-    }).then(function(){
+    };
+    if (opts.aprobadoPor) {
+      actualizacionEstadoPpto.aprobadoPor = opts.aprobadoPor;
+      actualizacionEstadoPpto.aprobadoEn = opts.aprobadoEn || ahora;
+      actualizacionEstadoPpto.aprobadoUid = currentUserUid || '';
+    }
+    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), actualizacionEstadoPpto).then(function(){
       notify('✓ ' + t.msg);
+      if (typeof generarNotificaciones === 'function') generarNotificaciones();
     }).catch(function(e){ notify('Error guardando estado: ' + e.message); });
   } else {
     if (!p.fbKey) notify('Error: presupuesto sin fbKey — no se puede guardar');
@@ -22509,6 +22557,7 @@ function guardarPresupuesto(modo) {
   const nuevo = {
     id: 'PP-00' + (pptoData.length + 10),
     cliente: cli, empleado: currentUser || '', usuario: currentUser || '',
+    empleadoEmail: currentUserEmail || '', empleadoUid: currentUserUid || '',
     fecha: new Date().toLocaleDateString('es-AR'),
     vence: (function(){var _v=document.getElementById('pp-venc');return _v?_v.value:'';})() || '',
     total, subtotal: subtotalBruto, descuento: desc, descuentoGeneral: desc, descuentoPct: desc, descuentoAmt: descAmt,
@@ -22524,6 +22573,12 @@ function guardarPresupuesto(modo) {
     nuevo.fbKey = window._pptoEditandoFbKey;
     nuevo.id    = window._pptoEditandoId || nuevo.id;
     nuevo.estado = pptoOriginalEdit.estado || nuevo.estado;
+    nuevo.empleado = pptoOriginalEdit.empleado || pptoOriginalEdit.creadoPor || nuevo.empleado;
+    nuevo.usuario = pptoOriginalEdit.usuario || pptoOriginalEdit.creadoPor || nuevo.usuario;
+    nuevo.empleadoEmail = pptoOriginalEdit.empleadoEmail || pptoOriginalEdit.usuarioEmail || nuevo.empleadoEmail;
+    nuevo.empleadoUid = pptoOriginalEdit.empleadoUid || pptoOriginalEdit.usuarioUid || nuevo.empleadoUid;
+    nuevo.empleadoId = pptoOriginalEdit.empleadoId || '';
+    nuevo.empFbKey = pptoOriginalEdit.empFbKey || '';
     nuevo.ventaId = pptoOriginalEdit.ventaId || '';
     nuevo.audit = (pptoOriginalEdit.audit || []).concat([{ fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || 'Admin', accion: 'Presupuesto editado' }]);
     window._pptoEditandoFbKey = null;
@@ -25568,6 +25623,28 @@ async function finalizarComunicado(comunicadoId) {
 
 // Estado de notificaciones leídas
 
+function _pptoNormalizarIdentidad(valor) {
+  return String(valor || '').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/@sistemanixa\.com$/,'')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function _pptoPerteneceAlUsuarioActual(p) {
+  if (!p) return false;
+  var aliasesActuales = [currentUser, currentUserEmail, String(currentUserEmail || '').split('@')[0], currentUserUid];
+  (window.usuariosData || []).forEach(function(u) {
+    var mail = String(u.mail || u.email || (String(u.login || '').includes('@') ? u.login : (u.login ? u.login + '@sistemanixa.com' : ''))).toLowerCase();
+    if (mail && mail === String(currentUserEmail || '').toLowerCase()) {
+      aliasesActuales.push(u.nombre, u.login, u.mail, u.email, u.empleado, u.empleadoId, u.empFbKey);
+    }
+  });
+  var autores = [p.empleado, p.usuario, p.creadoPor, p.empleadoEmail, p.usuarioEmail, p.empleadoUid, p.usuarioUid, p.empleadoId, p.empFbKey];
+  var actualesNorm = aliasesActuales.map(_pptoNormalizarIdentidad).filter(Boolean);
+  var autoresNorm = autores.map(_pptoNormalizarIdentidad).filter(Boolean);
+  return autoresNorm.some(function(autor) { return actualesNorm.indexOf(autor) >= 0; });
+}
+
 function generarNotificaciones() {
   try {
   todasNotifs = [];
@@ -25598,6 +25675,33 @@ function generarNotificaciones() {
   if (typeof pptoData !== 'undefined') {
     pptoData.forEach(function(p) {
       if (['rechazado','vencido','convertido'].includes(p.estado)) return;
+
+      // La revisión es una tarea exclusiva del administrador.
+      if (currentRole === 'admin' && p.estado === 'revision') {
+        todasNotifs.push({
+          id: 'ppto_aprob_' + p.id, tipo:'presupuesto', urgente:true,
+          icono:'ti-shield-check', color:'amber',
+          titulo: 'Requiere aprobación — ' + p.id,
+          sub: p.cliente + ' — ' + (p.motivo || 'Enviado para revisión y aprobación interna'),
+          tiempo: 'Pendiente · Sistema',
+          accion: { label:'Revisar', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
+        });
+      }
+
+      // Una aprobación interna no crea la venta. Se avisa solamente al
+      // administrativo que preparó el presupuesto para continuar el circuito.
+      if (currentRole === 'administrativo' && p.estado === 'aprobado_int' && _pptoPerteneceAlUsuarioActual(p)) {
+        todasNotifs.push({
+          id: 'ppto_aprobado_int_' + p.id + '_' + String(p.aprobadoEn || ''),
+          tipo:'presupuesto', urgente:false,
+          icono:'ti-circle-check', color:'green',
+          titulo: 'Presupuesto aprobado — ' + p.id,
+          sub: p.cliente + ' — Ya podés imprimirlo, enviarlo al cliente o convertirlo en venta.',
+          tiempo: 'Aprobado por ' + (p.aprobadoPor || 'Administración'),
+          accion: { label:'Abrir presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
+        });
+      }
+
       if (!p.vence) return;
       var venc;
       if (p.vence.indexOf('/') !== -1) {
@@ -25646,17 +25750,6 @@ function generarNotificaciones() {
         });
       }
 
-      // Requiere aprobación admin
-      if (p.requiereAprobacion && p.estado === 'revision') {
-        todasNotifs.push({
-          id: 'ppto_aprob_' + p.id, tipo:'presupuesto', urgente:true,
-          icono:'ti-shield-check', color:'amber',
-          titulo: 'Requiere aprobación — ' + p.id,
-          sub: p.cliente + ' — ' + p.motivo,
-          tiempo: 'Pendiente · Sistema',
-          accion: { label:'Revisar', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
-        });
-      }
     });
   }
   const deudas30 = [];
