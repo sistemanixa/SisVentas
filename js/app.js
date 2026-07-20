@@ -4627,7 +4627,7 @@ function showPage(id, el) {
   if (id === 'reportes')       { setTimeout(function(){ renderReportes(); }, 100); }
   if (id === 'estadisticas')   { setTimeout(function(){ if(typeof renderEstadisticas==='function') renderEstadisticas(); }, 150); }
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
-  if (id === 'cobranzas')      { setTimeout(function(){ fbCargarPagos(); }, 50); }
+  if (id === 'cobranzas')      { setTimeout(function(){ if(typeof iniciarMonedaCobranza==='function') iniciarMonedaCobranza(); fbCargarPagos(); }, 50); }
   if (id === 'cuentacorriente'){ setTimeout(function(){ fbCargarPagos(); }, 50); }
   if (id === 'notificaciones')  { setTimeout(function(){ if(typeof renderHistorialComunicados==='function') renderHistorialComunicados(); }, 50); }
   if (id === 'configuracion')   { setTimeout(function(){
@@ -4779,11 +4779,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.96-firebase',
+  VERSION: 'v2.0.97-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Registrar pago incorpora accesos rápidos para completar el 50% o la totalidad del saldo.',
-    'Los accesos calculan siempre sobre el saldo pendiente real de la venta.',
-    'El saldo posterior se actualiza inmediatamente antes de confirmar el cobro.'
+    'Cobranzas permite registrar pagos en ARS o USD con un interruptor que inicia siempre en pesos.',
+    'El dólar vigente puede ajustarse para cada cobro sin modificar la configuración general.',
+    'Historial y recibos conservan monto USD, cotización utilizada y equivalente imputado en ARS.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -8856,6 +8856,7 @@ function selVentaCob(ventaId, cliente, total, cobrado, saldo) {
   document.getElementById('cob-nuevo-saldo').value='';
   var refEl = document.getElementById('cob-ref'); if (refEl) refEl.value = '';
   var obsEl = document.getElementById('cob-obs'); if (obsEl) obsEl.value = '';
+  iniciarMonedaCobranza();
 }
 
 // Navega a Cobranzas y precarga el formulario con los datos reales de la venta,
@@ -8886,14 +8887,147 @@ function irACobranzasConVenta(ventaId) {
     if (elMonto) elMonto.focus();
   }, 150);
 }
+
+var _cobMonedaActual = 'ARS';
+
+function _cotizacionReferenciaCobranza() {
+  var cfg = window.TIPO_CAMBIO_CONFIG || {};
+  var tipo = cfg.dolarConversion || 'oficial';
+  var valor = parseFloat(cfg[tipo]) || parseFloat(cfg.oficial) || parseFloat(cfg.blue) || parseFloat(cfg.mep) || 0;
+  return {
+    valor: valor,
+    tipo: tipo,
+    actualizadoEn: Math.max(parseFloat(cfg.actualizadoApiEn)||0, parseFloat(cfg.actualizadoManualEn)||0),
+    fuenteFecha: cfg.fuenteFecha || ''
+  };
+}
+
+function _cobranzaSaldoPendiente() {
+  var saldoEl = document.getElementById('cob-saldo');
+  return parseFloat(normalizarNumeroExcel(saldoEl ? saldoEl.value : '0')) || 0;
+}
+
+function _cobranzaEstadoMonto() {
+  var montoEl = document.getElementById('cob-monto');
+  var montoOriginal = getMontoRaw(montoEl);
+  var saldo = _cobranzaSaldoPendiente();
+  var tc = _cobMonedaActual === 'USD' ? getMontoRaw(document.getElementById('cob-tipo-cambio')) : 1;
+  var objetivo = montoEl && montoEl.dataset.objetivoArs ? parseFloat(montoEl.dataset.objetivoArs) : 0;
+  var montoARS = objetivo > 0 ? objetivo : (_cobMonedaActual === 'USD' ? montoOriginal * tc : montoOriginal);
+  montoARS = Math.round(montoARS * 100) / 100;
+  return { moneda:_cobMonedaActual, montoOriginal:montoOriginal, tipoCambio:tc, montoARS:montoARS, saldo:saldo };
+}
+
+function iniciarMonedaCobranza() {
+  _cobMonedaActual = 'ARS';
+  var chk = document.getElementById('cob-moneda-usd');
+  var panel = document.getElementById('cob-usd-panel');
+  var label = document.getElementById('cob-moneda-label');
+  var montoLabel = document.getElementById('cob-monto-label');
+  var montoEl = document.getElementById('cob-monto');
+  if (chk) chk.checked = false;
+  if (panel) panel.style.display = 'none';
+  if (label) { label.textContent = 'ARS'; label.style.color = 'var(--text3)'; }
+  if (montoLabel) montoLabel.textContent = 'Monto a cobrar ahora (ARS)';
+  if (montoEl) delete montoEl.dataset.objetivoArs;
+  restablecerCotizacionCobranza(true);
+  calcSaldoTrasCobranza();
+}
+
+function toggleMonedaCobranza(esUSD) {
+  var montoEl = document.getElementById('cob-monto');
+  var montoAnterior = getMontoRaw(montoEl);
+  var tcEl = document.getElementById('cob-tipo-cambio');
+  var ref = _cotizacionReferenciaCobranza();
+  var tc = getMontoRaw(tcEl) || ref.valor;
+  var chk = document.getElementById('cob-moneda-usd');
+  if (esUSD && tc <= 0) {
+    notify('No hay una cotización disponible. Configurá el dólar antes de cobrar en USD.');
+    if (chk) chk.checked = false;
+    return;
+  }
+  if (esUSD && tcEl && getMontoRaw(tcEl) <= 0 && ref.valor > 0) {
+    _setMontoInput(tcEl, ref.valor);
+    tcEl.dataset.valorReferencia = String(ref.valor);
+    tcEl.dataset.tipoReferencia = ref.tipo || 'oficial';
+  }
+  var monedaAnterior = _cobMonedaActual;
+  _cobMonedaActual = esUSD ? 'USD' : 'ARS';
+  var panel = document.getElementById('cob-usd-panel');
+  var label = document.getElementById('cob-moneda-label');
+  var montoLabel = document.getElementById('cob-monto-label');
+  if (panel) panel.style.display = esUSD ? 'grid' : 'none';
+  if (label) { label.textContent = _cobMonedaActual; label.style.color = esUSD ? 'var(--blue)' : 'var(--text3)'; }
+  if (montoLabel) montoLabel.textContent = 'Monto a cobrar ahora (' + _cobMonedaActual + ')';
+  if (montoEl && montoAnterior > 0 && !montoEl.dataset.objetivoArs) {
+    var convertido = monedaAnterior === 'ARS' && esUSD ? montoAnterior / tc
+      : monedaAnterior === 'USD' && !esUSD ? montoAnterior * tc
+      : montoAnterior;
+    _setMontoInput(montoEl, Math.round(convertido * 100) / 100);
+  } else if (montoEl && montoEl.dataset.objetivoArs) {
+    var objetivo = parseFloat(montoEl.dataset.objetivoArs) || 0;
+    _setMontoInput(montoEl, esUSD ? Math.round((objetivo / tc) * 100) / 100 : objetivo);
+  }
+  calcSaldoTrasCobranza();
+}
+
+function restablecerCotizacionCobranza(silencioso) {
+  var ref = _cotizacionReferenciaCobranza();
+  var tcEl = document.getElementById('cob-tipo-cambio');
+  if (tcEl) {
+    _setMontoInput(tcEl, ref.valor || 0);
+    tcEl.dataset.valorReferencia = String(ref.valor || 0);
+    tcEl.dataset.tipoReferencia = ref.tipo || 'oficial';
+  }
+  var fuente = document.getElementById('cob-tc-fuente');
+  var tipoLabel = ref.tipo === 'mep' ? 'MEP' : (ref.tipo ? ref.tipo.charAt(0).toUpperCase()+ref.tipo.slice(1) : 'Oficial');
+  if (fuente) fuente.textContent = ref.valor > 0
+    ? tipoLabel + ' vigente' + (ref.actualizadoEn ? ' · actualizado ' + new Date(ref.actualizadoEn).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}) : '')
+    : 'Sin cotización configurada';
+  cobranzaCotizacionEditada(true);
+  if (!silencioso && ref.valor > 0) notify('Cotización actual restablecida: $' + Math.round(ref.valor).toLocaleString('es-AR'));
+}
+
+function cobranzaMontoEditado() {
+  var montoEl = document.getElementById('cob-monto');
+  if (montoEl) delete montoEl.dataset.objetivoArs;
+  calcSaldoTrasCobranza();
+}
+
+function cobranzaCotizacionEditada(silencioso) {
+  var tcEl = document.getElementById('cob-tipo-cambio');
+  var montoEl = document.getElementById('cob-monto');
+  var tc = getMontoRaw(tcEl);
+  var base = parseFloat(tcEl && tcEl.dataset.valorReferencia) || 0;
+  var fuente = document.getElementById('cob-tc-fuente');
+  if (fuente && !silencioso) {
+    fuente.textContent = Math.abs(tc-base) > 0.001
+      ? 'Cotización manual para este cobro · la configuración general no se modifica'
+      : ((_cotizacionReferenciaCobranza().tipo || 'oficial').toUpperCase() + ' vigente');
+    fuente.style.color = Math.abs(tc-base) > 0.001 ? 'var(--amber)' : 'var(--text3)';
+  }
+  if (montoEl && montoEl.dataset.objetivoArs && tc > 0 && _cobMonedaActual === 'USD') {
+    var objetivo = parseFloat(montoEl.dataset.objetivoArs) || 0;
+    _setMontoInput(montoEl, Math.round((objetivo / tc) * 100) / 100);
+  }
+  calcSaldoTrasCobranza();
+}
+
 function calcSaldoTrasCobranza() {
-  const saldoStr=normalizarNumeroExcel(document.getElementById('cob-saldo').value);
-  const saldo=parseFloat(saldoStr)||0;
-  const monto=getMontoRaw(document.getElementById('cob-monto'));
-  const nuevo=Math.max(0,saldo-monto);
+  var estado = _cobranzaEstadoMonto();
+  var nuevo = Math.max(0, estado.saldo - estado.montoARS);
   const el=document.getElementById('cob-nuevo-saldo');
   el.value='$'+Math.round(nuevo).toLocaleString('es-AR');
-  el.style.color=nuevo===0?'var(--green)':'var(--amber)';
+  el.style.color=estado.montoARS > estado.saldo + 0.01 ? 'var(--red)' : (nuevo===0?'var(--green)':'var(--amber)');
+  var equiv = document.getElementById('cob-equivalente-ars');
+  var detalle = document.getElementById('cob-equivalente-detalle');
+  if (equiv) {
+    equiv.textContent = '$' + estado.montoARS.toLocaleString('es-AR',{maximumFractionDigits:2}) + ' ARS';
+    equiv.style.color = estado.montoARS > estado.saldo + 0.01 ? 'var(--red)' : 'var(--green)';
+  }
+  if (detalle) detalle.textContent = estado.tipoCambio > 0
+    ? 'USD ' + estado.montoOriginal.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' × $' + estado.tipoCambio.toLocaleString('es-AR',{maximumFractionDigits:2})
+    : 'Ingresá una cotización válida.';
 }
 
 function cobranzaMontoRapido(proporcion) {
@@ -8911,7 +9045,11 @@ function cobranzaMontoRapido(proporcion) {
     return;
   }
   var factor = proporcion === 1 ? 1 : 0.5;
-  var monto = factor === 1 ? saldo : Math.round(saldo * factor * 100) / 100;
+  var objetivoARS = factor === 1 ? saldo : Math.round(saldo * factor * 100) / 100;
+  var tc = _cobMonedaActual === 'USD' ? getMontoRaw(document.getElementById('cob-tipo-cambio')) : 1;
+  if (_cobMonedaActual === 'USD' && tc <= 0) { notify('Ingresá una cotización válida'); return; }
+  var monto = _cobMonedaActual === 'USD' ? Math.round((objetivoARS / tc) * 100) / 100 : objetivoARS;
+  montoEl.dataset.objetivoArs = String(objetivoARS);
   _setMontoInput(montoEl, monto);
   calcSaldoTrasCobranza();
   if (montoEl) montoEl.focus();
@@ -10900,6 +11038,17 @@ function elimPago(fbKey) {
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
+function _cobroMontoHistorialHTML(p) {
+  var montoARS = parseFloat(p && p.monto) || 0;
+  var esUSD = String((p && p.moneda)||'').toUpperCase() === 'USD' || parseFloat(p && p.montoUSD) > 0;
+  var principal = '$' + montoARS.toLocaleString('es-AR',{maximumFractionDigits:2});
+  if (!esUSD) return '<span style="color:var(--green);font-weight:500">' + principal + '</span>';
+  var montoUSD = parseFloat(p.montoUSD || p.montoOriginal) || 0;
+  var tc = parseFloat(p.tipoCambio) || 0;
+  return '<span style="color:var(--green);font-weight:600">' + principal + '</span>' +
+    '<div style="font-size:10px;color:var(--blue);margin-top:2px;white-space:nowrap">USD ' + montoUSD.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' · TC $' + tc.toLocaleString('es-AR',{maximumFractionDigits:2}) + (p.cotizacionEditada ? ' manual' : '') + '</div>';
+}
+
 function fbCargarPagos() {
   if (!window.fbDB) return;
   if (window._pagosListenerActivo) return;
@@ -10929,7 +11078,7 @@ function fbCargarPagos() {
         var ventaLink = (p.venta && !p.anulado) ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();irAVentaDesdeCobranza(\''+escapeHTML(p.venta)+'\');" title="Ver venta"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></button>' : '—';
         var _ed = p.fbKey && !p.anulado ? '<button class="btn btn-sm btn-icon" onclick="anularPago(\''+p.fbKey+'\')" title="Anular cobro" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-ban" style="font-size:13px"></i></button>' : '';
         var trStyle = p.anulado ? 'background:rgba(239,68,68,.08);opacity:.7' : '';
-        var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : '<span style="color:var(--green);font-weight:500">$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</span>';
+        var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : _cobroMontoHistorialHTML(p);
         var reciboBtn = p.anulado ? '' : '<button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>';
         return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" data-medio="'+escapeHTML(p.medio||'')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(formatoMedioPago(p.medio||'—'))+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap">'+reciboBtn+_ed+'</td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
@@ -14716,7 +14865,8 @@ function asegurarOTVentaConPago(ventaObj, totalPagado) {
 
 function registrarPago() {
   var venta  = document.getElementById('cob-venta').value.trim();
-  var monto  = getMontoRaw(document.getElementById('cob-monto'));
+  var estadoMonto = _cobranzaEstadoMonto();
+  var monto  = estadoMonto.montoARS;
   var medioEl = document.getElementById('cob-medio');
   var medio  = medioEl ? medioEl.value : '';
   var fecha  = document.getElementById('cob-fecha') ? document.getElementById('cob-fecha').value : new Date().toISOString().split('T')[0];
@@ -14724,7 +14874,9 @@ function registrarPago() {
   var obsEl  = document.getElementById('cob-obs');
   var obs    = obsEl ? obsEl.value : (refEl ? refEl.value.trim() : '');
   if (!venta) { notify('Seleccioná una venta'); return; }
-  if (!monto) { notify('Ingresá un monto'); return; }
+  if (!estadoMonto.montoOriginal || !monto) { notify('Ingresá un monto'); return; }
+  if (estadoMonto.moneda === 'USD' && estadoMonto.tipoCambio <= 0) { notify('Ingresá una cotización válida para el cobro en dólares'); return; }
+  if (estadoMonto.montoARS > estadoMonto.saldo + 0.01) { notify('El monto imputado supera el saldo pendiente. Usá “Saldo total” o corregí el importe.'); return; }
   if (!medio) { notify('Seleccioná un medio de pago'); if (medioEl) medioEl.focus(); return; }
   if (!window.fbDB) { notify('Sin conexión'); return; }
 
@@ -14741,6 +14893,14 @@ function registrarPago() {
     cliente:  ventaObj ? (ventaObj.cliente||'') : (document.getElementById('cob-cliente')||{}).value||'',
     clienteFbKey: ventaObj ? (ventaObj.clienteFbKey||ventaObj.clienteKey||'') : '',
     monto:    monto,
+    moneda:   estadoMonto.moneda,
+    montoOriginal: estadoMonto.montoOriginal,
+    montoUSD: estadoMonto.moneda === 'USD' ? estadoMonto.montoOriginal : 0,
+    tipoCambio: estadoMonto.moneda === 'USD' ? estadoMonto.tipoCambio : 1,
+    cotizacionTipo: estadoMonto.moneda === 'USD' ? ((document.getElementById('cob-tipo-cambio')||{}).dataset.tipoReferencia || (_cotizacionReferenciaCobranza().tipo||'oficial')) : '',
+    cotizacionReferencia: estadoMonto.moneda === 'USD' ? (parseFloat((document.getElementById('cob-tipo-cambio')||{}).dataset.valorReferencia)||0) : 0,
+    cotizacionEditada: estadoMonto.moneda === 'USD' && Math.abs(estadoMonto.tipoCambio - (parseFloat((document.getElementById('cob-tipo-cambio')||{}).dataset.valorReferencia)||0)) > 0.001,
+    cotizacionFuenteFecha: estadoMonto.moneda === 'USD' ? (_cotizacionReferenciaCobranza().fuenteFecha || '') : '',
     medio:    medio,
     fecha:    fecha,
     obs:      obs,
@@ -14771,9 +14931,9 @@ function registrarPago() {
           generarComisionesVenta(ventaObj, nuevoTotal);
         }
       }
-      notify('✓ Pago registrado correctamente');
+      notify('✓ Pago registrado correctamente' + (pago.moneda === 'USD' ? ' · USD ' + pago.montoUSD.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' a $' + pago.tipoCambio.toLocaleString('es-AR') : ''));
       if (typeof registrarActividad === 'function') {
-        registrarActividad('Pago registrado', venta + ' — ' + (pago.cliente||'') + ' — $' + Math.round(monto).toLocaleString('es-AR') + ' (' + medio + ')');
+        registrarActividad('Pago registrado', venta + ' — ' + (pago.cliente||'') + ' — $' + Math.round(monto).toLocaleString('es-AR') + (pago.moneda === 'USD' ? ' · USD ' + pago.montoUSD.toLocaleString('es-AR',{maximumFractionDigits:2}) + ' TC $' + pago.tipoCambio.toLocaleString('es-AR') : '') + ' (' + medio + ')');
       }
       // Desde la primera seña Cobranzas asegura la OT; el pago total no es requisito.
       // Ofrecer imprimir recibo
@@ -14786,6 +14946,7 @@ function registrarPago() {
       });
       var medioReset = document.getElementById('cob-medio');
       if (medioReset) medioReset.value = '';
+      iniciarMonedaCobranza();
     })
     .catch(function(e){ notify('Error al guardar: ' + e.message); });
 }
@@ -14815,6 +14976,15 @@ function imprimirRecibo() {
   var numRecibo = 'R-' + String(Date.now()).slice(-6);
   var totalVenta = ventaObj ? '$'+(parseFloat(ventaObj.total)||0).toLocaleString('es-AR') : '—';
   var pagosAnt   = ventaObj ? '$'+(parseFloat(ventaObj.totalPagado||0) - pago.monto).toLocaleString('es-AR') : '$0';
+  var pagoEsUSD = String(pago.moneda||'').toUpperCase() === 'USD' || parseFloat(pago.montoUSD) > 0;
+  var montoUSDRecibo = parseFloat(pago.montoUSD || pago.montoOriginal) || 0;
+  var tcRecibo = parseFloat(pago.tipoCambio) || 0;
+  var montoPrincipalRecibo = pagoEsUSD
+    ? 'USD ' + montoUSDRecibo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})
+    : '$' + (parseFloat(pago.monto)||0).toLocaleString('es-AR');
+  var detalleConversionRecibo = pagoEsUSD
+    ? '<div style="font-size:12px;color:#666;margin-top:5px">Imputado: $' + (parseFloat(pago.monto)||0).toLocaleString('es-AR') + ' ARS · TC ' + escapeHTML(String(pago.cotizacionTipo||'manual').toUpperCase()) + ' $' + tcRecibo.toLocaleString('es-AR') + (pago.cotizacionEditada ? ' · cotización manual' : '') + '</div>'
+    : '';
 
   var w = window.open('','_blank','width=700,height=500');
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo '+numRecibo+'</title>'+
@@ -14841,10 +15011,12 @@ function imprimirRecibo() {
     '<div class="field"><label>Venta vinculada</label><strong>'+pago.venta+'</strong></div>'+
     '<div class="field"><label>Medio de pago</label>'+formatoMedioPago(pago.medio)+'</div>'+
     '<div class="field"><label>Total de la venta</label>'+totalVenta+'</div>'+
+    (pagoEsUSD ? '<div class="field"><label>Cotización aplicada</label>$'+tcRecibo.toLocaleString('es-AR')+' ARS/USD'+(pago.cotizacionEditada?' · Manual':'')+'</div><div class="field"><label>Importe imputado</label>$'+(parseFloat(pago.monto)||0).toLocaleString('es-AR')+' ARS</div>' : '')+
     '</div>'+
     '<div class="monto-box">'+
     '<div style="font-size:12px;color:#666;margin-bottom:4px">RECIBIMOS LA SUMA DE</div>'+
-    '<div style="font-size:32px;font-weight:700;color:#16a34a">$'+pago.monto.toLocaleString('es-AR')+'</div>'+
+    '<div style="font-size:32px;font-weight:700;color:#16a34a">'+montoPrincipalRecibo+'</div>'+
+    detalleConversionRecibo+
     '<div style="font-size:12px;color:#666;margin-top:4px">'+formatoMedioPago(pago.medio)+'</div>'+
     '</div>'+
     (pago.obs?'<div style="padding:10px;background:#f9f9f9;border-radius:4px;font-size:12px"><strong>Obs:</strong> '+pago.obs+'</div>':'')+''+

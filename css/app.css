@@ -171,6 +171,18 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 .cob-monto-rapidos{display:flex;align-items:center;gap:5px}
 .cob-monto-rapidos button{border:0.5px solid var(--border2);background:var(--bg3);color:var(--text2);border-radius:999px;padding:3px 9px;font:600 10px/1.25 inherit;cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s,background .15s}
 .cob-monto-rapidos button:hover{color:var(--blue);border-color:var(--blue);background:var(--blue-bg)}
+.cob-moneda-selector{display:flex;align-items:center;gap:7px;color:var(--text3);font-size:11px}
+.cob-moneda-selector strong{min-width:30px;color:var(--text3);font-size:11px}
+.cob-usd-panel{grid-template-columns:minmax(220px,.8fr) minmax(240px,1.2fr)!important;gap:14px!important;padding:14px 16px;background:linear-gradient(135deg,rgba(96,165,250,.08),rgba(96,165,250,.025));border:0.5px solid rgba(96,165,250,.28);border-radius:var(--radius)}
+.cob-usd-cotizacion-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.cob-usd-cotizacion-head label{margin:0!important}
+.cob-usd-cotizacion-head button{border:0;background:none;color:var(--blue);padding:2px 0;font:600 10px/1.2 inherit;cursor:pointer;white-space:nowrap}
+.cob-usd-ayuda{color:var(--text3);font-size:10px;margin-top:5px}
+.cob-usd-equivalencia{display:flex;flex-direction:column;justify-content:center;padding-left:16px;border-left:0.5px solid rgba(96,165,250,.25)}
+.cob-usd-equivalencia span{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.55px}
+.cob-usd-equivalencia strong{font-size:21px;color:var(--green);margin-top:4px}
+.cob-usd-equivalencia small{font-size:10px;color:var(--text3);margin-top:3px}
+@media(max-width:700px){.cob-usd-panel{grid-template-columns:1fr!important}.cob-usd-equivalencia{padding:12px 0 0;border-left:0;border-top:0.5px solid rgba(96,165,250,.25)}.cob-moneda-selector{margin-left:auto}}
 .m-value{font-size:22px;font-weight:600;color:var(--text);margin-bottom:4px}
 .m-sub{font-size:11px;color:var(--text3)}
 .m-up{color:var(--green)}
