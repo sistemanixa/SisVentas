@@ -4870,8 +4870,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.122-firebase',
+  VERSION: 'v2.0.123-firebase',
   RELEASE_NOTES: Object.freeze([
+    'Se restauró la detección automática de publicaciones: la fuente liviana de versión vuelve a estar sincronizada.',
+    'El actualizador incorpora una verificación de respaldo contra la aplicación publicada para no depender de un único archivo de versión.',
     'Toda venta nueva inicia y se guarda operativamente en ARS; USD queda disponible solo como visualización elegida por el usuario.',
     'Al editar una venta se restauran a ARS los precios guardados por error como USD cuando la coincidencia es inequívoca.',
     'Agregar fila en una venta ahora crea un renglón vacío, sin inventar código ni descripción de producto.',
@@ -4923,6 +4925,7 @@ var _actualizandoAhora = false; // evitar disparar dos veces
 var _verificacionVersionEnCurso = false;
 var _reintentoVersionTimer = null;
 var _pausaActualizacionAvisada = false;
+var _ultimoChequeoAppPublicada = 0;
 
 function _limpiarControlIntentosActualizacion() {
   try {
@@ -5035,7 +5038,33 @@ function _dispararActualizacion(versionNueva) {
   });
 }
 
-// Chequea GitHub directamente y actualiza si hay versión nueva
+// Respaldo de baja frecuencia: si por un error de publicación el archivo
+// liviano version.js quedara atrasado, la versión declarada por app.js sigue
+// permitiendo que los clientes se recuperen automáticamente. Se limita a una
+// consulta cada 15 minutos porque app.js es considerablemente más grande.
+function _chequearAppPublicadaComoRespaldo(callback) {
+  var ahora = Date.now();
+  if (_ultimoChequeoAppPublicada && ahora - _ultimoChequeoAppPublicada < 15 * 60 * 1000) {
+    if (callback) callback('');
+    return;
+  }
+  _ultimoChequeoAppPublicada = ahora;
+  fetch('./js/app.js?_version_fallback=' + ahora, {
+    cache: 'no-store',
+    headers: { 'Pragma':'no-cache', 'Cache-Control':'no-cache' }
+  })
+    .then(function(r){ return r.ok ? r.text() : ''; })
+    .then(function(source) {
+      var versionApp = _extraerVersionPublicada(source, 'app');
+      if (versionApp && _versionMasNueva(versionApp, APP_CONFIG.VERSION)) {
+        _dispararActualizacion(versionApp);
+      }
+      if (callback) callback(versionApp);
+    })
+    .catch(function(){ if (callback) callback(''); });
+}
+
+// Chequea la fuente liviana publicada y actualiza si hay versión nueva.
 function _chequearGitHub(callback) {
   fetch('./js/core/version.js?_v=' + Date.now(), {
     cache: 'no-store',
@@ -5051,10 +5080,14 @@ function _chequearGitHub(callback) {
         // La verificación completa publica Firebase recién cuando todo el
         // deploy está disponible; nunca anunciar una versión parcial.
         _dispararActualizacion(vGitHub);
+        if (callback) callback(vGitHub);
+        return;
       }
-      if (callback) callback(vGitHub);
+      _chequearAppPublicadaComoRespaldo(function(versionApp) {
+        if (callback) callback(versionApp || vGitHub);
+      });
     })
-    .catch(function(){});
+    .catch(function(){ _chequearAppPublicadaComoRespaldo(callback); });
 }
 
 function iniciarListenerVersion() {
