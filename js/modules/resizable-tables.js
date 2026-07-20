@@ -10,6 +10,7 @@
   var scheduled = false;
   var scheduleTimer = 0;
   var percentDrafts = {};
+  var alignmentDrafts = {};
   var globalProfiles = { loaded: false, loading: false, widths: {}, percentages: {}, alignments: {} };
   var globalSaveTimers = {};
   var DEFAULT_WIDTH_BY_HEADER = {
@@ -109,9 +110,12 @@
     window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tableColumns'))
       .then(function (snap) {
         var val = snap && snap.val ? (snap.val() || {}) : {};
-        globalProfiles.widths = val.widths || {};
-        globalProfiles.percentages = val.percentages || {};
-        globalProfiles.alignments = val.alignments || {};
+        // Si el administrador cambió un perfil mientras Firebase todavía
+        // cargaba, conservar ese valor local más nuevo. De lo contrario la
+        // respuesta tardía hacía que la alineación "volviera" a la anterior.
+        globalProfiles.widths = Object.assign({}, val.widths || {}, globalProfiles.widths || {});
+        globalProfiles.percentages = Object.assign({}, val.percentages || {}, globalProfiles.percentages || {});
+        globalProfiles.alignments = Object.assign({}, val.alignments || {}, globalProfiles.alignments || {});
         globalProfiles.loaded = true;
         globalProfiles.loading = false;
         scheduleScan();
@@ -303,6 +307,8 @@
   }
 
   function currentAlignments(table) {
+    var draft = alignmentDrafts[percentDraftKey(table)];
+    if (draft && Object.keys(draft).length) return draft;
     var saved = loadAlignments(table);
     if (Object.keys(saved).length) return saved;
     return defaultAlignments(table);
@@ -328,6 +334,11 @@
   }
 
   function applySavedAlignments(table) {
+    var draft = alignmentDrafts[percentDraftKey(table)];
+    if (draft && Object.keys(draft).length) {
+      applyAlignments(table, draft);
+      return;
+    }
     var saved = loadAlignments(table);
     if (Object.keys(saved).length) applyAlignments(table, saved);
     else clearAlignments(table);
@@ -741,6 +752,7 @@
     var values = currentPercentages(table);
     var alignValues = currentAlignments(table);
     percentDrafts[percentDraftKey(table)] = Object.assign({}, values);
+    alignmentDrafts[percentDraftKey(table)] = Object.assign({}, alignValues);
     var overlay = document.createElement('div');
     overlay.id = 'sv-column-percent-modal';
     overlay.className = 'sv-column-percent-overlay';
@@ -849,9 +861,11 @@
 
     function applyLive() {
       var data = readInputs();
+      var alignData = readAlignments();
       percentDrafts[percentDraftKey(table)] = Object.assign({}, data);
+      alignmentDrafts[percentDraftKey(table)] = Object.assign({}, alignData);
       applyPercentProfile(table, data);
-      applyAlignments(table, readAlignments());
+      applyAlignments(table, alignData);
       refreshTotal(data);
     }
 
@@ -864,6 +878,7 @@
     overlay.addEventListener('click', function (ev) {
       if (ev.target === overlay || ev.target.closest('[data-sv-close]')) {
         delete percentDrafts[percentDraftKey(table)];
+        delete alignmentDrafts[percentDraftKey(table)];
         applySavedPercentProfile(table);
         applySavedAlignments(table);
         overlay.remove();
@@ -888,6 +903,7 @@
         borrarPerfilGlobal(table, 'percentages');
         borrarPerfilGlobal(table, 'alignments');
         delete percentDrafts[percentDraftKey(table)];
+        delete alignmentDrafts[percentDraftKey(table)];
         clearPixelWidths(table);
         table.classList.remove('sv-percent-table');
         table.style.removeProperty('--sv-percent-total-width');
@@ -905,6 +921,7 @@
         savePercentages(table, data);
         saveAlignments(table, alignData);
         delete percentDrafts[percentDraftKey(table)];
+        delete alignmentDrafts[percentDraftKey(table)];
         applyPercentProfile(table, data);
         applyAlignments(table, alignData);
         overlay.remove();

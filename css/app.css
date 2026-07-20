@@ -1355,6 +1355,10 @@ body.modal-secure-open{overflow:hidden!important}
 .sv-card-head-actions .btn{flex:0 0 auto}
 .sv-column-percent-btn{border-color:rgba(120,130,160,.35)!important;background:rgba(120,130,160,.08)!important;color:var(--text2)!important}
 .sv-column-percent-btn:hover{background:rgba(120,130,160,.16)!important;color:var(--text)!important}
+.sv-action-metric{cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.sv-action-metric:hover,.sv-action-metric:focus-visible{transform:translateY(-2px);border-color:rgba(96,165,250,.58);box-shadow:0 10px 28px rgba(0,0,0,.22);outline:none}
+.sv-kpi-target-highlight{animation:svKpiTarget 1.8s ease}
+@keyframes svKpiTarget{0%,100%{box-shadow:none}20%,70%{box-shadow:0 0 0 2px rgba(96,165,250,.7),0 0 28px rgba(96,165,250,.2)}}
 .sv-column-percent-head{cursor:move;user-select:none}
 .sv-column-percent-head button{cursor:pointer}
 .sv-column-percent-panel.is-dragging{border-color:rgba(96,165,250,.55)!important;box-shadow:0 28px 80px rgba(0,0,0,.58)!important}

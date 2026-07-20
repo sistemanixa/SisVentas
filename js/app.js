@@ -4879,11 +4879,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.105-firebase',
+  VERSION: 'v2.0.106-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Rentabilidad recalcula el costo desde los ítems y descarta totales históricos inconsistentes.',
-    'El historial del cliente muestra sólo ventas, saldos y equipos realmente vinculados.',
-    'El valor agregado de productos se calcula sobre el costo y respeta el porcentaje editado.'
+    'Los indicadores del detalle de venta abren cobros, factura, OT y auditoría.',
+    'Cobranzas y órdenes de trabajo permiten volver a la misma venta de origen.',
+    'La alineación elegida en Columnas se mantiene durante la edición y después de guardarla.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -6649,9 +6649,11 @@ function volverADetalleVenta() {
   if (btnVolver) btnVolver.style.display = 'none';
   window._cobOrigenVentaId = null;
   if (ventaId && typeof showPage === 'function') {
+    window._ventaDesdeHistorialOrigen = 'cobranzas';
     showPage('detalle');
     setTimeout(function() {
       if (typeof verVenta === 'function') verVenta(ventaId);
+      window._ventaDesdeHistorialOrigen = null;
     }, 300);
   } else if (typeof showPage === 'function') {
     showPage('detalle');
@@ -24254,6 +24256,21 @@ function volverListaOT() {
   document.dispatchEvent(new CustomEvent('sisventas:ot-closed'));
 }
 
+function volverDesdeDetalleOT() {
+  var ventaId = window._otOrigenVentaId;
+  if (!ventaId) {
+    volverListaOT();
+    return;
+  }
+  window._otOrigenVentaId = null;
+  window._ventaDesdeHistorialOrigen = 'orden-trabajo';
+  showPage('detalle');
+  setTimeout(function() {
+    verDetalleVenta(ventaId);
+    window._ventaDesdeHistorialOrigen = null;
+  }, 180);
+}
+
 // Normaliza cliente+dirección para detectar si es la misma instalación,
 // tolerando diferencias menores de mayúsculas/espacios/tildes simples.
 function _claveInstalacion(cliente, dir) {
@@ -25575,6 +25592,72 @@ function verDetalleVenta(ventaId) {
     crearVistaDetalleVenta(venta);
   }
 }
+
+function ventaDetalleResolverOT(venta) {
+  if (!venta) return null;
+  var raw = String(venta.otId || venta.ordenTrabajoId || venta.ot || '').trim();
+  var idsVenta = [venta.id, venta.fbKey, venta.numero, venta.nro, venta.codigo]
+    .map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+  return (window.otData || []).find(function(ot) {
+    if (!ot) return false;
+    var idsOT = [ot.id, ot.fbKey, ot.otId, ot.numero]
+      .map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+    if (raw && idsOT.indexOf(raw) >= 0) return true;
+    var idsOrigen = [ot.ventaId, ot.venta, ot.ventaNumero, ot.ventaFbKey]
+      .map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+    return idsVenta.some(function(id){ return idsOrigen.indexOf(id) >= 0; });
+  }) || null;
+}
+
+function abrirCobrosDesdeDetalleVenta(ventaId) {
+  var venta = _svResolverVentaRegistro(ventaId);
+  if (!venta) { notify('Venta no encontrada'); return; }
+  var ref = venta.id || venta.fbKey || ventaId;
+  showPage('cobranzas');
+  window._cobOrigenVentaId = ref;
+  setTimeout(function() {
+    var volver = document.getElementById('cob-volver-venta');
+    if (volver) volver.style.display = '';
+    if (typeof setFiltroCob === 'function') setFiltroCob('todos');
+    var buscar = document.getElementById('cob-buscador');
+    if (buscar) buscar.value = ref;
+    if (typeof filtrarCobros === 'function') filtrarCobros(ref);
+    var tabla = document.getElementById('pagos-tbl');
+    if (tabla) {
+      tabla.scrollIntoView({ behavior:'smooth', block:'center' });
+      Array.from(tabla.querySelectorAll('tbody tr')).forEach(function(fila) {
+        var coincide = String(fila.textContent || '').indexOf(ref) >= 0;
+        fila.classList.toggle('sv-kpi-target-highlight', coincide);
+      });
+    }
+  }, 260);
+}
+
+function abrirFacturaDesdeKpiVenta(ventaId) {
+  var venta = _svResolverVentaRegistro(ventaId);
+  if (!venta || !venta.factura) { notify('Esta venta todavía no tiene factura'); return; }
+  abrirResumenFactura(venta.id || venta.fbKey || ventaId);
+}
+
+function abrirOTDesdeKpiVenta(ventaId) {
+  var venta = _svResolverVentaRegistro(ventaId);
+  var ot = ventaDetalleResolverOT(venta);
+  if (!venta || !ot) { notify('Esta venta no tiene una OT vinculada'); return; }
+  var refVenta = venta.id || venta.fbKey || ventaId;
+  showPage('ordentrabajo', document.querySelector('[onclick*="ordentrabajo"]'));
+  window._otOrigenVentaId = refVenta;
+  setTimeout(function() { verOT(ot.fbKey || ot.id); }, 140);
+}
+
+function verModificacionesDesdeKpiVenta() {
+  var destino = document.getElementById('venta-detalle-auditoria');
+  if (!destino) { notify('No hay modificaciones registradas'); return; }
+  destino.scrollIntoView({ behavior:'smooth', block:'center' });
+  destino.classList.remove('sv-kpi-target-highlight');
+  void destino.offsetWidth;
+  destino.classList.add('sv-kpi-target-highlight');
+}
+
 function renderDetalleVenta(v) {
   window._ventaDetalleActual = v;
   var dv = document.getElementById('venta-detalle-view');
@@ -25706,6 +25789,7 @@ function renderDetalleVenta(v) {
   } else {
     comisionDetalle = parseFloat(v.comisionMonto || v.comision || 0) || 0;
   }
+  var otVinculada = ventaDetalleResolverOT(v);
   var otAsociada = _formatearOTAsociadaDetalleVenta(v);
   var facturaTxt = _formatearFacturaDetalleVenta(v);
   var puedeVerInternosVenta = (currentRole === 'admin');
@@ -25720,16 +25804,21 @@ function renderDetalleVenta(v) {
   var margenDetalleFondo = costoDetalleInconsistente ? 'var(--amber-bg)' : (margenDetalle < 15 ? 'var(--red-bg)' : (margenDetalle <= 20 ? 'var(--amber-bg)' : 'var(--green-bg)'));
   var margenDetalleIcono = costoDetalleInconsistente ? 'ti-alert-triangle' : (margenDetalle < 15 ? 'ti-alert-triangle' : (margenDetalle <= 20 ? 'ti-info-circle' : 'ti-check'));
   var margenDetalleEtiqueta = costoDetalleInconsistente ? 'Costo a revisar' : (margenDetalle < 15 ? 'Margen bajo' : (margenDetalle <= 20 ? 'Margen regular' : 'Ganancia perfecta'));
+  var ventaDetalleRef = jsStringAttr(v.id || v.fbKey || '');
+  var kpiPagosAttrs = pagado > 0 ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirCobrosDesdeDetalleVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Ver los cobros de esta venta"' : ' class="metric"';
+  var kpiFacturaAttrs = v.factura ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirFacturaDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la factura emitida"' : ' class="metric"';
+  var kpiInstAttrs = (v.estadoInst === 'instalado' && otVinculada) ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirOTDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la orden de trabajo instalada"' : ' class="metric"';
+  var kpiOTAttrs = otVinculada ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirOTDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la orden de trabajo vinculada"' : ' class="metric"';
   var metricVentaHtml = '<div class="metrics" id="venta-detalle-metricas" style="margin-bottom:12px;grid-template-columns:repeat(3,minmax(0,1fr))">' +
     '<div class="metric"><div class="m-label">Total venta</div><div class="m-value">$' + Math.round(total).toLocaleString('es-AR') + '</div><div class="m-sub">' + ep.label + '</div></div>' +
-    '<div class="metric"><div class="m-label">Pagado</div><div class="m-value" style="color:var(--green)">$' + Math.round(pagado).toLocaleString('es-AR') + '</div><div class="m-sub">' + porcPagado.toFixed(0) + '% de la venta</div></div>' +
+    '<div' + kpiPagosAttrs + '><div class="m-label">Pagado</div><div class="m-value" style="color:var(--green)">$' + Math.round(pagado).toLocaleString('es-AR') + '</div><div class="m-sub">' + porcPagado.toFixed(0) + '% de la venta' + (pagado > 0 ? ' · Ver cobros' : '') + '</div></div>' +
     '<div class="metric"><div class="m-label">Saldo</div><div class="m-value" style="color:' + (saldo > 0 ? 'var(--amber)' : 'var(--green)') + '">$' + Math.round(saldo).toLocaleString('es-AR') + '</div><div class="m-sub">' + (saldo > 0 ? 'pendiente de cobro' : 'cancelado') + '</div></div>' +
   '</div>' +
   '<div class="metrics" id="venta-detalle-seguimiento" style="margin-bottom:12px;grid-template-columns:repeat(4,minmax(0,1fr))">' +
-    '<div class="metric"><div class="m-label">Facturación</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(facturaTxt)) + '</div><div class="m-sub">estado fiscal</div></div>' +
-    '<div class="metric"><div class="m-label">Instalación</div><div class="m-value" style="font-size:18px;color:' + ei.color + '">' + ei.label + '</div><div class="m-sub">estado OT/inst.</div></div>' +
-    '<div class="metric"><div class="m-label">OT asociada</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(otAsociada || '—')) + '</div><div class="m-sub">seguimiento técnico</div></div>' +
-    '<div class="metric"><div class="m-label">Última modif.</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(v.editadoEn || v.actualizado || v.fecha || '—')) + '</div><div class="m-sub">auditoría de venta</div></div>' +
+    '<div' + kpiFacturaAttrs + '><div class="m-label">Facturación</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(facturaTxt)) + '</div><div class="m-sub">' + (v.factura ? 'Abrir factura' : 'estado fiscal') + '</div></div>' +
+    '<div' + kpiInstAttrs + '><div class="m-label">Instalación</div><div class="m-value" style="font-size:18px;color:' + ei.color + '">' + ei.label + '</div><div class="m-sub">' + ((v.estadoInst === 'instalado' && otVinculada) ? 'Abrir OT instalada' : 'estado OT/inst.') + '</div></div>' +
+    '<div' + kpiOTAttrs + '><div class="m-label">OT asociada</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(otAsociada || '—')) + '</div><div class="m-sub">' + (otVinculada ? 'Abrir orden de trabajo' : 'seguimiento técnico') + '</div></div>' +
+    '<div class="metric sv-action-metric" role="button" tabindex="0" onclick="verModificacionesDesdeKpiVenta()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Ir al historial de modificaciones"><div class="m-label">Última modif.</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(v.editadoEn || v.actualizado || v.fecha || '—')) + '</div><div class="m-sub">Ver auditoría</div></div>' +
   '</div>';
 
   dv.innerHTML =
@@ -25853,7 +25942,7 @@ function renderDetalleVenta(v) {
     '</div>' +
 
     // Pagos
-    '<div class="card" style="margin-bottom:12px">' +
+    '<div class="card" id="venta-detalle-pagos" style="margin-bottom:12px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
         '<span style="font-weight:600">Historial de pagos</span>' +
         (saldo > 0
@@ -25889,16 +25978,14 @@ function renderDetalleVenta(v) {
     '</div>' +
 
     // Auditoría
-    (v.audit && v.audit.length
-      ? '<div class="card">' +
+    '<div class="card" id="venta-detalle-auditoria">' +
           '<div style="font-weight:600;margin-bottom:10px;font-size:13px;color:var(--text2)">Auditoría</div>' +
-          v.audit.map(function(a) {
+          (v.audit && v.audit.length ? v.audit.map(function(a) {
             return '<div style="font-size:12px;color:var(--text3);padding:4px 0;border-bottom:.5px solid var(--border)">' +
               (a.fecha||'') + ' · ' + (a.usuario||'') + ' — ' + (a.accion||'') +
             '</div>';
-          }).join('') +
-        '</div>'
-      : '');
+          }).join('') : '<div style="font-size:12px;color:var(--text3)">Sin modificaciones registradas</div>') +
+        '</div>';
 
   // El perfil de columnas debe aplicarse en el mismo ciclo de renderizado.
   // Si esperamos al MutationObserver, la tabla aparece primero con anchos
