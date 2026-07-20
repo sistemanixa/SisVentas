@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.119-firebase' -->
+<!-- VERSION: 'v2.0.120-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.119 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.120 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -2162,7 +2162,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.119
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.120
 Listo para analizar.
 </pre>
           </div>
@@ -3527,6 +3527,19 @@ Listo para analizar.
               .product-currency-switch:not(.is-usd) .product-currency-option[data-currency="ARS"],
               .product-currency-switch.is-usd .product-currency-option[data-currency="USD"]{color:#06111f}
               #pf-moneda{display:none}
+              #pf-proveedores-tbl .pf-provider-row>td{vertical-align:top!important;padding-top:10px!important;padding-bottom:10px!important}
+              #pf-proveedores-tbl .pf-provider-row input[type="text"],#pf-proveedores-tbl .pf-provider-row input[type="number"],#pf-proveedores-tbl .pf-provider-row input[type="url"]{height:32px;box-sizing:border-box}
+              #pf-proveedores-tbl .pf-provider-row .pf-provider-check{height:32px}
+              #pf-proveedores-tbl .pf-provider-mainline{height:32px;display:flex;align-items:center}
+              #pf-proveedores-tbl .pf-provider-cost .pf-provider-mainline{justify-content:flex-end}
+              #pf-proveedores-tbl .pf-provider-date .pf-provider-mainline{justify-content:center}
+              #pf-proveedores-tbl .pf-provider-actions .pf-provider-mainline{justify-content:flex-end;gap:2px}
+              #pf-proveedores-tbl .pf-provider-secondary{display:block;line-height:1.25}
+              #pf-proveedores-tbl .pf-provider-mainline{height:32px;display:flex;align-items:center}
+              #pf-proveedores-tbl .pf-provider-cost .pf-provider-mainline{justify-content:flex-end}
+              #pf-proveedores-tbl .pf-provider-date .pf-provider-mainline{justify-content:center}
+              #pf-proveedores-tbl .pf-provider-actions .pf-provider-mainline{justify-content:flex-end;gap:2px}
+              #pf-proveedores-tbl .pf-provider-secondary{display:block;line-height:1.25}
               @media(max-width:700px){.product-currency-box{align-items:stretch;flex-direction:column}.product-currency-switch{width:100%;min-width:0}}
             </style>
             <div class="product-currency-box">
@@ -3534,17 +3547,20 @@ Listo para analizar.
                 <span class="product-currency-title">Moneda de este producto</span>
                 <span class="product-currency-hint" id="pf-moneda-hint">Precios cargados en pesos argentinos</span>
               </div>
-              <div style="min-width:120px;padding:9px 14px;border:1px solid rgba(34,197,94,.28);background:rgba(34,197,94,.1);border-radius:999px;color:var(--green);font-size:12px;font-weight:800;text-align:center">🇦🇷 ARS</div>
-              <select id="pf-moneda" style="display:none"><option value="ARS" selected>ARS</option></select>
+              <div class="product-currency-switch" id="pf-moneda-switch" role="group" aria-label="Moneda de carga">
+                <button type="button" class="product-currency-option" data-currency="ARS" onclick="setMonedaProducto('ARS')">🇦🇷 ARS</button>
+                <button type="button" class="product-currency-option" data-currency="USD" onclick="setMonedaProducto('USD')">💵 USD</button>
+              </div>
+              <select id="pf-moneda" style="display:none"><option value="ARS" selected>ARS</option><option value="USD">USD</option></select>
             </div>
             <!-- Flujo guiado: precio gremio → margen → precio venta → USD -->
             <div style="padding:10px 14px;background:rgba(59,130,246,.07);border-radius:var(--radius);margin-bottom:12px;border:0.5px solid rgba(59,130,246,.2)">
               <div style="font-size:11px;font-weight:600;color:var(--blue);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Calculadora de precio</div>
               <div class="form-grid cols3" style="margin-bottom:0">
                 <div class="fg">
-                  <label>Precio gremio / costo ARS</label>
+                  <label>Precio gremio / costo <span id="pf-gremio-moneda-lbl">ARS</span></label>
                   <input data-money="1" id="pf-precio-gremio" placeholder="0" oninput="calcPrecioDesdeGremio()">
-                  <div style="font-size:11px;color:var(--text3);margin-top:4px">Precio de lista del gremio en pesos</div>
+                  <div id="pf-gremio-moneda-hint" style="font-size:11px;color:var(--text3);margin-top:4px">Precio de lista del gremio en pesos</div>
                 </div>
                 <div class="fg">
                   <label>% Valor agregado <span style="color:var(--text3);font-weight:400">(sobre costo)</span></label>
@@ -3557,7 +3573,7 @@ Listo para analizar.
                   <div style="font-size:11px;color:var(--text3);margin-top:4px">100% duplica el costo. Se aplica antes del IVA.</div>
                 </div>
                 <div class="fg">
-                  <label>Precio venta calculado sin IVA (ARS)</label>
+                  <label>Precio venta calculado sin IVA (<span id="pf-calculado-moneda-lbl">ARS</span>)</label>
                   <input type="text" id="pf-precio-calculado" readonly placeholder="—" style="font-weight:600;color:var(--green)">
                   <div style="font-size:11px;color:var(--text3);margin-top:4px" id="pf-precio-usd-equiv">= USD —</div>
                 </div>
@@ -4843,7 +4859,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.119</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.120</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">

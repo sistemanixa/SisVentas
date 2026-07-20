@@ -946,7 +946,7 @@ function actualizarStatProductos() {
   var prods = Object.values(prodData||{});
   var total  = prods.length;
   var conStock   = prods.filter(function(p){ return (parseFloat(p.stock)||0) > 0; }).length;
-  var sinPrecio  = prods.filter(function(p){ return !(parseFloat(p.venta)||parseFloat(p.precio)||0); }).length;
+  var sinPrecio  = prods.filter(function(p){ return !(precioVentaCanonicoProducto(p).precioARS > 0); }).length;
   // Más vendido del mes
   var mesActual = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0');
   var conteo = {};
@@ -3251,6 +3251,7 @@ function fbCargarProductos() {
       if (typeof actualizarVigenciaPreciosDashboard === 'function') actualizarVigenciaPreciosDashboard();
       if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
       if (typeof limpiarProveedoresManoDeObraExistentes === 'function') limpiarProveedoresManoDeObraExistentes();
+      if (typeof repararVentasArsDuplicadasPorDolar === 'function') repararVentasArsDuplicadasPorDolar();
       // la misma variable editingProdId), refrescarlo — es de solo lectura
       var prodDetEl = document.getElementById('prod-detail-view');
       if (prodDetEl && prodDetEl.style.display === 'block' && typeof editingProdId !== 'undefined' && editingProdId && typeof verProducto === 'function') {
@@ -4785,6 +4786,7 @@ function applyRole() {
   var preciosDash = document.getElementById('dash-precios-vigencia-card');
   if (preciosDash) preciosDash.style.display = (isAdmin || isAdministrativo) ? '' : 'none';
   if (typeof actualizarVigenciaPreciosDashboard === 'function') actualizarVigenciaPreciosDashboard();
+  if (isAdmin && typeof repararVentasArsDuplicadasPorDolar === 'function') repararVentasArsDuplicadasPorDolar();
 
   // Limpiar y reconstruir el dashboard al cambiar de usuario/rol.
   var dashAdm = document.getElementById('dash-administrativo-card');
@@ -4840,8 +4842,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.119-firebase',
+  VERSION: 'v2.0.120-firebase',
   RELEASE_NOTES: Object.freeze([
+    'Se detectan y corrigen precios de venta que fueron multiplicados dos veces por el dólar durante una normalización legacy.',
+    'La edición de productos permite cargar visualmente en ARS o USD; al guardar, los importes operativos quedan normalizados en ARS.',
+    'Las columnas de proveedores quedaron alineadas en una misma línea de lectura.',
     'La impresión del presupuesto informa correctamente si los valores incluyen IVA o están expresados sin IVA.',
     'El resumen operativo compara ventas netas contra gastos realmente pagados, sin duplicar el costo de mercadería.',
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
@@ -6948,6 +6953,14 @@ function precioGremioARSDesdeProducto(p) {
 // guardan ventaARS; solo se convierte venta cuando el producto es realmente USD.
 function precioVentaCanonicoProducto(p) {
   p = p || {};
+  var duplicadoDolar = detectarVentaArsDuplicadaPorDolar(p);
+  if (duplicadoDolar) {
+    return {
+      precioARS: duplicadoDolar.precioCorregido,
+      precioOrigen: duplicadoDolar.precioGuardado,
+      monedaOrigen: 'ARS_CORREGIDO_DUPLICACION_DOLAR'
+    };
+  }
   var ventaARS = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || 0) || 0;
   if (ventaARS > 0) return { precioARS: ventaARS, precioOrigen: ventaARS, monedaOrigen: 'ARS' };
   var venta = parseFloat(p.venta || p.precio_venta || p.precioVenta || 0) || 0;
@@ -6957,6 +6970,88 @@ function precioVentaCanonicoProducto(p) {
     return { precioARS: tc.valor > 0 ? Math.round(venta * tc.valor * 100) / 100 : 0, precioOrigen: venta, monedaOrigen: 'USD' };
   }
   return { precioARS: venta, precioOrigen: venta, monedaOrigen: 'ARS' };
+}
+
+function _precioVentaRazonableRespectoCosto(precio, costo) {
+  var valor = parseFloat(precio) || 0;
+  var costoArs = parseFloat(costo) || 0;
+  if (!(valor > 0) || !(costoArs > 0)) return false;
+  var relacion = valor / costoArs;
+  return relacion >= 0.8 && relacion <= 10;
+}
+
+// Detecta el patrón exacto de la conversión duplicada: un precio ARS
+// desproporcionado que, al dividirlo por el dólar usado, vuelve a quedar en una
+// relación comercial razonable con el costo ARS del mismo producto.
+function detectarVentaArsDuplicadaPorDolar(p) {
+  p = p || {};
+  var precioGuardado = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || p.venta || p.precio_venta || p.precioVenta || 0) || 0;
+  var costoARS = precioGremioARSDesdeProducto(p);
+  if (!(precioGuardado > 0) || !(costoARS > 0) || precioGuardado / costoARS < 50) return null;
+
+  var tcActual = obtenerDolarReferenciaProducto();
+  var tipoCambioGuardado = parseFloat(p.tcGuardado || p.dolarUsadoVenta || p.dolarUsado || 0) || 0;
+  var tipoCambio = tipoCambioGuardado > 100 ? tipoCambioGuardado : (parseFloat(tcActual.valor) || 0);
+  var ventaUsdGuardada = parseFloat(p.ventaUSD || 0) || 0;
+  var candidatos = [];
+  if (ventaUsdGuardada > 0 && _precioVentaRazonableRespectoCosto(ventaUsdGuardada, costoARS)) {
+    candidatos.push({ valor: ventaUsdGuardada, origen: 'ventaUSD_contenia_ars' });
+  }
+  if (tipoCambio > 100) {
+    var dividido = Math.round((precioGuardado / tipoCambio) * 100) / 100;
+    if (_precioVentaRazonableRespectoCosto(dividido, costoARS)) candidatos.push({ valor: dividido, origen: 'venta_ars_dividida_tc' });
+  }
+  if (!candidatos.length) return null;
+
+  var margen = parseFloat(p.margenDeseado);
+  var esperado = isFinite(margen) && margen >= 0 ? costoARS * (1 + margen / 100) : 0;
+  candidatos.sort(function(a,b){
+    if (!(esperado > 0)) return 0;
+    return Math.abs(a.valor - esperado) - Math.abs(b.valor - esperado);
+  });
+  return {
+    precioGuardado: precioGuardado,
+    precioCorregido: candidatos[0].valor,
+    costoARS: costoARS,
+    tipoCambio: tipoCambio,
+    origen: candidatos[0].origen
+  };
+}
+
+var _reparacionVentasDuplicadasDolarEjecutada = false;
+function repararVentasArsDuplicadasPorDolar() {
+  if (_reparacionVentasDuplicadasDolarEjecutada || !window.fbDB || String(currentRole || '').toLowerCase() !== 'admin') return;
+  _reparacionVentasDuplicadasDolarEjecutada = true;
+  var cambios = {};
+  var afectados = [];
+  var ahora = Date.now();
+  Object.values(prodData || {}).forEach(function(p) {
+    if (!p || !p.fbKey) return;
+    var auditado = detectarVentaArsDuplicadaPorDolar(p);
+    if (!auditado) return;
+    var base = FB_PATHS.productos + '/' + p.fbKey + '/';
+    cambios[base + 'venta'] = auditado.precioCorregido;
+    cambios[base + 'ventaARS'] = auditado.precioCorregido;
+    cambios[base + 'precioArsPublicadoVenta'] = auditado.precioCorregido;
+    cambios[base + 'moneda'] = 'ARS';
+    cambios[base + 'monedaVenta'] = 'ARS';
+    if (auditado.tipoCambio > 0) cambios[base + 'ventaUSD'] = Math.round((auditado.precioCorregido / auditado.tipoCambio) * 100) / 100;
+    cambios[base + 'precioVentaCorregidoDuplicacionDolarEn'] = ahora;
+    cambios[base + 'precioVentaCorregidoDuplicacionDolarPor'] = currentUser || 'Admin';
+    cambios[base + 'precioVentaCorregidoDuplicacionDolarAntes'] = auditado.precioGuardado;
+    cambios[base + 'precioVentaCorregidoDuplicacionDolarTc'] = auditado.tipoCambio;
+    cambios[base + 'precioVentaActualizadoOrigen'] = 'reparacion-duplicacion-dolar';
+    afectados.push(p.codigo || p.nombre || p.fbKey);
+  });
+  if (!afectados.length) return;
+  window.fbUpdate(window.fbRef(window.fbDB), cambios).then(function(){
+    notify('✓ Se corrigieron ' + afectados.length + ' precios multiplicados dos veces por el dólar');
+    if (typeof registrarActividad === 'function') registrarActividad('Auditoría de precios ARS', afectados.length + ' corregidos: ' + afectados.slice(0,20).join(', '));
+  }).catch(function(e){
+    _reparacionVentasDuplicadasDolarEjecutada = false;
+    console.error('[Productos] No se pudo reparar la duplicación del dólar', e);
+    notify('No se pudo completar la auditoría automática de precios');
+  });
 }
 
 function normalizarTodosProductosARS() {
@@ -6971,14 +7066,22 @@ function normalizarTodosProductosARS() {
   productos.forEach(function(p) {
     var monedaAnterior = String(p.moneda || p.monedaVenta || 'ARS').toUpperCase();
     if (monedaAnterior === 'USD') marcadosUsd++;
+    var compraARS = precioGremioARSDesdeProducto(p);
+    var auditado = detectarVentaArsDuplicadaPorDolar(p);
     var ventaARS = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || 0) || 0;
+    if (auditado) ventaARS = auditado.precioCorregido;
     if (!ventaARS) {
       var ventaBase = parseFloat(p.venta || p.precio_venta || p.precioVenta || 0) || 0;
       var ventaUSD = parseFloat(p.ventaUSD || 0) || 0;
-      if (monedaAnterior === 'USD' && dolar.valor > 0) ventaARS = Math.round((ventaUSD || ventaBase) * dolar.valor * 100) / 100;
-      else ventaARS = ventaBase;
+      if (monedaAnterior === 'USD' && dolar.valor > 0) {
+        // Algunos registros legacy estaban etiquetados USD aunque el importe
+        // ya era ARS. Si su relación con el costo ARS es razonable, se conserva
+        // sin volver a multiplicarlo por el dólar.
+        if (_precioVentaRazonableRespectoCosto(ventaUSD, compraARS)) ventaARS = ventaUSD;
+        else if (_precioVentaRazonableRespectoCosto(ventaBase, compraARS)) ventaARS = ventaBase;
+        else ventaARS = Math.round((ventaUSD || ventaBase) * dolar.valor * 100) / 100;
+      } else ventaARS = ventaBase;
     }
-    var compraARS = precioGremioARSDesdeProducto(p);
     if (!ventaARS) sinVenta++;
     var base = FB_PATHS.productos + '/' + p.fbKey + '/';
     cambios[base + 'moneda'] = 'ARS';
@@ -7836,6 +7939,7 @@ function quitarImagenProducto() {
 var _prodVistaOrigen = 'lista';
 
 function abrirFormProducto(id) {
+  _pfMonedaVisualActual = 'ARS';
   var detalle = document.getElementById('prod-detail-view');
   _prodVistaOrigen = detalle && getComputedStyle(detalle).display !== 'none' ? 'detalle' : 'lista';
   if (_prodVistaOrigen === 'detalle') _prodDetalleOrigenAntesForm = _prodDetalleOrigen;
@@ -7870,19 +7974,21 @@ function abrirFormProducto(id) {
   // Campo URL proveedor (codWeb)
   var cwEl = document.getElementById('pf-cod-web');
   if (cwEl) cwEl.value = p.codWeb || p.urlProveedor || '';
-  _setMontoInput(document.getElementById('pf-venta'), p.venta || 0);
+  var ventaCanonicaFormulario = precioVentaCanonicoProducto(p).precioARS;
+  _setMontoInput(document.getElementById('pf-venta'), ventaCanonicaFormulario || 0);
   // Cargar campos de calculadora de precio
   var pgEl = document.getElementById('pf-precio-gremio');
   var mdEl = document.getElementById('pf-margen-deseado');
   var rawGremio = precioGremioARSDesdeProducto(p);
   if (pgEl) _setMontoInput(pgEl, rawGremio);
+  _setMontoInput(document.getElementById('pf-compra'), rawGremio);
   if (mdEl) {
     if (!id) {
       mdEl.value = margenProductoDefault();
     } else if (p.margenDeseado !== undefined && p.margenDeseado !== null && isFinite(parseFloat(p.margenDeseado))) {
       mdEl.value = parseFloat(p.margenDeseado);
     } else {
-      var ventaActual = parseFloat(p.venta || 0) || 0;
+      var ventaActual = ventaCanonicaFormulario || 0;
       mdEl.value = rawGremio > 0 && ventaActual >= rawGremio
         ? Math.round(((ventaActual - rawGremio) / rawGremio * 100) * 100) / 100
         : 0;
@@ -7895,8 +8001,8 @@ function abrirFormProducto(id) {
   document.getElementById('pf-unidad').value = p.unidad || 'Unidad';
   document.getElementById('pf-es-mano-obra').checked = !!p.esManoDeObra;
   var monedaSel = document.getElementById('pf-moneda');
-  // La moneda operativa del catálogo es siempre ARS. Los campos USD legacy se
-  // conservan únicamente como referencia informativa y nunca gobiernan el form.
+  // El catálogo se abre siempre en ARS. El usuario puede cambiar la moneda de
+  // carga visualmente; al guardar se normaliza nuevamente a ARS.
   if (monedaSel) monedaSel.value = 'ARS';
   cambiarMonedaProducto();
 
@@ -7961,31 +8067,32 @@ function renderTablaProveedoresProducto() {
     var sinIva = !!pv.sinIva;
     var precioRaw = parseFloat(pv.precio) || 0;
     var costoReal = sinIva ? Math.round(precioRaw * 1.21) : precioRaw;
-    var dolarInfo = pv.dolarUsado ? '<br><span style="font-size:10px;color:var(--blue);font-weight:400">USD ref. '+(parseFloat(pv.costoRealUsdReferencia || pv.precioUsdReferencia)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})+' · $'+Math.round(parseFloat(pv.dolarUsado)||0).toLocaleString('es-AR')+'</span>' : '';
+    var dolarInfo = pv.dolarUsado ? '<span class="pf-provider-secondary" style="font-size:10px;color:var(--blue);font-weight:400">USD ref. '+(parseFloat(pv.costoRealUsdReferencia || pv.precioUsdReferencia)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})+' · $'+Math.round(parseFloat(pv.dolarUsado)||0).toLocaleString('es-AR')+'</span>' : '';
     var dispPv = pv.disponibilidadProveedor || 'no_verificado';
     var dispBadge = '<br><span class="badge ' + (dispPv === 'disponible' ? 'b-green' : dispPv === 'sin_stock' ? 'b-red' : '') + '" style="font-size:9px;margin-top:4px">' + escapeHTML(pv.disponibilidadProveedorTexto || (dispPv === 'disponible' ? 'Disponible' : dispPv === 'sin_stock' ? 'Sin stock' : 'No verificado')) + '</span>';
     var costoRealFmt = costoReal > 0
       ? (sinIva
-          ? '<span style="color:var(--amber);font-size:12px;font-weight:600">$'+costoReal.toLocaleString('es-AR')+'</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(+IVA)</span>'+dolarInfo
-          : '<span style="color:var(--text3);font-size:12px">incluido</span>'+dolarInfo)
-      : '<span style="color:var(--text3);font-size:12px">—</span>';
+          ? '<div class="pf-provider-mainline"><span style="color:var(--amber);font-size:12px;font-weight:600">$'+costoReal.toLocaleString('es-AR')+'</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(+IVA)</span></div>'+dolarInfo
+          : '<div class="pf-provider-mainline"><span style="color:var(--text3);font-size:12px">incluido</span></div>'+dolarInfo)
+      : '<div class="pf-provider-mainline"><span style="color:var(--text3);font-size:12px">—</span></div>';
     var tr = document.createElement('tr');
+    tr.className = 'pf-provider-row';
     if (esMasBarato) tr.style.background = 'var(--green-bg)';
     tr.innerHTML =
       '<td style="padding:6px 4px;min-width:110px"><input type="text" value="'+escapeHTML(pv.nombre||'')+'" placeholder="Ej: Biosegur" oninput="actualizarProveedorProducto('+i+',\'nombre\',this.value)" style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:13px;font-family:inherit">'+dispBadge+'</td>' +
       '<td style="padding:6px 4px;text-align:right"><input type="number" value="'+(pv.precio||'')+'" placeholder="0" oninput="actualizarProveedorProducto('+i+',\'precio\',this.value)" style="width:90px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;text-align:right;font-size:13px;font-family:inherit"></td>' +
       '<td style="padding:6px 4px;text-align:center">' +
-        '<label style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px" title="El precio que cotiza el proveedor NO incluye IVA — el sistema sumará el 21% para calcular el costo real">' +
+        '<label class="pf-provider-check" style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px" title="El precio que cotiza el proveedor NO incluye IVA — el sistema sumará el 21% para calcular el costo real">' +
           '<input type="checkbox" '+(sinIva?'checked':'')+' onchange="actualizarProveedorProducto('+i+',\'sinIva\',this.checked);renderTablaProveedoresProducto();calcMargen();" style="accent-color:var(--amber);width:14px;height:14px;cursor:pointer">' +
         '</label>' +
       '</td>' +
-      '<td style="padding:6px 4px;text-align:right;white-space:nowrap">'+costoRealFmt+'</td>' +
+      '<td class="pf-provider-cost" style="padding:6px 4px;text-align:right;white-space:nowrap">'+costoRealFmt+'</td>' +
       '<td style="padding:6px 4px"><input type="url" value="'+escapeHTML(pv.url||'')+'" placeholder="https://proveedor.com/producto..." oninput="actualizarProveedorProducto('+i+',\'url\',this.value)" style="width:100%;min-width:150px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:12px;font-family:inherit;color:var(--blue)"></td>' +
-      '<td style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text3);white-space:nowrap">' + (pv.actualizado||'sin fecha') + (pv.actualizadoOrigen ? '<br><span style="font-size:10px;color:var(--text3)">'+escapeHTML(pv.actualizadoOrigen)+'</span>' : '') + (esMasBarato ? '<br><span class="badge b-green" style="font-size:9px">+ económico</span>' : '') + '</td>' +
-      '<td style="padding:6px 4px;text-align:right;white-space:nowrap">' +
+      '<td class="pf-provider-date" style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text3);white-space:nowrap"><div class="pf-provider-mainline">' + (pv.actualizado||'sin fecha') + '</div>' + (pv.actualizadoOrigen ? '<span class="pf-provider-secondary" style="font-size:10px;color:var(--text3)">'+escapeHTML(pv.actualizadoOrigen)+'</span>' : '') + (esMasBarato ? '<span class="pf-provider-secondary badge b-green" style="font-size:9px">+ económico</span>' : '') + '</td>' +
+      '<td class="pf-provider-actions" style="padding:6px 4px;text-align:right;white-space:nowrap"><div class="pf-provider-mainline">' +
         (pv.url ? '<a href="'+escapeHTML(pv.url)+'" target="_blank" class="btn btn-sm btn-icon" title="Abrir en proveedor"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></a>' : '') +
         '<button class="btn btn-sm btn-icon" onclick="quitarFilaProveedor('+i+')" title="Quitar"><i class="ti ti-trash" style="font-size:14px;color:var(--red)"></i></button>' +
-      '</td>';
+      '</div></td>';
     tbl.appendChild(tr);
   });
 }
@@ -8325,11 +8432,12 @@ function recalcularCompraDesdeProveedores() {
 
   var costoCompra = parseFloat(masBarato.precio) || 0;
   if (masBarato.sinIva && costoCompra > 0) costoCompra = Math.round(costoCompra * 1.21 * 100) / 100;
+  var costoVisual = _pfValorVisualDesdeARS(costoCompra);
 
   var compraEl = document.getElementById('pf-compra');
-  if (compraEl) _setMontoInput(compraEl, costoCompra);
+  if (compraEl) _setMontoInput(compraEl, costoVisual);
   var gremioEl = document.getElementById('pf-precio-gremio');
-  if (gremioEl) _setMontoInput(gremioEl, costoCompra);
+  if (gremioEl) _setMontoInput(gremioEl, costoVisual);
   asegurarMargenProductoDefaultEnForm();
   if (costoCompra > 0) calcPrecioDesdeGremio();
 }
@@ -8360,6 +8468,26 @@ function cerrarFormProducto() {
   _prodVistaOrigen = 'lista';
 }
 
+var _pfMonedaVisualActual = 'ARS';
+
+function _pfTipoCambioVisual() {
+  return parseFloat(obtenerDolarReferenciaProducto().valor) || 0;
+}
+
+function _pfValorVisualDesdeARS(valorARS) {
+  var valor = parseFloat(valorARS) || 0;
+  if (_pfMonedaVisualActual !== 'USD') return valor;
+  var tc = _pfTipoCambioVisual();
+  return tc > 0 ? Math.round((valor / tc) * 10000) / 10000 : 0;
+}
+
+function _pfValorVisualAARS(valorVisual) {
+  var valor = parseFloat(valorVisual) || 0;
+  if (_pfMonedaVisualActual !== 'USD') return valor;
+  var tc = _pfTipoCambioVisual();
+  return tc > 0 ? Math.round((valor * tc) * 100) / 100 : 0;
+}
+
 function cambiarMonedaProducto() {
   var sel = document.getElementById('pf-moneda');
   var esUSD = sel && sel.value === 'USD';
@@ -8368,11 +8496,19 @@ function cambiarMonedaProducto() {
   var ventaLbl  = document.getElementById('pf-venta-moneda-lbl');
   var hint      = document.getElementById('pf-moneda-hint');
   var badgeHead = document.getElementById('pf-moneda-badge-head');
+  var calculadoLbl = document.getElementById('pf-calculado-moneda-lbl');
+  var gremioLbl = document.getElementById('pf-gremio-moneda-lbl');
+  var gremioHint = document.getElementById('pf-gremio-moneda-hint');
   if (switchEl) switchEl.classList.toggle('is-usd', !!esUSD);
   if (compraLbl) compraLbl.textContent = esUSD ? 'USD' : '$';
   if (ventaLbl)  ventaLbl.textContent  = esUSD ? 'USD' : '$';
+  if (calculadoLbl) calculadoLbl.textContent = esUSD ? 'USD' : 'ARS';
+  if (gremioLbl) gremioLbl.textContent = esUSD ? 'USD' : 'ARS';
+  if (gremioHint) gremioHint.textContent = esUSD
+    ? 'Carga visual en dólares; al guardar se convierte a pesos'
+    : 'Precio de lista del gremio en pesos';
   if (hint) hint.textContent = esUSD
-    ? 'Carga manual en dólares. Usalo solo si este producto realmente se maneja en USD.'
+    ? 'Carga visual en dólares. Al guardar se convierte a ARS y se conserva la referencia USD.'
     : 'Precio gremio/costo cargado en pesos. El sistema guarda aparte la referencia USD con el dólar vigente.';
   if (badgeHead) badgeHead.innerHTML = esUSD
     ? '<span class="badge b-blue">💵 USD</span>' : '<span class="badge b-gray">🇦🇷 ARS</span>';
@@ -8383,8 +8519,44 @@ function cambiarMonedaProducto() {
 
 function setMonedaProducto(moneda) {
   var sel = document.getElementById('pf-moneda');
-  if (sel) sel.value = 'ARS';
+  var destino = String(moneda || 'ARS').toUpperCase() === 'USD' ? 'USD' : 'ARS';
+  var origen = _pfMonedaVisualActual || 'ARS';
+  if (destino === origen) {
+    if (sel) sel.value = destino;
+    cambiarMonedaProducto();
+    return;
+  }
+  var tc = _pfTipoCambioVisual();
+  if (!(tc > 0)) {
+    notify('No hay cotización del dólar disponible para convertir la carga');
+    return;
+  }
+  ['pf-precio-gremio','pf-compra','pf-venta'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (!el) return;
+    var valor = getMontoRaw(el);
+    var convertido = origen === 'ARS' ? valor / tc : valor * tc;
+    // Cuatro decimales evitan que alternar ARS/USD modifique el importe por
+    // redondeo. La referencia persistida en USD sí se guarda a dos decimales.
+    _setMontoInput(el, Math.round(convertido * 10000) / 10000);
+  });
+  _pfMonedaVisualActual = destino;
+  if (sel) sel.value = destino;
   cambiarMonedaProducto();
+  // Cambiar la moneda es solo una conversión visual: nunca debe reemplazar un
+  // precio de venta cargado manualmente ni aplicar nuevamente el margen.
+  var precioVentaVisual = getMontoRaw(document.getElementById('pf-venta'));
+  var calcEl = document.getElementById('pf-precio-calculado');
+  var equivEl = document.getElementById('pf-precio-usd-equiv');
+  if (calcEl && precioVentaVisual > 0) {
+    calcEl.value = (destino === 'USD' ? 'USD ' : '$') + precioVentaVisual.toLocaleString('es-AR', {minimumFractionDigits: precioVentaVisual % 1 ? 2 : 0, maximumFractionDigits: 4});
+  }
+  if (equivEl && precioVentaVisual > 0) {
+    equivEl.textContent = destino === 'USD'
+      ? '= ARS $' + Math.round(precioVentaVisual * tc).toLocaleString('es-AR')
+      : '= USD ' + (precioVentaVisual / tc).toFixed(2);
+  }
+  calcMargen();
 }
 
 async function buscarPreciosProveedores() {
@@ -8462,14 +8634,15 @@ async function buscarPreciosProveedores() {
 }
 
 function pfUsarPrecio(precio) {
+  var precioVisual = _pfValorVisualDesdeARS(precio);
   var compraInp = document.getElementById('pf-compra');
   var gremioInp = document.getElementById('pf-precio-gremio');
-  if (compraInp) _setMontoInput(compraInp, precio);
-  if (gremioInp) _setMontoInput(gremioInp, precio);
+  if (compraInp) _setMontoInput(compraInp, precioVisual);
+  if (gremioInp) _setMontoInput(gremioInp, precioVisual);
   asegurarMargenProductoDefaultEnForm();
   calcPrecioDesdeGremio();
   calcMargen();
-  notify('✓ Precio de compra actualizado a $' + precio.toLocaleString('es-AR'));
+  notify('✓ Precio de compra actualizado a $' + precio.toLocaleString('es-AR') + ' ARS');
 }
 
 function calcPrecioDesdeGremio() {
@@ -8487,7 +8660,8 @@ function calcPrecioDesdeGremio() {
   }
   // Valor agregado: precio de venta = costo * (1 + porcentaje/100).
   var precioVenta = Math.round((gremio * (1 + margen / 100)) * 100) / 100;
-  if (calcEl) calcEl.value = '$' + precioVenta.toLocaleString('es-AR', {minimumFractionDigits: precioVenta % 1 ? 2 : 0, maximumFractionDigits: 2});
+  var esUSDVisual = _pfMonedaVisualActual === 'USD';
+  if (calcEl) calcEl.value = (esUSDVisual ? 'USD ' : '$') + precioVenta.toLocaleString('es-AR', {minimumFractionDigits: precioVenta % 1 ? 2 : 0, maximumFractionDigits: 2});
   // Cargar en el campo de precio venta
   var pfVenta = document.getElementById('pf-venta');
   var pfCompra = document.getElementById('pf-compra');
@@ -8497,7 +8671,9 @@ function calcPrecioDesdeGremio() {
   var dolarRef = obtenerDolarReferenciaProducto();
   var tc = dolarRef.valor || 0;
   if (tc && usdEl) {
-    usdEl.textContent = '= USD ' + (precioVenta / tc).toFixed(2) + ' (' + dolarRef.tipo + ' $' + Math.round(tc).toLocaleString('es-AR') + ')';
+    usdEl.textContent = esUSDVisual
+      ? '= ARS $' + Math.round(precioVenta * tc).toLocaleString('es-AR') + ' (' + dolarRef.tipo + ' $' + Math.round(tc).toLocaleString('es-AR') + ')'
+      : '= USD ' + (precioVenta / tc).toFixed(2) + ' (' + dolarRef.tipo + ' $' + Math.round(tc).toLocaleString('es-AR') + ')';
   } else if (usdEl) {
     usdEl.textContent = 'TC no disponible';
   }
@@ -8582,6 +8758,18 @@ function guardarProducto() {
       }, proveedoresValidos[0])
     : null;
   var dolarRef = obtenerDolarReferenciaProducto();
+  var monedaCarga = String((document.getElementById('pf-moneda')||{}).value || 'ARS').toUpperCase() === 'USD' ? 'USD' : 'ARS';
+  var tcCarga = parseFloat(dolarRef.valor) || 0;
+  if (monedaCarga === 'USD' && !(tcCarga > 0)) {
+    notify('No se puede guardar en dólares porque falta la cotización vigente');
+    return;
+  }
+  var compraVisual = getMontoRaw(document.getElementById('pf-compra'));
+  var ventaVisual = getMontoRaw(document.getElementById('pf-venta'));
+  var gremioVisual = getMontoRaw(document.getElementById('pf-precio-gremio'));
+  var compraARSFormulario = monedaCarga === 'USD' ? Math.round(compraVisual * tcCarga * 100) / 100 : Math.round(compraVisual * 100) / 100;
+  var ventaARSFormulario = monedaCarga === 'USD' ? Math.round(ventaVisual * tcCarga * 100) / 100 : Math.round(ventaVisual * 100) / 100;
+  var gremioARSFormulario = monedaCarga === 'USD' ? Math.round(gremioVisual * tcCarga * 100) / 100 : Math.round(gremioVisual * 100) / 100;
 
   var datos = {
     codigo:       cod,
@@ -8593,15 +8781,17 @@ function guardarProducto() {
     proveedores:  esManoObra ? null : proveedoresValidos,
     proveedor:    esManoObra ? null : (proveedorPrincipal ? proveedorPrincipal.nombre : ''),
     moneda:       'ARS',
-    compra:       Math.round(getMontoRaw(document.getElementById('pf-compra')) * 100) / 100,
-    venta:        Math.round(getMontoRaw(document.getElementById('pf-venta')) * 100) / 100,
+    monedaVenta:  'ARS',
+    monedaCarga:  monedaCarga,
+    compra:       compraARSFormulario,
+    venta:        ventaARSFormulario,
     iva:          parseFloat(document.getElementById('pf-iva').value) || 21,
     stock:        parseInt(document.getElementById('pf-stock').value) || 0,
     stockMin:     parseInt(document.getElementById('pf-stock-min').value) || 5,
     estado:       document.getElementById('pf-estado').value,
     unidad:       document.getElementById('pf-unidad').value,
     esManoDeObra: esManoObra,
-    precioGremio: getMontoRaw(document.getElementById('pf-precio-gremio')),
+    precioGremio: gremioARSFormulario,
     margenDeseado: margenGuardar,
     codWeb:  esManoObra ? null : urlGeneralProveedor,
     imagenUrl: (document.getElementById('pf-imagen-url')||{}).value || ''
@@ -8630,8 +8820,8 @@ function guardarProducto() {
   }
   var tc = dolarRef.valor || 0;
   if (datos.moneda === 'ARS' && tc > 0) {
-    datos.ventaUSD   = parseFloat((datos.venta  / tc).toFixed(2));
-    datos.compraUSD  = parseFloat((datos.compra / tc).toFixed(2));
+    datos.ventaUSD   = monedaCarga === 'USD' ? Math.round(ventaVisual * 100) / 100 : parseFloat((datos.venta / tc).toFixed(2));
+    datos.compraUSD  = monedaCarga === 'USD' ? Math.round(compraVisual * 100) / 100 : parseFloat((datos.compra / tc).toFixed(2));
     datos.ventaARS   = datos.venta;
     datos.compraARS  = datos.compra;
     datos.tcGuardado = tc;
@@ -23844,8 +24034,9 @@ function otFiltrarSelectorProductos(texto) {
   lista = lista.slice(0, 30);
   if (!lista.length) { cont.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px">Sin resultados</div>'; return; }
   cont.innerHTML = lista.map(function(p) {
+    var precioArs = precioVentaCanonicoProducto(p).precioARS;
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="otAgregarAlCarrito(\''+p.fbKey+'\')">' +
-      '<div><div style="font-size:13px">'+escapeHTML(p.nombre||'')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(p.codigo||'')+' · $'+Math.round(p.venta||0).toLocaleString('es-AR')+'</div></div>' +
+      '<div><div style="font-size:13px">'+escapeHTML(p.nombre||'')+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(p.codigo||'')+' · $'+Math.round(precioArs).toLocaleString('es-AR')+'</div></div>' +
       '<i class="ti ti-plus" style="color:var(--blue)"></i>' +
     '</div>';
   }).join('');
@@ -23854,9 +24045,10 @@ function otFiltrarSelectorProductos(texto) {
 function otAgregarAlCarrito(pid) {
   var p = Object.values(prodData||{}).find(function(x){ return x.fbKey === pid; });
   if (!p) return;
+  var precioArs = precioVentaCanonicoProducto(p).precioARS;
   var existente = _otCarritoAdicional.find(function(c){ return c.pid === pid; });
   if (existente) { existente.cantidad++; }
-  else { _otCarritoAdicional.push({ pid: p.fbKey, codigo: p.codigo, nombre: p.nombre, precio: parseFloat(p.venta)||0, cantidad: 1 }); }
+  else { _otCarritoAdicional.push({ pid: p.fbKey, codigo: p.codigo, nombre: p.nombre, precio: precioArs, cantidad: 1 }); }
   otRenderCarritoAdicional();
   notify('+ ' + p.nombre);
 }
