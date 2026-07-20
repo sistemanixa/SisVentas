@@ -657,22 +657,21 @@ function _prodCoincideBusqueda(p, filtro) {
 function _renderFilaProd(p) {
   var stk = parseInt(p.stock) || 0;
   var stkColor = stk <= 0 ? 'var(--red)' : stk <= (p.stockMin||2) ? 'var(--amber)' : 'var(--green)';
-  var pv = parseFloat(p.venta || p.precio_venta || 0) || 0;
-  var pc = parseFloat(p.compra || p.precio_compra || 0) || 0;
+  var precioCanonico = precioVentaCanonicoProducto(p);
+  var pv = precioCanonico.precioARS;
+  var pc = precioGremioARSDesdeProducto(p);
   var margen = pv > 0 && pc > 0 ? ((pv-pc)/pv*100).toFixed(1) + '%' : '—';
   var pid = String(p.fbKey || '').replace(/"/g,'');
   var provLista = Array.isArray(p.proveedores) ? p.proveedores : [];
   var tc = window.TIPO_CAMBIO_CONFIG || {};
   var cotiz = parseFloat(tc[tc.dolarConversion || 'oficial']) || 0;
   var pcFmt = (parseFloat(pc)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  var equivARSCompra = cotiz > 0 && pc > 0 ? '<br><span style="font-size:10px;color:var(--text3);font-weight:400">$ '+Math.round(pc*cotiz).toLocaleString('es-AR')+' ARS</span>' : '';
-  var costoLbl = 'USD ' + pcFmt + equivARSCompra;
+  var costoLbl = '$' + pcFmt;
   if (provLista.length > 1) {
     costoLbl += ' <span class="badge b-green" style="font-size:9px">' + provLista.length + ' prov.</span>';
   }
   var nombreProvLbl = provLista.length === 1 ? '<br><span style="font-size:10px;color:var(--text3);font-weight:400">' + escapeHTML(provLista[0].nombre||'') + '</span>' : '';
   var pvFmt = (parseFloat(pv)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  var equivARS = cotiz > 0 && pv > 0 ? '<br><span style="font-size:10px;color:var(--text3);font-weight:400">$ '+Math.round(pv*cotiz).toLocaleString('es-AR')+' ARS</span>' : '';
   return '<tr class="cr pr" data-pid="'+pid+'" data-cat="'+(p.categoria||'')+'" onclick="verProductoById(this)" style="cursor:pointer">' +
     '<td>'+(p.imagenUrl?'<img class="prod-row-img" src="'+escapeHTML(p.imagenUrl)+'" onerror="this.style.display=\'none\'">'
       :'<div class="prod-row-img prod-row-img-placeholder"><i class="ti ti-photo"></i></div>')+'</td>'+
@@ -680,7 +679,7 @@ function _renderFilaProd(p) {
     '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.esManoDeObra?'<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px"></i>':'')+(p.nombre||p.descripcion||'')+'</td>'+
     '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.descripcion||'—')+'</td>'+
     '<td style="text-align:right;font-weight:600;color:'+stkColor+'">'+stk+'</td>'+
-    '<td style="text-align:right">USD '+pvFmt+equivARS+'</td>'+
+    '<td style="text-align:right">$'+pvFmt+'</td>'+
     '<td style="text-align:right">'+costoLbl+'</td>'+
     '<td style="text-align:right;color:var(--green)">'+margen+nombreProvLbl+'</td>'+
     '<td style="padding-left:12px">'+
@@ -4841,7 +4840,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.107-firebase',
+  VERSION: 'v2.0.108-firebase',
   RELEASE_NOTES: Object.freeze([
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
@@ -6930,6 +6929,21 @@ function precioGremioARSDesdeProducto(p) {
   return compraLegacy || 0;
 }
 
+// Fuente única para el precio de venta que ve el usuario. Los registros nuevos
+// guardan ventaARS; solo se convierte venta cuando el producto es realmente USD.
+function precioVentaCanonicoProducto(p) {
+  p = p || {};
+  var ventaARS = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || 0) || 0;
+  if (ventaARS > 0) return { precioARS: ventaARS, precioOrigen: ventaARS, monedaOrigen: 'ARS' };
+  var venta = parseFloat(p.venta || p.precio_venta || p.precioVenta || 0) || 0;
+  var moneda = String(p.moneda || p.monedaVenta || 'ARS').toUpperCase();
+  if (moneda === 'USD') {
+    var tc = obtenerDolarReferenciaProducto();
+    return { precioARS: tc.valor > 0 ? Math.round(venta * tc.valor * 100) / 100 : 0, precioOrigen: venta, monedaOrigen: 'USD' };
+  }
+  return { precioARS: venta, precioOrigen: venta, monedaOrigen: 'ARS' };
+}
+
 var PRECIO_VIGENCIA_MS = 24 * 60 * 60 * 1000;
 
 function proveedoresVinculadosProducto(p) {
@@ -6999,7 +7013,14 @@ function timestampPrecioProducto(p) {
   var tiempos = [p.precioActualizadoEn, p.actualizadoEn];
   (Array.isArray(p.proveedores) ? p.proveedores : []).forEach(function(pv) {
     tiempos.push(pv && pv.actualizadoEn);
-    if (pv && pv.actualizado) tiempos.push(Date.parse(pv.actualizado + 'T12:00:00'));
+    if (pv && pv.actualizado) {
+      var fecha = String(pv.actualizado).trim();
+      var partesAr = fecha.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      var tsFecha = partesAr
+        ? new Date(+partesAr[3], +partesAr[2] - 1, +partesAr[1], 23, 59, 59, 999).getTime()
+        : Date.parse(fecha + (fecha.indexOf('T') >= 0 ? '' : 'T23:59:59'));
+      if (isFinite(tsFecha)) tiempos.push(tsFecha);
+    }
   });
   return tiempos.map(function(x){ return parseFloat(x) || 0; }).reduce(function(max, x){ return Math.max(max, x); }, 0);
 }
@@ -8592,11 +8613,7 @@ function verProducto(id, origen) {
   _hide('prod-list-view'); _hide('prod-form-view'); _block('prod-detail-view');
   actualizarStatProductoActual(p);
   var pc = precioGremioARSDesdeProducto(p);
-  var pv = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || p.venta || p.precio_venta || 0) || 0;
-  if (pv > 0 && pv < 100 && String(p.moneda || '').toUpperCase() === 'USD') {
-    var dolarFicha = obtenerDolarReferenciaProducto();
-    if (dolarFicha.valor > 0) pv = Math.round(pv * dolarFicha.valor * 100) / 100;
-  }
+  var pv = precioVentaCanonicoProducto(p).precioARS;
   if (pc > 100 && (!pv || pv < pc * 0.2)) {
     var margenFicha = parseFloat(p.margenDeseado);
     if (!isFinite(margenFicha) || margenFicha < 0) margenFicha = margenProductoDefault();
@@ -9166,16 +9183,7 @@ function _cfgVmEsManoDeObra(p) {
 }
 
 function _cfgVmPrecioVentaArs(p) {
-  p = p || {};
-  var ventaArs = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || 0) || 0;
-  if (ventaArs > 0) return ventaArs;
-  var venta = parseFloat(p.venta || p.precio_venta || p.precioVenta || 0) || 0;
-  if (String(p.moneda || '').toUpperCase() === 'USD') {
-    var tc = obtenerDolarReferenciaProducto();
-    var ventaUsd = parseFloat(p.ventaUSD || venta) || 0;
-    return tc.valor > 0 ? ventaUsd * tc.valor : 0;
-  }
-  return venta;
+  return precioVentaCanonicoProducto(p).precioARS;
 }
 
 function _cfgVmCostoActualArs(p) {
@@ -14882,7 +14890,10 @@ function imprimirPptoDesdeTabla(pptoId) {
   var p = buscarPptoPorRef(pptoId);
   if (!p) return;
   pptoActualId = p.id || pptoId;
-  imprimirPresupuesto();
+  // Renderizar primero el presupuesto elegido; de otro modo la impresión podía
+  // leer los $0 que quedaron en el formulario nuevo oculto.
+  verPpto(pptoActualId);
+  setTimeout(imprimirPresupuesto, 80);
 }
 
 function eliminarPpto(fbKey) {
@@ -14914,6 +14925,7 @@ function togglePptoDetalle() {
 
 function imprimirPresupuesto() {
   var g = function(id){ var el=document.getElementById(id); return el ? el.value||el.textContent||'' : ''; };
+  var imprimiendoDetalle = _svElementoVisible(document.getElementById('ppto-detalle-view'));
   var empresa = {
     nombre: (document.getElementById('cfg-empresa-nombre')||{}).value || 'Nixa',
     dir:    (document.getElementById('cfg-empresa-dir')||{}).value    || 'Patagones 390, Mar del Plata',
@@ -14925,7 +14937,7 @@ function imprimirPresupuesto() {
     : '<div style="font-size:22px;font-weight:700">'+empresa.nombre+'</div>';
 
   var items = '';
-  document.querySelectorAll('#pp-body tr, #ppto-det-items tr').forEach(function(tr){
+  document.querySelectorAll(imprimiendoDetalle ? '#ppto-det-items tr' : '#pp-body tr').forEach(function(tr){
     var tds = tr.querySelectorAll('td');
     if (tds.length >= 3) {
       var cod  = tds[0] ? tds[0].textContent.trim() : '';
@@ -14944,15 +14956,15 @@ function imprimirPresupuesto() {
     }
   });
 
-  var num  = g('pp-numero') || g('ppto-det-numero') || '—';
-  var cli  = g('pp-cli')    || g('ppto-det-cliente') || '—';
-  var fecha = g('pp-fecha') || g('ppto-det-fecha')   || new Date().toLocaleDateString('es-AR');
-  var venc  = g('pp-vencimiento') || g('ppto-det-venc') || '—';
-  var sub   = g('pp-sub')   || g('ppto-det-sub')     || '$0';
-  var desc  = g('pp-desc-amt') || g('ppto-det-desc-amt') || '$0';
-  var iva   = g('ppto-det-iva')  || '$0';
-  var total = g('pp-total') || g('ppto-det-total2')  || '$0';
-  var obs   = g('pp-obs')   || g('ppto-det-obs')     || '';
+  var num  = imprimiendoDetalle ? (g('ppto-det-numero') || '—') : (g('pp-numero') || '—');
+  var cli  = imprimiendoDetalle ? (g('ppto-det-cliente') || '—') : (g('pp-cli') || '—');
+  var fecha = imprimiendoDetalle ? (g('ppto-det-fecha') || new Date().toLocaleDateString('es-AR')) : (g('pp-fecha') || new Date().toLocaleDateString('es-AR'));
+  var venc  = imprimiendoDetalle ? (g('ppto-det-venc') || '—') : (g('pp-vencimiento') || '—');
+  var sub   = imprimiendoDetalle ? (g('ppto-det-sub') || '$0') : (g('pp-sub') || '$0');
+  var desc  = imprimiendoDetalle ? (g('ppto-det-desc-amt') || '$0') : (g('pp-damt') || '$0');
+  var iva   = imprimiendoDetalle ? (g('ppto-det-iva') || '$0') : (g('pp-iva') || '$0');
+  var total = imprimiendoDetalle ? (g('ppto-det-total2') || '$0') : (g('pp-total') || '$0');
+  var obs   = imprimiendoDetalle ? (g('ppto-det-obs') || '') : (g('pp-obs') || '');
 
   // formulario nuevo, usar el estado actual del toggle en pantalla.
   var pptoGuardado = pptoActualId ? (pptoData||[]).find(function(x){ return x.id === pptoActualId; }) : null;
@@ -14999,7 +15011,7 @@ function imprimirPresupuesto() {
         '<div class="comp-num">'+num+'</div>'+
         '<div class="comp-fecha">'+fecha+'</div>'+
         '<div class="comp-fecha" style="color:#d97706">Válido hasta: '+venc+'</div>'+
-        (p.tcGuardado ? '<div class="comp-fecha" style="color:#888;font-size:10px">TC referencia: $'+parseFloat(p.tcGuardado).toLocaleString('es-AR')+(p.tcFechaGuardado?' ('+p.tcFechaGuardado+')':'')+' · Precios en USD, se factura al TC del día del pago</div>' : '')+
+        (pptoGuardado && pptoGuardado.tcGuardado ? '<div class="comp-fecha" style="color:#888;font-size:10px">TC referencia: $'+parseFloat(pptoGuardado.tcGuardado).toLocaleString('es-AR')+(pptoGuardado.tcFechaGuardado?' ('+pptoGuardado.tcFechaGuardado+')':'')+' · Precios en USD, se factura al TC del día del pago</div>' : '')+
       '</div>'+
     '</div>'+
 
@@ -22935,7 +22947,9 @@ function guardarPresupuesto(modo) {
     var prod = Object.values(prodData || {}).find(function(p){ return String(p.codigo || '') === String(it.cod || ''); });
     return prod && !estadoVigenciaPrecioProducto(prod).vigente;
   });
-  if (preciosNoVigentes.length) {
+  // Un borrador debe poder guardarse en cualquier momento: la vigencia se
+  // controla recién cuando el usuario intenta enviarlo a revisión.
+  if (modo !== 'borrador' && preciosNoVigentes.length) {
     var nombresNoVigentes = preciosNoVigentes.slice(0,5).map(function(it){ return it.cod || it.desc; }).join(', ');
     var seguir = confirm(
       'Hay ' + preciosNoVigentes.length + ' producto' + (preciosNoVigentes.length !== 1 ? 's' : '') + ' con precios de más de 24 horas o sin verificar:\n\n' +
@@ -22945,8 +22959,8 @@ function guardarPresupuesto(modo) {
     if (!seguir) return;
   }
 
-  const reqAprobacion = (total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite);
-  const estadoFinal = reqAprobacion ? 'revision' : modo;
+  const reqAprobacion = modo !== 'borrador' && ((total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite));
+  const estadoFinal = modo === 'borrador' ? 'borrador' : (reqAprobacion ? 'revision' : modo);
   const motivo = reqAprobacion ? (desc > APROBACION_CONFIG.descuentoLimite ? `Descuento ${desc}% supera el límite` : `Total supera el límite de aprobación`) : '';
   const nuevo = {
     id: 'PP-00' + (pptoData.length + 10),
@@ -22968,7 +22982,7 @@ function guardarPresupuesto(modo) {
     var pptoOriginalEdit = (pptoData||[]).find(function(x){ return x.fbKey === window._pptoEditandoFbKey || x.id === window._pptoEditandoId; }) || {};
     nuevo.fbKey = window._pptoEditandoFbKey;
     nuevo.id    = window._pptoEditandoId || nuevo.id;
-    nuevo.estado = pptoOriginalEdit.estado || nuevo.estado;
+    nuevo.estado = estadoFinal;
     nuevo.empleado = pptoOriginalEdit.empleado || pptoOriginalEdit.creadoPor || nuevo.empleado;
     nuevo.usuario = pptoOriginalEdit.usuario || pptoOriginalEdit.creadoPor || nuevo.usuario;
     nuevo.empleadoEmail = pptoOriginalEdit.empleadoEmail || pptoOriginalEdit.usuarioEmail || nuevo.empleadoEmail;
@@ -22976,7 +22990,7 @@ function guardarPresupuesto(modo) {
     nuevo.empleadoId = pptoOriginalEdit.empleadoId || '';
     nuevo.empFbKey = pptoOriginalEdit.empFbKey || '';
     nuevo.ventaId = pptoOriginalEdit.ventaId || '';
-    nuevo.audit = (pptoOriginalEdit.audit || []).concat([{ fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || 'Admin', accion: 'Presupuesto editado' }]);
+    nuevo.audit = (pptoOriginalEdit.audit || []).concat([{ fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || 'Admin', accion: modo === 'borrador' ? 'Presupuesto guardado como borrador' : 'Presupuesto editado y enviado a revisión' }]);
     window._pptoEditandoFbKey = null;
     window._pptoEditandoId    = null;
   }
@@ -27196,8 +27210,8 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
     </td>
     <td>
       <div class="item-prod-cell">
-        ${imagenProductoItemHTML({ pid: prodInicial && prodInicial.fbKey, cod: cod, desc: desc }, 'item-prod-img-edit')}
-        <span class="desc-txt" style="font-size:13px;color:var(--text2)">${escapeHTML(desc)}</span>
+        <span class="item-prod-nav" onclick="navegarAProductoDesdeFila(event,this)" title="Ver ficha del producto" style="cursor:pointer;display:flex;align-items:center">${imagenProductoItemHTML({ pid: prodInicial && prodInicial.fbKey, cod: cod, desc: desc }, 'item-prod-img-edit')}</span>
+        <span class="desc-txt" onclick="navegarAProductoDesdeFila(event,this)" title="Ver ficha del producto" style="font-size:13px;color:var(--text2);cursor:pointer">${escapeHTML(desc)}</span>
       </div>
     </td>
     <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" style="width:55px;text-align:right;background:var(--bg);color:var(--text);border:0.5px solid var(--border3);border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;outline:none"></td>
@@ -27218,6 +27232,16 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
     <td><button class="btn btn-sm btn-danger" onclick="delRow(this)" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'"><i class="ti ti-trash" style="font-size:14px"></i></button></td>`;
   initMoneyInputsEn(tr);
   return tr;
+}
+
+function navegarAProductoDesdeFila(evento, elemento) {
+  if (evento) { evento.preventDefault(); evento.stopPropagation(); }
+  var tr = elemento && elemento.closest ? elemento.closest('tr') : null;
+  if (!tr) return;
+  var cod = String(((tr.querySelector('.prod-sel-cod') || {}).textContent) || '').trim();
+  var ref = tr.dataset.productoFbKey || cod;
+  if (!ref) { notify('Seleccioná primero un producto'); return; }
+  navegarAProducto(ref);
 }
 
 // Abrir el dropdown selector de un producto
@@ -27307,14 +27331,14 @@ function _renderDropGlobal(filtro) {
     var stk = stockData ? (stockData[p.codigo] || {real:0, reservado:0}) : {real:0, reservado:0};
     var disp = stk.real - stk.reservado;
     var stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--text3)';
-    var esUSD = p.moneda === 'USD' || !p.moneda; // sin campo moneda = USD (así están cargados los productos)
-    var pvNum = parseFloat(p.venta) || 0;
+    var precioCanonico = precioVentaCanonicoProducto(p);
+    var pvNum = precioCanonico.precioARS;
     var tc2 = window.TIPO_CAMBIO_CONFIG || {};
     var cotiz2 = parseFloat(tc2[tc2.dolarConversion || 'oficial']) || 0;
-    var precioLbl = 'USD ' + pvNum.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
-    var equivARS2 = cotiz2 > 0 && pvNum > 0 ? ' · $' + Math.round(pvNum * cotiz2).toLocaleString('es-AR') : '';
-    var monedaProd = p.moneda || 'ARS';
-    var precioProd = monedaProd === 'USD' ? (p.venta||0) : (p.ventaARS || p.venta || 0);
+    var precioLbl = '$' + pvNum.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    var equivARS2 = '';
+    var monedaProd = 'ARS';
+    var precioProd = pvNum;
     var vigencia = estadoVigenciaPrecioProducto(p);
     var vigenciaHtml = vigencia.vigente
       ? '<span class="badge b-green" style="font-size:9px;margin-left:4px">Precio vigente</span>'
@@ -27325,7 +27349,7 @@ function _renderDropGlobal(filtro) {
         (p.descripcion && p.descripcion !== p.nombre && p.descripcion !== '-' ?
           '<div style="font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:380px">'+escapeHTML(p.descripcion)+'</div>' : '') +
       '</div>' +
-      '<div style="font-size:11px;color:var(--text3);white-space:nowrap;margin-left:8px"><span class="badge b-blue" style="font-size:9px;margin-right:3px">USD</span>'+precioLbl+equivARS2+' · <span style="color:'+stkColor+'">'+disp+' disp.</span></div>' +
+      '<div style="font-size:11px;color:var(--text3);white-space:nowrap;margin-left:8px"><span class="badge b-blue" style="font-size:9px;margin-right:3px">ARS</span>'+precioLbl+equivARS2+' · <span style="color:'+stkColor+'">'+disp+' disp.</span></div>' +
     '</div>';
   }).join('') : '<div style="padding:14px;font-size:12px;color:var(--text3);text-align:center">Sin resultados</div>';
 }
@@ -27681,12 +27705,12 @@ function renderBusqAvanz() {
     var stk  = stockData ? (stockData[p.codigo] || {real:0,reservado:0}) : {real:0,reservado:0};
     var disp = stk.real - stk.reservado;
     var stkColor = disp <= 0 ? 'var(--red)' : disp <= 3 ? 'var(--amber)' : 'var(--green)';
-    var precio = parseFloat(p.venta) || 0;
+    var precio = precioVentaCanonicoProducto(p).precioARS;
     var tc3 = window.TIPO_CAMBIO_CONFIG || {};
     var cotiz3 = parseFloat(tc3[tc3.dolarConversion || 'oficial']) || 0;
-    var precioUSD = 'USD ' + precio.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
-    var equivARS3 = cotiz3 > 0 && precio > 0 ? '$' + Math.round(precio * cotiz3).toLocaleString('es-AR') : '';
-    return '<div onclick="seleccionarProdAvanz(\''+escapeHTML(p.codigo)+'\',\''+escapeHTML(p.nombre||p.descripcion||'')+'\','+precio+',\'USD\')" ' +
+    var precioUSD = '$' + precio.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    var equivARS3 = '';
+    return '<div onclick="seleccionarProdAvanz(\''+escapeHTML(p.codigo)+'\',\''+escapeHTML(p.nombre||p.descripcion||'')+'\','+precio+',\'ARS\')" ' +
       'style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:var(--radius);cursor:pointer;margin-bottom:4px;border:0.5px solid var(--border)"' +
       ' onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
       '<div style="min-width:0">' +
@@ -27697,7 +27721,7 @@ function renderBusqAvanz() {
         '</div>' +
       '</div>' +
       '<div style="text-align:right;flex-shrink:0;margin-left:12px">' +
-        '<div style="font-weight:600;font-size:13px;color:var(--text)"><span class="badge b-blue" style="font-size:9px;margin-right:3px">USD</span>' + precioUSD + '</div>' +
+        '<div style="font-weight:600;font-size:13px;color:var(--text)"><span class="badge b-blue" style="font-size:9px;margin-right:3px">ARS</span>' + precioUSD + '</div>' +
         (equivARS3 ? '<div style="font-size:11px;color:var(--text3)">≈ ' + equivARS3 + ' ARS</div>' : '') +
         '<div style="font-size:11px;color:'+stkColor+'">' + disp + ' disp.</div>' +
       '</div>' +
