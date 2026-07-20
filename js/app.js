@@ -184,6 +184,17 @@ function _fechaEsDelMes(fecha, mesYYYYMM) {
   return (yyyy + '-' + mm) === mesYYYYMM;
 }
 
+function _fechaEsDia(fecha, dia) {
+  var f = String(fecha||'').trim();
+  if (!f || !dia) return false;
+  var yyyy = dia.getFullYear();
+  var mm = String(dia.getMonth()+1).padStart(2,'0');
+  var dd = String(dia.getDate()).padStart(2,'0');
+  return f.slice(0,10) === (yyyy+'-'+mm+'-'+dd) ||
+    f === (dd+'/'+mm+'/'+yyyy) || f === (dd+'-'+mm+'-'+yyyy) ||
+    f === (dd+'/'+mm+'/'+String(yyyy).slice(-2));
+}
+
 function kpiIva() {
   var hoy = new Date();
   var mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
@@ -4779,11 +4790,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.97-firebase',
+  VERSION: 'v2.0.98-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Cobranzas permite registrar pagos en ARS o USD con un interruptor que inicia siempre en pesos.',
-    'El dólar vigente puede ajustarse para cada cobro sin modificar la configuración general.',
-    'Historial y recibos conservan monto USD, cotización utilizada y equivalente imputado en ARS.'
+    'El dashboard separa las ventas generadas hoy de los cobros efectivamente recibidos hoy.',
+    'Cobrado hoy se actualiza en vivo incluso cuando el pago corresponde a una venta anterior.',
+    'El indicador abre Cobranzas con el nuevo filtro Hoy aplicado.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -10995,7 +11006,7 @@ var _cobFiltroActual = 'todos';
 
 function setFiltroCob(filtro) {
   _cobFiltroActual = filtro;
-  ['todos','mes','anulados'].forEach(function(f) {
+  ['todos','hoy','mes','anulados'].forEach(function(f) {
     var btn = document.getElementById('cob-filtro-' + f);
     if (btn) btn.className = 'btn btn-sm' + (f === filtro ? ' btn-primary' : '');
   });
@@ -11018,7 +11029,8 @@ function filtrarCobros(texto) {
     var fecha       = tr.dataset.fecha || '';
     var anulado     = tr.dataset.anulado === '1';
     var matchFiltro = _cobFiltroActual === 'todos'    ? true
-                    : _cobFiltroActual === 'mes'      ? fecha.startsWith(mesActual)
+                    : _cobFiltroActual === 'hoy'      ? _fechaEsDia(fecha, hoy)
+                    : _cobFiltroActual === 'mes'      ? _fechaEsDelMes(fecha, mesActual)
                     : _cobFiltroActual === 'anulados' ? anulado
                     : true;
     var show = matchTxt && matchMedio && matchFiltro;
@@ -11184,6 +11196,8 @@ function fbCargarPagos() {
     // Los indicadores de Ventas dependen del historial real de pagos. Volver a
     // pintarlos cuando termina esta sincronización evita que queden en $0.
     if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
+    var dashCobros = document.getElementById('page-dashboard');
+    if (dashCobros && dashCobros.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
   }, function(error) {
     window._pagosListenerActivo = false;
     console.error('[Cobros] No se pudo iniciar la sincronizacion', error);
@@ -24377,8 +24391,8 @@ function renderKPIsDashboard() {
   var ventas = esAdmin ? todasVentas : todasVentas.filter(function(v) {
     return (v.empleado||v.vendedor||v.usuario||'').toLowerCase() === (currentUser||'').toLowerCase();
   });
-  var ventasHoy = ventas.filter(function(v){ return v.fecha === hoy; });
-  var ventasAyer = ventas.filter(function(v){ return v.fecha === ayer; });
+  var ventasHoy = ventas.filter(function(v){ return _fechaEsDia(v.fechaOrden || v.fecha, hoyDate); });
+  var ventasAyer = ventas.filter(function(v){ return _fechaEsDia(v.fechaOrden || v.fecha, ayerDate); });
   var totalHoy  = ventasHoy.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
   var totalAyer = ventasAyer.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
   var diffPct   = totalAyer > 0 ? Math.round((totalHoy - totalAyer) / totalAyer * 100) : 0;
@@ -24389,6 +24403,16 @@ function renderKPIsDashboard() {
     diffEl.textContent = (diffPct >= 0 ? '↑ +' : '↓ ') + diffPct + '% vs ayer';
     diffEl.style.color = diffPct >= 0 ? 'var(--green)' : 'var(--red)';
   }
+  var pagosHoy = (window._historialPagosCompleto || []).filter(function(p) {
+    if (!_svPagoValido(p) || !_fechaEsDia(p.fecha, hoyDate)) return false;
+    if (esAdmin) return true;
+    var ventaPago = typeof _svResolverVentaRegistro === 'function' ? _svResolverVentaRegistro(p) : null;
+    return ventaPago && String(ventaPago.empleado||ventaPago.vendedor||ventaPago.usuario||'').toLowerCase() === String(currentUser||'').toLowerCase();
+  });
+  var cobradoHoy = pagosHoy.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
+  _set('kpi-cobrado-hoy', '$' + Math.round(cobradoHoy).toLocaleString('es-AR'));
+  var cobradoHoySub = document.getElementById('kpi-cobrado-hoy-sub');
+  if (cobradoHoySub) cobradoHoySub.textContent = pagosHoy.length + ' cobro' + (pagosHoy.length !== 1 ? 's' : '') + ' registrado' + (pagosHoy.length !== 1 ? 's' : '');
   // La deuda usa la misma conciliación de pagos que Ventas y Cobranzas.
   var ventasDeuda = esAdmin ? todasVentas : ventas;
   var resumenDeuda = _svResumenCuentaCorriente(ventasDeuda);
@@ -24625,6 +24649,9 @@ function kpiNavegar(tipo) {
   if (tipo === 'ventasHoy') {
     showPage('detalle', document.querySelector('[onclick*="detalle"]'));
     setTimeout(function() { if (typeof tabVentas === 'function') tabVentas('hoy', document.getElementById('vtab-hoy')); }, 150);
+  } else if (tipo === 'cobrosHoy') {
+    showPage('cobranzas', document.querySelector('[onclick*="cobranzas"]'));
+    setTimeout(function() { if (typeof setFiltroCob === 'function') setFiltroCob('hoy'); }, 150);
   } else if (tipo === 'deuda') {
     showPage('detalle', document.querySelector('[onclick*="detalle"]'));
     setTimeout(function() { if (typeof tabVentas === 'function') tabVentas('cobrar', document.getElementById('vtab-cobrar')); }, 150);

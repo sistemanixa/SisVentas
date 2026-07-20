@@ -156,7 +156,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 
 /* ── METRICS ── */
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
-#dash-metricas-globales{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:14px}
+#dash-metricas-globales{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:14px}
 #dash-metricas-globales>.metric{min-height:76px;padding:12px 14px}
 #dash-metricas-globales .m-value{font-size:20px}
 #dash-metricas-globales .m-sub{font-size:10px}
