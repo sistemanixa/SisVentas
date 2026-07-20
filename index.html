@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.111-firebase' -->
+<!-- VERSION: 'v2.0.112-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.js?v=2.0.111"></script>
+<script src="./js/core/version.js?v=2.0.112"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,10 +24,10 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.0"></script>
 <script src="./js/core/access-control.js?v=2.0.0"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.111">
+<link rel="stylesheet" href="./css/app.css?v=2.0.112">
 
   <!-- Firebase SDK -->
-  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.111"></script>
+  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.112"></script>
 </head>
 <body>
 
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.111 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.112 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -421,6 +421,7 @@
             <span class="card-title"><i class="ti ti-chart-dots"></i> Rentabilidad del mes</span>
             <button class="btn btn-sm" style="touch-action:manipulation" onclick="showPage('rentabilidad',document.querySelector('[onclick*=rentabilidad]'))"><i class="ti ti-external-link"></i> Ver reporte completo</button>
           </div>
+          <div id="dash-rent-auditoria" style="display:none;align-items:center;gap:8px;margin:0 20px 12px;padding:9px 12px;border:1px solid rgba(245,158,11,.3);background:var(--amber-bg);color:var(--amber);border-radius:8px;font-size:11px"></div>
           <div class="metrics sv-rent-metrics">
             <div class="metric sv-kpi-card" onclick="showPage('detalle',document.querySelector('[onclick*=detalle]'))" title="Ver detalle de ventas">
               <div class="m-label"><i class="ti ti-arrow-up-right"></i> Ingresos netos del mes</div>
@@ -2160,7 +2161,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.111
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.112
 Listo para analizar.
 </pre>
           </div>
@@ -3532,14 +3533,8 @@ Listo para analizar.
                 <span class="product-currency-title">Moneda de este producto</span>
                 <span class="product-currency-hint" id="pf-moneda-hint">Precios cargados en pesos argentinos</span>
               </div>
-              <div class="product-currency-switch" id="pf-moneda-switch" role="group" aria-label="Moneda del producto">
-                <button type="button" class="product-currency-option" data-currency="ARS" onclick="setMonedaProducto('ARS')">🇦🇷 ARS</button>
-                <button type="button" class="product-currency-option" data-currency="USD" onclick="setMonedaProducto('USD')">💵 USD</button>
-              </div>
-              <select id="pf-moneda" onchange="cambiarMonedaProducto()">
-                <option value="ARS">🇦🇷 ARS — Pesos</option>
-                <option value="USD">💵 USD — Dólares</option>
-              </select>
+              <div style="min-width:120px;padding:9px 14px;border:1px solid rgba(34,197,94,.28);background:rgba(34,197,94,.1);border-radius:999px;color:var(--green);font-size:12px;font-weight:800;text-align:center">🇦🇷 ARS</div>
+              <select id="pf-moneda" style="display:none"><option value="ARS" selected>ARS</option></select>
             </div>
             <!-- Flujo guiado: precio gremio → margen → precio venta → USD -->
             <div style="padding:10px 14px;background:rgba(59,130,246,.07);border-radius:var(--radius);margin-bottom:12px;border:0.5px solid rgba(59,130,246,.2)">
@@ -4364,6 +4359,7 @@ Listo para analizar.
       <div class="metric"><div class="m-label">Resultado neto</div><div class="m-value" id="rent-utilidad" style="color:var(--green)">$0</div><div class="m-sub">lo que queda en la empresa</div></div>
       <div class="metric"><div class="m-label">Margen neto</div><div class="m-value" id="rent-margen">—</div><div class="m-sub" id="rent-margen-sub">—</div></div>
       </div>
+      <div id="rent-auditoria-calculos" style="display:none;align-items:center;gap:8px;margin:0 0 12px;padding:10px 12px;border:1px solid rgba(245,158,11,.3);background:var(--amber-bg);color:var(--amber);border-radius:8px;font-size:12px"></div>
       <div class="card">
       <div class="card-head"><span class="card-title">Estado de resultados</span></div>
       <div class="table-wrap">
@@ -4808,7 +4804,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.js?v=2.0.111"></script>
+<script src="./js/app.js?v=2.0.112"></script>
 <script src="./js/core/data-query.js?v=2.0.0"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
@@ -4846,7 +4842,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.111</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.112</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -5113,7 +5109,7 @@ Listo para analizar.
 <script src="./js/modules/ot-data-sync.js?v=2.0.0"></script>
 <script src="./js/modules/notifications.js?v=2.0.0"></script>
 
-<script src="./js/modules/finance-details.js?v=2.0.111"></script>
+<script src="./js/modules/finance-details.js?v=2.0.112"></script>
 
 <script src="./js/modules/ot-workflow.js?v=2.0.0"></script>
 
@@ -5130,7 +5126,7 @@ Listo para analizar.
 <script src="./js/modules/action-permissions.js?v=2.0.0"></script>
 
 
-<script src="./js/core/metrics-cache.js?v=2.0.111"></script>
+<script src="./js/core/metrics-cache.js?v=2.0.112"></script>
 
 
 <script src="./js/modules/ot-admin.js?v=2.0.0"></script>
@@ -5145,7 +5141,7 @@ Listo para analizar.
 
 
 
-<script src="./js/modules/configuration-mobile.js?v=2.0.111"></script>
+<script src="./js/modules/configuration-mobile.js?v=2.0.112"></script>
 
 
 
@@ -5156,7 +5152,7 @@ Listo para analizar.
 
 
 
-<script src="./js/modules/executive-charts.js?v=2.0.111"></script>
+<script src="./js/modules/executive-charts.js?v=2.0.112"></script>
 
 
 <!-- ══════════════════════════════════════════════════════════════════════════════
@@ -5253,7 +5249,7 @@ Listo para analizar.
 
 <script src="./js/modules/refactor-health.js?v=2.0.0"></script>
 
-<script src="./js/modules/resizable-tables.js?v=2.0.111"></script>
+<script src="./js/modules/resizable-tables.js?v=2.0.112"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.0"></script>
 <script src="./js/modules/ops-hardening.js?v=2.0.0"></script>

@@ -4840,7 +4840,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.111-firebase',
+  VERSION: 'v2.0.112-firebase',
   RELEASE_NOTES: Object.freeze([
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
@@ -6175,31 +6175,42 @@ function obtenerCostoUnitarioVenta(cod, item) {
   item = item || {};
   var costoDirecto = parseFloat(item.costoUnitarioCompra || item.costoUnitario || item.costoCompra || item.compra || item.precioCompra || item.precio_compra || 0) || 0;
   var prod = obtenerProductoPorCodigoVenta(cod, item);
-  var costoProd = prod ? (parseFloat(prod.compraARS || prod.compra || prod.precio_compra || prod.precioCompra || prod.costo || 0) || 0) : 0;
-  var costoUnit = costoDirecto || costoProd;
-
-  var moneda = (item.monedaOriginal || (prod && (prod.moneda || prod.monedaCompra)) || '').toUpperCase();
-  if (moneda === 'USD') {
-    var yaARS = !!(item.costoUnitarioCompra || item.costoUnitario || item.costoCompra || item.compra || item.precioCompra || item.precio_compra) && !item.costoUnitarioUSD;
-    if (!yaARS) {
-      var cotiz = parseFloat(item.cotizacionUsada) || 0;
-      if (!cotiz) {
-        var tc = window.TIPO_CAMBIO_CONFIG || {};
-        cotiz = parseFloat(tc[tc.dolarConversion || 'oficial']) || parseFloat(tc.oficial) || parseFloat(tc.blue) || parseFloat(tc.mep) || 0;
-      }
-      if (cotiz > 0) costoUnit = costoUnit * cotiz;
-    }
+  var costoProd = prod ? precioGremioARSDesdeProducto(prod) : 0;
+  // costoUnitarioCompra y campos equivalentes se guardan siempre en ARS. La
+  // moneda del producto no debe volver a convertir un costo ya normalizado.
+  if (costoDirecto > 0 && !item.costoUnitarioUSD) {
+    var precioVentaItem = parseFloat(item.punit || item.precio || item.precioUnitario || 0) || 0;
+    var directoImplausible = costoProd > 0 && (costoDirecto > costoProd * 20 || (precioVentaItem > 0 && costoDirecto > precioVentaItem * 10));
+    return directoImplausible ? costoProd : costoDirecto;
   }
-  return costoUnit || 0;
+  var costoUsd = parseFloat(item.costoUnitarioUSD || 0) || 0;
+  if (costoUsd > 0) {
+    var cotiz = parseFloat(item.cotizacionUsada) || obtenerDolarReferenciaProducto().valor || 0;
+    if (cotiz > 0) return costoUsd * cotiz;
+  }
+  return costoProd || costoDirecto || 0;
+}
+
+function _costoItemVentaAuditado(item) {
+  item = item || {};
+  var qty = parseFloat(item.qty || item.cantidad || 1) || 1;
+  var totalGuardado = parseFloat(item.costoTotalCompra || item.costoTotal || item.costo) || 0;
+  var prod = obtenerProductoPorCodigoVenta(item.cod || item.codigo, item);
+  var canonico = prod ? precioGremioARSDesdeProducto(prod) * qty : 0;
+  var ingresoItem = (parseFloat(item.punit || item.precio || item.precioUnitario || 0) || 0) * qty;
+  var inflado = totalGuardado > 0 && canonico > 0 && (totalGuardado > canonico * 20 || (ingresoItem > 0 && totalGuardado > ingresoItem * 10));
+  if (inflado) {
+    var tcHistorico = parseFloat(item.cotizacionUsada || item.tipoCambio || item.tcGuardado || 0) || 0;
+    var costoReparado = tcHistorico > 0 ? totalGuardado / tcHistorico : canonico;
+    if (!(costoReparado > 0) || (ingresoItem > 0 && costoReparado > ingresoItem * 10)) costoReparado = canonico;
+    return { costo: costoReparado, corregido: true, guardado: totalGuardado, motivo: 'Costo ARS reconvertido como USD' };
+  }
+  if (totalGuardado > 0) return { costo: totalGuardado, corregido: false, guardado: totalGuardado, motivo: '' };
+  return { costo: obtenerCostoUnitarioVenta(item.cod || item.codigo, item) * qty, corregido: false, guardado: 0, motivo: '' };
 }
 
 function obtenerCostoItemVenta(item) {
-  item = item || {};
-  if (parseFloat(item.costoTotalCompra || item.costoTotal || item.costo) > 0) {
-    return parseFloat(item.costoTotalCompra || item.costoTotal || item.costo) || 0;
-  }
-  var qty = parseFloat(item.qty || item.cantidad || 1) || 1;
-  return obtenerCostoUnitarioVenta(item.cod || item.codigo, item) * qty;
+  return _costoItemVentaAuditado(item).costo;
 }
 
 try { window._mostrarCostoCompraDetalleVenta = localStorage.getItem('sv_mostrar_costo_compra_detalle') === '1'; }
@@ -6259,6 +6270,8 @@ function calcMargenGanancia() {
 
   var totalTxt = (document.getElementById('t-tot')||{}).textContent || '$0';
   var total = parseFloat(normalizarNumeroExcel(totalTxt)) || 0;
+  var ivaTxtMargen = (document.getElementById('t-iva')||{}).textContent || '$0';
+  total = Math.max(0, total - (parseFloat(normalizarNumeroExcel(ivaTxtMargen)) || 0));
 
   var costoTotal = 0;
   var filas = Array.from(document.querySelectorAll('#det-body tr'));
@@ -6475,7 +6488,7 @@ function confirmarVenta() {
     return s + obtenerCostoItemVenta(item);
   }, 0);
   nuevaVenta.costoTotal = costoTotalVenta;
-  nuevaVenta.margenPct = nuevaVenta.total > 0 ? ((nuevaVenta.total - costoTotalVenta) / nuevaVenta.total) * 100 : 0;
+  nuevaVenta.margenPct = nuevaVenta.subtotal > 0 ? ((nuevaVenta.subtotal - costoTotalVenta) / nuevaVenta.subtotal) * 100 : 0;
   nuevaVenta.margenAutorizadoPorAdmin = ventaAutorizadaPorAdmin;
 
   if (window._ventaEditandoFbKey) {
@@ -7880,7 +7893,9 @@ function abrirFormProducto(id) {
   document.getElementById('pf-unidad').value = p.unidad || 'Unidad';
   document.getElementById('pf-es-mano-obra').checked = !!p.esManoDeObra;
   var monedaSel = document.getElementById('pf-moneda');
-  if (monedaSel) monedaSel.value = String(p.moneda || '').toUpperCase() === 'USD' ? 'USD' : 'ARS';
+  // La moneda operativa del catálogo es siempre ARS. Los campos USD legacy se
+  // conservan únicamente como referencia informativa y nunca gobiernan el form.
+  if (monedaSel) monedaSel.value = 'ARS';
   cambiarMonedaProducto();
 
   // Imagen del producto
@@ -8366,7 +8381,7 @@ function cambiarMonedaProducto() {
 
 function setMonedaProducto(moneda) {
   var sel = document.getElementById('pf-moneda');
-  if (sel) sel.value = moneda === 'USD' ? 'USD' : 'ARS';
+  if (sel) sel.value = 'ARS';
   cambiarMonedaProducto();
 }
 
@@ -8575,7 +8590,7 @@ function guardarProducto() {
     categoria:    document.getElementById('pf-categoria').value,
     proveedores:  esManoObra ? null : proveedoresValidos,
     proveedor:    esManoObra ? null : (proveedorPrincipal ? proveedorPrincipal.nombre : ''),
-    moneda:       (document.getElementById('pf-moneda')||{}).value || 'ARS',
+    moneda:       'ARS',
     compra:       Math.round(getMontoRaw(document.getElementById('pf-compra')) * 100) / 100,
     venta:        Math.round(getMontoRaw(document.getElementById('pf-venta')) * 100) / 100,
     iva:          parseFloat(document.getElementById('pf-iva').value) || 21,
@@ -8620,14 +8635,6 @@ function guardarProducto() {
     datos.tcGuardado = tc;
     datos.tcTipoGuardado = dolarRef.tipo;
     datos.tcFecha    = new Date().toISOString().slice(0,10);
-  } else if (datos.moneda === 'USD') {
-    // Ya está en USD — guardar también equivalente ARS
-    datos.ventaUSD  = datos.venta;
-    datos.compraUSD = datos.compra;
-    if (tc > 0) {
-      datos.ventaARS  = Math.round(datos.venta  * tc);
-      datos.compraARS = Math.round(datos.compra * tc);
-    }
   }
 
   if (editingProdId) {
@@ -8949,6 +8956,9 @@ function calcMargenPpto() {
   if (!box) return;
   var totalTxt = (document.getElementById('pp-total')||{}).textContent || '$0';
   var total = parseFloat(typeof normalizarNumeroExcel === 'function' ? normalizarNumeroExcel(totalTxt) : String(totalTxt).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.')) || 0;
+  var ivaTxtPptoMargen = (document.getElementById('pp-iva')||{}).textContent || '$0';
+  var ivaPptoMargen = parseFloat(typeof normalizarNumeroExcel === 'function' ? normalizarNumeroExcel(ivaTxtPptoMargen) : String(ivaTxtPptoMargen).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.')) || 0;
+  total = Math.max(0, total - ivaPptoMargen);
   var costoTotal = 0;
   Array.from(document.querySelectorAll('#pp-body tr')).forEach(function(tr) {
     var selCod = tr.querySelector('.prod-sel-cod');
@@ -10611,7 +10621,15 @@ function calcularRentabilidadCanonica(rango, ventasFuente, gastosFuente) {
   var ingresosNetos = ventasPeriodo.reduce(function(s,v){ return s + _rentIngresoNetoVenta(v); }, 0);
   var descuentos = ventasPeriodo.reduce(function(s,v){ return s + (parseFloat(v.descuento)||0); }, 0);
   var iva = ventasPeriodo.reduce(function(s,v){ return s + (v.conIva === false ? 0 : (parseFloat(v.iva)||0)); }, 0);
-  var costoProductos = ventasPeriodo.reduce(function(s,v){ return s + _rentCostoVenta(v); }, 0);
+  var costosCorregidos = [];
+  var costoProductos = ventasPeriodo.reduce(function(s,v){
+    var itemsVenta = Array.isArray(v.items) ? v.items : (v.items && typeof v.items === 'object' ? Object.values(v.items) : []);
+    itemsVenta.forEach(function(item){
+      var auditado = _costoItemVentaAuditado(item);
+      if (auditado.corregido) costosCorregidos.push({ venta:v.id || v.fbKey || '', producto:item.cod || item.codigo || item.desc || '', guardado:auditado.guardado, usado:auditado.costo, motivo:auditado.motivo });
+    });
+    return s + _rentCostoVenta(v);
+  }, 0);
   var comisiones = gastosPeriodo.filter(_rentComisionAprobada).reduce(function(s,g){ return s + (parseFloat(g.monto)||0); }, 0);
   var otrosGastosLista = gastosPeriodo.filter(function(g){ return !_rentEsComision(g); });
   var otrosGastos = otrosGastosLista.reduce(function(s,g){ return s + (parseFloat(g.monto)||0); }, 0);
@@ -10620,6 +10638,7 @@ function calcularRentabilidadCanonica(rango, ventasFuente, gastosFuente) {
   return {
     ventas: ventasPeriodo,
     gastos: gastosPeriodo,
+    costosCorregidos: costosCorregidos,
     otrosGastosLista: otrosGastosLista,
     ingresosBrutos: ingresosNetos + descuentos,
     ingresosNetos: ingresosNetos,
@@ -10665,6 +10684,14 @@ function calcRentabilidad() {
   var costoProductos = resumen.costoProductos;
   var utilidad = resumen.resultadoNeto;
   var margen = resumen.margenNeto;
+
+  var auditEl = document.getElementById('rent-auditoria-calculos');
+  if (auditEl) {
+    auditEl.style.display = resumen.costosCorregidos.length ? 'flex' : 'none';
+    auditEl.innerHTML = resumen.costosCorregidos.length
+      ? '<i class="ti ti-shield-check"></i><span>Auditoría automática: se corrigieron ' + resumen.costosCorregidos.length + ' costo' + (resumen.costosCorregidos.length !== 1 ? 's' : '') + ' histórico' + (resumen.costosCorregidos.length !== 1 ? 's' : '') + ' que habían sido reconvertidos erróneamente de ARS a USD. No se modificaron ventas ni comprobantes.</span>'
+      : '';
+  }
 
   _set('rent-ingresos', '$' + Math.round(ingresos).toLocaleString('es-AR'));
   _set('rent-ingresos-sub', ventasPeriodo.length + ' venta' + (ventasPeriodo.length !== 1 ? 's' : '') + ' · sin IVA');
@@ -21790,16 +21817,9 @@ function generarComisionesVenta(venta, montoCobrado) {
   }, 0) : ((parseFloat(venta.subtotal)||parseFloat(venta.total)||0) + (parseFloat(venta.descuento)||0));
   var descuentoVenta = parseFloat(venta.descuento) || 0;
   var baseNeta = Math.max(0, subtotalBruto - descuentoVenta);
-  var costoTotal = parseFloat(venta.costoTotal)||0;
-  if (!costoTotal) {
-    costoTotal = itemsVenta.reduce(function(s, it) {
-      var prod = Object.values(prodData||{}).find(function(p){
-        return p.codigo === it.cod || p.fbKey === it.pid;
-      });
-      var costoUnit = prod ? (parseFloat(prod.compra || prod.compraARS || prod.precio_compra) || 0) : 0;
-      return s + costoUnit * (parseInt(it.qty) || 1);
-    }, 0);
-  }
+  var costoTotal = itemsVenta.length
+    ? itemsVenta.reduce(function(s, it) { return s + obtenerCostoItemVenta(it); }, 0)
+    : (parseFloat(venta.costoTotal)||0);
   var ganancia = baseNeta - costoTotal;
 
   if (ganancia <= 0) return;
@@ -24873,6 +24893,13 @@ function renderRentabilidadDashboard(todasVentas) {
   var gastosMes = resumenMes.egresos;
   var utilidad = resumenMes.resultadoNeto;
   var margenPct = resumenMes.margenNeto;
+  var auditDash = document.getElementById('dash-rent-auditoria');
+  if (auditDash) {
+    auditDash.style.display = resumenMes.costosCorregidos.length ? 'flex' : 'none';
+    auditDash.innerHTML = resumenMes.costosCorregidos.length
+      ? '<i class="ti ti-shield-check"></i><span>Se excluyeron ' + resumenMes.costosCorregidos.length + ' conversiones duplicadas ARS→USD detectadas en costos históricos.</span>'
+      : '';
+  }
 
   _set('dash-rent-ingresos', '$' + Math.round(ingresosMes).toLocaleString('es-AR'));
   _set('dash-rent-gastos', '$' + Math.round(gastosMes).toLocaleString('es-AR'));
@@ -25684,17 +25711,16 @@ function renderDetalleVenta(v) {
   var items = v.items || [];
   var subtotalBrutoDetalle = items.length ? items.reduce(function(s,it){ return s + ((parseFloat(it.qty)||1) * (parseFloat(it.punit)||0)); },0) : (subtotal + descuento);
   var netoDetalle = Math.max(0, subtotalBrutoDetalle - descuento);
-  var costoDetalle = parseFloat(v.costoTotal)||0;
-  if (!costoDetalle && items.length) {
-    costoDetalle = items.reduce(function(s,it){
+  var costoDetalle = items.length
+    ? items.reduce(function(s,it){
       return s + obtenerCostoItemVenta(it);
-    },0);
-  }
+    },0)
+    : (parseFloat(v.costoTotal)||0);
   var costoDetalleInconsistente = costoDetalle > 0 && netoDetalle > 0 && costoDetalle > netoDetalle * 10;
   // Usar la misma base que Nueva venta y Nuevo presupuesto para que el
   // porcentaje mostrado sea consistente en las tres pantallas.
-  var gananciaDetalle = costoDetalleInconsistente ? null : total - costoDetalle;
-  var margenDetalle = !costoDetalleInconsistente && total > 0 ? (gananciaDetalle / total * 100) : null;
+  var gananciaDetalle = costoDetalleInconsistente ? null : netoDetalle - costoDetalle;
+  var margenDetalle = !costoDetalleInconsistente && netoDetalle > 0 ? (gananciaDetalle / netoDetalle * 100) : null;
   var idsVentaDetalle = [v.fbKey, v.id, v.numero, v.nro, v.codigo].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
   var ventaIdNum = String(v.id||'').replace(/[^0-9]/g,'');
   var pagosGlobales = (window._historialPagosCompleto||[]).filter(function(p) {
