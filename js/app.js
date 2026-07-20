@@ -4840,7 +4840,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.110-firebase',
+  VERSION: 'v2.0.111-firebase',
   RELEASE_NOTES: Object.freeze([
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
@@ -6942,6 +6942,54 @@ function precioVentaCanonicoProducto(p) {
     return { precioARS: tc.valor > 0 ? Math.round(venta * tc.valor * 100) / 100 : 0, precioOrigen: venta, monedaOrigen: 'USD' };
   }
   return { precioARS: venta, precioOrigen: venta, monedaOrigen: 'ARS' };
+}
+
+function normalizarTodosProductosARS() {
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede ejecutar esta normalización'); return; }
+  if (!window.fbDB || typeof window.fbUpdate !== 'function') { notify('Sin conexión con Firebase'); return; }
+  var productos = Object.values(prodData || {}).filter(function(p){ return p && p.fbKey; });
+  if (!productos.length) { notify('No hay productos para normalizar'); return; }
+  var dolar = obtenerDolarReferenciaProducto();
+  var marcadosUsd = 0;
+  var sinVenta = 0;
+  var cambios = {};
+  productos.forEach(function(p) {
+    var monedaAnterior = String(p.moneda || p.monedaVenta || 'ARS').toUpperCase();
+    if (monedaAnterior === 'USD') marcadosUsd++;
+    var ventaARS = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || 0) || 0;
+    if (!ventaARS) {
+      var ventaBase = parseFloat(p.venta || p.precio_venta || p.precioVenta || 0) || 0;
+      var ventaUSD = parseFloat(p.ventaUSD || 0) || 0;
+      if (monedaAnterior === 'USD' && dolar.valor > 0) ventaARS = Math.round((ventaUSD || ventaBase) * dolar.valor * 100) / 100;
+      else ventaARS = ventaBase;
+    }
+    var compraARS = precioGremioARSDesdeProducto(p);
+    if (!ventaARS) sinVenta++;
+    var base = FB_PATHS.productos + '/' + p.fbKey + '/';
+    cambios[base + 'moneda'] = 'ARS';
+    cambios[base + 'monedaVenta'] = 'ARS';
+    if (ventaARS > 0) {
+      cambios[base + 'venta'] = ventaARS;
+      cambios[base + 'ventaARS'] = ventaARS;
+      if (dolar.valor > 0) cambios[base + 'ventaUSD'] = Math.round((ventaARS / dolar.valor) * 100) / 100;
+    }
+    if (compraARS > 0) {
+      cambios[base + 'compra'] = compraARS;
+      cambios[base + 'compraARS'] = compraARS;
+      cambios[base + 'precioGremio'] = compraARS;
+      if (dolar.valor > 0) cambios[base + 'compraUSD'] = Math.round((compraARS / dolar.valor) * 100) / 100;
+    }
+    cambios[base + 'normalizadoArsEn'] = Date.now();
+    cambios[base + 'normalizadoArsPor'] = currentUser || 'Admin';
+  });
+  var mensaje = 'Se normalizarán ' + productos.length + ' productos a pesos argentinos.\n\n' +
+    marcadosUsd + ' estaban marcados como USD.\n' +
+    (sinVenta ? sinVenta + ' no tienen precio de venta y conservarán ese campo vacío.\n' : '') +
+    '\nSe usarán primero los valores ARS ya guardados; no se volverán a multiplicar por el dólar. ¿Continuar?';
+  if (!confirm(mensaje)) return;
+  window.fbUpdate(window.fbRef(window.fbDB), cambios).then(function(){
+    notify('✓ ' + productos.length + ' productos normalizados a ARS');
+  }).catch(function(e){ notify('No se pudo completar la normalización: ' + e.message); });
 }
 
 var PRECIO_VIGENCIA_MS = 24 * 60 * 60 * 1000;
