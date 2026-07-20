@@ -4041,6 +4041,8 @@ function selTipoFactura(btn, tipo) {
 function abrirModalNotaCredito(ventaId) {
   var v = _svResolverVentaRegistro(ventaId);
   if (!v || !v.factura) { notify('Sin factura emitida en esta venta'); return; }
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo un administrador puede emitir notas de crédito'); return; }
+  if (v.notaCredito && v.notaCredito.cae) { notify('Esta factura ya fue anulada con una nota de crédito'); return; }
   var f = v.factura;
 
   if (f.fecha) {
@@ -4199,6 +4201,81 @@ function verFacturaEmitida(pdfUrl, cae) {
   document.body.appendChild(overlay);
 }
 
+// Resumen fiscal reutilizado por el indicador del listado y por el detalle.
+// Mantiene visible la información de la factura antes de abrir el PDF y
+// devuelve el acceso a la nota de crédito cuando corresponde.
+function abrirResumenFactura(ventaId) {
+  var v = _svResolverVentaRegistro(ventaId);
+  if (!v || !v.factura) { notify('Sin factura emitida en esta venta'); return; }
+  var f = v.factura || {};
+  var nc = v.notaCredito && v.notaCredito.cae ? v.notaCredito : null;
+  var prev = document.getElementById('modal-resumen-factura');
+  if (prev) prev.remove();
+
+  var tipo = f.tipo || f.tipoComprobante || 'Factura electrónica';
+  var numero = f.numero_comprobante || f.numeroComprobante || f.numero || f.nroComprobante || '';
+  var cae = f.cae || '';
+  var fecha = f.fecha || v.fecha || '—';
+  var caeVto = f.cae_vencimiento || f.caeVencimiento || '';
+  var puedeEmitirNC = String(currentRole || '').toLowerCase() === 'admin' && !nc;
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-resumen-factura';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(3,6,14,.76);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML =
+    '<div role="dialog" aria-modal="true" aria-labelledby="resumen-factura-titulo" style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:24px;max-width:500px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.55)">' +
+      '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:18px">' +
+        '<div style="width:44px;height:44px;flex:0 0 44px;border-radius:12px;background:' + (nc ? 'var(--red-bg)' : 'var(--green-bg)') + ';display:flex;align-items:center;justify-content:center">' +
+          '<i class="ti ' + (nc ? 'ti-file-minus' : 'ti-file-check') + '" style="font-size:23px;color:' + (nc ? 'var(--red)' : 'var(--green)') + '"></i>' +
+        '</div>' +
+        '<div style="flex:1;min-width:0"><div id="resumen-factura-titulo" style="font-size:17px;font-weight:700">' + escapeHTML(tipo) + '</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:3px">Venta ' + escapeHTML(v.id || ventaId) + ' · ' + escapeHTML(v.cliente || 'Sin cliente') + '</div></div>' +
+        '<button class="btn btn-sm btn-icon" data-factura-action="cerrar" title="Cerrar"><i class="ti ti-x"></i></button>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px">' +
+        '<div style="background:var(--bg3);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Fecha</div><div style="font-size:13px;font-weight:600;margin-top:4px">' + escapeHTML(fecha) + '</div></div>' +
+        '<div style="background:var(--bg3);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Comprobante</div><div style="font-size:13px;font-weight:600;margin-top:4px">' + escapeHTML(numero || '—') + '</div></div>' +
+      '</div>' +
+      '<div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">' +
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">CAE</div>' +
+        '<button data-factura-action="copiar-cae" style="display:flex;align-items:center;gap:7px;background:none;border:0;color:' + (nc ? 'var(--text2)' : 'var(--green)') + ';font:700 16px monospace;padding:5px 0 0;cursor:pointer" title="Copiar CAE">' + escapeHTML(cae || '—') + ' <i class="ti ti-copy" style="font-size:13px"></i></button>' +
+        (caeVto ? '<div style="font-size:11px;color:var(--text3);margin-top:3px">Vencimiento CAE: ' + escapeHTML(caeVto) + '</div>' : '') +
+      '</div>' +
+      (nc
+        ? '<div style="padding:11px 12px;border-radius:10px;background:var(--red-bg);color:var(--red);font-size:12px;margin-bottom:16px"><strong>Factura anulada con nota de crédito.</strong><br>CAE NC: ' + escapeHTML(nc.cae || '—') + (nc.fecha ? ' · ' + escapeHTML(nc.fecha) : '') + '</div>'
+        : '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:16px"><i class="ti ti-circle-check"></i> Comprobante emitido y vigente</div>') +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
+        (nc && nc.pdf_url ? '<button class="btn btn-sm" data-factura-action="ver-nc"><i class="ti ti-file-minus"></i> Ver nota de crédito</button>' : '') +
+        (puedeEmitirNC ? '<button class="btn btn-sm" data-factura-action="nota-credito" style="color:var(--red);border-color:var(--red)"><i class="ti ti-file-minus"></i> Emitir nota de crédito</button>' : '') +
+        '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"><i class="ti ti-external-link"></i> Ver comprobante</button>' +
+      '</div>' +
+    '</div>';
+
+  overlay.addEventListener('click', function(e) {
+    var boton = e.target.closest('[data-factura-action]');
+    if (e.target === overlay) { overlay.remove(); return; }
+    if (!boton) return;
+    var accion = boton.dataset.facturaAction;
+    if (accion === 'cerrar') overlay.remove();
+    if (accion === 'copiar-cae' && cae) {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(String(cae));
+      notify('CAE copiado');
+    }
+    if (accion === 'ver-factura') {
+      overlay.remove();
+      verFacturaEmitida(f.pdf_url || '', cae);
+    }
+    if (accion === 'ver-nc' && nc && nc.pdf_url) {
+      overlay.remove();
+      window.open(nc.pdf_url, '_blank');
+    }
+    if (accion === 'nota-credito') {
+      overlay.remove();
+      abrirModalNotaCredito(v.id || v.fbKey || ventaId);
+    }
+  });
+  document.body.appendChild(overlay);
+}
+
 function confirmarEmisionFactura(ventaId) {
   var venta = ventasList ? ventasList.find(function(v){ return String(v.id||'') === String(ventaId||'') || String(v.fbKey||'') === String(ventaId||''); }) : null;
   if (!venta) return;
@@ -4325,7 +4402,7 @@ function _cerrarInterfacesAlSalir() {
     }
     actualizador.remove();
   }
-  ['modal-revision-precios','modal-comunicado-global','popup-actualizado','modal-haberes-mes','modal-hsextra','modal-hsextra-admin','modal-aguinaldo','modal-factura','modal-nota-credito','modal-factura-emitida','modal-forzar-pass','modal-venta-confirmada','modal-alta-rapida-cli'].forEach(function(id) {
+  ['modal-revision-precios','modal-comunicado-global','popup-actualizado','modal-haberes-mes','modal-hsextra','modal-hsextra-admin','modal-aguinaldo','modal-factura','modal-nota-credito','modal-factura-emitida','modal-resumen-factura','modal-forzar-pass','modal-venta-confirmada','modal-alta-rapida-cli'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.remove();
   });
@@ -4790,11 +4867,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.98-firebase',
+  VERSION: 'v2.0.99-firebase',
   RELEASE_NOTES: Object.freeze([
-    'El dashboard separa las ventas generadas hoy de los cobros efectivamente recibidos hoy.',
-    'Cobrado hoy se actualiza en vivo incluso cuando el pago corresponde a una venta anterior.',
-    'El indicador abre Cobranzas con el nuevo filtro Hoy aplicado.'
+    'La factura emitida vuelve a abrir una ficha rápida con sus datos y el comprobante.',
+    'El administrador puede emitir la nota de crédito desde la misma ficha fiscal.',
+    'El detalle de venta aplica las columnas antes de mostrarse para evitar saltos visuales.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -25427,7 +25504,7 @@ function renderDetalleVenta(v) {
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap">' +
       (puedeMoverVentaAPptoDetalle ? '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Mover a presupuestos"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' : '') +
       (v.factura
-        ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="verFacturaEmitida(\''+v.factura.pdf_url+'\',\''+v.factura.cae+'\')" title="CAE: '+v.factura.cae+'"><i class="ti ti-file-check"></i> Facturada</button>'
+        ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="abrirResumenFactura(this.dataset.vid)" data-vid="'+escapeHTML(v.id||v.fbKey||'')+'" title="Ver factura y opciones fiscales"><i class="ti ti-file-check"></i> Facturada</button>'
         : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
       ) +
       (puedeEditarVentaPermiso(v) ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirEditorVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Editar"><i class="ti ti-edit"></i> Editar</button>' : '') +
@@ -25580,6 +25657,13 @@ function renderDetalleVenta(v) {
           }).join('') +
         '</div>'
       : '');
+
+  // El perfil de columnas debe aplicarse en el mismo ciclo de renderizado.
+  // Si esperamos al MutationObserver, la tabla aparece primero con anchos
+  // predeterminados y cambia unos milisegundos después (pantallazo).
+  if (window.SisVentas && typeof window.SisVentas.initResizableTables === 'function') {
+    window.SisVentas.initResizableTables();
+  }
 }
 
 function toggleCSF(vid, fk) {
@@ -26110,12 +26194,12 @@ function renderVentasTabla(lista) {
     <td class="tr" style="white-space:nowrap">${ventaEstadoInstBadge(v.estadoInst)}</td>
     <td style="text-align:center;white-space:nowrap">
       ${v.notaCredito && v.notaCredito.cae
-        ? `<span title="Factura anulada con NC — CAE NC: ${escapeHTML(v.notaCredito.cae)}" style="display:inline-flex;align-items:center;gap:3px">
+        ? `<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();abrirResumenFactura('${jsStringAttr(v.id||v.fbKey||'')}')" title="Factura anulada con NC — CAE NC: ${escapeHTML(v.notaCredito.cae)}" style="display:inline-flex;align-items:center;gap:3px">
             <i class="ti ti-file-check" style="font-size:13px;color:var(--text3);text-decoration:line-through;opacity:.5"></i>
             <i class="ti ti-file-minus" style="font-size:15px;color:var(--red)"></i>
-           </span>`
+           </button>`
         : v.factura && v.factura.cae
-          ? `<span title="Factura emitida — CAE: ${escapeHTML(v.factura.cae)}" style="color:var(--green)"><i class="ti ti-file-check" style="font-size:15px"></i></span>`
+          ? `<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();abrirResumenFactura('${jsStringAttr(v.id||v.fbKey||'')}')" title="Ver factura — CAE: ${escapeHTML(v.factura.cae)}" style="color:var(--green)"><i class="ti ti-file-check" style="font-size:15px"></i></button>`
           : ''}
     </td>
     <td onclick="event.stopPropagation()" style="text-align:center">
