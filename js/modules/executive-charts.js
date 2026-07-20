@@ -32,9 +32,17 @@
   function dias7(){ var out=[]; for(var i=6;i>=0;i--){ var d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-i); out.push({date:d,key:iso(d),dow:d.getDay()}); } return out; }
   function meses12(){ var out=[]; var d=new Date(); d.setDate(1); for(var i=11;i>=0;i--){ var x=new Date(d.getFullYear(),d.getMonth()-i,1); out.push({date:x,key:mes(x)}); } return out; }
   var diasLbl=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'], mesesLbl=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  function fmtCompact(v){ v=Math.abs(num(v)); if(v>=1000000) return '$'+(v/1000000).toFixed(v>=10000000?0:1)+'M'; if(v>=1000) return '$'+Math.round(v/1000)+'k'; return '$'+Math.round(v); }
+  function fmtCompact(v){ var n=num(v), pref=n<0?'-$':'$'; v=Math.abs(n); if(v>=1000000) return pref+(v/1000000).toFixed(v>=10000000?0:1)+'M'; if(v>=1000) return pref+Math.round(v/1000)+'k'; return pref+Math.round(v); }
   function pct(a,b){ if(!b) return '—'; var p=Math.round(((a-b)/Math.abs(b))*100); return (p>=0?'↑ ':'↓ ')+Math.abs(p)+'%'; }
   function colorPct(a,b){ return !b || a>=b ? 'var(--green)' : 'var(--red)'; }
+  function pctResultado(a,b){
+    a=num(a); b=num(b);
+    if(Math.abs(b)<1) return 'Sin base comparable';
+    if(b<0&&a>=0) return 'Pasó a ganancia';
+    if(b>=0&&a<0) return 'Pasó a pérdida';
+    if(b<0&&a<0){ var mejora=Math.round(((Math.abs(b)-Math.abs(a))/Math.abs(b))*100); return (mejora>=0?'↑ ':'↓ ')+Math.abs(mejora)+'% '+(mejora>=0?'mejora':'mayor pérdida'); }
+    return pct(a,b);
+  }
   function drawBars(containerId, serie, labels, clickPage){
     var el=document.getElementById(containerId); if(!el) return;
     var max=Math.max.apply(null,serie.map(function(x){return Math.abs(x);})); if(!max) max=1;
@@ -45,11 +53,13 @@
   }
   function drawLine(containerId, serie, labels){
     var el=document.getElementById(containerId); if(!el) return;
-    var max=Math.max.apply(null,serie.map(Math.abs)); if(!max) max=1;
-    var min=Math.min.apply(null,serie.concat([0])); var top=max, bot=Math.min(0,min); var range=top-bot || 1;
+    var top=Math.max.apply(null,serie.concat([0])); var bot=Math.min.apply(null,serie.concat([0]));
+    if(top===bot) top=bot+1;
+    var range=top-bot || 1;
     var pts=serie.map(function(v,i){ var x=12+(i*(336/(Math.max(serie.length-1,1)))); var y=108-((v-bot)/range*96); return {x:x,y:y,v:v}; });
     var d=pts.map(function(p,i){return (i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);}).join(' ');
-    var poly='12 108 '+pts.map(function(p){return p.x.toFixed(1)+' '+p.y.toFixed(1);}).join(' ')+' 348 108';
+    var zeroY=108-((0-bot)/range*96);
+    var poly='12 '+zeroY.toFixed(1)+' '+pts.map(function(p){return p.x.toFixed(1)+' '+p.y.toFixed(1);}).join(' ')+' 348 '+zeroY.toFixed(1);
     var safeId=String(containerId||'line').replace(/[^a-z0-9_-]/gi,'');
     var grad='sv334-grad-'+safeId, stroke='sv334-stroke-'+safeId;
     var svg='<div class="sv334-line-wrap"><div class="sv334-axis-y"><span>'+fmtCompact(top)+'</span><span>'+fmtCompact((top+bot)/2)+'</span><span>'+fmtCompact(bot)+'</span></div><div class="sv334-svg-wrap"><svg class="sv334-svg" viewBox="0 0 360 122" preserveAspectRatio="none"><defs><linearGradient id="'+grad+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(96,165,250,.34)"></stop><stop offset="72%" stop-color="rgba(96,165,250,.08)"></stop><stop offset="100%" stop-color="rgba(96,165,250,0)"></stop></linearGradient><linearGradient id="'+stroke+'" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#93c5fd"></stop><stop offset="55%" stop-color="#60a5fa"></stop><stop offset="100%" stop-color="#34d399"></stop></linearGradient></defs><line class="sv334-line-grid" x1="12" y1="34" x2="348" y2="34"></line><line class="sv334-line-grid" x1="12" y1="70" x2="348" y2="70"></line><polygon class="sv334-line-area" points="'+poly+'" fill="url(#'+grad+')"></polygon><path class="sv334-line-glow" d="'+d+'"></path><path class="sv334-line-path" d="'+d+'" stroke="url(#'+stroke+')"></path>'+pts.map(function(p,i){return '<circle class="sv334-line-dot '+(i===pts.length-1?'today':'')+'" cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+(i===pts.length-1?'4.7':'4')+'" stroke="url(#'+stroke+')"><title>'+money(p.v)+'</title></circle>';}).join('')+'</svg><div class="sv334-xlabels">'+labels.map(function(l,i){return (i===0||i===2||i===4||i===6||i===8||i===11)?'<span>'+esc(l)+'</span>':'<span></span>';}).join('')+'</div></div></div>';
@@ -118,9 +128,9 @@
     var e=function(id){return document.getElementById(id)};
     if(e('sv334-rent-daily-total')) e('sv334-rent-daily-total').textContent='Semana: '+money(x.daily.reduce(function(s,v){return s+v;},0));
     if(e('sv334-rent-periodo')) e('sv334-rent-periodo').textContent=x.periodoLabel;
-    if(e('sv334-rent-month-total')) e('sv334-rent-month-total').textContent='Resultado: '+money(x.utilidad);
-    if(e('sv334-rent-month-var')) { e('sv334-rent-month-var').textContent=pct(x.utilidad,x.prevMonth)+' vs mes anterior'; e('sv334-rent-month-var').style.color=colorPct(x.utilidad,x.prevMonth); }
-    if(e('sv334-rent-mini')) e('sv334-rent-mini').innerHTML='<div class="sv334-mini-card"><div class="sv334-ico '+(x.utilidad>=x.prevMonth?'green':'red')+'"><i class="ti ti-arrow-up"></i></div><div><div class="sv334-mini-l">vs mes anterior</div><div class="sv334-mini-v '+(x.utilidad>=x.prevMonth?'green':'red')+'">'+pct(x.utilidad,x.prevMonth)+'</div></div></div><div class="sv334-mini-card"><div class="sv334-ico blue"><i class="ti ti-calendar-stats"></i></div><div><div class="sv334-mini-l">Promedio diario</div><div class="sv334-mini-v">'+money(x.avg)+'</div></div></div><div class="sv334-mini-card"><div class="sv334-ico purple"><i class="ti ti-chart-pie"></i></div><div><div class="sv334-mini-l">Mejor día</div><div class="sv334-mini-v">'+esc(x.best.lbl)+' '+money(x.best.v)+'</div></div></div>';
+    if(e('sv334-rent-month-total')) { e('sv334-rent-month-total').textContent='Resultado: '+money(x.utilidad); e('sv334-rent-month-total').style.color=x.utilidad>=0?'var(--green)':'var(--red)'; }
+    if(e('sv334-rent-month-var')) { e('sv334-rent-month-var').textContent=pctResultado(x.utilidad,x.prevMonth)+' vs mes anterior'; e('sv334-rent-month-var').style.color=colorPct(x.utilidad,x.prevMonth); }
+    if(e('sv334-rent-mini')) e('sv334-rent-mini').innerHTML='<div class="sv334-mini-card"><div class="sv334-ico '+(x.utilidad>=x.prevMonth?'green':'red')+'"><i class="ti ti-arrow-up"></i></div><div><div class="sv334-mini-l">vs mes anterior</div><div class="sv334-mini-v '+(x.utilidad>=x.prevMonth?'green':'red')+'">'+pctResultado(x.utilidad,x.prevMonth)+'</div></div></div><div class="sv334-mini-card"><div class="sv334-ico blue"><i class="ti ti-calendar-stats"></i></div><div><div class="sv334-mini-l">Promedio diario</div><div class="sv334-mini-v">'+money(x.avg)+'</div></div></div><div class="sv334-mini-card"><div class="sv334-ico purple"><i class="ti ti-chart-pie"></i></div><div><div class="sv334-mini-l">Mejor día</div><div class="sv334-mini-v">'+esc(x.best.lbl)+' '+money(x.best.v)+'</div></div></div>';
     if(e('sv334-rent-quick')) e('sv334-rent-quick').innerHTML='<div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-arrow-up-right" style="color:var(--green)"></i>Ingresos netos</div><div class="sv334-q-v green">'+money(x.ingresos)+'</div><div class="sv334-q-sub">sin IVA · '+esc(x.periodoLabel.toLowerCase())+'</div></div><div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-briefcase" style="color:var(--blue)"></i>Ganancia comercial</div><div class="sv334-q-v '+(x.comercial>=0?'blue':'red')+'">'+money(x.comercial)+'</div><div class="sv334-q-sub">después de costos y comisiones</div></div><div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-building-bank" style="color:var(--purple)"></i>Resultado neto</div><div class="sv334-q-v '+(x.utilidad>=0?'purple':'red')+'">'+money(x.utilidad)+'</div><div class="sv334-q-sub">queda en la empresa · '+x.margen+'%</div></div>';
   }
   window.renderStatsGraficos334=renderStats334; window.renderRentGraficos334=renderRent334;

@@ -4879,11 +4879,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.104-firebase',
+  VERSION: 'v2.0.105-firebase',
   RELEASE_NOTES: Object.freeze([
+    'Rentabilidad recalcula el costo desde los ítems y descarta totales históricos inconsistentes.',
     'El historial del cliente muestra sólo ventas, saldos y equipos realmente vinculados.',
-    'Presupuestos permite consultar y reutilizar ítems de ventas anteriores del cliente.',
-    'Volver desde un producto conserva el presupuesto o la venta; el valor agregado se calcula sobre el costo.'
+    'El valor agregado de productos se calcula sobre el costo y respeta el porcentaje editado.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -10589,12 +10589,19 @@ function _rentIngresoNetoVenta(v) {
 }
 
 function _rentCostoVenta(v) {
-  var guardado = parseFloat(v && v.costoTotal) || 0;
-  if (guardado > 0) return guardado;
-  return (v && Array.isArray(v.items) ? v.items : []).reduce(function(s, item) {
+  v = v || {};
+  // Algunas ventas históricas conservaron un costoTotal incorrecto o ya
+  // desactualizado. Cuando hay detalle, los costos de los ítems son la fuente
+  // contable más precisa y también permiten auditar de dónde sale el total.
+  var items = Array.isArray(v.items)
+    ? v.items
+    : (v.items && typeof v.items === 'object' ? Object.values(v.items) : []);
+  if (items.length) return items.reduce(function(s, item) {
     if (typeof obtenerCostoItemVenta === 'function') return s + obtenerCostoItemVenta(item);
     return s + (parseFloat(item.costoTotalCompra || item.costoTotal || item.costo) || 0);
   }, 0);
+  var guardado = parseFloat(v.costoTotal) || 0;
+  return isFinite(guardado) && guardado > 0 ? guardado : 0;
 }
 
 // Fuente única para Rentabilidad: trabaja por devengado, sin IVA y sin anulados.
