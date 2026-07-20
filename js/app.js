@@ -4840,7 +4840,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.112-firebase',
+  VERSION: 'v2.0.113-firebase',
   RELEASE_NOTES: Object.freeze([
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
@@ -15013,17 +15013,27 @@ function imprimirPresupuesto(pptoRef) {
     : '<div style="font-size:22px;font-weight:700">'+empresa.nombre+'</div>';
 
   var items = '';
+  // La tabla impresa y su pie deben salir de un único cálculo. Antes se
+  // recorrían los ítems dos veces y algunos presupuestos legacy mostraban los
+  // renglones correctamente pero dejaban el resumen en cero.
+  var impSubtotal = 0, impDescAmt = 0, impIva = 0, impTotal = 0;
   if (pptoGuardado) {
     var itemsGuardados = Array.isArray(pptoGuardado.items) ? pptoGuardado.items : Object.values(pptoGuardado.items || {});
     itemsGuardados.forEach(function(item) {
       var it = pptoNormalizarItemGuardado(item);
       var subItem = pptoNumeroGuardado(item.sub ?? item.subtotal) || Math.round(it.qty * it.punit * (1 - it.disc / 100));
       if (!it.desc) return;
+      impSubtotal += subItem;
       items += '<tr><td>'+escapeHTML(it.cod)+'</td><td>'+escapeHTML(it.desc)+'</td><td style="text-align:right">'+it.qty+'</td>' +
         (_pptoConDetalle
           ? '<td style="text-align:right">$'+it.punit.toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:600">$'+subItem.toLocaleString('es-AR')+'</td>'
           : '<td style="text-align:right;color:#ccc">—</td><td style="text-align:right;color:#ccc">—</td>') + '</tr>';
     });
+    var pctGeneral = pptoNumeroGuardado(pptoGuardado.descuentoGeneral ?? pptoGuardado.descuentoPct ?? pptoGuardado.porcentajeDescuento ?? pptoGuardado.descuento);
+    impDescAmt = pptoNumeroGuardado(pptoGuardado.descuentoAmt) || Math.round(impSubtotal * pctGeneral / 100);
+    var baseImp = Math.max(0, impSubtotal - impDescAmt);
+    impIva = pptoGuardado.conIva === false ? 0 : (pptoNumeroGuardado(pptoGuardado.iva) || Math.round(baseImp * 0.21));
+    impTotal = pptoNumeroGuardado(pptoGuardado.total) || (baseImp + impIva);
   } else {
     document.querySelectorAll(imprimiendoDetalle ? '#ppto-det-items tr' : '#pp-body tr').forEach(function(tr){
       var tds = tr.querySelectorAll('td');
@@ -15041,15 +15051,6 @@ function imprimirPresupuesto(pptoRef) {
     });
   }
 
-  var impSubtotal = 0, impDescAmt = 0, impIva = 0, impTotal = 0;
-  if (pptoGuardado) {
-    var guardadosCalc = Array.isArray(pptoGuardado.items) ? pptoGuardado.items : Object.values(pptoGuardado.items || {});
-    impSubtotal = guardadosCalc.reduce(function(s,item){ var it=pptoNormalizarItemGuardado(item); return s + (pptoNumeroGuardado(item.sub ?? item.subtotal) || Math.round(it.qty*it.punit*(1-it.disc/100))); },0);
-    var pctGeneral = pptoNumeroGuardado(pptoGuardado.descuentoGeneral ?? pptoGuardado.descuentoPct ?? pptoGuardado.descuento);
-    impDescAmt = pptoNumeroGuardado(pptoGuardado.descuentoAmt) || Math.round(impSubtotal * pctGeneral / 100);
-    impIva = pptoGuardado.conIva === false ? 0 : (pptoNumeroGuardado(pptoGuardado.iva) || Math.round((impSubtotal-impDescAmt)*0.21));
-    impTotal = pptoNumeroGuardado(pptoGuardado.total) || (impSubtotal-impDescAmt+impIva);
-  }
   var num  = pptoGuardado ? (pptoGuardado.id || refImpresion) : (imprimiendoDetalle ? (g('ppto-det-numero') || '—') : (g('pp-numero') || '—'));
   var cli  = pptoGuardado ? (pptoGuardado.cliente || '—') : (imprimiendoDetalle ? (g('ppto-det-cliente') || '—') : (g('pp-cli') || '—'));
   var fecha = pptoGuardado ? (pptoGuardado.fecha || '—') : (imprimiendoDetalle ? (g('ppto-det-fecha') || new Date().toLocaleDateString('es-AR')) : (g('pp-fecha') || new Date().toLocaleDateString('es-AR')));
