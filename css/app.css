@@ -1,5 +1,6 @@
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
+  color-scheme:light;
   --bg:#f7f7f5;--bg2:#ffffff;--bg3:#f1f0ed;--bg4:#e8e7e3;
   --border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.13);--border3:rgba(0,0,0,0.20);
   --text:#181816;--text2:#6a6a66;--text3:#a0a09b;
@@ -21,6 +22,19 @@ body.dark-mode{
   --blue:#60a5fa;--blue-bg:rgba(96,165,250,0.12);
   --purple:#a78bfa;--purple-bg:rgba(167,139,250,0.12);
 }
+html.dark-mode{color-scheme:dark}
+html.dark-mode input[type="date"],
+html.dark-mode input[type="time"],
+html.dark-mode input[type="month"],
+html.dark-mode input[type="week"],
+html.dark-mode input[type="datetime-local"],
+body.dark-mode input[type="date"],
+body.dark-mode input[type="time"],
+body.dark-mode input[type="month"],
+body.dark-mode input[type="week"],
+body.dark-mode input[type="datetime-local"]{color-scheme:dark;background-color:var(--bg3);color:var(--text)}
+html.dark-mode input::-webkit-calendar-picker-indicator,
+body.dark-mode input::-webkit-calendar-picker-indicator{filter:invert(1) brightness(.85);opacity:.82;cursor:pointer}
 html{}input[type="number"]{-moz-appearance:textfield}
 input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;height:100vh;overflow:hidden}

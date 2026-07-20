@@ -1,6 +1,7 @@
 ﻿var fabOpen = false;
 function toggleDarkMode(on) {
   document.body.classList.toggle('dark-mode', on);
+  document.documentElement.classList.toggle('dark-mode', on);
   try { localStorage.setItem('nixa_dark', on ? '1' : '0'); } catch(e){}
   var ico = document.querySelector('#dark-mode-toggle');
   if (ico) ico.checked = on;
@@ -13,6 +14,7 @@ function toggleDarkMode(on) {
     var saved = localStorage.getItem('nixa_dark');
     if (saved === '1') {
       document.body.classList.add('dark-mode');
+      document.documentElement.classList.add('dark-mode');
     }
   } catch(e) {}
 })();
@@ -4867,11 +4869,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.101-firebase',
+  VERSION: 'v2.0.102-firebase',
   RELEASE_NOTES: Object.freeze([
-    'El historial de Cobranzas muestra el saldo restante real de cada pago.',
-    'Los accesos a venta, recibo y anulación quedaron agrupados en Acciones.',
-    'Los cobros nuevos conservan el saldo anterior y posterior para su auditoría.'
+    'Los calendarios nativos ahora respetan el modo oscuro del sistema.',
+    'El tema se sincroniza entre la aplicación y el documento completo.',
+    'Los selectores de fecha, hora, mes y fecha-hora mantienen contraste oscuro.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
