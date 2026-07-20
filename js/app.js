@@ -4840,7 +4840,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.115-firebase',
+  VERSION: 'v2.0.116-firebase',
   RELEASE_NOTES: Object.freeze([
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
@@ -14913,7 +14913,7 @@ function mostrarMenuPptoFlotante(pptoId, anchorBtn) {
   item('Ver detalle', 'ti-eye', function(){ verPpto(ref); });
   // El menú ya resolvió el registro exacto. Pasarlo directamente evita una
   // segunda búsqueda por número que en datos legacy podía caer en vacío.
-  item('Imprimir', 'ti-printer', function(){ imprimirPresupuesto(p); });
+  item('Imprimir', 'ti-printer', function(){ imprimirPresupuestoDesdeListado(p); });
   if (puedeEditarPresupuestoPermiso(p)) item('Editar', 'ti-edit', function(){ abrirEditorPpto(ref); }, 'var(--blue)');
   if (puedeAnular && p.estado !== 'convertido' && p.estado !== 'anulado') {
     sep();
@@ -14947,7 +14947,107 @@ window.addEventListener('scroll', function(){ cerrarMenusPpto(); cerrarMenuPptoG
 window.addEventListener('resize', function(){ cerrarMenusPpto(); cerrarMenuPptoGlobal(); });
 
 function buscarPptoPorRef(pptoId) {
-  return (pptoData||[]).find(function(x){ return x.id === pptoId || x.fbKey === pptoId; });
+  var ref = String(pptoId == null ? '' : pptoId).trim().toLowerCase();
+  return (pptoData||[]).find(function(x){
+    return [x.id, x.fbKey, x.numero, x.nro].some(function(valor){
+      return String(valor == null ? '' : valor).trim().toLowerCase() === ref;
+    });
+  });
+}
+
+function imprimirPresupuestoDesdeListado(ppto) {
+  var registro = ppto && typeof ppto === 'object'
+    ? ppto
+    : buscarPptoPorRef(ppto);
+  if (!registro) {
+    notify('No se pudo identificar el presupuesto seleccionado. No se generó ninguna impresión.');
+    return;
+  }
+  var itemsRegistro = Array.isArray(registro.items)
+    ? registro.items
+    : (registro.items && typeof registro.items === 'object' ? Object.values(registro.items) : []);
+  if (!(registro.id || registro.numero || registro.fbKey) || !String(registro.cliente || '').trim() || !itemsRegistro.length) {
+    notify('El presupuesto seleccionado no tiene número, cliente o productos completos. Abrilo en detalle antes de imprimir.');
+    return;
+  }
+  // Fijar el mismo contexto que usa el botón del detalle y pasar el registro
+  // exacto. De esta manera listado y detalle comparten un único impresor.
+  pptoActualId = registro.id || registro.numero || registro.fbKey;
+  imprimirPresupuesto(registro);
+}
+
+function _pptoRegistroFormularioImpresion() {
+  var numeroEl = document.getElementById('pp-numero');
+  var clienteEl = document.getElementById('pp-cli');
+  var vencEl = document.getElementById('pp-venc');
+  var obsEl = document.getElementById('pp-obs');
+  var descEl = document.getElementById('pp-descuento');
+  var subEl = document.getElementById('pp-sub');
+  var ivaEl = document.getElementById('pp-iva');
+  var totalEl = document.getElementById('pp-total');
+  var clienteRef = typeof clienteSeleccionadoPpto === 'function' ? clienteSeleccionadoPpto() : null;
+  return {
+    id: numeroEl ? numeroEl.value || numeroEl.textContent : '',
+    cliente: clienteEl ? clienteEl.value : '',
+    clienteFbKey: clienteRef && clienteRef.fbKey || '',
+    clienteId: clienteRef && (clienteRef.id || clienteRef.fbKey) || '',
+    fecha: new Date().toLocaleDateString('es-AR'),
+    vence: vencEl ? vencEl.value : '',
+    observaciones: obsEl ? obsEl.value : '',
+    subtotal: pptoNumeroGuardado(subEl ? subEl.textContent : 0),
+    descuento: pptoNumeroGuardado(descEl ? descEl.value : 0),
+    descuentoGeneral: pptoNumeroGuardado(descEl ? descEl.value : 0),
+    iva: pptoNumeroGuardado(ivaEl ? ivaEl.textContent : 0),
+    total: pptoNumeroGuardado(totalEl ? totalEl.textContent : 0),
+    conIva: typeof _pptoConIva !== 'undefined' ? _pptoConIva : true,
+    items: typeof getPpItems === 'function' ? getPpItems() : []
+  };
+}
+
+function _pptoModeloImpresion(registro) {
+  registro = registro || {};
+  var origenItems = Array.isArray(registro.items) ? registro.items : (registro.items && typeof registro.items === 'object' ? Object.values(registro.items) : []);
+  var items = origenItems.map(function(item) {
+    var it = pptoNormalizarItemGuardado(item);
+    it.sub = pptoNumeroGuardado(item.sub ?? item.subtotal ?? item.totalItem ?? item.importe) || Math.round(it.qty * it.punit * (1 - it.disc / 100));
+    return it;
+  }).filter(function(item){ return item.desc || item.cod; });
+  var subtotal = items.reduce(function(s,item){ return s + item.sub; }, 0);
+  var descuentoPct = pptoNumeroGuardado(registro.descuentoGeneral ?? registro.descuentoPct ?? registro.porcentajeDescuento ?? registro.descuento);
+  var descuento = pptoNumeroGuardado(registro.descuentoAmt) || Math.round(subtotal * descuentoPct / 100);
+  var base = Math.max(0, subtotal - descuento);
+  var conIva = registro.conIva !== false;
+  var iva = conIva ? (pptoNumeroGuardado(registro.iva) || Math.round(base * 0.21)) : 0;
+  var total = pptoNumeroGuardado(registro.total) || (base + iva);
+  var cliente = null;
+  if (typeof _svResolverClienteRegistro === 'function') {
+    try { cliente = _svResolverClienteRegistro(registro, true); } catch(e) { cliente = null; }
+  }
+  return {
+    registro: registro,
+    numero: registro.id || registro.numero || registro.nro || registro.fbKey || '',
+    cliente: registro.cliente || (cliente && (cliente.nombre || cliente.razonSocial)) || '',
+    telefono: cliente && (cliente.telefono || cliente.tel || cliente.celular) || registro.telefonoCliente || registro.telefono || '',
+    direccion: cliente && (cliente.direccion || cliente.dir || cliente.domicilio) || registro.direccionCliente || registro.direccion || '',
+    fecha: registro.fecha || new Date().toLocaleDateString('es-AR'),
+    vence: registro.vence || registro.vencimiento || '',
+    observaciones: registro.obs || registro.observaciones || '',
+    items: items,
+    subtotal: subtotal,
+    descuento: descuento,
+    iva: iva,
+    total: total,
+    conIva: conIva
+  };
+}
+
+function imprimirPresupuestoActual() {
+  var registro = _pptoRegistroFormularioImpresion();
+  if (!String(registro.cliente || '').trim() || !registro.items.length) {
+    notify('Completá el cliente y al menos un producto antes de imprimir.');
+    return;
+  }
+  imprimirPresupuesto(registro);
 }
 
 function eliminarPptoDesdeTabla(pptoId) {
@@ -15000,13 +15100,20 @@ function togglePptoDetalle() {
 }
 
 function imprimirPresupuesto(pptoRef) {
-  var g = function(id){ var el=document.getElementById(id); return el ? el.value||el.textContent||'' : ''; };
-  var imprimiendoDetalle = _svElementoVisible(document.getElementById('ppto-detalle-view'));
   var pptoDirecto = pptoRef && typeof pptoRef === 'object' ? pptoRef : null;
   var refImpresion = pptoDirecto
     ? (pptoDirecto.id || pptoDirecto.fbKey || '')
-    : (pptoRef || (imprimiendoDetalle ? pptoActualId : ''));
+    : (pptoRef || pptoActualId || '');
   var pptoGuardado = pptoDirecto || (refImpresion ? buscarPptoPorRef(refImpresion) : null);
+  if (!pptoGuardado) {
+    notify('No se encontró la información del presupuesto. No se generó ninguna impresión.');
+    return;
+  }
+  var modelo = _pptoModeloImpresion(pptoGuardado);
+  if (!modelo.numero || !modelo.cliente || !modelo.items.length) {
+    notify('El presupuesto no tiene número, cliente o productos completos. No se generó ninguna impresión.');
+    return;
+  }
   var empresa = {
     nombre: (document.getElementById('cfg-empresa-nombre')||{}).value || 'Nixa',
     dir:    (document.getElementById('cfg-empresa-dir')||{}).value    || 'Patagones 390, Mar del Plata',
@@ -15017,57 +15124,22 @@ function imprimirPresupuesto(pptoRef) {
     ? '<img src="'+window.logoEmpresaUrl+'" style="height:50px;object-fit:contain">'
     : '<div style="font-size:22px;font-weight:700">'+empresa.nombre+'</div>';
 
-  var items = '';
-  // La tabla impresa y su pie deben salir de un único cálculo. Antes se
-  // recorrían los ítems dos veces y algunos presupuestos legacy mostraban los
-  // renglones correctamente pero dejaban el resumen en cero.
-  var impSubtotal = 0, impDescAmt = 0, impIva = 0, impTotal = 0;
-  if (pptoGuardado) {
-    var itemsGuardados = Array.isArray(pptoGuardado.items) ? pptoGuardado.items : Object.values(pptoGuardado.items || {});
-    itemsGuardados.forEach(function(item) {
-      var it = pptoNormalizarItemGuardado(item);
-      var subItem = pptoNumeroGuardado(item.sub ?? item.subtotal) || Math.round(it.qty * it.punit * (1 - it.disc / 100));
-      if (!it.desc) return;
-      impSubtotal += subItem;
-      items += '<tr><td>'+escapeHTML(it.cod)+'</td><td>'+escapeHTML(it.desc)+'</td><td style="text-align:right">'+it.qty+'</td>' +
-        (_pptoConDetalle
-          ? '<td style="text-align:right">$'+it.punit.toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:600">$'+subItem.toLocaleString('es-AR')+'</td>'
-          : '<td style="text-align:right;color:#ccc">—</td><td style="text-align:right;color:#ccc">—</td>') + '</tr>';
-    });
-    var pctGeneral = pptoNumeroGuardado(pptoGuardado.descuentoGeneral ?? pptoGuardado.descuentoPct ?? pptoGuardado.porcentajeDescuento ?? pptoGuardado.descuento);
-    impDescAmt = pptoNumeroGuardado(pptoGuardado.descuentoAmt) || Math.round(impSubtotal * pctGeneral / 100);
-    var baseImp = Math.max(0, impSubtotal - impDescAmt);
-    impIva = pptoGuardado.conIva === false ? 0 : (pptoNumeroGuardado(pptoGuardado.iva) || Math.round(baseImp * 0.21));
-    impTotal = pptoNumeroGuardado(pptoGuardado.total) || (baseImp + impIva);
-  } else {
-    document.querySelectorAll(imprimiendoDetalle ? '#ppto-det-items tr' : '#pp-body tr').forEach(function(tr){
-      var tds = tr.querySelectorAll('td');
-      if (tds.length >= 3) {
-        var cod  = tds[0] ? tds[0].textContent.trim() : '';
-        var descFila = tds[1] ? tds[1].textContent.trim() : '';
-        var qty  = tds[2] ? tds[2].querySelector('input') ? tds[2].querySelector('input').value : tds[2].textContent.trim() : '';
-        var precio = tds[3] ? tds[3].querySelector('input') ? tds[3].querySelector('input').value : tds[3].textContent.trim() : '';
-        var subFila  = tds[4] ? tds[4].textContent.trim() : '';
-        if (descFila && descFila !== 'Seleccioná un producto') {
-          items += '<tr><td>'+escapeHTML(cod)+'</td><td>'+escapeHTML(descFila)+'</td><td style="text-align:right">'+qty+'</td>' +
-            (_pptoConDetalle ? '<td style="text-align:right">'+precio+'</td><td style="text-align:right;font-weight:600">'+subFila+'</td>' : '<td style="text-align:right;color:#ccc">—</td><td style="text-align:right;color:#ccc">—</td>') + '</tr>';
-        }
-      }
-    });
-  }
-
-  var num  = pptoGuardado ? (pptoGuardado.id || refImpresion) : (imprimiendoDetalle ? (g('ppto-det-numero') || '—') : (g('pp-numero') || '—'));
-  var cli  = pptoGuardado ? (pptoGuardado.cliente || '—') : (imprimiendoDetalle ? (g('ppto-det-cliente') || '—') : (g('pp-cli') || '—'));
-  var fecha = pptoGuardado ? (pptoGuardado.fecha || '—') : (imprimiendoDetalle ? (g('ppto-det-fecha') || new Date().toLocaleDateString('es-AR')) : (g('pp-fecha') || new Date().toLocaleDateString('es-AR')));
-  var venc  = pptoGuardado ? (pptoGuardado.vence || pptoGuardado.vencimiento || '—') : (imprimiendoDetalle ? (g('ppto-det-venc') || '—') : (g('pp-vencimiento') || '—'));
-  var sub   = pptoGuardado ? ('$'+impSubtotal.toLocaleString('es-AR')) : (imprimiendoDetalle ? (g('ppto-det-sub') || '$0') : (g('pp-sub') || '$0'));
-  var desc  = pptoGuardado ? (impDescAmt ? '-$'+impDescAmt.toLocaleString('es-AR') : '$0') : (imprimiendoDetalle ? (g('ppto-det-desc-amt') || '$0') : (g('pp-damt') || '$0'));
-  var iva   = pptoGuardado ? ('$'+impIva.toLocaleString('es-AR')) : (imprimiendoDetalle ? (g('ppto-det-iva') || '$0') : (g('pp-iva') || '$0'));
-  var total = pptoGuardado ? ('$'+impTotal.toLocaleString('es-AR')) : (imprimiendoDetalle ? (g('ppto-det-total2') || '$0') : (g('pp-total') || '$0'));
-  var obs   = pptoGuardado ? (pptoGuardado.obs || pptoGuardado.observaciones || '') : (imprimiendoDetalle ? (g('ppto-det-obs') || '') : (g('pp-obs') || ''));
-
-  // formulario nuevo, usar el estado actual del toggle en pantalla.
-  var imprimirConIva = pptoGuardado ? (pptoGuardado.conIva !== false) : (typeof _pptoConIva !== 'undefined' ? _pptoConIva : true);
+  var items = modelo.items.map(function(it) {
+    return '<tr><td>'+escapeHTML(it.cod)+'</td><td>'+escapeHTML(it.desc)+'</td><td style="text-align:right">'+it.qty+'</td>' +
+      (_pptoConDetalle
+        ? '<td style="text-align:right">$'+it.punit.toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:600">$'+it.sub.toLocaleString('es-AR')+'</td>'
+        : '<td style="text-align:right;color:#ccc">—</td><td style="text-align:right;color:#ccc">—</td>') + '</tr>';
+  }).join('');
+  var num = modelo.numero;
+  var cli = modelo.cliente;
+  var fecha = modelo.fecha;
+  var venc = modelo.vence || '—';
+  var sub = '$' + modelo.subtotal.toLocaleString('es-AR');
+  var desc = modelo.descuento ? '-$' + modelo.descuento.toLocaleString('es-AR') : '$0';
+  var iva = '$' + modelo.iva.toLocaleString('es-AR');
+  var total = '$' + modelo.total.toLocaleString('es-AR');
+  var obs = modelo.observaciones;
+  var imprimirConIva = modelo.conIva;
 
   var w = window.open('','_blank','width=860,height=750');
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Presupuesto '+num+'</title>'+
@@ -15110,14 +15182,15 @@ function imprimirPresupuesto(pptoRef) {
         '<div class="comp-num">'+num+'</div>'+
         '<div class="comp-fecha">'+fecha+'</div>'+
         '<div class="comp-fecha" style="color:#d97706">Válido hasta: '+venc+'</div>'+
-        (pptoGuardado && pptoGuardado.tcGuardado ? '<div class="comp-fecha" style="color:#888;font-size:10px">TC referencia: $'+parseFloat(pptoGuardado.tcGuardado).toLocaleString('es-AR')+(pptoGuardado.tcFechaGuardado?' ('+pptoGuardado.tcFechaGuardado+')':'')+' · Precios en USD, se factura al TC del día del pago</div>' : '')+
       '</div>'+
     '</div>'+
 
     '<div class="info-grid">'+
       '<div class="info-box">'+
         '<div class="info-lbl">Cliente</div>'+
-        '<div class="info-val">'+cli+'</div>'+
+        '<div class="info-val">'+escapeHTML(cli)+'</div>'+
+        (modelo.telefono ? '<div class="info-sub">Tel: '+escapeHTML(modelo.telefono)+'</div>' : '')+
+        (modelo.direccion ? '<div class="info-sub">Dirección: '+escapeHTML(modelo.direccion)+'</div>' : '')+
       '</div>'+
       '<div class="info-box">'+
         '<div class="info-lbl">Condición de pago</div>'+
@@ -22181,7 +22254,7 @@ var ACCIONES_CONFIG = {
   editar_ppto:      { label:'Editar presupuesto',      icon:'ti-edit',          cls:'btn btn-sm',         fn:'pptoAccion("editar_ppto")', style:'color:var(--blue);border-color:var(--blue)' },
   reactivar:        { label:'Reactivar presupuesto',    icon:'ti-refresh',       cls:'btn btn-sm',         fn:'pptoAccion("reactivar")' },
   modificar_precio: { label:'Modificar precios',        icon:'ti-pencil',        cls:'btn btn-sm',         fn:'pptoAccion("modificar_precio")' },
-  imprimir:         { label:'Imprimir',                 icon:'ti-printer',       cls:'btn btn-sm',         fn:'imprimirPresupuesto(window.pptoActualId)' },
+  imprimir:         { label:'Imprimir',                 icon:'ti-printer',       cls:'btn btn-sm',         fn:'imprimirPresupuestoDesdeListado(window.pptoActualId)' },
   eliminar:         { label:'Eliminar',                 icon:'ti-trash',         cls:'btn btn-sm',         fn:'eliminarPpto(window.pptoActualId)', style:'color:var(--red);border-color:var(--red-bg)' },
 };
 var PPTO_ACCIONES = {
@@ -22804,11 +22877,11 @@ function pptoEnviarCliente() {
     // Tiene teléfono: abrir WhatsApp + imprimir PDF
     var wa = 'https://wa.me/54' + tel + '?text=' + msg;
     window.open(wa, '_blank');
-    setTimeout(function(){ imprimirPresupuesto(p.id || p.fbKey); }, 800);
+    setTimeout(function(){ imprimirPresupuestoDesdeListado(p); }, 800);
   } else {
     // Sin teléfono: solo PDF
     notify('El cliente no tiene teléfono registrado — se abre el PDF para enviar manualmente');
-    setTimeout(function(){ imprimirPresupuesto(p.id || p.fbKey); }, 300);
+    setTimeout(function(){ imprimirPresupuestoDesdeListado(p); }, 300);
   }
 
   // Igual registrar que se envió
