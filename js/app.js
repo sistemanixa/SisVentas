@@ -3633,6 +3633,25 @@ function resolverIdClienteVenta(v) {
   return cli ? String(cli.id || cli.fbKey || '') : '';
 }
 
+function normalizarPrecioItemVentaParaEditor(item) {
+  item = item || {};
+  var precioGuardado = parseFloat(item.punit || item.precio || item.precioUnitario || 0) || 0;
+  if (!(precioGuardado > 0)) return { precioARS: 0, corregido: false };
+  var producto = obtenerProductoPorCodigoVenta(item.cod || item.codigo || '', item);
+  var precioCanonico = producto ? precioVentaCanonicoProducto(producto).precioARS : 0;
+  if (!(precioCanonico > 0) || precioCanonico / precioGuardado < 50) {
+    return { precioARS: precioGuardado, corregido: false };
+  }
+  var cfg = window.TIPO_CAMBIO_CONFIG || {};
+  var tc = parseFloat(item.cotizacionUsada || item.tipoCambio || item.tcGuardado || 0)
+    || parseFloat(cfg[cfg.dolarConversion || 'oficial']) || 0;
+  if (!(tc > 100)) return { precioARS: precioGuardado, corregido: false };
+  var convertido = Math.round(precioGuardado * tc * 100) / 100;
+  var relacion = convertido / precioCanonico;
+  if (relacion < 0.2 || relacion > 5) return { precioARS: precioGuardado, corregido: false };
+  return { precioARS: convertido, corregido: true, precioUSD: precioGuardado, tipoCambio: tc };
+}
+
 function abrirEditorVenta(fbKey) {
   var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!v) { notify('Venta no encontrada'); return; }
@@ -3647,16 +3666,25 @@ function abrirEditorVenta(fbKey) {
     var obsInp = document.getElementById('venta-obs'); if(obsInp) obsInp.value = v.observaciones||v.obs||'';
     var descGenInp = document.getElementById('desc-general'); if(descGenInp) descGenInp.value = parseFloat(v.descuentoGeneral||0) || '';
     aplicarEstadoIvaVenta(v.conIva !== false, false);
+    _ventaMonedaActual = 'ARS';
+    actualizarVisualMonedaVenta();
 
-    (v.items||[]).forEach(function(it) {
-      var tr = crearFilaProducto(it.cod||'', it.desc||it.nombre||'', it.punit||0, it.qty||1, it.disc||0);
+    var preciosReconvertidos = 0;
+    var itemsVenta = Array.isArray(v.items) ? v.items : Object.values(v.items || {});
+    itemsVenta.forEach(function(it) {
+      var precioEditor = normalizarPrecioItemVentaParaEditor(it);
+      var tr = crearFilaProducto(it.cod||'', it.desc||it.nombre||'', precioEditor.precioARS, it.qty||1, it.disc||0);
+      if (precioEditor.corregido) {
+        tr.dataset.precioReconvertidoDesdeUsd = '1';
+        preciosReconvertidos++;
+      }
       if (tbody && tr) tbody.appendChild(tr);
     });
     if(typeof initMoneyInputsEn==='function') initMoneyInputsEn(document.getElementById('det-body'));
     calcTotals();
     window._ventaEditandoFbKey = fbKey;
     window._ventaEditandoOriginal = v;
-    notify('Editando venta ' + (v.id||fbKey) + ' — confirmá para guardar cambios');
+    notify('Editando venta ' + (v.id||fbKey) + (preciosReconvertidos ? ' — se restauraron '+preciosReconvertidos+' precio'+(preciosReconvertidos!==1?'s':'')+' a ARS' : '') + ' — confirmá para guardar cambios');
   }, 400);
 }
 
@@ -4842,8 +4870,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.121-firebase',
+  VERSION: 'v2.0.122-firebase',
   RELEASE_NOTES: Object.freeze([
+    'Toda venta nueva inicia y se guarda operativamente en ARS; USD queda disponible solo como visualización elegida por el usuario.',
+    'Al editar una venta se restauran a ARS los precios guardados por error como USD cuando la coincidencia es inequívoca.',
+    'Agregar fila en una venta ahora crea un renglón vacío, sin inventar código ni descripción de producto.',
     'Los proveedores de cada producto se eligen exclusivamente desde el maestro; si no existen, pueden cargarse sin abandonar la edición.',
     'Al agregar varios proveedores, la URL de uno ya no se copia por error a las demás filas.',
     'Se detectan y corrigen precios de venta que fueron multiplicados dos veces por el dólar durante una normalización legacy.',
@@ -6329,13 +6360,12 @@ function calcMargenGanancia() {
   if (margenPct >= 15) ventaAutorizadaPorAdmin = false; // reset si vuelve a estar en rango normal
   box.style.display = window._mostrarMargenGanancia ? '' : 'none';
 }
-var rc = 20;
-
 // Crear fila de producto con búsqueda y stock
 
 function addRow() {
-  rc++;
-  const tr = crearFilaProducto('P-0'+rc, 'Nuevo producto', 0, 1);
+  // Una fila nueva no representa un producto hasta que el usuario lo elige.
+  // No inventar códigos correlativos ni descripciones provisorias.
+  const tr = crearFilaProducto('', '', 0, 1);
   document.getElementById('det-body').appendChild(tr);
   document.addEventListener('click', e => { if (!e.target.closest('.prod-search-drop') && !e.target.classList.contains('cod-inp')) document.querySelectorAll('.prod-search-drop').forEach(d => d.style.display='none'); }, {once:true});
 }
@@ -6379,7 +6409,15 @@ function confirmarVenta() {
     }
   }
 
-  var filas = Array.from(document.querySelectorAll('#det-body tr'));
+  var filas = Array.from(document.querySelectorAll('#det-body tr')).filter(function(tr) {
+    var codigo = String(((tr.querySelector('.prod-sel-cod') || {}).textContent) || '').trim();
+    var descEl = tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt');
+    var descripcion = String((descEl && descEl.textContent) || '').trim();
+    var precioEl = tr.querySelector('.price');
+    var precio = precioEl ? (precioEl.dataset.moneyInit ? getMontoRaw(precioEl) : (parseFloat(precioEl.value) || 0)) : 0;
+    return !!codigo || !!descripcion || precio > 0;
+  });
+  if (!filas.length) { notify('Seleccioná al menos un producto'); return; }
   var errores = [];
   filas.forEach(function(tr) {
     var selCod = tr.querySelector('.prod-sel-cod');
@@ -6445,6 +6483,9 @@ function confirmarVenta() {
     fecha: fechaHoy,
     fechaOrden: fechaVentaOrdenISO(fechaHoy, Date.now()),
     ts: Date.now(),
+    moneda: 'ARS',
+    monedaOperativa: 'ARS',
+    monedaVisualCarga: _ventaMonedaActual,
     estadoPago: 'pendiente_pago',
     estadoInst: 'pendiente_inst',
     total: 0, subtotal: 0, iva: 0, descuento: 0,
@@ -6454,7 +6495,17 @@ function confirmarVenta() {
       var desc  = descEl ? descEl.textContent : '';
       var qty   = parseInt((tr.querySelector('.qty')||{}).value) || 1;
       var priceInpItem = tr.querySelector('.price');
-      var punit = priceInpItem ? (priceInpItem.dataset.moneyInit ? getMontoRaw(priceInpItem) : (parseFloat(priceInpItem.value) || 0)) : 0;
+      var punitVisual = priceInpItem ? (priceInpItem.dataset.moneyInit ? getMontoRaw(priceInpItem) : (parseFloat(priceInpItem.value) || 0)) : 0;
+      var punit = punitVisual;
+      var ventaVisualEnUSD = _ventaMonedaActual === 'USD';
+      var tcVentaCfg = window.TIPO_CAMBIO_CONFIG || {};
+      var tcVentaTipo = tr.dataset.cotizacionTipo || tcVentaCfg.dolarConversion || 'oficial';
+      var tcVentaValor = parseFloat(tr.dataset.cotizacionUsada) || parseFloat(tcVentaCfg[tcVentaTipo]) || 0;
+      var punitUsdReferencia = parseFloat(tr.dataset.precioUsdOriginal || (priceInpItem && priceInpItem.dataset.precioUsd) || 0) || 0;
+      if (ventaVisualEnUSD && tcVentaValor > 0) {
+        punitUsdReferencia = punitUsdReferencia || punitVisual;
+        punit = Math.round(punitUsdReferencia * tcVentaValor * 100) / 100;
+      }
       var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
       var sub   = Math.round(qty * punit * (1 - disc/100));
       var item  = { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub };
@@ -6469,11 +6520,12 @@ function confirmarVenta() {
       item.imagenUrl = prodItemCosto && prodItemCosto.imagenUrl ? prodItemCosto.imagenUrl : '';
       item.costoUnitarioCompra = Math.round(costoUnitarioItem * 100) / 100;
       item.costoTotalCompra = Math.round(costoUnitarioItem * qty * 100) / 100;
-      if (tr.dataset.monedaOriginal === 'USD') {
+      if (ventaVisualEnUSD && punitUsdReferencia > 0 && tcVentaValor > 0) {
         item.monedaOriginal    = 'USD';
-        item.precioUsdOriginal = parseFloat(tr.dataset.precioUsdOriginal) || 0;
-        item.cotizacionUsada   = parseFloat(tr.dataset.cotizacionUsada) || 0;
-        item.cotizacionTipo    = tr.dataset.cotizacionTipo || 'oficial';
+        item.monedaOperativa   = 'ARS';
+        item.precioUsdOriginal = punitUsdReferencia;
+        item.cotizacionUsada   = tcVentaValor;
+        item.cotizacionTipo    = tcVentaTipo;
       }
       return item;
     }),
@@ -6644,6 +6696,10 @@ function volverADetalleVenta() {
 }
 
 function inicializarFilasVenta() {
+  // Cada venta nueva comienza operativamente en pesos. USD solo se activa si
+  // el usuario toca expresamente el selector durante esa venta.
+  _ventaMonedaActual = 'ARS';
+  if (typeof actualizarVisualMonedaVenta === 'function') actualizarVisualMonedaVenta();
   // Reset toggle IVA
   _ventaConIva = true;
   var btnIva = document.getElementById('btn-toggle-iva-venta');
@@ -27883,53 +27939,27 @@ function _selProdGlobal(item) {
   var esFilaPpto = !!(filaSeleccionada && filaSeleccionada.closest('#pp-body'));
   var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod || p.nombre === desc; });
   var vigenciaPrecio = prod ? estadoVigenciaPrecioProducto(prod) : null;
-  // Mano de obra: precio siempre se muestra en ARS, pero si el producto está
-  // cargado en USD hay que convertirlo en vivo a la cotización actual — no
-  // alcanza con ventaARS guardado porque puede no existir (ej. producto
-  // cargado cuando no había cotización configurada).
-  if (prod && prod.esManoDeObra) {
-    if (prod.moneda === 'USD') {
-      var tcMO = (window.TIPO_CAMBIO_CONFIG || {});
-      var tipoCfgMO = tcMO.dolarConversion || 'oficial';
-      var tcValMO = parseFloat(tcMO[tipoCfgMO]) || 0;
-      if (tcValMO > 0) {
-        precio = Math.round((parseFloat(prod.venta)||0) * tcValMO);
-      } else if (prod.ventaARS) {
-        precio = prod.ventaARS; // fallback si no hay cotización cargada ahora mismo
-      } else {
-        notify('⚠ï¸ Mano de obra "' + (prod.nombre||'') + '" está en USD y no hay cotización configurada — el precio puede ser incorrecto');
-      }
+  // La fuente del selector es siempre el precio canónico en ARS. USD es una
+  // presentación temporal del formulario y nunca vuelve a convertirse dos
+  // veces ni altera la moneda operativa guardada.
+  var tc = window.TIPO_CAMBIO_CONFIG || {};
+  var cotizTipo = tc.dolarConversion || 'oficial';
+  var tcActual = parseFloat(tc[cotizTipo]) || 0;
+  var precioARS = prod ? precioVentaCanonicoProducto(prod).precioARS : precio;
+  if (!prod && moneda === 'USD' && tcActual > 0) precioARS = precio * tcActual;
+  precio = precioARS;
+  moneda = 'ARS';
+
+  var monedaVenta = (esFilaPpto ? window._pptoMonedaActual : window._ventaMonedaActual) || 'ARS';
+  var cotizUsada = null, precioOriginalUSD = null;
+  if (monedaVenta === 'USD') {
+    if (tcActual > 0) {
+      cotizUsada = tcActual;
+      precioOriginalUSD = parseFloat((precioARS / tcActual).toFixed(4));
+      precio = precioOriginalUSD;
+      moneda = 'USD';
     } else {
-      precio = prod.ventaARS || prod.venta || 0;
-    }
-    moneda = 'ARS';
-  } else {
-    // Respetar moneda de venta seleccionada por el toggle
-    var monedaVenta = (esFilaPpto ? window._pptoMonedaActual : window._ventaMonedaActual) || 'ARS';
-    if (monedaVenta === 'ARS' && moneda === 'USD') {
-      // Config dice ARS: forzar conversión aunque el producto sea USD
-      // (la conversión la hace el bloque de abajo)
-    } else if (monedaVenta === 'USD' && moneda === 'ARS') {
-      // Config dice USD: convertir ARS → USD
-      var tc = (window.TIPO_CAMBIO_CONFIG || {});
-      var tipoCfg = tc.dolarConversion || 'oficial';
-      var tcVal = parseFloat(tc[tipoCfg]) || 0;
-      if (tcVal > 0 && precio > 0) {
-        precio = parseFloat((precio / tcVal).toFixed(2));
-        moneda = 'USD';
-      }
-    }
-  }
-  var cotizUsada = null, cotizTipo = null, precioOriginalUSD = null;
-  if (moneda === 'USD') {
-    var tc = (window.TIPO_CAMBIO_CONFIG || {});
-    cotizTipo = tc.dolarConversion || 'oficial';
-    cotizUsada = parseFloat(tc[cotizTipo]) || 0;
-    if (cotizUsada > 0) {
-      precioOriginalUSD = precio;
-      precio = Math.round(precio * cotizUsada);
-    } else {
-      notify('⚠ï¸ Configurá el tipo de cambio en Configuración antes de vender productos en USD');
+      notify('Configurá el tipo de cambio antes de visualizar la venta en USD');
     }
   }
 
@@ -28005,16 +28035,23 @@ function _selProdGlobal(item) {
 }
 var _ventaMonedaActual = 'ARS'; // 'ARS' o 'USD'
 
-function toggleMonedaVenta() {
-  _ventaMonedaActual = _ventaMonedaActual === 'ARS' ? 'USD' : 'ARS';
+function actualizarVisualMonedaVenta() {
   var esUSD = _ventaMonedaActual === 'USD';
   var track = document.getElementById('vmt-track');
   var thumb = document.getElementById('vmt-thumb');
   var label = document.getElementById('vmt-label');
   if (track) track.style.background = esUSD ? 'var(--blue)' : 'var(--bg4)';
-  if (thumb) thumb.style.transform   = esUSD ? 'translateX(16px)' : 'translateX(0)';
-  if (thumb) thumb.style.background  = esUSD ? '#fff' : 'var(--text3)';
-  if (label) { label.textContent = _ventaMonedaActual; label.style.color = esUSD ? 'var(--blue)' : 'var(--text3)'; }
+  if (thumb) thumb.style.transform = esUSD ? 'translateX(16px)' : 'translateX(0)';
+  if (thumb) thumb.style.background = esUSD ? '#fff' : 'var(--text3)';
+  if (label) {
+    label.textContent = _ventaMonedaActual;
+    label.style.color = esUSD ? 'var(--blue)' : 'var(--text3)';
+  }
+}
+
+function toggleMonedaVenta() {
+  _ventaMonedaActual = _ventaMonedaActual === 'ARS' ? 'USD' : 'ARS';
+  actualizarVisualMonedaVenta();
 
   _reconvertirFilasAMoneda('#det-body', _ventaMonedaActual);
   notify('Moneda de venta: ' + _ventaMonedaActual + ' — todos los productos convertidos');
@@ -28070,20 +28107,11 @@ function iniciarMonedaVenta() {
   var monedaCfg = cfg.monedaPresupuestos || 'ARS';
   var toggle = document.getElementById('venta-moneda-toggle');
   if (toggle) {
-    // Mostrar toggle siempre en modo "ambos", o si no hay config aún → default ambos
-    if (monedaCfg === 'ambos' || !cfg.monedaPresupuestos) {
-      toggle.style.display = 'flex';
-      _ventaMonedaActual = 'ARS'; // default pesos
-    } else {
-      toggle.style.display = 'none';
-      _ventaMonedaActual = monedaCfg === 'USD' ? 'USD' : 'ARS';
-    }
-    var track = document.getElementById('vmt-track');
-    var thumb = document.getElementById('vmt-thumb');
-    var label = document.getElementById('vmt-label');
-    if (track) track.style.background = 'var(--bg4)';
-    if (thumb) { thumb.style.transform = 'translateX(0)'; thumb.style.background = 'var(--text3)'; }
-    if (label) { label.textContent = 'ARS'; label.style.color = 'var(--text3)'; }
+    // La configuración puede habilitar USD, pero nunca debe cambiar una venta
+    // a dólares sin una acción explícita del usuario.
+    toggle.style.display = (monedaCfg === 'ambos' || monedaCfg === 'USD' || !cfg.monedaPresupuestos) ? 'flex' : 'none';
+    _ventaMonedaActual = 'ARS';
+    actualizarVisualMonedaVenta();
   }
 }
 
