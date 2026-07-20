@@ -4842,8 +4842,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.120-firebase',
+  VERSION: 'v2.0.121-firebase',
   RELEASE_NOTES: Object.freeze([
+    'Los proveedores de cada producto se eligen exclusivamente desde el maestro; si no existen, pueden cargarse sin abandonar la edición.',
+    'Al agregar varios proveedores, la URL de uno ya no se copia por error a las demás filas.',
     'Se detectan y corrigen precios de venta que fueron multiplicados dos veces por el dólar durante una normalización legacy.',
     'La edición de productos permite cargar visualmente en ARS o USD; al guardar, los importes operativos quedan normalizados en ARS.',
     'Las columnas de proveedores quedaron alineadas en una misma línea de lectura.',
@@ -8075,11 +8077,37 @@ function renderTablaProveedoresProducto() {
           ? '<div class="pf-provider-mainline"><span style="color:var(--amber);font-size:12px;font-weight:600">$'+costoReal.toLocaleString('es-AR')+'</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(+IVA)</span></div>'+dolarInfo
           : '<div class="pf-provider-mainline"><span style="color:var(--text3);font-size:12px">incluido</span></div>'+dolarInfo)
       : '<div class="pf-provider-mainline"><span style="color:var(--text3);font-size:12px">—</span></div>';
+    var proveedorKeyActual = String(pv.proveedorKey || pv.proveedorFbKey || '');
+    var nombreProveedorActual = String(pv.nombre || '').trim().toLowerCase();
+    var maestroActual = (proveedoresData || []).find(function(prov) {
+      if (!prov || prov.activo === false) return false;
+      var key = String(prov.fbKey || prov.key || prov.id || '');
+      return (proveedorKeyActual && key === proveedorKeyActual)
+        || (!proveedorKeyActual && nombreProveedorActual && String(prov.nombre || '').trim().toLowerCase() === nombreProveedorActual);
+    });
+    if (maestroActual) {
+      proveedorKeyActual = String(maestroActual.fbKey || maestroActual.key || maestroActual.id || '');
+      pv.proveedorKey = proveedorKeyActual;
+      pv.proveedorFbKey = proveedorKeyActual;
+      pv.nombre = maestroActual.nombre || pv.nombre;
+    }
+    var opcionesProveedor = '<option value="">Seleccionar proveedor…</option>';
+    if (nombreProveedorActual && !maestroActual) {
+      opcionesProveedor += '<option value="" selected disabled>⚠ '+escapeHTML(pv.nombre)+' no registrado</option>';
+    }
+    opcionesProveedor += (proveedoresData || [])
+      .filter(function(prov){ return prov && prov.activo !== false; })
+      .sort(function(a,b){ return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); })
+      .map(function(prov){
+        var key = String(prov.fbKey || prov.key || prov.id || '');
+        return '<option value="'+escapeHTML(key)+'"'+(key === proveedorKeyActual ? ' selected' : '')+'>'+escapeHTML(prov.nombre || 'Proveedor')+(prov.rubro ? ' · '+escapeHTML(prov.rubro) : '')+'</option>';
+      }).join('');
+    opcionesProveedor += '<option value="__nuevo__">＋ Cargar proveedor nuevo…</option>';
     var tr = document.createElement('tr');
     tr.className = 'pf-provider-row';
     if (esMasBarato) tr.style.background = 'var(--green-bg)';
     tr.innerHTML =
-      '<td style="padding:6px 4px;min-width:110px"><input type="text" value="'+escapeHTML(pv.nombre||'')+'" placeholder="Ej: Biosegur" oninput="actualizarProveedorProducto('+i+',\'nombre\',this.value)" style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:13px;font-family:inherit">'+dispBadge+'</td>' +
+      '<td style="padding:6px 4px;min-width:190px"><select onchange="seleccionarProveedorProducto('+i+',this.value)" style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:5px 8px;font-size:12px;font-family:inherit">'+opcionesProveedor+'</select>'+dispBadge+'</td>' +
       '<td style="padding:6px 4px;text-align:right"><input type="number" value="'+(pv.precio||'')+'" placeholder="0" oninput="actualizarProveedorProducto('+i+',\'precio\',this.value)" style="width:90px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;text-align:right;font-size:13px;font-family:inherit"></td>' +
       '<td style="padding:6px 4px;text-align:center">' +
         '<label class="pf-provider-check" style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px" title="El precio que cotiza el proveedor NO incluye IVA — el sistema sumará el 21% para calcular el costo real">' +
@@ -8188,8 +8216,51 @@ function cotizarPreciosProveedores() {
     });
 }
 
+function seleccionarProveedorProducto(idx, proveedorKey) {
+  if (!prodProveedoresActuales[idx]) return;
+  if (proveedorKey === '__nuevo__') {
+    abrirAltaProveedorDesdeProducto(idx);
+    return;
+  }
+  var maestro = (proveedoresData || []).find(function(prov) {
+    return prov && prov.activo !== false && String(prov.fbKey || prov.key || prov.id || '') === String(proveedorKey || '');
+  });
+  if (!maestro) {
+    prodProveedoresActuales[idx].nombre = '';
+    prodProveedoresActuales[idx].proveedorKey = '';
+    renderTablaProveedoresProducto();
+    return;
+  }
+  var key = String(maestro.fbKey || maestro.key || maestro.id || '');
+  var repetido = prodProveedoresActuales.findIndex(function(pv, otroIdx) {
+    if (otroIdx === idx) return false;
+    var otraKey = String((pv && (pv.proveedorKey || pv.proveedorFbKey)) || '');
+    var otroNombre = String((pv && pv.nombre) || '').trim().toLowerCase();
+    return (key && otraKey === key) || (!otraKey && otroNombre === String(maestro.nombre || '').trim().toLowerCase());
+  });
+  if (repetido >= 0) {
+    notify('Ese proveedor ya está vinculado a este producto');
+    renderTablaProveedoresProducto();
+    return;
+  }
+  prodProveedoresActuales[idx].nombre = maestro.nombre || 'Proveedor';
+  prodProveedoresActuales[idx].proveedorKey = key;
+  prodProveedoresActuales[idx].proveedorFbKey = key;
+  prodProveedoresActuales[idx].actualizadoOrigen = prodProveedoresActuales[idx].actualizadoOrigen || 'manual';
+  renderTablaProveedoresProducto();
+}
+
+function abrirAltaProveedorDesdeProducto(idx) {
+  window._pfProveedorAltaPendienteIdx = parseInt(idx, 10);
+  abrirModalNuevo('proveedor');
+  setTimeout(function() {
+    var nombre = document.getElementById('npv-nm');
+    if (nombre) nombre.focus();
+  }, 80);
+}
+
 function agregarFilaProveedor() {
-  prodProveedoresActuales.push(completarReferenciaProveedorProducto({ nombre:'', precio:0, actualizado: new Date().toISOString().split('T')[0], actualizadoOrigen:'manual' }, (document.getElementById('pf-cod-web')||{}).value || '', 'manual'));
+  prodProveedoresActuales.push(completarReferenciaProveedorProducto({ nombre:'', proveedorKey:'', precio:0, actualizado: new Date().toISOString().split('T')[0], actualizadoOrigen:'manual' }, '', 'manual'));
   renderTablaProveedoresProducto();
 }
 
@@ -8740,10 +8811,32 @@ function guardarProducto() {
   var esManoObra = !!document.getElementById('pf-es-mano-obra').checked;
   var urlGeneralProveedor = normalizarUrlProveedorProducto((document.getElementById('pf-cod-web')||{}).value || '');
 
-  var proveedoresValidos = esManoObra ? [] : prodProveedoresActuales.filter(function(pv) {
+  var indiceProveedorSinAlta = esManoObra ? -1 : prodProveedoresActuales.findIndex(function(pv) {
+    var tieneDatos = String((pv && pv.nombre) || '').trim() || String((pv && pv.url) || '').trim() || parseFloat((pv && pv.precio) || 0) > 0;
+    if (!tieneDatos) return false;
+    var key = String((pv && (pv.proveedorKey || pv.proveedorFbKey)) || '');
+    var nombre = String((pv && pv.nombre) || '').trim().toLowerCase();
+    return !(proveedoresData || []).some(function(maestro) {
+      if (!maestro || maestro.activo === false) return false;
+      var maestroKey = String(maestro.fbKey || maestro.key || maestro.id || '');
+      return (key && maestroKey === key) || (!key && nombre && String(maestro.nombre || '').trim().toLowerCase() === nombre);
+    });
+  });
+  if (indiceProveedorSinAlta >= 0) {
+    var proveedorSinAltaNombre = String((prodProveedoresActuales[indiceProveedorSinAlta] || {}).nombre || '').trim();
+    notify((proveedorSinAltaNombre ? 'El proveedor "' + proveedorSinAltaNombre + '"' : 'Ese proveedor') + ' primero debe registrarse en Proveedores');
+    abrirAltaProveedorDesdeProducto(indiceProveedorSinAlta);
+    return;
+  }
+
+  var proveedoresCandidatos = esManoObra ? [] : prodProveedoresActuales.filter(function(pv) {
     return (pv.nombre||'').trim() || (pv.url||'').trim() || parseFloat(pv.precio) > 0;
-  }).map(function(pv) {
-    return completarReferenciaProveedorProducto(pv, urlGeneralProveedor, pv.actualizadoOrigen || 'manual');
+  });
+  var proveedoresValidos = proveedoresCandidatos.map(function(pv) {
+    // La URL general solo puede completar un único proveedor. Con dos o más,
+    // copiarla a todas las filas vincularía productos de portales distintos.
+    var fallbackSeguro = proveedoresCandidatos.length === 1 ? urlGeneralProveedor : '';
+    return completarReferenciaProveedorProducto(pv, fallbackSeguro, pv.actualizadoOrigen || 'manual');
   });
   var proveedorSinUrl = esManoObra ? null : proveedoresValidos.find(function(pv){ return !pv.url; });
   if (proveedorSinUrl) {
@@ -12489,6 +12582,13 @@ function cerrarModalNuevoGenerico(){
   var m=document.getElementById('modal-nuevo');
   if(m){ m.classList.remove('open'); m.classList.remove('secure-modal'); }
   document.body.classList.remove('modal-secure-open');
+  if (window._modalTipo === 'proveedor') {
+    var indiceProveedorCancelado = window._pfProveedorAltaPendienteIdx;
+    window._pfProveedorAltaPendienteIdx = null;
+    if (Number.isInteger(indiceProveedorCancelado) && typeof renderTablaProveedoresProducto === 'function') {
+      renderTablaProveedoresProducto();
+    }
+  }
 }
 function guardarNuevoGenerico() {
   var tipo = window._modalTipo;
@@ -12621,6 +12721,8 @@ function guardarNuevoGenerico() {
 
   } else if (tipo === 'proveedor') {
     var fbKey = window._modalFbKey;
+    var indiceAltaProducto = Number.isInteger(window._pfProveedorAltaPendienteIdx)
+      ? window._pfProveedorAltaPendienteIdx : null;
     var datos = {
       nombre:    String(obj.nm || '').trim().toLocaleUpperCase('es-AR'),
       rubro:     obj.rub || '',
@@ -12633,11 +12735,43 @@ function guardarNuevoGenerico() {
       contacto:  obj.contacto || '',
       activo:    true
     };
+    if (!datos.nombre) { notify('Ingresá el nombre del proveedor'); return; }
+    window._pfProveedorAltaPendienteIdx = null;
+    var proveedorExistente = !fbKey ? (proveedoresData || []).find(function(prov) {
+      return prov && prov.activo !== false && String(prov.nombre || '').trim().toLowerCase() === datos.nombre.toLowerCase();
+    }) : null;
+    if (proveedorExistente) {
+      if (indiceAltaProducto !== null) {
+        seleccionarProveedorProducto(indiceAltaProducto, proveedorExistente.fbKey || proveedorExistente.key || proveedorExistente.id || '');
+        notify('Ese proveedor ya existía y quedó seleccionado');
+      } else {
+        notify('Ese proveedor ya está registrado');
+      }
+      cerrarModalNuevoGenerico();
+      return;
+    }
     if (window.fbDB) {
       var promesa = fbKey
         ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/proveedores/' + fbKey), datos)
         : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/proveedores'), datos));
-      promesa.then(function() { notify(fbKey ? 'Proveedor actualizado' : 'Proveedor guardado'); })
+      promesa.then(function(refCreada) {
+        if (!fbKey && indiceAltaProducto !== null) {
+          var nuevaKey = String((refCreada && refCreada.key) || '');
+          if (nuevaKey && !(proveedoresData || []).some(function(prov){ return String(prov.fbKey || '') === nuevaKey; })) {
+            proveedoresData.push(Object.assign({ fbKey: nuevaKey }, datos));
+          }
+          var fila = prodProveedoresActuales[indiceAltaProducto];
+          if (fila) {
+            fila.nombre = datos.nombre;
+            fila.proveedorKey = nuevaKey;
+            fila.proveedorFbKey = nuevaKey;
+            renderTablaProveedoresProducto();
+          }
+          notify('Proveedor guardado y seleccionado en el producto');
+        } else {
+          notify(fbKey ? 'Proveedor actualizado' : 'Proveedor guardado');
+        }
+      })
              .catch(function(e) { notify('Error: ' + e.message); });
     } else { notify('Sin conexión'); }
 
@@ -22391,6 +22525,10 @@ function fbCargarProveedores() {
       return proveedor;
     }) : [];
     proveedoresData = lista;
+    var formularioProducto = document.getElementById('prod-form-view');
+    if (formularioProducto && getComputedStyle(formularioProducto).display !== 'none' && typeof renderTablaProveedoresProducto === 'function') {
+      renderTablaProveedoresProducto();
+    }
     var tbody = document.querySelector('#page-proveedores tbody');
     if (!tbody) return;
     if (!lista.length) {
