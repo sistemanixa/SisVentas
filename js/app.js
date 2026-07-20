@@ -4840,7 +4840,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.114-firebase',
+  VERSION: 'v2.0.115-firebase',
   RELEASE_NOTES: Object.freeze([
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
@@ -21209,12 +21209,26 @@ function _filtrarGastosPorKPI(tipo) {
   filtrarGastos();
 }
 
+function resumenGastosPagadosMes(gastos, fechaReferencia) {
+  var fecha = fechaReferencia || new Date();
+  var mes = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0');
+  var listaMes = (gastos || []).filter(function(g){ return String(g.fecha || '').slice(0,7) === mes; });
+  var pagados = listaMes.filter(function(g){ return normalizarEstadoGasto(g) === 'pagado'; });
+  return {
+    mes: mes,
+    lista: listaMes,
+    pagados: pagados,
+    total: pagados.reduce(function(s,g){ return s + totalPagadoGasto(g); }, 0)
+  };
+}
+
 function actualizarMetricasGastos() {
   var hoy    = new Date();
-  var mesActual = hoy.toISOString().slice(0,7);
+  var resumenPagadosMes = resumenGastosPagadosMes(gastosData, hoy);
+  var mesActual = resumenPagadosMes.mes;
   var enUnaSemana = new Date(hoy.getTime() + 7*86400000).toISOString().split('T')[0];
-  var gasMes = gastosData.filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; });
-  var pagados    = gasMes.filter(function(g){ return normalizarEstadoGasto(g)==='pagado'; }).reduce(function(s,g){ return s+totalPagadoGasto(g); },0);
+  var gasMes = resumenPagadosMes.lista;
+  var pagados = resumenPagadosMes.total;
   var pendientes = gastosData.filter(function(g){ return normalizarEstadoGasto(g)!=='pagado'; });
   var pendTotal  = pendientes.reduce(function(s,g){ return s+restoGasto(g); },0);
   var vencenProx = pendientes.filter(function(g){ return g.vencimiento && g.vencimiento<=enUnaSemana; });
@@ -21227,7 +21241,7 @@ function actualizarMetricasGastos() {
 
   var _e = function(id){ return document.getElementById(id); };
   if (_e('gas-total'))          _e('gas-total').textContent          = '$'+Math.round(pagados).toLocaleString('es-AR');
-  if (_e('gas-total-sub'))      _e('gas-total-sub').textContent      = gasMes.filter(function(g){return normalizarEstadoGasto(g)==='pagado';}).length+' pagados este mes';
+  if (_e('gas-total-sub'))      _e('gas-total-sub').textContent      = resumenPagadosMes.pagados.length+' pagados este mes';
   if (_e('gas-pendiente'))      _e('gas-pendiente').textContent      = '$'+Math.round(pendTotal).toLocaleString('es-AR');
   if (_e('gas-pend-cant'))      _e('gas-pend-cant').textContent      = pendientes.length+' gasto'+(pendientes.length!==1?'s':'');
   if (_e('gas-vencen'))         _e('gas-vencen').textContent         = '$'+Math.round(vencTotal).toLocaleString('es-AR');
@@ -24896,7 +24910,8 @@ function renderRentabilidadDashboard(todasVentas) {
   var ventasDelMes = resumenMes.ventas;
   var gastosDelMes = resumenMes.gastos;
   var ingresosMes = resumenMes.ingresosNetos;
-  var gastosMes = resumenMes.egresos;
+  var egresosMes = resumenMes.egresos;
+  var gastosPagadosMes = resumenGastosPagadosMes(gastosData || [], hoy);
   var utilidad = resumenMes.resultadoNeto;
   var margenPct = resumenMes.margenNeto;
   var auditDash = document.getElementById('dash-rent-auditoria');
@@ -24908,7 +24923,9 @@ function renderRentabilidadDashboard(todasVentas) {
   }
 
   _set('dash-rent-ingresos', '$' + Math.round(ingresosMes).toLocaleString('es-AR'));
-  _set('dash-rent-gastos', '$' + Math.round(gastosMes).toLocaleString('es-AR'));
+  _set('dash-rent-gastos', '$' + Math.round(gastosPagadosMes.total).toLocaleString('es-AR'));
+  _set('dash-rent-gastos-sub', gastosPagadosMes.pagados.length + ' pagado' + (gastosPagadosMes.pagados.length !== 1 ? 's' : '') + ' · egreso contable total $' + Math.round(egresosMes).toLocaleString('es-AR'));
+  _set('dash-rent-egresos-desglose', 'Egreso usado para calcular rentabilidad: productos vendidos $' + Math.round(resumenMes.costoProductos).toLocaleString('es-AR') + ' + comisiones $' + Math.round(resumenMes.comisiones).toLocaleString('es-AR') + ' + otros gastos $' + Math.round(resumenMes.otrosGastos).toLocaleString('es-AR') + ' = $' + Math.round(egresosMes).toLocaleString('es-AR'));
   var utilEl = document.getElementById('dash-rent-utilidad');
   if (utilEl) {
     utilEl.textContent = '$' + Math.round(utilidad).toLocaleString('es-AR');
@@ -24934,19 +24951,19 @@ function renderRentabilidadDashboard(todasVentas) {
   }
 
   // Visual comparativo, escalado contra el mayor de los dos valores.
-  var maxVal = Math.max(ingresosMes, gastosMes, 1);
+  var maxVal = Math.max(ingresosMes, egresosMes, 1);
   var pctIng = Math.round(ingresosMes / maxVal * 100);
-  var pctGas = Math.round(gastosMes / maxVal * 100);
+  var pctGas = Math.round(egresosMes / maxVal * 100);
   var barIng = document.getElementById('dash-rent-bar-ing');
   var barGas = document.getElementById('dash-rent-bar-gas');
   var lblIng = document.getElementById('dash-rent-bar-ing-lbl');
   var lblGas = document.getElementById('dash-rent-bar-gas-lbl');
   if (barIng) barIng.style.height = (ingresosMes > 0 ? Math.max(5, pctIng) : 0) + '%';
-  if (barGas) barGas.style.height = (gastosMes > 0 ? Math.max(5, pctGas) : 0) + '%';
+  if (barGas) barGas.style.height = (egresosMes > 0 ? Math.max(5, pctGas) : 0) + '%';
   if (lblIng) lblIng.textContent = '$' + Math.round(ingresosMes).toLocaleString('es-AR');
-  if (lblGas) lblGas.textContent = '$' + Math.round(gastosMes).toLocaleString('es-AR');
+  if (lblGas) lblGas.textContent = '$' + Math.round(egresosMes).toLocaleString('es-AR');
 
-  var ratioGasto = ingresosMes > 0 ? (gastosMes / ingresosMes * 100) : (gastosMes > 0 ? 100 : 0);
+  var ratioGasto = ingresosMes > 0 ? (egresosMes / ingresosMes * 100) : (egresosMes > 0 ? 100 : 0);
   var ratioVisible = Math.max(0, Math.min(100, ratioGasto));
   var ratioRing = document.getElementById('dash-rent-ratio-ring');
   var ratioEl = document.getElementById('dash-rent-ratio');
@@ -24964,8 +24981,8 @@ function renderRentabilidadDashboard(todasVentas) {
   if (ratioEl) ratioEl.textContent = ratioGasto.toFixed(1) + '%';
   if (ratioSub) {
     ratioSub.textContent = ingresosMes > 0
-      ? '$' + Math.round(gastosMes / ingresosMes * 100).toLocaleString('es-AR') + ' gastados por cada $100 ingresados'
-      : (gastosMes > 0 ? 'Hay gastos registrados sin ingresos este mes' : 'Sin movimientos registrados');
+      ? '$' + Math.round(egresosMes / ingresosMes * 100).toLocaleString('es-AR') + ' de costos y gastos por cada $100 ingresados'
+      : (egresosMes > 0 ? 'Hay costos o gastos registrados sin ingresos este mes' : 'Sin movimientos registrados');
   }
   if (resultLabel) resultLabel.textContent = utilidad >= 0 ? 'Superávit del mes' : 'Déficit del mes';
   if (resultValue) {
