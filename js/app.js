@@ -4779,11 +4779,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.95-firebase',
+  VERSION: 'v2.0.96-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las tarjetas de cobros por medio de pago ahora mantienen alineados sus importes y subtítulos.',
-    'Los títulos reservan el mismo alto aunque algunos nombres ocupen una sola línea.',
-    'Se conserva el circuito separado de aprobación y conversión de presupuestos.'
+    'Registrar pago incorpora accesos rápidos para completar el 50% o la totalidad del saldo.',
+    'Los accesos calculan siempre sobre el saldo pendiente real de la venta.',
+    'El saldo posterior se actualiza inmediatamente antes de confirmar el cobro.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -8894,6 +8894,27 @@ function calcSaldoTrasCobranza() {
   const el=document.getElementById('cob-nuevo-saldo');
   el.value='$'+Math.round(nuevo).toLocaleString('es-AR');
   el.style.color=nuevo===0?'var(--green)':'var(--amber)';
+}
+
+function cobranzaMontoRapido(proporcion) {
+  var ventaEl = document.getElementById('cob-venta');
+  var saldoEl = document.getElementById('cob-saldo');
+  var montoEl = document.getElementById('cob-monto');
+  if (!ventaEl || !ventaEl.value.trim()) {
+    notify('Primero seleccioná una venta');
+    if (ventaEl) ventaEl.focus();
+    return;
+  }
+  var saldo = parseFloat(normalizarNumeroExcel(saldoEl ? saldoEl.value : '0')) || 0;
+  if (saldo <= 0) {
+    notify('Esta venta no tiene saldo pendiente');
+    return;
+  }
+  var factor = proporcion === 1 ? 1 : 0.5;
+  var monto = factor === 1 ? saldo : Math.round(saldo * factor * 100) / 100;
+  _setMontoInput(montoEl, monto);
+  calcSaldoTrasCobranza();
+  if (montoEl) montoEl.focus();
 }
 
 var _cfgValoresMasivosPreview = [];

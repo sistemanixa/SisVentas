@@ -166,6 +166,11 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 .card{}
 .m-label{font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
 .est-mp-card .m-label{align-items:flex-start!important;min-height:32px;line-height:16px}
+.cob-monto-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;min-height:22px}
+.cob-monto-head>label{margin:0!important}
+.cob-monto-rapidos{display:flex;align-items:center;gap:5px}
+.cob-monto-rapidos button{border:0.5px solid var(--border2);background:var(--bg3);color:var(--text2);border-radius:999px;padding:3px 9px;font:600 10px/1.25 inherit;cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s,background .15s}
+.cob-monto-rapidos button:hover{color:var(--blue);border-color:var(--blue);background:var(--blue-bg)}
 .m-value{font-size:22px;font-weight:600;color:var(--text);margin-bottom:4px}
 .m-sub{font-size:11px;color:var(--text3)}
 .m-up{color:var(--green)}
