@@ -33,7 +33,28 @@
     window.fbSet         = set;
     window.fbGet         = get;
     window.fbPush        = push;
-    window.fbOnValue     = onValue;
+    // Todas las suscripciones de datos quedan registradas. Al cerrar sesion
+    // deben cancelarse en bloque: ocultar la pantalla no alcanza, porque un
+    // listener activo conserva y puede volver a pintar datos del usuario.
+    const fbValueListeners = new Set();
+    window.fbOnValue = function(...args) {
+      const unsubscribe = onValue(...args);
+      const trackedUnsubscribe = function() {
+        try { unsubscribe(); }
+        finally { fbValueListeners.delete(trackedUnsubscribe); }
+      };
+      fbValueListeners.add(trackedUnsubscribe);
+      return trackedUnsubscribe;
+    };
+    window.fbStopAllValueListeners = function() {
+      const listeners = Array.from(fbValueListeners);
+      fbValueListeners.clear();
+      listeners.forEach(function(unsubscribe) {
+        try { unsubscribe(); } catch (error) {
+          console.warn('[Auth] No se pudo cancelar una suscripcion', error);
+        }
+      });
+    };
     window.fbUpdate      = update;
     window.fbRemove      = remove;
     window.fbOnDisconnect = onDisconnect;

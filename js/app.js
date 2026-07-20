@@ -4294,18 +4294,13 @@ function chatLimpiarPresencia() {
 }
 
 function doLogout() {
-  _iaHistorial = [];
-  var msgs = document.getElementById('ia-messages');
-  if (msgs) msgs.innerHTML = '';
-  _iaContexto = '';
-  _iaCtxLabel = 'Modo general';
   if (!confirm('¿Cerrar sesión?')) return;
-  _ejecutarLogout();
+  _ejecutarLogout('manual');
 }
 
 function doLogoutAutomatico() {
   // Cierre por inactividad — sin pedir confirmación
-  _ejecutarLogout();
+  _ejecutarLogout('inactividad');
 }
 
 function _cerrarInterfacesAlSalir() {
@@ -4332,10 +4327,129 @@ function _cerrarInterfacesAlSalir() {
   window._sisventasActualizacionDiferidaAvisada = false;
 }
 
-function _ejecutarLogout() {
-  // Ninguna interfaz ni proceso del usuario anterior puede quedar por encima
-  // del login o continuar escribiendo después de expirar la sesión.
+function _limpiarDatosSesionEnMemoria() {
+  _iaHistorial = [];
+  var msgs = document.getElementById('ia-messages');
+  if (msgs) msgs.innerHTML = '';
+  _iaContexto = '';
+  _iaCtxLabel = 'Modo general';
+  pptoData = [];
+  stockData = {};
+  prodData = {};
+  otData = [];
+  ventasList = [];
+  empData = {};
+  clientesData = [];
+  gastosData = [];
+  todasNotifs = [];
+  window.usuariosData = [];
+  window.ventasPendientesHistoricasList = [];
+}
+
+function _bloquearInterfazSinSesion(opciones) {
+  opciones = opciones || {};
+  // Esta funcion es la frontera de seguridad local. Se ejecuta antes de toda
+  // operacion asincrona para que nunca quede contenido protegido visible.
+  isAuthenticated = false;
+  currentUser = '';
+  currentRole = '';
+  currentUserUid = '';
+  currentUserEmail = '';
+  window._impersonacionOriginal = null;
+  window._restaurandoSesionInicial = false;
+
+  var banner = document.getElementById('impersonacion-banner');
+  if (banner) banner.remove();
+  document.body.classList.add('sv-sesion-cerrada');
   _cerrarInterfacesAlSalir();
+
+  if (typeof window.fbStopAllValueListeners === 'function') {
+    window.fbStopAllValueListeners();
+  }
+  window._clientesListenerActivo = false;
+  window._productosListenerActivo = false;
+  window._ventasListenerActivo = false;
+  window._pagosListenerActivo = false;
+  window._ctaEmpUnsubscribe = null;
+  _chatListener = null;
+  _gastosUnsubscribe = null;
+  AG_UNSUBSCRIBE = null;
+  _monitorConexionFirebaseActivo = false;
+
+  if (typeof stopSessionTimer === 'function') stopSessionTimer();
+  if (typeof cerrarUserPanel === 'function') cerrarUserPanel();
+  if (typeof _ocultarDropGlobal === 'function') _ocultarDropGlobal();
+  _limpiarDatosSesionEnMemoria();
+
+  var loading = document.getElementById('screen-loading');
+  var app = document.getElementById('screen-app');
+  var login = document.getElementById('screen-login');
+  if (loading) loading.style.display = 'none';
+  if (app) {
+    app.classList.remove('visible');
+    app.style.display = 'none';
+    app.setAttribute('aria-hidden', 'true');
+    app.inert = true;
+  }
+  if (login) login.style.display = '';
+
+  if (opciones.limpiarCredenciales) {
+    var form = login && login.querySelector('form');
+    if (form && typeof form.reset === 'function') form.reset();
+    var lu = document.getElementById('l-user');
+    var lp = document.getElementById('l-pass');
+    if (lu) { lu.value = ''; lu.setAttribute('value', ''); }
+    if (lp) { lp.value = ''; lp.setAttribute('value', ''); lp.type = 'password'; }
+  }
+  var err = document.getElementById('login-error');
+  if (err && !opciones.conservarError) err.style.display = 'none';
+  if (typeof window._resetLoginBtn === 'function') window._resetLoginBtn();
+  var fab = document.getElementById('fab-container');
+  if (fab) { fab.classList.add('hidden'); fab.style.display = 'none'; }
+}
+
+async function _ejecutarLogout(motivo) {
+  if (window._logoutSeguroEnCurso) return window._logoutSeguroEnCurso;
+
+  // Registrar y limpiar presencia mientras todavia conocemos la identidad.
+  try {
+    if (typeof registrarActividad === 'function') registrarActividad('Cierre de sesión', motivo || '');
+    limpiarPresenciaOnline();
+    chatLimpiarPresencia();
+  } catch(e) {}
+
+  // Bloquear primero. Firebase puede tardar, pero los datos desaparecen ya.
+  _restablecerNavegacionAlSalir();
+  _bloquearInterfazSinSesion({ limpiarCredenciales: true });
+  var loginBtn = document.getElementById('btn-login');
+  var loginTxt = document.getElementById('txt-login-btn');
+  if (loginBtn) loginBtn.disabled = true;
+  if (loginTxt) loginTxt.textContent = ' Cerrando sesión...';
+
+  window._logoutSeguroEnCurso = (async function() {
+    try {
+      if (window.fbAuth && window.fbSignOut) {
+        await window.fbSignOut(window.fbAuth);
+      }
+      // Una navegacion limpia garantiza que tampoco sobrevivan callbacks,
+      // timers o referencias del usuario anterior en memoria/bfcache.
+      var destino = window.location.pathname + '?logout=' + Date.now();
+      window.location.replace(destino);
+    } catch(error) {
+      console.error('[Auth] No se pudo confirmar el cierre de sesion', error);
+      window._logoutSeguroEnCurso = null;
+      if (typeof window._resetLoginBtn === 'function') window._resetLoginBtn();
+      var err = document.getElementById('login-error');
+      if (err) {
+        err.textContent = 'No se pudo confirmar el cierre de sesión. Recargá la página antes de volver a ingresar.';
+        err.style.display = 'block';
+      }
+    }
+  })();
+  return window._logoutSeguroEnCurso;
+}
+
+function _restablecerNavegacionAlSalir() {
   // 1. Volver al dashboard ANTES de ocultar la app, para que el próximo
   //    usuario que inicie sesión siempre arranque en dashboard, sin importar
   //    en qué módulo estaba el usuario anterior.
@@ -4348,45 +4462,6 @@ function _ejecutarLogout() {
     if (navDash) navDash.classList.add('active');
   } catch(e) {}
 
-  // 2. Cerrar sesión en Firebase Auth
-  if (typeof registrarActividad === 'function') registrarActividad('Cierre de sesión', '');
-  limpiarPresenciaOnline();
-  if (window.fbAuth && window.fbSignOut) {
-    window.fbSignOut(window.fbAuth).catch(function(){});
-  }
-
-  // 3. Limpiar estado de sesión — NO dejar currentRole en 'admin' entre usuarios
-  isAuthenticated = false;
-  currentUser = '';
-  currentRole = '';
-  currentUserUid = '';
-  currentUserEmail = '';
-  window.usuariosData = []; // forzar re-lectura desde Firebase en el próximo login
-
-  if (typeof stopSessionTimer === 'function') stopSessionTimer();
-  chatLimpiarPresencia();
-  if (typeof cerrarUserPanel === 'function') cerrarUserPanel();
-  _ocultarDropGlobal && _ocultarDropGlobal();
-
-  // 4. Ocultar la app y mostrar el login
-  var loading = document.getElementById('screen-loading');
-  if (loading) loading.style.display = 'none';
-  document.getElementById('screen-app').classList.remove('visible');
-  document.getElementById('screen-login').style.display = '';
-
-  // 5. Limpiar campos del login
-  var lu = document.getElementById('l-user');
-  var lp = document.getElementById('l-pass');
-  if (lu) lu.value = '';
-  if (lp) lp.value = '';
-  var err = document.getElementById('login-error');
-  if (err) err.style.display = 'none';
-
-  if (typeof window._resetLoginBtn === 'function') window._resetLoginBtn();
-  // Ocultar FAB al cerrar sesión
-  var _fab = document.getElementById('fab-container');
-  if (_fab) _fab.classList.add('hidden');
-  notify('Sesión cerrada');
 }
 
 // ── ABRIR PANEL
@@ -4704,11 +4779,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.91-firebase',
+  VERSION: 'v2.0.92-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Los empleados ya no ven comisiones pendientes de aprobación, rechazadas ni anuladas.',
-    'Las comisiones aparecen para el empleado únicamente después de la aprobación del admin.',
-    'Dashboard y Mi cuenta comparten la misma regla de visibilidad de comisiones.'
+    'El cierre manual y por inactividad ahora revoca y confirma la sesión real de Firebase.',
+    'Al salir se ocultan de inmediato la aplicación, la vista como usuario y todos los controles internos.',
+    'Se cancelan las sincronizaciones y se eliminan de memoria los datos del usuario anterior.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -5527,16 +5602,7 @@ function _resolverRolYCompletarLogin(user, err) {
   // cerrar sesión y mostrar el login limpio para no quedar colgado.
   var _loginTimeout = setTimeout(function() {
     if (!isAuthenticated) return;
-    isAuthenticated = false;
-    if (window.fbAuth && window.fbSignOut) window.fbSignOut(window.fbAuth).catch(function(){});
-    var loadingEl = document.getElementById('screen-loading');
-    if (loadingEl) loadingEl.style.display = 'none';
-    document.getElementById('screen-login').style.display = '';
-    var errEl = document.getElementById('login-error');
-    if (errEl) {
-      errEl.textContent = 'El servidor tardó demasiado en responder. Intentá de nuevo.';
-      errEl.style.display = 'block';
-    }
+    _cancelarAutenticacionParcial('El servidor tardó demasiado en responder. Intentá de nuevo.', err);
   }, 8000);
 
   function aplicarRolYNombre(lista) {
@@ -5559,12 +5625,7 @@ function _resolverRolYCompletarLogin(user, err) {
     }
     if (usuario.activo === false) {
       clearTimeout(_loginTimeout);
-      window.fbSignOut(window.fbAuth);
-      isAuthenticated = false;
-      var loadingEl = document.getElementById('screen-loading');
-      if (loadingEl) loadingEl.style.display = 'none';
-      document.getElementById('screen-login').style.display = '';
-      if (err) { err.textContent = 'Tu cuenta está desactivada. Contactá al administrador.'; err.style.display = 'block'; }
+      _cancelarAutenticacionParcial('Tu cuenta está desactivada. Contactá al administrador.', err);
       return;
     }
     var r = (usuario.rol||'').toLowerCase();
@@ -5602,14 +5663,24 @@ function _resolverRolYCompletarLogin(user, err) {
     if (window.usuariosData && window.usuariosData.length) {
       aplicarRolYNombre(window.usuariosData);
     } else {
-      window.fbSignOut(window.fbAuth);
-      isAuthenticated = false;
-      var loadingEl = document.getElementById('screen-loading');
-      if (loadingEl) loadingEl.style.display = 'none';
-      document.getElementById('screen-login').style.display = '';
-      if (err) { err.textContent = 'No se pudo verificar el rol. Verificá tu conexión.'; err.style.display = 'block'; }
+      _cancelarAutenticacionParcial('No se pudo verificar el rol. Verificá tu conexión.', err);
     }
   });
+}
+
+async function _cancelarAutenticacionParcial(mensaje, errorEl) {
+  _bloquearInterfazSinSesion({ limpiarCredenciales: true });
+  window._loginEnCurso = false;
+  try {
+    if (window.fbAuth && window.fbSignOut) await window.fbSignOut(window.fbAuth);
+  } catch(error) {
+    console.error('[Auth] No se pudo revocar una autenticacion parcial', error);
+  }
+  var destinoError = errorEl || document.getElementById('login-error');
+  if (destinoError) {
+    destinoError.textContent = mensaje;
+    destinoError.style.display = 'block';
+  }
 }
 // Aislado del flujo de login manual. Si Firebase detecta una sesión ya activa
 // al cargar la página, restaura directamente sin pedir credenciales de nuevo.
@@ -5634,23 +5705,16 @@ document.addEventListener('firebase-ready', function() {
       }
     } else if (!user) {
       _sesionYaRestaurada = false;
-      if (_primeraVerificacionAuth) {
-        _primeraVerificacionAuth = false;
-        _mostrarLoginSinSesion();
-      }
+      _primeraVerificacionAuth = false;
+      _mostrarLoginSinSesion();
     }
   });
 });
 
 function _mostrarLoginSinSesion() {
-  var loadingEl = document.getElementById('screen-loading');
-  var loginEl   = document.getElementById('screen-login');
-  window._restaurandoSesionInicial = false;
-  if (loadingEl) {
-    loadingEl.classList.remove('sv-intro-loading', 'sv-boot-exit');
-    loadingEl.style.display = 'none';
-  }
-  if (loginEl)   loginEl.style.display = '';
+  // El observador de Auth es autoridad: sin usuario no puede sobrevivir
+  // ninguna parte de la aplicacion, incluso si otro flujo mostro el login.
+  _bloquearInterfazSinSesion({ limpiarCredenciales: false });
 }
 
 // Red de seguridad: si después de 6 segundos Firebase nunca respondió
@@ -5810,9 +5874,17 @@ async function _confirmarCambioForzado() {
 
 function _completarLogin(nombre) {
   currentUser = nombre;
+  document.body.classList.remove('sv-sesion-cerrada');
+  var appSegura = document.getElementById('screen-app');
+  if (appSegura) {
+    appSegura.style.display = '';
+    appSegura.removeAttribute('aria-hidden');
+    appSegura.inert = false;
+  }
   applyRole();
   registrarPresenciaOnline();
   if (typeof registrarActividad === 'function') registrarActividad('Inicio de sesión', '');
+  if (typeof iniciarMonitorConexionFirebase === 'function') iniciarMonitorConexionFirebase();
   // Iniciar listener de versión en tiempo real vía Firebase
   if (typeof iniciarChequeoPeriodicoVersion === 'function') iniciarChequeoPeriodicoVersion();
   if (typeof window.iniciarSyncNotificaciones === 'function') window.iniciarSyncNotificaciones();
@@ -10624,8 +10696,7 @@ function resetSessionTimer() {
   clearTimeout(sessionTimer);
   _marcarActividadSesion();
   sessionTimer = setTimeout(function() {
-    notify('Sesión expirada por inactividad');
-    setTimeout(doLogoutAutomatico, 2000);
+    doLogoutAutomatico();
   }, SESSION_TIMEOUT);
 }
 function startSessionTimer() {
@@ -10664,14 +10735,12 @@ function _chequearInactividadReal() {
   if (!last) return;
   var transcurrido = Date.now() - last;
   if (transcurrido >= SESSION_TIMEOUT) {
-    notify('Sesión expirada por inactividad');
-    setTimeout(doLogoutAutomatico, 1500);
+    doLogoutAutomatico();
   } else {
     // (el timer viejo pudo haber quedado desfasado por el tiempo congelado)
     clearTimeout(sessionTimer);
     sessionTimer = setTimeout(function() {
-      notify('Sesión expirada por inactividad');
-      setTimeout(doLogoutAutomatico, 2000);
+      doLogoutAutomatico();
     }, SESSION_TIMEOUT - transcurrido);
   }
 }
