@@ -3652,6 +3652,79 @@ function normalizarPrecioItemVentaParaEditor(item) {
   return { precioARS: convertido, corregido: true, precioUSD: precioGuardado, tipoCambio: tc };
 }
 
+function repararVentaGuardadaEnUsdComoArs(venta, opciones) {
+  opciones = opciones || {};
+  if (!venta || venta.reparacionMonedaVentaARS) return { venta: venta, corregidos: 0 };
+  var itemsOriginales = Array.isArray(venta.items) ? venta.items : Object.values(venta.items || {});
+  if (!itemsOriginales.length) return { venta: venta, corregidos: 0 };
+
+  var corregidos = 0;
+  var itemsCorregidos = itemsOriginales.map(function(itemOriginal) {
+    var item = Object.assign({}, itemOriginal || {});
+    var reparacion = normalizarPrecioItemVentaParaEditor(item);
+    if (!reparacion.corregido) return item;
+    var cantidad = parseFloat(item.qty || item.cantidad || 1) || 1;
+    var descuentoItem = parseFloat(item.disc || item.descuento || 0) || 0;
+    item.punit = reparacion.precioARS;
+    item.sub = Math.round(cantidad * reparacion.precioARS * (1 - descuentoItem / 100));
+    item.monedaOriginal = 'USD';
+    item.monedaOperativa = 'ARS';
+    item.precioUsdOriginal = reparacion.precioUSD;
+    item.cotizacionUsada = reparacion.tipoCambio;
+    item.reparadoDesdeUsdEn = Date.now();
+    corregidos++;
+    return item;
+  });
+  if (!corregidos) return { venta: venta, corregidos: 0 };
+
+  var subtotalBruto = itemsCorregidos.reduce(function(s, item) {
+    return s + (parseFloat(item.qty || item.cantidad || 1) || 1) * (parseFloat(item.punit) || 0);
+  }, 0);
+  var subtotalItems = itemsCorregidos.reduce(function(s, item) {
+    return s + (parseFloat(item.sub) || 0);
+  }, 0);
+  var descuentoGeneralPct = parseFloat(venta.descuentoGeneral || 0) || 0;
+  var descuentoGeneralMonto = Math.round(subtotalItems * descuentoGeneralPct / 100);
+  var subtotal = Math.max(0, subtotalItems - descuentoGeneralMonto);
+  var aplicaIva = venta.conIva === true || parseFloat(venta.iva || 0) > 0;
+  var iva = aplicaIva ? Math.round(subtotal * 0.21) : 0;
+  var ahora = Date.now();
+  var audit = Array.isArray(venta.audit) ? venta.audit.slice() : [];
+  audit.push({
+    fecha: new Date(ahora).toLocaleDateString('es-AR'),
+    usuario: currentUser || 'Sistema',
+    accion: 'Corrección automática: ' + corregidos + ' precio' + (corregidos === 1 ? '' : 's') + ' guardado' + (corregidos === 1 ? '' : 's') + ' en USD restaurado' + (corregidos === 1 ? '' : 's') + ' a ARS'
+  });
+  var updates = {
+    items: itemsCorregidos,
+    subtotal: subtotal,
+    descuento: Math.round((subtotalBruto - subtotalItems) + descuentoGeneralMonto),
+    iva: iva,
+    total: subtotal + iva,
+    moneda: 'ARS',
+    monedaOperativa: 'ARS',
+    reparacionMonedaVentaARS: {
+      ts: ahora,
+      version: APP_CONFIG.VERSION,
+      itemsCorregidos: corregidos
+    },
+    audit: audit
+  };
+  Object.assign(venta, updates);
+
+  if (opciones.persistir && venta.fbKey && window.fbDB && window.fbUpdate) {
+    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), updates)
+      .then(function() {
+        if (opciones.notificar) notify('Se corrigió esta venta: ' + corregidos + ' precio' + (corregidos === 1 ? '' : 's') + ' estaba' + (corregidos === 1 ? '' : 'n') + ' guardado' + (corregidos === 1 ? '' : 's') + ' en USD y se restauró a ARS.');
+      })
+      .catch(function(error) {
+        console.error('[Ventas] No se pudo guardar la reparación ARS', error);
+        notify('Se detectó el precio en USD, pero no se pudo guardar la corrección.');
+      });
+  }
+  return { venta: venta, corregidos: corregidos };
+}
+
 function abrirEditorVenta(fbKey) {
   var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!v) { notify('Venta no encontrada'); return; }
@@ -4870,8 +4943,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.123-firebase',
+  VERSION: 'v2.0.124-firebase',
   RELEASE_NOTES: Object.freeze([
+    'El detalle de una venta detecta y repara precios históricos guardados por error en USD, recalculando todos sus importes en ARS.',
+    'La reparación queda guardada en Firebase y asentada en la auditoría de la venta para que detalle, saldo y métricas compartan el mismo dato.',
     'Se restauró la detección automática de publicaciones: la fuente liviana de versión vuelve a estar sincronizada.',
     'El actualizador incorpora una verificación de respaldo contra la aplicación publicada para no depender de un único archivo de versión.',
     'Toda venta nueva inicia y se guarda operativamente en ARS; USD queda disponible solo como visualización elegida por el usuario.',
@@ -26060,6 +26135,10 @@ function verDetalleVenta(ventaId) {
   var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('Venta no encontrada'); return; }
   venta = normalizarVentaLegacyDesdePresupuesto(venta);
+  // El detalle es el punto seguro para reparar registros históricos: ya están
+  // disponibles tanto la venta como el catálogo usado para validar la escala.
+  // Solo persiste cuando la equivalencia USD→ARS coincide inequívocamente.
+  venta = repararVentaGuardadaEnUsdComoArs(venta, { persistir:true, notificar:true }).venta;
   window._ventaDetActualId = ventaId;
 
   var lv  = document.getElementById('ventas-list-view');
