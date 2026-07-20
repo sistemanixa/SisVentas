@@ -4840,7 +4840,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.116-firebase',
+  VERSION: 'v2.0.117-firebase',
   RELEASE_NOTES: Object.freeze([
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',

@@ -24,7 +24,6 @@
     'dashboard-filters.js',
     'activity-history.js',
     'dashboard-polish.js',
-    'print-layout.js',
     'maintenance.js',
     'refactor-health.js',
     'resizable-tables.js',
