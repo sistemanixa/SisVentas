@@ -85,23 +85,22 @@
   }
   function calcRent(){
     var vs=ventas(), gs=gastos(), d7=dias7(), m12=meses12();
-    var ingDia={}, egrDia={}, ingMes={}, egrMes={};
-    vs.forEach(function(v){
-      var total=totalVenta(v), fk=fechaKey(v.fecha), mk=mesKey(v.fecha);
-      ingDia[fk]=(ingDia[fk]||0)+total;
-      ingMes[mk]=(ingMes[mk]||0)+total;
-    });
-    gs.forEach(function(g){
-      var total=gastoMonto(g), fk=fechaKey(g.fecha), mk=mesKey(g.fecha);
-      egrDia[fk]=(egrDia[fk]||0)+total;
-      egrMes[mk]=(egrMes[mk]||0)+total;
-    });
-    var daily=d7.map(function(d){return (ingDia[d.key]||0)-(egrDia[d.key]||0);});
-    var monthly=m12.map(function(m){return (ingMes[m.key]||0)-(egrMes[m.key]||0);});
-    var mesActual=m12[m12.length-1].key;
-    var ingresos=ingMes[mesActual]||0, egresos=egrMes[mesActual]||0, utilidad=ingresos-egresos, prev=monthly[monthly.length-2]||0;
+    function canon(desde,hasta){
+      hasta=new Date(hasta); hasta.setHours(23,59,59,999);
+      if(typeof window.calcularRentabilidadCanonica==='function') return window.calcularRentabilidadCanonica({desde:desde,hasta:hasta},vs,gs);
+      var ingresos=vs.filter(function(v){var f=parseFecha(v.fecha);return f&&f>=desde&&f<=hasta;}).reduce(function(s,v){return s+totalVenta(v);},0);
+      var otros=gs.filter(function(g){var f=parseFecha(g.fecha);return f&&f>=desde&&f<=hasta;}).reduce(function(s,g){return s+gastoMonto(g);},0);
+      return {ingresosNetos:ingresos,egresos:otros,gananciaComercial:ingresos,resultadoNeto:ingresos-otros,margenNeto:ingresos?(ingresos-otros)/ingresos*100:0};
+    }
+    var daily=d7.map(function(d){return canon(d.date,d.date).resultadoNeto;});
+    var monthly=m12.map(function(m){return canon(new Date(m.date.getFullYear(),m.date.getMonth(),1),new Date(m.date.getFullYear(),m.date.getMonth()+1,0)).resultadoNeto;});
+    var sel=document.getElementById('rent-periodo');
+    var periodo=sel?sel.value:'mes_actual';
+    var rango=typeof window._rangoFechasPeriodo==='function'?window._rangoFechasPeriodo(periodo):{desde:new Date(new Date().getFullYear(),new Date().getMonth(),1),hasta:new Date(new Date().getFullYear(),new Date().getMonth()+1,0,23,59,59)};
+    var actual=canon(rango.desde,rango.hasta);
+    var ingresos=actual.ingresosNetos||0, egresos=actual.egresos||0, utilidad=actual.resultadoNeto||0, prev=monthly[monthly.length-2]||0;
     var best=d7.map(function(d,i){return {lbl:diasLbl[d.dow],v:daily[i]};}).sort(function(a,b){return b.v-a.v;})[0]||{lbl:'—',v:0};
-    return {daily:daily,dailyLabels:d7.map(function(d,i){return i===6?'Hoy':diasLbl[d.dow];}),monthly:monthly,monthLabels:m12.map(function(m){return mesesLbl[m.date.getMonth()];}),ingresos:ingresos,egresos:egresos,utilidad:utilidad,prevMonth:prev,best:best,avg:utilidad/(new Date().getDate()||1),margen:ingresos?Math.round(utilidad/ingresos*100):0};
+    return {daily:daily,dailyLabels:d7.map(function(d,i){return i===6?'Hoy':diasLbl[d.dow];}),monthly:monthly,monthLabels:m12.map(function(m){return mesesLbl[m.date.getMonth()];}),ingresos:ingresos,egresos:egresos,comercial:actual.gananciaComercial||0,utilidad:utilidad,prevMonth:prev,best:best,avg:utilidad/(new Date().getDate()||1),margen:ingresos?Math.round(utilidad/ingresos*100):0,periodoLabel:sel&&sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:'Este mes'};
   }
   function renderStats334(){
     ensureStats(); var x=calcSales();
@@ -118,10 +117,11 @@
     drawBars('sv334-rent-bars',x.daily,x.dailyLabels,'rentabilidad'); drawLine('sv334-rent-line',x.monthly,x.monthLabels);
     var e=function(id){return document.getElementById(id)};
     if(e('sv334-rent-daily-total')) e('sv334-rent-daily-total').textContent='Semana: '+money(x.daily.reduce(function(s,v){return s+v;},0));
-    if(e('sv334-rent-month-total')) e('sv334-rent-month-total').textContent='Utilidad: '+money(x.utilidad);
+    if(e('sv334-rent-periodo')) e('sv334-rent-periodo').textContent=x.periodoLabel;
+    if(e('sv334-rent-month-total')) e('sv334-rent-month-total').textContent='Resultado: '+money(x.utilidad);
     if(e('sv334-rent-month-var')) { e('sv334-rent-month-var').textContent=pct(x.utilidad,x.prevMonth)+' vs mes anterior'; e('sv334-rent-month-var').style.color=colorPct(x.utilidad,x.prevMonth); }
     if(e('sv334-rent-mini')) e('sv334-rent-mini').innerHTML='<div class="sv334-mini-card"><div class="sv334-ico '+(x.utilidad>=x.prevMonth?'green':'red')+'"><i class="ti ti-arrow-up"></i></div><div><div class="sv334-mini-l">vs mes anterior</div><div class="sv334-mini-v '+(x.utilidad>=x.prevMonth?'green':'red')+'">'+pct(x.utilidad,x.prevMonth)+'</div></div></div><div class="sv334-mini-card"><div class="sv334-ico blue"><i class="ti ti-calendar-stats"></i></div><div><div class="sv334-mini-l">Promedio diario</div><div class="sv334-mini-v">'+money(x.avg)+'</div></div></div><div class="sv334-mini-card"><div class="sv334-ico purple"><i class="ti ti-chart-pie"></i></div><div><div class="sv334-mini-l">Mejor día</div><div class="sv334-mini-v">'+esc(x.best.lbl)+' '+money(x.best.v)+'</div></div></div>';
-    if(e('sv334-rent-quick')) e('sv334-rent-quick').innerHTML='<div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-arrow-up-right" style="color:var(--green)"></i>Ingresos</div><div class="sv334-q-v green">'+money(x.ingresos)+'</div><div class="sv334-q-sub">ventas del mes</div></div><div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-arrow-down-right" style="color:var(--red)"></i>Egresos</div><div class="sv334-q-v red">'+money(x.egresos)+'</div><div class="sv334-q-sub">gastos del mes</div></div><div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-trending-up" style="color:var(--purple)"></i>Utilidad</div><div class="sv334-q-v '+(x.utilidad>=0?'purple':'red')+'">'+money(x.utilidad)+'</div><div class="sv334-q-sub">margen: '+x.margen+'%</div></div>';
+    if(e('sv334-rent-quick')) e('sv334-rent-quick').innerHTML='<div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-arrow-up-right" style="color:var(--green)"></i>Ingresos netos</div><div class="sv334-q-v green">'+money(x.ingresos)+'</div><div class="sv334-q-sub">sin IVA · '+esc(x.periodoLabel.toLowerCase())+'</div></div><div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-briefcase" style="color:var(--blue)"></i>Ganancia comercial</div><div class="sv334-q-v '+(x.comercial>=0?'blue':'red')+'">'+money(x.comercial)+'</div><div class="sv334-q-sub">después de costos y comisiones</div></div><div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-building-bank" style="color:var(--purple)"></i>Resultado neto</div><div class="sv334-q-v '+(x.utilidad>=0?'purple':'red')+'">'+money(x.utilidad)+'</div><div class="sv334-q-sub">queda en la empresa · '+x.margen+'%</div></div>';
   }
   window.renderStatsGraficos334=renderStats334; window.renderRentGraficos334=renderRent334;
   if(typeof window.renderEstadisticas==='function'){

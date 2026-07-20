@@ -4869,11 +4869,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.102-firebase',
+  VERSION: 'v2.0.103-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Los calendarios nativos ahora respetan el modo oscuro del sistema.',
-    'El tema se sincroniza entre la aplicación y el documento completo.',
-    'Los selectores de fecha, hora, mes y fecha-hora mantienen contraste oscuro.'
+    'Rentabilidad ahora usa un único cálculo y excluye ventas anuladas y movimientos rechazados.',
+    'Se separan ingresos netos, costos y comisiones, ganancia comercial, otros gastos y resultado neto.',
+    'Los importes se calculan sin IVA, con descuentos aplicados, y los gráficos respetan el período elegido.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -10475,6 +10475,89 @@ function _parsearFechaFlexible(f) {
   return null;
 }
 
+function _rentVentaValida(v) {
+  if (!v) return false;
+  var estado = String(v.estado || v.estadoPago || '').toLowerCase();
+  return v.anulada !== true && estado !== 'anulada' && estado !== 'cancelada' && estado !== 'cancelado';
+}
+
+function _rentGastoValido(g) {
+  if (!g) return false;
+  var estado = String(g.estado || '').toLowerCase();
+  return ['rechazado','rechazada','anulado','anulada','cancelado','cancelada'].indexOf(estado) === -1;
+}
+
+function _rentEsComision(g) {
+  var tipo = String(g && (g.tipoPagable || g.tipo || g.tipomov) || '').toLowerCase();
+  var desc = String(g && g.descripcion || '').toLowerCase();
+  return tipo === 'comision' || tipo === 'comisión' || desc.indexOf('comisi') >= 0;
+}
+
+function _rentComisionAprobada(g) {
+  if (!_rentEsComision(g) || !_rentGastoValido(g)) return false;
+  var estado = String(g.estado || '').toLowerCase();
+  return ['aprobado','aprobada','pendiente_pago','pagado_parcial','pagada_parcial','pagado','pagada'].indexOf(estado) >= 0;
+}
+
+function _rentIngresoNetoVenta(v) {
+  var total = parseFloat(v && (v.total != null ? v.total : v.totalVenta)) || 0;
+  var subtotal = parseFloat(v && v.subtotal) || 0;
+  var iva = v && v.conIva === false ? 0 : (parseFloat(v && v.iva) || 0);
+  if (subtotal > 0) return subtotal;
+  return Math.max(0, total - iva);
+}
+
+function _rentCostoVenta(v) {
+  var guardado = parseFloat(v && v.costoTotal) || 0;
+  if (guardado > 0) return guardado;
+  return (v && Array.isArray(v.items) ? v.items : []).reduce(function(s, item) {
+    if (typeof obtenerCostoItemVenta === 'function') return s + obtenerCostoItemVenta(item);
+    return s + (parseFloat(item.costoTotalCompra || item.costoTotal || item.costo) || 0);
+  }, 0);
+}
+
+// Fuente única para Rentabilidad: trabaja por devengado, sin IVA y sin anulados.
+// Las comisiones se reconocen cuando fueron aprobadas, aunque todavía no se hayan pagado.
+function calcularRentabilidadCanonica(rango, ventasFuente, gastosFuente) {
+  var ventasPeriodo = (ventasFuente || ventasList || []).filter(function(v) {
+    if (!_rentVentaValida(v)) return false;
+    var f = _parsearFechaFlexible(v.fecha || '');
+    return f && f >= rango.desde && f <= rango.hasta;
+  });
+  var gastosPeriodo = (gastosFuente || gastosData || []).filter(function(g) {
+    if (!_rentGastoValido(g)) return false;
+    if (_rentEsComision(g) && !_rentComisionAprobada(g)) return false;
+    var f = _parsearFechaFlexible(g.fecha || '');
+    return f && f >= rango.desde && f <= rango.hasta;
+  });
+  var ingresosNetos = ventasPeriodo.reduce(function(s,v){ return s + _rentIngresoNetoVenta(v); }, 0);
+  var descuentos = ventasPeriodo.reduce(function(s,v){ return s + (parseFloat(v.descuento)||0); }, 0);
+  var iva = ventasPeriodo.reduce(function(s,v){ return s + (v.conIva === false ? 0 : (parseFloat(v.iva)||0)); }, 0);
+  var costoProductos = ventasPeriodo.reduce(function(s,v){ return s + _rentCostoVenta(v); }, 0);
+  var comisiones = gastosPeriodo.filter(_rentComisionAprobada).reduce(function(s,g){ return s + (parseFloat(g.monto)||0); }, 0);
+  var otrosGastosLista = gastosPeriodo.filter(function(g){ return !_rentEsComision(g); });
+  var otrosGastos = otrosGastosLista.reduce(function(s,g){ return s + (parseFloat(g.monto)||0); }, 0);
+  var gananciaComercial = ingresosNetos - costoProductos - comisiones;
+  var resultadoNeto = gananciaComercial - otrosGastos;
+  return {
+    ventas: ventasPeriodo,
+    gastos: gastosPeriodo,
+    otrosGastosLista: otrosGastosLista,
+    ingresosBrutos: ingresosNetos + descuentos,
+    ingresosNetos: ingresosNetos,
+    descuentos: descuentos,
+    iva: iva,
+    costoProductos: costoProductos,
+    comisiones: comisiones,
+    otrosGastos: otrosGastos,
+    egresos: costoProductos + comisiones + otrosGastos,
+    gananciaComercial: gananciaComercial,
+    resultadoNeto: resultadoNeto,
+    margenComercial: ingresosNetos > 0 ? gananciaComercial / ingresosNetos * 100 : 0,
+    margenNeto: ingresosNetos > 0 ? resultadoNeto / ingresosNetos * 100 : 0
+  };
+}
+
 // Normaliza cualquier fecha (DD/MM/YYYY o YYYY-MM-DD) a DD/MM/YYYY para mostrar
 function _mostrarFecha(f) {
   if (!f) return '—';
@@ -10498,26 +10581,20 @@ function calcRentabilidad() {
   var periodo = selEl ? selEl.value : 'mes_actual';
   var rango = _rangoFechasPeriodo(periodo);
 
-  var ventasPeriodo = (ventasList||[]).filter(function(v) {
-    var f = _parsearFechaFlexible(v.fecha);
-    return f && f >= rango.desde && f <= rango.hasta;
-  });
-  var ingresos = ventasPeriodo.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
-  var costoProductos = ventasPeriodo.reduce(function(s,v){ return s + (parseFloat(v.costoTotal)||0); }, 0);
-
-  var gastosPeriodo = (gastosData||[]).filter(function(g) {
-    var f = _parsearFechaFlexible(g.fecha);
-    return f && f >= rango.desde && f <= rango.hasta;
-  });
-  var totalGastos = gastosPeriodo.reduce(function(s,g){ return s + (parseFloat(g.monto)||0); }, 0);
-
-  var egresos = costoProductos + totalGastos;
-  var utilidad = ingresos - egresos;
-  var margen = ingresos > 0 ? (utilidad / ingresos * 100) : 0;
+  var resumen = calcularRentabilidadCanonica(rango);
+  var ventasPeriodo = resumen.ventas;
+  var ingresos = resumen.ingresosNetos;
+  var costoProductos = resumen.costoProductos;
+  var utilidad = resumen.resultadoNeto;
+  var margen = resumen.margenNeto;
 
   _set('rent-ingresos', '$' + Math.round(ingresos).toLocaleString('es-AR'));
-  _set('rent-ingresos-sub', ventasPeriodo.length + ' venta' + (ventasPeriodo.length !== 1 ? 's' : ''));
-  _set('rent-egresos', '$' + Math.round(egresos).toLocaleString('es-AR'));
+  _set('rent-ingresos-sub', ventasPeriodo.length + ' venta' + (ventasPeriodo.length !== 1 ? 's' : '') + ' · sin IVA');
+  _set('rent-egresos', '$' + Math.round(costoProductos + resumen.comisiones).toLocaleString('es-AR'));
+  _set('rent-comercial', '$' + Math.round(resumen.gananciaComercial).toLocaleString('es-AR'));
+  _set('rent-gastos-operativos', '$' + Math.round(resumen.otrosGastos).toLocaleString('es-AR'));
+  var comercialEl = document.getElementById('rent-comercial');
+  if (comercialEl) comercialEl.style.color = resumen.gananciaComercial >= 0 ? 'var(--green)' : 'var(--red)';
   var utilEl = document.getElementById('rent-utilidad');
   utilEl.textContent = '$' + Math.round(utilidad).toLocaleString('es-AR');
   utilEl.style.color = utilidad >= 0 ? 'var(--green)' : 'var(--red)';
@@ -10533,7 +10610,7 @@ function calcRentabilidad() {
   // Contadores específicos de personal
   var totalSueldos = 0, totalHsExtra = 0, totalAguinaldo = 0, totalOtrosPersonal = 0;
 
-  gastosPeriodo.forEach(function(g) {
+  resumen.otrosGastosLista.forEach(function(g) {
     var cat = (g.categoria || 'Otro');
     var desc = (g.descripcion || '').toLowerCase();
     var tipo = (g.tipo || g.tipomov || '').toLowerCase();
@@ -10564,8 +10641,13 @@ function calcRentabilidad() {
   });
 
   var filas = [];
-  filas.push({ concepto: 'Ingresos por ventas', monto: ingresos, esTotal:false, signo:1 });
+  filas.push({ concepto: 'Ventas antes de descuentos (sin IVA)', monto: resumen.ingresosBrutos, esTotal:false, signo:1 });
+  if (resumen.descuentos > 0) filas.push({ concepto: 'Descuentos aplicados', monto: -resumen.descuentos, esTotal:false, signo:-1 });
+  filas.push({ concepto: 'Ingresos netos sin IVA', monto: ingresos, esTotal:false, signo:1, esGrupo:true });
+  if (resumen.iva > 0) filas.push({ concepto: 'IVA facturado (no integra la ganancia)', monto: resumen.iva, esTotal:false, signo:0, esSubItem:true });
   filas.push({ concepto: 'Costo de productos y mano de obra vendidos', monto: -costoProductos, esTotal:false, signo:-1 });
+  if (resumen.comisiones > 0) filas.push({ concepto: 'Comisiones aprobadas', monto: -resumen.comisiones, esTotal:false, signo:-1 });
+  filas.push({ concepto: 'Ganancia comercial', monto: resumen.gananciaComercial, esTotal:true, signo:resumen.gananciaComercial>=0?1:-1 });
 
   // Personal con desglose
   var totalPersonal = totalSueldos + totalHsExtra + totalAguinaldo + totalOtrosPersonal;
@@ -10580,12 +10662,12 @@ function calcRentabilidad() {
   Object.keys(gastosPorCategoria).forEach(function(cat) {
     filas.push({ concepto: 'Gastos — ' + cat, monto: -gastosPorCategoria[cat], esTotal:false, signo:-1 });
   });
-  filas.push({ concepto: 'Utilidad neta', monto: utilidad, esTotal:true, signo: utilidad>=0?1:-1 });
+  filas.push({ concepto: 'Resultado neto de la empresa', monto: utilidad, esTotal:true, signo: utilidad>=0?1:-1 });
 
   var tbody = document.getElementById('rent-tbody');
   if (tbody) {
     tbody.innerHTML = filas.map(function(f) {
-      var color = f.signo > 0 ? 'var(--green)' : 'var(--red)';
+      var color = f.signo > 0 ? 'var(--green)' : (f.signo < 0 ? 'var(--red)' : 'var(--amber)');
       var estilo = f.esTotal ? 'font-weight:700;border-top:1.5px solid var(--border2)'
                  : f.esGrupo ? 'font-weight:600'
                  : f.esSubItem ? 'color:var(--text3)' : '';
@@ -20976,6 +21058,8 @@ function fbCargarGastos() {
     actualizarMetricasGastos();
     var pageDash = document.getElementById('page-dashboard');
     if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
+    var pageRent = document.getElementById('page-rentabilidad');
+    if (pageRent && pageRent.classList.contains('active') && typeof calcRentabilidad === 'function') calcRentabilidad();
     // v20.362: la migración legacy queda controlada desde Configuración > Mantenimiento.
   },function(error){
     console.error('[Gastos]',error);
@@ -24699,31 +24783,16 @@ function renderRentabilidadDashboard(todasVentas) {
   var hoy = new Date();
   var mesActual = hoy.getMonth();
   var anioActual = hoy.getFullYear();
-
-  var ventasDelMes = (todasVentas||[]).filter(function(v) {
-    var f = v.fecha || '';
-    var partes;
-    if (f.indexOf('-') !== -1) { // YYYY-MM-DD
-      partes = f.split('-');
-      return parseInt(partes[1])-1 === mesActual && parseInt(partes[0]) === anioActual;
-    } else if (f.indexOf('/') !== -1) { // DD/MM/YYYY
-      partes = f.split('/');
-      return parseInt(partes[1])-1 === mesActual && parseInt(partes[2]) === anioActual;
-    }
-    return false;
-  });
-  var ingresosMes = ventasDelMes.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
-
-  var gastosDelMes = (gastosData||[]).filter(function(g) {
-    var f = g.fecha || '';
-    if (f.indexOf('-') === -1) return false;
-    var partes = f.split('-');
-    return parseInt(partes[1])-1 === mesActual && parseInt(partes[0]) === anioActual;
-  });
-  var gastosMes = gastosDelMes.reduce(function(s,g){ return s + (parseFloat(g.monto)||0); }, 0);
-
-  var utilidad = ingresosMes - gastosMes;
-  var margenPct = ingresosMes > 0 ? (utilidad / ingresosMes * 100) : 0;
+  var resumenMes = calcularRentabilidadCanonica({
+    desde: new Date(anioActual, mesActual, 1),
+    hasta: new Date(anioActual, mesActual + 1, 0, 23, 59, 59)
+  }, todasVentas || [], gastosData || []);
+  var ventasDelMes = resumenMes.ventas;
+  var gastosDelMes = resumenMes.gastos;
+  var ingresosMes = resumenMes.ingresosNetos;
+  var gastosMes = resumenMes.egresos;
+  var utilidad = resumenMes.resultadoNeto;
+  var margenPct = resumenMes.margenNeto;
 
   _set('dash-rent-ingresos', '$' + Math.round(ingresosMes).toLocaleString('es-AR'));
   _set('dash-rent-gastos', '$' + Math.round(gastosMes).toLocaleString('es-AR'));
