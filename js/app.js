@@ -4867,11 +4867,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.100-firebase',
+  VERSION: 'v2.0.101-firebase',
   RELEASE_NOTES: Object.freeze([
-    'El comparativo de rentabilidad estrena un gráfico vertical más moderno.',
-    'Se incorporó la relación de gastos por cada $100 ingresados.',
-    'El resumen visual identifica de inmediato el superávit o déficit del mes.'
+    'El historial de Cobranzas muestra el saldo restante real de cada pago.',
+    'Los accesos a venta, recibo y anulación quedaron agrupados en Acciones.',
+    'Los cobros nuevos conservan el saldo anterior y posterior para su auditoría.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -11138,6 +11138,43 @@ function _cobroMontoHistorialHTML(p) {
     '<div style="font-size:10px;color:var(--blue);margin-top:2px;white-space:nowrap">USD ' + montoUSD.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' · TC $' + tc.toLocaleString('es-AR',{maximumFractionDigits:2}) + (p.cotizacionEditada ? ' manual' : '') + '</div>';
 }
 
+function _cobroSaldoRestanteHistorial(p, listaOrdenada, indice) {
+  if (!p) return null;
+  var camposGuardados = ['saldoRestante','saldo_restante','nuevoSaldo','saldoPosterior'];
+  for (var c = 0; c < camposGuardados.length; c++) {
+    var campo = camposGuardados[c];
+    if (Object.prototype.hasOwnProperty.call(p, campo) && p[campo] !== '' && p[campo] != null) {
+      var guardado = parseFloat(p[campo]);
+      if (Number.isFinite(guardado)) return Math.max(0, guardado);
+    }
+  }
+  if (p.anulado || String(p.estado||'').toLowerCase() === 'anulado') return null;
+
+  var venta = _svResolverVentaRegistro(p);
+  var totalVenta = parseFloat(p.totalVenta) || parseFloat(venta && venta.total) || 0;
+  if (!venta || totalVenta <= 0) return null;
+
+  // La lista llega ordenada de más reciente a más antigua. Para conocer el
+  // saldo que quedó justo después de este cobro se suman este pago y todos los
+  // anteriores de la misma venta, excluyendo anulados.
+  var pagadoHastaEseMomento = 0;
+  (listaOrdenada || []).slice(indice).forEach(function(otroPago) {
+    if (!_svPagoValido(otroPago) || !_svRegistroPerteneceVenta(otroPago, venta)) return;
+    pagadoHastaEseMomento += parseFloat(otroPago.monto) || 0;
+  });
+  return Math.max(0, totalVenta - pagadoHastaEseMomento);
+}
+
+function _cobroSaldoRestanteHistorialHTML(p, listaOrdenada, indice) {
+  if (p && (p.anulado || String(p.estado||'').toLowerCase() === 'anulado')) {
+    return '<span style="color:var(--red);font-size:11px">Anulado</span>';
+  }
+  var saldo = _cobroSaldoRestanteHistorial(p, listaOrdenada, indice);
+  if (saldo == null) return '<span style="color:var(--text3)">—</span>';
+  return '<span style="font-weight:600;color:' + (saldo <= .01 ? 'var(--green)' : 'var(--amber)') + '">$' +
+    saldo.toLocaleString('es-AR',{maximumFractionDigits:2}) + '</span>';
+}
+
 function fbCargarPagos() {
   if (!window.fbDB) return;
   if (window._pagosListenerActivo) return;
@@ -11168,8 +11205,9 @@ function fbCargarPagos() {
         var _ed = p.fbKey && !p.anulado ? '<button class="btn btn-sm btn-icon" onclick="anularPago(\''+p.fbKey+'\')" title="Anular cobro" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-ban" style="font-size:13px"></i></button>' : '';
         var trStyle = p.anulado ? 'background:rgba(239,68,68,.08);opacity:.7' : '';
         var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : _cobroMontoHistorialHTML(p);
+        var saldoStr = _cobroSaldoRestanteHistorialHTML(p, lista, idx);
         var reciboBtn = p.anulado ? '' : '<button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>';
-        return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" data-medio="'+escapeHTML(p.medio||'')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(formatoMedioPago(p.medio||'—'))+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+ventaLink+'</td><td style="text-align:right;white-space:nowrap">'+reciboBtn+_ed+'</td></tr>';
+        return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" data-medio="'+escapeHTML(p.medio||'')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(formatoMedioPago(p.medio||'—'))+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+saldoStr+'</td><td style="text-align:right;white-space:nowrap"><div style="display:flex;justify-content:flex-end;gap:4px">'+ventaLink+reciboBtn+_ed+'</div></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
     }
@@ -14992,6 +15030,9 @@ function registrarPago() {
     cotizacionReferencia: estadoMonto.moneda === 'USD' ? (parseFloat((document.getElementById('cob-tipo-cambio')||{}).dataset.valorReferencia)||0) : 0,
     cotizacionEditada: estadoMonto.moneda === 'USD' && Math.abs(estadoMonto.tipoCambio - (parseFloat((document.getElementById('cob-tipo-cambio')||{}).dataset.valorReferencia)||0)) > 0.001,
     cotizacionFuenteFecha: estadoMonto.moneda === 'USD' ? (_cotizacionReferenciaCobranza().fuenteFecha || '') : '',
+    totalVenta: ventaObj ? (parseFloat(ventaObj.total)||0) : 0,
+    saldoAnterior: estadoMonto.saldo,
+    saldoRestante: Math.max(0, estadoMonto.saldo - monto),
     medio:    medio,
     fecha:    fecha,
     obs:      obs,
