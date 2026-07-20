@@ -4840,8 +4840,9 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.118-firebase',
+  VERSION: 'v2.0.119-firebase',
   RELEASE_NOTES: Object.freeze([
+    'La impresión del presupuesto informa correctamente si los valores incluyen IVA o están expresados sin IVA.',
     'El resumen operativo compara ventas netas contra gastos realmente pagados, sin duplicar el costo de mercadería.',
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
@@ -15223,7 +15224,7 @@ function imprimirPresupuesto(pptoRef) {
 
     '<div class="validez">'+
       'Este presupuesto tiene validez hasta el <strong>'+venc+'</strong>. '+
-      'Los precios incluyen IVA según corresponda. '+
+      (imprimirConIva ? 'Los precios incluyen IVA. ' : 'Los precios están expresados sin IVA. ')+
       'Precios en pesos argentinos. Sujeto a disponibilidad de stock.'+
     '</div>'+
 
