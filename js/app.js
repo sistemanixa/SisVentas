@@ -4840,7 +4840,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.113-firebase',
+  VERSION: 'v2.0.114-firebase',
   RELEASE_NOTES: Object.freeze([
     'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
     'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
@@ -14911,7 +14911,9 @@ function mostrarMenuPptoFlotante(pptoId, anchorBtn) {
   }
   var ref = p.id || p.fbKey;
   item('Ver detalle', 'ti-eye', function(){ verPpto(ref); });
-  item('Imprimir', 'ti-printer', function(){ imprimirPresupuesto(ref); });
+  // El menú ya resolvió el registro exacto. Pasarlo directamente evita una
+  // segunda búsqueda por número que en datos legacy podía caer en vacío.
+  item('Imprimir', 'ti-printer', function(){ imprimirPresupuesto(p); });
   if (puedeEditarPresupuestoPermiso(p)) item('Editar', 'ti-edit', function(){ abrirEditorPpto(ref); }, 'var(--blue)');
   if (puedeAnular && p.estado !== 'convertido' && p.estado !== 'anulado') {
     sep();
@@ -15000,8 +15002,11 @@ function togglePptoDetalle() {
 function imprimirPresupuesto(pptoRef) {
   var g = function(id){ var el=document.getElementById(id); return el ? el.value||el.textContent||'' : ''; };
   var imprimiendoDetalle = _svElementoVisible(document.getElementById('ppto-detalle-view'));
-  var refImpresion = pptoRef || (imprimiendoDetalle ? pptoActualId : '');
-  var pptoGuardado = refImpresion ? buscarPptoPorRef(refImpresion) : null;
+  var pptoDirecto = pptoRef && typeof pptoRef === 'object' ? pptoRef : null;
+  var refImpresion = pptoDirecto
+    ? (pptoDirecto.id || pptoDirecto.fbKey || '')
+    : (pptoRef || (imprimiendoDetalle ? pptoActualId : ''));
+  var pptoGuardado = pptoDirecto || (refImpresion ? buscarPptoPorRef(refImpresion) : null);
   var empresa = {
     nombre: (document.getElementById('cfg-empresa-nombre')||{}).value || 'Nixa',
     dir:    (document.getElementById('cfg-empresa-dir')||{}).value    || 'Patagones 390, Mar del Plata',
