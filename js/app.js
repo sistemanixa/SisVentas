@@ -4779,11 +4779,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.94-firebase',
+  VERSION: 'v2.0.95-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La aprobación del administrador ahora es únicamente interna y ya no crea una venta.',
-    'El administrativo responsable recibe el aviso y puede imprimir, enviar o convertir el presupuesto.',
-    'Al registrar la aceptación del cliente, el presupuesto se convierte automáticamente en venta.'
+    'Las tarjetas de cobros por medio de pago ahora mantienen alineados sus importes y subtítulos.',
+    'Los títulos reservan el mismo alto aunque algunos nombres ocupen una sola línea.',
+    'Se conserva el circuito separado de aprobación y conversión de presupuestos.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -11098,7 +11098,7 @@ function renderEstadisticas() {
   var totalCob=Object.values(porMedio).reduce(function(s,v){return s+v.monto;},0);
   var listaMed=Object.entries(porMedio).sort(function(a,b){return b[1].monto-a[1].monto;});
   var mpCards=_e('est-mp-cards');
-  if(mpCards)mpCards.innerHTML=listaMed.slice(0,4).map(function(e){var pct=totalCob>0?Math.round(e[1].monto/totalCob*100):0;return '<div class="metric"><div class="m-label">'+escapeHTML(e[0])+'</div><div class="m-value" style="color:var(--blue)">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</div><div class="m-sub">'+e[1].cant+' cobro'+(e[1].cant!==1?'s':'')+' · '+pct+'%</div></div>';}).join('')||'<div style="color:var(--text3);font-size:13px;padding:8px">Sin cobros</div>';
+  if(mpCards)mpCards.innerHTML=listaMed.slice(0,4).map(function(e){var pct=totalCob>0?Math.round(e[1].monto/totalCob*100):0;return '<div class="metric est-mp-card"><div class="m-label">'+escapeHTML(e[0])+'</div><div class="m-value" style="color:var(--blue)">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</div><div class="m-sub">'+e[1].cant+' cobro'+(e[1].cant!==1?'s':'')+' · '+pct+'%</div></div>';}).join('')||'<div style="color:var(--text3);font-size:13px;padding:8px">Sin cobros</div>';
   var tbMed=_e('est-tbody-medios');
   if(tbMed)tbMed.innerHTML=listaMed.length?listaMed.map(function(e){var pct=totalCob>0?Math.round(e[1].monto/totalCob*100):0;return '<tr><td style="padding:8px 0">'+escapeHTML(e[0])+'</td><td style="text-align:right;color:var(--text3)">'+e[1].cant+'</td><td style="text-align:right;font-weight:600">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+pct+'%</td></tr>';}).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sin cobros en el período</td></tr>';
 }

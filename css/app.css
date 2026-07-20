@@ -165,6 +165,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 .metrics{}
 .card{}
 .m-label{font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.est-mp-card .m-label{align-items:flex-start!important;min-height:32px;line-height:16px}
 .m-value{font-size:22px;font-weight:600;color:var(--text);margin-bottom:4px}
 .m-sub{font-size:11px;color:var(--text3)}
 .m-up{color:var(--green)}
