@@ -312,13 +312,6 @@ function sortData(lista, tablaId, defaultCol, defaultDir) {
   });
 }
 
-// Helper para generar un th ordenable
-function thSort(tablaId, col, label, tipo) {
-  return '<th data-sort="' + col + '" onclick="sortTabla(\''+tablaId+'\',\''+col+'\',\''+tipo+'\')" ' +
-    'style="cursor:pointer;user-select:none;white-space:nowrap">' +
-    label + ' <i class="sort-icon ti ti-chevrons-up-down" style="font-size:11px;color:var(--text3)"></i>' +
-  '</th>';
-}
 function renderTablaClientes(filtro) {
   var tbody = document.getElementById('cli-tbody');
   if (!tbody) return;
@@ -619,19 +612,6 @@ function eliminarKit(fbKey) {
     .then(function(){ notify('Kit eliminado'); });
 }
 
-// Descontar stock de componentes al vender un kit
-function descontarStockKit(kitFbKey, cantidadVendida) {
-  var kit = KITS_DATA[kitFbKey];
-  if (!kit || !kit.componentes) return;
-  cantidadVendida = cantidadVendida || 1;
-  kit.componentes.forEach(function(c) {
-    var prod = Object.values(prodData||{}).find(function(p){ return p.fbKey === c.pid; });
-    if (!prod) return;
-    var nuevoStock = Math.max(0, (parseInt(prod.stock)||0) - (c.cantidad * cantidadVendida));
-    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/productos/'+prod.fbKey), { stock: nuevoStock });
-  });
-}
-
 function poblarSelectCategorias() {
   var sel = document.getElementById('filter-cat');
   if (!sel) return;
@@ -904,8 +884,6 @@ function _gSelCliById(id) {
   selCli(c.id, c.nombre, c.dir||'');
 }
 
-function selCliById(el) { _gSelCliById(el.dataset.id); }
-
 function selCli(id, nombre, dir) {
   var inp  = document.getElementById('cli-inp');
   var idEl = document.getElementById('id-cli');
@@ -914,12 +892,6 @@ function selCli(id, nombre, dir) {
   if (idEl) idEl.value = String(id).padStart(4,'0');
   if (dirEl)dirEl.value= dir || '';
   _ocultarDropGlobal();
-}
-function _dx(s, k) {
-  k = k || 'NIXASYS26';
-  var b = atob(s), r = '';
-  for (var i = 0; i < b.length; i++) r += String.fromCharCode(b.charCodeAt(i) ^ k.charCodeAt(i % k.length));
-  return r;
 }
 // $n(num) → "1.234.567" | $m(num) → "$1.234.567" | $p(str) → float
 window.$n = function(n, dec) {
@@ -3127,10 +3099,6 @@ document.addEventListener('firebase-ready', function() {
   // NO cargar datos aquí — se cargan después del login (auth requerida)
 });
 
-function fbListo(fn) {
-  if (fbConectado) fn();
-  else fbEsperandoReady.push(fn);
-}
 var FB_PATHS = {
   clientes:      'sisventas/clientes',
   productos:     'sisventas/productos',
@@ -3243,12 +3211,6 @@ function fbGuardarCliente(cli) {
   }
 }
 
-function fbEliminarCliente(fbKey) {
-  if (!window.fbDB || !fbKey) return;
-  window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + fbKey))
-    .then(function() { notify('Cliente eliminado'); })
-    .catch(function(e) { notify('Error: ' + e.message); });
-}
 function fbCargarProductos() {
   if (!window.fbDB) return;
   if (window._productosListenerActivo) return;
@@ -4879,11 +4841,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.106-firebase',
+  VERSION: 'v2.0.107-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Los indicadores del detalle de venta abren cobros, factura, OT y auditoría.',
-    'Cobranzas y órdenes de trabajo permiten volver a la misma venta de origen.',
-    'La alineación elegida en Columnas se mantiene durante la edición y después de guardarla.'
+    'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
+    'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
+    'Se redujo el código conservando las funciones dinámicas, de migración y diagnóstico.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -8415,12 +8377,6 @@ function pfUsarPrecio(precio) {
   notify('✓ Precio de compra actualizado a $' + precio.toLocaleString('es-AR'));
 }
 
-function pfFormatearPrecio(val) {
-  // Redondear a 2 decimales máximo, eliminar decimales innecesarios
-  var n = parseFloat(val) || 0;
-  return n % 1 === 0 ? String(Math.round(n)) : n.toFixed(2).replace(/\.?0+$/, '');
-}
-
 function calcPrecioDesdeGremio() {
   var gremio  = getMontoRaw(document.getElementById('pf-precio-gremio'));
   var margen  = asegurarMargenProductoDefaultEnForm();
@@ -8850,24 +8806,7 @@ document.addEventListener('keydown', function(e) {
   }
 }, true);
 
-// Mostrar alertas al navegar a productos
-// lógica productos integrada en showPage
 function buscarEmpleado(v) { document.querySelectorAll('.er').forEach(tr => tr.style.display = tr.textContent.toLowerCase().includes(v.toLowerCase()) ? '' : 'none'); }
-function abrirFormPresupuesto() {
-  document.querySelector('#page-presupuesto .card').style.display='none';
-  _block('ppto-form');
-  const d=new Date(); document.getElementById('pp-fecha').value=d.toISOString().split('T')[0];
-  var numEl = document.getElementById('pp-numero');
-  if (numEl && !numEl.value) {
-    var base = (pptoData||[]).length + 1;
-    numEl.value = 'PP-' + String(base).padStart(4,'0');
-  }
-  calcVencimiento(); calcPpTotales();
-}
-function cerrarFormPresupuesto() {
-  document.querySelector('#page-presupuesto .card').style.display='';
-  _hide('ppto-form');
-}
 function calcVencimiento() {
   const fEl = document.getElementById('pp-fecha');
   const diasEl = document.getElementById('pp-validez') || document.getElementById('pp-dias');
@@ -8881,18 +8820,6 @@ function calcVencimiento() {
   const fechaISO = venc.getFullYear() + '-' + String(venc.getMonth()+1).padStart(2,'0') + '-' + String(venc.getDate()).padStart(2,'0');
   if (vencEl) vencEl.value = fechaISO;
 }
-function filterPpCli(v) {
-  const d=_get('pp-cli-drop');
-  if(!v){d.style.display='none';return;}
-  let any=false;
-  d.querySelectorAll('.di').forEach(i=>{const s=i.textContent.toLowerCase().includes(v.toLowerCase());i.style.display=s?'':'none';if(s)any=true;});
-  d.style.display=any?'block':'none';
-}
-function selPpCli(nombre,dir) {
-  _get('pp-cli-inp').value=nombre;
-  _hide('pp-cli-drop');
-}
-document.addEventListener('click', e=>{if(!e.target.closest('#page-presupuesto .sw'))_hide('pp-cli-drop');});
 var _pptoConIva = true; // estado global del toggle IVA en presupuesto
 
 function toggleIvaPpto(btn) {
@@ -8983,10 +8910,6 @@ function calcMargenPpto() {
 }
 var ppRowCount=2;
 
-// guardarPresupuesto definida abajo con implementación completa en Firebase
-// convertirVenta y verPresupuesto definidas en el módulo de presupuestos
-function buscarPresupuesto(v) { document.querySelectorAll('.pprow').forEach(tr=>tr.style.display=tr.textContent.toLowerCase().includes(v.toLowerCase())?'':'none'); }
-function filtrarEstadoPpto(v) { document.querySelectorAll('.pprow').forEach(tr=>tr.style.display=(!v||tr.dataset.estado===v)?'':'none'); }
 document.addEventListener('DOMContentLoaded',()=>{ const f=document.getElementById('cob-fecha'); if(f)f.value=new Date().toISOString().split('T')[0]; });
 function buscarVentaCob(v) {
   const d = document.getElementById('cob-drop');
@@ -10959,10 +10882,6 @@ function verVentaDesdeHistorial(ventaId, trEl) {
   }, 200);
 }
 
-// Mantenida por compatibilidad si algo viejo todavía la referencia
-function verCuentaCliente(nombre) {
-  verCuentaClienteReal(nombre);
-}
 function verEmpleado(id) {
   const e = empData[id];
   if (!e) return;
@@ -12816,14 +12735,6 @@ function cargarConfigImpuestos() {
   });
 }
 
-function guardarConfiguracion(btn) {
-  const orig = btn.innerHTML;
-  btn.innerHTML = '<i class="ti ti-check"></i> Guardado';
-  btn.disabled = true;
-  setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2000);
-  notify('Configuración guardada');
-}
-
 function cargarConfigGeneral() {
   if (!window.fbDB) return;
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/empresa')).then(function(snap) {
@@ -14327,11 +14238,6 @@ function abrirComprobanteMovEmp(movFbKey, idx) {
   else w.document.write('<img src="'+comp.data+'" style="max-width:100%;height:auto;display:block;margin:0 auto;background:#111">');
 }
 
-function _esRolAdminOAdministrativo() {
-  var r = String(currentRole || '').toLowerCase();
-  return r === 'admin' || r === 'administrativo';
-}
-
 function _movEmpTotalPagado(m) {
   if (!m) return 0;
   var pagos = _movEmpPagosArray(m).reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
@@ -14788,13 +14694,6 @@ function eliminarMovEmp(movKey, empKey) {
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey))
     .then(function(){ notify('Movimiento eliminado'); });
 }
-// FUNCIONES CRUD FALTANTES — implementación completa
-function editarVenta(id) {
-  var v = (ventasList||[]).find(function(x){ return x.id === id || x.fbKey === id; });
-  if (!v) { notify('Venta no encontrada'); return; }
-  if (typeof abrirEditorVenta === 'function') { abrirEditorVenta(v.fbKey || id); return; }
-}
-
 function eliminarVenta(fbKey) {
   var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!v) return;
@@ -16423,10 +16322,6 @@ function spCambiarEstado(nuevoEstado, extraDatos) {
       return true;
     })
     .catch(function(e){ notify('Error: '+e.message); return false; });
-}
-
-function spSolicitarVisita() {
-  spCambiarEstado('visita');
 }
 
 function spResolverRemoto() {
@@ -20390,10 +20285,6 @@ function confirmarEstadoEmpleado(fbKey, nuevoEstado, motivo, fecha, obs) {
   });
 }
 
-function toggleActivoEmpleado(fbKey, estadoActual) {
-  abrirModalEstadoEmpleado(fbKey, estadoActual);
-}
-
 function abrirLegajoEmpleado(fbKey) {
   var emp = Object.values(empData||{}).find(function(e){ return e.fbKey===fbKey; });
   if (!emp) return;
@@ -22107,10 +21998,6 @@ function actualizarProveedorBaseEnForm() {
   if (lbl) lbl.textContent = base ? '⭐ Proveedor base: ' + (base.nombre||'') : '';
 }
 
-function getProveedorBase() {
-  return (proveedoresData||[]).find(function(p){ return p.base || p.favorito; });
-}
-
 function fbCargarProveedores() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/proveedores'), function(snap) {
@@ -22233,10 +22120,6 @@ function checkAprobacion() {
 function pptoStateBadge(estado) {
   const e = PPTO_ESTADOS[estado] || { label: estado, badge: 'badge-borrador' };
   return `<span class="badge ${e.badge}">${e.label}</span>`;
-}
-
-function pptoDomKey(p) {
-  return String((p && (p.fbKey || p.id)) || '').replace(/[^a-zA-Z0-9_-]/g, '_') || ('ppto_' + Date.now());
 }
 
 function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
@@ -25053,21 +24936,6 @@ function moverVentaAPresupuesto(ventaId) {
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
-function renderVentaTimeline(containerId, estadoActual) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  const idx = VENTA_ESTADOS.findIndex(e => e.id === estadoActual);
-  el.innerHTML = '<div class="venta-timeline">' + VENTA_ESTADOS.map((e, i) => {
-    let cls = '';
-    if (i < idx) cls = 'done';
-    else if (i === idx) cls = e.cls;
-    return `<div class="vt-step ${cls}">
-      <div class="vt-dot"><i class="ti ${e.icon}" style="font-size:11px"></i></div>
-      <div class="vt-label">${e.label}</div>
-    </div>`;
-  }).join('') + '</div>';
-}
-
 function ventaEstadoBadge(est) {
   const map = {
     pendiente_pago: ['badge b-amber','Pendiente pago'],
@@ -25110,15 +24978,6 @@ function calcularPagadoRealVenta(venta) {
   }).reduce(function(s, p) { return s + (parseFloat(p.monto) || 0); }, 0);
   var totalDirecto = parseFloat(venta.totalPagado || venta.pagado || venta.montoPagado) || 0;
   return Math.max(totalPagos, totalDirecto);
-}
-
-function verHistorialCli(btn) {
-  // Obtener datos del cliente desde la fila
-  const tr = btn.closest('tr');
-  const celdas = tr.querySelectorAll('td');
-  const id = (btn.dataset && (btn.dataset.ckey || btn.dataset.cid)) || (tr.dataset && (tr.dataset.ckey || tr.dataset.cid)) || String(celdas[0].textContent || '').trim();
-  const nombre = (celdas[1].textContent + ', ' + celdas[2].textContent).trim();
-  verHistorialCliente(id, nombre);
 }
 
 function verHistorialCliente(id, nombre) {
@@ -26014,27 +25873,6 @@ function toggleCSF(vid, fk) {
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
-// Mantenida por compatibilidad — ahora todo registro de pago pasa por el
-// módulo de Cobranzas (irACobranzasConVenta), para que quede centralizado.
-function registrarPagoVenta(ventaId) {
-  irACobranzasConVenta(ventaId);
-}
-// STOCK DISPONIBLE VS RESERVADO
-
-function getStockDisponible(cod) {
-  const s = stockData[cod];
-  if (!s) return null;
-  return { real:s.real, reservado:s.reservado, disponible: s.real - s.reservado };
-}
-
-function reservarStock(cod, cantidad) {
-  if (!stockData[cod]) return false;
-  const disp = stockData[cod].real - stockData[cod].reservado;
-  if (cantidad > disp) { notify('Sin stock suficiente para ' + cod); return false; }
-  stockData[cod].reservado += cantidad;
-  notify('Stock reservado: ' + cod + ' × ' + cantidad);
-  return true;
-}
 // NOTIFICACIONES INTELIGENTES AUTOMÁTICAS
 
 // Configuración de alertas (qué activa cada tipo)
@@ -26975,36 +26813,6 @@ function calcularComisionEmpleado(emp, mesAMM) {
   };
 }
 
-// Editar alícuota IVA
-function editarIVA(btn) {
-  const tr = btn.closest('tr');
-  const inp = tr.querySelector('input[type=number]');
-  var _td=tr.querySelector('td'); const nombre = (_td?_td.textContent:'') || 'alícuota';
-  if (inp) {
-    inp.focus();
-    inp.select();
-    notify('Editá el valor y presioná Enter para confirmar');
-    inp.addEventListener('keydown', function handler(e) {
-      if (e.key === 'Enter') {
-        notify(nombre + ' actualizada a ' + inp.value + '%');
-        inp.removeEventListener('keydown', handler);
-      }
-    });
-  }
-}
-
-// Ver equipo instalado
-function verEquipo(serie, cliente) {
-  // Navegar a historial del cliente
-  const cli = _svResolverClienteRegistro({ cliente: cliente }, true);
-  if (cli) {
-    verHistorialCliente(cli.id, cli.nombre);
-    setTimeout(() => switchHistTab('equipos', document.querySelectorAll('.hist-tab-btn')[4]), 200);
-  } else {
-    notify('Equipo ' + serie + ' — ' + cliente);
-  }
-}
-
 // Editar cliente
 function editarCliente(id) {
   var cli = clientesData ? clientesData.find(function(c){ return c.id === id; }) : null;
@@ -27285,10 +27093,6 @@ function agregarVentaAnteriorAPpto(indice) {
   calcPpTotales();
   var modal = document.getElementById('modal-ventas-cliente-ppto'); if (modal) modal.remove();
   notify('Se agregaron ' + items.length + ' ítems de la venta anterior');
-}
-
-function selDrop(inputId, dropId, valor) {
-  _gFilterDropSel(inputId, valor);
 }
 
 function _abrirAltaRapidaCliente(inputOrigen, nombrePrevio) {
@@ -27780,7 +27584,6 @@ function iniciarMonedaPpto() {
 }
 
 function filtrarSelectorProducto(inp) { _renderDropGlobal(inp.value); }
-function selProductoEnFila(item, cod, desc, precio) { _selProdGlobal(item); }
 // BÚSQUEDA AVANZADA DE PRODUCTOS
 // Modal con filtros por categoría, marca y texto libre.
 var _busqAvanzTR = null; // fila a la que se va a cargar el producto

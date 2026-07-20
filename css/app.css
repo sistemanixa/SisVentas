@@ -1210,17 +1210,12 @@ body.modal-secure-open{overflow:hidden!important}
 @media(max-width:900px){.emp-actions-358{width:100%;display:grid!important;grid-template-columns:1fr 1fr;gap:8px}.emp-actions-358 .btn{width:100%;justify-content:center}}
 
 /* v1.36.9 — Ajuste visual uniforme: menos brillo, más consistencia */
-.card,.sv334-analytics-card,.sv334-graph,.sv-rent-compare{background:linear-gradient(145deg,rgba(255,255,255,.028),rgba(255,255,255,.008)),var(--bg2)!important;border-color:rgba(120,130,160,.22)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)!important}
+.card,.sv334-analytics-card,.sv334-graph{background:linear-gradient(145deg,rgba(255,255,255,.028),rgba(255,255,255,.008)),var(--bg2)!important;border-color:rgba(120,130,160,.22)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)!important}
 .card:hover,.sv334-analytics-card:hover{transform:translateY(-1px);border-color:rgba(120,130,160,.38)!important;box-shadow:0 14px 34px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.03)!important}
 .metric,.sv334-mini-card,.sv334-q{background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.01)),var(--bg3)!important;border:0.5px solid rgba(120,130,160,.18)!important}
 #dash-rentabilidad-card{background:linear-gradient(145deg,rgba(74,222,128,.045),rgba(96,165,250,.025)),var(--bg2)!important}
 #dash-rentabilidad-card:before{display:none!important}
 #dash-rentabilidad-card .metric{background:linear-gradient(145deg,rgba(255,255,255,.034),rgba(255,255,255,.01)),var(--bg3)!important}
-.sv-rent-compare{padding:13px!important}
-.sv-rent-track{height:13px!important;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.014))!important;box-shadow:inset 0 1px 5px rgba(0,0,0,.22),0 0 0 1px rgba(255,255,255,.025)!important}
-.sv-rent-track:after{opacity:.55}
-.sv-rent-fill-ing{background:linear-gradient(90deg,rgba(45,223,123,.88),var(--green))!important;box-shadow:0 0 12px rgba(74,222,128,.14)!important}
-.sv-rent-fill-gas{background:linear-gradient(90deg,rgba(251,111,111,.88),var(--red))!important;box-shadow:0 0 12px rgba(248,113,113,.14)!important}
 .sv334-chart-wrap,.sv334-line-wrap{height:158px!important}
 .sv334-bars-area,.sv334-svg-wrap{height:138px!important;box-sizing:border-box;background:linear-gradient(180deg,rgba(255,255,255,.020),rgba(255,255,255,.006))!important;border-color:rgba(120,130,160,.22)!important}
 .sv334-svg{height:138px!important}
@@ -1243,22 +1238,8 @@ body.modal-secure-open{overflow:hidden!important}
 #dash-rentabilidad-card{position:relative;overflow:hidden!important;background:radial-gradient(circle at 6% 0,rgba(74,222,128,.16),transparent 28%),radial-gradient(circle at 92% 10%,rgba(96,165,250,.14),transparent 32%),linear-gradient(145deg,rgba(255,255,255,.035),rgba(15,17,23,.08)),var(--bg2)!important}
 #dash-rentabilidad-card:before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,transparent,rgba(255,255,255,.045),transparent);transform:translateX(-80%);transition:transform .6s ease}
 #dash-rentabilidad-card:hover:before{transform:translateX(80%)}
-#dash-rentabilidad-card .card-head,#dash-rentabilidad-card .metrics,#dash-rentabilidad-card .sv-rent-compare{position:relative;z-index:1}
+#dash-rentabilidad-card .card-head,#dash-rentabilidad-card .metrics{position:relative;z-index:1}
 #dash-rentabilidad-card .metric{background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.014))!important;border-color:rgba(120,130,160,.20)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
-.sv-rent-compare{margin-top:4px;padding:14px;border:0.5px solid rgba(120,130,160,.18);border-radius:var(--radius-lg);background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.01))}
-.sv-rent-bars{display:grid;gap:12px}
-.sv-rent-row-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px;font-size:11px;color:var(--text2);letter-spacing:.25px}
-.sv-rent-row-head span{display:inline-flex;align-items:center;gap:6px;text-transform:uppercase;color:var(--text3)}
-.sv-rent-row-head i{font-size:15px}
-.sv-rent-row-head strong{font-size:12px;color:var(--text);font-weight:800;white-space:nowrap}
-.sv-rent-row-ing .sv-rent-row-head i,.sv-rent-row-ing .sv-rent-row-head strong{color:var(--green)}
-.sv-rent-row-gas .sv-rent-row-head i,.sv-rent-row-gas .sv-rent-row-head strong{color:var(--red)}
-.sv-rent-track{height:15px;position:relative;overflow:hidden;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018));box-shadow:inset 0 1px 6px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.035)}
-.sv-rent-track:after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 1px,transparent 1px 28px);pointer-events:none}
-.sv-rent-fill{height:100%;min-width:7px;border-radius:999px;position:relative;transition:width .55s cubic-bezier(.2,.9,.2,1);box-shadow:0 0 22px rgba(255,255,255,.08)}
-.sv-rent-fill:after{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(255,255,255,.32),transparent 55%)}
-.sv-rent-fill-ing{background:linear-gradient(90deg,#2ddf7b,#77f7a6,var(--green))!important;box-shadow:0 0 22px rgba(74,222,128,.24)}
-.sv-rent-fill-gas{background:linear-gradient(90deg,#fb6f6f,#ff9c9c,var(--red))!important;box-shadow:0 0 22px rgba(248,113,113,.24)}
 #dash-row2-admin .bar-area,#dash-bar-area{height:148px;padding:12px 10px 18px;border:0.5px solid rgba(120,130,160,.18);border-radius:var(--radius-lg);background:radial-gradient(circle at top,rgba(96,165,250,.09),transparent 45%),linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.006));position:relative}
 #dash-row2-admin .bar-area:before,#dash-bar-area:before{content:'';position:absolute;left:12px;right:12px;top:35%;border-top:0.5px dashed rgba(120,130,160,.22)}
 #dash-row2-admin .bar-area:after,#dash-bar-area:after{content:'';position:absolute;left:12px;right:12px;top:67%;border-top:0.5px dashed rgba(120,130,160,.16)}
@@ -1274,9 +1255,6 @@ body.modal-secure-open{overflow:hidden!important}
 #dash-rentabilidad-card{background:linear-gradient(145deg,rgba(74,222,128,.045),rgba(96,165,250,.025)),var(--bg2)!important}
 #dash-rentabilidad-card:before{display:none!important;content:none!important}
 #dash-rentabilidad-card .metric{background:linear-gradient(145deg,rgba(255,255,255,.034),rgba(255,255,255,.01)),var(--bg3)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)!important}
-.sv-rent-track{height:13px!important;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.014))!important;box-shadow:inset 0 1px 5px rgba(0,0,0,.22),0 0 0 1px rgba(255,255,255,.025)!important}
-.sv-rent-fill-ing{background:linear-gradient(90deg,rgba(45,223,123,.88),var(--green))!important;box-shadow:0 0 12px rgba(74,222,128,.14)!important}
-.sv-rent-fill-gas{background:linear-gradient(90deg,rgba(251,111,111,.88),var(--red))!important;box-shadow:0 0 12px rgba(248,113,113,.14)!important}
 .sv334-analytics-card{background:linear-gradient(145deg,rgba(255,255,255,.028),rgba(255,255,255,.008)),var(--bg2)!important}
 .sv334-bars-area,.sv334-svg-wrap{height:138px!important;background:linear-gradient(180deg,rgba(255,255,255,.020),rgba(255,255,255,.006))!important}
 .sv334-chart-wrap,.sv334-line-wrap{height:158px!important}
@@ -1442,37 +1420,6 @@ body.modal-secure-open{overflow:hidden!important}
 .page.active table.sv-percent-table{table-layout:fixed!important;width:var(--sv-percent-total-width,100%)!important;min-width:100%!important;max-width:none!important}
 
 /* v2.0.23 — Rentabilidad dashboard modernizada */
-#dash-rentabilidad-card.sv-rent-modern{position:relative;overflow:hidden!important;padding:20px!important;background:linear-gradient(145deg,rgba(17,24,39,.92),rgba(15,23,42,.78)),radial-gradient(circle at 0 0,rgba(96,165,250,.10),transparent 34%)!important;border-color:rgba(148,163,184,.22)!important}
-#dash-rentabilidad-card.sv-rent-modern:before{display:none!important;content:none!important}
-.sv-rent-modern .card-head{margin-bottom:16px}
-.sv-rent-modern-grid{display:grid;grid-template-columns:minmax(260px,1.05fr) minmax(320px,1.95fr);gap:14px;margin-bottom:14px}
-.sv-rent-main{position:relative;min-height:154px;padding:20px;border-radius:18px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.012));border:1px solid rgba(148,163,184,.18);cursor:pointer;overflow:hidden}
-.sv-rent-main:after{content:'';position:absolute;right:-54px;bottom:-54px;width:150px;height:150px;border-radius:999px;background:rgba(96,165,250,.10);filter:blur(2px)}
-.sv-rent-modern.is-positive .sv-rent-main:after{background:rgba(74,222,128,.13)}
-.sv-rent-modern.is-negative .sv-rent-main:after{background:rgba(248,113,113,.14)}
-.sv-rent-pill{position:relative;z-index:1;display:inline-flex;align-items:center;gap:6px;min-height:24px;padding:4px 10px;border-radius:999px;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.16);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text2)}
-.sv-rent-modern.is-positive .sv-rent-pill{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.24);color:var(--green)}
-.sv-rent-modern.is-warning .sv-rent-pill{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.24);color:var(--amber)}
-.sv-rent-modern.is-negative .sv-rent-pill{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.26);color:var(--red)}
-.sv-rent-main-label{position:relative;z-index:1;margin-top:18px;color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.11em}
-.sv-rent-main-value{position:relative;z-index:1;margin-top:8px;font-size:34px;line-height:1;font-weight:850;letter-spacing:-.035em}
-.sv-rent-main-meta{position:relative;z-index:1;margin-top:12px;color:var(--text2);font-size:13px}
-.sv-rent-main-meta strong{font-size:16px;margin-left:5px}
-.sv-rent-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.sv-rent-mini{width:100%;min-height:154px;text-align:left;padding:18px;border-radius:18px;border:1px solid rgba(148,163,184,.18);background:linear-gradient(145deg,rgba(255,255,255,.038),rgba(255,255,255,.01));cursor:pointer;color:var(--text);font-family:inherit;transition:transform .16s ease,border-color .16s ease,background .16s ease}
-.sv-rent-mini:hover,.sv-rent-main:hover{transform:translateY(-1px);border-color:rgba(148,163,184,.36)}
-.sv-rent-mini span{display:flex;align-items:center;gap:7px;color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.09em}
-.sv-rent-mini strong{display:block;margin-top:18px;font-size:28px;line-height:1;font-weight:850;letter-spacing:-.03em}
-.sv-rent-mini em{display:block;margin-top:10px;color:var(--text3);font-size:12px;font-style:normal}
-.sv-rent-income strong,.sv-rent-income span i{color:var(--green)}
-.sv-rent-expense strong,.sv-rent-expense span i{color:var(--red)}
-#dash-rentabilidad-card.sv-rent-modern .sv-rent-compare{padding:16px!important;border-radius:18px!important;background:linear-gradient(145deg,rgba(255,255,255,.03),rgba(255,255,255,.008))!important;border-color:rgba(148,163,184,.16)!important}
-#dash-rentabilidad-card.sv-rent-modern .sv-rent-track{height:10px!important;border-radius:999px!important;background:rgba(15,23,42,.68)!important;box-shadow:inset 0 1px 5px rgba(0,0,0,.28)!important;overflow:hidden}
-#dash-rentabilidad-card.sv-rent-modern .sv-rent-fill{height:100%;border-radius:999px;box-shadow:none!important}
-#dash-rentabilidad-card.sv-rent-modern .sv-rent-fill-ing{background:linear-gradient(90deg,#22c55e,#86efac)!important}
-#dash-rentabilidad-card.sv-rent-modern .sv-rent-fill-gas{background:linear-gradient(90deg,#ef4444,#fca5a5)!important}
-@media(max-width:920px){.sv-rent-modern-grid{grid-template-columns:1fr}.sv-rent-main,.sv-rent-mini{min-height:124px}.sv-rent-main-value{font-size:28px}.sv-rent-mini strong{font-size:24px}}
-@media(max-width:620px){.sv-rent-side{grid-template-columns:1fr}}
 .sv-column-percent-overlay{position:fixed;inset:0;z-index:1000000;background:rgba(0,0,0,.52);display:flex;align-items:center;justify-content:center;padding:18px}
 .sv-column-percent-panel{width:min(720px,96vw);max-height:88vh;overflow:hidden;display:flex;flex-direction:column;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.48)}
 .sv-column-percent-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:16px 18px;border-bottom:1px solid var(--border)}
@@ -1556,57 +1503,6 @@ body.modal-secure-open{overflow:hidden!important}
   grid-template-columns:repeat(4,minmax(0,1fr))!important;
   gap:12px!important;
   margin-bottom:14px!important;
-}
-#dash-rentabilidad-card.sv-rent-compact .sv-rent-compare{
-  margin-top:0!important;
-  padding:15px 16px!important;
-  border:1px solid rgba(148,163,184,.16)!important;
-  border-radius:18px!important;
-  background:linear-gradient(145deg,rgba(255,255,255,.026),rgba(255,255,255,.008))!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.024)!important;
-}
-#dash-rentabilidad-card.sv-rent-compact .sv-rent-bars{gap:15px!important}
-#dash-rentabilidad-card.sv-rent-compact .sv-rent-row-head{
-  margin-bottom:8px!important;
-  font-size:11px!important;
-}
-#dash-rentabilidad-card.sv-rent-compact .sv-rent-track{
-  height:13px!important;
-  border-radius:999px!important;
-  background:
-    linear-gradient(180deg,rgba(255,255,255,.038),rgba(255,255,255,.012)),
-    rgba(15,23,42,.68)!important;
-  border:1px solid rgba(255,255,255,.028)!important;
-  box-shadow:inset 0 1px 6px rgba(0,0,0,.34)!important;
-  overflow:hidden!important;
-}
-#dash-rentabilidad-card.sv-rent-compact .sv-rent-track:after{
-  content:'';
-  position:absolute;
-  inset:0;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.055),transparent);
-  opacity:.72;
-  pointer-events:none;
-}
-#dash-rentabilidad-card.sv-rent-compact .sv-rent-fill{
-  height:100%!important;
-  min-width:6px;
-  border-radius:999px!important;
-  transition:width .45s cubic-bezier(.2,.85,.2,1);
-  box-shadow:none!important;
-}
-#dash-rentabilidad-card.sv-rent-compact .sv-rent-fill:after{
-  content:'';
-  position:absolute;
-  inset:0;
-  border-radius:inherit;
-  background:linear-gradient(180deg,rgba(255,255,255,.30),transparent 58%);
-}
-#dash-rentabilidad-card.sv-rent-compact .sv-rent-fill-ing{
-  background:linear-gradient(90deg,#22c55e,#6ee7a8,#bbf7d0)!important;
-}
-#dash-rentabilidad-card.sv-rent-compact .sv-rent-fill-gas{
-  background:linear-gradient(90deg,#dc2626,#ef4444,#fca5a5)!important;
 }
 #dash-rentabilidad-card.sv-rent-compact.is-negative .metric:nth-child(3):after,
 #dash-rentabilidad-card.sv-rent-compact.is-negative .metric:nth-child(4):after{background:rgba(248,113,113,.075)}
