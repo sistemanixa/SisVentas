@@ -4993,10 +4993,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.135-firebase',
+  VERSION: 'v2.0.136-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Se reparan los tres productos contaminados por el actualizador.',
-    'También se corrige el precio interno de sus proveedores.'
+    'Se audita todo el catálogo y se reparan los precios multiplicados por el dólar.',
+    'Cada corrección conserva una copia de los valores anteriores.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -7212,6 +7212,46 @@ function _migracionConfirmadaActualizador20260721(p, costoGuardado, ventaGuardad
   };
 }
 
+// Auditoría general del mismo incidente. El lote dejó costo y venta en ARS
+// multiplicados nuevamente por la cotización, mientras compraUSD/ventaUSD
+// conservaron por accidente los importes ARS previos. Se exigen ambos pares,
+// el mismo factor y una relación comercial razonable para no corregir por un
+// simple umbral de precio.
+function _migracionGeneralActualizador20260721(p, costoGuardado, ventaGuardada) {
+  if (!(costoGuardado >= 5000000) || !(ventaGuardada >= 5000000)) return null;
+  var costoReferencia = parseFloat(p && p.compraUSD) || 0;
+  var ventaReferencia = parseFloat(p && p.ventaUSD) || 0;
+  if (!(costoReferencia > 0) || !(ventaReferencia > 0)) return null;
+
+  var proveedor = _proveedorPrincipalProductoSinReconciliar(p);
+  var origen = String((p && (p.precioActualizadoOrigen || p.precioVentaActualizadoOrigen)) || (proveedor && proveedor.actualizadoOrigen) || '').toLowerCase();
+  var origenActualizador = /biosegur|free_electron|tecnoprices|mercado_libre|url_exacta|scraping|actualizador|proveedor/.test(origen);
+  if (!origenActualizador) return null;
+
+  var tiposCambio = _tiposCambioAuditoriaProducto(p, proveedor);
+  for (var i = 0; i < tiposCambio.length; i++) {
+    var tc = tiposCambio[i];
+    var costoCorregido = Math.round((costoGuardado / tc) * 100) / 100;
+    var ventaCorregida = Math.round((ventaGuardada / tc) * 100) / 100;
+    if (!(costoCorregido >= 100) || costoCorregido > 2000000) continue;
+    if (!(ventaCorregida >= 100) || ventaCorregida > 5000000) continue;
+    if (!_relacionCercanaProducto(costoCorregido, costoReferencia, 0.03)) continue;
+    if (!_relacionCercanaProducto(ventaCorregida, ventaReferencia, 0.03)) continue;
+    if (!_precioVentaRazonableRespectoCosto(ventaCorregida, costoCorregido)) continue;
+    return {
+      costoGuardado: costoGuardado,
+      costoCorregido: costoCorregido,
+      ventaGuardada: ventaGuardada,
+      ventaCorregida: ventaCorregida,
+      tipoCambio: tc,
+      proveedorConfirma: false,
+      forzarMigracion: true,
+      origen: 'auditoria-general-actualizador-20260721'
+    };
+  }
+  return null;
+}
+
 // El actualizador de proveedores llegó a aceptar importes que ya estaban en ARS
 // como si fueran USD y los multiplicó otra vez por la cotización. Se auditan
 // costo y venta juntos: la reparación solo se habilita cuando el proveedor, la
@@ -7224,6 +7264,9 @@ function detectarProductoArsDuplicadoPorDolar(p) {
 
   var migracionConfirmada = _migracionConfirmadaActualizador20260721(p, costoGuardado, ventaGuardada);
   if (migracionConfirmada) return migracionConfirmada;
+
+  var migracionGeneral = _migracionGeneralActualizador20260721(p, costoGuardado, ventaGuardada);
+  if (migracionGeneral) return migracionGeneral;
 
   var proveedor = _proveedorPrincipalProductoSinReconciliar(p);
   var costoProveedor = _costoProveedorProductoSinAuditar(p, proveedor);
@@ -7464,6 +7507,7 @@ function repararVentasArsDuplicadasPorDolar() {
     cambios[base + 'precioArsPublicadoVenta'] = ventaCorregida;
     cambios[base + 'moneda'] = 'ARS';
     cambios[base + 'monedaVenta'] = 'ARS';
+    cambios[base + 'monedaOperativa'] = 'ARS';
     if (costoCorregido > 0) {
       cambios[base + 'compra'] = costoCorregido;
       cambios[base + 'compraARS'] = costoCorregido;
@@ -7484,6 +7528,21 @@ function repararVentasArsDuplicadasPorDolar() {
     cambios[base + 'precioVentaCorregidoDuplicacionDolarTc'] = auditado.tipoCambio;
     cambios[base + 'precioVentaActualizadoOrigen'] = 'reparacion-actualizador-proveedores';
     cambios[base + 'precioActualizadoOrigen'] = 'reparacion-actualizador-proveedores';
+    cambios[base + 'precioActualizadorReparacionBackup'] = {
+      ts: ahora,
+      usuario: currentUser || 'Admin',
+      compra: parseFloat(p.compra) || null,
+      compraARS: parseFloat(p.compraARS) || null,
+      precioGremio: parseFloat(p.precioGremio) || null,
+      costoRealArs: parseFloat(p.costoRealArs) || null,
+      venta: parseFloat(p.venta) || null,
+      ventaARS: parseFloat(p.ventaARS) || null,
+      compraUSD: parseFloat(p.compraUSD) || null,
+      ventaUSD: parseFloat(p.ventaUSD) || null,
+      moneda: p.moneda || null,
+      monedaVenta: p.monedaVenta || null,
+      proveedores: Array.isArray(p.proveedores) ? p.proveedores : null
+    };
     cambios[base + 'auditoriaPrecioUltima'] = {
       ts: ahora,
       usuario: currentUser || 'Admin',
@@ -8132,6 +8191,9 @@ function datosActualizadosProductoBiosegur(item, resultado) {
     precioArsPublicado: parseFloat(principal.precioArsPublicado || principal.precio) || costo,
     venta: venta,
     ventaARS: venta,
+    moneda: 'ARS',
+    monedaVenta: 'ARS',
+    monedaOperativa: 'ARS',
     precioActualizadoEn: ahora,
     precioActualizadoOrigen: pv.actualizadoOrigen,
     margenDeseado: margen
