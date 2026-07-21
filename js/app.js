@@ -1102,28 +1102,14 @@ function actualizarStatProductoActual(producto) {
 
 // FLUJO COMPLETO DE VENTAS
 function generarOrdenCompraDesdeVenta(ventaObj) {
-  if (!ventaObj || !ventaObj.items || !ventaObj.items.length) return;
-  if (!window.fbDB) return;
-  var items = ventaObj.items.filter(function(it){
-    return it.desc || it.nombre;
-  }).map(function(it){
-    return { codigo: it.cod||it.codigo||'', descripcion: it.desc||it.nombre||'', cantidad: it.qty||1, unidad:'Unidad', precioRef: it.punit||0, recibido: false };
-  });
-  if (!items.length) return;
-  var oc = {
-    ventaId: ventaObj.id, cliente: ventaObj.cliente||'',
-    fecha: new Date().toISOString().slice(0,10),
-    estado: 'pendiente', items: items,
-    obs: 'Generada automáticamente desde venta ' + ventaObj.id,
-    ts: Date.now(), usuario: currentUser||'Sistema'
-  };
-  window.fbPush(window.fbRef(window.fbDB, 'sisventas/ordenes_compra'), oc)
-    .then(function(ref){
-      notify('📦 Orden de compra generada — ' + items.length + ' productos de ' + ventaObj.id);
-      if (ventaObj.fbKey) {
-        window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas+'/'+ventaObj.fbKey), { ordenCompraId: ref.key });
-      }
-    });
+  // El circuito nuevo no crea una OC ciega ni usa la colección histórica
+  // `ordenes_compra`: primero prepara una lista de materiales verificable y,
+  // recién después de las decisiones del administrativo, agrupa por proveedor.
+  if (window.SisVentasCompras && typeof window.SisVentasCompras.createListFromSale === 'function') {
+    return window.SisVentasCompras.createListFromSale(ventaObj, { silent:true });
+  }
+  console.error('El módulo de compras no está disponible; no se creó ninguna orden parcial.');
+  if (typeof notify === 'function') notify('No se pudo preparar la compra. Recargá la aplicación e intentá nuevamente.');
 }
 function verificarVencimientosPptos() {
   if (currentRole === 'tecnico' || currentRole === 'vendedor') return;
@@ -4993,9 +4979,9 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.137-firebase',
+  VERSION: 'v2.0.138-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Al volver de la vista de otro usuario se abre el módulo Usuarios.'
+    'Nuevo circuito de compras: lista de materiales, agrupación por proveedor y recepción con destino.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -13478,23 +13464,11 @@ function guardarNuevoGenerico() {
     guardarTicket({ numero:numTkt, cliente:obj.cli, equipo:obj.eq, descripcion:obj.desc, prioridad:obj.p, estado:obj.est||'Abierto', tecnico:obj.tec||'Sin asignar' });
 
   } else if (tipo === 'ordencompra') {
-    var fbKey = window._modalFbKey;
-    var datos = {
-      numero:      obj.num || ('OC-' + String(ordenesData.length+1).padStart(4,'0')),
-      proveedor:   obj.prov || '',
-      descripcion: obj.desc || '',
-      cantidad:    parseInt(obj.cant) || 1,
-      monto:       parseFloat(obj.monto) || 0,
-      fecha:       obj.fecha || new Date().toISOString().split('T')[0],
-      estado:      obj.est || 'borrador'
-    };
-    if (window.fbDB) {
-      var promesa = fbKey
-        ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ordenes/' + fbKey), datos)
-        : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/ordenes'), datos));
-      promesa.then(function(){ notify(fbKey ? 'Orden actualizada' : 'Orden creada'); })
-             .catch(function(e){ notify('Error: '+e.message); });
-    } else { notify('Sin conexión'); }
+    // Compatibilidad para cualquier botón antiguo que todavía intente abrir el
+    // formulario genérico: se lo deriva al único editor vigente.
+    cerrarModalNuevoGenerico();
+    if (typeof window.abrirNuevaOrden === 'function') window.abrirNuevaOrden();
+    return;
 
   } else {
     notify('Registro guardado');
@@ -14039,6 +14013,7 @@ function abrirPortalProveedor(fbKey) {
 var ordenesData = [];
 
 function fbCargarOrdenes() {
+  if (window.SisVentasCompras && typeof window.SisVentasCompras.start === 'function') return window.SisVentasCompras.start();
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ordenes'), function(snap) {
     var data = snap.val();
@@ -14051,6 +14026,7 @@ function fbCargarOrdenes() {
 }
 
 function renderOrdenesFiltradas() {
+  if (window.SisVentasCompras && typeof window.SisVentasCompras.renderOrders === 'function') return window.SisVentasCompras.renderOrders();
   var tbody = document.getElementById('oc-tbody');
   if (!tbody) return;
   var filtroEstado = (document.getElementById('oc-filtro-estado')||{}).value || '';
@@ -14082,6 +14058,7 @@ function renderOrdenesFiltradas() {
 }
 
 function renderDashOrdenes() {
+  if (window.SisVentasCompras && typeof window.SisVentasCompras.renderAll === 'function') return window.SisVentasCompras.renderAll();
   var mesActual = new Date().toISOString().slice(0,7); // YYYY-MM
   var delMes = ordenesData.filter(function(o){ return (o.fecha||'').slice(0,7) === mesActual; });
   // Métricas
@@ -14143,12 +14120,14 @@ function renderDashOrdenes() {
 }
 
 function abrirNuevaOrden() {
+  if (window.SisVentasCompras && typeof window.SisVentasCompras.openManualOrder === 'function') return window.SisVentasCompras.openManualOrder();
   // Modal simple para nueva orden
   var num = 'OC-' + String(ordenesData.length + 1).padStart(4,'0');
   abrirModalNuevo('ordencompra');
 }
 
 function editarOrden(fbKey) {
+  if (window.SisVentasCompras && typeof window.SisVentasCompras.openOrder === 'function') return window.SisVentasCompras.openOrder(fbKey);
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/ordenes/' + fbKey), function(snap) {
     var o = snap.val();
@@ -24851,10 +24830,21 @@ function otToggleInstalado(chk, indice, vendida) {
   var nuevoVal = chk.checked ? vendida : 0;
   var materiales = (ot.materiales || []).slice();
   if (!materiales[indice]) return;
+  var materialAnterior = Object.assign({}, materiales[indice]);
   materiales[indice] = Object.assign({}, materiales[indice], { instalada:nuevoVal });
+  var materialNuevo = materiales[indice];
   var key = ot.fbKey || otActualId;
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { materiales:materiales })
-    .then(function(){ ot.materiales = materiales; });
+    .then(function(){
+      ot.materiales = materiales;
+      if (window.SisVentasCompras && typeof window.SisVentasCompras.syncOTConsumption === 'function') {
+        return window.SisVentasCompras.syncOTConsumption(ot, materialAnterior, materialNuevo);
+      }
+    })
+    .catch(function(error){
+      chk.checked = !chk.checked;
+      notify('No se pudo registrar el material: ' + error.message);
+    });
 }
 var _otCarritoAdicional = [];
 
@@ -25407,8 +25397,13 @@ function completarOT() {
   if (typeof fbGuardarOT === 'function') {
     fbGuardarOT(ot)
       .then(function() {
-        notify('✓ OT completada y guardada en Firebase');
-        volverListaOT();
+        var liberar = window.SisVentasCompras && typeof window.SisVentasCompras.releaseOTLeftovers === 'function'
+          ? window.SisVentasCompras.releaseOTLeftovers(ot)
+          : Promise.resolve();
+        return liberar.then(function(){
+          notify('✓ OT completada. Los materiales sobrantes pasaron al stock general operativo.');
+          volverListaOT();
+        });
       })
       .catch(function(e) { notify('OT completada pero error al guardar: ' + e.message); });
   } else {
@@ -27190,6 +27185,7 @@ function renderDetalleVenta(v) {
         '<i class="ti ti-eye" id="venta-detalle-icon"></i> <span id="venta-detalle-label">Con detalle</span>' +
       '</button>' +
       '<button class="btn btn-sm" onclick="imprimirVentaActual()" title="Abre el comprobante para imprimir o guardar como PDF"><i class="ti ti-printer"></i> Imprimir comprobante</button>' +
+      '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="abrirListaMaterialesDesdeVenta(window._ventaDetalleActual)" title="Revisar qué materiales ya tenemos y generar órdenes por proveedor"><i class="ti ti-shopping-cart"></i> Preparar compra</button>' +
       '<button class="btn btn-sm" style="color:var(--green2,var(--green));border-color:var(--green2,var(--green))" onclick="pdfYWhatsappVenta(\'' + escapeHTML(v.id||v.fbKey||'') + '\')" title="Generar PDF y abrir WhatsApp del cliente"><i class="ti ti-brand-whatsapp"></i> PDF / WhatsApp</button>' +
       (puedeEliminarVentaDetalle ? '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="eliminarVenta(\'' + escapeHTML(v.fbKey||'') + '\')" title="Eliminar venta (también elimina la OT y los pagos vinculados)"><i class="ti ti-trash"></i> Eliminar</button>' : '') +
     '</div>' +
