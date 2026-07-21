@@ -4960,34 +4960,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.128-firebase',
+  VERSION: 'v2.0.129-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las ventas reconocen una OT vinculada mediante el número actual, el número histórico o la clave interna de Firebase.',
-    'Si una OT conserva una venta inexistente, el sistema repara el vínculo únicamente cuando cliente, fecha o materiales producen una coincidencia única y segura.',
-    'Al completar una OT se guarda el vínculo canónico en ambos registros y la venta adopta inmediatamente el estado Instalado.',
-    'Los técnicos pueden registrar credenciales nuevas desde la OT durante una instalación; la edición y eliminación posterior continúan reservadas a Administración.',
-    'Al cambiar de OT se limpian inmediatamente las credenciales anteriores y se descartan respuestas tardías del cliente previo.',
-    'Admin y Administrativo pueden agregar desde la OT varias credenciales básicas con título, usuario, contraseña y número de serie.',
-    'La ficha completa de credenciales también permite guardar y visualizar el número de serie.',
-    'Las notificaciones de instalaciones comparan la fecha de la OT como calendario local y ya no adelantan las programadas para mañana.',
-    'Recordar mañana también usa la fecha local de Argentina y no UTC.',
-    'El detalle de una venta detecta y repara precios históricos guardados por error en USD, recalculando todos sus importes en ARS.',
-    'La reparación queda guardada en Firebase y asentada en la auditoría de la venta para que detalle, saldo y métricas compartan el mismo dato.',
-    'Se restauró la detección automática de publicaciones: la fuente liviana de versión vuelve a estar sincronizada.',
-    'El actualizador incorpora una verificación de respaldo contra la aplicación publicada para no depender de un único archivo de versión.',
-    'Toda venta nueva inicia y se guarda operativamente en ARS; USD queda disponible solo como visualización elegida por el usuario.',
-    'Al editar una venta se restauran a ARS los precios guardados por error como USD cuando la coincidencia es inequívoca.',
-    'Agregar fila en una venta ahora crea un renglón vacío, sin inventar código ni descripción de producto.',
-    'Los proveedores de cada producto se eligen exclusivamente desde el maestro; si no existen, pueden cargarse sin abandonar la edición.',
-    'Al agregar varios proveedores, la URL de uno ya no se copia por error a las demás filas.',
-    'Se detectan y corrigen precios de venta que fueron multiplicados dos veces por el dólar durante una normalización legacy.',
-    'La edición de productos permite cargar visualmente en ARS o USD; al guardar, los importes operativos quedan normalizados en ARS.',
-    'Las columnas de proveedores quedaron alineadas en una misma línea de lectura.',
-    'La impresión del presupuesto informa correctamente si los valores incluyen IVA o están expresados sin IVA.',
-    'El resumen operativo compara ventas netas contra gastos realmente pagados, sin duplicar el costo de mercadería.',
-    'Se eliminaron módulos, funciones y estilos antiguos que ya no utilizaba el sistema.',
-    'La auditoría verificó los accesos declarados en pantalla sin detectar acciones rotas.',
-    'Se redujo el código conservando las funciones dinámicas, de migración y diagnóstico.'
+    'Actualizar valores ya funciona en presupuestos y ventas.',
+    'Trae los precios actuales de Productos y recalcula todos los totales.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -22773,7 +22749,7 @@ var ACCIONES_CONFIG = {
   ver_venta:        { label:'Ver venta generada',       icon:'ti-list-details',  cls:'btn btn-sm',         fn:'pptoAccion("ver_venta")' },
   editar_ppto:      { label:'Editar presupuesto',      icon:'ti-edit',          cls:'btn btn-sm',         fn:'pptoAccion("editar_ppto")', style:'color:var(--blue);border-color:var(--blue)' },
   reactivar:        { label:'Reactivar presupuesto',    icon:'ti-refresh',       cls:'btn btn-sm',         fn:'pptoAccion("reactivar")' },
-  modificar_precio: { label:'Modificar precios',        icon:'ti-pencil',        cls:'btn btn-sm',         fn:'pptoAccion("modificar_precio")' },
+  modificar_precio: { label:'Actualizar valores',       icon:'ti-refresh',       cls:'btn btn-sm',         fn:'pptoAccion("modificar_precio")' },
   imprimir:         { label:'Imprimir',                 icon:'ti-printer',       cls:'btn btn-sm',         fn:'imprimirPresupuestoDesdeListado(window.pptoActualId)' },
   eliminar:         { label:'Eliminar',                 icon:'ti-trash',         cls:'btn btn-sm',         fn:'eliminarPpto(window.pptoActualId)', style:'color:var(--red);border-color:var(--red-bg)' },
 };
@@ -23582,45 +23558,185 @@ function pptoAccion(accion, opts) {
   verPpto(p.id);
 }
 
-function actualizarValoresPpto() {
-  if (!pptoActualId) return;
-  var p = (pptoData||[]).find(function(x){ return x.id === pptoActualId; });
-  if (!p) return;
-  var diasVenc = parseInt((document.getElementById('cfg-dias-venc')||{}).value) || 10;
-  var hoy   = new Date();
-  var vence = new Date(hoy.getTime() + diasVenc * 86400000);
-  var fechaHoy  = hoy.toISOString().slice(0,10);
-  var fechaVenc = vence.toISOString().slice(0,10);
+function _redondearPrecioActual(valor) {
+  return Math.round((parseFloat(valor) || 0) * 100) / 100;
+}
+
+function _tipoCambioVisualActual() {
   var tc = window.TIPO_CAMBIO_CONFIG || {};
-  var cotizTipo = tc.dolarConversion || 'oficial';
-  var cotizActual = parseFloat(tc[cotizTipo]) || 0;
-  var itemsActualizados = 0;
-  var items = (p.items||[]).map(function(it) {
-    if (it.monedaOriginal === 'USD' && it.precioUsdOriginal && cotizActual > 0) {
-      var nuevoPunit = Math.round(it.precioUsdOriginal * cotizActual);
-      var nuevoSub   = Math.round(nuevoPunit * (it.qty||1) * (1 - (it.disc||0)/100));
-      itemsActualizados++;
-      return Object.assign({}, it, { punit: nuevoPunit, sub: nuevoSub, cotizacionUsada: cotizActual, cotizacionTipo: cotizTipo });
+  var tipo = tc.dolarConversion || 'oficial';
+  return { tipo: tipo, valor: parseFloat(tc[tipo]) || 0 };
+}
+
+function _esFilaProductoVacia(tr) {
+  var cod = String(((tr.querySelector('.prod-sel-cod') || {}).textContent) || '').trim();
+  var descEl = tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt');
+  var desc = String((descEl && descEl.textContent) || '').trim();
+  return !cod && !desc;
+}
+
+function _asignarMontoActualizado(input, valor) {
+  if (!input) return;
+  var monto = _redondearPrecioActual(valor);
+  if (input.dataset.moneyInit) {
+    input.dataset.raw = String(monto);
+    if (Math.abs(monto - Math.round(monto)) > 0.0001) input.dataset.tieneComa = '1';
+    else delete input.dataset.tieneComa;
+    _refrescarMoneyVisual(input);
+  } else {
+    input.value = monto;
+  }
+}
+
+// Actualiza únicamente el formulario visible. La fuente operativa es siempre
+// el precio de venta canónico en ARS del catálogo de Productos.
+function _actualizarFilasConCatalogo(tbodySelector, monedaVisual) {
+  var resultado = { revisados: 0, actualizados: 0, sinCambios: 0, noEncontrados: [] };
+  var tipoCambio = _tipoCambioVisualActual();
+  document.querySelectorAll(tbodySelector + ' tr').forEach(function(tr) {
+    if (_esFilaProductoVacia(tr)) return;
+    resultado.revisados++;
+    var cod = String(((tr.querySelector('.prod-sel-cod') || {}).textContent) || '').trim();
+    var ref = tr.dataset.productoFbKey || '';
+    var prod = obtenerProductoPorCodigoVenta(cod, { cod: cod, productoFbKey: ref, pid: ref });
+    var precioARS = prod ? _redondearPrecioActual(precioVentaCanonicoProducto(prod).precioARS) : 0;
+    if (!prod || !(precioARS > 0)) {
+      resultado.noEncontrados.push(cod || 'Ítem sin código');
+      return;
     }
-    return it;
+
+    var priceInp = tr.querySelector('.price,.ppprice');
+    var precioAnteriorVisual = priceInp ? (priceInp.dataset.moneyInit ? getMontoRaw(priceInp) : (parseFloat(priceInp.value) || 0)) : 0;
+    var precioNuevoVisual = precioARS;
+    if (monedaVisual === 'USD') {
+      if (!(tipoCambio.valor > 0)) {
+        resultado.noEncontrados.push(cod + ' (sin tipo de cambio)');
+        return;
+      }
+      precioNuevoVisual = _redondearPrecioActual(precioARS / tipoCambio.valor);
+    }
+
+    if (Math.abs(precioAnteriorVisual - precioNuevoVisual) > 0.009) resultado.actualizados++;
+    else resultado.sinCambios++;
+
+    tr.dataset.productoFbKey = prod.fbKey || prod.id || ref;
+    tr.dataset.precioCatalogoARS = String(precioARS);
+    var vigencia = estadoVigenciaPrecioProducto(prod);
+    tr.dataset.precioVigencia = vigencia.estado;
+    tr.dataset.precioActualizadoEn = String(vigencia.ts || 0);
+    if (monedaVisual === 'USD') {
+      tr.dataset.monedaOriginal = 'USD';
+      tr.dataset.precioUsdOriginal = String(precioNuevoVisual);
+      tr.dataset.cotizacionUsada = String(tipoCambio.valor);
+      tr.dataset.cotizacionTipo = tipoCambio.tipo;
+      if (priceInp) priceInp.dataset.precioUsd = String(precioNuevoVisual);
+    } else {
+      delete tr.dataset.monedaOriginal;
+      delete tr.dataset.precioUsdOriginal;
+      delete tr.dataset.cotizacionUsada;
+      delete tr.dataset.cotizacionTipo;
+      if (priceInp) delete priceInp.dataset.precioUsd;
+    }
+    _asignarMontoActualizado(priceInp, precioNuevoVisual);
+    if (priceInp) calcRow(priceInp);
   });
-  var subtotalNeto = items.reduce(function(s,i){ return s + (parseFloat(i.sub)||0); }, 0);
-  var descPct = parseFloat(p.descuento)||0;
-  var descAmt = Math.round(subtotalNeto * descPct / 100);
-  var nuevoTotal = subtotalNeto - descAmt;
-  var msg = 'Actualizar presupuesto ' + pptoActualId + '?\n';
-  msg += '- Fecha: ' + fechaHoy + '\n- Vence: ' + fechaVenc;
-  if (itemsActualizados > 0) msg += '\n- ' + itemsActualizados + ' items USD recalculados (TC $' + cotizActual + ')';
-  if (!confirm(msg)) return;
-  if (!window.fbDB || !p.fbKey) { notify('Sin conexion'); return; }
-  var audit = (p.audit||[]).concat([{ accion: 'Valores actualizados', fecha: fechaHoy, user: currentUser || 'Admin' }]);
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
-    items: items, total: nuevoTotal, subtotal: subtotalNeto - descAmt,
-    fecha: fechaHoy, vence: fechaVenc, audit: audit, tsActualizacion: Date.now()
-  }).then(function() {
-    notify('Presupuesto actualizado' + (itemsActualizados > 0 ? ' - ' + itemsActualizados + ' precios recalculados' : ''));
-    verPpto(pptoActualId);
-  }).catch(function(e){ notify('Error: ' + e.message); });
+  return resultado;
+}
+
+function _informarActualizacionCatalogo(resultado, contexto) {
+  if (!resultado.revisados) {
+    notify('No hay productos cargados para actualizar');
+    return;
+  }
+  var mensaje = contexto + ': ' + resultado.actualizados + ' precio' + (resultado.actualizados === 1 ? '' : 's') + ' actualizado' + (resultado.actualizados === 1 ? '' : 's');
+  mensaje += ' · ' + resultado.sinCambios + ' ya estaba' + (resultado.sinCambios === 1 ? '' : 'n') + ' vigente' + (resultado.sinCambios === 1 ? '' : 's');
+  if (resultado.noEncontrados.length) mensaje += ' · ' + resultado.noEncontrados.length + ' sin precio de catálogo';
+  notify('✓ ' + mensaje);
+  if (resultado.noEncontrados.length) console.warn('[Actualizar valores] Sin precio de catálogo:', resultado.noEncontrados);
+}
+
+function actualizarValoresVenta() {
+  var resultado = _actualizarFilasConCatalogo('#det-body', window._ventaMonedaActual || 'ARS');
+  calcTotals();
+  _informarActualizacionCatalogo(resultado, 'Venta revisada');
+}
+
+function _actualizarPresupuestoGuardadoDesdeCatalogo(p) {
+  var origen = Array.isArray(p.items) ? p.items : Object.values(p.items || {});
+  var resultado = { revisados: 0, actualizados: 0, sinCambios: 0, noEncontrados: [] };
+  var items = origen.map(function(item) {
+    var normalizado = pptoNormalizarItemGuardado(item);
+    if (!normalizado.cod && !normalizado.desc) return Object.assign({}, item);
+    resultado.revisados++;
+    var prod = obtenerProductoPorCodigoVenta(normalizado.cod, item);
+    var precioARS = prod ? _redondearPrecioActual(precioVentaCanonicoProducto(prod).precioARS) : 0;
+    if (!prod || !(precioARS > 0)) {
+      resultado.noEncontrados.push(normalizado.cod || normalizado.desc || 'Ítem sin código');
+      return Object.assign({}, item, normalizado);
+    }
+    if (Math.abs(normalizado.punit - precioARS) > 0.009) resultado.actualizados++;
+    else resultado.sinCambios++;
+    var actualizado = Object.assign({}, item, normalizado, {
+      punit: precioARS,
+      sub: _redondearPrecioActual(normalizado.qty * precioARS * (1 - normalizado.disc / 100)),
+      pid: prod.fbKey || prod.id || normalizado.pid || '',
+      productoFbKey: prod.fbKey || prod.id || normalizado.productoFbKey || '',
+      precioActualizadoEn: timestampPrecioProducto(prod),
+      precioVigencia: estadoVigenciaPrecioProducto(prod).estado,
+      monedaOriginal: 'ARS'
+    });
+    delete actualizado.precioUsdOriginal;
+    delete actualizado.cotizacionUsada;
+    delete actualizado.cotizacionTipo;
+    return actualizado;
+  });
+
+  if (!resultado.actualizados) {
+    _informarActualizacionCatalogo(resultado, 'Presupuesto revisado');
+    return;
+  }
+  var subtotalBruto = items.reduce(function(s, item){ return s + (parseFloat(item.sub) || 0); }, 0);
+  var descuentoPct = pptoNumeroGuardado(p.descuentoGeneral ?? p.descuentoPct ?? p.porcentajeDescuento ?? p.descuento);
+  var descuentoAmt = _redondearPrecioActual(subtotalBruto * descuentoPct / 100);
+  var base = _redondearPrecioActual(subtotalBruto - descuentoAmt);
+  var conIva = p.conIva !== false;
+  var iva = conIva ? _redondearPrecioActual(base * 0.21) : 0;
+  var total = _redondearPrecioActual(base + iva);
+  if (!confirm('Se actualizarán ' + resultado.actualizados + ' precio' + (resultado.actualizados === 1 ? '' : 's') + ' del presupuesto ' + (p.id || '') + ' con los valores actuales de Productos.\n\n¿Continuar?')) return;
+  if (!window.fbDB || !p.fbKey) { notify('No se pudo guardar: presupuesto sin conexión o identificador'); return; }
+  var ahora = new Date();
+  var audit = (p.audit || []).concat([{
+    fecha: ahora.toLocaleDateString('es-AR') + ' ' + ahora.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}),
+    usuario: currentUser || 'Admin',
+    accion: 'Precios actualizados desde el catálogo de Productos (' + resultado.actualizados + ')'
+  }]);
+  var cambios = {
+    items: items,
+    subtotal: subtotalBruto,
+    descuentoAmt: descuentoAmt,
+    iva: iva,
+    total: total,
+    audit: audit,
+    tsActualizacionValores: Date.now()
+  };
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), cambios).then(function() {
+    Object.assign(p, cambios);
+    _informarActualizacionCatalogo(resultado, 'Presupuesto actualizado');
+    verPpto(p.id || p.fbKey);
+  }).catch(function(e){ notify('Error actualizando el presupuesto: ' + e.message); });
+}
+
+function actualizarValoresPpto() {
+  var formulario = document.getElementById('ppto-form-view');
+  if (formulario && _svElementoVisible(formulario)) {
+    var resultado = _actualizarFilasConCatalogo('#pp-body', window._pptoMonedaActual || 'ARS');
+    calcPpTotales();
+    _informarActualizacionCatalogo(resultado, 'Presupuesto revisado');
+    return;
+  }
+  var p = (pptoData || []).find(function(x){ return x.id === pptoActualId || x.fbKey === pptoActualId; });
+  if (!p) { notify('No se encontró el presupuesto para actualizar'); return; }
+  _actualizarPresupuestoGuardadoDesdeCatalogo(p);
 }
 
 function guardarPresupuesto(modo) {
