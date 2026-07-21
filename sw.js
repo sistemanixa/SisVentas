@@ -1,6 +1,6 @@
 ﻿/* SisVentas NIXA - Service Worker v2.0.61
-   Versión v2.0.130. Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v2.0.130';
+   Versión v2.0.131. Estrategia: red primero con cache de respaldo. */
+const CACHE = 'sisventas-v2.0.131';
 const SHELL = [
   './',
   './index.html',

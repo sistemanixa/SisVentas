@@ -637,6 +637,37 @@ function poblarSelectCategorias() {
 }
 
 var _prodCatsAbiertas = {}; // undefined = abierta por defecto, false = cerrada
+var _filtroProductosSinPrecio = false;
+
+function productoSinPrecioCatalogo(p) {
+  return !(precioVentaCanonicoProducto(p || {}).precioARS > 0);
+}
+
+function actualizarVistaFiltroProductosSinPrecio(cantidad) {
+  var card = document.getElementById('stat-prod-sinprecio-card');
+  if (card) {
+    card.setAttribute('aria-pressed', _filtroProductosSinPrecio ? 'true' : 'false');
+    card.title = _filtroProductosSinPrecio
+      ? 'Quitar el filtro de productos sin precio'
+      : 'Mostrar únicamente los productos sin precio';
+    card.style.borderColor = _filtroProductosSinPrecio ? 'var(--amber)' : '';
+    card.style.boxShadow = _filtroProductosSinPrecio ? '0 0 0 1px var(--amber)' : '';
+    card.style.background = _filtroProductosSinPrecio ? 'rgba(245,158,11,.08)' : '';
+  }
+  var chip = document.getElementById('prod-filtro-sinprecio-activo');
+  if (chip) {
+    chip.innerHTML = '<i class="ti ti-filter"></i> Solo sin precio (' + (parseInt(cantidad, 10) || 0) + ') <i class="ti ti-x"></i>';
+    chip.style.display = _filtroProductosSinPrecio ? 'inline-flex' : 'none';
+  }
+  var sub = document.getElementById('stat-prod-sinprecio-sub');
+  if (sub) sub.textContent = _filtroProductosSinPrecio ? 'filtro activo · tocá para quitar' : 'tocá para filtrar';
+}
+
+function toggleFiltroProductosSinPrecio() {
+  _filtroProductosSinPrecio = !_filtroProductosSinPrecio;
+  actualizarStatProductos();
+  renderTablaProductos((document.getElementById('prod-search') || {}).value || '');
+}
 
 function _prodTextosBusqueda(p) {
   p = p || {};
@@ -710,6 +741,7 @@ function renderTablaProductos(filtro) {
   poblarSelectCategorias();
   var catFiltro = window._prodCategoriaFiltro || (document.getElementById('filter-cat')||{}).value || '';
   if (catFiltro) lista = lista.filter(function(p){ return String(p.categoria || p.catId || 'Sin categoría') === String(catFiltro); });
+  if (_filtroProductosSinPrecio) lista = lista.filter(productoSinPrecioCatalogo);
   // Mostrar thead solo cuando hay búsqueda activa
   var thead = document.getElementById('prod-tbl-thead');
   if (thead) thead.style.visibility = (filtro && filtro.trim()) ? 'visible' : 'collapse';
@@ -719,7 +751,7 @@ function renderTablaProductos(filtro) {
     lista = lista.filter(function(p) { return _prodCoincideBusqueda(p, filtro); });
     lista.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
     if (!lista.length) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Sin resultados para "'+escapeHTML(filtro)+'"</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">'+(_filtroProductosSinPrecio ? 'No hay productos sin precio que coincidan con la búsqueda "'+escapeHTML(filtro)+'"' : 'Sin resultados para "'+escapeHTML(filtro)+'"')+'</td></tr>';
       return;
     }
     tbody.innerHTML = lista.map(_renderFilaProd).join('');
@@ -737,7 +769,7 @@ function renderTablaProductos(filtro) {
   var cats = Object.keys(grupos).sort(function(a,b){ return a.localeCompare(b); });
 
   if (!cats.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Sin productos cargados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">'+(_filtroProductosSinPrecio ? 'No hay productos sin precio'+(catFiltro ? ' en esta categoría' : '') : 'Sin productos cargados')+'</td></tr>';
     return;
   }
 
@@ -961,7 +993,7 @@ function actualizarStatProductos() {
   var prods = Object.values(prodData||{});
   var total  = prods.length;
   var conStock   = prods.filter(function(p){ return (parseFloat(p.stock)||0) > 0; }).length;
-  var sinPrecio  = prods.filter(function(p){ return !(precioVentaCanonicoProducto(p).precioARS > 0); }).length;
+  var sinPrecio  = prods.filter(productoSinPrecioCatalogo).length;
   // Más vendido del mes
   var mesActual = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0');
   var conteo = {};
@@ -990,12 +1022,13 @@ function actualizarStatProductos() {
   _s('stat-prod-top-label', 'Más vendido');
   _s('stat-prod-total-sub', 'en catálogo');
   _s('stat-prod-stock-sub', 'disponibles');
-  _s('stat-prod-sinprecio-sub', 'requieren precio');
+  _s('stat-prod-sinprecio-sub', _filtroProductosSinPrecio ? 'filtro activo · tocá para quitar' : 'tocá para filtrar');
   _s('stat-prod-top-sub', 'del mes');
   _s('stat-prod-total',    total);
   _s('stat-prod-stock',    conStock);
   _s('stat-prod-sinprecio',sinPrecio);
   _s('stat-prod-top',      topProd);
+  actualizarVistaFiltroProductosSinPrecio(sinPrecio);
 }
 
 function productoCoincideItemVenta(producto, item) {
@@ -4960,10 +4993,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.130-firebase',
+  VERSION: 'v2.0.131-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Los costos editados ya no vuelven a mostrar un valor viejo del proveedor.',
-    'Precio ARS respeta el formato argentino y sincroniza el producto al guardar.'
+    'La tarjeta Sin precio ahora filtra los productos pendientes de carga.',
+    'El filtro se quita con un segundo toque y puede combinarse con búsqueda o categoría.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
