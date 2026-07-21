@@ -135,6 +135,21 @@ function parsePrecioArs(texto) {
   return valores.length ? valores[0] : 0;
 }
 
+function validarSaltoPrecio(precioNuevo, precioAnterior) {
+  const nuevo = Number(precioNuevo) || 0;
+  const anterior = Number(precioAnterior) || 0;
+  if (!(nuevo > 0)) return { ok:false, mensaje:'El proveedor devolvió un precio inválido' };
+  if (!(anterior > 0)) return { ok:true };
+  const relacion = nuevo / anterior;
+  if (relacion > 12 || relacion < (1 / 12)) {
+    return {
+      ok:false,
+      mensaje:`Precio bloqueado por variación anormal: anterior ARS ${anterior.toFixed(2)}, recibido ARS ${nuevo.toFixed(2)}`
+    };
+  }
+  return { ok:true };
+}
+
 async function clickSiExiste(page, selectors, timeout = 2500) {
   for (const selector of selectors) {
     try {
@@ -414,6 +429,8 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
         const precioArs = extraerPrecioBiosegur(bodyText);
         const disponibilidad = extraerDisponibilidadProveedor(bodyText);
         if (!precioArs) throw new Error('No se encontró un precio visible');
+        const validacionPrecio = validarSaltoPrecio(precioArs, item.precioAnteriorArs);
+        if (!validacionPrecio.ok) throw new Error(validacionPrecio.mensaje);
         resultados.push({
           ok: true,
           proveedor: proveedor.nombre || 'BIOSEGUR',
@@ -512,6 +529,8 @@ async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset
         if (tipo==='free_electron') textoPrecio=await page.locator('.product-prices .product-price').first().innerText({timeout:5000}).catch(()=>bodyText);
         const precioArs=parsePrecioArs(textoPrecio);
         if (!precioArs) throw new Error('No se encontró un precio visible');
+        const validacionPrecio=validarSaltoPrecio(precioArs,item.precioAnteriorArs);
+        if (!validacionPrecio.ok) throw new Error(validacionPrecio.mensaje);
         const disponibilidad=extraerDisponibilidadProveedor(bodyText);
         const impuestosIncluidos=/impuestos\s+incluidos|iva\s+incluido/i.test(bodyText);
         const sinIvaVisible=/\+\s*iva|sin\s+iva/i.test(bodyText);

@@ -4993,10 +4993,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.133-firebase',
+  VERSION: 'v2.0.134-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Detalle ventas muestra una columna breve con la observación.',
-    'El buscador también permite encontrar ventas por su observación.'
+    'El actualizador bloquea precios anormales y repara conversiones duplicadas.',
+    'La impresión muestra subtotal y descuento aun sin detalle.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -7124,8 +7124,122 @@ function completarReferenciaProveedorProducto(pv, urlFallback, origen) {
   return pv;
 }
 
+function _primerNumeroPositivoProducto(valores) {
+  for (var i = 0; i < valores.length; i++) {
+    var n = parseFloat(valores[i]);
+    if (n > 0 && isFinite(n)) return n;
+  }
+  return 0;
+}
+
+function _costoRaizProductoSinAuditar(p) {
+  p = p || {};
+  return _primerNumeroPositivoProducto([p.compraARS, p.precioGremio, p.compra, p.costoRealArs, p.precioArsPublicado]);
+}
+
+function _proveedorPrincipalProductoSinReconciliar(p) {
+  p = p || {};
+  var lista = Array.isArray(p.proveedores) ? p.proveedores.filter(Boolean) : [];
+  if (!lista.length) return null;
+  var nombre = String(p.proveedor || p.nom_prov || '').trim().toLowerCase();
+  var encontrado = nombre ? lista.find(function(pv) {
+    return String((pv && (pv.nombre || pv.proveedor)) || '').trim().toLowerCase() === nombre;
+  }) : null;
+  if (encontrado) return encontrado;
+  return lista.reduce(function(mejor, pv) {
+    var costoPv = _primerNumeroPositivoProducto([pv.costoRealArs, pv.precioArsPublicado, pv.precio]);
+    var costoMejor = _primerNumeroPositivoProducto([mejor && mejor.costoRealArs, mejor && mejor.precioArsPublicado, mejor && mejor.precio]);
+    return costoPv > 0 && (!(costoMejor > 0) || costoPv < costoMejor) ? pv : mejor;
+  }, lista[0]);
+}
+
+function _costoProveedorProductoSinAuditar(p, pv) {
+  pv = pv || _proveedorPrincipalProductoSinReconciliar(p);
+  if (!pv) return 0;
+  var costo = parseFloat(pv.costoRealArs) || 0;
+  if (costo > 0) return costo;
+  var publicado = _primerNumeroPositivoProducto([pv.precioArsPublicado, pv.precio]);
+  return publicado > 0 ? publicado * (pv.sinIva ? 1.21 : 1) : 0;
+}
+
+function _tiposCambioAuditoriaProducto(p, pv) {
+  var actual = obtenerDolarReferenciaProducto();
+  var valores = [
+    p && p.tcGuardado,
+    p && p.dolarUsadoVenta,
+    p && p.dolarUsado,
+    p && p.precioVentaCorregidoDuplicacionDolarTc,
+    pv && pv.dolarUsado,
+    actual && actual.valor
+  ];
+  return valores.map(function(x){ return parseFloat(x) || 0; }).filter(function(x, idx, arr) {
+    return x > 100 && arr.findIndex(function(y){ return Math.abs(y - x) < 0.01; }) === idx;
+  });
+}
+
+function _relacionCercanaProducto(valor, referencia, tolerancia) {
+  valor = parseFloat(valor) || 0;
+  referencia = parseFloat(referencia) || 0;
+  if (!(valor > 0) || !(referencia > 0)) return false;
+  var ratio = valor / referencia;
+  return ratio >= 1 - tolerancia && ratio <= 1 + tolerancia;
+}
+
+// El actualizador de proveedores llegó a aceptar importes que ya estaban en ARS
+// como si fueran USD y los multiplicó otra vez por la cotización. Se auditan
+// costo y venta juntos: la reparación solo se habilita cuando el proveedor, la
+// corrección anterior o la relación costo/venta corroboran el mismo factor.
+function detectarProductoArsDuplicadoPorDolar(p) {
+  p = p || {};
+  var costoGuardado = _costoRaizProductoSinAuditar(p);
+  var ventaGuardada = _primerNumeroPositivoProducto([p.ventaARS, p.precioArsPublicadoVenta, p.venta, p.precio_venta, p.precioVenta]);
+  if (!(costoGuardado > 0) && !(ventaGuardada > 0)) return null;
+
+  var proveedor = _proveedorPrincipalProductoSinReconciliar(p);
+  var costoProveedor = _costoProveedorProductoSinAuditar(p, proveedor);
+  var tiposCambio = _tiposCambioAuditoriaProducto(p, proveedor);
+  var ventaContaminadaAnterior = parseFloat(p.precioVentaCorregidoDuplicacionDolarAntes) || 0;
+  var margen = parseFloat(p.margenDeseado);
+
+  for (var i = 0; i < tiposCambio.length; i++) {
+    var tc = tiposCambio[i];
+    var costoDividido = costoGuardado > 0 ? Math.round((costoGuardado / tc) * 100) / 100 : 0;
+    var ventaDividida = ventaGuardada > 0 ? Math.round((ventaGuardada / tc) * 100) / 100 : 0;
+    var proveedorConfirma = costoProveedor > 0 && costoGuardado / costoProveedor > 50 && _relacionCercanaProducto(costoDividido, costoProveedor, 0.12);
+    var repeticionConfirmada = ventaContaminadaAnterior > 0 && _relacionCercanaProducto(ventaGuardada, ventaContaminadaAnterior, 0.02);
+    var parejaConfirma = costoDividido > 0 && ventaDividida > 0 && _precioVentaRazonableRespectoCosto(ventaDividida, costoDividido);
+    var origenActualizador = /(?:biosegur|free_electron|tecnoprices|mercado_libre|proveedor).*?(?:lote|url_exacta|actualizador)/i.test(String(p.precioActualizadoOrigen || p.precioVentaActualizadoOrigen || ''));
+
+    // Para una primera contaminación exigimos el costo anterior del proveedor.
+    // Si el mismo importe ya había sido reparado, esa auditoría previa también
+    // es una prueba inequívoca y permite recuperar costo y venta en conjunto.
+    if (!proveedorConfirma && !repeticionConfirmada) continue;
+    if (!parejaConfirma && !(ventaDividida > 0 && costoProveedor > 0 && _precioVentaRazonableRespectoCosto(ventaDividida, costoProveedor))) continue;
+    if (!origenActualizador && !repeticionConfirmada) continue;
+
+    var costoCorregido = proveedorConfirma ? Math.round(costoProveedor * 100) / 100 : costoDividido;
+    var ventaCorregida = ventaDividida;
+    if (!(ventaCorregida > 0) && costoCorregido > 0 && isFinite(margen) && margen >= 0) {
+      ventaCorregida = Math.round(costoCorregido * (1 + margen / 100) * 100) / 100;
+    }
+    if (!(costoCorregido > 0) || !(ventaCorregida > 0) || !_precioVentaRazonableRespectoCosto(ventaCorregida, costoCorregido)) continue;
+    return {
+      costoGuardado: costoGuardado,
+      costoCorregido: costoCorregido,
+      ventaGuardada: ventaGuardada,
+      ventaCorregida: ventaCorregida,
+      tipoCambio: tc,
+      proveedorConfirma: proveedorConfirma,
+      origen: repeticionConfirmada ? 'reincidencia-actualizador' : 'proveedor-confirma-factor-dolar'
+    };
+  }
+  return null;
+}
+
 function precioGremioARSDesdeProducto(p) {
   p = p || {};
+  var auditoriaProducto = detectarProductoArsDuplicadoPorDolar(p);
+  if (auditoriaProducto && auditoriaProducto.costoCorregido > 0) return auditoriaProducto.costoCorregido;
   var proveedorPrincipal = Array.isArray(p.proveedores) && p.proveedores.length ? p.proveedores[0] : null;
   var tc = obtenerDolarReferenciaProducto();
   // Los campos normalizados del producto son la fuente operativa. Antes se
@@ -7184,6 +7298,14 @@ function reconciliarCostoProductoConProveedorPrincipal(p, proveedores) {
 // guardan ventaARS; solo se convierte venta cuando el producto es realmente USD.
 function precioVentaCanonicoProducto(p) {
   p = p || {};
+  var auditoriaProducto = detectarProductoArsDuplicadoPorDolar(p);
+  if (auditoriaProducto && auditoriaProducto.ventaCorregida > 0) {
+    return {
+      precioARS: auditoriaProducto.ventaCorregida,
+      precioOrigen: auditoriaProducto.ventaGuardada,
+      monedaOrigen: 'ARS_CORREGIDO_ACTUALIZADOR'
+    };
+  }
   var duplicadoDolar = detectarVentaArsDuplicadaPorDolar(p);
   if (duplicadoDolar) {
     return {
@@ -7216,6 +7338,16 @@ function _precioVentaRazonableRespectoCosto(precio, costo) {
 // relación comercial razonable con el costo ARS del mismo producto.
 function detectarVentaArsDuplicadaPorDolar(p) {
   p = p || {};
+  var auditoriaProducto = detectarProductoArsDuplicadoPorDolar(p);
+  if (auditoriaProducto) {
+    return {
+      precioGuardado: auditoriaProducto.ventaGuardada,
+      precioCorregido: auditoriaProducto.ventaCorregida,
+      costoARS: auditoriaProducto.costoCorregido,
+      tipoCambio: auditoriaProducto.tipoCambio,
+      origen: auditoriaProducto.origen
+    };
+  }
   var precioGuardado = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || p.venta || p.precio_venta || p.precioVenta || 0) || 0;
   var costoARS = precioGremioARSDesdeProducto(p);
   if (!(precioGuardado > 0) || !(costoARS > 0) || precioGuardado / costoARS < 50) return null;
@@ -7249,39 +7381,69 @@ function detectarVentaArsDuplicadaPorDolar(p) {
   };
 }
 
-var _reparacionVentasDuplicadasDolarEjecutada = false;
+var _reparacionVentasDuplicadasDolarEnCurso = false;
 function repararVentasArsDuplicadasPorDolar() {
-  if (_reparacionVentasDuplicadasDolarEjecutada || !window.fbDB || String(currentRole || '').toLowerCase() !== 'admin') return;
-  _reparacionVentasDuplicadasDolarEjecutada = true;
+  if (_reparacionVentasDuplicadasDolarEnCurso || !window.fbDB || String(currentRole || '').toLowerCase() !== 'admin') return;
+  var productosAuditables = Object.values(prodData || {}).filter(function(p){ return p && p.fbKey; });
+  if (!productosAuditables.length) return;
+  _reparacionVentasDuplicadasDolarEnCurso = true;
   var cambios = {};
   var afectados = [];
   var ahora = Date.now();
-  Object.values(prodData || {}).forEach(function(p) {
-    if (!p || !p.fbKey) return;
-    var auditado = detectarVentaArsDuplicadaPorDolar(p);
+  productosAuditables.forEach(function(p) {
+    var auditadoProducto = detectarProductoArsDuplicadoPorDolar(p);
+    var auditado = auditadoProducto || detectarVentaArsDuplicadaPorDolar(p);
     if (!auditado) return;
     var base = FB_PATHS.productos + '/' + p.fbKey + '/';
-    cambios[base + 'venta'] = auditado.precioCorregido;
-    cambios[base + 'ventaARS'] = auditado.precioCorregido;
-    cambios[base + 'precioArsPublicadoVenta'] = auditado.precioCorregido;
+    var ventaCorregida = auditadoProducto ? auditadoProducto.ventaCorregida : auditado.precioCorregido;
+    var ventaGuardada = auditadoProducto ? auditadoProducto.ventaGuardada : auditado.precioGuardado;
+    var costoCorregido = auditadoProducto ? auditadoProducto.costoCorregido : 0;
+    var costoGuardado = auditadoProducto ? auditadoProducto.costoGuardado : 0;
+    cambios[base + 'venta'] = ventaCorregida;
+    cambios[base + 'ventaARS'] = ventaCorregida;
+    cambios[base + 'precioArsPublicadoVenta'] = ventaCorregida;
     cambios[base + 'moneda'] = 'ARS';
     cambios[base + 'monedaVenta'] = 'ARS';
-    if (auditado.tipoCambio > 0) cambios[base + 'ventaUSD'] = Math.round((auditado.precioCorregido / auditado.tipoCambio) * 100) / 100;
+    if (costoCorregido > 0) {
+      cambios[base + 'compra'] = costoCorregido;
+      cambios[base + 'compraARS'] = costoCorregido;
+      cambios[base + 'precioGremio'] = costoCorregido;
+      cambios[base + 'costoRealArs'] = costoCorregido;
+    }
+    if (auditado.tipoCambio > 0) {
+      cambios[base + 'ventaUSD'] = Math.round((ventaCorregida / auditado.tipoCambio) * 100) / 100;
+      if (costoCorregido > 0) cambios[base + 'compraUSD'] = Math.round((costoCorregido / auditado.tipoCambio) * 100) / 100;
+    }
     cambios[base + 'precioVentaCorregidoDuplicacionDolarEn'] = ahora;
     cambios[base + 'precioVentaCorregidoDuplicacionDolarPor'] = currentUser || 'Admin';
-    cambios[base + 'precioVentaCorregidoDuplicacionDolarAntes'] = auditado.precioGuardado;
+    cambios[base + 'precioVentaCorregidoDuplicacionDolarAntes'] = ventaGuardada;
     cambios[base + 'precioVentaCorregidoDuplicacionDolarTc'] = auditado.tipoCambio;
-    cambios[base + 'precioVentaActualizadoOrigen'] = 'reparacion-duplicacion-dolar';
+    cambios[base + 'precioVentaActualizadoOrigen'] = 'reparacion-actualizador-proveedores';
+    cambios[base + 'precioActualizadoOrigen'] = 'reparacion-actualizador-proveedores';
+    cambios[base + 'auditoriaPrecioUltima'] = {
+      ts: ahora,
+      usuario: currentUser || 'Admin',
+      motivo: auditadoProducto ? auditadoProducto.origen : auditado.origen,
+      tipoCambio: auditado.tipoCambio,
+      costoAntes: costoGuardado || null,
+      costoDespues: costoCorregido || null,
+      ventaAntes: ventaGuardada,
+      ventaDespues: ventaCorregida
+    };
     afectados.push(p.codigo || p.nombre || p.fbKey);
   });
-  if (!afectados.length) return;
+  if (!afectados.length) {
+    _reparacionVentasDuplicadasDolarEnCurso = false;
+    return;
+  }
   window.fbUpdate(window.fbRef(window.fbDB), cambios).then(function(){
-    notify('✓ Se corrigieron ' + afectados.length + ' precios multiplicados dos veces por el dólar');
-    if (typeof registrarActividad === 'function') registrarActividad('Auditoría de precios ARS', afectados.length + ' corregidos: ' + afectados.slice(0,20).join(', '));
+    notify('✓ Auditoría terminada: ' + afectados.length + ' producto' + (afectados.length === 1 ? '' : 's') + ' reparado' + (afectados.length === 1 ? '' : 's'));
+    if (typeof registrarActividad === 'function') registrarActividad('Auditoría del actualizador de proveedores', afectados.length + ' corregidos: ' + afectados.slice(0,40).join(', '));
   }).catch(function(e){
-    _reparacionVentasDuplicadasDolarEjecutada = false;
     console.error('[Productos] No se pudo reparar la duplicación del dólar', e);
     notify('No se pudo completar la auditoría automática de precios');
+  }).finally(function(){
+    _reparacionVentasDuplicadasDolarEnCurso = false;
   });
 }
 
@@ -7873,6 +8035,8 @@ function datosActualizadosProductoBiosegur(item, resultado) {
   var pv = Object.assign({}, proveedores[item.proveedorIdx] || {});
   var precio = parsePrecioProveedorARS(resultado.precioArs || resultado.precio || 0);
   var ahora = Date.now();
+  var costoAnterior = _costoProveedorProductoSinAuditar(p, pv) || precioGremioARSDesdeProducto(p);
+  var ventaAnterior = precioVentaCanonicoProducto(p).precioARS;
   pv.precio = Math.round(precio * 100) / 100;
   pv.precioArsPublicado = pv.precio;
   pv.sinIva = resultado.sinIva !== false;
@@ -7908,6 +8072,13 @@ function datosActualizadosProductoBiosegur(item, resultado) {
     precioActualizadoOrigen: pv.actualizadoOrigen,
     margenDeseado: margen
   };
+  cambios.precioActualizadorAnterior = {
+    ts: ahora,
+    costo: Math.round((costoAnterior || 0) * 100) / 100,
+    venta: Math.round((ventaAnterior || 0) * 100) / 100,
+    origen: p.precioActualizadoOrigen || '',
+    proveedor: pv.nombre || pv.proveedor || ''
+  };
   if (tc.valor > 0) {
     cambios.compraUSD = Math.round((costo / tc.valor) * 100) / 100;
     cambios.ventaUSD = Math.round((venta / tc.valor) * 100) / 100;
@@ -7915,6 +8086,27 @@ function datosActualizadosProductoBiosegur(item, resultado) {
     cambios.tcTipoGuardado = tc.tipo;
   }
   return cambios;
+}
+
+function validarResultadoActualizadorProveedor(item, resultado) {
+  var precioNuevo = parsePrecioProveedorARS(resultado && (resultado.precioArs || resultado.precio) || 0);
+  if (!(precioNuevo > 0) || !isFinite(precioNuevo)) return { ok:false, mensaje:'El proveedor devolvió un precio inválido' };
+  var pv = (item && item.proveedor) || {};
+  var p = (item && item.producto) || {};
+  var costoAnterior = _costoProveedorProductoSinAuditar(p, pv) || precioGremioARSDesdeProducto(p);
+  if (!(costoAnterior > 0)) return { ok:true, precio:precioNuevo };
+  var nuevoCosto = Math.round(precioNuevo * (resultado.sinIva !== false ? 1.21 : 1) * 100) / 100;
+  var relacion = nuevoCosto / costoAnterior;
+  if (relacion > 12 || relacion < (1 / 12)) {
+    var tc = obtenerDolarReferenciaProducto();
+    var pareceDolarDuplicado = tc.valor > 100 && (_relacionCercanaProducto(relacion, tc.valor, 0.15) || _relacionCercanaProducto(1 / relacion, tc.valor, 0.15));
+    return {
+      ok:false,
+      mensaje:(pareceDolarDuplicado ? 'Bloqueado: el importe parece multiplicado nuevamente por el dólar' : 'Bloqueado: el precio cambió más de 12 veces') +
+        ' (anterior $' + Math.round(costoAnterior).toLocaleString('es-AR') + ' · recibido $' + Math.round(nuevoCosto).toLocaleString('es-AR') + ')'
+    };
+  }
+  return { ok:true, precio:precioNuevo };
 }
 
 async function ejecutarActualizadorMasivoBiosegur() {
@@ -8011,7 +8203,14 @@ async function ejecutarActualizadorMasivoBiosegur() {
             offset:procesados,
             total:pendientes.length,
             iniciadoEn:procesoIniciadoEn,
-            items:bloque.map(function(x){ return { codigo:x.producto.codigo || '', producto:x.producto.nombre || x.producto.descripcion || '', url:x.url }; })
+            items:bloque.map(function(x){
+              return {
+                codigo:x.producto.codigo || '',
+                producto:x.producto.nombre || x.producto.descripcion || '',
+                url:x.url,
+                precioAnteriorArs:_costoProveedorProductoSinAuditar(x.producto, x.proveedor) || precioGremioARSDesdeProducto(x.producto)
+              };
+            })
           })
         }).then(function(r){ return r.json(); });
         if (!resp || !resp.ok || !Array.isArray(resp.resultados)) throw new Error((resp && resp.mensaje) || 'Respuesta inválida del cotizador por lote');
@@ -8019,7 +8218,8 @@ async function ejecutarActualizadorMasivoBiosegur() {
         for (var i = 0; i < bloque.length; i++) {
           var item = bloque[i];
           var resultado = resp.resultados.find(function(r){ return String(r.codigo || '') === String(item.producto.codigo || ''); });
-          if (resultado && resultado.ok && parsePrecioProveedorARS(resultado.precioArs || resultado.precio) > 0 && urlsProveedorEquivalentes(item.url, resultado.url)) {
+          var validacionPrecio = resultado && resultado.ok ? validarResultadoActualizadorProveedor(item, resultado) : { ok:false, mensaje:'' };
+          if (resultado && resultado.ok && validacionPrecio.ok && urlsProveedorEquivalentes(item.url, resultado.url)) {
             var cambios = datosActualizadosProductoBiosegur(item, resultado);
             await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + item.producto.fbKey), cambios);
             Object.assign(item.producto, cambios);
@@ -8033,7 +8233,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
               codigo:item.producto.codigo || '',
               producto:item.producto.nombre || item.producto.descripcion || '',
               url:item.url || '',
-              motivo:(resultado && (resultado.mensaje || resultado.error)) || 'No se pudo verificar la URL o el precio'
+              motivo:(validacionPrecio && validacionPrecio.mensaje) || (resultado && (resultado.mensaje || resultado.error)) || 'No se pudo verificar la URL o el precio'
             });
           }
           procesados++;
@@ -15787,14 +15987,10 @@ function imprimirPresupuesto(pptoRef) {
       '</tr></thead>'+
       '<tbody>'+(items||'<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:16px">Sin ítems</td></tr>')+'</tbody>'+
       '<tfoot>'+
-        (_pptoConDetalle ? (
-          '<tr class="tfoot-row tfoot-first"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#64748b">Subtotal</td><td style="text-align:right">'+sub+'</td></tr>'+
-          (desc&&desc!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#dc2626">Descuento</td><td style="text-align:right;color:#dc2626">'+desc+'</td></tr>':'')+
-          (imprimirConIva && iva&&iva!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td><td style="text-align:right;color:#d97706">'+iva+'</td></tr>':'')+
-          '<tr class="tfoot-row tfoot-total"><td colspan="3" style="border:none"></td><td style="text-align:right">TOTAL</td><td style="text-align:right">'+total+'</td></tr>'
-        ) : (
-          '<tr class="tfoot-row tfoot-total"><td colspan="3" style="border:none"></td><td style="text-align:right">TOTAL</td><td style="text-align:right">'+total+'</td></tr>'
-        ))+
+        '<tr class="tfoot-row tfoot-first"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#64748b">Subtotal</td><td style="text-align:right">'+sub+'</td></tr>'+
+        (desc&&desc!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#dc2626">Descuento</td><td style="text-align:right;color:#dc2626">'+desc+'</td></tr>':'')+
+        (imprimirConIva && iva&&iva!=='$0'?'<tr class="tfoot-row"><td colspan="3" style="border:none"></td><td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td><td style="text-align:right;color:#d97706">'+iva+'</td></tr>':'')+
+        '<tr class="tfoot-row tfoot-total"><td colspan="3" style="border:none"></td><td style="text-align:right">TOTAL</td><td style="text-align:right">'+total+'</td></tr>'+
       '</tfoot>'+
     '</table>'+
 
