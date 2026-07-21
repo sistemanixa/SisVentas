@@ -4993,10 +4993,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.131-firebase',
+  VERSION: 'v2.0.132-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La tarjeta Sin precio ahora filtra los productos pendientes de carga.',
-    'El filtro se quita con un segundo toque y puede combinarse con búsqueda o categoría.'
+    'Las observaciones de una venta ahora se guardan correctamente.',
+    'La observación queda visible en el detalle de la venta.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -6674,7 +6674,8 @@ function confirmarVenta() {
     }),
     descuentoGeneral: parseFloat((document.getElementById('desc-general')||{}).value) || 0,
     pagos: [],
-    obs: (document.getElementById('venta-obs')||{}).value || '',
+    obs: String((document.getElementById('venta-obs')||{}).value || '').trim(),
+    observaciones: String((document.getElementById('venta-obs')||{}).value || '').trim(),
     audit: [{ fecha: fechaHoy, usuario: 'Sistema', accion: 'Venta confirmada' }]
   };
   var subtotalBruto = nuevaVenta.items.reduce(function(s,i){ return s + (i.qty * i.punit); }, 0);
@@ -6887,6 +6888,8 @@ function inicializarFilasVenta() {
   // Fecha de hoy por defecto
   var fechaInp = document.getElementById('venta-fecha');
   if (fechaInp && !fechaInp.value) fechaInp.value = new Date().toISOString().slice(0,10);
+  var obsInp = document.getElementById('venta-obs');
+  if (obsInp && !window._ventaEditandoFbKey) obsInp.value = '';
 }
 function filtrarCategoria(v) {
   window._prodCategoriaFiltro = v || '';
@@ -26813,6 +26816,7 @@ function renderDetalleVenta(v) {
   var otVinculada = ventaDetalleResolverOT(v);
   var otAsociada = _formatearOTAsociadaDetalleVenta(v);
   var facturaTxt = _formatearFacturaDetalleVenta(v);
+  var observacionesVentaDetalle = String(v.observaciones || v.obs || '').trim();
   var puedeVerInternosVenta = (currentRole === 'admin');
   var puedeMoverVentaAPptoDetalle = typeof window.tienePermiso === 'function'
     ? window.tienePermiso('ventas.moverPresupuesto')
@@ -26893,6 +26897,13 @@ function renderDetalleVenta(v) {
         '</div>' +
       '</div>' +
     '</div>' +
+
+    (observacionesVentaDetalle
+      ? '<div class="card" style="margin-bottom:12px;border-left:3px solid var(--blue)">' +
+          '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px"><i class="ti ti-note" style="margin-right:5px"></i>Observaciones de la venta</div>' +
+          '<div style="font-size:13px;color:var(--text2);white-space:pre-wrap;line-height:1.5">' + escapeHTML(observacionesVentaDetalle) + '</div>' +
+        '</div>'
+      : '') +
 
     // Productos
     '<div class="card" style="margin-bottom:12px">' +
