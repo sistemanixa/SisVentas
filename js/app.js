@@ -4993,10 +4993,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.132-firebase',
+  VERSION: 'v2.0.133-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las observaciones de una venta ahora se guardan correctamente.',
-    'La observación queda visible en el detalle de la venta.'
+    'Detalle ventas muestra una columna breve con la observación.',
+    'El buscador también permite encontrar ventas por su observación.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -27525,12 +27525,15 @@ function renderVentasTabla(lista) {
   const rows = lista || ventasList;
   if (count) count.textContent = rows.length + ' venta' + (rows.length !== 1 ? 's' : '');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin ventas para mostrar</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin ventas para mostrar</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map(v => `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verVenta('${v.id}')">
+  tbody.innerHTML = rows.map(v => {
+    const observacion = String(v.observaciones || v.obs || '').trim();
+    return `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verVenta('${v.id}')">
     <td style="font-weight:500;color:var(--text);font-family:monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(v.id)}</td>
     <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(v.cliente)}</td>
+    <td title="${escapeHTML(observacion)}" style="max-width:220px;color:${observacion ? 'var(--text2)' : 'var(--text3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${observacion ? escapeHTML(observacion) : '—'}</td>
     <td style="color:var(--text3);white-space:nowrap">${_mostrarFecha(v.fecha)}</td>
     <td class="tr" style="font-weight:500;white-space:nowrap">$${(parseFloat(v.total)||0).toLocaleString('es-AR')}</td>
     <td class="tr" style="white-space:nowrap">${ventaEstadoBadge(v.estadoPago)}</td>
@@ -27548,7 +27551,8 @@ function renderVentasTabla(lista) {
     <td onclick="event.stopPropagation()" style="text-align:center">
       <button class="btn btn-sm btn-icon" onclick="verVenta('${v.id}')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 // Filtros
@@ -27586,7 +27590,11 @@ function _aplicarFiltrosVentas() {
 
   if (f.texto) {
     const t = f.texto.toLowerCase();
-    lista = lista.filter(x => (x.id||'').toLowerCase().includes(t) || (x.cliente||'').toLowerCase().includes(t));
+    lista = lista.filter(x =>
+      (x.id||'').toLowerCase().includes(t) ||
+      (x.cliente||'').toLowerCase().includes(t) ||
+      String(x.observaciones || x.obs || '').toLowerCase().includes(t)
+    );
   }
   if (f.estado) {
     lista = lista.filter(v => v.estadoPago === f.estado || v.estadoInst === f.estado);
