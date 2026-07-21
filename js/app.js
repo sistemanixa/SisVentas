@@ -4960,10 +4960,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.129-firebase',
+  VERSION: 'v2.0.130-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Actualizar valores ya funciona en presupuestos y ventas.',
-    'Trae los precios actuales de Productos y recalcula todos los totales.'
+    'Los costos editados ya no vuelven a mostrar un valor viejo del proveedor.',
+    'Precio ARS respeta el formato argentino y sincroniza el producto al guardar.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -7092,13 +7092,17 @@ function precioGremioARSDesdeProducto(p) {
   p = p || {};
   var proveedorPrincipal = Array.isArray(p.proveedores) && p.proveedores.length ? p.proveedores[0] : null;
   var tc = obtenerDolarReferenciaProducto();
+  // Los campos normalizados del producto son la fuente operativa. Antes se
+  // priorizaba precioArsPublicado, por lo que un valor viejo del proveedor
+  // podía ocultar una edición manual recién guardada en compraARS.
   var candidatos = [
-    p.precioArsPublicado,
-    p.costoRealArs,
-    p.precioGremio,
     p.compraARS,
-    proveedorPrincipal && proveedorPrincipal.precioArsPublicado,
+    p.precioGremio,
+    p.compra,
+    p.costoRealArs,
+    p.precioArsPublicado,
     proveedorPrincipal && proveedorPrincipal.costoRealArs,
+    proveedorPrincipal && proveedorPrincipal.precioArsPublicado,
     proveedorPrincipal && proveedorPrincipal.precio
   ];
   for (var i = 0; i < candidatos.length; i++) {
@@ -7115,6 +7119,29 @@ function precioGremioARSDesdeProducto(p) {
     return Math.round(compraLegacy * tc.valor * 100) / 100;
   }
   return compraLegacy || 0;
+}
+
+function reconciliarCostoProductoConProveedorPrincipal(p, proveedores) {
+  var lista = Array.isArray(proveedores) ? proveedores.map(function(pv){ return Object.assign({}, pv); }) : [];
+  if (!lista.length) return lista;
+  var costoRaiz = parseFloat(p && (p.compraARS || p.precioGremio || p.compra)) || 0;
+  if (!(costoRaiz > 0)) return lista;
+  var nombrePrincipal = String((p && (p.proveedor || p.nom_prov)) || '').trim().toLowerCase();
+  var idx = nombrePrincipal ? lista.findIndex(function(pv){
+    return String((pv && (pv.nombre || pv.proveedor)) || '').trim().toLowerCase() === nombrePrincipal;
+  }) : -1;
+  if (idx < 0 && lista.length === 1) idx = 0;
+  if (idx < 0) return lista;
+  var pv = lista[idx];
+  var costoProveedor = parseFloat(pv.costoRealArs) || ((parseFloat(pv.precio) || 0) * (pv.sinIva ? 1.21 : 1));
+  if (Math.abs(costoProveedor - costoRaiz) <= 0.009) return lista;
+  var publicado = pv.sinIva ? costoRaiz / 1.21 : costoRaiz;
+  pv.precio = Math.round(publicado * 100) / 100;
+  pv.precioArsPublicado = pv.precio;
+  pv.costoRealArs = Math.round(costoRaiz * 100) / 100;
+  pv.actualizadoOrigen = 'manual-sincronizado';
+  lista[idx] = pv;
+  return lista;
 }
 
 // Fuente única para el precio de venta que ve el usuario. Los registros nuevos
@@ -8188,6 +8215,7 @@ function abrirFormProducto(id) {
   } else {
     prodProveedoresActuales = [];
   }
+  prodProveedoresActuales = reconciliarCostoProductoConProveedorPrincipal(p, prodProveedoresActuales);
   if (prodProveedoresActuales.length && !prodProveedoresActuales[0].url && cwEl && cwEl.value) {
     var cwVal = normalizarUrlProveedorProducto(cwEl.value.trim());
     var nombreProv0 = (prodProveedoresActuales[0].nombre || '').trim().toLowerCase();
@@ -8274,7 +8302,7 @@ function renderTablaProveedoresProducto() {
     if (esMasBarato) tr.style.background = 'var(--green-bg)';
     tr.innerHTML =
       '<td style="padding:6px 4px;min-width:190px"><select onchange="seleccionarProveedorProducto('+i+',this.value)" style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:5px 8px;font-size:12px;font-family:inherit">'+opcionesProveedor+'</select>'+dispBadge+'</td>' +
-      '<td style="padding:6px 4px;text-align:right"><input type="number" value="'+(pv.precio||'')+'" placeholder="0" oninput="actualizarProveedorProducto('+i+',\'precio\',this.value)" style="width:90px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;text-align:right;font-size:13px;font-family:inherit"></td>' +
+      '<td style="padding:6px 4px;text-align:right"><input type="text" data-money="1" value="'+(pv.precio||'')+'" placeholder="0" oninput="actualizarProveedorProducto('+i+',\'precio\',getMontoRaw(this))" onchange="renderTablaProveedoresProducto()" style="width:90px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;text-align:right;font-size:13px;font-family:inherit"></td>' +
       '<td style="padding:6px 4px;text-align:center">' +
         '<label class="pf-provider-check" style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px" title="El precio que cotiza el proveedor NO incluye IVA — el sistema sumará el 21% para calcular el costo real">' +
           '<input type="checkbox" '+(sinIva?'checked':'')+' onchange="actualizarProveedorProducto('+i+',\'sinIva\',this.checked);renderTablaProveedoresProducto();calcMargen();" style="accent-color:var(--amber);width:14px;height:14px;cursor:pointer">' +
@@ -8288,6 +8316,7 @@ function renderTablaProveedoresProducto() {
         '<button class="btn btn-sm btn-icon" onclick="quitarFilaProveedor('+i+')" title="Quitar"><i class="ti ti-trash" style="font-size:14px;color:var(--red)"></i></button>' +
       '</div></td>';
     tbl.appendChild(tr);
+    initMoneyInputsEn(tr);
   });
 }
 
@@ -8450,7 +8479,6 @@ function actualizarProveedorProducto(idx, campo, valor) {
   }
   recalcularCompraDesdeProveedores();
   calcMargen();
-  if (campo === 'precio') renderTablaProveedoresProducto();
 }
 
 function restaurarBotonCotizacionProveedores() {
@@ -9030,6 +9058,28 @@ function guardarProducto() {
   var ventaARSFormulario = monedaCarga === 'USD' ? Math.round(ventaVisual * tcCarga * 100) / 100 : Math.round(ventaVisual * 100) / 100;
   var gremioARSFormulario = monedaCarga === 'USD' ? Math.round(gremioVisual * tcCarga * 100) / 100 : Math.round(gremioVisual * 100) / 100;
 
+  // Si el usuario corrigió manualmente el costo en la calculadora, la misma
+  // corrección debe llegar al proveedor principal. De otro modo el producto
+  // guardaba el nuevo compraARS pero volvía a mostrar el precio viejo de la fila.
+  if (proveedorPrincipal && gremioARSFormulario > 0) {
+    var costoPrincipalActual = parseFloat(proveedorPrincipal.costoRealArs) || ((parseFloat(proveedorPrincipal.precio) || 0) * (proveedorPrincipal.sinIva ? 1.21 : 1));
+    if (Math.abs(costoPrincipalActual - gremioARSFormulario) > 0.009) {
+      var precioPublicadoManual = proveedorPrincipal.sinIva ? gremioARSFormulario / 1.21 : gremioARSFormulario;
+      proveedorPrincipal.precio = Math.round(precioPublicadoManual * 100) / 100;
+      proveedorPrincipal.precioArsPublicado = proveedorPrincipal.precio;
+      proveedorPrincipal.costoRealArs = gremioARSFormulario;
+      proveedorPrincipal.actualizado = new Date().toISOString().slice(0,10);
+      proveedorPrincipal.actualizadoEn = Date.now();
+      proveedorPrincipal.actualizadoOrigen = 'manual';
+      if (dolarRef.valor > 0) {
+        proveedorPrincipal.dolarUsado = dolarRef.valor;
+        proveedorPrincipal.dolarTipo = dolarRef.tipo;
+        proveedorPrincipal.precioUsdReferencia = Math.round((proveedorPrincipal.precio / dolarRef.valor) * 100) / 100;
+        proveedorPrincipal.costoRealUsdReferencia = Math.round((gremioARSFormulario / dolarRef.valor) * 100) / 100;
+      }
+    }
+  }
+
   var datos = {
     codigo:       cod,
     descripcion:  desc,
@@ -9174,7 +9224,7 @@ function verProducto(id, origen) {
   _si('pd-unidad-inp', p.unidad||'');
   var provBox = document.getElementById('pd-proveedores-box');
   if (provBox) {
-    var lista = Array.isArray(p.proveedores) ? p.proveedores : [];
+    var lista = reconciliarCostoProductoConProveedorPrincipal(p, Array.isArray(p.proveedores) ? p.proveedores : []);
     if (!lista.length) {
       provBox.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Sin proveedores cargados para este producto</div>';
     } else {
