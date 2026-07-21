@@ -3487,9 +3487,11 @@ function _svTxtNombre(x) {
 
 function _svVentaClaves(v) {
   v = v || {};
-  var exactas = [v.fbKey, v.ventaFbKey, v.ventaKey, v.id, v.numero, v.ventaId, v.idVenta, v.nro, v.codigo]
+  // idOriginal y sus variantes son alias válidos: varias ventas históricas
+  // cambiaron su número comercial, pero sus OT conservaron el anterior.
+  var exactas = [v.fbKey, v.ventaFbKey, v.ventaKey, v.id, v.idOriginal, v.numeroOriginal, v.ventaIdOriginal, v.numero, v.ventaId, v.idVenta, v.nro, v.codigo]
     .map(_svTxtClave).filter(Boolean);
-  var visibles = [v.id, v.numero, v.ventaId, v.idVenta, v.nro, v.codigo]
+  var visibles = [v.id, v.idOriginal, v.numeroOriginal, v.ventaIdOriginal, v.numero, v.ventaId, v.idVenta, v.nro, v.codigo]
     .map(_svTxtClave).filter(Boolean);
   var nums = visibles.map(function(k){ return k.replace(/\D/g,''); }).filter(Boolean);
   return {
@@ -4958,8 +4960,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.127-firebase',
+  VERSION: 'v2.0.128-firebase',
   RELEASE_NOTES: Object.freeze([
+    'Las ventas reconocen una OT vinculada mediante el número actual, el número histórico o la clave interna de Firebase.',
+    'Si una OT conserva una venta inexistente, el sistema repara el vínculo únicamente cuando cliente, fecha o materiales producen una coincidencia única y segura.',
+    'Al completar una OT se guarda el vínculo canónico en ambos registros y la venta adopta inmediatamente el estado Instalado.',
     'Los técnicos pueden registrar credenciales nuevas desde la OT durante una instalación; la edición y eliminación posterior continúan reservadas a Administración.',
     'Al cambiar de OT se limpian inmediatamente las credenciales anteriores y se descartan respuestas tardías del cliente previo.',
     'Admin y Administrativo pueden agregar desde la OT varias credenciales básicas con título, usuario, contraseña y número de serie.',
@@ -24040,7 +24045,7 @@ function otBuscarVentaOrigen(ot) {
   var referencias = [ot.ventaFbKey, ot.ventaKey, ot.ventaId, ot.idVenta, ot.venta].filter(Boolean).map(String);
   var numeros = referencias.map(function(valor){ return valor.replace(/\D/g, ''); }).filter(Boolean);
   return (ventasList||[]).find(function(venta) {
-    var ids = [venta.fbKey, venta.id, venta.numero, venta.ventaId, venta.nro, venta.codigo].filter(Boolean).map(String);
+    var ids = [venta.fbKey, venta.id, venta.idOriginal, venta.numeroOriginal, venta.ventaIdOriginal, venta.numero, venta.ventaId, venta.nro, venta.codigo].filter(Boolean).map(String);
     return ids.some(function(valor){ return referencias.includes(valor); }) || ids.some(function(valor){
       var numero = valor.replace(/\D/g, '');
       return numero && numeros.includes(numero);
@@ -24856,11 +24861,23 @@ function completarOT() {
   ot.audit.push({ fecha: ahora, usuario: 'Sistema', accion: 'Garantía activada automáticamente' });
   document.getElementById('ot-det-estado-badge').innerHTML = otBadge('completada');
 
-  if (ot.ventaId && window.fbDB) {
+  if ((ot.ventaId || ot.ventaFbKey || ot.venta) && window.fbDB) {
     var ventaVinculada = _svResolverVentaRegistro(ot);
-    if (ventaVinculada && ventaVinculada.fbKey && ventaVinculada.estadoInst !== 'instalado') {
-      window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaVinculada.fbKey), { estadoInst: 'instalado' })
-        .catch(function(e){ console.error('Error al actualizar estado de instalación de la venta:', e); });
+    // Si la referencia quedó huérfana, intentar la misma reconciliación segura
+    // que usa el detalle de venta. Nunca se toma una coincidencia ambigua.
+    if (!ventaVinculada && typeof ventaDetalleResolverOT === 'function') {
+      var candidatasVentaOT = (ventasList || []).filter(function(ventaActual) {
+        return ventaDetalleResolverOT(ventaActual) === ot;
+      });
+      if (candidatasVentaOT.length === 1) ventaVinculada = candidatasVentaOT[0];
+    }
+    if (ventaVinculada && ventaVinculada.fbKey) {
+      if (typeof ventaDetalleRepararVinculoOT === 'function') {
+        ventaDetalleRepararVinculoOT(ventaVinculada, { persistir:true, notificar:false, otForzada:ot });
+      } else if (ventaVinculada.estadoInst !== 'instalado') {
+        window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaVinculada.fbKey), { estadoInst: 'instalado' })
+          .catch(function(e){ console.error('Error al actualizar estado de instalación de la venta:', e); });
+      }
     }
   }
 
@@ -26261,6 +26278,10 @@ function verDetalleVenta(ventaId) {
   // disponibles tanto la venta como el catálogo usado para validar la escala.
   // Solo persiste cuando la equivalencia USD→ARS coincide inequívocamente.
   venta = repararVentaGuardadaEnUsdComoArs(venta, { persistir:true, notificar:true }).venta;
+  // También corrige vínculos históricos OT↔venta cuando la coincidencia es
+  // inequívoca. La reparación se hace antes de dibujar los KPI para que el
+  // estado Instalado sea el de la OT real y no un indicador atrasado.
+  ventaDetalleRepararVinculoOT(venta, { persistir:true, notificar:true });
   window._ventaDetActualId = ventaId;
 
   var lv  = document.getElementById('ventas-list-view');
@@ -26276,20 +26297,146 @@ function verDetalleVenta(ventaId) {
   }
 }
 
+function ventaDetalleOTFinalizada(ot) {
+  var estado = _svTxtNombre(ot && (ot.estado || ot.estadoOT || ot.estadoOrden)).replace(/[_-]+/g, ' ');
+  return ['completada','completo','finalizada','finalizado','cerrada','cerrado','terminada','terminado'].indexOf(estado) >= 0;
+}
+
+function ventaDetalleOTEnCurso(ot) {
+  var estado = _svTxtNombre(ot && (ot.estado || ot.estadoOT || ot.estadoOrden)).replace(/[_-]+/g, ' ');
+  return ['en curso','en progreso','en instalacion','iniciada','iniciado'].indexOf(estado) >= 0;
+}
+
+function ventaDetalleCodigos(registro) {
+  var items = [];
+  if (Array.isArray(registro && registro.items)) items = items.concat(registro.items);
+  if (Array.isArray(registro && registro.materiales)) items = items.concat(registro.materiales);
+  return Array.from(new Set(items.map(function(item) {
+    return _svTxtNombre(item && (item.cod || item.codigo || item.sku || item.productoId));
+  }).filter(Boolean)));
+}
+
+function ventaDetalleCoincidenciaCliente(venta, ot) {
+  var idsVenta = [venta && venta.clienteFbKey, venta && venta.clienteKey, venta && venta.clienteId, venta && venta.idCliente]
+    .map(_svTxtClave).filter(Boolean);
+  var idsOT = [ot && ot.clienteFbKey, ot && ot.clienteKey, ot && ot.clienteId, ot && ot.idCliente]
+    .map(_svTxtClave).filter(Boolean);
+  if (idsVenta.length && idsOT.length) {
+    return idsVenta.some(function(id){ return idsOT.indexOf(id) >= 0; }) ? 100 : 0;
+  }
+  var nombreVenta = _svTxtNombre(venta && (venta.cliente || venta.clienteNombre || venta.nombreCliente));
+  var nombreOT = _svTxtNombre(ot && (ot.cliente || ot.clienteNombre || ot.nombreCliente));
+  return nombreVenta && nombreOT && nombreVenta === nombreOT ? 55 : 0;
+}
+
 function ventaDetalleResolverOT(venta) {
   if (!venta) return null;
+  var ots = window.otData || [];
   var raw = String(venta.otId || venta.ordenTrabajoId || venta.ot || '').trim();
-  var idsVenta = [venta.id, venta.fbKey, venta.numero, venta.nro, venta.codigo]
-    .map(function(x){ return String(x || '').trim(); }).filter(Boolean);
-  return (window.otData || []).find(function(ot) {
+  var directa = ots.find(function(ot) {
     if (!ot) return false;
     var idsOT = [ot.id, ot.fbKey, ot.otId, ot.numero]
       .map(function(x){ return String(x || '').trim(); }).filter(Boolean);
-    if (raw && idsOT.indexOf(raw) >= 0) return true;
-    var idsOrigen = [ot.ventaId, ot.venta, ot.ventaNumero, ot.ventaFbKey]
-      .map(function(x){ return String(x || '').trim(); }).filter(Boolean);
-    return idsVenta.some(function(id){ return idsOrigen.indexOf(id) >= 0; });
+    if (raw && idsOT.indexOf(raw) >= 0) {
+      var ventaYaVinculada = _svResolverVentaRegistro(ot);
+      // Un vínculo desde la venta puede reparar una referencia huérfana de la
+      // OT, pero nunca desplazar una OT que resuelve a otra venta existente.
+      if (!ventaYaVinculada || ventaYaVinculada === venta || _svRegistroPerteneceVenta(ot, venta)) return true;
+    }
+    return _svRegistroPerteneceVenta(ot, venta);
   }) || null;
+  if (directa) return directa;
+
+  // Sólo considerar OT cuyo número de venta ya no resuelve a ninguna venta.
+  // Así una coincidencia de cliente nunca roba una OT correctamente vinculada.
+  var codigosVenta = ventaDetalleCodigos(venta);
+  var fechaVenta = fechaVentaTimestamp(venta.fechaOrden || venta.fecha, venta.ts);
+  var candidatas = ots.map(function(ot) {
+    if (!ot || _svResolverVentaRegistro(ot)) return null;
+    var puntaje = ventaDetalleCoincidenciaCliente(venta, ot);
+    if (!puntaje) return null;
+    var codigosOT = ventaDetalleCodigos(ot);
+    if (codigosVenta.length && codigosOT.length) {
+      var comunes = codigosVenta.filter(function(codigo){ return codigosOT.indexOf(codigo) >= 0; }).length;
+      if (!comunes) return null; // materiales diferentes: contradicción fuerte
+      puntaje += 35 + Math.min(25, comunes * 5);
+    }
+    var fechaOT = fechaVentaTimestamp(ot.fecha || ot.fechaProgramada || ot.fechaCreacion, ot.ts);
+    var distanciaDias = fechaVenta && fechaOT ? Math.abs(fechaOT - fechaVenta) / 86400000 : 99999;
+    if (distanciaDias <= 90) puntaje += 20;
+    else if (distanciaDias <= 365) puntaje += 10;
+    return { ot:ot, puntaje:puntaje, distanciaDias:distanciaDias };
+  }).filter(Boolean).sort(function(a,b) {
+    return (b.puntaje - a.puntaje) || (a.distanciaDias - b.distanciaDias);
+  });
+  if (!candidatas.length || candidatas[0].puntaje < 70) return null;
+  if (candidatas.length > 1 && candidatas[0].puntaje - candidatas[1].puntaje < 15) return null;
+  return candidatas[0].ot;
+}
+
+function ventaDetalleRepararVinculoOT(venta, opciones) {
+  opciones = opciones || {};
+  if (!venta) return null;
+  var ot = opciones.otForzada || ventaDetalleResolverOT(venta);
+  if (!ot) return null;
+  var ventaIdCanonico = String(venta.id || venta.numero || venta.fbKey || '').trim();
+  var ventaKeyCanonica = String(venta.fbKey || '').trim();
+  var otKeyCanonica = String(ot.fbKey || '').trim();
+  var estadoInstalacion = ventaDetalleOTFinalizada(ot)
+    ? 'instalado'
+    : (ventaDetalleOTEnCurso(ot) ? 'en_instalacion' : (venta.estadoInst || 'pendiente_inst'));
+  var relacionCambia = String(ot.ventaId || '') !== ventaIdCanonico
+    || (ventaKeyCanonica && String(ot.ventaFbKey || '') !== ventaKeyCanonica)
+    || (otKeyCanonica && String(venta.otId || '') !== otKeyCanonica);
+  var estadoCambia = estadoInstalacion !== String(venta.estadoInst || '');
+  if (!relacionCambia && !estadoCambia) return ot;
+
+  var ahora = Date.now();
+  var fechaAudit = new Date(ahora).toLocaleDateString('es-AR') + ' ' + new Date(ahora).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  var referenciaAnterior = String(ot.ventaId || ot.venta || '');
+  var auditOT = Array.isArray(ot.audit) ? ot.audit.slice() : [];
+  var auditVenta = Array.isArray(venta.audit) ? venta.audit.slice() : [];
+  auditOT.push({ fecha:fechaAudit, usuario:currentUser || 'Sistema', accion:'Vínculo de venta reparado: ' + (referenciaAnterior || 'sin referencia') + ' → ' + ventaIdCanonico });
+  auditVenta.push({ fecha:fechaAudit, usuario:currentUser || 'Sistema', accion:'Vínculo con ' + String(ot.id || 'OT') + ' reparado automáticamente' });
+  var cambiosOT = {
+    ventaId: ventaIdCanonico,
+    venta: ventaIdCanonico,
+    ventaFbKey: ventaKeyCanonica,
+    ventaKey: ventaKeyCanonica,
+    origen: 'venta',
+    vinculoVentaAnterior: referenciaAnterior,
+    vinculoVentaReparadoEn: ahora,
+    audit: auditOT
+  };
+  var cambiosVenta = {
+    otId: otKeyCanonica || String(ot.id || ''),
+    otNumero: String(ot.id || ot.numero || ''),
+    otGenerada: true,
+    estadoInst: estadoInstalacion,
+    vinculoOTReparadoEn: ahora,
+    audit: auditVenta
+  };
+  Object.assign(ot, cambiosOT);
+  Object.assign(venta, cambiosVenta);
+
+  if (opciones.persistir && window.fbDB && window.fbUpdate && ventaKeyCanonica && otKeyCanonica) {
+    // Actualización multipath: ambos lados quedan corregidos en una única
+    // operación de Firebase, sin reemplazar el resto de los registros.
+    var updatesVinculo = {};
+    Object.keys(cambiosOT).forEach(function(campo) {
+      updatesVinculo[FB_PATHS.ordenesTrabajo + '/' + otKeyCanonica + '/' + campo] = cambiosOT[campo];
+    });
+    Object.keys(cambiosVenta).forEach(function(campo) {
+      updatesVinculo[FB_PATHS.ventas + '/' + ventaKeyCanonica + '/' + campo] = cambiosVenta[campo];
+    });
+    window.fbUpdate(window.fbRef(window.fbDB), updatesVinculo).then(function() {
+      if (opciones.notificar) notify('✓ Se reparó el vínculo entre ' + ventaIdCanonico + ' y ' + String(ot.id || 'la OT'));
+    }).catch(function(error) {
+      console.error('[Ventas] No se pudo reparar el vínculo OT↔venta', error);
+      if (opciones.notificar) notify('Se detectó la OT correcta, pero no se pudo guardar el vínculo');
+    });
+  }
+  return ot;
 }
 
 function abrirCobrosDesdeDetalleVenta(ventaId) {
@@ -26386,14 +26533,7 @@ function renderDetalleVenta(v) {
   function _formatearOTAsociadaDetalleVenta(venta) {
     if (!venta) return '—';
     var raw = String(venta.otId || venta.ordenTrabajoId || venta.ot || '').trim();
-    var idsVenta = [venta.id, venta.fbKey, venta.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-    var ot = (window.otData || []).find(function(o){
-      if (!o) return false;
-      var idsOT = [o.id, o.fbKey, o.otId, o.numero].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      if (raw && idsOT.indexOf(raw) >= 0) return true;
-      var idsOTVenta = [o.ventaId, o.venta, o.ventaNumero, o.ventaFbKey].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-      return idsVenta.some(function(idv){ return idsOTVenta.indexOf(idv) >= 0; });
-    });
+    var ot = ventaDetalleResolverOT(venta);
     if (ot) return String(ot.id || ot.numero || 'OT vinculada');
     if (raw && /^OT[-\s]?\d+/i.test(raw)) return raw;
     return raw ? 'OT vinculada' : '—';
