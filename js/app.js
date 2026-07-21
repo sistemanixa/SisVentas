@@ -3229,12 +3229,61 @@ function _chequearCambioHistCliente() {
   }
 }
 
+function sincronizarDireccionClienteEnOTs(clienteAnterior, clienteNuevo) {
+  if (!window.fbDB || !clienteNuevo) return Promise.resolve(0);
+  var direccionAnterior = String((clienteAnterior && (clienteAnterior.dir || clienteAnterior.direccion)) || '').trim();
+  var direccionNueva = String(clienteNuevo.dir || clienteNuevo.direccion || '').trim();
+  if (!direccionNueva || direccionNueva === direccionAnterior) return Promise.resolve(0);
+
+  var normalizar = function(valor) {
+    return String(valor || '').trim().toLocaleUpperCase('es-AR');
+  };
+  var referenciasCliente = [
+    clienteNuevo.fbKey, clienteNuevo.id,
+    clienteAnterior && clienteAnterior.fbKey, clienteAnterior && clienteAnterior.id
+  ].filter(Boolean).map(String);
+  var nombresCliente = [
+    clienteNuevo.nombre,
+    clienteAnterior && clienteAnterior.nombre
+  ].filter(Boolean).map(normalizar);
+  var estadosCerrados = ['COMPLETADA','COMPLETADO','FINALIZADA','FINALIZADO','CANCELADA','CANCELADO','ANULADA','ANULADO'];
+  var ordenes = Array.isArray(otData) ? otData : Object.values(otData || {});
+  var actualizaciones = [];
+
+  ordenes.forEach(function(ot) {
+    if (!ot || !ot.fbKey || estadosCerrados.indexOf(normalizar(ot.estado)) >= 0) return;
+    var referenciasOT = [ot.clienteFbKey, ot.clienteKey, ot.clienteId, ot.idCliente, ot.id_cli].filter(Boolean).map(String);
+    var vinculada = referenciasOT.length
+      ? referenciasOT.some(function(valor){ return referenciasCliente.indexOf(valor) >= 0; })
+      : nombresCliente.indexOf(normalizar(ot.cliente || ot.clienteNombre || ot.nombreCliente)) >= 0;
+    if (!vinculada) return;
+
+    var direccionOT = String(ot.dir || ot.direccion || ot.domicilio || ot.direccionInstalacion || '').trim();
+    // Si la OT tiene otra dirección escrita expresamente, se conserva como dirección de instalación.
+    if (direccionOT && (!direccionAnterior || normalizar(direccionOT) !== normalizar(direccionAnterior))) return;
+
+    ot.dir = direccionNueva;
+    ot.direccion = direccionNueva;
+    actualizaciones.push(window.fbUpdate(
+      window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey),
+      { dir: direccionNueva, direccion: direccionNueva, tsUltimaEdicion: Date.now(), usuarioUltimaEdicion: currentUser || 'Sistema' }
+    ));
+  });
+
+  return Promise.all(actualizaciones).then(function(){ return actualizaciones.length; });
+}
+
 function fbGuardarCliente(cli) {
   if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
   var r = window.fbRef(window.fbDB, FB_PATHS.clientes);
   if (cli.fbKey) {
+    var clienteAnterior = (clientesData || []).find(function(actual){ return actual.fbKey === cli.fbKey; });
+    clienteAnterior = clienteAnterior ? Object.assign({}, clienteAnterior) : null;
     window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey), cli)
-      .then(function() { notify('Cliente actualizado ✓'); })
+      .then(function() { return sincronizarDireccionClienteEnOTs(clienteAnterior, cli); })
+      .then(function(cantidadOT) {
+        notify('Cliente actualizado ✓' + (cantidadOT ? ' · ' + cantidadOT + ' OT abierta' + (cantidadOT === 1 ? '' : 's') + ' sincronizada' + (cantidadOT === 1 ? '' : 's') : ''));
+      })
       .catch(function(e) { notify('Error: ' + e.message); });
   } else {
     // Nuevo cliente
@@ -4979,9 +5028,9 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.138-firebase',
+  VERSION: 'v2.0.139-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Nuevo circuito de compras: lista de materiales, agrupación por proveedor y recepción con destino.'
+    'Edición, Maps y domicilio sincronizado con OT abiertas desde el historial del cliente.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -24489,41 +24538,38 @@ function _otResolverDireccionCliente(ot) {
     }
     return '';
   }
-  var dir = leerDir(ot);
-  if (dir) return dir;
+  var dirOT = leerDir(ot);
+  // Una dirección de instalación marcada expresamente en la OT siempre se conserva.
+  if (ot && ot.direccionPersonalizada === true && dirOT) return dirOT;
 
-  // 1) Buscar dirección desde la venta origen, si la OT nació desde una venta.
-  if (ot && ot.ventaId && Array.isArray(ventasList)) {
-    var ventaOrigen = _svResolverVentaRegistro(ot);
-    dir = leerDir(ventaOrigen);
-    if (dir) return dir;
-    if (ventaOrigen && ventaOrigen.clienteObj) {
-      dir = leerDir(ventaOrigen.clienteObj);
-      if (dir) return dir;
-    }
-  }
+  var ventaOrigen = ot && Array.isArray(ventasList) ? _svResolverVentaRegistro(ot) : null;
 
-  // 2) Buscar por id de cliente si existe.
+  // 1) La ficha actual del cliente es la fuente principal para las OT vinculadas.
   var clientesArr = Array.isArray(clientesData) ? clientesData : Object.values(clientesData||{});
-  var cliId = ot ? (ot.clienteId || ot.idCliente || ot.id_cli || ot.clienteKey) : '';
-  if (cliId) {
-    var cliPorId = clientesArr.find(function(c){ return c.id === cliId || c.fbKey === cliId || c.key === cliId || c.codigo === cliId; });
-    dir = leerDir(cliPorId);
-    if (dir) return dir;
-  }
-
-  // 3) Buscar por nombre de cliente, tolerando mayúsculas, espacios y apellido.
-  var nombreOT = String((ot && ot.cliente) || '').toLowerCase().trim();
-  if (nombreOT) {
-    var cliOT = clientesArr.find(function(c){
+  var referencias = [
+    ot && (ot.clienteFbKey || ot.clienteKey || ot.clienteId || ot.idCliente || ot.id_cli),
+    ventaOrigen && (ventaOrigen.clienteFbKey || ventaOrigen.clienteKey || ventaOrigen.clienteId || ventaOrigen.idCliente)
+  ].filter(Boolean).map(String);
+  var cliRelacionado = referencias.length ? clientesArr.find(function(c){
+    return [c.id,c.fbKey,c.key,c.codigo].filter(Boolean).map(String).some(function(valor){ return referencias.indexOf(valor) >= 0; });
+  }) : null;
+  if (!cliRelacionado) {
+    var nombreOT = String((ot && (ot.cliente || ot.clienteNombre)) || (ventaOrigen && ventaOrigen.cliente) || '').toLowerCase().trim();
+    cliRelacionado = clientesArr.find(function(c){
       var n1 = String(c.nombre || '').toLowerCase().trim();
       var n2 = String(((c.nombre || '') + ' ' + (c.apellidos || c.apellido || '')).trim()).toLowerCase();
       var n3 = String(c.razonSocial || c.razon_social || '').toLowerCase().trim();
       return n1 === nombreOT || n2 === nombreOT || n3 === nombreOT;
-    });
-    dir = leerDir(cliOT);
-    if (dir) return dir;
+    }) || null;
   }
+  var dir = leerDir(cliRelacionado);
+  if (dir) return dir;
+
+  // 2) Respaldo para registros antiguos que todavía no tienen vínculo de cliente resoluble.
+  if (dirOT) return dirOT;
+  dir = leerDir(ventaOrigen);
+  if (dir) return dir;
+  if (ventaOrigen && ventaOrigen.clienteObj) return leerDir(ventaOrigen.clienteObj);
   return '';
 }
 
@@ -24632,8 +24678,12 @@ function verOT(id) {
   document.getElementById('ot-det-hora').value = ot.hora||'';
   var dirOT = _otResolverDireccionCliente(ot);
   document.getElementById('ot-det-dir').value = dirOT || '';
-  if (dirOT && !ot.dir && !ot.direccion && !ot.domicilio) {
+  var dirGuardadaOT = String(ot.dir || ot.direccion || ot.domicilio || '').trim();
+  var debeSincronizarDirOT = dirOT && ot.direccionPersonalizada !== true &&
+    dirGuardadaOT.toLocaleUpperCase('es-AR') !== String(dirOT).trim().toLocaleUpperCase('es-AR');
+  if (debeSincronizarDirOT) {
     ot.dir = dirOT;
+    ot.direccion = dirOT;
     if (typeof fbGuardarOT === 'function') {
       window._otGuardandoLocalHasta = Date.now() + 2500;
       fbGuardarOT(ot).catch(function(e){ console.warn('No se pudo guardar dirección resuelta en OT:', e); });
@@ -25412,7 +25462,7 @@ function completarOT() {
   }
 }
 
-function actualizarOT() {
+function actualizarOT(direccionEditada) {
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot) return;
 
@@ -25431,7 +25481,13 @@ function actualizarOT() {
   }
   if (clienteInp && !clienteInp.readOnly) ot.cliente = clienteInp.value.trim();
   if (dirInp) {
+    var direccionFicha = _otResolverDireccionCliente(ot);
     ot.dir = dirInp.value.trim();
+    ot.direccion = ot.dir;
+    if (direccionEditada === true) {
+      var normalizarDir = function(valor){ return String(valor || '').trim().toLocaleUpperCase('es-AR'); };
+      ot.direccionPersonalizada = !!(ot.dir && direccionFicha && normalizarDir(ot.dir) !== normalizarDir(direccionFicha));
+    }
     window._otDireccionActual = ot.dir;
     var mapsBtn = document.getElementById('ot-det-dir-maps-btn');
     if (mapsBtn) mapsBtn.style.display = ot.dir ? '' : 'none';
@@ -26348,7 +26404,13 @@ function verHistorialCliente(id, nombre) {
   _set('hc-nombre',cli.nombre);
   document.getElementById('hc-tel').innerHTML = '<i class="ti ti-phone" style="font-size:12px"></i> ' + (cli.tel||cli.telefono||'—');
   document.getElementById('hc-email').innerHTML = '<i class="ti ti-mail" style="font-size:12px"></i> ' + (cli.email||cli.mail||'—');
-  document.getElementById('hc-dir').innerHTML = '<i class="ti ti-map-pin" style="font-size:12px"></i> ' + (cli.dir||'—');
+  var direccionCliente = String(cli.dir || cli.direccion || '').trim();
+  var dirHistEl = document.getElementById('hc-dir');
+  if (dirHistEl) {
+    dirHistEl.innerHTML = direccionCliente
+      ? '<button type="button" onclick="abrirDireccionClienteMaps(clienteActualId)" title="Abrir dirección en Google Maps" style="border:0;background:none;padding:0;color:inherit;font:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:4px;text-align:left"><i class="ti ti-map-pin" style="font-size:12px;color:var(--blue)"></i><span style="text-decoration:underline;text-underline-offset:2px">' + escapeHTML(direccionCliente) + '</span><i class="ti ti-external-link" style="font-size:11px"></i></button>'
+      : '<i class="ti ti-map-pin" style="font-size:12px"></i> Sin dirección cargada';
+  }
   var cliActivo = cli.estado === 'activo' || cli.activo !== false;
   document.getElementById('hc-estado-badge').innerHTML =
     '<label class="toggle-sw" title="' + (cliActivo ? 'Activo — clic para dar de baja' : 'Inactivo — clic para reactivar') + '">' +
@@ -26471,6 +26533,17 @@ function verHistorialCliente(id, nombre) {
 
   // Huella para detectar cambios externos mientras se está mirando este historial
   window._histClienteHuella = JSON.stringify({cli: cli, ventas: ventas});
+}
+
+function abrirDireccionClienteMaps(id) {
+  var cli = (clientesData || []).find(function(c) {
+    return String(c.fbKey || '') === String(id || '') || String(c.id || '') === String(id || '');
+  });
+  if (!cli) { notify('Cliente no encontrado'); return; }
+  var direccion = String(cli.dir || cli.direccion || '').trim();
+  if (!direccion) { notify('Este cliente no tiene una dirección cargada'); return; }
+  var ubicacion = [direccion, cli.localidad || cli.ciudad || '', cli.provincia || '', 'Argentina'].filter(Boolean).join(', ');
+  window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(ubicacion), '_blank', 'noopener');
 }
 
 function renderClienteTimeline(cli, ventas, pptos, pagos) {
@@ -28316,8 +28389,9 @@ function calcularComisionEmpleado(emp, mesAMM) {
 
 // Editar cliente
 function editarCliente(id) {
-  var cli = clientesData ? clientesData.find(function(c){ return c.id === id; }) : null;
-  window._editingClienteId = id;
+  var cli = clientesData ? clientesData.find(function(c){ return String(c.id || '') === String(id || '') || String(c.fbKey || '') === String(id || ''); }) : null;
+  if (!cli) { notify('Cliente no encontrado'); return; }
+  window._editingClienteId = cli.fbKey || cli.id;
   abrirModalNuevo('cliente');
   if (cli) {
     setTimeout(function() {
