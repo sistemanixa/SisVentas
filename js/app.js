@@ -4993,10 +4993,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.134-firebase',
+  VERSION: 'v2.0.135-firebase',
   RELEASE_NOTES: Object.freeze([
-    'El actualizador bloquea precios anormales y repara conversiones duplicadas.',
-    'La impresión muestra subtotal y descuento aun sin detalle.'
+    'Se reparan los tres productos contaminados por el actualizador.',
+    'También se corrige el precio interno de sus proveedores.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -7185,6 +7185,33 @@ function _relacionCercanaProducto(valor, referencia, tolerancia) {
   return ratio >= 1 - tolerancia && ratio <= 1 + tolerancia;
 }
 
+// Migración puntual respaldada por los importes observados antes y después del
+// actualizador del 21/07/2026. Se exige código + costo + venta: no alcanza con
+// que un producto sea caro, por lo que un importe legítimo nunca entra acá.
+var _PRECIOS_CONTAMINADOS_CONFIRMADOS_20260721 = {
+  'P-60853': { costo:93379345, venta:133399059, tc:1495 },
+  'P-16403': { costo:46466170, venta:66380243, tc:1495 },
+  'P-7209':  { costo:58244751, venta:83206781, tc:1495 }
+};
+
+function _migracionConfirmadaActualizador20260721(p, costoGuardado, ventaGuardada) {
+  var codigo = String((p && p.codigo) || '').trim().toUpperCase().replace(/\s+/g, '');
+  var confirmado = _PRECIOS_CONTAMINADOS_CONFIRMADOS_20260721[codigo];
+  if (!confirmado) return null;
+  if (!_relacionCercanaProducto(costoGuardado, confirmado.costo, 0.005)) return null;
+  if (!_relacionCercanaProducto(ventaGuardada, confirmado.venta, 0.005)) return null;
+  return {
+    costoGuardado: costoGuardado,
+    costoCorregido: Math.round((costoGuardado / confirmado.tc) * 100) / 100,
+    ventaGuardada: ventaGuardada,
+    ventaCorregida: Math.round((ventaGuardada / confirmado.tc) * 100) / 100,
+    tipoCambio: confirmado.tc,
+    proveedorConfirma: false,
+    forzarMigracion: true,
+    origen: 'migracion-confirmada-actualizador-20260721'
+  };
+}
+
 // El actualizador de proveedores llegó a aceptar importes que ya estaban en ARS
 // como si fueran USD y los multiplicó otra vez por la cotización. Se auditan
 // costo y venta juntos: la reparación solo se habilita cuando el proveedor, la
@@ -7194,6 +7221,9 @@ function detectarProductoArsDuplicadoPorDolar(p) {
   var costoGuardado = _costoRaizProductoSinAuditar(p);
   var ventaGuardada = _primerNumeroPositivoProducto([p.ventaARS, p.precioArsPublicadoVenta, p.venta, p.precio_venta, p.precioVenta]);
   if (!(costoGuardado > 0) && !(ventaGuardada > 0)) return null;
+
+  var migracionConfirmada = _migracionConfirmadaActualizador20260721(p, costoGuardado, ventaGuardada);
+  if (migracionConfirmada) return migracionConfirmada;
 
   var proveedor = _proveedorPrincipalProductoSinReconciliar(p);
   var costoProveedor = _costoProveedorProductoSinAuditar(p, proveedor);
@@ -7382,6 +7412,36 @@ function detectarVentaArsDuplicadaPorDolar(p) {
 }
 
 var _reparacionVentasDuplicadasDolarEnCurso = false;
+
+function _corregirProveedoresDuplicadosPorDolar(p, auditado) {
+  if (!auditado || !(auditado.costoCorregido > 0) || !(auditado.tipoCambio > 100) || !Array.isArray(p && p.proveedores)) return null;
+  var huboCambios = false;
+  var lista = p.proveedores.map(function(original) {
+    var pv = Object.assign({}, original || {});
+    var cambioProveedor = false;
+    ['precio','precioArsPublicado','costoRealArs'].forEach(function(campo) {
+      var guardado = parseFloat(pv[campo]) || 0;
+      if (!(guardado > auditado.costoCorregido * 50)) return;
+      var dividido = Math.round((guardado / auditado.tipoCambio) * 100) / 100;
+      var relacionCosto = dividido / auditado.costoCorregido;
+      if (relacionCosto < 0.65 || relacionCosto > 1.25) return;
+      pv[campo] = dividido;
+      huboCambios = true;
+      cambioProveedor = true;
+    });
+    if (cambioProveedor) {
+      var publicado = _primerNumeroPositivoProducto([pv.precioArsPublicado, pv.precio]);
+      var costo = _primerNumeroPositivoProducto([pv.costoRealArs, publicado]);
+      pv.precioUsdReferencia = publicado > 0 ? Math.round((publicado / auditado.tipoCambio) * 100) / 100 : 0;
+      pv.costoRealUsdReferencia = costo > 0 ? Math.round((costo / auditado.tipoCambio) * 100) / 100 : 0;
+      pv.dolarUsado = auditado.tipoCambio;
+      pv.actualizadoOrigen = 'reparacion-actualizador-proveedores';
+    }
+    return pv;
+  });
+  return huboCambios ? lista : null;
+}
+
 function repararVentasArsDuplicadasPorDolar() {
   if (_reparacionVentasDuplicadasDolarEnCurso || !window.fbDB || String(currentRole || '').toLowerCase() !== 'admin') return;
   var productosAuditables = Object.values(prodData || {}).filter(function(p){ return p && p.fbKey; });
@@ -7409,7 +7469,11 @@ function repararVentasArsDuplicadasPorDolar() {
       cambios[base + 'compraARS'] = costoCorregido;
       cambios[base + 'precioGremio'] = costoCorregido;
       cambios[base + 'costoRealArs'] = costoCorregido;
+      var publicadoRaiz = parseFloat(p.precioArsPublicado) || 0;
+      if (publicadoRaiz > costoCorregido * 50) cambios[base + 'precioArsPublicado'] = Math.round((publicadoRaiz / auditado.tipoCambio) * 100) / 100;
     }
+    var proveedoresCorregidos = auditadoProducto ? _corregirProveedoresDuplicadosPorDolar(p, auditadoProducto) : null;
+    if (proveedoresCorregidos) cambios[base + 'proveedores'] = proveedoresCorregidos;
     if (auditado.tipoCambio > 0) {
       cambios[base + 'ventaUSD'] = Math.round((ventaCorregida / auditado.tipoCambio) * 100) / 100;
       if (costoCorregido > 0) cambios[base + 'compraUSD'] = Math.round((costoCorregido / auditado.tipoCambio) * 100) / 100;
