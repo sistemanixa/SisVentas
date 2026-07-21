@@ -5028,10 +5028,16 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.139-firebase',
+  VERSION: 'v2.0.140-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Edición, Maps y domicilio sincronizado con OT abiertas desde el historial del cliente.'
+    'Las novedades ahora abren su función e incluyen un recorrido guiado.'
   ]),
+  RELEASE_FEATURE: Object.freeze({
+    page: 'ordenes',
+    tour: 'compras',
+    actionLabel: 'Ver circuito de compras',
+    tourLabel: 'Hacer recorrido guiado'
+  }),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5396,6 +5402,13 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
   var notasVersion = (APP_CONFIG.RELEASE_NOTES || []).map(function(nota) {
     return '<div style="display:flex;align-items:flex-start;gap:8px;text-align:left"><i class="ti ti-check" style="color:var(--green);font-size:14px;margin-top:2px;flex-shrink:0"></i><span>' + escapeHTML(nota) + '</span></div>';
   }).join('');
+  var novedad = APP_CONFIG.RELEASE_FEATURE || null;
+  var puedeAbrirNovedad = novedad && (!novedad.page || typeof permisoModulo !== 'function' || permisoModulo(novedad.page));
+  var accionesNovedad = puedeAbrirNovedad ?
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
+      '<button onclick="abrirNovedadVersion(false)" style="flex:1;min-width:180px;padding:11px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit"><i class="ti ti-external-link" style="margin-right:5px"></i>' + escapeHTML(novedad.actionLabel || 'Ver función nueva') + '</button>' +
+      (novedad.tour ? '<button onclick="abrirNovedadVersion(true)" style="flex:1;min-width:180px;padding:11px;border-radius:var(--radius);border:0.5px solid var(--blue);background:var(--blue-bg);color:var(--blue);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit"><i class="ti ti-route" style="margin-right:5px"></i>' + escapeHTML(novedad.tourLabel || 'Recorrido guiado') + '</button>' : '') +
+    '</div>' : '';
 
   var overlay = document.createElement('div');
   overlay.id = 'popup-actualizado';
@@ -5420,6 +5433,7 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
       // Resumen de cambios
       (notasVersion ? '<div style="padding:12px 14px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text2);line-height:1.45;margin-bottom:20px;display:flex;flex-direction:column;gap:8px"><div style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.5px">Qué cambió</div>' + notasVersion + '</div>' : '') +
       '<div style="font-size:11px;color:var(--text3);margin-bottom:20px">Todo funcionando correctamente. Seguís exactamente donde estabas.</div>' +
+      accionesNovedad +
       // Botón
       '<button onclick="document.getElementById(\'popup-actualizado\').remove()" ' +
         'style="width:100%;padding:12px;border-radius:var(--radius);border:none;background:var(--green);color:#080e1a;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;letter-spacing:.3px">' +
@@ -5436,6 +5450,22 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
       document.removeEventListener('keydown', handler);
     }
   });
+}
+
+function abrirNovedadVersion(conRecorrido) {
+  var novedad = APP_CONFIG.RELEASE_FEATURE || null;
+  if (!novedad) return;
+  var popup = document.getElementById('popup-actualizado');
+  if (popup) popup.remove();
+  if (novedad.page && typeof showPage === 'function') {
+    showPage(novedad.page, document.querySelector('[onclick*="' + novedad.page + '"]'));
+  }
+  if (conRecorrido && novedad.tour) {
+    setTimeout(function () {
+      if (typeof window.iniciarRecorridoNovedad === 'function') window.iniciarRecorridoNovedad(novedad.tour);
+      else notify('El recorrido todavía no está disponible');
+    }, 650);
+  }
 }
 
 function mostrarAvisoVersionNueva(versionNueva) {
