@@ -197,6 +197,21 @@ function _fechaEsDia(fecha, dia) {
     f === (dd+'/'+mm+'/'+String(yyyy).slice(-2));
 }
 
+function _fechaCalendarioLocal(fecha) {
+  var f = String(fecha || '').trim();
+  if (!f) return null;
+  var iso = f.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), 12, 0, 0);
+  var ar = f.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+  if (ar) {
+    var anio = Number(ar[3]);
+    if (anio < 100) anio += 2000;
+    return new Date(anio, Number(ar[2]) - 1, Number(ar[1]), 12, 0, 0);
+  }
+  var d = new Date(f);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function kpiIva() {
   var hoy = new Date();
   var mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
@@ -4943,8 +4958,10 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.124-firebase',
+  VERSION: 'v2.0.125-firebase',
   RELEASE_NOTES: Object.freeze([
+    'Las notificaciones de instalaciones comparan la fecha de la OT como calendario local y ya no adelantan las programadas para mañana.',
+    'Recordar mañana también usa la fecha local de Argentina y no UTC.',
     'El detalle de una venta detecta y repara precios históricos guardados por error en USD, recalculando todos sus importes en ARS.',
     'La reparación queda guardada en Firebase y asentada en la auditoría de la venta para que detalle, saldo y métricas compartan el mismo dato.',
     'Se restauró la detección automática de publicaciones: la fuente liviana de versión vuelve a estar sincronizada.',
@@ -26969,8 +26986,11 @@ function generarNotificaciones() {
       }
 
       // OT programada para hoy
-      const fechaOT = ot.fecha ? new Date(ot.fecha) : null;
-      const esHoy = fechaOT && fechaOT.toDateString() === ahora.toDateString();
+      // Un texto YYYY-MM-DD representa un día de calendario local. Usar
+      // new Date('YYYY-MM-DD') lo interpreta como UTC y en Argentina lo mueve
+      // al día anterior, haciendo aparecer mañana como si fuera hoy.
+      const fechaOT = _fechaCalendarioLocal(ot.fecha);
+      const esHoy = _fechaEsDia(ot.fecha, ahora);
       if (esHoy && ot.estado === 'pendiente' && NOTIF_CONFIG.ot_hoy.activo) {
         todasNotifs.push({
           id: 'ot_hoy_' + ot.id, tipo:'ot', urgente:false,
