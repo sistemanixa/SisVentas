@@ -4958,8 +4958,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.125-firebase',
+  VERSION: 'v2.0.126-firebase',
   RELEASE_NOTES: Object.freeze([
+    'Al cambiar de OT se limpian inmediatamente las credenciales anteriores y se descartan respuestas tardías del cliente previo.',
+    'Admin y Administrativo pueden agregar desde la OT varias credenciales básicas con título, usuario, contraseña y número de serie.',
+    'La ficha completa de credenciales también permite guardar y visualizar el número de serie.',
     'Las notificaciones de instalaciones comparan la fecha de la OT como calendario local y ya no adelantan las programadas para mañana.',
     'Recordar mañana también usa la fecha local de Argentina y no UTC.',
     'El detalle de una venta detecta y repara precios históricos guardados por error en USD, recalculando todos sus importes en ARS.',
@@ -24571,22 +24574,110 @@ function firmaCargar(ot) {
   document.getElementById('firma-placeholder').style.display = 'none';
 }
 
+var _otCredencialesCargaSecuencia = 0;
+var _otCredencialesClienteActual = null;
+var _otCredencialesOTActual = null;
+
+function otPuedeEditarCredenciales() {
+  return currentRole === 'admin' || currentRole === 'administrativo';
+}
+
+function otCredencialBasicaCerrar() {
+  var editor = document.getElementById('ot-cred-editor-basico');
+  if (editor) editor.style.display = 'none';
+}
+
+function otCredencialBasicaAbrir() {
+  if (!otPuedeEditarCredenciales()) { notify('Sin permisos para agregar credenciales'); return; }
+  if (!_otCredencialesClienteActual) { notify('No se pudo identificar al cliente de esta OT'); return; }
+  ['ot-cred-titulo','ot-cred-usuario','ot-cred-password','ot-cred-serie'].forEach(function(id) {
+    var input = document.getElementById(id);
+    if (input) input.value = '';
+  });
+  var editor = document.getElementById('ot-cred-editor-basico');
+  if (editor) editor.style.display = '';
+  var titulo = document.getElementById('ot-cred-titulo');
+  if (titulo) titulo.focus();
+}
+
+function otCredencialBasicaGuardar() {
+  if (!otPuedeEditarCredenciales() || !_otCredencialesClienteActual || !window.fbDB) {
+    notify('No se puede guardar esta credencial');
+    return;
+  }
+  var titulo = String((document.getElementById('ot-cred-titulo') || {}).value || '').trim();
+  var usuario = String((document.getElementById('ot-cred-usuario') || {}).value || '').trim();
+  var password = String((document.getElementById('ot-cred-password') || {}).value || '').trim();
+  var serie = String((document.getElementById('ot-cred-serie') || {}).value || '').trim();
+  if (!titulo) { notify('Ingresá un título para identificar la credencial'); return; }
+  if (!usuario && !password && !serie) { notify('Ingresá usuario, contraseña o número de serie'); return; }
+  var clienteKey = String(_otCredencialesClienteActual.fbKey || _otCredencialesClienteActual.id || '');
+  if (!clienteKey) { notify('El cliente no tiene un identificador válido'); return; }
+  var btn = document.getElementById('ot-cred-guardar-btn');
+  if (btn) btn.disabled = true;
+  var datos = {
+    tipo: 'otro', desc: titulo, user: usuario, pass: password, serie: serie,
+    ts: Date.now(), editadoPor: currentUser || ''
+  };
+  window.fbPush(window.fbRef(window.fbDB, 'sisventas/credencialesPorCliente/' + clienteKey), datos)
+    .then(function() {
+      notify('✓ Credencial guardada para ' + (_otCredencialesClienteActual.nombre || _otCredencialesClienteActual.empresa || 'el cliente'));
+      otCredencialBasicaCerrar();
+      var ot = (otData || []).find(function(item) {
+        return item.fbKey === otActualId || item.id === otActualId;
+      }) || _otCredencialesOTActual;
+      if (ot) otCargarCredenciales(ot);
+    })
+    .catch(function(error) { notify('Error al guardar: ' + error.message); })
+    .finally(function() { if (btn) btn.disabled = false; });
+}
+
 function otCargarCredenciales(ot) {
   var box  = document.getElementById('ot-cred-box');
   var lista = document.getElementById('ot-cred-lista');
   if (!box || !lista) return;
 
-  var cli = _svResolverClienteRegistro(ot, true);
-  if (!cli || !window.fbDB) { box.style.display='none'; return; }
+  // Limpiar antes de iniciar la consulta. La secuencia impide que una respuesta
+  // lenta de la OT anterior vuelva a pintar sus credenciales en la OT actual.
+  var secuencia = ++_otCredencialesCargaSecuencia;
+  _otCredencialesClienteActual = null;
+  _otCredencialesOTActual = ot || null;
+  lista.innerHTML = '';
+  box.style.display = 'none';
+  otCredencialBasicaCerrar();
+  var agregarBtn = document.getElementById('ot-cred-agregar-btn');
+  if (agregarBtn) agregarBtn.style.display = 'none';
 
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/credencialesPorCliente/'+(cli.fbKey||''))).then(function(snap) {
+  var cli = _svResolverClienteRegistro(ot, true);
+  if (!cli || !window.fbDB) return;
+  _otCredencialesClienteActual = cli;
+  var puedeEditar = otPuedeEditarCredenciales();
+  var clienteCredKey = String(cli.fbKey || cli.id || '');
+  if (!clienteCredKey) return;
+  if (agregarBtn) agregarBtn.style.display = puedeEditar ? '' : 'none';
+  if (puedeEditar) {
+    box.style.display = '';
+    lista.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text3);font-size:12px">Cargando credenciales...</div>';
+  }
+
+  window.fbGet(window.fbRef(window.fbDB, 'sisventas/credencialesPorCliente/' + clienteCredKey)).then(function(snap) {
     var data = snap.val();
     if (!data && cli.id) {
       return window.fbGet(window.fbRef(window.fbDB, 'sisventas/credenciales/'+cli.id)).then(function(legacySnap){ return legacySnap.val(); });
     }
     return data;
   }).then(function(data) {
-    if (!data) { box.style.display='none'; return; }
+    if (secuencia !== _otCredencialesCargaSecuencia) return;
+    if (!data) {
+      if (puedeEditar) {
+        box.style.display = '';
+        lista.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text3);font-size:12px">Este cliente todavía no tiene credenciales. Tocá Agregar para cargar la primera.</div>';
+      } else {
+        lista.innerHTML = '';
+        box.style.display = 'none';
+      }
+      return;
+    }
     box.style.display = '';
     var items = Object.values(data);
     lista.innerHTML = items.map(function(c) {
@@ -24603,12 +24694,17 @@ function otCargarCredenciales(ot) {
                 '<button onclick="this.previousElementSibling.textContent=this.previousElementSibling.textContent===\'••••••••\'?\''+escapeHTML(c.pass||'')+'\':\'••••••••\'" style="background:none;border:none;cursor:pointer;color:var(--text3)"><i class="ti ti-eye" style="font-size:13px"></i></button>' +
               '</div></div>' : '') +
             (c.ip ? '<div><span style="font-size:10px;color:var(--text3);display:block">IP / Sistema</span><span style="font-family:monospace;font-size:12px">'+escapeHTML(c.ip)+(c.puerto?':'+escapeHTML(c.puerto):'')+'</span></div>' : '') +
+            ((c.serie || c.numeroSerie || c.serial) ? '<div><span style="font-size:10px;color:var(--text3);display:block">Número de serie</span><span style="font-family:monospace;font-size:12px">'+escapeHTML(c.serie || c.numeroSerie || c.serial)+'</span></div>' : '') +
           '</div>' +
           (c.notas ? '<div style="margin-top:6px;font-size:11px;color:var(--text3);font-style:italic">'+escapeHTML(c.notas)+'</div>' : '') +
         '</div>' +
       '</div>';
     }).join('');
-  }).catch(function(){ box.style.display='none'; });
+  }).catch(function(){
+    if (secuencia !== _otCredencialesCargaSecuencia) return;
+    lista.innerHTML = '';
+    box.style.display = 'none';
+  });
 }
 function otRenderNotas(ot) {
   var lista = document.getElementById('ot-notas-lista');
@@ -26008,6 +26104,7 @@ function credCargar() {
                 '<button onclick="credMostrarPass(\''+c.fbKey+'\',\''+escapeHTML(c.pass||'').replace(/'/g,"\\'")+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:0" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
               '</div></div>' : '') +
             (c.ip ? '<div><span style="font-size:10px;color:var(--text3);display:block">IP / Dirección</span><span style="font-size:12px;font-family:monospace">'+escapeHTML(c.ip)+(c.puerto?':'+escapeHTML(c.puerto):'')+'</span></div>' : '') +
+            ((c.serie || c.numeroSerie || c.serial) ? '<div><span style="font-size:10px;color:var(--text3);display:block">Número de serie</span><span style="font-size:12px;font-family:monospace">'+escapeHTML(c.serie || c.numeroSerie || c.serial)+'</span></div>' : '') +
           '</div>' +
           (c.notas ? '<div style="margin-top:8px;font-size:12px;color:var(--text2);font-style:italic">'+escapeHTML(c.notas)+'</div>' : '') +
         '</div>' +
@@ -26046,6 +26143,7 @@ function credAgregarNueva() {
   document.getElementById('cred-pass').value = '';
   document.getElementById('cred-pass').type = 'password';
   document.getElementById('cred-pass-ico').className = 'ti ti-eye';
+  document.getElementById('cred-serie').value = '';
   document.getElementById('cred-ip').value = '';
   document.getElementById('cred-puerto').value = '';
   document.getElementById('cred-notas').value = '';
@@ -26066,6 +26164,7 @@ function credAbrirEditor(fbKey) {
     document.getElementById('cred-pass').value  = c.pass  || '';
     document.getElementById('cred-pass').type   = 'password';
     document.getElementById('cred-pass-ico').className = 'ti ti-eye';
+    document.getElementById('cred-serie').value = c.serie || c.numeroSerie || c.serial || '';
     document.getElementById('cred-ip').value    = c.ip    || '';
     document.getElementById('cred-puerto').value= c.puerto|| '';
     document.getElementById('cred-notas').value = c.notas || '';
@@ -26091,6 +26190,7 @@ function credGuardar() {
   var datos = {
     tipo, desc: desc || CRED_TIPO_LABELS[tipo],
     user, pass,
+    serie:   document.getElementById('cred-serie').value.trim(),
     ip:      document.getElementById('cred-ip').value.trim(),
     puerto:  document.getElementById('cred-puerto').value.trim(),
     notas:   document.getElementById('cred-notas').value.trim(),
