@@ -4993,10 +4993,9 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.136-firebase',
+  VERSION: 'v2.0.137-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Se audita todo el catálogo y se reparan los precios multiplicados por el dólar.',
-    'Cada corrección conserva una copia de los valores anteriores.'
+    'Al volver de la vista de otro usuario se abre el módulo Usuarios.'
   ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
@@ -21524,7 +21523,7 @@ function finalizarImpersonacionUsuario() {
   var adm=document.getElementById('dash-administrativo-card'); if (adm) adm.style.display='none';
   var tec=document.getElementById('dash-tecnico-card'); if (tec) tec.style.display='none';
   if (typeof registrarActividad === 'function') registrarActividad('Fin vista como usuario', '');
-  showPage('dashboard', document.querySelector('[onclick*="dashboard"]'));
+  showPage('usuarios', document.querySelector('.nav-item[onclick*="usuarios"]'));
   notify('Volviste a Admin');
 }
 
