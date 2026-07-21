@@ -4958,8 +4958,9 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.126-firebase',
+  VERSION: 'v2.0.127-firebase',
   RELEASE_NOTES: Object.freeze([
+    'Los técnicos pueden registrar credenciales nuevas desde la OT durante una instalación; la edición y eliminación posterior continúan reservadas a Administración.',
     'Al cambiar de OT se limpian inmediatamente las credenciales anteriores y se descartan respuestas tardías del cliente previo.',
     'Admin y Administrativo pueden agregar desde la OT varias credenciales básicas con título, usuario, contraseña y número de serie.',
     'La ficha completa de credenciales también permite guardar y visualizar el número de serie.',
@@ -24579,7 +24580,11 @@ var _otCredencialesClienteActual = null;
 var _otCredencialesOTActual = null;
 
 function otPuedeEditarCredenciales() {
-  return currentRole === 'admin' || currentRole === 'administrativo';
+  var rol = String(currentRole || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Desde la OT el técnico puede crear credenciales nuevas durante una
+  // instalación. La edición y eliminación posterior siguen reservadas a los
+  // roles administrativos en la ficha completa del cliente.
+  return rol === 'admin' || rol === 'administrativo' || rol === 'tecnico';
 }
 
 function otCredencialBasicaCerrar() {
