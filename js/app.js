@@ -5266,12 +5266,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.150-firebase',
+  VERSION: 'v2.0.151-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Solicitud, entrega y compensación mensual de adelantos corregidas.'
+    'OT con cabecera, fotos y notas administrables; adelantos con concepto y medio correctos.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ctaemp', actionLabel:'Abrir cuentas' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir órdenes de trabajo' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.151',
+      date: '22/07/2026',
+      title: 'OT claras y adelantos bien registrados',
+      notes: Object.freeze(['OT con cabecera, fotos y notas administrables; adelantos con concepto y medio correctos.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir órdenes de trabajo' })
+    }),
     Object.freeze({
       version: 'v2.0.150',
       date: '22/07/2026',
@@ -15735,11 +15742,16 @@ function _renderPagosRealizadosEmp(listaMovs, mes) {
       ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();abrirComprobanteMovEmp(\''+x.mov.fbKey+'\','+x.idx+')" title="Ver comprobante"><i class="ti ti-paperclip" style="font-size:14px;color:var(--blue)"></i></button>'
       : '<span style="color:var(--text3);font-size:11px">—</span>';
     var concepto = x.concepto || ({sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',gasto_empresa:'Gasto empresa'}[x.mov.tipo] || x.mov.tipo || 'Movimiento');
+    var medioNorm = String(x.medio||'').trim().toLowerCase();
+    var medioInvalido = !medioNorm || medioNorm === 'adelanto' || medioNorm === 'registro manual';
+    var medioHtml = medioInvalido
+      ? '<span style="color:var(--amber)">Sin especificar</span>' + (String(currentRole||'').toLowerCase() === 'admin' ? ' <button class="btn btn-sm" style="padding:2px 6px;font-size:10px" onclick="event.stopPropagation();corregirMedioPagoMovEmp(\''+x.mov.fbKey+'\','+x.idx+')">Definir</button>' : '')
+      : escapeHTML(formatoMedioPago(x.medio));
     return '<tr>'+ 
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML((x.fecha||'').split('-').reverse().join('/')||'—')+'</td>'+ 
       '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(concepto)+'</td>'+ 
       '<td class="tr" style="font-weight:600;color:var(--green)">$'+Math.round(x.monto).toLocaleString('es-AR')+'</td>'+ 
-      '<td>'+escapeHTML(x.medio||'—')+'</td>'+ 
+      '<td>'+medioHtml+'</td>'+
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(x.usuario||'—')+'</td>'+ 
       '<td class="tr">'+compBtn+'</td>'+ 
     '</tr>';
@@ -15995,6 +16007,8 @@ function abrirNuevoMovEmp(tipoInicial) {
   document.getElementById('movi-desc').value  = '';
   _setMontoInput(document.getElementById('movi-monto'), 0);
   document.getElementById('movi-estado').value = esAdmin ? 'aprobado' : 'pendiente';
+  var medio = document.getElementById('movi-medio');
+  if (medio) medio.value = '';
   var estadoWrap = document.getElementById('movi-estado-wrap');
   var periodicoWrap = document.getElementById('movi-periodico-wrap');
   if (estadoWrap) estadoWrap.style.display = esAdmin ? '' : 'none';
@@ -16049,6 +16063,16 @@ function onMoviTipoChange() {
   } else {
     if (nota) nota.style.display = 'none';
   }
+  onMoviEstadoChange();
+}
+
+function onMoviEstadoChange() {
+  var esAdmin = String(currentRole||'').toLowerCase() === 'admin';
+  var estado = document.getElementById('movi-estado');
+  var wrap = document.getElementById('movi-medio-wrap');
+  var mostrar = !!(esAdmin && estado && estado.value === 'pagado');
+  if (wrap) wrap.style.display = mostrar ? '' : 'none';
+  if (mostrar && typeof poblarSelectoresMediosPago === 'function') poblarSelectoresMediosPago();
 }
 
 function onFotoSeleccionada(input) {
@@ -16064,6 +16088,62 @@ function onFotoSeleccionada(input) {
   reader.readAsDataURL(file);
 }
 
+function _crearGastoAdelantoDesdeMovimiento(empFbKey, movFbKey, mov) {
+  if (!window.fbDB || !empFbKey || !movFbKey || !mov || mov.tipo !== 'adelanto') return Promise.resolve(null);
+  var monto = parseFloat(mov.monto) || 0;
+  if (monto <= 0 || String(mov.estado||'').toLowerCase() !== 'pagado') return Promise.resolve(null);
+  var pagos = mov.pagos || {};
+  var pagosArr = Array.isArray(pagos) ? pagos : Object.keys(pagos).map(function(k){ return pagos[k] || {}; });
+  var medio = mov.medioPago || (pagosArr[0] && pagosArr[0].medio) || '';
+  if (!medio) return Promise.reject(new Error('Falta el medio de pago del adelanto'));
+  var gastoKey = mov.gastoFbKey || ('adelanto_' + String(empFbKey).replace(/[^a-zA-Z0-9_-]/g,'_') + '_' + String(movFbKey).replace(/[^a-zA-Z0-9_-]/g,'_'));
+  var fecha = mov.fechaPago || mov.fecha || new Date().toISOString().slice(0,10);
+  var nombre = mov.empleadoNombre || '';
+  var detalle = String(mov.descripcion||'').trim();
+  var gasto = {
+    fecha: fecha,
+    vencimiento: '',
+    tipo: 'Variable',
+    tipoPagable: 'adelanto',
+    categoria: 'Personal',
+    descripcion: 'Adelanto de personal' + (nombre ? ' — ' + nombre : '') + (detalle ? ' · ' + detalle : ''),
+    monto: monto,
+    montoPagado: monto,
+    estado: 'pagado',
+    medio: medio,
+    pagos: pagos,
+    empleadoId: empFbKey,
+    empleadoFbKey: empFbKey,
+    empleadoNombre: nombre,
+    origen: 'adelanto_personal',
+    origenLegacy: 'ctaemp',
+    legacyKey: 'ctaemp/' + empFbKey + '/' + movFbKey,
+    usuario: mov.usuario || currentUser || '',
+    ts: mov.ts || Date.now()
+  };
+  return window.fbSet(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoKey), gasto).then(function(){
+    return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
+      gastoFbKey: gastoKey,
+      migradoAGastos: true,
+      medioPago: medio
+    });
+  }).then(function(){ return gastoKey; });
+}
+
+function _guardarMovimientoEmpleado(nuevo, mensaje) {
+  var refMov = window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctaEmpActual));
+  return window.fbSet(refMov, nuevo).then(function(){
+    if (nuevo.tipo === 'adelanto' && nuevo.estado === 'pagado') {
+      return _crearGastoAdelantoDesdeMovimiento(ctaEmpActual, refMov.key, nuevo);
+    }
+    return null;
+  }).then(function(){
+    notify(mensaje || 'Movimiento guardado');
+    cerrarModalMovEmp();
+    if (typeof fbCargarGastos === 'function') fbCargarGastos();
+  });
+}
+
 function guardarMovEmp() {
   if (!ctaEmpActual || !window.fbDB) { notify('Sin conexión o empleado no seleccionado'); return; }
   var monto = getMontoRaw(document.getElementById('movi-monto'));
@@ -16075,12 +16155,18 @@ function guardarMovEmp() {
     notify('Ese tipo de movimiento solamente puede cargarlo el administrador');
     return;
   }
+  var estadoElegido = esAdmin ? document.getElementById('movi-estado').value : 'pendiente';
+  var medioElegido = estadoElegido === 'pagado' ? String((document.getElementById('movi-medio')||{}).value||'').trim() : '';
+  if (esAdmin && estadoElegido === 'pagado' && !medioElegido) {
+    notify('Seleccioná el medio de pago');
+    return;
+  }
   var nuevo = {
     tipo:        tipoElegido,
     fecha:       document.getElementById('movi-fecha').value,
     descripcion: document.getElementById('movi-desc').value.trim(),
     monto:       monto,
-    estado:      esAdmin ? document.getElementById('movi-estado').value : 'pendiente',
+    estado:      estadoElegido,
     usuario:     currentUser || 'admin',
     empleadoNombre: empActual ? (empActual.nombre || '') : '',
     empleadoId:  ctaEmpActual,
@@ -16088,13 +16174,15 @@ function guardarMovEmp() {
     fotoUrl:     null
   };
   if (esAdmin && nuevo.estado === 'pagado') {
+    nuevo.medioPago = medioElegido;
     nuevo.montoPagado = monto;
     nuevo.fechaPago = nuevo.fecha;
     nuevo.pagos = {};
     nuevo.pagos['pago_' + Date.now()] = {
       fecha: nuevo.fecha,
       monto: monto,
-      medio: tipoElegido === 'adelanto' ? 'Adelanto' : 'Registro manual',
+      medio: medioElegido,
+      concepto: tipoElegido,
       usuario: currentUser || 'admin',
       rol: currentRole || 'admin',
       ts: Date.now()
@@ -16103,40 +16191,36 @@ function guardarMovEmp() {
   var esPeriodico = esAdmin && document.getElementById('movi-periodico') && document.getElementById('movi-periodico').checked;
   if (esPeriodico) {
     var dia = parseInt(document.getElementById('movi-periodico-dia').value) || 1;
-    nuevo.periodico    = true;
+    nuevo.periodico = true;
     nuevo.periodicoDia = dia;
     window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos_periodicos_emp/' + ctaEmpActual), {
-      tipo:        nuevo.tipo,
+      tipo: nuevo.tipo,
       descripcion: nuevo.descripcion,
-      monto:       monto,
-      dia:         dia,
-      activo:      true,
-      empleadoId:  ctaEmpActual,
+      monto: monto,
+      dia: dia,
+      activo: true,
+      empleadoId: ctaEmpActual,
       empleadoNombre: nuevo.empleadoNombre,
-      creadoPor:   currentUser || 'admin',
-      ts:          Date.now()
+      creadoPor: currentUser || 'admin',
+      ts: Date.now()
     }).then(function(){ notify('✓ Gasto periódico registrado — se repetirá el día ' + dia + ' de cada mes'); });
   }
   var fileInput = document.getElementById('movi-foto-input');
   var file = fileInput && fileInput.files[0];
+  var preparar = Promise.resolve();
   if (file && window.fbStorage) {
-    // Subir foto a Firebase Storage
     var storageRef = window.fbStorageRef(window.fbStorage, 'sisventas/comprobantes/' + ctaEmpActual + '/' + Date.now() + '_' + file.name);
-    window.fbUploadBytes(storageRef, file).then(function(snapshot) {
+    preparar = window.fbUploadBytes(storageRef, file).then(function(snapshot){
       return window.fbGetDownloadURL(snapshot.ref);
-    }).then(function(url) {
+    }).then(function(url){
       nuevo.fotoUrl = url;
-      window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctaEmpActual), nuevo)
-        .then(function(){ notify('Movimiento guardado con comprobante'); cerrarModalMovEmp(); });
     }).catch(function(){
-      window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctaEmpActual), nuevo)
-        .then(function(){ notify('Movimiento guardado (sin foto por error de storage)'); cerrarModalMovEmp(); });
+      notify('El movimiento se guardará sin foto porque falló la carga del comprobante');
     });
-  } else {
-    window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctaEmpActual), nuevo)
-      .then(function(){ notify('Movimiento guardado'); cerrarModalMovEmp(); })
-      .catch(function(e){ notify('Error: ' + e.message); });
   }
+  preparar.then(function(){
+    return _guardarMovimientoEmpleado(nuevo, nuevo.fotoUrl ? 'Movimiento guardado con comprobante' : 'Movimiento guardado');
+  }).catch(function(e){ notify('Error: ' + e.message); });
 }
 
 function _comisionNormFecha(f) {
@@ -16239,34 +16323,122 @@ function rechazarComision(movFbKey, empFbKey) {
   }).then(function(){ notify('Comisión rechazada'); });
 }
 
+var _adelantoAprobarCtx = null;
+
+function cerrarAprobacionAdelanto() {
+  _adelantoAprobarCtx = null;
+  var modal = document.getElementById('modal-aprobar-adelanto');
+  if (modal) modal.style.display = 'none';
+}
+
+function corregirMedioPagoMovEmp(movKey, pagoIdx) {
+  if (String(currentRole||'').toLowerCase() !== 'admin') return;
+  var mov = (movsEmpData||[]).find(function(m){ return String(m.fbKey) === String(movKey); });
+  if (!mov || !ctaEmpActual) { notify('No se encontró el movimiento'); return; }
+  var pagos = _movEmpPagosArray(mov);
+  var pago = pagos[pagoIdx] || null;
+  _adelantoAprobarCtx = { modo:'corregir', movKey:movKey, empKey:ctaEmpActual, mov:mov, pago:pago, pagoIdx:pagoIdx };
+  if (typeof poblarSelectoresMediosPago === 'function') poblarSelectoresMediosPago();
+  var medioSel = document.getElementById('adelanto-medio');
+  if (medioSel) medioSel.value = '';
+  var titulo = document.getElementById('adelanto-modal-titulo');
+  if (titulo) titulo.innerHTML = '<i class="ti ti-cash"></i> Definir medio de pago';
+  var resumen = document.getElementById('adelanto-aprobar-resumen');
+  if (resumen) resumen.innerHTML = '<strong>' + escapeHTML(mov.empleadoNombre || 'Empleado') + '</strong><br>' + escapeHTML(mov.tipo === 'adelanto' ? 'Adelanto' : (mov.descripcion||'Movimiento')) + ': <strong>$' + Math.round(parseFloat((pago&&pago.monto)||mov.monto)||0).toLocaleString('es-AR') + '</strong>';
+  var modal = document.getElementById('modal-aprobar-adelanto');
+  if (modal) modal.style.display = 'flex';
+}
+
 function aprobarMovEmp(movKey, empKey) {
   if (!window.fbDB) return;
   if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede aprobar movimientos'); return; }
   var mov = (movsEmpData || []).find(function(m){ return String(m.fbKey) === String(movKey); });
   var esAdelanto = mov && mov.tipo === 'adelanto';
   var monto = mov ? (parseFloat(mov.monto) || 0) : 0;
-  if (esAdelanto && !confirm('Aprobar el adelanto y registrar que se entregaron $' + Math.round(monto).toLocaleString('es-AR') + '?')) return;
+  if (esAdelanto) {
+    _adelantoAprobarCtx = { movKey:movKey, empKey:empKey, mov:mov };
+    if (typeof poblarSelectoresMediosPago === 'function') poblarSelectoresMediosPago();
+    var medioSel = document.getElementById('adelanto-medio');
+    if (medioSel) medioSel.value = '';
+    var titulo = document.getElementById('adelanto-modal-titulo');
+    if (titulo) titulo.innerHTML = '<i class="ti ti-cash"></i> Entregar adelanto';
+    var resumen = document.getElementById('adelanto-aprobar-resumen');
+    if (resumen) resumen.innerHTML = '<strong>' + escapeHTML(mov.empleadoNombre || 'Empleado') + '</strong><br>Adelanto: <strong>$' + Math.round(monto).toLocaleString('es-AR') + '</strong>' + (mov.descripcion ? '<br><span style="font-size:11px">'+escapeHTML(mov.descripcion)+'</span>' : '');
+    var modal = document.getElementById('modal-aprobar-adelanto');
+    if (modal) modal.style.display = 'flex';
+    return;
+  }
   var cambios = {
     estado: 'aprobado',
     aprobadoPor: currentUser || '',
     fechaAprobacion: new Date().toISOString().slice(0,10)
   };
-  if (esAdelanto) {
-    cambios.estado = 'pagado';
-    cambios.montoPagado = monto;
-    cambios.fechaPago = new Date().toISOString().slice(0,10);
-    cambios.pagos = {};
-    cambios.pagos['pago_' + Date.now()] = {
-      fecha: cambios.fechaPago,
-      monto: monto,
-      medio: 'Adelanto',
-      usuario: currentUser || '',
-      rol: currentRole || 'admin',
-      ts: Date.now()
-    };
-  }
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey), cambios)
-    .then(function(){ notify(esAdelanto ? 'Adelanto aprobado y registrado como entregado' : 'Movimiento aprobado — queda pendiente de pago'); });
+    .then(function(){ notify('Movimiento aprobado — queda pendiente de pago'); });
+}
+
+function confirmarAprobacionAdelanto() {
+  if (!_adelantoAprobarCtx || !window.fbDB) return;
+  var medio = String((document.getElementById('adelanto-medio')||{}).value||'').trim();
+  if (!medio) { notify('Seleccioná el medio de pago'); return; }
+  var ctx = _adelantoAprobarCtx;
+  var mov = ctx.mov || {};
+  if (ctx.modo === 'corregir') {
+    var cambiosMedio = { medioPago:medio };
+    var pago = ctx.pago || null;
+    if (pago && pago._key) cambiosMedio['pagos/' + pago._key + '/medio'] = medio;
+    else if (pago && Number.isInteger(pago._idx)) cambiosMedio['pagos/' + pago._idx + '/medio'] = medio;
+    else {
+      var nuevoPagoKey = 'pago_' + Date.now();
+      cambiosMedio['pagos/' + nuevoPagoKey] = {
+        fecha: mov.fechaPago || mov.fecha || new Date().toISOString().slice(0,10),
+        monto: parseFloat(mov.montoPagado)||parseFloat(mov.monto)||0,
+        medio: medio,
+        concepto: mov.tipo || '',
+        usuario: currentUser||'',
+        rol: currentRole||'admin',
+        ts: Date.now()
+      };
+    }
+    var refCorreccion = window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctx.empKey + '/' + ctx.movKey);
+    window.fbUpdate(refCorreccion, cambiosMedio).then(function(){ return window.fbGet(refCorreccion); }).then(function(snap){
+      var actualizado = Object.assign({}, snap.val()||{}, { medioPago:medio });
+      return actualizado.tipo === 'adelanto' ? _crearGastoAdelantoDesdeMovimiento(ctx.empKey, ctx.movKey, actualizado) : null;
+    }).then(function(){
+      cerrarAprobacionAdelanto();
+      notify('✓ Medio corregido a ' + formatoMedioPago(medio));
+      if (typeof fbCargarGastos === 'function') fbCargarGastos();
+    }).catch(function(e){ notify('Error al corregir el medio: ' + e.message); });
+    return;
+  }
+  var monto = parseFloat(mov.monto) || 0;
+  var fechaPago = new Date().toISOString().slice(0,10);
+  var pagoKey = 'pago_' + Date.now();
+  var cambios = {
+    estado: 'pagado',
+    aprobadoPor: currentUser || '',
+    fechaAprobacion: fechaPago,
+    montoPagado: monto,
+    fechaPago: fechaPago,
+    medioPago: medio,
+    pagos: {}
+  };
+  cambios.pagos[pagoKey] = {
+    fecha: fechaPago,
+    monto: monto,
+    medio: medio,
+    concepto: 'adelanto',
+    usuario: currentUser || '',
+    rol: currentRole || 'admin',
+    ts: Date.now()
+  };
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctx.empKey + '/' + ctx.movKey), cambios).then(function(){
+    return _crearGastoAdelantoDesdeMovimiento(ctx.empKey, ctx.movKey, Object.assign({}, mov, cambios));
+  }).then(function(){
+    cerrarAprobacionAdelanto();
+    notify('✓ Adelanto entregado por ' + formatoMedioPago(medio) + ' y registrado en Gastos');
+    if (typeof fbCargarGastos === 'function') fbCargarGastos();
+  }).catch(function(e){ notify('Error al aprobar el adelanto: ' + e.message); });
 }
 
 function eliminarMovEmp(movKey, empKey) {
@@ -25936,22 +26108,87 @@ function otRenderNotas(ot) {
   if (!lista) return;
   var notas = ot.notasTecnico || [];
   lista.innerHTML = notas.length ? notas.map(function(n, idx) {
-    var esPropia = (n.autor || '') === (currentUser || '') || currentRole === 'admin';
+    var rolActual = String(currentRole||'').toLowerCase();
+    var esGestion = rolActual === 'admin' || rolActual === 'administrativo';
+    var esAutor = String(n.autor||'').trim().toLocaleLowerCase('es-AR') === String(currentUser||'').trim().toLocaleLowerCase('es-AR');
+    var esPropia = esAutor || esGestion;
+    var puedeEliminar = esGestion || esAutor;
     var esAdmin  = ['admin','administrativo'].includes((n.rol||n.autor||'').toLowerCase()) || (n.autor||'') !== (currentUser||'');
     return '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px;border-left:3px solid '+(esPropia?'var(--blue)':'var(--border2)')+'">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
         '<div style="font-size:13px;flex:1">'+escapeHTML(n.texto||'')+'</div>' +
-        (esPropia && currentRole !== 'admin' && esAdmin ? '' :
-         esPropia ? '' : '<span title="Nota del administrador — solo lectura" style="font-size:11px;color:var(--text3)">🔒</span>') +
+        '<div style="display:flex;align-items:center;gap:5px;flex-shrink:0">' +
+          (esPropia && rolActual !== 'admin' && esAdmin ? '' :
+           esPropia ? '' : '<span title="Nota del administrador — solo lectura" style="font-size:11px;color:var(--text3)">🔒</span>') +
+          (puedeEliminar ? '<button type="button" class="btn btn-sm btn-icon" onclick="otEliminarNota('+idx+')" title="Eliminar nota" aria-label="Eliminar nota"><i class="ti ti-trash" style="font-size:13px;color:var(--red)"></i></button>' : '') +
+        '</div>' +
       '</div>' +
       '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+
         '<span style="font-weight:500;color:'+(esPropia?'var(--blue)':'var(--text3)')+'">'+escapeHTML(n.autor||'')+'</span>' +
         ' · '+spFormatFecha(n.ts)+
       '</div>' +
-      (n.fotoUrl ? '<img src="'+escapeHTML(n.fotoUrl)+'" style="max-width:100%;border-radius:6px;margin-top:8px;max-height:200px;object-fit:cover">' : '') +
+      (n.fotoUrl ? '<button type="button" data-url="'+escapeHTML(n.fotoUrl)+'" data-titulo="'+escapeHTML(n.texto||'Foto de la OT')+'" onclick="otAbrirFoto(this.dataset.url,this.dataset.titulo)" style="display:block;padding:0;border:0;background:none;cursor:zoom-in;margin-top:8px;max-width:100%" title="Ver foto ampliada">' +
+        '<img src="'+escapeHTML(n.fotoUrl)+'" alt="'+escapeHTML(n.texto||'Foto de la OT')+'" style="display:block;max-width:100%;border-radius:8px;max-height:220px;object-fit:cover;border:0.5px solid var(--border2)" onerror="this.closest(\'button\').style.display=\'none\'">' +
+      '</button>' : '') +
     '</div>';
   }).join('') : '<div style="font-size:12px;color:var(--text3);text-align:center;padding:12px">Sin notas técnicas todavía</div>';
-  if (fotosCont) fotosCont.innerHTML = '';
+  if (fotosCont) {
+    var fotos = notas.filter(function(n){ return !!n.fotoUrl; });
+    fotosCont.style.display = fotos.length ? 'flex' : 'none';
+    fotosCont.innerHTML = fotos.map(function(n, idx){
+      var titulo = n.texto || ('Foto ' + (idx + 1));
+      return '<button type="button" data-url="'+escapeHTML(n.fotoUrl)+'" data-titulo="'+escapeHTML(titulo)+'" onclick="otAbrirFoto(this.dataset.url,this.dataset.titulo)" style="width:118px;padding:0;border:0.5px solid var(--border2);border-radius:10px;overflow:hidden;background:var(--bg3);cursor:zoom-in;text-align:left" title="Abrir '+escapeHTML(titulo)+'">' +
+        '<img src="'+escapeHTML(n.fotoUrl)+'" alt="'+escapeHTML(titulo)+'" style="width:118px;height:88px;display:block;object-fit:cover;background:#05070c" onerror="this.style.display=\'none\';this.nextElementSibling.textContent=\'Foto no disponible\'">' +
+        '<span style="display:block;padding:6px 8px;font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHTML(titulo)+'</span>' +
+      '</button>';
+    }).join('');
+  }
+}
+
+function otEliminarNota(indice) {
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+  if (!ot || !window.fbDB) { notify('No se encontró la OT'); return; }
+  var notas = Array.isArray(ot.notasTecnico) ? ot.notasTecnico.slice() : [];
+  var nota = notas[indice];
+  if (!nota) { notify('La nota ya no existe'); return; }
+  var rolActual = String(currentRole||'').toLowerCase();
+  var esGestion = rolActual === 'admin' || rolActual === 'administrativo';
+  var esAutor = String(nota.autor||'').trim().toLocaleLowerCase('es-AR') === String(currentUser||'').trim().toLocaleLowerCase('es-AR');
+  if (!esGestion && !esAutor) { notify('Solo podés eliminar tus propias notas'); return; }
+  if (!confirm('¿Eliminar esta nota de la OT?\n\n' + String(nota.texto||'Foto adjunta'))) return;
+  notas.splice(indice, 1);
+  var key = ot.fbKey || otActualId;
+  window._otGuardandoLocalHasta = Date.now() + 2500;
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico:notas })
+    .then(function(){
+      ot.notasTecnico = notas;
+      otRenderNotas(ot);
+      notify('✓ Nota eliminada');
+    })
+    .catch(function(e){ notify('Error al eliminar la nota: ' + e.message); });
+}
+
+function otAbrirFoto(url, titulo) {
+  if (!url) { notify('La foto no está disponible'); return; }
+  var modal = document.getElementById('modal-ver-foto-ot');
+  var imagen = document.getElementById('ot-foto-ampliada');
+  var enlace = document.getElementById('ot-foto-original');
+  var etiqueta = document.getElementById('ot-foto-titulo');
+  if (!modal || !imagen) {
+    window.open(url, '_blank', 'noopener');
+    return;
+  }
+  imagen.src = url;
+  if (enlace) enlace.href = url;
+  if (etiqueta) etiqueta.innerHTML = '<i class="ti ti-photo"></i> ' + escapeHTML(titulo || 'Foto de la OT');
+  modal.style.display = 'flex';
+}
+
+function otCerrarFoto() {
+  var modal = document.getElementById('modal-ver-foto-ot');
+  var imagen = document.getElementById('ot-foto-ampliada');
+  if (modal) modal.style.display = 'none';
+  if (imagen) imagen.removeAttribute('src');
 }
 
 function otAgregarNota() {
@@ -25971,6 +26208,7 @@ function otAgregarNota() {
 function otAgregarFoto(input) {
   var file = input.files[0];
   if (!file) return;
+  if (!String(file.type||'').startsWith('image/')) { notify('Seleccioná un archivo de imagen'); input.value=''; return; }
   if (file.size > 3*1024*1024) { notify('La foto no puede superar 3MB'); return; }
   if (!window.fbStorage) { notify('Storage no disponible'); return; }
   var inp  = document.getElementById('ot-nota-nueva');
@@ -25984,11 +26222,11 @@ function otAgregarFoto(input) {
     return window.fbGetDownloadURL(sRef);
   }).then(function(url) {
     var notas = ot.notasTecnico ? ot.notasTecnico.slice() : [];
-    notas.push({ texto: texto||'Foto', autor: currentUser||'Técnico', ts: Date.now(), fotoUrl: url });
+    notas.push({ texto: texto||'Foto', autor: currentUser||'Técnico', rol: currentRole||'tecnico', ts: Date.now(), fotoUrl: url });
     var key = ot.fbKey || otActualId;
     return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico: notas });
-  }).then(function(){ if(inp) inp.value=''; notify('✓ Foto adjuntada'); })
-  .catch(function(e){ notify('Error: '+e.message); });
+  }).then(function(){ if(inp) inp.value=''; input.value=''; notify('✓ Foto adjuntada y visible en la galería'); })
+  .catch(function(e){ input.value=''; notify('Error al subir la foto: '+e.message); });
 }
 
 function otVerReclamo() {
@@ -29025,7 +29263,7 @@ function guardarMediosPago() {
 
 // Puebla todos los selectores de medio de pago del sistema
 function poblarSelectoresMediosPago() {
-  var ids = ['cob-medio', 'cob-filtro-medio', 'g-medio', 'mpg-medio', 'cm-medio', 'ng-medio', 'gr-medio'];
+  var ids = ['cob-medio', 'cob-filtro-medio', 'g-medio', 'mpg-medio', 'cm-medio', 'ng-medio', 'gr-medio', 'movi-medio', 'adelanto-medio'];
   var html = MEDIOS_PAGO_CONFIG.map(function(m) {
     return '<option value="' + escapeHTML(m.nombre) + '">' + escapeHTML(formatoMedioPago(m.nombre)) + '</option>';
   }).join('');

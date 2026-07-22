@@ -14,13 +14,17 @@
   }
   window._tesoreriaPagos=function(){
     var out=[];
+    var gastoKeys={};
     tesArray(window.gastosData).forEach(function(gasto){
+      if(gasto&&gasto.fbKey) gastoKeys[gasto.fbKey]=true;
       tesPagosArray(gasto).forEach(function(pago,index){
         out.push(Object.assign({},pago,{origen:'gasto',gastoKey:gasto.fbKey,gastoDesc:gasto.descripcion||gasto.desc||'',categoria:gasto.categoria||'',montoGasto:gasto.monto||0,loteId:pago.loteId||pago.pagoId||pago.pgId||'',_idx:index,empleadoId:gasto.empleadoId||'',empleadoNombre:gasto.empleadoNombre||''}));
       });
     });
     tesArray(window.movsEmpData).forEach(function(movimiento){
       if(movimiento._fuente==='gastos') return;
+      // Si el movimiento ya originó un gasto, Tesorería debe leer una sola fuente.
+      if(movimiento.gastoFbKey&&gastoKeys[movimiento.gastoFbKey]) return;
       tesPagosArray(movimiento).forEach(function(pago,index){
         out.push(Object.assign({},pago,{origen:'ctaemp',gastoKey:movimiento.gastoFbKey||movimiento.fbKey,gastoDesc:movimiento.descripcion||movimiento.desc||movimiento.detalle||movimiento.tipo||'',categoria:movimiento.tipo||'',montoGasto:movimiento.monto||0,loteId:pago.loteId||pago.pagoId||pago.pgId||'',_idx:index,empleadoId:window.ctaEmpActual||'',empleadoNombre:''}));
       });

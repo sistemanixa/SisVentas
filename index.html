@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.150-firebase' -->
+<!-- VERSION: 'v2.0.151-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.js?v=2.0.150"></script>
+<script src="./js/core/version.js?v=2.0.151"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -22,12 +22,12 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
-<script src="./js/core/login.js?v=2.0.150"></script>
-<script src="./js/core/access-control.js?v=2.0.150"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.150">
+<script src="./js/core/login.js?v=2.0.151"></script>
+<script src="./js/core/access-control.js?v=2.0.151"></script>
+<link rel="stylesheet" href="./css/app.css?v=2.0.151">
 
   <!-- Firebase SDK -->
-  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.150"></script>
+  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.151"></script>
 </head>
 <body>
 
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.150 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.151 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -1252,7 +1252,23 @@
               </label>
               <button class="btn btn-sm btn-primary" onclick="otAgregarNota()"><i class="ti ti-send"></i></button>
             </div>
-            <div id="ot-fotos-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+            <div id="ot-fotos-preview" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"></div>
+          </div>
+
+          <div id="modal-ver-foto-ot" class="modal-overlay" style="display:none;z-index:760" onclick="if(event.target===this)otCerrarFoto()">
+            <div class="modal" style="width:min(920px,94vw);max-height:92vh;display:flex;flex-direction:column">
+              <div class="modal-head">
+                <span class="modal-title" id="ot-foto-titulo"><i class="ti ti-photo"></i> Foto de la OT</span>
+                <button class="icon-btn" onclick="otCerrarFoto()" aria-label="Cerrar foto"><i class="ti ti-x"></i></button>
+              </div>
+              <div style="min-height:180px;display:flex;align-items:center;justify-content:center;overflow:auto;background:#05070c;border-radius:var(--radius);padding:10px">
+                <img id="ot-foto-ampliada" alt="Foto ampliada de la orden de trabajo" style="display:block;max-width:100%;max-height:72vh;object-fit:contain;border-radius:8px">
+              </div>
+              <div class="flex-end" style="margin-top:12px">
+                <a id="ot-foto-original" class="btn btn-sm" href="#" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Abrir original</a>
+                <button class="btn btn-sm" onclick="otCerrarFoto()">Cerrar</button>
+              </div>
+            </div>
           </div>
 
           <!-- Acta de entrega -->
@@ -2201,7 +2217,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.150
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.151
 Listo para analizar.
 </pre>
           </div>
@@ -4549,11 +4565,16 @@ Listo para analizar.
       <div class="fg full"><label>Descripción</label><input type="text" id="movi-desc" placeholder="Detalle del movimiento"></div>
       <div class="fg"><label>Monto ($)</label><input data-money="1" id="movi-monto" placeholder="0"></div>
       <div class="fg" id="movi-estado-wrap"><label>Estado</label>
-        <select id="movi-estado">
+        <select id="movi-estado" onchange="onMoviEstadoChange()">
           <option value="pendiente">Pendiente aprobación</option>
           <option value="aprobado">Aprobado</option>
           <option value="pagado">Pagado</option>
         </select>
+      </div>
+      <div class="fg full" id="movi-medio-wrap" style="display:none">
+        <label>Medio de pago</label>
+        <select id="movi-medio"><option value="">— Seleccionar —</option></select>
+        <div style="font-size:11px;color:var(--text3);margin-top:5px">El concepto del movimiento se mantiene separado del medio utilizado.</div>
       </div>
       <!-- Comprobante foto — solo visible para transporte/materiales -->
       <div class="fg full" id="movi-foto-wrap" style="display:none">
@@ -4584,6 +4605,26 @@ Listo para analizar.
     <div class="flex-end" style="margin-top:16px">
       <button class="btn" onclick="cerrarModalMovEmp()">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarMovEmp()"><i class="ti ti-check"></i> Guardar movimiento</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL APROBAR ADELANTO -->
+<div id="modal-aprobar-adelanto" class="modal-overlay" style="display:none;z-index:710">
+  <div class="modal" style="width:440px;max-width:94vw">
+    <div class="modal-head">
+      <span class="modal-title" id="adelanto-modal-titulo"><i class="ti ti-cash"></i> Entregar adelanto</span>
+      <button class="icon-btn" onclick="cerrarAprobacionAdelanto()"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="adelanto-aprobar-resumen" style="font-size:13px;color:var(--text2);padding:12px;background:var(--bg3);border-radius:var(--radius);margin-bottom:14px"></div>
+    <div class="fg">
+      <label>Medio de pago</label>
+      <select id="adelanto-medio"><option value="">— Seleccionar —</option></select>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:7px">Se registrará como concepto “Adelanto de personal” y el medio quedará disponible para las estadísticas de tesorería.</div>
+    <div class="flex-end" style="margin-top:18px">
+      <button class="btn" onclick="cerrarAprobacionAdelanto()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarAprobacionAdelanto()"><i class="ti ti-check"></i> Aprobar y registrar</button>
     </div>
   </div>
 </div>
@@ -4867,8 +4908,8 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.js?v=2.0.150"></script>
-<script src="./js/core/data-query.js?v=2.0.150"></script>
+<script src="./js/app.js?v=2.0.151"></script>
+<script src="./js/core/data-query.js?v=2.0.151"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
 <div id="user-panel-overlay" style="display:none;position:fixed;inset:0;z-index:9990" onclick="cerrarUserPanel()"></div>
@@ -4906,7 +4947,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.150</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.151</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -5181,7 +5222,7 @@ Listo para analizar.
 <script src="./js/modules/dashboard-permissions.js?v=2.0.137"></script>
 
 
-<script src="./js/modules/sales-metrics.js?v=2.0.150"></script>
+<script src="./js/modules/sales-metrics.js?v=2.0.151"></script>
 
 
 <script src="./js/core/relation-compatibility.js?v=2.0.137"></script>
@@ -5193,7 +5234,7 @@ Listo para analizar.
 <script src="./js/core/metrics-cache.js?v=2.0.137"></script>
 
 
-<script src="./js/modules/ot-admin.js?v=2.0.150"></script>
+<script src="./js/modules/ot-admin.js?v=2.0.151"></script>
 
 
 <script src="./js/modules/dashboard-filters.js?v=2.0.137"></script>
@@ -5209,7 +5250,7 @@ Listo para analizar.
 
 
 
-<script src="./js/modules/sales-dashboard.js?v=2.0.150"></script>
+<script src="./js/modules/sales-dashboard.js?v=2.0.151"></script>
 
 
 <script src="./js/modules/dashboard-ot-layout.js?v=2.0.137"></script>
@@ -5321,8 +5362,8 @@ Listo para analizar.
 <script src="./js/modules/resource-monitor.js?v=2.0.137"></script>
 
 <script src="./js/modules/role-guard.js?v=2.0.137"></script>
-<script src="./js/modules/purchase-orders.js?v=2.0.150"></script>
-<script src="./js/modules/ot-material-custody.js?v=2.0.150"></script>
+<script src="./js/modules/purchase-orders.js?v=2.0.151"></script>
+<script src="./js/modules/ot-material-custody.js?v=2.0.151"></script>
 <script src="./js/modules/release-tour.js?v=2.0.141"></script>
 
 </body>
