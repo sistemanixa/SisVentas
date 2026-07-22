@@ -5028,12 +5028,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.144-firebase',
+  VERSION: 'v2.0.145-firebase',
   RELEASE_NOTES: Object.freeze([
-    'OT desde ventas y búsqueda ágil en órdenes manuales.'
+    'Checklist de OT completo y selección rápida por etapa.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordenes', actionLabel:'Abrir órdenes de compra' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir órdenes de trabajo' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.145',
+      date: '22/07/2026',
+      title: 'Checklist de OT más rápido y confiable',
+      notes: Object.freeze(['Cada etapa permite marcar o desmarcar todos sus ítems y las OT incompletas reconstruyen automáticamente las tareas faltantes.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir órdenes de trabajo' })
+    }),
     Object.freeze({
       version: 'v2.0.144',
       date: '22/07/2026',
@@ -24861,6 +24868,7 @@ function verOT(id) {
   var ot = otData.find(function(o){ return o.fbKey === id; })
         || otData.find(function(o){ return o.id === id; });
   if (!ot) { notify('OT no encontrada'); return; }
+  var checklistReconstruido = normalizarChecklistOT(ot);
   otActualId = ot.fbKey || ot.id || id;
   _hide('ot-list-view');
   _block('ot-detalle-view');
@@ -25004,11 +25012,14 @@ function verOT(id) {
     }
   }
   otRenderNotas(ot);
-  if (ot.checks) {
-    renderChecklist('checklist-preparacion', ot.checks.preparacion||[], CHECKLISTS.preparacion, ot.id, 'preparacion');
-    renderChecklist('checklist-instalacion', ot.checks.instalacion||[], CHECKLISTS.instalacion, ot.id, 'instalacion');
-    renderChecklist('checklist-verificacion', ot.checks.verificacion||[], CHECKLISTS.verificacion, ot.id, 'verificacion');
-    actualizarProgreso(ot);
+  renderChecklist('checklist-preparacion', ot.checks.preparacion, CHECKLISTS.preparacion, otActualId, 'preparacion');
+  renderChecklist('checklist-instalacion', ot.checks.instalacion, CHECKLISTS.instalacion, otActualId, 'instalacion');
+  renderChecklist('checklist-verificacion', ot.checks.verificacion, CHECKLISTS.verificacion, otActualId, 'verificacion');
+  actualizarProgreso(ot);
+  if (checklistReconstruido && ot.fbKey && window.fbDB) {
+    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), { checks:ot.checks }).catch(function(error){
+      console.warn('No se pudo completar la estructura del checklist:', error);
+    });
   }
   var mat = document.getElementById('ot-materiales');
   if (mat) {
@@ -25596,6 +25607,23 @@ function actualizarOTFecha() {
   return true;
 }
 
+function normalizarChecklistOT(ot) {
+  if (!ot) return false;
+  var checksOriginales = ot.checks && typeof ot.checks === 'object' ? ot.checks : {};
+  var cambio = !ot.checks || typeof ot.checks !== 'object';
+  var checksNormalizados = {};
+  Object.keys(CHECKLISTS).forEach(function(fase) {
+    var origen = checksOriginales[fase];
+    var valores = Array.isArray(origen) ? origen : (origen && typeof origen === 'object'
+      ? Object.keys(origen).sort(function(a,b){ return Number(a)-Number(b); }).map(function(k){ return origen[k]; })
+      : []);
+    checksNormalizados[fase] = CHECKLISTS[fase].map(function(_, indice) { return valores[indice] === true; });
+    if (!Array.isArray(origen) || origen.length !== CHECKLISTS[fase].length) cambio = true;
+  });
+  ot.checks = checksNormalizados;
+  return cambio;
+}
+
 // Renderizar checklist de una fase
 function renderChecklist(containerId, checks, labels, otId, fase) {
   const el = document.getElementById(containerId);
@@ -25606,12 +25634,43 @@ function renderChecklist(containerId, checks, labels, otId, fase) {
       <label>${escapeHTML(lbl)}</label>
       ${checks[i] ? '<i class="ti ti-check" style="color:var(--green);font-size:14px;flex-shrink:0"></i>' : ''}
     </div>`).join('');
+  var btnTodos = document.getElementById('checklist-' + fase + '-todos');
+  if (btnTodos) {
+    var todosMarcados = checks.length === labels.length && checks.every(Boolean);
+    btnTodos.innerHTML = '<i class="ti ' + (todosMarcados ? 'ti-square-minus' : 'ti-checks') + '"></i> ' + (todosMarcados ? 'Desmarcar todo' : 'Marcar todo');
+  }
+}
+
+function toggleChecklistFase(fase) {
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+  if (!ot || !CHECKLISTS[fase]) return;
+  if (['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0) {
+    notify('La OT ya está finalizada y su checklist no puede modificarse.');
+    return;
+  }
+  normalizarChecklistOT(ot);
+  var marcar = !ot.checks[fase].every(Boolean);
+  ot.checks[fase] = CHECKLISTS[fase].map(function(){ return marcar; });
+  var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  if (!ot.audit) ot.audit = [];
+  var nombresFase = { preparacion:'Preparación', instalacion:'Instalación', verificacion:'Verificación y entrega' };
+  ot.audit.push({
+    fecha: ahora,
+    usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico),
+    accion: (marcar ? '✓ Completó toda la etapa: ' : '✗ Desmarcó toda la etapa: ') + nombresFase[fase]
+  });
+  actualizarProgreso(ot);
+  renderChecklist('checklist-' + fase, ot.checks[fase], CHECKLISTS[fase], otActualId, fase);
+  if (typeof fbGuardarOT === 'function') {
+    fbGuardarOT(ot).catch(function(e){ console.error('Error guardando la etapa del checklist:', e); });
+  }
 }
 
 // Toggle un ítem del checklist
 function toggleCheckOT(otId, fase, idx) {
   const ot = otData.find(o => o.id === otId || o.fbKey === otId);
   if (!ot || ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0) return;
+  normalizarChecklistOT(ot);
   ot.checks[fase][idx] = !ot.checks[fase][idx];
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   if (!ot.audit) ot.audit = [];
