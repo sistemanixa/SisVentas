@@ -13287,7 +13287,7 @@ function imprimirVentaActual(soloVista) {
   // QR AFIP: URL estándar de verificación
   var qrData = '';
   var qrImg  = '';
-  if (caeNum) {
+  if (caeNum && nroComp) {
     var fechaSinGuion = (v.fecha||'').replace(/-/g,'');
     var totalCents    = Math.round((parseFloat(v.total)||0) * 100);
     // Objeto JSON para QR AFIP (formato oficial)
@@ -13436,8 +13436,8 @@ function imprimirVentaActual(soloVista) {
       '<div class="cae-section">' +
         (qrImg ? '<div>'+qrImg+'<div style="font-size:9px;color:#666;text-align:center;margin-top:3px">Verificar en AFIP</div></div>' : '') +
         '<div class="cae-texts">' +
-          '<div class="cae-title">'+escapeHTML(v.factura.tipo||'Factura Electrónica')+'  ·  Comprobante válido ante AFIP</div>' +
-          '<div style="font-size:11px;color:#475569;margin-bottom:6px">PDV '+pdv+(nroComp?' — Nro. comprobante: '+nroComp:'')+'</div>' +
+          '<div class="cae-title">'+escapeHTML(v.factura.tipo||'Factura Electrónica')+(nroComp ? '  ·  Comprobante válido ante AFIP' : '  ·  CAE guardado')+'</div>' +
+          (nroComp ? '<div style="font-size:11px;color:#475569;margin-bottom:6px">PDV '+pdv+' — Nro. comprobante: '+nroComp+'</div>' : '<div style="font-size:11px;color:#b45309;margin-bottom:6px">El número fiscal original no quedó almacenado.</div>') +
           '<div>CAE Nº: <span class="cae-num">'+escapeHTML(caeNum)+'</span></div>' +
           (caeVto ? '<div class="cae-vto">Vencimiento CAE: '+escapeHTML(caeVto)+'</div>' : '') +
           (facturaSinPdfOriginal ? '<div class="cae-vto" style="margin-top:6px">Vista reconstruida con los datos guardados de la venta; el archivo fiscal original no quedó almacenado.</div>' : '') +
