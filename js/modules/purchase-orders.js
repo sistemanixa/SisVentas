@@ -462,7 +462,6 @@
     page.dataset.purchaseV2 = '1';
     page.innerHTML =
       '<div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px"><div class="metric"><div class="m-label">Compras del mes</div><div class="m-value" id="oc2-total">$0</div><div class="m-sub">órdenes no canceladas</div></div><div class="metric"><div class="m-label">En compra</div><div class="m-value" id="oc2-buy" style="color:var(--amber)">0</div><div class="m-sub">unidades pendientes</div></div><div class="metric"><div class="m-label">Reservado para obras</div><div class="m-value" id="oc2-reserved" style="color:var(--blue)">0</div><div class="m-sub">recibido con destino</div></div><div class="metric"><div class="m-label">Stock general operativo</div><div class="m-value" id="oc2-general" style="color:var(--green)">0</div><div class="m-sub">controlado desde ahora</div></div></div>' +
-      '<div id="oc2-legacy"></div>' +
       '<div class="card"><div class="card-head"><div style="display:flex;gap:7px"><button class="btn btn-sm oc2-tab active" data-tab="orders" onclick="ocShowTab(\'orders\')"><i class="ti ti-shopping-cart"></i> Órdenes por proveedor</button><button class="btn btn-sm oc2-tab" data-tab="lists" onclick="ocShowTab(\'lists\')"><i class="ti ti-list-check"></i> Listas de materiales</button></div><div style="display:flex;gap:7px;flex-wrap:wrap"><select id="oc2-filter" class="search-input btn-sm" onchange="renderOrdenesFiltradas()"><option value="">Todos los estados</option><option value="borrador">Borrador</option><option value="enviada">Enviada</option><option value="recepcion_parcial">Recepción parcial</option><option value="recibida">Recibida</option><option value="cancelada">Cancelada</option></select><button class="btn btn-sm" onclick="iniciarRecorridoNovedad(\'compras\')" title="Conocer el circuito de compras"><i class="ti ti-route"></i> Recorrido</button><button class="btn btn-sm btn-primary" data-tour="orden-manual" onclick="abrirNuevaOrden()"><i class="ti ti-plus"></i> Orden manual</button></div></div><div id="oc2-orders"></div><div id="oc2-lists" style="display:none"></div></div>';
   }
 
@@ -503,9 +502,8 @@
     set('oc2-buy', inv.reduce(function (s, i) { return s + (parseFloat(i.enCompra) || 0); }, 0));
     set('oc2-reserved', inv.reduce(function (s, i) { return s + (parseFloat(i.reservado) || 0); }, 0));
     set('oc2-general', inv.reduce(function (s, i) { return s + (parseFloat(i.general) || 0); }, 0));
-    var legacyEl = document.getElementById('oc2-legacy');
-    var pendingLegacy = state.legacy.filter(function (o) { return !o.migradaA; });
-    if (legacyEl) legacyEl.innerHTML = pendingLegacy.length ? '<div class="card" style="border-color:var(--amber);margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;align-items:center"><div><strong>' + pendingLegacy.length + ' órdenes del procedimiento anterior</strong><div style="font-size:12px;color:var(--text3)">No se usan para nuevas compras. Podés incorporarlas al historial unificado.</div></div><button class="btn btn-sm" onclick="ocMigrarLegacy()">Migrar historial</button></div>' : '';
+    // El procedimiento anterior se conserva solamente como respaldo de datos.
+    // Ya no aparece ni interviene en las métricas del circuito operativo.
   }
 
   function showOrdersTab(tab) {

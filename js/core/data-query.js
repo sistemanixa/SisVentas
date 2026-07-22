@@ -22,13 +22,13 @@
   }
   function subscribeDateRange(path,bounds,onRows,onError){
     if(!window.fbDB||!window.fbRef||!window.fbOnValue) return function(){};
-    var base=window.fbRef(window.fbDB,path), target=base;
-    if(window.fbQuery&&window.fbOrderByChild&&window.fbStartAt&&window.fbEndAt){
-      target=window.fbQuery(base,window.fbOrderByChild('fecha'),window.fbStartAt(bounds.start),window.fbEndAt(bounds.end+'\uf8ff'));
-    }
-    return window.fbOnValue(target,function(snapshot){
+    // Se filtra localmente hasta que las reglas de Realtime Database tengan
+    // .indexOn para fecha. Así la agenda no genera advertencias ni falla en
+    // instalaciones donde ese índice todavía no fue desplegado.
+    var base=window.fbRef(window.fbDB,path);
+    return window.fbOnValue(base,function(snapshot){
       var rows=toRows(snapshot.val());
-      if(target===base) rows=rows.filter(function(row){ return String(row.fecha||'').slice(0,10)>=bounds.start&&String(row.fecha||'').slice(0,10)<=bounds.end; });
+      rows=rows.filter(function(row){ return String(row.fecha||'').slice(0,10)>=bounds.start&&String(row.fecha||'').slice(0,10)<=bounds.end; });
       onRows(rows,bounds);
     },onError||function(error){ console.error('[DataQuery]',path,error); });
   }

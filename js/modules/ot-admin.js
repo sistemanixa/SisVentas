@@ -105,10 +105,10 @@
           '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+esc(o.id||'')+'</td>' +
           '<td>'+esc(o.cliente||'—')+'</td>' +
           '<td style="font-size:12px;color:var(--text3)">'+esc(o.tecnico||'Sin asignar')+'</td>' +
-          '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':f===hoy?'var(--amber)':'var(--text3)')+'">'+esc(o.fecha||'Sin fecha')+(o.hora?' '+esc(o.hora):'')+'</td>' +
+          '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':f===hoy?'var(--amber)':'var(--text3)')+'">'+esc(o.fecha ? (typeof window._mostrarFecha === 'function' ? window._mostrarFecha(o.fecha) : o.fecha) : 'Sin fecha')+(o.hora?' '+esc(o.hora):'')+'</td>' +
           '<td style="font-size:12px;color:var(--text3)">'+esc(o.tipoVisita||o.tipo||'—')+'</td>' +
           '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
-          '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o.estado) : esc(o.estado||'')) +'</td>' +
+          '<td>'+ (typeof window.otBadge === 'function' ? window.otBadge(o) : esc(o.estado||'')) +'</td>' +
           '<td style="white-space:nowrap"><button class="btn btn-sm btn-icon" onclick="verOT(\''+key+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
             (puedeEliminarOT ? '<button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+key+'\')"><i class="ti ti-trash" style="font-size:14px"></i></button>' : '') +
           '</td>' +

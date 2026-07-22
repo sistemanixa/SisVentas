@@ -1186,34 +1186,11 @@ function flujoPostPago(ventaObj, montoSena) {
   // 2c. Generar orden de compra con los productos de la venta
   generarOrdenCompraDesdeVenta(ventaObj);
 
-  // 2a. Crear evento en agenda
-  var evAgenda = {
-    descripcion: 'Instalación pendiente — ' + vid + ' · ' + cli,
-    fecha: hoy,
-    hora: '09:00',
-    tipo: 'instalacion',
-    ventaId: vid,
-    ventaFbKey: ventaObj.fbKey || '',
-    cliente: cli,
-    clienteFbKey: ventaObj.clienteFbKey || ventaObj.clienteKey || '',
-    direccion: dir,
-    estado: 'pendiente_fecha',
-    ts: Date.now(),
-    usuario: currentUser || 'Sistema'
-  };
-  if (window.fbDB) {
-    window.fbPush(window.fbRef(window.fbDB, 'sisventas/agenda'), evAgenda)
-      .then(function(ref){
-        if (ventaObj.fbKey) {
-          window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaObj.fbKey), {
-            agendaEventoId: ref.key,
-            agendaHabilitada: true
-          });
-        }
-      });
-  }
+  // La agenda operativa se construye directamente desde las OTs. Antes se
+  // creaba además un evento "Instalación pendiente" y cada trabajo aparecía
+  // dos veces (procedimiento viejo + OT). Desde ahora la OT es la única fuente.
 
-  // 2b. Generar OT automáticamente
+  // Generar OT automáticamente
   var ot = {
     id:           '',
     ventaId:      vid,
@@ -3015,7 +2992,8 @@ function renderTablaUsuarios() {
       ? '<span class="badge b-amber">Técnico</span>'
       : '<span class="badge b-purple">Administrativo</span>';
     var estadoBadge = '<label class="toggle-sw" title="' + (u.activo !== false ? 'Activo' : 'Inactivo') + '"><input type="checkbox" ' + (u.activo !== false ? 'checked' : '') + ' onchange="toggleActivoUsuario(\'' + u.fbKey + '\',' + (u.activo !== false) + ')"><span class="toggle-knob"></span></label>';
-    var ultimoAcceso = u.ultimoAcceso || '—';
+    var ultimoAcceso = u.ultimoAcceso || u.ultimoAccesoEn || '—';
+    if (typeof ultimoAcceso === 'number') ultimoAcceso = new Date(ultimoAcceso).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'});
     var emailUsuario = u.mail || (u.login && u.login.includes('@') ? u.login : (u.login||'')+'@sistemanixa.com');
     var online = (typeof estaUsuarioOnline === 'function') ? estaUsuarioOnline(emailUsuario) : false;
     var puntoOnline = '<span title="' + (online ? 'Conectado ahora' : 'Sin conexión activa') + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:' + (online ? 'var(--green)' : 'var(--text3)') + (online ? ';box-shadow:0 0 0 3px rgba(61,220,132,.18)' : '') + '"></span>';
@@ -3023,7 +3001,7 @@ function renderTablaUsuarios() {
     var claveId = 'usu-clave-' + (u.fbKey || i);
     var claveHtml = claveUsuario
       ? '<span id="' + claveId + '" data-clave="' + escapeHTML(claveUsuario) + '" data-visible="0" style="font-family:monospace;color:var(--text3)">••••••••</span> <button class="btn btn-sm btn-icon" onclick="toggleVerClaveUsuario(\'' + claveId + '\')" title="Ver / ocultar clave" style="padding:2px 4px"><i class="ti ti-eye" style="font-size:13px"></i></button>'
-      : '<span style="color:var(--text3);font-size:12px">Sin registrar</span>';
+      : '<span style="color:var(--text3);font-size:12px" title="La contraseña se administra de forma segura en Firebase Auth">Gestionada por Firebase</span>';
     return '<tr>' +
       '<td>' + (i + 1) + '</td>' +
       '<td>' + puntoOnline + escapeHTML(u.nombre || '—') + '</td>' +
@@ -3033,11 +3011,11 @@ function renderTablaUsuarios() {
       '<td style="text-align:right;color:var(--text3)">' + escapeHTML(ultimoAcceso) + '</td>' +
       '<td style="text-align:right">' + estadoBadge + '</td>' +
       '<td style="text-align:right;white-space:nowrap">' +
-        '<button class="btn btn-sm btn-icon" onclick="editarUsuario(\'' + u.fbKey + '\')" title="Editar usuario"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
-        '<button class="btn btn-sm btn-icon" onclick="gestionarClaveUsuario(\'' + u.fbKey + '\')" title="Cambiar clave registrada" style="color:var(--blue)"><i class="ti ti-lock-cog" style="font-size:14px"></i></button>' +
-        '<button class="btn btn-sm btn-icon" onclick="resetPasswordUsuario(\'' + u.mail + '\')" title="Enviar email de reseteo" style="color:var(--amber)"><i class="ti ti-key" style="font-size:14px"></i></button>' +
-        '<button class="btn btn-sm btn-icon" onclick="iniciarImpersonacionUsuario(\'' + u.fbKey + '\')" title="Ver como este usuario" style="color:var(--green)"><i class="ti ti-user-search" style="font-size:14px"></i></button>' +
-        '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'usuarios\',\'' + u.fbKey + '\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="editarUsuario(\'' + u.fbKey + '\')" title="Editar usuario" aria-label="Editar usuario"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="gestionarClaveUsuario(\'' + u.fbKey + '\')" title="Cambiar clave registrada" aria-label="Cambiar clave registrada" style="color:var(--blue)"><i class="ti ti-lock-cog" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="resetPasswordUsuario(\'' + u.mail + '\')" title="Enviar email de reseteo" aria-label="Enviar email de reseteo" style="color:var(--amber)"><i class="ti ti-key" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="iniciarImpersonacionUsuario(\'' + u.fbKey + '\')" title="Ver como este usuario" aria-label="Ver como este usuario" style="color:var(--green)"><i class="ti ti-user-search" style="font-size:14px"></i></button>' +
+        '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'usuarios\',\'' + u.fbKey + '\')" title="Eliminar usuario" aria-label="Eliminar usuario" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
       '</td>' +
     '</tr>';
   }).join('');
@@ -5288,12 +5266,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.148-firebase',
+  VERSION: 'v2.0.149-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Carga de facturas externas sin bloqueos indefinidos.'
+    'Métricas unificadas y circuitos de OT, agenda, compras y avisos depurados.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ventas', actionLabel:'Abrir ventas' }),
+  RELEASE_FEATURE: Object.freeze({ page:'dashboard', actionLabel:'Abrir tablero' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.149',
+      date: '22/07/2026',
+      title: 'Datos coherentes en todos los módulos',
+      notes: Object.freeze(['Métricas unificadas y circuitos de OT, agenda, compras y avisos depurados.']),
+      feature: Object.freeze({ page:'dashboard', actionLabel:'Abrir tablero' })
+    }),
     Object.freeze({
       version: 'v2.0.148',
       date: '22/07/2026',
@@ -6229,6 +6214,18 @@ var prodData = {};
 var otData = [];
 var ventasList = [];
 window.obtenerVentasSisVentas = function(){ return ventasList || []; };
+// Fuente canónica para cualquier cálculo comercial. Las ventas anuladas o
+// canceladas deben seguir visibles en el historial, pero nunca sumarse en
+// tableros, estadísticas, saldos ni reportes.
+function ventaValidaParaMetricas(v) {
+  if (!v) return false;
+  var estado = String(v.estado || v.estadoPago || '').toLowerCase();
+  return v.anulada !== true && estado !== 'anulada' && estado !== 'cancelada' && estado !== 'cancelado';
+}
+window.ventaValidaParaMetricas = ventaValidaParaMetricas;
+window.obtenerVentasActivasSisVentas = function(){
+  return (ventasList || []).filter(ventaValidaParaMetricas);
+};
 window.ventasPendientesHistoricasList = [];
 window.obtenerVentasPendientesHistoricasSisVentas = function(){
   return window.ventasPendientesHistoricasList || [];
@@ -6386,6 +6383,15 @@ function _resolverRolYCompletarLogin(user, err) {
                 : (r==='tecnico'||r==='técnico')     ? 'tecnico'
                 : (r==='vendedor')                   ? 'vendedor'
                 : 'administrativo';
+    if (usuario.fbKey && window.fbUpdate) {
+      var accesoAhora = Date.now();
+      usuario.ultimoAcceso = accesoAhora;
+      usuario.ultimoAccesoEn = accesoAhora;
+      window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/usuarios/' + usuario.fbKey), {
+        ultimoAcceso: accesoAhora,
+        ultimoAccesoEn: accesoAhora
+      }).catch(function(error){ console.warn('[Usuarios] No se pudo registrar el último acceso', error); });
+    }
     _completarLogin(usuario.nombre || user.email.split('@')[0]);
   }
 
@@ -6406,7 +6412,7 @@ function _resolverRolYCompletarLogin(user, err) {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/usuarios')).then(function(snap) {
     clearTimeout(_usuariosTimeout);
     var data = snap.val();
-    var lista = data ? Object.values(data) : [];
+    var lista = data ? Object.entries(data).map(function(entry){ return Object.assign({fbKey:entry[0]}, entry[1] || {}); }) : [];
     window.usuariosData = lista; // actualizar caché
     aplicarRolYNombre(lista);
   }).catch(function() {
@@ -11932,9 +11938,7 @@ function _parsearFechaFlexible(f) {
 }
 
 function _rentVentaValida(v) {
-  if (!v) return false;
-  var estado = String(v.estado || v.estadoPago || '').toLowerCase();
-  return v.anulada !== true && estado !== 'anulada' && estado !== 'cancelada' && estado !== 'cancelado';
+  return ventaValidaParaMetricas(v);
 }
 
 function _rentGastoValido(g) {
@@ -18312,8 +18316,15 @@ function agGetTodosEventos() {
   // 1. Eventos internos de Firebase
   AG_DATA.forEach(function(ev) {
     if (!ev.fecha) return;
+    // Eventos automáticos históricos de ventas: la misma instalación ya se
+    // representa con su OT. Se conservan en Firebase por trazabilidad, pero no
+    // vuelven a mezclarse con la agenda operativa.
+    var descripcion = String(ev.descripcion || '');
+    var esInstalacionLegacy = !!(ev.ventaId || ev.ventaFbKey) &&
+      (String(ev.tipo || '').toLowerCase() === 'instalacion' || descripcion.indexOf('Instalación pendiente') === 0);
+    if (esInstalacionLegacy) return;
     eventos.push({
-      tipo: 'interno', fecha: ev.fecha, hora: ev.hora||'',
+      tipo: ev.tipo === 'reclamo' ? 'reclamo' : 'interno', fecha: ev.fecha, hora: ev.hora||'',
       titulo: ev.descripcion||'Evento', subtitulo: ev.empleado||'',
       notas: ev.notas||'', fbKey: ev.fbKey, ref: null
     });
@@ -23752,8 +23763,8 @@ var PPTO_ACCIONES = {
     convertido:   ['ver_venta'],
   },
   admin: {
-    borrador:     ['enviar_revision','aprobar_directo','editar_ppto'],
-    revision:     ['aprobar','rechazar','editar_ppto'],
+    borrador:     ['enviar_revision','aprobar_directo'],
+    revision:     ['aprobar','rechazar'],
     aprobado_int: ['imprimir','modificar_precio'],
     enviado:      ['imprimir','modificar_precio'],
     visto:        ['imprimir','modificar_precio'],
@@ -23807,7 +23818,7 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
       <td style="font-weight:500">${escapeHTML(p.id)}${alerta}</td>
       <td>${escapeHTML(p.cliente)}</td>
       <td class="tr" style="font-weight:500">${totalFmt}</td>
-      <td>${escapeHTML(p.vence)}</td>
+      <td>${escapeHTML(_mostrarFecha(p.vence))}</td>
       <td>${pptoStateBadge(p.estado)}</td>
       <td style="position:relative">
         <button class="btn btn-sm btn-icon ppto-actions-btn" type="button" data-ppto-ref="${pptoRef}" title="Acciones">
@@ -24057,8 +24068,8 @@ function verPpto(id) {
   _set('ppto-det-meta','Creado por ' + (p.empleado || p.usuario || 'Usuario no registrado'));
   document.getElementById('ppto-det-cliente').value = p.cliente;
   document.getElementById('ppto-det-empleado').value = p.empleado;
-  document.getElementById('ppto-det-fecha').value = p.fecha;
-  document.getElementById('ppto-det-vence').value = p.vence;
+  document.getElementById('ppto-det-fecha').value = _mostrarFecha(p.fecha);
+  document.getElementById('ppto-det-vence').value = _mostrarFecha(p.vence);
   document.getElementById('ppto-det-total').value = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
   document.getElementById('ppto-det-desc').value = (p.descuento || 0) + '%';
 
@@ -24508,6 +24519,10 @@ function pptoAccion(accion, opts) {
   }
   p.audit = p.audit || [];
   p.audit.push({ fecha:ahora, usuario, accion: t.auditMsg });
+  if (accion === 'enviar_cliente') {
+    p.enviadoEn = ahora;
+    p.enviadoTs = Date.now();
+  }
 
   if (window.fbDB && p.fbKey) {
     if (!window.fbUpdate) { notify('Error: fbUpdate no disponible'); return; }
@@ -24516,6 +24531,10 @@ function pptoAccion(accion, opts) {
       requiereAprobacion: accion === 'enviar_revision',
       audit: p.audit
     };
+    if (accion === 'enviar_cliente') {
+      actualizacionEstadoPpto.enviadoEn = p.enviadoEn;
+      actualizacionEstadoPpto.enviadoTs = p.enviadoTs;
+    }
     if (opts.aprobadoPor) {
       actualizacionEstadoPpto.aprobadoPor = opts.aprobadoPor;
       actualizacionEstadoPpto.aprobadoEn = opts.aprobadoEn || ahora;
@@ -24734,7 +24753,14 @@ function guardarPresupuesto(modo) {
 
   if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
   var preciosNoVigentes = items.filter(function(it) {
-    var prod = Object.values(prodData || {}).find(function(p){ return String(p.codigo || '') === String(it.cod || ''); });
+    var refItem = String(it.pid || it.productoFbKey || it.productoKey || '');
+    var codItem = String(it.cod || it.codigo || '').trim().toLowerCase();
+    var prod = Object.values(prodData || {}).find(function(p){
+      if (!p) return false;
+      var refProd = String(p.fbKey || p.key || p.id || '');
+      var codProd = String(p.codigo || p.cod || '').trim().toLowerCase();
+      return (refItem && refProd === refItem) || (codItem && codProd === codItem);
+    });
     return prod && !estadoVigenciaPrecioProducto(prod).vigente;
   });
   if (preciosNoVigentes.length) {
@@ -24778,7 +24804,11 @@ function guardarPresupuesto(modo) {
     nuevo.empleadoId = pptoOriginalEdit.empleadoId || '';
     nuevo.empFbKey = pptoOriginalEdit.empFbKey || '';
     nuevo.ventaId = pptoOriginalEdit.ventaId || '';
-    nuevo.audit = (pptoOriginalEdit.audit || []).concat([{ fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || 'Admin', accion: modo === 'borrador' ? 'Presupuesto guardado como borrador' : 'Presupuesto editado y enviado a revisión' }]);
+    var auditEdit = (pptoOriginalEdit.audit || []).slice();
+    var auditNuevo = { fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || 'Admin', accion: modo === 'borrador' ? 'Presupuesto guardado como borrador' : 'Presupuesto editado y enviado a revisión' };
+    var ultimoAudit = auditEdit.length ? auditEdit[auditEdit.length - 1] : null;
+    if (!ultimoAudit || ultimoAudit.accion !== auditNuevo.accion || ultimoAudit.usuario !== auditNuevo.usuario || ultimoAudit.fecha !== auditNuevo.fecha) auditEdit.push(auditNuevo);
+    nuevo.audit = auditEdit;
     window._pptoEditandoFbKey = null;
     window._pptoEditandoId    = null;
   }
@@ -24879,7 +24909,16 @@ var CHECKLISTS = {
 var otActualId = null;
 
 // Badge de estado OT
+function otEstadoParaMostrar(ot) {
+  if (!ot || typeof ot !== 'object') return String(ot || '');
+  var estado = String(ot.estado || '').toLowerCase();
+  var progreso = parseFloat(ot.progreso) || 0;
+  if (progreso >= 100 && ['completada','con_observaciones'].indexOf(estado) < 0) return 'lista_finalizar';
+  return estado;
+}
+window.otEstadoParaMostrar = otEstadoParaMostrar;
 function otBadge(estado) {
+  estado = otEstadoParaMostrar(estado);
   const map = {
     pendiente:        ['badge b-amber','Pendiente'],
     programada:       ['badge b-blue','Programada'],
@@ -24887,6 +24926,7 @@ function otBadge(estado) {
     en_progreso:      ['badge b-blue','En progreso'],
     completada:       ['badge b-green','Completada'],
     con_observaciones:['badge b-amber','Con observaciones'],
+    lista_finalizar:  ['badge b-amber','Lista para finalizar'],
   };
   const [cls, label] = map[estado] || ['badge','—'];
   return `<span class="${cls}">${label}</span>`;
@@ -25044,10 +25084,10 @@ function _renderOTVistaAdmin(filtro, hoy) {
       '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+escapeHTML(o.id||'')+'</td>' +
       '<td>'+escapeHTML(o.cliente||'—')+'</td>' +
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(o.tecnico||'Sin asignar')+'</td>' +
-      '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':o.fecha===hoy?'var(--amber)':'var(--text3)')+'">'+escapeHTML(o.fecha||'Sin fecha')+(o.hora?' '+o.hora:'')+'</td>' +
+      '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':o.fecha===hoy?'var(--amber)':'var(--text3)')+'">'+escapeHTML(o.fecha ? _mostrarFecha(o.fecha) : 'Sin fecha')+(o.hora?' '+o.hora:'')+'</td>' +
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(o.tipoVisita||o.tipo||'—')+'</td>' +
       '<td style="min-width:80px"><div class="progress-bar" style="margin:0"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+(o.progreso||0)+'%</div></td>' +
-      '<td>'+otBadge(o.estado)+'</td>' +
+      '<td>'+otBadge(o)+'</td>' +
       '<td style="white-space:nowrap">' +
         '<button class="btn btn-sm btn-icon" onclick="verOT(\''+escapeHTML(o.fbKey||o.id||'')+'\')"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
         '<button class="btn btn-sm btn-icon" onclick="eliminarOT(\''+escapeHTML(o.fbKey||o.id||'')+'\')"><i class="ti ti-trash" style="font-size:14px;color:var(--text3)"></i></button>' +
@@ -25182,7 +25222,7 @@ function verOT(id) {
   }
 
   _set('ot-det-num', ot.id||'OT');
-  document.getElementById('ot-det-estado-badge').innerHTML = otBadge(ot.estado);
+  document.getElementById('ot-det-estado-badge').innerHTML = otBadge(ot);
 
   // Prioridad
   var esPrioridad = ot.prioridad === true || ot.prioridad === 'true';
@@ -26575,7 +26615,7 @@ function renderKPIsDashboard() {
   var esAdmin = (currentRole === 'admin' || currentRole === 'administrativo');
 
   // Filtrar ventas por usuario si no es admin
-  var todasVentas = ventasList || [];
+  var todasVentas = window.obtenerVentasActivasSisVentas();
   var ventas = esAdmin ? todasVentas : todasVentas.filter(function(v) {
     return (v.empleado||v.vendedor||v.usuario||'').toLowerCase() === (currentUser||'').toLowerCase();
   });
@@ -26731,7 +26771,7 @@ function renderKPIsDashboard() {
       otTabla.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:12px">Sin OTs pendientes</td></tr>';
     } else {
       otTabla.innerHTML = otsPend.slice(0,6).map(function(o) {
-        var badge = otBadge(o.estado);
+        var badge = otBadge(o);
         var fechaOT = o.fecha ? _mostrarFecha(o.fecha) : 'Sin fecha';
         var horaOT = o.hora ? String(o.hora).slice(0,5) : 'Sin hora';
         var fechaHoraOT = fechaOT + ' · ' + horaOT;
@@ -28280,6 +28320,27 @@ function _pptoPerteneceAlUsuarioActual(p) {
   return autoresNorm.some(function(autor) { return actualesNorm.indexOf(autor) >= 0; });
 }
 
+function _pptoFechaEnvioNotificacion(p) {
+  if (!p) return null;
+  if (typeof p.enviadoTs === 'number' && p.enviadoTs > 0) return new Date(p.enviadoTs);
+  var valor = p.enviadoEn || p.fechaEnvio || '';
+  var parsear = function(v) {
+    if (!v) return null;
+    if (typeof v === 'number') return new Date(v);
+    var s = String(v).trim();
+    var iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (iso) return new Date(+iso[1], +iso[2]-1, +iso[3]);
+    var ar = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (ar) return new Date(+ar[3], +ar[2]-1, +ar[1]);
+    return null;
+  };
+  var directa = parsear(valor);
+  if (directa && !isNaN(directa.getTime())) return directa;
+  var audit = Array.isArray(p.audit) ? p.audit.slice().reverse() : [];
+  var envio = audit.find(function(item){ return /enviado al cliente/i.test(String(item && item.accion || '')); });
+  return envio ? parsear(envio.fecha) : null;
+}
+
 function generarNotificaciones() {
   try {
   todasNotifs = [];
@@ -28373,16 +28434,24 @@ function generarNotificaciones() {
         });
       }
 
-      // Presupuesto enviado sin respuesta hace +5 días
+      // Presupuesto enviado sin respuesta hace 5 días reales. Antes se creaba
+      // siempre y el texto estaba fijo en "Hace 5 días", aunque se hubiera
+      // enviado ayer.
       if (p.estado === 'enviado' && NOTIF_CONFIG.ppto_sin_resp.activo) {
-        todasNotifs.push({
-          id: 'ppto_sinresp_' + p.id, tipo:'presupuesto', urgente:false,
-          icono:'ti-clock', color:'amber',
-          titulo: 'Sin respuesta — Presupuesto ' + p.id,
-          sub: p.cliente + ' — Enviado el ' + p.fecha + '. Sin confirmación del cliente.',
-          tiempo: 'Hace 5 días · Sistema',
-          accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
-        });
+        var fechaEnvioNotif = _pptoFechaEnvioNotificacion(p);
+        if (fechaEnvioNotif && !isNaN(fechaEnvioNotif.getTime())) {
+          var inicioHoyNotif = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+          var inicioEnvioNotif = new Date(fechaEnvioNotif.getFullYear(), fechaEnvioNotif.getMonth(), fechaEnvioNotif.getDate());
+          var diasSinRespuesta = Math.max(0, Math.floor((inicioHoyNotif - inicioEnvioNotif) / 86400000));
+          if (diasSinRespuesta >= 5) todasNotifs.push({
+            id: 'ppto_sinresp_' + p.id, tipo:'presupuesto', urgente:false,
+            icono:'ti-clock', color:'amber',
+            titulo: 'Sin respuesta — Presupuesto ' + p.id,
+            sub: p.cliente + ' — Enviado el ' + fechaEnvioNotif.toLocaleDateString('es-AR') + '. Sin confirmación del cliente.',
+            tiempo: 'Hace ' + diasSinRespuesta + ' día' + (diasSinRespuesta === 1 ? '' : 's') + ' · Sistema',
+            accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
+          });
+        }
       }
 
     });

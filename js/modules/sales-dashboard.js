@@ -99,7 +99,8 @@
   function set332(id,html){ var el=document.getElementById(id); if(el) el.innerHTML=html; }
   window.sv332UpdateDashSalesKpis=function(ventas){
     if(!ensure332()) return;
-    ventas = Array.isArray(ventas) ? ventas : (window.ventasList || window.ventasData || []);
+    ventas = Array.isArray(ventas) ? ventas : (typeof window.obtenerVentasActivasSisVentas === 'function' ? window.obtenerVentasActivasSisVentas() : (window.ventasList || window.ventasData || []));
+    ventas = ventas.filter(function(v){ return typeof window.ventaValidaParaMetricas !== 'function' || window.ventaValidaParaMetricas(v); });
     var now=new Date(), today=startOfDay332(now), yesterday=new Date(today); yesterday.setDate(yesterday.getDate()-1);
     var weekStart=new Date(today); weekStart.setDate(weekStart.getDate()-((weekStart.getDay()+6)%7));
     var prevWeekStart=new Date(weekStart); prevWeekStart.setDate(prevWeekStart.getDate()-7);
@@ -143,8 +144,8 @@
   });
   var _renderDash332=window.renderDashboard;
   if(typeof _renderDash332==='function'){
-    window.renderDashboard=function(){ var r=_renderDash332.apply(this,arguments); setTimeout(function(){ window.sv332UpdateDashSalesKpis(window.ventasList||window.ventasData||[]); },90); return r; };
+    window.renderDashboard=function(){ var r=_renderDash332.apply(this,arguments); setTimeout(function(){ window.sv332UpdateDashSalesKpis(typeof window.obtenerVentasActivasSisVentas === 'function' ? window.obtenerVentasActivasSisVentas() : (window.ventasList||window.ventasData||[])); },90); return r; };
   }
-  document.addEventListener('DOMContentLoaded',function(){ setTimeout(function(){ window.sv332UpdateDashSalesKpis(window.ventasList||window.ventasData||[]); },800); });
-  setTimeout(function(){ window.sv332UpdateDashSalesKpis(window.ventasList||window.ventasData||[]); },1200);
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(function(){ window.sv332UpdateDashSalesKpis(); },800); });
+  setTimeout(function(){ window.sv332UpdateDashSalesKpis(); },1200);
 })();

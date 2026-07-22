@@ -78,8 +78,14 @@
   window.svResumenVentas = function(opts){
     opts = opts || {};
     var mes = opts.mes || ymActual();
-    var fuente = typeof window.obtenerVentasSisVentas === 'function' ? window.obtenerVentasSisVentas() : (window.ventasList || window.ventasData || []);
-    var ventas = arr(fuente).filter(function(v){ return v && (!v.anulada || v.notaCredito); });
+    var fuente = typeof window.obtenerVentasActivasSisVentas === 'function'
+      ? window.obtenerVentasActivasSisVentas()
+      : (typeof window.obtenerVentasSisVentas === 'function' ? window.obtenerVentasSisVentas() : (window.ventasList || window.ventasData || []));
+    var ventas = arr(fuente).filter(function(v){
+      return typeof window.ventaValidaParaMetricas === 'function'
+        ? window.ventaValidaParaMetricas(v)
+        : !!v && v.anulada !== true && ['anulada','cancelada','cancelado'].indexOf(String(v.estado || v.estadoPago || '').toLowerCase()) < 0;
+    });
     var ventasPendientesHistoricas = ventas;
     var ventasMes = ventas.filter(function(v){ return fechaISO(v).slice(0,7) === mes; });
     var totalMes = 0, ivaMes = 0, pendInstCant = 0, facturadasCant = 0;
