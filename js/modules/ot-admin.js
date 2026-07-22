@@ -34,7 +34,7 @@
     return true;
   }
   function estadoNormal(o){ return String(o && o.estado || '').toLowerCase(); }
-  function esCompletada(o){ return estadoNormal(o) === 'completada'; }
+  function esCompletada(o){ return ['completada','con_observaciones'].indexOf(estadoNormal(o)) >= 0; }
 
   window.otFiltroRapido315 = function(tipo){
     var est = e('ot-filtro-estado');
@@ -44,7 +44,7 @@
     if(busq) busq.value = '';
     if(tec) tec.value = '';
     window._otFiltroEspecial315 = '';
-    if(tipo === 'abiertas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial315 = 'abiertas'; }
+    if(tipo === 'abiertas') { if(est) est.value = 'abiertas'; if(per) per.value = 'todos'; window._otFiltroEspecial315 = 'abiertas'; }
     if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
     if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
     if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
@@ -70,7 +70,8 @@
       var rows = arr(window.otData).filter(function(o){
         if(!o) return false;
         var est = estadoNormal(o);
-        var matchFiltro = especial === 'abiertas' ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
+        var mostrarAbiertas = especial === 'abiertas' || String(filtro || '').toLowerCase() === 'abiertas';
+        var matchFiltro = mostrarAbiertas ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
         var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
         var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
         var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;

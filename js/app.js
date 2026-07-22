@@ -5028,12 +5028,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.142-firebase',
+  VERSION: 'v2.0.143-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Custodia de materiales en OT: entrega, rendición y devolución controladas.'
+    'Novedades disponibles después del ingreso y OT abiertas por defecto.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Ver materiales en OT' }),
+  RELEASE_FEATURE: Object.freeze({ actionLabel:'Ver historial de novedades', history:true }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.143',
+      date: '22/07/2026',
+      title: 'Novedades después del ingreso y OT ordenadas',
+      notes: Object.freeze(['El aviso de versión espera una sesión activa y las órdenes de trabajo muestran primero las abiertas.']),
+      feature: Object.freeze({ actionLabel:'Ver historial de novedades', history:true })
+    }),
     Object.freeze({
       version: 'v2.0.142',
       date: '22/07/2026',
@@ -5409,23 +5416,75 @@ function restaurarPaginaPostActualizacion() {
   try {
     var pagPrevia    = sessionStorage.getItem('sisventas_pagina_previa');
     var verPrevia    = sessionStorage.getItem('sisventas_version_previa');
-    if (!pagPrevia) return;
+    if (!pagPrevia && !verPrevia) return;
     sessionStorage.removeItem('sisventas_pagina_previa');
     sessionStorage.removeItem('sisventas_version_previa');
 
+    // La restauración puede ocurrir antes de que Firebase recupere la sesión.
+    // Guardamos la novedad para mostrarla cuando rol y permisos estén listos.
+    _guardarNovedadActualizacionPendiente(verPrevia, APP_CONFIG.VERSION);
+
     // Navegar al módulo donde estaba el usuario
     setTimeout(function() {
-      if (typeof showPage === 'function') {
+      if (pagPrevia && _sesionListaParaNovedad() && typeof showPage === 'function') {
         var btn = document.querySelector('[onclick*="' + pagPrevia + '"]');
         showPage(pagPrevia, btn);
       }
-      // Mostrar popup de actualización exitosa
-      _mostrarPopupActualizacion(verPrevia, APP_CONFIG.VERSION);
+      _mostrarNovedadActualizacionPendiente();
     }, 1500);
   } catch(e){}
 }
 
+var _SV_NOVEDAD_PENDIENTE_KEY = 'sisventas_novedad_actualizacion_pendiente';
+
+function _guardarNovedadActualizacionPendiente(verAnterior, verNueva) {
+  try {
+    var hasta = String(verNueva || APP_CONFIG.VERSION || '');
+    localStorage.setItem(_SV_NOVEDAD_PENDIENTE_KEY, JSON.stringify({
+      desde: String(verAnterior || ''),
+      hasta: hasta,
+      guardadaEn: Date.now()
+    }));
+    window._svNovedadPendienteMostrada = '';
+  } catch(e){}
+}
+
+function _leerNovedadActualizacionPendiente() {
+  try {
+    var raw = localStorage.getItem(_SV_NOVEDAD_PENDIENTE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function _sesionListaParaNovedad() {
+  var app = document.getElementById('screen-app');
+  return !!(isAuthenticated && currentUserUid && currentRole && app && app.classList.contains('visible'));
+}
+
+function _limpiarNovedadActualizacionPendiente() {
+  try { localStorage.removeItem(_SV_NOVEDAD_PENDIENTE_KEY); } catch(e){}
+  window._svNovedadPendienteMostrada = '';
+}
+
+function cerrarPopupActualizacion() {
+  var popup = document.getElementById('popup-actualizado');
+  if (popup) popup.remove();
+  if (_sesionListaParaNovedad()) _limpiarNovedadActualizacionPendiente();
+}
+
+function _mostrarNovedadActualizacionPendiente() {
+  var pendiente = _leerNovedadActualizacionPendiente();
+  if (!pendiente || !_sesionListaParaNovedad()) return;
+  var marca = String(pendiente.hasta || APP_CONFIG.VERSION || '');
+  if (window._svNovedadPendienteMostrada === marca || document.getElementById('popup-actualizado')) return;
+  window._svNovedadPendienteMostrada = marca;
+  _mostrarPopupActualizacion(pendiente.desde || '', pendiente.hasta || APP_CONFIG.VERSION);
+}
+
 function _mostrarPopupActualizacion(verAnterior, verNueva) {
+  _guardarNovedadActualizacionPendiente(verAnterior, verNueva);
+  if (!_sesionListaParaNovedad()) return;
+  window._svNovedadPendienteMostrada = String(verNueva || APP_CONFIG.VERSION || '');
   var prev = document.getElementById('popup-actualizado');
   if (prev) prev.remove();
 
@@ -5467,7 +5526,7 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
       '<div style="font-size:11px;color:var(--text3);margin-bottom:20px">Todo funcionando correctamente. Seguís exactamente donde estabas.</div>' +
       accionesNovedad +
       // Botón
-      '<button onclick="document.getElementById(\'popup-actualizado\').remove()" ' +
+      '<button onclick="cerrarPopupActualizacion()" ' +
         'style="width:100%;padding:12px;border-radius:var(--radius);border:none;background:var(--green);color:#080e1a;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;letter-spacing:.3px">' +
         '✓ Entendido, ¡gracias!' +
       '</button>' +
@@ -5477,8 +5536,7 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
   // Cerrar con Escape
   document.addEventListener('keydown', function handler(e) {
     if (e.key === 'Escape') {
-      var p = document.getElementById('popup-actualizado');
-      if (p) p.remove();
+      cerrarPopupActualizacion();
       document.removeEventListener('keydown', handler);
     }
   });
@@ -5488,6 +5546,7 @@ function _abrirDestinoNovedad(novedad, conRecorrido) {
   if (!novedad) return;
   var popup = document.getElementById('popup-actualizado');
   if (popup) popup.remove();
+  _limpiarNovedadActualizacionPendiente();
   if (novedad.history) {
     abrirHistorialActualizaciones();
     return;
@@ -6373,6 +6432,9 @@ function _completarLogin(nombre) {
         window._restaurandoSesionInicial = false;
       }, modoIntroRecarga ? 280 : 0);
       document.getElementById('screen-app').classList.add('visible');
+      // Solo aquí rol y permisos están listos. Si la actualización ocurrió con
+      // la sesión cerrada, el aviso reaparece ahora con todas sus acciones.
+      setTimeout(_mostrarNovedadActualizacionPendiente, 180);
       if (typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
       if (typeof applyDashWidgets === 'function') applyDashWidgets();
       if (currentRole !== 'admin') setTimeout(function(){
