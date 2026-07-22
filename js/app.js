@@ -5028,16 +5028,41 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.140-firebase',
+  VERSION: 'v2.0.141-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las novedades ahora abren su función e incluyen un recorrido guiado.'
+    'Nuevo historial de actualizaciones para consultar cambios y repetir recorridos.'
   ]),
-  RELEASE_FEATURE: Object.freeze({
-    page: 'ordenes',
-    tour: 'compras',
-    actionLabel: 'Ver circuito de compras',
-    tourLabel: 'Hacer recorrido guiado'
-  }),
+  RELEASE_FEATURE: Object.freeze({ actionLabel: 'Ver historial de novedades', history: true }),
+  RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.141',
+      date: '22/07/2026',
+      title: 'Las novedades quedan siempre disponibles',
+      notes: Object.freeze(['Se agregó un historial para consultar los cambios y repetir las guías cuando quieras.']),
+      feature: Object.freeze({ actionLabel: 'Ver historial de novedades', history: true })
+    }),
+    Object.freeze({
+      version: 'v2.0.140',
+      date: '21/07/2026',
+      title: 'Accesos directos y recorridos guiados',
+      notes: Object.freeze(['Los avisos de actualización ahora pueden abrir la función nueva e iniciar una guía paso a paso.']),
+      feature: Object.freeze({ page: 'ordenes', tour: 'compras', actionLabel: 'Ver circuito de compras', tourLabel: 'Repetir recorrido guiado' })
+    }),
+    Object.freeze({
+      version: 'v2.0.139',
+      date: '21/07/2026',
+      title: 'Clientes y domicilios sincronizados',
+      notes: Object.freeze(['Se agregó edición rápida en el historial del cliente, acceso a Maps y sincronización del domicilio con las OT abiertas.']),
+      feature: Object.freeze({ page: 'clientes', actionLabel: 'Ir a clientes' })
+    }),
+    Object.freeze({
+      version: 'v2.0.138',
+      date: '21/07/2026',
+      title: 'Nuevo circuito de compras',
+      notes: Object.freeze(['Lista de materiales por venta, agrupación por proveedor, órdenes de compra y recepción con destino.']),
+      feature: Object.freeze({ page: 'ordenes', tour: 'compras', actionLabel: 'Ver circuito de compras', tourLabel: 'Hacer recorrido guiado' })
+    })
+  ]),
   DEMO_USERS: Object.freeze({}), // Sin usuarios demo — auth exclusivamente por Firebase
   ADMIN_PAGES: new Set(['usuarios','configuracion','rentabilidad','caja']),
   TECNICO_BLOCKED: new Set(['usuarios','configuracion','rentabilidad','caja','reportes','estadisticas','proveedores','ordenes','gastos','cuentacorriente','detalle','venta','presupuesto','cobranzas']),
@@ -5452,11 +5477,14 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
   });
 }
 
-function abrirNovedadVersion(conRecorrido) {
-  var novedad = APP_CONFIG.RELEASE_FEATURE || null;
+function _abrirDestinoNovedad(novedad, conRecorrido) {
   if (!novedad) return;
   var popup = document.getElementById('popup-actualizado');
   if (popup) popup.remove();
+  if (novedad.history) {
+    abrirHistorialActualizaciones();
+    return;
+  }
   if (novedad.page && typeof showPage === 'function') {
     showPage(novedad.page, document.querySelector('[onclick*="' + novedad.page + '"]'));
   }
@@ -5466,6 +5494,62 @@ function abrirNovedadVersion(conRecorrido) {
       else notify('El recorrido todavía no está disponible');
     }, 650);
   }
+}
+
+function abrirNovedadVersion(conRecorrido) {
+  _abrirDestinoNovedad(APP_CONFIG.RELEASE_FEATURE || null, conRecorrido);
+}
+
+function abrirNovedadHistorial(indice, conRecorrido) {
+  var historial = APP_CONFIG.RELEASE_HISTORY || [];
+  var entrada = historial[parseInt(indice, 10)];
+  if (!entrada || !entrada.feature) return;
+  var modal = document.getElementById('modal-historial-actualizaciones');
+  if (modal) modal.remove();
+  _abrirDestinoNovedad(entrada.feature, conRecorrido);
+}
+
+function abrirHistorialActualizaciones() {
+  var anterior = document.getElementById('modal-historial-actualizaciones');
+  if (anterior) anterior.remove();
+  var historial = APP_CONFIG.RELEASE_HISTORY || [];
+  var versionActual = String(APP_CONFIG.VERSION || '').replace('-firebase', '');
+  var tarjetas = historial.map(function (entrada, indice) {
+    var feature = entrada.feature || null;
+    var puedeAbrir = feature && !feature.history && (!feature.page || typeof permisoModulo !== 'function' || permisoModulo(feature.page));
+    var notas = (entrada.notes || []).map(function (nota) {
+      return '<div style="display:flex;gap:7px;align-items:flex-start"><i class="ti ti-check" style="color:var(--green);margin-top:2px;flex-shrink:0"></i><span>' + escapeHTML(nota) + '</span></div>';
+    }).join('');
+    var acciones = puedeAbrir ?
+      '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">' +
+        '<button class="btn btn-sm" onclick="abrirNovedadHistorial(' + indice + ',false)"><i class="ti ti-external-link"></i> ' + escapeHTML(feature.actionLabel || 'Abrir función') + '</button>' +
+        (feature.tour ? '<button class="btn btn-sm btn-primary" onclick="abrirNovedadHistorial(' + indice + ',true)"><i class="ti ti-route"></i> ' + escapeHTML(feature.tourLabel || 'Hacer recorrido guiado') + '</button>' : '') +
+      '</div>' : '';
+    return '<article style="padding:15px 16px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);text-align:left">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:7px">' +
+        '<div><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="font-family:monospace;color:var(--green);font-size:13px">' + escapeHTML(entrada.version || '') + '</strong>' +
+        (entrada.version === versionActual ? '<span class="badge b-green">Actual</span>' : '') + '</div>' +
+        '<div style="font-weight:750;font-size:14px;color:var(--text);margin-top:5px">' + escapeHTML(entrada.title || 'Actualización') + '</div></div>' +
+        '<span style="font-size:10px;color:var(--text3);white-space:nowrap">' + escapeHTML(entrada.date || '') + '</span>' +
+      '</div>' +
+      '<div style="font-size:12px;line-height:1.45;color:var(--text2);display:flex;flex-direction:column;gap:5px">' + notas + '</div>' + acciones +
+    '</article>';
+  }).join('');
+
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-historial-actualizaciones';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.48)';
+  overlay.innerHTML =
+    '<div style="width:min(680px,100%);max-height:88vh;overflow:hidden;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);box-shadow:0 22px 65px rgba(0,0,0,.55);display:flex;flex-direction:column">' +
+      '<div style="padding:18px 20px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:flex-start;gap:12px">' +
+        '<div style="width:42px;height:42px;border-radius:50%;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-rocket" style="font-size:21px"></i></div>' +
+        '<div style="flex:1"><div style="font-size:18px;font-weight:750;color:var(--text)">Novedades de SisVentas</div><div style="font-size:12px;color:var(--text3);margin-top:3px">Los avisos que cerraste siguen acá. Podés abrir cada función y repetir sus recorridos cuando quieras.</div></div>' +
+        '<button class="icon-btn" onclick="document.getElementById(\'modal-historial-actualizaciones\').remove()" aria-label="Cerrar"><i class="ti ti-x"></i></button>' +
+      '</div>' +
+      '<div style="padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto">' + (tarjetas || '<div style="padding:25px;text-align:center;color:var(--text3)">Todavía no hay novedades registradas.</div>') + '</div>' +
+    '</div>';
+  overlay.addEventListener('click', function (event) { if (event.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 function mostrarAvisoVersionNueva(versionNueva) {
