@@ -4359,6 +4359,206 @@ function verFacturaEmitida(pdfUrl, cae) {
   document.body.appendChild(overlay);
 }
 
+function _fechaLocalISOFacturaExterna() {
+  var ahora = new Date();
+  var mes = String(ahora.getMonth() + 1).padStart(2, '0');
+  var dia = String(ahora.getDate()).padStart(2, '0');
+  return ahora.getFullYear() + '-' + mes + '-' + dia;
+}
+
+function _puedeCargarFacturaExterna() {
+  var rol = String(currentRole || '').toLowerCase();
+  return rol === 'admin' || rol === 'administrativo';
+}
+
+function abrirModalFacturaExterna(ventaId) {
+  var venta = _svResolverVentaRegistro(ventaId);
+  if (!venta) { notify('Venta no encontrada'); return; }
+  if (!_puedeCargarFacturaExterna()) { notify('No tenés permiso para cargar facturas externas'); return; }
+  if (venta.factura) { abrirResumenFactura(venta.id || venta.fbKey || ventaId); return; }
+
+  var anterior = document.getElementById('modal-factura-externa');
+  if (anterior) anterior.remove();
+  var puntoVenta = parseInt(TFAPP_CONFIG.punto_venta, 10) || 2;
+  var totalVenta = parseFloat(venta.total) || 0;
+  var ivaVenta = venta.conIva === false ? 0 : (parseFloat(venta.iva) || 0);
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-factura-externa';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(3,6,14,.78);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
+  overlay.innerHTML =
+    '<div role="dialog" aria-modal="true" aria-labelledby="factura-ext-titulo" style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:24px;max-width:620px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.55)">' +
+      '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:18px">' +
+        '<div style="width:44px;height:44px;flex:0 0 44px;border-radius:12px;background:var(--blue-bg);display:flex;align-items:center;justify-content:center"><i class="ti ti-file-upload" style="font-size:23px;color:var(--blue)"></i></div>' +
+        '<div style="flex:1;min-width:0"><div id="factura-ext-titulo" style="font-size:17px;font-weight:700">Cargar factura externa</div><div style="font-size:12px;color:var(--text3);margin-top:3px">Venta ' + escapeHTML(venta.id || ventaId) + ' · ' + escapeHTML(venta.cliente || 'Sin cliente') + '</div></div>' +
+        '<button class="btn btn-sm btn-icon" type="button" data-factura-ext-action="cerrar" title="Cerrar"><i class="ti ti-x"></i></button>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">' +
+        '<div class="fg"><label>Tipo de comprobante</label><select id="factura-ext-tipo"><option value="1">Factura A</option><option value="6" selected>Factura B</option></select></div>' +
+        '<div class="fg"><label>Fecha de emisión</label><input id="factura-ext-fecha" type="date" value="' + _fechaLocalISOFacturaExterna() + '"></div>' +
+        '<div class="fg"><label>Punto de venta</label><input id="factura-ext-pv" value="' + puntoVenta + '" readonly style="background:var(--bg3);cursor:not-allowed"><div style="font-size:10px;color:var(--text3);margin-top:4px">Tomado de Configuración → Facturación</div></div>' +
+        '<div class="fg"><label>Número de comprobante</label><input id="factura-ext-numero" inputmode="numeric" autocomplete="off" placeholder="Ej: 1234"></div>' +
+        '<div class="fg"><label>Importe total</label><input id="factura-ext-total" data-money="1" value="' + totalVenta + '"></div>' +
+        '<div class="fg"><label>IVA incluido</label><input id="factura-ext-iva" data-money="1" value="' + ivaVenta + '"></div>' +
+        '<div class="fg"><label>CAE <span style="font-weight:400;color:var(--text3)">(opcional)</span></label><input id="factura-ext-cae" inputmode="numeric" autocomplete="off" placeholder="Número de CAE"></div>' +
+        '<div class="fg"><label>Vencimiento CAE <span style="font-weight:400;color:var(--text3)">(opcional)</span></label><input id="factura-ext-cae-vto" type="date"></div>' +
+      '</div>' +
+      '<label for="factura-ext-archivo" style="display:flex;align-items:center;gap:12px;margin-top:16px;padding:14px;border:1px dashed var(--border2);border-radius:12px;cursor:pointer;background:var(--bg3)">' +
+        '<i class="ti ti-paperclip" style="font-size:22px;color:var(--blue)"></i><div style="flex:1"><div style="font-size:13px;font-weight:600">Adjuntar comprobante</div><div id="factura-ext-archivo-nombre" style="font-size:11px;color:var(--text3);margin-top:2px">PDF, JPG o PNG · máximo 15 MB</div></div><span class="btn btn-sm">Elegir archivo</span>' +
+      '</label>' +
+      '<input id="factura-ext-archivo" type="file" accept="application/pdf,image/jpeg,image/png" style="display:none">' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap"><button class="btn" type="button" data-factura-ext-action="cerrar">Cancelar</button><button class="btn btn-primary" id="factura-ext-guardar" type="button" data-factura-ext-action="guardar"><i class="ti ti-device-floppy"></i> Guardar factura</button></div>' +
+    '</div>';
+  overlay.addEventListener('click', function(evento) {
+    if (evento.target === overlay) { overlay.remove(); return; }
+    var accion = evento.target.closest('[data-factura-ext-action]');
+    if (!accion) return;
+    if (accion.dataset.facturaExtAction === 'cerrar') overlay.remove();
+    if (accion.dataset.facturaExtAction === 'guardar') guardarFacturaExterna(venta.id || venta.fbKey || ventaId);
+  });
+  document.body.appendChild(overlay);
+  initMoneyInputsEn(overlay);
+  var archivo = document.getElementById('factura-ext-archivo');
+  if (archivo) archivo.addEventListener('change', function() {
+    var nombre = document.getElementById('factura-ext-archivo-nombre');
+    if (nombre) nombre.textContent = archivo.files && archivo.files[0] ? archivo.files[0].name : 'PDF, JPG o PNG · máximo 15 MB';
+  });
+  setTimeout(function(){ var numero = document.getElementById('factura-ext-numero'); if (numero) numero.focus(); }, 40);
+}
+
+async function guardarFacturaExterna(ventaId) {
+  var venta = _svResolverVentaRegistro(ventaId);
+  if (!venta || !venta.fbKey) { notify('No se pudo identificar la venta'); return; }
+  if (!_puedeCargarFacturaExterna()) { notify('No tenés permiso para cargar facturas externas'); return; }
+  if (!window.fbDB || !window.fbUpdate || !window.fbRef) { notify('Sin conexión con la base de datos'); return; }
+
+  var tipoEl = document.getElementById('factura-ext-tipo');
+  var fechaEl = document.getElementById('factura-ext-fecha');
+  var numeroEl = document.getElementById('factura-ext-numero');
+  var totalEl = document.getElementById('factura-ext-total');
+  var ivaEl = document.getElementById('factura-ext-iva');
+  var caeEl = document.getElementById('factura-ext-cae');
+  var caeVtoEl = document.getElementById('factura-ext-cae-vto');
+  var archivoEl = document.getElementById('factura-ext-archivo');
+  var guardarBtn = document.getElementById('factura-ext-guardar');
+  var tipoCodigo = String(tipoEl && tipoEl.value || '6');
+  var tipoNombre = tipoCodigo === '1' ? 'FACTURA A' : 'FACTURA B';
+  var fecha = String(fechaEl && fechaEl.value || '');
+  var numeroDigitos = String(numeroEl && numeroEl.value || '').replace(/\D/g, '');
+  var numero = parseInt(numeroDigitos, 10) || 0;
+  var puntoVenta = parseInt(TFAPP_CONFIG.punto_venta, 10) || 2;
+  var total = getMontoRaw(totalEl);
+  var iva = getMontoRaw(ivaEl);
+  var cae = String(caeEl && caeEl.value || '').replace(/\s/g, '');
+  var caeVto = String(caeVtoEl && caeVtoEl.value || '');
+  var archivo = archivoEl && archivoEl.files ? archivoEl.files[0] : null;
+
+  if (!fecha) { notify('Ingresá la fecha de emisión'); return; }
+  if (!numero) { notify('Ingresá el número de comprobante'); if (numeroEl) numeroEl.focus(); return; }
+  if (!(total > 0)) { notify('Ingresá el importe total de la factura'); if (totalEl) totalEl.focus(); return; }
+  if (iva < 0 || iva > total) { notify('El IVA no puede superar el importe total'); return; }
+  if (archivo) {
+    var tiposPermitidos = ['application/pdf','image/jpeg','image/png'];
+    if (tiposPermitidos.indexOf(archivo.type) < 0) { notify('El comprobante debe ser PDF, JPG o PNG'); return; }
+    if (archivo.size > 15 * 1024 * 1024) { notify('El comprobante no puede superar 15 MB'); return; }
+  }
+
+  if (guardarBtn) { guardarBtn.disabled = true; guardarBtn.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Guardando...'; }
+  try {
+    var cliente = resolverClienteDeVenta(venta) || {};
+    var cuitReceptor = obtenerCuitClienteVenta(venta) || '0';
+    var claveFiscal = [cuitReceptor, tipoCodigo, puntoVenta, numero].join('_').replace(/[.#$\[\]\/]/g, '_');
+    if (window.fbGet) {
+      var existenteSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/' + claveFiscal));
+      var existente = existenteSnap && existenteSnap.val ? existenteSnap.val() : null;
+      if (existente && String(existente.ventaFbKey || '') !== String(venta.fbKey)) {
+        throw new Error('Ese punto de venta y número ya están vinculados a otro comprobante');
+      }
+    }
+    var archivoUrl = '';
+    var archivoNombre = '';
+    if (archivo) {
+      if (!window.fbStorage || !window.fbStorageRef || !window.fbUploadBytes || !window.fbGetDownloadURL) throw new Error('El almacenamiento de archivos no está disponible');
+      notify('Subiendo comprobante...');
+      archivoNombre = archivo.name;
+      var nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      var storageRef = window.fbStorageRef(window.fbStorage, 'sisventas/facturas-externas/' + venta.fbKey + '/' + Date.now() + '_' + nombreSeguro);
+      var snapshot = await window.fbUploadBytes(storageRef, archivo);
+      archivoUrl = await window.fbGetDownloadURL(snapshot.ref || storageRef);
+    }
+
+    var numeroFormateado = String(puntoVenta).padStart(5, '0') + '-' + String(numero).padStart(8, '0');
+    var ahora = Date.now();
+    var factura = {
+      tipo: tipoNombre,
+      tipoCodigo: tipoCodigo,
+      punto_venta: puntoVenta,
+      puntoVenta: puntoVenta,
+      numero: numeroFormateado,
+      numero_comprobante: numeroFormateado,
+      numeroComprobante: numeroFormateado,
+      fecha: fecha,
+      total: total,
+      iva: iva,
+      neto: Math.max(0, total - iva),
+      cae: cae,
+      cae_vencimiento: caeVto,
+      pdf_url: archivoUrl,
+      archivoNombre: archivoNombre,
+      fuente: 'externa',
+      manual: true,
+      cargadaPor: currentUser || 'Sistema',
+      cargadaEn: ahora
+    };
+    var audit = Array.isArray(venta.audit) ? venta.audit.slice() : [];
+    audit.push({ fecha:new Date().toLocaleDateString('es-AR'), usuario:currentUser || 'Sistema', accion:'Factura externa ' + numeroFormateado + ' cargada y vinculada' });
+    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
+      factura: factura,
+      facturada: true,
+      facturaNumero: numeroFormateado,
+      editadoEn: new Date().toLocaleDateString('es-AR'),
+      editadoPor: currentUser || 'Sistema',
+      audit: audit
+    });
+
+    var registroFiscal = {
+      fecha: fecha,
+      tipo: tipoCodigo,
+      ptoVta: puntoVenta,
+      nroDoc: numero,
+      cuitReceptor: cuitReceptor,
+      nombre: venta.cliente || cliente.nombre || 'Consumidor final',
+      neto: Math.max(0, total - iva),
+      iva21: iva,
+      totalIVA: iva,
+      total: total,
+      ventaId: venta.id || '',
+      ventaFbKey: venta.fbKey,
+      archivoUrl: archivoUrl,
+      fuente: 'carga_manual_externa',
+      cargadoPor: currentUser || 'Sistema',
+      ts: ahora
+    };
+    try {
+      await window.fbSet(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/' + claveFiscal), registroFiscal);
+    } catch (errorFiscal) {
+      console.warn('La factura quedó vinculada a la venta, pero no pudo agregarse al registro fiscal:', errorFiscal);
+      notify('La factura quedó guardada, pero no pudo sumarse al historial fiscal.');
+    }
+
+    Object.assign(venta, { factura:factura, facturada:true, facturaNumero:numeroFormateado, audit:audit });
+    if (window._ventaDetalleActual && String(window._ventaDetalleActual.fbKey || '') === String(venta.fbKey)) Object.assign(window._ventaDetalleActual, venta);
+    var modal = document.getElementById('modal-factura-externa');
+    if (modal) modal.remove();
+    notify('✓ Factura externa ' + numeroFormateado + ' vinculada a la venta');
+    renderDetalleVenta(venta);
+    abrirResumenFactura(venta.id || venta.fbKey || ventaId);
+  } catch(error) {
+    console.error('[Factura externa]', error);
+    notify('No se pudo guardar la factura: ' + error.message);
+    if (guardarBtn) { guardarBtn.disabled = false; guardarBtn.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar factura'; }
+  }
+}
+
 // Resumen fiscal reutilizado por el indicador del listado y por el detalle.
 // Mantiene visible la información de la factura antes de abrir el PDF y
 // devuelve el acceso a la nota de crédito cuando corresponde.
@@ -4374,8 +4574,11 @@ function abrirResumenFactura(ventaId) {
   var numero = f.numero_comprobante || f.numeroComprobante || f.numero || f.nroComprobante || '';
   var cae = f.cae || '';
   var fecha = f.fecha || v.fecha || '—';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(fecha))) fecha = String(fecha).split('-').reverse().join('/');
   var caeVto = f.cae_vencimiento || f.caeVencimiento || '';
-  var puedeEmitirNC = String(currentRole || '').toLowerCase() === 'admin' && !nc;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(caeVto))) caeVto = String(caeVto).split('-').reverse().join('/');
+  var esFacturaExterna = f.fuente === 'externa' || f.manual === true;
+  var puedeEmitirNC = String(currentRole || '').toLowerCase() === 'admin' && !nc && !esFacturaExterna;
   var overlay = document.createElement('div');
   overlay.id = 'modal-resumen-factura';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(3,6,14,.76);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px';
@@ -4386,25 +4589,25 @@ function abrirResumenFactura(ventaId) {
           '<i class="ti ' + (nc ? 'ti-file-minus' : 'ti-file-check') + '" style="font-size:23px;color:' + (nc ? 'var(--red)' : 'var(--green)') + '"></i>' +
         '</div>' +
         '<div style="flex:1;min-width:0"><div id="resumen-factura-titulo" style="font-size:17px;font-weight:700">' + escapeHTML(tipo) + '</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:3px">Venta ' + escapeHTML(v.id || ventaId) + ' · ' + escapeHTML(v.cliente || 'Sin cliente') + '</div></div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:3px">Venta ' + escapeHTML(v.id || ventaId) + ' · ' + escapeHTML(v.cliente || 'Sin cliente') + (esFacturaExterna ? ' · Carga externa' : '') + '</div></div>' +
         '<button class="btn btn-sm btn-icon" data-factura-action="cerrar" title="Cerrar"><i class="ti ti-x"></i></button>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px">' +
         '<div style="background:var(--bg3);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Fecha</div><div style="font-size:13px;font-weight:600;margin-top:4px">' + escapeHTML(fecha) + '</div></div>' +
         '<div style="background:var(--bg3);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Comprobante</div><div style="font-size:13px;font-weight:600;margin-top:4px">' + escapeHTML(numero || '—') + '</div></div>' +
       '</div>' +
-      '<div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">' +
+      (cae ? '<div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">' +
         '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">CAE</div>' +
-        '<button data-factura-action="copiar-cae" style="display:flex;align-items:center;gap:7px;background:none;border:0;color:' + (nc ? 'var(--text2)' : 'var(--green)') + ';font:700 16px monospace;padding:5px 0 0;cursor:pointer" title="Copiar CAE">' + escapeHTML(cae || '—') + ' <i class="ti ti-copy" style="font-size:13px"></i></button>' +
+        '<button data-factura-action="copiar-cae" style="display:flex;align-items:center;gap:7px;background:none;border:0;color:' + (nc ? 'var(--text2)' : 'var(--green)') + ';font:700 16px monospace;padding:5px 0 0;cursor:pointer" title="Copiar CAE">' + escapeHTML(cae) + ' <i class="ti ti-copy" style="font-size:13px"></i></button>' +
         (caeVto ? '<div style="font-size:11px;color:var(--text3);margin-top:3px">Vencimiento CAE: ' + escapeHTML(caeVto) + '</div>' : '') +
-      '</div>' +
+      '</div>' : '') +
       (nc
         ? '<div style="padding:11px 12px;border-radius:10px;background:var(--red-bg);color:var(--red);font-size:12px;margin-bottom:16px"><strong>Factura anulada con nota de crédito.</strong><br>CAE NC: ' + escapeHTML(nc.cae || '—') + (nc.fecha ? ' · ' + escapeHTML(nc.fecha) : '') + '</div>'
-        : '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:16px"><i class="ti ti-circle-check"></i> Comprobante emitido y vigente</div>') +
+        : '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:16px"><i class="ti ti-circle-check"></i> ' + (esFacturaExterna ? 'Comprobante externo registrado y vinculado' : 'Comprobante emitido y vigente') + '</div>') +
       '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
         (nc && nc.pdf_url ? '<button class="btn btn-sm" data-factura-action="ver-nc"><i class="ti ti-file-minus"></i> Ver nota de crédito</button>' : '') +
         (puedeEmitirNC ? '<button class="btn btn-sm" data-factura-action="nota-credito" style="color:var(--red);border-color:var(--red)"><i class="ti ti-file-minus"></i> Emitir nota de crédito</button>' : '') +
-        '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"><i class="ti ti-external-link"></i> Ver comprobante</button>' +
+        (f.pdf_url ? '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"><i class="ti ti-external-link"></i> Ver comprobante</button>' : '') +
       '</div>' +
     '</div>';
 
@@ -5028,12 +5231,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.145-firebase',
+  VERSION: 'v2.0.146-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Checklist de OT completo y selección rápida por etapa.'
+    'Carga de facturas externas desde el detalle de venta.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir órdenes de trabajo' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ventas', actionLabel:'Abrir ventas' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.146',
+      date: '22/07/2026',
+      title: 'Facturas externas vinculadas a ventas',
+      notes: Object.freeze(['La tarjeta de facturación permite registrar comprobantes emitidos desde otro sistema y adjuntar el archivo.']),
+      feature: Object.freeze({ page:'ventas', actionLabel:'Abrir ventas' })
+    }),
     Object.freeze({
       version: 'v2.0.145',
       date: '22/07/2026',
@@ -17171,8 +17381,15 @@ function fvSubirAFirebase(rows) {
   if (!window.fbDB) { notify('Sin conexión'); return; }
   var nuevos = 0, existentes = 0;
   var promesas = rows.map(function(r) {
-    var key = r.cuitReceptor + '_' + r.tipo + '_' + r.ptoVta + '_' + r.nroDoc;
-    var yaExiste = FV_DATA.some(function(c){ return c.fbKey === key; });
+    var ptoNormalizado = parseInt(r.ptoVta, 10) || String(r.ptoVta || '').replace(/^0+/, '') || '0';
+    var nroNormalizado = parseInt(r.nroDoc, 10) || String(r.nroDoc || '').replace(/^0+/, '') || '0';
+    var key = r.cuitReceptor + '_' + r.tipo + '_' + ptoNormalizado + '_' + nroNormalizado;
+    var yaExiste = FV_DATA.some(function(c){
+      return String(c.cuitReceptor || '') === String(r.cuitReceptor || '') &&
+        String(c.tipo || '') === String(r.tipo || '') &&
+        (parseInt(c.ptoVta, 10) || 0) === (parseInt(r.ptoVta, 10) || 0) &&
+        (parseInt(c.nroDoc, 10) || 0) === (parseInt(r.nroDoc, 10) || 0);
+    });
     if (yaExiste) { existentes++; return Promise.resolve(); }
     nuevos++;
     return window.fbSet(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/'+key),
@@ -27507,6 +27724,7 @@ function renderDetalleVenta(v) {
   var puedeCrearOTDesdeVenta = typeof window.tienePermiso === 'function'
     ? window.tienePermiso('ot.crear')
     : ['admin','administrativo'].indexOf(String(currentRole || '').toLowerCase()) >= 0;
+  var puedeCargarFacturaExterna = _puedeCargarFacturaExterna();
   var mostrarMargenDetalleVenta = puedeVerInternosVenta && window._mostrarMargenDetalleVenta;
   var margenDetalleColor = costoDetalleInconsistente ? 'var(--amber)' : (margenDetalle < 15 ? 'var(--red)' : (margenDetalle <= 20 ? 'var(--amber)' : 'var(--green)'));
   var margenDetalleFondo = costoDetalleInconsistente ? 'var(--amber-bg)' : (margenDetalle < 15 ? 'var(--red-bg)' : (margenDetalle <= 20 ? 'var(--amber-bg)' : 'var(--green-bg)'));
@@ -27514,7 +27732,11 @@ function renderDetalleVenta(v) {
   var margenDetalleEtiqueta = costoDetalleInconsistente ? 'Costo a revisar' : (margenDetalle < 15 ? 'Margen bajo' : (margenDetalle <= 20 ? 'Margen regular' : 'Ganancia perfecta'));
   var ventaDetalleRef = jsStringAttr(v.id || v.fbKey || '');
   var kpiPagosAttrs = pagado > 0 ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirCobrosDesdeDetalleVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Ver los cobros de esta venta"' : ' class="metric"';
-  var kpiFacturaAttrs = v.factura ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirFacturaDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la factura emitida"' : ' class="metric"';
+  var kpiFacturaAttrs = v.factura
+    ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirFacturaDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la factura vinculada"'
+    : (puedeCargarFacturaExterna
+      ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirModalFacturaExterna(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Cargar una factura emitida desde otro sistema"'
+      : ' class="metric"');
   var kpiInstAttrs = (v.estadoInst === 'instalado' && otVinculada) ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirOTDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la orden de trabajo instalada"' : ' class="metric"';
   var kpiOTAttrs = otVinculada
     ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirOTDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la orden de trabajo vinculada"'
@@ -27530,7 +27752,7 @@ function renderDetalleVenta(v) {
     '<div class="metric"><div class="m-label">Saldo</div><div class="m-value" style="color:' + (saldo > 0 ? 'var(--amber)' : 'var(--green)') + '">$' + Math.round(saldo).toLocaleString('es-AR') + '</div><div class="m-sub">' + (saldo > 0 ? 'pendiente de cobro' : 'cancelado') + '</div></div>' +
   '</div>' +
   '<div class="metrics" id="venta-detalle-seguimiento" style="margin-bottom:12px;grid-template-columns:repeat(4,minmax(0,1fr))">' +
-    '<div' + kpiFacturaAttrs + '><div class="m-label">Facturación</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(facturaTxt)) + '</div><div class="m-sub">' + (v.factura ? 'Abrir factura' : 'estado fiscal') + '</div></div>' +
+    '<div' + kpiFacturaAttrs + '><div class="m-label">Facturación</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(facturaTxt)) + '</div><div class="m-sub">' + (v.factura ? 'Abrir factura' : (puedeCargarFacturaExterna ? 'Cargar factura externa' : 'estado fiscal')) + '</div></div>' +
     '<div' + kpiInstAttrs + '><div class="m-label">Instalación</div><div class="m-value" style="font-size:18px;color:' + ei.color + '">' + ei.label + '</div><div class="m-sub">' + ((v.estadoInst === 'instalado' && otVinculada) ? 'Abrir OT instalada' : 'estado OT/inst.') + '</div></div>' +
     '<div' + kpiOTAttrs + '><div class="m-label">OT asociada</div><div class="m-value" style="font-size:18px">' + otAsociadaValorHtml + '</div><div class="m-sub">' + (otVinculada ? 'Abrir orden de trabajo' : (puedeCrearOTDesdeVenta ? 'Crear y asociar en un clic' : 'seguimiento técnico')) + '</div></div>' +
     '<div class="metric sv-action-metric" role="button" tabindex="0" onclick="verModificacionesDesdeKpiVenta()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Ir al historial de modificaciones"><div class="m-label">Última modif.</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(v.editadoEn || v.actualizado || v.fecha || '—')) + '</div><div class="m-sub">Ver auditoría</div></div>' +
