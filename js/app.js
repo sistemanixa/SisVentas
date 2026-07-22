@@ -4347,6 +4347,8 @@ function verComprobanteFacturaVenta(ventaId) {
   var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('No se encontró la venta asociada al comprobante'); return; }
   var factura = venta.factura || {};
+  var adjunto = factura.comprobante || factura.archivoAdjunto || null;
+  if (_abrirAdjuntoFacturaExterna(adjunto)) return;
   var pdfUrl = factura.pdf_url || factura.pdfUrl || factura.archivoUrl || '';
   if (pdfUrl) {
     window.open(pdfUrl, '_blank');
@@ -4369,6 +4371,44 @@ function _fechaLocalISOFacturaExterna() {
 function _puedeCargarFacturaExterna() {
   var rol = String(currentRole || '').toLowerCase();
   return rol === 'admin' || rol === 'administrativo';
+}
+
+function _esperarFacturaExterna(promesa, limiteMs, mensaje) {
+  var temporizador;
+  return Promise.race([
+    Promise.resolve(promesa),
+    new Promise(function(_, rechazar) {
+      temporizador = setTimeout(function() { rechazar(new Error(mensaje)); }, limiteMs);
+    })
+  ]).finally(function() { clearTimeout(temporizador); });
+}
+
+function _estadoFacturaExterna(texto) {
+  var estado = document.getElementById('factura-ext-estado');
+  if (estado) estado.textContent = texto || '';
+}
+
+function _leerAdjuntoFacturaExterna(archivo) {
+  return _esperarFacturaExterna(new Promise(function(resolver, rechazar) {
+    var lector = new FileReader();
+    lector.onload = function(evento) {
+      resolver({ nombre:archivo.name, tipo:archivo.type || '', data:evento.target.result, ts:Date.now() });
+    };
+    lector.onerror = function() { rechazar(new Error('No se pudo leer el archivo seleccionado.')); };
+    lector.readAsDataURL(archivo);
+  }), 15000, 'El archivo demoró demasiado en prepararse. Probá con uno más liviano.');
+}
+
+function _abrirAdjuntoFacturaExterna(adjunto) {
+  if (!adjunto || !adjunto.data) return false;
+  var ventana = window.open('', '_blank');
+  if (!ventana) { notify('El navegador bloqueó la ventana del comprobante'); return true; }
+  if (String(adjunto.tipo || '').indexOf('pdf') >= 0) {
+    ventana.document.write('<iframe src="' + adjunto.data + '" style="border:0;width:100%;height:100vh"></iframe>');
+  } else {
+    ventana.document.write('<img src="' + adjunto.data + '" style="max-width:100%;height:auto;display:block;margin:0 auto;background:#111">');
+  }
+  return true;
 }
 
 function abrirModalFacturaExterna(ventaId) {
@@ -4403,9 +4443,10 @@ function abrirModalFacturaExterna(ventaId) {
         '<div class="fg"><label>Vencimiento CAE <span style="font-weight:400;color:var(--text3)">(opcional)</span></label><input id="factura-ext-cae-vto" type="date"></div>' +
       '</div>' +
       '<label for="factura-ext-archivo" style="display:flex;align-items:center;gap:12px;margin-top:16px;padding:14px;border:1px dashed var(--border2);border-radius:12px;cursor:pointer;background:var(--bg3)">' +
-        '<i class="ti ti-paperclip" style="font-size:22px;color:var(--blue)"></i><div style="flex:1"><div style="font-size:13px;font-weight:600">Adjuntar comprobante</div><div id="factura-ext-archivo-nombre" style="font-size:11px;color:var(--text3);margin-top:2px">PDF, JPG o PNG · máximo 15 MB</div></div><span class="btn btn-sm">Elegir archivo</span>' +
+        '<i class="ti ti-paperclip" style="font-size:22px;color:var(--blue)"></i><div style="flex:1"><div style="font-size:13px;font-weight:600">Adjuntar comprobante</div><div id="factura-ext-archivo-nombre" style="font-size:11px;color:var(--text3);margin-top:2px">PDF, JPG o PNG · máximo 900 KB</div></div><span class="btn btn-sm">Elegir archivo</span>' +
       '</label>' +
       '<input id="factura-ext-archivo" type="file" accept="application/pdf,image/jpeg,image/png" style="display:none">' +
+      '<div id="factura-ext-estado" role="status" aria-live="polite" style="min-height:16px;margin-top:10px;font-size:11px;color:var(--text3)"></div>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap"><button class="btn" type="button" data-factura-ext-action="cerrar">Cancelar</button><button class="btn btn-primary" id="factura-ext-guardar" type="button" data-factura-ext-action="guardar"><i class="ti ti-device-floppy"></i> Guardar factura</button></div>' +
     '</div>';
   overlay.addEventListener('click', function(evento) {
@@ -4420,7 +4461,7 @@ function abrirModalFacturaExterna(ventaId) {
   var archivo = document.getElementById('factura-ext-archivo');
   if (archivo) archivo.addEventListener('change', function() {
     var nombre = document.getElementById('factura-ext-archivo-nombre');
-    if (nombre) nombre.textContent = archivo.files && archivo.files[0] ? archivo.files[0].name : 'PDF, JPG o PNG · máximo 15 MB';
+    if (nombre) nombre.textContent = archivo.files && archivo.files[0] ? archivo.files[0].name : 'PDF, JPG o PNG · máximo 900 KB';
   });
   setTimeout(function(){ var numero = document.getElementById('factura-ext-numero'); if (numero) numero.focus(); }, 40);
 }
@@ -4440,6 +4481,7 @@ async function guardarFacturaExterna(ventaId) {
   var caeVtoEl = document.getElementById('factura-ext-cae-vto');
   var archivoEl = document.getElementById('factura-ext-archivo');
   var guardarBtn = document.getElementById('factura-ext-guardar');
+  if (guardarBtn && guardarBtn.disabled) return;
   var tipoCodigo = String(tipoEl && tipoEl.value || '6');
   var tipoNombre = tipoCodigo === '1' ? 'FACTURA A' : 'FACTURA B';
   var fecha = String(fechaEl && fechaEl.value || '');
@@ -4459,16 +4501,21 @@ async function guardarFacturaExterna(ventaId) {
   if (archivo) {
     var tiposPermitidos = ['application/pdf','image/jpeg','image/png'];
     if (tiposPermitidos.indexOf(archivo.type) < 0) { notify('El comprobante debe ser PDF, JPG o PNG'); return; }
-    if (archivo.size > 15 * 1024 * 1024) { notify('El comprobante no puede superar 15 MB'); return; }
+    if (archivo.size > 900000) { notify('El comprobante debe pesar menos de 900 KB, igual que los comprobantes de pago'); return; }
   }
 
   if (guardarBtn) { guardarBtn.disabled = true; guardarBtn.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Guardando...'; }
+  _estadoFacturaExterna('Verificando que el comprobante no esté duplicado...');
   try {
     var cliente = resolverClienteDeVenta(venta) || {};
     var cuitReceptor = obtenerCuitClienteVenta(venta) || '0';
     var claveFiscal = [cuitReceptor, tipoCodigo, puntoVenta, numero].join('_').replace(/[.#$\[\]\/]/g, '_');
     if (window.fbGet) {
-      var existenteSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/' + claveFiscal));
+      var existenteSnap = await _esperarFacturaExterna(
+        window.fbGet(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/' + claveFiscal)),
+        15000,
+        'La verificación demoró demasiado. Revisá la conexión e intentá nuevamente.'
+      );
       var existente = existenteSnap && existenteSnap.val ? existenteSnap.val() : null;
       if (existente && String(existente.ventaFbKey || '') !== String(venta.fbKey)) {
         throw new Error('Ese punto de venta y número ya están vinculados a otro comprobante');
@@ -4476,14 +4523,11 @@ async function guardarFacturaExterna(ventaId) {
     }
     var archivoUrl = '';
     var archivoNombre = '';
+    var archivoAdjunto = null;
     if (archivo) {
-      if (!window.fbStorage || !window.fbStorageRef || !window.fbUploadBytes || !window.fbGetDownloadURL) throw new Error('El almacenamiento de archivos no está disponible');
-      notify('Subiendo comprobante...');
+      _estadoFacturaExterna('Preparando ' + archivo.name + '...');
       archivoNombre = archivo.name;
-      var nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      var storageRef = window.fbStorageRef(window.fbStorage, 'sisventas/facturas-externas/' + venta.fbKey + '/' + Date.now() + '_' + nombreSeguro);
-      var snapshot = await window.fbUploadBytes(storageRef, archivo);
-      archivoUrl = await window.fbGetDownloadURL(snapshot.ref || storageRef);
+      archivoAdjunto = await _leerAdjuntoFacturaExterna(archivo);
     }
 
     var numeroFormateado = String(puntoVenta).padStart(5, '0') + '-' + String(numero).padStart(8, '0');
@@ -4504,6 +4548,7 @@ async function guardarFacturaExterna(ventaId) {
       cae_vencimiento: caeVto,
       pdf_url: archivoUrl,
       archivoNombre: archivoNombre,
+      comprobante: archivoAdjunto,
       fuente: 'externa',
       manual: true,
       cargadaPor: currentUser || 'Sistema',
@@ -4511,14 +4556,15 @@ async function guardarFacturaExterna(ventaId) {
     };
     var audit = Array.isArray(venta.audit) ? venta.audit.slice() : [];
     audit.push({ fecha:new Date().toLocaleDateString('es-AR'), usuario:currentUser || 'Sistema', accion:'Factura externa ' + numeroFormateado + ' cargada y vinculada' });
-    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
+    _estadoFacturaExterna('Guardando la factura en la venta...');
+    await _esperarFacturaExterna(window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
       factura: factura,
       facturada: true,
       facturaNumero: numeroFormateado,
       editadoEn: new Date().toLocaleDateString('es-AR'),
       editadoPor: currentUser || 'Sistema',
       audit: audit
-    });
+    }), 20000, 'La base de datos no respondió. La factura no pudo vincularse a la venta.');
 
     var registroFiscal = {
       fecha: fecha,
@@ -4534,12 +4580,18 @@ async function guardarFacturaExterna(ventaId) {
       ventaId: venta.id || '',
       ventaFbKey: venta.fbKey,
       archivoUrl: archivoUrl,
+      archivoAdjunto: !!archivoAdjunto,
       fuente: 'carga_manual_externa',
       cargadoPor: currentUser || 'Sistema',
       ts: ahora
     };
     try {
-      await window.fbSet(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/' + claveFiscal), registroFiscal);
+      _estadoFacturaExterna('Actualizando el registro fiscal...');
+      await _esperarFacturaExterna(
+        window.fbSet(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/' + claveFiscal), registroFiscal),
+        15000,
+        'El registro fiscal demoró demasiado.'
+      );
     } catch (errorFiscal) {
       console.warn('La factura quedó vinculada a la venta, pero no pudo agregarse al registro fiscal:', errorFiscal);
       notify('La factura quedó guardada, pero no pudo sumarse al historial fiscal.');
@@ -4555,7 +4607,12 @@ async function guardarFacturaExterna(ventaId) {
   } catch(error) {
     console.error('[Factura externa]', error);
     notify('No se pudo guardar la factura: ' + error.message);
-    if (guardarBtn) { guardarBtn.disabled = false; guardarBtn.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar factura'; }
+    _estadoFacturaExterna(error.message || 'No se pudo guardar la factura.');
+  } finally {
+    if (guardarBtn && document.body.contains(guardarBtn)) {
+      guardarBtn.disabled = false;
+      guardarBtn.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar factura';
+    }
   }
 }
 
@@ -5231,12 +5288,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.147-firebase',
+  VERSION: 'v2.0.148-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Visualización unificada de comprobantes de venta.'
+    'Carga de facturas externas sin bloqueos indefinidos.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'ventas', actionLabel:'Abrir ventas' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.148',
+      date: '22/07/2026',
+      title: 'Carga de facturas externas confiable',
+      notes: Object.freeze(['El guardado informa cada etapa, detecta demoras y permite reintentar sin recargar la página.']),
+      feature: Object.freeze({ page:'ventas', actionLabel:'Abrir ventas' })
+    }),
     Object.freeze({
       version: 'v2.0.147',
       date: '22/07/2026',
@@ -13279,7 +13343,8 @@ function imprimirVentaActual(soloVista) {
   var nroComp = numeroFiscalPartes.length ? String(numeroFiscalPartes[numeroFiscalPartes.length - 1]).padStart(8, '0') : '';
   var pdvGuardado = facturaVenta.punto_venta || facturaVenta.puntoVenta || (numeroFiscalPartes.length > 1 ? numeroFiscalPartes[0] : '') || (typeof TFAPP_CONFIG !== 'undefined' ? TFAPP_CONFIG.punto_venta : '') || 2;
   var pdv = String(parseInt(pdvGuardado, 10) || 2).padStart(5, '0');
-  var facturaSinPdfOriginal = !!(facturaVenta.cae && !(facturaVenta.pdf_url || facturaVenta.pdfUrl || facturaVenta.archivoUrl));
+  var facturaTieneAdjunto = !!((facturaVenta.comprobante && facturaVenta.comprobante.data) || (facturaVenta.archivoAdjunto && facturaVenta.archivoAdjunto.data));
+  var facturaSinPdfOriginal = !!(facturaVenta.cae && !facturaTieneAdjunto && !(facturaVenta.pdf_url || facturaVenta.pdfUrl || facturaVenta.archivoUrl));
   var caeNum    = (v.factura && v.factura.cae) || (v.notaCredito && v.notaCredito.cae) || '';
   var caeVto    = (v.factura && v.factura.cae_vencimiento) || '';
   var cuitEmp   = empresa.cuit.replace(/\D/g,'');
