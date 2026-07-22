@@ -5028,12 +5028,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.141-firebase',
+  VERSION: 'v2.0.142-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Nuevo historial de actualizaciones para consultar cambios y repetir recorridos.'
+    'Custodia de materiales en OT: entrega, rendición y devolución controladas.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ actionLabel: 'Ver historial de novedades', history: true }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Ver materiales en OT' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.142',
+      date: '22/07/2026',
+      title: 'Control de materiales en poder de técnicos',
+      notes: Object.freeze(['Administración entrega los materiales, el técnico confirma lo instalado o informa excepciones y depósito recibe las devoluciones.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Ver materiales en OT' })
+    }),
     Object.freeze({
       version: 'v2.0.141',
       date: '22/07/2026',
@@ -24478,10 +24485,11 @@ function renderOTTabla(filtro) {
   }
 
   // Métricas (iguales para todos)
-  var esCompletadaOT = function(o){ return String(o && (o.estado || '')).toLowerCase() === 'completada'; };
+  var esCompletadaOT = function(o){ return ['completada','con_observaciones'].indexOf(String(o && (o.estado || '')).toLowerCase()) >= 0; };
   if (_e('ot-met-abiertas')) _e('ot-met-abiertas').textContent = otData.filter(function(o){ return !esCompletadaOT(o); }).length;
   if (_e('ot-met-hoy'))      _e('ot-met-hoy').textContent      = otData.filter(function(o){ return String(o.fecha||'').slice(0,10) === hoy; }).length;
   if (_e('ot-met-comp'))     _e('ot-met-comp').textContent     = otData.filter(esCompletadaOT).length;
+  if (typeof window.otCustodiaActualizarResumenGlobal === 'function') window.otCustodiaActualizarResumenGlobal();
 
   var esTecnico = currentRole === 'tecnico';
   if (_e('ot-vista-tecnico')) _e('ot-vista-tecnico').style.display = esTecnico ? '' : 'none';
@@ -24533,7 +24541,7 @@ function _renderOTVistaTenico(hoy) {
 
   var miNombre = currentUser || '';
   var mias = otData.filter(function(o){
-    return o.estado !== 'completada' &&
+    return ['completada','con_observaciones'].indexOf(String(o.estado || '').toLowerCase()) < 0 &&
       (o.tecnico === miNombre || !miNombre);
   });
 
@@ -24722,12 +24730,13 @@ function otNormalizarMateriales(items, progreso) {
       if (codigo && (actual.cod||actual.codigo) === codigo) return true;
       return !codigo && String(actual.desc||actual.nombre||actual.descripcion||'') === String(item.desc||item.nombre||item.descripcion||'');
     });
-    return {
+    var material = Object.assign({}, item, avance || {}, {
       cod: codigo,
       desc: item.desc || item.nombre || item.descripcion || item.producto || '',
       vendida: parseFloat(item.vendida || item.qty || item.cantidad || item.cant || 1),
       instalada: parseFloat((avance && (avance.instalada||avance.cantidadInstalada)) || item.instalada || item.cantidadInstalada || 0)
-    };
+    });
+    return typeof window.otCustodiaNormalizarMaterial === 'function' ? window.otCustodiaNormalizarMaterial(material) : material;
   }).filter(function(item){ return item.desc; });
 }
 
@@ -24923,18 +24932,14 @@ function verOT(id) {
       if (cat.includes('MANO DE OBRA') || cat.includes('INSTALACION') || cat.includes('CONFIGURACION')) return false;
       return true;
     });
-    mat.innerHTML = materialesFiltrados.length ? materialesFiltrados.map(function(m) {
-      var instalado = m.instalada >= m.vendida;
-      return '<tr>' +
-        '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(m.cod||'')+'</td>' +
-        '<td>'+escapeHTML(m.desc||'')+'</td>' +
-        '<td class="tr">'+m.vendida+'</td>' +
-        '<td class="tr"><input type="checkbox" '+(instalado?'checked':'')+' style="width:18px;height:18px;accent-color:var(--green);cursor:pointer" onchange="otToggleInstalado(this,'+m._indice+','+m.vendida+')"></td>' +
-      '</tr>';
-    }).join('')
-    : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sin materiales' +
-      (ot.ventaId ? ' — la venta origen no tiene ítems registrados' : ' — OT sin venta vinculada') +
-      '</td></tr>';
+    if (typeof window.otCustodiaRenderMateriales === 'function') {
+      window.otCustodiaRenderMateriales(ot, materialesFiltrados);
+    } else {
+      mat.innerHTML = materialesFiltrados.length ? materialesFiltrados.map(function(m) {
+        var instalado = m.instalada >= m.vendida;
+        return '<tr><td style="font-size:12px;color:var(--text3)">'+escapeHTML(m.cod||'')+'</td><td>'+escapeHTML(m.desc||'')+'</td><td class="tr">'+m.vendida+'</td><td class="tr">—</td><td class="tr"><input type="checkbox" '+(instalado?'checked':'')+' onchange="otToggleInstalado(this,'+m._indice+','+m.vendida+')"></td></tr>';
+      }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:12px">Sin materiales</td></tr>';
+    }
   }
 
   aplicarVistaTecnicoOT();
@@ -25489,7 +25494,7 @@ function renderChecklist(containerId, checks, labels, otId, fase) {
 // Toggle un ítem del checklist
 function toggleCheckOT(otId, fase, idx) {
   const ot = otData.find(o => o.id === otId || o.fbKey === otId);
-  if (!ot || ot.estado === 'completada') return;
+  if (!ot || ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0) return;
   ot.checks[fase][idx] = !ot.checks[fase][idx];
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   if (!ot.audit) ot.audit = [];
@@ -25510,33 +25515,32 @@ function actualizarProgreso(ot) {
   const pctEl = document.getElementById('ot-progreso-pct');
   if (fill) fill.style.width = pct + '%';
   if (pctEl) { pctEl.textContent = pct + '%'; pctEl.style.color = pct === 100 ? 'var(--green)' : 'var(--blue)'; }
-  if (pct === 100 && ot.estado === 'en_progreso') {
-    ot.estado = 'completada';
-    var hoyCierre = new Date().toISOString().slice(0,10);
-    ot.fechaCierre = ot.fechaCierre || hoyCierre;
-    ot.fechaCompletada = ot.fechaCompletada || hoyCierre;
-    const badge = document.getElementById('ot-det-estado-badge');
-    if (badge) badge.innerHTML = otBadge('completada');
-    notify('¡Checklist completo! Podés finalizar la OT.');
-  }
+  if (pct === 100 && ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) < 0) notify('¡Checklist completo! Podés finalizar la OT.');
 }
 
 // Completar OT
 function completarOT() {
   const ot = otData.find(o => o.id === otActualId || o.fbKey === otActualId);
   if (!ot) return;
+  var custodiaCierre = typeof window.otCustodiaValidarCierre === 'function' ? window.otCustodiaValidarCierre(ot) : { ok:true, conObservaciones:false };
+  if (!custodiaCierre.ok) {
+    notify(custodiaCierre.message || 'Falta rendir los materiales entregados');
+    if (typeof window.otCustodiaAbrirExcepciones === 'function') window.otCustodiaAbrirExcepciones();
+    return;
+  }
   var _oc=document.getElementById('ot-acta-conf'); const conf = _oc?_oc.value:'';
   if (!conf) { notify('Seleccioná la conformidad del cliente'); return; }
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-  ot.estado = 'completada';
+  ot.estado = custodiaCierre.conObservaciones ? 'con_observaciones' : 'completada';
+  ot.cierreConObservaciones = custodiaCierre.conObservaciones === true;
   ot.progreso = 100;
   var hoyCierre = new Date().toISOString().slice(0,10);
   ot.fechaCierre = ot.fechaCierre || hoyCierre;
   ot.fechaCompletada = ot.fechaCompletada || hoyCierre;
   if (!ot.audit) ot.audit = [];
-  ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: 'OT marcada como completada. Conformidad: ' + conf });
-  ot.audit.push({ fecha: ahora, usuario: 'Sistema', accion: 'Garantía activada automáticamente' });
-  document.getElementById('ot-det-estado-badge').innerHTML = otBadge('completada');
+  ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: custodiaCierre.conObservaciones ? 'OT cerrada con materiales pendientes clasificados. Conformidad: ' + conf : 'OT marcada como completada. Conformidad: ' + conf });
+  if (!custodiaCierre.conObservaciones) ot.audit.push({ fecha: ahora, usuario: 'Sistema', accion: 'Garantía activada automáticamente' });
+  document.getElementById('ot-det-estado-badge').innerHTML = otBadge(ot.estado);
 
   if ((ot.ventaId || ot.ventaFbKey || ot.venta) && window.fbDB) {
     var ventaVinculada = _svResolverVentaRegistro(ot);
@@ -25551,8 +25555,10 @@ function completarOT() {
     if (ventaVinculada && ventaVinculada.fbKey) {
       if (typeof ventaDetalleRepararVinculoOT === 'function') {
         ventaDetalleRepararVinculoOT(ventaVinculada, { persistir:true, notificar:false, otForzada:ot });
-      } else if (ventaVinculada.estadoInst !== 'instalado') {
-        window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaVinculada.fbKey), { estadoInst: 'instalado' })
+      }
+      var estadoInstalacionVenta = custodiaCierre.conObservaciones ? 'en_instalacion' : 'instalado';
+      if (ventaVinculada.estadoInst !== estadoInstalacionVenta) {
+        window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaVinculada.fbKey), { estadoInst: estadoInstalacionVenta })
           .catch(function(e){ console.error('Error al actualizar estado de instalación de la venta:', e); });
       }
     }
@@ -25561,13 +25567,8 @@ function completarOT() {
   if (typeof fbGuardarOT === 'function') {
     fbGuardarOT(ot)
       .then(function() {
-        var liberar = window.SisVentasCompras && typeof window.SisVentasCompras.releaseOTLeftovers === 'function'
-          ? window.SisVentasCompras.releaseOTLeftovers(ot)
-          : Promise.resolve();
-        return liberar.then(function(){
-          notify('✓ OT completada. Los materiales sobrantes pasaron al stock general operativo.');
-          volverListaOT();
-        });
+        notify(custodiaCierre.conObservaciones ? '✓ OT cerrada con materiales pendientes bajo seguimiento.' : '✓ OT completada y materiales rendidos.');
+        volverListaOT();
       })
       .catch(function(e) { notify('OT completada pero error al guardar: ' + e.message); });
   } else {

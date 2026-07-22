@@ -735,6 +735,33 @@
     }));
   }
 
+  // Una devolución sólo vuelve al stock general cuando administración confirma
+  // que depósito la recibió. La rendición del técnico por sí sola no libera stock.
+  function receiveOTReturns(ot, receptions) {
+    if (!ot || !Array.isArray(receptions) || !receptions.length) return Promise.resolve();
+    var allocationKey = safeKey(ot.ventaFbKey || ot.ventaId || ot.id || ot.fbKey);
+    return Promise.all(receptions.map(function (entry) {
+      var material = entry.material || {};
+      var quantity = Math.max(0, parseFloat(entry.cantidad) || 0);
+      var product = findProduct(material);
+      var productKey = (product && product.fbKey) || material.productoKey || material.cod || material.codigo;
+      if (!productKey || !quantity) return Promise.resolve();
+      return transactionInventory(productKey, function (inv) {
+        inv.asignaciones = inv.asignaciones || {};
+        var allocation = inv.asignaciones[allocationKey];
+        if (!allocation) return;
+        var available = Math.min(quantity, parseFloat(allocation.reservado) || 0);
+        inv.reservado = Math.max(0, (parseFloat(inv.reservado) || 0) - available);
+        inv.general = (parseFloat(inv.general) || 0) + available;
+        allocation.reservado = Math.max(0, (parseFloat(allocation.reservado) || 0) - available);
+        allocation.liberado = (parseFloat(allocation.liberado) || 0) + available;
+        allocation.ultimaDevolucionEn = Date.now();
+        allocation.ventaId = ot.ventaId || allocation.ventaId || '';
+        inv.asignaciones[allocationKey] = allocation;
+      });
+    }));
+  }
+
   function start() {
     if (state.started || !window.fbDB) return;
     state.started = true;
@@ -767,6 +794,7 @@
     openManualOrder: openManualOrder,
     syncOTConsumption: syncOTConsumption,
     releaseOTLeftovers: releaseOTLeftovers,
+    receiveOTReturns: receiveOTReturns,
     state: state
   };
   window.fbCargarOrdenes = start;
