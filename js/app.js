@@ -5266,12 +5266,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.149-firebase',
+  VERSION: 'v2.0.150-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Métricas unificadas y circuitos de OT, agenda, compras y avisos depurados.'
+    'Solicitud, entrega y compensación mensual de adelantos corregidas.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'dashboard', actionLabel:'Abrir tablero' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ctaemp', actionLabel:'Abrir cuentas' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.150',
+      date: '22/07/2026',
+      title: 'Adelantos de personal completos',
+      notes: Object.freeze(['Solicitud, entrega y compensación mensual de adelantos corregidas.']),
+      feature: Object.freeze({ page:'ctaemp', actionLabel:'Abrir cuentas' })
+    }),
     Object.freeze({
       version: 'v2.0.149',
       date: '22/07/2026',
@@ -15814,6 +15821,9 @@ function _movEmpEstadoCalculado(m) {
   if (!m) return 'pendiente';
   var est = String(m.estado || '').toLowerCase();
   if (est === 'rechazado' || est === 'anulado') return est;
+  // Compatibilidad con movimientos manuales antiguos que fueron guardados
+  // como pagados sin el detalle de pagos.
+  if (est === 'pagado') return 'pagado';
 
   var monto = parseFloat(m.monto) || 0;
   var pagado = _movEmpTotalPagado(m);
@@ -15834,6 +15844,16 @@ function _movEmpEsCobrable(m) {
   return !_movEmpEstaPagado(m);
 }
 
+function _ctaEmpMontoAdelantoACompensar(m) {
+  if (!m || m.tipo !== 'adelanto') return 0;
+  var est = String(m.estado || '').toLowerCase();
+  if (est === 'pendiente' || est === 'rechazado' || est === 'anulado') return 0;
+  var monto = parseFloat(m.monto) || 0;
+  var entregado = _movEmpTotalPagado(m);
+  if (entregado > 0) return Math.min(monto, entregado);
+  return est === 'pagado' ? monto : 0;
+}
+
 function _puedeAprobarMovEmp(m) {
   return currentRole === 'admin' && m && m._fuente !== 'gastos' && String(m.estado||'').toLowerCase() === 'pendiente';
 }
@@ -15842,6 +15862,10 @@ function _ctaEmpMovVisibleParaRol(m) {
   if (currentRole === 'admin') return true;
   var est = String((m && m.estado) || '').toLowerCase();
   var estadoCalc = _movEmpEstadoCalculado(m);
+  // El empleado debe poder seguir su propia solicitud de adelanto, incluso
+  // mientras espera aprobacion o si fue rechazada. La cuenta seleccionada
+  // para roles no administradores ya esta limitada a su propio empleado.
+  if (m && m.tipo === 'adelanto') return true;
   if (est === 'pendiente' || estadoCalc === 'pendiente') return false;
   if (est === 'rechazado' || estadoCalc === 'rechazado' || est === 'anulado' || estadoCalc === 'anulado') return false;
   return true;
@@ -15911,11 +15935,12 @@ function renderMovsEmp() {
   // Total efectivamente abonado al empleado en el mes seleccionado, tomando fecha de pago.
   var totalPagadoMes = _ctaEmpPagosRealizadosEnMes(movsEmpData.filter(_ctaEmpMovVisibleParaRol), mesCta)
                             .reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
-  var adelantos = listaPeriodo.filter(function(m){ return m.tipo === 'adelanto' && String(m.estado||'').toLowerCase() !== 'rechazado'; })
-                              .reduce(function(s,m){ return s+(parseFloat(m.monto)||0); }, 0);
-  var adelantosPend = listaPeriodo.filter(function(m){ return m.tipo === 'adelanto' && _movEmpEsCobrable(m); })
-                                  .reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
-  var total = haberes - adelantosPend;
+  var adelantos = listaPeriodo.reduce(function(s,m){ return s + _ctaEmpMontoAdelantoACompensar(m); }, 0);
+  // Un adelanto es dinero ya entregado: debe descontarse aunque el movimiento
+  // figure como pagado. Antes se restaba solamente lo pendiente y al marcarlo
+  // pagado desaparecia de la compensacion mensual.
+  var adelantosACompensar = adelantos;
+  var total = haberes - adelantosACompensar;
   var el = function(id){ return document.getElementById(id); };
   var ultimoSueldo = listaPeriodo.filter(function(m){ return _ctaEmpEsSueldoMovimiento(m); })
                                 .sort(function(a,b){ return (b.ts||0)-(a.ts||0); })[0];
@@ -15949,21 +15974,23 @@ function verDetalleMovEmp(tr) {
   notify(tipoLabel + ' · ' + fecha + ' · $' + (parseFloat(mov.monto)||0).toLocaleString('es-AR') + (desc ? ' — ' + desc : ''));
 }
 
-function abrirNuevoMovEmp() {
+function abrirNuevoMovEmp(tipoInicial) {
   if (!ctaEmpActual) { notify('Seleccioná un empleado primero'); return; }
   var modal = document.getElementById('modal-movi-emp');
   if (!modal) return;
   document.getElementById('movi-fecha').value = new Date().toISOString().split('T')[0];
   var esAdmin = String(currentRole||'').toLowerCase() === 'admin';
   var tipoSelect = document.getElementById('movi-tipo');
-  var tiposEmpleado = ['transporte','materiales','otro'];
+  var tiposEmpleado = ['adelanto','transporte','materiales','otro'];
   if (tipoSelect) {
     Array.from(tipoSelect.options).forEach(function(opcion) {
       var permitido = esAdmin || tiposEmpleado.includes(opcion.value);
       opcion.hidden = !permitido;
       opcion.disabled = !permitido;
     });
-    tipoSelect.value = 'transporte';
+    tipoSelect.value = (tipoInicial && (esAdmin || tiposEmpleado.includes(tipoInicial)))
+      ? tipoInicial
+      : (esAdmin ? 'sueldo' : 'adelanto');
   }
   document.getElementById('movi-desc').value  = '';
   _setMontoInput(document.getElementById('movi-monto'), 0);
@@ -16010,6 +16037,15 @@ function onMoviTipoChange() {
     }
     nota.textContent = '💡 La comisión quedará pendiente de aprobación. Aprobala desde la cuenta corriente del empleado.';
     nota.style.display = '';
+  } else if (tipo === 'adelanto' && String(currentRole||'').toLowerCase() !== 'admin') {
+    if (!nota) {
+      nota = document.createElement('div');
+      nota.id = 'movi-tipo-nota';
+      nota.style.cssText = 'font-size:12px;color:var(--amber);padding:8px 10px;background:var(--amber-bg);border-radius:6px;margin-top:4px';
+      document.getElementById('movi-estado').parentElement.after(nota);
+    }
+    nota.textContent = 'La solicitud quedara pendiente hasta que el administrador apruebe y registre la entrega.';
+    nota.style.display = '';
   } else {
     if (nota) nota.style.display = 'none';
   }
@@ -16035,7 +16071,7 @@ function guardarMovEmp() {
   var empActual = Object.values(empData||{}).find(function(e){ return e.fbKey === ctaEmpActual; });
   var esAdmin = String(currentRole||'').toLowerCase() === 'admin';
   var tipoElegido = document.getElementById('movi-tipo').value;
-  if (!esAdmin && !['transporte','materiales','otro'].includes(tipoElegido)) {
+  if (!esAdmin && !['adelanto','transporte','materiales','otro'].includes(tipoElegido)) {
     notify('Ese tipo de movimiento solamente puede cargarlo el administrador');
     return;
   }
@@ -16051,6 +16087,19 @@ function guardarMovEmp() {
     ts:          Date.now(),
     fotoUrl:     null
   };
+  if (esAdmin && nuevo.estado === 'pagado') {
+    nuevo.montoPagado = monto;
+    nuevo.fechaPago = nuevo.fecha;
+    nuevo.pagos = {};
+    nuevo.pagos['pago_' + Date.now()] = {
+      fecha: nuevo.fecha,
+      monto: monto,
+      medio: tipoElegido === 'adelanto' ? 'Adelanto' : 'Registro manual',
+      usuario: currentUser || 'admin',
+      rol: currentRole || 'admin',
+      ts: Date.now()
+    };
+  }
   var esPeriodico = esAdmin && document.getElementById('movi-periodico') && document.getElementById('movi-periodico').checked;
   if (esPeriodico) {
     var dia = parseInt(document.getElementById('movi-periodico-dia').value) || 1;
@@ -16193,11 +16242,31 @@ function rechazarComision(movFbKey, empFbKey) {
 function aprobarMovEmp(movKey, empKey) {
   if (!window.fbDB) return;
   if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede aprobar movimientos'); return; }
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey), {
+  var mov = (movsEmpData || []).find(function(m){ return String(m.fbKey) === String(movKey); });
+  var esAdelanto = mov && mov.tipo === 'adelanto';
+  var monto = mov ? (parseFloat(mov.monto) || 0) : 0;
+  if (esAdelanto && !confirm('Aprobar el adelanto y registrar que se entregaron $' + Math.round(monto).toLocaleString('es-AR') + '?')) return;
+  var cambios = {
     estado: 'aprobado',
     aprobadoPor: currentUser || '',
     fechaAprobacion: new Date().toISOString().slice(0,10)
-  }).then(function(){ notify('Movimiento aprobado — queda pendiente de pago'); });
+  };
+  if (esAdelanto) {
+    cambios.estado = 'pagado';
+    cambios.montoPagado = monto;
+    cambios.fechaPago = new Date().toISOString().slice(0,10);
+    cambios.pagos = {};
+    cambios.pagos['pago_' + Date.now()] = {
+      fecha: cambios.fechaPago,
+      monto: monto,
+      medio: 'Adelanto',
+      usuario: currentUser || '',
+      rol: currentRole || 'admin',
+      ts: Date.now()
+    };
+  }
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey), cambios)
+    .then(function(){ notify(esAdelanto ? 'Adelanto aprobado y registrado como entregado' : 'Movimiento aprobado — queda pendiente de pago'); });
 }
 
 function eliminarMovEmp(movKey, empKey) {
