@@ -141,7 +141,10 @@ function validarSaltoPrecio(precioNuevo, precioAnterior) {
   if (!(nuevo > 0)) return { ok:false, mensaje:'El proveedor devolvió un precio inválido' };
   if (!(anterior > 0)) return { ok:true };
   const relacion = nuevo / anterior;
-  if (relacion > 12 || relacion < (1 / 12)) {
+  // Un actualizador diario nunca debe reemplazar silenciosamente un costo por
+  // otro que cuadruplica (o reduce a la cuarta parte) el valor anterior. Esos
+  // casos quedan para revisión manual y conservan el precio conocido.
+  if (relacion > 4 || relacion < (1 / 4)) {
     return {
       ok:false,
       mensaje:`Precio bloqueado por variación anormal: anterior ARS ${anterior.toFixed(2)}, recibido ARS ${nuevo.toFixed(2)}`

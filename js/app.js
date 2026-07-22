@@ -174,16 +174,13 @@ function kpiPendiente() {
   notify('Mostrando ventas con saldo pendiente');
 }
 function _fechaEsDelMes(fecha, mesYYYYMM) {
-  var f = (fecha||'').trim();
-  if (!f || !mesYYYYMM) return false;
-  // Formato yyyy-mm-dd (como guardan los pagos de cobranzas)
-  if (/^\d{4}-\d{2}/.test(f)) return f.slice(0,7) === mesYYYYMM;
-  // Formato dd/mm/yyyy
-  var partes = f.split('/');
-  if (partes.length < 3) return false;
-  var mm = partes[1].padStart(2,'0');
-  var yyyy = partes[2].length === 2 ? '20'+partes[2] : partes[2];
-  return (yyyy + '-' + mm) === mesYYYYMM;
+  if (!fecha || !mesYYYYMM) return false;
+  // Usar el mismo normalizador del resto del sistema. Algunos registros
+  // históricos incluyen hora después de DD/MM/YYYY y antes quedaban fuera de
+  // las métricas aunque sí aparecieran correctamente en el listado.
+  var fechaLocal = _fechaCalendarioLocal(fecha);
+  if (!fechaLocal) return false;
+  return fechaLocal.getFullYear() + '-' + String(fechaLocal.getMonth() + 1).padStart(2, '0') === mesYYYYMM;
 }
 
 function _fechaEsDia(fecha, dia) {
@@ -5266,12 +5263,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.151-firebase',
+  VERSION: 'v2.0.152-firebase',
   RELEASE_NOTES: Object.freeze([
-    'OT con cabecera, fotos y notas administrables; adelantos con concepto y medio correctos.'
+    'Presupuestos únicos, métricas claras y precios protegidos ante saltos anómalos.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir órdenes de trabajo' }),
+  RELEASE_FEATURE: Object.freeze({ page:'presupuesto', actionLabel:'Abrir presupuestos' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.152',
+      date: '22/07/2026',
+      title: 'Auditoría de datos y precios',
+      notes: Object.freeze(['Presupuestos únicos, métricas claras y precios protegidos ante saltos anómalos.']),
+      feature: Object.freeze({ page:'presupuesto', actionLabel:'Abrir presupuestos' })
+    }),
     Object.freeze({
       version: 'v2.0.151',
       date: '22/07/2026',
@@ -8755,12 +8759,12 @@ function validarResultadoActualizadorProveedor(item, resultado) {
   if (!(costoAnterior > 0)) return { ok:true, precio:precioNuevo };
   var nuevoCosto = Math.round(precioNuevo * (resultado.sinIva !== false ? 1.21 : 1) * 100) / 100;
   var relacion = nuevoCosto / costoAnterior;
-  if (relacion > 12 || relacion < (1 / 12)) {
+  if (relacion > 4 || relacion < (1 / 4)) {
     var tc = obtenerDolarReferenciaProducto();
     var pareceDolarDuplicado = tc.valor > 100 && (_relacionCercanaProducto(relacion, tc.valor, 0.15) || _relacionCercanaProducto(1 / relacion, tc.valor, 0.15));
     return {
       ok:false,
-      mensaje:(pareceDolarDuplicado ? 'Bloqueado: el importe parece multiplicado nuevamente por el dólar' : 'Bloqueado: el precio cambió más de 12 veces') +
+      mensaje:(pareceDolarDuplicado ? 'Bloqueado: el importe parece multiplicado nuevamente por el dólar' : 'Bloqueado: el precio cambió más de 4 veces') +
         ' (anterior $' + Math.round(costoAnterior).toLocaleString('es-AR') + ' · recibido $' + Math.round(nuevoCosto).toLocaleString('es-AR') + ')'
     };
   }
@@ -12066,6 +12070,11 @@ function _mostrarFecha(f) {
   return clean;
 }
 
+function formatearMontoRentabilidad(monto) {
+  var valor = Number(monto) || 0;
+  return (valor < 0 ? '-$' : '$') + Math.round(Math.abs(valor)).toLocaleString('es-AR');
+}
+
 function calcRentabilidad() {
   var selEl = document.getElementById('rent-periodo');
   var periodo = selEl ? selEl.value : 'mes_actual';
@@ -12094,7 +12103,7 @@ function calcRentabilidad() {
   var comercialEl = document.getElementById('rent-comercial');
   if (comercialEl) comercialEl.style.color = resumen.gananciaComercial >= 0 ? 'var(--green)' : 'var(--red)';
   var utilEl = document.getElementById('rent-utilidad');
-  utilEl.textContent = '$' + Math.round(utilidad).toLocaleString('es-AR');
+  utilEl.textContent = formatearMontoRentabilidad(utilidad);
   utilEl.style.color = utilidad >= 0 ? 'var(--green)' : 'var(--red)';
   var margenEl = document.getElementById('rent-margen');
   var margenSubEl = document.getElementById('rent-margen-sub');
@@ -12172,8 +12181,8 @@ function calcRentabilidad() {
       var indent = f.esSubItem ? 'padding-left:20px;font-size:12px' : '';
       return '<tr style="' + estilo + '">' +
         '<td style="' + indent + '">' + escapeHTML(f.concepto) + '</td>' +
-        '<td class="tr" style="color:' + color + ';font-weight:' + (f.esTotal?'700':f.esGrupo?'600':'500') + ';' + indent + '">$' +
-          Math.abs(Math.round(f.monto)).toLocaleString('es-AR') + '</td>' +
+        '<td class="tr" style="color:' + color + ';font-weight:' + (f.esTotal?'700':f.esGrupo?'600':'500') + ';' + indent + '">' +
+          formatearMontoRentabilidad(f.monto) + '</td>' +
       '</tr>';
     }).join('');
   }
@@ -16570,7 +16579,9 @@ function mostrarMenuPptoFlotante(pptoId, anchorBtn) {
     d.className = 'ppto-menu-sep';
     menu.appendChild(d);
   }
-  var ref = p.id || p.fbKey;
+  // La clave interna distingue registros legacy que comparten el mismo
+  // número comercial (por ejemplo, dos PP-0031).
+  var ref = p.fbKey || p.id;
   item('Ver detalle', 'ti-eye', function(){ verPpto(ref); });
   // El menú ya resolvió el registro exacto. Pasarlo directamente evita una
   // segunda búsqueda por número que en datos legacy podía caer en vacío.
@@ -16633,7 +16644,7 @@ function imprimirPresupuestoDesdeListado(ppto) {
   }
   // Fijar el mismo contexto que usa el botón del detalle y pasar el registro
   // exacto. De esta manera listado y detalle comparten un único impresor.
-  pptoActualId = registro.id || registro.numero || registro.fbKey;
+  pptoActualId = registro.fbKey || registro.id || registro.numero;
   imprimirPresupuesto(registro);
 }
 
@@ -21683,10 +21694,10 @@ function asistGenerarPresupuesto() {
 
   var total  = prods.reduce(function(s,p){ return s+p.precio*p.qty; },0);
   var cfg    = ASIST_RUBROS[asistState.rubro];
-  var numPpto = 'PP-' + String((pptoData||[]).length + 1).padStart(4,'0');
 
   var ppto = {
-    numero:      numPpto,
+    id:          '',
+    numero:      '',
     cliente:     cli || 'Sin especificar',
     fecha:       new Date().toISOString().split('T')[0],
     estado:      'borrador',
@@ -21699,8 +21710,14 @@ function asistGenerarPresupuesto() {
   };
 
   if (!window.fbDB) { notify('Sin conexión'); return; }
-  window.fbPush(window.fbRef(window.fbDB, FB_PATHS.presupuestos), ppto)
-    .then(function() {
+  reservarSiguientePptoId()
+    .then(function(numPpto) {
+      ppto.id = numPpto;
+      ppto.numero = numPpto;
+      return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.presupuestos), ppto)
+        .then(function(){ return numPpto; });
+    })
+    .then(function(numPpto) {
       notify('✓ Presupuesto '+numPpto+' creado — $'+total.toLocaleString('es-AR'));
       // Volver al inicio del asistente
       setTimeout(function() {
@@ -24018,6 +24035,35 @@ var PPTO_ACCIONES = {
 
 var pptoActualId = null;
 
+function _maxNumeroPptoLocal() {
+  var max = 0;
+  (pptoData || []).forEach(function(p) {
+    [p && p.id, p && p.numero, p && p.nro].forEach(function(valor) {
+      // La serie actual usa exactamente cuatro dígitos. Los identificadores
+      // legacy (#PP-109692) y los antiguos basados en timestamp quedan fuera.
+      var match = String(valor || '').trim().match(/^PP-(\d{4})$/i);
+      if (match) max = Math.max(max, parseInt(match[1], 10) || 0);
+    });
+  });
+  return max;
+}
+
+function reservarSiguientePptoId() {
+  var maxLocal = _maxNumeroPptoLocal();
+  if (!window.fbDB || typeof window.fbRunTransaction !== 'function') {
+    return Promise.resolve('PP-' + String(maxLocal + 1).padStart(4, '0'));
+  }
+  var ref = window.fbRef(window.fbDB, 'sisventas/contadores/presupuesto');
+  return window.fbRunTransaction(ref, function(actual) {
+    return Math.max(parseInt(actual, 10) || 0, maxLocal) + 1;
+  }).then(function(resultado) {
+    var numero = resultado && resultado.snapshot ? parseInt(resultado.snapshot.val(), 10) : 0;
+    if (!numero) throw new Error('No se pudo reservar el número de presupuesto');
+    return 'PP-' + String(numero).padStart(4, '0');
+  });
+}
+window.reservarSiguientePptoId = reservarSiguientePptoId;
+
 function checkAprobacion() {
   var _ptt=document.getElementById('pp-total'); const total = parseFloat(normalizarNumeroExcel(_ptt?_ptt.textContent:'0')) || 0;
   var _d2=document.getElementById('pp-descuento'); const desc  = parseFloat(_d2?_d2.value:0) || 0;
@@ -24039,6 +24085,11 @@ function pptoStateBadge(estado) {
 function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
   const tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
+  var conteoNumeros = {};
+  (pptoData || []).forEach(function(p) {
+    var numero = String((p && (p.id || p.numero)) || '').trim().toUpperCase();
+    if (numero) conteoNumeros[numero] = (conteoNumeros[numero] || 0) + 1;
+  });
   document.querySelectorAll('body > .ppto-dropdown-menu').forEach(function(m){ m.remove(); });
   let rows = pptoData;
   if (filtroEstado === '__todos__') {
@@ -24054,9 +24105,14 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
     const e = PPTO_ESTADOS[p.estado] || {};
     const totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
     const alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
-    const pptoRef = escapeHTML(p.id || p.fbKey || '');
+    const numeroDuplicado = (conteoNumeros[String(p.id || p.numero || '').trim().toUpperCase()] || 0) > 1
+      ? '<i class="ti ti-copy" style="color:var(--red);font-size:13px;margin-left:5px" title="Número duplicado: el registro se abrirá por su clave interna segura"></i>'
+      : '';
+    // La clave Firebase es la identidad técnica real. Algunos registros
+    // históricos comparten número comercial y no deben abrirse por error.
+    const pptoRef = escapeHTML(p.fbKey || p.id || '');
     return `<tr class="ppto-row" data-ppto-ref="${pptoRef}" style="cursor:pointer;touch-action:pan-x pan-y">
-      <td style="font-weight:500">${escapeHTML(p.id)}${alerta}</td>
+      <td style="font-weight:500">${escapeHTML(p.id)}${alerta}${numeroDuplicado}</td>
       <td>${escapeHTML(p.cliente)}</td>
       <td class="tr" style="font-weight:500">${totalFmt}</td>
       <td>${escapeHTML(_mostrarFecha(p.vence))}</td>
@@ -24298,7 +24354,9 @@ function editarPptoParaMigrar(id) {
 function verPpto(id) {
   const p = pptoData.find(x => x.id === id || x.fbKey === id);
   if (!p) return;
-  pptoActualId = p.id || id;
+  // Mantener la identidad técnica mientras el detalle está abierto. Si se
+  // refresca Firebase, las acciones deben volver al mismo registro exacto.
+  pptoActualId = p.fbKey || p.id || id;
   _hide('ppto-list-view');
   _block('ppto-detalle-view');
   _hide('ppto-form-view');
@@ -24790,7 +24848,7 @@ function pptoAccion(accion, opts) {
     else notify('Error: sin conexión a Firebase');
     return;
   }
-  verPpto(p.id);
+  verPpto(p.fbKey || p.id);
 }
 
 function _redondearPrecioActual(valor) {
@@ -24957,7 +25015,7 @@ function _actualizarPresupuestoGuardadoDesdeCatalogo(p) {
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), cambios).then(function() {
     Object.assign(p, cambios);
     _informarActualizacionCatalogo(resultado, 'Presupuesto actualizado');
-    verPpto(p.id || p.fbKey);
+    verPpto(p.fbKey || p.id);
   }).catch(function(e){ notify('Error actualizando el presupuesto: ' + e.message); });
 }
 
@@ -24975,6 +25033,7 @@ function actualizarValoresPpto() {
 }
 
 function guardarPresupuesto(modo) {
+  if (window._pptoGuardadoEnCurso) { notify('El presupuesto ya se está guardando'); return; }
   var _cli=document.getElementById('pp-cli'); const cli = _cli?_cli.value.trim():'';
   if (!cli) { notify('Seleccioná un cliente'); return; }
   var clienteRefGuardar = clienteSeleccionadoPpto();
@@ -25017,8 +25076,11 @@ function guardarPresupuesto(modo) {
   const reqAprobacion = modo !== 'borrador' && ((total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite));
   const estadoFinal = modo === 'borrador' ? 'borrador' : (reqAprobacion ? 'revision' : modo);
   const motivo = reqAprobacion ? (desc > APROBACION_CONFIG.descuentoLimite ? `Descuento ${desc}% supera el límite` : `Total supera el límite de aprobación`) : '';
+  var edicionPresupuestoFbKey = window._pptoEditandoFbKey || '';
+  var edicionPresupuestoId = window._pptoEditandoId || '';
+  var esEdicionPresupuesto = !!edicionPresupuestoFbKey;
   const nuevo = {
-    id: 'PP-00' + (pptoData.length + 10),
+    id: '', numero: '',
     cliente: cli, empleado: currentUser || '', usuario: currentUser || '',
     clienteFbKey: clienteRefGuardar.fbKey || '', clienteKey: clienteRefGuardar.fbKey || '',
     clienteId: clienteRefGuardar.id || clienteRefGuardar.fbKey || '', idCliente: clienteRefGuardar.id || clienteRefGuardar.fbKey || '',
@@ -25033,10 +25095,11 @@ function guardarPresupuesto(modo) {
     motivo,
     audit: [{ fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor'), accion: estadoFinal === 'revision' ? 'Creado y enviado a revisión automáticamente por regla de aprobación' : 'Presupuesto creado como borrador' }]
   };
-  if (window._pptoEditandoFbKey) {
-    var pptoOriginalEdit = (pptoData||[]).find(function(x){ return x.fbKey === window._pptoEditandoFbKey || x.id === window._pptoEditandoId; }) || {};
-    nuevo.fbKey = window._pptoEditandoFbKey;
-    nuevo.id    = window._pptoEditandoId || nuevo.id;
+  if (edicionPresupuestoFbKey) {
+    var pptoOriginalEdit = (pptoData||[]).find(function(x){ return x.fbKey === edicionPresupuestoFbKey || x.id === edicionPresupuestoId; }) || {};
+    nuevo.fbKey = edicionPresupuestoFbKey;
+    nuevo.id    = edicionPresupuestoId || nuevo.id;
+    nuevo.numero = pptoOriginalEdit.numero || nuevo.id;
     nuevo.estado = estadoFinal;
     nuevo.empleado = pptoOriginalEdit.empleado || pptoOriginalEdit.creadoPor || nuevo.empleado;
     nuevo.usuario = pptoOriginalEdit.usuario || pptoOriginalEdit.creadoPor || nuevo.usuario;
@@ -25050,18 +25113,36 @@ function guardarPresupuesto(modo) {
     var ultimoAudit = auditEdit.length ? auditEdit[auditEdit.length - 1] : null;
     if (!ultimoAudit || ultimoAudit.accion !== auditNuevo.accion || ultimoAudit.usuario !== auditNuevo.usuario || ultimoAudit.fecha !== auditNuevo.fecha) auditEdit.push(auditNuevo);
     nuevo.audit = auditEdit;
-    window._pptoEditandoFbKey = null;
-    window._pptoEditandoId    = null;
   }
-  if (typeof fbGuardarPresupuesto === 'function') {
-    fbGuardarPresupuesto(nuevo);
-  } else {
+  function persistirPresupuesto() {
+    if (typeof fbGuardarPresupuesto === 'function') return fbGuardarPresupuesto(nuevo);
     pptoData.unshift(nuevo);
+    return Promise.resolve();
   }
-  if (reqAprobacion) notify('Presupuesto enviado a revisión — requiere aprobación del admin');
-  else if (modo === 'borrador') notify('Borrador guardado como ' + nuevo.id);
-  else notify('Enviado a revisión como ' + nuevo.id);
-  volverListaPpto();
+  function finalizarGuardadoPresupuesto() {
+    if (esEdicionPresupuesto) {
+      window._pptoEditandoFbKey = null;
+      window._pptoEditandoId = null;
+    }
+    if (reqAprobacion) notify('Presupuesto enviado a revisión — requiere aprobación del admin');
+    else if (modo === 'borrador') notify('Borrador guardado como ' + nuevo.id);
+    else notify('Enviado a revisión como ' + nuevo.id);
+    volverListaPpto();
+  }
+  window._pptoGuardadoEnCurso = true;
+  if (esEdicionPresupuesto) {
+    persistirPresupuesto().then(finalizarGuardadoPresupuesto)
+      .catch(function(e){ notify('Error al guardar presupuesto: ' + e.message); })
+      .finally(function(){ window._pptoGuardadoEnCurso = false; });
+    return;
+  }
+  reservarSiguientePptoId().then(function(idReservado) {
+    nuevo.id = idReservado;
+    nuevo.numero = idReservado;
+    return persistirPresupuesto();
+  }).then(finalizarGuardadoPresupuesto)
+    .catch(function(e){ notify('Error al guardar presupuesto: ' + e.message); })
+    .finally(function(){ window._pptoGuardadoEnCurso = false; });
 }
 
 // Navegación
@@ -25224,6 +25305,8 @@ function _otTarjeta(o, hoy) {
       '</div>' +
       '<div style="text-align:right;flex-shrink:0">' +
         '<div style="font-size:12px;color:'+tipoColor+'"><i class="ti '+tipoIco+'" style="font-size:12px"></i> '+escapeHTML(tipo)+'</div>' +
+        (o.fecha && o.fecha !== hoy ? '<div style="font-size:12px;font-weight:600;margin-top:4px"><i class="ti ti-calendar" style="font-size:11px"></i> '+escapeHTML(_mostrarFecha(o.fecha))+'</div>' : '') +
+        (!o.fecha ? '<div style="font-size:11px;color:var(--text3);margin-top:4px">Sin fecha</div>' : '') +
         (o.hora ? '<div style="font-size:13px;font-weight:600;margin-top:4px">'+escapeHTML(o.hora)+'</div>' : '') +
         '<div style="margin-top:6px">' +
           '<div class="progress-bar" style="margin:0;width:80px"><div class="progress-fill" style="width:'+(o.progreso||0)+'%"></div></div>' +
@@ -25255,7 +25338,7 @@ function _renderOTVistaTenico(hoy) {
 
   var atrasadas  = mias.filter(function(o){ return o.fecha && o.fecha < hoy; });
   var deHoy      = mias.filter(function(o){ return o.fecha === hoy; });
-  var sinFecha   = mias.filter(function(o){ return !o.fecha || o.fecha > hoy; });
+  var proximas   = mias.filter(function(o){ return !o.fecha || o.fecha > hoy; });
 
   var renderGrupo = function(containerId, boxId, lista) {
     var box  = _e(boxId);
@@ -25268,7 +25351,7 @@ function _renderOTVistaTenico(hoy) {
 
   renderGrupo('ot-tec-atrasadas',  'ot-tec-atrasadas-box',  atrasadas);
   renderGrupo('ot-tec-hoy',        'ot-tec-hoy-box',        deHoy);
-  renderGrupo('ot-tec-pendientes', 'ot-tec-pendientes-box', sinFecha);
+  renderGrupo('ot-tec-pendientes', 'ot-tec-pendientes-box', proximas);
 
   var vacia = _e('ot-tec-vacia');
   if (vacia) vacia.style.display = mias.length ? 'none' : '';
@@ -26447,8 +26530,19 @@ function actualizarOT(direccionEditada) {
 
 function aplicarVistaTecnicoOT() {
   var esTec = currentRole === 'tecnico';
-  var idsOcultar = ['ot-contexto-box','ot-reclamo-box','ot-cred-box','ot-audit'];
+  var idsOcultar = ['ot-contexto-box','ot-reclamo-box','ot-audit'];
   idsOcultar.forEach(function(id){ var el=document.getElementById(id); if(el) el.closest('.card') ? el.closest('.card').style.display = (esTec ? 'none' : '') : el.style.display = (esTec ? 'none' : ''); });
+  ['ot-det-fecha','ot-det-hora'].forEach(function(id){
+    var campo = document.getElementById(id);
+    if (campo) campo.disabled = esTec;
+  });
+  ['ot-det-dir','ot-det-obs'].forEach(function(id){
+    var campo = document.getElementById(id);
+    if (!campo) return;
+    campo.readOnly = esTec;
+    campo.style.background = esTec ? 'var(--bg3)' : '';
+    campo.style.cursor = esTec ? 'not-allowed' : '';
+  });
   var dur = document.getElementById('ot-det-duracion'); if (dur && dur.closest('.fg')) dur.closest('.fg').style.display = esTec ? 'none' : '';
   var tipo = document.getElementById('ot-det-tipovisita'); if (tipo && tipo.closest('.fg')) tipo.closest('.fg').style.display = esTec ? 'none' : '';
   var prio = document.getElementById('ot-det-prioridad'); if (prio && prio.closest('label')) prio.closest('label').style.display = esTec ? 'none' : '';
@@ -27137,10 +27231,10 @@ function renderRentabilidadDashboard(todasVentas) {
   _set('dash-rent-ingresos', '$' + Math.round(ingresosMes).toLocaleString('es-AR'));
   _set('dash-rent-gastos', '$' + Math.round(gastosPagadosMes.total).toLocaleString('es-AR'));
   _set('dash-rent-gastos-sub', gastosPagadosMes.pagados.length + ' pagado' + (gastosPagadosMes.pagados.length !== 1 ? 's' : '') + ' · mismo total que el módulo Gastos');
-  _set('dash-rent-egresos-desglose', 'Cálculo transparente: ventas netas $' + Math.round(ingresosMes).toLocaleString('es-AR') + ' − gastos pagados $' + Math.round(egresosMes).toLocaleString('es-AR') + ' = resultado $' + Math.round(utilidad).toLocaleString('es-AR') + '. El costo de productos no se vuelve a sumar en este resumen.');
+  _set('dash-rent-egresos-desglose', 'Cálculo transparente: ventas netas ' + formatearMontoRentabilidad(ingresosMes) + ' − gastos pagados ' + formatearMontoRentabilidad(egresosMes) + ' = resultado ' + formatearMontoRentabilidad(utilidad) + '. El costo de productos no se vuelve a sumar en este resumen.');
   var utilEl = document.getElementById('dash-rent-utilidad');
   if (utilEl) {
-    utilEl.textContent = '$' + Math.round(utilidad).toLocaleString('es-AR');
+    utilEl.textContent = formatearMontoRentabilidad(utilidad);
     utilEl.style.color = utilidad >= 0 ? 'var(--green)' : 'var(--red)';
   }
 
@@ -27244,9 +27338,9 @@ function moverVentaAPresupuesto(ventaId) {
   if (!window.fbDB) { notify('Sin conexión'); return; }
   var ahora   = new Date().toISOString().split('T')[0];
   var vence   = new Date(Date.now() + diasVenc*86400000).toISOString().split('T')[0];
-  var numPpto = 'PP-' + String(Date.now()).slice(-5);
+  var numPpto = '';
   var ppto = {
-    id: numPpto, cliente: v.cliente||'', empleado: v.empleado||v.usuario||currentUser||'',
+    id: '', numero: '', cliente: v.cliente||'', empleado: v.empleado||v.usuario||currentUser||'',
     clienteId: v.clienteId||v.idCliente||'', idCliente: v.clienteId||v.idCliente||'', clienteFbKey: v.clienteFbKey||v.clienteKey||'',
     usuario: currentUser||'', fecha: ahora, vence: vence,
     items: v.items||[], subtotal: parseFloat(v.subtotal||v.total)||0,
@@ -27256,7 +27350,13 @@ function moverVentaAPresupuesto(ventaId) {
     audit: [{ fecha:ahora, usuario:currentUser||'', accion:'Creado desde venta '+(v.id || ventaId) }],
     ts: Date.now()
   };
-  window.fbPush(window.fbRef(window.fbDB, 'sisventas/presupuestos'), ppto)
+  reservarSiguientePptoId()
+    .then(function(idReservado) {
+      numPpto = idReservado;
+      ppto.id = idReservado;
+      ppto.numero = idReservado;
+      return window.fbPush(window.fbRef(window.fbDB, 'sisventas/presupuestos'), ppto);
+    })
     .then(function() {
       // Eliminar la venta original — ya está movida a presupuestos
       var promesas = [];
@@ -27434,7 +27534,7 @@ function verHistorialCliente(id, nombre) {
     <td>${escapeHTML(p.fecha)}</td>
     <td class="tr" style="font-weight:500">$${(parseFloat(p.total)||0).toLocaleString('es-AR')}</td>
     <td class="tr">${pptoStateBadge ? pptoStateBadge(p.estado) : p.estado}</td>
-    <td><button class="btn btn-sm btn-icon" onclick="verPpto('${p.id}')"><i class="ti ti-eye" style="font-size:13px"></i></button></td>
+    <td><button class="btn btn-sm btn-icon" onclick="verPpto('${escapeHTML(p.fbKey || p.id || '')}')"><i class="ti ti-eye" style="font-size:13px"></i></button></td>
   </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin presupuestos</td></tr>';
 
   // Tab tickets
@@ -27495,7 +27595,7 @@ function renderClienteTimeline(cli, ventas, pptos, pagos) {
       color: 'var(--blue)',
       titulo: 'Presupuesto ' + (p.id || p.numero || ''),
       detalle: (p.estado || '—') + ' · ' + money(p.total),
-      accion: p.id ? 'verPpto(\'' + String(p.id).replace(/'/g,"\\'") + '\')' : ''
+      accion: (p.fbKey || p.id) ? 'verPpto(\'' + String(p.fbKey || p.id).replace(/'/g,"\\'") + '\')' : ''
     });
     if (p.estado === 'convertido' || p.ventaId || p.ventaGeneradaId) {
       eventos.push({ fecha: p.fechaConversion || p.convertidoFecha || p.fecha || '', icon:'ti-arrow-right', color:'var(--green)', titulo:'Presupuesto convertido a venta', detalle: p.ventaId || p.ventaGeneradaId || p.id || '' });
