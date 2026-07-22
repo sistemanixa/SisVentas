@@ -4321,42 +4321,42 @@ async function emitirNotaCredito(ventaId) {
         anuladaPor: currentUser || 'Admin'
       });
     }
-    verFacturaEmitida(data.pdf_url || '', data.cae || '');
+    verFacturaEmitida(data.pdf_url || '', data.cae || '', v.id || v.fbKey || ventaId);
     setTimeout(function(){ volverListaVentas(); }, 3000);
   } catch(e) {
     notify('Error de conexión: ' + e.message);
   }
 }
 
-function verFacturaEmitida(pdfUrl, cae) {
+function verFacturaEmitida(pdfUrl, cae, ventaId) {
   if (pdfUrl) {
     window.open(pdfUrl, '_blank');
     return;
   }
-  // Sin PDF: modal con CAE y link a TusFacturasApp
-  var prev = document.getElementById('modal-factura-emitida');
-  if (prev) prev.remove();
-  var overlay = document.createElement('div');
-  overlay.id = 'modal-factura-emitida';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
-  overlay.innerHTML =
-    '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:28px 32px;max-width:420px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.4);text-align:center">' +
-      '<div style="width:48px;height:48px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">' +
-        '<i class="ti ti-file-check" style="font-size:24px;color:var(--green)"></i>' +
-      '</div>' +
-      '<div style="font-weight:700;font-size:16px;margin-bottom:8px">Factura electrónica emitida</div>' +
-      '<div style="font-size:12px;color:var(--text3);margin-bottom:4px">CAE</div>' +
-      '<div style="font-family:monospace;font-size:18px;font-weight:700;color:var(--green);margin-bottom:12px;cursor:pointer" onclick="navigator.clipboard.writeText(\''+cae+'\');notify(\'CAE copiado\')" title="Clic para copiar">' +
-        cae + ' <i class="ti ti-copy" style="font-size:13px;color:var(--text3)"></i>' +
-      '</div>' +
-      '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">PDF no disponible — descargalo desde TusFacturasApp</div>' +
-      '<div style="display:flex;flex-direction:column;gap:8px">' +
-        '<a href="https://www.tusfacturas.app" target="_blank" class="btn btn-primary" style="width:100%;padding:10px;text-align:center;text-decoration:none"><i class="ti ti-external-link"></i> Ir a TusFacturasApp</a>' +
-        '<button onclick="document.getElementById(\'modal-factura-emitida\').remove()" class="btn" style="width:100%;padding:8px;color:var(--text3)">Cerrar</button>' +
-      '</div>' +
-    '</div>';
-  overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) overlay.remove(); });
-  document.body.appendChild(overlay);
+  if (ventaId) {
+    verComprobanteFacturaVenta(ventaId);
+    return;
+  }
+  notify('El PDF fiscal original no quedó almacenado en esta operación.');
+}
+
+// Una factura antigua puede tener CAE pero no conservar el PDF devuelto por el
+// facturador. En ese caso reconstruimos el comprobante con los datos guardados
+// de la venta, sin derivar al usuario a una aplicación externa.
+function verComprobanteFacturaVenta(ventaId) {
+  var venta = _svResolverVentaRegistro(ventaId);
+  if (!venta) { notify('No se encontró la venta asociada al comprobante'); return; }
+  var factura = venta.factura || {};
+  var pdfUrl = factura.pdf_url || factura.pdfUrl || factura.archivoUrl || '';
+  if (pdfUrl) {
+    window.open(pdfUrl, '_blank');
+    return;
+  }
+  window._ventaDetalleActual = venta;
+  var detalleAnterior = window._ventaImpConDetalle;
+  window._ventaImpConDetalle = true;
+  imprimirVentaActual(true);
+  window._ventaImpConDetalle = detalleAnterior;
 }
 
 function _fechaLocalISOFacturaExterna() {
@@ -4592,9 +4592,9 @@ function abrirResumenFactura(ventaId) {
           '<div style="font-size:12px;color:var(--text3);margin-top:3px">Venta ' + escapeHTML(v.id || ventaId) + ' · ' + escapeHTML(v.cliente || 'Sin cliente') + (esFacturaExterna ? ' · Carga externa' : '') + '</div></div>' +
         '<button class="btn btn-sm btn-icon" data-factura-action="cerrar" title="Cerrar"><i class="ti ti-x"></i></button>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px">' +
+      '<div style="display:grid;grid-template-columns:' + (numero ? 'repeat(2,minmax(0,1fr))' : '1fr') + ';gap:10px;margin-bottom:14px">' +
         '<div style="background:var(--bg3);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Fecha</div><div style="font-size:13px;font-weight:600;margin-top:4px">' + escapeHTML(fecha) + '</div></div>' +
-        '<div style="background:var(--bg3);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Comprobante</div><div style="font-size:13px;font-weight:600;margin-top:4px">' + escapeHTML(numero || '—') + '</div></div>' +
+        (numero ? '<div style="background:var(--bg3);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Comprobante</div><div style="font-size:13px;font-weight:600;margin-top:4px">' + escapeHTML(numero) + '</div></div>' : '') +
       '</div>' +
       (cae ? '<div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">' +
         '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">CAE</div>' +
@@ -4607,7 +4607,7 @@ function abrirResumenFactura(ventaId) {
       '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
         (nc && nc.pdf_url ? '<button class="btn btn-sm" data-factura-action="ver-nc"><i class="ti ti-file-minus"></i> Ver nota de crédito</button>' : '') +
         (puedeEmitirNC ? '<button class="btn btn-sm" data-factura-action="nota-credito" style="color:var(--red);border-color:var(--red)"><i class="ti ti-file-minus"></i> Emitir nota de crédito</button>' : '') +
-        (f.pdf_url ? '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"><i class="ti ti-external-link"></i> Ver comprobante</button>' : '') +
+        '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"><i class="ti ti-file-invoice"></i> Ver comprobante</button>' +
       '</div>' +
     '</div>';
 
@@ -4623,7 +4623,7 @@ function abrirResumenFactura(ventaId) {
     }
     if (accion === 'ver-factura') {
       overlay.remove();
-      verFacturaEmitida(f.pdf_url || '', cae);
+      verComprobanteFacturaVenta(v.id || v.fbKey || ventaId);
     }
     if (accion === 'ver-nc' && nc && nc.pdf_url) {
       overlay.remove();
@@ -4661,17 +4661,17 @@ function confirmarEmisionFactura(ventaId) {
               window._ventaDetalleActual.factura = facturaObj;
               verVenta(ventaId);
             }
-            verFacturaEmitida(facturaObj.pdf_url || '', facturaObj.cae || (data.cae||''));
+            verFacturaEmitida(facturaObj.pdf_url || '', facturaObj.cae || (data.cae||''), venta.id || venta.fbKey || ventaId);
           } else {
             // Fallback: usar lo que vino en el fetch
-            verFacturaEmitida(data.pdf_url||'', data.cae||'');
+            verFacturaEmitida(data.pdf_url||'', data.cae||'', venta.id || venta.fbKey || ventaId);
           }
         })
         .catch(function() {
-          verFacturaEmitida(data.pdf_url||'', data.cae||'');
+          verFacturaEmitida(data.pdf_url||'', data.cae||'', venta.id || venta.fbKey || ventaId);
         });
     } else {
-      verFacturaEmitida(data.pdf_url||'', data.cae||'');
+      verFacturaEmitida(data.pdf_url||'', data.cae||'', venta.id || venta.fbKey || ventaId);
     }
   });
 }
@@ -5231,12 +5231,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.146-firebase',
+  VERSION: 'v2.0.147-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Carga de facturas externas desde el detalle de venta.'
+    'Visualización unificada de comprobantes de venta.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'ventas', actionLabel:'Abrir ventas' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.147',
+      date: '22/07/2026',
+      title: 'Comprobantes de venta unificados',
+      notes: Object.freeze(['Ver comprobante abre el archivo almacenado o reconstruye la factura con los datos de la venta, sin derivaciones externas.']),
+      feature: Object.freeze({ page:'ventas', actionLabel:'Abrir ventas' })
+    }),
     Object.freeze({
       version: 'v2.0.146',
       date: '22/07/2026',
@@ -13202,7 +13209,7 @@ function toggleVentaDetalle() {
   }
 }
 
-function imprimirVentaActual() {
+function imprimirVentaActual(soloVista) {
   var v = window._ventaDetalleActual;
   if (!v) { notify('Sin venta activa'); return; }
   var conDetalle = _ventaImpConDetalle;
@@ -13266,8 +13273,13 @@ function imprimirVentaActual() {
   // Datos adicionales para comprobante
   var formaPago = (v.pagos && v.pagos.length) ? v.pagos.map(function(p){ return p.medio||p.forma||''; }).filter(Boolean).join(', ') : (v.formaPago||'');
   var condIVA   = tipoComp.includes(' A') ? 'Responsable Inscripto' : 'Consumidor Final';
-  var nroComp   = v.factura && v.factura.numero_comprobante ? String(v.factura.numero_comprobante).padStart(8,'0') : '';
-  var pdv       = '00002';
+  var facturaVenta = v.factura || {};
+  var numeroFiscalGuardado = facturaVenta.numero_comprobante || facturaVenta.numeroComprobante || facturaVenta.numero || facturaVenta.nroComprobante || '';
+  var numeroFiscalPartes = String(numeroFiscalGuardado).split('-').map(function(parte){ return parte.replace(/\D/g, ''); }).filter(Boolean);
+  var nroComp = numeroFiscalPartes.length ? String(numeroFiscalPartes[numeroFiscalPartes.length - 1]).padStart(8, '0') : '';
+  var pdvGuardado = facturaVenta.punto_venta || facturaVenta.puntoVenta || (numeroFiscalPartes.length > 1 ? numeroFiscalPartes[0] : '') || (typeof TFAPP_CONFIG !== 'undefined' ? TFAPP_CONFIG.punto_venta : '') || 2;
+  var pdv = String(parseInt(pdvGuardado, 10) || 2).padStart(5, '0');
+  var facturaSinPdfOriginal = !!(facturaVenta.cae && !(facturaVenta.pdf_url || facturaVenta.pdfUrl || facturaVenta.archivoUrl));
   var caeNum    = (v.factura && v.factura.cae) || (v.notaCredito && v.notaCredito.cae) || '';
   var caeVto    = (v.factura && v.factura.cae_vencimiento) || '';
   var cuitEmp   = empresa.cuit.replace(/\D/g,'');
@@ -13428,6 +13440,7 @@ function imprimirVentaActual() {
           '<div style="font-size:11px;color:#475569;margin-bottom:6px">PDV '+pdv+(nroComp?' — Nro. comprobante: '+nroComp:'')+'</div>' +
           '<div>CAE Nº: <span class="cae-num">'+escapeHTML(caeNum)+'</span></div>' +
           (caeVto ? '<div class="cae-vto">Vencimiento CAE: '+escapeHTML(caeVto)+'</div>' : '') +
+          (facturaSinPdfOriginal ? '<div class="cae-vto" style="margin-top:6px">Vista reconstruida con los datos guardados de la venta; el archivo fiscal original no quedó almacenado.</div>' : '') +
         '</div>' +
       '</div>'
     :
@@ -13452,7 +13465,7 @@ function imprimirVentaActual() {
 
     '</body></html>');
   w.document.close();
-  setTimeout(function(){ w.print(); }, 800);
+  if (!soloVista) setTimeout(function(){ w.print(); }, 800);
 }
 
 function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
