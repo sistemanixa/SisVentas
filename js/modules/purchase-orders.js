@@ -673,6 +673,109 @@
     }).then(function () { document.getElementById('oc-manual-modal').style.display = 'none'; if (typeof window.notify === 'function') window.notify('Orden manual creada como borrador'); });
   }
 
+  function manualSearchText(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  function syncManualInputsV2() {
+    document.querySelectorAll('.oc-manual-qty').forEach(function (input) {
+      var item = state.manualItems[parseInt(input.dataset.index, 10)];
+      if (item) item.cantidadOrdenada = Math.max(1, parseFloat(input.value) || 1);
+    });
+    document.querySelectorAll('.oc-manual-cost').forEach(function (input) {
+      var item = state.manualItems[parseInt(input.dataset.index, 10)];
+      if (item) item.costoUnitario = Math.max(0, parseFloat(input.value) || 0);
+    });
+  }
+
+  function renderManualItemsV2() {
+    var target = document.getElementById('oc-manual-items');
+    if (!target) return;
+    target.innerHTML = state.manualItems.length ? state.manualItems.map(function (item, index) {
+      return '<div style="display:grid;grid-template-columns:minmax(180px,1fr) 82px 126px 36px;gap:9px;align-items:center;padding:10px 4px;border-bottom:0.5px solid var(--border)">' +
+        '<div style="min-width:0"><strong style="font-size:12px;color:var(--blue)">' + esc(item.codigo) + '</strong><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + attr(item.descripcion) + '">' + esc(item.descripcion) + '</div></div>' +
+        '<div><label style="font-size:9px;color:var(--text3)">CANT.</label><input class="search-input oc-manual-qty" data-index="' + index + '" type="number" min="1" value="' + item.cantidadOrdenada + '" style="width:100%;text-align:right"></div>' +
+        '<div><label style="font-size:9px;color:var(--text3)">COSTO UNIT.</label><input class="search-input oc-manual-cost" data-index="' + index + '" type="number" min="0" step="0.01" value="' + item.costoUnitario + '" style="width:100%;text-align:right"></div>' +
+        '<button class="btn btn-sm btn-icon" onclick="ocQuitarItemManualV2(' + index + ')" title="Quitar"><i class="ti ti-trash"></i></button></div>';
+    }).join('') : '<div style="padding:28px;text-align:center;color:var(--text3)"><i class="ti ti-package" style="display:block;font-size:26px;margin-bottom:7px"></i>Buscá arriba los materiales que necesitás comprar.</div>';
+    var count = document.getElementById('oc-manual-items-count');
+    if (count) count.textContent = state.manualItems.length + ' material' + (state.manualItems.length === 1 ? '' : 'es');
+  }
+
+  function searchManualProductsV2(query) {
+    var results = document.getElementById('oc-manual-product-results');
+    if (!results) return;
+    var q = manualSearchText(query).trim();
+    var providerSelect = document.getElementById('oc-manual-provider');
+    var providerKey = providerSelect ? providerSelect.value : '';
+    var products = productList().filter(function (product) {
+      if (!product || isLabor(product)) return false;
+      if (!q) return true;
+      var providerNames = providersFor(product).map(function (pv) { return pv.nombre; }).join(' ');
+      return manualSearchText([product.codigo, product.nombre, product.descripcion, product.categoria, product.marca, providerNames].join(' ')).indexOf(q) >= 0;
+    }).sort(function (a, b) { return String(a.nombre || '').localeCompare(String(b.nombre || '')); }).slice(0, 50);
+    results.innerHTML = products.length ? products.map(function (product) {
+      var providers = providersFor(product);
+      var candidate = providers.find(function (pv) { return providerKey && String(pv.proveedorKey || pv.nombre) === String(providerKey); }) || providers[0] || null;
+      var key = product.fbKey || product.codigo || '';
+      var already = state.manualItems.some(function (item) { return String(item.productoKey || item.codigo) === String(key) || (item.codigo && item.codigo === product.codigo); });
+      return '<button type="button" data-product-key="' + attr(key) + '" onclick="ocSeleccionarProductoManual(\'' + attr(key) + '\')" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:0;border-bottom:0.5px solid var(--border);background:transparent;color:var(--text);text-align:left;cursor:pointer;font-family:inherit">' +
+        '<span style="min-width:0"><strong style="font-size:12px;color:var(--blue)">' + esc(product.codigo || 'Sin código') + '</strong><span style="font-size:13px;margin-left:8px">' + esc(product.nombre || product.descripcion || 'Sin nombre') + '</span><small style="display:block;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(product.categoria || 'Sin categoría') + (candidate ? ' · ' + esc(candidate.nombre) : '') + '</small></span>' +
+        '<span style="flex-shrink:0;text-align:right;font-size:12px"><strong>' + (candidate && candidate.costo ? money(candidate.costo) : 'Sin costo') + '</strong><small style="display:block;color:' + (already ? 'var(--green)' : 'var(--blue)') + ';margin-top:3px">' + (already ? 'Sumar otra unidad' : 'Agregar') + '</small></span></button>';
+    }).join('') : '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">No se encontraron productos.</div>';
+    results.style.display = '';
+  }
+
+  function hideManualProductResultsV2() {
+    var results = document.getElementById('oc-manual-product-results');
+    if (results) results.style.display = 'none';
+  }
+
+  function addManualItemV2(productKey) {
+    syncManualInputsV2();
+    var product = productList().find(function (p) { return String(p.fbKey || p.codigo) === String(productKey || ''); });
+    if (!product) return;
+    var providerSelect = document.getElementById('oc-manual-provider');
+    var providerKey = providerSelect ? providerSelect.value : '';
+    var candidate = providersFor(product).find(function (p) { return String(p.proveedorKey || p.nombre) === String(providerKey); }) || null;
+    var existing = state.manualItems.find(function (item) { return String(item.productoKey || item.codigo) === String(product.fbKey || product.codigo) || (item.codigo && item.codigo === product.codigo); });
+    if (existing) existing.cantidadOrdenada = (parseFloat(existing.cantidadOrdenada) || 0) + 1;
+    else state.manualItems.push({ productoKey: product.fbKey || '', codigo: product.codigo || '', descripcion: product.nombre || '', unidad: product.unidad || 'Unidad', cantidadOrdenada: 1, cantidadRecibida: 0, costoUnitario: candidate ? candidate.costo : 0 });
+    renderManualItemsV2();
+    var input = document.getElementById('oc-manual-product-search');
+    if (input) { input.value = ''; input.focus(); }
+    hideManualProductResultsV2();
+  }
+
+  function removeManualItemV2(index) {
+    syncManualInputsV2();
+    state.manualItems.splice(index, 1);
+    renderManualItemsV2();
+  }
+
+  function openManualOrderV2() {
+    state.manualItems = [];
+    var modal = ensureModal('oc-manual-modal', '900px');
+    var shell = modal.querySelector('.modal');
+    if (shell) shell.style.cssText += ';overflow:hidden;display:flex;flex-direction:column';
+    var body = document.getElementById('oc-manual-modal-body');
+    if (body) body.style.cssText = 'display:flex;flex-direction:column;min-height:0;height:min(68vh,620px);overflow:hidden';
+    document.getElementById('oc-manual-modal-title').innerHTML = '<i class="ti ti-plus" style="margin-right:7px"></i>Nueva orden manual';
+    var providerOptionsHtml = (window.proveedoresData || []).filter(function (p) { return p && p.nombre && p.activo !== false; }).sort(function (a, b) { return String(a.nombre).localeCompare(String(b.nombre)); }).map(function (p) { return '<option value="' + attr(p.fbKey || p.id || p.nombre) + '" data-name="' + attr(p.nombre) + '">' + esc(p.nombre) + '</option>'; }).join('');
+    body.innerHTML = '<div style="flex:0 0 auto"><div class="form-grid"><div class="fg"><label>Proveedor</label><select class="search-input" id="oc-manual-provider" onchange="ocBuscarProductoManual((document.getElementById(\'oc-manual-product-search\')||{}).value||\'\')"><option value="">— Seleccionar proveedor cargado —</option>' + providerOptionsHtml + '</select></div><div class="fg"><label>Fecha</label><input class="search-input" type="date" id="oc-manual-date" value="' + today() + '"></div></div>' +
+      '<div style="position:relative;margin:12px 0"><label style="display:block;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Agregar producto</label><div style="position:relative"><i class="ti ti-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3)"></i><input class="search-input" id="oc-manual-product-search" placeholder="Buscar por código, nombre, categoría o proveedor…" autocomplete="off" onfocus="ocBuscarProductoManual(this.value)" oninput="ocBuscarProductoManual(this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();var b=document.querySelector(\'#oc-manual-product-results [data-product-key]\');if(b)b.click()}" style="width:100%;padding-left:34px"></div><div id="oc-manual-product-results" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:20;max-height:270px;overflow:auto;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 10px 28px rgba(0,0,0,.28)"></div></div></div>' +
+      '<div id="oc-manual-items" style="flex:1 1 auto;min-height:0;overflow:auto;padding-right:3px"></div>' +
+      '<div style="flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:12px;margin-top:10px;border-top:0.5px solid var(--border);background:var(--bg2)"><span id="oc-manual-items-count" style="font-size:12px;color:var(--text3)">0 materiales</span><button class="btn btn-primary" onclick="ocGuardarOrdenManualV2()"><i class="ti ti-device-floppy"></i> Guardar borrador</button></div>';
+    renderManualItemsV2();
+    modal.style.display = 'flex';
+    setTimeout(function () { var input = document.getElementById('oc-manual-product-search'); if (input) input.focus(); }, 120);
+  }
+
+  function saveManualOrderV2() {
+    syncManualInputsV2();
+    return saveManualOrder();
+  }
+
   function migrateLegacy() {
     var pending = state.legacy.filter(function (o) { return !o.migradaA; });
     if (!pending.length || !confirm('Se incorporarán ' + pending.length + ' órdenes anteriores al historial unificado. No se duplicarán en el futuro. ¿Continuar?')) return;
@@ -800,7 +903,7 @@
   window.fbCargarOrdenes = start;
   window.renderDashOrdenes = renderAll;
   window.renderOrdenesFiltradas = renderOrders;
-  window.abrirNuevaOrden = openManualOrder;
+  window.abrirNuevaOrden = openManualOrderV2;
   window.editarOrden = openOrder;
   window.crearListaMaterialesDesdeVenta = createListFromSale;
   window.abrirListaMaterialesDesdeVenta = function (sale) { return createListFromSale(sale || window.ventaDetalleActual || window._ventaDetalleActual || '', { silent: false }); };
@@ -812,9 +915,11 @@
   window.ocAbrirOrden = openOrder;
   window.ocCambiarEstadoOrden = changeOrderStatus;
   window.ocRegistrarRecepcion = registerReceipt;
-  window.ocAgregarItemManual = addManualItem;
-  window.ocQuitarItemManual = removeManualItem;
-  window.ocGuardarOrdenManual = saveManualOrder;
+  window.ocAgregarItemManual = addManualItemV2;
+  window.ocBuscarProductoManual = searchManualProductsV2;
+  window.ocSeleccionarProductoManual = addManualItemV2;
+  window.ocQuitarItemManualV2 = removeManualItemV2;
+  window.ocGuardarOrdenManualV2 = saveManualOrderV2;
   window.ocMigrarLegacy = migrateLegacy;
   window.ocIrAProveedores = function () {
     saveCurrentList(true).catch(function () {}).then(function () {

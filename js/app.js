@@ -5028,12 +5028,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.143-firebase',
+  VERSION: 'v2.0.144-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Novedades disponibles después del ingreso y OT abiertas por defecto.'
+    'OT desde ventas y búsqueda ágil en órdenes manuales.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ actionLabel:'Ver historial de novedades', history:true }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordenes', actionLabel:'Abrir órdenes de compra' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.144',
+      date: '22/07/2026',
+      title: 'OT vinculadas y compras manuales más ágiles',
+      notes: Object.freeze(['Las ventas sin OT permiten crearla y asociarla en un clic; las órdenes manuales incorporan buscador de productos y controles siempre visibles.']),
+      feature: Object.freeze({ page:'ordenes', actionLabel:'Abrir órdenes de compra' })
+    }),
     Object.freeze({
       version: 'v2.0.143',
       date: '22/07/2026',
@@ -16533,6 +16540,18 @@ function imprimirRecibo() {
 function crearOT(ventaData) {
   // Crear OT desde una venta
   if (!window.fbDB) { notify('Sin conexión'); return; }
+  if (ventaData && typeof ventaDetalleResolverOT === 'function') {
+    var otExistente = ventaDetalleResolverOT(ventaData);
+    if (otExistente) {
+      notify('La venta ya tiene una OT asociada');
+      showPage('ordentrabajo', null);
+      setTimeout(function(){ verOT(otExistente.fbKey || otExistente.id); }, 180);
+      return Promise.resolve({ key: otExistente.fbKey || '' });
+    }
+  }
+  var ahoraOT = new Date();
+  var fechaLocalOT = ahoraOT.getFullYear() + '-' + String(ahoraOT.getMonth() + 1).padStart(2,'0') + '-' + String(ahoraOT.getDate()).padStart(2,'0');
+  var direccionVentaOT = ventaData ? String(ventaData.direccion || ventaData.dir || ventaData.domicilio || ventaData.direccionInstalacion || '').trim() : '';
   var ot = {
     ventaId:    ventaData ? ventaData.id : '',
     ventaFbKey: ventaData ? (ventaData.fbKey||'') : '',
@@ -16542,21 +16561,57 @@ function crearOT(ventaData) {
     origen:     ventaData ? 'venta' : 'manual',
     estado:     'pendiente',
     tecnico:    '',
-    fecha:      new Date().toISOString().split('T')[0],
+    fecha:      fechaLocalOT,
+    dir:        direccionVentaOT,
+    direccion:  direccionVentaOT,
     descripcion: ventaData ? 'OT generada desde venta ' + ventaData.id : 'OT creada manualmente',
     materiales: ventaData ? (ventaData.items||[]).map(function(it){ return { cod:it.cod||it.codigo||'', desc:it.desc||it.nombre||it.descripcion||'', vendida:parseFloat(it.qty||it.cantidad||1), instalada:0 }; }) : [],
+    audit:      [{ fecha: ahoraOT.toLocaleDateString('es-AR') + ' ' + ahoraOT.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || 'Sistema', accion: ventaData ? 'OT creada y asociada desde la venta' : 'OT creada manualmente' }],
     ts:         Date.now()
   };
+  if (ventaData && !direccionVentaOT && typeof _otResolverDireccionCliente === 'function') {
+    direccionVentaOT = _otResolverDireccionCliente(ot) || '';
+    ot.dir = direccionVentaOT;
+    ot.direccion = direccionVentaOT;
+  }
   var crearPromesa = typeof window.crearRegistroOTSeguro === 'function'
-    ? window.crearRegistroOTSeguro(ot, { evitarDoble: !ventaData })
+    ? window.crearRegistroOTSeguro(ot, { evitarDoble: true })
     : window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot);
   return crearPromesa
     .then(function(ref){
+      ot.fbKey = ref.key;
+      if (Array.isArray(window.otData) && !window.otData.some(function(x){ return x && x.fbKey === ref.key; })) window.otData.push(ot);
+      var vincular = Promise.resolve();
+      if (ventaData && ventaData.fbKey) {
+        var cambiosVentaOT = {
+          otId: ref.key,
+          otNumero: ot.id,
+          otGenerada: true,
+          estadoInst: 'pendiente_inst',
+          actualizado: fechaLocalOT,
+          actualizadoEn: Date.now()
+        };
+        Object.assign(ventaData, cambiosVentaOT);
+        vincular = window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaData.fbKey), cambiosVentaOT);
+      }
       notify('✓ Orden de trabajo creada');
-      showPage('ordentrabajo', null);
-      setTimeout(function(){ verOT(ref.key); }, 500);
+      return vincular.then(function() {
+        showPage('ordentrabajo', null);
+        setTimeout(function(){ verOT(ref.key); }, 260);
+        return ref;
+      });
     })
     .catch(function(e){ notify('Error: ' + e.message); });
+}
+
+function crearYAsociarOTDesdeVenta(ventaId) {
+  if (typeof window.tienePermiso === 'function' && !window.tienePermiso('ot.crear')) {
+    notify('No tenés permiso para crear órdenes de trabajo');
+    return;
+  }
+  var venta = _svResolverVentaRegistro(ventaId) || window._ventaDetalleActual;
+  if (!venta) { notify('No se encontró la venta'); return; }
+  return crearOT(venta);
 }
 
 function nuevaOT() {
@@ -27390,6 +27445,9 @@ function renderDetalleVenta(v) {
   var puedeEliminarVentaDetalle = typeof window.tienePermiso === 'function'
     ? window.tienePermiso('ventas.eliminar')
     : String(currentRole || '').toLowerCase() === 'admin';
+  var puedeCrearOTDesdeVenta = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('ot.crear')
+    : ['admin','administrativo'].indexOf(String(currentRole || '').toLowerCase()) >= 0;
   var mostrarMargenDetalleVenta = puedeVerInternosVenta && window._mostrarMargenDetalleVenta;
   var margenDetalleColor = costoDetalleInconsistente ? 'var(--amber)' : (margenDetalle < 15 ? 'var(--red)' : (margenDetalle <= 20 ? 'var(--amber)' : 'var(--green)'));
   var margenDetalleFondo = costoDetalleInconsistente ? 'var(--amber-bg)' : (margenDetalle < 15 ? 'var(--red-bg)' : (margenDetalle <= 20 ? 'var(--amber-bg)' : 'var(--green-bg)'));
@@ -27399,7 +27457,14 @@ function renderDetalleVenta(v) {
   var kpiPagosAttrs = pagado > 0 ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirCobrosDesdeDetalleVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Ver los cobros de esta venta"' : ' class="metric"';
   var kpiFacturaAttrs = v.factura ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirFacturaDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la factura emitida"' : ' class="metric"';
   var kpiInstAttrs = (v.estadoInst === 'instalado' && otVinculada) ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirOTDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la orden de trabajo instalada"' : ' class="metric"';
-  var kpiOTAttrs = otVinculada ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirOTDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la orden de trabajo vinculada"' : ' class="metric"';
+  var kpiOTAttrs = otVinculada
+    ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="abrirOTDesdeKpiVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Abrir la orden de trabajo vinculada"'
+    : (puedeCrearOTDesdeVenta
+      ? ' class="metric sv-action-metric" role="button" tabindex="0" onclick="crearYAsociarOTDesdeVenta(\'' + ventaDetalleRef + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Crear y asociar una OT a esta venta"'
+      : ' class="metric"');
+  var otAsociadaValorHtml = otVinculada
+    ? escapeHTML(String(otAsociada || '—'))
+    : (puedeCrearOTDesdeVenta ? '<span style="color:var(--blue)"><i class="ti ti-plus" style="font-size:16px;margin-right:4px"></i>Crear OT</span>' : '—');
   var metricVentaHtml = '<div class="metrics" id="venta-detalle-metricas" style="margin-bottom:12px;grid-template-columns:repeat(3,minmax(0,1fr))">' +
     '<div class="metric"><div class="m-label">Total venta</div><div class="m-value">$' + Math.round(total).toLocaleString('es-AR') + '</div><div class="m-sub">' + ep.label + '</div></div>' +
     '<div' + kpiPagosAttrs + '><div class="m-label">Pagado</div><div class="m-value" style="color:var(--green)">$' + Math.round(pagado).toLocaleString('es-AR') + '</div><div class="m-sub">' + porcPagado.toFixed(0) + '% de la venta' + (pagado > 0 ? ' · Ver cobros' : '') + '</div></div>' +
@@ -27408,7 +27473,7 @@ function renderDetalleVenta(v) {
   '<div class="metrics" id="venta-detalle-seguimiento" style="margin-bottom:12px;grid-template-columns:repeat(4,minmax(0,1fr))">' +
     '<div' + kpiFacturaAttrs + '><div class="m-label">Facturación</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(facturaTxt)) + '</div><div class="m-sub">' + (v.factura ? 'Abrir factura' : 'estado fiscal') + '</div></div>' +
     '<div' + kpiInstAttrs + '><div class="m-label">Instalación</div><div class="m-value" style="font-size:18px;color:' + ei.color + '">' + ei.label + '</div><div class="m-sub">' + ((v.estadoInst === 'instalado' && otVinculada) ? 'Abrir OT instalada' : 'estado OT/inst.') + '</div></div>' +
-    '<div' + kpiOTAttrs + '><div class="m-label">OT asociada</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(otAsociada || '—')) + '</div><div class="m-sub">' + (otVinculada ? 'Abrir orden de trabajo' : 'seguimiento técnico') + '</div></div>' +
+    '<div' + kpiOTAttrs + '><div class="m-label">OT asociada</div><div class="m-value" style="font-size:18px">' + otAsociadaValorHtml + '</div><div class="m-sub">' + (otVinculada ? 'Abrir orden de trabajo' : (puedeCrearOTDesdeVenta ? 'Crear y asociar en un clic' : 'seguimiento técnico')) + '</div></div>' +
     '<div class="metric sv-action-metric" role="button" tabindex="0" onclick="verModificacionesDesdeKpiVenta()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Ir al historial de modificaciones"><div class="m-label">Última modif.</div><div class="m-value" style="font-size:18px">' + escapeHTML(String(v.editadoEn || v.actualizado || v.fecha || '—')) + '</div><div class="m-sub">Ver auditoría</div></div>' +
   '</div>';
 
