@@ -5362,12 +5362,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.162-firebase',
+  VERSION: 'v2.0.163-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Fotos de OT visibles al instante y precios de proveedores verificados antes de guardar.'
+    'Firma, checklist y cierre de OT verificados.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar fotos de OT' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar una OT' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.163',
+      date: '23/07/2026',
+      title: 'Cierre de OT confiable',
+      notes: Object.freeze(['La firma se guarda y se elimina correctamente; el cierre exige checklist completo y advierte si faltan fotos.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar una OT' })
+    }),
     Object.freeze({
       version: 'v2.0.162',
       date: '23/07/2026',
@@ -13221,10 +13228,16 @@ function _imprimirOTReal() {
       }
       // Notas técnicas
       var notasHtml = '';
-      var notas = ot.notasTecnico || [];
+      var notas = typeof otNotasNormalizadas === 'function' ? otNotasNormalizadas(ot) : (Array.isArray(ot.notasTecnico) ? ot.notasTecnico : Object.values(ot.notasTecnico||{}));
       if (notas.length) {
         notasHtml = '<div style="margin-bottom:20px"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:8px">Notas técnicas</div>' +
-          notas.map(function(n){ return '<div style="padding:8px;background:#f9f9f9;border-radius:4px;margin-bottom:4px;font-size:12px">'+n.texto+'<span style="color:#999;font-size:10px;margin-left:8px">'+n.autor+'</span></div>'; }).join('') + '</div>';
+          notas.map(function(n){
+            return '<div style="padding:8px;background:#f9f9f9;border-radius:4px;margin-bottom:6px;font-size:12px">' +
+              escapeHTML(n.texto||'Foto adjunta') +
+              '<span style="color:#999;font-size:10px;margin-left:8px">'+escapeHTML(n.autor||'')+'</span>' +
+              (n.fotoUrl ? '<div style="margin-top:7px"><img src="'+escapeHTML(n.fotoUrl)+'" alt="Foto de la OT" style="display:block;max-width:240px;max-height:180px;object-fit:contain;border:1px solid #ddd;border-radius:5px"></div>' : '') +
+            '</div>';
+          }).join('') + '</div>';
       }
       return '<div class="grid">'+
         '<div class="field"><label>Cliente</label><strong>'+escapeHTML(ot.cliente||'—')+'</strong></div>'+
@@ -26347,7 +26360,7 @@ function verOT(id) {
   otCargarCredenciales(ot);
   // Inicializar canvas de firma
   setTimeout(function() {
-    firmaLimpiar();
+    firmaLimpiar(true);
     firmaInicializar();
     firmaCargar(ot);
   }, 100);
@@ -26377,6 +26390,28 @@ function verOT(id) {
   renderChecklist('checklist-instalacion', ot.checks.instalacion, CHECKLISTS.instalacion, otActualId, 'instalacion');
   renderChecklist('checklist-verificacion', ot.checks.verificacion, CHECKLISTS.verificacion, otActualId, 'verificacion');
   actualizarProgreso(ot);
+  var estadoOTAbierta = String(ot.estado || '').toLowerCase();
+  var otCerrada = ['completada','con_observaciones'].indexOf(estadoOTAbierta) >= 0;
+  var conformidadGuardada = typeof ot.conformidadCliente === 'string' ? ot.conformidadCliente : '';
+  if (!conformidadGuardada && otCerrada && Array.isArray(ot.audit)) {
+    var cierreAudit = ot.audit.slice().reverse().find(function(evento) {
+      return /conformidad:/i.test(String(evento && evento.accion || ''));
+    });
+    var coincidenciaConf = cierreAudit && String(cierreAudit.accion||'').match(/conformidad:\s*([a-z_]+)/i);
+    if (coincidenciaConf) conformidadGuardada = coincidenciaConf[1].toLowerCase();
+  }
+  var conformidadSelect = document.getElementById('ot-acta-conf');
+  if (conformidadSelect) {
+    conformidadSelect.value = conformidadGuardada || '';
+    conformidadSelect.disabled = otCerrada;
+  }
+  var conformidadNombre = document.getElementById('ot-acta-firma');
+  if (conformidadNombre) {
+    conformidadNombre.value = ot.nombreConformidad || ot.firmaNombreCliente || '';
+    conformidadNombre.readOnly = otCerrada;
+  }
+  var completarBtn = document.getElementById('btn-completar-ot');
+  if (completarBtn) completarBtn.style.display = otCerrada ? 'none' : '';
   if (checklistReconstruido && ot.fbKey && window.fbDB) {
     window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), { checks:ot.checks }).catch(function(error){
       console.warn('No se pudo completar la estructura del checklist:', error);
@@ -26626,6 +26661,7 @@ function otConfirmarVentaAdicional() {
 var _firmaCtx    = null;
 var _firmaDibujo = false;
 var _firmaTiene  = false;
+var _firmaGuardando = false;
 
 function firmaInicializar() {
   var canvas = document.getElementById('firma-canvas');
@@ -26641,6 +26677,8 @@ function firmaInicializar() {
   _firmaCtx.lineWidth   = 2;
   _firmaCtx.lineCap     = 'round';
   _firmaCtx.lineJoin    = 'round';
+  if (canvas.dataset.firmaInicializada === '1') return;
+  canvas.dataset.firmaInicializada = '1';
 
   function getPos(e) {
     var r = canvas.getBoundingClientRect();
@@ -26679,7 +26717,7 @@ function firmaInicializar() {
   canvas.addEventListener('touchend',   end,   { passive: false });
 }
 
-function firmaLimpiar() {
+function firmaLimpiar(soloVisual) {
   var canvas = document.getElementById('firma-canvas');
   if (!canvas || !_firmaCtx) return;
   _firmaCtx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
@@ -26687,22 +26725,64 @@ function firmaLimpiar() {
   document.getElementById('firma-placeholder').style.display = '';
   document.getElementById('firma-guardada-badge').style.display = 'none';
   document.getElementById('firma-preview').style.display = 'none';
+  if (soloVisual === true) return;
+  var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
+  if (!ot || !ot.fbKey || !window.fbDB) return;
+  var firmaAnterior = ot.firmaClienteUrl || '';
+  var pathAnterior = ot.firmaStoragePath || '';
+  window._otGuardandoLocalHasta = Date.now() + 2500;
+  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
+    firmaClienteUrl: null,
+    firmaStoragePath: null,
+    firmada: false,
+    fechaFirma: null
+  }).then(function() {
+    ot.firmaClienteUrl = null;
+    ot.firmaStoragePath = null;
+    ot.firmada = false;
+    ot.fechaFirma = null;
+    window._otDetalleHuella = JSON.stringify(ot);
+    if (pathAnterior && window.fbDeleteObject && window.fbStorageRef && window.fbStorage) {
+      window.fbDeleteObject(window.fbStorageRef(window.fbStorage, pathAnterior)).catch(function(error) {
+        console.warn('La firma se quitó de la OT, pero no se pudo limpiar su archivo:', error);
+      });
+    }
+    notify('✓ Firma eliminada');
+  }).catch(function(error) {
+    ot.firmaClienteUrl = firmaAnterior;
+    ot.firmaStoragePath = pathAnterior;
+    firmaCargar(ot);
+    notify('No se pudo eliminar la firma: ' + error.message);
+  });
 }
 
 function firmaAutoguardar() {
   var canvas = document.getElementById('firma-canvas');
-  if (!canvas || !_firmaTiene) return;
+  if (!canvas || !_firmaTiene || _firmaGuardando) return;
   var dataUrl = canvas.toDataURL('image/png');
+  var badge = document.getElementById('firma-guardada-badge');
+  _firmaGuardando = true;
+  if (badge) {
+    badge.style.display = '';
+    badge.style.background = 'var(--blue-bg)';
+    badge.style.color = 'var(--blue)';
+    badge.style.borderColor = 'var(--blue)';
+    badge.textContent = 'Guardando firma…';
+  }
 
   // Subir a Firebase Storage
   if (!window.fbStorage || !window.fbDB) {
-    // Sin storage — guardar como dataURL en Firebase (solo si es pequeña)
-    firmaGuardarEnOT(dataUrl);
+    firmaGuardarEnOT(dataUrl, null)
+      .catch(function(error){ notify('No se pudo guardar la firma: ' + error.message); })
+      .finally(function(){ _firmaGuardando = false; });
     return;
   }
 
   var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
-  if (!ot || !ot.fbKey) return;
+  if (!ot || !ot.fbKey) {
+    _firmaGuardando = false;
+    return;
+  }
 
   // Convertir dataURL a blob
   var arr = dataUrl.split(','), mime = arr[0].match(/:(.*?);/)[1];
@@ -26711,32 +26791,72 @@ function firmaAutoguardar() {
   var blob = new Blob([u8arr], {type: mime});
 
   var path = 'firmas/ot_' + ot.fbKey + '_' + Date.now() + '.png';
-  var ref  = window.storageRef(window.fbStorage, path);
+  var ref  = window.fbStorageRef(window.fbStorage, path);
+  var archivoSubido = false;
 
-  window.uploadBytes(ref, blob).then(function(snap) {
-    return window.getDownloadURL(snap.ref);
+  window.fbUploadBytes(ref, blob).then(function(snap) {
+    archivoSubido = true;
+    return window.fbGetDownloadURL(snap.ref);
   }).then(function(url) {
-    firmaGuardarEnOT(url);
-  }).catch(function() {
-    // Fallback: guardar dataURL directamente
-    firmaGuardarEnOT(dataUrl);
+    return firmaGuardarEnOT(url, path);
+  }).catch(function(error) {
+    if (archivoSubido) {
+      if (window.fbDeleteObject) window.fbDeleteObject(ref).catch(function(){});
+      throw error;
+    }
+    return firmaGuardarEnOT(dataUrl, null);
+  }).catch(function(error) {
+    notify('No se pudo guardar la firma: ' + error.message);
+    if (badge) {
+      badge.style.background = 'var(--red-bg)';
+      badge.style.color = 'var(--red)';
+      badge.style.borderColor = 'var(--red)';
+      badge.textContent = 'Error al guardar';
+    }
+  }).finally(function() {
+    _firmaGuardando = false;
   });
 }
 
-function firmaGuardarEnOT(firmaUrl) {
+function firmaGuardarEnOT(firmaUrl, storagePath) {
   var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
-  if (!ot || !ot.fbKey || !window.fbDB) return;
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
+  if (!ot || !ot.fbKey || !window.fbDB) return Promise.reject(new Error('No se encontró la OT abierta'));
+  var pathAnterior = ot.firmaStoragePath || '';
+  var fechaFirma = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toLocaleDateString('en-CA');
+  window._otGuardandoLocalHasta = Date.now() + 2500;
+  return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
     firmaClienteUrl: firmaUrl,
+    firmaStoragePath: storagePath || null,
     firmada: true,
-    fechaFirma: new Date().toISOString().slice(0,10)
+    fechaFirma: fechaFirma
+  }).then(function() {
+    ot.firmaClienteUrl = firmaUrl;
+    ot.firmaStoragePath = storagePath || null;
+    ot.firmada = true;
+    ot.fechaFirma = fechaFirma;
+    window._otDetalleHuella = JSON.stringify(ot);
+    if (pathAnterior && pathAnterior !== storagePath && window.fbDeleteObject && window.fbStorageRef && window.fbStorage) {
+      window.fbDeleteObject(window.fbStorageRef(window.fbStorage, pathAnterior)).catch(function(error) {
+        console.warn('La firma nueva quedó guardada, pero no se pudo limpiar la anterior:', error);
+      });
+    }
+    var badge = document.getElementById('firma-guardada-badge');
+    if (badge) {
+      badge.style.display = '';
+      badge.style.background = 'var(--green-bg)';
+      badge.style.color = 'var(--green)';
+      badge.style.borderColor = 'var(--green)';
+      badge.textContent = '✓ Firma guardada';
+    }
+    var preview = document.getElementById('firma-preview');
+    var img = document.getElementById('firma-img');
+    if (preview && img) {
+      img.src = firmaUrl;
+      preview.style.display = '';
+    }
+    notify('✓ Firma guardada y verificada');
+    return firmaUrl;
   });
-  var badge = document.getElementById('firma-guardada-badge');
-  if (badge) badge.style.display = '';
-  // Mostrar preview
-  var preview = document.getElementById('firma-preview');
-  var img     = document.getElementById('firma-img');
-  if (preview && img) { img.src = firmaUrl; preview.style.display = ''; }
 }
 
 function firmaCargar(ot) {
@@ -26745,6 +26865,12 @@ function firmaCargar(ot) {
   var preview = document.getElementById('firma-preview');
   var img     = document.getElementById('firma-img');
   if (badge)   badge.style.display = '';
+  if (badge) {
+    badge.style.background = 'var(--green-bg)';
+    badge.style.color = 'var(--green)';
+    badge.style.borderColor = 'var(--green)';
+    badge.textContent = '✓ Firma guardada';
+  }
   if (preview) preview.style.display = '';
   if (img)     img.src = ot.firmaClienteUrl;
   _firmaTiene = true;
@@ -27213,6 +27339,7 @@ function toggleChecklistFase(fase) {
     return;
   }
   normalizarChecklistOT(ot);
+  var estadoAnterior = ot.checks[fase].slice();
   var marcar = !ot.checks[fase].every(Boolean);
   ot.checks[fase] = CHECKLISTS[fase].map(function(){ return marcar; });
   var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
@@ -27226,7 +27353,12 @@ function toggleChecklistFase(fase) {
   actualizarProgreso(ot);
   renderChecklist('checklist-' + fase, ot.checks[fase], CHECKLISTS[fase], otActualId, fase);
   if (typeof fbGuardarOT === 'function') {
-    fbGuardarOT(ot).catch(function(e){ console.error('Error guardando la etapa del checklist:', e); });
+    fbGuardarOT(ot).catch(function(e){
+      ot.checks[fase] = estadoAnterior;
+      actualizarProgreso(ot);
+      renderChecklist('checklist-' + fase, ot.checks[fase], CHECKLISTS[fase], otActualId, fase);
+      notify('No se pudo guardar esta etapa: ' + e.message);
+    });
   }
 }
 
@@ -27235,6 +27367,7 @@ function toggleCheckOT(otId, fase, idx) {
   const ot = otData.find(o => o.id === otId || o.fbKey === otId);
   if (!ot || ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0) return;
   normalizarChecklistOT(ot);
+  var valorAnterior = ot.checks[fase][idx];
   ot.checks[fase][idx] = !ot.checks[fase][idx];
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   if (!ot.audit) ot.audit = [];
@@ -27242,7 +27375,12 @@ function toggleCheckOT(otId, fase, idx) {
   actualizarProgreso(ot);
   renderChecklist(`checklist-${fase}`, ot.checks[fase], CHECKLISTS[fase], otId, fase);
   if (typeof fbGuardarOT === 'function') {
-    fbGuardarOT(ot).catch(function(e){ console.error('Error guardando check:', e); });
+    fbGuardarOT(ot).catch(function(e){
+      ot.checks[fase][idx] = valorAnterior;
+      actualizarProgreso(ot);
+      renderChecklist(`checklist-${fase}`, ot.checks[fase], CHECKLISTS[fase], otId, fase);
+      notify('No se pudo guardar el control: ' + e.message);
+    });
   }
 }
 
@@ -27262,6 +27400,18 @@ function actualizarProgreso(ot) {
 function completarOT() {
   const ot = otData.find(o => o.id === otActualId || o.fbKey === otActualId);
   if (!ot) return;
+  if (['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0) {
+    notify('Esta OT ya está finalizada.');
+    return;
+  }
+  normalizarChecklistOT(ot);
+  var checklistTotal = Object.values(ot.checks||{}).flat().length;
+  var checklistHecho = Object.values(ot.checks||{}).flat().filter(Boolean).length;
+  if (!checklistTotal || checklistHecho < checklistTotal) {
+    notify('Faltan ' + (checklistTotal - checklistHecho) + ' controles del checklist antes de finalizar.');
+    if (typeof window.otWizardIr === 'function') window.otWizardIr('checklist');
+    return;
+  }
   var custodiaCierre = typeof window.otCustodiaValidarCierre === 'function' ? window.otCustodiaValidarCierre(ot) : { ok:true, conObservaciones:false };
   if (!custodiaCierre.ok) {
     notify(custodiaCierre.message || 'Falta rendir los materiales entregados');
@@ -27270,10 +27420,17 @@ function completarOT() {
   }
   var _oc=document.getElementById('ot-acta-conf'); const conf = _oc?_oc.value:'';
   if (!conf) { notify('Seleccioná la conformidad del cliente'); return; }
+  var fotosGuardadas = otNotasNormalizadas(ot).filter(function(nota){ return !!nota.fotoUrl; }).length;
+  if (!fotosGuardadas && !confirm('Esta OT no tiene ninguna foto guardada.\n\n¿Querés finalizarla igualmente?')) {
+    if (typeof window.otWizardIr === 'function') window.otWizardIr('fotos');
+    return;
+  }
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   ot.estado = custodiaCierre.conObservaciones ? 'con_observaciones' : 'completada';
   ot.cierreConObservaciones = custodiaCierre.conObservaciones === true;
   ot.progreso = 100;
+  ot.conformidadCliente = conf;
+  ot.nombreConformidad = ((document.getElementById('ot-acta-firma')||{}).value || '').trim();
   var hoyCierre = svFechaLocalISO();
   ot.fechaCierre = ot.fechaCierre || hoyCierre;
   ot.fechaCompletada = ot.fechaCompletada || hoyCierre;
@@ -27370,8 +27527,20 @@ function actualizarOT(direccionEditada) {
   if (!ot.audit) ot.audit = [];
   ot.audit.push({ fecha: ahora, usuario: currentUser || 'Sistema', accion: 'Datos de la OT actualizados' + (ot.prioridad ? ' · Marcada como PRIORIDAD' : '') });
 
-  if (typeof fbGuardarOT === 'function') fbGuardarOT(ot);
-  notify('OT actualizada');
+  if (typeof fbGuardarOT !== 'function') {
+    notify('No se pudo guardar la OT: servicio no disponible');
+    return Promise.reject(new Error('Servicio de guardado no disponible'));
+  }
+  return fbGuardarOT(ot)
+    .then(function() {
+      window._otDetalleHuella = JSON.stringify(ot);
+      notify('✓ OT actualizada');
+      return ot;
+    })
+    .catch(function(error) {
+      notify('No se pudo guardar la OT: ' + error.message);
+      return null;
+    });
 }
 
 function aplicarVistaTecnicoOT() {
