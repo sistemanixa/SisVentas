@@ -5323,12 +5323,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.155-firebase',
+  VERSION: 'v2.0.156-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Compras más visuales, formularios más claros y cuenta corriente ordenada.'
+    'Auditoría segura de precios y Mercado Libre por URL exacta.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordenes', actionLabel:'Abrir compras y materiales' }),
+  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador de precios' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.156',
+      date: '23/07/2026',
+      title: 'Precios protegidos y Mercado Libre',
+      notes: Object.freeze(['Auditoría segura de moneda y actualización de Mercado Libre usando la URL exacta del producto.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador de precios' })
+    }),
     Object.freeze({
       version: 'v2.0.155',
       date: '23/07/2026',
@@ -7894,10 +7901,79 @@ function detectarProductoArsDuplicadoPorDolar(p) {
   return null;
 }
 
+// Detecta registros heredados cuya cifra quedó guardada en la moneda equivocada.
+// No usa solamente un umbral: exige que, después de convertir, costo y venta
+// vuelvan a tener una relación comercial razonable. Los servicios quedan fuera
+// porque pueden tener costos simbólicos y márgenes deliberadamente atípicos.
+function detectarPrecioLegacyMonedaProducto(p) {
+  p = p || {};
+  if (typeof esProductoManoDeObra === 'function' && esProductoManoDeObra(p)) return null;
+  var costoGuardado = _costoRaizProductoSinAuditar(p);
+  var ventaGuardada = _primerNumeroPositivoProducto([p.ventaARS, p.precioArsPublicadoVenta, p.venta, p.precio_venta, p.precioVenta]);
+  var tcInfo = obtenerDolarReferenciaProducto();
+  var tc = parseFloat(p.tcGuardado || p.dolarUsadoVenta || p.dolarUsado || (tcInfo && tcInfo.valor)) || 0;
+  if (!(tc > 100)) return null;
+
+  if (costoGuardado >= 5000000 && ventaGuardada >= 5000000) {
+    var costoDividido = Math.round((costoGuardado / tc) * 100) / 100;
+    var ventaDividida = Math.round((ventaGuardada / tc) * 100) / 100;
+    if (costoDividido >= 100 && costoDividido <= 2000000 &&
+        ventaDividida >= 100 && ventaDividida <= 5000000 &&
+        _precioVentaRazonableRespectoCosto(ventaDividida, costoDividido)) {
+      return {
+        tipo:'ars_multiplicado_por_dolar',
+        costoGuardado:costoGuardado,
+        costoCorregido:costoDividido,
+        ventaGuardada:ventaGuardada,
+        ventaCorregida:ventaDividida,
+        tipoCambio:tc,
+        origen:'auditoria-matematica-costo-venta'
+      };
+    }
+  }
+
+  if (costoGuardado > 0 && costoGuardado < 5000 && ventaGuardada >= 100) {
+    var costoConvertido = Math.round(costoGuardado * tc * 100) / 100;
+    if (_precioVentaRazonableRespectoCosto(ventaGuardada, costoConvertido)) {
+      return {
+        tipo:'costo_usd_legacy',
+        costoGuardado:costoGuardado,
+        costoCorregido:costoConvertido,
+        ventaGuardada:ventaGuardada,
+        ventaCorregida:ventaGuardada,
+        tipoCambio:tc,
+        origen:'auditoria-matematica-costo-usd'
+      };
+    }
+  }
+
+  if (ventaGuardada > 0 && ventaGuardada < 5000 && costoGuardado >= 100) {
+    var ventaConvertida = Math.round(ventaGuardada * tc * 100) / 100;
+    var margen = parseFloat(p.margenDeseado);
+    if (isFinite(margen) && margen >= 0 && margen <= 500) {
+      ventaConvertida = Math.round(costoGuardado * (1 + margen / 100) * 100) / 100;
+    }
+    if (_precioVentaRazonableRespectoCosto(ventaConvertida, costoGuardado)) {
+      return {
+        tipo:'venta_usd_legacy',
+        costoGuardado:costoGuardado,
+        costoCorregido:costoGuardado,
+        ventaGuardada:ventaGuardada,
+        ventaCorregida:ventaConvertida,
+        tipoCambio:tc,
+        origen:'auditoria-matematica-venta-usd'
+      };
+    }
+  }
+  return null;
+}
+
 function precioGremioARSDesdeProducto(p) {
   p = p || {};
   var auditoriaProducto = detectarProductoArsDuplicadoPorDolar(p);
   if (auditoriaProducto && auditoriaProducto.costoCorregido > 0) return auditoriaProducto.costoCorregido;
+  var legacyMoneda = detectarPrecioLegacyMonedaProducto(p);
+  if (legacyMoneda && legacyMoneda.costoCorregido > 0) return legacyMoneda.costoCorregido;
   var proveedorPrincipal = Array.isArray(p.proveedores) && p.proveedores.length ? p.proveedores[0] : null;
   var tc = obtenerDolarReferenciaProducto();
   // Los campos normalizados del producto son la fuente operativa. Antes se
@@ -7962,6 +8038,14 @@ function precioVentaCanonicoProducto(p) {
       precioARS: auditoriaProducto.ventaCorregida,
       precioOrigen: auditoriaProducto.ventaGuardada,
       monedaOrigen: 'ARS_CORREGIDO_ACTUALIZADOR'
+    };
+  }
+  var legacyMoneda = detectarPrecioLegacyMonedaProducto(p);
+  if (legacyMoneda && legacyMoneda.ventaCorregida > 0) {
+    return {
+      precioARS: legacyMoneda.ventaCorregida,
+      precioOrigen: legacyMoneda.ventaGuardada,
+      monedaOrigen: 'ARS_CORREGIDO_LEGACY'
     };
   }
   var duplicadoDolar = detectarVentaArsDuplicadaPorDolar(p);
@@ -8153,6 +8237,163 @@ function repararVentasArsDuplicadasPorDolar() {
   }).finally(function(){
     _reparacionVentasDuplicadasDolarEnCurso = false;
   });
+}
+
+function auditarIntegridadPreciosCatalogo() {
+  var seguros = [];
+  var manuales = [];
+  var sinPrecio = [];
+  Object.values(prodData || {}).forEach(function(p) {
+    if (!p || !p.fbKey) return;
+    var costoRaw = _costoRaizProductoSinAuditar(p);
+    var ventaRaw = _primerNumeroPositivoProducto([p.ventaARS, p.precioArsPublicadoVenta, p.venta, p.precio_venta, p.precioVenta]);
+    if (!(costoRaw > 0) || !(ventaRaw > 0)) {
+      sinPrecio.push({ producto:p, costo:costoRaw, venta:ventaRaw, motivo:'Falta costo o precio de venta' });
+      return;
+    }
+    var correccion = detectarProductoArsDuplicadoPorDolar(p) || detectarPrecioLegacyMonedaProducto(p);
+    if (correccion) {
+      seguros.push({ producto:p, correccion:correccion });
+      return;
+    }
+    var ratio = ventaRaw / costoRaw;
+    if (costoRaw >= 5000000 || ventaRaw >= 5000000 || ratio < 0.25 || ratio > 20) {
+      manuales.push({
+        producto:p,
+        costo:costoRaw,
+        venta:ventaRaw,
+        motivo:costoRaw >= 5000000 || ventaRaw >= 5000000
+          ? 'Importe extraordinario sin prueba suficiente para corregirlo solo'
+          : 'Relación costo/venta fuera del rango habitual'
+      });
+    }
+  });
+  return {
+    total:Object.values(prodData || {}).filter(function(p){ return p && p.fbKey; }).length,
+    seguros:seguros,
+    manuales:manuales,
+    sinPrecio:sinPrecio
+  };
+}
+
+function cerrarAuditoriaIntegridadPrecios() {
+  var modal = document.getElementById('modal-auditoria-precios');
+  if (modal) modal.remove();
+}
+
+function _filaAuditoriaPrecio(item, segura) {
+  var p = item.producto || {};
+  var c = item.correccion || {};
+  var costoAntes = segura ? c.costoGuardado : item.costo;
+  var ventaAntes = segura ? c.ventaGuardada : item.venta;
+  var costoDespues = segura ? c.costoCorregido : 0;
+  var ventaDespues = segura ? c.ventaCorregida : 0;
+  var etiqueta = segura
+    ? (c.tipo === 'costo_usd_legacy' ? 'Costo USD heredado' : c.tipo === 'venta_usd_legacy' ? 'Venta USD heredada' : 'Conversión duplicada')
+    : item.motivo;
+  return '<div style="display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(140px,1fr) minmax(140px,1fr);gap:10px;align-items:center;padding:10px 2px;border-bottom:.5px solid var(--border)">' +
+    '<button type="button" onclick="cerrarAuditoriaIntegridadPrecios();verProducto(\'' + escapeHTML(String(p.fbKey || '')) + '\')" style="appearance:none;border:0;background:none;padding:0;text-align:left;color:var(--text);cursor:pointer;min-width:0"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><br><span style="font-size:11px;color:var(--text3)">' + escapeHTML(p.nombre || p.descripcion || '') + '</span></button>' +
+    '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(etiqueta || 'Revisión') + '<br><span>Costo $' + Math.round(costoAntes || 0).toLocaleString('es-AR') + ' · Venta $' + Math.round(ventaAntes || 0).toLocaleString('es-AR') + '</span></div>' +
+    '<div style="font-size:11px;' + (segura ? 'color:var(--green)' : 'color:var(--amber)') + '">' + (segura ? 'Quedará: costo $' + Math.round(costoDespues || 0).toLocaleString('es-AR') + '<br>venta $' + Math.round(ventaDespues || 0).toLocaleString('es-AR') : 'Requiere decisión manual') + '</div>' +
+  '</div>';
+}
+
+function abrirAuditoriaIntegridadPrecios() {
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede auditar el catálogo'); return; }
+  cerrarAuditoriaIntegridadPrecios();
+  var auditoria = auditarIntegridadPreciosCatalogo();
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-auditoria-precios';
+  overlay.className = 'modal-overlay';
+  overlay.style.display = 'flex';
+  overlay.innerHTML =
+    '<div class="modal" style="width:min(980px,96vw);max-width:980px;max-height:92vh;display:flex;flex-direction:column">' +
+      '<div class="modal-head"><div><strong><i class="ti ti-shield-check" style="color:var(--blue);margin-right:7px"></i>Auditoría integral de precios</strong><div style="font-size:11px;color:var(--text3);margin-top:4px">Analiza todo el catálogo sin modificar ventas históricas.</div></div><button class="icon-btn" onclick="cerrarAuditoriaIntegridadPrecios()" aria-label="Cerrar"><i class="ti ti-x"></i></button></div>' +
+      '<div class="modal-body" style="overflow:auto">' +
+        '<div class="metrics" style="grid-template-columns:repeat(4,minmax(120px,1fr));margin-bottom:14px">' +
+          '<div class="metric"><div class="m-label">Catálogo</div><div class="m-value">' + auditoria.total + '</div><div class="m-sub">productos analizados</div></div>' +
+          '<div class="metric"><div class="m-label">Reparación segura</div><div class="m-value" style="color:var(--green)">' + auditoria.seguros.length + '</div><div class="m-sub">con prueba matemática</div></div>' +
+          '<div class="metric"><div class="m-label">Revisión manual</div><div class="m-value" style="color:var(--amber)">' + auditoria.manuales.length + '</div><div class="m-sub">no se tocarán solos</div></div>' +
+          '<div class="metric"><div class="m-label">Sin precio completo</div><div class="m-value">' + auditoria.sinPrecio.length + '</div><div class="m-sub">para completar</div></div>' +
+        '</div>' +
+        '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:12px"><i class="ti ti-lock-check"></i> La reparación segura guarda una copia completa anterior y sólo corrige moneda/escala. No cambia comprobantes, presupuestos ni ventas ya emitidas.</div>' +
+        '<details open><summary style="cursor:pointer;font-weight:800;padding:8px 0">Casos seguros (' + auditoria.seguros.length + ')</summary><div style="max-height:310px;overflow:auto">' + (auditoria.seguros.map(function(x){ return _filaAuditoriaPrecio(x, true); }).join('') || '<div style="padding:14px;color:var(--text3)">No se detectaron correcciones automáticas pendientes.</div>') + '</div></details>' +
+        '<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:800;padding:8px 0">Revisión manual (' + auditoria.manuales.length + ')</summary><div style="max-height:260px;overflow:auto">' + (auditoria.manuales.map(function(x){ return _filaAuditoriaPrecio(x, false); }).join('') || '<div style="padding:14px;color:var(--text3)">Sin casos manuales extraordinarios.</div>') + '</div></details>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:.5px solid var(--border)"><button class="btn" onclick="cerrarAuditoriaIntegridadPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-reparar-auditoria-precios" ' + (auditoria.seguros.length ? '' : 'disabled') + ' onclick="repararCasosSegurosIntegridadPrecios()"><i class="ti ti-tool"></i> Reparar ' + auditoria.seguros.length + ' casos seguros</button></div>' +
+    '</div>';
+  overlay._auditoria = auditoria;
+  document.body.appendChild(overlay);
+}
+
+async function repararCasosSegurosIntegridadPrecios() {
+  var modal = document.getElementById('modal-auditoria-precios');
+  var auditoria = modal && modal._auditoria;
+  if (!auditoria || !auditoria.seguros.length || !window.fbDB) return;
+  if (!confirm('Se corregirán ' + auditoria.seguros.length + ' productos con respaldo previo. Los casos dudosos no se modificarán. ¿Continuar?')) return;
+  var btn = document.getElementById('btn-reparar-auditoria-precios');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite"></i> Reparando…'; }
+  var cambios = {};
+  var ahora = Date.now();
+  auditoria.seguros.forEach(function(item) {
+    var p = item.producto;
+    var c = item.correccion;
+    var base = FB_PATHS.productos + '/' + p.fbKey + '/';
+    cambios[base + 'auditoriaPrecioBackup20260723'] = {
+      ts:ahora,
+      usuario:currentUser || 'Admin',
+      compra:p.compra || null,
+      compraARS:p.compraARS || null,
+      precioGremio:p.precioGremio || null,
+      costoRealArs:p.costoRealArs || null,
+      venta:p.venta || null,
+      ventaARS:p.ventaARS || null,
+      precioArsPublicadoVenta:p.precioArsPublicadoVenta || null,
+      compraUSD:p.compraUSD || null,
+      ventaUSD:p.ventaUSD || null,
+      moneda:p.moneda || null,
+      monedaVenta:p.monedaVenta || null,
+      proveedores:Array.isArray(p.proveedores) ? p.proveedores : null
+    };
+    cambios[base + 'compra'] = c.costoCorregido;
+    cambios[base + 'compraARS'] = c.costoCorregido;
+    cambios[base + 'precioGremio'] = c.costoCorregido;
+    cambios[base + 'costoRealArs'] = c.costoCorregido;
+    cambios[base + 'venta'] = c.ventaCorregida;
+    cambios[base + 'ventaARS'] = c.ventaCorregida;
+    cambios[base + 'precioArsPublicadoVenta'] = c.ventaCorregida;
+    cambios[base + 'moneda'] = 'ARS';
+    cambios[base + 'monedaVenta'] = 'ARS';
+    cambios[base + 'monedaOperativa'] = 'ARS';
+    cambios[base + 'tcGuardado'] = c.tipoCambio;
+    cambios[base + 'compraUSD'] = Math.round((c.costoCorregido / c.tipoCambio) * 100) / 100;
+    cambios[base + 'ventaUSD'] = Math.round((c.ventaCorregida / c.tipoCambio) * 100) / 100;
+    cambios[base + 'auditoriaPrecioUltima'] = {
+      ts:ahora,
+      usuario:currentUser || 'Admin',
+      motivo:c.origen || c.tipo || 'auditoria-integral',
+      costoAntes:c.costoGuardado,
+      costoDespues:c.costoCorregido,
+      ventaAntes:c.ventaGuardada,
+      ventaDespues:c.ventaCorregida,
+      tipoCambio:c.tipoCambio
+    };
+    if (Array.isArray(p.proveedores) && p.proveedores.length && c.costoCorregido !== c.costoGuardado) {
+      var temporal = Object.assign({}, p, { compra:c.costoCorregido, compraARS:c.costoCorregido, precioGremio:c.costoCorregido, costoRealArs:c.costoCorregido });
+      cambios[base + 'proveedores'] = reconciliarCostoProductoConProveedorPrincipal(temporal, p.proveedores);
+    }
+  });
+  try {
+    await window.fbUpdate(window.fbRef(window.fbDB), cambios);
+    if (typeof registrarActividad === 'function') registrarActividad('Auditoría integral de precios', auditoria.seguros.length + ' casos seguros reparados');
+    notify('✓ Se repararon ' + auditoria.seguros.length + ' productos con respaldo');
+    cerrarAuditoriaIntegridadPrecios();
+    if (typeof renderTablaProductos === 'function') renderTablaProductos();
+  } catch (e) {
+    console.error('[Productos] Error en auditoría integral', e);
+    notify('No se pudo completar la reparación: ' + (e.message || 'error'));
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-tool"></i> Reintentar reparación'; }
+  }
 }
 
 function normalizarTodosProductosARS() {
@@ -8454,7 +8695,7 @@ function abrirGestionRevisionPrecios() {
     '<div style="width:min(900px,100%);max-height:92vh;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)"><div><div style="font-size:16px;font-weight:700"><i class="ti ti-clipboard-search" style="color:var(--amber);margin-right:7px"></i>Revisión de precios de productos</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Productos sin verificar o con actualización de más de 24 horas</div></div><button class="icon-btn" onclick="document.getElementById(\'modal-revision-precios\').remove()"><i class="ti ti-x"></i></button></div>' +
       '<div style="padding:16px 18px;display:flex;flex-direction:column;min-height:0;flex:1">' +
-        '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"><div class="metric"><div class="m-label">Requieren revisión</div><div class="m-value" style="color:var(--amber)">' + productos.length + '</div><div class="m-sub">total del catálogo</div></div><div class="metric"><div class="m-label">Automatizables</div><div class="m-value" style="color:var(--green)">' + Object.keys(compatiblesKeys).length + '</div><div class="m-sub">Biosegur, Free o Tecnoprices</div></div><div class="metric"><div class="m-label">Gestión manual</div><div class="m-value">' + (productos.length-Object.keys(compatiblesKeys).length) + '</div><div class="m-sub">incluye Mercado Libre</div></div></div>' +
+        '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"><div class="metric"><div class="m-label">Requieren revisión</div><div class="m-value" style="color:var(--amber)">' + productos.length + '</div><div class="m-sub">total del catálogo</div></div><div class="metric"><div class="m-label">Automatizables</div><div class="m-value" style="color:var(--green)">' + Object.keys(compatiblesKeys).length + '</div><div class="m-sub">Biosegur, Free, Tecnoprices o ML</div></div><div class="metric"><div class="m-label">Gestión manual</div><div class="m-value">' + (productos.length-Object.keys(compatiblesKeys).length) + '</div><div class="m-sub">sin URL verificable</div></div></div>' +
         '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><input class="search-input" style="flex:1;min-width:220px" placeholder="Buscar código, producto o proveedor…" oninput="filtrarGestionRevisionPrecios(this.value)"><span id="revision-precios-contador" style="font-size:11px;color:var(--text3)">' + productos.length + ' productos</span><button class="btn btn-primary" onclick="document.getElementById(\'modal-revision-precios\').remove();abrirActualizadorMasivoPrecios()" ' + (!compatibles.length?'disabled':'') + '><i class="ti ti-refresh"></i> Actualizar compatibles</button></div>' +
         '<div id="revision-precios-lista" style="overflow:auto;border:0.5px solid var(--border);border-radius:10px">' + productos.map(function(p){
           var estado = estadoVigenciaPrecioProducto(p);
@@ -8501,11 +8742,13 @@ function productosBiosegurActualizables() {
       try { host = new URL(normalizarUrlProveedorProducto(url)).hostname.toLowerCase(); } catch (_) {}
       var tipo = /(^|\.)biosegur\.com\.ar$/.test(host) ? 'biosegur'
         : /(^|\.)free-electron\.com\.ar$/.test(host) ? 'free_electron'
-        : /(^|\.)tecnoprices\.com$/.test(host) ? 'tecnoprices' : '';
+        : /(^|\.)tecnoprices\.com$/.test(host) ? 'tecnoprices'
+        : /(^|\.)mercadolibre\.com\.ar$/.test(host) || host === 'meli.la' ? 'mercado_libre' : '';
       if (!tipo) return;
       var nombreCompatible = tipo === 'biosegur' ? /biosegur/i.test(nombrePv)
         : tipo === 'free_electron' ? /free[\s-]*electron/i.test(nombrePv)
-        : /tecnoprices/i.test(nombrePv);
+        : tipo === 'tecnoprices' ? /tecnoprices/i.test(nombrePv)
+        : /mercado\s*libre|mercadolibre/i.test(nombrePv);
       if (!nombreCompatible) return;
       var maestro = (proveedoresData || []).find(function(prov) {
         return prov && prov.activo !== false && String(prov.nombre || '').trim().toLowerCase() === nombrePv;
@@ -8542,7 +8785,8 @@ function renderModuloActualizadorPrecios() {
   var tipos = [
     { id:'biosegur', nombre:'BIOSEGUR', icono:'ti-shield-check' },
     { id:'free_electron', nombre:'FREE ELECTRON', icono:'ti-bolt' },
-    { id:'tecnoprices', nombre:'TECNOPRICES', icono:'ti-device-desktop-dollar' }
+    { id:'tecnoprices', nombre:'TECNOPRICES', icono:'ti-device-desktop-dollar' },
+    { id:'mercado_libre', nombre:'MERCADO LIBRE', icono:'ti-shopping-bag' }
   ];
   var cont = document.getElementById('mod-ap-proveedores');
   if (!cont) return;
@@ -8708,7 +8952,7 @@ function abrirActualizadorMasivoPrecios() {
   overlay.innerHTML =
     '<div id="actualizador-precios-panel" style="width:min(620px,100%);background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)">' +
-        '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo de precios de proveedores</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Biosegur · Free Electron · Tecnoprices</div></div>' +
+        '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo de precios de proveedores</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Biosegur · Free Electron · Tecnoprices · Mercado Libre</div></div>' +
         '<div style="display:flex;gap:5px"><button class="icon-btn" onclick="minimizarActualizadorMasivoPrecios()" title="Minimizar"><i class="ti ti-minus"></i></button><button class="icon-btn" onclick="cerrarActualizadorMasivoPrecios()" title="Cerrar"><i class="ti ti-x"></i></button></div>' +
       '</div>' +
       '<div style="padding:18px">' +
@@ -8848,7 +9092,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
   var procesados = 0, actualizados = 0, fallidos = 0;
   if (exitososEl) exitososEl.textContent = '0';
   var detalleFallos = [];
-  var jobId = 'biosegur_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  var jobId = 'proveedores_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
   var procesoIniciadoEn = Date.now();
   var ultimaRespuestaProveedorEn = 0;
   var progresoVisualMax = 0;
@@ -8874,7 +9118,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
     if (estado && pr.estado === 'iniciando_navegador') estado.textContent = 'Preparando navegador seguro de ' + proveedorProgreso + '…';
     if (estado && pr.estado === 'iniciando_sesion') estado.textContent = 'Iniciando sesión en ' + proveedorProgreso + '…';
     if (productoActualEl && pr.estado === 'procesando') {
-      productoActualEl.innerHTML = '<strong style="color:var(--text)">' + escapeHTML(pr.codigo || 'Sin código') + '</strong> · ' + escapeHTML(pr.producto || 'Producto Biosegur') + '<br><span style="opacity:.75">' + escapeHTML(pr.url || '') + '</span>';
+      productoActualEl.innerHTML = '<strong style="color:var(--text)">' + escapeHTML(pr.codigo || 'Sin código') + '</strong> · ' + escapeHTML(pr.producto || 'Producto') + '<br><span style="opacity:.75">' + escapeHTML(pr.url || '') + '</span>';
     }
     if (estado && pr.total) estado.textContent = proveedorProgreso + ': ' + (parseInt(pr.procesados,10)||0) + ' de ' + pr.total + ' procesados';
     if (pr.total) actualizarProgresoVisual((parseInt(pr.procesados,10)||0) / pr.total * 100, estado ? estado.textContent : 'Actualizando precios…');
@@ -8903,7 +9147,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
         var bloque = grupo.slice(inicio, inicio + 30);
         var nombreGrupo = (bloque[0] && bloque[0].proveedor && (bloque[0].proveedor.nombre || bloque[0].proveedor.proveedor)) || 'Proveedor';
         if (estado) estado.innerHTML = '<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>' + escapeHTML(nombreGrupo) + ': preparando productos ' + (procesados + 1) + ' a ' + Math.min(procesados + bloque.length, pendientes.length) + ' de ' + pendientes.length + '…';
-        if (productoActualEl && bloque[0]) productoActualEl.innerHTML = 'Próximo: <strong style="color:var(--text)">' + escapeHTML(bloque[0].producto.codigo || 'Sin código') + '</strong> · ' + escapeHTML(bloque[0].producto.nombre || bloque[0].producto.descripcion || 'Producto Biosegur');
+        if (productoActualEl && bloque[0]) productoActualEl.innerHTML = 'Próximo: <strong style="color:var(--text)">' + escapeHTML(bloque[0].producto.codigo || 'Sin código') + '</strong> · ' + escapeHTML(bloque[0].producto.nombre || bloque[0].producto.descripcion || 'Producto');
         var resp = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar-lote', {
           method:'POST',
           headers:{ 'Content-Type':'application/json', 'X-Frontend-Key':SISVENTAS_FUNCTIONS.frontendKey },
@@ -9288,7 +9532,8 @@ function cotizarPreciosProveedores() {
     var nombreProveedor = String(pv.nombre || (maestro && maestro.nombre) || '').trim().toLowerCase();
     var automatizable = ((/(^|\.)biosegur\.com\.ar$/.test(hostProveedor) && /biosegur/i.test(nombreProveedor))
       || (/(^|\.)free-electron\.com\.ar$/.test(hostProveedor) && /free[\s-]*electron/i.test(nombreProveedor))
-      || (/(^|\.)tecnoprices\.com$/.test(hostProveedor) && /tecnoprices/i.test(nombreProveedor)));
+      || (/(^|\.)tecnoprices\.com$/.test(hostProveedor) && /tecnoprices/i.test(nombreProveedor))
+      || (((/(^|\.)mercadolibre\.com\.ar$/.test(hostProveedor)) || hostProveedor === 'meli.la') && /mercado\s*libre|mercadolibre/i.test(nombreProveedor)));
     return {
       idx: idx,
       nombre: pv.nombre || (maestro && maestro.nombre) || 'Proveedor',
@@ -9314,14 +9559,7 @@ function cotizarPreciosProveedores() {
     return;
   }
   if (!provCotizables.length) {
-    var esMercadoLibreManual = prodProveedoresActuales.some(function(pv) {
-      return /mercado\s*libre/i.test(String((pv && pv.nombre) || '')) || /mercadolibre\.com\.ar/i.test(String((pv && pv.url) || ''));
-    });
-    if (esMercadoLibreManual) {
-      alert('Mercado Libre se gestiona manualmente por el momento.\n\nAbrí la publicación, ingresá el valor en Precio ARS y después guardá el producto.');
-    } else {
-      notify('Este proveedor requiere revisión manual o no tiene una URL compatible');
-    }
+    notify('Este proveedor requiere revisión manual o no tiene una URL exacta compatible');
     return;
   }
 

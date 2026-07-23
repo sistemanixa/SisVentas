@@ -65,11 +65,19 @@ function tipoProveedor(proveedor, url) {
   if (txt.includes('biosegur')) return 'biosegur';
   if (txt.includes('free-electron') || txt.includes('free electron')) return 'free_electron';
   if (txt.includes('tecnoprices')) return 'tecnoprices';
-  if (txt.includes('mercadolibre.com.ar') || txt.includes('mercado libre')) return 'mercado_libre';
+  if (txt.includes('mercadolibre.com.ar') || txt.includes('mercado libre') || txt.includes('mercadolibre') || txt.includes('meli.la')) return 'mercado_libre';
   return '';
 }
 
 function esUrlMercadoLibre(url) {
+  try {
+    const host = new URL(normalizarUrl(url)).hostname.toLowerCase();
+    return /(^|\.)mercadolibre\.com\.ar$/.test(host) || host === 'meli.la';
+  }
+  catch (_) { return false; }
+}
+
+function esDestinoMercadoLibreArgentina(url) {
   try { return /(^|\.)mercadolibre\.com\.ar$/.test(new URL(normalizarUrl(url)).hostname.toLowerCase()); }
   catch (_) { return false; }
 }
@@ -103,9 +111,16 @@ async function extraerProductoMercadoLibre(page) {
     precioArs = parseFloat(oferta && (oferta.price || oferta.lowPrice)) || 0;
   }
   if (!precioArs) throw new Error('No se encontró el precio principal de la publicación');
+  const ofertaSchema = schema && schema.offers ? (Array.isArray(schema.offers) ? schema.offers[0] : schema.offers) : null;
+  const moneda = await page.locator('meta[itemprop="priceCurrency"]').first().getAttribute('content').catch(() => '')
+    || (ofertaSchema && ofertaSchema.priceCurrency)
+    || '';
+  if (moneda && String(moneda).toUpperCase() !== 'ARS') {
+    throw new Error(`La publicación informa moneda ${moneda}; no se guardará como pesos argentinos`);
+  }
   const disponibilidad = /stock disponible|cantidad:\s*\d+|comprar ahora|agregar al carrito/i.test(bodyText) ? 'disponible' : extraerDisponibilidadProveedor(bodyText);
   const titulo = await page.locator('h1.ui-pdp-title').first().innerText({ timeout:3000 }).catch(() => '');
-  return { precioArs, disponibilidad, titulo:titulo || (schema && schema.name) || '' };
+  return { precioArs, disponibilidad, titulo:titulo || (schema && schema.name) || '', moneda:moneda || 'ARS' };
 }
 
 async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) {
@@ -117,6 +132,7 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) 
     context = await browser.newContext({ locale:'es-AR', timezoneId:'America/Argentina/Buenos_Aires' });
     const page = await context.newPage();
     await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
+    if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
     const datos = await extraerProductoMercadoLibre(page);
     return { ok:true, proveedor:proveedor.nombre || 'MERCADO LIBRE', codigo:codigo || '', producto:datos.titulo || producto || '', url:urlExacta, precioArs:datos.precioArs, sinIva:false, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad === 'disponible' ? 'Disponible' : datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado', fuente:'mercado_libre_url_exacta', fecha:new Date().toISOString(), debug:debug ? { titulo:datos.titulo } : undefined };
   } finally {
@@ -574,7 +590,10 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
       try {
         if (!esUrlMercadoLibre(urlExacta)) throw new Error('La URL no corresponde a Mercado Libre Argentina');
         await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
+        if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
         const datos = await extraerProductoMercadoLibre(page);
+        const validacionPrecio = validarSaltoPrecio(datos.precioArs, item.precioAnteriorArs);
+        if (!validacionPrecio.ok) throw new Error(validacionPrecio.mensaje);
         resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, sinIva:false, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:'mercado_libre_lote_url_exacta', fecha:new Date().toISOString() });
       } catch (e) {
         resultados.push({ ok:false, error:true, codigo:item.codigo||'', url:urlExacta, mensaje:e.message||'Error leyendo la publicación' });

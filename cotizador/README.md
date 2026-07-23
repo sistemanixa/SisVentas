@@ -1,15 +1,17 @@
 # Cotizador NIXA
 
-Servicio Cloud Run separado para cotizar proveedores con login real.
+Servicio Cloud Run separado para cotizar proveedores por su URL exacta.
 
 ## Qué hace
 
 - Recibe `proveedorKey` y URL exacta del producto.
 - Lee `sisventas/proveedores/{proveedorKey}` desde Firebase.
-- Usa `usuario` y `password` guardados en el proveedor.
-- Inicia sesión en Biosegur.
+- Usa `usuario` y `password` cuando el proveedor requiere acceso.
+- Inicia sesión en Biosegur, Free Electron o Tecnoprices.
+- Para Mercado Libre abre la publicación exacta sin pedir credenciales.
 - Abre la URL exacta del producto.
-- Extrae el precio visible en ARS.
+- Extrae el precio visible en ARS y la disponibilidad.
+- Bloquea variaciones anormales para conservar el precio anterior.
 
 ## Variables de entorno
 
@@ -35,9 +37,9 @@ Body:
 ```json
 {
   "proveedorKey": "-firebase-key",
-  "url": "https://www.biosegur.com.ar/...",
+  "url": "https://articulo.mercadolibre.com.ar/...",
   "codigo": "P401",
-  "producto": "Balun HD Hikvision..."
+  "producto": "Producto publicado..."
 }
 ```
 
