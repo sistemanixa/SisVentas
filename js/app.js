@@ -5453,12 +5453,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.168-firebase',
+  VERSION: 'v2.0.169-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las fotos de OT se sincronizan y también aparecen si fueron guardadas con formatos anteriores.'
+    'El cierre de una OT espera fotos y firma, y sólo cambia de estado cuando Firebase confirma el guardado.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar fotos de OT' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar cierre de OT' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.169',
+      date: '23/07/2026',
+      title: 'Cierre de OT confirmado',
+      notes: Object.freeze(['La OT no puede finalizar durante una carga y conserva su estado anterior si Firebase no confirma el cierre.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar cierre de OT' })
+    }),
     Object.freeze({
       version: 'v2.0.168',
       date: '23/07/2026',
@@ -26952,7 +26959,7 @@ function firmaAutoguardar() {
   }
 
   // Subir a Firebase Storage
-  if (!window.fbStorage || !window.fbDB) {
+  if (!window.fbStorage || !window.fbDB || !window.fbStorageRef || !window.fbUploadBytes || !window.fbGetDownloadURL) {
     firmaGuardarEnOT(dataUrl, null)
       .catch(function(error){ notify('No se pudo guardar la firma: ' + error.message); })
       .finally(function(){ _firmaGuardando = false; });
@@ -27641,6 +27648,17 @@ function completarOT() {
     if (typeof window.otWizardIr === 'function') window.otWizardIr('checklist');
     return;
   }
+  var fotoInputCierre = document.getElementById('ot-foto-input');
+  if (fotoInputCierre && fotoInputCierre.dataset.subiendo === '1') {
+    notify('Esperá a que la foto termine de guardarse antes de finalizar la OT.');
+    if (typeof window.otWizardIr === 'function') window.otWizardIr('fotos');
+    return;
+  }
+  if (_firmaGuardando) {
+    notify('Esperá a que la firma termine de guardarse antes de finalizar la OT.');
+    if (typeof window.otWizardIr === 'function') window.otWizardIr('finalizar');
+    return;
+  }
   var custodiaCierre = typeof window.otCustodiaValidarCierre === 'function' ? window.otCustodiaValidarCierre(ot) : { ok:true, conObservaciones:false };
   if (!custodiaCierre.ok) {
     notify(custodiaCierre.message || 'Falta rendir los materiales entregados');
@@ -27655,18 +27673,22 @@ function completarOT() {
     return;
   }
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-  ot.estado = custodiaCierre.conObservaciones ? 'con_observaciones' : 'completada';
-  ot.cierreConObservaciones = custodiaCierre.conObservaciones === true;
-  ot.progreso = 100;
-  ot.conformidadCliente = conf;
-  ot.nombreConformidad = ((document.getElementById('ot-acta-firma')||{}).value || '').trim();
+  var estadoCierre = custodiaCierre.conObservaciones ? 'con_observaciones' : 'completada';
+  var nombreConformidadCierre = ((document.getElementById('ot-acta-firma')||{}).value || '').trim();
   var hoyCierre = svFechaLocalISO();
-  ot.fechaCierre = ot.fechaCierre || hoyCierre;
-  ot.fechaCompletada = ot.fechaCompletada || hoyCierre;
-  if (!ot.audit) ot.audit = [];
-  ot.audit.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: custodiaCierre.conObservaciones ? 'OT cerrada con materiales pendientes clasificados. Conformidad: ' + conf : 'OT marcada como completada. Conformidad: ' + conf });
-  if (!custodiaCierre.conObservaciones) ot.audit.push({ fecha: ahora, usuario: 'Sistema', accion: 'Garantía activada automáticamente' });
-  document.getElementById('ot-det-estado-badge').innerHTML = otBadge(ot.estado);
+  var auditCierre = Array.isArray(ot.audit) ? ot.audit.slice() : [];
+  auditCierre.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: custodiaCierre.conObservaciones ? 'OT cerrada con materiales pendientes clasificados. Conformidad: ' + conf : 'OT marcada como completada. Conformidad: ' + conf });
+  if (!custodiaCierre.conObservaciones) auditCierre.push({ fecha: ahora, usuario: 'Sistema', accion: 'Garantía activada automáticamente' });
+  var otCierre = Object.assign({}, ot, {
+    estado: estadoCierre,
+    cierreConObservaciones: custodiaCierre.conObservaciones === true,
+    progreso: 100,
+    conformidadCliente: conf,
+    nombreConformidad: nombreConformidadCierre,
+    fechaCierre: ot.fechaCierre || hoyCierre,
+    fechaCompletada: ot.fechaCompletada || hoyCierre,
+    audit: auditCierre
+  });
 
   var ventaVinculadaCierre = null;
   var estadoInstalacionVentaCierre = custodiaCierre.conObservaciones ? 'en_instalacion' : 'instalado';
@@ -27689,7 +27711,7 @@ function completarOT() {
     if (!ventaVinculadaCierre || !ventaVinculadaCierre.fbKey) return Promise.resolve();
     var tareas = [];
     if (typeof ventaDetalleRepararVinculoOT === 'function') {
-      tareas.push(Promise.resolve(ventaDetalleRepararVinculoOT(ventaVinculadaCierre, { persistir:true, notificar:false, otForzada:ot, devolverPromesa:true })));
+      tareas.push(Promise.resolve(ventaDetalleRepararVinculoOT(ventaVinculadaCierre, { persistir:true, notificar:false, otForzada:otCierre, devolverPromesa:true })));
     }
     if (ventaVinculadaCierre.estadoInst !== estadoInstalacionVentaCierre) {
       tareas.push(window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaVinculadaCierre.fbKey), { estadoInst: estadoInstalacionVentaCierre }));
@@ -27698,13 +27720,40 @@ function completarOT() {
   }
 
   if (typeof fbGuardarOT === 'function') {
-    fbGuardarOT(ot)
-      .then(sincronizarVentaDespuesDeGuardarOT)
+    var completarBtnGuardando = document.getElementById('btn-completar-ot');
+    if (completarBtnGuardando) {
+      completarBtnGuardando.disabled = true;
+      completarBtnGuardando.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Guardando cierre…';
+    }
+    fbGuardarOT(otCierre)
       .then(function() {
-        notify(custodiaCierre.conObservaciones ? '✓ OT cerrada con materiales pendientes bajo seguimiento.' : '✓ OT completada y materiales rendidos.');
+        Object.assign(ot, otCierre);
+        var badgeEstado = document.getElementById('ot-det-estado-badge');
+        if (badgeEstado) badgeEstado.innerHTML = otBadge(otCierre.estado);
+        return sincronizarVentaDespuesDeGuardarOT()
+          .then(function(){ return { ventaSincronizada:true }; })
+          .catch(function(errorVenta){
+            console.error('La OT se guardó, pero falló la sincronización con la venta:', errorVenta);
+            return { ventaSincronizada:false, error:errorVenta };
+          });
+      })
+      .then(function(resultado) {
+        if (!resultado.ventaSincronizada) {
+          notify('✓ La OT quedó completada, pero no se pudo actualizar la venta vinculada. Quedó pendiente de sincronización.');
+        } else {
+          notify(custodiaCierre.conObservaciones ? '✓ OT cerrada con materiales pendientes bajo seguimiento.' : '✓ OT completada y materiales rendidos.');
+        }
         volverListaOT();
       })
-      .catch(function(e) { notify('OT completada pero error al guardar: ' + e.message); });
+      .catch(function(e) {
+        notify('No se pudo completar la OT. No se modificó su estado: ' + e.message);
+      })
+      .finally(function() {
+        if (completarBtnGuardando && document.body.contains(completarBtnGuardando)) {
+          completarBtnGuardando.disabled = false;
+          completarBtnGuardando.innerHTML = '<i class="ti ti-check"></i> Marcar como completada';
+        }
+      });
   } else {
     notify('No se pudo guardar la orden de trabajo. Recargá e intentá nuevamente.');
   }
