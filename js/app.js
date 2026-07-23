@@ -3502,6 +3502,87 @@ function ventaDentroPeriodoReciente(v, desdeISO) {
   return fecha >= desdeISO;
 }
 
+function _estadoInstalacionVentaAdicionalOT(ot) {
+  if (!ot) return 'pendiente_inst';
+  var estado = String(ot.estado || '').toLowerCase().replace(/[_-]+/g, ' ');
+  if (['completada','completado','finalizada','finalizado','cerrada','cerrado','terminada','terminado'].includes(estado)) return 'instalado';
+  if (['en curso','en progreso','en instalacion','iniciada','iniciado'].includes(estado)) return 'en_instalacion';
+  return 'pendiente_inst';
+}
+
+function _repararVentasAdicionalesOTSinNumero(rows, data) {
+  var rol = String(currentRole || '').toLowerCase();
+  if (!['admin','administrativo'].includes(rol) || window._ventasAdicionalesOTNormalizando || !window.fbDB || !window.fbUpdate) return;
+  var pendientes = (rows || []).filter(function(venta) {
+    return venta && venta.fbKey && venta.origenOT === true && !String(venta.id || venta.numero || '').trim();
+  }).sort(function(a,b){ return (a.ts || 0) - (b.ts || 0); });
+  if (!pendientes.length) return;
+
+  var maxId = 0;
+  (rows || []).forEach(function(venta) {
+    if (venta.pptoOrigen && venta.numeroSecuencial !== true) return;
+    var numero = parseInt(String(venta.idOriginal || venta.id || venta.numero || '').replace(/[^0-9]/g, '')) || 0;
+    if (numero > maxId) maxId = numero;
+  });
+
+  var updates = {};
+  var ahora = Date.now();
+  pendientes.forEach(function(venta, indice) {
+    maxId++;
+    var id = '#V-' + String(maxId).padStart(6, '0');
+    var ot = (otData || []).find(function(registro) {
+      var referencias = [registro && registro.fbKey, registro && registro.id].map(String);
+      return referencias.includes(String(venta.otId || '')) || referencias.includes(String(venta.otNumero || ''));
+    }) || null;
+    var cliente = resolverIdClienteVenta(venta);
+    var audit = Array.isArray(venta.audit) ? venta.audit.slice() : [];
+    audit.push({
+      fecha: new Date(ahora + indice).toLocaleDateString('es-AR'),
+      usuario: currentUser || 'Sistema',
+      accion: 'Se asignó el número comercial faltante a la venta adicional de la OT'
+    });
+    var base = FB_PATHS.ventas + '/' + venta.fbKey;
+    updates[base + '/id'] = id;
+    updates[base + '/numeroSecuencial'] = true;
+    updates[base + '/tipoVenta'] = 'adicional_ot';
+    updates[base + '/moneda'] = venta.moneda || 'ARS';
+    updates[base + '/monedaOperativa'] = venta.monedaOperativa || 'ARS';
+    updates[base + '/estadoInst'] = venta.estadoInst || _estadoInstalacionVentaAdicionalOT(ot);
+    updates[base + '/subtotal'] = parseFloat(venta.subtotal) || parseFloat(venta.total) || 0;
+    updates[base + '/iva'] = parseFloat(venta.iva) || 0;
+    updates[base + '/conIva'] = venta.conIva === true;
+    updates[base + '/reparadaVentaAdicionalOTEn'] = ahora;
+    updates[base + '/audit'] = audit;
+    if (cliente) {
+      updates[base + '/idCliente'] = cliente;
+      updates[base + '/clienteId'] = cliente;
+    }
+    if (ot) {
+      updates[base + '/otNumero'] = String(ot.id || '');
+      updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/ventasAdicionales/' + venta.fbKey] = {
+        ventaFbKey: venta.fbKey,
+        ventaId: id,
+        total: parseFloat(venta.total) || 0,
+        ts: venta.ts || ahora
+      };
+    }
+    venta.id = id;
+    venta.numeroSecuencial = true;
+    venta.estadoInst = venta.estadoInst || _estadoInstalacionVentaAdicionalOT(ot);
+    venta.tipoVenta = 'adicional_ot';
+  });
+
+  window._ventasAdicionalesOTNormalizando = true;
+  window.fbUpdate(window.fbRef(window.fbDB), updates).then(function() {
+    notify('✓ Se reparó ' + pendientes.length + ' venta adicional de OT que no tenía número');
+  }).catch(function(error) {
+    console.error('[Ventas] No se pudieron reparar las ventas adicionales sin número', error);
+    notify('Se detectó una venta adicional sin número, pero no se pudo completar su identificación');
+  }).finally(function() {
+    window._ventasAdicionalesOTNormalizando = false;
+  });
+}
+
 function procesarVentasSnapshot(data, opciones) {
   opciones = opciones || {};
   var desdeISO = opciones.desdeISO || ventasInicioPeriodoRecienteISO();
@@ -3510,6 +3591,7 @@ function procesarVentasSnapshot(data, opciones) {
     venta.fechaOrden = ventaFechaOrden(venta);
     return venta;
   });
+  _repararVentasAdicionalesOTSinNumero(rows, data);
   if (opciones.filtrarPeriodo !== false) {
     rows = rows.filter(function(v){ return ventaDentroPeriodoReciente(v, desdeISO); });
   }
@@ -5480,12 +5562,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.177-firebase',
+  VERSION: 'v2.0.178-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Al volver desde una ficha de producto, el listado conserva exactamente la posición donde estabas.'
+    'Las ventas adicionales creadas desde una OT reciben número y vínculo completos.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Probar navegación' }),
+  RELEASE_FEATURE: Object.freeze({ page:'detalle', actionLabel:'Revisar ventas' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.178',
+      date: '23/07/2026',
+      title: 'Ventas adicionales identificadas',
+      notes: Object.freeze(['Los materiales agregados desde una OT generan una venta numerada, vinculada y accesible desde su detalle.']),
+      feature: Object.freeze({ page:'detalle', actionLabel:'Revisar ventas' })
+    }),
     Object.freeze({
       version: 'v2.0.177',
       date: '23/07/2026',
@@ -27032,25 +27121,56 @@ function otConfirmarVentaAdicional() {
   var total = items.reduce(function(s,i){ return s+i.sub; }, 0);
 
   var fechaVentaAdicional = svFechaLocalISO();
+  var idVentaAdicional = obtenerProximoIdVenta();
+  var clienteRef = String(ot.clienteFbKey || ot.clienteKey || ot.clienteId || ot.idCliente || '').trim();
+  if (!clienteRef) {
+    clienteRef = resolverIdClienteVenta({ cliente:ot.cliente || '' });
+  }
   var venta = {
+    id:           idVentaAdicional,
+    numeroSecuencial: true,
     cliente:      ot.cliente || '',
+    idCliente:    clienteRef,
+    clienteId:    clienteRef,
     items:        items,
+    subtotal:     Math.round(total*100)/100,
+    iva:          0,
+    conIva:       false,
     total:        Math.round(total*100)/100,
+    moneda:       'ARS',
+    monedaOperativa: 'ARS',
     estadoPago:   'pendiente_pago',
+    estadoInst:   _estadoInstalacionVentaAdicionalOT(ot),
     empleado:     currentUser || '',
     otId:         ot.fbKey || ot.id,
+    otNumero:     ot.id || '',
     origenOT:     true,
+    tipoVenta:    'adicional_ot',
     nota:         'Venta adicional generada desde OT ' + (ot.id||''),
+    observaciones:'Materiales adicionales de ' + (ot.id || 'OT'),
     fecha:        fechaVentaAdicional,
     fechaOrden:   fechaVentaAdicional,
+    audit:        [{ fecha:new Date().toLocaleDateString('es-AR'), usuario:currentUser || 'Sistema', accion:'Venta adicional creada desde ' + (ot.id || 'OT') }],
     ts:           Date.now()
   };
 
   window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), venta).then(function(snap) {
+    var ventaKey = snap && snap.key ? snap.key : '';
+    var vinculos = {};
+    if (ventaKey && ot.fbKey) {
+      vinculos[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/ventasAdicionales/' + ventaKey] = {
+        ventaFbKey: ventaKey,
+        ventaId: venta.id,
+        total: venta.total,
+        ts: venta.ts
+      };
+    }
     // Notificar al admin
-    window.fbPush(window.fbRef(window.fbDB, 'sisventas/notificaciones_admin'), {
+    var notificacion = window.fbPush(window.fbRef(window.fbDB, 'sisventas/notificaciones_admin'), {
       tipo:    'venta_adicional_ot',
       otId:    ot.fbKey || ot.id,
+      ventaId: venta.id,
+      ventaFbKey: ventaKey,
       cliente: ot.cliente || '',
       tecnico: currentUser || '',
       monto:   venta.total,
@@ -27058,8 +27178,13 @@ function otConfirmarVentaAdicional() {
       ts:      Date.now(),
       leida:   false
     });
-    notify('✓ Venta adicional generada por $' + Math.round(total).toLocaleString('es-AR') + ' — admin notificado');
-    otCerrarSelectorProductos();
+    return Promise.all([
+      notificacion,
+      Object.keys(vinculos).length ? window.fbUpdate(window.fbRef(window.fbDB), vinculos) : Promise.resolve()
+    ]).then(function() {
+      notify('✓ Venta ' + venta.id + ' generada por $' + Math.round(total).toLocaleString('es-AR') + ' — admin notificado');
+      otCerrarSelectorProductos();
+    });
   }).catch(function(e){ notify('Error: ' + e.message); });
 }
 // FIRMA DIGITAL EN OT
@@ -30710,8 +30835,10 @@ function renderVentasTabla(lista) {
   }
   tbody.innerHTML = rows.map(v => {
     const observacion = String(v.observaciones || v.obs || '').trim();
-    return `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verVenta('${v.id}')">
-    <td style="font-weight:500;color:var(--text);font-family:monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(v.id)}</td>
+    const ventaRef = String(v.id || v.fbKey || '');
+    const ventaNumeroVisible = String(v.id || (v.origenOT ? ('Adicional · ' + (v.otNumero || 'OT')) : 'Sin número'));
+    return `<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verVenta('${jsStringAttr(ventaRef)}')">
+    <td style="font-weight:500;color:${v.id ? 'var(--text)' : 'var(--amber)'};font-family:monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(ventaNumeroVisible)}</td>
     <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(v.cliente)}</td>
     <td title="${escapeHTML(observacion)}" style="max-width:220px;color:${observacion ? 'var(--text2)' : 'var(--text3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${observacion ? escapeHTML(observacion) : '—'}</td>
     <td style="color:var(--text3);white-space:nowrap">${_mostrarFecha(v.fecha)}</td>
@@ -30729,7 +30856,7 @@ function renderVentasTabla(lista) {
           : ''}
     </td>
     <td onclick="event.stopPropagation()" style="text-align:center">
-      <button class="btn btn-sm btn-icon" onclick="verVenta('${v.id}')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
+      <button class="btn btn-sm btn-icon" onclick="verVenta('${jsStringAttr(ventaRef)}')" title="Ver detalle"><i class="ti ti-eye" style="font-size:14px"></i></button>
     </td>
   </tr>`;
   }).join('');
