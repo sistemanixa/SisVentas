@@ -89,9 +89,9 @@
           '<div class="sv332-mini"><div class="sv332-ico purple"><i class="ti ti-chart-pie-filled"></i></div><div><div class="sv332-mini-l">Mejor día</div><div class="sv332-mini-v" id="dash-mini-best-332">—</div></div></div>'+
         '</div>'+
         '<div id="dash-ventas-quick-332" class="sv332-quick">'+
-          '<div class="sv332-q green" onclick="window.dashFiltrarVentasPorDia&&dashFiltrarVentasPorDia(new Date().toISOString().slice(0,10))"><div class="sv332-q-head"><span class="sv332-ico green"><i class="ti ti-calendar-event"></i></span><span>Hoy</span></div><div class="sv332-q-v" id="dash-q-hoy-332">—</div><div class="sv332-q-sub" id="dash-q-hoy-sub-332">—</div></div>'+
+          '<div class="sv332-q green" onclick="window.dashFiltrarVentasPorDia&&dashFiltrarVentasPorDia(window.svFechaLocalISO?svFechaLocalISO():new Date().toLocaleDateString(\'en-CA\'))"><div class="sv332-q-head"><span class="sv332-ico green"><i class="ti ti-calendar-event"></i></span><span>Hoy</span></div><div class="sv332-q-v" id="dash-q-hoy-332">—</div><div class="sv332-q-sub" id="dash-q-hoy-sub-332">—</div></div>'+
           '<div class="sv332-q blue" onclick="showPage&&showPage(\'detalle\',document.querySelector(\'[onclick*=detalle]\'))"><div class="sv332-q-head"><span class="sv332-ico blue"><i class="ti ti-calendar-week"></i></span><span>Semana</span></div><div class="sv332-q-v" id="dash-q-semana-332">—</div><div class="sv332-q-sub" id="dash-q-semana-sub-332">—</div></div>'+
-          '<div class="sv332-q purple" onclick="window.dashFiltrarVentasPorMes&&dashFiltrarVentasPorMes(new Date().toISOString().slice(0,7))"><div class="sv332-q-head"><span class="sv332-ico purple"><i class="ti ti-calendar-month"></i></span><span>Mes</span></div><div class="sv332-q-v" id="dash-q-mes-332">—</div><div class="sv332-q-sub" id="dash-q-mes-sub-332">—</div></div>'+
+          '<div class="sv332-q purple" onclick="window.dashFiltrarVentasPorMes&&dashFiltrarVentasPorMes(window.svMesLocalISO?svMesLocalISO():new Date().toLocaleDateString(\'en-CA\').slice(0,7))"><div class="sv332-q-head"><span class="sv332-ico purple"><i class="ti ti-calendar-month"></i></span><span>Mes</span></div><div class="sv332-q-v" id="dash-q-mes-332">—</div><div class="sv332-q-sub" id="dash-q-mes-sub-332">—</div></div>'+
         '</div>');
     }
     return true;
@@ -117,7 +117,7 @@
       if(sd>=prevWeekStart && sd<=prevWeekEnd) prevWeekTot+=t;
       if(sameMonth332(sd,y,m)) monthTot+=t;
       if(sameMonth332(sd,py,pm)) prevMonthTot+=t;
-      if(sd>=weekStart && sd<=today){ var k=sd.toISOString().slice(0,10); byDay[k]=(byDay[k]||0)+t; }
+      if(sd>=weekStart && sd<=today){ var k=typeof window.svFechaLocalISO==='function'?window.svFechaLocalISO(sd):sd.toLocaleDateString('en-CA'); byDay[k]=(byDay[k]||0)+t; }
     });
     var bestDate=null,bestVal=-1; Object.keys(byDay).forEach(function(k){ if(byDay[k]>bestVal){bestVal=byDay[k]; bestDate=k;} });
     var bestLbl='—'; if(bestDate){ var bd=parseDate332(bestDate); bestLbl=dias[bd.getDay()]+' '+compact332(bestVal); }

@@ -2,34 +2,10 @@
 (function(){
   'use strict';
 
-  var HEAVY_PAGES = {
-    dashboard: 420,
-    detalle: 520,
-    presupuesto: 520,
-    ordentrabajo: 560,
-    cobranzas: 560,
-    cuentacorriente: 560,
-    clientes: 480,
-    productos: 520,
-    gastos: 560,
-    ctaemp: 560,
-    informes: 500,
-    equipos: 500,
-    agenda: 620,
-    rentabilidad: 520,
-    estadisticas: 560,
-    tablero: 560,
-    caja: 480,
-    creditofiscal: 560,
-    reportes: 520,
-    garantias: 480,
-    soporte: 480,
-    remitos: 480,
-    servicios: 480,
-    empleados: 500,
-    usuarios: 420,
-    configuracion: 420
-  };
+  // La navegación no puede inventar un estado de carga por tiempo. Los datos
+  // principales ya permanecen sincronizados en memoria y cada módulo que hace
+  // una consulta propia muestra su estado real dentro del contenido.
+  var HEAVY_PAGES = {};
 
   var timers = {};
   var hardTimers = {};

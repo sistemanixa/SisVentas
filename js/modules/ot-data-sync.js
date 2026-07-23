@@ -10,10 +10,10 @@
   function svMoney(v){
     return (typeof money === 'function') ? money(v) : '$' + Math.round(parseFloat(v)||0).toLocaleString('es-AR');
   }
-  function svToday(){ return new Date().toISOString().slice(0,10); }
+  function svToday(){ return typeof window.svFechaLocalISO === 'function' ? window.svFechaLocalISO() : new Date().toLocaleDateString('en-CA'); }
   function svMes(offset){
     var d = new Date(); d.setMonth(d.getMonth() + (offset||0));
-    return d.toISOString().slice(0,7);
+    return typeof window.svMesLocalISO === 'function' ? window.svMesLocalISO(d) : d.toLocaleDateString('en-CA').slice(0,7);
   }
   function svArray(x){
     if (Array.isArray(x)) return x;

@@ -64,6 +64,14 @@
     },function(error){ console.error('[Notificaciones] Error de sincronización',error); });
   }
   window.iniciarSyncNotificaciones=iniciarSyncNotificaciones;
+  window.detenerSyncNotificaciones=function(){
+    if(typeof notifStateUnsubscribe==='function'){
+      try{ notifStateUnsubscribe(); }catch(e){}
+    }
+    notifStateUnsubscribe=null;
+    notifStateUser='';
+    notifState={};
+  };
   function setN(id, patch){
     var k=nKey(id);
     notifState[k]=Object.assign(notifState[k]||{},patch,{updatedAt:new Date().toISOString(),usuario:svCurrentUserName()});

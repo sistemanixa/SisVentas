@@ -118,7 +118,9 @@
         globalProfiles.alignments = Object.assign({}, val.alignments || {}, globalProfiles.alignments || {});
         globalProfiles.loaded = true;
         globalProfiles.loading = false;
-        scheduleScan();
+        // No reaplicar perfiles sobre una tabla ya visible: ese segundo pase
+        // era el que movía las columnas después de que el usuario ya veía los
+        // datos. Las tablas nuevas tomarán el perfil en su primera apertura.
       })
       .catch(function () {
         globalProfiles.loading = false;
@@ -596,16 +598,13 @@
     if (headers.length < 2) return;
     applySavedAlignments(table);
     var key = tableKey(table);
-    var rowCount = table.rows ? table.rows.length : table.querySelectorAll('tr').length;
     if (table.dataset.svResizableReady === '1' &&
-        table.dataset.svResizableKey === key &&
-        table.dataset.svResizableRows === String(rowCount)) {
+        table.dataset.svResizableKey === key) {
       return;
     }
 
     table.classList.add('sv-resizable-table');
     table.dataset.svResizableKey = key;
-    table.dataset.svResizableRows = String(rowCount);
     wrap.classList.add('sv-resizable-wrap');
     if (!applySavedPercentProfile(table)) applySavedWidths(table);
 
@@ -945,11 +944,10 @@
     var active = document.querySelector('.page.active');
     if (!active) return true;
     return Array.from(mutations || []).some(function (mutation) {
-      if (active.contains(mutation.target)) return true;
       return Array.from(mutation.addedNodes || []).some(function (node) {
         return node && node.nodeType === 1 && (
-          active.contains(node) ||
-          (node.matches && (node.matches('table,.table-wrap,.sv-auto-grid-wrap,.card') || !!node.querySelector('table,.table-wrap,.sv-auto-grid-wrap,.card')))
+          (node.matches && node.matches('table,.table-wrap,.sv-auto-grid-wrap')) ||
+          (node.querySelector && !!node.querySelector('table,.table-wrap,.sv-auto-grid-wrap'))
         );
       });
     });

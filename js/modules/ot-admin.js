@@ -2,7 +2,7 @@
   function e(id){ return document.getElementById(id); }
   function arr(v){ return Array.isArray(v) ? v : Object.values(v || {}); }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function hoyISO(){ return new Date().toISOString().slice(0,10); }
+  function hoyISO(){ return typeof window.svFechaLocalISO === 'function' ? window.svFechaLocalISO() : new Date().toLocaleDateString('en-CA'); }
   function fechaISO(v){
     if(!v) return '';
     var s = String(v).trim();
@@ -16,12 +16,12 @@
     var day = x.getDay();
     var diff = (day === 0 ? -6 : 1 - day);
     x.setDate(x.getDate() + diff);
-    return x.toISOString().slice(0,10);
+    return typeof window.svFechaLocalISO === 'function' ? window.svFechaLocalISO(x) : x.toLocaleDateString('en-CA');
   }
   function finSemana(d){
     var x = new Date(inicioSemana(d) + 'T00:00:00');
     x.setDate(x.getDate() + 6);
-    return x.toISOString().slice(0,10);
+    return typeof window.svFechaLocalISO === 'function' ? window.svFechaLocalISO(x) : x.toLocaleDateString('en-CA');
   }
   function matchPeriodoOT(o, periodo){
     if(!periodo || periodo === 'todos') return true;

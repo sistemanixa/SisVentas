@@ -192,7 +192,7 @@
     if(!window.fbDB){ if(typeof nuevaPrev==='function') return nuevaPrev.apply(this,arguments); if(typeof notify==='function') notify('Sin conexión'); return; }
     var ot={
       id:'', ventaId:'', cliente:'', clienteId:'', origen:'manual', estado:'pendiente', tecnico:'',
-      fecha:new Date().toISOString().slice(0,10), hora:'', duracion:'2 horas', tipoVisita:'Instalación nueva',
+      fecha:(typeof window.svFechaLocalISO === 'function' ? window.svFechaLocalISO() : new Date().toLocaleDateString('en-CA')), hora:'', duracion:'2 horas', tipoVisita:'Instalación nueva',
       dir:'', obs:'', obsTecnico:'', prioridad:false, progreso:0, checks:checksBase(), materiales:[], notasTecnico:[], audit:[{fecha:new Date().toLocaleDateString('es-AR')+' '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),usuario:window.currentUser||'Sistema',accion:'OT creada manualmente'}], ts:Date.now()
     };
     return window.crearRegistroOTSeguro(ot,{evitarDoble:true}).then(function(ref){

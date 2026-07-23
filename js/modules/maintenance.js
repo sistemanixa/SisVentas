@@ -12,7 +12,7 @@ function mntObjCount(o){ return o && typeof o==='object' ? Object.keys(o).length
 function mntMoney(n){ return Math.round(parseFloat(n)||0); }
 function mntVersion(){ return (window.APP_CONFIG && APP_CONFIG.VERSION) || (window.SISVENTAS_PWA_VERSION || 'v1'); }
 function mntRequireAdmin(accion){ if(String(window.currentRole||'').toLowerCase()==='admin') return true; if(typeof notify==='function') notify('Solo el administrador puede ejecutar '+(accion||'esta accion')); return false; }
-function mntFecha(f){ return (typeof _pagableNormFecha==='function') ? _pagableNormFecha(f) : (f||new Date().toISOString().slice(0,10)); }
+function mntFecha(f){ return (typeof _pagableNormFecha==='function') ? _pagableNormFecha(f) : (f||(typeof window.svFechaLocalISO==='function'?window.svFechaLocalISO():new Date().toLocaleDateString('en-CA'))); }
 function mntEmpByKey(empKey){ try { return (empData && Object.values(empData).find(function(e){ return String(e.fbKey||e.id||'')===String(empKey||''); })) || {}; } catch(e){ return {}; } }
 function mntGastoExiste(gastos, tipoPagable, empKey, monto, fecha, semKey, legacyKey){
   if (typeof _pagableGastoExistente==='function') return !!_pagableGastoExistente(tipoPagable, empKey, monto, fecha, semKey, legacyKey);

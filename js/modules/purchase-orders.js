@@ -604,15 +604,18 @@
     })).then(function () {
       return update(PATH_ORDERS + '/' + order.fbKey, { items: order.items, recepciones: receipts, estado: complete ? 'recibida' : 'recepcion_parcial', recibidoEn: Date.now() });
     }).then(function () {
-      if (order.ventaFbKey) update('sisventas/ventas/' + order.ventaFbKey, { compraEstado: complete ? 'recibida_parcial_o_total' : 'recepcion_parcial' });
+      var syncTasks = [];
+      if (order.ventaFbKey) syncTasks.push(update('sisventas/ventas/' + order.ventaFbKey, { compraEstado: complete ? 'recibida_parcial_o_total' : 'recepcion_parcial' }));
       if (complete && order.listaMaterialesId) {
         var related = state.orders.filter(function (candidate) { return candidate.listaMaterialesId === order.listaMaterialesId && candidate.estado !== 'cancelada'; });
         var allReceived = related.length > 0 && related.every(function (candidate) { return candidate.fbKey === order.fbKey ? true : candidate.estado === 'recibida'; });
         if (allReceived) {
-          update(PATH_LISTS + '/' + order.listaMaterialesId, { estado: 'recibida', recibidaEn: Date.now() });
-          if (order.ventaFbKey) update('sisventas/ventas/' + order.ventaFbKey, { compraEstado: 'recibida' });
+          syncTasks.push(update(PATH_LISTS + '/' + order.listaMaterialesId, { estado: 'recibida', recibidaEn: Date.now() }));
+          if (order.ventaFbKey) syncTasks.push(update('sisventas/ventas/' + order.ventaFbKey, { compraEstado: 'recibida' }));
         }
       }
+      return Promise.all(syncTasks);
+    }).then(function () {
       document.getElementById('oc-order-modal').style.display = 'none';
       if (typeof window.notify === 'function') window.notify('Recepción registrada. ' + (order.ventaId ? 'Material reservado para la obra.' : 'Ingresó al stock general operativo.'));
     }).catch(function (error) { if (typeof window.notify === 'function') window.notify('No se pudo registrar: ' + error.message); });
@@ -877,7 +880,12 @@
       state.lists = Object.entries(data).map(function (entry) { return Object.assign({ fbKey: entry[0] }, entry[1] || {}); }).sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
       renderLists();
     });
-    window.fbOnValue(window.fbRef(window.fbDB, PATH_INVENTORY), function (snap) { state.inventory = snap.val() || {}; renderMetrics(); });
+    window.fbOnValue(window.fbRef(window.fbDB, PATH_INVENTORY), function (snap) {
+      state.inventory = snap.val() || {};
+      renderMetrics();
+      if (typeof window.refrescarStockOperativoCatalogo === 'function') window.refrescarStockOperativoCatalogo();
+      if (typeof window.actualizarStatProductos === 'function') window.actualizarStatProductos();
+    });
     window.fbOnValue(window.fbRef(window.fbDB, PATH_LEGACY), function (snap) {
       var data = snap.val() || {};
       state.legacy = Object.entries(data).map(function (entry) { return Object.assign({ fbKey: entry[0] }, entry[1] || {}); });
@@ -885,8 +893,20 @@
     });
   }
 
+  function reset() {
+    state.started = false;
+    state.orders = [];
+    state.lists = [];
+    state.inventory = {};
+    state.legacy = [];
+    state.activeList = null;
+    state.activeOrder = null;
+    state.manualItems = [];
+  }
+
   window.SisVentasCompras = {
     start: start,
+    reset: reset,
     renderAll: renderAll,
     renderOrders: renderOrders,
     createListFromSale: createListFromSale,
