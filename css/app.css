@@ -950,6 +950,24 @@ body.modal-secure-open{overflow:hidden!important}
 #ia-fab:hover{transform:scale(1.08)}
 @media(max-width:768px){#ia-box{height:85vh}}
 
+/* Reservar el lateral de los accesos flotantes en acciones de formularios. */
+.form-bottom-actions{
+  gap:8px;
+  flex-wrap:wrap;
+  padding-right:116px;
+}
+@media(max-width:1024px){
+  .form-bottom-actions{padding-right:68px}
+}
+@media(max-width:700px){
+  .form-bottom-actions{
+    justify-content:stretch;
+    padding-right:0;
+    margin-bottom:72px;
+  }
+  .form-bottom-actions>.btn{flex:1 1 145px;justify-content:center}
+}
+
 @media(max-width:900px){.dash-ventas-split{grid-template-columns:1fr!important}.dash-ventas-split>div:nth-child(2){border-left:none!important;border-top:0.5px solid var(--border);padding-left:0!important;padding-top:14px}}
 
 

@@ -5323,12 +5323,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.154-firebase',
+  VERSION: 'v2.0.155-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Órdenes de compra editables y gastos con aprobación y pago claros.'
+    'Compras más visuales, formularios más claros y cuenta corriente ordenada.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'ordenes', actionLabel:'Abrir compras y materiales' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.155',
+      date: '23/07/2026',
+      title: 'Compras y cuentas más claras',
+      notes: Object.freeze(['Imágenes en compras, acciones sin superposiciones y movimientos de cuenta corriente sin pagos duplicados.']),
+      feature: Object.freeze({ page:'ordenes', actionLabel:'Abrir compras y materiales' })
+    }),
     Object.freeze({
       version: 'v2.0.154',
       date: '22/07/2026',
@@ -9140,6 +9147,7 @@ function abrirFormProducto(id) {
   // carga visualmente; al guardar se normaliza nuevamente a ARS.
   if (monedaSel) monedaSel.value = 'ARS';
   cambiarMonedaProducto();
+  mostrarPrecioCalculadoProducto(ventaCanonicaFormulario);
 
   // Imagen del producto
   quitarImagenProducto();
@@ -9751,17 +9759,35 @@ function setMonedaProducto(moneda) {
   // Cambiar la moneda es solo una conversión visual: nunca debe reemplazar un
   // precio de venta cargado manualmente ni aplicar nuevamente el margen.
   var precioVentaVisual = getMontoRaw(document.getElementById('pf-venta'));
+  mostrarPrecioCalculadoProducto(precioVentaVisual);
+  calcMargen();
+}
+
+function mostrarPrecioCalculadoProducto(precioVentaVisual) {
   var calcEl = document.getElementById('pf-precio-calculado');
   var equivEl = document.getElementById('pf-precio-usd-equiv');
-  if (calcEl && precioVentaVisual > 0) {
-    calcEl.value = (destino === 'USD' ? 'USD ' : '$') + precioVentaVisual.toLocaleString('es-AR', {minimumFractionDigits: precioVentaVisual % 1 ? 2 : 0, maximumFractionDigits: 4});
+  var precio = parseFloat(precioVentaVisual) || 0;
+  if (!precio) {
+    if (calcEl) calcEl.value = '';
+    if (equivEl) equivEl.textContent = '= USD —';
+    return;
   }
-  if (equivEl && precioVentaVisual > 0) {
-    equivEl.textContent = destino === 'USD'
-      ? '= ARS $' + Math.round(precioVentaVisual * tc).toLocaleString('es-AR')
-      : '= USD ' + (precioVentaVisual / tc).toFixed(2);
+  var esUSD = _pfMonedaVisualActual === 'USD';
+  if (calcEl) {
+    calcEl.value = (esUSD ? 'USD ' : '$') + precio.toLocaleString('es-AR', {
+      minimumFractionDigits: precio % 1 ? 2 : 0,
+      maximumFractionDigits: 4
+    });
   }
-  calcMargen();
+  if (!equivEl) return;
+  var tc = _pfTipoCambioVisual();
+  if (!(tc > 0)) {
+    equivEl.textContent = 'TC no disponible';
+    return;
+  }
+  equivEl.textContent = esUSD
+    ? '= ARS $' + Math.round(precio * tc).toLocaleString('es-AR')
+    : '= USD ' + (precio / tc).toFixed(2);
 }
 
 async function buscarPreciosProveedores() {
@@ -12296,33 +12322,84 @@ function verCuentaClienteReal(clienteRef) {
     if (d.legacyId && keys.indexOf(String(d.legacyId)) >= 0) return true;
     return !keys.length && p && _svTxtNombre(p.cliente) === _svTxtNombre(nombre);
   }
+  function _ccFechaOrden(fecha, ts) {
+    var valor = String(fecha || '').trim();
+    var partes = valor.split(/[\/-]/);
+    if (partes.length === 3) {
+      if (partes[0].length === 4) return new Date(partes[0] + '-' + String(partes[1]).padStart(2, '0') + '-' + String(partes[2]).padStart(2, '0') + 'T12:00:00').getTime() || 0;
+      if (partes[2].length === 4) return new Date(partes[2] + '-' + String(partes[1]).padStart(2, '0') + '-' + String(partes[0]).padStart(2, '0') + 'T12:00:00').getTime() || 0;
+    }
+    return parseFloat(ts) || 0;
+  }
   var movs = [];
-  (ventasList||[]).filter(_ccVentaPertenece).forEach(function(v) {
+  var ventasCuenta = (ventasList||[]).filter(_ccVentaPertenece);
+  var pagosCuenta = (window._pagosListaActual||[]).filter(function(p) {
+    if (p && (p.anulado || String(p.estado || '').toLowerCase() === 'anulado')) return false;
+    return _ccPagoPertenece(p) && (!window._svPagoValido || window._svPagoValido(p));
+  });
+  ventasCuenta.forEach(function(v) {
+    var ventaTs = _ccFechaOrden(v.fecha, v.ts);
     movs.push({
       fecha: v.fecha || '',
       concepto: 'Venta ' + (v.id||v.fbKey||''),
       tipo: 'Venta',
       debe: parseFloat(v.total)||0,
       haber: 0,
-      ts: v.ts || new Date(v.fecha||0).getTime() || 0
+      ts: ventaTs,
+      orden: 0
     });
-  });
-  var _pe = [];
-  (ventasList||[]).filter(function(v){ return _ccVentaPertenece(v) && v.pagos && v.pagos.length; }).forEach(function(v) {
-    (v.pagos||[]).forEach(function(p) { _pe.push({ venta:v.id, cliente:nombre, monto:parseFloat(p.monto)||0, medio:p.medio||'Efectivo', fecha:p.fecha||'' }); });
-  });
-  var _tp = (window._pagosListaActual||[]).filter(_ccPagoPertenece).concat(_pe).sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); });
-  _tp.forEach(function(p) {
-    movs.push({
-      fecha: p.fecha || '',
-      concepto: 'Pago' + (p.venta ? ' — ' + p.venta : '') + (p.medio ? ' (' + p.medio + ')' : ''),
-      tipo: 'Pago',
-      debe: 0,
-      haber: parseFloat(p.monto)||0,
-      ts: p.ts || new Date(p.fecha||0).getTime() || 0
+    var vistos = {};
+    var pagosVenta = pagosCuenta.filter(function(p) {
+      if (typeof _svRegistroPerteneceVenta === 'function' && !_svRegistroPerteneceVenta(p, v)) return false;
+      var monto = parseFloat(p.monto) || 0;
+      if (monto <= 0) return false;
+      var firma = [p.fecha||'', monto, String(p.medio||p.medioPago||'').toLowerCase(), p.venta||p.ventaId||p.ventaFbKey||''].join('|');
+      var clave = p.fbKey || p.id || p.key || firma;
+      if (vistos[clave] || (!p.fbKey && vistos[firma])) return false;
+      vistos[clave] = true;
+      vistos[firma] = true;
+      return true;
     });
+    var sumaPagos = pagosVenta.reduce(function(total, p) { return total + (parseFloat(p.monto) || 0); }, 0);
+    var pagoDirecto = parseFloat(v.totalPagado || v.pagado || v.montoPagado) || 0;
+    var objetivoCobrado = Math.min(parseFloat(v.total) || 0, Math.max(sumaPagos, pagoDirecto));
+    var grupos = {};
+    pagosVenta.forEach(function(p) {
+      var medio = p.medio || p.medioPago || 'Efectivo';
+      var fecha = p.fecha || v.fecha || '';
+      var claveGrupo = fecha + '|' + String(medio).toLowerCase();
+      if (!grupos[claveGrupo]) grupos[claveGrupo] = { fecha:fecha, medio:medio, monto:0, ts:_ccFechaOrden(fecha, p.ts) };
+      grupos[claveGrupo].monto += parseFloat(p.monto) || 0;
+    });
+    var restante = objetivoCobrado;
+    Object.keys(grupos).map(function(key) { return grupos[key]; }).sort(function(a,b) { return a.ts - b.ts; }).forEach(function(grupo) {
+      var aplicado = Math.min(restante, grupo.monto);
+      if (aplicado <= 0) return;
+      movs.push({
+        fecha: grupo.fecha,
+        concepto: 'Pago — ' + (v.id || v.fbKey || '') + ' (' + grupo.medio + ')',
+        tipo: 'Pago',
+        debe: 0,
+        haber: aplicado,
+        ts: grupo.ts,
+        orden: 1
+      });
+      restante -= aplicado;
+    });
+    if (restante > 0.009) {
+      var fechaDirecta = (Object.keys(grupos).map(function(key) { return grupos[key]; }).sort(function(a,b) { return b.ts - a.ts; })[0] || {}).fecha || v.fecha || '';
+      movs.push({
+        fecha: fechaDirecta,
+        concepto: 'Pago registrado — ' + (v.id || v.fbKey || ''),
+        tipo: 'Pago',
+        debe: 0,
+        haber: restante,
+        ts: _ccFechaOrden(fechaDirecta, v.ts),
+        orden: 1
+      });
+    }
   });
-  movs.sort(function(a,b){ return a.ts - b.ts; });
+  movs.sort(function(a,b){ return a.ts - b.ts || (a.orden || 0) - (b.orden || 0); });
 
   var saldoCorrido = 0;
   var rows = movs.map(function(m) {
@@ -12331,7 +12408,7 @@ function verCuentaClienteReal(clienteRef) {
     var trStyle = ventaId ? 'cursor:pointer;touch-action:pan-x pan-y' : '';
     var trClick = ventaId ? 'onclick="verVentaDesdeHistorial(\''+ventaId+'\',this)"' : '';
     return '<tr style="'+trStyle+'" '+trClick+' onmouseenter="if(this.onclick)this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
-      '<td>' + escapeHTML(m.fecha) + '</td>' +
+      '<td>' + escapeHTML(typeof _mostrarFecha === 'function' ? _mostrarFecha(m.fecha) : m.fecha) + '</td>' +
       '<td style="color:'+(ventaId?'var(--blue)':'')+'">'+escapeHTML(m.concepto)+(ventaId?' <i class="ti ti-external-link" style="font-size:10px;opacity:.6"></i>':'')+'</td>' +
       '<td style="text-align:right">' + (m.debe ? '$'+Math.round(m.debe).toLocaleString('es-AR') : '—') + '</td>' +
       '<td style="text-align:right;color:var(--green)">' + (m.haber ? '$'+Math.round(m.haber).toLocaleString('es-AR') : '—') + '</td>' +

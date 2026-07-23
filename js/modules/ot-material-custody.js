@@ -190,7 +190,7 @@
     ot.custodiaRendida = false;
     ot.custodiaTecnico = ot.tecnico;
     ot.custodiaEntregadaEn = now;
-    save(ot, 'Materiales entregados a ' + ot.tecnico + ' · ' + eligible.length + ' renglones bajo custodia')
+    save(ot, 'Materiales entregados a ' + ot.tecnico + ' · ' + eligible.length + ' ítems bajo custodia')
       .then(function () { window.notify('✓ Entrega registrada. Los materiales quedaron a cargo de ' + ot.tecnico); })
       .catch(function (error) { window.notify('No se pudo registrar la entrega: ' + error.message); });
   }

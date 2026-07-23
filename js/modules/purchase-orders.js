@@ -479,7 +479,8 @@
     target.innerHTML = '<div class="table-wrap"><table style="min-width:880px"><thead><tr><th>N°</th><th>Proveedor</th><th>Destino</th><th>Materiales</th><th class="tr">Total</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>' +
       (list.length ? list.map(function (o) {
         var qty = Array.isArray(o.items) ? o.items.reduce(function (s, i) { return s + (parseFloat(i.cantidadOrdenada || i.cantidad) || 0); }, 0) : (parseFloat(o.cantidad) || 0);
-        return '<tr onclick="ocAbrirOrden(\'' + attr(o.fbKey) + '\')" style="cursor:pointer"><td><strong>' + esc(o.numero || '—') + '</strong></td><td>' + esc(o.proveedor || 'Sin proveedor') + '</td><td>' + (o.ventaId ? '<span class="badge b-blue">' + esc(o.ventaId) + '</span><div style="font-size:11px;color:var(--text3)">' + esc(o.cliente || '') + '</div>' : 'Stock general') + '</td><td>' + qty + ' un. · ' + ((o.items && o.items.length) || 1) + ' renglón(es)</td><td class="tr"><strong>' + money(o.total || o.monto) + '</strong></td><td>' + fmtDate(o.fecha) + '</td><td>' + statusBadge(o.estado) + '</td><td><i class="ti ti-chevron-right"></i></td></tr>';
+        var itemCount = (o.items && o.items.length) || 1;
+        return '<tr onclick="ocAbrirOrden(\'' + attr(o.fbKey) + '\')" style="cursor:pointer"><td><strong>' + esc(o.numero || '—') + '</strong></td><td>' + esc(o.proveedor || 'Sin proveedor') + '</td><td>' + (o.ventaId ? '<span class="badge b-blue">' + esc(o.ventaId) + '</span><div style="font-size:11px;color:var(--text3)">' + esc(o.cliente || '') + '</div>' : 'Stock general') + '</td><td>' + qty + ' un. · ' + itemCount + ' ' + (itemCount === 1 ? 'ítem' : 'ítems') + '</td><td class="tr"><strong>' + money(o.total || o.monto) + '</strong></td><td>' + fmtDate(o.fecha) + '</td><td>' + statusBadge(o.estado) + '</td><td><i class="ti ti-chevron-right"></i></td></tr>';
       }).join('') : '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text3)">Todavía no hay órdenes en este estado</td></tr>') +
       '</tbody></table></div>';
   }
@@ -702,8 +703,16 @@
     var target = document.getElementById('oc-manual-items');
     if (!target) return;
     target.innerHTML = state.manualItems.length ? state.manualItems.map(function (item, index) {
+      var product = productList().find(function (entry) {
+        return String(entry.fbKey || entry.codigo || '') === String(item.productoKey || item.codigo || '') ||
+          (!!item.codigo && entry.codigo === item.codigo);
+      });
+      var imageUrl = (product && product.imagenUrl) || item.imagenUrl || '';
+      var imageHtml = imageUrl
+        ? '<span style="width:44px;height:44px;flex:0 0 44px;border-radius:9px;overflow:hidden;background:var(--bg3);border:0.5px solid var(--border2);display:grid;place-items:center"><img src="' + attr(imageUrl) + '" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'"><span style="display:none;width:100%;height:100%;place-items:center;color:var(--text3)"><i class="ti ti-photo"></i></span></span>'
+        : '<span style="width:44px;height:44px;flex:0 0 44px;border-radius:9px;background:var(--bg3);border:0.5px solid var(--border2);display:grid;place-items:center;color:var(--text3)"><i class="ti ti-photo"></i></span>';
       return '<div style="display:grid;grid-template-columns:minmax(180px,1fr) 82px 126px 36px;gap:9px;align-items:center;padding:10px 4px;border-bottom:0.5px solid var(--border)">' +
-        '<div style="min-width:0"><strong style="font-size:12px;color:var(--blue)">' + esc(item.codigo) + '</strong><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + attr(item.descripcion) + '">' + esc(item.descripcion) + '</div></div>' +
+        '<div style="min-width:0;display:flex;align-items:center;gap:10px">' + imageHtml + '<span style="min-width:0"><strong style="font-size:12px;color:var(--blue)">' + esc(item.codigo) + '</strong><span style="display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + attr(item.descripcion) + '">' + esc(item.descripcion) + '</span></span></div>' +
         '<div><label style="font-size:9px;color:var(--text3)">CANT.</label><input class="search-input oc-manual-qty" data-index="' + index + '" type="number" min="1" value="' + item.cantidadOrdenada + '" style="width:100%;text-align:right"></div>' +
         '<div><label style="font-size:9px;color:var(--text3)">COSTO UNIT.</label><input class="search-input oc-manual-cost" data-index="' + index + '" type="number" min="0" step="0.01" value="' + item.costoUnitario + '" style="width:100%;text-align:right"></div>' +
         '<button class="btn btn-sm btn-icon" onclick="ocQuitarItemManualV2(' + index + ')" title="Quitar"><i class="ti ti-trash"></i></button></div>';
@@ -729,8 +738,11 @@
       var candidate = providers.find(function (pv) { return providerKey && String(pv.proveedorKey || pv.nombre) === String(providerKey); }) || providers[0] || null;
       var key = product.fbKey || product.codigo || '';
       var already = state.manualItems.some(function (item) { return String(item.productoKey || item.codigo) === String(key) || (item.codigo && item.codigo === product.codigo); });
+      var imageHtml = product.imagenUrl
+        ? '<span style="width:46px;height:46px;flex:0 0 46px;border-radius:9px;overflow:hidden;background:var(--bg3);border:0.5px solid var(--border2);display:grid;place-items:center"><img src="' + attr(product.imagenUrl) + '" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'"><span style="display:none;width:100%;height:100%;place-items:center;color:var(--text3)"><i class="ti ti-photo"></i></span></span>'
+        : '<span style="width:46px;height:46px;flex:0 0 46px;border-radius:9px;background:var(--bg3);border:0.5px solid var(--border2);display:grid;place-items:center;color:var(--text3)"><i class="ti ti-photo"></i></span>';
       return '<button type="button" data-product-key="' + attr(key) + '" onclick="ocSeleccionarProductoManual(\'' + attr(key) + '\')" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:0;border-bottom:0.5px solid var(--border);background:transparent;color:var(--text);text-align:left;cursor:pointer;font-family:inherit">' +
-        '<span style="min-width:0"><strong style="font-size:12px;color:var(--blue)">' + esc(product.codigo || 'Sin código') + '</strong><span style="font-size:13px;margin-left:8px">' + esc(product.nombre || product.descripcion || 'Sin nombre') + '</span><small style="display:block;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(product.categoria || 'Sin categoría') + (candidate ? ' · ' + esc(candidate.nombre) : '') + '</small></span>' +
+        '<span style="min-width:0;display:flex;align-items:center;gap:10px">' + imageHtml + '<span style="min-width:0"><strong style="font-size:12px;color:var(--blue)">' + esc(product.codigo || 'Sin código') + '</strong><span style="font-size:13px;margin-left:8px">' + esc(product.nombre || product.descripcion || 'Sin nombre') + '</span><small style="display:block;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(product.categoria || 'Sin categoría') + (candidate ? ' · ' + esc(candidate.nombre) : '') + '</small></span></span>' +
         '<span style="flex-shrink:0;text-align:right;font-size:12px"><strong>' + (candidate && candidate.costo ? money(candidate.costo) : 'Sin costo') + '</strong><small style="display:block;color:' + (already ? 'var(--green)' : 'var(--blue)') + ';margin-top:3px">' + (already ? 'Sumar otra unidad' : 'Agregar') + '</small></span></button>';
     }).join('') : '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">No se encontraron productos.</div>';
     results.style.display = '';
@@ -750,7 +762,7 @@
     var candidate = providersFor(product).find(function (p) { return String(p.proveedorKey || p.nombre) === String(providerKey); }) || null;
     var existing = state.manualItems.find(function (item) { return String(item.productoKey || item.codigo) === String(product.fbKey || product.codigo) || (item.codigo && item.codigo === product.codigo); });
     if (existing) existing.cantidadOrdenada = (parseFloat(existing.cantidadOrdenada) || 0) + 1;
-    else state.manualItems.push({ productoKey: product.fbKey || '', codigo: product.codigo || '', descripcion: product.nombre || '', unidad: product.unidad || 'Unidad', cantidadOrdenada: 1, cantidadRecibida: 0, costoUnitario: candidate ? candidate.costo : 0 });
+    else state.manualItems.push({ productoKey: product.fbKey || '', codigo: product.codigo || '', descripcion: product.nombre || '', imagenUrl: product.imagenUrl || '', unidad: product.unidad || 'Unidad', cantidadOrdenada: 1, cantidadRecibida: 0, costoUnitario: candidate ? candidate.costo : 0 });
     renderManualItemsV2();
     var input = document.getElementById('oc-manual-product-search');
     if (input) { input.value = ''; input.focus(); }
