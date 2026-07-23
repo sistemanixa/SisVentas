@@ -5359,12 +5359,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.159-firebase',
+  VERSION: 'v2.0.160-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Comunicados ordenados y navegación con URL por módulo.'
+    'Edición de productos segura y búsqueda visual mejorada.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'notificaciones', actionLabel:'Abrir notificaciones' }),
+  RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Abrir productos' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.160',
+      date: '23/07/2026',
+      title: 'Precios seguros al editar',
+      notes: Object.freeze(['Editar un producto conserva su precio vigente y el selector de productos ahora muestra imágenes.']),
+      feature: Object.freeze({ page:'productos', actionLabel:'Abrir productos' })
+    }),
     Object.freeze({
       version: 'v2.0.159',
       date: '23/07/2026',
@@ -9506,7 +9513,11 @@ function abrirFormProducto(id) {
     }
   }
   renderTablaProveedoresProducto();
-  recalcularCompraDesdeProveedores();
+  // Abrir una edición nunca debe alterar el precio de venta por sí solo.
+  // En productos existentes conservamos el valor canónico guardado; el
+  // recálculo se ejecuta únicamente cuando el usuario modifica proveedor,
+  // costo o valor agregado. En un producto nuevo sí calculamos el inicial.
+  recalcularCompraDesdeProveedores({ recalcularVenta: !id });
   calcMargen();
   setTimeout(function(){ initSearchableSelect("pf-categoria","Seleccionar categoría..."); },50);
 }
@@ -9958,7 +9969,8 @@ function cotizarProveedoresAsistente(provCotizables, termino) {
   });
 }
 
-function recalcularCompraDesdeProveedores() {
+function recalcularCompraDesdeProveedores(opciones) {
+  opciones = opciones || {};
   if (!prodProveedoresActuales.length) return;
   var masBarato = prodProveedoresActuales.reduce(function(min, pv) {
     var costoReal = parseFloat(pv.precio)||0;
@@ -9977,7 +9989,7 @@ function recalcularCompraDesdeProveedores() {
   var gremioEl = document.getElementById('pf-precio-gremio');
   if (gremioEl) _setMontoInput(gremioEl, costoVisual);
   asegurarMargenProductoDefaultEnForm();
-  if (costoCompra > 0) calcPrecioDesdeGremio();
+  if (costoCompra > 0 && opciones.recalcularVenta !== false) calcPrecioDesdeGremio();
 }
 
 function cerrarFormProducto() {
@@ -10488,9 +10500,12 @@ function verProducto(id, origen) {
   _set('pd-compra', '$' + (parseFloat(pc)||0).toLocaleString('es-AR'));
   _set('pd-venta',  '$' + (parseFloat(pv)||0).toLocaleString('es-AR'));
   _set('pd-venta-iva-lbl', 'c/IVA: $' + Math.round(pv*(1+iva/100)).toLocaleString('es-AR'));
-  var margen = pc > 0 ? ((pv-pc)/pc*100).toFixed(1) : '—';
+  var margen = pc > 0 && pv > 0 ? ((pv-pc)/pv*100).toFixed(1) : '—';
+  var recargoCosto = pc > 0 && pv > 0 ? ((pv-pc)/pc*100).toFixed(1) : '—';
   _set('pd-margen', margen !== '—' ? margen + '%' : '—');
-  _set('pd-margen-abs', margen !== '—' ? '$' + (pv-pc).toLocaleString('es-AR') + ' por unidad' : '');
+  _set('pd-margen-abs', margen !== '—'
+    ? '$' + (pv-pc).toLocaleString('es-AR') + ' por unidad · ' + recargoCosto + '% sobre costo'
+    : '');
   _set('pd-stock', stk);
   _set('pd-stock-sub', 'mín: ' + stkMin + ' unidades');
   var sc = document.getElementById('pd-stock-card');
@@ -30587,7 +30602,8 @@ function _renderDropGlobal(filtro) {
       ? '<span class="badge b-green" style="font-size:9px;margin-left:4px">Precio vigente</span>'
       : '<span class="badge b-amber" style="font-size:9px;margin-left:4px">' + escapeHTML(vigencia.texto) + '</span>';
     return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+precioProd+'" data-moneda="'+monedaProd+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
-      '<div>' +
+      imagenProductoItemHTML({ pid:p.fbKey || p.id, cod:p.codigo, imagenUrl:p.imagenUrl }, 'prod-drop-thumb') +
+      '<div style="min-width:0;flex:1">' +
         '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' — '+escapeHTML(p.nombre||p.descripcion||'')+vigenciaHtml+'</div>' +
         (p.descripcion && p.descripcion !== p.nombre && p.descripcion !== '-' ?
           '<div style="font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:380px">'+escapeHTML(p.descripcion)+'</div>' : '') +

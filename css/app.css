@@ -729,6 +729,7 @@ body.modal-secure-open{overflow:hidden!important}
 .prod-drop-item{padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px;display:flex;justify-content:space-between;align-items:center}
 .prod-drop-item:last-child{border-bottom:none}
 .prod-drop-item:hover{background:var(--bg3)}
+.prod-drop-thumb{width:38px;height:38px;flex:0 0 38px;border-radius:9px}
 .prod-drop-stock{font-size:11px;color:var(--text3)}
 .prod-drop-stock.warn{color:var(--amber)}
 .prod-drop-stock.error{color:var(--red)}
