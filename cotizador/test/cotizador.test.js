@@ -21,7 +21,8 @@ const {
   extraerPrecioEtiquetado,
   validarIdentidadProducto,
   validarMonedaPrecio,
-  validarSaltoPrecio
+  validarSaltoPrecio,
+  validarResultadoPrecioIndividual
 } = require('../index');
 Module._load = cargarOriginal;
 
@@ -61,4 +62,12 @@ test('el salto extremo queda bloqueado como última barrera', () => {
   assert.equal(validarSaltoPrecio(110000, 100000).ok, true);
   assert.equal(validarSaltoPrecio(500000, 100000).ok, false);
   assert.equal(validarSaltoPrecio(10000, 100000).ok, false);
+});
+
+test('la cotizacion individual conserva el precio ante un salto extremo', () => {
+  assert.equal(validarResultadoPrecioIndividual({ precioArs:110000 }, 100000).precioArs, 110000);
+  assert.throws(
+    () => validarResultadoPrecioIndividual({ precioArs:500000 }, 100000),
+    /variaci/i
+  );
 });

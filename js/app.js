@@ -5447,12 +5447,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.166-firebase',
+  VERSION: 'v2.0.167-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las pantallas distinguen correctamente entre datos cargando, vacíos y con error.'
+    'Cotizar online protege el precio anterior ante lecturas anormales.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'vacaciones', actionLabel:'Revisar vacaciones' }),
+  RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Revisar productos' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.167',
+      date: '23/07/2026',
+      title: 'Precios protegidos',
+      notes: Object.freeze(['La cotización individual compara el valor nuevo con el anterior en la pantalla y en el servicio antes de aceptar cambios extremos.']),
+      feature: Object.freeze({ page:'productos', actionLabel:'Revisar productos' })
+    }),
     Object.freeze({
       version: 'v2.0.166',
       date: '23/07/2026',
@@ -10055,6 +10062,14 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
       rechazo = 'No se actualizó: la respuesta no confirmó la URL exacta del producto.';
       match = null;
     }
+    if (match && precio > 0) {
+      var precioAnterior = parseFloat(match.precioActual) || 0;
+      var relacionPrecio = precioAnterior > 0 ? precio / precioAnterior : 1;
+      if (precioAnterior > 0 && (relacionPrecio > 4 || relacionPrecio < 0.25)) {
+        rechazo = 'No se actualizó: la variación respecto del precio anterior es anormal y requiere revisión manual.';
+        match = null;
+      }
+    }
 
     var aceptado = !!(match && precio > 0);
     var disponibilidadRes = r.disponibilidadProveedor || 'no_verificado';
@@ -10117,6 +10132,7 @@ function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProduc
         url: pv.url,
         codigo: codigoProducto || '',
         producto: nombreProducto || '',
+        precioAnteriorArs: parseFloat(pv.precioActual) || 0,
         debug: true
       })
     })

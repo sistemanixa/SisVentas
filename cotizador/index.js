@@ -387,6 +387,12 @@ function validarSaltoPrecio(precioNuevo, precioAnterior) {
   return { ok:true };
 }
 
+function validarResultadoPrecioIndividual(resultado, precioAnterior) {
+  const validacion = validarSaltoPrecio(resultado && resultado.precioArs, precioAnterior);
+  if (!validacion.ok) throw new Error(validacion.mensaje);
+  return resultado;
+}
+
 async function clickSiExiste(page, selectors, timeout = 2500) {
   for (const selector of selectors) {
     try {
@@ -924,15 +930,17 @@ async function cotizar(reqBody) {
       codigo: reqBody.codigo || '',
       producto: reqBody.producto || '',
       debug: !!reqBody.debug
-    });
+    }).then((resultado) => validarResultadoPrecioIndividual(resultado, reqBody.precioAnteriorArs));
   }
 
   if (tipo === 'free_electron' || tipo === 'tecnoprices') {
-    return cotizarProveedorConLogin({ proveedor, url, codigo:reqBody.codigo || '', producto:reqBody.producto || '', debug:!!reqBody.debug, tipo });
+    return cotizarProveedorConLogin({ proveedor, url, codigo:reqBody.codigo || '', producto:reqBody.producto || '', debug:!!reqBody.debug, tipo })
+      .then((resultado) => validarResultadoPrecioIndividual(resultado, reqBody.precioAnteriorArs));
   }
 
   if (tipo === 'mercado_libre') {
-    return cotizarMercadoLibre({ proveedor, url, codigo:reqBody.codigo || '', producto:reqBody.producto || '', debug:!!reqBody.debug });
+    return cotizarMercadoLibre({ proveedor, url, codigo:reqBody.codigo || '', producto:reqBody.producto || '', debug:!!reqBody.debug })
+      .then((resultado) => validarResultadoPrecioIndividual(resultado, reqBody.precioAnteriorArs));
   }
 
   throw new Error(`Proveedor no soportado todavía: ${proveedor.nombre || proveedorKey}`);
@@ -984,5 +992,6 @@ module.exports = {
   extraerPrecioEtiquetado,
   validarIdentidadProducto,
   validarMonedaPrecio,
-  validarSaltoPrecio
+  validarSaltoPrecio,
+  validarResultadoPrecioIndividual
 };
