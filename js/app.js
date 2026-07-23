@@ -5453,12 +5453,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.170-firebase',
+  VERSION: 'v2.0.171-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Ventas, presupuestos, cobranzas y adicionales de OT usan la fecha local argentina, sin corrimientos por UTC.'
+    'Cada OT abre sus propios técnico, duración, credenciales y firma sin conservar datos de la orden anterior.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar fechas de OT' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir una OT' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.171',
+      date: '23/07/2026',
+      title: 'OT sin datos pegados',
+      notes: Object.freeze(['Al cambiar de OT se reinician los campos y una firma en proceso queda vinculada exclusivamente a su orden.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir una OT' })
+    }),
     Object.freeze({
       version: 'v2.0.170',
       date: '23/07/2026',
@@ -26521,7 +26528,27 @@ function verOT(id) {
   }
 
   var tipoSel = document.getElementById('ot-det-tipovisita');
-  if (tipoSel) tipoSel.value = ot.tipoVisita || 'Instalación nueva';
+  if (tipoSel) {
+    var tipoVisitaOT = ot.tipoVisita || 'Instalación nueva';
+    if (![...tipoSel.options].some(function(opcion){ return opcion.value === tipoVisitaOT; })) {
+      var opcionTipoHistorico = document.createElement('option');
+      opcionTipoHistorico.value = tipoVisitaOT;
+      opcionTipoHistorico.textContent = tipoVisitaOT;
+      tipoSel.appendChild(opcionTipoHistorico);
+    }
+    tipoSel.value = tipoVisitaOT;
+  }
+  var durSelAbrir = document.getElementById('ot-det-duracion');
+  if (durSelAbrir) {
+    var duracionOT = ot.duracion || '2 horas';
+    if (![...durSelAbrir.options].some(function(opcion){ return opcion.value === duracionOT; })) {
+      var opcionDuracionHistorica = document.createElement('option');
+      opcionDuracionHistorica.value = duracionOT;
+      opcionDuracionHistorica.textContent = duracionOT;
+      durSelAbrir.appendChild(opcionDuracionHistorica);
+    }
+    durSelAbrir.value = duracionOT;
+  }
 
   // Técnico (select — poblar con empleados activos)
   var tecSel = document.getElementById('ot-det-tecnico');
@@ -26539,7 +26566,13 @@ function verOT(id) {
         tecSel.appendChild(opt);
       });
     }
-    if (ot.tecnico) tecSel.value = ot.tecnico;
+    if (ot.tecnico && ![...tecSel.options].some(function(opcion){ return opcion.value === ot.tecnico; })) {
+      var opcionTecnicoHistorico = document.createElement('option');
+      opcionTecnicoHistorico.value = ot.tecnico;
+      opcionTecnicoHistorico.textContent = ot.tecnico + ' (no disponible)';
+      tecSel.appendChild(opcionTecnicoHistorico);
+    }
+    tecSel.value = ot.tecnico || '';
     tecSel.dataset.previousValue=tecSel.value||'';
   }
 
@@ -26956,6 +26989,12 @@ function firmaAutoguardar() {
   if (!canvas || !_firmaTiene || _firmaGuardando) return;
   var dataUrl = canvas.toDataURL('image/png');
   var badge = document.getElementById('firma-guardada-badge');
+  var otFirma = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
+  if (!otFirma || !otFirma.fbKey) {
+    notify('No se encontró la OT donde se dibujó la firma');
+    return;
+  }
+  var otFirmaId = otFirma.fbKey || otFirma.id;
   _firmaGuardando = true;
   if (badge) {
     badge.style.display = '';
@@ -26967,15 +27006,9 @@ function firmaAutoguardar() {
 
   // Subir a Firebase Storage
   if (!window.fbStorage || !window.fbDB || !window.fbStorageRef || !window.fbUploadBytes || !window.fbGetDownloadURL) {
-    firmaGuardarEnOT(dataUrl, null)
+    firmaGuardarEnOT(dataUrl, null, otFirmaId)
       .catch(function(error){ notify('No se pudo guardar la firma: ' + error.message); })
       .finally(function(){ _firmaGuardando = false; });
-    return;
-  }
-
-  var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
-  if (!ot || !ot.fbKey) {
-    _firmaGuardando = false;
     return;
   }
 
@@ -26985,7 +27018,7 @@ function firmaAutoguardar() {
   while(n--) u8arr[n] = bstr.charCodeAt(n);
   var blob = new Blob([u8arr], {type: mime});
 
-  var path = 'firmas/ot_' + ot.fbKey + '_' + Date.now() + '.png';
+  var path = 'firmas/ot_' + otFirma.fbKey + '_' + Date.now() + '.png';
   var ref  = window.fbStorageRef(window.fbStorage, path);
   var archivoSubido = false;
 
@@ -26993,16 +27026,18 @@ function firmaAutoguardar() {
     archivoSubido = true;
     return window.fbGetDownloadURL(snap.ref);
   }).then(function(url) {
-    return firmaGuardarEnOT(url, path);
+    return firmaGuardarEnOT(url, path, otFirmaId);
   }).catch(function(error) {
     if (archivoSubido) {
       if (window.fbDeleteObject) window.fbDeleteObject(ref).catch(function(){});
       throw error;
     }
-    return firmaGuardarEnOT(dataUrl, null);
+    return firmaGuardarEnOT(dataUrl, null, otFirmaId);
   }).catch(function(error) {
     notify('No se pudo guardar la firma: ' + error.message);
-    if (badge) {
+    var sigueAbiertaLaOTDeLaFirma = String(otActualId || '') === String(otFirma.fbKey || '') ||
+      String(otActualId || '') === String(otFirma.id || '');
+    if (badge && sigueAbiertaLaOTDeLaFirma) {
       badge.style.background = 'var(--red-bg)';
       badge.style.color = 'var(--red)';
       badge.style.borderColor = 'var(--red)';
@@ -27013,9 +27048,10 @@ function firmaAutoguardar() {
   });
 }
 
-function firmaGuardarEnOT(firmaUrl, storagePath) {
-  var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
-  if (!ot || !ot.fbKey || !window.fbDB) return Promise.reject(new Error('No se encontró la OT abierta'));
+function firmaGuardarEnOT(firmaUrl, storagePath, otObjetivoId) {
+  var objetivo = otObjetivoId || otActualId;
+  var ot = (otData||[]).find(function(o){ return o.fbKey === objetivo || o.id === objetivo; });
+  if (!ot || !ot.fbKey || !window.fbDB) return Promise.reject(new Error('No se encontró la OT de la firma'));
   var pathAnterior = ot.firmaStoragePath || '';
   var fechaFirma = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toLocaleDateString('en-CA');
   window._otGuardandoLocalHasta = Date.now() + 2500;
@@ -27029,12 +27065,14 @@ function firmaGuardarEnOT(firmaUrl, storagePath) {
     ot.firmaStoragePath = storagePath || null;
     ot.firmada = true;
     ot.fechaFirma = fechaFirma;
-    window._otDetalleHuella = JSON.stringify(ot);
+    var sigueAbiertaLaMismaOT = ot.fbKey === otActualId || ot.id === otActualId;
+    if (sigueAbiertaLaMismaOT) window._otDetalleHuella = JSON.stringify(ot);
     if (pathAnterior && pathAnterior !== storagePath && window.fbDeleteObject && window.fbStorageRef && window.fbStorage) {
       window.fbDeleteObject(window.fbStorageRef(window.fbStorage, pathAnterior)).catch(function(error) {
         console.warn('La firma nueva quedó guardada, pero no se pudo limpiar la anterior:', error);
       });
     }
+    if (!sigueAbiertaLaMismaOT) return firmaUrl;
     var badge = document.getElementById('firma-guardada-badge');
     if (badge) {
       badge.style.display = '';
@@ -27204,8 +27242,11 @@ function otCargarCredenciales(ot) {
     }).join('');
   }).catch(function(){
     if (secuencia !== _otCredencialesCargaSecuencia) return;
-    lista.innerHTML = '';
-    box.style.display = 'none';
+    box.style.display = '';
+    lista.innerHTML = '<div style="padding:14px;text-align:center;color:var(--red);font-size:12px">' +
+      '<i class="ti ti-alert-triangle"></i> No se pudieron cargar las credenciales. ' +
+      '<button type="button" class="btn btn-sm" onclick="var ot=(otData||[]).find(function(item){return item.fbKey===otActualId||item.id===otActualId;});if(ot)otCargarCredenciales(ot)" style="margin-left:6px">Reintentar</button>' +
+    '</div>';
   });
 }
 function otFotoUrlDeNota(nota) {
@@ -27830,7 +27871,9 @@ function actualizarOT(direccionEditada) {
 
 function aplicarVistaTecnicoOT() {
   var esTec = currentRole === 'tecnico';
-  var idsOcultar = ['ot-contexto-box','ot-reclamo-box','ot-audit'];
+  // Las credenciales viven dentro de ot-contexto-box y el técnico debe poder
+  // consultarlas o crear las nuevas durante una instalación.
+  var idsOcultar = ['ot-reclamo-box','ot-audit'];
   idsOcultar.forEach(function(id){ var el=document.getElementById(id); if(el) el.closest('.card') ? el.closest('.card').style.display = (esTec ? 'none' : '') : el.style.display = (esTec ? 'none' : ''); });
   ['ot-det-fecha','ot-det-hora'].forEach(function(id){
     var campo = document.getElementById(id);
