@@ -3096,6 +3096,16 @@ var _svCargaInicial = {
 };
 var _svCargaInicialEsperas = [];
 
+function svReiniciarCargaInicial() {
+  Object.keys(_svCargaInicial).forEach(function(clave) {
+    _svCargaInicial[clave].listo = false;
+  });
+  var esperas = _svCargaInicialEsperas.splice(0);
+  esperas.forEach(function(resolver) {
+    try { resolver(false); } catch (e) {}
+  });
+}
+
 function svEstadoCargaInicial() {
   var claves = Object.keys(_svCargaInicial);
   var listas = claves.filter(function(k){ return _svCargaInicial[k].listo; });
@@ -3186,6 +3196,12 @@ function migrarEmpleadoPptos() {
 }
 
 function fbCargarTodo() {
+  if (!window.fbDB) return false;
+  // Los listeners de Firebase ya mantienen los datos actualizados en tiempo real.
+  // Volver a ejecutar este arranque creaba suscripciones duplicadas y provocaba
+  // repintados, saltos de columnas y estados de "Cargando" engañosos.
+  if (window._fbCargaTodoActiva) return false;
+  window._fbCargaTodoActiva = true;
   fbCargarClientes();
   fbCargarProductos();
   fbCargarVentas();
@@ -3206,6 +3222,19 @@ function fbCargarTodo() {
   fbCargarPagos();
   fbCargarServicios();
   fbCargarCaja();
+  return true;
+}
+
+function fbSincronizarAhora() {
+  if (!window.fbDB || !navigator.onLine) {
+    notify('Sin conexión: la sincronización se retomará automáticamente');
+    return;
+  }
+  var iniciada = fbCargarTodo();
+  if (typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
+  notify(iniciada
+    ? 'Sincronización en tiempo real iniciada'
+    : 'Los datos ya están sincronizados en tiempo real');
 }
 function fbCargarClientes() {
   if (!window.fbDB) return;
@@ -3220,16 +3249,16 @@ function fbCargarClientes() {
       clientesData = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
       });
-      clientesData.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
-      if (typeof renderTablaClientes === 'function') {
-        var _cliInp = document.querySelector('#page-clientes .search-input');
-        renderTablaClientes(_cliInp ? _cliInp.value : '');
-      } else {
-        console.error('[Firebase] renderTablaClientes NO disponible');
-      }
-      if (typeof actualizarSugerenciasCliente === 'function') actualizarSugerenciasCliente();
-      if (typeof _chequearCambioHistCliente === 'function') _chequearCambioHistCliente();
     }
+    clientesData.sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
+    if (typeof renderTablaClientes === 'function') {
+      var _cliInp = document.querySelector('#page-clientes .search-input');
+      renderTablaClientes(_cliInp ? _cliInp.value : '');
+    } else {
+      console.error('[Firebase] renderTablaClientes NO disponible');
+    }
+    if (typeof actualizarSugerenciasCliente === 'function') actualizarSugerenciasCliente();
+    if (typeof _chequearCambioHistCliente === 'function') _chequearCambioHistCliente();
   }, function(error) {
     window._clientesListenerActivo = false;
     console.error('[Clientes] No se pudo iniciar la sincronizacion', error);
@@ -3357,16 +3386,16 @@ function fbCargarProductos() {
           stockMin: 0
         };
       });
-      if (typeof renderTablaProductos === 'function') renderTablaProductos();
-      if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
-      if (typeof actualizarVigenciaPreciosDashboard === 'function') actualizarVigenciaPreciosDashboard();
-      if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
-      if (typeof limpiarProveedoresManoDeObraExistentes === 'function') limpiarProveedoresManoDeObraExistentes();
-      // la misma variable editingProdId), refrescarlo — es de solo lectura
-      var prodDetEl = document.getElementById('prod-detail-view');
-      if (prodDetEl && prodDetEl.style.display === 'block' && typeof editingProdId !== 'undefined' && editingProdId && typeof verProducto === 'function') {
-        verProducto(editingProdId);
-      }
+    }
+    if (typeof renderTablaProductos === 'function') renderTablaProductos();
+    if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
+    if (typeof actualizarVigenciaPreciosDashboard === 'function') actualizarVigenciaPreciosDashboard();
+    if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
+    if (typeof limpiarProveedoresManoDeObraExistentes === 'function') limpiarProveedoresManoDeObraExistentes();
+    // Si el detalle sigue abierto, refrescarlo con la fuente canónica.
+    var prodDetEl = document.getElementById('prod-detail-view');
+    if (data && prodDetEl && prodDetEl.style.display === 'block' && typeof editingProdId !== 'undefined' && editingProdId && typeof verProducto === 'function') {
+      verProducto(editingProdId);
     }
   }, function(error) {
     window._productosListenerActivo = false;
@@ -3891,8 +3920,11 @@ function fbGuardarVenta(venta) {
 }
 function fbCargarPresupuestos() {
   if (!window.fbDB) return;
+  if (window._pptoListenerActivo) return;
+  window._pptoListenerActivo = true;
   window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.presupuestos), function(snap) {
     var data = snap.val();
+    pptoData = [];
     if (data) {
       pptoData = Object.entries(data).map(function(e) {
         return Object.assign({ fbKey: e[0] }, e[1]);
@@ -3902,18 +3934,22 @@ function fbCargarPresupuestos() {
         if (fa && fb && fa !== fb) return fb.localeCompare(fa);
         return (b.ts||0) - (a.ts||0);
       });
-      setTimeout(verificarVencimientosPptos, 800);
-      var pagPpto = document.getElementById('page-presupuesto');
-      if (pagPpto && pagPpto.classList.contains('active')) {
-        if (typeof renderPptoTabla === 'function') renderPptoTabla();
-      }
-      var pptoDetEl = document.getElementById('ppto-detalle-view');
-      if (pptoDetEl && pptoDetEl.style.display === 'block' && typeof pptoActualId !== 'undefined' && pptoActualId && typeof verPpto === 'function') {
-        verPpto(pptoActualId);
-      }
-      var pageDash = document.getElementById('page-dashboard');
-      if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
     }
+    setTimeout(verificarVencimientosPptos, 800);
+    var pagPpto = document.getElementById('page-presupuesto');
+    if (pagPpto && pagPpto.classList.contains('active')) {
+      if (typeof renderPptoTabla === 'function') renderPptoTabla();
+    }
+    var pptoDetEl = document.getElementById('ppto-detalle-view');
+    if (data && pptoDetEl && pptoDetEl.style.display === 'block' && typeof pptoActualId !== 'undefined' && pptoActualId && typeof verPpto === 'function') {
+      verPpto(pptoActualId);
+    }
+    var pageDash = document.getElementById('page-dashboard');
+    if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
+  }, function(error) {
+    window._pptoListenerActivo = false;
+    console.error('[Presupuestos] No se pudo iniciar la sincronización', error);
+    if (typeof notify === 'function') notify('No se pudieron sincronizar los presupuestos');
   });
 }
 
@@ -4923,7 +4959,11 @@ function _bloquearInterfazSinSesion(opciones) {
   window._clientesListenerActivo = false;
   window._productosListenerActivo = false;
   window._ventasListenerActivo = false;
+  window._pptoListenerActivo = false;
+  window._otsListenerActivo = false;
   window._pagosListenerActivo = false;
+  window._fbCargaTodoActiva = false;
+  svReiniciarCargaInicial();
   window._svModuleListeners = {};
   window._cajaListenerFirma = '';
   window._cajaListenerStops = [];
@@ -4931,6 +4971,7 @@ function _bloquearInterfazSinSesion(opciones) {
   _chatListener = null;
   _gastosUnsubscribe = null;
   AG_UNSUBSCRIBE = null;
+  AG_LISTENER_FIRMA = '';
   _monitorConexionFirebaseActivo = false;
 
   if (typeof stopSessionTimer === 'function') stopSessionTimer();
@@ -5373,12 +5414,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.164-firebase',
+  VERSION: 'v2.0.165-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las OT se sincronizan y muestran sus estados sin recargar.'
+    'La sincronización queda estable al navegar, recargar datos y volver a ingresar.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar una OT' }),
+  RELEASE_FEATURE: Object.freeze({ page:'dashboard', actionLabel:'Ir al inicio' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.165',
+      date: '23/07/2026',
+      title: 'Sincronización estable',
+      notes: Object.freeze(['Los datos se escuchan una sola vez por sesión y las listas vacías ya no quedan mostrando una carga inexistente.']),
+      feature: Object.freeze({ page:'dashboard', actionLabel:'Ir al inicio' })
+    }),
     Object.freeze({
       version: 'v2.0.164',
       date: '23/07/2026',
@@ -6940,6 +6988,7 @@ function _completarLogin(nombre) {
   // El limite evita dejar al usuario bloqueado si un nodo puntual falla; los
   // listeners que hayan iniciado siguen sincronizando silenciosamente despues.
   svEsperarCargaInicial(12000).then(function(cargaCompleta) {
+    if (!isAuthenticated) return;
     if (bar && cargaCompleta) bar.style.width = '100%';
     if (msg) msg.textContent = cargaCompleta
       ? 'Datos principales listos'
@@ -19232,6 +19281,7 @@ var AG_DATA = [];         // eventos internos de sisventas/agenda
 var AG_VISTA = 'mes';     // 'mes' | 'semana' | 'dia'
 var AG_CURSOR = new Date(); // fecha actual del calendario
 var AG_UNSUBSCRIBE = null;
+var AG_LISTENER_FIRMA = '';
 
 var AG_COLORES = {
   instalacion: { bg:'#22c55e22', border:'#22c55e', text:'#22c55e' },
@@ -19241,18 +19291,28 @@ var AG_COLORES = {
 
 function fbCargarAgenda() {
   if (!window.fbDB) return;
+  var queryApi=window.SisVentas&&window.SisVentas.DataQuery;
+  var bounds=queryApi ? queryApi.range(AG_CURSOR,AG_VISTA==='dia'?'semana':AG_VISTA) : null;
+  var firmaAgenda = bounds ? (bounds.start + '|' + bounds.end) : 'agenda-completa';
+  if (typeof AG_UNSUBSCRIBE === 'function' && AG_LISTENER_FIRMA === firmaAgenda) {
+    agRenderCalendario();
+    agActualizarMetricas();
+    return;
+  }
   if (typeof AG_UNSUBSCRIBE === 'function') AG_UNSUBSCRIBE();
+  AG_UNSUBSCRIBE = null;
+  AG_LISTENER_FIRMA = firmaAgenda;
   var cont=document.getElementById('ag-calendario');
   if(cont) cont.innerHTML='<div style="padding:34px;text-align:center;color:var(--text3)"><i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>Cargando agenda...</div>';
   AG_DATA=[];
-  var queryApi=window.SisVentas&&window.SisVentas.DataQuery;
   if(queryApi){
-    var bounds=queryApi.range(AG_CURSOR,AG_VISTA==='dia'?'semana':AG_VISTA);
     AG_UNSUBSCRIBE=queryApi.subscribeDateRange('sisventas/agenda',bounds,function(rows){
       AG_DATA=rows;
       agRenderCalendario();
       agActualizarMetricas();
     },function(error){
+      AG_LISTENER_FIRMA = '';
+      AG_UNSUBSCRIBE = null;
       console.error('[Agenda]',error);
       if(cont) cont.innerHTML='<div style="padding:28px;text-align:center;color:var(--red)">No se pudo cargar la agenda</div>';
     });
@@ -19263,6 +19323,11 @@ function fbCargarAgenda() {
     AG_DATA=Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); });
     agRenderCalendario();
     agActualizarMetricas();
+  }, function(error) {
+    AG_LISTENER_FIRMA = '';
+    AG_UNSUBSCRIBE = null;
+    console.error('[Agenda]', error);
+    if(cont) cont.innerHTML='<div style="padding:28px;text-align:center;color:var(--red)">No se pudo cargar la agenda</div>';
   });
 }
 
