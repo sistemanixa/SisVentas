@@ -72,8 +72,8 @@
   }
 
   function dataSnapshot(){
-    var ventas = arr(window.ventasData);
-    var pagos = arr(window.pagosData);
+    var ventas = arr(window.ventasList || window.ventasData);
+    var pagos = arr(window._pagosListaActual || window._historialPagosCompleto || window.pagosData);
     var ots = arr(window.otData);
     var clientes = arr(window.clientesData || window.cliData);
     var productos = arr(window.productosData || window.prodData);

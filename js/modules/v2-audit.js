@@ -9,13 +9,13 @@
 
   function dataset(){
     return {
-      ventas: arr(window.ventasData),
-      pagos: arr(window.pagosData),
+      ventas: arr(window.ventasList || window.ventasData),
+      pagos: arr(window._pagosListaActual || window._historialPagosCompleto || window.pagosData),
       ots: arr(window.otData),
       clientes: arr(window.clientesData || window.cliData),
       productos: arr(window.productosData || window.prodData),
-      presupuestos: arr(window.pptosData || window.presupuestosData),
-      reclamos: arr(window.reclamosData),
+      presupuestos: arr(window.pptoData || window.pptosData || window.presupuestosData),
+      reclamos: arr(window.SP_DATA || window.reclamosData),
       gastos: arr(window.gastosData),
       empleados: arr(window.empleadosData || window.empData)
     };

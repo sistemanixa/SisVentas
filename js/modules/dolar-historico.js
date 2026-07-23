@@ -6,6 +6,10 @@
   var timer = null;
   var cargando = false;
 
+  function sesionDisponible(){
+    return !!(window.fbAuth && window.fbAuth.currentUser && !document.body.classList.contains('sv-sesion-cerrada'));
+  }
+
   function pad(n){ return String(n).padStart(2, '0'); }
   function ahoraPartes(){
     var d = new Date();
@@ -112,7 +116,7 @@
   }
 
   async function cargar(){
-    if(!window.fbDB || !window.fbGet || !window.fbRef) return;
+    if(!sesionDisponible() || !window.fbDB || !window.fbGet || !window.fbRef) return;
     try {
       estado('Cargando histórico...');
       var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/dolarHistorico'));
@@ -135,7 +139,7 @@
   }
 
   async function debeActualizarPorHora(){
-    if(!window.fbDB || !window.fbGet || !window.fbRef) return false;
+    if(!sesionDisponible() || !window.fbDB || !window.fbGet || !window.fbRef) return false;
     var cfg = cfgActual();
     if(cfg.actualizacionAuto !== 'hora') return false;
     try {
@@ -148,7 +152,7 @@
   }
 
   async function tick(){
-    if(cargando) return;
+    if(cargando || !sesionDisponible()) return;
     cargando = true;
     try {
       if(await debeActualizarPorHora()){
@@ -162,21 +166,32 @@
 
   function iniciar(){
     if(timer) clearInterval(timer);
+    timer = null;
+    if(!sesionDisponible()) return;
     setTimeout(cargar, 400);
     setTimeout(tick, 1600);
     timer = setInterval(tick, INTERVALO_MS);
+  }
+
+  function detener(){
+    if(timer) clearInterval(timer);
+    timer = null;
+    cargando = false;
   }
 
   window.SisVentasDolarHistorico = {
     guardarPunto: guardarPunto,
     cargar: cargar,
     tick: tick,
-    iniciar: iniciar
+    iniciar: iniciar,
+    detener: detener
   };
   window.dolarHistoricoCargar = cargar;
   window.dolarHistoricoGuardarAhora = guardarAhora;
 
-  document.addEventListener('firebase-ready', iniciar);
+  document.addEventListener('firebase-ready', function(){ setTimeout(iniciar, 500); });
+  document.addEventListener('sisventas:session-ready', iniciar);
+  document.addEventListener('sisventas:session-ended', detener);
   document.addEventListener('sisventas:page-changed', function(e){
     if(!e.detail || e.detail.page === 'configuracion') setTimeout(cargar, 250);
   });

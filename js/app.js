@@ -4801,20 +4801,26 @@ async function testTFApp() {
   }
 }
 
-// Cargar config de Firebase al iniciar
-document.addEventListener('firebase-ready', function() {
-  if (!window.fbDB) return;
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tfapp'))
+// La configuración fiscal está protegida: se consulta únicamente después de
+// autenticar al usuario, nunca al mostrar la pantalla de ingreso.
+function cargarConfigTFAppProtegida() {
+  if (!window.fbDB || !window.fbAuth || !window.fbAuth.currentUser) return Promise.resolve(false);
+  return window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tfapp'))
     .then(function(snap) {
       var cfg = snap.val();
-      if (!cfg) return;
+      if (!cfg) return false;
       TFAPP_CONFIG.punto_venta = cfg.punto_venta || 2;
       TFAPP_CONFIG.provincia   = cfg.provincia   || '';
       TFAPP_CONFIG.rubro       = cfg.rubro       || 'Seguridad y domótica';
       TFAPP_CONFIG.activo      = true; // los tokens viven en Secret Manager, siempre activo
       if (typeof recargarConfigTFAppEnUI === 'function') recargarConfigTFAppEnUI();
+      return true;
+    }).catch(function(error) {
+      console.error('[Facturación] No se pudo cargar la configuración protegida', error);
+      return false;
     });
-});
+}
+window.cargarConfigTFAppProtegida = cargarConfigTFAppProtegida;
 function chatLimpiarPresencia() {
   if (!window.fbDB || !currentUser) return;
   var presKey = (currentUser||'').replace(/[.#$[\]/\s]/g,'_');
@@ -4886,6 +4892,7 @@ function _bloquearInterfazSinSesion(opciones) {
   currentUserEmail = '';
   window._impersonacionOriginal = null;
   window._restaurandoSesionInicial = false;
+  document.dispatchEvent(new CustomEvent('sisventas:session-ended'));
 
   var banner = document.getElementById('impersonacion-banner');
   if (banner) banner.remove();
@@ -5316,12 +5323,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.153-firebase',
+  VERSION: 'v2.0.154-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Catálogo sin stock ficticio, navegación estable y fechas locales coherentes.'
+    'Órdenes de compra editables y gastos con aprobación y pago claros.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'ordenes', actionLabel:'Abrir compras y materiales' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.154',
+      date: '22/07/2026',
+      title: 'Compras y gastos con acciones claras',
+      notes: Object.freeze(['Órdenes de compra editables y gastos con aprobación y pago claros.']),
+      feature: Object.freeze({ page:'ordenes', actionLabel:'Abrir compras y materiales' })
+    }),
     Object.freeze({
       version: 'v2.0.153',
       date: '22/07/2026',
@@ -6717,6 +6731,9 @@ function _completarLogin(nombre) {
     appSegura.inert = false;
   }
   applyRole();
+  document.dispatchEvent(new CustomEvent('sisventas:session-ready', {
+    detail: { usuario: currentUser, rol: currentRole, uid: currentUserUid }
+  }));
   registrarPresenciaOnline();
   if (typeof registrarActividad === 'function') registrarActividad('Inicio de sesión', '');
   if (typeof iniciarMonitorConexionFirebase === 'function') iniciarMonitorConexionFirebase();
@@ -6768,6 +6785,7 @@ function _completarLogin(nombre) {
   if (typeof cargarConfigGeneral === 'function') setTimeout(cargarConfigGeneral, 350);
   if (typeof cargarConfigImpuestos === 'function') setTimeout(cargarConfigImpuestos, 350);
   if (typeof cargarConfigComisiones === 'function') setTimeout(cargarConfigComisiones, 350);
+  if (typeof cargarConfigTFAppProtegida === 'function') setTimeout(cargarConfigTFAppProtegida, 360);
   if (typeof cargarMediosPago === 'function') setTimeout(cargarMediosPago, 400);
   if (typeof inicializarFlujoVentas === 'function') setTimeout(inicializarFlujoVentas, 4000);
   if (typeof iaInicializar === 'function') setTimeout(iaInicializar, 1000);
@@ -15965,6 +15983,7 @@ function renderMovsEmp() {
       var fecha = fechaRaw ? fechaRaw.split('-').reverse().join('/') : '—';
       // Descripción: puede estar en 'descripcion', 'desc', o 'detalle'
       var descTexto = m.descripcion || m.desc || m.detalle || '';
+      var puedeAbonar = String(currentRole || '').toLowerCase() === 'admin' && estadoCalc === 'aprobado' && ['transporte','materiales','gasto_empresa','otro'].includes(String(m.tipo || '').toLowerCase());
       // Navegación: gastos de empresa van al módulo gastos, otros muestran detalle
       var trClick = '';
       if (m.tipo === 'gasto_empresa' && m.gastoFbKey) {
@@ -15985,7 +16004,8 @@ function renderMovsEmp() {
           (_puedeAprobarMovEmp(m) && m.tipo === 'comision'
             ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green);font-size:11px;padding:3px 8px" onclick="event.stopPropagation();aprobarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✓ Aprobar</button>' +
               '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 8px;margin-left:4px" onclick="event.stopPropagation();rechazarComision(\''+m.fbKey+'\',\''+ctaEmpActual+'\')">✗ Rechazar</button>'
-            : (_puedeAprobarMovEmp(m) ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar"><i class="ti ti-check" style="font-size:14px;color:var(--green)"></i></button>' : '')) +
+            : (_puedeAprobarMovEmp(m) ? '<button class="btn btn-sm" onclick="event.stopPropagation();aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar" style="color:var(--green);border-color:var(--green)"><i class="ti ti-check"></i> Aprobar</button>' : '')) +
+          (puedeAbonar ? '<button class="btn btn-sm" onclick="event.stopPropagation();abonarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" style="color:var(--green);border-color:var(--green)"><i class="ti ti-cash"></i> Abonar</button>' : '') +
           (String(currentRole || '').toLowerCase() === 'admin' && m._fuente !== 'gastos' ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();eliminarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' : '') +
         '</td>' +
       '</tr>';
@@ -16023,6 +16043,23 @@ function irAGastoDesdeCtaEmp(el) {
   setTimeout(function() {
     if (typeof editarGasto === 'function') editarGasto(gastoFbKey);
   }, 300);
+}
+
+function abonarMovEmp(movKey, empKey) {
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede abonar movimientos'); return; }
+  var mov = (movsEmpData || []).find(function(item){ return String(item.fbKey) === String(movKey); });
+  if (!mov) { notify('Movimiento no encontrado'); return; }
+  var abrir = function(gastoKey) {
+    showPage('gastos', document.querySelector('[onclick*=gastos]'));
+    setTimeout(function(){
+      if (typeof abrirPagoGasto === 'function') abrirPagoGasto(gastoKey);
+    }, 180);
+  };
+  var relacionado = _buscarGastoRelacionadoMovEmp(mov);
+  if (relacionado && relacionado.fbKey) { abrir(relacionado.fbKey); return; }
+  _crearGastoEmpresaDesdeMovimiento(empKey, movKey, mov).then(function(gastoKey){
+    abrir(gastoKey);
+  }).catch(function(error){ notify('No se pudo preparar el pago: ' + error.message); });
 }
 
 function verDetalleMovEmp(tr) {
@@ -16187,12 +16224,52 @@ function _guardarMovimientoEmpleado(nuevo, mensaje) {
     if (nuevo.tipo === 'adelanto' && nuevo.estado === 'pagado') {
       return _crearGastoAdelantoDesdeMovimiento(ctaEmpActual, refMov.key, nuevo);
     }
+    if (['transporte','materiales','gasto_empresa','otro'].includes(String(nuevo.tipo || '').toLowerCase())) {
+      return _crearGastoEmpresaDesdeMovimiento(ctaEmpActual, refMov.key, nuevo);
+    }
     return null;
   }).then(function(){
     notify(mensaje || 'Movimiento guardado');
     cerrarModalMovEmp();
     if (typeof fbCargarGastos === 'function') fbCargarGastos();
   });
+}
+
+function _crearGastoEmpresaDesdeMovimiento(empFbKey, movFbKey, mov) {
+  if (!window.fbDB || !empFbKey || !movFbKey || !mov) return Promise.resolve(null);
+  var monto = parseFloat(mov.monto) || 0;
+  if (monto <= 0) return Promise.resolve(null);
+  var key = mov.gastoFbKey || ('solicitud_emp_' + String(empFbKey).replace(/[^a-zA-Z0-9_-]/g,'_') + '_' + String(movFbKey).replace(/[^a-zA-Z0-9_-]/g,'_'));
+  var estadoMov = String(mov.estado || '').toLowerCase();
+  var requiereAprobacion = estadoMov === 'pendiente';
+  var categoriaPorTipo = { transporte:'Movilidad', materiales:'Materiales', gasto_empresa:'Gasto empresa', otro:'Otro' };
+  var gasto = {
+    fecha: mov.fecha || new Date().toISOString().slice(0,10),
+    tipo: 'Variable',
+    tipoPagable: 'gasto_empresa',
+    categoria: categoriaPorTipo[mov.tipo] || 'Otro',
+    descripcion: mov.descripcion || mov.desc || 'Gasto solicitado por empleado',
+    monto: monto,
+    montoPagado: parseFloat(mov.montoPagado) || 0,
+    estado: estadoMov === 'pagado' ? 'pagado' : (requiereAprobacion ? 'pendiente_aprobacion' : 'aprobado'),
+    requiereAprobacion: requiereAprobacion,
+    empleadoId: empFbKey,
+    empleadoFbKey: empFbKey,
+    empleadoNombre: mov.empleadoNombre || '',
+    solicitadoPor: mov.usuario || '',
+    solicitadoTs: mov.ts || Date.now(),
+    movimientoCtaKey: movFbKey,
+    comprobanteSolicitudUrl: mov.fotoUrl || null,
+    ts: mov.ts || Date.now()
+  };
+  if (mov.pagos) gasto.pagos = mov.pagos;
+  if (mov.medioPago) gasto.medio = mov.medioPago;
+  return window.fbSet(window.fbRef(window.fbDB, 'sisventas/gastos/' + key), gasto).then(function(){
+    return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
+      gastoFbKey: key,
+      migradoAGastos: true
+    });
+  }).then(function(){ return key; });
 }
 
 function guardarMovEmp() {
@@ -16425,7 +16502,12 @@ function aprobarMovEmp(movKey, empKey) {
     fechaAprobacion: new Date().toISOString().slice(0,10)
   };
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey), cambios)
-    .then(function(){ notify('Movimiento aprobado — queda pendiente de pago'); });
+    .then(function(){
+      if (mov && ['transporte','materiales','gasto_empresa','otro'].includes(String(mov.tipo || '').toLowerCase())) {
+        return _crearGastoEmpresaDesdeMovimiento(empKey, movKey, Object.assign({}, mov, cambios));
+      }
+      return null;
+    }).then(function(){ notify('Movimiento aprobado — queda pendiente de pago'); });
 }
 
 function confirmarAprobacionAdelanto() {
@@ -22981,6 +23063,7 @@ function fbCargarGastos() {
   if (typeof _gastosUnsubscribe === 'function') {
     renderTablaGastos();
     actualizarMetricasGastos();
+    if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 60);
     return _gastosUnsubscribe;
   }
   if (!_gastosDataReady) {
@@ -23002,6 +23085,7 @@ function fbCargarGastos() {
     }) : [];
     renderTablaGastos();
     actualizarMetricasGastos();
+    if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 60);
     var pageDash = document.getElementById('page-dashboard');
     if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
     var pageRent = document.getElementById('page-rentabilidad');
@@ -23136,8 +23220,9 @@ function normalizarEstadoGasto(g) {
   var pagado = totalPagadoGasto(g);
   if (monto > 0 && pagado >= monto - 0.01) return 'pagado';
   if (pagado > 0) return 'pagado_parcial';
-  if (est === 'aprobado') return 'pendiente';
-  return 'pendiente';
+  if (est === 'aprobado' || est === 'pendiente_pago') return 'pendiente_pago';
+  if (est === 'pendiente_aprobacion' || (g && g.requiereAprobacion && !g.aprobadoTs && !g.aprobadoPor)) return 'pendiente_aprobacion';
+  return 'pendiente_pago';
 }
 
 function normalizarTipoGasto(g) {
@@ -23158,7 +23243,23 @@ function restoGasto(g) {
 }
 
 function gastoSeleccionableParaPago(g) {
-  return normalizarEstadoGasto(g) !== 'pagado' && restoGasto(g) > 0;
+  var estado = normalizarEstadoGasto(g);
+  return !['pagado','pendiente_aprobacion','rechazado','anulado'].includes(estado) && restoGasto(g) > 0;
+}
+
+function aprobarGastoSolicitado(gastoFbKey) {
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede aprobar solicitudes'); return; }
+  var g = (gastosData || []).find(function(item){ return item.fbKey === gastoFbKey; });
+  if (!g) { notify('Gasto no encontrado'); return; }
+  if (!confirm('¿Aprobar este gasto por $' + Math.round(parseFloat(g.monto) || 0).toLocaleString('es-AR') + '? Quedará pendiente de pago.')) return;
+  var fecha = new Date().toISOString().slice(0,10);
+  var cambios = { estado:'aprobado', requiereAprobacion:false, aprobadoPor:currentUser || '', fechaAprobacion:fecha, aprobadoTs:Date.now() };
+  var tareas = [window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), cambios)];
+  if (g.empleadoId && g.movimientoCtaKey) tareas.push(window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId + '/' + g.movimientoCtaKey), cambios));
+  Promise.all(tareas).then(function(){
+    notify('Gasto aprobado — queda pendiente de pago');
+    if (typeof generarNotificaciones === 'function') generarNotificaciones();
+  }).catch(function(error){ notify('No se pudo aprobar: ' + error.message); });
 }
 
 function togglePagoMultipleGastos() {
@@ -23195,7 +23296,7 @@ function gastosFiltradosActuales() {
     var tipoNorm   = normalizarTipoGasto(g);
     var estadoNorm = normalizarEstadoGasto(g);
     var matchTipo   = !fTipo   || tipoNorm === fTipo;
-    var matchEstado = !fEstado || estadoNorm === fEstado;
+    var matchEstado = !fEstado || estadoNorm === fEstado || (fEstado === 'pendiente' && ['pendiente_aprobacion','pendiente_pago','pagado_parcial'].includes(estadoNorm));
     var matchBusq   = !fBusq  || (g.descripcion||'').toLowerCase().includes(fBusq) || (g.categoria||'').toLowerCase().includes(fBusq);
     var matchMes = true;
     if (fMes === 'mes') {
@@ -23332,11 +23433,13 @@ function renderTablaGastos() {
     var estadoNorm = normalizarEstadoGasto(g);
     if (estadoNorm==='pagado')         return '<span class="badge b-green">Pagado</span>';
     if (estadoNorm==='pagado_parcial') return '<span class="badge b-amber">Parcial</span>';
+    if (estadoNorm==='pendiente_aprobacion') return '<span class="badge b-amber">Pendiente de aprobación</span>';
+    if (estadoNorm==='pendiente_pago') return '<span class="badge b-blue">Aprobado · pendiente de pago</span>';
     if (estadoNorm==='rechazado')      return '<span class="badge b-red">Rechazado</span>';
     if (estadoNorm==='anulado')        return '<span class="badge b-red">Anulado</span>';
     var hoy = new Date().toISOString().split('T')[0];
     if (g.vencimiento && g.vencimiento < hoy) return '<span class="badge b-red">Vencido</span>';
-    return '<span class="badge b-blue">Pendiente</span>';
+    return '<span class="badge b-blue">Pendiente de pago</span>';
   };
 
   tbody.innerHTML = lista.map(function(g) {
@@ -23353,8 +23456,11 @@ function renderTablaGastos() {
     var pagoPor = g.empleadoId
       ? '<span title="Pagó: '+escapeHTML(g.empleadoNombre||'Técnico')+'" style="color:var(--blue);font-size:12px"><i class="ti ti-user"></i> '+escapeHTML((g.empleadoNombre||'').split(' ')[0])+'</span>'
       : '<span style="color:var(--text3);font-size:12px">Empresa</span>';
-    var btnPagar = estadoNorm!=='pagado'
-      ? '<button class="btn btn-sm btn-icon" onclick="abrirPagoGasto(\''+g.fbKey+'\')" title="Registrar pago" style="color:var(--green)"><i class="ti ti-cash" style="font-size:14px"></i></button>'
+    var btnAprobar = estadoNorm === 'pendiente_aprobacion'
+      ? '<button class="btn btn-sm" onclick="aprobarGastoSolicitado(\''+g.fbKey+'\')" title="Aprobar solicitud" style="color:var(--green);border-color:var(--green)"><i class="ti ti-check"></i> Aprobar</button>'
+      : '';
+    var btnPagar = gastoSeleccionableParaPago(g)
+      ? '<button class="btn btn-sm" onclick="abrirPagoGasto(\''+g.fbKey+'\')" title="Registrar pago" style="color:var(--green);border-color:var(--green)"><i class="ti ti-cash"></i> Abonar</button>'
       : '';
     var pagosCount = _gastoPagosArray(g).length;
     var btnPagos = '<button class="btn btn-sm btn-icon" onclick="verPagosGasto(\''+g.fbKey+'\')" title="Ver pagos y comprobantes" style="color:'+(pagosCount?'var(--blue)':'var(--text3)')+'"><i class="ti ti-files" style="font-size:14px"></i></button>';
@@ -23371,7 +23477,7 @@ function renderTablaGastos() {
       '<td class="tr" style="font-size:12px;color:'+(g.vencimiento&&g.vencimiento<new Date().toISOString().split('T')[0]?'var(--red)':'var(--text3)')+'">'+venc+'</td>' +
       '<td class="tr">'+estBadge(g)+'</td>' +
       '<td class="tr">'+pagoPor+'</td>' +
-      '<td style="white-space:nowrap">'+btnPagar+btnPagos+
+      '<td style="white-space:nowrap">'+btnAprobar+btnPagar+btnPagos+
         '<button class="btn btn-sm btn-icon" onclick="abrirFormGasto(\''+g.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>'+
         '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'gastos\',\''+g.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>'+
       '</td>' +
@@ -28971,6 +29077,23 @@ function generarNotificaciones() {
     });
   }
 
+  if (currentRole === 'admin' && typeof gastosData !== 'undefined') {
+    (gastosData || []).forEach(function(gasto) {
+      if (normalizarEstadoGasto(gasto) !== 'pendiente_aprobacion') return;
+      todasNotifs.push({
+        id: 'gasto_aprob_' + gasto.fbKey,
+        tipo: 'gasto',
+        urgente: true,
+        icono: 'ti-receipt',
+        color: 'red',
+        titulo: 'Gasto para aprobar — ' + (gasto.empleadoNombre || gasto.solicitadoPor || 'Empleado'),
+        sub: (gasto.descripcion || 'Sin descripción') + ' — $' + (parseFloat(gasto.monto) || 0).toLocaleString('es-AR'),
+        tiempo: 'Pendiente · Solicitud de empleado',
+        accion: { label:'Revisar gasto', fn:"abrirGastoDesdeNotificacion('" + gasto.fbKey + "')" }
+      });
+    });
+  }
+
   // Ordenar: urgentes primero, luego por tipo
   todasNotifs.sort((a,b) => (b.urgente?1:0) - (a.urgente?1:0));
 
@@ -28981,6 +29104,19 @@ function generarNotificaciones() {
     var notifLista = document.getElementById('notif-lista');
     if (notifLista) notifLista.innerHTML = '<div style="padding:24px;text-align:center;color:var(--red)"><i class="ti ti-alert-circle" style="font-size:24px"></i><div style="margin-top:8px;font-size:13px">Error al cargar notificaciones</div><div style="font-size:11px;color:var(--text3);margin-top:4px">'+errNotif.message+'</div></div>';
   }
+}
+
+function abrirGastoDesdeNotificacion(gastoFbKey) {
+  showPage('gastos', document.querySelector('[onclick*=gastos]'));
+  var mes = document.getElementById('gas-f-mes');
+  var estado = document.getElementById('gas-f-estado');
+  if (mes) mes.value = '';
+  if (estado) estado.value = 'pendiente_aprobacion';
+  renderTablaGastos();
+  setTimeout(function(){
+    var gasto = (gastosData || []).find(function(item){ return item.fbKey === gastoFbKey; });
+    if (gasto) notify('Solicitud: ' + (gasto.descripcion || '') + ' · $' + Math.round(parseFloat(gasto.monto) || 0).toLocaleString('es-AR'));
+  }, 120);
 }
 
 function pptoEstadoLabel(est) {

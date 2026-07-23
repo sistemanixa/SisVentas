@@ -13,7 +13,8 @@
     started: false,
     activeList: null,
     activeOrder: null,
-    manualItems: []
+    manualItems: [],
+    editingOrderKey: null
   };
 
   function esc(value) {
@@ -170,6 +171,10 @@
 
   function update(path, value) {
     return window.fbUpdate(window.fbRef(window.fbDB, path), value);
+  }
+
+  function remove(path) {
+    return window.fbRemove(window.fbRef(window.fbDB, path));
   }
 
   function createListFromSale(saleValue, options) {
@@ -332,7 +337,7 @@
   }
 
   function transactionInventory(productKey, mutate) {
-    if (!window.fbDB || typeof window.fbRunTransaction !== 'function') return Promise.resolve();
+    if (!productKey || !window.fbDB || typeof window.fbRunTransaction !== 'function') return Promise.resolve();
     var ref = window.fbRef(window.fbDB, PATH_INVENTORY + '/' + safeKey(productKey));
     return window.fbRunTransaction(ref, function (current) {
       current = current || { general: 0, reservado: 0, enCompra: 0, consumido: 0, asignaciones: {} };
@@ -531,6 +536,8 @@
     document.getElementById('oc-order-modal-title').innerHTML = '<i class="ti ti-shopping-cart" style="margin-right:7px"></i>' + esc(order.numero || 'Orden') + ' · ' + esc(order.proveedor || '');
     var body = document.getElementById('oc-order-modal-body');
     var editableReceipt = order.estado !== 'recibida' && order.estado !== 'cancelada';
+    var hasReceipts = (order.items || []).some(function (item) { return (parseFloat(item.cantidadRecibida) || 0) > 0; });
+    var editableOrder = !hasReceipts && order.estado !== 'recibida' && order.estado !== 'cancelada';
     body.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' + statusBadge(order.estado) + (order.ventaId ? '<span class="badge b-blue">Destino: ' + esc(order.ventaId) + ' · ' + esc(order.cliente || '') + '</span>' : '<span class="badge b-green">Destino: stock general</span>') + '</div>' +
       '<div class="table-wrap"><table><thead><tr><th>Material</th><th class="tr">Ordenado</th><th class="tr">Recibido</th><th class="tr">Pendiente</th><th class="tr">Costo</th>' + (editableReceipt ? '<th class="tr">Recibir ahora</th>' : '') + '</tr></thead><tbody>' +
       (order.items || []).map(function (item, index) {
@@ -540,9 +547,11 @@
         return '<tr data-order-index="' + index + '"><td><strong>' + esc(item.codigo || '') + '</strong><div style="font-size:12px">' + esc(item.descripcion || '') + '</div></td><td class="tr">' + ordered + '</td><td class="tr" style="color:var(--green)">' + received + '</td><td class="tr" style="color:var(--amber)">' + pending + '</td><td class="tr">' + money(item.subtotal || ordered * item.costoUnitario) + '</td>' + (editableReceipt ? '<td class="tr"><input class="search-input oc-receive-now" type="number" min="0" max="' + pending + '" value="0" style="width:82px;text-align:right"></td>' : '') + '</tr>';
       }).join('') + '</tbody></table></div>' +
       '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px;flex-wrap:wrap"><div><strong>Total: ' + money(order.total || order.monto) + '</strong><div style="font-size:11px;color:var(--text3)">Los materiales recibidos para una venta quedan reservados; los manuales ingresan al stock general operativo.</div></div><div style="display:flex;gap:7px;flex-wrap:wrap">' +
+        (editableOrder ? '<button class="btn" onclick="ocEditarOrdenActual()"><i class="ti ti-edit"></i> Editar</button>' : '') +
         (order.estado === 'borrador' ? '<button class="btn" onclick="ocCambiarEstadoOrden(\'enviada\')"><i class="ti ti-send"></i> Marcar enviada</button>' : '') +
         (editableReceipt ? '<button class="btn btn-primary" onclick="ocRegistrarRecepcion()"><i class="ti ti-package-import"></i> Registrar recepción</button>' : '') +
         (order.estado !== 'cancelada' && order.estado !== 'recibida' ? '<button class="btn" style="color:var(--red)" onclick="ocCambiarEstadoOrden(\'cancelada\')">Cancelar</button>' : '') +
+        (!hasReceipts ? '<button class="btn" style="color:var(--red)" onclick="ocEliminarOrdenActual()"><i class="ti ti-trash"></i> Eliminar</button>' : '') +
       '</div></div>';
     modal.style.display = 'flex';
   }
@@ -755,6 +764,7 @@
   }
 
   function openManualOrderV2() {
+    state.editingOrderKey = null;
     state.manualItems = [];
     var modal = ensureModal('oc-manual-modal', '900px');
     var shell = modal.querySelector('.modal');
@@ -766,7 +776,7 @@
     body.innerHTML = '<div style="flex:0 0 auto"><div class="form-grid"><div class="fg"><label>Proveedor</label><select class="search-input" id="oc-manual-provider" onchange="ocBuscarProductoManual((document.getElementById(\'oc-manual-product-search\')||{}).value||\'\')"><option value="">— Seleccionar proveedor cargado —</option>' + providerOptionsHtml + '</select></div><div class="fg"><label>Fecha</label><input class="search-input" type="date" id="oc-manual-date" value="' + today() + '"></div></div>' +
       '<div style="position:relative;margin:12px 0"><label style="display:block;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Agregar producto</label><div style="position:relative"><i class="ti ti-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3)"></i><input class="search-input" id="oc-manual-product-search" placeholder="Buscar por código, nombre, categoría o proveedor…" autocomplete="off" onfocus="ocBuscarProductoManual(this.value)" oninput="ocBuscarProductoManual(this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();var b=document.querySelector(\'#oc-manual-product-results [data-product-key]\');if(b)b.click()}" style="width:100%;padding-left:34px"></div><div id="oc-manual-product-results" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:20;max-height:270px;overflow:auto;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 10px 28px rgba(0,0,0,.28)"></div></div></div>' +
       '<div id="oc-manual-items" style="flex:1 1 auto;min-height:0;overflow:auto;padding-right:3px"></div>' +
-      '<div style="flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:12px;margin-top:10px;border-top:0.5px solid var(--border);background:var(--bg2)"><span id="oc-manual-items-count" style="font-size:12px;color:var(--text3)">0 materiales</span><button class="btn btn-primary" onclick="ocGuardarOrdenManualV2()"><i class="ti ti-device-floppy"></i> Guardar borrador</button></div>';
+      '<div style="flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:12px;margin-top:10px;border-top:0.5px solid var(--border);background:var(--bg2)"><span id="oc-manual-items-count" style="font-size:12px;color:var(--text3)">0 materiales</span><button class="btn btn-primary" id="oc-manual-save" onclick="ocGuardarOrdenManualV2()"><i class="ti ti-device-floppy"></i> Guardar borrador</button></div>';
     renderManualItemsV2();
     modal.style.display = 'flex';
     setTimeout(function () { var input = document.getElementById('oc-manual-product-search'); if (input) input.focus(); }, 120);
@@ -774,7 +784,140 @@
 
   function saveManualOrderV2() {
     syncManualInputsV2();
-    return saveManualOrder();
+    if (!state.editingOrderKey) return saveManualOrder();
+    var original = state.orders.find(function (order) { return order.fbKey === state.editingOrderKey; });
+    var providerSelect = document.getElementById('oc-manual-provider');
+    var selected = providerSelect && providerSelect.options[providerSelect.selectedIndex];
+    if (!original) { if (typeof window.notify === 'function') window.notify('La orden ya no existe'); return; }
+    if (!providerSelect || !providerSelect.value) { if (typeof window.notify === 'function') window.notify('Seleccioná un proveedor cargado'); return; }
+    if (!state.manualItems.length) { if (typeof window.notify === 'function') window.notify('Agregá al menos un material'); return; }
+    if ((original.items || []).some(function (item) { return (parseFloat(item.cantidadRecibida) || 0) > 0; })) {
+      if (typeof window.notify === 'function') window.notify('No se puede editar una orden que ya tiene recepciones');
+      return;
+    }
+    state.manualItems.forEach(function (item) {
+      item.cantidadOrdenada = Math.max(1, parseFloat(item.cantidadOrdenada) || 1);
+      item.cantidadRecibida = 0;
+      item.costoUnitario = Math.max(0, parseFloat(item.costoUnitario) || 0);
+      item.subtotal = item.cantidadOrdenada * item.costoUnitario;
+    });
+    var total = state.manualItems.reduce(function (sum, item) { return sum + item.subtotal; }, 0);
+    var oldPending = {};
+    var newPending = {};
+    (original.items || []).forEach(function (item) {
+      var key = item.productoKey || item.codigo;
+      if (key) oldPending[key] = (oldPending[key] || 0) + (parseFloat(item.cantidadOrdenada || item.cantidad) || 0);
+    });
+    state.manualItems.forEach(function (item) {
+      var key = item.productoKey || item.codigo;
+      if (key) newPending[key] = (newPending[key] || 0) + (parseFloat(item.cantidadOrdenada) || 0);
+    });
+    var inventoryKeys = Object.keys(Object.assign({}, oldPending, newPending));
+    var itemsToSave = JSON.parse(JSON.stringify(state.manualItems));
+    Promise.all(inventoryKeys.map(function (key) {
+      var delta = (newPending[key] || 0) - (oldPending[key] || 0);
+      if (!delta || original.estado === 'cancelada') return Promise.resolve();
+      return transactionInventory(key, function (inv) { inv.enCompra = Math.max(0, (parseFloat(inv.enCompra) || 0) + delta); });
+    })).then(function () {
+      return update(PATH_ORDERS + '/' + original.fbKey, {
+        proveedor: selected.dataset.name || selected.textContent,
+        proveedorKey: providerSelect.value,
+        fecha: (document.getElementById('oc-manual-date') || {}).value || today(),
+        items: itemsToSave,
+        monto: total,
+        total: total,
+        descripcion: itemsToSave.length + ' materiales',
+        actualizadoEn: Date.now(),
+        actualizadoPor: window.currentUser || 'Sistema'
+      });
+    }).then(function () {
+      state.editingOrderKey = null;
+      document.getElementById('oc-manual-modal').style.display = 'none';
+      var detail = document.getElementById('oc-order-modal');
+      if (detail) detail.style.display = 'none';
+      if (typeof window.notify === 'function') window.notify('Orden de compra actualizada');
+    }).catch(function (error) {
+      if (typeof window.notify === 'function') window.notify('No se pudo editar la orden: ' + error.message);
+    });
+  }
+
+  function editActiveOrder() {
+    var order = state.activeOrder;
+    if (!order || !order.fbKey) return;
+    if ((order.items || []).some(function (item) { return (parseFloat(item.cantidadRecibida) || 0) > 0; })) {
+      if (typeof window.notify === 'function') window.notify('No se puede editar una orden que ya tiene recepciones');
+      return;
+    }
+    openManualOrderV2();
+    state.editingOrderKey = order.fbKey;
+    state.manualItems = JSON.parse(JSON.stringify(order.items || []));
+    document.getElementById('oc-manual-modal-title').innerHTML = '<i class="ti ti-edit" style="margin-right:7px"></i>Editar ' + esc(order.numero || 'orden de compra');
+    var providerSelect = document.getElementById('oc-manual-provider');
+    if (providerSelect) {
+      providerSelect.value = order.proveedorKey || '';
+      if (!providerSelect.value && order.proveedor) {
+        var matchingOption = Array.prototype.find.call(providerSelect.options, function (option) {
+          return String(option.dataset.name || option.textContent || '').trim().toLowerCase() === String(order.proveedor).trim().toLowerCase();
+        });
+        if (matchingOption) providerSelect.value = matchingOption.value;
+      }
+    }
+    var dateInput = document.getElementById('oc-manual-date');
+    if (dateInput) dateInput.value = order.fecha || today();
+    var saveButton = document.getElementById('oc-manual-save');
+    if (saveButton) saveButton.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar cambios';
+    renderManualItemsV2();
+  }
+
+  function unlinkDeletedOrder(order) {
+    var tasks = [];
+    if (order.listaMaterialesId) {
+      var list = state.lists.find(function (entry) { return entry.fbKey === order.listaMaterialesId; });
+      if (list) {
+        var remaining = (list.ordenesIds || []).filter(function (key) { return key !== order.fbKey; });
+        tasks.push(update(PATH_LISTS + '/' + list.fbKey, {
+          ordenesIds: remaining,
+          estado: remaining.length ? list.estado : 'preparacion',
+          actualizadoEn: Date.now()
+        }));
+      }
+    }
+    if (order.ventaFbKey) {
+      var sale = salesList().find(function (entry) { return entry.fbKey === order.ventaFbKey; });
+      var saleOrders = ((sale && sale.ordenesCompraIds) || []).filter(function (key) { return key !== order.fbKey; });
+      tasks.push(update('sisventas/ventas/' + order.ventaFbKey, {
+        ordenesCompraIds: saleOrders,
+        compraEstado: saleOrders.length ? 'ordenada' : 'preparacion'
+      }));
+    }
+    return Promise.all(tasks);
+  }
+
+  function deleteActiveOrder() {
+    var order = state.activeOrder;
+    if (!order || !order.fbKey) return;
+    if ((order.items || []).some(function (item) { return (parseFloat(item.cantidadRecibida) || 0) > 0; })) {
+      if (typeof window.notify === 'function') window.notify('No se puede eliminar una orden con materiales recibidos');
+      return;
+    }
+    if (!confirm('¿Eliminar definitivamente ' + (order.numero || 'esta orden') + '? Esta acción no elimina la venta ni los productos.')) return;
+    var tasks = [];
+    if (order.estado !== 'cancelada') {
+      (order.items || []).forEach(function (item) {
+        var pending = Math.max(0, (parseFloat(item.cantidadOrdenada || item.cantidad) || 0) - (parseFloat(item.cantidadRecibida) || 0));
+        if (pending) tasks.push(transactionInventory(item.productoKey || item.codigo, function (inv) { inv.enCompra = Math.max(0, (parseFloat(inv.enCompra) || 0) - pending); }));
+      });
+    }
+    Promise.all(tasks).then(function () { return unlinkDeletedOrder(order); }).then(function () {
+      return remove(PATH_ORDERS + '/' + order.fbKey);
+    }).then(function () {
+      state.activeOrder = null;
+      var modal = document.getElementById('oc-order-modal');
+      if (modal) modal.style.display = 'none';
+      if (typeof window.notify === 'function') window.notify('Orden de compra eliminada');
+    }).catch(function (error) {
+      if (typeof window.notify === 'function') window.notify('No se pudo eliminar la orden: ' + error.message);
+    });
   }
 
   function migrateLegacy() {
@@ -902,6 +1045,7 @@
     state.activeList = null;
     state.activeOrder = null;
     state.manualItems = [];
+    state.editingOrderKey = null;
   }
 
   window.SisVentasCompras = {
@@ -933,6 +1077,8 @@
   window.ocAbrirOrden = openOrder;
   window.ocCambiarEstadoOrden = changeOrderStatus;
   window.ocRegistrarRecepcion = registerReceipt;
+  window.ocEditarOrdenActual = editActiveOrder;
+  window.ocEliminarOrdenActual = deleteActiveOrder;
   window.ocAgregarItemManual = addManualItemV2;
   window.ocBuscarProductoManual = searchManualProductsV2;
   window.ocSeleccionarProductoManual = addManualItemV2;
@@ -947,7 +1093,6 @@
     });
   };
 
-  document.addEventListener('firebase-ready', function () {
-    if (window.isAuthenticated) start();
-  });
+  document.addEventListener('sisventas:session-ready', start);
+  document.addEventListener('sisventas:session-ended', reset);
 })();
