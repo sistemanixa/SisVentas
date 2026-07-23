@@ -5562,12 +5562,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.178-firebase',
+  VERSION: 'v2.0.179-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las ventas adicionales creadas desde una OT reciben número y vínculo completos.'
+    'Las OT manuales buscan clientes cargados y toman su domicilio correcto.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'detalle', actionLabel:'Revisar ventas' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar OT manual' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.179',
+      date: '23/07/2026',
+      title: 'Cliente correcto en OT manual',
+      notes: Object.freeze(['La selección busca en Clientes, guarda su vínculo real y completa el domicilio sin reutilizar datos de otra OT.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar OT manual' })
+    }),
     Object.freeze({
       version: 'v2.0.178',
       date: '23/07/2026',
@@ -26638,13 +26645,14 @@ function _otResolverDireccionCliente(ot) {
     return [c.id,c.fbKey,c.key,c.codigo].filter(Boolean).map(String).some(function(valor){ return referencias.indexOf(valor) >= 0; });
   }) : null;
   if (!cliRelacionado) {
-    var nombreOT = String((ot && (ot.cliente || ot.clienteNombre)) || (ventaOrigen && ventaOrigen.cliente) || '').toLowerCase().trim();
-    cliRelacionado = clientesArr.find(function(c){
-      var n1 = String(c.nombre || '').toLowerCase().trim();
-      var n2 = String(((c.nombre || '') + ' ' + (c.apellidos || c.apellido || '')).trim()).toLowerCase();
-      var n3 = String(c.razonSocial || c.razon_social || '').toLowerCase().trim();
-      return n1 === nombreOT || n2 === nombreOT || n3 === nombreOT;
-    }) || null;
+    var nombreOT = String((ot && (ot.cliente || ot.clienteNombre)) || (ventaOrigen && ventaOrigen.cliente) || '').trim();
+    // Una OT manual recién creada no tiene cliente. Nunca debe hacer coincidir
+    // ese valor vacío con campos opcionales vacíos de la primera ficha.
+    if (nombreOT) {
+      cliRelacionado = typeof _svResolverClienteRegistro === 'function'
+        ? _svResolverClienteRegistro({ cliente:nombreOT }, true)
+        : null;
+    }
   }
   var dir = leerDir(cliRelacionado);
   if (dir) return dir;
@@ -26655,6 +26663,101 @@ function _otResolverDireccionCliente(ot) {
   if (dir) return dir;
   if (ventaOrigen && ventaOrigen.clienteObj) return leerDir(ventaOrigen.clienteObj);
   return '';
+}
+
+function _otClientePorClave(clave) {
+  var buscada = String(clave || '').trim();
+  if (!buscada) return null;
+  return (clientesData || []).find(function(cliente) {
+    return typeof _svClienteClaves === 'function'
+      ? _svClienteClaves(cliente).indexOf(buscada) >= 0
+      : [cliente.fbKey, cliente.id, cliente.codigo].filter(Boolean).map(String).indexOf(buscada) >= 0;
+  }) || null;
+}
+
+function _otAplicarClienteVinculado(ot, cliente, guardar) {
+  if (!ot || !cliente) return Promise.resolve(null);
+  var claveFirebase = String(cliente.fbKey || cliente.key || '').trim();
+  var claveVisible = String(cliente.id || cliente.codigo || claveFirebase).trim();
+  var nombre = String(cliente.nombre || cliente.razonSocial || cliente.empresa || '').trim();
+  var direccion = String(cliente.direccion || cliente.dir || cliente.domicilio || cliente.address || '').trim();
+
+  ot.cliente = nombre;
+  ot.clienteNombre = nombre;
+  ot.clienteFbKey = claveFirebase;
+  ot.clienteKey = claveFirebase;
+  ot.clienteId = claveVisible;
+  ot.idCliente = claveVisible;
+  ot.dir = direccion;
+  ot.direccion = direccion;
+  ot.direccionPersonalizada = false;
+
+  var clienteInp = document.getElementById('ot-det-cliente');
+  if (clienteInp) {
+    clienteInp.value = nombre;
+    clienteInp.dataset.clienteKey = claveFirebase || claveVisible;
+    clienteInp.dataset.clienteNombre = nombre;
+  }
+  var dirInp = document.getElementById('ot-det-dir');
+  if (dirInp) dirInp.value = direccion;
+  window._otDireccionActual = direccion;
+  var mapsBtn = document.getElementById('ot-det-dir-maps-btn');
+  if (mapsBtn) mapsBtn.style.display = direccion ? '' : 'none';
+
+  if (!guardar || !ot.fbKey || typeof fbGuardarOT !== 'function') return Promise.resolve(ot);
+  window._otGuardandoLocalHasta = Date.now() + 2500;
+  return fbGuardarOT(ot).then(function() {
+    window._otDetalleHuella = JSON.stringify(ot);
+    return ot;
+  });
+}
+
+function otClienteManualEscribiendo(inp) {
+  if (!inp || inp.readOnly) return;
+  var nombreSeleccionado = String(inp.dataset.clienteNombre || '').trim();
+  if (String(inp.value || '').trim() !== nombreSeleccionado) inp.dataset.clienteKey = '';
+  filterDrop('ot-det-cliente', 'ot-det-cliente-drop');
+}
+
+function otClienteManualConfirmar(inp) {
+  if (!inp || inp.readOnly) return;
+  var clave = String(inp.dataset.clienteKey || '').trim();
+  var cliente = _otClientePorClave(clave);
+  if (!cliente && String(inp.value || '').trim()) {
+    cliente = _svResolverClienteRegistro({ cliente:String(inp.value || '').trim() }, true);
+  }
+  if (cliente) {
+    otSeleccionarClienteManual(cliente.fbKey || cliente.id || cliente.codigo || '', cliente.nombre || '');
+    return;
+  }
+  var ot = (otData || []).find(function(actual) {
+    return actual && (actual.id === otActualId || actual.fbKey === otActualId);
+  });
+  inp.value = ot ? (ot.cliente || '') : '';
+  inp.dataset.clienteNombre = inp.value;
+  notify('Seleccioná un cliente cargado desde la lista');
+}
+
+function otSeleccionarClienteManual(clave, nombre) {
+  var ot = (otData || []).find(function(actual) {
+    return actual && (actual.id === otActualId || actual.fbKey === otActualId);
+  });
+  if (!ot || otResolverOrigen(ot) !== 'manual') return;
+  var cliente = _otClientePorClave(clave) ||
+    _svResolverClienteRegistro({ cliente:nombre || '' }, true);
+  if (!cliente) {
+    notify('No se encontró la ficha del cliente');
+    return;
+  }
+  _ocultarDropGlobal();
+  _otAplicarClienteVinculado(ot, cliente, true)
+    .then(function() {
+      notify('✓ Cliente y dirección vinculados a la OT');
+      if (!String(ot.dir || '').trim()) notify('El cliente no tiene una dirección cargada en su ficha');
+    })
+    .catch(function(error) {
+      notify('No se pudo vincular el cliente: ' + error.message);
+    });
 }
 
 function abrirDireccionEnMaps() {
@@ -26755,6 +26858,8 @@ function verOT(id) {
   }
   if (clienteInp) {
     clienteInp.value = ot.cliente||'';
+    clienteInp.dataset.clienteKey = String(ot.clienteFbKey || ot.clienteKey || ot.clienteId || ot.idCliente || '');
+    clienteInp.dataset.clienteNombre = ot.cliente || '';
     clienteInp.readOnly = !puedeEditarOrigen;
     clienteInp.style.background = puedeEditarOrigen ? '' : 'var(--bg3)';
     clienteInp.style.cursor = puedeEditarOrigen ? '' : 'not-allowed';
@@ -26762,6 +26867,14 @@ function verOT(id) {
   }
   document.getElementById('ot-det-fecha').value = ot.fecha||'';
   document.getElementById('ot-det-hora').value = ot.hora||'';
+  // Las OT manuales antiguas guardaban sólo el nombre. Si coincide exactamente
+  // con una ficha, se completa el vínculo canónico y se toma su domicilio real.
+  var clienteOTResuelto = _svResolverClienteRegistro(ot, true);
+  if (esOTManual && clienteOTResuelto && !(ot.clienteFbKey || ot.clienteKey)) {
+    _otAplicarClienteVinculado(ot, clienteOTResuelto, true).catch(function(error) {
+      console.warn('No se pudo reparar el vínculo de cliente de la OT manual:', error);
+    });
+  }
   var dirOT = _otResolverDireccionCliente(ot);
   document.getElementById('ot-det-dir').value = dirOT || '';
   var dirGuardadaOT = String(ot.dir || ot.direccion || ot.domicilio || '').trim();
@@ -28265,7 +28378,16 @@ function actualizarOT(direccionEditada) {
     ot.ventaId = ventaInp.value.trim();
     ot.origen = 'manual';
   }
-  if (clienteInp && !clienteInp.readOnly) ot.cliente = clienteInp.value.trim();
+  if (clienteInp && !clienteInp.readOnly) {
+    var clienteSeleccionado = _otClientePorClave(clienteInp.dataset.clienteKey || '');
+    if (clienteSeleccionado) {
+      ot.cliente = String(clienteSeleccionado.nombre || clienteSeleccionado.razonSocial || '').trim();
+      ot.clienteFbKey = String(clienteSeleccionado.fbKey || '').trim();
+      ot.clienteKey = ot.clienteFbKey;
+      ot.clienteId = String(clienteSeleccionado.id || clienteSeleccionado.codigo || ot.clienteFbKey).trim();
+      ot.idCliente = ot.clienteId;
+    }
+  }
   if (dirInp) {
     var direccionFicha = _otResolverDireccionCliente(ot);
     ot.dir = dirInp.value.trim();
@@ -31483,6 +31605,14 @@ function _gFilterDropSel(inputId, valor, fbKey) {
   var inp = document.getElementById(inputId);
   if (inp) inp.value = valor;
   _ocultarDropGlobal();
+  if (inputId === 'ot-det-cliente') {
+    if (inp) {
+      inp.dataset.clienteKey = fbKey || '';
+      inp.dataset.clienteNombre = valor || '';
+    }
+    otSeleccionarClienteManual(fbKey, valor);
+    return;
+  }
   // Callback especial para presupuesto
   if (inputId === 'pp-cli') {
     var cli = fbKey
