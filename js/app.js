@@ -5480,12 +5480,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.176-firebase',
+  VERSION: 'v2.0.177-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Fotos, notas y firmas de las OT quedan visibles y protegidas frente a guardados simultáneos.'
+    'Al volver desde una ficha de producto, el listado conserva exactamente la posición donde estabas.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar trabajo técnico' }),
+  RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Probar navegación' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.177',
+      date: '23/07/2026',
+      title: 'Posición de productos conservada',
+      notes: Object.freeze(['La lista vuelve al mismo producto y altura después de consultar o editar una ficha.']),
+      feature: Object.freeze({ page:'productos', actionLabel:'Probar navegación' })
+    }),
     Object.freeze({
       version: 'v2.0.176',
       date: '23/07/2026',
@@ -8908,6 +8915,62 @@ var _revisionPreciosEstadoPendiente = null;
 var _prodDetalleOrigen = 'lista';
 var _prodDetalleOrigenAntesForm = 'lista';
 var _prodRevisionRetorno = null;
+var _prodListaScrollEstado = null;
+
+function _contenedorScrollProductos() {
+  return document.querySelector('.content');
+}
+
+function _filaProductoLista(fbKey) {
+  var clave = String(fbKey || '');
+  if (!clave) return null;
+  return Array.from(document.querySelectorAll('#prod-list-view [data-pid]')).find(function(fila) {
+    return String(fila.dataset.pid || '') === clave;
+  }) || null;
+}
+
+function guardarScrollListaProductos(fbKey) {
+  var lista = document.getElementById('prod-list-view');
+  if (!lista || !_svElementoVisible(lista)) return;
+  var contenedor = _contenedorScrollProductos();
+  var fila = _filaProductoLista(fbKey);
+  var rectContenedor = contenedor ? contenedor.getBoundingClientRect() : { top: 0 };
+  var estado = {
+    top: contenedor ? contenedor.scrollTop : (window.scrollY || document.documentElement.scrollTop || 0),
+    left: contenedor ? contenedor.scrollLeft : (window.scrollX || document.documentElement.scrollLeft || 0),
+    fbKey: String(fbKey || ''),
+    offsetFila: fila ? fila.getBoundingClientRect().top - rectContenedor.top : null
+  };
+  _prodListaScrollEstado = estado;
+  try { sessionStorage.setItem('sisventas:productos-scroll', JSON.stringify(estado)); } catch (e) {}
+}
+
+function restaurarScrollListaProductos() {
+  var estado = _prodListaScrollEstado;
+  if (!estado) {
+    try { estado = JSON.parse(sessionStorage.getItem('sisventas:productos-scroll') || 'null'); } catch (e) {}
+  }
+  if (!estado) return;
+  var aplicar = function() {
+    var lista = document.getElementById('prod-list-view');
+    if (!lista || !_svElementoVisible(lista)) return;
+    var contenedor = _contenedorScrollProductos();
+    if (contenedor) {
+      contenedor.scrollTop = parseFloat(estado.top) || 0;
+      contenedor.scrollLeft = parseFloat(estado.left) || 0;
+      var fila = _filaProductoLista(estado.fbKey);
+      if (fila && estado.offsetFila !== null && estado.offsetFila !== undefined) {
+        var diferencia = fila.getBoundingClientRect().top - contenedor.getBoundingClientRect().top - estado.offsetFila;
+        if (Math.abs(diferencia) > 1) contenedor.scrollTop += diferencia;
+      }
+    } else {
+      window.scrollTo(parseFloat(estado.left) || 0, parseFloat(estado.top) || 0);
+    }
+  };
+  requestAnimationFrame(aplicar);
+  setTimeout(aplicar, 80);
+  setTimeout(aplicar, 220);
+}
 
 function capturarEstadoRevisionPrecios() {
   var modal = document.getElementById('modal-revision-precios');
@@ -9778,6 +9841,7 @@ function abrirFormProducto(id) {
   var detalle = document.getElementById('prod-detail-view');
   _prodVistaOrigen = detalle && getComputedStyle(detalle).display !== 'none' ? 'detalle' : 'lista';
   if (_prodVistaOrigen === 'detalle') _prodDetalleOrigenAntesForm = _prodDetalleOrigen;
+  else guardarScrollListaProductos(id);
   editingProdId = id;
   _hide('prod-list-view');
   _hide('prod-detail-view');
@@ -10379,6 +10443,7 @@ function cerrarFormProducto() {
   }
   _block('prod-list-view');
   actualizarStatProductos();
+  restaurarScrollListaProductos();
   _prodVistaOrigen = 'lista';
 }
 
@@ -10842,6 +10907,7 @@ function verProducto(id, origen) {
     p = Object.values(prodData).find(function(x){ return String(x.fbKey) === String(id); });
   }
   if (!p) { notify('Producto no encontrado'); return; }
+  if (_prodDetalleOrigen === 'lista') guardarScrollListaProductos(id);
   _hide('prod-list-view'); _hide('prod-form-view'); _block('prod-detail-view');
   actualizarStatProductoActual(p);
   var pc = precioGremioARSDesdeProducto(p);
@@ -10963,6 +11029,7 @@ function cerrarDetalleProducto() {
   }
   _block('prod-list-view');
   actualizarStatProductos();
+  restaurarScrollListaProductos();
 }
 
 function editarDesdeDetalle() {
