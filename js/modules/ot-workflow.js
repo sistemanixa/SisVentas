@@ -131,7 +131,8 @@
     }
     return wiz;
   }
-  function show(step){
+  function show(step, options){
+    options=options||{};
     var vis=pasosVisibles();
     if(!vis.some(function(p){return p.id===step;})) step='cliente';
     window._otWizardStep=step;
@@ -164,7 +165,8 @@
     }
     var estado=String((ot&&ot.estado)||'').toLowerCase();
     if(q('ot-wiz301-iniciar')) q('ot-wiz301-iniciar').style.display = (step==='cliente' && estado!=='en_progreso' && estado!=='completada') ? '' : 'none';
-    var wiz=q('ot-wizard-301'); if(wiz) wiz.scrollIntoView({behavior:'smooth',block:'start'});
+    var wiz=q('ot-wizard-301');
+    if(wiz && options.scroll!==false) wiz.scrollIntoView({behavior:'smooth',block:'start'});
   }
   window.otWizardIr=function(step){ show(step||'cliente'); };
   window.otWizardSiguiente=function(){ var vis=pasosVisibles(), idx=vis.findIndex(function(p){return p.id===(window._otWizardStep||'cliente');}); if(idx<vis.length-1) show(vis[idx+1].id); };
@@ -199,7 +201,7 @@
   document.addEventListener('sisventas:ot-opened',function(){
     window._otWizardStep='cliente';
     setTimeout(function(){ show('cliente'); },250);
-    setTimeout(function(){ show(window._otWizardStep||'cliente'); },900);
+    setTimeout(function(){ show(window._otWizardStep||'cliente',{scroll:false}); },900);
   });
   window.instalarWizardOT=function(){ show(window._otWizardStep||'cliente'); };
   document.addEventListener('sisventas:ot-closed',function(){ var w=q('ot-wizard-301'); if(w) w.remove(); });
@@ -220,6 +222,13 @@
       setTimeout(function(){ window.verOT(ref.key); },250);
     }).catch(function(e){ if(typeof notify==='function') notify('Error: '+e.message); });
   };
-  document.addEventListener('input',function(e){ if(e.target && e.target.closest && e.target.closest('#ot-detalle-view')) setTimeout(function(){ show(window._otWizardStep||'cliente'); },150); });
-  document.addEventListener('change',function(e){ if(e.target && e.target.closest && e.target.closest('#ot-detalle-view')) setTimeout(function(){ show(window._otWizardStep||'cliente'); },150); });
+  var refrescoWizardTimer=null;
+  function programarRefrescoWizard(){
+    clearTimeout(refrescoWizardTimer);
+    refrescoWizardTimer=setTimeout(function(){
+      show(window._otWizardStep||'cliente',{scroll:false});
+    },180);
+  }
+  document.addEventListener('input',function(e){ if(e.target && e.target.closest && e.target.closest('#ot-detalle-view')) programarRefrescoWizard(); });
+  document.addEventListener('change',function(e){ if(e.target && e.target.closest && e.target.closest('#ot-detalle-view')) programarRefrescoWizard(); });
 })();

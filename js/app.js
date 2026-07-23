@@ -5455,12 +5455,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.172-firebase',
+  VERSION: 'v2.0.173-firebase',
   RELEASE_NOTES: Object.freeze([
-    'El inicio y el checklist de una OT sólo avanzan cuando Firebase confirma cada guardado.'
+    'La guía de OT permanece estable al escribir y las credenciales admiten contraseñas con cualquier carácter.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Probar checklist' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Recorrer una OT' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.173',
+      date: '23/07/2026',
+      title: 'Recorrido de OT estable',
+      notes: Object.freeze(['Escribir o cambiar un campo actualiza la guía sin mover la pantalla y el visor de credenciales conserva el texto exacto.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Recorrer una OT' })
+    }),
     Object.freeze({
       version: 'v2.0.172',
       date: '23/07/2026',
@@ -27240,7 +27247,7 @@ function otCargarCredenciales(ot) {
             (c.pass ? '<div><span style="font-size:10px;color:var(--text3);display:block">Contraseña</span>' +
               '<div style="display:flex;align-items:center;gap:6px">' +
                 '<span class="ot-cred-pass" style="font-family:monospace;font-size:13px">••••••••</span>' +
-                '<button onclick="this.previousElementSibling.textContent=this.previousElementSibling.textContent===\'••••••••\'?\''+escapeHTML(c.pass||'')+'\':\'••••••••\'" style="background:none;border:none;cursor:pointer;color:var(--text3)"><i class="ti ti-eye" style="font-size:13px"></i></button>' +
+                '<button type="button" data-secret="'+escapeHTML(c.pass||'')+'" onclick="var valor=this.previousElementSibling;valor.textContent=valor.textContent===\'••••••••\'?this.dataset.secret:\'••••••••\'" aria-label="Mostrar u ocultar contraseña" style="background:none;border:none;cursor:pointer;color:var(--text3)"><i class="ti ti-eye" style="font-size:13px"></i></button>' +
               '</div></div>' : '') +
             (c.ip ? '<div><span style="font-size:10px;color:var(--text3);display:block">IP / Sistema</span><span style="font-family:monospace;font-size:12px">'+escapeHTML(c.ip)+(c.puerto?':'+escapeHTML(c.puerto):'')+'</span></div>' : '') +
             ((c.serie || c.numeroSerie || c.serial) ? '<div><span style="font-size:10px;color:var(--text3);display:block">Número de serie</span><span style="font-family:monospace;font-size:12px">'+escapeHTML(c.serie || c.numeroSerie || c.serial)+'</span></div>' : '') +
