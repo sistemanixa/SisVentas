@@ -5081,6 +5081,41 @@ function toggleNotificacionesPanel() {
 
 var _svHistorialPaginas = [];
 var _svNavegandoAtras = false;
+var _svAplicandoRuta = false;
+
+function _svPaginaDesdeRuta() {
+  var hash = String(window.location.hash || '').replace(/^#\/?/, '').split(/[/?]/)[0];
+  if (!hash) return '';
+  try { hash = decodeURIComponent(hash); } catch(e) {}
+  return document.getElementById('page-' + hash) ? hash : '';
+}
+
+function _svActualizarRuta(id, reemplazar) {
+  if (!id || _svAplicandoRuta || !window.history || !window.history.pushState) return;
+  var hash = '#/' + encodeURIComponent(id);
+  if (window.location.hash === hash) return;
+  var url = window.location.pathname + window.location.search + hash;
+  window.history[reemplazar ? 'replaceState' : 'pushState']({ sisventasPage:id }, '', url);
+}
+
+function _svAbrirRutaActual() {
+  if (!isAuthenticated || _svAplicandoRuta) return;
+  var id = _svPaginaDesdeRuta();
+  if (!id) return;
+  var actual = document.querySelector('.page.active');
+  var actualId = actual ? String(actual.id || '').replace(/^page-/, '') : '';
+  if (actualId === id) return;
+  _svAplicandoRuta = true;
+  _svNavegandoAtras = true;
+  try { showPage(id, document.querySelector('.nav-item[onclick*="' + id + '"]')); }
+  finally {
+    _svNavegandoAtras = false;
+    _svAplicandoRuta = false;
+  }
+}
+
+window.addEventListener('popstate', _svAbrirRutaActual);
+window.addEventListener('hashchange', _svAbrirRutaActual);
 
 function showPage(id, el) {
   if (!isAuthenticated) { notify('Primero iniciá sesión'); return; }
@@ -5117,6 +5152,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   page.classList.add('active');
   if (el && el.classList) el.classList.add('active');
+  _svActualizarRuta(id, !window.location.hash);
 
   var _titulo = titles[id] || 'SisVentas';
   var _setTitulo = function() {
@@ -5323,12 +5359,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.158-firebase',
+  VERSION: 'v2.0.159-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Mercado Libre ahora toma el precio desde su fuente oficial.'
+    'Comunicados ordenados y navegación con URL por módulo.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador de precios' }),
+  RELEASE_FEATURE: Object.freeze({ page:'notificaciones', actionLabel:'Abrir notificaciones' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.159',
+      date: '23/07/2026',
+      title: 'Notificaciones y navegación más claras',
+      notes: Object.freeze(['Comunicados activos separados del historial, opción de eliminar y URL identificable para cada módulo.']),
+      feature: Object.freeze({ page:'notificaciones', actionLabel:'Abrir notificaciones' })
+    }),
     Object.freeze({
       version: 'v2.0.158',
       date: '23/07/2026',
@@ -5801,14 +5844,14 @@ function actualizarAutomaticamente(versionActual, versionNueva) {
           caches.keys().then(function(names) {
             return Promise.all(names.map(function(name) { return caches.delete(name); }));
           }).finally(function() {
-            window.location.replace(window.location.pathname + '?app_version=' + encodeURIComponent(verNueva) + '&cb=' + Date.now());
+            window.location.replace(window.location.pathname + '?app_version=' + encodeURIComponent(verNueva) + '&cb=' + Date.now() + window.location.hash);
           });
         } else {
-          window.location.replace(window.location.pathname + '?app_version=' + encodeURIComponent(verNueva) + '&cb=' + Date.now());
+          window.location.replace(window.location.pathname + '?app_version=' + encodeURIComponent(verNueva) + '&cb=' + Date.now() + window.location.hash);
         }
       });
     } else {
-      window.location.replace(window.location.pathname + '?app_version=' + encodeURIComponent(verNueva) + '&cb=' + Date.now());
+      window.location.replace(window.location.pathname + '?app_version=' + encodeURIComponent(verNueva) + '&cb=' + Date.now() + window.location.hash);
     }
   }, 2800);
 }
@@ -6770,6 +6813,14 @@ function _completarLogin(nombre) {
   if (typeof window.iniciarSyncNotificaciones === 'function') window.iniciarSyncNotificaciones();
   if (typeof iniciarSyncComunicados === 'function') setTimeout(iniciarSyncComunicados, 3300);
   if (typeof restaurarPaginaPostActualizacion === 'function') restaurarPaginaPostActualizacion();
+  setTimeout(function() {
+    var paginaRuta = _svPaginaDesdeRuta();
+    if (paginaRuta) _svAbrirRutaActual();
+    else {
+      var paginaActiva = document.querySelector('.page.active');
+      _svActualizarRuta(paginaActiva ? String(paginaActiva.id || '').replace(/^page-/, '') : 'dashboard', true);
+    }
+  }, 2100);
   // Mostrar versión en el sidebar
   var vSidebar = document.getElementById('s-version-el');
   if (vSidebar && APP_CONFIG && APP_CONFIG.VERSION) {
@@ -29000,6 +29051,7 @@ var _comunicadosUnsub = null;
 var _comunicadosLecturasUnsub = null;
 var _comunicadosCargados = false;
 var _comunicadosLecturasCargadas = false;
+var _comunicadosMostrarHistorial = false;
 
 function _comunicadoKey(valor) {
   return String(valor || '').trim().replace(/[.#$\[\]\/]/g, '_') || 'usuario';
@@ -29177,26 +29229,46 @@ function _comunicadoUsuariosEsperados(comunicado) {
   });
 }
 
+function mostrarSeccionComunicados(mostrarHistorial) {
+  _comunicadosMostrarHistorial = mostrarHistorial === true;
+  renderHistorialComunicados();
+}
+
+function _comunicadoCardHTML(c) {
+  var lecturas = Object.values(COMUNICADOS_LECTURAS[c.fbKey] || {});
+  var esperados = _comunicadoUsuariosEsperados(c);
+  var fecha = c.creadoEn ? new Date(c.creadoEn).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}) : '';
+  var resumenLecturas = lecturas.length ? lecturas.map(function(l){
+    var nombreLectura = l.usuario || l.email || 'Usuario';
+    var fechaLectura = l.leidoEn ? new Date(l.leidoEn).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}) : '';
+    return '<span class="badge b-green" title="Leído ' + escapeHTML(fechaLectura) + '"><i class="ti ti-check"></i> ' + escapeHTML(nombreLectura) + '</span>';
+  }).join(' ') : '<span style="font-size:11px;color:var(--text3)">Nadie confirmó todavía</span>';
+  return '<div class="comunicado-card-compacto">' +
+    '<div class="comunicado-card-cuerpo"><div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="font-size:13px">' + escapeHTML(c.titulo || 'Comunicado') + '</strong><span class="badge b-blue">' + escapeHTML(_comunicadoDestinoLabel(c.destino)) + '</span>' + (c.activo === false ? '<span class="badge">Finalizado</span>' : '<span class="badge b-green">Activo</span>') + '</div><div class="comunicado-card-mensaje" title="' + escapeHTML(c.mensaje || '') + '">' + escapeHTML(c.mensaje || '') + '</div><div class="comunicado-card-meta">' + escapeHTML(fecha) + ' · ' + escapeHTML(c.creadoPor || '') + '</div></div>' +
+    '<div class="comunicado-card-resumen" style="text-align:right"><div><div style="font-size:17px;font-weight:800;color:var(--green)">' + lecturas.length + (esperados.length ? ' / ' + esperados.length : '') + '</div><div style="font-size:10px;color:var(--text3)">confirmaron</div></div><div class="comunicado-card-acciones">' + (c.activo !== false ? '<button class="btn btn-sm" onclick="finalizarComunicado(\'' + escapeHTML(c.fbKey) + '\')"><i class="ti ti-square-x"></i> Finalizar</button>' : '') + '<button class="btn btn-sm" style="color:var(--red)" onclick="eliminarComunicado(\'' + escapeHTML(c.fbKey) + '\')"><i class="ti ti-trash"></i> Eliminar</button></div></div></div>' +
+    '<div class="comunicado-card-lecturas">' + resumenLecturas + '</div>' +
+  '</div>';
+}
+
 function renderHistorialComunicados() {
   var cont = document.getElementById('comunicados-historial');
   if (!cont || currentRole !== 'admin') return;
-  var lista = COMUNICADOS_DATA.slice(0, 30);
-  if (!lista.length) { cont.innerHTML = '<div style="padding:22px;text-align:center;color:var(--text3)">Todavía no se enviaron comunicados.</div>'; return; }
-  cont.innerHTML = lista.map(function(c) {
-    var lecturas = Object.values(COMUNICADOS_LECTURAS[c.fbKey] || {});
-    var esperados = _comunicadoUsuariosEsperados(c);
-    var fecha = c.creadoEn ? new Date(c.creadoEn).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}) : '';
-    var resumenLecturas = lecturas.length ? lecturas.map(function(l){
-      var nombreLectura = l.usuario || l.email || 'Usuario';
-      var fechaLectura = l.leidoEn ? new Date(l.leidoEn).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}) : '';
-      return '<span class="badge b-green" title="Leído ' + escapeHTML(fechaLectura) + '"><i class="ti ti-check"></i> ' + escapeHTML(nombreLectura) + '</span>';
-    }).join(' ') : '<span style="font-size:11px;color:var(--text3)">Nadie confirmó todavía</span>';
-    return '<div style="padding:14px 15px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius)">' +
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap"><div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="font-size:13px">' + escapeHTML(c.titulo || 'Comunicado') + '</strong><span class="badge b-blue">' + escapeHTML(_comunicadoDestinoLabel(c.destino)) + '</span>' + (c.activo === false ? '<span class="badge">Finalizado</span>' : '<span class="badge b-green">Activo</span>') + '</div><div style="font-size:12px;color:var(--text2);margin-top:5px;white-space:pre-wrap">' + escapeHTML(c.mensaje || '') + '</div><div style="font-size:10px;color:var(--text3);margin-top:6px">' + escapeHTML(fecha) + ' · ' + escapeHTML(c.creadoPor || '') + '</div></div>' +
-      '<div style="text-align:right"><div style="font-size:18px;font-weight:800;color:var(--green)">' + lecturas.length + (esperados.length ? ' / ' + esperados.length : '') + '</div><div style="font-size:10px;color:var(--text3)">confirmaron</div>' + (c.activo !== false ? '<button class="btn btn-sm" style="margin-top:7px" onclick="finalizarComunicado(\'' + escapeHTML(c.fbKey) + '\')"><i class="ti ti-square-x"></i> Finalizar</button>' : '') + '</div></div>' +
-      '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:10px">' + resumenLecturas + '</div>' +
-    '</div>';
-  }).join('');
+  var activos = COMUNICADOS_DATA.filter(function(c){ return c && c.activo !== false; }).slice(0, 30);
+  var finalizados = COMUNICADOS_DATA.filter(function(c){ return c && c.activo === false; }).slice(0, 50);
+  var lista = _comunicadosMostrarHistorial ? finalizados : activos;
+  var countActivos = document.getElementById('comunicados-count-activos');
+  var countHistorial = document.getElementById('comunicados-count-historial');
+  var tabActivos = document.getElementById('comunicados-tab-activos');
+  var tabHistorial = document.getElementById('comunicados-tab-historial');
+  if (countActivos) countActivos.textContent = activos.length;
+  if (countHistorial) countHistorial.textContent = finalizados.length;
+  if (tabActivos) { tabActivos.classList.toggle('active', !_comunicadosMostrarHistorial); tabActivos.setAttribute('aria-selected', _comunicadosMostrarHistorial ? 'false' : 'true'); }
+  if (tabHistorial) { tabHistorial.classList.toggle('active', _comunicadosMostrarHistorial); tabHistorial.setAttribute('aria-selected', _comunicadosMostrarHistorial ? 'true' : 'false'); }
+  if (!lista.length) {
+    cont.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text3)">' + (_comunicadosMostrarHistorial ? 'Todavía no hay comunicados finalizados.' : 'No hay comunicados activos.') + '</div>';
+    return;
+  }
+  cont.innerHTML = lista.map(_comunicadoCardHTML).join('');
 }
 
 async function finalizarComunicado(comunicadoId) {
@@ -29206,6 +29278,25 @@ async function finalizarComunicado(comunicadoId) {
     await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/comunicados/' + comunicadoId), { activo:false, finalizadoEn:Date.now(), finalizadoPor:currentUser || 'Admin' });
     notify('Comunicado finalizado');
   } catch (e) { notify('No se pudo finalizar: ' + (e.message || 'Error')); }
+}
+
+async function eliminarComunicado(comunicadoId) {
+  if (currentRole !== 'admin' || !comunicadoId || !window.fbRemove) return;
+  var comunicado = COMUNICADOS_DATA.find(function(c){ return c.fbKey === comunicadoId; });
+  var titulo = comunicado && comunicado.titulo ? comunicado.titulo : 'este comunicado';
+  if (!confirm('¿Eliminar definitivamente "' + titulo + '"?\n\nTambién se eliminarán sus confirmaciones de lectura.')) return;
+  try {
+    await Promise.all([
+      window.fbRemove(window.fbRef(window.fbDB, 'sisventas/comunicados/' + comunicadoId)),
+      window.fbRemove(window.fbRef(window.fbDB, 'sisventas/comunicados_lecturas/' + comunicadoId))
+    ]);
+    COMUNICADOS_DATA = COMUNICADOS_DATA.filter(function(c){ return c.fbKey !== comunicadoId; });
+    delete COMUNICADOS_LECTURAS[comunicadoId];
+    renderHistorialComunicados();
+    notify('Comunicado eliminado');
+  } catch (e) {
+    notify('No se pudo eliminar: ' + (e.message || 'Error'));
+  }
 }
 
 // Estado de notificaciones leídas

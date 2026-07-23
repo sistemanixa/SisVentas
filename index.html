@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.158-firebase' -->
+<!-- VERSION: 'v2.0.159-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.js?v=2.0.158"></script>
+<script src="./js/core/version.js?v=2.0.159"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,7 +24,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.154"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.158">
+<link rel="stylesheet" href="./css/app.css?v=2.0.159">
 
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.154"></script>
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.158 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.159 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -2217,7 +2217,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.158
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.159
 Listo para analizar.
 </pre>
           </div>
@@ -2799,10 +2799,14 @@ Listo para analizar.
       <!-- ── NOTIFICACIONES ── -->
       <div id="page-notificaciones" class="page">
 
-        <div class="card admin-only" id="comunicados-historial-card">
+        <div class="card admin-only comunicados-panel" id="comunicados-historial-card">
           <div class="card-head" style="gap:12px;flex-wrap:wrap">
-            <div><span class="card-title"><i class="ti ti-speakerphone" style="color:var(--blue)"></i> Comunicados enviados</span><div style="font-size:11px;color:var(--text3);margin-top:4px">Avisos internos con confirmación de lectura.</div></div>
+            <div><span class="card-title"><i class="ti ti-speakerphone" style="color:var(--blue)"></i> Comunicados</span><div style="font-size:11px;color:var(--text3);margin-top:4px">Los activos quedan a la vista; los finalizados se guardan en el historial.</div></div>
             <div style="display:flex;gap:7px;align-items:center"><button class="btn btn-sm" onclick="renderHistorialComunicados()" title="Actualizar historial"><i class="ti ti-refresh"></i></button><button class="btn btn-sm btn-primary" onclick="abrirModalComunicado()"><i class="ti ti-plus"></i> Nuevo comunicado</button></div>
+          </div>
+          <div class="comunicados-tabs" role="tablist" aria-label="Comunicados enviados">
+            <button type="button" class="comunicados-tab active" id="comunicados-tab-activos" onclick="mostrarSeccionComunicados(false)" role="tab" aria-selected="true"><i class="ti ti-speakerphone"></i> Activos <span id="comunicados-count-activos">0</span></button>
+            <button type="button" class="comunicados-tab" id="comunicados-tab-historial" onclick="mostrarSeccionComunicados(true)" role="tab" aria-selected="false"><i class="ti ti-history"></i> Historial <span id="comunicados-count-historial">0</span></button>
           </div>
           <div id="comunicados-historial" style="display:flex;flex-direction:column;gap:8px"><div style="padding:18px;text-align:center;color:var(--text3)">Cargando comunicados...</div></div>
         </div>
@@ -4907,7 +4911,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.js?v=2.0.158"></script>
+<script src="./js/app.js?v=2.0.159"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
@@ -4946,7 +4950,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.158</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.159</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -5361,9 +5365,9 @@ Listo para analizar.
 <script src="./js/modules/resource-monitor.js?v=2.0.154"></script>
 
 <script src="./js/modules/role-guard.js?v=2.0.154"></script>
-<script src="./js/modules/purchase-orders.js?v=2.0.158"></script>
-<script src="./js/modules/ot-material-custody.js?v=2.0.158"></script>
-<script src="./js/modules/release-tour.js?v=2.0.158"></script>
+<script src="./js/modules/purchase-orders.js?v=2.0.159"></script>
+<script src="./js/modules/ot-material-custody.js?v=2.0.159"></script>
+<script src="./js/modules/release-tour.js?v=2.0.159"></script>
 
 </body>
 </html>
