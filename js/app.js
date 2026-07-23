@@ -5362,12 +5362,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.161-firebase',
+  VERSION: 'v2.0.162-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Fechas locales correctas y actualización completa sin mezclar archivos viejos.'
+    'Fotos de OT visibles al instante y precios de proveedores verificados antes de guardar.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir órdenes de trabajo' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar fotos de OT' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.162',
+      date: '23/07/2026',
+      title: 'Fotos visibles y precios comprobables',
+      notes: Object.freeze(['La OT confirma cada foto subida y el actualizador muestra título, fuente, stock y precio antes de guardar.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar fotos de OT' })
+    }),
     Object.freeze({
       version: 'v2.0.161',
       date: '23/07/2026',
@@ -9064,14 +9071,14 @@ function abrirActualizadorMasivoPrecios() {
           '<div class="metric"><div class="m-label">Productos vinculados</div><div class="m-value">'+todos.length+'</div><div class="m-sub">en proveedores compatibles</div></div>' +
           '<div class="metric"><div class="m-label">Pendientes</div><div class="m-value" style="color:'+(pendientes.length?'var(--amber)':'var(--green)')+'">'+pendientes.length+'</div><div class="m-sub">más de 24 h o sin verificar</div></div>' +
           '<div class="metric"><div class="m-label">Vigentes</div><div class="m-value" style="color:var(--green)">'+(todos.length-pendientes.length)+'</div><div class="m-sub">actualizados recientemente</div></div>' +
-          '<div class="metric"><div class="m-label">Actualizados ahora</div><div class="m-value" id="actualizador-precios-exitosos" style="color:var(--green)">0</div><div class="m-sub">correctos en esta ejecución</div></div>' +
+          '<div class="metric"><div class="m-label">Verificados ahora</div><div class="m-value" id="actualizador-precios-exitosos" style="color:var(--green)">0</div><div class="m-sub">todavía sin guardar</div></div>' +
         '</div>' +
         '<div id="actualizador-precios-estado" style="font-size:12px;color:var(--text2);padding:10px 12px;background:var(--bg3);border-radius:8px;margin-bottom:8px">Listo para actualizar los productos pendientes por proveedor.</div>' +
         '<div id="actualizador-precios-producto" style="min-height:34px;font-size:11px;color:var(--text3);padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;margin-bottom:8px">Producto actual: —</div>' +
         '<div id="actualizador-precios-tiempo" style="font-size:11px;color:var(--text3);display:flex;justify-content:space-between;gap:10px;margin-bottom:10px"><span>Transcurrido: —</span><span>Esperando respuesta del proveedor</span></div>' +
         '<div style="height:8px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-bottom:14px"><div id="actualizador-precios-barra" style="height:100%;width:0;background:var(--green);transition:width .25s"></div></div>' +
-        '<div id="actualizador-precios-fallos" style="display:none;max-height:260px;overflow:auto;font-size:11px;padding:9px 10px;background:var(--amber-bg);border:0.5px solid var(--amber);border-radius:8px;margin-bottom:12px"></div>' +
-        '<div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="minimizarActualizadorMasivoPrecios()"><i class="ti ti-minus"></i> Minimizar</button><button class="btn" onclick="cerrarActualizadorMasivoPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-actualizar-biosegur-lote" onclick="ejecutarActualizadorMasivoBiosegur()" '+(!pendientes.length?'disabled':'')+'><i class="ti ti-refresh"></i> Actualizar '+pendientes.length+' pendientes</button></div>' +
+        '<div id="actualizador-precios-fallos" style="display:none;max-height:320px;overflow:auto;font-size:11px;padding:9px 10px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;margin-bottom:12px"></div>' +
+        '<div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="minimizarActualizadorMasivoPrecios()"><i class="ti ti-minus"></i> Minimizar</button><button class="btn" onclick="cerrarActualizadorMasivoPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-actualizar-biosegur-lote" onclick="ejecutarActualizadorMasivoBiosegur()" '+(!pendientes.length?'disabled':'')+'><i class="ti ti-scan"></i> Analizar '+pendientes.length+' pendientes</button></div>' +
       '</div>' +
     '</div>' +
     '<button id="actualizador-precios-minimizado" onclick="abrirDesdeBarraActualizadorMinimizado()" onpointerdown="iniciarArrastreActualizador(event)" title="Arrastrá para mover · clic para abrir" style="display:none;position:fixed;width:min(520px,calc(100% - 24px));left:50%;transform:translateX(-50%);bottom:10px;z-index:10021;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);color:var(--text);border:0.5px solid var(--border2);border-radius:12px;box-shadow:0 10px 35px rgba(0,0,0,.5);text-align:left;cursor:grab;touch-action:none;user-select:none;overflow:hidden">' +
@@ -9148,6 +9155,15 @@ function datosActualizadosProductoBiosegur(item, resultado) {
 }
 
 function validarResultadoActualizadorProveedor(item, resultado) {
+  if (!resultado || !resultado.identidad || resultado.identidad.ok !== true) {
+    return { ok:false, mensaje:'El proveedor no confirmó que la página corresponda al producto solicitado' };
+  }
+  if (String(resultado.moneda || '').toUpperCase() !== 'ARS') {
+    return { ok:false, mensaje:'El proveedor no confirmó que el precio esté expresado en pesos argentinos' };
+  }
+  if (!resultado.tituloProveedor || !resultado.selectorPrecio) {
+    return { ok:false, mensaje:'Falta evidencia del título o del campo exacto de precio leído' };
+  }
   var precioNuevo = parsePrecioProveedorARS(resultado && (resultado.precioArs || resultado.precio) || 0);
   if (!(precioNuevo > 0) || !isFinite(precioNuevo)) return { ok:false, mensaje:'El proveedor devolvió un precio inválido' };
   var pv = (item && item.proveedor) || {};
@@ -9166,6 +9182,130 @@ function validarResultadoActualizadorProveedor(item, resultado) {
     };
   }
   return { ok:true, precio:precioNuevo };
+}
+
+function actualizadorFormatoARS(valor) {
+  return '$' + (parseFloat(valor) || 0).toLocaleString('es-AR', {
+    minimumFractionDigits:2,
+    maximumFractionDigits:2
+  });
+}
+
+function actualizadorActualizarSeleccionPreview() {
+  var modal = document.getElementById('modal-actualizador-precios');
+  var btn = document.getElementById('btn-actualizar-biosegur-lote');
+  if (!modal || !btn || !Array.isArray(modal._candidatosPreview)) return;
+  var seleccionados = Array.from(modal.querySelectorAll('[data-actualizador-preview-check]:checked')).length;
+  btn.disabled = seleccionados === 0;
+  btn.innerHTML = '<i class="ti ti-device-floppy"></i> Aplicar ' + seleccionados + ' verificados';
+}
+
+function actualizadorHtmlFallos(detalleFallos) {
+  if (!detalleFallos.length) return '';
+  return '<div style="margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border)">' +
+    '<strong style="color:var(--amber)">Requieren revisión (conservaron su precio anterior):</strong>' +
+    detalleFallos.map(function(f) {
+      var idSeguro = String(f.fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(f.proveedorIdx,10)||0);
+      var urlSegura = /^https?:\/\//i.test(String(f.url || '').trim()) ? String(f.url || '').trim() : '';
+      var nombreProducto = '<strong>' + escapeHTML(f.codigo || 'Sin código') + '</strong> · ' + escapeHTML(f.producto);
+      if (urlSegura) nombreProducto = '<a href="' + escapeHTML(urlSegura) + '" target="_blank" rel="noopener noreferrer" title="Abrir producto en el proveedor" style="color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + nombreProducto + ' <i class="ti ti-external-link" style="font-size:11px;color:var(--blue)"></i></a>';
+      return '<div data-fallo-producto style="padding:9px 0;border-bottom:0.5px solid var(--border)">' +
+        '<div>' + nombreProducto + '</div>' +
+        '<div style="color:var(--text3);margin-top:3px">' + escapeHTML(f.motivo) + '</div>' +
+        '<div style="color:var(--text3);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px" title="' + escapeHTML(f.url) + '">' + escapeHTML(f.url) + '</div>' +
+        '<div style="display:flex;gap:6px;margin-top:7px">' +
+          (urlSegura ? '<a class="btn btn-sm" href="' + escapeHTML(urlSegura) + '" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link"></i> Abrir proveedor</a>' : '') +
+          '<button class="btn btn-sm" onclick="editarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"><i class="ti ti-link"></i> Cambiar URL</button>' +
+          '<button class="btn btn-sm" style="color:var(--red)" onclick="eliminarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',this)"><i class="ti ti-trash"></i> Eliminar</button>' +
+        '</div>' +
+        '<div id="actualizador-url-editor-' + idSeguro + '" style="display:none;gap:6px;align-items:center;margin-top:8px"><input id="actualizador-url-input-' + idSeguro + '" class="search-input" type="url" value="' + escapeHTML(f.url) + '" placeholder="URL exacta del producto" style="flex:1"><button class="btn btn-sm btn-primary" onclick="guardarUrlFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"><i class="ti ti-device-floppy"></i> Guardar</button></div>' +
+      '</div>';
+    }).join('') +
+  '</div>';
+}
+
+function mostrarVistaPreviaActualizador(modal, candidatos, detalleFallos) {
+  var cont = document.getElementById('actualizador-precios-fallos');
+  if (!modal || !cont) return;
+  modal._candidatosPreview = candidatos;
+  cont.style.display = '';
+  var filas = candidatos.map(function(c, indice) {
+    var variacionAbs = Math.abs(c.variacion || 0);
+    var requiereRevision = c.costoAnterior > 0 && variacionAbs >= 50;
+    var checked = requiereRevision ? '' : ' checked';
+    var color = requiereRevision ? 'var(--amber)' : 'var(--green)';
+    var stock = c.resultado.disponibilidadProveedorTexto || 'No verificado';
+    var tituloProveedor = c.resultado.tituloProveedor || '';
+    var fuente = c.resultado.fuente || 'proveedor';
+    return '<label style="display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer">' +
+      '<input type="checkbox" data-actualizador-preview-check data-indice="' + indice + '" onchange="actualizadorActualizarSeleccionPreview()"' + checked + ' style="margin-top:3px">' +
+      '<span>' +
+        '<span style="display:flex;justify-content:space-between;gap:8px"><strong>' + escapeHTML(c.codigo || 'Sin código') + ' · ' + escapeHTML(c.producto) + '</strong>' +
+          '<span style="color:' + color + ';white-space:nowrap">' + (c.costoAnterior > 0 ? ((c.variacion >= 0 ? '+' : '') + c.variacion.toFixed(1) + '%') : 'Nuevo') + '</span></span>' +
+        '<span style="display:block;margin-top:4px;color:var(--text2)">Costo anterior <strong>' + actualizadorFormatoARS(c.costoAnterior) + '</strong> → costo verificado <strong>' + actualizadorFormatoARS(c.costoNuevo) + '</strong></span>' +
+        '<span style="display:block;margin-top:2px;color:var(--text3)">Publicado: ' + actualizadorFormatoARS(c.resultado.precioArs) + (c.resultado.sinIva !== false ? ' + IVA' : ' IVA incluido') + ' · Stock: ' + escapeHTML(stock) + '</span>' +
+        (tituloProveedor ? '<span style="display:block;margin-top:2px;color:var(--text3)">Página: “' + escapeHTML(tituloProveedor) + '”</span>' : '') +
+        '<span style="display:block;margin-top:2px;color:var(--text3)">Fuente: ' + escapeHTML(fuente) + (requiereRevision ? ' · <strong style="color:var(--amber)">desmarcado por variación importante</strong>' : '') + '</span>' +
+      '</span>' +
+    '</label>';
+  }).join('');
+  cont.innerHTML =
+    '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">' +
+      '<strong style="color:var(--blue)">Vista previa — todavía no se guardó nada</strong>' +
+      '<span style="color:var(--text3)">' + candidatos.length + ' verificados</span>' +
+    '</div>' +
+    (filas || '<div style="padding:12px 0;color:var(--text3)">No hubo precios seguros para aplicar.</div>') +
+    actualizadorHtmlFallos(detalleFallos);
+}
+
+async function aplicarVistaPreviaActualizador() {
+  var modal = document.getElementById('modal-actualizador-precios');
+  var btn = document.getElementById('btn-actualizar-biosegur-lote');
+  var estado = document.getElementById('actualizador-precios-estado');
+  if (!modal || modal.dataset.aplicando === '1' || !Array.isArray(modal._candidatosPreview)) return;
+  var indices = Array.from(modal.querySelectorAll('[data-actualizador-preview-check]:checked')).map(function(el) {
+    return parseInt(el.dataset.indice, 10);
+  }).filter(function(i){ return isFinite(i); });
+  var seleccionados = indices.map(function(i){ return modal._candidatosPreview[i]; }).filter(Boolean);
+  if (!seleccionados.length) { notify('Seleccioná al menos un precio verificado'); return; }
+  modal.dataset.aplicando = '1';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Guardando…';
+  }
+  if (estado) estado.textContent = 'Guardando ' + seleccionados.length + ' precios verificados en una sola operación…';
+  try {
+    var updates = {};
+    seleccionados.forEach(function(candidato) {
+      Object.keys(candidato.cambios).forEach(function(campo) {
+        updates[candidato.item.producto.fbKey + '/' + campo] = candidato.cambios[campo];
+      });
+    });
+    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos), updates);
+    seleccionados.forEach(function(candidato) {
+      Object.assign(candidato.item.producto, candidato.cambios);
+    });
+    if (estado) estado.innerHTML = '<strong style="color:var(--green)">Guardado terminado.</strong> ' + seleccionados.length + ' precios actualizados.';
+    var exitososEl = document.getElementById('actualizador-precios-exitosos');
+    if (exitososEl) exitososEl.textContent = String(seleccionados.length);
+    actualizarVigenciaPreciosDashboard();
+    if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
+    if (typeof renderTablaProductos === 'function') renderTablaProductos();
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-check"></i> Cerrar';
+      btn.setAttribute('onclick', 'cerrarActualizadorMasivoPrecios()');
+    }
+    notify('✓ Se guardaron ' + seleccionados.length + ' precios verificados');
+  } catch (e) {
+    if (estado) estado.innerHTML = '<span style="color:var(--red)">No se guardó ningún precio: ' + escapeHTML(e.message || 'Error') + '</span>';
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-device-floppy"></i> Reintentar guardado';
+    }
+  } finally {
+    modal.dataset.aplicando = '0';
+  }
 }
 
 async function ejecutarActualizadorMasivoBiosegur() {
@@ -9189,11 +9329,12 @@ async function ejecutarActualizadorMasivoBiosegur() {
   var miniPct = document.getElementById('actualizador-mini-pct');
   var miniBarra = document.getElementById('actualizador-mini-barra');
   var miniIcon = document.getElementById('actualizador-mini-icon');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Actualizando...'; }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Analizando…'; }
 
   var grupos = {};
   pendientes.forEach(function(x){ (grupos[x.proveedorKey] = grupos[x.proveedorKey] || []).push(x); });
   var procesados = 0, actualizados = 0, fallidos = 0;
+  var candidatos = [];
   if (exitososEl) exitososEl.textContent = '0';
   var detalleFallos = [];
   var jobId = 'proveedores_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
@@ -9280,8 +9421,18 @@ async function ejecutarActualizadorMasivoBiosegur() {
           var validacionPrecio = resultado && resultado.ok ? validarResultadoActualizadorProveedor(item, resultado) : { ok:false, mensaje:'' };
           if (resultado && resultado.ok && validacionPrecio.ok && urlsProveedorEquivalentes(item.url, resultado.url)) {
             var cambios = datosActualizadosProductoBiosegur(item, resultado);
-            await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + item.producto.fbKey), cambios);
-            Object.assign(item.producto, cambios);
+            var costoAnterior = _costoProveedorProductoSinAuditar(item.producto, item.proveedor) || precioGremioARSDesdeProducto(item.producto);
+            var costoNuevo = parseFloat(cambios.compraARS || cambios.compra || 0) || 0;
+            candidatos.push({
+              item:item,
+              resultado:resultado,
+              cambios:cambios,
+              codigo:item.producto.codigo || '',
+              producto:item.producto.nombre || item.producto.descripcion || '',
+              costoAnterior:costoAnterior || 0,
+              costoNuevo:costoNuevo,
+              variacion:costoAnterior > 0 ? ((costoNuevo / costoAnterior) - 1) * 100 : 0
+            });
             actualizados++;
             if (exitososEl) exitososEl.textContent = String(actualizados);
           } else {
@@ -9296,53 +9447,30 @@ async function ejecutarActualizadorMasivoBiosegur() {
             });
           }
           procesados++;
-          actualizarProgresoVisual(procesados / pendientes.length * 100, actualizados + ' actualizados · ' + procesados + ' de ' + pendientes.length + ' procesados');
+          actualizarProgresoVisual(procesados / pendientes.length * 100, actualizados + ' verificados · ' + procesados + ' de ' + pendientes.length + ' procesados');
         }
       }
       if (modal._detenerSolicitado) break;
     }
     if (estado) {
       estado.innerHTML = modal._detenerSolicitado
-        ? '<strong style="color:var(--amber)">Actualización detenida.</strong> ' + procesados + ' de ' + pendientes.length + ' procesados.'
-        : '<strong style="color:var(--green)">Actualización terminada.</strong> ' + actualizados + ' actualizados' + (fallidos ? ' · <span style="color:var(--amber)">' + fallidos + ' no pudieron verificarse</span>' : '') + '.';
+        ? '<strong style="color:var(--amber)">Análisis detenido.</strong> ' + procesados + ' de ' + pendientes.length + ' procesados. Podés aplicar solamente los ya verificados.'
+        : '<strong style="color:var(--green)">Análisis terminado.</strong> Revisá la vista previa antes de guardar' + (fallidos ? ' · <span style="color:var(--amber)">' + fallidos + ' conservaron su precio anterior</span>' : '') + '.';
     }
-    if (productoActualEl) productoActualEl.textContent = 'Proceso finalizado.';
+    if (productoActualEl) productoActualEl.textContent = 'No se modificó ningún producto todavía.';
     if (!modal._detenerSolicitado) {
-      actualizarProgresoVisual(100, actualizados + ' precios actualizados' + (fallidos ? ' · ' + fallidos + ' para revisar' : ''));
+      actualizarProgresoVisual(100, actualizados + ' precios verificados' + (fallidos ? ' · ' + fallidos + ' para revisar' : ''));
       if (miniIcon) { miniIcon.className = 'ti ti-check'; miniIcon.style.color = 'var(--green)'; }
     } else {
-      if (miniEstado) miniEstado.textContent = 'Actualización detenida · ' + procesados + ' de ' + pendientes.length + ' procesados';
+      if (miniEstado) miniEstado.textContent = 'Análisis detenido · ' + procesados + ' de ' + pendientes.length + ' procesados';
       if (miniIcon) { miniIcon.className = 'ti ti-player-stop'; miniIcon.style.color = 'var(--amber)'; }
     }
-    if (fallosEl && detalleFallos.length) {
-      fallosEl.style.display = '';
-      fallosEl.innerHTML = '<strong style="color:var(--amber)">Requieren revisión (conservaron su precio anterior):</strong>' + detalleFallos.map(function(f) {
-        var idSeguro = String(f.fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(f.proveedorIdx,10)||0);
-        var urlSegura = /^https?:\/\//i.test(String(f.url || '').trim()) ? String(f.url || '').trim() : '';
-        var nombreProducto = '<strong>' + escapeHTML(f.codigo || 'Sin código') + '</strong> · ' + escapeHTML(f.producto);
-        if (urlSegura) nombreProducto = '<a href="' + escapeHTML(urlSegura) + '" target="_blank" rel="noopener noreferrer" title="Abrir producto en el proveedor" style="color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + nombreProducto + ' <i class="ti ti-external-link" style="font-size:11px;color:var(--blue)"></i></a>';
-        return '<div data-fallo-producto style="padding:9px 0;border-bottom:0.5px solid var(--border)">' +
-          '<div>' + nombreProducto + '</div>' +
-          '<div style="color:var(--text3);margin-top:3px">' + escapeHTML(f.motivo) + '</div>' +
-          '<div style="color:var(--text3);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px" title="' + escapeHTML(f.url) + '">' + escapeHTML(f.url) + '</div>' +
-          '<div style="display:flex;gap:6px;margin-top:7px">' +
-            (urlSegura ? '<a class="btn btn-sm" href="' + escapeHTML(urlSegura) + '" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link"></i> Abrir proveedor</a>' : '') +
-            '<button class="btn btn-sm" onclick="editarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"><i class="ti ti-link"></i> Cambiar URL</button>' +
-            '<button class="btn btn-sm" style="color:var(--red)" onclick="eliminarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',this)"><i class="ti ti-trash"></i> Eliminar</button>' +
-          '</div>' +
-          '<div id="actualizador-url-editor-' + idSeguro + '" style="display:none;gap:6px;align-items:center;margin-top:8px"><input id="actualizador-url-input-' + idSeguro + '" class="search-input" type="url" value="' + escapeHTML(f.url) + '" placeholder="URL exacta del producto" style="flex:1"><button class="btn btn-sm btn-primary" onclick="guardarUrlFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"><i class="ti ti-device-floppy"></i> Guardar</button></div>' +
-          '</div>';
-      }).join('');
-    }
-    actualizarVigenciaPreciosDashboard();
-    if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
-    if (typeof renderTablaProductos === 'function') renderTablaProductos();
+    mostrarVistaPreviaActualizador(modal, candidatos, detalleFallos);
     if (btn) {
-      btn.innerHTML = modal._detenerSolicitado ? '<i class="ti ti-x"></i> Cerrar' : '<i class="ti ti-check"></i> Finalizado';
-      btn.disabled = false;
-      btn.setAttribute('onclick', 'cerrarActualizadorMasivoPrecios()');
+      btn.setAttribute('onclick', 'aplicarVistaPreviaActualizador()');
+      actualizadorActualizarSeleccionPreview();
     }
-    notify('✓ Proveedores: ' + actualizados + ' precios actualizados');
+    notify('✓ Análisis terminado: revisá los precios antes de aplicarlos');
   } catch (e) {
     if (!modal._cerradoPorLogout) {
       if (estado) estado.innerHTML = '<span style="color:var(--red)">Se interrumpió la actualización: ' + escapeHTML(e.message || '') + '</span>';
@@ -26759,11 +26887,24 @@ function otCargarCredenciales(ot) {
     box.style.display = 'none';
   });
 }
+function otNotasNormalizadas(ot) {
+  var origen = ot && ot.notasTecnico;
+  if (Array.isArray(origen)) return origen.filter(Boolean);
+  if (origen && typeof origen === 'object') {
+    return Object.keys(origen).sort(function(a, b) {
+      var notaA = origen[a] || {}, notaB = origen[b] || {};
+      return (parseInt(notaA.ts, 10) || 0) - (parseInt(notaB.ts, 10) || 0);
+    }).map(function(key) { return origen[key]; }).filter(Boolean);
+  }
+  return [];
+}
+
 function otRenderNotas(ot) {
   var lista = document.getElementById('ot-notas-lista');
   var fotosCont = document.getElementById('ot-fotos-preview');
+  var fotosEstado = document.getElementById('ot-fotos-estado');
   if (!lista) return;
-  var notas = ot.notasTecnico || [];
+  var notas = otNotasNormalizadas(ot);
   lista.innerHTML = notas.length ? notas.map(function(n, idx) {
     var rolActual = String(currentRole||'').toLowerCase();
     var esGestion = rolActual === 'admin' || rolActual === 'administrativo';
@@ -26785,7 +26926,8 @@ function otRenderNotas(ot) {
         ' · '+spFormatFecha(n.ts)+
       '</div>' +
       (n.fotoUrl ? '<button type="button" data-url="'+escapeHTML(n.fotoUrl)+'" data-titulo="'+escapeHTML(n.texto||'Foto de la OT')+'" onclick="otAbrirFoto(this.dataset.url,this.dataset.titulo)" style="display:block;padding:0;border:0;background:none;cursor:zoom-in;margin-top:8px;max-width:100%" title="Ver foto ampliada">' +
-        '<img src="'+escapeHTML(n.fotoUrl)+'" alt="'+escapeHTML(n.texto||'Foto de la OT')+'" style="display:block;max-width:100%;border-radius:8px;max-height:220px;object-fit:cover;border:0.5px solid var(--border2)" onerror="this.closest(\'button\').style.display=\'none\'">' +
+        '<img src="'+escapeHTML(n.fotoUrl)+'" alt="'+escapeHTML(n.texto||'Foto de la OT')+'" style="display:block;max-width:100%;border-radius:8px;max-height:220px;object-fit:cover;border:0.5px solid var(--border2)" onload="this.nextElementSibling.style.display=\'none\'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+        '<span class="ot-foto-error" style="display:none;min-height:90px;padding:14px;border:0.5px solid var(--red);border-radius:8px;color:var(--red);align-items:center;gap:7px"><i class="ti ti-photo-off"></i> No se pudo mostrar la miniatura. Tocá para abrir el archivo original.</span>' +
       '</button>' : '') +
     '</div>';
   }).join('') : '<div style="font-size:12px;color:var(--text3);text-align:center;padding:12px">Sin notas técnicas todavía</div>';
@@ -26795,17 +26937,24 @@ function otRenderNotas(ot) {
     fotosCont.innerHTML = fotos.map(function(n, idx){
       var titulo = n.texto || ('Foto ' + (idx + 1));
       return '<button type="button" data-url="'+escapeHTML(n.fotoUrl)+'" data-titulo="'+escapeHTML(titulo)+'" onclick="otAbrirFoto(this.dataset.url,this.dataset.titulo)" style="width:118px;padding:0;border:0.5px solid var(--border2);border-radius:10px;overflow:hidden;background:var(--bg3);cursor:zoom-in;text-align:left" title="Abrir '+escapeHTML(titulo)+'">' +
-        '<img src="'+escapeHTML(n.fotoUrl)+'" alt="'+escapeHTML(titulo)+'" style="width:118px;height:88px;display:block;object-fit:cover;background:#05070c" onerror="this.style.display=\'none\';this.nextElementSibling.textContent=\'Foto no disponible\'">' +
+        '<img src="'+escapeHTML(n.fotoUrl)+'" alt="'+escapeHTML(titulo)+'" style="width:118px;height:88px;display:block;object-fit:cover;background:#05070c" onload="this.nextElementSibling.style.display=\'none\'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+        '<span style="display:none;width:118px;height:88px;padding:8px;color:var(--red);font-size:10px;align-items:center;justify-content:center;text-align:center"><i class="ti ti-photo-off" style="margin-right:4px"></i> Abrir original</span>' +
         '<span style="display:block;padding:6px 8px;font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHTML(titulo)+'</span>' +
       '</button>';
     }).join('');
+    if (fotosEstado) {
+      fotosEstado.style.color = fotos.length ? 'var(--green)' : 'var(--text3)';
+      fotosEstado.innerHTML = fotos.length
+        ? '<i class="ti ti-circle-check"></i> ' + fotos.length + ' foto' + (fotos.length === 1 ? '' : 's') + ' registrada' + (fotos.length === 1 ? '' : 's') + '. Tocá una miniatura para comprobarla y ampliarla.'
+        : 'Todavía no hay fotos cargadas.';
+    }
   }
 }
 
 function otEliminarNota(indice) {
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB) { notify('No se encontró la OT'); return; }
-  var notas = Array.isArray(ot.notasTecnico) ? ot.notasTecnico.slice() : [];
+  var notas = otNotasNormalizadas(ot).slice();
   var nota = notas[indice];
   if (!nota) { notify('La nota ya no existe'); return; }
   var rolActual = String(currentRole||'').toLowerCase();
@@ -26820,6 +26969,11 @@ function otEliminarNota(indice) {
     .then(function(){
       ot.notasTecnico = notas;
       otRenderNotas(ot);
+      if (nota.fotoStoragePath && window.fbDeleteObject && window.fbStorageRef && window.fbStorage) {
+        window.fbDeleteObject(window.fbStorageRef(window.fbStorage, nota.fotoStoragePath)).catch(function(error) {
+          console.warn('La nota se eliminó, pero no se pudo limpiar su archivo de Storage:', error);
+        });
+      }
       notify('✓ Nota eliminada');
     })
     .catch(function(e){ notify('Error al eliminar la nota: ' + e.message); });
@@ -26831,10 +26985,13 @@ function otAbrirFoto(url, titulo) {
   var imagen = document.getElementById('ot-foto-ampliada');
   var enlace = document.getElementById('ot-foto-original');
   var etiqueta = document.getElementById('ot-foto-titulo');
+  var errorFoto = document.getElementById('ot-foto-modal-error');
   if (!modal || !imagen) {
     window.open(url, '_blank', 'noopener');
     return;
   }
+  imagen.style.display = 'block';
+  if (errorFoto) errorFoto.style.display = 'none';
   imagen.src = url;
   if (enlace) enlace.href = url;
   if (etiqueta) etiqueta.innerHTML = '<i class="ti ti-photo"></i> ' + escapeHTML(titulo || 'Foto de la OT');
@@ -26854,36 +27011,144 @@ function otAgregarNota() {
   if (!texto) { notify('Ingresá el texto de la nota'); return; }
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB) return;
-  var notas = ot.notasTecnico ? ot.notasTecnico.slice() : [];
+  var notas = otNotasNormalizadas(ot).slice();
   notas.push({ texto, autor: currentUser||'Técnico', ts: Date.now() });
   var key = ot.fbKey || otActualId;
+  window._otGuardandoLocalHasta = Date.now() + 2500;
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico: notas })
-    .then(function(){ inp.value=''; notify('✓ Nota agregada'); })
+    .then(function(){
+      ot.notasTecnico = notas;
+      window._otDetalleHuella = JSON.stringify(ot);
+      otRenderNotas(ot);
+      inp.value='';
+      notify('✓ Nota agregada');
+    })
     .catch(function(e){ notify('Error: '+e.message); });
+}
+
+function otMostrarFotoPendiente(file) {
+  var cont = document.getElementById('ot-fotos-preview');
+  var estadoFotos = document.getElementById('ot-fotos-estado');
+  if (!cont || !file) return { error:function(){}, cerrar:function(){} };
+  var urlTemporal = URL.createObjectURL(file);
+  var tarjeta = document.createElement('div');
+  tarjeta.style.cssText = 'width:118px;border:1px solid var(--blue);border-radius:10px;overflow:hidden;background:var(--bg3);position:relative';
+  tarjeta.innerHTML =
+    '<img alt="Foto seleccionada, subiendo" style="width:118px;height:88px;display:block;object-fit:cover;background:#05070c">' +
+    '<span style="display:flex;align-items:center;gap:5px;padding:6px 8px;font-size:10px;color:var(--blue)">' +
+      '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Subiendo…' +
+    '</span>';
+  tarjeta.querySelector('img').src = urlTemporal;
+  cont.style.display = 'flex';
+  cont.appendChild(tarjeta);
+  if (estadoFotos) {
+    estadoFotos.style.color = 'var(--blue)';
+    estadoFotos.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Subiendo y verificando la foto…';
+  }
+  return {
+    error:function(mensaje) {
+      var estado = tarjeta.querySelector('span');
+      if (estado) {
+        estado.style.color = 'var(--red)';
+        estado.innerHTML = '<i class="ti ti-alert-triangle"></i> ' + escapeHTML(mensaje || 'Error al subir');
+      }
+      if (estadoFotos) {
+        estadoFotos.style.color = 'var(--red)';
+        estadoFotos.innerHTML = '<i class="ti ti-alert-triangle"></i> La foto no quedó guardada. Volvé a intentarlo.';
+      }
+    },
+    cerrar:function() {
+      URL.revokeObjectURL(urlTemporal);
+      if (tarjeta.parentNode) tarjeta.parentNode.removeChild(tarjeta);
+    }
+  };
+}
+
+function otComprobarFotoVisible(url) {
+  return new Promise(function(resolve, reject) {
+    var terminada = false;
+    var imagen = new Image();
+    var timer = setTimeout(function() {
+      if (terminada) return;
+      terminada = true;
+      reject(new Error('La foto se subió, pero no pudo verificarse su visualización'));
+    }, 15000);
+    imagen.onload = function() {
+      if (terminada) return;
+      terminada = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    imagen.onerror = function() {
+      if (terminada) return;
+      terminada = true;
+      clearTimeout(timer);
+      reject(new Error('Storage devolvió una URL que no se puede visualizar'));
+    };
+    imagen.src = url;
+  });
 }
 
 function otAgregarFoto(input) {
   var file = input.files[0];
   if (!file) return;
   if (!String(file.type||'').startsWith('image/')) { notify('Seleccioná un archivo de imagen'); input.value=''; return; }
-  if (file.size > 3*1024*1024) { notify('La foto no puede superar 3MB'); return; }
-  if (!window.fbStorage) { notify('Storage no disponible'); return; }
+  if (file.size > 10*1024*1024) { notify('La foto no puede superar 10MB'); input.value=''; return; }
+  if (!window.fbStorage) { notify('Storage no disponible'); input.value=''; return; }
   var inp  = document.getElementById('ot-nota-nueva');
   var texto = inp ? inp.value.trim() : 'Foto adjunta';
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
-  if (!ot) return;
+  if (!ot) { input.value=''; notify('No se encontró la OT abierta'); return; }
+  if (input.dataset.subiendo === '1') { notify('Esperá a que termine la foto anterior'); return; }
+  input.dataset.subiendo = '1';
+  var otIdAlSubir = ot.fbKey || ot.id || otActualId;
+  var pendiente = otMostrarFotoPendiente(file);
   var path = 'sisventas/ots/'+(ot.fbKey||otActualId)+'/fotos/'+Date.now()+'_'+file.name;
   var sRef = window.fbStorageRef(window.fbStorage, path);
+  var fotoRegistradaEnOT = false;
   notify('Subiendo foto...');
   window.fbUploadBytes(sRef, file).then(function(){
     return window.fbGetDownloadURL(sRef);
   }).then(function(url) {
-    var notas = ot.notasTecnico ? ot.notasTecnico.slice() : [];
-    notas.push({ texto: texto||'Foto', autor: currentUser||'Técnico', rol: currentRole||'tecnico', ts: Date.now(), fotoUrl: url });
+    return otComprobarFotoVisible(url).then(function(){ return url; });
+  }).then(function(url) {
+    var notas = otNotasNormalizadas(ot).slice();
+    notas.push({
+      texto: texto||'Foto',
+      autor: currentUser||'Técnico',
+      rol: currentRole||'tecnico',
+      ts: Date.now(),
+      fotoUrl: url,
+      fotoStoragePath: path
+    });
     var key = ot.fbKey || otActualId;
-    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico: notas });
-  }).then(function(){ if(inp) inp.value=''; input.value=''; notify('✓ Foto adjuntada y visible en la galería'); })
-  .catch(function(e){ input.value=''; notify('Error al subir la foto: '+e.message); });
+    window._otGuardandoLocalHasta = Date.now() + 2500;
+    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico: notas })
+      .then(function(){
+        fotoRegistradaEnOT = true;
+        return notas;
+      });
+  }).then(function(notas){
+    ot.notasTecnico = notas;
+    window._otDetalleHuella = JSON.stringify(ot);
+    pendiente.cerrar();
+    if (String(otActualId) === String(otIdAlSubir) || String(otActualId) === String(ot.id || '')) {
+      otRenderNotas(ot);
+    }
+    if(inp) inp.value='';
+    input.value='';
+    notify('✓ Foto guardada y verificada en la galería');
+  }).catch(function(e){
+    if (!fotoRegistradaEnOT && window.fbDeleteObject) {
+      window.fbDeleteObject(sRef).catch(function(){});
+    }
+    pendiente.error('No se pudo guardar');
+    setTimeout(function(){ pendiente.cerrar(); }, 4500);
+    input.value='';
+    notify('Error al subir la foto: '+e.message);
+  }).finally(function(){
+    input.dataset.subiendo = '0';
+  });
 }
 
 function otVerReclamo() {

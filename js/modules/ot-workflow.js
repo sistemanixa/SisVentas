@@ -105,7 +105,11 @@
       var ch=Array.from(document.querySelectorAll('#checklist-preparacion input[type=checkbox],#checklist-instalacion input[type=checkbox],#checklist-verificacion input[type=checkbox]'));
       return ch.length && ch.every(function(x){return x.checked;});
     }
-    if(step==='fotos') return !!(q('ot-notas-lista') && q('ot-notas-lista').children.length);
+    if(step==='fotos'){
+      var ot=findOT();
+      var notas=arr(ot&&ot.notasTecnico);
+      return notas.some(function(n){ return n && (String(n.texto||'').trim() || n.fotoUrl); });
+    }
     if(step==='finalizar') return !!((q('ot-acta-conf')||{}).value);
     return false;
   }

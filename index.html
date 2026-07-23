@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.161-firebase' -->
+<!-- VERSION: 'v2.0.162-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.js?v=2.0.161"></script>
+<script src="./js/core/version.js?v=2.0.162"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -27,7 +27,7 @@
 <link rel="stylesheet" href="./css/app.css?v=2.0.161">
 
   <!-- Firebase SDK -->
-  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.154"></script>
+  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.162"></script>
 </head>
 <body>
 
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.161 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.162 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -1240,19 +1240,21 @@
           <!-- Notas y fotos del técnico -->
           <div class="card">
             <div class="card-head">
-              <span class="card-title"><i class="ti ti-notes" style="margin-right:6px"></i>Notas del técnico</span>
+              <span class="card-title"><i class="ti ti-notes" style="margin-right:6px"></i>Notas y fotos del técnico</span>
               <button class="btn btn-sm" onclick="iaAbrirDesdeOT()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/><circle cx="9" cy="14" r="1" fill="white" stroke="none"/><circle cx="15" cy="14" r="1" fill="white" stroke="none"/></svg> Asistente IA</button>
             </div>
             <div id="ot-notas-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
-            <div style="display:flex;gap:8px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <input type="text" id="ot-nota-nueva" placeholder="Agregar nota técnica (qué se hizo, qué se encontró, recomendaciones...)" style="flex:1">
-              <label class="btn btn-sm" style="cursor:pointer" title="Adjuntar foto">
+              <label class="btn btn-sm" style="cursor:pointer;white-space:nowrap" title="Seleccionar y subir una foto">
                 <i class="ti ti-camera"></i>
+                <span>Agregar foto</span>
                 <input type="file" accept="image/*" style="display:none" onchange="otAgregarFoto(this)">
               </label>
-              <button class="btn btn-sm btn-primary" onclick="otAgregarNota()"><i class="ti ti-send"></i></button>
+              <button class="btn btn-sm btn-primary" onclick="otAgregarNota()" title="Guardar nota"><i class="ti ti-send"></i> Guardar nota</button>
             </div>
-            <div id="ot-fotos-preview" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"></div>
+            <div id="ot-fotos-preview" style="display:none;gap:10px;flex-wrap:wrap;margin-top:12px"></div>
+            <div id="ot-fotos-estado" style="font-size:11px;color:var(--text3);margin-top:9px">Todavía no hay fotos cargadas.</div>
           </div>
 
           <div id="modal-ver-foto-ot" class="modal-overlay" style="display:none;z-index:760" onclick="if(event.target===this)otCerrarFoto()">
@@ -1262,7 +1264,12 @@
                 <button class="icon-btn" onclick="otCerrarFoto()" aria-label="Cerrar foto"><i class="ti ti-x"></i></button>
               </div>
               <div style="min-height:180px;display:flex;align-items:center;justify-content:center;overflow:auto;background:#05070c;border-radius:var(--radius);padding:10px">
-                <img id="ot-foto-ampliada" alt="Foto ampliada de la orden de trabajo" style="display:block;max-width:100%;max-height:72vh;object-fit:contain;border-radius:8px">
+                <img id="ot-foto-ampliada" alt="Foto ampliada de la orden de trabajo" style="display:block;max-width:100%;max-height:72vh;object-fit:contain;border-radius:8px" onload="var e=document.getElementById('ot-foto-modal-error');if(e)e.style.display='none'" onerror="this.style.display='none';var e=document.getElementById('ot-foto-modal-error');if(e)e.style.display='flex'">
+                <div id="ot-foto-modal-error" style="display:none;min-height:180px;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:#fff;text-align:center;padding:24px">
+                  <i class="ti ti-photo-off" style="font-size:34px;color:var(--red)"></i>
+                  <strong>No se pudo mostrar esta imagen</strong>
+                  <span style="font-size:12px;color:#aaa">Podés intentar abrir el archivo original con el botón inferior.</span>
+                </div>
               </div>
               <div class="flex-end" style="margin-top:12px">
                 <a id="ot-foto-original" class="btn btn-sm" href="#" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Abrir original</a>
@@ -2217,7 +2224,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.161
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.162
 Listo para analizar.
 </pre>
           </div>
@@ -4911,7 +4918,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.js?v=2.0.161"></script>
+<script src="./js/app.js?v=2.0.162"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
@@ -4950,7 +4957,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.161</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.162</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -5219,7 +5226,7 @@ Listo para analizar.
 
 <script src="./js/modules/finance-details.js?v=2.0.154"></script>
 
-<script src="./js/modules/ot-workflow.js?v=2.0.154"></script>
+<script src="./js/modules/ot-workflow.js?v=2.0.162"></script>
 
 
 <script src="./js/modules/dashboard-permissions.js?v=2.0.154"></script>
