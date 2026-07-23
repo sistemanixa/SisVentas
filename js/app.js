@@ -5323,12 +5323,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.156-firebase',
+  VERSION: 'v2.0.157-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Auditoría segura de precios y Mercado Libre por URL exacta.'
+    'Un mismo precio correcto en catálogo, ficha, presupuestos y ventas.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador de precios' }),
+  RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Abrir productos' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.157',
+      date: '23/07/2026',
+      title: 'Precio único en todo el sistema',
+      notes: Object.freeze(['Catálogo, ficha, presupuestos y ventas ahora usan exactamente el mismo precio corregido.']),
+      feature: Object.freeze({ page:'productos', actionLabel:'Abrir productos' })
+    }),
     Object.freeze({
       version: 'v2.0.156',
       date: '23/07/2026',
@@ -8057,12 +8064,34 @@ function precioVentaCanonicoProducto(p) {
     };
   }
   var ventaARS = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || 0) || 0;
-  if (ventaARS > 0) return { precioARS: ventaARS, precioOrigen: ventaARS, monedaOrigen: 'ARS' };
+  if (ventaARS > 0) {
+    var costoCanonico = precioGremioARSDesdeProducto(p);
+    if (costoCanonico > 100 && ventaARS < costoCanonico * 0.2) {
+      var margenCanonico = parseFloat(p.margenDeseado);
+      if (!isFinite(margenCanonico) || margenCanonico < 0 || margenCanonico > 500) margenCanonico = margenProductoDefault();
+      return {
+        precioARS: Math.round(costoCanonico * (1 + margenCanonico / 100) * 100) / 100,
+        precioOrigen: ventaARS,
+        monedaOrigen: 'ARS_CORREGIDO_VENTA_INSUFICIENTE'
+      };
+    }
+    return { precioARS: ventaARS, precioOrigen: ventaARS, monedaOrigen: 'ARS' };
+  }
   var venta = parseFloat(p.venta || p.precio_venta || p.precioVenta || 0) || 0;
   var moneda = String(p.moneda || p.monedaVenta || 'ARS').toUpperCase();
   if (moneda === 'USD') {
     var tc = obtenerDolarReferenciaProducto();
     return { precioARS: tc.valor > 0 ? Math.round(venta * tc.valor * 100) / 100 : 0, precioOrigen: venta, monedaOrigen: 'USD' };
+  }
+  var costoVentaLegacy = precioGremioARSDesdeProducto(p);
+  if (venta > 0 && costoVentaLegacy > 100 && venta < costoVentaLegacy * 0.2) {
+    var margenVentaLegacy = parseFloat(p.margenDeseado);
+    if (!isFinite(margenVentaLegacy) || margenVentaLegacy < 0 || margenVentaLegacy > 500) margenVentaLegacy = margenProductoDefault();
+    return {
+      precioARS: Math.round(costoVentaLegacy * (1 + margenVentaLegacy / 100) * 100) / 100,
+      precioOrigen: venta,
+      monedaOrigen: 'ARS_CORREGIDO_VENTA_INSUFICIENTE'
+    };
   }
   return { precioARS: venta, precioOrigen: venta, monedaOrigen: 'ARS' };
 }
@@ -10383,11 +10412,6 @@ function verProducto(id, origen) {
   actualizarStatProductoActual(p);
   var pc = precioGremioARSDesdeProducto(p);
   var pv = precioVentaCanonicoProducto(p).precioARS;
-  if (pc > 100 && (!pv || pv < pc * 0.2)) {
-    var margenFicha = parseFloat(p.margenDeseado);
-    if (!isFinite(margenFicha) || margenFicha < 0) margenFicha = margenProductoDefault();
-    pv = Math.round(pc * (1 + margenFicha / 100));
-  }
   var iva = parseFloat(p.iva||21);
   var stk = parseInt(p.stock)||0;
   var stkMin = parseInt(p.stockMin)||2;
