@@ -5453,12 +5453,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.169-firebase',
+  VERSION: 'v2.0.170-firebase',
   RELEASE_NOTES: Object.freeze([
-    'El cierre de una OT espera fotos y firma, y sólo cambia de estado cuando Firebase confirma el guardado.'
+    'Ventas, presupuestos, cobranzas y adicionales de OT usan la fecha local argentina, sin corrimientos por UTC.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar cierre de OT' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar fechas de OT' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.170',
+      date: '23/07/2026',
+      title: 'Fechas operativas locales',
+      notes: Object.freeze(['Las operaciones vinculadas a ventas y OT conservan el día local de Argentina, incluso cerca de medianoche.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar fechas de OT' })
+    }),
     Object.freeze({
       version: 'v2.0.169',
       date: '23/07/2026',
@@ -6609,8 +6616,8 @@ Object.defineProperty(window, 'currentUserUid', {
 var todasNotifs = [];
 const now = new Date();
 _set('topbar-date',now.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}));
-document.getElementById('venta-fecha').value = now.toISOString().split('T')[0];
-_get('det-fecha').value = now.toISOString().split('T')[0];
+document.getElementById('venta-fecha').value = svFechaLocalISO(now);
+_get('det-fecha').value = svFechaLocalISO(now);
 function selectRole(r) {
   currentRole = r;
   document.getElementById('rb-admin').classList.toggle('selected', r === 'admin');
@@ -7726,7 +7733,7 @@ function inicializarFilasVenta() {
 
   // Fecha de hoy por defecto
   var fechaInp = document.getElementById('venta-fecha');
-  if (fechaInp && !fechaInp.value) fechaInp.value = new Date().toISOString().slice(0,10);
+  if (fechaInp && !fechaInp.value) fechaInp.value = svFechaLocalISO();
   var obsInp = document.getElementById('venta-obs');
   if (obsInp && !window._ventaEditandoFbKey) obsInp.value = '';
 }
@@ -11084,7 +11091,7 @@ function calcMargenPpto() {
 }
 var ppRowCount=2;
 
-document.addEventListener('DOMContentLoaded',()=>{ const f=document.getElementById('cob-fecha'); if(f)f.value=new Date().toISOString().split('T')[0]; });
+document.addEventListener('DOMContentLoaded',()=>{ const f=document.getElementById('cob-fecha'); if(f)f.value=svFechaLocalISO(); });
 function buscarVentaCob(v) {
   const d = document.getElementById('cob-drop');
   if (!v || v.length < 2) { d.style.display='none'; return; }
@@ -11153,7 +11160,7 @@ function irACobranzasConVenta(ventaId) {
       '$' + Math.round(saldo).toLocaleString('es-AR')
     );
     var elFecha = document.getElementById('cob-fecha');
-    if (elFecha && !elFecha.value) elFecha.value = new Date().toISOString().split('T')[0];
+    if (elFecha && !elFecha.value) elFecha.value = svFechaLocalISO();
     var elMonto = document.getElementById('cob-monto');
     if (elMonto) elMonto.focus();
   }, 150);
@@ -25604,7 +25611,7 @@ function pptoAccion(accion, opts) {
       : null;
     var clienteIdPpto = p.clienteId || p.idCliente || (clienteRefPpto && (clienteRefPpto.id || clienteRefPpto.numero || '')) || '';
     var clienteFbKeyPpto = p.clienteFbKey || p.clienteKey || (clienteRefPpto && clienteRefPpto.fbKey) || '';
-    var fechaVentaPpto = new Date().toISOString().slice(0,10);
+    var fechaVentaPpto = svFechaLocalISO();
     var datosVentaPpto = pptoDatosParaVenta(p);
     var venta = {
       id:           numVenta,
@@ -26814,7 +26821,7 @@ function otConfirmarVentaAdicional() {
   });
   var total = items.reduce(function(s,i){ return s+i.sub; }, 0);
 
-  var fechaVentaAdicional = new Date().toISOString().slice(0,10);
+  var fechaVentaAdicional = svFechaLocalISO();
   var venta = {
     cliente:      ot.cliente || '',
     items:        items,
@@ -28629,8 +28636,8 @@ function moverVentaAPresupuesto(ventaId) {
   var diasVenc = diasVencInput ? (parseInt(diasVencInput.value)||10) : 10;
   if (!confirm('¿Mover la venta ' + ventaId + ' a Presupuestos?\n\nSe creará un presupuesto que vence en ' + diasVenc + ' día' + (diasVenc !== 1 ? 's' : '') + ', y la venta original se ELIMINARÁ del listado de ventas.\n\nEsta acción no se puede deshacer.')) return;
   if (!window.fbDB) { notify('Sin conexión'); return; }
-  var ahora   = new Date().toISOString().split('T')[0];
-  var vence   = new Date(Date.now() + diasVenc*86400000).toISOString().split('T')[0];
+  var ahora   = svFechaLocalISO();
+  var vence   = svFechaLocalISO(new Date(Date.now() + diasVenc*86400000));
   var numPpto = '';
   var ppto = {
     id: '', numero: '', cliente: v.cliente||'', empleado: v.empleado||v.usuario||currentUser||'',
