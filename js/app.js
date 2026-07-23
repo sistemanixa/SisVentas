@@ -4058,7 +4058,32 @@ function fbGuardarOT(ot) {
   var r = window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo);
   var prom;
   if (ot.fbKey) {
-    prom = window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), ot);
+    // Notas, fotos y firma se guardan en operaciones independientes. Excluirlas
+    // del guardado general evita que una pantalla abierta con una copia anterior
+    // vuelva a pisar evidencias subidas desde otro dispositivo.
+    var cambiosOT = Object.assign({}, ot);
+    [
+      'fbKey',
+      'notasTecnico',
+      'fotos',
+      'fotosTecnico',
+      'fotosVisita',
+      'evidenciasFotos',
+      'evidencias',
+      'imagenes',
+      'adjuntos',
+      'archivos',
+      'firmaClienteUrl',
+      'firmaUrl',
+      'firmaURL',
+      'firmaBase64',
+      'firmaCliente',
+      'firma',
+      'firmaStoragePath',
+      'firmada',
+      'fechaFirma'
+    ].forEach(function(campo) { delete cambiosOT[campo]; });
+    prom = window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), cambiosOT);
   } else {
     prom = window.fbPush(r, ot).then(function(ref) { ot.fbKey = ref.key; return ref.key; });
   }
@@ -5455,12 +5480,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.174-firebase',
+  VERSION: 'v2.0.175-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las evidencias de OT se guardan sin pisarse, la firma vuelve a verse y el acta se abre directamente.'
+    'Las evidencias de OT ya no pueden ser pisadas por otro guardado, la firma vuelve a verse y el acta se abre directamente.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar trabajo técnico' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.175',
+      date: '23/07/2026',
+      title: 'Evidencias protegidas',
+      notes: Object.freeze(['Fotos, notas y firma se guardan por separado y ningún cambio general de la OT puede volver a reemplazarlas con una copia anterior.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar trabajo técnico' })
+    }),
     Object.freeze({
       version: 'v2.0.174',
       date: '23/07/2026',
@@ -27028,16 +27060,26 @@ function firmaLimpiar(soloVisual) {
   if (soloVisual === true) return;
   var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
   if (!ot || !ot.fbKey || !window.fbDB) return;
-  var firmaAnterior = ot.firmaClienteUrl || '';
+  var firmaAnterior = otFirmaUrl(ot);
   var pathAnterior = ot.firmaStoragePath || '';
   window._otGuardandoLocalHasta = Date.now() + 2500;
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
     firmaClienteUrl: null,
+    firmaUrl: null,
+    firmaURL: null,
+    firmaBase64: null,
+    firmaCliente: null,
+    firma: null,
     firmaStoragePath: null,
     firmada: false,
     fechaFirma: null
   }).then(function() {
     ot.firmaClienteUrl = null;
+    ot.firmaUrl = null;
+    ot.firmaURL = null;
+    ot.firmaBase64 = null;
+    ot.firmaCliente = null;
+    ot.firma = null;
     ot.firmaStoragePath = null;
     ot.firmada = false;
     ot.fechaFirma = null;
@@ -27371,12 +27413,23 @@ function otNotasNormalizadas(ot) {
   var origen = ot && ot.notasTecnico;
   var notas = [];
   if (Array.isArray(origen)) {
-    notas = origen.filter(Boolean);
+    notas = origen.map(function(nota, indice) {
+      if (!nota) return null;
+      return typeof nota === 'object'
+        ? Object.assign({ _arrayIndex:indice }, nota)
+        : { _arrayIndex:indice, texto:String(nota || '') };
+    }).filter(Boolean);
   } else if (origen && typeof origen === 'object') {
     notas = Object.keys(origen).sort(function(a, b) {
       var notaA = origen[a] || {}, notaB = origen[b] || {};
       return (parseInt(notaA.ts, 10) || 0) - (parseInt(notaB.ts, 10) || 0);
-    }).map(function(key) { return origen[key]; }).filter(Boolean);
+    }).map(function(key) {
+      var nota = origen[key];
+      if (!nota) return null;
+      return typeof nota === 'object'
+        ? Object.assign({ _firebaseKey:key }, nota)
+        : { _firebaseKey:key, texto:String(nota || '') };
+    }).filter(Boolean);
   }
   notas = notas.map(function(nota) {
     var normalizada = typeof nota === 'object'
@@ -27480,12 +27533,28 @@ function otEliminarNota(indice) {
   var esAutor = String(nota.autor||'').trim().toLocaleLowerCase('es-AR') === String(currentUser||'').trim().toLocaleLowerCase('es-AR');
   if (!esGestion && !esAutor) { notify('Solo podés eliminar tus propias notas'); return; }
   if (!confirm('¿Eliminar esta nota de la OT?\n\n' + String(nota.texto||'Foto adjunta'))) return;
-  notas.splice(indice, 1);
   var key = ot.fbKey || otActualId;
   window._otGuardandoLocalHasta = Date.now() + 2500;
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico:notas })
+  var eliminarRegistro;
+  if (nota._firebaseKey && window.fbRemove) {
+    eliminarRegistro = window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico/'+nota._firebaseKey));
+  } else {
+    notas.splice(indice, 1);
+    var notasPersistibles = notas.map(function(item) {
+      var copia = Object.assign({}, item);
+      delete copia._firebaseKey;
+      delete copia._arrayIndex;
+      return copia;
+    });
+    eliminarRegistro = window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico:notasPersistibles });
+  }
+  eliminarRegistro
     .then(function(){
-      ot.notasTecnico = notas;
+      if (nota._firebaseKey && ot.notasTecnico && !Array.isArray(ot.notasTecnico)) {
+        delete ot.notasTecnico[nota._firebaseKey];
+      } else {
+        ot.notasTecnico = notas;
+      }
       otRenderNotas(ot);
       if (nota.fotoStoragePath && window.fbDeleteObject && window.fbStorageRef && window.fbStorage) {
         window.fbDeleteObject(window.fbStorageRef(window.fbStorage, nota.fotoStoragePath)).catch(function(error) {
