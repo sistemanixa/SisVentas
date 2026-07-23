@@ -5480,12 +5480,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.175-firebase',
+  VERSION: 'v2.0.176-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las evidencias de OT ya no pueden ser pisadas por otro guardado, la firma vuelve a verse y el acta se abre directamente.'
+    'Fotos, notas y firmas de las OT quedan visibles y protegidas frente a guardados simultáneos.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar trabajo técnico' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.176',
+      date: '23/07/2026',
+      title: 'Evidencias de OT estabilizadas',
+      notes: Object.freeze(['Las evidencias antiguas y nuevas se administran individualmente; la firma se limpia y recupera sin dejar datos de otra OT.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar trabajo técnico' })
+    }),
     Object.freeze({
       version: 'v2.0.175',
       date: '23/07/2026',
@@ -27050,8 +27057,10 @@ function firmaInicializar() {
 
 function firmaLimpiar(soloVisual) {
   var canvas = document.getElementById('firma-canvas');
-  if (!canvas || !_firmaCtx) return;
-  _firmaCtx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+  if (!canvas) return;
+  if (_firmaCtx) {
+    _firmaCtx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+  }
   canvas.style.backgroundImage = 'none';
   _firmaTiene = false;
   document.getElementById('firma-placeholder').style.display = '';
@@ -27538,6 +27547,8 @@ function otEliminarNota(indice) {
   var eliminarRegistro;
   if (nota._firebaseKey && window.fbRemove) {
     eliminarRegistro = window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico/'+nota._firebaseKey));
+  } else if (nota._arrayIndex != null && window.fbRemove) {
+    eliminarRegistro = window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico/'+nota._arrayIndex));
   } else {
     notas.splice(indice, 1);
     var notasPersistibles = notas.map(function(item) {
@@ -27552,6 +27563,8 @@ function otEliminarNota(indice) {
     .then(function(){
       if (nota._firebaseKey && ot.notasTecnico && !Array.isArray(ot.notasTecnico)) {
         delete ot.notasTecnico[nota._firebaseKey];
+      } else if (nota._arrayIndex != null && Array.isArray(ot.notasTecnico)) {
+        ot.notasTecnico.splice(nota._arrayIndex, 1);
       } else {
         ot.notasTecnico = notas;
       }
@@ -27602,7 +27615,8 @@ function otAgregarNota() {
   var key = ot.fbKey || otActualId;
   window._otGuardandoLocalHasta = Date.now() + 2500;
   window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico'), notaNueva)
-    .then(function(){
+    .then(function(refNota){
+      notaNueva._firebaseKey = refNota && refNota.key ? refNota.key : '';
       var notas = otNotasNormalizadas(ot).slice();
       if (!notas.some(function(nota) {
         return Number(nota && nota.ts) === notaNueva.ts &&
@@ -27721,7 +27735,8 @@ function otAgregarFoto(input) {
     var key = ot.fbKey || otActualId;
     window._otGuardandoLocalHasta = Date.now() + 2500;
     return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico'), notaFoto)
-      .then(function(){
+      .then(function(refFoto){
+        notaFoto._firebaseKey = refFoto && refFoto.key ? refFoto.key : '';
         fotoRegistradaEnOT = true;
         return { nota:notaFoto, url:url };
       });
