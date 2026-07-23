@@ -82,11 +82,84 @@ function esDestinoMercadoLibreArgentina(url) {
   catch (_) { return false; }
 }
 
+function idsMercadoLibreDesdeUrl(url) {
+  try {
+    const parsed = new URL(normalizarUrl(url));
+    const normalizarId = (valor) => String(valor || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const itemQuery = normalizarId(parsed.searchParams.get('wid') || parsed.searchParams.get('item_id'));
+    const itemPath = normalizarId((parsed.pathname.match(/\/(MLA-?\d{6,})/i) || [])[1]);
+    const productoPath = normalizarId((parsed.pathname.match(/\/p\/(MLA-?\d{6,})/i) || [])[1]);
+    return {
+      itemId: /^MLA\d{6,}$/.test(itemQuery) ? itemQuery : (/^MLA\d{6,}$/.test(itemPath) ? itemPath : ''),
+      productoId: /^MLA\d{6,}$/.test(productoPath) ? productoPath : ''
+    };
+  } catch (_) {
+    return { itemId:'', productoId:'' };
+  }
+}
+
+async function obtenerJsonMercadoLibre(ruta) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(`https://api.mercadolibre.com${ruta}`, {
+      headers: {
+        accept:'application/json',
+        'accept-language':'es-AR,es;q=0.9',
+        'user-agent':'SisVentas-Nixa/2.0'
+      },
+      signal:controller.signal
+    });
+    if (!response.ok) throw new Error(`API Mercado Libre respondió ${response.status}`);
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function extraerProductoMercadoLibreApi(urlExacta) {
+  const ids = idsMercadoLibreDesdeUrl(urlExacta);
+  let item = null;
+  let producto = null;
+  if (ids.itemId) item = await obtenerJsonMercadoLibre(`/items/${encodeURIComponent(ids.itemId)}`);
+  if (!item && ids.productoId) {
+    producto = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}`);
+    const ganador = producto && producto.buy_box_winner;
+    const itemIdGanador = String(ganador && (ganador.item_id || ganador.id) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (/^MLA\d{6,}$/.test(itemIdGanador)) {
+      item = await obtenerJsonMercadoLibre(`/items/${encodeURIComponent(itemIdGanador)}`).catch(() => null);
+    }
+  }
+  const fuente = item || (producto && producto.buy_box_winner) || producto || null;
+  const precioArs = Number(fuente && (fuente.price || fuente.base_price || fuente.original_price)) || 0;
+  const moneda = String(fuente && (fuente.currency_id || fuente.currency) || '').toUpperCase();
+  if (!precioArs) throw new Error('La API oficial no informó un precio vigente');
+  if (moneda && moneda !== 'ARS') throw new Error(`La publicación informa moneda ${moneda}; no se guardará como pesos argentinos`);
+  const estado = String(fuente && fuente.status || '').toLowerCase();
+  const cantidad = Number(fuente && fuente.available_quantity);
+  const disponibilidad = estado && estado !== 'active'
+    ? 'sin_stock'
+    : Number.isFinite(cantidad) && cantidad <= 0
+      ? 'sin_stock'
+      : Number.isFinite(cantidad) && cantidad > 0
+        ? 'disponible'
+        : 'no_verificado';
+  return {
+    precioArs,
+    disponibilidad,
+    titulo:String(fuente && (fuente.title || fuente.name) || producto && producto.name || ''),
+    moneda:moneda || 'ARS',
+    fuente:'mercado_libre_api_oficial'
+  };
+}
+
 async function extraerProductoMercadoLibre(page) {
+  const precioPrincipal = page.locator('.ui-pdp-price__second-line .andes-money-amount').first();
+  await precioPrincipal.waitFor({ state:'attached', timeout:10000 }).catch(() => {});
   const bodyText = await page.locator('body').innerText({ timeout:15000 });
   if (/captcha|comprobemos que eres humano|verificaci[oó]n de seguridad/i.test(bodyText)) throw new Error('Mercado Libre solicitó una verificación de seguridad');
   if (/publicaci[oó]n pausada|publicaci[oó]n finalizada|producto no disponible/i.test(bodyText)) throw new Error('La publicación de Mercado Libre no está disponible');
-  let precioArs = await page.locator('.ui-pdp-price__second-line .andes-money-amount').first().evaluate((el) => {
+  let precioArs = await precioPrincipal.evaluate((el) => {
     const fraccion = el.querySelector('.andes-money-amount__fraction');
     const centavos = el.querySelector('.andes-money-amount__cents');
     const entero = String(fraccion ? fraccion.textContent : '').replace(/[^0-9]/g, '');
@@ -94,6 +167,11 @@ async function extraerProductoMercadoLibre(page) {
     return entero ? Number(entero + (decimal ? '.' + decimal : '')) : 0;
   }).catch(() => 0);
   let schema = null;
+  if (!precioArs) {
+    precioArs = await page.locator('meta[property="product:price:amount"], meta[itemprop="price"]').first().getAttribute('content')
+      .then((valor) => parseFloat(String(valor || '').replace(',', '.')) || 0)
+      .catch(() => 0);
+  }
   if (!precioArs) {
     schema = await page.locator('script[type="application/ld+json"]').evaluateAll((scripts) => {
       const recorrer = (v) => {
@@ -120,7 +198,7 @@ async function extraerProductoMercadoLibre(page) {
   }
   const disponibilidad = /stock disponible|cantidad:\s*\d+|comprar ahora|agregar al carrito/i.test(bodyText) ? 'disponible' : extraerDisponibilidadProveedor(bodyText);
   const titulo = await page.locator('h1.ui-pdp-title').first().innerText({ timeout:3000 }).catch(() => '');
-  return { precioArs, disponibilidad, titulo:titulo || (schema && schema.name) || '', moneda:moneda || 'ARS' };
+  return { precioArs, disponibilidad, titulo:titulo || (schema && schema.name) || '', moneda:moneda || 'ARS', fuente:'mercado_libre_pagina' };
 }
 
 async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) {
@@ -128,13 +206,21 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) 
   if (!esUrlMercadoLibre(urlExacta)) throw new Error('La URL no corresponde a Mercado Libre Argentina');
   let browser = null, context = null;
   try {
-    browser = await chromium.launch({ headless:true });
-    context = await browser.newContext({ locale:'es-AR', timezoneId:'America/Argentina/Buenos_Aires' });
-    const page = await context.newPage();
-    await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
-    if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
-    const datos = await extraerProductoMercadoLibre(page);
-    return { ok:true, proveedor:proveedor.nombre || 'MERCADO LIBRE', codigo:codigo || '', producto:datos.titulo || producto || '', url:urlExacta, precioArs:datos.precioArs, sinIva:false, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad === 'disponible' ? 'Disponible' : datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado', fuente:'mercado_libre_url_exacta', fecha:new Date().toISOString(), debug:debug ? { titulo:datos.titulo } : undefined };
+    let datos = await extraerProductoMercadoLibreApi(urlExacta).catch(() => null);
+    if (!datos) {
+      browser = await chromium.launch({ headless:true });
+      context = await browser.newContext({
+        locale:'es-AR',
+        timezoneId:'America/Argentina/Buenos_Aires',
+        userAgent:'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+        extraHTTPHeaders:{ 'accept-language':'es-AR,es;q=0.9' }
+      });
+      const page = await context.newPage();
+      await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
+      if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
+      datos = await extraerProductoMercadoLibre(page);
+    }
+    return { ok:true, proveedor:proveedor.nombre || 'MERCADO LIBRE', codigo:codigo || '', producto:datos.titulo || producto || '', url:urlExacta, precioArs:datos.precioArs, sinIva:false, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad === 'disponible' ? 'Disponible' : datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado', fuente:datos.fuente || 'mercado_libre_url_exacta', fecha:new Date().toISOString(), debug:debug ? { titulo:datos.titulo, fuente:datos.fuente || '' } : undefined };
   } finally {
     if (context) await context.close().catch(() => {});
     if (browser) await browser.close().catch(() => {});
@@ -575,26 +661,37 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
   const progresoRef = jobSeguro ? db.ref(`sisventas/procesos/cotizador/${jobSeguro}`) : null;
   const inicioMs = parseInt(iniciadoEn, 10) || Date.now();
   const totalTrabajo = Math.max(parseInt(totalGlobal, 10) || 0, offset + lote.length);
-  let browser = null, context = null;
+  let browser = null, context = null, page = null;
   try {
-    if (progresoRef) await progresoRef.set({ estado:'iniciando_navegador', proveedor:'MERCADO LIBRE', procesados:offset, total:totalTrabajo, inicioEn:inicioMs, actualizadoEn:Date.now() });
-    browser = await chromium.launch({ headless:true });
-    context = await browser.newContext({ locale:'es-AR', timezoneId:'America/Argentina/Buenos_Aires' });
-    const page = await context.newPage();
-    page.setDefaultTimeout(10000);
-    page.setDefaultNavigationTimeout(20000);
+    if (progresoRef) await progresoRef.set({ estado:'consultando_fuente_oficial', proveedor:'MERCADO LIBRE', procesados:offset, total:totalTrabajo, inicioEn:inicioMs, actualizadoEn:Date.now() });
     const resultados = [];
     for (let i=0; i<lote.length; i+=1) {
       const item = lote[i] || {}, urlExacta = normalizarUrl(item.url || item.urlProducto || '');
       if (progresoRef) await progresoRef.update({ estado:'procesando', proveedor:'MERCADO LIBRE', codigo:item.codigo||'', producto:item.producto||item.nombre||'', url:urlExacta, procesados:offset+i, total:totalTrabajo, actualizadoEn:Date.now() });
       try {
         if (!esUrlMercadoLibre(urlExacta)) throw new Error('La URL no corresponde a Mercado Libre Argentina');
-        await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
-        if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
-        const datos = await extraerProductoMercadoLibre(page);
+        let datos = await extraerProductoMercadoLibreApi(urlExacta).catch(() => null);
+        if (!datos) {
+          if (!page) {
+            if (progresoRef) await progresoRef.update({ estado:'iniciando_respaldo_visual', actualizadoEn:Date.now() });
+            browser = await chromium.launch({ headless:true });
+            context = await browser.newContext({
+              locale:'es-AR',
+              timezoneId:'America/Argentina/Buenos_Aires',
+              userAgent:'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+              extraHTTPHeaders:{ 'accept-language':'es-AR,es;q=0.9' }
+            });
+            page = await context.newPage();
+            page.setDefaultTimeout(10000);
+            page.setDefaultNavigationTimeout(20000);
+          }
+          await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
+          if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
+          datos = await extraerProductoMercadoLibre(page);
+        }
         const validacionPrecio = validarSaltoPrecio(datos.precioArs, item.precioAnteriorArs);
         if (!validacionPrecio.ok) throw new Error(validacionPrecio.mensaje);
-        resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, sinIva:false, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:'mercado_libre_lote_url_exacta', fecha:new Date().toISOString() });
+        resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, sinIva:false, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:datos.fuente || 'mercado_libre_lote_url_exacta', fecha:new Date().toISOString() });
       } catch (e) {
         resultados.push({ ok:false, error:true, codigo:item.codigo||'', url:urlExacta, mensaje:e.message||'Error leyendo la publicación' });
       }

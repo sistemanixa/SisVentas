@@ -5323,12 +5323,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.157-firebase',
+  VERSION: 'v2.0.158-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Un mismo precio correcto en catálogo, ficha, presupuestos y ventas.'
+    'Mercado Libre ahora toma el precio desde su fuente oficial.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Abrir productos' }),
+  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador de precios' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.158',
+      date: '23/07/2026',
+      title: 'Mercado Libre más confiable',
+      notes: Object.freeze(['Los precios se consultan primero en la fuente oficial y conservan la lectura visual como respaldo.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador de precios' })
+    }),
     Object.freeze({
       version: 'v2.0.157',
       date: '23/07/2026',
