@@ -4022,6 +4022,12 @@ function fbCargarOTs() {
     var otDetEl = document.getElementById('ot-detalle-view');
     if (otDetEl && otDetEl.style.display === 'block' && typeof otActualId !== 'undefined' && otActualId) {
       var otNueva = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+      var fotoInputActiva = document.getElementById('ot-foto-input');
+      if (otNueva && typeof otRenderNotas === 'function' && (!fotoInputActiva || fotoInputActiva.dataset.subiendo !== '1')) {
+        // Las notas y fotos pueden cambiar desde otro dispositivo. Sincronizamos
+        // solamente esta sección para no pisar campos que el técnico esté editando.
+        otRenderNotas(otNueva);
+      }
       if (otNueva && window._otDetalleHuella) {
         var huellaNueva = JSON.stringify(otNueva);
         if (window._otDetalleHuella !== huellaNueva) {
@@ -5447,12 +5453,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.167-firebase',
+  VERSION: 'v2.0.168-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Cotizar online protege el precio anterior ante lecturas anormales.'
+    'Las fotos de OT se sincronizan y también aparecen si fueron guardadas con formatos anteriores.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Revisar productos' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar fotos de OT' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.168',
+      date: '23/07/2026',
+      title: 'Galería de OT sincronizada',
+      notes: Object.freeze(['Las fotos aparecen al guardarse o al llegar desde otro dispositivo, incluyendo evidencias de OTs antiguas.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar fotos de OT' })
+    }),
     Object.freeze({
       version: 'v2.0.167',
       date: '23/07/2026',
@@ -27181,16 +27194,59 @@ function otCargarCredenciales(ot) {
     box.style.display = 'none';
   });
 }
+function otFotoUrlDeNota(nota) {
+  if (!nota) return '';
+  if (typeof nota === 'string' && /^(?:https?:|data:image\/|blob:)/i.test(nota)) return nota;
+  if (typeof nota !== 'object') return '';
+  var fotoAnidada = nota.foto && typeof nota.foto === 'object' ? nota.foto : null;
+  return String(
+    nota.fotoUrl || nota.urlFoto || nota.imagenUrl || nota.imageUrl ||
+    nota.downloadURL || nota.fotoBase64 || nota.url ||
+    (typeof nota.foto === 'string' ? nota.foto : '') ||
+    (fotoAnidada && (fotoAnidada.url || fotoAnidada.fotoUrl || fotoAnidada.downloadURL)) ||
+    ''
+  ).trim();
+}
+
 function otNotasNormalizadas(ot) {
   var origen = ot && ot.notasTecnico;
-  if (Array.isArray(origen)) return origen.filter(Boolean);
-  if (origen && typeof origen === 'object') {
-    return Object.keys(origen).sort(function(a, b) {
+  var notas = [];
+  if (Array.isArray(origen)) {
+    notas = origen.filter(Boolean);
+  } else if (origen && typeof origen === 'object') {
+    notas = Object.keys(origen).sort(function(a, b) {
       var notaA = origen[a] || {}, notaB = origen[b] || {};
       return (parseInt(notaA.ts, 10) || 0) - (parseInt(notaB.ts, 10) || 0);
     }).map(function(key) { return origen[key]; }).filter(Boolean);
   }
-  return [];
+  notas = notas.map(function(nota) {
+    var normalizada = typeof nota === 'object'
+      ? Object.assign({}, nota)
+      : { texto:String(nota || '') };
+    var fotoUrl = otFotoUrlDeNota(nota);
+    if (fotoUrl) normalizada.fotoUrl = fotoUrl;
+    return normalizada;
+  });
+
+  // Compatibilidad con OTs que guardaron evidencias en colecciones separadas.
+  [ot && ot.fotos, ot && ot.fotosTecnico, ot && ot.evidenciasFotos].forEach(function(coleccion) {
+    var fotos = Array.isArray(coleccion) ? coleccion : Object.values(coleccion || {});
+    fotos.forEach(function(foto) {
+      var url = otFotoUrlDeNota(foto);
+      if (!url || notas.some(function(nota){ return otFotoUrlDeNota(nota) === url; })) return;
+      var datos = foto && typeof foto === 'object' ? foto : {};
+      notas.push({
+        texto: datos.texto || datos.descripcion || datos.titulo || 'Foto de la OT',
+        autor: datos.autor || datos.usuario || 'Técnico',
+        rol: datos.rol || 'tecnico',
+        ts: parseInt(datos.ts || datos.fechaTs || datos.timestamp, 10) || 0,
+        fotoUrl: url,
+        fotoStoragePath: datos.fotoStoragePath || datos.storagePath || '',
+        _fotoLegacy: true
+      });
+    });
+  });
+  return notas;
 }
 
 function otRenderNotas(ot) {
@@ -27204,7 +27260,7 @@ function otRenderNotas(ot) {
     var esGestion = rolActual === 'admin' || rolActual === 'administrativo';
     var esAutor = String(n.autor||'').trim().toLocaleLowerCase('es-AR') === String(currentUser||'').trim().toLocaleLowerCase('es-AR');
     var esPropia = esAutor || esGestion;
-    var puedeEliminar = esGestion || esAutor;
+    var puedeEliminar = !n._fotoLegacy && (esGestion || esAutor);
     var esAdmin  = ['admin','administrativo'].includes((n.rol||n.autor||'').toLowerCase()) || (n.autor||'') !== (currentUser||'');
     return '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px;border-left:3px solid '+(esPropia?'var(--blue)':'var(--border2)')+'">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
@@ -27388,7 +27444,11 @@ function otAgregarFoto(input) {
   if (!file) return;
   if (!String(file.type||'').startsWith('image/')) { notify('Seleccioná un archivo de imagen'); input.value=''; return; }
   if (file.size > 10*1024*1024) { notify('La foto no puede superar 10MB'); input.value=''; return; }
-  if (!window.fbStorage) { notify('Storage no disponible'); input.value=''; return; }
+  if (!window.fbStorage || !window.fbStorageRef || !window.fbUploadBytes || !window.fbGetDownloadURL) {
+    notify('La carga de fotos no está disponible. Actualizá la página y volvé a intentarlo.');
+    input.value='';
+    return;
+  }
   var inp  = document.getElementById('ot-nota-nueva');
   var texto = inp ? inp.value.trim() : 'Foto adjunta';
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
@@ -27397,7 +27457,8 @@ function otAgregarFoto(input) {
   input.dataset.subiendo = '1';
   var otIdAlSubir = ot.fbKey || ot.id || otActualId;
   var pendiente = otMostrarFotoPendiente(file);
-  var path = 'sisventas/ots/'+(ot.fbKey||otActualId)+'/fotos/'+Date.now()+'_'+file.name;
+  var nombreSeguro = String(file.name || 'foto.jpg').replace(/[^a-zA-Z0-9._-]+/g, '_');
+  var path = 'sisventas/ots/'+(ot.fbKey||otActualId)+'/fotos/'+Date.now()+'_'+nombreSeguro;
   var sRef = window.fbStorageRef(window.fbStorage, path);
   var fotoRegistradaEnOT = false;
   notify('Subiendo foto...');

@@ -107,7 +107,9 @@
     }
     if(step==='fotos'){
       var ot=findOT();
-      var notas=arr(ot&&ot.notasTecnico);
+      var notas=typeof window.otNotasNormalizadas==='function'
+        ? window.otNotasNormalizadas(ot)
+        : arr(ot&&ot.notasTecnico);
       return notas.some(function(n){ return n && (String(n.texto||'').trim() || n.fotoUrl); });
     }
     if(step==='finalizar') return !!((q('ot-acta-conf')||{}).value);
