@@ -4051,7 +4051,9 @@ function fbCargarOTs() {
 }
 
 function fbGuardarOT(ot) {
-  if (!window.fbDB) return Promise.resolve();
+  if (!window.fbDB || !window.fbRef || !window.fbUpdate || !window.fbPush) {
+    return Promise.reject(new Error('Firebase no está disponible'));
+  }
   window._otGuardandoLocalHasta = Date.now() + 2500;
   var r = window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo);
   var prom;
@@ -5453,12 +5455,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.171-firebase',
+  VERSION: 'v2.0.172-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Cada OT abre sus propios técnico, duración, credenciales y firma sin conservar datos de la orden anterior.'
+    'El inicio y el checklist de una OT sólo avanzan cuando Firebase confirma cada guardado.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir una OT' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Probar checklist' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.172',
+      date: '23/07/2026',
+      title: 'Checklist confirmado',
+      notes: Object.freeze(['La pantalla revierte el cambio y su historial si Firebase no logra guardar el inicio o un control de la OT.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Probar checklist' })
+    }),
     Object.freeze({
       version: 'v2.0.171',
       date: '23/07/2026',
@@ -27615,6 +27624,8 @@ function renderChecklist(containerId, checks, labels, otId, fase) {
   }
 }
 
+var _otChecklistGuardando = Object.create(null);
+
 function toggleChecklistFase(fase) {
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !CHECKLISTS[fase]) return;
@@ -27622,8 +27633,14 @@ function toggleChecklistFase(fase) {
     notify('La OT ya está finalizada y su checklist no puede modificarse.');
     return;
   }
+  var claveGuardado = String(ot.fbKey || ot.id || otActualId) + ':' + fase;
+  if (_otChecklistGuardando[claveGuardado]) {
+    notify('Esperá a que termine de guardarse esta etapa.');
+    return;
+  }
   normalizarChecklistOT(ot);
   var estadoAnterior = ot.checks[fase].slice();
+  var auditAnteriorLength = Array.isArray(ot.audit) ? ot.audit.length : 0;
   var marcar = !ot.checks[fase].every(Boolean);
   ot.checks[fase] = CHECKLISTS[fase].map(function(){ return marcar; });
   var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
@@ -27637,12 +27654,22 @@ function toggleChecklistFase(fase) {
   actualizarProgreso(ot);
   renderChecklist('checklist-' + fase, ot.checks[fase], CHECKLISTS[fase], otActualId, fase);
   if (typeof fbGuardarOT === 'function') {
-    fbGuardarOT(ot).catch(function(e){
-      ot.checks[fase] = estadoAnterior;
-      actualizarProgreso(ot);
-      renderChecklist('checklist-' + fase, ot.checks[fase], CHECKLISTS[fase], otActualId, fase);
-      notify('No se pudo guardar esta etapa: ' + e.message);
-    });
+    _otChecklistGuardando[claveGuardado] = true;
+    fbGuardarOT(ot)
+      .catch(function(e){
+        ot.checks[fase] = estadoAnterior;
+        if (Array.isArray(ot.audit)) ot.audit.length = auditAnteriorLength;
+        actualizarProgreso(ot);
+        renderChecklist('checklist-' + fase, ot.checks[fase], CHECKLISTS[fase], otActualId, fase);
+        notify('No se pudo guardar esta etapa: ' + e.message);
+      })
+      .finally(function(){ delete _otChecklistGuardando[claveGuardado]; });
+  } else {
+    ot.checks[fase] = estadoAnterior;
+    if (Array.isArray(ot.audit)) ot.audit.length = auditAnteriorLength;
+    actualizarProgreso(ot);
+    renderChecklist('checklist-' + fase, ot.checks[fase], CHECKLISTS[fase], otActualId, fase);
+    notify('No se pudo guardar esta etapa: Firebase no está disponible');
   }
 }
 
@@ -27650,8 +27677,14 @@ function toggleChecklistFase(fase) {
 function toggleCheckOT(otId, fase, idx) {
   const ot = otData.find(o => o.id === otId || o.fbKey === otId);
   if (!ot || otEstaCerrada(ot)) return;
+  var claveGuardado = String(ot.fbKey || ot.id || otId) + ':' + fase;
+  if (_otChecklistGuardando[claveGuardado]) {
+    notify('Esperá a que termine de guardarse este control.');
+    return;
+  }
   normalizarChecklistOT(ot);
   var valorAnterior = ot.checks[fase][idx];
+  var auditAnteriorLength = Array.isArray(ot.audit) ? ot.audit.length : 0;
   ot.checks[fase][idx] = !ot.checks[fase][idx];
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   if (!ot.audit) ot.audit = [];
@@ -27659,12 +27692,22 @@ function toggleCheckOT(otId, fase, idx) {
   actualizarProgreso(ot);
   renderChecklist(`checklist-${fase}`, ot.checks[fase], CHECKLISTS[fase], otId, fase);
   if (typeof fbGuardarOT === 'function') {
-    fbGuardarOT(ot).catch(function(e){
-      ot.checks[fase][idx] = valorAnterior;
-      actualizarProgreso(ot);
-      renderChecklist(`checklist-${fase}`, ot.checks[fase], CHECKLISTS[fase], otId, fase);
-      notify('No se pudo guardar el control: ' + e.message);
-    });
+    _otChecklistGuardando[claveGuardado] = true;
+    fbGuardarOT(ot)
+      .catch(function(e){
+        ot.checks[fase][idx] = valorAnterior;
+        if (Array.isArray(ot.audit)) ot.audit.length = auditAnteriorLength;
+        actualizarProgreso(ot);
+        renderChecklist(`checklist-${fase}`, ot.checks[fase], CHECKLISTS[fase], otId, fase);
+        notify('No se pudo guardar el control: ' + e.message);
+      })
+      .finally(function(){ delete _otChecklistGuardando[claveGuardado]; });
+  } else {
+    ot.checks[fase][idx] = valorAnterior;
+    if (Array.isArray(ot.audit)) ot.audit.length = auditAnteriorLength;
+    actualizarProgreso(ot);
+    renderChecklist(`checklist-${fase}`, ot.checks[fase], CHECKLISTS[fase], otId, fase);
+    notify('No se pudo guardar el control: Firebase no está disponible');
   }
 }
 

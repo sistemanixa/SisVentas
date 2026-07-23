@@ -95,7 +95,9 @@
     if (!ot) return Promise.reject(new Error('OT no encontrada'));
     if (action) audit(ot, action);
     window._otGuardandoLocalHasta = Date.now() + 3000;
-    var promise = typeof window.fbGuardarOT === 'function' ? window.fbGuardarOT(ot) : Promise.resolve();
+    var promise = typeof window.fbGuardarOT === 'function'
+      ? window.fbGuardarOT(ot)
+      : Promise.reject(new Error('Firebase no está disponible'));
     return Promise.resolve(promise).then(function () {
       updateGlobal();
       if (typeof window.verOT === 'function' && window.otActualId) window.verOT(ot.fbKey || ot.id);

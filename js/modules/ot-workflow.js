@@ -176,14 +176,25 @@
     var ot=findOT();
     if(!ot){ if(typeof notify==='function') notify('La OT todavía no terminó de cargar. Esperá unos segundos.'); return; }
     if(!ot.checks) ot.checks=checksBase();
+    var estadoAnterior=ot.estado;
+    var fechaInicioAnterior=ot.fechaInicio;
+    var auditLengthAnterior=Array.isArray(ot.audit)?ot.audit.length:0;
     ot.estado='en_progreso';
     ot.fechaInicio=ot.fechaInicio || new Date().toISOString();
     if(!ot.audit) ot.audit=[];
     ot.audit.push({fecha:new Date().toLocaleDateString('es-AR')+' '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),usuario:window.currentUser||'Sistema',accion:'OT iniciada'});
     var b=q('ot-det-estado-badge'); if(b && typeof otBadge==='function') b.innerHTML=otBadge('en_progreso');
     window._otGuardandoLocalHasta=Date.now()+2500;
-    var prom=(typeof fbGuardarOT==='function') ? fbGuardarOT(ot) : Promise.resolve();
-    prom.then(function(){ if(typeof notify==='function') notify('✓ OT iniciada'); show('checklist'); }).catch(function(e){ if(typeof notify==='function') notify('Error al iniciar OT: '+e.message); });
+    var prom=(typeof fbGuardarOT==='function')
+      ? fbGuardarOT(ot)
+      : Promise.reject(new Error('Firebase no está disponible'));
+    prom.then(function(){ if(typeof notify==='function') notify('✓ OT iniciada'); show('checklist'); }).catch(function(e){
+      ot.estado=estadoAnterior;
+      ot.fechaInicio=fechaInicioAnterior;
+      if(Array.isArray(ot.audit)) ot.audit.length=auditLengthAnterior;
+      if(b && typeof otBadge==='function') b.innerHTML=otBadge(ot);
+      if(typeof notify==='function') notify('Error al iniciar OT: '+e.message);
+    });
   };
   document.addEventListener('sisventas:ot-opened',function(){
     window._otWizardStep='cliente';
