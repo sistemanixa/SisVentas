@@ -2140,9 +2140,23 @@ function iaInicializar() {
 
 function fbCargarEmpleados() {
   if (!window.fbDB) return;
+  window._empleadosDatosListos = false;
+  window._empleadosCargaError = '';
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/empleados'), function(snap) {
     var data = snap.val();
-    if (!data) { empData = {}; renderTablaEmpleados(); return; }
+    window._empleadosDatosListos = true;
+    window._empleadosCargaError = '';
+    if (!data) {
+      empData = {};
+      renderTablaEmpleados();
+      renderAvisoProximasVacaciones();
+      if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
+      var paginaVacacionesVacia = document.getElementById('page-vacaciones');
+      if (paginaVacacionesVacia && paginaVacacionesVacia.classList.contains('active')) {
+        renderTablaVacaciones(window._vacPeriodos || []);
+      }
+      return;
+    }
 
     var todos = Object.entries(data).map(function(e) {
       return Object.assign({ fbKey: e[0] }, e[1]);
@@ -2208,6 +2222,19 @@ function fbCargarEmpleados() {
     }
     if (typeof actualizarControlComisionVenta === 'function') actualizarControlComisionVenta();
     if (typeof actualizarSelectEmpleados === 'function') actualizarSelectEmpleados();
+    var paginaVacaciones = document.getElementById('page-vacaciones');
+    if (paginaVacaciones && paginaVacaciones.classList.contains('active')) {
+      renderTablaVacaciones(window._vacPeriodos || []);
+    }
+  }, function(error) {
+    window._empleadosDatosListos = true;
+    window._empleadosCargaError = 'No se pudieron cargar los empleados';
+    console.error('[Empleados] No se pudo iniciar la sincronizacion', error);
+    renderTablaEmpleados();
+    var paginaVacacionesError = document.getElementById('page-vacaciones');
+    if (paginaVacacionesError && paginaVacacionesError.classList.contains('active')) {
+      renderTablaVacaciones(window._vacPeriodos || []);
+    }
   });
 }
 // HABERES DEL MES — Registro como gastos
@@ -2945,6 +2972,10 @@ async function confirmarRegistroAguinaldo() {
 function renderTablaEmpleados() {
   var tbody = document.getElementById('emp-tbody');
   if (!tbody) return;
+  if (window._empleadosCargaError) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--red);padding:24px">'+escapeHTML(window._empleadosCargaError)+'</td></tr>';
+    return;
+  }
   var busq = ((document.getElementById('emp-buscar')||{}).value||'').toLowerCase();
   var lista = Object.values(empData||{}).filter(function(e){
     return !busq || (e.nombre||'').toLowerCase().includes(busq) || String(e.legajo||'').includes(busq);
@@ -4963,6 +4994,8 @@ function _bloquearInterfazSinSesion(opciones) {
   window._otsListenerActivo = false;
   window._pagosListenerActivo = false;
   window._fbCargaTodoActiva = false;
+  window._empleadosDatosListos = false;
+  window._empleadosCargaError = '';
   svReiniciarCargaInicial();
   window._svModuleListeners = {};
   window._cajaListenerFirma = '';
@@ -5414,12 +5447,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.165-firebase',
+  VERSION: 'v2.0.166-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La sincronización queda estable al navegar, recargar datos y volver a ingresar.'
+    'Las pantallas distinguen correctamente entre datos cargando, vacíos y con error.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'dashboard', actionLabel:'Ir al inicio' }),
+  RELEASE_FEATURE: Object.freeze({ page:'vacaciones', actionLabel:'Revisar vacaciones' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.166',
+      date: '23/07/2026',
+      title: 'Estados de carga reales',
+      notes: Object.freeze(['Vacaciones deja de reintentar indefinidamente y muestra si los empleados están cargando, si no hay activos o si ocurrió un error.']),
+      feature: Object.freeze({ page:'vacaciones', actionLabel:'Revisar vacaciones' })
+    }),
     Object.freeze({
       version: 'v2.0.165',
       date: '23/07/2026',
@@ -22727,9 +22767,20 @@ function renderModuloVacaciones() {
 function renderTablaVacaciones(periodos) {
   var tbody = document.getElementById('vac-tbody'); if (!tbody) return;
   var empleados = Object.values(empData||{}).filter(function(e){ return e.activo!==false && e.tipoEmpleado !== 'Vendedor a comisión'; });
-  if (!empleados.length && Object.keys(empData||{}).length === 0) {
+  if (window._empleadosCargaError) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--red);padding:24px">'+escapeHTML(window._empleadosCargaError)+'</td></tr>';
+    return;
+  }
+  if (!window._empleadosDatosListos) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Cargando empleados...</td></tr>';
-    setTimeout(function(){ renderTablaVacaciones(periodos); }, 600);
+    return;
+  }
+  if (!empleados.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin empleados activos</td></tr>';
+    var _vacSet = function(id,valor){ var el=document.getElementById(id); if(el) el.textContent=valor; };
+    _vacSet('vac-total',0);
+    _vacSet('vac-pendientes',0);
+    _vacSet('vac-activas',0);
     return;
   }
   var hoy = svFechaLocalISO();
