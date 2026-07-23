@@ -5455,12 +5455,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.173-firebase',
+  VERSION: 'v2.0.174-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La guía de OT permanece estable al escribir y las credenciales admiten contraseñas con cualquier carácter.'
+    'Las evidencias de OT se guardan sin pisarse, la firma vuelve a verse y el acta se abre directamente.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Recorrer una OT' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar trabajo técnico' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.174',
+      date: '23/07/2026',
+      title: 'Evidencias técnicas visibles',
+      notes: Object.freeze(['Credenciales, notas y fotos se agrupan en Trabajo técnico; cada evidencia se guarda de forma independiente y el acta muestra la firma almacenada.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar trabajo técnico' })
+    }),
     Object.freeze({
       version: 'v2.0.173',
       date: '23/07/2026',
@@ -13378,15 +13385,36 @@ function abrirModalImprimir(context, titulo) {
   body.innerHTML = '<div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:14px;font-size:13px;color:var(--text2)"><i class="ti ti-printer" style="font-size:16px;margin-right:8px;color:var(--text3)"></i><strong>' + escapeHTML(titulo||'') + '</strong><br><span style="font-size:12px;color:var(--text3)">Se abrirá una ventana para imprimir o guardar como PDF.</span></div>';
   document.getElementById('modal-print').classList.add('open');
 }
+
+function otFirmaUrl(ot) {
+  if (!ot || typeof ot !== 'object') return '';
+  var firma = ot.firmaClienteUrl || ot.firmaUrl || ot.firmaURL ||
+    ot.firmaBase64 || ot.firmaCliente || ot.firma || '';
+  if (firma && typeof firma === 'object') {
+    firma = firma.url || firma.downloadURL || firma.dataUrl || firma.base64 || '';
+  }
+  return String(firma || '').trim();
+}
+
+function imprimirActaOT() {
+  _printContext = 'ot';
+  _imprimirOTReal();
+}
+
 function _imprimirOTReal() {
   var ot = otData ? otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; }) : null;
   if (!ot) { notify('OT no encontrada'); return; }
   var empresa = { nombre:(document.getElementById('cfg-empresa-nombre')||{}).value||'Nixa', dir:(document.getElementById('cfg-empresa-dir')||{}).value||'Patagones 390, Mar del Plata' };
   var logo = window.logoEmpresaUrl ? '<img src="'+window.logoEmpresaUrl+'" style="height:45px;object-fit:contain">' : '<div style="font-size:20px;font-weight:700">'+empresa.nombre+'</div>';
+  var firmaUrl = otFirmaUrl(ot);
   var w = window.open('','_blank','width=850,height=700');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OT '+ot.id+'</title><style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}.field{background:#f9f9f9;border-radius:6px;padding:10px}label{font-size:10px;color:#888;text-transform:uppercase;display:block;margin-bottom:2px}.firma{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px}.firma-line{border-top:1px solid #222;padding-top:6px;font-size:11px;color:#666;text-align:center}@media print{body{margin:20px}}</style></head><body>'+
+  if (!w) {
+    notify('El navegador bloqueó la ventana del acta. Habilitá las ventanas emergentes para este sitio.');
+    return;
+  }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Acta '+escapeHTML(ot.id||'')+'</title><style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}.field{background:#f9f9f9;border-radius:6px;padding:10px}label{font-size:10px;color:#888;text-transform:uppercase;display:block;margin-bottom:2px}.firma{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px}.firma-line{border-top:1px solid #222;padding-top:6px;font-size:11px;color:#666;text-align:center}@media print{body{margin:20px}}</style></head><body>'+
     '<div class="header"><div>'+logo+'<div style="font-size:11px;color:#666;margin-top:4px">'+empresa.dir+'</div></div>'+
-    '<div style="text-align:right"><div style="font-size:18px;font-weight:700">Orden de Trabajo</div><div style="font-size:15px;font-weight:500">'+escapeHTML(ot.id)+'</div><div style="font-size:12px;color:#666">'+escapeHTML(ot.fecha||'')+'</div></div></div>'+
+    '<div style="text-align:right"><div style="font-size:18px;font-weight:700">Acta de entrega</div><div style="font-size:15px;font-weight:500">'+escapeHTML(ot.id||'')+'</div><div style="font-size:12px;color:#666">'+escapeHTML(ot.fechaCierre||ot.fechaCompletada||ot.fecha||'')+'</div></div></div>'+
     (function(){
       var dir = ot.dir || ot.direccion || '';
       if (!dir && ot.cliente) {
@@ -13419,15 +13447,37 @@ function _imprimirOTReal() {
         '<div class="field"><label>Venta vinculada</label>'+escapeHTML(ot.ventaId||'—')+'</div>'+
       '</div>'+
       (ot.obs?'<div class="field" style="margin-bottom:16px"><label>Descripción del trabajo</label>'+escapeHTML(ot.obs)+'</div>':'')+
+      ((ot.observacionesCierre||ot.obsTecnico)?'<div class="field" style="margin-bottom:16px"><label>Observaciones del técnico</label>'+escapeHTML(ot.observacionesCierre||ot.obsTecnico||'')+'</div>':'')+
+      '<div class="field" style="margin-bottom:16px"><label>Conformidad del cliente</label>'+escapeHTML(ot.conformidadCliente||'Pendiente')+(ot.nombreConformidad||ot.firmaNombreCliente?' · '+escapeHTML(ot.nombreConformidad||ot.firmaNombreCliente):'')+'</div>'+
       matsHtml + notasHtml;
     })()+
     '<div class="firma"><div>' +
-      (ot.firmaClienteUrl ? '<img src="'+ot.firmaClienteUrl+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
-      '<div class="firma-line">Firma del cliente'+(ot.firmaClienteUrl?' ✓':''+(ot.fechaFirma?' · '+ot.fechaFirma:''))+'</div></div>'+
+      (firmaUrl ? '<img src="'+escapeHTML(firmaUrl)+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
+      '<div class="firma-line">Firma del cliente'+(firmaUrl?' ✓':'')+(ot.fechaFirma?' · '+escapeHTML(ot.fechaFirma):'')+'</div></div>'+
       '<div><div style="height:60px"></div><div class="firma-line">Firma del técnico</div></div></div>'+
     '</body></html>');
   w.document.close();
-  setTimeout(function(){ w.print(); }, 500);
+  var imprimirCuandoCargue = function() {
+    try { w.focus(); w.print(); } catch (error) { notify('No se pudo abrir la impresión del acta: ' + error.message); }
+  };
+  var imagenes = Array.prototype.slice.call(w.document.images || []);
+  if (!imagenes.length || imagenes.every(function(img){ return img.complete; })) {
+    setTimeout(imprimirCuandoCargue, 300);
+  } else {
+    var pendientes = imagenes.length;
+    var terminarImagen = function() {
+      pendientes--;
+      if (pendientes <= 0) setTimeout(imprimirCuandoCargue, 200);
+    };
+    imagenes.forEach(function(img) {
+      if (img.complete) terminarImagen();
+      else {
+        img.addEventListener('load', terminarImagen, {once:true});
+        img.addEventListener('error', terminarImagen, {once:true});
+      }
+    });
+    setTimeout(function(){ if (pendientes > 0) { pendientes = 0; imprimirCuandoCargue(); } }, 2500);
+  }
 }
 function anularPago(fbKey) {
   if (typeof window.tienePermiso === 'function' && !window.tienePermiso('cobranzas.anular', { args:[fbKey] })) { notify('No tenés permiso para anular cobros'); return; }
@@ -26649,6 +26699,11 @@ function verOT(id) {
     conformidadSelect.value = conformidadGuardada || '';
     conformidadSelect.disabled = otCerrada;
   }
+  var observacionesCierre = document.getElementById('ot-acta-obs');
+  if (observacionesCierre) {
+    observacionesCierre.value = ot.observacionesCierre || ot.actaObservaciones || '';
+    observacionesCierre.readOnly = otCerrada;
+  }
   var conformidadNombre = document.getElementById('ot-acta-firma');
   if (conformidadNombre) {
     conformidadNombre.value = ot.nombreConformidad || ot.firmaNombreCliente || '';
@@ -26965,6 +27020,7 @@ function firmaLimpiar(soloVisual) {
   var canvas = document.getElementById('firma-canvas');
   if (!canvas || !_firmaCtx) return;
   _firmaCtx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+  canvas.style.backgroundImage = 'none';
   _firmaTiene = false;
   document.getElementById('firma-placeholder').style.display = '';
   document.getElementById('firma-guardada-badge').style.display = 'none';
@@ -27109,10 +27165,12 @@ function firmaGuardarEnOT(firmaUrl, storagePath, otObjetivoId) {
 }
 
 function firmaCargar(ot) {
-  if (!ot || !ot.firmaClienteUrl) return;
+  var firmaUrl = otFirmaUrl(ot);
+  if (!firmaUrl) return;
   var badge = document.getElementById('firma-guardada-badge');
   var preview = document.getElementById('firma-preview');
   var img     = document.getElementById('firma-img');
+  var canvas  = document.getElementById('firma-canvas');
   if (badge)   badge.style.display = '';
   if (badge) {
     badge.style.background = 'var(--green-bg)';
@@ -27121,9 +27179,28 @@ function firmaCargar(ot) {
     badge.textContent = '✓ Firma guardada';
   }
   if (preview) preview.style.display = '';
-  if (img)     img.src = ot.firmaClienteUrl;
+  if (img) {
+    img.style.display = 'block';
+    img.onerror = function() {
+      this.style.display = 'none';
+      if (badge) {
+        badge.style.background = 'var(--red-bg)';
+        badge.style.color = 'var(--red)';
+        badge.style.borderColor = 'var(--red)';
+        badge.textContent = 'Firma guardada, pero no se pudo mostrar';
+      }
+    };
+    img.src = firmaUrl;
+  }
+  if (canvas) {
+    canvas.style.backgroundImage = 'url("' + String(firmaUrl).replace(/["\\\n\r]/g, '') + '")';
+    canvas.style.backgroundRepeat = 'no-repeat';
+    canvas.style.backgroundPosition = 'center';
+    canvas.style.backgroundSize = 'contain';
+  }
   _firmaTiene = true;
-  document.getElementById('firma-placeholder').style.display = 'none';
+  var placeholder = document.getElementById('firma-placeholder');
+  if (placeholder) placeholder.style.display = 'none';
 }
 
 var _otCredencialesCargaSecuencia = 0;
@@ -27270,11 +27347,22 @@ function otFotoUrlDeNota(nota) {
   if (typeof nota === 'string' && /^(?:https?:|data:image\/|blob:)/i.test(nota)) return nota;
   if (typeof nota !== 'object') return '';
   var fotoAnidada = nota.foto && typeof nota.foto === 'object' ? nota.foto : null;
+  var imagenAnidada = nota.imagen && typeof nota.imagen === 'object' ? nota.imagen : null;
+  var archivoAnidado = nota.archivo && typeof nota.archivo === 'object' ? nota.archivo : null;
+  var adjuntoAnidado = nota.adjunto && typeof nota.adjunto === 'object' ? nota.adjunto : null;
   return String(
     nota.fotoUrl || nota.urlFoto || nota.imagenUrl || nota.imageUrl ||
-    nota.downloadURL || nota.fotoBase64 || nota.url ||
+    nota.downloadURL || nota.fotoBase64 || nota.imagenBase64 ||
+    nota.archivoUrl || nota.adjuntoUrl || nota.mediaUrl ||
+    nota.photoURL || nota.photoUrl || nota.src || nota.url ||
     (typeof nota.foto === 'string' ? nota.foto : '') ||
-    (fotoAnidada && (fotoAnidada.url || fotoAnidada.fotoUrl || fotoAnidada.downloadURL)) ||
+    (typeof nota.imagen === 'string' ? nota.imagen : '') ||
+    (typeof nota.archivo === 'string' ? nota.archivo : '') ||
+    (typeof nota.adjunto === 'string' ? nota.adjunto : '') ||
+    (fotoAnidada && (fotoAnidada.url || fotoAnidada.fotoUrl || fotoAnidada.downloadURL || fotoAnidada.src)) ||
+    (imagenAnidada && (imagenAnidada.url || imagenAnidada.imagenUrl || imagenAnidada.downloadURL || imagenAnidada.src)) ||
+    (archivoAnidado && (archivoAnidado.url || archivoAnidado.archivoUrl || archivoAnidado.downloadURL || archivoAnidado.src)) ||
+    (adjuntoAnidado && (adjuntoAnidado.url || adjuntoAnidado.adjuntoUrl || adjuntoAnidado.downloadURL || adjuntoAnidado.src)) ||
     ''
   ).trim();
 }
@@ -27300,7 +27388,16 @@ function otNotasNormalizadas(ot) {
   });
 
   // Compatibilidad con OTs que guardaron evidencias en colecciones separadas.
-  [ot && ot.fotos, ot && ot.fotosTecnico, ot && ot.evidenciasFotos].forEach(function(coleccion) {
+  [
+    ot && ot.fotos,
+    ot && ot.fotosTecnico,
+    ot && ot.fotosVisita,
+    ot && ot.evidenciasFotos,
+    ot && ot.evidencias,
+    ot && ot.imagenes,
+    ot && ot.adjuntos,
+    ot && ot.archivos
+  ].forEach(function(coleccion) {
     var fotos = Array.isArray(coleccion) ? coleccion : Object.values(coleccion || {});
     fotos.forEach(function(foto) {
       var url = otFotoUrlDeNota(foto);
@@ -27431,13 +27528,18 @@ function otAgregarNota() {
   var texto = inp ? inp.value.trim() : '';
   if (!texto) { notify('Ingresá el texto de la nota'); return; }
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
-  if (!ot || !window.fbDB) return;
-  var notas = otNotasNormalizadas(ot).slice();
-  notas.push({ texto, autor: currentUser||'Técnico', ts: Date.now() });
+  if (!ot || !window.fbDB || !window.fbPush) return;
+  var notaNueva = { texto:texto, autor:currentUser||'Técnico', rol:currentRole||'tecnico', ts:Date.now() };
   var key = ot.fbKey || otActualId;
   window._otGuardandoLocalHasta = Date.now() + 2500;
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico: notas })
+  window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico'), notaNueva)
     .then(function(){
+      var notas = otNotasNormalizadas(ot).slice();
+      if (!notas.some(function(nota) {
+        return Number(nota && nota.ts) === notaNueva.ts &&
+          String(nota && nota.texto || '') === notaNueva.texto &&
+          String(nota && nota.autor || '') === notaNueva.autor;
+      })) notas.push(notaNueva);
       ot.notasTecnico = notas;
       window._otDetalleHuella = JSON.stringify(ot);
       otRenderNotas(ot);
@@ -27536,25 +27638,29 @@ function otAgregarFoto(input) {
   window.fbUploadBytes(sRef, file).then(function(){
     return window.fbGetDownloadURL(sRef);
   }).then(function(url) {
-    return otComprobarFotoVisible(url).then(function(){ return url; });
-  }).then(function(url) {
-    var notas = otNotasNormalizadas(ot).slice();
-    notas.push({
+    var notaFoto = {
       texto: texto||'Foto',
       autor: currentUser||'Técnico',
       rol: currentRole||'tecnico',
       ts: Date.now(),
       fotoUrl: url,
-      fotoStoragePath: path
-    });
+      fotoStoragePath: path,
+      fotoNombre: file.name || nombreSeguro,
+      fotoTipo: file.type || 'image/*',
+      fotoTamano: file.size || 0
+    };
     var key = ot.fbKey || otActualId;
     window._otGuardandoLocalHasta = Date.now() + 2500;
-    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico: notas })
+    return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico'), notaFoto)
       .then(function(){
         fotoRegistradaEnOT = true;
-        return notas;
+        return { nota:notaFoto, url:url };
       });
-  }).then(function(notas){
+  }).then(function(resultado){
+    var notas = otNotasNormalizadas(ot).slice();
+    if (!notas.some(function(nota) {
+      return otFotoUrlDeNota(nota) === resultado.url;
+    })) notas.push(resultado.nota);
     ot.notasTecnico = notas;
     window._otDetalleHuella = JSON.stringify(ot);
     pendiente.cerrar();
@@ -27563,7 +27669,14 @@ function otAgregarFoto(input) {
     }
     if(inp) inp.value='';
     input.value='';
-    notify('✓ Foto guardada y verificada en la galería');
+    notify('✓ Foto guardada en la OT y visible en la galería');
+    otComprobarFotoVisible(resultado.url).catch(function() {
+      var estadoFotos = document.getElementById('ot-fotos-estado');
+      if (estadoFotos) {
+        estadoFotos.style.color = 'var(--amber)';
+        estadoFotos.innerHTML = '<i class="ti ti-alert-triangle"></i> La foto quedó guardada, pero esta conexión no pudo cargar la miniatura. Podés abrir el archivo original.';
+      }
+    });
   }).catch(function(e){
     if (!fotoRegistradaEnOT && window.fbDeleteObject) {
       window.fbDeleteObject(sRef).catch(function(){});
@@ -27773,6 +27886,7 @@ function completarOT() {
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   var estadoCierre = custodiaCierre.conObservaciones ? 'con_observaciones' : 'completada';
   var nombreConformidadCierre = ((document.getElementById('ot-acta-firma')||{}).value || '').trim();
+  var observacionesCierre = ((document.getElementById('ot-acta-obs')||{}).value || '').trim();
   var hoyCierre = svFechaLocalISO();
   var auditCierre = Array.isArray(ot.audit) ? ot.audit.slice() : [];
   auditCierre.push({ fecha: ahora, usuario: currentUser || (currentRole === 'admin' ? 'Admin' : ot.tecnico), accion: custodiaCierre.conObservaciones ? 'OT cerrada con materiales pendientes clasificados. Conformidad: ' + conf : 'OT marcada como completada. Conformidad: ' + conf });
@@ -27783,6 +27897,7 @@ function completarOT() {
     progreso: 100,
     conformidadCliente: conf,
     nombreConformidad: nombreConformidadCierre,
+    observacionesCierre: observacionesCierre,
     fechaCierre: ot.fechaCierre || hoyCierre,
     fechaCompletada: ot.fechaCompletada || hoyCierre,
     audit: auditCierre

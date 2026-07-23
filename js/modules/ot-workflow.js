@@ -62,7 +62,7 @@
     {id:'reclamo', titulo:'Reclamo', ayuda:'Motivo original, historial y seguimiento del reclamo asociado.', sel:'#ot-reclamo-hist', origen:'reclamo'},
     {id:'materiales', titulo:'Materiales', ayuda:'Productos a instalar o materiales asociados a la venta.', sel:'#ot-materiales'},
     {id:'checklist', titulo:'Checklist', ayuda:'Control de preparación, instalación y verificación.', sel:'#checklist-preparacion,#ot-progress-fill'},
-    {id:'fotos', titulo:'Fotos y notas', ayuda:'Notas técnicas y fotos del trabajo realizado.', sel:'#ot-notas-lista,#ot-fotos-preview,#ot-nota-nueva'},
+    {id:'fotos', titulo:'Trabajo técnico', ayuda:'Credenciales, notas técnicas, fotos y evidencias del trabajo realizado.', sel:'#ot-notas-lista,#ot-fotos-preview,#ot-nota-nueva,#ot-cred-lista'},
     {id:'finalizar', titulo:'Finalizar', ayuda:'Acta de entrega, conformidad, firma y cierre de la OT.', sel:'#ot-acta-conf,#firma-canvas,#btn-completar-ot'},
     {id:'historial', titulo:'Historial', ayuda:'Auditoría interna de la orden.', sel:'#ot-audit', admin:true}
   ];
@@ -94,7 +94,8 @@
       for(var i=0;i<pasos.length;i++){
         if(card.querySelector(pasos[i].sel)){ card.setAttribute('data-ot-wstep', pasos[i].id); break; }
       }
-      if(!card.getAttribute('data-ot-wstep') && (card.querySelector('#ot-cred-lista') || card.querySelector('#ot-reclamo-hist'))) card.setAttribute('data-ot-wstep','cliente');
+      if(!card.getAttribute('data-ot-wstep') && card.querySelector('#ot-cred-lista')) card.setAttribute('data-ot-wstep','fotos');
+      if(!card.getAttribute('data-ot-wstep') && card.querySelector('#ot-reclamo-hist')) card.setAttribute('data-ot-wstep','cliente');
     });
   }
   function done(step){
