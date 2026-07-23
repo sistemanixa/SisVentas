@@ -1,6 +1,6 @@
 ﻿/* SisVentas NIXA - Service Worker v2.0.61
-   Versión v2.0.160. Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v2.0.160';
+   Versión v2.0.161. Estrategia: red primero con cache de respaldo. */
+const CACHE = 'sisventas-v2.0.161';
 const SHELL = [
   './',
   './index.html',
@@ -82,8 +82,10 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
+  // Todo el código y los estilos deben salir de la red sin la caché HTTP
+  // intermedia. Así una versión nueva no mezcla módulos nuevos y antiguos.
   const esArchivoCritico = event.request.mode === 'navigate'
-    || /\/(?:index\.html|sw\.js|js\/app\.js|js\/core\/version\.js)$/.test(url.pathname);
+    || /\/(?:index\.html|sw\.js|js\/.*\.js|css\/.*\.css)$/.test(url.pathname);
   const solicitudRed = esArchivoCritico
     ? new Request(event.request, { cache: 'no-store' })
     : event.request;

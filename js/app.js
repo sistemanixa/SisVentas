@@ -2478,7 +2478,10 @@ function abrirFormCargaHsExtra() {
   var prev = document.getElementById('modal-hsextra');
   if (prev) prev.remove();
 
-  var hoy = new Date().toISOString().split('T')[0];
+  // Precargar el día local; UTC podía adelantar la fecha del formulario.
+  var hoy = (typeof svFechaLocalISO === 'function')
+    ? svFechaLocalISO()
+    : new Date().toLocaleDateString('en-CA');
   var overlay = document.createElement('div');
   overlay.id = 'modal-hsextra';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
@@ -5359,12 +5362,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.160-firebase',
+  VERSION: 'v2.0.161-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Edición de productos segura y búsqueda visual mejorada.'
+    'Fechas locales correctas y actualización completa sin mezclar archivos viejos.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Abrir productos' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir órdenes de trabajo' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.161',
+      date: '23/07/2026',
+      title: 'Agenda y actualización coherentes',
+      notes: Object.freeze(['Las OT respetan el día local y cada actualización renueva todos los archivos del sistema.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir órdenes de trabajo' })
+    }),
     Object.freeze({
       version: 'v2.0.160',
       date: '23/07/2026',
@@ -25816,7 +25826,11 @@ function otBadge(estado) {
 
 // Renderizar OTs — diferenciado por rol
 function renderOTTabla(filtro) {
-  var hoy = new Date().toISOString().split('T')[0];
+  // La agenda debe comparar con el día local de la empresa. Usar UTC podía
+  // hacer aparecer como "de hoy" una OT programada para mañana.
+  var hoy = (typeof svFechaLocalISO === 'function')
+    ? svFechaLocalISO()
+    : new Date().toLocaleDateString('en-CA');
   var mes = hoy.slice(0,7);
   var _e = function(id){ return document.getElementById(id); };
   // Si no se pasa filtro, leer el selector. Por defecto se muestran todos.
