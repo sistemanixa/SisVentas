@@ -5355,6 +5355,12 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   page.classList.add('active');
   if (el && el.classList) el.classList.add('active');
+  // Tesorería trabaja con datos ya sincronizados en memoria. Se renderiza en
+  // el mismo ciclo de navegación para que nunca llegue a mostrar los $0 del
+  // HTML inicial ni cambie de tamaño unos milisegundos después.
+  if (id === 'tesoreria' && typeof window.renderTesoreria === 'function') {
+    window.renderTesoreria();
+  }
   _svActualizarRuta(id, !window.location.hash);
 
   var _titulo = titles[id] || 'SisVentas';
@@ -5562,12 +5568,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.179-firebase',
+  VERSION: 'v2.0.180-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las OT manuales buscan clientes cargados y toman su domicilio correcto.'
+    'Tesorería abre con sus valores finales sin repintados tardíos.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar OT manual' }),
+  RELEASE_FEATURE: Object.freeze({ page:'tesoreria', actionLabel:'Abrir Tesorería' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.180',
+      date: '23/07/2026',
+      title: 'Tesorería sin pantallazos',
+      notes: Object.freeze(['Los valores y movimientos se renderizan antes de mostrar el módulo y se eliminaron dos repintados tardíos.']),
+      feature: Object.freeze({ page:'tesoreria', actionLabel:'Abrir Tesorería' })
+    }),
     Object.freeze({
       version: 'v2.0.179',
       date: '23/07/2026',

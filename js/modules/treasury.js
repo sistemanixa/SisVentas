@@ -97,7 +97,6 @@
     setTimeout(function(){
       var title=document.getElementById('page-title');
       if(title) title.textContent='Tesorería';
-      window.renderTesoreria();
     },100);
   });
 })();

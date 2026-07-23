@@ -171,26 +171,24 @@
     modal.classList.add('open');
   };
   function agregarDetalleTesoreria270(){
-    setTimeout(function(){
-      var el = document.getElementById('tes-lista');
-      if (!el) return;
-      var cards = Array.from(el.children || []);
-      var pagos = (typeof window._tesoreriaPagos === 'function' ? window._tesoreriaPagos() : []);
-      cards.forEach(function(card, i){
-        if (!card || card.querySelector('[data-tes-detalle-270]')) return;
-        var txt = norm(card.textContent||'');
-        var p = pagos.find(function(x){ return txt.includes(norm(x.gastoDesc||'')) && txt.includes(norm(x.medio||x.medioPago||'')); });
-        if (!p) return;
-        var key = esc(pagoKey(p));
-        var div = document.createElement('button');
-        div.className = 'btn btn-sm';
-        div.setAttribute('data-tes-detalle-270','1');
-        div.innerHTML = '<i class="ti ti-eye"></i> Ver detalle';
-        div.onclick = function(ev){ ev.stopPropagation(); window.tesAbrirDetallePago270(key); };
-        var last = card.lastElementChild || card;
-        if (last) last.appendChild(div);
-      });
-    }, 80);
+    var el = document.getElementById('tes-lista');
+    if (!el) return;
+    var cards = Array.from(el.children || []);
+    var pagos = (typeof window._tesoreriaPagos === 'function' ? window._tesoreriaPagos() : []);
+    cards.forEach(function(card){
+      if (!card || card.querySelector('[data-tes-detalle-270]')) return;
+      var txt = norm(card.textContent||'');
+      var p = pagos.find(function(x){ return txt.includes(norm(x.gastoDesc||'')) && txt.includes(norm(x.medio||x.medioPago||'')); });
+      if (!p) return;
+      var key = esc(pagoKey(p));
+      var div = document.createElement('button');
+      div.className = 'btn btn-sm';
+      div.setAttribute('data-tes-detalle-270','1');
+      div.innerHTML = '<i class="ti ti-eye"></i> Ver detalle';
+      div.onclick = function(ev){ ev.stopPropagation(); window.tesAbrirDetallePago270(key); };
+      var last = card.lastElementChild || card;
+      if (last) last.appendChild(div);
+    });
   }
   document.addEventListener('sisventas:treasury-rendered', agregarDetalleTesoreria270);
   document.addEventListener('sisventas:page-changed', function(event){
@@ -198,6 +196,5 @@
       if (page === 'ctaemp') setTimeout(function(){
         if (window.ctaEmpActual && typeof cargarCtaEmp === 'function') cargarCtaEmp(window.ctaEmpActual);
       }, 250);
-      if (page === 'tesoreria' && typeof window.renderTesoreria === 'function') setTimeout(window.renderTesoreria, 180);
   });
 })();
