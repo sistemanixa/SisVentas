@@ -3930,6 +3930,8 @@ function fbGuardarPresupuesto(ppto) {
 }
 function fbCargarOTs() {
   if (!window.fbDB) return;
+  if (window._otsListenerActivo) return;
+  window._otsListenerActivo = true;
   window.fbOnValue(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), function(snap) {
     var data = snap.val();
     if (data) {
@@ -3943,6 +3945,11 @@ function fbCargarOTs() {
     if (pageAgenda && pageAgenda.classList.contains('active')) {
       if (typeof agRenderCalendario === 'function') agRenderCalendario();
       if (typeof agActualizarMetricas === 'function') agActualizarMetricas();
+    }
+    var pageOT = document.getElementById('page-ordentrabajo');
+    var otListEl = document.getElementById('ot-list-view');
+    if (pageOT && pageOT.classList.contains('active') && (!otListEl || otListEl.style.display !== 'none')) {
+      if (typeof renderOTTabla === 'function') renderOTTabla();
     }
     // guardado automático — refrescar en caliente podría pisar lo que el usuario está
     var otDetEl = document.getElementById('ot-detalle-view');
@@ -3963,6 +3970,10 @@ function fbCargarOTs() {
     }
     var pageDash = document.getElementById('page-dashboard');
     if (pageDash && pageDash.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
+  }, function(error) {
+    window._otsListenerActivo = false;
+    console.error('[OT] No se pudo iniciar la sincronización', error);
+    if (typeof notify === 'function') notify('No se pudieron sincronizar las órdenes de trabajo');
   });
 }
 
@@ -5362,12 +5373,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.163-firebase',
+  VERSION: 'v2.0.164-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Firma, checklist y cierre de OT verificados.'
+    'Las OT se sincronizan y muestran sus estados sin recargar.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar una OT' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.164',
+      date: '23/07/2026',
+      title: 'OT sincronizadas en vivo',
+      notes: Object.freeze(['El listado se actualiza al recibir cambios, las métricas no saltan y los estados de cierre antiguos se interpretan correctamente.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Abrir órdenes de trabajo' })
+    }),
     Object.freeze({
       version: 'v2.0.163',
       date: '23/07/2026',
@@ -25942,11 +25960,30 @@ var CHECKLISTS = {
 var otActualId = null;
 
 // Badge de estado OT
+function otEstadoNormalizado(ot) {
+  var estado = String(ot && typeof ot === 'object' ? (ot.estado || ot.estadoOT || ot.estadoOrden || '') : (ot || ''))
+    .toLowerCase()
+    .trim()
+    .replace(/[\s-]+/g, '_');
+  return estado;
+}
+
+function otEstaCerrada(ot) {
+  return [
+    'completada','completado','con_observaciones',
+    'finalizada','finalizado','cerrada','cerrado','terminada','terminado'
+  ].indexOf(otEstadoNormalizado(ot)) >= 0;
+}
+
+window.otEstadoNormalizado = otEstadoNormalizado;
+window.otEstaCerrada = otEstaCerrada;
+
 function otEstadoParaMostrar(ot) {
-  if (!ot || typeof ot !== 'object') return String(ot || '');
-  var estado = String(ot.estado || '').toLowerCase();
-  var progreso = parseFloat(ot.progreso) || 0;
-  if (progreso >= 100 && ['completada','con_observaciones'].indexOf(estado) < 0) return 'lista_finalizar';
+  if (!ot) return '';
+  var estado = otEstadoNormalizado(ot);
+  if (otEstaCerrada(ot)) return estado === 'con_observaciones' ? estado : 'completada';
+  var progreso = parseFloat(ot && typeof ot === 'object' ? ot.progreso : 0) || 0;
+  if (progreso >= 100) return 'lista_finalizar';
   return estado;
 }
 window.otEstadoParaMostrar = otEstadoParaMostrar;
@@ -25981,9 +26018,9 @@ function renderOTTabla(filtro) {
   }
 
   // Métricas (iguales para todos)
-  var esCompletadaOT = function(o){ return ['completada','con_observaciones'].indexOf(String(o && (o.estado || '')).toLowerCase()) >= 0; };
+  var esCompletadaOT = otEstaCerrada;
   if (_e('ot-met-abiertas')) _e('ot-met-abiertas').textContent = otData.filter(function(o){ return !esCompletadaOT(o); }).length;
-  if (_e('ot-met-hoy'))      _e('ot-met-hoy').textContent      = otData.filter(function(o){ return String(o.fecha||'').slice(0,10) === hoy; }).length;
+  if (_e('ot-met-hoy'))      _e('ot-met-hoy').textContent      = otData.filter(function(o){ return !esCompletadaOT(o) && String(o.fecha||'').slice(0,10) === hoy; }).length;
   if (_e('ot-met-comp'))     _e('ot-met-comp').textContent     = otData.filter(esCompletadaOT).length;
   if (typeof window.otCustodiaActualizarResumenGlobal === 'function') window.otCustodiaActualizarResumenGlobal();
 
@@ -26039,7 +26076,7 @@ function _renderOTVistaTenico(hoy) {
 
   var miNombre = currentUser || '';
   var mias = otData.filter(function(o){
-    return ['completada','con_observaciones'].indexOf(String(o.estado || '').toLowerCase()) < 0 &&
+    return !otEstaCerrada(o) &&
       (o.tecnico === miNombre || !miNombre);
   });
 
@@ -26390,8 +26427,7 @@ function verOT(id) {
   renderChecklist('checklist-instalacion', ot.checks.instalacion, CHECKLISTS.instalacion, otActualId, 'instalacion');
   renderChecklist('checklist-verificacion', ot.checks.verificacion, CHECKLISTS.verificacion, otActualId, 'verificacion');
   actualizarProgreso(ot);
-  var estadoOTAbierta = String(ot.estado || '').toLowerCase();
-  var otCerrada = ['completada','con_observaciones'].indexOf(estadoOTAbierta) >= 0;
+  var otCerrada = otEstaCerrada(ot);
   var conformidadGuardada = typeof ot.conformidadCliente === 'string' ? ot.conformidadCliente : '';
   if (!conformidadGuardada && otCerrada && Array.isArray(ot.audit)) {
     var cierreAudit = ot.audit.slice().reverse().find(function(evento) {
@@ -27334,7 +27370,7 @@ function renderChecklist(containerId, checks, labels, otId, fase) {
 function toggleChecklistFase(fase) {
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !CHECKLISTS[fase]) return;
-  if (['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0) {
+  if (otEstaCerrada(ot)) {
     notify('La OT ya está finalizada y su checklist no puede modificarse.');
     return;
   }
@@ -27365,7 +27401,7 @@ function toggleChecklistFase(fase) {
 // Toggle un ítem del checklist
 function toggleCheckOT(otId, fase, idx) {
   const ot = otData.find(o => o.id === otId || o.fbKey === otId);
-  if (!ot || ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0) return;
+  if (!ot || otEstaCerrada(ot)) return;
   normalizarChecklistOT(ot);
   var valorAnterior = ot.checks[fase][idx];
   ot.checks[fase][idx] = !ot.checks[fase][idx];
@@ -27393,14 +27429,14 @@ function actualizarProgreso(ot) {
   const pctEl = document.getElementById('ot-progreso-pct');
   if (fill) fill.style.width = pct + '%';
   if (pctEl) { pctEl.textContent = pct + '%'; pctEl.style.color = pct === 100 ? 'var(--green)' : 'var(--blue)'; }
-  if (pct === 100 && ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) < 0) notify('¡Checklist completo! Podés finalizar la OT.');
+  if (pct === 100 && !otEstaCerrada(ot)) notify('¡Checklist completo! Podés finalizar la OT.');
 }
 
 // Completar OT
 function completarOT() {
   const ot = otData.find(o => o.id === otActualId || o.fbKey === otActualId);
   if (!ot) return;
-  if (['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0) {
+  if (otEstaCerrada(ot)) {
     notify('Esta OT ya está finalizada.');
     return;
   }

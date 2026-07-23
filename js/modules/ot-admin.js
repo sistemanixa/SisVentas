@@ -34,7 +34,11 @@
     return true;
   }
   function estadoNormal(o){ return String(o && o.estado || '').toLowerCase(); }
-  function esCompletada(o){ return ['completada','con_observaciones'].indexOf(estadoNormal(o)) >= 0; }
+  function esCompletada(o){
+    return typeof window.otEstaCerrada === 'function'
+      ? window.otEstaCerrada(o)
+      : ['completada','completado','con_observaciones','finalizada','finalizado','cerrada','cerrado','terminada','terminado'].indexOf(estadoNormal(o)) >= 0;
+  }
 
   window.otFiltroRapido315 = function(tipo){
     var est = e('ot-filtro-estado');
@@ -71,7 +75,10 @@
         if(!o) return false;
         var est = estadoNormal(o);
         var mostrarAbiertas = especial === 'abiertas' || String(filtro || '').toLowerCase() === 'abiertas';
-        var matchFiltro = mostrarAbiertas ? !esCompletada(o) : (!filtro || est === String(filtro).toLowerCase());
+        var filtroNormal = String(filtro || '').toLowerCase();
+        var matchFiltro = mostrarAbiertas
+          ? !esCompletada(o)
+          : (!filtro || (filtroNormal === 'completada' ? esCompletada(o) : est === filtroNormal));
         var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
         var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
         var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;

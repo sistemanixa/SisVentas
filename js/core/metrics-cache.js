@@ -171,7 +171,9 @@
     lista.forEach(function(o){
       var estado = lower(o && o.estado);
       var f = fecha(o && (o.fecha || o.fechaProgramada || o.programada));
-      var completada = estado.indexOf('complet') >= 0 || estado.indexOf('finaliz') >= 0;
+      var completada = typeof window.otEstaCerrada === 'function'
+        ? window.otEstaCerrada(o)
+        : estado.indexOf('complet') >= 0 || estado.indexOf('finaliz') >= 0 || estado.indexOf('cerrad') >= 0 || estado.indexOf('terminad') >= 0;
       if(completada){ out.completadasTotal++; if(fecha(o && (o.fechaCierre || o.cerradaEn || o.updatedAt)) === hoy) out.completadasHoy++; }
       else { out.abiertas++; if(f === hoy) out.hoy++; if(f && f < hoy) out.atrasadas++; }
     });
