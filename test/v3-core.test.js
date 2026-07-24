@@ -10,6 +10,7 @@ const { RecordRepository } = require('../js/v3/record-repository.js');
 const MigrationAudit = require('../js/v3/migration-audit.js');
 const LegacySnapshot = require('../js/v3/legacy-snapshot.js');
 const ShadowComparison = require('../js/v3/shadow-comparison.js');
+const { AttachmentTask } = require('../js/v3/attachment-task.js');
 
 test('dos números comerciales iguales sólo se resuelven por fbKey', () => {
   const esteban = { fbKey: '-pres-esteban', id: 'PP-0031', cliente: 'ESTEBAN' };
@@ -238,4 +239,83 @@ test('la comparación sombra habilita ventas sólo con totales y relaciones igua
 
   assert.equal(result.ready, true);
   assert.equal(result.comparisons[0].balance.equal, true);
+});
+
+test('una foto se registra recién después de confirmar la subida', async () => {
+  const events = [];
+  const adapter = {
+    upload: async ({ ownerKey, onProgress }) => {
+      events.push(`upload:${ownerKey}`);
+      onProgress(45);
+      return { url: 'storage://ot/-ot-a/photo.jpg', size: 123 };
+    },
+    saveMetadata: async ({ ownerKey, uploaded }) => {
+      events.push(`metadata:${ownerKey}:${uploaded.url}`);
+      return { fbKey: '-attachment-a' };
+    }
+  };
+  const states = [];
+  const task = new AttachmentTask({
+    adapter,
+    ownerCollection: 'ordenesTrabajo',
+    ownerKey: '-ot-a',
+    kind: 'foto-tecnica',
+    file: { name: 'photo.jpg' },
+    onChange: (state) => states.push(state.state)
+  });
+  const result = await task.start();
+
+  assert.deepEqual(events, [
+    'upload:-ot-a',
+    'metadata:-ot-a:storage://ot/-ot-a/photo.jpg'
+  ]);
+  assert.equal(result.metadata.fbKey, '-attachment-a');
+  assert.equal(task.state, 'completed');
+  assert.ok(states.includes('uploading'));
+  assert.ok(states.includes('saving'));
+  assert.ok(states.includes('completed'));
+});
+
+test('cancelar una subida evita guardar metadatos y termina la espera', async () => {
+  let metadataCalls = 0;
+  const adapter = {
+    upload: ({ signal }) => new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => reject(new Error('abortada')));
+    }),
+    saveMetadata: async () => { metadataCalls += 1; }
+  };
+  const task = new AttachmentTask({
+    adapter,
+    ownerCollection: 'ordenesTrabajo',
+    ownerKey: '-ot-a',
+    kind: 'foto-tecnica',
+    file: { name: 'photo.jpg' }
+  });
+  const running = task.start();
+  assert.equal(task.cancel('Cancelada para volver a intentar'), true);
+  await assert.rejects(running, /abortada|cancelada/i);
+
+  assert.equal(task.state, 'cancelled');
+  assert.equal(metadataCalls, 0);
+});
+
+test('el tiempo límite cancela una subida detenida', async () => {
+  const adapter = {
+    upload: ({ signal }) => new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => reject(new Error('abortada por tiempo límite')));
+    }),
+    saveMetadata: async () => {}
+  };
+  const task = new AttachmentTask({
+    adapter,
+    ownerCollection: 'facturas',
+    ownerKey: '-invoice-a',
+    kind: 'comprobante',
+    file: { name: 'invoice.pdf' },
+    timeoutMs: 20
+  });
+
+  await assert.rejects(task.start(), /abortada|cancelada/i);
+  assert.equal(task.state, 'cancelled');
+  assert.match(task.error.message, /tiempo límite/i);
 });

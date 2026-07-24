@@ -50,6 +50,8 @@ fuente comprobable para identidad, relaciones, métricas y persistencia.
 - `legacy-snapshot.js`: adapta datos históricos sin contaminar el núcleo.
 - `shadow-comparison.js`: compara resultados actuales/nuevos y bloquea la
   migración si existe cualquier diferencia o conflicto.
+- `attachment-task.js`: subida común para fotos y comprobantes con progreso,
+  cancelación, tiempo límite y persistencia posterior a la confirmación.
 - Pruebas de identidad duplicada, relación vencida, pagos duplicados, coherencia
   de OT y volumen.
 
