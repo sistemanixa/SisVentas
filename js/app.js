@@ -357,11 +357,11 @@ function renderTablaClientes(filtro) {
       '<td style="font-weight:500">' + nombre + empresa + '</td>' +
       '<td class="hide-mobile" style="color:var(--text2)">' + dir + '</td>' +
       '<td class="hide-mobile" style="color:var(--text2)">' + tel + '</td>' +
-        '<td style="text-align:right"><label class="toggle-sw" onclick="event.stopPropagation()" title="' + (activo ? 'Activo — clic para dar de baja' : 'Inactivo — clic para reactivar') + '"><input type="checkbox" ' + (activo ? 'checked' : '') + ' onchange="event.stopPropagation();toggleActivoCliente(\'' + escapeHTML(ckey) + '\')"><span class="toggle-knob"></span></label></td>' +
+      '<td style="text-align:right"><label class="toggle-sw" onclick="event.stopPropagation()" title="' + (activo ? 'Activo — clic para dar de baja' : 'Inactivo — clic para reactivar') + '"><input type="checkbox" ' + (activo ? 'checked' : '') + ' onchange="event.stopPropagation();toggleActivoCliente(\'' + cid + '\')"><span class="toggle-knob"></span></label></td>' +
       '<td style="text-align:right;white-space:nowrap">' +
         '<button class="icon-btn" data-cid="' + cid + '" data-ckey="' + escapeHTML(ckey) + '" onclick="event.stopPropagation();verClienteById(this)" title="Historial"><i class="ti ti-history" style="font-size:15px"></i></button>' +
-        '<button class="icon-btn" data-cid="' + cid + '" data-ckey="' + escapeHTML(ckey) + '" onclick="event.stopPropagation();editarClienteById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
-        '<button class="icon-btn" data-cid="' + cid + '" data-ckey="' + escapeHTML(ckey) + '" onclick="event.stopPropagation();eliminarCliente(this)" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:15px"></i></button>' +
+        '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();editarClienteById(this)" title="Editar"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
+        '<button class="icon-btn" data-cid="' + cid + '" onclick="event.stopPropagation();eliminarCliente(this)" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:15px"></i></button>' +
       '</td>' +
     '</tr>';
   }).join('');
@@ -369,11 +369,13 @@ function renderTablaClientes(filtro) {
 function buscarCliente(val) { renderTablaClientes(val); }
 function verClienteById(el) {
   var key = el.dataset.ckey || el.dataset.cid;
-  var c = buscarClientePorRef(key);
+  var c = (clientesData || []).find(function(x){
+    return String(x.fbKey || '') === String(key) || String(x.id || '') === String(key);
+  });
   if (c) verHistorialCliente(c.fbKey || c.id);
 }
 function editarClienteById(el) {
-  var id = el.dataset.ckey || el.dataset.cid;
+  var id = el.dataset.cid;
   editarCliente(id);
 }
 // MÓDULO KITS
@@ -435,10 +437,7 @@ function calcularStockDisponibleKit(kit) {
   if (!kit.componentes || !kit.componentes.length) return 0;
   var minDisponible = Infinity;
   kit.componentes.forEach(function(c) {
-    var prod = obtenerProductoPorCodigoVenta(c.codigo, {
-      productoFbKey: c.pid || '',
-      codigo: c.codigo || ''
-    });
+    var prod = Object.values(prodData||{}).find(function(p){ return p.fbKey === c.pid || p.codigo === c.codigo; });
     var stockProd = prod ? (parseInt(prod.stock)||0) : 0;
     var disp = Math.floor(stockProd / (c.cantidad||1));
     if (disp < minDisponible) minDisponible = disp;
@@ -914,7 +913,7 @@ function filterCli(val) {
   if (!matches.length) { _ocultarDropGlobal(); return; }
   var html = matches.slice(0,10).map(function(c) {
     var empresa = c.empresa ? '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(c.empresa)+'</div>' : '';
-    return '<div class="di" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)" onmousedown="_gSelCliById(\''+String(c.fbKey||c.id||'')+'\')">' +
+    return '<div class="di" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)" onmousedown="_gSelCliById(\''+String(c.id)+'\')">' +
       '<div style="font-weight:500;font-size:13px">'+escapeHTML(c.nombre)+'</div>'+empresa+
       '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(c.dir||'')+(c.telefono?' · '+escapeHTML(c.telefono):'')+'</div>'+
     '</div>';
@@ -923,9 +922,9 @@ function filterCli(val) {
 }
 
 function _gSelCliById(id) {
-  var c = _svResolverClienteRegistro({ clienteFbKey:id, clienteId:id }, false);
+  var c = (clientesData||[]).find(function(x){ return String(x.id)===String(id); });
   if (!c) return;
-  selCli(c.fbKey || c.id, c.nombre, c.dir||'');
+  selCli(c.id, c.nombre, c.dir||'');
 }
 
 function selCli(id, nombre, dir) {
@@ -933,7 +932,7 @@ function selCli(id, nombre, dir) {
   var idEl = document.getElementById('id-cli');
   var dirEl= document.getElementById('cli-dir-hidden');
   if (inp)  inp.value  = nombre;
-  if (idEl) idEl.value = String(id || '');
+  if (idEl) idEl.value = String(id).padStart(4,'0');
   if (dirEl)dirEl.value= dir || '';
   _ocultarDropGlobal();
 }
@@ -1332,7 +1331,11 @@ function cerrarOTyVenta(otFbKey, conformidad) {
   }
 }
 function asignarFechaInstalacion(ventaId, fecha, tecnico) {
-  var venta = _svResolverVentaRegistro(ventaId);
+  var venta = (ventasList||[]).find(function(v){
+    return String(v.id||'') === String(ventaId||'') ||
+           String(v.fbKey||'') === String(ventaId||'') ||
+           _svRegistroPerteneceVenta({ ventaId: ventaId }, v);
+  });
   if (!venta || !venta.fbKey) { notify('Venta no encontrada'); return; }
 
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
@@ -1422,7 +1425,7 @@ function iaAbrir(contexto, label) {
 
 function iaAbrirDesdeOT() {
   // Construir contexto con datos de la OT actual
-  var ot = buscarOTPorRef(otActualId);
+  var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
   if (!ot) { iaAbrir('', 'Asistente técnico'); return; }
   var venta = _svResolverVentaRegistro(ot);
   var ctx = '=== CONTEXTO DE LA OT ===\n';
@@ -2494,7 +2497,9 @@ function recalcularHsExtraCalendar() {
 }
 
 function abrirFormCargaHsExtra() {
-  var miEmp = buscarEmpleadoPorNombreUnico(currentUser);
+  var miEmp = Object.values(empData||{}).find(function(e){
+    return (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
+  });
   if (!miEmp) { notify('No se encontró tu perfil de empleado'); return; }
 
   var prev = document.getElementById('modal-hsextra');
@@ -3296,7 +3301,9 @@ function _chequearCambioHistCliente() {
   var pageHistCli = document.getElementById('page-historialcliente');
   if (!pageHistCli || !pageHistCli.classList.contains('active')) return;
   if (typeof clienteActualId === 'undefined' || !clienteActualId || !window._histClienteHuella) return;
-  var cli = buscarClientePorRef(clienteActualId);
+  var cli = (clientesData || []).find(function(c){
+    return String(c.fbKey || '') === String(clienteActualId) || String(c.id || '') === String(clienteActualId);
+  });
   if (!cli) return;
   var ventas = (ventasList || []).filter(function(v) {
     return _svRegistroPerteneceCliente(v, cli, true);
@@ -3523,7 +3530,10 @@ function _repararVentasAdicionalesOTSinNumero(rows, data) {
   pendientes.forEach(function(venta, indice) {
     maxId++;
     var id = '#V-' + String(maxId).padStart(6, '0');
-    var ot = buscarOTPorRef(venta.otId || venta.otNumero) || null;
+    var ot = (otData || []).find(function(registro) {
+      var referencias = [registro && registro.fbKey, registro && registro.id].map(String);
+      return referencias.includes(String(venta.otId || '')) || referencias.includes(String(venta.otNumero || ''));
+    }) || null;
     var cliente = resolverIdClienteVenta(venta);
     var audit = Array.isArray(venta.audit) ? venta.audit.slice() : [];
     audit.push({
@@ -3689,9 +3699,14 @@ function ventaTienePagoTotal(v) {
   if (estado === 'pago_total' || estado === 'pagado' || estado === 'cancelada') return true;
   var total = parseFloat(v.total) || 0;
   var pagosEmbebidos = Array.isArray(v.pagos) ? v.pagos : [];
+  var idsVentaDetalle = [v.fbKey, v.id, v.numero, v.nro, v.codigo].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+  var ventaIdNum = String(v.id||'').replace(/[^0-9]/g,'');
   var pagosGlobales = (window._historialPagosCompleto||[]).filter(function(p) {
     if (p && (p.anulado || String(p.estado||'').toLowerCase()==='anulado')) return false;
-    return _svRegistroPerteneceVenta(p, v);
+    var pVenta = String(p.ventaFbKey||p.ventaKey||p.venta||p.ventaId||p.idVenta||p.nroVenta||p.numeroVenta||'');
+    var pNum   = pVenta.replace(/[^0-9]/g,'');
+    if (idsVentaDetalle.indexOf(pVenta) >= 0) return true;
+    return ventaIdNum && pNum === ventaIdNum;
   });
   var pagos = pagosGlobales.length ? pagosGlobales : pagosEmbebidos;
   var pagado = pagos.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
@@ -3721,62 +3736,14 @@ function _svVentaClaves(v) {
   };
 }
 
-function _svUnicoOAmbiguo(lista, contexto, referencia) {
-  if (lista.length === 1) return lista[0];
-  if (lista.length > 1 && typeof console !== 'undefined' && console.error) {
-    console.error('[Identidad] Referencia ambigua de ' + contexto + ':', referencia, lista.map(function(item){
-      return { fbKey:item.fbKey, id:item.id, cliente:item.cliente };
-    }));
-  }
-  return null;
-}
-
-function _svResolverVentaRegistro(reg) {
-  var ventas = Array.isArray(ventasList) ? ventasList : [];
-  if (reg == null || !ventas.length) return null;
-
-  var esEscalar = typeof reg === 'string' || typeof reg === 'number';
-  var valorEscalar = esEscalar ? _svTxtClave(reg) : '';
-  var objeto = esEscalar ? {} : reg;
-
-  // Una clave interna explícita es autoritativa. Si ya existe pero no apunta
-  // a una venta real, no se "repara" adivinando por el número comercial.
-  var clavesAutoritativas = [objeto.ventaFbKey, objeto.ventaKey].map(_svTxtClave).filter(Boolean);
-  if (valorEscalar) clavesAutoritativas.push(valorEscalar);
-  if (objeto.fbKey) {
-    var ventaMismaClave = ventas.filter(function(v){ return _svTxtClave(v.fbKey) === _svTxtClave(objeto.fbKey); });
-    if (ventaMismaClave.length === 1) return ventaMismaClave[0];
-  }
-  if (clavesAutoritativas.length) {
-    var porClave = ventas.filter(function(v){
-      return clavesAutoritativas.indexOf(_svTxtClave(v.fbKey)) >= 0;
-    });
-    if (porClave.length === 1) return porClave[0];
-    if (!valorEscalar) return null;
-  }
-
-  var referencias = esEscalar
-    ? [valorEscalar]
-    : [objeto.venta, objeto.ventaId, objeto.idVenta, objeto.nroVenta, objeto.numeroVenta, objeto.ventaNumero];
-  referencias = referencias.map(_svTxtClave).filter(Boolean);
-  if (!referencias.length) return null;
-
-  var refsMinusculas = referencias.map(function(x){ return x.toLocaleLowerCase('es-AR'); });
-  var coincidenciasExactas = ventas.filter(function(v) {
-    var visibles = _svVentaClaves(v).exactas.filter(function(x){ return _svTxtClave(v.fbKey) !== x; });
-    return visibles.some(function(x){ return refsMinusculas.indexOf(x.toLocaleLowerCase('es-AR')) >= 0; });
-  });
-  var exacta = _svUnicoOAmbiguo(coincidenciasExactas, 'venta', referencias);
-  if (exacta || coincidenciasExactas.length > 1) return exacta;
-
-  // Compatibilidad histórica: sólo se ignoran prefijos si el resultado sigue
-  // siendo único. Esto conserva OT/pagos antiguos sin volver a mezclar ventas.
-  var numeros = referencias.map(function(x){ return x.replace(/\D/g,''); }).filter(Boolean);
-  if (!numeros.length) return null;
-  var coincidenciasNumericas = ventas.filter(function(v) {
-    return _svVentaClaves(v).nums.some(function(n){ return numeros.indexOf(n) >= 0; });
-  });
-  return _svUnicoOAmbiguo(coincidenciasNumericas, 'venta histórica', referencias);
+function _svRegistroPerteneceVenta(reg, venta) {
+  if (!reg || !venta) return false;
+  var claves = _svVentaClaves(venta);
+  var refs = [reg.ventaFbKey, reg.ventaKey, reg.venta, reg.ventaId, reg.idVenta, reg.nroVenta, reg.numeroVenta, reg.ventaNumero]
+    .map(_svTxtClave).filter(Boolean);
+  if (refs.some(function(r){ return claves.exactas.indexOf(r) >= 0; })) return true;
+  var numsReg = refs.map(function(r){ return r.replace(/\D/g,''); }).filter(Boolean);
+  return claves.nums.some(function(n){ return numsReg.indexOf(n) >= 0; });
 }
 
 function _svPagoValido(p) {
@@ -3830,12 +3797,20 @@ function _svResumenCuentaCorriente(ventas) {
   };
 }
 
-function _svRegistroPerteneceVenta(reg, venta) {
-  if (!reg || !venta) return false;
-  var resuelta = _svResolverVentaRegistro(reg);
-  if (!resuelta) return false;
-  if (resuelta.fbKey && venta.fbKey) return String(resuelta.fbKey) === String(venta.fbKey);
-  return resuelta === venta;
+function _svResolverVentaRegistro(reg) {
+  var ventas = Array.isArray(ventasList) ? ventasList : [];
+  if (!reg || !ventas.length) return null;
+  if (typeof reg === 'string' || typeof reg === 'number') {
+    reg = { ventaId: reg, venta: reg, id: reg, fbKey: reg };
+  }
+  var directas = [reg.fbKey, reg.ventaFbKey, reg.ventaKey].map(_svTxtClave).filter(Boolean);
+  if (directas.length) {
+    var porKey = ventas.find(function(v){
+      return directas.indexOf(String(v.fbKey||'')) >= 0 || directas.indexOf(String(v.ventaFbKey||'')) >= 0 || directas.indexOf(String(v.ventaKey||'')) >= 0;
+    });
+    if (porKey) return porKey;
+  }
+  return ventas.find(function(v){ return _svRegistroPerteneceVenta(reg, v); }) || null;
 }
 
 function _svClienteClaves(cli) {
@@ -3846,52 +3821,41 @@ function _svClienteClaves(cli) {
 
 function _svRegistroPerteneceCliente(reg, cli, permitirNombre) {
   if (!reg || !cli) return false;
-  var resuelto = _svResolverClienteRegistro(reg, permitirNombre);
-  if (!resuelto) return false;
-  if (resuelto.fbKey && cli.fbKey) return String(resuelto.fbKey) === String(cli.fbKey);
-  return resuelto === cli;
+  var claves = _svClienteClaves(cli);
+  var refs = [reg.clienteFbKey, reg.clienteKey, reg.clienteId, reg.idCliente, reg.idClienteOriginal, reg.fbKeyCliente, reg.id_cli]
+    .map(_svTxtClave).filter(Boolean);
+  if (refs.some(function(r){ return claves.indexOf(r) >= 0; })) return true;
+  // Si el registro ya tiene una referencia de cliente, no se permite que un
+  // nombre coincidente lo reasigne a otra ficha. El nombre es sólo soporte
+  // para registros antiguos que nunca guardaron un identificador.
+  if (refs.length) return false;
+  if (!permitirNombre) return false;
+  var nomReg = _svTxtNombre(reg.cliente || reg.clienteNombre || reg.nombreCliente || '');
+  var nomCli = _svTxtNombre(cli.nombre || cli.cliente || cli.empresa || cli.razonSocial || '');
+  return !!nomReg && !!nomCli && nomReg === nomCli;
 }
 
 function _svResolverClienteRegistro(reg, permitirNombre) {
   var clientes = Array.isArray(clientesData) ? clientesData : Object.values(clientesData||{});
   if (!reg || !clientes.length) return null;
-  var refsTecnicas = [reg.clienteFbKey, reg.clienteKey, reg.fbKeyCliente]
-    .map(_svTxtClave).filter(Boolean);
-  if (refsTecnicas.length) {
-    var coincidenciasTecnicas = clientes.filter(function(cli){
-      return refsTecnicas.indexOf(_svTxtClave(cli.fbKey)) >= 0;
-    });
-    return _svUnicoOAmbiguo(coincidenciasTecnicas, 'cliente por clave técnica', refsTecnicas);
-  }
-  var refs = [reg.clienteId, reg.idCliente, reg.idClienteOriginal, reg.id_cli]
+  var refs = [reg.clienteFbKey, reg.clienteKey, reg.clienteId, reg.idCliente, reg.idClienteOriginal, reg.fbKeyCliente, reg.id_cli]
     .map(_svTxtClave).filter(Boolean);
   if (refs.length) {
-    var coincidenciasId = clientes.filter(function(cli){
-      return [cli.id, cli.clienteId, cli.idCliente, cli.idClienteOriginal]
-        .map(_svTxtClave).some(function(k){ return k && refs.indexOf(k) >= 0; });
+    var porId = clientes.find(function(cli){
+      return _svClienteClaves(cli).some(function(k){ return refs.indexOf(k) >= 0; });
     });
-    return _svUnicoOAmbiguo(coincidenciasId, 'cliente', refs);
+    if (porId) return porId;
+    return null;
   }
   if (!permitirNombre) return null;
   var nomReg = _svTxtNombre(reg.cliente || reg.clienteNombre || reg.nombreCliente || '');
   if (!nomReg) return null;
-  var coincidenciasNombre = clientes.filter(function(cli){
+  return clientes.find(function(cli){
     var nombres = [cli.nombre, cli.cliente, cli.empresa, cli.razonSocial, ((cli.nombre||'') + ' ' + (cli.apellidos||cli.apellido||'')).trim()]
       .map(_svTxtNombre).filter(Boolean);
     return nombres.indexOf(nomReg) >= 0;
-  });
-  return _svUnicoOAmbiguo(coincidenciasNombre, 'cliente por nombre', nomReg);
+  }) || null;
 }
-
-function buscarClientePorRef(ref) {
-  if (ref == null || ref === '') return null;
-  var clave = _svTxtClave(ref);
-  var clientes = Array.isArray(clientesData) ? clientesData : Object.values(clientesData||{});
-  var exacta = clientes.filter(function(cli){ return _svTxtClave(cli.fbKey) === clave; });
-  if (exacta.length) return _svUnicoOAmbiguo(exacta, 'cliente por clave técnica', clave);
-  return _svResolverClienteRegistro({ clienteId:ref }, false);
-}
-window.buscarClientePorRef = buscarClientePorRef;
 
 window._svRegistroPerteneceVenta = _svRegistroPerteneceVenta;
 window._svPagoValido = _svPagoValido;
@@ -3902,31 +3866,6 @@ window._svResolverVentaRegistro = _svResolverVentaRegistro;
 window._svRegistroPerteneceCliente = _svRegistroPerteneceCliente;
 window._svResolverClienteRegistro = _svResolverClienteRegistro;
 
-function buscarEmpleadoPorRef(ref) {
-  var clave = _svTxtClave(ref);
-  if (!clave) return null;
-  var empleados = Array.isArray(empData) ? empData : Object.values(empData||{});
-  var exactos = empleados.filter(function(emp){ return _svTxtClave(emp.fbKey) === clave; });
-  if (exactos.length) return _svUnicoOAmbiguo(exactos, 'empleado por clave técnica', clave);
-  var legacy = empleados.filter(function(emp){
-    return [emp.id, emp.legajo, emp.codigo].map(_svTxtClave).filter(Boolean).indexOf(clave) >= 0;
-  });
-  return _svUnicoOAmbiguo(legacy, 'empleado', clave);
-}
-window.buscarEmpleadoPorRef = buscarEmpleadoPorRef;
-
-function buscarEmpleadoPorNombreUnico(nombre) {
-  var normalizado = _svTxtNombre(nombre);
-  if (!normalizado) return null;
-  var empleados = Array.isArray(empData) ? empData : Object.values(empData||{});
-  var coincidencias = empleados.filter(function(emp){
-    return [emp.nombre, emp.usuario, emp.email, emp.mail]
-      .map(_svTxtNombre).filter(Boolean).indexOf(normalizado) >= 0;
-  });
-  return _svUnicoOAmbiguo(coincidencias, 'empleado por nombre', nombre);
-}
-window.buscarEmpleadoPorNombreUnico = buscarEmpleadoPorNombreUnico;
-
 
 function resolverIdClienteVenta(v) {
   if (!v) return '';
@@ -3934,7 +3873,16 @@ function resolverIdClienteVenta(v) {
   if (directo) return String(directo);
   var nombreVenta = String(v.cliente || v.clienteNombre || v.nombreCliente || '').trim().toLowerCase();
   if (!nombreVenta) return '';
-  var cli = _svResolverClienteRegistro({ cliente:nombreVenta }, true);
+  var cli = (clientesData || []).find(function(c) {
+    var nombres = [
+      c.nombre,
+      c.empresa,
+      c.razonSocial,
+      c.cliente,
+      ((c.nombre || '') + ' ' + (c.apellidos || c.apellido || '')).trim()
+    ].map(function(x){ return String(x || '').trim().toLowerCase(); }).filter(Boolean);
+    return nombres.indexOf(nombreVenta) >= 0;
+  });
   return cli ? String(cli.id || cli.fbKey || '') : '';
 }
 
@@ -4155,7 +4103,7 @@ function fbCargarOTs() {
     // guardado automático — refrescar en caliente podría pisar lo que el usuario está
     var otDetEl = document.getElementById('ot-detalle-view');
     if (otDetEl && otDetEl.style.display === 'block' && typeof otActualId !== 'undefined' && otActualId) {
-      var otNueva = buscarOTPorRef(otActualId);
+      var otNueva = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
       var fotoInputActiva = document.getElementById('ot-foto-input');
       if (otNueva && typeof otRenderNotas === 'function' && (!fotoInputActiva || fotoInputActiva.dataset.subiendo !== '1')) {
         // Las notas y fotos pueden cambiar desde otro dispositivo. Sincronizamos
@@ -5085,7 +5033,7 @@ function abrirResumenFactura(ventaId) {
 }
 
 function confirmarEmisionFactura(ventaId) {
-  var venta = _svResolverVentaRegistro(ventaId);
+  var venta = ventasList ? ventasList.find(function(v){ return String(v.id||'') === String(ventaId||'') || String(v.fbKey||'') === String(ventaId||''); }) : null;
   if (!venta) return;
   var cli = resolverClienteDeVenta(venta);
   if (cli) {
@@ -5739,19 +5687,12 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.195-firebase',
+  VERSION: 'v2.0.194-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Relaciones seguras por identidad interna, contador diario de OT unificado y cargas de fotos cancelables.'
+    'Presupuestos duplicados se abren, editan y procesan por su identidad interna correcta.'
   ]),
   RELEASE_FEATURE: Object.freeze({ history:true, actionLabel:'Ver novedades' }),
   RELEASE_HISTORY: Object.freeze([
-    Object.freeze({
-      version: 'v2.0.195',
-      date: '24/07/2026',
-      title: 'Integridad de registros y OT',
-      notes: Object.freeze(['Ventas, presupuestos, clientes, productos, empleados y OT dejan de elegir el primer registro cuando un número visible está repetido.', 'Para hoy y su tabla comparten la misma lista y regla de fecha; las fotos de OT permiten cancelar y tienen límites de espera.']),
-      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar órdenes de trabajo' })
-    }),
     Object.freeze({
       version: 'v2.0.194',
       date: '24/07/2026',
@@ -7691,33 +7632,18 @@ function normalizarCodigoProducto(cod) {
 
 function obtenerProductoPorCodigoVenta(cod, item) {
   var codNorm = normalizarCodigoProducto(cod || (item && (item.cod || item.codigo)) || '');
+  var pid = item && (item.pid || item.productoId || item.fbKeyProducto || item.productoFbKey);
   var lista = Object.values(prodData || {});
-  var claveTecnica = item && (item.productoFbKey || item.fbKeyProducto);
-  if (claveTecnica) {
-    return (prodData || {})[claveTecnica] || lista.find(function(p){ return String(p.fbKey||'') === String(claveTecnica); }) || null;
-  }
-  var referenciaLegacy = item && (item.pid || item.productoId);
-  if (referenciaLegacy) {
-    var porKey = (prodData || {})[referenciaLegacy] || lista.find(function(p){ return String(p.fbKey||'') === String(referenciaLegacy); });
-    if (porKey) return porKey;
-    var legacyNorm = normalizarCodigoProducto(referenciaLegacy);
-    var legacyCoincidencias = lista.filter(function(p) {
-      return normalizarCodigoProducto(p.id) === legacyNorm ||
-             normalizarCodigoProducto(p.codigo) === legacyNorm ||
-             normalizarCodigoProducto(p.cod) === legacyNorm ||
-             normalizarCodigoProducto(p.sku) === legacyNorm;
-    });
-    return _svUnicoOAmbiguo(legacyCoincidencias, 'producto', referenciaLegacy);
-  }
-  if (codNorm) {
-    var coincidencias = lista.filter(function(p){
+  var prod = null;
+  if (pid) prod = (prodData || {})[pid] || lista.find(function(p){ return p.fbKey === pid || p.id === pid; });
+  if (!prod && codNorm) {
+    prod = lista.find(function(p){
       return normalizarCodigoProducto(p.codigo) === codNorm ||
              normalizarCodigoProducto(p.cod) === codNorm ||
              normalizarCodigoProducto(p.sku) === codNorm;
     });
-    return _svUnicoOAmbiguo(coincidencias, 'producto', cod);
   }
-  return null;
+  return prod || null;
 }
 
 function obtenerCostoUnitarioVenta(cod, item) {
@@ -7956,11 +7882,13 @@ function confirmarVenta() {
   var cli = document.getElementById('cli-inp').value;
   var idCliEl = document.getElementById('id-cli');
   var idCliVal = idCliEl ? idCliEl.value.trim() : '';
-  var cliMatch = idCliVal
-    ? _svResolverClienteRegistro({ clienteFbKey:idCliVal, clienteId:idCliVal }, false)
-    : _svResolverClienteRegistro({ cliente:cli }, true);
   if (!idCliVal) {
-    if (cliMatch) idCliVal = String(cliMatch.fbKey || cliMatch.id || '');
+    var cliMatch = (clientesData || []).find(function(c){
+      return String(c.nombre || '').trim().toLowerCase() === String(cli || '').trim().toLowerCase() ||
+             String(c.empresa || '').trim().toLowerCase() === String(cli || '').trim().toLowerCase() ||
+             String(c.razonSocial || '').trim().toLowerCase() === String(cli || '').trim().toLowerCase();
+    });
+    if (cliMatch) idCliVal = String(cliMatch.id || cliMatch.fbKey || '');
     if (idCliEl && idCliVal) idCliEl.value = idCliVal;
   }
   var dir = (_get('cli-dir-hidden')||{}).value || 'Sin definir';
@@ -7973,7 +7901,6 @@ function confirmarVenta() {
   var nuevaVenta = {
     id: obtenerProximoIdVenta(),
     cliente:  cli,
-    clienteFbKey: cliMatch ? (cliMatch.fbKey || '') : '',
     idCliente: idCliVal,        // ← ID real del cliente para filtrar en historial
     clienteId: idCliVal,        // ← campo alternativo para compatibilidad
     empleado: (function(){
@@ -8117,7 +8044,7 @@ function confirmarVenta() {
 
   // Mostrar modal de confirmación — esperamos un poco para que el listener de
   // Firebase actualice ventasList con el fbKey real antes de buscarlo
-  guardarPromise.then(function(claveGuardada) {
+  guardarPromise.then(function() {
     // Si se editó una venta ya pagada y se habilitó comisión, generar la comisión ahora.
     // Antes solo se generaba en registrarPago(), por eso al cambiar vendedor/comisionado
     // sobre una venta ya cobrada no se acreditaba nada en Mi Cuenta.
@@ -8129,8 +8056,8 @@ function confirmarVenta() {
       }
     } catch(_e) { console.warn('[comisiones editar venta]', _e); }
     setTimeout(function() {
-      var fbKeyGuardada = nuevaVenta.fbKey || (typeof claveGuardada === 'string' ? claveGuardada : '');
-      mostrarConfirmacionVenta(nuevaVenta, fbKeyGuardada);
+      var ventaGuardada = (ventasList || []).find(function(v) { return v.id === nuevaVenta.id; });
+      mostrarConfirmacionVenta(nuevaVenta, ventaGuardada ? ventaGuardada.fbKey : null);
     }, 800);
   }).catch(function(e) {
     console.error('[confirmarVenta]', e);
@@ -8243,7 +8170,9 @@ function inicializarFilasVenta() {
   // (no solo cuando está vacío, para evitar que quede otro de una venta anterior)
   var selEmp = document.getElementById('venta-empleado');
   if (selEmp) {
-    var match = buscarEmpleadoPorNombreUnico(currentUser);
+    var match = Object.values(empData||{}).find(function(e){
+      return (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
+    });
     if (match) {
       selEmp.value = match.fbKey;
     } else if (currentRole === 'admin' && currentUser) {
@@ -8290,15 +8219,13 @@ function navegarAProducto(prodRef) {
     retorno = { pagina: 'venta', vista: 'formulario' };
   }
   window._prodNavegacionRetorno = retorno;
-  var p = obtenerProductoPorCodigoVenta(prodRef, { productoId:prodRef, codigo:prodRef });
-  if (!p) {
-    var nombreBuscado = String(prodRef || '').trim().toLowerCase();
-    var porNombre = Object.values(prodData || {}).filter(function(x){
-      return String(x.nombre || '').trim().toLowerCase() === nombreBuscado ||
-             String(x.descripcion || '').trim().toLowerCase() === nombreBuscado;
-    });
-    p = _svUnicoOAmbiguo(porNombre, 'producto por nombre', prodRef);
-  }
+  var p = Object.values(prodData || {}).find(function(x){
+    return String(x.fbKey || '') === String(prodRef) ||
+           String(x.id || '') === String(prodRef) ||
+           String(x.codigo || '') === String(prodRef) ||
+           String(x.nombre || '').trim().toLowerCase() === String(prodRef || '').trim().toLowerCase() ||
+           String(x.descripcion || '').trim().toLowerCase() === String(prodRef || '').trim().toLowerCase();
+  });
   showPage('productos', document.querySelector('[onclick*="productos"]'));
   setTimeout(function() {
     if (p && typeof verProducto === 'function') {
@@ -8325,14 +8252,13 @@ function productoRefDesdeItem(item) {
   ].map(function(x){ return String(x || '').trim(); }).filter(Boolean);
   for (var i = 0; i < candidatos.length; i++) {
     var ref = candidatos[i];
-    var p = obtenerProductoPorCodigoVenta(ref, { productoId:ref, codigo:ref });
-    if (!p) {
-      var porNombre = Object.values(prodData || {}).filter(function(x) {
-        return String(x.nombre || '').trim().toLowerCase() === ref.toLowerCase() ||
-               String(x.descripcion || '').trim().toLowerCase() === ref.toLowerCase();
-      });
-      p = _svUnicoOAmbiguo(porNombre, 'producto por nombre', ref);
-    }
+    var p = Object.values(prodData || {}).find(function(x) {
+      return String(x.fbKey || '') === ref ||
+             String(x.id || '') === ref ||
+             String(x.codigo || '') === ref ||
+             String(x.nombre || '').trim().toLowerCase() === ref.toLowerCase() ||
+             String(x.descripcion || '').trim().toLowerCase() === ref.toLowerCase();
+    });
     if (p) return p.fbKey || p.codigo || ref;
   }
   return candidatos[0] || '';
@@ -8340,7 +8266,13 @@ function productoRefDesdeItem(item) {
 function productoDesdeItem(item) {
   var ref = productoRefDesdeItem(item);
   if (!ref) return null;
-  return obtenerProductoPorCodigoVenta(ref, { productoId:ref, codigo:ref });
+  return Object.values(prodData || {}).find(function(x) {
+    return String(x.fbKey || '') === String(ref) ||
+           String(x.id || '') === String(ref) ||
+           String(x.codigo || '') === String(ref) ||
+           String(x.nombre || '').trim().toLowerCase() === String(ref).trim().toLowerCase() ||
+           String(x.descripcion || '').trim().toLowerCase() === String(ref).trim().toLowerCase();
+  }) || null;
 }
 function imagenProductoItemHTML(item, extraClass) {
   var prod = productoDesdeItem(item);
@@ -11913,7 +11845,11 @@ function selVentaCob(ventaId, cliente, total, cobrado, saldo) {
 // para no tener que volver a buscarla y tipear todo de nuevo.
 function irACobranzasConVenta(ventaId) {
   var vid = String(ventaId||'').trim();
-  var venta = _svResolverVentaRegistro(vid);
+  var num = vid.replace(/[^0-9]/g,'');
+  var venta = (ventasList||[]).find(function(v){
+    return v.id === vid || v.fbKey === vid ||
+      (num && (String(v.id).replace(/[^0-9]/g,'') === num || String(v.fbKey||'').replace(/[^0-9]/g,'') === num));
+  });
   showPage('cobranzas', document.querySelector('[onclick*=cobranzas]'));
   if (!venta) return;
   setTimeout(function() {
@@ -13866,9 +13802,14 @@ function verClienteDesdeCC() {
   var nombre = window._ccNombreActual || '';
   var clienteKey = window._ccClienteKeyActual || '';
   if (!nombre && !clienteKey) return;
-  var cli = clienteKey
-    ? buscarClientePorRef(clienteKey)
-    : _svResolverClienteRegistro({ cliente:nombre }, true);
+  var cli = (clientesData||[]).find(function(c){
+    var nombreCli = _svTxtNombre(c.nombre || '');
+    var nombreCompleto = _svTxtNombre((c.nombre||'') + ' ' + (c.apellidos||c.apellido||''));
+    var nombreBuscado = _svTxtNombre(nombre);
+    return String(c.fbKey||'') === String(clienteKey) ||
+      String(c.id||'') === String(clienteKey) ||
+      (!!nombreBuscado && (nombreCli === nombreBuscado || nombreCompleto === nombreBuscado));
+  });
   if (!cli) { notify('Cliente no encontrado en el sistema'); return; }
   showPage('clientes', document.querySelector('[onclick*=clientes]'));
   setTimeout(function(){ if (typeof verHistorialCliente === 'function') verHistorialCliente(cli.fbKey||String(cli.id), nombre); }, 200);
@@ -14204,7 +14145,7 @@ function imprimirActaOT() {
 }
 
 function _imprimirOTReal() {
-  var ot = buscarOTPorRef(otActualId);
+  var ot = otData ? otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; }) : null;
   if (!ot) { notify('OT no encontrada'); return; }
   var empresa = { nombre:(document.getElementById('cfg-empresa-nombre')||{}).value||'Nixa', dir:(document.getElementById('cfg-empresa-dir')||{}).value||'Patagones 390, Mar del Plata' };
   var logo = window.logoEmpresaUrl ? '<img src="'+window.logoEmpresaUrl+'" style="height:45px;object-fit:contain">' : '<div style="font-size:20px;font-weight:700">'+empresa.nombre+'</div>';
@@ -15410,10 +15351,7 @@ function guardarNuevoGenerico() {
 
   if (tipo === 'cliente') {
     var cliExistente = window._editingClienteId
-      ? _svResolverClienteRegistro({
-          clienteFbKey: window._editingClienteId,
-          clienteId: window._editingClienteId
-        }, false)
+      ? (clientesData||[]).find(function(c){ return c.id === window._editingClienteId || c.fbKey === window._editingClienteId; })
       : null;
 
     var nuevo = {
@@ -17220,7 +17158,7 @@ function _ctaEmpMovimientoLegacyDuplicadoPorGasto(m, empFbKey) {
   if (!monto) return null;
   var mes = _ctaEmpMesDeMov(m);
   var descM = _ctaEmpNormalizarTxt(m.descripcion || m.desc || m.detalle || '');
-  var emp = buscarEmpleadoPorRef(empFbKey);
+  var emp = (empData && Object.values(empData).find(function(e){ return (e.fbKey || e.id) == empFbKey; })) || null;
   var empNom = _ctaEmpNormalizarTxt(emp && emp.nombre);
   return (gastosData || []).find(function(g){
     if (!_ctaEmpEsGastoPersonalEmpleado(g, empFbKey)) return false;
@@ -17258,7 +17196,7 @@ function cargarCtaEmp(empFbKey) {
   if (banner) banner.remove();
   if (!window.fbDB) return;
   ctaEmpActual = empFbKey;
-  var emp = buscarEmpleadoPorRef(empFbKey);
+  var emp = Object.values(empData || {}).find(function(e){ return (e.fbKey||e.id) == empFbKey; });
   if (emp) {
     var cargoInfoEmp = emp.cargoId ? (CARGOS_DATA||{})[emp.cargoId] : null;
     var base = cargoInfoEmp
@@ -17332,7 +17270,7 @@ function setCtaEmpPeriodo(tipo) {
   var bAct = document.getElementById('ctaemp-btn-mes-act');
   if (bAnt) bAnt.className = 'btn btn-sm' + (window._ctaEmpPeriodoOffset === -1 ? ' btn-primary' : '');
   if (bAct) bAct.className = 'btn btn-sm' + (window._ctaEmpPeriodoOffset === 0 ? ' btn-primary' : '');
-  var emp = buscarEmpleadoPorRef(ctaEmpActual);
+  var emp = Object.values(empData || {}).find(function(e){ return (e.fbKey||e.id) == ctaEmpActual; });
   if (emp) renderComisionesDelMes(emp);
   renderMovsEmp();
 }
@@ -18001,7 +17939,7 @@ function _comisionNormFecha(f) {
 
 function _buscarEmpleadoPorKeyCta(empFbKey) {
   try {
-    return buscarEmpleadoPorRef(empFbKey) || {};
+    return Object.values(empData || {}).find(function(e){ return String(e.fbKey||e.id||'') === String(empFbKey||''); }) || {};
   } catch(e) { return {}; }
 }
 
@@ -20748,7 +20686,7 @@ function agVerEvento(fbKey, tipo) {
       '<button class="btn btn-sm" onclick="agEliminarEvento(\''+fbKey+'\')" style="color:var(--red);margin-top:8px"><i class="ti ti-trash"></i> Eliminar evento</button>';
   } else {
     // OT (instalación o reclamo)
-    var ot = buscarOTPorRef(fbKey);
+    var ot = (otData||[]).find(function(o){ return (o.fbKey||o.id) === fbKey; });
     if (!ot) return;
     var col = AG_COLORES[tipo] || AG_COLORES.instalacion;
     if (tit) tit.innerHTML = '<span style="color:'+col.text+'">' + (tipo==='reclamo'?'Reclamo/Servicio':'Instalación') + '</span>';
@@ -23919,7 +23857,10 @@ function _normalizarNombreVacaciones(valor) {
 }
 
 function _empleadoPorNombreVacaciones(nombre) {
-  return buscarEmpleadoPorNombreUnico(nombre);
+  var clave=_normalizarNombreVacaciones(nombre);
+  return Object.values(empData||{}).find(function(e){
+    return [_normalizarNombreVacaciones(e.nombre),_normalizarNombreVacaciones(e.usuario),_normalizarNombreVacaciones(e.email)].indexOf(clave)>=0;
+  })||null;
 }
 
 function periodoVacacionesPara(nombreTecnico, fecha) {
@@ -23967,7 +23908,7 @@ function renderAvisoProximasVacaciones() {
 }
 
 function toggleActivoCliente(cid) {
-  var cli = buscarClientePorRef(cid);
+  var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid) || String(c.fbKey||'') === String(cid); });
   if (!cli || !cli.fbKey || !window.fbDB) return;
   var nuevoEstado = cli.activo === false;
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey), { activo: nuevoEstado })
@@ -24283,8 +24224,8 @@ function eliminarRegistro(coleccion, fbKey) {
 }
 
 function eliminarCliente(el) {
-  var cid = el.dataset.ckey || el.dataset.cid;
-  var cli = buscarClientePorRef(cid);
+  var cid = el.dataset.cid;
+  var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid) || String(c.fbKey||'') === String(cid); });
   if (!cli) return;
 
   // para que el usuario sepa exactamente qué se va a borrar.
@@ -24411,7 +24352,7 @@ async function eliminarProductoPorId(pid, desdeDetalle) {
 }
 
 function eliminarEmpleado(fbKey) {
-  var emp = buscarEmpleadoPorRef(fbKey);
+  var emp = Object.values(empData||{}).find(function(e){ return (e.fbKey||String(e.id)) === String(fbKey); });
   if (!confirm('¿Eliminar empleado "' + ((emp||{}).nombre||'') + '"?')) return;
   window.fbRemove(window.fbRef(window.fbDB, 'sisventas/empleados/' + fbKey))
     .then(function(){ notify('Empleado eliminado'); })
@@ -24659,7 +24600,7 @@ async function _migrarPagablesLegacyAGastos() {
     var aguSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/aguinaldos')).catch(function(){ return { val:function(){return null;} }; });
     var agu = aguSnap.val() || {};
     Object.keys(agu).forEach(function(empKey){
-      var emp = buscarEmpleadoPorRef(empKey) || {};
+      var emp = (empData && Object.values(empData).find(function(e){ return (e.fbKey||e.id) === empKey; })) || {};
       var regs = agu[empKey] || {};
       Object.keys(regs).forEach(function(semKey){
         var r = regs[semKey] || {};
@@ -24685,7 +24626,7 @@ async function _migrarPagablesLegacyAGastos() {
     var ctaSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/ctaemp')).catch(function(){ return { val:function(){return null;} }; });
     var cta = ctaSnap.val() || {};
     Object.keys(cta).forEach(function(empKey){
-      var emp = buscarEmpleadoPorRef(empKey) || {};
+      var emp = (empData && Object.values(empData).find(function(e){ return (e.fbKey||e.id) === empKey; })) || {};
       var movs = cta[empKey] || {};
       Object.keys(movs).forEach(function(mKey){
         var m = movs[mKey] || {};
@@ -24718,7 +24659,7 @@ async function _migrarPagablesLegacyAGastos() {
       if (String(sol.estado||'').toLowerCase() !== 'aprobado') return;
       if (sol.gastoFbKey && (gastosData||[]).some(function(g){ return g.fbKey === sol.gastoFbKey; })) return;
       var empKey = sol.empFbKey || sol.empleadoFbKey || sol.empleadoId || '';
-      var emp = buscarEmpleadoPorRef(empKey) || {};
+      var emp = (empData && Object.values(empData).find(function(e){ return (e.fbKey||e.id) === empKey; })) || {};
       var monto = _pagableNormMonto(sol.monto || 0);
       if (monto <= 0) {
         var cargoInfo = emp && emp.cargoId ? (CARGOS_DATA||{})[emp.cargoId] : null;
@@ -25522,19 +25463,17 @@ function generarComisionesVenta(venta, montoCobrado) {
   var vendedores = [];
 
   // Vendedor principal
-  var empPrincipal = venta.empleadoFbKey
-    ? buscarEmpleadoPorRef(venta.empleadoFbKey)
-    : (buscarEmpleadoPorRef(venta.empleado) || buscarEmpleadoPorNombreUnico(venta.empleado));
+  var empPrincipal = Object.values(empData||{}).find(function(e){
+    return e.fbKey === venta.empleadoFbKey || e.fbKey === venta.empleado || e.nombre === venta.empleado;
+  });
   if (empPrincipal && _pctComisionEmpleadoVenta(empPrincipal) > 0) {
     vendedores.push(empPrincipal);
   }
 
   // Segundo comisionado
-  var empCom2 = (venta.comisionado2 || venta.comisionado2FbKey)
-    ? (venta.comisionado2FbKey
-      ? buscarEmpleadoPorRef(venta.comisionado2FbKey)
-      : (buscarEmpleadoPorRef(venta.comisionado2) || buscarEmpleadoPorNombreUnico(venta.comisionado2)))
-    : null;
+  var empCom2 = (venta.comisionado2 || venta.comisionado2FbKey) ? Object.values(empData||{}).find(function(e){
+    return e.fbKey === venta.comisionado2FbKey || e.fbKey === venta.comisionado2 || e.nombre === venta.comisionado2;
+  }) : null;
   if (empCom2 && empCom2.fbKey !== (empPrincipal && empPrincipal.fbKey) && _pctComisionEmpleadoVenta(empCom2) > 0) {
     vendedores.push(empCom2);
   }
@@ -26927,9 +26866,11 @@ function guardarPresupuesto(modo) {
   var preciosNoVigentes = items.filter(function(it) {
     var refItem = String(it.pid || it.productoFbKey || it.productoKey || '');
     var codItem = String(it.cod || it.codigo || '').trim().toLowerCase();
-    var prod = obtenerProductoPorCodigoVenta(codItem, {
-      productoFbKey: refItem || '',
-      codigo: codItem
+    var prod = Object.values(prodData || {}).find(function(p){
+      if (!p) return false;
+      var refProd = String(p.fbKey || p.key || p.id || '');
+      var codProd = String(p.codigo || p.cod || '').trim().toLowerCase();
+      return (refItem && refProd === refItem) || (codItem && codProd === codItem);
     });
     return prod && !estadoVigenciaPrecioProducto(prod).vigente;
   });
@@ -27119,54 +27060,6 @@ function otEstaCerrada(ot) {
 window.otEstadoNormalizado = otEstadoNormalizado;
 window.otEstaCerrada = otEstaCerrada;
 
-function otFechaISO(valor) {
-  var texto = String(valor || '').trim();
-  if (!texto) return '';
-  if (/^\d{4}-\d{2}-\d{2}/.test(texto)) return texto.slice(0,10);
-  var partes = texto.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-  if (partes) return partes[3] + '-' + String(partes[2]).padStart(2,'0') + '-' + String(partes[1]).padStart(2,'0');
-  return '';
-}
-
-function otListaCanonica() {
-  var lista = Array.isArray(otData) ? otData : Object.values(otData || {});
-  var vistas = new Set();
-  return lista.filter(function(ot, indice) {
-    if (!ot || typeof ot !== 'object') return false;
-    var key = String(ot.fbKey || '').trim();
-    if (!key) return true; // los registros legacy sin clave no se fusionan por su número editable
-    if (vistas.has(key)) {
-      console.error('[OT] Registro técnico duplicado en memoria:', key, ot.id || '');
-      return false;
-    }
-    vistas.add(key);
-    return true;
-  });
-}
-
-function otCoincidePeriodo(ot, periodo, hoy) {
-  if (!periodo || periodo === 'todos') return true;
-  var fecha = otFechaISO(ot && ot.fecha);
-  if (!fecha) return false;
-  hoy = hoy || (typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toLocaleDateString('en-CA'));
-  if (periodo === 'hoy') return fecha === hoy;
-  if (periodo === 'mes') return fecha.slice(0,7) === hoy.slice(0,7);
-  if (periodo === 'semana') {
-    var hoyFecha = new Date(hoy + 'T12:00:00');
-    var desplazamiento = (hoyFecha.getDay() + 6) % 7;
-    var inicio = new Date(hoyFecha);
-    inicio.setDate(hoyFecha.getDate() - desplazamiento);
-    var fin = new Date(inicio);
-    fin.setDate(inicio.getDate() + 6);
-    var fechaOT = new Date(fecha + 'T12:00:00');
-    return fechaOT >= inicio && fechaOT <= fin;
-  }
-  return true;
-}
-window.otFechaISO = otFechaISO;
-window.otListaCanonica = otListaCanonica;
-window.otCoincidePeriodo = otCoincidePeriodo;
-
 function otEstadoParaMostrar(ot) {
   if (!ot) return '';
   var estado = otEstadoNormalizado(ot);
@@ -27235,10 +27128,9 @@ function renderOTTabla(filtro) {
 
   // Métricas (iguales para todos)
   var esCompletadaOT = otEstaCerrada;
-  var listaOT = otListaCanonica();
-  if (_e('ot-met-abiertas')) _e('ot-met-abiertas').textContent = listaOT.filter(function(o){ return !esCompletadaOT(o); }).length;
-  if (_e('ot-met-hoy'))      _e('ot-met-hoy').textContent      = listaOT.filter(function(o){ return !esCompletadaOT(o) && otCoincidePeriodo(o, 'hoy', hoy); }).length;
-  if (_e('ot-met-comp'))     _e('ot-met-comp').textContent     = listaOT.filter(esCompletadaOT).length;
+  if (_e('ot-met-abiertas')) _e('ot-met-abiertas').textContent = otData.filter(function(o){ return !esCompletadaOT(o); }).length;
+  if (_e('ot-met-hoy'))      _e('ot-met-hoy').textContent      = otData.filter(function(o){ return !esCompletadaOT(o) && String(o.fecha||'').slice(0,10) === hoy; }).length;
+  if (_e('ot-met-comp'))     _e('ot-met-comp').textContent     = otData.filter(esCompletadaOT).length;
   if (typeof window.otCustodiaActualizarResumenGlobal === 'function') window.otCustodiaActualizarResumenGlobal();
 
   var esTecnico = currentRole === 'tecnico';
@@ -27345,7 +27237,7 @@ function _renderOTVistaAdmin(filtro, hoy) {
     });
   }
 
-  var rows = otListaCanonica().filter(function(o){
+  var rows = otData.filter(function(o){
     var estadoMostrar = otEstadoParaMostrar(o);
     var resumenDocumental = otResumenDocumental(o);
     var matchFiltro = !filtro ||
@@ -27355,7 +27247,20 @@ function _renderOTVistaAdmin(filtro, hoy) {
       (filtro !== 'abiertas' && filtro !== 'documentacion_pendiente' && filtro !== 'completada' && estadoMostrar === filtro);
     var matchTec    = !filtroTec || o.tecnico  === filtroTec;
     var matchBusq   = !busq      || (o.id||'').toLowerCase().includes(busq.toLowerCase()) || (o.cliente||'').toLowerCase().includes(busq.toLowerCase());
-    var matchPeriodo = otCoincidePeriodo(o, filtroPeriodo, hoy);
+    var fecha = String(o.fecha || '').slice(0,10);
+    var matchPeriodo = filtroPeriodo === 'todos';
+    if (filtroPeriodo === 'hoy') matchPeriodo = fecha === hoy;
+    if (filtroPeriodo === 'mes') matchPeriodo = fecha.indexOf(hoy.slice(0,7)) === 0;
+    if (filtroPeriodo === 'semana') {
+      var hoyFecha = new Date(hoy + 'T12:00:00');
+      var desplazamiento = (hoyFecha.getDay() + 6) % 7;
+      var inicioSemana = new Date(hoyFecha);
+      inicioSemana.setDate(hoyFecha.getDate() - desplazamiento);
+      var finSemana = new Date(inicioSemana);
+      finSemana.setDate(inicioSemana.getDate() + 6);
+      var fechaOT = fecha ? new Date(fecha + 'T12:00:00') : null;
+      matchPeriodo = !!fechaOT && fechaOT >= inicioSemana && fechaOT <= finSemana;
+    }
     return matchFiltro && matchTec && matchBusq && matchPeriodo;
   });
 
@@ -27432,15 +27337,14 @@ function _otResolverDireccionCliente(ot) {
   var ventaOrigen = ot && Array.isArray(ventasList) ? _svResolverVentaRegistro(ot) : null;
 
   // 1) La ficha actual del cliente es la fuente principal para las OT vinculadas.
-  var cliRelacionado = null;
-  if (typeof _svResolverClienteRegistro === 'function') {
-    // La clave técnica de la OT tiene prioridad y nunca debe caer al primer
-    // cliente con un número comercial coincidente.
-    cliRelacionado = _svResolverClienteRegistro(ot, true);
-    if (!cliRelacionado && ventaOrigen) {
-      cliRelacionado = _svResolverClienteRegistro(ventaOrigen, true);
-    }
-  }
+  var clientesArr = Array.isArray(clientesData) ? clientesData : Object.values(clientesData||{});
+  var referencias = [
+    ot && (ot.clienteFbKey || ot.clienteKey || ot.clienteId || ot.idCliente || ot.id_cli),
+    ventaOrigen && (ventaOrigen.clienteFbKey || ventaOrigen.clienteKey || ventaOrigen.clienteId || ventaOrigen.idCliente)
+  ].filter(Boolean).map(String);
+  var cliRelacionado = referencias.length ? clientesArr.find(function(c){
+    return [c.id,c.fbKey,c.key,c.codigo].filter(Boolean).map(String).some(function(valor){ return referencias.indexOf(valor) >= 0; });
+  }) : null;
   if (!cliRelacionado) {
     var nombreOT = String((ot && (ot.cliente || ot.clienteNombre)) || (ventaOrigen && ventaOrigen.cliente) || '').trim();
     // Una OT manual recién creada no tiene cliente. Nunca debe hacer coincidir
@@ -27465,7 +27369,11 @@ function _otResolverDireccionCliente(ot) {
 function _otClientePorClave(clave) {
   var buscada = String(clave || '').trim();
   if (!buscada) return null;
-  return buscarClientePorRef(buscada);
+  return (clientesData || []).find(function(cliente) {
+    return typeof _svClienteClaves === 'function'
+      ? _svClienteClaves(cliente).indexOf(buscada) >= 0
+      : [cliente.fbKey, cliente.id, cliente.codigo].filter(Boolean).map(String).indexOf(buscada) >= 0;
+  }) || null;
 }
 
 function _otAplicarClienteVinculado(ot, cliente, guardar) {
@@ -27523,14 +27431,18 @@ function otClienteManualConfirmar(inp) {
     otSeleccionarClienteManual(cliente.fbKey || cliente.id || cliente.codigo || '', cliente.nombre || '');
     return;
   }
-  var ot = buscarOTPorRef(otActualId);
+  var ot = (otData || []).find(function(actual) {
+    return actual && (actual.id === otActualId || actual.fbKey === otActualId);
+  });
   inp.value = ot ? (ot.cliente || '') : '';
   inp.dataset.clienteNombre = inp.value;
   notify('Seleccioná un cliente cargado desde la lista');
 }
 
 function otSeleccionarClienteManual(clave, nombre) {
-  var ot = buscarOTPorRef(otActualId);
+  var ot = (otData || []).find(function(actual) {
+    return actual && (actual.id === otActualId || actual.fbKey === otActualId);
+  });
   if (!ot || otResolverOrigen(ot) !== 'manual') return;
   var cliente = _otClientePorClave(clave) ||
     _svResolverClienteRegistro({ cliente:nombre || '' }, true);
@@ -27566,7 +27478,15 @@ function otResolverOrigen(ot) {
 
 function otBuscarVentaOrigen(ot) {
   if (!ot) return null;
-  return _svResolverVentaRegistro(ot);
+  var referencias = [ot.ventaFbKey, ot.ventaKey, ot.ventaId, ot.idVenta, ot.venta].filter(Boolean).map(String);
+  var numeros = referencias.map(function(valor){ return valor.replace(/\D/g, ''); }).filter(Boolean);
+  return (ventasList||[]).find(function(venta) {
+    var ids = [venta.fbKey, venta.id, venta.idOriginal, venta.numeroOriginal, venta.ventaIdOriginal, venta.numero, venta.ventaId, venta.nro, venta.codigo].filter(Boolean).map(String);
+    return ids.some(function(valor){ return referencias.includes(valor); }) || ids.some(function(valor){
+      var numero = valor.replace(/\D/g, '');
+      return numero && numeros.includes(numero);
+    });
+  }) || null;
 }
 
 function otNormalizarMateriales(items, progreso) {
@@ -27668,7 +27588,7 @@ function actualizarPanelIntegridadOT() {
   var resumen = document.getElementById('ot-integridad-resumen');
   var detalle = document.getElementById('ot-integridad-detalle');
   if (!resumen || !detalle) return null;
-  var ot = buscarOTPorRef(otActualId);
+  var ot = (otData || []).find(function(item){ return item.id === otActualId || item.fbKey === otActualId; });
   if (!ot) {
     resumen.textContent = 'No se encontró la OT abierta.';
     detalle.innerHTML = '';
@@ -27694,26 +27614,9 @@ function actualizarPanelIntegridadOT() {
   return auditoria;
 }
 
-function buscarOTPorRef(ref) {
-  var lista = Array.isArray(otData) ? otData : [];
-  var clave = _svTxtClave(ref);
-  if (!clave || !lista.length) return null;
-
-  var porKey = lista.filter(function(ot){ return _svTxtClave(ot && ot.fbKey) === clave; });
-  if (porKey.length === 1) return porKey[0];
-
-  var claveNormalizada = clave.toLocaleLowerCase('es-AR');
-  var porNumero = lista.filter(function(ot) {
-    return [ot && ot.id, ot && ot.numero, ot && ot.otId]
-      .map(_svTxtClave)
-      .some(function(valor){ return valor.toLocaleLowerCase('es-AR') === claveNormalizada; });
-  });
-  return _svUnicoOAmbiguo(porNumero, 'orden de trabajo', ref);
-}
-window.buscarOTPorRef = buscarOTPorRef;
-
 function verOT(id) {
-  var ot = buscarOTPorRef(id);
+  var ot = otData.find(function(o){ return o.fbKey === id; })
+        || otData.find(function(o){ return o.id === id; });
   if (!ot) { notify('OT no encontrada'); return; }
   var checklistReconstruido = normalizarChecklistOT(ot);
   otActualId = ot.fbKey || ot.id || id;
@@ -27962,7 +27865,7 @@ function verOT(id) {
     }
 
     var materialesFiltrados = materiales.map(function(m, indice){ return Object.assign({_indice:indice}, m); }).filter(function(m){
-      var prod = obtenerProductoPorCodigoVenta(m.cod, { codigo:m.cod });
+      var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === m.cod; });
       if (!prod) return true; // si no se encuentra el producto, mostrar igual
       if (prod.esManoDeObra) return false;
       var cat = (prod.categoria||'').toUpperCase();
@@ -27992,7 +27895,7 @@ function verOT(id) {
 }
 
 function otActualizarMaterial(inp, cod) {
-  var ot = buscarOTPorRef(otActualId);
+  var ot = otData.find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
   if (!ot || !ot.fbKey || !window.fbDB) return;
 
   // Reconstruir el array de ítems con el nuevo valor
@@ -28032,7 +27935,7 @@ function otActualizarMaterial(inp, cod) {
   }).catch(function(e){ notify('Error guardando: ' + e.message); });
 }
 function otToggleInstalado(chk, indice, vendida) {
-  var ot = buscarOTPorRef(otActualId);
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB) return;
   var nuevoVal = chk.checked ? vendida : 0;
   var materiales = (ot.materiales || []).slice();
@@ -28132,7 +28035,7 @@ function otQuitarCarrito(idx) {
 
 function otConfirmarVentaAdicional() {
   if (!_otCarritoAdicional.length) { notify('Agregá al menos un producto'); return; }
-  var ot = buscarOTPorRef(otActualId);
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB) return;
 
   var items = _otCarritoAdicional.map(function(c) {
@@ -28279,7 +28182,7 @@ function firmaLimpiar(soloVisual) {
   document.getElementById('firma-guardada-badge').style.display = 'none';
   document.getElementById('firma-preview').style.display = 'none';
   if (soloVisual === true) return;
-  var ot = buscarOTPorRef(otActualId);
+  var ot = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
   if (!ot || !ot.fbKey || !window.fbDB) return;
   var firmaAnterior = otFirmaUrl(ot);
   var pathAnterior = ot.firmaStoragePath || '';
@@ -28325,7 +28228,7 @@ function firmaAutoguardar() {
   if (!canvas || !_firmaTiene || _firmaGuardando) return;
   var dataUrl = canvas.toDataURL('image/png');
   var badge = document.getElementById('firma-guardada-badge');
-  var otFirma = buscarOTPorRef(otActualId);
+  var otFirma = (otData||[]).find(function(o){ return o.fbKey === otActualId || o.id === otActualId; });
   if (!otFirma || !otFirma.fbKey) {
     notify('No se encontró la OT donde se dibujó la firma');
     return;
@@ -28386,7 +28289,7 @@ function firmaAutoguardar() {
 
 function firmaGuardarEnOT(firmaUrl, storagePath, otObjetivoId) {
   var objetivo = otObjetivoId || otActualId;
-  var ot = buscarOTPorRef(objetivo);
+  var ot = (otData||[]).find(function(o){ return o.fbKey === objetivo || o.id === objetivo; });
   if (!ot || !ot.fbKey || !window.fbDB) return Promise.reject(new Error('No se encontró la OT de la firma'));
   var pathAnterior = ot.firmaStoragePath || '';
   var fechaFirma = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toLocaleDateString('en-CA');
@@ -28522,7 +28425,9 @@ function otCredencialBasicaGuardar() {
     .then(function() {
       notify('✓ Credencial guardada para ' + (_otCredencialesClienteActual.nombre || _otCredencialesClienteActual.empresa || 'el cliente'));
       otCredencialBasicaCerrar();
-      var ot = buscarOTPorRef(otActualId) || _otCredencialesOTActual;
+      var ot = (otData || []).find(function(item) {
+        return item.fbKey === otActualId || item.id === otActualId;
+      }) || _otCredencialesOTActual;
       if (ot) otCargarCredenciales(ot);
     })
     .catch(function(error) { notify('Error al guardar: ' + error.message); })
@@ -28602,7 +28507,7 @@ function otCargarCredenciales(ot) {
     box.style.display = '';
     lista.innerHTML = '<div style="padding:14px;text-align:center;color:var(--red);font-size:12px">' +
       '<i class="ti ti-alert-triangle"></i> No se pudieron cargar las credenciales. ' +
-      '<button type="button" class="btn btn-sm" onclick="var ot=buscarOTPorRef(otActualId);if(ot)otCargarCredenciales(ot)" style="margin-left:6px">Reintentar</button>' +
+      '<button type="button" class="btn btn-sm" onclick="var ot=(otData||[]).find(function(item){return item.fbKey===otActualId||item.id===otActualId;});if(ot)otCargarCredenciales(ot)" style="margin-left:6px">Reintentar</button>' +
     '</div>';
   });
 }
@@ -28746,7 +28651,7 @@ function otRenderNotas(ot) {
 }
 
 function otEliminarNota(indice) {
-  var ot = buscarOTPorRef(otActualId);
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB) { notify('No se encontró la OT'); return; }
   var notas = otNotasNormalizadas(ot).slice();
   var nota = notas[indice];
@@ -28823,7 +28728,7 @@ function otAgregarNota() {
   var inp = document.getElementById('ot-nota-nueva');
   var texto = inp ? inp.value.trim() : '';
   if (!texto) { notify('Ingresá el texto de la nota'); return; }
-  var ot = buscarOTPorRef(otActualId);
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB || !window.fbPush) return;
   var notaNueva = { texto:texto, autor:currentUser||'Técnico', rol:currentRole||'tecnico', ts:Date.now() };
   var key = ot.fbKey || otActualId;
@@ -28846,41 +28751,6 @@ function otAgregarNota() {
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
-var _otFotoCargaActiva = null;
-
-function otErrorCargaCancelada() {
-  var error = new Error('Carga cancelada');
-  error.codigo = 'cancelado';
-  return error;
-}
-
-function otConCancelacion(promesa, control) {
-  if (!control) return Promise.resolve(promesa);
-  return Promise.race([
-    Promise.resolve(promesa),
-    new Promise(function(_resolve, reject) {
-      if (control.cancelada) {
-        reject(otErrorCargaCancelada());
-        return;
-      }
-      control.rechazarCancelacion = reject;
-    })
-  ]).finally(function() {
-    control.rechazarCancelacion = null;
-  });
-}
-
-function otCancelarCargaFoto() {
-  var control = _otFotoCargaActiva;
-  if (!control || control.terminada) return;
-  control.cancelada = true;
-  try {
-    if (control.tarea && typeof control.tarea.cancel === 'function') control.tarea.cancel();
-  } catch (_) {}
-  if (control.rechazarCancelacion) control.rechazarCancelacion(otErrorCargaCancelada());
-}
-window.otCancelarCargaFoto = otCancelarCargaFoto;
-
 function otMostrarFotoPendiente(file) {
   var cont = document.getElementById('ot-fotos-preview');
   var estadoFotos = document.getElementById('ot-fotos-estado');
@@ -28892,10 +28762,7 @@ function otMostrarFotoPendiente(file) {
     '<img alt="Foto seleccionada, subiendo" style="width:118px;height:88px;display:block;object-fit:cover;background:#05070c">' +
     '<span style="display:flex;align-items:center;gap:5px;padding:6px 8px;font-size:10px;color:var(--blue)">' +
       '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Preparando…' +
-    '</span>' +
-    '<button type="button" onclick="otCancelarCargaFoto()" style="width:calc(100% - 12px);margin:0 6px 6px;padding:4px 6px;border:1px solid var(--red);border-radius:6px;background:transparent;color:var(--red);font-size:10px;cursor:pointer">' +
-      '<i class="ti ti-x"></i> Cancelar carga' +
-    '</button>';
+    '</span>';
   tarjeta.querySelector('img').src = urlTemporal;
   cont.style.display = 'flex';
   cont.appendChild(tarjeta);
@@ -29031,11 +28898,10 @@ function otPrepararFotoParaSubir(file, informar) {
   });
 }
 
-function otSubirFotoConProgreso(storageRef, blob, informar, control) {
+function otSubirFotoConProgreso(storageRef, blob, informar) {
   if (window.fbUploadBytesResumable) {
     return new Promise(function(resolve, reject) {
       var tarea = window.fbUploadBytesResumable(storageRef, blob, { contentType:blob.type || 'image/jpeg' });
-      if (control) control.tarea = tarea;
       var timerInactividad;
       var timerTotal;
       var terminada = false;
@@ -29054,7 +28920,7 @@ function otSubirFotoConProgreso(storageRef, blob, informar, control) {
       }
       function reiniciarInactividad() {
         clearTimeout(timerInactividad);
-        timerInactividad = setTimeout(fallarPorTiempo, 30000);
+        timerInactividad = setTimeout(fallarPorTiempo, 45000);
       }
       reiniciarInactividad();
       timerTotal = setTimeout(fallarPorTiempo, 180000);
@@ -29068,25 +28934,20 @@ function otSubirFotoConProgreso(storageRef, blob, informar, control) {
         if (terminada) return;
         terminada = true;
         limpiar();
-        if (control && control.cancelada) reject(otErrorCargaCancelada());
-        else reject(error);
+        reject(error);
       }, function() {
         if (terminada) return;
         terminada = true;
         limpiar();
         if (informar) informar(100, 'Carga completa · guardando en la OT…');
-        if (control) control.tarea = null;
         resolve(tarea.snapshot);
       });
     });
   }
-  return otConCancelacion(
-    otConTimeout(
-      window.fbUploadBytes(storageRef, blob, { contentType:blob.type || 'image/jpeg' }),
-      120000,
-      'La foto tardó demasiado en subir. Revisá la conexión y volvé a intentarlo.'
-    ),
-    control
+  return otConTimeout(
+    window.fbUploadBytes(storageRef, blob, { contentType:blob.type || 'image/jpeg' }),
+    120000,
+    'La foto tardó demasiado en subir. Revisá la conexión y volvé a intentarlo.'
   );
 }
 
@@ -29102,17 +28963,10 @@ function otAgregarFoto(input) {
   }
   var inp  = document.getElementById('ot-nota-nueva');
   var texto = inp ? inp.value.trim() : 'Foto adjunta';
-  var ot = buscarOTPorRef(otActualId);
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot) { input.value=''; notify('No se encontró la OT abierta'); return; }
   if (input.dataset.subiendo === '1') { notify('Esperá a que termine la foto anterior'); return; }
   input.dataset.subiendo = '1';
-  var controlCarga = {
-    cancelada:false,
-    terminada:false,
-    tarea:null,
-    rechazarCancelacion:null
-  };
-  _otFotoCargaActiva = controlCarga;
   var otIdAlSubir = ot.fbKey || ot.id || otActualId;
   var pendiente = otMostrarFotoPendiente(file);
   var nombreSeguro = String(file.name || 'foto.jpg').replace(/[^a-zA-Z0-9._-]+/g, '_');
@@ -29122,8 +28976,7 @@ function otAgregarFoto(input) {
   var fotoRegistradaEnOT = false;
   var registroIncierto = false;
   notify(file.size > 1400*1024 ? 'Optimizando foto antes de subir…' : 'Subiendo foto…');
-  otConCancelacion(otPrepararFotoParaSubir(file, pendiente.progreso), controlCarga).then(function(preparacion){
-    if (controlCarga.cancelada) throw otErrorCargaCancelada();
+  otPrepararFotoParaSubir(file, pendiente.progreso).then(function(preparacion){
     preparacionFoto = preparacion;
     var extension = preparacion.optimizada ? '.jpg' : ((nombreSeguro.match(/\.[a-zA-Z0-9]+$/) || ['.jpg'])[0]);
     var baseNombre = nombreSeguro.replace(/\.[a-zA-Z0-9]+$/, '') || 'foto';
@@ -29134,16 +28987,11 @@ function otAgregarFoto(input) {
       var ahorro = Math.max(0, Math.round((1 - preparacion.blob.size / preparacion.originalBytes) * 100));
       pendiente.progreso(0, 'Foto optimizada · ' + ahorro + '% más liviana');
     }
-    return otSubirFotoConProgreso(sRef, preparacion.blob, pendiente.progreso, controlCarga);
+    return otSubirFotoConProgreso(sRef, preparacion.blob, pendiente.progreso);
   }).then(function(){
-    if (controlCarga.cancelada) throw otErrorCargaCancelada();
     pendiente.progreso(100, 'Obteniendo enlace seguro…');
-    return otConCancelacion(
-      otConTimeout(window.fbGetDownloadURL(sRef), 25000, 'La foto subió, pero Storage no entregó el enlace a tiempo'),
-      controlCarga
-    );
+    return otConTimeout(window.fbGetDownloadURL(sRef), 25000, 'La foto subió, pero Storage no entregó el enlace a tiempo');
   }).then(function(url) {
-    if (controlCarga.cancelada) throw otErrorCargaCancelada();
     var notaFoto = {
       texto: texto||'Foto',
       autor: currentUser||'Técnico',
@@ -29161,15 +29009,11 @@ function otAgregarFoto(input) {
     window._otGuardandoLocalHasta = Date.now() + 2500;
     var refFoto = window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico'));
     pendiente.progreso(100, 'Guardando la foto en la OT…');
-    return otConCancelacion(
-      otConTimeout(
-        window.fbSet(refFoto, notaFoto),
-        45000,
-        'La foto subió, pero la conexión no confirmó el guardado en la OT'
-      ),
-      controlCarga
+    return otConTimeout(
+      window.fbSet(refFoto, notaFoto),
+      45000,
+      'La foto subió, pero la conexión no confirmó el guardado en la OT'
     ).catch(function(errorGuardado) {
-      if (errorGuardado && errorGuardado.codigo === 'cancelado') throw errorGuardado;
       if (errorGuardado && errorGuardado.codigo === 'timeout') {
         return otConTimeout(window.fbGet(refFoto), 10000, 'No se pudo confirmar el registro').then(function(snap) {
           var guardada = snap && snap.val ? snap.val() : null;
@@ -29212,26 +29056,19 @@ function otAgregarFoto(input) {
     if (!fotoRegistradaEnOT && !registroIncierto && sRef && window.fbDeleteObject) {
       window.fbDeleteObject(sRef).catch(function(){});
     }
-    var fueCancelada = !!(e && (e.codigo === 'cancelado' || e.code === 'storage/canceled'));
-    pendiente.error(fueCancelada ? 'Carga cancelada' : (registroIncierto ? 'Guardado sin confirmar' : 'No se pudo guardar'));
-    setTimeout(function(){ pendiente.cerrar(); }, fueCancelada ? 500 : 4500);
+    pendiente.error(registroIncierto ? 'Guardado sin confirmar' : 'No se pudo guardar');
+    setTimeout(function(){ pendiente.cerrar(); }, 4500);
     input.value='';
-    notify(fueCancelada
-      ? 'Carga de foto cancelada. No se guardó ningún registro.'
-      : registroIncierto
+    notify(registroIncierto
       ? 'La foto terminó de subir, pero la conexión no confirmó el registro. Cerrá y volvé a abrir la OT para verificarla.'
       : 'Error al subir la foto: '+e.message);
   }).finally(function(){
-    controlCarga.terminada = true;
-    controlCarga.tarea = null;
-    controlCarga.rechazarCancelacion = null;
-    if (_otFotoCargaActiva === controlCarga) _otFotoCargaActiva = null;
     input.dataset.subiendo = '0';
   });
 }
 
 function otVerReclamo() {
-  var ot = buscarOTPorRef(otActualId);
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !ot.reclamoKey) return;
   volverListaOT();
   showPage('soporte', document.querySelector('[onclick*="soporte"]'));
@@ -29287,7 +29124,7 @@ function renderChecklist(containerId, checks, labels, otId, fase) {
 var _otChecklistGuardando = Object.create(null);
 
 function toggleChecklistFase(fase) {
-  var ot = buscarOTPorRef(otActualId);
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !CHECKLISTS[fase]) return;
   if (otEstaCerrada(ot)) {
     notify('La OT ya está finalizada y su checklist no puede modificarse.');
@@ -29335,7 +29172,7 @@ function toggleChecklistFase(fase) {
 
 // Toggle un ítem del checklist
 function toggleCheckOT(otId, fase, idx) {
-  const ot = buscarOTPorRef(otId);
+  const ot = otData.find(o => o.id === otId || o.fbKey === otId);
   if (!ot || otEstaCerrada(ot)) return;
   var claveGuardado = String(ot.fbKey || ot.id || otId) + ':' + fase;
   if (_otChecklistGuardando[claveGuardado]) {
@@ -29386,7 +29223,7 @@ function actualizarProgreso(ot) {
 
 // Completar OT
 function completarOT() {
-  const ot = buscarOTPorRef(otActualId);
+  const ot = otData.find(o => o.id === otActualId || o.fbKey === otActualId);
   if (!ot) return;
   if (otEstaCerrada(ot)) {
     notify('Esta OT ya está finalizada.');
@@ -29521,7 +29358,7 @@ function completarOT() {
 }
 
 function actualizarOT(direccionEditada) {
-  var ot = buscarOTPorRef(otActualId);
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot) return;
 
   var tecSel = document.getElementById('ot-det-tecnico');
@@ -29661,7 +29498,10 @@ function _contarVisitasPrevias(cliente, dir, otIdExcluir) {
 }
 
 function generarOTdesdeVenta(ventaId, cliente, dir) {
-  var venta=_svResolverVentaRegistro(ventaId);
+  var venta=(ventasList||[]).find(function(item){
+    return String(item.id||item.numero||item.fbKey||'')===String(ventaId||'') ||
+      (String(ventaId||'').replace(/\D/g,'') && String(item.id||item.numero||item.fbKey||'').replace(/\D/g,'')===String(ventaId||'').replace(/\D/g,''));
+  })||null;
   var ventaRef = venta || { id: ventaId, numero: ventaId, ventaId: ventaId };
   var existente=(otData||[]).find(function(ot){return _svRegistroPerteneceVenta(ot, ventaRef);});
   if(existente) return existente.id||existente.fbKey||'';
@@ -29860,7 +29700,9 @@ function renderDashMiCuenta() {
   });
   var empFbKey = usuActual && usuActual.empleadoFbKey;
   if (!empFbKey) {
-    var empFallback = buscarEmpleadoPorNombreUnico(currentUser);
+    var empFallback = Object.values(empData||{}).find(function(e){
+      return (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
+    });
     if (empFallback) empFbKey = empFallback.fbKey || empFallback.id;
   }
   if (!empFbKey || !window.fbDB) { card.style.display = 'none'; return; }
@@ -30481,7 +30323,7 @@ function calcularPagadoRealVenta(venta) {
 }
 
 function verHistorialCliente(id, nombre) {
-  var cli = buscarClientePorRef(id);
+  var cli = (clientesData || []).find(function(c){ return String(c.fbKey) === String(id) || String(c.id) === String(id); });
   if (!cli) { notify('Cliente no encontrado (ID: '+id+')'); return; }
   clienteActualId = cli.fbKey || cli.id;
   showPage('historialcliente', null);
@@ -30629,7 +30471,9 @@ function verHistorialCliente(id, nombre) {
 }
 
 function abrirDireccionClienteMaps(id) {
-  var cli = buscarClientePorRef(id);
+  var cli = (clientesData || []).find(function(c) {
+    return String(c.fbKey || '') === String(id || '') || String(c.id || '') === String(id || '');
+  });
   if (!cli) { notify('Cliente no encontrado'); return; }
   var direccion = String(cli.dir || cli.direccion || '').trim();
   if (!direccion) { notify('Este cliente no tiene una dirección cargada'); return; }
@@ -32576,7 +32420,7 @@ function calcularComisionEmpleado(emp, mesAMM) {
 
 // Editar cliente
 function editarCliente(id) {
-  var cli = buscarClientePorRef(id);
+  var cli = clientesData ? clientesData.find(function(c){ return String(c.id || '') === String(id || '') || String(c.fbKey || '') === String(id || ''); }) : null;
   if (!cli) { notify('Cliente no encontrado'); return; }
   window._editingClienteId = cli.fbKey || cli.id;
   abrirModalNuevo('cliente');
@@ -32764,7 +32608,7 @@ function _gFilterDropSel(inputId, valor, fbKey) {
   // Callback especial para presupuesto
   if (inputId === 'pp-cli') {
     var cli = fbKey
-      ? buscarClientePorRef(fbKey)
+      ? (clientesData||[]).find(function(c){ return String(c.fbKey||c.id||'') === String(fbKey||''); })
       : _svResolverClienteRegistro({ cliente: valor }, true);
     if (cli) {
       var idEl = _get('pp-cli-id');
@@ -32799,7 +32643,7 @@ function clienteSeleccionadoPpto() {
   var key = String((document.getElementById('pp-cli-id') || {}).value || '').trim();
   var nombre = String((document.getElementById('pp-cli') || {}).value || '').trim();
   if (key) {
-    var porKey = buscarClientePorRef(key);
+    var porKey = (clientesData || []).find(function(c){ return _svClienteClaves(c).indexOf(key) >= 0; });
     if (porKey) return porKey;
   }
   return _svResolverClienteRegistro({ cliente:nombre }, true);
@@ -33118,11 +32962,7 @@ function _selProdGlobal(item) {
 
   var filaSeleccionada = _prodDropTR;
   var esFilaPpto = !!(filaSeleccionada && filaSeleccionada.closest('#pp-body'));
-  var prod = obtenerProductoPorCodigoVenta(cod, { codigo:cod });
-  if (!prod && desc) {
-    var porNombre = Object.values(prodData||{}).filter(function(p){ return p.nombre === desc; });
-    prod = _svUnicoOAmbiguo(porNombre, 'producto por nombre', desc);
-  }
+  var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod || p.nombre === desc; });
   var vigenciaPrecio = prod ? estadoVigenciaPrecioProducto(prod) : null;
   // La fuente del selector es siempre el precio canónico en ARS. USD es una
   // presentación temporal del formulario y nunca vuelve a convertirse dos

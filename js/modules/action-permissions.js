@@ -164,7 +164,7 @@
   function getVentaActualEditando(){
     var k = window._ventaEditandoFbKey;
     if (!k) return null;
-    return (typeof window._svResolverVentaRegistro === 'function' ? window._svResolverVentaRegistro(k) : null) || window._ventaEditandoOriginal || null;
+    return arr(window.ventasList || window.ventasData).find(function(v){ return v && (String(v.fbKey||'') === String(k) || String(v.id||'') === String(k)); }) || window._ventaEditandoOriginal || null;
   }
 
   var confirmarPrev311 = window.confirmarVenta;
@@ -176,7 +176,7 @@
       var r = confirmarPrev311.apply(this, arguments);
       setTimeout(function(){
         if (editandoKey) {
-          var despues = typeof window._svResolverVentaRegistro === 'function' ? window._svResolverVentaRegistro(editandoKey) : null;
+          var despues = arr(window.ventasList || window.ventasData).find(function(v){ return v && (String(v.fbKey||'') === String(editandoKey) || String(v.id||'') === String(editandoKey)); }) || null;
           SV.Audit.registrar('Venta editada', 'Venta ' + editandoKey, antes, despues);
         } else {
           SV.Audit.registrar('Venta creada', 'Confirmación de venta');
@@ -190,7 +190,7 @@
   var eliminarPrev311 = window.eliminarVenta;
   if (typeof eliminarPrev311 === 'function' && !eliminarPrev311._sv311) {
     window.eliminarVenta = function(fbKey){
-      var antes = typeof window._svResolverVentaRegistro === 'function' ? window._svResolverVentaRegistro(fbKey) : null;
+      var antes = arr(window.ventasList || window.ventasData).find(function(v){ return v && (String(v.fbKey||'') === String(fbKey) || String(v.id||'') === String(fbKey)); }) || null;
       var r = eliminarPrev311.apply(this, arguments);
       setTimeout(function(){ SV.Audit.registrar('Venta eliminada/anulada', 'Venta ' + (fbKey || ''), antes, null); }, 800);
       return r;

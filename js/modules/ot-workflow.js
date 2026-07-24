@@ -5,7 +5,7 @@
   function roleAdmin(){ return ['admin','administrativo'].includes(String(window.currentRole||'').toLowerCase()); }
   function findOT(id){
     var actual = String(id || window.otActualId || '');
-    return typeof window.buscarOTPorRef === 'function' ? window.buscarOTPorRef(actual) : null;
+    return arr(window.otData).find(function(o){ return o && (String(o.fbKey||'')===actual || String(o.id||'')===actual); }) || null;
   }
   function nextOTId(){
     var max=0;

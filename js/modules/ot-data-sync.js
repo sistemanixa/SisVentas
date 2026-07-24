@@ -94,7 +94,7 @@
   document.addEventListener('sisventas:ot-opened',function(event){
       var id=event.detail&&event.detail.id;
       setTimeout(function(){
-        var ot = typeof window.buscarOTPorRef === 'function' ? window.buscarOTPorRef(window.otActualId || id) : null;
+        var ot = svArray(window.otData).find(function(o){ return o && (o.fbKey===window.otActualId || o.id===window.otActualId || o.fbKey===id || o.id===id); });
         var dir = window._otResolverDireccionCliente(ot);
         var inp = document.getElementById('ot-det-dir');
         if (inp) {
@@ -129,7 +129,7 @@
         var det = document.getElementById('ot-detalle-view');
         var list = document.getElementById('ot-list-view');
         if (det && det.style.display !== 'none') {
-          var ot = typeof window.buscarOTPorRef === 'function' ? window.buscarOTPorRef(window.otActualId) : null;
+          var ot = svArray(window.otData).find(function(o){return o && (o.fbKey===window.otActualId || o.id===window.otActualId);});
           if (ot && ot.estado === 'completada' && typeof volverListaOT === 'function') volverListaOT();
         }
         if (list && list.style.display !== 'none' && typeof renderOTTabla === 'function') renderOTTabla();

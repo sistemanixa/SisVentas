@@ -19,21 +19,18 @@
   }
 
   function currentOT() {
-    if (typeof window.buscarOTPorRef === 'function') return window.buscarOTPorRef(window.otActualId);
-    var matches = (window.otData || []).filter(function (ot) {
+    return (window.otData || []).find(function (ot) {
       return ot && (ot.fbKey === window.otActualId || ot.id === window.otActualId);
-    });
-    return matches.length === 1 ? matches[0] : null;
+    }) || null;
   }
 
   function productFor(material) {
     var products = window.prodData || window.productosData || {};
     var list = Array.isArray(products) ? products : Object.values(products);
     var code = String((material && (material.cod || material.codigo)) || '').trim().toLowerCase();
-    var matches = list.filter(function (product) {
+    return list.find(function (product) {
       return String((product && (product.codigo || product.cod)) || '').trim().toLowerCase() === code;
-    });
-    return matches.length === 1 ? matches[0] : null;
+    }) || null;
   }
 
   function serviceMaterial(material, product) {

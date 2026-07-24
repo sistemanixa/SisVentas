@@ -24,7 +24,6 @@
     return typeof window.svFechaLocalISO === 'function' ? window.svFechaLocalISO(x) : x.toLocaleDateString('en-CA');
   }
   function matchPeriodoOT(o, periodo){
-    if(typeof window.otCoincidePeriodo === 'function') return window.otCoincidePeriodo(o, periodo, hoyISO());
     if(!periodo || periodo === 'todos') return true;
     var f = fechaISO(o && o.fecha);
     if(!f) return false;
@@ -72,8 +71,7 @@
         });
       }
       var especial = window._otFiltroEspecial315 || '';
-      var baseOT = typeof window.otListaCanonica === 'function' ? window.otListaCanonica() : arr(window.otData);
-      var rows = baseOT.filter(function(o){
+      var rows = arr(window.otData).filter(function(o){
         if(!o) return false;
         var est = estadoNormal(o);
         var mostrarAbiertas = especial === 'abiertas' || String(filtro || '').toLowerCase() === 'abiertas';
