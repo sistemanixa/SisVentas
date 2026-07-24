@@ -6,6 +6,7 @@ const PORT = parseInt(process.env.PORT || '8080', 10);
 const FRONTEND_KEY = process.env.FRONTEND_KEY || '';
 const DATABASE_URL = process.env.FIREBASE_DATABASE_URL || 'https://nixa-sisventas-default-rtdb.firebaseio.com';
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN || 'https://ventas.sistemanixa.com';
+const REQUIRE_FIREBASE_AUTH = String(process.env.REQUIRE_FIREBASE_AUTH || '').toLowerCase() === 'true';
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -24,7 +25,29 @@ function send(res, status, payload) {
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', ALLOW_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Frontend-Key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Frontend-Key, Authorization');
+}
+
+function extraerTokenBearer(authorization) {
+  const match = String(authorization || '').match(/^Bearer\s+([^\s]+)$/i);
+  return match ? match[1] : '';
+}
+
+async function autenticarSolicitud(req) {
+  if (!REQUIRE_FIREBASE_AUTH) return null;
+  const token = extraerTokenBearer(req.headers.authorization);
+  if (!token) {
+    const error = new Error('Sesión Firebase requerida');
+    error.statusCode = 401;
+    throw error;
+  }
+  try {
+    return await admin.auth().verifyIdToken(token, true);
+  } catch (_) {
+    const error = new Error('Sesión Firebase inválida o vencida');
+    error.statusCode = 401;
+    throw error;
+  }
 }
 
 function readBody(req) {
@@ -1015,6 +1038,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+    await autenticarSolicitud(req);
     const body = await readBody(req);
     const pathname = new URL(req.url, 'http://localhost').pathname;
     if (pathname !== '/' && pathname !== '/cotizar' && pathname !== '/biosegur' && pathname !== '/cotizar-lote') {
@@ -1025,7 +1049,7 @@ const server = http.createServer(async (req, res) => {
     send(res, 200, resultado);
   } catch (e) {
     console.error('[cotizador]', e);
-    send(res, 200, { ok: false, error: true, mensaje: e.message || 'Error cotizando proveedor', debug: { trace: e.trace || [] } });
+    send(res, e.statusCode || 200, { ok: false, error: true, mensaje: e.message || 'Error cotizando proveedor', debug: { trace: e.trace || [] } });
   }
 });
 
@@ -1042,5 +1066,6 @@ module.exports = {
   validarIdentidadProducto,
   validarMonedaPrecio,
   validarSaltoPrecio,
-  validarResultadoPrecioIndividual
+  validarResultadoPrecioIndividual,
+  extraerTokenBearer
 };

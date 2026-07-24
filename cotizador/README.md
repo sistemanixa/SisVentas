@@ -18,6 +18,7 @@ Servicio Cloud Run separado para cotizar proveedores por su URL exacta.
 - `FRONTEND_KEY`: misma clave que usa el frontend para autorizar llamadas.
 - `FIREBASE_DATABASE_URL`: `https://nixa-sisventas-default-rtdb.firebaseio.com`
 - `ALLOW_ORIGIN`: `https://ventas.sistemanixa.com`
+- `REQUIRE_FIREBASE_AUTH`: `true` en producción; exige un ID token Firebase válido además de `FRONTEND_KEY`
 
 Cloud Run debe ejecutar con una cuenta de servicio que pueda leer Realtime Database.
 
@@ -65,6 +66,6 @@ gcloud run deploy cotizador \
   --source . \
   --region southamerica-east1 \
   --allow-unauthenticated \
-  --set-env-vars FRONTEND_KEY=...,FIREBASE_DATABASE_URL=https://nixa-sisventas-default-rtdb.firebaseio.com,ALLOW_ORIGIN=https://ventas.sistemanixa.com
+  --set-env-vars FRONTEND_KEY=...,FIREBASE_DATABASE_URL=https://nixa-sisventas-default-rtdb.firebaseio.com,ALLOW_ORIGIN=https://ventas.sistemanixa.com,REQUIRE_FIREBASE_AUTH=true
 ```
 

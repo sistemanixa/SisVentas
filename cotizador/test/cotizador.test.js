@@ -22,7 +22,8 @@ const {
   validarIdentidadProducto,
   validarMonedaPrecio,
   validarSaltoPrecio,
-  validarResultadoPrecioIndividual
+  validarResultadoPrecioIndividual,
+  extraerTokenBearer
 } = require('../index');
 Module._load = cargarOriginal;
 
@@ -89,4 +90,11 @@ test('la cotizacion individual conserva el precio ante un salto extremo', () => 
     () => validarResultadoPrecioIndividual({ precioArs:500000 }, 100000),
     /variaci/i
   );
+});
+
+test('extrae únicamente un token Bearer bien formado', () => {
+  assert.equal(extraerTokenBearer('Bearer token.firebase.valido'), 'token.firebase.valido');
+  assert.equal(extraerTokenBearer('bearer otro-token'), 'otro-token');
+  assert.equal(extraerTokenBearer('Basic abc123'), '');
+  assert.equal(extraerTokenBearer('Bearer token con espacios'), '');
 });
