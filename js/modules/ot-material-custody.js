@@ -33,13 +33,30 @@
     }) || null;
   }
 
+  function serviceMaterial(material, product) {
+    material = material || {};
+    product = product || {};
+    if (material.esManoDeObra === true || product.esManoDeObra === true) return true;
+    var type = String(material.tipo || material.clase || product.tipo || product.clase || '').toUpperCase();
+    if (type === 'SERVICIO' || type === 'MANO DE OBRA') return true;
+    var category = String(material.categoria || product.categoria || '').toUpperCase();
+    if (category.includes('MANO DE OBRA') || category.includes('SERVICIO')) return true;
+    var description = String(material.desc || material.descripcion || product.nombre || product.descripcion || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    return /^(?:\d+\s*-\s*)?(?:INSTALACION|CONFIGURACION|MANTENIMIENTO|VISITA TECNICA)\b/.test(description);
+  }
+
   function controllable(material) {
     if (!material || n(material.vendida) <= 0) return false;
     var product = productFor(material);
+    if (serviceMaterial(material, product)) return false;
     if (!product) return true;
-    if (product.esManoDeObra) return false;
     var category = String(product.categoria || '').toUpperCase();
-    return !category.includes('MANO DE OBRA') && !category.includes('INSTALACION') && !category.includes('CONFIGURACION');
+    return !category.includes('INSTALACION') && !category.includes('CONFIGURACION');
+  }
+
+  function controllableMaterials(ot) {
+    return (ot && ot.materiales || []).filter(controllable);
   }
 
   function normalizeMaterial(material) {
@@ -138,6 +155,7 @@
 
     var totals = summary(ot);
     var isClosed = ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0;
+    var eligible = controllableMaterials(ot);
     var admin = isAdministration();
     var deliver = document.getElementById('ot-btn-entregar-materiales');
     var allInstalled = document.getElementById('ot-btn-todo-instalado');
@@ -150,10 +168,14 @@
 
     var status = document.getElementById('ot-custodia-estado');
     if (status) {
-      status.textContent = !ot.custodiaIniciada ? 'El administrativo todavía no registró una entrega' :
+      status.textContent = isClosed && eligible.length && !ot.custodiaIniciada
+        ? 'Atención histórica: esta OT se completó con ' + eligible.length + ' producto' + (eligible.length === 1 ? '' : 's') + ' sin entrega ni rendición registradas'
+        : !ot.custodiaIniciada ? 'El administrativo todavía no registró una entrega' :
         (!ot.custodiaRendida ? 'Material bajo responsabilidad de ' + (ot.custodiaTecnico || ot.tecnico || 'técnico') + ' · falta rendición' :
           (totals.devolucionPendiente ? 'Rendición realizada · falta confirmar la devolución en depósito' :
             (totals.enTecnico || totals.danados || totals.faltantes ? 'Rendición realizada con materiales pendientes' : 'Rendición completa')));
+      status.style.color = isClosed && eligible.length && !ot.custodiaIniciada ? 'var(--red)' : '';
+      status.style.fontWeight = isClosed && eligible.length && !ot.custodiaIniciada ? '700' : '';
     }
     var box = document.getElementById('ot-custodia-resumen');
     if (box) {
@@ -173,7 +195,7 @@
     var ot = currentOT();
     if (!ot || !isAdministration()) return;
     if (!ot.tecnico) { window.notify('Asigná un técnico antes de entregar materiales'); return; }
-    var eligible = (ot.materiales || []).filter(controllable);
+    var eligible = controllableMaterials(ot);
     if (!eligible.length) { window.notify('Esta OT no tiene equipos o materiales controlables'); return; }
     if (!window.confirm('Se registrarán ' + eligible.length + ' materiales de la OT bajo responsabilidad de ' + ot.tecnico + '. ¿Confirmar entrega?')) return;
     var now = Date.now();
@@ -349,7 +371,17 @@
   }
 
   function validateClose(ot) {
-    if (!ot || !ot.custodiaIniciada) return { ok:true, conObservaciones:false };
+    if (!ot) return { ok:true, conObservaciones:false };
+    var eligible = controllableMaterials(ot);
+    if (!eligible.length) return { ok:true, conObservaciones:false };
+    if (!ot.custodiaIniciada) {
+      return {
+        ok:false,
+        requiereEntrega:true,
+        materiales:eligible.length,
+        message:'Hay ' + eligible.length + ' producto' + (eligible.length === 1 ? '' : 's') + ' sin entrega registrada. Administración debe registrar la entrega en Materiales antes de finalizar.'
+      };
+    }
     var totals = summary(ot);
     if (!ot.custodiaRendida || totals.sinClasificar > 0) {
       return { ok:false, message:'Falta rendir ' + (totals.sinClasificar || totals.entregados) + ' unidad(es) entregadas. Confirmá “Todo instalado” o informá las excepciones.' };
