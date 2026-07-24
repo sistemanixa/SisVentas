@@ -1442,6 +1442,27 @@ body.modal-secure-open{overflow:hidden!important}
 #page-productos,
 #page-productos #prod-list-view,
 #page-productos #prod-list-view > .card{width:100%!important;max-width:none!important}
+#page-gastos,
+#page-gastos > .metrics,
+#page-gastos #gasto-list,
+#page-gastos #gasto-list > .table-wrap{
+  width:100%!important;
+  max-width:none!important;
+}
+#page-gastos.page.active{
+  display:flex!important;
+  flex-direction:column;
+  min-height:calc(100vh - 98px);
+}
+#page-gastos > .metrics,
+#page-gastos > #gas-alertas-box{flex:0 0 auto}
+#page-gastos #gasto-list{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+}
+#page-gastos #gasto-list > .table-wrap{flex:1 1 auto}
 #page-productos .prod-table-wrap{width:100%!important;max-width:100%!important}
 #page-productos #prod-tbl{table-layout:auto!important;width:auto!important;min-width:0!important;max-width:none!important}
 #page-productos #prod-tbl td,
@@ -1451,6 +1472,16 @@ body.modal-secure-open{overflow:hidden!important}
 #page-gastos #gas-tbl.sv-percent-table{table-layout:fixed!important;width:var(--sv-percent-total-width,100%)!important;min-width:100%!important;max-width:none!important}
 #gas-tbl th,#gas-tbl td{white-space:nowrap}
 #gas-tbl .gas-desc-cell{max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#gas-tbl .gas-bulk-cell.gas-bulk-hidden{
+  display:table-cell!important;
+  width:0!important;
+  min-width:0!important;
+  max-width:0!important;
+  padding:0!important;
+  border:0!important;
+  visibility:hidden!important;
+  overflow:hidden!important;
+}
 .sv-percent-table th,.sv-percent-table td{overflow:hidden;text-overflow:ellipsis}
 .page.active .table-wrap > table.sv-percent-table,
 .page.active .sv-auto-grid-wrap > table.sv-percent-table,

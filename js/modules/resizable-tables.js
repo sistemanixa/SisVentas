@@ -481,6 +481,9 @@
     var total = Object.keys(clean).reduce(function (sum, key) {
       return sum + normalizePercent(clean[key]);
     }, 0);
+    var valores = Object.keys(clean).map(function(key) { return normalizePercent(clean[key]); });
+    var perfilUniforme = valores.length > 1 && Math.max.apply(Math, valores) - Math.min.apply(Math, valores) < 0.1;
+    if (perfilUniforme) return defaults;
     if (total > 0 && total < 99.5) {
       Object.keys(clean).forEach(function (key) {
         clean[key] = Math.round((clean[key] * 1000) / total) / 10;
@@ -523,6 +526,10 @@
     if (!table || !headers.length) return;
     clearPixelWidths(table);
     var colgroup = ensureColgroup(table, totalColumnCount(table));
+    if (table.id === 'gas-tbl' && colgroup.children[0]) {
+      var bulkHead = table.querySelector('#gas-bulk-head');
+      colgroup.children[0].style.width = bulkHead && !bulkHead.classList.contains('gas-bulk-hidden') ? '32px' : '0px';
+    }
     var totalPct = Object.keys(percentages || {}).reduce(function (sum, key) {
       return sum + normalizePercent(percentages[key]);
     }, 0);
