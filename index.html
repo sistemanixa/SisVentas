@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.185-firebase' -->
+<!-- VERSION: 'v2.0.186-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.185.js"></script>
+<script src="./js/core/version.v2.0.186.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.185 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.186 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -1310,7 +1310,7 @@
             <!-- Firma digital -->
             <div style="margin-top:12px">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <label style="font-size:12px;color:var(--text2);font-weight:500">✍ï¸ Firma digital del cliente</label>
+                <label style="font-size:12px;color:var(--text2);font-weight:500"><i class="ti ti-signature"></i> Firma digital del cliente</label>
                 <div style="display:flex;gap:6px">
                   <button class="btn btn-sm" onclick="firmaLimpiar()" style="font-size:11px">Borrar</button>
                   <span id="firma-guardada-badge" style="display:none;background:var(--green-bg);color:var(--green);font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--green)">✓ Firma guardada</span>
@@ -2124,7 +2124,7 @@
               </button>
             </div>
             <div style="font-size:11px;color:var(--text3);margin-top:8px">
-              ⚠ï¸ "Cargar datos demo" solo usarlo una vez la primera vez.
+              ⚠️ "Cargar datos demo" solo usarlo una vez la primera vez.
             </div>
           </div>
         </div>
@@ -2235,7 +2235,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.185
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.186
 Listo para analizar.
 </pre>
           </div>
@@ -3170,9 +3170,9 @@ Listo para analizar.
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
                 <button class="btn-tipo-rel" data-tipo="instalacion" onclick="selTipoRel(this)">📦 Instalación</button>
                 <button class="btn-tipo-rel" data-tipo="mantenimiento" onclick="selTipoRel(this)">🔧 Mantenimiento</button>
-                <button class="btn-tipo-rel" data-tipo="reparacion" onclick="selTipoRel(this)">🛠ï¸ Reparación</button>
+                <button class="btn-tipo-rel" data-tipo="reparacion" onclick="selTipoRel(this)">🛠️ Reparación</button>
                 <button class="btn-tipo-rel" data-tipo="relevamiento" onclick="selTipoRel(this)">🔍 Relevamiento</button>
-                <button class="btn-tipo-rel" data-tipo="garantia" onclick="selTipoRel(this)">🛡ï¸ Garantía</button>
+                <button class="btn-tipo-rel" data-tipo="garantia" onclick="selTipoRel(this)">🛡️ Garantía</button>
                 <button class="btn-tipo-rel" data-tipo="otro" onclick="selTipoRel(this)">📋 Otro</button>
               </div>
             </div>
@@ -3188,7 +3188,7 @@ Listo para analizar.
               <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Estado del equipo tras la visita</label>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
                 <button class="btn-estado-rel" data-est="operativo" onclick="selEstadoRel(this)" style="background:var(--green);color:#fff;border:none;border-radius:var(--radius);padding:7px 14px;font-size:13px;cursor:pointer">✅ Operativo</button>
-                <button class="btn-estado-rel" data-est="alerta" onclick="selEstadoRel(this)" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;font-size:13px;cursor:pointer">⚠ï¸ Con alerta</button>
+                <button class="btn-estado-rel" data-est="alerta" onclick="selEstadoRel(this)" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;font-size:13px;cursor:pointer">⚠️ Con alerta</button>
                 <button class="btn-estado-rel" data-est="mantenimiento" onclick="selEstadoRel(this)" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;font-size:13px;cursor:pointer">🔧 En mantenimiento</button>
                 <button class="btn-estado-rel" data-est="baja" onclick="selEstadoRel(this)" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;font-size:13px;cursor:pointer">❌ De baja</button>
               </div>
@@ -4930,7 +4930,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.185.js"></script>
+<script src="./js/app.v2.0.186.js"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
@@ -4969,7 +4969,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.185</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.186</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
