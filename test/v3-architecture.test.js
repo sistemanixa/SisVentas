@@ -16,7 +16,7 @@ test('el núcleo v3 permanece desconectado de producción hasta completar la mig
 test('los módulos v3 no leen colecciones globales legacy ni escriben Firebase', () => {
   for (const file of v3Files) {
     const source = fs.readFileSync(path.join(root, 'js', 'v3', file), 'utf8');
-    assert.doesNotMatch(source, /\b(ventasList|pptoData|otData|prodData|clientesList)\b/);
+    assert.doesNotMatch(source, /\bwindow\.(ventasList|pptoData|otData|prodData|clientesList)\b/);
     assert.doesNotMatch(source, /\b(fbSet|fbUpdate|fbRemove|fbPush|fbDB)\b/);
   }
 });

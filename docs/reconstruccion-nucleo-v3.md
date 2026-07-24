@@ -6,6 +6,19 @@ La versión `v2.0.194` permanece como producción estable. El núcleo `v3` se
 construye en paralelo y no está cargado por `index.html`; por eso estos trabajos
 no pueden alterar el sistema que usa la empresa.
 
+La auditoría estructural inicial encontró:
+
+- `js/app.js`: 33.470 líneas, 1.730.666 bytes y 1.215 funciones declaradas.
+- 261 operaciones Firebase directas dentro de ese mismo archivo.
+- 435 manejadores `onclick` embebidos en `index.html`.
+- índices anteriores que asignan `mapa[numeroVisible] = registro`; ante un
+  duplicado, el último registro reemplaza al anterior sin aviso.
+
+Estos valores explican por qué corregir un módulo podía alterar otro y por qué
+las pruebas pequeñas no detectaron el bloqueo de datos reales. El problema no
+es Firebase ni el tamaño actual de la empresa: es la falta de límites internos
+entre identidad, datos, cálculos y pantallas.
+
 El objetivo no es volver a escribir pantallas. Es sustituir gradualmente las
 reglas internas que hoy están repetidas en un archivo monolítico por una única
 fuente comprobable para identidad, relaciones, métricas y persistencia.
@@ -33,6 +46,10 @@ fuente comprobable para identidad, relaciones, métricas y persistencia.
 - `sales-read-model.js`: pagos, saldos y relaciones de ventas sin recorridos
   anidados.
 - `ot-read-model.js`: una sola lista canónica para tabla y métricas de OT.
+- `record-repository.js`: crea, modifica y elimina únicamente por clave técnica.
+- `legacy-snapshot.js`: adapta datos históricos sin contaminar el núcleo.
+- `shadow-comparison.js`: compara resultados actuales/nuevos y bloquea la
+  migración si existe cualquier diferencia o conflicto.
 - Pruebas de identidad duplicada, relación vencida, pagos duplicados, coherencia
   de OT y volumen.
 

@@ -8,6 +8,8 @@ const OT = require('../js/v3/ot-read-model.js');
 const { SalesReadModel } = require('../js/v3/sales-read-model.js');
 const { RecordRepository } = require('../js/v3/record-repository.js');
 const MigrationAudit = require('../js/v3/migration-audit.js');
+const LegacySnapshot = require('../js/v3/legacy-snapshot.js');
+const ShadowComparison = require('../js/v3/shadow-comparison.js');
 
 test('dos números comerciales iguales sólo se resuelven por fbKey', () => {
   const esteban = { fbKey: '-pres-esteban', id: 'PP-0031', cliente: 'ESTEBAN' };
@@ -196,4 +198,44 @@ test('la auditoría detecta duplicados, relaciones ambiguas y huérfanas sin esc
   assert.ok(report.summary.relationIssues >= 3);
   assert.equal(report.summary.paymentIssues, 1);
   assert.ok(report.summary.totalIssues >= 6);
+});
+
+test('el adaptador legacy conserva la clave Firebase de colecciones por objeto', () => {
+  const snapshot = LegacySnapshot.create({
+    ventasData: {
+      '-sale-a': { id: 'V-1', total: 100 },
+      '-sale-b': { fbKey: '-sale-existing', id: 'V-2', total: 200 }
+    },
+    pptoData: [{ fbKey: '-budget-a', id: 'PP-1' }]
+  });
+
+  assert.equal(snapshot.ventas[0].fbKey, '-sale-a');
+  assert.equal(snapshot.ventas[1].fbKey, '-sale-existing');
+  assert.equal(snapshot.presupuestos[0].fbKey, '-budget-a');
+});
+
+test('la comparación sombra no habilita migración cuando difieren métricas', () => {
+  const result = ShadowComparison.compareOT([
+    { fbKey: '-ot-a', fecha: '2026-07-24', estado: 'Pendiente' }
+  ], '2026-07-24', {
+    open: 1,
+    today: 4,
+    completed: 0
+  });
+
+  assert.equal(result.ready, false);
+  assert.equal(result.differences.find((item) => item.name === 'today').delta, -3);
+});
+
+test('la comparación sombra habilita ventas sólo con totales y relaciones iguales', () => {
+  const result = ShadowComparison.compareSales([
+    { fbKey: '-sale-a', id: 'V-1', total: 1000 }
+  ], [
+    { fbKey: '-payment-a', ventaFbKey: '-sale-a', monto: 300 }
+  ], [
+    { fbKey: '-sale-a', total: 1000, paid: 300, balance: 700 }
+  ]);
+
+  assert.equal(result.ready, true);
+  assert.equal(result.comparisons[0].balance.equal, true);
 });
