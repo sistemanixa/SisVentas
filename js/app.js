@@ -5568,12 +5568,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.182-firebase',
+  VERSION: 'v2.0.183-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Auditoría segura de precios y control integral de órdenes de trabajo.'
+    'Carga de versión confiable y control documental visible en órdenes de trabajo.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Auditar precios' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar OT' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.183',
+      date: '24/07/2026',
+      title: 'Versiones y cierres de OT confiables',
+      notes: Object.freeze(['El navegador carga el código correcto y las OT cerradas con documentación pendiente se identifican y filtran desde el listado.']),
+      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Revisar OT' })
+    }),
     Object.freeze({
       version: 'v2.0.182',
       date: '24/07/2026',
@@ -8799,7 +8806,10 @@ function auditarIntegridadPreciosCatalogo() {
     var correccionLegacy = correccionProveedor ? null : detectarPrecioLegacyMonedaProducto(p);
     var correccion = correccionProveedor || correccionLegacy;
     if (correccion && _correccionPrecioTienePrueba(p, correccion)) {
-      seguros.push({ producto:p, correccion:correccion, origen:_origenAuditoriaPrecioProducto(p) });
+      var soloMetadatos =
+        Math.abs(Number(correccion.costoCorregido || 0) - Number(correccion.costoGuardado || 0)) < 0.01 &&
+        Math.abs(Number(correccion.ventaCorregida || 0) - Number(correccion.ventaGuardada || 0)) < 0.01;
+      seguros.push({ producto:p, correccion:correccion, origen:_origenAuditoriaPrecioProducto(p), soloMetadatos:soloMetadatos });
       return;
     }
     if (!(costoRaw > 0) || !(ventaRaw > 0)) {
@@ -8847,13 +8857,13 @@ function _filaAuditoriaPrecio(item, segura) {
   var costoDespues = segura ? c.costoCorregido : 0;
   var ventaDespues = segura ? c.ventaCorregida : 0;
   var etiqueta = segura
-    ? (c.tipo === 'costo_usd_legacy' ? 'Costo USD heredado' : c.tipo === 'venta_usd_legacy' ? 'Venta USD heredada' : 'Conversión duplicada')
+    ? (item.soloMetadatos ? 'Moneda antigua; los importes ya están correctos' : (c.tipo === 'costo_usd_legacy' ? 'Costo USD heredado' : c.tipo === 'venta_usd_legacy' ? 'Venta USD heredada' : 'Conversión duplicada'))
     : item.motivo;
   var origen = item.origen || _origenAuditoriaPrecioProducto(p);
   return '<div style="display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(180px,1.35fr) minmax(160px,1fr);gap:10px;align-items:center;padding:10px 2px;border-bottom:.5px solid var(--border)">' +
     '<button type="button" onclick="cerrarAuditoriaIntegridadPrecios();verProducto(\'' + escapeHTML(String(p.fbKey || '')) + '\')" style="appearance:none;border:0;background:none;padding:0;text-align:left;color:var(--text);cursor:pointer;min-width:0"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><br><span style="font-size:11px;color:var(--text3)">' + escapeHTML(p.nombre || p.descripcion || '') + '</span></button>' +
     '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(etiqueta || 'Revisión') + '<br><span>Costo $' + Number(costoAntes || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + ' · Venta $' + Number(ventaAntes || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '</span><br><span style="font-size:10px">Origen: ' + escapeHTML(origen || 'sin origen') + '</span></div>' +
-    '<div style="font-size:11px;' + (segura ? 'color:var(--green)' : 'color:var(--amber)') + '">' + (segura ? 'Quedará: costo $' + Number(costoDespues || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '<br>venta $' + Number(ventaDespues || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) : '<strong>No se modifica solo</strong><br>Tocá el producto para decidir') + '</div>' +
+    '<div style="font-size:11px;' + (segura ? 'color:var(--green)' : 'color:var(--amber)') + '">' + (segura ? (item.soloMetadatos ? '<strong>Se normaliza a ARS</strong><br>sin cambiar los importes' : 'Quedará: costo $' + Number(costoDespues || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '<br>venta $' + Number(ventaDespues || 0).toLocaleString('es-AR',{maximumFractionDigits:2})) : '<strong>No se modifica solo</strong><br>Tocá el producto para decidir') + '</div>' +
   '</div>';
 }
 
@@ -8875,16 +8885,16 @@ function abrirAuditoriaIntegridadPrecios() {
       '<div class="modal-body" style="overflow:auto">' +
         '<div class="metrics" style="grid-template-columns:repeat(4,minmax(120px,1fr));margin-bottom:14px">' +
           '<div class="metric"><div class="m-label">Catálogo</div><div class="m-value">' + auditoria.total + '</div><div class="m-sub">productos analizados</div></div>' +
-          '<div class="metric"><div class="m-label">Reparación segura</div><div class="m-value" style="color:var(--green)">' + auditoria.seguros.length + '</div><div class="m-sub">con prueba matemática</div></div>' +
+          '<div class="metric"><div class="m-label">Ajuste seguro</div><div class="m-value" style="color:var(--green)">' + auditoria.seguros.length + '</div><div class="m-sub">importe o moneda comprobados</div></div>' +
           '<div class="metric"><div class="m-label">Revisión manual</div><div class="m-value" style="color:var(--amber)">' + auditoria.manuales.length + '</div><div class="m-sub">no se tocarán solos</div></div>' +
           '<div class="metric"><div class="m-label">Sin precio completo</div><div class="m-value">' + auditoria.sinPrecio.length + '</div><div class="m-sub">para completar</div></div>' +
         '</div>' +
-        '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:12px"><i class="ti ti-lock-check"></i> La reparación segura exige una prueba adicional (proveedor, moneda, origen o respaldo), guarda una copia completa y sólo corrige moneda/escala. No cambia comprobantes, presupuestos ni ventas ya emitidas.</div>' +
-        '<details open><summary style="cursor:pointer;font-weight:800;padding:8px 0">Casos seguros (' + auditoria.seguros.length + ')</summary><div style="max-height:310px;overflow:auto">' + (auditoria.seguros.map(function(x){ return _filaAuditoriaPrecio(x, true); }).join('') || '<div style="padding:14px;color:var(--text3)">No se detectaron correcciones automáticas pendientes.</div>') + '</div></details>' +
+        '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:12px"><i class="ti ti-lock-check"></i> Cada ajuste exige una prueba adicional, guarda una copia completa y muestra claramente si cambia un importe o si sólo normaliza la moneda a ARS. No modifica comprobantes, presupuestos ni ventas emitidas.</div>' +
+        '<details open><summary style="cursor:pointer;font-weight:800;padding:8px 0">Ajustes seguros (' + auditoria.seguros.length + ')</summary><div style="max-height:310px;overflow:auto">' + (auditoria.seguros.map(function(x){ return _filaAuditoriaPrecio(x, true); }).join('') || '<div style="padding:14px;color:var(--text3)">No se detectaron ajustes automáticos pendientes.</div>') + '</div></details>' +
         '<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:800;padding:8px 0">Revisión manual (' + auditoria.manuales.length + ')</summary><div style="max-height:260px;overflow:auto">' + (auditoria.manuales.map(function(x){ return _filaAuditoriaPrecio(x, false); }).join('') || '<div style="padding:14px;color:var(--text3)">Sin casos manuales extraordinarios.</div>') + '</div></details>' +
         '<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:800;padding:8px 0">Precios incompletos (' + auditoria.sinPrecio.length + ')</summary><div style="max-height:260px;overflow:auto">' + (auditoria.sinPrecio.map(_filaSinPrecioAuditoria).join('') || '<div style="padding:14px;color:var(--text3)">Todos los productos tienen costo y precio de venta.</div>') + '</div></details>' +
       '</div>' +
-      '<div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:.5px solid var(--border)"><button class="btn" onclick="cerrarAuditoriaIntegridadPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-reparar-auditoria-precios" ' + (auditoria.seguros.length ? '' : 'disabled') + ' onclick="repararCasosSegurosIntegridadPrecios()"><i class="ti ti-tool"></i> Reparar ' + auditoria.seguros.length + ' casos seguros</button></div>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:.5px solid var(--border)"><button class="btn" onclick="cerrarAuditoriaIntegridadPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-reparar-auditoria-precios" ' + (auditoria.seguros.length ? '' : 'disabled') + ' onclick="repararCasosSegurosIntegridadPrecios()"><i class="ti ti-tool"></i> Aplicar ' + auditoria.seguros.length + ' ajustes seguros</button></div>' +
     '</div>';
   overlay._auditoria = auditoria;
   document.body.appendChild(overlay);
@@ -8894,7 +8904,7 @@ async function repararCasosSegurosIntegridadPrecios() {
   var modal = document.getElementById('modal-auditoria-precios');
   var auditoria = modal && modal._auditoria;
   if (!auditoria || !auditoria.seguros.length || !window.fbDB) return;
-  if (!confirm('Se corregirán ' + auditoria.seguros.length + ' productos con respaldo previo. Los casos dudosos no se modificarán. ¿Continuar?')) return;
+  if (!confirm('Se aplicarán ' + auditoria.seguros.length + ' ajustes con respaldo previo. Algunos sólo normalizan la moneda sin cambiar importes. Los casos dudosos no se modificarán. ¿Continuar?')) return;
   var btn = document.getElementById('btn-reparar-auditoria-precios');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite"></i> Reparando…'; }
   var cambios = {};
@@ -8949,8 +8959,8 @@ async function repararCasosSegurosIntegridadPrecios() {
   });
   try {
     await window.fbUpdate(window.fbRef(window.fbDB), cambios);
-    if (typeof registrarActividad === 'function') registrarActividad('Auditoría integral de precios', auditoria.seguros.length + ' casos seguros reparados');
-    notify('✓ Se repararon ' + auditoria.seguros.length + ' productos con respaldo');
+    if (typeof registrarActividad === 'function') registrarActividad('Auditoría integral de precios', auditoria.seguros.length + ' ajustes seguros aplicados');
+    notify('✓ Se aplicaron ' + auditoria.seguros.length + ' ajustes con respaldo');
     cerrarAuditoriaIntegridadPrecios();
     if (typeof renderTablaProductos === 'function') renderTablaProductos();
   } catch (e) {
@@ -26638,6 +26648,33 @@ function otEstadoParaMostrar(ot) {
   return estado;
 }
 window.otEstadoParaMostrar = otEstadoParaMostrar;
+
+function otResumenDocumental(ot) {
+  ot = ot || {};
+  if (!otEstaCerrada(ot)) return { completo:true, faltantes:[], fotos:0, firma:false };
+  var notas = typeof otNotasNormalizadas === 'function' ? otNotasNormalizadas(ot) : [];
+  var fotos = notas.filter(function(nota) {
+    return typeof otFotoUrlDeNota === 'function' && !!otFotoUrlDeNota(nota);
+  }).length;
+  var firma = typeof otFirmaUrl === 'function' && !!otFirmaUrl(ot);
+  var conformidad = String(ot.conformidadCliente || ot.conformidad || '').trim();
+  var nombreCliente = String(ot.nombreConformidad || ot.firmaNombreCliente || ot.nombreClienteFirma || '').trim();
+  var observaciones = String(ot.observacionesCierre || ot.actaObservaciones || ot.obsTecnico || '').trim();
+  var faltantes = [];
+  if (!fotos) faltantes.push('fotos');
+  if (!firma) faltantes.push('firma');
+  if (!conformidad) faltantes.push('conformidad');
+  if (!nombreCliente) faltantes.push('aclaración');
+  if (!observaciones) faltantes.push('observaciones del acta');
+  return {
+    completo:faltantes.length === 0,
+    faltantes:faltantes,
+    fotos:fotos,
+    firma:firma
+  };
+}
+window.otResumenDocumental = otResumenDocumental;
+
 function otBadge(estado) {
   estado = otEstadoParaMostrar(estado);
   const map = {
@@ -26687,7 +26724,7 @@ function renderOTTabla(filtro) {
 }
 function _otTarjeta(o, hoy) {
   var esPrioridad = o.prioridad === true || o.prioridad === 'true';
-  var esAtrasada  = o.fecha && o.fecha < hoy && o.estado !== 'completada';
+  var esAtrasada  = o.fecha && o.fecha < hoy && !otEstaCerrada(o);
   var borderColor = esPrioridad || esAtrasada ? 'var(--red)' : o.fecha === hoy ? 'var(--amber)' : 'var(--border)';
   var tipo = o.tipoVisita || o.tipo || 'Instalación nueva';
   var tipoIco = tipo.toLowerCase().includes('reclamo') ? 'ti-headset' : tipo.toLowerCase().includes('mant') ? 'ti-tool' : 'ti-bolt';
@@ -26765,6 +26802,7 @@ function _renderOTVistaAdmin(filtro, hoy) {
   if (!tbody) return;
   var busq = (document.getElementById('ot-busq')||{}).value||'';
   var filtroTec = (document.getElementById('ot-filtro-tecnico')||{}).value||'';
+  var filtroPeriodo = (document.getElementById('ot-filtro-periodo')||{}).value||'todos';
 
   var selTec = document.getElementById('ot-filtro-tecnico');
   if (selTec && selTec.options.length <= 1) {
@@ -26779,10 +26817,30 @@ function _renderOTVistaAdmin(filtro, hoy) {
   }
 
   var rows = otData.filter(function(o){
-    var matchFiltro = !filtro    || o.estado   === filtro;
+    var estadoMostrar = otEstadoParaMostrar(o);
+    var resumenDocumental = otResumenDocumental(o);
+    var matchFiltro = !filtro ||
+      (filtro === 'abiertas' && !otEstaCerrada(o)) ||
+      (filtro === 'documentacion_pendiente' && otEstaCerrada(o) && !resumenDocumental.completo) ||
+      (filtro === 'completada' && estadoMostrar === 'completada') ||
+      (filtro !== 'abiertas' && filtro !== 'documentacion_pendiente' && filtro !== 'completada' && estadoMostrar === filtro);
     var matchTec    = !filtroTec || o.tecnico  === filtroTec;
     var matchBusq   = !busq      || (o.id||'').toLowerCase().includes(busq.toLowerCase()) || (o.cliente||'').toLowerCase().includes(busq.toLowerCase());
-    return matchFiltro && matchTec && matchBusq;
+    var fecha = String(o.fecha || '').slice(0,10);
+    var matchPeriodo = filtroPeriodo === 'todos';
+    if (filtroPeriodo === 'hoy') matchPeriodo = fecha === hoy;
+    if (filtroPeriodo === 'mes') matchPeriodo = fecha.indexOf(hoy.slice(0,7)) === 0;
+    if (filtroPeriodo === 'semana') {
+      var hoyFecha = new Date(hoy + 'T12:00:00');
+      var desplazamiento = (hoyFecha.getDay() + 6) % 7;
+      var inicioSemana = new Date(hoyFecha);
+      inicioSemana.setDate(hoyFecha.getDate() - desplazamiento);
+      var finSemana = new Date(inicioSemana);
+      finSemana.setDate(inicioSemana.getDate() + 6);
+      var fechaOT = fecha ? new Date(fecha + 'T12:00:00') : null;
+      matchPeriodo = !!fechaOT && fechaOT >= inicioSemana && fechaOT <= finSemana;
+    }
+    return matchFiltro && matchTec && matchBusq && matchPeriodo;
   });
 
   // Ordenar: prioridad > atrasadas > hoy > futuras > sin fecha
@@ -26799,16 +26857,21 @@ function _renderOTVistaAdmin(filtro, hoy) {
 
   tbody.innerHTML = rows.map(function(o) {
     var esPrioridad = o.prioridad === true || o.prioridad === 'true';
-    var esAtrasada  = o.fecha && o.fecha < hoy && o.estado !== 'completada';
-    var rowColor    = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : o.fecha === hoy ? 'background:rgba(245,158,11,.04)' : '';
+    var esAtrasada  = o.fecha && o.fecha < hoy && !otEstaCerrada(o);
+    var resumenDocumental = otResumenDocumental(o);
+    var cierreIncompleto = otEstaCerrada(o) && !resumenDocumental.completo;
+    var rowColor    = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : cierreIncompleto ? 'background:rgba(245,158,11,.045)' : o.fecha === hoy ? 'background:rgba(245,158,11,.04)' : '';
     var visitasPrev = _contarVisitasPrevias(o.cliente, o.dir, o.id);
     var iconoRep    = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
+    var iconoDocumental = cierreIncompleto
+      ? '<i class="ti ti-file-alert" style="font-size:13px;color:var(--amber);margin-right:5px" title="Documentación pendiente: '+escapeHTML(resumenDocumental.faltantes.join(', '))+'"></i>'
+      : '';
     return '<tr style="'+rowColor+'">' +
       '<td style="text-align:center">' +
         (esPrioridad ? '<i class="ti ti-flame" style="color:var(--red);font-size:14px" title="Prioridad"></i>' : '') +
         (esAtrasada && !esPrioridad ? '<i class="ti ti-clock" style="color:var(--amber);font-size:14px" title="Atrasada"></i>' : '') +
       '</td>' +
-      '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoRep+escapeHTML(o.id||'')+'</td>' +
+      '<td style="font-weight:500;font-family:monospace;font-size:12px">'+iconoDocumental+iconoRep+escapeHTML(o.id||'')+'</td>' +
       '<td>'+escapeHTML(o.cliente||'—')+'</td>' +
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(o.tecnico||'Sin asignar')+'</td>' +
       '<td style="font-size:12px;color:'+(esAtrasada?'var(--red)':o.fecha===hoy?'var(--amber)':'var(--text3)')+'">'+escapeHTML(o.fecha ? _mostrarFecha(o.fecha) : 'Sin fecha')+(o.hora?' '+o.hora:'')+'</td>' +
