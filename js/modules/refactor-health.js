@@ -25,28 +25,43 @@
 
   function resolverCliente(reg){
     if(typeof window._svResolverClienteRegistro === 'function') return window._svResolverClienteRegistro(reg, true);
-    var id = norm(reg && (reg.clienteFbKey || reg.clienteKey || reg.clienteId || reg.idCliente));
-    if(!id) return null;
-    return arr(window.clientesData || window.cliData || window.clientesList).find(function(c){
-      return [c.fbKey,c.id,c.numero,c.codigo].map(norm).indexOf(id) >= 0;
-    }) || null;
+    var clientes = arr(window.clientesData || window.cliData || window.clientesList);
+    var tecnica = norm(reg && (reg.clienteFbKey || reg.clienteKey || reg.fbKeyCliente));
+    if(tecnica) {
+      var exactas = clientes.filter(function(c){ return norm(c.fbKey) === tecnica; });
+      return exactas.length === 1 ? exactas[0] : null;
+    }
+    var id = norm(reg && (reg.clienteId || reg.idCliente || reg.idClienteOriginal));
+    if(id) {
+      var legacy = clientes.filter(function(c){ return [c.id,c.numero,c.codigo].map(norm).indexOf(id) >= 0; });
+      return legacy.length === 1 ? legacy[0] : null;
+    }
+    var nombre = keyNorm(reg && (reg.cliente || reg.clienteNombre || reg.nombreCliente));
+    if(!nombre) return null;
+    var porNombre = clientes.filter(function(c){
+      return [c.nombre,c.empresa,c.razonSocial].map(keyNorm).indexOf(nombre) >= 0;
+    });
+    return porNombre.length === 1 ? porNombre[0] : null;
   }
   function resolverVenta(reg){
     if(typeof window._svResolverVentaRegistro === 'function') return window._svResolverVentaRegistro(reg, true);
     var id = norm(reg && (reg.ventaFbKey || reg.ventaKey || reg.ventaId || reg.idVenta || reg.venta));
     if(!id) return null;
-    return arr(window.ventasList || window.ventasData).find(function(v){
+    var coincidencias = arr(window.ventasList || window.ventasData).filter(function(v){
       return [v.fbKey,v.id,v.numero,v.codigo].map(norm).indexOf(id) >= 0;
-    }) || null;
+    });
+    return coincidencias.length === 1 ? coincidencias[0] : null;
   }
   function resolverCategoria(reg){
     var id = norm(reg && (reg.categoriaFbKey || reg.categoriaKey || reg.categoriaId || reg.categoria));
     var cats = arr(window.catData || window.categoriasData || window.categoriasList);
     if(!id) return null;
-    var byKey = cats.find(function(c){ return [c.fbKey,c.id,c.codigo].map(norm).indexOf(id) >= 0; });
-    if(byKey) return byKey;
+    var porClave = cats.filter(function(c){ return [c.fbKey,c.id,c.codigo].map(norm).indexOf(id) >= 0; });
+    if(porClave.length === 1) return porClave[0];
+    if(porClave.length > 1) return null;
     var n = keyNorm(id);
-    return cats.find(function(c){ return [c.nombre,c.categoria,c.descripcion].map(keyNorm).indexOf(n) >= 0; }) || null;
+    var porNombre = cats.filter(function(c){ return [c.nombre,c.categoria,c.descripcion].map(keyNorm).indexOf(n) >= 0; });
+    return porNombre.length === 1 ? porNombre[0] : null;
   }
   function issue(list, sev, tipo, msg, rec, sugerencia){
     list.push({sev:sev||'medio', tipo:tipo, msg:msg, ref:baseRef(rec), sugerencia:sugerencia||''});
@@ -111,16 +126,25 @@
     });
   }
 
-  function auditarDuplicadosOT(issues){
+  function auditarDuplicadosIdentidad(issues, lista, tipo, campo, etiqueta){
     var mapa = {};
-    arr(window.otData || window.ordenesTrabajoData).forEach(function(o){
-      var id = keyNorm(o && o.id);
+    arr(lista).forEach(function(o){
+      if(!o) return;
+      if(!norm(o.fbKey)) issue(issues,'critico',tipo,'Registro sin clave tecnica Firebase',o,'No editar ni relacionar este registro hasta reconstruir su clave interna.');
+      var id = keyNorm(o[campo]);
       if(!id) return;
       if(!mapa[id]) mapa[id] = [];
       mapa[id].push(o);
     });
     Object.keys(mapa).forEach(function(id){
-      if(mapa[id].length > 1) issue(issues,'critico','ot','Numero de OT duplicado: '+id,mapa[id][0],'Ejecutar herramienta de reparacion de OT antes de seguir cargando ordenes.');
+      if(mapa[id].length > 1) issue(
+        issues,
+        'critico',
+        tipo,
+        etiqueta+' duplicado: '+id+' ('+mapa[id].length+' registros)',
+        mapa[id][0],
+        'Conservar las claves Firebase. Corregir sólo la etiqueta comercial y revisar vínculos ambiguos antes de migrar.'
+      );
     });
   }
   function auditarVentas(issues){
@@ -183,7 +207,12 @@
 
   window.svAuditarRelaciones = function(){
     var issues = [];
-    auditarDuplicadosOT(issues);
+    auditarDuplicadosIdentidad(issues, window.ventasList || window.ventasData, 'venta', 'id', 'Numero de venta');
+    auditarDuplicadosIdentidad(issues, window.pptoData || window.presupuestosData, 'presupuesto', 'id', 'Numero de presupuesto');
+    auditarDuplicadosIdentidad(issues, window.otData || window.ordenesTrabajoData, 'ot', 'id', 'Numero de OT');
+    auditarDuplicadosIdentidad(issues, window.prodData || window.productosData, 'producto', 'codigo', 'Codigo de producto');
+    auditarDuplicadosIdentidad(issues, window.clientesData || window.cliData || window.clientesList, 'cliente', 'id', 'Numero de cliente');
+    auditarDuplicadosIdentidad(issues, window.empData || window.empleadosData, 'empleado', 'legajo', 'Legajo');
     auditarVentas(issues);
     auditarPresupuestos(issues);
     auditarPagos(issues);

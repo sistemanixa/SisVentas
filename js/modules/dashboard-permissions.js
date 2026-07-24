@@ -34,7 +34,7 @@
   function ventaActualEditando309(){
     var key = window._ventaEditandoFbKey;
     if (!key) return window._ventaEditandoOriginal || null;
-    return window._ventaEditandoOriginal || (window.ventasList||[]).find(function(v){ return v && (v.fbKey === key || v.id === key); }) || null;
+    return window._ventaEditandoOriginal || (typeof window._svResolverVentaRegistro === 'function' ? window._svResolverVentaRegistro(key) : null);
   }
   function restaurarDescuentosEdicion309(){
     var v = ventaActualEditando309(); if (!v) return;
@@ -60,7 +60,9 @@
     if (typeof cerrarConfirmacionVenta === 'function') cerrarConfirmacionVenta();
     if (typeof showPage === 'function') showPage('detalle', document.querySelector('[onclick*=detalle]'));
     setTimeout(function(){
-      var v = (window.ventasList || []).find(function(x){ return String(x.fbKey||'') === String(fbKey||'') || String(x.id||'') === String(id||'') || String(x.numero||'') === String(id||''); });
+      var v = typeof window._svResolverVentaRegistro === 'function'
+        ? window._svResolverVentaRegistro(fbKey || id)
+        : null;
       var ref = (v && (v.fbKey || v.id || v.numero)) || fbKey || id;
       if (typeof verDetalleVentaDesdeId === 'function') return verDetalleVentaDesdeId(ref);
       if (typeof verVenta === 'function') return verVenta(ref);

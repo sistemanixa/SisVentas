@@ -24,18 +24,26 @@
   }
 
   R.client=function(record){
-    return byKeyOrBusiness(clients(),record&&record.clienteFbKey,['id']) ||
-      byKeyOrBusiness(clients(),record&&(record.clienteId||record.idCliente||record.clientId),['id']) ||
+    var list=clients();
+    var technical=record&&(record.clienteFbKey||record.clienteKey);
+    if(technical) return unique(list,function(row){return String(row.fbKey||'')===String(technical);});
+    return byKeyOrBusiness(list,record&&(record.clienteId||record.idCliente||record.clientId),['id']) ||
       byUniqueName(clients(),record&&(record.cliente||record.clienteNombre),['nombre','empresa','razonSocial']);
   };
   R.employee=function(record,prefix){
     prefix=prefix||'empleado';
-    var key=record&&(record[prefix+'FbKey']||record[prefix+'Id']);
+    var list=employees();
+    var technical=record&&record[prefix+'FbKey'];
+    if(technical) return unique(list,function(row){return String(row.fbKey||'')===String(technical);});
+    var key=record&&record[prefix+'Id'];
     var name=record&&record[prefix];
-    return byKeyOrBusiness(employees(),key,['id','legajo']) || byUniqueName(employees(),name,['nombre']);
+    return byKeyOrBusiness(list,key,['id','legajo']) || byUniqueName(list,name,['nombre']);
   };
   R.sale=function(record){
-    return byKeyOrBusiness(sales(),record&&(record.ventaFbKey||record.ventaId||record.venta),['id','idOriginal']);
+    var list=sales();
+    var technical=record&&(record.ventaFbKey||record.ventaKey);
+    if(technical) return unique(list,function(row){return String(row.fbKey||'')===String(technical);});
+    return byKeyOrBusiness(list,record&&(record.ventaId||record.venta),['id','idOriginal']);
   };
 
   R.canonicalize=function(kind,record){
@@ -56,9 +64,15 @@
       if(employee&&employee.fbKey) record.tecnicoFbKey=employee.fbKey;
     }
     if(kind==='producto'){
-      match=byKeyOrBusiness(categories(),record.categoriaFbKey,['id']) || byUniqueName(categories(),record.categoria,['nombre']);
+      var categoryList=categories();
+      match=record.categoriaFbKey
+        ? unique(categoryList,function(row){return String(row.fbKey||'')===String(record.categoriaFbKey);})
+        : (byKeyOrBusiness(categoryList,record.categoriaId,['id']) || byUniqueName(categoryList,record.categoria,['nombre']));
       if(match&&match.fbKey) record.categoriaFbKey=match.fbKey;
-      match=byKeyOrBusiness(suppliers(),record.proveedorFbKey,['id','codigo']) || byUniqueName(suppliers(),record.proveedor,['nombre','razonSocial','empresa']);
+      var supplierList=suppliers();
+      match=record.proveedorFbKey
+        ? unique(supplierList,function(row){return String(row.fbKey||'')===String(record.proveedorFbKey);})
+        : (byKeyOrBusiness(supplierList,record.proveedorId,['id','codigo']) || byUniqueName(supplierList,record.proveedor,['nombre','razonSocial','empresa']));
       if(match&&match.fbKey) record.proveedorFbKey=match.fbKey;
     }
     return record;

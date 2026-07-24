@@ -153,8 +153,20 @@
 
   function saleRef(value) {
     if (value && typeof value === 'object') return value;
-    var ref = String(value || '');
-    return salesList().find(function (v) { return String(v.fbKey) === ref || String(v.id) === ref || String(v.numero) === ref; }) || null;
+    return typeof window._svResolverVentaRegistro === 'function'
+      ? window._svResolverVentaRegistro(value)
+      : null;
+  }
+
+  function uniqueRecordRef(list, key, businessFields) {
+    var ref = String(key || '');
+    if (!ref) return null;
+    var exact = (list || []).filter(function (item) { return String(item.fbKey || '') === ref; });
+    if (exact.length === 1) return exact[0];
+    var business = (list || []).filter(function (item) {
+      return (businessFields || []).some(function (field) { return String(item[field] || '') === ref; });
+    });
+    return business.length === 1 ? business[0] : null;
   }
 
   function existingListForSale(sale) {
@@ -227,7 +239,7 @@
   }
 
   function openMaterialList(key) {
-    var list = typeof key === 'object' ? key : state.lists.find(function (x) { return x.fbKey === key || x.numero === key; });
+    var list = typeof key === 'object' ? key : uniqueRecordRef(state.lists, key, ['numero']);
     if (!list) {
       var sale = saleRef(key);
       if (sale) return createListFromSale(sale);
@@ -530,7 +542,7 @@
   }
 
   function openOrder(key) {
-    var order = state.orders.find(function (o) { return o.fbKey === key || o.numero === key; });
+    var order = uniqueRecordRef(state.orders, key, ['numero']);
     if (!order) return;
     state.activeOrder = JSON.parse(JSON.stringify(order));
     var modal = ensureModal('oc-order-modal', '980px');

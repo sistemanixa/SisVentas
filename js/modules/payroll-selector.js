@@ -3,14 +3,21 @@
   function arr322(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
   function norm322(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim(); }
   function findClienteVenta322(v){
+    if(typeof window._svResolverClienteRegistro === 'function') {
+      return window._svResolverClienteRegistro(v || {}, true);
+    }
     var clientes = arr322(window.cliData || window.clientesData || window.clientesList || window.clientes || []);
     var ids = [v&&v.clienteId, v&&v.idCliente, v&&v.id_cli, v&&v.clienteFbKey].map(function(x){return String(x||'').trim();}).filter(Boolean);
     if(ids.length){
-      var byId = clientes.find(function(c){ return ids.indexOf(String(c.fbKey||c.id||c.codigo||c.legajo||'').trim())>=0; });
-      if(byId) return byId;
+      var porId = clientes.filter(function(c){ return [c.fbKey,c.id,c.codigo].map(function(x){return String(x||'').trim();}).some(function(x){return ids.indexOf(x)>=0;}); });
+      if(porId.length === 1) return porId[0];
+      if(porId.length > 1) return null;
     }
     var n = norm322(v&&v.cliente);
-    if(n) return clientes.find(function(c){ return [c.nombre, c.razonSocial, c.empresa, c.cliente, ((c.nombre||'')+' '+(c.apellido||c.apellidos||'')).trim()].map(norm322).indexOf(n)>=0; }) || null;
+    if(n) {
+      var porNombre = clientes.filter(function(c){ return [c.nombre, c.razonSocial, c.empresa, c.cliente, ((c.nombre||'')+' '+(c.apellido||c.apellidos||'')).trim()].map(norm322).indexOf(n)>=0; });
+      return porNombre.length === 1 ? porNombre[0] : null;
+    }
     return null;
   }
   function clienteInfoHtml322(c){
