@@ -5568,12 +5568,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.181-firebase',
+  VERSION: 'v2.0.182-firebase',
   RELEASE_NOTES: Object.freeze([
-    'El actualizador valida formato, modelo y cada proveedor antes de aplicar precios.'
+    'Auditoría segura de precios y control integral de órdenes de trabajo.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador' }),
+  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Auditar precios' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.182',
+      date: '24/07/2026',
+      title: 'Auditorías integrales',
+      notes: Object.freeze(['Los precios dudosos quedan para revisión y las OT verifican vínculos, materiales, evidencias, firma y cierre en un único control.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Auditar precios' })
+    }),
     Object.freeze({
       version: 'v2.0.181',
       date: '23/07/2026',
@@ -8690,6 +8697,96 @@ function repararVentasArsDuplicadasPorDolar() {
   });
 }
 
+function _origenAuditoriaPrecioProducto(p) {
+  p = p || {};
+  var proveedor = _proveedorPrincipalProductoSinReconciliar(p) || {};
+  return String(
+    p.precioActualizadoOrigen || p.precioVentaActualizadoOrigen ||
+    proveedor.actualizadoOrigen || p.actualizadoOrigen || 'sin origen'
+  ).trim();
+}
+
+function _backupsAuditoriaPrecioProducto(p) {
+  p = p || {};
+  return [
+    p.precioActualizadorReparacionBackup,
+    p.auditoriaPrecioBackup20260723,
+    p.auditoriaPrecioBackup
+  ].filter(function(x){ return x && typeof x === 'object'; });
+}
+
+function _backupConfirmaCorreccionPrecio(p, correccion) {
+  if (!correccion) return false;
+  return _backupsAuditoriaPrecioProducto(p).some(function(backup) {
+    var costo = _primerNumeroPositivoProducto([backup.compraARS, backup.precioGremio, backup.compra, backup.costoRealArs]);
+    var venta = _primerNumeroPositivoProducto([backup.ventaARS, backup.precioArsPublicadoVenta, backup.venta]);
+    var costoCoincide = !(correccion.costoCorregido > 0) || (costo > 0 && _relacionCercanaProducto(costo, correccion.costoCorregido, 0.035));
+    var ventaCoincide = !(correccion.ventaCorregida > 0) || (venta > 0 && _relacionCercanaProducto(venta, correccion.ventaCorregida, 0.035));
+    return costoCoincide && ventaCoincide;
+  });
+}
+
+function _correccionPrecioTienePrueba(p, correccion) {
+  if (!correccion) return false;
+  if (correccion.proveedorConfirma || correccion.forzarMigracion) return true;
+  if (_backupConfirmaCorreccionPrecio(p, correccion)) return true;
+  var moneda = String(p.moneda || '').toUpperCase();
+  var monedaVenta = String(p.monedaVenta || p.moneda || '').toUpperCase();
+  if (correccion.tipo === 'costo_usd_legacy' && moneda === 'USD') return true;
+  if (correccion.tipo === 'venta_usd_legacy' && monedaVenta === 'USD') return true;
+  var origen = _origenAuditoriaPrecioProducto(p).toLowerCase();
+  return /reparacion|duplicacion|actualizador|scraping|url_exacta|biosegur|free_electron|tecnoprices|mercado_libre/.test(origen) &&
+    /proveedor-confirma|reincidencia|migracion-confirmada|auditoria-general/.test(String(correccion.origen || ''));
+}
+
+function _detalleProveedoresAuditoriaPrecio(p, costoRaiz) {
+  var lista = Array.isArray(p && p.proveedores) ? p.proveedores.filter(Boolean) : [];
+  var hallazgos = [];
+  lista.forEach(function(pv) {
+    var nombre = String(pv.nombre || pv.proveedor || 'Proveedor');
+    var publicado = _primerNumeroPositivoProducto([pv.precioArsPublicado, pv.precio]);
+    var costo = _costoProveedorProductoSinAuditar(p, pv);
+    var costoDeclarado = parseFloat(pv.costoRealArs) || 0;
+    var costoCalculado = publicado > 0 ? publicado * (pv.sinIva ? 1.21 : 1) : 0;
+    if (costoDeclarado > 0 && costoCalculado > 0 && !_relacionCercanaProducto(costoDeclarado, costoCalculado, 0.08)) {
+      hallazgos.push(nombre + ': el costo guardado no coincide con el precio publicado y su IVA');
+    }
+    if (costoRaiz > 0 && costo > 0) {
+      var relacion = costo / costoRaiz;
+      if (relacion < 0.2 || relacion > 5) {
+        hallazgos.push(nombre + ': difiere más de 5 veces del costo principal');
+      }
+    }
+  });
+  return hallazgos;
+}
+
+function _motivoManualAuditoriaPrecio(p, costoRaw, ventaRaw, correccionCandidata) {
+  var motivos = [];
+  var origen = _origenAuditoriaPrecioProducto(p);
+  var esServicio = typeof esProductoManoDeObra === 'function' && esProductoManoDeObra(p);
+  var ratio = costoRaw > 0 && ventaRaw > 0 ? ventaRaw / costoRaw : 0;
+  if (correccionCandidata) {
+    motivos.push('Hay una conversión posible, pero falta una prueba independiente para aplicarla');
+  }
+  if (!esServicio && costoRaw >= 5000000) motivos.push('Costo extraordinario');
+  if (!esServicio && ventaRaw >= 5000000) motivos.push('Precio de venta extraordinario');
+  if (!esServicio && ratio > 0 && (ratio < 0.65 || ratio > 10)) motivos.push('Relación costo/venta fuera del rango operativo');
+  var ultimoBackup = _backupsAuditoriaPrecioProducto(p)[0];
+  if (ultimoBackup) {
+    var costoBackup = _primerNumeroPositivoProducto([ultimoBackup.compraARS, ultimoBackup.precioGremio, ultimoBackup.compra, ultimoBackup.costoRealArs]);
+    if (costoBackup > 0 && costoRaw > 0 && (costoRaw / costoBackup > 10 || costoBackup / costoRaw > 10)) {
+      motivos.push('El costo actual difiere más de 10 veces del respaldo anterior');
+    }
+  }
+  motivos = motivos.concat(_detalleProveedoresAuditoriaPrecio(p, costoRaw));
+  return {
+    motivos:motivos.filter(function(motivo, indice, todos){ return todos.indexOf(motivo) === indice; }),
+    origen:origen,
+    ratio:ratio
+  };
+}
+
 function auditarIntegridadPreciosCatalogo() {
   var seguros = [];
   var manuales = [];
@@ -8698,24 +8795,34 @@ function auditarIntegridadPreciosCatalogo() {
     if (!p || !p.fbKey) return;
     var costoRaw = _costoRaizProductoSinAuditar(p);
     var ventaRaw = _primerNumeroPositivoProducto([p.ventaARS, p.precioArsPublicadoVenta, p.venta, p.precio_venta, p.precioVenta]);
+    var correccionProveedor = detectarProductoArsDuplicadoPorDolar(p);
+    var correccionLegacy = correccionProveedor ? null : detectarPrecioLegacyMonedaProducto(p);
+    var correccion = correccionProveedor || correccionLegacy;
+    if (correccion && _correccionPrecioTienePrueba(p, correccion)) {
+      seguros.push({ producto:p, correccion:correccion, origen:_origenAuditoriaPrecioProducto(p) });
+      return;
+    }
     if (!(costoRaw > 0) || !(ventaRaw > 0)) {
-      sinPrecio.push({ producto:p, costo:costoRaw, venta:ventaRaw, motivo:'Falta costo o precio de venta' });
+      sinPrecio.push({
+        producto:p,
+        costo:costoRaw,
+        venta:ventaRaw,
+        motivo:!(costoRaw > 0) && !(ventaRaw > 0) ? 'Faltan costo y precio de venta' : (!(costoRaw > 0) ? 'Falta costo' : 'Falta precio de venta'),
+        origen:_origenAuditoriaPrecioProducto(p)
+      });
       return;
     }
-    var correccion = detectarProductoArsDuplicadoPorDolar(p) || detectarPrecioLegacyMonedaProducto(p);
-    if (correccion) {
-      seguros.push({ producto:p, correccion:correccion });
-      return;
-    }
-    var ratio = ventaRaw / costoRaw;
-    if (costoRaw >= 5000000 || ventaRaw >= 5000000 || ratio < 0.25 || ratio > 20) {
+    var diagnostico = _motivoManualAuditoriaPrecio(p, costoRaw, ventaRaw, correccion);
+    if (diagnostico.motivos.length) {
       manuales.push({
         producto:p,
         costo:costoRaw,
         venta:ventaRaw,
-        motivo:costoRaw >= 5000000 || ventaRaw >= 5000000
-          ? 'Importe extraordinario sin prueba suficiente para corregirlo solo'
-          : 'Relación costo/venta fuera del rango habitual'
+        motivo:diagnostico.motivos.join(' · '),
+        motivos:diagnostico.motivos,
+        origen:diagnostico.origen,
+        ratio:diagnostico.ratio,
+        correccionSugerida:correccion || null
       });
     }
   });
@@ -8742,11 +8849,16 @@ function _filaAuditoriaPrecio(item, segura) {
   var etiqueta = segura
     ? (c.tipo === 'costo_usd_legacy' ? 'Costo USD heredado' : c.tipo === 'venta_usd_legacy' ? 'Venta USD heredada' : 'Conversión duplicada')
     : item.motivo;
-  return '<div style="display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(140px,1fr) minmax(140px,1fr);gap:10px;align-items:center;padding:10px 2px;border-bottom:.5px solid var(--border)">' +
+  var origen = item.origen || _origenAuditoriaPrecioProducto(p);
+  return '<div style="display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(180px,1.35fr) minmax(160px,1fr);gap:10px;align-items:center;padding:10px 2px;border-bottom:.5px solid var(--border)">' +
     '<button type="button" onclick="cerrarAuditoriaIntegridadPrecios();verProducto(\'' + escapeHTML(String(p.fbKey || '')) + '\')" style="appearance:none;border:0;background:none;padding:0;text-align:left;color:var(--text);cursor:pointer;min-width:0"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><br><span style="font-size:11px;color:var(--text3)">' + escapeHTML(p.nombre || p.descripcion || '') + '</span></button>' +
-    '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(etiqueta || 'Revisión') + '<br><span>Costo $' + Math.round(costoAntes || 0).toLocaleString('es-AR') + ' · Venta $' + Math.round(ventaAntes || 0).toLocaleString('es-AR') + '</span></div>' +
-    '<div style="font-size:11px;' + (segura ? 'color:var(--green)' : 'color:var(--amber)') + '">' + (segura ? 'Quedará: costo $' + Math.round(costoDespues || 0).toLocaleString('es-AR') + '<br>venta $' + Math.round(ventaDespues || 0).toLocaleString('es-AR') : 'Requiere decisión manual') + '</div>' +
+    '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(etiqueta || 'Revisión') + '<br><span>Costo $' + Number(costoAntes || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + ' · Venta $' + Number(ventaAntes || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '</span><br><span style="font-size:10px">Origen: ' + escapeHTML(origen || 'sin origen') + '</span></div>' +
+    '<div style="font-size:11px;' + (segura ? 'color:var(--green)' : 'color:var(--amber)') + '">' + (segura ? 'Quedará: costo $' + Number(costoDespues || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '<br>venta $' + Number(ventaDespues || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) : '<strong>No se modifica solo</strong><br>Tocá el producto para decidir') + '</div>' +
   '</div>';
+}
+
+function _filaSinPrecioAuditoria(item) {
+  return _filaAuditoriaPrecio(item, false);
 }
 
 function abrirAuditoriaIntegridadPrecios() {
@@ -8767,9 +8879,10 @@ function abrirAuditoriaIntegridadPrecios() {
           '<div class="metric"><div class="m-label">Revisión manual</div><div class="m-value" style="color:var(--amber)">' + auditoria.manuales.length + '</div><div class="m-sub">no se tocarán solos</div></div>' +
           '<div class="metric"><div class="m-label">Sin precio completo</div><div class="m-value">' + auditoria.sinPrecio.length + '</div><div class="m-sub">para completar</div></div>' +
         '</div>' +
-        '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:12px"><i class="ti ti-lock-check"></i> La reparación segura guarda una copia completa anterior y sólo corrige moneda/escala. No cambia comprobantes, presupuestos ni ventas ya emitidas.</div>' +
+        '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:12px"><i class="ti ti-lock-check"></i> La reparación segura exige una prueba adicional (proveedor, moneda, origen o respaldo), guarda una copia completa y sólo corrige moneda/escala. No cambia comprobantes, presupuestos ni ventas ya emitidas.</div>' +
         '<details open><summary style="cursor:pointer;font-weight:800;padding:8px 0">Casos seguros (' + auditoria.seguros.length + ')</summary><div style="max-height:310px;overflow:auto">' + (auditoria.seguros.map(function(x){ return _filaAuditoriaPrecio(x, true); }).join('') || '<div style="padding:14px;color:var(--text3)">No se detectaron correcciones automáticas pendientes.</div>') + '</div></details>' +
         '<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:800;padding:8px 0">Revisión manual (' + auditoria.manuales.length + ')</summary><div style="max-height:260px;overflow:auto">' + (auditoria.manuales.map(function(x){ return _filaAuditoriaPrecio(x, false); }).join('') || '<div style="padding:14px;color:var(--text3)">Sin casos manuales extraordinarios.</div>') + '</div></details>' +
+        '<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:800;padding:8px 0">Precios incompletos (' + auditoria.sinPrecio.length + ')</summary><div style="max-height:260px;overflow:auto">' + (auditoria.sinPrecio.map(_filaSinPrecioAuditoria).join('') || '<div style="padding:14px;color:var(--text3)">Todos los productos tienen costo y precio de venta.</div>') + '</div></details>' +
       '</div>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:.5px solid var(--border)"><button class="btn" onclick="cerrarAuditoriaIntegridadPrecios()">Cerrar</button><button class="btn btn-primary" id="btn-reparar-auditoria-precios" ' + (auditoria.seguros.length ? '' : 'disabled') + ' onclick="repararCasosSegurosIntegridadPrecios()"><i class="ti ti-tool"></i> Reparar ' + auditoria.seguros.length + ' casos seguros</button></div>' +
     '</div>';
@@ -26909,6 +27022,114 @@ function otNormalizarMateriales(items, progreso) {
   }).filter(function(item){ return item.desc; });
 }
 
+function auditarIntegridadOT(ot) {
+  ot = ot || {};
+  var bloqueos = [];
+  var avisos = [];
+  var correctos = [];
+  var cliente = _svResolverClienteRegistro(ot, true);
+  var origen = otResolverOrigen(ot);
+  var venta = origen === 'venta' ? otBuscarVentaOrigen(ot) : null;
+  var direccion = _otResolverDireccionCliente(ot);
+  var notas = typeof otNotasNormalizadas === 'function' ? otNotasNormalizadas(ot) : [];
+  var fotos = notas.filter(function(nota){ return !!otFotoUrlDeNota(nota); });
+  var firmaUrl = otFirmaUrl(ot);
+  var checks = ot.checks && typeof ot.checks === 'object' ? ot.checks : {};
+  var checklist = Object.values(checks).reduce(function(todos, fase) {
+    var valores = Array.isArray(fase) ? fase : Object.values(fase || {});
+    return todos.concat(valores);
+  }, []);
+  var checklistHecho = checklist.filter(Boolean).length;
+  var materiales = Array.isArray(ot.materiales) ? ot.materiales : (Array.isArray(ot.items) ? ot.items : []);
+  var custodia = typeof window.otCustodiaValidarCierre === 'function'
+    ? window.otCustodiaValidarCierre(ot)
+    : { ok:true, conObservaciones:false };
+  var cerrada = otEstaCerrada(ot);
+  var conformidad = String(((document.getElementById('ot-acta-conf') || {}).value) || ot.conformidadCliente || '').trim();
+  var nombreConformidad = String(((document.getElementById('ot-acta-firma') || {}).value) || ot.nombreConformidad || ot.firmaNombreCliente || '').trim();
+  var observaciones = String(((document.getElementById('ot-acta-obs') || {}).value) || ot.observacionesCierre || ot.actaObservaciones || ot.obsTecnico || '').trim();
+
+  if (!String(ot.cliente || '').trim()) bloqueos.push({ area:'Cliente', texto:'La OT no tiene cliente.' });
+  else if (!cliente) avisos.push({ area:'Cliente', texto:'El nombre no está vinculado de forma inequívoca con la ficha del cliente.' });
+  else correctos.push({ area:'Cliente', texto:'Ficha vinculada correctamente.' });
+
+  if (!direccion) avisos.push({ area:'Ubicación', texto:'Falta la dirección de instalación.' });
+  else correctos.push({ area:'Ubicación', texto:'Dirección disponible.' });
+
+  if (origen === 'venta' && !venta) bloqueos.push({ area:'Venta', texto:'La referencia de venta no existe o es ambigua.' });
+  else if (origen === 'venta') correctos.push({ area:'Venta', texto:'Venta de origen encontrada.' });
+
+  if (!String(ot.tecnico || '').trim()) avisos.push({ area:'Técnico', texto:'Todavía no hay técnico asignado.' });
+  else correctos.push({ area:'Técnico', texto:'Técnico asignado.' });
+
+  if (!materiales.length) avisos.push({ area:'Materiales', texto:'No hay materiales registrados para controlar.' });
+  else if (!custodia.ok) bloqueos.push({ area:'Materiales', texto:custodia.message || 'Quedan materiales sin rendir.' });
+  else if (custodia.conObservaciones) avisos.push({ area:'Materiales', texto:'La rendición tiene devoluciones o incidencias clasificadas.' });
+  else correctos.push({ area:'Materiales', texto:materiales.length + ' ítem' + (materiales.length === 1 ? '' : 's') + ' controlado' + (materiales.length === 1 ? '' : 's') + '.' });
+
+  if (!checklist.length) avisos.push({ area:'Checklist', texto:'No se encontró la estructura del checklist.' });
+  else if (checklistHecho < checklist.length) avisos.push({ area:'Checklist', texto:(checklist.length - checklistHecho) + ' control' + (checklist.length - checklistHecho === 1 ? '' : 'es') + ' pendiente' + (checklist.length - checklistHecho === 1 ? '' : 's') + '.' });
+  else correctos.push({ area:'Checklist', texto:'Todos los controles están completos.' });
+
+  if (!notas.length) avisos.push({ area:'Registro técnico', texto:'Todavía no hay notas ni evidencias.' });
+  else correctos.push({ area:'Registro técnico', texto:notas.length + ' registro' + (notas.length === 1 ? '' : 's') + ' técnico' + (notas.length === 1 ? '' : 's') + '.' });
+
+  if (!fotos.length) avisos.push({ area:'Fotos', texto:'No hay fotografías visibles vinculadas a la OT.' });
+  else correctos.push({ area:'Fotos', texto:fotos.length + ' foto' + (fotos.length === 1 ? '' : 's') + ' disponible' + (fotos.length === 1 ? '' : 's') + '.' });
+
+  if (!conformidad) avisos.push({ area:'Acta', texto:'Falta indicar la conformidad del cliente.' });
+  if (!nombreConformidad) avisos.push({ area:'Acta', texto:'Falta el nombre y aclaración del cliente.' });
+  if (!firmaUrl) avisos.push({ area:'Firma', texto:'No hay firma digital guardada.' });
+  else correctos.push({ area:'Firma', texto:'Firma digital almacenada.' });
+  if (!observaciones) avisos.push({ area:'Acta', texto:'No hay observaciones técnicas para el acta.' });
+  if (conformidad && nombreConformidad && observaciones) correctos.push({ area:'Acta', texto:'Datos del acta completos.' });
+
+  if (cerrada && !(ot.fechaCierre || ot.fechaCompletada)) avisos.push({ area:'Cierre', texto:'La OT figura cerrada pero no tiene fecha de cierre.' });
+  else if (cerrada) correctos.push({ area:'Cierre', texto:'Cierre registrado.' });
+
+  return {
+    ot:ot,
+    bloqueos:bloqueos,
+    avisos:avisos,
+    correctos:correctos,
+    checklist:{ total:checklist.length, completos:checklistHecho },
+    materiales:materiales.length,
+    fotos:fotos.length,
+    firma:!!firmaUrl,
+    listaParaCerrar:bloqueos.length === 0 && checklist.length > 0 && checklistHecho === checklist.length && custodia.ok
+  };
+}
+
+function actualizarPanelIntegridadOT() {
+  var resumen = document.getElementById('ot-integridad-resumen');
+  var detalle = document.getElementById('ot-integridad-detalle');
+  if (!resumen || !detalle) return null;
+  var ot = (otData || []).find(function(item){ return item.id === otActualId || item.fbKey === otActualId; });
+  if (!ot) {
+    resumen.textContent = 'No se encontró la OT abierta.';
+    detalle.innerHTML = '';
+    return null;
+  }
+  var auditoria = auditarIntegridadOT(ot);
+  var color = auditoria.bloqueos.length ? 'var(--red)' : (auditoria.avisos.length ? 'var(--amber)' : 'var(--green)');
+  resumen.style.color = color;
+  resumen.innerHTML = auditoria.bloqueos.length
+    ? '<i class="ti ti-alert-triangle"></i> ' + auditoria.bloqueos.length + ' problema' + (auditoria.bloqueos.length === 1 ? '' : 's') + ' que requiere' + (auditoria.bloqueos.length === 1 ? '' : 'n') + ' corrección.'
+    : (auditoria.avisos.length
+      ? '<i class="ti ti-info-circle"></i> Sin vínculos rotos; quedan ' + auditoria.avisos.length + ' dato' + (auditoria.avisos.length === 1 ? '' : 's') + ' por completar o comprobar.'
+      : '<i class="ti ti-circle-check"></i> OT consistente y lista para cerrar.');
+  var filas = auditoria.bloqueos.map(function(item){ return { item:item, color:'var(--red)', icono:'ti-alert-triangle' }; })
+    .concat(auditoria.avisos.map(function(item){ return { item:item, color:'var(--amber)', icono:'ti-info-circle' }; }))
+    .concat(auditoria.correctos.map(function(item){ return { item:item, color:'var(--green)', icono:'ti-circle-check' }; }));
+  detalle.innerHTML = filas.map(function(fila) {
+    return '<div style="padding:9px 10px;border:.5px solid var(--border);border-radius:9px;background:var(--bg3);font-size:11px;color:var(--text2)">' +
+      '<div style="font-weight:700;color:' + fila.color + ';margin-bottom:3px"><i class="ti ' + fila.icono + '"></i> ' + escapeHTML(fila.item.area) + '</div>' +
+      '<div>' + escapeHTML(fila.item.texto) + '</div>' +
+    '</div>';
+  }).join('');
+  return auditoria;
+}
+
 function verOT(id) {
   var ot = otData.find(function(o){ return o.fbKey === id; })
         || otData.find(function(o){ return o.id === id; });
@@ -27185,6 +27406,7 @@ function verOT(id) {
       '<div><div style="font-size:13px">'+escapeHTML(e.accion||'')+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+escapeHTML(e.usuario||'')+' · '+escapeHTML(e.fecha||'')+'</div></div>' +
     '</div>';
   }).join('');
+  actualizarPanelIntegridadOT();
   document.dispatchEvent(new CustomEvent('sisventas:ot-opened',{detail:{id:id,ot:ot}}));
 }
 
@@ -27508,6 +27730,7 @@ function firmaLimpiar(soloVisual) {
       });
     }
     notify('✓ Firma eliminada');
+    if (typeof actualizarPanelIntegridadOT === 'function') actualizarPanelIntegridadOT();
   }).catch(function(error) {
     ot.firmaClienteUrl = firmaAnterior;
     ot.firmaStoragePath = pathAnterior;
@@ -27620,6 +27843,7 @@ function firmaGuardarEnOT(firmaUrl, storagePath, otObjetivoId) {
       preview.style.display = '';
     }
     notify('✓ Firma guardada y verificada');
+    if (typeof actualizarPanelIntegridadOT === 'function') actualizarPanelIntegridadOT();
     return firmaUrl;
   });
 }
@@ -27661,6 +27885,7 @@ function firmaCargar(ot) {
   _firmaTiene = true;
   var placeholder = document.getElementById('firma-placeholder');
   if (placeholder) placeholder.style.display = 'none';
+  if (typeof actualizarPanelIntegridadOT === 'function') actualizarPanelIntegridadOT();
 }
 
 var _otCredencialesCargaSecuencia = 0;
@@ -27938,6 +28163,7 @@ function otRenderNotas(ot) {
         : 'Todavía no hay fotos cargadas.';
     }
   }
+  if (typeof actualizarPanelIntegridadOT === 'function') actualizarPanelIntegridadOT();
 }
 
 function otEliminarNota(indice) {
@@ -28333,6 +28559,7 @@ function actualizarProgreso(ot) {
   const pctEl = document.getElementById('ot-progreso-pct');
   if (fill) fill.style.width = pct + '%';
   if (pctEl) { pctEl.textContent = pct + '%'; pctEl.style.color = pct === 100 ? 'var(--green)' : 'var(--blue)'; }
+  if (typeof actualizarPanelIntegridadOT === 'function') actualizarPanelIntegridadOT();
   if (pct === 100 && !otEstaCerrada(ot)) notify('¡Checklist completo! Podés finalizar la OT.');
 }
 
@@ -28345,6 +28572,12 @@ function completarOT() {
     return;
   }
   normalizarChecklistOT(ot);
+  var auditoriaCierreOT = auditarIntegridadOT(ot);
+  if (auditoriaCierreOT.bloqueos.length) {
+    actualizarPanelIntegridadOT();
+    notify('No se puede cerrar: ' + auditoriaCierreOT.bloqueos[0].area + ' — ' + auditoriaCierreOT.bloqueos[0].texto);
+    return;
+  }
   var checklistTotal = Object.values(ot.checks||{}).flat().length;
   var checklistHecho = Object.values(ot.checks||{}).flat().filter(Boolean).length;
   if (!checklistTotal || checklistHecho < checklistTotal) {
