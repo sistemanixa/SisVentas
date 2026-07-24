@@ -5,7 +5,7 @@
              createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
              signInWithEmailAndPassword as reSignIn }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject }
+    import { getStorage, ref as storageRef, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
     // Capturar errores JS globales para debug
@@ -74,6 +74,7 @@
     window.fbStorage     = fbStorage;
     window.fbStorageRef  = storageRef;
     window.fbUploadBytes = uploadBytes;
+    window.fbUploadBytesResumable = uploadBytesResumable;
     window.fbGetDownloadURL = getDownloadURL;
     window.fbDeleteObject = deleteObject;
 

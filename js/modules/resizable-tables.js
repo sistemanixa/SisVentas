@@ -44,18 +44,24 @@
 
   function usesFullContainerWidth(table) {
     var id = pageId(table);
-    return id === 'page-ctaemp' || id === 'page-ordenes';
+    return id === 'page-ctaemp' || id === 'page-ordenes' || (table && table.id === 'gas-tbl');
   }
 
   function tableHeaders(table) {
     var headers = Array.from(table.querySelectorAll('thead th')).filter(function (th) {
-      return !isHidden(th);
+      return !isHidden(th) && th.getAttribute('data-sv-column-ignore') !== '1';
     });
     if (headers.length) return headers;
     var firstRow = table.querySelector('tr');
     return firstRow ? Array.from(firstRow.querySelectorAll('th')).filter(function (th) {
-      return !isHidden(th);
+      return !isHidden(th) && th.getAttribute('data-sv-column-ignore') !== '1';
     }) : [];
+  }
+
+  function columnLabel(th, index) {
+    var explicit = th && th.getAttribute ? th.getAttribute('data-sv-column-label') : '';
+    var visible = th && th.textContent ? th.textContent : '';
+    return String(explicit || visible || ('Columna ' + (index + 1))).replace(/\s+/g, ' ').trim();
   }
 
   function tableKey(table) {
@@ -399,15 +405,15 @@
     if (table && table.id === 'gas-tbl') {
       return {
         0: 6,
-        1: 38,
+        1: 30,
         2: 9,
-        3: 7,
+        3: 8,
         4: 9,
         5: 9,
-        6: 9,
-        7: 7,
-        8: 7,
-        9: 4
+        6: 8,
+        7: 8,
+        8: 6,
+        9: 7
       };
     }
     if (table && table.id === 'ppto-tabla') {
@@ -455,6 +461,38 @@
     return data;
   }
 
+  function sanitizePercentages(table, source) {
+    var headers = tableHeaders(table);
+    var defaults = defaultPercentages(table);
+    var clean = {};
+    if (!table || table.id !== 'gas-tbl') {
+      headers.forEach(function (_th, index) {
+        clean[index] = normalizePercent(source && source[index]);
+      });
+      return clean;
+    }
+    headers.forEach(function (_th, index) {
+      var value = normalizePercent(source && source[index]);
+      clean[index] = value > 0 ? value : normalizePercent(defaults[index]);
+    });
+    // Gastos tenía perfiles antiguos que sumaban menos de 100% y dejaban
+    // Acciones en 0%. El navegador repartía el sobrante y el editor ya no
+    // representaba los anchos reales. Migrarlos conservando proporciones.
+    var total = Object.keys(clean).reduce(function (sum, key) {
+      return sum + normalizePercent(clean[key]);
+    }, 0);
+    if (total > 0 && total < 99.5) {
+      Object.keys(clean).forEach(function (key) {
+        clean[key] = Math.round((clean[key] * 1000) / total) / 10;
+      });
+      var totalNormalizado = Object.keys(clean).reduce(function (sum, key) {
+        return sum + normalizePercent(clean[key]);
+      }, 0);
+      clean[1] = Math.round((clean[1] + (100 - totalNormalizado)) * 10) / 10;
+    }
+    return clean;
+  }
+
   function shouldApplyDefaultPercentProfile(table) {
     return !!(table && (
       table.id === 'prod-tbl' || table.id === 'gas-tbl' || table.id === 'ppto-tabla' ||
@@ -464,9 +502,9 @@
 
   function currentPercentages(table) {
     var draft = percentDrafts[percentDraftKey(table)];
-    if (draft && Object.keys(draft).length) return draft;
+    if (draft && Object.keys(draft).length) return sanitizePercentages(table, draft);
     var saved = loadPercentages(table);
-    if (Object.keys(saved).length) return saved;
+    if (Object.keys(saved).length) return sanitizePercentages(table, saved);
     return defaultPercentages(table);
   }
 
@@ -518,11 +556,11 @@
   function applySavedPercentProfile(table) {
     var draft = percentDrafts[percentDraftKey(table)];
     if (draft && Object.keys(draft).length) {
-      applyPercentProfile(table, draft);
+      applyPercentProfile(table, sanitizePercentages(table, draft));
       return true;
     }
     if (hasSavedPercentages(table)) {
-      applyPercentProfile(table, loadPercentages(table));
+      applyPercentProfile(table, sanitizePercentages(table, loadPercentages(table)));
       return true;
     }
     if (!shouldApplyDefaultPercentProfile(table)) return false;
@@ -763,7 +801,7 @@
         '</div>' +
         '<div class="sv-column-percent-list">' +
           headers.map(function (th, index) {
-            var label = (th.textContent || ('Columna ' + (index + 1))).replace(/\s+/g, ' ').trim();
+            var label = columnLabel(th, index);
             var align = normalizeAlignment(alignValues[index]);
             return '<div class="sv-column-percent-row">' +
               '<span>'+escapeHTML(label || ('Columna ' + (index + 1)))+'</span>' +
@@ -854,7 +892,7 @@
         el.style.color = Math.abs(total - 100) <= 0.5 ? 'var(--green)' : (total > 100 ? 'var(--blue)' : 'var(--amber)');
       }
       if (hint) {
-        hint.textContent = total > 100 ? ' · queda más ancho y se desplaza horizontalmente' : (total < 99.5 ? (usesFullContainerWidth(table) ? ' · se distribuye hasta completar el ancho' : ' · queda espacio libre') : '');
+        hint.textContent = total > 100 ? ' · queda más ancho y se desplaza horizontalmente' : (total < 99.5 ? (table.id === 'gas-tbl' ? ' · al guardar se completa proporcionalmente hasta 100%' : (usesFullContainerWidth(table) ? ' · se distribuye hasta completar el ancho' : ' · queda espacio libre')) : '');
       }
     }
 
@@ -915,7 +953,7 @@
         return;
       }
       if (ev.target.closest('[data-sv-save]')) {
-        var data = readInputs();
+        var data = sanitizePercentages(table, readInputs());
         var alignData = readAlignments();
         savePercentages(table, data);
         saveAlignments(table, alignData);

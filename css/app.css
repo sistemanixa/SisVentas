@@ -1607,6 +1607,58 @@ body.modal-secure-open{overflow:hidden!important}
 @media(max-width:900px){.sv-rent-viz2{grid-template-columns:1fr}.sv-rent-viz2-summary{border-left:0;border-top:1px solid rgba(148,163,184,.14);flex-direction:row;gap:22px;text-align:left}.sv-rent-viz2-result{margin-top:0;align-items:flex-start}.sv-rent-viz2-counts{width:auto;margin-top:0;padding:0 0 0 18px;border-top:0;border-left:1px solid rgba(148,163,184,.12);flex-direction:column;gap:7px}}
 @media(max-width:620px){.sv-rent-viz2-chart{padding:15px 12px}.sv-rent-viz2-plot{gap:24px;padding-inline:16px}.sv-rent-viz2-column{width:42%}.sv-rent-viz2-barbox{padding-inline:12px}.sv-rent-viz2-summary{flex-direction:column;text-align:center}.sv-rent-viz2-result{align-items:center}.sv-rent-viz2-counts{width:100%;padding:10px 0 0;border-left:0;border-top:1px solid rgba(148,163,184,.12);flex-direction:row}}
 
+/* v2.0.192 - Gastos legible en celular y controles coherentes */
+.gas-toolbar-actions{display:flex;gap:6px;flex-wrap:wrap}
+@media(max-width:720px){
+  #page-gastos .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  #page-gastos .metrics .metric{padding:12px!important}
+  #page-gastos #gasto-list{padding:14px 12px!important;overflow:visible!important}
+  #page-gastos #gasto-list>.card-head{display:block!important}
+  #page-gastos #gasto-list>.card-head>.card-title{display:block;margin-bottom:12px}
+  #page-gastos .gas-toolbar-actions{display:grid!important;grid-template-columns:1fr!important;gap:8px!important;width:100%}
+  #page-gastos .gas-toolbar-actions .search-input,
+  #page-gastos .gas-toolbar-actions .btn{width:100%!important;min-height:44px;justify-content:center}
+  #page-gastos .gas-toolbar-actions .sv-column-percent-btn{display:none!important}
+  #page-gastos .table-wrap{overflow:visible!important;width:100%!important}
+  #page-gastos #gas-tbl,
+  #page-gastos #gas-tbl.sv-percent-table{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;table-layout:auto!important}
+  #page-gastos #gas-tbl colgroup,
+  #page-gastos #gas-tbl thead{display:none!important}
+  #page-gastos #gas-tbl tbody{display:grid!important;grid-template-columns:1fr;gap:12px;width:100%}
+  #page-gastos #gas-tbl tbody tr.gas-row{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border:1px solid var(--border2);border-radius:14px;padding:0;background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)),var(--bg3);overflow:hidden}
+  #page-gastos #gas-tbl tbody tr.gas-empty-row{display:block!important;border:1px solid var(--border);border-radius:12px}
+  #page-gastos #gas-tbl tbody tr.gas-empty-row td{display:block!important;width:100%!important}
+  #page-gastos #gas-tbl tbody tr.gas-row>td{display:flex!important;min-width:0!important;width:auto!important;max-width:none!important;min-height:56px;padding:10px 12px!important;border:0!important;border-bottom:1px solid rgba(148,163,184,.10)!important;overflow:visible!important;text-align:left!important;white-space:normal!important;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px}
+  #page-gastos #gas-tbl tbody tr.gas-row>td:nth-last-child(-n+2){border-bottom:0!important}
+  #page-gastos #gas-tbl tbody tr.gas-row>td:before{content:attr(data-label);display:block;font-size:10px;line-height:1.2;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);font-weight:600}
+  #page-gastos #gas-tbl .gas-desc-cell{grid-column:1/-1;grid-row:1;max-width:none!important;min-height:68px!important;font-size:15px;line-height:1.35;white-space:normal!important}
+  #page-gastos #gas-tbl .gas-date-cell{grid-column:1}
+  #page-gastos #gas-tbl .gas-status-cell{grid-column:2}
+  #page-gastos #gas-tbl .gas-amount-cell,
+  #page-gastos #gas-tbl .gas-paid-cell{font-size:15px;font-weight:700!important}
+  #page-gastos #gas-tbl .gas-status-cell .badge,
+  #page-gastos #gas-tbl .gas-type-cell .badge{max-width:100%;white-space:normal;line-height:1.25;text-align:left}
+  #page-gastos #gas-tbl .gas-bulk-cell{grid-column:1/-1;min-height:44px!important;flex-direction:row!important;justify-content:flex-start!important;align-items:center!important}
+  #page-gastos #gas-tbl .gas-bulk-cell.gas-bulk-hidden{display:none!important}
+  #page-gastos #gas-tbl .gas-bulk-cell input{width:22px;height:22px}
+  #page-gastos #gas-tbl .gas-actions-cell{grid-column:1/-1;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:wrap;padding:10px!important;background:rgba(255,255,255,.018)}
+  #page-gastos #gas-tbl .gas-actions-cell:before{width:100%}
+  #page-gastos #gas-tbl .gas-actions-cell .btn{min-height:40px;justify-content:center}
+  #page-gastos #gas-tbl .gas-actions-cell .btn:not(.btn-icon){flex:1 1 120px}
+  #page-gastos #gas-tbl .gas-actions-cell .btn-icon{width:40px;flex:0 0 40px}
+  #page-gastos .flex-end{justify-content:stretch!important}
+  #page-gastos .flex-end .btn{width:100%;min-height:44px;justify-content:center}
+}
+@media(max-width:390px){
+  #page-gastos .metrics{grid-template-columns:1fr!important}
+  #page-gastos #gas-tbl tbody tr.gas-row{grid-template-columns:1fr}
+  #page-gastos #gas-tbl .gas-desc-cell,
+  #page-gastos #gas-tbl .gas-status-cell,
+  #page-gastos #gas-tbl .gas-actions-cell,
+  #page-gastos #gas-tbl .gas-bulk-cell{grid-column:1}
+  #page-gastos #gas-tbl tbody tr.gas-row>td:nth-last-child(2){border-bottom:1px solid rgba(148,163,184,.10)!important}
+}
+
 /* v2.0.30 - Switch visual para preferencias booleanas */
 .sv-switch-row{
   display:flex;
