@@ -231,11 +231,31 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) 
 
 function parsePrecioArs(texto) {
   const s = String(texto || '');
-  const matches = [...s.matchAll(/\$\s*([0-9]{1,3}(?:[.\s][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)/g)];
+  const matches = [...s.matchAll(/\$\s*([0-9][0-9.,\s]*)/g)];
   const valores = matches.map((m) => {
-    const n = String(m[1]).replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
-    return parseFloat(n) || 0;
-  }).filter((n) => n > 0);
+    let token = String(m[1] || '').replace(/\s/g, '').replace(/[.,]+$/, '');
+    if (!token) return 0;
+    const ultimaComa = token.lastIndexOf(',');
+    const ultimoPunto = token.lastIndexOf('.');
+    let separadorDecimal = '';
+
+    if (ultimaComa >= 0 && ultimoPunto >= 0) {
+      separadorDecimal = ultimaComa > ultimoPunto ? ',' : '.';
+    } else if (ultimaComa >= 0) {
+      const decimales = token.length - ultimaComa - 1;
+      if (decimales > 0 && decimales <= 2) separadorDecimal = ',';
+    } else if (ultimoPunto >= 0) {
+      const decimales = token.length - ultimoPunto - 1;
+      const cantidadPuntos = (token.match(/\./g) || []).length;
+      if (decimales > 0 && decimales <= 2 && cantidadPuntos === 1) separadorDecimal = '.';
+    }
+
+    if (!separadorDecimal) return parseFloat(token.replace(/[.,]/g, '')) || 0;
+    const posicionDecimal = token.lastIndexOf(separadorDecimal);
+    const entero = token.slice(0, posicionDecimal).replace(/[.,]/g, '');
+    const decimal = token.slice(posicionDecimal + 1).replace(/[.,]/g, '');
+    return parseFloat(`${entero || '0'}.${decimal || '0'}`) || 0;
+  }).filter((n) => n > 0 && Number.isFinite(n));
   return valores.length ? valores[0] : 0;
 }
 
@@ -263,17 +283,46 @@ function validarIdentidadProducto(productoSolicitado, tituloProveedor) {
   const titulo = normalizarIdentidadProducto(tituloProveedor);
   if (!solicitado) return { ok:false, confianza:0, mensaje:'Falta el nombre del producto para comprobar la identidad' };
   if (!titulo) return { ok:false, confianza:0, mensaje:'El proveedor no mostró un título de producto verificable' };
-  if (solicitado.includes(titulo) || titulo.includes(solicitado)) return { ok:true, confianza:1 };
+  if (solicitado === titulo) return { ok:true, confianza:1 };
 
   const pedidos = [...new Set(tokensIdentidadProducto(solicitado))];
   const vistos = [...new Set(tokensIdentidadProducto(titulo))];
+  const modelosPedidos = pedidos.filter((token) => /[A-Z]/.test(token) && /[0-9]/.test(token) && token.length >= 2);
+  const modelosVistos = vistos.filter((token) => /[A-Z]/.test(token) && /[0-9]/.test(token) && token.length >= 2);
+  const modelosFaltantes = modelosPedidos.filter((modelo) => !modelosVistos.includes(modelo));
+  if (modelosFaltantes.length) {
+    return {
+      ok:false,
+      confianza:0,
+      coincidencias:[],
+      mensaje:`El modelo o especificación no coincide (${modelosFaltantes.join(', ')})`
+    };
+  }
+
+  const palabrasGenericas = new Set([
+    'ACCESORIO', 'ALARMA', 'AMPLIFICADOR', 'BALUN', 'CABLE', 'CAMARA', 'CARGADOR',
+    'CONTROL', 'CONVERSOR', 'DETECTOR', 'DISPOSITIVO', 'EXTENSOR', 'FUENTE',
+    'INTERFAZ', 'KIT', 'MODULO', 'PANEL', 'PRODUCTO', 'RECEPTOR', 'SENSOR',
+    'SISTEMA', 'SOPORTE', 'SWITCH', 'SWITCHING', 'TRANSMISOR', 'UNIDAD', 'VIDEO'
+  ]);
+  const distintivasPedidos = pedidos.filter((token) => /^[A-Z]+$/.test(token) && token.length >= 4 && !palabrasGenericas.has(token));
+  const distintivasVistas = vistos.filter((token) => /^[A-Z]+$/.test(token) && token.length >= 4 && !palabrasGenericas.has(token));
+  if (distintivasPedidos.length && distintivasVistas.length &&
+      !distintivasPedidos.some((token) => distintivasVistas.includes(token))) {
+    return {
+      ok:false,
+      confianza:0,
+      coincidencias:[],
+      mensaje:'La marca o característica principal no coincide con el producto solicitado'
+    };
+  }
+
   const comunes = pedidos.filter((tokenPedido) => {
     return vistos.some((tokenVisto) => tokenPedido === tokenVisto ||
       (tokenPedido.length >= 5 && tokenVisto.length >= 5 &&
         (tokenPedido.includes(tokenVisto) || tokenVisto.includes(tokenPedido))));
   });
-  const modelos = pedidos.filter((token) => /[A-Z]/.test(token) && /[0-9]/.test(token) && token.length >= 4);
-  const modeloCoincidente = modelos.some((modelo) => vistos.includes(modelo));
+  const modeloCoincidente = modelosPedidos.length > 0 && modelosPedidos.every((modelo) => vistos.includes(modelo));
   const confianza = pedidos.length ? comunes.length / pedidos.length : 0;
   const minimoComun = pedidos.length <= 2 ? 1 : 2;
   if (modeloCoincidente || (comunes.length >= minimoComun && confianza >= 0.34)) {

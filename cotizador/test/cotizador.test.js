@@ -29,6 +29,9 @@ Module._load = cargarOriginal;
 test('interpreta formato argentino sin multiplicar por dólar', () => {
   assert.equal(parsePrecioArs('$ 4.933,50'), 4933.5);
   assert.equal(parsePrecioArs('$ 107.071,90'), 107071.9);
+  assert.equal(parsePrecioArs('$ 83660.20'), 83660.2);
+  assert.equal(parsePrecioArs('$ 133399059.00'), 133399059);
+  assert.equal(parsePrecioArs('$ 4.933'), 4933);
 });
 
 test('Biosegur sólo acepta el precio principal o etiquetado', () => {
@@ -49,6 +52,22 @@ test('la identidad acepta el mismo modelo y rechaza otro producto', () => {
   assert.equal(validarIdentidadProducto(
     'BALUN HD HIKVISION 1H18S/E - PAR',
     'Fuente switching Dahua 12V 2A'
+  ).ok, false);
+  assert.equal(validarIdentidadProducto(
+    'CAMARA IP HIKVISION',
+    'CAMARA IP DAHUA'
+  ).ok, false);
+  assert.equal(validarIdentidadProducto(
+    'CAMARA IP HIKVISION DS-2CD1023G0-I',
+    'CAMARA IP HIKVISION DS-2CD1043G0-I'
+  ).ok, false);
+  assert.equal(validarIdentidadProducto(
+    'FUENTE SWITCHING 12V 2A',
+    'FUENTE SWITCHING 12V 5A'
+  ).ok, false);
+  assert.equal(validarIdentidadProducto(
+    'CABLE UTP CAT6 EXTERIOR',
+    'CABLE UTP CAT5 INTERIOR'
   ).ok, false);
 });
 

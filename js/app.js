@@ -5568,12 +5568,19 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.180-firebase',
+  VERSION: 'v2.0.181-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Tesorería abre con sus valores finales sin repintados tardíos.'
+    'El actualizador valida formato, modelo y cada proveedor antes de aplicar precios.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'tesoreria', actionLabel:'Abrir Tesorería' }),
+  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.181',
+      date: '23/07/2026',
+      title: 'Actualización de precios protegida',
+      notes: Object.freeze(['Se corrigieron formatos decimales, coincidencias de producto, vigencia por proveedor y guardado de varios proveedores sin pisadas.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador' })
+    }),
     Object.freeze({
       version: 'v2.0.180',
       date: '23/07/2026',
@@ -8986,7 +8993,53 @@ function timestampPrecioProducto(p) {
   return tiempos.map(function(x){ return parseFloat(x) || 0; }).reduce(function(max, x){ return Math.max(max, x); }, 0);
 }
 
+function timestampPrecioProveedorProducto(p, pv) {
+  p = p || {};
+  pv = pv || {};
+  var tiempos = [pv.actualizadoEn, pv.precioActualizadoEn];
+  function agregarFecha(valor) {
+    if (!valor) return;
+    if (typeof valor === 'number') { tiempos.push(valor); return; }
+    var fecha = String(valor).trim();
+    var partesAr = fecha.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    var partesIso = fecha.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    var tsFecha = partesAr
+      ? new Date(+partesAr[3], +partesAr[2] - 1, +partesAr[1], 23, 59, 59, 999).getTime()
+      : partesIso
+        ? new Date(+partesIso[1], +partesIso[2] - 1, +partesIso[3], 23, 59, 59, 999).getTime()
+        : Date.parse(fecha);
+    if (isFinite(tsFecha)) tiempos.push(tsFecha);
+  }
+  agregarFecha(pv.actualizado || pv.fechaActualizacionPrecio || pv.fechaActualizacion);
+  // Los productos heredados con un único proveedor guardaban la fecha en la
+  // raíz. Sólo en ese caso se permite usarla como respaldo.
+  if (!Array.isArray(p.proveedores) || p.proveedores.length <= 1) {
+    tiempos.push(p.precioActualizadoEn, p.actualizadoEn);
+    agregarFecha(p.fechaActualizacionPrecio || p.proveedorActualizado || p.actualizado);
+  }
+  return tiempos.map(function(x){ return parseFloat(x) || 0; }).reduce(function(max, x){ return Math.max(max, x); }, 0);
+}
+
+function estadoVigenciaPrecioProveedor(p, pv) {
+  var ts = timestampPrecioProveedorProducto(p, pv);
+  if (!ts) return { estado:'sin_verificar', vigente:false, ts:0, texto:'Sin verificar' };
+  var edad = Math.max(0, Date.now() - ts);
+  if (edad <= PRECIO_VIGENCIA_MS) return { estado:'vigente', vigente:true, ts:ts, texto:'Actualizado' };
+  var dias = Math.max(1, Math.floor(edad / 86400000));
+  return { estado:'vencido', vigente:false, ts:ts, texto:'Hace ' + dias + ' día' + (dias !== 1 ? 's' : '') };
+}
+
 function estadoVigenciaPrecioProducto(p) {
+  var proveedores = Array.isArray((p || {}).proveedores) ? p.proveedores.filter(Boolean) : [];
+  if (proveedores.length) {
+    var estados = proveedores.map(function(pv){ return estadoVigenciaPrecioProveedor(p, pv); });
+    var pendiente = estados.find(function(estado){ return !estado.vigente; });
+    if (pendiente) return pendiente;
+    var masAntiguo = estados.reduce(function(min, estado) {
+      return !min || estado.ts < min.ts ? estado : min;
+    }, null);
+    if (masAntiguo) return masAntiguo;
+  }
   var ts = timestampPrecioProducto(p);
   if (!ts) return { estado:'sin_verificar', vigente:false, ts:0, texto:'Sin verificar' };
   var edad = Math.max(0, Date.now() - ts);
@@ -9271,7 +9324,13 @@ function renderModuloActualizadorPrecios() {
     if (key) porProducto[key] = x.producto;
   });
   var productos = Object.values(porProducto);
-  var pendientes = productos.filter(function(p){ return !estadoVigenciaPrecioProducto(p).vigente; });
+  var pendientesEnlaces = vinculados.filter(function(x){ return !estadoVigenciaPrecioProveedor(x.producto, x.proveedor).vigente; });
+  var pendientesPorProducto = {};
+  pendientesEnlaces.forEach(function(x) {
+    var key = String((x.producto || {}).fbKey || '');
+    if (key) pendientesPorProducto[key] = x.producto;
+  });
+  var pendientes = Object.values(pendientesPorProducto);
   _set('mod-ap-vinculados', productos.length);
   _set('mod-ap-pendientes', pendientes.length);
   _set('mod-ap-vigentes', Math.max(0, productos.length - pendientes.length));
@@ -9295,7 +9354,12 @@ function renderModuloActualizadorPrecios() {
     var keys = {};
     enlaces.forEach(function(x){ var k=String((x.producto||{}).fbKey||''); if(k) keys[k]=x.producto; });
     var listaProductos = Object.values(keys);
-    var pendientesTipo = listaProductos.filter(function(p){ return !estadoVigenciaPrecioProducto(p).vigente; }).length;
+    var pendientesTipoKeys = {};
+    enlaces.filter(function(x){ return !estadoVigenciaPrecioProveedor(x.producto, x.proveedor).vigente; }).forEach(function(x) {
+      var key = String((x.producto || {}).fbKey || '');
+      if (key) pendientesTipoKeys[key] = true;
+    });
+    var pendientesTipo = Object.keys(pendientesTipoKeys).length;
     return '<div style="padding:16px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;gap:12px">' +
       '<div style="width:40px;height:40px;border-radius:12px;background:rgba(96,165,250,.12);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ' + tipo.icono + '" style="font-size:20px"></i></div>' +
       '<div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:800">' + tipo.nombre + '</div><div style="font-size:11px;color:var(--text3);margin-top:3px">' + listaProductos.length + ' vinculado' + (listaProductos.length === 1 ? '' : 's') + ' · ' + pendientesTipo + ' pendiente' + (pendientesTipo === 1 ? '' : 's') + '</div></div>' +
@@ -9445,7 +9509,7 @@ function abrirActualizadorMasivoPrecios() {
     return;
   }
   var todos = productosBiosegurActualizables();
-  var pendientes = todos.filter(function(x){ return !estadoVigenciaPrecioProducto(x.producto).vigente; });
+  var pendientes = todos.filter(function(x){ return !estadoVigenciaPrecioProveedor(x.producto, x.proveedor).vigente; });
   var overlay = document.createElement('div');
   overlay.id = 'modal-actualizador-precios';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10020;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;padding:16px';
@@ -9620,7 +9684,8 @@ function mostrarVistaPreviaActualizador(modal, candidatos, detalleFallos) {
   cont.style.display = '';
   var filas = candidatos.map(function(c, indice) {
     var variacionAbs = Math.abs(c.variacion || 0);
-    var requiereRevision = c.costoAnterior > 0 && variacionAbs >= 50;
+    var sinPrecioAnterior = !(c.costoAnterior > 0);
+    var requiereRevision = sinPrecioAnterior || variacionAbs >= 50;
     var checked = requiereRevision ? '' : ' checked';
     var color = requiereRevision ? 'var(--amber)' : 'var(--green)';
     var stock = c.resultado.disponibilidadProveedorTexto || 'No verificado';
@@ -9634,7 +9699,7 @@ function mostrarVistaPreviaActualizador(modal, candidatos, detalleFallos) {
         '<span style="display:block;margin-top:4px;color:var(--text2)">Costo anterior <strong>' + actualizadorFormatoARS(c.costoAnterior) + '</strong> → costo verificado <strong>' + actualizadorFormatoARS(c.costoNuevo) + '</strong></span>' +
         '<span style="display:block;margin-top:2px;color:var(--text3)">Publicado: ' + actualizadorFormatoARS(c.resultado.precioArs) + (c.resultado.sinIva !== false ? ' + IVA' : ' IVA incluido') + ' · Stock: ' + escapeHTML(stock) + '</span>' +
         (tituloProveedor ? '<span style="display:block;margin-top:2px;color:var(--text3)">Página: “' + escapeHTML(tituloProveedor) + '”</span>' : '') +
-        '<span style="display:block;margin-top:2px;color:var(--text3)">Fuente: ' + escapeHTML(fuente) + (requiereRevision ? ' · <strong style="color:var(--amber)">desmarcado por variación importante</strong>' : '') + '</span>' +
+        '<span style="display:block;margin-top:2px;color:var(--text3)">Fuente: ' + escapeHTML(fuente) + (requiereRevision ? ' · <strong style="color:var(--amber)">' + (sinPrecioAnterior ? 'desmarcado porque no existe un precio anterior para comparar' : 'desmarcado por variación importante') + '</strong>' : '') + '</span>' +
       '</span>' +
     '</label>';
   }).join('');
@@ -9665,14 +9730,40 @@ async function aplicarVistaPreviaActualizador() {
   if (estado) estado.textContent = 'Guardando ' + seleccionados.length + ' precios verificados en una sola operación…';
   try {
     var updates = {};
+    var consolidados = {};
     seleccionados.forEach(function(candidato) {
-      Object.keys(candidato.cambios).forEach(function(campo) {
-        updates[candidato.item.producto.fbKey + '/' + campo] = candidato.cambios[campo];
+      var fbKey = String(candidato.item.producto.fbKey || '');
+      if (!fbKey) return;
+      if (!consolidados[fbKey]) {
+        var productoTrabajo = Object.assign({}, candidato.item.producto);
+        productoTrabajo.proveedores = proveedoresVinculadosProducto(candidato.item.producto).map(function(pv) {
+          return Object.assign({}, pv || {});
+        });
+        consolidados[fbKey] = {
+          productoOriginal:candidato.item.producto,
+          productoTrabajo:productoTrabajo,
+          cambios:{}
+        };
+      }
+      var grupo = consolidados[fbKey];
+      var itemTrabajo = Object.assign({}, candidato.item, {
+        producto:grupo.productoTrabajo,
+        proveedor:(grupo.productoTrabajo.proveedores || [])[candidato.item.proveedorIdx] || candidato.item.proveedor
+      });
+      var cambios = datosActualizadosProductoBiosegur(itemTrabajo, candidato.resultado);
+      Object.assign(grupo.productoTrabajo, cambios);
+      grupo.cambios = cambios;
+    });
+    Object.keys(consolidados).forEach(function(fbKey) {
+      var grupo = consolidados[fbKey];
+      Object.keys(grupo.cambios).forEach(function(campo) {
+        updates[fbKey + '/' + campo] = grupo.cambios[campo];
       });
     });
     await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos), updates);
-    seleccionados.forEach(function(candidato) {
-      Object.assign(candidato.item.producto, candidato.cambios);
+    Object.keys(consolidados).forEach(function(fbKey) {
+      var grupo = consolidados[fbKey];
+      Object.assign(grupo.productoOriginal, grupo.cambios);
     });
     if (estado) estado.innerHTML = '<strong style="color:var(--green)">Guardado terminado.</strong> ' + seleccionados.length + ' precios actualizados.';
     var exitososEl = document.getElementById('actualizador-precios-exitosos');
@@ -11648,7 +11739,7 @@ function renderCfgValoresMasivos() {
   var lista = document.getElementById('cfg-vm-marcas-list');
   if (lista) lista.innerHTML = marcas.map(function(m){ return '<option value="' + escapeHTML(m) + '"></option>'; }).join('');
   var vinculados = typeof productosBiosegurActualizables === 'function' ? productosBiosegurActualizables() : [];
-  var pendientesProv = vinculados.filter(function(x){ return !estadoVigenciaPrecioProducto(x.producto).vigente; });
+  var pendientesProv = vinculados.filter(function(x){ return !estadoVigenciaPrecioProveedor(x.producto, x.proveedor).vigente; });
   _set('cfg-vm-prov-vinculados', vinculados.length);
   _set('cfg-vm-prov-pendientes', pendientesProv.length);
   _set('cfg-vm-prov-vigentes', Math.max(0, vinculados.length - pendientesProv.length));
