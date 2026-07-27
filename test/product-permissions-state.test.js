@@ -21,3 +21,12 @@ test('el regreso al catálogo conserva búsqueda, campo, categoría y filtro sin
   assert.match(app, /soloSinPrecio: !!_filtroProductosSinPrecio/);
   assert.match(app, /renderTablaProductos\(filtros\.busqueda \|\| ''\)/);
 });
+
+test('un refresco de Firebase conserva el texto visible del buscador', () => {
+  assert.match(
+    app,
+    /if \(filtro === undefined \|\| filtro === null\) \{\s*filtro = \(document\.getElementById\('prod-search'\) \|\| \{\}\)\.value \|\| '';/,
+    'renderTablaProductos debe recuperar el filtro visible cuando el listener lo invoca sin argumentos'
+  );
+  assert.match(app, /if \(typeof renderTablaProductos === 'function'\) renderTablaProductos\(\);/);
+});
