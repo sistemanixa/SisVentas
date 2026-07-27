@@ -11,6 +11,8 @@ const MigrationAudit = require('../js/v3/migration-audit.js');
 const LegacySnapshot = require('../js/v3/legacy-snapshot.js');
 const ShadowComparison = require('../js/v3/shadow-comparison.js');
 const { AttachmentTask } = require('../js/v3/attachment-task.js');
+const { DataLifecycle } = require('../js/v3/data-lifecycle.js');
+const { FeatureGates } = require('../js/v3/feature-gates.js');
 
 test('dos números comerciales iguales sólo se resuelven por fbKey', () => {
   const esteban = { fbKey: '-pres-esteban', id: 'PP-0031', cliente: 'ESTEBAN' };
@@ -318,4 +320,49 @@ test('el tiempo límite cancela una subida detenida', async () => {
   await assert.rejects(task.start(), /abortada|cancelada/i);
   assert.equal(task.state, 'cancelled');
   assert.match(task.error.message, /tiempo límite/i);
+});
+
+test('una respuesta vieja no puede contaminar una sesión nueva', () => {
+  const lifecycle = new DataLifecycle(['ventas', 'clientes']);
+  const firstGeneration = lifecycle.beginSession();
+  lifecycle.loading('ventas', firstGeneration);
+  const secondGeneration = lifecycle.beginSession();
+
+  assert.equal(lifecycle.ready('ventas', firstGeneration), false);
+  assert.equal(lifecycle.snapshot().collections.ventas.state, 'idle');
+  assert.equal(lifecycle.ready('ventas', secondGeneration), true);
+  assert.equal(lifecycle.canRenderPrivateUI(), false);
+  assert.equal(lifecycle.ready('clientes', secondGeneration), true);
+  assert.equal(lifecycle.canRenderPrivateUI(), true);
+});
+
+test('cerrar sesión invalida cargas pendientes y oculta datos privados', () => {
+  const lifecycle = new DataLifecycle(['ventas']);
+  const generation = lifecycle.beginSession();
+  lifecycle.loading('ventas', generation);
+  lifecycle.endSession();
+
+  assert.equal(lifecycle.ready('ventas', generation), false);
+  assert.equal(lifecycle.snapshot().sessionState, 'signed-out');
+  assert.equal(lifecycle.canRenderPrivateUI(), false);
+});
+
+test('ningún módulo v3 toma control solo por aprobar la comparación sombra', () => {
+  const report = {
+    gates: {
+      presupuestos: true,
+      ventasPagos: true,
+      ordenesTrabajo: false
+    }
+  };
+  const shadow = new FeatureGates({ allowed: ['presupuestos'] });
+  shadow.update(report);
+  assert.equal(shadow.decision('presupuestos').active, false);
+  assert.equal(shadow.decision('presupuestos').reason, 'shadow-only');
+
+  const active = new FeatureGates({ mode: 'active', allowed: ['presupuestos'] });
+  active.update(report);
+  assert.equal(active.decision('presupuestos').active, true);
+  assert.equal(active.decision('ventasPagos').active, false);
+  assert.equal(active.decision('ordenesTrabajo').reason, 'shadow-blocked');
 });

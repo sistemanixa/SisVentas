@@ -2,9 +2,10 @@
 
 ## Estado y objetivo
 
-La versión `v2.0.194` permanece como producción estable. El núcleo `v3` se
-construye en paralelo y no está cargado por `index.html`; por eso estos trabajos
-no pueden alterar el sistema que usa la empresa.
+La versión `v2.0.194` permanece como referencia estable en `origin/main`. El
+núcleo `v3` se construye en paralelo y se carga en modo sombra desde
+`index.html`, pero queda inactivo por defecto: no reemplaza pantallas, no escribe
+Firebase y sólo se ejecuta con una habilitación diagnóstica explícita.
 
 La auditoría estructural inicial encontró:
 
@@ -52,6 +53,12 @@ fuente comprobable para identidad, relaciones, métricas y persistencia.
   migración si existe cualquier diferencia o conflicto.
 - `attachment-task.js`: subida común para fotos y comprobantes con progreso,
   cancelación, tiempo límite y persistencia posterior a la confirmación.
+- `data-lifecycle.js`: separa generaciones de sesión y descarta respuestas
+  tardías para impedir que un usuario herede datos del anterior.
+- `feature-gates.js`: ningún módulo nuevo toma control sólo por existir; exige
+  comparación aprobada, modo activo y habilitación explícita por módulo.
+- `v3-shadow-runtime.js`: ejecuta auditorías acotadas y de sólo lectura, con
+  tiempo límite, resumen de conflictos y sin exponer datos personales.
 - Pruebas de identidad duplicada, relación vencida, pagos duplicados, coherencia
   de OT y volumen.
 
