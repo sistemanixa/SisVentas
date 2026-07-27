@@ -20,6 +20,7 @@
   'use strict';
 
   var MAX_SALES_SAMPLE = 24;
+  var MAX_BUDGET_SAMPLE = 40;
   var DEFAULT_READY_TIMEOUT_MS = 15000;
 
   function array(value) {
@@ -136,6 +137,36 @@
     });
   }
 
+  function selectBudgetSample(budgets) {
+    var byBusiness = {};
+    var duplicateKeys = {};
+    array(budgets).forEach(function (budget) {
+      var key = text(budget && (budget.id || budget.numero || budget.nro)).toLocaleUpperCase('es-AR');
+      if (!key) return;
+      byBusiness[key] = (byBusiness[key] || 0) + 1;
+      if (byBusiness[key] > 1) duplicateKeys[key] = true;
+    });
+    var prioritized = [];
+    var remaining = [];
+    array(budgets).forEach(function (budget) {
+      var key = text(budget && (budget.id || budget.numero || budget.nro)).toLocaleUpperCase('es-AR');
+      (duplicateKeys[key] ? prioritized : remaining).push(budget);
+    });
+    return prioritized.concat(remaining).slice(0, MAX_BUDGET_SAMPLE);
+  }
+
+  function legacyBudgetSummaries(budgets) {
+    return array(budgets).map(function (budget) {
+      return {
+        fbKey: text(budget && budget.fbKey),
+        subtotal: Number(budget && budget.subtotal) || 0,
+        descuentoAmt: Number(budget && budget.descuentoAmt) || 0,
+        iva: Number(budget && budget.iva) || 0,
+        total: Number(budget && budget.total) || 0
+      };
+    });
+  }
+
   function legacyOTMetrics(root) {
     var current = root.SisVentas && root.SisVentas.Metrics &&
       typeof root.SisVentas.Metrics.ot === 'function'
@@ -160,7 +191,7 @@
     };
   }
 
-  function compactReport(audit, otComparison, salesComparison) {
+  function compactReport(audit, budgetComparison, otComparison, salesComparison) {
     var budgetIdentityIssues = identityIssueCount(audit.identity && audit.identity.presupuestos);
     var salesIdentityIssues = identityIssueCount(audit.identity && audit.identity.ventas);
     var otIdentityIssues = identityIssueCount(audit.identity && audit.identity.ordenesTrabajo);
@@ -168,7 +199,9 @@
     var salesRelations = relationsFor(audit, 'ventas.');
     var otRelations = relationsFor(audit, 'ordenesTrabajo.');
     var gates = {
-      presupuestos: budgetIdentityIssues === 0 && budgetRelations.length === 0,
+      presupuestos: budgetIdentityIssues === 0 &&
+        budgetRelations.length === 0 &&
+        budgetComparison.ready,
       ventasPagos: salesIdentityIssues === 0 &&
         salesRelations.length === 0 &&
         audit.summary.paymentIssues === 0 &&
@@ -185,6 +218,28 @@
       counts: audit.counts,
       summary: audit.summary,
       comparisons: Object.freeze({
+        presupuestos: Object.freeze({
+          ready: budgetComparison.ready,
+          sampleSize: budgetComparison.comparisons.length,
+          differences: budgetComparison.comparisons.filter(function (item) {
+            return item.mode !== 'items' ||
+              !item.subtotal.equal ||
+              !item.discount.equal ||
+              !item.iva.equal ||
+              !item.total.equal ||
+              item.conflicts.length > 0;
+          }).slice(0, 50).map(function (item) {
+            return {
+              fbKey: item.fbKey,
+              mode: item.mode,
+              subtotal: item.subtotal,
+              discount: item.discount,
+              iva: item.iva,
+              total: item.total,
+              conflictCount: item.conflicts.length
+            };
+          })
+        }),
         ordenesTrabajo: Object.freeze({
           ready: otComparison.ready,
           differences: otComparison.differences
@@ -210,6 +265,7 @@
           ordenesTrabajo: compactIdentity(audit.identity && audit.identity.ordenesTrabajo)
         }),
         budgetRelations: Object.freeze(budgetRelations.slice(0, 50).map(compactConflict)),
+        budgetCalculations: Object.freeze(array(budgetComparison.conflicts).slice(0, 50).map(compactConflict)),
         salesRelations: Object.freeze(salesRelations.slice(0, 50).map(compactConflict)),
         otRelations: Object.freeze(otRelations.slice(0, 50).map(compactConflict)),
         payments: Object.freeze(array(audit.paymentIssues).slice(0, 50).map(compactConflict)),
@@ -261,6 +317,11 @@
         if (!primaryDataReady(root)) throw new Error('Los datos principales todavía no terminaron de cargar');
         var data = snapshot(root);
         var audit = dependencies.MigrationAudit.run(data, { today: todayISO(root) });
+        var budgetSample = selectBudgetSample(data.presupuestos);
+        var budgetComparison = dependencies.ShadowComparison.compareBudgets(
+          budgetSample,
+          legacyBudgetSummaries(budgetSample)
+        );
         var otComparison = dependencies.ShadowComparison.compareOT(
           data.ordenesTrabajo,
           todayISO(root),
@@ -271,7 +332,7 @@
           data.pagos,
           legacySalesSummaries(root, data.ventas)
         );
-        state.lastReport = compactReport(audit, otComparison, salesComparison);
+        state.lastReport = compactReport(audit, budgetComparison, otComparison, salesComparison);
         state.phase = state.lastReport.ready ? 'ready' : 'blocked';
         state.runCount += 1;
         emit('sisventas:v3-shadow-complete', state.lastReport);

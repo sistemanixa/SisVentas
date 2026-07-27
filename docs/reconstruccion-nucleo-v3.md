@@ -74,3 +74,21 @@ fuente comprobable para identidad, relaciones, métricas y persistencia.
 
 Cada etapa se integra detrás de una capa de compatibilidad. Si una comparación
 no coincide, la versión nueva no toma control y el conflicto queda diagnosticado.
+
+## Presupuestos: fuente económica única
+
+`budget-read-model.js` calcula ítems, descuentos por línea, descuento general,
+IVA opcional y total una sola vez. Los importes persistidos se comparan para
+detectar diferencias; nunca reemplazan silenciosamente el cálculo derivado de
+los ítems.
+
+La rama de reconstrucción conecta el mismo modelo a edición, detalle, lista,
+impresión, actualización de valores y conversión a venta. El precio unitario
+representa el valor neto sin IVA. El impuesto se aplica una sola vez al final y
+únicamente cuando el presupuesto está marcado `conIva`.
+
+Un registro histórico con total pero sin ítems queda identificado como
+`legacy-total-only`: puede conservarse y verse, pero no se considera apto para
+imprimir o migrar hasta recuperar sus renglones. Un subtotal, IVA o total
+guardado que no coincide con los ítems bloquea la habilitación del módulo y se
+incluye en el diagnóstico sombra.

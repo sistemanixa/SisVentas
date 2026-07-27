@@ -1197,7 +1197,7 @@ function pptoAlertarVencimientosProximos(pptos) {
     var diasStr = p.vence === svFechaLocalISO() ? 'HOY' : 'mañana';
     var cli = _svResolverClienteRegistro(p, true);
     var tel = cli ? (cli.telefono||cli.tel||cli.celular||'').replace(/\D/g,'') : '';
-    var total = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
+    var total = '$' + pptoTotalCanonicoVisual(p).toLocaleString('es-AR');
     var msg = encodeURIComponent(
       'Hola ' + (p.cliente||'') + ', te recordamos que el presupuesto ' + (p.id||'') +
       ' por ' + total + ' vence ' + diasStr + '. Queres que lo coordinemos? Equipo Nixa.'
@@ -11713,7 +11713,6 @@ function toggleIvaPpto(btn) {
 }
 
 function calcPpTotales() {
-  let s = 0;
   document.querySelectorAll('#pp-body tr').forEach(tr => {
     var qEl  = tr.querySelector('.qty,.ppqty');
     var pEl  = tr.querySelector('.price,.ppprice');
@@ -11723,22 +11722,23 @@ function calcPpTotales() {
     var p    = pEl && pEl.dataset.moneyInit ? getMontoRaw(pEl) : (parseFloat(pEl ? pEl.value : 0) || 0);
     var d    = parseFloat(dEl  ? dEl.value  : 0) || 0;
     var sub  = Math.round(q * p * (1 - d/100));
-    s += sub;
     if (subEl) subEl.textContent = '$' + sub.toLocaleString('es-AR');
   });
   var descEl  = document.getElementById('pp-descuento');
   var desc    = parseFloat(descEl ? descEl.value : 0) || 0;
-  var descAmt = Math.round(s * desc / 100);
-  var base    = s - descAmt;
   var conIva  = typeof _pptoConIva !== 'undefined' ? _pptoConIva : true;
-  var iva     = conIva ? Math.round(base * 0.21) : 0;
-  _set('pp-sub',  '$' + s.toLocaleString('es-AR'));
+  var economico = pptoModeloEconomicoCanonico({
+    items: getPpItems(),
+    descuentoGeneral: desc,
+    conIva: conIva
+  });
+  _set('pp-sub',  '$' + economico.subtotal.toLocaleString('es-AR'));
   _set('pp-desc-label', 'Descuento ' + desc.toLocaleString('es-AR',{maximumFractionDigits:2}) + '%');
-  _set('pp-damt', descAmt > 0 ? '-$' + descAmt.toLocaleString('es-AR') : '$0');
+  _set('pp-damt', economico.generalDiscount > 0 ? '-$' + economico.generalDiscount.toLocaleString('es-AR') : '$0');
   var ivaRow = document.getElementById('pp-iva-row');
   if (ivaRow) ivaRow.style.display = conIva ? '' : 'none';
-  _set('pp-iva',  '$' + iva.toLocaleString('es-AR'));
-  _set('pp-total','$' + (base + iva).toLocaleString('es-AR'));
+  _set('pp-iva',  '$' + economico.iva.toLocaleString('es-AR'));
+  _set('pp-total','$' + economico.total.toLocaleString('es-AR'));
   if (typeof calcMargenPpto === 'function') calcMargenPpto();
 }
 window._mostrarMargenPpto = false;
@@ -18415,19 +18415,17 @@ function _pptoRegistroFormularioImpresion() {
 
 function _pptoModeloImpresion(registro) {
   registro = registro || {};
-  var origenItems = Array.isArray(registro.items) ? registro.items : (registro.items && typeof registro.items === 'object' ? Object.values(registro.items) : []);
-  var items = origenItems.map(function(item) {
-    var it = pptoNormalizarItemGuardado(item);
-    it.sub = pptoNumeroGuardado(item.sub ?? item.subtotal ?? item.totalItem ?? item.importe) || Math.round(it.qty * it.punit * (1 - it.disc / 100));
-    return it;
+  var economico = pptoModeloEconomicoCanonico(registro);
+  var items = economico.items.map(function(item) {
+    return {
+      cod: item.code,
+      desc: item.description,
+      qty: item.quantity,
+      punit: item.unitNet,
+      disc: item.discountPct,
+      sub: item.net
+    };
   }).filter(function(item){ return item.desc || item.cod; });
-  var subtotal = items.reduce(function(s,item){ return s + item.sub; }, 0);
-  var descuentoPct = pptoNumeroGuardado(registro.descuentoGeneral ?? registro.descuentoPct ?? registro.porcentajeDescuento ?? registro.descuento);
-  var descuento = pptoNumeroGuardado(registro.descuentoAmt) || Math.round(subtotal * descuentoPct / 100);
-  var base = Math.max(0, subtotal - descuento);
-  var conIva = registro.conIva !== false;
-  var iva = conIva ? (pptoNumeroGuardado(registro.iva) || Math.round(base * 0.21)) : 0;
-  var total = pptoNumeroGuardado(registro.total) || (base + iva);
   var cliente = null;
   if (typeof _svResolverClienteRegistro === 'function') {
     try { cliente = _svResolverClienteRegistro(registro, true); } catch(e) { cliente = null; }
@@ -18442,11 +18440,12 @@ function _pptoModeloImpresion(registro) {
     vence: registro.vence || registro.vencimiento || '',
     observaciones: registro.obs || registro.observaciones || '',
     items: items,
-    subtotal: subtotal,
-    descuento: descuento,
-    iva: iva,
-    total: total,
-    conIva: conIva
+    subtotal: economico.subtotal,
+    descuento: economico.generalDiscount,
+    iva: economico.iva,
+    total: economico.total,
+    conIva: economico.includesIva,
+    conflictosEconomicos: economico.conflicts
   };
 }
 
@@ -25911,7 +25910,7 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
   if (filtroTexto)  rows = rows.filter(p => (p.cliente + p.id).toLowerCase().includes(filtroTexto.toLowerCase()));
   tbody.innerHTML = rows.map(p => {
     const e = PPTO_ESTADOS[p.estado] || {};
-    const totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
+    const totalFmt = '$' + pptoTotalCanonicoVisual(p).toLocaleString('es-AR');
     const alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
     const numeroDuplicado = (conteoNumeros[String(p.id || p.numero || '').trim().toUpperCase()] || 0) > 1
       ? '<i class="ti ti-copy" style="color:var(--red);font-size:13px;margin-left:5px" title="Número duplicado: el registro se abrirá por su clave interna segura"></i>'
@@ -25990,41 +25989,47 @@ function pptoNormalizarItemGuardado(item) {
   };
 }
 
+function pptoModeloEconomicoCanonico(registro, opciones) {
+  var api = window.SisVentas && window.SisVentas.V3 && window.SisVentas.V3.BudgetReadModel;
+  if (!api || typeof api.build !== 'function') {
+    throw new Error('El modelo economico de presupuestos no esta disponible');
+  }
+  return api.build(registro || {}, opciones || {});
+}
+
+function pptoTotalCanonicoVisual(registro) {
+  var modelo = pptoModeloEconomicoCanonico(registro || {});
+  if (modelo.mode === 'legacy-total-only') {
+    return pptoNumeroGuardado(registro && (registro.total ?? registro.totalPresupuesto ?? registro.importeTotal));
+  }
+  return modelo.total;
+}
+
 // Presupuesto y venta usan contratos distintos para los descuentos:
 // - presupuesto.descuento = porcentaje general
 // - venta.descuento = monto total en pesos (items + descuento general)
 // Centralizar la conversion evita copiar un 22% como si fueran $22.
 function pptoDatosParaVenta(p) {
   p = p || {};
-  var origenItems = Array.isArray(p.items) ? p.items : (p.items && typeof p.items === 'object' ? Object.values(p.items) : []);
-  var items = origenItems.map(function(item) {
-    var normalizado = pptoNormalizarItemGuardado(item);
-    var subCalculado = Math.round(normalizado.qty * normalizado.punit * (1 - normalizado.disc / 100));
-    return Object.assign({}, item, normalizado, {
-      sub: pptoNumeroGuardado(item.sub ?? item.subtotal ?? item.totalItem ?? item.importe) || subCalculado
+  var modelo = pptoModeloEconomicoCanonico(p);
+  var items = modelo.items.map(function(item) {
+    return Object.assign({}, item.source, {
+      cod: item.code,
+      desc: item.description,
+      qty: item.quantity,
+      punit: item.unitNet,
+      disc: item.discountPct,
+      sub: item.net
     });
   });
-  var subtotalBruto = items.reduce(function(s, item){
-    return s + (pptoNumeroGuardado(item.qty) * pptoNumeroGuardado(item.punit));
-  }, 0);
-  var subtotalItems = items.reduce(function(s, item){ return s + pptoNumeroGuardado(item.sub); }, 0);
-  var descuentoPct = pptoNumeroGuardado(p.descuentoGeneral ?? p.descuentoPct ?? p.porcentajeDescuento ?? p.descuento);
-  var descuentoGeneral = pptoNumeroGuardado(p.descuentoAmt);
-  if (!descuentoGeneral && descuentoPct > 0) descuentoGeneral = Math.round(subtotalItems * descuentoPct / 100);
-  var descuentoItems = Math.max(0, subtotalBruto - subtotalItems);
-  var subtotalNeto = Math.max(0, subtotalItems - descuentoGeneral);
-  var conIva = p.conIva !== false;
-  var iva = conIva ? pptoNumeroGuardado(p.iva) : 0;
-  if (conIva && !iva && !pptoNumeroGuardado(p.total)) iva = Math.round(subtotalNeto * 0.21);
-  var total = pptoNumeroGuardado(p.total) || (subtotalNeto + iva);
   return {
     items: items,
-    descuentoPct: descuentoPct,
-    descuentoMontoTotal: Math.round(descuentoItems + descuentoGeneral),
-    subtotalNeto: Math.round(subtotalNeto),
-    iva: Math.round(iva),
-    conIva: conIva,
-    total: total
+    descuentoPct: modelo.generalDiscountPct,
+    descuentoMontoTotal: modelo.lineDiscount + modelo.generalDiscount,
+    subtotalNeto: modelo.taxableBase,
+    iva: modelo.iva,
+    conIva: modelo.includesIva,
+    total: modelo.total
   };
 }
 
@@ -26180,38 +26185,18 @@ function verPpto(id) {
   document.getElementById('ppto-det-empleado').value = p.empleado;
   document.getElementById('ppto-det-fecha').value = _mostrarFecha(p.fecha);
   document.getElementById('ppto-det-vence').value = _mostrarFecha(p.vence);
-  document.getElementById('ppto-det-total').value = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
+  var _modeloEconomicoDetalle = pptoModeloEconomicoCanonico(p);
+  document.getElementById('ppto-det-total').value = '$' + _modeloEconomicoDetalle.total.toLocaleString('es-AR');
   document.getElementById('ppto-det-desc').value = (p.descuento || 0) + '%';
 
-  // Mostrar totales — para presupuestos nuevos usa los campos guardados,
-  // para los viejos (sin subtotal guardado) recalcula desde los ítems
-  var _descPct = parseFloat(p.descuento) || 0; // siempre es porcentaje
-
-  // Subtotal = suma de ítems (qty * punit con descuento por ítem)
-  var _sub = parseFloat(p.subtotal) || 0;
-  if (!_sub && p.items && p.items.length) {
-    _sub = p.items.reduce(function(s, it) {
-      var q = parseFloat(it.qty) || 1;
-      var pu = parseFloat(it.punit) || 0;
-      var d = parseFloat(it.disc || it.descuento) || 0;
-      return s + Math.round(q * pu * (1 - d/100));
-    }, 0);
-  }
-  if (!_sub) _sub = parseFloat(p.total) || 0; // último fallback
-
-  var _descAmt = parseFloat(p.descuentoAmt) || Math.round(_sub * _descPct / 100);
-  var _conIva  = p.conIva !== false;
-  var _base    = _sub - _descAmt;
-  var _iva     = _conIva ? (parseFloat(p.iva) || Math.round(_base * 0.21)) : 0;
-  var _total   = parseFloat(p.total) || (_base + _iva);
   var _s = function(id, v) { var el=document.getElementById(id); if(el) el.textContent = '$'+Math.round(v).toLocaleString('es-AR'); };
-  _s('ppto-det-sub',      _sub);
-  _s('ppto-det-desc-amt', _descAmt);
-  _set('ppto-det-desc-label', 'Descuento ' + (parseFloat(p.descuentoGeneral ?? p.descuentoPct ?? p.descuento)||0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '%');
+  _s('ppto-det-sub',      _modeloEconomicoDetalle.subtotal);
+  _s('ppto-det-desc-amt', _modeloEconomicoDetalle.generalDiscount);
+  _set('ppto-det-desc-label', 'Descuento ' + _modeloEconomicoDetalle.generalDiscountPct.toLocaleString('es-AR',{maximumFractionDigits:2}) + '%');
   var ivaRowDet = document.getElementById('ppto-det-iva-row');
-  if (ivaRowDet) ivaRowDet.style.display = _conIva ? '' : 'none';
-  _s('ppto-det-iva',      _iva);
-  _s('ppto-det-total2',   _total);
+  if (ivaRowDet) ivaRowDet.style.display = _modeloEconomicoDetalle.includesIva ? '' : 'none';
+  _s('ppto-det-iva',      _modeloEconomicoDetalle.iva);
+  _s('ppto-det-total2',   _modeloEconomicoDetalle.total);
 
   // Alerta aprobación
   const alertaEl = document.getElementById('ppto-alerta-aprobacion');
@@ -26260,14 +26245,16 @@ function verPpto(id) {
     // Diagnóstico: mostrar en consola el formato real de los items
 
     // Normalizar: Firebase a veces guarda arrays como objetos {0:{...}, 1:{...}}
-    var items;
-    if (Array.isArray(p.items)) {
-      items = p.items;
-    } else if (p.items && typeof p.items === 'object') {
-      items = Object.values(p.items);
-    } else {
-      items = [];
-    }
+    var items = _modeloEconomicoDetalle.items.map(function(item) {
+      return Object.assign({}, item.source, {
+        cod: item.code,
+        desc: item.description,
+        qty: item.quantity,
+        punit: item.unitNet,
+        disc: item.discountPct,
+        sub: item.net
+      });
+    });
     var itemsHead = document.getElementById('ppto-det-items-head');
     if (itemsHead) itemsHead.innerHTML = '<th>Código</th><th>Descripción</th><th class="tr">Cant.</th>' +
       (currentRole === 'admin' && window._mostrarCostoCompraDetallePpto ? '<th class="tr" style="color:var(--amber)">P. compra</th>' : '') +
@@ -26290,7 +26277,7 @@ function verPpto(id) {
     '<tr><td colspan="'+(currentRole === 'admin' && window._mostrarCostoCompraDetallePpto ? '6' : '5')+'" style="padding:16px;text-align:center">' +
       '<div style="color:var(--text3);font-size:13px;margin-bottom:8px">Este presupuesto no tiene ítems guardados en Firebase.</div>' +
       '<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Total del presupuesto: <strong>$' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '</strong></div>' +
-      '<button class="btn btn-sm" onclick="editarPptoParaMigrar(\'' + p.id + '\')" style="color:var(--blue);border-color:var(--blue)">' +
+      '<button class="btn btn-sm" onclick="editarPptoParaMigrar(\'' + jsStringAttr(p.fbKey || '') + '\')" style="color:var(--blue);border-color:var(--blue)">' +
         '<i class="ti ti-edit"></i> Abrir para editar y guardar ítems' +
       '</button>' +
     '</td></tr>';
@@ -26304,7 +26291,7 @@ function verPpto(id) {
     if (margenBoxPpto) margenBoxPpto.style.display = currentRole === 'admin' && window._mostrarMargenDetallePpto ? '' : 'none';
     if (margenContenidoPpto && currentRole === 'admin' && window._mostrarMargenDetallePpto) {
       var costoPpto = items.reduce(function(s, it){ return s + obtenerCostoItemVenta(it); }, 0);
-      var totalPptoMargen = Math.max(0, _total);
+      var totalPptoMargen = Math.max(0, _modeloEconomicoDetalle.total);
       var margenPpto = totalPptoMargen > 0 ? (totalPptoMargen - costoPpto) / totalPptoMargen * 100 : 0;
       var colorMargenPpto = margenPpto < 15 ? 'var(--red)' : (margenPpto <= 20 ? 'var(--amber)' : 'var(--green)');
       var fondoMargenPpto = margenPpto < 15 ? 'var(--red-bg)' : (margenPpto <= 20 ? 'var(--amber-bg)' : 'var(--green-bg)');
@@ -26366,8 +26353,8 @@ function checkDepreciacionPpto(p) {
     pct:       Math.round((factor - 1) * 100),
     tcGuardado: parseFloat(p.tcGuardado),
     tcActual,
-    totalOriginal: parseFloat(p.total) || 0,
-    totalActualizado: Math.round((parseFloat(p.total) || 0) * factor)
+    totalOriginal: pptoTotalCanonicoVisual(p),
+    totalActualizado: Math.round(pptoTotalCanonicoVisual(p) * factor)
   };
 }
 
@@ -26456,7 +26443,7 @@ function pptoEnviarCliente() {
   if (tel && tel.length < 8) tel = '';
 
   // Texto del mensaje
-  var total = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
+  var total = '$' + pptoTotalCanonicoVisual(p).toLocaleString('es-AR');
   var vence = p.vence || '';
   var msg = encodeURIComponent(
     'Hola ' + (p.cliente||'') + ', te enviamos el presupuesto ' + (p.id||'') +
@@ -26799,13 +26786,13 @@ function _actualizarPresupuestoGuardadoDesdeCatalogo(p) {
     _informarActualizacionCatalogo(resultado, 'Presupuesto revisado');
     return;
   }
-  var subtotalBruto = items.reduce(function(s, item){ return s + (parseFloat(item.sub) || 0); }, 0);
   var descuentoPct = pptoNumeroGuardado(p.descuentoGeneral ?? p.descuentoPct ?? p.porcentajeDescuento ?? p.descuento);
-  var descuentoAmt = _redondearPrecioActual(subtotalBruto * descuentoPct / 100);
-  var base = _redondearPrecioActual(subtotalBruto - descuentoAmt);
   var conIva = p.conIva !== false;
-  var iva = conIva ? _redondearPrecioActual(base * 0.21) : 0;
-  var total = _redondearPrecioActual(base + iva);
+  var economicoActualizado = pptoModeloEconomicoCanonico({
+    items: items,
+    descuentoGeneral: descuentoPct,
+    conIva: conIva
+  });
   if (!confirm('Se actualizarán ' + resultado.actualizados + ' precio' + (resultado.actualizados === 1 ? '' : 's') + ' del presupuesto ' + (p.id || '') + ' con los valores actuales de Productos.\n\n¿Continuar?')) return;
   if (!window.fbDB || !p.fbKey) { notify('No se pudo guardar: presupuesto sin conexión o identificador'); return; }
   var ahora = new Date();
@@ -26816,10 +26803,11 @@ function _actualizarPresupuestoGuardadoDesdeCatalogo(p) {
   }]);
   var cambios = {
     items: items,
-    subtotal: subtotalBruto,
-    descuentoAmt: descuentoAmt,
-    iva: iva,
-    total: total,
+    subtotal: economicoActualizado.subtotal,
+    descuentoAmt: economicoActualizado.generalDiscount,
+    iva: economicoActualizado.iva,
+    total: economicoActualizado.total,
+    modeloEconomicoVersion: 3,
     audit: audit,
     tsActualizacionValores: Date.now()
   };
@@ -26850,19 +26838,18 @@ function guardarPresupuesto(modo) {
   var clienteRefGuardar = clienteSeleccionadoPpto();
   if (!clienteRefGuardar) { notify('Seleccioná el cliente desde la lista para vincularlo correctamente'); return; }
   var _d3=document.getElementById('pp-descuento'); const desc = parseFloat(_d3?_d3.value:0) || 0;
-  var _tt=document.getElementById('pp-total'); const totalTxt = (_tt?_tt.textContent:'') || '$0';
-  const total = parseFloat(normalizarNumeroExcel(totalTxt)) || 0;
-
-  var _subEl = document.getElementById('pp-sub');
-  var _ivaEl = document.getElementById('pp-iva');
-  var subtotalBruto = parseFloat(normalizarNumeroExcel(_subEl ? _subEl.textContent : '0')) || 0;
-  var ivaGuardado   = parseFloat(normalizarNumeroExcel(_ivaEl ? _ivaEl.textContent : '0')) || 0;
-  var descAmt       = Math.round(subtotalBruto * desc / 100);
   var conIvaGuardar = typeof _pptoConIva !== 'undefined' ? _pptoConIva : true;
-
   var items = getPpItems();
-
   if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
+  var economicoGuardar = pptoModeloEconomicoCanonico({
+    items: items,
+    descuentoGeneral: desc,
+    conIva: conIvaGuardar
+  });
+  var total = economicoGuardar.total;
+  var subtotalBruto = economicoGuardar.subtotal;
+  var ivaGuardado = economicoGuardar.iva;
+  var descAmt = economicoGuardar.generalDiscount;
   var preciosNoVigentes = items.filter(function(it) {
     var refItem = String(it.pid || it.productoFbKey || it.productoKey || '');
     var codItem = String(it.cod || it.codigo || '').trim().toLowerCase();
@@ -26900,6 +26887,7 @@ function guardarPresupuesto(modo) {
     vence: (function(){var _v=document.getElementById('pp-venc');return _v?_v.value:'';})() || '',
     total, subtotal: subtotalBruto, descuento: desc, descuentoGeneral: desc, descuentoPct: desc, descuentoAmt: descAmt,
     iva: ivaGuardado, conIva: conIvaGuardar,
+    modeloEconomicoVersion: 3,
     items: items,
     estado: estadoFinal,
     requiereAprobacion: reqAprobacion,
@@ -30434,7 +30422,7 @@ function verHistorialCliente(id, nombre) {
   ppBody.innerHTML = pptos.length ? pptos.map(p => `<tr>
     <td style="font-weight:500">${escapeHTML(p.id)}</td>
     <td>${escapeHTML(p.fecha)}</td>
-    <td class="tr" style="font-weight:500">$${(parseFloat(p.total)||0).toLocaleString('es-AR')}</td>
+    <td class="tr" style="font-weight:500">$${pptoTotalCanonicoVisual(p).toLocaleString('es-AR')}</td>
     <td class="tr">${pptoStateBadge ? pptoStateBadge(p.estado) : p.estado}</td>
     <td><button class="btn btn-sm btn-icon" onclick="verPpto('${escapeHTML(p.fbKey || p.id || '')}')"><i class="ti ti-eye" style="font-size:13px"></i></button></td>
   </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">Sin presupuestos</td></tr>';
@@ -31748,7 +31736,7 @@ function generarNotificaciones() {
           id: 'ppto_v2_' + p.id, tipo:'presupuesto', urgente:true,
           icono:'ti-file-description', color:'red',
           titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' día(s)',
-          sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Estado: ' + (pptoEstadoLabel(p.estado)) + '.',
+          sub: p.cliente + ' — $' + pptoTotalCanonicoVisual(p).toLocaleString('es-AR') + '. Estado: ' + (pptoEstadoLabel(p.estado)) + '.',
           tiempo: 'Hoy · Sistema',
           accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
         });
@@ -31757,7 +31745,7 @@ function generarNotificaciones() {
           id: 'ppto_v7_' + p.id, tipo:'presupuesto', urgente:false,
           icono:'ti-file-description', color:'amber',
           titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' días',
-          sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Sin respuesta del cliente.',
+          sub: p.cliente + ' — $' + pptoTotalCanonicoVisual(p).toLocaleString('es-AR') + '. Sin respuesta del cliente.',
           tiempo: 'Hoy · Sistema',
           accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
         });

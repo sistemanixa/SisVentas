@@ -54,7 +54,13 @@ function fakeRoot(search = '') {
     pptoData: [{
       fbKey: '-budget-a',
       id: 'PP-1',
-      clienteFbKey: '-client-a'
+      clienteFbKey: '-client-a',
+      conIva: false,
+      items: [{ cod: 'P-1', desc: 'EQUIPO', qty: 1, punit: 1000, sub: 1000 }],
+      subtotal: 1000,
+      descuentoAmt: 0,
+      iva: 0,
+      total: 1000
     }],
     ventasList: [sale],
     _historialPagosCompleto: [payment],

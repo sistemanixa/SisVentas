@@ -4,6 +4,7 @@ const { performance } = require('node:perf_hooks');
 
 const { IdentityIndex } = require('../js/v3/identity-index.js');
 const { DomainStore } = require('../js/v3/domain-store.js');
+const Budget = require('../js/v3/budget-read-model.js');
 const OT = require('../js/v3/ot-read-model.js');
 const { SalesReadModel } = require('../js/v3/sales-read-model.js');
 const { RecordRepository } = require('../js/v3/record-repository.js');
@@ -13,6 +14,108 @@ const ShadowComparison = require('../js/v3/shadow-comparison.js');
 const { AttachmentTask } = require('../js/v3/attachment-task.js');
 const { DataLifecycle } = require('../js/v3/data-lifecycle.js');
 const { FeatureGates } = require('../js/v3/feature-gates.js');
+
+test('presupuesto sin IVA conserva los precios netos y no agrega impuesto', () => {
+  const result = Budget.build({
+    id: 'PP-100',
+    cliente: 'CLIENTE',
+    conIva: false,
+    items: [
+      { cod: 'P-1', desc: 'Equipo', qty: 2, punit: 1000, disc: 10, sub: 1800 },
+      { cod: 'P-2', desc: 'Servicio', qty: 1, punit: 500, sub: 500 }
+    ],
+    descuentoGeneral: 10,
+    subtotal: 2300,
+    descuentoAmt: 230,
+    iva: 0,
+    total: 2070
+  });
+
+  assert.equal(result.grossSubtotal, 2500);
+  assert.equal(result.lineDiscount, 200);
+  assert.equal(result.subtotal, 2300);
+  assert.equal(result.generalDiscount, 230);
+  assert.equal(result.iva, 0);
+  assert.equal(result.total, 2070);
+  assert.equal(result.ready, true);
+});
+
+test('presupuesto con IVA lo aplica una sola vez despuÃ©s de los descuentos', () => {
+  const result = Budget.build({
+    conIva: true,
+    items: [{ cantidad: 2, precioUnitario: '1.000,50', descuentoPct: 5 }],
+    descuentoPct: 10
+  });
+
+  assert.equal(result.grossSubtotal, 2001);
+  assert.equal(result.subtotal, 1900.95);
+  assert.equal(result.generalDiscount, 190.1);
+  assert.equal(result.taxableBase, 1710.85);
+  assert.equal(result.iva, 359.28);
+  assert.equal(result.total, 2070.13);
+});
+
+test('un total guardado en cero no reemplaza el cÃ¡lculo de los Ã­tems', () => {
+  const result = Budget.build({
+    conIva: false,
+    items: [{ qty: 3, punit: 8716, sub: 26148 }],
+    subtotal: 0,
+    total: 0
+  });
+
+  assert.equal(result.subtotal, 26148);
+  assert.equal(result.total, 26148);
+  assert.equal(result.conflicts.filter((entry) => entry.kind === 'subtotal-mismatch').length, 1);
+  assert.equal(result.conflicts.filter((entry) => entry.kind === 'total-mismatch').length, 1);
+});
+
+test('un total histÃ³rico distinto se informa como conflicto y nunca se usa como fuente', () => {
+  const result = Budget.build({
+    conIva: true,
+    items: [{ qty: 1, punit: 100000, sub: 100000 }],
+    iva: 21000,
+    total: 2900000000
+  });
+
+  assert.equal(result.total, 121000);
+  assert.equal(result.conflicts.filter((entry) => entry.kind === 'total-mismatch').length, 1);
+});
+
+test('un presupuesto histÃ³rico con total pero sin Ã­tems no se imprime como cero vÃ¡lido', () => {
+  const result = Budget.build({ total: 605692, items: [] });
+  assert.equal(result.mode, 'legacy-total-only');
+  assert.equal(result.ready, false);
+  assert.equal(result.conflicts.some((entry) => entry.kind === 'total-without-items'), true);
+});
+
+test('la comparaciÃ³n sombra bloquea presupuestos con totales persistidos incoherentes', () => {
+  const records = [{
+    fbKey: '-ppto-1',
+    conIva: false,
+    items: [{ qty: 2, punit: 1000, sub: 2000 }],
+    subtotal: 2000,
+    descuentoAmt: 0,
+    iva: 0,
+    total: 0
+  }];
+  const comparison = ShadowComparison.compareBudgets(records, records);
+  assert.equal(comparison.ready, false);
+  assert.equal(comparison.comparisons[0].total.next, 2000);
+});
+
+test('la comparaciÃ³n sombra aprueba presupuestos sÃ³lo con todos sus importes iguales', () => {
+  const records = [{
+    fbKey: '-ppto-2',
+    conIva: true,
+    items: [{ qty: 1, punit: 1000, sub: 1000 }],
+    subtotal: 1000,
+    descuentoAmt: 0,
+    iva: 210,
+    total: 1210
+  }];
+  const comparison = ShadowComparison.compareBudgets(records, records);
+  assert.equal(comparison.ready, true);
+});
 
 test('dos números comerciales iguales sólo se resuelven por fbKey', () => {
   const esteban = { fbKey: '-pres-esteban', id: 'PP-0031', cliente: 'ESTEBAN' };
