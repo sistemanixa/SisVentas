@@ -157,3 +157,30 @@ test('la espera de datos termina con error en vez de reintentar para siempre', a
   assert.equal(runtime.status().phase, 'error');
   assert.match(runtime.status().lastError, /tiempo esperado/i);
 });
+
+test('una relacion cruzada del recorrido bloquea el modulo aunque sus totales coincidan', async () => {
+  const root = fakeRoot();
+  root._historialPagosCompleto[0].clienteFbKey = '-client-b';
+  const runtime = ShadowRuntime.create(root, { autoStart: false });
+  const report = await runtime.run();
+
+  assert.equal(report.gates.presupuestos, true);
+  assert.equal(report.gates.ventasPagos, false);
+  assert.ok(report.issues.journeys.some((issue) =>
+    issue.kind === 'crossed-client' && issue.stage === 'pago-venta-cliente'
+  ));
+});
+
+test('la activacion manual del runtime siempre admite rollback inmediato', async () => {
+  const root = fakeRoot();
+  const runtime = ShadowRuntime.create(root, { autoStart: false });
+  await runtime.run();
+
+  assert.equal(runtime.activate('ventasPagos').active, true);
+  assert.equal(runtime.activationStatus().modules.ventasPagos.active, true);
+
+  const rolledBack = runtime.rollback();
+  assert.equal(rolledBack.mode, 'shadow');
+  assert.equal(rolledBack.modules.ventasPagos.active, false);
+  assert.deepEqual(rolledBack.allowed, []);
+});

@@ -3,12 +3,14 @@
     ? {
         LegacySnapshot: require('./v3/legacy-snapshot.js'),
         MigrationAudit: require('./v3/migration-audit.js'),
-        ShadowComparison: require('./v3/shadow-comparison.js')
+        ShadowComparison: require('./v3/shadow-comparison.js'),
+        FeatureGates: require('./v3/feature-gates.js')
       }
     : {
         LegacySnapshot: root.SisVentas && root.SisVentas.V3 && root.SisVentas.V3.LegacySnapshot,
         MigrationAudit: root.SisVentas && root.SisVentas.V3 && root.SisVentas.V3.MigrationAudit,
-        ShadowComparison: root.SisVentas && root.SisVentas.V3 && root.SisVentas.V3.ShadowComparison
+        ShadowComparison: root.SisVentas && root.SisVentas.V3 && root.SisVentas.V3.ShadowComparison,
+        FeatureGates: root.SisVentas && root.SisVentas.V3 && root.SisVentas.V3.FeatureGates
       };
   var api = factory(dependencies);
   if (typeof module === 'object' && module.exports) module.exports = api;
@@ -128,7 +130,9 @@
     return selectSalesSample(sales).map(function (sale) {
       return {
         fbKey: text(sale && sale.fbKey),
-        total: Number(sale && sale.total) || 0,
+        total: typeof root._svTotalVentaCanonico === 'function'
+          ? Number(root._svTotalVentaCanonico(sale)) || 0
+          : Number(sale && sale.total) || 0,
         paid: Number(root._svMontoPagadoVenta(sale)) || 0,
         balance: Number(root._svSaldoPendienteVenta(sale)) || 0
       };
@@ -198,17 +202,21 @@
     var budgetRelations = relationsFor(audit, 'presupuestos.');
     var salesRelations = relationsFor(audit, 'ventas.');
     var otRelations = relationsFor(audit, 'ordenesTrabajo.');
+    var journeyGates = audit.journeys && audit.journeys.gates || {};
     var gates = {
       presupuestos: budgetIdentityIssues === 0 &&
         budgetRelations.length === 0 &&
+        journeyGates.presupuestos === true &&
         budgetComparison.ready,
       ventasPagos: salesIdentityIssues === 0 &&
         salesRelations.length === 0 &&
         audit.summary.paymentIssues === 0 &&
+        journeyGates.ventasPagos === true &&
         salesComparison.ready,
       ordenesTrabajo: otIdentityIssues === 0 &&
         otRelations.length === 0 &&
         audit.summary.otIssues === 0 &&
+        journeyGates.ordenesTrabajo === true &&
         otComparison.ready
     };
     return Object.freeze({
@@ -269,7 +277,20 @@
         salesRelations: Object.freeze(salesRelations.slice(0, 50).map(compactConflict)),
         otRelations: Object.freeze(otRelations.slice(0, 50).map(compactConflict)),
         payments: Object.freeze(array(audit.paymentIssues).slice(0, 50).map(compactConflict)),
-        ot: Object.freeze(array(audit.otIssues).slice(0, 50).map(compactConflict))
+        ot: Object.freeze(array(audit.otIssues).slice(0, 50).map(compactConflict)),
+        journeys: Object.freeze(array(audit.journeyIssues).slice(0, 50).map(function (entry) {
+          return Object.freeze({
+            kind: text(entry && entry.kind),
+            module: text(entry && entry.module),
+            stage: text(entry && entry.stage),
+            sourceFbKey: text(entry && entry.sourceFbKey),
+            sourceBusinessId: text(entry && entry.sourceBusinessId),
+            matchedBy: text(entry && entry.matchedBy),
+            reference: text(entry && entry.reference),
+            expectedKey: text(entry && entry.expectedKey),
+            actualKey: text(entry && entry.actualKey)
+          });
+        }))
       })
     });
   }
@@ -277,7 +298,8 @@
   function assertDependencies() {
     if (!dependencies.LegacySnapshot ||
         !dependencies.MigrationAudit ||
-        !dependencies.ShadowComparison) {
+        !dependencies.ShadowComparison ||
+        !dependencies.FeatureGates) {
       throw new Error('El núcleo v3 no está cargado en el orden requerido');
     }
   }
@@ -301,6 +323,7 @@
     var retryDelayMs = Number(options.retryDelayMs) >= 0
       ? Number(options.retryDelayMs)
       : 500;
+    var featureGates = new dependencies.FeatureGates.FeatureGates();
 
     function emit(name, detail) {
       if (!root.document || typeof root.document.dispatchEvent !== 'function') return;
@@ -333,6 +356,7 @@
           legacySalesSummaries(root, data.ventas)
         );
         state.lastReport = compactReport(audit, budgetComparison, otComparison, salesComparison);
+        featureGates.update(state.lastReport);
         state.phase = state.lastReport.ready ? 'ready' : 'blocked';
         state.runCount += 1;
         emit('sisventas:v3-shadow-complete', state.lastReport);
@@ -396,6 +420,25 @@
       return status();
     }
 
+    function emitActivation(snapshot) {
+      emit('sisventas:v3-activation-change', snapshot);
+      return snapshot;
+    }
+
+    function activate(moduleName) {
+      var decision = featureGates.activate(moduleName);
+      emitActivation(featureGates.snapshot());
+      return decision;
+    }
+
+    function deactivate(moduleName) {
+      return emitActivation(featureGates.deactivate(moduleName));
+    }
+
+    function rollback() {
+      return emitActivation(featureGates.rollback());
+    }
+
     if (options.autoStart !== false && root.document &&
         typeof root.document.addEventListener === 'function') {
       root.document.addEventListener('sisventas:session-ready', function () {
@@ -409,6 +452,10 @@
       disable: disable,
       run: run,
       status: status,
+      activate: activate,
+      deactivate: deactivate,
+      rollback: rollback,
+      activationStatus: function () { return featureGates.snapshot(); },
       snapshot: function () { return snapshot(root); }
     });
   }

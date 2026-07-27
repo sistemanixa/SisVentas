@@ -31,6 +31,7 @@ test('el núcleo v3 se carga en modo sombra sin activarse por defecto', () => {
     'budget-read-model.js',
     'sales-read-model.js',
     'ot-read-model.js',
+    'journey-audit.js',
     'migration-audit.js',
     'legacy-snapshot.js',
     'shadow-comparison.js',

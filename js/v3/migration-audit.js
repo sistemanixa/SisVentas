@@ -8,14 +8,17 @@
   var ot = typeof module === 'object' && module.exports
     ? require('./ot-read-model.js')
     : root.SisVentas.V3.OTReadModel;
-  var api = factory(domain, sales, ot);
+  var journeys = typeof module === 'object' && module.exports
+    ? require('./journey-audit.js')
+    : root.SisVentas.V3.JourneyAudit;
+  var api = factory(domain, sales, ot, journeys);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {
     root.SisVentas = root.SisVentas || {};
     root.SisVentas.V3 = root.SisVentas.V3 || {};
     root.SisVentas.V3.MigrationAudit = api;
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (domain, sales, ot) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (domain, sales, ot, journeys) {
   'use strict';
 
   function issue(kind, collection, record, resolution) {
@@ -72,6 +75,7 @@
     var relationIssues = auditRelations(store, data);
     var salesModel = new sales.SalesReadModel(data.ventas || [], data.pagos || []);
     var otModel = ot.createReadModel(data.ordenesTrabajo || [], options && options.today);
+    var journeyAudit = journeys.run(data);
     var salesAudit = salesModel.audit();
     var counts = {};
     Object.keys(store.collections).forEach(function (collection) {
@@ -86,15 +90,19 @@
       relationIssues: Object.freeze(relationIssues),
       paymentIssues: Object.freeze(salesAudit.relations),
       otIssues: Object.freeze(otModel.conflicts),
+      journeyIssues: journeyAudit.issues,
+      journeys: journeyAudit,
       summary: Object.freeze({
         identityIssues: summarizeIdentity(identityAudit),
         relationIssues: relationIssues.length,
         paymentIssues: salesAudit.relations.length,
         otIssues: otModel.conflicts.length,
+        journeyIssues: journeyAudit.issues.length,
         totalIssues: summarizeIdentity(identityAudit) +
           relationIssues.length +
           salesAudit.relations.length +
-          otModel.conflicts.length
+          otModel.conflicts.length +
+          journeyAudit.issues.length
       })
     });
   }

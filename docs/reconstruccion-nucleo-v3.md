@@ -115,3 +115,17 @@ solamente los dígitos de dos referencias.
 El registro de un pago captura el saldo previo antes de escribir. Esto evita
 que el listener en tiempo real reciba el nuevo movimiento durante la promesa y
 lo contabilice dos veces en los campos legacy de compatibilidad.
+
+## Recorridos completos y activacion reversible
+
+`journey-audit.js` verifica la cadena completa presupuesto, venta, cobro y OT.
+No alcanza con que cada registro exista por separado: cuando ambos extremos
+declaran una relacion, deben apuntarse mutuamente por su clave tecnica. Tambien
+se bloquean cobros u ordenes vinculados a una venta de otro cliente.
+
+El informe sombra incorpora estos conflictos a las compuertas de cada modulo.
+Una pantalla nueva no puede activarse si su recorrido completo es incoherente,
+aunque sus totales aislados coincidan. `feature-gates.js` permite activar por
+modulo solamente despues de un informe aprobado y ofrece una reversion
+inmediata a modo sombra. Si un informe posterior se bloquea, la autorizacion
+anterior se elimina y nunca se reactiva sola.

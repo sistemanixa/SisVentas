@@ -28,6 +28,36 @@
 
   FeatureGates.prototype.update = function (report) {
     this.report = report || null;
+    var self = this;
+    Array.from(this.allowed).forEach(function (name) {
+      if (!self.report || !self.report.gates || self.report.gates[name] !== true) {
+        self.allowed.delete(name);
+      }
+    });
+    if (this.allowed.size === 0) this.mode = 'shadow';
+    return this.snapshot();
+  };
+
+  FeatureGates.prototype.activate = function (name) {
+    var moduleName = text(name);
+    if (modules.indexOf(moduleName) < 0) return this.decision(moduleName);
+    if (!this.report || !this.report.gates || this.report.gates[moduleName] !== true) {
+      return this.decision(moduleName);
+    }
+    this.mode = 'active';
+    this.allowed.add(moduleName);
+    return this.decision(moduleName);
+  };
+
+  FeatureGates.prototype.deactivate = function (name) {
+    this.allowed.delete(text(name));
+    if (this.allowed.size === 0) this.mode = 'shadow';
+    return this.snapshot();
+  };
+
+  FeatureGates.prototype.rollback = function () {
+    this.allowed.clear();
+    this.mode = 'shadow';
     return this.snapshot();
   };
 
@@ -74,6 +104,7 @@
     });
     return Object.freeze({
       mode: this.mode,
+      allowed: Object.freeze(Array.from(this.allowed)),
       modules: Object.freeze(decisions)
     });
   };

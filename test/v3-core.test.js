@@ -14,6 +14,7 @@ const ShadowComparison = require('../js/v3/shadow-comparison.js');
 const { AttachmentTask } = require('../js/v3/attachment-task.js');
 const { DataLifecycle } = require('../js/v3/data-lifecycle.js');
 const { FeatureGates } = require('../js/v3/feature-gates.js');
+const JourneyAudit = require('../js/v3/journey-audit.js');
 
 test('presupuesto sin IVA conserva los precios netos y no agrega impuesto', () => {
   const result = Budget.build({
@@ -528,4 +529,96 @@ test('una relacion historica resuelve aliases solo cuando identifican una venta 
   assert.equal(summary.status, 'found');
   assert.equal(summary.paid, 40);
   assert.equal(summary.balance, 60);
+});
+
+test('el recorrido completo conserva todas las claves tecnicas', () => {
+  const result = JourneyAudit.run({
+    clientes: [{ fbKey: '-client-a', id: 'C-1', nombre: 'CLIENTE A' }],
+    presupuestos: [{
+      fbKey: '-budget-a',
+      id: 'PP-31',
+      clienteFbKey: '-client-a',
+      ventaGeneradaFbKey: '-sale-a'
+    }],
+    ventas: [{
+      fbKey: '-sale-a',
+      id: 'V-10',
+      clienteFbKey: '-client-a',
+      presupuestoFbKey: '-budget-a'
+    }],
+    pagos: [{
+      fbKey: '-payment-a',
+      ventaFbKey: '-sale-a',
+      clienteFbKey: '-client-a',
+      monto: 500
+    }],
+    ordenesTrabajo: [{
+      fbKey: '-ot-a',
+      id: 'OT-1',
+      ventaFbKey: '-sale-a',
+      clienteFbKey: '-client-a'
+    }]
+  });
+
+  assert.equal(result.ready, true);
+  assert.deepEqual(result.gates, {
+    presupuestos: true,
+    ventasPagos: true,
+    ordenesTrabajo: true
+  });
+  assert.equal(result.issues.length, 0);
+});
+
+test('el recorrido bloquea una venta cruzada aunque los numeros visibles coincidan', () => {
+  const result = JourneyAudit.run({
+    presupuestos: [
+      { fbKey: '-budget-a', id: 'PP-31', ventaGeneradaFbKey: '-sale-b' },
+      { fbKey: '-budget-b', id: 'PP-31', ventaGeneradaFbKey: '-sale-b' }
+    ],
+    ventas: [
+      { fbKey: '-sale-a', id: 'V-10', presupuestoFbKey: '-budget-a' },
+      { fbKey: '-sale-b', id: 'V-10', presupuestoFbKey: '-budget-b' }
+    ],
+    pagos: [],
+    ordenesTrabajo: []
+  });
+
+  assert.equal(result.gates.presupuestos, false);
+  assert.ok(result.issues.some((issue) =>
+    issue.kind === 'crossed-relation' && issue.sourceFbKey === '-budget-a'
+  ));
+});
+
+test('un cobro u OT con cliente distinto bloquea solo el modulo afectado', () => {
+  const result = JourneyAudit.run({
+    presupuestos: [],
+    ventas: [{ fbKey: '-sale-a', id: 'V-1', clienteFbKey: '-client-a' }],
+    pagos: [{ fbKey: '-payment-a', ventaFbKey: '-sale-a', clienteFbKey: '-client-b', monto: 100 }],
+    ordenesTrabajo: [{ fbKey: '-ot-a', ventaFbKey: '-sale-a', clienteFbKey: '-client-b' }]
+  });
+
+  assert.equal(result.gates.presupuestos, true);
+  assert.equal(result.gates.ventasPagos, false);
+  assert.equal(result.gates.ordenesTrabajo, false);
+  assert.equal(result.issues.filter((issue) => issue.kind === 'crossed-client').length, 2);
+});
+
+test('la activacion se revierte y no se rearma sola tras un bloqueo', () => {
+  const gates = new FeatureGates();
+  gates.update({ gates: { presupuestos: true, ventasPagos: true, ordenesTrabajo: true } });
+  assert.equal(gates.activate('ventasPagos').active, true);
+
+  gates.update({ gates: { presupuestos: true, ventasPagos: false, ordenesTrabajo: true } });
+  assert.equal(gates.decision('ventasPagos').active, false);
+  assert.equal(gates.decision('ventasPagos').reason, 'shadow-blocked');
+
+  gates.update({ gates: { presupuestos: true, ventasPagos: true, ordenesTrabajo: true } });
+  assert.equal(gates.decision('ventasPagos').active, false);
+  assert.equal(gates.decision('ventasPagos').reason, 'shadow-only');
+
+  gates.activate('presupuestos');
+  const rolledBack = gates.rollback();
+  assert.equal(rolledBack.mode, 'shadow');
+  assert.equal(rolledBack.modules.presupuestos.active, false);
+  assert.deepEqual(rolledBack.allowed, []);
 });
