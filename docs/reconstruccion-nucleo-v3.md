@@ -92,3 +92,26 @@ Un registro histórico con total pero sin ítems queda identificado como
 imprimir o migrar hasta recuperar sus renglones. Un subtotal, IVA o total
 guardado que no coincide con los ítems bloquea la habilitación del módulo y se
 incluye en el diagnóstico sombra.
+
+## Ventas, cobros y saldos: identidad y cálculo únicos
+
+`sales-read-model.js` deriva subtotal, descuentos, IVA y total desde los ítems
+con el mismo motor usado por presupuestos. El campo histórico `total` sólo se
+acepta cuando una venta antigua no conserva sus ítems; nunca reemplaza un
+cálculo completo.
+
+El libro global de pagos relacionado mediante `ventaFbKey` es la fuente
+principal de cobros y saldos. Los pagos embebidos y `totalPagado` se leen sólo
+como compatibilidad para registros históricos que aún no tienen movimientos en
+el libro global. Un cobro ambiguo, huérfano o repetido queda diagnosticado y no
+se asigna por semejanza de números.
+
+Las pantallas pueden seguir mostrando números comerciales como `V-100`, pero
+las acciones de detalle, facturación, cobranzas y creación de OT transportan la
+clave Firebase inmutable. La compatibilidad por número comercial sólo funciona
+si existe una única coincidencia. Nunca se eliminan prefijos ni se comparan
+solamente los dígitos de dos referencias.
+
+El registro de un pago captura el saldo previo antes de escribir. Esto evita
+que el listener en tiempo real reciba el nuevo movimiento durante la promesa y
+lo contabilice dos veces en los campos legacy de compatibilidad.

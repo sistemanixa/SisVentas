@@ -60,3 +60,35 @@ test('la integración sombra no escribe Firebase ni inicia sin una señal explí
   assert.match(source, /v3_shadow=1/);
   assert.doesNotMatch(source, /localStorage/);
 });
+
+test('ventas, cobranzas y reportes no leen el total persistido como fuente de verdad', () => {
+  assert.doesNotMatch(appSource, /parseFloat\(\s*(?:v|venta|ventaObj)\.total\s*\)/);
+  assert.doesNotMatch(appSource, /(?:v|venta)\.total\s*\|\|/);
+  const canonicalUses = appSource.match(/_svTotalVentaCanonico\s*\(/g) || [];
+  assert.ok(canonicalUses.length >= 30, 'las superficies financieras deben compartir el total canonico');
+  assert.match(appSource, /function resumenEconomicoComprobanteVenta[\s\S]*?saleEconomic\(venta\)/);
+});
+
+test('ventas, cobranzas y OT conservan la clave tecnica en cada accion', () => {
+  const collectionTable = appSource.slice(
+    appSource.indexOf('function renderVentasTabla'),
+    appSource.indexOf('// Filtros', appSource.indexOf('function renderVentasTabla'))
+  );
+  assert.match(collectionTable, /const ventaRef = String\(v\.fbKey \|\| v\.id/);
+
+  const collectionsFlow = appSource.slice(
+    appSource.indexOf('function buscarVentaCob'),
+    appSource.indexOf('var _cobMonedaActual')
+  );
+  assert.match(collectionsFlow, /dataset\.ventaFbKey/);
+  assert.match(collectionsFlow, /resolveSale/);
+  assert.doesNotMatch(collectionsFlow, /replace\(\/\[\^0-9\]\//);
+
+  const otFlow = appSource.slice(
+    appSource.indexOf('function generarOTdesdeVenta'),
+    appSource.indexOf('function renderTablero', appSource.indexOf('function generarOTdesdeVenta'))
+  );
+  assert.match(otFlow, /_svResolverVentaRegistro\(ventaId\)/);
+  assert.match(otFlow, /ventaFbKey:venta\.fbKey/);
+  assert.doesNotMatch(otFlow, /replace\(\/\\D\/g/);
+});

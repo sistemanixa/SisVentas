@@ -201,6 +201,52 @@ test('un mismo pago técnico nunca se cuenta dos veces', () => {
   assert.equal(model.audit().relations.filter((item) => item.kind === 'duplicate-payment').length, 1);
 });
 
+test('ventas con ítems derivan el total aunque el campo guardado sea incorrecto', () => {
+  const sale = {
+    fbKey: '-sale-economic',
+    id: 'V-200',
+    conIva: false,
+    items: [{ qty: 2, punit: 1000, disc: 10, sub: 1800 }],
+    descuentoGeneral: 10,
+    subtotal: 0,
+    total: 71
+  };
+  const model = new SalesReadModel([sale], []);
+  const summary = model.summaryFor('-sale-economic');
+
+  assert.equal(summary.economic.subtotal, 1800);
+  assert.equal(summary.economic.generalDiscount, 180);
+  assert.equal(summary.total, 1620);
+  assert.equal(summary.balance, 1620);
+});
+
+test('descuento histórico de venta se interpreta como monto total y no como porcentaje', () => {
+  const sale = {
+    fbKey: '-sale-discount',
+    conIva: false,
+    items: [{ qty: 1, punit: 1000, disc: 10, sub: 900 }],
+    descuento: 150,
+    total: 850
+  };
+  const model = new SalesReadModel([sale], []);
+  const summary = model.summaryFor('-sale-discount');
+
+  assert.equal(summary.economic.lineDiscount, 100);
+  assert.equal(summary.economic.generalDiscount, 50);
+  assert.equal(summary.total, 850);
+});
+
+test('ventas y pagos historicos interpretan importes con formato argentino', () => {
+  const sale = { fbKey: '-sale-ars', id: 'V-ARS', total: '1.500' };
+  const payment = { fbKey: '-payment-ars', ventaFbKey: '-sale-ars', monto: '100.000,50' };
+  const model = new SalesReadModel([sale], [payment]);
+  const summary = model.summaryFor('-sale-ars');
+
+  assert.equal(summary.total, 1500);
+  assert.equal(summary.paid, 100000.5);
+  assert.equal(summary.balance, 0);
+});
+
 test('50.000 consultas sobre 10.000 ventas permanecen indexadas', () => {
   const sales = Array.from({ length: 10000 }, (_, index) => ({
     fbKey: `-sale-${index}`,
@@ -468,4 +514,18 @@ test('ningún módulo v3 toma control solo por aprobar la comparación sombra', 
   assert.equal(active.decision('presupuestos').active, true);
   assert.equal(active.decision('ventasPagos').active, false);
   assert.equal(active.decision('ordenesTrabajo').reason, 'shadow-blocked');
+});
+
+test('una relacion historica resuelve aliases solo cuando identifican una venta unica', () => {
+  const model = new SalesReadModel([
+    { fbKey: '-sale-a', id: 'V-200', idOriginal: 'V-OLD-10', total: 100 },
+    { fbKey: '-sale-b', id: 'V-201', total: 200 }
+  ], [
+    { fbKey: '-payment-a', ventaOrigenId: 'V-OLD-10', monto: 40 }
+  ]);
+
+  const summary = model.summaryFor('-sale-a');
+  assert.equal(summary.status, 'found');
+  assert.equal(summary.paid, 40);
+  assert.equal(summary.balance, 60);
 });

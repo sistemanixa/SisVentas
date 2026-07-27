@@ -2,43 +2,62 @@
   var identity = typeof module === 'object' && module.exports
     ? require('./identity-index.js')
     : root.SisVentas.V3.Identity;
-  var api = factory(identity);
+  var economics = typeof module === 'object' && module.exports
+    ? require('./budget-read-model.js')
+    : root.SisVentas.V3.BudgetReadModel;
+  var api = factory(identity, economics);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {
     root.SisVentas = root.SisVentas || {};
     root.SisVentas.V3 = root.SisVentas.V3 || {};
     root.SisVentas.V3.SalesReadModel = api;
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (identity) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (identity, economics) {
   'use strict';
 
   var saleDefinition = {
     technicalField: 'fbKey',
-    businessFields: ['id', 'numero', 'nro', 'codigo'],
+    businessFields: ['id', 'numero', 'nro', 'codigo', 'idOriginal', 'numeroOriginal', 'ventaIdOriginal'],
     nameFields: []
   };
 
   var paymentRelation = {
-    technicalFields: ['ventaFbKey', 'ventaKey'],
-    businessFields: ['ventaId', 'idVenta', 'venta', 'nroVenta', 'numeroVenta'],
+    technicalFields: ['ventaFbKey', 'ventaKey', 'ventaGeneradaFbKey', 'ventaOrigenFbKey'],
+    businessFields: ['ventaId', 'idVenta', 'venta', 'nroVenta', 'numeroVenta', 'ventaNumero', 'ventaGeneradaId', 'ventaOrigenId'],
     nameFields: []
   };
 
   function number(value) {
-    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-    var raw = String(value == null ? '' : value).trim();
-    if (!raw) return 0;
-    if (raw.indexOf(',') >= 0) raw = raw.replace(/\./g, '').replace(',', '.');
-    else raw = raw.replace(/[^0-9.-]/g, '');
-    var parsed = Number(raw.replace(/[^0-9.-]/g, ''));
-    return Number.isFinite(parsed) ? parsed : 0;
+    return economics.parseNumber(value);
   }
 
-  function saleTotal(sale) {
+  function storedSaleTotal(sale) {
     return number(sale && (sale.total != null ? sale.total
       : sale.totalVenta != null ? sale.totalVenta
         : sale.importe != null ? sale.importe
           : sale.monto));
+  }
+
+  function saleEconomic(sale) {
+    var source = sale || {};
+    var prepared = Object.assign({}, source);
+    var hasGeneralPercent = ['descuentoGeneral', 'descuentoPct', 'porcentajeDescuento'].some(function (field) {
+      return source[field] !== undefined && source[field] !== null && source[field] !== '';
+    });
+    if (!hasGeneralPercent && source.descuento !== undefined && source.descuento !== null && source.descuento !== '') {
+      var itemSources = Array.isArray(source.items) ? source.items : Object.values(source.items || {});
+      var lineDiscount = itemSources.map(economics.normalizeItem).reduce(function (sum, item) {
+        return sum + item.discount;
+      }, 0);
+      prepared.descuentoAmt = Math.max(0, number(source.descuento) - lineDiscount);
+      delete prepared.descuento;
+    }
+    return economics.build(prepared);
+  }
+
+  function saleTotal(sale) {
+    var economic = saleEconomic(sale);
+    return economic.mode === 'items' ? economic.total : storedSaleTotal(sale);
   }
 
   function paymentAmount(payment) {
@@ -158,6 +177,7 @@
       });
     }
     var total = saleTotal(resolved.value);
+    var economic = saleEconomic(resolved.value);
     var payments = this.paymentsFor(resolved.value);
     var paid = payments.reduce(function (sum, payment) {
       return sum + paymentAmount(payment);
@@ -165,6 +185,7 @@
     return Object.freeze({
       status: 'found',
       sale: resolved.value,
+      economic: economic,
       total: total,
       paid: paid,
       balance: Math.max(0, total - Math.min(total, paid)),
@@ -181,7 +202,9 @@
 
   return {
     SalesReadModel: SalesReadModel,
+    saleEconomic: saleEconomic,
     saleTotal: saleTotal,
+    storedSaleTotal: storedSaleTotal,
     paymentAmount: paymentAmount,
     paymentIdentity: paymentIdentity
   };
