@@ -2,6 +2,7 @@
     import { getDatabase, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp, query, orderByChild, startAt, endAt, runTransaction }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+             setPersistence, browserLocalPersistence,
              createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
              signInWithEmailAndPassword as reSignIn }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -78,5 +79,13 @@
     window.fbGetDownloadURL = getDownloadURL;
     window.fbDeleteObject = deleteObject;
 
-    window.firebaseReady = true;
-    document.dispatchEvent(new Event('firebase-ready'));
+    // Configurar la persistencia antes de anunciar que Firebase esta listo.
+    // Una recarga o actualizacion de version no debe iniciar Auth en memoria.
+    window.fbAuthPersistenceReady = setPersistence(fbAuth, browserLocalPersistence)
+      .catch(function(error) {
+        console.error('[Auth] No se pudo configurar la persistencia local', error);
+      })
+      .then(function() {
+        window.firebaseReady = true;
+        document.dispatchEvent(new Event('firebase-ready'));
+      });
