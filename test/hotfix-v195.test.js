@@ -5,13 +5,13 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
-const appVersionada = fs.readFileSync(path.join(root, 'js', 'app.v2.0.202.js'), 'utf8');
+const appVersionada = fs.readFileSync(path.join(root, 'js', 'app.v2.0.203.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
-test('producción carga exactamente el código validado de v2.0.202', () => {
+test('producción carga exactamente el código validado de v2.0.203', () => {
   assert.equal(appVersionada, app);
-  assert.match(index, /js\/app\.v2\.0\.202\.js/);
-  assert.match(index, /js\/core\/version\.v2\.0\.202\.js/);
+  assert.match(index, /js\/app\.v2\.0\.203\.js/);
+  assert.match(index, /js\/core\/version\.v2\.0\.203\.js/);
 });
 
 test('la firma limita la espera, conserva reintento y permite cancelar', () => {
