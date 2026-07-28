@@ -26,8 +26,8 @@ test('Productos filtra antes de ordenar y conserva el catalogo completo sin pagi
   assert.doesNotMatch(app.slice(orden, orden + 1000), /lista = lista\.slice\(desde, hasta\)/);
   assert.doesNotMatch(app, /renderPaginacionProductos|_prodPorPagina|cambiarPaginaProductos/);
   assert.match(app, /var _prodCatsAbiertas = \{\};/);
-  assert.match(app, /var abierta = _prodCatsAbiertas\[cat\] === true;/);
-  assert.match(app, /var _todasColapsadas = true;/);
+  assert.match(app, /var abierta = _prodCatsAbiertas\[cat\] !== false;/);
+  assert.match(app, /var _todasColapsadas = false;/);
 });
 
 test('los textos editables del producto no pueden romper el HTML de la grilla', () => {
@@ -42,14 +42,12 @@ test('guardar un producto no repinta ni audita dos veces el catalogo oculto', ()
   assert.doesNotMatch(app, /refrescarProductoGuardado\(\)[\s\S]{0,1200}window\.setTimeout\(actualizarStatProductos/);
 });
 
-test('abrir categorías no reconstruye todo el catálogo y expandir cede el control', () => {
+test('abrir una categoria no reconstruye todo el catalogo', () => {
   const inicio = app.indexOf('function toggleProdCat(cat)');
   const fin = app.indexOf('function buscarProducto', inicio);
   const cuerpo = app.slice(inicio, fin);
   assert.match(cuerpo, /_insertarFilasCategoriaProducto\(cat\)/);
   assert.doesNotMatch(cuerpo, /renderTablaProductos\(/);
-  assert.match(app, /performance\.now\(\) - inicio < 10/);
-  assert.match(app, /requestAnimationFrame\(avanzar\)/);
   assert.match(app, /loading="lazy" decoding="async"/);
 });
 
@@ -60,11 +58,14 @@ test('el observador de grillas procesa cada tabla una sola vez por cuadro', () =
   assert.match(app, /cuadroPendiente = requestAnimationFrame/);
 });
 
-test('un refresco en tiempo real no reconstruye todo el catalogo expandido', () => {
-  const inicio = app.indexOf('function renderTablaProductos(filtro)');
-  const fin = app.indexOf('var _todasColapsadas = true;', inicio);
-  const cuerpo = app.slice(inicio, fin);
-  assert.match(cuerpo, /if \(!_todasColapsadas\)/);
-  assert.match(cuerpo, /_prodCatsAbiertas\[cat\] = false/);
-  assert.match(cuerpo, /_todasColapsadas = true/);
+test('Productos abre completo y no usa la expansion progresiva paliativa', () => {
+  assert.match(app, /var abierta = _prodCatsAbiertas\[cat\] !== false;/);
+  assert.match(app, /var _todasColapsadas = false;/);
+  assert.doesNotMatch(app, /_prodExpandToken|Expandiendo \d|requestAnimationFrame\(avanzar\)/);
+});
+
+test('Productos queda fuera del generador universal de menus de acciones', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(html, /id="prod-tbl"[^>]*data-sv-no-actions="1"/);
+  assert.match(app, /if \(tabla\.dataset\.svNoActions === '1'\) return;/);
 });
