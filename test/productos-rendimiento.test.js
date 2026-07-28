@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
+const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 test('Productos usa campos operativos rapidos y no auditorias profundas al renderizar', () => {
   assert.match(app, /var _prodMetricasListaCache = typeof WeakMap/);
@@ -49,6 +50,26 @@ test('abrir una categoria no reconstruye todo el catalogo', () => {
   assert.match(cuerpo, /_insertarFilasCategoriaProducto\(cat\)/);
   assert.doesNotMatch(cuerpo, /renderTablaProductos\(/);
   assert.match(app, /loading="lazy" decoding="async"/);
+});
+
+test('colapsar todo conserva la busqueda visible y no usa una variable inexistente', () => {
+  const inicio = app.indexOf('function toggleTodasCats()');
+  const fin = app.indexOf('function toggleProdCat', inicio);
+  const cuerpo = app.slice(inicio, fin);
+  assert.match(cuerpo, /renderTablaProductos\(\)/);
+  assert.doesNotMatch(cuerpo, /currentSearch/);
+  assert.match(indexHtml, /id="btn-colapsar-cats"[^>]*onclick="toggleTodasCats\(\)"/);
+  assert.match(indexHtml, /id="label-colapsar-cats">Colapsar todo</);
+});
+
+test('una categoria se colapsa con un solo clic usando sus filas visibles', () => {
+  const inicio = app.indexOf('function toggleProdCat(cat)');
+  const fin = app.indexOf('function buscarProducto', inicio);
+  const cuerpo = app.slice(inicio, fin);
+  assert.match(app, /function _filasCategoriaProducto\(cabecera\)/);
+  assert.match(cuerpo, /var filasVisibles = _filasCategoriaProducto\(cabecera\)/);
+  assert.match(cuerpo, /filasVisibles\.forEach\(function\(r\)\{ r\.remove\(\); \}\)/);
+  assert.doesNotMatch(cuerpo, /CSS\.escape/);
 });
 
 test('el observador de grillas procesa cada tabla una sola vez por cuadro', () => {
