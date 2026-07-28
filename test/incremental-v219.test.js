@@ -49,17 +49,7 @@ test('Productos ordena localmente sin instalar observadores universales', () => 
   assert.doesNotMatch(app, /sisventas_grid_sort_v1/);
 });
 
-test('todos los archivos publicados corresponden a v2.0.219', () => {
-  assert.match(app, /VERSION: 'v2\.0\.219-firebase'/);
-  assert.match(index, /app\.v2\.0\.219\.js/);
-  assert.match(index, /version\.v2\.0\.219\.js/);
-  assert.match(sw, /sisventas-v2\.0\.219/);
-  assert.equal(
-    fs.readFileSync(path.join(root, 'js', 'app.v2.0.219.js'), 'utf8'),
-    app
-  );
-  assert.equal(
-    fs.readFileSync(path.join(root, 'js', 'core', 'version.v2.0.219.js'), 'utf8'),
-    fs.readFileSync(path.join(root, 'js', 'core', 'version.js'), 'utf8')
-  );
+test('la publicación histórica v2.0.219 conserva sus archivos', () => {
+  assert.ok(fs.existsSync(path.join(root, 'js', 'app.v2.0.219.js')));
+  assert.ok(fs.existsSync(path.join(root, 'js', 'core', 'version.v2.0.219.js')));
 });

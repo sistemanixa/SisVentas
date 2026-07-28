@@ -1763,3 +1763,110 @@ body.modal-secure-open{overflow:hidden!important}
   color:var(--text3);
   line-height:1.25;
 }
+
+/* v2.0.220 - Firma amplia y grillas responsivas inicializadas por módulo */
+.ot-firma-superficie{
+  position:relative;
+  width:100%;
+  min-height:260px;
+  overflow:hidden;
+  border:1px solid var(--border2);
+  border-radius:12px;
+  background:#fff;
+}
+.ot-firma-canvas{
+  display:block;
+  width:100%;
+  height:clamp(260px,32vh,340px);
+  min-height:260px;
+  cursor:crosshair;
+  touch-action:none;
+  background-color:#fff;
+}
+
+.sv-responsive-grid .sv-grid-actions-cell{
+  position:relative;
+  overflow:visible!important;
+}
+.sv-grid-actions-original{
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:5px;
+}
+.sv-grid-actions-trigger,
+.sv-grid-actions-menu{
+  display:none;
+}
+.sv-grid-actions-menu{
+  min-width:190px;
+  padding:6px;
+  border:1px solid var(--border2);
+  border-radius:12px;
+  background:var(--bg2);
+  box-shadow:0 18px 42px rgba(0,0,0,.38);
+  z-index:120;
+}
+.sv-grid-actions-item{
+  width:100%;
+  min-height:40px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:8px 10px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:var(--text2);
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+}
+.sv-grid-actions-item:hover,
+.sv-grid-actions-item:focus-visible{
+  background:rgba(255,255,255,.07);
+  color:var(--text);
+  outline:none;
+}
+.sv-responsive-grid th[data-sort]{
+  cursor:pointer;
+  user-select:none;
+}
+.sv-responsive-grid th[data-sort]:hover{
+  color:var(--text);
+}
+
+@media(max-width:900px){
+  .ot-firma-superficie{min-height:300px}
+  .ot-firma-canvas{height:300px;min-height:300px}
+  .sv-responsive-grid{
+    min-width:760px!important;
+    width:max-content!important;
+    table-layout:auto!important;
+  }
+  .sv-responsive-grid th,
+  .sv-responsive-grid td{
+    white-space:nowrap!important;
+  }
+  .sv-responsive-grid .sv-grid-actions-original{display:none!important}
+  .sv-responsive-grid .sv-grid-actions-trigger{
+    display:inline-flex!important;
+    align-items:center;
+    justify-content:center;
+  }
+  .sv-responsive-grid .sv-grid-actions-menu.abierto{
+    position:fixed;
+    left:12px;
+    right:12px;
+    bottom:78px;
+    display:flex;
+    flex-direction:column;
+    max-height:min(60vh,420px);
+    overflow:auto;
+  }
+}
+
+@media(max-width:520px){
+  .ot-firma-superficie{min-height:330px}
+  .ot-firma-canvas{height:330px;min-height:330px}
+}
