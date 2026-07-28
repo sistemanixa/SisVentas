@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.206-firebase' -->
+<!-- VERSION: 'v2.0.216-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.206.js"></script>
+<script src="./js/core/version.v2.0.216.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.206 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.216 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -693,13 +693,13 @@
         <table id="ventas-tbl">
           <thead>
             <tr>
-              <th data-sort="id" onclick="sortTabla('ventas-tbl','id','str')"># <i class="sort-icon ti ti-chevrons-up-down"></i></th>
-              <th data-sort="cliente" onclick="sortTabla('ventas-tbl','cliente','str')">Cliente <i class="sort-icon ti ti-chevrons-up-down"></i></th>
-              <th data-sort="observaciones" onclick="sortTabla('ventas-tbl','observaciones','str')">Observación <i class="sort-icon ti ti-chevrons-up-down"></i></th>
-              <th data-sort="fecha" onclick="sortTabla('ventas-tbl','fecha','date')">Fecha <i class="sort-icon ti ti-chevrons-up-down"></i></th>
-              <th class="tr" data-sort="total" onclick="sortTabla('ventas-tbl','total','num')">Total <i class="sort-icon ti ti-chevrons-up-down"></i></th>
-              <th class="tr" data-sort="estadoPago" onclick="sortTabla('ventas-tbl','estadoPago','str')">Pago <i class="sort-icon ti ti-chevrons-up-down"></i></th>
-              <th class="tr" data-sort="estadoInst" onclick="sortTabla('ventas-tbl','estadoInst','str')">Instalación <i class="sort-icon ti ti-chevrons-up-down"></i></th>
+              <th>#</th>
+              <th>Cliente</th>
+              <th>Observación</th>
+              <th>Fecha</th>
+              <th class="tr">Total</th>
+              <th class="tr">Pago</th>
+              <th class="tr">Instalación</th>
               <th style="text-align:center" title="Factura electrónica emitida"><i class="ti ti-file-invoice" style="font-size:13px"></i></th>
               <th></th>
             </tr>
@@ -2245,7 +2245,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.206
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.216
 Listo para analizar.
 </pre>
           </div>
@@ -3462,10 +3462,10 @@ Listo para analizar.
           </div>
           <table id="cli-tbl">
             <thead id="cli-thead"><tr>
-              <th data-sort="id" onclick="sortTabla('cli-tbl','id','num')" style="cursor:pointer;user-select:none">ID <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
-              <th data-sort="nombre" onclick="sortTabla('cli-tbl','nombre','str')" style="cursor:pointer;user-select:none">Nombre <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
-              <th class="hide-mobile" data-sort="dir" onclick="sortTabla('cli-tbl','dir','str')" style="cursor:pointer;user-select:none">Dirección <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
-              <th class="hide-mobile" data-sort="telefono" onclick="sortTabla('cli-tbl','telefono','str')" style="cursor:pointer;user-select:none">Teléfono <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th class="hide-mobile">Dirección</th>
+              <th class="hide-mobile">Teléfono</th>
               <th style="text-align:right">Estado</th>
               <th></th>
             </tr></thead>
@@ -3499,7 +3499,6 @@ Listo para analizar.
                   <option>Accesorios</option>
                 </select>
                 <button class="btn btn-sm admin-only" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('prod-tbl')" title="Configurar ancho porcentual de columnas"><i class="ti ti-columns"></i> Columnas %</button>
-                <button class="btn btn-sm admin-only" onclick="abrirAuditoriaIntegridadPrecios()" title="Revisar inconsistencias de moneda y precios en todo el catálogo"><i class="ti ti-shield-check"></i> Auditar precios</button>
                 <button class="btn btn-sm btn-primary" onclick="abrirFormProducto(null)"><i class="ti ti-plus"></i> Nuevo producto</button>
                 <button class="btn btn-sm" id="btn-colapsar-cats" onclick="toggleTodasCats()" title="Colapsar/expandir todos los grupos"><i class="ti ti-layout-list" id="icon-colapsar-cats"></i> <span id="label-colapsar-cats">Colapsar todo</span></button>
               </div>
@@ -3521,13 +3520,13 @@ Listo para analizar.
               <table id="prod-tbl" data-sv-no-resize="1">
             <thead id="prod-tbl-thead"><tr>
               <th></th>
-              <th data-sort="codigo" onclick="sortTabla('prod-tbl','codigo','str')" style="cursor:pointer;user-select:none">Código <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
-              <th data-sort="nombre" onclick="sortTabla('prod-tbl','nombre','str')" style="cursor:pointer;user-select:none">Nombre <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th>Código</th>
+              <th>Nombre</th>
               <th class="hide-mobile">Descripción</th>
-              <th data-sort="stock" onclick="sortTabla('prod-tbl','stock','num')" style="cursor:pointer;user-select:none;text-align:right">Stock <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
-              <th data-sort="venta" onclick="sortTabla('prod-tbl','venta','num')" style="cursor:pointer;user-select:none;text-align:right">P. Venta <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
-              <th data-sort="compra" onclick="sortTabla('prod-tbl','compra','num')" style="cursor:pointer;user-select:none;text-align:right">P. Costo <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
-              <th data-sort="margen" onclick="sortTabla('prod-tbl','margen','num')" style="cursor:pointer;user-select:none;text-align:right">Margen <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
+              <th style="text-align:right">Stock</th>
+              <th style="text-align:right">P. Venta</th>
+              <th style="text-align:right">P. Costo</th>
+              <th style="text-align:right">Margen</th>
               <th></th>
             </tr></thead>
             <tbody id="prod-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Cargando productos...</td></tr></tbody>
@@ -3912,7 +3911,6 @@ Listo para analizar.
               <div style="font-size:12px;color:var(--text3);margin-top:5px">Actualiza costos desde los proveedores compatibles cargados en cada producto.</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn admin-only" onclick="abrirAuditoriaIntegridadPrecios()"><i class="ti ti-shield-check"></i> Auditar catálogo</button>
               <button class="btn" onclick="abrirGestionRevisionPrecios()"><i class="ti ti-list-check"></i> Revisar pendientes</button>
               <button class="btn btn-primary" id="mod-ap-iniciar" onclick="abrirActualizadorMasivoPrecios()"><i class="ti ti-refresh"></i> Iniciar actualización</button>
             </div>
@@ -4952,7 +4950,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.206.js"></script>
+<script src="./js/app.v2.0.216.js"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
@@ -4991,7 +4989,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.206</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.216</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -5396,7 +5394,7 @@ Listo para analizar.
 
 <script src="./js/modules/refactor-health.js?v=2.0.154"></script>
 
-<script src="./js/modules/resizable-tables.js?v=2.0.206"></script>
+<script src="./js/modules/resizable-tables.js?v=2.0.216"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>
 <script src="./js/modules/ops-hardening.js?v=2.0.154"></script>

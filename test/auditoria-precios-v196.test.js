@@ -3,18 +3,17 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.js'), 'utf8');
+const root = path.join(__dirname, '..');
+const app = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
+const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
-test('la auditoria solo convierte importes legacy realmente marcados como USD', () => {
-  assert.match(app, /monedaCosto === 'USD'/);
-  assert.match(app, /monedaVenta === 'USD'/);
-  assert.match(app, /function _auditoriaPrecioYaAplicada\(/);
+test('la auditoría integral de precios fue retirada de la interfaz y del motor', () => {
+  assert.doesNotMatch(app, /function abrirAuditoriaIntegridadPrecios\(/);
+  assert.doesNotMatch(app, /function detectarCasosIntegridadPrecios\(/);
+  assert.doesNotMatch(index, /Auditar precios|Auditar catálogo/);
 });
 
-test('la auditoria permite buscar por producto, proveedor y URL', () => {
-  assert.match(app, /function filtrarAuditoriaIntegridadPrecios\(/);
-  assert.match(app, /Buscar por código, producto, proveedor o URL/);
-  assert.match(app, /data-auditoria-precio-item/);
-  assert.match(app, /p\.codWeb/);
-  assert.match(app, /p\.urlProveedor/);
+test('el actualizador de proveedores y la normalización manual siguen disponibles', () => {
+  assert.match(app, /function normalizarTodosProductosARS\(/);
+  assert.match(app, /function abrirActualizadorMasivoPrecios\(/);
 });
