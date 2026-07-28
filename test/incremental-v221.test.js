@@ -40,12 +40,9 @@ test('garantías integra equipos instalados sin duplicarlos', () => {
   assert.match(app, /abrirEquipoDesdeGarantia/);
 });
 
-test('todos los archivos publicados corresponden a v2.0.221', () => {
-  assert.match(app, /VERSION: 'v2\.0\.221-firebase'/);
-  assert.match(index, /app\.v2\.0\.221\.js/);
-  assert.match(index, /version\.v2\.0\.221\.js/);
-  assert.match(index, /resizable-tables\.js\?v=2\.0\.221/);
-  assert.match(sw, /sisventas-v2\.0\.221/);
-  assert.equal(fs.readFileSync(path.join(root, 'js', 'app.v2.0.221.js'), 'utf8'), app);
-  assert.equal(fs.readFileSync(path.join(root, 'js', 'core', 'version.v2.0.221.js'), 'utf8'), version);
+test('el archivo histórico publicado corresponde a v2.0.221', () => {
+  const historicalApp = fs.readFileSync(path.join(root, 'js', 'app.v2.0.221.js'), 'utf8');
+  const historicalVersion = fs.readFileSync(path.join(root, 'js', 'core', 'version.v2.0.221.js'), 'utf8');
+  assert.match(historicalApp, /VERSION: 'v2\.0\.221-firebase'/);
+  assert.match(historicalVersion, /v2\.0\.221/);
 });

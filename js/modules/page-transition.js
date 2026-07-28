@@ -1,18 +1,22 @@
-/* v1.36.23 — Aviso liviano entre módulos sin bloqueo visual */
+/* v2.0.222 — Estado real de preparación entre módulos */
 (function(){
   'use strict';
 
-  // La navegación no puede inventar un estado de carga por tiempo. Los datos
-  // principales ya permanecen sincronizados en memoria y cada módulo que hace
-  // una consulta propia muestra su estado real dentro del contenido.
-  var HEAVY_PAGES = {};
+  var HEAVY_PAGES = {
+    clientes: 'Preparando clientes',
+    productos: 'Preparando catálogo',
+    detalle: 'Preparando ventas',
+    presupuesto: 'Preparando presupuestos',
+    ordentrabajo: 'Preparando órdenes de trabajo',
+    gastos: 'Preparando gastos'
+  };
 
   var timers = {};
   var hardTimers = {};
   var showTimers = {};
   var seq = 0;
-  var MAX_VISIBLE_MS = 650;
-  var DISPLAY_DELAY_MS = 140;
+  var MAX_VISIBLE_MS = 8000;
+  var DISPLAY_DELAY_MS = 0;
 
   function pageId(id){
     return String(id || '').replace(/^page-/, '');
@@ -31,8 +35,8 @@
     loader.innerHTML =
       '<div class="sv-page-transition-box">'+
         '<span class="sv-page-transition-spin"><i class="ti ti-loader-2"></i></span>'+
-        '<div><div class="sv-page-transition-title">Cargando módulo…</div>'+
-        '<div class="sv-page-transition-sub">Aplicando filtros y preparando la vista</div></div>'+
+        '<div><div class="sv-page-transition-title">'+(HEAVY_PAGES[id] || 'Preparando módulo')+'</div>'+
+        '<div class="sv-page-transition-sub">Organizando la información de la vista</div></div>'+
       '</div>';
     page.appendChild(loader);
     return loader;
@@ -44,20 +48,15 @@
     if(!page) return 0;
     var token = ++seq;
     cleanupAll(true);
-    var safeMs = Math.min(Math.max(ms || HEAVY_PAGES[id] || 280, 180), MAX_VISIBLE_MS);
+    var safeMs = MAX_VISIBLE_MS;
     page.dataset.svTransitionToken = String(token);
     page.dataset.svTransitionStarted = String(Date.now());
     clearTimeout(showTimers[id]);
-    showTimers[id] = setTimeout(function(){
-      var current = pageEl(id);
-      if(!current || current.dataset.svTransitionToken !== String(token)) return;
-      current.classList.add('sv-page-transitioning');
-      ensureLoader(current, id);
-    }, DISPLAY_DELAY_MS);
+    page.classList.add('sv-page-transitioning');
+    ensureLoader(page, id);
     clearTimeout(timers[id]);
     clearTimeout(hardTimers[id]);
-    timers[id] = setTimeout(function(){ end(id, token); }, safeMs);
-    hardTimers[id] = setTimeout(function(){ forceEnd(id); }, safeMs + 160);
+    hardTimers[id] = setTimeout(function(){ forceEnd(id); }, safeMs);
     return token;
   }
 
@@ -103,16 +102,10 @@
     var original = window.showPage;
     window.showPage = function(id, el){
       var clean = pageId(id);
-      var ms = HEAVY_PAGES[clean] || 0;
+      var ms = HEAVY_PAGES[clean] ? MAX_VISIBLE_MS : 0;
       var token = 0;
       if(ms) token = begin(clean, ms);
       var result = original.apply(this, arguments);
-      if(ms){
-        requestAnimationFrame(function(){
-          setTimeout(function(){ end(clean, token); }, Math.min(ms, MAX_VISIBLE_MS));
-          setTimeout(function(){ forceEnd(clean); }, Math.min(ms, MAX_VISIBLE_MS) + 180);
-        });
-      }
       return result;
     };
     window.showPage._svPageTransition = true;
@@ -138,9 +131,16 @@
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wrapShowPage);
   else wrapShowPage();
 
+  document.addEventListener('sisventas:module-ready', function(event){
+    var id = pageId(event.detail && event.detail.page);
+    var page = pageEl(id);
+    if(page) end(id, page.dataset.svTransitionToken);
+  });
   document.addEventListener('sisventas:page-changed', function(event){
-    var id = event.detail && event.detail.page;
-    endActiveSoon();
+    var activeId = pageId(event.detail && event.detail.page);
+    Array.prototype.forEach.call(document.querySelectorAll('.page.sv-page-transitioning'), function(page){
+      if(pageId(page.id) !== activeId) forceEnd(page.id);
+    });
   });
 
   document.addEventListener('visibilitychange', cleanupAll);
