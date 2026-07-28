@@ -1859,3 +1859,21 @@ body.modal-secure-open{overflow:hidden!important}
   .page.active .table-wrap > table:not(#gas-tbl),
   .page.active .sv-auto-grid-wrap > table:not(#gas-tbl){min-width:680px!important}
 }
+
+/* v2.0.207 — en pantallas angostas los perfiles porcentuales conservan un
+   ancho legible. El contenedor desplaza la tabla; nunca comprime sus columnas. */
+@media(max-width:900px){
+  .page.active .card.sv-resizable-wrap > table.sv-percent-table:not(#gas-tbl),
+  .page.active .table-wrap > table.sv-percent-table:not(#gas-tbl),
+  .page.active .sv-auto-grid-wrap > table.sv-percent-table:not(#gas-tbl),
+  .page.active table.sv-resizable-table.sv-percent-table:not(#gas-tbl){
+    width:var(--sv-percent-total-width,100%)!important;
+    min-width:760px!important;
+    max-width:none!important;
+  }
+  .page.active .card.sv-resizable-wrap{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-x:contain;
+  }
+}
