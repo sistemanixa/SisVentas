@@ -359,30 +359,6 @@ function validarIdentidadProducto(productoSolicitado, tituloProveedor) {
   };
 }
 
-function codigoProductoConfirmado(codigo, textoPagina, urlPagina) {
-  const codigoNormal = normalizarIdentidadProducto(codigo).replace(/\s+/g, '');
-  if (!codigoNormal) return false;
-  const cuerpo = normalizarIdentidadProducto(textoPagina);
-  const codigoEscapado = codigoNormal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const patronCuerpo = new RegExp(`(?:CODIGO|REF(?:ERENCIA)?)\\s*${codigoEscapado}(?:\\s|$)`, 'i');
-  if (patronCuerpo.test(cuerpo.replace(/\s+/g, ' '))) return true;
-  const urlNormal = decodeURIComponent(String(urlPagina || '')).toUpperCase();
-  return new RegExp(`(?:^|[^A-Z0-9])${codigoEscapado}(?:[^A-Z0-9]|$)`, 'i').test(urlNormal);
-}
-
-function resolverIdentidadProducto(productoSolicitado, tituloProveedor, codigo, textoPagina, urlPagina) {
-  const validacionTitulo = validarIdentidadProducto(productoSolicitado, tituloProveedor);
-  if (validacionTitulo.ok) return validacionTitulo;
-  if (!codigoProductoConfirmado(codigo, textoPagina, urlPagina)) return validacionTitulo;
-  return {
-    ok:true,
-    confianza:1,
-    porCodigoExacto:true,
-    advertencia:`El título del proveedor difiere: ${validacionTitulo.mensaje}. Se aceptó porque la página confirmó el código exacto ${codigo}.`,
-    tituloCoincide:false
-  };
-}
-
 async function textoVisiblePrimero(page, selectors) {
   for (const selector of selectors) {
     try {
@@ -565,31 +541,8 @@ function extraerPrecioBiosegur(texto) {
 function extraerDisponibilidadProveedor(texto) {
   const body = normalizarTexto(texto);
   if (/sin\s+stock|agotado|no\s+disponible|fuera\s+de\s+stock/.test(body)) return 'sin_stock';
-  if (/en\s+transito|proximamente|proximo\s+ingreso|ingreso\s+estimado/.test(body)) return 'en_transito';
   if (/producto\s+con\s+stock|hay\s+stock|en\s+stock|disponible/.test(body)) return 'disponible';
   return 'no_verificado';
-}
-
-function textoDisponibilidadProveedor(estado) {
-  if (estado === 'disponible') return 'Disponible';
-  if (estado === 'sin_stock') return 'Sin stock';
-  if (estado === 'en_transito') return 'En tránsito';
-  return 'No verificado';
-}
-
-function extraerAlicuotaIvaProveedor(texto) {
-  const cuerpo = String(texto || '');
-  const coincidencias = [
-    /\+\s*IVA\s*([0-9]{1,2}(?:[.,][0-9]{1,2})?)\s*%/i,
-    /IVA\s*(?:AL\s*)?([0-9]{1,2}(?:[.,][0-9]{1,2})?)\s*%/i
-  ];
-  for (const patron of coincidencias) {
-    const match = cuerpo.match(patron);
-    if (!match) continue;
-    const valor = parseFloat(String(match[1]).replace(',', '.'));
-    if (Number.isFinite(valor) && valor >= 0 && valor <= 30) return valor;
-  }
-  return 0;
 }
 
 async function cotizarProveedorConLogin({ proveedor, url, codigo, producto, debug, tipo }) {
@@ -632,23 +585,19 @@ async function cotizarProveedorConLogin({ proveedor, url, codigo, producto, debu
     const bodyText = await page.locator('body').innerText({ timeout:15000 });
     if (/iniciar sesi[oó]n para ver precios|ingresar para ver precios/i.test(bodyText)) throw new Error('No se pudo iniciar sesión o la cuenta no permite ver precios');
     const tituloProveedor = await tituloVisibleProducto(page, tipo);
-    const identidad = resolverIdentidadProducto(producto, tituloProveedor, codigo, bodyText, page.url());
+    const identidad = validarIdentidadProducto(producto, tituloProveedor);
     if (!identidad.ok) throw new Error(identidad.mensaje);
     const evidenciaPrecio = await extraerPrecioPaginaProveedor(page, tipo, bodyText);
     const precioArs = evidenciaPrecio.precioArs;
     const disponibilidad = extraerDisponibilidadProveedor(bodyText);
     const impuestosIncluidos = /impuestos\s+incluidos|iva\s+incluido/i.test(bodyText);
     const sinIvaVisible = /\+\s*iva|sin\s+iva/i.test(bodyText);
-    const alicuotaIva = extraerAlicuotaIvaProveedor(bodyText);
     return {
       ok:true, proveedor:proveedor.nombre || (tipo === 'free_electron' ? 'FREE ELECTRON' : 'TECNOPRICES'),
       codigo:codigo || '', producto:producto || await page.title().catch(() => ''), url:urlExacta,
       precioArs, sinIva:impuestosIncluidos ? false : (sinIvaVisible ? true : tipo === 'tecnoprices'),
-      alicuotaIva:alicuotaIva || 21,
-      ivaPorcentaje:alicuotaIva || 21,
-      alicuotaIvaDetectada:alicuotaIva > 0,
       disponibilidadProveedor:disponibilidad,
-      disponibilidadProveedorTexto:textoDisponibilidadProveedor(disponibilidad),
+      disponibilidadProveedorTexto:disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
       fuente:tipo + '_login_url_exacta', fecha:new Date().toISOString(),
       tituloProveedor,
       urlFinal:page.url(),
@@ -725,11 +674,8 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
     }
 
     const title = await tituloVisibleProducto(page, 'biosegur');
-    const identidad = resolverIdentidadProducto(producto, title, codigo, bodyText, page.url());
+    const identidad = validarIdentidadProducto(producto, title);
     if (!identidad.ok) throw new Error(identidad.mensaje);
-    const alicuotaIvaDetectada = extraerAlicuotaIvaProveedor(bodyText);
-    const alicuotaIva = alicuotaIvaDetectada || 21;
-    addTrace('identidad_validada', { identidad, alicuotaIva, alicuotaIvaDetectada:alicuotaIvaDetectada > 0 });
     return {
       ok: true,
       proveedor: proveedor.nombre || 'BIOSEGUR',
@@ -738,17 +684,14 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
       url: urlExacta,
       precioArs,
       sinIva: true,
-      alicuotaIva,
-      ivaPorcentaje:alicuotaIva,
-      alicuotaIvaDetectada:alicuotaIvaDetectada > 0,
-      precioConIva: Math.round(precioArs * (1 + alicuotaIva / 100) * 100) / 100,
+      precioConIva: Math.round(precioArs * 1.21 * 100) / 100,
       disponibilidadProveedor: disponibilidad,
-      disponibilidadProveedorTexto: textoDisponibilidadProveedor(disponibilidad),
+      disponibilidadProveedorTexto: disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
       fuente: 'biosegur_login_url_exacta',
       fecha: new Date().toISOString(),
       tituloProveedor:title,
       urlFinal:page.url(),
-      textoPrecio:`$ ${precioArs.toLocaleString('es-AR', { minimumFractionDigits:2, maximumFractionDigits:2 })} + IVA ${String(alicuotaIva).replace('.', ',')}%`,
+      textoPrecio:`$ ${precioArs.toLocaleString('es-AR', { minimumFractionDigits:2, maximumFractionDigits:2 })} + IVA`,
       selectorPrecio:'precio_biosegur_mas_iva',
       moneda:'ARS',
       identidad,
@@ -824,12 +767,10 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
           throw new Error('La sesión de Biosegur se cerró durante el lote');
         }
         const tituloProveedor = await tituloVisibleProducto(page, 'biosegur');
-        const identidad = resolverIdentidadProducto(item.producto || item.nombre || '', tituloProveedor, item.codigo || '', bodyText, page.url());
+        const identidad = validarIdentidadProducto(item.producto || item.nombre || '', tituloProveedor);
         if (!identidad.ok) throw new Error(identidad.mensaje);
         const precioArs = extraerPrecioBiosegur(bodyText);
         const disponibilidad = extraerDisponibilidadProveedor(bodyText);
-        const alicuotaIvaDetectada = extraerAlicuotaIvaProveedor(bodyText);
-        const alicuotaIva = alicuotaIvaDetectada || 21;
         if (!precioArs) throw new Error('No se encontró un precio visible');
         const validacionPrecio = validarSaltoPrecio(precioArs, item.precioAnteriorArs);
         if (!validacionPrecio.ok) throw new Error(validacionPrecio.mensaje);
@@ -841,17 +782,14 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
           url: urlExacta,
           precioArs,
           sinIva: true,
-          alicuotaIva,
-          ivaPorcentaje:alicuotaIva,
-          alicuotaIvaDetectada:alicuotaIvaDetectada > 0,
-          precioConIva: Math.round(precioArs * (1 + alicuotaIva / 100) * 100) / 100,
+          precioConIva: Math.round(precioArs * 1.21 * 100) / 100,
           disponibilidadProveedor: disponibilidad,
-          disponibilidadProveedorTexto: textoDisponibilidadProveedor(disponibilidad),
+          disponibilidadProveedorTexto: disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
           fuente: 'biosegur_lote_url_exacta',
           fecha: new Date().toISOString(),
           tituloProveedor,
           urlFinal:page.url(),
-          textoPrecio:`$ ${precioArs.toLocaleString('es-AR', { minimumFractionDigits:2, maximumFractionDigits:2 })} + IVA ${String(alicuotaIva).replace('.', ',')}%`,
+          textoPrecio:`$ ${precioArs.toLocaleString('es-AR', { minimumFractionDigits:2, maximumFractionDigits:2 })} + IVA`,
           selectorPrecio:'precio_biosegur_mas_iva',
           moneda:'ARS',
           identidad
@@ -938,7 +876,7 @@ async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset
         if (/producto\s+no\s+encontrado|no\s+existe\s+o\s+fue\s+desactivado|p[aá]gina\s+no\s+encontrada|error\s*404/i.test(bodyText)) throw new Error('Producto no encontrado o desactivado en el proveedor');
         if (/iniciar sesi[oó]n para ver precios|ingresar para ver precios/i.test(bodyText)) throw new Error('La sesión no permite ver precios');
         const tituloProveedor=await tituloVisibleProducto(page,tipo);
-        const identidad=resolverIdentidadProducto(item.producto||item.nombre||'',tituloProveedor,item.codigo||'',bodyText,page.url());
+        const identidad=validarIdentidadProducto(item.producto||item.nombre||'',tituloProveedor);
         if (!identidad.ok) throw new Error(identidad.mensaje);
         const evidenciaPrecio=await extraerPrecioPaginaProveedor(page,tipo,bodyText);
         const precioArs=evidenciaPrecio.precioArs;
@@ -947,8 +885,7 @@ async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset
         const disponibilidad=extraerDisponibilidadProveedor(bodyText);
         const impuestosIncluidos=/impuestos\s+incluidos|iva\s+incluido/i.test(bodyText);
         const sinIvaVisible=/\+\s*iva|sin\s+iva/i.test(bodyText);
-        const alicuotaIva=extraerAlicuotaIvaProveedor(bodyText);
-        resultados.push({ok:true,proveedor:proveedor.nombre||nombreTipo,codigo:item.codigo||'',producto:item.producto||item.nombre||'',url:urlExacta,precioArs,sinIva:impuestosIncluidos?false:(sinIvaVisible?true:tipo==='tecnoprices'),alicuotaIva:alicuotaIva||21,ivaPorcentaje:alicuotaIva||21,alicuotaIvaDetectada:alicuotaIva>0,disponibilidadProveedor:disponibilidad,disponibilidadProveedorTexto:textoDisponibilidadProveedor(disponibilidad),fuente:tipo+'_lote_url_exacta',fecha:new Date().toISOString(),tituloProveedor,urlFinal:page.url(),textoPrecio:evidenciaPrecio.textoPrecio,selectorPrecio:evidenciaPrecio.selectorPrecio,moneda:evidenciaPrecio.moneda,identidad});
+        resultados.push({ok:true,proveedor:proveedor.nombre||nombreTipo,codigo:item.codigo||'',producto:item.producto||item.nombre||'',url:urlExacta,precioArs,sinIva:impuestosIncluidos?false:(sinIvaVisible?true:tipo==='tecnoprices'),disponibilidadProveedor:disponibilidad,disponibilidadProveedorTexto:disponibilidad==='disponible'?'Disponible':disponibilidad==='sin_stock'?'Sin stock':'No verificado',fuente:tipo+'_lote_url_exacta',fecha:new Date().toISOString(),tituloProveedor,urlFinal:page.url(),textoPrecio:evidenciaPrecio.textoPrecio,selectorPrecio:evidenciaPrecio.selectorPrecio,moneda:evidenciaPrecio.moneda,identidad});
       } catch(e) { resultados.push({ok:false,error:true,codigo:item.codigo||'',url:urlExacta,mensaje:e.message||'Error leyendo producto'}); }
       if (progresoRef) {
         const procesadosGlobal=offset+i+1, transcurridoSeg=Math.max(1,Math.round((Date.now()-inicioMs)/1000)), promedioSeg=transcurridoSeg/Math.max(1,procesadosGlobal);
@@ -1127,10 +1064,6 @@ module.exports = {
   extraerPrecioBiosegur,
   extraerPrecioEtiquetado,
   validarIdentidadProducto,
-  resolverIdentidadProducto,
-  codigoProductoConfirmado,
-  extraerAlicuotaIvaProveedor,
-  extraerDisponibilidadProveedor,
   validarMonedaPrecio,
   validarSaltoPrecio,
   validarResultadoPrecioIndividual,

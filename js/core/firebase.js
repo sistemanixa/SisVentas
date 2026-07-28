@@ -78,9 +78,5 @@
     window.fbGetDownloadURL = getDownloadURL;
     window.fbDeleteObject = deleteObject;
 
-    // Firebase Web restaura por defecto la sesion local de Auth. No bloquear
-    // el arranque esperando setPersistence: desde v2.0.208 esa espera podia
-    // demorar el observador y la interfaz interpretaba prematuramente que no
-    // habia sesion, aunque las credenciales siguieran guardadas.
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));

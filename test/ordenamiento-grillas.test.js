@@ -11,8 +11,7 @@ test('las grillas de consulta reciben ordenamiento universal', () => {
   assert.match(app, /function instalarOrdenamientoGrillas\(/);
   assert.match(app, /function ordenarGrillaPorColumna\(/);
   assert.match(app, /instalarOrdenamientoGrillas\(document\)/);
-  assert.match(app, /instalarOrdenamientoGrillas\(raiz\)/);
-  assert.match(app, /pendientes\.add\(tabla \|\| nodo\)/);
+  assert.match(app, /instalarOrdenamientoGrillas\(nodo\)/);
   assert.match(css, /\.sv-sortable-th/);
 });
 

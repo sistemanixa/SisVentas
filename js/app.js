@@ -665,68 +665,11 @@ function poblarSelectCategorias() {
     cats.map(function(c){ return '<option value="'+escapeHTML(c)+'"'+(c===actual?' selected':'')+'>'+escapeHTML(c)+'</option>'; }).join('');
 }
 
-// El catálogo completo sigue disponible y las categorías nacen abiertas.
-// El estado se conserva mientras el usuario permanece en la aplicación.
-var _prodCatsAbiertas = {}; // false = cerrada; undefined/true = abierta
+var _prodCatsAbiertas = {}; // undefined = abierta por defecto, false = cerrada
 var _filtroProductosSinPrecio = false;
-// El listado es una vista operativa, no una auditoría. Las funciones canónicas
-// de precio recorren antecedentes, proveedor y moneda para detectar datos
-// heredados; ejecutarlas para los ~850 productos al entrar al módulo bloqueaba
-// el hilo principal. La auditoría profunda queda en "Auditar precios" y en la
-// ficha individual. Aquí sólo se leen los campos normalizados ya guardados.
-// La caché vive mientras los objetos de la instantánea actual existen.
-var _prodMetricasListaCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
-
-function invalidarMetricasListaProductos() {
-  _prodMetricasListaCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
-}
-
-function metricasListaProducto(p) {
-  p = p || {};
-  if (_prodMetricasListaCache && _prodMetricasListaCache.has(p)) {
-    return _prodMetricasListaCache.get(p);
-  }
-  var primerPositivo = function(valores) {
-    for (var i = 0; i < valores.length; i++) {
-      var numero = parseFloat(valores[i]);
-      if (numero > 0 && isFinite(numero)) return numero;
-    }
-    return 0;
-  };
-  var proveedorPrincipal = Array.isArray(p.proveedores) && p.proveedores.length ? p.proveedores[0] : null;
-  var compra = primerPositivo([
-    p.compraARS, p.precioGremio, p.compra, p.costoRealArs,
-    p.precioArsPublicado,
-    proveedorPrincipal && proveedorPrincipal.costoRealArs,
-    proveedorPrincipal && proveedorPrincipal.precioArsPublicado,
-    proveedorPrincipal && proveedorPrincipal.precio
-  ]);
-  var venta = primerPositivo([
-    p.ventaARS, p.precioArsPublicadoVenta, p.venta,
-    p.precio_venta, p.precioVenta
-  ]);
-  // Sólo convertir cuando el registro declara USD expresamente. No se intenta
-  // deducir ni reparar moneda durante el render del catálogo.
-  var tcConfig = window.TIPO_CAMBIO_CONFIG || {};
-  var claveTc = tcConfig.dolarConversion || 'oficial';
-  var tcRapido = parseFloat(p.dolarUsadoVenta || p.dolarUsado || tcConfig[claveTc] || tcConfig.oficial) || 0;
-  if (compra > 0 && String(p.moneda || '').toUpperCase() === 'USD' && !(parseFloat(p.compraARS) > 0) && tcRapido > 0) {
-    compra = Math.round(compra * tcRapido * 100) / 100;
-  }
-  if (venta > 0 && String(p.monedaVenta || p.moneda || '').toUpperCase() === 'USD' && !(parseFloat(p.ventaARS) > 0) && tcRapido > 0) {
-    venta = Math.round(venta * tcRapido * 100) / 100;
-  }
-  var resultado = {
-    venta: venta,
-    compra: compra,
-    margen: venta > 0 && compra > 0 ? (venta - compra) / venta * 100 : 0
-  };
-  if (_prodMetricasListaCache) _prodMetricasListaCache.set(p, resultado);
-  return resultado;
-}
 
 function productoSinPrecioCatalogo(p) {
-  return !(metricasListaProducto(p).venta > 0);
+  return !(precioVentaCanonicoProducto(p || {}).precioARS > 0);
 }
 
 function actualizarVistaFiltroProductosSinPrecio(cantidad) {
@@ -793,29 +736,28 @@ function _ordenarProductosLista(lista) {
     switch (estado.col) {
       case 'codigo': return String(p.codigo || p.sku || '');
       case 'stock': return parseFloat(p.stock) || 0;
-      case 'venta': return metricasListaProducto(p).venta;
-      case 'compra': return metricasListaProducto(p).compra;
-      case 'margen': return metricasListaProducto(p).margen;
+      case 'venta': return precioVentaCanonicoProducto(p).precioARS || 0;
+      case 'compra': return precioGremioARSDesdeProducto(p) || 0;
+      case 'margen':
+        var pv = precioVentaCanonicoProducto(p).precioARS || 0;
+        var pc = precioGremioARSDesdeProducto(p) || 0;
+        return pv > 0 && pc > 0 ? (pv - pc) / pv * 100 : 0;
       default: return String(p.nombre || p.descripcion || '');
     }
   };
-  // Decorar primero garantiza un único cálculo por producto, aun cuando el
-  // motor invoque muchas veces al comparador durante el ordenamiento.
-  return lista.map(function(p){ return { producto:p, valor:valor(p) }; })
-    .sort(function(a, b) {
-      var va = a.valor, vb = b.valor;
-      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
-      return String(va).localeCompare(String(vb), 'es', { numeric:true, sensitivity:'base' }) * dir;
-    })
-    .map(function(item){ return item.producto; });
+  return lista.slice().sort(function(a, b) {
+    var va = valor(a), vb = valor(b);
+    if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+    return String(va).localeCompare(String(vb), 'es', { numeric:true, sensitivity:'base' }) * dir;
+  });
 }
 
 function _renderFilaProd(p) {
   var stk = parseInt(p.stock) || 0;
   var stkColor = stk <= 0 ? 'var(--red)' : stk <= (p.stockMin||2) ? 'var(--amber)' : 'var(--green)';
-  var metricas = metricasListaProducto(p);
-  var pv = metricas.venta;
-  var pc = metricas.compra;
+  var precioCanonico = precioVentaCanonicoProducto(p);
+  var pv = precioCanonico.precioARS;
+  var pc = precioGremioARSDesdeProducto(p);
   var margen = pv > 0 && pc > 0 ? ((pv-pc)/pv*100).toFixed(1) + '%' : '—';
   var pid = String(p.fbKey || '').replace(/"/g,'');
   var provLista = Array.isArray(p.proveedores) ? p.proveedores : [];
@@ -828,12 +770,12 @@ function _renderFilaProd(p) {
   }
   var nombreProvLbl = provLista.length === 1 ? '<br><span style="font-size:10px;color:var(--text3);font-weight:400">' + escapeHTML(provLista[0].nombre||'') + '</span>' : '';
   var pvFmt = (parseFloat(pv)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  return '<tr class="cr pr" data-pid="'+escapeHTML(pid)+'" data-cat="'+escapeHTML(p.categoria||'')+'" onclick="verProductoById(this)" style="cursor:pointer">' +
-    '<td>'+(p.imagenUrl?'<img class="prod-row-img" loading="lazy" decoding="async" src="'+escapeHTML(p.imagenUrl)+'" onerror="this.style.display=\'none\'">'
+  return '<tr class="cr pr" data-pid="'+pid+'" data-cat="'+(p.categoria||'')+'" onclick="verProductoById(this)" style="cursor:pointer">' +
+    '<td>'+(p.imagenUrl?'<img class="prod-row-img" src="'+escapeHTML(p.imagenUrl)+'" onerror="this.style.display=\'none\'">'
       :'<div class="prod-row-img prod-row-img-placeholder"><i class="ti ti-photo"></i></div>')+'</td>'+
-    '<td style="font-family:monospace;font-size:12px">'+escapeHTML(p.codigo||'')+'</td>'+
-    '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.esManoDeObra?'<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px"></i>':'')+escapeHTML(p.nombre||p.descripcion||'')+'</td>'+
-    '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(p.descripcion||'—')+'</td>'+
+    '<td style="font-family:monospace;font-size:12px">'+(p.codigo||'')+'</td>'+
+    '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.esManoDeObra?'<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px"></i>':'')+(p.nombre||p.descripcion||'')+'</td>'+
+    '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.descripcion||'—')+'</td>'+
     '<td style="text-align:right;font-weight:600;color:'+stkColor+'">'+stk+'</td>'+
     '<td style="text-align:right">$'+pvFmt+'</td>'+
     '<td style="text-align:right">'+costoLbl+'</td>'+
@@ -859,9 +801,6 @@ function renderTablaProductos(filtro) {
   var catFiltro = window._prodCategoriaFiltro || (document.getElementById('filter-cat')||{}).value || '';
   if (catFiltro) lista = lista.filter(function(p){ return String(p.categoria || p.catId || 'Sin categoría') === String(catFiltro); });
   if (_filtroProductosSinPrecio) lista = lista.filter(productoSinPrecioCatalogo);
-  // Reducir antes de ordenar evita auditar y ordenar productos que no se van
-  // a mostrar cuando el usuario está buscando un código o nombre concreto.
-  if (filtro && filtro.trim()) lista = lista.filter(function(p) { return _prodCoincideBusqueda(p, filtro); });
   // El encabezado debe estar siempre visible: es también la herramienta de
   // ordenamiento, incluso cuando el catálogo aparece agrupado por categoría.
   var thead = document.getElementById('prod-tbl-thead');
@@ -870,6 +809,7 @@ function renderTablaProductos(filtro) {
 
   // Con búsqueda activa → vista plana
   if (filtro && filtro.trim()) {
+    lista = lista.filter(function(p) { return _prodCoincideBusqueda(p, filtro); });
     if (!lista.length) {
       tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">'+(_filtroProductosSinPrecio ? 'No hay productos sin precio que coincidan con la búsqueda "'+escapeHTML(filtro)+'"' : 'Sin resultados para "'+escapeHTML(filtro)+'"')+'</td></tr>';
       return;
@@ -896,11 +836,11 @@ function renderTablaProductos(filtro) {
   var html = '';
   cats.forEach(function(cat) {
     var prods = grupos[cat];
-    var abierta = _prodCatsAbiertas[cat] !== false;
+    var abierta = _prodCatsAbiertas[cat] !== false; // abierta por defecto
     var catId = 'cat-' + cat.replace(/[^a-zA-Z0-9]/g,'_');
     var catStyle = 'cursor:pointer;background:var(--bg3);border-left:3px solid var(--blue);user-select:none';
     var iconStyle = 'font-size:10px;color:var(--blue);display:inline-block;transition:transform .2s;' + (abierta ? 'transform:rotate(90deg)' : '');
-    html += '<tr class="prod-cat-row" data-cat-name="'+escapeHTML(cat)+'" onclick="toggleProdCat(this.dataset.catName)" style="'+catStyle+'">' +
+    html += '<tr class="prod-cat-row" onclick="toggleProdCat(\''+escapeHTML(cat)+'\')" style="'+catStyle+'">' +
       '<td colspan="9" style="padding:12px 14px">' +
       '<div style="display:flex;align-items:center;gap:10px">' +
       '<span id="icon-'+catId+'" style="'+iconStyle+'">&#9658;</span>' +
@@ -916,73 +856,35 @@ function renderTablaProductos(filtro) {
 
 var _todasColapsadas = false;
 
-function _filaCategoriaProducto(cat) {
-  var filas = document.querySelectorAll('#prod-tbody .prod-cat-row');
-  for (var i = 0; i < filas.length; i++) {
-    if (filas[i].dataset.catName === cat) return filas[i];
-  }
-  return null;
-}
-
-function _filasCategoriaProducto(cabecera) {
-  var filas = [];
-  var actual = cabecera ? cabecera.nextElementSibling : null;
-  while (actual && !actual.classList.contains('prod-cat-row')) {
-    if (actual.classList.contains('cr')) filas.push(actual);
-    actual = actual.nextElementSibling;
-  }
-  return filas;
-}
-
-function _insertarFilasCategoriaProducto(cat) {
-  var cabecera = _filaCategoriaProducto(cat);
-  var productos = (window._prodGrupos || {})[cat] || [];
-  if (!cabecera || !productos.length || _filasCategoriaProducto(cabecera).length) return;
-  cabecera.insertAdjacentHTML('afterend', productos.map(_renderFilaProd).join(''));
-}
-
-function _actualizarBotonCategorias(texto) {
-  var label = document.getElementById('label-colapsar-cats');
-  var icon = document.getElementById('icon-colapsar-cats');
-  if (label) label.textContent = texto || (_todasColapsadas ? 'Expandir todo' : 'Colapsar todo');
-  if (icon) icon.className = _todasColapsadas ? 'ti ti-layout-rows' : 'ti ti-layout-list';
-}
-
 function toggleTodasCats() {
   _todasColapsadas = !_todasColapsadas;
-  var categorias = Object.keys(window._prodGrupos || {});
-  categorias.forEach(function(cat) {
+  Object.keys(window._prodGrupos || {}).forEach(function(cat) {
     _prodCatsAbiertas[cat] = !_todasColapsadas;
   });
-  // renderTablaProductos toma el texto visible del buscador cuando no recibe
-  // argumento. No depende de una variable global inexistente.
-  renderTablaProductos();
-  _actualizarBotonCategorias();
+  // Re-renderizar la tabla
+  renderTablaProductos((document.getElementById('prod-search')||{}).value||'');
+  var label = document.getElementById('label-colapsar-cats');
+  var icon  = document.getElementById('icon-colapsar-cats');
+  if (label) label.textContent = _todasColapsadas ? 'Expandir todo' : 'Colapsar todo';
+  if (icon)  icon.className = _todasColapsadas ? 'ti ti-layout-rows' : 'ti ti-layout-list';
 }
 
 function toggleProdCat(cat) {
-  var cabecera = _filaCategoriaProducto(cat);
-  if (!cabecera) return;
-  // El DOM visible es la fuente de verdad: un clic siempre invierte lo que el
-  // usuario está viendo, incluso en categorías heredadas con catId o sin nombre.
-  var filasVisibles = _filasCategoriaProducto(cabecera);
-  var abierta = filasVisibles.length === 0;
-  _prodCatsAbiertas[cat] = abierta;
+  _prodCatsAbiertas[cat] = (_prodCatsAbiertas[cat] === true) ? false : true;
+  var abierta = _prodCatsAbiertas[cat] !== false;
   var catId = 'cat-' + cat.replace(/[^a-zA-Z0-9]/g,'_');
   var icon = document.getElementById('icon-'+catId);
   if (icon) icon.style.transform = abierta ? 'rotate(90deg)' : '';
+  // Re-renderizar solo las filas de esa categoría
+  var tbody = document.getElementById('prod-tbody');
+  if (!tbody) return;
+  var rows = tbody.querySelectorAll('.cr[data-cat="'+CSS.escape(cat)+'"]');
   if (abierta) {
-    // La colección ya está filtrada y ordenada en _prodGrupos. Insertar sólo
-    // este bloque evita recalcular y reconstruir las demás categorías.
-    _insertarFilasCategoriaProducto(cat);
+    // Necesita re-render completo para insertar filas
+    renderTablaProductos((document.getElementById('prod-search')||{}).value||'');
   } else {
-    filasVisibles.forEach(function(r){ r.remove(); });
+    rows.forEach(function(r){ r.remove(); });
   }
-  var categorias = Object.keys(window._prodGrupos || {});
-  _todasColapsadas = categorias.length > 0 && categorias.every(function(nombre) {
-    return _prodCatsAbiertas[nombre] === false;
-  });
-  _actualizarBotonCategorias();
 }
 
 function buscarProducto(val) { renderTablaProductos(val); }
@@ -1317,44 +1219,8 @@ function generarOrdenCompraDesdeVenta(ventaObj) {
   console.error('El módulo de compras no está disponible; no se creó ninguna orden parcial.');
   if (typeof notify === 'function') notify('No se pudo preparar la compra. Recargá la aplicación e intentá nuevamente.');
 }
-var _svPptoVencTimeout = null;
-var _svPptoVencInterval = null;
-
-function _svSesionActivaParaVencimientos() {
-  var login = document.getElementById('screen-login');
-  var app = document.getElementById('screen-app');
-  return !!(
-    isAuthenticated &&
-    currentUserUid &&
-    ['admin','administrativo'].includes(currentRole) &&
-    window.fbAuth && window.fbAuth.currentUser &&
-    !document.body.classList.contains('sv-sesion-cerrada') &&
-    (!login || login.style.display === 'none') &&
-    app && app.classList.contains('visible')
-  );
-}
-
-function _svClaveAvisoVencimiento(p, fecha) {
-  var usuario = currentUserUid || 'sin-usuario';
-  var registro = p.fbKey || p.id || 'sin-id';
-  return 'sisventas:ppto-vencimiento:' + usuario + ':' + registro + ':' + fecha;
-}
-
-function _svAvisoVencimientoYaMostrado(p, fecha) {
-  try { return localStorage.getItem(_svClaveAvisoVencimiento(p, fecha)) === '1'; }
-  catch(e) { return !!p._alertado48h; }
-}
-
-function _svMarcarAvisoVencimientoMostrado(p, fecha) {
-  p._alertado48h = true;
-  try { localStorage.setItem(_svClaveAvisoVencimiento(p, fecha), '1'); } catch(e) {}
-}
-
 function verificarVencimientosPptos() {
-  // Nunca consultar, modificar ni mostrar recordatorios fuera de una sesión
-  // administrativa completamente iniciada. Los temporizadores sobreviven a
-  // cambios de pantalla y antes podían superponer el aviso sobre el login.
-  if (!_svSesionActivaParaVencimientos()) return;
+  if (currentRole === 'tecnico' || currentRole === 'vendedor') return;
   var hoy  = new Date();
   var hoyStr = svFechaLocalISO(hoy);
   var en48h  = svFechaLocalISO(new Date(hoy.getTime() + 48*3600*1000));
@@ -1375,10 +1241,10 @@ function verificarVencimientosPptos() {
 
   // 2. Alertar los que vencen en las próximas 48hs
   var proximos = (pptoData||[]).filter(function(p){
-    return p.vence && p.vence >= hoyStr && p.vence <= en48h && estadosActivos.includes(p.estado) && !_svAvisoVencimientoYaMostrado(p, hoyStr);
+    return p.vence && p.vence >= hoyStr && p.vence <= en48h && estadosActivos.includes(p.estado) && !p._alertado48h;
   });
   if (proximos.length) {
-    proximos.forEach(function(p){ _svMarcarAvisoVencimientoMostrado(p, hoyStr); });
+    proximos.forEach(function(p){ p._alertado48h = true; }); // evitar repetir
     pptoAlertarVencimientosProximos(proximos);
   }
 
@@ -1389,18 +1255,8 @@ function verificarVencimientosPptos() {
 }
 
 function pptoAlertarVencimientosProximos(pptos) {
-  if (!_svSesionActivaParaVencimientos()) return;
-  var stack = document.getElementById('sv-ppto-alert-stack');
-  if (!stack) {
-    stack = document.createElement('div');
-    stack.id = 'sv-ppto-alert-stack';
-    stack.className = 'sv-action-alert-stack';
-    stack.setAttribute('aria-live', 'polite');
-    document.body.appendChild(stack);
-  }
-
+  // Mostrar notificación con botón de WhatsApp para cada uno
   pptos.forEach(function(p) {
-    if (!_svSesionActivaParaVencimientos()) return;
     var diasStr = p.vence === svFechaLocalISO() ? 'HOY' : 'mañana';
     var cli = _svResolverClienteRegistro(p, true);
     var tel = cli ? (cli.telefono||cli.tel||cli.celular||'').replace(/\D/g,'') : '';
@@ -1411,34 +1267,18 @@ function pptoAlertarVencimientosProximos(pptos) {
     );
 
     var waUrl = tel ? 'https://wa.me/54' + tel + '?text=' + msg : '';
-    var div = document.createElement('section');
-    div.className = 'sv-action-alert';
+    // Notificación especial con botón
+    var div = document.createElement('div');
+    div.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:99999;background:var(--bg2);border:1px solid var(--amber);border-radius:12px;padding:14px 18px;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:360px;width:90vw;font-size:13px';
     div.innerHTML =
-      '<div class="sv-action-alert-icon"><i class="ti ti-clock-exclamation"></i></div>' +
-      '<div class="sv-action-alert-content">' +
-        '<div class="sv-action-alert-heading"><span>Presupuesto próximo a vencer</span><span class="sv-action-alert-badge">' + escapeHTML(diasStr) + '</span></div>' +
-        '<div class="sv-action-alert-title">' + escapeHTML(p.cliente||'Cliente sin identificar') + '</div>' +
-        '<div class="sv-action-alert-meta">' + escapeHTML(p.id||'Sin número') + '<span></span>' + escapeHTML(total) + '</div>' +
-        '<div class="sv-action-alert-actions">' +
-          '<button type="button" class="btn btn-sm sv-action-alert-open"><i class="ti ti-eye"></i> Ver presupuesto</button>' +
-          (waUrl ? '<a class="btn btn-sm sv-action-alert-wa" href="'+waUrl+'" target="_blank" rel="noopener"><i class="ti ti-brand-whatsapp"></i> Recordar</a>' : '') +
-        '</div>' +
-      '</div>' +
-      '<button type="button" class="sv-action-alert-close" aria-label="Cerrar aviso"><i class="ti ti-x"></i></button>';
-
-    var cerrar = function(){
-      div.classList.add('is-leaving');
-      setTimeout(function(){ if (div.parentNode) div.remove(); }, 180);
-    };
-    div.querySelector('.sv-action-alert-close').addEventListener('click', cerrar);
-    div.querySelector('.sv-action-alert-open').addEventListener('click', function(){
-      if (!_svSesionActivaParaVencimientos()) return cerrar();
-      showPage('presupuesto');
-      setTimeout(function(){ verPpto(p.fbKey || p.id || ''); }, 0);
-      cerrar();
-    });
-    stack.appendChild(div);
-    setTimeout(cerrar, 18000);
+      '<div style="font-weight:600;color:var(--amber);margin-bottom:6px">⏰ Presupuesto por vencer ' + diasStr + '</div>' +
+      '<div style="color:var(--text2);margin-bottom:10px">' + escapeHTML(p.cliente||'') + ' · ' + escapeHTML(p.id||'') + ' · ' + total + '</div>' +
+      '<div style="display:flex;gap:8px">' +
+        (waUrl ? '<a href="'+waUrl+'" target="_blank" style="flex:1;padding:8px;border-radius:8px;background:#25d366;color:#fff;text-align:center;font-weight:600;text-decoration:none;font-size:12px">📱 Recordatorio WhatsApp</a>' : '') +
+        '<button onclick="this.parentNode.parentNode.remove()" style="padding:8px 14px;border-radius:8px;border:0.5px solid var(--border2);background:none;color:var(--text3);cursor:pointer;font-size:12px">Cerrar</button>' +
+      '</div>';
+    document.body.appendChild(div);
+    setTimeout(function(){ if(div.parentNode) div.remove(); }, 15000);
   });
 }
 function flujoPostPago(ventaObj, montoSena) {
@@ -1611,19 +1451,8 @@ function renderTareasPendientes() {
   }).catch(function(){ container.innerHTML = '<div style="color:var(--text3)">Error al cargar tareas</div>'; });
 }
 function inicializarFlujoVentas() {
-  detenerFlujoVentas();
-  if (!_svSesionActivaParaVencimientos()) return;
-  _svPptoVencTimeout = setTimeout(verificarVencimientosPptos, 1200);
-  _svPptoVencInterval = setInterval(verificarVencimientosPptos, 3600000);
-}
-
-function detenerFlujoVentas() {
-  if (_svPptoVencTimeout) clearTimeout(_svPptoVencTimeout);
-  if (_svPptoVencInterval) clearInterval(_svPptoVencInterval);
-  _svPptoVencTimeout = null;
-  _svPptoVencInterval = null;
-  var stack = document.getElementById('sv-ppto-alert-stack');
-  if (stack) stack.remove();
+  setTimeout(verificarVencimientosPptos, 5000);
+  setInterval(verificarVencimientosPptos, 3600000);
 }
 
 // ASISTENTE IA — powered by Claude
@@ -3357,10 +3186,7 @@ var _svCargaInicial = {
   clientes:  { listo:false, etiqueta:'clientes' },
   productos: { listo:false, etiqueta:'productos' },
   ventas:    { listo:false, etiqueta:'ventas' },
-  // Cobros alimenta deuda, cuenta corriente y varias metricas, pero su primer
-  // snapshot puede ser voluminoso. Se sincroniza en segundo plano: nunca debe
-  // retener la apertura de una sesion que Firebase ya valido.
-  pagos:     { listo:false, etiqueta:'cobros', bloqueante:false }
+  pagos:     { listo:false, etiqueta:'cobros' }
 };
 var _svCargaInicialEsperas = [];
 
@@ -3377,16 +3203,7 @@ function svReiniciarCargaInicial() {
 function svEstadoCargaInicial() {
   var claves = Object.keys(_svCargaInicial);
   var listas = claves.filter(function(k){ return _svCargaInicial[k].listo; });
-  var bloqueantes = claves.filter(function(k){ return _svCargaInicial[k].bloqueante !== false; });
-  var bloqueantesListos = bloqueantes.filter(function(k){ return _svCargaInicial[k].listo; });
-  return {
-    total: claves.length,
-    listos: listas.length,
-    completo: bloqueantesListos.length === bloqueantes.length,
-    sincronizandoFondo: claves.some(function(k){
-      return _svCargaInicial[k].bloqueante === false && !_svCargaInicial[k].listo;
-    })
-  };
+  return { total:claves.length, listos:listas.length, completo:listas.length === claves.length };
 }
 
 function svPintarCargaInicial() {
@@ -3396,11 +3213,7 @@ function svPintarCargaInicial() {
   var pct = estado.total ? Math.round((estado.listos / estado.total) * 100) : 100;
   if (bar) bar.style.width = pct + '%';
   if (msg) {
-    if (estado.completo) {
-      msg.textContent = estado.sincronizandoFondo
-        ? 'Datos principales listos · cobros continúa en segundo plano'
-        : 'Datos principales listos';
-    }
+    if (estado.completo) msg.textContent = 'Datos principales listos';
     else {
       var pendientes = Object.keys(_svCargaInicial).filter(function(k){ return !_svCargaInicial[k].listo; })
         .map(function(k){ return _svCargaInicial[k].etiqueta; });
@@ -3638,7 +3451,6 @@ function fbCargarProductos() {
     svMarcarDatoInicialListo('productos');
     prodData = {};
     stockData = {};
-    invalidarMetricasListaProductos();
     if (data) {
       var _seen = {}; // id → entrada preferida
       Object.entries(data).forEach(function(e) {
@@ -3669,20 +3481,10 @@ function fbCargarProductos() {
         };
       });
     }
-    var prodListEl = document.getElementById('prod-list-view');
-    var prodPageEl = document.getElementById('page-productos');
-    var productosVisibles = !!(prodListEl && prodPageEl && prodPageEl.classList.contains('active') && prodListEl.style.display !== 'none');
-    if (productosVisibles) {
-      if (typeof renderTablaProductos === 'function') {
-        window.requestAnimationFrame(function(){ renderTablaProductos(); });
-      }
-      if (typeof actualizarStatProductos === 'function') {
-        window.setTimeout(actualizarStatProductos, 0);
-      }
-    }
+    if (typeof renderTablaProductos === 'function') renderTablaProductos();
+    if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
     if (typeof actualizarVigenciaPreciosDashboard === 'function') actualizarVigenciaPreciosDashboard();
-    var actualizadorPageEl = document.getElementById('page-actualizadorprecios');
-    if (actualizadorPageEl && actualizadorPageEl.classList.contains('active') && typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
+    if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
     if (typeof limpiarProveedoresManoDeObraExistentes === 'function') limpiarProveedoresManoDeObraExistentes();
     // Si el detalle sigue abierto, refrescarlo con la fuente canónica.
     var prodDetEl = document.getElementById('prod-detail-view');
@@ -3708,16 +3510,8 @@ function fbGuardarProducto(prod) {
           }
         });
       }
-      invalidarMetricasListaProductos();
-      // Guardar desde el formulario no debe reconstruir en ese mismo instante
-      // todo el catálogo oculto. El listener de Firebase hará la reconciliación
-      // definitiva; la lista sólo se pinta si realmente está visible.
-      var listaEl = document.getElementById('prod-list-view');
-      var paginaEl = document.getElementById('page-productos');
-      var listaVisible = !!(listaEl && paginaEl && paginaEl.classList.contains('active') && listaEl.style.display !== 'none');
-      if (listaVisible && typeof renderTablaProductos === 'function') {
-        window.requestAnimationFrame(function(){ renderTablaProductos(); });
-      }
+      if (typeof renderTablaProductos === 'function') renderTablaProductos((document.getElementById('prod-search')||{}).value || '');
+      if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
     } catch(e) {}
   }
   if (prod.fbKey) {
@@ -5471,7 +5265,6 @@ function doLogoutAutomatico() {
 }
 
 function _cerrarInterfacesAlSalir() {
-  if (typeof detenerFlujoVentas === 'function') detenerFlujoVentas();
   if (typeof detenerSyncComunicados === 'function') detenerSyncComunicados();
   var actualizador = document.getElementById('modal-actualizador-precios');
   if (actualizador) {
@@ -5891,10 +5684,6 @@ function showPage(id, el) {
     if(plv) plv.style.display='block';
     if(pfv) pfv.style.display='none';
     if(pdv) pdv.style.display='none';
-    setTimeout(function(){
-      if (typeof renderTablaProductos === 'function') renderTablaProductos();
-      if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
-    }, 0);
   }
 
   // FAB y Home en mobile
@@ -6019,75 +5808,12 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.215-firebase',
+  VERSION: 'v2.0.206-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La sesión permanece activa al recargar y cobros deja de bloquear el ingreso.'
+    'Columnas estables al entrar y OT completadas visibles en Agenda.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'dashboard', actionLabel:'Ir al inicio' }),
+  RELEASE_FEATURE: Object.freeze({ page:'agenda', actionLabel:'Ver Agenda' }),
   RELEASE_HISTORY: Object.freeze([
-    Object.freeze({
-      version: 'v2.0.215',
-      date: '28/07/2026',
-      title: 'Inicio de sesión estable',
-      notes: Object.freeze(['La recarga espera la respuesta real de Firebase y ya no muestra un falso cierre de sesión.', 'La conciliación de cobros continúa en segundo plano sin retener la apertura del sistema.']),
-      feature: Object.freeze({ page:'dashboard', actionLabel:'Ir al inicio' })
-    }),
-    Object.freeze({
-      version: 'v2.0.214',
-      date: '28/07/2026',
-      title: 'Categorías con respuesta inmediata',
-      notes: Object.freeze(['Colapsar todo vuelve a funcionar y conserva la búsqueda visible.', 'Cada categoría se abre o cierra con un único clic, incluso con datos heredados.']),
-      feature: Object.freeze({ page:'productos', actionLabel:'Ver productos' })
-    }),
-    Object.freeze({
-      version: 'v2.0.213',
-      date: '28/07/2026',
-      title: 'Catálogo completo sin trabajo duplicado',
-      notes: Object.freeze(['Las categorías vuelven a mostrarse expandidas desde el inicio.', 'La grilla de Productos queda fuera del generador universal que duplicaba acciones y forzaba el cálculo visual de cientos de filas.']),
-      feature: Object.freeze({ page:'productos', actionLabel:'Ver productos' })
-    }),
-    Object.freeze({
-      version: 'v2.0.212',
-      date: '28/07/2026',
-      title: 'Catálogo fluido al desplegar',
-      notes: Object.freeze(['Cada categoría se abre sin reconstruir las demás y las imágenes se cargan sólo al acercarse a la pantalla.', 'Expandir todo procesa el catálogo por lotes y el motor de grillas revisa cada tabla una sola vez.']),
-      feature: Object.freeze({ page:'productos', actionLabel:'Ver productos' })
-    }),
-    Object.freeze({
-      version: 'v2.0.211',
-      date: '28/07/2026',
-      title: 'Recordatorios seguros e integrados',
-      notes: Object.freeze(['Los avisos nunca se muestran sobre el inicio de sesión ni se duplican durante el mismo día.', 'El recordatorio permite abrir el presupuesto o preparar el mensaje de WhatsApp desde un aviso compacto.']),
-      feature: Object.freeze({ page:'presupuesto', actionLabel:'Ver presupuestos' })
-    }),
-    Object.freeze({
-      version: 'v2.0.210',
-      date: '27/07/2026',
-      title: 'Catálogo completo sin bloqueos',
-      notes: Object.freeze(['Las categorías nacen cerradas y se abren individualmente, manteniendo disponibles todos los productos.', 'Buscar revisa el catálogo completo y la auditoría sólo comienza al presionar Auditar precios.']),
-      feature: Object.freeze({ page:'productos', actionLabel:'Ver productos' })
-    }),
-    Object.freeze({
-      version: 'v2.0.209',
-      date: '27/07/2026',
-      title: 'Catálogo rápido y estable',
-      notes: Object.freeze(['El listado completo usa los precios operativos ya guardados y vuelve a abrir sin bloquearse.', 'Las verificaciones históricas de moneda y proveedor quedan reservadas para Auditar precios y la ficha individual.']),
-      feature: Object.freeze({ page:'productos', actionLabel:'Ver productos' })
-    }),
-    Object.freeze({
-      version: 'v2.0.208',
-      date: '27/07/2026',
-      title: 'Revisión de precios clara y accionable',
-      notes: Object.freeze(['Los indicadores usan el mismo conjunto y nunca muestran cantidades negativas.', 'Cada indicador filtra los productos correspondientes y la lista puede recalcularse sin perder la búsqueda.']),
-      feature: Object.freeze({ page:'productos', actionLabel:'Ver productos' })
-    }),
-    Object.freeze({
-      version: 'v2.0.207',
-      date: '27/07/2026',
-      title: 'Grillas, firma y garantías coherentes',
-      notes: Object.freeze(['Las tablas conservan columnas legibles y se desplazan horizontalmente en celular.', 'La firma se guarda tras cuatro segundos sin dibujar y ocupa mejor su espacio en el acta.', 'Los equipos instalados con cobertura aparecen automáticamente en Garantías.']),
-      feature: Object.freeze({ page:'ordentrabajo', actionLabel:'Ver órdenes de trabajo' })
-    }),
     Object.freeze({
       version: 'v2.0.206',
       date: '27/07/2026',
@@ -7455,10 +7181,6 @@ function instalarMenusAccionesGrillas(contenedor) {
   }
   root.querySelectorAll('table').forEach(function(tabla){ tablas.push(tabla); });
   Array.from(new Set(tablas)).forEach(function(tabla) {
-    // Productos ya tiene acciones explícitas y puede contener cientos de
-    // filas. No duplicar botones ni forzar mediciones de layout sobre toda la
-    // grilla cada vez que Firebase o el usuario actualizan el catálogo.
-    if (tabla.dataset.svNoActions === '1') return;
     var encabezados = Array.from(tabla.querySelectorAll('thead th'));
     if (!encabezados.length) return;
     var indice = encabezados.findIndex(function(th, i) {
@@ -7675,29 +7397,14 @@ function instalarDesplazamientoTablas() {
   instalarOrdenamientoGrillas(document);
   instalarMenusAccionesGrillas(document);
   if (window._svGridObserver) return;
-  var pendientes = new Set();
-  var cuadroPendiente = 0;
-  var programar = function(nodo) {
-    if (!nodo || nodo.nodeType !== 1) return;
-    var tabla = nodo.matches && nodo.matches('table') ? nodo : (nodo.closest ? nodo.closest('table') : null);
-    pendientes.add(tabla || nodo);
-    if (cuadroPendiente) return;
-    cuadroPendiente = requestAnimationFrame(function() {
-      cuadroPendiente = 0;
-      var lote = Array.from(pendientes);
-      pendientes.clear();
-      lote.forEach(function(raiz) {
-        if (!raiz.isConnected) return;
-        asegurarDesplazamientoTablas(raiz);
-        instalarOrdenamientoGrillas(raiz);
-        instalarMenusAccionesGrillas(raiz);
-      });
-    });
-  };
   window._svGridObserver = new MutationObserver(function(cambios) {
     cambios.forEach(function(cambio) {
       cambio.addedNodes.forEach(function(nodo) {
-        programar(nodo);
+        if (nodo && nodo.nodeType === 1) {
+          asegurarDesplazamientoTablas(nodo);
+          instalarOrdenamientoGrillas(nodo);
+          instalarMenusAccionesGrillas(nodo);
+        }
       });
     });
   });
@@ -7756,21 +7463,7 @@ function secureLog(message) {
 }
 
 const SESSION_TIMEOUT = 30 * 60 * 1000;
-var SESSION_ADMIN_PERSIST_KEY = 'sisventas_admin_sesion_sin_timeout';
-window._preferenciasSesionCargadas = false;
-try {
-  var _preferenciaSesionLocal = localStorage.getItem(SESSION_ADMIN_PERSIST_KEY);
-  window._desactivarCierreSesionAdmin = _preferenciaSesionLocal === '1';
-  window._preferenciasSesionCargadas = _preferenciaSesionLocal === '1' || _preferenciaSesionLocal === '0';
-} catch(e) {
-  window._desactivarCierreSesionAdmin = false;
-}
-
-function persistirPreferenciaSesionAdmin(valor) {
-  window._desactivarCierreSesionAdmin = valor === true;
-  window._preferenciasSesionCargadas = true;
-  try { localStorage.setItem(SESSION_ADMIN_PERSIST_KEY, valor === true ? '1' : '0'); } catch(e) {}
-}
+window._desactivarCierreSesionAdmin = false;
 
 function sesionAdminSinCierrePorInactividad() {
   return isAuthenticated && String(currentRole || '').toLowerCase() === 'admin' && window._desactivarCierreSesionAdmin === true;
@@ -7962,20 +7655,14 @@ function _resolverRolYCompletarLogin(user, err) {
   currentUserUid = user.uid;
   currentUserEmail = emailLower;
 
-  var _rolAplicado = false;
-
-  // Si la lectura del rol tarda, completar con un rol seguro. Nunca cerrar una
-  // sesion valida por una demora de red: eso expulsaba al usuario durante
-  // algunas actualizaciones automaticas.
+  // Timeout de emergencia: si en 8 segundos no completó el login,
+  // cerrar sesión y mostrar el login limpio para no quedar colgado.
   var _loginTimeout = setTimeout(function() {
-    if (!isAuthenticated || _rolAplicado) return;
-    console.warn('[Auth] La lectura del rol demoro; restaurando con fallback seguro');
-    aplicarRolYNombre(window.usuariosData || []);
+    if (!isAuthenticated) return;
+    _cancelarAutenticacionParcial('El servidor tardó demasiado en responder. Intentá de nuevo.', err);
   }, 8000);
 
   function aplicarRolYNombre(lista) {
-    if (_rolAplicado) return;
-    _rolAplicado = true;
     clearTimeout(_loginTimeout); // login completado, cancelar timeout
     lista = lista || [];
     var usuario = lista.find(function(u) {
@@ -8018,13 +7705,14 @@ function _resolverRolYCompletarLogin(user, err) {
   // Siempre leer frescos desde Firebase — no confiar en caché de sesión anterior
   // que podría tener datos de otro usuario o de una versión vieja del código.
   var _usuariosTimeout = setTimeout(function() {
-    if (_rolAplicado) return;
     console.warn('[Auth] fbGet usuarios timeout — usando fallback');
     if (window.usuariosData && window.usuariosData.length) {
       aplicarRolYNombre(window.usuariosData);
     } else {
       // Sin caché: asumir admin si es el email de nixa
-      aplicarRolYNombre([]);
+      var esAdminFallback = emailLower === 'nixa@sistemanixa.com' || emailLower.startsWith('admin@');
+      currentRole = esAdminFallback ? 'admin' : 'vendedor';
+      _completarLogin(user.displayName || user.email.split('@')[0]);
     }
   }, 5000);
 
@@ -8035,14 +7723,13 @@ function _resolverRolYCompletarLogin(user, err) {
     window.usuariosData = lista; // actualizar caché
     aplicarRolYNombre(lista);
   }).catch(function() {
-    if (_rolAplicado) return;
     clearTimeout(_usuariosTimeout);
     clearTimeout(_loginTimeout);
     // Fallback: intentar con datos cacheados si los hay
     if (window.usuariosData && window.usuariosData.length) {
       aplicarRolYNombre(window.usuariosData);
     } else {
-      aplicarRolYNombre([]);
+      _cancelarAutenticacionParcial('No se pudo verificar el rol. Verificá tu conexión.', err);
     }
   });
 }
@@ -8065,71 +7752,62 @@ async function _cancelarAutenticacionParcial(mensaje, errorEl) {
 // al cargar la página, restaura directamente sin pedir credenciales de nuevo.
 var _sesionYaRestaurada = false;
 var _primeraVerificacionAuth = true;
-var _observadorAuthInicializado = false;
-var _temporizadorDemoraAuth = null;
 window._restaurandoSesionInicial = false;
-
-function _mostrarDemoraRestauracionSesion(mensaje) {
-  // Una demora de red no equivale a una sesion cerrada. Mantener la pantalla
-  // de arranque evita pedir credenciales mientras Firebase aun restaura la
-  // persistencia local.
-  if (!_primeraVerificacionAuth || isAuthenticated) return;
-  var loadingEl = document.getElementById('screen-loading');
-  var loginEl = document.getElementById('screen-login');
-  var msgEl = document.getElementById('loading-msg');
-  if (loginEl) loginEl.style.display = 'none';
-  if (loadingEl) loadingEl.style.display = 'flex';
-  if (msgEl) msgEl.textContent = mensaje || 'Restaurando la sesion; la conexion esta demorando...';
-}
-
-function _iniciarObservadorAuth() {
-  if (_observadorAuthInicializado) return;
+document.addEventListener('firebase-ready', function() {
   if (!window.fbOnAuth || !window.fbAuth) {
-    _mostrarDemoraRestauracionSesion('No se pudo conectar con autenticacion. Reintentando...');
+    // Sin Firebase Auth disponible — mostrar login directamente
+    _mostrarLoginSinSesion();
     return;
   }
-  _observadorAuthInicializado = true;
-  clearTimeout(_temporizadorDemoraAuth);
-  _temporizadorDemoraAuth = setTimeout(function() {
-    _mostrarDemoraRestauracionSesion('Restaurando la sesion; la conexion esta demorando...');
-  }, 8000);
-
   window.fbOnAuth(window.fbAuth, function(user) {
-    clearTimeout(_temporizadorDemoraAuth);
-    _primeraVerificacionAuth = false;
-    if (user) {
+    if (user && !_sesionYaRestaurada && !isAuthenticated) {
       _sesionYaRestaurada = true;
-      // El login manual ya completa este flujo desde doLogin. El observador
-      // solo restaura automaticamente al recargar o volver a abrir la app.
-      if (window._loginEnCurso || isAuthenticated) return;
+      _primeraVerificacionAuth = false;
       window._restaurandoSesionInicial = true;
       var appScreen = document.getElementById('screen-app');
       if (appScreen && !appScreen.classList.contains('visible')) {
         isAuthenticated = true;
         _resolverRolYCompletarLogin(user, null);
       }
-      return;
+    } else if (!user) {
+      _sesionYaRestaurada = false;
+      _primeraVerificacionAuth = false;
+      _mostrarLoginSinSesion();
     }
-    _sesionYaRestaurada = false;
-    _mostrarLoginSinSesion();
-  }, function(error) {
-    clearTimeout(_temporizadorDemoraAuth);
-    console.error('[Auth] No se pudo resolver el estado de la sesion', error);
-    _primeraVerificacionAuth = true;
-    _mostrarDemoraRestauracionSesion('No se pudo verificar la sesion. Reintentando conexion...');
   });
-}
-
-document.addEventListener('firebase-ready', _iniciarObservadorAuth);
-// Cubre el caso en que el modulo de Firebase termino antes de registrar este
-// listener. No crea un segundo observador gracias a la guarda anterior.
-if (window.firebaseReady) _iniciarObservadorAuth();
+});
 
 function _mostrarLoginSinSesion() {
   // El observador de Auth es autoridad: sin usuario no puede sobrevivir
   // ninguna parte de la aplicacion, incluso si otro flujo mostro el login.
   _bloquearInterfazSinSesion({ limpiarCredenciales: false });
 }
+
+// Red de seguridad: si después de 6 segundos Firebase nunca respondió
+// (sin internet, error de configuración, etc.), mostrar el login igual
+// para no dejar al usuario trabado en la pantalla de carga indefinidamente.
+setTimeout(function() {
+  if (_primeraVerificacionAuth && !isAuthenticated) {
+    _primeraVerificacionAuth = false;
+    _mostrarLoginSinSesion();
+  }
+}, 6000);
+
+// Timeout ABSOLUTO: si después de 12 segundos la app no está visible,
+// mostrar login sin importar qué — cubre casos donde Auth responde pero
+// fbGet de usuarios se cuelga sin error (modo avión con sesión cacheada)
+setTimeout(function() {
+  if (window._loginEnCurso) return;
+  var appScreen = document.getElementById('screen-app');
+  var loginEl   = document.getElementById('screen-login');
+  var loadingEl = document.getElementById('screen-loading');
+  var appVisible = appScreen && appScreen.classList.contains('visible');
+  if (!appVisible && loadingEl && loadingEl.style.display !== 'none') {
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (loginEl)   loginEl.style.display = '';
+    // NO hacer fbSignOut aquí — puede interrumpir un login manual lento
+  }
+}, 15000);
 // y aplica el cambio a online:false automáticamente, sin depender de que el
 // a diferencia de simplemente registrar el último login.
 function registrarPresenciaOnline() {
@@ -10414,39 +10092,16 @@ function actualizarVigenciaPreciosDashboard() {
     : (productos.length ? 'todos actualizados' : 'sin productos');
 }
 
-var _revisionPreciosFiltroTipo = 'todos';
-
-function filtrarGestionRevisionPrecios(texto, tipo) {
-  if (tipo === 'todos' || tipo === 'automatizable' || tipo === 'manual') {
-    _revisionPreciosFiltroTipo = tipo;
-  }
-  var buscador = document.getElementById('revision-precios-buscador');
-  var q = String(texto !== undefined ? texto : (buscador ? buscador.value : '')).toLowerCase().trim();
+function filtrarGestionRevisionPrecios(texto) {
+  var q = String(texto || '').toLowerCase().trim();
   var visibles = 0;
-  var total = 0;
   document.querySelectorAll('#revision-precios-lista [data-revision-producto]').forEach(function(fila) {
-    total++;
-    var coincideTexto = !q || String(fila.dataset.busqueda || '').indexOf(q) >= 0;
-    var tipoFila = String(fila.dataset.revisionTipo || 'manual');
-    var coincideTipo = _revisionPreciosFiltroTipo === 'todos' || tipoFila === _revisionPreciosFiltroTipo;
-    var mostrar = coincideTexto && coincideTipo;
+    var mostrar = !q || String(fila.dataset.busqueda || '').indexOf(q) >= 0;
     fila.style.display = mostrar ? '' : 'none';
     if (mostrar) visibles++;
   });
-  document.querySelectorAll('[data-revision-kpi]').forEach(function(kpi) {
-    var activo = String(kpi.dataset.revisionKpi || '') === _revisionPreciosFiltroTipo;
-    kpi.setAttribute('aria-pressed', activo ? 'true' : 'false');
-    kpi.style.borderColor = activo ? 'var(--blue)' : '';
-    kpi.style.boxShadow = activo ? '0 0 0 1px var(--blue)' : '';
-  });
   var contador = document.getElementById('revision-precios-contador');
-  if (contador) contador.textContent = visibles + ' de ' + total + ' producto' + (total !== 1 ? 's' : '');
-}
-
-function actualizarGestionRevisionPrecios() {
-  _revisionPreciosEstadoPendiente = capturarEstadoRevisionPrecios();
-  abrirGestionRevisionPrecios();
-  notify('Lista de revisión recalculada con los datos actuales');
+  if (contador) contador.textContent = visibles + ' producto' + (visibles !== 1 ? 's' : '');
 }
 
 var _revisionPreciosEstadoPendiente = null;
@@ -10542,7 +10197,6 @@ function capturarEstadoRevisionPrecios() {
   return {
     busqueda: buscador ? buscador.value : '',
     scrollTop: lista ? lista.scrollTop : 0,
-    tipo: _revisionPreciosFiltroTipo,
     pagina: pagina ? String(pagina.id || '').replace(/^page-/, '') : 'dashboard'
   };
 }
@@ -10639,15 +10293,9 @@ function abrirGestionRevisionPrecios() {
   var productos = Object.values(prodData || {}).filter(function(p){
     return p && p.activo !== false && p.estado !== 'inactivo' && !esProductoManoDeObra(p) && !estadoVigenciaPrecioProducto(p).vigente;
   }).sort(function(a,b){ return String(a.nombre || a.descripcion || '').localeCompare(String(b.nombre || b.descripcion || '')); });
-  var productosKeys = {};
-  productos.forEach(function(p){ productosKeys[String(p.fbKey || '')] = true; });
-  var compatibles = productosBiosegurActualizables().filter(function(x) {
-    return !!productosKeys[String((x.producto || {}).fbKey || '')];
-  });
+  var compatibles = productosBiosegurActualizables();
   var compatiblesKeys = {};
   compatibles.forEach(function(x){ compatiblesKeys[String(x.producto.fbKey || '')] = true; });
-  var cantidadAutomatizables = Object.keys(compatiblesKeys).length;
-  var cantidadManuales = Math.max(0, productos.length - cantidadAutomatizables);
   var overlay = document.createElement('div');
   overlay.id = 'modal-revision-precios';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10015;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:16px';
@@ -10655,12 +10303,8 @@ function abrirGestionRevisionPrecios() {
     '<div style="width:min(900px,100%);max-height:92vh;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)"><div><div style="font-size:16px;font-weight:700"><i class="ti ti-clipboard-search" style="color:var(--amber);margin-right:7px"></i>Revisión de precios de productos</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Productos sin verificar o con actualización de más de 24 horas</div></div><button class="icon-btn" onclick="document.getElementById(\'modal-revision-precios\').remove()"><i class="ti ti-x"></i></button></div>' +
       '<div style="padding:16px 18px;display:flex;flex-direction:column;min-height:0;flex:1">' +
-        '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">' +
-          '<button type="button" class="metric" data-revision-kpi="todos" aria-pressed="true" onclick="filtrarGestionRevisionPrecios(undefined,\'todos\')" style="text-align:left;cursor:pointer;font:inherit;color:inherit"><div class="m-label">Requieren revisión</div><div class="m-value" style="color:var(--amber)">' + productos.length + '</div><div class="m-sub">sin verificar o vencidos · tocar para ver</div></button>' +
-          '<button type="button" class="metric" data-revision-kpi="automatizable" aria-pressed="false" onclick="filtrarGestionRevisionPrecios(undefined,\'automatizable\')" style="text-align:left;cursor:pointer;font:inherit;color:inherit"><div class="m-label">Automatizables</div><div class="m-value" style="color:var(--green)">' + cantidadAutomatizables + '</div><div class="m-sub">URL y proveedor compatibles · tocar para ver</div></button>' +
-          '<button type="button" class="metric" data-revision-kpi="manual" aria-pressed="false" onclick="filtrarGestionRevisionPrecios(undefined,\'manual\')" style="text-align:left;cursor:pointer;font:inherit;color:inherit"><div class="m-label">Gestión manual</div><div class="m-value">' + cantidadManuales + '</div><div class="m-sub">sin integración compatible · tocar para ver</div></button>' +
-        '</div>' +
-        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><input id="revision-precios-buscador" class="search-input" style="flex:1;min-width:220px" placeholder="Buscar código, producto o proveedor…" oninput="filtrarGestionRevisionPrecios(this.value)"><span id="revision-precios-contador" style="font-size:11px;color:var(--text3)">' + productos.length + ' de ' + productos.length + ' productos</span><button class="btn" onclick="actualizarGestionRevisionPrecios()" title="Recalcular indicadores y lista con los datos actuales"><i class="ti ti-reload"></i> Actualizar lista</button><button class="btn btn-primary" onclick="document.getElementById(\'modal-revision-precios\').remove();abrirActualizadorMasivoPrecios()" ' + (!compatibles.length?'disabled':'') + '><i class="ti ti-refresh"></i> Actualizar compatibles</button></div>' +
+        '<div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"><div class="metric"><div class="m-label">Requieren revisión</div><div class="m-value" style="color:var(--amber)">' + productos.length + '</div><div class="m-sub">total del catálogo</div></div><div class="metric"><div class="m-label">Automatizables</div><div class="m-value" style="color:var(--green)">' + Object.keys(compatiblesKeys).length + '</div><div class="m-sub">Biosegur, Free, Tecnoprices o ML</div></div><div class="metric"><div class="m-label">Gestión manual</div><div class="m-value">' + (productos.length-Object.keys(compatiblesKeys).length) + '</div><div class="m-sub">sin URL verificable</div></div></div>' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><input class="search-input" style="flex:1;min-width:220px" placeholder="Buscar código, producto o proveedor…" oninput="filtrarGestionRevisionPrecios(this.value)"><span id="revision-precios-contador" style="font-size:11px;color:var(--text3)">' + productos.length + ' productos</span><button class="btn btn-primary" onclick="document.getElementById(\'modal-revision-precios\').remove();abrirActualizadorMasivoPrecios()" ' + (!compatibles.length?'disabled':'') + '><i class="ti ti-refresh"></i> Actualizar compatibles</button></div>' +
         '<div id="revision-precios-lista" style="overflow:auto;border:0.5px solid var(--border);border-radius:10px">' + productos.map(function(p){
           var estado = estadoVigenciaPrecioProducto(p);
           var listaProveedores = proveedoresVinculadosProducto(p);
@@ -10675,7 +10319,7 @@ function abrirGestionRevisionPrecios() {
             var valorProveedor = parseFloat((pv && (pv.costoRealArs || pv.precioArsPublicado || pv.precio)) || valorActual || 0) || 0;
             return '<div style="display:grid;grid-template-columns:minmax(150px,.6fr) minmax(260px,1.4fr) auto 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)"><div><strong>' + escapeHTML((pv && (pv.nombre || pv.proveedor)) || 'Proveedor') + '</strong><div style="font-size:10px;color:var(--green);margin-top:3px">Valor actual: $' + valorProveedor.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div></div><input id="revision-precios-url-' + idUrl + '" class="search-input" type="url" value="' + escapeHTML((pv && pv.url) || '') + '" placeholder="URL exacta del producto"><button class="btn btn-sm btn-primary" onclick="guardarUrlDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\',' + idx + ')"><i class="ti ti-device-floppy"></i> Guardar URL</button><span id="revision-precios-guardado-' + idUrl + '" style="font-size:10px;color:var(--text3)"></span></div>';
           }).join('') : '<div style="color:var(--amber);font-size:12px;padding:8px 0 10px"><i class="ti ti-alert-circle"></i> Este producto no tiene proveedores vinculados.</div><div style="display:grid;grid-template-columns:minmax(180px,.7fr) minmax(260px,1.3fr) auto;gap:8px;align-items:center"><select id="revision-precios-proveedor-' + idProducto + '" class="search-input"><option value="">Seleccionar proveedor…</option>' + (proveedoresData || []).filter(function(pr){return pr && pr.activo !== false;}).sort(function(a,b){return String(a.nombre||'').localeCompare(String(b.nombre||''));}).map(function(pr){return '<option value="' + escapeHTML(String(pr.fbKey || pr.key || pr.id || '')) + '">' + escapeHTML(pr.nombre || 'Proveedor') + '</option>';}).join('') + '</select><input id="revision-precios-nueva-url-' + idProducto + '" class="search-input" type="url" placeholder="URL exacta del producto (puede completarse después)"><button class="btn btn-sm btn-primary" onclick="asignarProveedorDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')"><i class="ti ti-link-plus"></i> Vincular proveedor</button></div>';
-          return '<div data-revision-producto data-revision-tipo="' + (auto ? 'automatizable' : 'manual') + '" data-busqueda="' + escapeHTML(busqueda) + '" style="display:grid;grid-template-columns:105px minmax(170px,1fr) minmax(120px,.65fr) 105px 115px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><button type="button" onclick="abrirProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')" title="Abrir ficha del producto" style="min-width:0;text-align:left;background:none;border:0;padding:0;cursor:pointer;color:inherit;font-family:inherit"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</div><small style="color:var(--text3)">' + escapeHTML(estado.texto) + '</small></button><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text3)" title="' + escapeHTML(provs) + '">' + escapeHTML(provs) + '</div><div title="Valor actual para comparar con la URL" style="font-weight:700;color:var(--green);white-space:nowrap">$' + valorActual.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '<small style="display:block;color:var(--text3);font-weight:400">valor actual</small></div><span style="color:' + (auto?'var(--green)':'var(--amber)') + '">' + (auto?'Automatizable':'Revisión manual') + '</span><button class="btn btn-sm" onclick="editarProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')"><i class="ti ti-link"></i> ' + (listaProveedores.length ? 'Cambiar URL' : 'Asignar proveedor') + '</button><div id="revision-precios-editor-' + idProducto + '" style="display:' + (listaProveedores.length ? 'none' : 'block') + ';grid-column:1/-1;background:var(--bg3);border-radius:8px;padding:8px 10px;margin-top:2px">' + editores + '</div></div>';
+          return '<div data-revision-producto data-busqueda="' + escapeHTML(busqueda) + '" style="display:grid;grid-template-columns:105px minmax(170px,1fr) minmax(120px,.65fr) 105px 115px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><button type="button" onclick="abrirProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')" title="Abrir ficha del producto" style="min-width:0;text-align:left;background:none;border:0;padding:0;cursor:pointer;color:inherit;font-family:inherit"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</div><small style="color:var(--text3)">' + escapeHTML(estado.texto) + '</small></button><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text3)" title="' + escapeHTML(provs) + '">' + escapeHTML(provs) + '</div><div title="Valor actual para comparar con la URL" style="font-weight:700;color:var(--green);white-space:nowrap">$' + valorActual.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '<small style="display:block;color:var(--text3);font-weight:400">valor actual</small></div><span style="color:' + (auto?'var(--green)':'var(--amber)') + '">' + (auto?'Automatizable':'Revisión manual') + '</span><button class="btn btn-sm" onclick="editarProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')"><i class="ti ti-link"></i> ' + (listaProveedores.length ? 'Cambiar URL' : 'Asignar proveedor') + '</button><div id="revision-precios-editor-' + idProducto + '" style="display:' + (listaProveedores.length ? 'none' : 'block') + ';grid-column:1/-1;background:var(--bg3);border-radius:8px;padding:8px 10px;margin-top:2px">' + editores + '</div></div>';
         }).join('') + '</div>' +
       '</div>' +
     '</div>';
@@ -10683,15 +10327,13 @@ function abrirGestionRevisionPrecios() {
   if (_revisionPreciosEstadoPendiente) {
     var estadoPendiente = _revisionPreciosEstadoPendiente;
     _revisionPreciosEstadoPendiente = null;
-    var buscadorRestaurar = document.getElementById('revision-precios-buscador');
-    if (buscadorRestaurar) buscadorRestaurar.value = estadoPendiente.busqueda || '';
-    _revisionPreciosFiltroTipo = estadoPendiente.tipo || 'todos';
-    filtrarGestionRevisionPrecios(estadoPendiente.busqueda || '', _revisionPreciosFiltroTipo);
+    var buscadorRestaurar = overlay.querySelector('.search-input');
+    if (buscadorRestaurar && estadoPendiente.busqueda) {
+      buscadorRestaurar.value = estadoPendiente.busqueda;
+      filtrarGestionRevisionPrecios(estadoPendiente.busqueda);
+    }
     var listaRestaurar = document.getElementById('revision-precios-lista');
     if (listaRestaurar) listaRestaurar.scrollTop = estadoPendiente.scrollTop || 0;
-  } else {
-    _revisionPreciosFiltroTipo = 'todos';
-    filtrarGestionRevisionPrecios('', 'todos');
   }
 }
 
@@ -15170,7 +14812,6 @@ function stopSessionTimer() {
 // setTimeout se haya disparado a tiempo.
 function _chequearInactividadReal() {
   if (typeof isAuthenticated === 'undefined' || !isAuthenticated) return;
-  if (String(currentRole || '').toLowerCase() === 'admin' && !window._preferenciasSesionCargadas) return;
   if (sesionAdminSinCierrePorInactividad()) { clearTimeout(sessionTimer); return; }
   var last = 0;
   try { last = parseInt(localStorage.getItem('sv_lastActivity')) || 0; } catch(e) {}
@@ -15301,7 +14942,7 @@ function _imprimirOTReal() {
     notify('No se pudo preparar la vista previa del acta.');
     return;
   }
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Acta '+escapeHTML(ot.id||'')+'</title><style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}.field{background:#f9f9f9;border-radius:6px;padding:10px}label{font-size:10px;color:#888;text-transform:uppercase;display:block;margin-bottom:2px}.firma{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:42px}.firma-celda{display:flex;flex-direction:column;justify-content:flex-end;min-height:132px}.firma-imagen{height:112px;display:flex;align-items:flex-end;justify-content:flex-start;padding:0 8px 4px}.firma-imagen img{display:block;max-width:100%;width:auto;max-height:106px;height:auto;object-fit:contain;object-position:left bottom}.firma-line{border-top:1px solid #222;padding-top:6px;font-size:11px;color:#666;text-align:center}@media print{body{margin:20px}}</style></head><body>'+
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Acta '+escapeHTML(ot.id||'')+'</title><style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}.field{background:#f9f9f9;border-radius:6px;padding:10px}label{font-size:10px;color:#888;text-transform:uppercase;display:block;margin-bottom:2px}.firma{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px}.firma-line{border-top:1px solid #222;padding-top:6px;font-size:11px;color:#666;text-align:center}@media print{body{margin:20px}}</style></head><body>'+
     '<div class="header"><div>'+logo+'<div style="font-size:11px;color:#666;margin-top:4px">'+empresa.dir+'</div></div>'+
     '<div style="text-align:right"><div style="font-size:18px;font-weight:700">Acta de entrega</div><div style="font-size:15px;font-weight:500">'+escapeHTML(ot.id||'')+'</div><div style="font-size:12px;color:#666">'+escapeHTML(ot.fechaCierre||ot.fechaCompletada||ot.fecha||'')+'</div></div></div>'+
     (function(){
@@ -15340,10 +14981,10 @@ function _imprimirOTReal() {
       '<div class="field" style="margin-bottom:16px"><label>Conformidad del cliente</label>'+escapeHTML(ot.conformidadCliente||'Pendiente')+(ot.nombreConformidad||ot.firmaNombreCliente?' · '+escapeHTML(ot.nombreConformidad||ot.firmaNombreCliente):'')+'</div>'+
       matsHtml + notasHtml;
     })()+
-    '<div class="firma"><div class="firma-celda">' +
-      (firmaUrl ? '<div class="firma-imagen"><img src="'+escapeHTML(firmaUrl)+'"></div>' : '<div class="firma-imagen"></div>') +
+    '<div class="firma"><div>' +
+      (firmaUrl ? '<img src="'+escapeHTML(firmaUrl)+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
       '<div class="firma-line">Firma del cliente'+(firmaUrl?' ✓':'')+(ot.fechaFirma?' · '+escapeHTML(ot.fechaFirma):'')+'</div></div>'+
-      '<div class="firma-celda"><div class="firma-imagen"></div><div class="firma-line">Firma del técnico</div></div></div>'+
+      '<div><div style="height:60px"></div><div class="firma-line">Firma del técnico</div></div></div>'+
     '</body></html>');
   w.document.close();
 }
@@ -15464,6 +15105,7 @@ function fbCargarPagos() {
   window._pagosListenerActivo = true;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/pagos'), function(snap) {
     var data = snap.val();
+    svMarcarDatoInicialListo('pagos');
     var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); }).sort(function(a,b){
       // Ordenar por fecha desc, luego por ts desc como fallback
       var fa = (a.fecha||'').replace(/\//g,'-'); var fb2 = (b.fecha||'').replace(/\//g,'-');
@@ -15473,18 +15115,10 @@ function fbCargarPagos() {
       if (da && db2 && da !== db2) return db2.localeCompare(da);
       return (b.ts||0)-(a.ts||0);
     }) : [];
-    // Publicar primero los datos crudos. Así el dashboard ya dispone de los
-    // cobros reales y la pantalla de entrada puede continuar antes del trabajo
-    // pesado de conciliacion y renderizado de cuenta corriente.
-    window._historialPagosCompleto = lista;
-    window._historialPagosActual = lista;
-    window._svPagosDatosListos = true;
-    svMarcarDatoInicialListo('pagos');
-
-    setTimeout(function() {
-    if (!isAuthenticated) return;
     var pagosTbody = document.getElementById('pagos-tbody');
     // Últimas 20 por defecto — el filtro muestra más si se busca
+    window._historialPagosCompleto = lista;
+    window._historialPagosActual = lista;
     if (typeof filtrarCobranzas === 'function') {
       filtrarCobranzas(); // usa _historialPagosCompleto y aplica filtros activos
     } else {
@@ -15603,10 +15237,6 @@ function fbCargarPagos() {
     if (typeof renderMetricasVentas === 'function') renderMetricasVentas();
     var dashCobros = document.getElementById('page-dashboard');
     if (dashCobros && dashCobros.classList.contains('active') && typeof renderKPIsDashboard === 'function') renderKPIsDashboard();
-    // La conciliacion completa no forma parte del acceso. Dar tiempo a que la
-    // app pinte su primera pantalla evita que "Sincronizando cobros" parezca
-    // congelar o cerrar la sesion durante este trabajo secundario.
-    }, 600);
   }, function(error) {
     window._pagosListenerActivo = false;
     console.error('[Cobros] No se pudo iniciar la sincronizacion', error);
@@ -16999,7 +16629,7 @@ function guardarPreferenciasSistema(btn) {
       window._stockMinDefault = datos.stockMinDefault;
       window._margenProductoDefault = datos.margenProductoDefault;
       aplicarVisibilidadMonitorRecursos(datos.mostrarMonitorRecursos);
-      persistirPreferenciaSesionAdmin(datos.desactivarCierreSesionAdmin);
+      window._desactivarCierreSesionAdmin = datos.desactivarCierreSesionAdmin;
       if (typeof resetSessionTimer === 'function' && isAuthenticated) resetSessionTimer();
       if (window.APROBACION_CONFIG) {
         APROBACION_CONFIG.descuentoLimite = datos.descuentoLimite;
@@ -17092,7 +16722,7 @@ function cargarConfigGeneral() {
     }
   });
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/preferencias')).then(function(snap) {
-    var d = snap.val() || {};
+    var d = snap.val(); if (!d) return;
     var dv = document.getElementById('cfg-dias-venc');
     var sm = document.getElementById('cfg-stock-min-def');
     var mpd = document.getElementById('cfg-margen-prod-def');
@@ -17107,7 +16737,7 @@ function cargarConfigGeneral() {
     if (ml && d.montoLimite !== undefined) ml.value = d.montoLimite;
     if (rm) rm.checked = d.mostrarMonitorRecursos !== false;
     if (ast) ast.checked = d.desactivarCierreSesionAdmin === true;
-    persistirPreferenciaSesionAdmin(d.desactivarCierreSesionAdmin === true);
+    window._desactivarCierreSesionAdmin = d.desactivarCierreSesionAdmin === true;
     if (typeof resetSessionTimer === 'function' && isAuthenticated) resetSessionTimer();
     aplicarVisibilidadMonitorRecursos(d.mostrarMonitorRecursos !== false);
     window._diasVencimientoConfig = d.diasVencimiento || 15;
@@ -17501,7 +17131,6 @@ function editarOrden(fbKey) {
 // MÓDULO EQUIPOS INSTALADOS
 
 var equiposData   = [];
-var garantiasRegistradasData = [];
 var equipoActual  = null;  // fbKey del equipo en edición
 var relFotosTemp  = [];    // fotos del relevamiento pendientes de subir
 var eqFotosTemp   = [];    // fotos del equipo pendientes de subir
@@ -17566,39 +17195,17 @@ function fbCargarEquipos() {
     }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }) : [];
     renderEquiposCards();
     actualizarMetricasEquipos();
-    if (typeof renderGarantiasUnificadas === 'function') renderGarantiasUnificadas();
-  }).catch(function(error) {
-    console.warn('[Config] No se pudo refrescar la preferencia de sesion', error);
   });
-}
-
-function _garantiaFechaLocal(valor) {
-  var partes = String(valor || '').slice(0, 10).split('-').map(Number);
-  if (partes.length !== 3 || !partes[0] || !partes[1] || !partes[2]) return null;
-  return new Date(partes[0], partes[1] - 1, partes[2], 23, 59, 59, 999);
-}
-
-function _garantiaVencimientoEquipo(equipo) {
-  var instalada = _garantiaFechaLocal(equipo && equipo.fechaInstalacion);
-  var meses = parseInt(equipo && equipo.garantiaMeses, 10);
-  if (!instalada || !Number.isFinite(meses) || meses <= 0) return null;
-  var vencimiento = new Date(instalada.getTime());
-  vencimiento.setMonth(vencimiento.getMonth() + meses);
-  return vencimiento;
-}
-
-function _garantiaFechaISO(fecha) {
-  if (!(fecha instanceof Date) || Number.isNaN(fecha.getTime())) return '';
-  var dos = function(n){ return String(n).padStart(2, '0'); };
-  return fecha.getFullYear() + '-' + dos(fecha.getMonth() + 1) + '-' + dos(fecha.getDate());
 }
 
 // Métricas
 function actualizarMetricasEquipos() {
   var hoy = new Date().toISOString().split('T')[0];
   var conGar = equiposData.filter(function(e){
-    var venc = _garantiaVencimientoEquipo(e);
-    return venc && venc >= new Date();
+    if (!e.fechaInstalacion || !e.garantiaMeses) return false;
+    var venc = new Date(e.fechaInstalacion);
+    venc.setMonth(venc.getMonth() + parseInt(e.garantiaMeses));
+    return venc >= new Date();
   }).length;
   var intervsHoy = 0;
   equiposData.forEach(function(e){
@@ -17640,7 +17247,8 @@ function renderEquiposCards() {
     // Fecha vencimiento garantía
     var garTxt = '—';
     if (e.fechaInstalacion && e.garantiaMeses && parseInt(e.garantiaMeses) > 0) {
-      var v = _garantiaVencimientoEquipo(e);
+      var v = new Date(e.fechaInstalacion);
+      v.setMonth(v.getMonth() + parseInt(e.garantiaMeses));
       var diasRest = Math.round((v - new Date()) / 86400000);
       garTxt = diasRest > 0 ? 'Gar. ' + diasRest + 'd restantes' : 'Vencida';
     }
@@ -21336,72 +20944,27 @@ function guardarServicio(datos) {
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/servicios'), Object.assign(datos||{}, { ts: Date.now(), usuario: currentUser }))
     .then(function(){ notify('Orden de servicio guardada'); });
 }
-function _garantiaClaveComparable(g) {
-  var normalizar = function(v) {
-    return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  };
-  var serie = normalizar(g && g.serie);
-  if (serie) return 'serie:' + serie;
-  return ['datos', normalizar(g && g.equipo), normalizar(g && g.cliente), String(g && g.fechaInst || '').slice(0, 10)].join(':');
-}
-
-function _garantiasDesdeEquipos() {
-  return (equiposData || []).map(function(e) {
-    var vencimiento = _garantiaVencimientoEquipo(e);
-    if (!vencimiento) return null;
-    return {
-      fbKey: 'equipo:' + e.fbKey,
-      equipoFbKey: e.fbKey,
-      origen: 'equipo_instalado',
-      equipo: e.descripcion || e.modelo || 'Equipo instalado',
-      serie: e.serie || e.serie2 || '',
-      cliente: e.cliente || '',
-      fechaInst: String(e.fechaInstalacion || '').slice(0, 10),
-      fechaVenc: _garantiaFechaISO(vencimiento),
-      meses: parseInt(e.garantiaMeses, 10),
-      venta: e.venta || ''
-    };
-  }).filter(Boolean);
-}
-
-function _listaGarantiasUnificada() {
-  var manuales = (garantiasRegistradasData || []).slice();
-  var clavesManuales = new Set(manuales.map(_garantiaClaveComparable));
-  _garantiasDesdeEquipos().forEach(function(g) {
-    if (!clavesManuales.has(_garantiaClaveComparable(g))) manuales.push(g);
-  });
-  return manuales.sort(function(a, b) {
-    return String(b.fechaVenc || '').localeCompare(String(a.fechaVenc || ''));
-  });
-}
-
-function abrirEquipoDesdeGarantia(fbKey) {
-  if (!fbKey) return;
-  showPage('equipos', null);
-  setTimeout(function(){ abrirFichaEquipo(fbKey); }, 80);
-}
-
-function renderGarantiasUnificadas() {
-  var lista = _listaGarantiasUnificada();
-  var tbody = document.getElementById('gar-tbody');
-  if (!tbody) return;
-  if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin garantías registradas</td></tr>';
-  } else {
+function fbCargarGarantias() {
+  if (!window.fbDB) return;
+  _suscribirModuloUnaVez('garantias', 'sisventas/garantias', function(snap) {
+    var data = snap.val();
+    var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); }) : [];
+    var tbody = document.querySelector('#page-garantias tbody');
+    if (!tbody) return;
+    if (!lista.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin garantías registradas</td></tr>';
+      return;
+    }
     tbody.innerHTML = lista.map(function(g){
       var hoy = new Date();
-      var venc = _garantiaFechaLocal(g.fechaVenc);
-      var diasRest = venc ? Math.ceil((venc-hoy)/86400000) : null;
+      var venc = g.fechaVenc ? new Date(g.fechaVenc) : null;
+      var diasRest = venc ? Math.round((venc-hoy)/86400000) : null;
       var estBadge = !venc ? '<span class="badge b-blue">—</span>'
         : diasRest > 30 ? '<span class="badge b-green">Vigente</span>'
-        : diasRest >= 0 ? '<span class="badge b-amber">Vence pronto</span>'
+        : diasRest > 0  ? '<span class="badge b-amber">Vence pronto</span>'
         : '<span class="badge b-red">Vencida</span>';
-      var esEquipo = g.origen === 'equipo_instalado' && g.equipoFbKey;
-      var equipoHtml = esEquipo
-        ? '<button class="btn-link" style="padding:0;text-align:left" onclick="abrirEquipoDesdeGarantia(\''+escapeHTML(g.equipoFbKey)+'\')">'+escapeHTML(g.equipo||'—')+'</button><div style="font-size:10px;color:var(--green);margin-top:2px">Equipo instalado</div>'
-        : escapeHTML(g.equipo||'—');
       return '<tr>'+
-        '<td>'+equipoHtml+'</td>'+
+        '<td>'+escapeHTML(g.equipo||'—')+'</td>'+
         '<td style="font-family:monospace;font-size:12px">'+escapeHTML(g.serie||'—')+'</td>'+
         '<td>'+escapeHTML(g.cliente||'—')+'</td>'+
         '<td style="color:var(--text3)">'+escapeHTML(g.fechaInst||'—')+'</td>'+
@@ -21410,24 +20973,14 @@ function renderGarantiasUnificadas() {
         '<td style="text-align:right">'+estBadge+'</td>'+
       '</tr>';
     }).join('');
-  }
-  var activas = lista.filter(function(g){ var f=_garantiaFechaLocal(g.fechaVenc); return f && f >= new Date(); }).length;
-  var pronto  = lista.filter(function(g){ var f=_garantiaFechaLocal(g.fechaVenc); if(!f) return false; var d=Math.ceil((f-new Date())/86400000); return d>=0&&d<=30; }).length;
-  var vencidas= lista.filter(function(g){ var f=_garantiaFechaLocal(g.fechaVenc); return f && f < new Date(); }).length;
-  var _e = function(id){ return document.getElementById(id); };
-  if (_e('gar-activas'))  _e('gar-activas').textContent  = activas;
-  if (_e('gar-pronto'))   _e('gar-pronto').textContent   = pronto;
-  if (_e('gar-vencidas')) _e('gar-vencidas').textContent = vencidas;
-  var buscador = document.querySelector('#page-garantias .search-input');
-  if (buscador && buscador.value) buscarGarantia(buscador.value);
-}
-
-function fbCargarGarantias() {
-  if (!window.fbDB) return;
-  _suscribirModuloUnaVez('garantias', 'sisventas/garantias', function(snap) {
-    var data = snap.val();
-    garantiasRegistradasData = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); }) : [];
-    renderGarantiasUnificadas();
+    // Métricas
+    var activas = lista.filter(function(g){ return g.fechaVenc && new Date(g.fechaVenc) > new Date(); }).length;
+    var pronto  = lista.filter(function(g){ if(!g.fechaVenc) return false; var d=Math.round((new Date(g.fechaVenc)-new Date())/86400000); return d>0&&d<=30; }).length;
+    var vencidas= lista.filter(function(g){ return g.fechaVenc && new Date(g.fechaVenc) < new Date(); }).length;
+    var _e = function(id){ return document.getElementById(id); };
+    if (_e('gar-activas'))  _e('gar-activas').textContent  = activas;
+    if (_e('gar-pronto'))   _e('gar-pronto').textContent   = pronto;
+    if (_e('gar-vencidas')) _e('gar-vencidas').textContent = vencidas;
   });
 }
 
@@ -29434,7 +28987,6 @@ var _firmaCambioRevision = 0;
 var _firmaRevisionGuardada = 0;
 var _firmaUploadTask = null;
 var _firmaOperacionId = 0;
-var FIRMA_AUTOGUARDADO_ESPERA_MS = 4000;
 
 function firmaInicializar() {
   var canvas = document.getElementById('firma-canvas');
@@ -29461,11 +29013,6 @@ function firmaInicializar() {
 
   function start(e) {
     e.preventDefault();
-    // Una firma suele tener varios trazos. Si el cliente vuelve a apoyar el
-    // dedo, todavía no terminó: se cancela la espera y se reinicia al soltar.
-    if (_firmaGuardarTimer) clearTimeout(_firmaGuardarTimer);
-    _firmaGuardarTimer = null;
-    if (_firmaGuardadoPendiente) firmaActualizarControles('pendiente', 'Firmando…');
     _firmaDibujo = true;
     var p = getPos(e);
     _firmaCtx.beginPath();
@@ -29588,8 +29135,9 @@ function firmaActualizarControles(estado, mensaje) {
   }
   if (guardarBtn) {
     guardarBtn.disabled = estado === 'guardando';
-    guardarBtn.style.display = estado === 'error' ? '' : 'none';
-    guardarBtn.innerHTML = '<i class="ti ti-refresh"></i> Reintentar';
+    guardarBtn.innerHTML = estado === 'guardando'
+      ? '<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite"></i> Guardando…'
+      : '<i class="ti ti-device-floppy"></i> ' + (estado === 'error' ? 'Reintentar' : 'Guardar firma');
   }
   if (cancelarBtn) cancelarBtn.style.display = estado === 'guardando' ? '' : 'none';
 }
@@ -29619,37 +29167,14 @@ function firmaConTiempoLimite(promesa, milisegundos, mensaje) {
 function firmaCanvasABlob(canvas) {
   return new Promise(function(resolve, reject) {
     try {
-      // Guardar solamente el trazo evita una imagen enorme con mucho espacio
-      // transparente. Así la firma conserva su tamaño real en el acta/PDF.
-      var origenCtx = canvas.getContext('2d');
-      var pixeles = origenCtx.getImageData(0, 0, canvas.width, canvas.height);
-      var minX = canvas.width, minY = canvas.height, maxX = -1, maxY = -1;
-      for (var y = 0; y < canvas.height; y++) {
-        for (var x = 0; x < canvas.width; x++) {
-          if (pixeles.data[((y * canvas.width + x) * 4) + 3] > 8) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-        }
-      }
-      if (maxX < minX || maxY < minY) throw new Error('La firma está vacía');
-      var margen = Math.max(10, Math.round(14 * (window.devicePixelRatio || 1)));
-      minX = Math.max(0, minX - margen);
-      minY = Math.max(0, minY - margen);
-      maxX = Math.min(canvas.width - 1, maxX + margen);
-      maxY = Math.min(canvas.height - 1, maxY + margen);
-      var origenAncho = maxX - minX + 1;
-      var origenAlto = maxY - minY + 1;
-      var escala = Math.min(1, 1000 / origenAncho, 320 / origenAlto);
-      var ancho = Math.max(1, Math.round(origenAncho * escala));
-      var alto = Math.max(1, Math.round(origenAlto * escala));
+      var rect = canvas.getBoundingClientRect();
+      var ancho = Math.max(320, Math.round(rect.width || 900));
+      var alto = Math.max(120, Math.round(rect.height || 160));
       var reducido = document.createElement('canvas');
       reducido.width = ancho;
       reducido.height = alto;
       var ctx = reducido.getContext('2d');
-      ctx.drawImage(canvas, minX, minY, origenAncho, origenAlto, 0, 0, ancho, alto);
+      ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, ancho, alto);
       reducido.toBlob(function(blob) {
         if (blob) resolve(blob);
         else reject(new Error('No se pudo preparar la imagen de la firma'));
@@ -29707,11 +29232,11 @@ function firmaSubirBlob(ref, blob) {
 
 function firmaProgramarAutoguardado() {
   if (_firmaGuardarTimer) clearTimeout(_firmaGuardarTimer);
-  firmaActualizarControles('pendiente', 'Guardado automático en 4 segundos…');
+  firmaActualizarControles('pendiente', 'Firma pendiente de guardar');
   _firmaGuardarTimer = setTimeout(function() {
     _firmaGuardarTimer = null;
     firmaAutoguardar();
-  }, FIRMA_AUTOGUARDADO_ESPERA_MS);
+  }, 800);
 }
 
 function firmaGuardarAhora() {
