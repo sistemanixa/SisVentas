@@ -45,17 +45,9 @@ test('las acciones compactas se preparan sólo en grillas renderizadas', () => {
   assert.match(css, /\.sv-responsive-grid/);
 });
 
-test('todos los archivos publicados corresponden a v2.0.220', () => {
-  assert.match(app, /VERSION: 'v2\.0\.220-firebase'/);
-  assert.match(index, /app\.v2\.0\.220\.js/);
-  assert.match(index, /version\.v2\.0\.220\.js/);
-  assert.match(sw, /sisventas-v2\.0\.220/);
-  assert.equal(
-    fs.readFileSync(path.join(root, 'js', 'app.v2.0.220.js'), 'utf8'),
-    app
-  );
-  assert.equal(
-    fs.readFileSync(path.join(root, 'js', 'core', 'version.v2.0.220.js'), 'utf8'),
-    version
-  );
+test('la publicación histórica v2.0.220 conserva sus archivos', () => {
+  const historicalApp = fs.readFileSync(path.join(root, 'js', 'app.v2.0.220.js'), 'utf8');
+  const historicalVersion = fs.readFileSync(path.join(root, 'js', 'core', 'version.v2.0.220.js'), 'utf8');
+  assert.match(historicalApp, /VERSION: 'v2\.0\.220-firebase'/);
+  assert.match(historicalVersion, /v2\.0\.220/);
 });
