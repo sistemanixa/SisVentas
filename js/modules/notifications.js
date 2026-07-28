@@ -35,11 +35,46 @@
   var notifState=loadState();
   var notifStateUnsubscribe=null;
   var notifStateUser='';
+  var avisoCriticoTimer=null;
   function getN(id){ return notifState[nKey(id)]||{}; }
   function stateTime(value){ var t=Date.parse(value&&value.updatedAt||''); return isNaN(t)?0:t; }
   function refreshNotifUI(){
     if(typeof renderNotificaciones==='function') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||'');
     if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif();
+    programarAvisoCriticoPresupuesto();
+  }
+
+  function esAvisoCriticoPresupuesto(n){
+    var id=String(n&&n.id||'');
+    return id.indexOf('ppto_aprob_')===0 || id.indexOf('ppto_aprobado_int_')===0;
+  }
+  function programarAvisoCriticoPresupuesto(){
+    clearTimeout(avisoCriticoTimer);
+    avisoCriticoTimer=setTimeout(mostrarAvisoCriticoPresupuesto,450);
+  }
+  function mostrarAvisoCriticoPresupuesto(){
+    var existente=document.getElementById('modal-aviso-critico-presupuesto');
+    if(!global.currentUser||!global.currentRole||document.getElementById('modal-comunicado-global')){
+      if(document.getElementById('modal-comunicado-global')) programarAvisoCriticoPresupuesto();
+      return;
+    }
+    var aviso=notifSource().filter(function(n){ return esAvisoCriticoPresupuesto(n)&&visibleNotif(n,'')&&!getN(n.id).estado; })[0];
+    if(!aviso){ if(existente) existente.remove(); return; }
+    if(existente&&existente.dataset.notificacionId===String(aviso.id)) return;
+    if(existente) existente.remove();
+    var color=String(aviso.id).indexOf('ppto_aprobado_int_')===0?'var(--green)':'var(--amber)';
+    var fondo=String(aviso.id).indexOf('ppto_aprobado_int_')===0?'var(--green-bg)':'var(--amber-bg)';
+    var overlay=document.createElement('div');
+    overlay.id='modal-aviso-critico-presupuesto';
+    overlay.dataset.notificacionId=String(aviso.id);
+    overlay.style.cssText='position:fixed;inset:0;z-index:100150;background:rgba(3,6,14,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px';
+    overlay.innerHTML='<div role="alertdialog" aria-modal="true" style="width:min(540px,100%);background:var(--bg2);border:1px solid '+color+';border-radius:20px;box-shadow:0 28px 90px rgba(0,0,0,.62);padding:24px">'+
+      '<div style="width:56px;height:56px;border-radius:18px;background:'+fondo+';color:'+color+';display:flex;align-items:center;justify-content:center;margin-bottom:17px"><i class="ti '+svEsc(aviso.icono||'ti-file-description')+'" style="font-size:27px"></i></div>'+
+      '<div style="font-size:20px;font-weight:800;line-height:1.25;margin-bottom:10px">'+svEsc(aviso.titulo||'Aviso importante')+'</div>'+
+      '<div style="font-size:14px;color:var(--text2);line-height:1.55;padding:14px 15px;background:var(--bg3);border:.5px solid var(--border);border-radius:var(--radius);margin-bottom:18px">'+svEsc(aviso.sub||'')+'</div>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" onclick="notifAvisoCriticoEntendido(\''+svEsc(aviso.id)+'\')"><i class="ti ti-check"></i> Entendido</button><button class="btn btn-primary" onclick="notifAvisoCriticoAbrir(\''+svEsc(aviso.id)+'\')"><i class="ti ti-external-link"></i> '+svEsc((aviso.accion&&aviso.accion.label)||'Abrir presupuesto')+'</button></div>'+
+    '</div>';
+    document.body.appendChild(overlay);
   }
   function iniciarSyncNotificaciones(){
     var identity=currentIdentity();
@@ -65,6 +100,10 @@
   }
   window.iniciarSyncNotificaciones=iniciarSyncNotificaciones;
   window.detenerSyncNotificaciones=function(){
+    clearTimeout(avisoCriticoTimer);
+    avisoCriticoTimer=null;
+    var aviso=document.getElementById('modal-aviso-critico-presupuesto');
+    if(aviso) aviso.remove();
     if(typeof notifStateUnsubscribe==='function'){
       try{ notifStateUnsubscribe(); }catch(e){}
     }
@@ -104,6 +143,18 @@
     setN(id,{estado:'leida'});
     if(n.accion && n.accion.fn){ try{ new Function(n.accion.fn)(); }catch(e){ console.error(e); } }
   };
+  window.notifAvisoCriticoEntendido=function(id){
+    setN(id,{estado:'leida'});
+    var modal=document.getElementById('modal-aviso-critico-presupuesto');
+    if(modal) modal.remove();
+    refreshNotifUI();
+  };
+  window.notifAvisoCriticoAbrir=function(id){
+    var modal=document.getElementById('modal-aviso-critico-presupuesto');
+    if(modal) modal.remove();
+    window.notifAbrirAccion(id);
+    refreshNotifUI();
+  };
   window.abrirPresupuestoDesdeNotificacion = function(id){
     showPage('presupuesto',document.querySelector('[onclick*="presupuesto"]'));
     setTimeout(function(){ if(typeof verPpto==='function') verPpto(id); },180);
@@ -141,6 +192,7 @@
     if(!currentIdentity() || currentIdentity()==='local') return;
     iniciarSyncNotificaciones();
     if(typeof global.generarNotificaciones==='function') global.generarNotificaciones();
+    programarAvisoCriticoPresupuesto();
   }
   document.addEventListener('sisventas:page-changed',function(event){
     if(event.detail&&event.detail.page==='notificaciones') actualizarNotificacionesAutomaticamente();

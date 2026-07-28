@@ -114,6 +114,7 @@
     ['credGuardar','credenciales.editar'],
     ['credEliminar','credenciales.eliminar'],
     ['eliminarProducto','productos.eliminar'],
+    ['eliminarProductoPorId','productos.eliminar'],
     ['eliminarEmpleado','empleados.eliminar'],
     ['aprobarComision','empleados.aprobarMovimiento'],
     ['rechazarComision','empleados.aprobarMovimiento'],

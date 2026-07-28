@@ -36,11 +36,9 @@ test('los módulos pesados terminan el cartel con un evento real de render', () 
   assert.match(css, /\.page\.sv-page-transitioning>\.sv-page-transition-loader/);
 });
 
-test('todos los archivos publicados corresponden a v2.0.222', () => {
-  assert.match(app, /VERSION: 'v2\.0\.222-firebase'/);
-  assert.match(index, /app\.v2\.0\.222\.js/);
-  assert.match(index, /version\.v2\.0\.222\.js/);
-  assert.match(index, /resizable-tables\.js\?v=2\.0\.222/);
-  assert.match(index, /page-transition\.js\?v=2\.0\.222/);
-  assert.match(sw, /sisventas-v2\.0\.222/);
+test('la instantánea histórica v2.0.222 permanece disponible', () => {
+  const historicalApp = read('js', 'app.v2.0.222.js');
+  const historicalVersion = read('js', 'core', 'version.v2.0.222.js');
+  assert.match(historicalApp, /VERSION: 'v2\.0\.222-firebase'/);
+  assert.match(historicalVersion, /v2\.0\.222/);
 });
