@@ -25,6 +25,9 @@ test('Productos filtra antes de ordenar y conserva el catalogo completo sin pagi
   assert.ok(filtro >= 0 && orden > filtro);
   assert.doesNotMatch(app.slice(orden, orden + 1000), /lista = lista\.slice\(desde, hasta\)/);
   assert.doesNotMatch(app, /renderPaginacionProductos|_prodPorPagina|cambiarPaginaProductos/);
+  assert.match(app, /var _prodCatsAbiertas = \{\};/);
+  assert.match(app, /var abierta = _prodCatsAbiertas\[cat\] === true;/);
+  assert.match(app, /var _todasColapsadas = true;/);
 });
 
 test('los textos editables del producto no pueden romper el HTML de la grilla', () => {
