@@ -35,7 +35,7 @@
     'tesoreria.ver':             { modulo:'tesoreria', admin:true },
     'tesoreria.pagar':           { modulo:'tesoreria', admin:true },
     'productos.editar':          { modulo:'productos', roles:['admin','administrativo'] },
-    'productos.eliminar':        { modulo:'productos', roles:['admin','administrativo'] },
+    'productos.eliminar':        { modulo:'productos', admin:true },
     'clientes.editar':           { modulo:'clientes', roles:['admin','administrativo'] },
     'clientes.eliminar':         { modulo:'clientes', admin:true },
     'credenciales.ver':          { modulo:'clientes', roles:['admin','administrativo','tecnico'] },

@@ -1,4 +1,4 @@
-/* v2.0.206 — Columnas persistidas antes del primer cuadro visible */
+/* v1.36.23 — Columnas ajustables optimizadas para página activa */
 (function () {
   'use strict';
 
@@ -11,7 +11,6 @@
   var scheduleTimer = 0;
   var percentDrafts = {};
   var alignmentDrafts = {};
-  var alignmentScopeSequence = 0;
   var globalProfiles = { loaded: false, loading: false, widths: {}, percentages: {}, alignments: {} };
   var globalSaveTimers = {};
   var DEFAULT_WIDTH_BY_HEADER = {
@@ -325,41 +324,16 @@
 
   function applyAlignments(table, alignments) {
     if (!table) return;
-    // Mantener la alineacion en una regla de la tabla tambien alcanza a las
-    // filas que se crean despues de guardar el perfil.
-    var scope = table.dataset.svAlignmentScope;
-    if (!scope) {
-      scope = 'sv-align-' + (++alignmentScopeSequence);
-      table.dataset.svAlignmentScope = scope;
-    }
-    var styleId = 'sv-table-align-' + scope;
-    var style = document.getElementById(styleId);
-    if (!style) {
-      style = document.createElement('style');
-      style.id = styleId;
-      document.head.appendChild(style);
-    }
-    var selector = 'table[data-sv-alignment-scope="' + scope + '"]';
-    var rules = [];
     tableHeaders(table).forEach(function (_th, index) {
       var align = normalizeAlignment((alignments || {})[index]);
-      var physicalIndex = physicalIndexForVisibleIndex(table, index);
-      rules.push(selector + ' tr > *:nth-child(' + (physicalIndex + 1) + '){text-align:' + align + '!important}');
       columnCells(table, index).forEach(function (cell) {
         cell.style.textAlign = align;
       });
     });
-    style.textContent = rules.join('\n');
   }
 
   function clearAlignments(table) {
     if (!table) return;
-    var scope = table.dataset.svAlignmentScope;
-    if (scope) {
-      var style = document.getElementById('sv-table-align-' + scope);
-      if (style) style.remove();
-      delete table.dataset.svAlignmentScope;
-    }
     tableHeaders(table).forEach(function (_th, index) {
       columnCells(table, index).forEach(function (cell) {
         cell.style.textAlign = '';
@@ -757,11 +731,6 @@
     scheduleTimer = 0;
     var active = document.querySelector('.page.active');
     var root = active || document.body;
-    initPageTables(root);
-  }
-
-  function initPageTables(root) {
-    if (!root || !root.querySelectorAll) return;
     root.querySelectorAll('.table-wrap table, .sv-auto-grid-wrap table, .card table').forEach(initTable);
   }
 
@@ -1040,7 +1009,6 @@
     document.addEventListener('sisventas:page-changed', scheduleScan);
     window.SisVentas = window.SisVentas || {};
     window.SisVentas.initResizableTables = scan;
-    window.SisVentas.prepareResizablePage = initPageTables;
     window.SisVentas.openColumnPercentEditor = openPercentEditor;
     window.SisVentas.applyColumnPercentProfiles = scan;
   });
