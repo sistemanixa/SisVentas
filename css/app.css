@@ -265,6 +265,12 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 #page-agenda.agenda-compact .ag-semana-evento span{font-size:10px}
 #page-agenda.agenda-compact .ag-semana-evento strong{min-width:0;overflow:hidden;font-size:11px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
 .sv-auto-grid-wrap,.table-wrap{display:block;width:100%;max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
+.sv-sortable-th{cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s ease,background .15s ease}
+.sv-sortable-th:hover,.sv-sortable-th:focus-visible{color:var(--text);background:rgba(255,255,255,.035);outline:none}
+.sv-grid-sort-icon{font-size:10px;color:var(--text3);margin-left:5px;vertical-align:middle}
+.sv-sortable-th[aria-sort="ascending"] .sv-grid-sort-icon,.sv-sortable-th[aria-sort="descending"] .sv-grid-sort-icon{color:var(--blue)}
+.sv-sortable-th .sort-icon{font-size:12px!important;color:var(--blue)!important;margin-left:5px;vertical-align:middle;opacity:.8}
+.sv-sortable-th:hover .sort-icon{opacity:1}
 .sv-auto-grid-wrap>table,.table-wrap>table{width:max-content;min-width:100%;max-width:none!important}
 .sv-scroll-panel{max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
 .sv-resizable-wrap{position:relative;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch}
