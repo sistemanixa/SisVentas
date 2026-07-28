@@ -41,3 +41,30 @@ test('guardar un producto no repinta ni audita dos veces el catalogo oculto', ()
   assert.match(app, /if \(listaVisible && typeof renderTablaProductos === 'function'\)/);
   assert.doesNotMatch(app, /refrescarProductoGuardado\(\)[\s\S]{0,1200}window\.setTimeout\(actualizarStatProductos/);
 });
+
+test('abrir categorías no reconstruye todo el catálogo y expandir cede el control', () => {
+  const inicio = app.indexOf('function toggleProdCat(cat)');
+  const fin = app.indexOf('function buscarProducto', inicio);
+  const cuerpo = app.slice(inicio, fin);
+  assert.match(cuerpo, /_insertarFilasCategoriaProducto\(cat\)/);
+  assert.doesNotMatch(cuerpo, /renderTablaProductos\(/);
+  assert.match(app, /performance\.now\(\) - inicio < 10/);
+  assert.match(app, /requestAnimationFrame\(avanzar\)/);
+  assert.match(app, /loading="lazy" decoding="async"/);
+});
+
+test('el observador de grillas procesa cada tabla una sola vez por cuadro', () => {
+  assert.match(app, /var pendientes = new Set\(\)/);
+  assert.match(app, /pendientes\.add\(tabla \|\| nodo\)/);
+  assert.match(app, /var lote = Array\.from\(pendientes\)/);
+  assert.match(app, /cuadroPendiente = requestAnimationFrame/);
+});
+
+test('un refresco en tiempo real no reconstruye todo el catalogo expandido', () => {
+  const inicio = app.indexOf('function renderTablaProductos(filtro)');
+  const fin = app.indexOf('var _todasColapsadas = true;', inicio);
+  const cuerpo = app.slice(inicio, fin);
+  assert.match(cuerpo, /if \(!_todasColapsadas\)/);
+  assert.match(cuerpo, /_prodCatsAbiertas\[cat\] = false/);
+  assert.match(cuerpo, /_todasColapsadas = true/);
+});
