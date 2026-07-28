@@ -5,14 +5,14 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
-const appVersionada = fs.readFileSync(path.join(root, 'js', 'app.v2.0.210.js'), 'utf8');
+const appVersionada = fs.readFileSync(path.join(root, 'js', 'app.v2.0.211.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'css', 'app.css'), 'utf8');
 
-test('producción carga exactamente el código validado de v2.0.210', () => {
+test('producción carga exactamente el código validado de v2.0.211', () => {
   assert.equal(appVersionada, app);
-  assert.match(index, /js\/app\.v2\.0\.210\.js/);
-  assert.match(index, /js\/core\/version\.v2\.0\.210\.js/);
+  assert.match(index, /js\/app\.v2\.0\.211\.js/);
+  assert.match(index, /js\/core\/version\.v2\.0\.211\.js/);
 });
 
 test('la firma se respalda primero en la OT y Storage queda en segundo plano', () => {
