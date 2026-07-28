@@ -5,18 +5,21 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
-const appVersionada = fs.readFileSync(path.join(root, 'js', 'app.v2.0.203.js'), 'utf8');
+const appVersionada = fs.readFileSync(path.join(root, 'js', 'app.v2.0.204.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
-test('producción carga exactamente el código validado de v2.0.203', () => {
+test('producción carga exactamente el código validado de v2.0.204', () => {
   assert.equal(appVersionada, app);
-  assert.match(index, /js\/app\.v2\.0\.203\.js/);
-  assert.match(index, /js\/core\/version\.v2\.0\.203\.js/);
+  assert.match(index, /js\/app\.v2\.0\.204\.js/);
+  assert.match(index, /js\/core\/version\.v2\.0\.204\.js/);
 });
 
-test('la firma limita la espera, conserva reintento y permite cancelar', () => {
-  assert.match(app, /fbUploadBytesResumable/);
-  assert.match(app, /tardó más de 25 segundos/);
+test('la firma se respalda primero en la OT y Storage queda en segundo plano', () => {
+  assert.match(app, /La confirmación de la OT no debe depender de Storage/);
+  assert.match(app, /firmaGuardarEnOT\(dataUrl, null, otFirmaId\)/);
+  assert.match(app, /firmaGuardarEnOT\(url, path, otFirmaId, \{ silencioso:true \}\)/);
+  assert.match(app, /sisventas\/ots\/.*\/firma\//);
+  assert.match(app, /var conformidadFirma = conformidadActual \|\| 'conforme'/);
   assert.match(app, /function firmaGuardarAhora\(/);
   assert.match(app, /function firmaCancelarEspera\(/);
   assert.match(app, /_firmaGuardadoPendiente \|\| _firmaGuardarTimer/);
