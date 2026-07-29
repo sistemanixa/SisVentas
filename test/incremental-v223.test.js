@@ -40,11 +40,9 @@ test('las aprobaciones de presupuestos generan un aviso crítico en pantalla', (
   assert.match(notifications, /setN\(id,\{estado:'leida'\}\)/);
 });
 
-test('todos los archivos publicados corresponden a v2.0.223', () => {
-  assert.match(app, /VERSION: 'v2\.0\.223-firebase'/);
-  assert.match(index, /app\.v2\.0\.223\.js/);
-  assert.match(index, /version\.v2\.0\.223\.js/);
-  assert.match(index, /resizable-tables\.js\?v=2\.0\.223/);
-  assert.match(index, /page-transition\.js\?v=2\.0\.223/);
-  assert.match(sw, /sisventas-v2\.0\.223/);
+test('la publicación histórica v2.0.223 conserva sus archivos', () => {
+  const app223 = read('js', 'app.v2.0.223.js');
+  const version223 = read('js', 'core', 'version.v2.0.223.js');
+  assert.match(app223, /VERSION: 'v2\.0\.223-firebase'/);
+  assert.match(version223, /SISVENTAS_PWA_VERSION = 'v2\.0\.223'/);
 });

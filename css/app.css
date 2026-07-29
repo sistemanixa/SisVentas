@@ -1887,3 +1887,31 @@ body.modal-secure-open{overflow:hidden!important}
   .ot-firma-superficie{min-height:330px}
   .ot-firma-canvas{height:330px;min-height:330px}
 }
+
+/* Presupuestos en pantallas chicas: tabla convencional con desplazamiento.
+   El perfil porcentual sigue disponible en escritorio, pero no se comprime
+   dentro del ancho del celular. */
+.sv-ppto-mobile-scroll-hint{display:none}
+@media(max-width:900px){
+  #page-presupuesto #ppto-list-view > .card{overflow-x:hidden!important}
+  #page-presupuesto #ppto-list-view .sv-column-percent-btn{display:none!important}
+  #page-presupuesto .sv-ppto-mobile-scroll-hint{display:flex;align-items:center;gap:6px;margin:-3px 0 8px;color:var(--text3);font-size:11px}
+  #page-presupuesto #ppto-list-view .table-wrap{width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:visible!important;scrollbar-gutter:stable;border-radius:8px}
+  #page-presupuesto #ppto-tabla,
+  #page-presupuesto #ppto-tabla.sv-percent-table,
+  #page-presupuesto #ppto-tabla.sv-resizable-table.sv-percent-table{width:780px!important;min-width:780px!important;max-width:none!important;table-layout:fixed!important}
+  #page-presupuesto #ppto-tabla col:nth-child(1){width:112px!important}
+  #page-presupuesto #ppto-tabla col:nth-child(2){width:190px!important}
+  #page-presupuesto #ppto-tabla col:nth-child(3){width:118px!important}
+  #page-presupuesto #ppto-tabla col:nth-child(4){width:116px!important}
+  #page-presupuesto #ppto-tabla col:nth-child(5){width:170px!important}
+  #page-presupuesto #ppto-tabla col:nth-child(6){width:74px!important}
+  #page-presupuesto #ppto-tabla th,
+  #page-presupuesto #ppto-tabla td{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+  #page-presupuesto #ppto-tabla th:first-child,
+  #page-presupuesto #ppto-tabla td:first-child{position:sticky;left:0;z-index:4;background:var(--bg2);box-shadow:10px 0 14px -14px rgba(0,0,0,.9)}
+  #page-presupuesto #ppto-tabla th:first-child{z-index:5}
+  #page-presupuesto #ppto-tabla td:nth-child(5) .badge{white-space:nowrap!important}
+  #page-presupuesto #ppto-tabla th:last-child,
+  #page-presupuesto #ppto-tabla td:last-child{text-align:center!important}
+}
