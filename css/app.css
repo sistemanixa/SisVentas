@@ -664,6 +664,10 @@ body.modal-secure-open{overflow:hidden!important}
 /* ── CARD ACCIÓN ── */
 .accion-card{background:var(--bg3);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
 .accion-card:last-child{margin-bottom:0}
+@media (min-width:769px){
+  .ppto-acciones-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
+  .ppto-acciones-grid .accion-card{margin-bottom:0;min-height:44px}
+}
 
 /* ── ORDEN DE TRABAJO ── */
 .ot-estado{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:0.5px solid var(--border)}

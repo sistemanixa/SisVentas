@@ -6,8 +6,8 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
 const app = read('js', 'app.js');
-const index = read('index.html');
-const sw = read('sw.js');
+const app227 = read('js', 'app.v2.0.227.js');
+const version227 = read('js', 'core', 'version.v2.0.227.js');
 
 test('Firebase sincroniza sin pintar tablas pesadas ocultas', () => {
   assert.match(app, /_svEsPaginaActiva\('clientes'\)[\s\S]{0,180}renderTablaClientes/);
@@ -28,9 +28,7 @@ test('la navegacion cierra interfaces transitorias sin bloquear su reapertura', 
   assert.match(app, /if \(modal\.style\.display && modal\.style\.display !== 'none'\) modal\.style\.display = 'none'/);
 });
 
-test('la publicacion corresponde a v2.0.227', () => {
-  assert.match(app, /VERSION: 'v2\.0\.227-firebase'/);
-  assert.match(index, /app\.v2\.0\.227\.js/);
-  assert.match(index, /version\.v2\.0\.227\.js/);
-  assert.match(sw, /sisventas-v2\.0\.227/);
+test('la publicación histórica v2.0.227 conserva sus archivos', () => {
+  assert.match(app227, /VERSION: 'v2\.0\.227-firebase'/);
+  assert.match(version227, /SISVENTAS_PWA_VERSION = 'v2\.0\.227'/);
 });
