@@ -1894,6 +1894,8 @@ body.modal-secure-open{overflow:hidden!important}
 @media(max-width:720px){
   #role-badge-el{display:none!important}
   .topbar-dolar{display:inline-flex!important;flex-shrink:0}
+  .sv-column-percent-btn,
+  [onclick*="openColumnPercentEditor"]{display:none!important}
 
   .table-wrap:has(> table.sv-mobile-card-grid),
   .sv-auto-grid-wrap:has(> table.sv-mobile-card-grid){

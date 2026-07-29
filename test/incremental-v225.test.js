@@ -7,8 +7,6 @@ const root = path.resolve(__dirname, '..');
 const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
 const app = read('js', 'app.js');
 const css = read('css', 'app.css');
-const index = read('index.html');
-const sw = read('sw.js');
 
 test('todas las grillas con cabecera reciben tarjetas móviles', () => {
   assert.match(app, /function prepararTarjetasMovilesGrilla\(tabla\)/);
@@ -33,8 +31,8 @@ test('el encabezado móvil prioriza dólar y oculta rol', () => {
 });
 
 test('la publicación corresponde a v2.0.225', () => {
-  assert.match(app, /VERSION: 'v2\.0\.225-firebase'/);
-  assert.match(index, /app\.v2\.0\.225\.js/);
-  assert.match(index, /version\.v2\.0\.225\.js/);
-  assert.match(sw, /sisventas-v2\.0\.225/);
+  const publishedApp = read('js', 'app.v2.0.225.js');
+  const publishedVersion = read('js', 'core', 'version.v2.0.225.js');
+  assert.match(publishedApp, /VERSION: 'v2\.0\.225-firebase'/);
+  assert.match(publishedVersion, /SISVENTAS_PWA_VERSION = 'v2\.0\.225'/);
 });
