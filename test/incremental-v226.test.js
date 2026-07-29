@@ -22,8 +22,8 @@ test('Columnas porcentaje desaparece sólo bajo el ancho móvil', () => {
 });
 
 test('la publicación corresponde a v2.0.226', () => {
-  assert.match(app, /VERSION: 'v2\.0\.226-firebase'/);
-  assert.match(index, /app\.v2\.0\.226\.js/);
-  assert.match(index, /version\.v2\.0\.226\.js/);
-  assert.match(sw, /sisventas-v2\.0\.226/);
+  const publishedApp = read('js', 'app.v2.0.226.js');
+  const publishedVersion = read('js', 'core', 'version.v2.0.226.js');
+  assert.match(publishedApp, /VERSION: 'v2\.0\.226-firebase'/);
+  assert.match(publishedVersion, /SISVENTAS_PWA_VERSION = 'v2\.0\.226'/);
 });
