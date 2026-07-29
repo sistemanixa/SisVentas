@@ -1888,30 +1888,104 @@ body.modal-secure-open{overflow:hidden!important}
   .ot-firma-canvas{height:330px;min-height:330px}
 }
 
-/* Presupuestos en pantallas chicas: tabla convencional con desplazamiento.
-   El perfil porcentual sigue disponible en escritorio, pero no se comprime
-   dentro del ancho del celular. */
-.sv-ppto-mobile-scroll-hint{display:none}
-@media(max-width:900px){
-  #page-presupuesto #ppto-list-view > .card{overflow-x:hidden!important}
+/* v2.0.225 - Las grillas conservan su tabla en escritorio y pasan a tarjetas
+   consistentes en celular. El contenido no se comprime ni se trunca. */
+.sv-ppto-mobile-scroll-hint{display:none!important}
+@media(max-width:720px){
+  #role-badge-el{display:none!important}
+  .topbar-dolar{display:inline-flex!important;flex-shrink:0}
+
+  .table-wrap:has(> table.sv-mobile-card-grid),
+  .sv-auto-grid-wrap:has(> table.sv-mobile-card-grid){
+    width:100%!important;
+    max-width:100%!important;
+    overflow:visible!important;
+  }
+  table.sv-mobile-card-grid,
+  #page-presupuesto #ppto-tabla.sv-mobile-card-grid,
+  #page-presupuesto #ppto-tabla.sv-percent-table.sv-mobile-card-grid,
+  #page-presupuesto #ppto-tabla.sv-resizable-table.sv-percent-table.sv-mobile-card-grid{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    table-layout:auto!important;
+    border:0!important;
+  }
+  table.sv-mobile-card-grid colgroup,
+  table.sv-mobile-card-grid thead{display:none!important}
+  table.sv-mobile-card-grid tbody{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:12px!important;
+    width:100%!important;
+  }
+  table.sv-mobile-card-grid tbody > tr{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:0!important;
+    width:100%!important;
+    min-width:0!important;
+    padding:12px!important;
+    border:1px solid var(--border)!important;
+    border-radius:14px!important;
+    background:var(--bg3)!important;
+    box-shadow:0 5px 16px rgba(0,0,0,.08)!important;
+  }
+  table.sv-mobile-card-grid tbody > tr[hidden],
+  table.sv-mobile-card-grid tbody > tr.hide-mobile,
+  table.sv-mobile-card-grid tbody > tr[style*="display: none"],
+  table.sv-mobile-card-grid tbody > tr[style*="display:none"]{display:none!important}
+  table.sv-mobile-card-grid tbody > tr > td{
+    position:static!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    justify-content:center!important;
+    min-width:0!important;
+    width:auto!important;
+    min-height:54px!important;
+    padding:9px 10px!important;
+    border:0!important;
+    border-bottom:1px solid var(--border)!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    overflow:visible!important;
+    white-space:normal!important;
+    overflow-wrap:anywhere!important;
+    text-overflow:clip!important;
+    text-align:left!important;
+  }
+  table.sv-mobile-card-grid tbody > tr > td::before{
+    content:attr(data-label);
+    display:block;
+    margin-bottom:4px;
+    color:var(--text3);
+    font-size:10px;
+    font-weight:600;
+    line-height:1.2;
+    letter-spacing:.055em;
+    text-transform:uppercase;
+  }
+  table.sv-mobile-card-grid tbody > tr > td.sv-card-wide,
+  table.sv-mobile-card-grid tbody > tr > td.sv-card-actions,
+  table.sv-mobile-card-grid tbody > tr > td[colspan]{grid-column:1/-1!important}
+  table.sv-mobile-card-grid tbody > tr > td.sv-card-actions{
+    min-height:44px!important;
+    align-items:flex-end!important;
+    border-bottom:0!important;
+  }
+  table.sv-mobile-card-grid tbody > tr > td.sv-card-actions::before{align-self:flex-start}
+  table.sv-mobile-card-grid tbody > tr > td[hidden],
+  table.sv-mobile-card-grid tbody > tr > td.hide-mobile,
+  table.sv-mobile-card-grid tbody > tr > td[style*="display: none"],
+  table.sv-mobile-card-grid tbody > tr > td[style*="display:none"]{display:none!important}
+  table.sv-mobile-card-grid .badge{max-width:100%;white-space:normal!important;text-align:center}
+  table.sv-mobile-card-grid .sv-grid-actions-trigger{margin-left:auto}
+  #page-presupuesto #ppto-list-view > .card{overflow-x:visible!important}
   #page-presupuesto #ppto-list-view .sv-column-percent-btn{display:none!important}
-  #page-presupuesto .sv-ppto-mobile-scroll-hint{display:flex;align-items:center;gap:6px;margin:-3px 0 8px;color:var(--text3);font-size:11px}
-  #page-presupuesto #ppto-list-view .table-wrap{width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:visible!important;scrollbar-gutter:stable;border-radius:8px}
-  #page-presupuesto #ppto-tabla,
-  #page-presupuesto #ppto-tabla.sv-percent-table,
-  #page-presupuesto #ppto-tabla.sv-resizable-table.sv-percent-table{width:780px!important;min-width:780px!important;max-width:none!important;table-layout:fixed!important}
-  #page-presupuesto #ppto-tabla col:nth-child(1){width:112px!important}
-  #page-presupuesto #ppto-tabla col:nth-child(2){width:190px!important}
-  #page-presupuesto #ppto-tabla col:nth-child(3){width:118px!important}
-  #page-presupuesto #ppto-tabla col:nth-child(4){width:116px!important}
-  #page-presupuesto #ppto-tabla col:nth-child(5){width:170px!important}
-  #page-presupuesto #ppto-tabla col:nth-child(6){width:74px!important}
-  #page-presupuesto #ppto-tabla th,
-  #page-presupuesto #ppto-tabla td{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
-  #page-presupuesto #ppto-tabla th:first-child,
-  #page-presupuesto #ppto-tabla td:first-child{position:sticky;left:0;z-index:4;background:var(--bg2);box-shadow:10px 0 14px -14px rgba(0,0,0,.9)}
-  #page-presupuesto #ppto-tabla th:first-child{z-index:5}
-  #page-presupuesto #ppto-tabla td:nth-child(5) .badge{white-space:nowrap!important}
-  #page-presupuesto #ppto-tabla th:last-child,
-  #page-presupuesto #ppto-tabla td:last-child{text-align:center!important}
+}
+@media(max-width:430px){
+  table.sv-mobile-card-grid tbody > tr{grid-template-columns:1fr!important}
+  table.sv-mobile-card-grid tbody > tr > td{grid-column:1/-1!important}
 }
