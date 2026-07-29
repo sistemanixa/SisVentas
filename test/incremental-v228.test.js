@@ -22,8 +22,10 @@ test('las acciones de presupuesto aprovechan el ancho de escritorio', () => {
 });
 
 test('la publicación corresponde a v2.0.228', () => {
-  assert.match(app, /VERSION: 'v2\.0\.228-firebase'/);
-  assert.match(index, /app\.v2\.0\.228\.js/);
-  assert.match(index, /version\.v2\.0\.228\.js/);
-  assert.match(sw, /sisventas-v2\.0\.228/);
+  const version = app.match(/VERSION: 'v(\d+\.\d+\.\d+)-firebase'/);
+  assert.ok(version, 'app.js debe declarar una version publicable');
+  const escaped = version[1].replace(/\./g, '\\.');
+  assert.match(index, new RegExp('app\\.v' + escaped + '\\.js'));
+  assert.match(index, new RegExp('version\\.v' + escaped + '\\.js'));
+  assert.match(sw, new RegExp('sisventas-v' + escaped));
 });

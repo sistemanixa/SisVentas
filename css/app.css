@@ -531,10 +531,36 @@ tr:hover td{color:var(--text)}
   .modal{width:100vw!important;border-radius:var(--radius-xl) var(--radius-xl) 0 0!important}
 }
 
-@media (min-width:901px){
+@media (min-width:1101px){
   .hamburger{display:none!important}
   .sidebar{display:flex!important}
   .overlay-mobile{display:none!important}
+  .hide-mobile-block{display:table!important}
+  .show-mobile-only{display:none!important}
+}
+
+/* Tablet horizontal: conservar las tablas amplias, pero liberar el ancho que
+   normalmente ocupa el menú lateral. El menú queda disponible como panel. */
+@media (min-width:901px) and (max-width:1100px) and (orientation:landscape){
+  .sidebar{
+    display:flex;
+    position:fixed;
+    top:0;
+    left:-280px;
+    bottom:0;
+    z-index:300;
+    width:260px;
+    height:100vh;
+    overflow-y:auto;
+    flex-direction:column;
+    background:var(--bg2);
+    border-right:0.5px solid var(--border);
+    transition:left .25s ease;
+  }
+  .sidebar.open{left:0;box-shadow:4px 0 20px rgba(0,0,0,.15)}
+  .hamburger{display:flex!important}
+  .hamburger.icon-btn{width:44px;height:44px;border:none}
+  .main{min-width:0;flex:1}
   .hide-mobile-block{display:table!important}
   .show-mobile-only{display:none!important}
 }
@@ -1895,7 +1921,7 @@ body.modal-secure-open{overflow:hidden!important}
 /* v2.0.225 - Las grillas conservan su tabla en escritorio y pasan a tarjetas
    consistentes en celular. El contenido no se comprime ni se trunca. */
 .sv-ppto-mobile-scroll-hint{display:none!important}
-@media(max-width:720px){
+@media(max-width:720px), (min-width:721px) and (max-width:900px) and (orientation:portrait){
   #role-badge-el{display:none!important}
   .topbar-dolar{display:inline-flex!important;flex-shrink:0}
   .sv-column-percent-btn,
