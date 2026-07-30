@@ -212,6 +212,7 @@
   document.addEventListener('sisventas:page-changed',function(event){
     if(event.detail&&event.detail.page==='notificaciones') actualizarNotificacionesAutomaticamente();
   });
+  document.addEventListener('sisventas:notificaciones-actualizadas',programarAvisoCriticoPresupuesto);
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='visible') actualizarNotificacionesAutomaticamente();
   });
