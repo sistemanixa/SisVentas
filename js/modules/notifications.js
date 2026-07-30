@@ -46,6 +46,8 @@
   var notifStateUnsubscribe=null;
   var notifStateUser='';
   var avisoCriticoTimer=null;
+  var avisoCriticoGestion=null;
+  var avisoCriticoLote=null;
   function getN(id){ return notifState[nKey(id)]||{}; }
   function stateTime(value){ var t=Date.parse(value&&value.updatedAt||''); return isNaN(t)?0:t; }
   function refreshNotifUI(){
@@ -53,6 +55,31 @@
     if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif();
     programarAvisoCriticoPresupuesto();
   }
+
+  function avisosCriticosPendientes(){
+    return notifSource().filter(function(n){ return esAvisoCriticoPresupuesto(n)&&visibleNotif(n,'')&&!getN(n.id).estado; });
+  }
+
+  function iniciarLoteAvisosCriticos(){
+    if(!avisoCriticoLote){
+      avisoCriticoLote={ total:avisosCriticosPendientes().length, atendidos:0 };
+    }
+    return avisoCriticoLote;
+  }
+
+  function avanzarLoteAvisosCriticos(){
+    var lote=iniciarLoteAvisosCriticos();
+    lote.atendidos=Math.min(lote.total,lote.atendidos+1);
+  }
+
+  function reanudarColaAvisosCriticos(){
+    if(!avisoCriticoGestion) return;
+    avisoCriticoGestion=null;
+    if(!avisosCriticosPendientes().length) avisoCriticoLote=null;
+    programarAvisoCriticoPresupuesto();
+  }
+
+  window.reanudarColaAvisosImportantes=reanudarColaAvisosCriticos;
 
   function esAvisoCriticoPresupuesto(n){
     var id=String(n&&n.id||'');
@@ -68,15 +95,19 @@
   function mostrarAvisoCriticoPresupuesto(){
     var existente=document.getElementById('modal-aviso-critico-presupuesto');
     var ctx=sessionContext();
+    if(avisoCriticoGestion){ if(existente) existente.remove(); return; }
     if(!ctx.usuario||!ctx.rol||document.getElementById('modal-comunicado-global')){
       if(document.getElementById('modal-comunicado-global')) programarAvisoCriticoPresupuesto();
       return;
     }
-    var aviso=notifSource().filter(function(n){ return esAvisoCriticoPresupuesto(n)&&visibleNotif(n,'')&&!getN(n.id).estado; })[0];
-    if(!aviso){ if(existente) existente.remove(); return; }
+    var pendientes=avisosCriticosPendientes();
+    var aviso=pendientes[0];
+    if(!aviso){ if(existente) existente.remove(); avisoCriticoLote=null; return; }
     if(existente&&existente.dataset.notificacionId===String(aviso.id)) return;
     if(existente) existente.remove();
     var aprobado=String(aviso.id).indexOf('ppto_aprobado_int_')===0;
+    var lote=iniciarLoteAvisosCriticos();
+    var posicion=Math.min(lote.total,lote.atendidos+1);
     var color=aprobado?'var(--green)':(aviso.urgente?'var(--red)':'var(--amber)');
     var fondo=aprobado?'var(--green-bg)':(aviso.urgente?'var(--red-bg)':'var(--amber-bg)');
     var overlay=document.createElement('div');
@@ -85,9 +116,9 @@
     overlay.style.cssText='position:fixed;inset:0;z-index:100150;background:rgba(3,6,14,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px';
     overlay.innerHTML='<div role="alertdialog" aria-modal="true" style="width:min(540px,100%);background:var(--bg2);border:1px solid '+color+';border-radius:20px;box-shadow:0 28px 90px rgba(0,0,0,.62);padding:24px">'+
       '<div style="width:56px;height:56px;border-radius:18px;background:'+fondo+';color:'+color+';display:flex;align-items:center;justify-content:center;margin-bottom:17px"><i class="ti '+svEsc(aviso.icono||'ti-file-description')+'" style="font-size:27px"></i></div>'+
-      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><div style="font-size:20px;font-weight:800;line-height:1.25">'+svEsc(aviso.titulo||'Aviso importante')+'</div>'+(aviso.urgente?'<span class="badge b-red">Urgente</span>':'')+'</div>'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><div style="font-size:20px;font-weight:800;line-height:1.25">'+svEsc(aviso.titulo||'Aviso importante')+'</div>'+(aviso.urgente?'<span class="badge b-red">Urgente</span>':'')+(lote.total>1?'<span class="badge b-blue">Aviso '+posicion+' de '+lote.total+'</span>':'')+'</div>'+ 
       '<div style="font-size:14px;color:var(--text2);line-height:1.55;padding:14px 15px;background:var(--bg3);border:.5px solid var(--border);border-radius:var(--radius);margin-bottom:18px">'+svEsc(aviso.sub||'')+'</div>'+
-      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" onclick="notifAvisoCriticoEntendido(\''+svEsc(aviso.id)+'\')"><i class="ti ti-check"></i> Entendido</button><button class="btn btn-primary" onclick="notifAvisoCriticoAbrir(\''+svEsc(aviso.id)+'\')"><i class="ti ti-external-link"></i> '+svEsc((aviso.accion&&aviso.accion.label)||'Abrir presupuesto')+'</button></div>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" onclick="notifAvisoCriticoEntendido(\''+svEsc(aviso.id)+'\')"><i class="ti ti-check"></i> Entendido</button><button class="btn btn-primary" onclick="notifAvisoCriticoAbrir(\''+svEsc(aviso.id)+'\')"><i class="ti ti-external-link"></i> '+svEsc((aviso.accion&&aviso.accion.label)||'Abrir')+'</button></div>'+ 
     '</div>';
     document.body.appendChild(overlay);
   }
@@ -125,6 +156,8 @@
     notifStateUnsubscribe=null;
     notifStateUser='';
     notifState={};
+    avisoCriticoGestion=null;
+    avisoCriticoLote=null;
   };
   function setN(id, patch){
     var k=nKey(id);
@@ -159,15 +192,30 @@
     if(n.accion && n.accion.fn){ try{ new Function(n.accion.fn)(); }catch(e){ console.error(e); } }
   };
   window.notifAvisoCriticoEntendido=function(id){
+    avanzarLoteAvisosCriticos();
     setN(id,{estado:'leida'});
     var modal=document.getElementById('modal-aviso-critico-presupuesto');
     if(modal) modal.remove();
     refreshNotifUI();
   };
   window.notifAvisoCriticoAbrir=function(id){
+    var paginaActiva=document.querySelector('.page.active');
+    avisoCriticoGestion={
+      id:String(id||''),
+      origen:paginaActiva?String(paginaActiva.id||'').replace(/^page-/,''):'',
+      destino:'',
+      esperandoDestino:true
+    };
+    avanzarLoteAvisosCriticos();
     var modal=document.getElementById('modal-aviso-critico-presupuesto');
     if(modal) modal.remove();
     window.notifAbrirAccion(id);
+    setTimeout(function(){
+      if(!avisoCriticoGestion||!avisoCriticoGestion.esperandoDestino) return;
+      var activa=document.querySelector('.page.active');
+      avisoCriticoGestion.destino=activa?String(activa.id||'').replace(/^page-/,''):avisoCriticoGestion.origen;
+      avisoCriticoGestion.esperandoDestino=false;
+    },250);
     refreshNotifUI();
   };
   window.abrirPresupuestoDesdeNotificacion = function(id){
@@ -210,8 +258,19 @@
     programarAvisoCriticoPresupuesto();
   }
   document.addEventListener('sisventas:page-changed',function(event){
+    var pagina=event.detail&&event.detail.page;
+    if(avisoCriticoGestion&&pagina){
+      if(avisoCriticoGestion.esperandoDestino){
+        avisoCriticoGestion.destino=pagina;
+        avisoCriticoGestion.esperandoDestino=false;
+      } else if(pagina!==avisoCriticoGestion.destino){
+        reanudarColaAvisosCriticos();
+      }
+    }
     if(event.detail&&event.detail.page==='notificaciones') actualizarNotificacionesAutomaticamente();
   });
+  document.addEventListener('sisventas:accion-notificacion-cerrada',reanudarColaAvisosCriticos);
+  document.addEventListener('sisventas:ot-closed',reanudarColaAvisosCriticos);
   document.addEventListener('sisventas:notificaciones-actualizadas',programarAvisoCriticoPresupuesto);
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='visible') actualizarNotificacionesAutomaticamente();

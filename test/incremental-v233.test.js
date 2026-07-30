@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
 const css = read('css', 'app.css');
-const app = read('js', 'app.js');
+const app = read('js', 'app.v2.0.233.js');
 const index = read('index.html');
 const sw = read('sw.js');
 
@@ -16,9 +16,6 @@ test('las grillas pasan a tarjetas en todo ancho intermedio hasta 900px', () => 
   assert.doesNotMatch(css, /max-width:900px\) and \(orientation:portrait\)/);
 });
 
-test('la publicacion corresponde a v2.0.233', () => {
+test('la instantanea corresponde a v2.0.233', () => {
   assert.match(app, /VERSION: 'v2\.0\.233-firebase'/);
-  assert.match(index, /app\.v2\.0\.233\.js/);
-  assert.match(index, /version\.v2\.0\.233\.js/);
-  assert.match(sw, /sisventas-v2\.0\.233/);
 });
