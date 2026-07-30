@@ -22,5 +22,5 @@ test('los movimientos de cuenta corriente conservan cabecera y cuerpo al renderi
 });
 
 test('Columnas porcentaje no ocupa espacio en la interfaz móvil', () => {
-  assert.match(css, /@media\(max-width:720px\)[\s\S]*?\.sv-column-percent-btn,\s*\[onclick\*="openColumnPercentEditor"\]\{display:none!important\}/);
+  assert.match(css, /@media\(max-width:900px\)[\s\S]*?\.sv-column-percent-btn,\s*\[onclick\*="openColumnPercentEditor"\]\{display:none!important\}/);
 });

@@ -1687,7 +1687,7 @@ body.modal-secure-open{overflow:hidden!important}
 
 /* v2.0.192 - Gastos legible en celular y controles coherentes */
 .gas-toolbar-actions{display:flex;gap:6px;flex-wrap:wrap}
-@media(max-width:720px){
+@media(max-width:900px){
   #page-gastos .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
   #page-gastos .metrics .metric{padding:12px!important}
   #page-gastos #gasto-list{padding:14px 12px!important;overflow:visible!important}
@@ -1921,7 +1921,7 @@ body.modal-secure-open{overflow:hidden!important}
 /* v2.0.225 - Las grillas conservan su tabla en escritorio y pasan a tarjetas
    consistentes en celular. El contenido no se comprime ni se trunca. */
 .sv-ppto-mobile-scroll-hint{display:none!important}
-@media(max-width:720px), (min-width:721px) and (max-width:900px) and (orientation:portrait){
+@media(max-width:900px){
   #role-badge-el{display:none!important}
   .topbar-dolar{display:inline-flex!important;flex-shrink:0}
   .sv-column-percent-btn,

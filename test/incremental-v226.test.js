@@ -18,7 +18,7 @@ test('los sublistados dinámicos activan la presentación móvil compartida', ()
 });
 
 test('Columnas porcentaje desaparece sólo bajo el ancho móvil', () => {
-  assert.match(css, /@media\(max-width:720px\)[\s\S]*?\[onclick\*="openColumnPercentEditor"\]\{display:none!important\}/);
+  assert.match(css, /@media\(max-width:900px\)[\s\S]*?\[onclick\*="openColumnPercentEditor"\]\{display:none!important\}/);
 });
 
 test('la publicación corresponde a v2.0.226', () => {

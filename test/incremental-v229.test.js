@@ -10,12 +10,12 @@ const app = read('js', 'app.js');
 const index = read('index.html');
 const sw = read('sw.js');
 
-test('tablet vertical presenta las grillas como tarjetas', () => {
-  assert.match(css, /@media\(max-width:720px\), \(min-width:721px\) and \(max-width:900px\) and \(orientation:portrait\)/);
+test('celular y tablet hasta 900px presentan las grillas como tarjetas', () => {
+  assert.match(css, /@media\(max-width:900px\)/);
   assert.match(css, /table\.sv-mobile-card-grid tbody > tr\{[\s\S]{0,220}grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 
-test('tablet horizontal libera el ancho y conserva las tablas', () => {
+test('tablet horizontal desde 901px libera el ancho y conserva las tablas', () => {
   assert.match(css, /@media \(min-width:901px\) and \(max-width:1100px\) and \(orientation:landscape\)/);
   assert.match(css, /\.sidebar\.open\{left:0;box-shadow:4px 0 20px/);
   assert.match(css, /\.hamburger\{display:flex!important\}/);
