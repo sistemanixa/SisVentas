@@ -86,3 +86,17 @@ test('productos, proveedores y lotes persisten por repositorios con claves técn
     ['remove', 'sisventas/proveedores/-provider-new']
   ]);
 });
+
+test('el rollback refresca el dashboard aunque una vista secundaria falle', () => {
+  let dashboardRefreshes = 0;
+  const adapter = Integration.create({
+    document: {},
+    actualizarVigenciaPreciosDashboard: () => { dashboardRefreshes += 1; },
+    renderModuloActualizadorPrecios: () => { throw new Error('módulo desmontado'); },
+    renderTablaProductos: () => { throw new Error('tabla desmontada'); },
+    console: { warn: () => {} }
+  });
+
+  assert.doesNotThrow(() => adapter.onDeactivate());
+  assert.equal(dashboardRefreshes, 1);
+});

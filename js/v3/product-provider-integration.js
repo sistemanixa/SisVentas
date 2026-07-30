@@ -119,9 +119,19 @@
 
     function refreshVisibleProducts() {
       if (!root.document) return;
-      if (typeof root.renderTablaProductos === 'function') root.renderTablaProductos();
-      if (typeof root.renderModuloActualizadorPrecios === 'function') root.renderModuloActualizadorPrecios();
-      if (typeof root.actualizarVigenciaPreciosDashboard === 'function') root.actualizarVigenciaPreciosDashboard();
+      [
+        root.actualizarVigenciaPreciosDashboard,
+        root.renderModuloActualizadorPrecios,
+        root.renderTablaProductos
+      ].forEach(function (renderer) {
+        if (typeof renderer !== 'function') return;
+        try { renderer.call(root); }
+        catch (error) {
+          if (root.console && typeof root.console.warn === 'function') {
+            root.console.warn('[V3 productos] No se pudo refrescar una vista secundaria:', error);
+          }
+        }
+      });
     }
 
     var adapter = Object.freeze({

@@ -321,9 +321,14 @@
     function rollback() {
       var bridge = root.SisVentas && root.SisVentas.V3Bridge;
       if (!bridge || typeof bridge.rollback !== 'function') return;
-      bridge.rollback();
-      if (lastReport) render(lastReport);
-      notify('Se restauró el comportamiento estable v2.0.236');
+      try {
+        bridge.rollback();
+        notify('Se restauró el comportamiento estable v2.0.236');
+      } catch (error) {
+        notify('V3 se desactivó, pero una vista no pudo refrescarse');
+      } finally {
+        if (lastReport) render(lastReport);
+      }
     }
 
     function exportReport() {

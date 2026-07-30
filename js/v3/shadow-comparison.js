@@ -117,6 +117,8 @@
     var fields = [
       'catalogProducts',
       'laborExcluded',
+      'reviewProducts',
+      'reviewCurrentProducts',
       'automatableProducts',
       'pendingProducts',
       'currentProducts',

@@ -101,6 +101,8 @@
     return {
       catalogProducts: 0,
       laborExcluded: 0,
+      reviewProducts: 0,
+      reviewCurrentProducts: 0,
       automatableProducts: 0,
       pendingProducts: 0,
       currentProducts: 0,
@@ -124,6 +126,21 @@
     var links = allLinks.filter(function (link) { return selected.has(text(link && link.tipo)); });
     var laborExcluded = products.filter(function (product) { return legacyIsLabor(root, product); }).length;
     var catalogProducts = products.length - laborExcluded;
+    var reviewProducts = products.filter(function (product) {
+      if (legacyIsLabor(root, product)) return false;
+      if (typeof root.estadoVigenciaPrecioProducto === 'function') {
+        try { return root.estadoVigenciaPrecioProducto(product).vigente !== true; }
+        catch (error) {}
+      }
+      var providers = Array.isArray(product && product.proveedores)
+        ? product.proveedores.filter(Boolean)
+        : [];
+      if (!providers.length) return true;
+      return providers.some(function (provider) {
+        try { return root.estadoVigenciaPrecioProveedor(product, provider).vigente !== true; }
+        catch (error) { return true; }
+      });
+    }).length;
     var automatable = new Set();
     var pending = new Set();
     var pendingLinks = 0;
@@ -142,6 +159,8 @@
     return {
       catalogProducts: catalogProducts,
       laborExcluded: laborExcluded,
+      reviewProducts: reviewProducts,
+      reviewCurrentProducts: Math.max(0, catalogProducts - reviewProducts),
       automatableProducts: automatable.size,
       pendingProducts: pending.size,
       currentProducts: Math.max(0, automatable.size - pending.size),

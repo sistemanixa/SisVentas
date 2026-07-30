@@ -54,6 +54,14 @@
       root.document.dispatchEvent(new EventType(name, { detail: detail }));
     }
 
+    function emitLifecycleError(moduleName, phase, error) {
+      emit('sisventas:v3-bridge-error', {
+        module: moduleName,
+        phase: phase,
+        message: error && error.message || String(error)
+      });
+    }
+
     function gateDecision(moduleName) {
       var service = runtime();
       var activation = service && typeof service.activationStatus === 'function'
@@ -99,7 +107,14 @@
       var decision = service.activate(moduleName);
       if (!decision || decision.active !== true) return status(moduleName);
       active.add(moduleName);
-      if (typeof adapter.onActivate === 'function') adapter.onActivate();
+      if (typeof adapter.onActivate === 'function') {
+        try { adapter.onActivate(); }
+        catch (error) {
+          active.delete(moduleName);
+          if (service && typeof service.deactivate === 'function') service.deactivate(moduleName);
+          emitLifecycleError(moduleName, 'activate', error);
+        }
+      }
       var next = status(moduleName);
       emit('sisventas:v3-bridge-change', snapshot());
       return next;
@@ -112,7 +127,10 @@
       active.delete(moduleName);
       var service = runtime();
       if (service && typeof service.deactivate === 'function') service.deactivate(moduleName);
-      if (adapter && wasActive && typeof adapter.onDeactivate === 'function') adapter.onDeactivate();
+      if (adapter && wasActive && typeof adapter.onDeactivate === 'function') {
+        try { adapter.onDeactivate(); }
+        catch (error) { emitLifecycleError(moduleName, 'deactivate', error); }
+      }
       emit('sisventas:v3-bridge-change', snapshot());
       return status(moduleName);
     }
@@ -124,7 +142,10 @@
       if (service && typeof service.rollback === 'function') service.rollback();
       previouslyActive.forEach(function (moduleName) {
         var adapter = adapters.get(moduleName);
-        if (adapter && typeof adapter.onDeactivate === 'function') adapter.onDeactivate();
+        if (adapter && typeof adapter.onDeactivate === 'function') {
+          try { adapter.onDeactivate(); }
+          catch (error) { emitLifecycleError(moduleName, 'rollback', error); }
+        }
       });
       var next = snapshot();
       emit('sisventas:v3-bridge-change', next);

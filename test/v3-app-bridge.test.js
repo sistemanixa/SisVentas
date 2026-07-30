@@ -74,6 +74,19 @@ test('rollback desactiva juntos todos los módulos conectados', () => {
   assert.equal(rolledBack.modules.ordenesTrabajo.active, false);
 });
 
+test('un error al refrescar una vista nunca impide el rollback', () => {
+  const bridge = Bridge.create({}, { runtime: runtime(true) });
+  bridge.register('productosProveedores', {
+    onDeactivate: () => { throw new Error('vista desmontada'); }
+  });
+  bridge.activate('productosProveedores');
+
+  assert.equal(bridge.status('productosProveedores').active, true);
+  const rolledBack = bridge.rollback();
+  assert.equal(rolledBack.modules.productosProveedores.active, false);
+  assert.equal(bridge.status('productosProveedores').active, false);
+});
+
 test('cerrar sesión revierte toda activación V3 antes del próximo usuario', () => {
   const listeners = {};
   const bridge = Bridge.create({

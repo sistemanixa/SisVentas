@@ -10273,10 +10273,12 @@ function actualizarVigenciaPreciosDashboard() {
     now:Date.now(), maxAgeMs:PRECIO_VIGENCIA_MS
   }], null);
   if (resumenV3) {
-    valorEl.textContent = resumenV3.pendingProducts ? String(resumenV3.pendingProducts) : 'OK';
-    valorEl.style.color = resumenV3.pendingProducts ? 'var(--amber)' : 'var(--green)';
-    subEl.textContent = resumenV3.pendingProducts
-      ? resumenV3.pendingProducts + ' de ' + resumenV3.catalogProducts + ' requieren revisión'
+    var requierenRevisionV3 = Number(resumenV3.reviewProducts);
+    if (!isFinite(requierenRevisionV3)) requierenRevisionV3 = Number(resumenV3.pendingProducts) || 0;
+    valorEl.textContent = requierenRevisionV3 ? String(requierenRevisionV3) : 'OK';
+    valorEl.style.color = requierenRevisionV3 ? 'var(--amber)' : 'var(--green)';
+    subEl.textContent = requierenRevisionV3
+      ? requierenRevisionV3 + ' de ' + resumenV3.catalogProducts + ' requieren revisión'
       : (resumenV3.catalogProducts ? 'todos actualizados' : 'sin productos');
     return;
   }

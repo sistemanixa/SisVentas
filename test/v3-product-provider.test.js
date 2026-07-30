@@ -37,6 +37,8 @@ test('mano de obra se reconoce y queda completamente fuera del actualizador', ()
   assert.deepEqual(model.summary(), {
     catalogProducts: 0,
     laborExcluded: 1,
+    reviewProducts: 0,
+    reviewCurrentProducts: 0,
     automatableProducts: 0,
     pendingProducts: 0,
     currentProducts: 0,
@@ -118,6 +120,28 @@ test('cada proveedor conserva su propia vigencia cuando un producto tiene varios
   assert.equal(links[1].current.status, 'unverified');
   assert.deepEqual(model.compatibleLinks({ pendingOnly: true }).map((link) => link.type), ['tecnoprices']);
   assert.equal(model.summary().pendingProducts, 1);
+  assert.equal(model.summary().reviewProducts, 1);
+});
+
+test('la revisión general incluye productos manuales aunque no entren al actualizador', () => {
+  const model = new ProductProviderReadModel([{
+    fbKey: 'prod-auto',
+    proveedores: [{
+      proveedorKey: 'prov-bio',
+      nombre: 'BIOSEGUR',
+      url: 'https://biosegur.com.ar/auto',
+      actualizadoEn: NOW - HOUR
+    }]
+  }, {
+    fbKey: 'prod-manual',
+    nombre: 'Producto sin proveedor',
+    precioActualizadoEn: NOW - 25 * HOUR
+  }], masters(), { now: NOW });
+
+  assert.equal(model.summary().pendingProducts, 0);
+  assert.equal(model.summary().manualProducts, 1);
+  assert.equal(model.summary().reviewProducts, 1);
+  assert.equal(model.summary().reviewCurrentProducts, 1);
 });
 
 test('el producto legacy con un único proveedor sí puede heredar su fecha raíz', () => {

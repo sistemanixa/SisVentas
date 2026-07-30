@@ -11,6 +11,7 @@ test('productos y proveedores consultan V3 mediante el puente reversible', () =>
   assert.match(source, /productosProveedoresV3Invocar\('isLabor'/);
   assert.match(source, /productosProveedoresV3Invocar\('freshness'/);
   assert.match(source, /productosProveedoresV3Invocar\('summary'/);
+  assert.match(source, /resumenV3\.reviewProducts/);
   assert.match(source, /productosProveedoresV3Invocar\('links'/);
 });
 

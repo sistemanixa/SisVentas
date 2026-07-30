@@ -240,3 +240,28 @@ test('una diferencia del actualizador actual bloquea productos sin alterar los o
   assert.equal(report.comparisons.productosProveedores.differences
     .find((entry) => entry.name === 'automatableProducts').equal, false);
 });
+
+test('la compuerta de productos también compara el contador general del dashboard', async () => {
+  const root = fakeRoot();
+  root.prodData = {
+    '-product-manual': {
+      fbKey: '-product-manual',
+      nombre: 'Producto manual',
+      precioActualizadoEn: 0
+    }
+  };
+  root.proveedoresData = [];
+  root.productosBiosegurActualizables = () => [];
+  root.estadoVigenciaPrecioProveedor = () => ({ vigente: false });
+  root.estadoVigenciaPrecioProducto = () => ({ vigente: true });
+
+  const runtime = ShadowRuntime.create(root, { autoStart: false });
+  const report = await runtime.run();
+  const dashboardDifference = report.comparisons.productosProveedores.differences
+    .find((entry) => entry.name === 'reviewProducts');
+
+  assert.equal(report.gates.productosProveedores, false);
+  assert.equal(dashboardDifference.legacy, 0);
+  assert.equal(dashboardDifference.next, 1);
+  assert.equal(dashboardDifference.equal, false);
+});

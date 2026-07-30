@@ -168,6 +168,30 @@
     });
   }
 
+  function productFreshness(product, options) {
+    options = options || {};
+    var providers = rawLinks(product || {});
+    if (!providers.length) {
+      return freshness(product, {}, {
+        now: options.now,
+        maxAgeMs: options.maxAgeMs,
+        linkCount: 1
+      });
+    }
+    var states = providers.map(function (provider) {
+      return freshness(product, provider, {
+        now: options.now,
+        maxAgeMs: options.maxAgeMs,
+        linkCount: providers.length
+      });
+    });
+    var pending = states.find(function (state) { return !state.current; });
+    if (pending) return pending;
+    return states.reduce(function (oldest, state) {
+      return !oldest || state.timestamp < oldest.timestamp ? state : oldest;
+    }, null) || freshness(product, {}, options);
+  }
+
   function issue(kind, product, providerIndex, extra) {
     return Object.freeze(Object.assign({
       kind: kind,
@@ -254,6 +278,12 @@
     var catalog = this.products.filter(active);
     var labor = catalog.filter(isLabor);
     var reviewable = catalog.filter(function (product) { return !isLabor(product); });
+    var reviewProducts = reviewable.filter(function (product) {
+      return !productFreshness(product, {
+        now: this.now,
+        maxAgeMs: this.maxAgeMs
+      }).current;
+    }, this).length;
     var links = this.compatibleLinks({ selectedTypes: options.selectedTypes });
     var automatable = new Set();
     var pending = new Set();
@@ -265,6 +295,8 @@
     return Object.freeze({
       catalogProducts: reviewable.length,
       laborExcluded: labor.length,
+      reviewProducts: reviewProducts,
+      reviewCurrentProducts: Math.max(0, reviewable.length - reviewProducts),
       automatableProducts: automatable.size,
       pendingProducts: pending.size,
       currentProducts: Math.max(0, automatable.size - pending.size),
@@ -332,6 +364,7 @@
     nameMatchesType: nameMatchesType,
     rawLinks: rawLinks,
     providerTimestamp: providerTimestamp,
-    freshness: freshness
+    freshness: freshness,
+    productFreshness: productFreshness
   };
 });
