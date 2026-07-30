@@ -80,16 +80,24 @@ test('rechaza moneda USD aunque el importe tenga símbolo peso', () => {
 
 test('el salto extremo queda bloqueado como última barrera', () => {
   assert.equal(validarSaltoPrecio(110000, 100000).ok, true);
-  assert.equal(validarSaltoPrecio(500000, 100000).ok, false);
-  assert.equal(validarSaltoPrecio(10000, 100000).ok, false);
+  const suba = validarSaltoPrecio(500000, 100000);
+  const baja = validarSaltoPrecio(10000, 100000);
+  assert.equal(suba.ok, false);
+  assert.equal(baja.ok, false);
+  assert.equal(baja.codigo, 'PRICE_VARIATION_REQUIRES_APPROVAL');
+  assert.equal(baja.precioAnteriorArs, 100000);
+  assert.equal(baja.precioCandidatoArs, 10000);
+  assert.equal(baja.relacion, 0.1);
 });
 
 test('la cotizacion individual conserva el precio ante un salto extremo', () => {
   assert.equal(validarResultadoPrecioIndividual({ precioArs:110000 }, 100000).precioArs, 110000);
-  assert.throws(
-    () => validarResultadoPrecioIndividual({ precioArs:500000 }, 100000),
-    /variaci/i
-  );
+  assert.throws(() => validarResultadoPrecioIndividual({ precioArs:500000 }, 100000), function(error) {
+    return /variaci/i.test(error.message) &&
+      error.codigo === 'PRICE_VARIATION_REQUIRES_APPROVAL' &&
+      error.precioAnteriorArs === 100000 &&
+      error.precioCandidatoArs === 500000;
+  });
 });
 
 test('extrae únicamente un token Bearer bien formado', () => {

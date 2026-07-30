@@ -453,6 +453,10 @@ function validarSaltoPrecio(precioNuevo, precioAnterior) {
   if (relacion > 4 || relacion < (1 / 4)) {
     return {
       ok:false,
+      codigo:'PRICE_VARIATION_REQUIRES_APPROVAL',
+      precioAnteriorArs:anterior,
+      precioCandidatoArs:nuevo,
+      relacion,
       mensaje:`Precio bloqueado por variación anormal: anterior ARS ${anterior.toFixed(2)}, recibido ARS ${nuevo.toFixed(2)}`
     };
   }
@@ -461,7 +465,11 @@ function validarSaltoPrecio(precioNuevo, precioAnterior) {
 
 function validarResultadoPrecioIndividual(resultado, precioAnterior) {
   const validacion = validarSaltoPrecio(resultado && resultado.precioArs, precioAnterior);
-  if (!validacion.ok) throw new Error(validacion.mensaje);
+  if (!validacion.ok) {
+    const error = new Error(validacion.mensaje);
+    Object.assign(error, validacion);
+    throw error;
+  }
   return resultado;
 }
 
@@ -1049,7 +1057,16 @@ const server = http.createServer(async (req, res) => {
     send(res, 200, resultado);
   } catch (e) {
     console.error('[cotizador]', e);
-    send(res, e.statusCode || 200, { ok: false, error: true, mensaje: e.message || 'Error cotizando proveedor', debug: { trace: e.trace || [] } });
+    send(res, e.statusCode || 200, {
+      ok: false,
+      error: true,
+      codigo: e.codigo || '',
+      mensaje: e.message || 'Error cotizando proveedor',
+      precioAnteriorArs: Number(e.precioAnteriorArs) || 0,
+      precioCandidatoArs: Number(e.precioCandidatoArs) || 0,
+      relacion: Number(e.relacion) || 0,
+      debug: { trace: e.trace || [] }
+    });
   }
 });
 
