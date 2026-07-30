@@ -79,6 +79,11 @@ async function mntExaminarTodo(btn){
       window.svRenderAuditoriaRelaciones();
     }
 
+    if(window.SisVentas && window.SisVentas.V3Diagnostics && typeof window.SisVentas.V3Diagnostics.run === 'function') {
+      mntExamStatus('Examinando sistema', 'Comparando el núcleo V3 con la versión actual...');
+      await window.SisVentas.V3Diagnostics.run({silent:true});
+    }
+
     await mntAnalizarDuplicadosGastosFijos();
 
     var pendientes = MNT_STATE && MNT_STATE.pendientes || 0;

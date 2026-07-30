@@ -1,5 +1,11 @@
 # Reconstrucción progresiva del núcleo de SisVentas
 
+> Estado operativo actualizado: la integración realizada sobre `v2.0.236`,
+> sus compuertas, persistencia y procedimiento de reversión se documentan en
+> [`integracion-v3-sobre-v236.md`](./integracion-v3-sobre-v236.md). Las etapas
+> pendientes descriptas debajo conservan valor histórico, pero ya fueron
+> implementadas en la rama local de integración.
+
 ## Estado y objetivo
 
 La versión `v2.0.236` es la base estable de esta integración. Conserva todas las

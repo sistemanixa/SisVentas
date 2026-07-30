@@ -40,7 +40,21 @@ test('el núcleo v3 se carga después de la aplicación actual y en orden seguro
     assert.ok(scriptIndex > previousIndex, `${file} debe cargarse en el orden seguro`);
     previousIndex = scriptIndex;
   }
-  assert.ok(indexSource.indexOf('js/v3-shadow-runtime.js') > previousIndex);
+  const runtimeIndex = indexSource.indexOf('js/v3-shadow-runtime.js');
+  assert.ok(runtimeIndex > previousIndex);
+  const bridgeIndex = indexSource.indexOf('js/v3/app-bridge.js');
+  assert.ok(bridgeIndex > runtimeIndex);
+  const persistenceIndex = indexSource.indexOf('js/v3/firebase-record-adapter.js');
+  assert.ok(persistenceIndex > bridgeIndex);
+  const budgetIntegrationIndex = indexSource.indexOf('js/v3/budget-integration.js');
+  assert.ok(budgetIntegrationIndex > persistenceIndex);
+  const salesIntegrationIndex = indexSource.indexOf('js/v3/sales-integration.js');
+  assert.ok(salesIntegrationIndex > budgetIntegrationIndex);
+  const otIntegrationIndex = indexSource.indexOf('js/v3/ot-integration.js');
+  assert.ok(otIntegrationIndex > salesIntegrationIndex);
+  const productProviderIntegrationIndex = indexSource.indexOf('js/v3/product-provider-integration.js');
+  assert.ok(productProviderIntegrationIndex > otIntegrationIndex);
+  assert.ok(indexSource.indexOf('js/v3/admin-diagnostics.js') > productProviderIntegrationIndex);
   assert.doesNotMatch(indexSource, /SisVentas\.V3Shadow\.enable\s*\(/);
 });
 
@@ -48,7 +62,13 @@ test('los módulos v3 no leen colecciones globales legacy ni escriben Firebase',
   for (const file of v3Files) {
     const source = fs.readFileSync(path.join(root, 'js', 'v3', file), 'utf8');
     assert.doesNotMatch(source, /\bwindow\.(ventasList|pptoData|otData|prodData|clientesList)\b/);
-    assert.doesNotMatch(source, /\b(fbSet|fbUpdate|fbRemove|fbPush|fbDB)\b/);
+    if (file !== 'firebase-record-adapter.js') {
+      assert.doesNotMatch(source, /\b(fbSet|fbUpdate|fbRemove|fbPush|fbDB)\b/);
+    } else {
+      assert.match(source, /Colección V3 no autorizada/);
+      assert.match(source, /cleanKey/);
+      assert.doesNotMatch(source, /localStorage|sessionStorage/);
+    }
   }
 });
 

@@ -45,6 +45,7 @@ test('mano de obra se reconoce y queda completamente fuera del actualizador', ()
     pendingLinks: 0
   });
   assert.equal(model.audit().issues[0].kind, 'labor-has-provider');
+  assert.equal(model.audit().ready, false);
 });
 
 test('un proveedor se automatiza sólo si coinciden clave maestra, nombre y dominio', () => {

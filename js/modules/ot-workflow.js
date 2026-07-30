@@ -42,6 +42,11 @@
     var promesa=reservarSiguienteOTId().then(function(id){
       ot.id=id;
       ot.ts=ot.ts||Date.now();
+      if(typeof window.otPersistirGuardar==='function'){
+        return window.otPersistirGuardar(ot).then(function(guardada){
+          return { key:guardada&&guardada.fbKey||'' };
+        });
+      }
       return window.fbPush(window.fbRef(window.fbDB,FB_PATHS.ordenesTrabajo),ot);
     });
     if(evitarDoble){

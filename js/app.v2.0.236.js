@@ -230,7 +230,7 @@ function renderMetricasVentas() {
   });
 
   // Totales del MES
-  var totalMes  = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var totalMes  = ventasMes.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); }, 0);
   var ivaMes    = ventasMes.filter(function(v){ return v.factura; }).reduce(function(s,v){ return s+(parseFloat(v.iva)||0); }, 0);
   var cantMes   = ventasMes.length;
 
@@ -1303,10 +1303,10 @@ function verificarVencimientosPptos() {
   });
   vencidos.forEach(function(p) {
     if (!p.fbKey || !window.fbDB) return;
-    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
+    pptoPersistirActualizar(p.fbKey, {
       estado: 'vencido',
       audit: (p.audit||[]).concat([{ fecha: hoyStr, usuario: 'Sistema', accion: 'Anulado automáticamente por vencimiento' }])
-    });
+    }).catch(function(e){ console.error('[Presupuestos] No se pudo marcar como vencido', e); });
   });
   if (vencidos.length) notify('⏰ ' + vencidos.length + ' presupuesto(s) vencidos anulados automáticamente');
 
@@ -1421,7 +1421,7 @@ function flujoPostPago(ventaObj, montoSena) {
         var otKey = ref.key;
         // Vincular OT a la venta
         if (ventaObj.fbKey) {
-          window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaObj.fbKey), {
+          ventasPagosPersistirActualizarVenta(ventaObj.fbKey, {
             otId: otKey,
             otNumero: ot.id,
             otGenerada: true
@@ -1445,7 +1445,7 @@ function tecnicoTomarOT(otFbKey) {
     if (!confirm('Esta OT ya está asignada a ' + ot.tecnico + '. ¿Reasignar a ' + currentUser + '?')) return;
   }
   var hoy = svFechaLocalISO();
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otFbKey), {
+  otPersistirActualizar(otFbKey, {
     tecnico: currentUser || '',
     estado: 'en_curso',
     fechaInicio: hoy,
@@ -1464,7 +1464,7 @@ function cerrarOTyVenta(otFbKey, conformidad) {
   var hoy = svFechaLocalISO();
 
   // Cerrar OT
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otFbKey), {
+  otPersistirActualizar(otFbKey, {
     estado: 'completada',
     fechaCierre: hoy,
     conformidadCliente: true,
@@ -1478,7 +1478,7 @@ function cerrarOTyVenta(otFbKey, conformidad) {
   if (ot.ventaId) {
     var venta = _svResolverVentaRegistro(ot);
     if (venta && venta.fbKey) {
-      window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
+      ventasPagosPersistirActualizarVenta(venta.fbKey, {
         estado: 'instalado',
         estadoInstalacion: 'instalado',
         fechaInstalacion: hoy,
@@ -1496,14 +1496,14 @@ function asignarFechaInstalacion(ventaId, fecha, tecnico) {
   });
   if (!venta || !venta.fbKey) { notify('Venta no encontrada'); return; }
 
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
+  ventasPagosPersistirActualizarVenta(venta.fbKey, {
     fechaInstalacionProg: fecha,
     tecnicoAsignado: tecnico || ''
   });
 
   var ot = (otData||[]).find(function(o){ return _svRegistroPerteneceVenta(o, venta); });
   if (ot && ot.fbKey) {
-    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
+    otPersistirActualizar(ot.fbKey, {
       fecha: fecha, tecnico: tecnico || '', estado: 'programada'
     });
     if (venta.agendaEventoId) {
@@ -1726,11 +1726,11 @@ async function iaEnviar() {
   if (esAdmin) {
     // Admin: acceso completo a datos financieros
     var ventasMes   = (ventasList||[]).filter(function(v){ return (v.fecha||'').slice(0,7)===mesActual; });
-    var montoMes    = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); },0);
+    var montoMes    = ventasMes.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); },0);
     var otsPend     = (otData||[]).filter(function(o){ return o.estado!=='completada'; });
     var gastosMes   = (gastosData||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; });
     var montoGastos = gastosMes.reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
-    var clientesDeuda = (ventasList||[]).filter(function(v){ return v.estadoPago!=='pago_total' && (parseFloat(v.total)||0)>0; }).length;
+    var clientesDeuda = (ventasList||[]).filter(function(v){ return _svSaldoPendienteVenta(v) > 0; }).length;
     systemPrompt +=
       '\n\n=== DATOS DEL SISTEMA ===' +
       '\nVentas este mes: ' + ventasMes.length + ' · $' + Math.round(montoMes).toLocaleString('es-AR') +
@@ -3386,7 +3386,7 @@ function migrarEmpleadoPptos() {
   if (!sinEmpleado.length) { notify('Todos los presupuestos ya tienen empleado asignado'); return; }
   if (!confirm('Asignar yplana como creador de ' + sinEmpleado.length + ' presupuestos sin empleado?')) return;
   var promesas = sinEmpleado.map(function(p) {
-    return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), {
+    return pptoPersistirActualizar(p.fbKey, {
       empleado: 'yplana',
       usuario:  'yplana'
     });
@@ -3609,8 +3609,6 @@ function fbCargarProductos() {
 }
 
 function fbGuardarProducto(prod) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
-  var r = window.fbRef(window.fbDB, FB_PATHS.productos);
   function refrescarProductoGuardado() {
     try {
       if (prod.fbKey && prodData) {
@@ -3624,13 +3622,14 @@ function fbGuardarProducto(prod) {
       if (typeof actualizarStatProductos === 'function') actualizarStatProductos();
     } catch(e) {}
   }
-  if (prod.fbKey) {
-    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + prod.fbKey), prod)
-      .then(function() { refrescarProductoGuardado(); notify('Producto actualizado ✓'); });
-  } else {
-    window.fbPush(r, prod)
-      .then(function(ref) { prod.fbKey = ref && ref.key ? ref.key : prod.fbKey; refrescarProductoGuardado(); notify('Producto guardado ✓'); });
-  }
+  var eraEdicion = !!prod.fbKey;
+  productoPersistirGuardar(prod)
+    .then(function(guardado) {
+      if (guardado && guardado.fbKey) prod.fbKey = guardado.fbKey;
+      refrescarProductoGuardado();
+      notify(eraEdicion ? 'Producto actualizado ✓' : 'Producto guardado ✓');
+    })
+    .catch(function(e){ notify('No se pudo guardar el producto: ' + e.message); });
 }
 
 function fechaVentaTimestamp(fecha, respaldoTs) {
@@ -3721,7 +3720,7 @@ function _repararVentasAdicionalesOTSinNumero(rows, data) {
     updates[base + '/moneda'] = venta.moneda || 'ARS';
     updates[base + '/monedaOperativa'] = venta.monedaOperativa || 'ARS';
     updates[base + '/estadoInst'] = venta.estadoInst || _estadoInstalacionVentaAdicionalOT(ot);
-    updates[base + '/subtotal'] = parseFloat(venta.subtotal) || parseFloat(venta.total) || 0;
+    updates[base + '/subtotal'] = parseFloat(venta.subtotal) || _svTotalVentaCanonico(venta);
     updates[base + '/iva'] = parseFloat(venta.iva) || 0;
     updates[base + '/conIva'] = venta.conIva === true;
     updates[base + '/reparadaVentaAdicionalOTEn'] = ahora;
@@ -3735,7 +3734,7 @@ function _repararVentasAdicionalesOTSinNumero(rows, data) {
       updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/ventasAdicionales/' + venta.fbKey] = {
         ventaFbKey: venta.fbKey,
         ventaId: id,
-        total: parseFloat(venta.total) || 0,
+        total: _svTotalVentaCanonico(venta),
         ts: venta.ts || ahora
       };
     }
@@ -3870,7 +3869,7 @@ function ventaTienePagoTotal(v) {
   if (!v) return false;
   var estado = String(v.estadoPago || '').toLowerCase();
   if (estado === 'pago_total' || estado === 'pagado' || estado === 'cancelada') return true;
-  var total = parseFloat(v.total) || 0;
+  var total = _svTotalVentaCanonico(v);
   var pagosEmbebidos = Array.isArray(v.pagos) ? v.pagos : [];
   var idsVentaDetalle = [v.fbKey, v.id, v.numero, v.nro, v.codigo].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
   var ventaIdNum = String(v.id||'').replace(/[^0-9]/g,'');
@@ -3923,8 +3922,133 @@ function _svPagoValido(p) {
   return !!p && !p.anulado && String(p.estado || '').toLowerCase() !== 'anulado';
 }
 
+function ventasPagosV3Invocar(metodo, argumentos, fallback) {
+  var bridge = window.SisVentas && window.SisVentas.V3Bridge;
+  if (!bridge || typeof bridge.invoke !== 'function') {
+    return typeof fallback === 'function' ? fallback() : fallback;
+  }
+  return bridge.invoke('ventasPagos', metodo, argumentos || [], fallback);
+}
+
+function ventasPagosV3Activo() {
+  var bridge = window.SisVentas && window.SisVentas.V3Bridge;
+  if (!bridge || typeof bridge.status !== 'function') return false;
+  try { return bridge.status('ventasPagos').active === true; }
+  catch(e) { return false; }
+}
+
+var _svModeloVentasV3Cache = null;
+function _svModeloVentasCanonico(forzar) {
+  if (!ventasPagosV3Activo()) {
+    _svModeloVentasV3Cache = null;
+    return null;
+  }
+  var ventas = Array.isArray(ventasList) ? ventasList : [];
+  var pagos = Array.isArray(window._historialPagosCompleto) ? window._historialPagosCompleto : [];
+  var vigente = _svModeloVentasV3Cache &&
+    _svModeloVentasV3Cache.ventas === ventas &&
+    _svModeloVentasV3Cache.pagos === pagos &&
+    _svModeloVentasV3Cache.ventasLength === ventas.length &&
+    _svModeloVentasV3Cache.pagosLength === pagos.length;
+  if (forzar === true || !vigente) {
+    var modelo = ventasPagosV3Invocar('model', [ventas, pagos], null);
+    if (!modelo) return null;
+    _svModeloVentasV3Cache = {
+      ventas: ventas,
+      pagos: pagos,
+      ventasLength: ventas.length,
+      pagosLength: pagos.length,
+      modelo: modelo
+    };
+  }
+  return _svModeloVentasV3Cache.modelo;
+}
+
+function _svResumenVentaCanonico(venta) {
+  var modelo = _svModeloVentasCanonico(false);
+  if (!modelo || !venta) return null;
+  var referencia = venta.fbKey ? venta : (venta.id || venta.numero || venta.nro || venta.codigo || '');
+  return modelo.summaryFor(referencia);
+}
+
+function _svTotalVentaCanonico(venta) {
+  if (!venta) return 0;
+  var resumen = _svResumenVentaCanonico(venta);
+  if (resumen && resumen.status === 'found') return resumen.total;
+  var totalV3 = ventasPagosV3Invocar('total', [venta], null);
+  return totalV3 == null ? (parseFloat(venta.total) || 0) : totalV3;
+}
+
+function ventasPagosPersistirGuardarVenta(venta) {
+  return Promise.resolve().then(function() {
+    return ventasPagosV3Invocar('saveSale', [venta], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      if (venta && venta.fbKey) {
+        return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), venta)
+          .then(function() { return Object.assign({}, venta); });
+      }
+      return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), venta).then(function(ref) {
+        return Object.assign({}, venta, { fbKey: ref && ref.key || '' });
+      });
+    });
+  });
+}
+
+function ventasPagosPersistirActualizarVenta(fbKey, cambios) {
+  return Promise.resolve().then(function() {
+    return ventasPagosV3Invocar('updateSale', [fbKey, cambios], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey), cambios);
+    });
+  });
+}
+
+function ventasPagosPersistirEliminarVenta(fbKey) {
+  return Promise.resolve().then(function() {
+    return ventasPagosV3Invocar('removeSale', [fbKey], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      return window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey));
+    });
+  });
+}
+
+function ventasPagosPersistirGuardarPago(pago) {
+  return Promise.resolve().then(function() {
+    return ventasPagosV3Invocar('savePayment', [pago], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      if (pago && pago.fbKey) {
+        return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/pagos/' + pago.fbKey), pago)
+          .then(function() { return Object.assign({}, pago); });
+      }
+      return window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos'), pago).then(function(ref) {
+        return Object.assign({}, pago, { fbKey: ref && ref.key || '' });
+      });
+    });
+  });
+}
+
+function ventasPagosPersistirActualizarPago(fbKey, cambios) {
+  return Promise.resolve().then(function() {
+    return ventasPagosV3Invocar('updatePayment', [fbKey, cambios], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/pagos/' + fbKey), cambios);
+    });
+  });
+}
+
+function ventasPagosPersistirEliminarPago(fbKey) {
+  return Promise.resolve().then(function() {
+    return ventasPagosV3Invocar('removePayment', [fbKey], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + fbKey));
+    });
+  });
+}
+
 function _svMontoPagadoVenta(venta) {
   if (!venta) return 0;
+  var resumenV3 = _svResumenVentaCanonico(venta);
+  if (resumenV3 && resumenV3.status === 'found' && resumenV3.payments.length) return resumenV3.paid;
   var pagosGlobales = (window._historialPagosCompleto || []).filter(function(p) {
     return _svPagoValido(p) && _svRegistroPerteneceVenta(p, venta);
   });
@@ -3941,7 +4065,7 @@ function _svMontoPagadoVenta(venta) {
 
 function _svSaldoPendienteVenta(venta) {
   if (!venta || (venta.anulada && !venta.notaCredito)) return 0;
-  var total = parseFloat(venta.total) || 0;
+  var total = _svTotalVentaCanonico(venta);
   return Math.max(0, total - Math.min(total, _svMontoPagadoVenta(venta)));
 }
 
@@ -3949,7 +4073,7 @@ function _svResumenCuentaCorriente(ventas) {
   // Si Cobranzas ya armó su mapa, usarlo: es exactamente la misma fuente que
   // actualiza el KPI de deuda del Dashboard.
   var mapa = window._ccMapActual;
-  if (mapa && Object.keys(mapa).length && ventas === ventasList) {
+  if (!ventasPagosV3Activo() && mapa && Object.keys(mapa).length && ventas === ventasList) {
     var filas = Object.keys(mapa).map(function(k){ return mapa[k] || {}; });
     var saldos = filas.map(function(d){ return Math.max(0, (parseFloat(d.total)||0) - (parseFloat(d.cobrado)||0)); });
     return {
@@ -4032,6 +4156,9 @@ function _svResolverClienteRegistro(reg, permitirNombre) {
 
 window._svRegistroPerteneceVenta = _svRegistroPerteneceVenta;
 window._svPagoValido = _svPagoValido;
+window._svModeloVentasCanonico = _svModeloVentasCanonico;
+window._svResumenVentaCanonico = _svResumenVentaCanonico;
+window._svTotalVentaCanonico = _svTotalVentaCanonico;
 window._svMontoPagadoVenta = _svMontoPagadoVenta;
 window._svSaldoPendienteVenta = _svSaldoPendienteVenta;
 window._svResumenCuentaCorriente = _svResumenCuentaCorriente;
@@ -4137,21 +4264,15 @@ function duplicarVenta(fbKey) {
 window.duplicarVenta = duplicarVenta;
 
 function fbGuardarVenta(venta) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
   venta = venta || {};
   if (!venta.fechaOrden) venta.fechaOrden = fechaVentaOrdenISO(venta.fecha, venta.ts || Date.now());
   if (!venta.ts) venta.ts = Date.now();
-  var r = window.fbRef(window.fbDB, FB_PATHS.ventas);
-  if (venta.fbKey) {
-    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), venta)
-      .then(function() { notify('Venta guardada ✓'); });
-  } else {
-    return window.fbPush(r, venta)
-      .then(function(ref) {
-        notify('Venta confirmada ✓');
-        return ref.key;
-      });
-  }
+  var eraEdicion = !!venta.fbKey;
+  return ventasPagosPersistirGuardarVenta(venta).then(function(guardada) {
+    if (guardada && guardada.fbKey) venta.fbKey = guardada.fbKey;
+    notify(eraEdicion ? 'Venta guardada ✓' : 'Venta confirmada ✓');
+    return guardada && guardada.fbKey || '';
+  });
 }
 function fbCargarPresupuestos() {
   if (!window.fbDB) return;
@@ -4189,15 +4310,11 @@ function fbCargarPresupuestos() {
 }
 
 function fbGuardarPresupuesto(ppto) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return Promise.resolve(); }
-  var r = window.fbRef(window.fbDB, FB_PATHS.presupuestos);
-  if (ppto.fbKey) {
-    return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + ppto.fbKey), ppto)
-      .then(function() { notify('Presupuesto guardado ✓'); });
-  } else {
-    return window.fbPush(r, ppto)
-      .then(function() { notify('Presupuesto guardado ✓'); });
-  }
+  return pptoPersistirGuardar(ppto).then(function(guardado) {
+    if (guardado && guardado.fbKey) ppto.fbKey = guardado.fbKey;
+    notify('Presupuesto guardado ✓');
+    return guardado;
+  });
 }
 function fbCargarOTs() {
   if (!window.fbDB) return;
@@ -4254,12 +4371,56 @@ function fbCargarOTs() {
   });
 }
 
+function otV3Invocar(metodo, argumentos, fallback) {
+  var bridge = window.SisVentas && window.SisVentas.V3Bridge;
+  if (!bridge || typeof bridge.invoke !== 'function') {
+    return typeof fallback === 'function' ? fallback() : fallback;
+  }
+  return bridge.invoke('ordenesTrabajo', metodo, argumentos || [], fallback);
+}
+
+function otPersistirGuardar(ot) {
+  return Promise.resolve().then(function() {
+    return otV3Invocar('save', [ot], function() {
+      if (!window.fbDB) throw new Error('Firebase no está disponible');
+      if (ot && ot.fbKey) {
+        return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), ot)
+          .then(function() { return Object.assign({}, ot); });
+      }
+      return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot).then(function(ref) {
+        return Object.assign({}, ot, { fbKey: ref && ref.key || '' });
+      });
+    });
+  });
+}
+
+function otPersistirActualizar(fbKey, cambios) {
+  return Promise.resolve().then(function() {
+    return otV3Invocar('update', [fbKey, cambios], function() {
+      if (!window.fbDB) throw new Error('Firebase no está disponible');
+      return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + fbKey), cambios);
+    });
+  });
+}
+
+function otPersistirEliminar(fbKey) {
+  return Promise.resolve().then(function() {
+    return otV3Invocar('remove', [fbKey], function() {
+      if (!window.fbDB) throw new Error('Firebase no está disponible');
+      return window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + fbKey));
+    });
+  });
+}
+
+function otModeloCanonico(registros, hoy) {
+  return otV3Invocar('model', [registros || [], hoy], null);
+}
+
 function fbGuardarOT(ot) {
   if (!window.fbDB || !window.fbRef || !window.fbUpdate || !window.fbPush) {
     return Promise.reject(new Error('Firebase no está disponible'));
   }
   window._otGuardandoLocalHasta = Date.now() + 2500;
-  var r = window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo);
   var prom;
   if (ot.fbKey) {
     // Notas, fotos y firma se guardan en operaciones independientes. Excluirlas
@@ -4287,9 +4448,13 @@ function fbGuardarOT(ot) {
       'firmada',
       'fechaFirma'
     ].forEach(function(campo) { delete cambiosOT[campo]; });
-    prom = window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), cambiosOT);
+    cambiosOT.fbKey = ot.fbKey;
+    prom = otPersistirGuardar(cambiosOT);
   } else {
-    prom = window.fbPush(r, ot).then(function(ref) { ot.fbKey = ref.key; return ref.key; });
+    prom = otPersistirGuardar(ot).then(function(guardada) {
+      ot.fbKey = guardada && guardada.fbKey || '';
+      return ot.fbKey;
+    });
   }
   return prom.then(function(res){
     if (typeof otActualId !== 'undefined' && otActualId && (ot.id === otActualId || ot.fbKey === otActualId)) {
@@ -4518,7 +4683,7 @@ function abrirModalFactura(ventaId) {
   var cuitCliente = obtenerCuitClienteVenta(venta);
   var tieneCuit = !!cuitCliente;
   if (tieneCuit) venta.clienteCuit = cuitCliente;
-  var totalFmt = '$' + (venta.total||0).toLocaleString('es-AR');
+  var totalFmt = '$' + _svTotalVentaCanonico(venta).toLocaleString('es-AR');
 
   var html = '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.15)">';
   html += '<div style="font-size:16px;font-weight:600;margin-bottom:16px">Emitir factura — ' + venta.id + '</div>';
@@ -4580,7 +4745,7 @@ function abrirModalNotaCredito(ventaId) {
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--text2);margin-bottom:12px">' +
         '<div><strong>Venta:</strong> ' + escapeHTML(v.id) + ' — ' + escapeHTML(v.cliente) + '</div>' +
         '<div><strong>Factura:</strong> ' + escapeHTML(f.tipo||'') + ' del ' + escapeHTML(f.fecha||'') + '</div>' +
-        '<div><strong>Total:</strong> $' + (parseFloat(v.total)||0).toLocaleString('es-AR') + '</div>' +
+        '<div><strong>Total:</strong> $' + _svTotalVentaCanonico(v).toLocaleString('es-AR') + '</div>' +
       '</div>' +
       // Número de comprobante — requerido por AFIP
       '<div style="margin-bottom:12px">' +
@@ -4625,7 +4790,7 @@ async function emitirNotaCredito(ventaId) {
   var tipoNC = v.factura.tipo === 'FACTURA A' ? 'NOTA DE CREDITO A' : 'NOTA DE CREDITO B';
 
   try {
-    var totalNC   = parseFloat(v.total) || 0;
+    var totalNC   = _svTotalVentaCanonico(v);
     var ivaNC     = parseFloat(v.iva) || 0;
     var netoNC    = totalNC - ivaNC; // importe neto sin IVA
 
@@ -4663,7 +4828,7 @@ async function emitirNotaCredito(ventaId) {
     }
     notify('✓ Nota de crédito emitida — CAE: ' + data.cae);
     if (window.fbDB && v.fbKey) {
-      await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/' + v.fbKey), {
+      await ventasPagosPersistirActualizarVenta(v.fbKey, {
         anulada: true,
         estadoPago: 'anulada',
         notaCredito: {
@@ -4880,7 +5045,7 @@ function abrirModalFacturaExterna(ventaId) {
   var anterior = document.getElementById('modal-factura-externa');
   if (anterior) anterior.remove();
   var puntoVenta = parseInt(TFAPP_CONFIG.punto_venta, 10) || 2;
-  var totalVenta = parseFloat(venta.total) || 0;
+  var totalVenta = _svTotalVentaCanonico(venta);
   var ivaVenta = venta.conIva === false ? 0 : (parseFloat(venta.iva) || 0);
   var overlay = document.createElement('div');
   overlay.id = 'modal-factura-externa';
@@ -5017,7 +5182,7 @@ async function guardarFacturaExterna(ventaId) {
     var audit = Array.isArray(venta.audit) ? venta.audit.slice() : [];
     audit.push({ fecha:new Date().toLocaleDateString('es-AR'), usuario:currentUser || 'Sistema', accion:'Factura externa ' + numeroFormateado + ' cargada y vinculada' });
     _estadoFacturaExterna('Guardando la factura en la venta...');
-    await _esperarFacturaExterna(window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
+    await _esperarFacturaExterna(ventasPagosPersistirActualizarVenta(venta.fbKey, {
       factura: factura,
       facturada: true,
       facturaNumero: numeroFormateado,
@@ -8078,7 +8243,7 @@ function toggleIvaDetalle(btn, ventaId) {
   var venta = _svResolverVentaRegistro(ventaId);
   if (!venta || !window.fbDB) return;
   var nuevoConIva = venta.conIva === false ? true : false;
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), { conIva: nuevoConIva })
+  ventasPagosPersistirActualizarVenta(venta.fbKey, { conIva: nuevoConIva })
     .then(function(){
       venta.conIva = nuevoConIva;
       btn.innerHTML = '<i class="ti ti-receipt-tax"></i> ' + (nuevoConIva ? 'Con IVA' : 'Sin IVA');
@@ -9857,8 +10022,116 @@ function proveedoresVinculadosProducto(p) {
   }];
 }
 
+function productosProveedoresV3Invocar(metodo, argumentos, fallback) {
+  var bridge = window.SisVentas && window.SisVentas.V3Bridge;
+  if (!bridge || typeof bridge.invoke !== 'function') {
+    return typeof fallback === 'function' ? fallback() : fallback;
+  }
+  return bridge.invoke('productosProveedores', metodo, argumentos || [], fallback);
+}
+
+function proveedorPersistirGuardar(proveedor) {
+  return Promise.resolve().then(function() {
+    return productosProveedoresV3Invocar('saveProvider', [proveedor], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      var datos = Object.assign({}, proveedor || {});
+      var fbKey = String(datos.fbKey || '').trim();
+      delete datos.fbKey;
+      if (fbKey) {
+        return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/proveedores/' + fbKey), datos)
+          .then(function() { return Object.assign({}, datos, { fbKey:fbKey }); });
+      }
+      return window.fbPush(window.fbRef(window.fbDB, 'sisventas/proveedores'), datos).then(function(ref) {
+        return Object.assign({}, datos, { fbKey:ref && ref.key || '' });
+      });
+    });
+  });
+}
+
+function proveedorPersistirActualizar(fbKey, cambios) {
+  return Promise.resolve().then(function() {
+    return productosProveedoresV3Invocar('updateProvider', [fbKey, cambios], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/proveedores/' + fbKey), cambios);
+    });
+  });
+}
+
+function proveedorPersistirEliminar(fbKey) {
+  return Promise.resolve().then(function() {
+    return productosProveedoresV3Invocar('removeProvider', [fbKey], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/proveedores/' + fbKey));
+    });
+  });
+}
+
+function proveedoresPersistirLote(entradas) {
+  return Promise.resolve().then(function() {
+    return productosProveedoresV3Invocar('updateProviders', [entradas || []], function() {
+      return Promise.all((entradas || []).map(function(entrada) {
+        return proveedorPersistirActualizar(entrada.fbKey, entrada.changes);
+      }));
+    });
+  });
+}
+
+function productoPersistirGuardar(producto) {
+  return Promise.resolve().then(function() {
+    return productosProveedoresV3Invocar('saveProduct', [producto], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      if (producto && producto.fbKey) {
+        return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + producto.fbKey), producto)
+          .then(function() { return Object.assign({}, producto); });
+      }
+      return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.productos), producto).then(function(ref) {
+        return Object.assign({}, producto, { fbKey: ref && ref.key || '' });
+      });
+    });
+  });
+}
+
+function productoPersistirActualizar(fbKey, cambios) {
+  return Promise.resolve().then(function() {
+    return productosProveedoresV3Invocar('updateProduct', [fbKey, cambios], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey), cambios);
+    });
+  });
+}
+
+function productoPersistirEliminar(fbKey) {
+  return Promise.resolve().then(function() {
+    return productosProveedoresV3Invocar('removeProduct', [fbKey], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      return window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey));
+    });
+  });
+}
+
+function productosPersistirLote(entradas, fallback) {
+  return Promise.resolve().then(function() {
+    return productosProveedoresV3Invocar('updateProducts', [entradas || []], fallback);
+  });
+}
+
+function productosEntradasDesdeMultipath(cambios) {
+  var grupos = {};
+  Object.keys(cambios || {}).forEach(function(ruta) {
+    var partes = String(ruta).split('/');
+    var fbKey = partes.shift();
+    var campo = partes.join('/');
+    if (!fbKey || !campo) return;
+    if (!grupos[fbKey]) grupos[fbKey] = {};
+    grupos[fbKey][campo] = cambios[ruta];
+  });
+  return Object.keys(grupos).map(function(fbKey) { return { fbKey:fbKey, changes:grupos[fbKey] }; });
+}
+
 function esProductoManoDeObra(p) {
   p = p || {};
+  var v3 = productosProveedoresV3Invocar('isLabor', [p], null);
+  if (v3 !== null && v3 !== undefined) return v3 === true;
   if (p.esManoDeObra === true || String(p.esManoDeObra || '').toLowerCase() === 'true') return true;
   var categoria = String(p.categoria || p.catId || p.tipoProducto || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   var nombre = String(p.nombre || p.descripcion || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -9884,6 +10157,8 @@ function limpiarProveedoresManoDeObraExistentes() {
     updates[base + 'proveedorActualizado'] = null;
     updates[base + 'urlProveedor'] = null;
     updates[base + 'codWeb'] = null;
+    updates[base + 'proveedorKey'] = null;
+    updates[base + 'proveedorFbKey'] = null;
     cantidad++;
   });
   if (!cantidad) return;
@@ -9948,6 +10223,20 @@ function timestampPrecioProveedorProducto(p, pv) {
 }
 
 function estadoVigenciaPrecioProveedor(p, pv) {
+  var estadoV3 = productosProveedoresV3Invocar('freshness', [p, pv, {
+    now: Date.now(),
+    maxAgeMs: PRECIO_VIGENCIA_MS,
+    linkCount: proveedoresVinculadosProducto(p).length || 1
+  }], null);
+  if (estadoV3) {
+    var diasV3 = estadoV3.ageMs == null ? 0 : Math.max(1, Math.floor(estadoV3.ageMs / 86400000));
+    return {
+      estado: estadoV3.status === 'current' ? 'vigente' : (estadoV3.status === 'expired' ? 'vencido' : 'sin_verificar'),
+      vigente: estadoV3.current === true,
+      ts: estadoV3.timestamp || 0,
+      texto: estadoV3.status === 'current' ? 'Actualizado' : (estadoV3.status === 'expired' ? 'Hace ' + diasV3 + ' día' + (diasV3 !== 1 ? 's' : '') : 'Sin verificar')
+    };
+  }
   var ts = timestampPrecioProveedorProducto(p, pv);
   if (!ts) return { estado:'sin_verificar', vigente:false, ts:0, texto:'Sin verificar' };
   var edad = Math.max(0, Date.now() - ts);
@@ -9979,6 +10268,18 @@ function actualizarVigenciaPreciosDashboard() {
   var valorEl = document.getElementById('dash-precios-vigencia');
   var subEl = document.getElementById('dash-precios-vigencia-sub');
   if (!valorEl || !subEl) return;
+  var resumenV3 = productosProveedoresV3Invocar('summary', [Object.values(prodData || {}), proveedoresData || [], {
+    selectedTypes:['biosegur','free_electron','tecnoprices','mercado_libre'],
+    now:Date.now(), maxAgeMs:PRECIO_VIGENCIA_MS
+  }], null);
+  if (resumenV3) {
+    valorEl.textContent = resumenV3.pendingProducts ? String(resumenV3.pendingProducts) : 'OK';
+    valorEl.style.color = resumenV3.pendingProducts ? 'var(--amber)' : 'var(--green)';
+    subEl.textContent = resumenV3.pendingProducts
+      ? resumenV3.pendingProducts + ' de ' + resumenV3.catalogProducts + ' requieren revisión'
+      : (resumenV3.catalogProducts ? 'todos actualizados' : 'sin productos');
+    return;
+  }
   var productos = Object.values(prodData || {}).filter(function(p){ return p && p.activo !== false && p.estado !== 'inactivo' && !esProductoManoDeObra(p); });
   var vencidos = productos.filter(function(p){ return !estadoVigenciaPrecioProducto(p).vigente; });
   valorEl.textContent = vencidos.length ? String(vencidos.length) : 'OK';
@@ -10109,7 +10410,7 @@ async function guardarUrlDesdeRevisionPrecios(fbKey, proveedorIdx) {
     proveedores[proveedorIdx].url = url;
     proveedores[proveedorIdx].actualizado = '';
     proveedores[proveedorIdx].actualizadoEn = 0;
-    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey), {
+    await productoPersistirActualizar(fbKey, {
       proveedores: proveedores,
       proveedor: proveedores[0].nombre || (prod && prod.proveedor) || ''
     });
@@ -10144,7 +10445,7 @@ async function asignarProveedorDesdeRevisionPrecios(fbKey) {
   nuevoProveedor.actualizadoOrigen = 'vinculado-manual';
   try {
     _revisionPreciosEstadoPendiente = capturarEstadoRevisionPrecios();
-    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey), {
+    await productoPersistirActualizar(fbKey, {
       proveedores: [nuevoProveedor],
       proveedor: nuevoProveedor.nombre
     });
@@ -10210,6 +10511,11 @@ function abrirGestionRevisionPrecios() {
 }
 
 function productosBiosegurActualizables() {
+  var enlacesV3 = productosProveedoresV3Invocar('links', [Object.values(prodData || {}), proveedoresData || [], {
+    selectedTypes:['biosegur','free_electron','tecnoprices','mercado_libre'],
+    now:Date.now(), maxAgeMs:PRECIO_VIGENCIA_MS
+  }], null);
+  if (enlacesV3) return Array.from(enlacesV3);
   var salida = [];
   Object.values(prodData || {}).forEach(function(p) {
     if (esProductoManoDeObra(p)) return;
@@ -10434,7 +10740,11 @@ async function guardarUrlFallidoActualizador(fbKey, proveedorIdx) {
   var url = normalizarUrlProveedorProducto(input ? input.value : '');
   if (!fbKey || !url) { notify('Ingresá una URL válida'); return; }
   try {
-    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey + '/proveedores/' + proveedorIdx), { url:url, actualizadoEn:0, actualizado:'' });
+    await productoPersistirActualizar(fbKey, {
+      ['proveedores/' + proveedorIdx + '/url']: url,
+      ['proveedores/' + proveedorIdx + '/actualizadoEn']: 0,
+      ['proveedores/' + proveedorIdx + '/actualizado']: ''
+    });
     var prod = Object.values(prodData || {}).find(function(p){ return String(p.fbKey || '') === String(fbKey); });
     if (prod && Array.isArray(prod.proveedores) && prod.proveedores[proveedorIdx]) {
       prod.proveedores[proveedorIdx].url = url;
@@ -10728,7 +11038,9 @@ async function aplicarVistaPreviaActualizador() {
         updates[fbKey + '/' + campo] = grupo.cambios[campo];
       });
     });
-    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos), updates);
+    await productosPersistirLote(productosEntradasDesdeMultipath(updates), function() {
+      return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos), updates);
+    });
     Object.keys(consolidados).forEach(function(fbKey) {
       var grupo = consolidados[fbKey];
       Object.assign(grupo.productoOriginal, grupo.cambios);
@@ -12415,13 +12727,20 @@ function calcPpTotales() {
   var base    = s - descAmt;
   var conIva  = typeof _pptoConIva !== 'undefined' ? _pptoConIva : true;
   var iva     = conIva ? Math.round(base * 0.21) : 0;
+  var modeloV3 = pptoV3Invocar('form', [getPpItems(), desc, conIva, 21], null);
+  if (modeloV3) {
+    s = modeloV3.subtotal;
+    descAmt = modeloV3.generalDiscount;
+    base = modeloV3.taxableBase;
+    iva = modeloV3.iva;
+  }
   _set('pp-sub',  '$' + s.toLocaleString('es-AR'));
   _set('pp-desc-label', 'Descuento ' + desc.toLocaleString('es-AR',{maximumFractionDigits:2}) + '%');
   _set('pp-damt', descAmt > 0 ? '-$' + descAmt.toLocaleString('es-AR') : '$0');
   var ivaRow = document.getElementById('pp-iva-row');
   if (ivaRow) ivaRow.style.display = conIva ? '' : 'none';
   _set('pp-iva',  '$' + iva.toLocaleString('es-AR'));
-  _set('pp-total','$' + (base + iva).toLocaleString('es-AR'));
+  _set('pp-total','$' + (modeloV3 ? modeloV3.total : (base + iva)).toLocaleString('es-AR'));
   if (typeof calcMargenPpto === 'function') calcMargenPpto();
 }
 window._mostrarMargenPpto = false;
@@ -12490,8 +12809,8 @@ function buscarVentaCob(v) {
   }).slice(0, 15);
   if (!matches.length) { d.style.display='none'; return; }
   d.innerHTML = matches.map(function(venta) {
-    var total   = parseFloat(venta.total)||0;
-    var cobrado = parseFloat(venta.totalPagado)||0;
+    var total   = _svTotalVentaCanonico(venta);
+    var cobrado = _svMontoPagadoVenta(venta);
     var saldo   = Math.max(0, total - cobrado);
     var fmtARS  = function(n){ return '$' + Math.round(n).toLocaleString('es-AR'); };
     return '<div class="di" onmousedown="selVentaCob(\'' +
@@ -12536,8 +12855,8 @@ function irACobranzasConVenta(ventaId) {
   showPage('cobranzas', document.querySelector('[onclick*=cobranzas]'));
   if (!venta) return;
   setTimeout(function() {
-    var total   = parseFloat(venta.total) || 0;
-    var cobrado = parseFloat(venta.totalPagado) || 0;
+    var total   = _svTotalVentaCanonico(venta);
+    var cobrado = _svMontoPagadoVenta(venta);
     var saldo   = Math.max(0, total - cobrado);
     selVentaCob(
       venta.id || '',
@@ -12967,7 +13286,9 @@ async function cfgValoresMasivosAplicar() {
   });
 
   try {
-    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos), cambios);
+    await productosPersistirLote(productosEntradasDesdeMultipath(cambios), function() {
+      return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos), cambios);
+    });
     if (typeof registrarActividad === 'function') {
       registrarActividad('Precios actualizados masivamente', filas.length + ' producto' + (filas.length === 1 ? '' : 's') + ' — ' + descripcion);
     }
@@ -14397,7 +14718,7 @@ function verCuentaClienteReal(clienteRef) {
       fecha: v.fecha || '',
       concepto: 'Venta ' + (v.id||v.fbKey||''),
       tipo: 'Venta',
-      debe: parseFloat(v.total)||0,
+      debe: _svTotalVentaCanonico(v),
       haber: 0,
       ts: ventaTs,
       orden: 0
@@ -14416,7 +14737,7 @@ function verCuentaClienteReal(clienteRef) {
     });
     var sumaPagos = pagosVenta.reduce(function(total, p) { return total + (parseFloat(p.monto) || 0); }, 0);
     var pagoDirecto = parseFloat(v.totalPagado || v.pagado || v.montoPagado) || 0;
-    var objetivoCobrado = Math.min(parseFloat(v.total) || 0, Math.max(sumaPagos, pagoDirecto));
+    var objetivoCobrado = Math.min(_svTotalVentaCanonico(v), Math.max(sumaPagos, pagoDirecto));
     var grupos = {};
     pagosVenta.forEach(function(p) {
       var medio = p.medio || p.medioPago || 'Efectivo';
@@ -14930,7 +15251,7 @@ function anularPago(fbKey) {
   if (!confirm('¿Anular este cobro? Quedará registrado como anulado en rojo.')) return;
   var motivo = prompt('Motivo de la anulación (opcional):') || '';
   if (!window.fbDB) { notify('Sin conexión'); return; }
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/pagos/' + fbKey), {
+  ventasPagosPersistirActualizarPago(fbKey, {
     anulado: true,
     anuladoFecha: new Date().toISOString().slice(0,10),
     anuladoPor: currentUser || 'Admin',
@@ -14982,7 +15303,7 @@ function elimPago(fbKey) {
   if (typeof window.tienePermiso === 'function' && !window.tienePermiso('cobranzas.anular', { args:[fbKey] })) { notify('No tenés permiso para eliminar cobros'); return; }
   if (typeof window.tienePermiso !== 'function' && String(currentRole||'').toLowerCase() !== 'admin') { notify('No tenés permiso para eliminar cobros'); return; }
   if (!confirm('Eliminar este pago?')) return;
-  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + fbKey))
+  ventasPagosPersistirEliminarPago(fbKey)
     .then(function(){ notify('Pago eliminado'); })
     .catch(function(e){ notify('Error: '+e.message); });
 }
@@ -15011,7 +15332,7 @@ function _cobroSaldoRestanteHistorial(p, listaOrdenada, indice) {
   if (p.anulado || String(p.estado||'').toLowerCase() === 'anulado') return null;
 
   var venta = _svResolverVentaRegistro(p);
-  var totalVenta = parseFloat(p.totalVenta) || parseFloat(venta && venta.total) || 0;
+  var totalVenta = parseFloat(p.totalVenta) || (venta ? _svTotalVentaCanonico(venta) : 0);
   if (!venta || totalVenta <= 0) return null;
 
   // La lista llega ordenada de más reciente a más antigua. Para conocer el
@@ -15113,8 +15434,8 @@ function fbCargarPagos() {
     }
     (ventasList||[]).forEach(function(v){
       if (!ccMap[v.cliente]) ccMap[v.cliente]={total:0,cobrado:0,ultimoPago:'—'};
-      ccMap[v.cliente].total += parseFloat(v.total)||0;
-      ccMap[v.cliente].cobrado += Math.min(parseFloat(v.total)||0, _ccPagadoVenta(v));
+      ccMap[v.cliente].total += _svTotalVentaCanonico(v);
+      ccMap[v.cliente].cobrado += Math.min(_svTotalVentaCanonico(v), _svMontoPagadoVenta(v));
     });
     lista.forEach(function(p){ if(ccMap[p.cliente]) ccMap[p.cliente].ultimoPago=p.fecha||'—'; });
     var ccMapCanonico = {};
@@ -15124,8 +15445,8 @@ function fbCargarPagos() {
       if (!ccMapCanonico[key].clienteFbKey && (v.clienteFbKey||v.clienteKey)) ccMapCanonico[key].clienteFbKey = v.clienteFbKey||v.clienteKey;
       if (!ccMapCanonico[key].legacyId && (v.clienteId||v.idCliente||v.idClienteOriginal)) ccMapCanonico[key].legacyId = v.clienteId||v.idCliente||v.idClienteOriginal;
       if (ccMapCanonico[key].nombre === 'Sin cliente' && v.cliente) ccMapCanonico[key].nombre = v.cliente;
-      ccMapCanonico[key].total += parseFloat(v.total)||0;
-      ccMapCanonico[key].cobrado += Math.min(parseFloat(v.total)||0, _ccPagadoVenta(v));
+      ccMapCanonico[key].total += _svTotalVentaCanonico(v);
+      ccMapCanonico[key].cobrado += Math.min(_svTotalVentaCanonico(v), _svMontoPagadoVenta(v));
     });
     lista.forEach(function(p){
       var keys = [p.clienteFbKey, p.clienteKey, p.clienteId, p.idCliente, p.cliente].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
@@ -15203,7 +15524,7 @@ function renderEstadisticas() {
   var mesActual = _periodoActualReportes();
   var ventasMes = (ventasList||[]).filter(function(v){ return _fechaEnMes(v.fecha, mesActual); });
   var porEmp={};
-  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'—'; if(!porEmp[e])porEmp[e]={cant:0,monto:0,comision:0}; porEmp[e].cant++; porEmp[e].monto+=parseFloat(v.total)||0; porEmp[e].comision+=parseFloat(v.comision)||0; });
+  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'—'; if(!porEmp[e])porEmp[e]={cant:0,monto:0,comision:0}; porEmp[e].cant++; porEmp[e].monto+=_svTotalVentaCanonico(v); porEmp[e].comision+=parseFloat(v.comision)||0; });
   var estTbodyEmp=document.getElementById('est-tbody-emp');
   if(estTbodyEmp){
     var empLista=Object.entries(porEmp).sort(function(a,b){return b[1].monto-a[1].monto;});
@@ -15216,7 +15537,7 @@ function renderEstadisticas() {
     var prodLista=Object.entries(porProd).sort(function(a,b){return b[1].cant-a[1].cant;}).slice(0,10);
     estTbodyProd.innerHTML=prodLista.length?prodLista.map(function(e){return '<tr><td>'+escapeHTML(e[0])+'</td><td style="text-align:right">'+e[1].cant+'</td><td style="text-align:right">$'+Math.round(e[1].monto).toLocaleString('es-AR')+'</td></tr>';}).join(''):'<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">Sin datos del mes</td></tr>';
   }
-  var totalMes=ventasMes.reduce(function(s,v){return s+(parseFloat(v.total)||0);},0);
+  var totalMes=ventasMes.reduce(function(s,v){return s + _svTotalVentaCanonico(v);},0);
   var _e=function(id){return document.getElementById(id);};
   if(_e('est-total')) _e('est-total').textContent='$'+Math.round(totalMes).toLocaleString('es-AR');
   if(_e('est-total-sub')) _e('est-total-sub').textContent=ventasMes.length+' ventas del mes';
@@ -15226,7 +15547,7 @@ function renderEstadisticas() {
   if(_e('est-prod-top')){_e('est-prod-top').textContent=prodTop?prodTop[0].slice(0,20):'—';if(_e('est-prod-top-sub'))_e('est-prod-top-sub').textContent=prodTop?prodTop[1].cant+' unidades':'—';}
 
   var porMes={};
-  (ventasList||[]).forEach(function(v){ var m=_fechaMes(v.fecha); if(!m) return; if(!porMes[m]) porMes[m]={cant:0,monto:0}; porMes[m].cant++; porMes[m].monto+=parseFloat(v.total)||0; });
+  (ventasList||[]).forEach(function(v){ var m=_fechaMes(v.fecha); if(!m) return; if(!porMes[m]) porMes[m]={cant:0,monto:0}; porMes[m].cant++; porMes[m].monto+=_svTotalVentaCanonico(v); });
   var mejorMes=Object.entries(porMes).sort(function(a,b){return b[1].monto-a[1].monto;})[0];
   if(_e('est-mejor-mes')){ _e('est-mejor-mes').textContent=mejorMes?mejorMes[0]:'—'; if(_e('est-mejor-mes-sub')) _e('est-mejor-mes-sub').textContent=mejorMes?'$'+Math.round(mejorMes[1].monto).toLocaleString('es-AR'):'—'; }
   var bar=_e('est-bar-meses');
@@ -15264,7 +15585,7 @@ function renderEstadisticas() {
 function renderReportes() {
   var mesActual=_periodoActualReportes();
   var ventasMes=(ventasList||[]).filter(function(v){return _fechaEnMes(v.fecha,mesActual);});
-  var totalMes=ventasMes.reduce(function(s,v){return s+(parseFloat(v.total)||0);},0);
+  var totalMes=ventasMes.reduce(function(s,v){return s + _svTotalVentaCanonico(v);},0);
   var ticketProm=ventasMes.length?totalMes/ventasMes.length:0;
   var ivaDecl=ventasMes.filter(function(v){return v.factura;}).reduce(function(s,v){return s+(parseFloat(v.iva)||0);},0);
   var meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -15276,7 +15597,7 @@ function renderReportes() {
   if(_e('rep-iva')) _e('rep-iva').textContent='$'+Math.round(ivaDecl).toLocaleString('es-AR');
   if(_e('rep-iva-sub')) _e('rep-iva-sub').textContent='vence 20/'+meses[new Date().getMonth()];
   var porEmp={};
-  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'—'; if(!porEmp[e]) porEmp[e]={cat:'—',ventas:0,monto:0,comision:0,hextra:0,base:0}; porEmp[e].ventas++; porEmp[e].monto+=parseFloat(v.total)||0; porEmp[e].comision+=parseFloat(v.comision)||0; });
+  ventasMes.forEach(function(v){ var e=v.empleado||v.vendedor||'—'; if(!porEmp[e]) porEmp[e]={cat:'—',ventas:0,monto:0,comision:0,hextra:0,base:0}; porEmp[e].ventas++; porEmp[e].monto+=_svTotalVentaCanonico(v); porEmp[e].comision+=parseFloat(v.comision)||0; });
   Object.values(empData||{}).forEach(function(emp){ var n=emp.nombre||'—'; if(!porEmp[n]) porEmp[n]={cat:'—',ventas:0,monto:0,comision:0,hextra:0,base:0}; porEmp[n].cat=emp.cargo||emp.categoria||'—'; var c=emp.cargoId?(CARGOS_DATA||{})[emp.cargoId]:null; porEmp[n].base=c?Math.round((parseFloat(c.valorHora)||0)*8*(parseFloat(c.diasMes)||0)):(parseFloat(emp.sueldoBase)||0); });
   var tbody=_e('emp-resumen-tbody');
   if(tbody){
@@ -15433,7 +15754,7 @@ function exportarExcel(titulo) {
     if (titulo === 'Listado de ventas' || titulo === 'Reporte de ventas') {
       rows = [['#','Cliente','Fecha','Total','Pago','Instalación']];
       (ventasList || []).forEach(function(v) {
-        rows.push([v.id||'', v.cliente||'', v.fecha||'', parseFloat(v.total)||0, v.estadoPago||'', v.estadoInst||'']);
+        rows.push([v.id||'', v.cliente||'', v.fecha||'', _svTotalVentaCanonico(v), v.estadoPago||'', v.estadoInst||'']);
       });
 
     } else if (titulo === 'Planilla de sueldos' || titulo === 'Reporte de empleados') {
@@ -15547,7 +15868,7 @@ function pdfYWhatsappVenta(ventaId) {
   tel = tel ? tel.replace(/\D/g,'') : '';
   if (tel && tel.length < 8) tel = '';
 
-  var total = '$' + Math.round(parseFloat(v.total)||0).toLocaleString('es-AR');
+  var total = '$' + Math.round(_svTotalVentaCanonico(v)).toLocaleString('es-AR');
   var msg = encodeURIComponent(
     'Hola ' + (v.cliente||'') + ', te enviamos el comprobante de tu compra ' + (v.id||'') +
     ' por un total de ' + total + '.\n\nTe lo adjuntamos a continuación.'
@@ -15728,7 +16049,7 @@ function imprimirVentaActual(soloVista) {
   var qrImg  = '';
   if (caeNum && nroComp) {
     var fechaSinGuion = (v.fecha||'').replace(/-/g,'');
-    var totalCents    = Math.round((parseFloat(v.total)||0) * 100);
+    var totalCents    = Math.round(_svTotalVentaCanonico(v) * 100);
     // Objeto JSON para QR AFIP (formato oficial)
     var qrObj = {
       ver: 1,
@@ -15737,7 +16058,7 @@ function imprimirVentaActual(soloVista) {
       ptoVta: parseInt(pdv),
       tipoCmp: tipoComp.includes(' A') ? 1 : 6,
       nroCmp: parseInt(nroComp) || 0,
-      importe: parseFloat(v.total)||0,
+      importe: _svTotalVentaCanonico(v),
       moneda: 'PES',
       ctz: 1,
       tipoDocRec: cliCuit ? 80 : 96,
@@ -16221,12 +16542,11 @@ function guardarNuevoGenerico() {
       return;
     }
     if (window.fbDB) {
-      var promesa = fbKey
-        ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/proveedores/' + fbKey), datos)
-        : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/proveedores'), datos));
-      promesa.then(function(refCreada) {
+      if (!fbKey) datos.ts = Date.now();
+      var registroProveedor = Object.assign({}, datos, fbKey ? { fbKey:fbKey } : {});
+      proveedorPersistirGuardar(registroProveedor).then(function(proveedorGuardado) {
         if (!fbKey && indiceAltaProducto !== null) {
-          var nuevaKey = String((refCreada && refCreada.key) || '');
+          var nuevaKey = String((proveedorGuardado && proveedorGuardado.fbKey) || '');
           if (nuevaKey && !(proveedoresData || []).some(function(prov){ return String(prov.fbKey || '') === nuevaKey; })) {
             proveedoresData.push(Object.assign({ fbKey: nuevaKey }, datos));
           }
@@ -18052,7 +18372,7 @@ function renderComisionesDelMes(emp) {
   var totalGenerado = 0, totalCobrado = 0, totalPendiente = 0;
   ventasDelVendedor.forEach(function(v) {
     var movComision = idsComisionesVisibles && (idsComisionesVisibles[String(v.id || '')] || idsComisionesVisibles[String(v.fbKey || '')]);
-    var comisionVenta = movComision ? (parseFloat(movComision.monto)||0) : (parseFloat(v.total)||0) * (pct/100);
+    var comisionVenta = movComision ? (parseFloat(movComision.monto)||0) : _svTotalVentaCanonico(v) * (pct/100);
     totalGenerado += comisionVenta;
     if (v.estadoPago === 'pago_total') {
       totalCobrado += comisionVenta;
@@ -18935,7 +19255,7 @@ function eliminarVenta(fbKey) {
       '• Marcar la venta como "Anulada" en el sistema (queda registrada pero invisible en las listas)\n\n' +
       '¿Querés marcarla como Anulada?';
     if (!confirm(msg)) return;
-    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey), {
+    ventasPagosPersistirActualizarVenta(fbKey, {
       anulada: true,
       estadoPago: 'anulada',
       fechaAnulacion: new Date().toLocaleDateString('es-AR'),
@@ -18956,17 +19276,17 @@ function eliminarVenta(fbKey) {
 
   var pagosVinculados = (window._pagosListaActual||[]).filter(function(p){ return _svRegistroPerteneceVenta(p, v) && p.fbKey; });
 
-  var promesas = [window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey))];
+  var promesas = [ventasPagosPersistirEliminarVenta(fbKey)];
 
   // Eliminar pagos vinculados
   pagosVinculados.forEach(function(p) {
-    promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + p.fbKey)));
+    promesas.push(ventasPagosPersistirEliminarPago(p.fbKey));
   });
 
   // Eliminar OT vinculadas
   otVinculadas.forEach(function(otVinculada) {
     if (otVinculada && otVinculada.fbKey) {
-      promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey)));
+      promesas.push(otPersistirEliminar(otVinculada.fbKey));
     }
   });
 
@@ -19159,6 +19479,31 @@ function _pptoRegistroFormularioImpresion() {
 
 function _pptoModeloImpresion(registro) {
   registro = registro || {};
+  var canonicoV3 = pptoV3Invocar('printModel', [registro], null);
+  if (canonicoV3) {
+    var clienteV3 = null;
+    if (typeof _svResolverClienteRegistro === 'function') {
+      try { clienteV3 = _svResolverClienteRegistro(registro, true); } catch(e) { clienteV3 = null; }
+    }
+    return {
+      registro: registro,
+      numero: canonicoV3.number || registro.fbKey || '',
+      cliente: canonicoV3.client || (clienteV3 && (clienteV3.nombre || clienteV3.razonSocial)) || '',
+      telefono: clienteV3 && (clienteV3.telefono || clienteV3.tel || clienteV3.celular) || registro.telefonoCliente || registro.telefono || '',
+      direccion: clienteV3 && (clienteV3.direccion || clienteV3.dir || clienteV3.domicilio) || registro.direccionCliente || registro.direccion || '',
+      fecha: registro.fecha || new Date().toLocaleDateString('es-AR'),
+      vence: registro.vence || registro.vencimiento || '',
+      observaciones: registro.obs || registro.observaciones || '',
+      items: canonicoV3.items,
+      subtotal: canonicoV3.subtotal,
+      descuento: canonicoV3.discount,
+      iva: canonicoV3.iva,
+      total: canonicoV3.total,
+      conIva: canonicoV3.includesIva,
+      v3Ready: canonicoV3.ready,
+      v3Conflicts: canonicoV3.conflicts
+    };
+  }
   var origenItems = Array.isArray(registro.items) ? registro.items : (registro.items && typeof registro.items === 'object' ? Object.values(registro.items) : []);
   var items = origenItems.map(function(item) {
     var it = pptoNormalizarItemGuardado(item);
@@ -19207,7 +19552,7 @@ function eliminarPptoDesdeTabla(pptoId) {
   var p = buscarPptoPorRef(pptoId);
   if (!p || !p.fbKey) return notify('No se encontro el presupuesto');
   if (!confirm('¿Eliminar el presupuesto ' + (p.id || pptoId) + '? Esta accion no se puede deshacer.')) return;
-  window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + p.fbKey))
+  pptoPersistirEliminar(p.fbKey)
     .then(function(){ notify('Presupuesto eliminado'); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
@@ -19220,7 +19565,7 @@ function anularPptoDesdeTabla(pptoId) {
     estado: 'anulado',
     audit: (p.audit||[]).concat([{ accion:'Anulado', fecha: new Date().toISOString().slice(0,10), user: currentUser||'Admin' }])
   };
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + p.fbKey), upd)
+  pptoPersistirActualizar(p.fbKey, upd)
     .then(function(){ notify('Presupuesto anulado'); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
@@ -19229,7 +19574,7 @@ function eliminarPpto(fbKey) {
   var p = (pptoData||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!confirm('¿Eliminar presupuesto ' + ((p||{}).numero||'') + '?')) return;
   if (!window.fbDB) return;
-  window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + fbKey))
+  pptoPersistirEliminar(fbKey)
     .then(function(){ notify('Presupuesto eliminado'); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
@@ -19264,6 +19609,10 @@ function imprimirPresupuesto(pptoRef, opciones) {
     return;
   }
   var modelo = _pptoModeloImpresion(pptoGuardado);
+  if (modelo.v3Ready === false) {
+    notify('El presupuesto tiene importes inconsistentes o no conserva sus ítems. Revisalo y guardalo nuevamente antes de imprimir.');
+    return;
+  }
   if (!modelo.numero || !modelo.cliente || !modelo.items.length) {
     notify('El presupuesto no tiene número, cliente o productos completos. No se generó ninguna impresión.');
     return;
@@ -19447,7 +19796,7 @@ function registrarPago() {
     cotizacionReferencia: estadoMonto.moneda === 'USD' ? (parseFloat((document.getElementById('cob-tipo-cambio')||{}).dataset.valorReferencia)||0) : 0,
     cotizacionEditada: estadoMonto.moneda === 'USD' && Math.abs(estadoMonto.tipoCambio - (parseFloat((document.getElementById('cob-tipo-cambio')||{}).dataset.valorReferencia)||0)) > 0.001,
     cotizacionFuenteFecha: estadoMonto.moneda === 'USD' ? (_cotizacionReferenciaCobranza().fuenteFecha || '') : '',
-    totalVenta: ventaObj ? (parseFloat(ventaObj.total)||0) : 0,
+    totalVenta: ventaObj ? _svTotalVentaCanonico(ventaObj) : 0,
     saldoAnterior: estadoMonto.saldo,
     saldoRestante: Math.max(0, estadoMonto.saldo - monto),
     medio:    medio,
@@ -19457,14 +19806,14 @@ function registrarPago() {
     ts:       Date.now()
   };
 
-  window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos'), pago)
-    .then(function(ref) {
+  var pagadoAntesDeGuardar = ventaObj ? _svMontoPagadoVenta(ventaObj) : 0;
+  ventasPagosPersistirGuardarPago(pago)
+    .then(function(pagoGuardado) {
       if (ventaObj && ventaObj.fbKey) {
-        var totalVenta = parseFloat(ventaObj.total)||0;
-        var pagosAnt   = parseFloat(ventaObj.totalPagado)||0;
-        var nuevoTotal = pagosAnt + monto;
+        var totalVenta = _svTotalVentaCanonico(ventaObj);
+        var nuevoTotal = pagadoAntesDeGuardar + monto;
         var nuevoEstado = nuevoTotal >= totalVenta ? 'pago_total' : nuevoTotal > 0 ? 'seniado' : 'pendiente_pago';
-        var actualizarVentaPago = window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaObj.fbKey), {
+        var actualizarVentaPago = ventasPagosPersistirActualizarVenta(ventaObj.fbKey, {
           estadoPago: nuevoEstado,
           totalPagado: nuevoTotal
         });
@@ -19486,8 +19835,8 @@ function registrarPago() {
       }
       // Desde la primera seña Cobranzas asegura la OT; el pago total no es requisito.
       // Ofrecer imprimir recibo
-      window._ultimoPagoId = ref.key;
-      window._ultimoPago   = pago;
+      window._ultimoPagoId = pagoGuardado && pagoGuardado.fbKey || '';
+      window._ultimoPago   = Object.assign({}, pago, { fbKey: window._ultimoPagoId });
       window._ultimoPagoVenta = ventaObj;
       setTimeout(function(){ imprimirRecibo(); }, 400);
       ['cob-venta','cob-monto','cob-cliente','cob-total-venta','cob-ya-cobrado','cob-saldo','cob-nuevo-saldo','cob-ref','cob-obs'].forEach(function(id){
@@ -19632,7 +19981,7 @@ function crearOT(ventaData) {
           actualizadoEn: Date.now()
         };
         Object.assign(ventaData, cambiosVentaOT);
-        vincular = window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaData.fbKey), cambiosVentaOT);
+        vincular = ventasPagosPersistirActualizarVenta(ventaData.fbKey, cambiosVentaOT);
       }
       notify('✓ Orden de trabajo creada');
       return vincular.then(function() {
@@ -19662,7 +20011,7 @@ function nuevaOT() {
 function eliminarOT(fbKey) {
   if (!confirm('¿Eliminar esta Orden de Trabajo? Esta acción no se puede deshacer.')) return;
   if (!window.fbDB) return;
-  window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + fbKey))
+  otPersistirEliminar(fbKey)
     .then(function(){ notify('OT eliminada'); volverListaOT(); })
     .catch(function(e){ notify('Error: ' + e.message); });
 }
@@ -20805,9 +21154,9 @@ function spGenerarOT() {
     audit: [{ fecha: fechaHoy, usuario: currentUser||'Sistema', accion: 'Venta creada automáticamente desde reclamo de soporte' }]
   };
 
-  window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), nuevaVenta)
-    .then(function(ventaRef) {
-      var ventaFbKey = ventaRef.key;
+  ventasPagosPersistirGuardarVenta(nuevaVenta)
+    .then(function(ventaGuardada) {
+      var ventaFbKey = ventaGuardada && ventaGuardada.fbKey || '';
       nuevaVenta.fbKey = ventaFbKey;
 
       var ot = {
@@ -21592,6 +21941,12 @@ function imprimirRemito(fbKey) {
 function toggleActivoRegistro(coleccion, fbKey, estadoActual) {
   if (!window.fbDB) return;
   var nuevoEstado = !estadoActual;
+  if (coleccion === 'proveedores') {
+    proveedorPersistirActualizar(fbKey, { activo:nuevoEstado })
+      .then(function(){ notify(nuevoEstado ? 'Marcado como activo' : 'Marcado como inactivo'); })
+      .catch(function(e){ notify('Error: ' + e.message); });
+    return;
+  }
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/' + coleccion + '/' + fbKey), { activo: nuevoEstado })
     .then(function(){ notify(nuevoEstado ? 'Marcado como activo' : 'Marcado como inactivo'); });
 }
@@ -24248,7 +24603,13 @@ function asistSetQty(idx, val) {
 }
 
 function asistGenerarPresupuesto() {
-  var cli    = document.getElementById('asist-cli-inp').value.trim();
+  var cliInp = document.getElementById('asist-cli-inp');
+  var cli    = cliInp.value.trim();
+  var clienteAsistenteKey = String(cliInp.dataset.clienteKey || '').trim();
+  var clienteAsistente = clienteAsistenteKey
+    ? (clientesData||[]).find(function(c){ return String(c.fbKey || c.id || '') === clienteAsistenteKey; })
+    : null;
+  if (!clienteAsistente) { notify('Seleccioná el cliente desde la lista antes de generar el presupuesto'); return; }
   var obs    = document.getElementById('asist-obs').value.trim();
   var prods  = asistProductosSel.filter(function(p){ return p.qty>0; });
   if (!prods.length) { notify('No hay productos en el sistema'); return; }
@@ -24262,12 +24623,16 @@ function asistGenerarPresupuesto() {
   var ppto = {
     id:          '',
     numero:      '',
-    cliente:     cli || 'Sin especificar',
+    cliente:     clienteAsistente.nombre || cli,
+    clienteFbKey: clienteAsistente.fbKey || clienteAsistente.id || '',
+    clienteKey:   clienteAsistente.fbKey || clienteAsistente.id || '',
+    clienteId:    clienteAsistente.id || clienteAsistente.fbKey || '',
     fecha:       new Date().toISOString().split('T')[0],
     estado:      'borrador',
     observaciones: obs || ('Generado por asistente: '+cfg.nombre),
     items:       prods.map(function(p){ return { descripcion:p.nombre, qty:p.qty, precio:p.precio, sub:p.precio*p.qty }; }),
     subtotal:    total,
+    conIva:      false,
     total:       total,
     ts:          Date.now(),
     usuario:     currentUser||''
@@ -24278,8 +24643,7 @@ function asistGenerarPresupuesto() {
     .then(function(numPpto) {
       ppto.id = numPpto;
       ppto.numero = numPpto;
-      return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.presupuestos), ppto)
-        .then(function(){ return numPpto; });
+      return pptoPersistirGuardar(ppto).then(function(){ return numPpto; });
     })
     .then(function(numPpto) {
       notify('✓ Presupuesto '+numPpto+' creado — $'+total.toLocaleString('es-AR'));
@@ -25029,7 +25393,10 @@ function eliminarRegistro(coleccion, fbKey) {
   var nombre = nombres[coleccion] || 'este registro';
   if (!confirm('¿Eliminar ' + nombre + '? Esta acción no se puede deshacer.')) return;
   if (!window.fbDB) { notify('Sin conexión'); return; }
-  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/' + coleccion + '/' + fbKey))
+  var eliminacion = coleccion === 'proveedores'
+    ? proveedorPersistirEliminar(fbKey)
+    : window.fbRemove(window.fbRef(window.fbDB, 'sisventas/' + coleccion + '/' + fbKey));
+  eliminacion
     .then(function(){ notify('Eliminado correctamente'); })
     .catch(function(e){ notify('Error al eliminar: ' + e.message); });
 }
@@ -25079,32 +25446,32 @@ function eliminarCliente(el) {
   // (borra también la OT vinculada y los pagos de esa venta)
   ventasCli.forEach(function(v) {
     if (!v.fbKey) return;
-    promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + v.fbKey)));
+    promesas.push(ventasPagosPersistirEliminarVenta(v.fbKey));
     var otVinculadas = (otData||[]).filter(function(o){ return _svRegistroPerteneceVenta(o, v); });
     otVinculadas.forEach(function(otVinculada) {
       if (otVinculada && otVinculada.fbKey) {
-        promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otVinculada.fbKey)));
+        promesas.push(otPersistirEliminar(otVinculada.fbKey));
       }
     });
     var pagosVenta = (window._pagosListaActual||[]).filter(function(p){ return _svRegistroPerteneceVenta(p, v) && p.fbKey; });
     pagosVenta.forEach(function(p) {
-      promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + p.fbKey)));
+      promesas.push(ventasPagosPersistirEliminarPago(p.fbKey));
     });
   });
 
   // Presupuestos del cliente
   pptosCli.forEach(function(p) {
-    if (p.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + p.fbKey)));
+    if (p.fbKey) promesas.push(pptoPersistirEliminar(p.fbKey));
   });
 
   // OT sueltas del cliente (sin venta asociada, ej. service/garantía directo)
   otSueltasCli.forEach(function(o) {
-    if (o.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + o.fbKey)));
+    if (o.fbKey) promesas.push(otPersistirEliminar(o.fbKey));
   });
 
   // Pagos sueltos del cliente (sin venta asociada)
   pagosSueltosCli.forEach(function(p) {
-    if (p.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + p.fbKey)));
+    if (p.fbKey) promesas.push(ventasPagosPersistirEliminarPago(p.fbKey));
   });
 
   if (cli.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey)));
@@ -25153,7 +25520,7 @@ async function eliminarProductoPorId(pid, desdeDetalle) {
   if (!confirm('ADVERTENCIA 2 de 2\n\n¿Estás seguro de eliminar definitivamente "' + nombre + '"?\n\nEsta acción no se puede deshacer.')) return false;
 
   try {
-    await window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + prod.fbKey));
+    await productoPersistirEliminar(prod.fbKey);
     notify('Producto eliminado del catálogo');
     if (typeof registrarActividad === 'function') {
       registrarActividad('Producto eliminado', nombre + ' — ' + ventasProducto.length + ' venta' + (ventasProducto.length === 1 ? '' : 's') + ' histórica' + (ventasProducto.length === 1 ? '' : 's') + ' preservada' + (ventasProducto.length === 1 ? '' : 's'));
@@ -26257,7 +26624,7 @@ function generarComisionesVenta(venta, montoCobrado) {
   var itemsVenta = venta.items || [];
   var subtotalBruto = itemsVenta.length ? itemsVenta.reduce(function(s, it) {
     return s + ((parseFloat(it.qty)||1) * (parseFloat(it.punit)||0));
-  }, 0) : ((parseFloat(venta.subtotal)||parseFloat(venta.total)||0) + (parseFloat(venta.descuento)||0));
+  }, 0) : ((parseFloat(venta.subtotal)||_svTotalVentaCanonico(venta)) + (parseFloat(venta.descuento)||0));
   var descuentoVenta = parseFloat(venta.descuento) || 0;
   var baseNeta = Math.max(0, subtotalBruto - descuentoVenta);
   var costoTotal = itemsVenta.length
@@ -26353,7 +26720,7 @@ function generarComisionesVenta(venta, montoCobrado) {
         .then(function(refMov) {
           try { _crearGastoComisionDesdeMovimiento(emp.fbKey, refMov.key, Object.assign({}, movimiento, { fbKey: refMov.key })); } catch(_e) { console.warn('[comisión gasto pendiente]', _e); }
           if (venta.fbKey) {
-            window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), { comisionesGeneradas: true }).catch(function(){});
+            ventasPagosPersistirActualizarVenta(venta.fbKey, { comisionesGeneradas: true }).catch(function(){});
           }
           // Notificar al admin
           window.fbPush(window.fbRef(window.fbDB, 'sisventas/notificaciones_admin'), {
@@ -26523,14 +26890,13 @@ function toggleProveedorBase(fbKey) {
   if (!window.fbDB) return;
   var era = (proveedoresData||[]).find(function(p){ return p.fbKey === fbKey; });
   var eraBase = era && (era.base || era.favorito);
-  var updates = {};
-  (proveedoresData||[]).forEach(function(p) {
-    updates['sisventas/proveedores/' + p.fbKey + '/base'] = (p.fbKey === fbKey && !eraBase);
-    updates['sisventas/proveedores/' + p.fbKey + '/favorito'] = (p.fbKey === fbKey && !eraBase);
+  var actualizaciones = (proveedoresData||[]).filter(function(p){ return !!p.fbKey; }).map(function(p) {
+    var seleccionado = p.fbKey === fbKey && !eraBase;
+    return { fbKey:p.fbKey, changes:{ base:seleccionado, favorito:seleccionado } };
   });
-  window.fbUpdate(window.fbRef(window.fbDB), updates).then(function() {
+  proveedoresPersistirLote(actualizaciones).then(function() {
     notify(eraBase ? 'Proveedor base quitado' : '⭐ Proveedor base actualizado');
-  });
+  }).catch(function(e){ notify('No se pudo actualizar el proveedor base: ' + e.message); });
 }
 
 function actualizarProveedorBaseEnForm() {
@@ -26705,6 +27071,51 @@ function pptoStateBadge(estado) {
   return `<span class="badge ${e.badge}">${e.label}</span>`;
 }
 
+function pptoV3Invocar(metodo, argumentos, fallback) {
+  var bridge = window.SisVentas && window.SisVentas.V3Bridge;
+  if (!bridge || typeof bridge.invoke !== 'function') {
+    return typeof fallback === 'function' ? fallback() : fallback;
+  }
+  return bridge.invoke('presupuestos', metodo, argumentos || [], fallback);
+}
+
+function pptoPersistirGuardar(registro) {
+  return Promise.resolve().then(function() {
+    return pptoV3Invocar('save', [registro], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      if (registro && registro.fbKey) {
+        return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + registro.fbKey), registro)
+          .then(function() { return Object.assign({}, registro); });
+      }
+      return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.presupuestos), registro).then(function(ref) {
+        return Object.assign({}, registro, { fbKey: ref && ref.key || '' });
+      });
+    });
+  });
+}
+
+function pptoPersistirActualizar(fbKey, cambios) {
+  return Promise.resolve().then(function() {
+    return pptoV3Invocar('update', [fbKey, cambios], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + fbKey), cambios);
+    });
+  });
+}
+
+function pptoPersistirEliminar(fbKey) {
+  return Promise.resolve().then(function() {
+    return pptoV3Invocar('remove', [fbKey], function() {
+      if (!window.fbDB) throw new Error('Sin conexión Firebase');
+      return window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + fbKey));
+    });
+  });
+}
+
+function pptoModeloEconomicoCanonico(registro, opciones) {
+  return pptoV3Invocar('build', [registro || {}, opciones], null);
+}
+
 function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
   const tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
@@ -26726,7 +27137,8 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
   if (filtroTexto)  rows = rows.filter(p => (p.cliente + p.id).toLowerCase().includes(filtroTexto.toLowerCase()));
   tbody.innerHTML = rows.map(p => {
     const e = PPTO_ESTADOS[p.estado] || {};
-    const totalFmt = '$' + (parseFloat(p.total)||0).toLocaleString('es-AR');
+    const totalV3 = pptoV3Invocar('tableTotal', [p], null);
+    const totalFmt = '$' + (totalV3 == null ? (parseFloat(p.total)||0) : totalV3).toLocaleString('es-AR');
     const alerta = p.requiereAprobacion ? '<i class="ti ti-alert-triangle" style="color:var(--amber);font-size:13px;margin-left:4px" title="Requiere aprobación"></i>' : '';
     const numeroDuplicado = (conteoNumeros[String(p.id || p.numero || '').trim().toUpperCase()] || 0) > 1
       ? '<i class="ti ti-copy" style="color:var(--red);font-size:13px;margin-left:5px" title="Número duplicado: el registro se abrirá por su clave interna segura"></i>'
@@ -26814,6 +27226,20 @@ function pptoNormalizarItemGuardado(item) {
 // Centralizar la conversion evita copiar un 22% como si fueran $22.
 function pptoDatosParaVenta(p) {
   p = p || {};
+  var conversionV3 = pptoV3Invocar('toSale', [p], null);
+  if (conversionV3) {
+    return {
+      items: conversionV3.items,
+      descuentoPct: conversionV3.discountPct,
+      descuentoMontoTotal: conversionV3.discountAmount,
+      subtotalNeto: conversionV3.subtotalNet,
+      iva: conversionV3.iva,
+      conIva: conversionV3.includesIva,
+      total: conversionV3.total,
+      v3Ready: conversionV3.ready,
+      v3Conflicts: conversionV3.conflicts
+    };
+  }
   var origenItems = Array.isArray(p.items) ? p.items : (p.items && typeof p.items === 'object' ? Object.values(p.items) : []);
   var items = origenItems.map(function(item) {
     var normalizado = pptoNormalizarItemGuardado(item);
@@ -27059,10 +27485,22 @@ function verPpto(id) {
   var _base    = _sub - _descAmt;
   var _iva     = _conIva ? (parseFloat(p.iva) || Math.round(_base * 0.21)) : 0;
   var _total   = parseFloat(p.total) || (_base + _iva);
+  var _modeloEconomicoV3 = pptoModeloEconomicoCanonico(p);
+  if (_modeloEconomicoV3 && _modeloEconomicoV3.mode === 'items') {
+    _descPct = _modeloEconomicoV3.generalDiscountPct;
+    _sub = _modeloEconomicoV3.subtotal;
+    _descAmt = _modeloEconomicoV3.generalDiscount;
+    _conIva = _modeloEconomicoV3.includesIva;
+    _base = _modeloEconomicoV3.taxableBase;
+    _iva = _modeloEconomicoV3.iva;
+    _total = _modeloEconomicoV3.total;
+    document.getElementById('ppto-det-total').value = '$' + _total.toLocaleString('es-AR');
+    document.getElementById('ppto-det-desc').value = _descPct.toLocaleString('es-AR',{maximumFractionDigits:2}) + '%';
+  }
   var _s = function(id, v) { var el=document.getElementById(id); if(el) el.textContent = '$'+Math.round(v).toLocaleString('es-AR'); };
   _s('ppto-det-sub',      _sub);
   _s('ppto-det-desc-amt', _descAmt);
-  _set('ppto-det-desc-label', 'Descuento ' + (parseFloat(p.descuentoGeneral ?? p.descuentoPct ?? p.descuento)||0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '%');
+  _set('ppto-det-desc-label', 'Descuento ' + (_modeloEconomicoV3 ? _descPct : (parseFloat(p.descuentoGeneral ?? p.descuentoPct ?? p.descuento)||0)).toLocaleString('es-AR',{maximumFractionDigits:2}) + '%');
   var ivaRowDet = document.getElementById('ppto-det-iva-row');
   if (ivaRowDet) ivaRowDet.style.display = _conIva ? '' : 'none';
   _s('ppto-det-iva',      _iva);
@@ -27265,8 +27703,9 @@ function recotizarPpto() {
     });
   });
   if (window.fbDB) {
-    window.fbPush(window.fbRef(window.fbDB, 'sisventas/presupuestos'), Object.assign(nuevo, { ts: Date.now() }))
-      .then(function(r){ nuevo.fbKey = r.key; notify('✓ Presupuesto recotizado creado: ' + nuevo.id); });
+    pptoPersistirGuardar(Object.assign(nuevo, { ts: Date.now() }))
+      .then(function(guardado){ nuevo.fbKey = guardado && guardado.fbKey || ''; notify('✓ Presupuesto recotizado creado: ' + nuevo.id); })
+      .catch(function(e){ notify('Error al recotizar: ' + e.message); });
   }
 }
 
@@ -27410,6 +27849,10 @@ function pptoAccion(accion, opts) {
     var clienteFbKeyPpto = p.clienteFbKey || p.clienteKey || (clienteRefPpto && clienteRefPpto.fbKey) || '';
     var fechaVentaPpto = svFechaLocalISO();
     var datosVentaPpto = pptoDatosParaVenta(p);
+    if (datosVentaPpto.v3Ready === false) {
+      notify('El presupuesto tiene importes históricos o inconsistentes. Revisalo y guardalo nuevamente antes de convertirlo.');
+      return;
+    }
     var venta = {
       id:           numVenta,
       cliente:      p.cliente || '',
@@ -27439,16 +27882,16 @@ function pptoAccion(accion, opts) {
       observaciones: 'Generado desde presupuesto ' + (p.id||''),
       ts:           Date.now()
     };
-    window.fbPush(window.fbRef(window.fbDB, 'sisventas/ventas'), venta)
-      .then(function(ref) {
-        var ventaFbKeyNueva = ref && ref.key ? ref.key : '';
+    ventasPagosPersistirGuardarVenta(venta)
+      .then(function(ventaGuardada) {
+        var ventaFbKeyNueva = ventaGuardada && ventaGuardada.fbKey || '';
         var auditConversion = (p.audit || []).concat([{
           fecha: opts.aceptadoEn || ahora,
           usuario: opts.aceptadoPor || usuario,
           accion: opts.aceptadoPor ? 'Aceptación del cliente registrada y convertido a venta' : 'Convertido manualmente a venta'
         }]);
-        if (p.fbKey) {
-          window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+p.fbKey), {
+        var guardarConversionPpto = p.fbKey
+          ? pptoPersistirActualizar(p.fbKey, {
             estado: 'convertido',
             requiereAprobacion: false,
             ventaId: numVenta,
@@ -27456,13 +27899,15 @@ function pptoAccion(accion, opts) {
             ventaFbKey: ventaFbKeyNueva,
             ventaGeneradaFbKey: ventaFbKeyNueva,
             audit: auditConversion
-          });
-        }
-        notify('✓ Venta ' + numVenta + ' creada desde ' + p.id);
-        showPage('detalle', document.querySelector('[onclick*=detalle]'));
-        setTimeout(function() {
-          if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaFbKeyNueva || numVenta);
-        }, 300);
+          })
+          : Promise.resolve();
+        return guardarConversionPpto.then(function() {
+          notify('✓ Venta ' + numVenta + ' creada desde ' + p.id);
+          showPage('detalle', document.querySelector('[onclick*=detalle]'));
+          setTimeout(function() {
+            if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaFbKeyNueva || numVenta);
+          }, 300);
+        });
       })
       .catch(function(e){ notify('Error: '+e.message); });
     return;
@@ -27524,7 +27969,7 @@ function pptoAccion(accion, opts) {
       actualizacionEstadoPpto.aprobadoEn = opts.aprobadoEn || ahora;
       actualizacionEstadoPpto.aprobadoUid = currentUserUid || '';
     }
-    window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), actualizacionEstadoPpto).then(function(){
+    pptoPersistirActualizar(p.fbKey, actualizacionEstadoPpto).then(function(){
       notify('✓ ' + t.msg);
       if (typeof generarNotificaciones === 'function') generarNotificaciones();
     }).catch(function(e){ notify('Error guardando estado: ' + e.message); });
@@ -27680,6 +28125,18 @@ function _actualizarPresupuestoGuardadoDesdeCatalogo(p) {
   var conIva = p.conIva !== false;
   var iva = conIva ? _redondearPrecioActual(base * 0.21) : 0;
   var total = _redondearPrecioActual(base + iva);
+  var camposActualizadosV3 = pptoV3Invocar('fields', [Object.assign({}, p, {
+    items: items,
+    descuentoGeneral: descuentoPct,
+    conIva: conIva
+  })], null);
+  if (camposActualizadosV3) {
+    items = Array.from(camposActualizadosV3.items);
+    subtotalBruto = camposActualizadosV3.subtotal;
+    descuentoAmt = camposActualizadosV3.descuentoAmt;
+    iva = camposActualizadosV3.iva;
+    total = camposActualizadosV3.total;
+  }
   if (!confirm('Se actualizarán ' + resultado.actualizados + ' precio' + (resultado.actualizados === 1 ? '' : 's') + ' del presupuesto ' + (p.id || '') + ' con los valores actuales de Productos.\n\n¿Continuar?')) return;
   if (!window.fbDB || !p.fbKey) { notify('No se pudo guardar: presupuesto sin conexión o identificador'); return; }
   var ahora = new Date();
@@ -27697,7 +28154,7 @@ function _actualizarPresupuestoGuardadoDesdeCatalogo(p) {
     audit: audit,
     tsActualizacionValores: Date.now()
   };
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/' + p.fbKey), cambios).then(function() {
+  pptoPersistirActualizar(p.fbKey, cambios).then(function() {
     Object.assign(p, cambios);
     _informarActualizacionCatalogo(resultado, 'Presupuesto actualizado');
     verPpto(p.fbKey || p.id);
@@ -27725,7 +28182,7 @@ function guardarPresupuesto(modo) {
   if (!clienteRefGuardar) { notify('Seleccioná el cliente desde la lista para vincularlo correctamente'); return; }
   var _d3=document.getElementById('pp-descuento'); const desc = parseFloat(_d3?_d3.value:0) || 0;
   var _tt=document.getElementById('pp-total'); const totalTxt = (_tt?_tt.textContent:'') || '$0';
-  const total = parseFloat(normalizarNumeroExcel(totalTxt)) || 0;
+  let total = parseFloat(normalizarNumeroExcel(totalTxt)) || 0;
 
   var _subEl = document.getElementById('pp-sub');
   var _ivaEl = document.getElementById('pp-iva');
@@ -27737,6 +28194,18 @@ function guardarPresupuesto(modo) {
   var items = getPpItems();
 
   if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
+  var camposGuardadoV3 = pptoV3Invocar('fields', [{
+    items: items,
+    descuentoGeneral: desc,
+    conIva: conIvaGuardar
+  }], null);
+  if (camposGuardadoV3) {
+    items = Array.from(camposGuardadoV3.items);
+    subtotalBruto = camposGuardadoV3.subtotal;
+    descAmt = camposGuardadoV3.descuentoAmt;
+    ivaGuardado = camposGuardadoV3.iva;
+    total = camposGuardadoV3.total;
+  }
   var preciosNoVigentes = items.filter(function(it) {
     var refItem = String(it.pid || it.productoFbKey || it.productoKey || '');
     var codItem = String(it.cod || it.codigo || '').trim().toLowerCase();
@@ -28505,7 +28974,7 @@ function verOT(id) {
   if (ot.origen !== origenOT) {
     ot.origen = origenOT;
     if (ot.fbKey && window.fbDB) {
-      window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), { origen:origenOT }).catch(function(error){
+      otPersistirActualizar(ot.fbKey, { origen:origenOT }).catch(function(error){
         console.warn('No se pudo normalizar el origen de la OT:', error);
       });
     }
@@ -28704,7 +29173,7 @@ function verOT(id) {
   var completarBtn = document.getElementById('btn-completar-ot');
   if (completarBtn) completarBtn.style.display = otCerrada ? 'none' : '';
   if (checklistReconstruido && ot.fbKey && window.fbDB) {
-    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), { checks:ot.checks }).catch(function(error){
+    otPersistirActualizar(ot.fbKey, { checks:ot.checks }).catch(function(error){
       console.warn('No se pudo completar la estructura del checklist:', error);
     });
   }
@@ -28733,7 +29202,7 @@ function verOT(id) {
     if (materialesDerivados) {
       ot.materiales = materiales;
       if (ot.fbKey && window.fbDB) {
-        window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), { materiales:materiales }).catch(function(error){
+        otPersistirActualizar(ot.fbKey, { materiales:materiales }).catch(function(error){
           console.warn('No se pudieron guardar los materiales recuperados:', error);
         });
       }
@@ -28805,7 +29274,7 @@ function otActualizarMaterial(inp, cod) {
     }
   }
 
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
+  otPersistirActualizar(ot.fbKey, {
     items: items
   }).catch(function(e){ notify('Error guardando: ' + e.message); });
 }
@@ -28819,7 +29288,7 @@ function otToggleInstalado(chk, indice, vendida) {
   materiales[indice] = Object.assign({}, materiales[indice], { instalada:nuevoVal });
   var materialNuevo = materiales[indice];
   var key = ot.fbKey || otActualId;
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { materiales:materiales })
+  otPersistirActualizar(key, { materiales:materiales })
     .then(function(){
       ot.materiales = materiales;
       if (window.SisVentasCompras && typeof window.SisVentasCompras.syncOTConsumption === 'function') {
@@ -28952,8 +29421,8 @@ function otConfirmarVentaAdicional() {
     ts:           Date.now()
   };
 
-  window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), venta).then(function(snap) {
-    var ventaKey = snap && snap.key ? snap.key : '';
+  ventasPagosPersistirGuardarVenta(venta).then(function(ventaGuardada) {
+    var ventaKey = ventaGuardada && ventaGuardada.fbKey || '';
     var vinculos = {};
     if (ventaKey && ot.fbKey) {
       vinculos[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/ventasAdicionales/' + ventaKey] = {
@@ -29066,7 +29535,7 @@ function firmaLimpiar(soloVisual) {
   var firmaAnterior = otFirmaUrl(ot);
   var pathAnterior = ot.firmaStoragePath || '';
   window._otGuardandoLocalHasta = Date.now() + 2500;
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
+  otPersistirActualizar(ot.fbKey, {
     firmaClienteUrl: null,
     firmaUrl: null,
     firmaURL: null,
@@ -29212,7 +29681,7 @@ function firmaGuardarEnOT(firmaUrl, storagePath, otObjetivoId, opciones) {
   var conformidadActual = String(ot.conformidadCliente || ((document.getElementById('ot-acta-conf') || {}).value) || '').trim();
   var conformidadFirma = conformidadActual || 'conforme';
   window._otGuardandoLocalHasta = Date.now() + 2500;
-  return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey), {
+  return otPersistirActualizar(ot.fbKey, {
     firmaClienteUrl: firmaUrl,
     firmaStoragePath: storagePath || null,
     firmada: true,
@@ -29565,9 +30034,9 @@ function otEliminarNota(indice) {
   window._otGuardandoLocalHasta = Date.now() + 2500;
   var eliminarRegistro;
   if (nota._firebaseKey && window.fbRemove) {
-    eliminarRegistro = window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico/'+nota._firebaseKey));
+    eliminarRegistro = otPersistirActualizar(key, { ['notasTecnico/' + nota._firebaseKey]: null });
   } else if (nota._arrayIndex != null && window.fbRemove) {
-    eliminarRegistro = window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico/'+nota._arrayIndex));
+    eliminarRegistro = otPersistirActualizar(key, { ['notasTecnico/' + nota._arrayIndex]: null });
   } else {
     notas.splice(indice, 1);
     var notasPersistibles = notas.map(function(item) {
@@ -29576,7 +30045,7 @@ function otEliminarNota(indice) {
       delete copia._arrayIndex;
       return copia;
     });
-    eliminarRegistro = window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key), { notasTecnico:notasPersistibles });
+    eliminarRegistro = otPersistirActualizar(key, { notasTecnico:notasPersistibles });
   }
   eliminarRegistro
     .then(function(){
@@ -29633,9 +30102,10 @@ function otAgregarNota() {
   var notaNueva = { texto:texto, autor:currentUser||'Técnico', rol:currentRole||'tecnico', ts:Date.now() };
   var key = ot.fbKey || otActualId;
   window._otGuardandoLocalHasta = Date.now() + 2500;
-  window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico'), notaNueva)
-    .then(function(refNota){
-      notaNueva._firebaseKey = refNota && refNota.key ? refNota.key : '';
+  var refNota = window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico'));
+  notaNueva._firebaseKey = refNota && refNota.key ? refNota.key : '';
+  otPersistirActualizar(key, { ['notasTecnico/' + notaNueva._firebaseKey]: notaNueva })
+    .then(function(){
       var notas = otNotasNormalizadas(ot).slice();
       if (!notas.some(function(nota) {
         return Number(nota && nota.ts) === notaNueva.ts &&
@@ -29798,7 +30268,7 @@ function otPrepararFotoParaSubir(file, informar) {
   });
 }
 
-function otSubirFotoConProgreso(storageRef, blob, informar) {
+function otSubirFotoConProgreso(storageRef, blob, informar, signal) {
   if (window.fbUploadBytesResumable) {
     return new Promise(function(resolve, reject) {
       var tarea = window.fbUploadBytesResumable(storageRef, blob, { contentType:blob.type || 'image/jpeg' });
@@ -29808,6 +30278,14 @@ function otSubirFotoConProgreso(storageRef, blob, informar) {
       function limpiar() {
         clearTimeout(timerInactividad);
         clearTimeout(timerTotal);
+        if (signal) signal.removeEventListener('abort', cancelarPorSignal);
+      }
+      function cancelarPorSignal() {
+        if (terminada) return;
+        terminada = true;
+        limpiar();
+        try { tarea.cancel(); } catch (_) {}
+        reject(new Error('Subida cancelada'));
       }
       function fallarPorTiempo() {
         if (terminada) return;
@@ -29824,6 +30302,10 @@ function otSubirFotoConProgreso(storageRef, blob, informar) {
       }
       reiniciarInactividad();
       timerTotal = setTimeout(fallarPorTiempo, 180000);
+      if (signal) {
+        if (signal.aborted) return cancelarPorSignal();
+        signal.addEventListener('abort', cancelarPorSignal, { once:true });
+      }
       tarea.on('state_changed', function(snapshot) {
         if (terminada) return;
         reiniciarInactividad();
@@ -29844,11 +30326,19 @@ function otSubirFotoConProgreso(storageRef, blob, informar) {
       });
     });
   }
-  return otConTimeout(
+  var subidaSimple = otConTimeout(
     window.fbUploadBytes(storageRef, blob, { contentType:blob.type || 'image/jpeg' }),
     120000,
     'La foto tardó demasiado en subir. Revisá la conexión y volvé a intentarlo.'
   );
+  if (!signal) return subidaSimple;
+  return Promise.race([
+    subidaSimple,
+    new Promise(function(_resolve, reject) {
+      if (signal.aborted) return reject(new Error('Subida cancelada'));
+      signal.addEventListener('abort', function(){ reject(new Error('Subida cancelada')); }, { once:true });
+    })
+  ]);
 }
 
 function otAgregarFoto(input) {
@@ -29876,6 +30366,100 @@ function otAgregarFoto(input) {
   var fotoRegistradaEnOT = false;
   var registroIncierto = false;
   notify(file.size > 1400*1024 ? 'Optimizando foto antes de subir…' : 'Subiendo foto…');
+  var tareaFotoV3 = otV3Invocar('createAttachmentTask', [{
+    ownerKey: ot.fbKey || otActualId,
+    kind: 'foto',
+    file: file,
+    timeoutMs: 240000,
+    adapter: {
+      upload: function(solicitud) {
+        return otPrepararFotoParaSubir(file, function(porcentaje, mensaje) {
+          pendiente.progreso(porcentaje, mensaje);
+          if (solicitud.onProgress) solicitud.onProgress(Math.min(20, Math.round(porcentaje * 0.2)));
+        }).then(function(preparacion) {
+          preparacionFoto = preparacion;
+          var extension = preparacion.optimizada ? '.jpg' : ((nombreSeguro.match(/\.[a-zA-Z0-9]+$/) || ['.jpg'])[0]);
+          var baseNombre = nombreSeguro.replace(/\.[a-zA-Z0-9]+$/, '') || 'foto';
+          var nombreSubida = preparacion.optimizada ? baseNombre + extension : nombreSeguro;
+          path = 'sisventas/ots/'+(ot.fbKey||otActualId)+'/fotos/'+Date.now()+'_'+nombreSubida;
+          sRef = window.fbStorageRef(window.fbStorage, path);
+          if (preparacion.optimizada) {
+            var ahorro = Math.max(0, Math.round((1 - preparacion.blob.size / preparacion.originalBytes) * 100));
+            pendiente.progreso(0, 'Foto optimizada · ' + ahorro + '% más liviana');
+          }
+          return otSubirFotoConProgreso(sRef, preparacion.blob, function(porcentaje, mensaje) {
+            pendiente.progreso(porcentaje, mensaje);
+            if (solicitud.onProgress) solicitud.onProgress(20 + Math.round(porcentaje * 0.75));
+          }, solicitud.signal);
+        }).then(function() {
+          pendiente.progreso(100, 'Obteniendo enlace seguro…');
+          return otConTimeout(window.fbGetDownloadURL(sRef), 25000, 'La foto subió, pero Storage no entregó el enlace a tiempo');
+        }).then(function(url) {
+          return {
+            url: url,
+            path: path,
+            originalName: file.name || nombreSeguro,
+            contentType: (preparacionFoto && preparacionFoto.blob && preparacionFoto.blob.type) || file.type || 'image/*',
+            bytes: (preparacionFoto && preparacionFoto.blob && preparacionFoto.blob.size) || file.size || 0,
+            originalBytes: file.size || 0,
+            optimized: !!(preparacionFoto && preparacionFoto.optimizada)
+          };
+        });
+      },
+      saveMetadata: function(contexto) {
+        var subida = contexto.uploaded;
+        var notaFoto = {
+          texto: texto||'Foto',
+          autor: currentUser||'Técnico',
+          rol: currentRole||'tecnico',
+          ts: Date.now(),
+          fotoUrl: subida.url,
+          fotoStoragePath: subida.path,
+          fotoNombre: subida.originalName,
+          fotoTipo: subida.contentType,
+          fotoTamano: subida.bytes,
+          fotoTamanoOriginal: subida.originalBytes,
+          fotoOptimizada: subida.optimized
+        };
+        var key = ot.fbKey || otActualId;
+        var refFoto = window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico'));
+        notaFoto._firebaseKey = refFoto && refFoto.key || '';
+        pendiente.progreso(100, 'Guardando la foto en la OT…');
+        return otPersistirActualizar(key, { ['notasTecnico/' + notaFoto._firebaseKey]: notaFoto }).then(function() {
+          fotoRegistradaEnOT = true;
+          return notaFoto;
+        });
+      }
+    },
+    onChange: function(snapshot) {
+      if (snapshot.state === 'uploading') pendiente.progreso(snapshot.progress, 'Subiendo foto · ' + Math.round(snapshot.progress) + '%');
+      if (snapshot.state === 'saving') pendiente.progreso(100, 'Guardando la foto en la OT…');
+    }
+  }], null);
+  if (tareaFotoV3) {
+    tareaFotoV3.start().then(function(resultado) {
+      var nota = resultado.metadata;
+      var notas = otNotasNormalizadas(ot).slice();
+      if (!notas.some(function(item){ return otFotoUrlDeNota(item) === nota.fotoUrl; })) notas.push(nota);
+      ot.notasTecnico = notas;
+      window._otDetalleHuella = JSON.stringify(ot);
+      pendiente.cerrar();
+      if (String(otActualId) === String(otIdAlSubir) || String(otActualId) === String(ot.id || '')) otRenderNotas(ot);
+      if (inp) inp.value='';
+      input.value='';
+      notify('✓ Foto guardada en la OT y visible en la galería');
+      otComprobarFotoVisible(nota.fotoUrl).catch(function() {});
+    }).catch(function(error) {
+      if (!fotoRegistradaEnOT && sRef && window.fbDeleteObject) window.fbDeleteObject(sRef).catch(function(){});
+      pendiente.error('No se pudo guardar');
+      setTimeout(function(){ pendiente.cerrar(); }, 4500);
+      input.value='';
+      if (typeof isAuthenticated === 'undefined' || isAuthenticated) notify('Error al subir la foto: ' + error.message);
+    }).finally(function() {
+      input.dataset.subiendo = '0';
+    });
+    return;
+  }
   otPrepararFotoParaSubir(file, pendiente.progreso).then(function(preparacion){
     preparacionFoto = preparacion;
     var extension = preparacion.optimizada ? '.jpg' : ((nombreSeguro.match(/\.[a-zA-Z0-9]+$/) || ['.jpg'])[0]);
@@ -29910,7 +30494,7 @@ function otAgregarFoto(input) {
     var refFoto = window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo+'/'+key+'/notasTecnico'));
     pendiente.progreso(100, 'Guardando la foto en la OT…');
     return otConTimeout(
-      window.fbSet(refFoto, notaFoto),
+      otPersistirActualizar(key, { ['notasTecnico/' + refFoto.key]: notaFoto }),
       45000,
       'La foto subió, pero la conexión no confirmó el guardado en la OT'
     ).catch(function(errorGuardado) {
@@ -30212,7 +30796,7 @@ function completarOT() {
       tareas.push(Promise.resolve(ventaDetalleRepararVinculoOT(ventaVinculadaCierre, { persistir:true, notificar:false, otForzada:otCierre, devolverPromesa:true })));
     }
     if (ventaVinculadaCierre.estadoInst !== estadoInstalacionVentaCierre) {
-      tareas.push(window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaVinculadaCierre.fbKey), { estadoInst: estadoInstalacionVentaCierre }));
+      tareas.push(ventasPagosPersistirActualizarVenta(ventaVinculadaCierre.fbKey, { estadoInst: estadoInstalacionVentaCierre }));
     }
     return Promise.all(tareas);
   }
@@ -30459,7 +31043,7 @@ function renderTablero() {
 
   var ventas = (ventasList||[]).filter(function(v){ return (v.fecha||'').startsWith(String(anioSel)); });
   var ventasMes = ventas.filter(function(v){ return (v.fecha||'').slice(0,7)===mesActual; });
-  var totalAnio = ventas.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var totalAnio = ventas.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); }, 0);
   var ticketProm = ventas.length ? totalAnio/ventas.length : 0;
 
   // Margen promedio anual
@@ -30489,7 +31073,7 @@ function renderTablero() {
     var gMes = (gastosList||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mes; });
     return {
       mes: m, esMesActual: mes===mesActual,
-      ventas: vMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); },0),
+      ventas: vMes.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); },0),
       gastos: gMes.reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0)
     };
   });
@@ -30537,7 +31121,7 @@ function renderTablero() {
   ventas.forEach(function(v) {
     var k = v.cliente||'Sin nombre';
     if (!conteoClientes[k]) conteoClientes[k] = 0;
-    conteoClientes[k] += parseFloat(v.total)||0;
+    conteoClientes[k] += _svTotalVentaCanonico(v);
   });
   var top5cli = Object.entries(conteoClientes).sort(function(a,b){ return b[1]-a[1]; }).slice(0,5);
   var tabTopCli = document.getElementById('tab-top-clientes');
@@ -30551,15 +31135,14 @@ function renderTablero() {
   }
 
   // Indicadores de cobrabilidad
-  var totalMesFact = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.total)||0); },0);
-  var totalMesCobrado = ventasMes.reduce(function(s,v){ return s+(parseFloat(v.totalPagado)||0); },0);
+  var totalMesFact = ventasMes.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); },0);
+  var totalMesCobrado = ventasMes.reduce(function(s,v){ return s + _svMontoPagadoVenta(v); },0);
   var pctCobrado = totalMesFact > 0 ? Math.round((totalMesCobrado/totalMesFact)*100) : null;
   var ventasPendientes = (ventasList||[]).filter(function(v){
-    return v.estadoPago !== 'pago_total' && v.estadoPago !== 'cobrado' &&
-           ((parseFloat(v.total)||0) - (parseFloat(v.totalPagado)||0)) > 0;
+    return _svSaldoPendienteVenta(v) > 0;
   });
   var pendienteCobro = ventasPendientes.reduce(function(s,v){
-    return s + (parseFloat(v.total)||0) - (parseFloat(v.totalPagado)||0);
+    return s + _svSaldoPendienteVenta(v);
   }, 0);
   var gastosMes = (gastosList||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; })
     .reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
@@ -30774,7 +31357,7 @@ function renderDashAdministrativo() {
       return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--radius)">' +
         '<div style="flex:1"><div style="font-size:13px;font-weight:500">'+escapeHTML(v.cliente||'')+'</div>' +
         '<div style="font-size:11px;color:var(--text3)">'+escapeHTML(v.fecha||'')+'</div></div>' +
-        '<div style="font-size:13px;font-weight:500;color:var(--green)">$'+Math.round(parseFloat(v.total)||0).toLocaleString('es-AR')+'</div>' +
+        '<div style="font-size:13px;font-weight:500;color:var(--green)">$'+Math.round(_svTotalVentaCanonico(v)).toLocaleString('es-AR')+'</div>' +
       '</div>';
     }).join('');
 }
@@ -30824,8 +31407,8 @@ function renderKPIsDashboard() {
   });
   var ventasHoy = ventas.filter(function(v){ return _fechaEsDia(v.fechaOrden || v.fecha, hoyDate); });
   var ventasAyer = ventas.filter(function(v){ return _fechaEsDia(v.fechaOrden || v.fecha, ayerDate); });
-  var totalHoy  = ventasHoy.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
-  var totalAyer = ventasAyer.reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
+  var totalHoy  = ventasHoy.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); }, 0);
+  var totalAyer = ventasAyer.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); }, 0);
   var diffPct   = totalAyer > 0 ? Math.round((totalHoy - totalAyer) / totalAyer * 100) : 0;
 
   _set('kpi-ventas-hoy', '$' + Math.round(totalHoy).toLocaleString('es-AR'));
@@ -30884,7 +31467,7 @@ function renderKPIsDashboard() {
       // Aceptar DD/MM/YYYY, DD/MM/YY, YYYY-MM-DD
       return f === dia.dmy || f.slice(0,10) === dia.iso ||
              f === dia.dmy.slice(0,8) + dia.dmy.slice(8);
-    }).reduce(function(s,v){ return s + (parseFloat(v.total)||0); }, 0);
+    }).reduce(function(s,v){ return s + _svTotalVentaCanonico(v); }, 0);
     if (t > maxVal) maxVal = t;
     return t;
   });
@@ -30919,7 +31502,7 @@ function renderKPIsDashboard() {
                        : '<span class="badge b-amber">Pendiente</span>';
         var subtotal = parseFloat(v.subtotal) || 0;
         var iva = parseFloat(v.iva) || 0;
-        var total = parseFloat(v.total) || 0;
+        var total = _svTotalVentaCanonico(v);
         var vid = escapeHTML(v.id||'');
         return '<tr style="cursor:pointer;touch-action:pan-x pan-y" onclick="verDetalleVentaDesdeId(\'' + vid + '\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
           '<td style="font-family:monospace;font-size:12px">' + vid + '</td>' +
@@ -30944,7 +31527,7 @@ function renderKPIsDashboard() {
         var estadoLbl = v.estadoPago === 'pago_total' ? '<span class="badge b-green">Pagado</span>'
                        : v.estadoPago === 'seniado' ? '<span class="badge b-blue">Señado</span>'
                        : '<span class="badge b-amber">Pendiente</span>';
-        var total = parseFloat(v.total) || 0;
+        var total = _svTotalVentaCanonico(v);
         var vid = escapeHTML(v.id||'');
         return '<div onclick="verDetalleVentaDesdeId(\'' + vid + '\')" style="display:flex;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer">' +
           '<span style="flex:1;min-width:0">' +
@@ -31147,7 +31730,7 @@ function moverVentaAPresupuesto(ventaId) {
     usuario: currentUser||'', fecha: ahora, vence: vence,
     items: v.items||[], subtotal: parseFloat(v.subtotal||v.total)||0,
     descuento: parseFloat(v.descuento)||0, iva: 0,
-    total: parseFloat(v.total)||0, estado: 'enviado',
+    total: _svTotalVentaCanonico(v), estado: 'enviado',
     ventaOrigenId: v.id || ventaId, ventaOrigenFbKey: v.fbKey || '', observaciones: 'Movido desde venta '+(v.id || ventaId),
     audit: [{ fecha:ahora, usuario:currentUser||'', accion:'Creado desde venta '+(v.id || ventaId) }],
     ts: Date.now()
@@ -31157,18 +31740,18 @@ function moverVentaAPresupuesto(ventaId) {
       numPpto = idReservado;
       ppto.id = idReservado;
       ppto.numero = idReservado;
-      return window.fbPush(window.fbRef(window.fbDB, 'sisventas/presupuestos'), ppto);
+      return pptoPersistirGuardar(ppto);
     })
     .then(function() {
       // Eliminar la venta original — ya está movida a presupuestos
       var promesas = [];
       (window._pagosListaActual||[]).filter(function(p){ return _svRegistroPerteneceVenta(p, v) && p.fbKey; }).forEach(function(p) {
-        promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + p.fbKey)));
+        promesas.push(ventasPagosPersistirEliminarPago(p.fbKey));
       });
       (otData||[]).filter(function(o){ return _svRegistroPerteneceVenta(o, v) && o.fbKey; }).forEach(function(o) {
-        promesas.push(window.fbRemove(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + o.fbKey)));
+        promesas.push(otPersistirEliminar(o.fbKey));
       });
-      if (v.fbKey) promesas.push(window.fbRemove(window.fbRef(window.fbDB, 'sisventas/ventas/' + v.fbKey)));
+      if (v.fbKey) promesas.push(ventasPagosPersistirEliminarVenta(v.fbKey));
       return Promise.all(promesas);
     })
     .then(function() {
@@ -31260,10 +31843,9 @@ function verHistorialCliente(id, nombre) {
 
   // KPIs reales desde ventasList
   var vReales = filtrarPorCliente(ventasList);
-  var totalReal = vReales.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var totalReal = vReales.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); }, 0);
   var saldoReal = vReales.reduce(function(s, v) {
-    var totalVenta = parseFloat(v.total) || 0;
-    return s + Math.max(0, totalVenta - calcularPagadoRealVenta(v));
+    return s + _svSaldoPendienteVenta(v);
   }, 0);
   var totalDisplay = totalReal;
   var saldoDisplay = saldoReal;
@@ -31289,7 +31871,7 @@ function verHistorialCliente(id, nombre) {
   var vBody = document.getElementById('hc-ventas-body');
   if (vBody) {
     vBody.innerHTML = ventas.length ? ventas.map(function(v) {
-      var t = parseFloat(v.total)||0;
+      var t = _svTotalVentaCanonico(v);
       return '<tr>' +
         '<td style="font-weight:500;font-family:monospace;font-size:12px">' + (v.id||'') + '</td>' +
         '<td style="color:var(--text3)">' + _mostrarFecha(v.fecha) + '</td>' +
@@ -31686,7 +32268,7 @@ function normalizarVentaLegacyDesdePresupuesto(venta) {
   };
   Object.assign(venta, updates);
   if (window.fbDB && window.fbUpdate && venta.fbKey) {
-    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), updates)
+    ventasPagosPersistirActualizarVenta(venta.fbKey, updates)
       .catch(function(error){ console.error('[Ventas] No se pudo corregir la conversion del presupuesto', error); });
   }
   return venta;
@@ -31964,7 +32546,7 @@ function renderDetalleVenta(v) {
 
   var ep = ESTADO_PAGO[v.estadoPago] || { label: v.estadoPago||'—', color:'var(--text3)', icon:'ti-minus' };
   var ei = ESTADO_INST[v.estadoInst] || { label: v.estadoInst||'—', color:'var(--text3)', icon:'ti-minus' };
-  var total    = parseFloat(v.total) || 0;
+  var total    = _svTotalVentaCanonico(v);
   var descuento = parseFloat(v.descuento) || 0; // monto en pesos
   var iva      = parseFloat(v.iva) || 0;
   // el detalle debe respetar conIva=false y no mostrar ni sumar impuesto.
@@ -32022,7 +32604,7 @@ function renderDetalleVenta(v) {
     return true;
   });
   var pagadoPorPagos = pagos.reduce(function(s,p){ return s+(parseFloat(p.monto)||0); }, 0);
-  var pagadoDirecto = parseFloat(v.totalPagado || v.pagado || v.montoPagado) || 0;
+  var pagadoDirecto = _svMontoPagadoVenta(v);
   var pagado = Math.max(pagadoPorPagos, pagadoDirecto);
   var estadoPagoReal = _estadoPagoPorImporteDetalle(total, pagado);
   ep = ESTADO_PAGO[estadoPagoReal] || ep;
@@ -32273,11 +32855,11 @@ function toggleCSF(vid, fk) {
   var v = _svResolverVentaRegistro(vid);
   if (!v || !fk) return;
   var csf = v.contadoSinFactura === true;
-  var t = parseFloat(v.total)||0;
+  var t = _svTotalVentaCanonico(v);
   var nt = csf ? Math.round(t * 1.21) : Math.round(t / 1.21);
   if (!confirm((csf ? 'Restaurar IVA? Total: $'+t.toLocaleString('es-AR')+' -> $'+nt.toLocaleString('es-AR') : 'Contado sin factura? Se quita IVA. $'+t.toLocaleString('es-AR')+' -> $'+nt.toLocaleString('es-AR')))) return;
   if (!window.fbDB) return;
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas+'/'+fk), {
+  ventasPagosPersistirActualizarVenta(fk, {
     contadoSinFactura: !csf, total: nt, iva: csf ? Math.round(nt-t) : 0,
     audit: (v.audit||[]).concat([{fecha:new Date().toISOString().slice(0,10), usuario:currentUser||'Admin', accion: csf ? 'IVA restaurado' : 'Contado sin factura'}])
   }).then(function(){ notify(csf ? 'IVA restaurado' : 'Contado sin factura aplicado'); })
@@ -32857,7 +33439,7 @@ function renderVentasTabla(lista) {
     <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(v.cliente)}</td>
     <td title="${escapeHTML(observacion)}" style="max-width:220px;color:${observacion ? 'var(--text2)' : 'var(--text3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${observacion ? escapeHTML(observacion) : '—'}</td>
     <td style="color:var(--text3);white-space:nowrap">${_mostrarFecha(v.fecha)}</td>
-    <td class="tr" style="font-weight:500;white-space:nowrap">$${(parseFloat(v.total)||0).toLocaleString('es-AR')}</td>
+    <td class="tr" style="font-weight:500;white-space:nowrap">$${_svTotalVentaCanonico(v).toLocaleString('es-AR')}</td>
     <td class="tr" style="white-space:nowrap">${ventaEstadoBadge(v.estadoPago)}</td>
     <td class="tr" style="white-space:nowrap">${ventaEstadoInstBadge(v.estadoInst)}</td>
     <td style="text-align:center;white-space:nowrap">
@@ -32958,7 +33540,7 @@ function _aplicarFiltrosVentas() {
   var ordenVentas = _sortState['ventas-tbl'] || { col:'fecha', dir:'desc' };
   function valorOrdenVenta(v) {
     if (ordenVentas.col === 'fecha') return fechaVentaTimestamp(v.fecha, v.ts) || 0;
-    if (ordenVentas.col === 'total') return parseFloat(v.total) || 0;
+    if (ordenVentas.col === 'total') return _svTotalVentaCanonico(v);
     if (ordenVentas.col === 'observaciones') return String(v.observaciones || v.obs || '');
     if (ordenVentas.col === 'pago') return String(v.estadoPago || '');
     if (ordenVentas.col === 'instalacion') return String(v.estadoInst || '');
@@ -33376,7 +33958,7 @@ function calcularComisionEmpleado(emp, mesAMM) {
            (v.fecha||'').slice(0,7) === (mesAMM||new Date().toISOString().slice(0,7));
   });
 
-  var totalVentas = ventas.reduce(function(s,v){ return s+(parseFloat(v.total)||0); }, 0);
+  var totalVentas = ventas.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); }, 0);
   var comision    = totalVentas * (cfgCat.pct||0) / 100;
   var topeMaximo = parseFloat(cfgCat.max) || 0;
   if (topeMaximo >= 999999) topeMaximo = 0;
@@ -33548,6 +34130,10 @@ function filterDrop(inputId, dropId) {
   var inp = document.getElementById(inputId);
   if (!inp) return;
   var v = inp.value.trim().toLowerCase();
+  if (inp.dataset.clienteNombre && inp.dataset.clienteNombre.trim().toLowerCase() !== v) {
+    inp.dataset.clienteKey = '';
+    inp.dataset.clienteNombre = '';
+  }
   if (!v) { _ocultarDropGlobal(); return; }
   var matches = (clientesData||[]).filter(function(c){ return (c.nombre||'').toLowerCase().includes(v); });
   var btnAgregar = '<div style="padding:10px 12px;cursor:pointer;border-top:0.5px solid var(--border);font-size:13px;color:var(--blue);display:flex;align-items:center;gap:8px;font-weight:500" onmousedown="event.preventDefault();_abrirAltaRapidaCliente(\''+inputId+'\',\''+inp.value.trim().replace(/'/g,"\\'")+'\')"><i class="ti ti-user-plus"></i> Agregar cliente nuevo</div>';
@@ -33568,7 +34154,11 @@ function filterDrop(inputId, dropId) {
 
 function _gFilterDropSel(inputId, valor, fbKey) {
   var inp = document.getElementById(inputId);
-  if (inp) inp.value = valor;
+  if (inp) {
+    inp.value = valor;
+    inp.dataset.clienteKey = fbKey || '';
+    inp.dataset.clienteNombre = valor || '';
+  }
   _ocultarDropGlobal();
   if (inputId === 'ot-det-cliente') {
     if (inp) {
@@ -33650,7 +34240,7 @@ function abrirVentasAnterioresClientePpto() {
       var items = Array.isArray(v.items) ? v.items : Object.values(v.items || {});
       var resumen = items.slice(0,4).map(function(it){ return (it.qty || it.cantidad || 1)+'× '+escapeHTML(it.desc || it.descripcion || it.nombre || it.cod || 'Ítem'); }).join(' · ');
       if (items.length > 4) resumen += ' · +' + (items.length - 4) + ' más';
-      return '<div style="border:1px solid var(--border2);border-radius:10px;padding:12px;background:var(--bg3);display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><div style="display:flex;justify-content:space-between;gap:12px"><strong>'+escapeHTML(v.id || v.numero || 'Venta')+'</strong><strong style="color:var(--green)">$'+Math.round(parseFloat(v.total)||0).toLocaleString('es-AR')+'</strong></div><div style="font-size:11px;color:var(--text3);margin-top:4px">'+escapeHTML(_mostrarFecha(v.fecha || ''))+'</div><div style="font-size:12px;color:var(--text2);margin-top:7px">'+(resumen || 'Sin ítems guardados')+'</div></div><button class="btn btn-sm" '+(items.length?'':'disabled')+' onclick="agregarVentaAnteriorAPpto('+idx+')"><i class="ti ti-copy-plus"></i> Agregar ítems</button></div>';
+      return '<div style="border:1px solid var(--border2);border-radius:10px;padding:12px;background:var(--bg3);display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><div style="display:flex;justify-content:space-between;gap:12px"><strong>'+escapeHTML(v.id || v.numero || 'Venta')+'</strong><strong style="color:var(--green)">$'+Math.round(_svTotalVentaCanonico(v)).toLocaleString('es-AR')+'</strong></div><div style="font-size:11px;color:var(--text3);margin-top:4px">'+escapeHTML(_mostrarFecha(v.fecha || ''))+'</div><div style="font-size:12px;color:var(--text2);margin-top:7px">'+(resumen || 'Sin ítems guardados')+'</div></div><button class="btn btn-sm" '+(items.length?'':'disabled')+' onclick="agregarVentaAnteriorAPpto('+idx+')"><i class="ti ti-copy-plus"></i> Agregar ítems</button></div>';
     }).join('') + '</div></div>';
   overlay.addEventListener('click', function(e){ if (e.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);

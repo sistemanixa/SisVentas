@@ -310,7 +310,8 @@
     });
     var blockingKinds = new Set([
       'missing-product-technical-key',
-      'duplicate-provider-link'
+      'duplicate-provider-link',
+      'labor-has-provider'
     ]);
     var blockingIssues = issues.filter(function (entry) { return blockingKinds.has(entry.kind); });
     return Object.freeze({

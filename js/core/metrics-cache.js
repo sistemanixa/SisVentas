@@ -42,7 +42,10 @@
   }
   function clienteId(c){ return id(c && (c.fbKey || c.id || c.idCliente || c.codigo || c.dni || c.cuit)); }
   function productoCod(p){ return id(p && (p.codigo || p.cod || p.id || p.fbKey)); }
-  function totalVenta(v){ return num(v && (v.total || v.totalVenta || v.importe || v.monto || v.totalConIva)); }
+  function totalVenta(v){
+    if (typeof window._svTotalVentaCanonico === 'function') return window._svTotalVentaCanonico(v || {});
+    return num(v && (v.total || v.totalVenta || v.importe || v.monto || v.totalConIva));
+  }
   function totalPago(p){ return num(p && (p.monto || p.importe || p.total || p.pagado)); }
   function ventaPagoKeys(p){
     var out = {};
@@ -125,7 +128,9 @@
       ivaMes += sign * num(v && (v.iva || v.iva21 || v.totalIva));
       cantMes += 1;
       var vistos = {};
-      var pagado = ventaKeys(v).reduce(function(totalKey, k){
+      var pagado = typeof window._svMontoPagadoVenta === 'function'
+        ? window._svMontoPagadoVenta(v)
+        : ventaKeys(v).reduce(function(totalKey, k){
         return totalKey + (idx.pagosPorVenta[k] || []).reduce(function(a,p){
           var pk = id(p && (p.fbKey || p.id || p.key)) || [p && p.fecha, p && p.monto, p && p.medio, p && p.venta, p && p.ventaFbKey].join('|');
           if(vistos[pk]) return a;
@@ -133,7 +138,9 @@
           return a + totalPago(p);
         }, 0);
       }, 0);
-      pendienteCobro += Math.max(0, totalVenta(v) - pagado);
+      pendienteCobro += typeof window._svSaldoPendienteVenta === 'function'
+        ? window._svSaldoPendienteVenta(v)
+        : Math.max(0, totalVenta(v) - pagado);
       var ei = lower(v && (v.estadoInstalacion || v.instalacion || v.estadoOT || v.estado));
       if (ei.indexOf('instal') < 0 && ei.indexOf('complet') < 0 && ei.indexOf('finaliz') < 0) pendienteInstalacion += 1;
     });
@@ -167,6 +174,23 @@
   SV.Metrics.ot = function(){
     var hoy = fecha(new Date());
     var lista = getLista('ot');
+    var bridge = window.SisVentas && window.SisVentas.V3Bridge;
+    var modeloV3 = bridge && typeof bridge.invoke === 'function'
+      ? bridge.invoke('ordenesTrabajo', 'model', [lista, hoy], null)
+      : null;
+    if (modeloV3) {
+      var atrasadasV3 = modeloV3.openRows.filter(function(o){
+        var programada = fecha(o && (o.fecha || o.fechaProgramada || o.programada));
+        return programada && programada < hoy;
+      }).length;
+      return {
+        abiertas:modeloV3.metrics.open,
+        hoy:modeloV3.metrics.today,
+        atrasadas:atrasadasV3,
+        completadasHoy:modeloV3.completedRows.filter(function(o){ return fecha(o && (o.fechaCierre || o.cerradaEn || o.updatedAt)) === hoy; }).length,
+        completadasTotal:modeloV3.metrics.completed
+      };
+    }
     var out = { abiertas:0, hoy:0, atrasadas:0, completadasHoy:0, completadasTotal:0 };
     lista.forEach(function(o){
       var estado = lower(o && o.estado);
