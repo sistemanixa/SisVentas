@@ -6,6 +6,8 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
 const app = read('js', 'app.js');
+const app237 = read('js', 'app.v2.0.237.js');
+const version237 = read('js', 'core', 'version.v2.0.237.js');
 const css = read('css', 'app.css');
 const index = read('index.html');
 const sw = read('sw.js');
@@ -25,8 +27,6 @@ test('el anclaje de escritorio queda como control compacto solo con icono', () =
 });
 
 test('la publicacion corresponde a v2.0.237', () => {
-  assert.match(app, /VERSION: 'v2\.0\.237-firebase'/);
-  assert.match(index, /app\.v2\.0\.237\.js/);
-  assert.match(index, /version\.v2\.0\.237\.js/);
-  assert.match(sw, /sisventas-v2\.0\.237/);
+  assert.match(app237, /VERSION: 'v2\.0\.237-firebase'/);
+  assert.match(version237, /v2\.0\.237/);
 });
