@@ -46,7 +46,10 @@
 
   function esAvisoCriticoPresupuesto(n){
     var id=String(n&&n.id||'');
-    return id.indexOf('ppto_aprob_')===0 || id.indexOf('ppto_aprobado_int_')===0;
+    // Toda notificación marcada como urgente debe interrumpir visualmente.
+    // Los presupuestos aprobados también se anuncian aunque no sean urgentes,
+    // porque requieren que el administrativo continúe el circuito comercial.
+    return !!(n&&n.urgente) || id.indexOf('ppto_aprob_')===0 || id.indexOf('ppto_aprobado_int_')===0;
   }
   function programarAvisoCriticoPresupuesto(){
     clearTimeout(avisoCriticoTimer);
@@ -62,15 +65,16 @@
     if(!aviso){ if(existente) existente.remove(); return; }
     if(existente&&existente.dataset.notificacionId===String(aviso.id)) return;
     if(existente) existente.remove();
-    var color=String(aviso.id).indexOf('ppto_aprobado_int_')===0?'var(--green)':'var(--amber)';
-    var fondo=String(aviso.id).indexOf('ppto_aprobado_int_')===0?'var(--green-bg)':'var(--amber-bg)';
+    var aprobado=String(aviso.id).indexOf('ppto_aprobado_int_')===0;
+    var color=aprobado?'var(--green)':(aviso.urgente?'var(--red)':'var(--amber)');
+    var fondo=aprobado?'var(--green-bg)':(aviso.urgente?'var(--red-bg)':'var(--amber-bg)');
     var overlay=document.createElement('div');
     overlay.id='modal-aviso-critico-presupuesto';
     overlay.dataset.notificacionId=String(aviso.id);
     overlay.style.cssText='position:fixed;inset:0;z-index:100150;background:rgba(3,6,14,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px';
     overlay.innerHTML='<div role="alertdialog" aria-modal="true" style="width:min(540px,100%);background:var(--bg2);border:1px solid '+color+';border-radius:20px;box-shadow:0 28px 90px rgba(0,0,0,.62);padding:24px">'+
       '<div style="width:56px;height:56px;border-radius:18px;background:'+fondo+';color:'+color+';display:flex;align-items:center;justify-content:center;margin-bottom:17px"><i class="ti '+svEsc(aviso.icono||'ti-file-description')+'" style="font-size:27px"></i></div>'+
-      '<div style="font-size:20px;font-weight:800;line-height:1.25;margin-bottom:10px">'+svEsc(aviso.titulo||'Aviso importante')+'</div>'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><div style="font-size:20px;font-weight:800;line-height:1.25">'+svEsc(aviso.titulo||'Aviso importante')+'</div>'+(aviso.urgente?'<span class="badge b-red">Urgente</span>':'')+'</div>'+
       '<div style="font-size:14px;color:var(--text2);line-height:1.55;padding:14px 15px;background:var(--bg3);border:.5px solid var(--border);border-radius:var(--radius);margin-bottom:18px">'+svEsc(aviso.sub||'')+'</div>'+
       '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" onclick="notifAvisoCriticoEntendido(\''+svEsc(aviso.id)+'\')"><i class="ti ti-check"></i> Entendido</button><button class="btn btn-primary" onclick="notifAvisoCriticoAbrir(\''+svEsc(aviso.id)+'\')"><i class="ti ti-external-link"></i> '+svEsc((aviso.accion&&aviso.accion.label)||'Abrir presupuesto')+'</button></div>'+
     '</div>';

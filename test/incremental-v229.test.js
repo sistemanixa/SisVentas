@@ -22,9 +22,10 @@ test('tablet horizontal libera el ancho y conserva las tablas', () => {
   assert.match(css, /@media \(min-width:1101px\)/);
 });
 
-test('la publicación corresponde a v2.0.229', () => {
-  assert.match(app, /VERSION: 'v2\.0\.229-firebase'/);
-  assert.match(index, /app\.v2\.0\.229\.js/);
-  assert.match(index, /version\.v2\.0\.229\.js/);
-  assert.match(sw, /sisventas-v2\.0\.229/);
+test('la publicación mantiene coherentes sus referencias versionadas', () => {
+  const version = app.match(/VERSION: 'v(\d+\.\d+\.\d+)-firebase'/);
+  assert.ok(version);
+  assert.match(index, new RegExp('app\\.v' + version[1].replace(/\./g, '\\.') + '\\.js'));
+  assert.match(index, new RegExp('version\\.v' + version[1].replace(/\./g, '\\.') + '\\.js'));
+  assert.match(sw, new RegExp('sisventas-v' + version[1].replace(/\./g, '\\.')));
 });
