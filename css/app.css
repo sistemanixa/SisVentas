@@ -114,7 +114,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 /* ── SIDEBAR ── */
 .sidebar{width:204px;background:var(--bg2);border-right:0.5px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:relative;z-index:40;transition:width .22s ease,margin-right .22s ease,box-shadow .22s ease}
-.sidebar-pin{display:none;position:absolute;top:8px;right:8px;z-index:3;height:30px;align-items:center;gap:7px;padding:0 9px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text2);font:inherit;font-size:11px;cursor:pointer;white-space:nowrap;overflow:hidden;transition:color .15s,border-color .15s,background .15s}
+.sidebar-pin{display:none;position:absolute;top:8px;right:8px;z-index:3;width:32px;height:30px;align-items:center;justify-content:center;padding:0;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text2);font:inherit;cursor:pointer;overflow:hidden;transition:color .15s,border-color .15s,background .15s}
 .sidebar-pin:hover{color:var(--text);border-color:var(--border3)}
 .sidebar-pin i{font-size:15px;flex-shrink:0}
 .sidebar-pin.is-pinned{color:var(--blue);border-color:var(--blue);background:var(--blue-bg)}
@@ -543,8 +543,7 @@ tr:hover td{color:var(--text)}
   .sidebar.desktop-autohide{width:60px;margin-right:0;box-shadow:none}
   .sidebar.desktop-autohide:hover,
   .sidebar.desktop-autohide:focus-within{width:204px;margin-right:-144px;box-shadow:8px 0 24px rgba(0,0,0,.24)}
-  .sidebar.desktop-autohide:not(:hover):not(:focus-within) .sidebar-pin{right:14px;width:32px;padding:0 8px}
-  .sidebar.desktop-autohide:not(:hover):not(:focus-within) .sidebar-pin span{display:none}
+  .sidebar.desktop-autohide:not(:hover):not(:focus-within) .sidebar-pin{right:14px}
   .sidebar.desktop-autohide:not(:hover):not(:focus-within) .s-logo{padding:50px 8px 14px;text-align:center}
   .sidebar.desktop-autohide:not(:hover):not(:focus-within) .s-brand{font-size:0}
   .sidebar.desktop-autohide:not(:hover):not(:focus-within) .s-brand::before{content:'SV';font-size:13px;font-weight:800;color:var(--text)}
@@ -556,7 +555,6 @@ tr:hover td{color:var(--text)}
   .sidebar.desktop-autohide:not(:hover):not(:focus-within) .s-user{width:39px;padding-left:4px;padding-right:4px;overflow:hidden}
   .sidebar.desktop-autohide:not(:hover):not(:focus-within) .s-user>div:not(.s-avatar),
   .sidebar.desktop-autohide:not(:hover):not(:focus-within) .s-logout{display:none}
-  .sidebar.sidebar-pinned .sidebar-pin span{display:inline}
   .overlay-mobile{display:none!important}
   .hide-mobile-block{display:table!important}
   .show-mobile-only{display:none!important}

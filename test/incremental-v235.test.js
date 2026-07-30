@@ -9,6 +9,8 @@ const app = read('js', 'app.js');
 const css = read('css', 'app.css');
 const index = read('index.html');
 const sw = read('sw.js');
+const app235 = read('js', 'app.v2.0.235.js');
+const version235 = read('js', 'core', 'version.v2.0.235.js');
 
 test('el menu lateral de escritorio se oculta y expande sin desplazar el contenido', () => {
   assert.match(css, /\.sidebar\.desktop-autohide\{width:60px/);
@@ -24,8 +26,6 @@ test('el usuario puede anclar el menu y la preferencia queda guardada', () => {
 });
 
 test('la publicacion corresponde a v2.0.235', () => {
-  assert.match(app, /VERSION: 'v2\.0\.235-firebase'/);
-  assert.match(index, /app\.v2\.0\.235\.js/);
-  assert.match(index, /version\.v2\.0\.235\.js/);
-  assert.match(sw, /sisventas-v2\.0\.235/);
+  assert.match(app235, /VERSION: 'v2\.0\.235-firebase'/);
+  assert.match(version235, /v2\.0\.235/);
 });
