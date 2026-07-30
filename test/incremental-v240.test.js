@@ -5,9 +5,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
-const app = read('js', 'app.js');
-const index = read('index.html');
-const sw = read('sw.js');
+const app = read('js', 'app.v2.0.240.js');
 
 test('la propuesta bloqueada se conserva sin modificar el precio', () => {
   assert.match(app, /variacionPendienteAprobacion:pendienteAprobacion/);
@@ -29,9 +27,6 @@ test('el editor muestra la comparacion y exige guardar el producto', () => {
   assert.match(app, /Aprobar prepara el cambio; Guardar producto lo confirma definitivamente/);
 });
 
-test('la publicacion corresponde a v2.0.240', () => {
+test('la publicación histórica v2.0.240 permanece disponible', () => {
   assert.match(app, /VERSION: 'v2\.0\.240-firebase'/);
-  assert.match(index, /app\.v2\.0\.240\.js/);
-  assert.match(index, /version\.v2\.0\.240\.js/);
-  assert.match(sw, /sisventas-v2\.0\.240/);
 });
