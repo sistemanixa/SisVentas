@@ -6,7 +6,13 @@
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
   function svToday(){ return svLocalISO(new Date()); }
-  function svCurrentUserName(){ return String(global.currentUserName||global.currentUser||global.currentUserEmail||'Sistema'); }
+  function sessionContext(){
+    if(typeof global.obtenerContextoSesionSisVentas==='function'){
+      return global.obtenerContextoSesionSisVentas()||{};
+    }
+    return { usuario:global.currentUserName||global.currentUser||'', rol:global.currentRole||'', email:global.currentUserEmail||'' };
+  }
+  function svCurrentUserName(){ var ctx=sessionContext(); return String(ctx.usuario||ctx.email||'Sistema'); }
   function notifPermitidaTecnico(n){
     var txt=[n.tipo,n.titulo,n.title,n.descripcion,n.mensaje,n.body,n.modulo,n.categoria].join(' ').toLowerCase();
     var bloqueadas=['stock','presupuesto','iva','deuda','caja','tesorer','factur','proveedor','orden de compra','compra','cliente con saldo','vencimiento presupuesto'];
@@ -15,14 +21,18 @@
     return permitidas.some(function(x){return txt.indexOf(x)>=0;});
   }
   function notifSource(){
-    var source=Array.isArray(global.todasNotifs)?global.todasNotifs:[];
+    var source=typeof global.obtenerNotificacionesSisVentas==='function'
+      ? global.obtenerNotificacionesSisVentas()
+      : (Array.isArray(global.todasNotifs)?global.todasNotifs:[]);
+    if(!Array.isArray(source)) source=[];
     var tecnico=global.SisVentas&&global.SisVentas.Access&&global.SisVentas.Access.is('tecnico');
     return tecnico?source.filter(notifPermitidaTecnico):source;
   }
   // Notificaciones: urgent filter + estados persistidos por usuario
   function currentIdentity(){
+    var ctx=sessionContext();
     var authEmail = global.fbAuth && global.fbAuth.currentUser && global.fbAuth.currentUser.email;
-    var id = global.currentUserEmail || authEmail || global.currentUser || global.currentUserName || 'local';
+    var id = ctx.email || authEmail || ctx.usuario || global.currentUserName || 'local';
     return String(id || 'local').toLowerCase();
   }
   function notifStorageKey(){
@@ -57,7 +67,8 @@
   }
   function mostrarAvisoCriticoPresupuesto(){
     var existente=document.getElementById('modal-aviso-critico-presupuesto');
-    if(!global.currentUser||!global.currentRole||document.getElementById('modal-comunicado-global')){
+    var ctx=sessionContext();
+    if(!ctx.usuario||!ctx.rol||document.getElementById('modal-comunicado-global')){
       if(document.getElementById('modal-comunicado-global')) programarAvisoCriticoPresupuesto();
       return;
     }
@@ -142,7 +153,7 @@
   window.marcarLeida = function(id){ setN(id,{estado:'leida'}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif(); };
   window.marcarTodasLeidas = function(){ notifSource().forEach(function(n){ if(visibleNotif(n,(document.getElementById('notif-filtro')||{}).value||'')) setN(n.id,{estado:'leida'}); }); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif(); if(typeof notify==='function') notify('Notificaciones visibles marcadas como leídas'); };
   window.notifAbrirAccion = function(id){
-    var n=(window.todasNotifs||[]).find(function(x){return x.id===id;});
+    var n=notifSource().find(function(x){return x.id===id;});
     if(!n) return;
     setN(id,{estado:'leida'});
     if(n.accion && n.accion.fn){ try{ new Function(n.accion.fn)(); }catch(e){ console.error(e); } }
