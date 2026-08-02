@@ -189,11 +189,11 @@
     return arr(lista).slice().sort(function(a,b){ var av = a && a[campo], bv = b && b[campo]; return av > bv ? mul : av < bv ? -mul : 0; });
   };
 
-  SV.Modal.confirmar = function(msg, onOk){
-    if (window.confirm(msg || 'Confirmar acción')) { if (typeof onOk === 'function') onOk(); return true; }
+  SV.Modal.confirmar = async function(msg, onOk){
+    if (await window.svConfirm(msg || 'Confirmar acción')) { if (typeof onOk === 'function') onOk(); return true; }
     return false;
   };
-  SV.Modal.alerta = function(msg){ if (typeof window.notify === 'function') window.notify(msg); else alert(msg); };
+  SV.Modal.alerta = async function(msg){ if (typeof window.notify === 'function') window.notify(msg); else await window.svAlert(msg); };
   SV.Notify.toast = function(msg){ if (typeof window.notify === 'function') window.notify(msg); else console.log(msg); };
 
   SV.Validate.venta = function(v){

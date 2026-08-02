@@ -97,11 +97,11 @@
   if (window.fbDB) setTimeout(sv347StartAguListener, 500);
 
   var oldEliminar = window.eliminarRegistro;
-  window.eliminarRegistro = function(coleccion, fbKey){
+  window.eliminarRegistro = async function(coleccion, fbKey){
     if (coleccion === 'gastos' && String(fbKey||'').indexOf('aguinaldo_recuperado__') === 0) {
       var m = String(fbKey).match(/^aguinaldo_recuperado__(.+)__(\d{4}_S[12])$/);
       if (!m) { notify('No se pudo identificar el aguinaldo recuperado'); return; }
-      if (!confirm('¿Eliminar esta marca de aguinaldo recuperada? Esto la quitará de sisventas/aguinaldos.')) return;
+      if (!await window.svConfirm('¿Eliminar esta marca de aguinaldo recuperada? Esto la quitará de sisventas/aguinaldos.')) return;
       if (!window.fbDB) { notify('Sin conexión'); return; }
       window.fbRemove(window.fbRef(window.fbDB, 'sisventas/aguinaldos/' + m[1] + '/' + m[2]))
         .then(function(){ notify('Aguinaldo recuperado eliminado'); })

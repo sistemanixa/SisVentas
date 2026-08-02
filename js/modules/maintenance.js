@@ -233,8 +233,8 @@ async function mntEliminarDuplicadosGastosFijos(){
   var grupos=window._mntDuplicadosGastosFijos||[];
   var keys=[]; grupos.forEach(function(g){ (g.dups||[]).forEach(function(x){ if(x.fbKey) keys.push(x.fbKey); }); });
   if(!keys.length){ notify('No hay duplicados para eliminar'); return; }
-  if(!confirm('Se eliminarán '+keys.length+' copia(s) duplicada(s) de gastos fijos. Se conserva siempre el registro más antiguo de cada grupo. ¿Continuar?')) return;
-  var clave=prompt('Escribí DUPLICADOS para confirmar:'); if(clave!=='DUPLICADOS'){ notify('Eliminación cancelada'); return; }
+  if(!await window.svConfirm('Se eliminarán '+keys.length+' copia(s) duplicada(s) de gastos fijos. Se conserva siempre el registro más antiguo de cada grupo. ¿Continuar?')) return;
+  var clave=await window.svPrompt('Escribí DUPLICADOS para confirmar:'); if(clave!=='DUPLICADOS'){ notify('Eliminación cancelada'); return; }
   mntLog('Eliminando duplicados de gastos fijos: '+keys.length+'...');
   var updates={}; keys.forEach(function(k){ updates['sisventas/gastos/'+k]=null; });
   await window.fbUpdate(window.fbRef(window.fbDB),updates).then(function(){
@@ -249,8 +249,8 @@ async function mntEliminarDuplicadosGastosFijos(){
 async function mntLimpiarLegacy(){
   if(!mntRequireAdmin('limpieza legacy')) return;
   if(!MNT_STATE.integridadOK){ notify('Primero verificá integridad OK'); return; }
-  if(!confirm('Vas a limpiar estructuras antiguas ya migradas. No se borrarán solicitudes pendientes ni rechazadas. ¿Continuar?')) return;
-  var clave=prompt('Escribí LIMPIAR para confirmar la limpieza definitiva:'); if(clave!=='LIMPIAR'){ notify('Limpieza cancelada'); return; }
+  if(!await window.svConfirm('Vas a limpiar estructuras antiguas ya migradas. No se borrarán solicitudes pendientes ni rechazadas. ¿Continuar?')) return;
+  var clave=await window.svPrompt('Escribí LIMPIAR para confirmar la limpieza definitiva:'); if(clave!=='LIMPIAR'){ notify('Limpieza cancelada'); return; }
   mntSetEstado('Limpiando...','b-amber'); mntLog('Iniciando limpieza segura de legacy migrado...'); var borrados=0;
 
   var gastosObj=await mntGet('sisventas/gastos')||{};

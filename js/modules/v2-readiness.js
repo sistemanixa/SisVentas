@@ -166,11 +166,11 @@
 
   window.svEvaluarPreparacionV2 = evaluar;
 
-  window.svCopiarPreparacionV2 = function(){
+  window.svCopiarPreparacionV2 = async function(){
     var data = window._svUltimaPreparacionV2 || evaluar();
     var txt = JSON.stringify(data, null, 2);
     if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function(){ if(window.notify) notify('Informe 2.0 copiado'); });
-    else window.prompt('Copiar informe 2.0:', txt);
+    else await window.svPrompt('Copiar informe 2.0:', txt, { multilinea:true, filas:8 });
   };
 
   window.svRenderPreparacionV2 = async function(){

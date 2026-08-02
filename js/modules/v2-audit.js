@@ -114,11 +114,11 @@
 
   window.svAuditoriaV2 = evaluar;
 
-  window.svCopiarAuditoriaV2 = function(){
+  window.svCopiarAuditoriaV2 = async function(){
     var data = window._svUltimaAuditoriaV2 || evaluar();
     var txt = JSON.stringify(data, null, 2);
     if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function(){ if(window.notify) notify('Auditoría V2 copiada'); });
-    else window.prompt('Copiar auditoría V2:', txt);
+    else await window.svPrompt('Copiar auditoría V2:', txt, { multilinea:true, filas:8 });
   };
 
   window.svRenderAuditoriaV2 = function(){

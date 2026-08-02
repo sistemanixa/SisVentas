@@ -6043,13 +6043,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.243-firebase',
+  VERSION: 'v2.0.244-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Los precios bloqueados por una variación anormal ahora quedan guardados como pendientes de aprobación.',
-    'El centro de actualización muestra siempre dónde revisar y aprobar esos cambios.'
+    'Todos los avisos y confirmaciones usan ventanas propias de SisVentas.',
+    'Los modales superpuestos bloquean correctamente el desplazamiento del fondo.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir centro de actualización' }),
+  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Revisar actualización de precios' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.244',
+      date: '02/08/2026',
+      title: 'Ventanas integradas y modales estables',
+      notes: Object.freeze(['Se reemplazaron los avisos nativos del navegador por ventanas con el diseño del sistema.', 'Cuando se superponen ventanas, sólo la superior recibe desplazamiento e interacción.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Revisar actualización de precios' })
+    }),
     Object.freeze({
       version: 'v2.0.243',
       date: '30/07/2026',
