@@ -128,7 +128,10 @@
       totalGanancia += g.ganancia;
       totalComision += com;
       totalCosto += g.costo;
-      var estado = v.estadoPago === 'pago_total' ? '<span class="badge b-green">Cobrado</span>' : '<span class="badge b-amber">Pendiente</span>';
+      var estadoPago = typeof window.estadoPagoEfectivoVenta === 'function' ? window.estadoPagoEfectivoVenta(v) : v.estadoPago;
+      var estado = estadoPago === 'pago_total' ? '<span class="badge b-green">Cobrado</span>'
+        : estadoPago === 'sin_cargo' ? '<span class="badge b-blue">Sin cargo</span>'
+        : '<span class="badge b-amber">Pendiente</span>';
       var warn = g.costo <= 0 ? '<span class="badge b-amber" title="Venta vieja sin costo guardado o producto sin compra">Costo estimado</span>' : '';
       return '<div onclick="abrirVentaDesdeComision270(\''+esc(v.fbKey||v.id||v.numero||'')+'\')" style="cursor:pointer;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center">'+
         '<div style="min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);display:flex;gap:6px;align-items:center;flex-wrap:wrap">Venta '+esc(ventaId(v))+' '+estado+' '+warn+'</div>'+
