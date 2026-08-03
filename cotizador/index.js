@@ -460,6 +460,7 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = []) {
       const publicaciones = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}/items`);
       item = seleccionarPublicacionMercadoLibre(publicaciones && publicaciones.results, ids.productoId, filtros.officialStoreId);
       if (item) {
+        producto = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}`).catch(() => null);
         trace.push({
           step:'mercado_libre_publicacion_producto_encontrada',
           at:new Date().toISOString(),
