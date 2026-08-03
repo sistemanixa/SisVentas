@@ -117,9 +117,13 @@
     var modalLegado=document.getElementById('modal-aviso-critico-presupuesto');
     if(modalLegado) modalLegado.remove();
     var paginaActiva=document.querySelector('.page.active');
-    if(paginaActiva&&paginaActiva.id==='page-notificaciones'){
-      var stackEnListado=document.getElementById('sv-important-alert-stack');
-      if(stackEnListado) stackEnListado.remove();
+    // La pila es un recordatorio general del Dashboard. Una vez que el usuario
+    // abre la accion relacionada, no debe tapar el presupuesto, producto, OT ni
+    // ningun otro espacio de trabajo. Ocultarla no cambia su estado: las alertas
+    // pendientes vuelven a mostrarse cuando se regresa al Dashboard.
+    if(!paginaActiva||paginaActiva.id!=='page-dashboard'){
+      var stackFueraDashboard=document.getElementById('sv-important-alert-stack');
+      if(stackFueraDashboard) stackFueraDashboard.remove();
       return;
     }
     var ctx=sessionContext();
@@ -142,7 +146,7 @@
       stack.setAttribute('aria-live','assertive');
       document.body.appendChild(stack);
     }
-    avisos.forEach(function(aviso,indice){
+    avisos.forEach(function(aviso){
       if(document.getElementById(avisoCriticoCardId(aviso.id))) return;
       var aprobado=String(aviso.id).indexOf('ppto_aprobado_int_')===0;
       var tarjeta=document.createElement('section');
@@ -152,7 +156,7 @@
       tarjeta.innerHTML=
         '<div class="sv-action-alert-icon"><i class="ti '+svEsc(aviso.icono||'ti-bell')+'"></i></div>'+
         '<div class="sv-action-alert-content">'+
-          '<div class="sv-action-alert-heading"><span>'+(aviso.urgente?'Urgente':'Aviso importante')+'</span>'+(avisos.length>1?'<span class="sv-action-alert-badge">'+(indice+1)+' de '+avisos.length+'</span>':'')+'</div>'+
+          '<div class="sv-action-alert-heading"><span>'+(aviso.urgente?'Urgente':'Aviso importante')+'</span></div>'+
           '<div class="sv-action-alert-title">'+svEsc(aviso.titulo||'Notificación importante')+'</div>'+
           '<div class="sv-action-alert-meta">'+svEsc(aviso.sub||'')+'</div>'+
           (aviso.accion&&aviso.accion.fn?'<div class="sv-action-alert-actions"><button type="button" class="btn btn-sm btn-primary sv-important-alert-open"><i class="ti ti-external-link"></i> '+svEsc(aviso.accion.label||'Abrir')+'</button></div>':'')+
@@ -341,6 +345,12 @@
   }
   document.addEventListener('sisventas:page-changed',function(event){
     var pagina=event.detail&&event.detail.page;
+    // Quitar la pila en el mismo instante de la navegacion. No esperamos al
+    // temporizador de reconstruccion porque durante ese lapso taparia la ficha.
+    if(pagina&&pagina!=='dashboard'){
+      var stack=document.getElementById('sv-important-alert-stack');
+      if(stack) stack.remove();
+    }
     if(avisoCriticoGestion&&pagina){
       if(avisoCriticoGestion.esperandoDestino){
         avisoCriticoGestion.destino=pagina;
