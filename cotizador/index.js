@@ -678,6 +678,9 @@ function normalizarIdentidadProducto(valor) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
+    .replace(/\bPACK\s*(?:DE\s*)?X?\s*(\d+)\b/g, ' PACK$1 ')
+    .replace(/\b(\d+)\s*[- ]*\s*PACK\b/g, ' PACK$1 ')
+    .replace(/\bX\s*(\d+)\b/g, ' PACK$1 ')
     .replace(/[^A-Z0-9]+/g, ' ')
     .trim();
 }

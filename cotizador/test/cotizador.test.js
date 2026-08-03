@@ -135,6 +135,14 @@ test('la identidad acepta el mismo modelo y rechaza otro producto', () => {
     'CABLE UTP CAT6 EXTERIOR',
     'CABLE UTP CAT5 INTERIOR'
   ).ok, false);
+  assert.equal(validarIdentidadProducto(
+    'ACCES POINT TP-LINK DECO S7 PACK X3',
+    'Sistema Wi-Fi Mesh TP-Link Deco S7 3-Pack AC1900'
+  ).ok, true);
+  assert.equal(validarIdentidadProducto(
+    'ACCES POINT TP-LINK DECO S7 PACK X3',
+    'Sistema Wi-Fi Mesh TP-Link Deco S7 Pack 2 AC1900'
+  ).ok, false);
 });
 
 test('rechaza moneda USD aunque el importe tenga símbolo peso', () => {
