@@ -592,6 +592,70 @@
     updateOverflowTitles(table);
   }
 
+  // Durante el arrastre sólo cambia el colgroup. No recorremos todas las
+  // celdas ni persistimos en cada pixel: en grillas grandes eso hacía que el
+  // separador quedara visiblemente detrás del mouse.
+  function applyPercentProfileFast(table, percentages) {
+    var headers = tableHeaders(table);
+    if (!table || !headers.length) return;
+    var colgroup = ensureColgroup(table, totalColumnCount(table));
+    var totalPct = Object.keys(percentages || {}).reduce(function (sum, key) {
+      return sum + normalizePercent(percentages[key]);
+    }, 0) || 100;
+    var completarAncho = usesFullContainerWidth(table) && totalPct < 100;
+    var factorAncho = completarAncho ? (100 / totalPct) : 1;
+    table.classList.add('sv-percent-table');
+    table.style.setProperty('--sv-percent-total-width', Math.max(100, Math.round(totalPct * 10) / 10) + '%');
+    table.style.width = 'var(--sv-percent-total-width, 100%)';
+    table.style.tableLayout = 'fixed';
+    headers.forEach(function (_th, index) {
+      var physicalIndex = physicalIndexForVisibleIndex(table, index);
+      var pct = normalizePercent(percentages[index]) * factorAncho;
+      if (colgroup.children[physicalIndex]) colgroup.children[physicalIndex].style.width = Math.max(0.1, pct) + '%';
+    });
+  }
+
+  function percentagesFromRenderedLayout(table) {
+    var headers = tableHeaders(table);
+    var widths = headers.map(function (th) { return Math.max(1, th.getBoundingClientRect().width); });
+    var renderedTotal = widths.reduce(function (sum, value) { return sum + value; }, 0) || 1;
+    var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap, .card');
+    var wrapWidth = wrap ? wrap.getBoundingClientRect().width : renderedTotal;
+    var saved = currentPercentages(table);
+    var savedTotal = Object.keys(saved).reduce(function (sum, key) { return sum + normalizePercent(saved[key]); }, 0);
+    var totalPct = table.classList.contains('sv-percent-table') && savedTotal > 0
+      ? savedTotal
+      : Math.max(100, Math.round((renderedTotal / Math.max(1, wrapWidth)) * 1000) / 10);
+    var data = {};
+    headers.forEach(function (_th, index) {
+      data[index] = Math.round((widths[index] / renderedTotal) * totalPct * 10) / 10;
+    });
+    var roundedTotal = Object.keys(data).reduce(function (sum, key) { return sum + data[key]; }, 0);
+    if (headers.length) data[headers.length - 1] = Math.max(0.1, Math.round((data[headers.length - 1] + totalPct - roundedTotal) * 10) / 10);
+    return data;
+  }
+
+  function adjacentColumnIndex(table, index) {
+    var count = tableHeaders(table).length;
+    if (index < count - 1) return index + 1;
+    return index > 0 ? index - 1 : -1;
+  }
+
+  function resizedPercentages(table, base, index, neighborIndex, deltaPx, tableWidth) {
+    var next = Object.assign({}, base);
+    if (neighborIndex < 0) return next;
+    var totalPct = Object.keys(base).reduce(function (sum, key) { return sum + normalizePercent(base[key]); }, 0) || 100;
+    var minPct = Math.max(1, (MIN_WIDTH / Math.max(1, tableWidth)) * totalPct);
+    var maxPct = Math.max(minPct, (MAX_WIDTH / Math.max(1, tableWidth)) * totalPct);
+    var requestedDelta = (deltaPx / Math.max(1, tableWidth)) * totalPct;
+    var minDelta = Math.max(minPct - normalizePercent(base[index]), normalizePercent(base[neighborIndex]) - maxPct);
+    var maxDelta = Math.min(maxPct - normalizePercent(base[index]), normalizePercent(base[neighborIndex]) - minPct);
+    var effectiveDelta = Math.max(minDelta, Math.min(maxDelta, requestedDelta));
+    next[index] = Math.round((normalizePercent(base[index]) + effectiveDelta) * 10) / 10;
+    next[neighborIndex] = Math.round((normalizePercent(base[neighborIndex]) - effectiveDelta) * 10) / 10;
+    return next;
+  }
+
   function applySavedPercentProfile(table) {
     var draft = percentDrafts[percentDraftKey(table)];
     if (draft && Object.keys(draft).length) {
@@ -699,17 +763,56 @@
       th.appendChild(handle);
 
       var startX = 0;
-      var startWidth = 0;
+      var startTableWidth = 0;
+      var startPercentages = null;
+      var livePercentages = null;
+      var neighborIndex = -1;
       var dragging = false;
+      var pendingClientX = null;
+      var resizeFrame = 0;
 
       function move(clientX) {
         if (!dragging) return;
-        setColumnWidth(table, index, startWidth + (clientX - startX));
+        pendingClientX = clientX;
+        if (resizeFrame) return;
+        resizeFrame = window.requestAnimationFrame(function () {
+          resizeFrame = 0;
+          if (!dragging || pendingClientX == null) return;
+          livePercentages = resizedPercentages(
+            table,
+            startPercentages,
+            index,
+            neighborIndex,
+            pendingClientX - startX,
+            startTableWidth
+          );
+          applyPercentProfileFast(table, livePercentages);
+        });
       }
 
       function stop() {
         if (!dragging) return;
         dragging = false;
+        if (resizeFrame) {
+          window.cancelAnimationFrame(resizeFrame);
+          resizeFrame = 0;
+        }
+        if (pendingClientX != null) {
+          livePercentages = resizedPercentages(
+            table,
+            startPercentages,
+            index,
+            neighborIndex,
+            pendingClientX - startX,
+            startTableWidth
+          );
+        }
+        if (livePercentages) {
+          var finalPercentages = sanitizePercentages(table, livePercentages);
+          savePercentages(table, finalPercentages);
+          saveWidths(table, {});
+          applyPercentProfile(table, finalPercentages);
+        }
         document.body.classList.remove('sv-resizing-columns');
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', stop);
@@ -734,7 +837,13 @@
         }
         dragging = true;
         startX = clientX;
-        startWidth = normalizeWidth(th.getBoundingClientRect().width);
+        startTableWidth = Math.max(1, table.getBoundingClientRect().width);
+        startPercentages = percentagesFromRenderedLayout(table);
+        livePercentages = Object.assign({}, startPercentages);
+        neighborIndex = adjacentColumnIndex(table, index);
+        pendingClientX = clientX;
+        // Desde este punto mouse y editor trabajan con la misma unidad.
+        applyPercentProfileFast(table, startPercentages);
         document.body.classList.add('sv-resizing-columns');
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', stop);
@@ -752,7 +861,20 @@
       handle.addEventListener('dblclick', function (event) {
         event.preventDefault();
         event.stopPropagation();
-        resetColumn(table, index);
+        var base = percentagesFromRenderedLayout(table);
+        var defaults = defaultPercentages(table);
+        var neighbor = adjacentColumnIndex(table, index);
+        if (neighbor >= 0) {
+          var delta = normalizePercent(defaults[index]) - normalizePercent(base[index]);
+          base[index] = normalizePercent(defaults[index]);
+          base[neighbor] = Math.max(0.1, Math.round((normalizePercent(base[neighbor]) - delta) * 10) / 10);
+          var resetData = sanitizePercentages(table, base);
+          savePercentages(table, resetData);
+          saveWidths(table, {});
+          applyPercentProfile(table, resetData);
+        } else {
+          resetColumn(table, index);
+        }
       });
     });
     table.dataset.svResizableReady = '1';
@@ -792,7 +914,6 @@
     if (!card) return;
     if (card.querySelector('.sv-column-percent-btn,[onclick*="openColumnPercentEditor"]')) return;
     var head = card.querySelector('.card-head');
-    if (!head) return;
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn btn-sm admin-only sv-column-percent-btn';
@@ -803,6 +924,15 @@
       event.stopPropagation();
       openPercentEditor(table);
     });
+    if (!head) {
+      var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap');
+      var toolbar = document.createElement('div');
+      toolbar.className = 'sv-grid-column-toolbar';
+      toolbar.appendChild(btn);
+      if (wrap && wrap.parentNode) wrap.parentNode.insertBefore(toolbar, wrap);
+      else card.insertBefore(toolbar, table);
+      return;
+    }
     var actions = head.querySelector('.sv-card-head-actions');
     if (!actions) {
       actions = document.createElement('div');

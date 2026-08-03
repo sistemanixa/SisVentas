@@ -1460,6 +1460,7 @@ body.modal-secure-open{overflow:hidden!important}
 .sv-card-head-actions .btn{flex:0 0 auto}
 .sv-column-percent-btn{border-color:rgba(120,130,160,.35)!important;background:rgba(120,130,160,.08)!important;color:var(--text2)!important}
 .sv-column-percent-btn:hover{background:rgba(120,130,160,.16)!important;color:var(--text)!important}
+.sv-grid-column-toolbar{display:flex;justify-content:flex-end;align-items:center;margin:0 0 8px}
 .sv-action-metric{cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
 .sv-action-metric:hover,.sv-action-metric:focus-visible{transform:translateY(-2px);border-color:rgba(96,165,250,.58);box-shadow:0 10px 28px rgba(0,0,0,.22);outline:none}
 .sv-kpi-target-highlight{animation:svKpiTarget 1.8s ease}
