@@ -116,6 +116,12 @@
     // pila lateral, uno debajo del otro, sin bloquear el trabajo del usuario.
     var modalLegado=document.getElementById('modal-aviso-critico-presupuesto');
     if(modalLegado) modalLegado.remove();
+    var paginaActiva=document.querySelector('.page.active');
+    if(paginaActiva&&paginaActiva.id==='page-notificaciones'){
+      var stackEnListado=document.getElementById('sv-important-alert-stack');
+      if(stackEnListado) stackEnListado.remove();
+      return;
+    }
     var ctx=sessionContext();
     if(!ctx.usuario||!ctx.rol||document.getElementById('modal-comunicado-global')){
       if(document.getElementById('modal-comunicado-global')) programarAvisoCriticoPresupuesto();
@@ -330,6 +336,7 @@
       }
     }
     if(event.detail&&event.detail.page==='notificaciones') actualizarNotificacionesAutomaticamente();
+    programarAvisoCriticoPresupuesto();
   });
   document.addEventListener('sisventas:accion-notificacion-cerrada',reanudarColaAvisosCriticos);
   document.addEventListener('sisventas:ot-closed',reanudarColaAvisosCriticos);
