@@ -342,7 +342,15 @@
     tableHeaders(table).forEach(function (_th, index) {
       var align = normalizeAlignment((alignments || {})[index]);
       var physicalIndex = physicalIndexForVisibleIndex(table, index);
-      rules.push(selector + ' tr > *:nth-child(' + (physicalIndex + 1) + '){text-align:' + align + '!important}');
+      var columnSelector = selector + ' tr > *:nth-child(' + (physicalIndex + 1) + ')';
+      rules.push(columnSelector + '{text-align:' + align + '!important}');
+      // La alineación pertenece a toda la columna. Los controles de formulario
+      // suelen tener un text-align propio, por lo que deben heredar de manera
+      // explícita la elección del usuario igual que el texto de la celda.
+      rules.push(columnSelector + ' input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),' +
+        columnSelector + ' textarea,' +
+        columnSelector + ' select,' +
+        columnSelector + ' [contenteditable="true"]{text-align:' + align + '!important}');
       columnCells(table, index).forEach(function (cell) {
         cell.style.textAlign = align;
       });
