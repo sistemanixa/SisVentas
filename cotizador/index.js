@@ -524,6 +524,7 @@ async function extraerProductoMercadoLibre(page) {
     '[itemprop="offers"].andes-money-amount',
     '.ui-pdp-price__part.andes-money-amount'
   ];
+  await page.locator(selectoresPrecio.join(', ')).first().waitFor({ state:'attached', timeout:12000 }).catch(() => {});
   let precioArs = 0;
   let selectorPrecio = '';
   for (const selector of selectoresPrecio) {
