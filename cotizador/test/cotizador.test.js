@@ -63,6 +63,10 @@ test('Mercado Libre interpreta catálogo, publicación y tienda oficial desde la
   const url = 'https://www.mercadolibre.com.ar/alarma/p/MLA63758636?pdp_filters=official_store%3A280888&wid=MLA2734412812';
   assert.deepEqual(idsMercadoLibreDesdeUrl(url), { itemId:'MLA2734412812', productoId:'MLA63758636' });
   assert.deepEqual(filtrosMercadoLibreDesdeUrl(url), { officialStoreId:280888 });
+  assert.deepEqual(
+    idsMercadoLibreDesdeUrl('https://www.mercadolibre.com.ar/alarma/p/MLA63758636?pdp_filters=official_store%3A280888'),
+    { itemId:'', productoId:'MLA63758636' }
+  );
 });
 
 test('Mercado Libre elige la publicación activa ARS de la tienda solicitada', () => {

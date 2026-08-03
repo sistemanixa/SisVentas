@@ -110,8 +110,10 @@ function idsMercadoLibreDesdeUrl(url) {
     const parsed = new URL(normalizarUrl(url));
     const normalizarId = (valor) => String(valor || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const itemQuery = normalizarId(parsed.searchParams.get('wid') || parsed.searchParams.get('item_id'));
-    const itemPath = normalizarId((parsed.pathname.match(/\/(MLA-?\d{6,})/i) || [])[1]);
     const productoPath = normalizarId((parsed.pathname.match(/\/p\/(MLA-?\d{6,})/i) || [])[1]);
+    // Una URL /p/MLA... identifica un producto de catálogo, no un item.
+    // El mismo número no debe enviarse a /items porque Mercado Libre responde 403.
+    const itemPath = productoPath ? '' : normalizarId((parsed.pathname.match(/\/(MLA-?\d{6,})/i) || [])[1]);
     return {
       itemId: /^MLA\d{6,}$/.test(itemQuery) ? itemQuery : (/^MLA\d{6,}$/.test(itemPath) ? itemPath : ''),
       productoId: /^MLA\d{6,}$/.test(productoPath) ? productoPath : ''
