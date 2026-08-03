@@ -409,7 +409,10 @@ function puntajeProductoMercadoLibre(urlExacta, producto) {
 }
 
 async function buscarGanadorEnHijosMercadoLibre(producto, urlExacta, officialStoreId, trace) {
-  const ids = [...new Set((producto && producto.children_ids || [])
+  const idsPickers = (producto && producto.pickers || []).flatMap((picker) =>
+    (picker && picker.products || []).map((variante) => variante && variante.product_id)
+  );
+  const ids = [...new Set([...(producto && producto.children_ids || []), ...idsPickers]
     .map((id) => String(id || '').toUpperCase().replace(/[^A-Z0-9]/g, ''))
     .filter((id) => /^MLA\d{6,}$/.test(id)))].slice(0, 24);
   if (!ids.length) return null;
