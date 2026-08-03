@@ -83,21 +83,6 @@
       handle.title = 'Arrastrá para cambiar el orden';
       handle.setAttribute('aria-label', 'Arrastrar ítem para cambiar el orden');
       handle.innerHTML = '<i class="ti ti-grip-vertical"></i>';
-      handle.addEventListener('click', function (event) { event.preventDefault(); event.stopPropagation(); });
-      handle.addEventListener('dragstart', function (event) {
-        draggingRow = row;
-        row.classList.add('sv-item-row-dragging');
-        if (event.dataTransfer) {
-          event.dataTransfer.effectAllowed = 'move';
-          event.dataTransfer.setData('text/plain', row.dataset.itemOrder || '');
-        }
-      });
-      handle.addEventListener('dragend', function () {
-        var body = row.parentElement;
-        row.classList.remove('sv-item-row-dragging');
-        draggingRow = null;
-        finishMove(body);
-      });
       productCell.insertBefore(handle, productCell.firstChild);
     }
 
@@ -109,13 +94,6 @@
       controls.innerHTML =
         '<button type="button" data-item-move="up" title="Subir ítem" aria-label="Subir ítem"><i class="ti ti-chevron-up"></i></button>' +
         '<button type="button" data-item-move="down" title="Bajar ítem" aria-label="Bajar ítem"><i class="ti ti-chevron-down"></i></button>';
-      controls.addEventListener('click', function (event) {
-        var button = event.target.closest('[data-item-move]');
-        if (!button) return;
-        event.preventDefault();
-        event.stopPropagation();
-        moveRow(row, button.dataset.itemMove === 'up' ? -1 : 1);
-      });
       actionCell.insertBefore(controls, actionCell.firstChild);
     }
   }
@@ -157,6 +135,42 @@
 
   function ready() {
     scan();
+    // Delegación central: las grillas responsive pueden reconstruir las
+    // acciones. El evento sigue funcionando aunque el botón haya sido clonado.
+    document.addEventListener('click', function (event) {
+      var moveButton = event.target && event.target.closest ? event.target.closest('[data-item-move]') : null;
+      if (moveButton) {
+        var row = moveButton.closest('tr');
+        if (!row || !row.closest('#det-body,#pp-body')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        moveRow(row, moveButton.dataset.itemMove === 'up' ? -1 : 1);
+        return;
+      }
+      var handle = event.target && event.target.closest ? event.target.closest('.sv-item-drag-handle') : null;
+      if (handle) { event.preventDefault(); event.stopPropagation(); }
+    }, true);
+    document.addEventListener('dragstart', function (event) {
+      var handle = event.target && event.target.closest ? event.target.closest('.sv-item-drag-handle') : null;
+      if (!handle) return;
+      var row = handle.closest('tr');
+      if (!row || !row.closest('#det-body,#pp-body')) return;
+      draggingRow = row;
+      row.classList.add('sv-item-row-dragging');
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', row.dataset.itemOrder || '');
+      }
+    }, true);
+    document.addEventListener('dragend', function (event) {
+      var handle = event.target && event.target.closest ? event.target.closest('.sv-item-drag-handle') : null;
+      if (!handle) return;
+      var row = handle.closest('tr');
+      var body = row && row.parentElement;
+      if (row) row.classList.remove('sv-item-row-dragging');
+      draggingRow = null;
+      finishMove(body);
+    }, true);
     var observer = new MutationObserver(function (mutations) {
       var touched = false;
       mutations.forEach(function (mutation) {
