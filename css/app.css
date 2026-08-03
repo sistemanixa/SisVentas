@@ -560,9 +560,9 @@ tr:hover td{color:var(--text)}
   .show-mobile-only{display:none!important}
 }
 
-/* Tablet horizontal: conservar las tablas amplias, pero liberar el ancho que
-   normalmente ocupa el menú lateral. El menú queda disponible como panel. */
-@media (min-width:901px) and (max-width:1100px) and (orientation:landscape){
+/* Tablet: conservar las tablas amplias, pero liberar el ancho que normalmente
+   ocupa el menú lateral, sin depender de la orientación del dispositivo. */
+@media (min-width:901px) and (max-width:1100px){
   .sidebar{
     display:flex;
     position:fixed;
