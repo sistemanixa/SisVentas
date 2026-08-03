@@ -1461,6 +1461,20 @@ body.modal-secure-open{overflow:hidden!important}
 .sv-column-percent-btn{border-color:rgba(120,130,160,.35)!important;background:rgba(120,130,160,.08)!important;color:var(--text2)!important}
 .sv-column-percent-btn:hover{background:rgba(120,130,160,.16)!important;color:var(--text)!important}
 .sv-grid-column-toolbar{display:flex;justify-content:flex-end;align-items:center;margin:0 0 8px}
+.item-prod-cell{position:relative}
+.sv-item-drag-handle{flex:0 0 20px;width:20px;height:30px;padding:0;border:0;background:transparent;color:var(--text3);cursor:grab;display:inline-flex;align-items:center;justify-content:center;border-radius:5px;touch-action:none}
+.sv-item-drag-handle:hover{color:var(--blue);background:var(--blue-bg)}
+.sv-item-drag-handle:active{cursor:grabbing}
+.sv-item-actions-cell{white-space:nowrap!important;text-align:right!important}
+.sv-item-order-controls{display:inline-flex;vertical-align:middle;flex-direction:column;margin-right:2px;border:1px solid var(--border);border-radius:5px;overflow:hidden;background:var(--bg)}
+.sv-item-order-controls[hidden],.sv-item-drag-handle[hidden]{display:none!important}
+.sv-item-order-controls button{width:20px;height:14px;padding:0;border:0;background:transparent;color:var(--text3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;line-height:1}
+.sv-item-order-controls button+button{border-top:1px solid var(--border)}
+.sv-item-order-controls button:hover:not(:disabled){background:var(--blue-bg);color:var(--blue)}
+.sv-item-order-controls button:disabled{opacity:.25;cursor:default}
+.sv-item-row-dragging{opacity:.46;outline:1px dashed var(--blue);outline-offset:-2px}
+.sv-item-row-moved{animation:svItemRowMoved .4s ease}
+@keyframes svItemRowMoved{0%{background:var(--blue-bg)}100%{background:transparent}}
 .sv-action-metric{cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
 .sv-action-metric:hover,.sv-action-metric:focus-visible{transform:translateY(-2px);border-color:rgba(96,165,250,.58);box-shadow:0 10px 28px rgba(0,0,0,.22);outline:none}
 .sv-kpi-target-highlight{animation:svKpiTarget 1.8s ease}
