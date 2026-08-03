@@ -48,7 +48,7 @@
   var avisoCriticoTimer=null;
   var avisoCriticoGestion=null;
   var avisoCriticoLote=null;
-  var avisoCriticoActual=null;
+  var avisosCriticosActuales={};
   var avisoCriticoObserver=null;
   function getN(id){
     var estado=notifState[nKey(id)]||{};
@@ -103,48 +103,60 @@
     clearTimeout(avisoCriticoTimer);
     avisoCriticoTimer=setTimeout(mostrarAvisoCriticoPresupuesto,450);
   }
+  function avisoCriticoCardId(id){ return 'sv-important-alert-'+nKey(id); }
+  function quitarTarjetaAvisoCritico(id){
+    var tarjeta=document.getElementById(avisoCriticoCardId(id));
+    if(tarjeta) tarjeta.remove();
+    delete avisosCriticosActuales[String(id||'')];
+    var stack=document.getElementById('sv-important-alert-stack');
+    if(stack&&!stack.children.length) stack.remove();
+  }
   function mostrarAvisoCriticoPresupuesto(){
-    var existente=document.getElementById('modal-aviso-critico-presupuesto');
+    // Retirar el formato central legado. Los avisos importantes viven en la
+    // pila lateral, uno debajo del otro, sin bloquear el trabajo del usuario.
+    var modalLegado=document.getElementById('modal-aviso-critico-presupuesto');
+    if(modalLegado) modalLegado.remove();
     var ctx=sessionContext();
-    if(avisoCriticoGestion){ if(existente) existente.remove(); return; }
     if(!ctx.usuario||!ctx.rol||document.getElementById('modal-comunicado-global')){
       if(document.getElementById('modal-comunicado-global')) programarAvisoCriticoPresupuesto();
       return;
     }
     var pendientes=avisosCriticosPendientes();
-    // Si una sincronizacion reconstruye momentaneamente la fuente, conservar
-    // el aviso que ya estaba en pantalla. Su estado, y no la disponibilidad
-    // transitoria de la lista, decide cuando puede retirarse.
-    var aviso=pendientes[0] || (avisoCriticoActual&&!getN(avisoCriticoActual.id).estado ? avisoCriticoActual : null);
-    // Una vez visible, un aviso importante no puede desaparecer porque la
-    // sincronización periódica reconstruya momentáneamente la lista vacía.
-    // Sólo una acción explícita del usuario (abrir o cerrar con la cruz) lo
-    // marca como leído y permite retirarlo.
-    if(existente){
-      var idExistente=String(existente.dataset.notificacionId||'');
-      if(idExistente&&!getN(idExistente).estado) return;
-      existente.remove();
-      avisoCriticoActual=null;
+    pendientes.forEach(function(aviso){ avisosCriticosActuales[String(aviso.id)]=aviso; });
+    Object.keys(avisosCriticosActuales).forEach(function(id){
+      if(getN(id).estado) quitarTarjetaAvisoCritico(id);
+    });
+    var avisos=Object.keys(avisosCriticosActuales).map(function(id){return avisosCriticosActuales[id];}).filter(Boolean);
+    if(!avisos.length){ avisoCriticoLote=null; return; }
+    var stack=document.getElementById('sv-important-alert-stack');
+    if(!stack){
+      stack=document.createElement('div');
+      stack.id='sv-important-alert-stack';
+      stack.className='sv-action-alert-stack sv-important-alert-stack';
+      stack.setAttribute('aria-live','assertive');
+      document.body.appendChild(stack);
     }
-    if(!aviso){ avisoCriticoLote=null; return; }
-    avisoCriticoActual=aviso;
-    var aprobado=String(aviso.id).indexOf('ppto_aprobado_int_')===0;
-    var lote=iniciarLoteAvisosCriticos();
-    var posicion=Math.min(lote.total,lote.atendidos+1);
-    var color=aprobado?'var(--green)':(aviso.urgente?'var(--red)':'var(--amber)');
-    var fondo=aprobado?'var(--green-bg)':(aviso.urgente?'var(--red-bg)':'var(--amber-bg)');
-    var overlay=document.createElement('div');
-    overlay.id='modal-aviso-critico-presupuesto';
-    overlay.dataset.notificacionId=String(aviso.id);
-    overlay.style.cssText='position:fixed;inset:0;z-index:100150;background:rgba(3,6,14,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px';
-    overlay.innerHTML='<div role="alertdialog" aria-modal="true" style="position:relative;width:min(540px,100%);background:var(--bg2);border:1px solid '+color+';border-radius:20px;box-shadow:0 28px 90px rgba(0,0,0,.62);padding:24px">'+
-      '<button type="button" aria-label="Marcar como leída y cerrar" title="Marcar como leída" onclick="notifAvisoCriticoEntendido(\''+svEsc(aviso.id)+'\')" style="position:absolute;top:13px;right:13px;width:34px;height:34px;border:0;border-radius:10px;background:var(--bg3);color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ti ti-x" style="font-size:19px"></i></button>'+
-      '<div style="width:56px;height:56px;border-radius:18px;background:'+fondo+';color:'+color+';display:flex;align-items:center;justify-content:center;margin-bottom:17px"><i class="ti '+svEsc(aviso.icono||'ti-file-description')+'" style="font-size:27px"></i></div>'+
-      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><div style="font-size:20px;font-weight:800;line-height:1.25">'+svEsc(aviso.titulo||'Aviso importante')+'</div>'+(aviso.urgente?'<span class="badge b-red">Urgente</span>':'')+(lote.total>1?'<span class="badge b-blue">Aviso '+posicion+' de '+lote.total+'</span>':'')+'</div>'+ 
-      '<div style="font-size:14px;color:var(--text2);line-height:1.55;padding:14px 15px;background:var(--bg3);border:.5px solid var(--border);border-radius:var(--radius);margin-bottom:18px">'+svEsc(aviso.sub||'')+'</div>'+
-      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-primary" onclick="notifAvisoCriticoAbrir(\''+svEsc(aviso.id)+'\')"><i class="ti ti-external-link"></i> '+svEsc((aviso.accion&&aviso.accion.label)||'Abrir')+'</button></div>'+
-    '</div>';
-    document.body.appendChild(overlay);
+    avisos.forEach(function(aviso,indice){
+      if(document.getElementById(avisoCriticoCardId(aviso.id))) return;
+      var aprobado=String(aviso.id).indexOf('ppto_aprobado_int_')===0;
+      var tarjeta=document.createElement('section');
+      tarjeta.id=avisoCriticoCardId(aviso.id);
+      tarjeta.dataset.notificacionId=String(aviso.id);
+      tarjeta.className='sv-action-alert sv-important-alert '+(aprobado?'is-success':(aviso.urgente?'is-urgent':''));
+      tarjeta.innerHTML=
+        '<div class="sv-action-alert-icon"><i class="ti '+svEsc(aviso.icono||'ti-bell')+'"></i></div>'+
+        '<div class="sv-action-alert-content">'+
+          '<div class="sv-action-alert-heading"><span>'+(aviso.urgente?'Urgente':'Aviso importante')+'</span>'+(avisos.length>1?'<span class="sv-action-alert-badge">'+(indice+1)+' de '+avisos.length+'</span>':'')+'</div>'+
+          '<div class="sv-action-alert-title">'+svEsc(aviso.titulo||'Notificación importante')+'</div>'+
+          '<div class="sv-action-alert-meta">'+svEsc(aviso.sub||'')+'</div>'+
+          (aviso.accion&&aviso.accion.fn?'<div class="sv-action-alert-actions"><button type="button" class="btn btn-sm btn-primary sv-important-alert-open"><i class="ti ti-external-link"></i> '+svEsc(aviso.accion.label||'Abrir')+'</button></div>':'')+
+        '</div>'+
+        '<button type="button" class="sv-action-alert-close" aria-label="Marcar como leída y cerrar" title="Marcar como leída"><i class="ti ti-x"></i></button>';
+      tarjeta.querySelector('.sv-action-alert-close').addEventListener('click',function(){ window.notifAvisoCriticoEntendido(aviso.id); });
+      var abrir=tarjeta.querySelector('.sv-important-alert-open');
+      if(abrir) abrir.addEventListener('click',function(){ window.notifAvisoCriticoAbrir(aviso.id); });
+      stack.appendChild(tarjeta);
+    });
   }
   function iniciarSyncNotificaciones(){
     var identity=currentIdentity();
@@ -174,6 +186,8 @@
     avisoCriticoTimer=null;
     var aviso=document.getElementById('modal-aviso-critico-presupuesto');
     if(aviso) aviso.remove();
+    var stack=document.getElementById('sv-important-alert-stack');
+    if(stack) stack.remove();
     if(typeof notifStateUnsubscribe==='function'){
       try{ notifStateUnsubscribe(); }catch(e){}
     }
@@ -182,14 +196,16 @@
     notifState={};
     avisoCriticoGestion=null;
     avisoCriticoLote=null;
-    avisoCriticoActual=null;
+    avisosCriticosActuales={};
   };
 
   function vigilarAvisoCriticoPersistente(){
     if(avisoCriticoObserver||!global.MutationObserver||!document.documentElement) return;
     avisoCriticoObserver=new MutationObserver(function(){
-      if(!avisoCriticoActual||getN(avisoCriticoActual.id).estado) return;
-      if(document.getElementById('modal-aviso-critico-presupuesto')) return;
+      var faltante=Object.keys(avisosCriticosActuales).some(function(id){
+        return !getN(id).estado&&!document.getElementById(avisoCriticoCardId(id));
+      });
+      if(!faltante) return;
       var ctx=sessionContext();
       if(!ctx.usuario||!ctx.rol||avisoCriticoGestion) return;
       // Ninguna reconstruccion de pagina o grilla puede cerrar silenciosamente
@@ -208,6 +224,7 @@
     if (window.fbDB && identity && identity !== 'local') {
       window.fbSet(window.fbRef(window.fbDB,'sisventas/notificaciones_estado/'+nKey(identity)+'/'+k),notifState[k]).catch(function(error){console.error('[Notificaciones] Error guardando estado',error);});
     }
+    programarAvisoCriticoPresupuesto();
   }
   function visibleNotif(n, filtro){
     var st = getN(n.id), estado = st.estado || '';
@@ -234,14 +251,12 @@
   window.notifAvisoCriticoEntendido=function(id){
     avanzarLoteAvisosCriticos();
     setN(id,{estado:'leida'});
-    var modal=document.getElementById('modal-aviso-critico-presupuesto');
-    if(modal) modal.remove();
-    avisoCriticoActual=null;
+    quitarTarjetaAvisoCritico(id);
     refreshNotifUI();
   };
   window.notifAvisoCriticoAbrir=function(id){
     var aviso=notifSource().find(function(item){return String(item&&item.id||'')===String(id||'');});
-    if(!aviso&&avisoCriticoActual&&String(avisoCriticoActual.id||'')===String(id||'')) aviso=avisoCriticoActual;
+    if(!aviso) aviso=avisosCriticosActuales[String(id||'')];
     var paginaActiva=document.querySelector('.page.active');
     avisoCriticoGestion={
       id:String(id||''),
@@ -250,10 +265,8 @@
       esperandoDestino:true
     };
     avanzarLoteAvisosCriticos();
-    var modal=document.getElementById('modal-aviso-critico-presupuesto');
-    if(modal) modal.remove();
     setN(id,{estado:'leida'});
-    avisoCriticoActual=null;
+    quitarTarjetaAvisoCritico(id);
     if(aviso&&aviso.accion&&aviso.accion.fn){
       try{ new Function(aviso.accion.fn)(); }catch(e){ console.error(e); }
     }
