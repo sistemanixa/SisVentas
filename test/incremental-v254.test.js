@@ -5,6 +5,7 @@ const index = fs.readFileSync('index.html', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
 const app = fs.readFileSync('js/app.v2.0.254.js', 'utf8');
 const tables = fs.readFileSync('js/modules/resizable-tables.js', 'utf8');
+const publishedVersion = fs.readFileSync('js/core/version.js', 'utf8');
 
 assert.match(tables, /var columnSelector = selector \+ ' tr > \*:nth-child\('/);
 assert.match(tables, /input:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\):not\(\[type="range"\]\)/);
@@ -16,5 +17,6 @@ assert.match(index, /app\.v2\.0\.254\.js/);
 assert.match(index, /version\.v2\.0\.254\.js/);
 assert.match(sw, /sisventas-v2\.0\.254/);
 assert.match(app, /VERSION:\s*'v2\.0\.254-firebase'/);
+assert.match(publishedVersion, /SISVENTAS_PWA_VERSION\s*=\s*'v2\.0\.254'/);
 
 console.log('v2.0.254: alineación de controles verificada');
