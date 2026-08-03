@@ -50,7 +50,16 @@
   var avisoCriticoLote=null;
   var avisoCriticoActual=null;
   var avisoCriticoObserver=null;
-  function getN(id){ return notifState[nKey(id)]||{}; }
+  function getN(id){
+    var estado=notifState[nKey(id)]||{};
+    // "Recordar mañana" deja de ser una posposición al comenzar el día
+    // elegido. Antes la tarjeta volvía a la lista, pero el aviso central seguía
+    // leyéndola como pospuesta y la retiraba al llegar la sincronización remota.
+    if(estado.estado==='pospuesta'&&estado.reaparece&&estado.reaparece<=svToday()){
+      return Object.assign({},estado,{estado:'',reaparecida:true});
+    }
+    return estado;
+  }
   function stateTime(value){ var t=Date.parse(value&&value.updatedAt||''); return isNaN(t)?0:t; }
   function refreshNotifUI(){
     if(typeof renderNotificaciones==='function') renderNotificaciones((document.getElementById('notif-filtro')||{}).value||'');
