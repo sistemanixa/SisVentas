@@ -1053,6 +1053,12 @@ body.modal-secure-open{overflow:hidden!important}
 #ia-fab:hover{transform:scale(1.08)}
 @media(max-width:768px){#ia-box{height:85vh}}
 
+/* Accesos flotantes compactos: chat abajo y acciones (+) arriba, sin solaparse. */
+@media(max-width:1024px){
+  #chat-fab{bottom:calc(18px + env(safe-area-inset-bottom, 0px))!important}
+  .fab-container{bottom:calc(78px + env(safe-area-inset-bottom, 0px))!important}
+}
+
 /* Reservar el lateral de los accesos flotantes en acciones de formularios. */
 .form-bottom-actions{
   gap:8px;
@@ -1216,8 +1222,8 @@ body.modal-secure-open{overflow:hidden!important}
   #page-dashboard table{min-width:0!important}
 
   /* Botones flotantes menos invasivos y fuera del contenido principal. */
-  .fab-container{right:14px!important;bottom:76px!important}
-  #chat-fab{right:14px!important;bottom:18px!important}
+  .fab-container{right:14px!important;bottom:calc(78px + env(safe-area-inset-bottom, 0px))!important}
+  #chat-fab{right:14px!important;bottom:calc(18px + env(safe-area-inset-bottom, 0px))!important}
   .fab-main,#chat-fab,#ia-fab{width:52px!important;height:52px!important}
 }
 
