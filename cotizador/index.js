@@ -327,7 +327,7 @@ function filtrosMercadoLibreDesdeUrl(url) {
   }
 }
 
-function seleccionarPublicacionMercadoLibre(resultados, productoId, officialStoreId) {
+function seleccionarPublicacionMercadoLibre(resultados, productoId, officialStoreId, ordenarPorPrecio = true) {
   const productoNormalizado = String(productoId || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   const tienda = Number(officialStoreId) || 0;
   const compatibles = (Array.isArray(resultados) ? resultados : []).filter((item) => {
@@ -340,8 +340,29 @@ function seleccionarPublicacionMercadoLibre(resultados, productoId, officialStor
     if (tienda && tiendaItem !== tienda) return false;
     return true;
   });
-  compatibles.sort((a, b) => Number(a.price) - Number(b.price));
+  if (ordenarPorPrecio) compatibles.sort((a, b) => Number(a.price) - Number(b.price));
   return compatibles[0] || null;
+}
+
+async function resolverGanadorMercadoLibre(publicacion, trace) {
+  const itemId = String(publicacion && (publicacion.item_id || publicacion.id) || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+  if (!/^MLA\d{6,}$/.test(itemId)) return publicacion || null;
+  try {
+    const competencia = await obtenerJsonMercadoLibre(`/items/${encodeURIComponent(itemId)}/price_to_win?siteId=MLA&version=v2`);
+    const ganador = competencia && competencia.winner;
+    const ganadorId = String(ganador && (ganador.item_id || ganador.id) || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
+    if (!ganador || !(Number(ganador.price) > 0) || !/^MLA\d{6,}$/.test(ganadorId)) return publicacion;
+    const detalle = await obtenerJsonMercadoLibre(`/items/${encodeURIComponent(ganadorId)}`).catch(() => null);
+    trace.push({ step:'mercado_libre_ganador_competencia', at:new Date().toISOString(), itemId:ganadorId, precioArs:Number(ganador.price) });
+    return { ...(detalle || {}), ...ganador, id:ganadorId, item_id:ganadorId, price:Number(ganador.price) };
+  } catch (errorCompetencia) {
+    trace.push({ step:'mercado_libre_ganador_competencia_fallo', at:new Date().toISOString(), mensaje:errorCompetencia.message || String(errorCompetencia) });
+    return publicacion;
+  }
 }
 
 function datosMercadoLibreDesdeFuente(fuente, producto) {
@@ -458,8 +479,9 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = []) {
     trace.push({ step:'mercado_libre_api_publicaciones_producto', at:new Date().toISOString(), productoId:ids.productoId, officialStoreId:filtros.officialStoreId || 0 });
     try {
       const publicaciones = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}/items`);
-      item = seleccionarPublicacionMercadoLibre(publicaciones && publicaciones.results, ids.productoId, filtros.officialStoreId);
+      item = seleccionarPublicacionMercadoLibre(publicaciones && publicaciones.results, ids.productoId, filtros.officialStoreId, false);
       if (item) {
+        item = await resolverGanadorMercadoLibre(item, trace);
         producto = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}`).catch(() => null);
         trace.push({
           step:'mercado_libre_publicacion_producto_encontrada',

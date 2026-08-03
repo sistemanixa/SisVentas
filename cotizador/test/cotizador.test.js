@@ -108,6 +108,11 @@ test('Mercado Libre elige la publicación activa ARS de la tienda solicitada', (
     moneda:'ARS',
     itemId:'MLA3'
   });
+  const ordenCatalogo = seleccionarPublicacionMercadoLibre([
+    { item_id:'MLA10', price:260239, currency_id:'ARS', status:'active' },
+    { item_id:'MLA11', price:252259, currency_id:'ARS', status:'active' }
+  ], 'MLA63758636', 0, false);
+  assert.equal(ordenCatalogo.item_id, 'MLA10');
 });
 
 test('la identidad acepta el mismo modelo y rechaza otro producto', () => {
