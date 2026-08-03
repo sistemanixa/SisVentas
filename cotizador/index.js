@@ -479,6 +479,18 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = []) {
     trace.push({ step:'mercado_libre_api_publicaciones_producto', at:new Date().toISOString(), productoId:ids.productoId, officialStoreId:filtros.officialStoreId || 0 });
     try {
       const publicaciones = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}/items`);
+      trace.push({
+        step:'mercado_libre_publicaciones_candidatas',
+        at:new Date().toISOString(),
+        candidatas:(Array.isArray(publicaciones && publicaciones.results) ? publicaciones.results : []).slice(0, 12).map((candidato) => ({
+          itemId:candidato && (candidato.item_id || candidato.id) || '',
+          precioArs:Number(candidato && candidato.price) || 0,
+          tipo:candidato && candidato.listing_type_id || '',
+          nivel:candidato && candidato.tier || '',
+          tienda:Number(candidato && candidato.official_store_id) || 0,
+          etiquetas:Array.isArray(candidato && candidato.tags) ? candidato.tags.slice(0, 8) : []
+        }))
+      });
       item = seleccionarPublicacionMercadoLibre(publicaciones && publicaciones.results, ids.productoId, filtros.officialStoreId, false);
       if (item) {
         item = await resolverGanadorMercadoLibre(item, trace);
