@@ -49,6 +49,7 @@
   var avisoCriticoGestion=null;
   var avisoCriticoLote=null;
   var avisoCriticoActual=null;
+  var avisoCriticoObserver=null;
   function getN(id){ return notifState[nKey(id)]||{}; }
   function stateTime(value){ var t=Date.parse(value&&value.updatedAt||''); return isNaN(t)?0:t; }
   function refreshNotifUI(){
@@ -102,7 +103,10 @@
       return;
     }
     var pendientes=avisosCriticosPendientes();
-    var aviso=pendientes[0];
+    // Si una sincronizacion reconstruye momentaneamente la fuente, conservar
+    // el aviso que ya estaba en pantalla. Su estado, y no la disponibilidad
+    // transitoria de la lista, decide cuando puede retirarse.
+    var aviso=pendientes[0] || (avisoCriticoActual&&!getN(avisoCriticoActual.id).estado ? avisoCriticoActual : null);
     // Una vez visible, un aviso importante no puede desaparecer porque la
     // sincronización periódica reconstruya momentáneamente la lista vacía.
     // Sólo una acción explícita del usuario (abrir o cerrar con la cruz) lo
@@ -171,6 +175,21 @@
     avisoCriticoLote=null;
     avisoCriticoActual=null;
   };
+
+  function vigilarAvisoCriticoPersistente(){
+    if(avisoCriticoObserver||!global.MutationObserver||!document.documentElement) return;
+    avisoCriticoObserver=new MutationObserver(function(){
+      if(!avisoCriticoActual||getN(avisoCriticoActual.id).estado) return;
+      if(document.getElementById('modal-aviso-critico-presupuesto')) return;
+      var ctx=sessionContext();
+      if(!ctx.usuario||!ctx.rol||avisoCriticoGestion) return;
+      // Ninguna reconstruccion de pagina o grilla puede cerrar silenciosamente
+      // un aviso importante. Las acciones explicitas actualizan el estado antes
+      // de que este observador reciba la mutacion.
+      programarAvisoCriticoPresupuesto();
+    });
+    avisoCriticoObserver.observe(document.documentElement,{childList:true,subtree:true});
+  }
   function setN(id, patch){
     var k=nKey(id);
     notifState[k]=Object.assign(notifState[k]||{},patch,{updatedAt:new Date().toISOString(),usuario:svCurrentUserName()});
@@ -295,6 +314,7 @@
     if(document.visibilityState==='visible') actualizarNotificacionesAutomaticamente();
   });
   window.addEventListener('focus',actualizarNotificacionesAutomaticamente);
+  vigilarAvisoCriticoPersistente();
   setInterval(actualizarNotificacionesAutomaticamente,30000);
   setTimeout(actualizarNotificacionesAutomaticamente,1000);
 })(window);
