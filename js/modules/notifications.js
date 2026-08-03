@@ -286,8 +286,17 @@
     refreshNotifUI();
   };
   window.abrirPresupuestoDesdeNotificacion = function(id){
+    var presupuesto = typeof global.buscarPptoPorRef==='function' ? global.buscarPptoPorRef(id) : null;
+    if(typeof global.buscarPptoPorRef==='function' && !presupuesto){
+      if(typeof notify==='function') notify('El presupuesto relacionado ya no está disponible.');
+      return;
+    }
     showPage('presupuesto',document.querySelector('[onclick*="presupuesto"]'));
-    setTimeout(function(){ if(typeof verPpto==='function') verPpto(id); },180);
+    // El detalle existe permanentemente en el DOM. Abrirlo en el mismo ciclo
+    // evita mostrar primero la lista y reemplazarla 180 ms después.
+    if(typeof verPpto==='function') verPpto((presupuesto&&(presupuesto.fbKey||presupuesto.id))||id);
+    var contenido=document.querySelector('.content');
+    if(contenido) contenido.scrollTop=0;
   };
   window.abrirOTDesdeNotificacion = function(id){
     showPage('ordentrabajo',document.querySelector('[onclick*="ordentrabajo"]'));
