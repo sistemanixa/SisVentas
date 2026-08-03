@@ -26,6 +26,7 @@ const {
   extraerPrecioEtiquetado,
   extraerCondicionIva,
   idsMercadoLibreDesdeUrl,
+  itemIdMercadoLibreDesdeHtml,
   filtrosMercadoLibreDesdeUrl,
   seleccionarPublicacionMercadoLibre,
   datosMercadoLibreDesdeFuente,
@@ -76,6 +77,12 @@ test('Mercado Libre interpreta catálogo, publicación y tienda oficial desde la
     idsMercadoLibreDesdeUrl('https://www.mercadolibre.com.ar/alarma/p/MLA63758636?pdp_filters=official_store%3A280888'),
     { itemId:'', productoId:'MLA63758636' }
   );
+});
+
+test('Mercado Libre descubre la publicación vigente dentro de una página de catálogo', () => {
+  const html = '<a href="/syi/core/list/equals?itemId=MLA2734412812&productId=MLA63758636">Vender uno igual</a>';
+  assert.equal(itemIdMercadoLibreDesdeHtml(html, 'MLA63758636'), 'MLA2734412812');
+  assert.equal(itemIdMercadoLibreDesdeHtml('<a href="/noindex/services/MLA2734412812/payments">Pagos</a>'), 'MLA2734412812');
 });
 
 test('Mercado Libre elige la publicación activa ARS de la tienda solicitada', () => {

@@ -265,6 +265,53 @@ function idsMercadoLibreDesdeUrl(url) {
   }
 }
 
+function itemIdMercadoLibreDesdeHtml(html, productoId = '') {
+  const texto = String(html || '')
+    .replace(/&quot;/gi, '"')
+    .replace(/\\u0026/gi, '&')
+    .replace(/%3A/gi, ':')
+    .replace(/%3D/gi, '=')
+    .replace(/%2F/gi, '/');
+  const producto = String(productoId || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const patrones = [];
+  if (/^MLA\d{6,}$/.test(producto)) {
+    patrones.push(new RegExp(`itemId=(MLA-?\\d{6,})[^"'<>]{0,180}productId=${producto}`, 'i'));
+  }
+  patrones.push(
+    /\/noindex\/services\/(MLA-?\d{6,})\/payments/i,
+    /["']item_id["']\s*:\s*["'](MLA-?\d{6,})["']/i,
+    /(?:itemId|item_id)=(MLA-?\d{6,})/i
+  );
+  for (const patron of patrones) {
+    const match = texto.match(patron);
+    const id = String(match && match[1] || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (/^MLA\d{6,}$/.test(id)) return id;
+  }
+  return '';
+}
+
+async function descubrirItemMercadoLibreDesdePagina(urlExacta, productoId) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(normalizarUrl(urlExacta), {
+      headers: {
+        accept:'text/html,application/xhtml+xml',
+        'accept-language':'es-AR,es;q=0.9',
+        'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/132 Safari/537.36'
+      },
+      redirect:'follow',
+      signal:controller.signal
+    });
+    if (!response.ok) throw new Error(`La página de Mercado Libre respondió ${response.status}`);
+    const itemId = itemIdMercadoLibreDesdeHtml(await response.text(), productoId);
+    if (!itemId) throw new Error('La página no informó la publicación vigente');
+    return itemId;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function filtrosMercadoLibreDesdeUrl(url) {
   try {
     const parsed = new URL(normalizarUrl(url));
@@ -369,6 +416,21 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = []) {
   }
 
   if (!item && ids.productoId) {
+    trace.push({ step:'mercado_libre_descubrir_publicacion', at:new Date().toISOString(), productoId:ids.productoId });
+    try {
+      const itemId = await descubrirItemMercadoLibreDesdePagina(urlExacta, ids.productoId);
+      const candidato = await obtenerJsonMercadoLibre(`/items/${encodeURIComponent(itemId)}`);
+      if (filtros.officialStoreId && Number(candidato && candidato.official_store_id) !== filtros.officialStoreId) {
+        throw new Error('La publicación encontrada no pertenece a la tienda oficial indicada');
+      }
+      item = candidato;
+      trace.push({ step:'mercado_libre_publicacion_descubierta', at:new Date().toISOString(), itemId });
+    } catch (errorDescubrimiento) {
+      trace.push({ step:'mercado_libre_descubrimiento_fallo', at:new Date().toISOString(), mensaje:errorDescubrimiento.message || String(errorDescubrimiento) });
+    }
+  }
+
+  if (!item && ids.productoId) {
     trace.push({ step:'mercado_libre_api_producto_respaldo', at:new Date().toISOString(), productoId:ids.productoId });
     try {
       producto = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}`);
@@ -390,7 +452,7 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = []) {
 }
 
 async function extraerProductoMercadoLibre(page) {
-  const precioPrincipal = page.locator('.ui-pdp-price__second-line .andes-money-amount').first();
+  const precioPrincipal = page.locator('[itemprop="offers"].andes-money-amount, .ui-pdp-price__part.andes-money-amount').first();
   await precioPrincipal.waitFor({ state:'attached', timeout:10000 }).catch(() => {});
   const bodyText = await page.locator('body').innerText({ timeout:15000 });
   if (/captcha|comprobemos que eres humano|verificaci[oó]n de seguridad/i.test(bodyText)) throw new Error('Mercado Libre solicitó una verificación de seguridad');
@@ -1360,6 +1422,7 @@ module.exports = {
   extraerPrecioEtiquetado,
   extraerCondicionIva,
   idsMercadoLibreDesdeUrl,
+  itemIdMercadoLibreDesdeHtml,
   filtrosMercadoLibreDesdeUrl,
   seleccionarPublicacionMercadoLibre,
   datosMercadoLibreDesdeFuente,
