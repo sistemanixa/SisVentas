@@ -291,7 +291,8 @@
       if(typeof notify==='function') notify('El presupuesto relacionado ya no está disponible.');
       return;
     }
-    showPage('presupuesto',document.querySelector('[onclick*="presupuesto"]'));
+    if(typeof global.svNavegarDirecto==='function') global.svNavegarDirecto('presupuesto',null,document.querySelector('[onclick*="presupuesto"]'));
+    else showPage('presupuesto',document.querySelector('[onclick*="presupuesto"]'));
     // El detalle existe permanentemente en el DOM. Abrirlo en el mismo ciclo
     // evita mostrar primero la lista y reemplazarla 180 ms después.
     if(typeof verPpto==='function') verPpto((presupuesto&&(presupuesto.fbKey||presupuesto.id))||id);
@@ -299,8 +300,12 @@
     if(contenido) contenido.scrollTop=0;
   };
   window.abrirOTDesdeNotificacion = function(id){
-    showPage('ordentrabajo',document.querySelector('[onclick*="ordentrabajo"]'));
-    setTimeout(function(){ if(typeof verOT==='function') verOT(id); },180);
+    if(typeof global.svNavegarDirecto==='function'){
+      global.svNavegarDirecto('ordentrabajo',function(){ if(typeof verOT==='function') verOT(id); },document.querySelector('[onclick*="ordentrabajo"]'));
+    }else{
+      showPage('ordentrabajo',document.querySelector('[onclick*="ordentrabajo"]'));
+      if(typeof verOT==='function') verOT(id);
+    }
   };
   window.renderNotificaciones = function(filtro){
     filtro=filtro||'';

@@ -58,15 +58,16 @@
 
   window.abrirDetalleVentaConfirmada309 = function(id, fbKey){
     if (typeof cerrarConfirmacionVenta === 'function') cerrarConfirmacionVenta();
-    if (typeof showPage === 'function') showPage('detalle', document.querySelector('[onclick*=detalle]'));
-    setTimeout(function(){
+    var abrirDetalle = function(){
       var v = (window.ventasList || []).find(function(x){ return String(x.fbKey||'') === String(fbKey||'') || String(x.id||'') === String(id||'') || String(x.numero||'') === String(id||''); });
       var ref = (v && (v.fbKey || v.id || v.numero)) || fbKey || id;
-      if (typeof verDetalleVentaDesdeId === 'function') return verDetalleVentaDesdeId(ref);
+      if (typeof verDetalleVenta === 'function') return verDetalleVenta(ref);
       if (typeof verVenta === 'function') return verVenta(ref);
       if (typeof renderDetalleVenta === 'function' && v) return renderDetalleVenta(v);
       if (typeof notify === 'function') notify('No se pudo abrir el detalle de la venta');
-    }, 350);
+    };
+    if(typeof window.svNavegarDirecto==='function') window.svNavegarDirecto('detalle', abrirDetalle, document.querySelector('[onclick*=detalle]'));
+    else { if (typeof showPage === 'function') showPage('detalle', document.querySelector('[onclick*=detalle]')); abrirDetalle(); }
   };
 
   function norm309(v){ return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim(); }

@@ -219,8 +219,8 @@
       ot.fbKey=ref.key;
       if(Array.isArray(window.otData)) window.otData.push(ot);
       if(typeof notify==='function') notify('✓ Orden de trabajo creada');
-      if(typeof showPage==='function') showPage('ordentrabajo', null);
-      setTimeout(function(){ window.verOT(ref.key); },250);
+      if(typeof window.svNavegarDirecto==='function') window.svNavegarDirecto('ordentrabajo', function(){ window.verOT(ref.key); });
+      else { if(typeof showPage==='function') showPage('ordentrabajo', null); window.verOT(ref.key); }
     }).catch(function(e){ if(typeof notify==='function') notify('Error: '+e.message); });
   };
   var refrescoWizardTimer=null;
