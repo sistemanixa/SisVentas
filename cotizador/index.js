@@ -513,18 +513,39 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = []) {
 }
 
 async function extraerProductoMercadoLibre(page) {
-  const precioPrincipal = page.locator('[itemprop="offers"].andes-money-amount, .ui-pdp-price__part.andes-money-amount').first();
-  await precioPrincipal.waitFor({ state:'attached', timeout:10000 }).catch(() => {});
-  const bodyText = await page.locator('body').innerText({ timeout:15000 });
+  const bodyText = await page.locator('body').innerText({ timeout:10000 });
   if (/captcha|comprobemos que eres humano|verificaci[oó]n de seguridad/i.test(bodyText)) throw new Error('Mercado Libre solicitó una verificación de seguridad');
   if (/publicaci[oó]n pausada|publicaci[oó]n finalizada|producto no disponible/i.test(bodyText)) throw new Error('La publicación de Mercado Libre no está disponible');
-  let precioArs = await precioPrincipal.evaluate((el) => {
-    const fraccion = el.querySelector('.andes-money-amount__fraction');
-    const centavos = el.querySelector('.andes-money-amount__cents');
-    const entero = String(fraccion ? fraccion.textContent : '').replace(/[^0-9]/g, '');
-    const decimal = String(centavos ? centavos.textContent : '').replace(/[^0-9]/g, '').slice(0, 2);
-    return entero ? Number(entero + (decimal ? '.' + decimal : '')) : 0;
-  }).catch(() => 0);
+  const selectoresPrecio = [
+    '.ui-pdp-price__main-container .andes-money-amount',
+    '.ui-pdp-price__second-line .andes-money-amount',
+    '.ui-pdp-container__row--price .andes-money-amount',
+    '[data-testid="price-part"] .andes-money-amount',
+    '[itemprop="offers"].andes-money-amount',
+    '.ui-pdp-price__part.andes-money-amount'
+  ];
+  let precioArs = 0;
+  let selectorPrecio = '';
+  for (const selector of selectoresPrecio) {
+    const candidatos = page.locator(selector);
+    const cantidad = Math.min(await candidatos.count().catch(() => 0), 8);
+    for (let i = 0; i < cantidad; i += 1) {
+      const candidato = candidatos.nth(i);
+      if (!await candidato.isVisible().catch(() => false)) continue;
+      precioArs = await candidato.evaluate((el) => {
+        const fraccion = el.querySelector('.andes-money-amount__fraction');
+        const centavos = el.querySelector('.andes-money-amount__cents');
+        const entero = String(fraccion ? fraccion.textContent : '').replace(/[^0-9]/g, '');
+        const decimal = String(centavos ? centavos.textContent : '').replace(/[^0-9]/g, '').slice(0, 2);
+        return entero ? Number(entero + (decimal ? '.' + decimal : '')) : 0;
+      }).catch(() => 0);
+      if (precioArs > 0) {
+        selectorPrecio = selector;
+        break;
+      }
+    }
+    if (precioArs > 0) break;
+  }
   let schema = null;
   if (!precioArs) {
     precioArs = await page.locator('meta[property="product:price:amount"], meta[itemprop="price"]').first().getAttribute('content')
@@ -557,7 +578,7 @@ async function extraerProductoMercadoLibre(page) {
   }
   const disponibilidad = /stock disponible|cantidad:\s*\d+|comprar ahora|agregar al carrito/i.test(bodyText) ? 'disponible' : extraerDisponibilidadProveedor(bodyText);
   const titulo = await page.locator('h1.ui-pdp-title').first().innerText({ timeout:3000 }).catch(() => '');
-  return { precioArs, disponibilidad, titulo:titulo || (schema && schema.name) || '', moneda:moneda || 'ARS', fuente:'mercado_libre_pagina' };
+  return { precioArs, disponibilidad, titulo:titulo || (schema && schema.name) || '', moneda:moneda || 'ARS', fuente:'mercado_libre_pagina', selectorPrecio };
 }
 
 async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) {
@@ -585,7 +606,7 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) 
       await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:20000 });
       if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
       datos = await extraerProductoMercadoLibre(page);
-      trace.push({ step:'mercado_libre_respaldo_visual_ok', at:new Date().toISOString(), precioArs:datos.precioArs });
+      trace.push({ step:'mercado_libre_respaldo_visual_ok', at:new Date().toISOString(), precioArs:datos.precioArs, selectorPrecio:datos.selectorPrecio || '' });
     }
     const identidad = validarIdentidadProducto(producto, datos.titulo);
     if (!identidad.ok) throw new Error(identidad.mensaje);
