@@ -455,6 +455,26 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = []) {
   }
 
   if (!item && ids.productoId) {
+    trace.push({ step:'mercado_libre_api_publicaciones_producto', at:new Date().toISOString(), productoId:ids.productoId, officialStoreId:filtros.officialStoreId || 0 });
+    try {
+      const publicaciones = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}/items`);
+      item = seleccionarPublicacionMercadoLibre(publicaciones && publicaciones.results, ids.productoId, filtros.officialStoreId);
+      if (item) {
+        trace.push({
+          step:'mercado_libre_publicacion_producto_encontrada',
+          at:new Date().toISOString(),
+          itemId:item.id || item.item_id || '',
+          precioArs:Number(item.price) || 0
+        });
+      } else {
+        trace.push({ step:'mercado_libre_api_publicaciones_sin_resultado', at:new Date().toISOString() });
+      }
+    } catch (errorPublicaciones) {
+      trace.push({ step:'mercado_libre_api_publicaciones_fallo', at:new Date().toISOString(), mensaje:errorPublicaciones.message || String(errorPublicaciones) });
+    }
+  }
+
+  if (!item && ids.productoId) {
     const params = new URLSearchParams({ catalog_product_id:ids.productoId, limit:'50' });
     if (filtros.officialStoreId) params.set('official_store_id', String(filtros.officialStoreId));
     trace.push({ step:'mercado_libre_api_catalogo', at:new Date().toISOString(), productoId:ids.productoId, officialStoreId:filtros.officialStoreId || 0 });
