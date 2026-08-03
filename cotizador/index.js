@@ -1,4 +1,5 @@
 const http = require('http');
+const crypto = require('crypto');
 const { chromium } = require('playwright');
 const admin = require('firebase-admin');
 
@@ -7,6 +8,11 @@ const FRONTEND_KEY = process.env.FRONTEND_KEY || '';
 const DATABASE_URL = process.env.FIREBASE_DATABASE_URL || 'https://nixa-sisventas-default-rtdb.firebaseio.com';
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN || 'https://ventas.sistemanixa.com';
 const REQUIRE_FIREBASE_AUTH = String(process.env.REQUIRE_FIREBASE_AUTH || '').toLowerCase() === 'true';
+const ML_CLIENT_ID = process.env.ML_CLIENT_ID || '';
+const ML_CLIENT_SECRET = process.env.ML_CLIENT_SECRET || '';
+const ML_REDIRECT_URI = process.env.ML_REDIRECT_URI || 'https://cotizador-171899432710.southamerica-east1.run.app/mercadolibre/oauth/callback';
+const ML_TOKEN_KEY = process.env.ML_TOKEN_KEY || '';
+const ML_TOKEN_PATH = 'sisventas/_integraciones_server/mercadolibre/oauth';
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -22,10 +28,146 @@ function send(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function sendHtml(res, status, html) {
+  res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(html);
+}
+
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', ALLOW_ORIGIN);
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Frontend-Key, Authorization');
+}
+
+function claveMercadoLibre() {
+  if (!ML_TOKEN_KEY) throw new Error('Falta configurar ML_TOKEN_KEY');
+  return crypto.createHash('sha256').update(ML_TOKEN_KEY, 'utf8').digest();
+}
+
+function cifrarTokenMercadoLibre(payload) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', claveMercadoLibre(), iv);
+  cipher.setAAD(Buffer.from('sisventas-mercadolibre-oauth-v1'));
+  const contenido = Buffer.concat([cipher.update(JSON.stringify(payload), 'utf8'), cipher.final()]);
+  return {
+    v: 1,
+    iv: iv.toString('base64url'),
+    tag: cipher.getAuthTag().toString('base64url'),
+    data: contenido.toString('base64url'),
+    actualizadoEn: Date.now()
+  };
+}
+
+function descifrarTokenMercadoLibre(registro) {
+  if (!registro || registro.v !== 1 || !registro.iv || !registro.tag || !registro.data) return null;
+  const decipher = crypto.createDecipheriv('aes-256-gcm', claveMercadoLibre(), Buffer.from(registro.iv, 'base64url'));
+  decipher.setAAD(Buffer.from('sisventas-mercadolibre-oauth-v1'));
+  decipher.setAuthTag(Buffer.from(registro.tag, 'base64url'));
+  const contenido = Buffer.concat([decipher.update(Buffer.from(registro.data, 'base64url')), decipher.final()]);
+  return JSON.parse(contenido.toString('utf8'));
+}
+
+function asegurarConfiguracionMercadoLibre() {
+  if (!ML_CLIENT_ID || !ML_CLIENT_SECRET || !ML_REDIRECT_URI || !ML_TOKEN_KEY) {
+    const error = new Error('La conexión con Mercado Libre todavía no está configurada');
+    error.statusCode = 503;
+    throw error;
+  }
+}
+
+function firmarEstadoOAuthMercadoLibre() {
+  asegurarConfiguracionMercadoLibre();
+  const contenido = `${Date.now()}.${crypto.randomBytes(18).toString('base64url')}`;
+  const firma = crypto.createHmac('sha256', claveMercadoLibre()).update(contenido).digest('base64url');
+  return `${contenido}.${firma}`;
+}
+
+function validarEstadoOAuthMercadoLibre(estado) {
+  const partes = String(estado || '').split('.');
+  if (partes.length !== 3) return false;
+  const contenido = `${partes[0]}.${partes[1]}`;
+  const esperada = crypto.createHmac('sha256', claveMercadoLibre()).update(contenido).digest();
+  let recibida;
+  try { recibida = Buffer.from(partes[2], 'base64url'); } catch (_) { return false; }
+  const emitidoEn = Number(partes[0]);
+  return recibida.length === esperada.length &&
+    crypto.timingSafeEqual(recibida, esperada) &&
+    Number.isFinite(emitidoEn) &&
+    Math.abs(Date.now() - emitidoEn) < 10 * 60 * 1000;
+}
+
+async function solicitarTokenMercadoLibre(parametros) {
+  asegurarConfiguracionMercadoLibre();
+  const response = await fetch('https://api.mercadolibre.com/oauth/token', {
+    method: 'POST',
+    headers: { 'content-type':'application/x-www-form-urlencoded', accept:'application/json' },
+    body: new URLSearchParams(parametros)
+  });
+  const datos = await response.json().catch(() => ({}));
+  if (!response.ok || !datos.access_token) {
+    const detalle = datos.message || datos.error_description || datos.error || `HTTP ${response.status}`;
+    throw new Error(`Mercado Libre rechazó la autorización: ${detalle}`);
+  }
+  return {
+    access_token: String(datos.access_token),
+    refresh_token: String(datos.refresh_token || parametros.refresh_token || ''),
+    token_type: String(datos.token_type || 'bearer'),
+    user_id: Number(datos.user_id) || 0,
+    scope: String(datos.scope || ''),
+    expires_at: Date.now() + Math.max(60, Number(datos.expires_in) || 21600) * 1000
+  };
+}
+
+async function guardarTokenMercadoLibre(token) {
+  await db.ref(ML_TOKEN_PATH).set(cifrarTokenMercadoLibre(token));
+}
+
+async function cargarTokenMercadoLibre() {
+  const snap = await db.ref(ML_TOKEN_PATH).get();
+  return descifrarTokenMercadoLibre(snap.val());
+}
+
+async function obtenerAccessTokenMercadoLibre() {
+  asegurarConfiguracionMercadoLibre();
+  let token = await cargarTokenMercadoLibre();
+  if (!token || !token.access_token) throw new Error('Mercado Libre necesita autorizarse una vez desde /mercadolibre/oauth/start');
+  if (Number(token.expires_at) > Date.now() + 2 * 60 * 1000) return token.access_token;
+  if (!token.refresh_token) throw new Error('Mercado Libre requiere una nueva autorización');
+  token = await solicitarTokenMercadoLibre({
+    grant_type: 'refresh_token',
+    client_id: ML_CLIENT_ID,
+    client_secret: ML_CLIENT_SECRET,
+    refresh_token: token.refresh_token
+  });
+  await guardarTokenMercadoLibre(token);
+  return token.access_token;
+}
+
+async function iniciarOAuthMercadoLibre(res) {
+  const state = firmarEstadoOAuthMercadoLibre();
+  const destino = new URL('https://auth.mercadolibre.com.ar/authorization');
+  destino.searchParams.set('response_type', 'code');
+  destino.searchParams.set('client_id', ML_CLIENT_ID);
+  destino.searchParams.set('redirect_uri', ML_REDIRECT_URI);
+  destino.searchParams.set('state', state);
+  res.writeHead(302, { Location: destino.toString(), 'Cache-Control':'no-store' });
+  res.end();
+}
+
+async function completarOAuthMercadoLibre(url, res) {
+  asegurarConfiguracionMercadoLibre();
+  const code = String(url.searchParams.get('code') || '');
+  const state = String(url.searchParams.get('state') || '');
+  if (!code || !validarEstadoOAuthMercadoLibre(state)) throw new Error('La autorización de Mercado Libre no es válida o venció');
+  const token = await solicitarTokenMercadoLibre({
+    grant_type: 'authorization_code',
+    client_id: ML_CLIENT_ID,
+    client_secret: ML_CLIENT_SECRET,
+    code,
+    redirect_uri: ML_REDIRECT_URI
+  });
+  await guardarTokenMercadoLibre(token);
+  sendHtml(res, 200, '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Mercado Libre conectado</title><body style="margin:0;background:#0f1117;color:#f5f7fb;font:16px system-ui;display:grid;place-items:center;min-height:100vh"><main style="max-width:560px;padding:36px;border:1px solid #303644;border-radius:18px;background:#1a1e29;text-align:center"><h1 style="color:#39d98a">Mercado Libre conectado</h1><p>SisVentas ya puede consultar precios mediante la API oficial y renovar el acceso automáticamente.</p><p>Podés cerrar esta pestaña.</p></main></body></html>');
 }
 
 function extraerTokenBearer(authorization) {
@@ -183,11 +325,13 @@ async function obtenerJsonMercadoLibre(ruta) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   try {
+    const accessToken = await obtenerAccessTokenMercadoLibre();
     const response = await fetch(`https://api.mercadolibre.com${ruta}`, {
       headers: {
         accept:'application/json',
         'accept-language':'es-AR,es;q=0.9',
-        'user-agent':'SisVentas-Nixa/2.0'
+        'user-agent':'SisVentas-Nixa/2.0',
+        authorization:`Bearer ${accessToken}`
       },
       signal:controller.signal
     });
@@ -1149,10 +1293,24 @@ async function cotizar(reqBody) {
 
 const server = http.createServer(async (req, res) => {
   cors(res);
+  const requestUrl = new URL(req.url, 'http://localhost');
+  const pathname = requestUrl.pathname;
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/mercadolibre/oauth/start') {
+    try { await iniciarOAuthMercadoLibre(res); }
+    catch (e) { sendHtml(res, e.statusCode || 500, `<h1>No se pudo iniciar la conexión</h1><p>${String(e.message || e).replace(/[<>&]/g, '')}</p>`); }
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/mercadolibre/oauth/callback') {
+    try { await completarOAuthMercadoLibre(requestUrl, res); }
+    catch (e) { sendHtml(res, e.statusCode || 500, `<h1>No se pudo conectar Mercado Libre</h1><p>${String(e.message || e).replace(/[<>&]/g, '')}</p>`); }
     return;
   }
 
@@ -1169,7 +1327,6 @@ const server = http.createServer(async (req, res) => {
   try {
     await autenticarSolicitud(req);
     const body = await readBody(req);
-    const pathname = new URL(req.url, 'http://localhost').pathname;
     if (pathname !== '/' && pathname !== '/cotizar' && pathname !== '/biosegur' && pathname !== '/cotizar-lote') {
       send(res, 404, { ok: false, error: true, mensaje: 'Ruta no encontrada' });
       return;
@@ -1210,5 +1367,9 @@ module.exports = {
   validarMonedaPrecio,
   validarSaltoPrecio,
   validarResultadoPrecioIndividual,
-  extraerTokenBearer
+  extraerTokenBearer,
+  cifrarTokenMercadoLibre,
+  descifrarTokenMercadoLibre,
+  firmarEstadoOAuthMercadoLibre,
+  validarEstadoOAuthMercadoLibre
 };

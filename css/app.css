@@ -1010,7 +1010,9 @@ body.modal-secure-open{overflow:hidden!important}
 .chat-canal-btn{padding:5px 9px;border-radius:20px;border:0.5px solid var(--border2);background:none;color:var(--text2);cursor:pointer;font-size:11px;white-space:nowrap;font-family:inherit;transition:all .15s;position:relative}
 .chat-canal-btn.active{background:var(--green);color:#fff;border-color:var(--green)}
 .chat-canal-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 3px}
-#chat-messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+#chat-messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;position:relative}
+#chat-messages.chat-drop-active{outline:2px dashed #25d366;outline-offset:-8px;background:rgba(37,211,102,.08)}
+#chat-messages.chat-drop-active:after{content:'Soltá la imagen para enviarla';position:absolute;inset:12px;z-index:5;border-radius:12px;background:rgba(11,20,26,.92);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:600;pointer-events:none}
 .chat-msg{max-width:80%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4;position:relative}
 .chat-msg-wrap{display:flex;flex-direction:column;position:relative;margin-bottom:2px;touch-action:pan-y}
 .chat-msg-wrap .chat-msg{transition:transform .15s ease;will-change:transform}
@@ -1020,7 +1022,7 @@ body.modal-secure-open{overflow:hidden!important}
 .chat-reply-btn:hover{color:var(--blue);border-color:var(--blue)}
 .chat-reply-preview{background:rgba(255,255,255,.08);border-left:3px solid var(--green);border-radius:4px;padding:4px 8px;margin-bottom:4px;font-size:11px;color:var(--text3);cursor:pointer}
 .chat-tick{font-size:11px;display:inline-flex;align-items:center}
-.chat-msg.mine{align-self:flex-end;background:var(--green);color:#fff;border-radius:12px 12px 2px 12px}
+.chat-msg.mine{align-self:flex-end;background:#005c4b;color:#fff;border-radius:12px 12px 2px 12px}
 .chat-msg.other{align-self:flex-start;background:var(--bg3);color:var(--text);border-radius:12px 12px 12px 2px}
 .chat-msg-autor{font-size:10px;font-weight:600;margin-bottom:3px;opacity:.8}
 .chat-msg-hora{font-size:10px;opacity:.6;margin-top:3px;text-align:right}

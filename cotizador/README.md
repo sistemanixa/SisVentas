@@ -8,7 +8,7 @@ Servicio Cloud Run separado para cotizar proveedores por su URL exacta.
 - Lee `sisventas/proveedores/{proveedorKey}` desde Firebase.
 - Usa `usuario` y `password` cuando el proveedor requiere acceso.
 - Inicia sesión en Biosegur, Free Electron o Tecnoprices.
-- Para Mercado Libre abre la publicación exacta sin pedir credenciales.
+- Para Mercado Libre usa OAuth y la API oficial; renueva el acceso automáticamente.
 - Abre la URL exacta del producto.
 - Extrae el precio visible en ARS y la disponibilidad.
 - Bloquea variaciones anormales para conservar el precio anterior.
@@ -19,8 +19,13 @@ Servicio Cloud Run separado para cotizar proveedores por su URL exacta.
 - `FIREBASE_DATABASE_URL`: `https://nixa-sisventas-default-rtdb.firebaseio.com`
 - `ALLOW_ORIGIN`: `https://ventas.sistemanixa.com`
 - `REQUIRE_FIREBASE_AUTH`: `true` en producción; exige un ID token Firebase válido además de `FRONTEND_KEY`
+- `ML_CLIENT_ID`: Client ID de la aplicación de Mercado Libre.
+- `ML_CLIENT_SECRET`: secreto de la aplicación (configurarlo en Cloud, nunca en Git).
+- `ML_REDIRECT_URI`: callback registrado en Mercado Libre.
+- `ML_TOKEN_KEY`: clave privada aleatoria para cifrar los tokens antes de guardarlos.
 
 Cloud Run debe ejecutar con una cuenta de servicio que pueda leer Realtime Database.
+La conexión inicial se completa una sola vez abriendo `GET /mercadolibre/oauth/start`.
 
 ## Endpoint
 

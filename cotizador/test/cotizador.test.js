@@ -2,6 +2,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Module = require('node:module');
 
+process.env.ML_CLIENT_ID = '123456';
+process.env.ML_CLIENT_SECRET = 'secreto-de-prueba';
+process.env.ML_TOKEN_KEY = 'clave-de-prueba-con-suficiente-entropia';
+process.env.ML_REDIRECT_URI = 'https://example.test/mercadolibre/oauth/callback';
+
 const cargarOriginal = Module._load;
 Module._load = function(request, parent, isMain) {
   if (request === 'playwright') return { chromium:{} };
@@ -28,7 +33,11 @@ const {
   validarMonedaPrecio,
   validarSaltoPrecio,
   validarResultadoPrecioIndividual,
-  extraerTokenBearer
+  extraerTokenBearer,
+  cifrarTokenMercadoLibre,
+  descifrarTokenMercadoLibre,
+  firmarEstadoOAuthMercadoLibre,
+  validarEstadoOAuthMercadoLibre
 } = require('../index');
 Module._load = cargarOriginal;
 
@@ -146,4 +155,14 @@ test('extrae únicamente un token Bearer bien formado', () => {
   assert.equal(extraerTokenBearer('bearer otro-token'), 'otro-token');
   assert.equal(extraerTokenBearer('Basic abc123'), '');
   assert.equal(extraerTokenBearer('Bearer token con espacios'), '');
+});
+
+test('Mercado Libre cifra tokens y valida el estado OAuth sin exponerlos', () => {
+  const token = { access_token:'access-test', refresh_token:'refresh-test', expires_at:Date.now() + 3600000 };
+  const cifrado = cifrarTokenMercadoLibre(token);
+  assert.equal(JSON.stringify(cifrado).includes('access-test'), false);
+  assert.deepEqual(descifrarTokenMercadoLibre(cifrado), token);
+  const estado = firmarEstadoOAuthMercadoLibre();
+  assert.equal(validarEstadoOAuthMercadoLibre(estado), true);
+  assert.equal(validarEstadoOAuthMercadoLibre(`${estado}alterado`), false);
 });
