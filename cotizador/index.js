@@ -385,14 +385,38 @@ async function tituloVisibleProducto(page, tipo) {
 function extraerPrecioEtiquetado(texto) {
   const body = String(texto || '');
   const patrones = [
-    /(?:precio\s*(?:gremio|especial|web|contado|lista)?|contado|mayorista)[^\n\r$]{0,90}\$\s*([0-9]{1,3}(?:[.\s][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)/i,
-    /\$\s*([0-9]{1,3}(?:[.\s][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)\s*(?:\+\s*IVA|sin\s+IVA|impuestos?\s+incluidos?)/i
+    /(?:precio\s*(?:gremio|especial|web|contado|lista|sin\s+iva)?|contado|mayorista)[^\n\r$]{0,90}\$\s*([0-9][0-9.,\s]*)/i,
+    /\$\s*([0-9][0-9.,\s]*?)\s*(?:\+\s*IVA|sin\s+IVA|impuestos?\s+incluidos?)/i
   ];
   for (const patron of patrones) {
     const coincidencia = body.match(patron);
     if (coincidencia) return parsePrecioArs(`$ ${coincidencia[1]}`);
   }
   return 0;
+}
+
+function extraerCondicionIva(texto) {
+  const body = String(texto || '');
+  const patronesAlicuota = [
+    /IVA\s*[:(]?\s*([0-9]{1,2}(?:[.,][0-9]{1,2})?)\s*%/i,
+    /([0-9]{1,2}(?:[.,][0-9]{1,2})?)\s*%\s*(?:de\s*)?IVA/i
+  ];
+  let ivaAlicuota = null;
+  for (const patron of patronesAlicuota) {
+    const coincidencia = body.match(patron);
+    if (!coincidencia) continue;
+    const valor = Number(String(coincidencia[1]).replace(',', '.'));
+    if (Number.isFinite(valor) && valor >= 0 && valor <= 100) {
+      ivaAlicuota = Math.round(valor * 100) / 100;
+      break;
+    }
+  }
+  const declaraSinIva = /precio\s+sin\s+iva|\+\s*iva|sin\s+iva/i.test(body);
+  const declaraIncluido = /iva\s+incluido|impuestos?\s+incluidos?|precio\s+final(?:es)?\s+en\s+pesos/i.test(body);
+  return {
+    sinIva: declaraSinIva ? true : (declaraIncluido ? false : null),
+    ivaAlicuota
+  };
 }
 
 function validarMonedaPrecio(texto, monedaDeclarada) {
@@ -598,12 +622,13 @@ async function cotizarProveedorConLogin({ proveedor, url, codigo, producto, debu
     const evidenciaPrecio = await extraerPrecioPaginaProveedor(page, tipo, bodyText);
     const precioArs = evidenciaPrecio.precioArs;
     const disponibilidad = extraerDisponibilidadProveedor(bodyText);
-    const impuestosIncluidos = /impuestos\s+incluidos|iva\s+incluido/i.test(bodyText);
-    const sinIvaVisible = /\+\s*iva|sin\s+iva/i.test(bodyText);
+    const condicionIva = extraerCondicionIva(bodyText);
     return {
       ok:true, proveedor:proveedor.nombre || (tipo === 'free_electron' ? 'FREE ELECTRON' : 'TECNOPRICES'),
       codigo:codigo || '', producto:producto || await page.title().catch(() => ''), url:urlExacta,
-      precioArs, sinIva:impuestosIncluidos ? false : (sinIvaVisible ? true : tipo === 'tecnoprices'),
+      precioArs,
+      sinIva:condicionIva.sinIva == null ? tipo === 'tecnoprices' : condicionIva.sinIva,
+      ivaAlicuota:condicionIva.ivaAlicuota,
       disponibilidadProveedor:disponibilidad,
       disponibilidadProveedorTexto:disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
       fuente:tipo + '_login_url_exacta', fecha:new Date().toISOString(),
@@ -675,6 +700,7 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
     }
 
     const precioArs = extraerPrecioBiosegur(bodyText);
+    const condicionIva = extraerCondicionIva(bodyText);
     const disponibilidad = extraerDisponibilidadProveedor(bodyText);
     addTrace('precio_extraido', { precioArs });
     if (!precioArs) {
@@ -691,8 +717,9 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
       producto: (typeof producto === 'string' && producto.trim()) ? producto : (title || ''),
       url: urlExacta,
       precioArs,
-      sinIva: true,
-      precioConIva: Math.round(precioArs * 1.21 * 100) / 100,
+      sinIva: condicionIva.sinIva == null ? true : condicionIva.sinIva,
+      ivaAlicuota: condicionIva.ivaAlicuota,
+      precioConIva: Math.round(precioArs * (1 + ((condicionIva.ivaAlicuota == null ? 21 : condicionIva.ivaAlicuota) / 100)) * 100) / 100,
       disponibilidadProveedor: disponibilidad,
       disponibilidadProveedorTexto: disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
       fuente: 'biosegur_login_url_exacta',
@@ -778,6 +805,7 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
         const identidad = validarIdentidadProducto(item.producto || item.nombre || '', tituloProveedor);
         if (!identidad.ok) throw new Error(identidad.mensaje);
         const precioArs = extraerPrecioBiosegur(bodyText);
+        const condicionIva = extraerCondicionIva(bodyText);
         const disponibilidad = extraerDisponibilidadProveedor(bodyText);
         if (!precioArs) throw new Error('No se encontró un precio visible');
         const validacionPrecio = validarSaltoPrecio(precioArs, item.precioAnteriorArs);
@@ -793,8 +821,9 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
           producto: item.producto || item.nombre || '',
           url: urlExacta,
           precioArs,
-          sinIva: true,
-          precioConIva: Math.round(precioArs * 1.21 * 100) / 100,
+          sinIva: condicionIva.sinIva == null ? true : condicionIva.sinIva,
+          ivaAlicuota: condicionIva.ivaAlicuota,
+          precioConIva: Math.round(precioArs * (1 + ((condicionIva.ivaAlicuota == null ? 21 : condicionIva.ivaAlicuota) / 100)) * 100) / 100,
           disponibilidadProveedor: disponibilidad,
           disponibilidadProveedorTexto: disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
           fuente: 'biosegur_lote_url_exacta',
@@ -899,9 +928,8 @@ async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset
           throw errorPrecio;
         }
         const disponibilidad=extraerDisponibilidadProveedor(bodyText);
-        const impuestosIncluidos=/impuestos\s+incluidos|iva\s+incluido/i.test(bodyText);
-        const sinIvaVisible=/\+\s*iva|sin\s+iva/i.test(bodyText);
-        resultados.push({ok:true,proveedor:proveedor.nombre||nombreTipo,codigo:item.codigo||'',producto:item.producto||item.nombre||'',url:urlExacta,precioArs,sinIva:impuestosIncluidos?false:(sinIvaVisible?true:tipo==='tecnoprices'),disponibilidadProveedor:disponibilidad,disponibilidadProveedorTexto:disponibilidad==='disponible'?'Disponible':disponibilidad==='sin_stock'?'Sin stock':'No verificado',fuente:tipo+'_lote_url_exacta',fecha:new Date().toISOString(),tituloProveedor,urlFinal:page.url(),textoPrecio:evidenciaPrecio.textoPrecio,selectorPrecio:evidenciaPrecio.selectorPrecio,moneda:evidenciaPrecio.moneda,identidad});
+        const condicionIva=extraerCondicionIva(bodyText);
+        resultados.push({ok:true,proveedor:proveedor.nombre||nombreTipo,codigo:item.codigo||'',producto:item.producto||item.nombre||'',url:urlExacta,precioArs,sinIva:condicionIva.sinIva==null?tipo==='tecnoprices':condicionIva.sinIva,ivaAlicuota:condicionIva.ivaAlicuota,disponibilidadProveedor:disponibilidad,disponibilidadProveedorTexto:disponibilidad==='disponible'?'Disponible':disponibilidad==='sin_stock'?'Sin stock':'No verificado',fuente:tipo+'_lote_url_exacta',fecha:new Date().toISOString(),tituloProveedor,urlFinal:page.url(),textoPrecio:evidenciaPrecio.textoPrecio,selectorPrecio:evidenciaPrecio.selectorPrecio,moneda:evidenciaPrecio.moneda,identidad});
       } catch(e) { resultados.push({ok:false,error:true,codigo:e.codigo||'',codigoProducto:item.codigo||'',url:urlExacta,mensaje:e.message||'Error leyendo producto',precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}); }
       if (progresoRef) {
         const procesadosGlobal=offset+i+1, transcurridoSeg=Math.max(1,Math.round((Date.now()-inicioMs)/1000)), promedioSeg=transcurridoSeg/Math.max(1,procesadosGlobal);
@@ -1092,6 +1120,7 @@ module.exports = {
   parsePrecioArs,
   extraerPrecioBiosegur,
   extraerPrecioEtiquetado,
+  extraerCondicionIva,
   validarIdentidadProducto,
   validarMonedaPrecio,
   validarSaltoPrecio,

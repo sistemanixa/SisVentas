@@ -19,6 +19,7 @@ const {
   parsePrecioArs,
   extraerPrecioBiosegur,
   extraerPrecioEtiquetado,
+  extraerCondicionIva,
   validarIdentidadProducto,
   validarMonedaPrecio,
   validarSaltoPrecio,
@@ -33,6 +34,8 @@ test('interpreta formato argentino sin multiplicar por dólar', () => {
   assert.equal(parsePrecioArs('$ 83660.20'), 83660.2);
   assert.equal(parsePrecioArs('$ 133399059.00'), 133399059);
   assert.equal(parsePrecioArs('$ 4.933'), 4933);
+  assert.equal(parsePrecioArs('$ 33,023.93'), 33023.93);
+  assert.equal(parsePrecioArs('$ 36,491.44'), 36491.44);
 });
 
 test('Biosegur sólo acepta el precio principal o etiquetado', () => {
@@ -42,7 +45,14 @@ test('Biosegur sólo acepta el precio principal o etiquetado', () => {
 
 test('otros proveedores requieren una etiqueta de precio inequívoca', () => {
   assert.equal(extraerPrecioEtiquetado('Precio mayorista: $ 83.660,20\nOtros datos'), 83660.2);
+  assert.equal(extraerPrecioEtiquetado('Precio sin IVA: $ 33,023.93\n(IVA 10.5%)'), 33023.93);
   assert.equal(extraerPrecioEtiquetado('Envío $ 8.000\nSaldo $ 5.000'), 0);
+});
+
+test('detecta condicion y alicuota de IVA sin depender del proveedor', () => {
+  assert.deepEqual(extraerCondicionIva('Precio sin IVA: $ 33,023.93 (IVA 10.5%)'), { sinIva:true, ivaAlicuota:10.5 });
+  assert.deepEqual(extraerCondicionIva('$ 4.933,50 + IVA 21%'), { sinIva:true, ivaAlicuota:21 });
+  assert.deepEqual(extraerCondicionIva('IVA incluido. Precio final en pesos'), { sinIva:false, ivaAlicuota:null });
 });
 
 test('la identidad acepta el mismo modelo y rechaza otro producto', () => {
