@@ -20,6 +20,10 @@ const {
   extraerPrecioBiosegur,
   extraerPrecioEtiquetado,
   extraerCondicionIva,
+  idsMercadoLibreDesdeUrl,
+  filtrosMercadoLibreDesdeUrl,
+  seleccionarPublicacionMercadoLibre,
+  datosMercadoLibreDesdeFuente,
   validarIdentidadProducto,
   validarMonedaPrecio,
   validarSaltoPrecio,
@@ -53,6 +57,29 @@ test('detecta condicion y alicuota de IVA sin depender del proveedor', () => {
   assert.deepEqual(extraerCondicionIva('Precio sin IVA: $ 33,023.93 (IVA 10.5%)'), { sinIva:true, ivaAlicuota:10.5 });
   assert.deepEqual(extraerCondicionIva('$ 4.933,50 + IVA 21%'), { sinIva:true, ivaAlicuota:21 });
   assert.deepEqual(extraerCondicionIva('IVA incluido. Precio final en pesos'), { sinIva:false, ivaAlicuota:null });
+});
+
+test('Mercado Libre interpreta catálogo, publicación y tienda oficial desde la URL', () => {
+  const url = 'https://www.mercadolibre.com.ar/alarma/p/MLA63758636?pdp_filters=official_store%3A280888&wid=MLA2734412812';
+  assert.deepEqual(idsMercadoLibreDesdeUrl(url), { itemId:'MLA2734412812', productoId:'MLA63758636' });
+  assert.deepEqual(filtrosMercadoLibreDesdeUrl(url), { officialStoreId:280888 });
+});
+
+test('Mercado Libre elige la publicación activa ARS de la tienda solicitada', () => {
+  const elegida = seleccionarPublicacionMercadoLibre([
+    { id:'MLA1', catalog_product_id:'MLA63758636', official_store_id:111, price:90000, currency_id:'ARS', status:'active' },
+    { id:'MLA2', catalog_product_id:'MLA63758636', official_store_id:280888, price:142010, currency_id:'ARS', status:'active' },
+    { id:'MLA3', catalog_product_id:'MLA63758636', official_store_id:280888, price:124968.80, currency_id:'ARS', status:'active', available_quantity:25, title:'Alarma Garnet KPD-1000W' },
+    { id:'MLA4', catalog_product_id:'MLA63758636', official_store_id:280888, price:100000, currency_id:'USD', status:'active' }
+  ], 'MLA63758636', 280888);
+  assert.equal(elegida.id, 'MLA3');
+  assert.deepEqual(datosMercadoLibreDesdeFuente(elegida), {
+    precioArs:124968.80,
+    disponibilidad:'disponible',
+    titulo:'Alarma Garnet KPD-1000W',
+    moneda:'ARS',
+    itemId:'MLA3'
+  });
 });
 
 test('la identidad acepta el mismo modelo y rechaza otro producto', () => {
