@@ -30,6 +30,7 @@ const {
   filtrosMercadoLibreDesdeUrl,
   seleccionarPublicacionMercadoLibre,
   datosMercadoLibreDesdeFuente,
+  puntajeProductoMercadoLibre,
   validarIdentidadProducto,
   validarMonedaPrecio,
   validarSaltoPrecio,
@@ -77,6 +78,13 @@ test('Mercado Libre interpreta catálogo, publicación y tienda oficial desde la
     idsMercadoLibreDesdeUrl('https://www.mercadolibre.com.ar/alarma/p/MLA63758636?pdp_filters=official_store%3A280888'),
     { itemId:'', productoId:'MLA63758636' }
   );
+});
+
+test('Mercado Libre prioriza la variante que coincide con el nombre de la URL', () => {
+  const url = 'https://www.mercadolibre.com.ar/teclado-inalambrico-alarma-casa-garnet-kpd-1000w-blanco/p/MLA63758636';
+  const correcto = puntajeProductoMercadoLibre(url, { name:'Alarma Garnet KPD-1000W inalambrico blanco' });
+  const distinto = puntajeProductoMercadoLibre(url, { name:'Alarma Garnet KPD-1000W cableado negro' });
+  assert(correcto > distinto);
 });
 
 test('Mercado Libre descubre la publicación vigente dentro de una página de catálogo', () => {
