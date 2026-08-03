@@ -1179,6 +1179,7 @@ body.modal-secure-open{overflow:hidden!important}
 }
 
 @media (max-width: 768px){
+  #actualizador-proceso-metricas{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .topbar{height:56px!important;padding:0 12px!important;gap:6px!important}
   .page-title{font-size:16px!important;font-weight:600!important}
   .topbar-right{gap:4px!important}
