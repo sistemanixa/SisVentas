@@ -9,8 +9,10 @@
   }
   function tesPagosArray(obj){
     var pagos=obj&&obj.pagos?obj.pagos:{};
-    if(Array.isArray(pagos)) return pagos.map(function(item,index){return Object.assign({_idx:index},item||{});});
-    return Object.keys(pagos||{}).map(function(key){return Object.assign({_key:key},pagos[key]||{});});
+    var lista=Array.isArray(pagos)
+      ? pagos.map(function(item,index){return Object.assign({_idx:index},item||{});})
+      : Object.keys(pagos||{}).map(function(key){return Object.assign({_key:key},pagos[key]||{});});
+    return lista.filter(function(pago){return !(pago&&(pago.anulado===true||String(pago.estado||'').toLowerCase()==='anulado'));});
   }
   window._tesoreriaPagos=function(){
     var out=[];
