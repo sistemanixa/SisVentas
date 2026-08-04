@@ -40,7 +40,8 @@ const {
   cifrarTokenMercadoLibre,
   descifrarTokenMercadoLibre,
   firmarEstadoOAuthMercadoLibre,
-  validarEstadoOAuthMercadoLibre
+  validarEstadoOAuthMercadoLibre,
+  origenCorsPermitido
 } = require('../index');
 Module._load = cargarOriginal;
 
@@ -52,6 +53,13 @@ test('interpreta formato argentino sin multiplicar por dólar', () => {
   assert.equal(parsePrecioArs('$ 4.933'), 4933);
   assert.equal(parsePrecioArs('$ 33,023.93'), 33023.93);
   assert.equal(parsePrecioArs('$ 36,491.44'), 36491.44);
+});
+
+test('permite producción y desarrollo local sin abrir CORS a otros orígenes', () => {
+  assert.equal(origenCorsPermitido('https://ventas.sistemanixa.com'), 'https://ventas.sistemanixa.com');
+  assert.equal(origenCorsPermitido('http://127.0.0.1:4173'), 'http://127.0.0.1:4173');
+  assert.equal(origenCorsPermitido('http://localhost:4173'), 'http://localhost:4173');
+  assert.equal(origenCorsPermitido('https://sitio-no-autorizado.example'), '');
 });
 
 test('Biosegur sólo acepta el precio principal o etiquetado', () => {

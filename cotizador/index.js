@@ -7,6 +7,7 @@ const PORT = parseInt(process.env.PORT || '8080', 10);
 const FRONTEND_KEY = process.env.FRONTEND_KEY || '';
 const DATABASE_URL = process.env.FIREBASE_DATABASE_URL || 'https://nixa-sisventas-default-rtdb.firebaseio.com';
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN || 'https://ventas.sistemanixa.com';
+const LOCAL_DEVELOPMENT_ORIGINS = new Set(['http://127.0.0.1:4173', 'http://localhost:4173']);
 const REQUIRE_FIREBASE_AUTH = String(process.env.REQUIRE_FIREBASE_AUTH || '').toLowerCase() === 'true';
 const ML_CLIENT_ID = process.env.ML_CLIENT_ID || '';
 const ML_CLIENT_SECRET = process.env.ML_CLIENT_SECRET || '';
@@ -33,8 +34,17 @@ function sendHtml(res, status, html) {
   res.end(html);
 }
 
-function cors(res) {
-  res.setHeader('Access-Control-Allow-Origin', ALLOW_ORIGIN);
+function origenCorsPermitido(origen) {
+  const valor = String(origen || '').trim();
+  if (!valor) return ALLOW_ORIGIN;
+  if (valor === ALLOW_ORIGIN || LOCAL_DEVELOPMENT_ORIGINS.has(valor)) return valor;
+  return '';
+}
+
+function cors(req, res) {
+  const origen = origenCorsPermitido(req && req.headers && req.headers.origin);
+  if (origen) res.setHeader('Access-Control-Allow-Origin', origen);
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Frontend-Key, Authorization');
 }
@@ -1515,7 +1525,7 @@ async function cotizar(reqBody) {
 }
 
 const server = http.createServer(async (req, res) => {
-  cors(res);
+  cors(req, res);
   const requestUrl = new URL(req.url, 'http://localhost');
   const pathname = requestUrl.pathname;
 
@@ -1597,5 +1607,6 @@ module.exports = {
   cifrarTokenMercadoLibre,
   descifrarTokenMercadoLibre,
   firmarEstadoOAuthMercadoLibre,
-  validarEstadoOAuthMercadoLibre
+  validarEstadoOAuthMercadoLibre,
+  origenCorsPermitido
 };
