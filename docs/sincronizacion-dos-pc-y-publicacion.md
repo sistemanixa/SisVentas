@@ -1,6 +1,6 @@
 # Sincronización entre las dos PC y publicación
 
-Este documento es el procedimiento vigente desde `v2.0.282`. Git conserva el código y la historia; Firebase conserva estados externos, incluido `sisventas/config/version`. Traer Git no modifica por sí solo ese nodo.
+Este documento es el procedimiento vigente desde `v2.0.283`. Git conserva el código y la historia; Firebase conserva estados externos, incluido `sisventas/config/version`. Traer Git no modifica por sí solo ese nodo.
 
 ## Antes de trabajar en cualquiera de las PC
 
@@ -43,7 +43,7 @@ La prueba incremental vigente bloquea diferencias entre los cinco archivos del r
 7. Ejecutar:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\actualizar-nodo-version.ps1 -Version v2.0.282
+powershell -ExecutionPolicy Bypass -File .\scripts\actualizar-nodo-version.ps1 -Version v2.0.283
 ```
 
 El script se niega a actualizar Firebase si `index.html`, la aplicación inmutable, el marcador liviano o el Service Worker todavía no coinciden. Así las sesiones abiertas nunca reciben la orden de recargar hacia una publicación incompleta.
