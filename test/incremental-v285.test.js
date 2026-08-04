@@ -87,7 +87,8 @@ test('los adelantos aplicados al haber conservan trazabilidad en los tres regist
   assert.match(app, /sisventas\/haberes\/' \+ ctaEmpActual[\s\S]*?\/adelantosAplicados/);
   assert.match(app, /function _ctaEmpDescripcionHaberConDescuento\(/);
   assert.match(app, /Bruto \$'[\s\S]*?adelanto[\s\S]*?neto \$/);
-  assert.match(app, /function verDesgloseHaberGasto\(/);
+  assert.match(app, /async function verDesgloseHaberGasto\(/);
+  assert.match(app, /mov\.tipo === 'adelanto' && parseFloat\(\(mov\.compensaciones\|\|\{\}\)\[mesKey\]\) > 0/);
 });
 
 test('la compensación descuenta sólo el saldo del adelanto y no vuelve a aplicarlo', () => {

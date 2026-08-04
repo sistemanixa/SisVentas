@@ -28413,19 +28413,40 @@ function _gastoDesgloseHaberHTML(g) {
   return '<div style="font-size:10px;color:var(--amber);margin-top:3px;white-space:normal">Bruto $'+Math.round(bruto).toLocaleString('es-AR')+' − adelantos $'+Math.round(descuento).toLocaleString('es-AR')+' = <strong>neto $'+Math.round(neto).toLocaleString('es-AR')+'</strong> <button type="button" onclick="event.stopPropagation();verDesgloseHaberGasto(\''+g.fbKey+'\')" style="border:0;background:transparent;color:var(--blue);padding:0 3px;cursor:pointer;font:inherit">Ver detalle</button></div>';
 }
 
-function verDesgloseHaberGasto(fbKey) {
+async function verDesgloseHaberGasto(fbKey) {
   var g = (gastosData||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!g) { notify('Gasto no encontrado'); return; }
   var neto = parseFloat(g.monto) || 0;
   var descuento = parseFloat(g.adelantoCompensado) || 0;
   var bruto = parseFloat(g.sueldoBruto || g.sueldoBase) || (neto + descuento);
-  var lineas = Object.values(g.adelantosAplicados || {}).map(function(d){
+  var detalleAplicaciones = Object.values(g.adelantosAplicados || {});
+  // Los haberes creados antes de esta versión guardaban el total, pero la
+  // cuenta corriente ya conservaba la imputación por mes en cada adelanto.
+  // Se reconstruye para que también los registros históricos sean auditables.
+  if (!detalleAplicaciones.length && (g.empleadoFbKey || g.empleadoId) && window.fbDB) {
+    try {
+      var empKey = g.empleadoFbKey || g.empleadoId;
+      var mesKey = String(g.mes || g.fecha || '').slice(0,7).replace('-','_');
+      var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey));
+      var movimientos = snap.val() || {};
+      detalleAplicaciones = Object.keys(movimientos).filter(function(key){
+        var mov = movimientos[key] || {};
+        return mov.tipo === 'adelanto' && parseFloat((mov.compensaciones||{})[mesKey]) > 0;
+      }).map(function(key){
+        var mov = movimientos[key] || {};
+        return { adelantoFbKey:key, monto:parseFloat((mov.compensaciones||{})[mesKey])||0, fecha:mov.fechaPago||mov.fecha||'', descripcion:mov.descripcion||mov.desc||'Adelanto de personal', montoOriginal:parseFloat(mov.monto)||0 };
+      });
+    } catch(errorDetalle) {
+      console.warn('[Haberes] No se pudo reconstruir el detalle histórico', errorDetalle);
+    }
+  }
+  var lineas = detalleAplicaciones.map(function(d){
     var fecha = d.fecha ? String(d.fecha).split('-').reverse().join('/') : 'sin fecha';
     return '• '+(d.descripcion || 'Adelanto')+' ('+fecha+'): -$'+Math.round(parseFloat(d.monto)||0).toLocaleString('es-AR');
   });
   var mensaje = 'Haber bruto: $'+Math.round(bruto).toLocaleString('es-AR')+'\nAdelantos descontados: -$'+Math.round(descuento).toLocaleString('es-AR')+'\nNeto a pagar: $'+Math.round(neto).toLocaleString('es-AR');
   if (lineas.length) mensaje += '\n\nAplicaciones:\n'+lineas.join('\n');
-  else mensaje += '\n\nEl registro histórico conserva el total descontado; las nuevas liquidaciones también guardarán cada adelanto aplicado.';
+  else mensaje += '\n\nNo se encontró una imputación individual en el registro histórico.';
   svAlert(mensaje, { titulo:'Desglose del haber', subtitulo:g.empleadoNombre || g.descripcion || 'Personal' });
 }
 
