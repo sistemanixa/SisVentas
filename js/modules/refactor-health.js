@@ -289,9 +289,9 @@
     });
     return lines.join('\n');
   };
-  function copiarTexto(txt, ok){
+  async function copiarTexto(txt, ok){
     if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function(){ if(typeof notify==='function') notify(ok); });
-    else window.prompt('Copiar:', txt);
+    else await window.svPrompt('Copiar:', txt, { multilinea:true, filas:8 });
   }
   window.svCopiarAuditoriaRelaciones = function(){ copiarTexto(window.svInformeAuditoriaRelaciones(window._svUltimaAuditoriaRelaciones), 'Informe copiado'); };
   window.svCopiarPlanNormalizacionRelaciones = function(){
@@ -305,7 +305,7 @@
     var plan = window.svGenerarPlanNormalizacionRelaciones();
     var cls = clasificarAvisos(res, plan);
     if(!cls.historicos.length) { if(typeof notify==='function') notify('No hay avisos historicos para archivar'); return false; }
-    if(!confirm('Se archivaran '+cls.historicos.length+' aviso(s) historicos/manuales. No se borran datos ni se crean vinculos. Continuar?')) return false;
+    if(!await window.svConfirm('Se archivaran '+cls.historicos.length+' aviso(s) historicos/manuales. No se borran datos ni se crean vinculos. Continuar?')) return false;
     var now = Date.now(), usuario = window.currentUser || (window.currentUserData && window.currentUserData.nombre) || 'Admin';
     var updates = {};
     cls.historicos.forEach(function(x, i){
@@ -414,8 +414,8 @@
     }
     var plan = window.svGenerarPlanNormalizacionRelaciones();
     if(!plan.totalCambios) { if(typeof notify==='function') notify('No hay cambios seguros para aplicar'); return false; }
-    if(!window.confirm('Se aplicaran '+plan.totalCambios+' cambio(s) seguros de normalizacion. No se borran datos. Continuar?')) return false;
-    var clave = window.prompt('Para confirmar escribi NORMALIZAR:');
+    if(!await window.svConfirm('Se aplicaran '+plan.totalCambios+' cambio(s) seguros de normalizacion. No se borran datos. Continuar?')) return false;
+    var clave = await window.svPrompt('Para confirmar escribi NORMALIZAR:');
     if(clave !== 'NORMALIZAR') { if(typeof notify==='function') notify('Normalizacion cancelada'); return false; }
     var usuario = window.currentUser || (window.currentUserData && window.currentUserData.nombre) || 'Admin';
     var stamp = Date.now();

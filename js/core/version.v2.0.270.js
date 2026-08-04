@@ -1,0 +1,1 @@
+window.SISVENTAS_PWA_VERSION = 'v2.0.270';

@@ -99,7 +99,7 @@
     if (!empleados.length) { notify('Seleccioná al menos un empleado'); return; }
     try {
       if (_sv348ExisteSacEnGastos(empleados, semKey, semLbl)) {
-        if (!confirm('Ya existe aguinaldo registrado en Gastos para uno o más empleados en ' + semLbl + '. Si está mal, eliminá ese gasto. ¿Registrar de nuevo de todas formas?')) return;
+        if (!await window.svConfirm('Ya existe aguinaldo registrado en Gastos para uno o más empleados en ' + semLbl + '. Si está mal, eliminá ese gasto. ¿Registrar de nuevo de todas formas?')) return;
       }
       var habSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes'));
       var habData = habSnap.val() || {};

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.236.js'), 'utf8');
+const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.279.js'), 'utf8');
 
 test('presupuestos consulta V3 sólo a través del puente reversible', () => {
   assert.match(app, /function pptoV3Invocar[\s\S]*?bridge\.invoke\('presupuestos'/);

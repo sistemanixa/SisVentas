@@ -323,7 +323,7 @@
       if (!bridge || typeof bridge.rollback !== 'function') return;
       try {
         bridge.rollback();
-        notify('Se restauró el comportamiento estable v2.0.236');
+        notify('Se restauró el comportamiento estable v2.0.279');
       } catch (error) {
         notify('V3 se desactivó, pero una vista no pudo refrescarse');
       } finally {

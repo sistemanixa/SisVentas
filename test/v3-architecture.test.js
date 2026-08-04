@@ -7,12 +7,12 @@ const root = path.join(__dirname, '..');
 const indexSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const v3Files = fs.readdirSync(path.join(root, 'js', 'v3')).filter((name) => name.endsWith('.js'));
 
-test('la integración conserva v2.0.236 como única aplicación activa', () => {
+test('la integración conserva v2.0.279 como única aplicación activa', () => {
   const activeAppScripts = Array.from(
     indexSource.matchAll(/<script src="\.\/(js\/app[^"?]*\.js)(?:\?[^\"]*)?"><\/script>/g)
   );
   assert.equal(activeAppScripts.length, 1, 'debe existir una sola aplicación activa');
-  assert.equal(activeAppScripts[0][1], 'js/app.v2.0.236.js');
+  assert.equal(activeAppScripts[0][1], 'js/app.v2.0.279.js');
   assert.doesNotMatch(indexSource, /js\/app\.js\?v=3/);
 });
 
@@ -33,7 +33,7 @@ test('el núcleo v3 se carga después de la aplicación actual y en orden seguro
     'shadow-comparison.js',
     'feature-gates.js'
   ];
-  let previousIndex = indexSource.indexOf('js/app.v2.0.236.js');
+  let previousIndex = indexSource.indexOf('js/app.v2.0.279.js');
   assert.ok(previousIndex >= 0, 'la aplicación estable debe cargarse antes del diagnóstico');
   for (const file of expectedOrder) {
     const scriptIndex = indexSource.indexOf(`js/v3/${file}`);

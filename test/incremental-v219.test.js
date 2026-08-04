@@ -16,11 +16,11 @@ function functionBody(name, nextName) {
   return app.slice(start, end);
 }
 
-test('presupuestos se duplican como un registro nuevo y sin cliente', () => {
-  const body = functionBody('duplicarPresupuesto', 'abrirEditorPpto');
+test('presupuestos se duplican como un registro nuevo y permiten elegir cliente', () => {
+  const body = functionBody('_cargarDuplicadoPresupuesto', 'seleccionarModoDuplicadoPpto');
   assert.match(body, /_pptoEditandoFbKey = null/);
   assert.match(body, /_pptoEditandoId = null/);
-  assert.match(body, /pp-cli'\); if \(cli\) cli\.value = ''/);
+  assert.match(body, /clienteDestino/);
   assert.match(app, /item\('Duplicar', 'ti-copy'/);
 });
 

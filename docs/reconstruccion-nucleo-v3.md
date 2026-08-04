@@ -1,6 +1,6 @@
 # Reconstrucción progresiva del núcleo de SisVentas
 
-> Estado operativo actualizado: la integración realizada sobre `v2.0.236`,
+> Estado operativo actualizado: la integración actualizada sobre `v2.0.279`,
 > sus compuertas, persistencia y procedimiento de reversión se documentan en
 > [`integracion-v3-sobre-v236.md`](./integracion-v3-sobre-v236.md). Las etapas
 > pendientes descriptas debajo conservan valor histórico, pero ya fueron
@@ -8,8 +8,8 @@
 
 ## Estado y objetivo
 
-La versión `v2.0.236` es la base estable de esta integración. Conserva todas las
-mejoras publicadas entre `v2.0.193` y `v2.0.236`. El núcleo `v3` se construye en
+La versión `v2.0.279` es la base estable de esta integración. Conserva todas las
+mejoras publicadas entre `v2.0.193` y `v2.0.279`. El núcleo `v3` se construye en
 paralelo y se carga en modo sombra desde `index.html`, pero queda inactivo por
 defecto: no reemplaza pantallas, no escribe Firebase y sólo se ejecuta con una
 habilitación diagnóstica explícita.
@@ -28,7 +28,7 @@ las pruebas pequeñas no detectaron el bloqueo de datos reales. El problema no
 es Firebase ni el tamaño actual de la empresa: es la falta de límites internos
 entre identidad, datos, cálculos y pantallas.
 
-La integración actual no reemplaza `js/app.v2.0.236.js` ni modifica su orden de
+La integración actual no reemplaza `js/app.v2.0.279.js` ni modifica su orden de
 carga. Los módulos V3 se cargan después de la aplicación estable y sus
 compuertas permanecen cerradas hasta obtener comparaciones aprobadas.
 

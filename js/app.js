@@ -5880,12 +5880,62 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.236-firebase',
+  VERSION: 'v2.0.243-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La auditoría de precios abre la ficha correcta y conserva exactamente el punto de revisión.'
+    'Los precios bloqueados por una variación anormal ahora quedan guardados como pendientes de aprobación.',
+    'El centro de actualización muestra siempre dónde revisar y aprobar esos cambios.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Revisar precios' }),
+  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir centro de actualización' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.243',
+      date: '30/07/2026',
+      title: 'Aprobación efectiva de variaciones de precio',
+      notes: Object.freeze(['La cotización individual y la actualización masiva conservan el precio anterior y el nuevo candidato.', 'El centro muestra siempre el sector Aprobación de variaciones y habilita Revisar y aprobar cuando corresponde.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Revisar aprobaciones' })
+    }),
+    Object.freeze({
+      version: 'v2.0.242',
+      date: '30/07/2026',
+      title: 'Centro unificado de actualización de precios',
+      notes: Object.freeze(['Los proveedores, la revisión, la auditoría y la ejecución quedaron reunidos en una sola pantalla.', 'Las variaciones bloqueadas muestran claramente el valor anterior, el nuevo y la acción Revisar y aprobar.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir centro de actualización' })
+    }),
+    Object.freeze({
+      version: 'v2.0.241',
+      date: '30/07/2026',
+      title: 'Identidad segura de proveedores',
+      notes: Object.freeze(['Un código numérico se convierte en URL sólo si pertenece explícitamente a Tecnoprices.', 'La auditoría señala cruces incompatibles entre proveedor y dominio sin modificar precios automáticamente.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Auditar precios' })
+    }),
+    Object.freeze({
+      version: 'v2.0.240',
+      date: '30/07/2026',
+      title: 'Aprobación visible en controles de precios',
+      notes: Object.freeze(['Auditoría y Revisión de precios muestran el valor anterior, el nuevo valor bloqueado y la acción Revisar y aprobar.', 'La propuesta queda registrada sin modificar el precio hasta que el administrador la aprueba y guarda el producto.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Revisar precios' })
+    }),
+    Object.freeze({
+      version: 'v2.0.239',
+      date: '30/07/2026',
+      title: 'Aprobación segura de precios excepcionales',
+      notes: Object.freeze(['El administrador puede comparar y aprobar un precio bloqueado por variación anormal.', 'La aprobación conserva precio anterior, precio nuevo, fecha y responsable.']),
+      feature: Object.freeze({ page:'productos', actionLabel:'Ver productos' })
+    }),
+    Object.freeze({
+      version: 'v2.0.238',
+      date: '29/07/2026',
+      title: 'Circuito de presupuestos completo',
+      notes: Object.freeze(['La copia consulta si conserva el cliente o permite buscar otro.', 'El administrador aprueba directamente al guardar y el paso Enviar al cliente queda visible después.']),
+      feature: Object.freeze({ page:'presupuesto', actionLabel:'Ver presupuestos' })
+    }),
+    Object.freeze({
+      version: 'v2.0.237',
+      date: '29/07/2026',
+      title: 'Auditoría de precios navegable',
+      notes: Object.freeze(['Al tocar un producto se abre su ficha real y Volver recupera la búsqueda, las secciones y la posición.', 'El control de anclaje del menú queda compacto y muestra únicamente el ícono.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Revisar precios' })
+    }),
     Object.freeze({
       version: 'v2.0.236',
       date: '29/07/2026',
@@ -8804,11 +8854,19 @@ function obtenerDolarReferenciaProducto() {
   return { tipo: tipo, valor: valor };
 }
 
-function normalizarUrlProveedorProducto(url) {
+function esProveedorTecnoprices(nombreProveedor) {
+  return /tecnoprices/i.test(String(nombreProveedor || '').trim());
+}
+
+function normalizarUrlProveedorProducto(url, nombreProveedor) {
   var u = String(url || '').trim();
   if (!u) return '';
   if (/^https?:\/\//i.test(u)) return u;
-  if (/^\d+$/.test(u)) return 'https://www.tecnoprices.com/' + u;
+  // Un código numérico no identifica al proveedor. Sólo Tecnoprices usa
+  // oficialmente este atajo; en cualquier otra fila se conserva como código.
+  if (/^\d+$/.test(u) && esProveedorTecnoprices(nombreProveedor)) {
+    return 'https://www.tecnoprices.com/' + u;
+  }
   return u;
 }
 
@@ -8877,7 +8935,7 @@ function completarReferenciaProveedorProducto(pv, urlFallback, origen) {
   if (esLegacyUsd) {
     precio = Math.round(precio * tc.valor * 100) / 100;
   }
-  var url = normalizarUrlProveedorProducto(pv.url || urlFallback || '');
+  var url = normalizarUrlProveedorProducto(pv.url || urlFallback || '', pv.nombre || pv.proveedor || '');
   var costoReal = precio > 0 && pv.sinIva ? precio * 1.21 : precio;
   pv.nombre = String(pv.nombre || pv.proveedor || '').trim();
   pv.precio = Math.round(precio * 100) / 100;
@@ -9493,6 +9551,19 @@ function _detalleProveedoresAuditoriaPrecio(p, costoRaiz) {
   var hallazgos = [];
   lista.forEach(function(pv) {
     var nombre = String(pv.nombre || pv.proveedor || 'Proveedor');
+    var urlProveedor = String(pv.url || '').trim();
+    var hostProveedor = '';
+    try { hostProveedor = new URL(normalizarUrlProveedorProducto(urlProveedor, nombre)).hostname.toLowerCase(); } catch (_) {}
+    var dominioIncompatible =
+      (/(^|\.)tecnoprices\.com$/.test(hostProveedor) && !esProveedorTecnoprices(nombre)) ||
+      (/(^|\.)biosegur\.com\.ar$/.test(hostProveedor) && !/biosegur/i.test(nombre)) ||
+      (/(^|\.)free-electron\.com\.ar$/.test(hostProveedor) && !/free[\s-]*electron/i.test(nombre)) ||
+      (((/(^|\.)mercadolibre\.com\.ar$/.test(hostProveedor)) || hostProveedor === 'meli.la') && !/mercado\s*libre|mercadolibre/i.test(nombre));
+    if (dominioIncompatible) {
+      hallazgos.push(nombre + ': la URL pertenece a otro proveedor (' + hostProveedor + ')');
+    } else if (/^\d+$/.test(urlProveedor) && !esProveedorTecnoprices(nombre)) {
+      hallazgos.push(nombre + ': tiene un código numérico, pero falta una URL verificable del proveedor');
+    }
     var publicado = _primerNumeroPositivoProducto([pv.precioArsPublicado, pv.precio]);
     var costo = _costoProveedorProductoSinAuditar(p, pv);
     var costoDeclarado = parseFloat(pv.costoRealArs) || 0;
@@ -9544,6 +9615,19 @@ function auditarIntegridadPreciosCatalogo() {
     if (!p || !p.fbKey) return;
     var costoRaw = _costoRaizProductoSinAuditar(p);
     var ventaRaw = _primerNumeroPositivoProducto([p.ventaARS, p.precioArsPublicadoVenta, p.venta, p.precio_venta, p.precioVenta]);
+    var variacionPendiente = variacionPrecioPendienteProducto(p);
+    if (variacionPendiente) {
+      manuales.push({
+        producto:p,
+        costo:costoRaw,
+        venta:ventaRaw,
+        motivo:'Variación excepcional pendiente de aprobación',
+        motivos:['Variación excepcional pendiente de aprobación'],
+        origen:variacionPendiente.origen || _origenAuditoriaPrecioProducto(p),
+        variacionPendiente:variacionPendiente
+      });
+      return;
+    }
     var ultimaAuditoria = p.auditoriaPrecioUltima && typeof p.auditoriaPrecioUltima === 'object' ? p.auditoriaPrecioUltima : null;
     var ajusteYaAplicado = !!(ultimaAuditoria &&
       String(p.moneda || '').toUpperCase() === 'ARS' &&
@@ -9636,14 +9720,126 @@ function restaurarEstadoAuditoriaIntegridadPrecios(estado) {
 
 function abrirProductoDesdeAuditoriaIntegridadPrecios(fbKey) {
   var clave = String(fbKey || '');
-  if (!clave || !prodData || !prodData[clave]) {
+  var producto = prodData ? Object.values(prodData).find(function(p){
+    return p && String(p.fbKey || '') === clave;
+  }) : null;
+  if (!clave || !producto) {
     notify('No se encontró el producto seleccionado');
     return;
   }
   _auditoriaPreciosEstadoRetorno = capturarEstadoAuditoriaIntegridadPrecios();
   cerrarAuditoriaIntegridadPrecios();
   showPage('productos', document.querySelector('[onclick*="productos"]'));
-  verProducto(clave, 'auditoria-integral-precios');
+  verProducto(producto.fbKey, 'auditoria-integral-precios');
+}
+
+function variacionPrecioPendienteProducto(producto) {
+  var proveedores = proveedoresVinculadosProducto(producto || {});
+  for (var idx = 0; idx < proveedores.length; idx++) {
+    var pv = proveedores[idx] || {};
+    var pendiente = pv.variacionPendienteAprobacion;
+    if (!pendiente || typeof pendiente !== 'object') continue;
+    var candidato = Number(pendiente.precioCandidatoArs || pendiente.precioCandidato || 0) || 0;
+    var anterior = Number(pendiente.precioAnteriorArs || pendiente.precioAnterior || pv.precio || 0) || 0;
+    if (!(candidato > 0)) continue;
+    return {
+      proveedorIdx:idx,
+      proveedor:pv.nombre || pv.proveedor || pendiente.proveedor || 'Proveedor',
+      precioAnteriorArs:anterior,
+      precioCandidatoArs:candidato,
+      variacionPct:anterior > 0 ? ((candidato / anterior - 1) * 100) : 0,
+      detectadaEn:Number(pendiente.detectadaEn || 0) || 0,
+      origen:pendiente.origen || pv.actualizadoOrigen || 'cotizador-online'
+    };
+  }
+  return null;
+}
+
+function datosVariacionBloqueadaResultado(resultado) {
+  var actual = resultado;
+  var visitados = [];
+  for (var nivel = 0; nivel < 5 && actual && typeof actual === 'object'; nivel++) {
+    visitados.push(actual);
+    actual = actual.raw;
+  }
+  var codigo = '';
+  var anterior = 0;
+  var candidato = 0;
+  var mensaje = '';
+  visitados.forEach(function(item) {
+    if (!codigo && item.codigo) codigo = String(item.codigo);
+    if (!anterior) anterior = parsePrecioProveedorARS(item.precioAnteriorArs || item.precioAnterior);
+    if (!candidato) candidato = parsePrecioProveedorARS(item.precioCandidatoArs || item.precioCandidato);
+    if (!mensaje) mensaje = String(item.mensaje || item.error || '');
+  });
+  if (!candidato && mensaje) {
+    var partes = mensaje.match(/anterior ARS\s+([\d.,]+),\s*recibido ARS\s+([\d.,]+)/i);
+    if (partes) {
+      anterior = parsePrecioProveedorARS(partes[1]);
+      candidato = parsePrecioProveedorARS(partes[2]);
+      codigo = 'PRICE_VARIATION_REQUIRES_APPROVAL';
+    }
+  }
+  return {
+    requiereAprobacion: candidato > 0 && (codigo === 'PRICE_VARIATION_REQUIRES_APPROVAL' || anterior > 0),
+    codigo: codigo,
+    precioAnteriorArs: anterior,
+    precioCandidatoArs: candidato,
+    mensaje: mensaje
+  };
+}
+
+function mostrarVariacionPrecioPendienteEnEditor() {
+  var box = document.getElementById('pf-proveedores-cotizacion-resultado');
+  if (!box) return false;
+  var filas = [];
+  (prodProveedoresActuales || []).forEach(function(pv, idx) {
+    var pendiente = variacionPrecioPendienteProducto({ proveedores:[pv] });
+    if (!pendiente) return;
+    var anterior = pendiente.precioAnteriorArs;
+    var candidato = pendiente.precioCandidatoArs;
+    var variacion = pendiente.variacionPct;
+    var botonId = 'aprobar-variacion-pendiente-' + idx;
+    filas.push('<div style="padding:11px;border:1px solid rgba(245,158,11,.45);border-radius:9px;background:rgba(245,158,11,.08);margin-top:7px">' +
+      '<div style="font-size:12px;font-weight:800;color:var(--amber);margin-bottom:7px"><i class="ti ti-shield-exclamation"></i> Precio bloqueado pendiente de aprobación · ' + escapeHTML(pv.nombre || pv.proveedor || 'Proveedor') + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;margin-bottom:9px"><span>Anterior: <strong>$' + anterior.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</strong></span><span>Nuevo: <strong style="color:var(--green)">$' + candidato.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</strong></span><span>Variación: <strong style="color:var(--amber)">' + (variacion >= 0 ? '+' : '') + variacion.toFixed(1) + '%</strong></span></div>' +
+      (String(currentRole || '').toLowerCase() === 'admin'
+        ? '<button id="' + botonId + '" class="btn btn-sm" type="button" onclick="aprobarVariacionPrecioProveedor(' + idx + ',' + candidato + ',' + anterior + ',\'' + botonId + '\')"><i class="ti ti-check"></i> Aprobar nuevo precio</button>'
+        : '<div style="font-size:11px;color:var(--text3)">La aprobación excepcional debe realizarla un administrador.</div>') +
+      '</div>');
+  });
+  if (!filas.length) return false;
+  box.style.display = 'block';
+  box.innerHTML = '<strong>Variaciones pendientes</strong>' + filas.join('') + '<div style="font-size:11px;color:var(--amber);margin-top:8px"><i class="ti ti-alert-circle"></i> Aprobar prepara el cambio; Guardar producto lo confirma definitivamente.</div>';
+  return true;
+}
+
+function revisarYAprobarVariacionPrecio(fbKey, origen) {
+  if (String(currentRole || '').toLowerCase() !== 'admin') {
+    notify('Solo el administrador puede aprobar una variación excepcional de precio');
+    return;
+  }
+  var producto = Object.values(prodData || {}).find(function(p){ return p && String(p.fbKey || '') === String(fbKey || ''); });
+  if (!producto || !variacionPrecioPendienteProducto(producto)) {
+    notify('Esta propuesta ya no está pendiente. Volvé a cotizar el producto si necesitás revisarla.');
+    return;
+  }
+  if (origen === 'auditoria') {
+    _auditoriaPreciosEstadoRetorno = capturarEstadoAuditoriaIntegridadPrecios();
+    cerrarAuditoriaIntegridadPrecios();
+  } else if (origen === 'revision') {
+    _prodRevisionRetorno = capturarEstadoRevisionPrecios();
+    var modal = document.getElementById('modal-revision-precios');
+    if (modal) modal.remove();
+  }
+  showPage('productos', document.querySelector('[onclick*="productos"]'));
+  abrirFormProducto(producto.fbKey);
+  setTimeout(function(){
+    if (mostrarVariacionPrecioPendienteEnEditor()) {
+      var box = document.getElementById('pf-proveedores-cotizacion-resultado');
+      if (box) box.scrollIntoView({ behavior:'smooth', block:'center' });
+    }
+  }, 80);
 }
 
 function _filaAuditoriaPrecio(item, segura) {
@@ -9657,11 +9853,12 @@ function _filaAuditoriaPrecio(item, segura) {
     ? (item.soloMetadatos ? 'Moneda antigua; los importes ya están correctos' : (c.tipo === 'costo_usd_legacy' ? 'Costo USD heredado' : c.tipo === 'venta_usd_legacy' ? 'Venta USD heredada' : 'Conversión duplicada'))
     : item.motivo;
   var origen = item.origen || _origenAuditoriaPrecioProducto(p);
+  var pendiente = item.variacionPendiente || null;
   var textoBusqueda = [p.codigo, p.nombre, p.descripcion, p.proveedor, origen, etiqueta].join(' ').toLowerCase();
   return '<div data-auditoria-precio="1" data-auditoria-texto="' + escapeHTML(textoBusqueda) + '" style="display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(180px,1.35fr) minmax(160px,1fr);gap:10px;align-items:center;padding:10px 2px;border-bottom:.5px solid var(--border)">' +
     '<button type="button" onclick="abrirProductoDesdeAuditoriaIntegridadPrecios(\'' + escapeHTML(String(p.fbKey || '')) + '\')" style="appearance:none;border:0;background:none;padding:0;text-align:left;color:var(--text);cursor:pointer;min-width:0"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><br><span style="font-size:11px;color:var(--text3)">' + escapeHTML(p.nombre || p.descripcion || '') + '</span></button>' +
     '<div style="font-size:11px;color:var(--text3)">' + escapeHTML(etiqueta || 'Revisión') + '<br><span>Costo $' + Number(costoAntes || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + ' · Venta $' + Number(ventaAntes || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '</span><br><span style="font-size:10px">Origen: ' + escapeHTML(origen || 'sin origen') + '</span></div>' +
-    '<div style="font-size:11px;' + (segura ? 'color:var(--green)' : 'color:var(--amber)') + '">' + (segura ? (item.soloMetadatos ? '<strong>Se normaliza a ARS</strong><br>sin cambiar los importes' : 'Quedará: costo $' + Number(costoDespues || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '<br>venta $' + Number(ventaDespues || 0).toLocaleString('es-AR',{maximumFractionDigits:2})) : '<strong>No se modifica solo</strong><br>Tocá el producto para decidir') + '</div>' +
+    '<div style="font-size:11px;' + (segura ? 'color:var(--green)' : 'color:var(--amber)') + '">' + (segura ? (item.soloMetadatos ? '<strong>Se normaliza a ARS</strong><br>sin cambiar los importes' : 'Quedará: costo $' + Number(costoDespues || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '<br>venta $' + Number(ventaDespues || 0).toLocaleString('es-AR',{maximumFractionDigits:2})) : (pendiente ? '<strong>Anterior $' + Number(pendiente.precioAnteriorArs || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + ' → nuevo $' + Number(pendiente.precioCandidatoArs || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '</strong><br><button class="btn btn-sm" style="margin-top:6px" onclick="revisarYAprobarVariacionPrecio(\'' + escapeHTML(String(p.fbKey || '')) + '\',\'auditoria\')"><i class="ti ti-check"></i> Revisar y aprobar</button>' : '<strong>No se modifica solo</strong><br>Tocá el producto para decidir')) + '</div>' +
   '</div>';
 }
 
@@ -10100,12 +10297,12 @@ function editarProductoDesdeRevisionPrecios(fbKey) {
 async function guardarUrlDesdeRevisionPrecios(fbKey, proveedorIdx) {
   var idSeguro = String(fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(proveedorIdx,10)||0);
   var input = document.getElementById('revision-precios-url-' + idSeguro);
-  var url = normalizarUrlProveedorProducto(input ? input.value : '');
-  if (!fbKey || !url) { notify('Ingresá la URL exacta del producto'); return; }
   try {
     var prod = Object.values(prodData || {}).find(function(p){ return String(p.fbKey || '') === String(fbKey); });
     var proveedores = proveedoresVinculadosProducto(prod);
     if (!proveedores[proveedorIdx]) throw new Error('Proveedor no encontrado');
+    var url = normalizarUrlProveedorProducto(input ? input.value : '', proveedores[proveedorIdx].nombre || proveedores[proveedorIdx].proveedor || '');
+    if (!fbKey || !url || !/^https?:\/\//i.test(url)) { notify('Ingresá la URL exacta del producto'); return; }
     proveedores[proveedorIdx].url = url;
     proveedores[proveedorIdx].actualizado = '';
     proveedores[proveedorIdx].actualizadoEn = 0;
@@ -10129,7 +10326,7 @@ async function asignarProveedorDesdeRevisionPrecios(fbKey) {
     return String(p.fbKey || p.key || p.id || '') === String(proveedorKey);
   });
   if (!fbKey || !maestro) { notify('Seleccioná un proveedor'); return; }
-  var url = normalizarUrlProveedorProducto(inputUrl ? inputUrl.value : '');
+  var url = normalizarUrlProveedorProducto(inputUrl ? inputUrl.value : '', maestro.nombre || '');
   var nuevoProveedor = completarReferenciaProveedorProducto({
     nombre: maestro.nombre || 'Proveedor',
     proveedorKey: String(proveedorKey),
@@ -10182,6 +10379,7 @@ function abrirGestionRevisionPrecios() {
           var listaProveedores = proveedoresVinculadosProducto(p);
           var provs = listaProveedores.map(function(x){return x && (x.nombre||x.proveedor)||'';}).filter(Boolean).join(', ') || 'Sin proveedor';
           var valorActual = precioGremioARSDesdeProducto(p);
+          var variacionPendiente = variacionPrecioPendienteProducto(p);
           var auto = !!compatiblesKeys[String(p.fbKey || '')];
           var busqueda = [p.codigo,p.nombre,p.descripcion,provs].join(' ').toLowerCase();
           var fbKey = String(p.fbKey || '');
@@ -10191,7 +10389,7 @@ function abrirGestionRevisionPrecios() {
             var valorProveedor = parseFloat((pv && (pv.costoRealArs || pv.precioArsPublicado || pv.precio)) || valorActual || 0) || 0;
             return '<div style="display:grid;grid-template-columns:minmax(150px,.6fr) minmax(260px,1.4fr) auto 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)"><div><strong>' + escapeHTML((pv && (pv.nombre || pv.proveedor)) || 'Proveedor') + '</strong><div style="font-size:10px;color:var(--green);margin-top:3px">Valor actual: $' + valorProveedor.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div></div><input id="revision-precios-url-' + idUrl + '" class="search-input" type="url" value="' + escapeHTML((pv && pv.url) || '') + '" placeholder="URL exacta del producto"><button class="btn btn-sm btn-primary" onclick="guardarUrlDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\',' + idx + ')"><i class="ti ti-device-floppy"></i> Guardar URL</button><span id="revision-precios-guardado-' + idUrl + '" style="font-size:10px;color:var(--text3)"></span></div>';
           }).join('') : '<div style="color:var(--amber);font-size:12px;padding:8px 0 10px"><i class="ti ti-alert-circle"></i> Este producto no tiene proveedores vinculados.</div><div style="display:grid;grid-template-columns:minmax(180px,.7fr) minmax(260px,1.3fr) auto;gap:8px;align-items:center"><select id="revision-precios-proveedor-' + idProducto + '" class="search-input"><option value="">Seleccionar proveedor…</option>' + (proveedoresData || []).filter(function(pr){return pr && pr.activo !== false;}).sort(function(a,b){return String(a.nombre||'').localeCompare(String(b.nombre||''));}).map(function(pr){return '<option value="' + escapeHTML(String(pr.fbKey || pr.key || pr.id || '')) + '">' + escapeHTML(pr.nombre || 'Proveedor') + '</option>';}).join('') + '</select><input id="revision-precios-nueva-url-' + idProducto + '" class="search-input" type="url" placeholder="URL exacta del producto (puede completarse después)"><button class="btn btn-sm btn-primary" onclick="asignarProveedorDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')"><i class="ti ti-link-plus"></i> Vincular proveedor</button></div>';
-          return '<div data-revision-producto data-busqueda="' + escapeHTML(busqueda) + '" style="display:grid;grid-template-columns:105px minmax(170px,1fr) minmax(120px,.65fr) 105px 115px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><button type="button" onclick="abrirProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')" title="Abrir ficha del producto" style="min-width:0;text-align:left;background:none;border:0;padding:0;cursor:pointer;color:inherit;font-family:inherit"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</div><small style="color:var(--text3)">' + escapeHTML(estado.texto) + '</small></button><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text3)" title="' + escapeHTML(provs) + '">' + escapeHTML(provs) + '</div><div title="Valor actual para comparar con la URL" style="font-weight:700;color:var(--green);white-space:nowrap">$' + valorActual.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '<small style="display:block;color:var(--text3);font-weight:400">valor actual</small></div><span style="color:' + (auto?'var(--green)':'var(--amber)') + '">' + (auto?'Automatizable':'Revisión manual') + '</span><button class="btn btn-sm" onclick="editarProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')"><i class="ti ti-link"></i> ' + (listaProveedores.length ? 'Cambiar URL' : 'Asignar proveedor') + '</button><div id="revision-precios-editor-' + idProducto + '" style="display:' + (listaProveedores.length ? 'none' : 'block') + ';grid-column:1/-1;background:var(--bg3);border-radius:8px;padding:8px 10px;margin-top:2px">' + editores + '</div></div>';
+          return '<div data-revision-producto data-busqueda="' + escapeHTML(busqueda) + '" style="display:grid;grid-template-columns:105px minmax(170px,1fr) minmax(120px,.65fr) 125px 135px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px"><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><button type="button" onclick="abrirProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')" title="Abrir ficha del producto" style="min-width:0;text-align:left;background:none;border:0;padding:0;cursor:pointer;color:inherit;font-family:inherit"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + escapeHTML(p.nombre || p.descripcion || 'Sin nombre') + '</div><small style="color:var(--text3)">' + escapeHTML(estado.texto) + '</small></button><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text3)" title="' + escapeHTML(provs) + '">' + escapeHTML(provs) + '</div><div title="Valor actual para comparar con la URL" style="font-weight:700;color:var(--green);white-space:nowrap">$' + valorActual.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + (variacionPendiente ? '<small style="display:block;color:var(--amber);font-weight:700">nuevo $' + Number(variacionPendiente.precioCandidatoArs || 0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</small>' : '<small style="display:block;color:var(--text3);font-weight:400">valor actual</small>') + '</div><span style="color:' + (variacionPendiente ? 'var(--amber)' : (auto?'var(--green)':'var(--amber)')) + '">' + (variacionPendiente ? 'Pendiente de aprobación' : (auto?'Automatizable':'Revisión manual')) + '</span>' + (variacionPendiente ? '<button class="btn btn-sm" onclick="revisarYAprobarVariacionPrecio(\'' + escapeHTML(fbKey) + '\',\'revision\')"><i class="ti ti-check"></i> Revisar y aprobar</button>' : '<button class="btn btn-sm" onclick="editarProductoDesdeRevisionPrecios(\'' + escapeHTML(fbKey) + '\')"><i class="ti ti-link"></i> ' + (listaProveedores.length ? 'Cambiar URL' : 'Asignar proveedor') + '</button>') + '<div id="revision-precios-editor-' + idProducto + '" style="display:' + (listaProveedores.length ? 'none' : 'block') + ';grid-column:1/-1;background:var(--bg3);border-radius:8px;padding:8px 10px;margin-top:2px">' + editores + '</div></div>';
         }).join('') + '</div>' +
       '</div>' +
     '</div>';
@@ -10219,7 +10417,7 @@ function productosBiosegurActualizables() {
       var nombrePv = String(pv.nombre || pv.proveedor || '').trim().toLowerCase();
       var url = String(pv.url || '').trim();
       var host = '';
-      try { host = new URL(normalizarUrlProveedorProducto(url)).hostname.toLowerCase(); } catch (_) {}
+      try { host = new URL(normalizarUrlProveedorProducto(url, nombrePv)).hostname.toLowerCase(); } catch (_) {}
       var tipo = /(^|\.)biosegur\.com\.ar$/.test(host) ? 'biosegur'
         : /(^|\.)free-electron\.com\.ar$/.test(host) ? 'free_electron'
         : /(^|\.)tecnoprices\.com$/.test(host) ? 'tecnoprices'
@@ -10328,6 +10526,35 @@ function renderModuloActualizadorPrecios() {
       '<span class="badge ' + (pendientesTipo ? 'b-amber' : 'b-green') + '">' + (pendientesTipo ? 'Revisar' : 'Al día') + '</span>' +
     '</label>';
   }).join('');
+
+  var pendientesAprobacion = Object.values(prodData || {}).map(function(producto) {
+    var pendiente = variacionPrecioPendienteProducto(producto);
+    return pendiente ? { producto:producto, pendiente:pendiente } : null;
+  }).filter(Boolean);
+  var contAprobaciones = document.getElementById('mod-ap-aprobaciones');
+  if (contAprobaciones) {
+    if (!pendientesAprobacion.length) {
+      contAprobaciones.style.display = 'block';
+      contAprobaciones.innerHTML = '<div style="padding:14px;border:.5px solid var(--border);border-radius:var(--radius);background:var(--bg3)">' +
+        '<strong><i class="ti ti-shield-check" style="color:var(--green)"></i> Aprobación de variaciones</strong>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:5px">Sin cambios de precio pendientes de aprobación.</div></div>';
+    } else {
+      contAprobaciones.style.display = 'block';
+      contAprobaciones.innerHTML = '<div style="padding:14px;border:1px solid rgba(245,158,11,.45);border-radius:var(--radius);background:rgba(245,158,11,.07)">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px"><div><strong style="color:var(--amber)"><i class="ti ti-shield-exclamation"></i> Cambios bloqueados por aprobar</strong><div style="font-size:11px;color:var(--text3);margin-top:3px">El actualizador no aplicó estos importes porque la variación fue anormal.</div></div><span class="badge b-amber">' + pendientesAprobacion.length + '</span></div>' +
+        pendientesAprobacion.map(function(item) {
+          var p = item.producto || {};
+          var x = item.pendiente || {};
+          var proveedor = x.proveedor || {};
+          var proveedorNombre = typeof proveedor === 'string' ? proveedor : (proveedor.nombre || proveedor.proveedor || 'Proveedor');
+          return '<div style="display:grid;grid-template-columns:minmax(160px,1.4fr) minmax(180px,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-top:.5px solid var(--border)">' +
+            '<div><strong>' + escapeHTML(p.codigo || 'Sin código') + '</strong><div style="font-size:11px;color:var(--text3);margin-top:2px">' + escapeHTML(p.nombre || p.descripcion || '') + '</div></div>' +
+            '<div style="font-size:11px"><span style="color:var(--text3)">' + escapeHTML(proveedorNombre) + '</span><br>$' + Number(x.precioAnteriorArs || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + ' → <strong style="color:var(--green)">$' + Number(x.precioCandidatoArs || 0).toLocaleString('es-AR',{maximumFractionDigits:2}) + '</strong></div>' +
+            (String(currentRole || '').toLowerCase() === 'admin' ? '<button class="btn btn-sm" onclick="revisarYAprobarVariacionPrecio(\'' + escapeHTML(String(p.fbKey || '')) + '\',\'centro\')"><i class="ti ti-check"></i> Revisar y aprobar</button>' : '<span style="font-size:11px;color:var(--text3)">Requiere administrador</span>') +
+          '</div>';
+        }).join('') + '</div>';
+    }
+  }
 }
 
 function cerrarActualizadorMasivoPrecios() {
@@ -10431,11 +10658,13 @@ function editarProductoFallidoActualizador(fbKey, proveedorIdx) {
 async function guardarUrlFallidoActualizador(fbKey, proveedorIdx) {
   var idSeguro = String(fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(proveedorIdx,10)||0);
   var input = document.getElementById('actualizador-url-input-' + idSeguro);
-  var url = normalizarUrlProveedorProducto(input ? input.value : '');
-  if (!fbKey || !url) { notify('Ingresá una URL válida'); return; }
   try {
-    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey + '/proveedores/' + proveedorIdx), { url:url, actualizadoEn:0, actualizado:'' });
     var prod = Object.values(prodData || {}).find(function(p){ return String(p.fbKey || '') === String(fbKey); });
+    var proveedores = proveedoresVinculadosProducto(prod);
+    var proveedor = proveedores[proveedorIdx] || {};
+    var url = normalizarUrlProveedorProducto(input ? input.value : '', proveedor.nombre || proveedor.proveedor || '');
+    if (!fbKey || !url || !/^https?:\/\//i.test(url)) { notify('Ingresá una URL válida y completa'); return; }
+    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey + '/proveedores/' + proveedorIdx), { url:url, actualizadoEn:0, actualizado:'' });
     if (prod && Array.isArray(prod.proveedores) && prod.proveedores[proveedorIdx]) {
       prod.proveedores[proveedorIdx].url = url;
       prod.proveedores[proveedorIdx].actualizadoEn = 0;
@@ -10756,6 +10985,29 @@ async function aplicarVistaPreviaActualizador() {
   }
 }
 
+async function registrarVariacionPendienteActualizador(item, resultado) {
+  var datos = datosVariacionBloqueadaResultado(resultado);
+  if (!datos.requiereAprobacion || !item || !item.producto || !item.producto.fbKey) return false;
+  var proveedorNombre = (item.proveedor && (item.proveedor.nombre || item.proveedor.proveedor)) || 'Proveedor';
+  var pendiente = {
+    codigo:'PRICE_VARIATION_REQUIRES_APPROVAL',
+    precioAnteriorArs:datos.precioAnteriorArs,
+    precioCandidatoArs:datos.precioCandidatoArs,
+    variacionPct:datos.precioAnteriorArs > 0 ? ((datos.precioCandidatoArs / datos.precioAnteriorArs - 1) * 100) : 0,
+    detectadaEn:Date.now(),
+    proveedor:proveedorNombre,
+    origen:'actualizador-masivo',
+    url:item.url || ''
+  };
+  var proveedores = Array.isArray(item.producto.proveedores) ? item.producto.proveedores : proveedoresVinculadosProducto(item.producto);
+  if (proveedores[item.proveedorIdx]) proveedores[item.proveedorIdx].variacionPendienteAprobacion = pendiente;
+  if (item.proveedor) item.proveedor.variacionPendienteAprobacion = pendiente;
+  await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + item.producto.fbKey + '/proveedores/' + item.proveedorIdx), {
+    variacionPendienteAprobacion:pendiente
+  });
+  return true;
+}
+
 async function ejecutarActualizadorMasivoBiosegur() {
   var modal = document.getElementById('modal-actualizador-precios');
   if (!modal || modal.dataset.ejecutando === '1') return;
@@ -10865,7 +11117,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
 
         for (var i = 0; i < bloque.length; i++) {
           var item = bloque[i];
-          var resultado = resp.resultados.find(function(r){ return String(r.codigo || '') === String(item.producto.codigo || ''); });
+          var resultado = resp.resultados.find(function(r){ return String(r.codigoProducto || r.codigo || '') === String(item.producto.codigo || ''); });
           var validacionPrecio = resultado && resultado.ok ? validarResultadoActualizadorProveedor(item, resultado) : { ok:false, mensaje:'' };
           if (resultado && resultado.ok && validacionPrecio.ok && urlsProveedorEquivalentes(item.url, resultado.url)) {
             var cambios = datosActualizadosProductoBiosegur(item, resultado);
@@ -10884,6 +11136,14 @@ async function ejecutarActualizadorMasivoBiosegur() {
             actualizados++;
             if (exitososEl) exitososEl.textContent = String(actualizados);
           } else {
+            var variacionPendiente = resultado ? datosVariacionBloqueadaResultado(resultado) : { requiereAprobacion:false };
+            if (variacionPendiente.requiereAprobacion) {
+              try {
+                await registrarVariacionPendienteActualizador(item, resultado);
+              } catch (errorPendiente) {
+                console.warn('[Precios] No se pudo guardar la variación pendiente', errorPendiente);
+              }
+            }
             fallidos++;
             detalleFallos.push({
               fbKey:item.producto.fbKey || '',
@@ -10891,7 +11151,9 @@ async function ejecutarActualizadorMasivoBiosegur() {
               codigo:item.producto.codigo || '',
               producto:item.producto.nombre || item.producto.descripcion || '',
               url:item.url || '',
-              motivo:(validacionPrecio && validacionPrecio.mensaje) || (resultado && (resultado.mensaje || resultado.error)) || 'No se pudo verificar la URL o el precio'
+              motivo:variacionPendiente.requiereAprobacion
+                ? 'Cambio bloqueado: requiere revisión y aprobación del administrador.'
+                : ((validacionPrecio && validacionPrecio.mensaje) || (resultado && (resultado.mensaje || resultado.error)) || 'No se pudo verificar la URL o el precio')
             });
           }
           procesados++;
@@ -10914,6 +11176,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
       if (miniIcon) { miniIcon.className = 'ti ti-player-stop'; miniIcon.style.color = 'var(--amber)'; }
     }
     mostrarVistaPreviaActualizador(modal, candidatos, detalleFallos);
+    renderModuloActualizadorPrecios();
     if (btn) {
       btn.setAttribute('onclick', 'aplicarVistaPreviaActualizador()');
       actualizadorActualizarSeleccionPreview();
@@ -11096,11 +11359,12 @@ function abrirFormProducto(id) {
   }
   prodProveedoresActuales = reconciliarCostoProductoConProveedorPrincipal(p, prodProveedoresActuales);
   if (prodProveedoresActuales.length && !prodProveedoresActuales[0].url && cwEl && cwEl.value) {
-    var cwVal = normalizarUrlProveedorProducto(cwEl.value.trim());
     var nombreProv0 = (prodProveedoresActuales[0].nombre || '').trim().toLowerCase();
-    var esSoloCodigo = /^\d+$/.test(cwVal); // solo dígitos, sin http
+    var valorOriginalCw = cwEl.value.trim();
+    var esSoloCodigo = /^\d+$/.test(valorOriginalCw); // solo dígitos, sin http
+    var cwVal = normalizarUrlProveedorProducto(valorOriginalCw, nombreProv0);
     if (nombreProv0 === 'tecnoprices' && esSoloCodigo) {
-      prodProveedoresActuales[0].url = normalizarUrlProveedorProducto(cwVal);
+      prodProveedoresActuales[0].url = cwVal;
     } else {
       prodProveedoresActuales[0].url = cwVal;
     }
@@ -11113,6 +11377,7 @@ function abrirFormProducto(id) {
   // costo o valor agregado. En un producto nuevo sí calculamos el inicial.
   recalcularCompraDesdeProveedores({ recalcularVenta: !id });
   calcMargen();
+  mostrarVariacionPrecioPendienteEnEditor();
   setTimeout(function(){ initSearchableSelect("pf-categoria","Seleccionar categoría..."); },50);
 }
 
@@ -11220,8 +11485,8 @@ function cotizarPreciosProveedores() {
     var webBase = maestro && (maestro.web || maestro.url || maestro.portal || maestro.sitio || '');
     var urlProveedor = (pv.url || webBase || '').trim();
     var hostProveedor = '';
-    try { hostProveedor = new URL(normalizarUrlProveedorProducto(urlProveedor)).hostname.toLowerCase(); } catch (_) {}
     var nombreProveedor = String(pv.nombre || (maestro && maestro.nombre) || '').trim().toLowerCase();
+    try { hostProveedor = new URL(normalizarUrlProveedorProducto(urlProveedor, nombreProveedor)).hostname.toLowerCase(); } catch (_) {}
     var automatizable = ((/(^|\.)biosegur\.com\.ar$/.test(hostProveedor) && /biosegur/i.test(nombreProveedor))
       || (/(^|\.)free-electron\.com\.ar$/.test(hostProveedor) && /free[\s-]*electron/i.test(nombreProveedor))
       || (/(^|\.)tecnoprices\.com$/.test(hostProveedor) && /tecnoprices/i.test(nombreProveedor))
@@ -11367,6 +11632,54 @@ function restaurarBotonCotizacionProveedores() {
   }
 }
 
+function aprobarVariacionPrecioProveedor(idx, precioCandidato, precioAnterior, botonId) {
+  if (String(currentRole || '').toLowerCase() !== 'admin') {
+    notify('Solo el administrador puede aprobar una variación excepcional de precio');
+    return;
+  }
+  idx = parseInt(idx, 10);
+  precioCandidato = Number(precioCandidato) || 0;
+  precioAnterior = Number(precioAnterior) || 0;
+  if (!prodProveedoresActuales[idx] || !(precioCandidato > 0)) {
+    notify('No se pudo identificar el proveedor o el nuevo precio');
+    return;
+  }
+  var variacion = precioAnterior > 0 ? ((precioCandidato / precioAnterior - 1) * 100) : 0;
+  var mensaje = '¿Aprobar el nuevo precio excepcional?\n\n' +
+    'Anterior: $' + precioAnterior.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '\n' +
+    'Nuevo: $' + precioCandidato.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) +
+    (precioAnterior > 0 ? '\nVariación: ' + (variacion >= 0 ? '+' : '') + variacion.toFixed(1) + '%' : '') +
+    '\n\nLa aprobación quedará registrada al guardar el producto.';
+  if (!confirm(mensaje)) return;
+
+  var ahora = Date.now();
+  prodProveedoresActuales[idx] = completarReferenciaProveedorProducto(Object.assign({}, prodProveedoresActuales[idx], {
+    precio: precioCandidato,
+    precioArsPublicado: precioCandidato,
+    actualizado: new Date().toISOString().slice(0,10),
+    actualizadoEn: ahora,
+    actualizadoOrigen: 'variacion-aprobada-manualmente',
+    variacionAprobada: true,
+    variacionAprobadaEn: ahora,
+    variacionAprobadaPor: currentUser || currentUserEmail || 'Administrador',
+    precioAnteriorAprobacion: precioAnterior,
+    precioCandidatoAprobado: precioCandidato,
+    variacionPendienteAprobacion: null
+  }), '', 'variacion-aprobada-manualmente');
+
+  renderTablaProveedoresProducto();
+  recalcularCompraDesdeProveedores();
+  calcMargen();
+  var btn = document.getElementById(String(botonId || ''));
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-check"></i> Aprobado · guardá el producto';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+  }
+  notify('✓ Nuevo precio aprobado. Tocá Guardar producto para conservarlo');
+}
+
 function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
   if (!res || !Array.isArray(res.resultados)) {
     if (box) box.innerHTML = '<span style="color:var(--amber)">No se pudo interpretar la cotización.</span>';
@@ -11376,8 +11689,11 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
 
   var actualizados = 0;
   var filasResultado = [];
-  res.resultados.forEach(function(r) {
+  res.resultados.forEach(function(r, resultadoIdx) {
     var precio = parsePrecioProveedorARS(r.precio || r.precioArs || r.precioARS);
+    var variacionBloqueada = datosVariacionBloqueadaResultado(r);
+    var precioCandidatoBloqueado = variacionBloqueada.precioCandidatoArs;
+    var precioAnteriorBloqueado = variacionBloqueada.precioAnteriorArs;
     var nombreRes = String(r.proveedor || r.nombre || '').trim().toLowerCase();
     var urlRes = String(r.url || '').trim();
     var proveedorKeyRes = String(r.proveedorKey || '').trim();
@@ -11406,6 +11722,31 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
       }
     }
 
+    var requiereAprobacion = !!(match && variacionBloqueada.requiereAprobacion);
+    var botonAprobacionId = 'aprobar-variacion-precio-' + resultadoIdx + '-' + Date.now();
+    var porcentajeVariacion = requiereAprobacion && precioAnteriorBloqueado > 0
+      ? ((precioCandidatoBloqueado / precioAnteriorBloqueado - 1) * 100)
+      : 0;
+    if (requiereAprobacion) {
+      rechazo = 'El sistema protegió el precio anterior. Revisá la diferencia y aprobala solamente si corresponde.';
+      var pendienteAprobacion = {
+        codigo:'PRICE_VARIATION_REQUIRES_APPROVAL',
+        precioAnteriorArs:precioAnteriorBloqueado,
+        precioCandidatoArs:precioCandidatoBloqueado,
+        variacionPct:porcentajeVariacion,
+        detectadaEn:Date.now(),
+        proveedor:(match.pv && (match.pv.nombre || match.pv.proveedor)) || r.proveedor || r.nombre || '',
+        origen:r.fuente || r.origen || 'cotizador-online',
+        url:urlRes || match.url || ''
+      };
+      prodProveedoresActuales[match.idx].variacionPendienteAprobacion = pendienteAprobacion;
+      if (editingProdId && window.fbDB && window.fbUpdate && window.fbRef) {
+        window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + editingProdId + '/proveedores/' + match.idx), {
+          variacionPendienteAprobacion:pendienteAprobacion
+        }).catch(function(error){ console.warn('[Precios] No se pudo registrar la propuesta pendiente', error); });
+      }
+    }
+
     var aceptado = !!(match && precio > 0);
     var disponibilidadRes = r.disponibilidadProveedor || 'no_verificado';
     var disponibilidadLbl = r.disponibilidadProveedorTexto || (disponibilidadRes === 'disponible' ? 'Disponible' : disponibilidadRes === 'sin_stock' ? 'Sin stock' : 'No verificado');
@@ -11425,11 +11766,18 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box) {
     }
 
     filasResultado.push(
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">' +
+      '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">' +
         '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
         '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || (precio > 0 ? String(r.producto || '') : (r.error || r.mensaje || (typeof r.producto === 'string' ? r.producto : 'Sin precio devuelto por el cotizador'))) || 'Sin coincidencia clara') + '</div>' +
         (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
         '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap;text-align:right">$' + precio.toLocaleString('es-AR', {minimumFractionDigits: precio % 1 ? 2 : 0, maximumFractionDigits: 2}) + '<br><span style="font-size:10px;color:' + (disponibilidadRes === 'disponible' ? 'var(--green)' : disponibilidadRes === 'sin_stock' ? 'var(--red)' : 'var(--text3)') + '">' + escapeHTML(disponibilidadLbl) + '</span></div>' +
+        (requiereAprobacion ? '<div style="grid-column:1/-1;margin-top:6px;padding:10px;border:1px solid rgba(245,158,11,.45);border-radius:9px;background:rgba(245,158,11,.08)">' +
+          '<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:7px"><i class="ti ti-shield-exclamation"></i> Variación importante detectada</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;margin-bottom:8px"><span>Anterior: <strong>$' + precioAnteriorBloqueado.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</strong></span><span>Nuevo: <strong style="color:var(--green)">$' + precioCandidatoBloqueado.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</strong></span><span>Variación: <strong style="color:var(--amber)">' + (porcentajeVariacion >= 0 ? '+' : '') + porcentajeVariacion.toFixed(1) + '%</strong></span></div>' +
+          (String(currentRole || '').toLowerCase() === 'admin'
+            ? '<button id="' + botonAprobacionId + '" class="btn btn-sm" type="button" onclick="aprobarVariacionPrecioProveedor(' + match.idx + ',' + precioCandidatoBloqueado + ',' + precioAnteriorBloqueado + ',\'' + botonAprobacionId + '\')"><i class="ti ti-check"></i> Aprobar nuevo precio</button>'
+            : '<div style="font-size:11px;color:var(--text3)">La aprobación excepcional debe realizarla un administrador.</div>') +
+        '</div>' : '') +
         (r.debug || r.raw ? '<details style="grid-column:1/-1;width:100%;margin-top:6px;color:var(--text3);font-size:11px"><summary style="cursor:pointer;color:var(--blue)">Ver diagnóstico técnico</summary><pre style="white-space:pre-wrap;overflow:auto;max-height:220px;background:rgba(0,0,0,.18);border:0.5px solid var(--border);border-radius:8px;padding:8px;margin-top:6px">' + escapeHTML(JSON.stringify({ error: r.error || r.mensaje || '', debug: r.debug || null, raw: r.raw || null }, null, 2)) + '</pre></details>' : '') +
       '</div>'
     );
@@ -11517,7 +11865,11 @@ function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProduc
         url: pv.url,
         producto: nombreProducto,
         precio: 0,
-        error: (data && (data.error || data.mensaje)) || 'No se pudo cotizar con el servicio real',
+        codigo: data && data.codigo || '',
+        precioAnteriorArs: data && data.precioAnteriorArs || 0,
+        precioCandidatoArs: data && data.precioCandidatoArs || 0,
+        relacion: data && data.relacion || 0,
+        error: (data && (data.mensaje || (typeof data.error === 'string' ? data.error : ''))) || 'No se pudo cotizar con el servicio real',
         debug: data && data.debug,
         raw: data
       };
@@ -11968,7 +12320,8 @@ function guardarProducto() {
     var metrosGuardarEl = document.getElementById('pf-metros-presentacion'); if (metrosGuardarEl) metrosGuardarEl.focus();
     return;
   }
-  var urlGeneralProveedor = normalizarUrlProveedorProducto((document.getElementById('pf-cod-web')||{}).value || '');
+  var nombreProveedorGeneral = prodProveedoresActuales.length ? (prodProveedoresActuales[0].nombre || prodProveedoresActuales[0].proveedor || '') : '';
+  var urlGeneralProveedor = normalizarUrlProveedorProducto((document.getElementById('pf-cod-web')||{}).value || '', nombreProveedorGeneral);
 
   var indiceProveedorSinAlta = esManoObra ? -1 : prodProveedoresActuales.findIndex(function(pv) {
     var tieneDatos = String((pv && pv.nombre) || '').trim() || String((pv && pv.url) || '').trim() || parseFloat((pv && pv.precio) || 0) > 0;
@@ -26637,7 +26990,7 @@ var PPTO_ACCIONES = {
   admin: {
     borrador:     ['enviar_revision','aprobar_directo'],
     revision:     ['imprimir','aprobar','rechazar'],
-    aprobado_int: ['imprimir','modificar_precio'],
+    aprobado_int: ['imprimir','enviar_cliente','modificar_precio'],
     enviado:      ['imprimir','modificar_precio'],
     visto:        ['imprimir','modificar_precio'],
     aceptado:     ['imprimir'],
@@ -26874,18 +27227,15 @@ function pptoCargarItemsEnEditor(p) {
   _pptoAsegurarFilaVacia();
 }
 
-function duplicarPresupuesto(id) {
-  var original = buscarPptoPorRef(id);
-  if (!original) { notify('Presupuesto original no encontrado'); return; }
-
+function _cargarDuplicadoPresupuesto(original, clienteDestino) {
   window._pptoEditandoFbKey = null;
   window._pptoEditandoId = null;
   abrirNuevoPresupuesto();
   setTimeout(function() {
     var num = document.getElementById('pp-numero'); if (num) num.value = '';
-    var cli = document.getElementById('pp-cli'); if (cli) cli.value = '';
-    var cliId = document.getElementById('pp-cli-id'); if (cliId) cliId.value = '';
-    actualizarAccesoVentasClientePpto(null);
+    var cli = document.getElementById('pp-cli'); if (cli) cli.value = clienteDestino ? (clienteDestino.nombre || clienteDestino.empresa || '') : '';
+    var cliId = document.getElementById('pp-cli-id'); if (cliId) cliId.value = clienteDestino ? (clienteDestino.fbKey || clienteDestino.id || '') : '';
+    actualizarAccesoVentasClientePpto(clienteDestino || null);
     var descuento = document.getElementById('pp-descuento');
     if (descuento) descuento.value = pptoNumeroGuardado(original.descuentoGeneral ?? original.descuentoPct ?? original.porcentajeDescuento ?? original.descuento);
     var obs = document.querySelector('#ppto-form-view .fg input[placeholder="Condiciones, notas..."]');
@@ -26899,11 +27249,98 @@ function duplicarPresupuesto(id) {
       btnIva.style.borderColor = _pptoConIva ? '' : 'var(--amber)';
     }
     if (typeof calcPpTotales === 'function') calcPpTotales();
-    if (cli) cli.focus();
-    notify('Presupuesto duplicado como nuevo · seleccioná el cliente y guardá');
+    if (!clienteDestino && cli) cli.focus();
+    notify('Copia preparada con productos e importes · revisala antes de guardar');
   }, 250);
 }
+
+function seleccionarModoDuplicadoPpto(modo) {
+  window._pptoDuplicarMismoCliente = modo !== 'otro';
+  window._pptoDuplicarClienteKey = '';
+  var mismo = document.getElementById('duplicar-ppto-mismo');
+  var otro = document.getElementById('duplicar-ppto-otro');
+  var buscador = document.getElementById('duplicar-ppto-buscador-wrap');
+  if (mismo) mismo.classList.toggle('btn-primary', window._pptoDuplicarMismoCliente);
+  if (otro) otro.classList.toggle('btn-primary', !window._pptoDuplicarMismoCliente);
+  if (buscador) buscador.style.display = window._pptoDuplicarMismoCliente ? 'none' : '';
+  if (!window._pptoDuplicarMismoCliente) {
+    var input = document.getElementById('duplicar-ppto-cliente');
+    if (input) setTimeout(function(){ input.focus(); filtrarClientesDuplicadoPpto(''); }, 0);
+  }
+}
+
+function filtrarClientesDuplicadoPpto(valor) {
+  var q = String(valor || '').trim().toLocaleLowerCase('es-AR');
+  var lista = (clientesData || []).filter(function(c) {
+    var texto = [c.nombre, c.empresa, c.id, c.direccion, c.telefono].filter(Boolean).join(' ').toLocaleLowerCase('es-AR');
+    return !q || texto.indexOf(q) >= 0;
+  }).slice(0, 8);
+  var resultados = document.getElementById('duplicar-ppto-clientes');
+  if (!resultados) return;
+  resultados.innerHTML = lista.length ? lista.map(function(c) {
+    var key = String(c.fbKey || c.id || '');
+    var nombre = c.nombre || c.empresa || 'Cliente';
+    var detalle = c.direccion || c.telefono || c.id || '';
+    return '<button type="button" class="btn" style="width:100%;justify-content:flex-start;text-align:left;padding:9px 11px" onclick="seleccionarClienteDuplicadoPpto(\'' + escapeHTML(key).replace(/'/g,"\\'") + '\')"><span><strong>' + escapeHTML(nombre) + '</strong>' + (detalle ? '<small style="display:block;color:var(--text3);margin-top:2px">' + escapeHTML(detalle) + '</small>' : '') + '</span></button>';
+  }).join('') : '<div style="padding:10px;color:var(--text3);font-size:12px">No se encontraron clientes.</div>';
+}
+
+function seleccionarClienteDuplicadoPpto(key) {
+  var cliente = (clientesData || []).find(function(c){ return String(c.fbKey || c.id || '') === String(key || ''); });
+  if (!cliente) return;
+  window._pptoDuplicarClienteKey = String(cliente.fbKey || cliente.id || '');
+  var input = document.getElementById('duplicar-ppto-cliente');
+  if (input) input.value = cliente.nombre || cliente.empresa || '';
+  var seleccion = document.getElementById('duplicar-ppto-seleccion');
+  if (seleccion) seleccion.innerHTML = '<i class="ti ti-user-check"></i> ' + escapeHTML(cliente.nombre || cliente.empresa || 'Cliente seleccionado');
+}
+
+function confirmarDuplicadoPresupuesto() {
+  var original = buscarPptoPorRef(window._pptoDuplicarOrigen || '');
+  if (!original) { notify('El presupuesto original ya no está disponible'); return; }
+  var clienteOriginal = _svResolverClienteRegistro(original, true);
+  var clienteDestino = clienteOriginal;
+  if (!window._pptoDuplicarMismoCliente) {
+    clienteDestino = (clientesData || []).find(function(c){ return String(c.fbKey || c.id || '') === String(window._pptoDuplicarClienteKey || ''); });
+    if (!clienteDestino) {
+      var escrito = String((document.getElementById('duplicar-ppto-cliente') || {}).value || '').trim();
+      clienteDestino = _svResolverClienteRegistro({ cliente: escrito }, true);
+    }
+    if (!clienteDestino) { notify('Elegí un cliente de la lista para crear la copia'); return; }
+  }
+  if (!clienteDestino) { notify('El cliente original no está vinculado. Elegí otro cliente.'); seleccionarModoDuplicadoPpto('otro'); return; }
+  var modal = document.getElementById('modal-duplicar-ppto');
+  if (modal) modal.remove();
+  _cargarDuplicadoPresupuesto(original, clienteDestino);
+}
+
+function duplicarPresupuesto(id) {
+  var original = buscarPptoPorRef(id);
+  if (!original) { notify('Presupuesto original no encontrado'); return; }
+  var anterior = document.getElementById('modal-duplicar-ppto');
+  if (anterior) anterior.remove();
+  var clienteOriginal = _svResolverClienteRegistro(original, true);
+  window._pptoDuplicarOrigen = original.fbKey || original.id || id;
+  window._pptoDuplicarMismoCliente = !!clienteOriginal;
+  window._pptoDuplicarClienteKey = '';
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-duplicar-ppto';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10120;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)';
+  overlay.innerHTML = '<div style="width:min(620px,96vw);max-height:90vh;overflow:auto;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:20px;box-shadow:0 24px 70px rgba(0,0,0,.5)">' +
+    '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div style="font-size:17px;font-weight:700"><i class="ti ti-copy" style="color:var(--blue);margin-right:7px"></i>Duplicar ' + escapeHTML(original.id || 'presupuesto') + '</div><div style="font-size:12px;color:var(--text3);margin-top:4px">Se copiarán productos, cantidades, precios, descuento, IVA y observaciones. La copia tendrá un número y estado nuevos.</div></div><button class="icon-btn" onclick="document.getElementById(\'modal-duplicar-ppto\').remove()"><i class="ti ti-x"></i></button></div>' +
+    '<div style="margin-top:18px;font-size:12px;color:var(--text3)">¿Para quién es la copia?</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><button id="duplicar-ppto-mismo" type="button" class="btn ' + (clienteOriginal ? 'btn-primary' : '') + '" ' + (clienteOriginal ? '' : 'disabled') + ' onclick="seleccionarModoDuplicadoPpto(\'mismo\')"><i class="ti ti-user"></i> Mismo cliente' + (clienteOriginal ? '<small style="display:block;margin-left:5px">' + escapeHTML(clienteOriginal.nombre || original.cliente || '') + '</small>' : '') + '</button><button id="duplicar-ppto-otro" type="button" class="btn ' + (!clienteOriginal ? 'btn-primary' : '') + '" onclick="seleccionarModoDuplicadoPpto(\'otro\')"><i class="ti ti-user-search"></i> Elegir otro cliente</button></div>' +
+    '<div id="duplicar-ppto-buscador-wrap" style="display:' + (clienteOriginal ? 'none' : 'block') + ';margin-top:14px"><input id="duplicar-ppto-cliente" class="search-input" placeholder="Buscar por nombre, dirección, teléfono o ID..." oninput="window._pptoDuplicarClienteKey=\'\';document.getElementById(\'duplicar-ppto-seleccion\').textContent=\'\';filtrarClientesDuplicadoPpto(this.value)"><div id="duplicar-ppto-seleccion" style="color:var(--green);font-size:12px;margin:7px 0"></div><div id="duplicar-ppto-clientes" style="display:grid;gap:6px;max-height:230px;overflow:auto"></div></div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px"><button class="btn" onclick="document.getElementById(\'modal-duplicar-ppto\').remove()">Cancelar</button><button class="btn btn-primary" onclick="confirmarDuplicadoPresupuesto()"><i class="ti ti-copy-plus"></i> Crear copia</button></div></div>';
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  if (!clienteOriginal) filtrarClientesDuplicadoPpto('');
+}
 window.duplicarPresupuesto = duplicarPresupuesto;
+window.seleccionarModoDuplicadoPpto = seleccionarModoDuplicadoPpto;
+window.filtrarClientesDuplicadoPpto = filtrarClientesDuplicadoPpto;
+window.seleccionarClienteDuplicadoPpto = seleccionarClienteDuplicadoPpto;
+window.confirmarDuplicadoPresupuesto = confirmarDuplicadoPresupuesto;
 
 function abrirEditorPpto(id) {
   var p = buscarPptoPorRef(id);
@@ -27758,7 +28195,8 @@ function guardarPresupuesto(modo) {
     if (!seguir) return;
   }
 
-  const reqAprobacion = modo !== 'borrador' && ((total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite));
+  var aprobacionDirectaAdmin = currentRole === 'admin' && modo === 'aprobado_int';
+  const reqAprobacion = !aprobacionDirectaAdmin && modo !== 'borrador' && ((total > APROBACION_CONFIG.montoLimite) || (desc > APROBACION_CONFIG.descuentoLimite));
   const estadoFinal = modo === 'borrador' ? 'borrador' : (reqAprobacion ? 'revision' : modo);
   const motivo = reqAprobacion ? (desc > APROBACION_CONFIG.descuentoLimite ? `Descuento ${desc}% supera el límite` : `Total supera el límite de aprobación`) : '';
   var edicionPresupuestoFbKey = window._pptoEditandoFbKey || '';
@@ -27778,8 +28216,13 @@ function guardarPresupuesto(modo) {
     estado: estadoFinal,
     requiereAprobacion: reqAprobacion,
     motivo,
-    audit: [{ fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor'), accion: estadoFinal === 'revision' ? 'Creado y enviado a revisión automáticamente por regla de aprobación' : 'Presupuesto creado como borrador' }]
+    audit: [{ fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor'), accion: aprobacionDirectaAdmin ? 'Creado y aprobado directamente por administrador' : (estadoFinal === 'revision' ? 'Creado y enviado a revisión automáticamente por regla de aprobación' : 'Presupuesto creado como borrador') }]
   };
+  if (aprobacionDirectaAdmin) {
+    nuevo.aprobadoPor = currentUser || currentUserEmail || 'Admin';
+    nuevo.aprobadoEn = new Date().toISOString();
+    nuevo.aprobadoUid = currentUserUid || '';
+  }
   if (edicionPresupuestoFbKey) {
     var pptoOriginalEdit = buscarPptoPorRef(edicionPresupuestoFbKey) || {};
     nuevo.fbKey = edicionPresupuestoFbKey;
@@ -27794,7 +28237,7 @@ function guardarPresupuesto(modo) {
     nuevo.empFbKey = pptoOriginalEdit.empFbKey || '';
     nuevo.ventaId = pptoOriginalEdit.ventaId || '';
     var auditEdit = (pptoOriginalEdit.audit || []).slice();
-    var auditNuevo = { fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || 'Admin', accion: modo === 'borrador' ? 'Presupuesto guardado como borrador' : 'Presupuesto editado y enviado a revisión' };
+    var auditNuevo = { fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || 'Admin', accion: modo === 'borrador' ? 'Presupuesto guardado como borrador' : (aprobacionDirectaAdmin ? 'Presupuesto editado y aprobado por administrador' : 'Presupuesto editado y enviado a revisión') };
     var ultimoAudit = auditEdit.length ? auditEdit[auditEdit.length - 1] : null;
     if (!ultimoAudit || ultimoAudit.accion !== auditNuevo.accion || ultimoAudit.usuario !== auditNuevo.usuario || ultimoAudit.fecha !== auditNuevo.fecha) auditEdit.push(auditNuevo);
     nuevo.audit = auditEdit;
@@ -27809,7 +28252,8 @@ function guardarPresupuesto(modo) {
       window._pptoEditandoFbKey = null;
       window._pptoEditandoId = null;
     }
-    if (reqAprobacion) notify('Presupuesto enviado a revisión — requiere aprobación del admin');
+    if (aprobacionDirectaAdmin) notify('Presupuesto aprobado y guardado como ' + nuevo.id);
+    else if (reqAprobacion) notify('Presupuesto enviado a revisión — requiere aprobación del admin');
     else if (modo === 'borrador') notify('Borrador guardado como ' + nuevo.id);
     else notify('Enviado a revisión como ' + nuevo.id);
     volverListaPpto();
@@ -27875,6 +28319,18 @@ function abrirNuevoPresupuesto() {
   if (margenPptoIco) margenPptoIco.className = 'ti ti-eye';
   if (margenPptoLbl) margenPptoLbl.textContent = 'Ver margen de ganancia';
   if (typeof iniciarMonedaPpto === 'function') iniciarMonedaPpto();
+  var btnGuardarPrincipal = document.getElementById('btn-guardar-principal-ppto');
+  if (btnGuardarPrincipal) {
+    if (currentRole === 'admin') {
+      btnGuardarPrincipal.innerHTML = '<i class="ti ti-check"></i> Aprobar y guardar';
+      btnGuardarPrincipal.setAttribute('onclick', "guardarPresupuesto('aprobado_int')");
+      btnGuardarPrincipal.title = 'El administrador no necesita enviarse el presupuesto a revisión';
+    } else {
+      btnGuardarPrincipal.innerHTML = '<i class="ti ti-send"></i> Enviar a revisión';
+      btnGuardarPrincipal.setAttribute('onclick', "guardarPresupuesto('revision')");
+      btnGuardarPrincipal.title = '';
+    }
+  }
   calcPpTotales();
 }
 function filtrarPptoTexto(v) { renderPptoTabla('', v); }

@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.236-firebase' -->
+<!-- VERSION: 'v2.0.279-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.236.js"></script>
+<script src="./js/core/version.v2.0.279.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,7 +24,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.154"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.226">
+<link rel="stylesheet" href="./css/app.css?v=2.0.275">
 
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.193"></script>
@@ -54,7 +54,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.236 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.279 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -259,6 +259,15 @@
 
       <!-- ── DASHBOARD ── -->
       <div id="page-dashboard" class="page active">
+        <div class="card" id="dash-aumento-hora-aviso" style="display:none;margin-bottom:12px;border-color:rgba(99,102,241,.45);background:linear-gradient(135deg,rgba(99,102,241,.14),rgba(34,197,94,.08))">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:30px;line-height:1">🎉</div>
+            <div style="min-width:0">
+              <div id="dash-aumento-hora-titulo" style="font-size:14px;font-weight:700;color:#818cf8">¡Tenemos una buena noticia!</div>
+              <div id="dash-aumento-hora-detalle" style="font-size:13px;color:var(--text2);margin-top:3px"></div>
+            </div>
+          </div>
+        </div>
         <div class="card" id="dash-vacaciones-aviso" style="display:none;margin-bottom:12px;border-color:rgba(34,197,94,.45);background:linear-gradient(135deg,rgba(34,197,94,.12),rgba(59,130,246,.08))">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="font-size:30px;line-height:1">🏖️</div>
@@ -669,6 +678,7 @@
             <option value="pendiente_pago">Pendiente pago</option>
             <option value="seniado">Señado</option>
             <option value="pago_total">Pago total</option>
+            <option value="sin_cargo">Sin cargo</option>
             <option value="en_instalacion">En instalación</option>
             <option value="instalado">Instalado</option>
             <option value="con_garantia">Con garantía</option>
@@ -951,7 +961,7 @@
           <span id="ppto-detalle-label">Con detalle</span>
         </button>
         <button class="btn" onclick="imprimirPresupuestoActual()"><i class="ti ti-printer"></i> Imprimir</button>
-        <button class="btn btn-primary" onclick="guardarPresupuesto('revision')"><i class="ti ti-send"></i> Enviar a revisión</button>
+        <button id="btn-guardar-principal-ppto" class="btn btn-primary" onclick="guardarPresupuesto('revision')"><i class="ti ti-send"></i> Enviar a revisión</button>
       </div>
     </div>
   </div>
@@ -1800,11 +1810,14 @@
             </div>
             <div style="margin-bottom:14px;padding:10px 14px;background:var(--blue-bg);border-radius:var(--radius);font-size:12px;color:var(--blue)">
               <i class="ti ti-info-circle" style="font-size:14px;margin-right:6px"></i>
-              Cada cargo define el valor hora, los días a contar en el mes, y el valor de hora extra. En la ficha de cada empleado solo se elige el cargo y las horas diarias que trabaja — el sueldo se calcula solo a partir de estos datos.
+              Cada cargo define el valor hora, los días a contar en el mes, y el valor de hora extra. Los cambios del valor hora conservan fecha, porcentaje y usuario para auditoría y avisos al empleado.
             </div>
-            <table id="cargos-tbl">
-              <tr><th>Cargo</th><th style="text-align:right">Valor hora</th><th style="text-align:right">Hs ex</th><th style="text-align:right">Días/mes</th><th style="text-align:right">Mensual (8hs)</th><th style="text-align:right">8hs/día</th><th style="text-align:right">4hs/día</th><th style="text-align:right">Empleados</th><th></th></tr>
-            </table>
+            <div class="table-wrap cargos-table-wrap">
+              <table id="cargos-tbl">
+                <thead><tr><th>Cargo</th><th style="text-align:right">Valor hora</th><th style="text-align:right">Hs ex</th><th>Último ajuste</th><th style="text-align:right">Días/mes</th><th style="text-align:right">Mensual (8hs)</th><th style="text-align:right">8hs/día</th><th style="text-align:right">4hs/día</th><th style="text-align:right">Empleados</th><th aria-label="Acciones"></th></tr></thead>
+                <tbody id="cargos-tbody"></tbody>
+              </table>
+            </div>
             <div id="cargos-vacio" style="text-align:center;color:var(--text3);padding:24px;font-size:13px;display:none">Sin cargos creados todavía</div>
           </div>
         </div>
@@ -1830,7 +1843,7 @@
               <div class="fg"><label>Días a contar/mes</label><input type="number" id="cargo-dias-mes" value="23" oninput="_previewCargoCalculos()"></div>
               <div class="fg"><label>8hs/día (calculado)</label><input type="text" id="cargo-preview-8hs" readonly></div>
               <div class="fg"><label>4hs/día (calculado)</label><input type="text" id="cargo-preview-4hs" readonly></div>
-              <div class="fg full"><label>Valor hora extra ($)</label><input type="number" id="cargo-valor-hora-extra" value="7500"></div>
+              <div class="fg full"><label>Valor hora extra ($)</label><div style="display:flex;gap:8px;align-items:center"><input type="number" id="cargo-valor-hora-extra" value="7500" style="flex:1"><button type="button" class="btn btn-sm" onclick="cargosCopiarHoraExtraEnModal()" title="Copiar el valor hora"><i class="ti ti-arrow-right"></i> Usar valor hora</button></div></div>
             </div>
             <div style="display:flex;gap:8px;margin-top:18px">
               <button class="btn" style="flex:1" onclick="document.getElementById('modal-cargo').style.display='none'">Cancelar</button>
@@ -2247,7 +2260,7 @@
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.236
+            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.279
 Listo para analizar.
 </pre>
           </div>
@@ -3913,34 +3926,42 @@ Listo para analizar.
               <div style="font-size:20px;font-weight:800;color:var(--text)"><i class="ti ti-refresh" style="color:var(--blue);margin-right:8px"></i>Actualizador masivo de precios</div>
               <div style="font-size:12px;color:var(--text3);margin-top:5px">Actualiza costos desde los proveedores compatibles cargados en cada producto.</div>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn admin-only" onclick="abrirAuditoriaIntegridadPrecios()"><i class="ti ti-shield-check"></i> Auditar catálogo</button>
-              <button class="btn" onclick="abrirGestionRevisionPrecios()"><i class="ti ti-list-check"></i> Revisar pendientes</button>
-              <button class="btn btn-primary" id="mod-ap-iniciar" onclick="abrirActualizadorMasivoPrecios()"><i class="ti ti-refresh"></i> Iniciar actualización</button>
-            </div>
+          </div>
+
+          <div id="mod-ap-loading" class="card" style="display:flex;min-height:150px;align-items:center;justify-content:center;text-align:center">
+            <div><span class="spinner" style="display:inline-block;margin-bottom:12px"></span><div style="font-size:14px;font-weight:800">Cargando productos y vigencias…</div><div id="mod-ap-loading-detalle" style="font-size:12px;color:var(--text3);margin-top:6px">Preparando los casos que requieren atención.</div></div>
           </div>
 
           <div class="metrics">
-            <div class="metric"><div class="m-label">Productos vinculados</div><div class="m-value" id="mod-ap-vinculados">—</div><div class="m-sub">en proveedores compatibles</div></div>
-            <div class="metric"><div class="m-label">Pendientes</div><div class="m-value" id="mod-ap-pendientes" style="color:var(--amber)">—</div><div class="m-sub">más de 24 h o sin verificar</div></div>
-            <div class="metric"><div class="m-label">Vigentes</div><div class="m-value" id="mod-ap-vigentes" style="color:var(--green)">—</div><div class="m-sub">actualizados recientemente</div></div>
+            <div class="metric sv-action-metric" role="button" tabindex="0" aria-label="Ver productos vinculados" title="Ver productos vinculados" onclick="abrirListadoActualizadorPrecios('vinculados')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirListadoActualizadorPrecios('vinculados')}"><div class="m-label">Productos vinculados <i class="ti ti-chevron-right"></i></div><div class="m-value" id="mod-ap-vinculados">—</div><div class="m-sub">en proveedores compatibles</div></div>
+            <div class="metric sv-action-metric" role="button" tabindex="0" aria-label="Ver productos pendientes" title="Ver productos pendientes" onclick="abrirListadoActualizadorPrecios('pendientes')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirListadoActualizadorPrecios('pendientes')}"><div class="m-label">Pendientes <i class="ti ti-chevron-right"></i></div><div class="m-value" id="mod-ap-pendientes" style="color:var(--amber)">—</div><div class="m-sub">más de 24 h o sin verificar</div></div>
+            <div class="metric sv-action-metric" role="button" tabindex="0" aria-label="Ver productos vigentes" title="Ver productos vigentes" onclick="abrirListadoActualizadorPrecios('vigentes')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirListadoActualizadorPrecios('vigentes')}"><div class="m-label">Vigentes <i class="ti ti-chevron-right"></i></div><div class="m-value" id="mod-ap-vigentes" style="color:var(--green)">—</div><div class="m-sub">actualizados recientemente</div></div>
           </div>
 
-          <div class="card">
+          <div class="card" id="mod-ap-centro">
             <div class="card-head">
-              <span class="card-title">Proveedores automatizables</span>
+              <div><span class="card-title">Centro de actualización</span><div style="font-size:11px;color:var(--text3);margin-top:4px">Configurá proveedores, revisá excepciones y ejecutá la actualización desde un solo lugar.</div></div>
               <button class="btn btn-sm" onclick="renderModuloActualizadorPrecios()"><i class="ti ti-refresh"></i> Actualizar resumen</button>
             </div>
+            <div style="font-size:12px;font-weight:800;margin-bottom:10px">Proveedores incluidos</div>
             <div id="mod-ap-proveedores" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px"></div>
-          </div>
-
-          <div class="card">
-            <div class="card-head"><span class="card-title">Cómo funciona</span></div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
-              <div style="padding:14px;background:var(--bg3);border-radius:var(--radius);border:0.5px solid var(--border)"><div style="font-weight:700;font-size:13px;margin-bottom:5px"><span class="badge b-blue" style="margin-right:6px">1</span> Consulta</div><div style="font-size:12px;color:var(--text3);line-height:1.45">Usa la URL exacta cargada en el proveedor del producto.</div></div>
-              <div style="padding:14px;background:var(--bg3);border-radius:var(--radius);border:0.5px solid var(--border)"><div style="font-weight:700;font-size:13px;margin-bottom:5px"><span class="badge b-blue" style="margin-right:6px">2</span> Actualiza</div><div style="font-size:12px;color:var(--text3);line-height:1.45">Guarda el nuevo costo y su referencia de dólar sin modificar ventas históricas.</div></div>
-              <div style="padding:14px;background:var(--bg3);border-radius:var(--radius);border:0.5px solid var(--border)"><div style="font-weight:700;font-size:13px;margin-bottom:5px"><span class="badge b-blue" style="margin-right:6px">3</span> Recalcula</div><div style="font-size:12px;color:var(--text3);line-height:1.45">Vuelve a calcular el precio de venta usando el margen configurado del producto.</div></div>
+            <div id="mod-ap-aprobaciones" style="margin-top:16px"></div>
+            <div style="border-top:.5px solid var(--border);margin-top:16px;padding-top:16px">
+              <div style="font-size:12px;font-weight:800;margin-bottom:10px">Acciones del proceso</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">
+                <button class="btn" style="justify-content:flex-start;padding:13px" onclick="abrirGestionRevisionPrecios()"><i class="ti ti-list-check"></i><span><strong>Revisar pendientes</strong><small style="display:block;color:var(--text3);margin-top:3px">Precios vencidos o sin verificar</small></span></button>
+                <button class="btn admin-only" style="justify-content:flex-start;padding:13px" onclick="abrirAuditoriaIntegridadPrecios()"><i class="ti ti-shield-check"></i><span><strong>Auditar catálogo</strong><small style="display:block;color:var(--text3);margin-top:3px">Inconsistencias y cambios bloqueados</small></span></button>
+                <button class="btn btn-primary" style="justify-content:flex-start;padding:13px" id="mod-ap-iniciar" onclick="abrirActualizadorMasivoPrecios()"><i class="ti ti-refresh"></i><span><strong>Iniciar actualización</strong><small style="display:block;opacity:.75;margin-top:3px">Sólo proveedores seleccionados</small></span></button>
+              </div>
             </div>
+            <details id="mod-ap-ayuda" style="margin-top:16px;border-top:.5px solid var(--border);padding-top:13px">
+              <summary style="cursor:pointer;font-size:12px;font-weight:800">Cómo funciona</summary>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:12px">
+                <div style="padding:14px;background:var(--bg3);border-radius:var(--radius);border:0.5px solid var(--border)"><strong>1 · Consulta</strong><div style="font-size:12px;color:var(--text3);margin-top:5px">Usa la URL exacta del proveedor cargada en el producto.</div></div>
+                <div style="padding:14px;background:var(--bg3);border-radius:var(--radius);border:0.5px solid var(--border)"><strong>2 · Verifica</strong><div style="font-size:12px;color:var(--text3);margin-top:5px">Los cambios anormales quedan bloqueados hasta que un administrador los apruebe.</div></div>
+                <div style="padding:14px;background:var(--bg3);border-radius:var(--radius);border:0.5px solid var(--border)"><strong>3 · Actualiza</strong><div style="font-size:12px;color:var(--text3);margin-top:5px">Actualiza el catálogo sin modificar presupuestos ni ventas ya emitidos.</div></div>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -4106,6 +4127,7 @@ Listo para analizar.
   </div>
 
   <!-- ALERTAS DE VENCIMIENTO -->
+  <div id="gas-fijos-estado" style="display:none;margin-bottom:12px"></div>
   <div id="gas-alertas-box" style="display:none;margin-bottom:12px"></div>
 
   <!-- LISTA -->
@@ -4184,7 +4206,7 @@ Listo para analizar.
       <div class="fg"><label>Tipo</label>
         <select id="g-tipo" onchange="onChangeTipoGasto()">
           <option value="Variable">Variable</option>
-          <option value="Fijo">Fijo — se repite mensualmente</option>
+          <option value="Fijo">Fijo — se genera una vez por mes</option>
           <option value="Compra">Compra de mercadería</option>
         </select>
       </div>
@@ -4525,6 +4547,8 @@ Listo para analizar.
       <div class="metric"><div class="m-label">Adelantos</div><div class="m-value" id="ctaemp-adelantos" style="color:var(--red)">$0</div><div class="m-sub">descontados del total</div></div>
       <div class="metric"><div class="m-label">Total a cobrar</div><div class="m-value" id="ctaemp-total" style="color:var(--text)">$0</div><div class="m-sub" id="ctaemp-periodo">—</div></div>
       </div>
+
+      <div id="ctaemp-adelanto-pendiente" style="display:none;margin-bottom:12px"></div>
 
       <!-- Pagos realizados al empleado -->
       <div class="card" id="ctaemp-pagos-card" style="display:none;margin-bottom:12px">
@@ -4954,7 +4978,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.236.js"></script>
+<script src="./js/app.v2.0.279.js"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
@@ -4993,7 +5017,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.236</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.279</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -5213,7 +5237,7 @@ Listo para analizar.
     <div id="chat-input-row">
       <label style="width:34px;height:34px;border-radius:50%;background:var(--bg3);border:0.5px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Adjuntar foto">
         <i class="ti ti-photo" style="font-size:16px;color:var(--text3)"></i>
-        <input type="file" accept="image/jpeg,image/jpg,image/png" style="display:none" onchange="chatEnviarFoto(this)">
+        <input type="file" id="chat-foto-input" accept="image/*" style="display:none" onchange="chatEnviarFoto(this)">
       </label>
       <textarea id="chat-input" placeholder="Escribí un mensaje..." rows="1"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatEnviar()}"
@@ -5258,14 +5282,14 @@ Listo para analizar.
 <script src="./js/modules/treasury.js?v=2.0.180"></script>
 
 <script src="./js/modules/ot-data-sync.js?v=2.0.154"></script>
-<script src="./js/modules/notifications.js?v=2.0.234"></script>
+<script src="./js/modules/notifications.js?v=2.0.271"></script>
 
-<script src="./js/modules/finance-details.js?v=2.0.180"></script>
+<script src="./js/modules/finance-details.js?v=2.0.247"></script>
 
-<script src="./js/modules/ot-workflow.js?v=3.0.0-shadow-v236"></script>
+<script src="./js/modules/ot-workflow.js?v=3.0.0-shadow-v279"></script>
 
 
-<script src="./js/modules/dashboard-permissions.js?v=2.0.154"></script>
+<script src="./js/modules/dashboard-permissions.js?v=2.0.269"></script>
 
 
 <script src="./js/modules/sales-metrics.js?v=2.0.154"></script>
@@ -5277,7 +5301,7 @@ Listo para analizar.
 <script src="./js/modules/action-permissions.js?v=2.0.154"></script>
 
 
-<script src="./js/core/metrics-cache.js?v=3.0.0-shadow-v236"></script>
+<script src="./js/core/metrics-cache.js?v=3.0.0-shadow-v279"></script>
 
 
 <script src="./js/modules/ot-admin.js?v=2.0.173"></script>
@@ -5393,12 +5417,13 @@ Listo para analizar.
 <script src="./js/modules/payroll.js?v=2.0.154"></script>
 
 
-<script src="./js/modules/maintenance.js?v=3.0.0-shadow-v236"></script>
+<script src="./js/modules/maintenance.js?v=3.0.0-shadow-v279"></script>
 
 
 <script src="./js/modules/refactor-health.js?v=2.0.154"></script>
 
-<script src="./js/modules/resizable-tables.js?v=2.0.226"></script>
+<script src="./js/modules/resizable-tables.js?v=2.0.258"></script>
+<script src="./js/modules/item-row-order.js?v=2.0.258"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>
 <script src="./js/modules/ops-hardening.js?v=2.0.154"></script>
@@ -5414,32 +5439,32 @@ Listo para analizar.
 
 <!--
   Núcleo V3 en modo sombra.
-  Estos módulos son de solo lectura y no sustituyen la aplicación v2.0.236.
+  Estos módulos son reversibles y complementan la aplicación estable v2.0.279.
   El diagnóstico permanece inactivo salvo habilitación explícita con
   ?v3_shadow=1 o desde una sesión de desarrollo.
 -->
-<script src="./js/v3/identity-index.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/data-lifecycle.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/domain-store.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/product-provider-read-model.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/record-repository.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/attachment-task.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/budget-read-model.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/sales-read-model.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/ot-read-model.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/journey-audit.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/migration-audit.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/legacy-snapshot.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/shadow-comparison.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/feature-gates.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3-shadow-runtime.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/app-bridge.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/firebase-record-adapter.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/budget-integration.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/sales-integration.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/ot-integration.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/product-provider-integration.js?v=3.0.0-shadow-v236"></script>
-<script src="./js/v3/admin-diagnostics.js?v=3.0.0-shadow-v236"></script>
+<script src="./js/v3/identity-index.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/data-lifecycle.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/domain-store.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/product-provider-read-model.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/record-repository.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/attachment-task.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/budget-read-model.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/sales-read-model.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/ot-read-model.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/journey-audit.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/migration-audit.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/legacy-snapshot.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/shadow-comparison.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/feature-gates.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3-shadow-runtime.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/app-bridge.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/firebase-record-adapter.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/budget-integration.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/sales-integration.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/ot-integration.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/product-provider-integration.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/admin-diagnostics.js?v=3.0.0-shadow-v279"></script>
 
 </body>
 </html>

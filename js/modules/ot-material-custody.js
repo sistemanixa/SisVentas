@@ -191,13 +191,13 @@
     }
   }
 
-  function deliver() {
+  async function deliver() {
     var ot = currentOT();
     if (!ot || !isAdministration()) return;
     if (!ot.tecnico) { window.notify('Asigná un técnico antes de entregar materiales'); return; }
     var eligible = controllableMaterials(ot);
     if (!eligible.length) { window.notify('Esta OT no tiene equipos o materiales controlables'); return; }
-    if (!window.confirm('Se registrarán ' + eligible.length + ' materiales de la OT bajo responsabilidad de ' + ot.tecnico + '. ¿Confirmar entrega?')) return;
+    if (!await window.svConfirm('Se registrarán ' + eligible.length + ' materiales de la OT bajo responsabilidad de ' + ot.tecnico + '. ¿Confirmar entrega?')) return;
     var now = Date.now();
     ot.materiales = (ot.materiales || []).map(function (raw) {
       var material = normalizeMaterial(raw);
@@ -229,10 +229,10 @@
     return Promise.all(jobs);
   }
 
-  function allInstalled() {
+  async function allInstalled() {
     var ot = currentOT();
     if (!ot || !ot.custodiaIniciada || ot.custodiaRendida) return;
-    if (!window.confirm('¿Confirmás que todo el material entregado quedó instalado?')) return;
+    if (!await window.svConfirm('¿Confirmás que todo el material entregado quedó instalado?')) return;
     var before = (ot.materiales || []).map(function (material) { return Object.assign({}, material); });
     ot.materiales = (ot.materiales || []).map(function (raw) {
       var material = normalizeMaterial(raw);
@@ -341,7 +341,7 @@
     }).catch(function (error) { window.notify('No se pudo guardar la rendición: ' + error.message); });
   }
 
-  function confirmReception() {
+  async function confirmReception() {
     var ot = currentOT();
     if (!ot || !isAdministration()) return;
     var receptions = [];
@@ -351,7 +351,7 @@
     });
     if (!receptions.length) { window.notify('No hay devoluciones pendientes en esta OT'); return; }
     var total = receptions.reduce(function (sum, entry) { return sum + entry.cantidad; }, 0);
-    if (!window.confirm('¿Confirmás que depósito recibió ' + total + ' unidad(es)?')) return;
+    if (!await window.svConfirm('¿Confirmás que depósito recibió ' + total + ' unidad(es)?')) return;
     var inventoryJob = window.SisVentasCompras && typeof window.SisVentasCompras.receiveOTReturns === 'function'
       ? window.SisVentasCompras.receiveOTReturns(ot, receptions) : Promise.resolve();
     Promise.resolve(inventoryJob).then(function () {

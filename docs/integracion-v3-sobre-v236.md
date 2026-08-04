@@ -1,9 +1,9 @@
-# Integración V3 sobre SisVentas v2.0.236
+# Integración V3 sobre SisVentas v2.0.279
 
-## Estado al 30/07/2026
+## Estado al 03/08/2026
 
 La aplicación que se inicia desde `index.html` sigue siendo
-`js/app.v2.0.236.js`. Todos los cambios exitosos publicados hasta esa versión se
+`js/app.v2.0.279.js`. Todos los cambios exitosos publicados hasta esa versión se
 conservan. V3 se carga después de la aplicación estable y no reemplaza un
 módulo por el solo hecho de estar presente.
 
@@ -76,7 +76,7 @@ El control de cierre requiere:
 
 ```powershell
 node --test
-node --check js/app.v2.0.236.js
+node --check js/app.v2.0.279.js
 git diff --check
 ```
 

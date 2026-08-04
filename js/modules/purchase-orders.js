@@ -385,11 +385,11 @@
   function generateOrdersFromList() {
     var list = state.activeList;
     if (!list) return;
-    saveCurrentList(true).then(function () {
+    saveCurrentList(true).then(async function () {
       var purchase = list.items.filter(function (i) { return i.incluir && parseFloat(i.cantidadComprar) > 0; });
       var missing = purchase.filter(function (i) { return !i.proveedor; });
       if (missing.length) throw new Error('Elegí un proveedor para todos los materiales');
-      if (list.ordenesIds && list.ordenesIds.length && !confirm('Esta lista ya generó órdenes. ¿Generar un nuevo grupo con las decisiones actuales?')) return null;
+      if (list.ordenesIds && list.ordenesIds.length && !await window.svConfirm('Esta lista ya generó órdenes. ¿Generar un nuevo grupo con las decisiones actuales?')) return null;
       return reserveDeclaredExisting(list).then(function () { return purchase; });
     }).then(function (purchase) {
       if (!purchase) return null;
@@ -557,10 +557,10 @@
     modal.style.display = 'flex';
   }
 
-  function changeOrderStatus(status) {
+  async function changeOrderStatus(status) {
     var order = state.activeOrder;
     if (!order || !order.fbKey) return;
-    if (status === 'cancelada' && !confirm('¿Cancelar esta orden? Las cantidades pendientes dejarán de figurar “en compra”.')) return;
+    if (status === 'cancelada' && !await window.svConfirm('¿Cancelar esta orden? Las cantidades pendientes dejarán de figurar “en compra”.')) return;
     var tasks = [];
     if (status === 'cancelada') {
       (order.items || []).forEach(function (item) {
@@ -905,14 +905,14 @@
     return Promise.all(tasks);
   }
 
-  function deleteActiveOrder() {
+  async function deleteActiveOrder() {
     var order = state.activeOrder;
     if (!order || !order.fbKey) return;
     if ((order.items || []).some(function (item) { return (parseFloat(item.cantidadRecibida) || 0) > 0; })) {
       if (typeof window.notify === 'function') window.notify('No se puede eliminar una orden con materiales recibidos');
       return;
     }
-    if (!confirm('¿Eliminar definitivamente ' + (order.numero || 'esta orden') + '? Esta acción no elimina la venta ni los productos.')) return;
+    if (!await window.svConfirm('¿Eliminar definitivamente ' + (order.numero || 'esta orden') + '? Esta acción no elimina la venta ni los productos.')) return;
     var tasks = [];
     if (order.estado !== 'cancelada') {
       (order.items || []).forEach(function (item) {
@@ -932,9 +932,9 @@
     });
   }
 
-  function migrateLegacy() {
+  async function migrateLegacy() {
     var pending = state.legacy.filter(function (o) { return !o.migradaA; });
-    if (!pending.length || !confirm('Se incorporarán ' + pending.length + ' órdenes anteriores al historial unificado. No se duplicarán en el futuro. ¿Continuar?')) return;
+    if (!pending.length || !await window.svConfirm('Se incorporarán ' + pending.length + ' órdenes anteriores al historial unificado. No se duplicarán en el futuro. ¿Continuar?')) return;
     Promise.all(pending.map(function (old, index) {
       var items = (old.items || []).map(function (item) { var qty = parseFloat(item.cantidad || item.qty) || 1; var cost = parseFloat(item.precioRef || item.costoUnitario) || 0; return { codigo: item.codigo || item.cod || '', descripcion: item.descripcion || item.desc || '', cantidadOrdenada: qty, cantidadRecibida: item.recibido ? qty : 0, costoUnitario: cost, subtotal: qty * cost }; });
       var total = items.reduce(function (s, i) { return s + i.subtotal; }, 0);

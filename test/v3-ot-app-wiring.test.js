@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.236.js'), 'utf8');
+const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.279.js'), 'utf8');
 const metrics = fs.readFileSync(path.join(__dirname, '..', 'js', 'core', 'metrics-cache.js'), 'utf8');
 const workflow = fs.readFileSync(path.join(__dirname, '..', 'js', 'modules', 'ot-workflow.js'), 'utf8');
 

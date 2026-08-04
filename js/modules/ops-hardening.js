@@ -129,7 +129,7 @@
     var data = window._svUltimaAuditoriaOperativa || await auditarTodo();
     var txt = JSON.stringify(data, null, 2);
     if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function(){ if(window.notify) notify('Resumen operativo copiado'); });
-    else window.prompt('Copiar resumen operativo:', txt);
+    else await window.svPrompt('Copiar resumen operativo:', txt, { multilinea:true, filas:8 });
   };
 
   window.svRenderResumenOperativo = async function(){

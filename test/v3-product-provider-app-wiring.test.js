@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const source = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.236.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.279.js'), 'utf8');
 
 test('productos y proveedores consultan V3 mediante el puente reversible', () => {
   assert.match(source, /function productosProveedoresV3Invocar\(/);
