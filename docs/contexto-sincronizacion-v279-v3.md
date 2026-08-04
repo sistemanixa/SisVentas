@@ -1,5 +1,7 @@
 # Contexto de sincronización SisVentas v2.0.279 + V3
 
+> Documento histórico de la recuperación realizada sobre v2.0.279. El procedimiento operativo vigente está en [sincronizacion-dos-pc-y-publicacion.md](sincronizacion-dos-pc-y-publicacion.md).
+
 Fecha de reconstrucción: 03/08/2026.
 
 ## Estado recuperado
@@ -105,4 +107,3 @@ V3 conserva `fbKey` como identidad técnica, centraliza cálculos y persistencia
 - ddd33eb — Tomar ganador oficial de Mercado Libre
 - d0b04cf — Diagnosticar candidatos de catalogo Mercado Libre
 - 9066c28 — Usar consenso de precios Mercado Libre
-
