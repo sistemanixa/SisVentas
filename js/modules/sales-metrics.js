@@ -70,9 +70,12 @@
     });
   }
   function pagadoVenta(v){
-    var desdePagos = pagosDeVenta(v).reduce(function(s,p){ return s + numero(p && (p.monto || p.importe || p.total || p.pagado)); }, 0);
+    var pagos = pagosDeVenta(v);
+    var desdePagos = pagos.reduce(function(s,p){ return s + numero(p && (p.monto || p.importe || p.total || p.pagado)); }, 0);
     var directo = numero(v && (v.totalPagado != null ? v.totalPagado : v.pagado != null ? v.pagado : v.montoPagado));
-    return Math.max(desdePagos, directo, esPagoTotal(v) ? totalVenta(v) : 0);
+    // Si existen comprobantes reales, el resumen legacy y el estado guardado
+    // no pueden inflar el cobrado.
+    return pagos.length ? desdePagos : Math.max(directo, esPagoTotal(v) ? totalVenta(v) : 0);
   }
   function ivaVenta(v){ return numero(v && (v.iva != null ? v.iva : v.ivaMonto != null ? v.ivaMonto : v.montoIva)); }
   window.svResumenVentas = function(opts){
