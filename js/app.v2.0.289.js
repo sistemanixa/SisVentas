@@ -4195,6 +4195,36 @@ function obtenerProximoIdVenta() {
   return candidato;
 }
 
+function _maxNumeroVentaLocal() {
+  var maxId = 0;
+  (ventasList||[]).forEach(function(venta) {
+    // Mantener la misma regla de la vista previa: las conversiones legacy no
+    // pertenecen a la secuencia comercial actual.
+    if (venta.pptoOrigen && venta.numeroSecuencial !== true) return;
+    var numero = parseInt(String(venta.idOriginal || venta.id || '').replace(/[^0-9]/g, '')) || 0;
+    if (numero > maxId) maxId = numero;
+  });
+  return maxId;
+}
+
+// La vista previa puede ser local, pero el número definitivo de una venta se
+// reserva con una transacción RTDB para que dos equipos no reutilicen el mismo.
+function reservarSiguienteVentaId() {
+  var maxLocal = _maxNumeroVentaLocal();
+  if (!window.fbDB || typeof window.fbRunTransaction !== 'function') {
+    return Promise.reject(new Error('No hay conexión segura para reservar un número único de venta'));
+  }
+  var ref = window.fbRef(window.fbDB, 'sisventas/contadores/venta');
+  return window.fbRunTransaction(ref, function(actual) {
+    return Math.max(parseInt(actual, 10) || 0, maxLocal) + 1;
+  }).then(function(resultado) {
+    var numero = resultado && resultado.snapshot ? parseInt(resultado.snapshot.val(), 10) : 0;
+    if (!numero) throw new Error('No se pudo reservar el número de venta');
+    return '#V-' + String(numero).padStart(6, '0');
+  });
+}
+window.reservarSiguienteVentaId = reservarSiguienteVentaId;
+
 function fbCargarVentas() {
   if (!window.fbDB) return;
   if (window._ventasListenerActivo) return;
@@ -6390,7 +6420,7 @@ function showPage(id, el) {
   if (id === 'detalle')       { _svPrepararVistaModulo(id, 30, function(){ if(aperturaDirecta || window._ventaDesdeHistorialOrigen) return; if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); }); }
   if (id === 'presupuesto')   { _svPrepararVistaModulo(id, 30, function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }); }
   if (id === 'ordentrabajo')  { _svPrepararVistaModulo(id, 30, function(){ if(aperturaDirecta) return; if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }); }
-  if (id === 'venta' && !preservarFormularioVenta && !aperturaDirecta) { setTimeout(function(){ if(typeof inicializarFilasVenta==='function') inicializarFilasVenta(); if(typeof iniciarMonedaVenta==='function') iniciarMonedaVenta(); }, 50); }
+  if (id === 'venta' && !preservarFormularioVenta && !aperturaDirecta) { setTimeout(function(){ if(typeof iniciarNuevaVenta==='function') iniciarNuevaVenta(); if(typeof iniciarMonedaVenta==='function') iniciarMonedaVenta(); }, 50); }
   if (id === 'gastos')        { _svPrepararVistaModulo(id, 30, function(){ if(typeof renderTablaGastos==='function'){ renderTablaGastos(); actualizarMetricasGastos(); }}); }
   if (id === 'dashboard') { setTimeout(function(){
     if(typeof renderKPIsDashboard==='function') renderKPIsDashboard();
@@ -9379,7 +9409,29 @@ function delRow(btn) {
 }
 function toggleAll(cb) { document.querySelectorAll('#det-body input[type=checkbox]').forEach(c => c.checked = cb.checked); }
 
+function _ventaCambiarEstadoGuardado(enCurso) {
+  document.querySelectorAll('#page-venta button[onclick="confirmarVenta()"]').forEach(function(btn) {
+    if (enCurso) {
+      if (!btn.dataset.textoOriginal) btn.dataset.textoOriginal = btn.innerHTML;
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Guardando...';
+    } else {
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      if (btn.dataset.textoOriginal) btn.innerHTML = btn.dataset.textoOriginal;
+    }
+  });
+}
+
 async function confirmarVenta() {
+  if (window._ventaGuardadoEnCurso) {
+    notify('La venta ya se está guardando');
+    return;
+  }
+  window._ventaGuardadoEnCurso = true;
+  _ventaCambiarEstadoGuardado(true);
+  try {
   if (!document.getElementById('cli-inp').value) { notify('Seleccioná un cliente primero'); return; }
 
   // Validar descuento general contra límite configurado
@@ -9433,8 +9485,13 @@ async function confirmarVenta() {
   var aaaa = hoy.getFullYear();
   var fechaHoy = dd + '/' + mm + '/' + aaaa;
 
+  var ventaEditandoFbKey = String(window._ventaEditandoFbKey || '').trim();
+  var ventaOriginalEditar = ventaEditandoFbKey
+    ? (window._ventaEditandoOriginal || (ventasList||[]).find(function(x){ return x.fbKey === ventaEditandoFbKey; }) || {})
+    : null;
   var nuevaVenta = {
-    id: obtenerProximoIdVenta(),
+    // El número definitivo se reserva en Firebase justo antes de persistir.
+    id: '',
     cliente:  cli,
     idCliente: idCliVal,        // ← ID real del cliente para filtrar en historial
     clienteId: idCliVal,        // ← campo alternativo para compatibilidad
@@ -9532,9 +9589,9 @@ async function confirmarVenta() {
   nuevaVenta.margenPct = nuevaVenta.subtotal > 0 ? ((nuevaVenta.subtotal - costoTotalVenta) / nuevaVenta.subtotal) * 100 : 0;
   nuevaVenta.margenAutorizadoPorAdmin = ventaAutorizadaPorAdmin;
 
-  if (window._ventaEditandoFbKey) {
-    var ventaOriginalEdit = window._ventaEditandoOriginal || (ventasList||[]).find(function(x){ return x.fbKey === window._ventaEditandoFbKey; }) || {};
-    nuevaVenta.fbKey = window._ventaEditandoFbKey;
+  if (ventaEditandoFbKey) {
+    var ventaOriginalEdit = ventaOriginalEditar;
+    nuevaVenta.fbKey = ventaEditandoFbKey;
     nuevaVenta.id = ventaOriginalEdit.id || nuevaVenta.id;
     nuevaVenta.estadoPago = ventaOriginalEdit.estadoPago || nuevaVenta.estadoPago;
     nuevaVenta.estadoInst = ventaOriginalEdit.estadoInst || nuevaVenta.estadoInst;
@@ -9549,18 +9606,22 @@ async function confirmarVenta() {
     nuevaVenta.descuentoPctEfectivo = ventaPorcentajeDescuentoEfectivo(nuevaVenta);
     if (nuevaVenta.sinCargo) nuevaVenta.estadoPago = 'sin_cargo';
     else if (nuevaVenta.estadoPago === 'sin_cargo') nuevaVenta.estadoPago = 'pendiente_pago';
+  }
+  if (!ventaEditandoFbKey) nuevaVenta.id = await reservarSiguienteVentaId();
+  var resultadoGuardado;
+  if (typeof fbGuardarVenta === 'function') {
+    resultadoGuardado = await fbGuardarVenta(nuevaVenta);
+  } else {
+    ventasList.unshift(nuevaVenta);
+    resultadoGuardado = null;
+  }
+  var fbKeyGuardada = (resultadoGuardado && resultadoGuardado.fbKey) || nuevaVenta.fbKey || '';
+  if (ventaEditandoFbKey && window._ventaEditandoFbKey === ventaEditandoFbKey) {
     window._ventaEditandoFbKey = null;
     window._ventaEditandoOriginal = null;
   }
-  var guardarPromise;
-  if (typeof fbGuardarVenta === 'function') {
-    guardarPromise = fbGuardarVenta(nuevaVenta);
-  } else {
-    ventasList.unshift(nuevaVenta);
-    guardarPromise = Promise.resolve(null);
-  }
   if (typeof registrarActividad === 'function') {
-    registrarActividad('Venta creada', nuevaVenta.id + ' — ' + cli + ' — $' + Math.round(nuevaVenta.total).toLocaleString('es-AR'));
+    registrarActividad(ventaEditandoFbKey ? 'Venta editada' : 'Venta creada', nuevaVenta.id + ' — ' + cli + ' — $' + Math.round(nuevaVenta.total).toLocaleString('es-AR'));
   }
 
   // La OT se habilita con el primer pago. Una venta todavía sin seña queda
@@ -9582,30 +9643,25 @@ async function confirmarVenta() {
     if (margenBox) margenBox.style.display = 'none';
     if (margenIco) margenIco.className = 'ti ti-eye';
     if (margenLbl) margenLbl.textContent = 'Ver margen de ganancia';
-    if (typeof inicializarFilasVenta === 'function') inicializarFilasVenta();
+    if (typeof iniciarNuevaVenta === 'function') iniciarNuevaVenta();
   }, 300);
 
-  // Mostrar modal de confirmación — esperamos un poco para que el listener de
-  // Firebase actualice ventasList con el fbKey real antes de buscarlo
-  guardarPromise.then(function() {
-    // Si se editó una venta ya pagada y se habilitó comisión, generar la comisión ahora.
-    // Antes solo se generaba en registrarPago(), por eso al cambiar vendedor/comisionado
-    // sobre una venta ya cobrada no se acreditaba nada en Mi Cuenta.
-    try {
-      var pagadoReal = parseFloat(nuevaVenta.totalPagado || 0) || 0;
-      var ventaPagada = (nuevaVenta.estadoPago === 'pago_total') || (pagadoReal >= (parseFloat(nuevaVenta.total)||0) && (parseFloat(nuevaVenta.total)||0) > 0);
-      if (nuevaVenta.ventaEditada && nuevaVenta.comisionHabilitada === true && ventaPagada && typeof generarComisionesVenta === 'function') {
-        generarComisionesVenta(nuevaVenta, pagadoReal || nuevaVenta.total);
-      }
-    } catch(_e) { console.warn('[comisiones editar venta]', _e); }
-    setTimeout(function() {
-      var ventaGuardada = (ventasList || []).find(function(v) { return v.id === nuevaVenta.id; });
-      mostrarConfirmacionVenta(nuevaVenta, ventaGuardada ? ventaGuardada.fbKey : null);
-    }, 800);
-  }).catch(function(e) {
+  // Si se editó una venta ya pagada y se habilitó comisión, generarla ahora.
+  try {
+    var pagadoReal = parseFloat(nuevaVenta.totalPagado || 0) || 0;
+    var ventaPagada = (nuevaVenta.estadoPago === 'pago_total') || (pagadoReal >= (parseFloat(nuevaVenta.total)||0) && (parseFloat(nuevaVenta.total)||0) > 0);
+    if (nuevaVenta.ventaEditada && nuevaVenta.comisionHabilitada === true && ventaPagada && typeof generarComisionesVenta === 'function') {
+      generarComisionesVenta(nuevaVenta, pagadoReal || nuevaVenta.total);
+    }
+  } catch(_e) { console.warn('[comisiones editar venta]', _e); }
+  setTimeout(function() { mostrarConfirmacionVenta(nuevaVenta, fbKeyGuardada); }, 800);
+  } catch (e) {
     console.error('[confirmarVenta]', e);
-    notify('Venta ' + nuevaVenta.id + ' confirmada ✓');
-  });
+    notify('No se pudo guardar la venta: ' + (e && e.message ? e.message : 'error desconocido'));
+  } finally {
+    window._ventaGuardadoEnCurso = false;
+    _ventaCambiarEstadoGuardado(false);
+  }
 }
 
 // Inicializar filas al cargar nueva venta
@@ -9676,6 +9732,14 @@ function volverADetalleVenta() {
   } else if (typeof showPage === 'function') {
     showPage('detalle');
   }
+}
+
+function iniciarNuevaVenta() {
+  // La navegación normal a "Nueva venta" crea una operación nueva; nunca
+  // debe conservar la identidad técnica de una edición previa.
+  window._ventaEditandoFbKey = null;
+  window._ventaEditandoOriginal = null;
+  inicializarFilasVenta();
 }
 
 function inicializarFilasVenta() {
@@ -18193,6 +18257,9 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
     else notify('Acceso restringido para tu rol');
     return;
   }
+  // Abrir "Nuevo cliente" nunca puede heredar la identidad de la edición
+  // anterior. editarCliente la asigna explícitamente después de abrirlo.
+  if (tipo === 'cliente') window._editingClienteId = null;
   window._modalTipo = tipo;
   window._modalFbKey = fbKeyExistente || null;
   const cfg = FORMS_CFG[tipo];
@@ -18328,6 +18395,7 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
   document.getElementById('modal-nuevo').classList.add('open');
 }
 function cerrarModalNuevoGenerico(){
+  var tipoCerrado = window._modalTipo;
   var m=document.getElementById('modal-nuevo');
   if(m){ m.classList.remove('open'); m.classList.remove('secure-modal'); }
   document.body.classList.remove('modal-secure-open');
@@ -18338,6 +18406,7 @@ function cerrarModalNuevoGenerico(){
       renderTablaProveedoresProducto();
     }
   }
+  if (tipoCerrado === 'cliente') window._editingClienteId = null;
 }
 function guardarNuevoGenerico() {
   var tipo = window._modalTipo;
@@ -30105,10 +30174,9 @@ function abrirEditorPpto(id) {
   if (!p) { notify('Presupuesto no encontrado o número duplicado. Abrilo nuevamente desde la lista.'); return; }
   if (!puedeEditarPresupuestoPermiso(p)) { notify('Sin permisos o presupuesto ya convertido a venta'); return; }
 
+  abrirNuevoPresupuesto();
   window._pptoEditandoFbKey = p.fbKey || '';
   window._pptoEditandoId    = p.id || '';
-
-  abrirNuevoPresupuesto();
   {
     var numEl = document.getElementById('pp-numero'); if (numEl) numEl.value = p.id || '';
     var cliEl = document.getElementById('pp-cli'); if (cliEl) cliEl.value = p.cliente || '';
@@ -30161,11 +30229,10 @@ function editarPptoParaMigrar(id) {
   var p = buscarPptoPorRef(id);
   if (!p) return;
 
-  window._pptoEditandoFbKey = p.fbKey;
-  window._pptoEditandoId    = p.id;
-
   // Abrir el formulario (inicializa y muestra ppto-form-view)
   abrirNuevoPresupuesto();
+  window._pptoEditandoFbKey = p.fbKey;
+  window._pptoEditandoId    = p.id;
 
   setTimeout(function() {
     // Número
@@ -30610,7 +30677,13 @@ async function pptoAccion(accion, opts) {
   if (accion === 'convertir_venta') {
     if (!opts.skipConfirm && !await svConfirm('¿Convertir este presupuesto en venta? El estado de pago inicial será Pendiente de pago.')) return;
     if (!window.fbDB) { notify('Sin conexión'); return; }
-    var numVenta = obtenerProximoIdVenta();
+    var numVenta;
+    try {
+      numVenta = await reservarSiguienteVentaId();
+    } catch (e) {
+      notify('No se pudo reservar el número de venta: ' + (e && e.message ? e.message : 'error desconocido'));
+      return;
+    }
     var clienteRefPpto = (typeof window._svResolverClienteRegistro === 'function')
       ? window._svResolverClienteRegistro(p, true)
       : null;
@@ -31076,6 +31149,10 @@ async function guardarPresupuesto(modo) {
 
 // Navegación
 function volverListaPpto() {
+  // Salir del formulario, incluso al cancelar, descarta la identidad de una
+  // edición para que la próxima alta no pueda transformarse en UPDATE.
+  window._pptoEditandoFbKey = null;
+  window._pptoEditandoId = null;
   _block('ppto-list-view');
   _hide('ppto-detalle-view');
   _hide('ppto-form-view');
@@ -31084,6 +31161,10 @@ function volverListaPpto() {
   document.dispatchEvent(new CustomEvent('sisventas:accion-notificacion-cerrada', { detail:{ tipo:'presupuesto' } }));
 }
 function abrirNuevoPresupuesto() {
+  // Esta función representa siempre una alta nueva. Los flujos de edición
+  // restauran su identidad luego de inicializar el formulario.
+  window._pptoEditandoFbKey = null;
+  window._pptoEditandoId = null;
   _hide('ppto-list-view');
   _hide('ppto-detalle-view');
   _block('ppto-form-view');
@@ -32163,7 +32244,7 @@ function otQuitarCarrito(idx) {
   otRenderCarritoAdicional();
 }
 
-function otConfirmarVentaAdicional() {
+async function otConfirmarVentaAdicional() {
   if (!_otCarritoAdicional.length) { notify('Agregá al menos un producto'); return; }
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB) return;
@@ -32174,7 +32255,13 @@ function otConfirmarVentaAdicional() {
   var total = items.reduce(function(s,i){ return s+i.sub; }, 0);
 
   var fechaVentaAdicional = svFechaLocalISO();
-  var idVentaAdicional = obtenerProximoIdVenta();
+  var idVentaAdicional;
+  try {
+    idVentaAdicional = await reservarSiguienteVentaId();
+  } catch (e) {
+    notify('No se pudo reservar el número de venta: ' + (e && e.message ? e.message : 'error desconocido'));
+    return;
+  }
   var clienteRef = String(ot.clienteFbKey || ot.clienteKey || ot.clienteId || ot.idCliente || '').trim();
   if (!clienteRef) {
     clienteRef = resolverIdClienteVenta({ cliente:ot.cliente || '' });
@@ -36759,8 +36846,8 @@ function calcularComisionEmpleado(emp, mesAMM) {
 function editarCliente(id) {
   var cli = clientesData ? clientesData.find(function(c){ return String(c.id || '') === String(id || '') || String(c.fbKey || '') === String(id || ''); }) : null;
   if (!cli) { notify('Cliente no encontrado'); return; }
-  window._editingClienteId = cli.fbKey || cli.id;
   abrirModalNuevo('cliente');
+  window._editingClienteId = cli.fbKey || cli.id;
   if (cli) {
     setTimeout(function() {
       var partes = (cli.nombre || '').trim().split(' ');
