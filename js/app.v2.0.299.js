@@ -6639,13 +6639,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.298-firebase',
+  VERSION: 'v2.0.299-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Mi cuenta guarda comprobantes con el mismo mecanismo directo de Gastos, sin depender de Firebase Storage.',
-    'El botón informa “Guardando…” y se libera al terminar.'
+    'Los gastos que adelantó un técnico ahora se muestran a su favor en Mi cuenta.',
+    'Los iconos de calendario se ven con el mismo contraste que la fecha.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'ctaemp', actionLabel:'Abrir Mi cuenta' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.299',
+      date: '07/08/2026',
+      title: 'Reintegros y fechas más claros',
+      notes: Object.freeze(['Transporte, materiales y otros gastos adelantados suman a favor del técnico.', 'Adelantos y cargos explícitos siguen descontando.', 'Los iconos de calendario respetan el contraste del tema.']),
+      feature: Object.freeze({ page:'ctaemp', actionLabel:'Abrir Mi cuenta' })
+    }),
     Object.freeze({
       version: 'v2.0.298',
       date: '07/08/2026',

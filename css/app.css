@@ -33,8 +33,15 @@ body.dark-mode input[type="time"],
 body.dark-mode input[type="month"],
 body.dark-mode input[type="week"],
 body.dark-mode input[type="datetime-local"]{color-scheme:dark;background-color:var(--bg3);color:var(--text)}
+/* El calendario nativo no hereda color; se fuerza el mismo tono legible que
+   usa el texto de los campos tanto en modo claro como oscuro. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator,
+input[type="week"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator{opacity:.82;cursor:pointer}
 html.dark-mode input::-webkit-calendar-picker-indicator,
-body.dark-mode input::-webkit-calendar-picker-indicator{filter:invert(1) brightness(.85);opacity:.82;cursor:pointer}
+body.dark-mode input::-webkit-calendar-picker-indicator{filter:invert(1) brightness(1.12);opacity:1}
 html{}input[type="number"]{-moz-appearance:textfield}
 input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;height:100vh;overflow:hidden}

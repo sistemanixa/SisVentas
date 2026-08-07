@@ -2,12 +2,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
 
-const app = fs.readFileSync('js/app.v2.0.298.js', 'utf8');
+const app = fs.readFileSync('js/app.v2.0.299.js', 'utf8');
 const deploy = fs.readFileSync('scripts/actualizar-nodo-version.ps1', 'utf8');
 
 test('Novedades contiene las versiones publicadas desde v2.0.289', () => {
   const history = app.slice(app.indexOf('RELEASE_HISTORY'), app.indexOf('Object.freeze({', app.indexOf("version: 'v2.0.288'")));
-  for (const version of ['v2.0.290', 'v2.0.291', 'v2.0.292', 'v2.0.293', 'v2.0.294', 'v2.0.295', 'v2.0.296', 'v2.0.297', 'v2.0.298']) {
+  for (const version of ['v2.0.290', 'v2.0.291', 'v2.0.292', 'v2.0.293', 'v2.0.294', 'v2.0.295', 'v2.0.296', 'v2.0.297', 'v2.0.298', 'v2.0.299']) {
     assert.match(history, new RegExp("version: '" + version.replaceAll('.', '\\.') + "'"));
   }
   assert.match(history, /Crédito de productos históricos/);
@@ -18,6 +18,7 @@ test('Novedades contiene las versiones publicadas desde v2.0.289', () => {
   assert.match(history, /Guardado confiable de movimientos/);
   assert.match(history, /Comprobantes sin bloqueo/);
   assert.match(history, /Movimientos con comprobantes directos/);
+  assert.match(history, /Reintegros y fechas más claros/);
 });
 
 test('el procedimiento de deploy exige una entrada de Novedades', () => {
