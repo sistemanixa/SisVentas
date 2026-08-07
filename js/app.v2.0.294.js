@@ -6639,13 +6639,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.293-firebase',
+  VERSION: 'v2.0.294-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Los movimientos del técnico conservan su fecha local y se clasifican en el mes correcto.',
-    'Mi cuenta muestra cargos negativos y haberes u horas extra positivos para explicar el saldo.'
+    'Caja registra resumen y movimiento juntos, sin duplicarse por doble clic o concurrencia.',
+    'Comisiones, horas extra y aguinaldos se generan de forma atómica e idempotente.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'ctaemp', actionLabel:'Abrir Mi cuenta' }),
+  RELEASE_FEATURE: Object.freeze({ page:'caja', actionLabel:'Abrir Caja diaria' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.294',
+      date: '07/08/2026',
+      title: 'Operaciones de personal y Caja protegidas',
+      notes: Object.freeze(['Caja actualiza su saldo y el movimiento en una única confirmación atómica.', 'Comisiones, horas extra y aguinaldos evitan registros duplicados ante doble clic o dos equipos.', 'Los gastos asociados conservan una clave estable para mantener la trazabilidad.']),
+      feature: Object.freeze({ page:'caja', actionLabel:'Abrir Caja diaria' })
+    }),
     Object.freeze({
       version: 'v2.0.293',
       date: '07/08/2026',
