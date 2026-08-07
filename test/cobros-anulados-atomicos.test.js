@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.301.js'), 'utf8');
+const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.302.js'), 'utf8');
 
 function sourceOfFunction(name) {
   const start = app.indexOf('function ' + name + '(');
@@ -74,6 +74,26 @@ test('cobros: a legacy sale without a saved total uses its real line items', asy
 
   assert.equal(resultado.venta.total, 1353009);
   assert.equal(resultado.venta.totalPagado, 900000);
+  assert.equal(resultado.pago.saldoRestante, 453009);
+});
+
+test('cobros: resuelve la venta por número comercial cuando la clave interna cambió', async () => {
+  const store = transactionStore({
+    ventas: { claveFirebaseReal: { id: '#V-910108', total: 1353009, totalPagado: 0 } },
+    pagos: {}
+  });
+  const sandbox = {
+    window: { fbDB: {}, fbRef: (_db, route) => route, fbRunTransaction: store.run.bind(store) },
+    Promise, Date, Math, Object, parseFloat, String, Number, Error, isFinite
+  };
+  vm.runInNewContext(sourceOfFunction('_registrarCobroAtomico'), sandbox);
+
+  const resultado = await sandbox._registrarCobroAtomico('claveDesactualizada', {
+    monto: 900000, venta: '#V-910108', ventaId: '#V-910108'
+  });
+
+  assert.equal(resultado.venta.totalPagado, 900000);
+  assert.equal(store.value().ventas.claveFirebaseReal.totalPagado, 900000);
   assert.equal(resultado.pago.saldoRestante, 453009);
 });
 
