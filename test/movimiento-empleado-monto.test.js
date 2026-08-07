@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
 
-const app = fs.readFileSync('js/app.v2.0.296.js', 'utf8');
+const app = fs.readFileSync('js/app.v2.0.297.js', 'utf8');
 
 test('guardar movimiento acepta el monto visible si dataset.raw no fue inicializado', () => {
   assert.match(app, /var monto = getMontoRaw\(montoInput\)/);
@@ -16,4 +16,10 @@ test('guardar movimiento protege la doble ejecución y libera el bloqueo', () =>
   assert.match(app, /window\._movEmpGuardando/);
   assert.match(app, /finally\(function\(\)\{ window\._movEmpGuardando = false; \}\)/);
   assert.match(app, /\['transporte','materiales','gasto_empresa','otro'\]/);
+});
+
+test('una foto que no responde no bloquea el guardado del movimiento', () => {
+  assert.match(app, /Promise\.race\(\[subidaFoto, limiteFoto\]\)/);
+  assert.match(app, /La carga del comprobante demoró demasiado/);
+  assert.match(app, /nuevo\.fotoUrl = null/);
 });
