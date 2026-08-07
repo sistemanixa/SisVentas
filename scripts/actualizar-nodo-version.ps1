@@ -32,6 +32,12 @@ $liviano = Obtener-TextoPublico 'js/core/version.js'
 $worker = Obtener-TextoPublico 'sw.js'
 
 if ($app -notmatch "VERSION:\s*'$([regex]::Escape($versionFirebase))'") { throw "$appRuta no coincide con $versionFirebase" }
+# Toda publicación debe dejar una entrada visible en Novedades. Si falta, no
+# se activa el marcador Firebase y por lo tanto la actualización no se anuncia
+# como terminada a los usuarios.
+if ($app -notmatch "(?s)RELEASE_HISTORY.*?version:\s*'$([regex]::Escape($Version))'") {
+  throw "$appRuta no contiene la novedad obligatoria para $Version"
+}
 if ($core -notmatch "SISVENTAS_PWA_VERSION\s*=\s*'$([regex]::Escape($Version))'") { throw "$coreRuta no coincide con $Version" }
 if ($liviano -notmatch "SISVENTAS_PWA_VERSION\s*=\s*'$([regex]::Escape($Version))'") { throw 'El marcador liviano no coincide' }
 if ($worker -notmatch "sisventas-$([regex]::Escape($Version))") { throw 'El Service Worker no coincide' }

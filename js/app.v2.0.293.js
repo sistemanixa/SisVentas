@@ -6634,13 +6634,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.292-firebase',
+  VERSION: 'v2.0.293-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Reclamos valida que la OT y la venta vinculadas existan antes de abrirlas.',
-    'Los vínculos rotos se pueden reparar o volver a generar de forma segura.'
+    'Los movimientos del técnico conservan su fecha local y se clasifican en el mes correcto.',
+    'Mi cuenta muestra cargos negativos y haberes u horas extra positivos para explicar el saldo.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'soporte', actionLabel:'Abrir Reclamos' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ctaemp', actionLabel:'Abrir Mi cuenta' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.293',
+      date: '07/08/2026',
+      title: 'Movimientos claros y Novedades completas',
+      notes: Object.freeze(['La fecha de cada movimiento del técnico se toma en hora local y no se desplaza por UTC.', 'Cargos se muestran y descuentan en negativo; haberes y horas extra, en positivo.', 'Novedades incorpora las versiones 290, 291 y 292, y cada futura publicación exige su registro.']),
+      feature: Object.freeze({ page:'ctaemp', actionLabel:'Abrir Mi cuenta' })
+    }),
     Object.freeze({
       version: 'v2.0.292',
       date: '07/08/2026',
