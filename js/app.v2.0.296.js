@@ -6639,13 +6639,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.295-firebase',
+  VERSION: 'v2.0.296-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Administrativo puede guardar presupuestos dentro del máximo configurado sin aprobación del Admin.',
-    'Los presupuestos que superan el monto o descuento máximo continúan enviándose a revisión.'
+    'Nuevo movimiento acepta el importe visible aunque el campo monetario no haya inicializado su valor interno.',
+    'Transporte, Materiales y Otro muestran un error claro y evitan doble guardado.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'presupuesto', actionLabel:'Abrir Presupuestos' }),
+  RELEASE_FEATURE: Object.freeze({ page:'ctaemp', actionLabel:'Abrir Mi cuenta' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.296',
+      date: '07/08/2026',
+      title: 'Guardado confiable de movimientos',
+      notes: Object.freeze(['El importe visible se procesa correctamente en Nuevo movimiento.', 'Transporte, Materiales y Otro quedan protegidos contra doble ejecución.', 'Si Firebase rechaza el guardado, el mensaje informa el error concreto.']),
+      feature: Object.freeze({ page:'ctaemp', actionLabel:'Abrir Mi cuenta' })
+    }),
     Object.freeze({
       version: 'v2.0.295',
       date: '07/08/2026',
