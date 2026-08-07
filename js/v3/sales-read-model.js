@@ -69,7 +69,7 @@
 
   function isCancelled(record) {
     var value = identity.normalized(record && record.estado);
-    return value === 'ANULADO' || value === 'ANULADA' || value === 'CANCELADO';
+    return !!(record && record.anulado === true) || value === 'ANULADO' || value === 'ANULADA' || value === 'CANCELADO';
   }
 
   function paymentIdentity(payment) {

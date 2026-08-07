@@ -118,7 +118,7 @@
     opts = opts || {};
     var mes = opts.mes || mesActual();
     var ventas = getLista('ventas').filter(function(v){ return !v || lower(v.estado) !== 'anulada'; });
-    var pagos = getLista('pagos').filter(function(p){ return !p || lower(p.estado) !== 'anulado'; });
+    var pagos = getLista('pagos').filter(function(p){ return !p || (p.anulado !== true && lower(p.estado) !== 'anulado'); });
     var idx = SV.Cache.buildIndexes();
     var delMes = ventas.filter(function(v){ return esMes(v && (v.fecha || v.fechaVenta || v.createdAt), mes); });
     var totalMes = 0, ivaMes = 0, cantMes = 0, pendienteCobro = 0, pendienteInstalacion = 0, cobradoMes = 0;
@@ -152,7 +152,7 @@
     opts = opts || {};
     var mes = opts.mes || mesActual();
     var gastos = getLista('gastos').filter(function(g){ return lower(g && g.estado) === 'pagado' || num(g && g.pagado) > 0; });
-    var pagos = getLista('pagos').filter(function(p){ return lower(p && p.estado) !== 'anulado'; });
+    var pagos = getLista('pagos').filter(function(p){ return p && p.anulado !== true && lower(p.estado) !== 'anulado'; });
     var out = { mes:mes, pagadoMes:0, cobradoMes:0, efectivo:0, transferencia:0, tarjeta:0, cheque:0, qr:0, otros:0, comprobantes:0 };
     gastos.forEach(function(g){
       if(!esMes(g && (g.fechaPago || g.fecha || g.createdAt), mes)) return;

@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.303.js'), 'utf8');
+const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.304.js'), 'utf8');
 
 function sourceOfFunction(name) {
   const start = app.indexOf('function ' + name + '(');
@@ -101,6 +101,24 @@ test('cobros: registrar usa la ruta canónica de pagos y no la transacción de t
   const registrar = sourceOfFunction('registrarPago');
   assert.match(registrar, /ventasPagosPersistirGuardarPago\(pago\)/);
   assert.doesNotMatch(registrar, /_registrarCobroAtomico\(/);
+});
+
+test('cobros: anular actualiza el comprobante y el resumen de su venta', () => {
+  const anular = sourceOfFunction('anularPago');
+  const resumen = sourceOfFunction('_svResumenPagoVentaDesdeLista');
+  assert.match(anular, /estado:\s*'anulado'/);
+  assert.match(anular, /ventasPagosPersistirActualizarPago\(fbKey, cambiosAnulacion\)/);
+  assert.match(anular, /ventasPagosPersistirActualizarVenta\(venta\.fbKey/);
+  assert.match(resumen, /relacionados\.length \? vigentes/);
+});
+
+test('cobros: el modelo v3 excluye pagos anulados aunque usen el campo legacy anulado', () => {
+  const { SalesReadModel } = require('../js/v3/sales-read-model.js');
+  const sale = { fbKey: 'venta-1', id: '#V-1', total: 1000 };
+  const payment = { fbKey: 'pago-1', ventaFbKey: 'venta-1', monto: 1000, anulado: true };
+  const summary = new SalesReadModel([sale], [payment]).summaryFor(sale);
+  assert.equal(summary.paid, 0);
+  assert.equal(summary.balance, 1000);
 });
 
 test('publicacion: el archivo activo y su version interna son la misma version', () => {
