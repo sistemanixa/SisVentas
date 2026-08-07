@@ -21923,7 +21923,75 @@ function asegurarOTVentaConPago(ventaObj, totalPagado) {
   return generarOTdesdeVenta(ventaId, ventaObj.cliente || '', direccion);
 }
 
+function _cobroBotonGuardar(ocupado) {
+  var btn = document.querySelector('#page-cobranzas button[onclick="registrarPago()"]');
+  if (!btn) return;
+  if (ocupado) {
+    btn.dataset.svTextoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2"></i> Registrando...';
+  } else {
+    btn.disabled = false;
+    if (btn.dataset.svTextoOriginal) btn.innerHTML = btn.dataset.svTextoOriginal;
+  }
+}
+
+// El pago y el resumen de la venta se confirman dentro de una misma
+// transacción sobre sisventas. Así dos equipos no pueden consumir el mismo
+// saldo entre la validación de pantalla y la escritura real.
+function _registrarCobroAtomico(ventaFbKey, pago) {
+  if (!ventaFbKey || !window.fbDB || typeof window.fbRunTransaction !== 'function') {
+    return Promise.reject(new Error('No hay conexión segura para registrar el cobro'));
+  }
+  var pagoKey = pago.fbKey || ('cobro_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9));
+  var ref = window.fbRef(window.fbDB, 'sisventas');
+  return window.fbRunTransaction(ref, function(actual) {
+    actual = actual || {};
+    actual.ventas = actual.ventas || {};
+    actual.pagos = actual.pagos || {};
+    var ventaActual = actual.ventas[ventaFbKey];
+    if (!ventaActual) return;
+    var total = parseFloat(ventaActual.total) || 0;
+    var pagosExistentes = Object.keys(actual.pagos).map(function(key){ return actual.pagos[key] || {}; }).filter(function(pagoExistente) {
+      if (pagoExistente.anulado === true) return false;
+      if (pagoExistente.ventaFbKey) return String(pagoExistente.ventaFbKey) === String(ventaFbKey);
+      return String(pagoExistente.ventaId || pagoExistente.venta || '') === String(ventaActual.id || '');
+    });
+    var pagadoPorComprobantes = pagosExistentes.reduce(function(suma, pagoExistente) {
+      return suma + (parseFloat(pagoExistente.monto) || 0);
+    }, 0);
+    var pagado = pagosExistentes.length ? pagadoPorComprobantes : (parseFloat(ventaActual.totalPagado) || 0);
+    var monto = parseFloat(pago.monto) || 0;
+    if (!(monto > 0) || pagado + monto > total + 0.01) return;
+    var nuevoTotal = Math.min(total, Math.round((pagado + monto) * 100) / 100);
+    var nuevoEstado = nuevoTotal >= total - 0.01 ? 'pago_total' : 'seniado';
+    var pagoGuardado = Object.assign({}, pago, {
+      fbKey: pagoKey,
+      ventaFbKey: ventaFbKey,
+      totalVenta: total,
+      saldoAnterior: Math.max(0, total - pagado),
+      saldoRestante: Math.max(0, total - nuevoTotal)
+    });
+    actual.pagos[pagoKey] = pagoGuardado;
+    actual.ventas[ventaFbKey] = Object.assign({}, ventaActual, {
+      totalPagado: nuevoTotal,
+      estadoPago: nuevoEstado
+    });
+    return actual;
+  }).then(function(resultado) {
+    if (!resultado || resultado.committed === false) {
+      throw new Error('El saldo de la venta cambió antes de confirmar el cobro. Actualizá la pantalla e intentá nuevamente.');
+    }
+    var raiz = resultado.snapshot && resultado.snapshot.val ? resultado.snapshot.val() : {};
+    var venta = raiz && raiz.ventas && raiz.ventas[ventaFbKey];
+    var pagoGuardado = raiz && raiz.pagos && raiz.pagos[pagoKey];
+    if (!venta || !pagoGuardado) throw new Error('No se pudo confirmar el cobro');
+    return { pago: pagoGuardado, venta: venta, pagoKey: pagoKey };
+  });
+}
+
 function registrarPago() {
+  if (window._cobroGuardadoEnCurso) { notify('Ya se está registrando este cobro'); return; }
   var venta  = document.getElementById('cob-venta').value.trim();
   var estadoMonto = _cobranzaEstadoMonto();
   var monto  = estadoMonto.montoARS;
@@ -21942,6 +22010,7 @@ function registrarPago() {
 
   var ventaIdInput = venta.trim();
   var ventaObj = _svResolverVentaRegistro({ venta:ventaIdInput, ventaId:ventaIdInput, idVenta:ventaIdInput });
+  if (!ventaObj || !ventaObj.fbKey) { notify('No se encontró la venta a cobrar. Volvé a seleccionarla.'); return; }
 
   // Usar el ID correcto de la venta (el que está en Firebase, ya migrado)
   var ventaIdGuardar = ventaObj ? (ventaObj.id || ventaIdInput) : ventaIdInput;
@@ -21971,38 +22040,24 @@ function registrarPago() {
     ts:       Date.now()
   };
 
-  var pagadoAntesDeGuardar = ventaObj ? _svMontoPagadoVenta(ventaObj) : 0;
-  ventasPagosPersistirGuardarPago(pago)
-    .then(function(pagoGuardado) {
-      if (ventaObj && ventaObj.fbKey) {
-        var totalVenta = _svTotalVentaCanonico(ventaObj);
-        var nuevoTotal = pagadoAntesDeGuardar + monto;
-        var nuevoEstado = nuevoTotal >= totalVenta ? 'pago_total' : nuevoTotal > 0 ? 'seniado' : 'pendiente_pago';
-        var actualizarVentaPago = ventasPagosPersistirActualizarVenta(ventaObj.fbKey, {
-          estadoPago: nuevoEstado,
-          totalPagado: nuevoTotal
-        });
-        actualizarVentaPago.then(function() {
-          asegurarOTVentaConPago(Object.assign({}, ventaObj, {
-            estadoPago: nuevoEstado,
-            totalPagado: nuevoTotal
-          }), nuevoTotal);
-        }).catch(function(e) {
-          console.warn('[OT desde seña]', e);
-        });
-        if (nuevoEstado === 'pago_total') {
-          generarComisionesVenta(ventaObj, nuevoTotal);
-        }
-      }
+  window._cobroGuardadoEnCurso = true;
+  _cobroBotonGuardar(true);
+  _registrarCobroAtomico(ventaObj.fbKey, pago)
+    .then(function(resultado) {
+      var pagoGuardado = resultado.pago;
+      var ventaActualizada = resultado.venta;
+      var nuevoTotal = parseFloat(ventaActualizada.totalPagado) || 0;
+      asegurarOTVentaConPago(Object.assign({}, ventaObj, ventaActualizada), nuevoTotal);
+      if (ventaActualizada.estadoPago === 'pago_total') generarComisionesVenta(Object.assign({}, ventaObj, ventaActualizada), nuevoTotal);
       notify('✓ Pago registrado correctamente' + (pago.moneda === 'USD' ? ' · USD ' + pago.montoUSD.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' a $' + pago.tipoCambio.toLocaleString('es-AR') : ''));
       if (typeof registrarActividad === 'function') {
         registrarActividad('Pago registrado', venta + ' — ' + (pago.cliente||'') + ' — $' + Math.round(monto).toLocaleString('es-AR') + (pago.moneda === 'USD' ? ' · USD ' + pago.montoUSD.toLocaleString('es-AR',{maximumFractionDigits:2}) + ' TC $' + pago.tipoCambio.toLocaleString('es-AR') : '') + ' (' + medio + ')');
       }
       // Desde la primera seña Cobranzas asegura la OT; el pago total no es requisito.
       // Ofrecer imprimir recibo
-      window._ultimoPagoId = pagoGuardado && pagoGuardado.fbKey || '';
-      window._ultimoPago   = Object.assign({}, pago, { fbKey: window._ultimoPagoId });
-      window._ultimoPagoVenta = ventaObj;
+      window._ultimoPagoId = pagoGuardado.fbKey || resultado.pagoKey;
+      window._ultimoPago   = pagoGuardado;
+      window._ultimoPagoVenta = Object.assign({}, ventaObj, ventaActualizada);
       setTimeout(function(){ imprimirRecibo(); }, 400);
       ['cob-venta','cob-monto','cob-cliente','cob-total-venta','cob-ya-cobrado','cob-saldo','cob-nuevo-saldo','cob-ref','cob-obs'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.value = '';
@@ -22011,7 +22066,8 @@ function registrarPago() {
       if (medioReset) medioReset.value = '';
       iniciarMonedaCobranza();
     })
-    .catch(function(e){ notify('Error al guardar: ' + e.message); });
+    .catch(function(e){ notify('Error al guardar: ' + e.message); })
+    .finally(function(){ window._cobroGuardadoEnCurso = false; _cobroBotonGuardar(false); });
 }
 
 function verReciboDesdeHistorial(idx) {
@@ -27802,8 +27858,11 @@ function abrirNuevoInforme() {
 function editarInforme(fbKey) {
   var inf = informesData.find(function(i){ return i.fbKey === fbKey; });
   if (!inf) return;
-  informeActualId = fbKey;
   abrirNuevoInforme();
+  // abrirNuevoInforme limpia deliberadamente la identidad para que un alta no
+  // pueda reutilizar una edición anterior. Restaurarla sólo después de preparar
+  // el formulario mantiene inequívoca la ruta de UPDATE.
+  informeActualId = fbKey;
   document.getElementById('inf-form-titulo').textContent = 'Editar informe ' + (inf.numero||'');
   var campos = {
     'inf-numero':inf.numero,'inf-fecha':inf.fecha,'inf-cliente':inf.cliente,'inf-dir':inf.dir,
@@ -27825,6 +27884,8 @@ function editarInforme(fbKey) {
 }
 
 function volverListaInformes() {
+  // Cancelar/cerrar no deja una identidad de edición latente para la próxima alta.
+  informeActualId = null;
   document.getElementById('informes-lista-view').style.display = '';
   document.getElementById('informes-form-view').style.display = 'none';
 }
@@ -29171,16 +29232,23 @@ function _actualizarCtaEmpPorPagoGasto(g, fbKey, montoTotal, nuevoPagado, nuevoE
     }).catch(function(){});
 }
 
+function _pagoGastoBotonGuardar(ocupado) {
+  var btn = document.querySelector('#modal-pago-gasto button[onclick="confirmarPagoGasto()"]');
+  if (!btn) return;
+  if (ocupado) {
+    btn.dataset.svTextoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2"></i> Registrando...';
+  } else {
+    btn.disabled = false;
+    if (btn.dataset.svTextoOriginal) btn.innerHTML = btn.dataset.svTextoOriginal;
+  }
+}
+
 function _registrarPagoGastoUnitario(fbKey, montoNuevo, medio, comprobante, loteKey) {
   var g = (gastosData||[]).find(function(x){ return x.fbKey===fbKey; });
-  if (!g || !window.fbDB) return Promise.resolve(false);
+  if (!g || !window.fbDB || typeof window.fbRunTransaction !== 'function') return Promise.reject(new Error('No hay conexión segura para registrar el pago'));
   var montoTotal = parseFloat(g.monto)||0;
-  var pagadoActual = totalPagadoGasto(g);
-  var resta = Math.max(0, montoTotal - pagadoActual);
-  if (!montoNuevo || montoNuevo <= 0 || resta <= 0) return Promise.resolve(false);
-  if (montoNuevo > resta) montoNuevo = resta;
-  var nuevoPagado = pagadoActual + montoNuevo;
-  var nuevoEstado = nuevoPagado >= montoTotal ? 'pagado' : 'pagado_parcial';
   var pagoKey = 'pago_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
   var pago = {
     fecha: new Date().toISOString().slice(0,10),
@@ -29192,15 +29260,42 @@ function _registrarPagoGastoUnitario(fbKey, montoNuevo, medio, comprobante, lote
     lotePagoKey: loteKey || null,
     comprobante: comprobante || null
   };
-  var upd = { montoPagado: nuevoPagado, estado: nuevoEstado, medio: medio };
-  upd['pagos/' + pagoKey] = pago;
-  return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+fbKey), upd).then(function(){
+  return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas/gastos/' + fbKey), function(actual) {
+    if (!actual) return;
+    var total = parseFloat(actual.monto) || 0;
+    var pagos = Array.isArray(actual.pagos) ? actual.pagos.reduce(function(mapa, item, indice) {
+      mapa['legacy_' + indice] = item || {};
+      return mapa;
+    }, {}) : (actual.pagos || {});
+    var pagado = Object.keys(pagos).reduce(function(s, key) {
+      var p = pagos[key] || {};
+      return pagoGastoEstaAnulado(p) ? s : s + (parseFloat(p.monto) || 0);
+    }, 0);
+    // Gastos históricos sin historial de pagos conservan su saldo previo; para
+    // los pagos nuevos, el resumen queda siempre calculado desde su historial.
+    if (!Object.keys(pagos).length) pagado = parseFloat(actual.montoPagado) || 0;
+    var importe = parseFloat(montoNuevo) || 0;
+    if (!(importe > 0) || importe > Math.max(0, total - pagado) + 0.01) return;
+    var nuevoPagado = Math.min(total, Math.round((pagado + importe) * 100) / 100);
+    actual.pagos = pagos;
+    actual.pagos[pagoKey] = pago;
+    actual.montoPagado = nuevoPagado;
+    actual.estado = nuevoPagado >= total - 0.01 ? 'pagado' : 'pagado_parcial';
+    actual.medio = medio;
+    return actual;
+  }).then(function(resultado){
+    if (!resultado || resultado.committed === false) throw new Error('El saldo del gasto cambió antes de confirmar el pago. Actualizá la pantalla e intentá nuevamente.');
+    var gastoActualizado = resultado.snapshot && resultado.snapshot.val ? resultado.snapshot.val() : null;
+    if (!gastoActualizado) throw new Error('No se pudo confirmar el pago del gasto');
+    var nuevoPagado = parseFloat(gastoActualizado.montoPagado) || 0;
+    var nuevoEstado = gastoActualizado.estado || 'pagado_parcial';
     _actualizarCtaEmpPorPagoGasto(g, fbKey, montoTotal, nuevoPagado, nuevoEstado, medio, pagoKey, pago);
     return true;
   });
 }
 
 function confirmarPagoGasto() {
+  if (window._pagoGastoGuardadoEnCurso) { notify('Ya se está registrando este pago'); return; }
   if (!puedeAdministrarGastos()) { notify('Solo administración puede registrar pagos de gastos'); return; }
   var medio = document.getElementById('mpg-medio').value;
   var montoNuevo = getMontoRaw(document.getElementById('mpg-monto'));
@@ -29223,13 +29318,16 @@ function confirmarPagoGasto() {
   });
 
   if (!promesas.length) { notify('No hay saldo pendiente para pagar'); return; }
-  if (loteKey && window.fbDB) {
-    var gastosIncluidos = keys.map(function(k){ var g = (gastosData||[]).find(function(x){ return x.fbKey===k; }) || {}; return { gastoFbKey:k, descripcion:g.descripcion||'', monto:parseFloat(g.monto)||0, saldoPagado:Math.min(restoGasto(g), montoNuevo) }; });
-    window.fbSet(window.fbRef(window.fbDB, 'sisventas/pagos_realizados/' + loteKey), {
-      fecha:new Date().toISOString().slice(0,10), ts:Date.now(), medio:medio, monto:montoNuevo, usuario:currentUser||'', rol:currentRole||'', comprobante:_pagoGastoComprobante||null, gastos:gastosIncluidos
-    }).catch(function(){});
-  }
+  window._pagoGastoGuardadoEnCurso = true;
+  _pagoGastoBotonGuardar(true);
   Promise.all(promesas).then(function(){
+    if (loteKey && window.fbDB) {
+      var gastosIncluidos = keys.map(function(k){ var g = (gastosData||[]).find(function(x){ return x.fbKey===k; }) || {}; return { gastoFbKey:k, descripcion:g.descripcion||'', monto:parseFloat(g.monto)||0, saldoPagado:Math.min(restoGasto(g), montoNuevo) }; });
+      return window.fbSet(window.fbRef(window.fbDB, 'sisventas/pagos_realizados/' + loteKey), {
+        fecha:new Date().toISOString().slice(0,10), ts:Date.now(), medio:medio, monto:montoNuevo, usuario:currentUser||'', rol:currentRole||'', comprobante:_pagoGastoComprobante||null, gastos:gastosIncluidos
+      }).catch(function(){});
+    }
+  }).then(function(){
     if (typeof registrarActividad === 'function') {
       registrarActividad(keys.length > 1 ? 'Pago múltiple de gastos' : 'Pago de gasto', keys.length + ' gasto(s) · $' + Math.round(montoNuevo).toLocaleString('es-AR') + ' · ' + medio);
     }
@@ -29239,7 +29337,8 @@ function confirmarPagoGasto() {
     _gastoPagoMultipleKeys = [];
     _pagoGastoComprobante = null;
     cancelarPagoMultipleGastos();
-  }).catch(function(e){ notify('Error al registrar pago: ' + e.message); });
+  }).catch(function(e){ notify('Error al registrar pago: ' + e.message); })
+    .finally(function(){ window._pagoGastoGuardadoEnCurso = false; _pagoGastoBotonGuardar(false); });
 }
 
 function _gastoPagosArray(g) {
@@ -30642,6 +30741,58 @@ function pptoAccionPermitidaParaRol(p, accion) {
   return (accionesRol[p.estado] || []).indexOf(accion) >= 0;
 }
 
+function _convertirPresupuestoEnVentaAtomico(p, ventaBase, datosAudit) {
+  if (!p || !p.fbKey || !window.fbDB || typeof window.fbRunTransaction !== 'function') {
+    return Promise.reject(new Error('No hay conexión segura para convertir el presupuesto'));
+  }
+  var ventaFbKeyDeterminista = 'ppto_' + String(p.fbKey).replace(/[^A-Za-z0-9_-]/g, '_');
+  var yaExistia = false;
+  return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas'), function(actual) {
+    actual = actual || {};
+    actual.presupuestos = actual.presupuestos || {};
+    actual.ventas = actual.ventas || {};
+    actual.contadores = actual.contadores || {};
+    var presupuestoActual = actual.presupuestos[p.fbKey];
+    if (!presupuestoActual) return;
+    // Si otra sesión ya produjo la venta, no se reserva otro número ni se
+    // crea otro registro: ambas acciones terminan en el mismo vínculo.
+    if (presupuestoActual.ventaGeneradaFbKey || presupuestoActual.ventaFbKey) {
+      yaExistia = true;
+      return actual;
+    }
+    var siguiente = Math.max(parseInt(actual.contadores.venta, 10) || 0, _maxNumeroVentaLocal()) + 1;
+    var numeroVenta = '#V-' + String(siguiente).padStart(6, '0');
+    var venta = Object.assign({}, ventaBase, {
+      id: numeroVenta,
+      presupuestoFbKey: p.fbKey,
+      pptoOrigen: presupuestoActual.id || p.id || '',
+      presupuestoId: presupuestoActual.id || p.id || '',
+      ts: Date.now()
+    });
+    var audit = (presupuestoActual.audit || []).concat([datosAudit]);
+    actual.contadores.venta = siguiente;
+    actual.ventas[ventaFbKeyDeterminista] = venta;
+    actual.presupuestos[p.fbKey] = Object.assign({}, presupuestoActual, {
+      estado: 'convertido',
+      requiereAprobacion: false,
+      ventaId: numeroVenta,
+      ventaGeneradaId: numeroVenta,
+      ventaFbKey: ventaFbKeyDeterminista,
+      ventaGeneradaFbKey: ventaFbKeyDeterminista,
+      audit: audit
+    });
+    return actual;
+  }).then(function(resultado) {
+    if (!resultado || resultado.committed === false) throw new Error('No se pudo confirmar la conversión del presupuesto');
+    var raiz = resultado.snapshot && resultado.snapshot.val ? resultado.snapshot.val() : {};
+    var presupuesto = raiz && raiz.presupuestos && raiz.presupuestos[p.fbKey];
+    var ventaFbKey = presupuesto && (presupuesto.ventaGeneradaFbKey || presupuesto.ventaFbKey);
+    var venta = ventaFbKey && raiz && raiz.ventas && raiz.ventas[ventaFbKey];
+    if (!presupuesto || !ventaFbKey) throw new Error('La conversión no dejó una venta vinculada');
+    return { presupuesto:presupuesto, venta:venta || null, ventaFbKey:ventaFbKey, reutilizada:yaExistia };
+  });
+}
+
 async function pptoAccion(accion, opts) {
   opts = opts || {};
   const p = buscarPptoPorRef(pptoActualId);
@@ -30684,13 +30835,7 @@ async function pptoAccion(accion, opts) {
   if (accion === 'convertir_venta') {
     if (!opts.skipConfirm && !await svConfirm('¿Convertir este presupuesto en venta? El estado de pago inicial será Pendiente de pago.')) return;
     if (!window.fbDB) { notify('Sin conexión'); return; }
-    var numVenta;
-    try {
-      numVenta = await reservarSiguienteVentaId();
-    } catch (e) {
-      notify('No se pudo reservar el número de venta: ' + (e && e.message ? e.message : 'error desconocido'));
-      return;
-    }
+    if (window._pptoConversionEnCurso) { notify('Ya se está convirtiendo este presupuesto'); return; }
     var clienteRefPpto = (typeof window._svResolverClienteRegistro === 'function')
       ? window._svResolverClienteRegistro(p, true)
       : null;
@@ -30703,7 +30848,6 @@ async function pptoAccion(accion, opts) {
       return;
     }
     var venta = {
-      id:           numVenta,
       cliente:      p.cliente || '',
       clienteId:    clienteIdPpto,
       idCliente:    clienteIdPpto,
@@ -30723,9 +30867,6 @@ async function pptoAccion(accion, opts) {
       total:        datosVentaPpto.total,
       estadoPago:   'pendiente_pago',
       estadoInst:   'pendiente_inst',
-      pptoOrigen:   p.id || '',
-      presupuestoId: p.id || '',
-      presupuestoFbKey: p.fbKey || '',
       numeroSecuencial: true,
       conversionPptoNormalizada: true,
       observaciones: 'Generado desde presupuesto ' + (p.id||''),
@@ -30734,31 +30875,23 @@ async function pptoAccion(accion, opts) {
     venta.descuentoPctEfectivo = ventaPorcentajeDescuentoEfectivo(venta);
     venta.sinCargo = ventaEsSinCargo(venta);
     if (venta.sinCargo) venta.estadoPago = 'sin_cargo';
-    window.fbPush(window.fbRef(window.fbDB, 'sisventas/ventas'), venta)
-      .then(function(ref) {
-        var ventaFbKeyNueva = ref && ref.key ? ref.key : '';
-        var auditConversion = (p.audit || []).concat([{
-          fecha: opts.aceptadoEn || ahora,
-          usuario: opts.aceptadoPor || usuario,
-          accion: opts.aceptadoPor ? 'Aceptación del cliente registrada y convertido a venta' : 'Convertido manualmente a venta'
-        }]);
-        if (p.fbKey) {
-          window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presupuestos/'+p.fbKey), {
-            estado: 'convertido',
-            requiereAprobacion: false,
-            ventaId: numVenta,
-            ventaGeneradaId: numVenta,
-            ventaFbKey: ventaFbKeyNueva,
-            ventaGeneradaFbKey: ventaFbKeyNueva,
-            audit: auditConversion
-          });
-        }
-        notify('✓ Venta ' + numVenta + ' creada desde ' + p.id);
-        svNavegarDirecto('detalle', function() {
-          if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaFbKeyNueva || numVenta);
-        }, document.querySelector('[onclick*=detalle]'));
-      })
-      .catch(function(e){ notify('Error: '+e.message); });
+    window._pptoConversionEnCurso = true;
+    try {
+      var conversion = await _convertirPresupuestoEnVentaAtomico(p, venta, {
+        fecha: opts.aceptadoEn || ahora,
+        usuario: opts.aceptadoPor || usuario,
+        accion: opts.aceptadoPor ? 'Aceptación del cliente registrada y convertido a venta' : 'Convertido manualmente a venta'
+      });
+      var numeroVenta = (conversion.presupuesto && (conversion.presupuesto.ventaGeneradaId || conversion.presupuesto.ventaId)) || (conversion.venta && conversion.venta.id) || '';
+      notify((conversion.reutilizada ? '✓ Venta ya existente ' : '✓ Venta ') + numeroVenta + ' vinculada a ' + p.id);
+      svNavegarDirecto('detalle', function() {
+        if (typeof verDetalleVenta === 'function') verDetalleVenta(conversion.ventaFbKey || numeroVenta);
+      }, document.querySelector('[onclick*=detalle]'));
+    } catch (e) {
+      notify('Error: ' + (e && e.message ? e.message : e));
+    } finally {
+      window._pptoConversionEnCurso = false;
+    }
     return;
   }
 
