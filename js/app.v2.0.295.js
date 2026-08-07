@@ -6639,13 +6639,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.294-firebase',
+  VERSION: 'v2.0.295-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Caja registra resumen y movimiento juntos, sin duplicarse por doble clic o concurrencia.',
-    'Comisiones, horas extra y aguinaldos se generan de forma atómica e idempotente.'
+    'Administrativo puede guardar presupuestos dentro del máximo configurado sin aprobación del Admin.',
+    'Los presupuestos que superan el monto o descuento máximo continúan enviándose a revisión.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'caja', actionLabel:'Abrir Caja diaria' }),
+  RELEASE_FEATURE: Object.freeze({ page:'presupuesto', actionLabel:'Abrir Presupuestos' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.295',
+      date: '07/08/2026',
+      title: 'Límites de aprobación respetados',
+      notes: Object.freeze(['El rol Administrativo puede guardar presupuestos dentro de los máximos configurados sin escalar al Admin.', 'Monto o descuento por encima del límite siguen quedando en revisión.', 'El flujo de Vendedor no cambia.']),
+      feature: Object.freeze({ page:'presupuesto', actionLabel:'Abrir Presupuestos' })
+    }),
     Object.freeze({
       version: 'v2.0.294',
       date: '07/08/2026',
