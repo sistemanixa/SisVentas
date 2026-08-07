@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
 
-const app = fs.readFileSync('js/app.v2.0.297.js', 'utf8');
+const app = fs.readFileSync('js/app.v2.0.298.js', 'utf8');
 
 test('guardar movimiento acepta el monto visible si dataset.raw no fue inicializado', () => {
   assert.match(app, /var monto = getMontoRaw\(montoInput\)/);
@@ -14,12 +14,14 @@ test('guardar movimiento acepta el monto visible si dataset.raw no fue inicializ
 
 test('guardar movimiento protege la doble ejecución y libera el bloqueo', () => {
   assert.match(app, /window\._movEmpGuardando/);
-  assert.match(app, /finally\(function\(\)\{ window\._movEmpGuardando = false; \}\)/);
+  assert.match(app, /finally\(function\(\)\{ window\._movEmpGuardando = false; _movEmpBotonGuardar\(false\); \}\)/);
   assert.match(app, /\['transporte','materiales','gasto_empresa','otro'\]/);
 });
 
-test('una foto que no responde no bloquea el guardado del movimiento', () => {
-  assert.match(app, /Promise\.race\(\[subidaFoto, limiteFoto\]\)/);
-  assert.match(app, /La carga del comprobante demoró demasiado/);
-  assert.match(app, /nuevo\.fotoUrl = null/);
+test('el comprobante usa el mismo adjunto base64 del módulo Gastos y muestra estado de guardado', () => {
+  assert.match(app, /var movEmpFotoBase64 = null/);
+  assert.match(app, /fotoBase64:\s+movEmpFotoBase64 \|\| null/);
+  assert.match(app, /function _movEmpBotonGuardar/);
+  assert.match(app, /_movEmpBotonGuardar\(true, 'Guardando\.\.\.'\)/);
+  assert.doesNotMatch(app, /fbUploadBytes\(storageRef, file\)/);
 });

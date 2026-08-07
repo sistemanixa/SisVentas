@@ -6639,13 +6639,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.297-firebase',
+  VERSION: 'v2.0.298-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Si un comprobante demora o falla, el movimiento se guarda sin foto en vez de quedar bloqueado.',
-    'El botón de guardar vuelve a estar disponible después de completar o fallar la carga.'
+    'Mi cuenta guarda comprobantes con el mismo mecanismo directo de Gastos, sin depender de Firebase Storage.',
+    'El botón informa “Guardando…” y se libera al terminar.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'ctaemp', actionLabel:'Abrir Mi cuenta' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.298',
+      date: '07/08/2026',
+      title: 'Movimientos con comprobantes directos',
+      notes: Object.freeze(['Mi cuenta usa el mismo adjunto Base64 de Gastos para Transporte, Materiales y Otro.', 'El guardado no depende de Firebase Storage.', 'El botón muestra el estado y evita dobles envíos.']),
+      feature: Object.freeze({ page:'ctaemp', actionLabel:'Abrir Mi cuenta' })
+    }),
     Object.freeze({
       version: 'v2.0.297',
       date: '07/08/2026',
