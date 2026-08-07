@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.300.js'), 'utf8');
+const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.301.js'), 'utf8');
 
 function sourceOfFunction(name) {
   const start = app.indexOf('function ' + name + '(');
@@ -75,4 +75,16 @@ test('cobros: a legacy sale without a saved total uses its real line items', asy
   assert.equal(resultado.venta.total, 1353009);
   assert.equal(resultado.venta.totalPagado, 900000);
   assert.equal(resultado.pago.saldoRestante, 453009);
+});
+
+test('publicacion: el archivo activo y su version interna son la misma version', () => {
+  const index = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const active = index.match(/src="\.\/js\/(app\.v[\d.]+\.js)"/);
+  assert.ok(active, 'index debe cargar una aplicación versionada');
+  const activeSource = fs.readFileSync(path.join(__dirname, '..', 'js', active[1]), 'utf8');
+  const fromFile = active[1].match(/app\.(v[\d.]+)\.js/)[1];
+  const fromConfig = activeSource.match(/VERSION:\s*'(v[\d.]+)-firebase'/)[1];
+  const fromIndex = index.match(/VERSION:\s*'(v[\d.]+)-firebase'/)[1];
+  assert.equal(fromConfig, fromFile);
+  assert.equal(fromIndex, fromFile);
 });
