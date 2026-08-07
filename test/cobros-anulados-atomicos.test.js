@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.302.js'), 'utf8');
+const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.303.js'), 'utf8');
 
 function sourceOfFunction(name) {
   const start = app.indexOf('function ' + name + '(');
@@ -95,6 +95,12 @@ test('cobros: resuelve la venta por número comercial cuando la clave interna ca
   assert.equal(resultado.venta.totalPagado, 900000);
   assert.equal(store.value().ventas.claveFirebaseReal.totalPagado, 900000);
   assert.equal(resultado.pago.saldoRestante, 453009);
+});
+
+test('cobros: registrar usa la ruta canónica de pagos y no la transacción de toda la raíz', () => {
+  const registrar = sourceOfFunction('registrarPago');
+  assert.match(registrar, /ventasPagosPersistirGuardarPago\(pago\)/);
+  assert.doesNotMatch(registrar, /_registrarCobroAtomico\(/);
 });
 
 test('publicacion: el archivo activo y su version interna son la misma version', () => {
