@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
 
-const source = fs.readFileSync('js/app.v2.0.290.js', 'utf8');
+const source = fs.readFileSync('js/app.v2.0.305.js', 'utf8');
 const helperStart = source.indexOf('function ventaTieneDescuentoItem');
 const helperEnd = source.indexOf('function ventaPorcentajeDescuentoEfectivo', helperStart);
 const resumenStart = source.indexOf('function resumenEconomicoComprobanteVenta', helperStart);
@@ -109,4 +109,23 @@ test('Resumen para impresión con IVA y sin descuentos conserva matemática y no
   assert.strictEqual(resumen.subtotalNeto, 100);
   assert.strictEqual(resumen.iva, 21);
   assert.strictEqual(resumen.total, 121);
+});
+
+test('Venta histórica: recupera el descuento real desde el total aunque descuento tenga sólo el redondeo', () => {
+  const venta = {
+    items: [{ qty: 1, punit: 20081977.73, sub: 20081972.73, disc: 0 }],
+    descuento: 5,
+    subtotal: 20081972.73,
+    total: 19077878.83,
+    iva: 0,
+    conIva: false
+  };
+
+  const resumen = context.resumenEconomicoComprobanteVenta(venta);
+
+  assert.strictEqual(resumen.subtotalBruto, 20081977.73);
+  assert.strictEqual(resumen.descuento, 1004098.9);
+  assert.strictEqual(resumen.subtotalNeto, 19077878.83);
+  assert.strictEqual(Math.round(resumen.descuentoGeneralPct * 100) / 100, 5);
+  assert.strictEqual(resumen.total, 19077878.83);
 });
