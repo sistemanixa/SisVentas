@@ -31,6 +31,7 @@ const {
   seleccionarPublicacionMercadoLibre,
   seleccionarPublicacionConsensoMercadoLibre,
   datosMercadoLibreDesdeFuente,
+  validarIdentidadMercadoLibreOficial,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
   validarIdentidadProducto,
@@ -163,6 +164,21 @@ test('Mercado Libre prioriza el wid y usa sale_price como precio vigente promoci
   assert.equal(datos.porcentajeDescuento, 5);
   assert.equal(datos.itemId, 'MLA1473110405');
   assert.equal(datos.catalogProductId, 'MLAU2980341696');
+});
+
+test('Mercado Libre acepta la identidad oficial aunque la respuesta resumida no incluya título', () => {
+  const url = 'https://www.mercadolibre.com.ar/cerradura-inteligente-suono-smartlock-sturdy-digital-wifi-co/up/MLAU2980341696#wid=MLA1473110405';
+  const identidad = validarIdentidadMercadoLibreOficial(url, 'Cerradura inteligente Suono', {
+    itemId:'MLA1473110405',
+    catalogProductId:'MLAU2980341696',
+    titulo:'',
+    diagnosticoMercadoLibre:{ itemIdUtilizado:'MLA1473110405', catalogProductId:'MLAU2980341696' }
+  });
+  assert.equal(identidad.ok, true);
+  assert.equal(identidad.fuente, 'mercado_libre_api_identificador_oficial');
+  assert.equal(validarIdentidadMercadoLibreOficial(url, 'Cerradura inteligente Suono', {
+    itemId:'MLA9999999999', catalogProductId:'MLAU9999999999', titulo:'', diagnosticoMercadoLibre:{}
+  }).ok, false);
 });
 
 test('el resolver oficial consulta primero el wid del caso real y deja diagnóstico completo', async () => {

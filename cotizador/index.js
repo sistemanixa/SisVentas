@@ -457,6 +457,24 @@ function datosMercadoLibreDesdeFuente(fuente, producto) {
   };
 }
 
+function validarIdentidadMercadoLibreOficial(urlExacta, productoSolicitado, datos) {
+  const titulo = String(datos && datos.titulo || '').trim();
+  if (titulo) return validarIdentidadProducto(productoSolicitado, titulo);
+  const ids = idsMercadoLibreDesdeUrl(urlExacta);
+  const diagnostico = datos && datos.diagnosticoMercadoLibre || {};
+  const normalizarId = (valor) => String(valor || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const itemCoincide = !!ids.itemId && normalizarId(diagnostico.itemIdUtilizado || datos && datos.itemId) === ids.itemId;
+  const catalogoCoincide = !!ids.productoId && normalizarId(diagnostico.catalogProductId || datos && datos.catalogProductId) === ids.productoId;
+  // En respuestas resumidas de la API oficial puede faltar el título. La
+  // identidad sigue siendo comprobable cuando la API confirmó el item concreto
+  // (wid) o el catálogo solicitado; no se aplica a la lectura visual ni a otros
+  // proveedores.
+  if (itemCoincide || catalogoCoincide) {
+    return { ok:true, confianza:1, fuente:'mercado_libre_api_identificador_oficial' };
+  }
+  return validarIdentidadProducto(productoSolicitado, titulo);
+}
+
 async function obtenerJsonMercadoLibre(ruta) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
@@ -1544,7 +1562,9 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
           if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
           datos = await extraerProductoMercadoLibre(page);
         }
-        const identidad = validarIdentidadProducto(item.producto||item.nombre||'', datos.titulo);
+        const identidad = datos.fuente === 'mercado_libre_api_oficial'
+          ? validarIdentidadMercadoLibreOficial(urlExacta, item.producto||item.nombre||'', datos)
+          : validarIdentidadProducto(item.producto||item.nombre||'', datos.titulo);
         if (!identidad.ok) throw new Error(identidad.mensaje);
         const validacionPrecio = validarSaltoPrecio(datos.precioArs, item.precioAnteriorArs);
         if (!validacionPrecio.ok) {
@@ -1552,7 +1572,10 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
           Object.assign(errorPrecio, validacionPrecio);
           throw errorPrecio;
         }
-        resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:datos.fuente || 'mercado_libre_lote_url_exacta', fecha:new Date().toISOString(), tituloProveedor:datos.titulo, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', diagnosticoMercadoLibre:datos.diagnosticoMercadoLibre || undefined, identidad });
+        const tituloProveedor = datos.titulo || (identidad.fuente === 'mercado_libre_api_identificador_oficial'
+          ? 'Identidad confirmada por API oficial (' + (datos.itemId || datos.catalogProductId) + ')'
+          : '');
+        resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:datos.fuente || 'mercado_libre_lote_url_exacta', fecha:new Date().toISOString(), tituloProveedor, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', diagnosticoMercadoLibre:datos.diagnosticoMercadoLibre || undefined, identidad });
       } catch (e) {
         resultados.push({ ok:false, error:true, codigo:e.codigo||'', codigoProducto:item.codigo||'', url:urlExacta, mensaje:e.message||'Error leyendo la publicación', precioAnteriorArs:Number(e.precioAnteriorArs)||0, precioCandidatoArs:Number(e.precioCandidatoArs)||0, relacion:Number(e.relacion)||0, diagnosticoMercadoLibre:e.diagnosticoMercadoLibre || undefined });
       }
@@ -1706,6 +1729,7 @@ module.exports = {
   seleccionarPublicacionMercadoLibre,
   seleccionarPublicacionConsensoMercadoLibre,
   datosMercadoLibreDesdeFuente,
+  validarIdentidadMercadoLibreOficial,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
   validarIdentidadProducto,
