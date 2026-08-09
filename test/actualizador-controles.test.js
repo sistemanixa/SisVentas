@@ -114,12 +114,15 @@ test('corregir un nombre bloquea la fila y muestra que la verificación está en
   assert.match(app, /finally \{\s*delete _actualizadorSesionPrecios\.verificando\[fbKey\]/);
 });
 
-test('un nombre detectado por el proveedor se puede aplicar sin volver a escribirlo', () => {
+test('un nombre distinto detectado por el proveedor habilita la correccion prellenada', () => {
   assert.match(app, /async function cambiarNombreProductoFallidoActualizador\(fbKey, nombreSugerido\)/);
-  assert.match(app, /var nombre = String\(nombreSugerido \|\| ''\)\.trim\(\)/);
+  assert.match(app, /function actualizadorNombreProveedorDistinto\(nombreActual, nombreSugerido\)/);
+  assert.match(app, /sugerido \|\| actual/);
   assert.match(app, /nombreProveedor:String\(\(resultado && resultado\.tituloProveedor\) \|\| ''\)\.trim\(\)/);
+  assert.match(app, /actualizadorNombreProveedorDistinto\(f\.producto, nombreSugerido\)/);
   assert.match(app, /Nombre encontrado en el proveedor/);
-  assert.match(app, /Usar nombre encontrado/);
+  assert.match(app, /Cambiar nombre/);
+  assert.doesNotMatch(app, /Usar nombre encontrado/);
   assert.match(app, /this\.dataset\.nombreSugerido/);
 });
 
