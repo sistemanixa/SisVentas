@@ -1400,6 +1400,7 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
         resultados.push({ ok: false, error: true, codigo: item.codigo || '', mensaje: 'Falta URL exacta' });
         continue;
       }
+      let tituloProveedor = '';
       try {
         const hostProducto = new URL(urlExacta).hostname.toLowerCase();
         if (!/(^|\.)biosegur\.com\.ar$/.test(hostProducto)) {
@@ -1421,7 +1422,7 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
         if (/usuario.*clave|login/i.test(bodyText) && !/mi cuenta|salir/i.test(bodyText)) {
           throw new Error('La sesión de Biosegur se cerró durante el lote');
         }
-        const tituloProveedor = await tituloVisibleProducto(page, 'biosegur');
+        tituloProveedor = await tituloVisibleProducto(page, 'biosegur');
         const identidad = validarIdentidadProducto(item.producto || item.nombre || '', tituloProveedor);
         if (!identidad.ok) throw new Error(identidad.mensaje);
         const precioArs = extraerPrecioBiosegur(bodyText);
@@ -1456,7 +1457,9 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
           identidad
         });
       } catch (e) {
-        resultados.push({ ok:false, error:true, codigo:e.codigo || '', codigoProducto:item.codigo || '', url:urlExacta, mensaje:e.message || 'Error leyendo producto', precioAnteriorArs:Number(e.precioAnteriorArs)||0, precioCandidatoArs:Number(e.precioCandidatoArs)||0, relacion:Number(e.relacion)||0 });
+        // Aunque se rechace la identidad, el título leído es evidencia útil para
+        // que el usuario pueda corregir el nombre sin volver a buscarlo.
+        resultados.push({ ok:false, error:true, codigo:e.codigo || '', codigoProducto:item.codigo || '', url:urlExacta, mensaje:e.message || 'Error leyendo producto', tituloProveedor:String(tituloProveedor || '').trim(), precioAnteriorArs:Number(e.precioAnteriorArs)||0, precioCandidatoArs:Number(e.precioCandidatoArs)||0, relacion:Number(e.relacion)||0 });
       }
       addTrace('lote_progreso', { procesados: i + 1, total: lote.length });
       if (progresoRef) {
@@ -1529,6 +1532,7 @@ async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset
     for (let i=0; i<lote.length; i+=1) {
       const item=lote[i] || {}, urlExacta=normalizarUrl(item.url || item.urlProducto || '');
       if (progresoRef) await progresoRef.update({ estado:'procesando', proveedor:nombreTipo, codigo:item.codigo||'', producto:item.producto||item.nombre||'', url:urlExacta, procesados:offset+i, total:totalTrabajo, actualizadoEn:Date.now() });
+      let tituloProveedor = '';
       try {
         if (!urlExacta || !dominioEsperado.test(new URL(urlExacta).hostname.toLowerCase())) throw new Error('La URL corresponde a otro proveedor; revisá la vinculación');
         await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:15000 });
@@ -1536,7 +1540,7 @@ async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset
         const bodyText=await page.locator('body').innerText({ timeout:8000 });
         if (/producto\s+no\s+encontrado|no\s+existe\s+o\s+fue\s+desactivado|p[aá]gina\s+no\s+encontrada|error\s*404/i.test(bodyText)) throw new Error('Producto no encontrado o desactivado en el proveedor');
         if (/iniciar sesi[oó]n para ver precios|ingresar para ver precios/i.test(bodyText)) throw new Error('La sesión no permite ver precios');
-        const tituloProveedor=await tituloVisibleProducto(page,tipo);
+        tituloProveedor=await tituloVisibleProducto(page,tipo);
         const identidad=validarIdentidadProducto(item.producto||item.nombre||'',tituloProveedor);
         if (!identidad.ok) throw new Error(identidad.mensaje);
         const evidenciaPrecio=await extraerPrecioPaginaProveedor(page,tipo,bodyText);
@@ -1550,7 +1554,7 @@ async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset
         const disponibilidad=extraerDisponibilidadProveedor(bodyText);
         const condicionIva=extraerCondicionIva(bodyText);
         resultados.push({ok:true,proveedor:proveedor.nombre||nombreTipo,codigo:item.codigo||'',producto:item.producto||item.nombre||'',url:urlExacta,precioArs,sinIva:condicionIva.sinIva==null?tipo==='tecnoprices':condicionIva.sinIva,ivaAlicuota:condicionIva.ivaAlicuota,disponibilidadProveedor:disponibilidad,disponibilidadProveedorTexto:disponibilidad==='disponible'?'Disponible':disponibilidad==='sin_stock'?'Sin stock':'No verificado',fuente:tipo+'_lote_url_exacta',fecha:new Date().toISOString(),tituloProveedor,urlFinal:page.url(),textoPrecio:evidenciaPrecio.textoPrecio,selectorPrecio:evidenciaPrecio.selectorPrecio,moneda:evidenciaPrecio.moneda,identidad});
-      } catch(e) { resultados.push({ok:false,error:true,codigo:e.codigo||'',codigoProducto:item.codigo||'',url:urlExacta,mensaje:e.message||'Error leyendo producto',precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}); }
+      } catch(e) { resultados.push({ok:false,error:true,codigo:e.codigo||'',codigoProducto:item.codigo||'',url:urlExacta,mensaje:e.message||'Error leyendo producto',tituloProveedor:String(tituloProveedor||'').trim(),precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}); }
       if (progresoRef) {
         const procesadosGlobal=offset+i+1, transcurridoSeg=Math.max(1,Math.round((Date.now()-inicioMs)/1000)), promedioSeg=transcurridoSeg/Math.max(1,procesadosGlobal);
         await progresoRef.update({procesados:procesadosGlobal,total:totalTrabajo,transcurridoSeg,estimadoRestanteSeg:Math.max(0,Math.round((totalTrabajo-procesadosGlobal)*promedioSeg)),actualizados:resultados.filter(r=>r.ok).length,fallidos:resultados.filter(r=>!r.ok).length,actualizadoEn:Date.now()});
