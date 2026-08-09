@@ -93,6 +93,10 @@ test('Mercado Libre interpreta catálogo, publicación y tienda oficial desde la
     idsMercadoLibreDesdeUrl('https://www.mercadolibre.com.ar/cerradura/up/MLAU2980341696#polycard_client=search-desktop&wid=MLA1473110405'),
     { itemId:'MLA1473110405', productoId:'MLAU2980341696' }
   );
+  assert.deepEqual(
+    idsMercadoLibreDesdeUrl('https://www.mercadolibre.com.ar/modulo-rele-relay-12v-optoacoplado-10a--1-canal-arduino/up/MLAU1503197378?pdp_filters=item_id%3AMLA800708181'),
+    { itemId:'MLA800708181', productoId:'MLAU1503197378' }
+  );
 });
 
 test('Mercado Libre prioriza la variante que coincide con el nombre de la URL', () => {

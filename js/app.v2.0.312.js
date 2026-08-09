@@ -12208,10 +12208,11 @@ function leerSeleccionProveedoresActualizador() {
 function configurarProveedorActualizador(tipo, activo, refrescarModal) {
   var seleccion = leerSeleccionProveedoresActualizador();
   if (!Object.prototype.hasOwnProperty.call(seleccion, tipo)) return;
+  var seleccionAntes = Object.assign({}, seleccion);
   seleccion[tipo] = activo === true;
   try { localStorage.setItem('sisventas_actualizador_proveedores_v1', JSON.stringify(seleccion)); } catch (e) {}
   var estadoResumen = document.getElementById('mod-ap-seleccion-estado');
-  if (estadoResumen) estadoResumen.textContent = 'Selección guardada. El resumen completo se actualiza al presionar “Actualizar resumen”.';
+  if (estadoResumen) estadoResumen.textContent = 'Selección guardada. Recalculando el resumen en segundo plano…';
   if (refrescarModal) {
     var modal = document.getElementById('modal-actualizador-precios');
     if (modal && modal.dataset.ejecutando !== '1') {
@@ -12219,6 +12220,10 @@ function configurarProveedorActualizador(tipo, activo, refrescarModal) {
       // congelar la interfaz varios segundos. La selección se guarda al
       // instante; el recálculo queda diferido para devolver el control primero.
       modal._tiposSeleccionados = proveedoresSeleccionadosActualizador();
+      if (_actualizadorResumenCache.listo || _actualizadorResumenCache.enCurso) {
+        actualizadorRecorrerCambioSeleccionModal(modal, _actualizadorResumenCache, seleccionAntes, seleccion);
+        return;
+      }
       var estado = document.getElementById('actualizador-precios-estado');
       if (estado) estado.textContent = 'Actualizando el resumen de proveedores…';
       var token = (parseInt(modal.dataset.selectorToken || '0', 10) || 0) + 1;
@@ -12241,6 +12246,16 @@ function configurarProveedorActualizador(tipo, activo, refrescarModal) {
       });
     }
   }
+  if (!refrescarModal) {
+    // Se recorre sólo el cambio real contra el resumen cacheado. Los KPI
+    // avanzan según vínculos reales, sin repetir el catálogo completo ni
+    // volver a cero al tildar o destildar un proveedor.
+    if (_actualizadorResumenCache.listo || _actualizadorResumenCache.enCurso) {
+      actualizadorRecorrerCambioSeleccionCache(_actualizadorResumenCache, seleccionAntes, seleccion);
+    } else {
+      actualizarResumenActualizadorEnSegundoPlano();
+    }
+  }
 }
 
 function proveedoresSeleccionadosActualizador() {
@@ -12249,32 +12264,250 @@ function proveedoresSeleccionadosActualizador() {
 }
 
 var _renderActualizadorPreciosToken = 0;
+var _actualizadorResumenCache = window._actualizadorResumenCache || { porTipo:{}, listo:false, enCurso:false };
+window._actualizadorResumenCache = _actualizadorResumenCache;
+var _actualizadorSeleccionCacheToken = 0;
 
-function renderModuloActualizadorPrecios() {
+function actualizadorTotalesSeleccionCache(cache, seleccion) {
+  var productos = {}, pendientes = {};
+  ACTUALIZADOR_PROVEEDORES.forEach(function(tipo) {
+    if (seleccion[tipo.id] === false) return;
+    var datos = (cache.porTipo || {})[tipo.id] || { productos:{}, pendientes:{} };
+    Object.keys(datos.productos || {}).forEach(function(clave) { productos[clave] = true; });
+    Object.keys(datos.pendientes || {}).forEach(function(clave) { pendientes[clave] = true; });
+  });
+  return { productos:productos, pendientes:pendientes };
+}
+
+function actualizadorRecorrerCambioSeleccionCache(cache, seleccionAntes, seleccionDespues) {
+  var antes = actualizadorTotalesSeleccionCache(cache, seleccionAntes);
+  var despues = actualizadorTotalesSeleccionCache(cache, seleccionDespues);
+  var claves = {};
+  [antes.productos, antes.pendientes, despues.productos, despues.pendientes].forEach(function(conjunto) {
+    Object.keys(conjunto).forEach(function(clave) { claves[clave] = true; });
+  });
+  var cambios = Object.keys(claves).map(function(clave) {
+    return {
+      productos:(despues.productos[clave] ? 1 : 0) - (antes.productos[clave] ? 1 : 0),
+      pendientes:(despues.pendientes[clave] ? 1 : 0) - (antes.pendientes[clave] ? 1 : 0)
+    };
+  }).filter(function(cambio) { return cambio.productos || cambio.pendientes; });
+  var vinculados = Object.keys(antes.productos).length;
+  var pendientes = Object.keys(antes.pendientes).length;
+  var indice = 0;
+  var token = ++_actualizadorSeleccionCacheToken;
+  var estado = document.getElementById('mod-ap-seleccion-estado');
+  var siguiente = function() {
+    if (token !== _actualizadorSeleccionCacheToken) return;
+    var limite = Math.min(indice + 12, cambios.length);
+    while (indice < limite) {
+      var cambio = cambios[indice++];
+      vinculados += cambio.productos;
+      pendientes += cambio.pendientes;
+    }
+    _set('mod-ap-vinculados', vinculados);
+    _set('mod-ap-pendientes', pendientes);
+    _set('mod-ap-vigentes', Math.max(0, vinculados - pendientes));
+    if (estado) estado.textContent = indice < cambios.length
+      ? 'Actualizando selección: ' + indice + ' de ' + cambios.length + ' vínculos…'
+      : 'Resumen actualizado sin bloquear la pantalla.';
+    if (indice < cambios.length) return setTimeout(siguiente, 16);
+    actualizadorPintarResumenDesdeCache(cache, true);
+  };
+  siguiente();
+}
+
+function actualizadorRecorrerCambioSeleccionModal(modal, cache, seleccionAntes, seleccionDespues) {
+  if (!modal) return;
+  var antes = actualizadorTotalesSeleccionCache(cache, seleccionAntes);
+  var despues = actualizadorTotalesSeleccionCache(cache, seleccionDespues);
+  var claves = {};
+  [antes.productos, antes.pendientes, despues.productos, despues.pendientes].forEach(function(conjunto) {
+    Object.keys(conjunto).forEach(function(clave) { claves[clave] = true; });
+  });
+  var cambios = Object.keys(claves).map(function(clave) {
+    return {
+      productos:(despues.productos[clave] ? 1 : 0) - (antes.productos[clave] ? 1 : 0),
+      pendientes:(despues.pendientes[clave] ? 1 : 0) - (antes.pendientes[clave] ? 1 : 0)
+    };
+  }).filter(function(cambio) { return cambio.productos || cambio.pendientes; });
+  var vinculados = Object.keys(antes.productos).length;
+  var pendientes = Object.keys(antes.pendientes).length;
+  var indice = 0;
+  var token = (parseInt(modal.dataset.selectorToken || '0', 10) || 0) + 1;
+  modal.dataset.selectorToken = String(token);
+  var vinculadosEl = document.getElementById('actualizador-vinculados-resumen');
+  var pendientesEl = document.getElementById('actualizador-pendientes-resumen');
+  var vigentesEl = document.getElementById('actualizador-vigentes-resumen');
+  var estado = document.getElementById('actualizador-precios-estado');
+  var siguiente = function() {
+    if (!modal.isConnected || modal.dataset.selectorToken !== String(token)) return;
+    var limite = Math.min(indice + 12, cambios.length);
+    while (indice < limite) {
+      var cambio = cambios[indice++];
+      vinculados += cambio.productos;
+      pendientes += cambio.pendientes;
+    }
+    if (vinculadosEl) vinculadosEl.textContent = String(vinculados);
+    if (pendientesEl) { pendientesEl.textContent = String(pendientes); pendientesEl.style.color = pendientes ? 'var(--amber)' : 'var(--green)'; }
+    if (vigentesEl) vigentesEl.textContent = String(Math.max(0, vinculados - pendientes));
+    if (estado) estado.textContent = indice < cambios.length
+      ? 'Actualizando selección: ' + indice + ' de ' + cambios.length + ' vínculos…'
+      : 'Resumen actualizado sin bloquear la pantalla.';
+    if (indice < cambios.length) return setTimeout(siguiente, 16);
+    // Al terminar el recorrido visible se actualiza la lista operativa y el
+    // botón de inicio con el mismo conjunto, sin alterar los KPI ya mostrados.
+    setTimeout(function() {
+      if (!modal.isConnected || modal.dataset.selectorToken !== String(token)) return;
+      var resumen = actualizadorRefrescarResumen(modal);
+      var boton = document.getElementById('btn-actualizar-biosegur-lote');
+      if (boton && resumen && !(modal._candidatosPreview || []).length) {
+        boton.disabled = !resumen.porProcesar.length;
+        boton.innerHTML = '<i class="ti ti-player-play"></i> Iniciar ' + resumen.porProcesar.length + ' en segundo plano';
+        boton.setAttribute('onclick', 'ejecutarActualizadorMasivoBiosegur()');
+      }
+    }, 0);
+  };
+  siguiente();
+}
+
+function actualizadorPintarResumenDesdeCache(cache, finalizado) {
+  cache = cache || _actualizadorResumenCache;
+  var seleccion = leerSeleccionProveedoresActualizador();
+  var productos = {}, pendientes = {};
+  ACTUALIZADOR_PROVEEDORES.forEach(function(tipo) {
+    if (seleccion[tipo.id] === false) return;
+    var datos = (cache.porTipo || {})[tipo.id] || { productos:{}, pendientes:{} };
+    Object.keys(datos.productos || {}).forEach(function(clave) { productos[clave] = true; });
+    Object.keys(datos.pendientes || {}).forEach(function(clave) { pendientes[clave] = true; });
+  });
+  var vinculados = Object.keys(productos).length, vencidos = Object.keys(pendientes).length;
+  _set('mod-ap-vinculados', vinculados);
+  _set('mod-ap-pendientes', vencidos);
+  _set('mod-ap-vigentes', Math.max(0, vinculados - vencidos));
+  var estado = document.getElementById('mod-ap-seleccion-estado');
+  if (estado) estado.textContent = finalizado
+    ? 'Resumen actualizado sin bloquear la pantalla.'
+    : 'Actualizando en segundo plano: ' + (cache.indice || 0) + ' de ' + (cache.total || 0) + ' productos…';
+  var cont = document.getElementById('mod-ap-proveedores');
+  if (!cont) return;
+  cont.innerHTML = ACTUALIZADOR_PROVEEDORES.map(function(tipo) {
+    var datos = (cache.porTipo || {})[tipo.id] || { productos:{}, pendientes:{} };
+    var n = Object.keys(datos.productos || {}).length;
+    var p = Object.keys(datos.pendientes || {}).length;
+    var activo = seleccion[tipo.id] !== false;
+    return '<label style="padding:16px;background:var(--bg3);border:.5px solid ' + (activo ? 'var(--blue)' : 'var(--border)') + ';border-radius:var(--radius);display:flex;align-items:center;gap:12px;cursor:pointer;opacity:' + (activo ? '1' : '.62') + '"><input type="checkbox" ' + (activo ? 'checked' : '') + ' onchange="configurarProveedorActualizador(\'' + tipo.id + '\',this.checked,false)" style="width:17px;height:17px;accent-color:var(--blue)"><div style="width:40px;height:40px;border-radius:12px;background:rgba(96,165,250,.12);color:var(--blue);display:flex;align-items:center;justify-content:center"><i class="ti ' + tipo.icono + '" style="font-size:20px"></i></div><div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:800">' + tipo.nombre + '</div><div style="font-size:11px;color:var(--text3);margin-top:3px">' + n + ' vinculado' + (n === 1 ? '' : 's') + ' · ' + p + ' pendiente' + (p === 1 ? '' : 's') + '</div></div><span class="badge ' + (p ? 'b-amber' : 'b-green') + '">' + (activo ? (p ? 'Revisar' : 'Al día') : 'Excluido') + '</span></label>';
+  }).join('');
+}
+
+function renderModuloActualizadorPreciosBasico() {
+  if (!['admin','administrativo'].includes(String(currentRole || '').toLowerCase())) return;
+  var loading = document.getElementById('mod-ap-loading');
+  var centro = document.getElementById('mod-ap-centro');
+  if (loading) loading.style.display = 'none';
+  if (centro) {
+    centro.style.opacity = '';
+    centro.style.pointerEvents = '';
+  }
+  var seleccion = leerSeleccionProveedoresActualizador();
+  var cont = document.getElementById('mod-ap-proveedores');
+  if (cont) cont.innerHTML = ACTUALIZADOR_PROVEEDORES.map(function(tipo) {
+    var activo = seleccion[tipo.id] !== false;
+    return '<label style="padding:16px;background:var(--bg3);border:0.5px solid ' + (activo ? 'var(--blue)' : 'var(--border)') + ';border-radius:var(--radius);display:flex;align-items:center;gap:12px;cursor:pointer;opacity:' + (activo ? '1' : '.62') + '">' +
+      '<input type="checkbox" ' + (activo ? 'checked' : '') + ' onchange="configurarProveedorActualizador(\'' + tipo.id + '\',this.checked,false)" style="width:17px;height:17px;accent-color:var(--blue)">' +
+      '<div style="width:40px;height:40px;border-radius:12px;background:rgba(96,165,250,.12);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ' + tipo.icono + '" style="font-size:20px"></i></div>' +
+      '<div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:800">' + tipo.nombre + '</div><div style="font-size:11px;color:var(--text3);margin-top:3px">' + (activo ? 'Incluido en la próxima actualización' : 'Excluido de la próxima actualización') + '</div></div>' +
+      '<span class="badge ' + (activo ? 'b-blue' : '') + '">' + (activo ? 'Incluido' : 'Excluido') + '</span></label>';
+  }).join('');
+  _set('mod-ap-vinculados', '—');
+  _set('mod-ap-pendientes', '—');
+  _set('mod-ap-vigentes', '—');
+  var estado = document.getElementById('mod-ap-seleccion-estado');
+  if (estado) estado.textContent = 'Preparando los indicadores…';
+}
+
+function actualizarResumenActualizadorEnSegundoPlano() {
   if (!['admin','administrativo'].includes(String(currentRole || '').toLowerCase())) return;
   var token = ++_renderActualizadorPreciosToken;
-  var inicioCarga = Date.now();
   var loading = document.getElementById('mod-ap-loading');
   var centro = document.getElementById('mod-ap-centro');
   if (loading) loading.style.display = 'flex';
-  if (centro) {
-    centro.style.opacity = '.38';
-    centro.style.pointerEvents = 'none';
-  }
+  if (centro) { centro.style.opacity = ''; centro.style.pointerEvents = ''; }
   requestAnimationFrame(function() {
     var calcularResumen = function() {
       if (token !== _renderActualizadorPreciosToken) return;
-      renderModuloActualizadorPreciosAhora(token, inicioCarga);
+      iniciarResumenActualizadorIncremental(token);
     };
     // Al entrar a este módulo la prioridad es dejar visible y utilizable la
     // navegación. El cálculo completo del catálogo comienza cuando el hilo
     // está libre, no en el mismo ciclo que abre la pantalla.
-    if (typeof window.requestIdleCallback === 'function') {
-      window.requestIdleCallback(calcularResumen, { timeout:2000 });
-    } else {
-      setTimeout(calcularResumen, 120);
-    }
+    setTimeout(calcularResumen, 0);
   });
+}
+
+function renderModuloActualizadorPrecios() {
+  renderModuloActualizadorPreciosBasico();
+  // El shell aparece primero; el resumen se completa automÃ¡ticamente por tandas.
+  setTimeout(actualizarResumenActualizadorEnSegundoPlano, 0);
+}
+
+// Construye el resumen en lotes chicos.  No usa productosBiosegurActualizables()
+// porque esa funciÃ³n recorre el catÃ¡logo completo de manera sincrÃ³nica.
+function iniciarResumenActualizadorIncremental(token) {
+  var productos = Object.values(prodData || {}), indice = 0;
+  var porTipo = {};
+  var cache = { porTipo:porTipo, listo:false, enCurso:true, indice:0, total:productos.length };
+  _actualizadorResumenCache = cache;
+  window._actualizadorResumenCache = cache;
+  var normalizar = function(v) { return String(v || '').trim().toLowerCase(); };
+  var tipoDe = function(pv) {
+    var nombre = normalizar(pv.nombre || pv.proveedor), host = '';
+    try { host = new URL(normalizarUrlProveedorProducto(String(pv.url || ''), nombre)).hostname.toLowerCase(); } catch (_) {}
+    var tipo = /(^|\.)biosegur\.com\.ar$/.test(host) ? 'biosegur' : /(^|\.)free-electron\.com\.ar$/.test(host) ? 'free_electron' : /(^|\.)tecnoprices\.com$/.test(host) ? 'tecnoprices' : ((/(^|\.)mercadolibre\.com\.ar$/.test(host) || host === 'meli.la') ? 'mercado_libre' : '');
+    if (!tipo) return '';
+    return (tipo === 'biosegur' ? /biosegur/i : tipo === 'free_electron' ? /free[\s-]*electron/i : tipo === 'tecnoprices' ? /tecnoprices/i : /mercado\s*libre|mercadolibre/i).test(nombre) ? tipo : '';
+  };
+  var maestroActivo = function(pv) {
+    var nombre = normalizar(pv.nombre || pv.proveedor);
+    return (proveedoresData || []).some(function(x) { return x && x.activo !== false && normalizar(x.nombre) === nombre; });
+  };
+  var pintar = function(finalizado) {
+    if (token !== _renderActualizadorPreciosToken) return;
+    cache.indice = indice;
+    cache.listo = !!finalizado;
+    cache.enCurso = !finalizado;
+    actualizadorPintarResumenDesdeCache(cache, finalizado);
+  };
+  var siguiente = function() {
+    if (token !== _renderActualizadorPreciosToken) return;
+    var limite = Math.min(indice + 15, productos.length);
+    while (indice < limite) {
+      var producto = productos[indice++] || {};
+      if (producto.activo === false || esProductoManoDeObra(producto)) continue;
+      var clave = String(producto.fbKey || producto.id || producto.codigo || '');
+      (proveedoresVinculadosProducto(producto) || []).forEach(function(pv) {
+        pv = pv || {}; var tipo = tipoDe(pv);
+        if (!tipo || !maestroActivo(pv)) return;
+        if (!porTipo[tipo]) porTipo[tipo] = { productos:{}, pendientes:{} };
+        if (clave) porTipo[tipo].productos[clave] = true;
+        if (clave && !estadoVigenciaPrecioProveedor(producto, pv).vigente) porTipo[tipo].pendientes[clave] = true;
+      });
+    }
+    pintar(false);
+    if (indice < productos.length) {
+      // Un respiro real entre lotes: evita que el navegador encadene callbacks
+      // ociosos y deje los clics esperando mientras el catÃ¡logo es grande.
+      setTimeout(siguiente, 16);
+    } else {
+      pintar(true);
+      var loading = document.getElementById('mod-ap-loading'); if (loading) loading.style.display = 'none';
+      var btn = document.getElementById('mod-ap-iniciar'); if (btn) {
+        var datosSeleccionados = Object.keys(leerSeleccionProveedoresActualizador()).filter(function(tipo) { return leerSeleccionProveedoresActualizador()[tipo]; });
+        btn.disabled = !datosSeleccionados.some(function(tipo) { return Object.keys((porTipo[tipo] || {}).productos || {}).length; });
+      }
+    }
+  };
+  setTimeout(siguiente, 0);
 }
 
 function renderModuloActualizadorPreciosAhora(token, inicioCarga) {
@@ -12330,6 +12563,12 @@ function renderModuloActualizadorPreciosAhora(token, inicioCarga) {
       '<span class="badge ' + (pendientesTipo ? 'b-amber' : 'b-green') + '">' + (pendientesTipo ? 'Revisar' : 'Al día') + '</span>' +
     '</label>';
   }).join('');
+
+  var contAprobacionesLigero = document.getElementById('mod-ap-aprobaciones');
+  if (contAprobacionesLigero) {
+    contAprobacionesLigero.style.display = 'block';
+    contAprobacionesLigero.innerHTML = '<div style="padding:14px;border:.5px solid var(--border);border-radius:var(--radius);background:var(--bg3)"><strong><i class="ti ti-bolt" style="color:var(--blue)"></i> Centro listo para trabajar</strong><div style="font-size:11px;color:var(--text3);margin-top:5px">La revisión detallada se abre a demanda desde “Revisar pendientes” o “Auditar catálogo”, para mantener esta pantalla ágil.</div></div>';
+  }
 
   // La revisión detallada recorre todo el catálogo y arma varias listas. Se
   // posterga hasta que el navegador quede libre para que, al abrir el módulo,
@@ -12461,11 +12700,8 @@ function renderModuloActualizadorPreciosAhora(token, inicioCarga) {
       '</div>';
   }
   };
-  if (typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(renderDetallesActualizador, { timeout:1500 });
-  } else {
-    setTimeout(renderDetallesActualizador, 250);
-  }
+  // Los detalles se generan sólo cuando el usuario abre la herramienta de
+  // revisión correspondiente. Ejecutarlos al entrar bloqueaba la navegación.
   if (token === _renderActualizadorPreciosToken) {
     var finalizarCarga = function() {
       if (token !== _renderActualizadorPreciosToken) return;
@@ -12595,12 +12831,6 @@ function actualizarControlesProcesoActualizador(modal, ejecutando) {
   if (!modal) return;
   var detener = document.getElementById('btn-detener-actualizador');
   if (detener) detener.style.display = ejecutando ? '' : 'none';
-  var resultados = document.getElementById('btn-resultados-actualizador');
-  if (resultados) {
-    var cantidad = actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.candidatos, modal._tiposSeleccionados || []).length +
-      actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.fallos, modal._tiposSeleccionados || []).length;
-    resultados.innerHTML = '<i class="ti ti-list-details"></i> Mostrar resultados' + (cantidad ? ' (' + cantidad + ')' : '');
-  }
 }
 
 function mostrarResultadosActualizador() {
@@ -12611,6 +12841,14 @@ function mostrarResultadosActualizador() {
   mostrarVistaPreviaActualizador(modal, candidatos, fallos, modal.dataset.ejecutando === '1'
     ? 'Resultados parciales — todavía no se guardó nada'
     : 'Vista previa — todavía no se guardó nada');
+  // Los resultados parciales ya verificados se pueden guardar sin detener el
+  // análisis. El resto continúa y se irá agregando a la vista previa.
+  var btnAplicar = document.getElementById('btn-actualizar-biosegur-lote');
+  if (btnAplicar && candidatos.length) {
+    btnAplicar.disabled = false;
+    btnAplicar.innerHTML = '<i class="ti ti-device-floppy"></i> Aplicar ' + candidatos.length + ' verificado' + (candidatos.length === 1 ? '' : 's');
+    btnAplicar.setAttribute('onclick', 'aplicarVistaPreviaActualizador()');
+  }
   actualizarControlesProcesoActualizador(modal, modal.dataset.ejecutando === '1');
   var cont = document.getElementById('actualizador-precios-fallos');
   if (cont && typeof cont.scrollIntoView === 'function') cont.scrollIntoView({ block:'nearest', behavior:'smooth' });
@@ -12726,9 +12964,158 @@ function iniciarArrastreActualizador(evento) {
   barra.addEventListener('pointercancel', terminar);
 }
 
+// El modal permanece no bloqueante: se puede ubicar donde resulte más cómodo
+// mientras el análisis continúa en segundo plano.
+function iniciarArrastrePanelActualizador(evento) {
+  if (!evento || evento.button !== 0) return;
+  var control = evento.target && evento.target.closest && evento.target.closest('button,a,input,select,textarea,label');
+  if (control) return;
+  var panel = document.getElementById('actualizador-precios-panel');
+  if (!panel) return;
+  var rect = panel.getBoundingClientRect();
+  var inicioX = evento.clientX;
+  var inicioY = evento.clientY;
+  var movido = false;
+  panel.style.position = 'fixed';
+  panel.style.left = rect.left + 'px';
+  panel.style.top = rect.top + 'px';
+  panel.style.margin = '0';
+  panel.style.transform = 'none';
+  panel.style.cursor = 'grabbing';
+  panel.setPointerCapture && panel.setPointerCapture(evento.pointerId);
+  evento.preventDefault();
+
+  function mover(e) {
+    var dx = e.clientX - inicioX;
+    var dy = e.clientY - inicioY;
+    if (!movido && Math.abs(dx) + Math.abs(dy) < 5) return;
+    movido = true;
+    e.preventDefault();
+    var maxX = Math.max(8, window.innerWidth - rect.width - 8);
+    var maxY = Math.max(8, window.innerHeight - rect.height - 8);
+    panel.style.left = Math.max(8, Math.min(maxX, rect.left + dx)) + 'px';
+    panel.style.top = Math.max(8, Math.min(maxY, rect.top + dy)) + 'px';
+  }
+
+  function terminar(e) {
+    panel.removeEventListener('pointermove', mover);
+    panel.removeEventListener('pointerup', terminar);
+    panel.removeEventListener('pointercancel', terminar);
+    panel.style.cursor = '';
+    if (panel.releasePointerCapture) {
+      try { panel.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+  }
+
+  panel.addEventListener('pointermove', mover);
+  panel.addEventListener('pointerup', terminar);
+  panel.addEventListener('pointercancel', terminar);
+}
+
 function editarProductoFallidoActualizador(fbKey, proveedorIdx) {
   var editor = document.getElementById('actualizador-url-editor-' + String(fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(proveedorIdx,10)||0));
   if (editor) editor.style.display = editor.style.display === 'none' ? 'flex' : 'none';
+}
+
+function actualizadorMarcarProductoVerificando(fbKey, verificando) {
+  var clave = String(fbKey || '');
+  document.querySelectorAll('[data-actualizador-fallo-key]').forEach(function(fila) {
+    if (String(fila.dataset.actualizadorFalloKey || '') !== clave) return;
+    fila.querySelectorAll('[data-actualizador-accion]').forEach(function(boton) {
+      boton.disabled = !!verificando;
+    });
+    var estado = fila.querySelector('[data-actualizador-estado]');
+    if (estado) estado.style.display = verificando ? '' : 'none';
+  });
+}
+
+async function cambiarNombreProductoFallidoActualizador(fbKey, nombreSugerido) {
+  fbKey = String(fbKey || '');
+  var producto = Object.values(prodData || {}).find(function(p) { return String(p.fbKey || '') === fbKey; });
+  if (!producto || !fbKey) { notify('No se pudo identificar el producto'); return; }
+  var actual = String(producto.nombre || producto.descripcion || '').trim();
+  var nombre = String(nombreSugerido || '').trim();
+  if (!nombre) {
+    nombre = await svPrompt('Corregí el nombre del producto. Se usará para verificar que la publicación del proveedor corresponda al artículo correcto.', actual, {
+      titulo:'Corregir nombre del producto',
+      textoAceptar:'Guardar nombre'
+    });
+  }
+  nombre = String(nombre || '').trim();
+  if (!nombre || nombre === actual) return;
+  _actualizadorSesionPrecios.verificando = _actualizadorSesionPrecios.verificando || {};
+  if (_actualizadorSesionPrecios.verificando[fbKey]) return;
+  _actualizadorSesionPrecios.verificando[fbKey] = true;
+  actualizadorMarcarProductoVerificando(fbKey, true);
+  try {
+    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey), { nombre:nombre });
+    producto.nombre = nombre;
+    (_actualizadorSesionPrecios.fallos || []).forEach(function(fallo) {
+      if (String(fallo && fallo.fbKey || '') === fbKey) fallo.producto = nombre;
+    });
+    (_actualizadorSesionPrecios.candidatos || []).forEach(function(candidato) {
+      if (String(candidato && candidato.item && candidato.item.producto && candidato.item.producto.fbKey || '') === fbKey) {
+        candidato.item.producto.nombre = nombre;
+        candidato.producto = nombre;
+      }
+    });
+    await reintentarProductoConNombreCorregidoActualizador(fbKey);
+  } catch (e) { notify('No se pudo guardar el nombre: ' + (e.message || 'Error')); }
+  finally {
+    delete _actualizadorSesionPrecios.verificando[fbKey];
+    actualizadorMarcarProductoVerificando(fbKey, false);
+  }
+}
+
+async function reintentarProductoConNombreCorregidoActualizador(fbKey) {
+  var producto = Object.values(prodData || {}).find(function(p) { return String(p.fbKey || '') === String(fbKey); });
+  var fallo = (_actualizadorSesionPrecios.fallos || []).find(function(f) { return String(f && f.fbKey || '') === String(fbKey); });
+  var item = fallo && fallo.item;
+  if (!producto || !item || !item.proveedorKey || !item.url) return;
+  var modal = document.getElementById('modal-actualizador-precios');
+  var estado = document.getElementById('actualizador-precios-estado');
+  if (estado) estado.textContent = 'Verificando nuevamente ' + (producto.codigo || producto.nombre || 'producto') + ' con el nombre corregido…';
+  try {
+    var respuesta = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar', {
+      method:'POST', headers:await headersCotizadorProtegido(),
+      body:JSON.stringify({
+        proveedorKey:item.proveedorKey, url:item.url,
+        codigo:producto.codigo || '', producto:producto.nombre || producto.descripcion || '',
+        precioAnteriorArs:_costoProveedorProductoSinAuditar(producto, actualizadorProveedorActual(item)) || precioGremioARSDesdeProducto(producto),
+        debug:true
+      })
+    });
+    var texto = await respuesta.text();
+    var resultado = null;
+    try { resultado = texto ? JSON.parse(texto) : null; } catch (_) {}
+    if (!respuesta.ok || !resultado) throw new Error((resultado && (resultado.mensaje || resultado.error)) || ('El cotizador respondió HTTP ' + respuesta.status));
+    var validacion = resultado.ok ? validarResultadoActualizadorProveedor(item, resultado) : { ok:false, mensaje:resultado.mensaje || resultado.error || 'No se pudo verificar el producto' };
+    _actualizadorSesionPrecios.fallos = (_actualizadorSesionPrecios.fallos || []).filter(function(f) { return String(f && f.fbKey || '') !== String(fbKey); });
+    if (resultado.ok && validacion.ok && urlsProveedorEquivalentes(item.url, resultado.url)) {
+      var cambios = datosActualizadosProductoBiosegur(item, resultado);
+      var costoAnterior = _costoProveedorProductoSinAuditar(producto, actualizadorProveedorActual(item)) || precioGremioARSDesdeProducto(producto);
+      var candidato = { item:item, resultado:resultado, cambios:cambios, codigo:producto.codigo || '', producto:producto.nombre || producto.descripcion || '', costoAnterior:costoAnterior || 0, costoNuevo:parseFloat(cambios.compraARS || cambios.compra || 0) || 0 };
+      candidato.variacion = candidato.costoAnterior > 0 ? ((candidato.costoNuevo / candidato.costoAnterior) - 1) * 100 : 0;
+      _actualizadorSesionPrecios.candidatos = (_actualizadorSesionPrecios.candidatos || []).filter(function(c) { return actualizadorClaveCandidato(c) !== actualizadorClaveItem(item); });
+      _actualizadorSesionPrecios.candidatos.push(candidato);
+      var guardado = await guardarCandidatosSegurosActualizador([candidato]);
+      if (!guardado) throw new Error('El precio se verificó, pero no se pudo guardar automáticamente');
+      if (estado) estado.innerHTML = '<strong style="color:var(--green)">Nombre y precio actualizados.</strong> La verificación quedó resuelta.';
+      notify('Nombre verificado y precio actualizado.');
+    } else {
+      _actualizadorSesionPrecios.fallos.push(Object.assign({}, fallo, { producto:producto.nombre || producto.descripcion || '', motivo:validacion.mensaje || 'La verificación todavía no confirmó el producto', diagnostico:actualizadorDiagnosticoMercadoLibre(resultado) }));
+      if (estado) estado.textContent = 'El nombre se guardó, pero el proveedor todavía no confirmó la identidad.';
+      notify('Nombre guardado, pero la verificación aún requiere revisión.');
+    }
+    _actualizadorSesionPrecios.procesados[actualizadorClaveItem(item)] = true;
+  } catch (e) {
+    if (estado) estado.textContent = 'Nombre guardado, pero no se pudo reintentar ahora: ' + (e.message || 'Error');
+    notify('Nombre guardado. No se pudo verificar nuevamente: ' + (e.message || 'Error'));
+  }
+  if (modal) {
+    mostrarVistaPreviaActualizador(modal, actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.candidatos, modal._tiposSeleccionados || []), actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.fallos, modal._tiposSeleccionados || []), 'Resultado actualizado tras corregir el nombre');
+    actualizarControlesProcesoActualizador(modal, modal.dataset.ejecutando === '1');
+  }
 }
 
 async function guardarUrlFallidoActualizador(fbKey, proveedorIdx) {
@@ -12784,8 +13171,59 @@ async function eliminarProductoFallidoActualizador(fbKey, boton) {
     }
     var fila = boton && boton.closest ? boton.closest('[data-fallo-producto]') : null;
     if (fila) fila.remove();
-    actualizarVigenciaPreciosDashboard();
-    if (typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
+    var modalActualizador = document.getElementById('modal-actualizador-precios');
+    if (modalActualizador) {
+      modalActualizador._candidatosPreview = (modalActualizador._candidatosPreview || []).filter(function(c) {
+        return String(c && c.item && c.item.producto && c.item.producto.fbKey || '') !== fbKey;
+      });
+      modalActualizador._detalleFallosPreview = (modalActualizador._detalleFallosPreview || []).filter(function(f) {
+        return String(f && f.fbKey || '') !== fbKey;
+      });
+      // No alcanza con quitar la fila: cada bloque recibido vuelve a pintar la
+      // vista previa. Se vuelve a construir desde la sesión ya depurada.
+      mostrarVistaPreviaActualizador(
+        modalActualizador,
+        actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.candidatos, modalActualizador._tiposSeleccionados || []),
+        actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.fallos, modalActualizador._tiposSeleccionados || []),
+        'Producto eliminado del catálogo y de esta revisión'
+      );
+      actualizarControlesProcesoActualizador(modalActualizador, modalActualizador.dataset.ejecutando === '1');
+    }
+    sincronizarActualizadorTrasEliminarProductos([fbKey], modalActualizador);
+  }
+}
+
+// Firebase confirma el borrado antes de que el listener general reciba el
+// nuevo catálogo. Quitarlo también de la caché evita que los KPI y contadores
+// sigan mostrando durante unos segundos un producto que ya no existe.
+function sincronizarActualizadorTrasEliminarProductos(ids, modal) {
+  var eliminados = new Set((ids || []).map(function(id) { return String(id || ''); }).filter(Boolean));
+  if (!eliminados.size) return;
+  var codigos = {};
+  Object.keys(prodData || {}).forEach(function(clave) {
+    var producto = prodData[clave] || {};
+    if (!eliminados.has(String(producto.fbKey || ''))) return;
+    if (producto.codigo) codigos[String(producto.codigo)] = true;
+    delete prodData[clave];
+  });
+  Object.keys(stockData || {}).forEach(function(codigo) {
+    if (codigos[String(codigo)]) delete stockData[codigo];
+  });
+  if (typeof invalidarMetricasListaProductos === 'function') invalidarMetricasListaProductos();
+
+  if (modal) {
+    actualizadorRefrescarResumen(modal);
+    mostrarVistaPreviaActualizador(
+      modal,
+      actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.candidatos, modal._tiposSeleccionados || []),
+      actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.fallos, modal._tiposSeleccionados || []),
+      'Catálogo y contadores sincronizados tras eliminar el producto'
+    );
+    actualizarControlesProcesoActualizador(modal, modal.dataset.ejecutando === '1');
+  }
+  if (typeof actualizarVigenciaPreciosDashboard === 'function') actualizarVigenciaPreciosDashboard();
+  if (_svEsPaginaActiva('actualizadorprecios') && typeof actualizarResumenActualizadorEnSegundoPlano === 'function') {
+    actualizarResumenActualizadorEnSegundoPlano();
   }
 }
 
@@ -12822,6 +13260,22 @@ function actualizadorItemsSesionParaTipos(lista, tipos) {
   return (lista || []).filter(function(x) {
     return x && x.item && (tipos || []).indexOf(x.item.tipo) >= 0;
   });
+}
+
+// La sesión se modifica también desde acciones manuales (corregir nombre o
+// eliminar). Los KPI del proceso no pueden conservar el número del lote
+// original: siempre reflejan los resultados que aún requieren atención.
+function actualizadorSincronizarContadoresResultados(modal) {
+  if (!modal) return;
+  var tipos = modal._tiposSeleccionados || [];
+  var candidatos = actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.candidatos, tipos).length;
+  var fallos = actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.fallos, tipos).length;
+  var exitososEl = document.getElementById('actualizador-precios-exitosos');
+  var fallidosEl = document.getElementById('actualizador-precios-fallidos-contador');
+  var enCursoEl = document.getElementById('actualizador-precios-en-curso');
+  if (exitososEl) exitososEl.textContent = String(candidatos);
+  if (fallidosEl) fallidosEl.textContent = String(fallos);
+  if (enCursoEl && modal.dataset.ejecutando !== '1') enCursoEl.textContent = '0';
 }
 
 function actualizadorRefrescarResumen(modal) {
@@ -12874,10 +13328,10 @@ function abrirActualizadorMasivoPrecios() {
   overlay.dataset.noBloqueante = '1';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10020;background:transparent;display:flex;align-items:center;justify-content:center;padding:16px;pointer-events:none';
   overlay.innerHTML =
-    '<div id="actualizador-precios-panel" style="width:min(620px,100%);max-height:calc(100vh - 32px);background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:auto;pointer-events:auto">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border)">' +
+    '<div id="actualizador-precios-panel" style="width:min(620px,100%);height:min(680px,calc(100vh - 32px));background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:auto;pointer-events:auto">' +
+      '<div onpointerdown="iniciarArrastrePanelActualizador(event)" title="Arrastrá para mover" style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:0.5px solid var(--border);cursor:grab;touch-action:none;user-select:none">' +
         '<div><div style="font-size:15px;font-weight:700"><i class="ti ti-refresh" style="color:var(--blue);margin-right:7px"></i>Actualizador masivo de precios de proveedores</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Biosegur · Free Electron · Tecnoprices · Mercado Libre</div></div>' +
-        '<div style="display:flex;gap:5px;align-items:center"><button class="btn btn-sm" id="btn-detener-actualizador" onclick="detenerActualizadorMasivoPrecios()" style="display:none"><i class="ti ti-player-stop"></i> Detener análisis</button><button class="icon-btn" onclick="minimizarActualizadorMasivoPrecios()" title="Minimizar"><i class="ti ti-minus"></i></button><button class="icon-btn" onclick="cerrarActualizadorMasivoPrecios()" title="Cerrar"><i class="ti ti-x"></i></button></div>' +
+        '<div style="display:flex;gap:5px;align-items:center"><button class="icon-btn" onclick="minimizarActualizadorMasivoPrecios()" title="Minimizar"><i class="ti ti-minus"></i></button><button class="icon-btn" onclick="cerrarActualizadorMasivoPrecios()" title="Cerrar"><i class="ti ti-x"></i></button></div>' +
       '</div>' +
       '<div style="padding:18px">' +
         '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px">' + ACTUALIZADOR_PROVEEDORES.map(function(tipo) {
@@ -12896,11 +13350,11 @@ function abrirActualizadorMasivoPrecios() {
           '<div style="padding:9px 10px;background:var(--bg3);border:0.5px solid var(--border);border-radius:8px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase">Esperando respuesta</div><strong id="actualizador-precios-en-curso" style="display:block;margin-top:3px;color:var(--blue)">0</strong></div>' +
         '</div>' +
         '<div id="actualizador-precios-estado" style="font-size:12px;color:var(--text2);padding:10px 12px;background:var(--bg3);border-radius:8px;margin-bottom:8px">'+(procesadosSesion ? 'Sesión recuperada: '+procesadosSesion+' productos ya fueron analizados y no se repetirán.' : 'Listo para actualizar los productos pendientes por proveedor.')+'</div>' +
-        '<div id="actualizador-precios-producto" style="min-height:34px;font-size:11px;color:var(--text3);padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;margin-bottom:8px">Producto actual: —</div>' +
+        '<div id="actualizador-precios-producto" style="height:48px;box-sizing:border-box;overflow:hidden;line-height:17px;font-size:11px;color:var(--text3);padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;margin-bottom:8px" title="Producto actual">Producto actual: —</div>' +
         '<div id="actualizador-precios-tiempo" style="font-size:11px;color:var(--text3);display:flex;justify-content:space-between;gap:10px;margin-bottom:10px"><span>Transcurrido: —</span><span>Esperando respuesta del proveedor</span></div>' +
         '<div style="height:8px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-bottom:14px"><div id="actualizador-precios-barra" style="height:100%;width:0;background:var(--green);transition:width .25s"></div></div>' +
-        '<div id="actualizador-precios-fallos" style="display:none;max-height:320px;overflow:auto;font-size:11px;padding:9px 10px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;margin-bottom:12px"></div>' +
-        '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button class="btn" id="btn-resultados-actualizador" onclick="mostrarResultadosActualizador()"><i class="ti ti-list-details"></i> Mostrar resultados</button><button class="btn" onclick="minimizarActualizadorMasivoPrecios()"><i class="ti ti-minus"></i> Minimizar</button><button class="btn btn-primary" id="btn-actualizar-biosegur-lote" onclick="'+(candidatosSesion.length?'aplicarVistaPreviaActualizador()':'ejecutarActualizadorMasivoBiosegur()')+'" '+(!porProcesar.length&&!candidatosSesion.length?'disabled':'')+'><i class="ti '+(candidatosSesion.length?'ti-device-floppy':'ti-player-play')+'"></i> '+(candidatosSesion.length?'Aplicar '+candidatosSesion.length+' verificados':'Iniciar '+porProcesar.length+' en segundo plano')+'</button></div>' +
+        '<div id="actualizador-precios-fallos" style="display:block;max-height:320px;overflow:auto;font-size:11px;padding:9px 10px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;margin-bottom:12px">Los resultados aparecerán aquí mientras se analiza.</div>' +
+        '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button class="btn" id="btn-detener-actualizador" onclick="detenerActualizadorMasivoPrecios()" style="display:none"><i class="ti ti-player-stop"></i> Detener análisis</button><button class="btn" onclick="minimizarActualizadorMasivoPrecios()"><i class="ti ti-minus"></i> Minimizar</button><button class="btn btn-primary" id="btn-actualizar-biosegur-lote" onclick="'+(candidatosSesion.length?'aplicarVistaPreviaActualizador()':'ejecutarActualizadorMasivoBiosegur()')+'" '+(!porProcesar.length&&!candidatosSesion.length?'disabled':'')+'><i class="ti '+(candidatosSesion.length?'ti-device-floppy':'ti-player-play')+'"></i> '+(candidatosSesion.length?'Aplicar '+candidatosSesion.length+' verificados':'Iniciar '+porProcesar.length+' en segundo plano')+'</button></div>' +
       '</div>' +
     '</div>' +
     '<button id="actualizador-precios-minimizado" onclick="abrirDesdeBarraActualizadorMinimizado()" onpointerdown="iniciarArrastreActualizador(event)" title="Arrastrá para mover · clic para abrir" style="display:none;position:fixed;width:min(520px,calc(100% - 24px));left:50%;transform:translateX(-50%);bottom:10px;z-index:10021;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);color:var(--text);border:0.5px solid var(--border2);border-radius:12px;box-shadow:0 10px 35px rgba(0,0,0,.5);text-align:left;cursor:grab;touch-action:none;user-select:none;overflow:hidden">' +
@@ -12915,11 +13369,43 @@ function abrirActualizadorMasivoPrecios() {
   overlay._productosPendientes = porProcesar;
   overlay._totalPendientesActual = pendientes.length;
   window._sisventasProcesoCriticoActivo = true;
-  if (candidatosSesion.length || fallosSesion.length) {
-    mostrarVistaPreviaActualizador(overlay, candidatosSesion, fallosSesion, 'Sesion recuperada: los productos ya analizados no se consultaran nuevamente');
-    if (candidatosSesion.length) actualizadorActualizarSeleccionPreview();
-  }
+  mostrarVistaPreviaActualizador(overlay, candidatosSesion, fallosSesion,
+    (candidatosSesion.length || fallosSesion.length) ? 'Sesion recuperada: los productos ya analizados no se consultaran nuevamente' : 'Los resultados aparecerán aquí mientras se analiza.');
+  if (candidatosSesion.length) actualizadorActualizarSeleccionPreview();
   actualizarControlesProcesoActualizador(overlay, false);
+}
+
+async function eliminarProductosNoDisponiblesActualizador() {
+  var ids = Array.from(document.querySelectorAll('[data-actualizador-no-disponible]:checked')).map(function(el) { return String(el.value || ''); }).filter(Boolean);
+  ids = Array.from(new Set(ids));
+  if (!ids.length) { notify('Seleccioná al menos un producto que ya no exista en el proveedor.'); return; }
+  var productos = ids.map(function(id) { return Object.values(prodData || {}).find(function(p) { return String(p.fbKey || '') === id; }); }).filter(Boolean);
+  if (!productos.length) { notify('Los productos ya no están en el catálogo.'); return; }
+  var ventasConHistorial = 0;
+  try {
+    var snap = await window.fbGet(window.fbRef(window.fbDB, FB_PATHS.ventas));
+    var ventas = snap && snap.val ? Object.values(snap.val() || {}) : [];
+    productos.forEach(function(producto) {
+      if (ventas.some(function(venta) { return (venta.items || venta.detalle || venta.productos || []).some(function(item) { return productoCoincideItemVenta(producto, item); }); })) ventasConHistorial++;
+    });
+  } catch (e) { notify('No se pudo comprobar el historial de ventas. Intentá nuevamente.'); return; }
+  var detalle = productos.slice(0, 8).map(function(p) { return '• ' + (p.codigo || p.nombre || p.fbKey); }).join('\n');
+  if (!await svConfirm('Se eliminarán ' + productos.length + ' producto' + (productos.length === 1 ? '' : 's') + ' que el proveedor confirmó inexistente' + (productos.length === 1 ? '' : 's') + '.\n\n' + detalle + (productos.length > 8 ? '\n• … y ' + (productos.length - 8) + ' más' : '') + '\n\n' + ventasConHistorial + ' tienen ventas históricas: esas ventas conservarán sus datos. ¿Continuar?')) return;
+  if (!await svConfirm('Confirmación final: se quitarán del catálogo y no podrán usarse en nuevas ventas. Esta acción no se puede deshacer.')) return;
+  try {
+    var updates = {};
+    ids.forEach(function(id) { updates[id] = null; });
+    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos), updates);
+    ids.forEach(function(id) {
+      _actualizadorSesionPrecios.candidatos = (_actualizadorSesionPrecios.candidatos || []).filter(function(c) { return String(c && c.item && c.item.producto && c.item.producto.fbKey || '') !== id; });
+      _actualizadorSesionPrecios.fallos = (_actualizadorSesionPrecios.fallos || []).filter(function(f) { return String(f && f.fbKey || '') !== id; });
+      Object.keys(_actualizadorSesionPrecios.procesados || {}).forEach(function(clave) { if (clave.indexOf(id + '::') === 0) delete _actualizadorSesionPrecios.procesados[clave]; });
+    });
+    var modal = document.getElementById('modal-actualizador-precios');
+    if (modal) mostrarVistaPreviaActualizador(modal, actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.candidatos, modal._tiposSeleccionados || []), actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.fallos, modal._tiposSeleccionados || []), 'Productos inexistentes eliminados del catálogo');
+    sincronizarActualizadorTrasEliminarProductos(ids, modal);
+    notify('Se eliminaron ' + productos.length + ' producto' + (productos.length === 1 ? '' : 's') + ' del catálogo.');
+  } catch (e) { notify('No se pudieron eliminar los productos: ' + (e.message || 'Error')); }
 }
 
 function datosActualizadosProductoBiosegur(item, resultado) {
@@ -13058,22 +13544,29 @@ function actualizadorDiagnosticoMercadoLibre(resultado) {
 
 function actualizadorHtmlFallos(detalleFallos) {
   if (!detalleFallos.length) return '';
+  var noDisponibles = detalleFallos.filter(function(f) { return !!(f && f.noDisponible); });
   return '<div style="margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border)">' +
     '<strong style="color:var(--amber)">Requieren revisión (conservaron su precio anterior):</strong>' +
+    (noDisponibles.length ? '<div style="margin-top:10px;padding:10px;border:1px solid rgba(239,68,68,.38);border-radius:8px;background:rgba(239,68,68,.06);display:flex;justify-content:space-between;gap:10px;align-items:center"><span><strong style="color:var(--red)"><i class="ti ti-package-off"></i> Ya no existen en el proveedor: ' + noDisponibles.length + '</strong><span style="display:block;font-size:10px;color:var(--text3);margin-top:3px">Seleccioná los que correspondan y eliminá el catálogo en una sola acción.</span></span><button class="btn btn-sm" style="color:var(--red)" onclick="eliminarProductosNoDisponiblesActualizador()"><i class="ti ti-trash"></i> Eliminar seleccionados</button></div>' : '') +
     detalleFallos.map(function(f) {
       var idSeguro = String(f.fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(f.proveedorIdx,10)||0);
+      var verificando = !!((_actualizadorSesionPrecios.verificando || {})[String(f.fbKey || '')]);
+      var bloqueo = verificando ? ' disabled' : '';
+      var nombreSugerido = String(f.nombreProveedor || '').trim();
       var urlSegura = /^https?:\/\//i.test(String(f.url || '').trim()) ? String(f.url || '').trim() : '';
       var nombreProducto = '<strong>' + escapeHTML(f.codigo || 'Sin código') + '</strong> · ' + escapeHTML(f.producto);
       if (urlSegura) nombreProducto = '<a href="' + escapeHTML(urlSegura) + '" target="_blank" rel="noopener noreferrer" title="Abrir producto en el proveedor" style="color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + nombreProducto + ' <i class="ti ti-external-link" style="font-size:11px;color:var(--blue)"></i></a>';
-      return '<div data-fallo-producto style="padding:9px 0;border-bottom:0.5px solid var(--border)">' +
-        '<div>' + nombreProducto + '</div>' +
-        '<div style="color:var(--text3);margin-top:3px">' + escapeHTML(f.motivo) + '</div>' +
+      return '<div id="actualizador-fallo-' + idSeguro + '" data-fallo-producto data-actualizador-fallo-key="' + escapeHTML(String(f.fbKey || '')) + '" style="padding:9px 0;border-bottom:0.5px solid var(--border);opacity:' + (verificando ? '.7' : '1') + '">' +
+        '<div style="display:flex;gap:8px;align-items:flex-start">' + (f.noDisponible ? '<input type="checkbox" data-actualizador-no-disponible value="' + escapeHTML(String(f.fbKey || '')) + '" style="margin-top:3px">' : '') + '<div>' + nombreProducto + '</div></div>' +
+        '<div style="color:' + (f.noDisponible ? 'var(--red)' : 'var(--text3)') + ';margin-top:3px">' + escapeHTML(f.noDisponible ? 'El producto ya no existe en el proveedor.' : f.motivo) + '</div>' +
+        (nombreSugerido ? '<div style="color:var(--blue);margin-top:3px;font-size:10px">Nombre encontrado en el proveedor: <strong>' + escapeHTML(nombreSugerido) + '</strong></div>' : '') +
         (f.diagnostico ? '<div style="color:var(--text3);margin-top:3px;font-size:10px">' + escapeHTML(f.diagnostico) + '</div>' : '') +
         '<div style="color:var(--text3);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px" title="' + escapeHTML(f.url) + '">' + escapeHTML(f.url) + '</div>' +
+        '<div data-actualizador-estado style="display:' + (verificando ? '' : 'none') + ';margin-top:7px;color:var(--blue);font-size:11px"><i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite"></i> Verificando nombre y precio. Esperá…</div>' +
         '<div style="display:flex;gap:6px;margin-top:7px">' +
-          (urlSegura ? '<a class="btn btn-sm" href="' + escapeHTML(urlSegura) + '" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link"></i> Abrir proveedor</a>' : '') +
-          '<button class="btn btn-sm" onclick="editarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"><i class="ti ti-link"></i> Cambiar URL</button>' +
-          '<button class="btn btn-sm" style="color:var(--red)" onclick="eliminarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',this)"><i class="ti ti-trash"></i> Eliminar</button>' +
+          '<button class="btn btn-sm" data-actualizador-accion data-nombre-sugerido="' + escapeHTML(nombreSugerido) + '" onclick="cambiarNombreProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',this.dataset.nombreSugerido)"' + bloqueo + ' title="' + escapeHTML(nombreSugerido ? 'Guardar el nombre detectado y verificar nuevamente' : 'Corregir manualmente el nombre') + '"><i class="ti ' + (verificando ? 'ti-loader-2' : 'ti-edit') + '"' + (verificando ? ' style="animation:spin 1s linear infinite"' : '') + '></i> ' + (nombreSugerido ? 'Usar nombre encontrado' : 'Cambiar nombre') + '</button>' +
+          '<button class="btn btn-sm" data-actualizador-accion onclick="editarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"' + bloqueo + '><i class="ti ti-link"></i> Cambiar URL</button>' +
+          '<button class="btn btn-sm" data-actualizador-accion style="color:var(--red)" onclick="eliminarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',this)"' + bloqueo + '><i class="ti ti-trash"></i> Eliminar</button>' +
         '</div>' +
         '<div id="actualizador-url-editor-' + idSeguro + '" style="display:none;gap:6px;align-items:center;margin-top:8px"><input id="actualizador-url-input-' + idSeguro + '" class="search-input" type="url" value="' + escapeHTML(f.url) + '" placeholder="URL exacta del producto" style="flex:1"><button class="btn btn-sm btn-primary" onclick="guardarUrlFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"><i class="ti ti-device-floppy"></i> Guardar</button></div>' +
       '</div>';
@@ -13086,6 +13579,7 @@ function mostrarVistaPreviaActualizador(modal, candidatos, detalleFallos, titulo
   if (!modal || !cont) return;
   modal._candidatosPreview = candidatos;
   modal._detalleFallosPreview = detalleFallos || [];
+  actualizadorSincronizarContadoresResultados(modal);
   cont.style.display = '';
   var filas = candidatos.map(function(c, indice) {
     var variacionAbs = Math.abs(c.variacion || 0);
@@ -13222,6 +13716,40 @@ async function aplicarVistaPreviaActualizador() {
   }
 }
 
+async function guardarCandidatosSegurosActualizador(candidatos) {
+  candidatos = (candidatos || []).filter(function(c) { return c && c.item && c.item.producto && c.item.producto.fbKey && c.resultado; });
+  if (!candidatos.length) return true;
+  var grupos = {}, updates = {};
+  candidatos.forEach(function(candidato) {
+    var fbKey = String(candidato.item.producto.fbKey);
+    if (!grupos[fbKey]) {
+      var trabajo = Object.assign({}, candidato.item.producto);
+      trabajo.proveedores = proveedoresVinculadosProducto(candidato.item.producto).map(function(pv) { return Object.assign({}, pv || {}); });
+      grupos[fbKey] = { original:candidato.item.producto, trabajo:trabajo, cambios:{} };
+    }
+    var grupo = grupos[fbKey];
+    var itemTrabajo = Object.assign({}, candidato.item, { producto:grupo.trabajo, proveedor:(grupo.trabajo.proveedores || [])[candidato.item.proveedorIdx] || candidato.item.proveedor });
+    grupo.cambios = datosActualizadosProductoBiosegur(itemTrabajo, candidato.resultado);
+    Object.assign(grupo.trabajo, grupo.cambios);
+  });
+  Object.keys(grupos).forEach(function(fbKey) {
+    Object.keys(grupos[fbKey].cambios).forEach(function(campo) { updates[fbKey + '/' + campo] = grupos[fbKey].cambios[campo]; });
+  });
+  try {
+    await productosPersistirLote(productosEntradasDesdeMultipath(updates), function() {
+      return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos), updates);
+    });
+    Object.keys(grupos).forEach(function(fbKey) { Object.assign(grupos[fbKey].original, grupos[fbKey].cambios); });
+    var guardadas = {};
+    candidatos.forEach(function(c) { guardadas[actualizadorClaveCandidato(c)] = true; });
+    _actualizadorSesionPrecios.candidatos = (_actualizadorSesionPrecios.candidatos || []).filter(function(c) { return !guardadas[actualizadorClaveCandidato(c)]; });
+    return true;
+  } catch (e) {
+    console.warn('[Precios] No se pudieron guardar automáticamente los resultados seguros', e);
+    return false;
+  }
+}
+
 async function registrarVariacionPendienteActualizador(item, resultado) {
   var datos = datosVariacionBloqueadaResultado(resultado);
   if (!datos.requiereAprobacion || !item || !item.producto || !item.producto.fbKey) return false;
@@ -13352,6 +13880,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
       for (var inicio = 0; inicio < grupo.length; inicio += ACTUALIZADOR_TAMANIO_BLOQUE) {
         if (modal._detenerSolicitado) break;
         var bloque = grupo.slice(inicio, inicio + ACTUALIZADOR_TAMANIO_BLOQUE);
+        var candidatosBloque = [];
         var nombreGrupo = (bloque[0] && bloque[0].proveedor && (bloque[0].proveedor.nombre || bloque[0].proveedor.proveedor)) || 'Proveedor';
         if (estado) estado.innerHTML = '<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>' + escapeHTML(nombreGrupo) + ': preparando productos ' + (procesados + 1) + ' a ' + Math.min(procesados + bloque.length, pendientes.length) + ' de ' + pendientes.length + '…';
         if (productoActualEl && bloque[0]) productoActualEl.innerHTML = 'Próximo: <strong style="color:var(--text)">' + escapeHTML(bloque[0].producto.codigo || 'Sin código') + '</strong> · ' + escapeHTML(bloque[0].producto.nombre || bloque[0].producto.descripcion || 'Producto');
@@ -13405,6 +13934,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
               variacion:costoAnterior > 0 ? ((costoNuevo / costoAnterior) - 1) * 100 : 0
             };
             candidatos.push(candidatoVerificado);
+            candidatosBloque.push(candidatoVerificado);
             _actualizadorSesionPrecios.candidatos = _actualizadorSesionPrecios.candidatos.filter(function(c) {
               return actualizadorClaveCandidato(c) !== actualizadorClaveItem(item);
             });
@@ -13429,6 +13959,8 @@ async function ejecutarActualizadorMasivoBiosegur() {
               codigo:item.producto.codigo || '',
               producto:item.producto.nombre || item.producto.descripcion || '',
               url:item.url || '',
+              nombreProveedor:String((resultado && resultado.tituloProveedor) || '').trim(),
+              noDisponible:!!(resultado && String(resultado.codigo || '').toUpperCase() === 'PRODUCT_NOT_FOUND'),
               motivo:variacionPendiente.requiereAprobacion
                 ? 'Cambio bloqueado: requiere revisión y aprobación del administrador.'
                 : ((validacionPrecio && validacionPrecio.mensaje) || (resultado && (resultado.mensaje || resultado.error)) || 'No se pudo verificar la URL o el precio'),
@@ -13445,6 +13977,12 @@ async function ejecutarActualizadorMasivoBiosegur() {
           if (procesadosEl) procesadosEl.textContent = Math.max(procesadosServidor, procesados) + ' / ' + pendientes.length;
           if (enCursoEl) enCursoEl.textContent = String(Math.max(0, procesadosServidor - procesados));
           actualizarProgresoVisual(procesados / pendientes.length * 100, actualizados + ' verificados · ' + procesados + ' de ' + pendientes.length + ' procesados');
+        }
+        // Los precios seguros se guardan al terminar cada bloque. Los fallos y
+        // variaciones relevantes continúan visibles para revisión manual.
+        if (candidatosBloque.length) {
+          var guardadoAutomatico = await guardarCandidatosSegurosActualizador(candidatosBloque);
+          if (!guardadoAutomatico && estado) estado.textContent = 'No se pudieron guardar automáticamente algunos precios; quedaron listos para aplicar manualmente.';
         }
         // El resultado de un bloque ya está completo: se expone de inmediato,
         // sin esperar a que termine todo el proveedor o el lote completo.
@@ -13463,7 +14001,9 @@ async function ejecutarActualizadorMasivoBiosegur() {
         ? '<strong style="color:var(--amber)">Análisis detenido.</strong> ' + procesados + ' de ' + pendientes.length + ' procesados. Podés aplicar solamente los ya verificados.'
         : '<strong style="color:var(--green)">Análisis terminado.</strong> Revisá la vista previa antes de guardar' + (fallidos ? ' · <span style="color:var(--amber)">' + fallidos + ' conservaron su precio anterior</span>' : '') + '.';
     }
-    if (productoActualEl) productoActualEl.textContent = 'No se modificó ningún producto todavía.';
+    if (productoActualEl) productoActualEl.textContent = actualizados
+      ? actualizados + ' precio' + (actualizados === 1 ? '' : 's') + ' verificado' + (actualizados === 1 ? '' : 's') + ' y guardado' + (actualizados === 1 ? '' : 's') + ' automáticamente.'
+      : (fallidos ? 'Los productos con inconvenientes conservan su precio anterior.' : 'No hubo cambios pendientes para guardar.');
     if (procesadosEl) procesadosEl.textContent = procesados + ' / ' + pendientes.length;
     if (enCursoEl) enCursoEl.textContent = '0';
     if (!modal._detenerSolicitado) {
@@ -13488,7 +14028,9 @@ async function ejecutarActualizadorMasivoBiosegur() {
         var candidatosDetenidos = actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.candidatos, modal._tiposSeleccionados || []);
         var fallosDetenidos = actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.fallos, modal._tiposSeleccionados || []);
         if (estado) estado.innerHTML = '<strong style="color:var(--amber)">Análisis detenido.</strong> ' + procesados + ' de ' + pendientes.length + ' procesados. Se muestran los resultados ya recibidos.';
-        if (productoActualEl) productoActualEl.textContent = 'No se modificó ningún producto todavía.';
+        if (productoActualEl) productoActualEl.textContent = fallosDetenidos.length
+          ? 'Se conservan ' + fallosDetenidos.length + ' resultado' + (fallosDetenidos.length === 1 ? '' : 's') + ' para revisar.'
+          : 'No quedaron resultados pendientes de revisión.';
         if (procesadosEl) procesadosEl.textContent = procesados + ' / ' + pendientes.length;
         if (enCursoEl) enCursoEl.textContent = '0';
         if (miniEstado) miniEstado.textContent = 'Análisis detenido · ' + procesados + ' de ' + pendientes.length + ' procesados';

@@ -266,9 +266,18 @@ function idsMercadoLibreDesdeUrl(url) {
     // resultados. Aunque no viaje al servidor web, sí identifica el item que
     // el usuario quiso cotizar y debe priorizarse sobre el catálogo genérico.
     const parametrosFragmento = new URLSearchParams(String(parsed.hash || '').replace(/^#/, ''));
+    // Las publicaciones antiguas suelen redirigir a /up/MLAU... y Mercado
+    // Libre conserva el artículo concreto dentro de pdp_filters=item_id:MLA….
+    // Es el mismo rol que wid: no debe perderse al consultar el catálogo.
+    const filtroItem = [
+      parsed.searchParams.get('pdp_filters'),
+      parsed.searchParams.get('filters'),
+      parsed.searchParams.get('filter')
+    ].filter(Boolean).join(' ').match(/item_id\s*[:=]\s*(MLA-?\d{6,})/i);
     const itemQuery = normalizarId(
       parsed.searchParams.get('wid') || parsed.searchParams.get('item_id') ||
-      parametrosFragmento.get('wid') || parametrosFragmento.get('item_id')
+      parametrosFragmento.get('wid') || parametrosFragmento.get('item_id') ||
+      (filtroItem && filtroItem[1])
     );
     const productoPath = normalizarId((parsed.pathname.match(/\/(?:p|up)\/(MLA[A-Z]*-?\d{6,})/i) || [])[1]);
     // Una URL /p/MLA... identifica un producto de catálogo, no un item.
@@ -715,7 +724,10 @@ async function extraerProductoMercadoLibre(page) {
     '.ui-pdp-container__row--price .andes-money-amount',
     '[data-testid="price-part"] .andes-money-amount',
     '[itemprop="offers"].andes-money-amount',
-    '.ui-pdp-price__part.andes-money-amount'
+    '.ui-pdp-price__part.andes-money-amount',
+    // Algunas fichas nuevas dibujan el importe como imagen accesible
+    // (alt="5399 pesos") y no exponen el nodo andes-money-amount.
+    'main img[alt*="pesos" i], main [aria-label*="pesos" i]'
   ];
   await page.locator(selectoresPrecio.join(', ')).first().waitFor({ state:'attached', timeout:12000 }).catch(() => {});
   let precioArs = 0;
@@ -731,7 +743,13 @@ async function extraerProductoMercadoLibre(page) {
         const centavos = el.querySelector('.andes-money-amount__cents');
         const entero = String(fraccion ? fraccion.textContent : '').replace(/[^0-9]/g, '');
         const decimal = String(centavos ? centavos.textContent : '').replace(/[^0-9]/g, '').slice(0, 2);
-        return entero ? Number(entero + (decimal ? '.' + decimal : '')) : 0;
+        if (entero) return Number(entero + (decimal ? '.' + decimal : ''));
+        const texto = String(el.getAttribute('aria-label') || el.getAttribute('alt') || el.textContent || '');
+        const match = texto.match(/([\d][\d.,\s]*)\s*pesos/i);
+        if (!match) return 0;
+        const valor = match[1].replace(/\s/g, '');
+        if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(valor)) return Number(valor.replace(/\./g, '').replace(',', '.'));
+        return Number(valor.replace(/,/g, '')) || 0;
       }).catch(() => 0);
       if (precioArs > 0) {
         selectorPrecio = selector;
@@ -799,7 +817,10 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) 
       page.setDefaultNavigationTimeout(20000);
       await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:20000 });
       if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
-      datos = await extraerProductoMercadoLibre(page);
+      // Una URL histórica puede redirigir a un catálogo actual. Reintentar la
+      // API con la URL final conserva catalogo + item_id antes de leer el DOM.
+      datos = await extraerProductoMercadoLibreApi(page.url(), trace).catch(() => null);
+      if (!datos) datos = await extraerProductoMercadoLibre(page);
       trace.push({ step:'mercado_libre_respaldo_visual_ok', at:new Date().toISOString(), precioArs:datos.precioArs, selectorPrecio:datos.selectorPrecio || '' });
     }
     const ids = idsMercadoLibreDesdeUrl(urlExacta);
@@ -1274,6 +1295,11 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
     }
 
     const bodyText = await page.locator('body').innerText({ timeout: 15000 });
+    if (/el\s+art[ií]culo\s+solicitado\s+no\s+existe|producto\s+no\s+encontrado|no\s+existe\s+o\s+fue\s+desactivado|p[aá]gina\s+no\s+encontrada|error\s*404/i.test(bodyText)) {
+      const errorProducto = new Error('El producto ya no existe en Biosegur');
+      errorProducto.codigo = 'PRODUCT_NOT_FOUND';
+      throw errorProducto;
+    }
     addTrace('texto_leido', {
       caracteres: bodyText.length,
       muestra: bodyText.slice(0, 900)
@@ -1378,6 +1404,11 @@ async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0,
           throw new Error('La página redirigió fuera de Biosegur');
         }
         const bodyText = await page.locator('body').innerText({ timeout: 8000 });
+        if (/el\s+art[ií]culo\s+solicitado\s+no\s+existe|producto\s+no\s+encontrado|no\s+existe\s+o\s+fue\s+desactivado|p[aá]gina\s+no\s+encontrada|error\s*404/i.test(bodyText)) {
+          const errorProducto = new Error('El producto ya no existe en Biosegur');
+          errorProducto.codigo = 'PRODUCT_NOT_FOUND';
+          throw errorProducto;
+        }
         if (/producto\s+no\s+encontrado|no\s+existe\s+o\s+fue\s+desactivado|p[aá]gina\s+no\s+encontrada|error\s*404/i.test(bodyText)) {
           throw new Error('Producto no encontrado o desactivado en el proveedor');
         }
@@ -1560,7 +1591,10 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
           }
           await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
           if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
-          datos = await extraerProductoMercadoLibre(page);
+          // Una publicación vieja puede resolver al catálogo vigente: la API
+          // entiende esa URL final y conserva el item_id de los filtros.
+          datos = await extraerProductoMercadoLibreApi(page.url()).catch(() => null);
+          if (!datos) datos = await extraerProductoMercadoLibre(page);
         }
         const identidad = datos.fuente === 'mercado_libre_api_oficial'
           ? validarIdentidadMercadoLibreOficial(urlExacta, item.producto||item.nombre||'', datos)
