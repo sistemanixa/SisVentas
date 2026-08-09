@@ -1967,6 +1967,11 @@ body.modal-secure-open{overflow:hidden!important}
     white-space:nowrap!important;
   }
   .sv-responsive-grid .sv-grid-actions-original{display:none!important}
+  .sv-responsive-grid .sv-grid-actions-primary{
+    display:inline-flex!important;
+    align-items:center;
+    justify-content:center;
+  }
   .sv-responsive-grid .sv-grid-actions-trigger{
     display:inline-flex!important;
     align-items:center;
