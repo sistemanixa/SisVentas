@@ -1,0 +1,7 @@
+# Las dependencias se instalan dentro de la imagen mediante Dockerfile.
+# No deben formar parte del paquete de código fuente de Cloud Run.
+node_modules/
+test/
+.git/
+.gitignore
+npm-debug.log

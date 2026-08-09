@@ -522,7 +522,17 @@ async function obtenerJsonMercadoLibre(ruta) {
       const accessToken = await obtenerAccessTokenMercadoLibre();
       response = await consultar(accessToken);
     }
-    if (!response.ok) throw new Error(`API Mercado Libre respondió ${response.status}`);
+    if (!response.ok) {
+      // Mercado Libre suele acompañar un 401/403 con el motivo real en JSON.
+      // Conservarlo permite diferenciar token rechazado, aplicación sin permiso
+      // o publicación restringida, sin exponer nunca el access token.
+      const detalle = await response.text().catch(() => '');
+      const detalleSeguro = String(detalle || '')
+        .replace(/[\r\n\t]+/g, ' ')
+        .replace(/Bearer\s+[^\s"']+/gi, 'Bearer [oculto]')
+        .slice(0, 320);
+      throw new Error(`API Mercado Libre respondió ${response.status}${detalleSeguro ? `: ${detalleSeguro}` : ''}`);
+    }
     return await response.json();
   } finally {
     clearTimeout(timer);
