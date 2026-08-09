@@ -9,7 +9,7 @@ test('el actualizador contiene el desplazamiento dentro del cuerpo redimensionab
   const fin = app.indexOf('document.body.appendChild(overlay)', inicio);
   const modal = app.slice(inicio, fin);
   assert.match(modal, /id="actualizador-precios-panel"[^>]+overflow:hidden;resize:both/);
-  assert.match(modal, /id="actualizador-precios-cuerpo"[^>]+overflow-y:auto;overflow-x:hidden/);
+  assert.match(modal, /id="actualizador-precios-cuerpo"[^>]+flex:1 1 0;height:0;[^>]+overflow-y:auto;overflow-x:hidden/);
   assert.match(modal, /id="actualizador-precios-fallos"[^>]+flex:1 1 220px;min-height:180px;max-height:none;overflow:auto/);
 });
 

@@ -6697,13 +6697,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.314-firebase',
+  VERSION: 'v2.0.316-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Los rechazos conservan el nombre leído en el proveedor.',
-    'Corregir un nombre vuelve a validar el precio sin perder el avance.'
+    'La ventana de actualización contiene todos sus controles.',
+    'Los resultados se adaptan sin ocultar las acciones finales.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Actualizar productos' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.316',
+      date: '09/08/2026',
+      title: 'Actualizador: ventana adaptable sin contenido recortado',
+      notes: Object.freeze(['La barra de desplazamiento queda dentro de la ventana y permite llegar siempre a todas las acciones.', 'La esquina permite redimensionar el panel y los resultados ocupan el espacio disponible sin ocultar los controles inferiores.', 'Los pendientes continúan sincronizándose al corregir el nombre de un producto.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador de precios' })
+    }),
     Object.freeze({
       version: 'v2.0.314',
       date: '09/08/2026',
