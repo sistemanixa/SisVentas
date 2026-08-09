@@ -262,7 +262,14 @@ function idsMercadoLibreDesdeUrl(url) {
     const parsed = new URL(normalizarUrl(url));
     const normalizarId = (valor) => String(valor || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const esCatalogo = (valor) => /^MLA[A-Z]*\d{6,}$/.test(valor);
-    const itemQuery = normalizarId(parsed.searchParams.get('wid') || parsed.searchParams.get('item_id'));
+    // Mercado Libre puede dejar wid luego del # en enlaces compartidos desde
+    // resultados. Aunque no viaje al servidor web, sí identifica el item que
+    // el usuario quiso cotizar y debe priorizarse sobre el catálogo genérico.
+    const parametrosFragmento = new URLSearchParams(String(parsed.hash || '').replace(/^#/, ''));
+    const itemQuery = normalizarId(
+      parsed.searchParams.get('wid') || parsed.searchParams.get('item_id') ||
+      parametrosFragmento.get('wid') || parametrosFragmento.get('item_id')
+    );
     const productoPath = normalizarId((parsed.pathname.match(/\/(?:p|up)\/(MLA[A-Z]*-?\d{6,})/i) || [])[1]);
     // Una URL /p/MLA... identifica un producto de catálogo, no un item.
     // El mismo número no debe enviarse a /items porque Mercado Libre responde 403.
@@ -763,10 +770,19 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) 
       datos = await extraerProductoMercadoLibre(page);
       trace.push({ step:'mercado_libre_respaldo_visual_ok', at:new Date().toISOString(), precioArs:datos.precioArs, selectorPrecio:datos.selectorPrecio || '' });
     }
-    const identidad = validarIdentidadProducto(producto, datos.titulo);
-    if (!identidad.ok) throw new Error(identidad.mensaje);
-    trace.push({ step:'mercado_libre_validado', at:new Date().toISOString(), precioArs:datos.precioArs, itemId:datos.itemId || '' });
     const ids = idsMercadoLibreDesdeUrl(urlExacta);
+    const itemExacto = String(datos.itemId || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const catalogoExacto = String(datos.catalogProductId || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    // La API oficial puede omitir title en algunos resultados de catálogo. Si
+    // la URL trajo a la vez catálogo + wid y ambos coinciden con el item
+    // consultado, esa referencia oficial es una validación de identidad más
+    // fuerte que un título inexistente; no se debe descartar su precio válido.
+    const identidad = !datos.titulo && ids.itemId && ids.productoId &&
+      itemExacto === ids.itemId && catalogoExacto === ids.productoId
+      ? { ok:true, confianza:1, metodo:'mercado_libre_wid_catalogo' }
+      : validarIdentidadProducto(producto, datos.titulo);
+    if (!identidad.ok) throw new Error(identidad.mensaje);
+    trace.push({ step:'mercado_libre_validado', at:new Date().toISOString(), precioArs:datos.precioArs, itemId:datos.itemId || '', metodo:identidad.metodo || 'titulo' });
     const diagnosticoMercadoLibre = datos.diagnosticoMercadoLibre || {
       catalogProductId:ids.productoId || '', wid:ids.itemId || '', itemIdUtilizado:datos.itemId || '',
       precioObtenidoPorApi:datos.precioActualArs || datos.precioArs || 0,

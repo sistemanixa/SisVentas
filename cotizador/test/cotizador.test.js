@@ -88,6 +88,10 @@ test('Mercado Libre interpreta catálogo, publicación y tienda oficial desde la
     idsMercadoLibreDesdeUrl('https://www.mercadolibre.com.ar/alarma/p/MLA63758636?pdp_filters=official_store%3A280888'),
     { itemId:'', productoId:'MLA63758636' }
   );
+  assert.deepEqual(
+    idsMercadoLibreDesdeUrl('https://www.mercadolibre.com.ar/cerradura/up/MLAU2980341696#polycard_client=search-desktop&wid=MLA1473110405'),
+    { itemId:'MLA1473110405', productoId:'MLAU2980341696' }
+  );
 });
 
 test('Mercado Libre prioriza la variante que coincide con el nombre de la URL', () => {
