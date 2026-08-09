@@ -153,6 +153,24 @@ async function obtenerAccessTokenMercadoLibre() {
   return token.access_token;
 }
 
+async function estadoOAuthMercadoLibre() {
+  const configurado = !!(ML_CLIENT_ID && ML_CLIENT_SECRET && ML_REDIRECT_URI && ML_TOKEN_KEY);
+  if (!configurado) return { configurado:false, autorizado:false, mensaje:'Falta configurar OAuth de Mercado Libre en el servicio' };
+  try {
+    const token = await cargarTokenMercadoLibre();
+    const venceEn = Number(token && token.expires_at) || 0;
+    return {
+      configurado:true,
+      autorizado:!!(token && token.access_token),
+      vigente:venceEn > Date.now() + 2 * 60 * 1000,
+      venceEn:venceEn || null,
+      mensaje:token && token.access_token ? 'OAuth de Mercado Libre disponible' : 'Mercado Libre requiere autorización'
+    };
+  } catch (error) {
+    return { configurado:true, autorizado:false, vigente:false, mensaje:'No se pudo leer la autorización de Mercado Libre' };
+  }
+}
+
 async function iniciarOAuthMercadoLibre(res) {
   const state = firmarEstadoOAuthMercadoLibre();
   const destino = new URL('https://auth.mercadolibre.com.ar/authorization');
@@ -1584,7 +1602,11 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
       if (progresoRef) await progresoRef.update({ estado:'procesando', proveedor:'MERCADO LIBRE', codigo:item.codigo||'', producto:item.producto||item.nombre||'', url:urlExacta, procesados:offset+i, total:totalTrabajo, actualizadoEn:Date.now() });
       try {
         if (!esUrlMercadoLibre(urlExacta)) throw new Error('La URL no corresponde a Mercado Libre Argentina');
-        let datos = await extraerProductoMercadoLibreApi(urlExacta).catch(() => null);
+        let errorApiMercadoLibre = null;
+        let datos = await extraerProductoMercadoLibreApi(urlExacta).catch((errorApi) => {
+          errorApiMercadoLibre = errorApi;
+          return null;
+        });
         if (!datos) {
           if (!page) {
             if (progresoRef) await progresoRef.update({ estado:'iniciando_respaldo_visual', actualizadoEn:Date.now() });
@@ -1603,8 +1625,25 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
           if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
           // Una publicación vieja puede resolver al catálogo vigente: la API
           // entiende esa URL final y conserva el item_id de los filtros.
-          datos = await extraerProductoMercadoLibreApi(page.url()).catch(() => null);
-          if (!datos) datos = await extraerProductoMercadoLibre(page);
+          datos = await extraerProductoMercadoLibreApi(page.url()).catch((errorApi) => {
+            errorApiMercadoLibre = errorApiMercadoLibre || errorApi;
+            return null;
+          });
+          if (!datos) {
+            try {
+              datos = await extraerProductoMercadoLibre(page);
+            } catch (errorVisual) {
+              const diagnosticoApi = errorApiMercadoLibre && errorApiMercadoLibre.diagnosticoMercadoLibre || {};
+              errorVisual.diagnosticoMercadoLibre = Object.assign({}, diagnosticoApi, {
+                causaFallo:[
+                  diagnosticoApi.causaFallo || '',
+                  errorApiMercadoLibre ? 'API oficial: ' + (errorApiMercadoLibre.message || String(errorApiMercadoLibre)) : '',
+                  'Respaldo visual: ' + (errorVisual.message || String(errorVisual))
+                ].filter(Boolean).join(' · ')
+              });
+              throw errorVisual;
+            }
+          }
         }
         const identidad = datos.fuente === 'mercado_libre_api_oficial'
           ? validarIdentidadMercadoLibreOficial(urlExacta, item.producto||item.nombre||'', datos)
@@ -1721,6 +1760,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && pathname === '/mercadolibre/oauth/status') {
+    send(res, 200, await estadoOAuthMercadoLibre());
+    return;
+  }
+
   if (req.method !== 'POST') {
     send(res, 405, { ok: false, error: true, mensaje: 'Método no permitido' });
     return;
@@ -1775,6 +1819,7 @@ module.exports = {
   datosMercadoLibreDesdeFuente,
   validarIdentidadMercadoLibreOficial,
   obtenerJsonMercadoLibre,
+  estadoOAuthMercadoLibre,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
   validarIdentidadProducto,

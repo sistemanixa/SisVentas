@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Module = require('node:module');
+const fs = require('node:fs');
 
 process.env.ML_CLIENT_ID = '123456';
 process.env.ML_CLIENT_SECRET = 'secreto-de-prueba';
@@ -338,4 +339,12 @@ test('Mercado Libre conserva catálogo e item al recibir un listado resumido sin
   assert.equal(datos.catalogProductId, 'MLAU2980341696');
   assert.equal(datos.precioActualArs, 284999.05);
   assert.equal(datos.titulo, '');
+});
+test('el lote conserva el diagnóstico de API cuando también falla el respaldo visual', () => {
+  const source = fs.readFileSync(require.resolve('../index'), 'utf8');
+  assert.match(source, /let errorApiMercadoLibre = null/);
+  assert.match(source, /errorVisual\.diagnosticoMercadoLibre/);
+  assert.match(source, /API oficial: /);
+  assert.match(source, /Respaldo visual: /);
+  assert.match(source, /mercadolibre\/oauth\/status/);
 });
