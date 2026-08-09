@@ -488,16 +488,22 @@ async function obtenerJsonMercadoLibre(ruta) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   try {
-    const accessToken = await obtenerAccessTokenMercadoLibre();
-    const response = await fetch(`https://api.mercadolibre.com${ruta}`, {
+    const consultar = async (accessToken) => fetch(`https://api.mercadolibre.com${ruta}`, {
       headers: {
         accept:'application/json',
         'accept-language':'es-AR,es;q=0.9',
         'user-agent':'SisVentas-Nixa/2.0',
-        authorization:`Bearer ${accessToken}`
+        ...(accessToken ? { authorization:`Bearer ${accessToken}` } : {})
       },
       signal:controller.signal
     });
+    // Los datos públicos de ítems, catálogos y búsquedas no requieren OAuth.
+    // Así una autorización vencida no desvía un precio válido al navegador.
+    let response = await consultar('');
+    if ((response.status === 401 || response.status === 403) && !controller.signal.aborted) {
+      const accessToken = await obtenerAccessTokenMercadoLibre();
+      response = await consultar(accessToken);
+    }
     if (!response.ok) throw new Error(`API Mercado Libre respondió ${response.status}`);
     return await response.json();
   } finally {
@@ -1764,6 +1770,7 @@ module.exports = {
   seleccionarPublicacionConsensoMercadoLibre,
   datosMercadoLibreDesdeFuente,
   validarIdentidadMercadoLibreOficial,
+  obtenerJsonMercadoLibre,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
   validarIdentidadProducto,

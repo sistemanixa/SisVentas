@@ -32,6 +32,7 @@ const {
   seleccionarPublicacionConsensoMercadoLibre,
   datosMercadoLibreDesdeFuente,
   validarIdentidadMercadoLibreOficial,
+  obtenerJsonMercadoLibre,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
   validarIdentidadProducto,
@@ -168,6 +169,22 @@ test('Mercado Libre prioriza el wid y usa sale_price como precio vigente promoci
   assert.equal(datos.porcentajeDescuento, 5);
   assert.equal(datos.itemId, 'MLA1473110405');
   assert.equal(datos.catalogProductId, 'MLAU2980341696');
+});
+
+test('Mercado Libre consulta primero el endpoint público del ítem sin depender de OAuth', async () => {
+  const fetchOriginal = global.fetch;
+  const llamadas = [];
+  global.fetch = async (url, opciones) => {
+    llamadas.push({ url:String(url), authorization:opciones.headers.authorization || '' });
+    return { ok:true, status:200, json:async () => ({ id:'MLA800708181', price:5399, currency_id:'ARS' }) };
+  };
+  try {
+    const item = await obtenerJsonMercadoLibre('/items/MLA800708181');
+    assert.equal(item.price, 5399);
+    assert.deepEqual(llamadas, [{ url:'https://api.mercadolibre.com/items/MLA800708181', authorization:'' }]);
+  } finally {
+    global.fetch = fetchOriginal;
+  }
 });
 
 test('Mercado Libre acepta la identidad oficial aunque la respuesta resumida no incluya título', () => {
