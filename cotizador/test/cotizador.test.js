@@ -31,6 +31,7 @@ const {
   seleccionarPublicacionMercadoLibre,
   seleccionarPublicacionConsensoMercadoLibre,
   datosMercadoLibreDesdeFuente,
+  extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
   validarIdentidadProducto,
   validarMonedaPrecio,
@@ -112,10 +113,15 @@ test('Mercado Libre elige la publicación activa ARS de la tienda solicitada', (
   assert.equal(elegida.id, 'MLA3');
   assert.deepEqual(datosMercadoLibreDesdeFuente(elegida), {
     precioArs:124968.80,
+    precioActualArs:124968.80,
+    precioOriginalArs:124968.80,
+    enPromocion:false,
+    porcentajeDescuento:0,
     disponibilidad:'disponible',
     titulo:'Alarma Garnet KPD-1000W',
     moneda:'ARS',
-    itemId:'MLA3'
+    itemId:'MLA3',
+    catalogProductId:'MLA63758636'
   });
   const ordenCatalogo = seleccionarPublicacionMercadoLibre([
     { item_id:'MLA10', price:260239, currency_id:'ARS', status:'active' },
@@ -129,6 +135,68 @@ test('Mercado Libre elige la publicación activa ARS de la tienda solicitada', (
     { item_id:'MLA13', price:260239, currency_id:'ARS', status:'active' }
   ], 'MLA63758636', 0);
   assert.equal(consenso.item_id, 'MLA11');
+});
+
+test('Mercado Libre prioriza el wid y usa sale_price como precio vigente promocional', () => {
+  const url = 'https://www.mercadolibre.com.ar/cerradura-inteligente-suono-smartlock-sturdy-digital-wifi-co/up/MLAU2980341696?wid=MLA1473110405';
+  assert.deepEqual(idsMercadoLibreDesdeUrl(url), {
+    itemId:'MLA1473110405', productoId:'MLAU2980341696'
+  });
+  const datos = datosMercadoLibreDesdeFuente({
+    id:'MLA1473110405',
+    catalog_product_id:'MLAU2980341696',
+    title:'Cerradura Inteligente Suono Smartlock Sturdy',
+    price:299999,
+    currency_id:'ARS',
+    status:'active',
+    available_quantity:4,
+    sale_price:{ amount:284999.05, regular_amount:299999, discount_rate:5, currency_id:'ARS' }
+  });
+  assert.equal(datos.precioArs, 284999.05);
+  assert.equal(datos.precioActualArs, 284999.05);
+  assert.equal(datos.precioOriginalArs, 299999);
+  assert.equal(datos.enPromocion, true);
+  assert.equal(datos.porcentajeDescuento, 5);
+  assert.equal(datos.itemId, 'MLA1473110405');
+  assert.equal(datos.catalogProductId, 'MLAU2980341696');
+});
+
+test('el resolver oficial consulta primero el wid del caso real y deja diagnóstico completo', async () => {
+  const llamadas = [];
+  const trace = [];
+  const datos = await extraerProductoMercadoLibreApi(
+    'https://www.mercadolibre.com.ar/cerradura-inteligente-suono-smartlock-sturdy-digital-wifi-co/up/MLAU2980341696?wid=MLA1473110405',
+    trace,
+    async (ruta) => {
+      llamadas.push(ruta);
+      assert.equal(ruta, '/items/MLA1473110405');
+      return {
+        id:'MLA1473110405', catalog_product_id:'MLAU2980341696', title:'Cerradura Inteligente Suono Smartlock Sturdy',
+        price:299999, currency_id:'ARS', status:'active',
+        sale_price:{ amount:284999.05, regular_amount:299999, discount_rate:5, currency_id:'ARS' }
+      };
+    }
+  );
+  assert.deepEqual(llamadas, ['/items/MLA1473110405']);
+  assert.equal(datos.precioActualArs, 284999.05);
+  assert.equal(datos.precioOriginalArs, 299999);
+  assert.equal(datos.diagnosticoMercadoLibre.catalogProductId, 'MLAU2980341696');
+  assert.equal(datos.diagnosticoMercadoLibre.wid, 'MLA1473110405');
+  assert.equal(datos.diagnosticoMercadoLibre.itemIdUtilizado, 'MLA1473110405');
+  assert.equal(datos.diagnosticoMercadoLibre.precioObtenidoPorApi, 284999.05);
+  assert.equal(datos.diagnosticoMercadoLibre.porcentajeDescuento, 5);
+});
+
+test('Mercado Libre conserva el precio de una URL MLA tradicional sin promoción', () => {
+  const url = 'https://articulo.mercadolibre.com.ar/MLA-1234567890-publicacion-tradicional';
+  assert.deepEqual(idsMercadoLibreDesdeUrl(url), { itemId:'MLA1234567890', productoId:'' });
+  const datos = datosMercadoLibreDesdeFuente({
+    id:'MLA1234567890', title:'Publicación tradicional', price:156000, currency_id:'ARS', status:'active'
+  });
+  assert.equal(datos.precioArs, 156000);
+  assert.equal(datos.precioOriginalArs, 156000);
+  assert.equal(datos.enPromocion, false);
+  assert.equal(datos.porcentajeDescuento, 0);
 });
 
 test('la identidad acepta el mismo modelo y rechaza otro producto', () => {

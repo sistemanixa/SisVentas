@@ -261,14 +261,15 @@ function idsMercadoLibreDesdeUrl(url) {
   try {
     const parsed = new URL(normalizarUrl(url));
     const normalizarId = (valor) => String(valor || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const esCatalogo = (valor) => /^MLA[A-Z]*\d{6,}$/.test(valor);
     const itemQuery = normalizarId(parsed.searchParams.get('wid') || parsed.searchParams.get('item_id'));
-    const productoPath = normalizarId((parsed.pathname.match(/\/p\/(MLA-?\d{6,})/i) || [])[1]);
+    const productoPath = normalizarId((parsed.pathname.match(/\/(?:p|up)\/(MLA[A-Z]*-?\d{6,})/i) || [])[1]);
     // Una URL /p/MLA... identifica un producto de catálogo, no un item.
     // El mismo número no debe enviarse a /items porque Mercado Libre responde 403.
     const itemPath = productoPath ? '' : normalizarId((parsed.pathname.match(/\/(MLA-?\d{6,})/i) || [])[1]);
     return {
       itemId: /^MLA\d{6,}$/.test(itemQuery) ? itemQuery : (/^MLA\d{6,}$/.test(itemPath) ? itemPath : ''),
-      productoId: /^MLA\d{6,}$/.test(productoPath) ? productoPath : ''
+      productoId: esCatalogo(productoPath) ? productoPath : ''
     };
   } catch (_) {
     return { itemId:'', productoId:'' };
@@ -395,12 +396,34 @@ async function resolverGanadorMercadoLibre(publicacion, trace) {
   }
 }
 
+function numeroPrecioMercadoLibre(valor) {
+  const numero = Number(valor);
+  return Number.isFinite(numero) && numero > 0 ? numero : 0;
+}
+
 function datosMercadoLibreDesdeFuente(fuente, producto) {
   if (!fuente) return null;
-  const precioArs = Number(fuente.price || fuente.base_price || fuente.original_price) || 0;
-  const moneda = String(fuente.currency_id || fuente.currency || '').toUpperCase();
-  if (!precioArs) return null;
+  const oferta = fuente.sale_price && typeof fuente.sale_price === 'object' ? fuente.sale_price : {};
+  // En publicaciones con promoción Mercado Libre puede dejar el precio vigente
+  // exclusivamente en sale_price.amount; price/base_price representan el valor
+  // de lista. Siempre se toma primero el importe final de la oferta.
+  const precioActualArs = numeroPrecioMercadoLibre(
+    oferta.amount || oferta.price || fuente.price || fuente.base_price || fuente.original_price
+  );
+  const moneda = String(oferta.currency_id || fuente.currency_id || fuente.currency || '').toUpperCase();
+  if (!precioActualArs) return null;
   if (moneda && moneda !== 'ARS') throw new Error(`La publicación informa moneda ${moneda}; no se guardará como pesos argentinos`);
+  let precioOriginalArs = numeroPrecioMercadoLibre(
+    oferta.regular_amount || oferta.original_amount || fuente.original_price || fuente.base_price || fuente.price
+  ) || precioActualArs;
+  if (precioOriginalArs < precioActualArs) precioOriginalArs = precioActualArs;
+  const descuentoInformado = Number(oferta.discount_rate || oferta.discount_percentage || fuente.discount_rate) || 0;
+  const porcentajeDescuento = descuentoInformado > 0
+    ? descuentoInformado
+    : precioOriginalArs > precioActualArs
+      ? Math.round(((precioOriginalArs - precioActualArs) / precioOriginalArs) * 10000) / 100
+      : 0;
+  const enPromocion = precioOriginalArs > precioActualArs + 0.005 || porcentajeDescuento > 0;
   const estado = String(fuente.status || '').toLowerCase();
   const cantidad = Number(fuente.available_quantity);
   const disponibilidad = estado && estado !== 'active'
@@ -411,11 +434,17 @@ function datosMercadoLibreDesdeFuente(fuente, producto) {
         ? 'disponible'
         : 'no_verificado';
   return {
-    precioArs,
+    // precioArs se conserva para los consumidores actuales del cotizador.
+    precioArs:precioActualArs,
+    precioActualArs,
+    precioOriginalArs,
+    enPromocion,
+    porcentajeDescuento,
     disponibilidad,
     titulo:String(fuente.title || fuente.name || (producto && producto.name) || ''),
     moneda:moneda || 'ARS',
-    itemId:String(fuente.id || fuente.item_id || '')
+    itemId:String(fuente.id || fuente.item_id || ''),
+    catalogProductId:String(fuente.catalog_product_id || (producto && producto.id) || '')
   };
 }
 
@@ -494,15 +523,43 @@ async function buscarGanadorEnHijosMercadoLibre(producto, urlExacta, officialSto
   return null;
 }
 
-async function extraerProductoMercadoLibreApi(urlExacta, trace = []) {
+async function extraerProductoMercadoLibreApi(urlExacta, trace = [], apiGet = obtenerJsonMercadoLibre) {
   const ids = idsMercadoLibreDesdeUrl(urlExacta);
   const filtros = filtrosMercadoLibreDesdeUrl(urlExacta);
+  const diagnostico = {
+    catalogProductId:ids.productoId || '',
+    wid:ids.itemId || '',
+    itemIdUtilizado:'',
+    precioObtenidoPorApi:0,
+    precioOriginalArs:0,
+    enPromocion:false,
+    porcentajeDescuento:0,
+    causaFallo:''
+  };
+  trace.push({
+    step:'mercado_libre_ids_resueltos',
+    at:new Date().toISOString(),
+    catalogProductId:diagnostico.catalogProductId,
+    wid:diagnostico.wid
+  });
   let item = null;
   let producto = null;
 
   if (ids.itemId) {
-    trace.push({ step:'mercado_libre_api_item', at:new Date().toISOString(), itemId:ids.itemId });
-    item = await obtenerJsonMercadoLibre(`/items/${encodeURIComponent(ids.itemId)}`);
+    trace.push({ step:'mercado_libre_api_item_prioritario', at:new Date().toISOString(), itemId:ids.itemId, wid:ids.itemId });
+    try {
+      item = await apiGet(`/items/${encodeURIComponent(ids.itemId)}`);
+      const catalogoItem = String(item && item.catalog_product_id || '').toUpperCase();
+      if (ids.productoId && catalogoItem && catalogoItem !== ids.productoId) {
+        trace.push({ step:'mercado_libre_wid_catalogo_distinto', at:new Date().toISOString(), wid:ids.itemId, catalogProductId:ids.productoId, catalogProductIdItem:catalogoItem });
+        item = null;
+      } else {
+        diagnostico.itemIdUtilizado = String(item && item.id || ids.itemId);
+      }
+    } catch (errorItem) {
+      diagnostico.causaFallo = `No se pudo consultar wid ${ids.itemId}: ${errorItem.message || String(errorItem)}`;
+      trace.push({ step:'mercado_libre_api_item_fallo', at:new Date().toISOString(), itemId:ids.itemId, mensaje:errorItem.message || String(errorItem) });
+    }
   }
 
   if (!item && ids.productoId) {
@@ -592,8 +649,20 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = []) {
 
   const fuente = item || (producto && producto.buy_box_winner) || producto || null;
   const datos = datosMercadoLibreDesdeFuente(fuente, producto);
-  if (!datos) throw new Error('La API oficial no informó un precio vigente');
+  if (!datos) {
+    diagnostico.causaFallo = diagnostico.causaFallo || 'La API oficial no informó precio vigente para el item/catálogo resuelto';
+    const error = new Error('La API oficial no informó un precio vigente');
+    error.diagnosticoMercadoLibre = diagnostico;
+    throw error;
+  }
+  diagnostico.itemIdUtilizado = datos.itemId || diagnostico.itemIdUtilizado || ids.itemId || '';
+  diagnostico.catalogProductId = datos.catalogProductId || ids.productoId || '';
+  diagnostico.precioObtenidoPorApi = datos.precioActualArs || datos.precioArs || 0;
+  diagnostico.precioOriginalArs = datos.precioOriginalArs || diagnostico.precioObtenidoPorApi;
+  diagnostico.enPromocion = !!datos.enPromocion;
+  diagnostico.porcentajeDescuento = Number(datos.porcentajeDescuento) || 0;
   datos.fuente = 'mercado_libre_api_oficial';
+  datos.diagnosticoMercadoLibre = diagnostico;
   return datos;
 }
 
@@ -697,7 +766,15 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) 
     const identidad = validarIdentidadProducto(producto, datos.titulo);
     if (!identidad.ok) throw new Error(identidad.mensaje);
     trace.push({ step:'mercado_libre_validado', at:new Date().toISOString(), precioArs:datos.precioArs, itemId:datos.itemId || '' });
-    return { ok:true, proveedor:proveedor.nombre || 'MERCADO LIBRE', codigo:codigo || '', producto:datos.titulo || producto || '', url:urlExacta, precioArs:datos.precioArs, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad === 'disponible' ? 'Disponible' : datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado', fuente:datos.fuente || 'mercado_libre_url_exacta', fecha:new Date().toISOString(), tituloProveedor:datos.titulo, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', identidad, debug:debug ? { trace, titulo:datos.titulo, fuente:datos.fuente || '', itemId:datos.itemId || '', identidad } : undefined };
+    const ids = idsMercadoLibreDesdeUrl(urlExacta);
+    const diagnosticoMercadoLibre = datos.diagnosticoMercadoLibre || {
+      catalogProductId:ids.productoId || '', wid:ids.itemId || '', itemIdUtilizado:datos.itemId || '',
+      precioObtenidoPorApi:datos.precioActualArs || datos.precioArs || 0,
+      precioOriginalArs:datos.precioOriginalArs || datos.precioArs || 0,
+      enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0,
+      causaFallo:datos.fuente === 'mercado_libre_pagina' ? 'API oficial sin resultado; se usó respaldo visual' : ''
+    };
+    return { ok:true, proveedor:proveedor.nombre || 'MERCADO LIBRE', codigo:codigo || '', producto:datos.titulo || producto || '', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad === 'disponible' ? 'Disponible' : datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado', fuente:datos.fuente || 'mercado_libre_url_exacta', fecha:new Date().toISOString(), tituloProveedor:datos.titulo, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', identidad, diagnosticoMercadoLibre, debug:debug ? { trace, titulo:datos.titulo, fuente:datos.fuente || '', itemId:datos.itemId || '', diagnosticoMercadoLibre, identidad } : undefined };
   } catch (error) {
     error.trace = trace.concat([{ step:'mercado_libre_error', at:new Date().toISOString(), mensaje:error.message || String(error) }]);
     throw error;
@@ -1445,9 +1522,9 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
           Object.assign(errorPrecio, validacionPrecio);
           throw errorPrecio;
         }
-        resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:datos.fuente || 'mercado_libre_lote_url_exacta', fecha:new Date().toISOString(), tituloProveedor:datos.titulo, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', identidad });
+        resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:datos.fuente || 'mercado_libre_lote_url_exacta', fecha:new Date().toISOString(), tituloProveedor:datos.titulo, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', diagnosticoMercadoLibre:datos.diagnosticoMercadoLibre || undefined, identidad });
       } catch (e) {
-        resultados.push({ ok:false, error:true, codigo:e.codigo||'', codigoProducto:item.codigo||'', url:urlExacta, mensaje:e.message||'Error leyendo la publicación', precioAnteriorArs:Number(e.precioAnteriorArs)||0, precioCandidatoArs:Number(e.precioCandidatoArs)||0, relacion:Number(e.relacion)||0 });
+        resultados.push({ ok:false, error:true, codigo:e.codigo||'', codigoProducto:item.codigo||'', url:urlExacta, mensaje:e.message||'Error leyendo la publicación', precioAnteriorArs:Number(e.precioAnteriorArs)||0, precioCandidatoArs:Number(e.precioCandidatoArs)||0, relacion:Number(e.relacion)||0, diagnosticoMercadoLibre:e.diagnosticoMercadoLibre || undefined });
       }
       if (progresoRef) {
         const procesadosGlobal=offset+i+1, transcurridoSeg=Math.max(1,Math.round((Date.now()-inicioMs)/1000)), promedioSeg=transcurridoSeg/Math.max(1,procesadosGlobal);
@@ -1576,6 +1653,7 @@ const server = http.createServer(async (req, res) => {
       precioAnteriorArs: Number(e.precioAnteriorArs) || 0,
       precioCandidatoArs: Number(e.precioCandidatoArs) || 0,
       relacion: Number(e.relacion) || 0,
+      diagnosticoMercadoLibre: e.diagnosticoMercadoLibre || undefined,
       debug: { trace: e.trace || [] }
     });
   }
@@ -1598,6 +1676,7 @@ module.exports = {
   seleccionarPublicacionMercadoLibre,
   seleccionarPublicacionConsensoMercadoLibre,
   datosMercadoLibreDesdeFuente,
+  extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
   validarIdentidadProducto,
   validarMonedaPrecio,
