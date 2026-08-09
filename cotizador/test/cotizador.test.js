@@ -282,3 +282,23 @@ test('Mercado Libre cifra tokens y valida el estado OAuth sin exponerlos', () =>
   assert.equal(validarEstadoOAuthMercadoLibre(estado), true);
   assert.equal(validarEstadoOAuthMercadoLibre(`${estado}alterado`), false);
 });
+
+test('Mercado Libre conserva catálogo e item al recibir un listado resumido sin título', async () => {
+  const datos = await extraerProductoMercadoLibreApi(
+    'https://www.mercadolibre.com.ar/cerradura/up/MLAU2980341696#wid=MLA1473110405',
+    [],
+    async (ruta) => {
+      if (ruta === '/items/MLA1473110405') throw new Error('API Mercado Libre respondió 403');
+      if (ruta === '/products/MLAU2980341696/items') return {
+        results:[{ item_id:'MLA1473110405', price:284999.05, currency_id:'ARS', status:'active' }]
+      };
+      if (ruta.includes('/price_to_win')) return { winner:null };
+      if (ruta === '/products/MLAU2980341696') return {};
+      throw new Error(`Ruta no esperada: ${ruta}`);
+    }
+  );
+  assert.equal(datos.itemId, 'MLA1473110405');
+  assert.equal(datos.catalogProductId, 'MLAU2980341696');
+  assert.equal(datos.precioActualArs, 284999.05);
+  assert.equal(datos.titulo, '');
+});

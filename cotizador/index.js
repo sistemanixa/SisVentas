@@ -382,21 +382,23 @@ function seleccionarPublicacionConsensoMercadoLibre(resultados, productoId, offi
   return compatibles.find((item) => Number(item.price).toFixed(2) === precioConsenso) || compatibles[0];
 }
 
-async function resolverGanadorMercadoLibre(publicacion, trace) {
+async function resolverGanadorMercadoLibre(publicacion, trace, apiGet = obtenerJsonMercadoLibre) {
   const itemId = String(publicacion && (publicacion.item_id || publicacion.id) || '')
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '');
   if (!/^MLA\d{6,}$/.test(itemId)) return publicacion || null;
   try {
-    const competencia = await obtenerJsonMercadoLibre(`/items/${encodeURIComponent(itemId)}/price_to_win?siteId=MLA&version=v2`);
+    const competencia = await apiGet(`/items/${encodeURIComponent(itemId)}/price_to_win?siteId=MLA&version=v2`);
     const ganador = competencia && competencia.winner;
     const ganadorId = String(ganador && (ganador.item_id || ganador.id) || '')
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, '');
     if (!ganador || !(Number(ganador.price) > 0) || !/^MLA\d{6,}$/.test(ganadorId)) return publicacion;
-    const detalle = await obtenerJsonMercadoLibre(`/items/${encodeURIComponent(ganadorId)}`).catch(() => null);
+    const detalle = await apiGet(`/items/${encodeURIComponent(ganadorId)}`).catch(() => null);
     trace.push({ step:'mercado_libre_ganador_competencia', at:new Date().toISOString(), itemId:ganadorId, precioArs:Number(ganador.price) });
-    return { ...(detalle || {}), ...ganador, id:ganadorId, item_id:ganadorId, price:Number(ganador.price) };
+    // Mantener los metadatos de la publicación de catálogo (en especial
+    // catalog_product_id): price_to_win puede traer sólo id/precio.
+    return { ...publicacion, ...(detalle || {}), ...ganador, id:ganadorId, item_id:ganadorId, price:Number(ganador.price) };
   } catch (errorCompetencia) {
     trace.push({ step:'mercado_libre_ganador_competencia_fallo', at:new Date().toISOString(), mensaje:errorCompetencia.message || String(errorCompetencia) });
     return publicacion;
@@ -572,7 +574,7 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = [], apiGet = ob
   if (!item && ids.productoId) {
     trace.push({ step:'mercado_libre_api_publicaciones_producto', at:new Date().toISOString(), productoId:ids.productoId, officialStoreId:filtros.officialStoreId || 0 });
     try {
-      const publicaciones = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}/items`);
+      const publicaciones = await apiGet(`/products/${encodeURIComponent(ids.productoId)}/items`);
       trace.push({
         step:'mercado_libre_publicaciones_candidatas',
         at:new Date().toISOString(),
@@ -585,10 +587,22 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = [], apiGet = ob
           etiquetas:Array.isArray(candidato && candidato.tags) ? candidato.tags.slice(0, 8) : []
         }))
       });
-      item = seleccionarPublicacionConsensoMercadoLibre(publicaciones && publicaciones.results, ids.productoId, filtros.officialStoreId);
+      const candidatasCompatibles = publicacionesCompatiblesMercadoLibre(publicaciones && publicaciones.results, ids.productoId, filtros.officialStoreId);
+      // Si /items/{wid} fue restringido, el catálogo sigue informando la misma
+      // publicación concreta. Preferirla evita reemplazar el enlace pedido por
+      // otra oferta del mismo catálogo.
+      item = candidatasCompatibles.find((candidata) => String(candidata && (candidata.id || candidata.item_id) || '')
+        .toUpperCase().replace(/[^A-Z0-9]/g, '') === ids.itemId) ||
+        seleccionarPublicacionConsensoMercadoLibre(candidatasCompatibles, ids.productoId, filtros.officialStoreId);
       if (item) {
-        item = await resolverGanadorMercadoLibre(item, trace);
-        producto = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}`).catch(() => null);
+        // /products/{catalogo}/items ya garantiza el catálogo de origen, pero
+        // algunas respuestas resumidas omiten catalog_product_id.
+        if (!item.catalog_product_id) item = { ...item, catalog_product_id:ids.productoId };
+        item = await resolverGanadorMercadoLibre(item, trace, apiGet);
+        // price_to_win también puede devolver un winner sin catalog_product_id;
+        // conservar el catálogo confirmado por el endpoint de publicaciones.
+        if (!item.catalog_product_id) item = { ...item, catalog_product_id:ids.productoId };
+        producto = await apiGet(`/products/${encodeURIComponent(ids.productoId)}`).catch(() => null);
         trace.push({
           step:'mercado_libre_publicacion_producto_encontrada',
           at:new Date().toISOString(),
@@ -608,7 +622,7 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = [], apiGet = ob
     if (filtros.officialStoreId) params.set('official_store_id', String(filtros.officialStoreId));
     trace.push({ step:'mercado_libre_api_catalogo', at:new Date().toISOString(), productoId:ids.productoId, officialStoreId:filtros.officialStoreId || 0 });
     try {
-      const busqueda = await obtenerJsonMercadoLibre(`/sites/MLA/search?${params.toString()}`);
+      const busqueda = await apiGet(`/sites/MLA/search?${params.toString()}`);
       item = seleccionarPublicacionMercadoLibre(busqueda && busqueda.results, ids.productoId, filtros.officialStoreId);
       if (item) {
         trace.push({ step:'mercado_libre_publicacion_encontrada', at:new Date().toISOString(), itemId:item.id || '', precioArs:Number(item.price) || 0 });
@@ -622,7 +636,7 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = [], apiGet = ob
     trace.push({ step:'mercado_libre_descubrir_publicacion', at:new Date().toISOString(), productoId:ids.productoId });
     try {
       const itemId = await descubrirItemMercadoLibreDesdePagina(urlExacta, ids.productoId);
-      const candidato = await obtenerJsonMercadoLibre(`/items/${encodeURIComponent(itemId)}`);
+      const candidato = await apiGet(`/items/${encodeURIComponent(itemId)}`);
       if (filtros.officialStoreId && Number(candidato && candidato.official_store_id) !== filtros.officialStoreId) {
         throw new Error('La publicación encontrada no pertenece a la tienda oficial indicada');
       }
@@ -636,11 +650,11 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = [], apiGet = ob
   if (!item && ids.productoId) {
     trace.push({ step:'mercado_libre_api_producto_respaldo', at:new Date().toISOString(), productoId:ids.productoId });
     try {
-      producto = await obtenerJsonMercadoLibre(`/products/${encodeURIComponent(ids.productoId)}`);
+      producto = await apiGet(`/products/${encodeURIComponent(ids.productoId)}`);
       const ganador = producto && producto.buy_box_winner;
       const itemIdGanador = String(ganador && (ganador.item_id || ganador.id) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
       if (/^MLA\d{6,}$/.test(itemIdGanador)) {
-        item = await obtenerJsonMercadoLibre(`/items/${encodeURIComponent(itemIdGanador)}`).catch(() => ganador || null);
+        item = await apiGet(`/items/${encodeURIComponent(itemIdGanador)}`).catch(() => ganador || null);
       }
       if (!item) {
         const hallazgo = await buscarGanadorEnHijosMercadoLibre(producto, urlExacta, filtros.officialStoreId, trace);
