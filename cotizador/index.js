@@ -748,7 +748,85 @@ async function extraerProductoMercadoLibreApi(urlExacta, trace = [], apiGet = ob
   return datos;
 }
 
+function precioMercadoLibreDesdeOgTitle(ogTitle) {
+  const matchOg = String(ogTitle || '').match(/(?:^|\s[-–—]\s*)\$\s*([0-9]{1,3}(?:\.[0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)(?:\s|$)/);
+  if (!matchOg) return 0;
+  const valorOg = matchOg[1];
+  return /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(valorOg)
+    ? Number(valorOg.replace(/\./g, '').replace(',', '.'))
+    : Number(valorOg.replace(',', '.'));
+}
+
+function metaMercadoLibreDesdeHtml(html, propiedad) {
+  const texto = String(html || '');
+  const nombre = String(propiedad || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const patrones = [
+    new RegExp(`<meta[^>]+(?:property|name)=["']${nombre}["'][^>]+content=["']([^"']+)["']`, 'i'),
+    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${nombre}["']`, 'i')
+  ];
+  for (const patron of patrones) {
+    const match = texto.match(patron);
+    if (match && match[1]) return match[1].replace(/&quot;/gi, '"').replace(/&amp;/gi, '&').trim();
+  }
+  return '';
+}
+
+async function extraerProductoMercadoLibreSeo(urlExacta) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(normalizarUrl(urlExacta), {
+      headers: {
+        accept:'text/html,application/xhtml+xml',
+        'accept-language':'es-AR,es;q=0.9',
+        // Mercado Libre sirve al tráfico automatizado una pantalla de
+        // verificación sin precio. Esta consulta obtiene únicamente los
+        // metadatos SEO públicos de la ficha, que incluyen el precio vigente.
+        'user-agent':'Googlebot/2.1 (+http://www.google.com/bot.html)'
+      },
+      redirect:'follow',
+      signal:controller.signal
+    });
+    if (!response.ok) throw new Error(`La página de Mercado Libre respondió ${response.status}`);
+    const html = await response.text();
+    const titulo = metaMercadoLibreDesdeHtml(html, 'og:title');
+    const precioArs = precioMercadoLibreDesdeOgTitle(titulo);
+    if (!precioArs) throw new Error('La ficha SEO no informó un precio vigente');
+    if (/captcha|comprobemos que eres humano|verificaci[oó]n de seguridad/i.test(html)) throw new Error('Mercado Libre solicitó una verificación de seguridad');
+    if (/publicaci[oó]n pausada|publicaci[oó]n finalizada|producto no disponible/i.test(html)) throw new Error('La publicación de Mercado Libre no está disponible');
+    return {
+      precioArs,
+      disponibilidad:/stock disponible|comprar ahora|agregar al carrito/i.test(html) ? 'disponible' : extraerDisponibilidadProveedor(html),
+      titulo:titulo.replace(/\s[-–—]\s*\$\s*[\d.,]+\s*$/, '').trim(),
+      moneda:metaMercadoLibreDesdeHtml(html, 'product:price:currency') || 'ARS',
+      fuente:'mercado_libre_seo',
+      selectorPrecio:'meta[property="og:title"]'
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function extraerProductoMercadoLibre(page) {
+  // En las fichas actuales el SEO de Mercado Libre ya contiene el precio
+  // vigente en la respuesta inicial. Priorizarlo evita esperar el DOM de
+  // compra, que a veces se demora o se entrega reducido a automatizaciones.
+  const ogTitle = await page.locator('meta[property="og:title"]').first().getAttribute('content').catch(() => '');
+  const precioOpenGraph = precioMercadoLibreDesdeOgTitle(ogTitle);
+  if (precioOpenGraph > 0) {
+    const textoInicial = await page.locator('body').innerText({ timeout:4000 }).catch(() => '');
+    if (/captcha|comprobemos que eres humano|verificaci[oó]n de seguridad/i.test(textoInicial)) throw new Error('Mercado Libre solicitó una verificación de seguridad');
+    if (/publicaci[oó]n pausada|publicaci[oó]n finalizada|producto no disponible/i.test(textoInicial)) throw new Error('La publicación de Mercado Libre no está disponible');
+    const tituloOg = String(ogTitle || '').replace(/\s[-–—]\s*\$\s*[\d.,]+\s*$/, '').trim();
+    return {
+      precioArs:precioOpenGraph,
+      disponibilidad:/stock disponible|cantidad:\s*\d+|comprar ahora|agregar al carrito/i.test(textoInicial) ? 'disponible' : extraerDisponibilidadProveedor(textoInicial),
+      titulo:tituloOg,
+      moneda:'ARS',
+      fuente:'mercado_libre_pagina',
+      selectorPrecio:'meta[property="og:title"]'
+    };
+  }
   const bodyText = await page.locator('body').innerText({ timeout:10000 });
   if (/captcha|comprobemos que eres humano|verificaci[oó]n de seguridad/i.test(bodyText)) throw new Error('Mercado Libre solicitó una verificación de seguridad');
   if (/publicaci[oó]n pausada|publicaci[oó]n finalizada|producto no disponible/i.test(bodyText)) throw new Error('La publicación de Mercado Libre no está disponible');
@@ -814,6 +892,16 @@ async function extraerProductoMercadoLibre(page) {
     const oferta = schema && schema.offers ? (Array.isArray(schema.offers) ? schema.offers[0] : schema.offers) : null;
     precioArs = parseFloat(oferta && (oferta.price || oferta.lowPrice)) || 0;
   }
+  if (!precioArs) {
+    // Las fichas actuales de Mercado Libre siempre publican el precio vigente
+    // en og:title ("Producto - $ 5.399"), aun cuando el DOM de compra se
+    // entregue de forma reducida a un navegador automatizado. Es un respaldo
+    // público, acotado a la ficha principal y no a precios de sugerencias.
+    precioArs = precioMercadoLibreDesdeOgTitle(await page.locator('meta[property="og:title"]').first().getAttribute('content').catch(() => ''));
+    if (precioArs > 0) {
+      selectorPrecio = 'meta[property="og:title"]';
+    }
+  }
   if (!precioArs) throw new Error('No se encontró el precio principal de la publicación');
   const ofertaSchema = schema && schema.offers ? (Array.isArray(schema.offers) ? schema.offers[0] : schema.offers) : null;
   const moneda = await page.locator('meta[itemprop="priceCurrency"]').first().getAttribute('content').catch(() => '')
@@ -838,6 +926,13 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) 
       return null;
     });
     if (!datos) {
+      datos = await extraerProductoMercadoLibreSeo(urlExacta).catch((errorSeo) => {
+        trace.push({ step:'mercado_libre_respaldo_seo_sin_resultado', at:new Date().toISOString(), mensaje:errorSeo.message || String(errorSeo) });
+        return null;
+      });
+      if (datos) trace.push({ step:'mercado_libre_respaldo_seo_ok', at:new Date().toISOString(), precioArs:datos.precioArs });
+    }
+    if (!datos) {
       trace.push({ step:'mercado_libre_respaldo_visual', at:new Date().toISOString() });
       browser = await chromium.launch({ headless:true });
       context = await browser.newContext({
@@ -849,7 +944,9 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) 
       const page = await context.newPage();
       page.setDefaultTimeout(10000);
       page.setDefaultNavigationTimeout(20000);
-      await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:20000 });
+      // El respaldo Open Graph llega en la respuesta inicial; no esperar la
+      // hidratación completa de Mercado Libre evita demoras por cada artículo.
+      await page.goto(urlExacta, { waitUntil:'commit', timeout:15000 });
       if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
       // Una URL histórica puede redirigir a un catálogo actual. Reintentar la
       // API con la URL final conserva catalogo + item_id antes de leer el DOM.
@@ -1618,6 +1715,12 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
           return null;
         });
         if (!datos) {
+          datos = await extraerProductoMercadoLibreSeo(urlExacta).catch((errorSeo) => {
+            errorApiMercadoLibre = errorApiMercadoLibre || errorSeo;
+            return null;
+          });
+        }
+        if (!datos) {
           if (!page) {
             if (progresoRef) await progresoRef.update({ estado:'iniciando_respaldo_visual', actualizadoEn:Date.now() });
             browser = await chromium.launch({ headless:true });
@@ -1631,7 +1734,10 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
             page.setDefaultTimeout(10000);
             page.setDefaultNavigationTimeout(20000);
           }
-          await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:30000 });
+          // La ficha SEO ya contiene título y precio vigente. Esperar el DOM
+          // completo vuelve innecesariamente lento el lote cuando la API no
+          // está disponible.
+          await page.goto(urlExacta, { waitUntil:'commit', timeout:15000 });
           if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
           // Una publicación vieja puede resolver al catálogo vigente: la API
           // entiende esa URL final y conserva el item_id de los filtros.
@@ -1830,6 +1936,9 @@ module.exports = {
   validarIdentidadMercadoLibreOficial,
   obtenerJsonMercadoLibre,
   estadoOAuthMercadoLibre,
+  precioMercadoLibreDesdeOgTitle,
+  metaMercadoLibreDesdeHtml,
+  extraerProductoMercadoLibreSeo,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
   validarIdentidadProducto,

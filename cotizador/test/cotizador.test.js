@@ -34,6 +34,8 @@ const {
   datosMercadoLibreDesdeFuente,
   validarIdentidadMercadoLibreOficial,
   obtenerJsonMercadoLibre,
+  precioMercadoLibreDesdeOgTitle,
+  metaMercadoLibreDesdeHtml,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
   validarIdentidadProducto,
@@ -347,4 +349,21 @@ test('el lote conserva el diagnóstico de API cuando también falla el respaldo 
   assert.match(source, /API oficial: /);
   assert.match(source, /Respaldo visual: /);
   assert.match(source, /mercadolibre\/oauth\/status/);
+});
+
+test('Mercado Libre recupera el precio vigente desde el título Open Graph', () => {
+  assert.equal(
+    precioMercadoLibreDesdeOgTitle('Modulo Rele Relay 12v Optoacoplado 10a - 1 Canal Arduino - $ 5.399'),
+    5399
+  );
+  assert.equal(
+    precioMercadoLibreDesdeOgTitle('Cerradura inteligente - $ 284.999,05'),
+    284999.05
+  );
+  assert.equal(precioMercadoLibreDesdeOgTitle('Producto sin importe'), 0);
+});
+
+test('Mercado Libre reconoce los metadatos SEO aunque cambie el orden de atributos', () => {
+  const html = '<meta content="Modulo Rele - $ 5.399" property="og:title">';
+  assert.equal(metaMercadoLibreDesdeHtml(html, 'og:title'), 'Modulo Rele - $ 5.399');
 });
