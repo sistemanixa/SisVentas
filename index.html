@@ -1172,6 +1172,10 @@
                 <button class="btn btn-sm" id="ot-reclamo-link-btn" onclick="otVerReclamo()"><i class="ti ti-external-link" style="font-size:13px"></i> Ver reclamo completo</button>
               </div>
               <div id="ot-reclamo-desc" style="font-size:13px;font-weight:500;margin-bottom:10px"></div>
+              <div id="ot-reclamo-evidencia-wrap" style="display:none;margin-bottom:10px">
+                <div style="font-size:11px;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Evidencia de la falla</div>
+                <a id="ot-reclamo-evidencia" href="#" target="_blank" style="display:inline-block"><img alt="Evidencia del reclamo" style="display:block;max-width:280px;max-height:190px;object-fit:contain;border-radius:8px;border:0.5px solid var(--border2);background:var(--bg3)"></a>
+              </div>
               <div id="ot-reclamo-hist" style="display:flex;flex-direction:column;gap:6px"></div>
             </div>
           </div>
@@ -1233,13 +1237,18 @@
                 <tbody id="ot-materiales"></tbody>
               </table>
             </div>
+            <div id="ot-productos-adicionales-box" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+              <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px"><i class="ti ti-package-plus"></i> Productos adicionales</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Agregados durante la visita. Forman parte de esta OT y del acta, sin generar una venta.</div>
+              <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th></tr></thead><tbody id="ot-materiales-adicionales"></tbody></table></div>
+            </div>
           </div>
 
           <!-- Selector de productos adicionales -->
           <div id="ot-selector-prod-modal" class="modal-overlay" style="display:none">
             <div class="modal" style="max-width:520px">
               <div class="modal-head">
-                <span>Agregar productos a la OT</span>
+                <span>Agregar productos adicionales a la OT</span>
                 <button class="btn btn-sm btn-icon" onclick="otCerrarSelectorProductos()"><i class="ti ti-x"></i></button>
               </div>
               <div class="modal-body">
@@ -1248,7 +1257,7 @@
                 <div id="ot-sel-prod-carrito" style="border-top:1px solid var(--border);padding-top:10px"></div>
                 <div class="flex-end" style="margin-top:10px">
                   <button class="btn" onclick="otCerrarSelectorProductos()">Cancelar</button>
-                  <button class="btn btn-primary" onclick="otConfirmarVentaAdicional()"><i class="ti ti-check"></i> Generar venta</button>
+                  <button class="btn btn-primary" onclick="otConfirmarProductosAdicionales()"><i class="ti ti-check"></i> Agregar a la OT</button>
                 </div>
               </div>
             </div>
@@ -1323,18 +1332,41 @@
                 <input id="ot-acta-firma" placeholder="Nombre y aclaración" oninput="actualizarPanelIntegridadOT()">
               </div>
             </div>
-            <!-- Firma digital -->
-            <div style="margin-top:12px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <label style="font-size:12px;color:var(--text2);font-weight:500"><i class="ti ti-signature"></i> Firma digital del cliente</label>
-                <div style="display:flex;gap:6px">
-                  <button class="btn btn-sm" onclick="firmaLimpiar()" style="font-size:11px">Borrar</button>
-                  <span id="firma-guardada-badge" style="display:none;background:var(--green-bg);color:var(--green);font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--green)">✓ Firma guardada</span>
+            <!-- Firmas digitales -->
+            <div class="ot-firmas" style="margin-top:12px">
+              <div class="ot-firma-tabs" role="tablist" aria-label="Firmas del acta">
+                <button type="button" class="ot-firma-tab activa" id="ot-firma-tab-cliente" role="tab" aria-selected="true" onclick="firmaCambiarPestana('cliente')"><i class="ti ti-user"></i> Firma del cliente</button>
+                <button type="button" class="ot-firma-tab" id="ot-firma-tab-tecnico" role="tab" aria-selected="false" onclick="firmaCambiarPestana('tecnico')"><i class="ti ti-tool"></i> Firma del técnico</button>
+              </div>
+              <div id="ot-firma-panel-cliente" class="ot-firma-panel activa" role="tabpanel">
+                <div class="ot-firma-encabezado">
+                  <label><i class="ti ti-signature"></i> Conformidad del cliente</label>
+                  <div class="ot-firma-acciones">
+                    <button id="firma-editar-cliente" type="button" class="btn btn-sm" onclick="firmaEditar('cliente')" style="font-size:11px;display:none"><i class="ti ti-edit"></i> Editar firma</button>
+                    <button id="firma-borrar-cliente" type="button" class="btn btn-sm" onclick="firmaLimpiar(false,'cliente')" style="font-size:11px">Borrar</button>
+                    <span id="firma-guardada-badge" class="ot-firma-badge" style="display:none">Firma guardada</span>
+                  </div>
+                </div>
+                <p class="ot-firma-ayuda">La firma queda bloqueada al guardarse. Usá “Editar firma” solo si el cliente necesita reemplazarla.</p>
+                <div id="firma-superficie-cliente" class="ot-firma-superficie">
+                  <canvas id="firma-canvas" class="ot-firma-canvas"></canvas>
+                  <div id="firma-placeholder" class="ot-firma-placeholder">Firma del cliente aquí</div>
                 </div>
               </div>
-              <div class="ot-firma-superficie">
-                <canvas id="firma-canvas" class="ot-firma-canvas"></canvas>
-                <div id="firma-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px;pointer-events:none">Firmar aquí</div>
+              <div id="ot-firma-panel-tecnico" class="ot-firma-panel" role="tabpanel" hidden>
+                <div class="ot-firma-encabezado">
+                  <label><i class="ti ti-tool"></i> Validación del técnico</label>
+                  <div class="ot-firma-acciones">
+                    <button id="firma-editar-tecnico" type="button" class="btn btn-sm" onclick="firmaEditar('tecnico')" style="font-size:11px;display:none"><i class="ti ti-edit"></i> Editar firma</button>
+                    <button id="firma-borrar-tecnico" type="button" class="btn btn-sm" onclick="firmaLimpiar(false,'tecnico')" style="font-size:11px">Borrar</button>
+                    <span id="firma-tecnico-guardada-badge" class="ot-firma-badge" style="display:none">Firma guardada</span>
+                  </div>
+                </div>
+                <p class="ot-firma-ayuda">El técnico firma en su propia pestaña, separada de la conformidad del cliente.</p>
+                <div id="firma-superficie-tecnico" class="ot-firma-superficie">
+                  <canvas id="firma-tecnico-canvas" class="ot-firma-canvas"></canvas>
+                  <div id="firma-tecnico-placeholder" class="ot-firma-placeholder">Firma del técnico aquí</div>
+                </div>
               </div>
             </div>
             <div class="flex-end" style="margin-top:12px">
@@ -2981,6 +3013,10 @@ Listo para analizar.
                 <span style="font-size:12px;color:var(--text3);min-width:80px">Problema</span>
                 <span id="sp-modal-desc" style="font-size:13px"></span>
               </div>
+              <div id="sp-modal-evidencia-wrap" style="display:none;gap:8px;align-items:flex-start">
+                <span style="font-size:12px;color:var(--text3);min-width:80px">Evidencia</span>
+                <a id="sp-modal-evidencia" href="#" target="_blank" style="display:block;min-width:0"><img alt="Evidencia del reclamo" style="display:block;width:min(260px,100%);max-height:190px;object-fit:contain;border-radius:8px;border:0.5px solid var(--border2);background:var(--bg1)"></a>
+              </div>
               <div style="display:flex;gap:8px;align-items:center">
                 <span style="font-size:12px;color:var(--text3);min-width:80px">Ingresó</span>
                 <span id="sp-modal-fecha" style="font-size:13px"></span>
@@ -3025,11 +3061,19 @@ Listo para analizar.
             </div>
             <input id="sp-nuevo-cli-id" type="hidden">
             <div class="fg full"><label>Descripción del problema</label>
-              <textarea id="sp-nuevo-desc" rows="3" placeholder="¿Qué está pasando? Describí el problema que reporta el cliente..." style="resize:vertical"></textarea>
+              <textarea id="sp-nuevo-desc" rows="6" placeholder="¿Qué está pasando? Describí el problema que reporta el cliente..." style="resize:vertical;min-height:154px"></textarea>
+            </div>
+            <div class="fg full"><label>Evidencia de la falla <span style="color:var(--red)">*</span></label>
+              <input id="sp-nuevo-evidencia" type="file" accept="image/jpeg,image/png,image/webp" onchange="spPrepararEvidenciaNueva(this)" style="padding:8px">
+              <div id="sp-nuevo-evidencia-ayuda" style="font-size:11px;color:var(--text3);margin-top:5px">Obligatoria: foto o captura JPG, PNG o WEBP (máximo 900 KB). Se adjunta con el mismo método confiable de comprobantes.</div>
+              <div id="sp-nuevo-evidencia-preview" style="display:none;margin-top:8px;position:relative;width:max-content;max-width:100%">
+                <img id="sp-nuevo-evidencia-img" alt="Vista previa de la evidencia" style="display:block;max-width:100%;width:220px;max-height:150px;object-fit:contain;border-radius:8px;border:0.5px solid var(--border2);background:var(--bg3)">
+                <button type="button" class="btn btn-sm btn-icon" onclick="spQuitarEvidenciaNueva()" title="Quitar imagen" style="position:absolute;top:5px;right:5px;background:var(--bg2)"><i class="ti ti-x"></i></button>
+              </div>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px">
               <button class="btn btn-sm" onclick="_hide('sp-modal-nuevo')">Cancelar</button>
-              <button class="btn btn-sm btn-primary" onclick="spGuardarNuevo()"><i class="ti ti-check"></i> Registrar reclamo</button>
+              <button id="sp-nuevo-guardar" class="btn btn-sm btn-primary" onclick="spGuardarNuevo()"><i class="ti ti-check"></i> Registrar reclamo</button>
             </div>
           </div>
         </div>
@@ -4984,7 +5028,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.319.js"></script>
+<script src="./js/app.v2.0.319.js?local-fraccion=2"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
 <!-- PANEL USUARIO (engranaje) -->

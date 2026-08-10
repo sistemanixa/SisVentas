@@ -66,6 +66,8 @@ test('permite producción y desarrollo local sin abrir CORS a otros orígenes', 
   assert.equal(origenCorsPermitido('https://ventas.sistemanixa.com'), 'https://ventas.sistemanixa.com');
   assert.equal(origenCorsPermitido('http://127.0.0.1:4173'), 'http://127.0.0.1:4173');
   assert.equal(origenCorsPermitido('http://localhost:4173'), 'http://localhost:4173');
+  assert.equal(origenCorsPermitido('http://127.0.0.1:8765'), 'http://127.0.0.1:8765');
+  assert.equal(origenCorsPermitido('http://localhost:8765'), 'http://localhost:8765');
   assert.equal(origenCorsPermitido('https://sitio-no-autorizado.example'), '');
 });
 

@@ -7,7 +7,12 @@ const PORT = parseInt(process.env.PORT || '8080', 10);
 const FRONTEND_KEY = process.env.FRONTEND_KEY || '';
 const DATABASE_URL = process.env.FIREBASE_DATABASE_URL || 'https://nixa-sisventas-default-rtdb.firebaseio.com';
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN || 'https://ventas.sistemanixa.com';
-const LOCAL_DEVELOPMENT_ORIGINS = new Set(['http://127.0.0.1:4173', 'http://localhost:4173']);
+// Puertos usados por la vista local de SisVentas. Se mantienen restringidos a
+// loopback para no abrir el cotizador a sitios de terceros durante desarrollo.
+const LOCAL_DEVELOPMENT_ORIGINS = new Set([
+  'http://127.0.0.1:4173', 'http://localhost:4173',
+  'http://127.0.0.1:8765', 'http://localhost:8765'
+]);
 const REQUIRE_FIREBASE_AUTH = String(process.env.REQUIRE_FIREBASE_AUTH || '').toLowerCase() === 'true';
 const ML_CLIENT_ID = process.env.ML_CLIENT_ID || '';
 const ML_CLIENT_SECRET = process.env.ML_CLIENT_SECRET || '';
