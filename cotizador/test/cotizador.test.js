@@ -36,6 +36,7 @@ const {
   obtenerJsonMercadoLibre,
   precioMercadoLibreDesdeOgTitle,
   metaMercadoLibreDesdeHtml,
+  datosEstructuradosMercadoLibreDesdeHtml,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
   validarIdentidadProducto,
@@ -366,4 +367,20 @@ test('Mercado Libre recupera el precio vigente desde el título Open Graph', () 
 test('Mercado Libre reconoce los metadatos SEO aunque cambie el orden de atributos', () => {
   const html = '<meta content="Modulo Rele - $ 5.399" property="og:title">';
   assert.equal(metaMercadoLibreDesdeHtml(html, 'og:title'), 'Modulo Rele - $ 5.399');
+});
+
+test('Mercado Libre recupera precio y catálogo desde JSON-LD de una URL histórica', () => {
+  const html = '<script type="application/ld+json">' + JSON.stringify({
+    '@type':'Product',
+    name:'Timbre Electronico Sonido Ding Dong Interior 12 Volt Esx',
+    productID:'MLAU245337872',
+    offers:{ '@type':'Offer', price:11477, priceCurrency:'ARS', availability:'https://schema.org/InStock' }
+  }) + '</script>';
+  assert.deepEqual(datosEstructuradosMercadoLibreDesdeHtml(html), {
+    precioArs:11477,
+    titulo:'Timbre Electronico Sonido Ding Dong Interior 12 Volt Esx',
+    moneda:'ARS',
+    disponibilidad:'disponible',
+    catalogProductId:'MLAU245337872'
+  });
 });

@@ -506,7 +506,7 @@ async function obtenerJsonMercadoLibre(ruta) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   try {
-    const consultar = async (accessToken) => fetch(`https://api.mercadolibre.com${ruta}`, {
+    const consultar = async (endpoint, accessToken) => fetch(`https://api.mercadolibre.com${endpoint}`, {
       headers: {
         accept:'application/json',
         'accept-language':'es-AR,es;q=0.9',
@@ -517,10 +517,27 @@ async function obtenerJsonMercadoLibre(ruta) {
     });
     // Los datos públicos de ítems, catálogos y búsquedas no requieren OAuth.
     // Así una autorización vencida no desvía un precio válido al navegador.
-    let response = await consultar('');
+    let response = await consultar(ruta, '');
     if ((response.status === 401 || response.status === 403) && !controller.signal.aborted) {
       const accessToken = await obtenerAccessTokenMercadoLibre();
-      response = await consultar(accessToken);
+      response = await consultar(ruta, accessToken);
+    }
+    // Mercado Libre mantiene oficialmente el endpoint multiget. Algunas
+    // configuraciones rechazan /items/{id}, pero permiten la misma lectura
+    // por /items?ids=...; sólo se usa para el mismo ID solicitado.
+    const itemMatch = String(ruta || '').match(/^\/items\/(MLA\d{6,})$/i);
+    if (!response.ok && itemMatch && !controller.signal.aborted) {
+      const itemId = String(itemMatch[1]).toUpperCase();
+      let multi = await consultar(`/items?ids=${encodeURIComponent(itemId)}&attributes=id,title,price,original_price,sale_price,currency_id,status,available_quantity,catalog_product_id,official_store_id`, '');
+      if ((multi.status === 401 || multi.status === 403) && !controller.signal.aborted) {
+        const accessToken = await obtenerAccessTokenMercadoLibre();
+        multi = await consultar(`/items?ids=${encodeURIComponent(itemId)}&attributes=id,title,price,original_price,sale_price,currency_id,status,available_quantity,catalog_product_id,official_store_id`, accessToken);
+      }
+      if (multi.ok) {
+        const lote = await multi.json();
+        const entrada = Array.isArray(lote) ? lote[0] : null;
+        if (entrada && Number(entrada.code) === 200 && entrada.body) return entrada.body;
+      }
     }
     if (!response.ok) {
       // Mercado Libre suele acompañar un 401/403 con el motivo real en JSON.
@@ -771,40 +788,92 @@ function metaMercadoLibreDesdeHtml(html, propiedad) {
   return '';
 }
 
-async function extraerProductoMercadoLibreSeo(urlExacta) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetch(normalizarUrl(urlExacta), {
-      headers: {
-        accept:'text/html,application/xhtml+xml',
-        'accept-language':'es-AR,es;q=0.9',
-        // Mercado Libre sirve al tráfico automatizado una pantalla de
-        // verificación sin precio. Esta consulta obtiene únicamente los
-        // metadatos SEO públicos de la ficha, que incluyen el precio vigente.
-        'user-agent':'Googlebot/2.1 (+http://www.google.com/bot.html)'
-      },
-      redirect:'follow',
-      signal:controller.signal
-    });
-    if (!response.ok) throw new Error(`La página de Mercado Libre respondió ${response.status}`);
-    const html = await response.text();
-    const titulo = metaMercadoLibreDesdeHtml(html, 'og:title');
-    const precioArs = precioMercadoLibreDesdeOgTitle(titulo);
-    if (!precioArs) throw new Error('La ficha SEO no informó un precio vigente');
-    if (/captcha|comprobemos que eres humano|verificaci[oó]n de seguridad/i.test(html)) throw new Error('Mercado Libre solicitó una verificación de seguridad');
-    if (/publicaci[oó]n pausada|publicaci[oó]n finalizada|producto no disponible/i.test(html)) throw new Error('La publicación de Mercado Libre no está disponible');
-    return {
-      precioArs,
-      disponibilidad:/stock disponible|comprar ahora|agregar al carrito/i.test(html) ? 'disponible' : extraerDisponibilidadProveedor(html),
-      titulo:titulo.replace(/\s[-–—]\s*\$\s*[\d.,]+\s*$/, '').trim(),
-      moneda:metaMercadoLibreDesdeHtml(html, 'product:price:currency') || 'ARS',
-      fuente:'mercado_libre_seo',
-      selectorPrecio:'meta[property="og:title"]'
-    };
-  } finally {
-    clearTimeout(timer);
+function datosEstructuradosMercadoLibreDesdeHtml(html) {
+  const scripts = String(html || '').matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  const buscarProducto = (valor) => {
+    if (!valor || typeof valor !== 'object') return null;
+    if (String(valor['@type'] || '').toLowerCase() === 'product' && valor.offers) return valor;
+    for (const clave of Object.keys(valor)) {
+      const hallazgo = buscarProducto(valor[clave]);
+      if (hallazgo) return hallazgo;
+    }
+    return null;
+  };
+  for (const script of scripts) {
+    try {
+      const producto = buscarProducto(JSON.parse(script[1]));
+      if (!producto) continue;
+      const oferta = Array.isArray(producto.offers) ? producto.offers[0] : producto.offers;
+      const precioArs = Number(oferta && (oferta.price || oferta.lowPrice)) || 0;
+      if (precioArs <= 0) continue;
+      return {
+        precioArs,
+        titulo:String(producto.name || '').trim(),
+        moneda:String(oferta && oferta.priceCurrency || 'ARS').toUpperCase(),
+        disponibilidad:/instock/i.test(String(oferta && oferta.availability || '')) ? 'disponible' : 'no_verificado',
+        catalogProductId:String(producto.productID || producto.sku || '').toUpperCase()
+      };
+    } catch (_) {}
   }
+  return null;
+}
+
+async function extraerProductoMercadoLibreSeo(urlExacta) {
+  const agentesSeo = [
+    'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+    'Googlebot/2.1 (+http://www.google.com/bot.html)'
+  ];
+  let ultimoError = null;
+  for (const userAgent of agentesSeo) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(normalizarUrl(urlExacta), {
+        headers: {
+          accept:'text/html,application/xhtml+xml',
+          'accept-language':'es-AR,es;q=0.9',
+          // Los agentes de vista previa reciben los metadatos públicos de la
+          // ficha sin necesitar la sesión de compra del usuario.
+          'user-agent':userAgent
+        },
+        redirect:'follow',
+        signal:controller.signal
+      });
+      if (!response.ok) throw new Error(`La página de Mercado Libre respondió ${response.status}`);
+      const html = await response.text();
+      if (/captcha|comprobemos que eres humano|verificaci[oó]n de seguridad|account-verification/i.test(html)) {
+        throw new Error('Mercado Libre solicitó una verificación de seguridad');
+      }
+      if (/publicaci[oó]n pausada|publicaci[oó]n finalizada|producto no disponible/i.test(html)) {
+        throw new Error('La publicación de Mercado Libre no está disponible');
+      }
+      const tituloOg = metaMercadoLibreDesdeHtml(html, 'og:title');
+      const estructurado = datosEstructuradosMercadoLibreDesdeHtml(html);
+      const precioOg = precioMercadoLibreDesdeOgTitle(tituloOg);
+      const precioArs = precioOg || Number(estructurado && estructurado.precioArs) || 0;
+      if (!precioArs) throw new Error('La ficha SEO no informó un precio vigente');
+      return {
+        precioArs,
+        precioActualArs:precioArs,
+        precioOriginalArs:precioArs,
+        enPromocion:false,
+        porcentajeDescuento:0,
+        disponibilidad:estructurado && estructurado.disponibilidad === 'disponible'
+          ? 'disponible'
+          : (/stock disponible|comprar ahora|agregar al carrito/i.test(html) ? 'disponible' : extraerDisponibilidadProveedor(html)),
+        titulo:(estructurado && estructurado.titulo) || tituloOg.replace(/\s[-–—]\s*\$\s*[\d.,]+\s*$/, '').trim(),
+        moneda:(estructurado && estructurado.moneda) || metaMercadoLibreDesdeHtml(html, 'product:price:currency') || 'ARS',
+        catalogProductId:estructurado && estructurado.catalogProductId || '',
+        fuente:'mercado_libre_seo',
+        selectorPrecio:precioOg ? 'meta[property="og:title"]' : 'script[type="application/ld+json"]'
+      };
+    } catch (error) {
+      ultimoError = error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw ultimoError || new Error('La ficha SEO no informó un precio vigente');
 }
 
 async function extraerProductoMercadoLibre(page) {
@@ -1938,6 +2007,7 @@ module.exports = {
   estadoOAuthMercadoLibre,
   precioMercadoLibreDesdeOgTitle,
   metaMercadoLibreDesdeHtml,
+  datosEstructuradosMercadoLibreDesdeHtml,
   extraerProductoMercadoLibreSeo,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
