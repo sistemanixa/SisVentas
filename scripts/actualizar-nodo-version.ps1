@@ -31,6 +31,9 @@ if (-not $coreRuta) {
   $coreRuta = ([regex]::Match($index, "src='\./(js/core/version\.v[0-9.]+\.js(?:\?[^']*)?)'")).Groups[1].Value
 }
 if (-not $appRuta -or -not $coreRuta) { throw 'No se encontraron los archivos inmutables de la publicación' }
+if ($appRuta.Contains('?') -or $coreRuta.Contains('?')) {
+  throw 'Los archivos inmutables de la publicación no deben contener parámetros de caché en index.html'
+}
 
 $app = Obtener-TextoPublico $appRuta
 $core = Obtener-TextoPublico $coreRuta
