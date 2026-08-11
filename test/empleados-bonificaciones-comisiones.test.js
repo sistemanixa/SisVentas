@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const raiz = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
-const app = fs.readFileSync(path.join(raiz, 'js', 'app.v2.0.321.js'), 'utf8');
+const app = fs.readFileSync(path.join(raiz, 'js', 'app.v2.0.322.js'), 'utf8');
 
 test('Empleados separa haberes, bonificaciones posteriores y comisiones vinculadas', () => {
   assert.match(html, /Haberes y bonificaciones/);
