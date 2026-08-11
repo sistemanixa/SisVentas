@@ -22,8 +22,14 @@ if ($index -notmatch "VERSION:\s*'$([regex]::Escape($versionFirebase))'") {
   throw "index.html todavía no publica $versionFirebase"
 }
 
-$appRuta = ([regex]::Match($index, 'src=["'']\./(js/app\.v[0-9.]+\.js)["'']')).Groups[1].Value
-$coreRuta = ([regex]::Match($index, 'src=["'']\./(js/core/version\.v[0-9.]+\.js)["'']')).Groups[1].Value
+$appRuta = ([regex]::Match($index, 'src=\"\./(js/app\.v[0-9.]+\.js(?:\?[^"]*)?)\"')).Groups[1].Value
+if (-not $appRuta) {
+  $appRuta = ([regex]::Match($index, "src='\./(js/app\.v[0-9.]+\.js(?:\?[^']*)?)'")).Groups[1].Value
+}
+$coreRuta = ([regex]::Match($index, 'src=\"\./(js/core/version\.v[0-9.]+\.js(?:\?[^"]*)?)\"')).Groups[1].Value
+if (-not $coreRuta) {
+  $coreRuta = ([regex]::Match($index, "src='\./(js/core/version\.v[0-9.]+\.js(?:\?[^']*)?)'")).Groups[1].Value
+}
 if (-not $appRuta -or -not $coreRuta) { throw 'No se encontraron los archivos inmutables de la publicación' }
 
 $app = Obtener-TextoPublico $appRuta
