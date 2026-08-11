@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const raiz = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
-const app = fs.readFileSync(path.join(raiz, 'js', 'app.v2.0.319.js'), 'utf8');
+const app = fs.readFileSync(path.join(raiz, 'js', 'app.v2.0.321.js'), 'utf8');
 
 test('un reclamo nuevo exige evidencia y la muestra a quien lo atiende', () => {
   assert.match(html, /id="sp-nuevo-evidencia"/);

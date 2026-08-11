@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.319.js'), 'utf8');
+const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.0.321.js'), 'utf8');
 
 test('registrar haberes permite una bonificación individual y recalcula totales', () => {
   assert.match(app, /Bonificación<\/th>/);
