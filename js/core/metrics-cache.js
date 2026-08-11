@@ -271,14 +271,18 @@
     SV.Cache.invalidate();
     refrescarDashVentas312();
     refrescarDashTesoreria312();
-    refrescarDashOT312();
+    // Los KPI de OT se actualizan dentro de renderOTTabla junto con sus filas.
+    // El refresco global no debe volver a escribirlos desde una caché distinta.
   };
 
   document.addEventListener('sisventas:page-changed', function(event){
     var page=event.detail&&event.detail.page;
-    if(['dashboard','detalle','tesoreria','ordentrabajo','cobranzas'].indexOf(page) >= 0) setTimeout(SV.Metrics.refresh, 80);
+    // Órdenes de trabajo calcula sus KPI junto con la tabla usando la misma
+    // colección canónica. No pisarlos después con el caché auxiliar, porque
+    // puede conservar registros legacy que la tabla ya no muestra.
+    if(['dashboard','detalle','tesoreria','cobranzas'].indexOf(page) >= 0) setTimeout(SV.Metrics.refresh, 80);
   });
-  ['renderDashboard','renderTesoreria','renderOTTabla','renderMetricasVentas'].forEach(function(fn){
+  ['renderDashboard','renderTesoreria','renderMetricasVentas'].forEach(function(fn){
     var prev = window[fn];
     if (typeof prev === 'function' && !prev._sv312) {
       window[fn] = function(){ var r = prev.apply(this, arguments); setTimeout(SV.Metrics.refresh, 60); return r; };

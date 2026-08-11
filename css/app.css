@@ -2193,3 +2193,5 @@ body.modal-secure-open{overflow:hidden!important}
   #dash-ot-resumen { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
   #dash-agenda-card > .metrics { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
 }
+.ot-stat-row{display:grid;grid-template-columns:minmax(130px,1.4fr) minmax(120px,2fr) 86px 76px;gap:12px;align-items:center;padding:10px 4px;border-top:.5px solid var(--border)}
+@media(max-width:700px){.ot-stat-row{grid-template-columns:minmax(120px,1fr) 86px 76px;gap:8px}.ot-stat-row .ot-stat-bar{grid-column:1/-1;grid-row:2}}
