@@ -4,25 +4,25 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const html = fs.readFileSync('index.html', 'utf8');
-const app = fs.readFileSync('js/app.v2.0.323.js', 'utf8');
+const app = fs.readFileSync('js/app.v2.0.324.js', 'utf8');
 const core = fs.readFileSync('js/core/version.js', 'utf8');
-const coreInmutable = fs.readFileSync('js/core/version.v2.0.323.js', 'utf8');
+const coreInmutable = fs.readFileSync('js/core/version.v2.0.324.js', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
 const acciones = fs.readFileSync('js/modules/action-permissions.js', 'utf8');
 const cotizador = fs.readFileSync('cotizador/index.js', 'utf8');
 
-test('v2.0.323 publica archivos inmutables y marcadores consistentes', () => {
-  assert.match(html, /VERSION:\s*'v2\.0\.323-firebase'/);
-  assert.match(html, /js\/app\.v2\.0\.323\.js/);
-  assert.match(html, /js\/core\/version\.v2\.0\.323\.js/);
-  assert.match(html, /id="loading-version"[^>]*>v2\.0\.323</);
-  assert.match(html, /css\/app\.css\?v=2\.0\.323/);
-  assert.match(app, /VERSION:\s*'v2\.0\.323-firebase'/);
-  assert.match(app, /version:\s*'v2\.0\.323'/);
-  assert.match(core, /v2\.0\.323/);
-  assert.match(coreInmutable, /v2\.0\.323/);
-  assert.match(sw, /sisventas-v2\.0\.323/);
-  assert.match(sw, /app\.v2\.0\.323\.js/);
+test('v2.0.324 publica archivos inmutables y marcadores consistentes', () => {
+  assert.match(html, /VERSION:\s*'v2\.0\.324-firebase'/);
+  assert.match(html, /js\/app\.v2\.0\.324\.js/);
+  assert.match(html, /js\/core\/version\.v2\.0\.324\.js/);
+  assert.match(html, /id="loading-version"[^>]*>v2\.0\.324</);
+  assert.match(html, /css\/app\.css\?v=2\.0\.324/);
+  assert.match(app, /VERSION:\s*'v2\.0\.324-firebase'/);
+  assert.match(app, /version:\s*'v2\.0\.324'/);
+  assert.match(core, /v2\.0\.324/);
+  assert.match(coreInmutable, /v2\.0\.324/);
+  assert.match(sw, /sisventas-v2\.0\.324/);
+  assert.match(sw, /app\.v2\.0\.324\.js/);
 });
 
 test('Dashboard incorpora agenda rápida e indicadores operativos de OT', () => {
@@ -65,12 +65,12 @@ test('los permisos guardados habilitan o bloquean la acción sin saltear el acce
   assert.equal(window.tienePermiso('ventas.editar'), false);
 });
 
-test('Novedades registra obligatoriamente v2.0.323', () => {
-  assert.match(app, /RELEASE_HISTORY[\s\S]*?version:\s*'v2\.0\.323'/);
-  assert.match(app, /Agenda, estadísticas OT y permisos detallados/);
+test('Novedades registra obligatoriamente v2.0.324', () => {
+  assert.match(app, /RELEASE_HISTORY[\s\S]*?version:\s*'v2\.0\.324'/);
+  assert.match(app, /Bonificaciones de empleados corregidas/);
 });
 
-test('v2.0.323 conserva los respaldos y confirmaciones de Mercado Libre de v2.0.322', () => {
+test('v2.0.324 conserva los respaldos y confirmaciones de Mercado Libre de v2.0.322', () => {
   assert.match(app, /async function reintentarFallosActualizador/);
   assert.match(app, /confirmarIdentidadMercadoLibreActualizador/);
   assert.match(cotizador, /\/items\?ids=/);
@@ -79,8 +79,18 @@ test('v2.0.323 conserva los respaldos y confirmaciones de Mercado Libre de v2.0.
   assert.match(cotizador, /requiereConfirmacionIdentidad:true/);
 });
 
-test('v2.0.323 conserva la mejora visual de reclamos de v2.0.322', () => {
+test('v2.0.324 conserva la mejora visual de reclamos de v2.0.322', () => {
   const css = fs.readFileSync('css/app.css', 'utf8');
   assert.match(html, /id="sp-nuevo-desc"[^>]+min-height:154px/);
   assert.match(css, /\.fg input,\.fg select,\.fg textarea\{/);
+});
+
+test('v2.0.324 guarda la bonificación con una actualización multipath acotada', () => {
+  const inicio = app.indexOf('function _guardarBonificacionEmpleadoAtomica');
+  const fin = app.indexOf('var _comisionManualVentasMap', inicio);
+  const flujo = app.slice(inicio, fin);
+  assert.match(flujo, /actualizaciones\['ctaemp\/' \+ emp\.fbKey \+ '\/' \+ movKey\] = movGuardado/);
+  assert.match(flujo, /actualizaciones\['gastos\/' \+ gastoKey\] = gastoGuardado/);
+  assert.match(flujo, /window\.fbUpdate\(window\.fbRef\(window\.fbDB, 'sisventas'\), actualizaciones\)/);
+  assert.doesNotMatch(flujo, /fbRunTransaction\(window\.fbRef\(window\.fbDB, 'sisventas'/);
 });
