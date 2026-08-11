@@ -21849,7 +21849,7 @@ function _ctaEmpEsGastoPersonalEmpleado(g, empFbKey) {
   if (gEmp !== empFbKey) return false;
   var cat = _ctaEmpNormalizarTxt(g.categoria || '');
   var desc = _ctaEmpNormalizarTxt(g.descripcion || g.desc || g.detalle || '');
-  return cat === 'personal' || desc.indexOf('haber ') === 0 || desc.indexOf('hs extra') === 0 || desc.indexOf('horas extra') >= 0 || desc.indexOf('aguinaldo') >= 0;
+  return cat === 'personal' || desc.indexOf('haber ') === 0 || desc.indexOf('hs extra') === 0 || desc.indexOf('horas extra') >= 0 || desc.indexOf('aguinaldo') >= 0 || desc.indexOf('bonificacion') >= 0;
 }
 
 
@@ -21857,6 +21857,7 @@ function _ctaEmpTipoDesdeGasto(g) {
   if (!g) return 'gasto_empresa';
   var tipoPagable = _ctaEmpNormalizarTxt(g.tipoPagable || g.origen || g.tipo || '');
   if (tipoPagable === 'comision' || tipoPagable === 'comisión') return 'comision';
+  if (tipoPagable === 'bonificacion' || tipoPagable === 'bonificación') return 'bonificacion';
   var cat = _ctaEmpNormalizarTxt(g.categoria || '');
   var desc = _ctaEmpNormalizarTxt(g.descripcion || g.desc || g.detalle || '');
 
@@ -21864,6 +21865,7 @@ function _ctaEmpTipoDesdeGasto(g) {
     if (desc.indexOf('haber ') === 0 || desc.indexOf('sueldo ') >= 0) return 'sueldo';
     if (desc.indexOf('hs extra') >= 0 || desc.indexOf('horas extra') >= 0) return 'hextra';
     if (desc.indexOf('aguinaldo') >= 0) return 'aguinaldo';
+    if (desc.indexOf('bonificacion') >= 0) return 'bonificacion';
     if (desc.indexOf('adelanto') >= 0) return 'adelanto';
     return 'gasto_empresa';
   }
@@ -21871,6 +21873,7 @@ function _ctaEmpTipoDesdeGasto(g) {
   if (desc.indexOf('haber ') === 0) return 'sueldo';
   if (desc.indexOf('hs extra') >= 0 || desc.indexOf('horas extra') >= 0) return 'hextra';
   if (desc.indexOf('aguinaldo') >= 0) return 'aguinaldo';
+  if (desc.indexOf('bonificacion') >= 0) return 'bonificacion';
   if (desc.indexOf('adelanto') >= 0) return 'adelanto';
 
   var tipoCat = String(g.categoria || '').toLowerCase();
@@ -21905,7 +21908,7 @@ function _ctaEmpEsSueldoMovimiento(m) {
 function _ctaEmpMovimientoLegacyDuplicadoPorGasto(m, empFbKey) {
   if (!m || m._fuente === 'gastos' || !(gastosData || []).length) return null;
   var tipo = String(m.tipo || '').toLowerCase();
-  if (!['sueldo','hextra','aguinaldo'].includes(tipo)) return null;
+  if (!['sueldo','hextra','aguinaldo','bonificacion'].includes(tipo)) return null;
   var monto = parseFloat(m.monto) || 0;
   if (!monto) return null;
   var mes = _ctaEmpMesDeMov(m);
@@ -21921,6 +21924,7 @@ function _ctaEmpMovimientoLegacyDuplicadoPorGasto(m, empFbKey) {
     if (tipo === 'sueldo' && descG.indexOf('haber ') === 0) return true;
     if (tipo === 'hextra' && (descG.indexOf('hs extra') >= 0 || descG.indexOf('horas extra') >= 0)) return true;
     if (tipo === 'aguinaldo' && descG.indexOf('aguinaldo') >= 0) return true;
+    if (tipo === 'bonificacion' && descG.indexOf('bonificacion') >= 0) return true;
     if (empNom && descG.indexOf(empNom) >= 0 && descM) return true;
     return descM && descG && (descM.indexOf(descG.slice(0,60)) >= 0 || descG.indexOf(descM.slice(0,60)) >= 0);
   }) || null;
@@ -21957,7 +21961,7 @@ function cargarCtaEmp(empFbKey) {
     document.getElementById('ctaemp-base').textContent = '$' + Math.round(base).toLocaleString('es-AR');
     renderComisionesDelMes(emp);
   }
-  var TIPOS_CTAEMP = ['sueldo','adelanto','comision','hextra'];
+  var TIPOS_CTAEMP = ['sueldo','adelanto','comision','hextra','bonificacion'];
   var TIPOS_GASTOS_EMP = ['gasto_empresa','transporte','materiales','otro'];
 
   window._ctaEmpUnsubscribe && window._ctaEmpUnsubscribe();
@@ -22149,7 +22153,7 @@ function _renderPagosRealizadosEmp(listaMovs, mes) {
     var compBtn = x.comprobante && x.comprobante.data
       ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();abrirComprobanteMovEmp(\''+x.mov.fbKey+'\','+x.idx+')" title="Ver comprobante"><i class="ti ti-paperclip" style="font-size:14px;color:var(--blue)"></i></button>'
       : '<span style="color:var(--text3);font-size:11px">—</span>';
-    var concepto = x.concepto || ({sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',gasto_empresa:'Gasto empresa'}[x.mov.tipo] || x.mov.tipo || 'Movimiento');
+    var concepto = x.concepto || ({sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',bonificacion:'Bonificación',gasto_empresa:'Gasto empresa'}[x.mov.tipo] || x.mov.tipo || 'Movimiento');
     var medioNorm = String(x.medio||'').trim().toLowerCase();
     var medioInvalido = !medioNorm || medioNorm === 'adelanto' || medioNorm === 'registro manual';
     var medioHtml = medioInvalido
@@ -22427,8 +22431,8 @@ function renderMovsEmp() {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin movimientos registrados</td></tr>';
   } else {
     tbody.innerHTML = lista.map(function(m) {
-      var tipoLabel = {sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[m.tipo]||m.tipo;
-      var tipoCls   = {sueldo:'b-blue',comision:'b-green',hextra:'b-green',adelanto:'b-red',transporte:'b-amber',materiales:'b-amber',gasto_empresa:'b-amber',otro:'b-blue'}[m.tipo]||'b-blue';
+      var tipoLabel = {sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',bonificacion:'Bonificación',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[m.tipo]||m.tipo;
+      var tipoCls   = {sueldo:'b-blue',comision:'b-green',hextra:'b-green',bonificacion:'b-blue',adelanto:'b-red',transporte:'b-amber',materiales:'b-amber',gasto_empresa:'b-amber',otro:'b-blue'}[m.tipo]||'b-blue';
       var esEgreso  = _ctaEmpEsCargo(m);
       var montoColor = esEgreso ? 'var(--red)' : 'var(--green)';
       var estadoCalc = _movEmpEstadoCalculado(m);
@@ -22443,10 +22447,10 @@ function renderMovsEmp() {
       // Descripción: puede estar en 'descripcion', 'desc', o 'detalle'
       var descTexto = m.descripcion || m.desc || m.detalle || '';
       var descHtml = _ctaEmpDescripcionHaberConDescuento(m, descTexto);
-      var puedeAbonar = String(currentRole || '').toLowerCase() === 'admin' && estadoCalc === 'aprobado' && ['transporte','materiales','gasto_empresa','otro'].includes(String(m.tipo || '').toLowerCase());
+      var puedeAbonar = String(currentRole || '').toLowerCase() === 'admin' && estadoCalc === 'aprobado' && ['bonificacion','transporte','materiales','gasto_empresa','otro'].includes(String(m.tipo || '').toLowerCase());
       // Navegación: gastos de empresa van al módulo gastos, otros muestran detalle
       var trClick = '';
-      if (m.tipo === 'gasto_empresa' && m.gastoFbKey) {
+      if (['gasto_empresa','bonificacion'].includes(m.tipo) && m.gastoFbKey) {
         trClick = 'onclick="irAGastoDesdeCtaEmp(this)" data-gasto="' + m.gastoFbKey + '" style="cursor:pointer"';
       } else if (m.tipo === 'comision' && m.ventaId) {
         trClick = 'onclick="irAVentaDesdeComision(\'' + m.ventaId + '\')" data-fbkey="' + m.fbKey + '" style="cursor:pointer" title="Ver venta vinculada"';
@@ -22471,7 +22475,7 @@ function renderMovsEmp() {
       '</tr>';
     }).join('');
   }
-  var TIPOS_HABER = ['sueldo','aguinaldo','comision','hextra','transporte','materiales','gasto_empresa','otro'];
+  var TIPOS_HABER = ['sueldo','aguinaldo','comision','hextra','bonificacion','transporte','materiales','gasto_empresa','otro'];
   var listaPeriodo = movsEmpData.filter(function(m){ return _ctaEmpMovVisibleParaRol(m) && _movEmpEnPeriodo(m, mesCta); });
   // La grilla sigue mostrando sólo el mes seleccionado, pero este resumen es
   // el saldo de cuenta corriente acumulado hasta ese mes.
@@ -22565,7 +22569,7 @@ function verDetalleMovEmp(tr) {
   var fbKey = tr.dataset.fbkey;
   var mov = movsEmpData.find(function(m){ return m.fbKey === fbKey; });
   if (!mov) return;
-  var tipoLabel = {sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[mov.tipo]||mov.tipo;
+  var tipoLabel = {sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',bonificacion:'Bonificación',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[mov.tipo]||mov.tipo;
   var desc = mov.descripcion || mov.desc || mov.detalle || 'Sin descripción';
   var fechaRaw = _movEmpFechaVisual(mov);
   var fecha = fechaRaw ? fechaRaw.split('-').reverse().join('/') : '—';
@@ -31444,6 +31448,316 @@ function previewPagoGastoComprobante(input) {
 }
 
 
+var _bonificacionEmpleadoGuardando = false;
+var _bonificacionEmpleadoOperacionId = '';
+
+function abrirModalBonificacionEmpleado() {
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede cargar bonificaciones'); return; }
+  var modal = document.getElementById('modal-bonificacion-empleado');
+  var selector = document.getElementById('bonificacion-empleado');
+  if (!modal || !selector) return;
+  var empleados = Object.values(empData || {}).filter(function(emp) {
+    return String(emp.estado || 'Activo').toLowerCase() !== 'inactivo';
+  }).sort(function(a, b) { return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); });
+  selector.innerHTML = '<option value="">— Seleccionar —</option>' + empleados.map(function(emp) {
+    return '<option value="' + escapeHTML(emp.fbKey || '') + '">' + escapeHTML(emp.nombre || 'Sin nombre') + '</option>';
+  }).join('');
+  selector.value = '';
+  document.getElementById('bonificacion-fecha').value = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toISOString().slice(0, 10);
+  document.getElementById('bonificacion-motivo').value = '';
+  _setMontoInput(document.getElementById('bonificacion-monto'), 0);
+  _bonificacionEmpleadoOperacionId = 'bono_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  _bonificacionEmpleadoGuardando = false;
+  var btn = document.getElementById('bonificacion-guardar');
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Registrar bonificación'; }
+  modal.style.display = 'flex';
+}
+
+function cerrarModalBonificacionEmpleado() {
+  var modal = document.getElementById('modal-bonificacion-empleado');
+  if (modal && !_bonificacionEmpleadoGuardando) modal.style.display = 'none';
+}
+
+function _guardarBonificacionEmpleadoAtomica(emp, movimiento, operacionId) {
+  if (!window.fbDB || typeof window.fbRunTransaction !== 'function') return Promise.reject(new Error('No hay conexión segura para registrar la bonificación'));
+  var movKey = _claveOperacionConcurrente('bonificacion', [emp.fbKey, operacionId]);
+  var gastoKey = _claveOperacionConcurrente('gasto_bonificacion', [emp.fbKey, operacionId]);
+  return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas'), function(raiz) {
+    raiz = raiz || {};
+    raiz.ctaemp = raiz.ctaemp || {};
+    raiz.gastos = raiz.gastos || {};
+    raiz.ctaemp[emp.fbKey] = raiz.ctaemp[emp.fbKey] || {};
+    if (raiz.ctaemp[emp.fbKey][movKey] || raiz.gastos[gastoKey]) return raiz;
+    var movGuardado = Object.assign({}, movimiento, {
+      fbKey: movKey,
+      gastoFbKey: gastoKey,
+      legacyKey: 'ctaemp/' + emp.fbKey + '/' + movKey,
+      operacionId: operacionId
+    });
+    raiz.ctaemp[emp.fbKey][movKey] = movGuardado;
+    raiz.gastos[gastoKey] = _pagableGastoBase({
+      fecha: movimiento.fecha,
+      tipo: 'Variable',
+      tipoPagable: 'bonificacion',
+      descripcion: movimiento.descripcion,
+      monto: movimiento.monto,
+      empleadoFbKey: emp.fbKey,
+      empleadoNombre: emp.nombre || '',
+      legacyKey: movGuardado.legacyKey,
+      ts: movimiento.ts
+    });
+    raiz.gastos[gastoKey].estado = 'aprobado';
+    raiz.gastos[gastoKey].requiereAprobacion = false;
+    raiz.gastos[gastoKey].aprobadoPor = movimiento.aprobadoPor || '';
+    raiz.gastos[gastoKey].aprobadoTs = movimiento.aprobadoTs || movimiento.ts;
+    raiz.gastos[gastoKey].movimientoCtaKey = movKey;
+    raiz.gastos[gastoKey].origen = 'bonificacion';
+    raiz.gastos[gastoKey].operacionId = operacionId;
+    return raiz;
+  }).then(function(resultado) {
+    if (!resultado || resultado.committed === false) throw new Error('No se pudo registrar la bonificación');
+    return { movimientoKey:movKey, gastoKey:gastoKey };
+  });
+}
+
+async function guardarBonificacionEmpleado() {
+  if (_bonificacionEmpleadoGuardando) return;
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede cargar bonificaciones'); return; }
+  var empKey = String((document.getElementById('bonificacion-empleado') || {}).value || '');
+  var emp = Object.values(empData || {}).find(function(item) { return String(item.fbKey || '') === empKey; });
+  var fecha = String((document.getElementById('bonificacion-fecha') || {}).value || '');
+  var motivo = String((document.getElementById('bonificacion-motivo') || {}).value || '').trim();
+  var monto = getMontoRaw(document.getElementById('bonificacion-monto'));
+  if (!emp) { notify('Seleccioná el empleado'); return; }
+  if (!fecha) { notify('Seleccioná la fecha de la bonificación'); return; }
+  if (!motivo) { notify('Indicá el motivo de la bonificación'); return; }
+  if (monto <= 0) { notify('Ingresá el monto de la bonificación'); return; }
+  _bonificacionEmpleadoGuardando = true;
+  var btn = document.getElementById('bonificacion-guardar');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Guardando...'; }
+  try {
+    var ahora = Date.now();
+    var movimiento = {
+      tipo: 'bonificacion',
+      estado: 'aprobado',
+      monto: monto,
+      fecha: fecha,
+      descripcion: 'Bonificación · ' + motivo,
+      motivo: motivo,
+      empleadoId: emp.fbKey,
+      empleadoNombre: emp.nombre || '',
+      aprobadoPor: currentUser || 'admin',
+      aprobadoTs: ahora,
+      usuario: currentUser || 'admin',
+      origenCarga: 'manual_empleados',
+      ts: ahora
+    };
+    await _guardarBonificacionEmpleadoAtomica(emp, movimiento, _bonificacionEmpleadoOperacionId || ('bono_' + ahora));
+    notify('✓ Bonificación registrada y disponible para abonar en Gastos');
+    _bonificacionEmpleadoGuardando = false;
+    cerrarModalBonificacionEmpleado();
+    if (typeof fbCargarGastos === 'function') fbCargarGastos();
+    if (ctaEmpActual === emp.fbKey && typeof cargarCtaEmp === 'function') cargarCtaEmp(emp.fbKey);
+  } catch (error) {
+    notify('No se pudo registrar la bonificación: ' + error.message);
+  } finally {
+    _bonificacionEmpleadoGuardando = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Registrar bonificación'; }
+  }
+}
+
+var _comisionManualVentasMap = {};
+var _comisionManualGuardando = false;
+
+function _calcularBaseComisionVenta(venta) {
+  venta = venta || {};
+  var items = Array.isArray(venta.items) ? venta.items : [];
+  var subtotalBruto = items.length ? items.reduce(function(s, it) {
+    return s + ((parseFloat(it.qty) || 1) * (parseFloat(it.punit) || 0));
+  }, 0) : ((parseFloat(venta.subtotal) || _svTotalVentaCanonico(venta)) + (parseFloat(venta.descuento) || 0));
+  var descuento = parseFloat(venta.descuento) || 0;
+  var baseNeta = Math.max(0, subtotalBruto - descuento);
+  var costoTotal = items.length
+    ? items.reduce(function(s, it) { return s + obtenerCostoItemVenta(it); }, 0)
+    : (parseFloat(venta.costoTotal) || 0);
+  return {
+    subtotalBruto: subtotalBruto,
+    descuento: descuento,
+    baseNeta: baseNeta,
+    costoTotal: costoTotal,
+    ganancia: baseNeta - costoTotal
+  };
+}
+
+function _comisionManualVentaEtiqueta(venta) {
+  var numero = venta.id || venta.numero || venta.nro || venta.codigo || venta.fbKey || 'Venta';
+  var cliente = venta.cliente || venta.clienteNombre || 'Sin cliente';
+  var fecha = venta.fecha ? String(venta.fecha).slice(0, 10).split('-').reverse().join('/') : 'Sin fecha';
+  return '#' + String(numero).replace(/^#/, '') + ' · ' + cliente + ' · ' + fecha + ' · $' + Math.round(_svTotalVentaCanonico(venta)).toLocaleString('es-AR');
+}
+
+function _comisionManualResolverVenta(valor) {
+  var buscado = String(valor || '').trim();
+  if (!buscado) return null;
+  if (_comisionManualVentasMap[buscado]) return _comisionManualVentasMap[buscado];
+  var normalizado = buscado.replace(/^#/, '').toLowerCase();
+  return (ventasList || []).find(function(venta) {
+    return _svVentaClaves(venta).exactas.some(function(clave) {
+      return String(clave).replace(/^#/, '').toLowerCase() === normalizado;
+    });
+  }) || null;
+}
+
+function _comisionManualEmpleadoSeleccionado() {
+  var key = String((document.getElementById('comision-manual-empleado') || {}).value || '');
+  return Object.values(empData || {}).find(function(emp) { return String(emp.fbKey || '') === key; }) || null;
+}
+
+function abrirModalComisionVenta() {
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede cargar comisiones'); return; }
+  var modal = document.getElementById('modal-comision-venta');
+  var selEmpleado = document.getElementById('comision-manual-empleado');
+  var listaVentas = document.getElementById('comision-manual-ventas-list');
+  if (!modal || !selEmpleado || !listaVentas) return;
+
+  var empleados = Object.values(empData || {}).filter(function(emp) {
+    return String(emp.estado || 'Activo').toLowerCase() !== 'inactivo';
+  }).sort(function(a, b) { return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); });
+  selEmpleado.innerHTML = '<option value="">— Seleccionar —</option>' + empleados.map(function(emp) {
+    return '<option value="' + escapeHTML(emp.fbKey || '') + '">' + escapeHTML(emp.nombre || 'Sin nombre') + '</option>';
+  }).join('');
+
+  _comisionManualVentasMap = {};
+  listaVentas.innerHTML = '';
+  (ventasList || []).filter(function(venta) {
+    return typeof ventaValidaParaMetricas !== 'function' || ventaValidaParaMetricas(venta);
+  }).sort(function(a, b) {
+    var ta = parseFloat(a.ts) || Date.parse(a.fecha || '') || 0;
+    var tb = parseFloat(b.ts) || Date.parse(b.fecha || '') || 0;
+    return tb - ta;
+  }).forEach(function(venta) {
+    var etiqueta = _comisionManualVentaEtiqueta(venta);
+    _comisionManualVentasMap[etiqueta] = venta;
+    var opcion = document.createElement('option');
+    opcion.value = etiqueta;
+    listaVentas.appendChild(opcion);
+  });
+
+  selEmpleado.value = '';
+  document.getElementById('comision-manual-fecha').value = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toISOString().slice(0, 10);
+  document.getElementById('comision-manual-venta').value = '';
+  document.getElementById('comision-manual-pct').value = '';
+  document.getElementById('comision-manual-nota').value = '';
+  document.getElementById('comision-manual-monto').value = '$0';
+  document.getElementById('comision-manual-monto').dataset.raw = '0';
+  document.getElementById('comision-manual-resumen').textContent = 'Seleccioná un empleado y una venta para calcular la comisión.';
+  _comisionManualGuardando = false;
+  var btn = document.getElementById('comision-manual-guardar');
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Registrar comisión'; }
+  modal.style.display = 'flex';
+}
+
+function cerrarModalComisionVenta() {
+  var modal = document.getElementById('modal-comision-venta');
+  if (modal && !_comisionManualGuardando) modal.style.display = 'none';
+}
+
+function actualizarComisionManualVenta(reponerPorcentaje) {
+  var emp = _comisionManualEmpleadoSeleccionado();
+  var venta = _comisionManualResolverVenta((document.getElementById('comision-manual-venta') || {}).value);
+  var pctInput = document.getElementById('comision-manual-pct');
+  var montoInput = document.getElementById('comision-manual-monto');
+  var resumen = document.getElementById('comision-manual-resumen');
+  var maxPct = parseFloat((APROBACION_CONFIG && APROBACION_CONFIG.maxComisionPct) || 10) || 10;
+  if (pctInput) pctInput.max = String(maxPct);
+  if (emp && pctInput && (reponerPorcentaje || !parseFloat(pctInput.value))) {
+    pctInput.value = String(Math.min(_pctComisionEmpleadoVenta(emp), maxPct) || '');
+  }
+  var pct = Math.max(0, Math.min(parseFloat((pctInput || {}).value) || 0, maxPct));
+  var calculo = venta ? _calcularBaseComisionVenta(venta) : null;
+  var monto = calculo && calculo.ganancia > 0 ? Math.round(calculo.ganancia * pct / 100) : 0;
+  if (montoInput) {
+    montoInput.value = '$' + monto.toLocaleString('es-AR');
+    montoInput.dataset.raw = String(monto);
+  }
+  if (!resumen) return;
+  if (!emp || !venta) {
+    resumen.textContent = 'Seleccioná un empleado y una venta para calcular la comisión.';
+    return;
+  }
+  if (!calculo || calculo.ganancia <= 0) {
+    resumen.innerHTML = '<strong style="color:var(--red)">La venta no tiene una ganancia positiva calculable.</strong><div style="margin-top:4px">Revisá costos, descuento y productos antes de registrar la comisión.</div>';
+    return;
+  }
+  resumen.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">' +
+    '<div><span style="color:var(--text3)">Venta</span><strong style="display:block;margin-top:3px">$' + Math.round(_svTotalVentaCanonico(venta)).toLocaleString('es-AR') + '</strong></div>' +
+    '<div><span style="color:var(--text3)">Ganancia base</span><strong style="display:block;margin-top:3px">$' + Math.round(calculo.ganancia).toLocaleString('es-AR') + '</strong></div>' +
+    '<div><span style="color:var(--text3)">Comisión</span><strong style="display:block;margin-top:3px;color:var(--green)">$' + monto.toLocaleString('es-AR') + '</strong></div>' +
+    '</div>';
+}
+
+async function guardarComisionManualVenta() {
+  if (_comisionManualGuardando) return;
+  if (String(currentRole || '').toLowerCase() !== 'admin') { notify('Solo el administrador puede cargar comisiones'); return; }
+  var emp = _comisionManualEmpleadoSeleccionado();
+  var venta = _comisionManualResolverVenta((document.getElementById('comision-manual-venta') || {}).value);
+  if (!emp) { notify('Seleccioná el empleado comisionado'); return; }
+  if (!venta) { notify('Seleccioná una venta válida de la lista'); return; }
+  var maxPct = parseFloat((APROBACION_CONFIG && APROBACION_CONFIG.maxComisionPct) || 10) || 10;
+  var pct = parseFloat((document.getElementById('comision-manual-pct') || {}).value) || 0;
+  if (pct <= 0) { notify('Ingresá el porcentaje de comisión'); return; }
+  if (pct > maxPct) { notify('El porcentaje supera el tope global de ' + maxPct + '%'); return; }
+  var calculo = _calcularBaseComisionVenta(venta);
+  var monto = calculo.ganancia > 0 ? Math.round(calculo.ganancia * pct / 100) : 0;
+  if (monto <= 0) { notify('La venta no tiene una ganancia positiva para calcular la comisión'); return; }
+
+  _comisionManualGuardando = true;
+  var btn = document.getElementById('comision-manual-guardar');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Verificando...'; }
+  try {
+    var yaExiste = await _ventaTieneComisionGenerada(emp.fbKey, venta);
+    if (yaExiste) {
+      notify('Esa venta ya tiene una comisión registrada para ' + (emp.nombre || 'el empleado'));
+      return;
+    }
+    var nota = String((document.getElementById('comision-manual-nota') || {}).value || '').trim();
+    var movimiento = {
+      tipo: 'comision',
+      estado: 'pendiente',
+      aprobadoPor: '',
+      aprobadoTs: null,
+      monto: monto,
+      pct: pct,
+      pctOriginal: pct,
+      ajustadoAlTope: false,
+      gananciaBase: calculo.ganancia,
+      ventaId: venta.id || venta.numero || venta.nro || '',
+      ventaFbKey: venta.fbKey || '',
+      cliente: venta.cliente || venta.clienteNombre || '',
+      descripcion: 'Comisión venta ' + (venta.id || venta.numero || '') + ' · ' + pct + '% sobre ganancia $' + Math.round(calculo.ganancia).toLocaleString('es-AR') + (nota ? ' · ' + nota : '') + ' · carga manual',
+      fecha: (document.getElementById('comision-manual-fecha') || {}).value || (typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toISOString().slice(0, 10)),
+      ts: Date.now(),
+      empleadoNombre: emp.nombre || '',
+      origenCarga: 'manual_empleados',
+      cargadaManualmente: true,
+      usuarioCarga: currentUser || 'admin'
+    };
+    if (btn) btn.innerHTML = '<i class="ti ti-loader-2"></i> Guardando...';
+    await _generarComisionVentaAtomica(emp, movimiento);
+    if (venta.fbKey) await ventasPagosPersistirActualizarVenta(venta.fbKey, { comisionesGeneradas:true });
+    notify('✓ Comisión vinculada a la venta y pendiente de aprobación');
+    _comisionManualGuardando = false;
+    cerrarModalComisionVenta();
+    if (typeof fbCargarGastos === 'function') fbCargarGastos();
+    if (ctaEmpActual === emp.fbKey && typeof cargarCtaEmp === 'function') cargarCtaEmp(emp.fbKey);
+  } catch (error) {
+    notify('No se pudo registrar la comisión: ' + error.message);
+  } finally {
+    _comisionManualGuardando = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Registrar comisión'; }
+  }
+}
+
 function _pctComisionEmpleadoVenta(emp) {
   if (!emp) return 0;
   var pctDirecto = parseFloat(emp.pctComisionPropio || emp.pctComision || emp.comision || 0) || 0;
@@ -31474,6 +31788,7 @@ function _generarComisionVentaAtomica(emp, movimiento) {
   var ventaKey = movimiento.ventaFbKey || movimiento.ventaId;
   var movKey = _claveOperacionConcurrente('comision', [ventaKey, emp.fbKey]);
   var gastoKey = _claveOperacionConcurrente('gasto_comision', [ventaKey, emp.fbKey]);
+  var comisionYaExistia = false;
   return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas'), function(raiz) {
     raiz = raiz || {}; raiz.ctaemp = raiz.ctaemp || {}; raiz.gastos = raiz.gastos || {};
     raiz.ctaemp[emp.fbKey] = raiz.ctaemp[emp.fbKey] || {};
@@ -31481,7 +31796,7 @@ function _generarComisionVentaAtomica(emp, movimiento) {
       var m = raiz.ctaemp[emp.fbKey][k] || {};
       return m.tipo === 'comision' && ((movimiento.ventaFbKey && String(m.ventaFbKey || '') === String(movimiento.ventaFbKey)) || (movimiento.ventaId && String(m.ventaId || '') === String(movimiento.ventaId)));
     });
-    if (yaExiste) return raiz;
+    if (yaExiste) { comisionYaExistia = true; return raiz; }
     var movGuardado = Object.assign({}, movimiento, { fbKey:movKey, gastoFbKey:gastoKey, legacyKey:'ctaemp/' + emp.fbKey + '/' + movKey });
     raiz.ctaemp[emp.fbKey][movKey] = movGuardado;
     raiz.gastos[gastoKey] = _pagableGastoBase({ fecha:movimiento.fecha, tipo:'Comisión', tipoPagable:'comision', descripcion:movimiento.descripcion, monto:movimiento.monto, empleadoFbKey:emp.fbKey, empleadoNombre:emp.nombre || '', legacyKey:movGuardado.legacyKey, ts:movimiento.ts });
@@ -31493,6 +31808,7 @@ function _generarComisionVentaAtomica(emp, movimiento) {
     return raiz;
   }).then(function(resultado) {
     if (!resultado || resultado.committed === false) throw new Error('No se pudo generar la comisión');
+    if (comisionYaExistia) throw new Error('La venta ya tiene una comisión registrada para este empleado');
     return resultado;
   });
 }
@@ -31502,16 +31818,8 @@ function generarComisionesVenta(venta, montoCobrado) {
   if (venta.comisionHabilitada !== true) return;
 
   // Base de comisión = subtotal bruto - descuentos - costo de compra x cantidad.
-  var itemsVenta = venta.items || [];
-  var subtotalBruto = itemsVenta.length ? itemsVenta.reduce(function(s, it) {
-    return s + ((parseFloat(it.qty)||1) * (parseFloat(it.punit)||0));
-  }, 0) : ((parseFloat(venta.subtotal)||_svTotalVentaCanonico(venta)) + (parseFloat(venta.descuento)||0));
-  var descuentoVenta = parseFloat(venta.descuento) || 0;
-  var baseNeta = Math.max(0, subtotalBruto - descuentoVenta);
-  var costoTotal = itemsVenta.length
-    ? itemsVenta.reduce(function(s, it) { return s + obtenerCostoItemVenta(it); }, 0)
-    : (parseFloat(venta.costoTotal)||0);
-  var ganancia = baseNeta - costoTotal;
+  var calculoBaseComision = _calcularBaseComisionVenta(venta);
+  var ganancia = calculoBaseComision.ganancia;
 
   if (ganancia <= 0) return;
 
@@ -36952,7 +37260,7 @@ function renderDashMiCuenta() {
     var comisionesAprob = movsMesVisibles.filter(function(m){
       return m.tipo === 'comision' && ['aprobado','pagado_parcial','pagado'].includes(_movEmpEstadoCalculado(m));
     });
-    var tiposHaber = ['sueldo','aguinaldo','hextra','comision','transporte','materiales','gasto_empresa','otro'];
+    var tiposHaber = ['sueldo','aguinaldo','hextra','comision','bonificacion','transporte','materiales','gasto_empresa','otro'];
     var haberesCobrables = movsMesVisibles.filter(function(m){ return tiposHaber.includes(m.tipo) && _movEmpEsCobrable(m); });
 
     var totalHaberesPend = haberesCobrables.reduce(function(s,m){ return s + _movEmpSaldoPendiente(m); }, 0);
@@ -37004,8 +37312,8 @@ function renderDashMiCuenta() {
       if (!movsHist.length) {
         histBody.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px">Sin movimientos este mes</div>';
       } else {
-        var colorTipo = { sueldo:'var(--blue)', hextra:'var(--amber)', comision:'var(--green)', adelanto:'var(--red)', gasto_empresa:'var(--text3)', transporte:'var(--text3)', aguinaldo:'var(--blue)' };
-        var labelTipo = { sueldo:'Sueldo', hextra:'Hs. extra', comision:'Comisión', adelanto:'Adelanto', gasto_empresa:'Gasto', transporte:'Transporte', aguinaldo:'Aguinaldo' };
+        var colorTipo = { sueldo:'var(--blue)', hextra:'var(--amber)', comision:'var(--green)', bonificacion:'var(--blue)', adelanto:'var(--red)', gasto_empresa:'var(--text3)', transporte:'var(--text3)', aguinaldo:'var(--blue)' };
+        var labelTipo = { sueldo:'Sueldo', hextra:'Hs. extra', comision:'Comisión', bonificacion:'Bonificación', adelanto:'Adelanto', gasto_empresa:'Gasto', transporte:'Transporte', aguinaldo:'Aguinaldo' };
         histBody.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
           movsHist.map(function(m) {
             var estadoCalc = _movEmpEstadoCalculado(m);
