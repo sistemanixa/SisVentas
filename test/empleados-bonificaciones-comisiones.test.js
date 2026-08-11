@@ -33,6 +33,18 @@ test('la bonificación posterior crea un haber y un gasto pagable sin modificar 
   assert.match(app, /TIPOS_HABER = \['sueldo','aguinaldo','comision','hextra','bonificacion'/);
 });
 
+test('eliminar una bonificación quita en una sola escritura el gasto y la cuenta del empleado', () => {
+  const inicio = app.indexOf('function _eliminarBonificacionGastoVinculada');
+  const fin = app.indexOf('async function eliminarCliente', inicio);
+  const flujo = app.slice(inicio, fin);
+  assert.ok(inicio > 0 && fin > inicio);
+  assert.match(flujo, /actualizaciones\['sisventas\/gastos\/' \+ gastoFbKey\] = null/);
+  assert.match(flujo, /actualizaciones\['sisventas\/ctaemp\/' \+ empleadoFbKey \+ '\/' \+ movimientoCtaKey\] = null/);
+  assert.match(flujo, /window\.fbUpdate\(window\.fbRef\(window\.fbDB\), actualizaciones\)/);
+  assert.match(flujo, /También se quitará de la cuenta del empleado/);
+  assert.match(flujo, /La bonificación no tiene un vínculo válido/);
+});
+
 test('la comisión manual usa la misma base que la automática y conserva la venta canónica', () => {
   assert.match(app, /function _calcularBaseComisionVenta\(venta\)/);
   assert.match(app, /var calculoBaseComision = _calcularBaseComisionVenta\(venta\)/);
