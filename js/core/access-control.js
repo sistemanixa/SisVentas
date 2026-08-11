@@ -7,6 +7,7 @@
     var value = String(role || '').toLowerCase().trim();
     if (value === 'administrador') return 'admin';
     if (value === 'técnico') return 'tecnico';
+    if (value === 'técnico-vendedor' || value === 'tecnico-vendedor') return 'tecnico_vendedor';
     return value;
   }
 

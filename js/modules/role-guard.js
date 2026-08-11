@@ -23,7 +23,7 @@
 
   function esOperativoPersonal(){
     var r = rolActual();
-    return r === 'administrativo' || r === 'vendedor';
+    return r === 'administrativo' || r === 'vendedor' || r === 'tecnico_vendedor';
   }
 
   function q(id){ return document.getElementById(id); }

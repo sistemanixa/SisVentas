@@ -2184,3 +2184,12 @@ body.modal-secure-open{overflow:hidden!important}
     justify-content:flex-start!important;
   }
 }
+/* Dashboard operativo: resumen de OT y agenda próxima. */
+@media (max-width: 1100px) {
+  #dash-ot-resumen { grid-template-columns:repeat(3,minmax(90px,1fr))!important; }
+  #dash-agenda-lista { grid-template-columns:1fr!important; }
+}
+@media (max-width: 700px) {
+  #dash-ot-resumen { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+  #dash-agenda-card > .metrics { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+}

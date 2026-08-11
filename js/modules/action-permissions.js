@@ -36,24 +36,41 @@
     'tesoreria.pagar':           { modulo:'tesoreria', admin:true },
     'productos.editar':          { modulo:'productos', roles:['admin','administrativo'] },
     'productos.eliminar':        { modulo:'productos', admin:true },
+    'kits.editar':               { modulo:'kits', roles:['admin','administrativo'] },
+    'kits.eliminar':             { modulo:'kits', admin:true },
     'clientes.editar':           { modulo:'clientes', roles:['admin','administrativo'] },
     'clientes.eliminar':         { modulo:'clientes', admin:true },
-    'credenciales.ver':          { modulo:'clientes', roles:['admin','administrativo','tecnico'] },
+    'credenciales.ver':          { modulo:'clientes', roles:['admin','administrativo','tecnico_vendedor','tecnico'] },
     'credenciales.editar':       { modulo:'clientes', roles:['admin','administrativo'] },
     'credenciales.eliminar':     { modulo:'clientes', admin:true },
     'presupuestos.editar':       { modulo:'presupuesto', roles:['admin','administrativo'] },
     'presupuestos.eliminar':     { modulo:'presupuesto', admin:true },
     'presupuestos.anular':       { modulo:'presupuesto', admin:true },
-    'ot.editar':                 { modulo:'ordentrabajo', roles:['admin','administrativo','tecnico'] },
+    'ot.editar':                 { modulo:'ordentrabajo', roles:['admin','administrativo','tecnico_vendedor','tecnico'] },
     'ot.crear':                  { modulo:'ordentrabajo', roles:['admin','administrativo'] },
     'ot.eliminar':               { modulo:'ordentrabajo', admin:true },
     'empleados.eliminar':        { modulo:'empleados', admin:true },
+    'empleados.editar':          { modulo:'empleados', roles:['admin','administrativo'] },
     'empleados.aprobarMovimiento': { modulo:'ctaemp', admin:true },
     'empleados.eliminarMovimiento': { modulo:'ctaemp', admin:true },
     'gastos.crear':               { modulo:'gastos' },
     'gastos.editar':              { modulo:'gastos', roles:['admin','administrativo'] },
     'gastos.pagar':               { modulo:'gastos', roles:['admin','administrativo'] },
     'gastos.fijo':                { modulo:'gastos', roles:['admin','administrativo'] },
+    'gastos.eliminar':            { modulo:'gastos', admin:true },
+    'usuarios.editar':            { modulo:'usuarios', admin:true },
+    'usuarios.eliminar':          { modulo:'usuarios', admin:true },
+    'proveedores.editar':         { modulo:'proveedores', roles:['admin','administrativo'] },
+    'proveedores.eliminar':       { modulo:'proveedores', admin:true },
+    'ordenes.editar':             { modulo:'ordenes', roles:['admin','administrativo'] },
+    'ordenes.eliminar':           { modulo:'ordenes', admin:true },
+    'informes.editar':            { modulo:'informes', roles:['admin','administrativo','tecnico_vendedor','tecnico'] },
+    'informes.eliminar':          { modulo:'informes', admin:true },
+    'equipos.eliminar':           { modulo:'equipos', admin:true },
+    'soporte.eliminar':           { modulo:'soporte', admin:true },
+    'remitos.eliminar':           { modulo:'remitos', admin:true },
+    'servicios.eliminar':         { modulo:'servicios', admin:true },
+    'vacaciones.eliminar':        { modulo:'vacaciones', admin:true },
     'mantenimiento.migrar':       { modulo:'configuracion', admin:true },
     'mantenimiento.limpiar':      { modulo:'configuracion', admin:true },
     'mantenimiento.duplicados':   { modulo:'configuracion', admin:true },
@@ -61,18 +78,41 @@
     'actividad.limpiar':          { modulo:'configuracion', admin:true },
     'datos.seedDemo':             { modulo:'configuracion', admin:true },
     'configuracion.editar':      { modulo:'configuracion', admin:true },
-    'registros.eliminar':        { admin:true, validar:function(ctx){
-      var permitidas=['gastos','proveedores','ordenes','informes','equipos','usuarios','tickets','remitos','servicios','garantias'];
-      return permitidas.indexOf(String((ctx.args||[])[0]||''))!==-1;
+    'registros.eliminar':        { validar:function(ctx){
+      var coleccion = String((ctx.args||[])[0]||'');
+      var porColeccion = {
+        gastos:'gastos.eliminar', proveedores:'proveedores.eliminar', ordenes:'ordenes.eliminar',
+        informes:'informes.eliminar', equipos:'equipos.eliminar', usuarios:'usuarios.eliminar',
+        tickets:'soporte.eliminar', remitos:'remitos.eliminar', servicios:'servicios.eliminar',
+        vacaciones:'vacaciones.eliminar'
+      };
+      return porColeccion[coleccion] ? window.tienePermiso(porColeccion[coleccion], ctx) : false;
     } },
     'usuarios.impersonar':       { modulo:'usuarios', admin:true },
     'auditoria.ver':             { modulo:'configuracion', admin:true }
   };
+  window.SISVENTAS_PERMISOS_ACCION = PERMISOS_ACCION;
+  function overrideAccion(role, permiso){
+    var cfg = ((window.PERMISOS_ROLES || {})[role] || (window.PERMISOS_DEFAULT || {})[role] || {});
+    var partes = String(permiso || '').split('.');
+    if(partes.length < 2 || !cfg.acciones || !cfg.acciones[partes[0]]) return undefined;
+    var grupo = cfg.acciones[partes[0]];
+    return Object.prototype.hasOwnProperty.call(grupo, partes.slice(1).join('_'))
+      ? !!grupo[partes.slice(1).join('_')]
+      : undefined;
+  }
   window.tienePermiso = SV.Security.tienePermiso = function(permiso, contexto){
     var regla = PERMISOS_ACCION[permiso];
     if (!regla) return false;
+    var role = normRol();
+    var override = overrideAccion(role, permiso);
+    if (override !== undefined && !isAdmin()) {
+      if (regla.modulo && !moduleAllowed(regla.modulo)) return false;
+      if (typeof regla.validar === 'function' && !regla.validar(contexto || {})) return false;
+      return override;
+    }
     if (regla.admin && !isAdmin()) return false;
-    if (regla.roles && regla.roles.indexOf(normRol()) === -1) return false;
+    if (regla.roles && regla.roles.indexOf(role) === -1) return false;
     if (regla.modulo && !moduleAllowed(regla.modulo)) return false;
     if (typeof regla.validar === 'function') return !!regla.validar(contexto || {});
     return true;
@@ -102,20 +142,33 @@
     ['anularPago','cobranzas.anular'],
     ['elimPago','cobranzas.anular'],
     ['eliminarVenta','ventas.eliminar'],
+    ['abrirEditorVenta','ventas.editar'],
     ['moverVentaAPresupuesto','ventas.moverPresupuesto'],
     ['toggleCSF','ventas.contadoSinFactura'],
     ['eliminarPptoDesdeTabla','presupuestos.eliminar'],
     ['eliminarPpto','presupuestos.eliminar'],
     ['anularPptoDesdeTabla','presupuestos.anular'],
+    ['abrirEditorPpto','presupuestos.editar'],
     ['crearOT','ot.crear'],
+    ['actualizarOT','ot.editar'],
+    ['actualizarOTFecha','ot.editar'],
     ['eliminarOT','ot.eliminar'],
+    ['editarCliente','clientes.editar'],
+    ['editarClienteById','clientes.editar'],
     ['eliminarCliente','clientes.eliminar'],
     ['credMostrarPass','credenciales.ver'],
     ['credGuardar','credenciales.editar'],
     ['credEliminar','credenciales.eliminar'],
     ['eliminarProducto','productos.eliminar'],
     ['eliminarProductoPorId','productos.eliminar'],
+    ['editarProducto','productos.editar'],
+    ['editarProductoById','productos.editar'],
+    ['editarDesdeDetalle','productos.editar'],
+    ['editarProductoDesdeRevisionPrecios','productos.editar'],
+    ['editarKit','kits.editar'],
+    ['eliminarKit','kits.eliminar'],
     ['eliminarEmpleado','empleados.eliminar'],
+    ['editarEmpleado','empleados.editar'],
     ['aprobarComision','empleados.aprobarMovimiento'],
     ['rechazarComision','empleados.aprobarMovimiento'],
     ['aprobarMovEmp','empleados.aprobarMovimiento'],
@@ -139,7 +192,11 @@
     ['eliminarLogoEmpresa','configuracion.editar'],
     ['guardarDatosEmpresa','configuracion.editar'],
     ['guardarPermisosRoles','configuracion.editar'],
-    ['restaurarPermisosDefault','configuracion.editar']
+    ['restaurarPermisosDefault','configuracion.editar'],
+    ['editarUsuario','usuarios.editar'],
+    ['editarProveedor','proveedores.editar'],
+    ['editarOrden','ordenes.editar'],
+    ['editarInforme','informes.editar']
   ];
 
   function aplicarProtecciones(){

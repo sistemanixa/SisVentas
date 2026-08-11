@@ -51,6 +51,9 @@
     if(tipo === 'abiertas') { if(est) est.value = 'abiertas'; if(per) per.value = 'todos'; window._otFiltroEspecial315 = 'abiertas'; }
     if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
     if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
+    if(tipo === 'vencidas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial315 = 'vencidas'; }
+    if(tipo === 'sin_tecnico') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial315 = 'sin_tecnico'; }
+    if(tipo === 'completadas_mes') { if(est) est.value = 'completada'; if(per) per.value = 'mes'; }
     if(typeof window.renderOTTabla === 'function') window.renderOTTabla();
   };
 
@@ -76,9 +79,13 @@
         var est = estadoNormal(o);
         var mostrarAbiertas = especial === 'abiertas' || String(filtro || '').toLowerCase() === 'abiertas';
         var filtroNormal = String(filtro || '').toLowerCase();
-        var matchFiltro = mostrarAbiertas
-          ? !esCompletada(o)
-          : (!filtro || (filtroNormal === 'completada' ? esCompletada(o) : est === filtroNormal));
+        var matchFiltro = especial === 'vencidas'
+          ? (!esCompletada(o) && !!fechaISO(o.fecha) && fechaISO(o.fecha) < hoy)
+          : especial === 'sin_tecnico'
+            ? (!esCompletada(o) && !String(o.tecnico || '').trim())
+            : mostrarAbiertas
+              ? !esCompletada(o)
+              : (!filtro || (filtroNormal === 'completada' ? esCompletada(o) : est === filtroNormal));
         var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
         var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
         var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;
