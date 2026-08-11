@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
 
-const app = fs.readFileSync('js/app.v2.0.312.js', 'utf8');
+const app = fs.readFileSync('js/app.v2.0.317.js', 'utf8');
 
 test('el actualizador ofrece detener y mostrar resultados durante el análisis', () => {
   assert.match(app, /function detenerActualizadorMasivoPrecios\(\)/);
@@ -14,7 +14,7 @@ test('el actualizador ofrece detener y mostrar resultados durante el análisis',
 });
 
 test('los resultados parciales y los ya recibidos al detenerse se conservan para revisión', () => {
-  assert.match(app, /Resultados parciales — todavía no se guardó nada/);
+  assert.match(app, /Resultados parciales — ' \+ actualizadosGuardados \+ ' actualizados automáticamente/);
   assert.match(app, /Resultados detenidos — todavía no se guardó nada/);
   assert.match(app, /actualizadorItemsSesionParaTipos\(_actualizadorSesionPrecios\.fallos/);
 });
@@ -27,6 +27,18 @@ test('los resultados parciales permiten aplicar los precios ya verificados', () 
   assert.match(funcion, /Aplicar ' \+ candidatos\.length \+ ' verificado/);
   assert.match(funcion, /aplicarVistaPreviaActualizador\(\)/);
   assert.match(funcion, /modal\.dataset\.ejecutando === '1'/);
+});
+
+test('los fallos anteriores se pueden reintentar con el cotizador actualizado', () => {
+  const inicio = app.indexOf('async function reintentarFallosActualizador');
+  const fin = app.indexOf('async function cerrarActualizadorMasivoPrecios', inicio);
+  assert.ok(inicio >= 0 && fin > inicio);
+  const funcion = app.slice(inicio, fin);
+  assert.match(funcion, /delete _actualizadorSesionPrecios\.procesados/);
+  assert.match(funcion, /_actualizadorSesionPrecios\.fallos/);
+  assert.match(funcion, /await ejecutarActualizadorMasivoBiosegur\(\)/);
+  assert.match(app, /btn-reintentar-fallos-actualizador/);
+  assert.match(app, /Reintentar '\+fallosSesion\.length\+' con inconvenientes/);
 });
 
 test('eliminar un producto depura la sesión y vuelve a pintar la revisión', () => {
@@ -49,13 +61,25 @@ test('detener análisis queda junto a las acciones inferiores del proceso', () =
   assert.match(modal, /btn-detener-actualizador[\s\S]{0,600}Minimizar/);
 });
 
-test('el panel conserva su altura y el producto actual no crece con nombres largos', () => {
+test('el panel conserva su altura y el producto actual tiene espacio mínimo legible', () => {
   const apertura = app.indexOf('function abrirActualizadorMasivoPrecios');
   const inicio = app.indexOf('overlay.innerHTML =', apertura);
   const fin = app.indexOf('document.body.appendChild(overlay)', inicio);
   const modal = app.slice(inicio, fin);
   assert.match(modal, /height:min\(680px,calc\(100vh - 32px\)\)/);
-  assert.match(modal, /id="actualizador-precios-producto" style="height:48px;box-sizing:border-box;overflow:hidden/);
+  assert.match(modal, /id="actualizador-precios-producto" style="height:68px;min-height:68px;max-height:68px;box-sizing:border-box;overflow:auto/);
+});
+
+test('cada proveedor informa sus vinculados y pendientes, y el KPI cuenta los guardados automáticos', () => {
+  assert.match(app, /var resumenPorProveedor = \{\}/);
+  assert.match(app, /resumenProveedor\.vinculados/);
+  assert.match(app, /resumenProveedor\.pendientes/);
+  assert.match(app, /text-transform:uppercase">Actualizados<\/div>/);
+  assert.doesNotMatch(app, /text-transform:uppercase">Listos para aplicar<\/div>/);
+  assert.match(app, /actualizadosGuardados \+= candidatosBloque\.length/);
+  assert.match(app, /modal\._actualizadosAutomaticos = \(parseInt\(modal\._actualizadosAutomaticos, 10\) \|\| 0\) \+ candidatosBloque\.length/);
+  assert.match(app, /Los precios verificados se guardarán automáticamente/);
+  assert.doesNotMatch(app, /No hubo precios seguros para aplicar/);
 });
 
 test('la ventana abierta del actualizador se puede arrastrar sin afectar sus controles', () => {

@@ -1,14 +1,14 @@
-/* SisVentas NIXA - Service Worker v2.0.319
-   Versión v2.0.312. Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v2.0.319';
+﻿/* SisVentas NIXA - Service Worker v2.0.320
+   VersiÃ³n v2.0.312. Estrategia: red primero con cache de respaldo. */
+const CACHE = 'sisventas-v2.0.320';
 const SHELL = [
   './',
   './index.html',
   './css/app.css',
   './js/app.js',
-  './js/app.v2.0.319.js',
+  './js/app.v2.0.320.js',
   './js/core/version.js',
-  './js/core/version.v2.0.319.js',
+  './js/core/version.v2.0.320.js',
   './js/core/login.js',
   './js/core/access-control.js',
   './js/core/firebase.js',
@@ -85,8 +85,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Todo el código y los estilos deben salir de la red sin la caché HTTP
-  // intermedia. Así una versión nueva no mezcla módulos nuevos y antiguos.
+  // Todo el cÃ³digo y los estilos deben salir de la red sin la cachÃ© HTTP
+  // intermedia. AsÃ­ una versiÃ³n nueva no mezcla mÃ³dulos nuevos y antiguos.
   const esArchivoCritico = event.request.mode === 'navigate'
     || /\/(?:index\.html|sw\.js|js\/.*\.js|css\/.*\.css)$/.test(url.pathname);
   const solicitudRed = esArchivoCritico
@@ -105,3 +105,4 @@ self.addEventListener('fetch', (event) => {
       )),
   );
 });
+

@@ -839,6 +839,20 @@ function metricasListaProducto(p) {
   if (_prodMetricasListaCache && _prodMetricasListaCache.has(p)) {
     return _prodMetricasListaCache.get(p);
   }
+  // El listado rápido evita auditorías costosas para cientos de productos,
+  // pero un artículo por metro necesita respetar la misma fuente unitaria que
+  // usan la ficha y los selectores de presupuesto/venta.
+  if (String(p.unidad || '').toLowerCase() === 'metro') {
+    var compraMetro = costoUnitarioProveedorPrincipalProducto(p);
+    if (compraMetro > 0) {
+      var resultadoMetro = {
+        compra: compraMetro,
+        venta: precioVentaDesdeCostoUnitarioProducto(p, compraMetro)
+      };
+      if (_prodMetricasListaCache) _prodMetricasListaCache.set(p, resultadoMetro);
+      return resultadoMetro;
+    }
+  }
   var primerPositivo = function(valores) {
     for (var i = 0; i < valores.length; i++) {
       var numero = parseFloat(valores[i]);
@@ -6697,13 +6711,35 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.317-firebase',
+  VERSION: 'v2.0.320-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Al restaurar el actualizador desde la barra inferior, conserva su tamaño completo.',
-    'La barra de avance y los botones quedan siempre visibles.'
+    'Mercado Libre reconoce el precio estructurado de las fichas canónicas actuales.',
+    'El diagnóstico diferencia publicación histórica, catálogo e impedimentos de acceso.',
+    'La pantalla inicial identifica claramente la versión que está cargando.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Actualizar productos' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.320',
+      date: '11/08/2026',
+      title: 'Actualizador y publicación de versión',
+      notes: Object.freeze(['Se publica el estado de cambios finales en el actualizador de precios y la experiencia de ejecución.', 'Se deja trazable en Novedades la versión vigente para control de actualización automática.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador de precios' })
+    }),
+    Object.freeze({
+      version: 'v2.0.319',
+      date: '10/08/2026',
+      title: 'Mercado Libre: catálogo actual y diagnóstico más preciso',
+      notes: Object.freeze(['El cotizador incorpora el endpoint múltiple oficial y los datos estructurados públicos como respaldos compatibles.', 'Las URLs canónicas de catálogo pueden informar precio, disponibilidad e identidad aunque el endpoint histórico de la publicación esté restringido.', 'Los rechazos 403 y las verificaciones de seguridad conservan una causa concreta para facilitar la corrección de la URL.', 'La pantalla inicial muestra la versión activa mientras sincroniza los datos principales.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Probar actualizador de precios' })
+    }),
+    Object.freeze({
+      version: 'v2.0.318',
+      date: '09/08/2026',
+      title: 'Actualizador: reintento de inconvenientes y respaldo de Mercado Libre',
+      notes: Object.freeze(['Los resultados fallidos se pueden reconsultar en un solo paso con el cotizador actualizado.', 'Para Mercado Libre se usa el metadato SEO público del precio vigente cuando la API oficial no está disponible.']),
+      feature: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir actualizador de precios' })
+    }),
     Object.freeze({
       version: 'v2.0.317',
       date: '09/08/2026',
@@ -9469,6 +9505,48 @@ function obtenerProductoPorCodigoVenta(cod, item) {
   return prod || null;
 }
 
+function _kitLista() {
+  return Object.values(KITS_DATA || {}).map(function(k) {
+    return Object.assign({ fbKey: k.fbKey }, k);
+  });
+}
+
+function _kitPrecioVentaARS(kit) {
+  var precio = parseFloat(kit && (kit.precioVenta || kit.precio || kit.venta || kit.total || kit.valorVenta || 0)) || 0;
+  if (precio > 0) return precio;
+  var componentes = (kit && Array.isArray(kit.componentes)) ? kit.componentes : [];
+  return componentes.reduce(function(acum, comp) {
+    return acum + (parseFloat(comp && comp.costo) || 0) * (parseFloat(comp && comp.cantidad) || 1);
+  }, 0);
+}
+
+function obtenerKitPorCodigoVenta(cod, item) {
+  var codNorm = normalizarCodigoProducto(cod || (item && (item.cod || item.codigo)) || '');
+  var kitKey = item && (item.kitFbKey || item.kitKey || item.kitId || item.kitRef);
+  var lista = _kitLista();
+  var kit = null;
+  if (kitKey) {
+    var kk = String(kitKey || '').trim();
+    kit = lista.find(function(k){ return String(k.fbKey || '') === kk || String(k.codigo || '') === kk || String(k.id || '') === kk; });
+  }
+  if (!kit && codNorm) {
+    kit = lista.find(function(k) {
+      return normalizarCodigoProducto(k.codigo) === codNorm || normalizarCodigoProducto(k.nombre || k.descripcion) === codNorm;
+    });
+  }
+  return kit || null;
+}
+
+function obtenerItemVenta(cod, item) {
+  var prod = obtenerProductoPorCodigoVenta(cod, item);
+  if (prod) return { tipo: 'producto', item: prod };
+
+  var kit = obtenerKitPorCodigoVenta(cod, item);
+  if (kit) return { tipo: 'kit', item: kit };
+
+  return { tipo: 'desconocido', item: null };
+}
+
 function obtenerCostoUnitarioVenta(cod, item) {
   item = item || {};
   var costoDirecto = parseFloat(item.costoUnitarioCompra || item.costoUnitario || item.costoCompra || item.compra || item.precioCompra || item.precio_compra || 0) || 0;
@@ -10448,6 +10526,36 @@ function costoRealProveedorProducto(pv, ivaProducto) {
   return publicado > 0 ? publicado * factorIvaProveedorProducto(pv, ivaProducto) : 0;
 }
 
+// El proveedor informa el precio de su presentación (por ejemplo, una bobina).
+// Para productos fraccionados por metro, el catálogo opera siempre con el valor
+// unitario: costo de la presentación / metros declarados en la ficha.
+function costoUnitarioProveedorProducto(p, pv) {
+  var costoPresentacion = costoRealProveedorProducto(pv, p && p.iva);
+  if (!(costoPresentacion > 0)) return 0;
+  var unidadesPorPresentacion = metrosPorPresentacionProducto(p);
+  return Math.round((costoPresentacion / unidadesPorPresentacion) * 100) / 100;
+}
+
+function costoUnitarioProveedorPrincipalProducto(p) {
+  var proveedor = _proveedorPrincipalProductoSinReconciliar(p);
+  // Los productos anteriores a la grilla de proveedores conservan proveedor,
+  // precio y URL en campos legacy. proveedoresVinculadosProducto los normaliza
+  // en memoria para que también reciban la misma conversión por metro.
+  if (!proveedor) {
+    var proveedoresLegacy = proveedoresVinculadosProducto(p);
+    proveedor = proveedoresLegacy.length ? proveedoresLegacy[0] : null;
+  }
+  return proveedor ? costoUnitarioProveedorProducto(p, proveedor) : 0;
+}
+
+function precioVentaDesdeCostoUnitarioProducto(p, costoUnitario) {
+  var costo = parseFloat(costoUnitario) || 0;
+  if (!(costo > 0)) return 0;
+  var margen = parseFloat(p && p.margenDeseado);
+  if (!isFinite(margen) || margen < 0 || margen > 500) margen = margenProductoDefault();
+  return Math.round(costo * (1 + margen / 100) * 100) / 100;
+}
+
 function completarReferenciaProveedorProducto(pv, urlFallback, origen) {
   pv = Object.assign({}, pv || {});
   var tc = obtenerDolarReferenciaProducto();
@@ -10742,6 +10850,13 @@ function precioGremioARSDesdeProducto(p) {
   if (auditoriaProducto && auditoriaProducto.costoCorregido > 0) return auditoriaProducto.costoCorregido;
   var legacyMoneda = detectarPrecioLegacyMonedaProducto(p);
   if (legacyMoneda && legacyMoneda.costoCorregido > 0) return legacyMoneda.costoCorregido;
+  // Para metros, el proveedor es la fuente de la presentación y este valor
+  // devuelve el costo por metro. Así ficha, buscador, presupuestos y ventas
+  // nuevas comparten exactamente el mismo cálculo.
+  if (String(p.unidad || '').toLowerCase() === 'metro') {
+    var costoMetroProveedor = costoUnitarioProveedorPrincipalProducto(p);
+    if (costoMetroProveedor > 0) return costoMetroProveedor;
+  }
   var proveedorPrincipal = Array.isArray(p.proveedores) && p.proveedores.length ? p.proveedores[0] : null;
   var tc = obtenerDolarReferenciaProducto();
   // Los campos normalizados del producto son la fuente operativa. Antes se
@@ -10825,6 +10940,18 @@ function precioVentaCanonicoProducto(p) {
       precioOrigen: duplicadoDolar.precioGuardado,
       monedaOrigen: 'ARS_CORREGIDO_DUPLICACION_DOLAR'
     };
+  }
+  // El precio de venta de un producto por metro parte del costo unitario de
+  // proveedor; nunca del valor total de la bobina guardado en datos antiguos.
+  if (String(p.unidad || '').toLowerCase() === 'metro') {
+    var costoMetroVenta = costoUnitarioProveedorPrincipalProducto(p);
+    if (costoMetroVenta > 0) {
+      return {
+        precioARS: precioVentaDesdeCostoUnitarioProducto(p, costoMetroVenta),
+        precioOrigen: costoMetroVenta,
+        monedaOrigen: 'PROVEEDOR_POR_METRO'
+      };
+    }
   }
   var ventaARS = parseFloat(p.ventaARS || p.precioArsPublicadoVenta || 0) || 0;
   if (ventaARS > 0) {
@@ -13551,7 +13678,9 @@ function datosActualizadosProductoBiosegur(item, resultado) {
     var costoMin = costoRealProveedorProducto(min, p.iva);
     return costoX > 0 && costoX < costoMin ? x : min;
   }, pv);
-  var costo = Math.round((parseFloat(principal.costoRealArs) || parseFloat(principal.precio) || 0) * 100) / 100;
+  // El proveedor conserva el precio de la presentación; el producto guarda y
+  // muestra el costo unitario cuando se vende por metro.
+  var costo = costoUnitarioProveedorProducto(p, principal);
   var margen = parseFloat(p.margenDeseado);
   if (!(margen >= 0)) margen = margenProductoDefault();
   var venta = Math.round((costo * (1 + margen / 100)) * 100) / 100;
@@ -18468,18 +18597,28 @@ function imprimirActaOT() {
   _imprimirOTReal();
 }
 
+function nombreArchivoActaOT(ot) {
+  var cliente = String((ot && ot.cliente) || 'cliente').trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  var numero = String((ot && ot.id) || 'sin-numero').replace(/[^a-zA-Z0-9-]+/g, '');
+  return 'Acta-' + numero + (cliente ? '-' + cliente : '');
+}
+
 function _imprimirOTReal() {
   var ot = otData ? otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; }) : null;
   if (!ot) { notify('OT no encontrada'); return; }
   var empresa = { nombre:(document.getElementById('cfg-empresa-nombre')||{}).value||'Nixa', dir:(document.getElementById('cfg-empresa-dir')||{}).value||'Patagones 390, Mar del Plata' };
   var logo = window.logoEmpresaUrl ? '<img src="'+window.logoEmpresaUrl+'" style="height:45px;object-fit:contain">' : '<div style="font-size:20px;font-weight:700">'+empresa.nombre+'</div>';
   var firmaUrl = otFirmaUrl(ot);
+  var firmaTecnicoUrl = otFirmaTecnicoUrl(ot);
+  var nombreArchivo = nombreArchivoActaOT(ot);
   var w = abrirVistaPreviaActaOT(ot);
   if (!w) {
     notify('No se pudo preparar la vista previa del acta.');
     return;
   }
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Acta '+escapeHTML(ot.id||'')+'</title><style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}.field{background:#f9f9f9;border-radius:6px;padding:10px}label{font-size:10px;color:#888;text-transform:uppercase;display:block;margin-bottom:2px}.firma{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px}.firma-line{border-top:1px solid #222;padding-top:6px;font-size:11px;color:#666;text-align:center}@media print{body{margin:20px}}</style></head><body>'+
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+escapeHTML(nombreArchivo)+'</title><style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}.field{background:#f9f9f9;border-radius:6px;padding:10px}label{font-size:10px;color:#888;text-transform:uppercase;display:block;margin-bottom:2px}.firma{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px}.firma-bloque{min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}.firma-img{display:block;margin:0 auto 10px;max-height:112px;max-width:260px;object-fit:contain}.firma-line{width:100%;border-top:1px solid #222;padding-top:7px;font-size:11px;color:#666;text-align:center}@media print{body{margin:20px}}</style></head><body>'+
     '<div class="header"><div>'+logo+'<div style="font-size:11px;color:#666;margin-top:4px">'+empresa.dir+'</div></div>'+
     '<div style="text-align:right"><div style="font-size:18px;font-weight:700">Acta de entrega</div><div style="font-size:15px;font-weight:500">'+escapeHTML(ot.id||'')+'</div><div style="font-size:12px;color:#666">'+escapeHTML(ot.fechaCierre||ot.fechaCompletada||ot.fecha||'')+'</div></div></div>'+
     (function(){
@@ -18518,10 +18657,10 @@ function _imprimirOTReal() {
       '<div class="field" style="margin-bottom:16px"><label>Conformidad del cliente</label>'+escapeHTML(ot.conformidadCliente||'Pendiente')+(ot.nombreConformidad||ot.firmaNombreCliente?' · '+escapeHTML(ot.nombreConformidad||ot.firmaNombreCliente):'')+'</div>'+
       matsHtml + notasHtml;
     })()+
-    '<div class="firma"><div>' +
-      (firmaUrl ? '<img src="'+escapeHTML(firmaUrl)+'" style="max-height:80px;max-width:200px;display:block;margin-bottom:6px">' : '<div style="height:60px"></div>') +
+    '<div class="firma"><div class="firma-bloque">' +
+      (firmaUrl ? '<img class="firma-img" src="'+escapeHTML(firmaUrl)+'">' : '<div style="height:95px"></div>') +
       '<div class="firma-line">Firma del cliente'+(firmaUrl?' ✓':'')+(ot.fechaFirma?' · '+escapeHTML(ot.fechaFirma):'')+'</div></div>'+
-      '<div><div style="height:60px"></div><div class="firma-line">Firma del técnico</div></div></div>'+
+      '<div class="firma-bloque">'+(firmaTecnicoUrl ? '<img class="firma-img" src="'+escapeHTML(firmaTecnicoUrl)+'">' : '<div style="height:95px"></div>')+'<div class="firma-line">Firma del técnico'+(firmaTecnicoUrl?' ✓':'')+(ot.fechaFirmaTecnico?' · '+escapeHTML(ot.fechaFirmaTecnico):'')+'</div></div></div>'+
     '</body></html>');
   w.document.close();
 }
@@ -24718,7 +24857,57 @@ function spAbrirNuevo() {
   document.getElementById('sp-nuevo-cli').value = '';
   document.getElementById('sp-nuevo-cli-id').value = '';
   document.getElementById('sp-nuevo-desc').value = '';
+  spQuitarEvidenciaNueva();
   document.getElementById('sp-modal-nuevo').style.display = 'flex';
+}
+
+function spQuitarEvidenciaNueva() {
+  var input = document.getElementById('sp-nuevo-evidencia');
+  var preview = document.getElementById('sp-nuevo-evidencia-preview');
+  var imagen = document.getElementById('sp-nuevo-evidencia-img');
+  if (imagen && imagen.dataset.objectUrl) URL.revokeObjectURL(imagen.dataset.objectUrl);
+  if (input) input.value = '';
+  if (imagen) { imagen.src = ''; imagen.dataset.objectUrl = ''; }
+  if (preview) preview.style.display = 'none';
+}
+
+function spPrepararEvidenciaNueva(input) {
+  var archivo = input && input.files ? input.files[0] : null;
+  if (!archivo) { spQuitarEvidenciaNueva(); return; }
+  var tipo = String(archivo.type || '').toLowerCase();
+  var extensionValida = /\.(jpe?g|png|webp)$/i.test(archivo.name || '');
+  if (!['image/jpeg','image/jpg','image/png','image/webp'].includes(tipo) && !extensionValida) {
+    notify('La evidencia debe ser una imagen JPG, PNG o WEBP');
+    spQuitarEvidenciaNueva();
+    return;
+  }
+  if (archivo.size > 900 * 1024) {
+    notify('La evidencia no puede superar 900 KB para guardarse de forma inmediata');
+    spQuitarEvidenciaNueva();
+    return;
+  }
+  var imagen = document.getElementById('sp-nuevo-evidencia-img');
+  var preview = document.getElementById('sp-nuevo-evidencia-preview');
+  if (!imagen || !preview) return;
+  if (imagen.dataset.objectUrl) URL.revokeObjectURL(imagen.dataset.objectUrl);
+  imagen.dataset.objectUrl = URL.createObjectURL(archivo);
+  imagen.src = imagen.dataset.objectUrl;
+  preview.style.display = '';
+}
+
+function spSubirEvidenciaNueva(archivo) {
+  // Igual que los comprobantes: el archivo se lee localmente y se guarda junto
+  // con el registro. No depende de una segunda operación a Firebase Storage.
+  return new Promise(function(resolve, reject) {
+    var lector = new FileReader();
+    var temporizador = setTimeout(function() { reject(new Error('La imagen demoró demasiado en prepararse. Probá con una más liviana.')); }, 15000);
+    lector.onload = function(evento) {
+      clearTimeout(temporizador);
+      resolve({ url:evento.target.result, path:null, nombre:archivo.name || 'evidencia.jpg', tipo:archivo.type || '', bytes:archivo.size || 0, metodo:'adjunto_base64' });
+    };
+    lector.onerror = function() { clearTimeout(temporizador); reject(new Error('No se pudo leer la imagen seleccionada.')); };
+    lector.readAsDataURL(archivo);
+  });
 }
 
 function spBuscarCliente(val) {
@@ -24741,12 +24930,26 @@ function spSelCliente(nombre, id) {
   document.getElementById('sp-nuevo-cli-drop').style.display = 'none';
 }
 
-function spGuardarNuevo() {
+async function spGuardarNuevo() {
   var cli = document.getElementById('sp-nuevo-cli').value.trim();
   var cliSel = document.getElementById('sp-nuevo-cli-id').value;
   var desc = document.getElementById('sp-nuevo-desc').value.trim();
+  var evidenciaInput = document.getElementById('sp-nuevo-evidencia');
+  var evidenciaArchivo = evidenciaInput && evidenciaInput.files ? evidenciaInput.files[0] : null;
   if (!cli) { notify('Ingresá el cliente'); return; }
   if (!desc) { notify('Ingresá la descripción del problema'); return; }
+  if (!evidenciaArchivo) { notify('Adjuntá una foto o captura de la falla antes de registrar el reclamo'); return; }
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var botonGuardar = document.getElementById('sp-nuevo-guardar');
+  if (botonGuardar) { botonGuardar.disabled = true; botonGuardar.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Preparando evidencia…'; }
+  var evidencia;
+  try {
+    evidencia = await spSubirEvidenciaNueva(evidenciaArchivo);
+  } catch (errorEvidencia) {
+    if (botonGuardar) { botonGuardar.disabled = false; botonGuardar.innerHTML = '<i class="ti ti-check"></i> Registrar reclamo'; }
+    notify('No se pudo preparar la evidencia: ' + errorEvidencia.message);
+    return;
+  }
   var clienteRef = (typeof window._svResolverClienteRegistro === 'function')
     ? window._svResolverClienteRegistro({ cliente:cli, clienteId:cliSel, idCliente:cliSel, clienteFbKey:cliSel }, true)
     : null;
@@ -24760,13 +24963,18 @@ function spGuardarNuevo() {
     clienteFbKey: clienteFbKeyReclamo,
     clienteKey:   clienteFbKeyReclamo,
     descripcion: desc,
+    evidenciaUrl: evidencia.url,
+    evidenciaStoragePath: evidencia.path,
+    evidenciaNombre: evidencia.nombre,
+    evidenciaTipo: evidencia.tipo,
+    evidenciaTamano: evidencia.bytes,
+    evidenciaMetodo: evidencia.metodo || 'adjunto_base64',
     estado:      'nuevo',
     ts:          Date.now(),
     usuario:     currentUser||'',
-    historial:   [{ texto:'Reclamo registrado', autor: currentUser||'sistema', ts: Date.now() }]
+    historial:   [{ texto:'Reclamo registrado con evidencia adjunta', autor: currentUser||'sistema', ts: Date.now(), fotoUrl:evidencia.url }]
   };
 
-  if (!window.fbDB) { notify('Sin conexión'); return; }
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/reclamos'), reclamo)
     .then(function(ref) {
       reclamo.fbKey = ref.key;
@@ -24777,7 +24985,10 @@ function spGuardarNuevo() {
       spActualizarMetricas();
       spAbrirModal(ref.key);
     })
-    .catch(function(e){ notify('Error: '+e.message); });
+    .catch(function(e){ notify('Error: '+e.message); })
+    .finally(function() {
+      if (botonGuardar) { botonGuardar.disabled = false; botonGuardar.innerHTML = '<i class="ti ti-check"></i> Registrar reclamo'; }
+    });
 }
 function spAbrirModal(fbKey) {
   var r = SP_DATA[fbKey];
@@ -24788,6 +24999,17 @@ function spAbrirModal(fbKey) {
   document.getElementById('sp-modal-titulo').textContent = 'Reclamo — ' + (r.cliente||'');
   document.getElementById('sp-modal-cliente').textContent = r.cliente||'—';
   document.getElementById('sp-modal-desc').textContent = r.descripcion||'—';
+  var evidenciaWrap = document.getElementById('sp-modal-evidencia-wrap');
+  var evidenciaLink = document.getElementById('sp-modal-evidencia');
+  var evidenciaImg = evidenciaLink ? evidenciaLink.querySelector('img') : null;
+  var evidenciaUrl = String(r.evidenciaUrl || r.fotoUrl || '').trim();
+  if (evidenciaWrap && evidenciaLink && evidenciaImg && evidenciaUrl) {
+    evidenciaLink.href = evidenciaUrl;
+    evidenciaImg.src = evidenciaUrl;
+    evidenciaWrap.style.display = 'flex';
+  } else if (evidenciaWrap) {
+    evidenciaWrap.style.display = 'none';
+  }
   document.getElementById('sp-modal-fecha').textContent = spFormatFecha(r.ts);
   document.getElementById('sp-modal-estado-badge').innerHTML = '<span class="badge '+est.badge+'">'+est.label+'</span>';
 
@@ -24836,6 +25058,42 @@ function spCerrarModal() {
   SP_MODAL_KEY = null;
 }
 
+async function spEliminarReclamo() {
+  var esAdmin = String(currentRole || '').toLowerCase() === 'admin';
+  if (!esAdmin) { notify('Solo un administrador puede eliminar reclamos'); return; }
+  var clave = SP_MODAL_KEY;
+  var reclamo = clave && SP_DATA[clave];
+  if (!clave || !reclamo || !window.fbDB) { notify('No se pudo identificar el reclamo'); return; }
+  var tieneVinculo = !!(reclamo.otKey || reclamo.otId || reclamo.otNumero || reclamo.ventaKey || reclamo.ventaFbKey || reclamo.ventaId);
+  var mensaje = tieneVinculo
+    ? '¿Eliminar este reclamo? La OT o venta vinculada se conservará; solo se quitará el vínculo al reclamo para no dejar datos rotos.'
+    : '¿Eliminar este reclamo? Esta acción no se puede deshacer.';
+  if (!await svConfirm(mensaje)) return;
+  var boton = document.getElementById('sp-modal-eliminar');
+  if (boton) { boton.disabled = true; boton.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Eliminando…'; }
+  try {
+    var ot = _buscarOTCanonicaPorClave(reclamo.otKey, reclamo.otId || reclamo.otNumero);
+    if (ot && ot.fbKey) {
+      await otPersistirActualizar(ot.fbKey, {
+        reclamoKey:null, reclamoId:null, reclamoFbKey:null,
+        origen: (ot.ventaId || ot.ventaFbKey || ot.ventaKey) ? 'venta' : 'manual'
+      });
+      ot.reclamoKey = null;
+      ot.reclamoId = null;
+      ot.reclamoFbKey = null;
+    }
+    await window.fbRemove(window.fbRef(window.fbDB, 'sisventas/reclamos/' + clave));
+    delete SP_DATA[clave];
+    spCerrarModal();
+    spRenderLista();
+    spActualizarMetricas();
+    notify('✓ Reclamo eliminado');
+  } catch (error) {
+    notify('No se pudo eliminar el reclamo: ' + error.message);
+    if (boton) { boton.disabled = false; boton.innerHTML = '<i class="ti ti-trash"></i> Eliminar reclamo'; }
+  }
+}
+
 function spRenderAcciones(estado) {
   var cont = document.getElementById('sp-modal-acciones');
   var btns = [];
@@ -24856,6 +25114,9 @@ function spRenderAcciones(estado) {
   }
   if (estado !== 'cerrado') {
     btns.push('<button class="btn btn-sm" onclick="spCerrarSinResolver()" style="color:var(--text3);margin-top:4px"><i class="ti ti-x"></i> Cerrar sin resolver</button>');
+  }
+  if (String(currentRole || '').toLowerCase() === 'admin') {
+    btns.push('<button class="btn btn-sm" id="sp-modal-eliminar" onclick="spEliminarReclamo()" style="color:var(--red);border-color:var(--red);margin-top:8px"><i class="ti ti-trash"></i> Eliminar reclamo</button>');
   }
 
   cont.innerHTML = btns.join('');
@@ -33890,6 +34151,19 @@ function actualizarPanelIntegridadOT() {
   return auditoria;
 }
 
+function otRenderProductosAdicionales(materiales) {
+  var box = document.getElementById('ot-productos-adicionales-box');
+  var cuerpo = document.getElementById('ot-materiales-adicionales');
+  if (!box || !cuerpo) return;
+  var adicionales = (materiales || []).filter(function(material) { return material && material.adicionalOT === true; });
+  box.style.display = adicionales.length ? '' : 'none';
+  if (!adicionales.length) { cuerpo.innerHTML = ''; return; }
+  cuerpo.innerHTML = adicionales.map(function(material) {
+    var cantidad = Number(material.vendida || material.qty || material.cantidad || 0);
+    return '<tr><td style="font-size:12px;color:var(--text3)">' + escapeHTML(material.cod || material.codigo || '') + '</td><td>' + escapeHTML(material.desc || material.nombre || material.descripcion || '') + '</td><td class="tr">' + escapeHTML(String(cantidad)) + '</td></tr>';
+  }).join('');
+}
+
 function verOT(id) {
   var ot = otData.find(function(o){ return o.fbKey === id; })
         || otData.find(function(o){ return o.id === id; });
@@ -34051,6 +34325,9 @@ function verOT(id) {
     firmaLimpiar(true);
     firmaInicializar();
     firmaCargar(ot);
+    firmaTecnicoLimpiar(true);
+    firmaTecnicoInicializar();
+    firmaTecnicoCargar(ot);
   }, 100);
   var reclamoBox = document.getElementById('ot-reclamo-box');
   if (reclamoBox) {
@@ -34059,6 +34336,17 @@ function verOT(id) {
       reclamoBox.style.display = '';
       var descEl = document.getElementById('ot-reclamo-desc');
       if (descEl) descEl.textContent = reclamo.descripcion||'';
+      var evidenciaOTWrap = document.getElementById('ot-reclamo-evidencia-wrap');
+      var evidenciaOTLink = document.getElementById('ot-reclamo-evidencia');
+      var evidenciaOTImg = evidenciaOTLink ? evidenciaOTLink.querySelector('img') : null;
+      var evidenciaOTUrl = String(reclamo.evidenciaUrl || reclamo.fotoUrl || '').trim();
+      if (evidenciaOTWrap && evidenciaOTLink && evidenciaOTImg && evidenciaOTUrl) {
+        evidenciaOTLink.href = evidenciaOTUrl;
+        evidenciaOTImg.src = evidenciaOTUrl;
+        evidenciaOTWrap.style.display = '';
+      } else if (evidenciaOTWrap) {
+        evidenciaOTWrap.style.display = 'none';
+      }
       var histEl = document.getElementById('ot-reclamo-hist');
       if (histEl) {
         var hist = reclamo.historial || [];
@@ -34141,6 +34429,7 @@ function verOT(id) {
     }
 
     var materialesFiltrados = materiales.map(function(m, indice){ return Object.assign({_indice:indice}, m); }).filter(function(m){
+      if (m.adicionalOT === true) return false;
       var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === m.cod; });
       if (!prod) return true; // si no se encuentra el producto, mostrar igual
       if (prod.esManoDeObra) return false;
@@ -34156,6 +34445,7 @@ function verOT(id) {
         return '<tr><td style="font-size:12px;color:var(--text3)">'+escapeHTML(m.cod||'')+'</td><td>'+escapeHTML(m.desc||'')+'</td><td class="tr">'+m.vendida+'</td><td class="tr">—</td><td class="tr"><input type="checkbox" '+(instalado?'checked':'')+' onchange="otToggleInstalado(this,'+m._indice+','+m.vendida+')"></td></tr>';
       }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:12px">Sin materiales</td></tr>';
     }
+    otRenderProductosAdicionales(materiales);
   }
 
   aplicarVistaTecnicoOT();
@@ -34309,7 +34599,48 @@ function otQuitarCarrito(idx) {
   otRenderCarritoAdicional();
 }
 
+async function otConfirmarProductosAdicionales() {
+  if (!_otCarritoAdicional.length) { notify('Agregá al menos un producto'); return; }
+  var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+  if (!ot || !ot.fbKey || !window.fbDB) { notify('No se pudo identificar la OT'); return; }
+  var fecha = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toLocaleDateString('en-CA');
+  var materiales = (ot.materiales || []).slice();
+  _otCarritoAdicional.forEach(function(item) {
+    var existente = materiales.find(function(material) {
+      return material && material.adicionalOT === true && String(material.cod || material.codigo || '') === String(item.codigo || '');
+    });
+    if (existente) {
+      existente.vendida = Number(existente.vendida || existente.qty || 0) + Number(item.cantidad || 0);
+      existente.qty = existente.vendida;
+      existente.cantidad = existente.vendida;
+      return;
+    }
+    materiales.push({
+      cod:item.codigo || '', desc:item.nombre || '', vendida:Number(item.cantidad || 1), qty:Number(item.cantidad || 1), cantidad:Number(item.cantidad || 1), instalada:0,
+      punit:Number(item.precio || 0), sub:Number(item.precio || 0) * Number(item.cantidad || 1),
+      adicionalOT:true, origen:'adicional_ot', agregadoEn:fecha, agregadoPor:currentUser || ''
+    });
+  });
+  var audit = Array.isArray(ot.audit) ? ot.audit.slice() : [];
+  audit.push({ fecha:new Date().toLocaleDateString('es-AR'), usuario:currentUser || 'Sistema', accion:_otCarritoAdicional.length + ' producto(s) adicional(es) agregado(s) a la OT, sin generar venta.' });
+  try {
+    await otPersistirActualizar(ot.fbKey, { materiales:materiales, audit:audit });
+    ot.materiales = materiales;
+    ot.audit = audit;
+    _otCarritoAdicional = [];
+    otCerrarSelectorProductos();
+    verOT(ot.fbKey);
+    notify('✓ Productos adicionales agregados a la OT');
+  } catch (error) {
+    notify('No se pudieron agregar los productos: ' + error.message);
+  }
+}
+
 async function otConfirmarVentaAdicional() {
+  return otConfirmarProductosAdicionales();
+}
+
+async function _otConfirmarVentaAdicionalLegacy() {
   if (!_otCarritoAdicional.length) { notify('Agregá al menos un producto'); return; }
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !window.fbDB) return;
@@ -34399,6 +34730,49 @@ var _firmaTiene  = false;
 var _firmaGuardando = false;
 var _firmaGuardadoTimer = null;
 var _firmaGuardadoPendiente = false;
+var _firmaTecnicoCtx = null;
+var _firmaTecnicoDibujo = false;
+var _firmaTecnicoTiene = false;
+var _firmaTecnicoGuardando = false;
+var _firmaTecnicoGuardadoTimer = null;
+var _firmaTecnicoGuardadoPendiente = false;
+
+function firmaCambiarPestana(tipo) {
+  tipo = tipo === 'tecnico' ? 'tecnico' : 'cliente';
+  ['cliente', 'tecnico'].forEach(function(nombre) {
+    var activa = nombre === tipo;
+    var tab = document.getElementById('ot-firma-tab-' + nombre);
+    var panel = document.getElementById('ot-firma-panel-' + nombre);
+    if (tab) {
+      tab.classList.toggle('activa', activa);
+      tab.setAttribute('aria-selected', activa ? 'true' : 'false');
+    }
+    if (panel) {
+      panel.classList.toggle('activa', activa);
+      panel.hidden = !activa;
+    }
+  });
+}
+
+function firmaAplicarBloqueo(tipo, bloqueada) {
+  var esTecnico = tipo === 'tecnico';
+  var superficie = document.getElementById(esTecnico ? 'firma-superficie-tecnico' : 'firma-superficie-cliente');
+  var canvas = document.getElementById(esTecnico ? 'firma-tecnico-canvas' : 'firma-canvas');
+  var editar = document.getElementById(esTecnico ? 'firma-editar-tecnico' : 'firma-editar-cliente');
+  var borrar = document.getElementById(esTecnico ? 'firma-borrar-tecnico' : 'firma-borrar-cliente');
+  if (superficie) superficie.classList.toggle('firma-bloqueada', !!bloqueada);
+  if (canvas) canvas.dataset.firmaBloqueada = bloqueada ? '1' : '0';
+  if (editar) editar.style.display = bloqueada ? '' : 'none';
+  if (borrar) borrar.style.display = bloqueada ? 'none' : '';
+}
+
+async function firmaEditar(tipo) {
+  tipo = tipo === 'tecnico' ? 'tecnico' : 'cliente';
+  var quien = tipo === 'tecnico' ? 'la firma del técnico' : 'la firma del cliente';
+  if (!await svConfirm('¿Reemplazar ' + quien + '? La firma actual se eliminará y se podrá dibujar una nueva.')) return;
+  if (tipo === 'tecnico') firmaTecnicoLimpiar(false);
+  else firmaLimpiar(false, 'cliente');
+}
 
 function firmaInicializar() {
   var canvas = document.getElementById('firma-canvas');
@@ -34424,6 +34798,7 @@ function firmaInicializar() {
   }
 
   function start(e) {
+    if (canvas.dataset.firmaBloqueada === '1') return;
     e.preventDefault();
     _firmaDibujo = true;
     var p = getPos(e);
@@ -34461,6 +34836,7 @@ function firmaLimpiar(soloVisual) {
     _firmaCtx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
   }
   canvas.style.backgroundImage = 'none';
+  firmaAplicarBloqueo('cliente', false);
   if (_firmaGuardadoTimer) clearTimeout(_firmaGuardadoTimer);
   _firmaGuardadoTimer = null;
   _firmaGuardadoPendiente = false;
@@ -34649,6 +35025,7 @@ function firmaGuardarEnOT(firmaUrl, storagePath, otObjetivoId, opciones) {
       badge.style.borderColor = 'var(--green)';
       badge.textContent = '✓ Firma guardada';
     }
+    firmaAplicarBloqueo('cliente', true);
     if (!opciones.silencioso) notify('✓ Firma guardada y conformidad registrada');
     if (typeof actualizarPanelIntegridadOT === 'function') actualizarPanelIntegridadOT();
     return firmaUrl;
@@ -34673,10 +35050,180 @@ function firmaCargar(ot) {
     canvas.style.backgroundPosition = 'center';
     canvas.style.backgroundSize = 'contain';
   }
+  firmaAplicarBloqueo('cliente', true);
   _firmaTiene = true;
   var placeholder = document.getElementById('firma-placeholder');
   if (placeholder) placeholder.style.display = 'none';
   if (typeof actualizarPanelIntegridadOT === 'function') actualizarPanelIntegridadOT();
+}
+
+function otFirmaTecnicoUrl(ot) {
+  if (!ot || typeof ot !== 'object') return '';
+  var firma = ot.firmaTecnicoUrl || ot.firmaTecnicoBase64 || ot.firmaTecnico || '';
+  if (firma && typeof firma === 'object') firma = firma.url || firma.downloadURL || firma.dataUrl || firma.base64 || '';
+  return String(firma || '').trim();
+}
+
+function firmaTecnicoInicializar() {
+  var canvas = document.getElementById('firma-tecnico-canvas');
+  if (!canvas) return;
+  var rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  _firmaTecnicoCtx = canvas.getContext('2d');
+  _firmaTecnicoCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  _firmaTecnicoCtx.strokeStyle = '#1a1a1a';
+  _firmaTecnicoCtx.lineWidth = 2;
+  _firmaTecnicoCtx.lineCap = 'round';
+  _firmaTecnicoCtx.lineJoin = 'round';
+  if (canvas.dataset.firmaInicializada === '1') return;
+  canvas.dataset.firmaInicializada = '1';
+  function posicion(e) {
+    var area = canvas.getBoundingClientRect();
+    var origen = e.touches ? e.touches[0] : e;
+    return { x: origen.clientX - area.left, y: origen.clientY - area.top };
+  }
+  function iniciar(e) {
+    if (canvas.dataset.firmaBloqueada === '1') return;
+    e.preventDefault();
+    _firmaTecnicoDibujo = true;
+    var p = posicion(e);
+    _firmaTecnicoCtx.beginPath();
+    _firmaTecnicoCtx.moveTo(p.x, p.y);
+    var placeholder = document.getElementById('firma-tecnico-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+  }
+  function mover(e) {
+    if (!_firmaTecnicoDibujo) return;
+    e.preventDefault();
+    var p = posicion(e);
+    _firmaTecnicoCtx.lineTo(p.x, p.y);
+    _firmaTecnicoCtx.stroke();
+    _firmaTecnicoTiene = true;
+  }
+  function terminar(e) {
+    if (!_firmaTecnicoDibujo) return;
+    e.preventDefault();
+    _firmaTecnicoDibujo = false;
+    if (_firmaTecnicoTiene) firmaTecnicoProgramarAutoguardado();
+  }
+  canvas.addEventListener('mousedown', iniciar, { passive:false });
+  canvas.addEventListener('mousemove', mover, { passive:false });
+  canvas.addEventListener('mouseup', terminar, { passive:false });
+  canvas.addEventListener('touchstart', iniciar, { passive:false });
+  canvas.addEventListener('touchmove', mover, { passive:false });
+  canvas.addEventListener('touchend', terminar, { passive:false });
+}
+
+function firmaTecnicoLimpiar(soloVisual) {
+  var canvas = document.getElementById('firma-tecnico-canvas');
+  if (!canvas) return;
+  if (_firmaTecnicoCtx) _firmaTecnicoCtx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+  canvas.style.backgroundImage = 'none';
+  firmaAplicarBloqueo('tecnico', false);
+  if (_firmaTecnicoGuardadoTimer) clearTimeout(_firmaTecnicoGuardadoTimer);
+  _firmaTecnicoGuardadoTimer = null;
+  _firmaTecnicoGuardadoPendiente = false;
+  _firmaTecnicoTiene = false;
+  var placeholder = document.getElementById('firma-tecnico-placeholder');
+  var badge = document.getElementById('firma-tecnico-guardada-badge');
+  if (placeholder) placeholder.style.display = '';
+  if (badge) badge.style.display = 'none';
+  if (soloVisual === true) return;
+  var ot = (otData || []).find(function(o) { return o.fbKey === otActualId || o.id === otActualId; });
+  if (!ot || !ot.fbKey || !window.fbDB) return;
+  var firmaAnterior = otFirmaTecnicoUrl(ot);
+  var pathAnterior = ot.firmaTecnicoStoragePath || '';
+  window._otGuardandoLocalHasta = Date.now() + 2500;
+  otPersistirActualizar(ot.fbKey, { firmaTecnicoUrl:null, firmaTecnicoBase64:null, firmaTecnico:null, firmaTecnicoStoragePath:null, firmadaTecnico:false, fechaFirmaTecnico:null })
+    .then(function() {
+      ot.firmaTecnicoUrl = null;
+      ot.firmaTecnicoBase64 = null;
+      ot.firmaTecnico = null;
+      ot.firmaTecnicoStoragePath = null;
+      ot.firmadaTecnico = false;
+      ot.fechaFirmaTecnico = null;
+      if (pathAnterior && window.fbDeleteObject && window.fbStorageRef && window.fbStorage) window.fbDeleteObject(window.fbStorageRef(window.fbStorage, pathAnterior)).catch(function(){});
+      notify('Firma del técnico eliminada');
+    }).catch(function(error) {
+      ot.firmaTecnicoUrl = firmaAnterior;
+      ot.firmaTecnicoStoragePath = pathAnterior;
+      firmaTecnicoCargar(ot);
+      notify('No se pudo eliminar la firma del técnico: ' + error.message);
+    });
+}
+
+function firmaTecnicoProgramarAutoguardado() {
+  if (_firmaTecnicoGuardadoTimer) clearTimeout(_firmaTecnicoGuardadoTimer);
+  _firmaTecnicoGuardadoPendiente = true;
+  var badge = document.getElementById('firma-tecnico-guardada-badge');
+  if (badge) { badge.style.display = ''; badge.textContent = 'Firma lista · guardando al terminar…'; }
+  _firmaTecnicoGuardadoTimer = setTimeout(function() { _firmaTecnicoGuardadoTimer = null; firmaTecnicoAutoguardar(); }, 2600);
+}
+
+function firmaTecnicoGuardarEnOT(firmaUrl, storagePath, otObjetivoId, opciones) {
+  opciones = opciones || {};
+  var objetivo = otObjetivoId || otActualId;
+  var ot = (otData || []).find(function(o) { return o.fbKey === objetivo || o.id === objetivo; });
+  if (!ot || !ot.fbKey || !window.fbDB) return Promise.reject(new Error('No se encontró la OT de la firma del técnico'));
+  var pathAnterior = ot.firmaTecnicoStoragePath || '';
+  var fecha = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toLocaleDateString('en-CA');
+  window._otGuardandoLocalHasta = Date.now() + 2500;
+  return otPersistirActualizar(ot.fbKey, { firmaTecnicoUrl:firmaUrl, firmaTecnicoStoragePath:storagePath || null, firmadaTecnico:true, fechaFirmaTecnico:fecha })
+    .then(function() {
+      ot.firmaTecnicoUrl = firmaUrl;
+      ot.firmaTecnicoStoragePath = storagePath || null;
+      ot.firmadaTecnico = true;
+      ot.fechaFirmaTecnico = fecha;
+      if (pathAnterior && pathAnterior !== storagePath && window.fbDeleteObject && window.fbStorageRef && window.fbStorage) window.fbDeleteObject(window.fbStorageRef(window.fbStorage, pathAnterior)).catch(function(){});
+      var badge = document.getElementById('firma-tecnico-guardada-badge');
+      if (badge) { badge.style.display = ''; badge.textContent = '✓ Firma guardada'; }
+      firmaAplicarBloqueo('tecnico', true);
+      if (!opciones.silencioso) notify('✓ Firma del técnico guardada');
+      return firmaUrl;
+    });
+}
+
+function firmaTecnicoAutoguardar() {
+  var canvas = document.getElementById('firma-tecnico-canvas');
+  if (!canvas || !_firmaTecnicoTiene || _firmaTecnicoGuardando) return Promise.resolve(false);
+  var ot = (otData || []).find(function(o) { return o.fbKey === otActualId || o.id === otActualId; });
+  if (!ot || !ot.fbKey) return Promise.reject(new Error('No se encontró la OT donde se dibujó la firma'));
+  _firmaTecnicoGuardando = true;
+  _firmaTecnicoGuardadoPendiente = false;
+  var dataUrl = firmaDataUrlCompacta(canvas);
+  return firmaTecnicoGuardarEnOT(dataUrl, null, ot.fbKey).then(function() {
+    var storageDisponible = window.fbStorage && window.fbStorageRef && window.fbUploadBytes && window.fbGetDownloadURL;
+    if (!storageDisponible) return true;
+    var partes = dataUrl.split(','), mime = partes[0].match(/:(.*?);/)[1], binario = atob(partes[1]), largo = binario.length, bytes = new Uint8Array(largo);
+    while (largo--) bytes[largo] = binario.charCodeAt(largo);
+    var path = 'sisventas/ots/' + ot.fbKey + '/firma-tecnico/' + Date.now() + '.png';
+    var ref = window.fbStorageRef(window.fbStorage, path);
+    window.fbUploadBytes(ref, new Blob([bytes], {type:mime}), { contentType:'image/png', cacheControl:'public,max-age=31536000' })
+      .then(function(snap) { return window.fbGetDownloadURL(snap.ref); })
+      .then(function(url) { return firmaTecnicoGuardarEnOT(url, path, ot.fbKey, {silencioso:true}); })
+      .catch(function(error) { console.warn('[Firma técnico] Se conserva el respaldo en la OT:', error); });
+    return true;
+  }).catch(function(error) { notify('No se pudo guardar la firma del técnico: ' + error.message); return false; })
+    .finally(function() { _firmaTecnicoGuardando = false; if (_firmaTecnicoGuardadoPendiente) firmaTecnicoProgramarAutoguardado(); });
+}
+
+function firmaTecnicoCargar(ot) {
+  var url = otFirmaTecnicoUrl(ot);
+  if (!url) return;
+  var canvas = document.getElementById('firma-tecnico-canvas');
+  var badge = document.getElementById('firma-tecnico-guardada-badge');
+  if (canvas) {
+    canvas.style.backgroundImage = 'url("' + String(url).replace(/["\\\n\r]/g, '') + '")';
+    canvas.style.backgroundRepeat = 'no-repeat';
+    canvas.style.backgroundPosition = 'center';
+    canvas.style.backgroundSize = 'contain';
+  }
+  if (badge) { badge.style.display = ''; badge.textContent = '✓ Firma guardada'; }
+  var placeholder = document.getElementById('firma-tecnico-placeholder');
+  if (placeholder) placeholder.style.display = 'none';
+  firmaAplicarBloqueo('tecnico', true);
+  _firmaTecnicoTiene = true;
 }
 
 var _otCredencialesCargaSecuencia = 0;

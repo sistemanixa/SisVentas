@@ -34,6 +34,16 @@ test('restaurar desde la barra minimizada conserva el layout flex del panel', ()
   assert.doesNotMatch(funcion, /panel\.style\.display = '';/);
 });
 
+test('el actualizador se puede maximizar y restaura su tamaño manual previo', () => {
+  const inicio = app.indexOf('function alternarMaximizarActualizadorMasivoPrecios');
+  const fin = app.indexOf('function abrirDesdeBarraActualizadorMinimizado', inicio);
+  const funcion = app.slice(inicio, fin);
+  assert.match(funcion, /panel\._estiloAntesMaximizar/);
+  assert.match(funcion, /width:'calc\(100vw - 16px\)'/);
+  assert.match(funcion, /height:'calc\(100vh - 16px\)'/);
+  assert.match(app, /id="btn-maximizar-actualizador"/);
+});
+
 test('corregir un nombre recalcula los pendientes de la ventana abierta', () => {
   const inicio = app.indexOf('async function reintentarProductoConNombreCorregidoActualizador');
   const fin = app.indexOf('async function guardarUrlFallidoActualizador', inicio);
