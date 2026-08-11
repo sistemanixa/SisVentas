@@ -35,3 +35,13 @@ test('solo el administrador puede eliminar un reclamo sin romper su OT vinculada
   assert.match(app, /sisventas\/reclamos\//);
   assert.match(app, /id="sp-modal-eliminar"/);
 });
+
+test('los mensajes activos de soporte conservan correctamente tildes y símbolos', () => {
+  const inicio = app.indexOf('function spPasarAVisitaYGenerarOT');
+  const fin = app.indexOf('// ── AGENDA', inicio);
+  const soporte = app.slice(inicio, fin > inicio ? fin : undefined);
+  assert.match(soporte, /Ya se está generando la OT/);
+  assert.match(soporte, /Elegí el técnico asignado/);
+  assert.match(soporte, /✓ Venta y OT generadas\. Técnico:/);
+  assert.doesNotMatch(soporte, /Ã|Â|âœ/);
+});

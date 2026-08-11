@@ -1551,7 +1551,7 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug }) {
       muestra: bodyText.slice(0, 900)
     });
     if (/usuario.*clave|login/i.test(bodyText) && !/mi cuenta|salir/i.test(bodyText)) {
-      throw new Error('La URL exacta abriÃ³ sin sesiÃ³n activa; no se puede leer precio gremio');
+      throw new Error('La URL exacta abrió sin sesión activa; no se puede leer el precio gremio');
     }
 
     const precioArs = extraerPrecioBiosegur(bodyText);

@@ -12553,12 +12553,12 @@ function actualizarResumenActualizadorEnSegundoPlano() {
 
 function renderModuloActualizadorPrecios() {
   renderModuloActualizadorPreciosBasico();
-  // El shell aparece primero; el resumen se completa automÃ¡ticamente por tandas.
+  // El shell aparece primero; el resumen se completa automáticamente por tandas.
   setTimeout(actualizarResumenActualizadorEnSegundoPlano, 0);
 }
 
 // Construye el resumen en lotes chicos.  No usa productosBiosegurActualizables()
-// porque esa funciÃ³n recorre el catÃ¡logo completo de manera sincrÃ³nica.
+// porque esa función recorre el catálogo completo de manera sincrónica.
 function iniciarResumenActualizadorIncremental(token) {
   var productos = Object.values(prodData || {}), indice = 0;
   var porTipo = {};
@@ -12602,7 +12602,7 @@ function iniciarResumenActualizadorIncremental(token) {
     pintar(false);
     if (indice < productos.length) {
       // Un respiro real entre lotes: evita que el navegador encadene callbacks
-      // ociosos y deje los clics esperando mientras el catÃ¡logo es grande.
+      // ociosos y deje los clics esperando mientras el catálogo es grande.
       setTimeout(siguiente, 16);
     } else {
       pintar(true);
@@ -25560,7 +25560,7 @@ function spPasarAVisitaYGenerarOT(reclamoKey) {
     return;
   }
   if (_spOTGeneracionPorReclamo[rKey]) {
-    notify('Ya se estÃ¡ generando la OT para este reclamo');
+    notify('Ya se está generando la OT para este reclamo');
     if (SP_MODAL_KEY === rKey) spAbrirModal(rKey);
     return _spOTGeneracionPorReclamo[rKey];
   }
@@ -25590,8 +25590,8 @@ async function spGenerarOT(reclamoKey) {
   var opciones = tecnicos.length
     ? tecnicos.map(function(t,i){ return i+') '+t.nombre; }).join('\n')
     : '(sin empleados cargados)';
-  var selIdx = await svPrompt('ElegÃ­ el tÃ©cnico asignado:\n' + opciones);
-  if (selIdx === null) return; // cancelÃ³
+  var selIdx = await svPrompt('Elegí el técnico asignado:\n' + opciones);
+  if (selIdx === null) return; // canceló
   var tecnico = (tecnicos[parseInt(selIdx)]) ? tecnicos[parseInt(selIdx)].nombre : 'Sin asignar';
 
   var punit = parseFloat(prodVisita.venta) || 0;
@@ -25625,7 +25625,7 @@ async function spGenerarOT(reclamoKey) {
     reclamoId:  r.id || r.numero || rKey,
     items: [{
       cod:   prodVisita.codigo||'',
-      desc:  prodVisita.nombre||prodVisita.descripcion||'Visita tÃ©cnica',
+      desc:  prodVisita.nombre||prodVisita.descripcion||'Visita técnica',
       qty:   1,
       punit: punit,
       sub:   sub
@@ -25635,7 +25635,7 @@ async function spGenerarOT(reclamoKey) {
     total:    total,
     pagos:    [],
     obs:      'Generada desde reclamo: ' + (r.descripcion||''),
-    audit: [{ fecha: fechaHoy, usuario: currentUser||'Sistema', accion: 'Venta creada automÃ¡ticamente desde reclamo de soporte' }]
+    audit: [{ fecha: fechaHoy, usuario: currentUser||'Sistema', accion: 'Venta creada automáticamente desde reclamo de soporte' }]
   };
 
   try {
@@ -25690,7 +25690,7 @@ async function spGenerarOT(reclamoKey) {
     }
 
     if (!otFbKey || !otCanonica || !String(otCanonica.id || '').trim()) {
-      throw new Error('La OT creada no tiene identificador canÃ³nico');
+      throw new Error('La OT creada no tiene identificador canónico');
     }
 
     var actualizado = await spCambiarEstado('ot_activa', {
@@ -25705,7 +25705,7 @@ async function spGenerarOT(reclamoKey) {
     }, rKey);
 
     if (actualizado) {
-      notify('âœ“ Venta y OT generadas. TÃ©cnico: ' + tecnico + ' Â· Total: $' + total.toLocaleString('es-AR'));
+      notify('✓ Venta y OT generadas. Técnico: ' + tecnico + ' · Total: $' + total.toLocaleString('es-AR'));
     }
     // Refuerzo de vínculo bilateral en memoria.
     r.otKey = otFbKey;
