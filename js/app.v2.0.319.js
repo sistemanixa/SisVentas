@@ -2650,7 +2650,7 @@ function _habCrearFilas() {
     var valorHora = cargoInfo ? (parseFloat(cargoInfo.valorHora) || 0) : 0;
     var diasMes = cargoInfo ? (parseFloat(cargoInfo.diasMes) || 0) : 0;
     var sueldo = Math.round(valorHora * 8 * diasMes);
-    return { e:e, sueldo:sueldo, total:sueldo, cargoInfo:cargoInfo, valorHora:valorHora, diasMes:diasMes };
+    return { e:e, sueldo:sueldo, bonificacion:0, total:sueldo, cargoInfo:cargoInfo, valorHora:valorHora, diasMes:diasMes };
   });
 }
 
@@ -2691,11 +2691,11 @@ function abrirModalHaberesMes() {
   overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
 
   overlay.innerHTML =
-    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
+    '<div style="background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:820px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border);flex-shrink:0">' +
         '<div>' +
           '<div style="font-weight:700;font-size:15px"><i class="ti ti-cash" style="margin-right:8px;color:var(--green)"></i>Registrar haberes — ' + mesLbl + '</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Registra el sueldo base de cada empleado como gasto en Personal. Las horas extra se liquidan aparte, por solicitudes aprobadas.</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:2px">Registra el sueldo base y una bonificación opcional por empleado. Las horas extra se liquidan aparte, por solicitudes aprobadas.</div>' +
         '</div>' +
         '<button onclick="document.getElementById(\'modal-haberes-mes\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>' +
       '</div>' +
@@ -2704,7 +2704,7 @@ function abrirModalHaberesMes() {
         '<input type="month" id="hab-mes-sel" value="' + mesISO + '" onchange="recalcularHaberes()" style="padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">' +
       '</div>' +
       '<div style="margin:12px 20px 0;padding:10px 12px;border:0.5px solid var(--blue);border-radius:var(--radius);background:var(--blue-bg);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">' +
-        '<div style="font-size:12px;color:var(--text2)"><i class="ti ti-info-circle" style="color:var(--blue);margin-right:5px"></i>Los importes se calculan con <strong>valor hora × 8 h × días del mes</strong>, según cada cargo.</div>' +
+        '<div style="font-size:12px;color:var(--text2)"><i class="ti ti-info-circle" style="color:var(--blue);margin-right:5px"></i>Base: <strong>valor hora × 8 h × días del mes</strong>. La bonificación se suma solo al empleado indicado y queda registrada en su haber.</div>' +
         '<button class="btn btn-sm" onclick="abrirConfiguracionCargosDesdeHaberes()"><i class="ti ti-adjustments"></i> Modificar valores por cargo</button>' +
       '</div>' +
       '<div id="hab-tabla-body" style="overflow-y:auto;flex:1;padding:12px 20px">' +
@@ -2725,10 +2725,12 @@ function abrirModalHaberesMes() {
 
 function _renderTablaHaberes(filas) {
   if (!filas.length) return '<div style="padding:20px;text-align:center;color:var(--text3)">Sin empleados activos</div>';
-  return '<table style="width:100%;border-collapse:collapse">' +
+  return '<div style="overflow-x:auto"><table style="width:100%;min-width:690px;border-collapse:collapse">' +
     '<thead><tr>' +
       '<th style="text-align:left;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Empleado</th>' +
-      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Sueldo base del mes</th>' +
+      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 8px;font-weight:400">Sueldo base</th>' +
+      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 8px;font-weight:400">Bonificación</th>' +
+      '<th style="text-align:right;font-size:11px;color:var(--text3);padding:6px 0;font-weight:400">Total bruto</th>' +
     '</tr></thead>' +
     '<tbody>' +
     filas.map(function(f) {
@@ -2736,18 +2738,40 @@ function _renderTablaHaberes(filas) {
       var formula = f.cargoInfo
         ? '$' + f.valorHora.toLocaleString('es-AR') + '/h × 8 h × ' + f.diasMes + ' días'
         : 'Debe vincularse a un cargo configurado';
+      var empleadoKey = escapeHTML(String(f.e.fbKey || ''));
       return '<tr style="border-bottom:0.5px solid var(--border)">' +
         '<td style="padding:10px 0">' +
           '<div style="font-weight:500;font-size:13px">' + escapeHTML(f.e.nombre||'') + '</div>' +
           '<div style="font-size:11px;color:' + (f.cargoInfo ? 'var(--text3)' : 'var(--amber)') + '">' + escapeHTML(cargoNombre) + ' · ' + escapeHTML(formula) + '</div>' +
         '</td>' +
-        '<td style="text-align:right;font-size:14px;font-weight:600;padding:10px 0;white-space:nowrap">$' + f.sueldo.toLocaleString('es-AR') +
+        '<td style="text-align:right;font-size:14px;font-weight:600;padding:10px 8px;white-space:nowrap">$' + f.sueldo.toLocaleString('es-AR') +
           (f.e.cargoId ? ' <button type="button" title="Editar este cargo" aria-label="Editar cargo de ' + escapeHTML(f.e.nombre||'') + '" onclick="abrirConfiguracionCargosDesdeHaberes(\'' + String(f.e.cargoId).replace(/'/g,"\\'") + '\')" style="border:0;background:transparent;color:var(--blue);cursor:pointer;padding:4px"><i class="ti ti-edit"></i></button>' : '') +
         '</td>' +
+        '<td style="text-align:right;padding:8px">' +
+          '<label style="display:inline-flex;align-items:center;gap:4px"><span style="color:var(--text3)">$</span>' +
+            '<input type="number" min="0" step="1" value="' + (parseFloat(f.bonificacion)||0) + '" data-hab-empleado="' + empleadoKey + '" aria-label="Bonificación de ' + escapeHTML(f.e.nombre||'') + '" oninput="actualizarBonificacionHaberes(this.dataset.habEmpleado,this.value)" style="width:105px;text-align:right;padding:6px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font:inherit"></label>' +
+        '</td>' +
+        '<td id="hab-total-' + empleadoKey + '" style="text-align:right;font-size:14px;font-weight:700;padding:10px 0;white-space:nowrap">$' + (parseFloat(f.total)||0).toLocaleString('es-AR') + '</td>' +
       '</tr>';
     }).join('') +
     '</tbody>' +
-  '</table>';
+  '</table></div>';
+}
+
+function actualizarBonificacionHaberes(empleadoKey, valor) {
+  var fila = (_habFilasActuales || []).find(function(item) {
+    return String(item.e && item.e.fbKey || '') === String(empleadoKey || '');
+  });
+  if (!fila) return;
+  fila.bonificacion = Math.max(0, parseFloat(valor) || 0);
+  fila.total = (parseFloat(fila.sueldo) || 0) + fila.bonificacion;
+  var totalFila = document.getElementById('hab-total-' + String(empleadoKey || ''));
+  if (totalFila) totalFila.textContent = '$' + Math.round(fila.total).toLocaleString('es-AR');
+  var totalGeneral = (_habFilasActuales || []).reduce(function(suma, item) {
+    return suma + (parseFloat(item.total) || 0);
+  }, 0);
+  var totalLabel = document.getElementById('hab-total-lbl');
+  if (totalLabel) totalLabel.textContent = '$' + Math.round(totalGeneral).toLocaleString('es-AR');
 }
 
 function abrirConfiguracionCargosDesdeHaberes(cargoId) {
@@ -2879,8 +2903,10 @@ async function confirmarRegistroHaberes() {
   filasARegistrar.forEach(function(f) {
     var e      = f.e;
     var sueldo = f.sueldo;
-    if (sueldo <= 0) return;
-    var compensacion = _habPrepararCompensacion(ctaData[e.fbKey] || {}, sueldo, mesISO);
+    var bonificacion = Math.max(0, parseFloat(f.bonificacion) || 0);
+    var bruto = Math.max(0, (parseFloat(sueldo) || 0) + bonificacion);
+    if (bruto <= 0) return;
+    var compensacion = _habPrepararCompensacion(ctaData[e.fbKey] || {}, bruto, mesISO);
     var sueldoNeto = compensacion.neto;
     var adelantosAplicados = _habDetalleAplicaciones(compensacion);
 
@@ -2898,7 +2924,8 @@ async function confirmarRegistroHaberes() {
       empleadoNombre: e.nombre||'',
       mes:            mesISO,
       sueldoBase:     sueldo,
-      sueldoBruto:    sueldo,
+      bonificacion:   bonificacion,
+      sueldoBruto:    bruto,
       adelantoCompensado: compensacion.total,
       adelantosAplicados: adelantosAplicados,
       cargoId:        e.cargoId || '',
@@ -2915,7 +2942,9 @@ async function confirmarRegistroHaberes() {
       mes:           mesISO,
       sueldo:        sueldo,
       total:         sueldoNeto,
-      sueldoBruto:   sueldo,
+      sueldoBase:    sueldo,
+      bonificacion:  bonificacion,
+      sueldoBruto:   bruto,
       adelantoCompensado: compensacion.total,
       adelantosAplicados: adelantosAplicados,
       fecha:         fechaGasto,
@@ -2935,7 +2964,8 @@ async function confirmarRegistroHaberes() {
       estado:      'pendiente',
       mes:         mesISO,
       sueldoBase:  sueldo,
-      sueldoBruto: sueldo,
+      bonificacion: bonificacion,
+      sueldoBruto: bruto,
       adelantoCompensado: compensacion.total,
       adelantosAplicados: adelantosAplicados,
       empleadoId:  e.fbKey,
