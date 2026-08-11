@@ -30,3 +30,22 @@ test('v2.0.319 conserva el actualizador activo y amplía el respaldo de Mercado 
   assert.match(cotizador, /application\\\/ld\\\+json/);
   assert.match(cotizador, /facebookexternalhit/);
 });
+
+test('Mercado Libre exige confirmación humana cuando no puede probar la identidad', () => {
+  assert.match(cotizador, /PRODUCT_IDENTITY_REQUIRES_CONFIRMATION/);
+  assert.match(cotizador, /requiereConfirmacionIdentidad:true/);
+  assert.match(cotizador, /confirmarIdentidadManual:reqBody\.confirmarIdentidadManual === true/);
+  assert.match(cotizador, /metodo:'confirmacion_manual_usuario'/);
+  assert.match(app, /confirmarIdentidadProveedorCotizacion/);
+  assert.match(app, /confirmarIdentidadMercadoLibreActualizador/);
+  assert.match(app, /Sí, es el mismo producto/);
+  assert.match(app, /identidadConfirmadaPor/);
+});
+
+test('el detalle del reclamo comparte la estética de los campos del sistema', () => {
+  const css = fs.readFileSync('css/app.css', 'utf8');
+  assert.match(html, /id="sp-nuevo-desc"[^>]+min-height:154px/);
+  assert.match(css, /\.fg input,\.fg select,\.fg textarea\{/);
+  assert.match(css, /\.fg input:focus,\.fg select:focus,\.fg textarea:focus\{/);
+  assert.match(css, /\.fg input::placeholder,\.fg textarea::placeholder\{/);
+});

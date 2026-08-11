@@ -361,9 +361,9 @@ tr:hover td{color:var(--text)}
 .fg{display:flex;flex-direction:column;gap:5px}
 .fg.full{grid-column:1/-1}
 .fg label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
-.fg input,.fg select{background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 11px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .12s;width:100%}
-.fg input:focus,.fg select:focus{border-color:var(--border3);background:var(--bg2)}
-.fg input::placeholder{color:var(--text3)}
+.fg input,.fg select,.fg textarea{background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 11px;color:var(--text);font-size:13px;font-family:inherit;line-height:1.45;outline:none;transition:border .12s,background .12s;width:100%;box-sizing:border-box}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--border3);background:var(--bg2)}
+.fg input::placeholder,.fg textarea::placeholder{color:var(--text3)}
 .fg input[readonly]{color:var(--text3);cursor:default}
 
 /* ── SEARCH DROPDOWN ── */

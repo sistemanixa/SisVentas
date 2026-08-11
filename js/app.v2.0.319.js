@@ -13293,6 +13293,77 @@ async function reintentarProductoConNombreCorregidoActualizador(fbKey) {
   }
 }
 
+async function confirmarIdentidadMercadoLibreActualizador(fbKey, proveedorIdx, boton) {
+  fbKey = String(fbKey || '');
+  proveedorIdx = parseInt(proveedorIdx, 10) || 0;
+  var fallo = (_actualizadorSesionPrecios.fallos || []).find(function(f) {
+    return String(f && f.fbKey || '') === fbKey && (parseInt(f && f.proveedorIdx, 10) || 0) === proveedorIdx;
+  });
+  var item = fallo && fallo.item;
+  var producto = item && item.producto;
+  if (!fallo || !item || !producto || !item.proveedorKey || !item.url) {
+    notify('La revisión ya no está disponible. Volvé a analizar el producto.');
+    return;
+  }
+  if (boton) { boton.disabled = true; boton.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Confirmando…'; }
+  actualizadorMarcarProductoVerificando(fbKey, true);
+  var estado = document.getElementById('actualizador-precios-estado');
+  if (estado) estado.textContent = 'Confirmando la publicación y leyendo nuevamente su precio…';
+  try {
+    var respuesta = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar', {
+      method:'POST',
+      headers:await headersCotizadorProtegido(),
+      body:JSON.stringify({
+        proveedorKey:item.proveedorKey,
+        url:item.url,
+        codigo:producto.codigo || '',
+        producto:producto.nombre || producto.descripcion || '',
+        precioAnteriorArs:_costoProveedorProductoSinAuditar(producto, actualizadorProveedorActual(item)) || precioGremioARSDesdeProducto(producto),
+        confirmarIdentidadManual:true,
+        debug:true
+      })
+    });
+    var texto = await respuesta.text();
+    var resultado = null;
+    try { resultado = texto ? JSON.parse(texto) : null; } catch (_) {}
+    if (!respuesta.ok || !resultado) throw new Error((resultado && (resultado.mensaje || resultado.error)) || ('El cotizador respondió HTTP ' + respuesta.status));
+    if (!resultado.ok) throw new Error(resultado.mensaje || resultado.error || 'No se pudo confirmar el producto');
+    var validacion = validarResultadoActualizadorProveedor(item, resultado);
+    if (!validacion.ok || !urlsProveedorEquivalentes(item.url, resultado.url)) throw new Error(validacion.mensaje || 'La respuesta no corresponde a la misma URL');
+    var cambios = datosActualizadosProductoBiosegur(item, resultado);
+    var costoAnterior = _costoProveedorProductoSinAuditar(producto, actualizadorProveedorActual(item)) || precioGremioARSDesdeProducto(producto);
+    var candidato = {
+      item:item,
+      resultado:resultado,
+      cambios:cambios,
+      codigo:producto.codigo || '',
+      producto:producto.nombre || producto.descripcion || '',
+      costoAnterior:costoAnterior || 0,
+      costoNuevo:parseFloat(cambios.compraARS || cambios.compra || 0) || 0
+    };
+    candidato.variacion = candidato.costoAnterior > 0 ? ((candidato.costoNuevo / candidato.costoAnterior) - 1) * 100 : 0;
+    var guardado = await guardarCandidatosSegurosActualizador([candidato]);
+    if (!guardado) throw new Error('El precio se verificó, pero no se pudo guardar');
+    _actualizadorSesionPrecios.fallos = (_actualizadorSesionPrecios.fallos || []).filter(function(f) {
+      return !(String(f && f.fbKey || '') === fbKey && (parseInt(f && f.proveedorIdx, 10) || 0) === proveedorIdx);
+    });
+    _actualizadorSesionPrecios.procesados[actualizadorClaveItem(item)] = true;
+    if (estado) estado.innerHTML = '<strong style="color:var(--green)">Identidad confirmada y precio actualizado.</strong>';
+    notify('Producto confirmado y precio actualizado.');
+  } catch (e) {
+    if (estado) estado.textContent = 'No se pudo completar la confirmación: ' + (e.message || 'Error');
+    notify('No se pudo actualizar: ' + (e.message || 'Error'));
+  } finally {
+    actualizadorMarcarProductoVerificando(fbKey, false);
+    var modal = document.getElementById('modal-actualizador-precios');
+    if (modal) {
+      actualizadorRefrescarResumen(modal);
+      mostrarVistaPreviaActualizador(modal, actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.candidatos, modal._tiposSeleccionados || []), actualizadorItemsSesionParaTipos(_actualizadorSesionPrecios.fallos, modal._tiposSeleccionados || []), 'Revisión de identidad actualizada');
+      actualizarControlesProcesoActualizador(modal, modal.dataset.ejecutando === '1');
+    }
+  }
+}
+
 async function guardarUrlFallidoActualizador(fbKey, proveedorIdx) {
   var idSeguro = String(fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(proveedorIdx,10)||0);
   var input = document.getElementById('actualizador-url-input-' + idSeguro);
@@ -13622,6 +13693,11 @@ function datosActualizadosProductoBiosegur(item, resultado) {
   pv.disponibilidadProveedorTexto = resultado.disponibilidadProveedorTexto || 'No verificado';
   pv.disponibilidadActualizadaEn = ahora;
   pv.variacionPendienteAprobacion = null;
+  if (resultado.identidad && resultado.identidad.manual) {
+    pv.identidadConfirmadaManualmente = true;
+    pv.identidadConfirmadaEn = ahora;
+    pv.identidadConfirmadaPor = currentUser || currentUserEmail || 'Usuario';
+  }
   proveedores[item.proveedorIdx] = pv;
 
   var principal = proveedores.filter(function(x){ return (parseFloat(x.precio)||0) > 0; }).reduce(function(min, x) {
@@ -13678,7 +13754,7 @@ function validarResultadoActualizadorProveedor(item, resultado) {
   if (String(resultado.moneda || '').toUpperCase() !== 'ARS') {
     return { ok:false, mensaje:'El proveedor no confirmó que el precio esté expresado en pesos argentinos' };
   }
-  if (!resultado.tituloProveedor || !resultado.selectorPrecio) {
+  if ((!resultado.tituloProveedor && !(resultado.identidad && resultado.identidad.manual)) || !resultado.selectorPrecio) {
     return { ok:false, mensaje:'Falta evidencia del título o del campo exacto de precio leído' };
   }
   var precioNuevo = parsePrecioProveedorARS(resultado && (resultado.precioArs || resultado.precio) || 0);
@@ -13753,10 +13829,12 @@ function actualizadorHtmlFallos(detalleFallos) {
         '<div style="display:flex;gap:8px;align-items:flex-start">' + (f.noDisponible ? '<input type="checkbox" data-actualizador-no-disponible value="' + escapeHTML(String(f.fbKey || '')) + '" style="margin-top:3px">' : '') + '<div>' + nombreProducto + '</div></div>' +
         '<div style="color:' + (f.noDisponible ? 'var(--red)' : 'var(--text3)') + ';margin-top:3px">' + escapeHTML(f.noDisponible ? 'El producto ya no existe en el proveedor.' : f.motivo) + '</div>' +
         (puedeCambiarNombre ? '<div style="color:var(--blue);margin-top:3px;font-size:10px">Nombre encontrado en el proveedor: <strong>' + escapeHTML(nombreSugerido) + '</strong></div>' : '') +
+        (f.requiereConfirmacionIdentidad ? '<div style="margin-top:7px;padding:8px 9px;border:1px solid rgba(59,130,246,.4);border-radius:8px;background:rgba(59,130,246,.08);color:var(--text2)"><strong style="display:block;color:var(--blue);margin-bottom:3px"><i class="ti ti-user-check"></i> Confirmación humana necesaria</strong>El proveedor informó ' + actualizadorFormatoARS(f.precioCandidatoArs) + ', pero no entregó un título verificable. Abrí la publicación antes de confirmar.</div>' : '') +
         (f.diagnostico ? '<div style="color:var(--text3);margin-top:3px;font-size:10px">' + escapeHTML(f.diagnostico) + '</div>' : '') +
         '<div style="color:var(--text3);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px" title="' + escapeHTML(f.url) + '">' + escapeHTML(f.url) + '</div>' +
         '<div data-actualizador-estado style="display:' + (verificando ? '' : 'none') + ';margin-top:7px;color:var(--blue);font-size:11px"><i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite"></i> Verificando nombre y precio. Esperá…</div>' +
-        '<div style="display:flex;gap:6px;margin-top:7px">' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">' +
+          (f.requiereConfirmacionIdentidad && urlSegura ? '<a class="btn btn-sm" data-actualizador-accion href="' + escapeHTML(urlSegura) + '" target="_blank" rel="noopener noreferrer" title="Abrir la publicación"><i class="ti ti-external-link"></i> Abrir publicación</a><button class="btn btn-sm btn-primary" data-actualizador-accion onclick="confirmarIdentidadMercadoLibreActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ',this)"' + bloqueo + '><i class="ti ti-check"></i> Sí, es el mismo producto</button>' : '') +
           (puedeCambiarNombre ? '<button class="btn btn-sm" data-actualizador-accion data-nombre-sugerido="' + escapeHTML(nombreSugerido) + '" onclick="cambiarNombreProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',this.dataset.nombreSugerido)"' + bloqueo + ' title="Revisar el nombre detectado y verificar nuevamente"><i class="ti ' + (verificando ? 'ti-loader-2' : 'ti-edit') + '"' + (verificando ? ' style="animation:spin 1s linear infinite"' : '') + '></i> Cambiar nombre</button>' : '') +
           '<button class="btn btn-sm" data-actualizador-accion onclick="editarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',' + (parseInt(f.proveedorIdx,10)||0) + ')"' + bloqueo + '><i class="ti ti-link"></i> Cambiar URL</button>' +
           '<button class="btn btn-sm" data-actualizador-accion style="color:var(--red)" onclick="eliminarProductoFallidoActualizador(\'' + escapeHTML(String(f.fbKey)) + '\',this)"' + bloqueo + '><i class="ti ti-trash"></i> Eliminar</button>' +
@@ -14155,6 +14233,9 @@ async function ejecutarActualizadorMasivoBiosegur() {
               url:item.url || '',
               nombreProveedor:String((resultado && resultado.tituloProveedor) || '').trim(),
               noDisponible:!!(resultado && String(resultado.codigo || '').toUpperCase() === 'PRODUCT_NOT_FOUND'),
+              requiereConfirmacionIdentidad:!!(resultado && resultado.requiereConfirmacionIdentidad),
+              precioCandidatoArs:parsePrecioProveedorARS(resultado && resultado.precioCandidatoArs || 0),
+              motivoIdentidad:String(resultado && resultado.motivoIdentidad || ''),
               motivo:variacionPendiente.requiereAprobacion
                 ? 'Cambio bloqueado: requiere revisión y aprobación del administrador.'
                 : ((validacionPrecio && validacionPrecio.mensaje) || (resultado && (resultado.mensaje || resultado.error)) || 'No se pudo verificar la URL o el precio'),
@@ -14731,6 +14812,78 @@ function restaurarBotonCotizacionProveedores() {
   }
 }
 
+var _confirmacionesIdentidadProveedor = window._confirmacionesIdentidadProveedor || {};
+window._confirmacionesIdentidadProveedor = _confirmacionesIdentidadProveedor;
+
+function registrarConfirmacionIdentidadProveedor(datos) {
+  var id = 'identidad-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+  _confirmacionesIdentidadProveedor[id] = datos;
+  return id;
+}
+
+async function confirmarIdentidadProveedorCotizacion(confirmacionId, boton) {
+  var ctx = _confirmacionesIdentidadProveedor[String(confirmacionId || '')];
+  if (!ctx || !ctx.match) { notify('La revisión ya no está disponible. Volvé a cotizar el producto.'); return; }
+  var actual = prodProveedoresActuales[ctx.match.idx];
+  if (!actual || !urlsProveedorEquivalentes(actual.url, ctx.url)) {
+    notify('La URL del proveedor cambió. Volvé a cotizar antes de confirmar.');
+    return;
+  }
+  if (boton) { boton.disabled = true; boton.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Verificando…'; }
+  try {
+    var respuesta = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar', {
+      method:'POST',
+      headers:await headersCotizadorProtegido(),
+      body:JSON.stringify({
+        proveedorKey:ctx.match.proveedorKey,
+        url:ctx.url,
+        codigo:ctx.codigo || '',
+        producto:ctx.producto || '',
+        precioAnteriorArs:parseFloat(actual.precio) || 0,
+        confirmarIdentidadManual:true,
+        debug:true
+      })
+    });
+    var texto = await respuesta.text();
+    var data = null;
+    try { data = texto ? JSON.parse(texto) : null; } catch (_) {}
+    if (!respuesta.ok || !data) throw new Error((data && (data.mensaje || data.error)) || ('El cotizador respondió HTTP ' + respuesta.status));
+    var resultado = data.ok ? {
+      proveedor:data.proveedor || ctx.match.nombre,
+      proveedorKey:ctx.match.proveedorKey,
+      url:data.url || ctx.url,
+      producto:typeof data.producto === 'string' ? data.producto : ctx.producto,
+      precio:parseFloat(data.precioArs || data.precio || 0) || 0,
+      sinIva:data.sinIva !== undefined ? data.sinIva : false,
+      ivaAlicuota:data.ivaAlicuota != null ? parseFloat(data.ivaAlicuota) : 21,
+      disponibilidadProveedor:data.disponibilidadProveedor || 'no_verificado',
+      disponibilidadProveedorTexto:data.disponibilidadProveedorTexto || 'No verificado',
+      fuente:data.fuente || 'mercado_libre_identidad_confirmada_usuario',
+      identidad:data.identidad || { ok:true, manual:true },
+      debug:data.debug || null,
+      raw:data
+    } : {
+      proveedor:ctx.match.nombre,
+      proveedorKey:ctx.match.proveedorKey,
+      url:ctx.url,
+      producto:ctx.producto,
+      precio:0,
+      codigo:data.codigo || '',
+      precioAnteriorArs:data.precioAnteriorArs || 0,
+      precioCandidatoArs:data.precioCandidatoArs || 0,
+      relacion:data.relacion || 0,
+      error:data.mensaje || data.error || 'No se pudo confirmar el precio',
+      debug:data.debug || null,
+      raw:data
+    };
+    delete _confirmacionesIdentidadProveedor[confirmacionId];
+    procesarResultadoCotizacionProveedores({ resultados:[resultado] }, [ctx.match], ctx.box || null, null);
+  } catch (e) {
+    notify('No se pudo confirmar la publicación: ' + (e.message || 'Error'));
+    if (boton) { boton.disabled = false; boton.innerHTML = '<i class="ti ti-check"></i> Sí, es el mismo producto'; }
+  }
+}
+
 async function aprobarVariacionPrecioProveedor(idx, precioCandidato, precioAnterior, botonId) {
   if (String(currentRole || '').toLowerCase() !== 'admin') {
     notify('Solo el administrador puede aprobar una variación excepcional de precio');
@@ -14791,6 +14944,8 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box, contex
   var filasResultado = [];
   res.resultados.forEach(function(r, resultadoIdx) {
     var precio = parsePrecioProveedorARS(r.precio || r.precioArs || r.precioARS);
+    var requiereConfirmacionIdentidad = !!(r.requiereConfirmacionIdentidad || (r.raw && r.raw.requiereConfirmacionIdentidad));
+    var precioCandidatoIdentidad = parsePrecioProveedorARS(r.precioCandidatoArs || (r.raw && r.raw.precioCandidatoArs) || 0);
     var variacionBloqueada = datosVariacionBloqueadaResultado(r);
     var precioCandidatoBloqueado = variacionBloqueada.precioCandidatoArs;
     var precioAnteriorBloqueado = variacionBloqueada.precioAnteriorArs;
@@ -14804,8 +14959,12 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box, contex
       return nombreRes && String(pv.nombre || '').trim().toLowerCase() === nombreRes;
     });
     if (!match && provCotizables.length === 1 && precio > 0 && !provCotizables[0].urlProducto) match = provCotizables[0];
+    if (!match && requiereConfirmacionIdentidad && provCotizables.length === 1 && urlsProveedorEquivalentes(provCotizables[0].url, urlRes)) match = provCotizables[0];
 
     var rechazo = '';
+    if (requiereConfirmacionIdentidad) {
+      rechazo = 'El precio fue encontrado, pero falta confirmar que la publicación corresponde a este producto.';
+    }
     if (!match && precio > 0) {
       rechazo = 'No se actualizó: el precio no proviene de la URL exacta cargada.';
     }
@@ -14847,7 +15006,7 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box, contex
       }
     }
 
-    var aceptado = !!(match && precio > 0 && !requiereAprobacion);
+    var aceptado = !!(match && precio > 0 && !requiereAprobacion && !requiereConfirmacionIdentidad);
     var disponibilidadRes = r.disponibilidadProveedor || 'no_verificado';
     var disponibilidadLbl = r.disponibilidadProveedorTexto || (disponibilidadRes === 'disponible' ? 'Disponible' : disponibilidadRes === 'sin_stock' ? 'Sin stock' : 'No verificado');
     if (aceptado) {
@@ -14861,6 +15020,9 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box, contex
         disponibilidadProveedorTexto: r.disponibilidadProveedorTexto || 'No verificado',
         disponibilidadActualizadaEn: Date.now(),
         variacionPendienteAprobacion: null,
+        identidadConfirmadaManualmente:!!(r.identidad && r.identidad.manual),
+        identidadConfirmadaEn:r.identidad && r.identidad.manual ? Date.now() : (prodProveedoresActuales[match.idx].identidadConfirmadaEn || null),
+        identidadConfirmadaPor:r.identidad && r.identidad.manual ? (currentUser || currentUserEmail || 'Usuario') : (prodProveedoresActuales[match.idx].identidadConfirmadaPor || ''),
         sinIva: r.sinIva !== undefined ? !!r.sinIva : prodProveedoresActuales[match.idx].sinIva,
         ivaAlicuota: r.ivaAlicuota != null && isFinite(parseFloat(r.ivaAlicuota))
           ? parseFloat(r.ivaAlicuota)
@@ -14873,12 +15035,29 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box, contex
       actualizados++;
     }
 
+    var confirmacionIdentidadId = '';
+    if (requiereConfirmacionIdentidad && match) {
+      confirmacionIdentidadId = registrarConfirmacionIdentidadProveedor({
+        match:match,
+        url:String(r.urlConfirmacion || r.url || match.url || ''),
+        codigo:contextoCotizacion && contextoCotizacion.codigo || '',
+        producto:contextoCotizacion && contextoCotizacion.nombre || String(r.producto || ''),
+        box:box
+      });
+    }
+
     filasResultado.push(
       '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">' +
         '<div style="min-width:0"><strong style="color:var(--text)">' + escapeHTML(r.proveedor || r.nombre || 'Proveedor') + '</strong>' +
         '<div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(rechazo || (precio > 0 ? String(r.producto || '') : (r.error || r.mensaje || (typeof r.producto === 'string' ? r.producto : 'Sin precio devuelto por el cotizador'))) || 'Sin coincidencia clara') + '</div>' +
         (r.url ? '<a href="' + escapeHTML(r.url) + '" target="_blank" style="font-size:11px;color:var(--blue)">Ver fuente ↗</a>' : '') + '</div>' +
         '<div style="font-weight:700;color:' + (aceptado ? 'var(--green)' : 'var(--amber)') + ';white-space:nowrap;text-align:right">$' + precio.toLocaleString('es-AR', {minimumFractionDigits: precio % 1 ? 2 : 0, maximumFractionDigits: 2}) + '<br><span style="font-size:10px;color:' + (disponibilidadRes === 'disponible' ? 'var(--green)' : disponibilidadRes === 'sin_stock' ? 'var(--red)' : 'var(--text3)') + '">' + escapeHTML(disponibilidadLbl) + '</span></div>' +
+        (requiereConfirmacionIdentidad && match ? '<div style="grid-column:1/-1;margin-top:6px;padding:11px;border:1px solid rgba(59,130,246,.45);border-radius:9px;background:rgba(59,130,246,.08)">' +
+          '<div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px"><i class="ti ti-user-check"></i> Confirmá la identidad del producto</div>' +
+          '<div style="font-size:11px;color:var(--text2);margin-bottom:8px">Precio candidato: <strong>' + actualizadorFormatoARS(precioCandidatoIdentidad) + '</strong>. Abrí la publicación, compará el producto y confirmá solamente si es exactamente el mismo.</div>' +
+          '<div style="display:flex;gap:7px;flex-wrap:wrap"><a class="btn btn-sm" href="' + escapeHTML(String(r.urlConfirmacion || r.url || match.url || '')) + '" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link"></i> Abrir publicación</a>' +
+          '<button class="btn btn-sm btn-primary" type="button" onclick="confirmarIdentidadProveedorCotizacion(\'' + escapeHTML(confirmacionIdentidadId) + '\',this)"><i class="ti ti-check"></i> Sí, es el mismo producto</button></div>' +
+        '</div>' : '') +
         (requiereAprobacion ? '<div style="grid-column:1/-1;margin-top:6px;padding:10px;border:1px solid rgba(245,158,11,.45);border-radius:9px;background:rgba(245,158,11,.08)">' +
           '<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:7px"><i class="ti ti-shield-exclamation"></i> Variación importante detectada</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;margin-bottom:8px"><span>Anterior: <strong>$' + precioAnteriorBloqueado.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</strong></span><span>Nuevo: <strong style="color:var(--green)">$' + precioCandidatoBloqueado.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</strong></span><span>Variación: <strong style="color:var(--amber)">' + (porcentajeVariacion >= 0 ? '+' : '') + porcentajeVariacion.toFixed(1) + '%</strong></span></div>' +
@@ -14969,6 +15148,7 @@ function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProduc
           disponibilidadProveedor: data.disponibilidadProveedor || 'no_verificado',
           disponibilidadProveedorTexto: data.disponibilidadProveedorTexto || 'No verificado',
           fuente: data.fuente || 'cotizador-cloud-run',
+          identidad: data.identidad || null,
           error: precioOk > 0 ? '' : 'El cotizador respondió OK pero no devolvió precio',
           debug: data.debug || null,
           raw: data
@@ -14984,6 +15164,12 @@ function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProduc
         precioAnteriorArs: data && data.precioAnteriorArs || 0,
         precioCandidatoArs: data && data.precioCandidatoArs || 0,
         relacion: data && data.relacion || 0,
+        requiereConfirmacionIdentidad:!!(data && data.requiereConfirmacionIdentidad),
+        urlConfirmacion:data && (data.urlConfirmacion || data.url) || pv.url,
+        motivoIdentidad:data && data.motivoIdentidad || '',
+        identidad:data && data.identidad || null,
+        disponibilidadProveedor:data && data.disponibilidadProveedor || 'no_verificado',
+        disponibilidadProveedorTexto:data && data.disponibilidadProveedorTexto || 'No verificado',
         error: (data && (data.mensaje || (typeof data.error === 'string' ? data.error : ''))) || 'No se pudo cotizar con el servicio real',
         debug: data && data.debug,
         raw: data

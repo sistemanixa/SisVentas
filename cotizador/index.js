@@ -989,7 +989,36 @@ async function extraerProductoMercadoLibre(page) {
   return { precioArs, disponibilidad, titulo:titulo || (schema && schema.name) || '', moneda:moneda || 'ARS', fuente:'mercado_libre_pagina', selectorPrecio };
 }
 
-async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) {
+function respuestaRevisionIdentidadMercadoLibre({ proveedor, urlExacta, codigo, producto, datos, identidad, trace, debug }) {
+  const precioCandidatoArs = Number(datos && (datos.precioActualArs || datos.precioArs)) || 0;
+  const diagnosticoMercadoLibre = datos && datos.diagnosticoMercadoLibre || undefined;
+  return {
+    ok:false,
+    error:false,
+    codigo:'PRODUCT_IDENTITY_REQUIRES_CONFIRMATION',
+    requiereConfirmacionIdentidad:true,
+    mensaje:'Mercado Libre informó un precio, pero no permitió comprobar automáticamente que la publicación corresponda al producto. Abrí la página y confirmalo antes de actualizar.',
+    motivoIdentidad:identidad && identidad.mensaje || 'No se pudo verificar el título del producto',
+    proveedor:proveedor && proveedor.nombre || 'MERCADO LIBRE',
+    codigoProducto:codigo || '',
+    producto:producto || '',
+    productoEncontrado:String(datos && datos.titulo || ''),
+    url:urlExacta,
+    urlConfirmacion:urlExacta,
+    precioCandidatoArs,
+    precioActualArs:precioCandidatoArs,
+    precioOriginalArs:Number(datos && datos.precioOriginalArs) || precioCandidatoArs,
+    moneda:String(datos && datos.moneda || 'ARS'),
+    disponibilidadProveedor:datos && datos.disponibilidad || 'no_verificado',
+    disponibilidadProveedorTexto:datos && datos.disponibilidad === 'disponible' ? 'Disponible' : datos && datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
+    fuente:datos && datos.fuente || 'mercado_libre_revision_manual',
+    diagnosticoMercadoLibre,
+    identidad:identidad || { ok:false, confianza:0 },
+    debug:debug ? { trace:trace || [], titulo:String(datos && datos.titulo || ''), fuente:datos && datos.fuente || '', diagnosticoMercadoLibre, identidad:identidad || null } : undefined
+  };
+}
+
+async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, confirmarIdentidadManual }) {
   const urlExacta = normalizarUrl(url);
   if (!esUrlMercadoLibre(urlExacta)) throw new Error('La URL no corresponde a Mercado Libre Argentina');
   const trace = [{ step:'mercado_libre_inicio', at:new Date().toISOString(), urlExacta }];
@@ -1035,11 +1064,23 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug }) 
     // la URL trajo a la vez catálogo + wid y ambos coinciden con el item
     // consultado, esa referencia oficial es una validación de identidad más
     // fuerte que un título inexistente; no se debe descartar su precio válido.
-    const identidad = !datos.titulo && ids.itemId && ids.productoId &&
+    let identidad = !datos.titulo && ids.itemId && ids.productoId &&
       itemExacto === ids.itemId && catalogoExacto === ids.productoId
       ? { ok:true, confianza:1, metodo:'mercado_libre_wid_catalogo' }
       : validarIdentidadProducto(producto, datos.titulo);
-    if (!identidad.ok) throw new Error(identidad.mensaje);
+    if (!identidad.ok) {
+      if (!confirmarIdentidadManual) {
+        trace.push({ step:'mercado_libre_identidad_requiere_confirmacion', at:new Date().toISOString(), mensaje:identidad.mensaje || '' });
+        return respuestaRevisionIdentidadMercadoLibre({ proveedor, urlExacta, codigo, producto, datos, identidad, trace, debug });
+      }
+      identidad = {
+        ok:true,
+        confianza:1,
+        metodo:'confirmacion_manual_usuario',
+        manual:true,
+        motivoOriginal:identidad.mensaje || ''
+      };
+    }
     trace.push({ step:'mercado_libre_validado', at:new Date().toISOString(), precioArs:datos.precioArs, itemId:datos.itemId || '', metodo:identidad.metodo || 'titulo' });
     const diagnosticoMercadoLibre = datos.diagnosticoMercadoLibre || {
       catalogProductId:ids.productoId || '', wid:ids.itemId || '', itemIdUtilizado:datos.itemId || '',
@@ -1835,20 +1876,31 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
             }
           }
         }
-        const identidad = datos.fuente === 'mercado_libre_api_oficial'
-          ? validarIdentidadMercadoLibreOficial(urlExacta, item.producto||item.nombre||'', datos)
-          : validarIdentidadProducto(item.producto||item.nombre||'', datos.titulo);
-        if (!identidad.ok) throw new Error(identidad.mensaje);
-        const validacionPrecio = validarSaltoPrecio(datos.precioArs, item.precioAnteriorArs);
-        if (!validacionPrecio.ok) {
-          const errorPrecio = new Error(validacionPrecio.mensaje);
-          Object.assign(errorPrecio, validacionPrecio);
-          throw errorPrecio;
+        const identidad = validarIdentidadProducto(item.producto||item.nombre||'', datos.titulo);
+        if (!identidad.ok) {
+          resultados.push(Object.assign(
+            respuestaRevisionIdentidadMercadoLibre({
+              proveedor,
+              urlExacta,
+              codigo:item.codigo||'',
+              producto:item.producto||item.nombre||'',
+              datos,
+              identidad,
+              trace:[],
+              debug:false
+            }),
+            { codigoProducto:item.codigo||'' }
+          ));
+        } else {
+          const validacionPrecio = validarSaltoPrecio(datos.precioArs, item.precioAnteriorArs);
+          if (!validacionPrecio.ok) {
+            const errorPrecio = new Error(validacionPrecio.mensaje);
+            Object.assign(errorPrecio, validacionPrecio);
+            throw errorPrecio;
+          }
+          const tituloProveedor = datos.titulo || '';
+          resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:datos.fuente || 'mercado_libre_lote_url_exacta', fecha:new Date().toISOString(), tituloProveedor, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', diagnosticoMercadoLibre:datos.diagnosticoMercadoLibre || undefined, identidad });
         }
-        const tituloProveedor = datos.titulo || (identidad.fuente === 'mercado_libre_api_identificador_oficial'
-          ? 'Identidad confirmada por API oficial (' + (datos.itemId || datos.catalogProductId) + ')'
-          : '');
-        resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:datos.fuente || 'mercado_libre_lote_url_exacta', fecha:new Date().toISOString(), tituloProveedor, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', diagnosticoMercadoLibre:datos.diagnosticoMercadoLibre || undefined, identidad });
       } catch (e) {
         resultados.push({ ok:false, error:true, codigo:e.codigo||'', codigoProducto:item.codigo||'', url:urlExacta, mensaje:e.message||'Error leyendo la publicación', precioAnteriorArs:Number(e.precioAnteriorArs)||0, precioCandidatoArs:Number(e.precioCandidatoArs)||0, relacion:Number(e.relacion)||0, diagnosticoMercadoLibre:e.diagnosticoMercadoLibre || undefined });
       }
@@ -1920,8 +1972,16 @@ async function cotizar(reqBody) {
   }
 
   if (tipo === 'mercado_libre') {
-    return cotizarMercadoLibre({ proveedor, url, codigo:reqBody.codigo || '', producto:reqBody.producto || '', debug:!!reqBody.debug })
-      .then((resultado) => validarResultadoPrecioIndividual(resultado, reqBody.precioAnteriorArs));
+    return cotizarMercadoLibre({
+      proveedor,
+      url,
+      codigo:reqBody.codigo || '',
+      producto:reqBody.producto || '',
+      debug:!!reqBody.debug,
+      confirmarIdentidadManual:reqBody.confirmarIdentidadManual === true
+    }).then((resultado) => resultado && resultado.requiereConfirmacionIdentidad
+      ? resultado
+      : validarResultadoPrecioIndividual(resultado, reqBody.precioAnteriorArs));
   }
 
   throw new Error(`Proveedor no soportado todavía: ${proveedor.nombre || proveedorKey}`);
@@ -2008,6 +2068,7 @@ module.exports = {
   seleccionarPublicacionConsensoMercadoLibre,
   datosMercadoLibreDesdeFuente,
   validarIdentidadMercadoLibreOficial,
+  respuestaRevisionIdentidadMercadoLibre,
   obtenerJsonMercadoLibre,
   estadoOAuthMercadoLibre,
   precioMercadoLibreDesdeOgTitle,
