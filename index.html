@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.326-firebase' -->
+<!-- VERSION: 'v2.0.327-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.326.js"></script>
+<script src="./js/core/version.v2.0.327.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,7 +24,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.326">
+<link rel="stylesheet" href="./css/app.css?v=2.0.327">
 
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.193"></script>
@@ -42,7 +42,7 @@
     </div>
     <div class="sv-boot-brand">SisVentas</div>
     <div class="sv-boot-sub">powered by Nixa</div>
-    <div id="loading-version" class="sv-boot-version">v2.0.326</div>
+    <div id="loading-version" class="sv-boot-version">v2.0.327</div>
     <div class="sv-boot-progress">
       <div id="loading-bar" class="sv-boot-bar"></div>
     </div>
@@ -55,7 +55,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.326 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.327 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -4624,7 +4624,7 @@ Listo para analizar.
       <div class="metric"><div class="m-label">Sueldo base</div><div class="m-value" id="ctaemp-base">$0</div><div class="m-sub">mensual bruto</div></div>
       <div class="metric"><div class="m-label">Total pagado</div><div class="m-value" id="ctaemp-haberes" style="color:var(--green)">$0</div><div class="m-sub">dinero abonado en el mes</div></div>
       <div class="metric"><div class="m-label" id="ctaemp-adelantos-label">Adelanto aplicado</div><div class="m-value" id="ctaemp-adelantos" style="color:var(--red)">$0</div><div class="m-sub" id="ctaemp-adelantos-sub">descontado del haber del período</div></div>
-      <div class="metric"><div class="m-label">Total a cobrar</div><div class="m-value" id="ctaemp-total" style="color:var(--text)">$0</div><div class="m-sub" id="ctaemp-periodo">—</div></div>
+      <div class="metric"><div class="m-label">Saldo pendiente acumulado</div><div class="m-value" id="ctaemp-total" style="color:var(--text)">$0</div><div class="m-sub" id="ctaemp-periodo">—</div></div>
       </div>
 
       <div id="ctaemp-adelanto-pendiente" style="display:none;margin-bottom:12px"></div>
@@ -4649,10 +4649,11 @@ Listo para analizar.
       <!-- Tabla de movimientos -->
       <div class="card">
       <div class="card-head">
-      <span class="card-title">Movimientos</span>
+      <span class="card-title" id="ctaemp-listado-titulo">Movimientos pendientes acumulados</span>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-sm" id="ctaemp-btn-mes-ant" onclick="setCtaEmpPeriodo('anterior')" title="Ver movimientos del mes anterior">Mes anterior</button>
-      <button class="btn btn-sm btn-primary" id="ctaemp-btn-mes-act" onclick="setCtaEmpPeriodo('actual')" title="Ver movimientos del mes actual">Mes actual</button>
+      <button class="btn btn-sm" id="ctaemp-btn-mes-act" onclick="setCtaEmpPeriodo('actual')" title="Ver movimientos del mes actual">Mes actual</button>
+      <button class="btn btn-sm btn-primary" id="ctaemp-btn-pendientes" onclick="setCtaEmpPeriodo('pendientes')" title="Ver todo lo pendiente hasta el mes actual">Pendientes acumulados</button>
       <select class="search-input btn-sm" id="ctaemp-filtro-tipo" style="width:160px" onchange="filtrarMovsEmp()">
       <option value="">Todos los tipos</option>
       <option value="sueldo">Sueldo</option>
@@ -5143,7 +5144,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.326.js"></script>
+<script src="./js/app.v2.0.327.js"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
@@ -5182,7 +5183,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.326</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.327</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">

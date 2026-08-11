@@ -71,7 +71,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .sv-boot-aura{position:absolute;width:360px;height:360px;border-radius:50%;background:conic-gradient(from 160deg,rgba(96,165,250,.05),rgba(74,222,128,.22),rgba(139,92,246,.12),rgba(96,165,250,.05));filter:blur(18px);animation:svBootSpin 4.8s linear infinite;opacity:.85}
 .sv-boot-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;animation:svBootIn .55s ease both}
 .sv-boot-logo{width:132px;height:86px;border-radius:24px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.02));border:0.5px solid rgba(120,130,160,.28);box-shadow:0 22px 70px rgba(0,0,0,.30),0 0 0 8px rgba(96,165,250,.035);animation:svBootPulse 1.55s ease-in-out infinite}
-.sv-boot-logo img{width:76%;height:76%;object-fit:contain;display:block;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35))}
+.sv-boot-logo img{width:100%;height:100%;object-fit:cover;display:block;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35))}
 .sv-boot-brand{font-size:25px;font-weight:800;letter-spacing:-.7px;margin-top:5px}
 .sv-boot-sub{font-size:12px;color:var(--text3);letter-spacing:.35px;text-transform:uppercase}
 .sv-boot-version{font-size:11px;color:var(--text3);letter-spacing:.45px;font-weight:650;opacity:.82}

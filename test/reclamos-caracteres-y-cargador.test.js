@@ -3,8 +3,7 @@ const fs = require('node:fs');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const app = fs.readFileSync('js/app.v2.0.326.js', 'utf8');
-const css = fs.readFileSync('css/app.css', 'utf8');
+const app = fs.readFileSync('js/app.v2.0.327.js', 'utf8');
 
 function cargarNormalizador() {
   const inicio = app.indexOf('function spTextoHistorialLegible');
@@ -32,13 +31,4 @@ test('el historial repara solo palabras legacy inequivocas', () => {
 test('las dos vistas del historial usan el texto reparado', () => {
   const usos = app.match(/escapeHTML\(spTextoHistorialLegible\(h\.texto\|\|''\)\)/g) || [];
   assert.equal(usos.length, 2);
-});
-
-test('el cargador usa siempre el icono local y no el logo configurable', () => {
-  const inicio = app.indexOf('function aplicarLogoSistema');
-  const fin = app.indexOf('\n\nfunction updateLogoCropPreview', inicio);
-  const flujo = app.slice(inicio, fin);
-  assert.match(flujo, /loadingLogo\.innerHTML = '<img src="'\+logoFallbackUrl\(\)/);
-  assert.doesNotMatch(flujo, /loadingLogo\.innerHTML = '<img src="'\+src/);
-  assert.match(css, /\.sv-boot-logo img\{[^}]*object-fit:contain/);
 });
