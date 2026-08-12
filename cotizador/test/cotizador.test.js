@@ -246,6 +246,29 @@ test('Mercado Libre conserva el precio de una URL MLA tradicional sin promoción
   assert.equal(datos.porcentajeDescuento, 0);
 });
 
+test('Mercado Libre resuelve la publicación exacta de P-50721 y consulta ese item', async () => {
+  const url = 'https://articulo.mercadolibre.com.ar/MLA-1755815666-pulsera-silicona-rfid-1k-1356-mhz-colores-varios-sumergible-_JM?quantity=5&variation_id=182617566365';
+  assert.deepEqual(idsMercadoLibreDesdeUrl(url), { itemId:'MLA1755815666', productoId:'' });
+
+  const llamadas = [];
+  const datos = await extraerProductoMercadoLibreApi(url, [], async (ruta) => {
+    llamadas.push(ruta);
+    return {
+      id:'MLA1755815666',
+      title:'Pulsera Silicona RFID 1K 13.56 MHz Colores Varios Sumergible',
+      price:2999,
+      currency_id:'ARS',
+      status:'active',
+      available_quantity:50
+    };
+  });
+
+  assert.deepEqual(llamadas, ['/items/MLA1755815666']);
+  assert.equal(datos.precioArs, 2999);
+  assert.equal(datos.itemId, 'MLA1755815666');
+  assert.equal(datos.diagnosticoMercadoLibre.itemIdUtilizado, 'MLA1755815666');
+});
+
 test('la identidad acepta el mismo modelo y rechaza otro producto', () => {
   assert.equal(validarIdentidadProducto(
     'BALUN HD HIKVISION 1H18S/E - PAR',
