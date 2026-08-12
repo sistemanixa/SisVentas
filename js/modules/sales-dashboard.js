@@ -63,6 +63,48 @@
         .sv332-quick{grid-template-columns:1fr;gap:8px}
         .sv332-q{padding:12px}.sv332-q-v{font-size:22px}
       }
+      /* v2.0.333: jerarquia operativa y densidad visual. */
+      #dash-agenda-card{margin:12px 0!important;padding:12px 16px!important;background:linear-gradient(145deg,var(--bg2),rgba(74,222,128,.025))!important}
+      #dash-agenda-card .card-head{margin-bottom:8px!important}
+      #dash-agenda-card>.metrics{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;gap:8px!important;margin-bottom:8px!important}
+      #dash-agenda-card>.metrics .metric{padding:8px 10px!important}
+      #dash-agenda-card>.metrics .m-value{font-size:18px!important}
+      #dash-agenda-lista{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important}
+      #dash-agenda-lista>*{min-height:0!important;padding:9px 11px!important}
+      #dash-agenda-lista>*:nth-child(n+4){display:none!important}
+      .sv333-chart-tabs{display:flex;align-items:center;gap:4px;margin-left:auto;margin-right:8px;padding:3px;border:0.5px solid var(--border);border-radius:10px;background:var(--bg3)}
+      .sv333-chart-tab{border:0;background:transparent;color:var(--text3);font:inherit;font-size:11px;font-weight:600;padding:5px 9px;border-radius:7px;cursor:pointer}
+      .sv333-chart-tab.active{background:var(--blue-bg);color:var(--blue)}
+      #dash-row2-admin .dash-ventas-split{grid-template-columns:1fr!important;gap:0!important;min-height:0!important}
+      #dash-row2-admin .dash-ventas-split[data-vista="semana"]>div:nth-child(2){display:none!important}
+      #dash-row2-admin .dash-ventas-split[data-vista="mensual"]>div:nth-child(1){display:none!important}
+      #dash-row2-admin .dash-ventas-split>div:nth-child(2){border-left:0!important;padding-left:0!important}
+      #dash-row2-admin #dash-bar-area{height:150px!important;min-height:150px!important;max-height:150px!important}
+      #dash-row2-admin #dash-month-svg{height:150px!important;min-height:150px!important;max-height:150px!important;width:100%!important}
+      .sv332-mini-kpis{margin-top:10px!important;padding:8px 10px!important;min-height:0!important}
+      .sv332-mini{gap:8px!important}
+      .sv332-mini .sv332-ico{width:30px!important;height:30px!important;font-size:16px!important}
+      .sv332-mini-v{font-size:15px!important}
+      .sv332-quick{display:none!important}
+      #dash-row2-admin{align-items:start!important}
+      #dash-row2-admin>.card:first-child{display:block!important;min-height:0!important;padding:14px 16px!important}
+      #dash-row2-admin>.card:first-child .card-head{margin-bottom:10px!important}
+      #dash-row2-admin>.card:nth-child(2){min-height:0!important;max-height:390px!important;overflow:hidden!important;padding:14px 16px!important}
+      #dash-row2-admin>.card:nth-child(2) .card-head{margin-bottom:9px!important}
+      #dash-ot-resumen{grid-template-columns:repeat(5,minmax(62px,1fr))!important;gap:5px!important;margin-bottom:7px!important}
+      #dash-ot-resumen .metric{padding:7px 8px!important}
+      #dash-ot-resumen .m-label{font-size:9px!important}
+      #dash-ot-resumen .m-value{font-size:16px!important}
+      #dash-ot-pendientes tr:nth-child(n+6){display:none!important}
+      #dash-ot-pendientes td{padding-top:6px!important;padding-bottom:6px!important}
+      @media (min-width:1200px){
+        #dash-row2-admin{grid-template-columns:minmax(0,1.55fr) minmax(360px,.85fr)!important;gap:12px!important}
+      }
+      @media (max-width:900px){
+        #dash-agenda-lista{grid-template-columns:1fr!important}
+        .sv333-chart-tabs{margin-left:0!important}
+        #dash-row2-admin #dash-bar-area,#dash-row2-admin #dash-month-svg{height:125px!important;min-height:125px!important;max-height:125px!important}
+      }
     `;
     document.head.appendChild(st);
   }
@@ -88,10 +130,57 @@
   function startOfDay332(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
   function sameDay332(a,b){ return a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
   function sameMonth332(a,y,m){ return a&&a.getFullYear()===y&&a.getMonth()===m; }
+  function setVistaGraficos333(vista){
+    var split=document.querySelector('#dash-row2-admin .dash-ventas-split'); if(!split) return;
+    vista=vista==='mensual'?'mensual':'semana';
+    split.dataset.vista=vista;
+    document.querySelectorAll('[data-sv333-view]').forEach(function(btn){
+      var activo=btn.getAttribute('data-sv333-view')===vista;
+      btn.classList.toggle('active',activo);
+      btn.setAttribute('aria-pressed',activo?'true':'false');
+    });
+  }
+  window.sv333CambiarGraficoDashboard=setVistaGraficos333;
+  function compactarAgenda333(){
+    var agenda=document.getElementById('dash-agenda-card'); if(!agenda) return;
+    var metricas=agenda.querySelector('.metrics');
+    if(metricas){
+      var visibles=0;
+      ['dash-agenda-hoy','dash-agenda-manana','dash-agenda-semana','dash-agenda-internos'].forEach(function(id){
+        var valor=document.getElementById(id); if(!valor) return;
+        var tarjeta=valor.closest('.metric'); if(!tarjeta) return;
+        var mostrar=(parseInt(String(valor.textContent||'0').replace(/\D/g,''),10)||0)>0;
+        tarjeta.style.display=mostrar?'':'none';
+        if(mostrar) visibles++;
+      });
+      metricas.style.display=visibles?'grid':'none';
+      if(!metricas._sv333Observer){
+        metricas._sv333Observer=new MutationObserver(function(){ compactarAgenda333(); });
+        metricas._sv333Observer.observe(metricas,{subtree:true,childList:true,characterData:true});
+      }
+    }
+  }
   function ensure332(){
     css332();
     var card=document.querySelector('#dash-row2-admin > .card:first-child'); if(!card) return null;
     var split=card.querySelector('.dash-ventas-split'); if(!split) return null;
+    var row=document.getElementById('dash-row2-admin');
+    var agenda=document.getElementById('dash-agenda-card');
+    if(agenda&&row&&row.parentNode&&agenda.nextElementSibling!==row) row.parentNode.insertBefore(agenda,row);
+    var head=card.querySelector('.card-head');
+    if(head&&!document.getElementById('dash-sales-tabs-333')){
+      var detalle=head.querySelector('button:last-child');
+      var tabs='<div id="dash-sales-tabs-333" class="sv333-chart-tabs" aria-label="Vista del gráfico">'+
+        '<button type="button" class="sv333-chart-tab active" data-sv333-view="semana">7 días</button>'+
+        '<button type="button" class="sv333-chart-tab" data-sv333-view="mensual">Mensual</button></div>';
+      if(detalle) detalle.insertAdjacentHTML('beforebegin',tabs); else head.insertAdjacentHTML('beforeend',tabs);
+      head.querySelector('#dash-sales-tabs-333').addEventListener('click',function(event){
+        var boton=event.target.closest('[data-sv333-view]');
+        if(boton) setVistaGraficos333(boton.getAttribute('data-sv333-view'));
+      });
+    }
+    setVistaGraficos333(split.dataset.vista||'semana');
+    compactarAgenda333();
     if(!document.getElementById('dash-ventas-mini-332')){
       split.insertAdjacentHTML('afterend',
         '<div id="dash-ventas-mini-332" class="sv332-mini-kpis">'+
