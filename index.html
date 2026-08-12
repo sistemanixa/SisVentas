@@ -3406,7 +3406,7 @@ Listo para analizar.
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
               <div id="hc-nombre" style="font-size:16px;font-weight:500;color:var(--text)">—</div>
-              <button class="btn btn-sm btn-icon" id="hc-editar-cliente" onclick="editarCliente(clienteActualId)" title="Editar datos del cliente"><i class="ti ti-pencil"></i></button>
+              <button class="btn btn-sm btn-icon" id="hc-editar-cliente" onclick="editarClienteDesdeHistorial()" title="Editar datos del cliente"><i class="ti ti-pencil"></i></button>
               <button class="btn btn-sm" id="hc-eliminar-cliente" onclick="eliminarClienteDesdeHistorial()" title="Eliminar este cliente y mostrar antes todo lo que está vinculado" style="color:var(--red);border-color:var(--red)"><i class="ti ti-trash"></i> Eliminar cliente</button>
             </div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text3)">
@@ -5178,6 +5178,7 @@ Listo para analizar.
       </div>
 
 <script src="./js/app.v2.0.331.js"></script>
+<script src="./js/core/image-attachment-standard.js?v=2.0.331-hotfix-1"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
 <!-- PANEL USUARIO (engranaje) -->

@@ -20514,21 +20514,28 @@ function guardarNuevoGenerico() {
 
   if (tipo === 'cliente') {
     var cliExistente = window._editingClienteId
-      ? (clientesData||[]).find(function(c){ return c.id === window._editingClienteId || c.fbKey === window._editingClienteId; })
+      ? (clientesData||[]).find(function(c){ return String(c.id || '') === String(window._editingClienteId) || String(c.fbKey || '') === String(window._editingClienteId); })
       : null;
 
-    var nuevo = {
+    var telefonoCliente = obj.tel || '';
+    var emailCliente = obj.em || '';
+    var direccionCliente = String(obj.dir || '').trim().toLocaleUpperCase('es-AR');
+    var nuevo = Object.assign({}, cliExistente || {}, {
       id:        cliExistente ? cliExistente.id : String(Date.now()).slice(-6),
       nombre:    (String(obj.nm || '').trim().toLocaleUpperCase('es-AR')) + (obj.ap ? ' ' + String(obj.ap).trim().toLocaleUpperCase('es-AR') : ''),
       apellidos: String(obj.ap || '').trim().toLocaleUpperCase('es-AR'),
-      telefono:  obj.tel || '',
-      mail:      obj.em || '',
+      dni:       obj.dni || '',
+      telefono:  telefonoCliente,
+      tel:       telefonoCliente,
+      mail:      emailCliente,
+      email:     emailCliente,
       cuit:      obj.cuit || '',
       empresa:   obj.empresa || '',
-      dir:       String(obj.dir || '').trim().toLocaleUpperCase('es-AR'),
-      localidad: 'Mar del Plata',
-      activo:    true
-    };
+      dir:       direccionCliente,
+      direccion: direccionCliente,
+      localidad: (cliExistente && cliExistente.localidad) || 'Mar del Plata',
+      activo:    cliExistente ? cliExistente.activo !== false : true
+    });
     if (cliExistente && cliExistente.fbKey) {
       nuevo.fbKey = cliExistente.fbKey;
     }
@@ -21778,7 +21785,7 @@ function guardarEquipo() {
     : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/equipos'), datos).then(function(ref){ equipoActual = ref.key; return ref; }));
   promesa.then(function(){
     // Subir fotos pendientes
-    if (eqFotosTemp.length && window.fbStorage) subirFotosEquipo();
+    if (eqFotosTemp.length) subirFotosEquipo();
     else { notify(equipoActual ? 'Equipo actualizado' : 'Equipo guardado'); volverListaEquipos(); }
   }).catch(function(e){ notify('Error: '+e.message); });
 }
@@ -38548,6 +38555,16 @@ function verDetalleVentaDesdeId(ventaId) {
     if (typeof verDetalleVenta === 'function') verDetalleVenta(ventaId);
   }, document.querySelector('[onclick*="detalle"]'));
 }
+
+function abrirVentaDesdeHistorialCliente(ventaRef) {
+  var venta = _svResolverVentaRegistro(ventaRef);
+  if (!venta) { notify('Venta no encontrada'); return; }
+  window._ventaDesdeHistorialOrigen = 'historialcliente';
+  svNavegarDirecto('detalle', function() {
+    verDetalleVenta(venta.fbKey || venta.id);
+    window._ventaDesdeHistorialOrigen = 'historialcliente';
+  }, document.querySelector('[onclick*="detalle"]'));
+}
 // HERRAMIENTA: MIGRAR COBROS HISTÓRICOS (desde Configuración)
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -38715,7 +38732,7 @@ function verHistorialCliente(id, nombre) {
         '<td class="tr" style="font-weight:500">$' + (parseFloat(t)||0).toLocaleString('es-AR') + '</td>' +
         '<td class="tr">' + ventaEstadoBadge(estadoPagoEfectivoVenta(v)) + '</td>' +
         '<td class="tr">' + ventaEstadoInstBadge(v.estadoInst) + '</td>' +
-        '<td><button class="btn btn-sm btn-icon" onclick="verDetalleVenta(this.dataset.vid)" data-vid="' + v.id + '"><i class="ti ti-eye" style="font-size:13px"></i></button></td>' +
+        '<td><button class="btn btn-sm btn-icon" onclick="abrirVentaDesdeHistorialCliente(this.dataset.ventaRef)" data-venta-ref="' + escapeHTML(v.fbKey || v.id || '') + '" title="Ver detalle de la venta"><i class="ti ti-eye" style="font-size:13px"></i></button></td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="6" style="color:var(--text3);text-align:center;padding:16px">Sin ventas registradas</td></tr>';
   }
@@ -38830,7 +38847,7 @@ function renderClienteTimeline(cli, ventas, pptos, pagos) {
       color: 'var(--green)',
       titulo: 'Venta ' + (v.id || v.numero || ''),
       detalle: (estadoPagoEfectivoVenta(v) || '—') + ' · ' + money(v.total),
-      accion: v.id ? 'verDetalleVenta(\'' + String(v.id).replace(/'/g,"\\'") + '\')' : ''
+      accion: (v.fbKey || v.id) ? 'abrirVentaDesdeHistorialCliente(\'' + String(v.fbKey || v.id).replace(/'/g,"\\'") + '\')' : ''
     });
     var ot = (typeof otData !== 'undefined' ? (otData || []) : []).find(function(o){ return _svRegistroPerteneceVenta(o, v); });
     if (ot) {
@@ -38852,7 +38869,7 @@ function renderClienteTimeline(cli, ventas, pptos, pagos) {
       color: 'var(--green)',
       titulo: 'Pago recibido' + (p.ventaId ? ' · ' + p.ventaId : ''),
       detalle: (p.medio || '—') + ' · ' + money(p.monto),
-      accion: p.ventaId ? 'verDetalleVenta(\'' + String(p.ventaId).replace(/'/g,"\\'") + '\')' : ''
+      accion: p.ventaId ? 'abrirVentaDesdeHistorialCliente(\'' + String(p.ventaFbKey || p.ventaId).replace(/'/g,"\\'") + '\')' : ''
     });
   });
 
@@ -40817,6 +40834,14 @@ function calcularComisionEmpleado(emp, mesAMM) {
 }
 
 // Editar cliente
+function editarClienteDesdeHistorial() {
+  var cli = (clientesData || []).find(function(c) {
+    return String(c.fbKey || '') === String(clienteActualId || '') || String(c.id || '') === String(clienteActualId || '');
+  });
+  if (!cli) { notify('Cliente no encontrado'); return; }
+  editarCliente(cli.fbKey || cli.id);
+}
+
 function editarCliente(id) {
   var cli = clientesData ? clientesData.find(function(c){ return String(c.id || '') === String(id || '') || String(c.fbKey || '') === String(id || ''); }) : null;
   if (!cli) { notify('Cliente no encontrado'); return; }
