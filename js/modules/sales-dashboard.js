@@ -38,9 +38,20 @@
       .sv332-q-sub{font-size:11px;color:var(--text2);margin-top:7px;line-height:1.25;min-height:15px}
       .sv332-q-sub .up{color:var(--green);font-weight:700}.sv332-q-sub .down{color:var(--red);font-weight:700}
       @media (min-width:1200px){
+        #dash-row2-admin > .card:first-child{display:flex!important;flex-direction:column!important}
         #dash-row2-admin .dash-ventas-split{gap:24px!important}
-        .sv332-mini-kpis{margin-top:14px!important}
-        .sv332-q-v{font-size:20px}
+        #dash-row2-admin .dash-ventas-split{flex:1 1 auto!important;min-height:230px!important}
+        #dash-row2-admin .dash-ventas-split>div{min-height:0!important}
+        #dash-row2-admin #dash-bar-area{flex:1 1 auto!important;height:auto!important;min-height:180px!important;max-height:none!important}
+        #dash-row2-admin #dash-month-svg{flex:1 1 auto!important;height:auto!important;min-height:180px!important;max-height:none!important}
+        .sv332-mini-kpis{margin-top:16px!important;padding:14px 16px!important;min-height:64px}
+        .sv332-mini{gap:12px!important}
+        .sv332-ico{width:36px;height:36px;font-size:20px}
+        .sv332-mini-v{font-size:17px}
+        .sv332-quick{margin-top:14px!important}
+        .sv332-q{padding:18px 16px!important;min-height:120px}
+        .sv332-q-v{font-size:24px}
+        .sv332-q-sub{font-size:12px;margin-top:9px}
       }
       @media (min-width:701px) and (max-width:1199px){
         .sv332-mini-kpis{grid-template-columns:repeat(3,1fr)}
