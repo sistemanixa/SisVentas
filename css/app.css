@@ -855,6 +855,7 @@ body.modal-secure-open{overflow:hidden!important}
 .item-prod-img{width:42px;height:42px;border-radius:10px;object-fit:cover;display:inline-flex;align-items:center;justify-content:center;flex:0 0 42px;background:linear-gradient(135deg,rgba(30,41,59,.92),rgba(15,23,42,.76));border:1px solid rgba(255,255,255,.10);box-shadow:0 8px 18px rgba(0,0,0,.16);overflow:hidden}
 .item-prod-img i{font-size:18px;color:var(--text3)}
 .item-prod-img-edit{width:46px;height:46px;border-radius:11px}
+.prod-list-thumb,.asist-prod-thumb{width:46px;height:46px;flex-basis:46px;border-radius:11px}
 .item-prod-mini-line{display:flex;align-items:center;gap:8px;min-width:0}
 .item-prod-mini-line .item-prod-img{width:34px;height:34px;flex-basis:34px;border-radius:9px}
 @media(max-width:760px){.item-prod-img{width:36px;height:36px;flex-basis:36px}.item-prod-img-edit{width:40px;height:40px}.item-prod-mini-line .item-prod-img{width:30px;height:30px;flex-basis:30px}}
