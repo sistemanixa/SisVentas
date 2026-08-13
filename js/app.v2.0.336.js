@@ -7564,23 +7564,16 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.337-firebase',
+  VERSION: 'v2.0.336-firebase',
   RELEASE_NOTES: Object.freeze([
     'Las horas extra del mismo empleado y período se unifican sin duplicarse.',
     'El administrador revisa horas y cuentas desde un flujo integrado en Empleados.',
     'El Dashboard vuelve a abrir sin repetir cálculos pesados cuando los datos no cambiaron.',
-    'Clientes agrupa cada ficha principal con sus sedes y direcciones sin perder referencias históricas.',
+    'Clientes permite unificar sedes y direcciones sin perder las referencias históricas.',
     'Se corrigieron caracteres dañados en avisos y textos históricos visibles.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'empleados', actionLabel:'Abrir Empleados' }),
   RELEASE_HISTORY: Object.freeze([
-    Object.freeze({
-      version: 'v2.0.337',
-      date: '13/08/2026',
-      title: 'Clientes principales y sedes trazables',
-      notes: Object.freeze(['Cada cliente se muestra una sola vez con sus direcciones y categorías de sede.', 'Las ventas, presupuestos y OT históricas conservan sus referencias legacy.', 'Se puede agregar una sede desde la ficha principal y queda integrada a la estructura nueva.']),
-      feature: Object.freeze({ page:'clientes', actionLabel:'Abrir Clientes' })
-    }),
     Object.freeze({
       version: 'v2.0.336',
       date: '12/08/2026',
