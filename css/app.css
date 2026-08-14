@@ -2160,6 +2160,28 @@ body.modal-secure-open{overflow:hidden!important}
   table.sv-mobile-card-grid tbody > tr > td[style*="display:none"]{display:none!important}
   table.sv-mobile-card-grid .badge{max-width:100%;white-space:normal!important;text-align:center}
   table.sv-mobile-card-grid .sv-grid-actions-trigger{margin-left:auto}
+  /* Empleados: la tarjeta deja una fila completa para acciones. Mostrar los
+     cuatro accesos directos evita un segundo toque innecesario en el menú. */
+  #emp-tbl.sv-responsive-grid .sv-grid-actions-cell{
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:8px!important;
+  }
+  #emp-tbl.sv-responsive-grid .sv-grid-actions-original{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:8px!important;
+    flex-wrap:wrap!important;
+  }
+  #emp-tbl.sv-responsive-grid .sv-grid-actions-original .btn{
+    min-width:40px!important;
+    min-height:38px!important;
+  }
+  #emp-tbl.sv-responsive-grid .sv-grid-actions-trigger,
+  #emp-tbl.sv-responsive-grid .sv-grid-actions-menu{display:none!important}
   #page-presupuesto #ppto-list-view > .card{overflow-x:visible!important}
   #page-presupuesto #ppto-list-view .sv-column-percent-btn{display:none!important}
 }
