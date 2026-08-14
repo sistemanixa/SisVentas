@@ -12,7 +12,14 @@ test('la respuesta de facturación conserva el número fiscal para el QR', () =>
 });
 
 test('las facturas históricas sin número ofrecen reparación para recuperar el QR', () => {
-  assert.match(app, /Completar número para QR/);
+  assert.match(app, /data-factura-action="completar-numero"/);
   assert.match(app, /function completarNumeroFiscalFactura/);
   assert.match(app, /numeroFiscalCompletadoPor/);
+});
+
+test('el QR prioriza la fecha y el importe fiscal guardados', () => {
+  assert.match(app, /var fechaFiscal = String\(facturaVenta\.fecha \|\| facturaVenta\.fecha_emision \|\| v\.fecha \|\| ''\)/);
+  assert.match(app, /var importeQr = _leerImporteFiscalFactura\(facturaVenta\)/);
+  assert.match(app, /importe: importeQr/);
+  assert.match(app, /importe_total: importeFiscal, importeTotal: importeFiscal, totalFiscal: importeFiscal/);
 });
