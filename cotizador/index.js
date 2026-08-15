@@ -1876,7 +1876,9 @@ async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, to
             }
           }
         }
-        const identidad = validarIdentidadProducto(item.producto||item.nombre||'', datos.titulo);
+        const identidad = item.confirmarIdentidadManual === true
+          ? { ok:true, confianza:1, metodo:'confirmacion_manual_guardada', manual:true }
+          : validarIdentidadProducto(item.producto||item.nombre||'', datos.titulo);
         if (!identidad.ok) {
           resultados.push(Object.assign(
             respuestaRevisionIdentidadMercadoLibre({

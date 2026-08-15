@@ -14415,6 +14415,14 @@ function editarProductoFallidoActualizador(fbKey, proveedorIdx) {
   if (editor) editor.style.display = editor.style.display === 'none' ? 'flex' : 'none';
 }
 
+function abrirProductoDesdeFalloActualizador(fbKey) {
+  fbKey = String(fbKey || '');
+  if (!fbKey) { notify('No se pudo identificar el producto'); return; }
+  var modal = document.getElementById('modal-actualizador-precios');
+  if (modal) minimizarActualizadorMasivoPrecios();
+  abrirProductoDesdeListadoActualizador(fbKey);
+}
+
 function actualizadorMarcarProductoVerificando(fbKey, verificando) {
   var clave = String(fbKey || '');
   document.querySelectorAll('[data-actualizador-fallo-key]').forEach(function(fila) {
@@ -14527,6 +14535,51 @@ async function reintentarProductoConNombreCorregidoActualizador(fbKey) {
   }
 }
 
+function resultadoManualMercadoLibreActualizador(fallo) {
+  fallo = fallo || {};
+  var item = fallo.item || {};
+  var producto = item.producto || {};
+  var precio = parsePrecioProveedorARS(fallo.precioCandidatoArs || 0);
+  return {
+    ok:true,
+    proveedor:(item.proveedor && (item.proveedor.nombre || item.proveedor.proveedor)) || 'MERCADO LIBRE',
+    proveedorKey:item.proveedorKey || '',
+    codigo:producto.codigo || fallo.codigo || '',
+    producto:producto.nombre || producto.descripcion || fallo.producto || '',
+    url:item.url || fallo.url || '',
+    urlFinal:item.url || fallo.url || '',
+    precioArs:precio,
+    precioActualArs:precio,
+    precioOriginalArs:parsePrecioProveedorARS(fallo.precioOriginalArs || 0) || precio,
+    enPromocion:!!fallo.enPromocion,
+    porcentajeDescuento:parseFloat(fallo.porcentajeDescuento) || 0,
+    sinIva:false,
+    ivaAlicuota:21,
+    disponibilidadProveedor:fallo.disponibilidadProveedor || 'no_verificado',
+    disponibilidadProveedorTexto:fallo.disponibilidadProveedorTexto || 'No verificado',
+    fuente:'mercado_libre_identidad_confirmada_usuario',
+    fecha:new Date().toISOString(),
+    tituloProveedor:fallo.nombreProveedor || '',
+    textoPrecio:'ARS ' + precio,
+    selectorPrecio:fallo.selectorPrecio || fallo.fuente || 'precio_confirmado_por_usuario',
+    moneda:'ARS',
+    identidad:{
+      ok:true,
+      confianza:1,
+      metodo:'confirmacion_manual_usuario',
+      manual:true,
+      motivoOriginal:fallo.motivoIdentidad || ''
+    }
+  };
+}
+
+function identidadMercadoLibreConfirmadaParaUrl(proveedor, url) {
+  proveedor = proveedor || {};
+  var urlConfirmada = String(proveedor.identidadConfirmadaUrl || '').trim();
+  return proveedor.identidadConfirmadaManualmente === true &&
+    !!urlConfirmada && urlsProveedorEquivalentes(urlConfirmada, url);
+}
+
 async function confirmarIdentidadMercadoLibreActualizador(fbKey, proveedorIdx, boton) {
   fbKey = String(fbKey || '');
   proveedorIdx = parseInt(proveedorIdx, 10) || 0;
@@ -14542,26 +14595,10 @@ async function confirmarIdentidadMercadoLibreActualizador(fbKey, proveedorIdx, b
   if (boton) { boton.disabled = true; boton.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Confirmando…'; }
   actualizadorMarcarProductoVerificando(fbKey, true);
   var estado = document.getElementById('actualizador-precios-estado');
-  if (estado) estado.textContent = 'Confirmando la publicación y leyendo nuevamente su precio…';
+  if (estado) estado.textContent = 'Aplicando el precio que ya verificaste en la publicación…';
   try {
-    var respuesta = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar', {
-      method:'POST',
-      headers:await headersCotizadorProtegido(),
-      body:JSON.stringify({
-        proveedorKey:item.proveedorKey,
-        url:item.url,
-        codigo:producto.codigo || '',
-        producto:producto.nombre || producto.descripcion || '',
-        precioAnteriorArs:_costoProveedorProductoSinAuditar(producto, actualizadorProveedorActual(item)) || precioGremioARSDesdeProducto(producto),
-        confirmarIdentidadManual:true,
-        debug:true
-      })
-    });
-    var texto = await respuesta.text();
-    var resultado = null;
-    try { resultado = texto ? JSON.parse(texto) : null; } catch (_) {}
-    if (!respuesta.ok || !resultado) throw new Error((resultado && (resultado.mensaje || resultado.error)) || ('El cotizador respondió HTTP ' + respuesta.status));
-    if (!resultado.ok) throw new Error(resultado.mensaje || resultado.error || 'No se pudo confirmar el producto');
+    var resultado = resultadoManualMercadoLibreActualizador(fallo);
+    if (!(resultado.precioArs > 0)) throw new Error('El precio leído ya no está disponible. Volvé a analizar este producto.');
     var validacion = validarResultadoActualizadorProveedor(item, resultado);
     if (!validacion.ok || !urlsProveedorEquivalentes(item.url, resultado.url)) throw new Error(validacion.mensaje || 'La respuesta no corresponde a la misma URL');
     var cambios = datosActualizadosProductoBiosegur(item, resultado);
@@ -14582,6 +14619,8 @@ async function confirmarIdentidadMercadoLibreActualizador(fbKey, proveedorIdx, b
       return !(String(f && f.fbKey || '') === fbKey && (parseInt(f && f.proveedorIdx, 10) || 0) === proveedorIdx);
     });
     _actualizadorSesionPrecios.procesados[actualizadorClaveItem(item)] = true;
+    var modalActualizador = document.getElementById('modal-actualizador-precios');
+    if (modalActualizador) modalActualizador._actualizadosAutomaticos = (parseInt(modalActualizador._actualizadosAutomaticos, 10) || 0) + 1;
     if (estado) estado.innerHTML = '<strong style="color:var(--green)">Identidad confirmada y precio actualizado.</strong>';
     notify('Producto confirmado y precio actualizado.');
   } catch (e) {
@@ -14607,11 +14646,23 @@ async function guardarUrlFallidoActualizador(fbKey, proveedorIdx) {
     var proveedor = proveedores[proveedorIdx] || {};
     var url = normalizarUrlProveedorProducto(input ? input.value : '', proveedor.nombre || proveedor.proveedor || '');
     if (!fbKey || !url || !/^https?:\/\//i.test(url)) { notify('Ingresá una URL válida y completa'); return; }
-    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey + '/proveedores/' + proveedorIdx), { url:url, actualizadoEn:0, actualizado:'' });
+    await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey + '/proveedores/' + proveedorIdx), {
+      url:url,
+      actualizadoEn:0,
+      actualizado:'',
+      identidadConfirmadaManualmente:null,
+      identidadConfirmadaEn:null,
+      identidadConfirmadaPor:null,
+      identidadConfirmadaUrl:null
+    });
     if (prod && Array.isArray(prod.proveedores) && prod.proveedores[proveedorIdx]) {
       prod.proveedores[proveedorIdx].url = url;
       prod.proveedores[proveedorIdx].actualizadoEn = 0;
       prod.proveedores[proveedorIdx].actualizado = '';
+      delete prod.proveedores[proveedorIdx].identidadConfirmadaManualmente;
+      delete prod.proveedores[proveedorIdx].identidadConfirmadaEn;
+      delete prod.proveedores[proveedorIdx].identidadConfirmadaPor;
+      delete prod.proveedores[proveedorIdx].identidadConfirmadaUrl;
     }
     Object.keys((_actualizadorSesionPrecios && _actualizadorSesionPrecios.procesados) || {}).forEach(function(clave) {
       if (clave.indexOf(String(fbKey) + '::' + String(parseInt(proveedorIdx,10)||0) + '::') === 0) {
@@ -14931,6 +14982,7 @@ function datosActualizadosProductoBiosegur(item, resultado) {
     pv.identidadConfirmadaManualmente = true;
     pv.identidadConfirmadaEn = ahora;
     pv.identidadConfirmadaPor = currentUser || currentUserEmail || 'Usuario';
+    pv.identidadConfirmadaUrl = String(item.url || resultado.url || '').trim();
   }
   proveedores[item.proveedorIdx] = pv;
 
@@ -15057,8 +15109,7 @@ function actualizadorHtmlFallos(detalleFallos) {
       var nombreSugerido = String(f.nombreProveedor || '').trim();
       var puedeCambiarNombre = actualizadorNombreProveedorDistinto(f.producto, nombreSugerido);
       var urlSegura = /^https?:\/\//i.test(String(f.url || '').trim()) ? String(f.url || '').trim() : '';
-      var nombreProducto = '<strong>' + escapeHTML(f.codigo || 'Sin código') + '</strong> · ' + escapeHTML(f.producto);
-      if (urlSegura) nombreProducto = '<a href="' + escapeHTML(urlSegura) + '" target="_blank" rel="noopener noreferrer" title="Abrir producto en el proveedor" style="color:var(--text);text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px">' + nombreProducto + ' <i class="ti ti-external-link" style="font-size:11px;color:var(--blue)"></i></a>';
+      var nombreProducto = '<button type="button" data-actualizador-accion onclick="abrirProductoDesdeFalloActualizador(\'' + escapeHTML(String(f.fbKey || '')) + '\')" title="Abrir la ficha interna del producto" style="padding:0;border:0;background:none;color:var(--text);font:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:var(--border2);text-underline-offset:3px"><strong>' + escapeHTML(f.codigo || 'Sin código') + '</strong> · ' + escapeHTML(f.producto) + ' <i class="ti ti-chevron-right" style="font-size:11px;color:var(--blue)"></i></button>';
       return '<div id="actualizador-fallo-' + idSeguro + '" data-fallo-producto data-actualizador-fallo-key="' + escapeHTML(String(f.fbKey || '')) + '" style="padding:9px 0;border-bottom:0.5px solid var(--border);opacity:' + (verificando ? '.7' : '1') + '">' +
         '<div style="display:flex;gap:8px;align-items:flex-start">' + (f.noDisponible ? '<input type="checkbox" data-actualizador-no-disponible value="' + escapeHTML(String(f.fbKey || '')) + '" style="margin-top:3px">' : '') + '<div>' + nombreProducto + '</div></div>' +
         '<div style="color:' + (f.noDisponible ? 'var(--red)' : 'var(--text3)') + ';margin-top:3px">' + escapeHTML(f.noDisponible ? 'El producto ya no existe en el proveedor.' : f.motivo) + '</div>' +
@@ -15406,6 +15457,7 @@ async function ejecutarActualizadorMasivoBiosegur() {
                 codigo:x.producto.codigo || '',
                 producto:x.producto.nombre || x.producto.descripcion || '',
                 url:x.url,
+                confirmarIdentidadManual:identidadMercadoLibreConfirmadaParaUrl(x.proveedor, x.url),
                 precioAnteriorArs:_costoProveedorProductoSinAuditar(x.producto, x.proveedor) || precioGremioARSDesdeProducto(x.producto)
               };
             })
@@ -15469,6 +15521,13 @@ async function ejecutarActualizadorMasivoBiosegur() {
               noDisponible:!!(resultado && String(resultado.codigo || '').toUpperCase() === 'PRODUCT_NOT_FOUND'),
               requiereConfirmacionIdentidad:!!(resultado && resultado.requiereConfirmacionIdentidad),
               precioCandidatoArs:parsePrecioProveedorARS(resultado && resultado.precioCandidatoArs || 0),
+              precioOriginalArs:parsePrecioProveedorARS(resultado && resultado.precioOriginalArs || 0),
+              enPromocion:!!(resultado && resultado.enPromocion),
+              porcentajeDescuento:parseFloat(resultado && resultado.porcentajeDescuento) || 0,
+              disponibilidadProveedor:String(resultado && resultado.disponibilidadProveedor || 'no_verificado'),
+              disponibilidadProveedorTexto:String(resultado && resultado.disponibilidadProveedorTexto || 'No verificado'),
+              fuente:String(resultado && resultado.fuente || ''),
+              selectorPrecio:String(resultado && resultado.selectorPrecio || ''),
               motivoIdentidad:String(resultado && resultado.motivoIdentidad || ''),
               motivo:variacionPendiente.requiereAprobacion
                 ? 'Cambio bloqueado: requiere revisión y aprobación del administrador.'
