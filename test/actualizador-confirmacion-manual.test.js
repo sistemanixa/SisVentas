@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const app = fs.readFileSync(path.join(root, 'js', 'app.v2.0.343.js'), 'utf8');
+const app = fs.readFileSync(path.join(root, 'js', 'app.v2.0.344.js'), 'utf8');
 const appBase = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
 const cotizador = fs.readFileSync(path.join(root, 'cotizador', 'index.js'), 'utf8');
 
