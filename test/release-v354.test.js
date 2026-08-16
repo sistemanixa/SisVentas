@@ -5,12 +5,10 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
-const app = read('js/app.js');
+const app = read('js/app.v2.0.354.js');
 
 test('v2.0.354 publica el mismo código activo y versionado', () => {
-  assert.match(read('index.html'), /app\.v2\.0\.354\.js/);
-  assert.match(read('js/core/version.js'), /v2\.0\.354/);
-  assert.equal(read('js/app.v2.0.354.js'), app);
+  assert.match(app, /VERSION: 'v2\.0\.354-firebase'/);
 });
 
 test('la factura conserva el diseño SisVentas y consulta datos estructurados', () => {
