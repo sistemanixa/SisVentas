@@ -79,9 +79,17 @@
     });
   }
 
+  function moneyValuesEqual(stored, computed) {
+    if (Math.abs(stored - computed) < MONEY_TOLERANCE) return true;
+    // Los presupuestos anteriores a V3 se guardaban redondeados al peso.
+    // Una diferencia de centavos contra el cálculo canónico no representa
+    // una inconsistencia comercial cuando el valor persistido es entero.
+    return Number.isInteger(stored) && Math.abs(stored - Math.round(computed)) < MONEY_TOLERANCE;
+  }
+
   function addMoneyConflicts(target, record, fields, computed, path, kind) {
     values(record, fields).forEach(function (entry) {
-      if (Math.abs(entry.value - computed) >= MONEY_TOLERANCE) {
+      if (!moneyValuesEqual(entry.value, computed)) {
         target.push(conflict(kind, path + '.' + entry.field, entry.value, computed));
       }
     });
@@ -177,7 +185,7 @@
 
     addMoneyConflicts(conflicts, source, ['subtotal'], subtotal, 'budget', 'subtotal-mismatch');
     if (source.descuentoAmt !== undefined && source.descuentoAmt !== null && source.descuentoAmt !== '') {
-      if (Math.abs(storedGeneralDiscount - generalDiscount) >= MONEY_TOLERANCE) {
+      if (!moneyValuesEqual(storedGeneralDiscount, generalDiscount)) {
         conflicts.push(conflict('general-discount-mismatch', 'budget.descuentoAmt', storedGeneralDiscount, generalDiscount));
       }
     }
@@ -226,6 +234,7 @@
     DEFAULT_IVA_RATE: DEFAULT_IVA_RATE,
     parseNumber: parseNumber,
     roundMoney: roundMoney,
+    moneyValuesEqual: moneyValuesEqual,
     normalizeItem: normalizeItem,
     build: build,
     legacyFields: legacyFields
