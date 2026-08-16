@@ -43,10 +43,7 @@ test('un documento histórico por nombre sólo abre una coincidencia única', ()
   assert.equal(context._svResolverClienteDocumento({ clienteFbKey:'b', cliente:'Otro nombre' }).fbKey, 'b');
 });
 
-test('v2.0.350 publica el mismo código activo y versionado', () => {
-  assert.match(index, /VERSION: 'v2\.0\.350-firebase'/);
-  assert.match(index, /js\/app\.v2\.0\.350\.js/);
-  assert.equal(read('js/app.v2.0.350.js'), app);
+test('v2.0.350 conserva su instantánea publicada', () => {
+  assert.match(read('js/app.v2.0.350.js'), /VERSION: 'v2\.0\.350-firebase'/);
   assert.match(read('js/core/version.v2.0.350.js'), /v2\.0\.350/);
-  assert.match(read('sw.js'), /sisventas-v2\.0\.350/);
 });
