@@ -2275,3 +2275,10 @@ body.modal-secure-open{overflow:hidden!important}
 .clientes-review-empty{padding:34px 16px;text-align:center;color:var(--text2);border:1px dashed var(--border);border-radius:10px}.clientes-review-empty i{color:var(--green);margin-right:5px}
 .clientes-review-modal .modal-foot{display:flex;justify-content:space-between;gap:12px;align-items:center;padding-top:12px;margin-top:2px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
 @media(max-width:700px){.clientes-review-overlay{padding:8px}.clientes-review-modal{width:100%!important;max-height:calc(100vh - 16px)!important}.clientes-review-group-head{align-items:flex-start;flex-direction:column}.clientes-review-group table thead{display:none}.clientes-review-group table,.clientes-review-group tbody,.clientes-review-group tr,.clientes-review-group td{display:block;width:100%}.clientes-review-group td{border-top:0;padding:3px 12px}.clientes-review-group tr{padding:8px 0;border-top:1px solid var(--border)}.clientes-review-group td:first-child{color:var(--text3);font-family:monospace}.clientes-review-modal .modal-foot{align-items:flex-start;flex-direction:column}.clientes-review-modal .modal-foot button{align-self:flex-end}}
+
+/* Navegación consistente desde documentos comerciales a la ficha del cliente. */
+.sv-document-client-input{cursor:pointer!important;color:var(--blue)!important;font-weight:600!important;text-decoration:underline;text-underline-offset:3px}
+.sv-document-client-input:hover,.sv-document-client-input:focus{border-color:var(--blue)!important;box-shadow:0 0 0 2px color-mix(in srgb,var(--blue) 16%,transparent)!important}
+.sv-document-client-link{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:var(--blue);font:inherit;font-size:16px;font-weight:600;cursor:pointer;text-align:left;text-decoration:underline;text-underline-offset:3px}
+.sv-document-client-link:hover,.sv-document-client-link:focus-visible{color:var(--text);outline:0}
+.sv-document-client-link i{font-size:14px;flex:0 0 auto}
