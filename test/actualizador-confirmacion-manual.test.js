@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const app = fs.readFileSync(path.join(root, 'js', 'app.v2.0.344.js'), 'utf8');
+const app = fs.readFileSync(path.join(root, 'js', 'app.v2.0.347.js'), 'utf8');
 const appBase = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
 const cotizador = fs.readFileSync(path.join(root, 'cotizador', 'index.js'), 'utf8');
 
@@ -37,6 +37,7 @@ test('el resultado confirmado conserva evidencia, moneda e identidad manual', ()
   assert.match(resultado, /moneda:'ARS'/);
   assert.match(resultado, /selectorPrecio/);
   assert.match(resultado, /manual:true/);
+  assert.match(resultado, /confirmacionHumanaCompleta:true/);
   assert.match(resultado, /mercado_libre_identidad_confirmada_usuario/);
 });
 
@@ -51,6 +52,7 @@ test('la confirmación humana queda ligada a la URL y se reutiliza en futuros lo
   const actualizacion = bloque('function datosActualizadosProductoBiosegur', 'function validarResultadoActualizadorProveedor');
   const lote = bloque('async function ejecutarActualizadorMasivoBiosegur', 'function asegurarMargenProductoDefaultEnForm');
   assert.match(actualizacion, /identidadConfirmadaUrl\s*=\s*String\(item\.url/);
+  assert.match(actualizacion, /variacionAprobadaPor\s*=\s*currentUser/);
   assert.match(lote, /confirmarIdentidadManual:identidadMercadoLibreConfirmadaParaUrl\(x\.proveedor, x\.url\)/);
   assert.match(app, /urlsProveedorEquivalentes\(urlConfirmada, url\)/);
   assert.match(cotizador, /item\.confirmarIdentidadManual === true/);
