@@ -7,14 +7,19 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('v2.0.351 conserva su instantánea versionada', () => {
-  const app = read('js/app.v2.0.351.js');
+test('v2.0.351 publica el mismo código activo y versionado', () => {
+  const app = read('js/app.js');
+  const index = read('index.html');
+  assert.equal(read('js/app.v2.0.351.js'), app);
   assert.match(app, /VERSION: 'v2\.0\.351-firebase'/);
+  assert.match(index, /app\.v2\.0\.351\.js/);
+  assert.match(index, /version\.v2\.0\.351\.js/);
   assert.match(read('js/core/version.v2.0.351.js'), /v2\.0\.351/);
+  assert.match(read('sw.js'), /sisventas-v2\.0\.351/);
 });
 
 test('la respuesta textual del facturador se transforma en datos fiscales persistibles', () => {
-  const app = read('js/app.v2.0.351.js');
+  const app = read('js/app.js');
   assert.match(app, /function _extraerNumeroFiscalDesdeTexto/);
   assert.match(app, /var camposTexto = \['rta', 'mensaje', 'message', 'detalle', 'descripcion'\]/);
   assert.match(app, /parche\.datosFiscalesCapturadosDe = 'respuesta-emision'/);
@@ -49,7 +54,7 @@ test('la respuesta textual del facturador se transforma en datos fiscales persis
 });
 
 test('la recuperación histórica se realiza por coincidencia exacta de CAE', () => {
-  const app = read('js/app.v2.0.351.js');
+  const app = read('js/app.js');
   assert.match(app, /function recuperarDatosFiscalesFactura/);
   assert.match(app, /_normalizarCaeFactura\(comprobante\.cae \|\| comprobante\.codigoAutorizacion\) === caeBuscado/);
   assert.match(app, /datosFiscalesRecuperadosDe: 'comprobantes-emitidos'/);

@@ -6514,120 +6514,25 @@ function verFacturaEmitida(pdfUrl, cae, ventaId) {
   notify('El PDF fiscal original no quedó almacenado en esta operación.');
 }
 
-function _adjuntoPdfFiscalOriginal(factura) {
-  var f = factura || {};
-  return f.comprobanteOriginal || f.comprobante || f.archivoAdjunto || null;
-}
-
-function _urlPdfFiscalOriginal(factura) {
-  var f = factura || {};
-  return String(f.pdf_url || f.pdfUrl || f.comprobante_pdf_url || f.comprobantePdfUrl || f.archivoUrl || '');
-}
-
-function _tienePdfFiscalOriginal(factura) {
-  var adjunto = _adjuntoPdfFiscalOriginal(factura);
-  return !!(_urlPdfFiscalOriginal(factura) || (adjunto && adjunto.data));
-}
-
-function _puedeVincularPdfFiscalOriginal() {
-  var rol = String(currentRole || '').toLowerCase();
-  return rol === 'admin' || rol === 'administrativo';
-}
-
-// El resumen comercial y la factura fiscal son documentos diferentes. Nunca
-// reconstruimos una factura con precios de la venta: si el facturador no dejó
-// el PDF, Administración debe vincular el original antes de entregarlo.
+// Una factura antigua puede tener CAE pero no conservar el PDF devuelto por el
+// facturador. En ese caso reconstruimos el comprobante con los datos guardados
+// de la venta, sin derivar al usuario a una aplicación externa.
 function verComprobanteFacturaVenta(ventaId) {
   var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('No se encontró la venta asociada al comprobante'); return; }
   var factura = venta.factura || {};
-  var adjunto = _adjuntoPdfFiscalOriginal(factura);
+  var adjunto = factura.comprobante || factura.archivoAdjunto || null;
   if (_abrirAdjuntoFacturaExterna(adjunto)) return;
-  var pdfUrl = _urlPdfFiscalOriginal(factura);
+  var pdfUrl = factura.pdf_url || factura.pdfUrl || factura.archivoUrl || '';
   if (pdfUrl) {
     _abrirFuentePdfFactura(pdfUrl, factura.archivoNombre || ('Factura-' + (venta.id || ventaId || 'comprobante')));
     return;
   }
-  abrirModalVincularPdfFiscalOriginal(venta.id || venta.fbKey || ventaId);
-}
-
-function abrirModalVincularPdfFiscalOriginal(ventaId) {
-  var venta = _svResolverVentaRegistro(ventaId);
-  if (!venta || !venta.factura) { notify('No se encontró la factura asociada'); return; }
-  var anterior = document.getElementById('modal-pdf-fiscal-original');
-  if (anterior) anterior.remove();
-  var puedeVincular = _puedeVincularPdfFiscalOriginal();
-  var factura = venta.factura || {};
-  var numero = factura.numero_comprobante || factura.numeroComprobante || factura.numero || 'sin número informado';
-  var overlay = document.createElement('div');
-  overlay.id = 'modal-pdf-fiscal-original';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:10020;background:rgba(3,6,14,.76);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px';
-  overlay.innerHTML =
-    '<div role="dialog" aria-modal="true" style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:24px;max-width:500px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.55)">' +
-      '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px">' +
-        '<div style="width:44px;height:44px;flex:0 0 44px;border-radius:12px;background:var(--amber-bg);display:flex;align-items:center;justify-content:center"><i class="ti ti-file-alert" style="font-size:23px;color:var(--amber)"></i></div>' +
-        '<div style="flex:1"><div style="font-size:17px;font-weight:700">PDF fiscal pendiente de vincular</div><div style="font-size:12px;color:var(--text3);margin-top:3px">' + escapeHTML(String(numero)) + ' · Venta ' + escapeHTML(String(venta.id || ventaId)) + '</div></div>' +
-        '<button class="btn btn-sm btn-icon" data-pdf-fiscal-action="cerrar" title="Cerrar"><i class="ti ti-x"></i></button>' +
-      '</div>' +
-      '<div style="font-size:13px;line-height:1.55;color:var(--text2);margin-bottom:16px">' +
-        (puedeVincular
-          ? 'Para conservar la factura exacta emitida, seleccioná el PDF original descargado de FacturasApp. El sistema no generará una copia aproximada.'
-          : 'El comprobante fiscal original todavía no está disponible para visualizar. Solicitá una copia a Administración.') +
-      '</div>' +
-      (puedeVincular
-        ? '<label style="display:block;padding:14px;border:1px dashed var(--border2);border-radius:10px;background:var(--bg3);cursor:pointer;margin-bottom:10px"><span style="display:block;font-size:12px;font-weight:700;margin-bottom:6px"><i class="ti ti-upload"></i> Seleccionar PDF fiscal original</span><input id="pdf-fiscal-original-archivo" type="file" accept="application/pdf,.pdf" style="width:100%;font-size:12px;color:var(--text2)"></label><div id="pdf-fiscal-original-estado" style="min-height:18px;font-size:11px;color:var(--text3);margin-bottom:12px"></div>'
-        : '') +
-      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-sm" data-pdf-fiscal-action="cerrar">Cerrar</button>' +
-        (puedeVincular ? '<button class="btn btn-sm btn-primary" data-pdf-fiscal-action="guardar"><i class="ti ti-device-floppy"></i> Vincular PDF original</button>' : '') +
-      '</div>' +
-    '</div>';
-  overlay.addEventListener('click', function(evento) {
-    var boton = evento.target.closest('[data-pdf-fiscal-action]');
-    if (evento.target === overlay) { overlay.remove(); return; }
-    if (!boton) return;
-    if (boton.dataset.pdfFiscalAction === 'cerrar') overlay.remove();
-    if (boton.dataset.pdfFiscalAction === 'guardar') guardarPdfFiscalOriginal(venta.id || venta.fbKey || ventaId, boton);
-  });
-  document.body.appendChild(overlay);
-}
-
-async function guardarPdfFiscalOriginal(ventaId, boton) {
-  var venta = _svResolverVentaRegistro(ventaId);
-  var input = document.getElementById('pdf-fiscal-original-archivo');
-  var estado = document.getElementById('pdf-fiscal-original-estado');
-  var archivo = input && input.files ? input.files[0] : null;
-  if (!venta || !venta.fbKey || !venta.factura) { notify('No se encontró la factura asociada'); return; }
-  if (!archivo) { notify('Seleccioná el PDF fiscal original'); return; }
-  if (!(archivo.type === 'application/pdf' || /\.pdf$/i.test(archivo.name || ''))) { notify('El archivo debe ser un PDF'); return; }
-  if (archivo.size > 900000) { notify('El PDF debe pesar menos de 900 KB'); return; }
-  if (boton) { boton.disabled = true; boton.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Vinculando...'; }
-  if (estado) estado.textContent = 'Preparando y guardando el comprobante exacto...';
-  try {
-    var adjunto = await _leerAdjuntoFacturaExterna(archivo);
-    var parche = {
-      comprobanteOriginal: adjunto,
-      archivoNombre: archivo.name,
-      pdfOriginalVinculado: true,
-      pdfOriginalVinculadoPor: currentUser || 'Sistema',
-      pdfOriginalVinculadoTs: Date.now()
-    };
-    await _esperarFacturaExterna(
-      window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey + '/factura'), parche),
-      20000,
-      'La base de datos no respondió. El PDF no pudo vincularse.'
-    );
-    venta.factura = Object.assign({}, venta.factura, parche);
-    if (window._ventaDetalleActual && String(window._ventaDetalleActual.fbKey || '') === String(venta.fbKey)) window._ventaDetalleActual.factura = venta.factura;
-    var modal = document.getElementById('modal-pdf-fiscal-original');
-    if (modal) modal.remove();
-    notify('PDF fiscal original vinculado correctamente');
-    _abrirAdjuntoFacturaExterna(adjunto);
-  } catch (error) {
-    if (estado) estado.textContent = error.message || 'No se pudo vincular el PDF.';
-    notify('No se pudo vincular el PDF fiscal: ' + (error.message || 'error desconocido'));
-  } finally {
-    if (boton && document.body.contains(boton)) { boton.disabled = false; boton.innerHTML = '<i class="ti ti-device-floppy"></i> Vincular PDF original'; }
-  }
+  window._ventaDetalleActual = venta;
+  var detalleAnterior = window._ventaImpConDetalle;
+  window._ventaImpConDetalle = true;
+  imprimirVentaActual(true);
+  window._ventaImpConDetalle = detalleAnterior;
 }
 
 function _fechaLocalISOFacturaExterna() {
@@ -6911,7 +6816,6 @@ function abrirResumenFactura(ventaId) {
   var caeVto = f.cae_vencimiento || f.caeVencimiento || '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(caeVto))) caeVto = String(caeVto).split('-').reverse().join('/');
   var esFacturaExterna = f.fuente === 'externa' || f.manual === true;
-  var tienePdfFiscalOriginal = _tienePdfFiscalOriginal(f);
   var puedeEmitirNC = String(currentRole || '').toLowerCase() === 'admin' && !nc && !esFacturaExterna;
   var importeFiscal = _leerImporteFiscalFactura(f);
   var puedeCompletarNumeroFiscal = String(currentRole || '').toLowerCase() === 'admin' && !!cae && (!numero || importeFiscal === null);
@@ -6950,7 +6854,7 @@ function abrirResumenFactura(ventaId) {
         (nc && nc.pdf_url ? '<button class="btn btn-sm" data-factura-action="ver-nc"><i class="ti ti-file-minus"></i> Ver nota de crédito</button>' : '') +
         (puedeCompletarNumeroFiscal ? '<button class="btn btn-sm" data-factura-action="completar-numero"><i class="ti ti-refresh"></i> Recuperar datos fiscales</button>' : '') +
         (puedeEmitirNC ? '<button class="btn btn-sm" data-factura-action="nota-credito" style="color:var(--red);border-color:var(--red)"><i class="ti ti-file-minus"></i> Emitir nota de crédito</button>' : '') +
-        '<button class="btn btn-sm ' + (tienePdfFiscalOriginal ? 'btn-primary' : '') + '" data-factura-action="ver-factura"><i class="ti ' + (tienePdfFiscalOriginal ? 'ti-file-invoice' : 'ti-upload') + '"></i> ' + (tienePdfFiscalOriginal ? 'Ver PDF fiscal' : (_puedeVincularPdfFiscalOriginal() ? 'Vincular PDF fiscal' : 'PDF no disponible')) + '</button>' +
+        '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"><i class="ti ti-file-invoice"></i> Ver comprobante</button>' +
       '</div>' +
     '</div>';
 
@@ -7131,11 +7035,9 @@ function _parcheFacturaDesdeRespuestaApi(respuesta, facturaActual, puntoVenta) {
   var actual = facturaActual || {};
   var fuentes = _fuentesRespuestaFiscal(respuesta);
   var qrFiscal = actual.afip_qr || actual.qr_afip || actual.qr || '';
-  var pdfFiscal = _urlPdfFiscalOriginal(actual);
   fuentes.some(function(fuente) {
     qrFiscal = qrFiscal || fuente.afip_qr || fuente.qr_afip || fuente.qr || '';
-    pdfFiscal = pdfFiscal || fuente.pdf_url || fuente.pdfUrl || fuente.comprobante_pdf_url || fuente.comprobantePdfUrl || fuente.url_pdf || fuente.urlPdf || '';
-    return !!(qrFiscal && pdfFiscal);
+    return !!qrFiscal;
   });
   var datosQr = _datosFiscalesDesdeQrAfip(qrFiscal);
   if (Object.keys(datosQr).length) fuentes.unshift(datosQr);
@@ -7204,10 +7106,6 @@ function _parcheFacturaDesdeRespuestaApi(respuesta, facturaActual, puntoVenta) {
   }
   if (fechaFiscal && !(actual.fecha || actual.fecha_emision || actual.fechaEmision)) parche.fecha = fechaFiscal;
   if (qrFiscal && !(actual.afip_qr || actual.qr_afip || actual.qr)) parche.afip_qr = qrFiscal;
-  if (pdfFiscal && !_urlPdfFiscalOriginal(actual)) {
-    parche.pdf_url = pdfFiscal;
-    parche.pdfUrl = pdfFiscal;
-  }
   if (Object.keys(parche).length) {
     parche.datosFiscalesCapturadosDe = 'respuesta-emision';
     parche.datosFiscalesCapturadosTs = Date.now();
@@ -8024,20 +7922,13 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.352-firebase',
+  VERSION: 'v2.0.351-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La factura fiscal se abre siempre desde el PDF original, sin reconstrucciones aproximadas.',
-    'Si un comprobante histórico no conserva el PDF, Administración puede vincular el archivo original.'
+    'Al emitir una factura se capturan automáticamente número, punto de venta, fecha, importe y CAE.',
+    'Las facturas históricas incompletas recuperan esos datos desde el archivo de emitidos, sin pedirlos al usuario.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'detalle', actionLabel:'Ver ventas' }),
   RELEASE_HISTORY: Object.freeze([
-    Object.freeze({
-      version: 'v2.0.352',
-      date: '16/08/2026',
-      title: 'Facturas fiscales originales, sin aproximaciones',
-      notes: Object.freeze(['Ver comprobante prioriza exclusivamente el PDF fiscal original.', 'Los PDF faltantes pueden vincularse desde la propia factura por un usuario administrativo.', 'El resumen comercial ya no se presenta como factura ni muestra diagnósticos internos al cliente.']),
-      feature: Object.freeze({ page:'detalle', actionLabel:'Ver ventas' })
-    }),
     Object.freeze({
       version: 'v2.0.351',
       date: '16/08/2026',
@@ -21705,26 +21596,58 @@ function imprimirVentaActual(soloVista) {
     '</tr>';
   }).join('');
 
-  // Esta impresión es un resumen comercial de SisVentas. La factura fiscal se
-  // entrega únicamente mediante su PDF original, sin recrearla con estos datos.
-  var tipoFiscalAsociado = (v.factura && v.factura.tipo) || '';
-  var tipoComp = 'Resumen de venta';
+  // Tipo de comprobante — factura, nota de crédito, o comprobante interno
+  var tipoComp = (v.factura && v.factura.tipo)
+    ? v.factura.tipo
+    : (v.notaCredito && v.notaCredito.tipo)
+      ? v.notaCredito.tipo
+      : 'Comprobante de venta';
 
   // Datos adicionales para comprobante
   var formaPago = (v.pagos && v.pagos.length) ? v.pagos.map(function(p){ return p.medio||p.forma||''; }).filter(Boolean).join(', ') : (v.formaPago||'');
-  var condIVA   = tipoFiscalAsociado.includes(' A') ? 'Responsable Inscripto' : 'Consumidor Final';
+  var condIVA   = tipoComp.includes(' A') ? 'Responsable Inscripto' : 'Consumidor Final';
   var facturaVenta = v.factura || {};
   var numeroFiscalGuardado = facturaVenta.numero_comprobante || facturaVenta.numeroComprobante || facturaVenta.numero || facturaVenta.nroComprobante || '';
   var numeroFiscalPartes = String(numeroFiscalGuardado).split('-').map(function(parte){ return parte.replace(/\D/g, ''); }).filter(Boolean);
   var nroComp = numeroFiscalPartes.length ? String(numeroFiscalPartes[numeroFiscalPartes.length - 1]).padStart(8, '0') : '';
   var pdvGuardado = facturaVenta.punto_venta || facturaVenta.puntoVenta || (numeroFiscalPartes.length > 1 ? numeroFiscalPartes[0] : '') || (typeof TFAPP_CONFIG !== 'undefined' ? TFAPP_CONFIG.punto_venta : '') || 2;
   var pdv = String(parseInt(pdvGuardado, 10) || 2).padStart(5, '0');
+  var facturaTieneAdjunto = !!((facturaVenta.comprobante && facturaVenta.comprobante.data) || (facturaVenta.archivoAdjunto && facturaVenta.archivoAdjunto.data));
+  var facturaSinPdfOriginal = !!(facturaVenta.cae && !facturaTieneAdjunto && !(facturaVenta.pdf_url || facturaVenta.pdfUrl || facturaVenta.archivoUrl));
   var caeNum    = (v.factura && v.factura.cae) || (v.notaCredito && v.notaCredito.cae) || '';
   var caeVto    = (v.factura && v.factura.cae_vencimiento) || '';
   var cuitEmp   = empresa.cuit.replace(/\D/g,'');
 
-  // El QR pertenece al PDF fiscal original. No se recrea dentro del resumen.
+  // QR AFIP: URL estándar de verificación
+  var qrData = '';
   var qrImg  = '';
+  if (caeNum && nroComp) {
+    var fechaFiscal = String(facturaVenta.fecha || facturaVenta.fecha_emision || v.fecha || '');
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaFiscal)) fechaFiscal = fechaFiscal.split('/').reverse().join('-');
+    var importeQr = _leerImporteFiscalFactura(facturaVenta);
+    if (importeQr === null) importeQr = _svTotalVentaCanonico(v);
+    // Objeto JSON para QR AFIP (formato oficial)
+    var qrObj = {
+      ver: 1,
+      fecha: fechaFiscal,
+      cuit: parseInt(cuitEmp) || 20346484161,
+      ptoVta: parseInt(pdv),
+      tipoCmp: tipoComp.includes(' A') ? 1 : 6,
+      nroCmp: parseInt(nroComp) || 0,
+      importe: importeQr,
+      moneda: 'PES',
+      ctz: 1,
+      tipoDocRec: cliCuit ? 80 : 96,
+      nroDocRec: parseInt((cliCuit||cliDni||'0').replace(/\D/g,'')),
+      tipoCodAut: 'E',
+      codAut: parseInt(caeNum)||0
+    };
+    var qrJson   = JSON.stringify(qrObj);
+    var qrBase64 = btoa(qrJson);
+    var qrUrl    = 'https://www.afip.gob.ar/fe/qr/?p=' + qrBase64;
+    // QR via API pública (no requiere librería)
+    qrImg = '<img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data='+encodeURIComponent(qrUrl)+'" width="90" height="90" style="display:block">';
+  }
 
   var w = window.open('','_blank','width=860,height=750');
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+tipoComp+' '+v.id+'</title>' +
@@ -21848,10 +21771,11 @@ function imprimirVentaActual(soloVista) {
       '<div class="cae-section">' +
         (qrImg ? '<div>'+qrImg+'<div style="font-size:9px;color:#666;text-align:center;margin-top:3px">Verificar en AFIP</div></div>' : '') +
         '<div class="cae-texts">' +
-          '<div class="cae-title">Factura fiscal asociada: '+escapeHTML(v.factura.tipo||'Factura electrónica')+'</div>' +
+          '<div class="cae-title">'+escapeHTML(v.factura.tipo||'Factura Electrónica')+(nroComp ? '  ·  Comprobante válido ante AFIP' : '  ·  CAE guardado')+'</div>' +
           (nroComp ? '<div style="font-size:11px;color:#475569;margin-bottom:6px">PDV '+pdv+' — Nro. comprobante: '+nroComp+'</div>' : '<div style="font-size:11px;color:#b45309;margin-bottom:6px">El número fiscal original no quedó almacenado.</div>') +
           '<div>CAE Nº: <span class="cae-num">'+escapeHTML(caeNum)+'</span></div>' +
           (caeVto ? '<div class="cae-vto">Vencimiento CAE: '+escapeHTML(caeVto)+'</div>' : '') +
+          (facturaSinPdfOriginal ? '<div class="cae-vto" style="margin-top:6px">Vista reconstruida con los datos guardados de la venta; el archivo fiscal original no quedó almacenado.</div>' : '') +
         '</div>' +
       '</div>'
     :
@@ -21862,7 +21786,7 @@ function imprimirVentaActual(soloVista) {
         escapeHTML(empresa.nombre) + ' · ' + escapeHTML(empresa.dir) + '<br>' +
         (empresa.cuit ? 'CUIT: ' + escapeHTML(empresa.cuit) + ' · ' : '') +
         'Responsable Inscripto · IVA Responsable Inscripto<br>' +
-        'Resumen comercial de la venta. La factura válida es el PDF fiscal original emitido ante ARCA.' +
+        'Documento no válido como factura si no posee CAE emitido por AFIP' +
       '</div>' +
       '<div style="text-align:right;font-size:10px;color:#94a3b8">' +
         'SisVentas · Nixa<br>' +
