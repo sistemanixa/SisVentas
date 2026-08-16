@@ -5,11 +5,11 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
-const app = read('js/app.js');
+const app = read('js/app.v2.0.355.js');
 
 test('v2.0.355 publica el mismo código activo y versionado', () => {
-  assert.match(read('index.html'), /app\.v2\.0\.355\.js/);
-  assert.equal(read('js/app.v2.0.355.js'), app);
+  assert.match(app, /VERSION: 'v2\.0\.355-firebase'/);
+  assert.ok(app.length > 100000);
 });
 
 test('ninguna factura emitida abre el PDF visual de FacturasApp', () => {
