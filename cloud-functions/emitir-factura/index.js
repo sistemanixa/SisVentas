@@ -258,7 +258,7 @@ exports.emitirFactura = onRequest(
         ...(data.comprobante_asociado ? {
           comprobantes_asociados: [{
             tipo_comprobante:   data.comprobante_asociado.tipo,
-            punto_venta:        String(puntoVenta).padStart(4, '0'),
+            punto_venta:        String(data.comprobante_asociado.punto_venta || puntoVenta).padStart(4, '0'),
             numero:             parseInt(data.comprobante_asociado.numero) || 0,
             cuit:               '20346484161',
             fecha:              data.comprobante_asociado.fecha
@@ -317,11 +317,14 @@ exports.emitirFactura = onRequest(
     };
 
     if (venta.fbKey) {
-      await db.ref('sisventas/ventas/' + venta.fbKey).update({ factura: resultado });
+      // Una NC pertenece a la factura original pero no debe reemplazarla: el
+      // cliente conserva el comprobante emitido y la UI registra la NC en su
+      // campo específico después de recibir esta respuesta.
+      if (!data.esNotaCredito) await db.ref('sisventas/ventas/' + venta.fbKey).update({ factura: resultado });
       await db.ref('sisventas/log_actividad').push({
         usuario: data.usuario || 'Desconocido',
         email: data.email || '',
-        accion: 'Factura emitida',
+        accion: data.esNotaCredito ? 'Nota de crédito emitida' : 'Factura emitida',
         detalle: (venta.id || '') + ' — ' + tipoComprobante + ' — CAE ' + resultado.cae,
         timestamp: admin.database.ServerValue.TIMESTAMP,
         fecha: new Date().toISOString()

@@ -22,9 +22,18 @@ function cargarPreparador() {
     disc: Number(item.disc ?? item.descuento ?? 0) || 0
   });
   const dinero = (valor) => '$' + Number(valor).toFixed(2);
-  return Function('pptoNormalizarItemGuardado', 'resumenEconomicoComprobanteVenta', 'importeComprobanteVenta', fuente + '; return prepararVentaParaFacturacion;')(
+  return Function('pptoNormalizarItemGuardado', 'resumenEconomicoComprobanteVenta', 'resumenFiscalParaComprobanteVenta', 'importeComprobanteVenta', fuente + '; return prepararVentaParaFacturacion;')(
     normalizar,
     (venta) => venta._resumen,
+    (venta, tipo) => {
+      const resumen = venta._resumen;
+      if (venta.conIva === false && /FACTURA|NOTA DE/.test(String(tipo || '').toUpperCase())) {
+        const neto = resumen.total;
+        const iva = Math.round(neto * 0.21 * 100) / 100;
+        return { ...resumen, subtotalNeto: neto, iva, aplicaIva: true, total: Math.round((neto + iva) * 100) / 100 };
+      }
+      return resumen;
+    },
     dinero
   );
 }
@@ -39,7 +48,7 @@ test('el contrato fiscal distribuye descuento e IVA y conserva el total al centa
     ],
     _resumen: { subtotalBruto: 200, descuento: 10, descuentoGeneralPct: 5, subtotalNeto: 190, iva: 39.9, total: 229.9 }
   };
-  const resultado = preparar(venta);
+  const resultado = preparar(venta, 'FACTURA A');
   const totalLineas = resultado.venta.items.reduce((s, item) => s + item.qty * item.punit, 0);
   assert.equal(resultado.totalEsperado, 229.9);
   assert.equal(Math.round(totalLineas * 100) / 100, 229.9);
@@ -56,7 +65,7 @@ test('los centavos cierran aunque todos los renglones tengan cantidad múltiple'
   const resultado = preparar({
     items: [{ cod: 'MULTI', qty: 2, punit: 10 }],
     _resumen: { subtotalBruto: 20, descuento: 0, subtotalNeto: 20, iva: 0.01, total: 20.01 }
-  });
+  }, 'FACTURA A');
   assert.equal(resultado.venta.items.length, 2);
   assert.deepEqual(resultado.venta.items.map((item) => item.qty), [1, 1]);
   assert.equal(Math.round(resultado.venta.items.reduce((s, item) => s + item.qty * item.punit, 0) * 100) / 100, 20.01);
@@ -66,20 +75,21 @@ test('reproduce exactamente el caso V-910103 sin emitir ni alterar la venta', ()
   const preparar = cargarPreparador();
   const resultado = preparar({
     id: 'V-910103',
+    conIva: false,
     items: [{ cod: 'TOTAL-PRUEBA', qty: 1, punit: 4992013.53 }],
     _resumen: { subtotalBruto: 4992013.53, descuento: 499201.35, descuentoGeneralPct: 10, subtotalNeto: 4492812.18, iva: 0, total: 4492812.18 }
-  });
+  }, 'FACTURA A');
   const neto = resultado.venta.items.reduce((s, item) => s + item.qty * item.precioUnitarioSinIvaFiscal, 0);
-  assert.equal(Math.round(neto * 100) / 100, 3713067.92);
-  assert.equal(Math.round(neto * 1.21 * 100) / 100, 4492812.18);
-  assert.equal(resultado.totalEsperado, 4492812.18);
+  assert.equal(Math.round(neto * 100) / 100, 4492812.18);
+  assert.equal(Math.round(neto * 1.21 * 100) / 100, 5436302.74);
+  assert.equal(resultado.totalEsperado, 5436302.74);
 });
 
 test('la emisión envía únicamente la venta preparada y bloquea sumas inconsistentes', () => {
   const inicio = app.indexOf('async function emitirFactura');
   const fin = app.indexOf('// Abrir modal para elegir tipo de factura', inicio);
   const bloque = app.slice(inicio, fin);
-  assert.match(bloque, /prepararVentaParaFacturacion\(venta\)/);
+  assert.match(bloque, /prepararVentaParaFacturacion\(venta, tipoComprobante\)/);
   assert.match(bloque, /venta: preparacionFiscal\.venta/);
   assert.match(bloque, /Facturación bloqueada/);
   assert.match(app, /Math\.abs\(totalPreparado - totalEsperado\) > 0\.009/);
