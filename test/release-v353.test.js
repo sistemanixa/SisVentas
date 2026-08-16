@@ -5,18 +5,14 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const historicalApp = read('js/app.v2.0.353.js');
 
 test('v2.0.353 publica el mismo código activo y versionado', () => {
-  const app = read('js/app.js');
-  const index = read('index.html');
-  assert.equal(read('js/app.v2.0.353.js'), app);
-  assert.match(app, /VERSION: 'v2\.0\.353-firebase'/);
-  assert.match(index, /app\.v2\.0\.353\.js/);
-  assert.match(read('sw.js'), /sisventas-v2\.0\.353/);
+  assert.match(historicalApp, /VERSION: 'v2\.0\.353-firebase'/);
 });
 
 test('el comprobante se solicita automáticamente a FacturasApp', () => {
-  const app = read('js/app.js');
+  const app = historicalApp;
   const inicio = app.indexOf('async function verComprobanteFacturaVenta');
   const fin = app.indexOf('function _fechaLocalISOFacturaExterna', inicio);
   const bloque = app.slice(inicio, fin);
@@ -30,7 +26,7 @@ test('el comprobante se solicita automáticamente a FacturasApp', () => {
 });
 
 test('la emisión reconoce el campo oficial comprobante_pdf_url', () => {
-  const app = read('js/app.js');
+  const app = historicalApp;
   assert.match(app, /fuente\.comprobante_pdf_url/);
   assert.match(app, /parche\.comprobante_pdf_url = pdfFiscal/);
 });
