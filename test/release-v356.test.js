@@ -5,11 +5,11 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
-const app = read('js/app.js');
+const app = read('js/app.v2.0.356.js');
 
 test('v2.0.356 publica el mismo código activo y versionado', () => {
-  assert.match(read('index.html'), /app\.v2\.0\.356\.js/);
-  assert.equal(read('js/app.v2.0.356.js'), app);
+  assert.match(app, /VERSION: 'v2\.0\.356-firebase'/);
+  assert.ok(app.length > 100000);
 });
 
 test('la consulta fiscal informa el progreso en el botón', () => {

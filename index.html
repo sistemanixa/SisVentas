@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.356-firebase' -->
+<!-- VERSION: 'v2.0.357-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.356.js"></script>
+<script src="./js/core/version.v2.0.357.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,7 +24,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.356">
+<link rel="stylesheet" href="./css/app.css?v=2.0.357">
 
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.193"></script>
@@ -42,7 +42,7 @@
     </div>
     <div class="sv-boot-brand">SisVentas</div>
     <div class="sv-boot-sub">powered by Nixa</div>
-    <div id="loading-version" class="sv-boot-version">v2.0.356</div>
+    <div id="loading-version" class="sv-boot-version">v2.0.357</div>
     <div class="sv-boot-progress">
       <div id="loading-bar" class="sv-boot-bar"></div>
     </div>
@@ -55,7 +55,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.356 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.357 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -1721,7 +1721,7 @@
         <!-- TAB: GENERAL -->
         <div id="cfg-general" class="cfg-panel">
           <div class="card">
-            <div class="card-head"><span class="card-title">Logo de la empresa</span></div>
+            <div class="card-head"><span class="card-title">Identidad visual de la empresa</span></div>
             <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
               <!-- Preview -->
               <div style="flex-shrink:0">
@@ -1733,7 +1733,7 @@
               </div>
               <!-- Acciones -->
               <div style="flex:1;display:flex;flex-direction:column;gap:10px;justify-content:center">
-                <div style="font-size:13px;color:var(--text2)">El logo se usará en informes técnicos, presupuestos e impresiones.</div>
+                <div style="font-size:13px;color:var(--text2)"><strong>Logo del sistema.</strong> Se usa en el acceso, el ícono y la interfaz de SisVentas.</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn btn-sm btn-primary" onclick="document.getElementById('cfg-logo-input').click()"><i class="ti ti-upload"></i> Subir logo</button>
                   <button class="btn btn-sm" id="cfg-logo-save-btn" style="display:none" onclick="guardarLogoEmpresa()"><i class="ti ti-check"></i> Guardar</button>
@@ -1758,6 +1758,37 @@
                 <label>Zoom <input type="range" id="cfg-logo-crop-zoom" min="1" max="3" step="0.01" value="1" oninput="updateLogoCropFromControls()"></label>
                 <label>Horizontal <input type="range" id="cfg-logo-crop-x" min="-100" max="100" step="1" value="0" oninput="updateLogoCropFromControls()"></label>
                 <label>Vertical <input type="range" id="cfg-logo-crop-y" min="-100" max="100" step="1" value="0" oninput="updateLogoCropFromControls()"></label>
+              </div>
+            </div>
+            <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:18px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+                <div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text)">Logo para impresiones</div>
+                  <div style="font-size:12px;color:var(--text3);margin-top:3px">Se utiliza en facturas, presupuestos, recibos, remitos e informes.</div>
+                </div>
+                <label style="display:flex;align-items:center;gap:9px;font-size:12px;color:var(--text2);cursor:pointer">
+                  <input type="checkbox" id="cfg-logo-print-same" checked onchange="cambiarUsoLogoImpresion(this.checked)">
+                  Usar la misma imagen del logo del sistema
+                </label>
+              </div>
+              <div id="cfg-logo-print-custom" style="display:none;align-items:flex-start;gap:20px;flex-wrap:wrap">
+                <div style="flex-shrink:0">
+                  <div style="width:220px;height:90px;border:1.5px dashed var(--border2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;background:var(--bg3);overflow:hidden">
+                    <img id="cfg-logo-print-img" src="" alt="Logo para impresiones" style="display:none;max-width:100%;max-height:100%;object-fit:contain">
+                    <span id="cfg-logo-print-placeholder" style="font-size:12px;color:var(--text3);text-align:center;padding:8px">Sin logo específico<br>para impresiones</span>
+                  </div>
+                  <div style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center">Máx. 2MB · PNG o JPG</div>
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:10px;justify-content:center;min-width:220px">
+                  <div style="font-size:12px;color:var(--text2)">Conviene una imagen horizontal o con fondo transparente.</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-sm btn-primary" onclick="document.getElementById('cfg-logo-print-input').click()"><i class="ti ti-upload"></i> Subir logo de impresión</button>
+                    <button class="btn btn-sm" id="cfg-logo-print-save-btn" style="display:none" onclick="guardarLogoImpresion()"><i class="ti ti-check"></i> Guardar</button>
+                    <button class="btn btn-sm" id="cfg-logo-print-delete-btn" style="display:none;color:var(--red);border-color:var(--red)" onclick="eliminarLogoImpresion()"><i class="ti ti-trash"></i> Eliminar</button>
+                  </div>
+                  <input type="file" id="cfg-logo-print-input" accept="image/png,image/jpeg,image/jpg" style="display:none" onchange="previewLogoImpresion(this)">
+                  <div id="cfg-logo-print-status" style="font-size:12px;color:var(--text3)"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -5190,7 +5221,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.356.js"></script>
+<script src="./js/app.v2.0.357.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5230,7 +5261,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.356</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v2.0.357</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
