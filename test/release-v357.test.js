@@ -5,12 +5,12 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
-const app = read('js/app.js');
+const app = read('js/app.v2.0.357.js');
 const html = read('index.html');
 
-test('v2.0.357 publica el mismo código activo y versionado', () => {
-  assert.match(html, /app\.v2\.0\.357\.js/);
-  assert.equal(read('js/app.v2.0.357.js'), app);
+test('v2.0.357 conserva su instantánea publicada', () => {
+  assert.match(app, /VERSION: 'v2\.0\.357-firebase'/);
+  assert.ok(app.length > 100000);
 });
 
 test('configuración separa el logo visual del logo de impresión', () => {
