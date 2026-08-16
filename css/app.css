@@ -643,6 +643,21 @@ body.modal-secure-open{overflow:hidden!important}
 .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .modal-title{font-size:15px;font-weight:500;color:var(--text)}
 
+/* Ventanas operativas gestionables. El borde inferior derecho conserva el
+   indicador nativo de tamaño y la cabecera funciona como área de arrastre. */
+@media (min-width:1025px) and (pointer:fine){
+  .sv-modal-manageable{box-sizing:border-box;resize:both;min-width:340px;min-height:220px;max-width:calc(100vw - 16px)!important;max-height:calc(100vh - 16px)!important}
+  .sv-modal-manageable>.sv-modal-drag-handle{cursor:move;user-select:none;touch-action:none;flex:0 0 auto;position:relative}
+  .sv-modal-manageable>.sv-modal-drag-handle button,.sv-modal-manageable>.sv-modal-drag-handle input,.sv-modal-manageable>.sv-modal-drag-handle select{cursor:pointer}
+  .sv-modal-maximize-btn{flex:0 0 auto;margin-left:auto}
+  body.sv-modal-dragging,body.sv-modal-dragging *{cursor:move!important;user-select:none!important}
+}
+@media (max-width:1024px),(pointer:coarse){
+  .sv-modal-manageable{resize:none!important}
+  .sv-modal-maximize-btn{display:none!important}
+  .sv-modal-manageable>.sv-modal-drag-handle{cursor:default!important;touch-action:auto!important}
+}
+
 /* Editor de comunicados: modal oscuro y desacoplado del historial */
 .comunicado-editor-overlay{z-index:12150;background:rgba(2,5,12,.84);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:18px}
 .modal.comunicado-editor-modal{width:min(720px,96vw);max-width:720px;padding:0!important;overflow:hidden;background:linear-gradient(155deg,#181d2a 0%,#10141e 58%,#0b0f17 100%);border:1px solid rgba(126,156,220,.24);border-radius:22px;box-shadow:0 32px 100px rgba(0,0,0,.72),0 0 0 1px rgba(255,255,255,.025)}
