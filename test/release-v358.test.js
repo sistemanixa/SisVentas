@@ -7,11 +7,8 @@ const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const app = read('js/app.js');
 
-test('v2.0.358 queda versionada y publicada sin depender de app.js mutable', () => {
-  assert.match(read('index.html'), /VERSION: 'v2\.0\.358-firebase'/);
-  assert.match(read('index.html'), /js\/app\.v2\.0\.358\.js/);
-  assert.match(app, /VERSION: 'v2\.0\.358-firebase'/);
-  assert.equal(read('js/app.v2.0.358.js'), app);
+test('v2.0.358 conserva su instantánea histórica', () => {
+  assert.match(read('js/app.v2.0.358.js'), /VERSION: 'v2\.0\.358-firebase'/);
 });
 
 function cargarPreparador() {
@@ -63,6 +60,19 @@ test('los centavos cierran aunque todos los renglones tengan cantidad múltiple'
   assert.equal(resultado.venta.items.length, 2);
   assert.deepEqual(resultado.venta.items.map((item) => item.qty), [1, 1]);
   assert.equal(Math.round(resultado.venta.items.reduce((s, item) => s + item.qty * item.punit, 0) * 100) / 100, 20.01);
+});
+
+test('reproduce exactamente el caso V-910103 sin emitir ni alterar la venta', () => {
+  const preparar = cargarPreparador();
+  const resultado = preparar({
+    id: 'V-910103',
+    items: [{ cod: 'TOTAL-PRUEBA', qty: 1, punit: 4992013.53 }],
+    _resumen: { subtotalBruto: 4992013.53, descuento: 499201.35, descuentoGeneralPct: 10, subtotalNeto: 4492812.18, iva: 0, total: 4492812.18 }
+  });
+  const neto = resultado.venta.items.reduce((s, item) => s + item.qty * item.precioUnitarioSinIvaFiscal, 0);
+  assert.equal(Math.round(neto * 100) / 100, 3713067.92);
+  assert.equal(Math.round(neto * 1.21 * 100) / 100, 4492812.18);
+  assert.equal(resultado.totalEsperado, 4492812.18);
 });
 
 test('la emisión envía únicamente la venta preparada y bloquea sumas inconsistentes', () => {
