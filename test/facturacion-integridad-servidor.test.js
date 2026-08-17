@@ -35,3 +35,8 @@ test('servidor bloquea antes de emitir si los renglones difieren de la venta', (
 test('nota de crédito A conserva condición Responsable Inscripto', () => {
   assert.match(source, /condicion_iva:\s*\/\\sA\$\/\.test\(String\(tipoComprobante/);
 });
+
+test('comprobantes A exigen CUIT de exactamente 11 dígitos antes de llamar a ARCA', () => {
+  assert.match(source, /cuitClienteNormalizado\.length !== 11/);
+  assert.match(source, /var tieneCuit = cuitClienteNormalizado\.length === 11/);
+});

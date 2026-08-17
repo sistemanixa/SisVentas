@@ -184,7 +184,8 @@ exports.emitirFactura = onRequest(
     if (!venta || !tipoComprobante) {
       res.status(400).json({ error: true, mensaje: 'Faltan datos de la venta o el tipo de comprobante' }); return;
     }
-    if (/\sA$/.test(String(tipoComprobante || '').trim()) && !venta.clienteCuit) {
+    var cuitClienteNormalizado = String(venta.clienteCuit || '').replace(/[^0-9]/g, '');
+    if (/\sA$/.test(String(tipoComprobante || '').trim()) && cuitClienteNormalizado.length !== 11) {
       res.status(400).json({ error: true, mensaje: 'El cliente no tiene CUIT cargado — el comprobante A lo requiere obligatoriamente' }); return;
     }
     if (!provincia) {
@@ -197,7 +198,7 @@ exports.emitirFactura = onRequest(
     vencimiento.setDate(vencimiento.getDate() + 10);
     var vencFmt = formatearFechaAR(vencimiento);
 
-    var tieneCuit = !!(venta.clienteCuit && venta.clienteCuit.replace(/[^0-9]/g,'').length > 0);
+    var tieneCuit = cuitClienteNormalizado.length === 11;
     var tieneDni  = !!(venta.clienteDni  && venta.clienteDni.replace(/[^0-9]/g,'').length > 0);
     var docTipo, docNro;
     if (tieneCuit) {
