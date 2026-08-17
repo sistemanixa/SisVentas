@@ -184,8 +184,8 @@ exports.emitirFactura = onRequest(
     if (!venta || !tipoComprobante) {
       res.status(400).json({ error: true, mensaje: 'Faltan datos de la venta o el tipo de comprobante' }); return;
     }
-    if (tipoComprobante === 'FACTURA A' && !venta.clienteCuit) {
-      res.status(400).json({ error: true, mensaje: 'El cliente no tiene CUIT cargado — la Factura A lo requiere obligatoriamente' }); return;
+    if (/\sA$/.test(String(tipoComprobante || '').trim()) && !venta.clienteCuit) {
+      res.status(400).json({ error: true, mensaje: 'El cliente no tiene CUIT cargado — el comprobante A lo requiere obligatoriamente' }); return;
     }
     if (!provincia) {
       res.status(400).json({ error: true, mensaje: 'Falta configurar la provincia del emisor' }); return;
