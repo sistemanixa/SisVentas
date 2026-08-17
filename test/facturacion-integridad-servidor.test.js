@@ -12,6 +12,13 @@ function cargarPreparador() {
   return Function(source.slice(inicioRedondeo, fin) + '; return prepararDetalleFiscal;')();
 }
 
+function cargarNormalizadoresFiscal() {
+  const inicio = source.indexOf('function primerCampoFiscal');
+  const fin = source.indexOf('function prepararDetalleFiscal', inicio);
+  assert.ok(inicio > 0 && fin > inicio);
+  return Function(source.slice(inicio, fin) + '; return { primerCampoFiscal, numeroFiscalPlano };')();
+}
+
 test('servidor acepta únicamente un contrato fiscal que reproduce el total exacto', () => {
   const preparar = cargarPreparador();
   const resultado = preparar({
@@ -39,4 +46,24 @@ test('nota de crédito A conserva condición Responsable Inscripto', () => {
 test('comprobantes A exigen CUIT de exactamente 11 dígitos antes de llamar a ARCA', () => {
   assert.match(source, /cuitClienteNormalizado\.length !== 11/);
   assert.match(source, /var tieneCuit = cuitClienteNormalizado\.length === 11/);
+});
+
+test('la respuesta de emisión se persiste completa sin depender de importar un CSV', () => {
+  const { primerCampoFiscal, numeroFiscalPlano } = cargarNormalizadoresFiscal();
+  const respuestaProveedor = {
+    comprobante: {
+      cae: '86338678868944',
+      cae_vencimiento: '27/08/2026',
+      numero: '00003-00000008',
+      punto_venta: '3'
+    }
+  };
+  const fuentes = [respuestaProveedor.comprobante, respuestaProveedor];
+  assert.equal(primerCampoFiscal(fuentes, ['cae', 'CAE']), '86338678868944');
+  assert.equal(numeroFiscalPlano(primerCampoFiscal(fuentes, ['numero', 'nro'])), '8');
+  assert.match(source, /neto:\s+netoFiscal/);
+  assert.match(source, /iva:\s+ivaFiscal/);
+  assert.match(source, /importe_total:\s+totalFiscal/);
+  assert.match(source, /integridadFiscalCompleta/);
+  assert.match(source, /estadoIntegridadFiscal/);
 });

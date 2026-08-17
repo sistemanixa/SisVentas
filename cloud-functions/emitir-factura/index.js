@@ -49,6 +49,25 @@ function redondearDinero(valor) {
   return Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
 }
 
+// TusFacturasApp ha usado nombres distintos para los mismos campos entre
+// respuestas. La factura emitida se construye una sola vez, en el servidor,
+// con una forma estable para que el cliente nunca dependa de importar un CSV.
+function primerCampoFiscal(fuentes, campos) {
+  for (var i = 0; i < fuentes.length; i++) {
+    var fuente = fuentes[i] || {};
+    for (var j = 0; j < campos.length; j++) {
+      var valor = fuente[campos[j]];
+      if (valor !== undefined && valor !== null && String(valor).trim() !== '') return valor;
+    }
+  }
+  return '';
+}
+
+function numeroFiscalPlano(valor) {
+  var partes = String(valor || '').match(/\d+/g) || [];
+  return partes.length ? String(parseInt(partes[partes.length - 1], 10) || '') : '';
+}
+
 function prepararDetalleFiscal(venta) {
   var items = Array.isArray(venta.items) ? venta.items : Object.values(venta.items || {});
   if (!items.length) throw new Error('La venta no tiene renglones facturables');
@@ -306,30 +325,61 @@ exports.emitirFactura = onRequest(
     // Log completo para debug — ver estructura exacta de respData
     console.log('[TFApp respuesta completa]', JSON.stringify(respData));
 
-    // TusFacturasApp puede devolver el CAE en distintos lugares según la versión
-    var cae = '';
-    var pdfUrl = '';
-    var nroComp = '';
-    var caeVto = '';
-    if (respData.comprobante) {
-      cae     = String(respData.comprobante.cae || respData.comprobante.CAE || '').trim();
-      pdfUrl  = respData.comprobante.comprobante_pdf_url || respData.comprobante.pdf || respData.comprobante.pdf_url || '';
-      nroComp = String(respData.comprobante.numero || respData.comprobante.nro || '');
-      caeVto  = respData.comprobante.cae_vencimiento || respData.comprobante.CAEFchVto || '';
-    }
-    // Fallback: a veces viene directo en la raíz
-    if (!cae) cae = String(respData.cae || respData.CAE || '').trim();
-    if (!pdfUrl) pdfUrl = respData.comprobante_pdf_url || respData.pdf || respData.pdf_url || '';
+    // El proveedor es la fuente fiscal. Normalizamos la respuesta completa y
+    // guardamos los importes que este mismo servidor calculó y envió. Así no
+    // existe ningún paso posterior de importación para completar la factura.
+    var fuentesFiscales = [respData.comprobante || {}, respData.factura || {}, respData.resultado || {}, respData];
+    var cae = String(primerCampoFiscal(fuentesFiscales, ['cae', 'CAE', 'codigo_autorizacion', 'codigoAutorizacion'])).trim();
+    var pdfUrl = String(primerCampoFiscal(fuentesFiscales, ['comprobante_pdf_url', 'pdf_url', 'pdf', 'pdfUrl'])).trim();
+    var nroComp = numeroFiscalPlano(primerCampoFiscal(fuentesFiscales, ['numero', 'nro', 'nro_comprobante', 'numero_comprobante', 'numeroFactura', 'nroCmp']));
+    var puntoFiscal = parseInt(primerCampoFiscal(fuentesFiscales, ['punto_venta', 'puntoVenta', 'ptoVta', 'pdv']), 10) || parseInt(puntoVenta, 10) || 0;
+    var caeVto = String(primerCampoFiscal(fuentesFiscales, ['cae_vencimiento', 'caeVencimiento', 'CAEFchVto', 'vencimiento_cae', 'fecha_vencimiento_cae'])).trim();
+    var fechaFiscal = String(primerCampoFiscal(fuentesFiscales, ['fecha', 'fecha_emision', 'fechaEmision', 'invoice_date'])).trim() || fechaFmt;
+    var totalFiscal = preparacionFiscal.total;
+    var netoFiscal = preparacionFiscal.neto;
+    var ivaFiscal = redondearDinero(totalFiscal - netoFiscal);
+    var numeroCompleto = nroComp && puntoFiscal
+      ? String(puntoFiscal).padStart(5, '0') + '-' + String(nroComp).padStart(8, '0') : '';
+    var integridadFiscalCompleta = !!(cae && caeVto && numeroCompleto && fechaFiscal && totalFiscal > 0);
 
     var resultado = {
-      cae:                cae,
-      cae_vencimiento:    caeVto,
-      numero_comprobante: nroComp,
-      tipo:               tipoComprobante,
-      pdf_url:            pdfUrl,
-      fecha:              fechaFmt,
-      datos_fiscales:     { cliente: respData.cliente || {}, comprobante: respData.comprobante || {} },
-      _respuesta_raw:     JSON.stringify(respData).slice(0, 500) // para debug
+      cae:                       cae,
+      cae_vencimiento:           caeVto,
+      vencimiento_cae:           caeVto,
+      numero:                    numeroCompleto,
+      numero_comprobante:        numeroCompleto,
+      numeroComprobante:         numeroCompleto,
+      nroComprobante:            numeroCompleto,
+      punto_venta:               puntoFiscal,
+      puntoVenta:                puntoFiscal,
+      tipo:                      tipoComprobante,
+      tipoComprobante:           tipoComprobante,
+      pdf_url:                   pdfUrl,
+      comprobante_pdf_url:       pdfUrl,
+      fecha:                     fechaFiscal,
+      neto:                      netoFiscal,
+      neto_gravado:              netoFiscal,
+      iva:                       ivaFiscal,
+      importe_iva:               ivaFiscal,
+      importe_total:             totalFiscal,
+      importeTotal:              totalFiscal,
+      totalFiscal:               totalFiscal,
+      integridadFiscalCompleta:  integridadFiscalCompleta,
+      estadoIntegridadFiscal:    integridadFiscalCompleta ? 'completa' : 'pendiente_verificacion',
+      datos_fiscales: {
+        cliente: respData.cliente || {},
+        comprobante: respData.comprobante || {},
+        tipo: tipoComprobante,
+        punto_venta: puntoFiscal,
+        numero: nroComp,
+        fecha: fechaFiscal,
+        cae: cae,
+        vencimiento_cae: caeVto,
+        neto: netoFiscal,
+        iva: ivaFiscal,
+        total: totalFiscal
+      },
+      _respuesta_raw: JSON.stringify(respData).slice(0, 500)
     };
 
     if (venta.fbKey) {
