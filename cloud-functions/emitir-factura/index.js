@@ -138,7 +138,19 @@ exports.emitirFactura = onRequest(
           var errorConsulta = Array.isArray(dataConsulta.errores) ? dataConsulta.errores.join(', ') : (dataConsulta.errores || 'FacturasApp no devolvió el comprobante fiscal');
           res.status(422).json({ error: true, mensaje: errorConsulta }); return;
         }
-        res.status(200).json({ ok: true, comprobante: dataConsulta });
+        // Normalizamos también la identidad fiscal en un campo estable. La
+        // estructura interna de TusFacturasApp puede variar, pero una NC A
+        // siempre debe reutilizar este CUIT de la factura original.
+        var consultaComprobante = dataConsulta.comprobante || {};
+        var consultaCliente = dataConsulta.cliente || consultaComprobante.cliente || {};
+        res.status(200).json({
+          ok: true,
+          comprobante: dataConsulta,
+          clienteFiscal: {
+            documento_tipo: String(consultaCliente.documento_tipo || ''),
+            documento_nro: String(consultaCliente.documento_nro || '').replace(/[^0-9]/g, '')
+          }
+        });
       } catch (e) {
         res.status(502).json({ error: true, mensaje: 'No se pudo consultar el comprobante fiscal: ' + e.message });
       }
