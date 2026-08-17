@@ -8373,13 +8373,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.0.366-firebase',
+  VERSION: 'v2.0.367-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La nota de crédito conserva el CUIT fiscal de la factura original.',
-    'La factura conserva el cálculo fiscal correcto y los importes con centavos.'
+    'El comprobante muestra su título correcto desde que comienza la consulta fiscal.',
+    'Las vistas de comprobantes indican claramente Imprimir / Guardar PDF.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'detalle', actionLabel:'Ver ventas' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v2.0.367',
+      date: '17/08/2026',
+      title: 'Comprobantes con título y guardado claro',
+      notes: Object.freeze(['La ventana ya no queda identificada como about:blank mientras consulta ARCA.', 'Los comprobantes propios ofrecen Imprimir / Guardar PDF desde su vista final.']),
+      feature: Object.freeze({ page:'detalle', actionLabel:'Ver ventas' })
+    }),
     Object.freeze({
       version: 'v2.0.366',
       date: '17/08/2026',
