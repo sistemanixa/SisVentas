@@ -232,7 +232,10 @@ exports.emitirFactura = onRequest(
         provincia:       provincia,
         envia_por_mail:  venta.clienteEmail ? 'S' : 'N',
         condicion_pago:  '201',
-        condicion_iva:   tipoComprobante === 'FACTURA A' ? 'RI' : 'CF',
+        // Las notas de crédito A deben conservar la condición del receptor
+        // de la Factura A asociada. Comparar solo "FACTURA A" hacía que
+        // "NOTA DE CREDITO A" se enviara erróneamente como Consumidor Final.
+        condicion_iva:   /\sA$/.test(String(tipoComprobante || '').trim()) ? 'RI' : 'CF',
         reclama_deuda:   'N',
         rg5329:          'N'
       },

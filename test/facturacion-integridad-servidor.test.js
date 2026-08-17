@@ -31,3 +31,7 @@ test('servidor bloquea antes de emitir si los renglones difieren de la venta', (
     items: [{ cod: 'A', qty: 1, precioUnitarioSinIvaFiscal: 1788078.88 }]
   }), /Integridad fiscal/);
 });
+
+test('nota de crédito A conserva condición Responsable Inscripto', () => {
+  assert.match(source, /condicion_iva:\s*\/\\sA\$\/\.test\(String\(tipoComprobante/);
+});
