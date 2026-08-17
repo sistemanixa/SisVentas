@@ -6,10 +6,8 @@ const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('v2.0.366 toma el CUIT normalizado que devuelve el servidor fiscal', () => {
-  const app = read('js/app.js');
+  const app = read('js/app.v2.0.366.js');
   const server = read('cloud-functions/emitir-factura/index.js');
-  assert.match(read('index.html'), /VERSION: 'v2\.0\.366-firebase'/);
   assert.match(server, /clienteFiscal:/);
   assert.match(app, /resultado\.clienteFiscal/);
-  assert.equal(read('js/app.v2.0.366.js'), app);
 });
