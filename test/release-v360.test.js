@@ -7,14 +7,12 @@ const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('v2.0.360 conserva el contrato comercial y calcula el fiscal por separado', () => {
-  const app = read('js/app.js');
-  assert.match(read('index.html'), /VERSION: 'v2\.0\.360-firebase'/);
-  assert.match(read('js/core/version.js'), /v2\.0\.360/);
-  assert.equal(read('js/app.v2.0.360.js'), app);
-  assert.match(app, /function resumenFiscalParaComprobanteVenta/);
-  assert.match(app, /venta\.conIva === false/);
-  assert.match(app, /neto \* 0\.21/);
-  assert.match(app, /prepararVentaParaFacturacion\(venta, tipoComprobante\)/);
+  const historico = read('js/app.v2.0.360.js');
+  assert.match(historico, /VERSION: 'v2\.0\.360-firebase'/);
+  assert.match(historico, /function resumenFiscalParaComprobanteVenta/);
+  assert.match(historico, /venta\.conIva === false/);
+  assert.match(historico, /neto \* 0\.21/);
+  assert.match(historico, /prepararVentaParaFacturacion\(venta, tipoComprobante\)/);
 });
 
 test('una nota de crédito toma el comprobante fiscal original y no el total comercial', () => {
@@ -24,6 +22,7 @@ test('una nota de crédito toma el comprobante fiscal original y no el total com
   assert.match(app, /function prepararVentaParaNotaCredito/);
   assert.match(app, /La nota de crédito se emitirá exactamente por este importe fiscal/);
   assert.match(app, /venta: ventaFiscalNC/);
+  assert.match(app, /puntoVenta: snapshot\.punto_venta \|\| v\.factura\.punto_venta/);
   assert.match(server, /if \(!data\.esNotaCredito\) await db\.ref/);
   assert.match(server, /data\.comprobante_asociado\.punto_venta \|\| puntoVenta/);
 });

@@ -13,5 +13,5 @@ test('v2.0.359 conserva su cierre fiscal exacto en el archivo inmutable', () => 
   assert.match(historico, /desplazamientoNeto = -3; desplazamientoNeto <= 3/);
   assert.match(historico, /El total de la venta no puede discriminarse con IVA al centavo/);
   assert.match(historico, /version: 'v2\.0\.359'/);
-  assert.match(app, /VERSION: 'v2\.0\.360-firebase'/);
+  assert.match(app, /VERSION: 'v2\.0\.(360|361)-firebase'/);
 });
