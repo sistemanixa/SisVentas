@@ -6628,6 +6628,13 @@ async function emitirNotaCredito(ventaId) {
   try {
     var snapshot = await obtenerSnapshotFiscalParaNotaCredito(v);
     var ventaFiscalNC = prepararVentaParaNotaCredito(v, snapshot);
+    var fechaHoy = new Date().toLocaleDateString('es-AR');
+    var auditNC = Array.isArray(v.audit) ? v.audit.slice() : [];
+    auditNC.push({
+      fecha: fechaHoy,
+      usuario: currentUser || 'Admin',
+      accion: 'Nota de crédito emitida' + (v.id ? ' en la venta ' + v.id : '')
+    });
 
     var resp = await fetch(SISVENTAS_FUNCTIONS.emitirFactura, {
       method: 'POST',
@@ -6669,7 +6676,8 @@ async function emitirNotaCredito(ventaId) {
           pdf_url: data.pdf_url || ''
         },
         fechaAnulacion: new Date().toLocaleDateString('es-AR'),
-        anuladaPor: currentUser || 'Admin'
+        anuladaPor: currentUser || 'Admin',
+        audit: auditNC
       });
     }
     verFacturaEmitida(data.pdf_url || '', data.cae || '', v.id || v.fbKey || ventaId);
@@ -7229,6 +7237,7 @@ function abrirResumenFactura(ventaId) {
   if (!v || !v.factura) { notify('Sin factura emitida en esta venta'); return; }
   var f = v.factura || {};
   var nc = v.notaCredito && v.notaCredito.cae ? v.notaCredito : null;
+  var puedeRefacturar = !!nc && !!f.cae;
   var prev = document.getElementById('modal-resumen-factura');
   if (prev) prev.remove();
 
@@ -7280,6 +7289,7 @@ function abrirResumenFactura(ventaId) {
           : '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:16px"><i class="ti ti-circle-check"></i> ' + (esFacturaExterna ? 'Comprobante externo registrado y vinculado' : 'Comprobante emitido y verificado contra la venta') + '</div>')) +
       '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
         (nc && nc.pdf_url ? '<button class="btn btn-sm" data-factura-action="ver-nc"><i class="ti ti-file-minus"></i> Ver nota de crédito</button>' : '') +
+        (puedeRefacturar ? '<button class="btn btn-sm" data-factura-action="refacturar"><i class="ti ti-file-invoice"></i> Facturar nuevamente</button>' : '') +
         (puedeCompletarNumeroFiscal ? '<button class="btn btn-sm" data-factura-action="completar-numero"><i class="ti ti-refresh"></i> Recuperar datos fiscales</button>' : '') +
         (puedeEmitirNC ? '<button class="btn btn-sm" data-factura-action="nota-credito" style="color:var(--red);border-color:var(--red)"><i class="ti ti-file-minus"></i> Emitir nota de crédito</button>' : '') +
         '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"><i class="ti ti-file-invoice"></i> Ver comprobante</button>' +
@@ -7307,6 +7317,10 @@ function abrirResumenFactura(ventaId) {
     if (accion === 'ver-nc' && nc && nc.pdf_url) {
       overlay.remove();
       _abrirFuentePdfFactura(nc.pdf_url, 'Nota-de-credito-' + (v.id || ventaId || 'comprobante'));
+    }
+    if (accion === 'refacturar') {
+      overlay.remove();
+      abrirModalFactura(v.id || v.fbKey || ventaId);
     }
     if (accion === 'nota-credito') {
       overlay.remove();
@@ -42220,7 +42234,7 @@ function renderDetalleVenta(v) {
   var accionesVentaDetalleHtml = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">' +
     (puedeMoverVentaAPptoDetalle ? '<button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="moverVentaAPresupuesto(\'' + escapeHTML(v.id||v.fbKey||'') + '\')"><i class="ti ti-arrow-back-up"></i> A presupuesto</button>' : '') +
     (v.factura
-      ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="abrirResumenFactura(this.dataset.vid)" data-vid="'+escapeHTML(v.id||v.fbKey||'')+'"><i class="ti ti-file-check"></i> Facturada</button>'
+      ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="abrirResumenFactura(this.dataset.vid)" data-vid="'+escapeHTML(v.id||v.fbKey||'')+'"><i class="ti ti-file-check"></i> ' + ((v.notaCredito && v.notaCredito.cae) ? 'Anulada — ver historial' : 'Facturada') + '</button>'
       : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
     ) +
     '<button class="btn btn-sm" onclick="duplicarVenta(\'' + escapeHTML(v.fbKey||'') + '\')"><i class="ti ti-copy"></i> Duplicar</button>' +
