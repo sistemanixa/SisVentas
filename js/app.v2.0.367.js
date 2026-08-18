@@ -6360,7 +6360,8 @@ function compararFacturaConVenta(venta, factura) {
 }
 
 // Emitir factura desde una venta
-async function emitirFactura(venta, tipoComprobante) {
+async function emitirFactura(venta, tipoComprobante, opciones) {
+  opciones = opciones || {};
   if (venta && venta.contadoSinFactura) {
     notify('Esta venta fue marcada como "Contado sin factura" — no se puede emitir comprobante electrónico');
     return null;
@@ -6391,11 +6392,21 @@ async function emitirFactura(venta, tipoComprobante) {
   notify('Emitiendo factura por ' + importeComprobanteVenta(preparacionFiscal.totalEsperado) + ' en AFIP/ARCA...');
 
   try {
+    var ventaParaFiscal = Object.assign({}, preparacionFiscal.venta);
+    if (opciones.refacturar) {
+      delete ventaParaFiscal.anulada;
+      delete ventaParaFiscal.estadoPago;
+      delete ventaParaFiscal.fechaAnulacion;
+      delete ventaParaFiscal.anuladaPor;
+      delete ventaParaFiscal.idNotaCredito;
+      delete ventaParaFiscal.notaCredito;
+    }
+
     var resp = await fetch(SISVENTAS_FUNCTIONS.emitirFactura, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Frontend-Key': SISVENTAS_FUNCTIONS.frontendKey },
       body: JSON.stringify({
-        venta: preparacionFiscal.venta,
+        venta: ventaParaFiscal,
         tipoComprobante: tipoComprobante,
         provincia: TFAPP_CONFIG.provincia,
         puntoVenta: TFAPP_CONFIG.punto_venta,
@@ -6419,7 +6430,12 @@ async function emitirFactura(venta, tipoComprobante) {
 }
 
 // Abrir modal para elegir tipo de factura
-function abrirModalFactura(ventaId) {
+function abrirModalFactura(ventaId, opciones) {
+  opciones = opciones || {};
+  if (!window._facturaEmisionPendiente) window._facturaEmisionPendiente = {};
+  var ventaClave = _svTxtClave(ventaId);
+  if (ventaClave) window._facturaEmisionPendiente[ventaClave] = Object.assign({}, opciones, { fecha: Date.now() });
+
   var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('Venta no encontrada'); return; }
 
@@ -6434,7 +6450,9 @@ function abrirModalFactura(ventaId) {
   var totalFmt = importeComprobanteVenta(resumenFiscalParaComprobanteVenta(venta, 'FACTURA A').total);
 
   var html = '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.15)">';
-  html += '<div style="font-size:16px;font-weight:600;margin-bottom:16px">Emitir factura — ' + venta.id + '</div>';
+  var tituloModal = opciones.refacturar ? 'Refacturar factura' : 'Emitir factura';
+  var ctaModal = opciones.refacturar ? 'Refacturar' : 'Emitir';
+  html += '<div style="font-size:16px;font-weight:600;margin-bottom:16px">' + tituloModal + ' — ' + venta.id + '</div>';
   html += '<div style="font-size:13px;color:var(--text2);margin-bottom:6px">Cliente: ' + venta.cliente + '</div>';
   html += '<div style="font-size:13px;color:var(--text2);margin-bottom:' + (tieneCuit ? '16' : '4') + 'px">Total fiscal estimado: ' + totalFmt + '</div>';
   if (!tieneCuit) {
@@ -6447,7 +6465,7 @@ function abrirModalFactura(ventaId) {
   html += '</div>';
   html += '<div style="display:flex;gap:8px">';
   html += '<button onclick="document.getElementById(&quot;modal-factura&quot;).remove()" class="btn" style="flex:1">Cancelar</button>';
-  html += '<button onclick="confirmarEmisionFactura(&quot;' + ventaId + '&quot;)" class="btn btn-primary" style="flex:1" id="btn-emitir-factura">Emitir</button>';
+  html += '<button onclick="confirmarEmisionFactura(&quot;' + ventaId + '&quot;)" class="btn btn-primary" style="flex:1" id="btn-emitir-factura">' + ctaModal + '</button>';
   html += '</div></div>';
 
   overlay.innerHTML = html;
@@ -7320,7 +7338,7 @@ function abrirResumenFactura(ventaId) {
     }
     if (accion === 'refacturar') {
       overlay.remove();
-      abrirModalFactura(v.id || v.fbKey || ventaId);
+      abrirModalFactura(v.id || v.fbKey || ventaId, { refacturar: true });
     }
     if (accion === 'nota-credito') {
       overlay.remove();
@@ -7581,6 +7599,20 @@ function _parcheFacturaDesdeRespuestaApi(respuesta, facturaActual, puntoVenta) {
 async function confirmarEmisionFactura(ventaId) {
   var venta = ventasList ? ventasList.find(function(v){ return String(v.id||'') === String(ventaId||'') || String(v.fbKey||'') === String(ventaId||''); }) : null;
   if (!venta) return;
+  var ventaIdRef = _svTxtClave(ventaId);
+  var ventaKeyPrimaria = _svTxtClave(venta.id);
+  var ventaKeySecundaria = _svTxtClave(venta.fbKey);
+  var clavesBusqueda = [ventaKeyPrimaria, ventaKeySecundaria, ventaIdRef].filter(Boolean);
+  var opcionesEmision = {};
+  if (window._facturaEmisionPendiente) {
+    clavesBusqueda.some(function(clave) {
+      if (window._facturaEmisionPendiente[clave]) {
+        opcionesEmision = window._facturaEmisionPendiente[clave];
+        return true;
+      }
+      return false;
+    });
+  }
   var cli = resolverClienteDeVenta(venta);
   if (cli) {
     venta.clienteCuit  = cli.cuit || cli.CUIT || cli.cuitDni || cli.documentoFiscal || venta.clienteCuit || '';
@@ -7588,8 +7620,49 @@ async function confirmarEmisionFactura(ventaId) {
     venta.clienteDir   = cli.dir || cli.direccion || '';
   }
   document.getElementById('modal-factura').remove();
-  var data = await emitirFactura(venta, _facturaSelTipo);
+  if (window._facturaEmisionPendiente) {
+    clavesBusqueda.forEach(function(clave) {
+      if (clave) delete window._facturaEmisionPendiente[clave];
+    });
+  }
+
+  var data = await emitirFactura(venta, _facturaSelTipo, opcionesEmision);
   if (!data) return;
+
+  if (opcionesEmision.refacturar && venta.fbKey && window.fbDB) {
+    try {
+      var auditNC = Array.isArray(venta.audit) ? venta.audit.slice() : [];
+      var fechaHoy = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+      auditNC.push({
+        fecha: fechaHoy,
+        usuario: currentUser || 'Admin',
+        accion: 'Venta refacturada luego de nota de crédito'
+      });
+      await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/' + venta.fbKey), {
+        anulada: false,
+        estadoPago: 'pendiente_pago',
+        fechaAnulacion: null,
+        anuladaPor: '',
+        audit: auditNC
+      });
+      venta.anulada = false;
+      venta.estadoPago = 'pendiente_pago';
+      venta.fechaAnulacion = null;
+      venta.anuladaPor = '';
+      venta.audit = auditNC;
+      var ventaVista = _svResolverVentaRegistro(ventaId);
+      if (ventaVista) {
+        ventaVista.anulada = false;
+        ventaVista.estadoPago = 'pendiente_pago';
+        ventaVista.fechaAnulacion = null;
+        ventaVista.anuladaPor = '';
+        ventaVista.audit = auditNC;
+      }
+    } catch (error) {
+      console.warn('[facturacion] No se pudo actualizar la venta al reemitir', error);
+    }
+  }
+
   if (window.fbDB && venta.fbKey) {
     try {
       var facturaSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/ventas/' + venta.fbKey + '/factura'));
@@ -42237,6 +42310,9 @@ function renderDetalleVenta(v) {
       ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="abrirResumenFactura(this.dataset.vid)" data-vid="'+escapeHTML(v.id||v.fbKey||'')+'"><i class="ti ti-file-check"></i> ' + ((v.notaCredito && v.notaCredito.cae) ? 'Anulada — ver historial' : 'Facturada') + '</button>'
       : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
     ) +
+    ((v.notaCredito && v.notaCredito.cae)
+      ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirResumenFactura(this.dataset.vid)" data-vid="'+escapeHTML(v.id||v.fbKey||'')+'"><i class="ti ti-file-invoice"></i> Facturar nuevamente</button>'
+      : '') +
     '<button class="btn btn-sm" onclick="duplicarVenta(\'' + escapeHTML(v.fbKey||'') + '\')"><i class="ti ti-copy"></i> Duplicar</button>' +
     '<button class="btn btn-sm" id="venta-detalle-toggle" onclick="toggleVentaDetalle()"><i class="ti ti-eye" id="venta-detalle-icon"></i> <span id="venta-detalle-label">Con detalle</span></button>' +
     '<button class="btn btn-sm" onclick="imprimirComprobanteVentaActual()"><i class="ti ti-printer"></i> Imprimir comprobante</button>' +

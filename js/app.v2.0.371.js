@@ -6417,7 +6417,12 @@ async function emitirFactura(venta, tipoComprobante, opciones) {
     });
     var data = await resp.json();
     if (!resp.ok || data.error) {
-      notify('Error: ' + (data.mensaje || 'No se pudo emitir la factura'));
+      var detalleError = data && data.mensaje ? data.mensaje : 'No se pudo emitir la factura';
+      if (String(detalleError).toLowerCase().includes('integridad fiscal')) {
+        notify('Error de integridad fiscal (' + tipoComprobante + '): ' + detalleError + '. Revisá que no haya cambios de precio o cantidad y reintentá.');
+      } else {
+        notify('Error al emitir ' + (tipoComprobante || 'la factura') + ': ' + detalleError);
+      }
       return null;
     }
     notify('✓ Factura emitida — CAE: ' + data.cae);
@@ -6447,21 +6452,22 @@ function abrirModalFactura(ventaId, opciones) {
   var cuitCliente = obtenerCuitClienteVenta(venta);
   var tieneCuit = !!cuitCliente;
   if (tieneCuit) venta.clienteCuit = cuitCliente;
-  var totalFmt = importeComprobanteVenta(resumenFiscalParaComprobanteVenta(venta, 'FACTURA A').total);
+  var resumenInicial = resumenFiscalParaComprobanteVenta(venta, 'FACTURA B');
+  var totalFmt = importeComprobanteVenta(resumenInicial.total);
 
   var html = '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.15)">';
   var tituloModal = opciones.refacturar ? 'Refacturar factura' : 'Emitir factura';
   var ctaModal = opciones.refacturar ? 'Refacturar' : 'Emitir';
   html += '<div style="font-size:16px;font-weight:600;margin-bottom:16px">' + tituloModal + ' — ' + venta.id + '</div>';
   html += '<div style="font-size:13px;color:var(--text2);margin-bottom:6px">Cliente: ' + venta.cliente + '</div>';
-  html += '<div style="font-size:13px;color:var(--text2);margin-bottom:' + (tieneCuit ? '16' : '4') + 'px">Total fiscal estimado: ' + totalFmt + '</div>';
+  html += '<div id="modal-factura-total-estimado" style="font-size:13px;color:var(--text2);margin-bottom:' + (tieneCuit ? '16' : '4') + 'px">Total fiscal estimado: ' + totalFmt + '</div>';
   if (!tieneCuit) {
     html += '<div style="font-size:12px;color:var(--amber);margin-bottom:16px;padding:8px;background:var(--amber-bg);border-radius:6px">⚠️ El cliente no tiene CUIT — solo podés emitir Factura B</div>';
   }
   html += '<div style="font-size:12px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Tipo de comprobante</div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:20px">';
-  html += '<button onclick="selTipoFactura(this,this.dataset.tipo)" data-tipo="FACTURA A" class="btn btn-sm" style="flex:1;' + (!tieneCuit ? 'opacity:.4;pointer-events:none' : '') + '">Factura A</button>';
-  html += '<button onclick="selTipoFactura(this,this.dataset.tipo)" data-tipo="FACTURA B" class="btn btn-sm btn-primary" style="flex:1" id="btn-fact-b">Factura B</button>';
+  html += '<button onclick="selTipoFactura(this,this.dataset.tipo)" data-tipo="FACTURA A" class="btn btn-sm tipo-factura" style="flex:1;' + (!tieneCuit ? 'opacity:.4;pointer-events:none' : '') + '">Factura A</button>';
+  html += '<button onclick="selTipoFactura(this,this.dataset.tipo)" data-tipo="FACTURA B" class="btn btn-sm btn-primary tipo-factura" style="flex:1" id="btn-fact-b">Factura B</button>';
   html += '</div>';
   html += '<div style="display:flex;gap:8px">';
   html += '<button onclick="document.getElementById(&quot;modal-factura&quot;).remove()" class="btn" style="flex:1">Cancelar</button>';
@@ -6469,6 +6475,7 @@ function abrirModalFactura(ventaId, opciones) {
   html += '</div></div>';
 
   overlay.innerHTML = html;
+  overlay.dataset.ventaId = ventaId;
   document.body.appendChild(overlay);
   _facturaSelTipo = 'FACTURA B';
 }
@@ -6476,10 +6483,31 @@ function abrirModalFactura(ventaId, opciones) {
 var _facturaSelTipo = 'FACTURA B';
 function selTipoFactura(btn, tipo) {
   _facturaSelTipo = tipo;
-  document.querySelectorAll('#modal-factura .btn').forEach(function(b) {
+  document.querySelectorAll('#modal-factura .tipo-factura').forEach(function(b) {
     b.classList.remove('btn-primary');
   });
   btn.classList.add('btn-primary');
+  var modal = document.getElementById('modal-factura');
+  if (!modal) return;
+  var ventaId = modal.dataset.ventaId;
+  var ventaRef = _svResolverVentaRegistro(ventaId);
+  if (!ventaRef) return;
+  var resumen = resumenFiscalParaComprobanteVenta(ventaRef, tipo);
+  var totalEl = document.getElementById('modal-factura-total-estimado');
+  if (totalEl) {
+    totalEl.textContent = 'Total fiscal estimado: ' + importeComprobanteVenta(resumen.total);
+  }
+}
+
+function _obtenerTipoFacturaSeleccionado() {
+  var modal = document.getElementById('modal-factura');
+  if (!modal) return _facturaSelTipo || 'FACTURA B';
+  var sel = modal.querySelector('.tipo-factura.btn-primary[data-tipo]');
+  if (sel && sel.dataset && sel.dataset.tipo) {
+    _facturaSelTipo = sel.dataset.tipo;
+    return sel.dataset.tipo;
+  }
+  return _facturaSelTipo || 'FACTURA B';
 }
 
 async function obtenerSnapshotFiscalParaNotaCredito(venta) {
@@ -7643,7 +7671,12 @@ async function confirmarEmisionFactura(ventaId) {
     ? Object.assign({}, venta.factura) : null;
   var notaCreditoAnteriorRefacturacion = opcionesEmision.refacturar && venta.notaCredito
     ? Object.assign({}, venta.notaCredito) : null;
-  var data = await emitirFactura(venta, _facturaSelTipo, opcionesEmision);
+  var tipoSeleccionado = _obtenerTipoFacturaSeleccionado();
+  if (!tipoSeleccionado) {
+    notify('No se pudo determinar el tipo de comprobante para facturar');
+    return;
+  }
+  var data = await emitirFactura(venta, tipoSeleccionado, opcionesEmision);
   if (!data) return;
 
   if (opcionesEmision.refacturar && venta.fbKey && window.fbDB) {
@@ -8392,8 +8425,15 @@ function notify(msg) {
   if (!n) return;
   n.innerHTML = '<i class="ti ti-check" style="font-size:15px"></i> ' + String(msg || '');
   n.classList.add('show');
+  var msgTexto = String(msg || '').toLowerCase();
+  var esFacturacion = msgTexto.indexOf('factura') !== -1
+    || msgTexto.indexOf('comprobante') !== -1
+    || msgTexto.indexOf('arca') !== -1
+    || msgTexto.indexOf('afip') !== -1
+    || msgTexto.indexOf('fiscal') !== -1;
+  var tiempoMs = esFacturacion ? 7000 : 2500;
   clearTimeout(notifT);
-  notifT = setTimeout(function() { n.classList.remove('show'); }, 2500);
+  notifT = setTimeout(function() { n.classList.remove('show'); }, tiempoMs);
 }
 function applyRole() {
   var isAdmin         = currentRole === 'admin';

@@ -36,6 +36,7 @@ const FRONTEND_KEY    = defineSecret('FRONTEND_KEY');
 const ENDPOINT_FACTURACION = 'https://www.tusfacturas.app/app/api/v2/facturacion/nuevo';
 const ENDPOINT_REGENERAR_PDF = 'https://www.tusfacturas.app/app/api/v2/facturacion/regenerar_pdf';
 const ENDPOINT_CONSULTA = 'https://www.tusfacturas.app/app/api/v2/facturacion/consulta';
+const ENDPOINT_CONSULTA_AVANZADA = 'https://www.tusfacturas.app/app/api/v2/facturacion/consulta_avanzada';
 const ENDPOINT_ESTADO      = 'https://www.tusfacturas.app/app/api/v2/estado_servicios/alertas';
 
 function formatearFechaAR(date) {
@@ -66,6 +67,40 @@ function primerCampoFiscal(fuentes, campos) {
 function numeroFiscalPlano(valor) {
   var partes = String(valor || '').match(/\d+/g) || [];
   return partes.length ? String(parseInt(partes[partes.length - 1], 10) || '') : '';
+}
+
+function fechaConsultaFiscal(valor) {
+  var texto = String(valor || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto.split('-').reverse().join('/');
+  return texto;
+}
+
+function recolectarObjetosFiscal(valor, salida, profundidad) {
+  if (!valor || profundidad > 6) return;
+  if (Array.isArray(valor)) {
+    valor.forEach(function(item) { recolectarObjetosFiscal(item, salida, profundidad + 1); });
+    return;
+  }
+  if (typeof valor !== 'object') return;
+  salida.push(valor);
+  Object.keys(valor).forEach(function(clave) { recolectarObjetosFiscal(valor[clave], salida, profundidad + 1); });
+}
+
+function identidadFiscalPorCae(respuesta, caeBuscado) {
+  var caeNormalizado = String(caeBuscado || '').replace(/\D/g, '');
+  if (!caeNormalizado) return null;
+  var objetos = [];
+  recolectarObjetosFiscal(respuesta, objetos, 0);
+  for (var i = 0; i < objetos.length; i++) {
+    var candidato = objetos[i] || {};
+    var cae = String(candidato.cae || candidato.CAE || candidato.codigo_autorizacion || candidato.codigoAutorizacion || '').replace(/\D/g, '');
+    if (!cae || cae !== caeNormalizado) continue;
+    var tipo = String(candidato.tipo || candidato.tipo_comprobante || candidato.tipoComprobante || '').trim();
+    var puntoVenta = parseInt(candidato.punto_venta || candidato.puntoVenta || candidato.ptoVta || candidato.pdv, 10) || 0;
+    var numero = numeroFiscalPlano(candidato.numero || candidato.nro || candidato.nro_comprobante || candidato.numero_comprobante || candidato.numeroFactura || candidato.nroCmp);
+    if (tipo && puntoVenta && numero) return { tipo:tipo, punto_venta:puntoVenta, numero:parseInt(numero, 10) };
+  }
+  return null;
 }
 
 function prepararDetalleFiscal(venta) {
@@ -172,6 +207,45 @@ exports.emitirFactura = onRequest(
         });
       } catch (e) {
         res.status(502).json({ error: true, mensaje: 'No se pudo consultar el comprobante fiscal: ' + e.message });
+      }
+      return;
+    }
+
+    // Recuperación excepcional para comprobantes antiguos que recibieron CAE
+    // pero no conservaron su identidad completa en SisVentas. Se consulta por
+    // la fecha de emisión y se acepta únicamente el registro cuyo CAE coincide.
+    if (data.accion === 'recuperar_identidad_fiscal') {
+      var caeBuscar = String(data.cae || '').replace(/\D/g, '');
+      var fechaBuscar = fechaConsultaFiscal(data.fecha);
+      if (!caeBuscar || !fechaBuscar) {
+        res.status(400).json({ error:true, mensaje:'Faltan CAE o fecha para recuperar el comprobante' }); return;
+      }
+      try {
+        var respAvanzada = await fetch(ENDPOINT_CONSULTA_AVANZADA, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body:JSON.stringify({
+            usertoken: TFAPP_USERTOKEN.value(),
+            apitoken: TFAPP_APITOKEN.value(),
+            apikey: TFAPP_APIKEY.value(),
+            busqueda_tipo:'F',
+            pagina:0,
+            limite:100,
+            comprobante:{ fecha:fechaBuscar, operacion:'V' }
+          })
+        });
+        var dataAvanzada = await respAvanzada.json();
+        if (!respAvanzada.ok || dataAvanzada.error === 'S') {
+          var errorAvanzada = Array.isArray(dataAvanzada.errores) ? dataAvanzada.errores.join(', ') : (dataAvanzada.errores || 'No se pudo consultar ARCA');
+          res.status(422).json({ error:true, mensaje:errorAvanzada }); return;
+        }
+        var identidad = identidadFiscalPorCae(dataAvanzada, caeBuscar);
+        if (!identidad) {
+          res.status(404).json({ error:true, mensaje:'No se encontró un comprobante de esa fecha con el CAE indicado' }); return;
+        }
+        res.status(200).json({ ok:true, identidad:identidad });
+      } catch (e) {
+        res.status(502).json({ error:true, mensaje:'No se pudo recuperar la identidad fiscal: ' + e.message });
       }
       return;
     }
@@ -331,8 +405,8 @@ exports.emitirFactura = onRequest(
     var fuentesFiscales = [respData.comprobante || {}, respData.factura || {}, respData.resultado || {}, respData];
     var cae = String(primerCampoFiscal(fuentesFiscales, ['cae', 'CAE', 'codigo_autorizacion', 'codigoAutorizacion'])).trim();
     var pdfUrl = String(primerCampoFiscal(fuentesFiscales, ['comprobante_pdf_url', 'pdf_url', 'pdf', 'pdfUrl'])).trim();
-    var nroComp = numeroFiscalPlano(primerCampoFiscal(fuentesFiscales, ['numero', 'nro', 'nro_comprobante', 'numero_comprobante', 'numeroFactura', 'nroCmp']));
-    var puntoFiscal = parseInt(primerCampoFiscal(fuentesFiscales, ['punto_venta', 'puntoVenta', 'ptoVta', 'pdv']), 10) || parseInt(puntoVenta, 10) || 0;
+    var nroComp = numeroFiscalPlano(primerCampoFiscal(fuentesFiscales, ['numero', 'nro', 'nro_comprobante', 'numero_comprobante', 'numeroFactura', 'nroCmp', 'nro_doc', 'nroDoc', 'numero_documento']));
+    var puntoFiscal = parseInt(primerCampoFiscal(fuentesFiscales, ['punto_venta', 'puntoVenta', 'ptoVta', 'pdv', 'punto_de_venta']), 10) || parseInt(puntoVenta, 10) || 0;
     var caeVto = String(primerCampoFiscal(fuentesFiscales, ['cae_vencimiento', 'caeVencimiento', 'CAEFchVto', 'vencimiento_cae', 'fecha_vencimiento_cae'])).trim();
     var fechaFiscal = String(primerCampoFiscal(fuentesFiscales, ['fecha', 'fecha_emision', 'fechaEmision', 'invoice_date'])).trim() || fechaFmt;
     var totalFiscal = preparacionFiscal.total;
@@ -340,6 +414,10 @@ exports.emitirFactura = onRequest(
     var ivaFiscal = redondearDinero(totalFiscal - netoFiscal);
     var numeroCompleto = nroComp && puntoFiscal
       ? String(puntoFiscal).padStart(5, '0') + '-' + String(nroComp).padStart(8, '0') : '';
+    // Tipo y punto se conocen desde el pedido original; el único dato que no
+    // puede inferirse es el número autorizado. Si el proveedor cambia el
+    // nombre del campo, se guarda la respuesta cruda y se marca pendiente,
+    // pero nunca se pretende que el comprobante esté completo silenciosamente.
     var integridadFiscalCompleta = !!(cae && caeVto && numeroCompleto && fechaFiscal && totalFiscal > 0);
 
     var resultado = {
