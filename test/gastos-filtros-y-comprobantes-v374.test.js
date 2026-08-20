@@ -53,7 +53,7 @@ test('el comprobante PDF se abre en un visor propio sin exponer Base64', () => {
   assert.match(app, /function abrirVisorComprobanteSistema\(archivo, tituloVisor\)/);
   assert.match(app, /id = 'modal-visor-comprobante-sistema'/);
   assert.match(app, /URL\.createObjectURL\(new Blob/);
-  assert.match(app, /Descargar PDF/);
+  assert.match(app, /function descargarVisorComprobanteSistema\(\)/);
   assert.doesNotMatch(visorPago, /<iframe src="'\+comp\.data/);
 });
 
@@ -61,4 +61,20 @@ test('los adjuntos fiscales y pagos de empleados reutilizan el visor común', ()
   assert.match(app, /abrirVisorComprobanteSistema\(adjunto, 'Comprobante adjunto'\)/);
   assert.match(app, /abrirVisorComprobanteSistema\(comp, 'Comprobante de pago del empleado'\)/);
   assert.match(app, /abrirVisorComprobanteSistema\(pagos\[idx\].*'Comprobante de pago del gasto'\)/);
+});
+
+test('el visor común ofrece cierre, impresión, descarga única y fondo temático', () => {
+  assert.match(app, /function descargarVisorComprobanteSistema\(\)/);
+  assert.match(app, /function imprimirVisorComprobanteSistema\(\)/);
+  assert.match(app, /#navpanes=0&view=Fit/);
+  assert.match(app, /aria-label="Cerrar visor"/);
+  assert.match(app, /> Cerrar<\/button>/);
+  assert.match(app, /background:var\(--card\)/);
+  assert.match(app, /document\.body\.classList\.add\('sv-imprimiendo-comprobante'\)/);
+  assert.match(app, /marco\.focus\(\); window\.print\(\)/);
+});
+
+test('un modal abierto bloquea el desplazamiento del fondo', () => {
+  assert.match(css, /body\.sv-modal-stack-open\{overflow:hidden!important;overscroll-behavior:none!important\}/);
+  assert.match(css, /\.sv-modal-stack-open \.modal\{overscroll-behavior:contain\}/);
 });
