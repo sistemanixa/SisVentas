@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
 
-const app = fs.readFileSync('js/app.v2.0.374.js', 'utf8');
+const app = fs.readFileSync('js/app.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('css/app.css', 'utf8');
 
@@ -45,4 +45,20 @@ test('gastos mantiene sus acciones accesibles directamente en móvil', () => {
   assert.match(css, /#page-gastos #gas-tbl \.sv-grid-actions-original\{display:flex!important/);
   assert.match(css, /#page-gastos #gas-tbl \.sv-grid-actions-trigger,/);
   assert.match(css, /#page-gastos #gas-tbl \.sv-grid-actions-menu\{display:none!important\}/);
+});
+
+test('el comprobante PDF se abre en un visor propio sin exponer Base64', () => {
+  const visorPago = app.slice(app.indexOf('var _visorComprobanteSistemaUrl'), app.indexOf('function editarGasto'));
+  assert.match(app, /function cerrarVisorComprobanteSistema\(\)/);
+  assert.match(app, /function abrirVisorComprobanteSistema\(archivo, tituloVisor\)/);
+  assert.match(app, /id = 'modal-visor-comprobante-sistema'/);
+  assert.match(app, /URL\.createObjectURL\(new Blob/);
+  assert.match(app, /Descargar PDF/);
+  assert.doesNotMatch(visorPago, /<iframe src="'\+comp\.data/);
+});
+
+test('los adjuntos fiscales y pagos de empleados reutilizan el visor común', () => {
+  assert.match(app, /abrirVisorComprobanteSistema\(adjunto, 'Comprobante adjunto'\)/);
+  assert.match(app, /abrirVisorComprobanteSistema\(comp, 'Comprobante de pago del empleado'\)/);
+  assert.match(app, /abrirVisorComprobanteSistema\(pagos\[idx\].*'Comprobante de pago del gasto'\)/);
 });
