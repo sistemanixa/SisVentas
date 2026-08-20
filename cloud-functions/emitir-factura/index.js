@@ -289,9 +289,19 @@ exports.emitirFactura = onRequest(
     if (!venta || !tipoComprobante) {
       res.status(400).json({ error: true, mensaje: 'Faltan datos de la venta o el tipo de comprobante' }); return;
     }
+    if (data.esNotaCredito) {
+      var asociado = data.comprobante_asociado || {};
+      if (!asociado.tipo || !(parseInt(asociado.punto_venta, 10) > 0) || !(parseInt(asociado.numero, 10) > 0) || !asociado.fecha) {
+        res.status(400).json({ error:true, mensaje:'La nota de crédito no tiene una factura original identificada completamente' }); return;
+      }
+    }
     var cuitClienteNormalizado = String(venta.clienteCuit || '').replace(/[^0-9]/g, '');
+    var razonSocialFiscal = String(venta.clienteRazonSocial || venta.razonSocialFiscal || '').trim();
     if (/\sA$/.test(String(tipoComprobante || '').trim()) && cuitClienteNormalizado.length !== 11) {
       res.status(400).json({ error: true, mensaje: 'El cliente no tiene CUIT cargado — el comprobante A lo requiere obligatoriamente' }); return;
+    }
+    if (/\sA$/.test(String(tipoComprobante || '').trim()) && !razonSocialFiscal) {
+      res.status(400).json({ error: true, mensaje: 'El cliente no tiene razón social fiscal cargada — el comprobante A la requiere obligatoriamente' }); return;
     }
     if (!provincia) {
       res.status(400).json({ error: true, mensaje: 'Falta configurar la provincia del emisor' }); return;
@@ -332,7 +342,7 @@ exports.emitirFactura = onRequest(
       cliente: {
         documento_tipo:  docTipo,
         documento_nro:   docNro,
-        razon_social:    venta.cliente || 'Consumidor Final',
+        razon_social:    razonSocialFiscal || venta.cliente || 'Consumidor Final',
         email:           venta.clienteEmail || '',
         domicilio:       venta.clienteDir   || 'Sin especificar',
         provincia:       provincia,

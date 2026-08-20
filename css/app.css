@@ -1777,16 +1777,24 @@ body.modal-secure-open{overflow:hidden!important}
 @media(max-width:620px){.sv-rent-viz2-chart{padding:15px 12px}.sv-rent-viz2-plot{gap:24px;padding-inline:16px}.sv-rent-viz2-column{width:42%}.sv-rent-viz2-barbox{padding-inline:12px}.sv-rent-viz2-summary{flex-direction:column;text-align:center}.sv-rent-viz2-result{align-items:center}.sv-rent-viz2-counts{width:100%;padding:10px 0 0;border-left:0;border-top:1px solid rgba(148,163,184,.12);flex-direction:row}}
 
 /* v2.0.192 - Gastos legible en celular y controles coherentes */
-.gas-toolbar-actions{display:flex;gap:6px;flex-wrap:wrap}
+.gas-card-head{display:flex!important;flex-direction:column;align-items:stretch!important;gap:12px}
+.gas-toolbar-search{display:grid;grid-template-columns:auto minmax(300px,1fr);align-items:center;gap:20px;width:100%}
+.gas-search-box{position:relative;min-width:0}
+.gas-search-box>i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
+.gas-search-box .search-input{width:100%!important;min-height:40px;padding-left:36px}
+.gas-toolbar-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;width:100%}
+.gas-toolbar-filters,.gas-toolbar-buttons{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gas-toolbar-filters{flex:1 1 auto}
+.gas-toolbar-filters .search-input{width:auto;min-width:145px;min-height:38px}
+#gas-f-empleado{min-width:190px}
 @media(max-width:900px){
   #page-gastos .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
   #page-gastos .metrics .metric{padding:12px!important}
   #page-gastos #gasto-list{padding:14px 12px!important;overflow:visible!important}
-  #page-gastos #gasto-list>.card-head{display:block!important}
-  #page-gastos #gasto-list>.card-head>.card-title{display:block;margin-bottom:12px}
+  #page-gastos .gas-toolbar-search{grid-template-columns:1fr;gap:10px}
   #page-gastos .gas-toolbar-actions{display:grid!important;grid-template-columns:1fr!important;gap:8px!important;width:100%}
-  #page-gastos .gas-toolbar-actions .search-input,
-  #page-gastos .gas-toolbar-actions .btn{width:100%!important;min-height:44px;justify-content:center}
+  #page-gastos .gas-toolbar-filters,#page-gastos .gas-toolbar-buttons{display:grid!important;grid-template-columns:1fr!important;width:100%;gap:8px}
+  #page-gastos .gas-toolbar-actions .search-input,#page-gastos .gas-toolbar-actions .btn{width:100%!important;min-height:44px;justify-content:center}
   #page-gastos .gas-toolbar-actions .sv-column-percent-btn{display:none!important}
   #page-gastos .table-wrap{overflow:visible!important;width:100%!important}
   #page-gastos #gas-tbl,
@@ -1815,6 +1823,13 @@ body.modal-secure-open{overflow:hidden!important}
   #page-gastos #gas-tbl .gas-actions-cell .btn{min-height:40px;justify-content:center}
   #page-gastos #gas-tbl .gas-actions-cell .btn:not(.btn-icon){flex:1 1 120px}
   #page-gastos #gas-tbl .gas-actions-cell .btn-icon{width:40px;flex:0 0 40px}
+  /* Gastos ya presenta las acciones dentro de cada tarjeta. El compactador
+     genérico las ocultaba detrás de un menú de tres puntos que quedaba fuera
+     de la superficie móvil. Se conservan los controles reales, visibles y
+     táctiles, y se elimina únicamente ese menú duplicado. */
+  #page-gastos #gas-tbl .sv-grid-actions-original{display:flex!important;align-items:center;justify-content:flex-start;gap:8px;flex:1 1 auto;flex-wrap:wrap}
+  #page-gastos #gas-tbl .sv-grid-actions-trigger,
+  #page-gastos #gas-tbl .sv-grid-actions-menu{display:none!important}
   #page-gastos .flex-end{justify-content:stretch!important}
   #page-gastos .flex-end .btn{width:100%;min-height:44px;justify-content:center}
 }

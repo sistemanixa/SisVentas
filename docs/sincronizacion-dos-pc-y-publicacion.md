@@ -34,7 +34,13 @@ La prueba incremental vigente bloquea diferencias entre los cinco archivos del r
 
 ## Publicación
 
-1. Confirmar que las pruebas pasan y el repositorio está limpio.
+1. Confirmar que las pruebas pasan y el repositorio está limpio. Antes de crear el commit de versión, ejecutar obligatoriamente la validación local:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\actualizar-nodo-version.ps1 -Version vX.Y.Z -ValidarLocal
+```
+
+La validación debe encontrar exactamente la misma versión en `index.html`, la aplicación inmutable, ambos marcadores, el Service Worker y Novedades. Si alguno difiere, no se puede crear ni publicar esa versión.
 2. Sincronizar la rama de trabajo remota.
 3. Verificar que `origin/main` sea antecesor de la rama; nunca forzar el push.
 4. Publicar el frontend mediante un avance normal de `main`.

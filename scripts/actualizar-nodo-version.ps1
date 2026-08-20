@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^v\d+\.\d+\.\d+$')]
-  [string]$Version
+  [string]$Version,
+  [switch]$ValidarLocal
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +16,45 @@ function Obtener-TextoPublico([string]$ruta) {
   $respuesta = Invoke-WebRequest -UseBasicParsing -Headers $headersNoCache "$sitio/$ruta${separador}_verify=$marca"
   if ($respuesta.StatusCode -ne 200) { throw "No se pudo leer $ruta" }
   return $respuesta.Content
+}
+
+function Validar-VersionLocal {
+  $raiz = Split-Path -Parent $PSScriptRoot
+  $indexLocal = Get-Content -Raw -LiteralPath (Join-Path $raiz 'index.html')
+  if ($indexLocal -notmatch "VERSION:\s*'$([regex]::Escape($versionFirebase))'") {
+    throw "index.html local no coincide con $versionFirebase"
+  }
+
+  $appMatch = [regex]::Match($indexLocal, 'src="\./(js/app\.v[0-9.]+\.js)"')
+  $coreMatch = [regex]::Match($indexLocal, 'src="\./(js/core/version\.v[0-9.]+\.js)"')
+  if (-not $appMatch.Success -or -not $coreMatch.Success) {
+    throw 'index.html local no referencia los archivos inmutables de versión'
+  }
+  if ($appMatch.Groups[1].Value -ne "js/app.$Version.js") {
+    throw "El índice local referencia $($appMatch.Groups[1].Value), no js/app.$Version.js"
+  }
+  if ($coreMatch.Groups[1].Value -ne "js/core/version.$Version.js") {
+    throw "El índice local referencia $($coreMatch.Groups[1].Value), no js/core/version.$Version.js"
+  }
+
+  $appLocal = Get-Content -Raw -LiteralPath (Join-Path $raiz $appMatch.Groups[1].Value)
+  $coreLocal = Get-Content -Raw -LiteralPath (Join-Path $raiz $coreMatch.Groups[1].Value)
+  $livianoLocal = Get-Content -Raw -LiteralPath (Join-Path $raiz 'js/core/version.js')
+  $workerLocal = Get-Content -Raw -LiteralPath (Join-Path $raiz 'sw.js')
+
+  if ($appLocal -notmatch "VERSION:\s*'$([regex]::Escape($versionFirebase))'") { throw 'La aplicación inmutable local no coincide con la versión solicitada' }
+  if ($appLocal -notmatch "(?s)RELEASE_HISTORY.*?version:\s*'$([regex]::Escape($Version))'") { throw 'La aplicación inmutable local no contiene la novedad obligatoria' }
+  if ($coreLocal -notmatch "SISVENTAS_PWA_VERSION\s*=\s*'$([regex]::Escape($Version))'") { throw 'El marcador inmutable local no coincide' }
+  if ($livianoLocal -notmatch "SISVENTAS_PWA_VERSION\s*=\s*'$([regex]::Escape($Version))'") { throw 'El marcador liviano local no coincide' }
+  if ($workerLocal -notmatch "const\s+CACHE\s*=\s*'sisventas-$([regex]::Escape($Version))'") { throw 'El Service Worker local no coincide' }
+  if ($workerLocal -notmatch [regex]::Escape("'./js/app.$Version.js'")) { throw 'El Service Worker local no precarga la aplicación inmutable correcta' }
+  if ($workerLocal -notmatch [regex]::Escape("'./js/core/version.$Version.js'")) { throw 'El Service Worker local no precarga el marcador inmutable correcto' }
+}
+
+Validar-VersionLocal
+if ($ValidarLocal) {
+  Write-Output "OK: versión local consistente en $versionFirebase"
+  exit 0
 }
 
 $index = Obtener-TextoPublico 'index.html'
