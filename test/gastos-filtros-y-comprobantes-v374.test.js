@@ -47,13 +47,19 @@ test('gastos mantiene sus acciones accesibles directamente en móvil', () => {
   assert.match(css, /#page-gastos #gas-tbl \.sv-grid-actions-menu\{display:none!important\}/);
 });
 
+test('productos muestra sus acciones directamente en móvil', () => {
+  assert.match(css, /#page-productos #prod-tbl \.sv-grid-actions-original\{display:inline-flex!important/);
+  assert.match(css, /#page-productos #prod-tbl \.sv-grid-actions-trigger,/);
+  assert.match(css, /#page-productos #prod-tbl \.sv-grid-actions-menu\{display:none!important\}/);
+});
+
 test('el comprobante PDF se abre en un visor propio sin exponer Base64', () => {
   const visorPago = app.slice(app.indexOf('var _visorComprobanteSistemaUrl'), app.indexOf('function editarGasto'));
   assert.match(app, /function cerrarVisorComprobanteSistema\(\)/);
   assert.match(app, /function abrirVisorComprobanteSistema\(archivo, tituloVisor\)/);
   assert.match(app, /id = 'modal-visor-comprobante-sistema'/);
   assert.match(app, /URL\.createObjectURL\(new Blob/);
-  assert.match(app, /function descargarVisorComprobanteSistema\(\)/);
+  assert.match(app, /#navpanes=0&view=Fit/);
   assert.doesNotMatch(visorPago, /<iframe src="'\+comp\.data/);
 });
 
@@ -63,15 +69,14 @@ test('los adjuntos fiscales y pagos de empleados reutilizan el visor común', ()
   assert.match(app, /abrirVisorComprobanteSistema\(pagos\[idx\].*'Comprobante de pago del gasto'\)/);
 });
 
-test('el visor común ofrece cierre, impresión, descarga única y fondo temático', () => {
-  assert.match(app, /function descargarVisorComprobanteSistema\(\)/);
-  assert.match(app, /function imprimirVisorComprobanteSistema\(\)/);
+test('el visor común usa impresión nativa y conserva descarga y compartir', () => {
   assert.match(app, /#navpanes=0&view=Fit/);
   assert.match(app, /aria-label="Cerrar visor"/);
-  assert.match(app, /> Cerrar<\/button>/);
   assert.match(app, /background:var\(--card\)/);
-  assert.match(app, /document\.body\.classList\.add\('sv-imprimiendo-comprobante'\)/);
-  assert.match(app, /marco\.focus\(\); window\.print\(\)/);
+  assert.doesNotMatch(app, /function imprimirVisorComprobanteSistema\(\)/);
+  assert.match(app, /function descargarVisorComprobanteSistema\(\)/);
+  assert.match(app, /async function compartirVisorComprobanteSistema\(\)/);
+  assert.match(app, /navigator\.share\(\{ files:\[archivo\]/);
 });
 
 test('un modal abierto bloquea el desplazamiento del fondo', () => {
