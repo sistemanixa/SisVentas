@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.377-firebase' -->
+<!-- VERSION: 'v2.0.378-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.377.js"></script>
+<script src="./js/core/version.v2.0.378.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,7 +24,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.357">
+<link rel="stylesheet" href="./css/app.css?v=2.0.378">
 
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.193"></script>
@@ -42,7 +42,7 @@
     </div>
     <div class="sv-boot-brand">SisVentas</div>
     <div class="sv-boot-sub">powered by Nixa</div>
-    <div id="loading-version" class="sv-boot-version">v2.0.377</div>
+    <div id="loading-version" class="sv-boot-version">v2.0.378</div>
     <div class="sv-boot-progress">
       <div id="loading-bar" class="sv-boot-bar"></div>
     </div>
@@ -55,7 +55,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.377 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.378 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -202,7 +202,10 @@
         <i class="ti ti-shopping-cart"></i>Órdenes de compra
       </div>
       <div class="nav-item admin-o-administrativo" onclick="showPage('creditofiscal',this)">
-        <i class="ti ti-receipt-tax"></i>Facturaciones
+        <i class="ti ti-receipt-tax"></i>Comprobantes ARCA
+      </div>
+      <div class="nav-item admin-o-administrativo" onclick="showPage('facturas',this)">
+        <i class="ti ti-file-invoice"></i>Facturas
       </div>
 
       <div class="s-section admin-only">Sistema</div>
@@ -781,7 +784,7 @@
 
       <!-- Filtros -->
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-        <input class="search-input" style="flex:1;min-width:160px" placeholder="Buscar por cliente o número..." oninput="filtrarPptoTexto(this.value)">
+        <input id="ppto-buscar" class="search-input" style="flex:1;min-width:160px" placeholder="Buscar por cliente o número..." oninput="filtrarPptoTexto(this.value)">
         <select class="search-input" style="width:170px" onchange="filtrarPptoEstado(this.value)" id="filtro-estado-ppto">
           <option value="">Activos (sin convertidos)</option>
           <option value="todos">Todos los estados</option>
@@ -795,6 +798,10 @@
           <option value="vencido">Vencido</option>
           <option value="convertido">Convertido a venta</option>
         </select>
+        <label class="btn btn-sm" style="min-height:36px;display:inline-flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="ppto-mostrar-vencidos" onchange="actualizarFiltroPptoVencidos()" style="accent-color:var(--blue)">
+          Mostrar vencidos
+        </label>
       </div>
 
       <!-- Tabs por estado rápido -->
@@ -2784,11 +2791,39 @@ Listo para analizar.
         </div>
       </div>
 
-      <!-- ── FACTURACIONES (Crédito Fiscal + Facturas Realizadas) ── -->
+      <!-- ── FACTURAS SISVENTAS + CONCILIACIÓN EXTERNA ── -->
+      <div id="page-facturas" class="page">
+        <div style="margin-bottom:14px">
+          <div style="font-size:18px;font-weight:700">Facturas</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">Ventas facturadas en SisVentas y conciliación de notas de crédito emitidas externamente.</div>
+        </div>
+
+        <div class="card" id="fv-ventas-facturadas-card">
+          <div class="card-head" style="gap:12px;flex-wrap:wrap">
+            <div><span class="card-title"><i class="ti ti-file-invoice" style="margin-right:6px;color:var(--green)"></i>Ventas facturadas en SisVentas</span><div id="fv-ventas-facturadas-cantidad" style="font-size:11px;color:var(--text3);margin-top:3px"></div></div>
+            <input id="fv-ventas-facturadas-buscar" class="search-input" style="width:min(340px,100%)" placeholder="Buscar venta, cliente, CUIT, CAE o comprobante..." oninput="fvRenderVentasFacturadas(this.value)">
+          </div>
+          <div id="fv-ventas-facturadas-lista"></div>
+        </div>
+
+        <div class="card" id="fv-conciliacion-card">
+          <div class="card-head" style="align-items:flex-start;gap:12px;flex-wrap:wrap">
+            <div>
+              <span class="card-title"><i class="ti ti-arrows-exchange" style="margin-right:6px;color:var(--blue)"></i>Conciliación de notas de crédito externas</span>
+              <div style="font-size:12px;color:var(--text3);margin-top:5px;max-width:720px">Herramienta secundaria para reflejar en SisVentas notas de crédito ya emitidas desde TusFacturasApp o ARCA, sin generar un comprobante nuevo.</div>
+            </div>
+            <button class="btn btn-sm" onclick="fvConciliarNotasCredito()"><i class="ti ti-refresh"></i> Conciliar notas de crédito</button>
+          </div>
+          <div id="fv-conciliacion-resumen" class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:12px"></div>
+          <div id="fv-conciliacion-lista" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <!-- ── COMPROBANTES ARCA (Crédito Fiscal + Comprobantes Emitidos) ── -->
       <div id="page-creditofiscal" class="page">
         <!-- Header con botón ARCA -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <div style="font-size:18px;font-weight:700">Facturaciones</div>
+          <div style="font-size:18px;font-weight:700">Comprobantes ARCA</div>
           <a href="https://auth.afip.gob.ar/contribuyente_/login.xhtml" target="_blank" class="btn btn-sm" title="Ir al portal ARCA/AFIP — Mis Comprobantes">
             <i class="ti ti-building-bank"></i> ARCA / Mis comprobantes
           </a>
@@ -2801,12 +2836,12 @@ Listo para analizar.
         </div>
 
         <div class="cfg-tabs" style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto">
-          <button class="fact-tab active" onclick="showFactTab('cf',this)" style="white-space:nowrap;flex-shrink:0">Facturas Recibidas</button>
-          <button class="fact-tab" onclick="showFactTab('fv',this)" style="white-space:nowrap;flex-shrink:0">Facturas Emitidas</button>
+          <button class="fact-tab" onclick="showFactTab('cf',this)" style="white-space:nowrap;flex-shrink:0">Facturas Recibidas</button>
+          <button class="fact-tab active" onclick="showFactTab('fv',this)" style="white-space:nowrap;flex-shrink:0">Facturas Emitidas</button>
         </div>
 
         <!-- PESTAÑA: CRÉDITO FISCAL -->
-        <div id="fact-cf" class="fact-panel">
+        <div id="fact-cf" class="fact-panel" style="display:none">
 
           <!-- Carga de CSV -->
           <div class="card">
@@ -2865,7 +2900,7 @@ Listo para analizar.
         </div>
 
         <!-- PESTAÑA: FACTURAS REALIZADAS -->
-        <div id="fact-fv" class="fact-panel" style="display:none">
+        <div id="fact-fv" class="fact-panel">
 
           <!-- Carga de CSV -->
           <div class="card">
@@ -3748,10 +3783,10 @@ Listo para analizar.
               </div>
             </div>
           </div>
-          <div class="card">
+          <div class="card pf-providers-card">
             <div class="card-head">
               <span class="card-title">Proveedores del producto</span>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <div class="pf-providers-toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <span style="font-size:11px;color:var(--amber)"><i class="ti ti-device-floppy"></i> Se guardan al guardar el producto</span>
                 <button class="btn btn-sm" onclick="agregarFilaProveedor()"><i class="ti ti-plus"></i> Agregar proveedor</button>
                 <button class="btn btn-sm" onclick="cotizarPreciosProveedores()" style="color:var(--blue);border-color:var(--blue)" id="btn-cotizar-prov" title="Cotiza usando la URL del producto o la web configurada del proveedor">
@@ -3759,11 +3794,11 @@ Listo para analizar.
                 </button>
               </div>
             </div>
-            <div style="font-size:12px;color:var(--text3);margin-bottom:10px">
+            <div class="pf-providers-help" style="font-size:12px;color:var(--text3);margin-bottom:10px">
               <i class="ti ti-info-circle"></i> Cargá uno o más proveedores de este producto. La URL es obligatoria: si la fila no la tiene, se usa la URL general del producto. El sistema guarda el precio ARS publicado, el dólar usado y la referencia USD para mantener el costo actualizado.
             </div>
             <table id="pf-proveedores-tbl" style="width:100%">
-              <tr><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio ARS</th><th style="text-align:center;white-space:nowrap" title="Si el proveedor cotiza sin IVA, el sistema suma el 21% para calcular el costo real">Sin IVA <i class="ti ti-info-circle" style="font-size:11px;color:var(--text3)"></i></th><th style="text-align:right;color:var(--amber)">Costo / USD ref.</th><th>URL</th><th style="text-align:right">Actualizado</th><th></th></tr>
+              <tr class="pf-provider-head"><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio ARS</th><th style="text-align:center;white-space:nowrap" title="Si el proveedor cotiza sin IVA, el sistema suma el 21% para calcular el costo real">Sin IVA <i class="ti ti-info-circle" style="font-size:11px;color:var(--text3)"></i></th><th style="text-align:right;color:var(--amber)">Costo / USD ref.</th><th>URL</th><th style="text-align:right">Actualizado</th><th></th></tr>
             </table>
             <div id="pf-proveedores-vacio" style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Sin proveedores cargados — agregá al menos uno</div>
             <div id="pf-proveedores-cotizacion-resultado" style="display:none;margin-top:12px;padding:10px 12px;border:0.5px solid rgba(96,165,250,.24);background:rgba(59,130,246,.06);border-radius:var(--radius);font-size:12px;color:var(--text2)"></div>
@@ -5230,7 +5265,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.377.js"></script>
+<script src="./js/app.v2.0.378.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5539,7 +5574,7 @@ Listo para analizar.
 
 <script src="./js/modules/finance-details.js?v=2.0.247"></script>
 
-<script src="./js/modules/ot-workflow.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/modules/ot-workflow.js?v=2.0.378"></script>
 
 
 <script src="./js/modules/dashboard-permissions.js?v=2.0.269"></script>

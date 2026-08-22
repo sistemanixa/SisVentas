@@ -53,6 +53,20 @@ test('productos muestra sus acciones directamente en móvil', () => {
   assert.match(css, /#page-productos #prod-tbl \.sv-grid-actions-menu\{display:none!important\}/);
 });
 
+test('proveedores del producto se presentan como tarjetas en móvil', () => {
+  assert.match(html, /class="card pf-providers-card"/);
+  assert.match(app, /class="pf-provider-name" data-label="Proveedor"/);
+  assert.match(app, /class="pf-provider-url" data-label="URL del producto"/);
+  assert.match(css, /#page-productos #pf-proveedores-tbl \.pf-provider-row\{display:grid!important/);
+  assert.match(css, /#page-productos #pf-proveedores-tbl \.pf-provider-name,/);
+});
+
+test('proveedores usan una sola columna en celulares angostos y cargan CSS vigente', () => {
+  assert.match(html, /css\/app\.css\?v=2\.0\.378/);
+  assert.match(css, /@media\(max-width:480px\)[\s\S]*pf-provider-row\{grid-template-columns:1fr!important/);
+  assert.match(css, /pf-provider-head\{display:none!important/);
+});
+
 test('el comprobante PDF se abre en un visor propio sin exponer Base64', () => {
   const visorPago = app.slice(app.indexOf('var _visorComprobanteSistemaUrl'), app.indexOf('function editarGasto'));
   assert.match(app, /function cerrarVisorComprobanteSistema\(\)/);
@@ -77,6 +91,11 @@ test('el visor común usa impresión nativa y conserva descarga y compartir', ()
   assert.match(app, /function descargarVisorComprobanteSistema\(\)/);
   assert.match(app, /async function compartirVisorComprobanteSistema\(\)/);
   assert.match(app, /navigator\.share\(\{ files:\[archivo\]/);
+  assert.match(app, /var anchoVisor = esPdf \? 'min\(760px,calc\(100vw - 24px\)\)'/);
+  assert.doesNotMatch(app, /aria-label="Cerrar visor"[^>]+margin-left:auto/);
+  assert.match(app, /function _visorComprobanteUsaAperturaMovil\(\)/);
+  assert.match(app, /if \(esPdf && _visorComprobanteUsaAperturaMovil\(\)\)/);
+  assert.match(app, /window\.open\(urlTemporal, '_blank'\)/);
 });
 
 test('un modal abierto bloquea el desplazamiento del fondo', () => {

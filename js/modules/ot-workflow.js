@@ -161,7 +161,10 @@
       var activo=x.id===step, ok=done(x.id);
       return '<button type="button" class="btn btn-sm '+(activo?'btn-primary':'')+'" onclick="otWizardIr(\''+x.id+'\')" style="'+(ok&&!activo?'color:var(--green);border-color:var(--green)':'')+'">'+(ok?'<i class="ti ti-check"></i> ':'')+(i+1)+' '+esc(x.titulo.split(' ')[0])+'</button>';
     }).join('');
-    if(q('ot-wiz301-ant')) q('ot-wiz301-ant').disabled = idx<=0;
+    if(q('ot-wiz301-ant')) {
+      q('ot-wiz301-ant').disabled = idx<=0;
+      q('ot-wiz301-ant').style.display = idx<=0 ? 'none' : '';
+    }
     if(q('ot-wiz301-sig')) q('ot-wiz301-sig').style.display = idx>=vis.length-1 ? 'none' : '';
     var ot=findOT();
     var contexto=q('ot-wiz301-context');

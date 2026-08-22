@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const app = fs.readFileSync('js/app.v2.0.306.js', 'utf8');
+const app = fs.readFileSync('js/app.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const context = { Array, Object, Number, Set, console, document: { querySelectorAll: () => [] } };
 vm.createContext(context);
@@ -21,7 +21,7 @@ vm.runInContext(app.slice(catalogoInicio, catalogoFin), context);
 
 test('Roles incorpora los módulos que antes faltaban', () => {
   const ids = new Set(context.TODOS_MODULOS.map((mod) => mod.id));
-  ['asistente', 'kits', 'actualizadorprecios', 'ctaemp', 'tesoreria', 'notificaciones', 'tablero']
+  ['asistente', 'kits', 'actualizadorprecios', 'ctaemp', 'tesoreria', 'notificaciones', 'tablero', 'facturas']
     .forEach((id) => assert.ok(ids.has(id), `Falta ${id} en Roles`));
 });
 

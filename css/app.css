@@ -2009,6 +2009,45 @@ body.sv-modal-stack-open{overflow:hidden!important;overscroll-behavior:none!impo
   .ot-firma-acciones{width:100%;justify-content:flex-start;}
 }
 
+@media(max-width:700px){
+  #page-productos .pf-providers-card{padding:16px 14px!important;overflow:visible!important}
+  #page-productos .pf-providers-card>.card-head{align-items:stretch!important;flex-direction:column!important;gap:12px!important}
+  #page-productos .pf-providers-toolbar{display:grid!important;grid-template-columns:1fr 1fr!important;width:100%;gap:8px!important}
+  #page-productos .pf-providers-toolbar>span{grid-column:1/-1;line-height:1.35}
+  #page-productos .pf-providers-toolbar>.btn{width:100%;min-height:42px;justify-content:center;padding:8px!important}
+  #page-productos .pf-providers-help{font-size:11px!important;line-height:1.45;margin:2px 0 12px!important}
+  #page-productos #pf-proveedores-tbl{display:block!important;width:100%!important;min-width:0!important;border-collapse:separate!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-head{display:none!important}
+  #page-productos #pf-proveedores-tbl tbody{display:block!important;width:100%!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;width:100%!important;margin:0 0 12px!important;padding:12px!important;gap:12px!important;box-sizing:border-box;border:1px solid var(--border2);border-radius:14px;background:var(--bg3)!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-row>td{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;width:auto!important;min-width:0!important;height:auto!important;padding:0!important;border:0!important;text-align:left!important;white-space:normal!important;overflow:visible!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-row>td:before{content:attr(data-label);display:block;margin-bottom:6px;color:var(--text3);font-size:10px;font-weight:700;line-height:1.2;letter-spacing:.06em;text-transform:uppercase}
+  #page-productos #pf-proveedores-tbl .pf-provider-name,
+  #page-productos #pf-proveedores-tbl .pf-provider-cost,
+  #page-productos #pf-proveedores-tbl .pf-provider-url{grid-column:1/-1}
+  #page-productos #pf-proveedores-tbl .pf-provider-row input,
+  #page-productos #pf-proveedores-tbl .pf-provider-row select{width:100%!important;min-width:0!important;height:42px!important;font-size:14px!important;padding:8px 10px!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-tax .pf-provider-check{height:42px!important;justify-content:flex-start!important;padding:0 4px}
+  #page-productos #pf-proveedores-tbl .pf-provider-tax input{width:20px!important;height:20px!important;flex:0 0 20px}
+  #page-productos #pf-proveedores-tbl .pf-provider-mainline{height:auto!important;min-height:28px;justify-content:flex-start!important;flex-wrap:wrap}
+  #page-productos #pf-proveedores-tbl .pf-provider-cost .pf-provider-mainline{justify-content:flex-start!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-date .pf-provider-mainline{justify-content:flex-start!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-actions .pf-provider-mainline{justify-content:flex-end!important;gap:8px!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-actions .btn{width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center}
+}
+@media(max-width:480px){
+  #page-productos .pf-providers-toolbar{grid-template-columns:1fr!important}
+  #page-productos .pf-providers-toolbar>span{grid-column:auto!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-row{grid-template-columns:1fr!important;padding:14px!important;gap:14px!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-name,
+  #page-productos #pf-proveedores-tbl .pf-provider-price,
+  #page-productos #pf-proveedores-tbl .pf-provider-tax,
+  #page-productos #pf-proveedores-tbl .pf-provider-cost,
+  #page-productos #pf-proveedores-tbl .pf-provider-url,
+  #page-productos #pf-proveedores-tbl .pf-provider-date,
+  #page-productos #pf-proveedores-tbl .pf-provider-actions{grid-column:1/-1!important}
+}
+
 .sv-responsive-grid .sv-grid-actions-cell{
   position:relative;
   overflow:visible!important;
