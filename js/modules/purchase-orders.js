@@ -1105,6 +1105,12 @@
     });
   };
 
-  document.addEventListener('sisventas:session-ready', start);
+  document.addEventListener('sisventas:session-ready', function () {
+    if (typeof window.svProgramarTrabajoFondo === 'function') window.svProgramarTrabajoFondo(start, 1800);
+    else setTimeout(start, 600);
+  });
+  document.addEventListener('sisventas:page-changed', function (event) {
+    if (event.detail && event.detail.page === 'ordenes') start();
+  });
   document.addEventListener('sisventas:session-ended', reset);
 })();

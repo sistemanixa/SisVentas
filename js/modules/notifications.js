@@ -337,11 +337,22 @@
     var count=notifSource().filter(function(n){ var st=getN(n.id); return visibleNotif(n,'') && !st.estado; }).length;
     var b=document.getElementById('notif-badge'); if(b) b.style.display=count?'block':'none';
   };
-  function actualizarNotificacionesAutomaticamente(){
+  var ultimaActualizacionAutomatica=0;
+  var actualizacionAutomaticaEnCurso=false;
+  function actualizarNotificacionesAutomaticamente(forzar){
+    if(document.visibilityState==='hidden'&&!forzar) return;
     if(!currentIdentity() || currentIdentity()==='local') return;
-    iniciarSyncNotificaciones();
-    if(typeof global.generarNotificaciones==='function') global.generarNotificaciones();
-    programarAvisoCriticoPresupuesto();
+    var ahora=Date.now();
+    if(!forzar&&(actualizacionAutomaticaEnCurso||ahora-ultimaActualizacionAutomatica<10000)) return;
+    actualizacionAutomaticaEnCurso=true;
+    ultimaActualizacionAutomatica=ahora;
+    try{
+      iniciarSyncNotificaciones();
+      if(typeof global.generarNotificaciones==='function') global.generarNotificaciones();
+      programarAvisoCriticoPresupuesto();
+    }finally{
+      actualizacionAutomaticaEnCurso=false;
+    }
   }
   document.addEventListener('sisventas:page-changed',function(event){
     var pagina=event.detail&&event.detail.page;
@@ -359,14 +370,14 @@
         reanudarColaAvisosCriticos();
       }
     }
-    if(event.detail&&event.detail.page==='notificaciones') actualizarNotificacionesAutomaticamente();
+    if(event.detail&&event.detail.page==='notificaciones') actualizarNotificacionesAutomaticamente(true);
     programarAvisoCriticoPresupuesto();
   });
   document.addEventListener('sisventas:accion-notificacion-cerrada',reanudarColaAvisosCriticos);
   document.addEventListener('sisventas:ot-closed',reanudarColaAvisosCriticos);
   document.addEventListener('sisventas:notificaciones-actualizadas',programarAvisoCriticoPresupuesto);
   document.addEventListener('visibilitychange',function(){
-    if(document.visibilityState==='visible') actualizarNotificacionesAutomaticamente();
+    if(document.visibilityState==='visible') actualizarNotificacionesAutomaticamente(true);
   });
   window.addEventListener('focus',actualizarNotificacionesAutomaticamente);
   vigilarAvisoCriticoPersistente();

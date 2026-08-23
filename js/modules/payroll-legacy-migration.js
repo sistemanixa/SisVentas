@@ -94,7 +94,9 @@
     sv347StartAguListener();
     return r;
   };
-  if (window.fbDB) setTimeout(sv347StartAguListener, 500);
+  // El aguinaldo sólo se necesita junto con Gastos. El wrapper anterior lo
+  // conecta al abrir/cargar ese módulo, sin mantener otra colección activa en
+  // sesiones que nunca consultan finanzas.
 
   var oldEliminar = window.eliminarRegistro;
   window.eliminarRegistro = async function(coleccion, fbKey){

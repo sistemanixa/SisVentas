@@ -2147,6 +2147,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 @media(max-width:520px){
   .ot-firma-superficie{min-height:330px}
   .ot-firma-canvas{height:330px;min-height:330px}
+  #mod-ap-proveedores{grid-template-columns:1fr!important}
 }
 
 /* v2.0.225 - Las grillas conservan su tabla en escritorio y pasan a tarjetas
@@ -2207,6 +2208,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
     justify-content:center!important;
     min-width:0!important;
     width:auto!important;
+    max-width:none!important;
     min-height:54px!important;
     padding:9px 10px!important;
     border:0!important;

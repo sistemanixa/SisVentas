@@ -189,12 +189,9 @@
   window.dolarHistoricoCargar = cargar;
   window.dolarHistoricoGuardarAhora = guardarAhora;
 
-  document.addEventListener('firebase-ready', function(){ setTimeout(iniciar, 500); });
   document.addEventListener('sisventas:session-ready', iniciar);
   document.addEventListener('sisventas:session-ended', detener);
   document.addEventListener('sisventas:page-changed', function(e){
     if(!e.detail || e.detail.page === 'configuracion') setTimeout(cargar, 250);
   });
-  if(document.readyState !== 'loading') setTimeout(iniciar, 800);
-  else document.addEventListener('DOMContentLoaded', function(){ setTimeout(iniciar, 800); });
 })();

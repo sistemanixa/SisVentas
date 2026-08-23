@@ -65,10 +65,12 @@
     navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
       .then(function(reg){
         if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
-        // Chrome puede espaciar sus chequeos; consultar al abrir y cada dos
-        // minutos mantiene la PWA alineada con cada deploy.
+        // Firebase y el marcador de versión ya anuncian despliegues. Este
+        // chequeo es un respaldo de baja frecuencia y sólo trabaja visible.
         reg.update().catch(function(){});
-        setInterval(function(){ reg.update().catch(function(){}); }, 2 * 60 * 1000);
+        setInterval(function(){
+          if(document.visibilityState !== 'hidden') reg.update().catch(function(){});
+        }, 15 * 60 * 1000);
       })
       .catch(function(err){ console.warn('[PWA] No se pudo registrar sw.js:', err); });
   }
