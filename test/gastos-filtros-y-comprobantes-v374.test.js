@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const app = fs.readFileSync('js/app.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
@@ -30,7 +31,54 @@ test('horas extra usan fecha de imputación y conservan el período trabajado', 
   assert.match(app, /function fechaImputacionGasto\(g\)/);
   assert.match(app, /periodoTrabajo: String\(payload\.periodoTrabajo/);
   assert.match(app, /fechaImputacion: _pagableNormFecha\(payload\.fecha\)/);
-  assert.match(app, /fechaPagoHs = _gastoPagosArray\(g\)/);
+  assert.match(app, /var fechasPago = _gastoPagosArray\(g\)/);
+});
+
+test('todos los gastos abonados se incluyen en el mes efectivo del pago', () => {
+  const filtro = app.slice(app.indexOf('function fechaImputacionGasto'), app.indexOf('function _normFechaGasto'));
+  assert.match(filtro, /_gastoPagosArray\(g\).*pagoGastoEstaAnulado/);
+  assert.match(filtro, /_normFechaGasto\(g\.fechaPago \|\| ''\)/);
+  assert.match(filtro, /_normFechaGasto\(g\.fecha \|\| ''\)/);
+  assert.doesNotMatch(filtro, /if \(String\(g\.tipoPagable[^\n]+hextra[^\n]+\) \{\s*_gastoPagosArray/);
+});
+
+test('la tabla de este mes reutiliza el mismo conjunto pagado que el KPI', () => {
+  assert.match(app, /var gastosPagadosMesKeys = fMes === 'mes'/);
+  assert.match(app, /resumenGastosPagadosMes\(gastosData \|\| \[\], hoyD\)\.pagados/);
+  assert.match(app, /matchMes = mesesImputacion\.indexOf\(mesActual\) >= 0 \|\| gastosPagadosMesKeys\.has\(g\.fbKey\)/);
+});
+
+test('los gastos históricos pagados reciben fecha contable canónica y conservan la fecha original', () => {
+  assert.match(app, /function _normalizarImputacionGastosPagados\(\)/);
+  assert.match(app, /sisventas\/gastos\/' \+ g\.fbKey \+ '\/fechaImputacion/);
+  assert.match(app, /var fechaImputacion = fechasPago\[fechasPago\.length - 1\]/);
+  assert.match(app, /imputacionActual === fechaImputacion && fechaActual === fechaImputacion/);
+  assert.match(app, /sisventas\/gastos\/' \+ g\.fbKey \+ '\/fechaOriginal/);
+  assert.match(app, /sisventas\/gastos\/' \+ g\.fbKey \+ '\/fecha'\] = fechaImputacion/);
+  assert.match(app, /setTimeout\(function\(\)\{ _normalizarImputacionGastosPagados\(\); \}, 2200\)/);
+});
+
+test('un gasto de julio pagado el 18 de agosto muestra la fecha efectiva de agosto', () => {
+  const inicio = app.indexOf('function fechaImputacionGasto');
+  const fin = app.indexOf('function gastoSeleccionableParaPago', inicio);
+  const contexto = {
+    _gastoPagosArray:g => Object.values(g.pagos || {}),
+    pagoGastoEstaAnulado:p => p && (p.anulado === true || p.estado === 'anulado'),
+    _normFechaGasto:f => f || ''
+  };
+  vm.createContext(contexto);
+  vm.runInContext(app.slice(inicio, fin), contexto);
+  assert.equal(contexto.fechaImputacionGasto({
+    fecha:'2026-07-07',
+    montoPagado:6678,
+    pagos:{ pago_1:{ fecha:'2026-08-18', monto:6678 } }
+  }), '2026-08-18');
+  assert.equal(contexto.fechaImputacionGasto({
+    fecha:'2026-07-01',
+    tipoPagable:'hextra',
+    montoPagado:160000,
+    pagos:{ pago_1:{ fecha:'2026-08-18', monto:160000 } }
+  }), '2026-08-18');
 });
 
 test('un comprobante guardado como ruta se detecta y puede reemplazarse', () => {
@@ -62,7 +110,7 @@ test('proveedores del producto se presentan como tarjetas en móvil', () => {
 });
 
 test('proveedores usan una sola columna en celulares angostos y cargan CSS vigente', () => {
-  assert.match(html, /css\/app\.css\?v=2\.0\.378/);
+  assert.match(html, /css\/app\.css\?v=2\.0\.383/);
   assert.match(css, /@media\(max-width:480px\)[\s\S]*pf-provider-row\{grid-template-columns:1fr!important/);
   assert.match(css, /pf-provider-head\{display:none!important/);
 });

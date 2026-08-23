@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.378-firebase' -->
+<!-- VERSION: 'v2.0.383-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.378.js"></script>
+<script src="./js/core/version.v2.0.383.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,7 +24,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.378">
+<link rel="stylesheet" href="./css/app.css?v=2.0.383">
 
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.193"></script>
@@ -42,7 +42,7 @@
     </div>
     <div class="sv-boot-brand">SisVentas</div>
     <div class="sv-boot-sub">powered by Nixa</div>
-    <div id="loading-version" class="sv-boot-version">v2.0.378</div>
+    <div id="loading-version" class="sv-boot-version">v2.0.383</div>
     <div class="sv-boot-progress">
       <div id="loading-bar" class="sv-boot-bar"></div>
     </div>
@@ -55,7 +55,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.378 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.383 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -1902,6 +1902,10 @@
                 <div style="font-size:11px;color:var(--text3);margin-top:4px">Se usa para calcular la fecha de vencimiento al crear presupuestos</div>
               </div>
               <div class="fg"><label>Stock mínimo por defecto</label><input type="number" id="cfg-stock-min-def" value="5" min="0"></div>
+              <div class="fg"><label>Vigencia de precios de proveedores (días)</label>
+                <input type="number" id="cfg-dias-vigencia-precios" value="5" min="1" max="365">
+                <div style="font-size:11px;color:var(--text3);margin-top:4px">Se aplica en productos, Actualizador y al cargar productos en ventas o presupuestos.</div>
+              </div>
               <div class="fg"><label>Valor agregado por defecto sobre costo (%)</label><input type="number" id="cfg-margen-prod-def" value="30" min="0" max="500" step="0.1"></div>
               <div class="fg"><label>Descuento máximo sin aprobación (%)</label><input type="number" id="cfg-desc-max-ppto" value="10" min="0" max="100"></div>
               <div class="fg"><label>Monto máximo sin aprobación ($)</label><input type="number" id="cfg-monto-max-ppto" value="200000" min="0"></div>
@@ -3718,6 +3722,12 @@ Listo para analizar.
                 <option value="proveedor">Proveedor</option>
                 <option value="categoria">Categoría</option>
               </select>
+              <select class="search-input" id="prod-uso-filter" style="width:185px;flex:0 0 185px" onchange="cambiarFiltroUsoProductos(this.value)">
+                <option value="todos">Todos los productos</option><option value="sinventas">Sin ventas registradas</option><option value="inactivos">Productos inactivos</option>
+              </select>
+              <select class="search-input" id="prod-orden-precio" style="width:190px;flex:0 0 190px" onchange="cambiarOrdenPrecioProductos(this.value)">
+                <option value="">Orden habitual</option><option value="venta-desc">Venta: más caro primero</option><option value="venta-asc">Venta: más barato primero</option><option value="compra-desc">Costo: más caro primero</option><option value="compra-asc">Costo: más barato primero</option>
+              </select>
               <button class="btn btn-sm" id="prod-filtro-sinprecio-activo" type="button" onclick="toggleFiltroProductosSinPrecio()" style="display:none;color:var(--amber);border-color:var(--amber)" title="Quitar filtro de productos sin precio"><i class="ti ti-filter"></i> Solo sin precio <span id="prod-filtro-sinprecio-cantidad"></span> <i class="ti ti-x"></i></button>
             </div>
             <div class="table-wrap prod-table-wrap">
@@ -3945,7 +3955,11 @@ Listo para analizar.
               </div>
             </div>
             <div class="product-hero-actions">
-              <button class="btn btn-sm product-hero-edit" onclick="event.stopPropagation();editarDesdeDetalle()"><i class="ti ti-edit"></i> Editar</button>
+              <div style="display:flex;align-items:center;gap:10px">
+                <button class="btn btn-sm product-hero-edit" onclick="event.stopPropagation();editarDesdeDetalle()"><i class="ti ti-edit"></i> Editar</button>
+                <label class="toggle-sw product-active-toggle" onclick="event.stopPropagation()" title="Activar o desactivar este producto"><input type="checkbox" id="pd-activo-toggle" onchange="event.stopPropagation();toggleActivoProductoDesdeDetalle(this.checked)"><span class="toggle-knob"></span></label>
+                <span id="pd-activo-label" class="product-active-label">Activo</span>
+              </div>
               <button class="btn btn-sm product-hero-delete" onclick="event.stopPropagation();eliminarProductoDesdeDetalle()" title="Eliminar producto"><i class="ti ti-trash"></i></button>
             </div>
           </div>
@@ -5265,7 +5279,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.378.js"></script>
+<script src="./js/app.v2.0.383.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
