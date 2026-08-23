@@ -452,6 +452,9 @@ exports.emitirFactura = onRequest(
       importe_total:             totalFiscal,
       importeTotal:              totalFiscal,
       totalFiscal:               totalFiscal,
+      totalFiscalEsperado:       totalFiscal,
+      totalComercialAlEmitir:    redondearDinero(venta.totalComercialAlEmitir || venta.totalVentaComercialAlEmitir || 0),
+      contratoIntegridadFiscal:  'v2',
       integridadFiscalCompleta:  integridadFiscalCompleta,
       estadoIntegridadFiscal:    integridadFiscalCompleta ? 'completa' : 'pendiente_verificacion',
       datos_fiscales: {

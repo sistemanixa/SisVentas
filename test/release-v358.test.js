@@ -90,7 +90,7 @@ test('la emisión envía únicamente la venta preparada y bloquea sumas inconsis
   const fin = app.indexOf('// Abrir modal para elegir tipo de factura', inicio);
   const bloque = app.slice(inicio, fin);
   assert.match(bloque, /prepararVentaParaFacturacion\(venta, tipoComprobante\)/);
-  assert.match(bloque, /venta: preparacionFiscal\.venta/);
+  assert.match(bloque, /venta: ventaParaFiscal/);
   assert.match(bloque, /Facturación bloqueada/);
   assert.match(app, /Math\.abs\(totalPreparado - totalEsperado\) > 0\.009/);
   assert.match(app, /precioUnitarioSinIvaFiscal/);
@@ -120,7 +120,7 @@ test('si ARCA coincide, el comprobante conserva el desglose completo de Detalle 
   const bloque = app.slice(inicio, fin);
   assert.match(bloque, /usarDesgloseVentaConfirmada/);
   assert.match(bloque, /resumenEconomicoComprobanteVenta\(v\)/);
-  assert.match(bloque, /datosFiscal && datosFiscal\.detalle\.length && !usarDesgloseVentaConfirmada/);
+  assert.match(bloque, /datosFiscalConDetalle && !usarDesgloseVentaConfirmada/);
   assert.match(bloque, /Subtotal bruto/);
   assert.match(bloque, /Neto venta/);
 });

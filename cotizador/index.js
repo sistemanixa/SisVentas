@@ -10,6 +10,7 @@ const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN || 'https://ventas.sistemanixa.com
 // Puertos usados por la vista local de SisVentas. Se mantienen restringidos a
 // loopback para no abrir el cotizador a sitios de terceros durante desarrollo.
 const LOCAL_DEVELOPMENT_ORIGINS = new Set([
+  'http://127.0.0.1:8080', 'http://localhost:8080',
   'http://127.0.0.1:4173', 'http://localhost:4173',
   'http://127.0.0.1:8765', 'http://localhost:8765'
 ]);

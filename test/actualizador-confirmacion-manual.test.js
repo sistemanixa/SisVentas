@@ -4,8 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const app = fs.readFileSync(path.join(root, 'js', 'app.v2.0.351.js'), 'utf8');
 const appBase = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
+const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const appVersionada = (index.match(/js\/app\.(v[0-9.]+)\.js/) || [])[1];
+assert.ok(appVersionada, 'index.html debe declarar la aplicación inmutable activa');
+const app = fs.readFileSync(path.join(root, 'js', `app.${appVersionada}.js`), 'utf8');
 const cotizador = fs.readFileSync(path.join(root, 'cotizador', 'index.js'), 'utf8');
 
 function bloque(desde, hasta) {
@@ -41,10 +44,10 @@ test('el resultado confirmado conserva evidencia, moneda e identidad manual', ()
   assert.match(resultado, /mercado_libre_identidad_confirmada_usuario/);
 });
 
-test('el título abre la ficha interna y la publicación conserva su botón exclusivo', () => {
+test('el título abre la ficha interna y la publicación conserva su acceso al proveedor', () => {
   const render = bloque('function actualizadorHtmlFallos', 'function mostrarVistaPreviaActualizador');
   assert.match(render, /abrirProductoDesdeFalloActualizador/);
-  assert.match(render, /> Abrir publicación<\/a>/);
+  assert.match(render, /> Ir al proveedor<\/a>/);
   assert.doesNotMatch(render, /title="Abrir producto en el proveedor"/);
 });
 
