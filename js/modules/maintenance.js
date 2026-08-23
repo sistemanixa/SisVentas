@@ -1,6 +1,6 @@
 ﻿/* v1.36.3 — Centro de diagnóstico y mantenimiento de base de datos */
 var MNT_STATE = { analizado:false, integridadOK:false, pendientes:0, diag:null, inicializado:false };
-function mntInicializar(){ if (MNT_STATE.inicializado) return; MNT_STATE.inicializado=true; mntLog('Centro de mantenimiento cargado.'); mntRenderMigraciones(null); }
+function mntInicializar(){ if (MNT_STATE.inicializado) return; MNT_STATE.inicializado=true; mntLog('Centro de mantenimiento cargado.'); mntRenderMigraciones(null); mntMostrarMarcaFechasGastos(); }
 function mntLog(msg){ var el=document.getElementById('mnt-console'); if(!el) return; var hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); el.textContent+='['+hora+'] '+msg+'\n'; el.scrollTop=el.scrollHeight; }
 function mntSetEstado(txt, cls){ var el=document.getElementById('mnt-estado-general'); if(!el) return; el.className='badge '+(cls||'b-amber'); el.textContent=txt; }
 function mntSetText(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
@@ -249,6 +249,88 @@ async function mntEliminarDuplicadosGastosFijos(){
   notify('✓ Duplicados fijos eliminados');
   await mntAnalizarDuplicadosGastosFijos();
   if(typeof fbCargarGastos==='function') fbCargarGastos();
+}
+
+function mntFechaPagoActivaMasReciente(gasto){
+  var pagos=gasto&&gasto.pagos;
+  if(!pagos) return '';
+  var lista=Array.isArray(pagos)?pagos:Object.keys(pagos).map(function(k){return pagos[k];});
+  return lista.filter(function(p){
+    return p&&p.anulado!==true&&String(p.estado||'').toLowerCase()!=='anulado'&&(parseFloat(p.monto)||0)>0;
+  }).map(function(p){return mntFecha(p.fecha||'');}).filter(Boolean).sort().pop()||'';
+}
+function mntPintarEstadoFechasGastos(estado,detalle,pendientes){
+  var badge=document.getElementById('mnt-gastos-fecha-estado');
+  var box=document.getElementById('mnt-gastos-fecha-detalle');
+  var btn=document.getElementById('mnt-btn-migrar-fechas-gastos');
+  if(badge){ badge.className='badge '+(estado==='ok'?'b-green':estado==='pendiente'?'b-amber':'b-red'); badge.textContent=estado==='ok'?'Base consistente':estado==='pendiente'?'Requiere corrección':'Error'; }
+  if(box) box.innerHTML=detalle;
+  if(btn) btn.disabled=!(pendientes>0);
+}
+async function mntMostrarMarcaFechasGastos(){
+  if(!window.fbDB) return;
+  var marca=await mntGet('sisventas/config/migraciones/gastos_fecha_pago_v1').catch(function(){return null;});
+  if(!marca) return;
+  var fecha=marca.ejecutadaEn?new Date(Number(marca.ejecutadaEn)).toLocaleString('es-AR'):'—';
+  mntPintarEstadoFechasGastos('ok','Última migración registrada: <strong>'+escapeHTML(fecha)+'</strong> · '+(parseInt(marca.registrosCorregidos,10)||0)+' registro(s) corregido(s). Ejecutá una auditoría para validar el estado actual.',0);
+}
+async function mntAuditarFechasGastos(btn){
+  if(!mntRequireAdmin('la auditoría de fechas de Gastos')) return [];
+  if(!window.fbDB){ notify('Sin conexión Firebase'); return []; }
+  var original=btn&&btn.innerHTML;
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .9s linear infinite"></i> Auditando...';}
+  try{
+    var gastosObj=await mntGet('sisventas/gastos')||{};
+    var pendientes=[];
+    Object.keys(gastosObj).forEach(function(key){
+      var g=gastosObj[key]||{};
+      var fechaPago=mntFechaPagoActivaMasReciente(g);
+      if(!fechaPago) return;
+      var fecha=mntFecha(g.fecha||'');
+      var imputacion=mntFecha(g.fechaImputacion||'');
+      if(fecha!==fechaPago||imputacion!==fechaPago) pendientes.push({key:key,fechaPago:fechaPago,fecha:fecha,imputacion:imputacion,fechaOriginal:mntFecha(g.fechaOriginal||'')});
+    });
+    window._mntFechasGastosPendientes=pendientes;
+    var total=Object.keys(gastosObj).length;
+    if(pendientes.length){
+      mntPintarEstadoFechasGastos('pendiente','Se auditaron <strong>'+total+'</strong> gastos. Hay <strong>'+pendientes.length+'</strong> registro(s) cuya fecha contable no coincide con el último pago.',pendientes.length);
+      mntLog('Auditoría de fechas de Gastos: '+pendientes.length+' pendiente(s) sobre '+total+'.');
+    }else{
+      mntPintarEstadoFechasGastos('ok','Se auditaron <strong>'+total+'</strong> gastos. No hay fechas contables pendientes de corrección.',0);
+      mntLog('Auditoría de fechas de Gastos: base consistente ('+total+' registros).');
+    }
+    return pendientes;
+  }catch(e){
+    mntPintarEstadoFechasGastos('error','No se pudo completar la auditoría: '+escapeHTML(e&&e.message?e.message:String(e)),0);
+    notify('Error auditando fechas: '+(e&&e.message?e.message:e));
+    return [];
+  }finally{if(btn){btn.disabled=false;btn.innerHTML=original||'<i class="ti ti-search"></i> Auditar fechas';}}
+}
+async function mntMigrarFechasGastos(btn){
+  if(!mntRequireAdmin('la migración de fechas de Gastos')) return;
+  var pendientes=window._mntFechasGastosPendientes||[];
+  if(!pendientes.length){ pendientes=await mntAuditarFechasGastos(document.getElementById('mnt-btn-auditar-fechas-gastos')); }
+  if(!pendientes.length){ notify('No hay fechas pendientes de corrección'); return; }
+  if(!await window.svConfirm('Se corregirán '+pendientes.length+' fecha(s) contables en Gastos. La fecha anterior se conservará como fechaOriginal. ¿Continuar?')) return;
+  var original=btn&&btn.innerHTML;
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .9s linear infinite"></i> Corrigiendo...';}
+  try{
+    var ahora=Date.now(), updates={};
+    pendientes.forEach(function(p){
+      var base='sisventas/gastos/'+p.key;
+      if(p.fecha&&p.fecha!==p.fechaPago&&!p.fechaOriginal) updates[base+'/fechaOriginal']=p.fecha;
+      updates[base+'/fecha']=p.fechaPago;
+      updates[base+'/fechaImputacion']=p.fechaPago;
+      updates[base+'/imputacionNormalizadaEn']=ahora;
+    });
+    updates['sisventas/config/migraciones/gastos_fecha_pago_v1']={estado:'completada',ejecutadaEn:ahora,registrosCorregidos:pendientes.length,gastosAuditados:Object.keys((await mntGet('sisventas/gastos'))||{}).length,criterio:'fecha efectiva del ultimo pago',usuario:currentUser||'Admin',version:mntVersion()};
+    await window.fbUpdate(window.fbRef(window.fbDB),updates);
+    mntLog('Migración manual de fechas completada: '+pendientes.length+' registro(s).');
+    notify('✓ Fechas contables corregidas');
+    window._mntFechasGastosPendientes=[];
+    await mntAuditarFechasGastos(document.getElementById('mnt-btn-auditar-fechas-gastos'));
+  }catch(e){notify('No se pudieron corregir las fechas: '+(e&&e.message?e.message:e));}
+  finally{if(btn){btn.innerHTML=original||'<i class="ti ti-database-cog"></i> Corregir pendientes';}}
 }
 
 async function mntLimpiarLegacy(){

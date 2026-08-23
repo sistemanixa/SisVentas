@@ -55,7 +55,8 @@ test('los gastos históricos pagados reciben fecha contable canónica y conserva
   assert.match(app, /imputacionActual === fechaImputacion && fechaActual === fechaImputacion/);
   assert.match(app, /sisventas\/gastos\/' \+ g\.fbKey \+ '\/fechaOriginal/);
   assert.match(app, /sisventas\/gastos\/' \+ g\.fbKey \+ '\/fecha'\] = fechaImputacion/);
-  assert.match(app, /setTimeout\(function\(\)\{ _normalizarImputacionGastosPagados\(\); \}, 2200\)/);
+  const carga = app.slice(app.indexOf('function fbCargarGastos()'), app.indexOf('function _gastoFijoMesActual'));
+  assert.doesNotMatch(carga, /_normalizarImputacionGastosPagados\(\)/);
 });
 
 test('un gasto de julio pagado el 18 de agosto muestra la fecha efectiva de agosto', () => {
@@ -110,7 +111,7 @@ test('proveedores del producto se presentan como tarjetas en móvil', () => {
 });
 
 test('proveedores usan una sola columna en celulares angostos y cargan CSS vigente', () => {
-  assert.match(html, /css\/app\.css\?v=2\.0\.383/);
+  assert.match(html, /css\/app\.css\?v=2\.0\.384/);
   assert.match(css, /@media\(max-width:480px\)[\s\S]*pf-provider-row\{grid-template-columns:1fr!important/);
   assert.match(css, /pf-provider-head\{display:none!important/);
 });
@@ -149,4 +150,18 @@ test('el visor común usa impresión nativa y conserva descarga y compartir', ()
 test('un modal abierto bloquea el desplazamiento del fondo', () => {
   assert.match(css, /body\.sv-modal-stack-open\{overflow:hidden!important;overscroll-behavior:none!important\}/);
   assert.match(css, /\.sv-modal-stack-open \.modal\{overscroll-behavior:contain\}/);
+});
+
+test('corregir un pago inicializa el monto dinámico antes de validarlo', () => {
+  const inicio = app.indexOf('function abrirEditarPagoGasto');
+  const fin = app.indexOf('async function _persistirAjustePagoGasto', inicio);
+  const bloque = app.slice(inicio, fin);
+  assert.match(bloque, /document\.body\.appendChild\(overlay\);\s*\/\/[\s\S]*?initMoneyInputsEn\(overlay\)/);
+  assert.ok(bloque.indexOf('initMoneyInputsEn(overlay)') > bloque.indexOf('document.body.appendChild(overlay)'));
+});
+
+test('cerrar y maximizar comparten posición y tamaño en ventanas gestionables', () => {
+  assert.match(app, /cabecera\.style\.display = 'flex'/);
+  assert.match(app, /cerrar\.classList\.add\('sv-modal-close-btn'\)/);
+  assert.match(css, /sv-modal-maximize-btn,[\s\S]*sv-modal-close-btn\{width:32px;height:32px/);
 });

@@ -4,13 +4,13 @@ const fs = require('node:fs');
 
 const app = fs.readFileSync('js/app.js', 'utf8');
 
-test('la carga de Gastos ejecuta una sola vez la migración legacy después del snapshot', () => {
+test('la carga de Gastos no ejecuta migraciones ni reparaciones históricas', () => {
   const inicio = app.indexOf('function fbCargarGastos()');
   const fin = app.indexOf('function _gastoFijoMesActual', inicio);
   const bloque = app.slice(inicio, fin);
-  assert.match(bloque, /_migrarPagablesLegacyAGastos\(\)/);
-  assert.match(bloque, /!_migracionPagablesLegacyEjecutada && !_migracionPagablesLegacyEnCurso/);
-  assert.doesNotMatch(bloque, /currentRole[\s\S]{0,120}_migrarPagablesLegacyAGastos/);
+  assert.doesNotMatch(bloque, /_migrarPagablesLegacyAGastos\(\)/);
+  assert.doesNotMatch(bloque, /_normalizarImputacionGastosPagados\(\)/);
+  assert.doesNotMatch(bloque, /setTimeout[\s\S]{0,120}(migrar|normalizar)/i);
 });
 
 test('las horas extra históricas pagadas se imputan por fecha de pago', () => {
@@ -29,7 +29,9 @@ test('la migración conserva separado el período trabajado', () => {
 test('una solicitud aprobada recrea exactamente su clave de gasto faltante', () => {
   assert.match(app, /var gastoKeyHs = sol\.gastoFbKey \|\| _claveOperacionConcurrente\('hextra', \[solKey\]\)/);
   assert.match(app, /fbSet\(window\.fbRef\(window\.fbDB, 'sisventas\/gastos\/' \+ gastoKeyHs\), gasto\)/);
-  assert.match(app, /setTimeout\(function\(\)\{ _migrarPagablesLegacyAGastos\(\); \}, 1800\)/);
+  const inicioCarga = app.indexOf('function fbCargarGastos()');
+  const finCarga = app.indexOf('function _gastoFijoMesActual', inicioCarga);
+  assert.doesNotMatch(app.slice(inicioCarga, finCarga), /_migrarPagablesLegacyAGastos\(\)/);
 });
 
 test('si la clave ya existe repara su imputación sin reemplazar pagos ni estado', () => {

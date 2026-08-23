@@ -653,6 +653,10 @@ body.sv-modal-stack-open{overflow:hidden!important;overscroll-behavior:none!impo
   .sv-modal-manageable>.sv-modal-drag-handle{cursor:move;user-select:none;touch-action:none;flex:0 0 auto;position:relative}
   .sv-modal-manageable>.sv-modal-drag-handle button,.sv-modal-manageable>.sv-modal-drag-handle input,.sv-modal-manageable>.sv-modal-drag-handle select{cursor:pointer}
   .sv-modal-maximize-btn{flex:0 0 auto;margin-left:auto}
+  .sv-modal-manageable>.sv-modal-drag-handle>.sv-modal-maximize-btn,
+  .sv-modal-manageable>.sv-modal-drag-handle>.sv-modal-close-btn{width:32px;height:32px;min-width:32px;min-height:32px;padding:0!important;display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;border-radius:8px}
+  .sv-modal-manageable>.sv-modal-drag-handle>.sv-modal-maximize-btn i,
+  .sv-modal-manageable>.sv-modal-drag-handle>.sv-modal-close-btn i{font-size:16px;line-height:1}
   body.sv-modal-dragging,body.sv-modal-dragging *{cursor:move!important;user-select:none!important}
 }
 @media (max-width:1024px),(pointer:coarse){
