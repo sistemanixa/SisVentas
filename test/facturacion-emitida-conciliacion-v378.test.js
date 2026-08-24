@@ -27,7 +27,7 @@ test('Facturas aparece en Roles y migra configuraciones anteriores con reglas se
 test('muestra todas las ventas facturadas y distingue anulaciones externas', () => {
   assert.match(html, /fv-ventas-facturadas-lista/);
   assert.match(app, /function fvRenderVentasFacturadas/);
-  assert.match(app, /Anulada externamente/);
+  assert.match(app, /Factura anulada externamente/);
   assert.match(app, /abrirResumenFactura/);
   const cargaVentas = app.slice(app.indexOf('function procesarVentasSnapshot'), app.indexOf('function procesarVentasPendientesHistoricasSnapshot'));
   assert.match(cargaVentas, /fvRenderVentasFacturadas/);
@@ -42,7 +42,8 @@ test('la conciliación externa nunca llama al endpoint de emisión', () => {
   assert.ok(inicio > 0 && fin > inicio);
   assert.doesNotMatch(cuerpo, /fetch\s*\(|emitirFactura|ENDPOINT_FACTURACION/);
   assert.match(cuerpo, /origen:'conciliacion_externa'/);
-  assert.match(cuerpo, /anulada:true/);
+  assert.match(cuerpo, /cambios\[baseNueva \+ 'facturaAnulada'\] = true/);
+  assert.doesNotMatch(cuerpo, /cambios\[baseNueva \+ 'estadoPago'\]/);
   assert.match(cuerpo, /comprobantesVenta/);
 });
 

@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.387-firebase' -->
+<!-- VERSION: 'v2.0.388-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.387.js"></script>
+<script src="./js/core/version.v2.0.388.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,7 +24,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.387">
+<link rel="stylesheet" href="./css/app.css?v=2.0.388">
 
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.193"></script>
@@ -42,7 +42,7 @@
     </div>
     <div class="sv-boot-brand">SisVentas</div>
     <div class="sv-boot-sub">powered by Nixa</div>
-    <div id="loading-version" class="sv-boot-version">v2.0.387</div>
+    <div id="loading-version" class="sv-boot-version">v2.0.388</div>
     <div class="sv-boot-progress">
       <div id="loading-bar" class="sv-boot-bar"></div>
     </div>
@@ -55,7 +55,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.387 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.388 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -355,7 +355,7 @@
             <div class="m-sub" id="dash-precios-vigencia-sub">cargando...</div>
           </div>
           <div class="metric" style="cursor:pointer;touch-action:pan-x pan-y" onclick="kpiNavegar('iva')" title="Ver Facturaciones">
-            <div class="m-label">IVA a compensar</div>
+            <div class="m-label">Podés facturar hasta</div>
             <div class="m-value" id="kpi-iva">$0</div>
             <div class="m-sub" id="kpi-iva-mes">cargando...</div>
           </div>
@@ -2832,7 +2832,10 @@ Listo para analizar.
               <span class="card-title"><i class="ti ti-arrows-exchange" style="margin-right:6px;color:var(--blue)"></i>Conciliación de notas de crédito externas</span>
               <div style="font-size:12px;color:var(--text3);margin-top:5px;max-width:720px">Herramienta secundaria para reflejar en SisVentas notas de crédito ya emitidas desde TusFacturasApp o ARCA, sin generar un comprobante nuevo.</div>
             </div>
-            <button class="btn btn-sm" onclick="fvConciliarNotasCredito()"><i class="ti ti-refresh"></i> Conciliar notas de crédito</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-sm" onclick="fvRepararEstadosComercialesConciliacionExterna()"><i class="ti ti-tool"></i> Reparar estados comerciales</button>
+              <button class="btn btn-sm" onclick="fvConciliarNotasCredito()"><i class="ti ti-refresh"></i> Conciliar notas de crédito</button>
+            </div>
           </div>
           <div id="fv-conciliacion-resumen" class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:12px"></div>
           <div id="fv-conciliacion-lista" style="margin-top:12px"></div>
@@ -5295,7 +5298,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.387.js"></script>
+<script src="./js/app.v2.0.388.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
