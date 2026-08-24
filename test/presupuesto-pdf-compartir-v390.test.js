@@ -28,3 +28,7 @@ test('imprimir descargar y compartir son acciones independientes', () => {
   assert.match(app, /a\.download=nombre/);
 });
 
+test('la ventana conserva un título descriptivo después de escribir el documento', () => {
+  assert.match(app, /tituloVentanaPpto = 'SisVentas · NIXA — Presupuesto ' \+ num/);
+  assert.match(app, /w\.document\.title = tituloVentanaPpto/);
+});
