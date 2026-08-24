@@ -2272,6 +2272,13 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-trigger,
   table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-menu{display:none!important}
   table.sv-mobile-card-grid .sv-mobile-action-label{display:inline!important;font-size:12px;font-weight:600}
+  table.sv-mobile-card-grid .sv-card-actions > .btn,
+  table.sv-mobile-card-grid .sv-card-actions > a.btn{
+    width:100%!important;
+    height:42px!important;
+    min-height:42px!important;
+    flex:0 0 42px!important;
+  }
 
   #page-proveedores #proveedores-tbl td[data-label="Web / Portal"]{flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:wrap!important;gap:8px!important}
   #page-proveedores #proveedores-tbl td[data-label="Web / Portal"]::before{width:100%}

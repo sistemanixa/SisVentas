@@ -476,11 +476,11 @@
     if (!target) return;
     var filter = (document.getElementById('oc2-filter') || {}).value || '';
     var list = filter ? state.orders.filter(function (o) { return o.estado === filter; }) : state.orders;
-    target.innerHTML = '<div class="table-wrap"><table style="min-width:880px"><thead><tr><th>N°</th><th>Proveedor</th><th>Destino</th><th>Materiales</th><th class="tr">Total</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>' +
+    target.innerHTML = '<div class="table-wrap"><table style="min-width:880px"><thead><tr><th>N°</th><th>Proveedor</th><th>Destino</th><th>Materiales</th><th class="tr">Total</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
       (list.length ? list.map(function (o) {
         var qty = Array.isArray(o.items) ? o.items.reduce(function (s, i) { return s + (parseFloat(i.cantidadOrdenada || i.cantidad) || 0); }, 0) : (parseFloat(o.cantidad) || 0);
         var itemCount = (o.items && o.items.length) || 1;
-        return '<tr onclick="ocAbrirOrden(\'' + attr(o.fbKey) + '\')" style="cursor:pointer"><td><strong>' + esc(o.numero || '—') + '</strong></td><td>' + esc(o.proveedor || 'Sin proveedor') + '</td><td>' + (o.ventaId ? '<span class="badge b-blue">' + esc(o.ventaId) + '</span><div style="font-size:11px;color:var(--text3)">' + esc(o.cliente || '') + '</div>' : 'Stock general') + '</td><td>' + qty + ' un. · ' + itemCount + ' ' + (itemCount === 1 ? 'ítem' : 'ítems') + '</td><td class="tr"><strong>' + money(o.total || o.monto) + '</strong></td><td>' + fmtDate(o.fecha) + '</td><td>' + statusBadge(o.estado) + '</td><td><i class="ti ti-chevron-right"></i></td></tr>';
+        return '<tr onclick="ocAbrirOrden(\'' + attr(o.fbKey) + '\')" style="cursor:pointer"><td><strong>' + esc(o.numero || '—') + '</strong></td><td>' + esc(o.proveedor || 'Sin proveedor') + '</td><td>' + (o.ventaId ? '<span class="badge b-blue">' + esc(o.ventaId) + '</span><div style="font-size:11px;color:var(--text3)">' + esc(o.cliente || '') + '</div>' : 'Stock general') + '</td><td>' + qty + ' un. · ' + itemCount + ' ' + (itemCount === 1 ? 'ítem' : 'ítems') + '</td><td class="tr"><strong>' + money(o.total || o.monto) + '</strong></td><td>' + fmtDate(o.fecha) + '</td><td>' + statusBadge(o.estado) + '</td><td><button type="button" class="btn btn-sm btn-icon" title="Ver detalle" aria-label="Ver detalle"><i class="ti ti-eye"></i><span class="sv-mobile-action-label">Ver detalle</span></button></td></tr>';
       }).join('') : '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text3)">Todavía no hay órdenes en este estado</td></tr>') +
       '</tbody></table></div>';
   }
@@ -489,10 +489,10 @@
     renderPageShell();
     var target = document.getElementById('oc2-lists');
     if (!target) return;
-    target.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Lista</th><th>Venta</th><th>Cliente</th><th>Materiales</th><th>Órdenes</th><th>Estado</th><th></th></tr></thead><tbody>' +
+    target.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Lista</th><th>Venta</th><th>Cliente</th><th>Materiales</th><th>Órdenes</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
       (state.lists.length ? state.lists.map(function (list) {
         var pending = (list.items || []).filter(function (i) { return i.incluir && i.cantidadComprar > 0; }).length;
-        return '<tr onclick="ocAbrirListaMateriales(\'' + attr(list.fbKey) + '\')" style="cursor:pointer"><td><strong>' + esc(list.numero || '—') + '</strong></td><td>' + esc(list.ventaId || 'Manual') + '</td><td>' + esc(list.cliente || '—') + '</td><td>' + pending + ' a comprar</td><td>' + ((list.ordenesIds || []).length) + '</td><td>' + statusBadge(list.estado) + '</td><td><i class="ti ti-chevron-right"></i></td></tr>';
+        return '<tr onclick="ocAbrirListaMateriales(\'' + attr(list.fbKey) + '\')" style="cursor:pointer"><td><strong>' + esc(list.numero || '—') + '</strong></td><td>' + esc(list.ventaId || 'Manual') + '</td><td>' + esc(list.cliente || '—') + '</td><td>' + pending + ' a comprar</td><td>' + ((list.ordenesIds || []).length) + '</td><td>' + statusBadge(list.estado) + '</td><td><button type="button" class="btn btn-sm btn-icon" title="Ver detalle" aria-label="Ver detalle"><i class="ti ti-eye"></i><span class="sv-mobile-action-label">Ver detalle</span></button></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text3)">Las listas se crean desde el detalle de una venta</td></tr>') +
       '</tbody></table></div>';
   }
