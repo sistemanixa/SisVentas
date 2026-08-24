@@ -49,7 +49,7 @@
     if(tec) tec.value = '';
     window._otFiltroEspecial315 = '';
     if(tipo === 'abiertas') { if(est) est.value = 'abiertas'; if(per) per.value = 'todos'; window._otFiltroEspecial315 = 'abiertas'; }
-    if(tipo === 'hoy') { if(est) est.value = ''; if(per) per.value = 'hoy'; }
+    if(tipo === 'hoy') { if(est) est.value = 'abiertas'; if(per) per.value = 'hoy'; window._otFiltroEspecial315 = 'abiertas'; }
     if(tipo === 'completadas') { if(est) est.value = 'completada'; if(per) per.value = 'todos'; }
     if(tipo === 'vencidas') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial315 = 'vencidas'; }
     if(tipo === 'sin_tecnico') { if(est) est.value = ''; if(per) per.value = 'todos'; window._otFiltroEspecial315 = 'sin_tecnico'; }
