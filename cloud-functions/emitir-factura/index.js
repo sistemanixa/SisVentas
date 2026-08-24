@@ -37,6 +37,7 @@ const ENDPOINT_FACTURACION = 'https://www.tusfacturas.app/app/api/v2/facturacion
 const ENDPOINT_REGENERAR_PDF = 'https://www.tusfacturas.app/app/api/v2/facturacion/regenerar_pdf';
 const ENDPOINT_CONSULTA = 'https://www.tusfacturas.app/app/api/v2/facturacion/consulta';
 const ENDPOINT_CONSULTA_AVANZADA = 'https://www.tusfacturas.app/app/api/v2/facturacion/consulta_avanzada';
+const ENDPOINT_INFO_CUIT = 'https://www.tusfacturas.app/app/api/v2/clientes/afip-info';
 const ENDPOINT_ESTADO      = 'https://www.tusfacturas.app/app/api/v2/estado_servicios/alertas';
 
 function formatearFechaAR(date) {
@@ -145,8 +146,10 @@ function prepararDetalleFiscal(venta) {
   return { detalle: detalle, neto: neto, total: totalCalculado, totalEsperado: totalEsperado };
 }
 
-function setCors(res) {
-  res.set('Access-Control-Allow-Origin', 'https://ventas.sistemanixa.com');
+function setCors(req, res) {
+  var origen = String(req.get('Origin') || '');
+  var permitido = origen === 'https://ventas.sistemanixa.com' || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origen);
+  res.set('Access-Control-Allow-Origin', permitido ? origen : 'https://ventas.sistemanixa.com');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type, X-Frontend-Key');
 }
@@ -163,12 +166,47 @@ function chequearAuth(req, res) {
 exports.emitirFactura = onRequest(
   { secrets: [TFAPP_USERTOKEN, TFAPP_APITOKEN, TFAPP_APIKEY, FRONTEND_KEY], region: 'southamerica-east1', cors: false },
   async (req, res) => {
-    setCors(res);
+    setCors(req, res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     if (req.method !== 'POST') { res.status(405).json({ error: true, mensaje: 'Método no permitido' }); return; }
     if (!chequearAuth(req, res)) return;
 
     var data = req.body || {};
+    if (data.accion === 'consultar_cuit') {
+      var cuitConsulta = String(data.cuit || '').replace(/\D/g, '');
+      if (!/^\d{11}$/.test(cuitConsulta)) {
+        res.status(400).json({ error:true, mensaje:'El CUIT debe tener 11 dígitos' }); return;
+      }
+      try {
+        var respCuit = await fetch(ENDPOINT_INFO_CUIT, {
+          method:'POST', headers:{ 'Content-Type':'application/json' },
+          body:JSON.stringify({
+            usertoken:TFAPP_USERTOKEN.value(), apikey:TFAPP_APIKEY.value(), apitoken:TFAPP_APITOKEN.value(),
+            cliente:{ documento_nro:cuitConsulta, documento_tipo:'CUIT' }
+          })
+        });
+        var infoCuit = await respCuit.json().catch(function(){ return {}; });
+        var razon = String(infoCuit.razon_social || '').trim();
+        if (!respCuit.ok || (!razon && String(infoCuit.error || '').toUpperCase() === 'S')) {
+          var erroresCuit = Array.isArray(infoCuit.errores) ? infoCuit.errores.flat(Infinity).filter(Boolean).join(' · ') : String(infoCuit.errores || '');
+          res.status(422).json({ error:true, mensaje:erroresCuit || 'ARCA no devolvió información para este CUIT' }); return;
+        }
+        res.json({
+          error:false,
+          datos:{
+            cuit:cuitConsulta, razonSocial:razon, condicionImpositiva:String(infoCuit.condicion_impositiva || '').trim(),
+            direccion:String(infoCuit.direccion || '').trim(), localidad:String(infoCuit.localidad || '').trim(),
+            codigoPostal:String(infoCuit.codigopostal || '').trim(), provincia:String(infoCuit.provincia || '').trim(),
+            estado:String(infoCuit.estado || '').trim(), actividades:Array.isArray(infoCuit.actividad) ? infoCuit.actividad : [],
+            apocExiste:String(infoCuit.apoc_existe || '').trim(), apocInfo:String(infoCuit.apoc_info || '').trim()
+          },
+          advertencias:String(infoCuit.error || '').toUpperCase() === 'S' ? (infoCuit.errores || []) : []
+        });
+      } catch (e) {
+        res.status(502).json({ error:true, mensaje:'No se pudo consultar ARCA: ' + e.message });
+      }
+      return;
+    }
     if (data.accion === 'consultar_comprobante') {
       var tipoConsulta = String(data.tipoComprobante || '').trim();
       var puntoConsulta = parseInt(data.puntoVenta, 10) || 0;
@@ -495,7 +533,7 @@ exports.emitirFactura = onRequest(
 exports.testTFApp = onRequest(
   { secrets: [TFAPP_USERTOKEN, TFAPP_APITOKEN, TFAPP_APIKEY, FRONTEND_KEY], region: 'southamerica-east1', cors: false },
   async (req, res) => {
-    setCors(res);
+    setCors(req, res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     if (req.method !== 'POST') { res.status(405).json({ error: true, mensaje: 'Método no permitido' }); return; }
     if (!chequearAuth(req, res)) return;
