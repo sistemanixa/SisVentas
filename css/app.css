@@ -2067,6 +2067,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   justify-content:flex-end;
   gap:5px;
 }
+.sv-mobile-action-label{display:none}
 .sv-grid-actions-trigger,
 .sv-grid-actions-menu{
   display:none;
@@ -2247,6 +2248,35 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   table.sv-mobile-card-grid tbody > tr > td[style*="display:none"]{display:none!important}
   table.sv-mobile-card-grid .badge{max-width:100%;white-space:normal!important;text-align:center}
   table.sv-mobile-card-grid .sv-grid-actions-trigger{margin-left:auto}
+  /* Las tarjetas móviles ya reservan una fila completa para acciones: se
+     aprovecha con botones legibles y táctiles en lugar de iconos diminutos o
+     un segundo menú. WhatsApp conserva deliberadamente su acceso compacto. */
+  table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-original{
+    display:flex!important;
+    width:100%!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    flex-wrap:wrap!important;
+    gap:8px!important;
+  }
+  table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-original .btn,
+  table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-original a[role="button"],
+  table.sv-mobile-card-grid .sv-card-actions > .btn{
+    min-height:42px!important;
+    width:auto!important;
+    min-width:104px!important;
+    padding:8px 12px!important;
+    gap:7px!important;
+    flex:1 1 112px!important;
+  }
+  table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-trigger,
+  table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-menu{display:none!important}
+  table.sv-mobile-card-grid .sv-mobile-action-label{display:inline!important;font-size:12px;font-weight:600}
+
+  #page-proveedores #proveedores-tbl td[data-label="Web / Portal"]{flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:wrap!important;gap:8px!important}
+  #page-proveedores #proveedores-tbl td[data-label="Web / Portal"]::before{width:100%}
+  #page-proveedores #proveedores-tbl .prov-action-btn{width:auto!important;min-width:112px!important;min-height:42px!important;padding:8px 12px!important;gap:7px!important;flex:1 1 120px!important}
+  #page-proveedores #proveedores-tbl td[data-label="WhatsApp"] .btn{width:42px!important;height:42px!important;min-height:42px!important;padding:0!important;border-radius:10px!important}
   /* Empleados: la tarjeta deja una fila completa para acciones. Mostrar los
      cuatro accesos directos evita un segundo toque innecesario en el menú. */
   #emp-tbl.sv-responsive-grid .sv-grid-actions-cell{
