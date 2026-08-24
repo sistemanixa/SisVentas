@@ -32,3 +32,9 @@ test('la ventana conserva un título descriptivo después de escribir el documen
   assert.match(app, /tituloVentanaPpto = 'SisVentas · NIXA — Presupuesto ' \+ num/);
   assert.match(app, /w\.document\.title = tituloVentanaPpto/);
 });
+
+test('las acciones del comprobante son compactas y visualmente sutiles', () => {
+  assert.match(app, /padding:7px 13px/);
+  assert.match(app, /font-size:11\.5px/);
+  assert.match(app, /font-weight:500/);
+});
