@@ -30,3 +30,8 @@ test('localhost queda habilitado únicamente como origen de prueba', () => {
   assert.match(server, /ventas\.sistemanixa\.com/);
 });
 
+test('la vista previa separa visualmente etiquetas y valores fiscales', () => {
+  assert.match(app, /arca-cuit-grid \.field\{display:flex!important;flex-direction:column!important/);
+  assert.match(app, /arca-cuit-grid \.field label\{display:block!important/);
+  assert.match(app, /gap:16px 24px!important/);
+});
