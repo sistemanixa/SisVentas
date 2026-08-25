@@ -71,7 +71,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .sv-boot-aura{position:absolute;width:360px;height:360px;border-radius:50%;background:conic-gradient(from 160deg,rgba(96,165,250,.05),rgba(74,222,128,.22),rgba(139,92,246,.12),rgba(96,165,250,.05));filter:blur(18px);animation:svBootSpin 4.8s linear infinite;opacity:.85}
 .sv-boot-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;animation:svBootIn .55s ease both}
 .sv-boot-logo{width:132px;height:86px;border-radius:24px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.02));border:0.5px solid rgba(120,130,160,.28);box-shadow:0 22px 70px rgba(0,0,0,.30),0 0 0 8px rgba(96,165,250,.035);animation:svBootPulse 1.55s ease-in-out infinite}
-.sv-boot-logo img{width:100%;height:100%;object-fit:cover;display:block;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35))}
+.sv-boot-logo img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35))}
 .sv-boot-brand{font-size:25px;font-weight:800;letter-spacing:-.7px;margin-top:5px}
 .sv-boot-sub{font-size:12px;color:var(--text3);letter-spacing:.35px;text-transform:uppercase}
 .sv-boot-version{font-size:11px;color:var(--text3);letter-spacing:.45px;font-weight:650;opacity:.82}
@@ -90,7 +90,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .login-box{width:360px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-xl);padding:40px 36px}
 .login-logo{text-align:center;margin-bottom:32px}
 .login-logo-mark{width:86px;height:86px;margin:0 auto 14px;border-radius:24px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border:0.5px solid var(--border2)}
-.login-logo-mark img{width:100%;height:100%;object-fit:cover;display:block}
+.login-logo-mark img{width:100%;height:100%;object-fit:contain;display:block}
 .login-brand{font-size:28px;font-weight:700;letter-spacing:1px;color:var(--text)}
 .login-brand span{font-weight:300;color:var(--text3)}
 .login-tagline{font-size:12px;color:var(--text3);margin-top:4px;letter-spacing:.5px}
@@ -1557,9 +1557,18 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .sv-logo-crop-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
 .sv-logo-crop-head strong{display:block;font-size:13px;color:var(--text)}
 .sv-logo-crop-head span{display:block;margin-top:2px;font-size:12px;color:var(--text3)}
+.sv-logo-crop-mode{display:inline-flex;gap:3px;padding:3px;margin:0 0 12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px}
+.sv-logo-crop-mode button{border:0;background:transparent;color:var(--text2);border-radius:7px;padding:7px 10px;font:inherit;font-size:12px;cursor:pointer}
+.sv-logo-crop-mode button.active{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.22)}
+.sv-logo-bg-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.sv-logo-bg-tools label{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.45px}
+.sv-logo-bg-tools input{width:110px;accent-color:var(--blue)}
+.sv-logo-preview{background-color:var(--bg3);background-image:linear-gradient(45deg,rgba(128,138,160,.16) 25%,transparent 25%),linear-gradient(-45deg,rgba(128,138,160,.16) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,rgba(128,138,160,.16) 75%),linear-gradient(-45deg,transparent 75%,rgba(128,138,160,.16) 75%);background-size:14px 14px;background-position:0 0,0 7px,7px -7px,-7px 0}
+.sv-logo-preview img{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain!important;object-position:center!important}
 .sv-logo-crop-stage{position:relative;width:min(420px,100%);aspect-ratio:14/9;margin:0 auto 12px;overflow:hidden;border:1.5px dashed var(--border2);border-radius:var(--radius);background:repeating-conic-gradient(rgba(120,130,160,.10) 0 25%,transparent 0 50%) 50%/18px 18px}
 .sv-logo-crop-stage:after{content:'';position:absolute;inset:0;border:999px solid rgba(0,0,0,.08);pointer-events:none}
 .sv-logo-crop-stage img{position:absolute;left:50%;top:50%;max-width:none;max-height:none;user-select:none;pointer-events:none;transform-origin:center center}
+.sv-logo-crop-selection{position:absolute;border:2px solid var(--blue);border-radius:6px;box-shadow:0 0 0 999px rgba(0,0,0,.48),inset 0 0 0 1px rgba(255,255,255,.65);pointer-events:none;z-index:2}
 .sv-logo-crop-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .sv-logo-crop-controls label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
 .sv-logo-crop-controls input{display:block;width:100%;margin-top:5px;accent-color:var(--blue)}
@@ -1674,6 +1683,30 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .ppto-menu-item:hover{background:rgba(96,165,250,.12)}
 .ppto-menu-item i{font-size:14px}
 .ppto-menu-sep{border-top:1px solid var(--border);margin:4px 0}
+.ppto-menu-mobile-head{display:none}
+.ppto-actions-cell{min-width:340px;width:340px;white-space:normal}
+.ppto-row-actions{display:grid;grid-template-columns:repeat(3,minmax(96px,1fr));align-items:center;justify-content:end;gap:5px;width:100%}
+.ppto-row-action{width:100%;height:32px;min-width:0;padding:5px 8px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:8px;font-size:10.5px;line-height:1;white-space:nowrap}
+.ppto-row-action i{font-size:14px;flex:0 0 auto}
+.ppto-row-action span{overflow:hidden;text-overflow:ellipsis}
+.ppto-row-action.is-primary{color:var(--blue)}
+.ppto-row-action.is-warning{color:var(--amber)}
+.ppto-row-action.is-danger{color:var(--red)}
+@media(max-width:720px){
+  .ppto-menu-floating{left:12px!important;right:12px!important;top:auto!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;width:auto;min-width:0;max-height:min(78vh,620px);overflow:auto;padding:9px;border-radius:18px;background:var(--bg2);box-shadow:0 -10px 40px rgba(0,0,0,.5);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .ppto-menu-mobile-head{display:flex;grid-column:1/-1;align-items:center;justify-content:space-between;gap:12px;padding:7px 7px 12px;border-bottom:1px solid var(--border);margin-bottom:3px}
+  .ppto-menu-mobile-head strong{display:block;font-size:14px;color:var(--text)}
+  .ppto-menu-mobile-head span{display:block;font-size:11px;color:var(--text3);margin-top:2px}
+  .ppto-menu-mobile-close{width:38px;height:38px;flex:0 0 38px;border:1px solid var(--border);border-radius:11px;background:var(--bg3);color:var(--text);font-size:18px;display:flex;align-items:center;justify-content:center}
+  .ppto-menu-item{min-height:68px;padding:9px 5px;border:1px solid var(--border);border-radius:11px;background:var(--bg3);font-size:11px;gap:5px;flex-direction:column;justify-content:center;text-align:center}
+  .ppto-menu-item:active{background:rgba(96,165,250,.18)}
+  .ppto-menu-item i{font-size:19px;width:22px;text-align:center}
+  .ppto-menu-sep{grid-column:1/-1;margin:3px 5px}
+  #page-presupuesto #ppto-tabla .ppto-actions-cell{grid-column:1/-1!important;min-width:0!important;min-height:54px!important;align-items:stretch!important;border-bottom:0!important}
+  #page-presupuesto #ppto-tabla .ppto-row-actions{width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+  #page-presupuesto #ppto-tabla .ppto-row-action{width:100%!important;height:38px!important;min-width:0!important;padding:7px 6px!important;border-radius:9px;font-size:10.5px}
+  #page-presupuesto #ppto-tabla .ppto-row-action i{font-size:15px}
+}
 
 /* v2.0.29 - Rentabilidad sobria + KPIs superiores modernos */
 .metrics > .metric,
@@ -1832,20 +1865,19 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   #page-gastos #gas-tbl .gas-bulk-cell input{width:22px;height:22px}
   #page-gastos #gas-tbl .gas-actions-cell{grid-column:1/-1;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:wrap;padding:10px!important;background:rgba(255,255,255,.018)}
   #page-gastos #gas-tbl .gas-actions-cell:before{width:100%}
-  #page-gastos #gas-tbl .gas-actions-cell .btn{min-height:40px;justify-content:center}
-  #page-gastos #gas-tbl .gas-actions-cell .btn:not(.btn-icon){flex:1 1 120px}
-  #page-gastos #gas-tbl .gas-actions-cell .btn-icon{width:40px;flex:0 0 40px}
+  #page-gastos #gas-tbl .gas-actions-cell .btn{width:100%!important;min-width:0!important;min-height:38px!important;height:38px!important;padding:7px 6px!important;gap:5px!important;justify-content:center;font-size:10.5px!important}
+  #page-gastos #gas-tbl .gas-actions-cell .btn-icon{width:100%!important;min-width:0!important;flex:none!important}
   /* Gastos ya presenta las acciones dentro de cada tarjeta. El compactador
      genérico las ocultaba detrás de un menú de tres puntos que quedaba fuera
      de la superficie móvil. Se conservan los controles reales, visibles y
      táctiles, y se elimina únicamente ese menú duplicado. */
-  #page-gastos #gas-tbl .sv-grid-actions-original{display:flex!important;align-items:center;justify-content:flex-start;gap:8px;flex:1 1 auto;flex-wrap:wrap}
+  #page-gastos #gas-tbl .sv-grid-actions-original{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;width:100%!important;align-items:center;gap:7px!important}
   #page-gastos #gas-tbl .sv-grid-actions-trigger,
   #page-gastos #gas-tbl .sv-grid-actions-menu{display:none!important}
-  #page-productos #prod-tbl .sv-grid-actions-original{display:inline-flex!important;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:nowrap}
+  #page-productos #prod-tbl .sv-grid-actions-original{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;width:100%!important;align-items:center;gap:7px!important}
   #page-productos #prod-tbl .sv-grid-actions-trigger,
   #page-productos #prod-tbl .sv-grid-actions-menu{display:none!important}
-  #page-productos #prod-tbl .sv-grid-actions-original .icon-btn{display:inline-flex!important;width:40px;height:40px;flex:0 0 40px;align-items:center;justify-content:center}
+  #page-productos #prod-tbl .sv-grid-actions-original .icon-btn{display:inline-flex!important;width:100%!important;min-width:0!important;height:38px!important;padding:7px 6px!important;gap:5px!important;align-items:center;justify-content:center;font-size:10.5px!important}
   #page-gastos .flex-end{justify-content:stretch!important}
   #page-gastos .flex-end .btn{width:100%;min-height:44px;justify-content:center}
 }
@@ -2041,8 +2073,9 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   #page-productos #pf-proveedores-tbl .pf-provider-mainline{height:auto!important;min-height:28px;justify-content:flex-start!important;flex-wrap:wrap}
   #page-productos #pf-proveedores-tbl .pf-provider-cost .pf-provider-mainline{justify-content:flex-start!important}
   #page-productos #pf-proveedores-tbl .pf-provider-date .pf-provider-mainline{justify-content:flex-start!important}
-  #page-productos #pf-proveedores-tbl .pf-provider-actions .pf-provider-mainline{justify-content:flex-end!important;gap:8px!important}
-  #page-productos #pf-proveedores-tbl .pf-provider-actions .btn{width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center}
+  #page-productos #pf-proveedores-tbl .pf-provider-actions .pf-provider-mainline{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;justify-content:stretch!important;gap:8px!important}
+  #page-productos #pf-proveedores-tbl .pf-provider-actions .btn{width:100%;min-width:0;height:38px;padding:7px 9px;gap:5px;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px}
+  #page-productos #pf-proveedores-tbl .pf-provider-actions .sv-mobile-action-label{display:inline!important;font-size:10.5px;font-weight:600}
 }
 @media(max-width:480px){
   #page-productos .pf-providers-toolbar{grid-template-columns:1fr!important}
@@ -2238,7 +2271,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   table.sv-mobile-card-grid tbody > tr > td[colspan]{grid-column:1/-1!important}
   table.sv-mobile-card-grid tbody > tr > td.sv-card-actions{
     min-height:44px!important;
-    align-items:flex-end!important;
+    align-items:stretch!important;
     border-bottom:0!important;
   }
   table.sv-mobile-card-grid tbody > tr > td.sv-card-actions::before{align-self:flex-start}
@@ -2252,32 +2285,37 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
      aprovecha con botones legibles y táctiles en lugar de iconos diminutos o
      un segundo menú. WhatsApp conserva deliberadamente su acceso compacto. */
   table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-original{
-    display:flex!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
     width:100%!important;
     align-items:center!important;
-    justify-content:flex-start!important;
-    flex-wrap:wrap!important;
-    gap:8px!important;
+    gap:7px!important;
   }
   table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-original .btn,
   table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-original a[role="button"],
   table.sv-mobile-card-grid .sv-card-actions > .btn{
-    min-height:42px!important;
-    width:auto!important;
-    min-width:104px!important;
-    padding:8px 12px!important;
-    gap:7px!important;
-    flex:1 1 112px!important;
+    min-height:38px!important;
+    height:38px!important;
+    width:100%!important;
+    min-width:0!important;
+    padding:7px 6px!important;
+    gap:5px!important;
+    border-radius:9px!important;
+    font-size:10.5px!important;
+    line-height:1!important;
   }
   table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-trigger,
   table.sv-mobile-card-grid .sv-card-actions .sv-grid-actions-menu{display:none!important}
-  table.sv-mobile-card-grid .sv-mobile-action-label{display:inline!important;font-size:12px;font-weight:600}
+  table.sv-mobile-card-grid .sv-mobile-action-label{display:inline!important;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;font-weight:600}
   table.sv-mobile-card-grid .sv-card-actions > .btn,
   table.sv-mobile-card-grid .sv-card-actions > a.btn{
-    width:100%!important;
-    height:42px!important;
-    min-height:42px!important;
-    flex:0 0 42px!important;
+    width:auto!important;
+    min-width:104px!important;
+    max-width:160px!important;
+    height:38px!important;
+    min-height:38px!important;
+    padding:7px 9px!important;
+    gap:5px!important;
   }
 
   #page-proveedores #proveedores-tbl td[data-label="Web / Portal"]{flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:wrap!important;gap:8px!important}
@@ -2288,20 +2326,18 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
      cuatro accesos directos evita un segundo toque innecesario en el menú. */
   #emp-tbl.sv-responsive-grid .sv-grid-actions-cell{
     display:flex!important;
-    flex-direction:row!important;
-    align-items:center!important;
-    justify-content:flex-start!important;
-    gap:8px!important;
+    align-items:stretch!important;
   }
   #emp-tbl.sv-responsive-grid .sv-grid-actions-original{
-    display:inline-flex!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    width:100%!important;
     align-items:center!important;
-    justify-content:flex-start!important;
-    gap:8px!important;
-    flex-wrap:wrap!important;
+    gap:7px!important;
   }
   #emp-tbl.sv-responsive-grid .sv-grid-actions-original .btn{
-    min-width:40px!important;
+    width:100%!important;
+    min-width:0!important;
     min-height:38px!important;
   }
   #emp-tbl.sv-responsive-grid .sv-grid-actions-trigger,

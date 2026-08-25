@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.397-firebase' -->
+<!-- VERSION: 'v2.0.398-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.397.js"></script>
+<script src="./js/core/version.v2.0.398.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,7 +24,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.397">
+<link rel="stylesheet" href="./css/app.css?v=2.0.398">
 
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.193"></script>
@@ -42,7 +42,7 @@
     </div>
     <div class="sv-boot-brand">SisVentas</div>
     <div class="sv-boot-sub">powered by Nixa</div>
-    <div id="loading-version" class="sv-boot-version">v2.0.397</div>
+    <div id="loading-version" class="sv-boot-version">v2.0.398</div>
     <div class="sv-boot-progress">
       <div id="loading-bar" class="sv-boot-bar"></div>
     </div>
@@ -55,7 +55,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.397 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.398 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -1739,7 +1739,7 @@
             <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
               <!-- Preview -->
               <div style="flex-shrink:0">
-                <div id="cfg-logo-preview" style="width:140px;height:90px;border:1.5px dashed var(--border2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;background:var(--bg3);overflow:hidden">
+                <div id="cfg-logo-preview" class="sv-logo-preview" style="width:140px;height:90px;border:1.5px dashed var(--border2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;overflow:hidden">
                   <img id="cfg-logo-img" src="" style="display:none;max-width:100%;max-height:100%;object-fit:contain">
                   <span id="cfg-logo-placeholder" style="font-size:12px;color:var(--text3);text-align:center;padding:8px">Sin logo<br>cargado</span>
                 </div>
@@ -1761,17 +1761,29 @@
               <div class="sv-logo-crop-head">
                 <div>
                   <strong>Encuadrar logo</strong>
-                  <span>Mové y ajustá el zoom para que ocupe todo el espacio.</span>
+                  <span id="cfg-logo-crop-help">Mové y ajustá el zoom manteniendo la proporción recomendada.</span>
                 </div>
-                <button class="btn btn-sm" onclick="resetLogoCrop()">Rellenar marco</button>
+                <button class="btn btn-sm" onclick="resetLogoCrop()">Ver completa</button>
+              </div>
+              <div class="sv-logo-crop-mode" role="group" aria-label="Tipo de recorte">
+                <button type="button" id="cfg-logo-crop-mode-fixed" class="active" onclick="setLogoCropMode('fixed')"><i class="ti ti-lock"></i> Fijo 14:9</button>
+                <button type="button" id="cfg-logo-crop-mode-free" onclick="setLogoCropMode('free')"><i class="ti ti-crop"></i> Libre</button>
+              </div>
+              <div class="sv-logo-bg-tools">
+                <button type="button" class="btn btn-sm" onclick="quitarFondoLogo('system')"><i class="ti ti-wand"></i> Quitar fondo</button>
+                <button type="button" class="btn btn-sm" id="cfg-logo-bg-undo" style="display:none" onclick="deshacerFondoLogo('system')"><i class="ti ti-arrow-back-up"></i> Deshacer</button>
+                <label>Tolerancia <input type="range" id="cfg-logo-bg-tolerance" min="10" max="100" step="2" value="42" oninput="previsualizarFondoLogo('system')"></label>
               </div>
               <div class="sv-logo-crop-stage" id="cfg-logo-crop-stage">
                 <img id="cfg-logo-crop-img" src="" alt="Logo para recortar">
+                <div id="cfg-logo-crop-selection" class="sv-logo-crop-selection" style="display:none" aria-hidden="true"></div>
               </div>
               <div class="sv-logo-crop-controls">
                 <label>Zoom <input type="range" id="cfg-logo-crop-zoom" min="1" max="3" step="0.01" value="1" oninput="updateLogoCropFromControls()"></label>
                 <label>Horizontal <input type="range" id="cfg-logo-crop-x" min="-100" max="100" step="1" value="0" oninput="updateLogoCropFromControls()"></label>
                 <label>Vertical <input type="range" id="cfg-logo-crop-y" min="-100" max="100" step="1" value="0" oninput="updateLogoCropFromControls()"></label>
+                <label class="sv-logo-free-control" style="display:none">Ancho <input type="range" id="cfg-logo-crop-width" min="10" max="100" step="1" value="100" oninput="updateLogoCropFromControls()"></label>
+                <label class="sv-logo-free-control" style="display:none">Alto <input type="range" id="cfg-logo-crop-height" min="10" max="100" step="1" value="100" oninput="updateLogoCropFromControls()"></label>
               </div>
             </div>
             <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:18px">
@@ -1787,7 +1799,7 @@
               </div>
               <div id="cfg-logo-print-custom" style="display:none;align-items:flex-start;gap:20px;flex-wrap:wrap">
                 <div style="flex-shrink:0">
-                  <div style="width:220px;height:90px;border:1.5px dashed var(--border2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;background:var(--bg3);overflow:hidden">
+                  <div class="sv-logo-preview" style="width:140px;height:90px;border:1.5px dashed var(--border2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;overflow:hidden">
                     <img id="cfg-logo-print-img" src="" alt="Logo para impresiones" style="display:none;max-width:100%;max-height:100%;object-fit:contain">
                     <span id="cfg-logo-print-placeholder" style="font-size:12px;color:var(--text3);text-align:center;padding:8px">Sin logo específico<br>para impresiones</span>
                   </div>
@@ -1802,6 +1814,32 @@
                   </div>
                   <input type="file" id="cfg-logo-print-input" accept="image/png,image/jpeg,image/jpg" style="display:none" onchange="previewLogoImpresion(this)">
                   <div id="cfg-logo-print-status" style="font-size:12px;color:var(--text3)"></div>
+                </div>
+              </div>
+              <div id="cfg-logo-print-cropper" class="sv-logo-cropper" style="display:none">
+                <div class="sv-logo-crop-head">
+                  <div><strong>Encuadrar logo para impresiones</strong><span id="cfg-logo-print-crop-help">Mové y ajustá el zoom manteniendo la proporción recomendada.</span></div>
+                  <button class="btn btn-sm" onclick="resetLogoPrintCrop()">Ver completa</button>
+                </div>
+                <div class="sv-logo-crop-mode" role="group" aria-label="Tipo de recorte del logo para impresiones">
+                  <button type="button" id="cfg-logo-print-crop-mode-fixed" class="active" onclick="setLogoPrintCropMode('fixed')"><i class="ti ti-lock"></i> Fijo 14:9</button>
+                  <button type="button" id="cfg-logo-print-crop-mode-free" onclick="setLogoPrintCropMode('free')"><i class="ti ti-crop"></i> Libre</button>
+                </div>
+                <div class="sv-logo-bg-tools">
+                  <button type="button" class="btn btn-sm" onclick="quitarFondoLogo('print')"><i class="ti ti-wand"></i> Quitar fondo</button>
+                  <button type="button" class="btn btn-sm" id="cfg-logo-print-bg-undo" style="display:none" onclick="deshacerFondoLogo('print')"><i class="ti ti-arrow-back-up"></i> Deshacer</button>
+                  <label>Tolerancia <input type="range" id="cfg-logo-print-bg-tolerance" min="10" max="100" step="2" value="42" oninput="previsualizarFondoLogo('print')"></label>
+                </div>
+                <div class="sv-logo-crop-stage" id="cfg-logo-print-crop-stage">
+                  <img id="cfg-logo-print-crop-img" src="" alt="Logo para impresiones a recortar">
+                  <div id="cfg-logo-print-crop-selection" class="sv-logo-crop-selection" style="display:none" aria-hidden="true"></div>
+                </div>
+                <div class="sv-logo-crop-controls">
+                  <label class="sv-logo-print-zoom-control">Zoom <input type="range" id="cfg-logo-print-crop-zoom" min="1" max="3" step="0.01" value="1" oninput="updateLogoPrintCropFromControls()"></label>
+                  <label>Horizontal <input type="range" id="cfg-logo-print-crop-x" min="-100" max="100" step="1" value="0" oninput="updateLogoPrintCropFromControls()"></label>
+                  <label>Vertical <input type="range" id="cfg-logo-print-crop-y" min="-100" max="100" step="1" value="0" oninput="updateLogoPrintCropFromControls()"></label>
+                  <label class="sv-logo-print-free-control" style="display:none">Ancho <input type="range" id="cfg-logo-print-crop-width" min="10" max="100" step="1" value="100" oninput="updateLogoPrintCropFromControls()"></label>
+                  <label class="sv-logo-print-free-control" style="display:none">Alto <input type="range" id="cfg-logo-print-crop-height" min="10" max="100" step="1" value="100" oninput="updateLogoPrintCropFromControls()"></label>
                 </div>
               </div>
             </div>
@@ -5308,7 +5346,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.397.js"></script>
+<script src="./js/app.v2.0.398.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 

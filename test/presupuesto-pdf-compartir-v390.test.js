@@ -31,8 +31,9 @@ test('imprimir descargar y compartir son acciones independientes', () => {
 test('la ventana conserva un título descriptivo después de escribir el documento', () => {
   assert.match(app, /tituloVentanaPpto = 'SisVentas · NIXA — Presupuesto ' \+ num/);
   assert.match(app, /w\.document\.title = tituloVentanaPpto/);
-  assert.match(app, /w\.history\.replaceState\(\{ documento:'presupuesto', numero:num \}, tituloVentanaPpto, urlVentanaPpto\)/);
-  assert.match(app, /\?vista=presupuesto&numero=/);
+  assert.match(app, /URL\.createObjectURL\(new Blob\(\[htmlVistaPresupuesto\]/);
+  assert.match(app, /w\.location\.replace\(urlVistaPresupuesto\)/);
+  assert.doesNotMatch(app, /urlVentanaPpto/);
 });
 
 test('las acciones del comprobante son compactas y visualmente sutiles', () => {

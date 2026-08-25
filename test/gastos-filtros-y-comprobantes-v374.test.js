@@ -91,13 +91,13 @@ test('un comprobante guardado como ruta se detecta y puede reemplazarse', () => 
 });
 
 test('gastos mantiene sus acciones accesibles directamente en móvil', () => {
-  assert.match(css, /#page-gastos #gas-tbl \.sv-grid-actions-original\{display:flex!important/);
+  assert.match(css, /#page-gastos #gas-tbl \.sv-grid-actions-original\{display:grid!important;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
   assert.match(css, /#page-gastos #gas-tbl \.sv-grid-actions-trigger,/);
   assert.match(css, /#page-gastos #gas-tbl \.sv-grid-actions-menu\{display:none!important\}/);
 });
 
 test('productos muestra sus acciones directamente en móvil', () => {
-  assert.match(css, /#page-productos #prod-tbl \.sv-grid-actions-original\{display:inline-flex!important/);
+  assert.match(css, /#page-productos #prod-tbl \.sv-grid-actions-original\{display:grid!important;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
   assert.match(css, /#page-productos #prod-tbl \.sv-grid-actions-trigger,/);
   assert.match(css, /#page-productos #prod-tbl \.sv-grid-actions-menu\{display:none!important\}/);
 });
