@@ -302,11 +302,17 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 .sv-scroll-panel{max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
 .sv-resizable-wrap{position:relative;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch}
 .sv-resizable-table{table-layout:fixed;width:max-content;min-width:100%;max-width:none!important}
+table.sv-resizable-table.sv-pixel-table{width:var(--sv-pixel-total-width)!important;min-width:var(--sv-pixel-total-width)!important;max-width:none!important}
 .sv-resizable-table th,.sv-resizable-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-resizable-table th{position:relative;user-select:none}
 .sv-resizable-table th.tr,.sv-resizable-table td.tr{text-align:right}
 .sv-col-resizer{position:absolute;top:0;right:0;width:12px;height:100%;cursor:col-resize;z-index:6;touch-action:none;transform:translateX(50%)}
 .sv-col-resizer:after{content:'';position:absolute;top:7px;bottom:7px;left:5px;width:2px;border-radius:999px;background:rgba(120,130,160,.22);transition:background .12s,box-shadow .12s,transform .12s}
+.sv-column-percent-btn{width:34px!important;min-width:34px!important;height:34px!important;min-height:34px!important;padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important}
+.emp-actions-358 .btn:not(#btn-nuevo-emp){min-height:34px;height:34px;padding:0 12px;font-size:12px;line-height:1;white-space:nowrap;border-width:1px}
+.emp-actions-358 .emp-action-haberes{color:var(--blue);border-color:var(--blue);background:var(--blue-bg)}
+.emp-actions-358 .emp-action-aguinaldo{color:var(--green);border-color:var(--green);background:transparent}
+.emp-actions-358 #btn-nuevo-emp{min-height:36px;height:36px}
 .sv-resizable-th:hover .sv-col-resizer:after,.sv-col-resizer:hover:after,body.sv-resizing-columns .sv-col-resizer:after{background:var(--blue);box-shadow:0 0 0 2px var(--blue-bg),0 0 18px rgba(96,165,250,.28);transform:scaleY(1.12)}
 body.sv-resizing-columns{cursor:col-resize!important;user-select:none!important}
 

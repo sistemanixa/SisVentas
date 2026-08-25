@@ -1,0 +1,10 @@
+const fs=require('fs');
+const assert=require('assert');
+const app=fs.readFileSync('js/app.js','utf8');
+const html=fs.readFileSync('index.html','utf8');
+const match=app.match(/const titles = \{([^;]+)\};/);
+assert.ok(match,'debe existir el mapa de títulos');
+const titleIds=new Set([...match[1].matchAll(/([a-z]+):/g)].map(x=>x[1]));
+const navIds=new Set([...html.matchAll(/class="nav-item[^\"]*"[^>]*onclick="showPage\('([^']+)'/g)].map(x=>x[1]));
+for(const id of navIds) assert.ok(titleIds.has(id),`falta título para ${id}`);
+console.log('titulos-modulos-navegacion.test.js OK');

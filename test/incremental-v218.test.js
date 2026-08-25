@@ -26,7 +26,8 @@ test('Ventas pagina sin incorporar el ordenamiento universal', () => {
 test('los filtros reinician la página y el catálogo completo queda disponible', () => {
   const filtros = functionBody('filtrarVentas', '_actualizarBannerFiltroVentas');
   assert.match(filtros, /_ventasIrPrimeraPagina/);
-  assert.match(filtros, /var resultado = mapasTab\[f\.tab\] \|\| lista/);
+  assert.match(filtros, /var resultado = lista/);
+  assert.match(filtros, /if \(f\.tab === 'cobrar'\) resultado = lista\.filter/);
 });
 
 test('Productos conserva el texto visible durante refrescos sin argumento', () => {

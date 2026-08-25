@@ -17,7 +17,11 @@
       presupuestos: arr(window.pptoData || window.pptosData || window.presupuestosData),
       reclamos: arr(window.SP_DATA || window.reclamosData),
       gastos: arr(window.gastosData),
-      empleados: arr(window.empleadosData || window.empData)
+      empleados: arr(window.empleadosData || window.empData),
+      comprobantesVenta: arr(window.comprobantesVentaData || window.facturasData),
+      ctaemp: Object.keys(window.ctaEmpData || {}).reduce(function(lista, empKey){
+        return lista.concat(arr(window.ctaEmpData[empKey]).map(function(m){ return Object.assign({ empleadoContenedorFbKey:empKey }, m); }));
+      }, [])
     };
   }
 
@@ -64,7 +68,25 @@
     var pagosSinVentaKey = d.pagos.filter(function(p){ return p && !norm(p.ventaFbKey) && (norm(p.ventaId) || norm(p.venta) || norm(p.ventaNumero)); }).length;
     var otsSinOrigenKey = d.ots.filter(function(o){ return o && !norm(o.ventaFbKey) && !norm(o.reclamoFbKey) && (norm(o.ventaId) || norm(o.reclamoId)); }).length;
     var ventasClienteInexistente = d.ventas.filter(function(v){ return v && norm(v.clienteFbKey) && !clientKeys[norm(v.clienteFbKey)]; }).length;
-    return { ventasSinClienteKey:ventasSinClienteKey, pagosSinVentaKey:pagosSinVentaKey, otsSinOrigenKey:otsSinOrigenKey, ventasClienteInexistente:ventasClienteInexistente };
+    var saleKeys = {}; d.ventas.forEach(function(v){ if(v && v.fbKey) saleKeys[norm(v.fbKey)] = true; });
+    var employeeKeys = {}; d.empleados.forEach(function(e){ if(e && e.fbKey) employeeKeys[norm(e.fbKey)] = true; });
+    var expenseKeys = {}; d.gastos.forEach(function(g){ if(g && g.fbKey) expenseKeys[norm(g.fbKey)] = true; });
+    var pagosVentaInexistente = d.pagos.filter(function(p){ return p && norm(p.ventaFbKey) && !saleKeys[norm(p.ventaFbKey)]; }).length;
+    var gastosEmpleadoInexistente = d.gastos.filter(function(g){ var key=norm(g && (g.empleadoFbKey || g.empleadoId)); return key && !employeeKeys[key]; }).length;
+    var cuentaGastoInexistente = d.ctaemp.filter(function(m){ var key=norm(m && (m.gastoFbKey || m.gastoKey)); return key && !expenseKeys[key]; }).length;
+    var cuentaEmpleadoInexistente = d.ctaemp.filter(function(m){ var key=norm(m && m.empleadoContenedorFbKey); return key && !employeeKeys[key]; }).length;
+    return { ventasSinClienteKey:ventasSinClienteKey, pagosSinVentaKey:pagosSinVentaKey, otsSinOrigenKey:otsSinOrigenKey, ventasClienteInexistente:ventasClienteInexistente, pagosVentaInexistente:pagosVentaInexistente, gastosEmpleadoInexistente:gastosEmpleadoInexistente, cuentaGastoInexistente:cuentaGastoInexistente, cuentaEmpleadoInexistente:cuentaEmpleadoInexistente };
+  }
+
+  function fiscalIssues(d){
+    var ventaKeys={}; d.ventas.forEach(function(v){ if(v&&v.fbKey) ventaKeys[norm(v.fbKey)]=v; });
+    var comprobanteDuplicado=countDuplicados(d.comprobantesVenta,['cae','CAE','numero','comprobante']);
+    var comprobanteVentaInexistente=d.comprobantesVenta.filter(function(c){ var k=norm(c&&(c.ventaFbKey||c.ventaKey)); return k&&!ventaKeys[k]; }).length;
+    var ventaEstadoContradictorio=d.ventas.filter(function(v){
+      var estado=norm(v&&(v.estadoPago||v.estado)).toLowerCase();
+      return v && v.anulada===true && v.notaCredito && estado!=='anulada';
+    }).length;
+    return { comprobantesDuplicados:comprobanteDuplicado.total, comprobanteVentaInexistente:comprobanteVentaInexistente, ventaEstadoContradictorio:ventaEstadoContradictorio };
   }
 
   function evaluar(){
@@ -87,8 +109,12 @@
     var totalReg = Object.keys(d).reduce(function(sum,k){ return sum + d[k].length; }, 0);
     var dupTotal = Object.keys(duplicates).reduce(function(sum,k){ return sum + duplicates[k].total; }, 0);
     var keyTotal = Object.keys(missingKeys).reduce(function(sum,k){ return sum + missingKeys[k]; }, 0);
-    var relTotal = rel.ventasSinClienteKey + rel.pagosSinVentaKey + rel.otsSinOrigenKey + rel.ventasClienteInexistente;
-    var warnings = dupTotal + keyTotal + relTotal + mods.duplicated.length;
+    var relTotal = Object.keys(rel).reduce(function(sum,k){ return sum+(parseInt(rel[k],10)||0); },0);
+    var fiscal=fiscalIssues(d);
+    var fiscalTotal=Object.keys(fiscal).reduce(function(sum,k){ return sum+(parseInt(fiscal[k],10)||0); },0);
+    var cargadas={ ventas:d.ventas.length>0, clientes:d.clientes.length>0, empleados:d.empleados.length>0, gastos:d.gastos.length>0 };
+    var incompletas=Object.keys(cargadas).filter(function(k){return !cargadas[k];});
+    var warnings = dupTotal + keyTotal + relTotal + fiscalTotal + mods.duplicated.length;
     return {
       fecha:new Date().toISOString(),
       totalRegistros:totalReg,
@@ -98,6 +124,11 @@
       clavesFaltantesTotal:keyTotal,
       relacionesDebiles:rel,
       relacionesDebilesTotal:relTotal,
+      integridadFiscal:fiscal,
+      integridadFiscalTotal:fiscalTotal,
+      coleccionesCargadas:cargadas,
+      coleccionesNoEvaluadas:incompletas,
+      completa:incompletas.length===0,
       modulos:mods,
       advertencias:warnings
     };
@@ -138,7 +169,9 @@
       var html = '';
       html += row(data.duplicadosTotal ? (data.duplicados.ots.total ? 'alto' : 'medio') : 'ok', 'Duplicados comerciales', 'Ventas: '+data.duplicados.ventas.total+' · OT: '+data.duplicados.ots.total+' · clientes: '+data.duplicados.clientes.total+' · productos: '+data.duplicados.productos.total+'.');
       html += row(data.clavesFaltantesTotal ? 'medio' : 'ok', 'Claves Firebase faltantes', 'Ventas: '+data.clavesFaltantes.ventas+' · pagos: '+data.clavesFaltantes.pagos+' · OT: '+data.clavesFaltantes.ots+' · clientes: '+data.clavesFaltantes.clientes+' · productos: '+data.clavesFaltantes.productos+'.');
-      html += row(data.relacionesDebilesTotal ? 'medio' : 'ok', 'Relaciones débiles', 'Ventas sin clienteFbKey: '+data.relacionesDebiles.ventasSinClienteKey+' · pagos sin ventaFbKey: '+data.relacionesDebiles.pagosSinVentaKey+' · OT sin origen key: '+data.relacionesDebiles.otsSinOrigenKey+' · ventas con clienteFbKey inexistente: '+data.relacionesDebiles.ventasClienteInexistente+'.');
+      html += row(data.relacionesDebilesTotal ? 'medio' : 'ok', 'Relaciones débiles', 'Ventas sin clienteFbKey: '+data.relacionesDebiles.ventasSinClienteKey+' · pagos sin ventaFbKey: '+data.relacionesDebiles.pagosSinVentaKey+' · referencias inexistentes: '+(data.relacionesDebiles.ventasClienteInexistente+data.relacionesDebiles.pagosVentaInexistente+data.relacionesDebiles.gastosEmpleadoInexistente+data.relacionesDebiles.cuentaGastoInexistente+data.relacionesDebiles.cuentaEmpleadoInexistente)+'.');
+      html += row(data.integridadFiscalTotal ? 'alto' : 'ok', 'Integridad fiscal y estados', 'Comprobantes duplicados: '+data.integridadFiscal.comprobantesDuplicados+' · comprobantes sin venta: '+data.integridadFiscal.comprobanteVentaInexistente+' · ventas con estado contradictorio: '+data.integridadFiscal.ventaEstadoContradictorio+'.');
+      html += row(data.completa ? 'ok' : 'medio', 'Cobertura del diagnóstico', data.completa ? 'Las colecciones esenciales estaban cargadas al auditar.' : 'No evaluadas todavía: '+data.coleccionesNoEvaluadas.join(', ')+'. No se informa un OK hasta cargarlas.');
       html += row(data.modulos.duplicated.length ? 'medio' : 'ok', 'Mapa de módulos publicados', 'Scripts locales: '+data.modulos.total+' · módulos: '+data.modulos.modules+' · core: '+data.modulos.core+' · app.js: '+data.modulos.app+' · duplicados cargados: '+data.modulos.duplicated.length+'.');
       list.innerHTML = html;
     }

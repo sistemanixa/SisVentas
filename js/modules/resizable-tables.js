@@ -571,6 +571,8 @@
     var completarAncho = usesFullContainerWidth(table) && totalPct > 0 && totalPct < 100;
     var factorAncho = completarAncho ? (100 / totalPct) : 1;
     table.classList.add('sv-percent-table');
+    table.classList.remove('sv-pixel-table');
+    table.style.removeProperty('--sv-pixel-total-width');
     table.style.setProperty('--sv-percent-total-width', Math.max(100, Math.round(totalPct * 10) / 10) + '%');
     table.style.width = 'var(--sv-percent-total-width, 100%)';
     table.style.tableLayout = 'fixed';
@@ -605,6 +607,8 @@
     var completarAncho = usesFullContainerWidth(table) && totalPct < 100;
     var factorAncho = completarAncho ? (100 / totalPct) : 1;
     table.classList.add('sv-percent-table');
+    table.classList.remove('sv-pixel-table');
+    table.style.removeProperty('--sv-pixel-total-width');
     table.style.setProperty('--sv-percent-total-width', Math.max(100, Math.round(totalPct * 10) / 10) + '%');
     table.style.width = 'var(--sv-percent-total-width, 100%)';
     table.style.tableLayout = 'fixed';
@@ -620,7 +624,12 @@
     var widths = headers.map(function (th) { return Math.max(1, th.getBoundingClientRect().width); });
     var renderedTotal = widths.reduce(function (sum, value) { return sum + value; }, 0) || 1;
     var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap, .card');
-    var wrapWidth = wrap ? wrap.getBoundingClientRect().width : renderedTotal;
+    var wrapWidth = renderedTotal;
+    if (wrap) {
+      var wrapStyle = window.getComputedStyle ? window.getComputedStyle(wrap) : null;
+      var paddingHorizontal = wrapStyle ? (parseFloat(wrapStyle.paddingLeft)||0) + (parseFloat(wrapStyle.paddingRight)||0) : 0;
+      wrapWidth = Math.max(1, (wrap.clientWidth || wrap.getBoundingClientRect().width) - paddingHorizontal);
+    }
     var saved = currentPercentages(table);
     var savedTotal = Object.keys(saved).reduce(function (sum, key) { return sum + normalizePercent(saved[key]); }, 0);
     var totalPct = table.classList.contains('sv-percent-table') && savedTotal > 0
@@ -643,16 +652,14 @@
 
   function resizedPercentages(table, base, index, neighborIndex, deltaPx, tableWidth) {
     var next = Object.assign({}, base);
-    if (neighborIndex < 0) return next;
     var totalPct = Object.keys(base).reduce(function (sum, key) { return sum + normalizePercent(base[key]); }, 0) || 100;
     var minPct = Math.max(1, (MIN_WIDTH / Math.max(1, tableWidth)) * totalPct);
     var maxPct = Math.max(minPct, (MAX_WIDTH / Math.max(1, tableWidth)) * totalPct);
     var requestedDelta = (deltaPx / Math.max(1, tableWidth)) * totalPct;
-    var minDelta = Math.max(minPct - normalizePercent(base[index]), normalizePercent(base[neighborIndex]) - maxPct);
-    var maxDelta = Math.min(maxPct - normalizePercent(base[index]), normalizePercent(base[neighborIndex]) - minPct);
+    var minDelta = minPct - normalizePercent(base[index]);
+    var maxDelta = maxPct - normalizePercent(base[index]);
     var effectiveDelta = Math.max(minDelta, Math.min(maxDelta, requestedDelta));
     next[index] = Math.round((normalizePercent(base[index]) + effectiveDelta) * 10) / 10;
-    next[neighborIndex] = Math.round((normalizePercent(base[neighborIndex]) - effectiveDelta) * 10) / 10;
     return next;
   }
 
@@ -683,6 +690,37 @@
     });
     updateOverflowTitles(table);
     return safeWidth;
+  }
+
+  function autoWidthForColumn(table, index) {
+    var widths = columnCells(table, index).map(function (cell) {
+      var style = window.getComputedStyle ? window.getComputedStyle(cell) : null;
+      var canvas = autoWidthForColumn._canvas || (autoWidthForColumn._canvas = document.createElement('canvas'));
+      var context = canvas.getContext && canvas.getContext('2d');
+      var font = style ? style.font : '';
+      if (context && font) context.font = font;
+      var text = String(cell.innerText || cell.textContent || '').replace(/\s+/g, ' ').trim();
+      var textWidth = context ? context.measureText(text).width : text.length * 7;
+      var padding = style ? (parseFloat(style.paddingLeft)||0) + (parseFloat(style.paddingRight)||0) : 20;
+      return Math.ceil(textWidth + padding + 16);
+    });
+    return normalizeWidth(widths.length ? Math.max.apply(Math, widths) : MIN_WIDTH);
+  }
+
+  function persistPixelLayout(table, overrideIndex, overrideWidth) {
+    var widths = {};
+    tableHeaders(table).forEach(function (header, visibleIndex) {
+      widths[visibleIndex] = visibleIndex === overrideIndex ? normalizeWidth(overrideWidth) : Math.round(header.getBoundingClientRect().width);
+    });
+    savePercentages(table, {});
+    saveWidths(table, widths);
+    table.classList.remove('sv-percent-table');
+    table.classList.add('sv-pixel-table');
+    table.style.removeProperty('--sv-percent-total-width');
+    table.style.setProperty('--sv-pixel-total-width', Object.keys(widths).reduce(function (sum, key) { return sum + widths[key]; }, 0) + 'px');
+    table.style.width = 'var(--sv-pixel-total-width)';
+    table.style.minWidth = table.style.width;
+    Object.keys(widths).forEach(function (key) { applyColumnWidth(table, parseInt(key, 10), widths[key]); });
   }
 
   function clearColumnWidth(table, index) {
@@ -722,6 +760,9 @@
       if (saved > 0) applyColumnWidth(table, index, saved);
       else applyColumnWidth(table, index, defaultWidthForHeader(th));
     });
+    var totalWidth = headers.reduce(function (sum, header) { return sum + Math.round(header.getBoundingClientRect().width); }, 0);
+    table.classList.add('sv-pixel-table');
+    table.style.setProperty('--sv-pixel-total-width', totalWidth + 'px');
     updateOverflowTitles(table);
   }
 
@@ -733,10 +774,18 @@
       applySavedAlignments(table);
       return;
     }
-    var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .card');
-    if (!wrap) return;
     var headers = tableHeaders(table);
     if (headers.length < 2) return;
+    if (table.closest('td,th') || table.classList.contains('sv-no-resize')) return;
+    var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .card');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.className = 'sv-auto-grid-wrap';
+      if (table.parentNode) {
+        table.parentNode.insertBefore(wrap, table);
+        wrap.appendChild(table);
+      }
+    }
     applySavedAlignments(table);
     var key = tableKey(table);
     if (table.dataset.svResizableReady === '1' &&
@@ -759,7 +808,8 @@
       if (th.querySelector('.sv-col-resizer')) return;
       var handle = document.createElement('span');
       handle.className = 'sv-col-resizer';
-      handle.title = 'Arrastr? para cambiar el ancho. Doble clic para resetear.';
+      handle.title = 'Arrastrá para cambiar el ancho. Doble clic para ajustar al contenido.';
+      handle.setAttribute('aria-label', handle.title);
       th.appendChild(handle);
 
       var startX = 0;
@@ -770,6 +820,26 @@
       var dragging = false;
       var pendingClientX = null;
       var resizeFrame = 0;
+      var startWidths = null;
+      var startRenderedTotal = 0;
+
+      function applyLivePixelWidth(deltaPx) {
+        if (!startWidths || !startWidths.length) return;
+        var width = normalizeWidth(startWidths[index] + deltaPx);
+        var deltaReal = width - startWidths[index];
+        var colgroup = ensureColgroup(table, totalColumnCount(table));
+        startWidths.forEach(function (initialWidth, visibleIndex) {
+          var physicalIndex = physicalIndexForVisibleIndex(table, visibleIndex);
+          if (colgroup.children[physicalIndex]) colgroup.children[physicalIndex].style.width = (visibleIndex === index ? width : initialWidth) + 'px';
+        });
+        table.classList.remove('sv-percent-table');
+        table.classList.add('sv-pixel-table');
+        table.style.removeProperty('--sv-percent-total-width');
+        table.style.setProperty('--sv-pixel-total-width', Math.max(1, startRenderedTotal + deltaReal) + 'px');
+        table.style.width = 'var(--sv-pixel-total-width)';
+        table.style.minWidth = 'var(--sv-pixel-total-width)';
+        table.style.tableLayout = 'fixed';
+      }
 
       function move(clientX) {
         if (!dragging) return;
@@ -778,15 +848,7 @@
         resizeFrame = window.requestAnimationFrame(function () {
           resizeFrame = 0;
           if (!dragging || pendingClientX == null) return;
-          livePercentages = resizedPercentages(
-            table,
-            startPercentages,
-            index,
-            neighborIndex,
-            pendingClientX - startX,
-            startTableWidth
-          );
-          applyPercentProfileFast(table, livePercentages);
+          applyLivePixelWidth(pendingClientX - startX);
         });
       }
 
@@ -797,22 +859,17 @@
           window.cancelAnimationFrame(resizeFrame);
           resizeFrame = 0;
         }
-        if (pendingClientX != null) {
-          livePercentages = resizedPercentages(
-            table,
-            startPercentages,
-            index,
-            neighborIndex,
-            pendingClientX - startX,
-            startTableWidth
-          );
-        }
-        if (livePercentages) {
-          var finalPercentages = sanitizePercentages(table, livePercentages);
-          savePercentages(table, finalPercentages);
-          saveWidths(table, {});
-          applyPercentProfile(table, finalPercentages);
-        }
+        if (pendingClientX != null) applyLivePixelWidth(pendingClientX - startX);
+        var finalWidths = {};
+        tableHeaders(table).forEach(function (header, visibleIndex) {
+          finalWidths[visibleIndex] = Math.round(header.getBoundingClientRect().width);
+        });
+        savePercentages(table, {});
+        saveWidths(table, finalWidths);
+        table.classList.remove('sv-percent-table');
+        table.style.removeProperty('--sv-percent-total-width');
+        table.style.width = Object.keys(finalWidths).reduce(function (sum, key) { return sum + finalWidths[key]; }, 0) + 'px';
+        table.style.minWidth = table.style.width;
         document.body.classList.remove('sv-resizing-columns');
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', stop);
@@ -838,12 +895,13 @@
         dragging = true;
         startX = clientX;
         startTableWidth = Math.max(1, table.getBoundingClientRect().width);
+        startRenderedTotal = startTableWidth;
+        startWidths = tableHeaders(table).map(function (header) { return Math.max(1, header.getBoundingClientRect().width); });
         startPercentages = percentagesFromRenderedLayout(table);
         livePercentages = Object.assign({}, startPercentages);
         neighborIndex = adjacentColumnIndex(table, index);
         pendingClientX = clientX;
         // Desde este punto mouse y editor trabajan con la misma unidad.
-        applyPercentProfileFast(table, startPercentages);
         document.body.classList.add('sv-resizing-columns');
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', stop);
@@ -861,20 +919,7 @@
       handle.addEventListener('dblclick', function (event) {
         event.preventDefault();
         event.stopPropagation();
-        var base = percentagesFromRenderedLayout(table);
-        var defaults = defaultPercentages(table);
-        var neighbor = adjacentColumnIndex(table, index);
-        if (neighbor >= 0) {
-          var delta = normalizePercent(defaults[index]) - normalizePercent(base[index]);
-          base[index] = normalizePercent(defaults[index]);
-          base[neighbor] = Math.max(0.1, Math.round((normalizePercent(base[neighbor]) - delta) * 10) / 10);
-          var resetData = sanitizePercentages(table, base);
-          savePercentages(table, resetData);
-          saveWidths(table, {});
-          applyPercentProfile(table, resetData);
-        } else {
-          resetColumn(table, index);
-        }
+        persistPixelLayout(table, index, autoWidthForColumn(table, index));
       });
     });
     table.dataset.svResizableReady = '1';
@@ -890,7 +935,7 @@
 
   function initPageTables(root) {
     if (!root || !root.querySelectorAll) return;
-    root.querySelectorAll('.table-wrap table, .sv-auto-grid-wrap table, .card table').forEach(initTable);
+    root.querySelectorAll('table').forEach(initTable);
   }
 
   function escapeHTML(value) {
@@ -916,9 +961,10 @@
     var head = card.querySelector('.card-head');
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'btn btn-sm admin-only sv-column-percent-btn';
-    btn.title = 'Configurar ancho porcentual de columnas de ' + tableLabel(table);
-    btn.innerHTML = '<i class="ti ti-columns"></i> Columnas %';
+    btn.className = 'btn btn-sm btn-icon admin-only sv-column-percent-btn';
+    btn.title = 'Configurar columnas de ' + tableLabel(table);
+    btn.setAttribute('aria-label', btn.title);
+    btn.innerHTML = '<i class="ti ti-columns"></i>';
     btn.addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -960,7 +1006,8 @@
       if (window.notify) window.notify('Esta tabla no tiene columnas configurables');
       return;
     }
-    var values = currentPercentages(table);
+    var pixelProfile = loadWidths(table);
+    var values = Object.keys(pixelProfile).length ? percentagesFromRenderedLayout(table) : currentPercentages(table);
     var alignValues = currentAlignments(table);
     percentDrafts[percentDraftKey(table)] = Object.assign({}, values);
     alignmentDrafts[percentDraftKey(table)] = Object.assign({}, alignValues);

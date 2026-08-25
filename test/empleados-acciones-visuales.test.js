@@ -1,0 +1,10 @@
+const fs=require('fs');
+const assert=require('assert');
+const html=fs.readFileSync('index.html','utf8');
+const css=fs.readFileSync('css/app.css','utf8');
+assert.match(html,/emp-action-haberes/);
+assert.match(css,/\.emp-actions-358 \.btn:not\(#btn-nuevo-emp\)[^{]*\{[^}]*height:34px[^}]*border-width:1px/);
+assert.match(css,/\.emp-actions-358 \.emp-action-haberes\{[^}]*color:var\(--blue\)[^}]*border-color:var\(--blue\)/);
+assert.match(html,/emp-action-aguinaldo/);
+assert.match(css,/\.emp-actions-358 \.emp-action-aguinaldo\{[^}]*color:var\(--green\)[^}]*border-color:var\(--green\)[^}]*background:transparent/);
+console.log('empleados-acciones-visuales.test.js OK');

@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.398-firebase' -->
+<!-- VERSION: 'v2.0.399-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.398.js"></script>
+<script src="./js/core/version.v2.0.399.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,7 +24,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.398">
+<link rel="stylesheet" href="./css/app.css?v=2.0.399">
 
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.193"></script>
@@ -42,7 +42,7 @@
     </div>
     <div class="sv-boot-brand">SisVentas</div>
     <div class="sv-boot-sub">powered by Nixa</div>
-    <div id="loading-version" class="sv-boot-version">v2.0.398</div>
+    <div id="loading-version" class="sv-boot-version">v2.0.399</div>
     <div class="sv-boot-progress">
       <div id="loading-bar" class="sv-boot-bar"></div>
     </div>
@@ -55,7 +55,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.398 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v2.0.399 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -778,7 +778,7 @@
         <span class="card-title">Presupuestos</span>
         <div class="sv-card-head-actions">
           <button class="btn btn-sm btn-primary" onclick="abrirNuevoPresupuesto()"><i class="ti ti-plus"></i> Nuevo presupuesto</button>
-          <button class="btn btn-sm admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('ppto-tabla')" title="Configurar ancho porcentual de columnas"><i class="ti ti-columns"></i> Columnas %</button>
+          <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('ppto-tabla')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
         </div>
       </div>
 
@@ -3766,7 +3766,7 @@ Listo para analizar.
                   <option>Controladores</option>
                   <option>Accesorios</option>
                 </select>
-                <button class="btn btn-sm admin-only" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('prod-tbl')" title="Configurar ancho porcentual de columnas"><i class="ti ti-columns"></i> Columnas %</button>
+                <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('prod-tbl')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
                 <button class="btn btn-sm admin-only" onclick="abrirAuditoriaIntegridadPrecios()" title="Revisar inconsistencias de moneda y precios en todo el catálogo"><i class="ti ti-shield-check"></i> Auditar precios</button>
                 <button class="btn btn-sm btn-primary" onclick="abrirFormProducto(null)"><i class="ti ti-plus"></i> Nuevo producto</button>
                 <button class="btn btn-sm" id="btn-colapsar-cats" onclick="toggleTodasCats()" title="Colapsar/expandir todos los grupos"><i class="ti ti-layout-list" id="icon-colapsar-cats"></i> <span id="label-colapsar-cats">Colapsar todo</span></button>
@@ -3795,7 +3795,7 @@ Listo para analizar.
               <button class="btn btn-sm" id="prod-filtro-sinprecio-activo" type="button" onclick="toggleFiltroProductosSinPrecio()" style="display:none;color:var(--amber);border-color:var(--amber)" title="Quitar filtro de productos sin precio"><i class="ti ti-filter"></i> Solo sin precio <span id="prod-filtro-sinprecio-cantidad"></span> <i class="ti ti-x"></i></button>
             </div>
             <div class="table-wrap prod-table-wrap">
-              <table id="prod-tbl" data-sv-no-resize="1">
+              <table id="prod-tbl">
             <thead id="prod-tbl-thead"><tr>
               <th></th>
               <th data-sort="codigo" onclick="sortTabla('prod-tbl','codigo','str')" style="cursor:pointer;user-select:none">Código <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
@@ -4237,11 +4237,11 @@ Listo para analizar.
             <div class="card-head">
               <span class="card-title">Empleados</span>
               <div class="emp-actions-358">
-                <button class="btn btn-sm" onclick="abrirModalHaberesMes()" title="Registrar sueldo y bonificación individual del mes"><i class="ti ti-cash"></i> Haberes y bonificaciones</button>
-                <button class="btn btn-sm admin-only" onclick="abrirModalBonificacionEmpleado()" style="color:var(--blue);border-color:var(--blue)" title="Agregar una bonificación después de registrar los haberes"><i class="ti ti-gift"></i> Cargar bonificación</button>
+                <button class="btn btn-sm emp-action-haberes" onclick="abrirModalHaberesMes()" title="Registrar los haberes del mes"><i class="ti ti-cash"></i> Haberes</button>
+                <button class="btn btn-sm admin-only" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
                 <button class="btn btn-sm admin-only" onclick="abrirModalComisionVenta()" style="color:var(--green);border-color:var(--green)" title="Registrar una comisión faltante y vincularla a su venta"><i class="ti ti-percentage"></i> Cargar comisión</button>
                 <button class="btn btn-sm" onclick="abrirModalHsExtra()" style="color:var(--amber);border-color:var(--amber)"><i class="ti ti-clock-plus"></i> Hs. extra <span id="badge-hsex-pendientes" style="display:none;background:var(--amber);color:#000;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
-                <button class="btn btn-sm" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
+                <button class="btn btn-sm emp-action-aguinaldo" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
                 <button class="btn btn-sm btn-primary" id="btn-nuevo-emp" onclick="abrirModalNuevo('empleado')"><i class="ti ti-plus"></i> Nuevo empleado</button>
               </div>
             </div>
@@ -4431,7 +4431,7 @@ Listo para analizar.
         <div class="gas-toolbar-buttons">
         <button class="btn btn-sm admin-only" onclick="abrirGestorGastosRecurrentes()" title="Administrar reglas que generan gastos cada mes"><i class="ti ti-repeat"></i> Recurrentes</button>
         <button class="btn btn-sm" id="btn-gastos-multiple" onclick="togglePagoMultipleGastos()"><i class="ti ti-checklist"></i> Pago múltiple</button>
-        <button class="btn btn-sm admin-only" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('gas-tbl')" title="Configurar ancho porcentual de columnas"><i class="ti ti-columns"></i> Columnas %</button>
+        <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('gas-tbl')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
         <button class="btn btn-sm btn-primary" onclick="abrirFormGasto(null)"><i class="ti ti-plus"></i> Nuevo gasto</button>
         </div>
       </div>
@@ -4445,7 +4445,7 @@ Listo para analizar.
       </div>
     </div>
     <div class="table-wrap">
-      <table id="gas-tbl" data-sv-no-resize="1">
+      <table id="gas-tbl">
         <thead><tr>
           <th id="gas-bulk-head" class="gas-bulk-cell gas-bulk-hidden" data-sv-column-ignore="1" aria-hidden="true"></th>
           <th data-sv-column-label="Fecha">Fecha</th>
@@ -5346,7 +5346,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.398.js"></script>
+<script src="./js/app.v2.0.399.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5791,13 +5791,13 @@ Listo para analizar.
 
 <script src="./js/modules/refactor-health.js?v=2.0.154"></script>
 
-<script src="./js/modules/resizable-tables.js?v=2.0.258"></script>
+<script src="./js/modules/resizable-tables.js?v=2.0.399-columns9"></script>
 <script src="./js/modules/item-row-order.js?v=2.0.258"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>
 <script src="./js/modules/ops-hardening.js?v=2.0.154"></script>
 <script src="./js/modules/v2-readiness.js?v=2.0.154"></script>
-<script src="./js/modules/v2-audit.js?v=2.0.154"></script>
+<script src="./js/modules/v2-audit.js?v=2.0.399-audit1"></script>
 <script src="./js/modules/page-transition.js?v=2.0.226"></script>
 <script src="./js/modules/resource-monitor.js?v=2.0.154"></script>
 
