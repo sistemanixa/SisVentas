@@ -2433,3 +2433,12 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .sv-document-client-link{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:var(--blue);font:inherit;font-size:16px;font-weight:600;cursor:pointer;text-align:left;text-decoration:underline;text-underline-offset:3px}
 .sv-document-client-link:hover,.sv-document-client-link:focus-visible{color:var(--text);outline:0}
 .sv-document-client-link i{font-size:14px;flex:0 0 auto}
+/* La auditoría completa de una OT queda disponible sin ocupar toda la pantalla móvil. */
+.ot-integridad-toggle{display:none}
+@media(max-width:700px){
+  #ot-integridad-card .ot-integridad-toggle{display:inline-flex}
+  #ot-integridad-card .ot-integridad-verificar{display:none}
+  #ot-integridad-card .ot-integridad-contenido{display:none}
+  #ot-integridad-card.is-open .ot-integridad-contenido{display:block}
+  #ot-integridad-card.is-open .ot-integridad-verificar{display:inline-flex}
+}

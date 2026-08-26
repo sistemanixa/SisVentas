@@ -2,7 +2,12 @@
   function arr(v){ return Array.isArray(v) ? v : Object.values(v || {}); }
   function norm(v){ return String(v == null ? '' : v).trim(); }
   function keyNorm(v){ return norm(v).toLowerCase(); }
-  function money(n){ return '$' + Math.round(parseFloat(n) || 0).toLocaleString('es-AR'); }
+  function money(n){
+    return '$' + (parseFloat(n) || 0).toLocaleString('es-AR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function setText(id, value){ var el=document.getElementById(id); if(el) el.textContent=value; }
   function hasAny(obj, keys){ return keys.some(function(k){ return !!norm(obj && obj[k]); }); }

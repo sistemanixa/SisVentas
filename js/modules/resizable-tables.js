@@ -916,6 +916,12 @@
         if (!event.touches || !event.touches[0]) return;
         start(event.touches[0].clientX, event);
       }, { passive: false });
+      // El doble clic genera antes dos eventos click. Si el encabezado también
+      // ordena, esos clicks llegaban al TH y ordenaban mientras se autoajustaba.
+      handle.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      });
       handle.addEventListener('dblclick', function (event) {
         event.preventDefault();
         event.stopPropagation();

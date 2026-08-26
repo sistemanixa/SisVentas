@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v2.0.399-firebase' -->
+<!-- VERSION: 'v2.1.0-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v2.0.399.js"></script>
+<script src="./js/core/version.v2.1.0.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,7 +24,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=2.0.399">
+<link rel="stylesheet" href="./css/app.css?v=2.0.400-otmovil1">
 
   <!-- Firebase SDK -->
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=2.0.193"></script>
@@ -556,7 +556,7 @@
               </div>
             </div>
             <div class="fg"><label>ID cliente</label><input type="text" id="id-cli" placeholder="(se carga al seleccionar)" readonly></div>
-            <div class="fg"><label>1er comisionado <span style="color:var(--text3);font-weight:400">(vendedor)</span></label>
+            <div class="fg"><label>Responsable de la venta <span style="color:var(--text3);font-weight:400">(1er comisionado)</span></label>
               <select id="venta-empleado">
                 <option value="">— Seleccionar —</option>
               </select>
@@ -747,7 +747,7 @@
               <th class="tr" data-sort="pago" onclick="sortTabla('ventas-tbl','pago','str')">Pago <i class="sort-icon ti ti-chevrons-up-down"></i></th>
               <th class="tr" data-sort="instalacion" onclick="sortTabla('ventas-tbl','instalacion','str')">Instalación <i class="sort-icon ti ti-chevrons-up-down"></i></th>
               <th style="text-align:center" title="Factura electrónica emitida"><i class="ti ti-file-invoice" style="font-size:13px"></i></th>
-              <th></th>
+              <th style="min-width:310px;text-align:center">Acciones</th>
             </tr>
           </thead>
           <tbody id="ventas-tbody"></tbody>
@@ -1369,10 +1369,15 @@
           <div class="card" id="ot-integridad-card">
             <div class="card-head">
               <span class="card-title"><i class="ti ti-shield-check" style="margin-right:6px"></i>Control integral de la OT</span>
-              <button type="button" class="btn btn-sm" onclick="actualizarPanelIntegridadOT()"><i class="ti ti-refresh"></i> Verificar</button>
+              <div style="display:flex;gap:7px">
+                <button type="button" class="btn btn-sm ot-integridad-toggle" onclick="otAlternarIntegridad()"><i class="ti ti-chevron-down"></i> <span>Ver control</span></button>
+                <button type="button" class="btn btn-sm ot-integridad-verificar" onclick="actualizarPanelIntegridadOT()"><i class="ti ti-refresh"></i> Verificar</button>
+              </div>
             </div>
-            <div id="ot-integridad-resumen" style="font-size:12px;color:var(--text3)">Verificando materiales, checklist, evidencias y acta…</div>
-            <div id="ot-integridad-detalle" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:10px"></div>
+            <div class="ot-integridad-contenido">
+              <div id="ot-integridad-resumen" style="font-size:12px;color:var(--text3)">Verificando materiales, checklist, evidencias y acta…</div>
+              <div id="ot-integridad-detalle" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:10px"></div>
+            </div>
           </div>
 
           <!-- Acta de entrega -->
@@ -2016,21 +2021,25 @@
             <input type="hidden" id="cargo-id-edit">
             <div class="form-grid" style="margin-bottom:0">
               <div class="fg full"><label>Nombre del cargo</label><input type="text" id="cargo-nombre" placeholder="Ej: Técnico instalador senior"></div>
-              <div class="fg full"><label>Categoría base (para cálculo de sueldos)</label>
-                <select id="cargo-categoria-base">
-                  <option value="TECNICO C">Técnico C</option>
-                  <option value="TECNICO B">Técnico B</option>
-                  <option value="TECNICO A">Técnico A</option>
-                  <option value="ADMINIS">Administrativo</option>
-                  <option value="INICIAL">Inicial</option>
-                  <option value="A-TEMP">Temporal</option>
+              <div class="fg full"><label>Modalidad de remuneración</label>
+                <select id="cargo-modalidad" onchange="cargosActualizarModalidad()">
+                  <option value="horas">Sueldo por horas + comisiones configuradas</option>
+                  <option value="solo_comision">Solo comisión · sin valor hora</option>
                 </select>
+                <small id="cargo-modalidad-ayuda" style="color:var(--text3);margin-top:5px">El sueldo base se calcula por valor hora y días del mes.</small>
               </div>
-              <div class="fg"><label>Valor hora ($)</label><input type="number" id="cargo-valor-hora" value="5000" oninput="_previewCargoCalculos()"></div>
-              <div class="fg"><label>Días a contar/mes</label><input type="number" id="cargo-dias-mes" value="23" oninput="_previewCargoCalculos()"></div>
+              <div class="fg full"><label>Categoría</label>
+                <input type="text" id="cargo-categoria-base" list="cargo-categorias-list" placeholder="Ej: VENTAS" autocomplete="off">
+                <datalist id="cargo-categorias-list">
+                  <option value="TECNICO C"><option value="TECNICO B"><option value="TECNICO A"><option value="ADMINIS"><option value="INICIAL"><option value="A-TEMP"><option value="VENTAS">
+                </datalist>
+                <small style="color:var(--text3);margin-top:5px">Podés elegir una existente o escribir una categoría nueva.</small>
+              </div>
+              <div class="fg cargo-campo-horas"><label>Valor hora ($)</label><input type="number" id="cargo-valor-hora" value="5000" oninput="_previewCargoCalculos()"></div>
+              <div class="fg cargo-campo-horas"><label>Días a contar/mes</label><input type="number" id="cargo-dias-mes" value="23" oninput="_previewCargoCalculos()"></div>
               <div class="fg"><label>8hs/día (calculado)</label><input type="text" id="cargo-preview-8hs" readonly></div>
               <div class="fg"><label>4hs/día (calculado)</label><input type="text" id="cargo-preview-4hs" readonly></div>
-              <div class="fg full"><label>Valor hora extra ($)</label><div style="display:flex;gap:8px;align-items:center"><input type="number" id="cargo-valor-hora-extra" value="7500" style="flex:1"><button type="button" class="btn btn-sm" onclick="cargosCopiarHoraExtraEnModal()" title="Copiar el valor hora"><i class="ti ti-arrow-right"></i> Usar valor hora</button></div></div>
+              <div class="fg full cargo-campo-horas"><label>Valor hora extra ($)</label><div style="display:flex;gap:8px;align-items:center"><input type="number" id="cargo-valor-hora-extra" value="7500" style="flex:1"><button type="button" class="btn btn-sm" onclick="cargosCopiarHoraExtraEnModal()" title="Copiar el valor hora"><i class="ti ti-arrow-right"></i> Usar valor hora</button></div></div>
             </div>
             <div style="display:flex;gap:8px;margin-top:18px">
               <button class="btn" style="flex:1" onclick="document.getElementById('modal-cargo').style.display='none'">Cancelar</button>
@@ -4338,6 +4347,7 @@ Listo para analizar.
 
       <!-- ── REPORTES (solo admin) ── -->
       <div id="page-reportes" class="page">
+        <div id="rep-alerta-responsables" style="display:none;margin-bottom:12px"></div>
         <div class="metrics">
           <div class="metric">
             <div class="m-label">Total mes</div>
@@ -4369,6 +4379,19 @@ Listo para analizar.
             <thead><tr><th>Empleado</th><th>Cat.</th><th>Ventas</th><th>Monto</th><th>Comisión</th><th>H. extra</th><th>S. base</th><th>Total</th></tr></thead>
             <tbody id="emp-resumen-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr></tbody>
           </table>
+        </div>
+        <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:12px">
+          <div class="metric"><div class="m-label">Cobrado</div><div class="m-value" id="rep-cobrado" style="color:var(--green)">$0,00</div><div class="m-sub">sobre ventas del período</div></div>
+          <div class="metric"><div class="m-label">Pendiente de cobro</div><div class="m-value" id="rep-pendiente" style="color:var(--amber)">$0,00</div><div class="m-sub" id="rep-pendiente-sub">0 ventas con saldo</div></div>
+          <div class="metric"><div class="m-label">Nivel de cobranza</div><div class="m-value" id="rep-cobranza-pct">0%</div><div class="m-sub">cobrado / total vendido</div></div>
+          <div class="metric"><div class="m-label">Unidades vendidas</div><div class="m-value" id="rep-unidades">0</div><div class="m-sub" id="rep-productos-sub">0 productos diferentes</div></div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <div class="card-head"><span class="card-title">Productos vendidos</span><span class="m-sub">Ordenados por importe del período</span></div>
+          <div class="table-wrap"><table id="rep-productos-tbl">
+            <thead><tr><th>Código</th><th>Producto</th><th class="tr">Unidades</th><th class="tr">Importe</th><th class="tr">Participación</th></tr></thead>
+            <tbody id="rep-productos-tbody"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Sin productos vendidos</td></tr></tbody>
+          </table></div>
         </div>
       </div>
 
@@ -5346,7 +5369,7 @@ Listo para analizar.
 </div>
       </div>
 
-<script src="./js/app.v2.0.399.js"></script>
+<script src="./js/app.v2.1.0.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5789,9 +5812,9 @@ Listo para analizar.
 <script src="./js/modules/maintenance.js?v=3.0.0-shadow-v279"></script>
 
 
-<script src="./js/modules/refactor-health.js?v=2.0.154"></script>
+<script src="./js/modules/refactor-health.js?v=2.0.400-reportes1"></script>
 
-<script src="./js/modules/resizable-tables.js?v=2.0.399-columns9"></script>
+<script src="./js/modules/resizable-tables.js?v=2.0.400-audit2"></script>
 <script src="./js/modules/item-row-order.js?v=2.0.258"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>

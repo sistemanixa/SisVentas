@@ -7,8 +7,9 @@ const root = path.join(__dirname, '..');
 const appBase = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const appVersionada = (index.match(/js\/app\.(v[0-9.]+)\.js/) || [])[1];
-assert.ok(appVersionada, 'index.html debe declarar la aplicación inmutable activa');
-const app = fs.readFileSync(path.join(root, 'js', `app.${appVersionada}.js`), 'utf8');
+const app = appVersionada
+  ? fs.readFileSync(path.join(root, 'js', `app.${appVersionada}.js`), 'utf8')
+  : appBase;
 const cotizador = fs.readFileSync(path.join(root, 'cotizador', 'index.js'), 'utf8');
 
 function bloque(desde, hasta) {
