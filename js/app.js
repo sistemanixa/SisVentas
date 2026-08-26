@@ -8847,6 +8847,13 @@ const APP_CONFIG = Object.freeze({
     Object.freeze({
       version: 'v2.2.5',
       date: '26/08/2026',
+      title: 'Pagos generales de cuenta corriente',
+      notes: Object.freeze(['Cuenta corriente permite registrar un importe recibido sin elegir previamente una venta.', 'El pago se aplica a las ventas más antiguas y puede cancelar una o varias, o dejar la última con saldo parcial.', 'Todas las imputaciones se confirman en una sola transacción y conservan un identificador común para auditoría.']),
+      visual: Object.freeze({ page:'cuentacorriente', actionLabel:'Abrir Cuenta corriente' })
+    }),
+    Object.freeze({
+      version: 'v2.2.4',
+      date: '26/08/2026',
       title: 'Imágenes propias al primer uso',
       notes: Object.freeze(['Las imágenes externas de productos se archivan automáticamente al mostrarse por primera vez.', 'La copia se comprime y guarda como adjunto Base64 en Realtime Database, siguiendo el mecanismo probado de los comprobantes de Gastos.', 'La URL original se conserva como respaldo y una cola en segundo plano evita bloquear la pantalla.']),
       visual: Object.freeze({ page:'productos', actionLabel:'Abrir Productos' })
