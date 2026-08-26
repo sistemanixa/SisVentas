@@ -1526,6 +1526,15 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 @keyframes svItemRowMoved{0%{background:var(--blue-bg)}100%{background:transparent}}
 .sv-action-metric{cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
 .sv-action-metric:hover,.sv-action-metric:focus-visible{transform:translateY(-2px);border-color:rgba(96,165,250,.58);box-shadow:0 10px 28px rgba(0,0,0,.22);outline:none}
+
+.venta-detalle-acciones-kpi{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 6px;flex-wrap:wrap}
+.venta-detalle-accion-contextual,.venta-detalle-acciones-riesgo{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+@media(max-width:700px){
+  .venta-detalle-acciones-kpi{align-items:stretch}
+  .venta-detalle-accion-contextual,.venta-detalle-acciones-riesgo{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .venta-detalle-accion-contextual .btn{grid-column:1/-1}
+  .venta-detalle-acciones-kpi .btn{min-height:40px;justify-content:center}
+}
 .sv-kpi-target-highlight{animation:svKpiTarget 1.8s ease}
 @keyframes svKpiTarget{0%,100%{box-shadow:none}20%,70%{box-shadow:0 0 0 2px rgba(96,165,250,.7),0 0 28px rgba(96,165,250,.2)}}
 .sv-column-percent-head{cursor:move;user-select:none}
