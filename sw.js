@@ -1,14 +1,14 @@
-/* SisVentas NIXA - Service Worker v2.2.2
+/* SisVentas NIXA - Service Worker v2.2.4
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v2.2.2';
+const CACHE = 'sisventas-v2.2.4';
 const SHELL = [
   './',
   './index.html',
   './css/app.css',
   './js/app.js',
-  './js/app.v2.2.2.js',
+  './js/app.v2.2.4.js',
   './js/core/version.js',
-  './js/core/version.v2.2.2.js',
+  './js/core/version.v2.2.4.js',
   './js/core/login.js',
   './js/core/access-control.js',
   './js/core/firebase.js',
@@ -69,7 +69,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
-        keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)),
+        keys.filter((key) => key !== CACHE && key !== 'sisventas-pdf-transitorios').map((key) => caches.delete(key)),
       ))
       .then(() => self.clients.claim()),
   );
@@ -84,6 +84,18 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+
+  // Los PDF generados en el cliente se guardan unos minutos en Cache Storage
+  // y se sirven por una URL normal del propio origen. Esto evita que Chromium
+  // bloquee las descargas iniciadas desde una vista previa blob:.
+  if (url.pathname.indexOf('/__sisventas_pdf__/') === 0) {
+    event.respondWith(
+      caches.match(event.request).then((response) => (
+        response || new Response('PDF temporal no disponible', { status: 404 })
+      )),
+    );
+    return;
+  }
 
   // Todo el cÃ³digo y los estilos deben salir de la red sin la cachÃ© HTTP
   // intermedia. AsÃ­ una versiÃ³n nueva no mezcla mÃ³dulos nuevos y antiguos.

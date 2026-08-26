@@ -1707,6 +1707,8 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .ppto-row-action.is-primary{color:var(--blue)}
 .ppto-row-action.is-warning{color:var(--amber)}
 .ppto-row-action.is-danger{color:var(--red)}
+#ventas-tbl .ppto-actions-cell{width:340px;min-width:340px;max-width:340px}
+#ventas-tbl .ventas-row-actions{width:340px;max-width:340px;margin-left:auto}
 @media(max-width:720px){
   .ppto-menu-floating{left:12px!important;right:12px!important;top:auto!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;width:auto;min-width:0;max-height:min(78vh,620px);overflow:auto;padding:9px;border-radius:18px;background:var(--bg2);box-shadow:0 -10px 40px rgba(0,0,0,.5);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
   .ppto-menu-mobile-head{display:flex;grid-column:1/-1;align-items:center;justify-content:space-between;gap:12px;padding:7px 7px 12px;border-bottom:1px solid var(--border);margin-bottom:3px}
@@ -1721,6 +1723,8 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   #page-presupuesto #ppto-tabla .ppto-row-actions{width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
   #page-presupuesto #ppto-tabla .ppto-row-action{width:100%!important;height:38px!important;min-width:0!important;padding:7px 6px!important;border-radius:9px;font-size:10.5px}
   #page-presupuesto #ppto-tabla .ppto-row-action i{font-size:15px}
+  #ventas-tbl .ppto-actions-cell{width:auto!important;min-width:0!important;max-width:none!important}
+  #ventas-tbl .ventas-row-actions{width:100%!important;max-width:none!important;margin-left:0}
 }
 
 /* v2.0.29 - Rentabilidad sobria + KPIs superiores modernos */

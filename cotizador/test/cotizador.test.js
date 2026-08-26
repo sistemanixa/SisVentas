@@ -48,7 +48,8 @@ const {
   descifrarTokenMercadoLibre,
   firmarEstadoOAuthMercadoLibre,
   validarEstadoOAuthMercadoLibre,
-  origenCorsPermitido
+  origenCorsPermitido,
+  urlImagenProductoPermitida
 } = require('../index');
 Module._load = cargarOriginal;
 
@@ -410,4 +411,14 @@ test('Mercado Libre recupera precio y catálogo desde JSON-LD de una URL histór
     disponibilidad:'disponible',
     catalogProductId:'MLAU245337872'
   });
+});
+
+test('el proxy de imágenes acepta solo orígenes HTTPS autorizados', () => {
+  assert.equal(urlImagenProductoPermitida('https://www.biosegur.com.ar/thumb/P2720_800x800.jpg').hostname, 'www.biosegur.com.ar');
+  assert.equal(urlImagenProductoPermitida('https://http2.mlstatic.com/D_Q_NP_ejemplo.webp').hostname, 'http2.mlstatic.com');
+  assert.equal(urlImagenProductoPermitida('https://www.free-electron.com.ar/imagen.jpg').hostname, 'www.free-electron.com.ar');
+  assert.equal(urlImagenProductoPermitida('https://www.tecnoprices.com/mayorista/imagen.jpg').hostname, 'www.tecnoprices.com');
+  assert.equal(urlImagenProductoPermitida('http://www.biosegur.com.ar/thumb/insegura.jpg'), null);
+  assert.equal(urlImagenProductoPermitida('https://example.com/imagen.jpg'), null);
+  assert.equal(urlImagenProductoPermitida('https://biosegur.com.ar.evil.test/imagen.jpg'), null);
 });

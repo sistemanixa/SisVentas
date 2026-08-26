@@ -55,6 +55,76 @@ function cors(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Frontend-Key, Authorization');
 }
 
+const DOMINIOS_IMAGEN_PRODUCTO = [
+  /(^|\.)mitiendanube\.com$/,
+  /(^|\.)biosegur\.com\.ar$/,
+  /(^|\.)ciardi\.com\.ar$/,
+  /(^|\.)compragamer\.com$/,
+  /(^|\.)free-electron\.com\.ar$/,
+  /(^|\.)garnet\.com\.ar$/,
+  /(^|\.)gstatic\.com$/,
+  /(^|\.)licenciaspccl\.net$/,
+  /(^|\.)mlstatic\.com$/,
+  /(^|\.)rosarioseguridad\.com\.ar$/,
+  /(^|\.)tecnoprices\.com$/,
+  /(^|\.)sistemanixa\.com$/
+];
+
+function urlImagenProductoPermitida(valor) {
+  try {
+    const destino = new URL(String(valor || '').trim());
+    return destino.protocol === 'https:' && DOMINIOS_IMAGEN_PRODUCTO.some((patron) => patron.test(destino.hostname.toLowerCase()))
+      ? destino
+      : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function servirImagenProducto(requestUrl, req, res) {
+  const destino = urlImagenProductoPermitida(requestUrl.searchParams.get('url'));
+  if (!destino) {
+    send(res, 400, { ok:false, error:true, mensaje:'URL de imagen no permitida' });
+    return;
+  }
+  const clave = String(req.headers['x-frontend-key'] || requestUrl.searchParams.get('key') || '');
+  if (FRONTEND_KEY && clave !== FRONTEND_KEY) {
+    send(res, 401, { ok:false, error:true, mensaje:'No autorizado' });
+    return;
+  }
+  const controlador = new AbortController();
+  const timeout = setTimeout(() => controlador.abort(), 12000);
+  try {
+    const respuesta = await fetch(destino, {
+      redirect:'follow',
+      signal:controlador.signal,
+      headers:{ 'User-Agent':'SisVentas/2.2 (+https://ventas.sistemanixa.com)' }
+    });
+    const destinoFinal = urlImagenProductoPermitida(respuesta.url || destino.href);
+    const tipo = String(respuesta.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!respuesta.ok || !destinoFinal || !tipo.startsWith('image/')) {
+      send(res, 502, { ok:false, error:true, mensaje:'No se pudo recuperar una imagen válida' });
+      return;
+    }
+    const contenido = Buffer.from(await respuesta.arrayBuffer());
+    if (!contenido.length || contenido.length > 5 * 1024 * 1024) {
+      send(res, 413, { ok:false, error:true, mensaje:'La imagen supera el tamaño permitido' });
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': tipo,
+      'Content-Length': contenido.length,
+      'Cache-Control': 'public, max-age=86400',
+      'X-Content-Type-Options': 'nosniff',
+      'Access-Control-Allow-Origin': origenCorsPermitido(req.headers.origin),
+      'Vary': 'Origin'
+    });
+    res.end(contenido);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function claveMercadoLibre() {
   if (!ML_TOKEN_KEY) throw new Error('Falta configurar ML_TOKEN_KEY');
   return crypto.createHash('sha256').update(ML_TOKEN_KEY, 'utf8').digest();
@@ -2018,6 +2088,15 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && pathname === '/imagen-producto') {
+    try { await servirImagenProducto(requestUrl, req, res); }
+    catch (e) {
+      console.error('[imagen-producto]', e);
+      send(res, 502, { ok:false, error:true, mensaje:'No se pudo recuperar la imagen' });
+    }
+    return;
+  }
+
   if (req.method !== 'POST') {
     send(res, 405, { ok: false, error: true, mensaje: 'Método no permitido' });
     return;
@@ -2089,5 +2168,6 @@ module.exports = {
   descifrarTokenMercadoLibre,
   firmarEstadoOAuthMercadoLibre,
   validarEstadoOAuthMercadoLibre,
-  origenCorsPermitido
+  origenCorsPermitido,
+  urlImagenProductoPermitida
 };
