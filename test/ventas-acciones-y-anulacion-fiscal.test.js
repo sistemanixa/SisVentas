@@ -30,6 +30,7 @@ if (!detalle.includes("!(v.factura && v.factura.cae) || ventaTieneNotaCreditoAct
 const accionesDetalle = bloque('var accionesVentaDetalleHtml', 'dv.innerHTML =');
 if (!accionesDetalle.includes('accionesRiesgoVentaDetalleHtml')) throw new Error('Anular y eliminar deben quedar agrupados');
 if (accionesDetalle.indexOf('Anular venta') > accionesDetalle.indexOf('Eliminar definitivamente')) throw new Error('Anular debe mostrarse arriba de Eliminar');
-if (accionesDetalle.indexOf('A presupuesto') < accionesDetalle.indexOf('accionesEdicionVentaDetalleHtml')) throw new Error('A presupuesto debe ocupar la zona superior de edición');
+if (!accionesDetalle.includes('venta-detalle-a-presupuesto')) throw new Error('A presupuesto debe quedar identificado junto a los KPI');
+if (!app.includes('accionesEdicionVentaDetalleHtml +\n    accionMoverAPptoDetalleHtml +\n    metricVentaHtml')) throw new Error('A presupuesto debe renderizarse inmediatamente antes de los KPI');
 
 console.log('OK ventas con acciones unificadas y anulación fiscal respaldada');
