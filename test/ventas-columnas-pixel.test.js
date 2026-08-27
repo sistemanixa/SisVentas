@@ -44,7 +44,7 @@ test('Detalle de venta recupera el editor manual sin convertir píxeles a porcen
 test('restaurar anchos en píxeles no usa medidas reescaladas por el navegador', () => {
   assert.match(resize, /var resolvedWidths = headers\.map/);
   assert.match(resize, /var totalWidth = resolvedWidths\.reduce/);
-  assert.match(resize, /table\.style\.width = 'var\(--sv-pixel-total-width\)'/);
+  assert.match(resize, /setProperty\('width', 'var\(--sv-pixel-total-width\)', 'important'\)/);
   assert.match(resize, /resolvedWidths\.forEach\(function \(width, index\) \{\s*applyColumnWidth\(table, index, width\)/);
 });
 
@@ -54,6 +54,25 @@ test('un arrastre bloquea el clic tardío del encabezado sin bloquear clics norm
   assert.match(resize, /svSuppressHeaderClickUntil/);
   assert.match(resize, /Date\.now\(\) \+ 350/);
   assert.match(resize, /event\.stopImmediatePropagation\(\)/);
+});
+
+test('el límite mínimo queda estable y no recalcula el mismo píxel', () => {
+  assert.match(resize, /var lastLivePixelWidth = null/);
+  assert.match(resize, /if \(lastLivePixelWidth === width\) return/);
+  assert.match(resize, /lastLivePixelWidth = Math\.round\(startWidths\[index\]\)/);
+});
+
+test('al soltar no redistribuye el sobrante entre las demás columnas', () => {
+  assert.match(resize, /var declaredWidth = col \? parseFloat\(col\.style\.width \|\| ''\) : 0/);
+  assert.match(resize, /finalWidths\[visibleIndex\] = normalizeWidth\(declaredWidth \|\| header\.getBoundingClientRect\(\)\.width\)/);
+  assert.doesNotMatch(resize, /finalWidths\[visibleIndex\] = Math\.round\(header\.getBoundingClientRect\(\)\.width\)/);
+});
+
+test('el ancho en píxeles prevalece sobre el mínimo global del cien por ciento', () => {
+  assert.match(resize, /setProperty\('width', 'var\(--sv-pixel-total-width\)', 'important'\)/);
+  assert.match(resize, /setProperty\('min-width', 'var\(--sv-pixel-total-width\)', 'important'\)/);
+  assert.match(resize, /setProperty\('width', finalTableWidth, 'important'\)/);
+  assert.match(resize, /setProperty\('min-width', finalTableWidth, 'important'\)/);
 });
 
 test('la alineación de Acciones mueve también el grupo de iconos', () => {

@@ -591,7 +591,7 @@ function abrirNuevaSedeCliente(el) {
   var key = el && el.dataset ? (el.dataset.ckey || el.dataset.cid) : el;
   var cliente = (clientesData || []).find(function(c){ return String(c.fbKey || c.id || '') === String(key || ''); });
   var estructura = obtenerEstructuraClientePorLegacy(cliente);
-  if (!cliente || !estructura) { notify('No se pudo resolver el cliente principal para el nuevo domicilio'); return; }
+  if (!cliente || !estructura) { notify('No se pudo resolver el cliente principal para la nueva sede'); return; }
   _clienteEstructuraDestinoKey = estructura.fbKey || estructura.clienteKey || (clientesUnificadosIndice[cliente.fbKey] || {}).clienteKey || '';
   if (!_clienteEstructuraDestinoKey) { notify('La estructura de este cliente aún no está disponible'); return; }
   abrirModalNuevo('cliente');
@@ -603,7 +603,7 @@ function abrirNuevaSedeCliente(el) {
     if (apellido) { apellido.value = partes.join(' '); apellido.readOnly = true; }
     var sede = document.getElementById('nc-sede');
     if (sede) sede.focus();
-    _set('modal-nuevo-title', 'Nuevo domicilio — ' + (estructura.nombre || cliente.nombre || 'Cliente'));
+    _set('modal-nuevo-title', 'Nueva sede — ' + (estructura.nombre || cliente.nombre || 'Cliente'));
   }, 40);
 }
 
@@ -645,7 +645,7 @@ async function unificarClientesFiltradosLegacyInseguro() {
   }
   var sedes = candidatos.filter(function(c){ return c.fbKey && c.fbKey !== principal.fbKey; });
   if (!await svConfirm(
-    'Se mostrará un único cliente “'+(principal.nombre||'')+'” con '+candidatos.length+' domicilios.\n\nLas ventas, OT y cuentas existentes conservarán sus referencias. ¿Confirmar?',
+    'Se mostrará un único cliente “'+(principal.nombre||'')+'” con '+candidatos.length+' direcciones.\n\nLas ventas, OT y cuentas existentes conservarán sus referencias. ¿Confirmar?',
     { titulo:'Confirmar unificación', textoAceptar:'Unificar' }
   )) return;
   if (!window.fbDB || !window.fbUpdate) { notify('Sin conexión Firebase'); return; }
@@ -711,35 +711,17 @@ function _clienteClaveEstructura(legacyKeys) {
   return 'cli_' + (hash >>> 0).toString(36);
 }
 
-function _clienteDecisionManualValida(decision, estadoEsperado) {
-  return !!decision && decision.confirmadaManualmente === true &&
-    (!estadoEsperado || decision.estado === estadoEsperado);
-}
-
 function construirPlanEstructuraClientes(origen) {
   var clientes = (origen || clientesData || []).filter(Boolean);
   var asignados = {};
   var grupos = [];
-  var raizLegacyExplicita = function(cliente) {
-    var actual = cliente;
-    var vistos = {};
-    while (actual && actual.clientePrincipalFbKey) {
-      var clave = String(actual.clientePrincipalFbKey);
-      if (vistos[clave]) break;
-      vistos[clave] = true;
-      var siguiente = clientes.find(function(c){ return String(c.fbKey || '') === clave; });
-      if (!siguiente) break;
-      actual = siguiente;
-    }
-    return actual || cliente;
-  };
   // Primero se conservan relaciones legacy que ya fueron creadas explícitamente.
   clientes.forEach(function(cliente) {
-    var raiz = raizLegacyExplicita(cliente);
+    var raiz = clienteRaizRegistro(cliente) || cliente;
     var raizKey = String(raiz.fbKey || raiz.id || '');
     if (!raizKey || asignados[raizKey]) return;
     var miembros = clientes.filter(function(c) {
-      var r = raizLegacyExplicita(c);
+      var r = clienteRaizRegistro(c) || c;
       return String(r.fbKey || r.id || '') === raizKey;
     });
     if (miembros.length > 1) {
@@ -749,7 +731,6 @@ function construirPlanEstructuraClientes(origen) {
   });
   // Luego se aplican los grupos aprobados por nombre normalizado.
   obtenerCandidatosClientesDuplicados().forEach(function(candidato) {
-    if (!_clienteDecisionManualValida(_clientesRevisionDecisiones[candidato.clave], 'unificar')) return;
     var miembros = candidato.miembros.filter(function(c){ return !asignados[String(c.fbKey || c.id || '')]; });
     if (miembros.length < 2) return;
     miembros.forEach(function(c){ asignados[String(c.fbKey || c.id || '')] = true; });
@@ -779,8 +760,7 @@ function construirPlanEstructuraClientes(origen) {
 }
 
 function construirActualizacionesEstructuraClientes(plan, ahora) {
-  var clientesUnificados = {};
-  var indiceUnificado = {};
+  var updates = {};
   (plan || []).forEach(function(grupo) {
     var sedes = {};
     grupo.miembros.forEach(function(cliente) {
@@ -792,25 +772,22 @@ function construirActualizacionesEstructuraClientes(plan, ahora) {
         categoria: _clienteCategoriaSede(cliente), telefono: cliente.telefono || cliente.tel || '',
         email: cliente.mail || cliente.email || '', activo: cliente.activo !== false
       };
-      indiceUnificado[legacyKey] = {
+      updates['sisventas/clientes_unificados_indice/' + legacyKey] = {
         clienteKey: grupo.clienteKey, sedeKey: sedeKey, actualizadoEn: ahora
       };
     });
-    clientesUnificados[grupo.clienteKey] = {
+    updates['sisventas/clientes_unificados/' + grupo.clienteKey] = {
       esquema: 1, nombre: grupo.nombre, principalLegacyFbKey: grupo.principalLegacyFbKey,
       legacyFbKeys: grupo.legacyKeys, cantidadSedes: grupo.miembros.length,
       sedes: sedes, actualizadoEn: ahora
     };
   });
-  return {
-    'sisventas/clientes_unificados': clientesUnificados,
-    'sisventas/clientes_unificados_indice': indiceUnificado,
-    'sisventas/config/migracionClientes/estado': {
-      esquema: 1, estado: 'completada', clientesPrincipales: (plan || []).length,
-      sedesMigradas: (plan || []).reduce(function(n,g){ return n + g.miembros.length; }, 0),
-      actualizadoEn: ahora, actualizadoPor: currentUser || 'Administrador'
-    }
+  updates['sisventas/config/migracionClientes/estado'] = {
+    esquema: 1, estado: 'completada', clientesPrincipales: (plan || []).length,
+    sedesMigradas: (plan || []).reduce(function(n,g){ return n + g.miembros.length; }, 0),
+    actualizadoEn: ahora, actualizadoPor: currentUser || 'Administrador'
   };
+  return updates;
 }
 
 async function generarEstructuraClientesAprobada() {
@@ -819,20 +796,22 @@ async function generarEstructuraClientesAprobada() {
   var plan = construirPlanEstructuraClientes();
   if (!plan.length) { notify('No hay clientes para migrar'); return; }
   var candidaturas = obtenerCandidatosClientesDuplicados();
-  var pendientes = candidaturas.filter(function(grupo) {
-    return !_clienteDecisionManualValida(_clientesRevisionDecisiones[grupo.clave]);
-  });
-  if (pendientes.length) {
-    notify('Falta revisar manualmente '+pendientes.length+' grupo'+(pendientes.length===1?'':'s')+'. No se modificó la estructura.');
-    return;
-  }
-  if (!await svConfirm('Se crearán '+plan.length+' clientes principales y '+(clientesData||[]).length+' domicilios trazables. Los registros actuales, ventas y OT no se modificarán. ¿Generar la nueva estructura?', { titulo:'Generar estructura de clientes', textoAceptar:'Generar estructura' })) return;
+  if (!await svConfirm('Se crearán '+plan.length+' clientes principales y '+(clientesData||[]).length+' sedes trazables. Los registros actuales, ventas y OT no se modificarán. ¿Generar la nueva estructura?', { titulo:'Generar estructura de clientes', textoAceptar:'Generar estructura' })) return;
   var ahora = Date.now();
   var updates = construirActualizacionesEstructuraClientes(plan, ahora);
+  candidaturas.forEach(function(grupo) {
+    updates[CLIENTES_REVISION_PATH + '/' + grupo.clave] = {
+      estado:'unificar', nombreNormalizado:grupo.nombre,
+      clientesLegacy:grupo.miembros.map(function(c){ return { fbKey:c.fbKey || '', id:c.id || '', nombre:c.nombre || '', direccion:c.dir || c.direccion || '' }; }),
+      actualizadoEn:ahora, actualizadoPor:currentUser || 'Administrador'
+    };
+  });
   try {
     await window.fbUpdate(window.fbRef(window.fbDB), updates);
+    _clientesRevisionDecisiones = {};
+    candidaturas.forEach(function(grupo){ _clientesRevisionDecisiones[grupo.clave] = updates[CLIENTES_REVISION_PATH + '/' + grupo.clave]; });
     _renderRevisionClientesDuplicados();
-    notify('Estructura generada: '+plan.length+' clientes principales y '+(clientesData||[]).length+' domicilios');
+    notify('Estructura generada: '+plan.length+' clientes principales y '+(clientesData||[]).length+' sedes');
   } catch (error) {
     notify('No se pudo generar la estructura: ' + error.message);
   }
@@ -871,7 +850,7 @@ function _renderRevisionClientesDuplicados() {
   var resumen = document.getElementById('clientes-review-resumen');
   if (!lista || !resumen) return;
   var grupos = obtenerCandidatosClientesDuplicados();
-  var pendientes = grupos.filter(function(g){ return !_clienteDecisionManualValida(_clientesRevisionDecisiones[g.clave]); }).length;
+  var pendientes = grupos.filter(function(g){ return !(_clientesRevisionDecisiones[g.clave] || {}).estado; }).length;
   resumen.innerHTML = '<strong>'+grupos.length+'</strong> grupo'+(grupos.length===1?'':'s')+' a revisar · <strong>'+pendientes+'</strong> pendiente'+(pendientes===1?'':'s')+'.';
   if (!grupos.length) {
     lista.innerHTML = '<div class="clientes-review-empty"><i class="ti ti-circle-check"></i> No hay nombres repetidos pendientes de analizar.</div>';
@@ -879,7 +858,7 @@ function _renderRevisionClientesDuplicados() {
   }
   lista.innerHTML = grupos.map(function(grupo) {
     var decision = _clientesRevisionDecisiones[grupo.clave] || {};
-    var estado = _clienteDecisionManualValida(decision) ? decision.estado : 'pendiente';
+    var estado = decision.estado || 'pendiente';
     var estadoTexto = estado === 'unificar' ? 'Marcado para unificar' : estado === 'independientes' ? 'Clientes independientes' : 'Pendiente de tu decisión';
     var filas = grupo.miembros.map(function(cliente) {
       var ref = _resumenClienteRevision(cliente);
@@ -925,8 +904,7 @@ async function registrarDecisionRevisionCliente(clave, estado) {
     nombreNormalizado: grupo.nombre,
     clientesLegacy: grupo.miembros.map(function(c){ return { fbKey:c.fbKey || '', id:c.id || '', nombre:c.nombre || '', direccion:c.dir || c.direccion || '' }; }),
     actualizadoEn: Date.now(),
-    actualizadoPor: currentUser || 'Administrador',
-    confirmadaManualmente: true
+    actualizadoPor: currentUser || 'Administrador'
   };
   _renderRevisionClientesDuplicados();
   if (!window.fbDB || !window.fbSet) { notify('Decisión preparada localmente; falta conexión para guardarla'); return; }
@@ -989,7 +967,7 @@ function renderTablaClientes(filtro) {
     var idFmt  = String(c.id || '').padStart(4, '0');
     var activo = c.activo !== false;
     var nombre = c.nombre || '';
-    var dir    = miembros.length > 1 ? miembros.length + ' domicilios' : (c.dir || c.direccion || '');
+    var dir    = miembros.length > 1 ? miembros.length + ' direcciones / sedes' : (c.dir || c.direccion || '');
     var tel    = c.telefono || '';
     var categorias = Array.from(new Set(miembros.map(_clienteCategoriaSede).filter(Boolean)));
     var empresa = categorias.length ? '<div class="cli-grupo-categorias">' + categorias.map(function(cat){ return '<span>'+escapeHTML(cat)+'</span>'; }).join('') + '</div>' : '';
@@ -1006,7 +984,7 @@ function renderTablaClientes(filtro) {
       '<td style="text-align:right"><label class="toggle-sw" onclick="event.stopPropagation()" title="' + (activo ? 'Activo — clic para dar de baja' : 'Inactivo — clic para reactivar') + '"><input type="checkbox" ' + (activo ? 'checked' : '') + ' onchange="event.stopPropagation();toggleActivoCliente(\'' + escapeHTML(ckey) + '\')"><span class="toggle-knob"></span></label></td>' +
       '<td style="text-align:right;white-space:nowrap">' +
         '<button class="icon-btn" data-cid="' + escapeHTML(ckey) + '" data-ckey="' + escapeHTML(ckey) + '" onclick="event.stopPropagation();verClienteById(this)" title="Historial unificado"><i class="ti ti-history" style="font-size:15px"></i></button>' +
-        '<button class="icon-btn" data-cid="' + escapeHTML(ckey) + '" data-ckey="' + escapeHTML(ckey) + '" onclick="event.stopPropagation();abrirNuevaSedeCliente(this)" title="Agregar domicilio"><i class="ti ti-map-pin-plus" style="font-size:15px"></i></button>' +
+        '<button class="icon-btn" data-cid="' + escapeHTML(ckey) + '" data-ckey="' + escapeHTML(ckey) + '" onclick="event.stopPropagation();abrirNuevaSedeCliente(this)" title="Agregar sede"><i class="ti ti-map-pin-plus" style="font-size:15px"></i></button>' +
         '<button class="icon-btn" data-cid="' + escapeHTML(ckey) + '" onclick="event.stopPropagation();editarClienteById(this)" title="Editar cliente principal"><i class="ti ti-pencil" style="font-size:15px"></i></button>' +
         '<button class="icon-btn" data-cid="' + escapeHTML(ckey) + '" onclick="event.stopPropagation();eliminarCliente(this)" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:15px"></i></button>' +
       '</td>' +
@@ -1020,8 +998,8 @@ function renderTablaClientes(filtro) {
           '<td class="hide-mobile">'+escapeHTML(sede.dir||sede.direccion||'Sin dirección')+'</td>' +
           '<td class="hide-mobile">'+escapeHTML(sede.telefono||sede.tel||'—')+'</td>' +
           '<td></td><td style="text-align:right;white-space:nowrap">' +
-            '<button class="icon-btn" data-cid="'+escapeHTML(skey)+'" onclick="event.stopPropagation();editarClienteById(this)" title="Editar este domicilio"><i class="ti ti-pencil"></i></button>' +
-            (sede === c ? '' : '<button class="icon-btn" data-cid="'+escapeHTML(skey)+'" onclick="event.stopPropagation();eliminarCliente(this)" title="Eliminar este domicilio"><i class="ti ti-trash"></i></button>') +
+            '<button class="icon-btn" data-cid="'+escapeHTML(skey)+'" onclick="event.stopPropagation();editarClienteById(this)" title="Editar esta sede"><i class="ti ti-pencil"></i></button>' +
+            (sede === c ? '' : '<button class="icon-btn" data-cid="'+escapeHTML(skey)+'" onclick="event.stopPropagation();eliminarCliente(this)" title="Eliminar esta sede"><i class="ti ti-trash"></i></button>') +
           '</td></tr>';
       }).join('');
     }
@@ -1486,7 +1464,7 @@ function _renderFilaProd(p) {
   var nombreProvLbl = provLista.length === 1 ? '<br><span style="font-size:10px;color:var(--text3);font-weight:400">' + escapeHTML(provLista[0].nombre||'') + '</span>' : '';
   var pvFmt = (parseFloat(pv)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
   return '<tr class="cr pr" data-pid="'+pid+'" data-cat="'+(p.categoria||'')+'" onclick="verProductoById(this)" style="cursor:pointer;'+(activo?'':'opacity:.62')+'">' +
-    '<td>'+(p.imagenUrl?'<img class="prod-row-img" src="'+escapeHTML(p.imagenUrl)+'" loading="lazy" onload="programarArchivoImagenProducto(\''+jsStringAttr(p.fbKey||p.id||p.codigo||'')+'\',this.currentSrc||this.src)" onerror="this.style.display=\'none\'">'
+    '<td>'+(p.imagenUrl?'<img class="prod-row-img" src="'+escapeHTML(p.imagenUrl)+'" onerror="this.style.display=\'none\'">'
       :'<div class="prod-row-img prod-row-img-placeholder"><i class="ti ti-photo"></i></div>')+'</td>'+
     '<td style="font-family:monospace;font-size:12px">'+(p.codigo||'')+'</td>'+
     '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.esManoDeObra?'<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px"></i>':'')+(p.nombre||p.descripcion||'')+'</td>'+
@@ -7294,13 +7272,6 @@ async function _guardarSnapshotFiscalVenta(venta, snapshot) {
 async function verComprobanteFacturaVenta(ventaId, botonOrigen) {
   var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('No se encontró la venta asociada al comprobante'); return; }
-  // Una carga externa debe mostrar el archivo original que presentó el usuario.
-  // No corresponde consultar ARCA ni reconstruir otro documento en su lugar.
-  if (venta.factura && (venta.factura.fuente === 'externa' || venta.factura.manual === true)) {
-    if (_abrirAdjuntoFacturaExterna(venta.factura.comprobante)) return;
-    notify('Esta factura externa histórica no conserva un archivo adjunto. Revisá su auditoría antes de usarla.');
-    return;
-  }
   var datos = _datosPdfFiscalFactura(venta);
   var ventana = window.open('', '_blank', 'width=860,height=850');
   if (!ventana) { notify('El navegador bloqueó la ventana del comprobante'); return; }
@@ -7394,60 +7365,15 @@ function _leerAdjuntoFacturaExterna(archivo) {
 
 function _abrirAdjuntoFacturaExterna(adjunto) {
   if (!adjunto || !adjunto.data) return false;
-  var nombre = String(adjunto.nombre || 'comprobante.pdf');
-  var tipo = String(adjunto.tipo || '');
-  if ((tipo.indexOf('pdf') >= 0 || /\.pdf$/i.test(nombre)) && /^data:/i.test(String(adjunto.data))) {
-    try {
-      var partes = String(adjunto.data).match(/^data:([^;,]*)(;base64)?,([\s\S]*)$/i);
-      if (!partes) throw new Error('Formato PDF inválido');
-      var binario = partes[2] ? atob(partes[3]) : decodeURIComponent(partes[3]);
-      var bytes = new Uint8Array(binario.length);
-      for (var i=0; i<binario.length; i++) bytes[i] = binario.charCodeAt(i);
-      var url = URL.createObjectURL(new Blob([bytes], { type:'application/pdf' }));
-      var ventana = window.open(url, '_blank');
-      if (ventana) {
-        setTimeout(function(){ try { URL.revokeObjectURL(url); } catch (_) {} }, 300000);
-        return true;
-      }
-      URL.revokeObjectURL(url);
-    } catch (errorPdf) {
-      console.warn('No se pudo abrir el PDF externo en una pestaña:', errorPdf);
-    }
-  }
   abrirVisorComprobanteSistema(adjunto, 'Comprobante adjunto');
   return true;
-}
-
-function _datosFiscalesDesdeNombrePdf(nombre) {
-  var limpio = String(nombre || '').replace(/\.pdf$/i, '');
-  var partes = limpio.split('_');
-  if (partes.length < 4) return null;
-  var numero = parseInt(partes[partes.length - 1], 10) || 0;
-  var puntoVenta = parseInt(partes[partes.length - 2], 10) || 0;
-  var tipo = parseInt(partes[partes.length - 3], 10) || 0;
-  if (!numero || !puntoVenta || [1, 3, 6, 8].indexOf(tipo) < 0) return null;
-  return { tipo:String(tipo === 3 ? 1 : (tipo === 8 ? 6 : tipo)), tipoOriginal:tipo, puntoVenta:puntoVenta, numero:numero };
-}
-
-async function _consultarFacturaExternaOficial(tipo, puntoVenta, numero) {
-  var respuesta = await _esperarFacturaExterna(fetch(SISVENTAS_FUNCTIONS.emitirFactura, {
-    method:'POST',
-    headers:{ 'Content-Type':'application/json', 'X-Frontend-Key':SISVENTAS_FUNCTIONS.frontendKey },
-    body:JSON.stringify({ accion:'consultar_comprobante', tipoComprobante:tipo, puntoVenta:puntoVenta, numero:numero })
-  }), 20000, 'La validación fiscal demoró demasiado. No se guardó la factura.');
-  var resultado = await respuesta.json();
-  if (!respuesta.ok || resultado.error) throw new Error(resultado.mensaje || 'ARCA no pudo validar el comprobante');
-  var snapshot = _snapshotConsultaFiscal(resultado.comprobante);
-  if (!snapshot) throw new Error('ARCA no devolvió datos fiscales verificables para ese comprobante');
-  return snapshot;
 }
 
 function abrirModalFacturaExterna(ventaId) {
   var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('Venta no encontrada'); return; }
   if (!_puedeCargarFacturaExterna()) { notify('No tenés permiso para cargar facturas externas'); return; }
-  var reemplazaFacturaAnulada = !!venta.factura && ventaTieneNotaCreditoActiva(venta);
-  if (venta.factura && !reemplazaFacturaAnulada) { abrirResumenFactura(venta.id || venta.fbKey || ventaId); return; }
+  if (venta.factura) { abrirResumenFactura(venta.id || venta.fbKey || ventaId); return; }
 
   var anterior = document.getElementById('modal-factura-externa');
   if (anterior) anterior.remove();
@@ -7464,11 +7390,10 @@ function abrirModalFacturaExterna(ventaId) {
         '<div style="flex:1;min-width:0"><div id="factura-ext-titulo" style="font-size:17px;font-weight:700">Cargar factura externa</div><div style="font-size:12px;color:var(--text3);margin-top:3px">Venta ' + escapeHTML(venta.id || ventaId) + ' · ' + escapeHTML(venta.cliente || 'Sin cliente') + '</div></div>' +
         '<button class="btn btn-sm btn-icon" type="button" data-factura-ext-action="cerrar" title="Cerrar"><i class="ti ti-x"></i></button>' +
       '</div>' +
-      (reemplazaFacturaAnulada ? '<div style="padding:11px 12px;border-radius:10px;background:var(--blue-bg);color:var(--blue);font-size:12px;margin-bottom:14px"><strong><i class="ti ti-history"></i> Nueva factura posterior a una nota de crédito.</strong><div style="margin-top:4px;color:var(--text2)">La factura anterior y su nota de crédito se conservarán en el historial fiscal de la venta.</div></div>' : '') +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">' +
         '<div class="fg"><label>Tipo de comprobante</label><select id="factura-ext-tipo"><option value="1">Factura A</option><option value="6" selected>Factura B</option></select></div>' +
         '<div class="fg"><label>Fecha de emisión</label><input id="factura-ext-fecha" type="date" value="' + _fechaLocalISOFacturaExterna() + '"></div>' +
-        '<div class="fg"><label>Punto de venta</label><input id="factura-ext-pv" inputmode="numeric" value="' + puntoVenta + '"><div style="font-size:10px;color:var(--text3);margin-top:4px">Se completa desde el nombre del PDF de ARCA</div></div>' +
+        '<div class="fg"><label>Punto de venta</label><input id="factura-ext-pv" value="' + puntoVenta + '" readonly style="background:var(--bg3);cursor:not-allowed"><div style="font-size:10px;color:var(--text3);margin-top:4px">Tomado de Configuración → Facturación</div></div>' +
         '<div class="fg"><label>Número de comprobante</label><input id="factura-ext-numero" inputmode="numeric" autocomplete="off" placeholder="Ej: 1234"></div>' +
         '<div class="fg"><label>Importe total</label><input id="factura-ext-total" data-money="1" value="' + totalVenta + '"></div>' +
         '<div class="fg"><label>IVA incluido</label><input id="factura-ext-iva" data-money="1" value="' + ivaVenta + '"></div>' +
@@ -7476,9 +7401,9 @@ function abrirModalFacturaExterna(ventaId) {
         '<div class="fg"><label>Vencimiento CAE <span style="font-weight:400;color:var(--text3)">(opcional)</span></label><input id="factura-ext-cae-vto" type="date"></div>' +
       '</div>' +
       '<label for="factura-ext-archivo" style="display:flex;align-items:center;gap:12px;margin-top:16px;padding:14px;border:1px dashed var(--border2);border-radius:12px;cursor:pointer;background:var(--bg3)">' +
-        '<i class="ti ti-paperclip" style="font-size:22px;color:var(--blue)"></i><div style="flex:1"><div style="font-size:13px;font-weight:600">PDF original obligatorio</div><div id="factura-ext-archivo-nombre" style="font-size:11px;color:var(--text3);margin-top:2px">Archivo PDF · máximo 900 KB</div></div><span class="btn btn-sm">Elegir PDF</span>' +
+        '<i class="ti ti-paperclip" style="font-size:22px;color:var(--blue)"></i><div style="flex:1"><div style="font-size:13px;font-weight:600">Adjuntar comprobante</div><div id="factura-ext-archivo-nombre" style="font-size:11px;color:var(--text3);margin-top:2px">PDF, JPG o PNG · máximo 900 KB</div></div><span class="btn btn-sm">Elegir archivo</span>' +
       '</label>' +
-      '<input id="factura-ext-archivo" type="file" accept="application/pdf,.pdf" required style="display:none">' +
+      '<input id="factura-ext-archivo" type="file" accept="application/pdf,image/jpeg,image/png" style="display:none">' +
       '<div id="factura-ext-estado" role="status" aria-live="polite" style="min-height:16px;margin-top:10px;font-size:11px;color:var(--text3)"></div>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap"><button class="btn" type="button" data-factura-ext-action="cerrar">Cancelar</button><button class="btn btn-primary" id="factura-ext-guardar" type="button" data-factura-ext-action="guardar"><i class="ti ti-device-floppy"></i> Guardar factura</button></div>' +
     '</div>';
@@ -7494,17 +7419,7 @@ function abrirModalFacturaExterna(ventaId) {
   var archivo = document.getElementById('factura-ext-archivo');
   if (archivo) archivo.addEventListener('change', function() {
     var nombre = document.getElementById('factura-ext-archivo-nombre');
-    if (nombre) nombre.textContent = archivo.files && archivo.files[0] ? archivo.files[0].name : 'Archivo PDF · máximo 900 KB';
-    var datosNombre = archivo.files && archivo.files[0] ? _datosFiscalesDesdeNombrePdf(archivo.files[0].name) : null;
-    if (datosNombre) {
-      var tipo = document.getElementById('factura-ext-tipo');
-      var pv = document.getElementById('factura-ext-pv');
-      var numero = document.getElementById('factura-ext-numero');
-      if (tipo) tipo.value = datosNombre.tipo;
-      if (pv) pv.value = datosNombre.puntoVenta;
-      if (numero) numero.value = datosNombre.numero;
-      _estadoFacturaExterna('Tipo, punto de venta y número reconocidos desde el PDF. Al guardar se validarán contra ARCA.');
-    }
+    if (nombre) nombre.textContent = archivo.files && archivo.files[0] ? archivo.files[0].name : 'PDF, JPG o PNG · máximo 900 KB';
   });
   setTimeout(function(){ var numero = document.getElementById('factura-ext-numero'); if (numero) numero.focus(); }, 40);
 }
@@ -7517,7 +7432,6 @@ async function guardarFacturaExterna(ventaId) {
 
   var tipoEl = document.getElementById('factura-ext-tipo');
   var fechaEl = document.getElementById('factura-ext-fecha');
-  var puntoVentaEl = document.getElementById('factura-ext-pv');
   var numeroEl = document.getElementById('factura-ext-numero');
   var totalEl = document.getElementById('factura-ext-total');
   var ivaEl = document.getElementById('factura-ext-iva');
@@ -7531,7 +7445,7 @@ async function guardarFacturaExterna(ventaId) {
   var fecha = String(fechaEl && fechaEl.value || '');
   var numeroDigitos = String(numeroEl && numeroEl.value || '').replace(/\D/g, '');
   var numero = parseInt(numeroDigitos, 10) || 0;
-  var puntoVenta = parseInt(puntoVentaEl && puntoVentaEl.value, 10) || 0;
+  var puntoVenta = parseInt(TFAPP_CONFIG.punto_venta, 10) || 2;
   var total = getMontoRaw(totalEl);
   var iva = getMontoRaw(ivaEl);
   var cae = String(caeEl && caeEl.value || '').replace(/\s/g, '');
@@ -7539,14 +7453,12 @@ async function guardarFacturaExterna(ventaId) {
   var archivo = archivoEl && archivoEl.files ? archivoEl.files[0] : null;
 
   if (!fecha) { notify('Ingresá la fecha de emisión'); return; }
-  if (!puntoVenta) { notify('Ingresá el punto de venta que figura en el PDF'); return; }
   if (!numero) { notify('Ingresá el número de comprobante'); if (numeroEl) numeroEl.focus(); return; }
   if (!(total > 0)) { notify('Ingresá el importe total de la factura'); if (totalEl) totalEl.focus(); return; }
   if (iva < 0 || iva > total) { notify('El IVA no puede superar el importe total'); return; }
-  if (!archivo) { notify('Adjuntá el PDF original de la factura externa'); if (archivoEl) archivoEl.click(); return; }
   if (archivo) {
-    var esPdf = archivo.type === 'application/pdf' || /\.pdf$/i.test(archivo.name || '');
-    if (!esPdf) { notify('El comprobante fiscal debe ser un archivo PDF'); return; }
+    var tiposPermitidos = ['application/pdf','image/jpeg','image/png'];
+    if (tiposPermitidos.indexOf(archivo.type) < 0) { notify('El comprobante debe ser PDF, JPG o PNG'); return; }
     if (archivo.size > 900000) { notify('El comprobante debe pesar menos de 900 KB, igual que los comprobantes de pago'); return; }
   }
 
@@ -7576,23 +7488,6 @@ async function guardarFacturaExterna(ventaId) {
       archivoAdjunto = await _leerAdjuntoFacturaExterna(archivo);
     }
 
-    var datosNombrePdf = _datosFiscalesDesdeNombrePdf(archivoNombre);
-    if (datosNombrePdf && (String(datosNombrePdf.tipo) !== tipoCodigo || datosNombrePdf.puntoVenta !== puntoVenta || datosNombrePdf.numero !== numero)) {
-      throw new Error('Tipo, punto de venta o número no coinciden con el nombre fiscal del PDF');
-    }
-    _estadoFacturaExterna('Validando tipo, punto de venta, número, CAE e importe contra ARCA...');
-    var datosOficiales = await _consultarFacturaExternaOficial(tipoCodigo, puntoVenta, numero);
-    if (datosOficiales.punto_venta !== puntoVenta || datosOficiales.numero !== numero) throw new Error('ARCA devolvió otro punto de venta o número');
-    if (cae && _normalizarCaeFactura(cae) !== _normalizarCaeFactura(datosOficiales.cae)) throw new Error('El CAE ingresado no coincide con ARCA');
-    var totalOficial = Math.round(Number(datosOficiales.total || 0) * 100) / 100;
-    if (Math.abs(totalOficial - total) > 0.009) throw new Error('El total ingresado (' + importeComprobanteVenta(total) + ') no coincide con el PDF/ARCA (' + importeComprobanteVenta(totalOficial) + ')');
-    fecha = datosOficiales.fecha || fecha;
-    cae = datosOficiales.cae || cae;
-    caeVto = datosOficiales.vencimiento_cae || caeVto;
-    total = totalOficial;
-    var resumenOficial = _resumenSnapshotFiscal(datosOficiales);
-    iva = Math.round(Number(resumenOficial.iva || iva || 0) * 100) / 100;
-
     var numeroFormateado = String(puntoVenta).padStart(5, '0') + '-' + String(numero).padStart(8, '0');
     var ahora = Date.now();
     var factura = {
@@ -7612,31 +7507,18 @@ async function guardarFacturaExterna(ventaId) {
       pdf_url: archivoUrl,
       archivoNombre: archivoNombre,
       comprobante: archivoAdjunto,
-      datos_fiscales: datosOficiales,
       fuente: 'externa',
       manual: true,
       cargadaPor: currentUser || 'Sistema',
       cargadaEn: ahora
     };
     var audit = Array.isArray(venta.audit) ? venta.audit.slice() : [];
-    var historialFiscal = Array.isArray(venta.historialFiscal) ? venta.historialFiscal.slice() : [];
-    var reemplazaFacturaAnulada = !!venta.factura && ventaTieneNotaCreditoActiva(venta);
-    if (reemplazaFacturaAnulada) {
-      historialFiscal.push({
-        factura: Object.assign({}, venta.factura),
-        notaCredito: Object.assign({}, venta.notaCredito),
-        cerradaEn: ahora,
-        motivo: 'Factura anulada y reemplazada por comprobante externo'
-      });
-    }
     audit.push({ fecha:new Date().toLocaleDateString('es-AR'), usuario:currentUser || 'Sistema', accion:'Factura externa ' + numeroFormateado + ' cargada y vinculada' });
     _estadoFacturaExterna('Guardando la factura en la venta...');
     await _esperarFacturaExterna(window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), {
       factura: factura,
       facturada: true,
       facturaNumero: numeroFormateado,
-      notaCredito: reemplazaFacturaAnulada ? null : (venta.notaCredito || null),
-      historialFiscal: historialFiscal,
       editadoEn: new Date().toLocaleDateString('es-AR'),
       editadoPor: currentUser || 'Sistema',
       audit: audit
@@ -7673,7 +7555,7 @@ async function guardarFacturaExterna(ventaId) {
       notify('La factura quedó guardada, pero no pudo sumarse al historial fiscal.');
     }
 
-    Object.assign(venta, { factura:factura, facturada:true, facturaNumero:numeroFormateado, notaCredito:reemplazaFacturaAnulada ? null : venta.notaCredito, historialFiscal:historialFiscal, audit:audit });
+    Object.assign(venta, { factura:factura, facturada:true, facturaNumero:numeroFormateado, audit:audit });
     if (window._ventaDetalleActual && String(window._ventaDetalleActual.fbKey || '') === String(venta.fbKey)) Object.assign(window._ventaDetalleActual, venta);
     var modal = document.getElementById('modal-factura-externa');
     if (modal) modal.remove();
@@ -7712,9 +7594,6 @@ function abrirResumenFactura(ventaId) {
   var caeVto = f.cae_vencimiento || f.caeVencimiento || '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(caeVto))) caeVto = String(caeVto).split('-').reverse().join('/');
   var esFacturaExterna = f.fuente === 'externa' || f.manual === true;
-  var fechaCargaExterna = f.cargadaEn ? new Date(Number(f.cargadaEn)).toLocaleString('es-AR', { hour12:false }) : '';
-  var usuarioCargaExterna = String(f.cargadaPor || '').trim();
-  var nombreAdjuntoExterno = f.comprobante && f.comprobante.nombre ? String(f.comprobante.nombre) : String(f.archivoNombre || '');
   var puedeEmitirNC = String(currentRole || '').toLowerCase() === 'admin' && !nc && !esFacturaExterna;
   var importeFiscal = _leerImporteFiscalFactura(f);
   var comparacionImportes = compararFacturaConVenta(v, f);
@@ -7744,11 +7623,6 @@ function abrirResumenFactura(ventaId) {
         '<div style="background:var(--bg3);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Fecha</div><div style="font-size:13px;font-weight:600;margin-top:4px">' + escapeHTML(fecha) + '</div></div>' +
         (numero ? '<div style="background:var(--bg3);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Comprobante</div><div style="font-size:13px;font-weight:600;margin-top:4px">' + escapeHTML(numero) + '</div></div>' : '') +
       '</div>' +
-      (esFacturaExterna ? '<div style="padding:11px 12px;border-radius:10px;background:var(--blue-bg);font-size:12px;margin-bottom:12px;border:1px solid color-mix(in srgb,var(--blue) 35%,transparent)"><div style="font-weight:700;color:var(--blue);margin-bottom:6px"><i class="ti ti-user-check"></i> Carga externa registrada</div><div style="display:grid;gap:4px;color:var(--text2)">' +
-        '<div><strong>Usuario:</strong> ' + escapeHTML(usuarioCargaExterna || 'No registrado') + '</div>' +
-        '<div><strong>Fecha y hora de carga:</strong> ' + escapeHTML(fechaCargaExterna || 'No registrada') + '</div>' +
-        '<div><strong>Archivo original:</strong> ' + escapeHTML(nombreAdjuntoExterno || 'No conservado') + '</div>' +
-      '</div></div>' : '') +
       (cae ? '<div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">' +
         '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">CAE</div>' +
         '<button data-factura-action="copiar-cae" style="display:flex;align-items:center;gap:7px;background:none;border:0;color:' + (nc ? 'var(--text2)' : 'var(--green)') + ';font:700 16px monospace;padding:5px 0 0;cursor:pointer" title="Copiar CAE">' + escapeHTML(cae) + ' <i class="ti ti-copy" style="font-size:13px"></i></button>' +
@@ -7762,11 +7636,11 @@ function abrirResumenFactura(ventaId) {
             ? '<div style="padding:10px 12px;border-radius:10px;background:var(--blue-bg);color:var(--blue);font-size:12px;margin-bottom:16px"><strong><i class="ti ti-history"></i> Comprobante histórico registrado.</strong><div style="margin-top:5px;color:var(--text2)">Esta venta pertenece al sistema anterior y no conserva la foto fiscal utilizada al emitir. Se muestra el comprobante sin declarar una diferencia automática.</div></div>'
             : '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:16px"><i class="ti ti-circle-check"></i> ' + (esFacturaExterna ? 'Comprobante externo registrado y vinculado' : 'Comprobante emitido y verificado contra los datos guardados al emitir') + '</div>'))) +
       '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
-        (nc && (nc.pdf_url || (nc.comprobante && nc.comprobante.data)) ? '<button class="btn btn-sm" data-factura-action="ver-nc"><i class="ti ti-file-minus"></i> Ver nota de crédito</button>' : '') +
+        (nc && nc.pdf_url ? '<button class="btn btn-sm" data-factura-action="ver-nc"><i class="ti ti-file-minus"></i> Ver nota de crédito</button>' : '') +
         (puedeRefacturar ? '<button class="btn btn-sm" data-factura-action="refacturar"><i class="ti ti-file-invoice"></i> Facturar nuevamente</button>' : '') +
         (puedeCompletarNumeroFiscal ? '<button class="btn btn-sm" data-factura-action="completar-numero"><i class="ti ti-refresh"></i> Recuperar datos fiscales</button><button class="btn btn-sm" data-factura-action="completar-manual"><i class="ti ti-file-description"></i> Completar desde comprobante</button>' : '') +
         (puedeEmitirNC ? '<button class="btn btn-sm" data-factura-action="nota-credito" style="color:var(--red);border-color:var(--red)"><i class="ti ti-file-minus"></i> Emitir nota de crédito</button>' : '') +
-        '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"' + (esFacturaExterna && !nombreAdjuntoExterno ? ' disabled title="La carga histórica no conserva archivo"' : '') + '><i class="ti ti-file-invoice"></i> ' + (esFacturaExterna ? 'Ver PDF original' : 'Ver comprobante') + '</button>' +
+        '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"><i class="ti ti-file-invoice"></i> Ver comprobante</button>' +
       '</div>' +
     '</div>';
 
@@ -7792,9 +7666,9 @@ function abrirResumenFactura(ventaId) {
       overlay.remove();
       abrirModalCompletarDatosFiscales(v.id || v.fbKey || ventaId);
     }
-    if (accion === 'ver-nc' && nc && (nc.pdf_url || (nc.comprobante && nc.comprobante.data))) {
+    if (accion === 'ver-nc' && nc && nc.pdf_url) {
       overlay.remove();
-      if (!_abrirAdjuntoFacturaExterna(nc.comprobante)) _abrirFuentePdfFactura(nc.pdf_url, 'Nota-de-credito-' + (v.id || ventaId || 'comprobante'));
+      _abrirFuentePdfFactura(nc.pdf_url, 'Nota-de-credito-' + (v.id || ventaId || 'comprobante'));
     }
     if (accion === 'refacturar') {
       overlay.remove();
@@ -8962,35 +8836,14 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.2.6-firebase',
+  VERSION: 'v2.2.3-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Detalle de venta permite ajustar cada columna en píxeles sin redistribuir las demás.',
-    'El configurador informa la ocupación total y permite definir ancho y alineación manualmente.',
-    'Acciones conserva sus iconos compactos y bloquea ordenamientos accidentales al redimensionar.'
+    'El actualizador manual permite recotizar productos vigentes ante cambios del dólar o del proveedor.',
+    'Ventas y Presupuestos comparten acciones claras y eliminan accesos redundantes.',
+    'Las ventas facturadas exigen una nota de crédito registrada antes de anularse o eliminarse.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir Actualizador de precios' }),
   RELEASE_HISTORY: Object.freeze([
-    Object.freeze({
-      version: 'v2.2.6',
-      date: '26/08/2026',
-      title: 'Columnas independientes en Detalle de venta',
-      notes: Object.freeze(['Cada columna se ajusta en píxeles sin alterar el ancho de las columnas vecinas.', 'El editor manual permite escribir anchos, alinear contenido y consultar la ocupación porcentual sin forzar el cien por ciento.', 'Acciones queda protegida, compacta y alineable; soltar un arrastre ya no activa el ordenamiento del encabezado.']),
-      visual: Object.freeze({ page:'detalle', actionLabel:'Abrir Detalle de venta' })
-    }),
-    Object.freeze({
-      version: 'v2.2.5',
-      date: '26/08/2026',
-      title: 'Pagos generales de cuenta corriente',
-      notes: Object.freeze(['Cuenta corriente permite registrar un importe recibido sin elegir previamente una venta.', 'El pago se aplica a las ventas más antiguas y puede cancelar una o varias, o dejar la última con saldo parcial.', 'Todas las imputaciones se confirman en una sola transacción y conservan un identificador común para auditoría.']),
-      visual: Object.freeze({ page:'cuentacorriente', actionLabel:'Abrir Cuenta corriente' })
-    }),
-    Object.freeze({
-      version: 'v2.2.4',
-      date: '26/08/2026',
-      title: 'Imágenes propias al primer uso',
-      notes: Object.freeze(['Las imágenes externas de productos se archivan automáticamente al mostrarse por primera vez.', 'La copia se comprime y guarda como adjunto Base64 en Realtime Database, siguiendo el mecanismo probado de los comprobantes de Gastos.', 'La URL original se conserva como respaldo y una cola en segundo plano evita bloquear la pantalla.']),
-      visual: Object.freeze({ page:'productos', actionLabel:'Abrir Productos' })
-    }),
     Object.freeze({
       version: 'v2.2.3',
       date: '26/08/2026',
@@ -9386,15 +9239,15 @@ const APP_CONFIG = Object.freeze({
     Object.freeze({
       version: 'v2.0.337',
       date: '13/08/2026',
-      title: 'Clientes principales y domicilios trazables',
-      notes: Object.freeze(['Cada cliente se muestra una sola vez con sus domicilios y categorías.', 'Las ventas, presupuestos y OT históricas conservan sus referencias legacy.', 'Se puede agregar un domicilio desde la ficha principal y queda integrado a la estructura nueva.']),
+      title: 'Clientes principales y sedes trazables',
+      notes: Object.freeze(['Cada cliente se muestra una sola vez con sus direcciones y categorías de sede.', 'Las ventas, presupuestos y OT históricas conservan sus referencias legacy.', 'Se puede agregar una sede desde la ficha principal y queda integrada a la estructura nueva.']),
       feature: Object.freeze({ page:'clientes', actionLabel:'Abrir Clientes' })
     }),
     Object.freeze({
       version: 'v2.0.336',
       date: '12/08/2026',
       title: 'Horas extra, clientes unificados y rendimiento',
-      notes: Object.freeze(['Las cargas de horas extra del mismo empleado y período se consolidan de forma atómica.', 'El administrador revisa horas extra y accede a la cuenta de cada persona desde Empleados.', 'El Dashboard evita recálculos innecesarios al volver al inicio.', 'Clientes admite un principal con varios domicilios y categorías.', 'Los avisos y datos históricos se muestran sin secuencias de codificación dañadas.']),
+      notes: Object.freeze(['Las cargas de horas extra del mismo empleado y período se consolidan de forma atómica.', 'El administrador revisa horas extra y accede a la cuenta de cada persona desde Empleados.', 'El Dashboard evita recálculos innecesarios al volver al inicio.', 'Clientes admite un principal con varias sedes, direcciones y categorías.', 'Los avisos y datos históricos se muestran sin secuencias de codificación dañadas.']),
       feature: Object.freeze({ page:'empleados', actionLabel:'Abrir Empleados' })
     }),
     Object.freeze({
@@ -11603,7 +11456,7 @@ var NOTIF_CONFIG = {
   caja_abierta:     { label:'Caja sin cerrar',            sub:'La caja quedó abierta después de las 20hs',   canales:['App'],           activo:true,  urgente:false },
 };
 var FORMS_CFG = {
-  cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Razón social',id:'nc-razon-social',t:'text',ph:'Nombre legal registrado en ARCA',full:true},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa / nombre comercial',id:'nc-empresa',t:'text',ph:'Nombre comercial si corresponde'},{l:'Categoría del domicilio inicial',id:'nc-sede',t:'text',ph:'Ej: Authogar, oficina, depósito'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
+  cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Razón social',id:'nc-razon-social',t:'text',ph:'Nombre legal registrado en ARCA',full:true},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa / nombre comercial',id:'nc-empresa',t:'text',ph:'Nombre comercial si corresponde'},{l:'Categoría de la sede inicial',id:'nc-sede',t:'text',ph:'Ej: Authogar, oficina, depósito'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
   producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'Moneda',id:'np-moneda',t:'select',opts:['ARS','USD']},{l:'P. compra',id:'np-pc',t:'number',ph:'0'},{l:'P. venta',id:'np-pv',t:'number',ph:'0'}]},
   empleado:  { title:'Nuevo empleado',  fields:[{l:'Apellido',id:'ne-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'ne-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'ne-dni',t:'text',ph:'12.345.678'},{l:'Cargo',id:'ne-cargo-id',t:'select-cargo'},{l:'Fecha de inicio',id:'ne-fecha-ingreso',t:'date'},{l:'Tipo de empleado',id:'ne-tipo',t:'select',opts:['Empleado','Vendedor a comisión']},{l:'% Comisión propio (solo vendedor a comisión)',id:'ne-pct-comision',t:'text',ph:'Ej: 8'},{l:'Teléfono',id:'ne-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'ne-em',t:'email',ph:'email@empresa.com'},{l:'Estado',id:'ne-activo',t:'select',opts:['Activo','Inactivo']}]},
   usuario:   { title:'Nuevo usuario',   fields:[{l:'Nombre completo',id:'nu-nm',t:'text',ph:'Nombre y apellido',full:true},{l:'Nombre de usuario',id:'nu-user',t:'text',ph:'nombre.apellido (sin @sistemanixa.com)'},{l:'Rol',id:'nu-rol',t:'select',opts:['Administrador','Administrativo','Vendedor','Técnico-vendedor','Técnico']},{l:'Estado',id:'nu-activo',t:'select',opts:['Activo','Inactivo']},{l:'Empleado vinculado',id:'nu-emp-vinculado',t:'select-empleado'},{l:'Contraseña inicial',id:'nu-pass',t:'password',ph:'••••••••'}]},
@@ -13260,123 +13113,12 @@ function productoDesdeItem(item) {
            String(x.descripcion || '').trim().toLowerCase() === String(ref).trim().toLowerCase();
   }) || null;
 }
-
-// Las imágenes históricas de productos suelen apuntar al sitio del proveedor.
-// Al mostrarse por primera vez se archivan, sin Storage, con el mismo criterio
-// de los comprobantes de Gastos: Data URL comprimida dentro de Realtime DB.
-// La cola serial evita descargar y procesar muchas imágenes al mismo tiempo.
-var _imagenesProductoArchivoCola = [];
-var _imagenesProductoArchivoPendientes = {};
-var _imagenesProductoArchivoFallidas = {};
-var _imagenesProductoArchivoProcesando = false;
-
-function imagenProductoEsRemotaArchivable(src) {
-  var valor = String(src || '').trim();
-  return /^https:\/\//i.test(valor) && !/firebasestorage\.googleapis\.com/i.test(valor);
-}
-
-function urlImagenProductoParaArchivo(src) {
-  try {
-    var parsed = new URL(String(src || ''), location.href);
-    if (parsed.origin === location.origin) return parsed.href;
-    var baseProxy = /^(127\.0\.0\.1|localhost)$/.test(location.hostname)
-      ? 'http://127.0.0.1:8787'
-      : SISVENTAS_FUNCTIONS.cotizadorProveedor;
-    return baseProxy + '/imagen-producto?url=' + encodeURIComponent(parsed.href) + '&key=' + encodeURIComponent(SISVENTAS_FUNCTIONS.frontendKey);
-  } catch (_) {
-    return String(src || '');
-  }
-}
-
-function productoPorClaveImagen(clave) {
-  return Object.values(prodData || {}).find(function(p) {
-    return String(p.fbKey || p.id || p.codigo || '') === String(clave || '');
-  }) || null;
-}
-
-function comprimirImagenProductoAdjunta(blob) {
-  return new Promise(function(resolve, reject) {
-    var url = URL.createObjectURL(blob);
-    var imagen = new Image();
-    imagen.onload = function() {
-      try {
-        var limite = 520;
-        var escala = Math.min(1, limite / Math.max(imagen.naturalWidth || 1, imagen.naturalHeight || 1));
-        var canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round((imagen.naturalWidth || 1) * escala));
-        canvas.height = Math.max(1, Math.round((imagen.naturalHeight || 1) * escala));
-        var ctx = canvas.getContext('2d', { alpha:true });
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(imagen, 0, 0, canvas.width, canvas.height);
-        var data = canvas.toDataURL('image/webp', 0.78);
-        if (!data || data.length > 300000) data = canvas.toDataURL('image/jpeg', 0.68);
-        if (!data || data.length > 300000) throw new Error('La imagen comprimida continúa siendo demasiado grande');
-        resolve(data);
-      } catch (error) {
-        reject(error);
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-    };
-    imagen.onerror = function() { URL.revokeObjectURL(url); reject(new Error('No se pudo decodificar la imagen')); };
-    imagen.src = url;
-  });
-}
-
-async function archivarImagenProductoRemota(tarea) {
-  var producto = productoPorClaveImagen(tarea.clave);
-  if (!producto || !producto.fbKey) return;
-  var src = String(producto.imagenUrl || tarea.src || '').trim();
-  if (!imagenProductoEsRemotaArchivable(src)) return;
-  var respuesta = await fetch(urlImagenProductoParaArchivo(src), { cache:'force-cache' });
-  if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
-  var tipo = String(respuesta.headers.get('content-type') || '');
-  if (tipo && tipo.indexOf('image/') !== 0) throw new Error('El proveedor no devolvió una imagen');
-  var dataUrl = await comprimirImagenProductoAdjunta(await respuesta.blob());
-  var cambios = {
-    imagenUrl: dataUrl,
-    imagenUrlOriginal: producto.imagenUrlOriginal || src,
-    imagenGuardadaMetodo: 'adjunto_base64',
-    imagenGuardadaEn: Date.now(),
-    imagenGuardadaBytes: dataUrl.length
-  };
-  await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + producto.fbKey), cambios);
-  Object.assign(producto, cambios);
-}
-
-function procesarColaArchivoImagenesProducto() {
-  if (_imagenesProductoArchivoProcesando || !_imagenesProductoArchivoCola.length) return;
-  if (!window.fbDB || !window.fbUpdate || !window.fbRef) return;
-  _imagenesProductoArchivoProcesando = true;
-  var tarea = _imagenesProductoArchivoCola.shift();
-  archivarImagenProductoRemota(tarea).catch(function(error) {
-    _imagenesProductoArchivoFallidas[tarea.clave] = true;
-    console.warn('[Productos] No se pudo archivar la imagen externa', tarea && tarea.src, error);
-  }).finally(function() {
-    delete _imagenesProductoArchivoPendientes[tarea.clave];
-    _imagenesProductoArchivoProcesando = false;
-    setTimeout(procesarColaArchivoImagenesProducto, 120);
-  });
-}
-
-function programarArchivoImagenProducto(clave, src) {
-  var producto = productoPorClaveImagen(clave);
-  var claveReal = String((producto && producto.fbKey) || clave || '').trim();
-  var url = String((producto && producto.imagenUrl) || src || '').trim();
-  if (!claveReal || !imagenProductoEsRemotaArchivable(url) || _imagenesProductoArchivoPendientes[claveReal] || _imagenesProductoArchivoFallidas[claveReal]) return;
-  _imagenesProductoArchivoPendientes[claveReal] = true;
-  _imagenesProductoArchivoCola.push({ clave:claveReal, src:url });
-  if ('requestIdleCallback' in window) window.requestIdleCallback(procesarColaArchivoImagenesProducto, { timeout:1800 });
-  else setTimeout(procesarColaArchivoImagenesProducto, 350);
-}
-
 function imagenProductoItemHTML(item, extraClass) {
   var prod = productoDesdeItem(item);
   var src = (prod && prod.imagenUrl) || item.imagenUrl || item.productoImagenUrl || '';
-  var clave = (prod && (prod.fbKey || prod.id || prod.codigo)) || item.pid || item.productoFbKey || item.codigo || '';
   var cls = escapeHTML('item-prod-img ' + (extraClass || ''));
   if (src) {
-    return '<img class="'+cls+'" src="'+escapeHTML(src)+'" loading="lazy" onload="programarArchivoImagenProducto(\''+jsStringAttr(clave)+'\',this.currentSrc||this.src)" onerror="this.style.display=\'none\'">';
+    return '<img class="'+cls+'" src="'+escapeHTML(src)+'" loading="lazy" onerror="this.style.display=\'none\'">';
   }
   return '<span class="'+cls+' item-prod-img-placeholder"><i class="ti ti-photo"></i></span>';
 }
@@ -19193,13 +18935,7 @@ function verProducto(id, origen) {
   var pdImg = document.getElementById('pd-imagen-img');
   var pdIcon = document.getElementById('pd-imagen-placeholder');
   if (pdImg && pdIcon) {
-    if (p.imagenUrl) {
-      pdImg.src = p.imagenUrl;
-      pdImg.style.display='';
-      pdIcon.style.display='none';
-      pdImg.onload = function(){ programarArchivoImagenProducto(p.fbKey || p.id || p.codigo || '', pdImg.currentSrc || pdImg.src); };
-      pdImg.onerror=function(){ pdImg.style.display='none'; pdIcon.style.display=''; };
-    }
+    if (p.imagenUrl) { pdImg.src = p.imagenUrl; pdImg.style.display=''; pdIcon.style.display='none'; pdImg.onerror=function(){ pdImg.style.display='none'; pdIcon.style.display=''; }; }
     else { pdImg.style.display='none'; pdIcon.style.display=''; }
   }
   _set('pd-compra', '$' + (parseFloat(pc)||0).toLocaleString('es-AR'));
@@ -22987,191 +22723,6 @@ function renderReportes() {
   if(_e('rep-unidades'))_e('rep-unidades').textContent=unidades.toLocaleString('es-AR',{maximumFractionDigits:2});
   if(_e('rep-productos-sub'))_e('rep-productos-sub').textContent=listaProductos.length+' producto'+(listaProductos.length===1?'':'s')+' diferente'+(listaProductos.length===1?'':'s');
   if(cuerpoProductos)cuerpoProductos.innerHTML=listaProductos.length?listaProductos.map(function(p){var part=totalMes>0?p.importe/totalMes*100:0;return '<tr><td>'+escapeHTML(p.codigo)+'</td><td>'+escapeHTML(p.nombre)+'</td><td class="tr">'+p.unidades.toLocaleString('es-AR',{maximumFractionDigits:2})+'</td><td class="tr">'+montoReporte(p.importe)+'</td><td class="tr">'+part.toLocaleString('es-AR',{maximumFractionDigits:1})+'%</td></tr>';}).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Sin productos vendidos</td></tr>';
-}
-
-function _ccVentasPendientesActuales() {
-  var nombre = window._ccNombreActual || '';
-  var clienteKey = window._ccClienteKeyActual || '';
-  var ccData = clienteKey && window._ccMapActual ? window._ccMapActual[clienteKey] : null;
-  function fechaOrden(v) {
-    var texto = String(v && v.fecha || '').trim();
-    var p = texto.split(/[\/-]/);
-    if (p.length === 3) {
-      if (p[0].length === 4) return p[0] + '-' + String(p[1]).padStart(2,'0') + '-' + String(p[2]).padStart(2,'0');
-      if (p[2].length === 4) return p[2] + '-' + String(p[1]).padStart(2,'0') + '-' + String(p[0]).padStart(2,'0');
-    }
-    return '9999-12-31';
-  }
-  return (ventasList || []).filter(function(v) {
-    if (!v || !v.fbKey || !ventaValidaParaMetricas(v)) return false;
-    var keys = [v.clienteFbKey, v.clienteKey, v.clienteId, v.idCliente, v.idClienteOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-    var coincide = ccData && ((ccData.clienteFbKey && keys.indexOf(String(ccData.clienteFbKey)) >= 0) || (ccData.legacyId && keys.indexOf(String(ccData.legacyId)) >= 0));
-    if (!coincide && !keys.length) coincide = _svTxtNombre(v.cliente) === _svTxtNombre(nombre);
-    return coincide && _svSaldoPendienteVenta(v) > 0.009;
-  }).sort(function(a,b) {
-    var diferencia = fechaOrden(a).localeCompare(fechaOrden(b));
-    return diferencia || ((parseFloat(a.ts)||0) - (parseFloat(b.ts)||0));
-  });
-}
-
-function _ccPlanImputacion(monto) {
-  var restante = Math.round((parseFloat(monto) || 0) * 100) / 100;
-  var plan = [];
-  _ccVentasPendientesActuales().forEach(function(venta) {
-    if (restante <= 0.009) return;
-    var saldo = Math.round(_svSaldoPendienteVenta(venta) * 100) / 100;
-    var aplicado = Math.min(saldo, restante);
-    if (aplicado <= 0) return;
-    plan.push({ venta:venta, saldoAnterior:saldo, monto:aplicado, saldoRestante:Math.max(0, Math.round((saldo-aplicado)*100)/100) });
-    restante = Math.max(0, Math.round((restante-aplicado)*100)/100);
-  });
-  return { plan:plan, sinImputar:restante };
-}
-
-function actualizarVistaPagoCuentaCorriente() {
-  var monto = getMontoRaw(document.getElementById('ccp-monto'));
-  var resultado = _ccPlanImputacion(monto);
-  var contenedor = document.getElementById('ccp-imputaciones');
-  var aviso = document.getElementById('ccp-aviso');
-  if (!contenedor) return;
-  contenedor.innerHTML = resultado.plan.length ? resultado.plan.map(function(item, indice) {
-    var completa = item.saldoRestante <= .009;
-    return '<div style="display:grid;grid-template-columns:28px minmax(110px,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">' +
-      '<span class="badge ' + (completa ? 'b-green' : 'b-amber') + '">' + (indice+1) + '</span>' +
-      '<div><strong>' + escapeHTML(item.venta.id || item.venta.fbKey) + '</strong><small style="display:block;color:var(--text3)">' + escapeHTML(_mostrarFecha(item.venta.fecha || '')) + ' · saldo $' + item.saldoAnterior.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</small></div>' +
-      '<div style="text-align:right"><strong style="color:var(--green)">$' + item.monto.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</strong><small style="display:block;color:' + (completa?'var(--green)':'var(--amber)') + '">' + (completa?'queda saldada':'restan $'+item.saldoRestante.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})) + '</small></div></div>';
-  }).join('') : '<div style="padding:14px;text-align:center;color:var(--text3)">Ingresá un importe para ver cómo se aplicará.</div>';
-  if (aviso) {
-    aviso.style.display = resultado.sinImputar > .009 ? '' : 'none';
-    aviso.textContent = resultado.sinImputar > .009 ? 'El importe supera la deuda del cliente en $' + resultado.sinImputar.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
-  }
-}
-
-function cerrarPagoCuentaCorriente() {
-  var modal = document.getElementById('modal-pago-cuenta');
-  if (modal) modal.remove();
-  if (typeof svSincronizarPilaModales === 'function') svSincronizarPilaModales();
-}
-
-function abrirPagoCuentaCorriente() {
-  var ventas = _ccVentasPendientesActuales();
-  if (!ventas.length) { notify('Este cliente no tiene ventas con saldo pendiente'); return; }
-  cerrarPagoCuentaCorriente();
-  var saldo = ventas.reduce(function(total,v){ return total + _svSaldoPendienteVenta(v); }, 0);
-  var hoy = new Date().toISOString().slice(0,10);
-  var medios = (MEDIOS_PAGO_CONFIG || []).map(function(m){ var n=String(m.nombre||''); return '<option value="'+escapeHTML(n)+'">'+escapeHTML(formatoMedioPago(n))+'</option>'; }).join('');
-  var modal = document.createElement('div');
-  modal.id = 'modal-pago-cuenta';
-  modal.className = 'modal-overlay open';
-  modal.style.display = 'flex';
-  modal.innerHTML = '<div class="modal" style="max-width:620px;width:calc(100% - 28px)">' +
-    '<div class="modal-header"><div><strong>Registrar pago de cuenta corriente</strong><div style="font-size:12px;color:var(--text3);margin-top:3px">'+escapeHTML(window._ccNombreActual||'Cliente')+' · deuda $'+saldo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div><button class="btn btn-sm btn-icon" onclick="cerrarPagoCuentaCorriente()"><i class="ti ti-x"></i></button></div>' +
-    '<div class="modal-body"><div class="form-grid" style="grid-template-columns:1fr 1fr"><div class="fg"><label>Monto recibido</label><input id="ccp-monto" data-money="1" data-money-fixed="2" inputmode="decimal" placeholder="0,00" oninput="actualizarVistaPagoCuentaCorriente()"></div><div class="fg"><label>Fecha</label><input id="ccp-fecha" type="date" value="'+hoy+'"></div><div class="fg"><label>Medio de pago</label><select id="ccp-medio"><option value="">Seleccionar...</option>'+medios+'</select></div><div class="fg"><label>Referencia</label><input id="ccp-referencia" placeholder="N° transferencia, recibo, etc."></div></div>' +
-    '<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;margin-bottom:4px">Aplicación automática · ventas más antiguas primero</div><div id="ccp-imputaciones" style="background:var(--bg3);border-radius:var(--radius);padding:4px 12px"></div><div id="ccp-aviso" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div></div></div>' +
-    '<div class="modal-footer"><button class="btn" onclick="cerrarPagoCuentaCorriente()">Cancelar</button><button id="ccp-guardar" class="btn btn-primary" onclick="confirmarPagoCuentaCorriente()"><i class="ti ti-check"></i> Registrar e imputar</button></div></div>';
-  document.body.appendChild(modal);
-  initMoneyInputsEn(modal);
-  actualizarVistaPagoCuentaCorriente();
-  if (typeof svSincronizarPilaModales === 'function') svSincronizarPilaModales();
-  setTimeout(function(){ var input=document.getElementById('ccp-monto'); if(input) input.focus(); },0);
-}
-
-async function confirmarPagoCuentaCorriente() {
-  if (window._pagoCuentaGuardando) return;
-  var monto = getMontoRaw(document.getElementById('ccp-monto'));
-  var fecha = (document.getElementById('ccp-fecha')||{}).value || '';
-  var medio = (document.getElementById('ccp-medio')||{}).value || '';
-  var referencia = String((document.getElementById('ccp-referencia')||{}).value || '').trim();
-  var resultado = _ccPlanImputacion(monto);
-  if (!(monto > 0)) { notify('Ingresá un monto válido'); return; }
-  if (!fecha) { notify('Seleccioná la fecha del pago'); return; }
-  if (!medio) { notify('Seleccioná el medio de pago'); return; }
-  if (!resultado.plan.length || resultado.sinImputar > .009) { notify('El importe no puede superar la deuda pendiente del cliente'); return; }
-  if (!window.fbDB || !window.fbRunTransaction || !window.fbPush) { notify('Sin conexión segura para registrar el pago'); return; }
-
-  var boton = document.getElementById('ccp-guardar');
-  window._pagoCuentaGuardando = true;
-  if (boton) { boton.disabled=true; boton.innerHTML='<i class="ti ti-loader-2"></i> Imputando...'; }
-  var grupo = 'cc_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-  var pagosGuardados = [];
-  var solicitudes = [];
-  resultado.plan.forEach(function(item, indice) {
-    var venta = item.venta;
-    var pagoKey = window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos')).key;
-    var pago = {
-      fbKey:pagoKey, venta:venta.id||venta.fbKey, ventaId:venta.id||venta.fbKey, ventaFbKey:venta.fbKey,
-      cliente:window._ccNombreActual||venta.cliente||'', clienteFbKey:venta.clienteFbKey||venta.clienteKey||window._ccClienteKeyActual||'',
-      monto:item.monto, moneda:'ARS', montoOriginal:item.monto, tipoCambio:1, totalVenta:_svTotalVentaCanonico(venta),
-      saldoAnterior:item.saldoAnterior, saldoRestante:item.saldoRestante, medio:medio, fecha:fecha, obs:referencia,
-      usuario:currentUser||'', ts:Date.now()+indice, origen:'cuenta_corriente', pagoCuentaGrupo:grupo,
-      pagoCuentaTotal:monto, imputacionOrden:indice+1, imputacionesTotal:resultado.plan.length
-    };
-    solicitudes.push({ ventaFbKey:venta.fbKey, ventaId:venta.id||venta.fbKey, monto:item.monto, pago:pago });
-  });
-  var cabecera = {
-    cliente:window._ccNombreActual||'', clienteFbKey:window._ccClienteKeyActual||'', monto:monto, fecha:fecha,
-    medio:medio, referencia:referencia, usuario:currentUser||'', ts:Date.now(), cantidadImputaciones:resultado.plan.length,
-    imputaciones:resultado.plan.map(function(item){ return {ventaFbKey:item.venta.fbKey,ventaId:item.venta.id||'',monto:item.monto,saldoRestante:item.saldoRestante}; })
-  };
-  try {
-    var motivoError = '';
-    var transaccion = await window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas'), function(raiz) {
-      raiz = raiz || {};
-      raiz.ventas = raiz.ventas || {};
-      raiz.pagos = raiz.pagos || {};
-      raiz.cobros_cuenta = raiz.cobros_cuenta || {};
-      function comparable(valor) { return String(valor == null ? '' : valor).toLowerCase().replace(/[^a-z0-9]/g,''); }
-      var preparados = [];
-      for (var i=0; i<solicitudes.length; i++) {
-        var solicitud = solicitudes[i];
-        var ventaKey = Object.keys(raiz.ventas).find(function(key) {
-          var candidata = raiz.ventas[key] || {};
-          return String(key) === String(solicitud.ventaFbKey) ||
-            String(candidata.fbKey || candidata.ventaFbKey || '') === String(solicitud.ventaFbKey) ||
-            comparable(candidata.id || candidata.ventaId || '') === comparable(solicitud.ventaId);
-        });
-        var ventaActual = ventaKey ? raiz.ventas[ventaKey] : null;
-        if (!ventaActual || !ventaValidaParaMetricas(ventaActual)) { motivoError='Una de las ventas ya no está disponible para cobrar.'; return; }
-        var total = _svTotalVentaCanonico(ventaActual);
-        var pagosVenta = Object.keys(raiz.pagos).map(function(key){ return raiz.pagos[key] || {}; }).filter(function(p) {
-          if (p.anulado === true || String(p.estado||'').toLowerCase()==='anulado') return false;
-          if (p.ventaFbKey) return String(p.ventaFbKey)===String(ventaKey) || String(p.ventaFbKey)===String(solicitud.ventaFbKey);
-          return comparable(p.ventaId || p.venta || '') === comparable(ventaActual.id || ventaActual.ventaId || '');
-        });
-        var pagado = pagosVenta.length ? pagosVenta.reduce(function(s,p){ return s+(parseFloat(p.monto)||0); },0) : (parseFloat(ventaActual.totalPagado)||0);
-        var disponible = Math.max(0, Math.round((total-pagado)*100)/100);
-        if (solicitud.monto > disponible + .009) { motivoError='El saldo de '+(ventaActual.id||solicitud.ventaId)+' cambió mientras registrabas el pago. Actualizá e intentá nuevamente.'; return; }
-        var nuevoPagado = Math.min(total, Math.round((pagado+solicitud.monto)*100)/100);
-        preparados.push({solicitud:solicitud,ventaKey:ventaKey,venta:ventaActual,total:total,pagado:pagado,nuevoPagado:nuevoPagado,estado:nuevoPagado>=total-.01?'pago_total':'seniado'});
-      }
-      preparados.forEach(function(item) {
-        var pagoFinal = Object.assign({}, item.solicitud.pago, { ventaFbKey:item.ventaKey, totalVenta:item.total, saldoAnterior:Math.max(0,item.total-item.pagado), saldoRestante:Math.max(0,item.total-item.nuevoPagado) });
-        raiz.pagos[pagoFinal.fbKey] = pagoFinal;
-        raiz.ventas[item.ventaKey] = Object.assign({}, item.venta, { total:item.total, totalPagado:item.nuevoPagado, estadoPago:item.estado });
-      });
-      raiz.cobros_cuenta[grupo] = cabecera;
-      return raiz;
-    });
-    if (!transaccion || transaccion.committed === false) throw new Error(motivoError || 'No se pudo confirmar el pago de cuenta corriente');
-    var raizConfirmada = transaccion.snapshot && transaccion.snapshot.val ? transaccion.snapshot.val() : {};
-    solicitudes.forEach(function(solicitud) {
-      var pagoConfirmado = raizConfirmada.pagos && raizConfirmada.pagos[solicitud.pago.fbKey];
-      var ventaConfirmada = raizConfirmada.ventas && raizConfirmada.ventas[pagoConfirmado && pagoConfirmado.ventaFbKey];
-      if (pagoConfirmado && ventaConfirmada) pagosGuardados.push({pago:pagoConfirmado,venta:ventaConfirmada});
-    });
-    pagosGuardados.forEach(function(item) {
-      asegurarOTVentaConPago(item.venta, item.venta.totalPagado);
-      if (item.venta.estadoPago === 'pago_total') generarComisionesVenta(item.venta, item.venta.totalPagado);
-    });
-    if (typeof registrarActividad === 'function') registrarActividad('Pago de cuenta corriente', (window._ccNombreActual||'Cliente')+' · $'+monto.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+' · '+resultado.plan.length+' venta(s)');
-    cerrarPagoCuentaCorriente();
-    notify('✓ Pago aplicado a '+resultado.plan.length+' venta'+(resultado.plan.length===1?'':'s'));
-  } catch (error) {
-    notify('No se pudo registrar el pago: '+error.message);
-  } finally {
-    window._pagoCuentaGuardando = false;
-    if (boton) { boton.disabled=false; boton.innerHTML='<i class="ti ti-check"></i> Registrar e imputar'; }
-  }
 }
 
 function cargosActualizarModalidad() {
@@ -30034,21 +29585,18 @@ function fvRenderConciliacion() {
         (info.estado === 'ambigua' ? '<span class="badge b-amber">' + info.candidatas.length + ' posibles</span>' : '<span class="badge b-red">Sin coincidencia exacta</span>');
     var boton = info.estado === 'conciliada'
       ? '<button class="btn btn-sm" onclick="fvAbrirVinculacionManual(\'' + jsStringAttr(nc.fbKey) + '\')"><i class="ti ti-replace"></i> Cambiar vínculo</button>'
-      : candidata ? '<button class="btn btn-sm" onclick="fvAbrirVinculacionManual(\'' + jsStringAttr(nc.fbKey) + '\')"><i class="ti ti-link"></i> Vincular</button>' : '<button class="btn btn-sm" onclick="fvAbrirVinculacionManual(\'' + jsStringAttr(nc.fbKey) + '\')"><i class="ti ti-search"></i> Revisar</button>';
+      : candidata ? '<button class="btn btn-sm" onclick="fvConciliarNotaPorKey(\'' + jsStringAttr(nc.fbKey) + '\')"><i class="ti ti-link"></i> Vincular</button>' : '<button class="btn btn-sm" onclick="fvAbrirVinculacionManual(\'' + jsStringAttr(nc.fbKey) + '\')"><i class="ti ti-search"></i> Revisar</button>';
     return '<tr><td>' + escapeHTML(nc.fecha || '—') + '</td><td style="font-family:monospace">' + escapeHTML(numero) + '</td><td>' + escapeHTML(nc.nombre || nc.cuitReceptor || '—') + '</td><td class="tr" style="font-family:monospace;color:var(--red)">' + cfPesos(Math.abs(parseFloat(nc.total)||0)) + '</td><td>' + estado + '</td><td class="tr">' + boton + '</td></tr>';
   }).join('') + '</tbody></table></div>';
 }
-async function fvAplicarConciliacion(nc, venta, pdfAdjunto) {
+async function fvAplicarConciliacion(nc, venta) {
   if (!nc || !venta || !venta.fbKey || !window.fbDB) throw new Error('No se pudo identificar la nota o la venta');
-  var respaldoPdf = pdfAdjunto || nc.comprobante || null;
-  if (!respaldoPdf || !respaldoPdf.data) throw new Error('Adjuntá el PDF original de la nota de crédito antes de vincularla');
   var tipoNC = fvTipoFacturaDeNota(nc.tipo);
   var nota = {
     cae:String(nc.cae || ''), tipo:'NOTA DE CREDITO ' + (tipoNC || ''), fecha:nc.fecha || '',
     punto_venta:parseInt(nc.ptoVta,10)||0, numero:parseInt(nc.nroDoc,10)||0,
     importe_total:Math.abs(parseFloat(nc.total)||0), origen:'conciliacion_externa', comprobanteEmitidoFbKey:nc.fbKey,
-    conciliadaTs:Date.now(), conciliadaPor:currentUser || '', comprobante:respaldoPdf,
-    archivoNombre:respaldoPdf.nombre || ''
+    conciliadaTs:Date.now(), conciliadaPor:currentUser || ''
   };
   var anteriorKey = String(nc.ventaConciliadaFbKey || '');
   var cambiaVinculo = !!anteriorKey && anteriorKey !== String(venta.fbKey);
@@ -30098,8 +29646,6 @@ async function fvAplicarConciliacion(nc, venta, pdfAdjunto) {
   cambios[baseNc + 'conciliadaTs'] = ahora;
   cambios[baseNc + 'conciliadaPor'] = currentUser || '';
   cambios[baseNc + 'vinculoAnteriorFbKey'] = cambiaVinculo ? anteriorKey : null;
-  cambios[baseNc + 'comprobante'] = respaldoPdf;
-  cambios[baseNc + 'archivoNombre'] = respaldoPdf.nombre || '';
   await window.fbUpdate(window.fbRef(window.fbDB), cambios);
   if (ventaAnterior && ventaAnterior !== venta) {
     ventaAnterior.facturaAnulada = false;
@@ -30117,7 +29663,7 @@ async function fvAplicarConciliacion(nc, venta, pdfAdjunto) {
     comprobanteDestinoAnterior.vinculoAnteriorFbKey = venta.fbKey;
   }
 }
-async function fvConciliarNotaPorKey(ncKey, ventaKey, pdfAdjunto) {
+async function fvConciliarNotaPorKey(ncKey, ventaKey) {
   if (!['admin','administrativo'].includes(String(currentRole || '').toLowerCase())) { notify('Sin permisos para conciliar facturación'); return; }
   var nc = FV_DATA.find(function(c){ return String(c.fbKey) === String(ncKey); });
   var candidatas = nc ? fvCandidatasParaNota(nc) : [];
@@ -30137,7 +29683,7 @@ async function fvConciliarNotaPorKey(ncKey, ventaKey, pdfAdjunto) {
     ? 'Se quitará esta nota de crédito de la venta anterior y se vinculará a ' + (venta.id || venta.fbKey) + '.\n\nEl cambio queda auditado y NO emite nada en ARCA. ¿Continuar?'
     : 'Se marcará la factura de la venta ' + (venta.id || venta.fbKey) + ' como anulada por una nota de crédito ya emitida. La venta comercial seguirá vigente.\n\nEsta acción NO emite nada en ARCA. ¿Continuar?';
   if (!await svConfirm(pregunta)) return;
-  try { await fvAplicarConciliacion(nc, venta, pdfAdjunto); notify('✓ Nota de crédito conciliada con la venta ' + (venta.id || venta.fbKey)); fvRenderConciliacion(); }
+  try { await fvAplicarConciliacion(nc, venta); notify('✓ Nota de crédito conciliada con la venta ' + (venta.id || venta.fbKey)); fvRenderConciliacion(); }
   catch(e) { notify('No se pudo conciliar: ' + e.message); }
 }
 async function fvRepararEstadosComercialesConciliacionExterna() {
@@ -30192,7 +29738,12 @@ async function fvConciliarNotasCredito() {
   if (!['admin','administrativo'].includes(String(currentRole || '').toLowerCase())) { notify('Sin permisos para conciliar facturación'); return; }
   var listas = fvNotasCredito().filter(function(nc){ return fvEstadoConciliacion(nc).estado === 'lista'; });
   if (!listas.length) { fvRenderConciliacion(); notify('No hay coincidencias exactas nuevas para conciliar'); return; }
-  notify('Cada nota de crédito requiere su PDF original. Vinculalas individualmente para adjuntar el respaldo correcto.');
+  if (!await svConfirm('Se encontraron ' + listas.length + ' notas con una única factura compatible.\n\nSe actualizará solo SisVentas; no se emitirá nada en ARCA. ¿Conciliar todas?')) return;
+  var hechas = 0;
+  try {
+    for (var i=0; i<listas.length; i++) { var vs=fvCandidatasParaNota(listas[i]); if (vs.length===1) { await fvAplicarConciliacion(listas[i],vs[0]); hechas++; } }
+    notify('✓ ' + hechas + ' notas de crédito conciliadas'); fvRenderConciliacion();
+  } catch(e) { notify('La conciliación se detuvo: ' + e.message); fvRenderConciliacion(); }
 }
 function fvAbrirVinculacionManual(ncKey) {
   var nc = FV_DATA.find(function(c){ return String(c.fbKey) === String(ncKey); });
@@ -30201,30 +29752,10 @@ function fvAbrirVinculacionManual(ncKey) {
   var actualKey = String(nc.ventaConciliadaFbKey || '');
   var opciones = (ventasList || []).filter(function(v){ var f=fvDatosFacturaVenta(v); return v.factura && (!tipo || !f.tipo || f.tipo===tipo) && (!fecha || !f.fecha || f.fecha<=fecha); }).slice().sort(function(a,b){ return String((b.factura||{}).fecha||b.fecha||'').localeCompare(String((a.factura||{}).fecha||a.fecha||'')); }).slice(0,100);
   var modal=document.createElement('div'); modal.className='modal-overlay'; modal.style.display='flex';
-  modal.innerHTML='<div class="modal" style="width:min(700px,calc(100vw - 24px))"><div class="modal-head"><div><div class="modal-title">'+(actualKey?'Cambiar vinculación':'Vincular nota de crédito externa')+'</div><div style="font-size:12px;color:var(--text3);margin-top:3px">Elegí la factura original únicamente si la verificaste en ARCA/TusFacturasApp.</div></div><button class="btn btn-icon" data-close><i class="ti ti-x"></i></button></div><div class="modal-body"><label class="field"><span>Venta facturada</span><select id="fv-vinculo-manual"><option value="">Seleccionar…</option>' + opciones.map(function(v){ var f=fvDatosFacturaVenta(v); var aviso=ventaTieneNotaCreditoActiva(v)?' · REEMPLAZARÁ NOTA ACTUAL':''; return '<option value="'+escapeHTML(v.fbKey)+'" '+(String(v.fbKey||'')===actualKey?'selected':'')+'>'+escapeHTML((v.id||v.fbKey)+' · '+(v.cliente||'Sin cliente')+' · '+((v.factura||{}).fecha||v.fecha||'sin fecha')+' · '+cfPesos(f.importe)+aviso)+'</option>'; }).join('') + '</select></label><button type="button" class="btn btn-sm" id="fv-ver-venta-seleccionada" style="margin-top:9px"><i class="ti ti-eye"></i> Ver información de la venta seleccionada</button><label class="field" style="margin-top:12px"><span>PDF original de la nota de crédito <strong style="color:var(--red)">· obligatorio</strong></span><input id="fv-nc-pdf" type="file" accept="application/pdf,.pdf" required></label><div style="font-size:11px;color:var(--amber);margin-top:10px"><i class="ti ti-alert-triangle"></i> Si la venta ya tiene una nota, se desvinculará la anterior y se reemplazará por ésta. Todo cambio queda auditado y no modifica ARCA.</div></div><div class="modal-foot"><button class="btn" data-close>Cancelar</button><button class="btn btn-primary" id="fv-confirmar-vinculo">'+(actualKey?'Cambiar vinculación':'Vincular')+'</button></div></div>';
+  modal.innerHTML='<div class="modal" style="width:min(700px,calc(100vw - 24px))"><div class="modal-head"><div><div class="modal-title">'+(actualKey?'Cambiar vinculación':'Vincular nota de crédito externa')+'</div><div style="font-size:12px;color:var(--text3);margin-top:3px">Elegí la factura original únicamente si la verificaste en ARCA/TusFacturasApp.</div></div><button class="btn btn-icon" data-close><i class="ti ti-x"></i></button></div><div class="modal-body"><label class="field"><span>Venta facturada</span><select id="fv-vinculo-manual"><option value="">Seleccionar…</option>' + opciones.map(function(v){ var f=fvDatosFacturaVenta(v); var aviso=ventaTieneNotaCreditoActiva(v)?' · REEMPLAZARÁ NOTA ACTUAL':''; return '<option value="'+escapeHTML(v.fbKey)+'" '+(String(v.fbKey||'')===actualKey?'selected':'')+'>'+escapeHTML((v.id||v.fbKey)+' · '+(v.cliente||'Sin cliente')+' · '+((v.factura||{}).fecha||v.fecha||'sin fecha')+' · '+cfPesos(f.importe)+aviso)+'</option>'; }).join('') + '</select></label><button type="button" class="btn btn-sm" id="fv-ver-venta-seleccionada" style="margin-top:9px"><i class="ti ti-eye"></i> Ver información de la venta seleccionada</button><div style="font-size:11px;color:var(--amber);margin-top:10px"><i class="ti ti-alert-triangle"></i> Si la venta ya tiene una nota, se desvinculará la anterior y se reemplazará por ésta. Todo cambio queda auditado y no modifica ARCA.</div></div><div class="modal-foot"><button class="btn" data-close>Cancelar</button><button class="btn btn-primary" id="fv-confirmar-vinculo">'+(actualKey?'Cambiar vinculación':'Vincular')+'</button></div></div>';
   document.body.appendChild(modal); modal.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){modal.remove();};});
   modal.querySelector('#fv-ver-venta-seleccionada').onclick=function(){ var key=modal.querySelector('#fv-vinculo-manual').value; if(!key){notify('Seleccioná una venta');return;} fvAbrirDetalleVentaModal(key); };
-  modal.querySelector('#fv-confirmar-vinculo').onclick=async function(){
-    var key=modal.querySelector('#fv-vinculo-manual').value;
-    var inputPdf=modal.querySelector('#fv-nc-pdf');
-    var archivoPdf=inputPdf && inputPdf.files && inputPdf.files[0];
-    if(!key){notify('Seleccioná una venta');return;}
-    if(!archivoPdf && !(nc.comprobante && nc.comprobante.data)){notify('Adjuntá el PDF original de la nota de crédito');return;}
-    if(archivoPdf && !(archivoPdf.type==='application/pdf' || /\.pdf$/i.test(archivoPdf.name||''))){notify('El respaldo debe ser un archivo PDF');return;}
-    if(archivoPdf && archivoPdf.size>900000){notify('El PDF debe pesar menos de 900 KB');return;}
-    try {
-      if (archivoPdf) {
-        var datosNombre=_datosFiscalesDesdeNombrePdf(archivoPdf.name);
-        var tipoNc=parseInt(nc.tipo,10)||0, pvNc=parseInt(nc.ptoVta,10)||0, numeroNc=parseInt(nc.nroDoc,10)||0;
-        if(datosNombre && (datosNombre.tipoOriginal!==tipoNc || datosNombre.puntoVenta!==pvNc || datosNombre.numero!==numeroNc)) throw new Error('El PDF pertenece a otro tipo, punto de venta o número de nota de crédito');
-        var oficialNc=await _consultarFacturaExternaOficial(String(tipoNc),pvNc,numeroNc);
-        if(Math.abs(Math.abs(Number(oficialNc.total)||0)-Math.abs(Number(nc.total)||0))>0.009) throw new Error('El importe del PDF/ARCA no coincide con la nota importada');
-      }
-      var adjunto=archivoPdf ? await _leerAdjuntoFacturaExterna(archivoPdf) : nc.comprobante;
-      modal.remove();
-      fvConciliarNotaPorKey(ncKey,key,adjunto);
-    } catch(errorPdf) { notify('No se puede vincular: '+errorPdf.message); }
-  };
+  modal.querySelector('#fv-confirmar-vinculo').onclick=function(){ var key=modal.querySelector('#fv-vinculo-manual').value; if(!key){notify('Seleccioná una venta');return;} modal.remove(); fvConciliarNotaPorKey(ncKey,key); };
 }
 
 function fvRenderMetricas(comps) {
@@ -35605,14 +35136,14 @@ async function eliminarCliente(el) {
   var cli = (clientesData||[]).find(function(c){ return String(c.id) === String(cid) || String(c.fbKey||'') === String(cid); });
   if (!cli) return;
   if (obtenerEstructuraClientePorLegacy(cli)) {
-    notify('Este cliente ya pertenece a la nueva estructura Cliente → Domicilios. La baja debe resolverse desde esa ficha para conservar la trazabilidad histórica.');
+    notify('Este cliente ya pertenece a la nueva estructura Cliente → Sedes. La baja debe resolverse desde esa ficha para conservar la trazabilidad histórica.');
     return;
   }
   var sedesVinculadas = (clientesData || []).filter(function(c){
     return String(c.clientePrincipalFbKey || '') === String(cli.fbKey || '');
   });
   if (sedesVinculadas.length) {
-    notify('No se puede eliminar el cliente principal mientras tenga '+sedesVinculadas.length+' domicilio'+(sedesVinculadas.length===1?'':'s')+' vinculado'+(sedesVinculadas.length===1?'':'s')+'. Editá esos domicilios y desvinculalos primero.');
+    notify('No se puede eliminar el cliente principal mientras tenga '+sedesVinculadas.length+' sede'+(sedesVinculadas.length===1?'':'s')+' vinculada'+(sedesVinculadas.length===1?'':'s')+'. Editá esas sedes y desvinculalas primero.');
     return;
   }
 
@@ -44643,7 +44174,6 @@ function verHistorialCliente(id, nombre) {
   if (avisoHcEl) avisoHcEl.style.display = 'none';
 
   if (typeof credSetCliente === 'function') credSetCliente(cli.fbKey || cli.id, cli);
-  if (typeof credSetGrupo === 'function') credSetGrupo(clientesGrupoActual);
 
   // Header
   var iniciales = (cli.nombre||'').split(' ').slice(0,2).map(function(p){ return p[0]||''; }).join('').toUpperCase() || '?';
@@ -44905,10 +44435,6 @@ function switchHistTab(tab, btn) {
 var _credClienteId = null;
 var _credClienteLegacyId = null;
 var _credEditKey = null;
-var _credClientesGrupo = [];
-var _credEditOwnerId = null;
-var _credEditOwnerLegacyId = null;
-var _credEditFuente = 'nueva';
 
 var CRED_TIPO_LABELS = {
   dvr:'DVR / NVR', alarma:'Panel de alarma', app:'App móvil',
@@ -44923,57 +44449,29 @@ function credSetCliente(clienteId, clienteObj) {
   clienteObj = clienteObj || {};
   _credClienteId = String(clienteObj.fbKey || clienteId || '');
   _credClienteLegacyId = String(clienteObj.id || clienteObj.codigo || clienteId || '');
-  if (!_credClientesGrupo.length) credSetGrupo([clienteObj]);
 }
-function credSetGrupo(grupo) {
-  var vistos = {};
-  _credClientesGrupo = (grupo || []).map(function(cliente) {
-    cliente = cliente || {};
-    return {
-      fbKey: String(cliente.fbKey || cliente.id || ''),
-      legacyId: String(cliente.id || cliente.codigo || cliente.fbKey || ''),
-      nombre: String(cliente.nombre || cliente.razonSocial || cliente.empresa || 'Cliente'),
-      sede: String(_clienteCategoriaSede(cliente) || ''),
-      direccion: String(cliente.dir || cliente.direccion || cliente.domicilio || '')
-    };
-  }).filter(function(cliente) {
-    if (!cliente.fbKey || vistos[cliente.fbKey]) return false;
-    vistos[cliente.fbKey] = true;
-    return true;
-  });
-  if (!_credClientesGrupo.length && _credClienteId) {
-    _credClientesGrupo = [{ fbKey:_credClienteId, legacyId:_credClienteLegacyId, nombre:'Cliente', sede:'', direccion:'' }];
-  }
+function credRutaNueva(itemKey) {
+  return 'sisventas/credencialesPorCliente/' + _credClienteId + (itemKey ? '/' + itemKey : '');
 }
-function credEtiquetaDomicilio(cliente) {
-  var titulo = cliente.sede || (cliente.fbKey === _credClienteId ? 'Domicilio principal' : 'Domicilio');
-  return titulo + (cliente.direccion ? ' · ' + cliente.direccion : '');
+function credRutaLegacy(itemKey) {
+  return 'sisventas/credenciales/' + _credClienteLegacyId + (itemKey ? '/' + itemKey : '');
 }
-function credRutaNueva(itemKey, ownerId) {
-  return 'sisventas/credencialesPorCliente/' + String(ownerId || _credClienteId || '') + (itemKey ? '/' + itemKey : '');
-}
-function credRutaLegacy(itemKey, ownerLegacyId) {
-  return 'sisventas/credenciales/' + String(ownerLegacyId || _credClienteLegacyId || '') + (itemKey ? '/' + itemKey : '');
-}
-function credGetGrupo(owner) {
-  owner = owner || { fbKey:_credClienteId, legacyId:_credClienteLegacyId };
-  return window.fbGet(window.fbRef(window.fbDB, credRutaNueva('', owner.fbKey))).then(function(snap) {
+function credGetGrupo() {
+  return window.fbGet(window.fbRef(window.fbDB, credRutaNueva())).then(function(snap) {
     var data = snap.val();
-    if (data) return { data:data, fuente:'nueva', owner:owner };
-    if (!owner.legacyId || owner.legacyId === owner.fbKey) return { data:null, fuente:'nueva', owner:owner };
-    return window.fbGet(window.fbRef(window.fbDB, credRutaLegacy('', owner.legacyId))).then(function(legacySnap) {
-      return { data: legacySnap.val(), fuente:'legacy', owner:owner };
+    if (data) return { data:data, fuente:'nueva' };
+    if (!_credClienteLegacyId || _credClienteLegacyId === _credClienteId) return { data:null, fuente:'nueva' };
+    return window.fbGet(window.fbRef(window.fbDB, credRutaLegacy())).then(function(legacySnap) {
+      return { data: legacySnap.val(), fuente:'legacy' };
     });
   });
 }
-function credGetItem(fbKey, ownerId, ownerLegacyId) {
-  ownerId = String(ownerId || _credClienteId || '');
-  ownerLegacyId = String(ownerLegacyId || _credClienteLegacyId || '');
-  return window.fbGet(window.fbRef(window.fbDB, credRutaNueva(fbKey, ownerId))).then(function(snap) {
+function credGetItem(fbKey) {
+  return window.fbGet(window.fbRef(window.fbDB, credRutaNueva(fbKey))).then(function(snap) {
     var data = snap.val();
     if (data) return { data:data, fuente:'nueva' };
-    if (!ownerLegacyId || ownerLegacyId === ownerId) return { data:null, fuente:'nueva' };
-    return window.fbGet(window.fbRef(window.fbDB, credRutaLegacy(fbKey, ownerLegacyId))).then(function(legacySnap) {
+    if (!_credClienteLegacyId || _credClienteLegacyId === _credClienteId) return { data:null, fuente:'nueva' };
+    return window.fbGet(window.fbRef(window.fbDB, credRutaLegacy(fbKey))).then(function(legacySnap) {
       return { data: legacySnap.val(), fuente:'legacy' };
     });
   });
@@ -44985,24 +44483,17 @@ function credCargar() {
   if (!lista) return;
   lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Cargando...</div>';
   credCerrarEditor();
-  var owners = _credClientesGrupo.length ? _credClientesGrupo : [{ fbKey:_credClienteId, legacyId:_credClienteLegacyId, nombre:'Cliente', sede:'', direccion:'' }];
-  Promise.all(owners.map(credGetGrupo)).then(function(resultados) {
-    var grupos = resultados.filter(function(res){ return res && res.data; });
-    if (!grupos.length) {
+  credGetGrupo().then(function(res) {
+    var data = res.data;
+    if (!data) {
       lista.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin credenciales cargadas para este cliente</div>';
       return;
     }
-    var cantidadTotal = grupos.reduce(function(total,res){ return total + Object.keys(res.data || {}).length; }, 0);
-    lista.innerHTML = '<div style="font-size:12px;color:var(--text3);margin-bottom:2px">'+cantidadTotal+' credencial'+(cantidadTotal===1?'':'es')+' en '+grupos.length+' domicilio'+(grupos.length===1?'':'s')+'</div>' + grupos.map(function(res, grupoIndex) {
-      var owner = res.owner;
-      var items = Object.entries(res.data).map(function(e){ return Object.assign({fbKey:e[0]}, e[1]); });
-      return '<section style="border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;display:flex;flex-direction:column;gap:9px">' +
-        '<div style="display:flex;align-items:center;gap:7px;color:var(--text2);font-size:12px;font-weight:650"><i class="ti ti-map-pin" style="color:var(--blue)"></i>'+escapeHTML(credEtiquetaDomicilio(owner))+'<span class="badge" style="margin-left:auto">'+items.length+'</span></div>' +
-        items.map(function(c, itemIndex) {
+    var items = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]}, e[1]); });
+    lista.innerHTML = items.map(function(c) {
       var ico = CRED_TIPO_ICONOS[c.tipo] || 'ti-key';
       var lbl = CRED_TIPO_LABELS[c.tipo] || c.tipo;
       var puedeEditar = currentRole === 'admin' || currentRole === 'administrativo';
-      var viewId = 'cred-pass-view-' + grupoIndex + '-' + itemIndex;
       return '<div style="background:var(--bg3);border-radius:var(--radius);padding:14px;display:flex;gap:14px;align-items:flex-start">' +
         '<div style="width:36px;height:36px;border-radius:8px;background:var(--blue-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
           '<i class="ti '+ico+'" style="font-size:18px"></i></div>' +
@@ -45013,23 +44504,22 @@ function credCargar() {
             (c.user ? '<div><span style="font-size:10px;color:var(--text3);display:block">Usuario</span><span style="font-size:13px;font-family:monospace">'+escapeHTML(c.user)+'</span></div>' : '') +
             (c.pass ? '<div><span style="font-size:10px;color:var(--text3);display:block">Contraseña</span>' +
               '<div style="display:flex;align-items:center;gap:6px">' +
-                '<span style="font-size:13px;font-family:monospace" id="'+viewId+'">••••••••</span>' +
-                '<button onclick="credMostrarPass(\''+viewId+'\',\''+escapeHTML(c.pass||'').replace(/'/g,"\\'")+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:0" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
+                '<span style="font-size:13px;font-family:monospace" id="cred-pass-view-'+c.fbKey+'">••••••••</span>' +
+                '<button onclick="credMostrarPass(\''+c.fbKey+'\',\''+escapeHTML(c.pass||'').replace(/'/g,"\\'")+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:0" title="Ver"><i class="ti ti-eye" style="font-size:14px"></i></button>' +
               '</div></div>' : '') +
             (c.ip ? '<div><span style="font-size:10px;color:var(--text3);display:block">IP / Dirección</span><span style="font-size:12px;font-family:monospace">'+escapeHTML(c.ip)+(c.puerto?':'+escapeHTML(c.puerto):'')+'</span></div>' : '') +
             ((c.serie || c.numeroSerie || c.serial) ? '<div><span style="font-size:10px;color:var(--text3);display:block">Número de serie</span><span style="font-size:12px;font-family:monospace">'+escapeHTML(c.serie || c.numeroSerie || c.serial)+'</span></div>' : '') +
           '</div>' +
           (c.notas ? '<div style="margin-top:8px;font-size:12px;color:var(--text2);font-style:italic">'+escapeHTML(c.notas)+'</div>' : '') +
         '</div>' +
-        (puedeEditar ? '<button class="btn btn-sm btn-icon" onclick="credAbrirEditor(\''+c.fbKey+'\',\''+escapeHTML(owner.fbKey).replace(/'/g,"\\'")+'\',\''+escapeHTML(owner.legacyId).replace(/'/g,"\\'")+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' : '') +
+        (puedeEditar ? '<button class="btn btn-sm btn-icon" onclick="credAbrirEditor(\''+c.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' : '') +
       '</div>';
-        }).join('') + '</section>';
     }).join('');
   }).catch(function(e){ lista.innerHTML = '<div style="padding:14px;color:var(--red);font-size:12px">Error al cargar: '+e.message+'</div>'; });
 }
 
 function credMostrarPass(key, pass) {
-  var el = document.getElementById(String(key || '').indexOf('cred-pass-view-') === 0 ? key : 'cred-pass-view-' + key);
+  var el = document.getElementById('cred-pass-view-' + key);
   if (!el) return;
   if (el.textContent === '••••••••') {
     el.textContent = pass;
@@ -45037,17 +44527,6 @@ function credMostrarPass(key, pass) {
   } else {
     el.textContent = '••••••••';
   }
-}
-
-function credPoblarDomicilios(selectedId, bloquear) {
-  var select = document.getElementById('cred-domicilio');
-  if (!select) return;
-  var owners = _credClientesGrupo.length ? _credClientesGrupo : [{ fbKey:_credClienteId, legacyId:_credClienteLegacyId, sede:'Domicilio principal', direccion:'' }];
-  select.innerHTML = owners.map(function(owner) {
-    return '<option value="'+escapeHTML(owner.fbKey)+'"'+(String(owner.fbKey)===String(selectedId||'')?' selected':'')+'>'+escapeHTML(credEtiquetaDomicilio(owner))+'</option>';
-  }).join('');
-  if (!select.value && owners[0]) select.value = owners[0].fbKey;
-  select.disabled = !!bloquear;
 }
 
 function credTogglePass() {
@@ -45061,10 +44540,6 @@ function credTogglePass() {
 function credAgregarNueva() {
   if (currentRole !== 'admin' && currentRole !== 'administrativo') { notify('Sin permisos para agregar credenciales'); return; }
   _credEditKey = null;
-  _credEditOwnerId = null;
-  _credEditOwnerLegacyId = null;
-  _credEditFuente = 'nueva';
-  credPoblarDomicilios(_credClienteId, false);
   document.getElementById('hc-cred-editor-titulo').textContent = 'Nueva credencial';
   document.getElementById('cred-tipo').value = 'dvr';
   document.getElementById('cred-desc').value = '';
@@ -45081,15 +44556,11 @@ function credAgregarNueva() {
   document.getElementById('hc-cred-editor').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
-function credAbrirEditor(fbKey, ownerId, ownerLegacyId) {
+function credAbrirEditor(fbKey) {
   if (currentRole !== 'admin' && currentRole !== 'administrativo') return;
   _credEditKey = fbKey;
-  _credEditOwnerId = String(ownerId || _credClienteId || '');
-  _credEditOwnerLegacyId = String(ownerLegacyId || _credClienteLegacyId || '');
-  credPoblarDomicilios(_credEditOwnerId, true);
-  credGetItem(fbKey, _credEditOwnerId, _credEditOwnerLegacyId).then(function(res) {
+  credGetItem(fbKey).then(function(res) {
     var c = res.data; if (!c) return;
-    _credEditFuente = res.fuente || 'nueva';
     document.getElementById('hc-cred-editor-titulo').textContent = 'Editar credencial';
     document.getElementById('cred-tipo').value  = c.tipo  || 'dvr';
     document.getElementById('cred-desc').value  = c.desc  || '';
@@ -45111,11 +44582,6 @@ function credCerrarEditor() {
   var ed = document.getElementById('hc-cred-editor');
   if (ed) ed.style.display = 'none';
   _credEditKey = null;
-  _credEditOwnerId = null;
-  _credEditOwnerLegacyId = null;
-  _credEditFuente = 'nueva';
-  var domicilio = document.getElementById('cred-domicilio');
-  if (domicilio) domicilio.disabled = false;
 }
 
 function credGuardar() {
@@ -45135,13 +44601,10 @@ function credGuardar() {
     ts:      Date.now(),
     editadoPor: currentUser || ''
   };
-  var domicilioEl = document.getElementById('cred-domicilio');
-  var selectedOwnerId = _credEditKey ? _credEditOwnerId : String(domicilioEl && domicilioEl.value || _credClienteId || '');
-  var selectedOwner = _credClientesGrupo.find(function(owner){ return owner.fbKey === selectedOwnerId; }) || { fbKey:selectedOwnerId, legacyId:selectedOwnerId };
-  var path = credRutaNueva(_credEditKey || '', selectedOwner.fbKey);
+  var path = credRutaNueva(_credEditKey || '');
   var op = _credEditKey
     ? window.fbUpdate(window.fbRef(window.fbDB, path), datos)
-    : window.fbPush(window.fbRef(window.fbDB, credRutaNueva('', selectedOwner.fbKey)), datos);
+    : window.fbPush(window.fbRef(window.fbDB, credRutaNueva()), datos);
   op.then(function() {
     notify('✓ Credencial guardada');
     credCerrarEditor();
@@ -45152,10 +44615,7 @@ function credGuardar() {
 async function credEliminar() {
   if (!_credEditKey || !_credClienteId) return;
   if (!await svConfirm('¿Eliminar esta credencial? No se puede deshacer.')) return;
-  var rutaEliminar = _credEditFuente === 'legacy'
-    ? credRutaLegacy(_credEditKey, _credEditOwnerLegacyId)
-    : credRutaNueva(_credEditKey, _credEditOwnerId);
-  window.fbRemove(window.fbRef(window.fbDB, rutaEliminar))
+  window.fbRemove(window.fbRef(window.fbDB, credRutaNueva(_credEditKey)))
     .then(function(){ notify('Credencial eliminada'); credCerrarEditor(); credCargar(); })
     .catch(function(e){ notify('Error: '+e.message); });
 }
@@ -45605,9 +45065,6 @@ function renderDetalleVenta(v) {
       ? '<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="abrirResumenFactura(this.dataset.vid)" data-vid="'+escapeHTML(v.id||v.fbKey||'')+'"><i class="ti ti-file-check"></i> ' + (ventaTieneNotaCreditoActiva(v) ? 'Factura anulada — ver historial' : 'Facturada') + '</button>'
       : '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFactura(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-file-invoice"></i> Facturar</button>'
     ) +
-    (puedeCargarFacturaExterna && (!v.factura || ventaTieneNotaCreditoActiva(v))
-      ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirModalFacturaExterna(this.dataset.vid)" data-vid="'+escapeHTML(v.id||v.fbKey||'')+'"><i class="ti ti-file-upload"></i> Cargar factura externa</button>'
-      : '') +
     (ventaTieneNotaCreditoActiva(v)
       ? '<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="abrirResumenFactura(this.dataset.vid)" data-vid="'+escapeHTML(v.id||v.fbKey||'')+'"><i class="ti ti-file-invoice"></i> Facturar nuevamente</button>'
       : '') +

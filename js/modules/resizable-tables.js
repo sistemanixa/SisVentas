@@ -738,8 +738,8 @@
     table.classList.add('sv-pixel-table');
     table.style.removeProperty('--sv-percent-total-width');
     table.style.setProperty('--sv-pixel-total-width', Object.keys(widths).reduce(function (sum, key) { return sum + widths[key]; }, 0) + 'px');
-    table.style.width = 'var(--sv-pixel-total-width)';
-    table.style.minWidth = table.style.width;
+    table.style.setProperty('width', 'var(--sv-pixel-total-width)', 'important');
+    table.style.setProperty('min-width', 'var(--sv-pixel-total-width)', 'important');
     Object.keys(widths).forEach(function (key) { applyColumnWidth(table, parseInt(key, 10), widths[key]); });
   }
 
@@ -787,8 +787,8 @@
     // explorador de archivos: cambiar una columna no recalcula las vecinas.
     table.classList.add('sv-pixel-table');
     table.style.setProperty('--sv-pixel-total-width', totalWidth + 'px');
-    table.style.width = 'var(--sv-pixel-total-width)';
-    table.style.minWidth = 'var(--sv-pixel-total-width)';
+    table.style.setProperty('width', 'var(--sv-pixel-total-width)', 'important');
+    table.style.setProperty('min-width', 'var(--sv-pixel-total-width)', 'important');
     table.style.tableLayout = 'fixed';
     resolvedWidths.forEach(function (width, index) {
       applyColumnWidth(table, index, width);
@@ -875,10 +875,16 @@
       var startWidths = null;
       var startRenderedTotal = 0;
       var didDrag = false;
+      var lastLivePixelWidth = null;
 
       function applyLivePixelWidth(deltaPx) {
         if (!startWidths || !startWidths.length) return;
         var width = normalizeWidth(startWidths[index] + deltaPx);
+        // Al alcanzar el mínimo, muchos eventos del mouse resuelven al mismo
+        // píxel. No fuerces nuevamente todo el colgroup: ese recálculo hacía
+        // oscilar visualmente el borde aun cuando el ancho ya no cambiaba.
+        if (lastLivePixelWidth === width) return;
+        lastLivePixelWidth = width;
         var deltaReal = width - startWidths[index];
         var colgroup = ensureColgroup(table, totalColumnCount(table));
         startWidths.forEach(function (initialWidth, visibleIndex) {
@@ -889,8 +895,8 @@
         table.classList.add('sv-pixel-table');
         table.style.removeProperty('--sv-percent-total-width');
         table.style.setProperty('--sv-pixel-total-width', Math.max(1, startRenderedTotal + deltaReal) + 'px');
-        table.style.width = 'var(--sv-pixel-total-width)';
-        table.style.minWidth = 'var(--sv-pixel-total-width)';
+        table.style.setProperty('width', 'var(--sv-pixel-total-width)', 'important');
+        table.style.setProperty('min-width', 'var(--sv-pixel-total-width)', 'important');
         table.style.tableLayout = 'fixed';
       }
 
@@ -915,15 +921,23 @@
         }
         if (pendingClientX != null) applyLivePixelWidth(pendingClientX - startX);
         var finalWidths = {};
+        var finalColgroup = ensureColgroup(table, totalColumnCount(table));
         tableHeaders(table).forEach(function (header, visibleIndex) {
-          finalWidths[visibleIndex] = Math.round(header.getBoundingClientRect().width);
+          var physicalIndex = physicalIndexForVisibleIndex(table, visibleIndex);
+          var col = finalColgroup.children[physicalIndex];
+          var declaredWidth = col ? parseFloat(col.style.width || '') : 0;
+          // Guardá el ancho declarado, no el ancho renderizado. Si la tabla
+          // todavía conserva unos píxeles sobrantes, getBoundingClientRect()
+          // ya los trae redistribuidos y termina agrandando las otras columnas.
+          finalWidths[visibleIndex] = normalizeWidth(declaredWidth || header.getBoundingClientRect().width);
         });
         savePercentages(table, {});
         saveWidths(table, finalWidths);
         table.classList.remove('sv-percent-table');
         table.style.removeProperty('--sv-percent-total-width');
-        table.style.width = Object.keys(finalWidths).reduce(function (sum, key) { return sum + finalWidths[key]; }, 0) + 'px';
-        table.style.minWidth = table.style.width;
+        var finalTableWidth = Object.keys(finalWidths).reduce(function (sum, key) { return sum + finalWidths[key]; }, 0) + 'px';
+        table.style.setProperty('width', finalTableWidth, 'important');
+        table.style.setProperty('min-width', finalTableWidth, 'important');
         if (didDrag) table.dataset.svSuppressHeaderClickUntil = String(Date.now() + 350);
         document.body.classList.remove('sv-resizing-columns');
         document.removeEventListener('mousemove', onMouseMove);
@@ -952,6 +966,7 @@
         startTableWidth = Math.max(1, table.getBoundingClientRect().width);
         startRenderedTotal = startTableWidth;
         startWidths = tableHeaders(table).map(function (header) { return Math.max(1, header.getBoundingClientRect().width); });
+        lastLivePixelWidth = Math.round(startWidths[index]);
         startPercentages = percentagesFromRenderedLayout(table);
         livePercentages = Object.assign({}, startPercentages);
         neighborIndex = adjacentColumnIndex(table, index);
@@ -1118,8 +1133,8 @@
       table.classList.add('sv-pixel-table');
       table.style.removeProperty('--sv-percent-total-width');
       table.style.setProperty('--sv-pixel-total-width', total + 'px');
-      table.style.width = 'var(--sv-pixel-total-width)';
-      table.style.minWidth = 'var(--sv-pixel-total-width)';
+      table.style.setProperty('width', 'var(--sv-pixel-total-width)', 'important');
+      table.style.setProperty('min-width', 'var(--sv-pixel-total-width)', 'important');
       table.style.tableLayout = 'fixed';
       widths.forEach(function (width, index) { applyColumnWidth(table, index, width); });
       applyAlignments(table, readAlignments());
@@ -1136,8 +1151,8 @@
       initialWidths.forEach(function (width, index) { applyColumnWidth(table, index, width); });
       var total = initialWidths.reduce(function (sum, width) { return sum + width; }, 0);
       table.style.setProperty('--sv-pixel-total-width', total + 'px');
-      table.style.width = 'var(--sv-pixel-total-width)';
-      table.style.minWidth = 'var(--sv-pixel-total-width)';
+      table.style.setProperty('width', 'var(--sv-pixel-total-width)', 'important');
+      table.style.setProperty('min-width', 'var(--sv-pixel-total-width)', 'important');
       applyAlignments(table, savedAlignments);
     }
     overlay.addEventListener('input', function (event) {

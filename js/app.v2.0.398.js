@@ -4410,9 +4410,6 @@ function renderTablaEmpleados() {
       '<td style="font-size:12px;color:var(--text3)">'+escapeHTML(e.fechaIngreso||'—')+'</td>' +
       '<td style="text-align:right">'+estadoBadge+'</td>' +
       '<td style="white-space:nowrap" onclick="event.stopPropagation()">' +
-        '<button class="btn btn-sm btn-icon" onclick="editarEmpleado(\''+e.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>' +
-        '<button class="btn btn-sm btn-icon" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')" title="Ver legajo"><i class="ti ti-id-badge" style="font-size:14px"></i></button>' +
-        (currentRole === 'admin' ? '<button class="btn btn-sm btn-icon" onclick="abrirAdelantoEmpleadoDesdeEmpleados(\''+e.fbKey+'\')" title="Cargar adelanto"><i class="ti ti-cash" style="font-size:14px;color:var(--amber)"></i></button>' : '') +
         (currentRole === 'admin' ? '<button class="btn btn-sm btn-icon" onclick="abrirCuentaEmpleadoDesdeEmpleados(\''+e.fbKey+'\')" title="Ver cuenta y movimientos"><i class="ti ti-wallet" style="font-size:14px;color:var(--green)"></i></button>' : '') +
         '<button class="btn btn-sm btn-icon" onclick="eliminarEmpleado(\''+e.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>' +
       '</td>' +
@@ -11371,7 +11368,7 @@ window._desactivarCierreSesionAdmin = false;
 function sesionAdminSinCierrePorInactividad() {
   return isAuthenticated && String(currentRole || '').toLowerCase() === 'admin' && window._desactivarCierreSesionAdmin === true;
 }
-const titles = {dashboard:'Dashboard',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',kits:'Kits',actualizadorprecios:'Actualizador de precios',empleados:'Empleados',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Comprobantes ARCA',facturas:'Facturas',tesoreria:'Tesorería'};
+const titles = {dashboard:'Dashboard',asistente:'Asistente de ventas',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',kits:'Kits',actualizadorprecios:'Actualizador de precios',empleados:'Empleados',vacaciones:'Vacaciones',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Comprobantes ARCA',facturas:'Facturas',tesoreria:'Tesorería'};
 
 let sessionTimer = null, sessionStart = null, tiempoUI = null;
 
@@ -21156,19 +21153,20 @@ function calcularRentabilidadCanonica(rango, ventasFuente, gastosFuente) {
   };
 }
 
-// Normaliza cualquier fecha (DD/MM/YYYY o YYYY-MM-DD) a DD/MM/YYYY para mostrar
+// Normaliza cualquier fecha almacenada (DD/MM/YYYY o YYYY-MM-DD) al formato
+// visual único del sistema: DD-MM-YYYY. Esto no modifica el valor persistido.
 function _mostrarFecha(f) {
   if (!f) return '—';
   // Quitar hora si viene pegada (ej: "25/06/2026 01:30" o "2026-06-25T01:30")
   var clean = String(f).trim().replace(/[T ].*$/, '').trim();
   if (clean.indexOf('/') !== -1) {
     var p = clean.split('/');
-    if (p.length === 3) return p[0].padStart(2,'0') + '/' + p[1].padStart(2,'0') + '/' + p[2].slice(0,4);
+    if (p.length === 3) return p[0].padStart(2,'0') + '-' + p[1].padStart(2,'0') + '-' + p[2].slice(0,4);
     return clean;
   }
   if (clean.indexOf('-') !== -1) {
     var q = clean.split('-');
-    if (q.length === 3) return q[2].padStart(2,'0') + '/' + q[1].padStart(2,'0') + '/' + q[0];
+    if (q.length === 3) return q[2].padStart(2,'0') + '-' + q[1].padStart(2,'0') + '-' + q[0];
     return clean;
   }
   return clean;
@@ -22317,7 +22315,7 @@ async function elimPago(fbKey) {
 function _cobroMontoHistorialHTML(p) {
   var montoARS = parseFloat(p && p.monto) || 0;
   var esUSD = String((p && p.moneda)||'').toUpperCase() === 'USD' || parseFloat(p && p.montoUSD) > 0;
-  var principal = '$' + montoARS.toLocaleString('es-AR',{maximumFractionDigits:2});
+  var principal = '$' + montoARS.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
   if (!esUSD) return '<span style="color:var(--green);font-weight:500">' + principal + '</span>';
   var montoUSD = parseFloat(p.montoUSD || p.montoOriginal) || 0;
   var tc = parseFloat(p.tipoCambio) || 0;
@@ -22359,7 +22357,7 @@ function _cobroSaldoRestanteHistorialHTML(p, listaOrdenada, indice) {
   var saldo = _cobroSaldoRestanteHistorial(p, listaOrdenada, indice);
   if (saldo == null) return '<span style="color:var(--text3)">—</span>';
   return '<span style="font-weight:600;color:' + (saldo <= .01 ? 'var(--green)' : 'var(--amber)') + '">$' +
-    saldo.toLocaleString('es-AR',{maximumFractionDigits:2}) + '</span>';
+    saldo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</span>';
 }
 
 function fbCargarPagos() {
@@ -22391,10 +22389,10 @@ function fbCargarPagos() {
         var ventaLink = (p.venta && !p.anulado) ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();irAVentaDesdeCobranza(\''+escapeHTML(p.venta)+'\');" title="Ver venta"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></button>' : '—';
         var _ed = p.fbKey && !p.anulado ? '<button class="btn btn-sm btn-icon" onclick="anularPago(\''+p.fbKey+'\')" title="Anular cobro" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-ban" style="font-size:13px"></i></button>' : '';
         var trStyle = p.anulado ? 'background:rgba(239,68,68,.08);opacity:.7' : '';
-        var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR')+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : _cobroMontoHistorialHTML(p);
+        var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : _cobroMontoHistorialHTML(p);
         var saldoStr = _cobroSaldoRestanteHistorialHTML(p, lista, idx);
         var reciboBtn = p.anulado ? '' : '<button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>';
-        return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" data-medio="'+escapeHTML(p.medio||'')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(p.fecha||'—')+'</td><td>'+escapeHTML(formatoMedioPago(p.medio||'—'))+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+saldoStr+'</td><td style="text-align:right;white-space:nowrap"><div style="display:flex;justify-content:flex-end;gap:4px">'+ventaLink+reciboBtn+_ed+'</div></td></tr>';
+        return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" data-medio="'+escapeHTML(p.medio||'')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(p.cliente||'—')+'</td><td style="color:var(--text3)">'+escapeHTML(_mostrarFecha(p.fecha||''))+'</td><td>'+escapeHTML(formatoMedioPago(p.medio||'—'))+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+saldoStr+'</td><td style="text-align:right;white-space:nowrap"><div style="display:flex;justify-content:flex-end;gap:4px">'+ventaLink+reciboBtn+_ed+'</div></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
     }
@@ -22414,7 +22412,7 @@ function fbCargarPagos() {
       var ccLista = Object.entries(ccMap).filter(function(e){ return e[1].total>0; }).sort(function(a,b){ return (b[1].total-b[1].cobrado)-(a[1].total-a[1].cobrado); });
       ccTbody.innerHTML = ccLista.length ? ccLista.map(function(e){
         var key=e[0],nom=e[0],d=e[1]; if(d && d.nombre) nom=d.nombre; var saldo=d.total-d.cobrado;
-        return '<tr class="ccrow" data-saldo="'+saldo+'" data-cliente-key="'+escapeHTML(key)+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(key).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
+        return '<tr class="ccrow" data-saldo="'+saldo+'" data-cliente-key="'+escapeHTML(key)+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(key).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+d.total.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td style="text-align:right;color:var(--green)">$'+d.cobrado.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+saldo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago === '—' ? '—' : _mostrarFecha(d.ultimoPago))+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
         return '<tr class="ccrow" data-saldo="'+saldo+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(nom).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
       setTimeout(function(){ buscarCC((document.getElementById('cc-buscador')||{}).value||''); }, 0);
@@ -26275,12 +26273,60 @@ function abrirComprobanteMovEmp(movFbKey, idx) {
   abrirVisorComprobanteSistema(comp, 'Comprobante de pago del empleado');
 }
 
+function abrirModalAdelantoGeneral() {
+  if (String(currentRole || '').toLowerCase() !== 'admin') {
+    notify('Solo un administrador puede registrar adelantos');
+    return;
+  }
+  var anterior = document.getElementById('modal-adelanto-general');
+  if (anterior) anterior.remove();
+  var empleados = Object.values(empData || {}).filter(function(emp) {
+    return emp && emp.activo !== false && String(emp.estado || 'Activo').toLowerCase() !== 'inactivo';
+  }).sort(function(a, b) {
+    return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
+  });
+  if (!empleados.length) {
+    notify('No hay empleados activos para seleccionar');
+    return;
+  }
+  var modal = document.createElement('div');
+  modal.id = 'modal-adelanto-general';
+  modal.className = 'modal-overlay open';
+  modal.style.zIndex = '722';
+  modal.innerHTML = '<div class="modal" style="width:520px;max-width:94vw">' +
+    '<div class="modal-head"><div><span class="modal-title"><i class="ti ti-cash-banknote" style="color:var(--amber)"></i> Cargar adelanto</span>' +
+    '<div style="font-size:12px;color:var(--text3);margin-top:4px">Elegí a qué empleado se le registrará el adelanto.</div></div>' +
+    '<button class="icon-btn" onclick="cerrarModalAdelantoGeneral()" aria-label="Cerrar"><i class="ti ti-x"></i></button></div>' +
+    '<div class="fg"><label for="adelanto-general-empleado">Empleado</label><select id="adelanto-general-empleado">' +
+    '<option value="">— Seleccionar —</option>' + empleados.map(function(emp) {
+      return '<option value="' + escapeHTML(emp.fbKey || '') + '">' + escapeHTML(emp.nombre || 'Sin nombre') + '</option>';
+    }).join('') + '</select></div>' +
+    '<div class="flex-end" style="margin-top:18px"><button class="btn" onclick="cerrarModalAdelantoGeneral()">Cancelar</button>' +
+    '<button class="btn btn-primary" onclick="continuarAdelantoGeneral()"><i class="ti ti-arrow-right"></i> Continuar</button></div></div>';
+  modal.addEventListener('click', function(event) { if (event.target === modal) cerrarModalAdelantoGeneral(); });
+  document.body.appendChild(modal);
+  setTimeout(function() { var selector = document.getElementById('adelanto-general-empleado'); if (selector) selector.focus(); }, 0);
+}
+
+function cerrarModalAdelantoGeneral() {
+  var modal = document.getElementById('modal-adelanto-general');
+  if (modal) modal.remove();
+}
+
+function continuarAdelantoGeneral() {
+  var selector = document.getElementById('adelanto-general-empleado');
+  var empFbKey = String((selector || {}).value || '');
+  if (!empFbKey) { notify('Seleccioná el empleado'); return; }
+  cerrarModalAdelantoGeneral();
+  abrirAdelantoEmpleadoDesdeEmpleados(empFbKey);
+}
+
 function abrirAdelantoEmpleadoDesdeEmpleados(empFbKey) {
   if (String(currentRole || '').toLowerCase() !== 'admin') {
     notify('Solo un administrador puede registrar adelantos');
     return;
   }
-  var emp = (empleadosData || []).find(function(item) { return item.fbKey === empFbKey; });
+  var emp = (empleadosData || []).find(function(item) { return item.fbKey === empFbKey; }) || Object.values(empData || {}).find(function(item) { return item.fbKey === empFbKey; });
   if (!emp) {
     notify('No se encontró el empleado seleccionado');
     return;
@@ -43389,7 +43435,7 @@ function renderKPIsDashboard(forzar) {
           '<td style="text-align:right;color:var(--text3)">$' + iva.toLocaleString('es-AR') + '</td>' +
           '<td style="text-align:right;font-weight:600">$' + total.toLocaleString('es-AR') + '</td>' +
           '<td style="text-align:right;touch-action:pan-x pan-y">' + estadoLbl + '</td>' +
-          '<td style="touch-action:pan-x pan-y"><button class="btn btn-sm btn-icon" style="touch-action:pan-x pan-y" onclick="event.stopPropagation();verDetalleVentaDesdeId(\'' + vid + '\')" title="Ver detalle completo"><i class="ti ti-arrow-right" style="font-size:14px"></i></button></td>' +
+          '<td style="touch-action:pan-x pan-y"><button class="btn btn-sm btn-icon" style="touch-action:pan-x pan-y" onclick="event.stopPropagation();verDetalleVentaDesdeId(\'' + vid + '\')" title="Ver detalle completo" aria-label="Ver detalle completo"><i class="ti ti-arrow-right" style="font-size:14px"></i></button></td>' +
         '</tr>';
       }).join('');
     } else {
@@ -44659,7 +44705,7 @@ function renderDetalleVenta(v) {
     // Productos
     '<div class="card" style="margin-bottom:12px">' +
       '<div class="card-head" style="margin-bottom:12px"><span class="card-title" style="font-weight:600">Productos / Servicios</span>' +
-        (currentRole === 'admin' ? '<div class="sv-card-head-actions"><button class="btn btn-sm" onclick="toggleCostoCompraDetalleVenta()" title="Muestra u oculta la columna de precio de compra" style="gap:6px;color:var(--amber);border-color:var(--amber)"><i class="ti ' + (window._mostrarCostoCompraDetalleVenta ? 'ti-eye-off' : 'ti-eye') + '"></i> ' + (window._mostrarCostoCompraDetalleVenta ? 'Ocultar valores de compra' : 'Ver valores de compra') + '</button><button class="btn btn-sm admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor(\'venta-detalle-productos-tabla\')" title="Configurar ancho y alineación de columnas"><i class="ti ti-columns"></i> Columnas %</button></div>' : '') +
+        (currentRole === 'admin' ? '<div class="sv-card-head-actions"><button class="btn btn-sm" onclick="toggleCostoCompraDetalleVenta()" title="Muestra u oculta la columna de precio de compra" style="gap:6px;color:var(--amber);border-color:var(--amber)"><i class="ti ' + (window._mostrarCostoCompraDetalleVenta ? 'ti-eye-off' : 'ti-eye') + '"></i> ' + (window._mostrarCostoCompraDetalleVenta ? 'Ocultar valores de compra' : 'Ver valores de compra') + '</button><button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor(\'venta-detalle-productos-tabla\')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button></div>' : '') +
       '</div>' +
       (items.length
         ? '<table id="venta-detalle-productos-tabla" style="width:100%;border-collapse:collapse">' +
@@ -45389,7 +45435,7 @@ function renderVentasTabla(lista, resolverEstadoPago) {
     <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(v.cliente)}</td>
     <td title="${escapeHTML(observacion)}" style="max-width:220px;color:${observacion ? 'var(--text2)' : 'var(--text3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${observacion ? escapeHTML(observacion) : '—'}</td>
     <td style="color:var(--text3);white-space:nowrap">${_mostrarFecha(v.fecha)}</td>
-    <td class="tr" style="font-weight:500;white-space:nowrap">$${(parseFloat(v.total)||0).toLocaleString('es-AR')}</td>
+    <td class="tr" style="font-weight:500;white-space:nowrap">$${(parseFloat(v.total)||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
     <td class="tr" style="white-space:nowrap">${ventaEstadoBadge(typeof resolverEstadoPago === 'function' ? resolverEstadoPago(v) : estadoPagoEfectivoVenta(v))}</td>
     <td class="tr" style="white-space:nowrap">${ventaEstadoInstBadge(v.estadoInst)}</td>
     <td style="text-align:center;white-space:nowrap">

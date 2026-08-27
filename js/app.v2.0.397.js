@@ -11159,8 +11159,11 @@ function prepararAccionesGrilla(tablaRef) {
   tabla.querySelectorAll('tbody tr').forEach(function(fila) {
     var celda = fila.cells && fila.cells[indiceAcciones];
     if (!celda || celda.dataset.svActionsReady === '1') return;
-    var controles = Array.from(celda.children).filter(function(el) {
-      return el.matches && el.matches('button,a,[role="button"]');
+    // Algunas grillas agrupan sus controles dentro de un contenedor. Tomar
+    // todas las acciones reales de la celda permite aplicar el mismo patrón
+    // visual sin obligar a cada módulo a construir un HTML diferente.
+    var controles = Array.from(celda.querySelectorAll('button,a,[role="button"]')).filter(function(el) {
+      return !el.classList.contains('sv-grid-actions-trigger') && !el.closest('.sv-grid-actions-menu');
     });
     controles.forEach(function(control) {
       var etiquetaControl = String(control.getAttribute('aria-label') || control.title || control.textContent || '').trim();
@@ -17564,8 +17567,8 @@ function renderTablaProveedoresProducto() {
       '<td class="pf-provider-url" data-label="URL del producto" style="padding:6px 4px"><input type="url" value="'+escapeHTML(pv.url||'')+'" placeholder="https://proveedor.com/producto..." oninput="actualizarProveedorProducto('+i+',\'url\',this.value)" style="width:100%;min-width:150px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:12px;font-family:inherit;color:var(--blue)"></td>' +
       '<td class="pf-provider-date" data-label="Actualizado" style="padding:6px 4px;text-align:center;font-size:11px;white-space:nowrap"><div class="pf-provider-mainline" style="color:'+colorFechaPv+';font-weight:600">' + fechaPv + '</div>' + (origenPv ? '<span class="pf-provider-secondary" title="Origen técnico: '+escapeHTML(pv.actualizadoOrigen||'')+'" style="font-size:10px;color:var(--text3)">'+escapeHTML(origenPv)+'</span>' : '') + (esMasBarato ? '<span class="pf-provider-secondary badge b-green" style="font-size:9px">+ económico</span>' : '') + '</td>' +
       '<td class="pf-provider-actions" data-label="Acciones" style="padding:6px 4px;text-align:right;white-space:nowrap"><div class="pf-provider-mainline">' +
-        (pv.url ? '<a href="'+escapeHTML(pv.url)+'" target="_blank" class="btn btn-sm btn-icon" title="Abrir en proveedor"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></a>' : '') +
-        '<button class="btn btn-sm btn-icon" onclick="quitarFilaProveedor('+i+')" title="Quitar"><i class="ti ti-trash" style="font-size:14px;color:var(--red)"></i></button>' +
+        (pv.url ? '<a href="'+escapeHTML(pv.url)+'" target="_blank" class="btn btn-sm btn-icon" title="Abrir en proveedor"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i><span class="sv-mobile-action-label">Abrir</span></a>' : '') +
+        '<button class="btn btn-sm btn-icon" onclick="quitarFilaProveedor('+i+')" title="Quitar"><i class="ti ti-trash" style="font-size:14px;color:var(--red)"></i><span class="sv-mobile-action-label">Quitar</span></button>' +
       '</div></td>';
     tbl.appendChild(tr);
     initMoneyInputsEn(tr);
@@ -24246,7 +24249,13 @@ function cargarConfigGeneral() {
 var _logoFileEmpresa = null;
 var _logoCropOriginal = '';
 var _logoCropImage = null;
-var _logoCropState = { scale:1, x:0, y:0 };
+var _logoCropState = { mode:'fixed', scale:1, x:0, y:0, width:100, height:100 };
+var _logoPrintCropOriginal = '';
+var _logoPrintCropImage = null;
+var _logoPrintCropState = { mode:'fixed', scale:1, x:0, y:0, width:100, height:100 };
+var _logoBackgroundUndo = { system:'', print:'' };
+var _logoBackgroundPreviewTimers = { system:null, print:null };
+var _logoBackgroundPreviewSeq = { system:0, print:0 };
 var LOGO_CROP_W = 560;
 var LOGO_CROP_H = 360;
 
@@ -24315,6 +24324,9 @@ function _optimizarLogoImpresion(dataUrl) {
 async function previewLogoImpresion(input) {
   var archivo = input && input.files && input.files[0];
   if (!archivo) return;
+  _logoBackgroundUndo.print = '';
+  var undoPrint = document.getElementById('cfg-logo-print-bg-undo');
+  if (undoPrint) undoPrint.style.display = 'none';
   if (archivo.size > 2 * 1024 * 1024) { notify('El logo no puede superar 2MB'); input.value = ''; return; }
   var estado = document.getElementById('cfg-logo-print-status');
   try {
@@ -24325,7 +24337,20 @@ async function previewLogoImpresion(input) {
       lector.onerror = function() { reject(new Error('No se pudo leer el archivo')); };
       lector.readAsDataURL(archivo);
     });
-    window._logoImpresionPendiente = await _optimizarLogoImpresion(original);
+    _logoPrintCropOriginal = original;
+    _logoPrintCropImage = await new Promise(function(resolve, reject) {
+      var imagen = new Image();
+      imagen.onload = function() { resolve(imagen); };
+      imagen.onerror = function() { reject(new Error('No se pudo leer la imagen')); };
+      imagen.src = original;
+    });
+    var cropImage = document.getElementById('cfg-logo-print-crop-img');
+    var cropper = document.getElementById('cfg-logo-print-cropper');
+    if (cropImage) cropImage.src = original;
+    if (cropper) cropper.style.display = 'block';
+    _logoPrintCropState.mode = 'fixed';
+    resetLogoPrintCrop();
+    window._logoImpresionPendiente = renderLogoPrintCropToDataUrl(0.92);
     var img = document.getElementById('cfg-logo-print-img');
     var placeholder = document.getElementById('cfg-logo-print-placeholder');
     var guardar = document.getElementById('cfg-logo-print-save-btn');
@@ -24340,7 +24365,7 @@ async function previewLogoImpresion(input) {
 }
 
 async function guardarLogoImpresion() {
-  var url = window._logoImpresionPendiente || '';
+  var url = renderLogoPrintCropToDataUrl(0.92) || window._logoImpresionPendiente || '';
   if (!url) return;
   var estado = document.getElementById('cfg-logo-print-status');
   if (estado) estado.textContent = 'Guardando...';
@@ -24355,6 +24380,8 @@ async function guardarLogoImpresion() {
     try { localStorage.setItem('nixa_logo_print', url); } catch (_) {}
     var guardar = document.getElementById('cfg-logo-print-save-btn');
     if (guardar) guardar.style.display = 'none';
+    var cropper = document.getElementById('cfg-logo-print-cropper');
+    if (cropper) cropper.style.display = 'none';
     if (estado) estado.textContent = 'Logo de impresión guardado ✓';
     actualizarPanelLogoImpresion();
     notify('Logo para impresiones guardado ✓');
@@ -24388,18 +24415,170 @@ function aplicarLogoSistema(url) {
   if (loginLogo) loginLogo.src = src;
 }
 
+function _cargarImagenLogo(dataUrl) {
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    img.onload = function() { resolve(img); };
+    img.onerror = function() { reject(new Error('No se pudo procesar la imagen')); };
+    img.src = dataUrl;
+  });
+}
+
+function previsualizarFondoLogo(tipo) {
+  clearTimeout(_logoBackgroundPreviewTimers[tipo]);
+  _logoBackgroundPreviewTimers[tipo] = setTimeout(function() { quitarFondoLogo(tipo, true); }, 120);
+}
+
+async function quitarFondoLogo(tipo, silencioso) {
+  var secuencia = ++_logoBackgroundPreviewSeq[tipo];
+  var esImpresion = tipo === 'print';
+  var imagen = esImpresion ? _logoPrintCropImage : _logoCropImage;
+  var original = esImpresion ? _logoPrintCropOriginal : _logoCropOriginal;
+  var toleranciaEl = document.getElementById(esImpresion ? 'cfg-logo-print-bg-tolerance' : 'cfg-logo-bg-tolerance');
+  var tolerancia = Math.max(10, Math.min(100, Number(toleranciaEl && toleranciaEl.value || 42)));
+  if (!imagen || !original) { notify('Primero cargá una imagen'); return; }
+  try {
+    // Cada cálculo parte del archivo original. Así mover varias veces la
+    // tolerancia no acumula pérdidas ni degrada los bordes del logo.
+    imagen = await _cargarImagenLogo(original);
+    var limite = 1600;
+    var escala = Math.min(1, limite / imagen.naturalWidth, limite / imagen.naturalHeight);
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(imagen.naturalWidth * escala));
+    canvas.height = Math.max(1, Math.round(imagen.naturalHeight * escala));
+    var ctx = canvas.getContext('2d', { willReadFrequently:true });
+    ctx.drawImage(imagen, 0, 0, canvas.width, canvas.height);
+    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var data = imageData.data;
+    var w = canvas.width, h = canvas.height;
+    var corners = [0, (w-1)*4, ((h-1)*w)*4, ((h*w)-1)*4];
+    var bg = [0,0,0,0];
+    corners.forEach(function(i){ bg[0]+=data[i]; bg[1]+=data[i+1]; bg[2]+=data[i+2]; bg[3]+=data[i+3]; });
+    bg = bg.map(function(v){ return v / corners.length; });
+    if (bg[3] < 20) { notify('La imagen ya tiene fondo transparente'); return; }
+    var visited = new Uint8Array(w*h);
+    var queue = new Int32Array(w*h);
+    var head = 0, tail = 0;
+    function add(index) { if (index >= 0 && index < w*h && !visited[index]) { visited[index]=1; queue[tail++]=index; } }
+    add(0); add(w-1); add((h-1)*w); add(w*h-1);
+    // La transparencia es binaria para no apagar ni desteñir el logo: un
+    // píxel pertenece al fondo o conserva exactamente su color y opacidad.
+    var limiteColor = tolerancia;
+    while (head < tail) {
+      var p = queue[head++];
+      var o = p*4;
+      var diferencia = Math.sqrt(Math.pow(data[o]-bg[0],2)+Math.pow(data[o+1]-bg[1],2)+Math.pow(data[o+2]-bg[2],2));
+      if (diferencia > limiteColor) continue;
+      data[o+3] = 0;
+      var x = p % w;
+      if (x > 0) add(p-1);
+      if (x < w-1) add(p+1);
+      if (p >= w) add(p-w);
+      if (p < w*(h-1)) add(p+w);
+    }
+    // Segunda pasada: limpia fondos encerrados dentro de letras o símbolos.
+    // Esos píxeles no están conectados con las esquinas, pero comparten el
+    // mismo color de fondo y deben quedar transparentes igualmente.
+    for (var interior = 0; interior < w*h; interior++) {
+      var io = interior*4;
+      if (data[io+3] === 0) continue;
+      var diferenciaInterior = Math.sqrt(Math.pow(data[io]-bg[0],2)+Math.pow(data[io+1]-bg[1],2)+Math.pow(data[io+2]-bg[2],2));
+      if (diferenciaInterior <= tolerancia) data[io+3] = 0;
+    }
+    ctx.putImageData(imageData, 0, 0);
+    var resultado = canvas.toDataURL('image/png');
+    if (secuencia !== _logoBackgroundPreviewSeq[tipo]) return;
+    if (!_logoBackgroundUndo[tipo]) _logoBackgroundUndo[tipo] = original;
+    var procesada = await _cargarImagenLogo(resultado);
+    var undo = document.getElementById(esImpresion ? 'cfg-logo-print-bg-undo' : 'cfg-logo-bg-undo');
+    if (undo) undo.style.display = '';
+    if (esImpresion) {
+      _logoPrintCropImage = procesada;
+      var cropPrint = document.getElementById('cfg-logo-print-crop-img');
+      if (cropPrint) cropPrint.src = resultado;
+      updateLogoPrintCropPreview();
+    } else {
+      _logoCropImage = procesada;
+      var cropSystem = document.getElementById('cfg-logo-crop-img');
+      if (cropSystem) cropSystem.src = resultado;
+      updateLogoCropPreview();
+    }
+    if (!silencioso) notify('Fondo eliminado · revisá el resultado antes de guardar');
+  } catch (error) {
+    console.error('[Logo] No se pudo quitar el fondo', error);
+    notify('No se pudo quitar el fondo de esta imagen');
+  }
+}
+
+async function deshacerFondoLogo(tipo) {
+  var original = _logoBackgroundUndo[tipo];
+  if (!original) return;
+  var imagen = await _cargarImagenLogo(original);
+  var esImpresion = tipo === 'print';
+  if (esImpresion) {
+    _logoPrintCropImage = imagen;
+    var cropPrint = document.getElementById('cfg-logo-print-crop-img');
+    if (cropPrint) cropPrint.src = original;
+    updateLogoPrintCropPreview();
+  } else {
+    _logoCropImage = imagen;
+    var cropSystem = document.getElementById('cfg-logo-crop-img');
+    if (cropSystem) cropSystem.src = original;
+    updateLogoCropPreview();
+  }
+  _logoBackgroundUndo[tipo] = '';
+  var undo = document.getElementById(esImpresion ? 'cfg-logo-print-bg-undo' : 'cfg-logo-bg-undo');
+  if (undo) undo.style.display = 'none';
+  notify('Se restauró la imagen original');
+}
+
 function updateLogoCropPreview() {
   var cropImg = document.getElementById('cfg-logo-crop-img');
   if (!cropImg || !_logoCropImage) return;
-  var cover = Math.max(LOGO_CROP_W / _logoCropImage.naturalWidth, LOGO_CROP_H / _logoCropImage.naturalHeight);
+  if (_logoCropState.mode === 'free') {
+    cropImg.style.width = '100%';
+    cropImg.style.height = '100%';
+    cropImg.style.objectFit = 'contain';
+    cropImg.style.transform = 'translate(-50%, -50%)';
+    var selection = document.getElementById('cfg-logo-crop-selection');
+    if (selection) {
+      var sw = Math.max(10, _logoCropState.width);
+      var sh = Math.max(10, _logoCropState.height);
+      var left = ((100 - sw) / 2) + ((_logoCropState.x / 100) * ((100 - sw) / 2));
+      var top = ((100 - sh) / 2) + ((_logoCropState.y / 100) * ((100 - sh) / 2));
+      selection.style.display = 'block';
+      selection.style.width = sw + '%';
+      selection.style.height = sh + '%';
+      selection.style.left = left + '%';
+      selection.style.top = top + '%';
+    }
+    var freePrev = document.getElementById('cfg-logo-img');
+    if (freePrev) {
+      freePrev.src = renderLogoCropToDataUrl(0.86);
+      freePrev.style.display = 'block';
+      freePrev.style.width = '100%';
+      freePrev.style.height = '100%';
+      freePrev.style.maxWidth = 'none';
+      freePrev.style.maxHeight = 'none';
+      freePrev.style.objectFit = 'contain';
+    }
+    return;
+  }
+  var fixedSelection = document.getElementById('cfg-logo-crop-selection');
+  if (fixedSelection) fixedSelection.style.display = 'none';
+  cropImg.style.objectFit = '';
+  var cover = Math.min(LOGO_CROP_W / _logoCropImage.naturalWidth, LOGO_CROP_H / _logoCropImage.naturalHeight);
   var w = _logoCropImage.naturalWidth * cover * _logoCropState.scale;
   var h = _logoCropImage.naturalHeight * cover * _logoCropState.scale;
-  var maxX = Math.max(0, (w - LOGO_CROP_W) / 2);
-  var maxY = Math.max(0, (h - LOGO_CROP_H) / 2);
-  var px = (_logoCropState.x / 100) * maxX;
-  var py = (_logoCropState.y / 100) * maxY;
-  cropImg.style.width = w + 'px';
-  cropImg.style.height = h + 'px';
+  var maxX = Math.abs(w - LOGO_CROP_W) / 2;
+  var maxY = Math.abs(h - LOGO_CROP_H) / 2;
+  var stage = document.getElementById('cfg-logo-crop-stage');
+  var scaleX = stage && stage.clientWidth ? stage.clientWidth / LOGO_CROP_W : 1;
+  var scaleY = stage && stage.clientHeight ? stage.clientHeight / LOGO_CROP_H : scaleX;
+  var px = (_logoCropState.x / 100) * maxX * scaleX;
+  var py = (_logoCropState.y / 100) * maxY * scaleY;
+  cropImg.style.width = (w * scaleX) + 'px';
+  cropImg.style.height = (h * scaleY) + 'px';
   cropImg.style.transform = 'translate(calc(-50% + '+px+'px), calc(-50% + '+py+'px))';
   var prev = document.getElementById('cfg-logo-img');
   if (prev) {
@@ -24409,7 +24588,7 @@ function updateLogoCropPreview() {
     prev.style.height = '100%';
     prev.style.maxWidth = 'none';
     prev.style.maxHeight = 'none';
-    prev.style.objectFit = 'cover';
+    prev.style.objectFit = 'contain';
   }
 }
 
@@ -24417,35 +24596,167 @@ function updateLogoCropFromControls() {
   var z = document.getElementById('cfg-logo-crop-zoom');
   var x = document.getElementById('cfg-logo-crop-x');
   var y = document.getElementById('cfg-logo-crop-y');
+  var width = document.getElementById('cfg-logo-crop-width');
+  var height = document.getElementById('cfg-logo-crop-height');
   _logoCropState.scale = Math.max(1, Number(z && z.value || 1));
   _logoCropState.x = Number(x && x.value || 0);
   _logoCropState.y = Number(y && y.value || 0);
+  _logoCropState.width = Number(width && width.value || 100);
+  _logoCropState.height = Number(height && height.value || 100);
+  updateLogoCropPreview();
+}
+
+function renderLogoPrintCropToDataUrl(quality) {
+  if (!_logoPrintCropImage) return _logoPrintCropOriginal || '';
+  if (_logoPrintCropState.mode === 'free') {
+    var sourceW = Math.max(1, _logoPrintCropImage.naturalWidth * (_logoPrintCropState.width / 100));
+    var sourceH = Math.max(1, _logoPrintCropImage.naturalHeight * (_logoPrintCropState.height / 100));
+    var sourceX = ((_logoPrintCropImage.naturalWidth - sourceW) / 2) * (1 + (_logoPrintCropState.x / 100));
+    var sourceY = ((_logoPrintCropImage.naturalHeight - sourceH) / 2) * (1 + (_logoPrintCropState.y / 100));
+    var outputScale = Math.min(1, 1000 / sourceW, 600 / sourceH);
+    var freeCanvas = document.createElement('canvas');
+    freeCanvas.width = Math.max(1, Math.round(sourceW * outputScale));
+    freeCanvas.height = Math.max(1, Math.round(sourceH * outputScale));
+    freeCanvas.getContext('2d').drawImage(_logoPrintCropImage, sourceX, sourceY, sourceW, sourceH, 0, 0, freeCanvas.width, freeCanvas.height);
+    return freeCanvas.toDataURL('image/png', quality || 0.92);
+  }
+  var canvas = document.createElement('canvas');
+  canvas.width = LOGO_CROP_W;
+  canvas.height = LOGO_CROP_H;
+  var ctx = canvas.getContext('2d');
+  var cover = Math.min(LOGO_CROP_W / _logoPrintCropImage.naturalWidth, LOGO_CROP_H / _logoPrintCropImage.naturalHeight);
+  var w = _logoPrintCropImage.naturalWidth * cover * _logoPrintCropState.scale;
+  var h = _logoPrintCropImage.naturalHeight * cover * _logoPrintCropState.scale;
+  var maxX = Math.abs(w - LOGO_CROP_W) / 2;
+  var maxY = Math.abs(h - LOGO_CROP_H) / 2;
+  var dx = (LOGO_CROP_W - w) / 2 + (_logoPrintCropState.x / 100) * maxX;
+  var dy = (LOGO_CROP_H - h) / 2 + (_logoPrintCropState.y / 100) * maxY;
+  ctx.drawImage(_logoPrintCropImage, dx, dy, w, h);
+  return canvas.toDataURL('image/png', quality || 0.92);
+}
+
+function updateLogoPrintCropPreview() {
+  var img = document.getElementById('cfg-logo-print-crop-img');
+  if (!img || !_logoPrintCropImage) return;
+  var selection = document.getElementById('cfg-logo-print-crop-selection');
+  if (_logoPrintCropState.mode === 'free') {
+    img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'contain'; img.style.transform = 'translate(-50%, -50%)';
+    var sw = Math.max(10, _logoPrintCropState.width), sh = Math.max(10, _logoPrintCropState.height);
+    if (selection) {
+      selection.style.display = 'block'; selection.style.width = sw + '%'; selection.style.height = sh + '%';
+      selection.style.left = (((100-sw)/2)+((_logoPrintCropState.x/100)*((100-sw)/2))) + '%';
+      selection.style.top = (((100-sh)/2)+((_logoPrintCropState.y/100)*((100-sh)/2))) + '%';
+    }
+  } else {
+    if (selection) selection.style.display = 'none';
+    img.style.objectFit = '';
+    var cover = Math.min(LOGO_CROP_W / _logoPrintCropImage.naturalWidth, LOGO_CROP_H / _logoPrintCropImage.naturalHeight);
+    var w = _logoPrintCropImage.naturalWidth * cover * _logoPrintCropState.scale;
+    var h = _logoPrintCropImage.naturalHeight * cover * _logoPrintCropState.scale;
+    var stage = document.getElementById('cfg-logo-print-crop-stage');
+    var scaleX = stage && stage.clientWidth ? stage.clientWidth / LOGO_CROP_W : 1;
+    var scaleY = stage && stage.clientHeight ? stage.clientHeight / LOGO_CROP_H : scaleX;
+    var px = (_logoPrintCropState.x / 100) * (Math.abs(w-LOGO_CROP_W)/2) * scaleX;
+    var py = (_logoPrintCropState.y / 100) * (Math.abs(h-LOGO_CROP_H)/2) * scaleY;
+    img.style.width = (w*scaleX)+'px'; img.style.height = (h*scaleY)+'px'; img.style.transform = 'translate(calc(-50% + '+px+'px), calc(-50% + '+py+'px))';
+  }
+  var preview = document.getElementById('cfg-logo-print-img');
+  if (preview) { preview.src = renderLogoPrintCropToDataUrl(0.86); preview.style.display='block'; preview.style.width='100%'; preview.style.height='100%'; preview.style.objectFit='contain'; }
+  window._logoImpresionPendiente = renderLogoPrintCropToDataUrl(0.92);
+}
+
+function updateLogoPrintCropFromControls() {
+  _logoPrintCropState.scale = Math.max(1, Number(document.getElementById('cfg-logo-print-crop-zoom').value || 1));
+  _logoPrintCropState.x = Number(document.getElementById('cfg-logo-print-crop-x').value || 0);
+  _logoPrintCropState.y = Number(document.getElementById('cfg-logo-print-crop-y').value || 0);
+  _logoPrintCropState.width = Number(document.getElementById('cfg-logo-print-crop-width').value || 100);
+  _logoPrintCropState.height = Number(document.getElementById('cfg-logo-print-crop-height').value || 100);
+  updateLogoPrintCropPreview();
+}
+
+function setLogoPrintCropMode(mode) {
+  _logoPrintCropState.mode = mode === 'free' ? 'free' : 'fixed';
+  document.getElementById('cfg-logo-print-crop-mode-fixed').classList.toggle('active', _logoPrintCropState.mode === 'fixed');
+  document.getElementById('cfg-logo-print-crop-mode-free').classList.toggle('active', _logoPrintCropState.mode === 'free');
+  document.querySelectorAll('.sv-logo-print-free-control').forEach(function(el){ el.style.display = _logoPrintCropState.mode === 'free' ? '' : 'none'; });
+  var zoom = document.querySelector('.sv-logo-print-zoom-control');
+  if (zoom) zoom.style.display = _logoPrintCropState.mode === 'fixed' ? '' : 'none';
+  var help = document.getElementById('cfg-logo-print-crop-help');
+  if (help) help.textContent = _logoPrintCropState.mode === 'fixed' ? 'Mové y ajustá el zoom manteniendo la proporción recomendada.' : 'Elegí libremente cuánto conservar del ancho y del alto de la imagen.';
+  updateLogoPrintCropPreview();
+}
+
+function resetLogoPrintCrop() {
+  var mode = _logoPrintCropState.mode === 'free' ? 'free' : 'fixed';
+  _logoPrintCropState = { mode:mode, scale:1, x:0, y:0, width:100, height:100 };
+  ['zoom','width','height'].forEach(function(k){ var el=document.getElementById('cfg-logo-print-crop-'+k); if(el) el.value = k === 'zoom' ? '1' : '100'; });
+  ['x','y'].forEach(function(k){ var el=document.getElementById('cfg-logo-print-crop-'+k); if(el) el.value='0'; });
+  setLogoPrintCropMode(mode);
+}
+
+function setLogoCropMode(mode) {
+  _logoCropState.mode = mode === 'free' ? 'free' : 'fixed';
+  var fixedBtn = document.getElementById('cfg-logo-crop-mode-fixed');
+  var freeBtn = document.getElementById('cfg-logo-crop-mode-free');
+  if (fixedBtn) fixedBtn.classList.toggle('active', _logoCropState.mode === 'fixed');
+  if (freeBtn) freeBtn.classList.toggle('active', _logoCropState.mode === 'free');
+  document.querySelectorAll('.sv-logo-free-control').forEach(function(el) {
+    el.style.display = _logoCropState.mode === 'free' ? '' : 'none';
+  });
+  var zoom = document.getElementById('cfg-logo-crop-zoom');
+  if (zoom) zoom.closest('label').style.display = _logoCropState.mode === 'fixed' ? '' : 'none';
+  var help = document.getElementById('cfg-logo-crop-help');
+  if (help) help.textContent = _logoCropState.mode === 'fixed'
+    ? 'Mové y ajustá el zoom manteniendo la proporción recomendada.'
+    : 'Elegí libremente cuánto conservar del ancho y del alto de la imagen.';
   updateLogoCropPreview();
 }
 
 function resetLogoCrop() {
-  _logoCropState = { scale:1, x:0, y:0 };
+  var mode = _logoCropState.mode === 'free' ? 'free' : 'fixed';
+  _logoCropState = { mode:mode, scale:1, x:0, y:0, width:100, height:100 };
   var z = document.getElementById('cfg-logo-crop-zoom');
   var x = document.getElementById('cfg-logo-crop-x');
   var y = document.getElementById('cfg-logo-crop-y');
+  var width = document.getElementById('cfg-logo-crop-width');
+  var height = document.getElementById('cfg-logo-crop-height');
   if (z) z.value = '1';
   if (x) x.value = '0';
   if (y) y.value = '0';
+  if (width) width.value = '100';
+  if (height) height.value = '100';
+  setLogoCropMode(mode);
   updateLogoCropPreview();
 }
 
 function renderLogoCropToDataUrl(quality) {
   if (!_logoCropImage) return _logoCropOriginal || '';
+  if (_logoCropState.mode === 'free') {
+    var sourceW = Math.max(1, _logoCropImage.naturalWidth * (_logoCropState.width / 100));
+    var sourceH = Math.max(1, _logoCropImage.naturalHeight * (_logoCropState.height / 100));
+    var sourceX = ((_logoCropImage.naturalWidth - sourceW) / 2) * (1 + (_logoCropState.x / 100));
+    var sourceY = ((_logoCropImage.naturalHeight - sourceH) / 2) * (1 + (_logoCropState.y / 100));
+    var maxW = 1000;
+    var maxH = 600;
+    var outputScale = Math.min(1, maxW / sourceW, maxH / sourceH);
+    var freeCanvas = document.createElement('canvas');
+    freeCanvas.width = Math.max(1, Math.round(sourceW * outputScale));
+    freeCanvas.height = Math.max(1, Math.round(sourceH * outputScale));
+    var freeCtx = freeCanvas.getContext('2d');
+    freeCtx.clearRect(0, 0, freeCanvas.width, freeCanvas.height);
+    freeCtx.drawImage(_logoCropImage, sourceX, sourceY, sourceW, sourceH, 0, 0, freeCanvas.width, freeCanvas.height);
+    return freeCanvas.toDataURL('image/png', quality || 0.92);
+  }
   var canvas = document.createElement('canvas');
   canvas.width = LOGO_CROP_W;
   canvas.height = LOGO_CROP_H;
   var ctx = canvas.getContext('2d');
   ctx.clearRect(0,0,LOGO_CROP_W,LOGO_CROP_H);
-  var cover = Math.max(LOGO_CROP_W / _logoCropImage.naturalWidth, LOGO_CROP_H / _logoCropImage.naturalHeight);
+  var cover = Math.min(LOGO_CROP_W / _logoCropImage.naturalWidth, LOGO_CROP_H / _logoCropImage.naturalHeight);
   var w = _logoCropImage.naturalWidth * cover * _logoCropState.scale;
   var h = _logoCropImage.naturalHeight * cover * _logoCropState.scale;
-  var maxX = Math.max(0, (w - LOGO_CROP_W) / 2);
-  var maxY = Math.max(0, (h - LOGO_CROP_H) / 2);
+  var maxX = Math.abs(w - LOGO_CROP_W) / 2;
+  var maxY = Math.abs(h - LOGO_CROP_H) / 2;
   var dx = (LOGO_CROP_W - w) / 2 + (_logoCropState.x / 100) * maxX;
   var dy = (LOGO_CROP_H - h) / 2 + (_logoCropState.y / 100) * maxY;
   ctx.drawImage(_logoCropImage, dx, dy, w, h);
@@ -24466,6 +24777,7 @@ function previewLogo(input) {
       var cropImg = document.getElementById('cfg-logo-crop-img');
       if (cropImg) cropImg.src = _logoCropOriginal;
       if (cropper) cropper.style.display = 'block';
+      _logoCropState.mode = 'fixed';
       resetLogoCrop();
     };
     _logoCropImage.src = _logoCropOriginal;
@@ -27093,6 +27405,20 @@ function mostrarMenuPptoFlotante(pptoId, anchorBtn) {
   menu.className = 'ppto-dropdown-menu ppto-menu-floating';
   menu.addEventListener('click', function(ev){ ev.stopPropagation(); });
   menu.addEventListener('mousedown', function(ev){ ev.stopPropagation(); });
+  var encabezado = document.createElement('div');
+  encabezado.className = 'ppto-menu-mobile-head';
+  var titulo = document.createElement('div');
+  titulo.innerHTML = '<strong>Acciones del presupuesto</strong><span></span>';
+  titulo.querySelector('span').textContent = p.id || p.numero || '';
+  var cerrar = document.createElement('button');
+  cerrar.type = 'button';
+  cerrar.className = 'ppto-menu-mobile-close';
+  cerrar.setAttribute('aria-label', 'Cerrar acciones');
+  cerrar.innerHTML = '<i class="ti ti-x"></i>';
+  cerrar.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); cerrarMenuPptoGlobal(); });
+  encabezado.appendChild(titulo);
+  encabezado.appendChild(cerrar);
+  menu.appendChild(encabezado);
   function item(label, icon, fn, color) {
     var b = document.createElement('button');
     b.type = 'button';
@@ -27126,7 +27452,7 @@ function mostrarMenuPptoFlotante(pptoId, anchorBtn) {
     item('Anular', 'ti-ban', function(){ anularPptoDesdeTabla(ref); }, 'var(--amber)');
   }
   if (puedeEliminar) {
-    sep();
+    if (!(puedeAnular && p.estado !== 'convertido' && p.estado !== 'anulado')) sep();
     item('Eliminar', 'ti-trash', function(){ eliminarPptoDesdeTabla(ref); }, 'var(--red)');
   }
   document.body.appendChild(menu);
@@ -27383,12 +27709,13 @@ function imprimirPresupuesto(pptoRef, opciones) {
     nombre: (document.getElementById('cfg-empresa-nombre')||{}).value || 'Nixa',
     dir:    (document.getElementById('cfg-empresa-dir')||{}).value    || 'Patagones 390, Mar del Plata',
     tel:    (document.getElementById('cfg-empresa-tel')||{}).value    || '',
-    cuit:   (document.getElementById('cfg-empresa-cuit')||{}).value   || ''
+    cuit:   (document.getElementById('cfg-empresa-cuit')||{}).value   || '',
+    condicionIva: 'Responsable Inscripto'
   };
   var logoImpresion = logoImpresionActualUrl();
   var logoHTML = logoImpresion
-    ? '<img src="'+logoImpresion+'" style="height:50px;object-fit:contain">'
-    : '<div style="font-size:22px;font-weight:700">'+empresa.nombre+'</div>';
+    ? '<img class="empresa-logo" src="'+escapeHTML(logoImpresion)+'" alt="Logo de '+escapeHTML(empresa.nombre)+'">'
+    : '<div class="empresa-logo-fallback">'+escapeHTML(String(empresa.nombre||'N').charAt(0))+'</div>';
 
   var items = modelo.items.map(function(it) {
     var prodImpresion = productoDesdeItem(it);
@@ -27417,7 +27744,8 @@ function imprimirPresupuesto(pptoRef, opciones) {
   var w = window.open('','_blank','width='+anchoVistaPpto+',height='+altoVistaPpto+',resizable=yes,scrollbars=yes');
   if (!w) { notify('El navegador bloqueó la vista previa. Permití ventanas emergentes para SisVentas.'); return; }
   var tituloVentanaPpto = 'SisVentas · NIXA — Presupuesto ' + num;
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+escapeHTML(tituloVentanaPpto)+'</title>'+ 
+  var baseVistaPpto = location.href.split('#')[0].replace(/[^/]*([?#].*)?$/, '');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><base href="'+escapeHTML(baseVistaPpto)+'"><title>'+escapeHTML(tituloVentanaPpto)+'</title>'+
     '<style>'+
     '*{box-sizing:border-box;margin:0;padding:0}'+
     'body{font-family:Arial,sans-serif;font-size:12.5px;color:#1a1a1a;margin:24px 32px;background:#fff}'+
@@ -27427,7 +27755,11 @@ function imprimirPresupuesto(pptoRef, opciones) {
     'td{padding:6px 10px;border-bottom:1px solid #eee;font-size:12.5px;vertical-align:middle}'+
     'tr:last-child td{border-bottom:none}'+
     '.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;margin-bottom:16px;border-bottom:3px solid #1e293b}'+
-    '.logo-area{display:flex;flex-direction:column;justify-content:flex-start}'+
+    '.logo-area{display:flex;align-items:center;gap:13px;min-height:58px}'+
+    '.empresa-logo{display:block;width:auto;max-width:96px;height:auto;max-height:58px;object-fit:contain;flex:0 0 auto}'+
+    '.empresa-logo-fallback{width:62px;height:58px;display:flex;align-items:center;justify-content:center;border:1px solid #cbd5e1;border-radius:6px;font-size:22px;font-weight:700;color:#1e293b;flex:0 0 auto}'+
+    '.empresa-text{font-size:11px;color:#64748b;line-height:1.55;text-align:left;display:flex;flex-direction:column;justify-content:center}'+
+    '.empresa-nombre{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:2px}'+
     '.comp-area{text-align:right}'+
     '.tipo-badge{display:inline-block;padding:6px 18px;border:2.5px solid #1e293b;font-size:15px;font-weight:800;letter-spacing:.8px;margin-bottom:8px}'+
     '.comp-num{font-size:22px;font-weight:700;color:#1e293b}'+
@@ -27451,8 +27783,11 @@ function imprimirPresupuesto(pptoRef, opciones) {
 
     '<div class="header">'+
       '<div class="logo-area">'+logoHTML+
-        '<div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.7">'+empresa.dir+
-        (empresa.cuit ? '<br>CUIT: '+empresa.cuit : '')+
+        '<div class="empresa-text">'+
+          '<div class="empresa-nombre">'+escapeHTML(empresa.nombre)+'</div>'+
+          '<div>'+escapeHTML(empresa.dir)+'</div>'+
+          (empresa.cuit ? '<div>CUIT: '+escapeHTML(empresa.cuit)+'</div>' : '')+
+          '<div>Condición IVA: '+escapeHTML(empresa.condicionIva)+'</div>'+
         '</div>'+
       '</div>'+
       '<div class="comp-area">'+
@@ -27508,23 +27843,27 @@ function imprimirPresupuesto(pptoRef, opciones) {
     '</div></main>'+
 
     '<div class="no-print acciones-doc">'+
-      '<button onclick="window.print()" style="background:#1e293b"><span>🖨</span> Imprimir</button>'+
+      '<button onclick="imprimirVistaPresupuesto(this)" style="background:#1e293b"><span>🖨</span> Imprimir</button>'+
       '<button onclick="generarPdfPresupuesto(\'descargar\',this)" style="background:#2563eb"><span>⬇</span> Descargar PDF</button>'+
       '<button onclick="generarPdfPresupuesto(\'compartir\',this)" style="background:#16a34a"><span>↗</span> Compartir PDF</button>'+
     '</div>'+
-    '<script>async function generarPdfPresupuesto(modo,boton){var original=boton.innerHTML;boton.disabled=true;boton.textContent="Generando PDF...";try{if(typeof html2pdf!=="function")throw new Error("No se pudo cargar el generador de PDF");var nombre=(document.title||"Presupuesto").replace(/[\\/:*?"<>|]+/g,"-").trim()+".pdf";var opciones={margin:[6,6,6,6],filename:nombre,image:{type:"jpeg",quality:.98},html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff"},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},pagebreak:{mode:["css","legacy"]}};var blob=await html2pdf().set(opciones).from(document.getElementById("presupuesto-pdf")).outputPdf("blob");if(modo==="compartir"){var archivo=new File([blob],nombre,{type:"application/pdf"});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[archivo]})){await navigator.share({files:[archivo],title:document.title,text:"Presupuesto generado por SisVentas"});return;}alert("Este navegador no permite compartir archivos directamente. Se descargará el PDF para que puedas adjuntarlo en WhatsApp u otra aplicación.");}var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=nombre;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1500);}catch(error){if(error&&error.name!=="AbortError")alert("No se pudo generar el PDF: "+(error.message||error));}finally{boton.disabled=false;boton.innerHTML=original;}}</script>'+
+    '<script>async function esperarRecursosPresupuesto(){if(document.fonts&&document.fonts.ready){try{await document.fonts.ready}catch(e){}}var imagenes=Array.from(document.querySelectorAll("#presupuesto-pdf img"));await Promise.all(imagenes.map(function(img){if(img.complete&&img.naturalWidth)return Promise.resolve();return new Promise(function(resolve){var fin=function(){resolve()};img.addEventListener("load",fin,{once:true});img.addEventListener("error",fin,{once:true});setTimeout(fin,3500)})}));await new Promise(function(resolve){requestAnimationFrame(function(){requestAnimationFrame(resolve)})})}function imprimirVistaPresupuesto(){window.focus();window.print()}async function crearPdfCompleto(elemento,opciones){var worker=html2pdf().set(opciones).from(elemento).toCanvas();var canvas=await worker.get("canvas");if(!canvas||!canvas.width||!canvas.height)throw new Error("No se pudo capturar el presupuesto completo");var pdf=await html2pdf().set({jsPDF:opciones.jsPDF}).from(document.createElement("div")).toPdf().get("pdf");var anchoMm=200,altoMm=287,altoPaginaPx=Math.max(1,Math.floor(canvas.width*altoMm/anchoMm));var pagina=0;for(var y=0;y<canvas.height;y+=altoPaginaPx){var altoCorte=Math.min(altoPaginaPx,canvas.height-y);var corte=document.createElement("canvas");corte.width=canvas.width;corte.height=altoCorte;var ctx=corte.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,corte.width,corte.height);ctx.drawImage(canvas,0,y,canvas.width,altoCorte,0,0,canvas.width,altoCorte);if(pagina>0)pdf.addPage();var altoImagen=altoCorte*anchoMm/canvas.width;pdf.addImage(corte.toDataURL("image/jpeg",.98),"JPEG",5,5,anchoMm,altoImagen,undefined,"FAST");pagina++}return pdf.output("blob")}async function generarPdfPresupuesto(modo,boton){var original=boton.innerHTML,elemento=null,anchoAnterior="";boton.disabled=true;boton.textContent="Generando PDF...";try{if(typeof html2pdf!=="function")throw new Error("No se pudo cargar el generador de PDF");await esperarRecursosPresupuesto();elemento=document.getElementById("presupuesto-pdf");anchoAnterior=elemento.style.width;elemento.style.width="794px";await new Promise(function(resolve){requestAnimationFrame(function(){requestAnimationFrame(resolve)})});var nombre=(document.title||"Presupuesto").replace(/[\\/:*?"<>|]+/g,"-").trim()+".pdf";var opciones={image:{type:"jpeg",quality:.98},html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:"#ffffff",scrollX:0,scrollY:0,windowWidth:794,windowHeight:elemento.scrollHeight},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}};var blob=await crearPdfCompleto(elemento,opciones);if(modo==="compartir"){var archivo=new File([blob],nombre,{type:"application/pdf"});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[archivo]})){await navigator.share({files:[archivo],title:document.title,text:"Presupuesto generado por SisVentas"});return;}alert("Este navegador no permite compartir archivos directamente. Se descargará el PDF para que puedas adjuntarlo en WhatsApp u otra aplicación.");}var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=nombre;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1500);}catch(error){if(error&&error.name!=="AbortError")alert("No se pudo generar el PDF: "+(error.message||error));}finally{if(elemento)elemento.style.width=anchoAnterior;boton.disabled=false;boton.innerHTML=original;}}</script>'+
     '</body></html>');
   w.document.close();
-  // El navegador integrado rotula algunas ventanas por su URL inicial y no
-  // solamente por document.title. Reemplazamos about:blank por una dirección
-  // identificable del mismo origen, sin recargar ni abrir una ruta nueva.
-  var urlVentanaPpto = window.location.origin + window.location.pathname + '?vista=presupuesto&numero=' + encodeURIComponent(num);
-  try { w.history.replaceState({ documento:'presupuesto', numero:num }, tituloVentanaPpto, urlVentanaPpto); } catch (_) {}
+  // document.write sobre una ventana vacía conserva "about:blank" en la barra
+  // de Chromium aunque document.title sea correcto. Convertimos el documento
+  // terminado en una URL temporal HTML: mantiene el título comercial sin
+  // exponer la dirección local del servidor.
   try { w.document.title = tituloVentanaPpto; } catch (_) {}
-  setTimeout(function(){
-    try { w.document.title = tituloVentanaPpto; } catch (_) {}
-  }, 120);
-  if (opciones.imprimirAutomaticamente === true) setTimeout(function(){ w.print(); }, 600);
+  try { w.name = 'SisVentas_Presupuesto_' + String(num).replace(/[^a-zA-Z0-9_-]+/g, '_'); } catch (_) {}
+  var urlVistaPresupuesto = '';
+  try {
+    var htmlVistaPresupuesto = '<!DOCTYPE html>\n' + w.document.documentElement.outerHTML;
+    urlVistaPresupuesto = URL.createObjectURL(new Blob([htmlVistaPresupuesto], { type:'text/html;charset=utf-8' }));
+    w.location.replace(urlVistaPresupuesto);
+    setTimeout(function(){ try { URL.revokeObjectURL(urlVistaPresupuesto); } catch (_) {} }, 300000);
+  } catch (_) {}
+  if (opciones.imprimirAutomaticamente === true) setTimeout(function(){ try { w.focus(); w.print(); } catch (_) {} }, 900);
 }
 function asegurarOTVentaConPago(ventaObj, totalPagado) {
   if (!ventaObj || !(parseFloat(totalPagado) > 0) || typeof generarOTdesdeVenta !== 'function') return '';
@@ -36751,6 +37090,9 @@ function _vistaComprobanteEdicionPago(comprobante) {
 function previewEdicionPagoGastoComprobante(input) {
   var file = input && input.files && input.files[0];
   if (!file) return;
+  _logoBackgroundUndo.system = '';
+  var undoSystem = document.getElementById('cfg-logo-bg-undo');
+  if (undoSystem) undoSystem.style.display = 'none';
   if (file.size > 900000) { notify('El comprobante debe pesar menos de 900 KB'); input.value=''; return; }
   var reader = new FileReader();
   reader.onload = function(e) {
@@ -37445,6 +37787,39 @@ function pptoModeloEconomicoCanonico(registro, opciones) {
   return pptoV3Invocar('build', [registro || {}, opciones], null);
 }
 
+function renderPptoAccionesTabla(p) {
+  if (!p) return '';
+  var ref = escapeHTML(p.fbKey || p.id || '');
+  var puedeAnular = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('presupuestos.anular')
+    : String(currentRole || '').toLowerCase() === 'admin';
+  var puedeEliminar = typeof window.tienePermiso === 'function'
+    ? window.tienePermiso('presupuestos.eliminar')
+    : String(currentRole || '').toLowerCase() === 'admin';
+  function boton(titulo, icono, accion, clase) {
+    return '<button type="button" class="btn btn-sm ppto-row-action '+(clase||'')+'" title="'+titulo+'" aria-label="'+titulo+'" data-ppto-action="'+accion+'" data-ppto-ref="'+ref+'"><i class="ti '+icono+'"></i><span class="sv-mobile-action-label">'+titulo+'</span></button>';
+  }
+  var html = boton('Ver detalle', 'ti-eye', 'ver');
+  html += boton('Imprimir', 'ti-printer', 'imprimir');
+  html += boton('Duplicar', 'ti-copy', 'duplicar');
+  if (puedeEditarPresupuestoPermiso(p)) html += boton('Editar', 'ti-edit', 'editar', 'is-primary');
+  if (puedeAnular && p.estado !== 'convertido' && p.estado !== 'anulado') html += boton('Anular', 'ti-ban', 'anular', 'is-warning');
+  if (puedeEliminar) html += boton('Eliminar', 'ti-trash', 'eliminar', 'is-danger');
+  return '<div class="ppto-row-actions">'+html+'</div>';
+}
+
+function ejecutarAccionPptoTabla(accion, ref) {
+  var p = buscarPptoPorRef(ref);
+  if (!p) return notify('Presupuesto no encontrado');
+  var clave = p.fbKey || p.id;
+  if (accion === 'ver') return verPpto(clave);
+  if (accion === 'imprimir') return imprimirPresupuestoDesdeListado(p);
+  if (accion === 'duplicar') return duplicarPresupuesto(clave);
+  if (accion === 'editar') return abrirEditorPpto(clave);
+  if (accion === 'anular') return anularPptoDesdeTabla(clave);
+  if (accion === 'eliminar') return eliminarPptoDesdeTabla(clave);
+}
+
 function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
   const tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
@@ -37483,11 +37858,7 @@ function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
       <td class="tr" style="font-weight:500">${totalFmt}</td>
       <td>${escapeHTML(_mostrarFecha(p.vence))}</td>
       <td>${pptoStateBadge(p.estado)}</td>
-      <td style="position:relative">
-        <button class="btn btn-sm btn-icon ppto-actions-btn" type="button" data-ppto-ref="${pptoRef}" title="Acciones">
-          <i class="ti ti-dots-vertical" style="font-size:15px"></i>
-        </button>
-      </td>
+      <td class="ppto-actions-cell" data-label="Acciones">${renderPptoAccionesTabla(p)}</td>
     </tr>`;
   }).join('');
   initPptoTablaEventos();
@@ -37499,6 +37870,13 @@ function initPptoTablaEventos() {
   if (!tbody || tbody.dataset.pptoEventsReady === '1') return;
   tbody.dataset.pptoEventsReady = '1';
   tbody.addEventListener('click', function(ev) {
+    var actionBtn = ev.target.closest && ev.target.closest('.ppto-row-action');
+    if (actionBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ejecutarAccionPptoTabla(actionBtn.dataset.pptoAction || '', actionBtn.dataset.pptoRef || '');
+      return;
+    }
     var btn = ev.target.closest && ev.target.closest('.ppto-actions-btn');
     if (btn) {
       ev.preventDefault();

@@ -6318,6 +6318,67 @@ function obtenerRazonSocialClienteVenta(venta) {
   ).trim();
 }
 
+function validarCuitArgentino(valor) {
+  var cuit = String(valor || '').replace(/\D/g, '');
+  if (!/^\d{11}$/.test(cuit)) return false;
+  var pesos = [5,4,3,2,7,6,5,4,3,2];
+  var suma = pesos.reduce(function(total, peso, i){ return total + parseInt(cuit[i],10) * peso; }, 0);
+  var verificador = 11 - (suma % 11);
+  if (verificador === 11) verificador = 0;
+  else if (verificador === 10) verificador = 9;
+  return verificador === parseInt(cuit[10], 10);
+}
+
+async function consultarCuitClienteEnArca() {
+  var campo = document.getElementById('nc-cuit');
+  var boton = document.getElementById('btn-consultar-cuit-arca');
+  var cuit = String((campo || {}).value || '').replace(/\D/g, '');
+  if (!validarCuitArgentino(cuit)) { notify('Ingresá un CUIT válido de 11 dígitos'); if (campo) campo.focus(); return; }
+  var textoAnterior = boton ? boton.innerHTML : '';
+  if (boton) { boton.disabled=true; boton.innerHTML='<i class="ti ti-loader-2 ti-spin"></i> Consultando ARCA...'; }
+  try {
+    var respuesta = await fetch(SISVENTAS_FUNCTIONS.emitirFactura, {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'X-Frontend-Key':SISVENTAS_FUNCTIONS.frontendKey },
+      body:JSON.stringify({ accion:'consultar_cuit', cuit:cuit })
+    });
+    var resultado = await respuesta.json().catch(function(){ return {}; });
+    if (!respuesta.ok || resultado.error || !resultado.datos) throw new Error(resultado.mensaje || 'No se encontraron datos para este CUIT');
+    mostrarVistaPreviaCuitArca(resultado.datos, resultado.advertencias || []);
+  } catch (e) {
+    notify('No se pudo consultar el CUIT: ' + e.message);
+  } finally {
+    if (boton) { boton.disabled=false; boton.innerHTML=textoAnterior; }
+  }
+}
+
+function mostrarVistaPreviaCuitArca(datos, advertencias) {
+  var anterior = document.getElementById('modal-vista-cuit-arca'); if (anterior) anterior.remove();
+  var actividades = (datos.actividades || []).slice(0,3).map(function(a){ return escapeHTML(a.descripcion || a.id || ''); }).filter(Boolean).join('<br>');
+  var domicilio = [datos.direccion, datos.localidad, datos.provincia, datos.codigoPostal].filter(Boolean).join(' · ');
+  var alerta = datos.apocExiste === 'SI'
+    ? '<div style="padding:10px 12px;border:1px solid var(--red);background:var(--red-bg);color:var(--red);border-radius:10px;margin-top:12px"><strong>Advertencia fiscal APOC</strong><div style="margin-top:4px">'+escapeHTML(datos.apocInfo || 'La CUIT figura en la base APOC.')+'</div></div>' : '';
+  var modal = document.createElement('div'); modal.id='modal-vista-cuit-arca'; modal.className='modal-overlay'; modal.style.display='flex';
+  modal.innerHTML='<div class="modal" style="width:min(680px,calc(100vw - 24px))"><div class="modal-head"><div><div class="modal-title"><i class="ti ti-building-bank"></i> Datos encontrados en ARCA</div><div style="font-size:12px;color:var(--text3);margin-top:3px">Revisalos antes de incorporarlos al legajo.</div></div><button class="btn btn-icon" data-close title="Cerrar"><i class="ti ti-x"></i></button></div>'+
+    '<div class="modal-body"><div class="form-grid cols-2">'+
+    '<div class="field full"><label>Razón social / nombre fiscal</label><strong>'+escapeHTML(datos.razonSocial || '—')+'</strong></div>'+
+    '<div class="field"><label>CUIT</label><strong>'+escapeHTML(datos.cuit || '—')+'</strong></div><div class="field"><label>Estado</label><strong style="color:'+(String(datos.estado).toUpperCase()==='ACTIVO'?'var(--green)':'var(--amber)')+'">'+escapeHTML(datos.estado || 'No informado')+'</strong></div>'+
+    '<div class="field"><label>Condición impositiva</label><strong>'+escapeHTML(datos.condicionImpositiva || 'No determinada')+'</strong></div><div class="field"><label>Domicilio fiscal</label><strong>'+escapeHTML(domicilio || 'No informado')+'</strong></div>'+
+    (actividades?'<div class="field full"><label>Actividades principales</label><div style="font-size:12px;line-height:1.55">'+actividades+'</div></div>':'')+'</div>'+alerta+'</div>'+
+    '<div class="modal-foot"><button class="btn" data-close>Cancelar</button><button class="btn btn-primary" id="aplicar-datos-cuit-arca"><i class="ti ti-check"></i> Usar estos datos</button></div></div>';
+  document.body.appendChild(modal);
+  modal.querySelectorAll('[data-close]').forEach(function(b){ b.onclick=function(){ modal.remove(); }; });
+  modal.querySelector('#aplicar-datos-cuit-arca').onclick=function(){ aplicarDatosCuitArca(datos); modal.remove(); };
+}
+
+function aplicarDatosCuitArca(datos) {
+  var asignar = function(id, valor){ var el=document.getElementById(id); if(el && valor) el.value=String(valor).toLocaleUpperCase('es-AR'); };
+  asignar('nc-cuit', datos.cuit); asignar('nc-razon-social', datos.razonSocial); asignar('nc-dir', datos.direccion);
+  window._clienteArcaConsulta = Object.assign({}, datos, { consultadoEn:new Date().toISOString(), fuente:'ARCA vía TusFacturasApp' });
+  var estado = document.getElementById('cliente-arca-estado');
+  if (estado) { estado.style.display='block'; estado.innerHTML='<i class="ti ti-circle-check"></i> Datos de ARCA aplicados · se guardarán al confirmar el cliente'; }
+  notify('Datos fiscales incorporados al formulario');
+}
+
 // Contrato económico único para facturación.
 //
 // TusFacturasApp recibe los precios unitarios como importes finales (IVA
@@ -23252,7 +23313,7 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
   }
   // Abrir "Nuevo cliente" nunca puede heredar la identidad de la edición
   // anterior. editarCliente la asigna explícitamente después de abrirlo.
-  if (tipo === 'cliente') window._editingClienteId = null;
+  if (tipo === 'cliente') { window._editingClienteId = null; window._clienteArcaConsulta = null; }
   window._modalTipo = tipo;
   window._modalFbKey = fbKeyExistente || null;
   const cfg = FORMS_CFG[tipo];
@@ -23389,6 +23450,19 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
     return;
   });
   body.appendChild(grid);
+  if (tipo === 'cliente') {
+    var campoCuit = document.getElementById('nc-cuit');
+    var grupoCuit = campoCuit && campoCuit.closest('.fg');
+    if (grupoCuit) {
+      var accionArca = document.createElement('div');
+      accionArca.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px';
+      accionArca.innerHTML='<button type="button" class="btn btn-sm" id="btn-consultar-cuit-arca" onclick="consultarCuitClienteEnArca()"><i class="ti ti-building-bank"></i> Consultar en ARCA</button><span style="font-size:10px;color:var(--text3)">Completa datos fiscales después de tu confirmación</span>';
+      grupoCuit.appendChild(accionArca);
+    }
+    var estadoArca = document.createElement('div');
+    estadoArca.id='cliente-arca-estado'; estadoArca.style.cssText='display:none;margin-top:10px;padding:9px 11px;border:1px solid var(--green);background:var(--green-bg);color:var(--green);border-radius:9px;font-size:11px';
+    body.appendChild(estadoArca);
+  }
 
   // Datalists de sugerencias (ej: cargos ya usados entre los empleados existentes)
   cfg.fields.forEach(f => {
@@ -23458,12 +23532,26 @@ function guardarNuevoGenerico() {
       localidad: (cliExistente && cliExistente.localidad) || 'Mar del Plata',
       activo:    cliExistente ? cliExistente.activo !== false : true
     });
+    var consultaArca = window._clienteArcaConsulta;
+    if (consultaArca && String(consultaArca.cuit || '') === String(nuevo.cuit || '').replace(/\D/g,'')) {
+      nuevo.condicionImpositiva = consultaArca.condicionImpositiva || nuevo.condicionImpositiva || '';
+      nuevo.localidad = consultaArca.localidad || nuevo.localidad || '';
+      nuevo.provinciaFiscal = consultaArca.provincia || nuevo.provinciaFiscal || '';
+      nuevo.codigoPostalFiscal = consultaArca.codigoPostal || nuevo.codigoPostalFiscal || '';
+      nuevo.estadoCuit = consultaArca.estado || nuevo.estadoCuit || '';
+      nuevo.actividadesArca = consultaArca.actividades || nuevo.actividadesArca || [];
+      nuevo.apocExiste = consultaArca.apocExiste || '';
+      nuevo.apocInfo = consultaArca.apocInfo || '';
+      nuevo.datosFiscalesFuente = consultaArca.fuente;
+      nuevo.datosFiscalesConsultadosEn = consultaArca.consultadoEn;
+    }
     if (cliExistente && cliExistente.fbKey) {
       nuevo.fbKey = cliExistente.fbKey;
     }
     if (!cliExistente && _clienteEstructuraDestinoKey) nuevo._clienteEstructuraDestinoKey = _clienteEstructuraDestinoKey;
 
     window._editingClienteId = null; // limpiar para la próxima vez
+    window._clienteArcaConsulta = null;
     _clienteEstructuraDestinoKey = '';
     if (!nuevo.nombre.trim() && !nuevo.razonSocial) {
       notify('Ingresá al menos nombre o razón social del cliente');
@@ -28876,12 +28964,76 @@ function fvRenderTipos(comps) {
 }
 function fvFiltrarHistorial(val) { fvRenderHistorial(fvGetCompFiltrados(), val); }
 
+function fvTextoReceptorValido(valor) {
+  var texto = String(valor == null ? '' : valor).trim();
+  if (!texto || /^(0+|consumidor\s+final|sin\s+identificar)$/i.test(texto)) return '';
+  return texto;
+}
+
+function fvVentaDelComprobante(c) {
+  c = c || {};
+  var ventas = Array.isArray(ventasList) ? ventasList : [];
+  var claves = [c.ventaFbKey, c.ventaConciliadaFbKey, c.ventaKey].filter(Boolean).map(String);
+  if (claves.length) {
+    var directa = ventas.find(function(v) {
+      return claves.includes(String(v.fbKey || '')) || claves.includes(String(v.id || ''));
+    });
+    if (directa) return directa;
+  }
+  var cae = String(c.cae || '').replace(/\D/g, '');
+  if (cae) {
+    var porCae = ventas.find(function(v) {
+      return String(((v || {}).factura || {}).cae || '').replace(/\D/g, '') === cae;
+    });
+    if (porCae) return porCae;
+  }
+  var punto = parseInt(c.ptoVta, 10) || 0;
+  var numero = parseInt(c.nroDoc, 10) || 0;
+  if (!punto || !numero) return null;
+  return ventas.find(function(v) {
+    var datos = fvDatosFacturaVenta(v);
+    return datos.punto === punto && datos.numero === numero;
+  }) || null;
+}
+
+function fvIdentidadReceptor(c) {
+  c = c || {};
+  var venta = fvVentaDelComprobante(c);
+  var cliente = venta ? resolverClienteDeVenta(venta) : null;
+  var esA = fvConIvaDiscriminado(c.tipo);
+  var fiscal = fvTextoReceptorValido(c.razonSocial || c.razon_social || c.nombre);
+  var razonFiscalVenta = venta ? fvTextoReceptorValido(
+    venta.clienteRazonSocial || venta.razonSocialFiscal || venta.razon_social ||
+    (cliente && (cliente.razonSocial || cliente.razon_social))
+  ) : '';
+  var nombreComercial = venta ? fvTextoReceptorValido(
+    venta.cliente || venta.clienteNombre ||
+    (cliente && (cliente.nombre || cliente.empresa || cliente.cliente))
+  ) : '';
+  var nombre = esA
+    ? (fiscal || razonFiscalVenta || nombreComercial || 'Receptor sin identificar')
+    : (nombreComercial || fiscal || razonFiscalVenta || 'Consumidor final');
+  var cuitCrudo = String(c.cuitReceptor || '').replace(/\D/g, '');
+  var cuit = cuitCrudo && !/^0+$/.test(cuitCrudo) ? cuitCrudo : '';
+  var clienteRef = cliente && String(cliente.fbKey || cliente.id || cliente.codigo || '');
+  var nombreNormalizado = normalizarIdentidadCliente(nombre);
+  var referencia = clienteRef || nombreNormalizado || String(c.fbKey || c.cae || [c.ptoVta,c.nroDoc].join('_'));
+  return {
+    nombre: nombre,
+    cuit: cuit,
+    venta: venta,
+    // Un CUIT real agrupa fiscalmente. Consumidor final se separa por cliente
+    // para no mezclar comprobantes B de personas distintas bajo la clave "0".
+    clave: cuit ? ('CUIT_' + cuit) : ('CF_' + referencia)
+  };
+}
+
 function fvRenderHistorial(comps, filtro) {
   var clientes = {};
   comps.forEach(function(c) {
-    var k = c.cuitReceptor || ('CF_' + (c.nombre || 'Consumidor Final'));
-    var nombre = c.nombre || (c.cuitReceptor ? c.cuitReceptor : 'Consumidor Final');
-    if (!clientes[k]) clientes[k] = { cuit: c.cuitReceptor||'—', nombre: nombre, comps:[], totalIVA:0, total:0 };
+    var identidad = fvIdentidadReceptor(c);
+    var k = identidad.clave;
+    if (!clientes[k]) clientes[k] = { cuit: identidad.cuit||'', nombre: identidad.nombre, comps:[], totalIVA:0, total:0 };
     clientes[k].comps.push(c);
     clientes[k].totalIVA += fvMontoFirmado(c,'totalIVA');
     clientes[k].total += fvMontoFirmado(c,'total');
@@ -28892,7 +29044,7 @@ function fvRenderHistorial(comps, filtro) {
     var f = filtro.toLowerCase();
     lista = lista.filter(function(p){
       return p.nombre.toLowerCase().includes(f) || p.cuit.includes(f) ||
-        p.comps.some(function(c){ return c.nroDoc.includes(f); });
+        p.comps.some(function(c){ return String(c.nroDoc || '').includes(f); });
     });
   }
 
@@ -28909,7 +29061,7 @@ function fvRenderClienteRow(p, idx) {
     '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
       '<div>' +
         '<div style="font-weight:600;font-size:13px">'+escapeHTML(p.nombre)+'</div>' +
-        '<div style="font-size:11px;color:var(--text3);margin-top:2px">CUIT '+p.cuit+' · '+p.comps.length+' comprobante'+(p.comps.length!==1?'s':'') +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+(p.cuit ? 'CUIT '+escapeHTML(p.cuit)+' · ' : 'Consumidor final · ')+p.comps.length+' comprobante'+(p.comps.length!==1?'s':'') +
           (compConIva.length ? ' · '+compConIva.length+' con IVA discriminado' : ' · sin IVA discriminado') + '</div>' +
       '</div>' +
       '<div style="text-align:right">' +
@@ -37589,6 +37741,10 @@ function verPpto(id) {
   _set('ppto-det-numero',p.id);
   document.getElementById('ppto-det-estado-badge').innerHTML = pptoStateBadge(p.estado);
   _set('ppto-det-meta','Creado por ' + (p.empleado || p.usuario || 'Usuario no registrado'));
+  var alertaRechazoPpto = document.getElementById('ppto-alerta-rechazo');
+  var motivoRechazoPpto = document.getElementById('ppto-motivo-rechazo');
+  if (alertaRechazoPpto) alertaRechazoPpto.style.display = p.estado === 'rechazado' ? '' : 'none';
+  if (motivoRechazoPpto) motivoRechazoPpto.textContent = p.motivoRechazo || 'Sin motivo registrado (presupuesto histórico)';
   document.getElementById('ppto-det-cliente').value = p.cliente;
   document.getElementById('ppto-det-empleado').value = p.empleado;
   document.getElementById('ppto-det-fecha').value = _mostrarFecha(p.fecha);
@@ -37888,6 +38044,7 @@ function renderAudit(p) {
       </div>
       <div>
         <div style="font-size:13px;color:var(--text)">${escapeHTML(e.accion)}</div>
+        ${e.motivo ? `<div style="font-size:12px;color:var(--red);margin-top:3px">Motivo: ${escapeHTML(e.motivo)}</div>` : ''}
         <div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHTML(e.usuario)} · ${escapeHTML(e.fecha)}</div>
       </div>
     </div>`).join('');
@@ -38250,6 +38407,21 @@ async function pptoAccion(accion, opts) {
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   const usuario = currentUser || (currentRole === 'admin' ? 'Admin' : 'Vendedor');
 
+  var esRechazoPpto = accion === 'rechazar' || accion === 'marcar_rechazado';
+  var motivoRechazo = '';
+  if (esRechazoPpto) {
+    var respuestaMotivo = await svPrompt('Ingresá el motivo del rechazo. Este dato es obligatorio y quedará visible en el presupuesto.', '', {
+      titulo: accion === 'marcar_rechazado' ? 'Rechazo del cliente' : 'Rechazar presupuesto',
+      placeholder: 'Ej.: el cliente no acepta el precio o eligió otra propuesta',
+      multilinea: true,
+      filas: 3,
+      textoAceptar: 'Confirmar rechazo'
+    });
+    if (respuestaMotivo === null) return;
+    motivoRechazo = String(respuestaMotivo || '').trim();
+    if (!motivoRechazo) { notify('El motivo del rechazo es obligatorio'); return; }
+  }
+
   if (accion === 'aprobar' || accion === 'aprobar_directo') {
     if (!await svConfirm('¿Aprobar internamente este presupuesto?\n\nNo se creará ninguna venta. El administrativo recibirá una notificación para imprimirlo, enviarlo al cliente o convertirlo cuando corresponda.')) return;
     opts.aprobadoPor = usuario;
@@ -38383,13 +38555,19 @@ async function pptoAccion(accion, opts) {
 
   p.estado = t.nuevoEstado;
   p.requiereAprobacion = accion === 'enviar_revision';
+  if (esRechazoPpto) {
+    p.motivoRechazo = motivoRechazo;
+    p.rechazadoPor = usuario;
+    p.rechazadoEn = ahora;
+    p.rechazadoTs = Date.now();
+  }
   if (opts.aprobadoPor) {
     p.aprobadoPor = opts.aprobadoPor;
     p.aprobadoEn = opts.aprobadoEn || ahora;
     p.aprobadoUid = currentUserUid || '';
   }
   p.audit = p.audit || [];
-  p.audit.push({ fecha:ahora, usuario, accion: t.auditMsg });
+  p.audit.push({ fecha:ahora, usuario, accion: t.auditMsg, motivo: esRechazoPpto ? motivoRechazo : '' });
   if (accion === 'enviar_cliente') {
     p.enviadoEn = ahora;
     p.enviadoTs = Date.now();
@@ -38402,6 +38580,12 @@ async function pptoAccion(accion, opts) {
       requiereAprobacion: accion === 'enviar_revision',
       audit: p.audit
     };
+    if (esRechazoPpto) {
+      actualizacionEstadoPpto.motivoRechazo = p.motivoRechazo;
+      actualizacionEstadoPpto.rechazadoPor = p.rechazadoPor;
+      actualizacionEstadoPpto.rechazadoEn = p.rechazadoEn;
+      actualizacionEstadoPpto.rechazadoTs = p.rechazadoTs;
+    }
     if (accion === 'enviar_cliente') {
       actualizacionEstadoPpto.enviadoEn = p.enviadoEn;
       actualizacionEstadoPpto.enviadoTs = p.enviadoTs;
