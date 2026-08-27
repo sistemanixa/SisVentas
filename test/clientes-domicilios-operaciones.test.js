@@ -1,9 +1,10 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
+const { readActiveApp } = require('./helpers/active-app');
 
 const html = fs.readFileSync('index.html', 'utf8');
-const app = fs.readFileSync('js/app.v2.2.8.js', 'utf8');
+const app = readActiveApp().source;
 
 test('venta conserva cliente principal y domicilio seleccionado', () => {
   assert.match(html, /id="cli-fbkey"/);
@@ -49,4 +50,23 @@ test('kits y OT mantienen el selector listo para cargar el siguiente producto', 
   assert.match(app, /filtrarSelectorKit\(''\)/);
   assert.match(app, /buscarOT\.value = ''; buscarOT\.focus\(\)/);
   assert.match(app, /otFiltrarSelectorProductos\(''\)/);
+});
+
+test('la ficha del cliente permite agregar otro domicilio', () => {
+  assert.match(html, /id="hc-agregar-domicilio"[^>]+onclick="abrirNuevaSedeCliente\(clienteActualId\)"/);
+  assert.match(app, /function abrirNuevaSedeCliente\(el\)/);
+});
+
+test('Clientes pinta primero la carga y difiere la grilla hasta que el navegador queda libre', () => {
+  assert.match(app, /function programarRenderTablaClientes\(filtro, mostrarCarga\)/);
+  assert.match(app, /requestAnimationFrame\(function\(\) \{[\s\S]*?requestIdleCallback\(ejecutar, \{ timeout:300 \}\)/);
+  assert.match(app, /programarRenderTablaClientes\(inpClientes\?inpClientes\.value:'', true\)/);
+  assert.match(app, /CustomEvent\('sisventas:module-ready', \{ detail:\{ page:'clientes' \} \}\)/);
+});
+
+test('la revisión histórica sale del encabezado y queda como herramienta administrativa', () => {
+  const bloqueClientes = html.slice(html.indexOf('id="page-clientes"'), html.indexOf('id="page-productos"'));
+  assert.doesNotMatch(bloqueClientes, /Revisar repetidos/);
+  assert.match(html, /id="mnt-clientes-repetidos-card"/);
+  assert.match(html, /Revisar clientes repetidos/);
 });
