@@ -48,6 +48,10 @@
     return id === 'page-ctaemp' || id === 'page-ordenes' || (table && table.id === 'gas-tbl');
   }
 
+  function usesPixelOnly(table) {
+    return !!(table && table.dataset && table.dataset.svPixelOnly === '1');
+  }
+
   function tableHeaders(table) {
     var headers = Array.from(table.querySelectorAll('thead th')).filter(function (th) {
       return !isHidden(th) && th.getAttribute('data-sv-column-ignore') !== '1';
@@ -66,6 +70,7 @@
   }
 
   function tableKey(table) {
+    if (table && table.dataset && table.dataset.svColumnKey) return table.dataset.svColumnKey;
     if (table.id) return table.id;
     var tbody = table.querySelector('tbody[id]');
     if (tbody && tbody.id) return pageId(table) + ':tbody:' + tbody.id;
@@ -353,6 +358,8 @@
         columnSelector + ' [contenteditable="true"]{text-align:' + align + '!important}');
       columnCells(table, index).forEach(function (cell) {
         cell.style.textAlign = align;
+        var actionGroup = cell.querySelector && cell.querySelector('.ventas-row-actions, .ppto-row-actions');
+        if (actionGroup) actionGroup.style.justifyContent = align === 'right' ? 'flex-end' : (align === 'center' ? 'center' : 'flex-start');
       });
     });
     style.textContent = rules.join('\n');
@@ -369,6 +376,8 @@
     tableHeaders(table).forEach(function (_th, index) {
       columnCells(table, index).forEach(function (cell) {
         cell.style.textAlign = '';
+        var actionGroup = cell.querySelector && cell.querySelector('.ventas-row-actions, .ppto-row-actions');
+        if (actionGroup) actionGroup.style.removeProperty('justify-content');
       });
     });
   }
@@ -393,6 +402,17 @@
     if (text.indexOf('venc') >= 0) return DEFAULT_WIDTH_BY_HEADER.vencimiento;
     if (text.indexOf('monto') >= 0 || text.indexOf('total') >= 0) return DEFAULT_WIDTH_BY_HEADER.monto;
     return 110;
+  }
+
+  function defaultPixelWidthForTable(table, th, index, total) {
+    var fixedWidth = parseInt(th && th.dataset ? th.dataset.svFixedWidth : '', 10);
+    if (fixedWidth > 0) return normalizeWidth(fixedWidth);
+    if (table && table.id === 'ventas-tbl') {
+      var ventas = [110, 220, 330, 110, 140, 130, 130, 60, 170];
+      if (index < ventas.length) return ventas[index];
+      if (index === total - 1) return 170;
+    }
+    return defaultWidthForHeader(th);
   }
 
   function updateOverflowTitles(table) {
@@ -755,14 +775,24 @@
     if (!headers.length) return;
     ensureColgroup(table, totalColumnCount(table));
     var widths = loadWidths(table);
-    headers.forEach(function (th, index) {
-      var saved = parseInt(widths[index], 10);
-      if (saved > 0) applyColumnWidth(table, index, saved);
-      else applyColumnWidth(table, index, defaultWidthForHeader(th));
+    var resolvedWidths = headers.map(function (th, index) {
+      var fixed = parseInt(th && th.dataset ? th.dataset.svFixedWidth : '', 10);
+      var saved = fixed > 0 ? fixed : parseInt(widths[index], 10);
+      return normalizeWidth(saved > 0 ? saved : defaultPixelWidthForTable(table, th, index, headers.length));
     });
-    var totalWidth = headers.reduce(function (sum, header) { return sum + Math.round(header.getBoundingClientRect().width); }, 0);
+    var totalWidth = resolvedWidths.reduce(function (sum, width) { return sum + width; }, 0);
+    // Fijar primero el ancho total evita que el navegador distribuya las
+    // columnas contra el ancho anterior de la tabla mientras se restauran.
+    // Cada valor guardado queda así expresado en píxeles reales, como en un
+    // explorador de archivos: cambiar una columna no recalcula las vecinas.
     table.classList.add('sv-pixel-table');
     table.style.setProperty('--sv-pixel-total-width', totalWidth + 'px');
+    table.style.width = 'var(--sv-pixel-total-width)';
+    table.style.minWidth = 'var(--sv-pixel-total-width)';
+    table.style.tableLayout = 'fixed';
+    resolvedWidths.forEach(function (width, index) {
+      applyColumnWidth(table, index, width);
+    });
     updateOverflowTitles(table);
   }
 
@@ -793,10 +823,26 @@
       return;
     }
 
+    if (table.dataset.svHeaderClickGuard !== '1') {
+      table.addEventListener('click', function (event) {
+        var until = parseInt(table.dataset.svSuppressHeaderClickUntil || '0', 10);
+        if (until > Date.now() && event.target && event.target.closest('th')) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+        }
+      }, true);
+      table.dataset.svHeaderClickGuard = '1';
+    }
+
     table.classList.add('sv-resizable-table');
     table.dataset.svResizableKey = key;
     wrap.classList.add('sv-resizable-wrap');
-    if (!applySavedPercentProfile(table)) applySavedWidths(table);
+    if (usesPixelOnly(table)) {
+      table.classList.remove('sv-percent-table');
+      table.style.removeProperty('--sv-percent-total-width');
+      applySavedWidths(table);
+    } else if (!applySavedPercentProfile(table)) applySavedWidths(table);
 
     headers.forEach(function (th, index) {
       if (th.dataset.svResizableIndex !== String(index)) {
@@ -804,6 +850,12 @@
         if (oldHandle) oldHandle.remove();
       }
       th.dataset.svResizableIndex = String(index);
+      if (th.dataset && parseInt(th.dataset.svFixedWidth || '', 10) > 0) {
+        th.classList.remove('sv-resizable-th');
+        var fixedHandle = th.querySelector('.sv-col-resizer');
+        if (fixedHandle) fixedHandle.remove();
+        return;
+      }
       th.classList.add('sv-resizable-th');
       if (th.querySelector('.sv-col-resizer')) return;
       var handle = document.createElement('span');
@@ -822,6 +874,7 @@
       var resizeFrame = 0;
       var startWidths = null;
       var startRenderedTotal = 0;
+      var didDrag = false;
 
       function applyLivePixelWidth(deltaPx) {
         if (!startWidths || !startWidths.length) return;
@@ -843,6 +896,7 @@
 
       function move(clientX) {
         if (!dragging) return;
+        if (Math.abs(clientX - startX) > 3) didDrag = true;
         pendingClientX = clientX;
         if (resizeFrame) return;
         resizeFrame = window.requestAnimationFrame(function () {
@@ -870,6 +924,7 @@
         table.style.removeProperty('--sv-percent-total-width');
         table.style.width = Object.keys(finalWidths).reduce(function (sum, key) { return sum + finalWidths[key]; }, 0) + 'px';
         table.style.minWidth = table.style.width;
+        if (didDrag) table.dataset.svSuppressHeaderClickUntil = String(Date.now() + 350);
         document.body.classList.remove('sv-resizing-columns');
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', stop);
@@ -901,6 +956,7 @@
         livePercentages = Object.assign({}, startPercentages);
         neighborIndex = adjacentColumnIndex(table, index);
         pendingClientX = clientX;
+        didDrag = false;
         // Desde este punto mouse y editor trabajan con la misma unidad.
         document.body.classList.add('sv-resizing-columns');
         document.addEventListener('mousemove', onMouseMove);
@@ -971,11 +1027,9 @@
     btn.title = 'Configurar columnas de ' + tableLabel(table);
     btn.setAttribute('aria-label', btn.title);
     btn.innerHTML = '<i class="ti ti-columns"></i>';
-    btn.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      openPercentEditor(table);
-    });
+    if (table.id) {
+      btn.setAttribute('onclick', 'window.SisVentas.openColumnPercentEditor(' + JSON.stringify(table.id) + ');event.preventDefault();event.stopPropagation();');
+    }
     if (!head) {
       var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap');
       var toolbar = document.createElement('div');
@@ -995,10 +1049,139 @@
     actions.appendChild(btn);
   }
 
+  function openPixelEditor(table) {
+    if (!table) return;
+    if (window.currentRole && window.currentRole !== 'admin') {
+      if (window.notify) window.notify('Solo el administrador puede configurar columnas');
+      return;
+    }
+    var old = document.getElementById('sv-column-percent-modal');
+    if (old) old.remove();
+    var headers = tableHeaders(table);
+    if (!headers.length) return;
+    var savedWidths = loadWidths(table);
+    var savedAlignments = currentAlignments(table);
+    var initialWidths = headers.map(function (th, index) {
+      var fixed = parseInt(th.dataset && th.dataset.svFixedWidth || '', 10);
+      var saved = parseInt(savedWidths[index], 10);
+      return normalizeWidth(fixed > 0 ? fixed : (saved > 0 ? saved : th.getBoundingClientRect().width));
+    });
+    var overlay = document.createElement('div');
+    overlay.id = 'sv-column-percent-modal';
+    overlay.className = 'sv-column-percent-overlay';
+    overlay.innerHTML =
+      '<div class="sv-column-percent-panel">' +
+        '<div class="sv-column-percent-head">' +
+          '<div><strong>Columnas y alineación</strong><span>Anchos independientes. El porcentaje es solo informativo.</span></div>' +
+          '<button class="btn btn-sm btn-icon" type="button" data-sv-close><i class="ti ti-x"></i></button>' +
+        '</div>' +
+        '<div class="sv-column-percent-list">' +
+          headers.map(function (th, index) {
+            var label = columnLabel(th, index) || ('Columna ' + (index + 1));
+            var align = normalizeAlignment(savedAlignments[index]);
+            var fixed = parseInt(th.dataset && th.dataset.svFixedWidth || '', 10) > 0;
+            return '<div class="sv-column-percent-row">' +
+              '<span>'+escapeHTML(label)+'</span>' +
+              '<input type="number" min="54" max="720" step="1" data-pixel-index="'+index+'" value="'+initialWidths[index]+'"'+(fixed ? ' disabled title="Ancho protegido"' : '')+'>' +
+              '<em>px</em>' +
+              '<select data-align-index="'+index+'" aria-label="Alineación de '+escapeHTML(label)+'">' +
+                '<option value="left"'+(align === 'left' ? ' selected' : '')+'>Izquierda</option>' +
+                '<option value="center"'+(align === 'center' ? ' selected' : '')+'>Centro</option>' +
+                '<option value="right"'+(align === 'right' ? ' selected' : '')+'>Derecha</option>' +
+              '</select>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+        '<div class="sv-column-percent-total">Ocupación visible: <strong id="sv-column-percent-total">0%</strong><span id="sv-column-percent-hint"> · solo informativo</span></div>' +
+        '<div class="sv-column-percent-actions">' +
+          '<button class="btn btn-sm" type="button" data-sv-default>Restablecer anchos</button>' +
+          '<button class="btn btn-sm btn-primary" type="button" data-sv-save>Guardar</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    function readWidths() {
+      return Array.from(overlay.querySelectorAll('input[data-pixel-index]')).map(function (input) {
+        return normalizeWidth(input.value);
+      });
+    }
+    function readAlignments() {
+      var data = {};
+      overlay.querySelectorAll('select[data-align-index]').forEach(function (select) {
+        data[select.dataset.alignIndex] = normalizeAlignment(select.value);
+      });
+      return data;
+    }
+    function applyPixelPreview(widths) {
+      var total = widths.reduce(function (sum, width) { return sum + width; }, 0);
+      table.classList.remove('sv-percent-table');
+      table.classList.add('sv-pixel-table');
+      table.style.removeProperty('--sv-percent-total-width');
+      table.style.setProperty('--sv-pixel-total-width', total + 'px');
+      table.style.width = 'var(--sv-pixel-total-width)';
+      table.style.minWidth = 'var(--sv-pixel-total-width)';
+      table.style.tableLayout = 'fixed';
+      widths.forEach(function (width, index) { applyColumnWidth(table, index, width); });
+      applyAlignments(table, readAlignments());
+      var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap, .card');
+      var available = Math.max(1, wrap ? wrap.clientWidth : table.parentElement.clientWidth);
+      var percent = Math.round((total / available) * 1000) / 10;
+      var totalEl = overlay.querySelector('#sv-column-percent-total');
+      if (totalEl) {
+        totalEl.textContent = percent + '%';
+        totalEl.style.color = Math.abs(percent - 100) <= .5 ? 'var(--green)' : (percent > 100 ? 'var(--blue)' : 'var(--amber)');
+      }
+    }
+    function restoreSaved() {
+      initialWidths.forEach(function (width, index) { applyColumnWidth(table, index, width); });
+      var total = initialWidths.reduce(function (sum, width) { return sum + width; }, 0);
+      table.style.setProperty('--sv-pixel-total-width', total + 'px');
+      table.style.width = 'var(--sv-pixel-total-width)';
+      table.style.minWidth = 'var(--sv-pixel-total-width)';
+      applyAlignments(table, savedAlignments);
+    }
+    overlay.addEventListener('input', function (event) {
+      if (event.target && event.target.matches('input[data-pixel-index]')) applyPixelPreview(readWidths());
+    });
+    overlay.addEventListener('change', function (event) {
+      if (event.target && event.target.matches('select[data-align-index]')) applyPixelPreview(readWidths());
+    });
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay || event.target.closest('[data-sv-close]')) {
+        restoreSaved();
+        overlay.remove();
+        return;
+      }
+      if (event.target.closest('[data-sv-default]')) {
+        overlay.querySelectorAll('input[data-pixel-index]').forEach(function (input, index) {
+          input.value = defaultPixelWidthForTable(table, headers[index], index, headers.length);
+        });
+        applyPixelPreview(readWidths());
+        return;
+      }
+      if (event.target.closest('[data-sv-save]')) {
+        var widths = readWidths();
+        var data = {};
+        widths.forEach(function (width, index) { data[index] = width; });
+        savePercentages(table, {});
+        saveWidths(table, data);
+        saveAlignments(table, readAlignments());
+        applyPixelPreview(widths);
+        overlay.remove();
+        if (window.notify) window.notify('✓ Columnas y alineación guardadas');
+      }
+    });
+    applyPixelPreview(initialWidths);
+  }
+
   function openPercentEditor(tableOrId) {
     var table = typeof tableOrId === 'string' ? document.getElementById(tableOrId) : tableOrId;
     if (!table) {
       if (window.notify) window.notify('Tabla no encontrada');
+      return;
+    }
+    if (usesPixelOnly(table)) {
+      openPixelEditor(table);
       return;
     }
     if (window.currentRole && window.currentRole !== 'admin') {
