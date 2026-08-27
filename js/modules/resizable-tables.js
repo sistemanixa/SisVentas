@@ -415,6 +415,55 @@
     return defaultWidthForHeader(th);
   }
 
+  function availableWidthForTable(table) {
+    var wrap = table && table.closest ? table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap, .card') : null;
+    var width = wrap ? (wrap.clientWidth || wrap.getBoundingClientRect().width) : 0;
+    if (wrap && window.getComputedStyle) {
+      var style = window.getComputedStyle(wrap);
+      width -= (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+    }
+    return Math.max(1, Math.round(width || (table && table.parentElement ? table.parentElement.clientWidth : 0) || 1));
+  }
+
+  function suggestedPixelWidths(table, headers) {
+    var target = availableWidthForTable(table);
+    var result = new Array(headers.length);
+    var flexible = [];
+    var fixedTotal = 0;
+    headers.forEach(function (th, index) {
+      var fixed = parseInt(th && th.dataset ? th.dataset.svFixedWidth : '', 10);
+      if (fixed > 0) {
+        result[index] = normalizeWidth(fixed);
+        fixedTotal += result[index];
+      } else {
+        flexible.push({ index:index, base:defaultPixelWidthForTable(table, th, index, headers.length) });
+      }
+    });
+    var flexibleTarget = Math.max(MIN_WIDTH * flexible.length, target - fixedTotal);
+    var pending = flexible.slice();
+    var remaining = flexibleTarget;
+    while (pending.length) {
+      var baseTotal = pending.reduce(function (sum, item) { return sum + item.base; }, 0) || pending.length;
+      var belowMinimum = pending.filter(function (item) { return (item.base / baseTotal) * remaining < MIN_WIDTH; });
+      if (!belowMinimum.length) break;
+      belowMinimum.forEach(function (item) {
+        result[item.index] = MIN_WIDTH;
+        remaining -= MIN_WIDTH;
+      });
+      pending = pending.filter(function (item) { return belowMinimum.indexOf(item) < 0; });
+    }
+    var pendingBaseTotal = pending.reduce(function (sum, item) { return sum + item.base; }, 0) || 1;
+    var exact = pending.map(function (item) { return (item.base / pendingBaseTotal) * remaining; });
+    var assigned = exact.map(function (value) { return Math.floor(value); });
+    var residue = remaining - assigned.reduce(function (sum, value) { return sum + value; }, 0);
+    var order = exact.map(function (value, index) {
+      return { index:index, remainder:value - Math.floor(value) };
+    }).sort(function (a, b) { return b.remainder - a.remainder || a.index - b.index; });
+    for (var extra = 0; extra < residue && order.length; extra += 1) assigned[order[extra % order.length].index] += 1;
+    pending.forEach(function (item, index) { result[item.index] = normalizeWidth(assigned[index]); });
+    return result;
+  }
+
   function updateOverflowTitles(table) {
     Array.from(table.querySelectorAll('th,td')).forEach(function (cell) {
       if (cell.querySelector && cell.querySelector('.sv-col-resizer')) return;
@@ -439,10 +488,39 @@
     return Math.round(n * 10) / 10;
   }
 
+  // Convierte cualquier propuesta de anchos en décimas exactas que suman
+  // 100%. Repartir el residuo por mayor resto evita que el redondeo separado
+  // deje perfiles sugeridos en 99,8%, 100,4% o incluso por encima de 100%
+  // cuando una tabla declara una base histórica sobredimensionada.
+  function normalizeSuggestedPercentages(source, count) {
+    var values = [];
+    for (var index = 0; index < count; index += 1) {
+      values.push(Math.max(0, normalizePercent(source && source[index])));
+    }
+    var total = values.reduce(function (sum, value) { return sum + value; }, 0);
+    if (!(total > 0)) values = values.map(function () { return 1; });
+    total = values.reduce(function (sum, value) { return sum + value; }, 0) || 1;
+    var exactTenths = values.map(function (value) { return (value / total) * 1000; });
+    var tenths = exactTenths.map(function (value) { return Math.floor(value); });
+    var remaining = 1000 - tenths.reduce(function (sum, value) { return sum + value; }, 0);
+    var order = exactTenths.map(function (value, index) {
+      return { index:index, remainder:value - Math.floor(value) };
+    }).sort(function (a, b) {
+      return b.remainder - a.remainder || a.index - b.index;
+    });
+    for (var extra = 0; extra < remaining; extra += 1) {
+      tenths[order[extra % order.length].index] += 1;
+    }
+    var result = {};
+    tenths.forEach(function (value, index) { result[index] = value / 10; });
+    return result;
+  }
+
   function defaultPercentages(table) {
     var headers = tableHeaders(table);
+    var preset = null;
     if (table && table.id === 'prod-tbl') {
-      return {
+      preset = {
         0: 5,
         1: 4,
         2: 30,
@@ -454,8 +532,8 @@
         8: 3
       };
     }
-    if (table && table.id === 'gas-tbl') {
-      return {
+    if (!preset && table && table.id === 'gas-tbl') {
+      preset = {
         0: 6,
         1: 30,
         2: 9,
@@ -468,8 +546,8 @@
         9: 7
       };
     }
-    if (table && table.id === 'ppto-tabla') {
-      return {
+    if (!preset && table && table.id === 'ppto-tabla') {
+      preset = {
         0: 17,
         1: 23,
         2: 15,
@@ -478,8 +556,8 @@
         5: 13
       };
     }
-    if (table && table.id === 'ventas-tbl') {
-      return {
+    if (!preset && table && table.id === 'ventas-tbl') {
+      preset = {
         0: 7,
         1: 40,
         2: 10,
@@ -490,8 +568,8 @@
         7: 6
       };
     }
-    if (table && table.id === 'venta-items-tbl') {
-      return {
+    if (!preset && table && table.id === 'venta-items-tbl') {
+      preset = {
         0: 9,
         1: 38,
         2: 8,
@@ -502,6 +580,7 @@
         7: 4
       };
     }
+    if (preset) return normalizeSuggestedPercentages(preset, headers.length);
     var pesos = headers.map(function (th) {
       return defaultWidthForHeader(th);
     });
@@ -510,7 +589,7 @@
     headers.forEach(function (_th, index) {
       data[index] = Math.round((pesos[index] / total) * 1000) / 10;
     });
-    return data;
+    return normalizeSuggestedPercentages(data, headers.length);
   }
 
   function sanitizePercentages(table, source) {
@@ -775,10 +854,11 @@
     if (!headers.length) return;
     ensureColgroup(table, totalColumnCount(table));
     var widths = loadWidths(table);
+    var suggestedWidths = suggestedPixelWidths(table, headers);
     var resolvedWidths = headers.map(function (th, index) {
       var fixed = parseInt(th && th.dataset ? th.dataset.svFixedWidth : '', 10);
       var saved = fixed > 0 ? fixed : parseInt(widths[index], 10);
-      return normalizeWidth(saved > 0 ? saved : defaultPixelWidthForTable(table, th, index, headers.length));
+      return normalizeWidth(saved > 0 ? saved : suggestedWidths[index]);
     });
     var totalWidth = resolvedWidths.reduce(function (sum, width) { return sum + width; }, 0);
     // Fijar primero el ancho total evita que el navegador distribuya las
@@ -1042,9 +1122,11 @@
     btn.title = 'Configurar columnas de ' + tableLabel(table);
     btn.setAttribute('aria-label', btn.title);
     btn.innerHTML = '<i class="ti ti-columns"></i>';
-    if (table.id) {
-      btn.setAttribute('onclick', 'window.SisVentas.openColumnPercentEditor(' + JSON.stringify(table.id) + ');event.preventDefault();event.stopPropagation();');
-    }
+    btn.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      openPercentEditor(table);
+    });
     if (!head) {
       var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap');
       var toolbar = document.createElement('div');
@@ -1076,6 +1158,7 @@
     if (!headers.length) return;
     var savedWidths = loadWidths(table);
     var savedAlignments = currentAlignments(table);
+    var suggestedWidths = suggestedPixelWidths(table, headers);
     var initialWidths = headers.map(function (th, index) {
       var fixed = parseInt(th.dataset && th.dataset.svFixedWidth || '', 10);
       var saved = parseInt(savedWidths[index], 10);
@@ -1138,8 +1221,7 @@
       table.style.tableLayout = 'fixed';
       widths.forEach(function (width, index) { applyColumnWidth(table, index, width); });
       applyAlignments(table, readAlignments());
-      var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap, .card');
-      var available = Math.max(1, wrap ? wrap.clientWidth : table.parentElement.clientWidth);
+      var available = availableWidthForTable(table);
       var percent = Math.round((total / available) * 1000) / 10;
       var totalEl = overlay.querySelector('#sv-column-percent-total');
       if (totalEl) {
@@ -1168,8 +1250,9 @@
         return;
       }
       if (event.target.closest('[data-sv-default]')) {
+        suggestedWidths = suggestedPixelWidths(table, headers);
         overlay.querySelectorAll('input[data-pixel-index]').forEach(function (input, index) {
-          input.value = defaultPixelWidthForTable(table, headers[index], index, headers.length);
+          input.value = suggestedWidths[index];
         });
         applyPixelPreview(readWidths());
         return;
@@ -1430,5 +1513,7 @@
     window.SisVentas.prepareResizablePage = initPageTables;
     window.SisVentas.openColumnPercentEditor = openPercentEditor;
     window.SisVentas.applyColumnPercentProfiles = scan;
+    window.SisVentas.normalizeSuggestedColumnPercentages = normalizeSuggestedPercentages;
+    window.SisVentas.suggestedPixelColumnWidths = suggestedPixelWidths;
   });
 })();
