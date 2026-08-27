@@ -69,6 +69,8 @@ test('cambiar la URL borra la confirmación anterior', () => {
   assert.match(cambioUrl, /identidadConfirmadaUrl:null/);
 });
 
-test('la aplicación activa y su espejo permanecen idénticos', () => {
-  assert.equal(app, appBase);
+test('la aplicación activa usa el archivo inmutable indicado por index', () => {
+  assert.ok(appVersionada, 'index debe declarar una aplicación versionada');
+  assert.doesNotMatch(index, /<script src="\.\/js\/app\.js/);
+  assert.match(app, new RegExp(`VERSION:\\s*'${appVersionada.replace(/\./g, '\\.')}-firebase'`));
 });

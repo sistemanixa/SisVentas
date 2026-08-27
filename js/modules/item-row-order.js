@@ -33,41 +33,20 @@
     if (!body) return;
     var ordered = meaningfulRows(body);
     Array.from(body.querySelectorAll(':scope > tr')).forEach(function (row) {
-      var controls = row.querySelector('.sv-item-order-controls');
       var handle = row.querySelector('.sv-item-drag-handle');
       var meaningful = isMeaningfulRow(row);
-      if (controls) controls.hidden = !meaningful;
       if (handle) handle.hidden = !meaningful;
       if (!meaningful) {
         row.removeAttribute('data-item-order');
         return;
       }
-      var index = ordered.indexOf(row);
-      row.dataset.itemOrder = String(index + 1);
-      var up = row.querySelector('[data-item-move="up"]');
-      var down = row.querySelector('[data-item-move="down"]');
-      if (up) up.disabled = index <= 0;
-      if (down) down.disabled = index < 0 || index >= ordered.length - 1;
+      row.dataset.itemOrder = String(ordered.indexOf(row) + 1);
     });
   }
 
   function finishMove(body) {
     refresh(body);
     recalculate(body);
-  }
-
-  function moveRow(row, direction) {
-    var body = row && row.parentElement;
-    if (!body || BODY_IDS.indexOf(body.id) < 0 || !isMeaningfulRow(row)) return;
-    var rows = meaningfulRows(body);
-    var index = rows.indexOf(row);
-    var target = rows[index + direction];
-    if (!target) return;
-    if (direction < 0) body.insertBefore(row, target);
-    else body.insertBefore(target, row);
-    finishMove(body);
-    row.classList.add('sv-item-row-moved');
-    setTimeout(function () { row.classList.remove('sv-item-row-moved'); }, 420);
   }
 
   function installRow(row) {
@@ -87,15 +66,7 @@
     }
 
     var actionCell = row.lastElementChild;
-    if (actionCell && !actionCell.querySelector('.sv-item-order-controls')) {
-      actionCell.classList.add('sv-item-actions-cell');
-      var controls = document.createElement('span');
-      controls.className = 'sv-item-order-controls';
-      controls.innerHTML =
-        '<button type="button" data-item-move="up" title="Subir ítem" aria-label="Subir ítem"><i class="ti ti-chevron-up"></i></button>' +
-        '<button type="button" data-item-move="down" title="Bajar ítem" aria-label="Bajar ítem"><i class="ti ti-chevron-down"></i></button>';
-      actionCell.insertBefore(controls, actionCell.firstChild);
-    }
+    if (actionCell) actionCell.classList.add('sv-item-actions-cell');
   }
 
   function installBody(body) {
@@ -135,18 +106,7 @@
 
   function ready() {
     scan();
-    // Delegación central: las grillas responsive pueden reconstruir las
-    // acciones. El evento sigue funcionando aunque el botón haya sido clonado.
     document.addEventListener('click', function (event) {
-      var moveButton = event.target && event.target.closest ? event.target.closest('[data-item-move]') : null;
-      if (moveButton) {
-        var row = moveButton.closest('tr');
-        if (!row || !row.closest('#det-body,#pp-body')) return;
-        event.preventDefault();
-        event.stopPropagation();
-        moveRow(row, moveButton.dataset.itemMove === 'up' ? -1 : 1);
-        return;
-      }
       var handle = event.target && event.target.closest ? event.target.closest('.sv-item-drag-handle') : null;
       if (handle) { event.preventDefault(); event.stopPropagation(); }
     }, true);

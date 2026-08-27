@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const raiz = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
-const appActivo = (html.match(/<script src="\.\/js\/(app\.v[^"?]+\.js)"/) || [])[1];
+const appActivo = (html.match(/<script src="\.\/js\/(app\.v[^"?]+\.js)(?:\?[^\"]*)?"/) || [])[1];
 assert.ok(appActivo, 'index.html debe declarar el archivo principal activo');
 const app = fs.readFileSync(path.join(raiz, 'js', appActivo), 'utf8');
 

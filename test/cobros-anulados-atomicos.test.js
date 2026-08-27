@@ -123,7 +123,7 @@ test('cobros: el modelo v3 excluye pagos anulados aunque usen el campo legacy an
 
 test('publicacion: el archivo activo y su version interna son la misma version', () => {
   const index = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const active = index.match(/src="\.\/js\/(app\.v[\d.]+\.js)"/);
+  const active = index.match(/src="\.\/js\/(app\.v[\d.]+\.js)(?:\?[^\"]*)?"/);
   assert.ok(active, 'index debe cargar una aplicación versionada');
   const activeSource = fs.readFileSync(path.join(__dirname, '..', 'js', active[1]), 'utf8');
   const fromFile = active[1].match(/app\.(v[\d.]+)\.js/)[1];

@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-const app = fs.readFileSync('js/app.js','utf8');
+const { readActiveApp } = require('./helpers/active-app');
+const app = readActiveApp().source;
 
 test('el comprobante uniforma fechas como dd-mm-aaaa', () => {
   const inicio = app.indexOf('function formatearFechaComprobante(');
@@ -29,7 +30,7 @@ test('imprimir descargar y compartir son acciones independientes', () => {
 });
 
 test('la ventana conserva un título descriptivo después de escribir el documento', () => {
-  assert.match(app, /tituloVentanaPpto = 'SisVentas · NIXA — Presupuesto ' \+ num/);
+  assert.match(app, /tituloVentanaPpto = 'SisVentas - NIXA - Presupuesto ' \+ num/);
   assert.match(app, /w\.document\.title = tituloVentanaPpto/);
   assert.match(app, /URL\.createObjectURL\(new Blob\(\[htmlVistaPresupuesto\]/);
   assert.match(app, /w\.location\.replace\(urlVistaPresupuesto\)/);

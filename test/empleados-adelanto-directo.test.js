@@ -1,14 +1,17 @@
 const fs = require('fs');
 const assert = require('assert');
 
-const app = fs.readFileSync('js/app.js', 'utf8');
-const html = fs.readFileSync('index.html', 'utf8');
+const { readActiveApp } = require('./helpers/active-app');
+const activo = readActiveApp();
+const app = activo.source;
+const html = activo.index;
 
 assert.match(html, /id="movi-modal-titulo"/, 'El modal debe tener un título identificable');
 assert.match(app, /function abrirAdelantoEmpleadoDesdeEmpleados\(empFbKey\)/, 'Debe existir el acceso directo al adelanto');
 assert.match(app, /abrirNuevoMovEmp\('adelanto'\)/, 'Debe reutilizar el movimiento de tipo adelanto');
 assert.match(app, /estado\.value = 'pagado';[\s\S]*?onMoviEstadoChange\(\)/, 'El adelanto entregado debe solicitar el medio de pago');
-assert.match(app, /title="Cargar adelanto"/, 'La grilla de empleados debe ofrecer la acción directa');
+assert.match(html, /onclick="abrirModalAdelantoGeneral\(\)"/, 'Empleados debe ofrecer una acción general para cargar adelantos');
+assert.doesNotMatch(app, /title="Cargar adelanto"/, 'La grilla no debe repetir una acción por cada empleado');
 assert.match(app, /> Cargar adelanto<\/button>/, 'El legajo debe ofrecer una acción explícita');
 assert.doesNotMatch(app, /293[.\s]?100/, 'El monto informado por el usuario no debe quedar fijo en el código');
 assert.doesNotMatch(app, /osmar tello/i, 'El empleado informado por el usuario no debe quedar fijo en el código');

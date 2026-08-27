@@ -6,7 +6,8 @@ const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
-const app = read('js/app.js');
+const { readActiveApp } = require('./helpers/active-app');
+const app = readActiveApp().source;
 const index = read('index.html');
 
 test('presupuesto y venta permiten abrir la ficha del cliente', () => {
@@ -28,13 +29,12 @@ test('un documento histórico por nombre sólo abre una coincidencia única', ()
   assert.match(app, /if \(refs\.length\) return _svResolverClienteRegistro\(reg, false\)/);
   assert.match(app, /return coincidencias\.length === 1 \? coincidencias\[0\] : null/);
 
-  const start = app.indexOf('function _svResolverClienteDocumento');
+  const start = app.indexOf('function _svClienteClaves');
   const end = app.indexOf('function abrirClienteDesdeDocumento', start);
   const context = {
     clientesData: [{ fbKey:'a', nombre:'Cliente repetido' }, { fbKey:'b', nombre:'Cliente repetido' }, { fbKey:'c', nombre:'Cliente único' }],
     _svTxtClave: (value) => String(value || '').trim().toLowerCase(),
     _svTxtNombre: (value) => String(value || '').trim().toLowerCase(),
-    _svResolverClienteRegistro: (reg) => context.clientesData.find((cli) => cli.fbKey === reg.clienteFbKey) || null,
     Object
   };
   vm.runInNewContext(app.slice(start, end), context);

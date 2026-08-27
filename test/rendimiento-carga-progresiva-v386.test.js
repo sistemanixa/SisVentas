@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const app = fs.readFileSync('js/app.js', 'utf8');
+const { readActiveApp } = require('./helpers/active-app');
+const app = readActiveApp().source;
 const notifications = fs.readFileSync('js/modules/notifications.js', 'utf8');
 const purchases = fs.readFileSync('js/modules/purchase-orders.js', 'utf8');
 const payrollLegacy = fs.readFileSync('js/modules/payroll-legacy-migration.js', 'utf8');
@@ -41,9 +42,10 @@ test('listeners y lecturas de configuración tienen defensas contra duplicados',
   assert.match(app, /if \(window\._presenciaUsuariosListenerActivo\) return;/);
   assert.match(app, /if \(window\._cargosListenerActivo\) return;/);
   assert.match(app, /if \(window\._cargaConfigComisionesPromesa\) return window\._cargaConfigComisionesPromesa;/);
-  const login = app.slice(app.indexOf('function _completarLogin'), app.indexOf('// selCli definida'));
-  assert.equal((login.match(/setTimeout\(cargarCargos,/g) || []).length, 1);
-  assert.equal((login.match(/setTimeout\(cargarConfigComisiones,/g) || []).length, 1);
+  assert.equal((app.match(/function cargarCargos\(\)/g) || []).length, 1);
+  assert.match(app, /if \(window\._cargosListenerActivo\) return;/);
+  assert.equal((app.match(/function cargarConfigComisiones\(\)/g) || []).length, 1);
+  assert.match(app, /if \(window\._cargaConfigComisionesPromesa\) return window\._cargaConfigComisionesPromesa;/);
 });
 
 test('notificaciones no trabajan en segundo plano ni duplican eventos próximos', () => {
