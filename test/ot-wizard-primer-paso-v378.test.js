@@ -10,5 +10,5 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 test('Anterior se oculta en Cliente y reaparece desde el segundo paso', () => {
   assert.match(workflow, /ot-wiz301-ant'\)\.style\.display = idx<=0 \? 'none' : ''/);
   assert.match(workflow, /if\(idx>0\) show\(vis\[idx-1\]\.id\)/);
-  assert.match(html, /js\/modules\/ot-workflow\.js\?v=2\.0\.378/);
+  assert.match(html, /js\/modules\/ot-workflow\.js\?v=3\.0\.2/);
 });

@@ -207,9 +207,13 @@
       if(typeof notify==='function') notify('Error al iniciar OT: '+e.message);
     });
   };
-  document.addEventListener('sisventas:ot-opened',function(){
-    window._otWizardStep='cliente';
-    setTimeout(function(){ show('cliente'); },250);
+  document.addEventListener('sisventas:ot-opened',function(event){
+    var openedId=String(event&&event.detail&&(event.detail.id||(event.detail.ot&&(event.detail.ot.fbKey||event.detail.ot.id)))||window.otActualId||'');
+    var sameOT=!!openedId && String(window._otWizardOTId||'')===openedId;
+    window._otWizardOTId=openedId;
+    if(!sameOT) window._otWizardStep='cliente';
+    var targetStep=window._otWizardStep||'cliente';
+    setTimeout(function(){ show(targetStep,{scroll:!sameOT}); },250);
     setTimeout(function(){ show(window._otWizardStep||'cliente',{scroll:false}); },900);
   });
   window.instalarWizardOT=function(){ show(window._otWizardStep||'cliente'); };

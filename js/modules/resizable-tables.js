@@ -9,6 +9,7 @@
   var MAX_WIDTH = 720;
   var scheduled = false;
   var scheduleTimer = 0;
+  var viewportFitTimer = 0;
   var percentDrafts = {};
   var alignmentDrafts = {};
   var alignmentScopeSequence = 0;
@@ -97,13 +98,21 @@
   function ensureActionsColumnPolicy(table, headers) {
     (headers || []).forEach(function (th, index) {
       if (!isActionsHeader(th, index) || parseInt(th.dataset.svFixedWidth || '', 10) > 0) return;
-      var maxActions = columnCells(table, index).reduce(function (max, cell) {
-        var count = cell.querySelectorAll ? cell.querySelectorAll('button,a.btn,a.icon-btn').length : 0;
-        return Math.max(max, count);
-      }, 0);
+      var medidas = columnCells(table, index).reduce(function (acc, cell) {
+        var actions = cell.querySelectorAll ? Array.from(cell.querySelectorAll('button,a.btn,a.icon-btn')) : [];
+        var required = actions.reduce(function (sum, action) {
+          var label = String(action.textContent || '').replace(/\s+/g, ' ').trim();
+          // Los iconos solos conservan el ancho compacto. Los botones con
+          // texto reservan lo suficiente para mostrar su etiqueta completa.
+          return sum + Math.max(44, Math.min(190, label ? (34 + label.length * 7) : 44));
+        }, 0);
+        acc.count = Math.max(acc.count, actions.length);
+        acc.width = Math.max(acc.width, required + (actions.length > 1 ? (actions.length - 1) * 6 : 0));
+        return acc;
+      }, { count:0, width:0 });
       // La columna de acciones conserva una sola fila y no se puede achicar
       // hasta ocultar controles. El ancho se adapta a la cantidad real.
-      th.dataset.svFixedWidth = String(Math.min(260, Math.max(96, 16 + Math.max(1, maxActions) * 44)));
+      th.dataset.svFixedWidth = String(Math.min(280, Math.max(96, 16 + medidas.width, 16 + Math.max(1, medidas.count) * 44)));
     });
   }
 
@@ -619,9 +628,10 @@
       };
     }
     if (preset) return normalizeSuggestedPercentages(preset, headers.length);
-    var pesos = headers.map(function (th) {
-      return defaultWidthForHeader(th);
-    });
+    // La base general parte de los anchos sugeridos reales: contempla el
+    // contenido y las columnas fijas (especialmente Acciones), no reparte el
+    // 100% como si todas las columnas necesitaran lo mismo.
+    var pesos = suggestedPixelWidths(table, headers);
     var total = pesos.reduce(function (s, n) { return s + n; }, 0) || 1;
     var data = {};
     headers.forEach(function (_th, index) {
@@ -914,6 +924,62 @@
     updateOverflowTitles(table);
   }
 
+  function pixelContainerWidth(table) {
+    var wrap = table && table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap, .card');
+    if (!wrap) return 0;
+    var style = window.getComputedStyle ? window.getComputedStyle(wrap) : null;
+    var padding = style ? (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0) : 0;
+    return Math.max(0, (wrap.clientWidth || wrap.getBoundingClientRect().width || 0) - padding);
+  }
+
+  function fitPixelTableToContainer(table) {
+    if (!table || !isTableVisible(table) || !table.classList.contains('sv-pixel-table')) return;
+    if (document.body.classList.contains('sv-resizing-columns')) return;
+    if (window.matchMedia && window.matchMedia('(max-width: 767px)').matches) return;
+    var headers = tableHeaders(table);
+    if (headers.length < 2) return;
+    var available = pixelContainerWidth(table);
+    if (available <= 0) return;
+    var saved = loadWidths(table);
+    var suggested = suggestedPixelWidths(table, headers);
+    var base = headers.map(function(th, index) {
+      var fixed = parseInt(th && th.dataset ? th.dataset.svFixedWidth : '', 10);
+      var stored = parseInt(saved[index], 10);
+      return normalizeWidth(fixed > 0 ? fixed : (stored > 0 ? stored : suggested[index]));
+    });
+    var fixedTotal = 0;
+    var flexibleTotal = 0;
+    headers.forEach(function(th, index) {
+      if (parseInt(th && th.dataset ? th.dataset.svFixedWidth : '', 10) > 0) fixedTotal += base[index];
+      else flexibleTotal += base[index];
+    });
+    var flexibleSpace = Math.max(0, available - fixedTotal);
+    var factor = flexibleTotal > 0 ? flexibleSpace / flexibleTotal : 1;
+    var fitted = base.map(function(width, index) {
+      var fixed = parseInt(headers[index] && headers[index].dataset ? headers[index].dataset.svFixedWidth : '', 10);
+      return fixed > 0 ? normalizeWidth(fixed) : normalizeWidth(width * factor);
+    });
+    var total = fitted.reduce(function(sum, width) { return sum + width; }, 0);
+    table.style.setProperty('--sv-pixel-total-width', total + 'px');
+    table.style.setProperty('width', 'var(--sv-pixel-total-width)', 'important');
+    table.style.setProperty('min-width', 'var(--sv-pixel-total-width)', 'important');
+    fitted.forEach(function(width, index) { applyColumnWidth(table, index, width); });
+    table.dataset.svViewportFitWidth = String(Math.round(available));
+  }
+
+  function fitVisiblePixelTables() {
+    // Incluye también tablas visibles dentro de modales y paneles flotantes,
+    // que viven fuera de .page.active (por ejemplo Revisión de productos).
+    document.querySelectorAll('table.sv-pixel-table').forEach(fitPixelTableToContainer);
+  }
+
+  function scheduleViewportFit() {
+    clearTimeout(viewportFitTimer);
+    viewportFitTimer = setTimeout(function() {
+      window.requestAnimationFrame(fitVisiblePixelTables);
+    }, 90);
+  }
+
   function initTable(table) {
     if (!table) return;
     // showPage prepara el modulo antes de volverlo visible. Inicializar en ese
@@ -971,6 +1037,7 @@
       table.style.removeProperty('--sv-percent-total-width');
       applySavedWidths(table);
     } else if (!applySavedPercentProfile(table)) applySavedWidths(table);
+    if (table.classList.contains('sv-pixel-table')) fitPixelTableToContainer(table);
 
     headers.forEach(function (th, index) {
       if (th.dataset.svResizableIndex !== String(index)) {
@@ -1353,6 +1420,15 @@
     }
     var pixelProfile = loadWidths(table);
     var values = Object.keys(pixelProfile).length ? percentagesFromRenderedLayout(table) : currentPercentages(table);
+    var availableForFixed = availableWidthForTable(table);
+    var fixedTooSmall = headers.some(function(th, index) {
+      var fixed = parseInt(th.dataset && th.dataset.svFixedWidth || '', 10);
+      return fixed > 0 && normalizePercent(values[index]) + .1 < (fixed / availableForFixed) * 100;
+    });
+    // Un perfil histórico puede sumar 100% y aun así cortar botones. Si una
+    // columna fija quedó por debajo de su contenido, partimos de la nueva base
+    // sugerida en lugar de perpetuar ese perfil visualmente inválido.
+    if (fixedTooSmall) values = defaultPercentages(table);
     var alignValues = currentAlignments(table);
     percentDrafts[percentDraftKey(table)] = Object.assign({}, values);
     alignmentDrafts[percentDraftKey(table)] = Object.assign({}, alignValues);
@@ -1369,9 +1445,10 @@
           headers.map(function (th, index) {
             var label = columnLabel(th, index);
             var align = normalizeAlignment(alignValues[index]);
+            var fixed = parseInt(th.dataset && th.dataset.svFixedWidth || '', 10) > 0;
             return '<div class="sv-column-percent-row">' +
               '<span>'+escapeHTML(label || ('Columna ' + (index + 1)))+'</span>' +
-              '<input type="number" min="0" max="100" step="0.5" data-col-index="'+index+'" value="'+escapeHTML(values[index] || 0)+'">' +
+              '<input type="number" min="0" max="100" step="0.5" data-col-index="'+index+'" value="'+escapeHTML(values[index] || 0)+'"'+(fixed ? ' readonly title="Ancho protegido para mostrar todas las acciones"' : '')+'>' +
               '<em>%</em>' +
               '<select data-align-index="'+index+'" aria-label="Alineación de '+escapeHTML(label || ('columna ' + (index + 1)))+'">' +
                 '<option value="left"'+(align === 'left' ? ' selected' : '')+'>Izquierda</option>' +
@@ -1564,7 +1641,10 @@
       if (mutationTouchesActivePage(mutations)) scheduleScan();
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    window.addEventListener('resize', scheduleScan);
+    window.addEventListener('resize', function() {
+      scheduleScan();
+      scheduleViewportFit();
+    });
     document.addEventListener('sisventas:page-changed', scheduleScan);
     window.SisVentas = window.SisVentas || {};
     window.SisVentas.initResizableTables = scan;
@@ -1573,5 +1653,6 @@
     window.SisVentas.applyColumnPercentProfiles = scan;
     window.SisVentas.normalizeSuggestedColumnPercentages = normalizeSuggestedPercentages;
     window.SisVentas.suggestedPixelColumnWidths = suggestedPixelWidths;
+    window.SisVentas.fitResizableTablesToViewport = fitVisiblePixelTables;
   });
 })();

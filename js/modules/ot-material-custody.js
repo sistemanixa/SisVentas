@@ -115,9 +115,27 @@
     var promise = typeof window.fbGuardarOT === 'function'
       ? window.fbGuardarOT(ot)
       : Promise.reject(new Error('Firebase no está disponible'));
+    var materialCard = document.getElementById('ot-materiales-card');
+    var scrollContainer = materialCard;
+    while (scrollContainer && scrollContainer !== document.body) {
+      var style = window.getComputedStyle(scrollContainer);
+      if (/(auto|scroll)/.test(style.overflowY || '') && scrollContainer.scrollHeight > scrollContainer.clientHeight) break;
+      scrollContainer = scrollContainer.parentElement;
+    }
+    var usesWindow = !scrollContainer || scrollContainer === document.body;
+    var scrollTop = usesWindow ? (window.scrollY || document.documentElement.scrollTop || 0) : scrollContainer.scrollTop;
+    var cardTop = materialCard ? materialCard.getBoundingClientRect().top : 0;
     return Promise.resolve(promise).then(function () {
       updateGlobal();
       if (typeof window.verOT === 'function' && window.otActualId) window.verOT(ot.fbKey || ot.id);
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          var refreshedCard = document.getElementById('ot-materiales-card');
+          var correction = refreshedCard ? refreshedCard.getBoundingClientRect().top - cardTop : 0;
+          if (usesWindow) window.scrollTo(0, Math.max(0, scrollTop + correction));
+          else if (scrollContainer && scrollContainer.isConnected) scrollContainer.scrollTop = Math.max(0, scrollTop + correction);
+        });
+      });
       return ot;
     });
   }
