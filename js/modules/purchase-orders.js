@@ -476,7 +476,7 @@
     if (!target) return;
     var filter = (document.getElementById('oc2-filter') || {}).value || '';
     var list = filter ? state.orders.filter(function (o) { return o.estado === filter; }) : state.orders;
-    target.innerHTML = '<div class="table-wrap"><table style="min-width:880px"><thead><tr><th>N°</th><th>Proveedor</th><th>Destino</th><th>Materiales</th><th class="tr">Total</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
+    target.innerHTML = '<div class="table-wrap"><table id="oc2-orders-table" data-sv-column-key="ordenes-compra-principal" style="min-width:880px"><thead><tr><th>N°</th><th>Proveedor</th><th>Destino</th><th>Materiales</th><th class="tr">Total</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
       (list.length ? list.map(function (o) {
         var qty = Array.isArray(o.items) ? o.items.reduce(function (s, i) { return s + (parseFloat(i.cantidadOrdenada || i.cantidad) || 0); }, 0) : (parseFloat(o.cantidad) || 0);
         var itemCount = (o.items && o.items.length) || 1;
@@ -489,7 +489,7 @@
     renderPageShell();
     var target = document.getElementById('oc2-lists');
     if (!target) return;
-    target.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Lista</th><th>Venta</th><th>Cliente</th><th>Materiales</th><th>Órdenes</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
+    target.innerHTML = '<div class="table-wrap"><table id="oc2-lists-table" data-sv-column-key="ordenes-compra-listas"><thead><tr><th>Lista</th><th>Venta</th><th>Cliente</th><th>Materiales</th><th>Órdenes</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
       (state.lists.length ? state.lists.map(function (list) {
         var pending = (list.items || []).filter(function (i) { return i.incluir && i.cantidadComprar > 0; }).length;
         return '<tr onclick="ocAbrirListaMateriales(\'' + attr(list.fbKey) + '\')" style="cursor:pointer"><td><strong>' + esc(list.numero || '—') + '</strong></td><td>' + esc(list.ventaId || 'Manual') + '</td><td>' + esc(list.cliente || '—') + '</td><td>' + pending + ' a comprar</td><td>' + ((list.ordenesIds || []).length) + '</td><td>' + statusBadge(list.estado) + '</td><td><button type="button" class="btn btn-sm btn-icon" title="Ver detalle" aria-label="Ver detalle"><i class="ti ti-eye"></i><span class="sv-mobile-action-label">Ver detalle</span></button></td></tr>';

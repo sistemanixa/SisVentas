@@ -57,10 +57,13 @@ test('la ficha del cliente permite agregar otro domicilio', () => {
   assert.match(app, /function abrirNuevaSedeCliente\(el\)/);
 });
 
-test('Clientes pinta primero la carga y difiere la grilla hasta que el navegador queda libre', () => {
+test('Clientes difiere la primera grilla y reutiliza la vista preparada al regresar', () => {
   assert.match(app, /function programarRenderTablaClientes\(filtro, mostrarCarga\)/);
-  assert.match(app, /requestAnimationFrame\(function\(\) \{[\s\S]*?requestIdleCallback\(ejecutar, \{ timeout:300 \}\)/);
-  assert.match(app, /programarRenderTablaClientes\(inpClientes\?inpClientes\.value:'', true\)/);
+  assert.match(app, /function mostrarEstadoCargaClientes\(texto\)/);
+  assert.match(app, /requestAnimationFrame\(function\(\) \{[\s\S]*?requestAnimationFrame\(function\(\)/);
+  assert.match(app, /requestIdleCallback\(completar, \{ timeout:700 \}\)/);
+  assert.match(app, /vistaClientesLista[\s\S]*?_clientesUltimoRenderVersion === _clientesCacheVersion/);
+  assert.match(app, /programarRenderTablaClientes\(filtroClientes, true\)/);
   assert.match(app, /CustomEvent\('sisventas:module-ready', \{ detail:\{ page:'clientes' \} \}\)/);
 });
 

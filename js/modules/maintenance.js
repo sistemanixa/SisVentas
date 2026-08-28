@@ -1,5 +1,5 @@
 ﻿/* v1.36.3 — Centro de diagnóstico y mantenimiento de base de datos */
-var MNT_STATE = { analizado:false, integridadOK:false, pendientes:0, diag:null, inicializado:false };
+var MNT_STATE = { analizado:false, integridadOK:false, pendientes:0, diag:null, inicializado:false, v2:null, v3:null };
 function mntInicializar(){ if (MNT_STATE.inicializado) return; MNT_STATE.inicializado=true; mntLog('Centro de mantenimiento cargado.'); mntRenderMigraciones(null); mntMostrarMarcaFechasGastos(); }
 function mntLog(msg){ var el=document.getElementById('mnt-console'); if(!el) return; var hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); el.textContent+='['+hora+'] '+msg+'\n'; el.scrollTop=el.scrollHeight; }
 function mntSetEstado(txt, cls){ var el=document.getElementById('mnt-estado-general'); if(!el) return; el.className='badge '+(cls||'b-amber'); el.textContent=txt; }
@@ -8,6 +8,107 @@ function mntExamStatus(titulo, detalle){
   mntSetText('mnt-exam-title', titulo || '');
   mntSetText('mnt-exam-status', detalle || '');
 }
+function mntEsc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function mntGuiaItem(tipo, icono, titulo, detalle, etiqueta, accion){
+  var final=(etiqueta?'<span class="badge '+(tipo==='ok'?'b-green':tipo==='danger'?'b-red':'b-amber')+'">'+mntEsc(etiqueta)+'</span>':'');
+  if(accion&&accion.texto) final='<button type="button" class="btn btn-sm '+(accion.primaria?'btn-primary':'')+'" onclick="'+mntEsc(accion.onclick||'')+'">'+(accion.icono?'<i class="ti '+mntEsc(accion.icono)+'"></i> ':'')+mntEsc(accion.texto)+'</button>';
+  return '<div class="mnt-guide-item is-'+tipo+'"><i class="ti '+icono+'"></i><div><strong>'+mntEsc(titulo)+'</strong><span>'+mntEsc(detalle)+'</span></div>'+final+'</div>';
+}
+function mntContarPorTipo(lista){
+  return (Array.isArray(lista)?lista:[]).reduce(function(out,item){var k=String(item&&item.kind||'otro');out[k]=(out[k]||0)+1;return out;},{});
+}
+function mntSumarMapa(mapa){return Object.keys(mapa||{}).reduce(function(n,k){return n+(Number(mapa[k])||0);},0);}
+function mntDetalleDecision(que, impacto, propuesta){
+  return '<div class="mnt-decision-copy"><span><b>Qué pasó:</b> '+mntEsc(que)+'</span><span><b>Qué puede afectar:</b> '+mntEsc(impacto)+'</span><span><b>Cómo se corrige:</b> '+mntEsc(propuesta)+'</span></div>';
+}
+function mntDecisionItem(tipo,icono,titulo,cantidad,que,impacto,propuesta,accion){
+  var boton=accion&&accion.texto?'<button type="button" class="btn btn-sm '+(accion.primaria?'btn-primary':'')+'" onclick="'+mntEsc(accion.onclick||'')+'"><i class="ti '+mntEsc(accion.icono||'ti-eye')+'"></i> '+mntEsc(accion.texto)+'</button>':'';
+  return '<div class="mnt-guide-item mnt-decision-item is-'+tipo+'"><i class="ti '+mntEsc(icono)+'"></i><div><strong>'+mntEsc(titulo)+'</strong>'+mntDetalleDecision(que,impacto,propuesta)+'</div><div class="mnt-decision-action"><span class="badge '+(tipo==='danger'?'b-red':'b-amber')+'">'+mntEsc(cantidad)+'</span>'+boton+'</div></div>';
+}
+function mntResumenV3(report){
+  var issues=report&&report.issues||{};
+  var presup=mntContarPorTipo([].concat(issues.budgetRelations||[],issues.budgetCalculations||[]));
+  var ventas=mntContarPorTipo([].concat(issues.salesRelations||[],issues.payments||[],(issues.journeys||[]).filter(function(x){return x&&x.module==='ventasPagos';})));
+  var ot=mntContarPorTipo([].concat(issues.otRelations||[],issues.ot||[],(issues.journeys||[]).filter(function(x){return x&&x.module==='ordenesTrabajo';})));
+  var productos=mntContarPorTipo(issues.productsProviders||[]);
+  return {presupuestos:presup,ventas:ventas,ot:ot,productos:productos,total:mntSumarMapa(presup)+mntSumarMapa(ventas)+mntSumarMapa(ot)+mntSumarMapa(productos)};
+}
+function mntRenderGuiaUsuario(){
+  var box=document.getElementById('mnt-guia-decisiones');
+  var resumen=document.getElementById('mnt-guia-resumen');
+  var estado=document.getElementById('mnt-guia-estado');
+  if(!box||!resumen||!estado) return;
+  var rel=typeof window.svAuditarRelaciones==='function'?window.svAuditarRelaciones():{issues:[],porSeveridad:{}};
+  var plan=typeof window.svGenerarPlanNormalizacionRelaciones==='function'?window.svGenerarPlanNormalizacionRelaciones():{totalCambios:0};
+  var issues=Array.isArray(rel.issues)?rel.issues:[];
+  var historicos=issues.filter(function(x){var t=String(x&&x.msg||'')+' '+String(x&&x.sugerencia||'');return /inexistente|eliminad|venta eliminada|no se pudo resolver|referencia de venta que no se pudo resolver/i.test(t);});
+  var criticos=Number(rel.porSeveridad&&rel.porSeveridad.critico)||0;
+  var automaticos=Number(plan.totalCambios)||0;
+  var manuales=historicos.length;
+  var cred=window._svUltimaAuditoriaOperativa&&window._svUltimaAuditoriaOperativa.credenciales||{};
+  var credHuerfanas=(Number(cred.huerfanasNueva)||0)+(Number(cred.huerfanasLegacy)||0);
+  var legacy=Number(MNT_STATE&&MNT_STATE.pendientes)||0;
+  var v2=MNT_STATE.v2||window._svUltimaAuditoriaV2||null;
+  var v3=MNT_STATE.v3||(window.SisVentas&&window.SisVentas.V3Diagnostics&&typeof window.SisVentas.V3Diagnostics.lastReport==='function'?window.SisVentas.V3Diagnostics.lastReport():null);
+  var v3r=mntResumenV3(v3);
+  var v2Claves=Number(v2&&v2.clavesFaltantesTotal)||0;
+  var v2Rel=Number(v2&&v2.relacionesDebilesTotal)||0;
+  var v2Fiscal=Number(v2&&v2.integridadFiscalTotal)||0;
+  var v2Dup=Number(v2&&v2.duplicadosTotal)||0;
+  var grupos=(automaticos||manuales||criticos?1:0)+(credHuerfanas?1:0)+(legacy?1:0)+(v2Claves||v2Rel?1:0)+(v2Fiscal||v2Dup?1:0)+(mntSumarMapa(v3r.presupuestos)?1:0)+(mntSumarMapa(v3r.ventas)?1:0)+(mntSumarMapa(v3r.ot)?1:0)+(mntSumarMapa(v3r.productos)?1:0);
+  var registros=automaticos+manuales+credHuerfanas+legacy+criticos+v2Claves+v2Rel+v2Fiscal+v2Dup+v3r.total;
+  var decisiones=registros;
+  mntSetText('mnt-kpi-gastos',registros);
+  mntSetText('mnt-kpi-agu',grupos);
+  mntSetText('mnt-kpi-hs',automaticos);
+  mntSetText('mnt-kpi-pend',legacy);
+  estado.className='badge '+(criticos?'b-red':decisiones?'b-amber':'b-green');
+  estado.textContent=criticos?'Atención prioritaria':decisiones?(grupos+' grupo(s) por revisar'):'Todo en orden';
+  resumen.textContent=criticos?'Hay un problema que puede afectar información y debe revisarse primero.':decisiones?('La revisión encontró '+registros+' observaciones reunidas en '+grupos+' grupos. No se cambiará ningún dato hasta que confirmes la corrección propuesta.'):'No hay decisiones pendientes. Todas las revisiones coinciden y no detectaron problemas que requieran tu intervención.';
+  var html='';
+  if(automaticos||manuales||criticos) html+=mntDecisionItem(criticos?'danger':'review','ti-link','Vínculos entre registros',automaticos+manuales+criticos+' caso(s)','Hay ventas, pagos, OT u otros registros cuya referencia no está completa o necesita confirmación.','Una referencia incorrecta puede mostrar un registro bajo otro cliente o dejarlo sin trazabilidad.',automaticos?'Revisar las coincidencias únicas, crear respaldo y completar solo las confirmadas.':'Abrir cada caso y elegir su vínculo correcto.',automaticos?{texto:'Revisar y reparar',icono:'ti-tool',primaria:true,onclick:'mntResolverAutomaticos(this)'}:{texto:'Revisar casos',icono:'ti-eye',onclick:"mntMostrarDetalleTecnico('mnt-relaciones-lista')"});
+  if(credHuerfanas) html+=mntGuiaItem('danger','ti-key-off','Credenciales sin cliente identificado',credHuerfanas+' credenciales necesitan que confirmemos a qué cliente o domicilio pertenecen.',credHuerfanas+' casos',{texto:'Revisar credenciales',icono:'ti-key',onclick:"mntMostrarDetalleTecnico('mnt-operativo-lista')"});
+  if(v2Claves||v2Rel) html+=mntDecisionItem('review','ti-key','Cobros e identificadores',v2Claves+v2Rel+' observación(es)','Hay registros cargados en memoria sin clave técnica o con una referencia de venta todavía débil.','Puede dificultar encontrar el origen del cobro o actualizarlo de manera confiable.','Identificar cada registro, evitar contar dos veces el mismo caso y completar únicamente la clave comprobada.',{texto:'Revisar registros',icono:'ti-eye',onclick:"mntMostrarDetalleTecnico('mnt-v2-audit-lista')"});
+  if(v2Fiscal||v2Dup) html+=mntDecisionItem('danger','ti-receipt-tax','Integridad fiscal o duplicados',v2Fiscal+v2Dup+' observación(es)','Se detectaron comprobantes, estados o identificadores comerciales que podrían contradecirse.','Puede alterar facturación, estados de ventas o informes.','Comparar el comprobante original y corregir solo después de confirmar cuál registro es válido.',{texto:'Revisar prioridad',icono:'ti-eye',onclick:"mntMostrarDetalleTecnico('mnt-v2-audit-lista')"});
+  if(mntSumarMapa(v3r.presupuestos)) html+=mntDecisionItem('review','ti-file-invoice','Presupuestos',mntSumarMapa(v3r.presupuestos)+' caso(s)','La lectura nueva no reproduce exactamente totales, precios o vínculos guardados por versiones anteriores.','Un presupuesto podría mostrar otro total o no reconocer correctamente su venta relacionada.','Abrir los casos, comparar contra el comprobante visible y decidir si se normaliza el dato histórico o la regla de cálculo.',{texto:'Revisar presupuestos',icono:'ti-eye',onclick:"mntMostrarDetalleTecnico('mnt-v3-card')"});
+  if(mntSumarMapa(v3r.ventas)) html+=mntDecisionItem('review','ti-cash','Ventas y cobros',mntSumarMapa(v3r.ventas)+' caso(s)','La comparación encontró diferencias en relaciones, pagos o recorrido de la operación.','Puede afectar saldos, cuenta corriente o seguimiento de una venta.','Validar venta y cobros como una sola operación antes de completar o cambiar referencias.',{texto:'Revisar ventas',icono:'ti-eye',onclick:"mntMostrarDetalleTecnico('mnt-v3-card')"});
+  if(mntSumarMapa(v3r.ot)) html+=mntDecisionItem('review','ti-tool','Órdenes de trabajo',mntSumarMapa(v3r.ot)+' caso(s)','Hay OT cuyo origen o recorrido no coincide de forma inequívoca con venta o reclamo.','Puede dejar una visita bajo el cliente equivocado o sin historial completo.','Mostrar venta, reclamo y cliente candidatos; confirmar uno y guardar la relación respaldada.',{texto:'Revisar OT',icono:'ti-eye',onclick:"mntMostrarDetalleTecnico('mnt-v3-card')"});
+  if(mntSumarMapa(v3r.productos)) html+=mntDecisionItem('review','ti-package','Productos y proveedores',mntSumarMapa(v3r.productos)+' caso(s)','Hay productos sin proveedor reconocido o con nombre y URL que no coinciden con las reglas actuales.','Puede impedir cotizar o actualizar precios de forma confiable.','Revisar por proveedor, confirmar la URL correcta y guardar una regla reutilizable para futuros productos.',{texto:'Revisar productos',icono:'ti-eye',onclick:"mntMostrarDetalleTecnico('mnt-v3-card')"});
+  if(legacy) html+=mntDecisionItem('review','ti-history','Registros laborales antiguos',legacy+' pendiente(s)','Quedan haberes históricos cuya migración todavía no está confirmada.','Pueden no aparecer en el mes o cuenta de empleado correctos.','Comparar con el gasto ya pagado, migrar con respaldo y verificar el resultado.',{texto:'Revisar registros',icono:'ti-history',onclick:"mntMostrarDetalleTecnico('mnt-migraciones-lista')"});
+  if(!decisiones) html+=mntGuiaItem('ok','ti-shield-check','Seguridad, datos y módulos verificados','Todas las fuentes de auditoría coinciden.','Correcto');
+  box.innerHTML=html;
+}
+function mntAlternarDetallesTecnicos(btn){
+  var panel=document.getElementById('cfg-mantenimiento'); if(!panel) return;
+  var visible=panel.classList.toggle('mnt-tecnico-visible');
+  if(btn) btn.innerHTML='<i class="ti '+(visible?'ti-chevron-up':'ti-settings-code')+'"></i> '+(visible?'Ocultar detalles técnicos':'Ver detalles técnicos');
+}
+window.mntAlternarDetallesTecnicos=mntAlternarDetallesTecnicos;
+function mntMostrarDetalleTecnico(id){
+  var panel=document.getElementById('cfg-mantenimiento');
+  if(panel) panel.classList.add('mnt-tecnico-visible');
+  var btn=document.getElementById('mnt-toggle-tecnico');
+  if(btn) btn.innerHTML='<i class="ti ti-chevron-up"></i> Ocultar detalles técnicos';
+  var destino=document.getElementById(id);
+  if(destino&&typeof destino.scrollIntoView==='function') destino.scrollIntoView({behavior:'smooth',block:'center'});
+}
+window.mntMostrarDetalleTecnico=mntMostrarDetalleTecnico;
+async function mntResolverAutomaticos(btn){
+  if(typeof window.svAplicarPlanNormalizacionRelaciones!=='function'){ if(typeof notify==='function') notify('La herramienta de reparación no está disponible'); return; }
+  var original=btn&&btn.innerHTML;
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .9s linear infinite"></i> Reparando...';}
+  try{
+    var aplicado=await window.svAplicarPlanNormalizacionRelaciones();
+    if(aplicado){
+      await new Promise(function(resolve){setTimeout(resolve,1400);});
+      if(typeof window.svPrepararAuditoriaRelaciones==='function') await window.svPrepararAuditoriaRelaciones();
+      if(typeof window.svRenderResumenOperativo==='function') await window.svRenderResumenOperativo();
+      if(typeof window.svRenderAuditoriaRelaciones==='function') window.svRenderAuditoriaRelaciones();
+      mntRenderGuiaUsuario();
+    }
+  }finally{if(btn){btn.disabled=false;btn.innerHTML=original||'<i class="ti ti-tool"></i> Revisar y reparar';}}
+}
+window.mntResolverAutomaticos=mntResolverAutomaticos;
 function mntObjCount(o){ return o && typeof o==='object' ? Object.keys(o).length : 0; }
 function mntMoney(n){ return Math.round(parseFloat(n)||0); }
 function mntVersion(){ return (window.APP_CONFIG && APP_CONFIG.VERSION) || (window.SISVENTAS_PWA_VERSION || 'v1'); }
@@ -17,7 +118,22 @@ function mntEmpByKey(empKey){ try { return (empData && Object.values(empData).fi
 function mntGastoExiste(gastos, tipoPagable, empKey, monto, fecha, semKey, legacyKey){
   if (typeof _pagableGastoExistente==='function') return !!_pagableGastoExistente(tipoPagable, empKey, monto, fecha, semKey, legacyKey);
   monto=mntMoney(monto); fecha=mntFecha(fecha);
-  return (gastos||[]).some(function(g){ var desc=String(g.descripcion||'').toLowerCase(); var tipo=String(g.tipoPagable||'').toLowerCase(); var esTipo=tipo===tipoPagable||(tipoPagable==='aguinaldo'&&desc.indexOf('aguinaldo')>=0)||(tipoPagable==='hextra'&&(desc.indexOf('hs extra')>=0||desc.indexOf('horas extra')>=0))||(tipoPagable==='comision'&&desc.indexOf('comisi')>=0); if(!esTipo) return false; if(legacyKey&&String(g.legacyKey||'')===String(legacyKey)) return true; if(empKey&&(g.empleadoFbKey||g.empleadoId||'')&&String(g.empleadoFbKey||g.empleadoId)!==String(empKey)) return false; if(semKey&&g.semestre&&String(g.semestre)!==String(semKey)) return false; if(monto>0&&Math.abs(mntMoney(g.monto)-monto)>1) return false; return true; });
+  return (gastos||[]).some(function(g){
+    var desc=String(g.descripcion||'').toLowerCase();
+    var tipo=String(g.tipoPagable||'').toLowerCase();
+    var esTipo=tipo===tipoPagable||(tipoPagable==='aguinaldo'&&desc.indexOf('aguinaldo')>=0)||(tipoPagable==='hextra'&&(desc.indexOf('hs extra')>=0||desc.indexOf('horas extra')>=0))||(tipoPagable==='comision'&&desc.indexOf('comisi')>=0);
+    if(!esTipo) return false;
+    var refGasto=String(g.legacyKey||'');
+    var refOrigen=String(legacyKey||'');
+    if(refOrigen && refGasto===refOrigen) return true;
+    // Las horas extra agrupadas se guardan con hsextra_grupo/<id>, aunque la
+    // solicitud histórica original viva en hsextra_solicitudes/<id>.
+    if(tipoPagable==='hextra' && refOrigen && refGasto && refGasto.replace(/^hsextra_grupo\//,'')===refOrigen.replace(/^hsextra_solicitudes\//,'')) return true;
+    if(empKey&&(g.empleadoFbKey||g.empleadoId||'')&&String(g.empleadoFbKey||g.empleadoId)!==String(empKey)) return false;
+    if(semKey&&g.semestre&&String(g.semestre)!==String(semKey)) return false;
+    if(monto>0&&Math.abs(mntMoney(g.monto)-monto)>1) return false;
+    return true;
+  });
 }
 async function mntGet(path){ var snap=await window.fbGet(window.fbRef(window.fbDB,path)).catch(function(){return {val:function(){return null;}};}); return snap.val()||null; }
 async function mntAnalizarBase(){
@@ -71,7 +187,7 @@ async function mntExaminarTodo(btn){
 
     if(typeof window.svRenderAuditoriaV2 === 'function') {
       mntExamStatus('Examinando sistema', 'Auditando datos y módulos...');
-      await window.svRenderAuditoriaV2();
+      MNT_STATE.v2 = await window.svRenderAuditoriaV2();
     }
 
     if(typeof window.svRenderAuditoriaRelaciones === 'function') {
@@ -81,14 +197,18 @@ async function mntExaminarTodo(btn){
 
     if(window.SisVentas && window.SisVentas.V3Diagnostics && typeof window.SisVentas.V3Diagnostics.run === 'function') {
       mntExamStatus('Examinando sistema', 'Comparando el núcleo V3 con la versión actual...');
-      await window.SisVentas.V3Diagnostics.run({silent:true});
+      MNT_STATE.v3 = await window.SisVentas.V3Diagnostics.run({silent:true});
     }
 
     await mntAnalizarDuplicadosGastosFijos();
 
-    var pendientes = MNT_STATE && MNT_STATE.pendientes || 0;
-    mntSetEstado(pendientes ? 'Revisar pendientes' : 'Examen OK', pendientes ? 'b-amber' : 'b-green');
-    mntExamStatus(pendientes ? 'Examen finalizado con pendientes' : 'Examen finalizado', pendientes ? ('Hay '+pendientes+' registro(s) legacy para revisar antes de limpiar.') : 'No se detectaron pendientes automáticos críticos.');
+    mntRenderGuiaUsuario();
+
+    var v2Avisos=Number(MNT_STATE.v2&&MNT_STATE.v2.advertencias)||0;
+    var v3Avisos=mntResumenV3(MNT_STATE.v3).total;
+    var pendientes=(MNT_STATE&&MNT_STATE.pendientes||0)+v2Avisos+v3Avisos;
+    mntSetEstado(pendientes ? 'Requiere revisión' : 'Examen OK', pendientes ? 'b-amber' : 'b-green');
+    mntExamStatus(pendientes ? 'Examen finalizado con observaciones' : 'Examen finalizado', pendientes ? ('Se reunieron '+pendientes+' observaciones. Revisalas abajo por área antes de aplicar cambios.') : 'Todas las auditorías coinciden y no hay decisiones pendientes.');
     if(typeof notify === 'function') notify('Examen de mantenimiento finalizado');
   }catch(e){
     mntSetEstado('Error en examen','b-red');
@@ -96,7 +216,7 @@ async function mntExaminarTodo(btn){
     if(typeof notify === 'function') notify('Error en mantenimiento: '+(e && e.message ? e.message : e));
   }finally{
     window._mntExamenEnCurso = false;
-    if(btn){ btn.disabled = false; btn.innerHTML = original || '<i class="ti ti-stethoscope"></i> Examinar'; }
+    if(btn){ btn.disabled = false; btn.innerHTML = original || '<i class="ti ti-stethoscope"></i> Revisar el sistema'; }
   }
 }
 function mntMigracionEstado(def, migr, diag){

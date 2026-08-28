@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.js'), 'utf8');
+const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.3.2.js'), 'utf8');
 
 function sourceOfFunction(name) {
   const markers = ['async function ' + name + '(', 'function ' + name + '('];
@@ -80,6 +80,8 @@ test('la conversión usa un bloqueo acotado y una escritura multipath idempotent
   assert.equal(Object.keys(db.root.sisventas.ventas).length, 1);
   assert.equal(db.root.sisventas.contadores.venta, 10);
   assert.equal(db.root.sisventas.presupuestos.pp1.estado, 'convertido');
+  assert.match(sourceOfFunction('_convertirPresupuestoEnVentaAtomico'), /verificacionConversion = await Promise\.all/);
+  assert.match(sourceOfFunction('_convertirPresupuestoEnVentaAtomico'), /presupuestoVerificado\.ventaFbKey/);
   assert.equal(db.transactionRoutes.includes('sisventas'), false, 'no debe transaccionar toda la base');
   assert.equal(db.transactionRoutes.filter(route => route === 'sisventas/contadores/venta').length, 1);
 });

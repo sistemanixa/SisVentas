@@ -139,6 +139,7 @@
   function auditarPresupuestos(issues){
     arr(window.pptoData || window.presupuestosData).forEach(function(p){
       if(!p) return;
+      if(p.conversionHistoricaSinVenta === true && p.ventaRetiradaId) return;
       var c = resolverCliente(p);
       if(!hasAny(p,['clienteFbKey','clienteKey']) && c && c.fbKey && !relacionesVerificadasPara(p,[{col:'presupuestos',campo:'clienteFbKey',valor:c.fbKey},{col:'presupuestos',campo:'clienteKey',valor:c.fbKey}])) issue(issues,'medio','presupuesto','Presupuesto sin clienteFbKey aunque el cliente se puede resolver',p,'Normalizar clienteFbKey.');
       if((p.ventaId || p.ventaGeneradaId) && !hasAny(p,['ventaFbKey','ventaGeneradaFbKey'])){

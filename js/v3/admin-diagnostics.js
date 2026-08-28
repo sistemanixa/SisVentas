@@ -123,6 +123,25 @@
     }));
   }
 
+  var ISSUE_LABELS = Object.freeze({
+    'total-mismatch':'El total guardado no coincide con el cálculo actual',
+    'subtotal-mismatch':'Un subtotal no coincide con sus productos',
+    'line-total-mismatch':'El subtotal de un producto no coincide',
+    'missing-unit-price':'Falta el precio unitario original',
+    'iva-mismatch':'El IVA calculado no coincide con el guardado',
+    'missing-relation':'Falta vincular el registro con su origen',
+    'ambiguous-relation':'Hay más de un origen posible y se necesita confirmación',
+    'crossed-client':'El recorrido incluye clientes diferentes',
+    'missing-provider':'El producto no tiene proveedor reconocido',
+    'provider-name-url-mismatch':'El nombre del proveedor no coincide con la URL',
+    'unsupported-provider-url':'La URL pertenece a un proveedor todavía no configurado'
+  });
+  var COLLECTION_LABELS = Object.freeze({
+    budgetRelations:'Vínculos de presupuestos', budgetCalculations:'Cálculos de presupuestos',
+    salesRelations:'Vínculos de ventas', payments:'Cobros', otRelations:'Vínculos de órdenes de trabajo',
+    ot:'Órdenes de trabajo', journeys:'Recorrido de la operación', productsProviders:'Productos y proveedores'
+  });
+
   function create(root) {
     var lastReport = null;
     var running = null;
@@ -222,8 +241,8 @@
       }
       box.innerHTML = groups.map(function (group) {
         return '<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:.5px solid var(--border)">' +
-          '<div style="min-width:0"><strong style="display:block;font-size:12px;color:var(--text)">' + escapeHtml(group.kind) + '</strong>' +
-          '<span style="display:block;font-size:11px;color:var(--text3);margin-top:3px">' + escapeHtml(group.collection) +
+          '<div style="min-width:0"><strong style="display:block;font-size:12px;color:var(--text)">' + escapeHtml(ISSUE_LABELS[group.kind] || group.kind) + '</strong>' +
+          '<span style="display:block;font-size:11px;color:var(--text3);margin-top:3px">' + escapeHtml(COLLECTION_LABELS[group.collection] || group.collection) +
           (group.examples.length ? ' · ' + escapeHtml(group.examples.join(', ')) : '') + '</span></div>' +
           '<span class="badge b-amber" style="flex:0 0 auto">' + group.count + '</span></div>';
       }).join('');

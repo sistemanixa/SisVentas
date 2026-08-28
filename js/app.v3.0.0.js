@@ -9182,14 +9182,22 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v2.3.2-firebase',
+  VERSION: 'v3.0.0-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Las bases sugeridas de todas las grillas cierran exactamente en 100%.',
-    'Detalle de venta adapta sus anchos en píxeles al espacio real sin mover columnas vecinas.',
-    'El editor de columnas abre también en tablas sin identificador técnico.'
+    'SisVentas 3 estrena una identidad visual azul moderna, con opción de volver al estilo clásico.',
+    'La auditoría de mantenimiento reúne los hallazgos, explica su impacto y guía cada corrección.',
+    'Clientes, domicilios, comprobantes y operaciones incorporan las mejoras de integridad y rendimiento auditadas.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'actualizadorprecios', actionLabel:'Abrir Actualizador de precios' }),
+  RELEASE_FEATURE: Object.freeze({ page:'dashboard', actionLabel:'Conocer SisVentas 3' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v3.0.0',
+      date: '28/08/2026',
+      title: 'Bienvenidos a SisVentas 3',
+      major: true,
+      notes: Object.freeze(['Nueva identidad visual azul con variantes clara y oscura, sin perder el estilo clásico.', 'Mantenimiento unificado: cada hallazgo explica qué ocurrió, qué dato afecta y cómo se corrige con confirmación.', 'Mejoras profundas de integridad, rendimiento, domicilios, documentos fiscales, grillas y experiencia móvil.']),
+      feature: Object.freeze({ page:'dashboard', actionLabel:'Abrir inicio' })
+    }),
     Object.freeze({
       version: 'v2.3.2',
       date: '27/08/2026',
@@ -11232,14 +11240,19 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
 
   var desdeStr = verAnterior ? verAnterior.replace('-firebase','') : '';
   var hastaStr = (verNueva||'').replace('-firebase','');
+  // El dorado se reserva exclusivamente para el lanzamiento 2.x -> 3.0.0.
+  // Las próximas versiones y parches vuelven al verde habitual.
+  var esLanzamientoV3 = /^v?2\./.test(desdeStr) && /^v?3\.0\.0$/.test(hastaStr);
+  var acentoNovedad = esLanzamientoV3 ? '#f6c453' : 'var(--green)';
+  var fondoAcentoNovedad = esLanzamientoV3 ? 'rgba(246,196,83,.13)' : 'var(--green-bg)';
   var notasVersion = (APP_CONFIG.RELEASE_NOTES || []).map(function(nota) {
-    return '<div style="display:flex;align-items:flex-start;gap:8px;text-align:left"><i class="ti ti-check" style="color:var(--green);font-size:14px;margin-top:2px;flex-shrink:0"></i><span>' + escapeHTML(nota) + '</span></div>';
+    return '<div style="display:flex;align-items:flex-start;gap:8px;text-align:left"><i class="ti ti-check" style="color:' + acentoNovedad + ';font-size:14px;margin-top:2px;flex-shrink:0"></i><span>' + escapeHTML(nota) + '</span></div>';
   }).join('');
   var novedad = APP_CONFIG.RELEASE_FEATURE || null;
   var puedeAbrirNovedad = novedad && (!novedad.page || typeof permisoModulo !== 'function' || permisoModulo(novedad.page));
   var accionesNovedad = puedeAbrirNovedad ?
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
-      '<button onclick="abrirNovedadVersion(false)" style="flex:1;min-width:180px;padding:11px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit"><i class="ti ti-external-link" style="margin-right:5px"></i>' + escapeHTML(novedad.actionLabel || 'Ver función nueva') + '</button>' +
+      '<button onclick="abrirNovedadVersion(false)" style="flex:1;min-width:180px;padding:11px;border-radius:var(--radius);border:0.5px solid ' + acentoNovedad + ';background:' + fondoAcentoNovedad + ';color:' + acentoNovedad + ';font-weight:700;font-size:13px;cursor:pointer;font-family:inherit"><i class="ti ti-external-link" style="margin-right:5px"></i>' + escapeHTML(novedad.actionLabel || 'Ver función nueva') + '</button>' +
       (novedad.tour ? '<button onclick="abrirNovedadVersion(true)" style="flex:1;min-width:180px;padding:11px;border-radius:var(--radius);border:0.5px solid var(--blue);background:var(--blue-bg);color:var(--blue);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit"><i class="ti ti-route" style="margin-right:5px"></i>' + escapeHTML(novedad.tourLabel || 'Recorrido guiado') + '</button>' : '') +
     '</div>' : '';
 
@@ -11249,8 +11262,8 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
   overlay.innerHTML =
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:30px 32px;max-width:480px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);text-align:center;position:relative;border:0.5px solid var(--border2)">' +
       // Ícono animado
-      '<div style="width:64px;height:64px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">' +
-        '<i class="ti ti-rocket" style="font-size:28px;color:var(--green)"></i>' +
+      '<div style="width:64px;height:64px;border-radius:50%;background:' + fondoAcentoNovedad + ';display:flex;align-items:center;justify-content:center;margin:0 auto 16px">' +
+        '<i class="ti ti-rocket" style="font-size:28px;color:' + acentoNovedad + '"></i>' +
       '</div>' +
       // Título
       '<div style="font-weight:700;font-size:20px;color:var(--text);margin-bottom:6px">¡Sistema actualizado!</div>' +
@@ -11259,17 +11272,17 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
       (desdeStr ?
         '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;padding:10px 16px;background:var(--bg3);border-radius:var(--radius)">' +
           '<span style="font-family:monospace;font-size:13px;color:var(--text3)">' + desdeStr + '</span>' +
-          '<i class="ti ti-arrow-right" style="color:var(--green);font-size:14px"></i>' +
-          '<span style="font-family:monospace;font-size:14px;font-weight:700;color:var(--green)">' + hastaStr + '</span>' +
+          '<i class="ti ti-arrow-right" style="color:' + acentoNovedad + ';font-size:14px"></i>' +
+          '<span style="font-family:monospace;font-size:14px;font-weight:700;color:' + acentoNovedad + '">' + hastaStr + '</span>' +
         '</div>'
-      : '<div style="font-family:monospace;font-size:16px;font-weight:700;color:var(--green);margin-bottom:20px">' + hastaStr + '</div>') +
+      : '<div style="font-family:monospace;font-size:16px;font-weight:700;color:' + acentoNovedad + ';margin-bottom:20px">' + hastaStr + '</div>') +
       // Resumen de cambios
       (notasVersion ? '<div style="padding:12px 14px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text2);line-height:1.45;margin-bottom:20px;display:flex;flex-direction:column;gap:8px"><div style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.5px">Qué cambió</div>' + notasVersion + '</div>' : '') +
       '<div style="font-size:11px;color:var(--text3);margin-bottom:20px">Todo funcionando correctamente. Seguís exactamente donde estabas.</div>' +
       accionesNovedad +
       // Botón
       '<button onclick="cerrarPopupActualizacion()" ' +
-        'style="width:100%;padding:12px;border-radius:var(--radius);border:none;background:var(--green);color:#080e1a;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;letter-spacing:.3px">' +
+        'style="width:100%;padding:12px;border-radius:var(--radius);border:none;background:' + acentoNovedad + ';color:#080e1a;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;letter-spacing:.3px">' +
         '✓ Entendido, ¡gracias!' +
       '</button>' +
     '</div>';
@@ -11323,6 +11336,10 @@ function abrirHistorialActualizaciones() {
   var historial = APP_CONFIG.RELEASE_HISTORY || [];
   var versionActual = String(APP_CONFIG.VERSION || '').replace('-firebase', '');
   var tarjetas = historial.map(function (entrada, indice) {
+    var esVersionMayor = entrada.major === true || /^v?\d+\.0\.0(?:\D|$)/.test(String(entrada.version || ''));
+    var colorVersion = esVersionMayor ? '#f6c453' : 'var(--green)';
+    var bordeTarjeta = esVersionMayor ? 'rgba(246,196,83,.55)' : 'var(--border)';
+    var fondoTarjeta = esVersionMayor ? 'linear-gradient(135deg,rgba(246,196,83,.12),var(--bg3) 58%)' : 'var(--bg3)';
     var feature = entrada.feature || null;
     var puedeAbrir = feature && !feature.history && (!feature.page || typeof permisoModulo !== 'function' || permisoModulo(feature.page));
     var notas = (entrada.notes || []).map(function (nota) {
@@ -11333,10 +11350,10 @@ function abrirHistorialActualizaciones() {
         '<button class="btn btn-sm" onclick="abrirNovedadHistorial(' + indice + ',false)"><i class="ti ti-external-link"></i> ' + escapeHTML(feature.actionLabel || 'Abrir función') + '</button>' +
         (feature.tour ? '<button class="btn btn-sm btn-primary" onclick="abrirNovedadHistorial(' + indice + ',true)"><i class="ti ti-route"></i> ' + escapeHTML(feature.tourLabel || 'Hacer recorrido guiado') + '</button>' : '') +
       '</div>' : '';
-    return '<article style="padding:15px 16px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);text-align:left">' +
+    return '<article style="padding:15px 16px;background:' + fondoTarjeta + ';border:0.5px solid ' + bordeTarjeta + ';border-radius:var(--radius);text-align:left">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:7px">' +
-        '<div><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="font-family:monospace;color:var(--green);font-size:13px">' + escapeHTML(entrada.version || '') + '</strong>' +
-        (entrada.version === versionActual ? '<span class="badge b-green">Actual</span>' : '') + '</div>' +
+        '<div><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="font-family:monospace;color:' + colorVersion + ';font-size:13px">' + escapeHTML(entrada.version || '') + '</strong>' +
+        (entrada.version === versionActual ? '<span class="badge ' + (esVersionMayor ? 'b-amber' : 'b-green') + '">Actual</span>' : '') + '</div>' +
         '<div style="font-weight:750;font-size:14px;color:var(--text);margin-top:5px">' + escapeHTML(entrada.title || 'Actualización') + '</div></div>' +
         '<span style="font-size:10px;color:var(--text3);white-space:nowrap">' + escapeHTML(entrada.date || '') + '</span>' +
       '</div>' +
@@ -12321,6 +12338,7 @@ async function _confirmarCambioForzado() {
 }
 
 function _completarLogin(nombre) {
+  if (typeof window.svV3LaunchBeforeSession === 'function' && window.svV3LaunchBeforeSession()) return;
   currentUser = nombre;
   document.body.classList.remove('sv-sesion-cerrada');
   var appSegura = document.getElementById('screen-app');

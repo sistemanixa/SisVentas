@@ -63,10 +63,44 @@
     }) : [];
   }
 
+  function isTableVisible(table) {
+    if (!table || !table.isConnected || !table.getClientRects().length) return false;
+    var style = window.getComputedStyle ? window.getComputedStyle(table) : null;
+    return !style || (style.display !== 'none' && style.visibility !== 'hidden');
+  }
+
   function columnLabel(th, index) {
     var explicit = th && th.getAttribute ? th.getAttribute('data-sv-column-label') : '';
     var visible = th && th.textContent ? th.textContent : '';
     return String(explicit || visible || ('Columna ' + (index + 1))).replace(/\s+/g, ' ').trim();
+  }
+
+  function isActionsHeader(th, index) {
+    return columnLabel(th, index).toLocaleLowerCase('es-AR').replace(/[^a-záéíóúüñ]/g, '') === 'acciones';
+  }
+
+  function actionContainersInCell(cell) {
+    if (!cell || !cell.querySelectorAll) return [];
+    var found = Array.from(cell.querySelectorAll('.ventas-row-actions,.ppto-row-actions,.sv-row-actions,[data-sv-actions]'));
+    Array.from(cell.children || []).forEach(function (child) {
+      if (!child || found.indexOf(child) >= 0 || !window.getComputedStyle) return;
+      var display = window.getComputedStyle(child).display;
+      if (display === 'flex' || display === 'inline-flex') found.push(child);
+    });
+    return found;
+  }
+
+  function ensureActionsColumnPolicy(table, headers) {
+    (headers || []).forEach(function (th, index) {
+      if (!isActionsHeader(th, index) || parseInt(th.dataset.svFixedWidth || '', 10) > 0) return;
+      var maxActions = columnCells(table, index).reduce(function (max, cell) {
+        var count = cell.querySelectorAll ? cell.querySelectorAll('button,a.btn,a.icon-btn').length : 0;
+        return Math.max(max, count);
+      }, 0);
+      // La columna de acciones conserva una sola fila y no se puede achicar
+      // hasta ocultar controles. El ancho se adapta a la cantidad real.
+      th.dataset.svFixedWidth = String(Math.min(260, Math.max(96, 16 + Math.max(1, maxActions) * 44)));
+    });
   }
 
   function tableKey(table) {
@@ -358,8 +392,9 @@
         columnSelector + ' [contenteditable="true"]{text-align:' + align + '!important}');
       columnCells(table, index).forEach(function (cell) {
         cell.style.textAlign = align;
-        var actionGroup = cell.querySelector && cell.querySelector('.ventas-row-actions, .ppto-row-actions');
-        if (actionGroup) actionGroup.style.justifyContent = align === 'right' ? 'flex-end' : (align === 'center' ? 'center' : 'flex-start');
+        actionContainersInCell(cell).forEach(function (actionGroup) {
+          actionGroup.style.justifyContent = align === 'right' ? 'flex-end' : (align === 'center' ? 'center' : 'flex-start');
+        });
       });
     });
     style.textContent = rules.join('\n');
@@ -376,8 +411,7 @@
     tableHeaders(table).forEach(function (_th, index) {
       columnCells(table, index).forEach(function (cell) {
         cell.style.textAlign = '';
-        var actionGroup = cell.querySelector && cell.querySelector('.ventas-row-actions, .ppto-row-actions');
-        if (actionGroup) actionGroup.style.removeProperty('justify-content');
+        actionContainersInCell(cell).forEach(function (actionGroup) { actionGroup.style.removeProperty('justify-content'); });
       });
     });
   }
@@ -878,13 +912,14 @@
 
   function initTable(table) {
     if (!table) return;
+    var headers = tableHeaders(table);
+    ensureActionsColumnPolicy(table, headers);
     ensurePercentButton(table);
     if (table.dataset && table.dataset.svNoResize === '1') {
       applySavedPercentProfile(table);
       applySavedAlignments(table);
       return;
     }
-    var headers = tableHeaders(table);
     if (headers.length < 2) return;
     if (table.closest('td,th') || table.classList.contains('sv-no-resize')) return;
     var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .card');
@@ -1114,7 +1149,11 @@
     if (window.currentRole && window.currentRole !== 'admin') return;
     var card = table.closest('.card');
     if (!card) return;
-    if (card.querySelector('.sv-column-percent-btn,[onclick*="openColumnPercentEditor"]')) return;
+    var existing = card.querySelector('.sv-column-percent-btn,[onclick*="openColumnPercentEditor"]');
+    if (existing) {
+      if (existing.classList.contains('sv-column-percent-btn')) existing._svFallbackTable = table;
+      return;
+    }
     var head = card.querySelector('.card-head');
     var btn = document.createElement('button');
     btn.type = 'button';
@@ -1125,8 +1164,12 @@
     btn.addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
-      openPercentEditor(table);
+      var visibleTable = Array.from(card.querySelectorAll('table')).find(function (candidate) {
+        return isTableVisible(candidate) && tableHeaders(candidate).length;
+      });
+      openPercentEditor(visibleTable || btn._svFallbackTable || table);
     });
+    btn._svFallbackTable = table;
     if (!head) {
       var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap');
       var toolbar = document.createElement('div');

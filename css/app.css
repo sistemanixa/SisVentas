@@ -1594,6 +1594,25 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .mnt-exam-info{display:flex;min-width:0;flex-direction:column;gap:3px}
 .mnt-exam-info strong{font-size:13px;color:var(--text)}
 .mnt-exam-info span{font-size:12px;color:var(--text3);line-height:1.4}
+.mnt-guide-card{border-color:rgba(96,165,250,.25)!important;background:linear-gradient(145deg,rgba(96,165,250,.065),rgba(255,255,255,.01)),var(--bg2)!important}
+.mnt-guide-summary{font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:12px}
+.mnt-guide-decisions{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.mnt-guide-item{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 12px;border:.5px solid var(--border);border-radius:var(--radius);background:var(--bg3)}
+.mnt-guide-item>i{font-size:20px}
+.mnt-guide-item strong{display:block;font-size:13px;color:var(--text)}
+.mnt-guide-item span{display:block;font-size:12px;color:var(--text3);line-height:1.4;margin-top:2px}
+.mnt-guide-item.is-ok>i{color:var(--green)}
+.mnt-guide-item.is-review>i{color:var(--amber)}
+.mnt-guide-item.is-danger>i{color:var(--red)}
+.mnt-decision-item{align-items:start;padding:14px}
+.mnt-decision-copy{display:grid;gap:5px;margin-top:6px}
+.mnt-decision-copy span{margin:0!important;line-height:1.45!important}
+.mnt-decision-copy b{color:var(--text2);font-weight:700}
+.mnt-decision-action{display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:150px}
+.mnt-decision-action>.badge{margin:0}
+.mnt-technical-toggle{margin-left:auto}
+#cfg-mantenimiento:not(.mnt-tecnico-visible)>.mnt-main-grid,
+#cfg-mantenimiento:not(.mnt-tecnico-visible)>.mnt-advanced-card{display:none!important}
 .mnt-main-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .mnt-main-grid #mnt-v2-audit-card{grid-column:1/-1}
 .mnt-primary-card{min-height:0}
@@ -1604,7 +1623,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .mnt-advanced-card .card-title{letter-spacing:.95px}
 #mnt-console{min-height:150px!important;max-height:230px!important}
 @media(max-width:1180px){.mnt-main-grid{grid-template-columns:1fr}.mnt-main-grid #mnt-v2-audit-card{grid-column:auto}}
-@media(max-width:700px){#cfg-mantenimiento .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}.mnt-exam-box{align-items:stretch;flex-direction:column}.mnt-exam-btn{width:100%}}
+@media(max-width:700px){#cfg-mantenimiento .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}.mnt-exam-box{align-items:stretch;flex-direction:column}.mnt-exam-btn{width:100%}.mnt-guide-item{grid-template-columns:30px minmax(0,1fr)}.mnt-guide-item .badge{grid-column:2}.mnt-decision-action{grid-column:2;align-items:stretch;min-width:0}.mnt-decision-action .btn{width:100%}.mnt-technical-toggle{width:100%;margin-left:0}}
 #page-productos,
 #page-productos #prod-list-view,
 #page-productos #prod-list-view > .card{width:100%!important;max-width:none!important}
