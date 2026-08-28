@@ -7,11 +7,11 @@ const css = fs.readFileSync('css/app.css', 'utf8');
 const resize = fs.readFileSync('js/modules/resizable-tables.js', 'utf8');
 
 test('Detalle de venta queda aislado en píxeles y conserva desplazamiento horizontal', () => {
-  assert.match(index, /id="ventas-tbl"[^>]*data-sv-pixel-only="1"[^>]*data-sv-column-key="ventas-tbl-pixel-v2"/);
+  assert.match(index, /id="ventas-tbl"[^>]*data-sv-pixel-only="1"[^>]*data-sv-column-key="ventas-tbl-pixel-v3"/);
   assert.match(resize, /function usesPixelOnly\(table\)/);
   assert.match(resize, /if \(usesPixelOnly\(table\)\) \{[\s\S]*?applySavedWidths\(table\)/);
   assert.match(resize, /if \(usesPixelOnly\(table\)\) \{\s*openPixelEditor\(table\)/);
-  assert.match(resize, /var ventas = \[110, 220, 330, 110, 140, 130, 130, 60, 170\]/);
+  assert.match(resize, /var ventas = \[110, 220, 330, 110, 140, 130, 130, 160, 60, 170\]/);
   assert.match(css, /#page-detalle #ventas-list-view \.table-wrap[\s\S]*?max-height:min\(58vh,620px\)[\s\S]*?overflow:auto!important/);
   assert.match(css, /#page-detalle #ventas-tbl\[data-sv-pixel-only="1"\]\.sv-pixel-table[\s\S]*?width:var\(--sv-pixel-total-width\)!important/);
 });

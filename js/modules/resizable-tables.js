@@ -81,7 +81,11 @@
 
   function actionContainersInCell(cell) {
     if (!cell || !cell.querySelectorAll) return [];
-    var found = Array.from(cell.querySelectorAll('.ventas-row-actions,.ppto-row-actions,.sv-row-actions,[data-sv-actions]'));
+    var principal = cell.querySelector('.ventas-row-actions, .ppto-row-actions');
+    var found = principal ? [principal] : [];
+    Array.from(cell.querySelectorAll('.ventas-row-actions,.ppto-row-actions,.sv-row-actions,[data-sv-actions]')).forEach(function(item) {
+      if (found.indexOf(item) < 0) found.push(item);
+    });
     Array.from(cell.children || []).forEach(function (child) {
       if (!child || found.indexOf(child) >= 0 || !window.getComputedStyle) return;
       var display = window.getComputedStyle(child).display;
@@ -442,7 +446,7 @@
     var fixedWidth = parseInt(th && th.dataset ? th.dataset.svFixedWidth : '', 10);
     if (fixedWidth > 0) return normalizeWidth(fixedWidth);
     if (table && table.id === 'ventas-tbl') {
-      var ventas = [110, 220, 330, 110, 140, 130, 130, 60, 170];
+      var ventas = [110, 220, 330, 110, 140, 130, 130, 160, 60, 170];
       if (index < ventas.length) return ventas[index];
       if (index === total - 1) return 170;
     }
@@ -912,6 +916,15 @@
 
   function initTable(table) {
     if (!table) return;
+    // showPage prepara el modulo antes de volverlo visible. Inicializar en ese
+    // instante mide un ancho cero o residual y deja columnas diminutas hasta
+    // abrir el organizador. La exploracion posterior al cambio de pagina la
+    // inicializa ya visible con el recomendado correcto.
+    if (!isTableVisible(table)) {
+      table.dataset.svPendingVisibleInit = '1';
+      return;
+    }
+    delete table.dataset.svPendingVisibleInit;
     var headers = tableHeaders(table);
     ensureActionsColumnPolicy(table, headers);
     ensurePercentButton(table);
@@ -1167,7 +1180,9 @@
       var visibleTable = Array.from(card.querySelectorAll('table')).find(function (candidate) {
         return isTableVisible(candidate) && tableHeaders(candidate).length;
       });
-      openPercentEditor(visibleTable || btn._svFallbackTable || table);
+      var destino = visibleTable || btn._svFallbackTable || table;
+      if (destino) openPercentEditor(destino);
+      else openPercentEditor(table);
     });
     btn._svFallbackTable = table;
     if (!head) {

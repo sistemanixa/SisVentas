@@ -23,6 +23,7 @@
   var PERMISOS_ACCION = {
     'ventas.verDashboard':       { modulo:'detalle', admin:true },
     'ventas.ver':                { modulo:'detalle' },
+    'ventas.verTodas':           { modulo:'detalle', roles:['admin','administrativo'] },
     'ventas.crear':              { modulo:'venta' },
     'ventas.editar':             { modulo:'detalle', roles:['admin','administrativo'] },
     'ventas.eliminar':           { modulo:'detalle', admin:true },

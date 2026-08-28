@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.0.0-firebase' -->
+<!-- VERSION: 'v3.0.1-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v3.0.0.js"></script>
+<script src="./js/core/version.v3.0.1.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,8 +24,8 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.0.0">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.0.0">
+<link rel="stylesheet" href="./css/app.css?v=3.0.1">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.0.1">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -44,7 +44,7 @@
     </div>
     <div class="sv-boot-brand">SisVentas</div>
     <div class="sv-boot-sub">powered by Nixa</div>
-    <div id="loading-version" class="sv-boot-version">v3.0.0</div>
+    <div id="loading-version" class="sv-boot-version">v3.0.1</div>
     <div class="sv-boot-progress">
       <div id="loading-bar" class="sv-boot-bar"></div>
     </div>
@@ -57,7 +57,7 @@
       <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
-<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v3.0.0 · Firebase</div>
+<div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl">v3.0.1 · Firebase</div>
     </div>
     <div class="login-error" id="login-error" style="display:none"></div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); window.iniciarLoginConFeedback(); return false;">
@@ -406,9 +406,11 @@
               <button type="button" class="metric" onclick="dashAbrirOTResumen('sin_tecnico')" style="padding:9px 10px;text-align:left;cursor:pointer"><div class="m-label">Sin técnico</div><div class="m-value" id="dash-ot-sin-tecnico" style="font-size:18px;color:var(--amber)">0</div></button>
               <button type="button" class="metric" onclick="dashAbrirOTResumen('completadas_mes')" style="padding:9px 10px;text-align:left;cursor:pointer"><div class="m-label">Cerradas mes</div><div class="m-value" id="dash-ot-cerradas-mes" style="font-size:18px;color:var(--green)">0</div></button>
             </div>
+            <div id="dash-ot-list-wrap" class="table-wrap" style="max-height:250px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable">
             <table>
               <tr><th>Cliente</th><th>Técnico</th><th style="text-align:right">Estado</th></tr>
 <tbody id="dash-ot-pendientes"><tr><td colspan="3" style="text-align:center;padding:12px;color:var(--text3)">Cargando...</td></tr></tbody></table>
+            </div>
           </div>
 </div>
         <div class="card admin-o-administrativo no-vendedor" id="dash-agenda-card" style="margin-top:12px">
@@ -740,7 +742,7 @@
       </div>
 
       <div class="table-wrap">
-        <table id="ventas-tbl" data-sv-pixel-only="1" data-sv-column-key="ventas-tbl-pixel-v2">
+        <table id="ventas-tbl" data-sv-pixel-only="1" data-sv-column-key="ventas-tbl-pixel-v3">
           <thead>
             <tr>
               <th data-sort="id" onclick="sortTabla('ventas-tbl','id','str')"># <i class="sort-icon ti ti-chevrons-up-down"></i></th>
@@ -750,6 +752,7 @@
               <th class="tr" data-sort="total" onclick="sortTabla('ventas-tbl','total','num')">Total <i class="sort-icon ti ti-chevrons-up-down"></i></th>
               <th class="tr" data-sort="pago" onclick="sortTabla('ventas-tbl','pago','str')">Pago <i class="sort-icon ti ti-chevrons-up-down"></i></th>
               <th class="tr" data-sort="instalacion" onclick="sortTabla('ventas-tbl','instalacion','str')">Instalación <i class="sort-icon ti ti-chevrons-up-down"></i></th>
+              <th data-sort="creadaPor" onclick="sortTabla('ventas-tbl','creadaPor','str')">Creado por <i class="sort-icon ti ti-chevrons-up-down"></i></th>
               <th style="text-align:center" title="Factura electrónica emitida"><i class="ti ti-file-invoice" style="font-size:13px"></i></th>
               <th class="ppto-actions-cell" data-sv-fixed-width="170" style="text-align:center">Acciones</th>
             </tr>
@@ -5401,7 +5404,7 @@ Listo para analizar.
       </div>
 
 <script src="./js/modules/v3-launch.js"></script>
-<script src="./js/app.v3.0.0.js"></script>
+<script src="./js/app.v3.0.1.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5453,7 +5456,7 @@ Listo para analizar.
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Tiempo activo: <span id="up-tiempo">0 min</span></div>
     <div style="padding:6px 10px;font-size:12px;color:var(--text3)">Cierre automático: <span id="up-timeout" style="color:var(--amber)">30 min</span></div>
     <div style="height:0.5px;background:var(--border);margin:6px 0"></div>
-    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v3.0.0</span> · Firebase</div>
+    <div style="padding:6px 10px;font-size:12px;color:var(--text);text-align:center;font-weight:600">SisVentas <span id="up-version">v3.0.1</span> · Firebase</div>
     <!-- Botón de actualización — visible solo cuando hay versión nueva disponible -->
     <div id="up-btn-actualizar" style="display:none;padding:4px 8px">
       <button onclick="actualizarAutomaticamente(APP_CONFIG.VERSION, window._versionNuevaDisponible)" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
@@ -5734,7 +5737,7 @@ Listo para analizar.
 <script src="./js/core/relation-compatibility.js?v=2.0.154"></script>
 
 
-<script src="./js/modules/action-permissions.js?v=2.0.325"></script>
+<script src="./js/modules/action-permissions.js?v=3.0.1"></script>
 
 
 <script src="./js/core/metrics-cache.js?v=2.0.329-final"></script>
@@ -5756,7 +5759,7 @@ Listo para analizar.
 
 
 
-<script src="./js/modules/sales-dashboard.js?v=2.0.340"></script>
+<script src="./js/modules/sales-dashboard.js?v=3.0.1"></script>
 
 
 <script src="./js/modules/dashboard-ot-layout.js?v=2.0.154"></script>
@@ -5859,7 +5862,7 @@ Listo para analizar.
 <script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.0-preview-1"></script>
 
-<script src="./js/modules/resizable-tables.js?v=2.3.2-grillas-unificadas-1"></script>
+<script src="./js/modules/resizable-tables.js?v=3.0.1"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>

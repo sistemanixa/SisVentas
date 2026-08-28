@@ -1,7 +1,10 @@
 /* Lanzamiento de SisVentas 3: reingreso único y bienvenida por usuario/dispositivo. */
 (function () {
   'use strict';
-  var VERSION = 'v3.0.0';
+  var VERSION_LANZAMIENTO = 'v3.0.0';
+  var VERSION_BIENVENIDA = String(window.SISVENTAS_PWA_VERSION || 'v3.0.1');
+  var partesBienvenida = VERSION_BIENVENIDA.match(/^v3\.0\.(\d+)$/);
+  var CAMPANA_BIENVENIDA_ACTIVA = !!(partesBienvenida && Number(partesBienvenida[1]) <= 20);
 
   function esVistaPreviaLocal() {
     try {
@@ -18,15 +21,26 @@
   function claveReingreso() { return 'sisventas_v3_reingreso_' + claveUsuario(); }
   function claveBienvenida() { return 'sisventas_v3_bienvenida_' + claveUsuario(); }
 
+  function bienvenidaPendiente() {
+    if (document.getElementById('sv-v3-welcome')) return true;
+    var pendiente = false;
+    var mostrada = false;
+    try {
+      pendiente = sessionStorage.getItem('sisventas_v3_bienvenida_pendiente') === '1';
+      mostrada = localStorage.getItem(claveBienvenida()) === VERSION;
+    } catch (_) {}
+    return pendiente || (CAMPANA_BIENVENIDA_ACTIVA && !mostrada);
+  }
+
   window.svV3LaunchBeforeSession = function () {
     if (esVistaPreviaLocal()) return false;
     var restaurada = window._restaurandoSesionInicial === true && !window._loginEnCurso;
     var yaReingreso = false;
-    try { yaReingreso = localStorage.getItem(claveReingreso()) === VERSION; } catch (_) {}
+    try { yaReingreso = localStorage.getItem(claveReingreso()) === VERSION_LANZAMIENTO; } catch (_) {}
     if (yaReingreso) return false;
 
     try {
-      localStorage.setItem(claveReingreso(), VERSION);
+      localStorage.setItem(claveReingreso(), VERSION_LANZAMIENTO);
       sessionStorage.setItem('sisventas_v3_bienvenida_pendiente', '1');
     } catch (_) {}
 
@@ -41,10 +55,15 @@
     var el = document.getElementById('sv-v3-welcome');
     if (el) {
       el.classList.add('is-closing');
-      setTimeout(function () { if (el.parentNode) el.remove(); }, 420);
+      setTimeout(function () {
+        if (el.parentNode) el.remove();
+        document.dispatchEvent(new CustomEvent('sisventas:v3-welcome-closed'));
+      }, 420);
+    } else {
+      document.dispatchEvent(new CustomEvent('sisventas:v3-welcome-closed'));
     }
     try {
-      localStorage.setItem(claveBienvenida(), VERSION);
+      localStorage.setItem(claveBienvenida(), VERSION_BIENVENIDA);
       sessionStorage.removeItem('sisventas_v3_bienvenida_pendiente');
     } catch (_) {}
   }
@@ -55,9 +74,9 @@
     var mostrada = false;
     try {
       pendiente = sessionStorage.getItem('sisventas_v3_bienvenida_pendiente') === '1';
-      mostrada = localStorage.getItem(claveBienvenida()) === VERSION;
+      mostrada = localStorage.getItem(claveBienvenida()) === VERSION_BIENVENIDA;
     } catch (_) {}
-    if (!pendiente && mostrada) return;
+    if ((!CAMPANA_BIENVENIDA_ACTIVA && !esVistaPreviaLocal()) || (!pendiente && mostrada)) return;
 
     var nombre = String((detalleSesion && detalleSesion.usuario) || '').trim().split(/\s+/)[0] || '';
     var overlay = document.createElement('div');
@@ -79,6 +98,7 @@
 
   window.svCerrarBienvenidaV3 = cerrar;
   window.svMostrarBienvenidaV3 = mostrar;
+  window.svBienvenidaV3Pendiente = bienvenidaPendiente;
   document.addEventListener('sisventas:session-ready', function (event) {
     var detalle = event && event.detail ? event.detail : null;
     setTimeout(function () { mostrar(detalle); }, 900);

@@ -95,7 +95,7 @@
       #dash-ot-resumen .metric{padding:7px 8px!important}
       #dash-ot-resumen .m-label{font-size:9px!important}
       #dash-ot-resumen .m-value{font-size:16px!important}
-      #dash-ot-pendientes tr:nth-child(n+6){display:none!important}
+      #dash-ot-list-wrap{max-height:250px!important;overflow-y:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:stable!important}
       #dash-ot-pendientes td{padding-top:6px!important;padding-bottom:6px!important}
       @media (min-width:1200px){
         #dash-row2-admin{grid-template-columns:minmax(0,1.55fr) minmax(360px,.85fr)!important;gap:12px!important}
