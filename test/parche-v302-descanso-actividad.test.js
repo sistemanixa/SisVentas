@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const app = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'app.v3.0.2.js'), 'utf8');
+const app = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'app.v3.0.3.js'), 'utf8');
 const index = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf8');
 
 test('el recordatorio se activa luego de tres horas de actividad continua', () => {
@@ -47,4 +47,13 @@ test('el regreso pendiente se conserva entre sesiones y se revisa al volver', ()
   assert.match(app, /function startSessionTimer\(\)[\s\S]*?_revisarMensajeRegresoDescanso\(\)/);
   assert.match(app, /visibilityState === 'visible'[\s\S]*?_revisarMensajeRegresoDescanso\(\)/);
   assert.match(app, /window\.addEventListener\('pageshow'[\s\S]*?_revisarMensajeRegresoDescanso\(\)/);
+});
+
+test('cerrar cualquiera de los avisos libera inmediatamente el scroll general', () => {
+  const cierreDescanso = app.match(/function cerrarRecordatorioDescanso[\s\S]*?\n}/)?.[0] || '';
+  const cierreRegreso = app.match(/function cerrarMensajeRegresoDescanso[\s\S]*?\n}/)?.[0] || '';
+  assert.match(cierreDescanso, /modal\.remove\(\)/);
+  assert.match(cierreDescanso, /svSincronizarPilaModales\(\)/);
+  assert.match(cierreRegreso, /modal\.remove\(\)/);
+  assert.match(cierreRegreso, /svSincronizarPilaModales\(\)/);
 });

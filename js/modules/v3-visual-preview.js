@@ -34,8 +34,7 @@
       pill.textContent='V3';
       novedades.appendChild(pill);
     }
-    var version=document.getElementById('loading-version');
-    if(version) version.textContent='Vista previa v3.0.0';
+    if(typeof window.aplicarVersionSisVentas==='function') window.aplicarVersionSisVentas(document);
     var mensaje=document.getElementById('loading-msg');
     if(mensaje && /verificando sesión/i.test(mensaje.textContent||'')) mensaje.textContent='Preparando tu espacio de trabajo...';
     sincronizarSelector();

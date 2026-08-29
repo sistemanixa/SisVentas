@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const app = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'app.v3.0.2.js'), 'utf8');
+const app = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'app.v3.0.3.js'), 'utf8');
 
 test('el KPI suma adelantos aprobados o pagados del período aunque aún no estén compensados', () => {
   assert.match(app, /function _ctaEmpTotalAdelantosRegistradosEnMes\(todosMovimientos, mes\)/);

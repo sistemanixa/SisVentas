@@ -638,6 +638,9 @@ body.sv-modal-stack-open{overflow:hidden!important;overscroll-behavior:none!impo
 .sv-modal-underlay .modal{overflow:hidden!important}
 .sv-system-dialog-overlay{z-index:1000002!important;background:rgba(3,6,14,.78)!important;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);padding:18px}
 .modal.sv-system-dialog{width:min(500px,96vw);max-width:500px;padding:0;overflow:hidden;border:1px solid rgba(126,156,220,.24);border-radius:20px;background:linear-gradient(155deg,var(--bg2),var(--bg3));box-shadow:0 30px 90px rgba(0,0,0,.68)}
+#modal-revision-precios .sv-revision-precios-body{min-height:0!important;overflow:hidden!important}
+#modal-revision-precios #revision-precios-lista{flex:1 1 auto!important;min-height:0!important;overflow:auto!important;overscroll-behavior:contain}
+#modal-revision-precios #revision-precios-lista:focus{outline:none!important;box-shadow:inset 0 0 0 1px rgba(111,174,255,.22)}
 .sv-system-dialog-head{display:flex;align-items:center;gap:13px;padding:21px 23px 17px;border-bottom:1px solid var(--border);background:radial-gradient(circle at 8% 0,rgba(59,130,246,.14),transparent 42%)}
 .sv-system-dialog-icon{width:42px;height:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:center;border-radius:13px;border:1px solid rgba(96,165,250,.25);background:rgba(59,130,246,.12);color:var(--blue)}
 .sv-system-dialog-icon.danger{border-color:rgba(248,113,113,.28);background:rgba(239,68,68,.12);color:var(--red)}
