@@ -127,7 +127,9 @@
     var cardTop = materialCard ? materialCard.getBoundingClientRect().top : 0;
     return Promise.resolve(promise).then(function () {
       updateGlobal();
-      if (typeof window.verOT === 'function' && window.otActualId) window.verOT(ot.fbKey || ot.id);
+      // Actualizar solamente Materiales evita que el detalle completo vuelva
+      // fugazmente a su vista inicial antes de regresar a esta sección.
+      render(ot, controllableMaterials(ot));
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
           var refreshedCard = document.getElementById('ot-materiales-card');
@@ -436,7 +438,24 @@
       var totals = summary(ot);
       var pending = totals.sinClasificar + totals.devolucionPendiente + totals.enTecnico + totals.danados + totals.faltantes;
       if (!pending) return;
-      rows.push('<tr><td><strong>' + esc(ot.id || 'OT') + '</strong><div style="font-size:10px;color:var(--text3)">' + esc(ot.cliente || '') + '</div></td><td>' + esc(ot.custodiaTecnico || ot.tecnico || 'Sin asignar') + '</td><td>' +
+      var materiales = controllableMaterials(ot).map(function (raw) {
+        var material = normalizeMaterial(raw);
+        if (!material.custodiaActiva) return '';
+        var sinClasificar = Math.max(0, material.entregada - classified(material));
+        var estados = [];
+        if (sinClasificar) estados.push('sin rendir: ' + sinClasificar);
+        if (material.devueltaPendiente) estados.push('por recibir: ' + material.devueltaPendiente);
+        if (material.enTecnico) estados.push('con técnico: ' + material.enTecnico);
+        if (material.danada) estados.push('dañado: ' + material.danada);
+        if (material.faltante) estados.push('faltante: ' + material.faltante);
+        if (!estados.length) return '';
+        var codigo = material.cod || material.codigo || '';
+        var descripcion = material.desc || material.descripcion || (productFor(material) || {}).nombre || 'Producto sin descripción';
+        return '<div style="margin-bottom:5px"><strong>' + esc(descripcion) + '</strong>' +
+          (codigo ? '<div style="font-size:10px;color:var(--text3)">' + esc(codigo) + '</div>' : '') +
+          '<div style="font-size:11px;color:var(--text2)">' + esc(estados.join(' · ')) + '</div></div>';
+      }).filter(Boolean).join('');
+      rows.push('<tr><td><strong>' + esc(ot.id || 'OT') + '</strong><div style="font-size:10px;color:var(--text3)">' + esc(ot.cliente || '') + '</div></td><td>' + esc(ot.custodiaTecnico || ot.tecnico || 'Sin asignar') + '</td><td>' + (materiales || '<span style="color:var(--text3)">Sin detalle disponible</span>') + '</td><td>' +
         (totals.sinClasificar ? '<span class="badge b-amber">Sin rendir ' + totals.sinClasificar + '</span> ' : '') +
         (totals.devolucionPendiente ? '<span class="badge b-amber">Por recibir ' + totals.devolucionPendiente + '</span> ' : '') +
         (totals.enTecnico ? '<span class="badge b-blue">Con técnico ' + totals.enTecnico + '</span> ' : '') +
@@ -450,7 +469,7 @@
     overlay.id = 'ot-custodia-panel';
     overlay.className = 'modal-overlay';
     overlay.style.display = 'flex';
-    overlay.innerHTML = '<div class="modal" style="max-width:900px;width:min(900px,96vw)"><div class="modal-head"><div><strong>Material en custodia</strong><div style="font-size:11px;color:var(--text3);margin-top:2px">Equipos que requieren rendición, recepción o seguimiento</div></div><button class="btn btn-sm btn-icon" onclick="document.getElementById(\'ot-custodia-panel\').remove()"><i class="ti ti-x"></i></button></div><div class="modal-body"><div class="table-wrap"><table><thead><tr><th>OT</th><th>Técnico</th><th>Situación</th><th></th></tr></thead><tbody>' + (rows.join('') || '<tr><td colspan="4" style="padding:28px;text-align:center;color:var(--text3)">No hay materiales pendientes de rendición.</td></tr>') + '</tbody></table></div></div></div>';
+    overlay.innerHTML = '<div class="modal" style="max-width:1080px;width:min(1080px,96vw)"><div class="modal-head"><div><strong>Material en custodia</strong><div style="font-size:11px;color:var(--text3);margin-top:2px">Equipos que requieren rendición, recepción o seguimiento</div></div><button class="btn btn-sm btn-icon" onclick="document.getElementById(\'ot-custodia-panel\').remove()"><i class="ti ti-x"></i></button></div><div class="modal-body"><div class="table-wrap"><table><thead><tr><th>OT</th><th>Técnico</th><th>Material y cantidad</th><th>Situación</th><th></th></tr></thead><tbody>' + (rows.join('') || '<tr><td colspan="5" style="padding:28px;text-align:center;color:var(--text3)">No hay materiales pendientes de rendición.</td></tr>') + '</tbody></table></div></div></div>';
     document.body.appendChild(overlay);
   }
 

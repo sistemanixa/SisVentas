@@ -1102,6 +1102,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 /* En mobile/tablet: ocultar IA flotante (va dentro del FAB) */
 @media(max-width:1024px){#ia-fab{display:none!important}}
 #ia-fab:hover{transform:scale(1.08)}
+.ot-stat-row[type="button"]{appearance:none;-webkit-appearance:none;border:0;background:transparent}
 @media(max-width:768px){#ia-box{height:85vh}}
 
 /* En escritorio los accesos quedan retraídos en el borde derecho. Una pestaña
@@ -1117,7 +1118,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   #ia-fab{bottom:24px!important}
   #chat-fab:hover,#chat-fab:focus-visible,
   #ia-fab:hover,#ia-fab:focus-visible{
-    right:16px!important;
+    right:0!important;
     opacity:1;
     transform:scale(1.04);
   }

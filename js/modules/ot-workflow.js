@@ -220,20 +220,10 @@
   document.addEventListener('sisventas:ot-closed',function(){ var w=q('ot-wizard-301'); if(w) w.remove(); });
   var nuevaPrev=window.nuevaOT;
   window.nuevaOT=function(){
-    if(window._otCreacionEnCurso){ if(typeof notify==='function') notify('La OT ya se está creando…'); return window._otCreacionEnCurso; }
-    if(!window.fbDB){ if(typeof nuevaPrev==='function') return nuevaPrev.apply(this,arguments); if(typeof notify==='function') notify('Sin conexión'); return; }
-    var ot={
-      id:'', ventaId:'', cliente:'', clienteId:'', origen:'manual', estado:'pendiente', tecnico:'',
-      fecha:(typeof window.svFechaLocalISO === 'function' ? window.svFechaLocalISO() : new Date().toLocaleDateString('en-CA')), hora:'', duracion:'2 horas', tipoVisita:'Instalación nueva',
-      dir:'', obs:'', obsTecnico:'', prioridad:false, progreso:0, checks:checksBase(), materiales:[], notasTecnico:[], audit:[{fecha:new Date().toLocaleDateString('es-AR')+' '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),usuario:window.currentUser||'Sistema',accion:'OT creada manualmente'}], ts:Date.now()
-    };
-    return window.crearRegistroOTSeguro(ot,{evitarDoble:true}).then(function(ref){
-      ot.fbKey=ref.key;
-      if(Array.isArray(window.otData)) window.otData.push(ot);
-      if(typeof notify==='function') notify('✓ Orden de trabajo creada');
-      if(typeof window.svNavegarDirecto==='function') window.svNavegarDirecto('ordentrabajo', function(){ window.verOT(ref.key); });
-      else { if(typeof showPage==='function') showPage('ordentrabajo', null); window.verOT(ref.key); }
-    }).catch(function(e){ if(typeof notify==='function') notify('Error: '+e.message); });
+    // La creación manual queda temporalmente deshabilitada: delegar siempre
+    // al aviso principal, que deriva los casos especiales a un reclamo.
+    if(typeof nuevaPrev==='function') return nuevaPrev.apply(this,arguments);
+    if(typeof notify==='function') notify('Las órdenes de trabajo deben originarse desde una venta o un reclamo.');
   };
   var refrescoWizardTimer=null;
   function programarRefrescoWizard(){
