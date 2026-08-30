@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const app = fs.readFileSync('js/app.v3.0.9.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.0.10.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const permisos = fs.readFileSync('js/modules/action-permissions.js', 'utf8');
 
@@ -24,5 +24,5 @@ test('los controles y detalles consultan el permiso, no el nombre fijo del rol',
 
 test('Ventas y Presupuestos muestran sus acciones sensibles al abrir Roles', () => {
   assert.match(app, /ROLES_MODULOS_EXPANDIDOS\s*=\s*\{\s*detalle:true,\s*presupuesto:true\s*\}/);
-  assert.ok(index.indexOf('js/modules/action-permissions.js?v=3.0.9') < index.indexOf('js/app.v3.0.9.js'));
+  assert.ok(index.indexOf('js/modules/action-permissions.js?v=3.0.10') < index.indexOf('js/app.v3.0.10.js'));
 });

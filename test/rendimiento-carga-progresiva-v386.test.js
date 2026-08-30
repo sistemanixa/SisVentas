@@ -63,9 +63,9 @@ test('módulos secundarios de red esperan sesión, página o tiempo ocioso', () 
   assert.equal((dollarHistory.match(/addEventListener\('sisventas:session-ready', iniciar\)/g) || []).length, 1);
 });
 
-test('los respaldos de actualización no consultan la red cada minuto ni ocultos', () => {
+test('el marcador liviano vigila cada minuto pero nunca trabaja con la pestaña oculta', () => {
   assert.match(app, /document\.visibilityState !== 'hidden'\) _chequearGitHub/);
-  assert.match(app, /10 \* 60 \* 1000/);
+  assert.match(app, /60 \* 1000/);
   assert.match(pwa, /document\.visibilityState !== 'hidden'/);
   assert.match(pwa, /15 \* 60 \* 1000/);
   assert.doesNotMatch(pwa, /2 \* 60 \* 1000/);

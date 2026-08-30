@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const index = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('css/app.css', 'utf8');
 const launch = fs.readFileSync('js/modules/v3-launch.js', 'utf8');
-const app = fs.readFileSync('js/app.v3.0.9.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.0.10.js', 'utf8');
 
 test('la bienvenida cerrada habilita la novedad pendiente', () => {
   assert.match(launch, /localStorage\.getItem\(claveBienvenida\(\)\) === VERSION_BIENVENIDA/);
