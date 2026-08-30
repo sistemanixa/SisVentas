@@ -4,8 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const app = fs.readFileSync(path.join(root, 'js', 'app.v3.0.6.js'), 'utf8');
-const version = fs.readFileSync(path.join(root, 'js', 'core', 'version.v3.0.6.js'), 'utf8');
+const app = fs.readFileSync(path.join(root, 'js', 'app.v3.0.7.js'), 'utf8');
+const version = fs.readFileSync(path.join(root, 'js', 'core', 'version.v3.0.7.js'), 'utf8');
 const preview = fs.readFileSync(path.join(root, 'js', 'modules', 'v3-visual-preview.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'css', 'app.css'), 'utf8');
@@ -17,7 +17,7 @@ test('la revisión de precios reserva un área vertical desplazable', () => {
 });
 
 test('todas las etiquetas visibles consumen la versión central', () => {
-  assert.match(version, /window\.SISVENTAS_PWA_VERSION = 'v3\.0\.6'/);
+  assert.match(version, /window\.SISVENTAS_PWA_VERSION = 'v3\.0\.7'/);
   assert.match(version, /function aplicarVersionSisVentas/);
   assert.match(version, /loading-version/);
   assert.match(version, /login-version-lbl/);

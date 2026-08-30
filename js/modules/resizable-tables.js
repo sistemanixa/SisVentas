@@ -14,6 +14,7 @@
   var alignmentDrafts = {};
   var alignmentScopeSequence = 0;
   var globalProfiles = { loaded: false, loading: false, widths: {}, percentages: {}, alignments: {} };
+  var globalProfilesStartedAt = 0;
   var globalSaveTimers = {};
   var DEFAULT_WIDTH_BY_HEADER = {
     'fecha': 76,
@@ -166,6 +167,17 @@
   function cargarPerfilesGlobales() {
     if (globalProfiles.loaded || globalProfiles.loading || !canUseFirebase()) return;
     globalProfiles.loading = true;
+    globalProfilesStartedAt = Date.now();
+    // La grilla no debe adoptar un perfil provisional y reemplazarlo un
+    // segundo después. Si Firebase demora, liberamos una única base local;
+    // una respuesta tardía quedará disponible para la próxima apertura.
+    setTimeout(function () {
+      if (!globalProfiles.loaded && globalProfiles.loading && Date.now() - globalProfilesStartedAt >= 900) {
+        globalProfiles.loaded = true;
+        globalProfiles.loading = false;
+        scheduleScan();
+      }
+    }, 920);
     window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/tableColumns'))
       .then(function (snap) {
         var val = snap && snap.val ? (snap.val() || {}) : {};
@@ -177,12 +189,12 @@
         globalProfiles.alignments = Object.assign({}, val.alignments || {}, globalProfiles.alignments || {});
         globalProfiles.loaded = true;
         globalProfiles.loading = false;
-        // No reaplicar perfiles sobre una tabla ya visible: ese segundo pase
-        // era el que movía las columnas después de que el usuario ya veía los
-        // datos. Las tablas nuevas tomarán el perfil en su primera apertura.
+        scheduleScan();
       })
       .catch(function () {
+        globalProfiles.loaded = true;
         globalProfiles.loading = false;
+        scheduleScan();
       });
   }
 
@@ -403,6 +415,10 @@
         columnSelector + ' textarea,' +
         columnSelector + ' select,' +
         columnSelector + ' [contenteditable="true"]{text-align:' + align + '!important}');
+      rules.push(columnSelector + ' .ventas-row-actions,' + columnSelector + ' .ppto-row-actions,' +
+        columnSelector + ' .sv-row-actions,' + columnSelector + ' [data-sv-actions],' +
+        columnSelector + ' .sv-grid-actions-original{justify-content:' +
+        (align === 'right' ? 'flex-end' : (align === 'center' ? 'center' : 'flex-start')) + '!important}');
       columnCells(table, index).forEach(function (cell) {
         cell.style.textAlign = align;
         actionContainersInCell(cell).forEach(function (actionGroup) {
@@ -676,10 +692,10 @@
   }
 
   function shouldApplyDefaultPercentProfile(table) {
-    return !!(table && (
-      table.id === 'prod-tbl' || table.id === 'gas-tbl' || table.id === 'ppto-tabla' ||
-      table.id === 'ventas-tbl' || table.id === 'venta-items-tbl' || usesFullContainerWidth(table)
-    ));
+    // Norma general: todas las grillas aprovechan proporcionalmente el ancho
+    // disponible. Sólo una tabla marcada expresamente como pixel-only conserva
+    // anchos independientes (Detalle de venta, por decisión funcional).
+    return !!(table && !usesPixelOnly(table));
   }
 
   function currentPercentages(table) {
@@ -990,10 +1006,21 @@
       table.dataset.svPendingVisibleInit = '1';
       return;
     }
+    if (canUseFirebase() && !globalProfiles.loaded) {
+      table.classList.add('sv-columns-pending');
+      cargarPerfilesGlobales();
+      return;
+    }
+    table.classList.remove('sv-columns-pending');
     delete table.dataset.svPendingVisibleInit;
     var headers = tableHeaders(table);
     ensureActionsColumnPolicy(table, headers);
     ensurePercentButton(table);
+    var key = tableKey(table);
+    if (table.dataset.svResizableReady === '1' &&
+        table.dataset.svResizableKey === key) {
+      return;
+    }
     if (table.dataset && table.dataset.svNoResize === '1') {
       applySavedPercentProfile(table);
       applySavedAlignments(table);
@@ -1011,11 +1038,6 @@
       }
     }
     applySavedAlignments(table);
-    var key = tableKey(table);
-    if (table.dataset.svResizableReady === '1' &&
-        table.dataset.svResizableKey === key) {
-      return;
-    }
 
     if (table.dataset.svHeaderClickGuard !== '1') {
       table.addEventListener('click', function (event) {
@@ -1289,6 +1311,7 @@
       var saved = parseInt(savedWidths[index], 10);
       return normalizeWidth(fixed > 0 ? fixed : (saved > 0 ? saved : th.getBoundingClientRect().width));
     });
+    var previewChanged = false;
     var overlay = document.createElement('div');
     overlay.id = 'sv-column-percent-modal';
     overlay.className = 'sv-column-percent-overlay';
@@ -1363,18 +1386,19 @@
       applyAlignments(table, savedAlignments);
     }
     overlay.addEventListener('input', function (event) {
-      if (event.target && event.target.matches('input[data-pixel-index]')) applyPixelPreview(readWidths());
+      if (event.target && event.target.matches('input[data-pixel-index]')) { previewChanged = true; applyPixelPreview(readWidths()); }
     });
     overlay.addEventListener('change', function (event) {
-      if (event.target && event.target.matches('select[data-align-index]')) applyPixelPreview(readWidths());
+      if (event.target && event.target.matches('select[data-align-index]')) { previewChanged = true; applyPixelPreview(readWidths()); }
     });
     overlay.addEventListener('click', function (event) {
       if (event.target === overlay || event.target.closest('[data-sv-close]')) {
-        restoreSaved();
+        if (previewChanged) restoreSaved();
         overlay.remove();
         return;
       }
       if (event.target.closest('[data-sv-default]')) {
+        previewChanged = true;
         suggestedWidths = suggestedPixelWidths(table, headers);
         overlay.querySelectorAll('input[data-pixel-index]').forEach(function (input, index) {
           input.value = suggestedWidths[index];
@@ -1394,7 +1418,12 @@
         if (window.notify) window.notify('✓ Columnas y alineación guardadas');
       }
     });
-    applyPixelPreview(initialWidths);
+    // Abrir el editor es una operación de lectura. No tocar colgroup, anchos
+    // ni alineaciones hasta que el usuario modifique un control.
+    var initialTotal = initialWidths.reduce(function (sum, width) { return sum + width; }, 0);
+    var initialPercent = Math.round((initialTotal / availableWidthForTable(table)) * 1000) / 10;
+    var initialTotalEl = overlay.querySelector('#sv-column-percent-total');
+    if (initialTotalEl) initialTotalEl.textContent = initialPercent + '%';
   }
 
   function openPercentEditor(tableOrId) {
@@ -1430,8 +1459,7 @@
     // sugerida en lugar de perpetuar ese perfil visualmente inválido.
     if (fixedTooSmall) values = defaultPercentages(table);
     var alignValues = currentAlignments(table);
-    percentDrafts[percentDraftKey(table)] = Object.assign({}, values);
-    alignmentDrafts[percentDraftKey(table)] = Object.assign({}, alignValues);
+    var previewChanged = false;
     var overlay = document.createElement('div');
     overlay.id = 'sv-column-percent-modal';
     overlay.className = 'sv-column-percent-overlay';
@@ -1547,6 +1575,7 @@
       applyPercentProfile(table, data);
       applyAlignments(table, alignData);
       refreshTotal(data);
+      previewChanged = true;
     }
 
     overlay.addEventListener('input', function (ev) {
@@ -1557,12 +1586,13 @@
     });
     overlay.addEventListener('click', function (ev) {
       if (ev.target === overlay || ev.target.closest('[data-sv-close]')) {
-        delete percentDrafts[percentDraftKey(table)];
-        delete alignmentDrafts[percentDraftKey(table)];
-        applySavedPercentProfile(table);
-        applySavedAlignments(table);
+        if (previewChanged) {
+          delete percentDrafts[percentDraftKey(table)];
+          delete alignmentDrafts[percentDraftKey(table)];
+          applySavedPercentProfile(table);
+          applySavedAlignments(table);
+        }
         overlay.remove();
-        scan();
         return;
       }
       if (ev.target.closest('[data-sv-default]')) {
@@ -1608,7 +1638,9 @@
         if (window.notify) window.notify('✓ Columnas y alineación guardadas');
       }
     });
-    applyLive();
+    // Mostrar los valores actuales sin aplicar nuevamente el perfil. Esta es
+    // la garantía de que abrir/cerrar el organizador no mueve una sola columna.
+    refreshTotal(values);
   }
 
   function scheduleScan() {
@@ -1654,5 +1686,14 @@
     window.SisVentas.normalizeSuggestedColumnPercentages = normalizeSuggestedPercentages;
     window.SisVentas.suggestedPixelColumnWidths = suggestedPixelWidths;
     window.SisVentas.fitResizableTablesToViewport = fitVisiblePixelTables;
+    window.SisVentas.auditGridStandards = function () {
+      return Array.from(document.querySelectorAll('table')).map(function (table) {
+        return {
+          key: tableKey(table), page: pageId(table), headers: tableHeaders(table).length,
+          mode: usesPixelOnly(table) ? 'pixel-explicito' : 'proporcional',
+          ready: table.dataset.svResizableReady === '1', visible: isTableVisible(table)
+        };
+      });
+    };
   });
 })();

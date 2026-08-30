@@ -1104,6 +1104,13 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 #ia-fab:hover{transform:scale(1.08)}
 @media(max-width:768px){#ia-box{height:85vh}}
 
+/* En escritorio los accesos de mensajería viven junto al lateral. De este
+   modo no cubren totales, acciones ni la barra de desplazamiento derecha. */
+@media(min-width:1025px){
+  #chat-fab{left:76px!important;right:auto!important;bottom:82px!important}
+  #ia-fab{left:76px!important;right:auto!important;bottom:24px!important}
+}
+
 /* Accesos flotantes compactos: chat abajo y acciones (+) arriba, sin solaparse. */
 @media(max-width:1024px){
   #chat-fab{bottom:calc(18px + env(safe-area-inset-bottom, 0px))!important}
@@ -2478,3 +2485,4 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   #ot-integridad-card.is-open .ot-integridad-contenido{display:block}
   #ot-integridad-card.is-open .ot-integridad-verificar{display:inline-flex}
 }
+.sv-columns-pending{visibility:hidden!important}
