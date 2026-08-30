@@ -30034,6 +30034,7 @@ function nuevaOT() {
   var overlay = document.createElement('div');
   overlay.id = 'modal-nueva-ot-restringida';
   overlay.className = 'modal-overlay open sv-system-dialog-overlay';
+  overlay.dataset.svModalBehavior = 'compact';
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.innerHTML = '<div class="modal sv-system-dialog" style="width:min(640px,94vw)">' +
@@ -40616,6 +40617,10 @@ function svModalIniciarArrastre(evento, panel) {
 
 function svPrepararModalGestionable(contenedor) {
   if (!contenedor || !contenedor.isConnected) return;
+  // Los avisos y decisiones breves pueden marcarse explícitamente como
+  // compactos. Todo modal existente conserva su comportamiento por defecto.
+  if (contenedor.matches && contenedor.matches('[data-sv-modal-behavior="compact"]')) return;
+  if (contenedor.closest && contenedor.closest('[data-sv-modal-behavior="compact"]')) return;
   if (contenedor.classList && contenedor.classList.contains('sv-system-dialog-overlay')) return;
   if (contenedor.id === 'actualizador-precios-panel' || contenedor.closest && contenedor.closest('#actualizador-precios-panel')) return;
   // Una página animada conserva transform y se vuelve el sistema de referencia

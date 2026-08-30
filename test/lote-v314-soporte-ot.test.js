@@ -26,6 +26,8 @@ test('las ventanas gestionables conservan tamaño y posición dentro de pantalla
   assert.match(app, /panel\.style\.boxSizing = 'border-box'/);
   assert.match(app, /window\.innerHeight - panel\.offsetHeight - 8/);
   assert.match(app, /document\.body\.appendChild\(contenedor\)/);
+  assert.match(app, /data-sv-modal-behavior="compact"/);
+  assert.match(app, /overlay\.dataset\.svModalBehavior = 'compact'/);
 });
 
 test('los accesos flotantes no pierden hover al desplegarse', () => {
