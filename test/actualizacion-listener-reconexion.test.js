@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const app = fs.readFileSync('js/app.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.0.11.js', 'utf8');
 
 test('cerrar sesión libera la bandera del listener de versión', () => {
   assert.match(app, /fbStopAllValueListeners\(\);[\s\S]{0,350}?_listenerVersionActivo\s*=\s*false/);
