@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const grid = fs.readFileSync('js/modules/resizable-tables.js', 'utf8');
-const app = fs.readFileSync('js/app.v3.0.7.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.0.8.js', 'utf8');
 
 test('todas las grillas usan proporciones salvo una excepción pixel explícita', () => {
   assert.match(grid, /return !!\(table && !usesPixelOnly\(table\)\)/);

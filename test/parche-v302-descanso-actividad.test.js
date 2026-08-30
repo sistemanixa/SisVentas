@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const app = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'app.v3.0.7.js'), 'utf8');
+const app = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'app.v3.0.8.js'), 'utf8');
 const index = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf8');
 
 test('el recordatorio se activa luego de tres horas de actividad continua', () => {
