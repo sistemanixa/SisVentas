@@ -4,14 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const app = fs.readFileSync(path.join(root, 'js', 'app.v3.0.5.js'), 'utf8');
+const app = fs.readFileSync(path.join(root, 'js', 'app.v3.0.6.js'), 'utf8');
 const custody = fs.readFileSync(path.join(root, 'js', 'modules', 'ot-material-custody.js'), 'utf8');
 const workflow = fs.readFileSync(path.join(root, 'js', 'modules', 'ot-workflow.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 test('la versión activa queda enlazada en aplicación y documento', () => {
-  assert.match(index, /app\.v3\.0\.5\.js/);
-  assert.match(app, /VERSION: 'v3\.0\.5-firebase'/);
+  assert.match(index, /app\.v3\.0\.6\.js/);
+  assert.match(app, /VERSION: 'v3\.0\.6-firebase'/);
 });
 
 test('guardar custodia conserva la posición visible de Materiales', () => {

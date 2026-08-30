@@ -2,13 +2,23 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.0.5-firebase' -->
+<!-- VERSION: 'v3.0.6-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<script src="./js/core/version.v3.0.5.js"></script>
+<script>
+// Aplicar preferencias antes del primer cuadro evita que una sesión oscura
+// nazca clara y que el logo provisional cambie de forma durante el ingreso.
+(function(){
+  try {
+    if (localStorage.getItem('nixa_dark') === '1') document.documentElement.classList.add('dark-mode');
+    window.__SISVENTAS_BOOT_LOGO = localStorage.getItem('nixa_logo') || 'nixa-icon-192.png';
+  } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
+})();
+</script>
+<script src="./js/core/version.v3.0.6.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -24,8 +34,8 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.0.5">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.0.5">
+<link rel="stylesheet" href="./css/app.css?v=3.0.6">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.0.6">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -40,7 +50,7 @@
   <div class="sv-boot-aura"></div>
   <div class="sv-boot-content">
     <div id="loading-logo" class="sv-boot-logo">
-      <img src="nixa-icon-192.png" alt="NIXA">
+      <img src="nixa-icon-192.png" alt="NIXA" width="132" height="86">
     </div>
     <div class="sv-boot-brand">SisVentas</div>
     <div class="sv-boot-sub">powered by Nixa</div>
@@ -54,7 +64,7 @@
 <div id="screen-login" style="display:none">
   <div class="login-box">
     <div class="login-logo">
-      <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo"></div>
+      <div id="login-logo-mark" class="login-logo-mark"><img src="nixa-icon-192.png" alt="Logo" width="132" height="86"></div>
       <div class="login-brand">SisVentas</div>
       <div class="login-tagline">sistema de gestión</div>
 <div style="font-size:12px;color:var(--text);margin-top:4px;letter-spacing:.5px;font-weight:600" id="login-version-lbl"></div>
@@ -91,6 +101,16 @@
 
   </div>
 </div>
+
+<script>
+(function(){
+  var src = window.__SISVENTAS_BOOT_LOGO || 'nixa-icon-192.png';
+  var carga = document.querySelector('#loading-logo img');
+  var login = document.querySelector('#login-logo-mark img');
+  if (carga) carga.src = src;
+  if (login) login.src = src;
+})();
+</script>
 
 <!-- ════════════ APP ════════════ -->
 <div id="screen-app">
@@ -5404,7 +5424,7 @@ Listo para analizar.
       </div>
 
 <script src="./js/modules/v3-launch.js"></script>
-<script src="./js/app.v3.0.5.js"></script>
+<script src="./js/app.v3.0.6.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5862,7 +5882,7 @@ Listo para analizar.
 
 
 <script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
-<script src="./js/modules/v3-visual-preview.js?v=3.0.5"></script>
+<script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
 
 <script src="./js/modules/resizable-tables.js?v=3.0.2"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>

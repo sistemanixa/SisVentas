@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const app = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'app.v3.0.5.js'), 'utf8');
+const app = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'app.v3.0.6.js'), 'utf8');
 
 test('el actualizador reintenta fallas transitorias sin avanzar el bloque', () => {
   assert.match(app, /async function solicitarLoteCotizadorConReintentos/);

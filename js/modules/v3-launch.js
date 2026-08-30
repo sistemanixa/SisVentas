@@ -27,7 +27,7 @@
     var mostrada = false;
     try {
       pendiente = sessionStorage.getItem('sisventas_v3_bienvenida_pendiente') === '1';
-      mostrada = localStorage.getItem(claveBienvenida()) === VERSION;
+      mostrada = localStorage.getItem(claveBienvenida()) === VERSION_BIENVENIDA;
     } catch (_) {}
     return pendiente || (CAMPANA_BIENVENIDA_ACTIVA && !mostrada);
   }
