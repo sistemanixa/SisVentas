@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const app = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'app.v3.0.4.js'), 'utf8');
+const app = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'app.v3.0.5.js'), 'utf8');
 
 test('cerrar la edición manual vuelve directamente a la revisión conservada', () => {
   assert.match(app, /_prodRevisionRetorno\s*&&\s*\(_prodDetalleOrigenAntesForm\s*===\s*'revision-precios'/);

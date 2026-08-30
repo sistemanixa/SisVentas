@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const app = fs.readFileSync(path.join(root, 'js', 'app.v3.0.4.js'), 'utf8');
+const app = fs.readFileSync(path.join(root, 'js', 'app.v3.0.5.js'), 'utf8');
 const tables = fs.readFileSync(path.join(root, 'js', 'modules', 'resizable-tables.js'), 'utf8');
 
 test('revisión de productos usa una tabla configurable con acceso al organizador', () => {
