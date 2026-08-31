@@ -12,7 +12,11 @@
     if (x && typeof x === 'object') return Object.keys(x).map(function(k){ return Object.assign({fbKey:k}, x[k]||{}); });
     return [];
   }
-  function mon(v){ return (typeof money==='function') ? money(v) : ('$' + Math.round(parseFloat(v)||0).toLocaleString('es-AR')); }
+  function mon(v){
+    var n = parseFloat(v) || 0;
+    var cents = Math.abs(n - Math.round(n)) > 0.0001;
+    return '$' + n.toLocaleString('es-AR', { minimumFractionDigits:cents?2:0, maximumFractionDigits:2 });
+  }
   function fechaFmt(f){
     f=String(f||'');
     if (/^\d{4}-\d{2}-\d{2}/.test(f)) return f.slice(0,10).split('-').reverse().join('/');
@@ -41,6 +45,12 @@
   }
   function costoItem(it){
     it = it || {};
+    // Usar la misma fuente auditada que Venta, Presupuesto y Detalle. Incluye
+    // productos, servicios y mano de obra pagada a técnicos.
+    if (typeof obtenerCostoItemVenta === 'function') {
+      var costoAuditado = parseFloat(obtenerCostoItemVenta(it)) || 0;
+      if (costoAuditado > 0) return costoAuditado;
+    }
     var qty = parseFloat(it.qty ?? it.cantidad ?? it.cant ?? 1) || 1;
     var directo = parseFloat(it.costoTotal ?? it.totalCompra ?? it.total_compra ?? it.compraTotal);
     if (!isNaN(directo) && directo > 0) return directo;
@@ -48,8 +58,10 @@
     if (!isNaN(unit) && unit > 0) return unit * qty;
     // Fallback solo para ventas viejas: buscar producto actual por código.
     var cod = String(it.cod || it.codigo || it.sku || '').trim();
-    if (cod && window.productosData) {
-      var pr = (window.productosData||[]).find(function(p){ return String(p.cod||p.codigo||p.sku||'').trim() === cod; });
+    var catalogo = window.productosData || window.prodData || (typeof prodData !== 'undefined' ? Object.values(prodData||{}) : []);
+    catalogo = arr(catalogo);
+    if (cod && catalogo.length) {
+      var pr = catalogo.find(function(p){ return String(p.cod||p.codigo||p.sku||'').trim() === cod; });
       if (pr) {
         var pc = parseFloat(pr.precioCompra ?? pr.compra ?? pr.costo ?? pr.precio_compra);
         if (!isNaN(pc) && pc > 0) return pc * qty;
@@ -61,7 +73,7 @@
     v = v || {};
     var subtotal = parseFloat(v.subtotalBruto ?? v.subtotalSinDesc ?? v.subtotal ?? 0) || 0;
     var descuento = parseFloat(v.descuentoMonto ?? v.descuento ?? 0) || 0;
-    var items = arr(v.items);
+    var items = arr(v.items || v.productos || v.detalle || v.lineas);
     var costo = items.reduce(function(s,it){ return s + costoItem(it); }, 0);
     if (!costo && parseFloat(v.costoProductos||0)>0) costo = parseFloat(v.costoProductos)||0;
     var gan = subtotal - descuento - costo;
@@ -104,46 +116,58 @@
     if (!lista) return;
     var pct = parseFloat(emp.pctComisionPropio) || 0;
     var mes = mesActualCta();
-    var idsVisibles = null;
-    if (String(window.currentRole || currentRole || '').toLowerCase() !== 'admin') {
-      idsVisibles = {};
-      (window.movsEmpData || movsEmpData || []).forEach(function(m){
-        var est = String(m.estado || '').toLowerCase();
-        if (m.tipo !== 'comision' || ['aprobado','pagado','pagado_parcial'].indexOf(est) < 0) return;
-        if (m.ventaId) idsVisibles[String(m.ventaId)] = m;
-        if (m.ventaFbKey) idsVisibles[String(m.ventaFbKey)] = m;
-      });
-    }
+    var movimientosPorVenta = {};
+    (window.movsEmpData || (typeof movsEmpData !== 'undefined' ? movsEmpData : []) || []).forEach(function(m){
+      if (m.tipo !== 'comision') return;
+      if (m.ventaId) movimientosPorVenta[String(m.ventaId)] = m;
+      if (m.ventaFbKey) movimientosPorVenta[String(m.ventaFbKey)] = m;
+    });
+    var esAdmin = String(window.currentRole || (typeof currentRole !== 'undefined' ? currentRole : '') || '').toLowerCase() === 'admin';
+    var idsVisibles = esAdmin ? null : {};
+    if (idsVisibles) Object.keys(movimientosPorVenta).forEach(function(key){
+      var est = String(movimientosPorVenta[key].estado || '').toLowerCase();
+      if (['aprobado','pagado','pagado_parcial'].indexOf(est) >= 0) idsVisibles[key] = movimientosPorVenta[key];
+    });
     var ventas = (window.ventasList||[]).filter(function(v){
       var visible = !idsVisibles || idsVisibles[String(v.id || '')] || idsVisibles[String(v.fbKey || '')];
       return ventaDelEmpleado(v, emp) && visible && fechaEnMes(v.fecha, mes);
     });
-    var totalGanancia = 0, totalComision = 0, totalCosto = 0;
+    var totalGanancia = 0, totalComision = 0, totalCosto = 0, totalAprobado = 0, totalPendiente = 0;
     var rows = ventas.map(function(v){
       var g = gananciaVenta(v);
       var base = Math.max(g.ganancia, 0);
-      var movVisible = idsVisibles && (idsVisibles[String(v.id || '')] || idsVisibles[String(v.fbKey || '')]);
-      var com = movVisible ? (parseFloat(movVisible.monto)||0) : parseFloat(v.comisionMonto || v.comision || 0);
-      if (!com) com = base * (pct/100);
+      var movComision = movimientosPorVenta[String(v.id || '')] || movimientosPorVenta[String(v.fbKey || '')] || null;
+      var comCalculada = base * (pct/100);
+      var comGuardada = movComision ? (parseFloat(movComision.monto)||0) : parseFloat(v.comisionMonto || v.comision || 0);
+      var com = comCalculada;
+      var estadoComision = String(movComision && movComision.estado || '').toLowerCase();
+      var aprobada = ['aprobado','pagado','pagado_parcial'].indexOf(estadoComision) >= 0;
+      if (aprobada) totalAprobado += com;
+      else totalPendiente += com;
       totalGanancia += g.ganancia;
       totalComision += com;
       totalCosto += g.costo;
-      var estadoPago = typeof window.estadoPagoEfectivoVenta === 'function' ? window.estadoPagoEfectivoVenta(v) : v.estadoPago;
-      var estado = estadoPago === 'pago_total' ? '<span class="badge b-green">Cobrado</span>'
-        : estadoPago === 'sin_cargo' ? '<span class="badge b-blue">Sin cargo</span>'
-        : '<span class="badge b-amber">Pendiente</span>';
+      var estado = aprobada ? '<span class="badge b-green">Comisión aprobada</span>'
+        : movComision ? '<span class="badge b-amber">Pendiente de aprobación</span>'
+        : '<span class="badge b-amber">Comisión no generada</span>';
+      var diferencia = comGuardada > 0 && Math.abs(comGuardada - comCalculada) > 0.01
+        ? '<span class="badge b-red" title="Guardada '+esc(mon(comGuardada))+' · calculada '+esc(mon(comCalculada))+'">Recalcular comisión</span>' : '';
       var warn = g.costo <= 0 ? '<span class="badge b-amber" title="Venta vieja sin costo guardado o producto sin compra">Costo estimado</span>' : '';
       return '<div onclick="abrirVentaDesdeComision270(\''+esc(v.fbKey||v.id||v.numero||'')+'\')" style="cursor:pointer;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center">'+
-        '<div style="min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);display:flex;gap:6px;align-items:center;flex-wrap:wrap">Venta '+esc(ventaId(v))+' '+estado+' '+warn+'</div>'+
+        '<div style="min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);display:flex;gap:6px;align-items:center;flex-wrap:wrap">Venta '+esc(ventaId(v))+' '+estado+' '+warn+' '+diferencia+'</div>'+
         '<div style="font-size:12px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(v.cliente||'Sin cliente')+' · '+fechaFmt(v.fecha)+'</div>'+
-        '<div style="font-size:11px;color:var(--text3);margin-top:3px">Subtotal '+mon(g.subtotal)+' − Desc. '+mon(g.descuento)+' − Costo '+mon(g.costo)+' = Ganancia '+mon(g.ganancia)+'</div></div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:3px">Subtotal '+mon(g.subtotal)+' − Descuento de venta '+mon(g.descuento)+' − Costo total '+mon(g.costo)+' = Ganancia '+mon(g.ganancia)+'</div></div>'+
         '<div style="text-align:right"><div style="font-size:14px;font-weight:700;color:var(--green)">'+mon(com)+'</div><div style="font-size:11px;color:var(--text3)">'+pct+'% sobre ganancia</div></div></div>';
     });
     if (info) info.textContent = ventas.length ? (ventas.length + ' venta' + (ventas.length!==1?'s':'') + ' · Ganancia ' + mon(totalGanancia) + ' · Costo ' + mon(totalCosto)) : '';
     lista.innerHTML = rows.length ? rows.join('') : '<div style="text-align:center;color:var(--text3);font-size:13px;padding:14px">Sin ventas con comisión en este período</div>';
     var elTotal = document.getElementById('ctaemp-com-total');
+    var elAprobado = document.getElementById('ctaemp-com-cobrado');
+    var elPendiente = document.getElementById('ctaemp-com-pendiente');
     var elCant = document.getElementById('ctaemp-com-cant');
     if (elTotal) elTotal.textContent = mon(totalComision);
+    if (elAprobado) elAprobado.textContent = mon(totalAprobado);
+    if (elPendiente) elPendiente.textContent = mon(totalPendiente);
     if (elCant) elCant.textContent = ventas.length + ' venta' + (ventas.length!==1?'s':'') + ' ' + mes + ' · comisión sobre ganancia';
   };
 

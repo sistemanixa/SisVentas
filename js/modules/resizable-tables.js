@@ -78,7 +78,13 @@
   }
 
   function isActionsHeader(th, index) {
-    return columnLabel(th, index).toLocaleLowerCase('es-AR').replace(/[^a-záéíóúüñ]/g, '') === 'acciones';
+    var explicit = th && th.getAttribute ? th.getAttribute('data-sv-column-label') : '';
+    var visible = th && th.textContent ? String(th.textContent).replace(/\s+/g, ' ').trim() : '';
+    var normalized = String(explicit || visible).toLocaleLowerCase('es-AR').replace(/[^a-záéíóúüñ]/g, '');
+    if (normalized === 'acciones' || normalized === 'accion' || normalized === 'opciones' || normalized === 'opcion') return true;
+    // Varias grillas históricas dejaron vacía la cabecera de controles. Si es
+    // la última columna, debe recibir exactamente la misma política general.
+    return !explicit && !visible && index >= 0 && th && th.parentElement && th === th.parentElement.lastElementChild;
   }
 
   function actionContainersInCell(cell) {
@@ -97,24 +103,51 @@
   }
 
   function ensureActionsColumnPolicy(table, headers) {
+    var changed = false;
     (headers || []).forEach(function (th, index) {
-      if (!isActionsHeader(th, index) || parseInt(th.dataset.svFixedWidth || '', 10) > 0) return;
+      if (!isActionsHeader(th, index)) return;
+      var fixedBefore = parseInt(th.dataset.svFixedWidth || '', 10) || 0;
+      // Una medida declarada expresamente por la pantalla se respeta. Las
+      // generadas por este controlador sí deben volver a medirse cuando el
+      // tbody recibe sus filas.
+      if (fixedBefore > 0 && th.dataset.svActionsAuto !== '1') return;
       var medidas = columnCells(table, index).reduce(function (acc, cell) {
-        var actions = cell.querySelectorAll ? Array.from(cell.querySelectorAll('button,a.btn,a.icon-btn')) : [];
+        var originalActions = cell.querySelector && cell.querySelector('.sv-grid-actions-original');
+        var actions = cell.querySelectorAll ? Array.from((originalActions || cell).querySelectorAll('button,a.btn,a.icon-btn')).filter(function(action) {
+          return !action.classList.contains('sv-grid-actions-trigger') && !action.closest('.sv-grid-actions-menu');
+        }) : [];
         var required = actions.reduce(function (sum, action) {
           var label = String(action.textContent || '').replace(/\s+/g, ' ').trim();
+          var renderedWidth = action.getBoundingClientRect ? action.getBoundingClientRect().width : 0;
           // Los iconos solos conservan el ancho compacto. Los botones con
           // texto reservan lo suficiente para mostrar su etiqueta completa.
-          return sum + Math.max(44, Math.min(190, label ? (34 + label.length * 7) : 44));
+          // Si ya están renderizados, su ancho real manda sobre la estimación.
+          return sum + (renderedWidth > 0 ? renderedWidth : Math.max(36, Math.min(190, label ? (34 + label.length * 7) : 36)));
         }, 0);
         acc.count = Math.max(acc.count, actions.length);
         acc.width = Math.max(acc.width, required + (actions.length > 1 ? (actions.length - 1) * 6 : 0));
+        // Medir sólo el bloque real de acciones. Usar cell.scrollWidth hacía
+        // que el ancho ya asignado se confundiera con contenido y creciera en
+        // cada render hasta el máximo permitido.
+        var renderedGroup = cell.querySelector && cell.querySelector('.sv-grid-actions-original,.sv-row-actions,[data-sv-actions]');
+        if (renderedGroup) acc.rendered = Math.max(acc.rendered, renderedGroup.scrollWidth || 0);
         return acc;
-      }, { count:0, width:0 });
+      }, { count:0, width:0, rendered:0 });
       // La columna de acciones conserva una sola fila y no se puede achicar
       // hasta ocultar controles. El ancho se adapta a la cantidad real.
-      th.dataset.svFixedWidth = String(Math.min(280, Math.max(96, 16 + medidas.width, 16 + Math.max(1, medidas.count) * 44)));
+      var fixedNext = Math.min(280, Math.max(96, 16 + medidas.width, 16 + medidas.rendered));
+      if (medidas.count > 0 && !String(th.textContent || '').replace(/\s+/g, ' ').trim()) {
+        th.dataset.svColumnLabel = 'Acciones';
+        var visibleLabel = document.createElement('span');
+        visibleLabel.className = 'sv-actions-header-label';
+        visibleLabel.textContent = 'Acciones';
+        th.insertBefore(visibleLabel, th.firstChild || null);
+      }
+      th.dataset.svFixedWidth = String(fixedNext);
+      th.dataset.svActionsAuto = '1';
+      if (fixedNext !== fixedBefore) changed = true;
     });
+    return changed;
   }
 
   function tableKey(table) {
@@ -358,6 +391,7 @@
   }
 
   function defaultAlignmentForHeader(th) {
+    if (isActionsHeader(th, -1)) return 'right';
     if (th && th.classList) {
       if (th.classList.contains('tr')) return 'right';
       if (th.classList.contains('tc')) return 'center';
@@ -398,7 +432,10 @@
     var selector = 'table[data-sv-alignment-scope="' + scope + '"]';
     var rules = [];
     tableHeaders(table).forEach(function (_th, index) {
-      var align = normalizeAlignment((alignments || {})[index]);
+      // Acciones es una columna operativa, no de datos: conserva siempre la
+      // misma alineación a la derecha en todas las grillas, aunque exista un
+      // perfil histórico que la haya guardado a izquierda o centro.
+      var align = isActionsHeader(_th, index) ? 'right' : normalizeAlignment((alignments || {})[index]);
       var physicalIndex = physicalIndexForVisibleIndex(table, index);
       var columnSelector = selector + ' tr > *:nth-child(' + (physicalIndex + 1) + ')';
       rules.push(columnSelector + '{text-align:' + align + '!important}');
@@ -578,15 +615,15 @@
     var preset = null;
     if (table && table.id === 'prod-tbl') {
       preset = {
-        0: 5,
-        1: 4,
-        2: 30,
-        3: 50,
-        4: 3,
+        0: 6,
+        1: 9,
+        2: 23,
+        3: 21,
+        4: 7,
         5: 8,
         6: 8,
         7: 6,
-        8: 3
+        8: 12
       };
     }
     if (!preset && table && table.id === 'gas-tbl') {
@@ -658,6 +695,25 @@
       headers.forEach(function (_th, index) {
         clean[index] = normalizePercent(source && source[index]);
       });
+      // El 100% debe incluir Acciones completa. Si el perfil porcentual fue
+      // guardado antes de cargar las filas, reservar el mínimo real y tomar
+      // la diferencia de la columna flexible más ancha, sin superar 100%.
+      var available = pixelContainerWidth(table);
+      var actionIndex = headers.findIndex(isActionsHeader);
+      if (available > 0 && actionIndex >= 0) {
+        var fixed = parseInt(headers[actionIndex].dataset.svFixedWidth || '', 10) || 0;
+        var minimumPct = Math.ceil((fixed / available) * 1000) / 10;
+        var deficit = minimumPct - normalizePercent(clean[actionIndex]);
+        if (fixed > 0 && deficit > 0) {
+          var flexible = headers.map(function (th, index) { return { th:th, index:index, value:normalizePercent(clean[index]) }; })
+            .filter(function (item) { return item.index !== actionIndex && !(parseInt(item.th.dataset.svFixedWidth || '', 10) > 0); })
+            .sort(function (a,b) { return b.value - a.value; })[0];
+          if (flexible && flexible.value > deficit + 1) {
+            clean[flexible.index] = Math.round((flexible.value - deficit) * 10) / 10;
+            clean[actionIndex] = minimumPct;
+          }
+        }
+      }
       return clean;
     }
     headers.forEach(function (_th, index) {
@@ -1009,11 +1065,19 @@
     table.classList.remove('sv-columns-pending');
     delete table.dataset.svPendingVisibleInit;
     var headers = tableHeaders(table);
-    ensureActionsColumnPolicy(table, headers);
+    var actionsPolicyChanged = ensureActionsColumnPolicy(table, headers);
     ensurePercentButton(table);
     var key = tableKey(table);
     if (table.dataset.svResizableReady === '1' &&
         table.dataset.svResizableKey === key) {
+      if (actionsPolicyChanged) {
+        if (table.classList.contains('sv-pixel-table')) {
+          applySavedWidths(table);
+          fitPixelTableToContainer(table);
+        } else {
+          applySavedPercentProfile(table);
+        }
+      }
       return;
     }
     if (table.dataset && table.dataset.svNoResize === '1') {
@@ -1088,6 +1152,16 @@
       var startRenderedTotal = 0;
       var didDrag = false;
       var lastLivePixelWidth = null;
+      var dragUsesPercent = false;
+
+      function applyLiveWidth(deltaPx) {
+        if (dragUsesPercent) {
+          livePercentages = resizedPercentages(table, startPercentages, index, neighborIndex, deltaPx, startTableWidth);
+          applyPercentProfileFast(table, livePercentages);
+          return;
+        }
+        applyLivePixelWidth(deltaPx);
+      }
 
       function applyLivePixelWidth(deltaPx) {
         if (!startWidths || !startWidths.length) return;
@@ -1120,7 +1194,7 @@
         resizeFrame = window.requestAnimationFrame(function () {
           resizeFrame = 0;
           if (!dragging || pendingClientX == null) return;
-          applyLivePixelWidth(pendingClientX - startX);
+          applyLiveWidth(pendingClientX - startX);
         });
       }
 
@@ -1131,7 +1205,31 @@
           window.cancelAnimationFrame(resizeFrame);
           resizeFrame = 0;
         }
-        if (pendingClientX != null) applyLivePixelWidth(pendingClientX - startX);
+        if (pendingClientX != null) applyLiveWidth(pendingClientX - startX);
+        // Un clic simple (y cada clic que compone un doble clic) no es un
+        // arrastre. Persistir en ese punto convertía anchos porcentuales como
+        // "25%" en 25 píxeles y encogía todas las columnas al mínimo.
+        // Solamente el controlador dblclick ajusta la columna elegida.
+        if (!didDrag) {
+          document.body.classList.remove('sv-resizing-columns');
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', stop);
+          document.removeEventListener('touchmove', onTouchMove);
+          document.removeEventListener('touchend', stop);
+          return;
+        }
+        if (dragUsesPercent) {
+          saveWidths(table, {});
+          savePercentages(table, sanitizePercentages(table, livePercentages || startPercentages));
+          applyPercentProfile(table, sanitizePercentages(table, livePercentages || startPercentages));
+          table.dataset.svSuppressHeaderClickUntil = String(Date.now() + 350);
+          document.body.classList.remove('sv-resizing-columns');
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', stop);
+          document.removeEventListener('touchmove', onTouchMove);
+          document.removeEventListener('touchend', stop);
+          return;
+        }
         var finalWidths = {};
         var finalColgroup = ensureColgroup(table, totalColumnCount(table));
         tableHeaders(table).forEach(function (header, visibleIndex) {
@@ -1182,6 +1280,13 @@
         startPercentages = percentagesFromRenderedLayout(table);
         livePercentages = Object.assign({}, startPercentages);
         neighborIndex = adjacentColumnIndex(table, index);
+        // Comportamiento tipo Windows: al iniciar un arrastre se congelan los
+        // anchos renderizados y sólo cambia la columna elegida. Mantener el
+        // modo porcentual durante el gesto hacía crecer el ancho total y el
+        // navegador recalculaba visualmente todas las columnas de la derecha.
+        // La adaptación proporcional sigue ocurriendo al cambiar el viewport,
+        // no mientras el usuario mueve un separador.
+        dragUsesPercent = false;
         pendingClientX = clientX;
         didDrag = false;
         // Desde este punto mouse y editor trabajan con la misma unidad.

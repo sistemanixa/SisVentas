@@ -21,4 +21,6 @@ assert.match(source,/sv-pixel-table/,'el modo manual debe impedir que min-width 
 assert.match(source,/Doble clic para ajustar al contenido/,'la ayuda debe describir el autoajuste real');
 assert.doesNotMatch(source,/Arrastr\?/,'la ayuda no debe contener caracteres dañados');
 assert.match(source,/btn-icon admin-only sv-column-percent-btn/);
+assert.match(source,/dragUsesPercent = false/,
+  'El arrastre manual debe pasar a píxeles para no recalcular las demás columnas');
 console.log('columnas-redimension-windows.test.js OK');

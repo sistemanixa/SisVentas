@@ -54,5 +54,7 @@ test('la comisión manual usa la misma base que la automática y conserva la ven
   assert.match(app, /ventaId: venta\.id \|\| venta\.numero \|\| venta\.nro/);
   assert.match(app, /ventaFbKey: venta\.fbKey \|\| ''/);
   assert.match(app, /origenCarga: 'manual_empleados'/);
-  assert.match(app, /comisionYaExistia/);
+  assert.match(app, /sisventas\/comisiones_generacion/);
+  assert.match(app, /estado:'procesando'/);
+  assert.match(app, /Math\.round\(\(ganancia \* pctCada \/ 100\) \* 100\) \/ 100/);
 });

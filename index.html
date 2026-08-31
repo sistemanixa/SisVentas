@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.1.1-firebase' -->
+<!-- VERSION: 'v3.1.2-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.1.1.js"></script>
+<script src="./js/core/version.v3.1.2.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -3828,10 +3828,8 @@ Listo para analizar.
                   <option>Controladores</option>
                   <option>Accesorios</option>
                 </select>
-                <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('prod-tbl')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
                 <button class="btn btn-sm admin-only" onclick="abrirAuditoriaIntegridadPrecios()" title="Revisar inconsistencias de moneda y precios en todo el catálogo"><i class="ti ti-shield-check"></i> Auditar precios</button>
                 <button class="btn btn-sm btn-primary" onclick="abrirFormProducto(null)"><i class="ti ti-plus"></i> Nuevo producto</button>
-                <button class="btn btn-sm" id="btn-colapsar-cats" onclick="toggleTodasCats()" title="Colapsar/expandir todos los grupos"><i class="ti ti-layout-list" id="icon-colapsar-cats"></i> <span id="label-colapsar-cats">Colapsar todo</span></button>
               </div>
             </div>
             <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -3855,9 +3853,13 @@ Listo para analizar.
                 <option value="">Orden habitual</option><option value="venta-desc">Venta: más caro primero</option><option value="venta-asc">Venta: más barato primero</option><option value="compra-desc">Costo: más caro primero</option><option value="compra-asc">Costo: más barato primero</option>
               </select>
               <button class="btn btn-sm" id="prod-filtro-sinprecio-activo" type="button" onclick="toggleFiltroProductosSinPrecio()" style="display:none;color:var(--amber);border-color:var(--amber)" title="Quitar filtro de productos sin precio"><i class="ti ti-filter"></i> Solo sin precio <span id="prod-filtro-sinprecio-cantidad"></span> <i class="ti ti-x"></i></button>
+              <div id="prod-grid-controls" style="margin-left:auto;display:flex;align-items:center;gap:6px">
+                <button class="btn btn-sm" id="btn-colapsar-cats" onclick="toggleTodasCats()" title="Colapsar/expandir todos los grupos"><i class="ti ti-layout-list" id="icon-colapsar-cats"></i> <span id="label-colapsar-cats">Colapsar todo</span></button>
+                <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('prod-tbl')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
+              </div>
             </div>
             <div class="table-wrap prod-table-wrap">
-              <table id="prod-tbl">
+              <table id="prod-tbl" data-sv-column-key="productos-catalogo-v3">
             <thead id="prod-tbl-thead"><tr>
               <th></th>
               <th data-sort="codigo" onclick="sortTabla('prod-tbl','codigo','str')" style="cursor:pointer;user-select:none">Código <i class="sort-icon ti ti-chevrons-up-down" style="font-size:10px;color:var(--text3)"></i></th>
@@ -4895,8 +4897,8 @@ Listo para analizar.
       <div class="card-head"><span class="card-title"><i class="ti ti-percentage"></i> Comisiones de este mes</span></div>
       <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
       <div class="metric"><div class="m-label">Total generado</div><div class="m-value" id="ctaemp-com-total" style="color:var(--blue)">$0</div><div class="m-sub" id="ctaemp-com-cant">0 ventas</div></div>
-      <div class="metric"><div class="m-label">Ya cobrado</div><div class="m-value" id="ctaemp-com-cobrado" style="color:var(--green)">$0</div><div class="m-sub">acreditado en cta. cte.</div></div>
-      <div class="metric"><div class="m-label">Pendiente de cobro</div><div class="m-value" id="ctaemp-com-pendiente" style="color:var(--amber)">$0</div><div class="m-sub">ventas aún no cobradas</div></div>
+      <div class="metric"><div class="m-label">Aprobado</div><div class="m-value" id="ctaemp-com-cobrado" style="color:var(--green)">$0</div><div class="m-sub">acreditado en cuenta corriente</div></div>
+      <div class="metric"><div class="m-label">Pendiente de aprobación</div><div class="m-value" id="ctaemp-com-pendiente" style="color:var(--amber)">$0</div><div class="m-sub">requiere revisión del administrador</div></div>
       </div>
       </div>
 
@@ -5427,7 +5429,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.1.1.js"></script>
+<script src="./js/app.v3.1.2.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5747,8 +5749,7 @@ Listo para analizar.
 
 <script src="./js/modules/ot-data-sync.js?v=2.0.154"></script>
 <script src="./js/modules/notifications.js?v=2.0.271"></script>
-
-<script src="./js/modules/finance-details.js?v=2.0.247"></script>
+<script src="./js/modules/finance-details.js?v=3.1.2"></script>
 
 <script src="./js/modules/ot-workflow.js?v=3.1.1"></script>
 
@@ -5885,7 +5886,7 @@ Listo para analizar.
 
 <script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
-<script src="./js/modules/resizable-tables.js?v=3.1.1"></script>
+<script src="./js/modules/resizable-tables.js?v=3.1.2"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>

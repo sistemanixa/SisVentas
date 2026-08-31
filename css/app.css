@@ -2163,6 +2163,38 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   justify-content:flex-end;
   gap:5px;
 }
+.sv-responsive-grid .sv-grid-actions-cell,
+.sv-responsive-grid .sv-card-actions{
+  text-align:right!important;
+}
+.sv-responsive-grid .sv-grid-actions-original{
+  justify-content:flex-end!important;
+}
+.sv-responsive-grid .sv-grid-action-button{
+  min-width:32px;
+  min-height:32px;
+  height:32px;
+  padding:4px 8px;
+  border:0.5px solid var(--border2)!important;
+  background:transparent!important;
+  color:var(--text2)!important;
+  border-radius:8px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  line-height:1;
+}
+.sv-responsive-grid .sv-grid-action-button.btn-icon,
+.sv-responsive-grid .sv-grid-action-button.icon-btn{
+  width:32px;
+  padding:4px;
+  flex:0 0 32px;
+}
+.sv-responsive-grid .sv-grid-action-button i{font-size:14px!important}
+.sv-responsive-grid .sv-grid-action-danger{color:var(--red)!important}
+.sv-responsive-grid .sv-grid-action-button:hover{background:var(--bg3)!important}
+.sv-responsive-grid .sv-grid-action-standard:hover{color:var(--blue)!important}
 .sv-mobile-action-label{display:none}
 .sv-grid-actions-trigger,
 .sv-grid-actions-menu{

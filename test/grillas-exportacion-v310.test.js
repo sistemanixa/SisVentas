@@ -2,7 +2,7 @@ const fs = require('fs');
 const assert = require('assert');
 
 const grid = fs.readFileSync('js/modules/resizable-tables.js', 'utf8');
-const app = fs.readFileSync('js/app.v3.1.1.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.1.2.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('css/app.css', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
@@ -23,6 +23,10 @@ const observer = grid.slice(grid.indexOf('var observer = new MutationObserver'))
 assert(observer.indexOf('initMutationTables(mutations)') < observer.indexOf('scheduleScan()'), 'Las tablas nuevas deben inicializarse antes del repaso diferido');
 assert(css.includes('.sv-columns-pending{visibility:hidden!important}'), 'La grilla debe permanecer oculta mientras resuelve el perfil');
 assert(grid.includes("if (!isTableVisible(table)) {\n      table.classList.add('sv-columns-pending');"), 'La tabla oculta debe quedar marcada antes de activar el módulo');
+assert(grid.includes('if (!didDrag) {') && grid.indexOf('if (!didDrag) {') < grid.indexOf('var finalWidths = {};', grid.indexOf('function stop()')), 'Un clic sin arrastre no debe convertir el perfil completo a píxeles');
+assert(grid.includes('dragUsesPercent = false'), 'El arrastre debe congelar las demás columnas como Windows');
+assert(!grid.includes('next[neighborIndex] ='), 'El arrastre no debe modificar la columna vecina');
+assert(grid.includes('saveWidths(table, finalWidths)'), 'El arrastre manual debe persistir los anchos independientes');
 const activated = app.indexOf("page.classList.add('active');");
 assert(activated >= 0 && app.indexOf('window.SisVentas.prepareResizablePage(page);', activated) > activated, 'La página debe aplicar el perfil otra vez con su ancho real antes del primer dibujo');
 
@@ -33,8 +37,8 @@ assert(html.includes("exportarExcel('Reporte de ventas',this)"), 'Reportes debe 
 assert(css.includes('#cobranzas-stats-global{width:100%'), 'Los KPI de cobranzas deben ocupar todo el ancho');
 
 assert(html.includes('repeat(auto-fit,minmax(220px,1fr))'), 'Cobros por medio de pago debe repartir solo las tarjetas existentes');
-assert(html.includes("VERSION: 'v3.1.1-firebase'"));
-assert(html.includes('./js/app.v3.1.1.js'));
-assert(sw.includes("sisventas-v3.1.1"));
+assert(html.includes("VERSION: 'v3.1.2-firebase'"));
+assert(html.includes('./js/app.v3.1.2.js'));
+assert(sw.includes("sisventas-v3.1.2"));
 
 console.log('OK: perfiles de grilla, exportación visible y KPI de cobranzas v3.1.0');
