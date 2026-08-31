@@ -68,7 +68,7 @@
   function isTableVisible(table) {
     if (!table || !table.isConnected || !table.getClientRects().length) return false;
     var style = window.getComputedStyle ? window.getComputedStyle(table) : null;
-    return !style || (style.display !== 'none' && style.visibility !== 'hidden');
+    return !style || (style.display !== 'none' && (style.visibility !== 'hidden' || table.classList.contains('sv-columns-pending')));
   }
 
   function columnLabel(th, index) {
@@ -228,13 +228,11 @@
 
   function loadWidths(table) {
     cargarPerfilesGlobales();
-    var global = globalDataFor(table, 'widths');
-    if (Object.keys(global).length) return global;
     try {
-      return JSON.parse(localStorage.getItem(storageKey(table)) || '{}') || {};
-    } catch (_) {
-      return {};
-    }
+      var local = JSON.parse(localStorage.getItem(storageKey(table)) || '{}') || {};
+      if (Object.keys(local).length) return local;
+    } catch (_) {}
+    return globalDataFor(table, 'widths');
   }
 
   function saveWidths(table, widths) {
@@ -246,13 +244,11 @@
 
   function loadPercentages(table) {
     cargarPerfilesGlobales();
-    var global = globalDataFor(table, 'percentages');
-    if (Object.keys(global).length) return global;
     try {
-      return JSON.parse(localStorage.getItem(percentStorageKey(table)) || '{}') || {};
-    } catch (_) {
-      return {};
-    }
+      var local = JSON.parse(localStorage.getItem(percentStorageKey(table)) || '{}') || {};
+      if (Object.keys(local).length) return local;
+    } catch (_) {}
+    return globalDataFor(table, 'percentages');
   }
 
   function savePercentages(table, percentages) {
@@ -269,13 +265,11 @@
 
   function loadAlignments(table) {
     cargarPerfilesGlobales();
-    var global = globalDataFor(table, 'alignments');
-    if (Object.keys(global).length) return global;
     try {
-      return JSON.parse(localStorage.getItem(alignStorageKey(table)) || '{}') || {};
-    } catch (_) {
-      return {};
-    }
+      var local = JSON.parse(localStorage.getItem(alignStorageKey(table)) || '{}') || {};
+      if (Object.keys(local).length) return local;
+    } catch (_) {}
+    return globalDataFor(table, 'alignments');
   }
 
   function saveAlignments(table, alignments) {
@@ -1003,6 +997,7 @@
     // abrir el organizador. La exploracion posterior al cambio de pagina la
     // inicializa ya visible con el recomendado correcto.
     if (!isTableVisible(table)) {
+      table.classList.add('sv-columns-pending');
       table.dataset.svPendingVisibleInit = '1';
       return;
     }
@@ -1666,11 +1661,27 @@
     });
   }
 
+  function initMutationTables(mutations) {
+    var active = document.querySelector('.page.active');
+    Array.from(mutations || []).forEach(function (mutation) {
+      Array.from(mutation.addedNodes || []).forEach(function (node) {
+        if (!node || node.nodeType !== 1) return;
+        if (active && node !== active && !active.contains(node)) return;
+        if (node.matches && node.matches('table')) initTable(node);
+        if (node.querySelectorAll) node.querySelectorAll('table').forEach(initTable);
+      });
+    });
+  }
+
   ready(function () {
     cargarPerfilesGlobales();
     scan();
     var observer = new MutationObserver(function (mutations) {
-      if (mutationTouchesActivePage(mutations)) scheduleScan();
+      if (!mutationTouchesActivePage(mutations)) return;
+      // MutationObserver corre antes del siguiente dibujo. Resolver aquí el
+      // perfil guardado evita mostrar primero el reparto automático.
+      initMutationTables(mutations);
+      scheduleScan();
     });
     observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('resize', function() {

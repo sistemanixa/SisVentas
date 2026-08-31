@@ -203,6 +203,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)
 
 /* ── METRICS ── */
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
+#cobranzas-stats-global{width:100%;grid-template-columns:repeat(3,minmax(0,1fr))!important}
 .rent-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
 #sv334-rent-quick{grid-template-columns:repeat(3,minmax(0,1fr))}
 #dash-metricas-globales{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:14px}
