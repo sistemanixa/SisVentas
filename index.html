@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.1.3-firebase' -->
+<!-- VERSION: 'v3.1.4-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.1.3.js"></script>
+<script src="./js/core/version.v3.1.4.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,8 +34,8 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.1.1">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.1.1">
+<link rel="stylesheet" href="./css/app.css?v=3.1.4">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.1.4">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -5429,7 +5429,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.1.3.js"></script>
+<script src="./js/app.v3.1.4.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5667,7 +5667,7 @@ Listo para analizar.
   <i class="ti ti-message-circle" style="font-size:20px"></i>
   <span id="chat-badge">0</span>
 </button>
-<div id="chat-modal" onclick="if(event.target===this)chatCerrar()">
+<div id="chat-modal" data-sv-modal-behavior="compact" onclick="if(event.target===this)chatCerrar()">
   <div id="chat-box">
     <div id="chat-header">
       <div style="display:flex;align-items:center;gap:10px">
@@ -5717,8 +5717,9 @@ Listo para analizar.
 <!-- ── ASISTENTE IA ── -->
 <button id="ia-fab" title="Asistente IA" onclick="iaAbrir()">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/><circle cx="9" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1" fill="currentColor" stroke="none"/></svg>
+  <span id="ia-badge">0</span>
 </button>
-<div id="ia-modal" onclick="if(event.target===this)iaCerrar()">
+<div id="ia-modal" data-sv-modal-behavior="compact" onclick="if(event.target===this)iaCerrar()">
   <div id="ia-box">
     <div id="ia-header">
       <div style="display:flex;align-items:center;gap:10px">
