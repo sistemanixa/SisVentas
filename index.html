@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.1.4-firebase' -->
+<!-- VERSION: 'v3.2.0-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.1.4.js"></script>
+<script src="./js/core/version.v3.2.0.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,8 +34,8 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.1.4">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.1.4">
+<link rel="stylesheet" href="./css/app.css?v=3.2.0">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.2.0">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -204,14 +204,15 @@
         <i class="ti ti-wallet"></i><span id="nav-label-ctaemp">Cuentas de empleados</span>
       </div>
       <div class="nav-item" onclick="showPage('empleados',this)">
-        <i class="ti ti-id-badge"></i>Empleados <span id="badge-nav-empleados" class="badge-role" style="display:none" title="Solicitudes de horas extra pendientes"></span>
+        <i class="ti ti-id-badge"></i>Empleados <span id="badge-nav-empleados" class="badge-role" style="display:none" title="Solicitudes del personal pendientes de aprobación"></span>
       </div>
       <div class="nav-item" onclick="showPage('vacaciones',this)">
         <i class="ti ti-beach"></i>Vacaciones
       </div>
 
       <div class="s-section no-tecnico">Finanzas</div>
-      <div class="nav-item" onclick="showPage('gastos',this)"><i class="ti ti-receipt"></i>Gastos</div>
+      <div class="nav-item" onclick="showPage('gastos',this)"><i class="ti ti-receipt"></i>Gastos <span id="badge-nav-gastos" class="badge-role" style="display:none" title="Solicitudes de gastos pendientes de aprobación"></span></div>
+      <div class="nav-item admin-only" onclick="showPage('comisiones',this)"><i class="ti ti-percentage"></i>Comisiones <span id="badge-nav-comisiones" class="badge-role" style="display:none"></span></div>
       <div class="nav-item" onclick="showPage('caja',this)"><i class="ti ti-cash"></i>Caja diaria</div>
       <div class="nav-item admin-only" onclick="showPage('tesoreria',this)"><i class="ti ti-building-bank"></i>Tesorería</div>
       <div class="nav-item" onclick="showPage('rentabilidad',this)"><i class="ti ti-trending-up"></i>Rentabilidad</div>
@@ -4454,6 +4455,40 @@ Listo para analizar.
       </div>
 
 <!-- GASTOS -->
+<div id="page-comisiones" class="page">
+  <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
+    <div class="metric"><div class="m-label">Pendientes</div><div class="m-value" id="com-kpi-pendientes" style="color:var(--amber)">0</div><div class="m-sub">requieren decisión</div></div>
+    <div class="metric"><div class="m-label">Aprobadas</div><div class="m-value" id="com-kpi-aprobadas" style="color:var(--blue)">0</div><div class="m-sub">listas para abonar</div></div>
+    <div class="metric"><div class="m-label">Rechazadas</div><div class="m-value" id="com-kpi-rechazadas" style="color:var(--red)">0</div><div class="m-sub">se pueden rehabilitar</div></div>
+    <div class="metric"><div class="m-label">Total asignado</div><div class="m-value" id="com-kpi-total" style="color:var(--green)">$0</div><div class="m-sub">según filtros</div></div>
+  </div>
+  <div class="card">
+    <div class="card-head" style="gap:10px;flex-wrap:wrap">
+      <div><div class="card-title"><i class="ti ti-percentage"></i> Gestión de comisiones</div><div style="font-size:11px;color:var(--text3);margin-top:4px">Una venta puede compartir el porcentaje máximo entre varias personas.</div></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto">
+        <input id="com-f-buscar" class="search-input" placeholder="Venta, cliente o persona..." oninput="renderModuloComisiones()" style="min-width:250px">
+        <select id="com-f-estado" class="search-input" onchange="renderModuloComisiones()"><option value="">Todos los estados</option><option value="pendiente_aprobacion">Pendientes</option><option value="pendiente_pago">Aprobadas</option><option value="pagado">Pagadas</option><option value="rechazado">Rechazadas</option></select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="comisiones-tbl">
+        <thead><tr><th>Fecha</th><th>Venta / cliente</th><th>Participantes</th><th>Reparto</th><th class="tr">Total</th><th>Estado</th><th data-sv-column-label="Acciones">Acciones</th></tr></thead>
+        <tbody id="comisiones-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Cargando comisiones...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="modal-comision-gestion" class="modal-overlay" data-sv-modal-behavior="compact" style="display:none;z-index:880">
+  <div class="modal" style="width:min(760px,96vw);max-height:90vh;overflow:auto">
+    <div class="modal-head"><div><div class="modal-title" id="com-det-titulo">Comisión</div><div id="com-det-sub" style="font-size:11px;color:var(--text3);margin-top:3px"></div></div><button class="icon-btn" onclick="cerrarDetalleComision()"><i class="ti ti-x"></i></button></div>
+    <div id="com-det-info" style="padding:12px 14px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:12px"></div>
+    <div id="com-det-participantes"></div>
+    <div id="com-det-agregar" style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)"></div>
+    <div class="modal-actions"><button class="btn" onclick="cerrarDetalleComision()">Cerrar</button><button class="btn btn-primary admin-only" id="com-det-guardar" onclick="guardarDistribucionComision()"><i class="ti ti-check"></i> Guardar distribución</button></div>
+  </div>
+</div>
+
 <div id="page-gastos" class="page">
 
   <!-- MÉTRICAS -->
@@ -5429,7 +5464,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.1.4.js"></script>
+<script src="./js/app.v3.2.0.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5681,6 +5716,7 @@ Listo para analizar.
       </div>
       <div style="display:flex;gap:6px;align-items:center">
         <button id="btn-chat-admin-limpiar" onclick="chatAdminLimpiar()" style="display:none;background:none;border:0.5px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;font-size:11px;padding:4px 8px" title="Limpiar canal (admin)"><i class="ti ti-trash" style="font-size:12px"></i> Limpiar</button>
+        <button id="btn-chat-maximizar" class="icon-btn" onclick="chatAlternarMaximizado()" title="Maximizar chat" aria-label="Maximizar chat" aria-pressed="false"><i class="ti ti-maximize"></i></button>
         <button onclick="chatCerrar()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px 8px">✕</button>
       </div>
     </div>
@@ -5887,7 +5923,8 @@ Listo para analizar.
 
 <script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
-<script src="./js/modules/resizable-tables.js?v=3.1.2"></script>
+<script src="./js/modules/resizable-tables.js?v=3.2.0"></script>
+<script src="./js/modules/commissions.js?v=3.2.0"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>

@@ -2420,8 +2420,25 @@ var _iaHistorial   = [];  // mensajes de la conversación actual
 var _iaContexto    = '';  // contexto inyectado (OT, sistema, etc.)
 var _iaCtxLabel    = 'Modo general';
 var _iaThinking    = false;
+var _iaNoLeidos    = 0;
+
+function iaActualizarBadge() {
+  var badge = document.getElementById('ia-badge');
+  var boton = document.getElementById('ia-fab');
+  if (badge) {
+    badge.style.display = _iaNoLeidos > 0 ? 'flex' : 'none';
+    badge.textContent = _iaNoLeidos > 9 ? '9+' : _iaNoLeidos;
+  }
+  if (boton) {
+    boton.classList.toggle('has-unread', _iaNoLeidos > 0);
+    boton.setAttribute('aria-label', _iaNoLeidos > 0 ? 'Asistente IA, ' + _iaNoLeidos + ' respuesta sin leer' + (_iaNoLeidos === 1 ? '' : 'es') : 'Asistente IA');
+    boton.title = _iaNoLeidos > 0 ? _iaNoLeidos + ' respuesta' + (_iaNoLeidos === 1 ? '' : 's') + ' de IA sin leer' : 'Asistente IA';
+  }
+}
 
 function iaAbrir(contexto, label) {
+  _iaNoLeidos = 0;
+  iaActualizarBadge();
   _iaContexto = contexto || '';
   _iaCtxLabel = label    || 'Modo general';
   var lbl = document.getElementById('ia-ctx-label');
@@ -2629,6 +2646,11 @@ async function iaEnviar() {
     var respText = (data.content && data.content[0] && data.content[0].text) || 'No pude procesar la respuesta.';
     if (thinkDiv) { thinkDiv.textContent = respText; thinkDiv.classList.remove('thinking'); }
     _iaHistorial.push({ role: 'assistant', content: respText });
+    var modalIA = document.getElementById('ia-modal');
+    if (!modalIA || !modalIA.classList.contains('open')) {
+      _iaNoLeidos += 1;
+      iaActualizarBadge();
+    }
   } catch(e) {
     var msgError = e && e.message && e.message.includes('Failed to fetch')
       ? 'No se pudo conectar con el asistente. Verificá tu conexión a internet.'
@@ -2644,12 +2666,36 @@ var _chatCanal    = 'general';
 var _chatReplyMsg  = null; // mensaje al que se está respondiendo
 var _chatListener = null;
 var _chatNoLeidos = {};
+// Mantiene visible el acceso en esta pestaña hasta que el usuario abra el chat.
+// Firebase puede marcar un mensaje como leído desde otra escucha o dispositivo;
+// ese cambio remoto no debe ocultar un aviso que todavía no se atendió aquí.
+var _chatAvisosPendientesLocales = 0;
 var _chatUsuarios = {};
 // WEB PUSH NOTIFICATIONS — Chat interno
 var _chatNotifPermiso = false;
 
 function _chatUsuarioKey(nombre) {
   return String(nombre || '').replace(/[.#$[\]/\s]/g,'_');
+}
+
+function chatCanalStorageKey() {
+  return 'sisventas_chat_ultimo_canal_' + _chatUsuarioKey(currentUser || 'anonimo');
+}
+
+function chatGuardarCanal(canal) {
+  if (!canal) return;
+  try { localStorage.setItem(chatCanalStorageKey(), canal); } catch (e) {}
+}
+
+function chatRecuperarCanal() {
+  try { return localStorage.getItem(chatCanalStorageKey()) || _chatCanal || 'general'; }
+  catch (e) { return _chatCanal || 'general'; }
+}
+
+function chatMarcarCanalActivo(canal) {
+  document.querySelectorAll('.chat-canal-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-canal') === canal);
+  });
 }
 
 function _chatFueLeido(mensaje, nombre) {
@@ -2671,7 +2717,9 @@ function chatSolicitarPermiso() {
 }
 
 function chatMostrarNotif(titulo, cuerpo, canal) {
-  if (!_chatNotifPermiso || document.visibilityState === 'visible') return;
+  var modalChat = document.getElementById('chat-modal');
+  var chatVisible = !!(modalChat && modalChat.classList.contains('open'));
+  if (!_chatNotifPermiso || chatVisible || document.visibilityState === 'visible') return;
   var n = new Notification('💬 ' + titulo, {
     body:    cuerpo,
     icon:    'https://ventas.sistemanixa.com/favicon.ico',
@@ -2683,7 +2731,12 @@ function chatMostrarNotif(titulo, cuerpo, canal) {
   n.onclick = function() {
     window.focus();
     chatAbrir();
-    if (canal) { _chatCanal = canal; chatCargarCanal(canal); }
+    if (canal) {
+      _chatCanal = canal;
+      chatGuardarCanal(canal);
+      chatMarcarCanalActivo(canal);
+      chatCargarCanal(canal);
+    }
     n.close();
   };
   // Auto-cerrar a los 6 segundos
@@ -2696,7 +2749,6 @@ function chatInicializar() {
   if (Object.keys(DASH_WIDGETS_CONFIG).length > 0) {
     aplicarVisibilidadBotonesFlotantes();
   } else if (btn) { btn.style.display = 'flex'; }
-
   // Solicitar permiso para notificaciones del sistema
   setTimeout(chatSolicitarPermiso, 3000);
 
@@ -2769,8 +2821,17 @@ function chatEscucharDirectos() {
 
 function chatActualizarBadges() {
   var total = Object.values(_chatNoLeidos).reduce(function(s,n){ return s+n; },0);
+  if (total > 0) _chatAvisosPendientesLocales = Math.max(_chatAvisosPendientesLocales, total);
+  var totalVisible = Math.max(total, _chatAvisosPendientesLocales);
   var badge = document.getElementById('chat-badge');
-  if (badge) { badge.style.display = total>0?'flex':'none'; badge.textContent = total>9?'9+':total; }
+  if (badge) { badge.style.display = totalVisible>0?'flex':'none'; badge.textContent = totalVisible>9?'9+':totalVisible; }
+  var botonChat = document.getElementById('chat-fab');
+  if (botonChat) {
+    botonChat.classList.toggle('has-unread', totalVisible > 0);
+    if (totalVisible > 0) botonChat.style.display = 'flex';
+    botonChat.setAttribute('aria-label', totalVisible > 0 ? 'Mensajes internos, ' + totalVisible + ' sin leer' : 'Mensajes internos');
+    botonChat.title = totalVisible > 0 ? totalVisible + ' mensaje' + (totalVisible === 1 ? '' : 's') + ' sin leer' : 'Mensajes internos';
+  }
   ['general','tecnicos','admin'].forEach(function(c) {
     var b = document.getElementById('badge-'+c);
     if (b) { var n=_chatNoLeidos[c]||0; b.style.display=n>0?'flex':'none'; b.textContent=n; }
@@ -2787,6 +2848,8 @@ async function chatAdminLimpiar() {
 }
 
 function chatAbrir() {
+  _chatAvisosPendientesLocales = 0;
+  _chatCanal = chatRecuperarCanal();
   var modal = document.getElementById('chat-modal');
   if (modal) { modal.classList.add('open'); document.body.style.overflow='hidden'; }
   // Mostrar botón limpiar solo para admin
@@ -2797,6 +2860,7 @@ function chatAbrir() {
     var cantOnline = Object.values(PRESENCIA_DATA||{}).filter(function(p){ return p.online === true; }).length;
     lbl.textContent = cantOnline + ' en línea';
   }
+  chatMarcarCanalActivo(_chatCanal);
   chatCargarCanal(_chatCanal);
   chatInicializarArrastreImagenes();
 }
@@ -2808,10 +2872,23 @@ function chatCerrar() {
   if (_chatListener) { _chatListener(); _chatListener = null; }
 }
 
+function chatAlternarMaximizado() {
+  var modal = document.getElementById('chat-modal');
+  var boton = document.getElementById('btn-chat-maximizar');
+  if (!modal) return;
+  var maximizado = modal.classList.toggle('chat-maximizado');
+  if (boton) {
+    boton.title = maximizado ? 'Restaurar tamaño' : 'Maximizar chat';
+    boton.setAttribute('aria-label', boton.title);
+    boton.setAttribute('aria-pressed', maximizado ? 'true' : 'false');
+    boton.innerHTML = '<i class="ti ' + (maximizado ? 'ti-minimize' : 'ti-maximize') + '"></i>';
+  }
+}
+
 function chatCambiarCanal(canal, btn) {
-  document.querySelectorAll('.chat-canal-btn').forEach(function(b){ b.classList.remove('active'); });
-  if (btn) btn.classList.add('active');
   _chatCanal = canal;
+  chatGuardarCanal(canal);
+  chatMarcarCanalActivo(canal);
   chatCargarCanal(canal);
 }
 
@@ -2864,20 +2941,27 @@ function chatCargarCanal(canal) {
       }
     }
     chatRenderMensajes(lista);
-    lista.forEach(function(m) {
-      if (m.autor !== currentUser && m.fbKey && !_chatFueLeido(m, currentUser)) {
-        var leidoKey = _chatUsuarioKey(currentUser);
-        var upd={}; upd['leido/'+leidoKey]=true;
-        window.fbUpdate(window.fbRef(window.fbDB,'sisventas/chat/'+canal+'/'+m.fbKey),upd);
-      }
-    });
+    var modalChat = document.getElementById('chat-modal');
+    var usuarioEstaLeyendo = !!(modalChat && modalChat.classList.contains('open') && _chatCanal === canal);
+    if (usuarioEstaLeyendo) {
+      lista.forEach(function(m) {
+        if (m.autor !== currentUser && m.fbKey && !_chatFueLeido(m, currentUser)) {
+          var leidoKey = _chatUsuarioKey(currentUser);
+          var upd={}; upd['leido/'+leidoKey]=true;
+          window.fbUpdate(window.fbRef(window.fbDB,'sisventas/chat/'+canal+'/'+m.fbKey),upd);
+        }
+      });
+    }
     lista.forEach(function(m) {
       if (m.autor === currentUser && m.fbKey) {
         var el = document.querySelector('[data-fbkey="'+m.fbKey+'"] .chat-tick');
         if (el) el.outerHTML = chatTicks(m);
       }
     });
-    _chatNoLeidos[canal]=0; chatActualizarBadges();
+    _chatNoLeidos[canal] = usuarioEstaLeyendo ? 0 : lista.filter(function(m) {
+      return m.autor !== currentUser && !_chatFueLeido(m, currentUser);
+    }).length;
+    chatActualizarBadges();
   });
 }
 
@@ -2977,7 +3061,7 @@ function chatScrollAMensaje(fbKey) {
 
 function chatMsgContenido(m) {
   if (m.fotoUrl) {
-    return '<img src="' + escapeHTML(m.fotoUrl) + '" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:cover;display:block;cursor:pointer;margin-top:4px" onclick="window.open(this.src,\'_blank\')" onerror="this.style.display=\'none\'">';
+    return '<img src="' + escapeHTML(m.fotoUrl) + '" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:cover;display:block;cursor:zoom-in;margin-top:4px" onclick="otAbrirFoto(this.src,\'Imagen del chat\')" title="Ampliar imagen" onerror="this.style.display=\'none\'">';
   }
   return '<div>' + escapeHTML(m.texto||'') + '</div>';
 }
@@ -3006,7 +3090,7 @@ function chatRenderMensajes(lista) {
     var fbKeyEsc = (m.fbKey||'').replace(/["']/g,'');
     var autorEsc = (m.autor||'').replace(/["']/g,'');
     var textoEsc = (m.texto||'').slice(0,80).replace(/["'<>]/g,'');
-    var replyBtn = '<button class="chat-reply-btn" style="' + (esMio ? 'left:-36px' : 'right:-36px') + '" ' +
+    var replyBtn = '<button class="chat-reply-btn" style="' + (esMio ? 'left:4px' : 'right:4px') + '" ' +
       'onclick="chatSetReply(this)" data-fk="' + fbKeyEsc + '" data-au="' + autorEsc + '" data-tx="' + textoEsc + '" title="Responder">&#x21A9;</button>';
     var contenido = chatMsgContenido(m);
     return '<div class="chat-msg-wrap" style="align-items:' + align + '" data-fbkey="' + (m.fbKey||'') + '">' +
@@ -3180,7 +3264,8 @@ function chatInicializarArrastreImagenes() {
 function chatAbrirDirecto(usuario) {
   var partes = [currentUser||'',usuario].map(_chatUsuarioKey).sort();
   _chatCanal = 'directo_'+partes.join('_');
-  document.querySelectorAll('.chat-canal-btn').forEach(function(b){ b.classList.remove('active'); });
+  chatGuardarCanal(_chatCanal);
+  chatMarcarCanalActivo(_chatCanal);
   var inp = document.getElementById('chat-input');
   if (inp) inp.placeholder = 'Mensaje a '+usuario+'...';
   chatCargarCanal(_chatCanal);
@@ -4851,6 +4936,7 @@ function svCargarDatosDePaginaActual() {
     actualizadorprecios: [fbCargarProductos, fbCargarProveedores],
     productos: [fbCargarProductos, fbCargarProveedores, fbCargarCategorias],
     gastos: [fbCargarGastos, fbCargarEmpleados, fbCargarPagos],
+    comisiones: [fbCargarGastos, fbCargarEmpleados, fbCargarVentas],
     facturas: [fbCargarVentas, fbCargarPagos],
     detalle: [fbCargarVentas, fbCargarClientes, fbCargarPagos],
     venta: [fbCargarClientes, fbCargarProductos, fbCargarVentas],
@@ -8755,10 +8841,10 @@ window.addEventListener('error', function(e) {
 var notifT;
 var PERMISOS_DEFAULT = {
   admin:          { bloqueados: [] },
-  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad','tesoreria'] },
-  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal','facturas','gastos','tesoreria','actualizadorprecios','tablero'] },
-  tecnico_vendedor:{ bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal','facturas','gastos','tesoreria','actualizadorprecios','tablero'] },
-  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal','facturas','caja','gastos','clientes','productos','kits','tesoreria','actualizadorprecios','asistente','tablero'] }
+  administrativo: { bloqueados: ['usuarios','configuracion','rentabilidad','tesoreria','comisiones'] },
+  vendedor:       { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal','facturas','gastos','comisiones','tesoreria','actualizadorprecios','tablero'] },
+  tecnico_vendedor:{ bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','creditofiscal','facturas','gastos','comisiones','tesoreria','actualizadorprecios','tablero'] },
+  tecnico:        { bloqueados: ['usuarios','configuracion','rentabilidad','empleados','vacaciones','reportes','estadisticas','proveedores','ordenes','cuentacorriente','detalle','venta','presupuesto','cobranzas','creditofiscal','facturas','caja','gastos','comisiones','clientes','productos','kits','tesoreria','actualizadorprecios','asistente','tablero'] }
 };
 var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 // Los permisos se guardaban antes de que existieran varios módulos. Al leer una
@@ -8767,8 +8853,8 @@ var PERMISOS_ROLES = JSON.parse(JSON.stringify(PERMISOS_DEFAULT));
 // técnico por la mera ausencia de la casilla en una configuración histórica.
 // Una vez guardada la tabla actualizada, _version permite que el admin decida
 // explícitamente cualquier excepción sin que una carga posterior la revierta.
-var PERMISOS_VERSION_ACTUAL = 4;
-var MODULOS_AGREGADOS_A_PERMISOS = ['asistente','kits','actualizadorprecios','ctaemp','tesoreria','notificaciones','tablero','facturas'];
+var PERMISOS_VERSION_ACTUAL = 5;
+var MODULOS_AGREGADOS_A_PERMISOS = ['asistente','kits','actualizadorprecios','ctaemp','tesoreria','notificaciones','tablero','facturas','comisiones'];
 function normalizarPermisosRolesGuardados(data) {
   var origen = data && typeof data === 'object' ? data : {};
   var version = Number(origen._version || 0);
@@ -9092,6 +9178,10 @@ function showPage(id, el) {
   setTimeout(_setTitulo, 50);
   setTimeout(_setTitulo, 200);
 
+  if (id === 'comisiones' && typeof window.renderModuloComisiones === 'function') {
+    window.renderModuloComisiones();
+  }
+
   // Lógica por módulo
   // Empleados ya fue preparado mientras la página seguía oculta.
   if (id === 'clientes') {
@@ -9343,13 +9433,34 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v3.1.1-firebase',
+  VERSION: 'v3.2.0-firebase',
   RELEASE_NOTES: Object.freeze([
     'La actualización automática funciona igual para todos los roles.',
     'El control web de respaldo continúa aunque el listener de Firebase se interrumpa.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'dashboard', actionLabel:'Conocer SisVentas 3' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v3.2.0',
+      date: '31/08/2026',
+      title: 'Comisiones completas y operación más consistente',
+      notes: Object.freeze(['El nuevo módulo Comisiones permite revisar, repartir, aprobar, rechazar y rehabilitar comisiones con el margen actualizado en vivo.', 'Gastos enlaza cada comisión con su gestión exacta y los avisos laterales muestran solicitudes pendientes.', 'Las grillas comparten el comportamiento de Windows para redimensionar y autoajustar columnas sin alterar las demás.', 'Chat e IA conservan su estado, muestran pendientes y ofrecen una visualización estable de imágenes y conversaciones.']),
+      feature: Object.freeze({ page:'comisiones', actionLabel:'Gestionar comisiones' })
+    }),
+    Object.freeze({
+      version: 'v3.1.4',
+      date: '31/08/2026',
+      title: 'Reclamos con domicilios y técnicos correctos',
+      notes: Object.freeze(['Nuevo reclamo identifica cada domicilio y encuentra clientes por nombre, apellido, dirección o datos relacionados.', 'Al generar una OT desde un reclamo sólo aparecen empleados con cargo técnico.', 'La creación informa cada etapa en pantalla para evitar la sensación de bloqueo.']),
+      feature: Object.freeze({ page:'soporte', actionLabel:'Abrir Soporte' })
+    }),
+    Object.freeze({
+      version: 'v3.1.2',
+      date: '31/08/2026',
+      title: 'Grillas y comisiones consistentes',
+      notes: Object.freeze(['Las grillas comparten el mismo comportamiento de columnas y reservan correctamente el sector Acciones.', 'Las comisiones pendientes muestran costos, descuentos y estados reales, con acceso directo a la venta.', 'El valor monetario de la ganancia queda visible únicamente para administradores.']),
+      feature: Object.freeze({ page:'gastos', actionLabel:'Revisar comisiones' })
+    }),
     Object.freeze({
       version: 'v3.1.1',
       date: '30/08/2026',
@@ -12161,7 +12272,7 @@ window._desactivarCierreSesionAdmin = false;
 function sesionAdminSinCierrePorInactividad() {
   return isAuthenticated && String(currentRole || '').toLowerCase() === 'admin' && window._desactivarCierreSesionAdmin === true;
 }
-const titles = {dashboard:'Dashboard',asistente:'Asistente de ventas',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',kits:'Kits',actualizadorprecios:'Actualizador de precios',empleados:'Empleados',vacaciones:'Vacaciones',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Comprobantes ARCA',facturas:'Facturas',tesoreria:'Tesorería'};
+const titles = {dashboard:'Dashboard',asistente:'Asistente de ventas',presupuesto:'Presupuestos',venta:'Nueva venta',detalle:'Detalle de venta',cobranzas:'Cobranzas',cuentacorriente:'Cuenta corriente',clientes:'Clientes',productos:'Productos',kits:'Kits',actualizadorprecios:'Actualizador de precios',empleados:'Empleados',vacaciones:'Vacaciones',agenda:'Agenda',servicios:'Servicios',remitos:'Remitos',proveedores:'Proveedores',ordenes:'Órdenes de compra',estadisticas:'Estadísticas',usuarios:'Usuarios',reportes:'Reportes',configuracion:'Configuración',garantias:'Garantías',soporte:'Soporte y reclamos',equipos:'Equipos instalados',notificaciones:'Notificaciones',gastos:'Gastos',comisiones:'Comisiones',rentabilidad:'Rentabilidad',caja:'Caja diaria',tablero:'Tablero gerencial',ordentrabajo:'Órdenes de trabajo',historialcliente:'Historial del cliente',ctaemp:'Mi cuenta',informes:'Informes técnicos',creditofiscal:'Comprobantes ARCA',facturas:'Facturas',tesoreria:'Tesorería'};
 
 let sessionTimer = null, sessionStart = null, tiempoUI = null;
 
@@ -21716,6 +21827,7 @@ var TODOS_MODULOS = [
   { id:'reportes',       label:'Reportes' },
   { id:'estadisticas',   label:'Estadísticas' },
   { id:'gastos',         label:'Gastos' },
+  { id:'comisiones',     label:'Comisiones' },
   { id:'caja',           label:'Caja diaria' },
   { id:'ctaemp',         label:'Cuentas de empleados / Mi cuenta' },
   { id:'rentabilidad',   label:'Rentabilidad' },
@@ -21827,7 +21939,7 @@ function aplicarVisibilidadBotonesFlotantes() {
   var cfg = DASH_WIDGETS_CONFIG['btn_chat'];
   var chatVisible = cfg ? !!cfg[currentRole] : (currentRole !== 'vendedor');
   var chatBtn = document.getElementById('chat-fab');
-  if (chatBtn && chatBtn._inicializado) chatBtn.style.display = chatVisible ? 'flex' : 'none';
+  if (chatBtn && chatBtn._inicializado) chatBtn.style.display = (chatVisible || chatBtn.classList.contains('has-unread')) ? 'flex' : 'none';
   // En escritorio la IA tiene botón propio; en móvil/tablet vive dentro del botón +.
   var cfgIA = DASH_WIDGETS_CONFIG['btn_ia'];
   var iaVisible = cfgIA ? !!cfgIA[currentRole] : true;
@@ -28612,6 +28724,9 @@ async function _crearGastoComisionDesdeMovimiento(empFbKey, movFbKey, mov) {
     empleadoNombre: mov.empleadoNombre || emp.nombre || '',
     ventaId: mov.ventaId || '',
     ventaFbKey: mov.ventaFbKey || '',
+    pct: parseFloat(mov.pct) || 0,
+    pctOriginal: parseFloat(mov.pctOriginal) || parseFloat(mov.pct) || 0,
+    gananciaBase: parseFloat(mov.gananciaBase) || 0,
     cliente: mov.cliente || '',
     origen: 'comision',
     origenLegacy: 'ctaemp',
@@ -31602,14 +31717,32 @@ function spSubirEvidenciaNueva(archivo) {
 
 function spBuscarCliente(val) {
   var drop = document.getElementById('sp-nuevo-cli-drop');
-  if (!val || val.length < 2) { drop.style.display = 'none'; return; }
+  var seleccionado = document.getElementById('sp-nuevo-cli-id');
+  if (seleccionado) seleccionado.value = '';
+  var normalizar = function(texto) {
+    return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-AR').trim();
+  };
+  var consulta = normalizar(val);
+  if (consulta.length < 2) { drop.style.display = 'none'; return; }
+  var terminos = consulta.split(/\s+/).filter(Boolean);
   var matches = (clientesData||[]).filter(function(c) {
-    return (c.nombre||'').toLowerCase().includes(val.toLowerCase());
-  }).slice(0,6);
+    var buscable = normalizar([c.nombre,c.empresa,c.id,c.dir,c.direccion,c.domicilio,c.localidad,c.telefono].filter(Boolean).join(' '));
+    return terminos.every(function(termino) { return buscable.includes(termino); });
+  }).sort(function(a, b) {
+    var nombreA = normalizar(a.nombre);
+    var nombreB = normalizar(b.nombre);
+    var rangoA = nombreA === consulta ? 0 : (nombreA.startsWith(consulta) ? 1 : (nombreA.split(/\s+/).some(function(p){ return p.startsWith(consulta); }) ? 2 : 3));
+    var rangoB = nombreB === consulta ? 0 : (nombreB.startsWith(consulta) ? 1 : (nombreB.split(/\s+/).some(function(p){ return p.startsWith(consulta); }) ? 2 : 3));
+    return rangoA - rangoB || nombreA.localeCompare(nombreB, 'es');
+  }).slice(0,20);
   if (!matches.length) { drop.style.display = 'none'; return; }
   drop.innerHTML = matches.map(function(c) {
+    var direccion = c.dir || c.direccion || c.domicilio || '';
+    var localidad = c.localidad || '';
+    var ubicacion = [direccion, localidad && !normalizar(direccion).includes(normalizar(localidad)) ? localidad : ''].filter(Boolean).join(' · ');
     return '<div class="di" style="padding:8px 12px;cursor:pointer;font-size:13px" onclick="spSelCliente(\'' +
-      escapeHTML(c.nombre||'') + '\',\'' + escapeHTML(c.fbKey||c.id||'') + '\')">' + escapeHTML(c.nombre||'') + '</div>';
+      escapeHTML(c.nombre||'') + '\',\'' + escapeHTML(c.fbKey||c.id||'') + '\')"><strong>' + escapeHTML(c.nombre||'Sin nombre') + '</strong>' +
+      '<span style="display:block;color:var(--text3);font-size:11px;margin-top:2px"><i class="ti ti-map-pin"></i> ' + escapeHTML(ubicacion || 'Sin dirección cargada') + '</span></div>';
   }).join('');
   drop.style.display = 'block';
 }
@@ -31883,6 +32016,38 @@ function spPasarAVisitaYGenerarOTLegacy() {
     .then(function(actualizado){ if (actualizado) spGenerarOT(); });
 }
 
+function spEmpleadoEsTecnico(empleado) {
+  if (!empleado || empleado.activo === false) return false;
+  var categoria = [empleado.categoriaBase, empleado.cargo, empleado.categoria, empleado.tipoEmpleado]
+    .filter(Boolean).join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleUpperCase('es-AR');
+  return categoria.includes('TECNICO');
+}
+
+function spMostrarProcesoCreacionOT(textoInicial) {
+  var overlay = document.getElementById('sp-creando-ot-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'sp-creando-ot-overlay';
+    overlay.setAttribute('role', 'status');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:12500;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,10,18,.66);backdrop-filter:blur(3px)';
+    overlay.innerHTML = '<div style="width:min(390px,calc(100vw - 40px));padding:26px;border:1px solid var(--border);border-radius:16px;background:var(--bg2);box-shadow:0 24px 70px rgba(0,0,0,.45);text-align:center">' +
+      '<i class="ti ti-loader-2 ti-spin" style="display:block;font-size:38px;color:var(--blue);margin-bottom:13px"></i>' +
+      '<div style="font-size:17px;font-weight:700;margin-bottom:7px">Creando orden de trabajo</div>' +
+      '<div data-sp-proceso-ot style="color:var(--text2);font-size:13px;line-height:1.5"></div>' +
+      '<div style="color:var(--text3);font-size:11px;margin-top:13px">La venta, la OT y el reclamo se están vinculando. No cierres esta pantalla.</div></div>';
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  function actualizar(texto) {
+    var destino = overlay.querySelector('[data-sp-proceso-ot]');
+    if (destino) destino.textContent = texto || 'Procesando…';
+  }
+  function finalizar() { if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+  actualizar(textoInicial);
+  return { actualizar:actualizar, finalizar:finalizar };
+}
+
 async function spGenerarOTLegacy() {
   if (!SP_MODAL_KEY) return;
   var r = SP_DATA[SP_MODAL_KEY];
@@ -31894,9 +32059,7 @@ async function spGenerarOTLegacy() {
     return;
   }
 
-  var tecnicos = Object.values(empData||{}).filter(function(e){
-    return e.activo !== false;
-  });
+  var tecnicos = Object.values(empData||{}).filter(spEmpleadoEsTecnico);
   var opciones = tecnicos.length
     ? tecnicos.map(function(t,i){ return i+') '+t.nombre; }).join('\n')
     : '(sin empleados cargados)';
@@ -32160,15 +32323,20 @@ async function spGenerarOT(reclamoKey) {
     return;
   }
 
-  var tecnicos = Object.values(empData||{}).filter(function(e){
-    return e.activo !== false;
-  });
+  var tecnicos = Object.values(empData||{}).filter(spEmpleadoEsTecnico);
   var opciones = tecnicos.length
     ? tecnicos.map(function(t,i){ return i+') '+t.nombre; }).join('\n')
     : '(sin empleados cargados)';
   var selIdx = await svPrompt('Elegí el técnico asignado:\n' + opciones);
   if (selIdx === null) return; // canceló
-  var tecnico = (tecnicos[parseInt(selIdx)]) ? tecnicos[parseInt(selIdx)].nombre : 'Sin asignar';
+  var indiceTecnico = parseInt(selIdx, 10);
+  if (!Number.isInteger(indiceTecnico) || !tecnicos[indiceTecnico]) {
+    notify('Elegí uno de los técnicos de la lista');
+    return;
+  }
+  var tecnico = tecnicos[indiceTecnico].nombre;
+  var procesoCreacionOT = spMostrarProcesoCreacionOT('Preparando la venta vinculada…');
+  await new Promise(function(resolve) { requestAnimationFrame(function(){ requestAnimationFrame(resolve); }); });
 
   var punit = parseFloat(prodVisita.venta) || 0;
   var sub = punit;
@@ -32215,6 +32383,7 @@ async function spGenerarOT(reclamoKey) {
   };
 
   try {
+    procesoCreacionOT.actualizar('Guardando la venta vinculada…');
     var ventaGuardada = await ventasPagosPersistirGuardarVenta(nuevaVenta);
     var ventaFbKey = ventaGuardada && ventaGuardada.fbKey || '';
     var ot = {
@@ -32250,6 +32419,7 @@ async function spGenerarOT(reclamoKey) {
       audit: [{ fecha: fechaHoy, usuario: currentUser||'Sistema', accion: 'OT creada desde reclamo de soporte. Venta: ' + ventaId }]
     };
 
+    procesoCreacionOT.actualizar('Creando la orden de trabajo…');
     var crearOTReclamo = typeof window.crearRegistroOTSeguro === 'function'
       ? window.crearRegistroOTSeguro(ot, { evitarDoble:true })
       : window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot);
@@ -32269,6 +32439,7 @@ async function spGenerarOT(reclamoKey) {
       throw new Error('La OT creada no tiene identificador canónico');
     }
 
+    procesoCreacionOT.actualizar('Vinculando la OT con el reclamo…');
     var actualizado = await spCambiarEstado('ot_activa', {
       otKey:      otFbKey,
       otId:       otCanonica.id,
@@ -32298,6 +32469,8 @@ async function spGenerarOT(reclamoKey) {
     }
   } catch (e) {
     notify('Error: '+e.message);
+  } finally {
+    procesoCreacionOT.finalizar();
   }
 }
 
@@ -37024,6 +37197,26 @@ function _pagableGastoBase(payload) {
   };
 }
 
+function spVentaTieneDefinicionComercial(venta) {
+  if (!venta) return false;
+  var estado = String(venta.estadoPago || '').toLowerCase();
+  return _svMontoPagadoVenta(venta) > 0.009 || ['pago_total','seniado','sin_cargo'].indexOf(estado) >= 0;
+}
+
+async function spCerrarReclamoRespetandoVenta(reclamoKey, venta, itemVisita) {
+  var descuentoItem = parseFloat(itemVisita && (itemVisita.disc != null ? itemVisita.disc : itemVisita.descuento)) || 0;
+  var manoObra = venta.manoObraPostVenta || (descuentoItem >= 99.99 ? 'bonificada_100' : 'con_cargo');
+  try {
+    var cerrado = await spCambiarEstado('cerrado', {
+      resolucion:'visita_tecnica', resuelto:true, cerradoEn:Date.now(), manoObra:manoObra,
+      ventaComercialRespetada:true
+    }, reclamoKey);
+    if (cerrado) notify('✓ Reclamo resuelto · se respetó la venta y sus cobros existentes');
+  } catch (error) {
+    notify('No se pudo resolver el reclamo: ' + error.message);
+  }
+}
+
 function spAbrirResolucionVisita() {
   var rKey = SP_MODAL_KEY;
   var reclamo = rKey && SP_DATA[rKey];
@@ -37041,6 +37234,12 @@ function spAbrirResolucionVisita() {
   var itemVisita = (Array.isArray(venta.items) ? venta.items : []).find(function(item, indice) {
     return (codigoVisita && String(item.cod || item.codigo || '').trim() === codigoVisita) || (!codigoVisita && indice === 0);
   });
+  // Una venta que ya recibió cobros es una fotografía comercial: cerrar el
+  // reclamo nunca puede reabrir la decisión ni alterar sus importes.
+  if (spVentaTieneDefinicionComercial(venta)) {
+    spCerrarReclamoRespetandoVenta(rKey, venta, itemVisita);
+    return;
+  }
   var valorVisita = itemVisita ? (parseFloat(itemVisita.qty) || 1) * (parseFloat(itemVisita.punit) || 0) : 0;
   var anterior = document.getElementById('sp-modal-resolucion-visita');
   if (anterior) anterior.remove();
@@ -37051,8 +37250,8 @@ function spAbrirResolucionVisita() {
   modal.innerHTML = '<div class="modal" style="width:min(620px,calc(100vw - 24px))">' +
     '<div class="modal-head"><div><div class="modal-title">Resolver reclamo por visita técnica</div><div style="font-size:12px;color:var(--text3);margin-top:3px">'+escapeHTML(ot.id || ot.numero || 'OT finalizada')+' · '+escapeHTML(venta.id || 'Venta de servicio')+'</div></div><button class="btn btn-icon" data-close><i class="ti ti-x"></i></button></div>' +
     '<div class="modal-body"><div style="font-size:13px;color:var(--text2);margin-bottom:12px">Indicá cómo se tratará la mano de obra. Los materiales agregados conservan su precio.</div>' +
-      '<label style="display:flex;gap:10px;padding:12px;border:1px solid var(--green);border-radius:10px;margin-bottom:8px;cursor:pointer"><input type="radio" name="sp-cobro-visita" value="bonificada" checked><span><strong>Sin cargo · bonificar mano de obra</strong><small style="display:block;color:var(--text3);margin-top:3px">Se mostrará '+cfPesos(valorVisita)+' con descuento del 100% para que el cliente vea el ahorro.</small></span></label>' +
-      '<label style="display:flex;gap:10px;padding:12px;border:1px solid var(--border);border-radius:10px;cursor:pointer"><input type="radio" name="sp-cobro-visita" value="cobrada"><span><strong>Cobrar mano de obra</strong><small style="display:block;color:var(--text3);margin-top:3px">La visita mantiene su precio normal. Los materiales también se cobran.</small></span></label>' +
+      '<label style="display:flex;gap:10px;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer"><input type="radio" name="sp-cobro-visita" value="bonificada"><span><strong>Sin cargo · bonificar mano de obra</strong><small style="display:block;color:var(--text3);margin-top:3px">Se mostrará '+cfPesos(valorVisita)+' con descuento del 100% para que el cliente vea el ahorro.</small></span></label>' +
+      '<label style="display:flex;gap:10px;padding:12px;border:1px solid var(--green);border-radius:10px;cursor:pointer"><input type="radio" name="sp-cobro-visita" value="cobrada" checked><span><strong>Cobrar mano de obra</strong><small style="display:block;color:var(--text3);margin-top:3px">La visita mantiene su precio normal. Los materiales también se cobran.</small></span></label>' +
     '</div><div class="modal-foot"><button class="btn" data-close>Cancelar</button><button class="btn btn-primary" id="sp-confirmar-resolucion-visita"><i class="ti ti-check"></i> Confirmar resolución</button></div></div>';
   document.body.appendChild(modal);
   modal.querySelectorAll('[data-close]').forEach(function(btn){ btn.onclick=function(){ modal.remove(); }; });
@@ -37061,7 +37260,7 @@ function spAbrirResolucionVisita() {
 
 async function spConfirmarResolucionVisita(reclamoKey, ventaKey, codigoVisita, modal) {
   var opcion = modal && modal.querySelector('input[name="sp-cobro-visita"]:checked');
-  var bonificada = !opcion || opcion.value === 'bonificada';
+  var bonificada = !!opcion && opcion.value === 'bonificada';
   var venta = _svResolverVentaRegistro(ventaKey);
   if (!venta || !venta.fbKey) { notify('No se encontró la venta vinculada'); return; }
   var boton = modal.querySelector('#sp-confirmar-resolucion-visita');
@@ -37275,6 +37474,7 @@ function fbCargarGastos() {
     _cargarFiltroEmpleadosGastos();
     renderTablaGastos();
     actualizarMetricasGastos();
+    if (typeof window.renderModuloComisiones === 'function') window.renderModuloComisiones();
     generarGastosFijosMesSeguro();
     if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 60);
     return _gastosUnsubscribe;
@@ -37299,6 +37499,7 @@ function fbCargarGastos() {
     _cargarFiltroEmpleadosGastos();
     renderTablaGastos();
     actualizarMetricasGastos();
+    if (typeof window.renderModuloComisiones === 'function') window.renderModuloComisiones();
     generarGastosFijosMesSeguro();
     if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 60);
     if (typeof marcarDashboardDatosSucios === 'function') marcarDashboardDatosSucios();
@@ -37627,6 +37828,26 @@ function actualizarMetricasGastos() {
   if (_e('gas-vencen-cant'))    _e('gas-vencen-cant').textContent    = vencenProx.length+' vence'+(vencenProx.length!==1?'n':'')+ ' esta semana';
   if (_e('gas-reembolso'))      _e('gas-reembolso').textContent      = '$'+Math.round(reembTotal).toLocaleString('es-AR');
   if (_e('gas-reembolso-cant')) _e('gas-reembolso-cant').textContent = reembolso.length+' sin reembolsar';
+  var solicitudesGasto = gastosMetricas.filter(function(g) {
+    var tipo = String(g.tipoPagable || g.origen || '').toLowerCase();
+    return normalizarEstadoGasto(g) === 'pendiente_aprobacion' && tipo !== 'comision';
+  });
+  var badgeGastos = _e('badge-nav-gastos');
+  if (badgeGastos) {
+    var mostrarBadgeGastos = String(currentRole || '').toLowerCase() === 'admin' && solicitudesGasto.length > 0;
+    badgeGastos.textContent = solicitudesGasto.length;
+    badgeGastos.style.display = mostrarBadgeGastos ? '' : 'none';
+  }
+  var solicitudesGasto = gastosMetricas.filter(function(g) {
+    var tipo = String(g.tipoPagable || g.origen || '').toLowerCase();
+    return normalizarEstadoGasto(g) === 'pendiente_aprobacion' && tipo !== 'comision';
+  });
+  var badgeGastos = _e('badge-nav-gastos');
+  if (badgeGastos) {
+    var mostrarBadgeGastos = String(currentRole || '').toLowerCase() === 'admin' && solicitudesGasto.length > 0;
+    badgeGastos.textContent = solicitudesGasto.length;
+    badgeGastos.style.display = mostrarBadgeGastos ? '' : 'none';
+  }
   var etiquetaReembolso = document.querySelector('#gas-reembolso') && document.querySelector('#gas-reembolso').closest('.metric').querySelector('.m-label');
   if (etiquetaReembolso) etiquetaReembolso.textContent = empleadoSeleccionado ? ('Falta pagar a ' + String(empleadoSeleccionado.nombre || 'empleado').split(' ')[0]) : 'A reembolsar a técnicos';
 
@@ -38033,8 +38254,8 @@ function renderTablaGastos() {
       ? '<span title="Pagó: '+escapeHTML(g.empleadoNombre||'Técnico')+'" style="color:var(--blue);font-size:12px"><i class="ti ti-user"></i> '+escapeHTML((g.empleadoNombre||'').split(' ')[0])+'</span>'
       : '<span style="color:var(--text3);font-size:12px">Empresa</span>';
     var esComision = String(g.tipoPagable || g.origen || '').toLowerCase() === 'comision';
-    var accionAprobar = esComision ? 'aprobarComisionDesdeGasto' : 'aprobarGastoSolicitado';
-    var btnAprobar = estadoNorm === 'pendiente_aprobacion'
+    var accionAprobar = 'aprobarGastoSolicitado';
+    var btnAprobar = estadoNorm === 'pendiente_aprobacion' && !esComision
       ? '<button class="btn btn-sm" onclick="'+accionAprobar+'(\''+g.fbKey+'\')" title="Aprobar gasto" style="color:var(--green);border-color:var(--green)"><i class="ti ti-check"></i> Aprobar</button>'
       : '';
     var btnPagar = gastoSeleccionableParaPago(g)
@@ -38048,8 +38269,8 @@ function renderTablaGastos() {
     return '<tr class="gas-row" data-fecha-imputacion="'+escapeHTML(fechaImputacionGasto(g))+'" data-fecha-original="'+escapeHTML(g.fecha || '')+'" data-periodo-trabajo="'+escapeHTML(g.periodoTrabajo || '')+'">' + bulkTd +
       '<td class="gas-date-cell" data-label="Fecha" style="color:var(--text3);font-size:12px">'+fecha+'</td>' +
       '<td class="gas-desc-cell" data-label="Descripción" title="'+escapeHTML(descCompleta)+'" style="font-weight:500">'+
-        (esComision && (g.ventaFbKey || g.ventaId)
-          ? '<button type="button" onclick="event.stopPropagation();irAVentaDesdeGastoComision(\''+g.fbKey+'\')" title="Abrir venta vinculada" style="border:0;background:transparent;color:var(--blue);padding:0;cursor:pointer;font:inherit;font-weight:600;text-align:left"><i class="ti ti-external-link" style="font-size:12px;margin-right:4px"></i>'+escapeHTML(descCorta)+'</button>'
+        (esComision
+          ? '<button type="button" onclick="event.stopPropagation();abrirComisionDesdeGasto(\''+g.fbKey+'\')" title="Abrir comisión" style="border:0;background:transparent;color:var(--blue);padding:0;cursor:pointer;font:inherit;font-weight:600;text-align:left"><i class="ti ti-percentage" style="font-size:12px;margin-right:4px"></i>'+escapeHTML(descCorta)+'</button>'
           : escapeHTML(descCorta))+descDesglose+'</td>' +
       '<td class="gas-category-cell" data-label="Categoría" style="color:var(--text3);font-size:12px">'+escapeHTML(g.categoria||'—')+'</td>' +
       '<td class="gas-type-cell" data-label="Tipo">'+tipoBadge+'</td>' +
@@ -38059,8 +38280,7 @@ function renderTablaGastos() {
       '<td class="tr gas-status-cell" data-label="Estado">'+estBadge(g)+'</td>' +
       '<td class="tr gas-payer-cell" data-label="Pagado por">'+pagoPor+'</td>' +
       '<td class="gas-actions-cell" data-label="Acciones" style="white-space:nowrap">'+btnAprobar+btnPagar+btnPagos+
-        '<button class="btn btn-sm btn-icon" onclick="abrirFormGasto(\''+g.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button>'+
-        '<button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'gastos\',\''+g.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>'+
+        (esComision ? '<button class="btn btn-sm btn-icon" onclick="abrirComisionDesdeGasto(\''+g.fbKey+'\')" title="Gestionar comisión"><i class="ti ti-percentage" style="font-size:14px"></i></button>' : '<button class="btn btn-sm btn-icon" onclick="abrirFormGasto(\''+g.fbKey+'\')" title="Editar"><i class="ti ti-edit" style="font-size:14px"></i></button><button class="btn btn-sm btn-icon" onclick="eliminarRegistro(\'gastos\',\''+g.fbKey+'\')" title="Eliminar" style="color:var(--text3)" onmouseenter="this.style.color=\'var(--red)\'" onmouseleave="this.style.color=\'var(--text3)\'"><i class="ti ti-trash" style="font-size:14px"></i></button>')+
       '</td>' +
     '</tr>';
   }).join('');
@@ -38741,6 +38961,10 @@ function _generarComisionVentaAtomica(emp, movimiento) {
     gasto.requiereAprobacion = true;
     gasto.ventaId = movimiento.ventaId || '';
     gasto.ventaFbKey = movimiento.ventaFbKey || '';
+    gasto.pct = parseFloat(movimiento.pct) || 0;
+    gasto.pctOriginal = parseFloat(movimiento.pctOriginal) || parseFloat(movimiento.pct) || 0;
+    gasto.gananciaBase = parseFloat(movimiento.gananciaBase) || 0;
+    gasto.cliente = movimiento.cliente || '';
     gasto.origen = 'comision';
     var updates = {};
     updates['sisventas/ctaemp/' + emp.fbKey + '/' + movKey] = movGuardado;
@@ -43776,6 +44000,10 @@ function otAbrirFoto(url, titulo) {
     window.open(url, '_blank', 'noopener');
     return;
   }
+  // El visor es compartido por OT y chat: llevarlo al body evita que quede
+  // atrapado detrás de otra ventana con un contexto de apilado superior.
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
+  modal.style.zIndex = '100050';
   imagen.style.display = 'block';
   if (errorFoto) errorFoto.style.display = 'none';
   imagen.src = url;

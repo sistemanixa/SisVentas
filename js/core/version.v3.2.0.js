@@ -1,9 +1,7 @@
 // SisVentas PWA version publicada.
-window.SISVENTAS_PWA_VERSION = 'v3.0.12';
+window.SISVENTAS_PWA_VERSION = 'v3.2.0';
 
 // Única fuente de texto para todas las etiquetas visibles de versión.
-// El comentario VERSION de index.html y los nombres inmutables continúan
-// existiendo solo para despliegue/caché; la interfaz nunca los interpreta.
 (function () {
   function aplicarVersionSisVentas(raiz) {
     raiz = raiz || document;

@@ -14,10 +14,14 @@ assert(css.includes('#ia-box{background:var(--bg2);border-radius:16px 16px 0 0;w
 assert(css.includes('#chat-fab::before,#ia-fab::before'), 'Los accesos deben conservar una zona estable bajo el puntero');
 assert(css.includes('#chat-fab.has-unread{right:10px!important;opacity:1!important'), 'Chat con pendientes no debe retraerse');
 assert(css.includes('#ia-fab.has-unread{right:10px!important;opacity:1!important'), 'IA con respuestas pendientes no debe retraerse');
-assert(app.includes("botonChat.classList.toggle('has-unread', total > 0)"), 'El contador debe controlar la visibilidad persistente');
+assert(app.includes("botonChat.classList.toggle('has-unread', totalVisible > 0)"), 'El contador visible debe controlar la visibilidad persistente');
+assert(app.includes('var totalVisible = Math.max(total, _chatAvisosPendientesLocales)'), 'El aviso local no debe desaparecer por una actualización remota antes de abrir el chat');
+assert(app.includes('function chatAbrir() {\n  _chatAvisosPendientesLocales = 0;'), 'El aviso local solo debe liberarse al abrir el chat');
 assert(html.includes('id="ia-badge"'), 'IA debe mostrar un contador propio');
 assert(app.includes("boton.classList.toggle('has-unread', _iaNoLeidos > 0)"), 'El contador de IA debe mantener visible su acceso');
 assert(app.includes("if (!modalIA || !modalIA.classList.contains('open'))"), 'La IA solo debe sumar pendientes cuando su panel está cerrado');
+assert(app.includes("var chatVisible = !!(modalChat && modalChat.classList.contains('open'))"), 'El chat abierto debe identificarse antes de notificar a Windows');
+assert(app.includes("if (!_chatNotifPermiso || chatVisible || document.visibilityState === 'visible') return"), 'Windows no debe notificar si el usuario ya está viendo el chat');
 assert(app.includes("' sin leer'"), 'El acceso debe explicar la cantidad pendiente');
 
 console.log('OK: Chat e IA conservan tamaño, posición y aviso persistente sin titileo.');

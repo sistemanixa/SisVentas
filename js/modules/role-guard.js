@@ -59,7 +59,7 @@
       }
     }
 
-    var restrictedTech = ['gastos','caja','tesoreria','rentabilidad','proveedores','ordenes','creditofiscal','usuarios','configuracion','detalle','cobranzas','cuentacorriente','reportes','estadisticas','presupuesto','venta'];
+    var restrictedTech = ['gastos','comisiones','caja','tesoreria','rentabilidad','proveedores','ordenes','creditofiscal','usuarios','configuracion','detalle','cobranzas','cuentacorriente','reportes','estadisticas','presupuesto','venta'];
     restrictedTech.forEach(function(p){ if(tec) setNav(p, false); });
     if(tec){
       restrictedTech.forEach(function(p){

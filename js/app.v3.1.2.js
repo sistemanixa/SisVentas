@@ -31609,14 +31609,32 @@ function spSubirEvidenciaNueva(archivo) {
 
 function spBuscarCliente(val) {
   var drop = document.getElementById('sp-nuevo-cli-drop');
-  if (!val || val.length < 2) { drop.style.display = 'none'; return; }
+  var seleccionado = document.getElementById('sp-nuevo-cli-id');
+  if (seleccionado) seleccionado.value = '';
+  var normalizar = function(texto) {
+    return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-AR').trim();
+  };
+  var consulta = normalizar(val);
+  if (consulta.length < 2) { drop.style.display = 'none'; return; }
+  var terminos = consulta.split(/\s+/).filter(Boolean);
   var matches = (clientesData||[]).filter(function(c) {
-    return (c.nombre||'').toLowerCase().includes(val.toLowerCase());
-  }).slice(0,6);
+    var buscable = normalizar([c.nombre,c.empresa,c.id,c.dir,c.direccion,c.domicilio,c.localidad,c.telefono].filter(Boolean).join(' '));
+    return terminos.every(function(termino) { return buscable.includes(termino); });
+  }).sort(function(a, b) {
+    var nombreA = normalizar(a.nombre);
+    var nombreB = normalizar(b.nombre);
+    var rangoA = nombreA === consulta ? 0 : (nombreA.startsWith(consulta) ? 1 : (nombreA.split(/\s+/).some(function(p){ return p.startsWith(consulta); }) ? 2 : 3));
+    var rangoB = nombreB === consulta ? 0 : (nombreB.startsWith(consulta) ? 1 : (nombreB.split(/\s+/).some(function(p){ return p.startsWith(consulta); }) ? 2 : 3));
+    return rangoA - rangoB || nombreA.localeCompare(nombreB, 'es');
+  }).slice(0,20);
   if (!matches.length) { drop.style.display = 'none'; return; }
   drop.innerHTML = matches.map(function(c) {
+    var direccion = c.dir || c.direccion || c.domicilio || '';
+    var localidad = c.localidad || '';
+    var ubicacion = [direccion, localidad && !normalizar(direccion).includes(normalizar(localidad)) ? localidad : ''].filter(Boolean).join(' · ');
     return '<div class="di" style="padding:8px 12px;cursor:pointer;font-size:13px" onclick="spSelCliente(\'' +
-      escapeHTML(c.nombre||'') + '\',\'' + escapeHTML(c.fbKey||c.id||'') + '\')">' + escapeHTML(c.nombre||'') + '</div>';
+      escapeHTML(c.nombre||'') + '\',\'' + escapeHTML(c.fbKey||c.id||'') + '\')"><strong>' + escapeHTML(c.nombre||'Sin nombre') + '</strong>' +
+      '<span style="display:block;color:var(--text3);font-size:11px;margin-top:2px"><i class="ti ti-map-pin"></i> ' + escapeHTML(ubicacion || 'Sin dirección cargada') + '</span></div>';
   }).join('');
   drop.style.display = 'block';
 }
@@ -31890,6 +31908,38 @@ function spPasarAVisitaYGenerarOTLegacy() {
     .then(function(actualizado){ if (actualizado) spGenerarOT(); });
 }
 
+function spEmpleadoEsTecnico(empleado) {
+  if (!empleado || empleado.activo === false) return false;
+  var categoria = [empleado.categoriaBase, empleado.cargo, empleado.categoria, empleado.tipoEmpleado]
+    .filter(Boolean).join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleUpperCase('es-AR');
+  return categoria.includes('TECNICO');
+}
+
+function spMostrarProcesoCreacionOT(textoInicial) {
+  var overlay = document.getElementById('sp-creando-ot-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'sp-creando-ot-overlay';
+    overlay.setAttribute('role', 'status');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:12500;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,10,18,.66);backdrop-filter:blur(3px)';
+    overlay.innerHTML = '<div style="width:min(390px,calc(100vw - 40px));padding:26px;border:1px solid var(--border);border-radius:16px;background:var(--bg2);box-shadow:0 24px 70px rgba(0,0,0,.45);text-align:center">' +
+      '<i class="ti ti-loader-2 ti-spin" style="display:block;font-size:38px;color:var(--blue);margin-bottom:13px"></i>' +
+      '<div style="font-size:17px;font-weight:700;margin-bottom:7px">Creando orden de trabajo</div>' +
+      '<div data-sp-proceso-ot style="color:var(--text2);font-size:13px;line-height:1.5"></div>' +
+      '<div style="color:var(--text3);font-size:11px;margin-top:13px">La venta, la OT y el reclamo se están vinculando. No cierres esta pantalla.</div></div>';
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  function actualizar(texto) {
+    var destino = overlay.querySelector('[data-sp-proceso-ot]');
+    if (destino) destino.textContent = texto || 'Procesando…';
+  }
+  function finalizar() { if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+  actualizar(textoInicial);
+  return { actualizar:actualizar, finalizar:finalizar };
+}
+
 async function spGenerarOTLegacy() {
   if (!SP_MODAL_KEY) return;
   var r = SP_DATA[SP_MODAL_KEY];
@@ -31901,9 +31951,7 @@ async function spGenerarOTLegacy() {
     return;
   }
 
-  var tecnicos = Object.values(empData||{}).filter(function(e){
-    return e.activo !== false;
-  });
+  var tecnicos = Object.values(empData||{}).filter(spEmpleadoEsTecnico);
   var opciones = tecnicos.length
     ? tecnicos.map(function(t,i){ return i+') '+t.nombre; }).join('\n')
     : '(sin empleados cargados)';
@@ -32167,15 +32215,20 @@ async function spGenerarOT(reclamoKey) {
     return;
   }
 
-  var tecnicos = Object.values(empData||{}).filter(function(e){
-    return e.activo !== false;
-  });
+  var tecnicos = Object.values(empData||{}).filter(spEmpleadoEsTecnico);
   var opciones = tecnicos.length
     ? tecnicos.map(function(t,i){ return i+') '+t.nombre; }).join('\n')
     : '(sin empleados cargados)';
   var selIdx = await svPrompt('Elegí el técnico asignado:\n' + opciones);
   if (selIdx === null) return; // canceló
-  var tecnico = (tecnicos[parseInt(selIdx)]) ? tecnicos[parseInt(selIdx)].nombre : 'Sin asignar';
+  var indiceTecnico = parseInt(selIdx, 10);
+  if (!Number.isInteger(indiceTecnico) || !tecnicos[indiceTecnico]) {
+    notify('Elegí uno de los técnicos de la lista');
+    return;
+  }
+  var tecnico = tecnicos[indiceTecnico].nombre;
+  var procesoCreacionOT = spMostrarProcesoCreacionOT('Preparando la venta vinculada…');
+  await new Promise(function(resolve) { requestAnimationFrame(function(){ requestAnimationFrame(resolve); }); });
 
   var punit = parseFloat(prodVisita.venta) || 0;
   var sub = punit;
@@ -32222,6 +32275,7 @@ async function spGenerarOT(reclamoKey) {
   };
 
   try {
+    procesoCreacionOT.actualizar('Guardando la venta vinculada…');
     var ventaGuardada = await ventasPagosPersistirGuardarVenta(nuevaVenta);
     var ventaFbKey = ventaGuardada && ventaGuardada.fbKey || '';
     var ot = {
@@ -32257,6 +32311,7 @@ async function spGenerarOT(reclamoKey) {
       audit: [{ fecha: fechaHoy, usuario: currentUser||'Sistema', accion: 'OT creada desde reclamo de soporte. Venta: ' + ventaId }]
     };
 
+    procesoCreacionOT.actualizar('Creando la orden de trabajo…');
     var crearOTReclamo = typeof window.crearRegistroOTSeguro === 'function'
       ? window.crearRegistroOTSeguro(ot, { evitarDoble:true })
       : window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo), ot);
@@ -32276,6 +32331,7 @@ async function spGenerarOT(reclamoKey) {
       throw new Error('La OT creada no tiene identificador canónico');
     }
 
+    procesoCreacionOT.actualizar('Vinculando la OT con el reclamo…');
     var actualizado = await spCambiarEstado('ot_activa', {
       otKey:      otFbKey,
       otId:       otCanonica.id,
@@ -32305,6 +32361,8 @@ async function spGenerarOT(reclamoKey) {
     }
   } catch (e) {
     notify('Error: '+e.message);
+  } finally {
+    procesoCreacionOT.finalizar();
   }
 }
 

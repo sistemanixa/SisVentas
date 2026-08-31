@@ -23,4 +23,6 @@ assert.doesNotMatch(source,/Arrastr\?/,'la ayuda no debe contener caracteres da�
 assert.match(source,/btn-icon admin-only sv-column-percent-btn/);
 assert.match(source,/dragUsesPercent = false/,
   'El arrastre manual debe pasar a píxeles para no recalcular las demás columnas');
+assert.match(source,/pendingClientX != null && didDrag/,
+  'Un clic simple no debe convertir el perfil de columnas ni recalcular anchos');
 console.log('columnas-redimension-windows.test.js OK');

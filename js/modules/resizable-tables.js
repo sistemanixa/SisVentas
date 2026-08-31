@@ -1205,7 +1205,10 @@
           window.cancelAnimationFrame(resizeFrame);
           resizeFrame = 0;
         }
-        if (pendingClientX != null) applyLiveWidth(pendingClientX - startX);
+        // Un clic simple no debe entrar siquiera al cálculo de ancho. Aplicar
+        // delta 0 convertía temporalmente el perfil porcentual a píxeles y en
+        // Gastos se percibía como si el usuario hubiera hecho doble clic.
+        if (pendingClientX != null && didDrag) applyLiveWidth(pendingClientX - startX);
         // Un clic simple (y cada clic que compone un doble clic) no es un
         // arrastre. Persistir en ese punto convertía anchos porcentuales como
         // "25%" en 25 píxeles y encogía todas las columnas al mínimo.

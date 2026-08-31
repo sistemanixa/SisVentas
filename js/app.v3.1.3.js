@@ -2420,8 +2420,25 @@ var _iaHistorial   = [];  // mensajes de la conversación actual
 var _iaContexto    = '';  // contexto inyectado (OT, sistema, etc.)
 var _iaCtxLabel    = 'Modo general';
 var _iaThinking    = false;
+var _iaNoLeidos    = 0;
+
+function iaActualizarBadge() {
+  var badge = document.getElementById('ia-badge');
+  var boton = document.getElementById('ia-fab');
+  if (badge) {
+    badge.style.display = _iaNoLeidos > 0 ? 'flex' : 'none';
+    badge.textContent = _iaNoLeidos > 9 ? '9+' : _iaNoLeidos;
+  }
+  if (boton) {
+    boton.classList.toggle('has-unread', _iaNoLeidos > 0);
+    boton.setAttribute('aria-label', _iaNoLeidos > 0 ? 'Asistente IA, ' + _iaNoLeidos + ' respuesta sin leer' + (_iaNoLeidos === 1 ? '' : 'es') : 'Asistente IA');
+    boton.title = _iaNoLeidos > 0 ? _iaNoLeidos + ' respuesta' + (_iaNoLeidos === 1 ? '' : 's') + ' de IA sin leer' : 'Asistente IA';
+  }
+}
 
 function iaAbrir(contexto, label) {
+  _iaNoLeidos = 0;
+  iaActualizarBadge();
   _iaContexto = contexto || '';
   _iaCtxLabel = label    || 'Modo general';
   var lbl = document.getElementById('ia-ctx-label');
@@ -2629,6 +2646,11 @@ async function iaEnviar() {
     var respText = (data.content && data.content[0] && data.content[0].text) || 'No pude procesar la respuesta.';
     if (thinkDiv) { thinkDiv.textContent = respText; thinkDiv.classList.remove('thinking'); }
     _iaHistorial.push({ role: 'assistant', content: respText });
+    var modalIA = document.getElementById('ia-modal');
+    if (!modalIA || !modalIA.classList.contains('open')) {
+      _iaNoLeidos += 1;
+      iaActualizarBadge();
+    }
   } catch(e) {
     var msgError = e && e.message && e.message.includes('Failed to fetch')
       ? 'No se pudo conectar con el asistente. Verificá tu conexión a internet.'
@@ -2696,7 +2718,6 @@ function chatInicializar() {
   if (Object.keys(DASH_WIDGETS_CONFIG).length > 0) {
     aplicarVisibilidadBotonesFlotantes();
   } else if (btn) { btn.style.display = 'flex'; }
-
   // Solicitar permiso para notificaciones del sistema
   setTimeout(chatSolicitarPermiso, 3000);
 
@@ -2771,6 +2792,12 @@ function chatActualizarBadges() {
   var total = Object.values(_chatNoLeidos).reduce(function(s,n){ return s+n; },0);
   var badge = document.getElementById('chat-badge');
   if (badge) { badge.style.display = total>0?'flex':'none'; badge.textContent = total>9?'9+':total; }
+  var botonChat = document.getElementById('chat-fab');
+  if (botonChat) {
+    botonChat.classList.toggle('has-unread', total > 0);
+    botonChat.setAttribute('aria-label', total > 0 ? 'Mensajes internos, ' + total + ' sin leer' : 'Mensajes internos');
+    botonChat.title = total > 0 ? total + ' mensaje' + (total === 1 ? '' : 's') + ' sin leer' : 'Mensajes internos';
+  }
   ['general','tecnicos','admin'].forEach(function(c) {
     var b = document.getElementById('badge-'+c);
     if (b) { var n=_chatNoLeidos[c]||0; b.style.display=n>0?'flex':'none'; b.textContent=n; }
