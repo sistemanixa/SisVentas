@@ -2,7 +2,7 @@ const fs = require('fs');
 const assert = require('assert');
 
 const grid = fs.readFileSync('js/modules/resizable-tables.js', 'utf8');
-const app = fs.readFileSync('js/app.v3.1.0.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.1.1.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('css/app.css', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
@@ -32,8 +32,9 @@ assert(app.includes("boton.disabled = true"), 'La exportación debe bloquear dob
 assert(html.includes("exportarExcel('Reporte de ventas',this)"), 'Reportes debe entregar el botón a la exportación');
 assert(css.includes('#cobranzas-stats-global{width:100%'), 'Los KPI de cobranzas deben ocupar todo el ancho');
 
-assert(html.includes("VERSION: 'v3.1.0-firebase'"));
-assert(html.includes('./js/app.v3.1.0.js'));
-assert(sw.includes("sisventas-v3.1.0"));
+assert(html.includes('repeat(auto-fit,minmax(220px,1fr))'), 'Cobros por medio de pago debe repartir solo las tarjetas existentes');
+assert(html.includes("VERSION: 'v3.1.1-firebase'"));
+assert(html.includes('./js/app.v3.1.1.js'));
+assert(sw.includes("sisventas-v3.1.1"));
 
 console.log('OK: perfiles de grilla, exportación visible y KPI de cobranzas v3.1.0');
