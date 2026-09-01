@@ -77,7 +77,9 @@
       '<div class="sv334-mini" id="sv334-'+id+'-mini"></div><div class="sv334-quick" id="sv334-'+id+'-quick"></div></div>';
   }
   function ensureStats(){ var page=document.getElementById('page-estadisticas'); if(!page||document.getElementById('sv334-est-card')) return; var metrics=page.querySelector('.metrics'); if(metrics) metrics.insertAdjacentHTML('afterend',cardVentas('est')); else page.insertAdjacentHTML('afterbegin',cardVentas('est')); }
-  function ensureRent(){ var page=document.getElementById('page-rentabilidad'); if(!page||document.getElementById('sv334-rent-card')) return; var metrics=page.querySelector('.metrics'); if(metrics) metrics.insertAdjacentHTML('afterend',cardVentas('rent')); else page.insertAdjacentHTML('afterbegin',cardVentas('rent')); }
+  // Rentabilidad prioriza lectura numérica y estado de salud. Los gráficos
+  // ejecutivos permanecen en Dashboard/Tablero, no en este reporte contable.
+  function ensureRent(){ var card=document.getElementById('sv334-rent-card'); if(card) card.remove(); }
   function calcSales(){
     var vs=ventas(), d7=dias7(), m12=meses12();
     var porDia={}, porMes={};

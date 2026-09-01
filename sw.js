@@ -1,6 +1,23 @@
 /* SisVentas NIXA - Service Worker v3.2.1
    Estrategia: red primero con cache de respaldo. */
 const CACHE = 'sisventas-v3.2.1';
+const PUSH_PREVIEW = new URL(self.location.href).searchParams.get('push_preview') === '1';
+let messaging = null;
+
+if (PUSH_PREVIEW) {
+  importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+  firebase.initializeApp({
+    apiKey: 'AIzaSyCw8Q4-fUA69iWFkDuy8qEkEcOGHOjFsto',
+    authDomain: 'nixa-sisventas.firebaseapp.com',
+    databaseURL: 'https://nixa-sisventas-default-rtdb.firebaseio.com',
+    projectId: 'nixa-sisventas',
+    storageBucket: 'nixa-sisventas.firebasestorage.app',
+    messagingSenderId: '171899432710',
+    appId: '1:171899432710:web:47d7d4da42c07166983887',
+  });
+  messaging = firebase.messaging();
+}
 const SHELL = [
   './',
   './index.html',
@@ -16,6 +33,9 @@ const SHELL = [
   './js/modules/item-row-order.js',
   './js/core/data-query.js',
   './js/modules/notifications.js',
+  './js/modules/push-notifications.js',
+  './js/modules/offline-core.js',
+  './js/modules/business-break-even.js',
   './js/core/error-monitor.js',
   './js/core/relation-compatibility.js',
   './js/modules/treasury.js',
@@ -60,6 +80,41 @@ const SHELL = [
   './nixa-icon-512.png',
 ];
 
+if (messaging) {
+  messaging.onBackgroundMessage((payload) => {
+    const notification = payload.notification || {};
+    const data = payload.data || {};
+    self.registration.showNotification(notification.title || data.title || 'SisVentas', {
+      body: notification.body || data.body || 'Tenés una nueva notificación.',
+      icon: './nixa-icon-192.png',
+      badge: './nixa-icon-192.png',
+      tag: data.notificationId || data.type || 'sisventas-push',
+      renotify: true,
+      data,
+    });
+  });
+}
+
+if (PUSH_PREVIEW) {
+  self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const data = event.notification.data || {};
+    event.waitUntil((async () => {
+      const target = new URL('./index.html', self.location.origin);
+      if (data.type) target.searchParams.set('pushType', data.type);
+      if (data.notificationId) target.searchParams.set('pushId', data.notificationId);
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
+      if (existing) {
+        await existing.focus();
+        existing.postMessage({ type: 'SISVENTAS_PUSH_OPEN', data });
+        return existing;
+      }
+      return self.clients.openWindow(target.href);
+    })());
+  });
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE)
@@ -86,6 +141,20 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  if (url.origin === 'https://www.gstatic.com' && url.pathname.indexOf('/firebasejs/') >= 0) {
+    event.respondWith(
+      caches.open(CACHE).then(async (cache) => {
+        try {
+          const response = await fetch(new Request(event.request, { cache: 'no-store' }));
+          if (response.ok) await cache.put(event.request, response.clone());
+          return response;
+        } catch (_error) {
+          return (await cache.match(event.request)) || Response.error();
+        }
+      }),
+    );
+    return;
+  }
   if (url.origin !== self.location.origin) return;
 
   // Los PDF generados en el cliente se guardan unos minutos en Cache Storage

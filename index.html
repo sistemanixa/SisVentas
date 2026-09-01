@@ -1751,6 +1751,7 @@
           <button class="cfg-tab admin-o-administrativo" data-cfg-tab="dolar" onclick="showCfgDolarTab(this)">Dólar</button>
           <button class="cfg-tab" onclick="showCfgTab('cargos',this)">Cargos</button>
           <button class="cfg-tab" onclick="showCfgTab('comisiones',this)">Comisiones</button>
+          <button class="cfg-tab admin-only" onclick="showCfgTab('rentabilidad',this)">Metas del negocio</button>
           <button class="cfg-tab admin-only" onclick="showCfgTab('valoresmasivos',this)">Valores masivos</button>
           <button class="cfg-tab" onclick="showCfgTab('impuestos',this)">Impuestos</button>
           <button class="cfg-tab" onclick="showCfgTab('notificaciones',this)">Notificaciones</button>
@@ -2526,6 +2527,23 @@
             <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.312
 Listo para analizar.
 </pre>
+          </div>
+        </div>
+
+        <!-- TAB: METAS DEL NEGOCIO -->
+        <div id="cfg-rentabilidad" class="cfg-panel" style="display:none">
+          <div class="card" id="be-config-panel">
+            <div class="card-head"><div><span class="card-title"><i class="ti ti-target-arrow"></i> Metas y punto de equilibrio</span><div style="font-size:11px;color:var(--text3);margin-top:4px">Estos valores alimentan el tablero de Rentabilidad. Modificarlos no altera ventas, gastos ni comprobantes.</div></div></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
+              <div class="fg"><label>Gastos fijos mensuales</label><select id="be-fixed-mode" class="search-input"><option value="auto">Usar gastos reales</option><option value="manual">Definir manualmente</option></select><input id="be-fixed-costs" type="number" min="0" step="1000" placeholder="0"><div style="font-size:10px;color:var(--text3);margin-top:3px">Sueldos, alquileres, servicios y estructura.</div></div>
+              <div class="fg"><label>Valor neto de una visita</label><input id="be-visit-price" type="number" min="0" step="1000"><div style="font-size:10px;color:var(--text3);margin-top:3px">Sin IVA.</div></div>
+              <div class="fg"><label>Costo variable por visita</label><input id="be-visit-variable" type="number" min="0" step="1000"><div style="font-size:10px;color:var(--text3);margin-top:3px">Traslado, insumos y comisión.</div></div>
+              <div class="fg"><label>Visitas previstas por mes</label><input id="be-planned-visits" type="number" min="0" step="1"></div>
+              <div class="fg"><label>Ganancia mensual objetivo</label><input id="be-target-profit" type="number" min="0" step="1000"></div>
+              <div class="fg"><label>Días hábiles del mes</label><input id="be-working-days" type="number" min="1" max="31" step="1"></div>
+              <div class="fg"><label>Margen comercial para proyectar ventas</label><select id="be-margin-mode" class="search-input"><option value="auto">Usar margen real</option><option value="manual">Definir manualmente</option></select><input id="be-margin-pct" type="number" min="0" max="100" step="0.1"></div>
+            </div>
+            <div style="margin-top:14px;padding:11px 13px;border-radius:8px;background:var(--bg3);font-size:12px;color:var(--text2)"><i class="ti ti-info-circle"></i> La configuración se guarda automáticamente en este dispositivo durante la prueba privada.</div>
           </div>
         </div>
 
@@ -4898,6 +4916,43 @@ Listo para analizar.
       <div class="metric"><div class="m-label">Margen neto</div><div class="m-value" id="rent-margen">—</div><div class="m-sub" id="rent-margen-sub">—</div></div>
       </div>
       <div id="rent-auditoria-calculos" style="display:none;align-items:center;gap:8px;margin:0 0 12px;padding:10px 12px;border:1px solid rgba(245,158,11,.3);background:var(--amber-bg);color:var(--amber);border-radius:8px;font-size:12px"></div>
+      <div class="card" id="rent-break-even" style="display:none;margin-bottom:12px">
+      <div class="card-head" style="align-items:flex-start;gap:12px;flex-wrap:wrap">
+      <div><span class="card-title"><i class="ti ti-heart-rate-monitor"></i> Salud del negocio este mes</span><div style="font-size:11px;color:var(--text3);margin-top:4px">Lectura rápida según ingresos, costos y gastos reales.</div></div>
+      <button class="btn btn-sm admin-only" style="margin-left:auto" onclick="showPage('configuracion',document.querySelector('[onclick*=configuracion]'));setTimeout(function(){var b=[].slice.call(document.querySelectorAll('.cfg-tab')).find(function(x){return x.textContent.trim()==='Metas del negocio'});if(b&&typeof showCfgTab==='function')showCfgTab('rentabilidad',b)},120)"><i class="ti ti-settings"></i> Configurar metas</button>
+      </div>
+      <div id="be-warning" style="display:none;margin-bottom:12px;padding:10px 12px;border:1px solid rgba(245,158,11,.3);border-radius:8px;background:var(--amber-bg);color:var(--amber);font-size:12px"></div>
+      <div id="be-health-summary" style="padding:16px;margin-bottom:14px;border-radius:12px;background:var(--bg3);border:1px solid var(--border)"><div id="be-health-title" style="font-size:20px;font-weight:750;line-height:1.25">Calculando el estado del negocio…</div><div id="be-health-detail" style="font-size:12px;color:var(--text3);margin-top:6px">—</div></div>
+      <div id="be-executive-numbers" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:14px">
+      <div class="metric"><div class="m-label">Comparación anterior</div><div class="m-value" id="be-exec-comparison">—</div><div class="m-sub" id="be-exec-comparison-sub">resultado neto comparable</div></div>
+      <div class="metric"><div class="m-label">Promedio diario</div><div class="m-value" id="be-exec-daily">$0</div><div class="m-sub" id="be-exec-daily-sub">resultado neto por día transcurrido</div></div>
+      <div class="metric"><div class="m-label">Mejor día</div><div class="m-value" id="be-exec-best-day">—</div><div class="m-sub">mayor resultado neto diario</div></div>
+      <div class="metric"><div class="m-label">Ingresos netos</div><div class="m-value" id="be-exec-income">$0</div><div class="m-sub">sin IVA</div></div>
+      <div class="metric"><div class="m-label">Ganancia comercial</div><div class="m-value" id="be-exec-commercial">$0</div><div class="m-sub">después de costos y comisiones</div></div>
+      <div class="metric"><div class="m-label">Resultado neto</div><div class="m-value" id="be-exec-net">$0</div><div class="m-sub" id="be-exec-net-sub">queda en la empresa</div></div>
+      </div>
+      <div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:14px">
+      <div class="metric"><div class="m-label">Gastos a cubrir</div><div class="m-value" id="be-kpi-fixed">$0</div><div class="m-sub">base mensual</div></div>
+      <div class="metric"><div class="m-label">Sólo con visitas</div><div class="m-value" id="be-kpi-visits">—</div><div class="m-sub" id="be-kpi-visits-sub">—</div></div>
+      <div class="metric"><div class="m-label">Sólo con ventas</div><div class="m-value" id="be-kpi-sales">—</div><div class="m-sub" id="be-kpi-sales-sub">—</div></div>
+      <div class="metric"><div class="m-label">Cobertura actual</div><div class="m-value" id="be-kpi-coverage">0%</div><div class="m-sub" id="be-kpi-coverage-sub">—</div></div>
+      </div>
+      <div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px;font-size:12px"><strong id="be-status">Calculando…</strong><span style="color:var(--text3)">Contribución actual: <b id="be-current-contribution">$0</b></span></div>
+      <div style="height:9px;background:var(--bg3);border-radius:999px;overflow:hidden"><div id="be-progress-bar" style="height:100%;width:0;border-radius:999px;transition:width .25s ease"></div></div>
+      </div>
+      <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);padding:8px 0">Ver escenarios y equivalencias</summary>
+      <div class="table-wrap"><table><thead><tr><th>Escenario</th><th class="tr">Visitas</th><th class="tr">Ventas netas necesarias</th></tr></thead><tbody>
+      <tr><td><strong>Conservador</strong><div style="font-size:10px;color:var(--text3)">20% menos visitas que el plan</div></td><td class="tr" id="be-scenario-conservative-visits">—</td><td class="tr" id="be-scenario-conservative-sales">—</td></tr>
+      <tr><td><strong>Probable</strong><div style="font-size:10px;color:var(--text3)">Plan operativo esperado</div></td><td class="tr" id="be-scenario-probable-visits">—</td><td class="tr" id="be-scenario-probable-sales">—</td></tr>
+      <tr><td><strong>Ambicioso</strong><div style="font-size:10px;color:var(--text3)">20% más visitas que el plan</div></td><td class="tr" id="be-scenario-ambitious-visits">—</td><td class="tr" id="be-scenario-ambitious-sales">—</td></tr>
+      <tr><td><strong>Lo que falta hoy</strong><div style="font-size:10px;color:var(--text3)">Dos alternativas equivalentes</div></td><td class="tr" id="be-actual-visits">—</td><td class="tr" id="be-actual-sales">—</td></tr>
+      </tbody></table></div></details>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:12px">
+      <div style="padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:12px">Margen por visita: <strong id="be-contribution-visit">$0</strong></div>
+      <div style="padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:12px">Cierre proyectado: <strong id="be-projected-result">$0</strong><div id="be-projected-label" style="font-size:10px;color:var(--text3);margin-top:2px">—</div></div>
+      </div>
+      </div>
       <div class="card">
       <div class="card-head"><span class="card-title">Estado de resultados</span></div>
       <div class="table-wrap">
@@ -5464,7 +5519,9 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
+<script src="./js/modules/offline-core.js?v=1.0.0"></script>
 <script src="./js/app.v3.2.1.js"></script>
+<script src="./js/modules/business-break-even.js?v=1.0.3"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5786,6 +5843,7 @@ Listo para analizar.
 
 <script src="./js/modules/ot-data-sync.js?v=2.0.154"></script>
 <script src="./js/modules/notifications.js?v=2.0.271"></script>
+<script src="./js/modules/push-notifications.js?v=1.0.0"></script>
 <script src="./js/modules/finance-details.js?v=3.1.2"></script>
 
 <script src="./js/modules/ot-workflow.js?v=3.1.1"></script>
@@ -5828,7 +5886,7 @@ Listo para analizar.
 
 
 
-<script src="./js/modules/executive-charts.js?v=2.0.154"></script>
+<script src="./js/modules/executive-charts.js?v=3.2.1-rentabilidad-numerica-1"></script>
 
 
 <!-- ══════════════════════════════════════════════════════════════════════════════

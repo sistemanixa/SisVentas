@@ -27,6 +27,7 @@
     const fbAuth = getAuth(fbApp);
     const fbStorage = getStorage(fbApp);
 
+    window.fbApp         = fbApp;
     window.fbDB          = fbDB;
     window.fbAuth        = fbAuth;
     window.fbRef         = ref;

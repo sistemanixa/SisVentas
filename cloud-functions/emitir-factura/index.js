@@ -20,8 +20,11 @@
  */
 
 const { onRequest } = require('firebase-functions/v2/https');
-const { defineSecret } = require('firebase-functions/params');
+const { defineSecret, defineString } = require('firebase-functions/params');
+const { onValueCreated, onValueWritten } = require('firebase-functions/v2/database');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
+const crypto = require('crypto');
 
 admin.initializeApp({
   databaseURL: 'https://nixa-sisventas-default-rtdb.firebaseio.com'
@@ -32,6 +35,12 @@ const TFAPP_USERTOKEN = defineSecret('TFAPP_USERTOKEN');
 const TFAPP_APITOKEN  = defineSecret('TFAPP_APITOKEN');
 const TFAPP_APIKEY    = defineSecret('TFAPP_APIKEY');
 const FRONTEND_KEY    = defineSecret('FRONTEND_KEY');
+// El prototipo push permanece fuera del despliegue normal. Sólo se exporta
+// cuando se habilita expresamente este experimento en el entorno de Functions.
+const PUSH_EXPERIMENT_INCLUDED = process.env.SISVENTAS_ENABLE_PUSH_EXPERIMENT === 'true';
+const FCM_VAPID_PUBLIC_KEY = PUSH_EXPERIMENT_INCLUDED
+  ? defineString('FCM_VAPID_PUBLIC_KEY', { default:'' })
+  : { value:function(){ return ''; } };
 
 const ENDPOINT_FACTURACION = 'https://www.tusfacturas.app/app/api/v2/facturacion/nuevo';
 const ENDPOINT_REGENERAR_PDF = 'https://www.tusfacturas.app/app/api/v2/facturacion/regenerar_pdf';
@@ -564,5 +573,341 @@ exports.testTFApp = onRequest(
       var errores = Array.isArray(data.errores) ? data.errores.join(', ') : (data.errores || 'Verificá los tokens');
       res.status(422).json({ error: true, mensaje: errores });
     }
+  }
+);
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Notificaciones push FCM
+   - El navegador sólo registra su token con un Firebase ID token válido.
+   - Los módulos de negocio escriben eventos; este bloque resuelve destinatarios.
+   - Las credenciales de FCM pertenecen al Admin SDK del entorno de Functions.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function setPushCors(req, res) {
+  var origin = String(req.get('Origin') || '');
+  var allowed = origin === 'https://ventas.sistemanixa.com' || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin);
+  res.set('Access-Control-Allow-Origin', allowed ? origin : 'https://ventas.sistemanixa.com');
+  res.set('Vary', 'Origin');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+async function authenticatedUser(req, res) {
+  var authorization = String(req.get('Authorization') || '');
+  var match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (!match) { res.status(401).json({ error:true, mensaje:'Sesión requerida' }); return null; }
+  try { return await admin.auth().verifyIdToken(match[1]); }
+  catch (_) { res.status(401).json({ error:true, mensaje:'La sesión venció; volvé a iniciar sesión' }); return null; }
+}
+
+function normalizeRole(value) {
+  var role = String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/-/g, '_');
+  if (role === 'administrador') return 'admin';
+  if (role === 'tecnico_vendedor') return 'tecnico_vendedor';
+  return role;
+}
+
+function normalizeIdentity(value) {
+  return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9@]+/g, ' ').trim();
+}
+
+async function systemUserForAuth(decoded) {
+  var users = (await db.ref('sisventas/usuarios').once('value')).val() || {};
+  var email = normalizeIdentity(decoded.email || '');
+  var found = Object.keys(users).map(function(key){ return Object.assign({ fbKey:key }, users[key] || {}); }).find(function(user) {
+    var candidate = String(user.mail || user.email || user.login || '').toLowerCase().trim();
+    if (candidate && candidate.indexOf('@') < 0) candidate += '@sistemanixa.com';
+    return normalizeIdentity(candidate) === email;
+  });
+  var fallbackAdmin = email === 'nixa@sistemanixa.com' || email.indexOf('admin@') === 0;
+  return {
+    uid:decoded.uid,
+    email:decoded.email || '',
+    name:(found && found.nombre) || decoded.name || decoded.email || '',
+    role:normalizeRole((found && found.rol) || (fallbackAdmin ? 'admin' : 'vendedor')),
+    userKey:(found && found.fbKey) || ''
+  };
+}
+
+function tokenKey(token) {
+  return crypto.createHash('sha256').update(String(token || '')).digest('hex');
+}
+
+if (PUSH_EXPERIMENT_INCLUDED) exports.configuracionPush = onRequest(
+  { region:'southamerica-east1', cors:false },
+  async (req, res) => {
+    setPushCors(req, res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ error:true, mensaje:'Método no permitido' }); return; }
+    if (!await authenticatedUser(req, res)) return;
+    res.status(200).json({ vapidPublicKey:FCM_VAPID_PUBLIC_KEY.value() || '', projectId:'nixa-sisventas' });
+  }
+);
+
+if (PUSH_EXPERIMENT_INCLUDED) exports.registrarDispositivoPush = onRequest(
+  { region:'southamerica-east1', cors:false },
+  async (req, res) => {
+    setPushCors(req, res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ error:true, mensaje:'Método no permitido' }); return; }
+    var decoded = await authenticatedUser(req, res);
+    if (!decoded) return;
+    var token = String((req.body || {}).token || '').trim();
+    if (token.length < 80 || token.length > 4096) { res.status(400).json({ error:true, mensaje:'Token de dispositivo inválido' }); return; }
+    var user = await systemUserForAuth(decoded);
+    var key = tokenKey(token);
+    await db.ref('sisventas/push/dispositivos/' + decoded.uid + '/' + key).set({
+      token:token,
+      uid:decoded.uid,
+      email:user.email,
+      userName:user.name,
+      userKey:user.userKey,
+      role:user.role,
+      platform:String((req.body || {}).platform || '').slice(0, 80),
+      userAgent:String((req.body || {}).userAgent || '').slice(0, 240),
+      active:true,
+      updatedAt:admin.database.ServerValue.TIMESTAMP,
+      createdAt:admin.database.ServerValue.TIMESTAMP
+    });
+    res.status(200).json({ ok:true, role:user.role });
+  }
+);
+
+if (PUSH_EXPERIMENT_INCLUDED) exports.desregistrarDispositivoPush = onRequest(
+  { region:'southamerica-east1', cors:false },
+  async (req, res) => {
+    setPushCors(req, res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ error:true, mensaje:'Método no permitido' }); return; }
+    var decoded = await authenticatedUser(req, res);
+    if (!decoded) return;
+    var token = String((req.body || {}).token || '').trim();
+    if (token) await db.ref('sisventas/push/dispositivos/' + decoded.uid + '/' + tokenKey(token)).remove();
+    res.status(200).json({ ok:true });
+  }
+);
+
+function eventKey(parts) {
+  return crypto.createHash('sha256').update(parts.map(function(part){ return String(part || ''); }).join('|')).digest('hex').slice(0, 40);
+}
+
+async function emitNotificationEvent(event) {
+  var key = event.eventId || eventKey([event.type, event.entityId, event.target && JSON.stringify(event.target), event.changeStamp]);
+  var ref = db.ref('sisventas/eventos_notificacion/' + key);
+  var current = await ref.once('value');
+  if (current.exists()) return key;
+  await ref.set(Object.assign({}, event, { eventId:key, status:'pending', createdAt:admin.database.ServerValue.TIMESTAMP }));
+  return key;
+}
+
+function assignedTechnician(record) {
+  record = record || {};
+  var name = record.tecnico || record.tecnicoNombre || record.asignadoA || record.responsable || '';
+  if (/^sin asignar$/i.test(String(name).trim())) name = '';
+  return {
+    uid:record.tecnicoUid || record.asignadoUid || '',
+    email:record.tecnicoEmail || record.asignadoEmail || '',
+    userKey:record.tecnicoUsuarioKey || record.usuarioKey || '',
+    employeeKey:record.tecnicoFbKey || record.empleadoFbKey || '',
+    name:name
+  };
+}
+
+function targetFingerprint(target) {
+  return [target.uid, target.email, target.userKey, target.employeeKey, normalizeIdentity(target.name)].join('|');
+}
+
+async function uidsForTarget(target) {
+  target = target || {};
+  if (target.type === 'uid' && target.uid) return [target.uid];
+  var devices = (await db.ref('sisventas/push/dispositivos').once('value')).val() || {};
+  if (target.type === 'roles') {
+    var roles = (target.roles || []).map(normalizeRole);
+    var usersByEmail = {};
+    var users = (await db.ref('sisventas/usuarios').once('value')).val() || {};
+    Object.values(users).forEach(function(user) {
+      user = user || {};
+      var email = String(user.mail || user.email || user.login || '').toLowerCase().trim();
+      if (email && email.indexOf('@') < 0) email += '@sistemanixa.com';
+      if (email) usersByEmail[normalizeIdentity(email)] = normalizeRole(user.rol);
+    });
+    return Object.keys(devices).filter(function(uid) {
+      return Object.values(devices[uid] || {}).some(function(device){
+        if (!device || device.active === false) return false;
+        var email = normalizeIdentity(device.email);
+        var currentRole = usersByEmail[email] || ((email === 'nixa@sistemanixa.com' || email.indexOf('admin@') === 0) ? 'admin' : '');
+        return currentRole && roles.indexOf(currentRole) >= 0;
+      });
+    });
+  }
+  if (target.type !== 'technician') return [];
+  if (target.uid) return [target.uid];
+  var users = (await db.ref('sisventas/usuarios').once('value')).val() || {};
+  var wantedEmail = normalizeIdentity(target.email);
+  var wantedName = normalizeIdentity(target.name);
+  var match = Object.keys(users).map(function(key){ return Object.assign({ fbKey:key }, users[key] || {}); }).find(function(user) {
+    var mail = String(user.mail || user.email || user.login || '').toLowerCase();
+    if (mail && mail.indexOf('@') < 0) mail += '@sistemanixa.com';
+    return (target.userKey && user.fbKey === target.userKey) ||
+      (target.employeeKey && [user.empleadoFbKey,user.empleadoId,user.empFbKey].map(String).indexOf(String(target.employeeKey)) >= 0) ||
+      (wantedEmail && normalizeIdentity(mail) === wantedEmail) ||
+      (wantedName && normalizeIdentity(user.nombre) === wantedName);
+  });
+  if (!match) return [];
+  var directUid = match.uid || match.authUid || '';
+  if (directUid) return [directUid];
+  var email = String(match.mail || match.email || match.login || '').toLowerCase();
+  if (email && email.indexOf('@') < 0) email += '@sistemanixa.com';
+  if (!email) return [];
+  try { return [(await admin.auth().getUserByEmail(email)).uid]; } catch (_) { return []; }
+}
+
+async function devicesForUids(uids) {
+  var snapshots = await Promise.all(Array.from(new Set(uids)).map(function(uid){ return db.ref('sisventas/push/dispositivos/' + uid).once('value'); }));
+  var devices = [];
+  snapshots.forEach(function(snapshot, index) {
+    var uid = Array.from(new Set(uids))[index];
+    var records = snapshot.val() || {};
+    Object.keys(records).forEach(function(key) {
+      var device = records[key] || {};
+      if (device.active !== false && device.token) devices.push({ uid:uid, key:key, token:device.token });
+    });
+  });
+  return devices;
+}
+
+if (PUSH_EXPERIMENT_INCLUDED) exports.despacharEventoNotificacion = onValueCreated(
+  { ref:'/sisventas/eventos_notificacion/{eventId}', region:'southamerica-east1' },
+  async (event) => {
+    var payload = event.data.val() || {};
+    var ref = event.data.ref;
+    try {
+      var uids = await uidsForTarget(payload.target || {});
+      var devices = await devicesForUids(uids);
+      if (!devices.length) {
+        await ref.update({ status:'no_devices', completedAt:admin.database.ServerValue.TIMESTAMP, recipients:uids.length });
+        return;
+      }
+      var data = {};
+      Object.keys(payload.data || {}).forEach(function(key){ data[key] = String(payload.data[key] == null ? '' : payload.data[key]); });
+      data.eventId = String(payload.eventId || event.params.eventId);
+      data.type = String(payload.type || data.type || 'general');
+      data.entityId = String(payload.entityId || data.entityId || '');
+      data.title = String(payload.title || 'SisVentas');
+      data.body = String(payload.body || 'Tenés una nueva notificación');
+      var result = await admin.messaging().sendEachForMulticast({
+        tokens:devices.map(function(device){ return device.token; }),
+        data:data,
+        webpush:{ headers:{ Urgency:'high' }, fcmOptions:{ link:'https://ventas.sistemanixa.com/index.html?pushType=' + encodeURIComponent(data.type) + '&pushId=' + encodeURIComponent(data.entityId) } }
+      });
+      var invalidCodes = ['messaging/invalid-registration-token','messaging/registration-token-not-registered'];
+      var removals = [];
+      result.responses.forEach(function(response, index) {
+        if (!response.success && response.error && invalidCodes.indexOf(response.error.code) >= 0) {
+          removals.push(db.ref('sisventas/push/dispositivos/' + devices[index].uid + '/' + devices[index].key).remove());
+        }
+      });
+      await Promise.all(removals);
+      await ref.update({ status:'sent', successCount:result.successCount, failureCount:result.failureCount, completedAt:admin.database.ServerValue.TIMESTAMP });
+    } catch (error) {
+      await ref.update({ status:'error', error:String(error.message || error).slice(0, 300), completedAt:admin.database.ServerValue.TIMESTAMP });
+      throw error;
+    }
+  }
+);
+
+if (PUSH_EXPERIMENT_INCLUDED) exports.notificarOtAsignada = onValueWritten(
+  { ref:'/sisventas/ordenes_trabajo/{otKey}', region:'southamerica-east1' },
+  async (event) => {
+    if (!event.data.after.exists()) return;
+    var before = event.data.before.val() || {};
+    var after = event.data.after.val() || {};
+    var previous = assignedTechnician(before);
+    var current = assignedTechnician(after);
+    if (!targetFingerprint(current).replace(/\|/g, '') || targetFingerprint(previous) === targetFingerprint(current)) return;
+    var otKey = event.params.otKey;
+    await emitNotificationEvent({
+      type:'ot', entityId:otKey, changeStamp:event.id,
+      target:Object.assign({ type:'technician' }, current),
+      title:'Nueva orden de trabajo asignada',
+      body:(after.id || 'OT') + ' · ' + (after.cliente || 'Cliente sin identificar'),
+      data:{ type:'ot', entityId:otKey, number:after.id || '', client:after.cliente || '' }
+    });
+  }
+);
+
+if (PUSH_EXPERIMENT_INCLUDED) exports.notificarReclamoAsignado = onValueWritten(
+  { ref:'/sisventas/reclamos/{reclamoKey}', region:'southamerica-east1' },
+  async (event) => {
+    if (!event.data.after.exists()) return;
+    var before = event.data.before.val() || {};
+    var after = event.data.after.val() || {};
+    var previous = assignedTechnician(before);
+    var current = assignedTechnician(after);
+    if (!targetFingerprint(current).replace(/\|/g, '') || targetFingerprint(previous) === targetFingerprint(current)) return;
+    var key = event.params.reclamoKey;
+    await emitNotificationEvent({
+      type:'reclamo', entityId:key, changeStamp:event.id,
+      target:Object.assign({ type:'technician' }, current),
+      title:'Nuevo reclamo asignado',
+      body:(after.cliente || 'Cliente') + ' · ' + String(after.descripcion || 'Revisá el reclamo').slice(0, 120),
+      data:{ type:'reclamo', entityId:key, client:after.cliente || '' }
+    });
+  }
+);
+
+if (PUSH_EXPERIMENT_INCLUDED) exports.notificarPresupuestoPendiente = onValueWritten(
+  { ref:'/sisventas/presupuestos/{presupuestoKey}', region:'southamerica-east1' },
+  async (event) => {
+    if (!event.data.after.exists()) return;
+    var before = event.data.before.val() || {};
+    var after = event.data.after.val() || {};
+    if (String(after.estado || '') !== 'revision' || String(before.estado || '') === 'revision') return;
+    var key = event.params.presupuestoKey;
+    await emitNotificationEvent({
+      type:'presupuesto', entityId:key, changeStamp:event.id,
+      target:{ type:'roles', roles:['admin'] },
+      title:'Presupuesto pendiente de revisión',
+      body:(after.id || 'Presupuesto') + ' · ' + (after.cliente || 'Cliente sin identificar'),
+      data:{ type:'presupuesto', entityId:key, number:after.id || '' }
+    });
+  }
+);
+
+function agendaDateTime(record) {
+  var date = String(record.fecha || record.date || '').trim();
+  var time = String(record.hora || record.time || '09:00').trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) date = date.split('/').reverse().join('-');
+  var parsed = new Date(date + 'T' + (/^\d{2}:\d{2}/.test(time) ? time.slice(0,5) : '09:00') + ':00-03:00');
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+if (PUSH_EXPERIMENT_INCLUDED) exports.recordatoriosAgendaPush = onSchedule(
+  { schedule:'every 15 minutes', timeZone:'America/Argentina/Buenos_Aires', region:'southamerica-east1' },
+  async () => {
+    var [agendaSnapshot, configSnapshot] = await Promise.all([
+      db.ref('sisventas/agenda').once('value'),
+      db.ref('sisventas/config/push/agendaAnticipacionMinutos').once('value')
+    ]);
+    var agenda = agendaSnapshot.val() || {};
+    var leadMinutes = Math.max(5, Math.min(240, Number(configSnapshot.val()) || 30));
+    var now = Date.now();
+    await Promise.all(Object.keys(agenda).map(async function(key) {
+      var item = agenda[key] || {};
+      if (item.estado === 'cancelada' || item.estado === 'completada') return;
+      var at = agendaDateTime(item);
+      if (!at) return;
+      var remaining = at.getTime() - now;
+      if (remaining < 0 || remaining > leadMinutes * 60000) return;
+      var target = assignedTechnician(item);
+      var hasTechnician = !!targetFingerprint(target).replace(/\|/g, '');
+      await emitNotificationEvent({
+        type:'agenda', entityId:key, changeStamp:at.toISOString(),
+        target:hasTechnician ? Object.assign({ type:'technician' }, target) : { type:'roles', roles:['admin','administrativo'] },
+        title:'Recordatorio de agenda',
+        body:(item.titulo || item.tipo || 'Actividad') + ' · ' + (item.cliente || item.descripcion || ''),
+        data:{ type:'agenda', entityId:key }
+      });
+    }));
   }
 );
