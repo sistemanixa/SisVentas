@@ -2,6 +2,7 @@ const fs=require('fs');
 const assert=require('assert');
 const html=fs.readFileSync('index.html','utf8');
 const source=fs.readFileSync('js/modules/resizable-tables.js','utf8');
+const app=fs.readFileSync('js/app.v3.2.1.js','utf8');
 assert.doesNotMatch(html,/Columnas %<\/button>/,'Columnas debe mostrarse sólo como icono');
 assert.doesNotMatch(html,/data-sv-no-resize="1"/,'las grillas principales no deben excluir el arrastre');
 const resize=source.slice(source.indexOf('function resizedPercentages'),source.indexOf('function applySavedPercentProfile'));
@@ -21,8 +22,14 @@ assert.match(source,/sv-pixel-table/,'el modo manual debe impedir que min-width 
 assert.match(source,/Doble clic para ajustar al contenido/,'la ayuda debe describir el autoajuste real');
 assert.doesNotMatch(source,/Arrastr\?/,'la ayuda no debe contener caracteres dañados');
 assert.match(source,/btn-icon admin-only sv-column-percent-btn/);
+assert.match(source,/toolbar\.appendChild\(btn\)/,
+  'Sin encabezado, Columnas debe quedar último y pegado a la derecha en una franja propia');
+assert.match(source,/actions\.appendChild\(btn\)/,
+  'Con encabezado, Columnas debe quedar último en el grupo de acciones');
 assert.match(source,/dragUsesPercent = false/,
   'El arrastre manual debe pasar a píxeles para no recalcular las demás columnas');
 assert.match(source,/pendingClientX != null && didDrag/,
   'Un clic simple no debe convertir el perfil de columnas ni recalcular anchos');
+assert.match(app,/prepareResizablePage\(visibleRoot\)/,
+  'Toda vista interna que se vuelve visible debe liberar sus grillas pendientes');
 console.log('columnas-redimension-windows.test.js OK');

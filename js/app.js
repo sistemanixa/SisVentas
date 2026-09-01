@@ -11722,7 +11722,13 @@ function _style(id,prop,val){ var e=document.getElementById(id); if(e) e.style[p
 function _cls(id,method,cls){ var e=document.getElementById(id); if(e&&e.classList) e.classList[method](cls); }
 function _show(id){ _style(id,'display',''); }
 function _hide(id){ _style(id,'display','none'); }
-function _block(id){ _style(id,'display','block'); }
+function _block(id){
+  _style(id,'display','block');
+  var visibleRoot = document.getElementById(id);
+  if (visibleRoot && window.SisVentas && typeof window.SisVentas.prepareResizablePage === 'function') {
+    window.requestAnimationFrame(function(){ window.SisVentas.prepareResizablePage(visibleRoot); });
+  }
+}
 function _flex(id){ _style(id,'display','flex'); }
 
 var PPTO_ESTADOS = {
@@ -20619,13 +20625,50 @@ function aacfgCerrarPreview() {
 }
 var CARGOS_DATA = {}; // espejo en memoria de sisventas/config/cargos
 var PRESENCIA_DATA = {}; // espejo en memoria de sisventas/presencia, clave = uid
+var PRESENCIA_INICIALIZADA = false;
+var presenciaToastTimer = null;
+function notificarUsuarioConectado(presencia) {
+  if (!presencia || !document.body) return;
+  var nombre = String(presencia.nombre || presencia.email || 'Un usuario').trim();
+  var toast = document.getElementById('sv-presence-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'sv-presence-toast';
+    toast.className = 'sv-presence-toast';
+    toast.innerHTML = '<span class="sv-presence-toast-dot"></span><span class="sv-presence-toast-text"></span><span class="sv-presence-toast-action">Abrir chat</span>';
+    toast.addEventListener('click', function(){
+      var usuario = String(toast.dataset.usuario || '');
+      toast.classList.remove('show');
+      if (!usuario) return;
+      chatAbrir();
+      chatAbrirDirecto(usuario);
+    });
+    document.body.appendChild(toast);
+  }
+  toast.dataset.usuario = nombre;
+  var texto = toast.querySelector('.sv-presence-toast-text');
+  if (texto) texto.textContent = nombre + ' se conectó';
+  toast.classList.add('show');
+  clearTimeout(presenciaToastTimer);
+  presenciaToastTimer = setTimeout(function(){ toast.classList.remove('show'); }, 4500);
+}
 // usuario dispara esto al instante (es lo que da el efecto "tiempo real").
 function cargarPresenciaUsuarios() {
   if (!window.fbDB) return;
   if (window._presenciaUsuariosListenerActivo) return;
   window._presenciaUsuariosListenerActivo = true;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/presencia'), function(snap) {
-    PRESENCIA_DATA = snap.val() || {};
+    var presenciaNueva = snap.val() || {};
+    if (PRESENCIA_INICIALIZADA) {
+      Object.keys(presenciaNueva).forEach(function(uid) {
+        var actual = presenciaNueva[uid] || {};
+        var anterior = PRESENCIA_DATA[uid] || {};
+        var esPropio = uid === currentUserUid || (currentUserEmail && String(actual.email||'').toLowerCase() === String(currentUserEmail).toLowerCase());
+        if (!esPropio && actual.online === true && anterior.online !== true) notificarUsuarioConectado(actual);
+      });
+    }
+    PRESENCIA_DATA = presenciaNueva;
+    PRESENCIA_INICIALIZADA = true;
     if (typeof renderTablaUsuarios === 'function') renderTablaUsuarios();
   });
 }

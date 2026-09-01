@@ -9433,13 +9433,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v3.2.0-firebase',
+  VERSION: 'v3.2.1-firebase',
   RELEASE_NOTES: Object.freeze([
     'La actualización automática funciona igual para todos los roles.',
     'El control web de respaldo continúa aunque el listener de Firebase se interrumpa.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'dashboard', actionLabel:'Conocer SisVentas 3' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v3.2.1',
+      date: '31/08/2026',
+      title: 'Presupuestos visibles y accesos consistentes',
+      notes: Object.freeze(['Los productos del detalle de presupuesto vuelven a mostrarse al abrir la vista.', 'El botón de columnas ocupa siempre el extremo derecho de la franja superior en todas las grillas.', 'Al conectarse otra persona aparece un aviso animado que permite abrir directamente su chat privado.']),
+      feature: Object.freeze({ page:'presupuesto', actionLabel:'Abrir Presupuestos' })
+    }),
     Object.freeze({
       version: 'v3.2.0',
       date: '31/08/2026',

@@ -1353,37 +1353,42 @@
     if (!table || !tableHeaders(table).length) return;
     if (window.currentRole && window.currentRole !== 'admin') return;
     var card = table.closest('.card');
-    if (!card) return;
-    var existing = card.querySelector('.sv-column-percent-btn,[onclick*="openColumnPercentEditor"]');
-    if (existing) {
-      if (existing.classList.contains('sv-column-percent-btn')) existing._svFallbackTable = table;
-      return;
+    var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap');
+    var scope = card || (wrap && wrap.parentElement) || table.parentElement;
+    if (!scope) return;
+    var existing = Array.from(scope.querySelectorAll('.sv-column-percent-btn,[onclick*="openColumnPercentEditor"]')).find(function(candidate) {
+      return !card || candidate.closest('.card') === card;
+    });
+    var btn = existing || document.createElement('button');
+    if (!existing) {
+      btn.type = 'button';
+      btn.className = 'btn btn-sm btn-icon admin-only sv-column-percent-btn';
+      btn.innerHTML = '<i class="ti ti-columns"></i>';
+      btn.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        var searchRoot = card || scope;
+        var visibleTable = Array.from(searchRoot.querySelectorAll('table')).find(function (candidate) {
+          return isTableVisible(candidate) && tableHeaders(candidate).length;
+        });
+        openPercentEditor(visibleTable || btn._svFallbackTable || table);
+      });
     }
-    var head = card.querySelector('.card-head');
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn btn-sm btn-icon admin-only sv-column-percent-btn';
+    btn.classList.add('sv-column-percent-btn');
     btn.title = 'Configurar columnas de ' + tableLabel(table);
     btn.setAttribute('aria-label', btn.title);
-    btn.innerHTML = '<i class="ti ti-columns"></i>';
-    btn.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      var visibleTable = Array.from(card.querySelectorAll('table')).find(function (candidate) {
-        return isTableVisible(candidate) && tableHeaders(candidate).length;
-      });
-      var destino = visibleTable || btn._svFallbackTable || table;
-      if (destino) openPercentEditor(destino);
-      else openPercentEditor(table);
-    });
     btn._svFallbackTable = table;
+    var head = card && Array.from(card.children).find(function(child) { return child.classList && child.classList.contains('card-head'); });
     if (!head) {
-      var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap');
-      var toolbar = document.createElement('div');
-      toolbar.className = 'sv-grid-column-toolbar';
+      var toolbar = scope.querySelector(':scope > .sv-grid-column-toolbar');
+      if (!toolbar) {
+        toolbar = document.createElement('div');
+        toolbar.className = 'sv-grid-column-toolbar';
+        if (wrap && wrap.parentNode) wrap.parentNode.insertBefore(toolbar, wrap);
+        else scope.insertBefore(toolbar, table);
+      }
+      // Siempre último: el control de columnas queda pegado al borde derecho.
       toolbar.appendChild(btn);
-      if (wrap && wrap.parentNode) wrap.parentNode.insertBefore(toolbar, wrap);
-      else card.insertBefore(toolbar, table);
       return;
     }
     var actions = head.querySelector('.sv-card-head-actions');
@@ -1393,6 +1398,8 @@
       while (head.children.length > 1) actions.appendChild(head.children[1]);
       head.appendChild(actions);
     }
+    // Los controles contextuales quedan a la izquierda; Columnas es siempre
+    // el último control de la franja superior, pegado al extremo derecho.
     actions.appendChild(btn);
   }
 
