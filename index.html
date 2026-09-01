@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.2.2-firebase' -->
+<!-- VERSION: 'v3.2.3-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.2.2.js"></script>
+<script src="./js/core/version.v3.2.3.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,8 +34,8 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.2.2">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.2.2">
+<link rel="stylesheet" href="./css/app.css?v=3.2.3">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.2.3">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -2080,7 +2080,7 @@
         <!-- TAB: COMISIONES -->
         <div id="cfg-comisiones" class="cfg-panel" style="display:none">
           <div class="card">
-            <div class="card-head"><span class="card-title">Reglas de comisiones por cargo</span></div>
+            <div class="card-head"><span class="card-title">Configuración central de comisiones</span></div>
             <div style="margin-bottom:14px;padding:10px 14px;background:var(--amber-bg);border-radius:var(--radius);font-size:12px;color:var(--amber)">
               <i class="ti ti-alert-triangle" style="font-size:14px;margin-right:6px"></i>
               Los cambios en comisiones aplican desde el próximo período. Los períodos anteriores no se modifican.
@@ -2098,12 +2098,24 @@
                 <button class="btn btn-sm btn-primary" onclick="guardarMaxComisionPct()"><i class="ti ti-check"></i></button>
               </div>
             </div>
-            <table id="cfg-comisiones-tbl">
-              <tbody id="cfg-comisiones-tbody">
-                <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Cargando cargos...</td></tr>
-              </tbody>
-            </table>
-            <div style="font-size:11px;color:var(--text3);margin-top:8px">El mínimo y el tope son montos en pesos. Dejá <strong>Tope máximo</strong> vacío para indicar “Sin tope”. Usá el ✓ de cada fila para guardar los cambios.</div>
+            <div style="overflow-x:auto">
+              <table id="cfg-comisiones-tbl">
+                <tbody id="cfg-comisiones-tbody">
+                  <tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">Cargando cargos...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">El porcentaje general se aplica a todos los empleados del cargo que no tengan una excepción individual.</div>
+            <div style="height:1px;background:var(--border);margin:20px 0"></div>
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Excepciones por empleado</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Estos valores reemplazan la regla del cargo solamente para la persona indicada. Dejá el campo vacío para volver a usar el porcentaje general.</div>
+            <div style="overflow-x:auto">
+              <table id="cfg-comisiones-empleados-tbl">
+                <tbody id="cfg-comisiones-empleados-tbody">
+                  <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando empleados...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -5464,7 +5476,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.2.2.js"></script>
+<script src="./js/app.v3.2.3.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5786,7 +5798,7 @@ Listo para analizar.
 
 <script src="./js/modules/ot-data-sync.js?v=2.0.154"></script>
 <script src="./js/modules/notifications.js?v=2.0.271"></script>
-<script src="./js/modules/finance-details.js?v=3.1.2"></script>
+<script src="./js/modules/finance-details.js?v=3.2.3-comisiones-central"></script>
 
 <script src="./js/modules/ot-workflow.js?v=3.1.1"></script>
 
@@ -5817,7 +5829,7 @@ Listo para analizar.
 
 
 
-<script src="./js/modules/configuration-mobile.js?v=2.0.154"></script>
+<script src="./js/modules/configuration-mobile.js?v=3.2.3-config-tabs"></script>
 
 
 

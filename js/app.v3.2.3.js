@@ -9436,13 +9436,20 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v3.2.2-firebase',
+  VERSION: 'v3.2.3-firebase',
   RELEASE_NOTES: Object.freeze([
-    'La actualización automática funciona igual para todos los roles.',
-    'El control web de respaldo continúa aunque el listener de Firebase se interrumpa.'
+    'Las comisiones se administran desde un único lugar, con reglas generales por cargo y excepciones por empleado.',
+    'Cargos guarda cada fila de forma explícita y confirma solamente después de escribir los datos.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'dashboard', actionLabel:'Conocer SisVentas 3' }),
+  RELEASE_FEATURE: Object.freeze({ page:'configuracion', actionLabel:'Revisar configuración' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v3.2.3',
+      date: '01/09/2026',
+      title: 'Comisiones centralizadas y guardado confiable',
+      notes: Object.freeze(['Configuración concentra los porcentajes generales por cargo y las excepciones individuales de cada empleado.', 'Los valores existentes se conservan como punto de partida y la ficha personal queda en modo lectura.', 'Cargos utiliza un único guardado explícito y atómico en escritorio y móvil.']),
+      feature: Object.freeze({ page:'configuracion', actionLabel:'Abrir Configuración' })
+    }),
     Object.freeze({
       version: 'v3.2.2',
       date: '01/09/2026',
@@ -21685,19 +21692,54 @@ function _cargoNumeroPantalla(id, campo, fallback) {
 async function cargosGuardarFila(id) {
   var cargo = CARGOS_DATA[id];
   if (!cargo) return;
-  var cambios = [
-    ['valorHora', _cargoNumeroPantalla(id, 'valorHora', cargo.valorHora)],
-    ['valorHoraExtra', _cargoNumeroPantalla(id, 'valorHoraExtra', cargo.valorHoraExtra)],
-    ['diasMes', _cargoNumeroPantalla(id, 'diasMes', cargo.diasMes)]
-  ].filter(function(cambio) { return cambio[1] !== (parseFloat(cargo[cambio[0]]) || 0); });
   var boton = document.getElementById('cargo-guardar-' + id);
-  if (!cambios.length) { if (boton) boton.disabled = true; return; }
+  return cargosGuardarValoresAtomico(id, {
+    valorHora: _cargoNumeroPantalla(id, 'valorHora', cargo.valorHora),
+    valorHoraExtra: _cargoNumeroPantalla(id, 'valorHoraExtra', cargo.valorHoraExtra),
+    diasMes: _cargoNumeroPantalla(id, 'diasMes', cargo.diasMes)
+  }, boton);
+}
+
+async function cargosGuardarValoresAtomico(id, valores, boton) {
+  var cargo = CARGOS_DATA[id];
+  if (!cargo || !window.fbDB || typeof window.fbUpdate !== 'function') { notify('Sin conexión'); return false; }
+  var normalizados = {
+    valorHora: Math.max(0, parseFloat(valores && valores.valorHora) || 0),
+    valorHoraExtra: Math.max(0, parseFloat(valores && valores.valorHoraExtra) || 0),
+    diasMes: Math.max(0, parseFloat(valores && valores.diasMes) || 0)
+  };
+  var cambios = Object.keys(normalizados).filter(function(campo){
+    return normalizados[campo] !== (parseFloat(cargo[campo]) || 0);
+  });
+  if (!cambios.length) {
+    if (boton) { boton.disabled = true; boton.textContent = 'Guardado ✓'; setTimeout(function(){ if(boton.isConnected) boton.textContent='Guardar'; }, 1200); }
+    return true;
+  }
+  var actualizaciones = {};
+  cambios.forEach(function(campo){ actualizaciones['sisventas/config/cargos/' + id + '/' + campo] = normalizados[campo]; });
+  var ajuste = null;
+  if (cambios.indexOf('valorHora') >= 0) {
+    ajuste = _cargoAjusteRegistro(parseFloat(cargo.valorHora) || 0, normalizados.valorHora);
+    var historialRef = window.fbPush(window.fbRef(window.fbDB, 'sisventas/config/cargos/' + id + '/historialValorHora'));
+    actualizaciones['sisventas/config/cargos/' + id + '/historialValorHora/' + historialRef.key] = ajuste;
+  }
   if (boton) { boton.disabled = true; boton.textContent = 'Guardando...'; }
   try {
-    await Promise.all(cambios.map(function(cambio) { return cargosEditarRapido(id, cambio[0], cambio[1]); }));
-    notify('Valores del cargo guardados');
-  } catch (e) {
-    if (boton && boton.isConnected) { boton.disabled = false; boton.textContent = 'Guardar'; }
+    await window.fbUpdate(window.fbRef(window.fbDB), actualizaciones);
+    cambios.forEach(function(campo){ if (CARGOS_DATA[id]) CARGOS_DATA[id][campo] = normalizados[campo]; });
+    if (ajuste && typeof registrarActividad === 'function') {
+      registrarActividad('Valor hora actualizado', (cargo.nombre || id) + ': $' + (parseFloat(ajuste.anterior)||0).toLocaleString('es-AR') + ' → $' + (parseFloat(ajuste.nuevo)||0).toLocaleString('es-AR'));
+    }
+    notify('✓ Valores del cargo guardados');
+    if (boton && boton.isConnected) {
+      boton.textContent = 'Guardado ✓';
+      setTimeout(function(){ if(boton.isConnected){ boton.textContent='Guardar'; boton.disabled=true; } }, 1400);
+    }
+    return true;
+  } catch (error) {
+    if (boton && boton.isConnected) { boton.disabled = false; boton.textContent = 'Reintentar'; }
+    notify('No se pudo guardar el cargo: ' + error.message);
+    return false;
   }
 }
 
@@ -21750,19 +21792,10 @@ function cargosCopiarHoraAExtra(id) {
   var origen = document.getElementById('cargo-vh-' + id);
   var destino = document.getElementById('cargo-vhe-' + id);
   var valorHora = parseFloat(origen ? origen.value : cargo.valorHora) || 0;
-  var valorAnterior = parseFloat(cargo.valorHoraExtra) || 0;
   if (!valorHora) { notify('Ingresá primero un valor hora válido'); return; }
-  if (!window.fbDB) { notify('Sin conexión'); return; }
   if (destino) destino.value = valorHora;
-  window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/cargos/' + id + '/valorHoraExtra'), valorHora)
-    .then(function(){
-      if (CARGOS_DATA[id]) CARGOS_DATA[id].valorHoraExtra = valorHora;
-      notify('✓ Valor hora copiado a Hs extra');
-    })
-    .catch(function(e){
-      if (destino) destino.value = valorAnterior;
-      notify('Error: ' + e.message);
-    });
+  cargosMarcarPendiente(id);
+  notify('Valor copiado a Hs extra · presioná Guardar para confirmar');
 }
 
 function cargosCopiarHoraExtraEnModal() {

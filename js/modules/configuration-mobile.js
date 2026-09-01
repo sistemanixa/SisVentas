@@ -37,7 +37,8 @@
   #cfg-cargos .card-head{display:block!important}
   #cfg-cargos .card-head .card-title{display:block!important;margin-bottom:14px!important}
   #cfg-cargos .card-head .btn{width:100%!important;justify-content:center!important;height:48px!important;font-size:15px!important;border-radius:14px!important;background:var(--text)!important;color:var(--bg2)!important}
-  #cfg-cargos table#cargos-tbl,#cfg-comisiones table#cfg-comisiones-tbl,#cfg-actividad table{display:none!important}
+  #cfg-cargos table#cargos-tbl,#cfg-actividad table{display:none!important}
+  #cfg-comisiones .card{overflow-x:auto!important}
   .sv331-mobile-list{display:flex!important;flex-direction:column!important;gap:10px!important;margin-top:14px!important}
   .sv331-card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));border:0.5px solid var(--border);border-radius:14px;padding:14px 12px;box-shadow:0 8px 22px rgba(0,0,0,.12)}
   .sv331-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -83,17 +84,22 @@
     var list=document.createElement('div'); list.id='sv331-cargos-list'; list.className='sv331-mobile-list';
     list.innerHTML=ids.map(function(id){
       var c=CARGOS_DATA[id]||{};
-      return '<div class="sv331-card" data-cargo-id="'+esc331(id)+'"><div class="sv331-row"><div><div class="sv331-title">'+esc331(c.nombre||id)+'</div><div class="sv331-sub">'+esc331(c.categoriaBase||'')+'</div></div><button class="sv331-chevron" onclick="cargosAbrirNuevo(\''+esc331(id)+'\')"><i class="ti ti-chevron-right"></i></button></div>'+ 
+      return '<div class="sv331-card" data-cargo-id="'+esc331(id)+'"><div class="sv331-row"><div><div class="sv331-title">'+esc331(c.nombre||id)+'</div><div class="sv331-sub">'+esc331(c.categoriaBase||'')+'</div></div><button class="sv331-chevron" onclick="cargosAbrirNuevo(\''+esc331(id)+'\')"><i class="ti ti-chevron-right"></i></button></div>'+
         '<div class="sv331-values">'+
-        '<div class="sv331-mini"><label>Valor hora</label><input type="number" value="'+(parseFloat(c.valorHora)||0)+'" onchange="cargosEditarRapido(\''+esc331(id)+'\',\'valorHora\',this.value)"></div>'+ 
-        '<div class="sv331-mini"><label>Hs extra</label><input type="number" value="'+(parseFloat(c.valorHoraExtra)||0)+'" onchange="cargosEditarRapido(\''+esc331(id)+'\',\'valorHoraExtra\',this.value)"></div>'+ 
-        '<div class="sv331-mini"><label>Días/mes</label><input type="number" value="'+(parseFloat(c.diasMes)||0)+'" onchange="cargosEditarRapido(\''+esc331(id)+'\',\'diasMes\',this.value)"></div>'+ 
-        '</div></div>';
+        '<div class="sv331-mini"><label>Valor hora</label><input data-cargo-campo="valorHora" type="number" value="'+(parseFloat(c.valorHora)||0)+'" oninput="var b=this.closest(\'.sv331-card\').querySelector(\'[data-cargo-save]\');if(b)b.disabled=false"></div>'+
+        '<div class="sv331-mini"><label>Hs extra</label><input data-cargo-campo="valorHoraExtra" type="number" value="'+(parseFloat(c.valorHoraExtra)||0)+'" oninput="var b=this.closest(\'.sv331-card\').querySelector(\'[data-cargo-save]\');if(b)b.disabled=false"></div>'+
+        '<div class="sv331-mini"><label>Días/mes</label><input data-cargo-campo="diasMes" type="number" value="'+(parseFloat(c.diasMes)||0)+'" oninput="var b=this.closest(\'.sv331-card\').querySelector(\'[data-cargo-save]\');if(b)b.disabled=false"></div>'+
+        '</div><button class="btn btn-primary" data-cargo-save style="width:100%;margin-top:10px;justify-content:center" disabled onclick="guardarCargoMobile331(\''+esc331(id)+'\',this)">Guardar</button></div>';
     }).join('');
     card.appendChild(list);
     var info = Array.from(card.children).find(function(x){return /Cada cargo define/.test(x.textContent||'');});
     if(info) info.classList.add('sv331-info-card');
   }
+  window.guardarCargoMobile331=function(id,btn){
+    var card=btn&&btn.closest?btn.closest('.sv331-card'):null; if(!card) return;
+    var leer=function(campo){var input=card.querySelector('[data-cargo-campo="'+campo+'"]');return parseFloat(input&&input.value)||0;};
+    if(typeof window.cargosGuardarValoresAtomico==='function') return window.cargosGuardarValoresAtomico(id,{valorHora:leer('valorHora'),valorHoraExtra:leer('valorHoraExtra'),diasMes:leer('diasMes')},btn);
+  };
   function guardarComisionMobile331(id, btn){
     var row = btn && btn.closest ? btn.closest('.sv331-com-row') : null; if(!row) return;
     var inputs = row.querySelectorAll('input');
@@ -108,6 +114,10 @@
     var panel=document.getElementById('cfg-comisiones'); if(!panel) return;
     var old=document.getElementById('sv331-comisiones-list'); if(old) old.remove();
     var oldTop=document.getElementById('sv331-comisiones-top'); if(oldTop) oldTop.remove();
+    // La configuración central actual usa dos tablas relacionadas (cargos y
+    // empleados). En móvil se conservan esas mismas tablas con desplazamiento
+    // horizontal para evitar una segunda implementación con reglas distintas.
+    if(isMob331()) return;
     if(!isMob331()) return;
     var card=panel.querySelector('.card'); if(!card) return;
     var top=document.createElement('div'); top.id='sv331-comisiones-top'; top.className='sv331-top-card';
@@ -164,7 +174,29 @@
   if(typeof _renderCom331==='function') window.renderComisionesConfig=function(){ var r=_renderCom331.apply(this,arguments); setTimeout(makeComisiones331,60); return r; };
   var _renderAct331=window.renderLogActividad;
   if(typeof _renderAct331==='function') window.renderLogActividad=function(){ var r=_renderAct331.apply(this,arguments); setTimeout(makeActividad331,60); return r; };
+  // Este módulo puede cargarse antes que app.v*.js. En ese caso las funciones
+  // anteriores todavía no existen y no se pueden envolver. Escuchar el clic
+  // real de las solapas garantiza la vista móvil sin depender del orden de
+  // carga de scripts ni de cuándo terminó de llegar Firebase.
+  document.addEventListener('click', function(event){
+    var tab = event.target && event.target.closest ? event.target.closest('#cfg-tabs-main .cfg-tab') : null;
+    if (!tab) return;
+    setTimeout(function(){
+      refresh331();
+      if (window.SisVentas && typeof window.SisVentas.initResizableTables === 'function') {
+        window.SisVentas.initResizableTables();
+      }
+    }, 80);
+    setTimeout(function(){
+      refresh331();
+      if (window.SisVentas && typeof window.SisVentas.initResizableTables === 'function') {
+        window.SisVentas.initResizableTables();
+      }
+    }, 320);
+  });
   window.addEventListener('resize', function(){ clearTimeout(window._sv331Resize); window._sv331Resize=setTimeout(refresh331,150); });
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(refresh331,350); });
   setTimeout(refresh331,700);
+  setTimeout(refresh331,1600);
+  setTimeout(refresh331,3200);
 })();

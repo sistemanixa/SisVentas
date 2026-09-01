@@ -114,7 +114,7 @@
     var lista = document.getElementById('ctaemp-com-lista');
     var info = document.getElementById('ctaemp-com-detalle-info');
     if (!lista) return;
-    var pct = parseFloat(emp.pctComisionPropio) || 0;
+    var pct = (typeof obtenerDetalleComisionEmpleado === 'function' ? parseFloat(obtenerDetalleComisionEmpleado(emp).pct) : 0) || 0;
     var mes = mesActualCta();
     var movimientosPorVenta = {};
     (window.movsEmpData || (typeof movsEmpData !== 'undefined' ? movsEmpData : []) || []).forEach(function(m){
