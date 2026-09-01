@@ -1,14 +1,16 @@
 const fs = require('fs');
 const assert = require('assert');
 
-const app = fs.readFileSync('js/app.v3.2.3.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
+const appPath = (html.match(/src="\.\/(js\/app\.v[0-9.]+\.js)"/) || [])[1];
+assert.ok(appPath, 'La vista debe referenciar una aplicación inmutable');
+const app = fs.readFileSync(appPath, 'utf8');
 const finance = fs.readFileSync('js/modules/finance-details.js', 'utf8');
 
 assert.match(html, /id="cfg-comisiones-empleados-tbody"/,
   'Configuración debe permitir administrar excepciones por empleado');
-assert.match(html, /app\.v3\.2\.3\.js(?:\?preview=2)?/,
-  'La vista local debe invalidar el controlador anterior de comisiones');
+assert.match(html, /app\.v3\.2\.4\.js/,
+  'La publicación debe cargar el controlador vigente de comisiones');
 assert.doesNotMatch(app, /% Comisión propio \(solo vendedor a comisión\)/,
   'La ficha de empleado no debe editar la comisión');
 assert.match(app, /sisventas\/config\/comisionesEmpleados/,
