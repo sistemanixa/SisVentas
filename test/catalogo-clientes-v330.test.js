@@ -50,6 +50,17 @@ const { chromium } = require('playwright');
   assert((await page.locator('#catalogo-modal-nombre').innerText()).includes('CÁMARA'));
   assert(!(await page.locator('#catalogo-modal').innerText()).includes('999999'), 'El detalle tampoco expone valores internos');
   assert.equal(await page.locator('.catalogo-ficha-interna').innerText(), 'Ver ficha interna con valores');
+  await page.evaluate(() => { window.catalogoCategoriaActual = ''; window.renderCatalogo(); window.abrirProductoCatalogo('a'); });
+  const laterales = await page.evaluate(() => {
+    const anterior = document.getElementById('catalogo-anterior').getBoundingClientRect();
+    const siguiente = document.getElementById('catalogo-siguiente').getBoundingClientRect();
+    return { anteriorX:anterior.left, siguienteDerecha:window.innerWidth - siguiente.right, ancho:anterior.width };
+  });
+  assert(laterales.anteriorX <= 20 && laterales.siguienteDerecha <= 20 && laterales.ancho >= 58, 'Las flechas deben permanecer grandes y pegadas a los laterales');
+  await page.keyboard.press('ArrowRight');
+  assert((await page.locator('#catalogo-modal-nombre').innerText()).includes('ALARMA'), 'Flecha derecha debe avanzar al producto siguiente');
+  await page.keyboard.press('ArrowLeft');
+  assert((await page.locator('#catalogo-modal-nombre').innerText()).includes('CÁMARA'), 'Flecha izquierda debe regresar al producto anterior');
   const categoriaDesdeDetalle = await page.evaluate(() => {
     document.getElementById('catalogo-buscar').value = 'texto anterior';
     window.verCategoriaDesdeDetalleCatalogo();

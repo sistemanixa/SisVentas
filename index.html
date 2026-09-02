@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.0-firebase' -->
+<!-- VERSION: 'v3.3.1-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.0.js"></script>
+<script src="./js/core/version.v3.3.1.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,8 +34,8 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.3.0-catalogo-1">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.3.0">
+<link rel="stylesheet" href="./css/app.css?v=3.3.1-catalogo-navegable-1">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.3.1">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -3840,10 +3840,12 @@ Listo para analizar.
       </div>
 
       <div id="catalogo-modal" class="catalogo-modal" style="display:none" onclick="if(event.target===this)cerrarProductoCatalogo()">
+        <button id="catalogo-anterior" class="catalogo-modal-nav catalogo-modal-prev" type="button" onclick="event.stopPropagation();moverProductoCatalogo(-1)" aria-label="Producto anterior" title="Producto anterior (flecha izquierda)"><i class="ti ti-chevron-left"></i></button>
         <article class="catalogo-modal-card" role="dialog" aria-modal="true" aria-labelledby="catalogo-modal-nombre">
           <button class="catalogo-modal-close" type="button" onclick="cerrarProductoCatalogo()" aria-label="Cerrar"><i class="ti ti-x"></i></button>
           <div id="catalogo-modal-imagen" class="catalogo-modal-imagen"></div>
           <div class="catalogo-modal-info">
+            <div id="catalogo-modal-posicion" class="catalogo-modal-posicion"></div>
             <button id="catalogo-modal-categoria" class="catalogo-card-cat catalogo-modal-categoria-link" type="button" onclick="verCategoriaDesdeDetalleCatalogo()" title="Ver todos los productos de esta categoría"></button>
             <h2 id="catalogo-modal-nombre"></h2>
             <div id="catalogo-modal-marca" class="catalogo-modal-marca"></div>
@@ -3852,6 +3854,7 @@ Listo para analizar.
             <button class="catalogo-ficha-interna" type="button" onclick="abrirFichaInternaDesdeCatalogo()"><i class="ti ti-external-link"></i> Ver ficha interna con valores</button>
           </div>
         </article>
+        <button id="catalogo-siguiente" class="catalogo-modal-nav catalogo-modal-next" type="button" onclick="event.stopPropagation();moverProductoCatalogo(1)" aria-label="Producto siguiente" title="Producto siguiente (flecha derecha)"><i class="ti ti-chevron-right"></i></button>
       </div>
 
       <div id="catalogo-categorias-modal" class="catalogo-categorias-modal" style="display:none" onclick="if(event.target===this)cerrarCategoriasCatalogo()">
@@ -3911,7 +3914,7 @@ Listo para analizar.
               </select>
               <button class="btn btn-sm" id="prod-filtro-sinprecio-activo" type="button" onclick="toggleFiltroProductosSinPrecio()" style="display:none;color:var(--amber);border-color:var(--amber)" title="Quitar filtro de productos sin precio"><i class="ti ti-filter"></i> Solo sin precio <span id="prod-filtro-sinprecio-cantidad"></span> <i class="ti ti-x"></i></button>
               <div id="prod-grid-controls" style="margin-left:auto;display:flex;align-items:center;gap:6px">
-                <button class="btn btn-sm" id="btn-colapsar-cats" onclick="toggleTodasCats()" title="Colapsar/expandir todos los grupos"><i class="ti ti-layout-list" id="icon-colapsar-cats"></i> <span id="label-colapsar-cats">Colapsar todo</span></button>
+                <button class="btn btn-sm" id="btn-colapsar-cats" onclick="toggleTodasCats()" title="Colapsar/expandir todos los grupos"><i class="ti ti-layout-rows" id="icon-colapsar-cats"></i> <span id="label-colapsar-cats">Expandir todo</span></button>
                 <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('prod-tbl')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
               </div>
             </div>
@@ -4583,7 +4586,7 @@ Listo para analizar.
     <div class="card-head gas-card-head">
       <div class="gas-toolbar-search">
         <span class="card-title">Gastos</span>
-        <div class="gas-search-box"><i class="ti ti-search"></i><input class="search-input" id="gas-buscar" placeholder="Buscar por descripción, categoría o empleado..." oninput="filtrarGastos()"></div>
+        <div class="gas-search-box"><i class="ti ti-search"></i><input class="search-input" id="gas-buscar" placeholder="Buscar por descripción, categoría o empleado..." oninput="buscarGastos(this.value)"></div>
       </div>
       <div class="gas-toolbar-actions">
         <div class="gas-toolbar-filters">
@@ -5529,7 +5532,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.3.0.js"></script>
+<script src="./js/app.v3.3.1.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5988,7 +5991,7 @@ Listo para analizar.
 
 <script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
-<script src="./js/modules/resizable-tables.js?v=3.3.0-grillas-render-dinamico-1"></script>
+<script src="./js/modules/resizable-tables.js?v=3.3.1-grillas-observador-1"></script>
 <script src="./js/modules/commissions.js?v=3.2.0"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 

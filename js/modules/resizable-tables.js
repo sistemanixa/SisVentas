@@ -1302,7 +1302,10 @@
         else scope.insertBefore(toolbar, table);
       }
       // Siempre último: el control de columnas queda pegado al borde derecho.
-      toolbar.appendChild(btn);
+      // No vuelvas a insertar un nodo que ya está en la posición correcta:
+      // appendChild también genera una mutación al mover el mismo elemento y
+      // reactivaba indefinidamente el observador de grillas.
+      if (btn.parentElement !== toolbar || btn !== toolbar.lastElementChild) toolbar.appendChild(btn);
       return;
     }
     var actions = head.querySelector('.sv-card-head-actions');
@@ -1314,7 +1317,7 @@
     }
     // Los controles contextuales quedan a la izquierda; Columnas es siempre
     // el último control de la franja superior, pegado al extremo derecho.
-    actions.appendChild(btn);
+    if (btn.parentElement !== actions || btn !== actions.lastElementChild) actions.appendChild(btn);
   }
 
   function openPixelEditor(table) {
