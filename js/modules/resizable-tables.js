@@ -1246,6 +1246,7 @@
 
   function initPageTables(root) {
     if (!root || !root.querySelectorAll) return;
+    if (root.matches && root.matches('table')) initTable(root);
     root.querySelectorAll('table').forEach(initTable);
   }
 
@@ -1714,9 +1715,12 @@
     scan();
     var observer = new MutationObserver(function (mutations) {
       if (!mutationTouchesActivePage(mutations)) return;
-      // MutationObserver corre antes del siguiente dibujo. Resolver aquí el
-      // perfil guardado evita mostrar primero el reparto automático.
-      initMutationTables(mutations);
+      // Nunca reinicializar tablas dentro del propio MutationObserver. La
+      // inicialización agrega colgroups, controles y rótulos, que a su vez
+      // producen más mutaciones. En grillas grandes y dinámicas (Gastos) esa
+      // realimentación podía monopolizar el hilo principal y colgar la vista.
+      // scheduleScan agrupa toda la ráfaga y trabaja una sola vez, fuera del
+      // callback del observer.
       scheduleScan();
     });
     observer.observe(document.body, { childList: true, subtree: true });
