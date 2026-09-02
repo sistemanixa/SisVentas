@@ -9571,7 +9571,8 @@ const APP_CONFIG = Object.freeze({
     'Ventas incorpora una solapa propia para consultar operaciones anuladas.',
     'El Catálogo restaura el producto y la posición exacta al volver de su ficha interna.',
     'Cada producto del Catálogo muestra su precio de venta + IVA en verde.',
-    'Las órdenes de compra concilian proveedor y costo real contra lo presupuestado, actualizan el margen y se pueden imprimir.'
+    'Las órdenes de compra concilian por ítem proveedor y costo real contra lo presupuestado, actualizan el margen y se pueden imprimir.',
+    'Las ventas con descuento del 100% muestran correctamente bruto, descuento, neto y total sin duplicar importes.'
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'catalogo', actionLabel:'Abrir Catálogo' }),
   RELEASE_HISTORY: Object.freeze([
@@ -9579,7 +9580,7 @@ const APP_CONFIG = Object.freeze({
       version: 'v3.3.5',
       date: '02/09/2026',
       title: 'Documentos completos y navegación conservada',
-      notes: Object.freeze(['El detalle de venta muestra debajo del cliente la dirección elegida para esa operación.', 'El detalle de presupuesto presenta la misma información y conserva el domicilio histórico del documento.', 'Las ventas anuladas se consultan desde una solapa separada sin mezclarse con las vigentes.', 'Al volver de la ficha interna, el Catálogo recupera sus filtros, producto y posición vertical.', 'Las tarjetas del Catálogo muestran abajo a la derecha el precio de venta + IVA, destacado en verde.', 'Al recibir una OC se informa el proveedor y costo reales; la diferencia actualiza el margen de la venta y queda disponible en un comprobante imprimible.']),
+      notes: Object.freeze(['El detalle de venta muestra debajo del cliente la dirección elegida para esa operación.', 'El detalle de presupuesto presenta la misma información y conserva el domicilio histórico del documento.', 'Las ventas anuladas se consultan desde una solapa separada sin mezclarse con las vigentes.', 'Al volver de la ficha interna, el Catálogo recupera sus filtros, producto y posición vertical.', 'Las tarjetas del Catálogo muestran abajo a la derecha el precio de venta + IVA, destacado en verde.', 'Cada ítem recibido de una OC registra su propio proveedor y costo real; la diferencia se muestra en vivo, actualiza el margen y genera un comprobante de conciliación.', 'Las ventas bonificadas al 100% respetan un neto y total de cero, sin duplicar el subtotal bruto.']),
       feature: Object.freeze({ page:'detalle', actionLabel:'Abrir Detalle de ventas' })
     }),
     Object.freeze({
@@ -25158,9 +25159,20 @@ function resumenEconomicoComprobanteVenta(venta) {
   }
 
   descuento = ventaNormalizarDescuentoParaVista(venta, descuento);
-  var subtotalBruto = Math.max(subtotalBrutoItems, subtotalNeto + descuento);
-  if (!(subtotalBruto > 0)) subtotalBruto = subtotalNeto;
   var descuentoGeneralPct = numero(venta.descuentoGeneral ?? venta.descuentoPct ?? venta.porcentajeDescuento);
+  var ventaBonificadaCompleta = ventaEsSinCargo(venta) || descuentoGeneralPct >= 99.99;
+  // Un cero confirmado es un valor válido, no un dato ausente. En las ventas
+  // bonificadas al 100% no reconstruir el neto desde los ítems ni sumar otra
+  // vez el descuento: eso duplicaba el bruto y mostraba un saldo inexistente.
+  if (ventaBonificadaCompleta && subtotalBrutoItems > 0) {
+    subtotalNeto = 0;
+    descuento = subtotalBrutoItems;
+    iva = 0;
+    total = 0;
+    descuentoGeneralPct = 100;
+  }
+  var subtotalBruto = ventaBonificadaCompleta ? subtotalBrutoItems : Math.max(subtotalBrutoItems, subtotalNeto + descuento);
+  if (!(subtotalBruto > 0)) subtotalBruto = subtotalNeto;
   if (!(descuentoGeneralPct > 0) && subtotalBruto > 0 && descuento > 0) {
     descuentoGeneralPct = descuento / subtotalBruto * 100;
   }

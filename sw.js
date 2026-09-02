@@ -50,7 +50,7 @@ const SHELL = [
   './js/modules/page-transition.js',
   './js/modules/resource-monitor.js',
   './js/modules/role-guard.js',
-  './js/modules/purchase-orders.js?v=3.3.5-conciliacion-compra-1',
+  './js/modules/purchase-orders.js?v=3.3.5-conciliacion-compra-2',
   './js/modules/ot-material-custody.js',
   './js/modules/release-tour.js',
   './js/modules/v3-launch.js',
