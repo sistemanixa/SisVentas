@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.2.5-firebase' -->
+<!-- VERSION: 'v3.3.0-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.2.5.js"></script>
+<script src="./js/core/version.v3.3.0.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,8 +34,8 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.2.5-grillas-regla-unica-1">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.2.5">
+<link rel="stylesheet" href="./css/app.css?v=3.3.0-catalogo-1">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.3.0">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -140,6 +140,9 @@
       <div class="nav-item" onclick="showPage('asistente',this)" style="background:var(--green-bg);color:var(--green);border-radius:var(--radius);margin:0 4px 9px;font-weight:600">
         <i class="ti ti-wand"></i> Asistente de ventas
       </div>
+      <div class="nav-item" onclick="showPage('catalogo',this)">
+        <i class="ti ti-layout-grid"></i>Catálogo
+      </div>
       <div class="nav-item" onclick="showPage('presupuesto',this)">
         <i class="ti ti-file-description"></i>Presupuestos
       </div>
@@ -161,7 +164,6 @@
       <div class="nav-item" onclick="showPage('estadisticas',this)">
         <i class="ti ti-chart-line"></i>Estadísticas
       </div>
-
       <div class="s-section">Maestros</div>
       <div class="nav-item" onclick="showPage('clientes',this)">
         <i class="ti ti-users"></i>Clientes
@@ -3817,6 +3819,48 @@ Listo para analizar.
         </div>
       </div>
 
+      <!-- ── CATÁLOGO PARA CLIENTES ── -->
+      <div id="page-catalogo" class="page">
+        <section class="catalogo-hero">
+          <div>
+            <div class="catalogo-kicker">NIXA · PRODUCTOS DISPONIBLES</div>
+            <h2>Encontrá la solución ideal</h2>
+            <p>Explorá nuestros productos por categoría. Consultanos para recibir asesoramiento personalizado.</p>
+          </div>
+          <button class="btn catalogo-fullscreen-btn" type="button" onclick="togglePantallaCompletaCatalogo()"><i class="ti ti-maximize"></i> Presentación</button>
+        </section>
+        <div class="catalogo-toolbar">
+          <label class="catalogo-search"><i class="ti ti-search"></i><input id="catalogo-buscar" type="search" placeholder="Buscar por producto, marca o categoría..." oninput="renderCatalogo()" autocomplete="off"></label>
+          <button class="btn catalogo-categorias-btn" type="button" onclick="abrirCategoriasCatalogo()"><i class="ti ti-category"></i><span id="catalogo-categoria-boton">Explorar categorías</span><i class="ti ti-chevron-down"></i></button>
+          <div id="catalogo-categorias-rapidas" class="catalogo-categorias" aria-label="Categorías rápidas"></div>
+        </div>
+        <div class="catalogo-resumen"><span id="catalogo-cantidad">0 productos</span><span>Seleccioná un producto para verlo en detalle</span></div>
+        <div id="catalogo-grid" class="catalogo-grid"></div>
+        <div id="catalogo-vacio" class="catalogo-vacio" style="display:none"><i class="ti ti-package-off"></i><strong>No encontramos productos</strong><span>Probá con otra búsqueda o categoría.</span></div>
+      </div>
+
+      <div id="catalogo-modal" class="catalogo-modal" style="display:none" onclick="if(event.target===this)cerrarProductoCatalogo()">
+        <article class="catalogo-modal-card" role="dialog" aria-modal="true" aria-labelledby="catalogo-modal-nombre">
+          <button class="catalogo-modal-close" type="button" onclick="cerrarProductoCatalogo()" aria-label="Cerrar"><i class="ti ti-x"></i></button>
+          <div id="catalogo-modal-imagen" class="catalogo-modal-imagen"></div>
+          <div class="catalogo-modal-info">
+            <button id="catalogo-modal-categoria" class="catalogo-card-cat catalogo-modal-categoria-link" type="button" onclick="verCategoriaDesdeDetalleCatalogo()" title="Ver todos los productos de esta categoría"></button>
+            <h2 id="catalogo-modal-nombre"></h2>
+            <div id="catalogo-modal-marca" class="catalogo-modal-marca"></div>
+            <p id="catalogo-modal-descripcion"></p>
+            <span class="catalogo-disponible"><i class="ti ti-circle-check-filled"></i> Disponible para consultar</span>
+            <button class="catalogo-ficha-interna" type="button" onclick="abrirFichaInternaDesdeCatalogo()"><i class="ti ti-external-link"></i> Ver ficha interna con valores</button>
+          </div>
+        </article>
+      </div>
+
+      <div id="catalogo-categorias-modal" class="catalogo-categorias-modal" style="display:none" onclick="if(event.target===this)cerrarCategoriasCatalogo()">
+        <section class="catalogo-categorias-panel" role="dialog" aria-modal="true" aria-labelledby="catalogo-categorias-titulo">
+          <header><div><span>CATÁLOGO NIXA</span><h2 id="catalogo-categorias-titulo">Explorar categorías</h2><p>Elegí una categoría para ver sus productos.</p></div><button type="button" onclick="cerrarCategoriasCatalogo()" aria-label="Cerrar"><i class="ti ti-x"></i></button></header>
+          <div id="catalogo-categorias" class="catalogo-categorias-lista" aria-label="Categorías"></div>
+        </section>
+      </div>
+
       <!-- ── PRODUCTOS ── -->
       <div id="page-productos" class="page">
         <div class="metrics" style="margin-bottom:12px">
@@ -4071,6 +4115,17 @@ Listo para analizar.
                   <span style="font-size:13px;font-weight:500"><i class="ti ti-tool" style="font-size:14px;vertical-align:-2px"></i> Es mano de obra</span>
                 </label>
                 <div style="font-size:11px;color:var(--text3);margin-top:6px">Marcá esto si el ítem representa el costo de instalación/trabajo del técnico, no un producto físico. Se incluye igual en el cálculo de costo de la venta.</div>
+              </div>
+              <div class="fg full pf-catalogo-config">
+                <label class="pf-catalogo-toggle">
+                  <input type="checkbox" id="pf-catalogo-visible">
+                  <span><strong><i class="ti ti-layout-grid"></i> Mostrar en catálogo para clientes</strong><small>Publica este producto en la vista de presentación, sin precios, costos, códigos ni stock interno.</small></span>
+                </label>
+                <label class="pf-catalogo-toggle pf-catalogo-destacado">
+                  <input type="checkbox" id="pf-catalogo-destacado">
+                  <span><strong><i class="ti ti-star"></i> Destacar producto</strong><small>Lo muestra primero y con una identificación especial.</small></span>
+                </label>
+                <div class="fg" style="margin-top:12px"><label>Descripción comercial</label><textarea id="pf-catalogo-descripcion" rows="3" placeholder="Texto breve y claro pensado para mostrar al cliente..."></textarea></div>
               </div>
             </div>
           </div>
@@ -5474,7 +5529,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.2.5.js"></script>
+<script src="./js/app.v3.3.0.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5933,7 +5988,7 @@ Listo para analizar.
 
 <script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
-<script src="./js/modules/resizable-tables.js?v=3.2.5-grillas-render-dinamico-1"></script>
+<script src="./js/modules/resizable-tables.js?v=3.3.0-grillas-render-dinamico-1"></script>
 <script src="./js/modules/commissions.js?v=3.2.0"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 

@@ -9519,14 +9519,21 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v3.2.5-firebase',
+  VERSION: 'v3.3.0-firebase',
   RELEASE_NOTES: Object.freeze([
-    'Haberes, horas extra, comisiones y aguinaldos utilizan circuitos únicos, trazables y sin movimientos manuales paralelos.',
-    'Todas las grillas comparten perfiles globales, redimensionamiento estable y render inmediato al recibir datos.',
-    'Productos asigna códigos atómicos al guardar y los presupuestos recuperan correctamente las imágenes.'
+    'Nuevo catálogo visual para presentar productos a clientes sin exponer precios, costos, códigos ni stock interno.',
+    'Búsqueda, categorías rápidas y explorador completo permiten recorrer los productos con imágenes ampliadas.',
+    'Cada producto puede incluirse, ocultarse o destacarse y conserva el acceso controlado a su ficha interna.'
   ]),
-  RELEASE_FEATURE: Object.freeze({ page:'empleados', actionLabel:'Revisar Empleados' }),
+  RELEASE_FEATURE: Object.freeze({ page:'catalogo', actionLabel:'Abrir Catálogo' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v3.3.0',
+      date: '02/09/2026',
+      title: 'Catálogo visual para atención al cliente',
+      notes: Object.freeze(['El nuevo Catálogo presenta productos físicos activos con imágenes grandes y sin mostrar valores ni información interna.', 'Incluye buscador, categorías horizontales, explorador completo y modo presentación.', 'La categoría del detalle muestra todos sus productos y la ficha interna regresa al mismo catálogo conservando filtros.', 'Cada producto puede ocultarse o destacarse desde su ficha; la mano de obra queda excluida automáticamente.']),
+      feature: Object.freeze({ page:'catalogo', actionLabel:'Abrir Catálogo' })
+    }),
     Object.freeze({
       version: 'v3.2.5',
       date: '02/09/2026',
