@@ -13285,6 +13285,17 @@ var ventaRequiereAutorizacion = false;
 var ventaAutorizadaPorAdmin = false;
 window._mostrarMargenGanancia = false;
 
+function _margenCostoGananciaHTML(costo, ganancia) {
+  var formato = { minimumFractionDigits:2, maximumFractionDigits:2 };
+  var costoNumero = Math.max(0, parseFloat(costo) || 0);
+  var gananciaValida = ganancia !== null && ganancia !== undefined && Number.isFinite(parseFloat(ganancia));
+  var gananciaTexto = gananciaValida ? '$' + parseFloat(ganancia).toLocaleString('es-AR', formato) : '—';
+  return '<div style="font-size:11px;color:var(--text3)">Costo: $' + costoNumero.toLocaleString('es-AR', formato) + ' (productos + mano de obra)</div>' +
+    '<div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;color:var(--green);font-size:15px;font-weight:700;line-height:1.25">' +
+      '<span>Ganancia</span><span>' + gananciaTexto + '</span>' +
+    '</div>';
+}
+
 function toggleMargenGanancia() {
   if (!puedeVerMargenVenta()) { notify('No tenés permiso para ver el margen de la venta'); return; }
   var box  = document.getElementById('margen-ganancia-box');
@@ -13331,8 +13342,7 @@ function calcMargenGanancia() {
 
   pctEl.textContent = margenPct.toFixed(1) + '%';
   var gananciaValor = total - costoTotal;
-  costoEl.textContent = 'Costo: $' + costoTotal.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) +
-    ' (productos + mano de obra) · Ganancia: $' + gananciaValor.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  costoEl.innerHTML = _margenCostoGananciaHTML(costoTotal, gananciaValor);
 
   if (margenPct < 15) {
     box.style.background = 'var(--red-bg)';
@@ -20496,8 +20506,7 @@ function calcMargenPpto() {
   var costoEl = document.getElementById('ppto-margen-ganancia-costo');
   if (pctEl) pctEl.textContent = margenPct.toFixed(1) + '%';
   var gananciaValorPpto = total - costoTotal;
-  if (costoEl) costoEl.textContent = 'Costo: $' + costoTotal.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) +
-    ' (productos + mano de obra) · Ganancia: $' + gananciaValorPpto.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if (costoEl) costoEl.innerHTML = _margenCostoGananciaHTML(costoTotal, gananciaValorPpto);
   if (margenPct < 15) {
     box.style.background = 'var(--red-bg)';
     if (pctEl) pctEl.style.color = 'var(--red)';
@@ -40918,7 +40927,7 @@ function verPpto(id) {
         '<span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Margen de ganancia</span>' +
         '<span style="font-size:18px;font-weight:700;color:'+colorMargenPpto+'">'+margenPpto.toFixed(1)+'%</span></div>' +
         '<div style="font-size:12px;margin-top:4px;color:'+colorMargenPpto+'"><i class="ti '+iconMargenPpto+'"></i> '+labelMargenPpto+'</div>' +
-        '<div style="font-size:11px;color:var(--text3);margin-top:6px">Costo: $'+costoPpto.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+' (productos + mano de obra) · Ganancia: $'+(totalPptoMargen-costoPpto).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>';
+        '<div style="margin-top:6px">'+_margenCostoGananciaHTML(costoPpto,totalPptoMargen-costoPpto)+'</div>';
     }
   }
 }
@@ -47423,7 +47432,7 @@ function renderDetalleVenta(v) {
                 '<span style="font-size:18px;font-weight:700;color:' + margenDetalleColor + '">' + (costoDetalleInconsistente ? '—' : margenDetalle.toFixed(1) + '%') + '</span>' +
               '</div>' +
               '<div style="font-size:12px;margin-top:4px;color:' + margenDetalleColor + '"><i class="ti ' + margenDetalleIcono + '"></i> ' + margenDetalleEtiqueta + '</div>' +
-              '<div style="font-size:11px;color:var(--text3);margin-top:6px">Costo: $' + costoDetalle.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' (productos + mano de obra) · Ganancia: ' + (gananciaDetalle == null ? '—' : '$' + gananciaDetalle.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})) + '</div>' +
+              '<div style="margin-top:6px">' + _margenCostoGananciaHTML(costoDetalle, gananciaDetalle) + '</div>' +
             '</div>' : '') +
         '</div>' : '') +
     '</div>' +
