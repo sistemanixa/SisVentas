@@ -83,6 +83,28 @@
     }) || null;
   }
 
+  function providerSelectOptions(selectedKey, selectedName) {
+    var selectedText = String(selectedName || '').trim().toLowerCase();
+    return (window.proveedoresData || []).filter(function (p) {
+      return p && p.nombre && p.activo !== false;
+    }).sort(function (a, b) {
+      return String(a.nombre).localeCompare(String(b.nombre));
+    }).map(function (p) {
+      var key = String(p.fbKey || p.id || p.nombre);
+      var selected = String(selectedKey || '') === key || (!selectedKey && String(p.nombre).trim().toLowerCase() === selectedText);
+      return '<option value="' + attr(key) + '" data-name="' + attr(p.nombre) + '" ' + (selected ? 'selected' : '') + '>' + esc(p.nombre) + '</option>';
+    }).join('');
+  }
+
+  function purchaseDifferenceLabel(estimated, actual) {
+    estimated = parseFloat(estimated) || 0;
+    actual = parseFloat(actual) || 0;
+    if (!estimated || !actual) return '<span style="color:var(--text3)">—</span>';
+    var difference = estimated - actual;
+    if (Math.abs(difference) < 0.01) return '<span style="color:var(--text3)">Sin diferencia</span>';
+    return '<span style="color:var(--' + (difference > 0 ? 'green' : 'red') + ');font-weight:600">' + (difference > 0 ? 'Mejoró ' : 'Empeoró ') + money(Math.abs(difference)) + '</span>';
+  }
+
   function providersFor(product) {
     if (!product) return [];
     var raw = typeof window.proveedoresVinculadosProducto === 'function'
@@ -539,15 +561,21 @@
     var editableReceipt = order.estado !== 'recibida' && order.estado !== 'cancelada';
     var hasReceipts = (order.items || []).some(function (item) { return (parseFloat(item.cantidadRecibida) || 0) > 0; });
     var editableOrder = !hasReceipts && order.estado !== 'recibida' && order.estado !== 'cancelada';
+    var finalProviderKey = order.proveedorFinalKey || order.proveedorKey || '';
+    var finalProviderName = order.proveedorFinal || order.proveedor || '';
     body.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' + statusBadge(order.estado) + (order.ventaId ? '<span class="badge b-blue">Destino: ' + esc(order.ventaId) + ' · ' + esc(order.cliente || '') + '</span>' : '<span class="badge b-green">Destino: stock general</span>') + '</div>' +
-      '<div class="table-wrap"><table><thead><tr><th>Material</th><th class="tr">Ordenado</th><th class="tr">Recibido</th><th class="tr">Pendiente</th><th class="tr">Costo</th>' + (editableReceipt ? '<th class="tr">Recibir ahora</th>' : '') + '</tr></thead><tbody>' +
+      (editableReceipt ? '<div class="card" style="margin:0 0 12px;background:var(--bg3)"><div class="fg" style="max-width:430px"><label>Proveedor donde finalmente se compró</label><select class="search-input" id="oc-receipt-provider"><option value="">— Seleccionar proveedor real —</option>' + providerSelectOptions(finalProviderKey, finalProviderName) + '</select></div><div style="font-size:11px;color:var(--text3);margin-top:7px">Este dato y el costo real quedarán asociados a la recepción y a la rentabilidad de la venta.</div></div>' : '<div style="font-size:12px;color:var(--text2);margin-bottom:12px"><strong>Proveedor real:</strong> ' + esc(finalProviderName || 'Sin informar') + '</div>') +
+      '<div class="table-wrap"><table><thead><tr><th>Material</th><th class="tr">Ordenado</th><th class="tr">Recibido</th><th class="tr">Pendiente</th><th class="tr">Compra presup.</th><th class="tr">Compra real</th><th class="tr">Resultado</th>' + (editableReceipt ? '<th class="tr">Recibir ahora</th>' : '') + '</tr></thead><tbody>' +
       (order.items || []).map(function (item, index) {
         var ordered = parseFloat(item.cantidadOrdenada || item.cantidad) || 0;
         var received = parseFloat(item.cantidadRecibida) || 0;
         var pending = Math.max(0, ordered - received);
-        return '<tr data-order-index="' + index + '"><td><strong>' + esc(item.codigo || '') + '</strong><div style="font-size:12px">' + esc(item.descripcion || '') + '</div></td><td class="tr">' + ordered + '</td><td class="tr" style="color:var(--green)">' + received + '</td><td class="tr" style="color:var(--amber)">' + pending + '</td><td class="tr">' + money(item.subtotal || ordered * item.costoUnitario) + '</td>' + (editableReceipt ? '<td class="tr"><input class="search-input oc-receive-now" type="number" min="0" max="' + pending + '" value="0" style="width:82px;text-align:right"></td>' : '') + '</tr>';
+        var budgetUnit = parseFloat(item.costoUnitarioPresupuestado || item.costoUnitario) || 0;
+        var actualUnit = parseFloat(item.ultimoCostoReal || item.costoUnitarioReal) || 0;
+        return '<tr data-order-index="' + index + '"><td><strong>' + esc(item.codigo || '') + '</strong><div style="font-size:12px">' + esc(item.descripcion || '') + '</div></td><td class="tr">' + ordered + '</td><td class="tr" style="color:var(--green)">' + received + '</td><td class="tr" style="color:var(--amber)">' + pending + '</td><td class="tr">' + money(budgetUnit) + '<small style="display:block;color:var(--text3)">por unidad</small></td><td class="tr">' + (editableReceipt ? '<input class="search-input oc-real-cost" type="number" min="0" step="0.01" value="' + (actualUnit || budgetUnit) + '" style="width:110px;text-align:right">' : (actualUnit ? money(actualUnit) : '—')) + '</td><td class="tr oc-purchase-difference">' + purchaseDifferenceLabel(budgetUnit, actualUnit) + '</td>' + (editableReceipt ? '<td class="tr"><input class="search-input oc-receive-now" type="number" min="0" max="' + pending + '" value="0" style="width:82px;text-align:right"></td>' : '') + '</tr>';
       }).join('') + '</tbody></table></div>' +
       '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px;flex-wrap:wrap"><div><strong>Total: ' + money(order.total || order.monto) + '</strong><div style="font-size:11px;color:var(--text3)">Los materiales recibidos para una venta quedan reservados; los manuales ingresan al stock general operativo.</div></div><div style="display:flex;gap:7px;flex-wrap:wrap">' +
+        '<button class="btn" onclick="ocImprimirOrdenActual()"><i class="ti ti-printer"></i> Imprimir comprobante</button>' +
         (editableOrder ? '<button class="btn" onclick="ocEditarOrdenActual()"><i class="ti ti-edit"></i> Editar</button>' : '') +
         (order.estado === 'borrador' ? '<button class="btn" onclick="ocCambiarEstadoOrden(\'enviada\')"><i class="ti ti-send"></i> Marcar enviada</button>' : '') +
         (editableReceipt ? '<button class="btn btn-primary" onclick="ocRegistrarRecepcion()"><i class="ti ti-package-import"></i> Registrar recepción</button>' : '') +
@@ -576,25 +604,106 @@
     });
   }
 
+  function syncSalePurchaseCosts(order, movements, providerName, providerKey, complete) {
+    if (!order.ventaFbKey || !window.fbDB || typeof window.fbRunTransaction !== 'function') return Promise.resolve();
+    return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas/ventas/' + order.ventaFbKey), function (sale) {
+      if (!sale) return sale;
+      var items = Array.isArray(sale.items) ? sale.items : [];
+      movements.forEach(function (movement) {
+        var orderItem = movement.item || {};
+        var code = String(orderItem.codigo || '').trim().toUpperCase();
+        var saleItem = items.find(function (item) {
+          var sameKey = orderItem.productoKey && [item.productoKey, item.productoId, item.pid, item.fbKeyProducto].some(function (key) { return String(key || '') === String(orderItem.productoKey); });
+          return sameKey || (code && String(item.cod || item.codigo || '').trim().toUpperCase() === code);
+        });
+        if (!saleItem) return;
+        var saleQty = Math.max(1, parseFloat(saleItem.qty || saleItem.cantidad) || 1);
+        var budgetUnit = parseFloat(saleItem.costoUnitarioPresupuestado || saleItem.costoUnitarioCompra || saleItem.costoUnitario || saleItem.costoCompra) || parseFloat(orderItem.costoUnitarioPresupuestado || orderItem.costoUnitario) || 0;
+        var priorRealQty = parseFloat(saleItem.cantidadCompraReal) || 0;
+        var priorRealTotal = parseFloat(saleItem.costoRealCompraAcumulado) || 0;
+        var realQty = Math.min(saleQty, priorRealQty + movement.qty);
+        var acceptedQty = Math.max(0, realQty - priorRealQty);
+        var realTotal = priorRealTotal + acceptedQty * movement.costoUnitarioReal;
+        var effectiveTotal = realTotal + Math.max(0, saleQty - realQty) * budgetUnit;
+        saleItem.costoUnitarioPresupuestado = budgetUnit;
+        saleItem.costoTotalPresupuestado = saleQty * budgetUnit;
+        saleItem.cantidadCompraReal = realQty;
+        saleItem.costoRealCompraAcumulado = realTotal;
+        saleItem.costoTotalCompra = Math.round(effectiveTotal * 100) / 100;
+        saleItem.costoUnitarioCompra = Math.round((effectiveTotal / saleQty) * 100) / 100;
+        saleItem.ultimoCostoCompraReal = movement.costoUnitarioReal;
+        saleItem.proveedorCompraReal = providerName;
+        saleItem.proveedorCompraRealKey = providerKey;
+      });
+      sale.items = items;
+      sale.costoTotal = items.reduce(function (sum, item) {
+        var qty = parseFloat(item.qty || item.cantidad) || 1;
+        return sum + (parseFloat(item.costoTotalCompra) || (parseFloat(item.costoUnitarioCompra) || 0) * qty);
+      }, 0);
+      var base = parseFloat(sale.subtotal) || parseFloat(sale.total) || 0;
+      sale.margenPct = base > 0 ? ((base - sale.costoTotal) / base) * 100 : 0;
+      sale.compraEstado = complete ? 'recibida_parcial_o_total' : 'recepcion_parcial';
+      sale.conciliacionCompraActualizadaEn = Date.now();
+      sale.conciliacionCompraActualizadaPor = window.currentUser || 'Sistema';
+      return sale;
+    });
+  }
+
+  function printActiveOrder() {
+    var order = state.activeOrder;
+    if (!order) return;
+    var provider = order.proveedorFinal || order.proveedor || 'Sin proveedor asignado';
+    var rows = (order.items || []).map(function (item) {
+      var qty = parseFloat(item.cantidadOrdenada || item.cantidad) || 0;
+      var unit = parseFloat(item.costoUnitarioPresupuestado || item.costoUnitario) || 0;
+      return '<tr><td><strong>' + esc(item.codigo || '—') + '</strong></td><td>' + esc(item.descripcion || '') + '</td><td class="num">' + qty + '</td><td class="num">' + money(unit) + '</td><td class="num"><strong>' + money(qty * unit) + '</strong></td></tr>';
+    }).join('');
+    var logoUrl = typeof window.logoImpresionActualUrl === 'function' ? window.logoImpresionActualUrl() : '';
+    var logo = logoUrl ? '<img src="' + attr(logoUrl) + '" alt="Nixa">' : '<strong class="brand">NIXA</strong>';
+    var html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>' + esc(order.numero || 'Orden de compra') + '</title><style>body{font-family:Arial,sans-serif;color:#202938;margin:32px}header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #202938;padding-bottom:18px;margin-bottom:24px}header img{max-width:150px;max-height:70px;object-fit:contain}.brand{font-size:26px}.doc{text-align:right}.doc h1{font-size:22px;margin:0 0 5px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}.box{border:1px solid #d7dde7;border-radius:8px;padding:12px}.box small{display:block;color:#708097;text-transform:uppercase;font-size:10px;margin-bottom:5px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#202938;color:#fff;text-align:left;padding:9px}td{padding:10px 9px;border-bottom:1px solid #e3e7ee}.num{text-align:right}.total{text-align:right;margin-top:16px;font-size:18px}.foot{margin-top:44px;border-top:1px solid #d7dde7;padding-top:10px;color:#708097;font-size:10px}@media print{body{margin:18px}.actions{display:none}}</style></head><body><header>' + logo + '<div class="doc"><h1>ORDEN DE COMPRA</h1><strong>' + esc(order.numero || '—') + '</strong><div>' + fmtDate(order.fecha) + '</div></div></header><div class="meta"><div class="box"><small>Proveedor</small><strong>' + esc(provider) + '</strong></div><div class="box"><small>Destino</small><strong>' + esc(order.ventaId ? (order.ventaId + ' · ' + (order.cliente || '')) : 'Stock general') + '</strong></div></div><table><thead><tr><th>Código</th><th>Producto / material</th><th class="num">Cantidad</th><th class="num">Valor previsto</th><th class="num">Subtotal</th></tr></thead><tbody>' + rows + '</tbody></table><div class="total">Total previsto: <strong>' + money(order.total || order.monto) + '</strong></div><div class="foot">Comprobante interno de compra · Generado por SisVentas</div><script>window.onload=function(){setTimeout(function(){window.print()},250)}<\/script></body></html>';
+    var printWindow = window.open('', '_blank');
+    if (!printWindow) { if (typeof window.notify === 'function') window.notify('El navegador bloqueó la ventana de impresión'); return; }
+    printWindow.document.open(); printWindow.document.write(html); printWindow.document.close();
+  }
+
   function registerReceipt() {
     var order = state.activeOrder;
     if (!order || !order.fbKey) return;
+    var providerSelect = document.getElementById('oc-receipt-provider');
+    var providerOption = providerSelect && providerSelect.options[providerSelect.selectedIndex];
+    if (!providerSelect || !providerSelect.value) { if (typeof window.notify === 'function') window.notify('Elegí en qué proveedor se realizó finalmente la compra'); return; }
+    var finalProvider = providerOption ? (providerOption.dataset.name || providerOption.textContent || '').trim() : '';
+    var finalProviderKey = providerSelect.value;
     var rows = Array.from(document.querySelectorAll('#oc-order-modal-body tr[data-order-index]'));
     var movements = [];
     rows.forEach(function (row) {
       var index = parseInt(row.dataset.orderIndex, 10);
       var input = row.querySelector('.oc-receive-now');
+      var costInput = row.querySelector('.oc-real-cost');
       var qty = input ? parseFloat(input.value) || 0 : 0;
+      var realUnitCost = costInput ? parseFloat(costInput.value) || 0 : 0;
       var item = order.items[index];
       var ordered = parseFloat(item.cantidadOrdenada || item.cantidad) || 0;
       var pending = Math.max(0, ordered - (parseFloat(item.cantidadRecibida) || 0));
       qty = Math.max(0, Math.min(qty, pending));
-      if (qty > 0) movements.push({ index: index, item: item, qty: qty });
+      if (qty > 0) movements.push({ index: index, item: item, qty: qty, costoUnitarioReal: realUnitCost });
     });
     if (!movements.length) { if (typeof window.notify === 'function') window.notify('Indicá qué cantidades llegaron'); return; }
-    movements.forEach(function (m) { order.items[m.index].cantidadRecibida = (parseFloat(order.items[m.index].cantidadRecibida) || 0) + m.qty; });
+    if (movements.some(function (m) { return !(m.costoUnitarioReal > 0); })) { if (typeof window.notify === 'function') window.notify('Indicá el costo unitario real de cada material recibido'); return; }
+    movements.forEach(function (m) {
+      var target = order.items[m.index];
+      var budgetUnit = parseFloat(target.costoUnitarioPresupuestado || target.costoUnitario) || 0;
+      target.costoUnitarioPresupuestado = budgetUnit;
+      target.cantidadRecibida = (parseFloat(target.cantidadRecibida) || 0) + m.qty;
+      target.cantidadCostoReal = (parseFloat(target.cantidadCostoReal) || 0) + m.qty;
+      target.costoRealAcumulado = (parseFloat(target.costoRealAcumulado) || 0) + m.qty * m.costoUnitarioReal;
+      target.ultimoCostoReal = m.costoUnitarioReal;
+      target.costoUnitarioReal = target.cantidadCostoReal > 0 ? target.costoRealAcumulado / target.cantidadCostoReal : 0;
+      target.proveedorFinal = finalProvider;
+      target.proveedorFinalKey = finalProviderKey;
+    });
     var complete = order.items.every(function (item) { return (parseFloat(item.cantidadRecibida) || 0) >= (parseFloat(item.cantidadOrdenada || item.cantidad) || 0); });
-    var receipt = { fecha: today(), ts: Date.now(), usuario: window.currentUser || 'Sistema', items: movements.map(function (m) { return { codigo: m.item.codigo, cantidad: m.qty }; }) };
+    var receipt = { fecha: today(), ts: Date.now(), usuario: window.currentUser || 'Sistema', proveedor: finalProvider, proveedorKey: finalProviderKey, items: movements.map(function (m) { var budget = parseFloat(m.item.costoUnitarioPresupuestado || m.item.costoUnitario) || 0; return { codigo: m.item.codigo, cantidad: m.qty, costoUnitarioPresupuestado: budget, costoUnitarioReal: m.costoUnitarioReal, diferenciaTotal: (budget - m.costoUnitarioReal) * m.qty }; }) };
     var receipts = (order.recepciones || []).concat([receipt]);
     Promise.all(movements.map(function (m) {
       return transactionInventory(m.item.productoKey || m.item.codigo, function (inv) {
@@ -612,10 +721,12 @@
         }
       });
     })).then(function () {
-      return update(PATH_ORDERS + '/' + order.fbKey, { items: order.items, recepciones: receipts, estado: complete ? 'recibida' : 'recepcion_parcial', recibidoEn: Date.now() });
+      var totalReal = order.items.reduce(function (sum, item) { return sum + (parseFloat(item.costoRealAcumulado) || 0); }, 0);
+      var totalPresupuestadoRecibido = order.items.reduce(function (sum, item) { return sum + (parseFloat(item.cantidadCostoReal) || 0) * (parseFloat(item.costoUnitarioPresupuestado || item.costoUnitario) || 0); }, 0);
+      return update(PATH_ORDERS + '/' + order.fbKey, { items: order.items, recepciones: receipts, proveedorFinal: finalProvider, proveedorFinalKey: finalProviderKey, totalRealRecibido: totalReal, totalPresupuestadoRecibido: totalPresupuestadoRecibido, diferenciaCompra: totalPresupuestadoRecibido - totalReal, estado: complete ? 'recibida' : 'recepcion_parcial', recibidoEn: Date.now() });
     }).then(function () {
       var syncTasks = [];
-      if (order.ventaFbKey) syncTasks.push(update('sisventas/ventas/' + order.ventaFbKey, { compraEstado: complete ? 'recibida_parcial_o_total' : 'recepcion_parcial' }));
+      if (order.ventaFbKey) syncTasks.push(syncSalePurchaseCosts(order, movements, finalProvider, finalProviderKey, complete));
       if (complete && order.listaMaterialesId) {
         var related = state.orders.filter(function (candidate) { return candidate.listaMaterialesId === order.listaMaterialesId && candidate.estado !== 'cancelada'; });
         var allReceived = related.length > 0 && related.every(function (candidate) { return candidate.fbKey === order.fbKey ? true : candidate.estado === 'recibida'; });
@@ -1089,6 +1200,7 @@
   window.ocAbrirOrden = openOrder;
   window.ocCambiarEstadoOrden = changeOrderStatus;
   window.ocRegistrarRecepcion = registerReceipt;
+  window.ocImprimirOrdenActual = printActiveOrder;
   window.ocEditarOrdenActual = editActiveOrder;
   window.ocEliminarOrdenActual = deleteActiveOrder;
   window.ocAgregarItemManual = addManualItemV2;

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.4-firebase' -->
+<!-- VERSION: 'v3.3.5-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.4.js"></script>
+<script src="./js/core/version.v3.3.5.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,8 +34,8 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.3.4">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.3.4">
+<link rel="stylesheet" href="./css/app.css?v=3.3.5">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -756,6 +756,7 @@
         <button class="btn btn-sm" id="vtab-hoy" onclick="tabVentas('hoy',this)">Hoy</button>
         <button class="btn btn-sm" id="vtab-mes" onclick="tabVentas('mes',this)">Este mes</button>
         <button class="btn btn-sm" id="vtab-facturadas" onclick="tabVentas('facturadas',this)">Facturadas</button>
+        <button class="btn btn-sm" id="vtab-anuladas" onclick="tabVentas('anuladas',this)" style="color:var(--text3)">Anuladas</button>
       </div>
 
       <!-- Banner: avisa cuando hay un filtro activo que puede estar ocultando ventas nuevas -->
@@ -874,7 +875,7 @@
         <div style="font-size:12px;color:var(--text3)" id="ppto-det-meta"></div>
       </div>
       <div class="form-grid">
-        <div class="fg"><label>Cliente</label><input id="ppto-det-cliente" class="sv-document-client-input" readonly role="link" tabindex="0" title="Abrir ficha del cliente" aria-label="Abrir ficha del cliente" onclick="abrirClienteDesdeDocumento('presupuesto',pptoActualId)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"></div>
+        <div class="fg"><label>Cliente</label><input id="ppto-det-cliente" class="sv-document-client-input" readonly role="link" tabindex="0" title="Abrir ficha del cliente" aria-label="Abrir ficha del cliente" onclick="abrirClienteDesdeDocumento('presupuesto',pptoActualId)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><div id="ppto-det-direccion" style="font-size:12px;color:var(--text3);margin-top:6px;min-height:16px"></div></div>
         <div class="fg"><label>Empleado</label><input id="ppto-det-empleado" readonly></div>
         <div class="fg"><label>Fecha</label><input id="ppto-det-fecha" readonly></div>
         <div class="fg"><label>Vence</label><input id="ppto-det-vence" readonly style="color:var(--amber)"></div>
@@ -5532,7 +5533,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.3.4.js"></script>
+<script src="./js/app.v3.3.5.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5991,7 +5992,7 @@ Listo para analizar.
 
 <script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
-<script src="./js/modules/resizable-tables.js?v=3.3.4"></script>
+<script src="./js/modules/resizable-tables.js?v=3.3.5"></script>
 <script src="./js/modules/commissions.js?v=3.2.0"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 
@@ -6003,7 +6004,7 @@ Listo para analizar.
 <script src="./js/modules/resource-monitor.js?v=2.0.154"></script>
 
 <script src="./js/modules/role-guard.js?v=2.0.325"></script>
-<script src="./js/modules/purchase-orders.js?v=2.3.2-grillas-unificadas-1"></script>
+<script src="./js/modules/purchase-orders.js?v=3.3.5-conciliacion-compra-1"></script>
 <script src="./js/modules/ot-material-custody.js?v=3.0.14"></script>
 <script src="./js/modules/release-tour.js?v=2.0.161"></script>
 
