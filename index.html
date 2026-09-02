@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.2.4-firebase' -->
+<!-- VERSION: 'v3.2.5-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.2.4.js"></script>
+<script src="./js/core/version.v3.2.5.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,8 +34,8 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.2.4">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.2.4">
+<link rel="stylesheet" href="./css/app.css?v=3.2.5-grillas-regla-unica-1">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.2.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -763,7 +763,7 @@
       </div>
 
       <div class="table-wrap">
-        <table id="ventas-tbl" data-sv-pixel-only="1" data-sv-column-key="ventas-tbl-pixel-v3">
+        <table id="ventas-tbl" data-sv-column-key="ventas-tbl-general-v1">
           <thead>
             <tr>
               <th data-sort="id" onclick="sortTabla('ventas-tbl','id','str')"># <i class="sort-icon ti ti-chevrons-up-down"></i></th>
@@ -3900,14 +3900,14 @@ Listo para analizar.
           <div class="card">
             <div class="card-head"><span class="card-title">Identificación</span></div>
             <div class="form-grid">
-              <div class="fg"><label>Código</label><input type="text" id="pf-codigo" placeholder="P-001"></div>
+              <div class="fg"><label>Código</label><input type="text" id="pf-codigo" value="AUTO" placeholder="AUTO" readonly><div style="font-size:11px;color:var(--text3);margin-top:4px">El sistema asigna el siguiente código disponible al guardar.</div></div>
               <div class="fg"><label>Categoría</label>
                 <select id="pf-categoria">
                   <option value="">Seleccionar...</option>
                 </select>
               </div>
-              <div class="fg"><label>Marca</label><input type="text" id="pf-marca" list="pf-marcas-list" placeholder="Ej: HIKVISION"><datalist id="pf-marcas-list"></datalist></div>
-              <div class="fg full"><label>Nombre corto</label><input type="text" id="pf-nombre" placeholder="Ej: Cámara Hikvision DS-2CD2T47G2"></div>
+              <div class="fg"><label>Marca</label><input type="text" id="pf-marca" list="pf-marcas-list" placeholder="Ej: HIKVISION" oninput="this.value=this.value.toUpperCase()"><datalist id="pf-marcas-list"></datalist></div>
+              <div class="fg full"><label>Nombre corto</label><input type="text" id="pf-nombre" placeholder="Ej: CÁMARA HIKVISION DS-2CD2T47G2" oninput="this.value=this.value.toUpperCase()"></div>
               <div class="fg full"><label>Descripción larga <span style="color:var(--text3);font-weight:400">(opcional)</span></label><input type="text" id="pf-descripcion" placeholder="Descripción técnica completa..."></div>
               <div class="fg full"><label>URL del producto en proveedor <span style="color:var(--text3);font-weight:400">(para scraping de precios)</span></label>
                 <input type="url" id="pf-cod-web" placeholder="https://biosegur.com.ar/producto/...">
@@ -4076,7 +4076,7 @@ Listo para analizar.
           </div>
           <div class="flex-end form-bottom-actions">
             <button class="btn" onclick="cerrarFormProducto()">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarProducto()"><i class="ti ti-check"></i> Guardar producto</button>
+            <button class="btn btn-primary" id="btn-guardar-producto" onclick="guardarProducto()"><i class="ti ti-check"></i> Guardar producto</button>
           </div>
 
           </div>
@@ -4317,11 +4317,11 @@ Listo para analizar.
             <div class="card-head">
               <span class="card-title">Empleados</span>
               <div class="emp-actions-358">
-                <button class="btn btn-sm emp-action-haberes" onclick="abrirModalHaberesMes()" title="Registrar los haberes del mes"><i class="ti ti-cash"></i> Haberes</button>
+                <button class="btn btn-sm emp-action-haberes admin-only" onclick="abrirModalHaberesMes()" title="Registrar los haberes del mes"><i class="ti ti-cash"></i> Haberes</button>
                 <button class="btn btn-sm admin-only" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
                 <button class="btn btn-sm admin-only" onclick="abrirModalComisionVenta()" style="color:var(--green);border-color:var(--green)" title="Registrar una comisión faltante y vincularla a su venta"><i class="ti ti-percentage"></i> Cargar comisión</button>
                 <button class="btn btn-sm" onclick="abrirModalHsExtra()" style="color:var(--amber);border-color:var(--amber)"><i class="ti ti-clock-plus"></i> Hs. extra <span id="badge-hsex-pendientes" style="display:none;background:var(--amber);color:#000;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
-                <button class="btn btn-sm emp-action-aguinaldo" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
+                <button class="btn btn-sm emp-action-aguinaldo admin-only" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
                 <button class="btn btn-sm btn-primary" id="btn-nuevo-emp" onclick="abrirModalNuevo('empleado')"><i class="ti ti-plus"></i> Nuevo empleado</button>
               </div>
             </div>
@@ -5034,9 +5034,6 @@ Listo para analizar.
       <div class="fg"><label>Fecha</label><input type="date" id="movi-fecha"></div>
       <div class="fg"><label>Tipo</label>
         <select id="movi-tipo" onchange="onMoviTipoChange()">
-          <option value="sueldo">Sueldo base</option>
-          <option value="comision">Comisión</option>
-          <option value="hextra">Horas extra</option>
           <option value="adelanto">Adelanto</option>
           <option value="transporte">Gasto transporte</option>
           <option value="materiales">Compra materiales</option>
@@ -5476,7 +5473,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.2.4.js"></script>
+<script src="./js/app.v3.2.5.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5935,7 +5932,7 @@ Listo para analizar.
 
 <script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
-<script src="./js/modules/resizable-tables.js?v=3.2.1"></script>
+<script src="./js/modules/resizable-tables.js?v=3.2.5-grillas-render-dinamico-1"></script>
 <script src="./js/modules/commissions.js?v=3.2.0"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 

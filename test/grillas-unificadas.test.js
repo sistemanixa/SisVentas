@@ -64,8 +64,10 @@ assert(!/<th[^>]*>[\s\S]{0,500}openColumnPercentEditor\('prod-tbl'\)/.test(produ
   'Los controles de Productos no deben ocupar una columna de la tabla');
 assert(/<table id="prod-tbl" data-sv-column-key="productos-catalogo-v3">/.test(productosToolbar),
   'Productos debe migrar el perfil recomendado defectuoso sin afectar otras grillas');
-assert(/0:\s*6,[\s\S]*?1:\s*9,[\s\S]*?2:\s*23,[\s\S]*?3:\s*21,[\s\S]*?4:\s*7,[\s\S]*?8:\s*12/.test(central),
-  'El perfil recomendado de Productos no debe crear columnas inutilizables');
+assert(/function suggestedPixelWidths\(table, headers\)/.test(central) && /return normalizeSuggestedPercentages\(data, headers\.length\)/.test(central),
+  'El perfil recomendado general debe adaptar todas las columnas al espacio real');
+assert(!/table\.id === '(?:prod-tbl|gas-tbl|ppto-tabla|ventas-tbl|venta-items-tbl)'/.test(central),
+  'Ninguna grilla debe conservar un perfil recomendado particular');
 
 for (const file of files.filter(file => file !== 'js/modules/resizable-tables.js')) {
   const source = fs.readFileSync(file, 'utf8');

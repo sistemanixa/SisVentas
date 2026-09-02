@@ -1598,7 +1598,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .page.active .card > table,
 .page.active .card > div > table{width:100%!important;min-width:100%!important}
 .page.active .table-wrap{display:block!important}
-.page.active .table-wrap > table:not(#gas-tbl):not(#prod-tbl){width:100%!important;min-width:100%!important}
+.page.active .table-wrap > table{width:100%!important;min-width:100%!important}
 .page.active .sv-percent-table{width:var(--sv-percent-total-width,100%)!important;min-width:100%!important}
 
 /* v1.36.27 - logo unificado y recorte en configuracion */
@@ -1688,14 +1688,9 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 }
 #page-gastos #gasto-list > .table-wrap{flex:1 1 auto}
 #page-productos .prod-table-wrap{width:100%!important;max-width:100%!important}
-#page-productos #prod-tbl{table-layout:auto!important;width:auto!important;min-width:0!important;max-width:none!important}
 #page-productos #prod-tbl td,
 #page-productos #prod-tbl th{box-sizing:border-box}
-#page-gastos #gas-tbl{table-layout:auto!important;width:auto!important;min-width:0!important;max-width:none!important}
-#page-productos #prod-tbl.sv-percent-table,
-#page-gastos #gas-tbl.sv-percent-table{table-layout:fixed!important;width:var(--sv-percent-total-width,100%)!important;min-width:100%!important;max-width:none!important}
 #gas-tbl th,#gas-tbl td{white-space:nowrap}
-#gas-tbl .gas-desc-cell{max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #gas-tbl .gas-bulk-cell.gas-bulk-hidden{
   display:table-cell!important;
   width:0!important;
