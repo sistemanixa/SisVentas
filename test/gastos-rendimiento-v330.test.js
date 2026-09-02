@@ -18,6 +18,9 @@ test('los comprobantes nuevos quedan fuera del listado principal', () => {
   assert.match(app, /sisventas\/gastos_adjuntos\/.*\/fotoBase64/);
   assert.match(app, /fotoAdjunta:/);
   assert.doesNotMatch(app, /fotoBase64:\s+gastoFotoBase64\s*\|\|\s*null/);
+  assert.match(app, /gastos_adjuntos\/.*\/pagos\/.*\/comprobanteData/);
+  assert.match(app, /comprobante:\s*comprobanteLigero/);
+  assert.match(app, /compNormalizado\.data\s*\|\|\s*compNormalizado\.externo/);
 });
 
 test('la regla general no realimenta su MutationObserver', () => {
