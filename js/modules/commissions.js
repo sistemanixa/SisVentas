@@ -3,6 +3,7 @@
 
   var detalleActual = null;
   var movimientosDetalle = {};
+  var sincronizacionSolicitada = false;
 
   function moneda(valor) {
     return '$' + (parseFloat(valor) || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -81,6 +82,15 @@
   function renderModuloComisiones() {
     var tbody = document.getElementById('comisiones-tbody');
     if (!tbody) return;
+    if (!sincronizacionSolicitada && typeof window.sincronizarComisionesLegacyConModulo === 'function') {
+      sincronizacionSolicitada = true;
+      window.sincronizarComisionesLegacyConModulo().then(function(cantidad) {
+        if (cantidad && window.fbCargarGastos) window.fbCargarGastos();
+      }).catch(function(error) {
+        sincronizacionSolicitada = false;
+        console.warn('[Comisiones] No se pudieron incorporar registros históricos', error);
+      });
+    }
     var buscar = String((document.getElementById('com-f-buscar') || {}).value || '').toLowerCase();
     var filtroEstado = String((document.getElementById('com-f-estado') || {}).value || '');
     var lista = grupos().filter(function (grupo) {

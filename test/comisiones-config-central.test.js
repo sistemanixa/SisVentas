@@ -9,7 +9,7 @@ const finance = fs.readFileSync('js/modules/finance-details.js', 'utf8');
 
 assert.match(html, /id="cfg-comisiones-empleados-tbody"/,
   'Configuración debe permitir administrar excepciones por empleado');
-assert.match(html, /app\.v3\.2\.5\.js/,
+assert.match(html, /app\.v3\.3\.6\.js/,
   'La publicación debe cargar el controlador vigente de comisiones');
 assert.doesNotMatch(app, /% Comisión propio \(solo vendedor a comisión\)/,
   'La ficha de empleado no debe editar la comisión');

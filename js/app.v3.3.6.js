@@ -9566,7 +9566,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v3.3.5-firebase',
+  VERSION: 'v3.3.6-firebase',
   RELEASE_NOTES: Object.freeze([
     'Ventas y Presupuestos muestran la dirección seleccionada junto al nombre del cliente.',
     'Ventas incorpora una solapa propia para consultar operaciones anuladas.',
@@ -9578,7 +9578,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_FEATURE: Object.freeze({ page:'catalogo', actionLabel:'Abrir Catálogo' }),
   RELEASE_HISTORY: Object.freeze([
     Object.freeze({
-      version: 'v3.3.5',
+      version: 'v3.3.6',
       date: '02/09/2026',
       title: 'Documentos completos y navegación conservada',
       notes: Object.freeze(['El detalle de venta muestra debajo del cliente la dirección elegida para esa operación.', 'El detalle de presupuesto presenta la misma información y conserva el domicilio histórico del documento.', 'Las ventas anuladas se consultan desde una solapa separada sin mezclarse con las vigentes.', 'Al volver de la ficha interna, el Catálogo recupera sus filtros, producto y posición vertical.', 'Las tarjetas del Catálogo muestran abajo a la derecha el precio de venta + IVA, destacado en verde.', 'Cada ítem recibido de una OC registra su propio proveedor y costo real; la diferencia se muestra en vivo, actualiza el margen y genera un comprobante de conciliación.', 'Las ventas bonificadas al 100% respetan un neto y total de cero, sin duplicar el subtotal bruto.']),

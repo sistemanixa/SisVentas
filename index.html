@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.5-firebase' -->
+<!-- VERSION: 'v3.3.6-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.5.js"></script>
+<script src="./js/core/version.v3.3.6.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -4537,6 +4537,7 @@ Listo para analizar.
     <div class="card-head" style="gap:10px;flex-wrap:wrap">
       <div><div class="card-title"><i class="ti ti-percentage"></i> Gestión de comisiones</div><div style="font-size:11px;color:var(--text3);margin-top:4px">Una venta puede compartir el porcentaje máximo entre varias personas.</div></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto">
+        <button class="btn btn-primary admin-only" onclick="abrirModalComisionVenta()"><i class="ti ti-plus"></i> Nueva comisión</button>
         <input id="com-f-buscar" class="search-input" placeholder="Venta, cliente o persona..." oninput="renderModuloComisiones()" style="min-width:250px">
         <select id="com-f-estado" class="search-input" onchange="renderModuloComisiones()"><option value="">Todos los estados</option><option value="pendiente_aprobacion">Pendientes</option><option value="pendiente_pago">Aprobadas</option><option value="pagado">Pagadas</option><option value="rechazado">Rechazadas</option></select>
       </div>
@@ -5533,7 +5534,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.3.5.js"></script>
+<script src="./js/app.v3.3.6.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5993,7 +5994,7 @@ Listo para analizar.
 <script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
 <script src="./js/modules/resizable-tables.js?v=3.3.5"></script>
-<script src="./js/modules/commissions.js?v=3.2.0"></script>
+<script src="./js/modules/commissions.js?v=3.3.6-central-total-1"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>
