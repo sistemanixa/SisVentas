@@ -29771,7 +29771,7 @@ function togglePptoDetalle() {
   }
 }
 
-function imprimirPresupuesto(pptoRef, opciones) {
+async function imprimirPresupuesto(pptoRef, opciones) {
   opciones = opciones || {};
   var pptoDirecto = pptoRef && typeof pptoRef === 'object' ? pptoRef : null;
   var refImpresion = pptoDirecto
@@ -29791,6 +29791,16 @@ function imprimirPresupuesto(pptoRef, opciones) {
     notify('El presupuesto no tiene número, cliente o productos completos. No se generó ninguna impresión.');
     return;
   }
+  // Abrir dentro del gesto del usuario evita el bloqueo de ventanas mientras
+  // las imágenes se convierten a datos embebidos y seguros para la URL blob:.
+  var altoVistaPpto = Math.max(820, Math.min(1100, (window.screen && window.screen.availHeight ? window.screen.availHeight : 900) - 36));
+  var anchoVistaPpto = Math.max(920, Math.min(1040, (window.screen && window.screen.availWidth ? window.screen.availWidth : 1000) - 60));
+  var w = window.open('','_blank','width='+anchoVistaPpto+',height='+altoVistaPpto+',resizable=yes,scrollbars=yes');
+  if (!w) { notify('El navegador bloqueó la vista previa. Permití ventanas emergentes para SisVentas.'); return; }
+  try {
+    w.document.write('<!doctype html><title>Preparando presupuesto</title><body style="font-family:Arial,sans-serif;padding:28px;color:#475569">Preparando imágenes del presupuesto…</body>');
+    w.document.close();
+  } catch (_) {}
   var empresa = {
     nombre: (document.getElementById('cfg-empresa-nombre')||{}).value || 'Nixa',
     dir:    (document.getElementById('cfg-empresa-dir')||{}).value    || 'Patagones 390, Mar del Plata',
@@ -29815,9 +29825,28 @@ function imprimirPresupuesto(pptoRef, opciones) {
       return src;
     }
   }
-  var items = modelo.items.map(function(it) {
+  async function imagenEmbebidaPresupuesto(src) {
+    var capturable = urlImagenCapturablePresupuesto(src);
+    if (!capturable || /^data:/i.test(capturable)) return capturable;
+    try {
+      var respuesta = await fetch(capturable, { mode:'cors', cache:'force-cache' });
+      if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
+      var blobImagen = await respuesta.blob();
+      if (!String(blobImagen.type || '').toLowerCase().startsWith('image/')) throw new Error('El recurso no es una imagen');
+      return await new Promise(function(resolve, reject) {
+        var lector = new FileReader();
+        lector.onload = function(){ resolve(String(lector.result || '')); };
+        lector.onerror = function(){ reject(lector.error || new Error('No se pudo leer la imagen')); };
+        lector.readAsDataURL(blobImagen);
+      });
+    } catch (errorImagen) {
+      console.warn('[Presupuesto] No se pudo embeber una imagen:', src, errorImagen);
+      return '';
+    }
+  }
+  var items = (await Promise.all(modelo.items.map(async function(it) {
     var prodImpresion = productoDesdeItem(it);
-    var srcImpresion = urlImagenCapturablePresupuesto((prodImpresion && prodImpresion.imagenUrl) || it.imagenUrl || '');
+    var srcImpresion = await imagenEmbebidaPresupuesto((prodImpresion && prodImpresion.imagenUrl) || it.imagenUrl || '');
     var fotoImpresion = srcImpresion
       ? '<img crossorigin="anonymous" src="'+escapeHTML(srcImpresion)+'" style="width:34px;height:34px;object-fit:contain;border-radius:5px;border:1px solid #e2e8f0">'
       : '<div style="width:34px;height:34px;border-radius:5px;background:#f1f5f9"></div>';
@@ -29825,7 +29854,7 @@ function imprimirPresupuesto(pptoRef, opciones) {
       (_pptoConDetalle
         ? '<td style="text-align:right">$'+it.punit.toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:600">$'+it.sub.toLocaleString('es-AR')+'</td>'
         : '<td style="text-align:right;color:#ccc">—</td><td style="text-align:right;color:#ccc">—</td>') + '</tr>';
-  }).join('');
+  }))).join('');
   var num = modelo.numero;
   var cli = modelo.cliente;
   var fecha = formatearFechaComprobante(modelo.fecha);
@@ -29837,10 +29866,6 @@ function imprimirPresupuesto(pptoRef, opciones) {
   var obs = modelo.observaciones;
   var imprimirConIva = modelo.conIva;
 
-  var altoVistaPpto = Math.max(820, Math.min(1100, (window.screen && window.screen.availHeight ? window.screen.availHeight : 900) - 36));
-  var anchoVistaPpto = Math.max(920, Math.min(1040, (window.screen && window.screen.availWidth ? window.screen.availWidth : 1000) - 60));
-  var w = window.open('','_blank','width='+anchoVistaPpto+',height='+altoVistaPpto+',resizable=yes,scrollbars=yes');
-  if (!w) { notify('El navegador bloqueó la vista previa. Permití ventanas emergentes para SisVentas.'); return; }
   var tituloVentanaPpto = 'SisVentas - NIXA - Presupuesto ' + num;
   var nombreArchivoPpto = 'Presupuesto_' + String(num || 'sin-numero').replace(/[^a-zA-Z0-9_-]+/g, '_') + '.pdf';
   var baseVistaPpto = location.href.split('#')[0].replace(/[^/]*([?#].*)?$/, '');
@@ -40313,9 +40338,17 @@ function ejecutarAccionPptoTabla(accion, ref) {
   if (accion === 'eliminar') return eliminarPptoDesdeTabla(clave);
 }
 
-function renderPptoTabla(filtroEstado = '', filtroTexto = '') {
+function renderPptoTabla(filtroEstado, filtroTexto) {
   const tbody = document.getElementById('ppto-tbody-main');
   if (!tbody) return;
+  // Al regresar desde detalle, el navegador conserva los controles visibles.
+  // Si el render no recibió filtros explícitos debe leerlos del DOM, para que
+  // el texto mostrado y las filas nunca queden desincronizados.
+  if (filtroEstado === undefined) {
+    var estadoVisible = (document.getElementById('filtro-estado-ppto') || {}).value || '';
+    filtroEstado = estadoVisible === 'todos' ? '__todos__' : estadoVisible;
+  }
+  if (filtroTexto === undefined) filtroTexto = (document.getElementById('ppto-buscar') || {}).value || '';
   var conteoNumeros = {};
   (pptoData || []).forEach(function(p) {
     var numero = String((p && (p.id || p.numero)) || '').trim().toUpperCase();
@@ -42317,7 +42350,7 @@ function renderOTEstadisticas() {
       '<div style="text-align:right;font-size:12px;color:var(--amber)">' + item.abiertas + ' abiertas</div>' +
     '</button>';
   }).join('');
-}
+  }
 window.renderOTEstadisticas = renderOTEstadisticas;
 
 function otAbrirResumenTecnico(tecnico) {
