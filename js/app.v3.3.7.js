@@ -9566,7 +9566,7 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v3.3.6-firebase',
+  VERSION: 'v3.3.7-firebase',
   RELEASE_NOTES: Object.freeze([
     'Ventas y Presupuestos muestran la dirección seleccionada junto al nombre del cliente.',
     'Ventas incorpora una solapa propia para consultar operaciones anuladas.',
@@ -9577,6 +9577,13 @@ const APP_CONFIG = Object.freeze({
   ]),
   RELEASE_FEATURE: Object.freeze({ page:'catalogo', actionLabel:'Abrir Catálogo' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v3.3.7',
+      date: '02/09/2026',
+      title: 'Proveedores comparables y costo habitual claro',
+      notes: Object.freeze(['Los proveedores con IVA incluido también muestran en amarillo el costo final comparable.', 'El proveedor favorito fija el costo habitual del producto cuando está vinculado y tiene precio.', 'Las órdenes de compra siguen proponiendo el proveedor disponible más económico para optimizar cada compra.', 'Una diferencia de nombre puede autorizarse manualmente sin renombrar la ficha ni perder el precio revisado.']),
+      feature: Object.freeze({ page:'productos', actionLabel:'Abrir Productos' })
+    }),
     Object.freeze({
       version: 'v3.3.6',
       date: '02/09/2026',
