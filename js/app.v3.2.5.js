@@ -3580,18 +3580,61 @@ function recalcularHaberes() {
   if (totalLabel) totalLabel.textContent = '$' + Math.round(totalGeneral).toLocaleString('es-AR');
 }
 
+function _adelantoEsEntregaLegacy(mov) {
+  if (!mov || String(mov.tipo || '').toLowerCase() !== 'adelanto') return false;
+  var estado = String(mov.estado || '').toLowerCase();
+  if (estado !== 'aprobado') return false;
+  var pagos = mov.pagos && typeof mov.pagos === 'object' ? Object.keys(mov.pagos) : [];
+  return !pagos.length && !(parseFloat(mov.montoPagado) > 0) && !mov.fechaPago && !mov.gastoFbKey;
+}
+
+function _adelantoMontoEntregado(mov) {
+  if (!mov || String(mov.tipo || '').toLowerCase() !== 'adelanto') return 0;
+  var monto = Math.max(0, parseFloat(mov.monto) || 0);
+  var estado = String(mov.estado || '').toLowerCase();
+  var entregado = 0;
+  var pagos = mov.pagos || {};
+  Object.keys(pagos).forEach(function(k) {
+    var pago = pagos[k] || {};
+    if (!pagoGastoEstaAnulado(pago)) entregado += parseFloat(pago.monto) || 0;
+  });
+  entregado = Math.max(entregado, parseFloat(mov.montoPagado) || 0, estado === 'pagado' ? monto : 0);
+  // Antes del circuito actual, aprobar un adelanto significaba que el dinero
+  // ya había sido entregado. Esos registros no tienen pago ni gasto vinculado.
+  if (!entregado && _adelantoEsEntregaLegacy(mov)) entregado = monto;
+  return Math.max(0, Math.min(monto, entregado));
+}
+
+function _normalizarAdelantoLegacyAlAplicar(actualizaciones, empKey, empNombre, movKey, mov) {
+  if (!_adelantoEsEntregaLegacy(mov)) return;
+  var monto = Math.max(0, parseFloat(mov.monto) || 0);
+  if (!monto) return;
+  var fecha = _pagableNormFecha(mov.fecha) || (typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toISOString().slice(0, 10));
+  var gastoKey = 'adelanto_' + String(empKey).replace(/[^a-zA-Z0-9_-]/g, '_') + '_' + String(movKey).replace(/[^a-zA-Z0-9_-]/g, '_');
+  var pagoKey = 'pago_legacy_' + String(movKey).replace(/[^a-zA-Z0-9_-]/g, '_');
+  var pago = { fecha:fecha, monto:monto, medio:'Sin especificar', concepto:'adelanto', usuario:mov.usuario || 'Registro histórico', rol:'admin', ts:parseFloat(mov.ts) || Date.now(), origen:'compatibilidad_legacy' };
+  actualizaciones['sisventas/ctaemp/' + empKey + '/' + movKey + '/estado'] = 'pagado';
+  actualizaciones['sisventas/ctaemp/' + empKey + '/' + movKey + '/montoPagado'] = monto;
+  actualizaciones['sisventas/ctaemp/' + empKey + '/' + movKey + '/fechaPago'] = fecha;
+  actualizaciones['sisventas/ctaemp/' + empKey + '/' + movKey + '/medioPago'] = 'Sin especificar';
+  actualizaciones['sisventas/ctaemp/' + empKey + '/' + movKey + '/pagos/' + pagoKey] = pago;
+  actualizaciones['sisventas/ctaemp/' + empKey + '/' + movKey + '/gastoFbKey'] = gastoKey;
+  actualizaciones['sisventas/gastos/' + gastoKey] = {
+    fecha:fecha, tipo:'Variable', tipoPagable:'adelanto', categoria:'Personal',
+    descripcion:'Adelanto de personal — ' + (empNombre || mov.empleadoNombre || '') + (mov.descripcion ? ' · ' + mov.descripcion : ''),
+    monto:monto, montoPagado:monto, estado:'pagado', medio:'Sin especificar', pagos:(function(){ var data={}; data[pagoKey]=pago; return data; })(),
+    empleadoId:empKey, empleadoFbKey:empKey, empleadoNombre:empNombre || mov.empleadoNombre || '',
+    origen:'adelanto_personal_legacy', origenLegacy:'ctaemp', legacyKey:'ctaemp/' + empKey + '/' + movKey,
+    usuario:mov.usuario || '', ts:parseFloat(mov.ts) || Date.now()
+  };
+}
+
 function _habAdelantoDisponibleRaw(mov) {
   if (!mov || mov.tipo !== 'adelanto') return 0;
   var estado = String(mov.estado || '').toLowerCase();
   if (estado === 'pendiente' || estado === 'rechazado' || estado === 'anulado') return 0;
   var monto = parseFloat(mov.monto) || 0;
-  var entregado = 0;
-  var pagos = mov.pagos || {};
-  Object.keys(pagos).forEach(function(k){
-    var pago = pagos[k] || {};
-    if (!pagoGastoEstaAnulado(pago)) entregado += parseFloat(pago.monto) || 0;
-  });
-  entregado = Math.max(entregado, parseFloat(mov.montoPagado)||0, estado === 'pagado' ? monto : 0);
+  var entregado = _adelantoMontoEntregado(mov);
   return Math.max(0, Math.min(monto, entregado) - (parseFloat(mov.montoCompensado)||0));
 }
 
@@ -3756,6 +3799,7 @@ async function confirmarRegistroHaberes() {
     actualizaciones['sisventas/ctaemp/' + e.fbKey + '/haber_' + mesKey] = movSueldo;
     compensacion.aplicaciones.forEach(function(aplicacion) {
       var basePath = 'sisventas/ctaemp/' + e.fbKey + '/' + aplicacion.key;
+      _normalizarAdelantoLegacyAlAplicar(actualizaciones, e.fbKey, e.nombre || '', aplicacion.key, aplicacion.mov);
       actualizaciones[basePath + '/montoCompensado'] = (parseFloat(aplicacion.mov.montoCompensado)||0) + aplicacion.monto;
       actualizaciones[basePath + '/compensaciones/' + mesKey] = aplicacion.monto;
       actualizaciones[basePath + '/compensadoTs'] = Date.now();
@@ -28093,8 +28137,8 @@ function irAVentaDesdeGastoComision(gastoFbKey) {
 }
 
 function abrirModalAdelantoGeneral() {
-  if (String(currentRole || '').toLowerCase() !== 'admin') {
-    notify('Solo un administrador puede registrar adelantos');
+  if (!_puedeGestionarAdelantos()) {
+    notify('No tenés permiso para registrar adelantos');
     return;
   }
   var anterior = document.getElementById('modal-adelanto-general');
@@ -28141,8 +28185,8 @@ function continuarAdelantoGeneral() {
 }
 
 function abrirAdelantoEmpleadoDesdeEmpleados(empFbKey) {
-  if (String(currentRole || '').toLowerCase() !== 'admin') {
-    notify('Solo un administrador puede registrar adelantos');
+  if (!_puedeGestionarAdelantos()) {
+    notify('No tenés permiso para registrar adelantos');
     return;
   }
   var emp = (empleadosData || []).find(function(item) { return item.fbKey === empFbKey; }) || Object.values(empData || {}).find(function(item) { return item.fbKey === empFbKey; });
@@ -28273,8 +28317,7 @@ function _ctaEmpMontoAdelantoACompensar(m) {
   var est = String(m.estado || '').toLowerCase();
   if (est === 'pendiente' || est === 'rechazado' || est === 'anulado') return 0;
   var monto = parseFloat(m.monto) || 0;
-  var entregado = _movEmpTotalPagado(m);
-  if (!entregado && est === 'pagado') entregado = monto;
+  var entregado = _adelantoMontoEntregado(m);
   var compensado = parseFloat(m.montoCompensado) || 0;
   return Math.max(0, Math.min(monto, entregado) - compensado);
 }
@@ -28308,6 +28351,7 @@ async function aplicarAdelantosAlHaberActual() {
     if (restante <= 0) return;
     var saldo = _ctaEmpMontoAdelantoACompensar(adelanto);
     var parte = Math.min(restante, saldo);
+    _normalizarAdelantoLegacyAlAplicar(updates, ctaEmpActual, adelanto.empleadoNombre || '', adelanto.fbKey, adelanto);
     var totalCompensado = (parseFloat(adelanto.montoCompensado)||0) + parte;
     updates['sisventas/ctaemp/' + ctaEmpActual + '/' + adelanto.fbKey + '/montoCompensado'] = totalCompensado;
     updates['sisventas/ctaemp/' + ctaEmpActual + '/' + adelanto.fbKey + '/compensaciones/' + mes.replace('-','_')] = parte;
@@ -28575,6 +28619,12 @@ function verDetalleMovEmp(tr) {
 
 var movEmpFotoBase64 = null;
 
+function _puedeGestionarAdelantos() {
+  var rol = String(currentRole || '').toLowerCase();
+  if (rol === 'admin' || rol === 'administrativo') return true;
+  return typeof permisoModulo === 'function' && permisoModulo('gastos');
+}
+
 function _movEmpBotonGuardar(ocupado, texto) {
   var btn = document.querySelector('#modal-movi-emp button[onclick="guardarMovEmp()"]');
   if (!btn) return;
@@ -28596,6 +28646,7 @@ function abrirNuevoMovEmp(tipoInicial) {
   if (titulo) titulo.textContent = 'Nuevo movimiento';
   document.getElementById('movi-fecha').value = svFechaLocalISO();
   var esAdmin = String(currentRole||'').toLowerCase() === 'admin';
+  var esGestorAdelanto = _puedeGestionarAdelantos();
   var tipoSelect = document.getElementById('movi-tipo');
   var tiposEmpleado = ['adelanto','transporte','materiales','otro'];
   if (tipoSelect) {
@@ -28610,7 +28661,7 @@ function abrirNuevoMovEmp(tipoInicial) {
   }
   document.getElementById('movi-desc').value  = '';
   _setMontoInput(document.getElementById('movi-monto'), 0);
-  document.getElementById('movi-estado').value = esAdmin ? 'aprobado' : 'pendiente';
+  document.getElementById('movi-estado').value = (esGestorAdelanto && tipoInicial === 'adelanto') ? 'pagado' : (esAdmin ? 'aprobado' : 'pendiente');
   var medio = document.getElementById('movi-medio');
   if (medio) medio.value = '';
   var estadoWrap = document.getElementById('movi-estado-wrap');
@@ -28656,7 +28707,19 @@ function onMoviTipoChange() {
     }
     nota.textContent = '💡 La comisión quedará pendiente de aprobación. Aprobala desde la cuenta corriente del empleado.';
     nota.style.display = '';
-  } else if (tipo === 'adelanto' && String(currentRole||'').toLowerCase() !== 'admin') {
+  } else if (tipo === 'adelanto' && _puedeGestionarAdelantos()) {
+    // Un adelanto cargado directamente por Administración representa dinero
+    // ya entregado. Las solicitudes de empleados son el único caso pendiente.
+    if (estado) estado.value = 'pagado';
+    if (!nota) {
+      nota = document.createElement('div');
+      nota.id = 'movi-tipo-nota';
+      nota.style.cssText = 'font-size:12px;color:var(--green);padding:8px 10px;background:var(--green-bg);border-radius:6px;margin-top:4px';
+      document.getElementById('movi-estado').parentElement.after(nota);
+    }
+    nota.textContent = 'El adelanto cargado por Administración se registra como entregado y pagado.';
+    nota.style.display = '';
+  } else if (tipo === 'adelanto') {
     if (!nota) {
       nota = document.createElement('div');
       nota.id = 'movi-tipo-nota';
@@ -28672,10 +28735,10 @@ function onMoviTipoChange() {
 }
 
 function onMoviEstadoChange() {
-  var esAdmin = String(currentRole||'').toLowerCase() === 'admin';
+  var esGestorAdelanto = _puedeGestionarAdelantos();
   var estado = document.getElementById('movi-estado');
   var wrap = document.getElementById('movi-medio-wrap');
-  var mostrar = !!(esAdmin && estado && estado.value === 'pagado');
+  var mostrar = !!(esGestorAdelanto && estado && estado.value === 'pagado');
   if (wrap) wrap.style.display = mostrar ? '' : 'none';
   if (mostrar && typeof poblarSelectoresMediosPago === 'function') poblarSelectoresMediosPago();
 }
@@ -28813,6 +28876,7 @@ function guardarMovEmp() {
   if (!monto) { notify('Ingresá un monto'); return; }
   var empActual = Object.values(empData||{}).find(function(e){ return e.fbKey === ctaEmpActual; });
   var esAdmin = String(currentRole||'').toLowerCase() === 'admin';
+  var esGestorAdelanto = _puedeGestionarAdelantos();
   var tipoElegido = document.getElementById('movi-tipo').value;
   if (['sueldo','hextra','comision'].includes(tipoElegido)) {
     notify('Ese concepto se registra únicamente desde su circuito específico');
@@ -28823,8 +28887,11 @@ function guardarMovEmp() {
     return;
   }
   var estadoElegido = esAdmin ? document.getElementById('movi-estado').value : 'pendiente';
+  // La procedencia define el circuito: carga directa del Admin = entrega;
+  // carga del empleado = solicitud pendiente.
+  if (esGestorAdelanto && tipoElegido === 'adelanto') estadoElegido = 'pagado';
   var medioElegido = estadoElegido === 'pagado' ? String((document.getElementById('movi-medio')||{}).value||'').trim() : '';
-  if (esAdmin && estadoElegido === 'pagado' && !medioElegido) {
+  if (esGestorAdelanto && estadoElegido === 'pagado' && !medioElegido) {
     notify('Seleccioná el medio de pago');
     return;
   }
@@ -28837,11 +28904,13 @@ function guardarMovEmp() {
     usuario:     currentUser || 'admin',
     empleadoNombre: empActual ? (empActual.nombre || '') : '',
     empleadoId:  ctaEmpActual,
+    origenCarga: esGestorAdelanto ? 'gestion' : 'solicitud_empleado',
+    creadoPorRol: currentRole || (esGestorAdelanto ? 'gestor' : 'empleado'),
     ts:          Date.now(),
     fotoUrl:     movEmpFotoBase64 || null,
     fotoBase64:  movEmpFotoBase64 || null
   };
-  if (esAdmin && nuevo.estado === 'pagado') {
+  if (esGestorAdelanto && nuevo.estado === 'pagado') {
     nuevo.medioPago = medioElegido;
     nuevo.montoPagado = monto;
     nuevo.fechaPago = nuevo.fecha;
@@ -38227,6 +38296,8 @@ function gastosFiltradosActuales() {
   var fBusq = inp ? String(inp.value||'').toLowerCase() : '';
   var hoyD = new Date();
   var mesActual = hoyD.toISOString().slice(0,7);
+  var fechaMesAnterior = new Date(hoyD.getFullYear(), hoyD.getMonth() - 1, 1);
+  var mesAnterior = fechaMesAnterior.getFullYear() + '-' + String(fechaMesAnterior.getMonth() + 1).padStart(2, '0');
   var gastosVisiblesModulo = (gastosData || []).filter(gastoVisibleEnModuloGastos);
   var gastosPagadosMesKeys = fMes === 'mes'
     ? new Set((resumenGastosPagadosMes(gastosVisiblesModulo, hoyD).pagados || []).map(function(g){ return g.fbKey; }))
@@ -38266,6 +38337,8 @@ function gastosFiltradosActuales() {
       // Reutilizar la misma fuente del KPI impide que un gasto pagado este mes
       // sume arriba pero desaparezca de la tabla por conservar fecha original.
       matchMes = mesesImputacion.indexOf(mesActual) >= 0 || gastosPagadosMesKeys.has(g.fbKey);
+    } else if (fMes === 'anterior') {
+      matchMes = mesesImputacion.indexOf(mesAnterior) >= 0;
     } else if (fMes === '3m') {
       matchMes = mesesImputacion.some(function(mes){ return mes >= mes3m; });
     } else if (fMes === 'anio') {

@@ -35,3 +35,26 @@ test('nuevo movimiento no ofrece ni acepta sueldo, horas extra o comisión', () 
   assert.doesNotMatch(movementTypes, /<option value="(?:sueldo|hextra|comision)">/);
   assert.match(app, /\['sueldo','hextra','comision'\]\.includes\(tipoElegido\)/);
 });
+
+test('los adelantos aprobados del circuito legado se detectan y normalizan al aplicarse', () => {
+  assert.match(app, /function _adelantoEsEntregaLegacy\(mov\)/);
+  assert.match(app, /if \(!entregado && _adelantoEsEntregaLegacy\(mov\)\) entregado = monto/);
+  assert.match(app, /function _normalizarAdelantoLegacyAlAplicar\(/);
+  assert.match(app, /origen:'adelanto_personal_legacy'/);
+  assert.ok((app.match(/_normalizarAdelantoLegacyAlAplicar\(/g) || []).length >= 3,
+    'la normalización debe usarse en la liquidación y en la reparación posterior');
+});
+
+test('un adelanto cargado por un gestor nace pagado y exige medio de pago', () => {
+  assert.match(app, /function _puedeGestionarAdelantos\(\)/);
+  assert.match(app, /rol === 'admin' \|\| rol === 'administrativo'/);
+  assert.match(app, /if \(esGestorAdelanto && tipoElegido === 'adelanto'\) estadoElegido = 'pagado';/);
+  assert.match(app, /if \(esGestorAdelanto && estadoElegido === 'pagado' && !medioElegido\)/);
+  assert.match(app, /origenCarga: esGestorAdelanto \? 'gestion' : 'solicitud_empleado'/);
+});
+
+test('gastos permite revisar directamente el mes anterior', () => {
+  assert.match(html, /<option value="anterior">Mes anterior<\/option>/);
+  assert.match(app, /else if \(fMes === 'anterior'\)/);
+  assert.match(app, /mesesImputacion\.indexOf\(mesAnterior\) >= 0/);
+});
