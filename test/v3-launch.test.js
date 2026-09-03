@@ -8,10 +8,10 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('V3 publica recursos inmutables y carga el lanzamiento antes de la app', () => {
   const html = read('index.html');
-  assert.match(html, /VERSION: 'v3\.3\.10-firebase'/);
-  assert.match(html, /js\/core\/version\.v3\.3\.10\.js/);
-  assert.match(html, /js\/app\.v3\.3\.10\.js/);
-  assert.ok(html.indexOf('js/modules/v3-launch.js') < html.indexOf('js/app.v3.3.10.js'));
+  assert.match(html, /VERSION: 'v3\.3\.11-firebase'/);
+  assert.match(html, /js\/core\/version\.v3\.3\.11\.js/);
+  assert.match(html, /js\/app\.v3\.3\.11\.js/);
+  assert.ok(html.indexOf('js/modules/v3-launch.js') < html.indexOf('js/app.v3.3.11.js'));
 });
 
 test('la primera sesión restaurada se cierra una sola vez por usuario y dispositivo', () => {
@@ -40,8 +40,8 @@ test('el reingreso muestra una bienvenida V3 y el historial distingue la versió
 
 test('el service worker precarga el lanzamiento completo de V3', () => {
   const sw = read('sw.js');
-  assert.match(sw, /sisventas-v3\.3\.10/);
-  assert.match(sw, /app\.v3\.3\.10\.js/);
-  assert.match(sw, /version\.v3\.3\.10\.js/);
+  assert.match(sw, /sisventas-v3\.3\.11/);
+  assert.match(sw, /app\.v3\.3\.11\.js/);
+  assert.match(sw, /version\.v3\.3\.11\.js/);
   assert.match(sw, /modules\/v3-launch\.js/);
 });
