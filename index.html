@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.8-firebase' -->
+<!-- VERSION: 'v3.3.9-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.8.js"></script>
+<script src="./js/core/version.v3.3.9.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,7 +34,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.3.8">
+<link rel="stylesheet" href="./css/app.css?v=3.3.9">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
@@ -3965,9 +3965,9 @@ Listo para analizar.
           <div class="card">
             <div class="card-head"><span class="card-title">Imagen del producto</span></div>
             <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
-              <div id="pf-imagen-preview-box" style="width:96px;height:96px;border-radius:var(--radius);background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;border:0.5px solid var(--border)">
-                <i class="ti ti-photo" style="font-size:28px;color:var(--text3)" id="pf-imagen-placeholder-icon"></i>
-                <img id="pf-imagen-preview-img" style="display:none;width:100%;height:100%;object-fit:cover">
+              <div id="pf-imagen-preview-box" style="width:clamp(160px,22vw,240px);height:clamp(160px,22vw,240px);border-radius:var(--radius);background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;border:0.5px solid var(--border)">
+                <i class="ti ti-photo" style="font-size:40px;color:var(--text3)" id="pf-imagen-placeholder-icon"></i>
+                <img id="pf-imagen-preview-img" style="display:none;width:100%;height:100%;object-fit:contain;background:#fff">
               </div>
               <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:8px">
                 <div>
@@ -4462,6 +4462,25 @@ Listo para analizar.
 
       <!-- ── USUARIOS (solo admin) ── -->
       <div id="page-usuarios" class="page">
+        <div class="card" id="usuarios-uso-card">
+          <div class="card-head">
+            <div>
+              <span class="card-title">Tiempo de uso del sistema</span>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px">Activo = interacción reciente · Sin interacción = sistema abierto sin actividad durante más de 2 minutos</div>
+            </div>
+            <select id="usuarios-uso-periodo" class="select-sm" onchange="cargarMetricasUsoUsuarios(this.value)">
+              <option value="hoy">Hoy</option>
+              <option value="7" selected>Últimos 7 días</option>
+              <option value="30">Últimos 30 días</option>
+            </select>
+          </div>
+          <div class="usuarios-uso-kpis">
+            <div class="metric"><div class="m-label">Tiempo activo</div><div class="m-value" id="usuarios-uso-activo">—</div><div class="m-sub">interacción real acumulada</div></div>
+            <div class="metric"><div class="m-label">Sin interacción</div><div class="m-value" id="usuarios-uso-inactivo">—</div><div class="m-sub">sistema abierto sin uso</div></div>
+            <div class="metric"><div class="m-label">Mayor uso activo</div><div class="m-value usuarios-uso-destacado" id="usuarios-uso-lider">—</div><div class="m-sub" id="usuarios-uso-lider-tiempo">sin datos todavía</div></div>
+          </div>
+          <div id="usuarios-uso-grafico" class="usuarios-uso-grafico"><div class="usuarios-uso-vacio">La medición comenzará a completarse con el uso de esta versión.</div></div>
+        </div>
         <div class="card">
           <div class="card-head">
             <span class="card-title">Usuarios del sistema</span>
@@ -5534,7 +5553,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.3.8.js"></script>
+<script src="./js/app.v3.3.9.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 

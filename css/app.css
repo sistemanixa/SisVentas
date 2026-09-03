@@ -2556,3 +2556,17 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .catalogo-presentacion-body{overflow:hidden!important}.catalogo-presentacion-activa{display:block!important;position:fixed!important;inset:0;z-index:1000;padding:28px;overflow:auto;background:var(--bg)}.catalogo-presentacion-activa .catalogo-fullscreen-btn i:before{content:'\eb55'}
 @media(max-width:760px){.catalogo-hero{align-items:flex-start;flex-direction:column;padding:24px 20px}.catalogo-toolbar{align-items:stretch;flex-direction:column;margin-left:-8px;margin-right:-8px;padding-left:8px;padding-right:8px}.catalogo-search{min-width:100%}.catalogo-categorias-btn{width:100%}.catalogo-categorias{flex-wrap:wrap;align-content:flex-start;max-height:126px;overflow-x:hidden;overflow-y:auto;scrollbar-gutter:stable}.catalogo-chip{max-width:100%;white-space:normal;text-align:center;line-height:1.2}.catalogo-resumen span:last-child{display:none}.catalogo-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.catalogo-card-imagen{height:165px}.catalogo-card-body{padding:13px}.catalogo-card h3{font-size:13px}.catalogo-card p{display:none}.catalogo-modal,.catalogo-categorias-modal{padding:8px}.catalogo-modal-card{display:block;width:100%;max-height:calc(100vh - 16px)}.catalogo-modal-imagen{min-height:300px;height:44vh}.catalogo-modal-info{padding:25px 22px 30px}.catalogo-modal-img{max-height:none;padding:15px}.catalogo-modal-nav{top:22vh;width:46px;height:58px;border-radius:14px;font-size:26px}.catalogo-modal-prev{left:10px}.catalogo-modal-next{right:10px}.catalogo-categorias-panel{width:100%;max-height:calc(100vh - 16px)}.catalogo-categorias-lista{max-height:calc(100vh - 138px)}.catalogo-categoria-opcion{grid-template-columns:minmax(0,1fr) auto 18px;padding:13px 12px}}
 @media(max-width:420px){.catalogo-grid{grid-template-columns:1fr}.catalogo-card-imagen{height:220px}}
+/* Métricas de uso: comparación simple, legible y sin dependencia de gráficos externos. */
+.usuarios-uso-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.usuarios-uso-destacado{font-size:20px!important;white-space:normal!important;line-height:1.15!important}
+.usuarios-uso-grafico{display:flex;flex-direction:column;gap:12px}
+.usuarios-uso-fila{display:grid;grid-template-columns:minmax(130px,210px) minmax(180px,1fr) 90px;gap:12px;align-items:center}
+.usuarios-uso-nombre{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.usuarios-uso-barras{display:flex;flex-direction:column;gap:4px}
+.usuarios-uso-pista{height:9px;background:var(--bg3);border-radius:999px;overflow:hidden}
+.usuarios-uso-barra{height:100%;min-width:2px;border-radius:inherit}
+.usuarios-uso-barra.activo{background:var(--green)}
+.usuarios-uso-barra.inactivo{background:var(--amber)}
+.usuarios-uso-tiempo{text-align:right;font-size:11px;color:var(--text3);white-space:nowrap}
+.usuarios-uso-vacio{padding:24px;text-align:center;color:var(--text3);font-size:12px;border:1px dashed var(--border);border-radius:var(--radius)}
+@media(max-width:768px){.usuarios-uso-kpis{grid-template-columns:1fr}.usuarios-uso-fila{grid-template-columns:minmax(90px,130px) minmax(120px,1fr);gap:8px}.usuarios-uso-tiempo{grid-column:2;text-align:left}}
