@@ -1500,6 +1500,28 @@ function extraerDisponibilidadProveedor(texto) {
   return 'no_verificado';
 }
 
+function extraerDisponibilidadFreeElectron(textoProductoPrincipal) {
+  const principal = normalizarTexto(textoProductoPrincipal);
+  if (!principal) return 'no_verificado';
+  if (/sin\s+stock|agotado|no\s+disponible|fuera\s+de\s+stock/.test(principal)) return 'sin_stock';
+  // Free Electron sólo agrega el cartel "Sin Stock" al artículo agotado. Si
+  // la ficha principal existe con su referencia/precio y no contiene ese
+  // cartel, el producto está publicado con stock.
+  if (/referencia|impuestos\s+incluidos|consultar\s+disponibilidad/.test(principal)) return 'disponible';
+  return 'no_verificado';
+}
+
+async function extraerDisponibilidadPaginaProveedor(page, tipo, bodyText) {
+  if (tipo !== 'free_electron') return extraerDisponibilidadProveedor(bodyText);
+  const textoPrincipal = await page.locator('.main-product-wrapper').first().innerText({ timeout:3000 }).catch(() => '');
+  const disponibilidadPrincipal = extraerDisponibilidadFreeElectron(textoPrincipal);
+  if (disponibilidadPrincipal !== 'no_verificado') return disponibilidadPrincipal;
+  // La plantilla autenticada puede no conservar la clase del contenedor. El
+  // encabezado del carrusel es el límite semántico estable de la ficha.
+  const fichaSinRelacionados = String(bodyText || '').split(/\d+\s+otros\s+productos\s+en\s+la\s+misma\s+categor[ií]a\s*:/i)[0];
+  return extraerDisponibilidadFreeElectron(fichaSinRelacionados);
+}
+
 const SESION_PROVEEDOR_TTL_MS = 15 * 60 * 1000;
 const sesionesProveedorManual = new Map();
 
@@ -1608,7 +1630,7 @@ async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, 
     }
     const evidenciaPrecio = await extraerPrecioPaginaProveedor(page, tipo, bodyText);
     const precioArs = evidenciaPrecio.precioArs;
-    const disponibilidad = extraerDisponibilidadProveedor(bodyText);
+    const disponibilidad = await extraerDisponibilidadPaginaProveedor(page, tipo, bodyText);
     const condicionIva = extraerCondicionIva(bodyText);
     const tituloProveedor = await tituloVisibleProducto(page, tipo);
     let identidad = validarIdentidadProducto(producto, tituloProveedor);
@@ -1952,7 +1974,7 @@ async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset
         tituloProveedor=await tituloVisibleProducto(page,tipo);
         const identidad=validarIdentidadProducto(item.producto||item.nombre||'',tituloProveedor);
         if (!identidad.ok) {
-          const disponibilidad=extraerDisponibilidadProveedor(bodyText);
+          const disponibilidad=await extraerDisponibilidadPaginaProveedor(page,tipo,bodyText);
           const condicionIva=extraerCondicionIva(bodyText);
           resultados.push(Object.assign(respuestaRevisionIdentidadProveedor({
             proveedor, urlExacta, codigo:item.codigo||'', producto:item.producto||item.nombre||'',
@@ -1969,7 +1991,7 @@ async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset
           Object.assign(errorPrecio, validacionPrecio);
           throw errorPrecio;
         }
-        const disponibilidad=extraerDisponibilidadProveedor(bodyText);
+        const disponibilidad=await extraerDisponibilidadPaginaProveedor(page,tipo,bodyText);
         const condicionIva=extraerCondicionIva(bodyText);
         resultados.push({ok:true,proveedor:proveedor.nombre||nombreTipo,codigo:item.codigo||'',producto:item.producto||item.nombre||'',url:urlExacta,precioArs,sinIva:condicionIva.sinIva==null?tipo==='tecnoprices':condicionIva.sinIva,ivaAlicuota:condicionIva.ivaAlicuota,disponibilidadProveedor:disponibilidad,disponibilidadProveedorTexto:disponibilidad==='disponible'?'Disponible':disponibilidad==='sin_stock'?'Sin stock':'No verificado',fuente:tipo+'_lote_url_exacta',fecha:new Date().toISOString(),tituloProveedor,urlFinal:page.url(),textoPrecio:evidenciaPrecio.textoPrecio,selectorPrecio:evidenciaPrecio.selectorPrecio,moneda:evidenciaPrecio.moneda,identidad});
       } catch(e) { resultados.push({ok:false,error:true,codigo:e.codigo||'',codigoProducto:item.codigo||'',url:urlExacta,mensaje:e.message||'Error leyendo producto',tituloProveedor:String(tituloProveedor||'').trim(),precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}); }
@@ -2251,6 +2273,7 @@ module.exports = {
   extraerPrecioBiosegur,
   extraerPrecioEtiquetado,
   extraerCondicionIva,
+  extraerDisponibilidadFreeElectron,
   idsMercadoLibreDesdeUrl,
   itemIdMercadoLibreDesdeHtml,
   filtrosMercadoLibreDesdeUrl,

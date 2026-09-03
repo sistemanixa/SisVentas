@@ -19463,6 +19463,19 @@ function registrarConfirmacionIdentidadProveedor(datos) {
   return id;
 }
 
+async function persistirConfirmacionIdentidadProveedor(idx) {
+  idx = parseInt(idx, 10);
+  var proveedor = prodProveedoresActuales[idx];
+  if (!editingProdId || !proveedor || !window.fbDB || !window.fbUpdate || !window.fbRef) return false;
+  await window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + editingProdId + '/proveedores/' + idx), {
+    identidadConfirmadaManualmente:true,
+    identidadConfirmadaUrl:String(proveedor.identidadConfirmadaUrl || proveedor.url || '').trim(),
+    identidadConfirmadaEn:proveedor.identidadConfirmadaEn || Date.now(),
+    identidadConfirmadaPor:proveedor.identidadConfirmadaPor || currentUser || currentUserEmail || 'Usuario'
+  });
+  return true;
+}
+
 async function confirmarIdentidadProveedorCotizacion(confirmacionId, boton) {
   var ctx = _confirmacionesIdentidadProveedor[String(confirmacionId || '')];
   if (!ctx || !ctx.match) { notify('La revisión ya no está disponible. Volvé a cotizar el producto.'); return; }
@@ -19520,13 +19533,15 @@ async function confirmarIdentidadProveedorCotizacion(confirmacionId, boton) {
     };
     delete _confirmacionesIdentidadProveedor[confirmacionId];
     procesarResultadoCotizacionProveedores({ resultados:[resultado] }, [ctx.match], ctx.box || null, null);
+    await persistirConfirmacionIdentidadProveedor(ctx.match.idx);
+    notify('✓ Proveedor autorizado para esta URL. No volverá a consultarse.');
   } catch (e) {
     notify('No se pudo confirmar la publicación: ' + (e.message || 'Error'));
     if (boton) { boton.disabled = false; boton.innerHTML = '<i class="ti ti-check"></i> Sí, es el mismo producto'; }
   }
 }
 
-function confirmarIdentidadProveedorConPrecioCargado(idx, url) {
+async function confirmarIdentidadProveedorConPrecioCargado(idx, url) {
   idx = parseInt(idx, 10);
   var actual = prodProveedoresActuales[idx];
   if (!actual || !(parsePrecioProveedorARS(actual.precio) > 0)) { notify('Primero cargá un precio válido para este proveedor.'); return; }
@@ -19543,7 +19558,12 @@ function confirmarIdentidadProveedorConPrecioCargado(idx, url) {
   renderTablaProveedoresProducto();
   recalcularCompraDesdeProveedores();
   calcMargen();
-  notify('Proveedor autorizado. Tocá Guardar producto para conservarlo.');
+  try {
+    await persistirConfirmacionIdentidadProveedor(idx);
+    notify('✓ Proveedor autorizado para esta URL. No volverá a consultarse.');
+  } catch (e) {
+    notify('La autorización quedó en la ficha, pero no pudo guardarse: ' + (e.message || 'Error'));
+  }
 }
 
 async function aprobarVariacionPrecioProveedor(idx, precioCandidato, precioAnterior, botonId) {

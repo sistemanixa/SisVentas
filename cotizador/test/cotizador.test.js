@@ -26,6 +26,7 @@ const {
   extraerPrecioBiosegur,
   extraerPrecioEtiquetado,
   extraerCondicionIva,
+  extraerDisponibilidadFreeElectron,
   idsMercadoLibreDesdeUrl,
   itemIdMercadoLibreDesdeHtml,
   filtrosMercadoLibreDesdeUrl,
@@ -248,6 +249,18 @@ test('Mercado Libre conserva el precio de una URL MLA tradicional sin promoción
   assert.equal(datos.precioOriginalArs, 156000);
   assert.equal(datos.enPromocion, false);
   assert.equal(datos.porcentajeDescuento, 0);
+});
+
+test('Free Electron ignora el stock de productos relacionados', () => {
+  assert.equal(extraerDisponibilidadFreeElectron(
+    'GARNET EXPANSOR 8 ZONAS P/PC-732G/A2K8\nReferencia EXP-8Z\n$ 64.753,98 Impuestos incluidos\nConsultar disponibilidad de stock'
+  ), 'disponible');
+  assert.equal(extraerDisponibilidadFreeElectron(
+    'GARNET MODULO AUXILIAR\nSin Stock\nReferencia REL-100 FREE\n$ 21.896,93 Impuestos incluidos'
+  ), 'sin_stock');
+  const fichaCompleta = 'GARNET EXPANSOR 8 ZONAS\nReferencia EXP-8Z\n$ 64.753,98 Impuestos incluidos\nConsultar disponibilidad de stock\n11 otros productos en la misma categoría:\nSin Stock\nREL-100';
+  const fichaPrincipal = fichaCompleta.split(/\d+\s+otros\s+productos\s+en\s+la\s+misma\s+categor[ií]a\s*:/i)[0];
+  assert.equal(extraerDisponibilidadFreeElectron(fichaPrincipal), 'disponible');
 });
 
 test('Mercado Libre resuelve la publicación exacta de P-50721 y consulta ese item', async () => {
