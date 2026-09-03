@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v3.3.9.js'), 'utf8');
+const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v3.3.10.js'), 'utf8');
 
 if (!app.includes("FB_PATHS.productos + '/' + editingProdId + '/proveedores/' + idx")) {
   throw new Error('La confirmación debe persistirse inmediatamente en el proveedor del producto');
