@@ -7,7 +7,7 @@ const SHELL = [
   './css/app.css',
   './css/v3-preview.css',
   './js/app.js',
-  './js/app.v3.3.7.js',
+  './js/app.v3.3.8.js',
   './js/core/version.js',
   './js/core/version.v3.3.8.js',
   './js/core/login.js',
