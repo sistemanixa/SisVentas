@@ -19638,10 +19638,9 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box, contex
       precioCandidatoIdentidad = parsePrecioProveedorARS(match.precioActual);
     }
 
-    // La identidad se confirma una sola vez por URL y proveedor. La respuesta
-    // automática del cotizador no reemplaza la decisión humana al incorporar
-    // una publicación nueva como segundo (o sucesivo) proveedor del producto.
-    if (match && precio > 0 && !(r.identidad && r.identidad.manual) &&
+    // Si el cotizador comprobó el título, no corresponde pedir una segunda
+    // confirmación humana. Sólo se consulta cuando la identidad es dudosa.
+    if (match && precio > 0 && !(r.identidad && r.identidad.ok) &&
         !identidadProveedorConfirmadaParaUrl(prodProveedoresActuales[match.idx], urlRes || match.url)) {
       requiereConfirmacionIdentidad = true;
       precioCandidatoIdentidad = precio;
