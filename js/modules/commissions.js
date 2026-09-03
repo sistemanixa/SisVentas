@@ -79,6 +79,34 @@
     return '<span class="badge ' + datos[0] + '">' + esc(datos[1]) + '</span>';
   }
 
+  function coincideEstadoFiltro(grupo, filtro) {
+    var actual = estadoGrupo(grupo);
+    if (!filtro) return true;
+    if (filtro === 'aprobadas') return actual === 'pendiente_pago' || actual === 'pagado_parcial';
+    return actual === filtro;
+  }
+
+  function montoGrupo(grupo) {
+    return grupo.items.reduce(function (s, item) { return s + (parseFloat(item.monto) || 0); }, 0);
+  }
+
+  function motivoRechazoGrupo(grupo) {
+    return grupo.items.map(function (item) { return String(item.motivoRechazo || '').trim(); }).filter(Boolean).filter(function (motivo, indice, lista) { return lista.indexOf(motivo) === indice; }).join(' · ');
+  }
+
+  function actualizarKpi(id, gruposKpi, leyenda) {
+    var valor = document.getElementById('com-kpi-' + id);
+    var detalle = document.getElementById('com-kpi-' + id + '-sub');
+    if (valor) valor.textContent = moneda(gruposKpi.reduce(function (s, grupo) { return s + montoGrupo(grupo); }, 0));
+    if (detalle) detalle.textContent = gruposKpi.length + ' ' + (gruposKpi.length === 1 ? 'comisión' : 'comisiones') + ' · ' + leyenda;
+  }
+
+  function filtrarComisionesPorEstado(filtro) {
+    var select = document.getElementById('com-f-estado');
+    if (select) select.value = filtro || '';
+    renderModuloComisiones();
+  }
+
   function renderModuloComisiones() {
     var tbody = document.getElementById('comisiones-tbody');
     if (!tbody) return;
@@ -95,14 +123,14 @@
     var filtroEstado = String((document.getElementById('com-f-estado') || {}).value || '');
     var lista = grupos().filter(function (grupo) {
       var texto = [grupo.ventaId, grupo.cliente].concat(grupo.items.map(function (g) { return g.empleadoNombre || g.descripcion || ''; })).join(' ').toLowerCase();
-      return (!buscar || texto.indexOf(buscar) >= 0) && (!filtroEstado || estadoGrupo(grupo) === filtroEstado);
+      return (!buscar || texto.indexOf(buscar) >= 0) && coincideEstadoFiltro(grupo, filtroEstado);
     });
     var todos = grupos();
     function contar(est) { return todos.filter(function (g) { return estadoGrupo(g) === est; }).length; }
-    var pendientes = document.getElementById('com-kpi-pendientes'); if (pendientes) pendientes.textContent = contar('pendiente_aprobacion');
-    var aprobadas = document.getElementById('com-kpi-aprobadas'); if (aprobadas) aprobadas.textContent = contar('pendiente_pago');
-    var rechazadas = document.getElementById('com-kpi-rechazadas'); if (rechazadas) rechazadas.textContent = contar('rechazado');
-    var total = document.getElementById('com-kpi-total'); if (total) total.textContent = moneda(lista.reduce(function (s,g) { return s + g.items.reduce(function (x,i) { return x + (parseFloat(i.monto) || 0); }, 0); }, 0));
+    actualizarKpi('pendientes', todos.filter(function (g) { return estadoGrupo(g) === 'pendiente_aprobacion'; }), 'requieren decisión');
+    actualizarKpi('aprobadas', todos.filter(function (g) { return coincideEstadoFiltro(g, 'aprobadas'); }), 'listas para abonar');
+    actualizarKpi('rechazadas', todos.filter(function (g) { return estadoGrupo(g) === 'rechazado'; }), 'se pueden rehabilitar');
+    actualizarKpi('total', todos.filter(function (g) { return estadoGrupo(g) !== 'rechazado'; }), 'comisiones vigentes');
     var navBadge = document.getElementById('badge-nav-comisiones');
     if (navBadge) { var cant = contar('pendiente_aprobacion'); navBadge.style.display = cant ? '' : 'none'; navBadge.textContent = cant; }
     tbody.innerHTML = lista.length ? lista.map(function (grupo) {
@@ -110,11 +138,12 @@
       var pct = activos.reduce(function (s,g) { return s + porcentaje(g); }, 0);
       var monto = activos.reduce(function (s,g) { return s + (parseFloat(g.monto) || 0); }, 0);
       var participantes = grupo.items.map(function (g) { return '<span class="badge ' + (estado(g)==='rechazado'?'b-red':'b-blue') + '">' + esc(g.empleadoNombre || 'Sin asignar') + '</span>'; }).join(' ');
+      var motivo = estadoGrupo(grupo) === 'rechazado' ? motivoRechazoGrupo(grupo) : '';
       return '<tr onclick="abrirDetalleComision(\'' + esc(grupo.clave) + '\')" style="cursor:pointer">' +
         '<td data-label="Fecha">' + esc(String(grupo.fecha || '').split('-').reverse().join('/')) + '</td>' +
         '<td data-label="Venta / cliente"><strong style="color:var(--blue)">' + esc(grupo.ventaId || 'Sin venta') + '</strong><div style="font-size:11px;color:var(--text3);margin-top:3px">' + esc(grupo.cliente || 'Cliente no informado') + '</div></td>' +
         '<td data-label="Participantes">' + participantes + '</td><td data-label="Reparto">' + pct.toLocaleString('es-AR') + '%</td>' +
-        '<td class="tr" data-label="Total"><strong>' + moneda(monto) + '</strong></td><td data-label="Estado">' + badgeEstado(estadoGrupo(grupo)) + '</td>' +
+        '<td class="tr" data-label="Total"><strong>' + moneda(monto) + '</strong></td><td data-label="Estado">' + badgeEstado(estadoGrupo(grupo)) + (motivo?'<div style="font-size:11px;color:var(--red);margin-top:5px;max-width:240px" title="'+esc(motivo)+'"><strong>Motivo:</strong> '+esc(motivo)+'</div>':'') + '</td>' +
         '<td data-label="Acciones"><button class="btn btn-sm btn-icon" onclick="event.stopPropagation();abrirDetalleComision(\'' + esc(grupo.clave) + '\')" title="Gestionar comisión"><i class="ti ti-adjustments"></i></button></td></tr>';
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">No hay comisiones para estos filtros</td></tr>';
     if (window.SisVentas && window.SisVentas.prepareResizablePage) window.SisVentas.prepareResizablePage(document.getElementById('page-comisiones'));
@@ -154,7 +183,7 @@
     if (cont) cont.innerHTML = detalleActual.items.map(function (g) {
       var est = estado(g); var pct = porcentaje(g, movimientosDetalle[g.fbKey]); var pagada = est === 'pagado' || est === 'pagado_parcial';
       return '<div class="comision-participante" data-gasto="' + esc(g.fbKey) + '" data-estado="'+esc(est)+'" style="display:grid;grid-template-columns:minmax(150px,1fr) 100px 120px auto;gap:8px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">' +
-        '<div><strong>' + esc(g.empleadoNombre || 'Sin asignar') + '</strong><div style="font-size:10px;color:var(--text3);margin-top:3px">ID ' + esc(g.fbKey) + '</div></div>' +
+        '<div><strong>' + esc(g.empleadoNombre || 'Sin asignar') + '</strong>' + (est==='rechazado'?'<div style="font-size:11px;color:var(--red);margin-top:4px"><strong>Motivo:</strong> '+esc(g.motivoRechazo || 'Sin motivo registrado')+'</div>':'') + '</div>' +
         '<label style="display:flex;align-items:center;gap:5px"><input class="comision-pct-input" data-gasto="' + esc(g.fbKey) + '" type="number" min="0.1" max="' + maxPct + '" step="0.1" value="' + pct + '" ' + (pagada?'disabled':'') + ' oninput="actualizarResumenMargenComision()" style="width:72px">%</label>' +
         '<strong>' + moneda(g.monto) + '</strong><div style="display:flex;gap:5px;justify-content:flex-end">' + badgeEstado(est) +
         (est === 'pendiente_aprobacion' ? '<button class="btn btn-sm" title="Aprobar esta participación" onclick="aprobarComisionGestion(\''+esc(g.fbKey)+'\')" style="color:var(--green);border-color:var(--green)"><i class="ti ti-check"></i> Aprobar</button><button class="btn btn-sm" title="Rechazar esta participación" onclick="rechazarComisionGestion(\''+esc(g.fbKey)+'\')" style="color:var(--red);border-color:var(--red)"><i class="ti ti-x"></i> Rechazar</button>' : '') +
@@ -240,6 +269,7 @@
   window.guardarDistribucionComision=guardarDistribucionComision; window.agregarParticipanteComision=agregarParticipanteComision; window.rehabilitarComision=rehabilitarComision;
   window.abrirComisionDesdeGasto=abrirComisionDesdeGasto; window.aprobarComisionGestion=aprobarComisionGestion; window.rechazarComisionGestion=rechazarComisionGestion;
   window.actualizarResumenMargenComision=actualizarResumenMargenComision; window.abrirVentaDesdeComisiones=abrirVentaDesdeComisiones;
+  window.filtrarComisionesPorEstado=filtrarComisionesPorEstado;
   // Si la aplicación entró directamente por #/comisiones, showPage puede
   // ejecutarse antes que este módulo. Renderizar al terminar la carga evita
   // dejar el estado inicial "Cargando..." esperando otra navegación.

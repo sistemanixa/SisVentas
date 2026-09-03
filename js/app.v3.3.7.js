@@ -20224,14 +20224,10 @@ function renderCatalogo() {
   grid.innerHTML = visibles.map(function(p) {
     var nombre = p.nombre || p.descripcion || 'Producto';
     var descripcion = p.catalogoDescripcion || p.descripcion || 'Consultanos para conocer más sobre este producto.';
-    var precioVentaCatalogo = metricasListaProducto(p).venta;
-    var precioVentaCatalogoHtml = precioVentaCatalogo > 0
-      ? '<span class="catalogo-precio"><strong>$' + precioVentaCatalogo.toLocaleString('es-AR', {minimumFractionDigits:0, maximumFractionDigits:2}) + '</strong><small> + IVA</small></span>'
-      : '<span class="catalogo-precio consultar"><strong>Consultar</strong></span>';
     return '<button type="button" class="catalogo-card ' + (p.catalogoDestacado ? 'destacado' : '') + '" data-catalogo-pid="' + escapeHTML(String(p.fbKey || '')) + '" onclick="abrirProductoCatalogo(decodeURIComponent(\'' + encodeURIComponent(String(p.fbKey || '')) + '\'))">' +
       '<div class="catalogo-card-imagen">' + imagenCatalogoHTML(p, 'catalogo-card-img') + (p.catalogoDestacado ? '<span class="catalogo-destacado"><i class="ti ti-star-filled"></i> Destacado</span>' : '') + '</div>' +
       '<div class="catalogo-card-body"><span class="catalogo-card-cat">' + escapeHTML(p.categoria || 'Producto') + '</span><h3>' + escapeHTML(nombre) + '</h3>' +
-      (p.marca ? '<div class="catalogo-card-marca">' + escapeHTML(p.marca) + '</div>' : '') + '<p>' + escapeHTML(descripcion) + '</p><span class="catalogo-card-footer"><span class="catalogo-ver">Ver producto <i class="ti ti-arrow-right"></i></span>' + precioVentaCatalogoHtml + '</span></div></button>';
+      (p.marca ? '<div class="catalogo-card-marca">' + escapeHTML(p.marca) + '</div>' : '') + '<p>' + escapeHTML(descripcion) + '</p><span class="catalogo-card-footer"><span class="catalogo-ver">Ver producto <i class="ti ti-arrow-right"></i></span></span></div></button>';
   }).join('');
   var cantidad = document.getElementById('catalogo-cantidad');
   if (cantidad) cantidad.textContent = visibles.length + (visibles.length === 1 ? ' producto' : ' productos');
@@ -20336,8 +20332,20 @@ function abrirFichaInternaDesdeCatalogo() {
 function togglePantallaCompletaCatalogo() {
   var pagina = document.getElementById('page-catalogo');
   if (!pagina) return;
-  if (document.fullscreenElement) document.exitFullscreen();
-  else if (pagina.requestFullscreen) pagina.requestFullscreen().catch(function(){ notify('El navegador no permitió abrir la presentación'); });
+  var activar = !pagina.classList.contains('catalogo-presentacion-activa');
+  pagina.classList.toggle('catalogo-presentacion-activa', activar);
+  document.body.classList.toggle('catalogo-presentacion-body', activar);
+  if (activar && !window._catalogoPresentacionTeclado) {
+    window._catalogoPresentacionTeclado = true;
+    document.addEventListener('keydown', function(e) {
+      var paginaCatalogo = document.getElementById('page-catalogo');
+      var modalCatalogo = document.getElementById('catalogo-modal');
+      if (e.key !== 'Escape' || !paginaCatalogo || !paginaCatalogo.classList.contains('catalogo-presentacion-activa')) return;
+      if (modalCatalogo && modalCatalogo.style.display !== 'none') return;
+      paginaCatalogo.classList.remove('catalogo-presentacion-activa');
+      document.body.classList.remove('catalogo-presentacion-body');
+    });
+  }
 }
 
 async function guardarProducto() {
@@ -25858,6 +25866,15 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
         inp.setAttribute('oninput', 'this.value=this.value.toLocaleUpperCase(\'es-AR\')');
         inp.setAttribute('autocapitalize', 'characters');
       }
+      if (tipo === 'proveedor' && (f.id === 'npv-user' || f.id === 'npv-pass')) {
+        inp.setAttribute('autocapitalize', 'none');
+        inp.setAttribute('autocorrect', 'off');
+        inp.setAttribute('spellcheck', 'false');
+        inp.style.textTransform = 'none';
+      }
+      if (tipo === 'proveedor' && f.id === 'npv-user') {
+        inp.setAttribute('autocomplete', 'username');
+      }
       if (f.list) {
         inp.setAttribute('list', f.list);
         inp.setAttribute('autocomplete', 'off');
@@ -25867,7 +25884,32 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
         var valor = datosExistentes[campo] || datosExistentes[f.id] || '';
         if (valor) inp.value = valor;
       }
-      fg.appendChild(inp);
+      if (tipo === 'proveedor' && f.id === 'npv-pass') {
+        inp.setAttribute('autocomplete', 'current-password');
+        inp.style.paddingRight = '42px';
+        var passwordWrap = document.createElement('div');
+        passwordWrap.style.cssText = 'position:relative;width:100%';
+        var passwordToggle = document.createElement('button');
+        passwordToggle.type = 'button';
+        passwordToggle.className = 'btn btn-sm btn-icon';
+        passwordToggle.setAttribute('aria-label', 'Mostrar contraseña');
+        passwordToggle.title = 'Mostrar contraseña';
+        passwordToggle.style.cssText = 'position:absolute;right:4px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;background:transparent;color:var(--text3)';
+        passwordToggle.innerHTML = '<i class="ti ti-eye"></i>';
+        passwordToggle.addEventListener('click', function() {
+          var visible = inp.type === 'text';
+          inp.type = visible ? 'password' : 'text';
+          passwordToggle.innerHTML = '<i class="ti ' + (visible ? 'ti-eye' : 'ti-eye-off') + '"></i>';
+          passwordToggle.setAttribute('aria-label', visible ? 'Mostrar contraseña' : 'Ocultar contraseña');
+          passwordToggle.title = visible ? 'Mostrar contraseña' : 'Ocultar contraseña';
+          inp.focus();
+        });
+        passwordWrap.appendChild(inp);
+        passwordWrap.appendChild(passwordToggle);
+        fg.appendChild(passwordWrap);
+      } else {
+        fg.appendChild(inp);
+      }
       grid.appendChild(fg);
     }
     return;

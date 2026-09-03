@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.7-firebase' -->
+<!-- VERSION: 'v3.3.8-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.7.js"></script>
+<script src="./js/core/version.v3.3.8.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,7 +34,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.3.5">
+<link rel="stylesheet" href="./css/app.css?v=3.3.8">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
@@ -3838,7 +3838,6 @@ Listo para analizar.
         <div class="catalogo-resumen"><span id="catalogo-cantidad">0 productos</span><span>Seleccioná un producto para verlo en detalle</span></div>
         <div id="catalogo-grid" class="catalogo-grid"></div>
         <div id="catalogo-vacio" class="catalogo-vacio" style="display:none"><i class="ti ti-package-off"></i><strong>No encontramos productos</strong><span>Probá con otra búsqueda o categoría.</span></div>
-      </div>
 
       <div id="catalogo-modal" class="catalogo-modal" style="display:none" onclick="if(event.target===this)cerrarProductoCatalogo()">
         <button id="catalogo-anterior" class="catalogo-modal-nav catalogo-modal-prev" type="button" onclick="event.stopPropagation();moverProductoCatalogo(-1)" aria-label="Producto anterior" title="Producto anterior (flecha izquierda)"><i class="ti ti-chevron-left"></i></button>
@@ -3863,6 +3862,7 @@ Listo para analizar.
           <header><div><span>CATÁLOGO NIXA</span><h2 id="catalogo-categorias-titulo">Explorar categorías</h2><p>Elegí una categoría para ver sus productos.</p></div><button type="button" onclick="cerrarCategoriasCatalogo()" aria-label="Cerrar"><i class="ti ti-x"></i></button></header>
           <div id="catalogo-categorias" class="catalogo-categorias-lista" aria-label="Categorías"></div>
         </section>
+      </div>
       </div>
 
       <!-- ── PRODUCTOS ── -->
@@ -4528,10 +4528,10 @@ Listo para analizar.
 <!-- GASTOS -->
 <div id="page-comisiones" class="page">
   <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
-    <div class="metric"><div class="m-label">Pendientes</div><div class="m-value" id="com-kpi-pendientes" style="color:var(--amber)">0</div><div class="m-sub">requieren decisión</div></div>
-    <div class="metric"><div class="m-label">Aprobadas</div><div class="m-value" id="com-kpi-aprobadas" style="color:var(--blue)">0</div><div class="m-sub">listas para abonar</div></div>
-    <div class="metric"><div class="m-label">Rechazadas</div><div class="m-value" id="com-kpi-rechazadas" style="color:var(--red)">0</div><div class="m-sub">se pueden rehabilitar</div></div>
-    <div class="metric"><div class="m-label">Total asignado</div><div class="m-value" id="com-kpi-total" style="color:var(--green)">$0</div><div class="m-sub">según filtros</div></div>
+    <div class="metric" id="com-card-pendientes" role="button" tabindex="0" onclick="filtrarComisionesPorEstado('pendiente_aprobacion')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarComisionesPorEstado('pendiente_aprobacion')}" style="cursor:pointer"><div class="m-label">Pendientes</div><div class="m-value" id="com-kpi-pendientes" style="color:var(--amber)">$0</div><div class="m-sub" id="com-kpi-pendientes-sub">0 comisiones · requieren decisión</div></div>
+    <div class="metric" id="com-card-aprobadas" role="button" tabindex="0" onclick="filtrarComisionesPorEstado('aprobadas')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarComisionesPorEstado('aprobadas')}" style="cursor:pointer"><div class="m-label">Aprobadas</div><div class="m-value" id="com-kpi-aprobadas" style="color:var(--blue)">$0</div><div class="m-sub" id="com-kpi-aprobadas-sub">0 comisiones · listas para abonar</div></div>
+    <div class="metric" id="com-card-rechazadas" role="button" tabindex="0" onclick="filtrarComisionesPorEstado('rechazado')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarComisionesPorEstado('rechazado')}" style="cursor:pointer"><div class="m-label">Rechazadas</div><div class="m-value" id="com-kpi-rechazadas" style="color:var(--red)">$0</div><div class="m-sub" id="com-kpi-rechazadas-sub">0 comisiones · se pueden rehabilitar</div></div>
+    <div class="metric" id="com-card-total" role="button" tabindex="0" onclick="filtrarComisionesPorEstado('')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarComisionesPorEstado('')}" style="cursor:pointer"><div class="m-label">Total asignado</div><div class="m-value" id="com-kpi-total" style="color:var(--green)">$0</div><div class="m-sub" id="com-kpi-total-sub">0 comisiones · comisiones vigentes</div></div>
   </div>
   <div class="card">
     <div class="card-head" style="gap:10px;flex-wrap:wrap">
@@ -4539,7 +4539,7 @@ Listo para analizar.
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto">
         <button class="btn btn-primary admin-only" onclick="abrirModalComisionVenta()"><i class="ti ti-plus"></i> Nueva comisión</button>
         <input id="com-f-buscar" class="search-input" placeholder="Venta, cliente o persona..." oninput="renderModuloComisiones()" style="min-width:250px">
-        <select id="com-f-estado" class="search-input" onchange="renderModuloComisiones()"><option value="">Todos los estados</option><option value="pendiente_aprobacion">Pendientes</option><option value="pendiente_pago">Aprobadas</option><option value="pagado">Pagadas</option><option value="rechazado">Rechazadas</option></select>
+        <select id="com-f-estado" class="search-input" onchange="renderModuloComisiones()"><option value="">Todos los estados</option><option value="pendiente_aprobacion">Pendientes</option><option value="aprobadas">Aprobadas</option><option value="pagado">Pagadas</option><option value="rechazado">Rechazadas</option></select>
       </div>
     </div>
     <div class="table-wrap">
@@ -5534,7 +5534,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.3.7.js"></script>
+<script src="./js/app.v3.3.7.js?v=3.3.8"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5994,7 +5994,7 @@ Listo para analizar.
 <script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
 <script src="./js/modules/resizable-tables.js?v=3.3.5"></script>
-<script src="./js/modules/commissions.js?v=3.3.6-central-total-1"></script>
+<script src="./js/modules/commissions.js?v=3.3.8"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>
@@ -6005,7 +6005,7 @@ Listo para analizar.
 <script src="./js/modules/resource-monitor.js?v=2.0.154"></script>
 
 <script src="./js/modules/role-guard.js?v=2.0.325"></script>
-<script src="./js/modules/purchase-orders.js?v=3.3.5-conciliacion-compra-2"></script>
+<script src="./js/modules/purchase-orders.js?v=3.3.8"></script>
 <script src="./js/modules/ot-material-custody.js?v=3.0.14"></script>
 <script src="./js/modules/release-tour.js?v=2.0.161"></script>
 
