@@ -39,6 +39,7 @@ const {
   datosEstructuradosMercadoLibreDesdeHtml,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
+  respuestaRevisionIdentidadProveedor,
   validarIdentidadProducto,
   validarMonedaPrecio,
   validarSaltoPrecio,
@@ -305,6 +306,22 @@ test('la identidad acepta el mismo modelo y rechaza otro producto', () => {
     'ACCES POINT TP-LINK DECO S7 PACK X3',
     'Sistema Wi-Fi Mesh TP-Link Deco S7 Pack 2 AC1900'
   ).ok, false);
+});
+
+test('una duda de identidad conserva el precio para confirmación humana', () => {
+  const revision = respuestaRevisionIdentidadProveedor({
+    proveedor:{ nombre:'FREE ELECTRON' },
+    urlExacta:'https://www.free-electron.com.ar/producto',
+    codigo:'P-10222',
+    producto:'EXP 8Z GARNET EXPANSORA DE ZONAS',
+    datos:{ precioArs:55563.09, tituloProveedor:'Garnet Expansor 8 zonas', moneda:'ARS' },
+    identidad:{ ok:false, mensaje:'El modelo o especificación no coincide (8Z)' },
+    trace:[], debug:true
+  });
+  assert.equal(revision.requiereConfirmacionIdentidad, true);
+  assert.equal(revision.precioCandidatoArs, 55563.09);
+  assert.equal(revision.tituloProveedor, 'Garnet Expansor 8 zonas');
+  assert.equal(revision.error, false);
 });
 
 test('rechaza moneda USD aunque el importe tenga símbolo peso', () => {
