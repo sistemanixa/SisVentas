@@ -31,7 +31,7 @@ test('la OC dispone de un comprobante imprimible con proveedor e items', () => {
   assert.match(purchaseOrders, /Proveedor/);
   assert.match(purchaseOrders, /window\.print/);
   assert.match(purchaseOrders, /hasReceipts \? '<button class="btn" onclick="ocImprimirOrdenActual/);
-  assert.match(index, /purchase-orders\.js\?v=3\.3\.5-conciliacion-compra-2/);
+  assert.match(index, /purchase-orders\.js\?v=3\.3\.12-proveedor-final-1/);
 });
 
 test('el detalle de OC adopta la regla general de columnas con una clave estable', () => {

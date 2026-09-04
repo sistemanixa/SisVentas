@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.12-firebase' -->
+<!-- VERSION: 'v3.3.13-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.12.js"></script>
+<script src="./js/core/version.v3.3.13.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,7 +34,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.3.11">
+<link rel="stylesheet" href="./css/app.css?v=3.3.13">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
@@ -4466,7 +4466,7 @@ Listo para analizar.
           <div class="card-head">
             <div>
               <span class="card-title">Tiempo de uso del sistema</span>
-              <div style="font-size:11px;color:var(--text3);margin-top:4px">Activo = interacción reciente · Sin interacción = sistema abierto sin actividad durante más de 2 minutos</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px"><span style="color:var(--green);font-weight:600">Verde: tiempo activo</span> — el usuario interactuó recientemente · <span style="color:var(--amber);font-weight:600">Amarillo: sin interacción</span> — el sistema quedó abierto sin actividad durante más de 2 minutos</div>
             </div>
             <select id="usuarios-uso-periodo" class="select-sm" onchange="cargarMetricasUsoUsuarios(this.value)">
               <option value="hoy">Hoy</option>
@@ -5553,7 +5553,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.3.12.js"></script>
+<script src="./js/app.v3.3.13.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5804,7 +5804,7 @@ Listo para analizar.
         </div>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
-        <button id="btn-chat-admin-limpiar" onclick="chatAdminLimpiar()" style="display:none;background:none;border:0.5px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;font-size:11px;padding:4px 8px" title="Limpiar canal (admin)"><i class="ti ti-trash" style="font-size:12px"></i> Limpiar</button>
+        <button id="btn-chat-admin-limpiar" onclick="chatAdminLimpiar()" style="display:none;background:none;border:0.5px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;font-size:11px;padding:4px 8px" title="Eliminar mensajes solamente de la conversación abierta"><i class="ti ti-trash" style="font-size:12px"></i> Limpiar conversación</button>
         <button id="btn-chat-maximizar" class="icon-btn" onclick="chatAlternarMaximizado()" title="Maximizar chat" aria-label="Maximizar chat" aria-pressed="false"><i class="ti ti-maximize"></i></button>
         <button onclick="chatCerrar()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px 8px">✕</button>
       </div>
@@ -5825,14 +5825,15 @@ Listo para analizar.
       </button>
     </div>
     <div id="chat-messages"><div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Cargando mensajes...</div></div>
+    <div id="chat-typing" style="display:none;padding:4px 18px 0;color:var(--green);font-size:11px;font-style:italic"></div>
     <div id="chat-input-row">
-      <label style="width:34px;height:34px;border-radius:50%;background:var(--bg3);border:0.5px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Adjuntar foto">
-        <i class="ti ti-photo" style="font-size:16px;color:var(--text3)"></i>
-        <input type="file" id="chat-foto-input" accept="image/*" style="display:none" onchange="chatEnviarFoto(this)">
+      <label style="width:34px;height:34px;border-radius:50%;background:var(--bg3);border:0.5px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Adjuntar imagen o archivo seguro">
+        <i class="ti ti-paperclip" style="font-size:16px;color:var(--text3)"></i>
+        <input type="file" id="chat-foto-input" accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.csv,.docx,.xlsx,image/jpeg,image/png,image/webp,application/pdf,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="chatEnviarArchivo(this)">
       </label>
       <textarea id="chat-input" placeholder="Escribí un mensaje..." rows="1"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatEnviar()}"
-        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"></textarea>
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';chatInputCambio(this)"></textarea>
       <button id="chat-send" onclick="chatEnviar()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -6025,7 +6026,7 @@ Listo para analizar.
 <script src="./js/modules/resource-monitor.js?v=2.0.154"></script>
 
 <script src="./js/modules/role-guard.js?v=2.0.325"></script>
-<script src="./js/modules/purchase-orders.js?v=3.3.11-miniaturas-2"></script>
+<script src="./js/modules/purchase-orders.js?v=3.3.12-proveedor-final-1"></script>
 <script src="./js/modules/ot-material-custody.js?v=3.0.14"></script>
 <script src="./js/modules/release-tour.js?v=2.0.161"></script>
 
