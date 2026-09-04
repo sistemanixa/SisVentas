@@ -69,6 +69,25 @@
     }) || null;
   }
 
+  function productThumbnail(item, product) {
+    item = item || {};
+    product = product || findProduct(item);
+    if (typeof window.imagenProductoItemHTML === 'function') {
+      var resolved = window.imagenProductoItemHTML({
+        pid: (product && (product.fbKey || product.id)) || item.productoKey || item.productoId || '',
+        productoFbKey: (product && product.fbKey) || item.productoKey || item.productoFbKey || '',
+        cod: (product && (product.codigo || product.cod)) || item.codigo || item.cod || '',
+        codigo: (product && (product.codigo || product.cod)) || item.codigo || item.cod || '',
+        imagenUrl: (product && product.imagenUrl) || item.imagenUrl || item.productoImagenUrl || ''
+      }, 'oc-product-thumb-image');
+      return '<span class="oc-product-thumb" style="width:48px;height:48px;flex:0 0 48px;border-radius:9px;overflow:hidden;background:#fff;border:0.5px solid var(--border2);display:grid;place-items:center">' + resolved + '</span>';
+    }
+    var imageUrl = (product && (product.imagenUrl || product.imagen || product.imageUrl || product.foto)) || item.imagenUrl || item.imagen || item.imageUrl || item.foto || '';
+    var fallback = '<span class="oc-product-thumb-fallback" style="display:' + (imageUrl ? 'none' : 'grid') + ';width:100%;height:100%;place-items:center;color:var(--text3)"><i class="ti ti-photo"></i></span>';
+    return '<span class="oc-product-thumb" style="width:48px;height:48px;flex:0 0 48px;border-radius:9px;overflow:hidden;background:var(--bg3);border:0.5px solid var(--border2);display:grid;place-items:center">' +
+      (imageUrl ? '<img src="' + attr(imageUrl) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain;background:#fff" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'">' : '') + fallback + '</span>';
+  }
+
   function isLabor(product, item) {
     if (product && typeof window.esProductoManoDeObra === 'function' && window.esProductoManoDeObra(product)) return true;
     var text = String((product && (product.categoria || product.nombre)) || (item && (item.desc || item.nombre || item.descripcion)) || '')
@@ -297,13 +316,14 @@
       '<div class="table-wrap"><table style="min-width:930px"><thead><tr><th style="width:34px">Comprar</th><th>Material</th><th class="tr">Necesario</th><th class="tr">Ya tenemos</th><th class="tr">A comprar</th><th>Proveedor conveniente</th><th class="tr">Costo estimado</th><th>Referencia</th></tr></thead><tbody>' +
       (list.items || []).map(function (item, index) {
         var product = findProduct(item);
+        var thumbnail = productThumbnail(item, product);
         var op = operationalFor(product, item);
         var legacy = product ? parseFloat(product.stockReal || product.stock || 0) || 0 : 0;
         var disabled = (item.esManoDeObra || locked) ? 'disabled' : '';
         var estimated = (parseFloat(item.cantidadComprar) || 0) * (parseFloat(item.costoUnitario) || 0);
         return '<tr data-index="' + index + '">' +
           '<td><input type="checkbox" class="oc-li-include" ' + (item.incluir ? 'checked' : '') + ' ' + disabled + ' onchange="ocMaterialChanged(' + index + ')"></td>' +
-          '<td><div style="font-weight:600">' + esc(item.codigo || '') + '</div><div style="font-size:12px">' + esc(item.descripcion || '') + '</div>' + (item.esManoDeObra ? '<span class="badge b-blue">Servicio: no se compra</span>' : '') + '</td>' +
+          '<td><div style="display:flex;align-items:center;gap:10px;min-width:0">' + thumbnail + '<div style="min-width:0"><div style="font-weight:600">' + esc(item.codigo || '') + '</div><div style="font-size:12px">' + esc(item.descripcion || '') + '</div>' + (item.esManoDeObra ? '<span class="badge b-blue">Servicio: no se compra</span>' : '') + '</div></div></td>' +
           '<td class="tr">' + (parseFloat(item.cantidadNecesaria) || 0) + '</td>' +
           '<td class="tr"><input class="search-input oc-li-existing" type="number" min="0" max="' + (parseFloat(item.cantidadNecesaria) || 0) + '" step="1" value="' + (parseFloat(item.usarExistente) || 0) + '" style="width:78px;text-align:right" ' + disabled + ' oninput="ocMaterialChanged(' + index + ')"></td>' +
           '<td class="tr"><strong class="oc-li-buy" style="color:var(--amber)">' + (parseFloat(item.cantidadComprar) || 0) + '</strong></td>' +
@@ -576,6 +596,8 @@
       '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">En cada material indicá el proveedor efectivo, el costo real y la cantidad recibida. La diferencia se calcula mientras escribís.</div>' +
       '<div class="table-wrap"><table id="oc-order-items-table" data-sv-column-key="ordenes:detalle-conciliacion"><thead><tr><th>Material</th><th class="tr">Ordenado</th><th class="tr">Recibido</th><th class="tr">Pendiente</th><th>Proveedor real</th><th class="tr">Compra presup.</th><th class="tr">Compra real</th><th class="tr">Resultado</th>' + (editableReceipt ? '<th class="tr">Recibir ahora</th>' : '') + '</tr></thead><tbody>' +
       (order.items || []).map(function (item, index) {
+        var product = findProduct(item);
+        var thumbnail = productThumbnail(item, product);
         var ordered = parseFloat(item.cantidadOrdenada || item.cantidad) || 0;
         var received = parseFloat(item.cantidadRecibida) || 0;
         var pending = Math.max(0, ordered - received);
@@ -584,7 +606,7 @@
         var itemProviderKey = item.proveedorFinalKey || order.proveedorFinalKey || order.proveedorKey || '';
         var itemProviderName = item.proveedorFinal || order.proveedorFinal || order.proveedor || '';
         var providerCell = (editableReceipt || editableReconciliation) ? '<select class="search-input oc-item-provider" style="min-width:170px"><option value="">— Elegir proveedor —</option>' + providerSelectOptions(itemProviderKey, itemProviderName) + '</select>' : esc(itemProviderName || 'Sin informar');
-        return '<tr data-order-index="' + index + '" data-budget-unit="' + budgetUnit + '"><td><strong>' + esc(item.codigo || '') + '</strong><div style="font-size:12px">' + esc(item.descripcion || '') + '</div></td><td class="tr">' + ordered + '</td><td class="tr" style="color:var(--green)">' + received + '</td><td class="tr" style="color:var(--amber)">' + pending + '</td><td>' + providerCell + '</td><td class="tr">' + money(budgetUnit) + '<small style="display:block;color:var(--text3)">por unidad</small></td><td class="tr">' + ((editableReceipt || editableReconciliation) ? '<input class="search-input oc-real-cost" type="number" min="0" step="0.01" value="' + (actualUnit || budgetUnit) + '" oninput="ocActualizarResultadoCompra(this)" style="width:110px;text-align:right">' : (actualUnit ? money(actualUnit) : '—')) + '</td><td class="tr oc-purchase-difference">' + purchaseDifferenceLabel(budgetUnit, actualUnit) + '</td>' + (editableReceipt ? '<td class="tr"><input class="search-input oc-receive-now" type="number" min="0" max="' + pending + '" value="0" style="width:82px;text-align:right"></td>' : '') + '</tr>';
+        return '<tr data-order-index="' + index + '" data-budget-unit="' + budgetUnit + '"><td><div style="display:flex;align-items:center;gap:10px;min-width:0">' + thumbnail + '<div style="min-width:0"><strong>' + esc(item.codigo || '') + '</strong><div style="font-size:12px">' + esc(item.descripcion || '') + '</div></div></div></td><td class="tr">' + ordered + '</td><td class="tr" style="color:var(--green)">' + received + '</td><td class="tr" style="color:var(--amber)">' + pending + '</td><td>' + providerCell + '</td><td class="tr">' + money(budgetUnit) + '<small style="display:block;color:var(--text3)">por unidad</small></td><td class="tr">' + ((editableReceipt || editableReconciliation) ? '<input class="search-input oc-real-cost" type="number" min="0" step="0.01" value="' + (actualUnit || budgetUnit) + '" oninput="ocActualizarResultadoCompra(this)" style="width:110px;text-align:right">' : (actualUnit ? money(actualUnit) : '—')) + '</td><td class="tr oc-purchase-difference">' + purchaseDifferenceLabel(budgetUnit, actualUnit) + '</td>' + (editableReceipt ? '<td class="tr"><input class="search-input oc-receive-now" type="number" min="0" max="' + pending + '" value="0" style="width:82px;text-align:right"></td>' : '') + '</tr>';
       }).join('') + '</tbody></table></div>' +
       '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px;flex-wrap:wrap"><div><strong>Total: ' + money(order.total || order.monto) + '</strong><div style="font-size:11px;color:var(--text3)">Los materiales recibidos para una venta quedan reservados; los manuales ingresan al stock general operativo.</div></div><div style="display:flex;gap:7px;flex-wrap:wrap">' +
         (hasReceipts ? '<button class="btn" onclick="ocImprimirOrdenActual()"><i class="ti ti-file-description"></i> Ver comprobante</button>' : '') +

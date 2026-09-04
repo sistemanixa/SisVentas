@@ -40,6 +40,35 @@
       : ['completada','completado','con_observaciones','finalizada','finalizado','cerrada','cerrado','terminada','terminado'].indexOf(estadoNormal(o)) >= 0;
   }
 
+  function empleadoEsTecnico(emp){
+    if(!emp || emp.activo === false) return false;
+    if(typeof window.spEmpleadoEsTecnico === 'function') return window.spEmpleadoEsTecnico(emp);
+    var perfil = [emp.categoriaBase, emp.cargo, emp.categoria, emp.tipoEmpleado, emp.rol]
+      .filter(Boolean).join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    return perfil.indexOf('TECNICO') >= 0;
+  }
+
+  function nombresTecnicos(){
+    return Array.from(new Set(arr(window.empData)
+      .filter(empleadoEsTecnico)
+      .map(function(emp){ return String(emp.nombre || emp.nombreCompleto || '').trim(); })
+      .filter(function(nombre){ return nombre && !/^(?:sin|no)\s+asignar$/i.test(nombre); }))).sort(function(a,b){ return a.localeCompare(b, 'es'); });
+  }
+
+  function cargarSelectorTecnicos(selector){
+    if(!selector) return;
+    var actual = selector.value || '';
+    var nombres = nombresTecnicos();
+    var firma = nombres.join('|');
+    if(selector.dataset.otTecnicosFirma === firma) return;
+    selector.innerHTML = '<option value="">Todos los técnicos</option>';
+    nombres.forEach(function(nombre){
+      var opt = document.createElement('option'); opt.value = nombre; opt.textContent = nombre; selector.appendChild(opt);
+    });
+    selector.dataset.otTecnicosFirma = firma;
+    selector.value = nombres.indexOf(actual) >= 0 ? actual : '';
+  }
+
   window.otFiltroRapido315 = function(tipo){
     var est = e('ot-filtro-estado');
     var per = e('ot-filtro-periodo');
@@ -66,13 +95,7 @@
       var filtroTec = (e('ot-filtro-tecnico') || {}).value || '';
       var periodo = (e('ot-filtro-periodo') || {}).value || 'todos';
       var selTec = e('ot-filtro-tecnico');
-      if (selTec && selTec.options.length <= 1) {
-        var tecDeOTs = new Set(arr(window.otData).map(function(o){ return o && o.tecnico; }).filter(Boolean));
-        var tecDeEmps = arr(window.empData).filter(function(x){ return x && x.activo !== false; }).map(function(x){ return x.nombre; });
-        Array.from(new Set(Array.from(tecDeOTs).concat(tecDeEmps).filter(Boolean))).sort().forEach(function(t){
-          var opt = document.createElement('option'); opt.value = t; opt.textContent = t; selTec.appendChild(opt);
-        });
-      }
+      cargarSelectorTecnicos(selTec);
       var especial = window._otFiltroEspecial315 || '';
       var rows = arr(window.otData).filter(function(o){
         if(!o) return false;
@@ -87,7 +110,7 @@
               ? !esCompletada(o)
               : (!filtro || (filtroNormal === 'completada' ? esCompletada(o) : est === filtroNormal));
         var matchTec = !filtroTec || String(o.tecnico || '') === String(filtroTec);
-        var t = (String(o.id||'') + ' ' + String(o.cliente||'')).toLowerCase();
+        var t = (String(o.id||'') + ' ' + String(o.cliente||'') + ' ' + String(o.tecnico||'')).toLowerCase();
         var matchBusq = !busq || t.indexOf(String(busq).toLowerCase()) >= 0;
         return matchFiltro && matchTec && matchBusq && matchPeriodoOT(o, periodo);
       });
