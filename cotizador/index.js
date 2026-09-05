@@ -1170,8 +1170,10 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, co
   if (!esUrlMercadoLibre(urlExacta)) throw new Error('La URL no corresponde a Mercado Libre Argentina');
   const trace = [{ step:'mercado_libre_inicio', at:new Date().toISOString(), urlExacta }];
   let browser = null, context = null;
+  let errorApiMercadoLibre = null;
   try {
     let datos = await extraerProductoMercadoLibreApi(urlExacta, trace).catch((errorApi) => {
+      errorApiMercadoLibre = errorApi;
       trace.push({ step:'mercado_libre_api_sin_resultado', at:new Date().toISOString(), mensaje:errorApi.message || String(errorApi) });
       return null;
     });
@@ -1241,6 +1243,10 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, co
     const ficha = incluirFicha ? normalizarFicha({ ...(datos.ficha || {}), nombre: datos.titulo || (datos.ficha && datos.ficha.nombre) || '' }, urlExacta) : undefined;
     return { ficha, ok:true, proveedor:proveedor.nombre || 'MERCADO LIBRE', codigo:codigo || '', producto:datos.titulo || producto || '', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad === 'disponible' ? 'Disponible' : datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado', fuente:datos.fuente || 'mercado_libre_url_exacta', fecha:new Date().toISOString(), tituloProveedor:datos.titulo, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', identidad, diagnosticoMercadoLibre, debug:debug ? { trace, titulo:datos.titulo, fuente:datos.fuente || '', itemId:datos.itemId || '', diagnosticoMercadoLibre, identidad } : undefined };
   } catch (error) {
+    if (errorApiMercadoLibre) {
+      error.diagnosticoMercadoLibre = errorApiMercadoLibre.diagnosticoMercadoLibre;
+      error.message = 'API oficial: ' + errorApiMercadoLibre.message + '. Respaldo visual: ' + error.message;
+    }
     error.trace = trace.concat([{ step:'mercado_libre_error', at:new Date().toISOString(), mensaje:error.message || String(error) }]);
     throw error;
   } finally {
@@ -1619,6 +1625,7 @@ function respuestaRevisionIdentidadProveedor({ proveedor, urlExacta, codigo, pro
     producto:producto || '', productoEncontrado:String(datos && datos.tituloProveedor || ''),
     tituloProveedor:String(datos && datos.tituloProveedor || ''), url:urlExacta, urlConfirmacion:urlExacta,
     precioCandidatoArs, precioActualArs:precioCandidatoArs, moneda:String(datos && datos.moneda || 'ARS'),
+    ...(datos && datos.conversion ? {conversion:datos.conversion,precioOriginal:datos.precioOriginal,monedaOriginal:datos.monedaOriginal} : {}),
     disponibilidadProveedor:datos && datos.disponibilidadProveedor || 'no_verificado',
     disponibilidadProveedorTexto:datos && datos.disponibilidadProveedorTexto || 'No verificado',
     fuente:datos && datos.fuente || 'proveedor_revision_manual', sinIva:datos && datos.sinIva,
@@ -1861,349 +1868,6 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug, confir
   }
 }
 
-async function cotizarLoteBiosegur({ proveedor, items, debug, jobId, offset = 0, totalGlobal = 0, iniciadoEn = 0 }) {
-  const lote = Array.isArray(items) ? items.slice(0, 30) : [];
-  if (!lote.length) throw new Error('El lote no contiene productos');
-  const jobSeguro = String(jobId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
-  const progresoRef = jobSeguro ? db.ref(`sisventas/procesos/cotizador/${jobSeguro}`) : null;
-  const inicioMs = parseInt(iniciadoEn, 10) || Date.now();
-  const totalTrabajo = Math.max(parseInt(totalGlobal, 10) || 0, offset + lote.length);
-
-  let browser = null;
-  let context = null;
-  const trace = [];
-  const addTrace = (step, data = {}) => trace.push({ step, at: new Date().toISOString(), ...data });
-
-  try {
-    addTrace('lote_iniciando', { cantidad: lote.length });
-    if (progresoRef) await progresoRef.set({ estado:'iniciando_navegador', proveedor:'BIOSEGUR', procesados:offset, total:totalTrabajo, inicioEn:inicioMs, actualizadoEn:Date.now() });
-    browser = await chromium.launch({ headless: true });
-    context = await browser.newContext({ locale: 'es-AR', timezoneId: 'America/Argentina/Buenos_Aires' });
-    const page = await context.newPage();
-    page.setDefaultTimeout(8000);
-    page.setDefaultNavigationTimeout(15000);
-    const home = normalizarUrl(proveedor.web || 'https://www.biosegur.com.ar/');
-    if (progresoRef) await progresoRef.update({ estado:'iniciando_sesion', actualizadoEn:Date.now() });
-    await page.goto(home, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await completarLoginBiosegur(page, proveedor);
-    addTrace('lote_login_completado');
-
-    const resultados = [];
-    for (let i = 0; i < lote.length; i += 1) {
-      const item = lote[i] || {};
-      const urlExacta = normalizarUrl(item.url || item.urlProducto || '');
-      if (progresoRef) await progresoRef.update({
-        estado:'procesando',
-        codigo:item.codigo || '',
-        producto:item.producto || item.nombre || '',
-        url:urlExacta,
-        procesados:offset + i,
-        total:totalTrabajo,
-        actualizadoEn:Date.now()
-      });
-      if (!urlExacta) {
-        resultados.push({ ok: false, error: true, codigo: item.codigo || '', mensaje: 'Falta URL exacta' });
-        continue;
-      }
-      let tituloProveedor = '';
-      try {
-        const hostProducto = new URL(urlExacta).hostname.toLowerCase();
-        if (!/(^|\.)biosegur\.com\.ar$/.test(hostProducto)) {
-          throw new Error('La URL corresponde a otro proveedor; revisá la vinculación');
-        }
-        await page.goto(urlExacta, { waitUntil: 'domcontentloaded', timeout: 15000 });
-        if (!/(^|\.)biosegur\.com\.ar$/.test(new URL(page.url()).hostname.toLowerCase())) {
-          throw new Error('La página redirigió fuera de Biosegur');
-        }
-        const bodyText = await page.locator('body').innerText({ timeout: 8000 });
-        if (/el\s+art[ií]culo\s+solicitado\s+no\s+existe|producto\s+no\s+encontrado|no\s+existe\s+o\s+fue\s+desactivado|p[aá]gina\s+no\s+encontrada|error\s*404/i.test(bodyText)) {
-          const errorProducto = new Error('El producto ya no existe en Biosegur');
-          errorProducto.codigo = 'PRODUCT_NOT_FOUND';
-          throw errorProducto;
-        }
-        if (/producto\s+no\s+encontrado|no\s+existe\s+o\s+fue\s+desactivado|p[aá]gina\s+no\s+encontrada|error\s*404/i.test(bodyText)) {
-          throw new Error('Producto no encontrado o desactivado en el proveedor');
-        }
-        if (/usuario.*clave|login/i.test(bodyText) && !/mi cuenta|salir/i.test(bodyText)) {
-          throw new Error('La sesión de Biosegur se cerró durante el lote');
-        }
-        const precioArs = extraerPrecioBiosegur(bodyText);
-        const condicionIva = extraerCondicionIva(bodyText);
-        const disponibilidad = extraerDisponibilidadProveedor(bodyText);
-        if (!precioArs) throw new Error('No se encontró un precio visible');
-        tituloProveedor = await tituloVisibleProducto(page, 'biosegur');
-        const identidad = validarIdentidadProducto(item.producto || item.nombre || '', tituloProveedor);
-        if (!identidad.ok) {
-          resultados.push(Object.assign(respuestaRevisionIdentidadProveedor({
-            proveedor, urlExacta, codigo:item.codigo || '', producto:item.producto || item.nombre || '',
-            datos:{ precioArs, tituloProveedor, moneda:'ARS', sinIva:condicionIva.sinIva == null ? true : condicionIva.sinIva,
-              ivaAlicuota:condicionIva.ivaAlicuota, disponibilidadProveedor:disponibilidad,
-              disponibilidadProveedorTexto:disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
-              fuente:'biosegur_lote_revision_manual' }, identidad, trace:[], debug:false
-          }), { codigoProducto:item.codigo || '' }));
-          continue;
-        }
-        const validacionPrecio = validarSaltoPrecio(precioArs, item.precioAnteriorArs);
-        if (!validacionPrecio.ok) {
-          const errorPrecio = new Error(validacionPrecio.mensaje);
-          Object.assign(errorPrecio, validacionPrecio);
-          throw errorPrecio;
-        }
-        resultados.push({
-          ok: true,
-          proveedor: proveedor.nombre || 'BIOSEGUR',
-          codigo: item.codigo || '',
-          producto: item.producto || item.nombre || '',
-          url: urlExacta,
-          precioArs,
-          sinIva: condicionIva.sinIva == null ? true : condicionIva.sinIva,
-          ivaAlicuota: condicionIva.ivaAlicuota,
-          precioConIva: Math.round(precioArs * (1 + ((condicionIva.ivaAlicuota == null ? 21 : condicionIva.ivaAlicuota) / 100)) * 100) / 100,
-          disponibilidadProveedor: disponibilidad,
-          disponibilidadProveedorTexto: disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
-          fuente: 'biosegur_lote_url_exacta',
-          fecha: new Date().toISOString(),
-          tituloProveedor,
-          urlFinal:page.url(),
-          textoPrecio:`$ ${precioArs.toLocaleString('es-AR', { minimumFractionDigits:2, maximumFractionDigits:2 })} + IVA`,
-          selectorPrecio:'precio_biosegur_mas_iva',
-          moneda:'ARS',
-          identidad
-        });
-      } catch (e) {
-        // Aunque se rechace la identidad, el título leído es evidencia útil para
-        // que el usuario pueda corregir el nombre sin volver a buscarlo.
-        resultados.push({ ok:false, error:true, codigo:e.codigo || '', codigoProducto:item.codigo || '', url:urlExacta, mensaje:e.message || 'Error leyendo producto', tituloProveedor:String(tituloProveedor || '').trim(), precioAnteriorArs:Number(e.precioAnteriorArs)||0, precioCandidatoArs:Number(e.precioCandidatoArs)||0, relacion:Number(e.relacion)||0 });
-      }
-      addTrace('lote_progreso', { procesados: i + 1, total: lote.length });
-      if (progresoRef) {
-        const procesadosGlobal = offset + i + 1;
-        const transcurridoSeg = Math.max(1, Math.round((Date.now() - inicioMs) / 1000));
-        const promedioSeg = transcurridoSeg / Math.max(1, procesadosGlobal);
-        await progresoRef.update({
-          procesados:procesadosGlobal,
-          total:totalTrabajo,
-          transcurridoSeg,
-          estimadoRestanteSeg:Math.max(0, Math.round((totalTrabajo - procesadosGlobal) * promedioSeg)),
-          actualizados:resultados.filter((r) => r.ok).length,
-          fallidos:resultados.filter((r) => !r.ok).length,
-          actualizadoEn:Date.now()
-        });
-      }
-    }
-
-    if (progresoRef) await progresoRef.update({ estado:'bloque_completado', codigo:'', producto:'', procesados:offset + lote.length, total:totalTrabajo, actualizadoEn:Date.now() });
-
-    return {
-      ok: true,
-      proveedor: proveedor.nombre || 'BIOSEGUR',
-      total: lote.length,
-      actualizados: resultados.filter((r) => r.ok).length,
-      fallidos: resultados.filter((r) => !r.ok).length,
-      resultados,
-      debug: debug ? { trace } : undefined
-    };
-  } finally {
-    if (context) await context.close().catch(() => {});
-    if (browser) await browser.close().catch(() => {});
-  }
-}
-
-async function cotizarLoteProveedorLogin({ proveedor, items, tipo, jobId, offset = 0, totalGlobal = 0, iniciadoEn = 0 }) {
-  const lote = Array.isArray(items) ? items.slice(0, 30) : [];
-  if (!lote.length) throw new Error('El lote no contiene productos');
-  const jobSeguro = String(jobId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
-  const progresoRef = jobSeguro ? db.ref(`sisventas/procesos/cotizador/${jobSeguro}`) : null;
-  const inicioMs = parseInt(iniciadoEn, 10) || Date.now();
-  const totalTrabajo = Math.max(parseInt(totalGlobal, 10) || 0, offset + lote.length);
-  const nombreTipo = tipo === 'free_electron' ? 'FREE ELECTRON' : 'TECNOPRICES';
-  const dominioEsperado = tipo === 'free_electron' ? /(^|\.)free-electron\.com\.ar$/ : /(^|\.)tecnoprices\.com$/;
-  let browser = null, context = null;
-  try {
-    if (progresoRef) await progresoRef.set({ estado:'iniciando_navegador', proveedor:nombreTipo, procesados:offset, total:totalTrabajo, inicioEn:inicioMs, actualizadoEn:Date.now() });
-    browser = await chromium.launch({ headless:true });
-    context = await browser.newContext({ locale:'es-AR', timezoneId:'America/Argentina/Buenos_Aires' });
-    const page = await context.newPage();
-    page.setDefaultTimeout(8000);
-    page.setDefaultNavigationTimeout(15000);
-    const usuario = proveedor.usuario || proveedor.user || proveedor.email || '';
-    const password = proveedor.password || proveedor.pass || proveedor.clave || '';
-    if (!usuario || !password) throw new Error(`${nombreTipo} no tiene usuario y contraseña cargados`);
-    if (progresoRef) await progresoRef.update({ estado:'iniciando_sesion', proveedor:nombreTipo, actualizadoEn:Date.now() });
-    if (tipo === 'free_electron') {
-      await page.goto('https://www.free-electron.com.ar/mi-cuenta', { waitUntil:'domcontentloaded', timeout:15000 });
-      await page.locator('form[action*="iniciar-sesion"] input[name="email"]').fill(usuario);
-      await page.locator('form[action*="iniciar-sesion"] input[name="password"]').fill(password);
-      await page.locator('form[action*="iniciar-sesion"] #submit-login').click();
-    } else {
-      await page.goto('https://www.tecnoprices.com/ingresar', { waitUntil:'domcontentloaded', timeout:15000 });
-      await page.locator('form[action="control.php"] input[name="usuario"]').fill(usuario);
-      await page.locator('form[action="control.php"] input[name="password"]').fill(password);
-      await page.locator('form[action="control.php"] button[type="submit"]').click();
-    }
-    await page.waitForLoadState('domcontentloaded', { timeout:8000 }).catch(() => {});
-    const resultados = [];
-    for (let i=0; i<lote.length; i+=1) {
-      const item=lote[i] || {}, urlExacta=normalizarUrl(item.url || item.urlProducto || '');
-      if (progresoRef) await progresoRef.update({ estado:'procesando', proveedor:nombreTipo, codigo:item.codigo||'', producto:item.producto||item.nombre||'', url:urlExacta, procesados:offset+i, total:totalTrabajo, actualizadoEn:Date.now() });
-      let tituloProveedor = '';
-      try {
-        if (!urlExacta || !dominioEsperado.test(new URL(urlExacta).hostname.toLowerCase())) throw new Error('La URL corresponde a otro proveedor; revisá la vinculación');
-        await page.goto(urlExacta, { waitUntil:'domcontentloaded', timeout:15000 });
-        if (!dominioEsperado.test(new URL(page.url()).hostname.toLowerCase())) throw new Error('La página redirigió fuera del proveedor esperado');
-        const bodyText=await page.locator('body').innerText({ timeout:8000 });
-        if (/producto\s+no\s+encontrado|no\s+existe\s+o\s+fue\s+desactivado|p[aá]gina\s+no\s+encontrada|error\s*404/i.test(bodyText)) throw new Error('Producto no encontrado o desactivado en el proveedor');
-        if (/iniciar sesi[oó]n para ver precios|ingresar para ver precios/i.test(bodyText)) throw new Error('La sesión no permite ver precios');
-        const evidenciaPrecio=await extraerPrecioPaginaProveedor(page,tipo,bodyText);
-        const precioArs=evidenciaPrecio.precioArs;
-        tituloProveedor=await tituloVisibleProducto(page,tipo);
-        const identidad=validarIdentidadProducto(item.producto||item.nombre||'',tituloProveedor);
-        if (!identidad.ok) {
-          const disponibilidad=await extraerDisponibilidadPaginaProveedor(page,tipo,bodyText);
-          const condicionIva=extraerCondicionIva(bodyText);
-          resultados.push(Object.assign(respuestaRevisionIdentidadProveedor({
-            proveedor, urlExacta, codigo:item.codigo||'', producto:item.producto||item.nombre||'',
-            datos:{precioArs,tituloProveedor,moneda:evidenciaPrecio.moneda,sinIva:condicionIva.sinIva==null?tipo==='tecnoprices':condicionIva.sinIva,
-              ivaAlicuota:condicionIva.ivaAlicuota,disponibilidadProveedor:disponibilidad,
-              disponibilidadProveedorTexto:disponibilidad==='disponible'?'Disponible':disponibilidad==='sin_stock'?'Sin stock':'No verificado',fuente:tipo+'_lote_revision_manual'},
-            identidad,trace:[],debug:false
-          }),{codigoProducto:item.codigo||''}));
-          continue;
-        }
-        const validacionPrecio=validarSaltoPrecio(precioArs,item.precioAnteriorArs);
-        if (!validacionPrecio.ok) {
-          const errorPrecio = new Error(validacionPrecio.mensaje);
-          Object.assign(errorPrecio, validacionPrecio);
-          throw errorPrecio;
-        }
-        const disponibilidad=await extraerDisponibilidadPaginaProveedor(page,tipo,bodyText);
-        const condicionIva=extraerCondicionIva(bodyText);
-        resultados.push({ok:true,proveedor:proveedor.nombre||nombreTipo,codigo:item.codigo||'',producto:item.producto||item.nombre||'',url:urlExacta,precioArs,sinIva:condicionIva.sinIva==null?tipo==='tecnoprices':condicionIva.sinIva,ivaAlicuota:condicionIva.ivaAlicuota,disponibilidadProveedor:disponibilidad,disponibilidadProveedorTexto:disponibilidad==='disponible'?'Disponible':disponibilidad==='sin_stock'?'Sin stock':'No verificado',fuente:tipo+'_lote_url_exacta',fecha:new Date().toISOString(),tituloProveedor,urlFinal:page.url(),textoPrecio:evidenciaPrecio.textoPrecio,selectorPrecio:evidenciaPrecio.selectorPrecio,moneda:evidenciaPrecio.moneda,identidad});
-      } catch(e) { resultados.push({ok:false,error:true,codigo:e.codigo||'',codigoProducto:item.codigo||'',url:urlExacta,mensaje:e.message||'Error leyendo producto',tituloProveedor:String(tituloProveedor||'').trim(),precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}); }
-      if (progresoRef) {
-        const procesadosGlobal=offset+i+1, transcurridoSeg=Math.max(1,Math.round((Date.now()-inicioMs)/1000)), promedioSeg=transcurridoSeg/Math.max(1,procesadosGlobal);
-        await progresoRef.update({procesados:procesadosGlobal,total:totalTrabajo,transcurridoSeg,estimadoRestanteSeg:Math.max(0,Math.round((totalTrabajo-procesadosGlobal)*promedioSeg)),actualizados:resultados.filter(r=>r.ok).length,fallidos:resultados.filter(r=>!r.ok).length,actualizadoEn:Date.now()});
-      }
-    }
-    if (progresoRef) await progresoRef.update({estado:'bloque_completado',codigo:'',producto:'',procesados:offset+lote.length,total:totalTrabajo,actualizadoEn:Date.now()});
-    return {ok:true,proveedor:proveedor.nombre||nombreTipo,total:lote.length,actualizados:resultados.filter(r=>r.ok).length,fallidos:resultados.filter(r=>!r.ok).length,resultados};
-  } finally {
-    if (context) await context.close().catch(()=>{});
-    if (browser) await browser.close().catch(()=>{});
-  }
-}
-
-async function cotizarLoteMercadoLibre({ proveedor, items, jobId, offset = 0, totalGlobal = 0, iniciadoEn = 0 }) {
-  const lote = Array.isArray(items) ? items.slice(0, 30) : [];
-  if (!lote.length) throw new Error('El lote no contiene productos');
-  const jobSeguro = String(jobId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
-  const progresoRef = jobSeguro ? db.ref(`sisventas/procesos/cotizador/${jobSeguro}`) : null;
-  const inicioMs = parseInt(iniciadoEn, 10) || Date.now();
-  const totalTrabajo = Math.max(parseInt(totalGlobal, 10) || 0, offset + lote.length);
-  let browser = null, context = null, page = null;
-  try {
-    if (progresoRef) await progresoRef.set({ estado:'consultando_fuente_oficial', proveedor:'MERCADO LIBRE', procesados:offset, total:totalTrabajo, inicioEn:inicioMs, actualizadoEn:Date.now() });
-    const resultados = [];
-    for (let i=0; i<lote.length; i+=1) {
-      const item = lote[i] || {}, urlExacta = normalizarUrl(item.url || item.urlProducto || '');
-      if (progresoRef) await progresoRef.update({ estado:'procesando', proveedor:'MERCADO LIBRE', codigo:item.codigo||'', producto:item.producto||item.nombre||'', url:urlExacta, procesados:offset+i, total:totalTrabajo, actualizadoEn:Date.now() });
-      try {
-        if (!esUrlMercadoLibre(urlExacta)) throw new Error('La URL no corresponde a Mercado Libre Argentina');
-        let errorApiMercadoLibre = null;
-        let datos = await extraerProductoMercadoLibreApi(urlExacta).catch((errorApi) => {
-          errorApiMercadoLibre = errorApi;
-          return null;
-        });
-        if (!datos) {
-          datos = await extraerProductoMercadoLibreSeo(urlExacta).catch((errorSeo) => {
-            errorApiMercadoLibre = errorApiMercadoLibre || errorSeo;
-            return null;
-          });
-        }
-        if (!datos) {
-          if (!page) {
-            if (progresoRef) await progresoRef.update({ estado:'iniciando_respaldo_visual', actualizadoEn:Date.now() });
-            browser = await chromium.launch({ headless:true });
-            context = await browser.newContext({
-              locale:'es-AR',
-              timezoneId:'America/Argentina/Buenos_Aires',
-              userAgent:'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-              extraHTTPHeaders:{ 'accept-language':'es-AR,es;q=0.9' }
-            });
-            page = await context.newPage();
-            page.setDefaultTimeout(10000);
-            page.setDefaultNavigationTimeout(20000);
-          }
-          // La ficha SEO ya contiene título y precio vigente. Esperar el DOM
-          // completo vuelve innecesariamente lento el lote cuando la API no
-          // está disponible.
-          await page.goto(urlExacta, { waitUntil:'commit', timeout:15000 });
-          if (!esDestinoMercadoLibreArgentina(page.url())) throw new Error('La URL redirigió fuera de Mercado Libre Argentina');
-          // Una publicación vieja puede resolver al catálogo vigente: la API
-          // entiende esa URL final y conserva el item_id de los filtros.
-          datos = await extraerProductoMercadoLibreApi(page.url()).catch((errorApi) => {
-            errorApiMercadoLibre = errorApiMercadoLibre || errorApi;
-            return null;
-          });
-          if (!datos) {
-            try {
-              datos = await extraerProductoMercadoLibre(page);
-            } catch (errorVisual) {
-              const diagnosticoApi = errorApiMercadoLibre && errorApiMercadoLibre.diagnosticoMercadoLibre || {};
-              errorVisual.diagnosticoMercadoLibre = Object.assign({}, diagnosticoApi, {
-                causaFallo:[
-                  diagnosticoApi.causaFallo || '',
-                  errorApiMercadoLibre ? 'API oficial: ' + (errorApiMercadoLibre.message || String(errorApiMercadoLibre)) : '',
-                  'Respaldo visual: ' + (errorVisual.message || String(errorVisual))
-                ].filter(Boolean).join(' · ')
-              });
-              throw errorVisual;
-            }
-          }
-        }
-        const identidad = item.confirmarIdentidadManual === true
-          ? { ok:true, confianza:1, metodo:'confirmacion_manual_guardada', manual:true }
-          : validarIdentidadProducto(item.producto||item.nombre||'', datos.titulo);
-        if (!identidad.ok) {
-          resultados.push(Object.assign(
-            respuestaRevisionIdentidadMercadoLibre({
-              proveedor,
-              urlExacta,
-              codigo:item.codigo||'',
-              producto:item.producto||item.nombre||'',
-              datos,
-              identidad,
-              trace:[],
-              debug:false
-            }),
-            { codigoProducto:item.codigo||'' }
-          ));
-        } else {
-          const validacionPrecio = validarSaltoPrecio(datos.precioArs, item.precioAnteriorArs);
-          if (!validacionPrecio.ok) {
-            const errorPrecio = new Error(validacionPrecio.mensaje);
-            Object.assign(errorPrecio, validacionPrecio);
-            throw errorPrecio;
-          }
-          const tituloProveedor = datos.titulo || '';
-          resultados.push({ ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', codigo:item.codigo||'', producto:datos.titulo||item.producto||item.nombre||'', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad==='disponible'?'Disponible':datos.disponibilidad==='sin_stock'?'Sin stock':'No verificado', fuente:datos.fuente || 'mercado_libre_lote_url_exacta', fecha:new Date().toISOString(), tituloProveedor, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', diagnosticoMercadoLibre:datos.diagnosticoMercadoLibre || undefined, identidad });
-        }
-      } catch (e) {
-        resultados.push({ ok:false, error:true, codigo:e.codigo||'', codigoProducto:item.codigo||'', url:urlExacta, mensaje:e.message||'Error leyendo la publicación', precioAnteriorArs:Number(e.precioAnteriorArs)||0, precioCandidatoArs:Number(e.precioCandidatoArs)||0, relacion:Number(e.relacion)||0, diagnosticoMercadoLibre:e.diagnosticoMercadoLibre || undefined });
-      }
-      if (progresoRef) {
-        const procesadosGlobal=offset+i+1, transcurridoSeg=Math.max(1,Math.round((Date.now()-inicioMs)/1000)), promedioSeg=transcurridoSeg/Math.max(1,procesadosGlobal);
-        await progresoRef.update({ procesados:procesadosGlobal, total:totalTrabajo, transcurridoSeg, estimadoRestanteSeg:Math.max(0,Math.round((totalTrabajo-procesadosGlobal)*promedioSeg)), actualizados:resultados.filter(r=>r.ok).length, fallidos:resultados.filter(r=>!r.ok).length, actualizadoEn:Date.now() });
-      }
-    }
-    if (progresoRef) await progresoRef.update({ estado:'bloque_completado', codigo:'', producto:'', procesados:offset+lote.length, total:totalTrabajo, actualizadoEn:Date.now() });
-    return { ok:true, proveedor:proveedor.nombre||'MERCADO LIBRE', total:lote.length, actualizados:resultados.filter(r=>r.ok).length, fallidos:resultados.filter(r=>!r.ok).length, resultados };
-  } finally {
-    if (context) await context.close().catch(()=>{});
-    if (browser) await browser.close().catch(()=>{});
-  }
-}
-
 async function cotizarLote(reqBody) {
   const proveedorKey = String(reqBody.proveedorKey || '').trim();
   if (!proveedorKey) throw new Error('Falta proveedorKey');
@@ -2212,11 +1876,11 @@ async function cotizarLote(reqBody) {
   if (!proveedor) throw new Error('Proveedor no encontrado en Firebase');
   if (proveedor.activo === false) throw new Error('Proveedor inactivo');
   const tipoLote = tipoProveedor(proveedor, '');
-  if (!tipoLote) {
+  {
     const items = Array.isArray(reqBody.items) ? reqBody.items : [];
     if (!items.length || items.length > 4) throw new Error('El lote automático requiere entre 1 y 4 productos');
     const conexion=proveedor.conexionAutomatica || {};
-    if (conexion.estado !== 'verificado' || conexion.firma !== firmaAcceso(proveedor)) throw new Error('Verificá nuevamente la conexión del proveedor');
+    if (!tipoLote && (conexion.estado !== 'verificado' || conexion.firma !== firmaAcceso(proveedor))) throw new Error('Verificá nuevamente la conexión del proveedor');
     const resultados=[];
     const jobId=String(reqBody.jobId || '');
     const progreso=/^[\w-]{1,80}$/.test(jobId) ? db.ref('sisventas/procesos/cotizador/' + jobId) : null;
@@ -2226,27 +1890,11 @@ async function cotizarLote(reqBody) {
       try {
         const r=await cotizar({...item,proveedorKey,incluirFicha:false,altaProducto:false});
         resultados.push({...r,codigoProducto:item.codigo || '',producto:r.tituloProveedor || item.producto || '',textoPrecio:'ARS ' + r.precioArs});
-      } catch(e) { resultados.push({ok:false,url:item.url || '',codigoProducto:item.codigo || '',mensaje:e.message,precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}); }
+      } catch(e) { resultados.push({ok:false,url:item.url || '',codigoProducto:item.codigo || '',mensaje:e.message,diagnosticoMercadoLibre:e.diagnosticoMercadoLibre,precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}); }
       if(progreso) await progreso.update({procesados:(Number(reqBody.offset)||0)+i+1,actualizadoEn:Date.now()});
     }
     return {ok:true,proveedor:proveedor.nombre,total:items.length,actualizados:resultados.filter(r=>r.ok).length,fallidos:resultados.filter(r=>!r.ok).length,resultados};
   }
-  if (tipoLote === 'free_electron' || tipoLote === 'tecnoprices') {
-    return cotizarLoteProveedorLogin({ proveedor, items:reqBody.items, tipo:tipoLote, jobId:reqBody.jobId||'', offset:parseInt(reqBody.offset,10)||0, totalGlobal:parseInt(reqBody.total,10)||0, iniciadoEn:parseInt(reqBody.iniciadoEn,10)||0 });
-  }
-  if (tipoLote === 'mercado_libre') {
-    return cotizarLoteMercadoLibre({ proveedor, items:reqBody.items, jobId:reqBody.jobId||'', offset:parseInt(reqBody.offset,10)||0, totalGlobal:parseInt(reqBody.total,10)||0, iniciadoEn:parseInt(reqBody.iniciadoEn,10)||0 });
-  }
-  if (!esBiosegur(proveedor, '')) throw new Error('El actualizador por lote está habilitado solamente para Biosegur');
-  return cotizarLoteBiosegur({
-    proveedor,
-    items: reqBody.items,
-    debug: !!reqBody.debug,
-    jobId: reqBody.jobId || '',
-    offset: parseInt(reqBody.offset, 10) || 0,
-    totalGlobal: parseInt(reqBody.total, 10) || 0,
-    iniciadoEn: parseInt(reqBody.iniciadoEn, 10) || 0
-  });
 }
 
 async function cotizar(reqBody) {
@@ -2275,9 +1923,12 @@ async function cotizarSinCondicion(reqBody) {
   if (!tipo) {
     const conexion = proveedor.conexionAutomatica || {};
     if (conexion.estado !== 'verificado' || conexion.firma !== firmaAcceso(proveedor)) throw new Error('Verificá primero la conexión automática del proveedor');
-    const resultado = await consultarAutomatico(proveedor,url);
+    const resultado = await convertirMonedaProveedor(await consultarAutomatico(proveedor,url));
     resultado.identidad = identidadAlta(reqBody.producto || '', resultado.tituloProveedor, altaProducto, validarIdentidadProducto);
-    if (!resultado.identidad.ok) throw new Error('La ficha no coincide con el producto solicitado');
+    if (!resultado.identidad.ok && reqBody.confirmarIdentidadManual !== true) {
+      return respuestaRevisionIdentidadProveedor({proveedor,urlExacta:url,codigo:reqBody.codigo,producto:reqBody.producto,datos:aplicarCondicionComercial(resultado,proveedor.condicionComercial),identidad:resultado.identidad});
+    }
+    if (reqBody.confirmarIdentidadManual === true) resultado.identidad={ok:true,manual:true,metodo:'confirmacion_manual_guardada'};
     return resultado;
   }
   validarUrlFicha(url, tipo);

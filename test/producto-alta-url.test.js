@@ -81,3 +81,16 @@ test('no consulta la web inicial ni reemplaza datos ya cargados', async () => {
   await s.context.completarProductoDesdeUrl(); assert.equal(s.calls.length, 0);
   assert.equal(s.nodes['pf-nombre'].value, 'MI PRODUCTO');
 });
+
+test('editar permite importar otra URL sin duplicar proveedor ni tocar los demás', async () => {
+  const s = escenario(); s.context.editingProdId = 'existente';
+  s.nodes['pf-nombre'].value = 'NOMBRE ANTERIOR';
+  s.context.prodProveedoresActuales = [{nombre:'BIOSEGUR',proveedorKey:'bio',url:'https://www.biosegur.com.ar/anterior',precio:20,identidadConfirmadaManualmente:true},{nombre:'OTRO',proveedorKey:'otro',precio:30}];
+  const pending=s.context.completarProductoDesdeUrl(); await flush();
+  s.resolver(respuesta()); await pending;
+  assert.equal(s.context.prodProveedoresActuales.length,2);
+  assert.equal(s.context.prodProveedoresActuales[0].url,url);
+  assert.equal(s.context.prodProveedoresActuales[0].identidadConfirmadaManualmente,undefined);
+  assert.equal(s.context.prodProveedoresActuales[1].precio,30);
+  assert.equal(s.nodes['pf-nombre'].value,'CERRADURA F-102T');
+});

@@ -407,7 +407,7 @@ test('Mercado Libre conserva catálogo e item al recibir un listado resumido sin
 test('el lote conserva el diagnóstico de API cuando también falla el respaldo visual', () => {
   const source = fs.readFileSync(require.resolve('../index'), 'utf8');
   assert.match(source, /let errorApiMercadoLibre = null/);
-  assert.match(source, /errorVisual\.diagnosticoMercadoLibre/);
+  assert.match(source, /error\.diagnosticoMercadoLibre/);
   assert.match(source, /API oficial: /);
   assert.match(source, /Respaldo visual: /);
   assert.match(source, /mercadolibre\/oauth\/status/);

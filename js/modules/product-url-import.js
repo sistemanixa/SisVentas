@@ -29,7 +29,7 @@
     });
   }
   function vigente(c) {
-    return consulta === c && secuencia === c.id && !editingProdId && el('prod-form-view') && getComputedStyle(el('prod-form-view')).display !== 'none' && firma() === c.firma;
+    return consulta === c && secuencia === c.id &&  el('prod-form-view') && getComputedStyle(el('prod-form-view')).display !== 'none' && firma() === c.firma;
   }
   window.cancelarFichaProducto = function () {
     secuencia++;
@@ -42,7 +42,7 @@
   window.inicializarFichaProducto = function () {
     window.cancelarFichaProducto();
     if (!el('pf-importar-panel')) return;
-    el('pf-importar-panel').hidden = !!editingProdId;
+    el('pf-importar-panel').hidden = false;
     var select = el('pf-importar-proveedor');
     select.replaceChildren(new Option('Seleccioná el proveedor', ''));
     proveedores().forEach(function (p) { select.add(new Option(p.nombre || 'Proveedor', clave(p))); });
@@ -60,7 +60,7 @@
     if (candidatos.length === 1) el('pf-importar-proveedor').value = clave(candidatos[0]);
   };
   window.completarProductoDesdeUrl = async function () {
-    if (consulta || editingProdId) return;
+    if (consulta) return;
     var url = urlExacta(el('pf-cod-web').value);
     var proveedor = proveedores().find(function (p) { return clave(p) === el('pf-importar-proveedor').value; });
     if (!url) { estado('Pegá la URL exacta del producto. La web inicial del proveedor no sirve para esta consulta.'); return; }
@@ -68,9 +68,17 @@
     if (el('pf-es-mano-obra').checked) { estado('La importación desde proveedor corresponde a productos.'); return; }
     // El alta comienza con una ficha vacía: evita mezclar dos productos al
     // cambiar la URL después de haber completado nombre, imagen o precios.
-    if (['pf-nombre', 'pf-descripcion', 'pf-marca', 'pf-imagen-url'].some(function (id) { return el(id).value.trim(); }) || prodProveedoresActuales.some(function (p) { return Number(p.precio) > 0; })) {
+    if (!editingProdId && (['pf-nombre', 'pf-descripcion', 'pf-marca', 'pf-imagen-url'].some(function (id) { return el(id).value.trim(); }) || prodProveedoresActuales.some(function (p) { return Number(p.precio) > 0; }))) {
       estado('Para importar otra ficha, iniciá un nuevo producto. Los datos que ya completaste se conservan.'); return;
     }
+    var indices = [];
+    prodProveedoresActuales.forEach(function (p, i) {
+      var key = String(p.proveedorKey || p.proveedorFbKey || '');
+      if (key ? key === clave(proveedor) : String(p.nombre || p.proveedor || '').trim().toLowerCase() === String(proveedor.nombre).trim().toLowerCase()) indices.push(i);
+    });
+    var indice = indices.find(function (i) { return urlExacta(prodProveedoresActuales[i].url) === url; });
+    if (indice === undefined && indices.length === 1) indice = indices[0];
+    if (indice === undefined && indices.length > 1) { estado('Hay varias filas de este proveedor. Colocá esta URL en la fila que querés actualizar y volvé a consultar.'); return; }
     var c = { id: ++secuencia, controlador: new AbortController(), firma: firma() };
     consulta = c;
     mostrarCarga(true);
@@ -107,10 +115,7 @@
       var imagen = '';
       try { var destino = new URL(ficha.imagenUrl); if (/^https?:$/.test(destino.protocol) && !destino.username && !destino.password) imagen = destino.href; } catch (_) {}
       if (imagen) { el('pf-imagen-url').value = imagen; actualizarPreviewImagenURL(imagen); }
-      var indice = prodProveedoresActuales.findIndex(function (p) {
-        return String(p.proveedorKey || p.proveedorFbKey || '') === clave(proveedor) && (!p.url || urlExacta(p.url) === url);
-      });
-      if (indice >= 0) prodProveedoresActuales[indice] = precioProveedor;
+      if (indice !== undefined) prodProveedoresActuales[indice] = precioProveedor;
       else prodProveedoresActuales.push(precioProveedor);
       renderTablaProveedoresProducto();
       recalcularCompraDesdeProveedores();

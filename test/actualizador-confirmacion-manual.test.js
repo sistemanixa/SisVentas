@@ -59,7 +59,7 @@ test('la confirmación humana queda ligada a la URL y se reutiliza en futuros lo
   assert.match(actualizacion, /variacionAprobadaPor\s*=\s*currentUser/);
   assert.match(lote, /confirmarIdentidadManual:identidadMercadoLibreConfirmadaParaUrl\(x\.proveedor, x\.url\)/);
   assert.match(app, /urlsProveedorEquivalentes\(urlConfirmada, url\)/);
-  assert.match(cotizador, /item\.confirmarIdentidadManual === true/);
+  assert.match(cotizador, /reqBody\.confirmarIdentidadManual === true/);
   assert.match(cotizador, /metodo:'confirmacion_manual_guardada'/);
 });
 

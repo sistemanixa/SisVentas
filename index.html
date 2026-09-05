@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.15-firebase' -->
+<!-- VERSION: 'v3.3.16-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.15.js"></script>
+<script src="./js/core/version.v3.3.16.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -3882,6 +3882,8 @@ Listo para analizar.
 
       <!-- ── PRODUCTOS ── -->
       <div id="page-productos" class="page">
+        <!-- LISTA: los indicadores pertenecen únicamente al listado -->
+        <div id="prod-list-view">
         <div class="metrics" style="margin-bottom:12px">
           <div class="metric"><div class="m-label" id="stat-prod-total-label">Total productos</div><div class="m-value" id="stat-prod-total">—</div><div class="m-sub" id="stat-prod-total-sub">en catálogo</div></div>
           <div class="metric"><div class="m-label" id="stat-prod-stock-label">Sobrantes reales</div><div class="m-value" id="stat-prod-stock" style="color:var(--green)">—</div><div class="m-sub" id="stat-prod-stock-sub">material disponible en depósito</div></div>
@@ -3889,8 +3891,6 @@ Listo para analizar.
           <div class="metric"><div class="m-label" id="stat-prod-top-label">Más vendido</div><div class="m-value" id="stat-prod-top" style="font-size:11px;line-height:1.3">—</div><div class="m-sub" id="stat-prod-top-sub">del mes</div></div>
         </div>
 
-        <!-- LISTA -->
-        <div id="prod-list-view">
           <div class="card">
             <div class="card-head">
               <span class="card-title">Productos</span>
@@ -3953,20 +3953,55 @@ Listo para analizar.
           </div>
         </div>
 
-        <!-- FORMULARIO NUEVO/EDITAR -->
+        <style>
+.content:has(#page-productos.active #prod-form-view[style*="display: block"]){padding-top:0!important}
+.pf-editor-header>div:first-child .btn,.pf-editor-header #pf-anterior,.pf-editor-header #pf-siguiente{background:transparent;border-color:transparent;box-shadow:none;padding-left:0;padding-right:0;color:var(--text2)}
+.pf-editor-header #prod-form-title{font-size:22px!important;line-height:1.2}
+.pf-editor-subtitle{font-size:12px;color:var(--text3);margin-top:5px;line-height:1.4}
+.pf-editor-header{position:sticky;top:0;z-index:15;background:var(--bg);padding:8px 0;gap:12px;border-bottom:1px solid var(--border)}
+#prod-form-title{flex:1;font-size:17px!important;font-weight:700!important}
+.pf-identidad-layout{display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,3fr);gap:16px;align-items:stretch}
+.pf-identidad-layout{margin-bottom:16px}
+.pf-identidad-layout>.card{min-width:0;margin-bottom:0!important}
+.pf-identidad-layout>.card:last-child{order:-1;display:flex;flex-direction:column}
+.pf-identidad-layout>.card:last-child>div:last-child{flex-direction:column;flex:1;flex-wrap:nowrap!important}
+.pf-identidad-layout #pf-imagen-preview-box{width:100%!important;height:auto!important;min-height:210px;flex:1!important;position:relative}
+.pf-identidad-layout #pf-imagen-preview-img{position:absolute;inset:0}
+.pf-identidad-layout>.card:last-child>div:last-child>div:last-child{min-width:0!important;width:100%;flex:0 0 auto!important}
+.pf-identidad-card .form-grid{gap:16px}
+#pf-nombre{font-weight:600;font-size:15px}
+#pf-importar-panel>div:first-of-type{gap:8px}
+#pf-importar-boton{background:var(--blue);color:white;border-color:var(--blue)}
+.pf-providers-help summary{cursor:pointer;color:var(--text2);margin-bottom:6px}
+.pf-precios-resumen{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+.pf-precios-resumen .fg:has(#pf-venta-iva){background:var(--blue-bg);padding:14px;border:1px solid var(--blue);border-radius:10px;grid-column:span 2}
+#pf-venta-iva{font-size:24px!important;font-weight:750!important;color:var(--text);background:transparent;border:0}
+#prod-form-view .product-currency-box{padding:10px 12px;border-radius:10px;box-shadow:none}
+@media(max-width:900px){.pf-identidad-layout{grid-template-columns:1fr}.pf-precios-resumen{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-editor-header{flex-wrap:wrap}}
+@media(max-width:520px){.pf-precios-resumen{grid-template-columns:1fr}.pf-precios-resumen .fg:has(#pf-venta-iva){grid-column:auto}#prod-form-title{font-size:14px!important}}
+</style>
+<!-- FORMULARIO NUEVO/EDITAR -->
         <div id="prod-form-view" style="display:none">
-          <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
-            <button class="btn btn-sm" onclick="cerrarFormProducto()"><i class="ti ti-arrow-left"></i> Volver</button>
-            <span id="prod-form-title" style="font-size:13px;font-weight:500;color:var(--text)">Nuevo producto</span>
-            <div ></div>
+          <div class="pf-editor-header" style="margin-bottom:14px;display:flex;flex-direction:column;align-items:stretch;gap:8px">
+            <div><button class="btn btn-sm" onclick="cerrarFormProducto()">← Volver al listado</button></div>
+            <div><div id="prod-form-title" style="font-size:17px;font-weight:700;color:var(--text);text-align:left">Nuevo producto</div><div id="pf-editor-subtitle" class="pf-editor-subtitle"></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <button type="button" class="btn btn-sm" id="pf-anterior" onclick="navegarEditorProducto(-1)" aria-label="Producto anterior" title="Producto anterior"><i class="ti ti-chevron-left"></i> Producto anterior</button>
+              <button type="button" class="btn btn-sm" id="pf-siguiente" onclick="navegarEditorProducto(1)" aria-label="Producto siguiente" title="Producto siguiente">Producto siguiente <i class="ti ti-chevron-right"></i></button>
+            </div>
           </div>
-          <div class="card">
+          <div class="pf-identidad-layout"><div class="card pf-identidad-card">
             <div class="card-head"><span class="card-title">Identificación</span></div>
             <div class="form-grid">
               <div class="fg full">
                 <label for="pf-cod-web">URL exacta del producto en el proveedor</label>
-                <input type="url" id="pf-cod-web" placeholder="Pegá el enlace de la ficha del producto" onchange="sugerirProveedorFicha()">
+                <div class="pf-url-acciones">
+                  <input type="url" id="pf-cod-web" placeholder="Pegá el enlace de la ficha del producto" onchange="sugerirProveedorFicha()">
+                  <button type="button" class="btn" onclick="abrirUrlExactaProducto()" title="Abrir la URL escrita en otra pestaña para comprobar el producto"><i class="ti ti-external-link"></i> Abrir URL</button>
+                </div>
                 <style>
+                  .pf-url-acciones { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+                  .pf-url-acciones #pf-cod-web { flex:1 1 240px; min-width:0; }
                   label[for="pf-cod-web"] { color:var(--blue); font-weight:700; }
                   #pf-cod-web { background:var(--blue-bg); border:2px solid var(--blue); color:var(--text); min-height:46px; padding:12px; border-radius:8px; }
                   #pf-cod-web::placeholder { color:var(--blue); opacity:1; }
@@ -3983,18 +4018,18 @@ Listo para analizar.
                     <select id="pf-importar-proveedor" style="flex:1;min-width:180px" aria-label="Proveedor de la ficha"><option value="">Seleccioná el proveedor</option></select>
                     <button type="button" class="btn" id="pf-importar-boton" onclick="completarProductoDesdeUrl()">Completar desde URL</button>
                   </div>
-                  <p style="font-size:12px;color:var(--text3);margin:8px 0">Trae nombre, marca, detalle, imagen y precio de compra en una consulta. Revisá la ficha y después guardá el producto.</p>
+                  <p style="font-size:12px;color:var(--text3);margin:8px 0">Trae la ficha y el precio. Revisá los datos antes de guardar.</p>
                   <div id="pf-importar-estado" role="status" aria-live="polite" style="font-size:12px;overflow-wrap:anywhere"></div>
                 </div>
               </div>
-              <div class="fg"><label>Código</label><input type="text" id="pf-codigo" value="AUTO" placeholder="AUTO" readonly><div style="font-size:11px;color:var(--text3);margin-top:4px">El sistema asigna el siguiente código disponible al guardar.</div></div>
+              <div class="fg"><label>Código</label><input type="text" id="pf-codigo" value="AUTO" placeholder="AUTO" readonly><div style="font-size:11px;color:var(--text3);margin-top:4px">Código único del producto.</div></div>
               <div class="fg"><label>Categoría</label>
                 <select id="pf-categoria">
                   <option value="">Seleccionar...</option>
                 </select>
               </div>
               <div class="fg"><label>Marca</label><input type="text" id="pf-marca" list="pf-marcas-list" placeholder="Ej: HIKVISION" oninput="this.value=this.value.toUpperCase()"><datalist id="pf-marcas-list"></datalist></div>
-              <div class="fg full"><label>Nombre corto</label><input type="text" id="pf-nombre" placeholder="Ej: CÁMARA HIKVISION DS-2CD2T47G2" oninput="this.value=this.value.toUpperCase()"></div>
+              <div class="fg full"><label>Nombre del producto</label><input type="text" id="pf-nombre" placeholder="Ej: CÁMARA HIKVISION DS-2CD2T47G2" oninput="this.value=this.value.toUpperCase()"></div>
               <div class="fg full"><label>Descripción larga <span style="color:var(--text3);font-weight:400">(opcional)</span></label><textarea id="pf-descripcion" rows="3" placeholder="Descripción técnica completa..."></textarea></div>
 
             </div>
@@ -4008,7 +4043,7 @@ Listo para analizar.
               </div>
               <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:8px">
                 <div>
-                  <button class="btn btn-sm" onclick="document.getElementById('pf-imagen-input').click()"><i class="ti ti-upload"></i> Subir foto desde el dispositivo</button>
+                  <button class="btn btn-sm" onclick="document.getElementById('pf-imagen-input').click()"><i class="ti ti-upload"></i> Cambiar imagen</button>
                   <input type="file" id="pf-imagen-input" accept="image/*" style="display:none" onchange="previewImagenProducto(this)">
                 </div>
                 <div class="fg" style="margin-bottom:0">
@@ -4022,7 +4057,7 @@ Listo para analizar.
               </div>
             </div>
           </div>
-          <div class="card pf-providers-card">
+          </div><div class="card pf-providers-card">
             <div class="card-head">
               <span class="card-title">Proveedores del producto</span>
               <div class="pf-providers-toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -4033,9 +4068,9 @@ Listo para analizar.
                 </button>
               </div>
             </div>
-            <div class="pf-providers-help" style="font-size:12px;color:var(--text3);margin-bottom:10px">
-              <i class="ti ti-info-circle"></i> Cargá uno o más proveedores de este producto. La URL es obligatoria: si la fila no la tiene, se usa la URL general del producto. El sistema guarda el precio ARS publicado, el dólar usado y la referencia USD para mantener el costo actualizado.
-            </div>
+            <details class="pf-providers-help" style="font-size:12px;color:var(--text3);margin-bottom:10px">
+              <summary>Cómo se consultan los proveedores</summary> Cargá uno o más proveedores de este producto. La URL es obligatoria: si la fila no la tiene, se usa la URL general del producto. El sistema guarda el precio ARS publicado, el dólar usado y la referencia USD para mantener el costo actualizado.
+            </details>
             <table id="pf-proveedores-tbl" style="width:100%">
               <tr class="pf-provider-head"><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio ARS</th><th style="text-align:center;white-space:nowrap" title="Si el proveedor cotiza sin IVA, el sistema suma el 21% para calcular el costo real">Sin IVA <i class="ti ti-info-circle" style="font-size:11px;color:var(--text3)"></i></th><th style="text-align:right;color:var(--amber)">Costo / USD ref.</th><th>URL</th><th style="text-align:right">Actualizado</th><th></th></tr>
             </table>
@@ -4086,47 +4121,37 @@ Listo para analizar.
               </div>
               <select id="pf-moneda" style="display:none"><option value="ARS" selected>ARS</option><option value="USD">USD</option></select>
             </div>
-            <!-- Flujo guiado: precio gremio → margen → precio venta → USD -->
-            <div style="padding:10px 14px;background:rgba(59,130,246,.07);border-radius:var(--radius);margin-bottom:12px;border:0.5px solid rgba(59,130,246,.2)">
-              <div style="font-size:11px;font-weight:600;color:var(--blue);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Calculadora de precio</div>
-              <div class="form-grid cols3" style="margin-bottom:0">
-                <div class="fg">
-                  <label>Precio gremio / costo <span id="pf-gremio-moneda-lbl">ARS</span></label>
-                  <input data-money="1" id="pf-precio-gremio" placeholder="0" oninput="calcPrecioDesdeGremio()">
-                  <div id="pf-gremio-moneda-hint" style="font-size:11px;color:var(--text3);margin-top:4px">Precio de lista del gremio en pesos</div>
-                </div>
-                <div class="fg">
-                  <label>% Valor agregado <span style="color:var(--text3);font-weight:400">(sobre costo)</span></label>
-                  <div style="display:flex;align-items:center;gap:6px">
-                    <input type="number" id="pf-margen-deseado" placeholder="30" min="0" step="0.1" style="width:80px" oninput="calcPrecioDesdeGremio()">
-                    <span style="color:var(--text3);font-size:13px">%</span>
-                  </div>
-                  <div style="font-size:11px;color:var(--text3);margin-top:4px">Ej.: costo $48.000 + 30% = precio de venta $62.400.</div>
-                  <div id="pf-margen-error" style="display:none;font-size:11px;color:var(--red);margin-top:4px">El valor agregado no puede ser negativo.</div>
-                  <div style="font-size:11px;color:var(--text3);margin-top:4px">100% duplica el costo. Se aplica antes del IVA.</div>
-                </div>
-                <div class="fg">
-                  <label>Precio venta calculado sin IVA (<span id="pf-calculado-moneda-lbl">ARS</span>)</label>
-                  <input type="text" id="pf-precio-calculado" readonly placeholder="—" style="font-weight:600;color:var(--green)">
-                  <div style="font-size:11px;color:var(--text3);margin-top:4px" id="pf-precio-usd-equiv">= USD —</div>
-                </div>
-              </div>
+            <style>
+              .pf-price-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:20px 0}
+              .pf-price-flow input,.pf-price-flow select{min-height:42px}
+              .pf-price-result{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:24px;align-items:center;padding:20px 0;border-top:1px solid var(--border)}
+              .pf-price-result label{color:var(--text2)}
+              .pf-price-result #pf-venta-iva{padding:6px 0;font-size:30px!important;height:auto;box-shadow:none;width:100%}
+              .pf-price-result #pf-margen{border:0;background:transparent;padding:6px 0;color:var(--green);font-weight:600;box-shadow:none}
+              .pf-price-details{border-top:1px solid var(--border);padding-top:12px;color:var(--text3);font-size:12px}
+              .pf-price-details summary{cursor:pointer;padding:4px 0}
+              .pf-price-details .form-grid{margin-top:14px}
+              @media(max-width:600px){.pf-price-flow{grid-template-columns:1fr}.pf-price-result{grid-template-columns:1fr;gap:10px}}
+            </style>
+            <div class="pf-price-flow">
+              <div class="fg"><label>Costo <span id="pf-gremio-moneda-lbl">ARS</span></label><input data-money="1" id="pf-precio-gremio" placeholder="0" oninput="calcPrecioDesdeGremio()"><div id="pf-gremio-moneda-hint" style="font-size:11px;color:var(--text3);margin-top:5px">Costo del producto</div></div>
+              <div class="fg"><label>Valor agregado (%)</label><input type="number" id="pf-margen-deseado" placeholder="30" min="0" step="0.1" oninput="calcPrecioDesdeGremio()"><div style="font-size:11px;color:var(--text3);margin-top:5px">Sobre el costo, antes del IVA</div><div id="pf-margen-error" style="display:none;font-size:11px;color:var(--red)">El valor agregado no puede ser negativo.</div></div>
+              <div class="fg"><label>IVA</label><select id="pf-iva"><option value="21">21%</option><option value="10.5">10,5%</option><option value="0">Exento</option></select></div>
             </div>
-              <div class="fg"><label>Precio de compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input data-money="1" id="pf-compra" placeholder="0" oninput="calcMargen()"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
-              <div class="fg"><label>Precio de venta sin IVA (<span id="pf-venta-moneda-lbl">$</span>)</label><input data-money="1" id="pf-venta" placeholder="0" oninput="calcMargen()"></div>
-              <div class="fg"><label>Margen real sobre venta</label><input type="text" id="pf-margen" readonly placeholder="—" style="color:var(--green);font-weight:500" title="Porcentaje de ganancia contenido en el precio de venta sin IVA"></div>
-              <div class="fg"><label>IVA</label>
-                <select id="pf-iva">
-                  <option value="21">21%</option>
-                  <option value="10.5">10,5%</option>
-                  <option value="0">Exento</option>
-                </select>
-              </div>
-              <div class="fg"><label>Precio venta c/IVA</label><input type="text" id="pf-venta-iva" readonly placeholder="—" style="font-weight:500"></div>
-              <div class="fg" id="pf-equiv-ars-box" style="display:none"><label>Equivalente hoy en ARS</label><input type="text" id="pf-equiv-ars" readonly placeholder="—" style="font-weight:500;color:var(--blue)"></div>
+            <div class="pf-price-result">
+              <div class="fg"><label>Precio final de venta · IVA incluido</label><input type="text" id="pf-venta-iva" readonly placeholder="—"><div id="pf-equiv-ars-box" style="display:none"><label>Equivalente hoy en ARS</label><input type="text" id="pf-equiv-ars" readonly placeholder="—"></div></div>
+              <div class="fg"><label>Margen real sobre venta</label><input type="text" id="pf-margen" readonly placeholder="—" title="Porcentaje de ganancia contenido en el precio de venta sin IVA"></div>
             </div>
+            <details class="pf-price-details"><summary>Ver cálculo y ajustes manuales</summary>
+              <div class="form-grid cols3">
+                <div class="fg"><label>Venta calculada sin IVA (<span id="pf-calculado-moneda-lbl">ARS</span>)</label><input type="text" id="pf-precio-calculado" readonly placeholder="—"><div id="pf-precio-usd-equiv" style="font-size:11px;color:var(--text3);margin-top:5px">= USD —</div></div>
+                <div class="fg"><label>Compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input data-money="1" id="pf-compra" placeholder="0" oninput="calcMargen()"></div>
+                <div class="fg"><label>Venta sin IVA (<span id="pf-venta-moneda-lbl">$</span>)</label><input data-money="1" id="pf-venta" placeholder="0" oninput="calcMargen()"></div>
+              </div>
+            </details>
+          </div>
           <div class="card">
-            <div class="card-head"><span class="card-title">Stock</span></div>
+            <div class="card-head"><span class="card-title">Stock y publicación</span></div>
             <div class="form-grid">
               <div class="fg"><label>Stock actual</label><input type="number" id="pf-stock" placeholder="0" min="0"></div>
               <div class="fg"><label>Stock mínimo (alerta)</label><input type="number" id="pf-stock-min" placeholder="5" min="0"></div>
@@ -5586,7 +5611,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.3.15.js"></script>
+<script src="./js/app.v3.3.16.js"></script>
 <script src="./js/modules/product-url-import.js"></script>
 <script src="./js/modules/keyboard-actions.js"></script>
 <script src="./js/modules/provider-verification.js"></script>

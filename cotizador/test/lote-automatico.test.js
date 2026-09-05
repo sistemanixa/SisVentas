@@ -23,3 +23,8 @@ test('rechaza conexiones sin verificar y lotes fuera del límite antes de consul
  await assert.rejects(ctx.cotizarLote({proveedorKey:'nuevo',items:Array(5).fill({url:'x'})}),/1 y 4/);
  assert.equal(llamadas.length,0);
 });
+test('proveedores iniciales usan la misma consulta individual y conservan la confirmación enviada',async()=>{
+ const {ctx,llamadas}=contexto();ctx.tipoProveedor=()=> 'biosegur';
+ await ctx.cotizarLote({proveedorKey:'base',items:[{url:'buena',confirmarIdentidadManual:true}]});
+ assert.equal(llamadas.length,1);assert.equal(llamadas[0].confirmarIdentidadManual,true);
+});
