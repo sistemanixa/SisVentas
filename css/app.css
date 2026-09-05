@@ -865,6 +865,12 @@ body.sv-modal-stack-open{overflow:hidden!important;overscroll-behavior:none!impo
 .product-hero-img i{font-size:46px;color:var(--amber)}
 .product-hero-img img{width:100%;height:100%;object-fit:cover}
 .product-hero-info{flex:1;min-width:0}
+#page-productos:has(#prod-detail-view[style*="display: block"])>.metrics,
+#page-productos:has(#prod-detail-view[style*="display:block"])>.metrics{display:none}
+.product-hero-facts{display:flex;flex-wrap:wrap;gap:12px 24px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--border)}
+.product-hero-facts>div{display:flex;align-items:baseline;gap:6px}
+.product-hero-facts dt{font-size:12px;color:var(--text2)}
+.product-hero-facts dd{margin:0;font-size:13px;font-weight:600;color:var(--text)}
 .product-hero-kicker{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
 .product-hero-name{font-size:28px;line-height:1.08;font-weight:800;color:var(--text);letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .product-hero-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;color:var(--text2);font-size:13px}

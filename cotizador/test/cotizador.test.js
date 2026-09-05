@@ -132,7 +132,10 @@ test('Mercado Libre elige la publicación activa ARS de la tienda solicitada', (
     { id:'MLA4', catalog_product_id:'MLA63758636', official_store_id:280888, price:100000, currency_id:'USD', status:'active' }
   ], 'MLA63758636', 280888);
   assert.equal(elegida.id, 'MLA3');
-  assert.deepEqual(datosMercadoLibreDesdeFuente(elegida), {
+  const { ficha, ...precio } = datosMercadoLibreDesdeFuente(elegida);
+  assert.equal(ficha.nombre, elegida.title);
+  assert.deepEqual(ficha.faltantes, ['marca', 'detalle', 'imagenUrl']);
+  assert.deepEqual(precio, {
     precioArs:124968.80,
     precioActualArs:124968.80,
     precioOriginalArs:124968.80,
@@ -434,7 +437,9 @@ test('Mercado Libre recupera precio y catálogo desde JSON-LD de una URL histór
     productID:'MLAU245337872',
     offers:{ '@type':'Offer', price:11477, priceCurrency:'ARS', availability:'https://schema.org/InStock' }
   }) + '</script>';
-  assert.deepEqual(datosEstructuradosMercadoLibreDesdeHtml(html), {
+  const { ficha, ...precio } = datosEstructuradosMercadoLibreDesdeHtml(html);
+  assert.equal(ficha.nombre, 'Timbre Electronico Sonido Ding Dong Interior 12 Volt Esx');
+  assert.deepEqual(precio, {
     precioArs:11477,
     titulo:'Timbre Electronico Sonido Ding Dong Interior 12 Volt Esx',
     moneda:'ARS',

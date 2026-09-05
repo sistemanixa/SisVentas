@@ -1,3 +1,4 @@
+const { normalizarFicha, fichaDesdeApi, extraerFichaPagina, validarUrlFicha, identidadAlta, protegerNavegacionFicha } = require('./ficha-producto');
 const http = require('http');
 const crypto = require('crypto');
 const { chromium } = require('playwright');
@@ -29,6 +30,78 @@ if (!admin.apps.length) {
 }
 
 const db = admin.database();
+const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
+const verificacionesProveedor = new Map();
+const { convertirPrecioProveedor, dolarSistema, validarGuarani } = require('./conversion-proveedor');
+let consultaGuarani;
+async function obtenerGuarani(forzar=false) {
+  if (consultaGuarani) return consultaGuarani;
+  consultaGuarani=(async()=>{
+    const ref=db.ref('sisventas/config/guarani');
+    const guardada=(await ref.get()).val();
+    if(!forzar && guardada && Date.now()-guardada.consultadoEn<86400000) {
+      try { validarGuarani({base:'USD',quote:'PYG',rate:guardada.pygPorUsd,date:guardada.fecha}); return guardada; } catch(_) {}
+    }
+    const res=await fetch('https://api.frankfurter.dev/v2/rate/USD/PYG?providers=BCP',{signal:AbortSignal.timeout(15000)});
+    if(!res.ok) throw new Error('No se pudo consultar la cotización web del guaraní');
+    const datos=validarGuarani(await res.json());await ref.set(datos);return datos;
+  })();
+  try {return await consultaGuarani;} finally {consultaGuarani=null;}
+}
+async function convertirMonedaProveedor(resultado) {
+  if (!resultado || !resultado.requiereConversion) return resultado;
+  const config=(await db.ref('sisventas/config/comprasParaguay').get()).val();
+  if (!config?.habilitado) return convertirPrecioProveedor(resultado,config);
+  const tipoCambio=(await db.ref('sisventas/config/tipoCambio').get()).val();
+  const guarani=resultado.moneda==='PYG'?await obtenerGuarani():null;
+  const convertido=convertirPrecioProveedor(resultado,{...config,arsPorUsd:dolarSistema(tipoCambio),pygPorUsd:guarani?.pygPorUsd||0});
+  convertido.conversion.dolarTipo=tipoCambio?.dolarConversion||'oficial';
+  if(guarani) convertido.conversion.guarani=guarani;
+  return convertido;
+}
+async function verificarProveedor(body) {
+  const key = String(body.proveedorKey || '');
+  if (!key || /[.#$\[\]\/]/.test(key)) throw new Error('Proveedor inválido');
+  if (verificacionesProveedor.has(key)) return verificacionesProveedor.get(key);
+  const trabajo = (async () => {
+    const ref = db.ref('sisventas/proveedores/' + key);
+    const proveedor = (await ref.get()).val();
+    if (!proveedor || proveedor.activo === false) throw new Error('Proveedor inexistente o inactivo');
+    let url = String(body.url || proveedor.conexionAutomatica?.urlPrueba || '');
+    if (!url) {
+      const productos = (await db.ref('sisventas/productos').get()).val() || {};
+      for (const p of Object.values(productos)) {
+        const fila = (Array.isArray(p.proveedores) ? p.proveedores : []).find(x=>x && (x.proveedorKey === key || x.proveedorFbKey === key) && x.url);
+        if (fila) { url = fila.url; break; }
+      }
+    }
+    let estado;
+    try {
+      const tipo = tipoProveedor(proveedor, '');
+      let resultado = tipo && url ? await cotizar({proveedorKey:key,url,incluirFicha:true,altaProducto:true}) : await consultarAutomatico(proveedor,url);
+      if (resultado.requiereConversion) {
+        try { resultado=await convertirMonedaProveedor(resultado); } catch(e) { resultado.conversionPendiente=e.message; }
+      }
+      if (!tipo) resultado=aplicarCondicionComercial(resultado,proveedor.condicionComercial);
+      estado = {estado:resultado.ok ? 'verificado' : 'requiere_url',mensaje:resultado.ok ? 'Acceso y producto de prueba verificados' : 'Acceso comprobado. Falta una URL exacta de producto para verificar la cotización',urlPrueba:url,verificadoEn:Date.now(),firma: firmaAcceso(proveedor),automatico:!tipo};
+      if (resultado.requiereConversion) {
+        estado.estado='requiere_conversion';
+        estado.mensaje='Lectura comprobada: ' + resultado.precioOriginal.toFixed(2) + ' ' + resultado.moneda + '. ' + (resultado.conversionPendiente || 'Conversión a pesos pendiente de configurar');
+        estado.muestra={nombre:resultado.tituloProveedor,precioOriginal:resultado.precioOriginal,moneda:resultado.moneda};
+      } else if (resultado.ok) estado.muestra = {nombre:resultado.ficha && resultado.ficha.nombre || resultado.tituloProveedor || '',precioArs:resultado.precioArs,moneda:resultado.moneda,sinIva:resultado.sinIva};
+      if (resultado.condicionComercialAplicada) Object.assign(estado.muestra,{precioPublicadoArs:resultado.precioPublicadoArs,descuentoPorcentaje:resultado.descuentoProveedorPorcentaje});
+      if (resultado.conversion) Object.assign(estado.muestra,{precioOriginal:resultado.precioOriginal,monedaOriginal:resultado.monedaOriginal,conversion:resultado.conversion});
+    } catch (e) {
+      estado = {estado:'requiere_revision',mensaje:String(e.message || 'No se pudo verificar el proveedor').slice(0,500),urlPrueba:url,verificadoEn:Date.now(),firma:firmaAcceso(proveedor)};
+    }
+    const actual = (await ref.get()).val();
+    if (!actual || firmaAcceso(actual) !== firmaAcceso(proveedor)) throw new Error('Los accesos cambiaron durante la prueba. Volvé a verificar');
+    await ref.child('conexionAutomatica').set(estado);
+    return {ok:true,conexion:estado};
+  })();
+  verificacionesProveedor.set(key,trabajo);
+  try { return await trabajo; } finally { verificacionesProveedor.delete(key); }
+}
 
 function send(res, status, payload) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -546,6 +619,7 @@ function datosMercadoLibreDesdeFuente(fuente, producto) {
         ? 'disponible'
         : 'no_verificado';
   return {
+    ficha:fichaDesdeApi(fuente, producto || {}),
     // precioArs se conserva para los consumidores actuales del cotizador.
     precioArs:precioActualArs,
     precioActualArs,
@@ -604,10 +678,10 @@ async function obtenerJsonMercadoLibre(ruta) {
     const itemMatch = String(ruta || '').match(/^\/items\/(MLA\d{6,})$/i);
     if (!response.ok && itemMatch && !controller.signal.aborted) {
       const itemId = String(itemMatch[1]).toUpperCase();
-      let multi = await consultar(`/items?ids=${encodeURIComponent(itemId)}&attributes=id,title,price,original_price,sale_price,currency_id,status,available_quantity,catalog_product_id,official_store_id`, '');
+      let multi = await consultar(`/items?ids=${encodeURIComponent(itemId)}&attributes=id,title,price,original_price,sale_price,currency_id,status,available_quantity,catalog_product_id,official_store_id,attributes,pictures,secure_thumbnail`, '');
       if ((multi.status === 401 || multi.status === 403) && !controller.signal.aborted) {
         const accessToken = await obtenerAccessTokenMercadoLibre();
-        multi = await consultar(`/items?ids=${encodeURIComponent(itemId)}&attributes=id,title,price,original_price,sale_price,currency_id,status,available_quantity,catalog_product_id,official_store_id`, accessToken);
+        multi = await consultar(`/items?ids=${encodeURIComponent(itemId)}&attributes=id,title,price,original_price,sale_price,currency_id,status,available_quantity,catalog_product_id,official_store_id,attributes,pictures,secure_thumbnail`, accessToken);
       }
       if (multi.ok) {
         const lote = await multi.json();
@@ -883,6 +957,7 @@ function datosEstructuradosMercadoLibreDesdeHtml(html) {
       const precioArs = Number(oferta && (oferta.price || oferta.lowPrice)) || 0;
       if (precioArs <= 0) continue;
       return {
+        ficha:normalizarFicha({ nombre:producto.name || '', marca:typeof producto.brand === 'string' ? producto.brand : producto.brand && producto.brand.name || '', detalle:producto.description || '', imagenUrl:typeof producto.image === 'string' ? producto.image : Array.isArray(producto.image) ? (typeof producto.image[0] === 'string' ? producto.image[0] : producto.image[0] && producto.image[0].url) : producto.image && producto.image.url, fuente:'producto_jsonld' }),
         precioArs,
         titulo:String(producto.name || '').trim(),
         moneda:String(oferta && oferta.priceCurrency || 'ARS').toUpperCase(),
@@ -940,6 +1015,7 @@ async function extraerProductoMercadoLibreSeo(urlExacta) {
         titulo:(estructurado && estructurado.titulo) || tituloOg.replace(/\s[-–—]\s*\$\s*[\d.,]+\s*$/, '').trim(),
         moneda:(estructurado && estructurado.moneda) || metaMercadoLibreDesdeHtml(html, 'product:price:currency') || 'ARS',
         catalogProductId:estructurado && estructurado.catalogProductId || '',
+        ficha:normalizarFicha({ ...(estructurado && estructurado.ficha || {}), nombre:estructurado && estructurado.titulo || tituloOg.replace(/\s[-–—]\s*\$\s*[\d.,]+\s*$/, '').trim(), detalle:estructurado && estructurado.ficha && estructurado.ficha.detalle || metaMercadoLibreDesdeHtml(html, 'og:description'), imagenUrl:estructurado && estructurado.ficha && estructurado.ficha.imagenUrl || metaMercadoLibreDesdeHtml(html, 'og:image'), fuente:'mercado_libre_seo' }, urlExacta),
         fuente:'mercado_libre_seo',
         selectorPrecio:precioOg ? 'meta[property="og:title"]' : 'script[type="application/ld+json"]'
       };
@@ -1089,7 +1165,7 @@ function respuestaRevisionIdentidadMercadoLibre({ proveedor, urlExacta, codigo, 
   };
 }
 
-async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, confirmarIdentidadManual }) {
+async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, confirmarIdentidadManual, incluirFicha = false, altaProducto = false }) {
   const urlExacta = normalizarUrl(url);
   if (!esUrlMercadoLibre(urlExacta)) throw new Error('La URL no corresponde a Mercado Libre Argentina');
   const trace = [{ step:'mercado_libre_inicio', at:new Date().toISOString(), urlExacta }];
@@ -1115,6 +1191,7 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, co
         userAgent:'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
         extraHTTPHeaders:{ 'accept-language':'es-AR,es;q=0.9' }
       });
+      if (incluirFicha) await protegerNavegacionFicha(context, 'mercado_libre');
       const page = await context.newPage();
       page.setDefaultTimeout(10000);
       page.setDefaultNavigationTimeout(20000);
@@ -1126,6 +1203,7 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, co
       // API con la URL final conserva catalogo + item_id antes de leer el DOM.
       datos = await extraerProductoMercadoLibreApi(page.url(), trace).catch(() => null);
       if (!datos) datos = await extraerProductoMercadoLibre(page);
+      if (incluirFicha) datos.ficha = await extraerFichaPagina(page);
       trace.push({ step:'mercado_libre_respaldo_visual_ok', at:new Date().toISOString(), precioArs:datos.precioArs, selectorPrecio:datos.selectorPrecio || '' });
     }
     const ids = idsMercadoLibreDesdeUrl(urlExacta);
@@ -1138,7 +1216,7 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, co
     let identidad = !datos.titulo && ids.itemId && ids.productoId &&
       itemExacto === ids.itemId && catalogoExacto === ids.productoId
       ? { ok:true, confianza:1, metodo:'mercado_libre_wid_catalogo' }
-      : validarIdentidadProducto(producto, datos.titulo);
+      : identidadAlta(producto, datos.titulo, altaProducto, validarIdentidadProducto);
     if (!identidad.ok) {
       if (!confirmarIdentidadManual) {
         trace.push({ step:'mercado_libre_identidad_requiere_confirmacion', at:new Date().toISOString(), mensaje:identidad.mensaje || '' });
@@ -1160,7 +1238,8 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, co
       enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0,
       causaFallo:datos.fuente === 'mercado_libre_pagina' ? 'API oficial sin resultado; se usó respaldo visual' : ''
     };
-    return { ok:true, proveedor:proveedor.nombre || 'MERCADO LIBRE', codigo:codigo || '', producto:datos.titulo || producto || '', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad === 'disponible' ? 'Disponible' : datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado', fuente:datos.fuente || 'mercado_libre_url_exacta', fecha:new Date().toISOString(), tituloProveedor:datos.titulo, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', identidad, diagnosticoMercadoLibre, debug:debug ? { trace, titulo:datos.titulo, fuente:datos.fuente || '', itemId:datos.itemId || '', diagnosticoMercadoLibre, identidad } : undefined };
+    const ficha = incluirFicha ? normalizarFicha({ ...(datos.ficha || {}), nombre: datos.titulo || (datos.ficha && datos.ficha.nombre) || '' }, urlExacta) : undefined;
+    return { ficha, ok:true, proveedor:proveedor.nombre || 'MERCADO LIBRE', codigo:codigo || '', producto:datos.titulo || producto || '', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad === 'disponible' ? 'Disponible' : datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado', fuente:datos.fuente || 'mercado_libre_url_exacta', fecha:new Date().toISOString(), tituloProveedor:datos.titulo, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', identidad, diagnosticoMercadoLibre, debug:debug ? { trace, titulo:datos.titulo, fuente:datos.fuente || '', itemId:datos.itemId || '', diagnosticoMercadoLibre, identidad } : undefined };
   } catch (error) {
     error.trace = trace.concat([{ step:'mercado_libre_error', at:new Date().toISOString(), mensaje:error.message || String(error) }]);
     throw error;
@@ -1561,7 +1640,7 @@ function sesionProveedorManualVigente(clave, firma) {
   return sesion;
 }
 
-async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, producto, debug, tipo, confirmarIdentidadManual }) {
+async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, producto, debug, tipo, confirmarIdentidadManual, incluirFicha = false, altaProducto = false }) {
   const trace = [];
   const addTrace = (step, data = {}) => trace.push({ step, at:new Date().toISOString(), ...data });
   let browser = null;
@@ -1583,6 +1662,7 @@ async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, 
       timezoneId:'America/Argentina/Buenos_Aires',
       ...(sesionGuardada ? { storageState:sesionGuardada.storageState } : {})
     });
+    if (incluirFicha) await protegerNavegacionFicha(context, tipo);
     const page = await context.newPage();
     async function iniciarSesionProveedor() {
       addTrace('iniciando_sesion', { tipo, urlExacta });
@@ -1633,7 +1713,8 @@ async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, 
     const disponibilidad = await extraerDisponibilidadPaginaProveedor(page, tipo, bodyText);
     const condicionIva = extraerCondicionIva(bodyText);
     const tituloProveedor = await tituloVisibleProducto(page, tipo);
-    let identidad = validarIdentidadProducto(producto, tituloProveedor);
+    const ficha = incluirFicha ? await extraerFichaPagina(page) : undefined;
+    let identidad = identidadAlta(producto, tituloProveedor, altaProducto, validarIdentidadProducto);
     const datosResultado = {
       ok:true, proveedor:proveedor.nombre || (tipo === 'free_electron' ? 'FREE ELECTRON' : 'TECNOPRICES'),
       codigo:codigo || '', producto:producto || await page.title().catch(() => ''), url:urlExacta,
@@ -1644,6 +1725,7 @@ async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, 
       disponibilidadProveedorTexto:disponibilidad === 'disponible' ? 'Disponible' : disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado',
       fuente:tipo + '_login_url_exacta', fecha:new Date().toISOString(),
       tituloProveedor,
+      ficha,
       urlFinal:page.url(),
       textoPrecio:evidenciaPrecio.textoPrecio,
       selectorPrecio:evidenciaPrecio.selectorPrecio,
@@ -1670,7 +1752,7 @@ async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, 
   }
 }
 
-async function cotizarBiosegur({ proveedor, url, codigo, producto, debug, confirmarIdentidadManual }) {
+async function cotizarBiosegur({ proveedor, url, codigo, producto, debug, confirmarIdentidadManual, incluirFicha = false, altaProducto = false }) {
   const trace = [];
   const addTrace = (step, data = {}) => {
     trace.push({ step, at: new Date().toISOString(), ...data });
@@ -1687,6 +1769,7 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug, confir
       locale: 'es-AR',
       timezoneId: 'America/Argentina/Buenos_Aires'
     });
+    if (incluirFicha) await protegerNavegacionFicha(context, 'biosegur');
     page = await context.newPage();
     const home = normalizarUrl(proveedor.web || 'https://www.biosegur.com.ar/');
     const urlExacta = normalizarUrl(url);
@@ -1734,7 +1817,8 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug, confir
     }
 
     const title = await tituloVisibleProducto(page, 'biosegur');
-    let identidad = validarIdentidadProducto(producto, title);
+    const ficha = incluirFicha ? await extraerFichaPagina(page) : undefined;
+    let identidad = identidadAlta(producto, title, altaProducto, validarIdentidadProducto);
     const datosResultado = {
       ok: true,
       proveedor: proveedor.nombre || 'BIOSEGUR',
@@ -1750,6 +1834,7 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug, confir
       fuente: 'biosegur_login_url_exacta',
       fecha: new Date().toISOString(),
       tituloProveedor:title,
+      ficha,
       urlFinal:page.url(),
       textoPrecio:`$ ${precioArs.toLocaleString('es-AR', { minimumFractionDigits:2, maximumFractionDigits:2 })} + IVA`,
       selectorPrecio:'precio_biosegur_mas_iva',
@@ -2126,8 +2211,26 @@ async function cotizarLote(reqBody) {
   const proveedor = snap.val();
   if (!proveedor) throw new Error('Proveedor no encontrado en Firebase');
   if (proveedor.activo === false) throw new Error('Proveedor inactivo');
-  const primeraUrl = Array.isArray(reqBody.items) && reqBody.items[0] ? (reqBody.items[0].url || '') : '';
-  const tipoLote = tipoProveedor(proveedor, primeraUrl);
+  const tipoLote = tipoProveedor(proveedor, '');
+  if (!tipoLote) {
+    const items = Array.isArray(reqBody.items) ? reqBody.items : [];
+    if (!items.length || items.length > 4) throw new Error('El lote automático requiere entre 1 y 4 productos');
+    const conexion=proveedor.conexionAutomatica || {};
+    if (conexion.estado !== 'verificado' || conexion.firma !== firmaAcceso(proveedor)) throw new Error('Verificá nuevamente la conexión del proveedor');
+    const resultados=[];
+    const jobId=String(reqBody.jobId || '');
+    const progreso=/^[\w-]{1,80}$/.test(jobId) ? db.ref('sisventas/procesos/cotizador/' + jobId) : null;
+    for (let i=0;i<items.length;i++) {
+      const item=items[i];
+      if(progreso) await progreso.update({estado:'procesando',proveedor:proveedor.nombre || '',producto:item.producto || '',codigo:item.codigo || '',url:item.url || '',procesados:(Number(reqBody.offset)||0)+i,total:Number(reqBody.total)||items.length,actualizadoEn:Date.now()});
+      try {
+        const r=await cotizar({...item,proveedorKey,incluirFicha:false,altaProducto:false});
+        resultados.push({...r,codigoProducto:item.codigo || '',producto:r.tituloProveedor || item.producto || '',textoPrecio:'ARS ' + r.precioArs});
+      } catch(e) { resultados.push({ok:false,url:item.url || '',codigoProducto:item.codigo || '',mensaje:e.message,precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}); }
+      if(progreso) await progreso.update({procesados:(Number(reqBody.offset)||0)+i+1,actualizadoEn:Date.now()});
+    }
+    return {ok:true,proveedor:proveedor.nombre,total:items.length,actualizados:resultados.filter(r=>r.ok).length,fallidos:resultados.filter(r=>!r.ok).length,resultados};
+  }
   if (tipoLote === 'free_electron' || tipoLote === 'tecnoprices') {
     return cotizarLoteProveedorLogin({ proveedor, items:reqBody.items, tipo:tipoLote, jobId:reqBody.jobId||'', offset:parseInt(reqBody.offset,10)||0, totalGlobal:parseInt(reqBody.total,10)||0, iniciadoEn:parseInt(reqBody.iniciadoEn,10)||0 });
   }
@@ -2147,6 +2250,13 @@ async function cotizarLote(reqBody) {
 }
 
 async function cotizar(reqBody) {
+  const resultado = await convertirMonedaProveedor(await cotizarSinCondicion(reqBody));
+  const proveedor = (await db.ref('sisventas/proveedores/' + String(reqBody.proveedorKey)).get()).val();
+  const final = aplicarCondicionComercial(resultado,proveedor && proveedor.condicionComercial);
+  return final && final.requiereConfirmacionIdentidad ? final : validarResultadoPrecioIndividual(final,reqBody.precioAnteriorArs);
+}
+
+async function cotizarSinCondicion(reqBody) {
   const proveedorKey = String(reqBody.proveedorKey || '').trim();
   const url = reqBody.url || reqBody.urlProducto || '';
   if (!proveedorKey) throw new Error('Falta proveedorKey');
@@ -2157,11 +2267,25 @@ async function cotizar(reqBody) {
   if (!proveedor) throw new Error('Proveedor no encontrado en Firebase');
   if (proveedor.activo === false) throw new Error('Proveedor inactivo');
 
-  const tipo = tipoProveedor(proveedor, url);
+  // La cuenta pertenece al proveedor registrado; la URL no puede cambiar
+  // su identidad y enviar sus credenciales a otro comercio.
+  const tipo = tipoProveedor(proveedor, '');
+  const incluirFicha = reqBody.incluirFicha === true;
+  const altaProducto = incluirFicha && reqBody.altaProducto === true;
+  if (!tipo) {
+    const conexion = proveedor.conexionAutomatica || {};
+    if (conexion.estado !== 'verificado' || conexion.firma !== firmaAcceso(proveedor)) throw new Error('Verificá primero la conexión automática del proveedor');
+    const resultado = await consultarAutomatico(proveedor,url);
+    resultado.identidad = identidadAlta(reqBody.producto || '', resultado.tituloProveedor, altaProducto, validarIdentidadProducto);
+    if (!resultado.identidad.ok) throw new Error('La ficha no coincide con el producto solicitado');
+    return resultado;
+  }
+  validarUrlFicha(url, tipo);
   if (tipo === 'biosegur') {
     return cotizarBiosegur({
       proveedor,
       url,
+      incluirFicha, altaProducto,
       codigo: reqBody.codigo || '',
       producto: reqBody.producto || '',
       debug: !!reqBody.debug,
@@ -2170,7 +2294,7 @@ async function cotizar(reqBody) {
   }
 
   if (tipo === 'free_electron' || tipo === 'tecnoprices') {
-    return cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo:reqBody.codigo || '', producto:reqBody.producto || '', debug:!!reqBody.debug, tipo, confirmarIdentidadManual:reqBody.confirmarIdentidadManual === true })
+    return cotizarProveedorConLogin({ incluirFicha, altaProducto, proveedor, proveedorKey, url, codigo:reqBody.codigo || '', producto:reqBody.producto || '', debug:!!reqBody.debug, tipo, confirmarIdentidadManual:reqBody.confirmarIdentidadManual === true })
       .then((resultado) => resultado && resultado.requiereConfirmacionIdentidad ? resultado : validarResultadoPrecioIndividual(resultado, reqBody.precioAnteriorArs));
   }
 
@@ -2178,6 +2302,7 @@ async function cotizar(reqBody) {
     return cotizarMercadoLibre({
       proveedor,
       url,
+      incluirFicha, altaProducto,
       codigo:reqBody.codigo || '',
       producto:reqBody.producto || '',
       debug:!!reqBody.debug,
@@ -2240,11 +2365,11 @@ const server = http.createServer(async (req, res) => {
   try {
     await autenticarSolicitud(req);
     const body = await readBody(req);
-    if (pathname !== '/' && pathname !== '/cotizar' && pathname !== '/biosegur' && pathname !== '/cotizar-lote') {
+    if (pathname !== '/' && pathname !== '/cotizar' && pathname !== '/biosegur' && pathname !== '/cotizar-lote' && pathname !== '/verificar-proveedor' && pathname !== '/cotizacion-guarani') {
       send(res, 404, { ok: false, error: true, mensaje: 'Ruta no encontrada' });
       return;
     }
-    const resultado = pathname === '/cotizar-lote' ? await cotizarLote(body) : await cotizar(body);
+    const resultado = pathname === '/cotizacion-guarani' ? {ok:true,cotizacion:await obtenerGuarani(body.forzar===true)} : pathname === '/verificar-proveedor' ? await verificarProveedor(body) : pathname === '/cotizar-lote' ? await cotizarLote(body) : await cotizar(body);
     send(res, 200, resultado);
   } catch (e) {
     console.error('[cotizador]', e);
@@ -2269,6 +2394,9 @@ if (require.main === module) {
 }
 
 module.exports = {
+  verificarProveedor,
+  cotizarLote,
+  cotizarBiosegur,
   parsePrecioArs,
   extraerPrecioBiosegur,
   extraerPrecioEtiquetado,

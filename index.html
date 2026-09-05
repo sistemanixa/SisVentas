@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.14-firebase' -->
+<!-- VERSION: 'v3.3.15-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.14.js"></script>
+<script src="./js/core/version.v3.3.15.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -1751,6 +1751,7 @@
         <!-- TABS -->
         <div id="cfg-tabs-main" class="cfg-tabs-main">
           <button class="cfg-tab active" onclick="showCfgTab('general',this)">General</button>
+          <button class="cfg-tab admin-only" onclick="showCfgTab('paraguay',this)">Compras en Paraguay</button>
           <button class="cfg-tab admin-o-administrativo" data-cfg-tab="dolar" onclick="showCfgDolarTab(this)">Dólar</button>
           <button class="cfg-tab" onclick="showCfgTab('cargos',this)">Cargos</button>
           <button class="cfg-tab" onclick="showCfgTab('comisiones',this)">Comisiones</button>
@@ -1770,6 +1771,20 @@
         </div>
 
         <!-- TAB: GENERAL -->
+        <div id="cfg-paraguay" class="cfg-panel" style="display:none">
+          <div class="card" style="padding:24px;max-width:760px">
+            <h3>Compras en Paraguay</h3>
+            <p style="color:var(--text2)">Convertí precios de proveedores en dólares o guaraníes a pesos argentinos. Se conserva el importe original y la cotización utilizada.</p>
+            <label style="display:block;margin:20px 0"><input type="checkbox" id="py-habilitado"> Habilitar conversión de compras en Paraguay</label>
+            <p id="py-dolar">Se utiliza el dólar de referencia configurado en SisVentas.</p>
+            <p id="py-guarani" role="status">Consultando cotización del guaraní…</p>
+            <button id="py-actualizar" class="btn" onclick="actualizarGuaraniParaguay()">Actualizar guaraní desde la web</button>
+            <p style="color:var(--text2)">Referencia diaria del Banco Central del Paraguay, consultada mediante Frankfurter. Se consulta automáticamente al usar precios en guaraníes y se conserva hasta 24 horas.</p>
+            <p style="color:var(--text2)">USD × ARS/USD = costo en pesos. Para guaraníes: PYG ÷ PYG/USD × ARS/USD. Los gastos de traslado no están incluidos.</p>
+            <p id="py-estado" role="status">Cargando configuración…</p>
+            <button id="py-guardar" class="btn btn-primary" onclick="guardarConversionParaguay()">Guardar conversión</button>
+          </div>
+        </div>
         <div id="cfg-general" class="cfg-panel">
           <div class="card">
             <div class="card-head"><span class="card-title">Identidad visual de la empresa</span></div>
@@ -3948,6 +3963,30 @@ Listo para analizar.
           <div class="card">
             <div class="card-head"><span class="card-title">Identificación</span></div>
             <div class="form-grid">
+              <div class="fg full">
+                <label for="pf-cod-web">URL exacta del producto en el proveedor</label>
+                <input type="url" id="pf-cod-web" placeholder="Pegá el enlace de la ficha del producto" onchange="sugerirProveedorFicha()">
+                <style>
+                  label[for="pf-cod-web"] { color:var(--blue); font-weight:700; }
+                  #pf-cod-web { background:var(--blue-bg); border:2px solid var(--blue); color:var(--text); min-height:46px; padding:12px; border-radius:8px; }
+                  #pf-cod-web::placeholder { color:var(--blue); opacity:1; }
+                  #pf-cod-web:focus { outline:3px solid var(--blue-bg); outline-offset:2px; border-color:var(--blue); }
+                  #pf-importar-boton:disabled { opacity:1; cursor:wait; display:inline-flex; align-items:center; gap:9px; }
+                  #pf-importar-boton:disabled::before { content:""; width:16px; height:16px; flex-shrink:0; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:ficha-consultando .8s linear infinite; }
+                  #pf-importar-panel:has(#pf-importar-boton:disabled) #pf-importar-estado { padding:12px; margin-top:8px; border:1px solid currentColor; border-radius:8px; font-weight:600; }
+                  @keyframes ficha-consultando { to { transform:rotate(360deg); } }
+                  @media (prefers-reduced-motion:reduce) { #pf-importar-boton:disabled::before { animation:none; } }
+                </style>
+                <div id="pf-importar-panel" style="margin-top:10px">
+                  <label for="pf-importar-proveedor">Proveedor</label>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <select id="pf-importar-proveedor" style="flex:1;min-width:180px" aria-label="Proveedor de la ficha"><option value="">Seleccioná el proveedor</option></select>
+                    <button type="button" class="btn" id="pf-importar-boton" onclick="completarProductoDesdeUrl()">Completar desde URL</button>
+                  </div>
+                  <p style="font-size:12px;color:var(--text3);margin:8px 0">Trae nombre, marca, detalle, imagen y precio de compra en una consulta. Revisá la ficha y después guardá el producto.</p>
+                  <div id="pf-importar-estado" role="status" aria-live="polite" style="font-size:12px;overflow-wrap:anywhere"></div>
+                </div>
+              </div>
               <div class="fg"><label>Código</label><input type="text" id="pf-codigo" value="AUTO" placeholder="AUTO" readonly><div style="font-size:11px;color:var(--text3);margin-top:4px">El sistema asigna el siguiente código disponible al guardar.</div></div>
               <div class="fg"><label>Categoría</label>
                 <select id="pf-categoria">
@@ -3956,10 +3995,8 @@ Listo para analizar.
               </div>
               <div class="fg"><label>Marca</label><input type="text" id="pf-marca" list="pf-marcas-list" placeholder="Ej: HIKVISION" oninput="this.value=this.value.toUpperCase()"><datalist id="pf-marcas-list"></datalist></div>
               <div class="fg full"><label>Nombre corto</label><input type="text" id="pf-nombre" placeholder="Ej: CÁMARA HIKVISION DS-2CD2T47G2" oninput="this.value=this.value.toUpperCase()"></div>
-              <div class="fg full"><label>Descripción larga <span style="color:var(--text3);font-weight:400">(opcional)</span></label><input type="text" id="pf-descripcion" placeholder="Descripción técnica completa..."></div>
-              <div class="fg full"><label>URL del producto en proveedor <span style="color:var(--text3);font-weight:400">(para scraping de precios)</span></label>
-                <input type="url" id="pf-cod-web" placeholder="https://biosegur.com.ar/producto/...">
-              </div>
+              <div class="fg full"><label>Descripción larga <span style="color:var(--text3);font-weight:400">(opcional)</span></label><textarea id="pf-descripcion" rows="3" placeholder="Descripción técnica completa..."></textarea></div>
+
             </div>
           </div>
           <div class="card">
@@ -3991,7 +4028,7 @@ Listo para analizar.
               <div class="pf-providers-toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <span style="font-size:11px;color:var(--amber)"><i class="ti ti-device-floppy"></i> Se guardan al guardar el producto</span>
                 <button class="btn btn-sm" onclick="agregarFilaProveedor()"><i class="ti ti-plus"></i> Agregar proveedor</button>
-                <button class="btn btn-sm" onclick="cotizarPreciosProveedores()" style="color:var(--blue);border-color:var(--blue)" id="btn-cotizar-prov" title="Cotiza usando la URL del producto o la web configurada del proveedor">
+                <button class="btn btn-sm" onclick="cotizarPreciosProveedores()" style="color:var(--blue);border-color:var(--blue)" id="btn-cotizar-prov" title="Cotiza solamente la URL exacta del producto">
                   <i class="ti ti-refresh"></i> Cotizar online
                 </button>
               </div>
@@ -4156,6 +4193,11 @@ Listo para analizar.
                 <span id="pd-cat-lbl"></span>
                 <span id="pd-prov-lbl"></span>
               </div>
+              <dl class="product-hero-facts">
+                <div><dt>IVA</dt><dd id="pd-iva-lbl"></dd></div>
+                <div><dt>Stock mínimo</dt><dd id="pd-stmin-lbl"></dd></div>
+                <div><dt>Unidad</dt><dd id="pd-unidad-lbl"></dd></div>
+              </dl>
             </div>
             <div class="product-hero-actions">
               <div style="display:flex;align-items:center;gap:10px">
@@ -4185,23 +4227,11 @@ Listo para analizar.
             <div class="sueldo-card" id="pd-stock-card">
               <div class="sueldo-label">Stock actual</div>
               <div class="sueldo-value" id="pd-stock">12</div>
-              <div class="sueldo-sub" id="pd-stock-sub">mín: 5 unidades</div>
             </div>
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title">Proveedores y comparación de precios</span></div>
             <div id="pd-proveedores-box"></div>
-          </div>
-          <div class="card">
-            <div class="card-head"><span class="card-title">Datos completos</span></div>
-            <div class="form-grid cols3">
-              <div class="fg"><label>Código</label><input type="text" id="pd-cod-inp" readonly></div>
-              <div class="fg"><label>Categoría</label><input type="text" id="pd-cat-inp" readonly></div>
-              <div class="fg"><label>Proveedor</label><input type="text" id="pd-prov-inp" readonly></div>
-              <div class="fg"><label>IVA</label><input type="text" id="pd-iva-inp" readonly></div>
-              <div class="fg"><label>Stock mínimo</label><input type="text" id="pd-stmin-inp" readonly></div>
-              <div class="fg"><label>Unidad</label><input type="text" id="pd-unidad-inp" readonly></div>
-            </div>
           </div>
         </div>
 
@@ -4342,7 +4372,10 @@ Listo para analizar.
           <div class="card" id="mod-ap-centro">
             <div class="card-head">
               <div><span class="card-title">Centro de actualización</span><div style="font-size:11px;color:var(--text3);margin-top:4px">Configurá proveedores, revisá excepciones y ejecutá la actualización desde un solo lugar.</div></div>
-              <button class="btn btn-sm" onclick="actualizarResumenActualizadorEnSegundoPlano()"><i class="ti ti-refresh"></i> Actualizar resumen</button>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="showPage('proveedores',document.querySelector('.nav-item[onclick*=&quot;proveedores&quot;]'))"><i class="ti ti-truck"></i> Ir a proveedores</button>
+                <button class="btn btn-sm" onclick="actualizarResumenActualizadorEnSegundoPlano()"><i class="ti ti-refresh"></i> Actualizar resumen</button>
+              </div>
             </div>
             <div style="font-size:12px;font-weight:800;margin-bottom:4px">Proveedores incluidos</div>
             <div id="mod-ap-seleccion-estado" style="font-size:11px;color:var(--text3);margin-bottom:10px">La selección se guarda al instante.</div>
@@ -5553,7 +5586,10 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.3.14.js"></script>
+<script src="./js/app.v3.3.15.js"></script>
+<script src="./js/modules/product-url-import.js"></script>
+<script src="./js/modules/keyboard-actions.js"></script>
+<script src="./js/modules/provider-verification.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5931,6 +5967,7 @@ Listo para analizar.
 
 
 <script src="./js/modules/configuration-mobile.js?v=3.2.3-config-tabs"></script>
+<script src="./js/modules/paraguay-config.js?v=1"></script>
 
 
 
