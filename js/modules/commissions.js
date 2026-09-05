@@ -161,9 +161,27 @@
     detalleActual = grupos().find(function (g) { return g.clave === String(clave); }) || null;
     if (!detalleActual) { window.notify('No se encontró la comisión'); return; }
     movimientosDetalle = {};
-    await Promise.all(detalleActual.items.map(async function (g) { movimientosDetalle[g.fbKey] = await cargarMovimiento(g); }));
-    pintarDetalle();
-    var modal = document.getElementById('modal-comision-gestion'); if (modal) modal.style.display = 'flex';
+    var grupoCargando = detalleActual;
+    var modal = document.getElementById('modal-comision-gestion');
+    var info = document.getElementById('com-det-info');
+    if (info) info.textContent = 'Cargando detalle de la comisión…';
+    ['com-det-participantes','com-det-agregar'].forEach(function(id) { var el=document.getElementById(id); if(el) el.innerHTML=''; });
+    var guardar = document.getElementById('com-det-guardar');
+    if (guardar) guardar.disabled = true;
+    if (modal) modal.style.display = 'flex';
+    try {
+      var movimientos = await Promise.all(grupoCargando.items.map(cargarMovimiento));
+      if (detalleActual !== grupoCargando) return;
+      grupoCargando.items.forEach(function(g,i) { movimientosDetalle[g.fbKey] = movimientos[i]; });
+      pintarDetalle();
+      if (guardar) guardar.disabled = false;
+    } catch (error) {
+      console.error('No se pudo cargar el detalle de la comisión', error);
+      if (detalleActual !== grupoCargando) return;
+      if (info) info.textContent = 'No se pudo cargar el detalle. Cerrá esta ventana e intentá nuevamente.';
+      window.notify('No se pudo consultar la comisión. Podés seguir en el listado e intentar nuevamente.');
+      return;
+    }
   }
 
   function pintarDetalle() {
@@ -207,7 +225,22 @@
     margen.textContent=pct.toLocaleString('es-AR',{maximumFractionDigits:1})+'%';margen.style.color=pct<15?'var(--red)':(pct<=20?'var(--amber)':'var(--green)');
   }
 
-  function abrirVentaDesdeComisiones(){if(!detalleActual||!(detalleActual.ventaFbKey||detalleActual.ventaId)){window.notify('La comisión no tiene una venta vinculada');return;}window._ventaDesdeHistorialOrigen='comisiones';window.svNavegarDirecto('detalle',function(){window.verDetalleVenta(detalleActual.ventaFbKey||detalleActual.ventaId);window._ventaDesdeHistorialOrigen='comisiones';},document.querySelector('[onclick*="detalle"]'));}
+  function abrirVentaDesdeComisiones() {
+    if (!detalleActual || !(detalleActual.ventaFbKey || detalleActual.ventaId)) { window.notify('La comisión no tiene una venta vinculada'); return; }
+    var grupo = detalleActual;
+    var pagina = document.querySelector('.page.active');
+    var origen = pagina ? pagina.id.replace(/^page-/, '') : 'comisiones';
+    cerrarDetalleComision();
+    if (origen === 'gastos' && typeof window.irAVentaDesdeGastoComision === 'function') {
+      window.irAVentaDesdeGastoComision(grupo.items[0].fbKey);
+      return;
+    }
+    window._ventaDesdeHistorialOrigen = origen;
+    window.svNavegarDirecto('detalle', function() {
+      window.verDetalleVenta(grupo.ventaFbKey || grupo.ventaId);
+      window._ventaDesdeHistorialOrigen = origen;
+    }, document.querySelector('[onclick*="detalle"]'));
+  }
 
   function cerrarDetalleComision() { var modal=document.getElementById('modal-comision-gestion'); if(modal) modal.style.display='none'; detalleActual=null; movimientosDetalle={}; }
 
@@ -259,7 +292,8 @@
 
   function abrirComisionDesdeGasto(gastoKey) {
     var gasto=(window.gastosData||[]).find(function(g){return g.fbKey===gastoKey;}); if(!gasto){window.notify('Comisión no encontrada');return;}
-    window.showPage('comisiones',document.querySelector('.nav-item[onclick*="comisiones"]')); renderModuloComisiones(); setTimeout(function(){abrirDetalleComision(claveGrupo(gasto));},40);
+    // El detalle es un modal: conservar debajo la página y sus filtros.
+    return abrirDetalleComision(claveGrupo(gasto));
   }
 
   async function aprobarComisionGestion(gastoKey){await window.aprobarComisionDesdeGasto(gastoKey);setTimeout(function(){if(window.fbCargarGastos)window.fbCargarGastos();renderModuloComisiones();},250);cerrarDetalleComision();}

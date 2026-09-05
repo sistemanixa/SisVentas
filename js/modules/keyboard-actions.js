@@ -46,6 +46,7 @@
     event.preventDefault();
     event.stopImmediatePropagation();
     if (event.repeat) return;
+    if (window.svBloquearSalidaCotizacion && window.svBloquearSalidaCotizacion()) return;
     var root = ambito();
     if (!root) return;
     if (event.key === 'F5') guardar(root); else refrescar(root);
