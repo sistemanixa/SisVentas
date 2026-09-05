@@ -13,7 +13,7 @@
   function isAdm(){ return normRol() === 'administrativo'; }
   function moduleAllowed(mod){
     if (!mod) return false;
-    if (isAdmin()) return true;
+
     var role = normRol();
     if (!role) return false;
     var cfg = ((window.PERMISOS_ROLES || {})[role] || (window.PERMISOS_DEFAULT || {})[role]);
@@ -21,6 +21,77 @@
     return (cfg.bloqueados || []).indexOf(mod) === -1;
   }
   var PERMISOS_ACCION = {
+    'presupuestos.revisarVencidos':{"modulo":"presupuesto","label":"Revisar precios de presupuestos vencidos","roles":["admin","administrativo"]},
+    'ventas.repararAdicionales':{"modulo":"detalle","label":"Reparar vínculos de adicionales de OT","roles":["admin","administrativo"]},
+    'empleados.avisarHaberes':{"modulo":"empleados","label":"Ver avisos de haberes pendientes","roles":["admin","administrativo"]},
+    'productos.limpiarVariaciones':{"modulo":"productos","label":"Limpiar variaciones obsoletas","roles":["admin","administrativo"]},
+    'productos.limpiarManoObra':{"modulo":"productos","label":"Normalizar proveedores de mano de obra","roles":["admin","administrativo"]},
+    'productos.revisarPrecios':{"modulo":"productos","label":"Revisar precios del catálogo","roles":["admin","administrativo"]},
+    'actualizador.consultar':{"modulo":"actualizadorprecios","label":"Consultar actualización masiva","roles":["admin","administrativo"]},
+    'ventas.anular':{"modulo":"detalle","label":"Anular venta","roles":["admin","administrativo"]},
+    'facturas.verEmitidas':{"modulo":"facturas","label":"Ver facturación emitida","roles":["admin","administrativo"]},
+    'facturas.conciliar':{"modulo":"facturas","label":"Conciliar notas de crédito","roles":["admin","administrativo"]},
+    'facturas.repararConciliacion':{"modulo":"facturas","label":"Reparar estados de conciliación","roles":["admin","administrativo"]},
+
+    'presupuestos.crear':{modulo:'presupuesto',label:'Crear presupuesto',roles:['admin','administrativo','vendedor','tecnico_vendedor']},
+    'agenda.crear':{modulo:'agenda',label:'Crear evento'},
+    'gastos.cargarPropio':{modulo:'dashboard',label:'Cargar gasto propio desde acceso rápido',roles:['tecnico']},
+    'empleados.horasConOTPendiente':{modulo:'ctaemp',label:'Presentar horas extra con OT vencidas',roles:['admin','administrativo','vendedor']},
+    'sesion.sinCierreInactividad':{modulo:'dashboard',label:'Mantener sesión cuando se desactiva el cierre automático',roles:['admin']},
+    'ot.verTodas': {modulo:'ordentrabajo',label:'Ver órdenes de todos los técnicos',roles:['admin','administrativo','vendedor','tecnico_vendedor']},
+    'asistente.datosGlobales': {modulo:'asistente',label:'Consultar datos globales con el asistente',roles:['admin']},
+    'asistente.datosComerciales': {modulo:'asistente',label:'Consultar datos comerciales propios',roles:['administrativo','vendedor']},
+    'asistente.datosTecnicos': {modulo:'asistente',label:'Consultar datos técnicos propios',roles:['tecnico']},
+
+    'ventas.autorizarDescuento': {modulo:'venta',label:'Autorizar descuentos sobre el límite',roles:['admin']},
+    'ventas.autorizarMargen': {modulo:'venta',label:'Autorizar venta con margen bajo',roles:['admin']},
+    'dashboard.metricasGlobales': {modulo:'dashboard',label:'Ver métricas globales',roles:['admin']},
+    'dashboard.actividad': {modulo:'dashboard',label:'Ver actividad de todos',roles:['admin']},
+    'dashboard.miActividad': {modulo:'dashboard',label:'Ver mi actividad comercial',roles:['administrativo','vendedor','tecnico_vendedor']},
+    'dashboard.misOT': {modulo:'dashboard',label:'Ver mis órdenes de trabajo',roles:['tecnico','tecnico_vendedor']},
+    'dashboard.miCuenta': {modulo:'dashboard',label:'Ver mi cuenta personal',roles:['administrativo','vendedor','tecnico_vendedor','tecnico']},
+    'dashboard.indicadoresPrecios': {modulo:'dashboard',label:'Ver cotización y vigencia de precios',roles:['admin','administrativo']},
+    'configuracion.columnas': {modulo:'configuracion',label:'Configurar columnas compartidas',roles:['admin']},
+    'configuracion.monitor': {modulo:'configuracion',label:'Ver monitor de recursos',roles:['admin']},
+    'configuracion.asistente': {modulo:'configuracion',label:'Configurar asistente de ventas',roles:['admin','administrativo']},
+    'ot.editarDatosAdministrativos': {modulo:'ordentrabajo',label:'Editar origen y notas administrativas',roles:['admin','administrativo','vendedor','tecnico_vendedor']},
+    'ot.editarCredenciales': {modulo:'ordentrabajo',label:'Editar credenciales desde la OT',roles:['admin','administrativo','tecnico']},
+    'presupuestos.aprobar': {modulo:'presupuesto',label:'Aprobar presupuestos sobre los límites',roles:['admin']},
+    'presupuestos.aprobarDentroLimite': {modulo:'presupuesto',label:'Aprobar dentro de los límites',roles:['admin','administrativo']},
+    'facturas.cargarExterna': {modulo:'facturas',label:'Cargar factura externa',roles:['admin','administrativo']},
+    'facturas.recuperarDatos': {modulo:'facturas',label:'Recuperar datos fiscales',roles:['admin']},
+    'comisiones.distribuir': {modulo:'comisiones',label:'Cambiar distribución de comisiones',roles:['admin']},
+    'gastos.administrar': {modulo:'gastos',label:'Administrar gastos',roles:['admin','administrativo']},
+    'empleados.gestionarAdelantos': {modulo:'ctaemp',label:'Gestionar adelantos',roles:['admin','administrativo']},
+
+    "mantenimiento.estructuraClientes": {"modulo":"configuracion","label":"Migrar estructura de clientes","roles":["admin"]},
+    "chat.limpiar": {"modulo":"notificaciones","label":"Limpiar conversaciones del chat","roles":["admin"]},
+    "empleados.registrarHaberes": {"modulo":"empleados","label":"Registrar haberes y aguinaldos","roles":["admin"]},
+    "empleados.autorizarHoras": {"modulo":"ctaemp","label":"Autorizar horas extra","roles":["admin"]},
+    "ventas.configurarComision": {"modulo":"venta","label":"Configurar comisión de la venta","roles":["admin"]},
+    "facturas.notaCredito": {"modulo":"facturas","label":"Emitir notas de crédito","roles":["admin"]},
+    "mantenimiento.repararVentas": {"modulo":"configuracion","label":"Reparar importes históricos","roles":["admin"]},
+    "productos.aprobarVariacion": {"modulo":"productos","label":"Aprobar variaciones de precio","roles":["admin"]},
+    "productos.auditar": {"modulo":"productos","label":"Auditar integridad del catálogo","roles":["admin"]},
+    "productos.normalizar": {"modulo":"productos","label":"Normalizar productos en pesos","roles":["admin"]},
+    "configuracion.valoresMasivos": {"modulo":"configuracion","label":"Cambiar valores masivamente","roles":["admin"]},
+    "empleados.verCuentas": {"modulo":"ctaemp","label":"Ver cuentas del personal","roles":["admin"]},
+    "empleados.aplicarAdelantos": {"modulo":"ctaemp","label":"Aplicar adelantos al haber","roles":["admin"]},
+    "empleados.pagarMovimiento": {"modulo":"ctaemp","label":"Abonar movimientos del personal","roles":["admin"]},
+    "empleados.crearMovimientoAprobado": {"modulo":"ctaemp","label":"Crear movimientos aprobados","roles":["admin"]},
+    "creditofiscal.eliminarPeriodo": {"modulo":"creditofiscal","label":"Eliminar períodos","roles":["admin"]},
+    "facturas.eliminarPeriodo": {"modulo":"facturas","label":"Eliminar períodos","roles":["admin"]},
+    "vacaciones.editar": {"modulo":"vacaciones","label":"Editar vacaciones","roles":["admin"]},
+    "usuarios.gestionarClave": {"modulo":"usuarios","label":"Gestionar credenciales de usuarios","roles":["admin"]},
+    "gastos.aprobar": {"modulo":"gastos","label":"Aprobar solicitudes de gastos","roles":["admin"]},
+    "gastos.recurrencias": {"modulo":"gastos","label":"Gestionar gastos recurrentes","roles":["admin"]},
+    "comisiones.aprobar": {"modulo":"comisiones","label":"Aprobar o rechazar comisiones","roles":["admin"]},
+    "empleados.bonificar": {"modulo":"empleados","label":"Registrar bonificaciones","roles":["admin"]},
+    "comisiones.crear": {"modulo":"comisiones","label":"Registrar comisiones manuales","roles":["admin"]},
+    "gastos.corregirPago": {"modulo":"gastos","label":"Corregir o anular pagos","roles":["admin"]},
+    "notificaciones.comunicados": {"modulo":"notificaciones","label":"Gestionar comunicados","roles":["admin"]},
+    "dashboard.rentabilidad": {"modulo":"dashboard","label":"Ver rentabilidad en Dashboard","roles":["admin"]},
+
     'ventas.verDashboard':       { modulo:'detalle', admin:true },
     'ventas.ver':                { modulo:'detalle' },
     'ventas.verTodas':           { modulo:'detalle', roles:['admin','administrativo'] },
@@ -50,6 +121,10 @@
     'presupuestos.eliminar':     { modulo:'presupuesto', admin:true },
     'presupuestos.anular':       { modulo:'presupuesto', admin:true },
     'ot.editar':                 { modulo:'ordentrabajo', roles:['admin','administrativo','tecnico_vendedor','tecnico'] },
+    'ot.corregirMateriales':     { modulo:'ordentrabajo', roles:['admin','administrativo','vendedor'] },
+    'ot.entregarMateriales':     { modulo:'ordentrabajo', roles:['admin','administrativo','vendedor'] },
+    'ot.rendirMateriales':       { modulo:'ordentrabajo', roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico'] },
+    'soporte.resolver':          { modulo:'soporte', roles:['admin','administrativo','vendedor','tecnico_vendedor'] },
     'ot.crear':                  { modulo:'ordentrabajo', roles:['admin','administrativo'] },
     'ot.eliminar':               { modulo:'ordentrabajo', admin:true },
     'empleados.eliminar':        { modulo:'empleados', admin:true },
@@ -94,6 +169,12 @@
     'usuarios.impersonar':       { modulo:'usuarios', admin:true },
     'auditoria.ver':             { modulo:'configuracion', admin:true }
   };
+  PERMISOS_ACCION['dashboard.grafico']={modulo:'dashboard',label:'Ver gráfico de ventas',roles:['admin']};
+  PERMISOS_ACCION['dashboard.otsPendientes']={modulo:'dashboard',label:'Ver órdenes pendientes en inicio',roles:['admin']};
+  PERMISOS_ACCION['dashboard.chat']={modulo:'dashboard',label:'Mostrar botón del chat',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']};
+  PERMISOS_ACCION['dashboard.asistente']={modulo:'dashboard',label:'Mostrar botón del asistente',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']};
+  PERMISOS_ACCION['empleados.verComisionesPendientes']={modulo:'ctaemp',label:'Ver comisiones pendientes',roles:['admin']};
+  var widgetsLegacy={"metricasGlobales":"metricas_globales","rentabilidad":"rentabilidad","miActividad":"mi_actividad","misOT":"mis_ots","grafico":"grafico_barras","otsPendientes":"ots_pendientes","chat":"btn_chat","asistente":"btn_ia"};
   window.SISVENTAS_PERMISOS_ACCION = PERMISOS_ACCION;
   function overrideAccion(role, permiso){
     var cfg = ((window.PERMISOS_ROLES || {})[role] || (window.PERMISOS_DEFAULT || {})[role] || {});
@@ -104,18 +185,20 @@
       ? !!grupo[partes.slice(1).join('_')]
       : undefined;
   }
+  window.svValorPermisoRol = function(permiso, role) {
+    var regla=PERMISOS_ACCION[permiso];if(!regla)return false;
+    var override=overrideAccion(role,permiso);if(override!==undefined)return override;
+    var widget=widgetsLegacy[String(permiso).replace(/^dashboard\./,'')];
+    var legacy=widget && (window.DASH_WIDGETS_CONFIG||{})[widget];
+    if(legacy && Object.prototype.hasOwnProperty.call(legacy,role))return !!legacy[role];
+    if(regla.admin)return role==='admin';
+    return !regla.roles || regla.roles.indexOf(role)!==-1;
+  };
   window.tienePermiso = SV.Security.tienePermiso = function(permiso, contexto){
     var regla = PERMISOS_ACCION[permiso];
     if (!regla) return false;
     var role = normRol();
-    var override = overrideAccion(role, permiso);
-    if (override !== undefined && !isAdmin()) {
-      if (regla.modulo && !moduleAllowed(regla.modulo)) return false;
-      if (typeof regla.validar === 'function' && !regla.validar(contexto || {})) return false;
-      return override;
-    }
-    if (regla.admin && !isAdmin()) return false;
-    if (regla.roles && regla.roles.indexOf(role) === -1) return false;
+    if (!window.svValorPermisoRol(permiso,role)) return false;
     if (regla.modulo && !moduleAllowed(regla.modulo)) return false;
     if (typeof regla.validar === 'function') return !!regla.validar(contexto || {});
     return true;
@@ -141,6 +224,9 @@
   }
 
   var PROTECCIONES_ACCION = [
+    ['spAbrirResolucionVisita','soporte.resolver'],
+    ['spConfirmarResolucionVisita','soporte.resolver'],
+    ['spResolverRemoto','soporte.resolver'],
     ['registrarPago','cobranzas.registrar'],
     ['anularPago','cobranzas.anular'],
     ['elimPago','cobranzas.anular'],
@@ -201,6 +287,34 @@
     ['editarOrden','ordenes.editar'],
     ['editarInforme','informes.editar']
   ];
+
+
+  var permisosFunciones = {"generarEstructuraClientesAprobada":"mantenimiento.estructuraClientes","chatAdminLimpiar":"chat.limpiar","chatAbrir":"chat.limpiar","chatCargarCanal":"chat.limpiar","chatEnviar":"chat.limpiar","abrirModalHaberesMes":"empleados.registrarHaberes","confirmarRegistroHaberes":"empleados.registrarHaberes","abrirModalAguinaldo":"empleados.registrarHaberes","confirmarRegistroAguinaldo":"empleados.registrarHaberes","abrirModalHsExtra":"empleados.autorizarHoras","_abrirPanelAprobacionHsExtraLegacy":"empleados.autorizarHoras","abrirPanelAprobacionHsExtra":"empleados.autorizarHoras","aprobarHsExtra":"empleados.autorizarHoras","rechazarHsExtra":"empleados.autorizarHoras","actualizarBadgeHsExtraPendientes":"empleados.autorizarHoras","actualizarControlComisionVenta":"ventas.configurarComision","confirmarVenta":"ventas.configurarComision","abrirModalNotaCredito":"facturas.notaCredito","repararVentasArsDuplicadasPorDolar":"mantenimiento.repararVentas","mostrarVariacionPrecioPendienteEnEditor":"productos.aprobarVariacion","revisarYAprobarVariacionPrecio":"productos.aprobarVariacion","aprobarVariacionPrecioActualizador":"productos.aprobarVariacion","aprobarVariacionPrecioProveedor":"productos.aprobarVariacion","procesarResultadoCotizacionProveedores":"productos.aprobarVariacion","actualizadorHtmlFallos":"productos.aprobarVariacion","renderModuloActualizadorPreciosAhora":"productos.aprobarVariacion","abrirAuditoriaIntegridadPrecios":"productos.auditar","normalizarTodosProductosARS":"productos.normalizar","abrirGestionRevisionPrecios":"productos.eliminar","renderCfgValoresMasivos":"configuracion.valoresMasivos","cfgValoresMasivosPrevisualizar":"configuracion.valoresMasivos","cfgValoresMasivosAplicar":"configuracion.valoresMasivos","limpiarLogActividad":"actividad.limpiar","abrirCuentaEmpleadoDesdeEmpleados":"empleados.verCuentas","actualizarBotonVolverCtaEmp":"empleados.verCuentas","iniciarCtaEmp":"empleados.verCuentas","_ctaEmpMovVisibleParaRol":"empleados.verCuentas","aplicarAdelantosAlHaberActual":"empleados.aplicarAdelantos","_puedeAprobarMovEmp":"empleados.aprobarMovimiento","aprobarComision":"empleados.aprobarMovimiento","rechazarComision":"empleados.aprobarMovimiento","aprobarMovEmp":"empleados.aprobarMovimiento","abonarMovEmp":"empleados.pagarMovimiento","corregirMedioPagoMovEmp":"empleados.pagarMovimiento","abrirNuevoMovEmp":"empleados.crearMovimientoAprobado","guardarMovEmp":"empleados.crearMovimientoAprobado","eliminarMovEmp":"empleados.eliminarMovimiento","eliminarVenta":"ventas.eliminar","cfActualizarPeriodosUI":"creditofiscal.eliminarPeriodo","cfEliminarPeriodo":"creditofiscal.eliminarPeriodo","fvActualizarPeriodosUI":"facturas.eliminarPeriodo","fvEliminarPeriodo":"facturas.eliminarPeriodo","spEliminarReclamo":"soporte.eliminar","spRenderAcciones":"soporte.eliminar","renderPeriodosVacaciones":"vacaciones.editar","abrirModalEditarVacaciones":"vacaciones.editar","iniciarImpersonacionUsuario":"usuarios.impersonar","obtenerClaveUsuarioAdmin":"usuarios.gestionarClave","toggleVerClaveUsuario":"usuarios.gestionarClave","gestionarClaveUsuario":"usuarios.gestionarClave","eliminarCliente":"clientes.eliminar","eliminarEmpleado":"empleados.eliminar","_actualizarBadgeSolicitudesGastos":"gastos.aprobar","actualizarMetricasGastos":"gastos.aprobar","aprobarGastoSolicitado":"gastos.aprobar","generarGastosFijosMesSeguro":"gastos.recurrencias","abrirGestorGastosRecurrentes":"gastos.recurrencias","aprobarComisionDesdeGasto":"comisiones.aprobar","rechazarComisionDesdeGasto":"comisiones.aprobar","abrirModalBonificacionEmpleado":"empleados.bonificar","guardarBonificacionEmpleado":"empleados.bonificar","abrirModalComisionVenta":"comisiones.crear","guardarComisionManualVenta":"comisiones.crear","abrirEditarPagoGasto":"gastos.corregirPago","anularPagoGasto":"gastos.corregirPago","verPagosGasto":"gastos.corregirPago","abrirModalComunicado":"notificaciones.comunicados","enviarComunicadoGlobal":"notificaciones.comunicados","renderHistorialComunicados":"notificaciones.comunicados","finalizarComunicado":"notificaciones.comunicados","eliminarComunicado":"notificaciones.comunicados","renderRentabilidadDashboard":"dashboard.rentabilidad","otEliminarProductoMaterial":"ot.corregirMateriales","otAbrirSelectorProductos":"ot.corregirMateriales","otCustodiaEntregar":"ot.entregarMateriales","otCustodiaConfirmarRecepcion":"ot.entregarMateriales","otCustodiaTodoInstalado":"ot.rendirMateriales","otCustodiaAbrirExcepciones":"ot.rendirMateriales","spAbrirResolucionVisita":"soporte.resolver"};
+  var clasesPermiso = {
+    'admin-only':['admin'], 'admin-o-administrativo':['admin','administrativo'],
+    'no-tecnico':['admin','administrativo','vendedor','tecnico_vendedor'],
+    'no-administrativo':['admin','vendedor','tecnico_vendedor','tecnico'],
+    'no-vendedor':['admin','administrativo','tecnico_vendedor','tecnico'], 'tecnico-only':['tecnico']
+  };
+  window.svAplicarVisibilidadPermisos = function(){
+    PROTECCIONES_ACCION.forEach(function(p){permisosFunciones[p[0]]=p[1];});
+    document.querySelectorAll(Object.keys(clasesPermiso).map(function(k){return '.'+k;}).join(',')).forEach(function(el){
+      var funcion = String(el.getAttribute('onclick') || '').match(/(?:^|;)\s*(?:window\.)?(\w+)\(/);
+      var permiso = funcion && permisosFunciones[funcion[1]];
+      if (!permiso) {
+        var clases = Object.keys(clasesPermiso).filter(function(k){return el.classList.contains(k);});
+        var pagina = el.closest('[id^="page-"]');
+        var modulo = pagina ? pagina.id.slice(5) : 'configuracion';
+        permiso = 'interfaz.'+modulo+'_'+clases.join('_').replace(/-/g,'_');
+        if (!PERMISOS_ACCION[permiso]) {
+          var roles = ['admin','administrativo','vendedor','tecnico_vendedor','tecnico'].filter(function(r){return clases.every(function(c){return clasesPermiso[c].includes(r);});});
+          PERMISOS_ACCION[permiso] = {modulo:modulo,roles:roles,label:'Ver controles '+(clases.includes('admin-only')?'de administración':clases.includes('tecnico-only')?'técnicos':'operativos')};
+        }
+      }
+      el.dataset.svPermission = permiso;
+      el.style.display = window.tienePermiso(permiso) ? '' : 'none';
+    });
+  };
 
   function aplicarProtecciones(){
     PROTECCIONES_ACCION.forEach(function(item){ proteger(item[0],item[1]); });

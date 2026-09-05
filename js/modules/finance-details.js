@@ -122,7 +122,7 @@
       if (m.ventaId) movimientosPorVenta[String(m.ventaId)] = m;
       if (m.ventaFbKey) movimientosPorVenta[String(m.ventaFbKey)] = m;
     });
-    var esAdmin = String(window.currentRole || (typeof currentRole !== 'undefined' ? currentRole : '') || '').toLowerCase() === 'admin';
+    var esAdmin = window.tienePermiso('empleados.verComisionesPendientes');
     var idsVisibles = esAdmin ? null : {};
     if (idsVisibles) Object.keys(movimientosPorVenta).forEach(function(key){
       var est = String(movimientosPorVenta[key].estado || '').toLowerCase();

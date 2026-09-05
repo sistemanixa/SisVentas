@@ -32,6 +32,18 @@ test('cancelar mientras espera permiso libera el micrófono al recibirlo',async(
 test('audio no se envía a un canal diferente del que lo grabó',async()=>{
  const s=setup();await s.c.chatAudioGrabar();s.c.chatAudioDetener();s.c._chatCanal='general';s.c.chatAudioEnviar();assert.equal(s.sent.length,0);
 });
+test('enviar durante grabación detiene y espera el último fragmento antes de enviar una sola vez',async()=>{
+ const s=setup();await s.c.chatAudioGrabar();const recorder=s.c._chatAudio.recorder;
+ let finish;recorder.stop=function(){this.state='inactive';finish=()=>{this.ondataavailable({data:new Blob(['ultimo fragmento'])});this.onstop();};};
+ s.c.chatAudioEnviar();s.c.chatAudioEnviar();assert.equal(s.sent.length,0);finish();
+ assert.equal(s.sent.length,1);assert.equal(await s.sent[0].text(),'ultimo fragmento');assert.ok(Number.isFinite(s.sent[0].audioDuracion));
+ s.c.chatAudioEnviar();assert.equal(s.sent.length,1);
+});
+test('duración guardada se muestra antes de reproducir',()=>{
+ const c={escapeHTML:x=>x};vm.createContext(c);vm.runInContext(app.slice(app.indexOf('function chatMsgContenido('),app.indexOf('function chatRenderMensajes(')),c);
+ const html=c.chatMsgContenido({audioUrl:'https://example.com/audio.webm',audioDuracion:75,autor:'Prueba'});
+ assert.match(html,/1:15/);assert.match(html,/preload="metadata"/);assert.doesNotMatch(html,/autoplay/);
+});
 test('mensaje de audio ofrece controles sin reproducción automática',()=>{
  const c={escapeHTML:x=>x};vm.createContext(c);
  vm.runInContext(app.slice(app.indexOf('function chatMsgContenido('),app.indexOf('function chatRenderMensajes(')),c);

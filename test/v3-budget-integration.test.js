@@ -108,3 +108,19 @@ test('el repositorio rechaza un presupuesto nuevo sin cliente técnico o con imp
   );
   assert.equal(fake.calls.length, 0);
 });
+
+test('presupuesto conserva los centavos de la venta revisada en formulario, guardado, impresión y conversión', () => {
+  const items = [7692.46, 2557.1, 96480].map((punit, index) => ({cod:'P-'+index,desc:'Producto',qty:1,punit,disc:0}));
+  for (const conIva of [false, true]) {
+    const record = {items, descuentoGeneral:0, conIva};
+    const expected = conIva ? 129142.77 : 106729.56;
+    const preview = Budget.form(items,0,conIva,21);
+    const saved = Budget.fields(record);
+    assert.equal(preview.total,expected);
+    assert.equal(saved.total,expected);
+    assert.equal(saved.descuentoAmt,0);
+    assert.deepEqual(saved.items.map(i=>i.sub),[7692.46,2557.1,96480]);
+    assert.equal(Budget.printModel(record).total,expected);
+    assert.equal(Budget.toSale(record).total,expected);
+  }
+});

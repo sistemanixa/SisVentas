@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.16-firebase' -->
+<!-- VERSION: 'v3.3.17-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.16.js"></script>
+<script src="./js/core/version.v3.3.17.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -33,8 +33,8 @@
 
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
-<script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.3.14">
+<script src="./js/core/access-control.js?v=3.3.17"></script>
+<link rel="stylesheet" href="./css/app.css?v=3.3.17">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
@@ -1333,7 +1333,7 @@
             </div>
             <div id="ot-productos-adicionales-box" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
               <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px"><i class="ti ti-package-plus"></i> Productos adicionales</div>
-              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Agregados durante la visita. Forman parte de esta OT y del acta, sin generar una venta.</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Agregados durante la visita. Se incorporan a la venta al resolver el reclamo.</div>
               <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th></tr></thead><tbody id="ot-materiales-adicionales"></tbody></table></div>
             </div>
           </div>
@@ -2290,31 +2290,7 @@
             </div>
           </div>
 
-          <!-- Editor de widgets de dashboard por rol -->
-          <div class="card" style="margin-top:12px">
-            <div class="card-head">
-              <span class="card-title">Dashboard por rol</span>
-              <button class="btn btn-sm btn-primary" onclick="guardarDashWidgets()"><i class="ti ti-check"></i> Guardar</button>
-            </div>
-            <div style="font-size:13px;color:var(--text3);margin-bottom:16px">
-              <i class="ti ti-info-circle"></i> Configurá qué widgets ve cada rol en el Dashboard de inicio.
-            </div>
-            <div style="overflow-x:auto">
-              <table style="width:100%;border-collapse:collapse;font-size:13px">
-                <thead>
-                  <tr style="border-bottom:1px solid var(--border)">
-                    <th style="text-align:left;padding:8px 12px;color:var(--text2);font-weight:600">Widget</th>
-                    <th style="text-align:center;padding:8px 16px;color:var(--blue)"><i class="ti ti-shield-check"></i> Admin</th>
-                    <th style="text-align:center;padding:8px 16px;color:var(--green)"><i class="ti ti-user"></i> Administrativo</th>
-                    <th style="text-align:center;padding:8px 16px;color:var(--blue)"><i class="ti ti-briefcase"></i> Vendedor</th>
-                    <th style="text-align:center;padding:8px 16px;color:var(--violet)"><i class="ti ti-tool"></i> Técnico-vendedor</th>
-                    <th style="text-align:center;padding:8px 16px;color:var(--amber)"><i class="ti ti-tool"></i> Técnico</th>
-                  </tr>
-                </thead>
-                <tbody id="cfg-dash-widgets-tbody"></tbody>
-              </table>
-            </div>
-          </div>
+
         </div>
 
         <!-- TAB: FACTURACIÓN -->
@@ -3846,7 +3822,8 @@ Listo para analizar.
           <button class="btn catalogo-fullscreen-btn" type="button" onclick="togglePantallaCompletaCatalogo()"><i class="ti ti-maximize"></i> Presentación</button>
         </section>
         <div class="catalogo-toolbar">
-          <label class="catalogo-search"><i class="ti ti-search"></i><input id="catalogo-buscar" type="search" placeholder="Buscar por producto, marca o categoría..." oninput="renderCatalogo()" autocomplete="off"></label>
+          <label class="catalogo-search"><i class="ti ti-search"></i><input id="catalogo-buscar" type="search" placeholder="Buscar código, nombre, marca o proveedor..." oninput="renderCatalogo()" autocomplete="off"></label>
+          <select id="catalogo-search-field" class="search-input" aria-label="Campos de búsqueda del catálogo" onchange="renderCatalogo()"><option value="principales">Búsqueda general</option><option value="descripcion">Descripción</option><option value="todo">Todos los campos</option></select>
           <button class="btn catalogo-categorias-btn" type="button" onclick="abrirCategoriasCatalogo()"><i class="ti ti-category"></i><span id="catalogo-categoria-boton">Explorar categorías</span><i class="ti ti-chevron-down"></i></button>
           <div id="catalogo-categorias-rapidas" class="catalogo-categorias" aria-label="Categorías rápidas"></div>
         </div>
@@ -3914,7 +3891,8 @@ Listo para analizar.
                 <span id="prod-search-status" aria-live="polite" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text3);pointer-events:none;white-space:nowrap"></span>
               </div>
               <select class="search-input" id="prod-search-field" style="width:190px;flex:0 0 190px" onchange="buscarProducto((document.getElementById('prod-search')||{}).value||'')">
-                <option value="todo">Buscar en todo</option>
+                <option value="principales">Búsqueda general</option>
+                <option value="todo">Todos los campos</option>
                 <option value="nombre">Nombre</option>
                 <option value="marca">Marca</option>
                 <option value="codigo">Código</option>
@@ -4546,8 +4524,8 @@ Listo para analizar.
           </div>
           <div id="usuarios-online-resumen" style="font-size:12px;color:var(--text3);margin-bottom:12px"></div>
           <table>
-            <thead><tr><th>ID</th><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Clave</th><th style="text-align:right">Último acceso</th><th style="text-align:right">Estado</th><th></th></tr></thead>
-            <tbody id="usuarios-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr></tbody>
+            <thead><tr><th>ID</th><th>Nombre</th><th>Usuario</th><th>Rol</th><th style="text-align:right">Inicio de sesión</th><th style="text-align:right">Fin de sesión</th><th style="text-align:right">Tiempo conectado</th><th style="text-align:right">Estado</th><th></th></tr></thead>
+            <tbody id="usuarios-tbody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -5610,8 +5588,8 @@ Listo para analizar.
       </div>
 
 <script src="./js/modules/v3-launch.js"></script>
-<script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.3.16.js"></script>
+<script src="./js/modules/action-permissions.js?v=3.3.17"></script>
+<script src="./js/app.v3.3.17.js"></script>
 <script src="./js/modules/product-url-import.js"></script>
 <script src="./js/modules/keyboard-actions.js"></script>
 <script src="./js/modules/provider-verification.js"></script>
@@ -5960,12 +5938,12 @@ Listo para analizar.
 
 <script src="./js/modules/ot-data-sync.js?v=2.0.154"></script>
 <script src="./js/modules/notifications.js?v=2.0.271"></script>
-<script src="./js/modules/finance-details.js?v=3.2.3-comisiones-central"></script>
+<script src="./js/modules/finance-details.js?v=3.3.17"></script>
 
-<script src="./js/modules/ot-workflow.js?v=3.1.1"></script>
+<script src="./js/modules/ot-workflow.js?v=3.3.17"></script>
 
 
-<script src="./js/modules/dashboard-permissions.js?v=2.0.269"></script>
+<script src="./js/modules/dashboard-permissions.js?v=3.3.17"></script>
 
 
 <script src="./js/modules/sales-metrics.js?v=2.0.289"></script>
@@ -5979,12 +5957,12 @@ Listo para analizar.
 <script src="./js/core/metrics-cache.js?v=2.0.329-final"></script>
 
 
-<script src="./js/modules/ot-admin.js?v=2.0.325"></script>
+<script src="./js/modules/ot-admin.js?v=3.3.17"></script>
 
 
 <script src="./js/modules/dashboard-filters.js?v=2.0.154"></script>
 
-<script src="./js/modules/activity-history.js?v=2.0.154"></script>
+<script src="./js/modules/activity-history.js?v=3.3.17"></script>
 
 
 <script src="./js/modules/payroll-selector.js?v=2.0.154"></script>
@@ -5992,7 +5970,7 @@ Listo para analizar.
 
 
 <script src="./js/modules/configuration-mobile.js?v=3.2.3-config-tabs"></script>
-<script src="./js/modules/paraguay-config.js?v=1"></script>
+<script src="./js/modules/paraguay-config.js?v=3.3.17"></script>
 
 
 
@@ -6075,7 +6053,7 @@ Listo para analizar.
 </style>
 <script src="./js/modules/dashboard-layout.js?v=2.0.154"></script>
 
-<script src="./js/modules/dashboard-polish.js?v=2.0.154"></script>
+<script src="./js/modules/dashboard-polish.js?v=3.3.17"></script>
 
 
 
@@ -6093,14 +6071,14 @@ Listo para analizar.
 <script src="./js/modules/payroll.js?v=2.0.154"></script>
 
 
-<script src="./js/modules/maintenance.js?v=2.3.2-mantenimiento-unificado-1"></script>
+<script src="./js/modules/maintenance.js?v=3.3.17"></script>
 
 
-<script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
+<script src="./js/modules/refactor-health.js?v=3.3.17"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
-<script src="./js/modules/resizable-tables.js?v=3.3.5"></script>
+<script src="./js/modules/resizable-tables.js?v=3.3.17"></script>
 <script src="./js/modules/grid-default-order.js?v=1"></script>
-<script src="./js/modules/commissions.js?v=3.3.8"></script>
+<script src="./js/modules/commissions.js?v=3.3.17"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>
@@ -6108,11 +6086,11 @@ Listo para analizar.
 <script src="./js/modules/v2-readiness.js?v=2.0.154"></script>
 <script src="./js/modules/v2-audit.js?v=2.0.399-audit1"></script>
 <script src="./js/modules/page-transition.js?v=2.0.226"></script>
-<script src="./js/modules/resource-monitor.js?v=2.0.154"></script>
+<script src="./js/modules/resource-monitor.js?v=3.3.17"></script>
 
-<script src="./js/modules/role-guard.js?v=2.0.325"></script>
+<script src="./js/modules/role-guard.js?v=3.3.17"></script>
 <script src="./js/modules/purchase-orders.js?v=3.3.12-proveedor-final-1"></script>
-<script src="./js/modules/ot-material-custody.js?v=3.0.14"></script>
+<script src="./js/modules/ot-material-custody.js?v=3.3.17"></script>
 <script src="./js/modules/release-tour.js?v=2.0.161"></script>
 
 <!--
@@ -6142,10 +6120,11 @@ Listo para analizar.
 <script src="./js/v3/sales-integration.js?v=3.0.0-shadow-v279"></script>
 <script src="./js/v3/ot-integration.js?v=3.0.0-shadow-v279"></script>
 <script src="./js/v3/product-provider-integration.js?v=3.0.0-shadow-v279"></script>
-<script src="./js/v3/admin-diagnostics.js?v=3.0.0-mantenimiento-unificado-1"></script>
+<script src="./js/v3/admin-diagnostics.js?v=3.3.17"></script>
 
 </body>
 </html>
+
 
 
 

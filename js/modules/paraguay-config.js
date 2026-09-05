@@ -8,7 +8,7 @@
     el('estado').textContent=c.actualizadoEn?'Guardado el '+new Date(c.actualizadoEn).toLocaleString('es-AR'):'Se utiliza la cotización del dólar de SisVentas.';
   }
   window.guardarConversionParaguay=async function(){
-    if(currentRole!=='admin'){notify('Solo el administrador puede cambiar la conversión');return;}
+    if(!window.tienePermiso('configuracion.editar')){notify('Solo el administrador puede cambiar la conversión');return;}
     if(!cargado){notify('Esperá a que termine de cargar la configuración');return;}
     var habilitado=el('habilitado').checked;
     var btn=el('guardar');btn.disabled=true;btn.textContent='Guardando…';

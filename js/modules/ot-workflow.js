@@ -2,7 +2,7 @@
   function q(id){ return document.getElementById(id); }
   function arr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
   function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function roleAdmin(){ return ['admin','administrativo'].includes(String(window.currentRole||'').toLowerCase()); }
+  function roleAdmin(){ return window.tienePermiso('ot.editarDatosAdministrativos'); }
   function findOT(id){
     var actual = String(id || window.otActualId || '');
     return arr(window.otData).find(function(o){ return o && (String(o.fbKey||'')===actual || String(o.id||'')===actual); }) || null;

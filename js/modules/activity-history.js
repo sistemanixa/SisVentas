@@ -4,7 +4,7 @@
   function fechaLbl321(ms){ if(!ms) return '—'; var d=new Date(ms); return d.toLocaleDateString('es-AR')+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); }
   window.dashRenderActividadReciente=function(){
     var cont=document.getElementById('dash-actividad-lista'); if(!cont) return;
-    if(String(window.currentRole||'').toLowerCase()!=='admin'){ var card=document.getElementById('dash-actividad-card'); if(card) card.style.display='none'; return; }
+    if(!window.tienePermiso('dashboard.actividad')){ var card=document.getElementById('dash-actividad-card'); if(card) card.style.display='none'; return; }
     var items=[];
     (window.ventasList||[]).slice(0,60).forEach(function(v){ items.push({tipo:'Venta', icon:'ti-receipt', color:'var(--green)', txt:(v.id||'')+' · '+(v.cliente||''), sub:'Total '+('$'+Math.round(parseFloat(v.total)||0).toLocaleString('es-AR')), ms:fechaMs321(v.fecha,v.ts)}); });
     (window._pagosListaActual||window._historialPagosCompleto||[]).slice(0,60).forEach(function(p){ if(p.anulado) return; items.push({tipo:'Cobro', icon:'ti-cash', color:'var(--blue)', txt:(p.venta||'')+' · '+(p.cliente||''), sub:'Pago '+('$'+Math.round(parseFloat(p.monto)||0).toLocaleString('es-AR')), ms:fechaMs321(p.fecha,p.ts)}); });

@@ -900,7 +900,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .item-prod-img-edit{width:46px;height:46px;border-radius:11px}
 .prod-list-thumb,.asist-prod-thumb{width:46px;height:46px;flex-basis:46px;border-radius:11px}
 .item-prod-mini-line{display:flex;align-items:center;gap:8px;min-width:0}
-.item-prod-mini-line .item-prod-img{width:34px;height:34px;flex-basis:34px;border-radius:9px}
+.item-prod-mini-line .item-prod-img{width:52px;height:52px;flex-basis:52px;border-radius:9px}
 @media(max-width:760px){.item-prod-img{width:36px;height:36px;flex-basis:36px}.item-prod-img-edit{width:40px;height:40px}.item-prod-mini-line .item-prod-img{width:30px;height:30px;flex-basis:30px}}
 .venta-resumen-stock{background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-top:12px;display:none}
 
@@ -2562,6 +2562,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   #ot-integridad-card.is-open .ot-integridad-verificar{display:inline-flex}
 }
 .sv-columns-pending{visibility:hidden!important}
+#ot-materiales-card table.sv-columns-pending{visibility:visible!important}
 
 /* Catálogo comercial: presentación visual sin precios. */
 .catalogo-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;padding:30px 32px;border:1px solid color-mix(in srgb,var(--blue) 36%,var(--border));border-radius:18px;background:radial-gradient(circle at 88% 15%,color-mix(in srgb,var(--blue) 22%,transparent),transparent 35%),linear-gradient(135deg,var(--bg2),color-mix(in srgb,var(--bg3) 82%,var(--blue)));overflow:hidden}
@@ -2590,3 +2591,10 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .usuarios-uso-tiempo{text-align:right;font-size:11px;color:var(--text3);white-space:nowrap}
 .usuarios-uso-vacio{padding:24px;text-align:center;color:var(--text3);font-size:12px;border:1px dashed var(--border);border-radius:var(--radius)}
 @media(max-width:768px){.usuarios-uso-kpis{grid-template-columns:1fr}.usuarios-uso-fila{grid-template-columns:minmax(90px,130px) minmax(120px,1fr);gap:8px}.usuarios-uso-tiempo{grid-column:2;text-align:left}}
+
+/* Roles: Configuración agrupa permisos sensibles del sistema. */
+#cfg-roles-tabla tr[data-role-module="configuracion"]{background:rgba(217,84,84,.12)!important;color:#f28b8b}
+#cfg-roles-tabla tr[data-role-module="configuracion"]>td:first-child{border-left:3px solid #d95454}
+#cfg-roles-tabla tr[data-role-action-mod="configuracion"]>td:first-child{color:#f28b8b}
+#cfg-roles-buscar{min-height:44px;padding:11px 14px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font:inherit;font-size:14px;box-sizing:border-box}
+#cfg-roles-buscar:focus{outline:2px solid var(--blue);outline-offset:1px}

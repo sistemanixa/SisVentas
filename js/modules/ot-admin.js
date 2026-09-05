@@ -128,7 +128,7 @@
       });
       var puedeEliminarOT = typeof window.tienePermiso === 'function'
         ? window.tienePermiso('ot.eliminar')
-        : String(window.currentRole || '').toLowerCase() === 'admin';
+        : false;
       tbody.innerHTML = rows.map(function(o){
         var f = fechaISO(o.fecha);
         var esPrioridad = o.prioridad === true || o.prioridad === 'true';

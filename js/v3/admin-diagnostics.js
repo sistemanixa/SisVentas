@@ -160,7 +160,7 @@
     }
 
     function isAdmin() {
-      return text(root.currentRole).toLocaleLowerCase('es-AR') === 'admin';
+      return typeof root.tienePermiso === 'function' && root.tienePermiso('auditoria.ver');
     }
 
     function injectStyles() {
@@ -290,9 +290,9 @@
       options = options || {};
       if (running) return running;
       if (!isAdmin()) {
-        var denied = Promise.reject(new Error('La auditoría V3 requiere rol administrador'));
+        var denied = Promise.reject(new Error('No tenés permiso para ejecutar la auditoría V3'));
         denied.catch(function () {});
-        if (!options.silent) notify('Solo el administrador puede ejecutar la auditoría V3');
+        if (!options.silent) notify('No tenés permiso para ejecutar la auditoría V3');
         return denied;
       }
       var runtime = root.SisVentas && root.SisVentas.V3Shadow;

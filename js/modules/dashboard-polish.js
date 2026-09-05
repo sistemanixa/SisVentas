@@ -62,7 +62,7 @@
   function aplicarVisibilidad(){
     var miActividad = document.getElementById('dash-administrativo-card');
     if(miActividad){
-      var ocultar = esAdmin();
+      var ocultar = !window.tienePermiso('dashboard.miActividad');
       miActividad.style.display = ocultar ? 'none' : '';
       if(ocultar) miActividad.dataset.adminHidden = 'true';
       else delete miActividad.dataset.adminHidden;

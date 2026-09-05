@@ -212,7 +212,7 @@
   function cerrarDetalleComision() { var modal=document.getElementById('modal-comision-gestion'); if(modal) modal.style.display='none'; detalleActual=null; movimientosDetalle={}; }
 
   async function guardarDistribucionComision() {
-    if (!detalleActual || String(window.currentRole || '').toLowerCase() !== 'admin') return;
+    if (!detalleActual || !window.tienePermiso('comisiones.distribuir')) return;
     var maxPct = parseFloat((window.APROBACION_CONFIG && window.APROBACION_CONFIG.maxComisionPct) || 10) || 10;
     var entradas = Array.from(document.querySelectorAll('#com-det-participantes .comision-pct-input:not(:disabled)'));
     var valores = entradas.map(function (input) { return { fbKey:input.dataset.gasto, pct:parseFloat(input.value)||0 }; });
@@ -238,7 +238,7 @@
   }
 
   async function agregarParticipanteComision() {
-    if (!detalleActual || String(window.currentRole || '').toLowerCase() !== 'admin') return;
+    if (!detalleActual || !window.tienePermiso('comisiones.distribuir')) return;
     var empKey=String((document.getElementById('com-nuevo-empleado')||{}).value||''); var pct=parseFloat((document.getElementById('com-nuevo-pct')||{}).value)||0;
     var emp=Object.values(window.empData||{}).find(function(e){return String(e.fbKey||'')===empKey;}); if(!emp){window.notify('Seleccioná una persona');return;} if(pct<=0){window.notify('Ingresá el porcentaje');return;}
     var maxPct=parseFloat((window.APROBACION_CONFIG&&window.APROBACION_CONFIG.maxComisionPct)||10)||10;

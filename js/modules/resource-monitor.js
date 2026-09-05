@@ -34,7 +34,7 @@
 
   function esAdmin(){
     var r = rol();
-    return r === 'admin' || r === 'administrador';
+    return window.tienePermiso('configuracion.monitor');
   }
 
   function esPantallaChica(){

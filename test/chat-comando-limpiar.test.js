@@ -8,8 +8,8 @@ for (const role of ['admin','administrativo','tecnico']) {
   test('comando limpiar restringido: '+role, () => {
     let clean = 0, sent = 0;
     const input = {value:'Limpiar conversación',style:{}};
-    const context = {currentRole:role,currentUser:'Prueba',_chatCanal:'general',_chatReplyMsg:null,
-      document:{getElementById:()=>input},window:{fbDB:{},fbRef:()=>({}),fbPush:()=>{sent++;return Promise.resolve();}},
+    const context = {currentRole:role,currentUser:'Prueba',_chatCanal:'general',_chatReplyMsg:null,_chatAudio:null,
+      document:{getElementById:()=>input},window:{tienePermiso:()=>role==='admin',fbDB:{},fbRef:()=>({}),fbPush:()=>{sent++;return Promise.resolve();}},
       chatInputCambio:()=>{},chatAdminLimpiar:()=>{clean++;},notify:()=>{}};
     vm.createContext(context); vm.runInContext(source,context); context.chatEnviar();
     assert.equal(clean,role === 'admin' ? 1 : 0);

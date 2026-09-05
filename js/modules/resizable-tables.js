@@ -235,7 +235,7 @@
     if (type === 'widths') globalProfiles.widths[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
     else if (type === 'alignments') globalProfiles.alignments[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
     else globalProfiles.percentages[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
-    if (!canUseFirebase() || window.currentRole !== 'admin') return;
+    if (!canUseFirebase() || !window.tienePermiso('configuracion.columnas')) return;
     clearTimeout(globalSaveTimers[type + ':' + key]);
     globalSaveTimers[type + ':' + key] = setTimeout(function () {
       window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/tableColumns/' + type + '/' + key), {
@@ -254,7 +254,7 @@
     if (type === 'widths') delete globalProfiles.widths[key];
     else if (type === 'alignments') delete globalProfiles.alignments[key];
     else delete globalProfiles.percentages[key];
-    if (!window.fbDB || !window.fbRef || !window.fbRemove || window.currentRole !== 'admin') return;
+    if (!window.fbDB || !window.fbRef || !window.fbRemove || !window.tienePermiso('configuracion.columnas')) return;
     window.fbRemove(window.fbRef(window.fbDB, 'sisventas/config/tableColumns/' + type + '/' + key)).catch(function () {});
   }
 
@@ -1266,7 +1266,7 @@
 
   function ensurePercentButton(table) {
     if (!table || !tableHeaders(table).length) return;
-    if (window.currentRole && window.currentRole !== 'admin') return;
+    if (window.currentRole && !window.tienePermiso('configuracion.columnas')) return;
     var card = table.closest('.card');
     var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap');
     var scope = card || (wrap && wrap.parentElement) || table.parentElement;
@@ -1323,7 +1323,7 @@
 
   function openPixelEditor(table) {
     if (!table) return;
-    if (window.currentRole && window.currentRole !== 'admin') {
+    if (window.currentRole && !window.tienePermiso('configuracion.columnas')) {
       if (window.notify) window.notify('Solo el administrador puede configurar columnas');
       return;
     }
@@ -1464,7 +1464,7 @@
       openPixelEditor(table);
       return;
     }
-    if (window.currentRole && window.currentRole !== 'admin') {
+    if (window.currentRole && !window.tienePermiso('configuracion.columnas')) {
       if (window.notify) window.notify('Solo el administrador puede configurar columnas');
       return;
     }

@@ -4,7 +4,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const html = fs.readFileSync('index.html', 'utf8');
-const appPath = html.match(/src="\.\/(js\/app\.v[0-9.]+\.js)"/)[1];
+const appPath = html.match(/src="\.\/(js\/app\.v[0-9.]+\.js)(?:\?[^\"]*)?"/)[1];
 const app = fs.readFileSync(appPath, 'utf8');
 const inicio = app.indexOf('var PRESENCIA_DATA =');
 const fin = app.indexOf('function notificarUsuarioConectado', inicio);
