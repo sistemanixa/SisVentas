@@ -9973,15 +9973,17 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v3.3.13-firebase',
-  RELEASE_NOTES: Object.freeze([
-    'Garantías guía la carga por cliente, venta y equipo real, evitando vínculos incorrectos.',
-    'Órdenes de compra muestra el proveedor definitivo conciliado por sus ítems.',
-    'Ventas informa cuánto resta cobrar en las operaciones señadas y el chat mejora avisos, lectura y adjuntos.',
-    'Usuarios explica claramente el tiempo activo y el tiempo abierto sin interacción.'
-  ]),
+  VERSION: 'v3.3.14-firebase',
+  RELEASE_NOTES: Object.freeze(['El chat permite grabar, escuchar y enviar audios de hasta dos minutos.', 'Los adjuntos muestran su progreso y esperan la confirmación del mensaje.', 'El menú de adjuntos mejora el acceso por teclado y la navegación conserva la conversación elegida.']),
   RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Abrir Productos' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({
+      version: 'v3.3.14',
+      date: '05/09/2026',
+      title: 'Chat con audio y adjuntos mejorados',
+      notes: Object.freeze(['El chat permite grabar, escuchar y enviar audios de hasta dos minutos.', 'Los adjuntos muestran su progreso y esperan la confirmación del mensaje.', 'El menú de adjuntos mejora el acceso por teclado y la navegación conserva la conversación elegida.']),
+      feature: Object.freeze({ page:'usuarios', actionLabel:'Abrir Usuarios' })
+    }),
     Object.freeze({
       version: 'v3.3.13',
       date: '04/09/2026',

@@ -1078,6 +1078,18 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .chat-msg-autor{font-size:10px;font-weight:600;margin-bottom:3px;opacity:.8}
 .chat-msg-hora{font-size:10px;opacity:.6;margin-top:3px;text-align:right}
 #chat-input-row{padding:10px 16px;border-top:0.5px solid var(--border);display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+#chat-adjuntos-menu{margin:8px 12px;padding:16px 12px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:18px;box-shadow:0 6px 22px rgba(0,0,0,.16);flex-shrink:0}
+#chat-adjuntos-menu[hidden]{display:none}
+.chat-adjuntos-opciones{display:flex;justify-content:center;gap:24px}
+.chat-adjunto-opcion{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:108px;padding:6px;border:0;border-radius:12px;background:transparent;color:var(--text);font:inherit;font-size:12px;cursor:pointer}
+.chat-adjunto-icono{display:grid;place-items:center;width:54px;height:54px;border-radius:50%;color:#fff;transition:transform .15s}
+.chat-adjunto-imagen{background:linear-gradient(145deg,#d64791,#aa328b)}
+.chat-adjunto-documento{background:linear-gradient(145deg,#8871ee,#6554ce)}
+.chat-adjunto-opcion:hover .chat-adjunto-icono{transform:translateY(-3px)}
+.chat-adjunto-opcion:focus-visible,#chat-adjuntar:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+#chat-adjuntar[aria-expanded="true"]{outline:2px solid var(--green)}
+#chat-adjuntos-menu p{margin:12px 0 0;text-align:center;font-size:10px;line-height:1.5;color:var(--text3)}
+@media(prefers-reduced-motion:reduce){.chat-adjunto-icono{transition:none}.chat-adjunto-opcion:hover .chat-adjunto-icono{transform:none}}
 #chat-input{flex:1;border-radius:20px;padding:8px 14px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;resize:none;max-height:80px;outline:none;line-height:1.4}
 #chat-send{width:36px;height:36px;border-radius:50%;background:var(--green);border:none;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .chat-online-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px}

@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const app = fs.readFileSync('js/app.v3.3.13.js', 'utf8');
+const { source: app, filename } = require('./helpers/active-app').readActiveApp();
 const index = fs.readFileSync('index.html', 'utf8');
 
 test('garantías selecciona un cliente válido y ofrece solamente sus ventas', () => {
@@ -22,5 +22,5 @@ test('la garantía conserva las claves del cliente y la venta vinculada', () => 
   assert.match(app, /clienteFbKey:clienteGarantia\.dataset\.clienteKey/);
   assert.match(app, /ventaFbKey:\(ventaGarantia/);
   assert.match(app, /equipoCodigo:\(equipoGarantia\.selectedOptions/);
-  assert.match(index, /app\.v3\.3\.13\.js/);
+  assert.ok(index.includes('./js/' + filename));
 });

@@ -1,0 +1,16 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /chat/{owner}/{file} {
+      allow read: if request.auth != null && request.auth.uid == owner;
+      allow create: if request.auth != null && request.auth.uid == owner
+        && request.resource.size <= 10 * 1024 * 1024
+        && file.matches('.*[.](webm|ogg|m4a|mp3|wav)$')
+        && request.resource.contentType.matches('audio/(webm|ogg|mp4|mpeg|wav)');
+      allow create: if request.auth != null && request.auth.uid == owner
+        && request.resource.size <= 10 * 1024 * 1024
+        && file.matches('.*[.](jpg|jpeg|png|webp|pdf|txt|csv|docx|xlsx|JPG|JPEG|PNG|WEBP|PDF|TXT|CSV|DOCX|XLSX)$')
+        && request.resource.contentType.matches('(image/(jpeg|jpg|png|webp)|application/(pdf|octet-stream|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.openxmlformats-officedocument.spreadsheetml.sheet)|text/(plain|csv))');
+    }
+  }
+}

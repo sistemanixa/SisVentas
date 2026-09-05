@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.13-firebase' -->
+<!-- VERSION: 'v3.3.14-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.13.js"></script>
+<script src="./js/core/version.v3.3.14.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,7 +34,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.3.13">
+<link rel="stylesheet" href="./css/app.css?v=3.3.14">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
@@ -5553,7 +5553,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.1.1"></script>
-<script src="./js/app.v3.3.13.js"></script>
+<script src="./js/app.v3.3.14.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5804,7 +5804,7 @@ Listo para analizar.
         </div>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
-        <button id="btn-chat-admin-limpiar" onclick="chatAdminLimpiar()" style="display:none;background:none;border:0.5px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;font-size:11px;padding:4px 8px" title="Eliminar mensajes solamente de la conversación abierta"><i class="ti ti-trash" style="font-size:12px"></i> Limpiar conversación</button>
+        <button id="btn-chat-admin-limpiar" onclick="chatAdminLimpiar()" style="display:none;background:none;border:0.5px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;font-size:11px;padding:4px 8px" title="Limpiar conversación" aria-label="Limpiar conversación"><i class="ti ti-trash" style="font-size:18px" aria-hidden="true"></i></button>
         <button id="btn-chat-maximizar" class="icon-btn" onclick="chatAlternarMaximizado()" title="Maximizar chat" aria-label="Maximizar chat" aria-pressed="false"><i class="ti ti-maximize"></i></button>
         <button onclick="chatCerrar()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px 8px">✕</button>
       </div>
@@ -5824,16 +5824,39 @@ Listo para analizar.
         💬 Directo<span class="chat-canal-badge" id="badge-directos"></span>
       </button>
     </div>
+    <input id="chat-buscar" type="search" aria-label="Buscar en esta conversación" placeholder="Buscar mensaje, persona o archivo…" oninput="chatBuscarMensajes()" style="margin:6px 12px;padding:8px;border:1px solid var(--border2);border-radius:8px;background:var(--bg3);color:var(--text)">
     <div id="chat-messages"><div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Cargando mensajes...</div></div>
     <div id="chat-typing" style="display:none;padding:4px 18px 0;color:var(--green);font-size:11px;font-style:italic"></div>
+    <div id="chat-adjunto-estado" role="status" hidden style="padding:8px 18px;font-size:12px;overflow-wrap:anywhere"></div>
+    <div id="chat-adjuntos-menu" hidden role="group" aria-label="Adjuntar al chat">
+      <div class="chat-adjuntos-opciones">
+        <button type="button" class="chat-adjunto-opcion" onclick="chatElegirAdjunto('imagen')">
+          <span class="chat-adjunto-icono chat-adjunto-imagen"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+          <span>Fotos e imágenes</span>
+        </button>
+        <button type="button" class="chat-adjunto-opcion" onclick="chatElegirAdjunto('documento')">
+          <span class="chat-adjunto-icono chat-adjunto-documento"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg></span>
+          <span>Documento</span>
+        </button>
+      </div>
+      <p>Imágenes, PDF, Word, Excel o texto · Hasta 10 MB</p>
+    </div>
+    <div id="chat-audio-panel" hidden style="padding:10px 16px">
+      <div id="chat-audio-estado" role="status"></div>
+      <audio id="chat-audio-preview" controls hidden style="width:100%;margin-top:8px"></audio>
+      <button type="button" class="btn" id="chat-audio-detener" onclick="chatAudioDetener()">Detener</button>
+      <button type="button" class="btn" id="chat-audio-enviar" hidden onclick="chatAudioEnviar()">Enviar audio</button>
+      <button type="button" class="btn" onclick="chatAudioCancelar()">Cancelar</button>
+    </div>
     <div id="chat-input-row">
-      <label style="width:34px;height:34px;border-radius:50%;background:var(--bg3);border:0.5px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Adjuntar imagen o archivo seguro">
+      <button id="chat-adjuntar" type="button" onclick="chatMenuAdjuntos()" aria-expanded="false" aria-controls="chat-adjuntos-menu" style="width:34px;height:34px;border-radius:50%;background:var(--bg3);border:0.5px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Adjuntar imagen o documento" aria-label="Adjuntar imagen o documento">
         <i class="ti ti-paperclip" style="font-size:16px;color:var(--text3)"></i>
+      </button>
         <input type="file" id="chat-foto-input" accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.csv,.docx,.xlsx,image/jpeg,image/png,image/webp,application/pdf,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="chatEnviarArchivo(this)">
-      </label>
       <textarea id="chat-input" placeholder="Escribí un mensaje..." rows="1"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatEnviar()}"
         oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';chatInputCambio(this)"></textarea>
+      <button type="button" id="chat-audio-grabar" onclick="chatAudioGrabar()" aria-label="Grabar audio" title="Grabar audio" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border2);background:var(--bg3);color:var(--text);cursor:pointer;flex-shrink:0"><i class="ti ti-microphone" aria-hidden="true"></i></button>
       <button id="chat-send" onclick="chatEnviar()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
