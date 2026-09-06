@@ -21,6 +21,9 @@
     return (cfg.bloqueados || []).indexOf(mod) === -1;
   }
   var PERMISOS_ACCION = {
+    'productos.configurarGarantia':{modulo:'productos',label:'Configurar garantía y seguimiento',roles:['admin','administrativo']},
+    'equipos.confirmarInstalacion':{modulo:'equipos',label:'Confirmar equipos y cobertura desde venta / OT',roles:['admin','administrativo','tecnico']},
+    'agenda.reprogramar': {modulo:'agenda',label:'Reprogramar visitas',roles:['admin','administrativo']},
     'productos.agregarProveedor': {modulo:'productos',label:'Agregar proveedores a un producto',roles:['admin','administrativo']},
     'productos.verProveedoresExterior': {modulo:'productos',label:'Ver proveedores de otros países',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']},
     'presupuestos.revisarVencidos':{"modulo":"presupuesto","label":"Revisar precios de presupuestos vencidos","roles":["admin","administrativo"]},

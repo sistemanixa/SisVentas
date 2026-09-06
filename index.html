@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.21-firebase' -->
+<!-- VERSION: 'v3.3.22-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.21.js"></script>
+<script src="./js/core/version.v3.3.22.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -1470,7 +1470,7 @@
             </div>
             <div class="flex-end" style="margin-top:12px">
               <button class="btn btn-sm" onclick="imprimirActaOT()"><i class="ti ti-file-text"></i> Imprimir acta</button>
-              <button class="btn btn-sm btn-primary" id="btn-completar-ot" onclick="completarOT()"><i class="ti ti-check"></i> Marcar como completada</button>
+              <button class="btn btn-sm" onclick="garantiaPrepararOT()">Equipos y garantías</button><button class="btn btn-sm btn-primary" id="btn-completar-ot" onclick="completarOT()"><i class="ti ti-check"></i> Marcar como completada</button>
             </div>
           </div>
 
@@ -2742,10 +2742,18 @@ Listo para analizar.
         <div class="metrics" style="grid-template-columns:repeat(4,1fr)">
           <div class="metric"><div class="m-label">Hoy</div><div class="m-value" id="ag-hoy">0</div><div class="m-sub">eventos</div></div>
           <div class="metric"><div class="m-label">Esta semana</div><div class="m-value" id="ag-semana">0</div><div class="m-sub">eventos</div></div>
-          <div class="metric"><div class="m-label">Instalaciones</div><div class="m-value" id="ag-inst" style="color:var(--green)">0</div><div class="m-sub">programadas</div></div>
-          <div class="metric"><div class="m-label">Reclamos</div><div class="m-value" id="ag-recl" style="color:var(--blue)">0</div><div class="m-sub">con visita</div></div>
+          <div class="metric"><div class="m-label">Sin coordinar</div><div class="m-value" id="ag-inst" style="color:var(--green)">0</div><div class="m-sub">OT sin fecha, hora o técnico</div></div>
+          <div class="metric"><div class="m-label">Visitas vencidas</div><div class="m-value" id="ag-recl" style="color:var(--blue)">0</div><div class="m-sub">OT pendientes</div></div>
         </div>
 
+        <div class="card" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:14px">
+          <input id="ag-buscar" placeholder="Buscar cliente, técnico o número de OT…" oninput="agFiltrar()" style="flex:2;min-width:220px;padding:12px">
+          <input id="ag-tecnico" placeholder="Filtrar técnico…" oninput="agFiltrar()" style="flex:1;min-width:150px;padding:12px">
+          <select id="ag-tipo" onchange="agFiltrar()"><option value="">Todos los tipos</option><option value="instalacion">Instalaciones</option><option value="reclamo">Reclamos</option><option value="interno">Internos</option><option value="completada">Completadas</option></select>
+          <select id="ag-estado" onchange="agFiltrar()"><option value="">Todos los estados</option><option value="pendiente">Pendientes</option><option value="completada">Completadas</option></select>
+          <label style="display:flex;align-items:center;gap:6px"><input id="ag-mios" type="checkbox" onchange="agFiltrar()">Solo mis tareas</label>
+        </div>
+        <div id="ag-pendientes"></div>
         <div class="card" id="agenda-calendar-card">
           <!-- Cabecera del calendario -->
           <div class="card-head agenda-toolbar" style="flex-wrap:wrap;gap:8px">
@@ -4035,7 +4043,11 @@ Listo para analizar.
               </div>
             </div>
           </div>
-          </div><div class="card pf-providers-card">
+          </div><div class="card" id="pf-garantia-config"><div class="card-title">Garantía y seguimiento</div><div class="form-grid">
+<label>Garantía<select id="pf-garantia-estado"><option value="sin_definir">Sin definir</option><option value="si">Tiene garantía</option><option value="no">Sin garantía</option></select></label>
+<label>Meses<input id="pf-garantia-meses" type="number" min="1" max="120" value="12"></label>
+<label>Inicio<select id="pf-garantia-inicio"><option value="instalacion">Instalación confirmada</option><option value="entrega">Entrega confirmada</option></select></label>
+<label><input type="checkbox" id="pf-garantia-equipo"> Registrar como equipo instalado</label><label><input type="checkbox" id="pf-garantia-serie"> Requiere número de serie</label></div></div><div class="card pf-providers-card">
             <div class="card-head">
               <span class="card-title">Proveedores del producto</span>
               <div class="pf-providers-toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -5589,7 +5601,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.3.17"></script>
-<script src="./js/app.v3.3.21.js"></script>
+<script src="./js/app.v3.3.22.js"></script>
 <script src="./js/modules/product-url-import.js"></script>
 <script src="./js/modules/keyboard-actions.js?v=3.3.18"></script>
 <script src="./js/modules/provider-verification.js"></script>
@@ -6123,6 +6135,7 @@ Listo para analizar.
 <script src="./js/v3/admin-diagnostics.js?v=3.3.17"></script>
 
 <script src="./js/modules/product-query-guard.js?v=1"></script>
+<script src="./js/modules/garantia-circuito.js"></script>
 </body>
 </html>
 
