@@ -14,8 +14,7 @@
   }
 
   function isAdministration() {
-    var role = String(window.currentRole || '').toLowerCase();
-    return role === 'admin' || role === 'administrativo';
+    return typeof window.tienePermiso === 'function' && window.tienePermiso('ot.entregarMateriales');
   }
 
   function currentOT() {
@@ -169,12 +168,14 @@
         '<td>' + esc(material.desc || material.descripcion || '') + '</td>' +
         '<td class="tr">' + n(material.vendida) + '</td>' +
         '<td class="tr">' + (material.custodiaActiva ? material.entregada : '—') + '</td>' +
-        '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + stateBadge(material) + '</div></td>' +
+        '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + stateBadge(material) + '</div>' +
+        (typeof window.otPuedeCorregirProductos === 'function' && window.otPuedeCorregirProductos() ? '<button type="button" class="btn btn-sm btn-icon" title="Quitar producto y actualizar venta" aria-label="Quitar producto" onclick="otEliminarProductoMaterial(' + index + ')" style="color:var(--red);float:right">×</button>' : '') + '</td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:12px">Sin materiales controlables</td></tr>';
 
     var totals = summary(ot);
-    var isClosed = ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0;
+    var closedRecord = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0;
+    var isClosed = closedRecord && correctionKey !== String(ot.fbKey || ot.id);
     var eligible = controllableMaterials(ot);
     var admin = isAdministration();
     var deliver = document.getElementById('ot-btn-entregar-materiales');
@@ -187,6 +188,20 @@
     if (receive) receive.style.display = admin && totals.devolucionPendiente > 0 ? '' : 'none';
 
     var status = document.getElementById('ot-custodia-estado');
+    var correction = document.getElementById('ot-corregir-materiales');
+    if (correction) correction.remove();
+    if (status && closedRecord && admin && !validateClose(ot).ok && isClosed) {
+      correction = document.createElement('button');
+      correction.id = 'ot-corregir-materiales';
+      correction.className = 'btn btn-sm';
+      correction.textContent = 'Corregir materiales';
+      correction.onclick = async function () {
+        if (!await window.svConfirm('Se habilitará la corrección de entrega y rendición de esta OT cerrada. Cada operación quedará en el historial. No se modificarán los cobros.')) return;
+        correctionKey = String(ot.fbKey || ot.id);
+        render(ot, visibleMaterials);
+      };
+      status.parentNode.insertBefore(correction, status.nextSibling);
+    }
     if (status) {
       status.textContent = isClosed && eligible.length && !ot.custodiaIniciada
         ? 'Atención histórica: esta OT se completó con ' + eligible.length + ' producto' + (eligible.length === 1 ? '' : 's') + ' sin entrega ni rendición registradas'
@@ -250,6 +265,7 @@
   }
 
   async function allInstalled() {
+    if (typeof window.tienePermiso !== 'function' || !window.tienePermiso('ot.rendirMateriales')) { window.notify('No tenés permiso para rendir materiales.'); return; }
     var ot = currentOT();
     if (!ot || !ot.custodiaIniciada || ot.custodiaRendida) return;
     if (!await window.svConfirm('¿Confirmás que todo el material entregado quedó instalado?')) return;
@@ -291,6 +307,7 @@
   }
 
   function openExceptions() {
+    if (typeof window.tienePermiso !== 'function' || !window.tienePermiso('ot.rendirMateriales')) { window.notify('No tenés permiso para rendir materiales.'); return; }
     var ot = currentOT();
     if (!ot || !ot.custodiaIniciada || ot.custodiaRendida) return;
     var previous = document.getElementById('ot-custodia-modal');
@@ -390,6 +407,7 @@
       .catch(function (error) { window.notify('No se pudo confirmar la devolución: ' + error.message); });
   }
 
+  var correctionKey = '';
   function validateClose(ot) {
     if (!ot) return { ok:true, conObservaciones:false };
     var eligible = controllableMaterials(ot);

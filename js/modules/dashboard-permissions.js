@@ -17,8 +17,8 @@
     el.style.display = visible ? (displayValue || '') : 'none';
   }
   window.aplicarDashboardPermisos309 = function(){
-    var admin = esAdmin309();
-    setDisplay309(document.getElementById('ventas-list-stats-global'), admin, 'grid');
+    var admin = window.tienePermiso('cobranzas.verDashboard');
+    setDisplay309(document.getElementById('ventas-list-stats-global'), window.tienePermiso('ventas.verDashboard'), 'grid');
     setDisplay309(document.getElementById('cobranzas-stats-global'), admin, 'grid');
     var pageCob = document.getElementById('page-cobranzas');
     if (pageCob) Array.from(pageCob.querySelectorAll(':scope > .metrics')).forEach(function(m){ setDisplay309(m, admin, 'grid'); });

@@ -114,7 +114,7 @@
     var lista = document.getElementById('ctaemp-com-lista');
     var info = document.getElementById('ctaemp-com-detalle-info');
     if (!lista) return;
-    var pct = parseFloat(emp.pctComisionPropio) || 0;
+    var pct = (typeof obtenerDetalleComisionEmpleado === 'function' ? parseFloat(obtenerDetalleComisionEmpleado(emp).pct) : 0) || 0;
     var mes = mesActualCta();
     var movimientosPorVenta = {};
     (window.movsEmpData || (typeof movsEmpData !== 'undefined' ? movsEmpData : []) || []).forEach(function(m){
@@ -122,7 +122,7 @@
       if (m.ventaId) movimientosPorVenta[String(m.ventaId)] = m;
       if (m.ventaFbKey) movimientosPorVenta[String(m.ventaFbKey)] = m;
     });
-    var esAdmin = String(window.currentRole || (typeof currentRole !== 'undefined' ? currentRole : '') || '').toLowerCase() === 'admin';
+    var esAdmin = window.tienePermiso('empleados.verComisionesPendientes');
     var idsVisibles = esAdmin ? null : {};
     if (idsVisibles) Object.keys(movimientosPorVenta).forEach(function(key){
       var est = String(movimientosPorVenta[key].estado || '').toLowerCase();

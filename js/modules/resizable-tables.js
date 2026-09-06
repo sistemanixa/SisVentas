@@ -1,4 +1,4 @@
-/* v1.36.23 — Columnas ajustables optimizadas para página activa */
+/* v1.36.24 — Columnas ajustables optimizadas para página activa */
 (function () {
   'use strict';
 
@@ -46,12 +46,11 @@
   }
 
   function usesFullContainerWidth(table) {
-    var id = pageId(table);
-    return id === 'page-ctaemp' || id === 'page-ordenes' || (table && table.id === 'gas-tbl');
+    return !!table;
   }
 
   function usesPixelOnly(table) {
-    return !!(table && table.dataset && table.dataset.svPixelOnly === '1');
+    return false;
   }
 
   function tableHeaders(table) {
@@ -236,7 +235,7 @@
     if (type === 'widths') globalProfiles.widths[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
     else if (type === 'alignments') globalProfiles.alignments[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
     else globalProfiles.percentages[key] = { tableKey: tableKey(table), data: data || {}, updatedAt: Date.now() };
-    if (!canUseFirebase() || window.currentRole !== 'admin') return;
+    if (!canUseFirebase() || !window.tienePermiso('configuracion.columnas')) return;
     clearTimeout(globalSaveTimers[type + ':' + key]);
     globalSaveTimers[type + ':' + key] = setTimeout(function () {
       window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/tableColumns/' + type + '/' + key), {
@@ -255,17 +254,19 @@
     if (type === 'widths') delete globalProfiles.widths[key];
     else if (type === 'alignments') delete globalProfiles.alignments[key];
     else delete globalProfiles.percentages[key];
-    if (!window.fbDB || !window.fbRef || !window.fbRemove || window.currentRole !== 'admin') return;
+    if (!window.fbDB || !window.fbRef || !window.fbRemove || !window.tienePermiso('configuracion.columnas')) return;
     window.fbRemove(window.fbRef(window.fbDB, 'sisventas/config/tableColumns/' + type + '/' + key)).catch(function () {});
   }
 
   function loadWidths(table) {
     cargarPerfilesGlobales();
+    var global = globalDataFor(table, 'widths');
+    if (Object.keys(global).length) return global;
     try {
       var local = JSON.parse(localStorage.getItem(storageKey(table)) || '{}') || {};
       if (Object.keys(local).length) return local;
     } catch (_) {}
-    return globalDataFor(table, 'widths');
+    return {};
   }
 
   function saveWidths(table, widths) {
@@ -277,11 +278,13 @@
 
   function loadPercentages(table) {
     cargarPerfilesGlobales();
+    var global = globalDataFor(table, 'percentages');
+    if (Object.keys(global).length) return global;
     try {
       var local = JSON.parse(localStorage.getItem(percentStorageKey(table)) || '{}') || {};
       if (Object.keys(local).length) return local;
     } catch (_) {}
-    return globalDataFor(table, 'percentages');
+    return {};
   }
 
   function savePercentages(table, percentages) {
@@ -298,11 +301,13 @@
 
   function loadAlignments(table) {
     cargarPerfilesGlobales();
+    var global = globalDataFor(table, 'alignments');
+    if (Object.keys(global).length) return global;
     try {
       var local = JSON.parse(localStorage.getItem(alignStorageKey(table)) || '{}') || {};
       if (Object.keys(local).length) return local;
     } catch (_) {}
-    return globalDataFor(table, 'alignments');
+    return {};
   }
 
   function saveAlignments(table, alignments) {
@@ -501,11 +506,6 @@
   function defaultPixelWidthForTable(table, th, index, total) {
     var fixedWidth = parseInt(th && th.dataset ? th.dataset.svFixedWidth : '', 10);
     if (fixedWidth > 0) return normalizeWidth(fixedWidth);
-    if (table && table.id === 'ventas-tbl') {
-      var ventas = [110, 220, 330, 110, 140, 130, 130, 160, 60, 170];
-      if (index < ventas.length) return ventas[index];
-      if (index === total - 1) return 170;
-    }
     return defaultWidthForHeader(th);
   }
 
@@ -612,69 +612,6 @@
 
   function defaultPercentages(table) {
     var headers = tableHeaders(table);
-    var preset = null;
-    if (table && table.id === 'prod-tbl') {
-      preset = {
-        0: 6,
-        1: 9,
-        2: 23,
-        3: 21,
-        4: 7,
-        5: 8,
-        6: 8,
-        7: 6,
-        8: 12
-      };
-    }
-    if (!preset && table && table.id === 'gas-tbl') {
-      preset = {
-        0: 6,
-        1: 30,
-        2: 9,
-        3: 8,
-        4: 9,
-        5: 9,
-        6: 8,
-        7: 8,
-        8: 6,
-        9: 7
-      };
-    }
-    if (!preset && table && table.id === 'ppto-tabla') {
-      preset = {
-        0: 17,
-        1: 23,
-        2: 15,
-        3: 16,
-        4: 16,
-        5: 13
-      };
-    }
-    if (!preset && table && table.id === 'ventas-tbl') {
-      preset = {
-        0: 7,
-        1: 40,
-        2: 10,
-        3: 10,
-        4: 10,
-        5: 10,
-        6: 7,
-        7: 6
-      };
-    }
-    if (!preset && table && table.id === 'venta-items-tbl') {
-      preset = {
-        0: 9,
-        1: 38,
-        2: 8,
-        3: 10,
-        4: 11,
-        5: 8,
-        6: 12,
-        7: 4
-      };
-    }
-    if (preset) return normalizeSuggestedPercentages(preset, headers.length);
     // La base general parte de los anchos sugeridos reales: contempla el
     // contenido y las columnas fijas (especialmente Acciones), no reparte el
     // 100% como si todas las columnas necesitaran lo mismo.
@@ -689,63 +626,35 @@
 
   function sanitizePercentages(table, source) {
     var headers = tableHeaders(table);
-    var defaults = defaultPercentages(table);
     var clean = {};
-    if (!table || table.id !== 'gas-tbl') {
-      headers.forEach(function (_th, index) {
-        clean[index] = normalizePercent(source && source[index]);
-      });
-      // El 100% debe incluir Acciones completa. Si el perfil porcentual fue
-      // guardado antes de cargar las filas, reservar el mínimo real y tomar
-      // la diferencia de la columna flexible más ancha, sin superar 100%.
-      var available = pixelContainerWidth(table);
-      var actionIndex = headers.findIndex(isActionsHeader);
-      if (available > 0 && actionIndex >= 0) {
-        var fixed = parseInt(headers[actionIndex].dataset.svFixedWidth || '', 10) || 0;
-        var minimumPct = Math.ceil((fixed / available) * 1000) / 10;
-        var deficit = minimumPct - normalizePercent(clean[actionIndex]);
-        if (fixed > 0 && deficit > 0) {
-          var flexible = headers.map(function (th, index) { return { th:th, index:index, value:normalizePercent(clean[index]) }; })
-            .filter(function (item) { return item.index !== actionIndex && !(parseInt(item.th.dataset.svFixedWidth || '', 10) > 0); })
-            .sort(function (a,b) { return b.value - a.value; })[0];
-          if (flexible && flexible.value > deficit + 1) {
-            clean[flexible.index] = Math.round((flexible.value - deficit) * 10) / 10;
-            clean[actionIndex] = minimumPct;
-          }
+    headers.forEach(function (_th, index) {
+      clean[index] = normalizePercent(source && source[index]);
+    });
+    // El 100% debe incluir Acciones completa en todas las grillas, incluida
+    // Gastos. Si el perfil fue guardado antes de cargar sus botones, reservar
+    // el mínimo real y tomar la diferencia de la columna flexible más ancha.
+    var available = pixelContainerWidth(table);
+    var actionIndex = headers.findIndex(isActionsHeader);
+    if (available > 0 && actionIndex >= 0) {
+      var fixed = parseInt(headers[actionIndex].dataset.svFixedWidth || '', 10) || 0;
+      var minimumPct = Math.ceil((fixed / available) * 1000) / 10;
+      var deficit = minimumPct - normalizePercent(clean[actionIndex]);
+      if (fixed > 0 && deficit > 0) {
+        var flexible = headers.map(function (th, index) { return { th:th, index:index, value:normalizePercent(clean[index]) }; })
+          .filter(function (item) { return item.index !== actionIndex && !(parseInt(item.th.dataset.svFixedWidth || '', 10) > 0); })
+          .sort(function (a,b) { return b.value - a.value; })[0];
+        if (flexible && flexible.value > deficit + 1) {
+          clean[flexible.index] = Math.round((flexible.value - deficit) * 10) / 10;
+          clean[actionIndex] = minimumPct;
         }
       }
-      return clean;
-    }
-    headers.forEach(function (_th, index) {
-      var value = normalizePercent(source && source[index]);
-      clean[index] = value > 0 ? value : normalizePercent(defaults[index]);
-    });
-    // Gastos tenía perfiles antiguos que sumaban menos de 100% y dejaban
-    // Acciones en 0%. El navegador repartía el sobrante y el editor ya no
-    // representaba los anchos reales. Migrarlos conservando proporciones.
-    var total = Object.keys(clean).reduce(function (sum, key) {
-      return sum + normalizePercent(clean[key]);
-    }, 0);
-    var valores = Object.keys(clean).map(function(key) { return normalizePercent(clean[key]); });
-    var perfilUniforme = valores.length > 1 && Math.max.apply(Math, valores) - Math.min.apply(Math, valores) < 0.1;
-    if (perfilUniforme) return defaults;
-    if (total > 0 && total < 99.5) {
-      Object.keys(clean).forEach(function (key) {
-        clean[key] = Math.round((clean[key] * 1000) / total) / 10;
-      });
-      var totalNormalizado = Object.keys(clean).reduce(function (sum, key) {
-        return sum + normalizePercent(clean[key]);
-      }, 0);
-      clean[1] = Math.round((clean[1] + (100 - totalNormalizado)) * 10) / 10;
     }
     return clean;
   }
 
   function shouldApplyDefaultPercentProfile(table) {
-    // Norma general: todas las grillas aprovechan proporcionalmente el ancho
-    // disponible. Sólo una tabla marcada expresamente como pixel-only conserva
-    // anchos independientes (Detalle de venta, por decisión funcional).
-    return !!(table && !usesPixelOnly(table));
+    // Norma única: toda grilla aprovecha proporcionalmente el ancho disponible.
+    return !!table;
   }
 
   function currentPercentages(table) {
@@ -771,10 +680,15 @@
     if (!table || !headers.length) return;
     clearPixelWidths(table);
     var colgroup = ensureColgroup(table, totalColumnCount(table));
-    if (table.id === 'gas-tbl' && colgroup.children[0]) {
-      var bulkHead = table.querySelector('#gas-bulk-head');
-      colgroup.children[0].style.width = bulkHead && !bulkHead.classList.contains('gas-bulk-hidden') ? '32px' : '0px';
-    }
+    // Las columnas técnicas declaradas como ignoradas no participan del 100%.
+    // Esta regla depende de su semántica, nunca del nombre de una pantalla.
+    Array.from(table.querySelectorAll('thead th[data-sv-column-ignore="1"]')).forEach(function(ignored) {
+      var physicalIndex = physicalIndexForHeader(ignored);
+      if (physicalIndex >= 0 && colgroup.children[physicalIndex]) {
+        var ignoredHidden = isHidden(ignored) || ignored.getAttribute('aria-hidden') === 'true';
+        colgroup.children[physicalIndex].style.width = ignoredHidden ? '0px' : '32px';
+      }
+    });
     var totalPct = Object.keys(percentages || {}).reduce(function (sum, key) {
       return sum + normalizePercent(percentages[key]);
     }, 0);
@@ -1332,6 +1246,7 @@
 
   function initPageTables(root) {
     if (!root || !root.querySelectorAll) return;
+    if (root.matches && root.matches('table')) initTable(root);
     root.querySelectorAll('table').forEach(initTable);
   }
 
@@ -1351,7 +1266,7 @@
 
   function ensurePercentButton(table) {
     if (!table || !tableHeaders(table).length) return;
-    if (window.currentRole && window.currentRole !== 'admin') return;
+    if (window.currentRole && !window.tienePermiso('configuracion.columnas')) return;
     var card = table.closest('.card');
     var wrap = table.closest('.table-wrap, .sv-auto-grid-wrap, .sv-resizable-wrap');
     var scope = card || (wrap && wrap.parentElement) || table.parentElement;
@@ -1388,7 +1303,10 @@
         else scope.insertBefore(toolbar, table);
       }
       // Siempre último: el control de columnas queda pegado al borde derecho.
-      toolbar.appendChild(btn);
+      // No vuelvas a insertar un nodo que ya está en la posición correcta:
+      // appendChild también genera una mutación al mover el mismo elemento y
+      // reactivaba indefinidamente el observador de grillas.
+      if (btn.parentElement !== toolbar || btn !== toolbar.lastElementChild) toolbar.appendChild(btn);
       return;
     }
     var actions = head.querySelector('.sv-card-head-actions');
@@ -1400,12 +1318,12 @@
     }
     // Los controles contextuales quedan a la izquierda; Columnas es siempre
     // el último control de la franja superior, pegado al extremo derecho.
-    actions.appendChild(btn);
+    if (btn.parentElement !== actions || btn !== actions.lastElementChild) actions.appendChild(btn);
   }
 
   function openPixelEditor(table) {
     if (!table) return;
-    if (window.currentRole && window.currentRole !== 'admin') {
+    if (window.currentRole && !window.tienePermiso('configuracion.columnas')) {
       if (window.notify) window.notify('Solo el administrador puede configurar columnas');
       return;
     }
@@ -1546,7 +1464,7 @@
       openPixelEditor(table);
       return;
     }
-    if (window.currentRole && window.currentRole !== 'admin') {
+    if (window.currentRole && !window.tienePermiso('configuracion.columnas')) {
       if (window.notify) window.notify('Solo el administrador puede configurar columnas');
       return;
     }
@@ -1673,7 +1591,7 @@
         el.style.color = Math.abs(total - 100) <= 0.5 ? 'var(--green)' : (total > 100 ? 'var(--blue)' : 'var(--amber)');
       }
       if (hint) {
-        hint.textContent = total > 100 ? ' · queda más ancho y se desplaza horizontalmente' : (total < 99.5 ? (table.id === 'gas-tbl' ? ' · al guardar se completa proporcionalmente hasta 100%' : (usesFullContainerWidth(table) ? ' · se distribuye hasta completar el ancho' : ' · queda espacio libre')) : '');
+        hint.textContent = total > 100 ? ' · queda más ancho y se desplaza horizontalmente' : (total < 99.5 ? ' · se distribuye hasta completar el ancho' : '');
       }
     }
 
@@ -1707,12 +1625,8 @@
       }
       if (ev.target.closest('[data-sv-default]')) {
         var defs = defaultPercentages(table);
-        var alignDefs = defaultAlignments(table);
         overlay.querySelectorAll('input[data-col-index]').forEach(function (input) {
           input.value = defs[input.dataset.colIndex] || 0;
-        });
-        overlay.querySelectorAll('select[data-align-index]').forEach(function (select) {
-          select.value = alignDefs[select.dataset.alignIndex] || 'left';
         });
         applyLive();
         return;
@@ -1767,6 +1681,11 @@
     var active = document.querySelector('.page.active');
     if (!active) return true;
     return Array.from(mutations || []).some(function (mutation) {
+      var target = mutation.target;
+      // La mayoría de las grillas dinámicas reemplaza filas dentro de TBODY.
+      // Ese cambio también debe reactivar la tabla; antes sólo se detectaban
+      // tablas o contenedores nuevos y la grilla quedaba oculta hasta resize.
+      if (target && target.nodeType === 1 && active.contains(target) && target.closest && target.closest('table')) return true;
       return Array.from(mutation.addedNodes || []).some(function (node) {
         return node && node.nodeType === 1 && (
           (node.matches && node.matches('table,.table-wrap,.sv-auto-grid-wrap')) ||
@@ -1779,6 +1698,9 @@
   function initMutationTables(mutations) {
     var active = document.querySelector('.page.active');
     Array.from(mutations || []).forEach(function (mutation) {
+      var target = mutation.target;
+      var targetTable = target && target.nodeType === 1 && target.closest ? target.closest('table') : null;
+      if (targetTable && (!active || active.contains(targetTable))) initTable(targetTable);
       Array.from(mutation.addedNodes || []).forEach(function (node) {
         if (!node || node.nodeType !== 1) return;
         if (active && node !== active && !active.contains(node)) return;
@@ -1793,9 +1715,12 @@
     scan();
     var observer = new MutationObserver(function (mutations) {
       if (!mutationTouchesActivePage(mutations)) return;
-      // MutationObserver corre antes del siguiente dibujo. Resolver aquí el
-      // perfil guardado evita mostrar primero el reparto automático.
-      initMutationTables(mutations);
+      // Nunca reinicializar tablas dentro del propio MutationObserver. La
+      // inicialización agrega colgroups, controles y rótulos, que a su vez
+      // producen más mutaciones. En grillas grandes y dinámicas (Gastos) esa
+      // realimentación podía monopolizar el hilo principal y colgar la vista.
+      // scheduleScan agrupa toda la ráfaga y trabaja una sola vez, fuera del
+      // callback del observer.
       scheduleScan();
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -1803,7 +1728,14 @@
       scheduleScan();
       scheduleViewportFit();
     });
-    document.addEventListener('sisventas:page-changed', scheduleScan);
+    document.addEventListener('sisventas:page-changed', function () {
+      // El primer cuadro posterior a la navegación ya conoce el ancho real.
+      // Inicializar allí evita depender de requestIdleCallback o de un resize.
+      window.requestAnimationFrame(function () {
+        scan();
+        scheduleViewportFit();
+      });
+    });
     window.SisVentas = window.SisVentas || {};
     window.SisVentas.initResizableTables = scan;
     window.SisVentas.prepareResizablePage = initPageTables;
@@ -1816,7 +1748,7 @@
       return Array.from(document.querySelectorAll('table')).map(function (table) {
         return {
           key: tableKey(table), page: pageId(table), headers: tableHeaders(table).length,
-          mode: usesPixelOnly(table) ? 'pixel-explicito' : 'proporcional',
+          mode: 'proporcional',
           ready: table.dataset.svResizableReady === '1', visible: isTableVisible(table)
         };
       });

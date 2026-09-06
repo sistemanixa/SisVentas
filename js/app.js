@@ -21125,6 +21125,7 @@ var TODOS_MODULOS = [
   { id:'ordentrabajo',   label:'Órdenes de trabajo (OT / instalaciones)' },
   { id:'clientes',       label:'Clientes' },
   { id:'productos',      label:'Productos' },
+  { id:'catalogo',       label:'Catálogo para clientes' },
   { id:'kits',           label:'Kits' },
   { id:'actualizadorprecios', label:'Actualizador de precios' },
   { id:'empleados',      label:'Empleados' },

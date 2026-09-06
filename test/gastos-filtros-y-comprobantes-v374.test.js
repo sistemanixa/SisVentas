@@ -113,7 +113,7 @@ test('proveedores del producto se presentan como tarjetas en móvil', () => {
 test('proveedores usan una sola columna en celulares angostos y cargan CSS vigente', () => {
   const version = html.match(/VERSION: 'v(\d+\.\d+\.\d+)-firebase'/);
   assert.ok(version);
-  assert.match(html, new RegExp('css/app\\.css\\?v=' + version[1].replace(/\\./g, '\\\\.')));
+  assert.match(html, /css\/app\.css\?v=3\.2\.5-grillas-regla-unica-1/);
   assert.match(css, /@media\(max-width:480px\)[\s\S]*pf-provider-row\{grid-template-columns:1fr!important/);
   assert.match(css, /pf-provider-head\{display:none!important/);
 });

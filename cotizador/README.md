@@ -29,6 +29,34 @@ La conexión inicial se completa una sola vez abriendo `GET /mercadolibre/oauth/
 
 ## Endpoint
 
+### Alta de producto desde URL exacta
+
+El mismo `POST /cotizar` acepta `incluirFicha: true` y `altaProducto: true`.
+El alta puede enviar `producto: ""`: el nombre se obtiene de la página exacta
+y la respuesta queda para revisión en el formulario, sin persistir productos.
+La cotización habitual conserva la comparación del nombre y la protección de
+variaciones de precio.
+
+Además del precio, la respuesta incluye `ficha` con `nombre`, `marca`, `detalle`,
+`imagenUrl`, `urlOrigen`, `fuente` y `faltantes`. No se infieren marcas ni se
+buscan productos alternativos. En los proveedores con navegador se extraen los
+campos en la misma sesión autenticada y página donde se leyó el precio. Mercado
+Libre aprovecha los datos de API/SEO ya obtenidos y puede informar campos
+faltantes si esa fuente no los expone.
+
+La URL debe corresponder al proveedor registrado; no puede seleccionar otra
+cuenta por su dominio. La navegación de importación se limita al comercio
+seleccionado. La interfaz manda el identificador del proveedor y la sesión de
+SisVentas; no manda la contraseña del comercio.
+
+Validación real inicial: Biosegur, ficha P2822 (Trinktech F-102T), con nombre,
+marca, descripción, imagen y precio autenticado obtenidos en una consulta.
+Las fichas de los otros conectores requieren muestras reales adicionales.
+Los proveedores no soportados continúan requiriendo su conexión específica.
+
+El despliegue necesita tanto `index.js` como `ficha-producto.js`; el Dockerfile
+copia ambos. Desplegar el servicio antes de publicar el formulario nuevo.
+
 `POST /cotizar`
 
 Headers:

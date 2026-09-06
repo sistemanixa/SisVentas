@@ -7,12 +7,12 @@ assert.match(source, /function normalizeSuggestedPercentages\(source, count\)/,
   'debe existir una normalización común para las sugerencias');
 assert.match(source, /var remaining = 1000 - tenths\.reduce/,
   'la distribución debe cerrar en mil décimas, es decir 100%');
-assert.match(source, /if \(preset\) return normalizeSuggestedPercentages\(preset, headers\.length\)/,
-  'todos los presets, incluso Productos, deben pasar por la normalización');
+assert.doesNotMatch(source, /if \(preset\)|table\.id === '(?:gas-tbl|prod-tbl|ppto-tabla|ventas-tbl|venta-items-tbl)'/,
+  'no deben existir presets particulares por pantalla');
 assert.match(source, /return normalizeSuggestedPercentages\(data, headers\.length\)/,
   'las sugerencias calculadas también deben cerrar exactamente en 100%');
-assert.match(source, /btn\.addEventListener\('click',[\s\S]*?openPercentEditor\(table\)/,
-  'el editor debe abrir aun cuando la tabla no tenga id');
+assert.match(source, /openPercentEditor\(visibleTable \|\| btn\._svFallbackTable \|\| table\)/,
+  'el editor debe abrir usando la referencia real de la tabla');
 assert.doesNotMatch(source, /if \(table\.id\) \{\s*btn\.setAttribute\('onclick'/,
   'ninguna grilla debe depender de tener id para abrir el editor');
 assert.match(source, /function suggestedPixelWidths\(table, headers\)/,
@@ -21,6 +21,14 @@ assert.match(source, /var flexibleTarget = Math\.max\(MIN_WIDTH \* flexible\.len
   'la sugerencia en píxeles debe descontar columnas fijas y respetar mínimos');
 assert.match(source, /suggestedWidths = suggestedPixelWidths\(table, headers\);[\s\S]*?input\.value = suggestedWidths\[index\]/,
   'Restablecer anchos debe aplicar la propuesta que ocupa el ancho disponible');
+
+const suggestedStart = source.lastIndexOf("if (ev.target.closest('[data-sv-default]'))");
+const suggestedEnd = source.indexOf('\n      if (ev.target.closest', suggestedStart + 1);
+const suggestedHandler = source.slice(suggestedStart, suggestedEnd);
+assert.match(suggestedHandler, /input\.value = defs\[input\.dataset\.colIndex\]/,
+  'Usar base sugerida debe modificar los tamaños');
+assert.doesNotMatch(suggestedHandler, /defaultAlignments|select\.value|data-align-index/,
+  'Usar base sugerida no debe modificar la alineación elegida');
 
 const start = source.indexOf('function normalizeSuggestedPercentages');
 const end = source.indexOf('\n  function defaultPercentages', start);

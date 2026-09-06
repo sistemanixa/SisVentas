@@ -8,7 +8,7 @@ function exigir(origen, fragmento, mensaje) {
   if (!origen.includes(fragmento)) throw new Error(mensaje);
 }
 
-exigir(resize, "Array.from(card.querySelectorAll('table')).find", 'El botón de columnas no busca la tabla dinámica visible');
+exigir(resize, "Array.from(searchRoot.querySelectorAll('table')).find", 'El botón de columnas no busca la tabla dinámica visible');
 exigir(resize, 'function isTableVisible', 'Falta detectar qué tabla dinámica está visible');
 exigir(resize, 'visibleTable || btn._svFallbackTable || table', 'Falta respaldo seguro al cambiar una tabla dinámica');
 exigir(resize, 'function ensureActionsColumnPolicy', 'Acciones no posee una política común de ancho');

@@ -305,7 +305,7 @@
     copiarTexto(JSON.stringify(plan,null,2), 'Plan copiado ('+plan.totalCambios+' cambios)');
   };
   window.svArchivarAvisosHistoricosRelaciones = async function(){
-    if(String(window.currentRole || '').toLowerCase() !== 'admin') { if(typeof notify==='function') notify('Solo el administrador puede archivar avisos'); return false; }
+    if(!window.tienePermiso('mantenimiento.normalizar')) { if(typeof notify==='function') notify('Solo el administrador puede archivar avisos'); return false; }
     if(!window.fbDB || !window.fbUpdate || !window.fbRef) { if(typeof notify==='function') notify('Sin conexion Firebase'); return false; }
     var res = window._svUltimaAuditoriaRelaciones || window.svAuditarRelaciones();
     var plan = window.svGenerarPlanNormalizacionRelaciones();
@@ -411,7 +411,7 @@
     if(typeof notify==='function') notify('Plan descargado: '+plan.totalCambios+' cambio(s)');
   };
   window.svAplicarPlanNormalizacionRelaciones = async function(){
-    if(String(window.currentRole || '').toLowerCase() !== 'admin') { if(typeof notify==='function') notify('Solo el administrador puede aplicar el plan'); return false; }
+    if(!window.tienePermiso('mantenimiento.normalizar')) { if(typeof notify==='function') notify('Solo el administrador puede aplicar el plan'); return false; }
     if(!window.fbDB || typeof window.fbUpdate !== 'function' || typeof window.fbRef !== 'function') { if(typeof notify==='function') notify('Sin conexion Firebase'); return false; }
     var auditoria = window.svAuditarRelaciones();
     if((auditoria.porSeveridad.critico || 0) > 0) {

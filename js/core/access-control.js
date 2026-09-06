@@ -22,7 +22,7 @@
   function canAccess(moduleId, permissions, defaults) {
     if (!moduleId) return false;
     var role = current();
-    if (role === 'admin') return true;
+
     permissions = permissions || global.PERMISOS_ROLES;
     defaults = defaults || global.PERMISOS_DEFAULT;
     var config = (permissions && permissions[role]) ||
@@ -30,31 +30,10 @@
     return (config.bloqueados || []).indexOf(moduleId) === -1;
   }
 
-  var technicianDenied = Object.freeze({
-    gastos: true,
-    caja: true,
-    tesoreria: true,
-    rentabilidad: true,
-    proveedores: true,
-    ordenes: true,
-    creditofiscal: true,
-    usuarios: true,
-    configuracion: true,
-    detalle: true,
-    cobranzas: true,
-    cuentacorriente: true,
-    reportes: true,
-    estadisticas: true,
-    presupuesto: true,
-    venta: true
-  });
 
   function resolvePage(page) {
     if (!canAccess(page)) {
       return { page: 'dashboard', redirected: true };
-    }
-    if (current() === 'tecnico' && technicianDenied[page]) {
-      return { page: 'ctaemp', redirected: true };
     }
     return { page: page, redirected: false };
   }

@@ -1,6 +1,6 @@
-/* SisVentas NIXA - Service Worker v3.2.1
+/* SisVentas NIXA - Service Worker v3.4.0
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.2.1';
+const CACHE = 'sisventas-v3.4.0';
 const PUSH_PREVIEW = new URL(self.location.href).searchParams.get('push_preview') === '1';
 let messaging = null;
 
@@ -24,9 +24,13 @@ const SHELL = [
   './css/app.css',
   './css/v3-preview.css',
   './js/app.js',
-  './js/app.v3.2.1.js',
+  './js/app.v3.4.0.js',
+  './js/modules/product-url-import.js',
+  './js/modules/keyboard-actions.js',
+  './js/modules/provider-verification.js',
+  './js/modules/paraguay-config.js',
   './js/core/version.js',
-  './js/core/version.v3.2.1.js',
+  './js/core/version.v3.4.0.js',
   './js/core/login.js',
   './js/core/access-control.js',
   './js/core/firebase.js',
@@ -63,6 +67,7 @@ const SHELL = [
   './js/modules/maintenance.js',
   './js/modules/refactor-health.js',
   './js/modules/resizable-tables.js',
+  './js/modules/grid-default-order.js',
   './js/modules/dolar-historico.js',
   './js/modules/ops-hardening.js',
   './js/modules/v2-readiness.js',
@@ -70,7 +75,7 @@ const SHELL = [
   './js/modules/page-transition.js',
   './js/modules/resource-monitor.js',
   './js/modules/role-guard.js',
-  './js/modules/purchase-orders.js',
+  './js/modules/purchase-orders.js?v=3.3.12-proveedor-final-1',
   './js/modules/ot-material-custody.js',
   './js/modules/release-tour.js',
   './js/modules/v3-launch.js',

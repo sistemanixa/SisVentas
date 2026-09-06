@@ -21,6 +21,7 @@
     var workingDays = Math.max(1, Math.floor(number(input.workingDays, 22)));
     var contributionMarginRate = Math.max(0, Math.min(1, number(input.contributionMarginRate)));
     var currentContribution = Math.max(0, number(input.currentContribution));
+    var dataReady = input.dataReady !== false;
     var elapsedFraction = Math.max(0.01, Math.min(1, number(input.elapsedFraction, 1)));
     var requiredContribution = fixedCosts + targetProfit;
     var contributionPerVisit = Math.max(0, visitPrice - visitVariableCost);
@@ -62,6 +63,11 @@
       projectedContribution: projectedContribution,
       projectedResult: projectedContribution - fixedCosts,
       projectedCoverageRate: requiredContribution > 0 ? projectedContribution / requiredContribution : 0,
+      healthStatus: !dataReady || requiredContribution <= 0
+        ? 'unavailable'
+        : (projectedContribution >= requiredContribution
+          ? 'healthy'
+          : (projectedContribution >= fixedCosts ? 'attention' : 'critical')),
       scenarios: {
         conservative: scenario(scenarioVisits.conservative),
         probable: scenario(scenarioVisits.probable),
@@ -212,7 +218,10 @@
         workingDays: config.workingDays,
         contributionMarginRate: (marginMode === 'auto' ? autoMargin : config.marginPct) / 100,
         currentContribution: currentContribution,
-        elapsedFraction: context ? context.elapsedFraction : 1
+        elapsedFraction: context ? context.elapsedFraction : 1,
+        dataReady: !!(context && context.summary && (
+          context.summary.ventas.length || context.summary.gastos.length
+        ))
       }
     };
   }
@@ -285,12 +294,19 @@
     var healthDetail = document.getElementById('be-health-detail');
     if (health && healthTitle && healthDetail) {
       var projectedShortfall = Math.max(0, result.requiredContribution - result.projectedContribution);
-      if (result.projectedCoverageRate >= 1) {
+      if (result.healthStatus === 'unavailable') {
+        healthTitle.textContent = 'Todavía no hay datos suficientes para evaluar el mes';
+        healthDetail.textContent = result.requiredContribution <= 0
+          ? 'Configurá los gastos mensuales o una meta de ganancia para obtener un diagnóstico confiable.'
+          : 'Cuando se registren ventas o gastos del período, el sistema mostrará la proyección y el nivel de cobertura.';
+        healthTitle.style.color = 'var(--text2)';
+        health.style.borderColor = 'var(--border2)';
+      } else if (result.healthStatus === 'healthy') {
         healthTitle.textContent = 'El negocio va bien al ritmo actual';
         healthDetail.textContent = 'La proyección cubre los gastos y la meta configurada. Resultado estimado: ' + (result.projectedResult < 0 ? '-' : '') + money(Math.abs(result.projectedResult)) + '.';
         healthTitle.style.color = 'var(--green)';
         health.style.borderColor = 'rgba(34,197,94,.35)';
-      } else if (result.projectedContribution >= result.fixedCosts) {
+      } else if (result.healthStatus === 'attention') {
         healthTitle.textContent = 'Los gastos se cubrirían, pero falta alcanzar la meta';
         healthDetail.textContent = 'Al ritmo actual la estructura queda cubierta. Faltan ' + money(projectedShortfall) + ' de contribución para la ganancia objetivo.';
         healthTitle.style.color = 'var(--blue)';

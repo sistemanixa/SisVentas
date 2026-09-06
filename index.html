@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.2.1-firebase' -->
+<!-- VERSION: 'v3.4.0-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.2.1.js"></script>
+<script src="./js/core/version.v3.4.0.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -33,9 +33,9 @@
 
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
-<script src="./js/core/access-control.js?v=2.0.325"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.2.1-menu-1">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.2.1">
+<script src="./js/core/access-control.js?v=3.3.17"></script>
+<link rel="stylesheet" href="./css/app.css?v=3.3.17">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -137,8 +137,11 @@
       </div>
 
       <div class="s-section no-tecnico">Comercial</div>
-      <div class="nav-item" onclick="showPage('asistente',this)" style="background:var(--green-bg);color:var(--green);border-radius:var(--radius);margin:0 4px;font-weight:600">
+      <div class="nav-item" onclick="showPage('asistente',this)" style="background:var(--green-bg);color:var(--green);border-radius:var(--radius);margin:0 4px 9px;font-weight:600">
         <i class="ti ti-wand"></i> Asistente de ventas
+      </div>
+      <div class="nav-item" onclick="showPage('catalogo',this)">
+        <i class="ti ti-layout-grid"></i>Catálogo
       </div>
       <div class="nav-item" onclick="showPage('presupuesto',this)">
         <i class="ti ti-file-description"></i>Presupuestos
@@ -161,7 +164,6 @@
       <div class="nav-item" onclick="showPage('estadisticas',this)">
         <i class="ti ti-chart-line"></i>Estadísticas
       </div>
-
       <div class="s-section">Maestros</div>
       <div class="nav-item" onclick="showPage('clientes',this)">
         <i class="ti ti-users"></i>Clientes
@@ -754,6 +756,7 @@
         <button class="btn btn-sm" id="vtab-hoy" onclick="tabVentas('hoy',this)">Hoy</button>
         <button class="btn btn-sm" id="vtab-mes" onclick="tabVentas('mes',this)">Este mes</button>
         <button class="btn btn-sm" id="vtab-facturadas" onclick="tabVentas('facturadas',this)">Facturadas</button>
+        <button class="btn btn-sm" id="vtab-anuladas" onclick="tabVentas('anuladas',this)" style="color:var(--text3)">Anuladas</button>
       </div>
 
       <!-- Banner: avisa cuando hay un filtro activo que puede estar ocultando ventas nuevas -->
@@ -763,7 +766,7 @@
       </div>
 
       <div class="table-wrap">
-        <table id="ventas-tbl" data-sv-pixel-only="1" data-sv-column-key="ventas-tbl-pixel-v3">
+        <table id="ventas-tbl" data-sv-column-key="ventas-tbl-general-v1">
           <thead>
             <tr>
               <th data-sort="id" onclick="sortTabla('ventas-tbl','id','str')"># <i class="sort-icon ti ti-chevrons-up-down"></i></th>
@@ -845,7 +848,7 @@
         <table id="ppto-tabla">
           <thead>
             <tr>
-              <th>#</th><th>Cliente</th><th>Total</th><th>Vence</th><th>Estado</th><th>Acciones</th>
+              <th>#</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Descuento</th><th>Vence</th><th>Estado</th><th>Creado por</th><th>Acciones</th>
             </tr>
           </thead>
           <tbody id="ppto-tbody-main">
@@ -872,7 +875,7 @@
         <div style="font-size:12px;color:var(--text3)" id="ppto-det-meta"></div>
       </div>
       <div class="form-grid">
-        <div class="fg"><label>Cliente</label><input id="ppto-det-cliente" class="sv-document-client-input" readonly role="link" tabindex="0" title="Abrir ficha del cliente" aria-label="Abrir ficha del cliente" onclick="abrirClienteDesdeDocumento('presupuesto',pptoActualId)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"></div>
+        <div class="fg"><label>Cliente</label><input id="ppto-det-cliente" class="sv-document-client-input" readonly role="link" tabindex="0" title="Abrir ficha del cliente" aria-label="Abrir ficha del cliente" onclick="abrirClienteDesdeDocumento('presupuesto',pptoActualId)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><div id="ppto-det-direccion" style="font-size:12px;color:var(--text3);margin-top:6px;min-height:16px"></div></div>
         <div class="fg"><label>Empleado</label><input id="ppto-det-empleado" readonly></div>
         <div class="fg"><label>Fecha</label><input id="ppto-det-fecha" readonly></div>
         <div class="fg"><label>Vence</label><input id="ppto-det-vence" readonly style="color:var(--amber)"></div>
@@ -1330,7 +1333,7 @@
             </div>
             <div id="ot-productos-adicionales-box" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
               <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px"><i class="ti ti-package-plus"></i> Productos adicionales</div>
-              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Agregados durante la visita. Forman parte de esta OT y del acta, sin generar una venta.</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Agregados durante la visita. Se incorporan a la venta al resolver el reclamo.</div>
               <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th></tr></thead><tbody id="ot-materiales-adicionales"></tbody></table></div>
             </div>
           </div>
@@ -1467,7 +1470,7 @@
             </div>
             <div class="flex-end" style="margin-top:12px">
               <button class="btn btn-sm" onclick="imprimirActaOT()"><i class="ti ti-file-text"></i> Imprimir acta</button>
-              <button class="btn btn-sm btn-primary" id="btn-completar-ot" onclick="completarOT()"><i class="ti ti-check"></i> Marcar como completada</button>
+              <button class="btn btn-sm" onclick="garantiaPrepararOT()">Equipos y garantías</button><button class="btn btn-sm btn-primary" id="btn-completar-ot" onclick="completarOT()"><i class="ti ti-check"></i> Marcar como completada</button>
             </div>
           </div>
 
@@ -1748,6 +1751,7 @@
         <!-- TABS -->
         <div id="cfg-tabs-main" class="cfg-tabs-main">
           <button class="cfg-tab active" onclick="showCfgTab('general',this)">General</button>
+          <button class="cfg-tab admin-only" onclick="showCfgTab('paraguay',this)">Compras en Paraguay</button>
           <button class="cfg-tab admin-o-administrativo" data-cfg-tab="dolar" onclick="showCfgDolarTab(this)">Dólar</button>
           <button class="cfg-tab" onclick="showCfgTab('cargos',this)">Cargos</button>
           <button class="cfg-tab" onclick="showCfgTab('comisiones',this)">Comisiones</button>
@@ -1768,6 +1772,20 @@
         </div>
 
         <!-- TAB: GENERAL -->
+        <div id="cfg-paraguay" class="cfg-panel" style="display:none">
+          <div class="card" style="padding:24px;max-width:760px">
+            <h3>Compras en Paraguay</h3>
+            <p style="color:var(--text2)">Convertí precios de proveedores en dólares o guaraníes a pesos argentinos. Se conserva el importe original y la cotización utilizada.</p>
+            <label style="display:block;margin:20px 0"><input type="checkbox" id="py-habilitado"> Habilitar conversión de compras en Paraguay</label>
+            <p id="py-dolar">Se utiliza el dólar de referencia configurado en SisVentas.</p>
+            <p id="py-guarani" role="status">Consultando cotización del guaraní…</p>
+            <button id="py-actualizar" class="btn" onclick="actualizarGuaraniParaguay()">Actualizar guaraní desde la web</button>
+            <p style="color:var(--text2)">Referencia diaria del Banco Central del Paraguay, consultada mediante Frankfurter. Se consulta automáticamente al usar precios en guaraníes y se conserva hasta 24 horas.</p>
+            <p style="color:var(--text2)">USD × ARS/USD = costo en pesos. Para guaraníes: PYG ÷ PYG/USD × ARS/USD. Los gastos de traslado no están incluidos.</p>
+            <p id="py-estado" role="status">Cargando configuración…</p>
+            <button id="py-guardar" class="btn btn-primary" onclick="guardarConversionParaguay()">Guardar conversión</button>
+          </div>
+        </div>
         <div id="cfg-general" class="cfg-panel">
           <div class="card">
             <div class="card-head"><span class="card-title">Identidad visual de la empresa</span></div>
@@ -2081,7 +2099,7 @@
         <!-- TAB: COMISIONES -->
         <div id="cfg-comisiones" class="cfg-panel" style="display:none">
           <div class="card">
-            <div class="card-head"><span class="card-title">Reglas de comisiones por cargo</span></div>
+            <div class="card-head"><span class="card-title">Configuración central de comisiones</span></div>
             <div style="margin-bottom:14px;padding:10px 14px;background:var(--amber-bg);border-radius:var(--radius);font-size:12px;color:var(--amber)">
               <i class="ti ti-alert-triangle" style="font-size:14px;margin-right:6px"></i>
               Los cambios en comisiones aplican desde el próximo período. Los períodos anteriores no se modifican.
@@ -2099,12 +2117,24 @@
                 <button class="btn btn-sm btn-primary" onclick="guardarMaxComisionPct()"><i class="ti ti-check"></i></button>
               </div>
             </div>
-            <table id="cfg-comisiones-tbl">
-              <tbody id="cfg-comisiones-tbody">
-                <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Cargando cargos...</td></tr>
-              </tbody>
-            </table>
-            <div style="font-size:11px;color:var(--text3);margin-top:8px">El mínimo y el tope son montos en pesos. Dejá <strong>Tope máximo</strong> vacío para indicar “Sin tope”. Usá el ✓ de cada fila para guardar los cambios.</div>
+            <div style="overflow-x:auto">
+              <table id="cfg-comisiones-tbl">
+                <tbody id="cfg-comisiones-tbody">
+                  <tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">Cargando cargos...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">El porcentaje general se aplica a todos los empleados del cargo que no tengan una excepción individual.</div>
+            <div style="height:1px;background:var(--border);margin:20px 0"></div>
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Excepciones por empleado</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Estos valores reemplazan la regla del cargo solamente para la persona indicada. Dejá el campo vacío para volver a usar el porcentaje general.</div>
+            <div style="overflow-x:auto">
+              <table id="cfg-comisiones-empleados-tbl">
+                <tbody id="cfg-comisiones-empleados-tbody">
+                  <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando empleados...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -2261,31 +2291,7 @@
             </div>
           </div>
 
-          <!-- Editor de widgets de dashboard por rol -->
-          <div class="card" style="margin-top:12px">
-            <div class="card-head">
-              <span class="card-title">Dashboard por rol</span>
-              <button class="btn btn-sm btn-primary" onclick="guardarDashWidgets()"><i class="ti ti-check"></i> Guardar</button>
-            </div>
-            <div style="font-size:13px;color:var(--text3);margin-bottom:16px">
-              <i class="ti ti-info-circle"></i> Configurá qué widgets ve cada rol en el Dashboard de inicio.
-            </div>
-            <div style="overflow-x:auto">
-              <table style="width:100%;border-collapse:collapse;font-size:13px">
-                <thead>
-                  <tr style="border-bottom:1px solid var(--border)">
-                    <th style="text-align:left;padding:8px 12px;color:var(--text2);font-weight:600">Widget</th>
-                    <th style="text-align:center;padding:8px 16px;color:var(--blue)"><i class="ti ti-shield-check"></i> Admin</th>
-                    <th style="text-align:center;padding:8px 16px;color:var(--green)"><i class="ti ti-user"></i> Administrativo</th>
-                    <th style="text-align:center;padding:8px 16px;color:var(--blue)"><i class="ti ti-briefcase"></i> Vendedor</th>
-                    <th style="text-align:center;padding:8px 16px;color:var(--violet)"><i class="ti ti-tool"></i> Técnico-vendedor</th>
-                    <th style="text-align:center;padding:8px 16px;color:var(--amber)"><i class="ti ti-tool"></i> Técnico</th>
-                  </tr>
-                </thead>
-                <tbody id="cfg-dash-widgets-tbody"></tbody>
-              </table>
-            </div>
-          </div>
+
         </div>
 
         <!-- TAB: FACTURACIÓN -->
@@ -2754,10 +2760,18 @@ Listo para analizar.
         <div class="metrics" style="grid-template-columns:repeat(4,1fr)">
           <div class="metric"><div class="m-label">Hoy</div><div class="m-value" id="ag-hoy">0</div><div class="m-sub">eventos</div></div>
           <div class="metric"><div class="m-label">Esta semana</div><div class="m-value" id="ag-semana">0</div><div class="m-sub">eventos</div></div>
-          <div class="metric"><div class="m-label">Instalaciones</div><div class="m-value" id="ag-inst" style="color:var(--green)">0</div><div class="m-sub">programadas</div></div>
-          <div class="metric"><div class="m-label">Reclamos</div><div class="m-value" id="ag-recl" style="color:var(--blue)">0</div><div class="m-sub">con visita</div></div>
+          <div class="metric"><div class="m-label">Sin coordinar</div><div class="m-value" id="ag-inst" style="color:var(--green)">0</div><div class="m-sub">OT sin fecha, hora o técnico</div></div>
+          <div class="metric"><div class="m-label">Visitas vencidas</div><div class="m-value" id="ag-recl" style="color:var(--blue)">0</div><div class="m-sub">OT pendientes</div></div>
         </div>
 
+        <div class="card" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:14px">
+          <input id="ag-buscar" placeholder="Buscar cliente, técnico o número de OT…" oninput="agFiltrar()" style="flex:2;min-width:220px;padding:12px">
+          <input id="ag-tecnico" placeholder="Filtrar técnico…" oninput="agFiltrar()" style="flex:1;min-width:150px;padding:12px">
+          <select id="ag-tipo" onchange="agFiltrar()"><option value="">Todos los tipos</option><option value="instalacion">Instalaciones</option><option value="reclamo">Reclamos</option><option value="interno">Internos</option><option value="completada">Completadas</option></select>
+          <select id="ag-estado" onchange="agFiltrar()"><option value="">Todos los estados</option><option value="pendiente">Pendientes</option><option value="completada">Completadas</option></select>
+          <label style="display:flex;align-items:center;gap:6px"><input id="ag-mios" type="checkbox" onchange="agFiltrar()">Solo mis tareas</label>
+        </div>
+        <div id="ag-pendientes"></div>
         <div class="card" id="agenda-calendar-card">
           <!-- Cabecera del calendario -->
           <div class="card-head agenda-toolbar" style="flex-wrap:wrap;gap:8px">
@@ -3823,8 +3837,56 @@ Listo para analizar.
         </div>
       </div>
 
+      <!-- ── CATÁLOGO PARA CLIENTES ── -->
+      <div id="page-catalogo" class="page">
+        <section class="catalogo-hero">
+          <div>
+            <div class="catalogo-kicker">NIXA · PRODUCTOS DISPONIBLES</div>
+            <h2>Encontrá la solución ideal</h2>
+            <p>Explorá nuestros productos por categoría. Consultanos para recibir asesoramiento personalizado.</p>
+          </div>
+          <button class="btn catalogo-fullscreen-btn" type="button" onclick="togglePantallaCompletaCatalogo()"><i class="ti ti-maximize"></i> Presentación</button>
+        </section>
+        <div class="catalogo-toolbar">
+          <label class="catalogo-search"><i class="ti ti-search"></i><input id="catalogo-buscar" type="search" placeholder="Buscar código, nombre, marca o proveedor..." oninput="renderCatalogo()" autocomplete="off"></label>
+          <select id="catalogo-search-field" class="search-input" aria-label="Campos de búsqueda del catálogo" onchange="renderCatalogo()"><option value="principales">Búsqueda general</option><option value="descripcion">Descripción</option><option value="todo">Todos los campos</option></select>
+          <button class="btn catalogo-categorias-btn" type="button" onclick="abrirCategoriasCatalogo()"><i class="ti ti-category"></i><span id="catalogo-categoria-boton">Explorar categorías</span><i class="ti ti-chevron-down"></i></button>
+          <div id="catalogo-categorias-rapidas" class="catalogo-categorias" aria-label="Categorías rápidas"></div>
+        </div>
+        <div class="catalogo-resumen"><span id="catalogo-cantidad">0 productos</span><span>Seleccioná un producto para verlo en detalle</span></div>
+        <div id="catalogo-grid" class="catalogo-grid"></div>
+        <div id="catalogo-vacio" class="catalogo-vacio" style="display:none"><i class="ti ti-package-off"></i><strong>No encontramos productos</strong><span>Probá con otra búsqueda o categoría.</span></div>
+
+      <div id="catalogo-modal" class="catalogo-modal" style="display:none" onclick="if(event.target===this)cerrarProductoCatalogo()">
+        <button id="catalogo-anterior" class="catalogo-modal-nav catalogo-modal-prev" type="button" onclick="event.stopPropagation();moverProductoCatalogo(-1)" aria-label="Producto anterior" title="Producto anterior (flecha izquierda)"><i class="ti ti-chevron-left"></i></button>
+        <article class="catalogo-modal-card" role="dialog" aria-modal="true" aria-labelledby="catalogo-modal-nombre">
+          <button class="catalogo-modal-close" type="button" onclick="cerrarProductoCatalogo()" aria-label="Cerrar"><i class="ti ti-x"></i></button>
+          <div id="catalogo-modal-imagen" class="catalogo-modal-imagen"></div>
+          <div class="catalogo-modal-info">
+            <div id="catalogo-modal-posicion" class="catalogo-modal-posicion"></div>
+            <button id="catalogo-modal-categoria" class="catalogo-card-cat catalogo-modal-categoria-link" type="button" onclick="verCategoriaDesdeDetalleCatalogo()" title="Ver todos los productos de esta categoría"></button>
+            <h2 id="catalogo-modal-nombre"></h2>
+            <div id="catalogo-modal-marca" class="catalogo-modal-marca"></div>
+            <p id="catalogo-modal-descripcion"></p>
+            <span class="catalogo-disponible"><i class="ti ti-circle-check-filled"></i> Disponible para consultar</span>
+            <button class="catalogo-ficha-interna" type="button" onclick="abrirFichaInternaDesdeCatalogo()"><i class="ti ti-external-link"></i> Ver ficha interna con valores</button>
+          </div>
+        </article>
+        <button id="catalogo-siguiente" class="catalogo-modal-nav catalogo-modal-next" type="button" onclick="event.stopPropagation();moverProductoCatalogo(1)" aria-label="Producto siguiente" title="Producto siguiente (flecha derecha)"><i class="ti ti-chevron-right"></i></button>
+      </div>
+
+      <div id="catalogo-categorias-modal" class="catalogo-categorias-modal" style="display:none" onclick="if(event.target===this)cerrarCategoriasCatalogo()">
+        <section class="catalogo-categorias-panel" role="dialog" aria-modal="true" aria-labelledby="catalogo-categorias-titulo">
+          <header><div><span>CATÁLOGO NIXA</span><h2 id="catalogo-categorias-titulo">Explorar categorías</h2><p>Elegí una categoría para ver sus productos.</p></div><button type="button" onclick="cerrarCategoriasCatalogo()" aria-label="Cerrar"><i class="ti ti-x"></i></button></header>
+          <div id="catalogo-categorias" class="catalogo-categorias-lista" aria-label="Categorías"></div>
+        </section>
+      </div>
+      </div>
+
       <!-- ── PRODUCTOS ── -->
       <div id="page-productos" class="page">
+        <!-- LISTA: los indicadores pertenecen únicamente al listado -->
+        <div id="prod-list-view">
         <div class="metrics" style="margin-bottom:12px">
           <div class="metric"><div class="m-label" id="stat-prod-total-label">Total productos</div><div class="m-value" id="stat-prod-total">—</div><div class="m-sub" id="stat-prod-total-sub">en catálogo</div></div>
           <div class="metric"><div class="m-label" id="stat-prod-stock-label">Sobrantes reales</div><div class="m-value" id="stat-prod-stock" style="color:var(--green)">—</div><div class="m-sub" id="stat-prod-stock-sub">material disponible en depósito</div></div>
@@ -3832,8 +3894,6 @@ Listo para analizar.
           <div class="metric"><div class="m-label" id="stat-prod-top-label">Más vendido</div><div class="m-value" id="stat-prod-top" style="font-size:11px;line-height:1.3">—</div><div class="m-sub" id="stat-prod-top-sub">del mes</div></div>
         </div>
 
-        <!-- LISTA -->
-        <div id="prod-list-view">
           <div class="card">
             <div class="card-head">
               <span class="card-title">Productos</span>
@@ -3857,7 +3917,8 @@ Listo para analizar.
                 <span id="prod-search-status" aria-live="polite" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text3);pointer-events:none;white-space:nowrap"></span>
               </div>
               <select class="search-input" id="prod-search-field" style="width:190px;flex:0 0 190px" onchange="buscarProducto((document.getElementById('prod-search')||{}).value||'')">
-                <option value="todo">Buscar en todo</option>
+                <option value="principales">Búsqueda general</option>
+                <option value="todo">Todos los campos</option>
                 <option value="nombre">Nombre</option>
                 <option value="marca">Marca</option>
                 <option value="codigo">Código</option>
@@ -3896,40 +3957,97 @@ Listo para analizar.
           </div>
         </div>
 
-        <!-- FORMULARIO NUEVO/EDITAR -->
+        <style>
+.content:has(#page-productos.active #prod-form-view[style*="display: block"]){padding-top:0!important}
+.pf-editor-header>div:first-child .btn,.pf-editor-header #pf-anterior,.pf-editor-header #pf-siguiente{background:transparent;border-color:transparent;box-shadow:none;padding-left:0;padding-right:0;color:var(--text2)}
+.pf-editor-header #prod-form-title{font-size:22px!important;line-height:1.2}
+.pf-editor-subtitle{font-size:12px;color:var(--text3);margin-top:5px;line-height:1.4}
+.pf-editor-header{position:sticky;top:0;z-index:15;background:var(--bg);padding:8px 0;gap:12px;border-bottom:1px solid var(--border)}
+#prod-form-title{flex:1;font-size:17px!important;font-weight:700!important}
+.pf-identidad-layout{display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,3fr);gap:16px;align-items:stretch}
+.pf-identidad-layout{margin-bottom:16px}
+.pf-identidad-layout>.card{min-width:0;margin-bottom:0!important}
+.pf-identidad-layout>.card:last-child{order:-1;display:flex;flex-direction:column}
+.pf-identidad-layout>.card:last-child>div:last-child{flex-direction:column;flex:1;flex-wrap:nowrap!important}
+.pf-identidad-layout #pf-imagen-preview-box{width:100%!important;height:auto!important;min-height:210px;flex:1!important;position:relative}
+.pf-identidad-layout #pf-imagen-preview-img{position:absolute;inset:0}
+.pf-identidad-layout>.card:last-child>div:last-child>div:last-child{min-width:0!important;width:100%;flex:0 0 auto!important}
+.pf-identidad-card .form-grid{gap:16px}
+#pf-nombre{font-weight:600;font-size:15px}
+#pf-importar-panel>div:first-of-type{gap:8px}
+#pf-importar-boton{background:var(--blue);color:white;border-color:var(--blue)}
+.pf-providers-help summary{cursor:pointer;color:var(--text2);margin-bottom:6px}
+.pf-precios-resumen{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+.pf-precios-resumen .fg:has(#pf-venta-iva){background:var(--blue-bg);padding:14px;border:1px solid var(--blue);border-radius:10px;grid-column:span 2}
+#pf-venta-iva{font-size:24px!important;font-weight:750!important;color:var(--text);background:transparent;border:0}
+#prod-form-view .product-currency-box{padding:10px 12px;border-radius:10px;box-shadow:none}
+@media(max-width:900px){.pf-identidad-layout{grid-template-columns:1fr}.pf-precios-resumen{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-editor-header{flex-wrap:wrap}}
+@media(max-width:520px){.pf-precios-resumen{grid-template-columns:1fr}.pf-precios-resumen .fg:has(#pf-venta-iva){grid-column:auto}#prod-form-title{font-size:14px!important}}
+</style>
+<!-- FORMULARIO NUEVO/EDITAR -->
         <div id="prod-form-view" style="display:none">
-          <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
-            <button class="btn btn-sm" onclick="cerrarFormProducto()"><i class="ti ti-arrow-left"></i> Volver</button>
-            <span id="prod-form-title" style="font-size:13px;font-weight:500;color:var(--text)">Nuevo producto</span>
-            <div ></div>
+          <div class="pf-editor-header" style="margin-bottom:14px;display:flex;flex-direction:column;align-items:stretch;gap:8px">
+            <div><button class="btn btn-sm" onclick="cerrarFormProducto()">← Volver al listado</button></div>
+            <div><div id="prod-form-title" style="font-size:17px;font-weight:700;color:var(--text);text-align:left">Nuevo producto</div><div id="pf-editor-subtitle" class="pf-editor-subtitle"></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <button type="button" class="btn btn-sm" id="pf-anterior" onclick="navegarEditorProducto(-1)" aria-label="Producto anterior" title="Producto anterior"><i class="ti ti-chevron-left"></i> Producto anterior</button>
+              <button type="button" class="btn btn-sm" id="pf-siguiente" onclick="navegarEditorProducto(1)" aria-label="Producto siguiente" title="Producto siguiente">Producto siguiente <i class="ti ti-chevron-right"></i></button>
+            </div>
           </div>
-          <div class="card">
+          <div class="pf-identidad-layout"><div class="card pf-identidad-card">
             <div class="card-head"><span class="card-title">Identificación</span></div>
             <div class="form-grid">
-              <div class="fg"><label>Código</label><input type="text" id="pf-codigo" placeholder="P-001"></div>
+              <div class="fg full">
+                <label for="pf-cod-web">URL exacta del producto en el proveedor</label>
+                <div class="pf-url-acciones">
+                  <input type="url" id="pf-cod-web" placeholder="Pegá el enlace de la ficha del producto" onchange="sugerirProveedorFicha()">
+                  <button type="button" class="btn" onclick="abrirUrlExactaProducto()" title="Abrir la URL escrita en otra pestaña para comprobar el producto"><i class="ti ti-external-link"></i> Abrir URL</button>
+                </div>
+                <style>
+                  .pf-url-acciones { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+                  .pf-url-acciones #pf-cod-web { flex:1 1 240px; min-width:0; }
+                  label[for="pf-cod-web"] { color:var(--blue); font-weight:700; }
+                  #pf-cod-web { background:var(--blue-bg); border:2px solid var(--blue); color:var(--text); min-height:46px; padding:12px; border-radius:8px; }
+                  #pf-cod-web::placeholder { color:var(--blue); opacity:1; }
+                  #pf-cod-web:focus { outline:3px solid var(--blue-bg); outline-offset:2px; border-color:var(--blue); }
+                  #pf-importar-boton:disabled { opacity:1; cursor:wait; display:inline-flex; align-items:center; gap:9px; }
+                  #pf-importar-boton:disabled::before { content:""; width:16px; height:16px; flex-shrink:0; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:ficha-consultando .8s linear infinite; }
+                  #pf-importar-panel:has(#pf-importar-boton:disabled) #pf-importar-estado { padding:12px; margin-top:8px; border:1px solid currentColor; border-radius:8px; font-weight:600; }
+                  @keyframes ficha-consultando { to { transform:rotate(360deg); } }
+                  @media (prefers-reduced-motion:reduce) { #pf-importar-boton:disabled::before { animation:none; } }
+                </style>
+                <div id="pf-importar-panel" style="margin-top:10px">
+                  <label for="pf-importar-proveedor">Proveedor</label>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <select id="pf-importar-proveedor" style="flex:1;min-width:180px" aria-label="Proveedor de la ficha"><option value="">Seleccioná el proveedor</option></select>
+                    <button type="button" class="btn" id="pf-importar-boton" onclick="completarProductoDesdeUrl()">Completar desde URL</button>
+                  </div>
+                  <p style="font-size:12px;color:var(--text3);margin:8px 0">Trae la ficha y el precio. Revisá los datos antes de guardar.</p>
+                  <div id="pf-importar-estado" role="status" aria-live="polite" style="font-size:12px;overflow-wrap:anywhere"></div>
+                </div>
+              </div>
+              <div class="fg"><label>Código</label><input type="text" id="pf-codigo" value="AUTO" placeholder="AUTO" readonly><div style="font-size:11px;color:var(--text3);margin-top:4px">Código único del producto.</div></div>
               <div class="fg"><label>Categoría</label>
                 <select id="pf-categoria">
                   <option value="">Seleccionar...</option>
                 </select>
               </div>
-              <div class="fg"><label>Marca</label><input type="text" id="pf-marca" list="pf-marcas-list" placeholder="Ej: HIKVISION"><datalist id="pf-marcas-list"></datalist></div>
-              <div class="fg full"><label>Nombre corto</label><input type="text" id="pf-nombre" placeholder="Ej: Cámara Hikvision DS-2CD2T47G2"></div>
-              <div class="fg full"><label>Descripción larga <span style="color:var(--text3);font-weight:400">(opcional)</span></label><input type="text" id="pf-descripcion" placeholder="Descripción técnica completa..."></div>
-              <div class="fg full"><label>URL del producto en proveedor <span style="color:var(--text3);font-weight:400">(para scraping de precios)</span></label>
-                <input type="url" id="pf-cod-web" placeholder="https://biosegur.com.ar/producto/...">
-              </div>
+              <div class="fg"><label>Marca</label><input type="text" id="pf-marca" list="pf-marcas-list" placeholder="Ej: HIKVISION" oninput="this.value=this.value.toUpperCase()"><datalist id="pf-marcas-list"></datalist></div>
+              <div class="fg full"><label>Nombre del producto</label><input type="text" id="pf-nombre" placeholder="Ej: CÁMARA HIKVISION DS-2CD2T47G2" oninput="this.value=this.value.toUpperCase()"></div>
+              <div class="fg full"><label>Descripción larga <span style="color:var(--text3);font-weight:400">(opcional)</span></label><textarea id="pf-descripcion" rows="3" placeholder="Descripción técnica completa..."></textarea></div>
+
             </div>
           </div>
           <div class="card">
             <div class="card-head"><span class="card-title">Imagen del producto</span></div>
             <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
-              <div id="pf-imagen-preview-box" style="width:96px;height:96px;border-radius:var(--radius);background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;border:0.5px solid var(--border)">
-                <i class="ti ti-photo" style="font-size:28px;color:var(--text3)" id="pf-imagen-placeholder-icon"></i>
-                <img id="pf-imagen-preview-img" style="display:none;width:100%;height:100%;object-fit:cover">
+              <div id="pf-imagen-preview-box" style="width:clamp(160px,22vw,240px);height:clamp(160px,22vw,240px);border-radius:var(--radius);background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;border:0.5px solid var(--border)">
+                <i class="ti ti-photo" style="font-size:40px;color:var(--text3)" id="pf-imagen-placeholder-icon"></i>
+                <img id="pf-imagen-preview-img" style="display:none;width:100%;height:100%;object-fit:contain;background:#fff">
               </div>
               <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:8px">
                 <div>
-                  <button class="btn btn-sm" onclick="document.getElementById('pf-imagen-input').click()"><i class="ti ti-upload"></i> Subir foto desde el dispositivo</button>
+                  <button class="btn btn-sm" onclick="document.getElementById('pf-imagen-input').click()"><i class="ti ti-upload"></i> Cambiar imagen</button>
                   <input type="file" id="pf-imagen-input" accept="image/*" style="display:none" onchange="previewImagenProducto(this)">
                 </div>
                 <div class="fg" style="margin-bottom:0">
@@ -3943,20 +4061,20 @@ Listo para analizar.
               </div>
             </div>
           </div>
-          <div class="card pf-providers-card">
+          </div><div class="card pf-providers-card">
             <div class="card-head">
               <span class="card-title">Proveedores del producto</span>
               <div class="pf-providers-toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <span style="font-size:11px;color:var(--amber)"><i class="ti ti-device-floppy"></i> Se guardan al guardar el producto</span>
-                <button class="btn btn-sm" onclick="agregarFilaProveedor()"><i class="ti ti-plus"></i> Agregar proveedor</button>
-                <button class="btn btn-sm" onclick="cotizarPreciosProveedores()" style="color:var(--blue);border-color:var(--blue)" id="btn-cotizar-prov" title="Cotiza usando la URL del producto o la web configurada del proveedor">
+                <button class="btn btn-sm" data-permiso="productos.agregarProveedor" onclick="agregarFilaProveedor()"><i class="ti ti-plus"></i> Agregar proveedor</button>
+                <button class="btn btn-sm" onclick="cotizarPreciosProveedores()" style="color:var(--blue);border-color:var(--blue)" id="btn-cotizar-prov" title="Cotiza solamente la URL exacta del producto">
                   <i class="ti ti-refresh"></i> Cotizar online
                 </button>
               </div>
             </div>
-            <div class="pf-providers-help" style="font-size:12px;color:var(--text3);margin-bottom:10px">
-              <i class="ti ti-info-circle"></i> Cargá uno o más proveedores de este producto. La URL es obligatoria: si la fila no la tiene, se usa la URL general del producto. El sistema guarda el precio ARS publicado, el dólar usado y la referencia USD para mantener el costo actualizado.
-            </div>
+            <details class="pf-providers-help" style="font-size:12px;color:var(--text3);margin-bottom:10px">
+              <summary>Cómo se consultan los proveedores</summary> Cargá uno o más proveedores de este producto. La URL es obligatoria: si la fila no la tiene, se usa la URL general del producto. El sistema guarda el precio ARS publicado, el dólar usado y la referencia USD para mantener el costo actualizado.
+            </details>
             <table id="pf-proveedores-tbl" style="width:100%">
               <tr class="pf-provider-head"><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio ARS</th><th style="text-align:center;white-space:nowrap" title="Si el proveedor cotiza sin IVA, el sistema suma el 21% para calcular el costo real">Sin IVA <i class="ti ti-info-circle" style="font-size:11px;color:var(--text3)"></i></th><th style="text-align:right;color:var(--amber)">Costo / USD ref.</th><th>URL</th><th style="text-align:right">Actualizado</th><th></th></tr>
             </table>
@@ -4007,47 +4125,42 @@ Listo para analizar.
               </div>
               <select id="pf-moneda" style="display:none"><option value="ARS" selected>ARS</option><option value="USD">USD</option></select>
             </div>
-            <!-- Flujo guiado: precio gremio → margen → precio venta → USD -->
-            <div style="padding:10px 14px;background:rgba(59,130,246,.07);border-radius:var(--radius);margin-bottom:12px;border:0.5px solid rgba(59,130,246,.2)">
-              <div style="font-size:11px;font-weight:600;color:var(--blue);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Calculadora de precio</div>
-              <div class="form-grid cols3" style="margin-bottom:0">
-                <div class="fg">
-                  <label>Precio gremio / costo <span id="pf-gremio-moneda-lbl">ARS</span></label>
-                  <input data-money="1" id="pf-precio-gremio" placeholder="0" oninput="calcPrecioDesdeGremio()">
-                  <div id="pf-gremio-moneda-hint" style="font-size:11px;color:var(--text3);margin-top:4px">Precio de lista del gremio en pesos</div>
-                </div>
-                <div class="fg">
-                  <label>% Valor agregado <span style="color:var(--text3);font-weight:400">(sobre costo)</span></label>
-                  <div style="display:flex;align-items:center;gap:6px">
-                    <input type="number" id="pf-margen-deseado" placeholder="30" min="0" step="0.1" style="width:80px" oninput="calcPrecioDesdeGremio()">
-                    <span style="color:var(--text3);font-size:13px">%</span>
-                  </div>
-                  <div style="font-size:11px;color:var(--text3);margin-top:4px">Ej.: costo $48.000 + 30% = precio de venta $62.400.</div>
-                  <div id="pf-margen-error" style="display:none;font-size:11px;color:var(--red);margin-top:4px">El valor agregado no puede ser negativo.</div>
-                  <div style="font-size:11px;color:var(--text3);margin-top:4px">100% duplica el costo. Se aplica antes del IVA.</div>
-                </div>
-                <div class="fg">
-                  <label>Precio venta calculado sin IVA (<span id="pf-calculado-moneda-lbl">ARS</span>)</label>
-                  <input type="text" id="pf-precio-calculado" readonly placeholder="—" style="font-weight:600;color:var(--green)">
-                  <div style="font-size:11px;color:var(--text3);margin-top:4px" id="pf-precio-usd-equiv">= USD —</div>
-                </div>
-              </div>
+            <style>
+              .pf-price-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:20px 0}
+              .pf-price-flow input,.pf-price-flow select{min-height:42px}
+              .pf-price-result{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:24px;align-items:center;padding:20px 0;border-top:1px solid var(--border)}
+              .pf-price-result label{color:var(--text2)}
+              .pf-price-result #pf-venta-iva{padding:6px 0;font-size:30px!important;height:auto;box-shadow:none;width:100%}
+              .pf-price-result #pf-margen{border:0;background:transparent;padding:6px 0;color:var(--green);font-weight:600;box-shadow:none}
+              .pf-price-details{border-top:1px solid var(--border);padding-top:12px;color:var(--text3);font-size:12px}
+              .pf-price-details summary{cursor:pointer;padding:4px 0}
+              .pf-price-details .form-grid{margin-top:14px}
+              @media(max-width:600px){.pf-price-flow{grid-template-columns:1fr}.pf-price-result{grid-template-columns:1fr;gap:10px}}
+            </style>
+            <div class="pf-price-flow">
+              <div class="fg"><label>Costo <span id="pf-gremio-moneda-lbl">ARS</span></label><input data-money="1" id="pf-precio-gremio" placeholder="0" oninput="calcPrecioDesdeGremio()"><div id="pf-gremio-moneda-hint" style="font-size:11px;color:var(--text3);margin-top:5px">Costo del producto</div></div>
+              <div class="fg"><label>Valor agregado (%)</label><input type="number" id="pf-margen-deseado" placeholder="30" min="0" step="0.1" oninput="calcPrecioDesdeGremio()"><div style="font-size:11px;color:var(--text3);margin-top:5px">Sobre el costo, antes del IVA</div><div id="pf-margen-error" style="display:none;font-size:11px;color:var(--red)">El valor agregado no puede ser negativo.</div></div>
+              <div class="fg"><label>IVA</label><select id="pf-iva"><option value="21">21%</option><option value="10.5">10,5%</option><option value="0">Exento</option></select></div>
             </div>
-              <div class="fg"><label>Precio de compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input data-money="1" id="pf-compra" placeholder="0" oninput="calcMargen()"><div style="font-size:11px;color:var(--text3);margin-top:4px">Se completa solo con el proveedor más económico</div></div>
-              <div class="fg"><label>Precio de venta sin IVA (<span id="pf-venta-moneda-lbl">$</span>)</label><input data-money="1" id="pf-venta" placeholder="0" oninput="calcMargen()"></div>
-              <div class="fg"><label>Margen real sobre venta</label><input type="text" id="pf-margen" readonly placeholder="—" style="color:var(--green);font-weight:500" title="Porcentaje de ganancia contenido en el precio de venta sin IVA"></div>
-              <div class="fg"><label>IVA</label>
-                <select id="pf-iva">
-                  <option value="21">21%</option>
-                  <option value="10.5">10,5%</option>
-                  <option value="0">Exento</option>
-                </select>
-              </div>
-              <div class="fg"><label>Precio venta c/IVA</label><input type="text" id="pf-venta-iva" readonly placeholder="—" style="font-weight:500"></div>
-              <div class="fg" id="pf-equiv-ars-box" style="display:none"><label>Equivalente hoy en ARS</label><input type="text" id="pf-equiv-ars" readonly placeholder="—" style="font-weight:500;color:var(--blue)"></div>
+            <div class="pf-price-result">
+              <div class="fg"><label>Precio final de venta · IVA incluido</label><input type="text" id="pf-venta-iva" readonly placeholder="—"><div id="pf-equiv-ars-box" style="display:none"><label>Equivalente hoy en ARS</label><input type="text" id="pf-equiv-ars" readonly placeholder="—"></div></div>
+              <div class="fg"><label>Margen real sobre venta</label><input type="text" id="pf-margen" readonly placeholder="—" title="Porcentaje de ganancia contenido en el precio de venta sin IVA"></div>
             </div>
+            <details class="pf-price-details"><summary>Ver cálculo y ajustes manuales</summary>
+              <div class="form-grid cols3">
+                <div class="fg"><label>Venta calculada sin IVA (<span id="pf-calculado-moneda-lbl">ARS</span>)</label><input type="text" id="pf-precio-calculado" readonly placeholder="—"><div id="pf-precio-usd-equiv" style="font-size:11px;color:var(--text3);margin-top:5px">= USD —</div></div>
+                <div class="fg"><label>Compra (<span id="pf-compra-moneda-lbl">$</span>)</label><input data-money="1" id="pf-compra" placeholder="0" oninput="calcMargen()"></div>
+                <div class="fg"><label>Venta sin IVA (<span id="pf-venta-moneda-lbl">$</span>)</label><input data-money="1" id="pf-venta" placeholder="0" oninput="calcMargen()"></div>
+              </div>
+            </details>
+          </div>
+          <div class="card" id="pf-garantia-config"><div class="card-head"><span class="card-title">Garantía y seguimiento</span></div><div class="form-grid cols3">
+<div class="fg"><label>Garantía</label><select id="pf-garantia-estado"><option value="sin_definir">Sin definir</option><option value="si">Tiene garantía</option><option value="no">Sin garantía</option></select></div>
+<div class="fg"><label>Meses</label><input id="pf-garantia-meses" type="number" min="1" max="120" value="12"></div>
+<div class="fg"><label>Inicio</label><select id="pf-garantia-inicio"><option value="instalacion">Instalación confirmada</option><option value="entrega">Entrega confirmada</option></select></div>
+<div class="fg"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--bg3);padding:12px;border-radius:var(--radius)"><input type="checkbox" id="pf-garantia-equipo" style="width:16px;height:16px;accent-color:var(--blue)"> Registrar como equipo instalado</label></div><div class="fg"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--bg3);padding:12px;border-radius:var(--radius)"><input type="checkbox" id="pf-garantia-serie" style="width:16px;height:16px;accent-color:var(--blue)"> Requiere número de serie</label></div></div></div>
           <div class="card">
-            <div class="card-head"><span class="card-title">Stock</span></div>
+            <div class="card-head"><span class="card-title">Stock y publicación</span></div>
             <div class="form-grid">
               <div class="fg"><label>Stock actual</label><input type="number" id="pf-stock" placeholder="0" min="0"></div>
               <div class="fg"><label>Stock mínimo (alerta)</label><input type="number" id="pf-stock-min" placeholder="5" min="0"></div>
@@ -4078,11 +4191,22 @@ Listo para analizar.
                 </label>
                 <div style="font-size:11px;color:var(--text3);margin-top:6px">Marcá esto si el ítem representa el costo de instalación/trabajo del técnico, no un producto físico. Se incluye igual en el cálculo de costo de la venta.</div>
               </div>
+              <div class="fg full pf-catalogo-config">
+                <label class="pf-catalogo-toggle">
+                  <input type="checkbox" id="pf-catalogo-visible">
+                  <span><strong><i class="ti ti-layout-grid"></i> Mostrar en catálogo para clientes</strong><small>Publica este producto en la vista de presentación, sin precios, costos, códigos ni stock interno.</small></span>
+                </label>
+                <label class="pf-catalogo-toggle pf-catalogo-destacado">
+                  <input type="checkbox" id="pf-catalogo-destacado">
+                  <span><strong><i class="ti ti-star"></i> Destacar producto</strong><small>Lo muestra primero y con una identificación especial.</small></span>
+                </label>
+                <div class="fg" style="margin-top:12px"><label>Descripción comercial</label><textarea id="pf-catalogo-descripcion" rows="3" placeholder="Texto breve y claro pensado para mostrar al cliente..."></textarea></div>
+              </div>
             </div>
           </div>
           <div class="flex-end form-bottom-actions">
             <button class="btn" onclick="cerrarFormProducto()">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarProducto()"><i class="ti ti-check"></i> Guardar producto</button>
+            <button class="btn btn-primary" id="btn-guardar-producto" onclick="guardarProducto()"><i class="ti ti-check"></i> Guardar producto</button>
           </div>
 
           </div>
@@ -4103,6 +4227,11 @@ Listo para analizar.
                 <span id="pd-cat-lbl"></span>
                 <span id="pd-prov-lbl"></span>
               </div>
+              <dl class="product-hero-facts">
+                <div><dt>IVA</dt><dd id="pd-iva-lbl"></dd></div>
+                <div><dt>Stock mínimo</dt><dd id="pd-stmin-lbl"></dd></div>
+                <div><dt>Unidad</dt><dd id="pd-unidad-lbl"></dd></div>
+              </dl>
             </div>
             <div class="product-hero-actions">
               <div style="display:flex;align-items:center;gap:10px">
@@ -4132,23 +4261,11 @@ Listo para analizar.
             <div class="sueldo-card" id="pd-stock-card">
               <div class="sueldo-label">Stock actual</div>
               <div class="sueldo-value" id="pd-stock">12</div>
-              <div class="sueldo-sub" id="pd-stock-sub">mín: 5 unidades</div>
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><span class="card-title">Proveedores y comparación de precios</span></div>
+            <div class="card-head"><span class="card-title">Proveedores y comparación de precios</span><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" data-permiso="productos.agregarProveedor" onclick="abrirProveedoresEnFicha(true)"><i class="ti ti-plus"></i> Agregar proveedor</button><button class="btn btn-sm btn-primary" onclick="actualizarProveedoresDesdeFicha()"><i class="ti ti-refresh"></i> Actualizar</button></div></div>
             <div id="pd-proveedores-box"></div>
-          </div>
-          <div class="card">
-            <div class="card-head"><span class="card-title">Datos completos</span></div>
-            <div class="form-grid cols3">
-              <div class="fg"><label>Código</label><input type="text" id="pd-cod-inp" readonly></div>
-              <div class="fg"><label>Categoría</label><input type="text" id="pd-cat-inp" readonly></div>
-              <div class="fg"><label>Proveedor</label><input type="text" id="pd-prov-inp" readonly></div>
-              <div class="fg"><label>IVA</label><input type="text" id="pd-iva-inp" readonly></div>
-              <div class="fg"><label>Stock mínimo</label><input type="text" id="pd-stmin-inp" readonly></div>
-              <div class="fg"><label>Unidad</label><input type="text" id="pd-unidad-inp" readonly></div>
-            </div>
           </div>
         </div>
 
@@ -4289,7 +4406,10 @@ Listo para analizar.
           <div class="card" id="mod-ap-centro">
             <div class="card-head">
               <div><span class="card-title">Centro de actualización</span><div style="font-size:11px;color:var(--text3);margin-top:4px">Configurá proveedores, revisá excepciones y ejecutá la actualización desde un solo lugar.</div></div>
-              <button class="btn btn-sm" onclick="actualizarResumenActualizadorEnSegundoPlano()"><i class="ti ti-refresh"></i> Actualizar resumen</button>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="showPage('proveedores',document.querySelector('.nav-item[onclick*=&quot;proveedores&quot;]'))"><i class="ti ti-truck"></i> Ir a proveedores</button>
+                <button class="btn btn-sm" onclick="actualizarResumenActualizadorEnSegundoPlano()"><i class="ti ti-refresh"></i> Actualizar resumen</button>
+              </div>
             </div>
             <div style="font-size:12px;font-weight:800;margin-bottom:4px">Proveedores incluidos</div>
             <div id="mod-ap-seleccion-estado" style="font-size:11px;color:var(--text3);margin-bottom:10px">La selección se guarda al instante.</div>
@@ -4323,11 +4443,11 @@ Listo para analizar.
             <div class="card-head">
               <span class="card-title">Empleados</span>
               <div class="emp-actions-358">
-                <button class="btn btn-sm emp-action-haberes" onclick="abrirModalHaberesMes()" title="Registrar los haberes del mes"><i class="ti ti-cash"></i> Haberes</button>
+                <button class="btn btn-sm emp-action-haberes admin-only" onclick="abrirModalHaberesMes()" title="Registrar los haberes del mes"><i class="ti ti-cash"></i> Haberes</button>
                 <button class="btn btn-sm admin-only" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
                 <button class="btn btn-sm admin-only" onclick="abrirModalComisionVenta()" style="color:var(--green);border-color:var(--green)" title="Registrar una comisión faltante y vincularla a su venta"><i class="ti ti-percentage"></i> Cargar comisión</button>
                 <button class="btn btn-sm" onclick="abrirModalHsExtra()" style="color:var(--amber);border-color:var(--amber)"><i class="ti ti-clock-plus"></i> Hs. extra <span id="badge-hsex-pendientes" style="display:none;background:var(--amber);color:#000;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
-                <button class="btn btn-sm emp-action-aguinaldo" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
+                <button class="btn btn-sm emp-action-aguinaldo admin-only" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
                 <button class="btn btn-sm btn-primary" id="btn-nuevo-emp" onclick="abrirModalNuevo('empleado')"><i class="ti ti-plus"></i> Nuevo empleado</button>
               </div>
             </div>
@@ -4409,6 +4529,25 @@ Listo para analizar.
 
       <!-- ── USUARIOS (solo admin) ── -->
       <div id="page-usuarios" class="page">
+        <div class="card" id="usuarios-uso-card">
+          <div class="card-head">
+            <div>
+              <span class="card-title">Tiempo de uso del sistema</span>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px"><span style="color:var(--green);font-weight:600">Verde: tiempo activo</span> — el usuario interactuó recientemente · <span style="color:var(--amber);font-weight:600">Amarillo: sin interacción</span> — el sistema quedó abierto sin actividad durante más de 2 minutos</div>
+            </div>
+            <select id="usuarios-uso-periodo" class="select-sm" onchange="cargarMetricasUsoUsuarios(this.value)">
+              <option value="hoy">Hoy</option>
+              <option value="7" selected>Últimos 7 días</option>
+              <option value="30">Últimos 30 días</option>
+            </select>
+          </div>
+          <div class="usuarios-uso-kpis">
+            <div class="metric"><div class="m-label">Tiempo activo</div><div class="m-value" id="usuarios-uso-activo">—</div><div class="m-sub">interacción real acumulada</div></div>
+            <div class="metric"><div class="m-label">Sin interacción</div><div class="m-value" id="usuarios-uso-inactivo">—</div><div class="m-sub">sistema abierto sin uso</div></div>
+            <div class="metric"><div class="m-label">Mayor uso activo</div><div class="m-value usuarios-uso-destacado" id="usuarios-uso-lider">—</div><div class="m-sub" id="usuarios-uso-lider-tiempo">sin datos todavía</div></div>
+          </div>
+          <div id="usuarios-uso-grafico" class="usuarios-uso-grafico"><div class="usuarios-uso-vacio">La medición comenzará a completarse con el uso de esta versión.</div></div>
+        </div>
         <div class="card">
           <div class="card-head">
             <span class="card-title">Usuarios del sistema</span>
@@ -4416,8 +4555,8 @@ Listo para analizar.
           </div>
           <div id="usuarios-online-resumen" style="font-size:12px;color:var(--text3);margin-bottom:12px"></div>
           <table>
-            <thead><tr><th>ID</th><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Clave</th><th style="text-align:right">Último acceso</th><th style="text-align:right">Estado</th><th></th></tr></thead>
-            <tbody id="usuarios-tbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr></tbody>
+            <thead><tr><th>ID</th><th>Nombre</th><th>Usuario</th><th>Rol</th><th style="text-align:right">Inicio de sesión</th><th style="text-align:right">Fin de sesión</th><th style="text-align:right">Tiempo conectado</th><th style="text-align:right">Estado</th><th></th></tr></thead>
+            <tbody id="usuarios-tbody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -4475,17 +4614,18 @@ Listo para analizar.
 <!-- GASTOS -->
 <div id="page-comisiones" class="page">
   <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
-    <div class="metric"><div class="m-label">Pendientes</div><div class="m-value" id="com-kpi-pendientes" style="color:var(--amber)">0</div><div class="m-sub">requieren decisión</div></div>
-    <div class="metric"><div class="m-label">Aprobadas</div><div class="m-value" id="com-kpi-aprobadas" style="color:var(--blue)">0</div><div class="m-sub">listas para abonar</div></div>
-    <div class="metric"><div class="m-label">Rechazadas</div><div class="m-value" id="com-kpi-rechazadas" style="color:var(--red)">0</div><div class="m-sub">se pueden rehabilitar</div></div>
-    <div class="metric"><div class="m-label">Total asignado</div><div class="m-value" id="com-kpi-total" style="color:var(--green)">$0</div><div class="m-sub">según filtros</div></div>
+    <div class="metric" id="com-card-pendientes" role="button" tabindex="0" onclick="filtrarComisionesPorEstado('pendiente_aprobacion')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarComisionesPorEstado('pendiente_aprobacion')}" style="cursor:pointer"><div class="m-label">Pendientes</div><div class="m-value" id="com-kpi-pendientes" style="color:var(--amber)">$0</div><div class="m-sub" id="com-kpi-pendientes-sub">0 comisiones · requieren decisión</div></div>
+    <div class="metric" id="com-card-aprobadas" role="button" tabindex="0" onclick="filtrarComisionesPorEstado('aprobadas')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarComisionesPorEstado('aprobadas')}" style="cursor:pointer"><div class="m-label">Aprobadas</div><div class="m-value" id="com-kpi-aprobadas" style="color:var(--blue)">$0</div><div class="m-sub" id="com-kpi-aprobadas-sub">0 comisiones · listas para abonar</div></div>
+    <div class="metric" id="com-card-rechazadas" role="button" tabindex="0" onclick="filtrarComisionesPorEstado('rechazado')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarComisionesPorEstado('rechazado')}" style="cursor:pointer"><div class="m-label">Rechazadas</div><div class="m-value" id="com-kpi-rechazadas" style="color:var(--red)">$0</div><div class="m-sub" id="com-kpi-rechazadas-sub">0 comisiones · se pueden rehabilitar</div></div>
+    <div class="metric" id="com-card-total" role="button" tabindex="0" onclick="filtrarComisionesPorEstado('')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarComisionesPorEstado('')}" style="cursor:pointer"><div class="m-label">Total asignado</div><div class="m-value" id="com-kpi-total" style="color:var(--green)">$0</div><div class="m-sub" id="com-kpi-total-sub">0 comisiones · comisiones vigentes</div></div>
   </div>
   <div class="card">
     <div class="card-head" style="gap:10px;flex-wrap:wrap">
       <div><div class="card-title"><i class="ti ti-percentage"></i> Gestión de comisiones</div><div style="font-size:11px;color:var(--text3);margin-top:4px">Una venta puede compartir el porcentaje máximo entre varias personas.</div></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto">
+        <button class="btn btn-primary admin-only" onclick="abrirModalComisionVenta()"><i class="ti ti-plus"></i> Nueva comisión</button>
         <input id="com-f-buscar" class="search-input" placeholder="Venta, cliente o persona..." oninput="renderModuloComisiones()" style="min-width:250px">
-        <select id="com-f-estado" class="search-input" onchange="renderModuloComisiones()"><option value="">Todos los estados</option><option value="pendiente_aprobacion">Pendientes</option><option value="pendiente_pago">Aprobadas</option><option value="pagado">Pagadas</option><option value="rechazado">Rechazadas</option></select>
+        <select id="com-f-estado" class="search-input" onchange="renderModuloComisiones()"><option value="">Todos los estados</option><option value="pendiente_aprobacion">Pendientes</option><option value="aprobadas">Aprobadas</option><option value="pagado">Pagadas</option><option value="rechazado">Rechazadas</option></select>
       </div>
     </div>
     <div class="table-wrap">
@@ -4534,12 +4674,13 @@ Listo para analizar.
     <div class="card-head gas-card-head">
       <div class="gas-toolbar-search">
         <span class="card-title">Gastos</span>
-        <div class="gas-search-box"><i class="ti ti-search"></i><input class="search-input" id="gas-buscar" placeholder="Buscar por descripción, categoría o empleado..." oninput="filtrarGastos()"></div>
+        <div class="gas-search-box"><i class="ti ti-search"></i><input class="search-input" id="gas-buscar" placeholder="Buscar por descripción, categoría o empleado..." oninput="buscarGastos(this.value)"></div>
       </div>
       <div class="gas-toolbar-actions">
         <div class="gas-toolbar-filters">
         <select class="search-input" id="gas-f-mes" onchange="filtrarGastos()">
           <option value="mes" selected>Este mes</option>
+          <option value="anterior">Mes anterior</option>
           <option value="3m">Últimos 3 meses</option>
           <option value="anio">Este año</option>
           <option value="">Todo</option>
@@ -5077,9 +5218,6 @@ Listo para analizar.
       <div class="fg"><label>Fecha</label><input type="date" id="movi-fecha"></div>
       <div class="fg"><label>Tipo</label>
         <select id="movi-tipo" onchange="onMoviTipoChange()">
-          <option value="sueldo">Sueldo base</option>
-          <option value="comision">Comisión</option>
-          <option value="hextra">Horas extra</option>
           <option value="adelanto">Adelanto</option>
           <option value="transporte">Gasto transporte</option>
           <option value="materiales">Compra materiales</option>
@@ -5518,10 +5656,13 @@ Listo para analizar.
       </div>
 
 <script src="./js/modules/v3-launch.js"></script>
-<script src="./js/modules/action-permissions.js?v=3.1.1"></script>
+<script src="./js/modules/action-permissions.js?v=3.3.17"></script>
 <script src="./js/modules/offline-core.js?v=1.0.0"></script>
-<script src="./js/app.v3.2.1.js"></script>
+<script src="./js/app.v3.4.0.js"></script>
 <script src="./js/modules/business-break-even.js?v=1.0.3"></script>
+<script src="./js/modules/product-url-import.js"></script>
+<script src="./js/modules/keyboard-actions.js?v=3.3.18"></script>
+<script src="./js/modules/provider-verification.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
@@ -5772,7 +5913,7 @@ Listo para analizar.
         </div>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
-        <button id="btn-chat-admin-limpiar" onclick="chatAdminLimpiar()" style="display:none;background:none;border:0.5px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;font-size:11px;padding:4px 8px" title="Limpiar canal (admin)"><i class="ti ti-trash" style="font-size:12px"></i> Limpiar</button>
+        <button id="btn-chat-admin-limpiar" onclick="chatAdminLimpiar()" style="display:none;background:none;border:0.5px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;font-size:11px;padding:4px 8px" title="Limpiar conversación" aria-label="Limpiar conversación"><i class="ti ti-trash" style="font-size:18px" aria-hidden="true"></i></button>
         <button id="btn-chat-maximizar" class="icon-btn" onclick="chatAlternarMaximizado()" title="Maximizar chat" aria-label="Maximizar chat" aria-pressed="false"><i class="ti ti-maximize"></i></button>
         <button onclick="chatCerrar()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px 8px">✕</button>
       </div>
@@ -5792,15 +5933,39 @@ Listo para analizar.
         💬 Directo<span class="chat-canal-badge" id="badge-directos"></span>
       </button>
     </div>
+    <input id="chat-buscar" type="search" aria-label="Buscar en esta conversación" placeholder="Buscar mensaje, persona o archivo…" oninput="chatBuscarMensajes()" style="margin:6px 12px;padding:8px;border:1px solid var(--border2);border-radius:8px;background:var(--bg3);color:var(--text)">
     <div id="chat-messages"><div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Cargando mensajes...</div></div>
+    <div id="chat-typing" style="display:none;padding:4px 18px 0;color:var(--green);font-size:11px;font-style:italic"></div>
+    <div id="chat-adjunto-estado" role="status" hidden style="padding:8px 18px;font-size:12px;overflow-wrap:anywhere"></div>
+    <div id="chat-adjuntos-menu" hidden role="group" aria-label="Adjuntar al chat">
+      <div class="chat-adjuntos-opciones">
+        <button type="button" class="chat-adjunto-opcion" onclick="chatElegirAdjunto('imagen')">
+          <span class="chat-adjunto-icono chat-adjunto-imagen"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+          <span>Fotos e imágenes</span>
+        </button>
+        <button type="button" class="chat-adjunto-opcion" onclick="chatElegirAdjunto('documento')">
+          <span class="chat-adjunto-icono chat-adjunto-documento"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg></span>
+          <span>Documento</span>
+        </button>
+      </div>
+      <p>Imágenes, PDF, Word, Excel o texto · Hasta 10 MB</p>
+    </div>
+    <div id="chat-audio-panel" hidden style="padding:10px 16px">
+      <div id="chat-audio-estado" role="status"></div>
+      <audio id="chat-audio-preview" controls hidden style="width:100%;margin-top:8px"></audio>
+      <button type="button" class="btn" id="chat-audio-detener" onclick="chatAudioDetener()">Detener</button>
+      <button type="button" class="btn" id="chat-audio-enviar" hidden onclick="chatAudioEnviar()">Enviar audio</button>
+      <button type="button" class="btn" onclick="chatAudioCancelar()">Cancelar</button>
+    </div>
     <div id="chat-input-row">
-      <label style="width:34px;height:34px;border-radius:50%;background:var(--bg3);border:0.5px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Adjuntar foto">
-        <i class="ti ti-photo" style="font-size:16px;color:var(--text3)"></i>
-        <input type="file" id="chat-foto-input" accept="image/*" style="display:none" onchange="chatEnviarFoto(this)">
-      </label>
+      <button id="chat-adjuntar" type="button" onclick="chatMenuAdjuntos()" aria-expanded="false" aria-controls="chat-adjuntos-menu" style="width:34px;height:34px;border-radius:50%;background:var(--bg3);border:0.5px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Adjuntar imagen o documento" aria-label="Adjuntar imagen o documento">
+        <i class="ti ti-paperclip" style="font-size:16px;color:var(--text3)"></i>
+      </button>
+        <input type="file" id="chat-foto-input" accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.csv,.docx,.xlsx,image/jpeg,image/png,image/webp,application/pdf,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="chatEnviarArchivo(this)">
       <textarea id="chat-input" placeholder="Escribí un mensaje..." rows="1"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatEnviar()}"
-        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"></textarea>
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';chatInputCambio(this)"></textarea>
+      <button type="button" id="chat-audio-grabar" onclick="chatAudioGrabar()" aria-label="Grabar audio" title="Grabar audio" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border2);background:var(--bg3);color:var(--text);cursor:pointer;flex-shrink:0"><i class="ti ti-microphone" aria-hidden="true"></i></button>
       <button id="chat-send" onclick="chatEnviar()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -5844,12 +6009,12 @@ Listo para analizar.
 <script src="./js/modules/ot-data-sync.js?v=2.0.154"></script>
 <script src="./js/modules/notifications.js?v=2.0.271"></script>
 <script src="./js/modules/push-notifications.js?v=1.0.0"></script>
-<script src="./js/modules/finance-details.js?v=3.1.2"></script>
+<script src="./js/modules/finance-details.js?v=3.3.17"></script>
 
-<script src="./js/modules/ot-workflow.js?v=3.1.1"></script>
+<script src="./js/modules/ot-workflow.js?v=3.3.17"></script>
 
 
-<script src="./js/modules/dashboard-permissions.js?v=2.0.269"></script>
+<script src="./js/modules/dashboard-permissions.js?v=3.3.17"></script>
 
 
 <script src="./js/modules/sales-metrics.js?v=2.0.289"></script>
@@ -5863,19 +6028,20 @@ Listo para analizar.
 <script src="./js/core/metrics-cache.js?v=2.0.329-final"></script>
 
 
-<script src="./js/modules/ot-admin.js?v=2.0.325"></script>
+<script src="./js/modules/ot-admin.js?v=3.3.17"></script>
 
 
 <script src="./js/modules/dashboard-filters.js?v=2.0.154"></script>
 
-<script src="./js/modules/activity-history.js?v=2.0.154"></script>
+<script src="./js/modules/activity-history.js?v=3.3.17"></script>
 
 
 <script src="./js/modules/payroll-selector.js?v=2.0.154"></script>
 
 
 
-<script src="./js/modules/configuration-mobile.js?v=2.0.154"></script>
+<script src="./js/modules/configuration-mobile.js?v=3.2.3-config-tabs"></script>
+<script src="./js/modules/paraguay-config.js?v=3.3.17"></script>
 
 
 
@@ -5958,7 +6124,7 @@ Listo para analizar.
 </style>
 <script src="./js/modules/dashboard-layout.js?v=2.0.154"></script>
 
-<script src="./js/modules/dashboard-polish.js?v=2.0.154"></script>
+<script src="./js/modules/dashboard-polish.js?v=3.3.17"></script>
 
 
 
@@ -5976,13 +6142,14 @@ Listo para analizar.
 <script src="./js/modules/payroll.js?v=2.0.154"></script>
 
 
-<script src="./js/modules/maintenance.js?v=2.3.2-mantenimiento-unificado-1"></script>
+<script src="./js/modules/maintenance.js?v=3.3.17"></script>
 
 
-<script src="./js/modules/refactor-health.js?v=2.3.2-presupuestos-historicos-1"></script>
+<script src="./js/modules/refactor-health.js?v=3.3.17"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
-<script src="./js/modules/resizable-tables.js?v=3.2.1"></script>
-<script src="./js/modules/commissions.js?v=3.2.0"></script>
+<script src="./js/modules/resizable-tables.js?v=3.3.17"></script>
+<script src="./js/modules/grid-default-order.js?v=1"></script>
+<script src="./js/modules/commissions.js?v=3.3.18"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>
@@ -5990,11 +6157,11 @@ Listo para analizar.
 <script src="./js/modules/v2-readiness.js?v=2.0.154"></script>
 <script src="./js/modules/v2-audit.js?v=2.0.399-audit1"></script>
 <script src="./js/modules/page-transition.js?v=2.0.226"></script>
-<script src="./js/modules/resource-monitor.js?v=2.0.154"></script>
+<script src="./js/modules/resource-monitor.js?v=3.3.17"></script>
 
-<script src="./js/modules/role-guard.js?v=2.0.325"></script>
-<script src="./js/modules/purchase-orders.js?v=2.3.2-grillas-unificadas-1"></script>
-<script src="./js/modules/ot-material-custody.js?v=3.0.14"></script>
+<script src="./js/modules/role-guard.js?v=3.3.17"></script>
+<script src="./js/modules/purchase-orders.js?v=3.3.12-proveedor-final-1"></script>
+<script src="./js/modules/ot-material-custody.js?v=3.3.17"></script>
 <script src="./js/modules/release-tour.js?v=2.0.161"></script>
 
 <!--
@@ -6024,21 +6191,9 @@ Listo para analizar.
 <script src="./js/v3/sales-integration.js?v=3.0.0-shadow-v279"></script>
 <script src="./js/v3/ot-integration.js?v=3.0.0-shadow-v279"></script>
 <script src="./js/v3/product-provider-integration.js?v=3.0.0-shadow-v279"></script>
-<script src="./js/v3/admin-diagnostics.js?v=3.0.0-mantenimiento-unificado-1"></script>
+<script src="./js/v3/admin-diagnostics.js?v=3.3.17"></script>
 
+<script src="./js/modules/product-query-guard.js?v=1"></script>
+<script src="./js/modules/garantia-circuito.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-

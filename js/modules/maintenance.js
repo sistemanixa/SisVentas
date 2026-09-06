@@ -112,7 +112,7 @@ window.mntResolverAutomaticos=mntResolverAutomaticos;
 function mntObjCount(o){ return o && typeof o==='object' ? Object.keys(o).length : 0; }
 function mntMoney(n){ return Math.round(parseFloat(n)||0); }
 function mntVersion(){ return (window.APP_CONFIG && APP_CONFIG.VERSION) || (window.SISVENTAS_PWA_VERSION || 'v1'); }
-function mntRequireAdmin(accion){ if(String(window.currentRole||'').toLowerCase()==='admin') return true; if(typeof notify==='function') notify('Solo el administrador puede ejecutar '+(accion||'esta accion')); return false; }
+function mntRequireAdmin(accion,permiso){ if(window.tienePermiso(permiso||'auditoria.ver')) return true; if(typeof notify==='function') notify('No tenés permiso para ejecutar '+(accion||'esta acción')); return false; }
 function mntFecha(f){ return (typeof _pagableNormFecha==='function') ? _pagableNormFecha(f) : (f||(typeof window.svFechaLocalISO==='function'?window.svFechaLocalISO():new Date().toLocaleDateString('en-CA'))); }
 function mntEmpByKey(empKey){ try { return (empData && Object.values(empData).find(function(e){ return String(e.fbKey||e.id||'')===String(empKey||''); })) || {}; } catch(e){ return {}; } }
 function mntGastoExiste(gastos, tipoPagable, empKey, monto, fecha, semKey, legacyKey){
@@ -246,7 +246,7 @@ function mntRenderMigraciones(migr){
   }).join('');
 }
 async function mntMigrarLegacy(){
-  if(!mntRequireAdmin('migraciones de mantenimiento')) return;
+  if(!mntRequireAdmin('migraciones de mantenimiento','mantenimiento.migrar')) return;
   if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
   if(!MNT_STATE.analizado) await mntAnalizarBase();
   mntSetEstado('Migrando...','b-amber'); mntLog('Iniciando migración controlada...'); var antes=Date.now();
@@ -354,7 +354,7 @@ async function mntAnalizarDuplicadosGastosFijos(){
   notify(cant ? ('Detectados '+cant+' duplicado(s)') : 'Sin duplicados de gastos fijos');
 }
 async function mntEliminarDuplicadosGastosFijos(){
-  if(!mntRequireAdmin('eliminacion de duplicados')) return;
+  if(!mntRequireAdmin('eliminacion de duplicados','mantenimiento.duplicados')) return;
   var grupos=window._mntDuplicadosGastosFijos||[];
   var keys=[]; grupos.forEach(function(g){ (g.dups||[]).forEach(function(x){ if(x.fbKey) keys.push(x.fbKey); }); });
   if(!keys.length){ notify('No hay duplicados para eliminar'); return; }
@@ -427,7 +427,7 @@ async function mntAuditarFechasGastos(btn){
   }finally{if(btn){btn.disabled=false;btn.innerHTML=original||'<i class="ti ti-search"></i> Auditar fechas';}}
 }
 async function mntMigrarFechasGastos(btn){
-  if(!mntRequireAdmin('la migración de fechas de Gastos')) return;
+  if(!mntRequireAdmin('la migración de fechas de Gastos','mantenimiento.migrar')) return;
   var pendientes=window._mntFechasGastosPendientes||[];
   if(!pendientes.length){ pendientes=await mntAuditarFechasGastos(document.getElementById('mnt-btn-auditar-fechas-gastos')); }
   if(!pendientes.length){ notify('No hay fechas pendientes de corrección'); return; }
@@ -454,7 +454,7 @@ async function mntMigrarFechasGastos(btn){
 }
 
 async function mntLimpiarLegacy(){
-  if(!mntRequireAdmin('limpieza legacy')) return;
+  if(!mntRequireAdmin('limpieza legacy','mantenimiento.limpiar')) return;
   if(!MNT_STATE.integridadOK){ notify('Primero verificá integridad OK'); return; }
   if(!await window.svConfirm('Vas a limpiar estructuras antiguas ya migradas. No se borrarán solicitudes pendientes ni rechazadas. ¿Continuar?')) return;
   var clave=await window.svPrompt('Escribí LIMPIAR para confirmar la limpieza definitiva:'); if(clave!=='LIMPIAR'){ notify('Limpieza cancelada'); return; }

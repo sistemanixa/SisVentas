@@ -23,6 +23,7 @@ assert(Math.abs(base.mixedSales - 8666666.666666668) < 0.01);
 assert.strictEqual(base.additionalVisitsActual, 42);
 assert(Math.abs(base.coverageRate - 0.5) < 1e-9);
 assert.strictEqual(base.projectedResult, 0);
+assert.strictEqual(base.healthStatus, 'healthy');
 assert.strictEqual(base.scenarios.conservative.visits, 32);
 assert.strictEqual(base.scenarios.probable.visits, 40);
 assert.strictEqual(base.scenarios.ambitious.visits, 48);
@@ -39,6 +40,15 @@ const unsafe = engine.calculate({ fixedCosts: 100, visitPrice: 10, visitVariable
 assert.strictEqual(unsafe.contributionPerVisit, 0);
 assert.strictEqual(unsafe.visitsOnly, null);
 assert.strictEqual(unsafe.salesOnly, null);
+
+const unavailable = engine.calculate({ fixedCosts: 100, dataReady: false });
+assert.strictEqual(unavailable.healthStatus, 'unavailable');
+const emptyModel = engine.calculate({ currentContribution: 100, dataReady: true });
+assert.strictEqual(emptyModel.healthStatus, 'unavailable');
+const attention = engine.calculate({ fixedCosts: 100, targetProfit: 100, currentContribution: 75, elapsedFraction: 0.5, dataReady: true });
+assert.strictEqual(attention.healthStatus, 'attention');
+const critical = engine.calculate({ fixedCosts: 100, currentContribution: 25, elapsedFraction: 0.5, dataReady: true });
+assert.strictEqual(critical.healthStatus, 'critical');
 
 const source = fs.readFileSync('js/modules/business-break-even.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');

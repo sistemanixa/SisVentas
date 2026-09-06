@@ -5,13 +5,21 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const { readActiveApp } = require('./helpers/active-app');
+function activeRelease() {
+  const active = readActiveApp();
+  const version = active.filename.match(/^app\.(v\d+\.\d+\.\d+)\.js$/)[1];
+  return { ...active, version };
+}
 
 test('V3 publica recursos inmutables y carga el lanzamiento antes de la app', () => {
-  const html = read('index.html');
-  assert.match(html, /VERSION: 'v3\.0\.10-firebase'/);
-  assert.match(html, /js\/core\/version\.v3\.0\.10\.js/);
-  assert.match(html, /js\/app\.v3\.0\.10\.js/);
-  assert.ok(html.indexOf('js/modules/v3-launch.js') < html.indexOf('js/app.v3.0.10.js'));
+  const {index: html, filename, source, version} = activeRelease();
+  assert.ok(html.includes("VERSION: '" + version + "-firebase'"));
+  assert.ok(source.includes("VERSION: '" + version + "-firebase'"));
+  assert.ok(html.includes('js/core/version.' + version + '.js'));
+  assert.ok(read('js/core/version.' + version + '.js').includes("'" + version + "'"));
+  const launchPosition = html.indexOf('js/modules/v3-launch.js');
+  assert.ok(launchPosition >= 0 && launchPosition < html.indexOf('js/' + filename));
 });
 
 test('la primera sesión restaurada se cierra una sola vez por usuario y dispositivo', () => {
@@ -40,8 +48,9 @@ test('el reingreso muestra una bienvenida V3 y el historial distingue la versió
 
 test('el service worker precarga el lanzamiento completo de V3', () => {
   const sw = read('sw.js');
-  assert.match(sw, /sisventas-v3\.0\.10/);
-  assert.match(sw, /app\.v3\.0\.10\.js/);
-  assert.match(sw, /version\.v3\.0\.10\.js/);
+  const {version, filename} = activeRelease();
+  assert.ok(sw.includes("const CACHE = 'sisventas-" + version + "'"));
+  assert.ok(sw.includes("'./js/" + filename + "'"));
+  assert.ok(sw.includes("'./js/core/version." + version + ".js'"));
   assert.match(sw, /modules\/v3-launch\.js/);
 });

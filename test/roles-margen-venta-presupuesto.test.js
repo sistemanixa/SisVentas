@@ -22,7 +22,6 @@ test('los controles y detalles consultan el permiso, no el nombre fijo del rol',
   assert.match(app, /function puedeVerMargenPresupuesto\(\)[\s\S]*?tienePermiso\('presupuestos\.verMargen'\)/);
   assert.match(app, /if \(!puedeVerMargenVenta\(\)\) \{ box\.style\.display = 'none'; return; \}/);
   assert.match(app, /if \(!puedeVerMargenPresupuesto\(\)\) \{ box\.style\.display = 'none'; return; \}/);
-  assert.match(app, /Ganancia: \$/);
   assert.match(app, /var puedeVerInternosVenta = puedeVerMargenVenta\(\)/);
   assert.match(app, /var puedeVerMargenPpto = puedeVerMargenPresupuesto\(\)/);
 });

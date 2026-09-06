@@ -26,6 +26,7 @@ const {
   extraerPrecioBiosegur,
   extraerPrecioEtiquetado,
   extraerCondicionIva,
+  extraerDisponibilidadFreeElectron,
   idsMercadoLibreDesdeUrl,
   itemIdMercadoLibreDesdeHtml,
   filtrosMercadoLibreDesdeUrl,
@@ -39,6 +40,7 @@ const {
   datosEstructuradosMercadoLibreDesdeHtml,
   extraerProductoMercadoLibreApi,
   puntajeProductoMercadoLibre,
+  respuestaRevisionIdentidadProveedor,
   validarIdentidadProducto,
   validarMonedaPrecio,
   validarSaltoPrecio,
@@ -130,7 +132,10 @@ test('Mercado Libre elige la publicación activa ARS de la tienda solicitada', (
     { id:'MLA4', catalog_product_id:'MLA63758636', official_store_id:280888, price:100000, currency_id:'USD', status:'active' }
   ], 'MLA63758636', 280888);
   assert.equal(elegida.id, 'MLA3');
-  assert.deepEqual(datosMercadoLibreDesdeFuente(elegida), {
+  const { ficha, ...precio } = datosMercadoLibreDesdeFuente(elegida);
+  assert.equal(ficha.nombre, elegida.title);
+  assert.deepEqual(ficha.faltantes, ['marca', 'detalle', 'imagenUrl']);
+  assert.deepEqual(precio, {
     precioArs:124968.80,
     precioActualArs:124968.80,
     precioOriginalArs:124968.80,
@@ -249,6 +254,18 @@ test('Mercado Libre conserva el precio de una URL MLA tradicional sin promoción
   assert.equal(datos.porcentajeDescuento, 0);
 });
 
+test('Free Electron ignora el stock de productos relacionados', () => {
+  assert.equal(extraerDisponibilidadFreeElectron(
+    'GARNET EXPANSOR 8 ZONAS P/PC-732G/A2K8\nReferencia EXP-8Z\n$ 64.753,98 Impuestos incluidos\nConsultar disponibilidad de stock'
+  ), 'disponible');
+  assert.equal(extraerDisponibilidadFreeElectron(
+    'GARNET MODULO AUXILIAR\nSin Stock\nReferencia REL-100 FREE\n$ 21.896,93 Impuestos incluidos'
+  ), 'sin_stock');
+  const fichaCompleta = 'GARNET EXPANSOR 8 ZONAS\nReferencia EXP-8Z\n$ 64.753,98 Impuestos incluidos\nConsultar disponibilidad de stock\n11 otros productos en la misma categoría:\nSin Stock\nREL-100';
+  const fichaPrincipal = fichaCompleta.split(/\d+\s+otros\s+productos\s+en\s+la\s+misma\s+categor[ií]a\s*:/i)[0];
+  assert.equal(extraerDisponibilidadFreeElectron(fichaPrincipal), 'disponible');
+});
+
 test('Mercado Libre resuelve la publicación exacta de P-50721 y consulta ese item', async () => {
   const url = 'https://articulo.mercadolibre.com.ar/MLA-1755815666-pulsera-silicona-rfid-1k-1356-mhz-colores-varios-sumergible-_JM?quantity=5&variation_id=182617566365';
   assert.deepEqual(idsMercadoLibreDesdeUrl(url), { itemId:'MLA1755815666', productoId:'' });
@@ -272,39 +289,33 @@ test('Mercado Libre resuelve la publicación exacta de P-50721 y consulta ese it
   assert.equal(datos.diagnosticoMercadoLibre.itemIdUtilizado, 'MLA1755815666');
 });
 
-test('la identidad acepta el mismo modelo y rechaza otro producto', () => {
-  assert.equal(validarIdentidadProducto(
-    'BALUN HD HIKVISION 1H18S/E - PAR',
-    'Balun Hd Hikvision 1H18S/E - 100% Cobre Alta Performance - Par'
-  ).ok, true);
-  assert.equal(validarIdentidadProducto(
-    'BALUN HD HIKVISION 1H18S/E - PAR',
-    'Fuente switching Dahua 12V 2A'
-  ).ok, false);
-  assert.equal(validarIdentidadProducto(
-    'CAMARA IP HIKVISION',
-    'CAMARA IP DAHUA'
-  ).ok, false);
-  assert.equal(validarIdentidadProducto(
-    'CAMARA IP HIKVISION DS-2CD1023G0-I',
-    'CAMARA IP HIKVISION DS-2CD1043G0-I'
-  ).ok, false);
-  assert.equal(validarIdentidadProducto(
-    'FUENTE SWITCHING 12V 2A',
-    'FUENTE SWITCHING 12V 5A'
-  ).ok, false);
-  assert.equal(validarIdentidadProducto(
-    'CABLE UTP CAT6 EXTERIOR',
-    'CABLE UTP CAT5 INTERIOR'
-  ).ok, false);
-  assert.equal(validarIdentidadProducto(
-    'ACCES POINT TP-LINK DECO S7 PACK X3',
-    'Sistema Wi-Fi Mesh TP-Link Deco S7 3-Pack AC1900'
-  ).ok, true);
-  assert.equal(validarIdentidadProducto(
-    'ACCES POINT TP-LINK DECO S7 PACK X3',
-    'Sistema Wi-Fi Mesh TP-Link Deco S7 Pack 2 AC1900'
-  ).ok, false);
+test('la URL es la referencia y nombres diferentes no bloquean el precio', () => {
+  for (const [nombre,titulo] of [['CAMARA HIKVISION','CAMARA DAHUA'],['Echo Dot 5th Gen Negro','Amazon Echo Dot 5 ger']]) {
+    const resultado=validarIdentidadProducto(nombre,titulo);
+    assert.equal(resultado.ok,true);
+    assert.equal(resultado.metodo,'url_exacta_sin_comparacion_nombre');
+    assert.equal(resultado.manual,undefined);
+  }
+});
+
+test('una página sin producto identificable continúa bloqueada', () => {
+  assert.equal(validarIdentidadProducto('Echo Dot','').ok,false);
+});
+
+test('una duda de identidad conserva el precio para confirmación humana', () => {
+  const revision = respuestaRevisionIdentidadProveedor({
+    proveedor:{ nombre:'FREE ELECTRON' },
+    urlExacta:'https://www.free-electron.com.ar/producto',
+    codigo:'P-10222',
+    producto:'EXP 8Z GARNET EXPANSORA DE ZONAS',
+    datos:{ precioArs:55563.09, tituloProveedor:'Garnet Expansor 8 zonas', moneda:'ARS' },
+    identidad:{ ok:false, mensaje:'El modelo o especificación no coincide (8Z)' },
+    trace:[], debug:true
+  });
+  assert.equal(revision.requiereConfirmacionIdentidad, true);
+  assert.equal(revision.precioCandidatoArs, 55563.09);
+  assert.equal(revision.tituloProveedor, 'Garnet Expansor 8 zonas');
+  assert.equal(revision.error, false);
 });
 
 test('rechaza moneda USD aunque el importe tenga símbolo peso', () => {
@@ -374,7 +385,7 @@ test('Mercado Libre conserva catálogo e item al recibir un listado resumido sin
 test('el lote conserva el diagnóstico de API cuando también falla el respaldo visual', () => {
   const source = fs.readFileSync(require.resolve('../index'), 'utf8');
   assert.match(source, /let errorApiMercadoLibre = null/);
-  assert.match(source, /errorVisual\.diagnosticoMercadoLibre/);
+  assert.match(source, /error\.diagnosticoMercadoLibre/);
   assert.match(source, /API oficial: /);
   assert.match(source, /Respaldo visual: /);
   assert.match(source, /mercadolibre\/oauth\/status/);
@@ -404,7 +415,9 @@ test('Mercado Libre recupera precio y catálogo desde JSON-LD de una URL histór
     productID:'MLAU245337872',
     offers:{ '@type':'Offer', price:11477, priceCurrency:'ARS', availability:'https://schema.org/InStock' }
   }) + '</script>';
-  assert.deepEqual(datosEstructuradosMercadoLibreDesdeHtml(html), {
+  const { ficha, ...precio } = datosEstructuradosMercadoLibreDesdeHtml(html);
+  assert.equal(ficha.nombre, 'Timbre Electronico Sonido Ding Dong Interior 12 Volt Esx');
+  assert.deepEqual(precio, {
     precioArs:11477,
     titulo:'Timbre Electronico Sonido Ding Dong Interior 12 Volt Esx',
     moneda:'ARS',
