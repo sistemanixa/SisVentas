@@ -2598,3 +2598,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 #cfg-roles-tabla tr[data-role-action-mod="configuracion"]>td:first-child{color:#f28b8b}
 #cfg-roles-buscar{min-height:44px;padding:11px 14px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font:inherit;font-size:14px;box-sizing:border-box}
 #cfg-roles-buscar:focus{outline:2px solid var(--blue);outline-offset:1px}
+#ba-resultados .prod-list-thumb{width:100px;height:100px;flex:0 0 100px;object-fit:contain;background:#fff;border-radius:12px}
+#ba-resultados > div[onclick]{gap:18px}
+#ba-resultados > div[onclick] > div:nth-child(2){flex:1}
+@media(max-width:760px){#ba-resultados .prod-list-thumb{width:76px;height:76px;flex-basis:76px}#ba-resultados > div[onclick]{gap:10px;flex-wrap:wrap}}

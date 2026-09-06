@@ -1814,7 +1814,7 @@ async function cotizarLote(reqBody) {
       const item=items[i];
       if(progreso) await progreso.update({estado:'procesando',proveedor:proveedor.nombre || '',producto:item.producto || '',codigo:item.codigo || '',url:item.url || '',procesados:(Number(reqBody.offset)||0)+i,total:Number(reqBody.total)||items.length,actualizadoEn:Date.now()});
       try {
-        const r=await cotizar({...item,proveedorKey,incluirFicha:false,altaProducto:false});
+        const r=await cotizar({...item,proveedorKey,incluirFicha:item.incluirFicha === true,altaProducto:false});
         resultados.push({...r,codigoProducto:item.codigo || '',producto:r.tituloProveedor || item.producto || '',textoPrecio:'ARS ' + r.precioArs});
       } catch(e) { resultados.push({ok:false,url:item.url || '',codigoProducto:item.codigo || '',mensaje:e.message,diagnosticoMercadoLibre:e.diagnosticoMercadoLibre,precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}); }
       if(progreso) await progreso.update({procesados:(Number(reqBody.offset)||0)+i+1,actualizadoEn:Date.now()});

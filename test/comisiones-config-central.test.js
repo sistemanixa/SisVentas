@@ -9,8 +9,8 @@ const finance = fs.readFileSync('js/modules/finance-details.js', 'utf8');
 
 assert.match(html, /id="cfg-comisiones-empleados-tbody"/,
   'Configuración debe permitir administrar excepciones por empleado');
-assert.match(html, /app\.v3\.3\.6\.js/,
-  'La publicación debe cargar el controlador vigente de comisiones');
+assert.equal(app, require('./helpers/active-app').readActiveApp().source,
+  'Las comprobaciones deben analizar el controlador activo');
 assert.doesNotMatch(app, /% Comisión propio \(solo vendedor a comisión\)/,
   'La ficha de empleado no debe editar la comisión');
 assert.match(app, /sisventas\/config\/comisionesEmpleados/,
@@ -27,3 +27,14 @@ assert.match(finance, /obtenerDetalleComisionEmpleado\(emp\)\.pct/,
   'La cuenta personal debe leer la configuración central');
 
 console.log('comisiones-config-central.test.js OK');
+const test = require('node:test');
+const vm = require('node:vm');
+test('comisión central respeta excepción cero, cargo y tope sin usar porcentaje antiguo', () => {
+  const ctx = {CONFIG_COMISIONES_EMPLEADOS: {uno:{pct:0}, dos:{pct:8}}, APROBACION_CONFIG:{maxComisionPct:5}, obtenerConfigComisionCargo:()=>({pct:3})};
+  vm.createContext(ctx);
+  vm.runInContext(app.slice(app.indexOf('function _configComisionEmpleadoKey('), app.indexOf('function migrarComisionesEmpleadosDesdeFichas(')),ctx);
+  assert.equal(ctx.obtenerDetalleComisionEmpleado({id:'uno',pctComisionPropio:15}).pct,0);
+  assert.equal(ctx.obtenerDetalleComisionEmpleado({id:'dos'}).pct,5);
+  assert.equal(ctx.obtenerDetalleComisionEmpleado({id:'dos'}).pctSolicitado,8);
+  assert.equal(ctx.obtenerDetalleComisionEmpleado({id:'tres',pctComisionPropio:15}).pct,3);
+});
