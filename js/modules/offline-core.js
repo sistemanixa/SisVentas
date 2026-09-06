@@ -224,28 +224,10 @@
     }
   }
 
-  function ensureBadge() {
-    var badge = document.getElementById('sv-offline-status');
-    if (badge) return badge;
-    badge = document.createElement('button');
-    badge.id = 'sv-offline-status';
-    badge.type = 'button';
-    badge.style.cssText = 'position:fixed;left:14px;bottom:14px;z-index:10020;border:1px solid var(--border,#ccc);border-radius:999px;padding:7px 11px;background:var(--bg2,#fff);color:var(--text,#222);font:600 11px inherit;box-shadow:0 4px 16px rgba(0,0,0,.18)';
-    badge.title = 'Estado de sincronización offline';
-    document.body.appendChild(badge);
-    return badge;
-  }
-
   function renderStatus() {
     if (!document.body) return;
-    getQueue().then(function (items) {
-      var badge = ensureBadge();
-      if (isOffline()) badge.textContent = '● Offline · ' + items.length + ' pendiente' + (items.length === 1 ? '' : 's');
-      else if (syncing) badge.textContent = '↻ Sincronizando · ' + items.length;
-      else if (items.length) badge.textContent = '● Online · ' + items.length + ' pendiente' + (items.length === 1 ? '' : 's');
-      else badge.textContent = '● Online · sincronizado';
-      badge.style.color = isOffline() ? '#f59e0b' : (items.length ? '#3b82f6' : '#22c55e');
-    }).catch(function () {});
+    var staleBadge = document.getElementById('sv-offline-status');
+    if (staleBadge) staleBadge.remove();
   }
 
   function boot() {

@@ -15,6 +15,7 @@ assert(core.includes("window.addEventListener('online', sync)"), 'Debe sincroniz
 assert(core.includes("crypto.randomUUID"), 'Las operaciones deben tener identidad idempotente local');
 assert(core.includes("window.fbRunTransaction = function") && core.includes('SISVENTAS_OFFLINE_BLOCKED'), 'Las transacciones deben bloquearse sin conexión');
 assert(core.includes("saveCache(path, snapshot.val())"), 'Las lecturas habilitadas deben guardarse localmente');
+assert(!core.includes("badge.id = 'sv-offline-status'"), 'El preview offline no debe mostrar un indicador flotante hasta estar finalizado');
 const appScriptIndex = html.search(/js\/app(?:\.v[0-9.]+)?\.js/);
 assert(appScriptIndex >= 0 && html.indexOf('offline-core.js') < appScriptIndex, 'El núcleo offline debe envolver Firebase antes de iniciar la aplicación');
 assert(worker.includes("url.origin === 'https://www.gstatic.com'"), 'El arranque offline debe cachear dependencias Firebase ESM');
