@@ -2609,3 +2609,11 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 #mod-ap-proveedores>label>input{margin:0}
 #mod-ap-proveedores>label>div{min-width:0;overflow-wrap:anywhere}
 #mod-ap-proveedores>label>.badge{grid-column:3;justify-self:start;max-width:100%;white-space:normal}
+
+/* La semana se extiende hasta el fondo del calendario, como la vista mensual. */
+#page-agenda:not(.agenda-compact) #ag-calendario[data-view="semana"]{display:flex!important;flex-direction:column;overflow:auto!important}
+#page-agenda:not(.agenda-compact) #ag-calendario[data-view="semana"]>.ag-semana-desktop{flex:1 0 auto;min-height:100%;grid-template-rows:auto repeat(8,minmax(48px,1fr));}
+#page-agenda .ag-semana-desktop>div{min-width:0;overflow-wrap:anywhere}
+
+#pd-proveedores-box .pf-providers-inline{border:0;box-shadow:none;padding:0;margin:0}
+#pd-proveedores-box .pf-providers-inline>.card-head{display:none!important}

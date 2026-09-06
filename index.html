@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.22-firebase' -->
+<!-- VERSION: 'v3.3.23-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.22.js"></script>
+<script src="./js/core/version.v3.3.23.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -4043,11 +4043,7 @@ Listo para analizar.
               </div>
             </div>
           </div>
-          </div><div class="card" id="pf-garantia-config"><div class="card-title">Garantía y seguimiento</div><div class="form-grid">
-<label>Garantía<select id="pf-garantia-estado"><option value="sin_definir">Sin definir</option><option value="si">Tiene garantía</option><option value="no">Sin garantía</option></select></label>
-<label>Meses<input id="pf-garantia-meses" type="number" min="1" max="120" value="12"></label>
-<label>Inicio<select id="pf-garantia-inicio"><option value="instalacion">Instalación confirmada</option><option value="entrega">Entrega confirmada</option></select></label>
-<label><input type="checkbox" id="pf-garantia-equipo"> Registrar como equipo instalado</label><label><input type="checkbox" id="pf-garantia-serie"> Requiere número de serie</label></div></div><div class="card pf-providers-card">
+          </div><div class="card pf-providers-card">
             <div class="card-head">
               <span class="card-title">Proveedores del producto</span>
               <div class="pf-providers-toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -4140,6 +4136,11 @@ Listo para analizar.
               </div>
             </details>
           </div>
+          <div class="card" id="pf-garantia-config"><div class="card-head"><span class="card-title">Garantía y seguimiento</span></div><div class="form-grid cols3">
+<div class="fg"><label>Garantía</label><select id="pf-garantia-estado"><option value="sin_definir">Sin definir</option><option value="si">Tiene garantía</option><option value="no">Sin garantía</option></select></div>
+<div class="fg"><label>Meses</label><input id="pf-garantia-meses" type="number" min="1" max="120" value="12"></div>
+<div class="fg"><label>Inicio</label><select id="pf-garantia-inicio"><option value="instalacion">Instalación confirmada</option><option value="entrega">Entrega confirmada</option></select></div>
+<div class="fg"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--bg3);padding:12px;border-radius:var(--radius)"><input type="checkbox" id="pf-garantia-equipo" style="width:16px;height:16px;accent-color:var(--blue)"> Registrar como equipo instalado</label></div><div class="fg"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--bg3);padding:12px;border-radius:var(--radius)"><input type="checkbox" id="pf-garantia-serie" style="width:16px;height:16px;accent-color:var(--blue)"> Requiere número de serie</label></div></div></div>
           <div class="card">
             <div class="card-head"><span class="card-title">Stock y publicación</span></div>
             <div class="form-grid">
@@ -5601,7 +5602,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.3.17"></script>
-<script src="./js/app.v3.3.22.js"></script>
+<script src="./js/app.v3.3.23.js"></script>
 <script src="./js/modules/product-url-import.js"></script>
 <script src="./js/modules/keyboard-actions.js?v=3.3.18"></script>
 <script src="./js/modules/provider-verification.js"></script>

@@ -362,7 +362,8 @@ async function autenticarSolicitud(req) {
   }
   try {
     return await admin.auth().verifyIdToken(token, true);
-  } catch (_) {
+  } catch (causa) {
+    console.error('[auth-verificacion]', String(causa.code || 'sin-codigo'));
     const error = new Error('Sesión Firebase inválida o vencida');
     error.statusCode = 401;
     throw error;
