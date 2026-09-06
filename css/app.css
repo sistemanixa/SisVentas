@@ -2602,3 +2602,10 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 #ba-resultados > div[onclick]{gap:18px}
 #ba-resultados > div[onclick] > div:nth-child(2){flex:1}
 @media(max-width:760px){#ba-resultados .prod-list-thumb{width:76px;height:76px;flex-basis:76px}#ba-resultados > div[onclick]{gap:10px;flex-wrap:wrap}}
+
+/* Proveedores: tarjetas legibles, con estado en su propia línea. */
+#mod-ap-proveedores{grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))!important;align-items:stretch}
+#mod-ap-proveedores>label{display:grid!important;grid-template-columns:18px 40px minmax(0,1fr);gap:10px 12px!important;min-width:0;align-content:center;min-height:104px;box-sizing:border-box}
+#mod-ap-proveedores>label>input{margin:0}
+#mod-ap-proveedores>label>div{min-width:0;overflow-wrap:anywhere}
+#mod-ap-proveedores>label>.badge{grid-column:3;justify-self:start;max-width:100%;white-space:normal}

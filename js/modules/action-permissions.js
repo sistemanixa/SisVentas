@@ -21,6 +21,8 @@
     return (cfg.bloqueados || []).indexOf(mod) === -1;
   }
   var PERMISOS_ACCION = {
+    'productos.agregarProveedor': {modulo:'productos',label:'Agregar proveedores a un producto',roles:['admin','administrativo']},
+    'productos.verProveedoresExterior': {modulo:'productos',label:'Ver proveedores de otros países',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']},
     'presupuestos.revisarVencidos':{"modulo":"presupuesto","label":"Revisar precios de presupuestos vencidos","roles":["admin","administrativo"]},
     'ventas.repararAdicionales':{"modulo":"detalle","label":"Reparar vínculos de adicionales de OT","roles":["admin","administrativo"]},
     'empleados.avisarHaberes':{"modulo":"empleados","label":"Ver avisos de haberes pendientes","roles":["admin","administrativo"]},
@@ -297,6 +299,7 @@
     'no-vendedor':['admin','administrativo','tecnico_vendedor','tecnico'], 'tecnico-only':['tecnico']
   };
   window.svAplicarVisibilidadPermisos = function(){
+    document.querySelectorAll('[data-permiso]').forEach(function(el){el.style.display=window.tienePermiso(el.getAttribute('data-permiso'))?'':'none';});
     PROTECCIONES_ACCION.forEach(function(p){permisosFunciones[p[0]]=p[1];});
     document.querySelectorAll(Object.keys(clasesPermiso).map(function(k){return '.'+k;}).join(',')).forEach(function(el){
       var funcion = String(el.getAttribute('onclick') || '').match(/(?:^|;)\s*(?:window\.)?(\w+)\(/);

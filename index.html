@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.3.20-firebase' -->
+<!-- VERSION: 'v3.3.21-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.3.20.js"></script>
+<script src="./js/core/version.v3.3.21.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -4040,7 +4040,7 @@ Listo para analizar.
               <span class="card-title">Proveedores del producto</span>
               <div class="pf-providers-toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <span style="font-size:11px;color:var(--amber)"><i class="ti ti-device-floppy"></i> Se guardan al guardar el producto</span>
-                <button class="btn btn-sm" onclick="agregarFilaProveedor()"><i class="ti ti-plus"></i> Agregar proveedor</button>
+                <button class="btn btn-sm" data-permiso="productos.agregarProveedor" onclick="agregarFilaProveedor()"><i class="ti ti-plus"></i> Agregar proveedor</button>
                 <button class="btn btn-sm" onclick="cotizarPreciosProveedores()" style="color:var(--blue);border-color:var(--blue)" id="btn-cotizar-prov" title="Cotiza solamente la URL exacta del producto">
                   <i class="ti ti-refresh"></i> Cotizar online
                 </button>
@@ -4233,7 +4233,7 @@ Listo para analizar.
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><span class="card-title">Proveedores y comparación de precios</span><button class="btn btn-sm btn-primary" onclick="actualizarProveedoresDesdeFicha()">Actualizar proveedores</button></div>
+            <div class="card-head"><span class="card-title">Proveedores y comparación de precios</span><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" data-permiso="productos.agregarProveedor" onclick="abrirProveedoresEnFicha(true)"><i class="ti ti-plus"></i> Agregar proveedor</button><button class="btn btn-sm btn-primary" onclick="actualizarProveedoresDesdeFicha()"><i class="ti ti-refresh"></i> Actualizar</button></div></div>
             <div id="pd-proveedores-box"></div>
           </div>
         </div>
@@ -5589,7 +5589,7 @@ Listo para analizar.
 
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.3.17"></script>
-<script src="./js/app.v3.3.20.js"></script>
+<script src="./js/app.v3.3.21.js"></script>
 <script src="./js/modules/product-url-import.js"></script>
 <script src="./js/modules/keyboard-actions.js?v=3.3.18"></script>
 <script src="./js/modules/provider-verification.js"></script>
