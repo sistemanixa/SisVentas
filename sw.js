@@ -20,6 +20,10 @@ const SHELL = [
   './js/modules/item-row-order.js',
   './js/core/data-query.js',
   './js/modules/notifications.js',
+  './js/modules/push-notifications.js',
+  './js/modules/offline-core.js',
+  './js/modules/business-break-even.js',
+  './push-sw.js',
   './js/core/error-monitor.js',
   './js/core/relation-compatibility.js',
   './js/modules/treasury.js',
@@ -91,6 +95,20 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  if (url.origin === 'https://www.gstatic.com' && url.pathname.indexOf('/firebasejs/') >= 0) {
+    event.respondWith(
+      caches.open(CACHE).then(async (cache) => {
+        try {
+          const response = await fetch(new Request(event.request, { cache: 'no-store' }));
+          if (response.ok) await cache.put(event.request, response.clone());
+          return response;
+        } catch (_error) {
+          return (await cache.match(event.request)) || Response.error();
+        }
+      }),
+    );
+    return;
+  }
   if (url.origin !== self.location.origin) return;
 
   // Los PDF generados en el cliente se guardan unos minutos en Cache Storage
