@@ -122,7 +122,10 @@
   }
 
   function monthsInRange(range) {
-    return Math.max(1, ((range.hasta.getTime() - range.desde.getTime()) / 86400000 + 1) / 30.4375);
+    return Math.max(1,
+      (range.hasta.getFullYear() - range.desde.getFullYear()) * 12
+      + range.hasta.getMonth() - range.desde.getMonth() + 1
+    );
   }
 
   function previousComparableRange(range) {
@@ -241,16 +244,16 @@
     if (marginInput) { marginInput.disabled = cfg.marginMode === 'auto'; marginInput.value = (cfg.marginMode === 'auto' ? form.autoMargin : cfg.marginPct).toFixed(1); }
 
     setText('be-kpi-fixed', money(result.fixedCosts));
-    setText('be-kpi-visits', result.visitsOnly === null ? '—' : String(result.visitsOnly));
-    setText('be-kpi-visits-sub', result.visitsPerWorkingDay === null ? 'Configurá una visita rentable' : result.visitsPerWorkingDay.toFixed(1) + ' por día hábil');
-    setText('be-kpi-sales', money(result.salesOnly));
+    setText('be-kpi-visits', result.healthStatus === 'unavailable' || result.visitsOnly === null ? '—' : String(result.visitsOnly));
+    setText('be-kpi-visits-sub', result.healthStatus === 'unavailable' ? 'Pendiente de una base mensual' : (result.visitsPerWorkingDay === null ? 'Configurá una visita rentable' : result.visitsPerWorkingDay.toFixed(1) + ' por día hábil'));
+    setText('be-kpi-sales', result.healthStatus === 'unavailable' ? '—' : money(result.salesOnly));
     setText('be-kpi-sales-sub', (result.contributionMarginRate * 100).toFixed(1) + '% de margen de contribución');
     setText('be-kpi-coverage', Math.round(result.coverageRate * 100) + '%');
-    setText('be-kpi-coverage-sub', result.reachedTarget ? 'Meta alcanzada' : money(result.remainingActual) + ' de contribución pendiente');
+    setText('be-kpi-coverage-sub', result.healthStatus === 'unavailable' ? 'Base mensual pendiente' : (result.reachedTarget ? 'Meta alcanzada' : money(result.remainingActual) + ' de contribución pendiente'));
     setText('be-contribution-visit', money(result.contributionPerVisit));
     setText('be-current-contribution', money(result.currentContribution));
     setText('be-projected-result', (result.projectedResult < 0 ? '-' : '') + money(Math.abs(result.projectedResult)));
-    setText('be-projected-label', result.projectedResult >= 0 ? 'resultado proyectado positivo' : 'déficit proyectado');
+    setText('be-projected-label', result.healthStatus === 'unavailable' ? 'sin base para proyectar' : (result.projectedResult >= 0 ? 'resultado proyectado positivo' : 'déficit proyectado'));
     setText('be-mixed-visits', result.plannedVisits + ' visitas');
     setText('be-mixed-sales', money(result.mixedSales));
     setText('be-actual-visits', result.additionalVisitsActual === null ? '—' : result.additionalVisitsActual + ' visitas');
@@ -286,8 +289,8 @@
     }
     var status = document.getElementById('be-status');
     if (status) {
-      status.textContent = result.reachedTarget ? 'Objetivo de rentabilidad alcanzado' : result.reachedBreakEven ? 'Gastos cubiertos; construyendo ganancia' : 'Todavía falta cubrir los gastos mensuales';
-      status.style.color = result.reachedTarget ? 'var(--green)' : result.reachedBreakEven ? 'var(--blue)' : 'var(--amber)';
+      status.textContent = result.healthStatus === 'unavailable' ? 'Configuración pendiente' : (result.reachedTarget ? 'Objetivo de rentabilidad alcanzado' : result.reachedBreakEven ? 'Gastos cubiertos; construyendo ganancia' : 'Todavía falta cubrir los gastos mensuales');
+      status.style.color = result.healthStatus === 'unavailable' ? 'var(--text2)' : (result.reachedTarget ? 'var(--green)' : result.reachedBreakEven ? 'var(--blue)' : 'var(--amber)');
     }
     var health = document.getElementById('be-health-summary');
     var healthTitle = document.getElementById('be-health-title');
@@ -339,7 +342,7 @@
         dashboardSummary.onclick = function () { if (typeof window.showPage === 'function') window.showPage('rentabilidad', document.querySelector('[onclick*=rentabilidad]')); };
         dashboard.appendChild(dashboardSummary);
       }
-      dashboardSummary.innerHTML = '<span><i class="ti ti-target-arrow"></i> Punto de equilibrio</span><strong>' + Math.round(result.coverageRate * 100) + '% cubierto</strong>';
+      dashboardSummary.innerHTML = '<span><i class="ti ti-target-arrow"></i> Punto de equilibrio</span><strong>' + (result.healthStatus === 'unavailable' ? 'Configurar base' : Math.round(result.coverageRate * 100) + '% cubierto') + '</strong>';
     }
   }
 

@@ -63,8 +63,16 @@
   }
 
   async function serviceWorkerRegistration() {
-    var registration = await navigator.serviceWorker.register('./sw.js?push_preview=1', { scope:'./', updateViaCache:'none' });
-    await navigator.serviceWorker.ready;
+    var registration = await navigator.serviceWorker.register('./push-sw.js', { scope:'./push/', updateViaCache:'none' });
+    await new Promise(function(resolve, reject) {
+      if (registration.active) return resolve();
+      var worker = registration.installing || registration.waiting;
+      if (!worker) return reject(new Error('No se pudo iniciar el worker de notificaciones'));
+      worker.addEventListener('statechange', function() {
+        if (worker.state === 'activated') resolve();
+        if (worker.state === 'redundant') reject(new Error('El worker de notificaciones quedó inactivo'));
+      });
+    });
     return registration;
   }
 

@@ -3,7 +3,8 @@ const assert = require('assert');
 
 const frontend = fs.readFileSync('js/modules/push-notifications.js', 'utf8');
 const firebase = fs.readFileSync('js/core/firebase.js', 'utf8');
-const worker = fs.readFileSync('sw.js', 'utf8');
+const worker = fs.readFileSync('push-sw.js', 'utf8');
+const offlineWorker = fs.readFileSync('sw.js', 'utf8');
 const backend = fs.readFileSync('cloud-functions/emitir-factura/index.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 
@@ -12,15 +13,17 @@ assert(frontend.includes("previewParams.get('push_preview') === '1'"), 'El exper
 assert(frontend.includes("getMessaging(global.fbApp)"), 'FCM debe reutilizar la app Firebase existente');
 assert(frontend.includes("'Authorization':'Bearer ' + idToken"), 'El registro de dispositivos debe autenticarse con Firebase ID token');
 assert(frontend.includes('Notification.requestPermission()'), 'La activación debe pedir permiso al usuario');
-assert(frontend.includes('serviceWorkerRegistration:swRegistration'), 'FCM debe usar el service worker PWA existente');
+assert(frontend.includes('serviceWorkerRegistration:swRegistration'), 'FCM debe usar su service worker registrado');
+assert(frontend.includes("register('./push-sw.js', { scope:'./push/'"), 'Push debe usar un alcance separado del worker offline');
 assert(frontend.includes("sisventas:session-ended"), 'El dispositivo debe desvincularse al cerrar sesión');
 assert(frontend.includes("pushType") && frontend.includes("pushId"), 'Debe resolver destinos profundos desde una notificación');
 
 assert(worker.includes('firebase-messaging-compat.js'), 'El service worker debe cargar Firebase Messaging');
-assert(worker.includes("const PUSH_PREVIEW = new URL(self.location.href).searchParams.get('push_preview') === '1'"), 'El service worker normal no debe activar FCM fuera del experimento');
 assert(worker.includes("messaging.onBackgroundMessage"), 'El service worker debe mostrar mensajes en segundo plano');
 assert(worker.includes("notificationclick"), 'El service worker debe manejar clics');
 assert(worker.includes("SISVENTAS_PUSH_OPEN"), 'El clic debe comunicarse con una ventana ya abierta');
+assert(!offlineWorker.includes('firebase-messaging-compat.js'), 'El worker offline no debe cargar ni competir con Firebase Messaging');
+assert(offlineWorker.includes("'./push-sw.js'"), 'El worker push debe estar disponible en el shell sin conexión');
 
 assert(backend.includes('verifyIdToken'), 'Las funciones HTTP push deben validar Firebase Auth');
 assert(backend.includes("process.env.SISVENTAS_ENABLE_PUSH_EXPERIMENT === 'true'"), 'Las Functions push no deben exportarse en el despliegue normal');
