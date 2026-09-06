@@ -289,39 +289,17 @@ test('Mercado Libre resuelve la publicación exacta de P-50721 y consulta ese it
   assert.equal(datos.diagnosticoMercadoLibre.itemIdUtilizado, 'MLA1755815666');
 });
 
-test('la identidad acepta el mismo modelo y rechaza otro producto', () => {
-  assert.equal(validarIdentidadProducto(
-    'BALUN HD HIKVISION 1H18S/E - PAR',
-    'Balun Hd Hikvision 1H18S/E - 100% Cobre Alta Performance - Par'
-  ).ok, true);
-  assert.equal(validarIdentidadProducto(
-    'BALUN HD HIKVISION 1H18S/E - PAR',
-    'Fuente switching Dahua 12V 2A'
-  ).ok, false);
-  assert.equal(validarIdentidadProducto(
-    'CAMARA IP HIKVISION',
-    'CAMARA IP DAHUA'
-  ).ok, false);
-  assert.equal(validarIdentidadProducto(
-    'CAMARA IP HIKVISION DS-2CD1023G0-I',
-    'CAMARA IP HIKVISION DS-2CD1043G0-I'
-  ).ok, false);
-  assert.equal(validarIdentidadProducto(
-    'FUENTE SWITCHING 12V 2A',
-    'FUENTE SWITCHING 12V 5A'
-  ).ok, false);
-  assert.equal(validarIdentidadProducto(
-    'CABLE UTP CAT6 EXTERIOR',
-    'CABLE UTP CAT5 INTERIOR'
-  ).ok, false);
-  assert.equal(validarIdentidadProducto(
-    'ACCES POINT TP-LINK DECO S7 PACK X3',
-    'Sistema Wi-Fi Mesh TP-Link Deco S7 3-Pack AC1900'
-  ).ok, true);
-  assert.equal(validarIdentidadProducto(
-    'ACCES POINT TP-LINK DECO S7 PACK X3',
-    'Sistema Wi-Fi Mesh TP-Link Deco S7 Pack 2 AC1900'
-  ).ok, false);
+test('la URL es la referencia y nombres diferentes no bloquean el precio', () => {
+  for (const [nombre,titulo] of [['CAMARA HIKVISION','CAMARA DAHUA'],['Echo Dot 5th Gen Negro','Amazon Echo Dot 5 ger']]) {
+    const resultado=validarIdentidadProducto(nombre,titulo);
+    assert.equal(resultado.ok,true);
+    assert.equal(resultado.metodo,'url_exacta_sin_comparacion_nombre');
+    assert.equal(resultado.manual,undefined);
+  }
+});
+
+test('una página sin producto identificable continúa bloqueada', () => {
+  assert.equal(validarIdentidadProducto('Echo Dot','').ok,false);
 });
 
 test('una duda de identidad conserva el precio para confirmación humana', () => {

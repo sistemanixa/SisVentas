@@ -649,7 +649,7 @@ function validarIdentidadMercadoLibreOficial(urlExacta, productoSolicitado, dato
   if (itemCoincide || catalogoCoincide) {
     return { ok:true, confianza:1, fuente:'mercado_libre_api_identificador_oficial' };
   }
-  return validarIdentidadProducto(productoSolicitado, titulo);
+  return {ok:false,mensaje:'La API no confirmó el identificador de la URL solicitada'};
 }
 
 async function obtenerJsonMercadoLibre(ruta) {
@@ -1285,84 +1285,10 @@ function parsePrecioArs(texto) {
   return valores.length ? valores[0] : 0;
 }
 
-function normalizarIdentidadProducto(valor) {
-  return String(valor || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/\bPACK\s*(?:DE\s*)?X?\s*(\d+)\b/g, ' PACK$1 ')
-    .replace(/\b(\d+)\s*[- ]*\s*PACK\b/g, ' PACK$1 ')
-    .replace(/\bX\s*(\d+)\b/g, ' PACK$1 ')
-    .replace(/[^A-Z0-9]+/g, ' ')
-    .trim();
-}
-
-function tokensIdentidadProducto(valor) {
-  const ignoradas = new Set([
-    'A', 'AL', 'CON', 'DE', 'DEL', 'EL', 'EN', 'LA', 'LAS', 'LOS', 'PARA',
-    'POR', 'SIN', 'UN', 'UNA', 'Y', 'X', 'NUEVO', 'NUEVA', 'ORIGINAL'
-  ]);
-  return normalizarIdentidadProducto(valor).split(/\s+/).filter((token) => {
-    return token.length >= 2 && !ignoradas.has(token);
-  });
-}
-
 function validarIdentidadProducto(productoSolicitado, tituloProveedor) {
-  const solicitado = normalizarIdentidadProducto(productoSolicitado);
-  const titulo = normalizarIdentidadProducto(tituloProveedor);
-  if (!solicitado) return { ok:false, confianza:0, mensaje:'Falta el nombre del producto para comprobar la identidad' };
-  if (!titulo) return { ok:false, confianza:0, mensaje:'El proveedor no mostró un título de producto verificable' };
-  if (solicitado === titulo) return { ok:true, confianza:1 };
-
-  const pedidos = [...new Set(tokensIdentidadProducto(solicitado))];
-  const vistos = [...new Set(tokensIdentidadProducto(titulo))];
-  const modelosPedidos = pedidos.filter((token) => /[A-Z]/.test(token) && /[0-9]/.test(token) && token.length >= 2);
-  const modelosVistos = vistos.filter((token) => /[A-Z]/.test(token) && /[0-9]/.test(token) && token.length >= 2);
-  const modelosFaltantes = modelosPedidos.filter((modelo) => !modelosVistos.includes(modelo));
-  if (modelosFaltantes.length) {
-    return {
-      ok:false,
-      confianza:0,
-      coincidencias:[],
-      mensaje:`El modelo o especificación no coincide (${modelosFaltantes.join(', ')})`
-    };
-  }
-
-  const palabrasGenericas = new Set([
-    'ACCESORIO', 'ALARMA', 'AMPLIFICADOR', 'BALUN', 'CABLE', 'CAMARA', 'CARGADOR',
-    'CONTROL', 'CONVERSOR', 'DETECTOR', 'DISPOSITIVO', 'EXTENSOR', 'FUENTE',
-    'INTERFAZ', 'KIT', 'MODULO', 'PANEL', 'PRODUCTO', 'RECEPTOR', 'SENSOR',
-    'SISTEMA', 'SOPORTE', 'SWITCH', 'SWITCHING', 'TRANSMISOR', 'UNIDAD', 'VIDEO'
-  ]);
-  const distintivasPedidos = pedidos.filter((token) => /^[A-Z]+$/.test(token) && token.length >= 4 && !palabrasGenericas.has(token));
-  const distintivasVistas = vistos.filter((token) => /^[A-Z]+$/.test(token) && token.length >= 4 && !palabrasGenericas.has(token));
-  if (distintivasPedidos.length && distintivasVistas.length &&
-      !distintivasPedidos.some((token) => distintivasVistas.includes(token))) {
-    return {
-      ok:false,
-      confianza:0,
-      coincidencias:[],
-      mensaje:'La marca o característica principal no coincide con el producto solicitado'
-    };
-  }
-
-  const comunes = pedidos.filter((tokenPedido) => {
-    return vistos.some((tokenVisto) => tokenPedido === tokenVisto ||
-      (tokenPedido.length >= 5 && tokenVisto.length >= 5 &&
-        (tokenPedido.includes(tokenVisto) || tokenVisto.includes(tokenPedido))));
-  });
-  const modeloCoincidente = modelosPedidos.length > 0 && modelosPedidos.every((modelo) => vistos.includes(modelo));
-  const confianza = pedidos.length ? comunes.length / pedidos.length : 0;
-  const minimoComun = pedidos.length <= 2 ? 1 : 2;
-  if (modeloCoincidente || (comunes.length >= minimoComun && confianza >= 0.34)) {
-    return { ok:true, confianza:Math.round(confianza * 100) / 100, coincidencias:comunes };
-  }
-  return {
-    ok:false,
-    confianza:Math.round(confianza * 100) / 100,
-    coincidencias:comunes,
-    mensaje:`La página parece corresponder a otro producto (“${String(tituloProveedor || '').trim().slice(0, 120)}”)`
-  };
+  if (!String(tituloProveedor || "").trim()) return {ok:false,mensaje:"El proveedor no mostró un título de producto verificable"};
+  // La URL cargada determina la publicación; el nombre del catálogo no la bloquea.
+  return { ok:true, metodo:'url_exacta_sin_comparacion_nombre' };
 }
 
 async function textoVisiblePrimero(page, selectors) {
