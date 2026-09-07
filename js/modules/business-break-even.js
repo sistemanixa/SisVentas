@@ -85,7 +85,7 @@
   'use strict';
   if (typeof window === 'undefined' || !window.SisVentasBreakEvenEngine) return;
   var params = new URLSearchParams(location.search);
-  var enabled = params.get('break_even_preview') === '1';
+  var enabled = true; // Publicado desde v3.4.1.
   try { enabled = enabled || localStorage.getItem('sisventas.breakEven.preview') === '1'; } catch (_) {}
   if (!enabled) return;
 

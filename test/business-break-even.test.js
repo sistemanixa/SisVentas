@@ -53,7 +53,7 @@ assert.strictEqual(critical.healthStatus, 'critical');
 const source = fs.readFileSync('js/modules/business-break-even.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const charts = fs.readFileSync('js/modules/executive-charts.js', 'utf8');
-assert(source.includes("params.get('break_even_preview') === '1'"), 'El módulo debe permanecer encapsulado');
+assert(source.includes("var enabled = true;"), 'Rentabilidad publicada debe estar disponible sin bandera preview');
 assert(html.includes('id="rent-break-even"'), 'Falta la interfaz dentro de Rentabilidad');
 assert(html.includes('id="cfg-rentabilidad"'), 'Los supuestos deben configurarse en una solapa separada');
 assert(html.includes('id="be-health-title"'), 'Rentabilidad debe responder si el negocio va bien o mal');
