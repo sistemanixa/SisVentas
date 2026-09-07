@@ -21492,7 +21492,7 @@ function distintivoProveedorExterior(pv) {
 }
 
 function encabezadoGrupoProveedor(exterior, columnas) {
-  return '<tr class="provider-origin-group"><td colspan="'+columnas+'" style="padding:14px 6px 8px;color:var(--blue);font-weight:600;border-bottom:1px solid var(--border)">'+(exterior ? 'Proveedores del exterior · Costos convertidos a ARS' : 'Proveedores locales')+'</td></tr>';
+  return '<tr class="provider-origin-group '+(exterior ? 'provider-origin-exterior' : 'provider-origin-local')+'"><td colspan="'+columnas+'" style="padding:14px 6px 8px;color:var(--blue);font-weight:600;border-bottom:1px solid var(--border)">'+(exterior ? 'Proveedores del exterior · Costos convertidos a ARS' : 'Proveedores locales')+'</td></tr>';
 }
 
 function ordenarProveedoresComparacion(proveedores) {
@@ -31343,6 +31343,11 @@ function togglePptoDetalle() {
   }
 }
 
+function porcentajeDescuentoComprobante(registro, importe, subtotal) {
+  var valor = registro.descuentoGeneral ?? registro.descuentoPct ?? registro.porcentajeDescuento ?? registro.descuento;
+  var porcentaje = valor != null ? pptoNumeroGuardado(valor) : (subtotal > 0 ? importe * 100 / subtotal : 0);
+  return porcentaje.toLocaleString('es-AR', {maximumFractionDigits:2}) + '%';
+}
 async function imprimirPresupuesto(pptoRef, opciones) {
   opciones = opciones || {};
   var pptoDirecto = pptoRef && typeof pptoRef === 'object' ? pptoRef : null;
@@ -31523,7 +31528,7 @@ async function imprimirPresupuesto(pptoRef, opciones) {
       '<tbody>'+(items||'<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px">Sin ítems</td></tr>')+'</tbody>'+
       '<tfoot>'+
         '<tr class="tfoot-row tfoot-first"><td colspan="4" style="border:none"></td><td style="text-align:right;font-size:12px;color:#64748b">Subtotal</td><td style="text-align:right">'+sub+'</td></tr>'+
-        (desc&&desc!=='$0'?'<tr class="tfoot-row"><td colspan="4" style="border:none"></td><td style="text-align:right;font-size:12px;color:#dc2626">Descuento</td><td style="text-align:right;color:#dc2626">'+desc+'</td></tr>':'')+
+        (desc&&desc!=='$0'?'<tr class="tfoot-row"><td colspan="4" style="border:none"></td><td style="text-align:right;font-size:12px;color:#dc2626">Descuento ('+porcentajeDescuentoComprobante(pptoGuardado,modelo.descuento,modelo.subtotal)+')</td><td style="text-align:right;color:#dc2626">'+desc+'</td></tr>':'')+
         (imprimirConIva && iva&&iva!=='$0'?'<tr class="tfoot-row"><td colspan="4" style="border:none"></td><td style="text-align:right;font-size:12px;color:#d97706">IVA 21%</td><td style="text-align:right;color:#d97706">'+iva+'</td></tr>':'')+
         '<tr class="tfoot-row tfoot-total"><td colspan="4" style="border:none"></td><td style="text-align:right">TOTAL</td><td style="text-align:right">'+total+'</td></tr>'+
       '</tfoot>'+

@@ -2623,3 +2623,9 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 #prod-tbl .prod-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;max-width:100%;min-width:0}
 #prod-tbl .prod-actions>.toggle-sw{margin:0!important;flex-shrink:0}
 #prod-tbl .prod-actions>.icon-btn{margin:0;flex-shrink:0}
+
+/* Separación de proveedores nacionales y del exterior en ficha y editor. */
+.provider-origin-group td { padding:12px 14px!important; background:var(--bg3); }
+.provider-origin-exterior td { border-top:18px solid var(--bg2)!important; background:rgba(100,145,220,.12); box-shadow:inset 4px 0 var(--blue); }
+.provider-origin-local td { box-shadow:inset 4px 0 var(--green); }
+.provider-origin-exterior + tr td { padding-top:16px!important; }
