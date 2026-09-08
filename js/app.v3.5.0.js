@@ -12565,7 +12565,9 @@ function _abrirDestinoNovedad(novedad, conRecorrido) {
 
 function _novedadVersionActual() {
   var v = String(APP_CONFIG.VERSION || '').replace('-firebase','');
-  return (APP_CONFIG.RELEASE_HISTORY || []).find(function(e){ return e.version === v; }) || null;
+  var entradas = (APP_CONFIG.RELEASE_HISTORY || []).filter(function(e){ return e.notes && e.notes.length && !_versionMasNueva(e.version, v); });
+  entradas.sort(function(a,b){ return _versionMasNueva(a.version,b.version) ? -1 : _versionMasNueva(b.version,a.version) ? 1 : 0; });
+  return entradas[0] || null;
 }
 
 function abrirNovedadVersion(conRecorrido) {
