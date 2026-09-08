@@ -10112,7 +10112,7 @@ function applyRole() {
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
   VERSION: 'v3.5.0-firebase',
-  RELEASE_NOTES: Object.freeze(["La grilla de presupuestos muestra el porcentaje de descuento sin decimales."]),
+  RELEASE_NOTES: Object.freeze(["Cámara del chat a pantalla completa.", "Audio con envío al soltar, cancelación por gesto y reproductor propio."]),
   RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Abrir Productos' }),
   RELEASE_HISTORY: Object.freeze([
     Object.freeze({version:'v3.5.0',date:'08/09/2026',title:'Cámara y audio del chat',notes:Object.freeze(['Cámara a pantalla completa y audio con gestos.','Indicadores de versión restaurados.']),feature:Object.freeze({page:'productos',actionLabel:'Abrir productos'})}),
@@ -12491,10 +12491,10 @@ function _mostrarPopupActualizacion(verAnterior, verNueva) {
   var esLanzamientoV3 = /^v?2\./.test(desdeStr) && /^v?3\.0\.0$/.test(hastaStr);
   var acentoNovedad = esLanzamientoV3 ? '#f6c453' : 'var(--green)';
   var fondoAcentoNovedad = esLanzamientoV3 ? 'rgba(246,196,83,.13)' : 'var(--green-bg)';
-  var notasVersion = (APP_CONFIG.RELEASE_NOTES || []).map(function(nota) {
+  var notasVersion = ((_novedadVersionActual() || {}).notes || []).map(function(nota) {
     return '<div style="display:flex;align-items:flex-start;gap:8px;text-align:left"><i class="ti ti-check" style="color:' + acentoNovedad + ';font-size:14px;margin-top:2px;flex-shrink:0"></i><span>' + escapeHTML(nota) + '</span></div>';
   }).join('');
-  var novedad = APP_CONFIG.RELEASE_FEATURE || null;
+  var novedad = (_novedadVersionActual() || {}).feature || null;
   var puedeAbrirNovedad = novedad && (!novedad.page || typeof permisoModulo !== 'function' || permisoModulo(novedad.page));
   var accionesNovedad = puedeAbrirNovedad ?
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
@@ -12563,8 +12563,13 @@ function _abrirDestinoNovedad(novedad, conRecorrido) {
   }
 }
 
+function _novedadVersionActual() {
+  var v = String(APP_CONFIG.VERSION || '').replace('-firebase','');
+  return (APP_CONFIG.RELEASE_HISTORY || []).find(function(e){ return e.version === v; }) || null;
+}
+
 function abrirNovedadVersion(conRecorrido) {
-  _abrirDestinoNovedad(APP_CONFIG.RELEASE_FEATURE || null, conRecorrido);
+  _abrirDestinoNovedad((_novedadVersionActual() || {}).feature || null, conRecorrido);
 }
 
 function abrirNovedadHistorial(indice, conRecorrido) {
