@@ -11,7 +11,7 @@ function setup() {
   start(){this.state='recording';}
   stop(){this.state='inactive';this.ondataavailable({data:new Blob(['audio'])});this.onstop();}
  }
- const c={_chatCanal:'admin',notify(){},navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){stopped++;}}]})}},window:{MediaRecorder:Recorder},MediaRecorder:Recorder,File,Blob,URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},setInterval:()=>1,clearInterval(){},chatEnviarArchivo:f=>sent.push(f),document:{getElementById:id=>nodes[id]||(nodes[id]={pause(){},load(){},removeAttribute(){}})}};
+ const c={_chatCanal:'admin',notify(){},navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){stopped++;}}]})}},window:{MediaRecorder:Recorder},MediaRecorder:Recorder,File,Blob,URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},setInterval:()=>1,clearInterval(){},chatEnviarArchivo:f=>sent.push(f),document:{getElementById:id=>nodes[id]||(nodes[id]={pause(){},load(){},removeAttribute(){},setAttribute(){}})}};
  vm.createContext(c);vm.runInContext(app.slice(app.indexOf('var _chatAudio ='),app.indexOf('function chatSubirConLimite(')),c);
  return {c,nodes,sent,stopped:()=>stopped};
 }
@@ -48,5 +48,13 @@ test('mensaje de audio ofrece controles sin reproducción automática',()=>{
  const c={escapeHTML:x=>x};vm.createContext(c);
  vm.runInContext(app.slice(app.indexOf('function chatMsgContenido('),app.indexOf('function chatRenderMensajes(')),c);
  const html=c.chatMsgContenido({audioUrl:'https://example.com/audio.webm',autor:'Prueba'});
- assert.match(html,/<audio controls/);assert.doesNotMatch(html,/autoplay/);
+ assert.match(html,/class="chat-player-play"/);assert.doesNotMatch(html,/autoplay/);
 });
+
+test('soltar envía; deslizar a izquierda cancela; bloquear mantiene grabación',async()=>{
+ const e={button:0,pointerId:1,clientX:200,clientY:200,preventDefault(){},currentTarget:{setPointerCapture(){}}};
+ const a=setup();a.c.chatAudioPulsar(e);await new Promise(setImmediate);a.c.chatAudioSoltar({...e,type:'pointerup'});assert.equal(a.sent.length,1);
+ const b=setup();b.c.chatAudioPulsar(e);await new Promise(setImmediate);b.c.chatAudioMover({...e,clientX:100});b.c.chatAudioSoltar({...e,type:'pointerup'});assert.equal(b.sent.length,0);assert.ok(b.stopped()>0);
+ const d=setup();d.c.chatAudioPulsar(e);await new Promise(setImmediate);d.c.chatAudioMover({...e,clientY:120});d.c.chatAudioSoltar({...e,type:'pointerup'});assert.equal(d.sent.length,0);d.c.chatAudioPulsar(e);assert.equal(d.sent.length,1);
+});
+
