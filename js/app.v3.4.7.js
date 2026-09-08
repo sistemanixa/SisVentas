@@ -12010,6 +12010,22 @@ if (typeof window.aplicarVersionSisVentas === 'function') window.aplicarVersionS
 
 // Compara la versión que está corriendo en pantalla contra la que realmente está
 // que el propio chequeo caiga en el mismo caché que estamos tratando de detectar).
+// Sincronizar todos los elementos de versión en el DOM con APP_CONFIG.VERSION
+(function() {
+  var ver = APP_CONFIG.VERSION.replace('-firebase','');
+  var verCompleta = ver + ' · Firebase';
+  // Login sidebar
+  var loginLbl = document.getElementById('login-version-lbl');
+  if (loginLbl) loginLbl.textContent = verCompleta;
+  // Panel ruedita
+  var upVer = document.getElementById('up-version');
+  if (upVer) upVer.textContent = ver;
+  // Sidebar post-login
+  var sVer = document.getElementById('s-version-el');
+  if (sVer) sVer.textContent = verCompleta;
+})();
+
+
 // SISTEMA DE VERSIÓN EN TIEMPO REAL VÍA FIREBASE
 // En vez de hacer polling contra GitHub Pages (que tiene CDN con caché
 // de hasta 10 minutos y no es confiable), escuchamos el nodo
