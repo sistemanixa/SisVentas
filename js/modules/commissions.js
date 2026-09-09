@@ -141,7 +141,7 @@
       var motivo = estadoGrupo(grupo) === 'rechazado' ? motivoRechazoGrupo(grupo) : '';
       return '<tr onclick="abrirDetalleComision(\'' + esc(grupo.clave) + '\')" style="cursor:pointer">' +
         '<td data-label="Fecha">' + esc(String(grupo.fecha || '').split('-').reverse().join('/')) + '</td>' +
-        '<td data-label="Venta / cliente"><strong style="color:var(--blue)">' + esc(grupo.ventaId || 'Sin venta') + '</strong><div style="font-size:11px;color:var(--text3);margin-top:3px">' + esc(grupo.cliente || 'Cliente no informado') + '</div></td>' +
+        '<td data-label="Venta / cliente"><strong style="color:var(--blue)">' + esc(grupo.ventaId || 'Sin venta') + '</strong><div style="font-size:11px;color:var(--text3);margin-top:3px">' + esc(window.nombreClienteVigente ? window.nombreClienteVigente(grupo, 'Cliente no informado') : grupo.cliente || 'Cliente no informado') + '</div></td>' +
         '<td data-label="Participantes">' + participantes + '</td><td data-label="Reparto">' + pct.toLocaleString('es-AR') + '%</td>' +
         '<td class="tr" data-label="Total"><strong>' + moneda(monto) + '</strong></td><td data-label="Estado">' + badgeEstado(estadoGrupo(grupo)) + (motivo?'<div style="font-size:11px;color:var(--red);margin-top:5px;max-width:240px" title="'+esc(motivo)+'"><strong>Motivo:</strong> '+esc(motivo)+'</div>':'') + '</td>' +
         '<td data-label="Acciones"><button class="btn btn-sm btn-icon" onclick="event.stopPropagation();abrirDetalleComision(\'' + esc(grupo.clave) + '\')" title="Gestionar comisión"><i class="ti ti-adjustments"></i></button></td></tr>';
@@ -188,7 +188,7 @@
     if (!detalleActual) return;
     var maxPct = parseFloat((window.APROBACION_CONFIG && window.APROBACION_CONFIG.maxComisionPct) || 10) || 10;
     var titulo = document.getElementById('com-det-titulo'); if (titulo) titulo.textContent = 'Comisión ' + (detalleActual.ventaId || 'sin venta');
-    var sub = document.getElementById('com-det-sub'); if (sub) sub.textContent = detalleActual.cliente || 'Cliente no informado';
+    var sub = document.getElementById('com-det-sub'); if (sub) sub.textContent = window.nombreClienteVigente ? window.nombreClienteVigente(detalleActual, 'Cliente no informado') : detalleActual.cliente || 'Cliente no informado';
     var activos = detalleActual.items.filter(function (g) { return estado(g) !== 'rechazado'; });
     var suma = activos.reduce(function (s,g) { return s + porcentaje(g, movimientosDetalle[g.fbKey]); }, 0);
     var base = detalleActual.items.reduce(function (valor,g) { return valor || baseGanancia(g, movimientosDetalle[g.fbKey]); }, 0);
