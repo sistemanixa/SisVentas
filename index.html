@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.5.2-firebase' -->
+<!-- VERSION: 'v3.5.3-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.5.2.js"></script>
+<script src="./js/core/version.v3.5.3.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -683,7 +683,7 @@
               <i class="ti ti-refresh"></i> Actualizar valores
             </button>
             <button class="btn" id="btn-detalle-venta" onclick="toggleDetalleVenta(this)" style="min-width:120px">
-              <i class="ti ti-eye" id="icon-detalle-venta"></i> <span id="label-detalle-venta">Con detalle</span>
+              <i class="ti ti-eye-off" id="icon-detalle-venta"></i> <span id="label-detalle-venta">Sin detalle</span>
             </button>
             <button class="btn" onclick="abrirModalImprimir('venta','Imprimir venta')"><i class="ti ti-printer"></i> Imprimir</button>
             <button class="btn btn-primary" onclick="confirmarVenta()"><i class="ti ti-check"></i> Confirmar venta</button>
@@ -1033,8 +1033,8 @@
           <i class="ti ti-refresh"></i> Actualizar valores
         </button>
         <button class="btn" id="ppto-detalle-toggle" onclick="togglePptoDetalle()" title="Cambia si el presupuesto muestra precios o no" style="gap:6px">
-          <i class="ti ti-eye" id="ppto-detalle-icon"></i>
-          <span id="ppto-detalle-label">Con detalle</span>
+          <i class="ti ti-eye-off" id="ppto-detalle-icon"></i>
+          <span id="ppto-detalle-label">Sin detalle</span>
         </button>
         <button class="btn" onclick="imprimirPresupuestoActual()"><i class="ti ti-printer"></i> Imprimir</button>
         <button id="btn-guardar-principal-ppto" class="btn btn-primary" onclick="guardarPresupuesto('revision')"><i class="ti ti-send"></i> Enviar a revisión</button>
@@ -3851,6 +3851,7 @@ Listo para analizar.
           <label class="catalogo-search"><i class="ti ti-search"></i><input id="catalogo-buscar" type="search" placeholder="Buscar código, nombre, marca o proveedor..." oninput="renderCatalogo()" autocomplete="off"></label>
           <select id="catalogo-search-field" class="search-input" aria-label="Campos de búsqueda del catálogo" onchange="renderCatalogo()"><option value="principales">Búsqueda general</option><option value="descripcion">Descripción</option><option value="todo">Todos los campos</option></select>
           <button class="btn catalogo-categorias-btn" type="button" onclick="abrirCategoriasCatalogo()"><i class="ti ti-category"></i><span id="catalogo-categoria-boton">Explorar categorías</span><i class="ti ti-chevron-down"></i></button>
+          <div id="catalogo-carrito" class="catalogo-carrito" role="region" aria-label="Carrito del catálogo"></div>
           <div id="catalogo-categorias-rapidas" class="catalogo-categorias" aria-label="Categorías rápidas"></div>
         </div>
         <div class="catalogo-resumen"><span id="catalogo-cantidad">0 productos</span><span>Seleccioná un producto para verlo en detalle</span></div>
@@ -3867,7 +3868,7 @@ Listo para analizar.
             <button id="catalogo-modal-categoria" class="catalogo-card-cat catalogo-modal-categoria-link" type="button" onclick="verCategoriaDesdeDetalleCatalogo()" title="Ver todos los productos de esta categoría"></button>
             <h2 id="catalogo-modal-nombre"></h2>
             <div id="catalogo-modal-marca" class="catalogo-modal-marca"></div>
-            <p id="catalogo-modal-descripcion"></p>
+            <p id="catalogo-modal-descripcion"></p><button type="button" class="catalogo-agregar-carrito" onclick="agregarAlCarritoCatalogo()" aria-label="Agregar al carrito" title="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i><span id="catalogo-producto-contador" class="catalogo-producto-contador" hidden>0</span></button><button type="button" id="catalogo-restar-detalle" class="catalogo-restar" onclick="restarCarritoCatalogo()" aria-label="Quitar una unidad del carrito" title="Quitar una unidad" hidden><i class="ti ti-minus" aria-hidden="true"></i></button><span id="catalogo-producto-seleccion" class="catalogo-producto-seleccion" role="status" aria-live="polite">Agregar al carrito</span>
             <span class="catalogo-disponible"><i class="ti ti-circle-check-filled"></i> Disponible para consultar</span>
             <button class="catalogo-ficha-interna" type="button" onclick="abrirFichaInternaDesdeCatalogo()"><i class="ti ti-external-link"></i> Ver ficha interna con valores</button>
           </div>
@@ -5658,7 +5659,7 @@ Listo para analizar.
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.3.17"></script>
 <script src="./js/modules/offline-core.js?v=1.0.0"></script>
-<script src="./js/app.v3.5.2.js"></script>
+<script src="./js/app.v3.5.3.js"></script>
 <script src="./js/modules/business-break-even.js?v=1.0.3"></script>
 <script src="./js/modules/product-url-import.js"></script>
 <script src="./js/modules/keyboard-actions.js?v=3.3.18"></script>
