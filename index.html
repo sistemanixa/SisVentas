@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.5.17-firebase' -->
+<!-- VERSION: 'v3.5.18-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.5.17.js"></script>
+<script src="./js/core/version.v3.5.18.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -685,6 +685,7 @@
             <button class="btn" id="btn-detalle-venta" onclick="toggleDetalleVenta(this)" style="min-width:120px">
               <i class="ti ti-eye-off" id="icon-detalle-venta"></i> <span id="label-detalle-venta">Sin detalle</span>
             </button>
+            <button class="btn" data-imagen-comprobante="venta" aria-pressed="false" onclick="toggleImagenComprobante('venta')"><i class="ti ti-photo"></i> <span>Sin imagen</span></button>
             <button class="btn" onclick="abrirModalImprimir('venta','Imprimir venta')"><i class="ti ti-printer"></i> Imprimir</button>
             <button class="btn btn-primary" onclick="confirmarVenta()"><i class="ti ti-check"></i> Confirmar venta</button>
           </div>
@@ -1036,7 +1037,8 @@
           <i class="ti ti-eye-off" id="ppto-detalle-icon"></i>
           <span id="ppto-detalle-label">Sin detalle</span>
         </button>
-        <button class="btn" onclick="imprimirPresupuestoActual()"><i class="ti ti-printer"></i> Imprimir</button>
+        <button class="btn" data-imagen-comprobante="ppto" aria-pressed="false" onclick="toggleImagenComprobante('ppto')"><i class="ti ti-photo"></i> <span>Sin imagen</span></button>
+            <button class="btn" onclick="imprimirPresupuestoActual()"><i class="ti ti-printer"></i> Imprimir</button>
         <button id="btn-guardar-principal-ppto" class="btn btn-primary" onclick="guardarPresupuesto('revision')"><i class="ti ti-send"></i> Enviar a revisión</button>
       </div>
     </div>
@@ -5660,7 +5662,7 @@ Listo para analizar.
 <script src="./js/modules/v3-launch.js"></script>
 <script src="./js/modules/action-permissions.js?v=3.5.9"></script>
 <script src="./js/modules/offline-core.js?v=1.0.0"></script>
-<script src="./js/app.v3.5.17.js"></script>
+<script src="./js/app.v3.5.18.js"></script>
 <script src="./js/modules/commercial-drafts.js?v=1"></script>
 <script src="./js/modules/business-break-even.js?v=1.0.3"></script>
 <script src="./js/modules/product-url-import.js"></script>
