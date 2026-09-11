@@ -112,6 +112,7 @@
     'cobranzas.anular':          { modulo:'cobranzas', admin:true },
     'tesoreria.ver':             { modulo:'tesoreria', admin:true },
     'tesoreria.pagar':           { modulo:'tesoreria', admin:true },
+    'productos.gestionarCategorias': { modulo:'productos', label:'Gestionar categorías', roles:['admin'] },
     'productos.editar':          { modulo:'productos', roles:['admin','administrativo'] },
     'productos.eliminar':        { modulo:'productos', admin:true },
     'kits.editar':               { modulo:'kits', roles:['admin','administrativo'] },

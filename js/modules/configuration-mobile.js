@@ -84,7 +84,7 @@
     var list=document.createElement('div'); list.id='sv331-cargos-list'; list.className='sv331-mobile-list';
     list.innerHTML=ids.map(function(id){
       var c=CARGOS_DATA[id]||{};
-      return '<div class="sv331-card" data-cargo-id="'+esc331(id)+'"><div class="sv331-row"><div><div class="sv331-title">'+esc331(c.nombre||id)+'</div><div class="sv331-sub">'+esc331(c.categoriaBase||'')+'</div></div><button class="sv331-chevron" onclick="cargosAbrirNuevo(\''+esc331(id)+'\')"><i class="ti ti-chevron-right"></i></button></div>'+
+      return '<div class="sv331-card" data-cargo-base="'+esc331(JSON.stringify(c))+'" data-cargo-id="'+esc331(id)+'"><div class="sv331-row"><div><div class="sv331-title">'+esc331(c.nombre||id)+'</div><div class="sv331-sub">'+esc331(c.categoriaBase||'')+'</div></div><button class="sv331-chevron" onclick="cargosAbrirNuevo(\''+esc331(id)+'\')"><i class="ti ti-chevron-right"></i></button></div>'+
         '<div class="sv331-values">'+
         '<div class="sv331-mini"><label>Valor hora</label><input data-cargo-campo="valorHora" type="number" value="'+(parseFloat(c.valorHora)||0)+'" oninput="var b=this.closest(\'.sv331-card\').querySelector(\'[data-cargo-save]\');if(b)b.disabled=false"></div>'+
         '<div class="sv331-mini"><label>Hs extra</label><input data-cargo-campo="valorHoraExtra" type="number" value="'+(parseFloat(c.valorHoraExtra)||0)+'" oninput="var b=this.closest(\'.sv331-card\').querySelector(\'[data-cargo-save]\');if(b)b.disabled=false"></div>'+
@@ -97,7 +97,7 @@
   }
   window.guardarCargoMobile331=function(id,btn){
     var card=btn&&btn.closest?btn.closest('.sv331-card'):null; if(!card) return;
-    var leer=function(campo){var input=card.querySelector('[data-cargo-campo="'+campo+'"]');return parseFloat(input&&input.value)||0;};
+    var leer=function(campo){var input=card.querySelector('[data-cargo-campo="'+campo+'"]');return input ? input.value : NaN;};
     if(typeof window.cargosGuardarValoresAtomico==='function') return window.cargosGuardarValoresAtomico(id,{valorHora:leer('valorHora'),valorHoraExtra:leer('valorHoraExtra'),diasMes:leer('diasMes')},btn);
   };
   function guardarComisionMobile331(id, btn){

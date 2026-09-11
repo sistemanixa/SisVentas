@@ -1758,7 +1758,11 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   .hsex-calendar-head{display:none}
   .hsex-day-row{grid-template-columns:1fr;gap:7px}
   .hsex-summary{align-items:flex-start;flex-direction:column}
-  .hsex-admin-kpis{grid-template-columns:1fr!important;padding:10px!important}
+  .hsex-admin-kpis{grid-template-columns:repeat(3,minmax(0,1fr))!important;padding:10px!important;gap:6px!important}
+  .hsex-admin-kpis .metric{padding:8px!important;min-width:0}
+  .hsex-admin-kpis .m-label{font-size:9px;overflow-wrap:anywhere}
+  .hsex-admin-kpis .m-value{font-size:16px!important;overflow-wrap:anywhere}
+  #panel-hsextra-admin{height:calc(100dvh - 24px)!important;max-height:calc(100dvh - 24px)!important;min-height:0!important}
   .hsex-admin-card-head{align-items:flex-start!important}
   .hsex-admin-detail-row{grid-template-columns:82px 58px minmax(0,1fr)!important;gap:6px!important}
 }
@@ -2679,3 +2683,9 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 #page-catalogo .catalogo-toolbar{top:0}#catalogo-carrito{display:flex;align-items:center;justify-content:flex-end;gap:14px;margin:0 0 0 auto;padding:8px 0 8px 14px;border:0;border-radius:0;background:transparent}.catalogo-carrito-indicador{display:flex;align-items:center;gap:9px}.catalogo-carrito-indicador>.ti{font-size:25px;color:var(--green)}.catalogo-preparar-icono{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-width:52px;height:44px;border:1px solid var(--border);border-radius:12px;background:var(--green);color:#071c14;font-size:23px;cursor:pointer}.catalogo-preparar-icono:disabled{opacity:.4;cursor:default}.catalogo-preparar-icono:focus-visible{outline:2px solid var(--blue);outline-offset:3px}#page-catalogo,.catalogo-categorias,.content:has(#page-catalogo.active){scrollbar-width:thin;scrollbar-color:var(--border2) transparent}#page-catalogo::-webkit-scrollbar,.catalogo-categorias::-webkit-scrollbar,.content:has(#page-catalogo.active)::-webkit-scrollbar{width:4px;height:4px}#page-catalogo::-webkit-scrollbar-track,.catalogo-categorias::-webkit-scrollbar-track{background:transparent}#page-catalogo::-webkit-scrollbar-thumb,.catalogo-categorias::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}@media(max-width:760px){#catalogo-carrito{align-self:flex-end;padding-left:0;max-width:100%}.catalogo-carrito-importe{font-size:15px}}
 
 .catalogo-restar{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;border:1px solid var(--border);border-radius:50%;background:var(--bg3);color:var(--text);font-size:20px;cursor:pointer;margin-left:10px}.catalogo-restar[hidden]{display:none}.catalogo-restar-tarjeta{position:absolute;bottom:20px;right:68px;margin:0}.catalogo-restar:hover{color:var(--red);border-color:var(--red)}.catalogo-restar:focus-visible{outline:2px solid var(--blue);outline-offset:3px}.catalogo-tarjeta .catalogo-card-footer{padding-right:100px}
+
+/* Evitar que las tarjetas flex recorten el último día de horas extra. */
+#panel-hsextra-admin > .hsex-admin-modal-header,
+#panel-hsextra-admin > .hsex-admin-kpis{flex-shrink:0}
+#panel-hsextra-admin > div:last-child > section{flex-shrink:0}
+#panel-hsextra-admin details > div{max-height:none!important;overflow:visible!important}

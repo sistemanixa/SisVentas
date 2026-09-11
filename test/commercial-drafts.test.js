@@ -1,0 +1,23 @@
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const {valid, TTL} = require('../js/modules/commercial-drafts.js');
+const now = Date.now();
+assert.equal(valid({schema:1, kind:'venta', updated:now-TTL+1},now),true);
+assert.equal(valid({schema:1, kind:'venta', updated:now-TTL},now),false);
+assert.equal(valid({schema:1, kind:'presupuesto', updated:now+1},now),false);
+function field(id,value='') {return {id,value,type:'text',dataset:{},closest:()=>null};}
+const sale = field('venta-obs'), quote=field('pp-cli');
+const roots = {'page-venta':{querySelectorAll:()=>[sale],getClientRects:()=>[1]},'ppto-form-view':{querySelectorAll:()=>[quote],getClientRects:()=>[1]}};
+const storage={}; Object.defineProperties(storage,{getItem:{value:k=>storage[k]||null},setItem:{value:(k,v)=>{storage[k]=v;}},removeItem:{value:k=>delete storage[k]}});
+const c={document:{getElementById:id=>roots[id],querySelectorAll:()=>[],addEventListener(){}},localStorage:storage,currentUserUid:'user-a',setInterval(fn){c.tick=fn;},notify(){},_ventaConIva:true,_pptoConIva:true,_ventaImpConDetalle:false,_pptoConDetalle:false,_ventaMonedaActual:'ARS',_pptoMonedaActual:'ARS',addEventListener(){}};
+c.window=c; vm.createContext(c); vm.runInContext(fs.readFileSync('js/modules/commercial-drafts.js','utf8'),c);
+c.svDrafts.begin('venta'); c.svDrafts.begin('presupuesto'); c.svDrafts.flush();
+assert.equal(Object.keys(storage).length,0,'opening does not create drafts');
+sale.value='Trabajo pendiente'; c.svDrafts.flush();
+assert.equal(Object.keys(storage).length,1);
+const key=Object.keys(storage)[0], saved=storage[key]; c.svDrafts.flush(); assert.equal(storage[key],saved,'idle does not extend retention');
+quote.value='CONSUMIDOR FINAL'; c.svDrafts.flush(); assert.equal(Object.keys(storage).length,2);
+c.svDrafts.complete('venta'); assert.equal(Object.keys(storage).length,1,'successful sale does not delete budget');
+c.currentUserUid='user-b'; c.svDrafts.flush(); assert.equal(Object.keys(storage).length,1,'no write under new account with old session');
+console.log('OK: expiry boundary, no blank drafts, independent documents, unchanged retention, success cleanup, user isolation');
