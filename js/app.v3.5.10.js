@@ -34413,7 +34413,6 @@ async function spGenerarOTLegacy() {
     estadoInst: 'pendiente_inst',
     origen:     'reclamo',
     conIva: true,
-    sinDetalle: true,
     reclamoKey: SP_MODAL_KEY,
     reclamoId:  r.id || r.numero || SP_MODAL_KEY,
     items: [{
@@ -34691,7 +34690,6 @@ async function spGenerarOT(reclamoKey) {
     estadoInst: 'pendiente_inst',
     origen:     'reclamo',
     conIva: true,
-    sinDetalle: true,
     reclamoKey: rKey,
     reclamoId:  r.id || r.numero || rKey,
     items: [{

@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const src=fs.readFileSync('js/app.v3.5.6.js','utf8');
+const src=fs.readFileSync(('js/app.'+fs.readFileSync('index.html','utf8').match(/js\/app\.(v[0-9.]+)\.js/)[1]+'.js'),'utf8');
 function extract(name){const start=src.indexOf('function '+name+'(');return src.slice(start,src.indexOf('\nfunction ',start+1));}
 const ctx={Date,proveedoresVinculadosProducto:p=>p.proveedores};vm.createContext(ctx);
 vm.runInContext(extract('datosActualizadosProductoBiosegur'),ctx);
