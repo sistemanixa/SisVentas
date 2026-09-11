@@ -230,6 +230,8 @@
   }
 
   var PROTECCIONES_ACCION = [
+    ['abrirGestionCategorias','productos.gestionarCategorias'],
+    ['guardarGestionCategoria','productos.gestionarCategorias'],
     ['spAbrirResolucionVisita','soporte.resolver'],
     ['spConfirmarResolucionVisita','soporte.resolver'],
     ['spResolverRemoto','soporte.resolver'],
