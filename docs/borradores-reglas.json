@@ -1,0 +1,11 @@
+{
+  "sv_borradores": {
+    "$uid": {
+      ".read": "auth != null && auth.uid === $uid",
+      ".write": "auth != null && auth.uid === $uid",
+      "$id": {
+        ".validate": "newData.hasChildren(['id','updated']) && newData.child('id').val() === $id && newData.child('updated').isNumber() && (newData.child('deleted').val() === true || (data.child('deleted').val() !== true && newData.child('schema').val() === 1 && newData.hasChild('data') && (newData.child('kind').val() === 'venta' || newData.child('kind').val() === 'presupuesto')))"
+      }
+    }
+  }
+}

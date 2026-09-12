@@ -70,6 +70,12 @@
     window.fbSignOut     = signOut;
     window.fbOnAuth      = onAuthStateChanged;
     window.fbCreateUser  = createUserWithEmailAndPassword;
+    // Mantener la sesión administrativa al dar de alta otra identidad.
+    const secondaryAuth = getAuth(initializeApp(firebaseConfig, 'user-administration'));
+    window.fbCreateUserManaged = async function(email,password) {
+      try { return await createUserWithEmailAndPassword(secondaryAuth,email,password); }
+      finally { await signOut(secondaryAuth); }
+    };
     window.fbResetPass   = sendPasswordResetEmail;
     window.fbUpdatePass  = updatePassword;
     window.fbStorage     = fbStorage;

@@ -13,11 +13,12 @@ const storage={}; Object.defineProperties(storage,{getItem:{value:k=>storage[k]|
 const c={document:{getElementById:id=>roots[id],querySelectorAll:()=>[],addEventListener(){}},localStorage:storage,currentUserUid:'user-a',setInterval(fn){c.tick=fn;},notify(){},_ventaConIva:true,_pptoConIva:true,_ventaImpConDetalle:false,_pptoConDetalle:false,_ventaMonedaActual:'ARS',_pptoMonedaActual:'ARS',addEventListener(){}};
 c.window=c; vm.createContext(c); vm.runInContext(fs.readFileSync('js/modules/commercial-drafts.js','utf8'),c);
 c.svDrafts.begin('venta'); c.svDrafts.begin('presupuesto'); c.svDrafts.flush();
-assert.equal(Object.keys(storage).length,0,'opening does not create drafts');
+assert.equal(Object.keys(storage).filter(k=>!JSON.parse(storage[k]).deleted).length,0,'opening does not create drafts');
 sale.value='Trabajo pendiente'; c.svDrafts.flush();
-assert.equal(Object.keys(storage).length,1);
+assert.equal(Object.keys(storage).filter(k=>!JSON.parse(storage[k]).deleted).length,1);
 const key=Object.keys(storage)[0], saved=storage[key]; c.svDrafts.flush(); assert.equal(storage[key],saved,'idle does not extend retention');
-quote.value='CONSUMIDOR FINAL'; c.svDrafts.flush(); assert.equal(Object.keys(storage).length,2);
-c.svDrafts.complete('venta'); assert.equal(Object.keys(storage).length,1,'successful sale does not delete budget');
-c.currentUserUid='user-b'; c.svDrafts.flush(); assert.equal(Object.keys(storage).length,1,'no write under new account with old session');
+quote.value='CONSUMIDOR FINAL'; c.svDrafts.flush(); assert.equal(Object.keys(storage).filter(k=>!JSON.parse(storage[k]).deleted).length,2);
+c.svDrafts.complete('venta'); assert.equal(Object.keys(storage).filter(k=>!JSON.parse(storage[k]).deleted).length,1,'successful sale does not delete budget');
+c.currentUserUid='user-b'; c.svDrafts.flush(); assert.equal(Object.keys(storage).filter(k=>!JSON.parse(storage[k]).deleted).length,1,'no write under new account with old session');
 console.log('OK: expiry boundary, no blank drafts, independent documents, unchanged retention, success cleanup, user isolation');
+

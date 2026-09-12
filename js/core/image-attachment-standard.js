@@ -186,7 +186,8 @@
     try {
       window.notify('Preparando imagen…');
       var adjunto = await prepararAdjuntoImagen(file);
-      await window.fbPush(window.fbRef(window.fbDB, 'sisventas/chat/' + window._chatCanal), {
+      if (!window.chatPuedeAccederCanal(window._chatCanal)) throw new Error('Sin acceso a esta conversación');
+      await window.fbPush(window.fbRef(window.fbDB, 'sv_chat/' + window._chatCanal), {
         texto:'', fotoUrl:adjunto.data, foto:adjunto, autor:window.currentUser || '',
         rol:window.currentRole || '', ts:Date.now(), canal:window._chatCanal
       });
