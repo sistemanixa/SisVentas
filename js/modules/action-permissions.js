@@ -25,7 +25,8 @@
     'equipos.confirmarInstalacion':{modulo:'equipos',label:'Confirmar equipos y cobertura desde venta / OT',roles:['admin','administrativo','tecnico']},
     'agenda.reprogramar': {modulo:'agenda',label:'Reprogramar visitas',roles:['admin','administrativo']},
     'productos.agregarProveedor': {modulo:'productos',label:'Agregar proveedores a un producto',roles:['admin','administrativo']},
-    'productos.verProveedoresExterior': {modulo:'productos',label:'Ver proveedores de otros países',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']},
+    'productos.verProveedoresExterior': {modulo:'productos',label:'Ver y gestionar proveedores de otros países',roles:['admin','administrativo']},
+    'presupuestos.compararExterior': {modulo:'presupuesto',label:'Comparar compra exterior y margen',roles:['admin']},
     'presupuestos.revisarVencidos':{"modulo":"presupuesto","label":"Revisar precios de presupuestos vencidos","roles":["admin","administrativo"]},
     'ventas.repararAdicionales':{"modulo":"detalle","label":"Reparar vínculos de adicionales de OT","roles":["admin","administrativo"]},
     'empleados.avisarHaberes':{"modulo":"empleados","label":"Ver avisos de haberes pendientes","roles":["admin","administrativo"]},
@@ -39,6 +40,7 @@
     'facturas.repararConciliacion':{"modulo":"facturas","label":"Reparar estados de conciliación","roles":["admin","administrativo"]},
 
     'presupuestos.crear':{modulo:'presupuesto',label:'Crear presupuesto',roles:['admin','administrativo','vendedor','tecnico_vendedor']},
+    'catalogo.solicitarPresupuesto':{modulo:'catalogo',label:'Enviar selección a revisión comercial',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']},
     'agenda.crear':{modulo:'agenda',label:'Crear evento'},
     'gastos.cargarPropio':{modulo:'dashboard',label:'Cargar gasto propio desde acceso rápido',roles:['tecnico']},
     'empleados.horasConOTPendiente':{modulo:'ctaemp',label:'Presentar horas extra con OT vencidas',roles:['admin','administrativo','vendedor']},

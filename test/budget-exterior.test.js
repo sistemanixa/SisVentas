@@ -1,0 +1,4 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm');
+const c={window:{},setInterval:()=>{}};vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/budget-exterior.js','utf8'),c);
+test('escenario mantiene costos sin alternativa e incluye gastos adicionales',()=>{const r=c.window.calcularEscenarioExterior([{qty:2,actual:100,exterior:60},{qty:1,actual:50,exterior:0}],400,20);assert.equal(r.actual,250);assert.equal(r.exterior,190);assert.equal(r.ganancia,210);assert.equal(r.margen,52.5);assert.equal(r.comparados,1);});
+test('costos desconocidos impiden anunciar margen total y venta cero no divide',()=>{assert.equal(c.window.calcularEscenarioExterior([{qty:1,actual:0,exterior:30}],100,0).margen,null);assert.equal(c.window.calcularEscenarioExterior([{qty:1,actual:20,exterior:10}],0,0).margen,null);});
