@@ -131,7 +131,7 @@
     if (!list.length) { var row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=9;cell.textContent='No hay borradores pendientes.';row.appendChild(cell);body.appendChild(row); }
   }
   function installButtons() {
-    ['page-dashboard', 'ventas-list-view'].forEach(function (id) {
+    ['ventas-list-view'].forEach(function (id) {
       var host = document.getElementById(id); if (!host || host.querySelector('.sv-drafts-access')) return;
       var bar = document.createElement('div'); bar.className = 'sv-drafts-access'; bar.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:12px';
       var btn = document.createElement('button'); btn.className = 'btn btn-sm'; btn.innerHTML = '<i class="ti ti-files"></i> Borradores <span data-draft-count hidden style="background:var(--blue);color:white;border-radius:20px;padding:2px 7px"></span>'; btn.onclick = open;
