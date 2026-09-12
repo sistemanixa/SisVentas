@@ -83,6 +83,9 @@
       requireFirebase(['fbUpdate']);
       var payload = Object.assign({}, changes || {});
       delete payload.fbKey;
+      // Una edición modifica el contenido comercial, nunca el autor del alta.
+      // Omitir estos campos preserva también los valores más recientes del servidor.
+      if (collection === 'ventas') ['creadaPor','creadaPorRol','createdBy','usuario','fecha','fechaOrden','ts'].forEach(function(field) { delete payload[field]; });
       return root.fbUpdate(reference(collection, key), payload);
     }
 
