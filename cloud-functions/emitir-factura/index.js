@@ -612,7 +612,7 @@ function normalizeIdentity(value) {
 }
 
 async function systemUserForAuth(decoded) {
-  var users = (await db.ref('sisventas/usuarios').once('value')).val() || {};
+  var users = (await db.ref(require('./security-storage.cjs').usersPath()).once('value')).val() || {};
   var email = normalizeIdentity(decoded.email || '');
   var found = Object.keys(users).map(function(key){ return Object.assign({ fbKey:key }, users[key] || {}); }).find(function(user) {
     var candidate = String(user.mail || user.email || user.login || '').toLowerCase().trim();
@@ -724,7 +724,7 @@ async function uidsForTarget(target) {
   if (target.type === 'roles') {
     var roles = (target.roles || []).map(normalizeRole);
     var usersByEmail = {};
-    var users = (await db.ref('sisventas/usuarios').once('value')).val() || {};
+    var users = (await db.ref(require('./security-storage.cjs').usersPath()).once('value')).val() || {};
     Object.values(users).forEach(function(user) {
       user = user || {};
       var email = String(user.mail || user.email || user.login || '').toLowerCase().trim();
@@ -742,7 +742,7 @@ async function uidsForTarget(target) {
   }
   if (target.type !== 'technician') return [];
   if (target.uid) return [target.uid];
-  var users = (await db.ref('sisventas/usuarios').once('value')).val() || {};
+  var users = (await db.ref(require('./security-storage.cjs').usersPath()).once('value')).val() || {};
   var wantedEmail = normalizeIdentity(target.email);
   var wantedName = normalizeIdentity(target.name);
   var match = Object.keys(users).map(function(key){ return Object.assign({ fbKey:key }, users[key] || {}); }).find(function(user) {

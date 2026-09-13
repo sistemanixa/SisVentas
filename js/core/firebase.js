@@ -68,7 +68,18 @@
     window.fbRunTransaction = runTransaction;
     window.fbSignIn      = signInWithEmailAndPassword;
     window.fbSignOut     = signOut;
-    window.fbOnAuth      = onAuthStateChanged;
+    window.fbOnAuth = function(auth, callback, errorCallback) {
+      return onAuthStateChanged(auth, async function(user) {
+        try {
+          if (window.svPrepararRutasSeguridad) await window.svPrepararRutasSeguridad(user);
+          callback(user);
+        } catch (error) {
+          console.warn('[Auth] No se pudo verificar la ubicación de acceso', error);
+          if (errorCallback) errorCallback(error);
+          else if (window.notify) window.notify('No se pudo verificar el acceso. Revisá la conexión y recargá.');
+        }
+      }, errorCallback);
+    };
     window.fbCreateUser  = createUserWithEmailAndPassword;
     // Mantener la sesión administrativa al dar de alta otra identidad.
     const secondaryAuth = getAuth(initializeApp(firebaseConfig, 'user-administration'));

@@ -1,0 +1,43 @@
+{
+  "rules": {
+    "sisventas": {
+      ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true",
+      ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true",
+      "chat": {
+        ".validate": false
+      }
+    },
+    "sv_borradores": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$id": {
+          ".validate": "newData.hasChildren(['id','updated']) && newData.child('id').val() === $id && newData.child('updated').isNumber() && (newData.child('deleted').val() === true || (data.child('deleted').val() !== true && newData.child('schema').val() === 1 && newData.hasChild('data') && (newData.child('kind').val() === 'venta' || newData.child('kind').val() === 'presupuesto')))"
+        }
+      }
+    },
+    "sv_chat_roles": {
+      ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'",
+      ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid"
+      }
+    },
+    "sv_chat_directorio": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'"
+    },
+    "sv_chat": {
+      "$canal": {
+        ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))",
+        ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))"
+      }
+    },
+    "sv_chat_escribiendo": {
+      "$canal": {
+        ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))",
+        ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))"
+      }
+    }
+  }
+}

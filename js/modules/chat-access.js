@@ -34,14 +34,24 @@
       });
     }));
   };
+  window.cambiarEstadoUsuarioConAccesoChat=function(key,activo){
+    var user=(window.usuariosData||[]).find(function(u){return u.fbKey===key;});
+    var uid=user&&user.uid||Object.keys(window._chatDirectorio||{}).find(function(id){return window._chatDirectorio[id].usuarioKey===key;});
+    if(!key||!uid)return Promise.reject(new Error('No se encontró la identidad de acceso del usuario.'));
+    var changes={};
+    changes[window.svRutaUsuarios()+'/'+key+'/activo']=activo;
+    changes['sv_chat_roles/'+uid+'/activo']=activo;
+    changes['sv_chat_directorio/'+uid+'/activo']=activo;
+    return window.fbUpdate(window.fbRef(window.fbDB),changes);
+  };
   window.guardarUsuarioConAccesoChat=function(datos,key){
-    var ref=window.fbRef(window.fbDB,'sisventas/usuarios');
+    var ref=window.fbRef(window.fbDB,window.svRutaUsuarios());
     key=key||window.fbPush(ref).key;
     var existing=(window.usuariosData||[]).find(function(u){return u.fbKey===key;})||{};
     var uid=datos.uid||existing.uid||Object.keys(window._chatDirectorio||{}).find(function(id){return window._chatDirectorio[id].usuarioKey===key;});
     if(!uid)return Promise.reject(new Error('No se encontró la identidad de acceso del usuario.'));
-    var changes={};changes['sisventas/usuarios/'+key]=Object.assign({},existing,datos,{uid:uid});
-    delete changes['sisventas/usuarios/'+key].fbKey;
+    var changes={};changes[window.svRutaUsuarios()+'/'+key]=Object.assign({},existing,datos,{uid:uid});
+    delete changes[window.svRutaUsuarios()+'/'+key].fbKey;
     changes['sv_chat_roles/'+uid]={rol:datos.rol,activo:datos.activo!==false};
     changes['sv_chat_directorio/'+uid]={nombre:datos.nombre,usuarioKey:key,activo:datos.activo!==false};
     return window.fbUpdate(window.fbRef(window.fbDB),changes);
