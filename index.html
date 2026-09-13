@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.6.3-firebase' -->
+<!-- VERSION: 'v3.6.4-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.6.3.js"></script>
+<script src="./js/core/version.v3.6.4.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -3271,6 +3271,7 @@ Listo para analizar.
           <div class="card-head">
             <span class="card-title">Reclamos y soporte</span>
             <div style="display:flex;gap:8px;align-items:center">
+              <input id="sp-busqueda" type="search" class="search-input" placeholder="Buscar cliente, problema u OT…" aria-label="Buscar reclamos" oninput="spRenderLista()">
               <select id="sp-filtro-estado" class="search-input" style="width:160px" onchange="spRenderLista()">
                 <option value="pendientes" selected>Pendientes</option>
                 <option value="todos">Todos los estados</option>
@@ -5665,11 +5666,13 @@ Listo para analizar.
 <script src="./js/modules/security-storage.js?v=1"></script>
 <script src="./js/modules/action-permissions.js?v=3.5.9"></script>
 <script src="./js/modules/offline-core.js?v=1.0.0"></script>
-<script src="./js/app.v3.6.3.js"></script>
+<script src="./js/app.v3.6.4.js"></script>
 <script src="./js/modules/commercial-drafts.js?v=2"></script>
 <script src="./js/modules/chat-access.js?v=1"></script>
 <script src="./js/modules/catalog-cart-review.js?v=1"></script>
+
 <script src="./js/modules/ai-learning.js?v=1"></script>
+<script src="./js/modules/ai-dictation.js?v=1"></script>
 <script src="./js/modules/budget-exterior.js?v=1"></script>
 <script src="./js/modules/business-break-even.js?v=1.0.3"></script>
 <script src="./js/modules/product-url-import.js"></script>
@@ -6009,16 +6012,19 @@ Listo para analizar.
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button onclick="iaLimpiar()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;border:0.5px solid var(--border)" title="Nueva conversación">↺ Nueva</button>
+        <button id="ia-reglas" class="btn btn-sm" type="button" hidden aria-label="Reglas de instalación" title="Reglas de instalación" onclick="svIaLearning.manage()"><i class="ti ti-settings" aria-hidden="true"></i></button>
         <button onclick="iaCerrar()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;padding:4px 8px">✕</button>
       </div>
     </div>
     <div id="ia-messages"></div>
     <div id="ia-sugerencias" style="padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;border-top:0.5px solid var(--border)">
     </div>
-    <button id="ia-reglas" class="btn btn-sm" hidden onclick="svIaLearning.manage()">Reglas de instalación</button>
+
+    <div id="ia-voice-status" role="status" hidden><i class="ti ti-microphone" aria-hidden="true"></i><span data-voice-label></span><span class="ia-voice-bars" aria-hidden="true"><span data-voice-bar></span><span data-voice-bar></span><span data-voice-bar></span><span data-voice-bar></span><span data-voice-bar></span><span data-voice-bar></span><span data-voice-bar></span><span data-voice-bar></span></span></div>
     <div id="ia-input-row">
-      <button id="ia-dictar" class="btn btn-sm" type="button" aria-label="Dictar pedido" aria-pressed="false" onclick="svIaLearning.dictate()">Dictar</button>
-      <textarea id="ia-input" placeholder="Preguntá algo..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();iaEnviar()}"></textarea>
+      <button id="ia-dictar" class="btn btn-sm" type="button" aria-label="Dictar pedido" aria-pressed="false" onclick="svIaDictation.toggle()" title="Dictar pedido"><i class="ti ti-microphone" aria-hidden="true"></i></button>
+      <div id="ia-composer"><textarea id="ia-input" placeholder="Escribí un mensaje..." aria-label="Mensaje para el asistente" rows="1" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,160)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();iaEnviar()}"></textarea>
+      <button id="ia-ensenar" type="button" hidden onclick="svIaLearning.teach()" title="Interpretar este mensaje como una regla">Enseñar</button></div>
       <button id="ia-send" onclick="iaEnviar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>
   </div>
