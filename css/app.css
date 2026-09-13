@@ -1090,6 +1090,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .chat-adjunto-opcion{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:108px;padding:6px;border:0;border-radius:12px;background:transparent;color:var(--text);font:inherit;font-size:12px;cursor:pointer}
 .chat-adjunto-icono{display:grid;place-items:center;width:54px;height:54px;border-radius:50%;color:#fff;transition:transform .15s}
 .chat-adjunto-imagen{background:linear-gradient(145deg,#d64791,#aa328b)}
+.chat-adjunto-camara{background:linear-gradient(145deg,#429ee8,#2876c5)}
 .chat-adjunto-documento{background:linear-gradient(145deg,#8871ee,#6554ce)}
 .chat-adjunto-opcion:hover .chat-adjunto-icono{transform:translateY(-3px)}
 .chat-adjunto-opcion:focus-visible,#chat-adjuntar:focus-visible{outline:2px solid var(--green);outline-offset:3px}

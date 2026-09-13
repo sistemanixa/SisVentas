@@ -133,9 +133,15 @@
   function installButtons() {
     ['ventas-list-view'].forEach(function (id) {
       var host = document.getElementById(id); if (!host || host.querySelector('.sv-drafts-access')) return;
-      var bar = document.createElement('div'); bar.className = 'sv-drafts-access'; bar.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:12px';
-      var btn = document.createElement('button'); btn.className = 'btn btn-sm'; btn.innerHTML = '<i class="ti ti-files"></i> Borradores <span data-draft-count hidden style="background:var(--blue);color:white;border-radius:20px;padding:2px 7px"></span>'; btn.onclick = open;
-      bar.appendChild(btn); host.prepend(bar);
+      var reference = document.getElementById('tab-borradores');
+      var tabs = document.getElementById('vtab-anuladas');
+      if (!reference || !tabs || !tabs.parentElement) return;
+      var btn = reference.cloneNode(true);
+      btn.id = 'ventas-borradores';
+      btn.className = 'btn btn-sm sv-drafts-access';
+      btn.removeAttribute('onclick');
+      btn.onclick = open;
+      tabs.parentElement.appendChild(btn);
     });
   }
   function open() {
