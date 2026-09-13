@@ -14,7 +14,7 @@ try {
   $env:PATH = "$JavaRuntime\bin;$env:PATH"
   $env:CI = 'true'
   $env:SV_RULES_BASELINE = ''
-  node $cli emulators:exec --only database --project demo-sisventas-security --config security/firebase.emulator.json 'node --test --test-concurrency=1 test/firebase-identidad.integration.cjs test/firebase-control-acceso.integration.cjs test/control-access-migration.test.js test/security-storage.test.js test/usuario-estado-acceso.test.js'
+  node $cli emulators:exec --only database --project demo-sisventas-security --config security/firebase.emulator.json 'node --test --test-concurrency=1 test/firebase-identidad.integration.cjs test/firebase-control-acceso.integration.cjs test/control-access-migration.test.js test/security-storage.test.js test/security-auth-order.test.js test/usuario-estado-acceso.test.js'
   if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de identidad Firebase.' }
 } finally {
   Pop-Location

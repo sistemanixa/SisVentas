@@ -29,4 +29,7 @@ function applyPlan(current,plan){
  delete next.sisventas.config.permisos;
  return next;
 }
-module.exports={planMigration,applyPlan,sourceOf};
+function migrationPatch(plan){
+ return {sv_usuarios:structuredClone(plan.users),sv_permisos:structuredClone(plan.permissions),'sisventas/usuarios':null,'sisventas/config/permisos':null};
+}
+module.exports={planMigration,applyPlan,sourceOf,migrationPatch};

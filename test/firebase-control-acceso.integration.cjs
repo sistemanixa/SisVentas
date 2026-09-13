@@ -80,3 +80,20 @@ test('sesión desconocida no puede leer ni escribir los controles',async()=>{
   await assertFails(set(ref(db,route),{valor:1}));
  }
 });
+test('traslado multipath copia y retira solo los controles bajo reglas finales',async()=>{
+ const {planMigration,migrationPatch}=require('../scripts/control-access-migration.cjs');
+ await env.withSecurityRulesDisabled(async c=>{
+  const db=c.database(),root=(await get(ref(db))).val();
+  root.sisventas.usuarios=root.sv_usuarios;root.sisventas.config.permisos=root.sv_permisos;
+  delete root.sv_usuarios;delete root.sv_permisos;
+  await set(ref(db),root);
+  const plan=planMigration(root);
+  await update(ref(db),migrationPatch(plan));
+  const saved=(await get(ref(db))).val();
+  assert.deepEqual(saved.sv_usuarios,plan.users);
+  assert.deepEqual(saved.sv_permisos,plan.permissions);
+  assert.deepEqual(saved.sisventas.ventas,root.sisventas.ventas);
+  assert.equal(saved.sisventas.usuarios,undefined);
+  assert.equal(saved.sisventas.config.permisos,undefined);
+ });
+});

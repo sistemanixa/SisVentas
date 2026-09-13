@@ -1,6 +1,12 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {planMigration,applyPlan}=require('../scripts/control-access-migration.cjs');
+const {planMigration,applyPlan,migrationPatch}=require('../scripts/control-access-migration.cjs');
 function fixture(){return {sisventas:{usuarios:{u:{nombre:'Ficticio',rol:'admin',activo:true}},config:{permisos:{personalizado:{valor:false}},version:'igual'},ventas:{v:{total:100.55}}},sv_chat_roles:{auth1:{rol:'admin',activo:true}},sv_chat_directorio:{auth1:{usuarioKey:'u'}}};}
+test('payload multipath excluye datos comerciales aunque la base sea grande',()=>{
+ const root=fixture();root.sisventas.archivo='x'.repeat(17*1024*1024);
+ const patch=migrationPatch(planMigration(root));
+ assert.deepEqual(Object.keys(patch).sort(),['sisventas/config/permisos','sisventas/usuarios','sv_permisos','sv_usuarios']);
+ assert.ok(Buffer.byteLength(JSON.stringify(patch))<1024);
+});
 test('migración conserva configuración completa y agrega solo UID verificado',()=>{
  const root=fixture(),plan=planMigration(root),next=applyPlan(root,plan);
  assert.deepEqual(next.sv_usuarios,{u:{...root.sisventas.usuarios.u,uid:'auth1'}});
