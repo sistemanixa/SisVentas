@@ -4,8 +4,25 @@
   window.abrirSeleccionCatalogo=function(){
     var old=document.getElementById('catalogo-seleccion-dialog');if(old)old.remove();
     var d=document.createElement('dialog');d.id='catalogo-seleccion-dialog';
-    d.style.cssText='width:min(660px,92vw);max-height:85vh;overflow:auto;border:1px solid var(--border);border-radius:14px;background:var(--bg2);color:var(--text);padding:20px';
+    d.style.cssText='position:fixed;inset:0;margin:auto;width:min(660px,92vw);max-height:85vh;overflow:auto;border:1px solid var(--border);border-radius:14px;background:var(--bg2);color:var(--text);padding:20px';
     var h=document.createElement('h3');h.textContent='Productos seleccionados';d.appendChild(h);
+    h.style.cssText='cursor:grab;touch-action:none;user-select:none;margin:0 0 14px;padding:6px 0';
+    h.title='Arrastrá para mover la ventana';
+    var drag=null;
+    h.addEventListener('pointerdown',function(e){
+      if(e.button!==0)return;
+      var r=d.getBoundingClientRect();
+      drag={id:e.pointerId,x:e.clientX-r.left,y:e.clientY-r.top};
+      d.style.inset='auto';d.style.margin='0';d.style.left=r.left+'px';d.style.top=r.top+'px';
+      h.setPointerCapture(e.pointerId);h.style.cursor='grabbing';e.preventDefault();
+    });
+    h.addEventListener('pointermove',function(e){
+      if(!drag||e.pointerId!==drag.id)return;
+      d.style.left=Math.max(0,Math.min(innerWidth-d.offsetWidth,e.clientX-drag.x))+'px';
+      d.style.top=Math.max(0,Math.min(innerHeight-d.offsetHeight,e.clientY-drag.y))+'px';
+    });
+    function stopDrag(){drag=null;h.style.cursor='grab';}
+    h.addEventListener('pointerup',stopDrag);h.addEventListener('pointercancel',stopDrag);h.addEventListener('lostpointercapture',stopDrag);
     var rows=document.createElement('div');d.appendChild(rows);
     function render(){rows.replaceChildren();var products=productosVisiblesCatalogo();
       if(!catalogoCarrito.size){rows.textContent='No hay productos seleccionados.';return;}

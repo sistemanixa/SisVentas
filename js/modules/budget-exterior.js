@@ -29,9 +29,27 @@
       return {nombre:it.desc||it.descripcion||p&&p.nombre||it.cod||'Producto',qty:Number(it.qty||it.cantidad)||1,actual:current,exterior:offer?offer.cost:0,proveedor:offer?(offer.pv.nombre||'Paraguay'):'Se conserva costo actual',nota:offer?(estadoVigenciaPrecioProveedor(p,offer.pv).texto+' · '+(offer.pv.disponibilidadProveedorTexto||'Stock no verificado')):'Sin cotización de Paraguay disponible'};
     });
     var old=document.getElementById('presupuesto-exterior-dialog');if(old)old.remove();
-    var d=document.createElement('dialog');d.id='presupuesto-exterior-dialog';d.style.cssText='width:min(920px,94vw);max-height:88vh;overflow:auto;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:14px;padding:22px';
+    var d=document.createElement('dialog');d.id='presupuesto-exterior-dialog';d.style.cssText='position:fixed;inset:0;margin:auto;width:min(920px,94vw);max-height:88vh;overflow:auto;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:14px;padding:22px';
     function text(tag,value){var el=document.createElement(tag);el.textContent=value;d.appendChild(el);return el;}
-    text('h3','Comparar compra en Paraguay');
+    var h=text('h3','Comparar compra en Paraguay');
+    h.style.cssText='cursor:grab;touch-action:none;user-select:none;margin:0 0 14px;padding:6px 0';
+    h.title='Arrastrá para mover la ventana';
+    var drag=null;
+    h.addEventListener('pointerdown',function(e){
+      if(e.button!==0)return;
+      var r=d.getBoundingClientRect();
+      drag={id:e.pointerId,x:e.clientX-r.left,y:e.clientY-r.top};
+      d.style.inset='auto';d.style.margin='0';d.style.left=r.left+'px';d.style.top=r.top+'px';
+      h.setPointerCapture(e.pointerId);h.style.cursor='grabbing';e.preventDefault();
+    });
+    h.addEventListener('pointermove',function(e){
+      if(!drag||e.pointerId!==drag.id)return;
+      d.style.left=Math.max(0,Math.min(innerWidth-d.offsetWidth,e.clientX-drag.x))+'px';
+      d.style.top=Math.max(0,Math.min(innerHeight-d.offsetHeight,e.clientY-drag.y))+'px';
+    });
+    function stopDrag(){drag=null;h.style.cursor='grab';}
+    h.addEventListener('pointerup',stopDrag);h.addEventListener('pointercancel',stopDrag);h.addEventListener('lostpointercapture',stopDrag);
+
     text('p','Simulación interna en ARS. Mantiene la venta del presupuesto y compara su ingreso sin IVA contra los costos. Los productos sin alternativa conservan el costo actual.');
     text('p','Dólar utilizado: '+money(fx)+' · Se toma la menor cotización de Paraguay no marcada sin stock. Revisá vigencia y disponibilidad.');
     var wrap=document.createElement('div');wrap.style.overflowX='auto';var table=document.createElement('table');table.style.width='100%';

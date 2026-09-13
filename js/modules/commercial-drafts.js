@@ -74,7 +74,7 @@
       var price = tr.querySelector('.price');
       return { cod: (tr.querySelector('.prod-sel-cod') || {}).textContent || '', desc: (tr.querySelector('.desc-txt-clean,.desc-txt') || {}).textContent || '', qty: (tr.querySelector('.qty') || {}).value || '', price: price ? getMontoRaw(price) : 0, priceText: price ? price.value : '', priceData: price ? Object.assign({}, price.dataset) : {}, disc: (tr.querySelector('.disc') || {}).value || '', data: Object.assign({}, tr.dataset) };
     });
-    return { fields: fields(scope), rows: rows, edit: kind === 'venta' ? window._ventaEditandoFbKey || '' : window._pptoEditandoFbKey || '', editId: kind === 'presupuesto' ? window._pptoEditandoId || '' : '', iva: kind === 'venta' ? _ventaConIva : _pptoConIva, detail: kind === 'venta' ? _ventaImpConDetalle : _pptoConDetalle, currency: kind === 'venta' ? _ventaMonedaActual : _pptoMonedaActual };
+    return { creadoConIA: kind === 'presupuesto' && window._pptoCreadoConIA === true, fields: fields(scope), rows: rows, edit: kind === 'venta' ? window._ventaEditandoFbKey || '' : window._pptoEditandoFbKey || '', editId: kind === 'presupuesto' ? window._pptoEditandoId || '' : '', iva: kind === 'venta' ? _ventaConIva : _pptoConIva, detail: kind === 'venta' ? _ventaImpConDetalle : _pptoConDetalle, currency: kind === 'venta' ? _ventaMonedaActual : _pptoMonedaActual };
   }
   function original(kind, data) { return kind === 'venta' ? window._ventaEditandoOriginal || null : data.edit ? buscarPptoPorRef(data.edit) : null; }
   function begin(kind) {
@@ -190,6 +190,7 @@
         var detailLabel = document.getElementById(d.kind === 'venta' ? 'label-detalle-venta' : 'ppto-detalle-label');
         if (detailLabel) detailLabel.textContent = d.data.detail ? 'Con detalle' : 'Sin detalle';
         if (d.kind === 'presupuesto') {
+          if (typeof iaMarcarPresupuesto === 'function') iaMarcarPresupuesto(d.data.creadoConIA === true);
           var label = document.getElementById('pmt-label'); if (label) label.textContent = d.data.currency;
           var thumb = document.getElementById('pmt-thumb'); if (thumb) thumb.style.transform = d.data.currency === 'USD' ? 'translateX(16px)' : 'translateX(0)';
         }

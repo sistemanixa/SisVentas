@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.6.2-firebase' -->
+<!-- VERSION: 'v3.6.3-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.6.2.js"></script>
+<script src="./js/core/version.v3.6.3.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -5665,10 +5665,11 @@ Listo para analizar.
 <script src="./js/modules/security-storage.js?v=1"></script>
 <script src="./js/modules/action-permissions.js?v=3.5.9"></script>
 <script src="./js/modules/offline-core.js?v=1.0.0"></script>
-<script src="./js/app.v3.6.2.js"></script>
+<script src="./js/app.v3.6.3.js"></script>
 <script src="./js/modules/commercial-drafts.js?v=2"></script>
 <script src="./js/modules/chat-access.js?v=1"></script>
 <script src="./js/modules/catalog-cart-review.js?v=1"></script>
+<script src="./js/modules/ai-learning.js?v=1"></script>
 <script src="./js/modules/budget-exterior.js?v=1"></script>
 <script src="./js/modules/business-break-even.js?v=1.0.3"></script>
 <script src="./js/modules/product-url-import.js"></script>
@@ -6014,7 +6015,9 @@ Listo para analizar.
     <div id="ia-messages"></div>
     <div id="ia-sugerencias" style="padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;border-top:0.5px solid var(--border)">
     </div>
+    <button id="ia-reglas" class="btn btn-sm" hidden onclick="svIaLearning.manage()">Reglas de instalación</button>
     <div id="ia-input-row">
+      <button id="ia-dictar" class="btn btn-sm" type="button" aria-label="Dictar pedido" aria-pressed="false" onclick="svIaLearning.dictate()">Dictar</button>
       <textarea id="ia-input" placeholder="Preguntá algo..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();iaEnviar()}"></textarea>
       <button id="ia-send" onclick="iaEnviar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>
