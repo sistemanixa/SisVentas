@@ -2695,8 +2695,15 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .ss-list{cursor:pointer;user-select:none}
 #page-catalogo .catalogo-toolbar::before{content:'';position:absolute;left:0;right:0;bottom:100%;height:36px;background:var(--bg);pointer-events:none}
 
-#ia-dictar{width:38px;height:38px;min-width:38px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:20px;color:var(--text);background:var(--bg3)}
-#ia-dictar[aria-pressed="true"]{background:var(--red);color:white}#ia-voice-status{display:flex;align-items:center;gap:8px;padding:8px 16px;color:var(--text2);font-size:12px}#ia-voice-status[hidden]{display:none}#ia-voice-status.is-listening>i{color:var(--red);animation:ia-mic-pulse 1.2s ease-in-out infinite}.ia-voice-bars{height:24px;display:flex;align-items:center;gap:3px;margin-left:auto}.ia-voice-bars span{display:block;width:3px;height:3px;border-radius:3px;background:var(--blue);transition:height .08s linear}@keyframes ia-mic-pulse{50%{opacity:.35}}@media(prefers-reduced-motion:reduce){#ia-voice-status.is-listening>i{animation:none}.ia-voice-bars span{transition:none}}
+#ia-dictar{width:46px;height:46px;border:0;background:linear-gradient(135deg,var(--purple),#8b5cf6);color:#fff;font-size:24px}
+#ia-dictar[aria-pressed="true"]{background:var(--red);color:white}
+#ia-voice-status{display:flex;align-items:center;gap:8px;padding:8px 16px;color:var(--text2);font-size:12px}
+#ia-voice-status[hidden]{display:none}
+#ia-voice-status.is-listening>i{color:var(--red);animation:ia-mic-pulse 1.2s ease-in-out infinite}
+.ia-voice-bars{height:24px;display:flex;align-items:center;gap:3px;margin-left:auto}
+.ia-voice-bars span{display:block;width:3px;height:3px;border-radius:3px;background:var(--blue);transition:height .08s linear}
+@keyframes ia-mic-pulse{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){#ia-voice-status.is-listening>i{animation:none}.ia-voice-bars span{transition:none}}
 /* Controles del asistente alineados con el chat interno. */
 .ia-tools{display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:4px 12px}
 #ia-reglas{width:32px;height:32px;padding:0;border:0;background:transparent;color:var(--text2);font-size:20px;border-radius:50%}
@@ -2704,7 +2711,8 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 #ia-input-row{flex-shrink:0;gap:8px;padding:8px 10px;align-items:flex-end}
 #ia-input{min-width:0;box-sizing:border-box;min-height:42px;max-height:160px;border-radius:21px;scrollbar-width:none;overflow-y:auto}
 #ia-input::-webkit-scrollbar{display:none}
-#ia-send,#ia-dictar{width:42px;height:42px;min-width:42px;flex-shrink:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
+#ia-input-row #ia-send,#ia-input-row #ia-dictar{width:46px;height:46px;min-width:46px;flex-shrink:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
+#ia-input-row #ia-send{background:linear-gradient(135deg,var(--purple),#8b5cf6);border:none;color:#fff}
 .ia-settings-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.ia-settings-head h3{margin:0}.ia-settings-help,.ia-settings-section p{font-size:13px;color:var(--text2);line-height:1.5}.ia-settings-section{padding:16px;margin:16px 0;border:1px solid var(--border);border-radius:12px;background:var(--bg3)}.ia-settings-section h4{margin:0 0 8px}.ia-settings-section summary{cursor:pointer;font-weight:600}.ia-settings-section textarea{width:100%;box-sizing:border-box;resize:vertical;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font:inherit}.ia-settings-section button{margin-top:10px}.ia-settings label{display:block;margin-top:12px}.ia-settings::backdrop{background:#0008}
 #ia-composer{display:flex;align-items:flex-end;flex:1;min-width:0;border:1px solid var(--border2);border-radius:21px;background:var(--bg3);padding-right:6px}#ia-composer #ia-input{border:0;background:transparent;flex:1}#ia-composer #ia-ensenar{align-self:flex-end;margin:0 0 7px;padding:4px 7px;border:0;border-radius:9px;background:transparent;color:#a89aff;font-size:11px;cursor:pointer;flex-shrink:0}#ia-composer #ia-ensenar[hidden]{display:none}
 @media(max-width:600px){
@@ -2849,3 +2857,8 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
  #modal-comision-gestion .modal-actions .btn{min-width:0;white-space:normal}
  body:has(#modal-comision-gestion[style*="display: flex"]) #chat-fab,body:has(#modal-comision-gestion[style*="display: flex"]) #ia-fab,body:has(#modal-comision-gestion[style*="display: flex"]) #fab-main{visibility:hidden}
 }
+
+/* Los comprobantes desplegables deben repintarse al abrirse, sin omisión de contenido. */
+
+/* Las tablas dentro de desplegables ARCA no deben quedar ocultas esperando medidas. */
+#page-creditofiscal table.sv-columns-pending{visibility:visible!important}
