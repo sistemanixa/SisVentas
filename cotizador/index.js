@@ -1975,6 +1975,7 @@ module.exports = {
   verificarProveedor,
   cotizarLote,
   cotizarBiosegur,
+  cotizarProveedorConLogin,
   parsePrecioArs,
   extraerPrecioBiosegur,
   extraerPrecioEtiquetado,
