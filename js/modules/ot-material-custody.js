@@ -58,6 +58,20 @@
     return (ot && ot.materiales || []).filter(controllable);
   }
 
+  function deliveryDescription(materials) {
+    var groups = {};
+    materials.forEach(function(material) {
+      var product = productFor(material) || {};
+      var unit = String(material.unidad || product.unidad || 'unidades').trim().toLowerCase();
+      if (/^(u|un|uni|unidad|unidades|uds|ud)$/.test(unit)) unit = 'unidades';
+      if (/^(m|mt|mts|metro|metros)$/.test(unit)) unit = 'metros';
+      groups[unit] = (groups[unit] || 0) + n(material.vendida);
+    });
+    return Object.keys(groups).map(function(unit) {
+      return Number(groups[unit].toFixed(6)).toLocaleString('es-AR', {maximumFractionDigits:6}) + ' ' + unit;
+    }).join(' + ') + ' en ' + materials.length + (materials.length === 1 ? ' renglón' : ' renglones');
+  }
+
   function normalizeMaterial(material) {
     material = material || {};
     return Object.assign({}, material, {
@@ -232,7 +246,8 @@
     if (!ot.tecnico) { window.notify('Asigná un técnico antes de entregar materiales'); return; }
     var eligible = controllableMaterials(ot);
     if (!eligible.length) { window.notify('Esta OT no tiene equipos o materiales controlables'); return; }
-    if (!await window.svConfirm('Se registrarán ' + eligible.length + ' materiales de la OT bajo responsabilidad de ' + ot.tecnico + '. ¿Confirmar entrega?')) return;
+    var deliveryText = deliveryDescription(eligible);
+    if (!await window.svConfirm('Se entregarán ' + deliveryText + ' de la OT bajo responsabilidad de ' + ot.tecnico + '. ¿Confirmar entrega?')) return;
     var now = Date.now();
     ot.materiales = (ot.materiales || []).map(function (raw) {
       var material = normalizeMaterial(raw);
@@ -249,7 +264,7 @@
     ot.custodiaRendida = false;
     ot.custodiaTecnico = ot.tecnico;
     ot.custodiaEntregadaEn = now;
-    save(ot, 'Materiales entregados a ' + ot.tecnico + ' · ' + eligible.length + ' ítems bajo custodia')
+    save(ot, 'Materiales entregados a ' + ot.tecnico + ' · ' + deliveryText + ' bajo custodia')
       .then(function () { window.notify('✓ Entrega registrada. Los materiales quedaron a cargo de ' + ot.tecnico); })
       .catch(function (error) { window.notify('No se pudo registrar la entrega: ' + error.message); });
   }
@@ -492,6 +507,7 @@
   }
 
   window.otCustodiaNormalizarMaterial = normalizeMaterial;
+  window.otCustodiaDescripcionEntrega = deliveryDescription;
   window.otCustodiaRenderMateriales = render;
   window.otCustodiaEntregar = deliver;
   window.otCustodiaTodoInstalado = allInstalled;
