@@ -2866,3 +2866,29 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 
 /* Las tablas dentro de desplegables ARCA no deben quedar ocultas esperando medidas. */
 #page-creditofiscal table.sv-columns-pending{visibility:visible!important}
+/* Aviso común de búsquedas activas, también en pantallas angostas. */
+.sv-search-filter-notice { display:flex;align-items:center;justify-content:space-between;gap:10px;flex:1 0 100%;box-sizing:border-box;max-width:100%;padding:8px 12px;margin:8px 0;background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radius);color:var(--amber);font-size:12px; }
+.sv-search-filter-notice[hidden] { display:none; }
+.sv-search-filter-notice span { overflow-wrap:anywhere;min-width:0; }
+.sv-search-filter-notice button { flex-shrink:0; }
+.sv-search-filter-notice + #prod-search-status,
+#prod-search-status { top:18px !important;right:12px !important;line-height:20px;padding:0 5px; }
+#prod-search { padding-right:145px !important; }
+.ventas-list-footer { display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-top:10px; }
+.ventas-list-footer > button { justify-self:end; }
+#page-detalle #ventas-list-view .table-wrap { max-height:min(62vh,680px); }
+.roles-loading { min-height:260px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--text2); }
+.roles-loading i { font-size:24px;animation:roles-loading-spin 1s linear infinite; }
+@keyframes roles-loading-spin { to {transform:rotate(360deg)} }
+@media(max-width:760px){.ventas-list-footer{grid-template-columns:1fr auto}.ventas-list-footer #ventas-paginacion{grid-column:1 / -1;grid-row:2}}
+.sv-search-field { position:relative;min-width:0;max-width:100%;box-sizing:border-box; }
+.sv-search-field > input.sv-search-has-count { width:100% !important;box-sizing:border-box;padding-right:155px !important; }
+.sv-search-result-count { position:absolute;right:12px;top:18px;transform:translateY(-50%);font-size:11px;line-height:20px;color:var(--text3);white-space:nowrap;pointer-events:none; }
+@media(max-width:480px){.sv-search-field > input.sv-search-has-count{padding-right:12px !important}.sv-search-result-count{position:static;display:block;transform:none;text-align:right;padding:3px 8px}.sv-search-filter-notice{flex-wrap:wrap}}
+#prod-filtros-barra { display:grid;grid-template-columns:minmax(230px,1fr) 160px 175px 150px 175px;gap:8px;align-items:start;margin-bottom:12px; }
+#prod-filtros-barra > .search-input { width:100% !important;min-width:0 !important;font-size:12px;padding-left:9px;padding-right:22px; }
+#prod-filtros-barra .prod-buscador-wrap { min-width:0;position:relative; }
+#prod-filtros-barra #prod-grid-controls { grid-column:1 / -1;justify-self:end; }
+#prod-filtro-sinprecio-activo { grid-column:1 / -1;justify-self:start; }
+@media(max-width:1150px){#prod-filtros-barra{grid-template-columns:repeat(4,minmax(0,1fr))}#prod-filtros-barra .prod-buscador-wrap{grid-column:1 / -1}}
+@media(max-width:600px){#prod-filtros-barra{grid-template-columns:repeat(2,minmax(0,1fr))}}

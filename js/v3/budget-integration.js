@@ -100,7 +100,8 @@
     var operation = context && context.operation || '';
     if (operation === 'create') {
       var clientKey = String(payload && (payload.clienteFbKey || payload.clienteKey) || '').trim();
-      if (!clientKey) errors.push('El presupuesto requiere la clave técnica del cliente');
+      var consumidorFinal = String(payload && payload.cliente || '').trim().toUpperCase() === 'CONSUMIDOR FINAL';
+      if (!clientKey && !consumidorFinal) errors.push('El presupuesto requiere la clave técnica del cliente');
     }
     if (operation === 'create' || payload && Object.prototype.hasOwnProperty.call(payload, 'items')) {
       var model = build(payload || {});

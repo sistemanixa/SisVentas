@@ -102,8 +102,9 @@
   }
   function badges() {
     var n = records().length;
-    document.querySelectorAll('[data-draft-count]').forEach(function (el) { el.textContent = n; el.hidden = !n; });
+    document.querySelectorAll('[data-draft-count]').forEach(function (el) { var kind = el.closest('#vtab-borradores') ? 'venta' : 'presupuesto'; var count = records().filter(function(d){return d.kind === kind;}).length; el.textContent = count; el.hidden = !count; });
     if (window._svDraftGrid) renderGrid();
+    if (window._svSalesDraftGrid) renderGrid('venta');
   }
   function discard(d) {
     localStorage.removeItem(prefix() + d.id);
@@ -111,24 +112,29 @@
     Object.keys(sessions).forEach(function (k) { if (sessions[k].id === d.id) delete sessions[k]; });
     badges();
   }
-  function renderGrid() {
-    var body = document.getElementById('ppto-tbody-main'); if (!body) return;
-    var query = String((document.getElementById('ppto-buscar') || {}).value || '').toLocaleLowerCase('es-AR');
-    var list = records().filter(function(d) { return JSON.stringify(d.data.fields).toLocaleLowerCase('es-AR').includes(query); });
+  function renderGrid(kind) {
+    kind = kind || 'presupuesto';
+    var sale = kind === 'venta';
+    var body = document.getElementById(sale ? 'ventas-tbody' : 'ppto-tbody-main'); if (!body) return;
+    var query = String((document.getElementById(sale ? 'ventas-search' : 'ppto-buscar') || {}).value || '').toLocaleLowerCase('es-AR');
+    var list = records().filter(function(d) { return d.kind === kind && JSON.stringify(d.data.fields).toLocaleLowerCase('es-AR').includes(query); });
     var signature = JSON.stringify([query,list]);
-    if (body.dataset.draftSignature === signature) return;
+    if (body.dataset.draftSignature === signature && body.querySelector('[data-draft-row]')) return;
     body.dataset.draftSignature = signature;
     body.replaceChildren();
     list.forEach(function(d) {
       var row = document.createElement('tr');
       var customer = d.data.fields.find(function(f) { return f.id === 'cli-inp' || f.id === 'pp-cli'; });
-      [((d.original || {}).id || (d.kind === 'venta' ? 'Nueva venta' : 'Nuevo presupuesto')),new Date(d.updated).toLocaleString('es-AR'),customer && customer.value || 'CONSUMIDOR FINAL','—','—',new Date(d.updated + TTL).toLocaleDateString('es-AR'),'Borrador · ' + (d.data.edit ? 'Edición' : 'Nuevo'),typeof currentUser !== 'undefined' ? currentUser : 'Mi usuario'].forEach(function(text) { var cell=document.createElement('td'); cell.textContent=text; row.appendChild(cell); });
+      var values = [((d.original || {}).id || (d.kind === 'venta' ? 'Nueva venta' : 'Nuevo presupuesto')),new Date(d.updated).toLocaleString('es-AR'),customer && customer.value || 'CONSUMIDOR FINAL','—','—',new Date(d.updated + TTL).toLocaleDateString('es-AR'),'Borrador · ' + (d.data.edit ? 'Edición' : 'Nuevo'),typeof currentUser !== 'undefined' ? currentUser : 'Mi usuario'];
+      if (sale) values = [values[0],values[2],'Borrador · '+(d.data.edit ? 'Edición' : 'Nuevo'),values[1],'—','—','—',values[7],'—'];
+      values.forEach(function(text) { var cell=document.createElement('td'); cell.textContent=text; row.appendChild(cell); });
       var actions=document.createElement('td');
       var resume=document.createElement('button');resume.className='btn btn-sm btn-primary';resume.textContent='Continuar';resume.onclick=function(){restore(d);};actions.appendChild(resume);
       var remove=document.createElement('button');remove.className='btn btn-sm';remove.textContent='Descartar';remove.onclick=async function(){if(await svConfirm('¿Descartar este borrador? La operación original no se modifica.')) discard(d);};actions.appendChild(remove);
       row.appendChild(actions);body.appendChild(row);
     });
-    if (!list.length) { var row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=9;cell.textContent='No hay borradores pendientes.';row.appendChild(cell);body.appendChild(row); }
+    if (!list.length) { var row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=sale ? 10 : 9;cell.textContent='No hay borradores pendientes.';row.appendChild(cell);body.appendChild(row); }
+    Array.from(body.rows).forEach(function(row){row.setAttribute('data-draft-row','1');});
   }
   function installButtons() {
     ['ventas-list-view'].forEach(function (id) {
@@ -137,10 +143,10 @@
       var tabs = document.getElementById('vtab-anuladas');
       if (!reference || !tabs || !tabs.parentElement) return;
       var btn = reference.cloneNode(true);
-      btn.id = 'ventas-borradores';
+      btn.id = 'vtab-borradores';
       btn.className = 'btn btn-sm sv-drafts-access';
       btn.removeAttribute('onclick');
-      btn.onclick = open;
+      btn.onclick = function(){flush();tabVentas('borradores',btn);};
       tabs.parentElement.appendChild(btn);
     });
   }

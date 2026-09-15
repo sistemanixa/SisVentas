@@ -46,11 +46,24 @@
     var select = el('pf-importar-proveedor');
     select.replaceChildren(new Option('Seleccioná el proveedor', ''));
     proveedores().forEach(function (p) { select.add(new Option(p.nombre || 'Proveedor', clave(p))); });
+    window.sugerirProveedorFicha();
   };
   window.sugerirProveedorFicha = function () {
     var url = urlExacta(el('pf-cod-web').value);
     if (!url) return;
     var host = new URL(url).hostname.replace(/^www\./, '');
+    // Resolver primero la relación ya guardada para esta URL exacta.
+    var asociados = (typeof prodProveedoresActuales !== 'undefined' ? prodProveedoresActuales : []).filter(function(p) {
+      return urlExacta(p.url) === url;
+    });
+    var registrados = proveedores();
+    var vinculados = registrados.filter(function(p) {
+      return asociados.some(function(a) {
+        var key = String(a.proveedorKey || a.proveedorFbKey || '');
+        return key ? key === clave(p) : String(a.nombre || '').trim().toUpperCase() === String(p.nombre || '').trim().toUpperCase();
+      });
+    });
+    if (vinculados.length === 1) { el('pf-importar-proveedor').value = clave(vinculados[0]); return; }
     var candidatos = proveedores().filter(function (p) {
       try {
         var web = new URL(normalizarUrlProveedorProducto(p.web || p.url || p.portal || p.sitio || ''));

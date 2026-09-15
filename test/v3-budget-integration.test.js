@@ -109,6 +109,15 @@ test('el repositorio rechaza un presupuesto nuevo sin cliente técnico o con imp
   assert.equal(fake.calls.length, 0);
 });
 
+test('consumidor final sin clave se guarda sin crear un cliente ficticio', async () => {
+  const fake = rootConFirebase();
+  const adapter = Budget.create(fake.root);
+  await adapter.save({cliente:'CONSUMIDOR FINAL',conIva:false,items:[{qty:1,punit:100}],total:100});
+  assert.equal(fake.calls.length,1);
+  assert.equal(fake.calls[0][2].cliente,'CONSUMIDOR FINAL');
+  await assert.rejects(adapter.save({cliente:'Cliente con nombre',conIva:false,items:[{qty:1,punit:100}],total:100}),/clave técnica/);
+});
+
 test('presupuesto conserva los centavos de la venta revisada en formulario, guardado, impresión y conversión', () => {
   const items = [7692.46, 2557.1, 96480].map((punit, index) => ({cod:'P-'+index,desc:'Producto',qty:1,punit,disc:0}));
   for (const conIva of [false, true]) {
