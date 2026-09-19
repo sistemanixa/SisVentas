@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.6.14-firebase' -->
+<!-- VERSION: 'v3.6.15-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.6.14.js"></script>
+<script src="./js/core/version.v3.6.15.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,7 +34,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=3.3.17"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.6.4-arca-render2">
+<link rel="stylesheet" href="./css/app.css?v=3.6.15">
 <link rel="stylesheet" href="./css/surveys.css?v=1">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
@@ -648,7 +648,7 @@
             <div id="stock-resumen-body" style="display:flex;flex-direction:column;gap:6px"></div>
           </div>
           <div class="totals" style="margin-top:24px">
-            <div class="tbox">
+            <div class="tbox commercial-totals">
               <div class="tl"><span>Subtotal</span><span id="t-sub">$0</span></div>
               <div class="tl" id="t-desc-row" style="display:none;color:var(--green)"><span>Descuento general</span><span id="t-desc">-$0</span></div>
               <div class="tl iva" id="t-iva-row"><span>IVA 21%</span><span id="t-iva">$0</span></div>
@@ -930,7 +930,7 @@
         </table>
       </div>
       <div class="totals">
-        <div class="tbox">
+        <div class="tbox commercial-totals">
           <div class="tl"><span>Subtotal</span><span id="ppto-det-sub">$0</span></div>
           <div class="tl" style="color:var(--green)"><span id="ppto-det-desc-label">Descuento 0%</span><span id="ppto-det-desc-amt">$0</span></div>
           <div class="tl iva" id="ppto-det-iva-row"><span>IVA 21%</span><span id="ppto-det-iva">$0</span></div>
@@ -1010,7 +1010,7 @@
           </tbody>
         </table>
       </div>
-      <div class="totals"><div class="tbox">
+      <div class="totals"><div class="tbox commercial-totals">
         <div class="tl"><span>Subtotal</span><span id="pp-sub">$0</span></div>
         <div class="tl" style="color:var(--green)"><span id="pp-desc-label">Descuento 0%</span><span id="pp-damt">$0</span></div>
         <div class="tl iva" id="pp-iva-row"><span>IVA 21%</span><span id="pp-iva">$0</span></div>
@@ -5674,7 +5674,7 @@ Listo para analizar.
 <script src="./js/modules/offline-core.js?v=1.0.0"></script>
 <script src="./js/modules/comparacion-comercial.js?v=1"></script>
 <script src="./js/modules/search-filter-notice.js?v=scroll-2"></script>
-<script src="./js/app.v3.6.14.js"></script>
+<script src="./js/app.v3.6.15.js"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=2"></script>
 <script src="./js/modules/chat-access.js?v=1"></script>
@@ -5682,7 +5682,8 @@ Listo para analizar.
 
 <script src="./js/modules/ai-learning.js?v=1"></script>
 <script src="./js/modules/ai-dictation.js?v=1"></script>
-<script src="./js/modules/budget-exterior.js?v=2"></script>
+<script src="./js/modules/budget-exterior.js?v=3.6.15"></script>
+<script src="./js/modules/budget-proposals.js?v=3.6.15"></script>
 <script src="./js/modules/business-break-even.js?v=1.0.3"></script>
 <script src="./js/modules/product-url-import.js"></script>
 <script src="./js/modules/keyboard-actions.js?v=3.3.18"></script>
@@ -6231,7 +6232,7 @@ Listo para analizar.
 <script src="./js/v3/product-provider-integration.js?v=3.0.0-shadow-v279"></script>
 <script src="./js/v3/admin-diagnostics.js?v=3.3.17"></script>
 
-<script src="./js/modules/product-query-guard.js?v=1"></script>
+<script src="./js/modules/product-query-guard.js?v=3.6.15"></script>
 <script src="./js/modules/garantia-circuito.js"></script>
 <script src="./js/modules/image-paste-drop.js?v=2"></script>
 <script src="./js/modules/quantity-wheel.js?v=1"></script>

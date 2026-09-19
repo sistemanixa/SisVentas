@@ -41,13 +41,16 @@
       if(detectLabor(it,p)) return null;
       var offers=(p&&p.proveedores||[]).filter(function(pv){return /Paraguay/i.test(origenProveedorProducto(pv).etiqueta)&&pv.disponibilidadProveedor!=='sin_stock';}).map(function(pv){
         var original=Number(pv.precioOriginal),usd=String(pv.monedaOriginal||'').toUpperCase()==='USD';
-        var cost=usd?(fx>0?original*fx:0):Number(pv.costoRealArs||pv.precioArsPublicado||pv.precio)||0;
+        var cost=costoExteriorVigenteARS(pv)/metrosPorPresentacionProducto(p);
         return {pv:pv,cost:cost,usd:usd};
       }).filter(function(o){return o.cost>0;}).sort(function(a,b){return a.cost-b.cost;});
       var offer=offers[0],current=Number(obtenerCostoUnitarioVenta(it.cod||it.codigo,it))||0;
-      return {nombre:it.desc||it.descripcion||p&&p.nombre||it.cod||'Producto',qty:Number(it.qty||it.cantidad)||1,actual:current,exterior:offer?offer.cost:0,proveedor:offer?(offer.pv.nombre||'Paraguay'):'Se conserva costo actual',nota:offer?(estadoVigenciaPrecioProveedor(p,offer.pv).texto+' · '+(offer.pv.disponibilidadProveedorTexto||'Stock no verificado')):'Sin cotización de Paraguay disponible'};
+      var normalized=pptoNormalizarItemGuardado(it);
+      return {venta:Math.round(normalized.qty*normalized.punit*(1-normalized.disc/100)*100)/100,nombre:it.desc||it.descripcion||p&&p.nombre||it.cod||'Producto',qty:Number(it.qty||it.cantidad)||1,actual:current,exterior:offer?offer.cost:0,proveedor:offer?(offer.pv.nombre||'Paraguay'):'Se conserva costo actual',nota:offer?(estadoVigenciaPrecioProveedor(p,offer.pv).texto+' · '+(offer.pv.disponibilidadProveedorTexto||'Stock no verificado')):'Sin cotización de Paraguay disponible'};
     }).filter(function(r){return r;});
     if(!rows.length){notify('No hay productos comparables en este presupuesto (mano de obra omitida).');return;}
+    var discount=detalle?Number(record.descuentoGeneral??record.descuentoPct??record.descuento)||0:Number((document.getElementById('pp-descuento')||{}).value)||0;
+    net=rows.reduce(function(s,r){return s+r.venta;},0)*(1-discount/100)*(currency==='USD'?fx:1);
     var old=document.getElementById('presupuesto-exterior-dialog');if(old)old.remove();
     var d=document.createElement('dialog');d.id='presupuesto-exterior-dialog';d.style.cssText='position:fixed;inset:0;margin:auto;width:min(980px,96vw);max-height:88vh;overflow:auto;background:linear-gradient(180deg,var(--bg2),var(--bg));color:var(--text);border:1px solid var(--border);border-radius:16px;padding:0;box-shadow:0 20px 40px rgba(0,0,0,.30);';
     function make(tag, parent, value) {
@@ -139,6 +142,7 @@
     var footer=document.createElement('div');
     footer.style.cssText='display:flex;justify-content:flex-end;padding:0 18px 18px';
     var close=make('button', footer, 'Cerrar');
+    if(tienePermiso('presupuestos.crear') && record){var proposal=make('button',footer,'Crear presupuesto con estos costos');proposal.className='btn btn-primary';proposal.onclick=function(){d.close();crearPropuestaExterior(record,Number(input.value)||0);};}
     close.className='btn';
     close.onclick=function(){d.close();};
     bodyWrap.appendChild(footer);
