@@ -436,12 +436,21 @@
     }
     var selector = 'table[data-sv-alignment-scope="' + scope + '"]';
     var rules = [];
-    tableHeaders(table).forEach(function (_th, index) {
+    // Leer estilos y columnas antes de escribir. Intercalar getComputedStyle
+    // y estilos por cada celda forzaba miles de recálculos en Ventas/Gastos.
+    var planes = tableHeaders(table).map(function(th, index) {
+      return { th:th, index:index, physicalIndex:physicalIndexForVisibleIndex(table, index),
+        cells:columnCells(table, index).map(function(cell) {
+          return { cell:cell, actions:actionContainersInCell(cell) };
+        }) };
+    });
+    planes.forEach(function (plan) {
+      var _th = plan.th, index = plan.index;
       // Acciones es una columna operativa, no de datos: conserva siempre la
       // misma alineación a la derecha en todas las grillas, aunque exista un
       // perfil histórico que la haya guardado a izquierda o centro.
       var align = isActionsHeader(_th, index) ? 'right' : normalizeAlignment((alignments || {})[index]);
-      var physicalIndex = physicalIndexForVisibleIndex(table, index);
+      var physicalIndex = plan.physicalIndex;
       var columnSelector = selector + ' tr > *:nth-child(' + (physicalIndex + 1) + ')';
       rules.push(columnSelector + '{text-align:' + align + '!important}');
       // La alineación pertenece a toda la columna. Los controles de formulario
@@ -455,14 +464,16 @@
         columnSelector + ' .sv-row-actions,' + columnSelector + ' [data-sv-actions],' +
         columnSelector + ' .sv-grid-actions-original{justify-content:' +
         (align === 'right' ? 'flex-end' : (align === 'center' ? 'center' : 'flex-start')) + '!important}');
-      columnCells(table, index).forEach(function (cell) {
+      plan.cells.forEach(function (entry) {
+        var cell = entry.cell;
         cell.style.textAlign = align;
-        actionContainersInCell(cell).forEach(function (actionGroup) {
+        entry.actions.forEach(function (actionGroup) {
           actionGroup.style.justifyContent = align === 'right' ? 'flex-end' : (align === 'center' ? 'center' : 'flex-start');
         });
       });
     });
-    style.textContent = rules.join('\n');
+    var css = rules.join('\n');
+    if (style.textContent !== css) style.textContent = css;
   }
 
   function clearAlignments(table) {

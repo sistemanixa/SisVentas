@@ -20,6 +20,38 @@
       return url.href;
     } catch (_) { return ''; }
   }
+  function mismoProveedorFila(pv, proveedor) {
+    if (!pv || !proveedor) return false;
+    var keyFila = String(pv.proveedorKey || pv.proveedorFbKey || pv.fbKey || pv.key || '');
+    var keyProveedor = clave(proveedor);
+    if (keyFila && keyProveedor && keyFila === keyProveedor) return true;
+    return String(pv.nombre || pv.proveedor || '').trim().toLowerCase() === String(proveedor.nombre || '').trim().toLowerCase();
+  }
+  function dominioProveedor(proveedor) {
+    var candidatos = [proveedor && proveedor.web, proveedor && proveedor.url, proveedor && proveedor.portal, proveedor && proveedor.sitio].filter(Boolean);
+    for (var i = 0; i < candidatos.length; i++) {
+      try { return new URL(normalizarUrlProveedorProducto(candidatos[i], proveedor.nombre || '')).hostname.replace(/^www\./, '').toLowerCase(); } catch (_) {}
+    }
+    return '';
+  }
+  function proveedorDeUrl(url) {
+    if (!url) return null;
+    var host = '';
+    try { host = new URL(url).hostname.replace(/^www\./, '').toLowerCase(); } catch (_) { return null; }
+    var candidatos = proveedores().filter(function(p) { return dominioProveedor(p) === host; });
+    return candidatos.length === 1 ? candidatos[0] : null;
+  }
+  function proveedorSugerido(url) {
+    var asociados = (typeof prodProveedoresActuales !== 'undefined' ? prodProveedoresActuales : []).filter(function(p) {
+      return urlExacta(p.url) === url;
+    });
+    var registrados = proveedores();
+    var vinculados = registrados.filter(function(p) {
+      return asociados.some(function(a) { return mismoProveedorFila(a, p); });
+    });
+    if (vinculados.length === 1) return vinculados[0];
+    return proveedorDeUrl(url);
+  }
   function firma() {
     var form = el('prod-form-view');
     return JSON.stringify({
@@ -51,26 +83,8 @@
   window.sugerirProveedorFicha = function () {
     var url = urlExacta(el('pf-cod-web').value);
     if (!url) return;
-    var host = new URL(url).hostname.replace(/^www\./, '');
-    // Resolver primero la relación ya guardada para esta URL exacta.
-    var asociados = (typeof prodProveedoresActuales !== 'undefined' ? prodProveedoresActuales : []).filter(function(p) {
-      return urlExacta(p.url) === url;
-    });
-    var registrados = proveedores();
-    var vinculados = registrados.filter(function(p) {
-      return asociados.some(function(a) {
-        var key = String(a.proveedorKey || a.proveedorFbKey || '');
-        return key ? key === clave(p) : String(a.nombre || '').trim().toUpperCase() === String(p.nombre || '').trim().toUpperCase();
-      });
-    });
-    if (vinculados.length === 1) { el('pf-importar-proveedor').value = clave(vinculados[0]); return; }
-    var candidatos = proveedores().filter(function (p) {
-      try {
-        var web = new URL(normalizarUrlProveedorProducto(p.web || p.url || p.portal || p.sitio || ''));
-        return web.hostname.replace(/^www\./, '') === host;
-      } catch (_) { return false; }
-    });
-    if (candidatos.length === 1) el('pf-importar-proveedor').value = clave(candidatos[0]);
+    var sugerido = proveedorSugerido(url);
+    if (sugerido) el('pf-importar-proveedor').value = clave(sugerido);
   };
   window.completarProductoDesdeUrl = async function () {
     if (consulta) return;
@@ -85,10 +99,7 @@
       estado('Para importar otra ficha, iniciá un nuevo producto. Los datos que ya completaste se conservan.'); return;
     }
     var indices = [];
-    prodProveedoresActuales.forEach(function (p, i) {
-      var key = String(p.proveedorKey || p.proveedorFbKey || '');
-      if (key ? key === clave(proveedor) : String(p.nombre || p.proveedor || '').trim().toLowerCase() === String(proveedor.nombre).trim().toLowerCase()) indices.push(i);
-    });
+    prodProveedoresActuales.forEach(function (p, i) { if (mismoProveedorFila(p, proveedor)) indices.push(i); });
     var indice = indices.find(function (i) { return urlExacta(prodProveedoresActuales[i].url) === url; });
     if (indice === undefined && indices.length === 1) indice = indices[0];
     if (indice === undefined && indices.length > 1) { estado('Hay varias filas de este proveedor. Colocá esta URL en la fila que querés actualizar y volvé a consultar.'); return; }

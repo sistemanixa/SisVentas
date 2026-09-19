@@ -1513,7 +1513,7 @@ function extraerDisponibilidadProveedor(texto) {
 }
 
 function extraerDisponibilidadFreeElectron(textoProductoPrincipal) {
-  const principal = normalizarTexto(textoProductoPrincipal);
+  const principal = normalizarTexto(textoFichaSinRelacionados(textoProductoPrincipal));
   if (!principal) return 'no_verificado';
   if (/sin\s+stock|agotado|no\s+disponible|fuera\s+de\s+stock/.test(principal)) return 'sin_stock';
   // Free Electron sólo agrega el cartel "Sin Stock" al artículo agotado. Si
@@ -1523,7 +1523,25 @@ function extraerDisponibilidadFreeElectron(textoProductoPrincipal) {
   return 'no_verificado';
 }
 
+function textoFichaSinRelacionados(texto) {
+  return String(texto || '').split(/(?:\d+\s+otros\s+productos\s+en\s+la\s+misma\s+categor[ií]a\s*:|(?:^|\n)\s*(?:productos\s+relacionados|productos\s+similares|tambi[eé]n\s+te\s+puede|m[aá]s\s+vendidos|otros\s+productos)(?:\s|:|$))/i)[0];
+}
+
+function extraerDisponibilidadTecnoprices(texto, titulo) {
+  const ficha = textoFichaSinRelacionados(texto);
+  const nombre = String(titulo || '').trim();
+  const inicio = nombre ? ficha.indexOf(nombre) : -1;
+  // No atribuir al producto carteles del menú, listados o recomendaciones.
+  if (inicio < 0) return 'no_verificado';
+  const principal = normalizarTexto(ficha.slice(inicio + nombre.length));
+  const sinStock = /\b(?:sin\s+stock|agotado|no\s+disponible|fuera\s+de\s+stock)\b/.test(principal);
+  const conStock = /\b(?:en\s+stock|hay\s+stock|stock\s+disponible)\b/.test(principal);
+  if (sinStock && conStock) return 'no_verificado';
+  return sinStock ? 'sin_stock' : conStock ? 'disponible' : 'no_verificado';
+}
+
 async function extraerDisponibilidadPaginaProveedor(page, tipo, bodyText) {
+  if (tipo === 'tecnoprices') return extraerDisponibilidadTecnoprices(bodyText, await tituloVisibleProducto(page, tipo));
   if (tipo !== 'free_electron') return extraerDisponibilidadProveedor(bodyText);
   const textoPrincipal = await page.locator('.main-product-wrapper').first().innerText({ timeout:3000 }).catch(() => '');
   const disponibilidadPrincipal = extraerDisponibilidadFreeElectron(textoPrincipal);
@@ -1808,18 +1826,33 @@ async function cotizarLote(reqBody) {
     if (!items.length || items.length > 4) throw new Error('El lote automático requiere entre 1 y 4 productos');
     const conexion=proveedor.conexionAutomatica || {};
     if (!tipoLote && (conexion.estado !== 'verificado' || conexion.firma !== firmaAcceso(proveedor))) throw new Error('Verificá nuevamente la conexión del proveedor');
-    const resultados=[];
+    const resultados=new Array(items.length);
     const jobId=String(reqBody.jobId || '');
     const progreso=/^[\w-]{1,80}$/.test(jobId) ? db.ref('sisventas/procesos/cotizador/' + jobId) : null;
-    for (let i=0;i<items.length;i++) {
-      const item=items[i];
-      if(progreso) await progreso.update({estado:'procesando',proveedor:proveedor.nombre || '',producto:item.producto || '',codigo:item.codigo || '',url:item.url || '',procesados:(Number(reqBody.offset)||0)+i,total:Number(reqBody.total)||items.length,actualizadoEn:Date.now()});
-      try {
-        const r=await cotizar({...item,proveedorKey,incluirFicha:item.incluirFicha === true,altaProducto:false});
-        resultados.push({...r,codigoProducto:item.codigo || '',producto:r.tituloProveedor || item.producto || '',textoPrecio:'ARS ' + r.precioArs});
-      } catch(e) { resultados.push({ok:false,url:item.url || '',codigoProducto:item.codigo || '',mensaje:e.message,diagnosticoMercadoLibre:e.diagnosticoMercadoLibre,precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}); }
-      if(progreso) await progreso.update({procesados:(Number(reqBody.offset)||0)+i+1,actualizadoEn:Date.now()});
+    let siguiente=0, completados=0;
+    // Keep progress writes ordered even when supplier responses arrive out of order.
+    let escritura=Promise.resolve();
+    function informar(item) {
+      const datos={estado:'procesando',proveedor:proveedor.nombre || '',producto:item.producto || '',codigo:item.codigo || '',url:item.url || '',procesados:(Number(reqBody.offset)||0)+completados,total:Number(reqBody.total)||items.length,actualizadoEn:Date.now()};
+      escritura=escritura.then(()=>progreso ? progreso.update(datos) : undefined);
+      return escritura;
     }
+    async function trabajador() {
+      while(siguiente<items.length) {
+        const i=siguiente++, item=items[i];
+        await informar(item);
+        try {
+          const r=await cotizar({...item,proveedorKey,incluirFicha:item.incluirFicha === true,altaProducto:false});
+          resultados[i]={...r,codigoProducto:item.codigo || '',producto:r.tituloProveedor || item.producto || '',textoPrecio:'ARS ' + r.precioArs};
+        } catch(e) { resultados[i]={ok:false,url:item.url || '',codigoProducto:item.codigo || '',mensaje:e.message,diagnosticoMercadoLibre:e.diagnosticoMercadoLibre,precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}; }
+        completados++;
+        await informar(item);
+      }
+    }
+    // Two isolated queries at a time; retain the four-item batch and provider boundaries.
+    const trabajadores=await Promise.allSettled(Array.from({length:Math.min(2,items.length)},()=>trabajador()));
+    const fallo=trabajadores.find(r=>r.status==='rejected');
+    if(fallo) throw fallo.reason;
     return {ok:true,proveedor:proveedor.nombre,total:items.length,actualizados:resultados.filter(r=>r.ok).length,fallidos:resultados.filter(r=>!r.ok).length,resultados};
   }
 }
@@ -1981,6 +2014,7 @@ module.exports = {
   extraerPrecioEtiquetado,
   extraerCondicionIva,
   extraerDisponibilidadFreeElectron,
+  extraerDisponibilidadTecnoprices,
   idsMercadoLibreDesdeUrl,
   itemIdMercadoLibreDesdeHtml,
   filtrosMercadoLibreDesdeUrl,

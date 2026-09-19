@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm');
-const src=fs.readFileSync(fs.readFileSync('index.html','utf8').match(/src="\.\/(js\/app\.v[\d.]+\.js)"/)[1],'utf8');
+const src=require('./helpers/active-app').readActiveApp().source;
 function extract(n){const a=src.indexOf('function '+n+'('),b=src.indexOf('\n}',a)+2;return (src.slice(a-6,a)==='async '?'async ':'')+src.slice(a,b);}
 test('identidad mantiene importe y fila; sólo aprobación posterior aplica precio',async()=>{
  const pv={url:'https://proveedor/item',proveedorKey:'prov',precio:100},p={fbKey:'p',proveedores:[pv]},item={producto:p,proveedor:pv,proveedorKey:'prov',proveedorIdx:0,url:pv.url};

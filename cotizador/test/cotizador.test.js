@@ -27,6 +27,7 @@ const {
   extraerPrecioEtiquetado,
   extraerCondicionIva,
   extraerDisponibilidadFreeElectron,
+  extraerDisponibilidadTecnoprices,
   idsMercadoLibreDesdeUrl,
   itemIdMercadoLibreDesdeHtml,
   filtrosMercadoLibreDesdeUrl,
@@ -254,6 +255,13 @@ test('Mercado Libre conserva el precio de una URL MLA tradicional sin promoción
   assert.equal(datos.porcentajeDescuento, 0);
 });
 
+test('Tecnoprices limita stock a la ficha y no inventa disponibilidad', () => {
+  assert.equal(extraerDisponibilidadTecnoprices('Menú\nSin stock\nROUTER X\nEN STOCK\nProductos relacionados\nSin stock', 'ROUTER X'), 'disponible');
+  assert.equal(extraerDisponibilidadTecnoprices('ROUTER X\nSIN STOCK\nMás vendidos\nEN STOCK', 'ROUTER X'), 'sin_stock');
+  assert.equal(extraerDisponibilidadTecnoprices('Listado\nEN STOCK', 'ROUTER X'), 'no_verificado');
+  assert.equal(extraerDisponibilidadTecnoprices('ROUTER X\nEN STOCK\nSIN STOCK', 'ROUTER X'), 'no_verificado');
+});
+
 test('Free Electron ignora el stock de productos relacionados', () => {
   assert.equal(extraerDisponibilidadFreeElectron(
     'GARNET EXPANSOR 8 ZONAS P/PC-732G/A2K8\nReferencia EXP-8Z\n$ 64.753,98 Impuestos incluidos\nConsultar disponibilidad de stock'
@@ -264,6 +272,7 @@ test('Free Electron ignora el stock de productos relacionados', () => {
   const fichaCompleta = 'GARNET EXPANSOR 8 ZONAS\nReferencia EXP-8Z\n$ 64.753,98 Impuestos incluidos\nConsultar disponibilidad de stock\n11 otros productos en la misma categoría:\nSin Stock\nREL-100';
   const fichaPrincipal = fichaCompleta.split(/\d+\s+otros\s+productos\s+en\s+la\s+misma\s+categor[ií]a\s*:/i)[0];
   assert.equal(extraerDisponibilidadFreeElectron(fichaPrincipal), 'disponible');
+  assert.equal(extraerDisponibilidadFreeElectron(fichaCompleta), 'disponible');
 });
 
 test('Mercado Libre resuelve la publicación exacta de P-50721 y consulta ese item', async () => {

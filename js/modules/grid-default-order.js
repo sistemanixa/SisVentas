@@ -4,6 +4,7 @@
 
   var firmas = new WeakMap();
   var programado = false;
+  var pendientes = new Set();
 
   function normalizar(texto) {
     return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
@@ -50,7 +51,11 @@
         if (!Number.isFinite(b.fecha)) return -1;
         return b.fecha - a.fecha || a.posicion - b.posicion;
       });
-      datos.forEach(function (dato) { tbody.appendChild(dato.fila); });
+      // No mover filas que ya están ordenadas: cada movimiento dispara los
+      // observadores de tamaños y filtros de todas las grillas.
+      if (datos.some(function(dato, i) { return dato.fila !== filas[i]; })) {
+        datos.forEach(function (dato) { tbody.appendChild(dato.fila); });
+      }
       firmas.set(tbody, datos.map(function (dato) { return Number.isFinite(dato.fecha) ? dato.fecha : 'x'; }).join('|'));
       tabla.dataset.svDefaultOrder = 'fecha-desc';
       var th = tabla.querySelectorAll('thead tr:first-child th')[columna];
@@ -59,18 +64,35 @@
   }
 
   function aplicar() {
-    programado = false;
     document.querySelectorAll('table').forEach(ordenar);
   }
 
-  function programar() {
-    if (programado) return;
-    programado = true;
-    requestAnimationFrame(aplicar);
+  function aplicarPendientes() {
+    programado = false;
+    var tablas = Array.from(pendientes);
+    pendientes.clear();
+    tablas.forEach(function(tabla) { if (tabla.isConnected) ordenar(tabla); });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', programar);
-  else programar();
+  function programar(mutations) {
+    Array.from(mutations || []).forEach(function(mutation) {
+      var target = mutation.target.nodeType === 1 ? mutation.target : mutation.target.parentElement;
+      var tabla = target && target.closest('table');
+      if (tabla) pendientes.add(tabla);
+      Array.from(mutation.addedNodes || []).forEach(function(node) {
+        if (node.nodeType !== 1) return;
+        if (node.matches('table')) pendientes.add(node);
+        node.querySelectorAll('table').forEach(function(t) { pendientes.add(t); });
+      });
+    });
+    if (!pendientes.size) return;
+    if (programado) return;
+    programado = true;
+    requestAnimationFrame(aplicarPendientes);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', aplicar);
+  else aplicar();
   new MutationObserver(programar).observe(document.documentElement, { childList:true, subtree:true });
   window.svAplicarOrdenGeneralGrillas = aplicar;
 })();

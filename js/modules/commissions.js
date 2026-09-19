@@ -4,9 +4,10 @@
   var detalleActual = null;
   var movimientosDetalle = {};
   var sincronizacionSolicitada = false;
+  var formatoMoneda = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   function moneda(valor) {
-    return '$' + (parseFloat(valor) || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return '$' + formatoMoneda.format(parseFloat(valor) || 0);
   }
 
   function esc(valor) {
@@ -107,6 +108,15 @@
     renderModuloComisiones();
   }
 
+  function actualizarBadgeComisiones(gruposActuales) {
+    var badge = document.getElementById('badge-nav-comisiones');
+    if (!badge) return;
+    var permitido = typeof window.tienePermiso === 'function' && window.tienePermiso('comisiones.aprobar');
+    var cantidad = permitido ? (Array.isArray(gruposActuales) ? gruposActuales : grupos()).filter(function(g) { return estadoGrupo(g) === 'pendiente_aprobacion'; }).length : 0;
+    badge.textContent = cantidad;
+    badge.style.display = cantidad ? '' : 'none';
+  }
+
   function renderModuloComisiones() {
     var tbody = document.getElementById('comisiones-tbody');
     if (!tbody) return;
@@ -121,18 +131,16 @@
     }
     var buscar = String((document.getElementById('com-f-buscar') || {}).value || '').toLowerCase();
     var filtroEstado = String((document.getElementById('com-f-estado') || {}).value || '');
-    var lista = grupos().filter(function (grupo) {
+    var todos = grupos();
+    var lista = todos.filter(function (grupo) {
       var texto = [grupo.ventaId, grupo.cliente].concat(grupo.items.map(function (g) { return g.empleadoNombre || g.descripcion || ''; })).join(' ').toLowerCase();
       return (!buscar || texto.indexOf(buscar) >= 0) && coincideEstadoFiltro(grupo, filtroEstado);
     });
-    var todos = grupos();
-    function contar(est) { return todos.filter(function (g) { return estadoGrupo(g) === est; }).length; }
     actualizarKpi('pendientes', todos.filter(function (g) { return estadoGrupo(g) === 'pendiente_aprobacion'; }), 'requieren decisión');
     actualizarKpi('aprobadas', todos.filter(function (g) { return coincideEstadoFiltro(g, 'aprobadas'); }), 'listas para abonar');
     actualizarKpi('rechazadas', todos.filter(function (g) { return estadoGrupo(g) === 'rechazado'; }), 'se pueden rehabilitar');
     actualizarKpi('total', todos.filter(function (g) { return estadoGrupo(g) !== 'rechazado'; }), 'comisiones vigentes');
-    var navBadge = document.getElementById('badge-nav-comisiones');
-    if (navBadge) { var cant = contar('pendiente_aprobacion'); navBadge.style.display = cant ? '' : 'none'; navBadge.textContent = cant; }
+    actualizarBadgeComisiones(todos);
     tbody.innerHTML = lista.length ? lista.map(function (grupo) {
       var activos = grupo.items.filter(function (g) { return estado(g) !== 'rechazado'; });
       var pct = activos.reduce(function (s,g) { return s + porcentaje(g); }, 0);
@@ -299,6 +307,13 @@
   async function aprobarComisionGestion(gastoKey){await window.aprobarComisionDesdeGasto(gastoKey);setTimeout(function(){if(window.fbCargarGastos)window.fbCargarGastos();renderModuloComisiones();},250);cerrarDetalleComision();}
   async function rechazarComisionGestion(gastoKey){await window.rechazarComisionDesdeGasto(gastoKey);setTimeout(function(){if(window.fbCargarGastos)window.fbCargarGastos();renderModuloComisiones();},250);cerrarDetalleComision();}
 
+  window.actualizarBadgeComisiones=actualizarBadgeComisiones;
+  document.addEventListener('sisventas:session-ready', actualizarBadgeComisiones);
+  document.addEventListener('sisventas:session-ended', function() {
+    var badge = document.getElementById('badge-nav-comisiones');
+    if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
+  });
+  actualizarBadgeComisiones();
   window.renderModuloComisiones=renderModuloComisiones; window.abrirDetalleComision=abrirDetalleComision; window.cerrarDetalleComision=cerrarDetalleComision;
   window.guardarDistribucionComision=guardarDistribucionComision; window.agregarParticipanteComision=agregarParticipanteComision; window.rehabilitarComision=rehabilitarComision;
   window.abrirComisionDesdeGasto=abrirComisionDesdeGasto; window.aprobarComisionGestion=aprobarComisionGestion; window.rechazarComisionGestion=rechazarComisionGestion;

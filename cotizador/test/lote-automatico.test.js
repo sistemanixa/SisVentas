@@ -28,3 +28,21 @@ test('proveedores iniciales usan la misma consulta individual y conservan la con
  await ctx.cotizarLote({proveedorKey:'base',items:[{url:'buena',confirmarIdentidadManual:true}]});
  assert.equal(llamadas.length,1);assert.equal(llamadas[0].confirmarIdentidadManual,true);
 });
+
+test('dos consultas simultáneas conservan orden y aíslan errores con progreso monotónico',async()=>{
+ const {ctx}=contexto();let activos=0,maximo=0;const progreso=[];
+ ctx.db.ref=()=>({get:async()=>({val:()=>({nombre:'Nuevo',conexionAutomatica:{estado:'verificado',firma:'actual'}})}),update:async d=>{await new Promise(r=>setTimeout(r,1));progreso.push(d.procesados);}});
+ ctx.cotizar=async body=>{activos++;maximo=Math.max(maximo,activos);await new Promise(r=>setTimeout(r,body.codigo==='A'?30:5));activos--;if(body.codigo==='B')throw Error('sin respuesta');return {ok:true,precioArs:100};};
+ const r=await ctx.cotizarLote({proveedorKey:'nuevo',jobId:'prueba',offset:10,total:14,items:['A','B','C','D'].map(codigo=>({codigo,url:codigo}))});
+ assert.equal(maximo,2);assert.equal(activos,0);assert.equal(r.actualizados,3);assert.equal(r.fallidos,1);
+ assert.deepEqual(Array.from(r.resultados,x=>x.codigoProducto),['A','B','C','D']);
+ assert.equal(progreso.at(-1),14);assert.ok(progreso.every((x,i)=>!i||x>=progreso[i-1]));
+});
+
+test('un fallo de progreso espera que terminen las consultas antes de rechazar',async()=>{
+ const {ctx}=contexto();let activos=0;
+ ctx.db.ref=()=>({get:async()=>({val:()=>({nombre:'Nuevo',conexionAutomatica:{estado:'verificado',firma:'actual'}})}),update:async d=>{if(d.procesados>0)throw Error('firebase desconectado');}});
+ ctx.cotizar=async()=>{activos++;await new Promise(r=>setTimeout(r,10));activos--;return {ok:true,precioArs:100};};
+ await assert.rejects(ctx.cotizarLote({proveedorKey:'nuevo',jobId:'prueba',items:[{codigo:'A'},{codigo:'B'}]}),/firebase desconectado/);
+ assert.equal(activos,0);
+});
