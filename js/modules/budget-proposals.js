@@ -34,7 +34,21 @@
     });
     return {cantidad:cantidad,paises:Array.from(paises)};
   }
-  window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior};
+  function nuevaCotizacionAplicable(item,costoOferta){
+    if(!(Number(costoOferta)>0)||origenExterior({items:[item]}).cantidad)return false;
+    var costoActual=Number(item&&item.costoUnitarioCompra)||0;
+    return !(costoActual>0)||Number(costoOferta)<costoActual;
+  }
+  function mejorOfertaParaguay(item,producto){
+    if(!producto||esProductoManoDeObra(producto))return null;
+    return (producto.proveedores||[]).filter(function(pv){
+      return /Paraguay/i.test(origenProveedorProducto(pv).etiqueta)&&
+        pv.disponibilidadProveedor!=='sin_stock'&&estadoVigenciaPrecioProveedor(producto,pv).vigente;
+    }).map(function(pv){return {cost:costoExteriorVigenteARS(pv)/metrosPorPresentacionProducto(producto),stock:pv.disponibilidadProveedor};})
+      .filter(function(oferta){return oferta.cost>0;}).sort(function(a,b){return a.cost-b.cost;})[0]||null;
+  }
+  function puedeMejorarValorParaguay(item,producto){var oferta=mejorOfertaParaguay(item,producto);return !!(oferta&&nuevaCotizacionAplicable(item,oferta.cost));}
+  window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior,nuevaCotizacionAplicable:nuevaCotizacionAplicable,mejorOfertaParaguay:mejorOfertaParaguay,puedeMejorarValorParaguay:puedeMejorarValorParaguay,guardarCotizacionesEnPresupuesto:guardarCotizacionesEnPresupuesto};
   function money(v){return Number(v).toLocaleString('es-AR',{style:'currency',currency:'ARS'});}
   function el(tag,parent,text){var n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(parent)parent.appendChild(n);return n;}
   function dialog(title){var d=el('dialog',document.body);d.className='commercial-proposal-dialog';d.style.cssText='inset:0;margin:auto;width:min(1000px,94vw);max-height:90vh;overflow:auto;padding:24px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:16px';var header=el('div',d);header.className='proposal-header';el('h3',header,title);var close=el('button',header,'Cerrar');close.className='btn';close.onclick=function(){d.close();};windowControls(d,header,close);d.addEventListener('close',function(){d.remove();});d.showModal();return d;}
@@ -65,23 +79,58 @@
     calcPpTotales();if(window.svDrafts)svDrafts.flush();
     notify('Nueva propuesta preparada. Revisá cliente, domicilio e importes y guardala como borrador.');
   }
-  window.crearPropuestaExterior=function(record,initialExtra){
-    if(!permission()||!tienePermiso('presupuestos.compararExterior')){notify('Sin permiso para esta acción');return;}
+  async function guardarCotizacionesEnPresupuesto(record,items,discount){
+    if(!tienePermiso('presupuestos.editar')||!tienePermiso('presupuestos.compararExterior'))throw Error('Sin permiso para actualizar presupuestos');
+    var vigente=buscarPptoPorRef(record.fbKey||record.id);
+    if(!vigente||!vigente.fbKey)throw Error('No se encontró el presupuesto original');
+    if(vigente.ventaId||vigente.ventaFbKey||vigente.estado==='convertido')throw Error('Este presupuesto ya pasó a venta y no puede actualizarse');
+    var datosCalculo={items:items,descuentoGeneral:discount,conIva:vigente.conIva!==false,moneda:'ARS'};
+    var model=pptoV3Invocar('fields',[datosCalculo],function(){
+      var budget=window.SisVentas&&window.SisVentas.V3Budget;
+      if(budget&&typeof budget.fields==='function')return budget.fields(datosCalculo);
+      var filas=items.map(function(it){return Object.assign({},it,{sub:round(it.qty*it.punit*(1-(it.disc||0)/100))});});
+      var subtotal=round(filas.reduce(function(sum,it){return sum+it.sub;},0));
+      var descuentoAmt=round(subtotal*discount/100),base=round(subtotal-descuentoAmt);
+      var iva=datosCalculo.conIva?round(base*.21):0;
+      return {items:filas,subtotal:subtotal,descuentoAmt:descuentoAmt,iva:iva,total:round(base+iva)};
+    });
+    if(!model||!Array.isArray(model.items)||!Number.isFinite(Number(model.total)))throw Error('No se pudo conciliar el nuevo total');
+    var ahora=new Date();
+    var audit=(vigente.audit||[]).concat([{
+      fecha:ahora.toLocaleDateString('es-AR')+' '+ahora.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),
+      usuario:typeof currentUser!=='undefined'&&currentUser||'Admin',
+      accion:'Valores de Paraguay actualizados en '+(vigente.id||'presupuesto')+' sin crear copia'
+    }]);
+    var cambios={items:Array.from(model.items),subtotal:model.subtotal,descuentoAmt:model.descuentoAmt,
+      iva:model.iva,total:model.total,moneda:'ARS',audit:audit,tsActualizacionValores:Date.now()};
+    await pptoPersistirActualizar(vigente.fbKey,cambios);
+    Object.assign(vigente,cambios);
+    if(typeof verPpto==='function')verPpto(vigente.fbKey);
+    notify('Valores actualizados en '+(vigente.id||'el presupuesto')+'. No se creó una copia.');
+    return cambios;
+  }
+  window.crearPropuestaExterior=function(record,initialExtra,soloNuevas,actualizarMismo,soloItemIndex){
+    actualizarMismo=actualizarMismo===true;
+    if(!(actualizarMismo?tienePermiso('presupuestos.editar'):permission())||!tienePermiso('presupuestos.compararExterior')){notify('Sin permiso para esta acción');return;}
     try{
-      var items=normalized(record),choices=[];var d=dialog('Nueva propuesta con compra en Paraguay');
-      el('p',d,'Todos los ítems están seleccionados. Desmarcá los que no necesitás. Sin alternativa de Paraguay se conservan costo, precio y descuentos originales, incluida la mano de obra. Las alternativas indican si su stock no está verificado.');
-      var wrap=el('div',d);wrap.className='proposal-items';var table=el('table',wrap);table.style.width='100%';var head=el('tr',el('thead',table));['Usar','Producto','Costo ARS','% sobre costo'].forEach(function(t){el('th',head,t);});var body=el('tbody',table);
+      soloNuevas=soloNuevas===true;
+      soloItemIndex=Number.isInteger(soloItemIndex)?soloItemIndex:null;
+      var items=normalized(record),choices=[];var d=dialog(actualizarMismo?'Actualizar valores de '+(record.id||'presupuesto'):soloNuevas?'Revisar nuevas cotizaciones de Paraguay':'Nueva propuesta con compra en Paraguay');
+      el('p',d,actualizarMismo?soloItemIndex!==null?'Se actualiza este renglón en el mismo presupuesto, sin crear copias. Los demás valores se conservan. Revisá precio, total y stock antes de guardar.':'Se actualiza este mismo presupuesto, sin crear copias. Sólo se marcan automáticamente las cotizaciones nuevas de Paraguay que bajan el costo. Los demás renglones conservan costo, precio y descuento. Revisá el nuevo total, el porcentaje de venta y la disponibilidad antes de guardar.':soloNuevas?'Se prepara una nueva versión; '+(record.id||'el presupuesto original')+' no se modifica. Sólo se aplican por defecto las cotizaciones nuevas de Paraguay que bajan el costo. Los demás renglones conservan costo, precio y descuento. Revisá el porcentaje de venta y la disponibilidad antes de guardar.':'Todos los ítems están seleccionados. Desmarcá los que no necesitás. Sin alternativa de Paraguay se conservan costo, precio y descuentos originales, incluida la mano de obra. Las alternativas indican si su stock no está verificado.');
+      var wrap=el('div',d);wrap.className='proposal-items';var table=el('table',wrap);table.style.width='100%';var head=el('tr',el('thead',table));[soloNuevas?'Actualizar':'Usar','Producto','Costo ARS','% sobre costo'].forEach(function(t){el('th',head,t);});var body=el('tbody',table);
       items.forEach(function(it,index){var p=obtenerProductoPorCodigoVenta(it.cod,it);
-        var offers=(p&&!esProductoManoDeObra(p)?p.proveedores||[]:[]).filter(function(pv){return /Paraguay/i.test(origenProveedorProducto(pv).etiqueta)&&pv.disponibilidadProveedor!=='sin_stock'&&estadoVigenciaPrecioProveedor(p,pv).vigente;}).map(function(pv){return {cost:costoExteriorVigenteARS(pv)/metrosPorPresentacionProducto(p),stock:pv.disponibilidadProveedor};}).filter(function(c){return c.cost>0;}).sort(function(a,b){return a.cost-b.cost;});
-        var tr=el('tr',body),check=el('input',el('td',tr));check.type='checkbox';check.checked=true;check.setAttribute('aria-label','Incluir '+it.desc);el('td',tr,it.desc);el('td',tr,offers.length?money(offers[0].cost)+(offers[0].stock==='disponible'?'':' · stock no verificado'):(it.costoUnitarioCompra>0?money(it.costoUnitarioCompra)+' · ':'')+'Se conservan valores originales');var input=el('input',el('td',tr));input.type='number';input.min='0';input.max='500';input.step='.1';input.className='search-input';input.style.width='100px';var markup=Number(p&&p.margenDeseado);input.value=Number.isFinite(markup)?markup:margenProductoDefault();input.disabled=!offers.length;if(!offers.length)input.value='';
-        var c={index:index,cost:offers.length?offers[0].cost:0,selected:true,useExterior:!!offers.length,markup:Number(input.value)};choices.push(c);check.onchange=function(){c.selected=check.checked;render();};input.oninput=function(){c.markup=Number(input.value);render();};
+        var oferta=mejorOfertaParaguay(it,p),offers=oferta?[oferta]:[];
+        var aplicar=offers.length>0&&(!soloNuevas||nuevaCotizacionAplicable(it,offers[0].cost))&&(soloItemIndex===null||soloItemIndex===index);
+        var tr=el('tr',body),check=el('input',el('td',tr));if(soloItemIndex!==null&&soloItemIndex!==index)tr.hidden=true;check.type='checkbox';check.checked=soloNuevas?aplicar:true;check.disabled=soloNuevas&&(!offers.length||origenExterior({items:[it]}).cantidad>0||soloItemIndex!==null&&soloItemIndex!==index);check.setAttribute('aria-label',(soloNuevas?'Actualizar costo de ':'Incluir ')+it.desc);
+        el('td',tr,it.desc);el('td',tr,offers.length?(soloItemIndex===index&&it.costoUnitarioCompra>0?'Actual: '+money(it.costoUnitarioCompra)+' · Nuevo: ':'')+money(offers[0].cost)+(offers[0].stock==='disponible'?'':' · stock no verificado')+(soloNuevas&&!aplicar?' · conserva valor anterior por defecto':''):(it.costoUnitarioCompra>0?money(it.costoUnitarioCompra)+' · ':'')+'Se conservan valores originales');var input=el('input',el('td',tr));input.type='number';input.min='0';input.max='500';input.step='.1';input.className='search-input';input.style.width='100px';var markup=Number(p&&p.margenDeseado);input.value=Number.isFinite(markup)?markup:margenProductoDefault();input.disabled=!aplicar;if(!offers.length)input.value='';
+        var c={index:index,cost:offers.length?offers[0].cost:0,selected:true,useExterior:aplicar,markup:Number(input.value)};choices.push(c);check.onchange=function(){if(soloNuevas){c.useExterior=check.checked;input.disabled=!check.checked;}else c.selected=check.checked;render();};input.oninput=function(){c.markup=Number(input.value);render();};
       });
       var label=el('label',d,'Flete y otros gastos ARS (sólo entre ítems de Paraguay seleccionados): '),extra=el('input',label);extra.type='number';extra.min=0;extra.step='.01';extra.value=Math.max(0,Number(initialExtra)||0);extra.className='search-input';extra.oninput=render;
-      var summary=el('p',d);summary.className='proposal-summary';summary.style.whiteSpace='pre-line';var button=el('button',d,'Preparar nuevo presupuesto');button.className='btn btn-primary';
+      var summary=el('p',d);summary.className='proposal-summary';summary.style.whiteSpace='pre-line';var button=el('button',d,actualizarMismo?'Guardar cambios en '+(record.id||'este presupuesto'):'Preparar nuevo presupuesto');button.className='btn btn-primary';
       var discount=Number(record.descuentoGeneral??record.descuentoPct??record.descuento)||0;
       function totals(rows){var subtotal=round(rows.reduce(function(s,it){return s+round(it.qty*it.punit*(1-it.disc/100));},0));var net=round(subtotal-round(subtotal*discount/100));var model=pptoV3Invocar('form',[rows,discount,record.conIva!==false,21],null);if(model)net=Number(model.taxableBase);var costs=rows.map(function(it){return obtenerCostoUnitarioVenta(it.cod,it);});return {net:net,total:model?Number(model.total):round(net+(record.conIva===false?0:round(net*.21))),profit:costs.some(function(c){return !(c>0);})?null:round(net-costs.reduce(function(s,c,i){return s+c*rows[i].qty;},0))};}
-      function render(){try{var next=scenario(items,choices,Number(extra.value)||0),a=totals(items),b=totals(next);summary.textContent='Total anterior: '+money(a.total)+' · Nuevo: '+money(b.total)+'\n'+(choices.some(function(c){return !c.selected;})?'Diferencia total (incluye ítems quitados): ':'Ahorro cliente: ')+money(a.total-b.total)+'\nGanancia Nixa anterior: '+(a.profit===null?'Costo incompleto':money(a.profit))+' · Nueva: '+(b.profit===null?'Costo incompleto':money(b.profit))+'\nMargen nuevo sobre venta neta: '+(b.profit!==null&&b.net>0?(b.profit/b.net*100).toFixed(1)+'%':'Sin dato');button.disabled=!choices.some(function(c){return c.selected;})||Number(extra.value)<0;}catch(e){summary.textContent=e.message;button.disabled=true;}}
-      button.onclick=function(){try{if(!tienePermiso('presupuestos.compararExterior'))throw Error('Sin permiso');prepare(record,scenario(items,choices,Number(extra.value)||0),[record.id||'Presupuesto en preparación'],discount,record.tituloSolucion);d.close();}catch(e){notify(e.message);}};render();
+      function render(){try{var next=scenario(items,choices,Number(extra.value)||0),a=totals(items),b=totals(next);summary.textContent=(soloNuevas?'Nuevas cotizaciones aplicadas: '+choices.filter(function(c){return c.useExterior;}).length+'\n':'')+'Total anterior: '+money(a.total)+' · Nuevo: '+money(b.total)+'\n'+(choices.some(function(c){return !c.selected;})?'Diferencia total (incluye ítems quitados): ':'Ahorro cliente: ')+money(a.total-b.total)+'\nGanancia Nixa anterior: '+(a.profit===null?'Costo incompleto':money(a.profit))+' · Nueva: '+(b.profit===null?'Costo incompleto':money(b.profit))+'\nMargen nuevo sobre venta neta: '+(b.profit!==null&&b.net>0?(b.profit/b.net*100).toFixed(1)+'%':'Sin dato');button.disabled=!(soloNuevas?choices.some(function(c){return c.useExterior;}):choices.some(function(c){return c.selected;}))||Number(extra.value)<0;}catch(e){summary.textContent=e.message;button.disabled=true;}}
+      button.onclick=async function(){button.disabled=true;try{if(!tienePermiso('presupuestos.compararExterior'))throw Error('Sin permiso');var next=scenario(items,choices,Number(extra.value)||0);if(actualizarMismo)await guardarCotizacionesEnPresupuesto(record,next,discount);else prepare(record,next,[record.id||'Presupuesto en preparación'],discount,soloNuevas?'Revisión de '+(record.id||'presupuesto')+' · '+(record.tituloSolucion||'Compra en Paraguay'):record.tituloSolucion);d.close();}catch(e){notify(e.message);}finally{if(d.open)render();}};render();
     }catch(e){notify(e.message);}
   };
   function combinable(p,source){

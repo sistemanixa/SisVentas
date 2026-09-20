@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.6.18-firebase' -->
+<!-- VERSION: 'v3.6.19-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.6.18.js"></script>
+<script src="./js/core/version.v3.6.19.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,7 +34,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=3.3.17"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.6.17">
+<link rel="stylesheet" href="./css/app.css?v=3.6.19">
 <link rel="stylesheet" href="./css/surveys.css?v=1">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
@@ -936,6 +936,11 @@
           <div class="tl iva" id="ppto-det-iva-row"><span>IVA 21%</span><span id="ppto-det-iva">$0</span></div>
           <div class="tl final"><span>Total</span><span id="ppto-det-total2">$0</span></div>
         </div>
+      </div>
+      <div id="ppto-det-traslado-exterior" class="ppto-traslado-interno" hidden>
+        <div><strong>Costo de traslado exterior</strong><small>Uso interno · no modifica el precio ni aparece en el presupuesto del cliente.</small></div>
+        <input id="ppto-det-traslado-valor" type="number" min="0" step="0.01" inputmode="decimal" class="search-input" aria-label="Costo de traslado exterior en pesos argentinos">
+        <button type="button" class="btn btn-sm" onclick="guardarTrasladoExteriorDetalle()">Guardar costo</button>
       </div>
       <div class="permiso-margen-presupuesto" style="margin-top:18px;display:none">
         <button onclick="toggleMargenDetallePpto()" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:0">
@@ -5681,7 +5686,7 @@ Listo para analizar.
 <script src="./js/modules/offline-core.js?v=1.0.0"></script>
 <script src="./js/modules/comparacion-comercial.js?v=1"></script>
 <script src="./js/modules/search-filter-notice.js?v=scroll-2"></script>
-<script src="./js/app.v3.6.18.js"></script>
+<script src="./js/app.v3.6.19.js"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=2"></script>
 <script src="./js/modules/chat-access.js?v=1"></script>
@@ -5689,8 +5694,8 @@ Listo para analizar.
 
 <script src="./js/modules/ai-learning.js?v=1"></script>
 <script src="./js/modules/ai-dictation.js?v=1"></script>
-<script src="./js/modules/budget-exterior.js?v=3.6.17"></script>
-<script src="./js/modules/budget-proposals.js?v=3.6.17"></script>
+<script src="./js/modules/budget-exterior.js?v=3.6.19"></script>
+<script src="./js/modules/budget-proposals.js?v=3.6.19"></script>
 <script src="./js/modules/business-break-even.js?v=1.0.3"></script>
 <script src="./js/modules/product-url-import.js"></script>
 <script src="./js/modules/keyboard-actions.js?v=3.3.18"></script>
