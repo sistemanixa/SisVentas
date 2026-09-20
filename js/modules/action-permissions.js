@@ -27,6 +27,7 @@
     'productos.agregarProveedor': {modulo:'productos',label:'Agregar proveedores a un producto',roles:['admin','administrativo']},
     'productos.verProveedoresExterior': {modulo:'productos',label:'Ver y gestionar proveedores de otros países',roles:['admin','administrativo']},
     'presupuestos.compararExterior': {modulo:'presupuesto',label:'Comparar compra exterior y margen',roles:['admin']},
+    'presupuestos.actualizarExterior': {modulo:'presupuesto',label:'Mejorar valores de Paraguay en presupuesto exterior',roles:['admin']},
     'presupuestos.revisarVencidos':{"modulo":"presupuesto","label":"Revisar precios de presupuestos vencidos","roles":["admin","administrativo"]},
     'ventas.repararAdicionales':{"modulo":"detalle","label":"Reparar vínculos de adicionales de OT","roles":["admin","administrativo"]},
     'empleados.avisarHaberes':{"modulo":"empleados","label":"Ver avisos de haberes pendientes","roles":["admin","administrativo"]},

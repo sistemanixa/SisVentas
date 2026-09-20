@@ -1,25 +1,25 @@
-/* SisVentas NIXA - Service Worker v3.6.19
+/* SisVentas NIXA - Service Worker v3.6.20
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.6.19';
+const CACHE = 'sisventas-v3.6.20';
 const SHELL = [
   './',
   './index.html',
   './css/app.css?v=3.6.19',
   './css/v3-preview.css',
   './js/app.js',
-  './js/modules/budget-proposals.js?v=3.6.19',
+  './js/modules/budget-proposals.js?v=3.6.20',
   './js/modules/partial-invoices.js',
   './js/modules/surveys.js?v=1',
   './css/surveys.css?v=1',
   './js/modules/search-filter-notice.js?v=1',
   './js/modules/comparacion-comercial.js?v=1',
-  './js/app.v3.6.19.js',
+  './js/app.v3.6.20.js',
   './js/modules/product-url-import.js',
   './js/modules/keyboard-actions.js',
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js',
   './js/core/version.js',
-  './js/core/version.v3.6.19.js',
+  './js/core/version.v3.6.20.js',
   './js/core/login.js',
   './js/core/access-control.js',
   './js/core/firebase.js',
@@ -45,7 +45,7 @@ const SHELL = [
   './js/modules/ot-workflow.js',
   './js/modules/dashboard-permissions.js',
   './js/modules/sales-metrics.js',
-  './js/modules/action-permissions.js',
+  './js/modules/action-permissions.js?v=3.6.20',
   './js/modules/image-paste-drop.js',
   './js/modules/quantity-wheel.js',
   './js/core/metrics-cache.js',

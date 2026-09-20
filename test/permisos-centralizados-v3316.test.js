@@ -24,3 +24,12 @@ test('permisos nuevos conservan los valores iniciales de las restricciones migra
  const {w,roles}=setup();
  for(const role of roles){w.currentRole=role;assert.equal(w.tienePermiso('ot.corregirMateriales'),['admin','administrativo','vendedor'].includes(role));assert.equal(w.tienePermiso('ventas.autorizarDescuento'),role==='admin');assert.equal(w.tienePermiso('ventas.configurarComision'),role==='admin');}
 });
+test('mejorar valores de Paraguay inicia sólo para admin y se puede delegar desde Roles',()=>{
+ const {w,roles}=setup(),permiso='presupuestos.actualizarExterior';
+ for(const role of roles){w.currentRole=role;assert.equal(w.tienePermiso(permiso),role==='admin');}
+ w.currentRole='administrativo';
+ w.PERMISOS_ROLES.administrativo.acciones.presupuestos={actualizarExterior:true};
+ assert.equal(w.tienePermiso(permiso),true);
+ w.PERMISOS_ROLES.administrativo.acciones.presupuestos.actualizarExterior=false;
+ assert.equal(w.tienePermiso(permiso),false);
+});

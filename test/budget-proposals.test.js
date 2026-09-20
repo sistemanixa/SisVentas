@@ -150,3 +150,19 @@ test('la mejora directa exige una cotización vigente y más barata',()=>{
  producto.proveedores[0].disponibilidadProveedor='sin_stock';
  assert.equal(mejorar({costoUnitarioCompra:150},producto),false);
 });
+test('mejorar Paraguay sólo acepta un presupuesto existente originado en la comparativa exterior',async()=>{
+ const converted={fbKey:'budget-97',id:'PP-0097',items:[{cod:'A',costoUnitarioCompra:100,origenCompra:'Paraguay'},{cod:'B',costoUnitarioCompra:150}]};
+ const normal={fbKey:'budget-98',id:'PP-0098',items:[{cod:'B',costoUnitarioCompra:150}]};
+ const api=context.window.PropuestasComerciales;
+ assert.equal(api.esPresupuestoConvertidoExterior(converted),true);
+ assert.equal(api.esPresupuestoConvertidoExterior(normal),false);
+ assert.equal(api.esPresupuestoConvertidoExterior({items:converted.items}),false);
+ let notice='',writes=0;
+ const c={window:{},setInterval(){},tienePermiso:()=>true,buscarPptoPorRef:()=>normal,
+  notify:m=>notice=m,pptoPersistirActualizar:async()=>writes++,document:{createElement(){throw Error('No debe abrir el diálogo');}}};
+ vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8'),c);
+ c.window.crearPropuestaExterior(normal,0,true,true);
+ assert.match(notice,/comparativo exterior/);
+ await assert.rejects(c.window.PropuestasComerciales.guardarCotizacionesEnPresupuesto(normal,normal.items,0),/comparativo exterior/);
+ assert.equal(writes,0);
+});
