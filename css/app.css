@@ -2895,17 +2895,19 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 
 /* Resumen comercial compartido: alta y detalle de ventas/presupuestos. */
 .commercial-totals {
-  box-sizing:border-box;width: min(100%, 430px);min-width:0;
-  padding:20px 24px;background:var(--bg2);border:1px solid var(--border);
-  border-radius:14px;margin-top:8px;
+  box-sizing:border-box;width:min(100%,400px);min-width:0;
+  padding:4px 0 0;background:transparent;border:0;
+  border-radius:0;box-shadow:none;margin-top:0;
 }
-.commercial-totals .tl {font-size:15px;line-height:1.5;gap:24px;margin-bottom:10px;align-items:baseline;}
+.commercial-totals .tl {display:grid;grid-template-columns:minmax(0,1fr) auto;font-size:14px;line-height:1.5;gap:24px;margin:0;padding:5px 0;align-items:baseline;}
+.commercial-totals .tl > span:first-child {min-width:0;}
+.commercial-totals .tl > span:last-child {text-align:right;}
 .commercial-totals .tl > span:last-child {font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600;}
-.commercial-totals .tl.final {font-size:22px;font-weight:700;border-top:1px solid var(--border);padding-top:14px;margin-top:14px;margin-bottom:0;}
+.commercial-totals .tl.final {font-size:24px;font-weight:700;border-top:1px solid var(--border);padding:12px 0 2px;margin-top:8px;margin-bottom:0;}
 @media(max-width:600px) {
-  .commercial-totals {width:100%;padding:16px;}
-  .commercial-totals .tl {font-size:14px;gap:12px;}
-  .commercial-totals .tl.final {font-size:20px;flex-wrap:wrap;}
+  .commercial-totals {width:100%;padding:4px 0 0;}
+  .commercial-totals .tl {font-size:13px;gap:12px;}
+  .commercial-totals .tl.final {font-size:20px;}
 }
 /* Internal proposal workflow: compact, scrollable items and visible summary. */
 .commercial-proposal-dialog::backdrop{background:rgba(0,0,0,.6)}

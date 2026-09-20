@@ -37,10 +37,17 @@ test('unión suma iguales pero separa precios, descuentos y costos distintos',()
  const a={cod:'a',qty:2,punit:100,disc:5,costoUnitarioCompra:60};const records=[{items:[a]},{items:[{...a,qty:3},{...a,punit:110},{...a,disc:10},{...a,costoUnitarioCompra:50}]}];
  const before=JSON.stringify(records),out=combine(records);assert.equal(out.length,4);assert.equal(out[0].qty,5);assert.equal(out[0].sub,475);assert.equal(out[0].costoTotalCompra,300);assert.equal(JSON.stringify(records),before);
 });
-test('rechaza gastos y porcentajes inválidos; una alternativa desmarcada conserva el producto',()=>{
+test('rechaza gastos y porcentajes inválidos; un ítem desmarcado se excluye',()=>{
  const items=[{cod:'a',qty:1,punit:100}];assert.throws(()=>scenario(items,[],5));assert.throws(()=>scenario(items,[],-1));
  assert.throws(()=>scenario(items,[{index:0,cost:40,markup:NaN,selected:true}],0));
- assert.deepEqual(plain(scenario(items,[{index:0,cost:40,markup:30,selected:false}],0)),items);
+ assert.deepEqual(plain(scenario(items,[{index:0,cost:40,markup:30,selected:false}],0)),[]);
+});
+test('selección incluye mano de obra y sin Paraguay sin recalcular sus valores',()=>{
+ const items=[{cod:'local',qty:3,punit:123.45,disc:7,costoUnitarioCompra:90},{cod:'mo',qty:2,punit:500,disc:5}];
+ const choices=items.map((_,index)=>({index,selected:true,useExterior:false,cost:0,markup:0}));
+ assert.deepEqual(plain(scenario(items,choices,0)),items);
+ choices[0].selected=false;assert.deepEqual(plain(scenario(items,choices,0)),[items[1]]);
+ assert.throws(()=>scenario(items,choices,10));
 });
 test('sin permisos ninguna acción abre ni crea una propuesta',()=>{
  const denied={window:{tienePermiso:()=>false},tienePermiso:()=>false,setInterval(){},notify(){},document:{createElement(){throw Error('No debe abrir');}}};
