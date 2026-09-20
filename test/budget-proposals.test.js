@@ -62,8 +62,31 @@ test('consulta no bloquea navegación ni edición, evita solapamiento y libera t
 test('preparación crea copia ARS con referencia, descuento y título, sin persistir original',()=>{
  const nodes={'pp-titulo-solucion':{value:''},obs:{value:''}};let copied,loaded,calculated=0;const events=[];
  const c={window:{tienePermiso:()=>true,svDrafts:{flush(){events.push('flush');},begin(){events.push('begin');}}},tienePermiso:()=>true,setInterval(){},notify(){},_svResolverClienteRegistro:()=>({fbKey:'client'}),_cargarDuplicadoPresupuesto:(r)=>copied=structuredClone(r),pptoCargarItemsEnEditor:r=>loaded=r,document:{getElementById:id=>nodes[id],querySelector:()=>nodes.obs},calcPpTotales:()=>calculated++};c.svDrafts=c.window.svDrafts;
- vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace('window.PropuestasComerciales={combine:combine,scenario:scenario};','window.PropuestasComerciales={combine:combine,scenario:scenario,prepare:prepare};'),c);
+ vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace('window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior};','window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior,prepare:prepare};'),c);
  const original={id:'PP-1',moneda:'USD',descuento:10,items:[{qty:1,punit:10}]};const before=JSON.stringify(original);
  c.window.PropuestasComerciales.prepare(original,[{cod:'A',qty:1,punit:100,costoUnitarioCompra:70}],['PP-1','PP-2'],5,'Unificado');
  assert.equal(copied.moneda,'ARS');assert.equal(copied.descuentoGeneral,5);assert.equal(loaded.items[0].costoUnitarioCompra,70);assert.equal(nodes['pp-titulo-solucion'].value,'Unificado');assert.ok(nodes.obs.value.includes('PP-1, PP-2'));assert.equal(JSON.stringify(original),before);assert.equal(calculated,1);assert.deepEqual(events,['flush','begin','flush']);
+});
+test('combinar limita al mismo cliente y presupuestos vigentes',()=>{
+ const c={window:{},setInterval(){},_svResolverClienteRegistro:r=>r.clientResolved?{fbKey:r.clientResolved}:null,pptoEstaVencidoParaActualizar:p=>p.vence==='2020-01-01'};
+ vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace('window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior};','window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior,combinable:combinable};'),c);
+ const fn=c.window.PropuestasComerciales.combinable,source={id:'PP-1',clientResolved:'A'};
+ assert.equal(fn({id:'PP-2',clientResolved:'A',estado:'borrador'},source),true);
+ assert.equal(fn({id:'PP-2',clientResolved:'B'},source),false);
+ for(const estado of ['anulado','convertido','rechazado','vencido'])assert.equal(fn({id:'PP-2',clientResolved:'A',estado},source),false);
+ assert.equal(fn({id:'PP-2',clientResolved:'A',vence:'2020-01-01'},source),false);
+ assert.equal(fn(source,source),false);
+ assert.equal(fn({id:'PP-2',cliente:'Consumidor final'},{id:'PP-1',cliente:'Consumidor final'}),false);
+});
+test('la marca exterior persiste en los ítems guardados y no confunde mano de obra local',()=>{
+ const record={items:[
+  {cod:'P-1',costoUnitarioCompra:130050,origenCompra:'Paraguay'},
+  {cod:'P-2',costoUnitarioCompra:48960,origenCompra:'Paraguay'},
+  {cod:'M-1',costoUnitarioCompra:80000,origenCompra:''},
+  {cod:'P-3',costoUnitarioCompra:55000,origenCompra:'Local'}
+ ]};
+ const origen=context.window.PropuestasComerciales.origenExterior(record);
+ assert.equal(origen.cantidad,2);
+ assert.deepEqual(plain(origen.paises),['Paraguay']);
+ assert.equal(context.window.PropuestasComerciales.origenExterior({items:record.items.slice(2)}).cantidad,0);
 });

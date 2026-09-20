@@ -24,7 +24,17 @@
       it.sub=round(it.qty*it.punit*(1-(it.disc||0)/100));return it;
     }).filter(Boolean);
   }
-  window.PropuestasComerciales={combine:combine,scenario:scenario};
+  function origenExterior(record){
+    var items=Array.isArray(record&&record.items)?record.items:[],paises=new Set(),cantidad=0;
+    items.forEach(function(item){
+      var origen=String(item&&item.origenCompra||'').trim();
+      if(!(Number(item&&item.costoUnitarioCompra)>0)||!origen||/^(argentina|local|nacional)$/i.test(origen))return;
+      cantidad++;
+      paises.add(origen);
+    });
+    return {cantidad:cantidad,paises:Array.from(paises)};
+  }
+  window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior};
   function money(v){return Number(v).toLocaleString('es-AR',{style:'currency',currency:'ARS'});}
   function el(tag,parent,text){var n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(parent)parent.appendChild(n);return n;}
   function dialog(title){var d=el('dialog',document.body);d.className='commercial-proposal-dialog';d.style.cssText='inset:0;margin:auto;width:min(1000px,94vw);max-height:90vh;overflow:auto;padding:24px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:16px';var header=el('div',d);header.className='proposal-header';el('h3',header,title);var close=el('button',header,'Cerrar');close.className='btn';close.onclick=function(){d.close();};windowControls(d,header,close);d.addEventListener('close',function(){d.remove();});d.showModal();return d;}
@@ -74,17 +84,99 @@
       button.onclick=function(){try{if(!tienePermiso('presupuestos.compararExterior'))throw Error('Sin permiso');prepare(record,scenario(items,choices,Number(extra.value)||0),[record.id||'Presupuesto en preparación'],discount,record.tituloSolucion);d.close();}catch(e){notify(e.message);}};render();
     }catch(e){notify(e.message);}
   };
+  function combinable(p,source){
+    if((p.fbKey||p.id)===(source.fbKey||source.id))return false;
+    if(['anulado','convertido','rechazado','vencido'].includes(p.estado)||p.ventaId||p.ventaFbKey||pptoEstaVencidoParaActualizar(p))return false;
+    var a=_svResolverClienteRegistro(source,true),b=_svResolverClienteRegistro(p,true);
+    if(a&&b)return String(a.fbKey||a.id)===String(b.fbKey||b.id);
+    var refs=function(r){return [r.clienteFbKey,r.clienteKey,r.clienteId,r.idCliente].filter(Boolean).map(String);};
+    var ar=refs(source),br=refs(p);return ar.length>0&&br.some(function(k){return ar.includes(k);});
+  }
   window.combinarPresupuestos=function(){
     if(!permission()){notify('Sin permiso para crear presupuestos');return;}
     var source=buscarPptoPorRef(pptoActualId);if(!source)return;
-    var d=dialog('Combinar presupuestos'),selected=new Set();el('p',d,'Se crea una propuesta nueva. Se suman renglones iguales; precios o descuentos distintos se conservan separados. Elegí cliente y domicilio en el editor antes de guardar.');
-    var search=el('input',d);search.className='search-input';search.placeholder='Buscar presupuesto o cliente';var list=el('div',d);list.style.cssText='max-height:260px;overflow:auto';
-    var discountLabel=el('label',d,'Descuento general del nuevo presupuesto (%): '),discount=el('input',discountLabel);discount.type='number';discount.min=0;discount.max=100;discount.value=0;discount.className='search-input';
-    var title=el('input',d);title.className='search-input';title.placeholder='Título de la solución';title.value=source.tituloSolucion||'';
-    var summary=el('p',d),button=el('button',d,'Preparar presupuesto combinado');button.className='btn btn-primary';
-    function available(){return (pptoData||[]).filter(function(p){return (p.fbKey||p.id)!==(source.fbKey||source.id)&&p.estado!=='anulado';});}
-    function render(){list.replaceChildren();var q=search.value.toLowerCase();available().filter(function(p){return (p.id+' '+p.cliente).toLowerCase().includes(q);}).forEach(function(p){var label=el('label',list);label.style.cssText='display:flex;gap:10px;padding:10px';var check=el('input',label);check.type='checkbox';check.checked=selected.has(p.fbKey);el('span',label,p.id+' · '+p.cliente+' · '+(p.items||[]).length+' renglones');check.onchange=function(){if(check.checked)selected.add(p.fbKey);else selected.delete(p.fbKey);summary.textContent=selected.size+' presupuestos adicionales seleccionados';};});}
-    search.oninput=render;render();button.onclick=function(){try{var records=[source].concat(available().filter(function(p){return selected.has(p.fbKey);}));if(records.length<2)throw Error('Seleccioná otro presupuesto');var pct=Number(discount.value);if(!Number.isFinite(pct)||pct<0||pct>100)throw Error('Revisá el descuento general');if(records.some(function(p){return (p.conIva!==false)!==(source.conIva!==false);}))throw Error('Los presupuestos tienen distinto tratamiento de IVA. Revisalos antes de combinarlos.');prepare(source,combine(records.map(function(p){return {items:normalized(p)};})),records.map(function(p){return p.id;}),pct,title.value);d.close();}catch(e){notify(e.message);}};
+    var d=dialog('Combinar presupuestos'),selected=new Set();el('p',d,'Sólo presupuestos vigentes de ' + source.cliente + '. Se crea una propuesta nueva conservando los originales. Revisá el domicilio antes de guardar.');
+    var search=el('input',d);search.className='search-input';search.placeholder='Buscar por número o título';var list=el('div',d);list.style.cssText='max-height:260px;overflow:auto';
+    var fields=el('div',d);fields.className='proposal-combine-fields';
+    var titleLabel=el('label',fields,'Título del nuevo presupuesto'),title=el('input',titleLabel);title.type='text';title.className='search-input';title.placeholder='Unión de presupuestos';title.value=source.tituloSolucion||'';
+    var discountLabel=el('label',fields,'Descuento general del nuevo presupuesto (%)'),discount=el('input',discountLabel);discount.type='number';discount.min=0;discount.max=100;discount.value=0;discount.className='search-input';
+    var summary=el('div',d);summary.className='proposal-summary proposal-combine-summary';
+    var button=el('button',d,'Preparar presupuesto combinado');button.className='btn btn-primary';
+    var titleEdited=false,discountEdited=false;
+    title.oninput=function(){titleEdited=true;};discount.oninput=function(){discountEdited=true;updatePreview();};
+    var discountNotice=el('p',discountLabel);discountNotice.className='proposal-discount-notice';
+    function selectedRecords(){return [source].concat(available().filter(function(p){return selected.has(p.fbKey||p.id);}));}
+    function updatePreview(){
+      summary.replaceChildren();
+      var records=selectedRecords(),value=discount.value.trim(),pct=Number(value);
+      if(records.some(function(p){return (p.conIva!==false)!==(source.conIva!==false);})){
+        el('strong',summary,'Los presupuestos seleccionados tienen distinto tratamiento de IVA.');button.disabled=true;return;
+      }
+      if(value===''||!Number.isFinite(pct)||pct<0||pct>100){
+        el('strong',summary,'Indicá un descuento general entre 0% y 100% para ver el total.');button.disabled=true;return;
+      }
+      try{
+        var items=combine(records.map(function(p){return {items:normalized(p)};}));
+        var calculadora=window.SisVentas&&window.SisVentas.V3Budget;
+        var model=calculadora&&typeof calculadora.form==='function'
+          ? calculadora.form(items,pct,source.conIva!==false,21)
+          : pptoV3Invocar('form',[items,pct,source.conIva!==false,21],null);
+        if(!model||!Number.isFinite(Number(model.total)))throw Error('No se pudo calcular el total');
+        el('div',summary,records.map(function(p){return p.id;}).join(' + ')).className='proposal-combine-references';
+        var total=el('div',summary);total.className='proposal-combine-total';
+        el('span',total,records.length<2?'Total del presupuesto actual':'Total estimado del nuevo presupuesto');el('strong',total,money(model.total));
+        el('div',summary,'Subtotal de ítems: '+money(model.subtotal)+' · Descuento general '+pct+'%: -'+money(model.generalDiscount)+(model.includesIva?' · IVA: '+money(model.iva):' · Sin IVA')).className='proposal-combine-breakdown';
+        button.disabled=records.length<2;
+      }catch(e){el('strong',summary,e.message||'No se pudo calcular el total');button.disabled=true;}
+    }
+    function defaults(){
+      var records=selectedRecords();
+      if(!titleEdited)title.value='Unión de presupuestos '+records.map(function(p){return p.id;}).join(' y ');
+      var discounts=records.map(function(p){return Number(p.descuentoGeneral??p.descuentoPct??p.descuento)||0;});
+      var same=discounts.every(function(v){return v===discounts[0];});
+      if(!discountEdited)discount.value=same?discounts[0]:'';
+      discountNotice.textContent=same?'Descuento común: '+discounts[0]+'%. Podés editarlo.':'Los descuentos son distintos. Indicá el descuento general del nuevo presupuesto.';
+      updatePreview();
+    }
+    function available(){return (pptoData||[]).filter(function(p){return combinable(p,source);});}
+    function render(){
+      list.replaceChildren();var q=search.value.toLocaleLowerCase();
+      var rows=available().filter(function(p){return (p.id+' '+(p.tituloSolucion||'')).toLocaleLowerCase().includes(q);});
+      if(!rows.length)el('p',list,'No hay otros presupuestos vigentes de este cliente que coincidan.');
+      rows.forEach(function(p){
+        var label=el('label',list);label.style.cssText='display:flex;align-items:center;gap:14px;padding:14px;margin:8px 0;border:1px solid var(--border);border-radius:10px;cursor:pointer';
+        var key=p.fbKey||p.id,check=el('input',label);check.type='checkbox';check.checked=selected.has(key);
+        var info=el('div',label);info.style.cssText='flex:1;min-width:0';el('strong',info,p.id+' · '+(p.tituloSolucion||'Sin título'));
+        var detail=el('div',info,(p.items||[]).length+' ítems · Vence: '+(p.vence||p.vencimiento||'Sin fecha')+' · '+(typeof pptoEstadoLabel==='function'?pptoEstadoLabel(p.estado):p.estado||''));detail.style.cssText='font-size:12px;color:var(--text3);margin-top:5px';
+        var value=el('strong',info,money(p.total)+' ARS');value.style.cssText='display:block;margin-top:6px;color:var(--text)';
+        check.onchange=function(){if(check.checked)selected.add(key);else selected.delete(key);defaults();};
+      });
+    }
+    search.oninput=render;render();defaults();button.onclick=function(){try{var records=[source].concat(available().filter(function(p){return selected.has(p.fbKey||p.id);}));if(records.length<2)throw Error('Seleccioná otro presupuesto');if(discount.value.trim()==='')throw Error('Indicá el descuento general');var pct=Number(discount.value);if(!Number.isFinite(pct)||pct<0||pct>100)throw Error('Revisá el descuento general');if(records.some(function(p){return (p.conIva!==false)!==(source.conIva!==false);}))throw Error('Los presupuestos tienen distinto tratamiento de IVA. Revisalos antes de combinarlos.');prepare(source,combine(records.map(function(p){return {items:normalized(p)};})),records.map(function(p){return p.id;}),pct,title.value);d.close();}catch(e){notify(e.message);}};
   };
-  setInterval(function(){var anchor=document.getElementById('ppto-det-meta');if(!anchor)return;var b=document.getElementById('ppto-combinar');if(!b){b=el('button',null,'Combinar presupuestos');b.id='ppto-combinar';b.className='btn btn-sm';b.type='button';b.onclick=window.combinarPresupuestos;anchor.after(b);}b.hidden=!permission();},1000);
+  function marcarOrigenExterior(contenedor,record){
+    if(!contenedor)return;
+    var badge=contenedor.querySelector('.ppto-exterior-badge'),origen=origenExterior(record);
+    if(!origen.cantidad){if(badge)badge.remove();return;}
+    if(!badge){badge=el('span',contenedor);badge.className='ppto-exterior-badge';}
+    var texto='Compra en '+origen.paises.join(' / ');
+    var titulo=origen.cantidad+' '+(origen.cantidad===1?'ítem calculado':'ítems calculados')+' con costos de compra de '+origen.paises.join(', ');
+    if(badge.textContent!==texto)badge.textContent=texto;
+    if(badge.title!==titulo)badge.title=titulo;
+  }
+  setInterval(function(){
+    var anchor=document.getElementById('ppto-det-meta');
+    if(anchor){
+      var b=document.getElementById('ppto-combinar');
+      if(!b){b=el('button',null,'Combinar presupuestos');b.id='ppto-combinar';b.className='btn btn-sm';b.type='button';b.onclick=window.combinarPresupuestos;anchor.after(b);}
+      b.hidden=!permission();
+      if(typeof buscarPptoPorRef==='function'&&typeof pptoActualId!=='undefined')marcarOrigenExterior(document.getElementById('ppto-det-estado-badge'),buscarPptoPorRef(pptoActualId));
+    }
+    if(typeof pptoData!=='undefined'&&Array.isArray(pptoData)){
+      var presupuestos=new Map(pptoData.map(function(p){return [String(p.fbKey||p.id||''),p];}));
+      document.querySelectorAll('#ppto-tbody-main tr[data-ppto-ref]').forEach(function(row){
+        marcarOrigenExterior(row.cells[0],presupuestos.get(row.dataset.pptoRef));
+      });
+    }
+  },1000);
 })();

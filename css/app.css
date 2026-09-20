@@ -2918,4 +2918,16 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .commercial-proposal-dialog td,.commercial-proposal-dialog th{padding:10px;text-align:left}
 .commercial-proposal-dialog .proposal-summary{padding:14px 18px;background:var(--bg3);border-left:3px solid var(--blue);border-radius:8px;font-size:14px}
 .commercial-proposal-dialog input[type=checkbox]{width:18px;height:18px;accent-color:var(--blue)}
+.commercial-proposal-dialog .proposal-combine-fields{display:grid;gap:18px;margin:18px 0}
+.commercial-proposal-dialog .proposal-combine-fields label{display:grid;gap:8px;min-width:0;font-size:13px;font-weight:600;color:var(--text2)}
+.commercial-proposal-dialog .proposal-combine-fields input{box-sizing:border-box;margin:0;min-width:0}
+.commercial-proposal-dialog .proposal-combine-fields input[type=number]{width:140px;max-width:100%}
+.commercial-proposal-dialog .proposal-combine-fields input[type=text]{width:100%}
+.commercial-proposal-dialog .proposal-discount-notice{font-size:12px;font-weight:400;color:var(--text3);margin:0}
+.commercial-proposal-dialog .proposal-combine-summary{display:grid;gap:7px;margin:18px 0}
+.commercial-proposal-dialog .proposal-combine-references{font-size:12px;color:var(--text3)}
+.commercial-proposal-dialog .proposal-combine-total{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;font-weight:600}
+.commercial-proposal-dialog .proposal-combine-total strong{font-size:21px;color:var(--text);font-variant-numeric:tabular-nums}
+.commercial-proposal-dialog .proposal-combine-breakdown{font-size:12px;color:var(--text3)}
+.ppto-exterior-badge{display:inline-flex;align-items:center;vertical-align:middle;max-width:100%;margin-left:8px;padding:3px 7px;border:1px solid #60a5fa;border-radius:999px;background:rgba(59,130,246,.13);color:#93c5fd;font-size:11px;font-weight:700;line-height:1.3;white-space:normal}
 @media(max-width:600px){.commercial-proposal-dialog{padding:14px!important}.commercial-proposal-dialog .proposal-items{max-height:35vh}.commercial-proposal-dialog table{min-width:620px}.commercial-proposal-dialog .proposal-summary{font-size:12px}}
