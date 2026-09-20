@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.6.17-firebase' -->
+<!-- VERSION: 'v3.6.18-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.6.17.js"></script>
+<script src="./js/core/version.v3.6.18.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -1576,6 +1576,13 @@
             </div>
             <div class="fg"><label>Saldo tras este pago</label><input type="text" id="cob-nuevo-saldo" readonly placeholder="—" style="font-weight:500"></div>
             <div class="fg"><label>Referencia / N° operación</label><input type="text" id="cob-ref" placeholder="Opcional"></div>
+            <div class="fg full">
+              <label>Comprobante del cobro (opcional)</label>
+              <label class="btn" style="display:flex;align-items:center;gap:8px;cursor:pointer;justify-content:center;border-style:dashed;min-height:52px" title="Adjuntar transferencia, ticket o recibo">
+                <i class="ti ti-paperclip"></i><span id="cob-documento-nombre">Elegir PDF o imagen · hasta 2 MB</span>
+                <input type="file" id="cob-documento" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" style="display:none" onchange="previewDocumentoCobro(this)">
+              </label>
+            </div>
           </div>
           <div class="flex-end">
             <button class="btn btn-primary" onclick="registrarPago()"><i class="ti ti-check"></i> Registrar pago y emitir recibo</button>
@@ -2058,11 +2065,11 @@
             </div>
             <div style="margin-bottom:14px;padding:10px 14px;background:var(--blue-bg);border-radius:var(--radius);font-size:12px;color:var(--blue)">
               <i class="ti ti-info-circle" style="font-size:14px;margin-right:6px"></i>
-              Cada cargo define el valor hora, los días a contar en el mes, y el valor de hora extra. Los cambios del valor hora conservan fecha, porcentaje y usuario para auditoría y avisos al empleado.
+              Cada cargo define el valor hora, los días a contar en el mes y la hora extra. La variación compara el valor actual con el del mes previo al último ajuste; el historial conserva cada cambio individual. Pasá el mouse por la cantidad de empleados para ver sus nombres.
             </div>
             <div class="table-wrap cargos-table-wrap">
               <table id="cargos-tbl">
-                <thead><tr><th>Cargo</th><th style="text-align:right">Valor hora</th><th style="text-align:right">Hs ex</th><th>Último ajuste</th><th style="text-align:right">Días/mes</th><th style="text-align:right">Mensual (8hs)</th><th style="text-align:right">8hs/día</th><th style="text-align:right">4hs/día</th><th style="text-align:right">Empleados</th><th aria-label="Acciones"></th></tr></thead>
+                <thead><tr><th>Cargo</th><th style="text-align:right">Valor hora</th><th style="text-align:right">Hs ex</th><th>Variación valor hora</th><th style="text-align:right">Días/mes</th><th style="text-align:right">Mensual (8hs)</th><th style="text-align:right">8hs/día</th><th style="text-align:right">4hs/día</th><th style="text-align:right">Empleados</th><th aria-label="Acciones"></th></tr></thead>
                 <tbody id="cargos-tbody"></tbody>
               </table>
             </div>
@@ -5674,7 +5681,7 @@ Listo para analizar.
 <script src="./js/modules/offline-core.js?v=1.0.0"></script>
 <script src="./js/modules/comparacion-comercial.js?v=1"></script>
 <script src="./js/modules/search-filter-notice.js?v=scroll-2"></script>
-<script src="./js/app.v3.6.17.js"></script>
+<script src="./js/app.v3.6.18.js"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=2"></script>
 <script src="./js/modules/chat-access.js?v=1"></script>
@@ -6239,5 +6246,3 @@ Listo para analizar.
 <script src="./js/modules/performance-diagnostics.js?v=1"></script>
 </body>
 </html>
-
-

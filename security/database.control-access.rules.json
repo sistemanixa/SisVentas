@@ -24,6 +24,17 @@
         }
       }
     },
+    "sv_ia_reglas": {
+      ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true",
+      ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'",
+      "$id": {
+        ".validate": "newData.hasChildren(['categoria','codigo','cantidad','activa','actualizadaEn','autor']) && newData.child('categoria').isString() && newData.child('codigo').isString() && newData.child('cantidad').isNumber() && newData.child('cantidad').val() > 0 && newData.child('activa').isBoolean()"
+      }
+    },
+    "sv_rrhh_adjuntos": {
+      ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'",
+      ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'"
+    },
     "sv_chat_roles": {
       ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'",
       ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'",
