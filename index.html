@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.7.0-firebase' -->
+<!-- VERSION: 'v3.7.1-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.7.0.js"></script>
+<script src="./js/core/version.v3.7.1.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,7 +34,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=3.3.17"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.7.0">
+<link rel="stylesheet" href="./css/app.css?v=3.7.1">
 <link rel="stylesheet" href="./css/surveys.css?v=1">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
@@ -942,12 +942,12 @@
         <input id="ppto-det-traslado-valor" type="number" min="0" step="0.01" inputmode="decimal" class="search-input" aria-label="Costo de traslado exterior en pesos argentinos">
         <button type="button" class="btn btn-sm" onclick="guardarTrasladoExteriorDetalle()">Guardar costo</button>
       </div>
-      <div class="permiso-margen-presupuesto margen-popup-anchor" style="margin-top:18px;display:none">
+      <div class="permiso-margen-presupuesto" style="margin-top:18px;display:none">
         <button onclick="toggleMargenDetallePpto()" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:0">
           <i class="ti ti-eye" id="ppto-det-margen-eye-icon" style="font-size:12px"></i>
           <span id="ppto-det-margen-eye-lbl">Ver margen de ganancia</span>
         </button>
-        <div id="ppto-det-margen-box" class="margen-popup-up" style="display:none;padding:10px 14px;border-radius:var(--radius);box-sizing:border-box;width:min(360px,calc(100vw - 48px))">
+        <div id="ppto-det-margen-box" style="display:none;margin-top:8px;padding:10px 14px;border-radius:var(--radius);box-sizing:border-box;max-width:360px">
           <div id="ppto-det-margen-contenido"></div>
         </div>
       </div>
@@ -1021,12 +1021,12 @@
         <div class="tl iva" id="pp-iva-row"><span>IVA 21%</span><span id="pp-iva">$0</span></div>
         <div class="tl final"><span>Total</span><span id="pp-total">$0</span></div>
       </div></div>
-      <div class="permiso-margen-presupuesto margen-popup-anchor" style="margin-top:8px;display:none">
+      <div class="permiso-margen-presupuesto" style="margin-top:8px;display:none">
         <button onclick="toggleMargenPpto()" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:0">
           <i class="ti ti-eye" id="ppto-margen-eye-icon" style="font-size:12px"></i>
           <span id="ppto-margen-eye-lbl">Ver margen de ganancia</span>
         </button>
-        <div id="ppto-margen-ganancia-box" class="margen-popup-up" style="display:none;padding:10px 14px;border-radius:var(--radius);box-sizing:border-box;width:min(320px,calc(100vw - 48px))">
+        <div id="ppto-margen-ganancia-box" style="display:none;margin-top:8px;padding:10px 14px;border-radius:var(--radius);box-sizing:border-box;max-width:320px">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Margen de ganancia</span>
             <span id="ppto-margen-ganancia-pct" style="font-size:18px;font-weight:700">—</span>
@@ -5686,7 +5686,7 @@ Listo para analizar.
 <script src="./js/modules/offline-core.js?v=1.0.0"></script>
 <script src="./js/modules/comparacion-comercial.js?v=1"></script>
 <script src="./js/modules/search-filter-notice.js?v=scroll-2"></script>
-<script src="./js/app.v3.7.0.js"></script>
+<script src="./js/app.v3.7.1.js"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=2"></script>
 <script src="./js/modules/chat-access.js?v=1"></script>
