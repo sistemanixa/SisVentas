@@ -67,6 +67,23 @@ test('preparación crea copia ARS con referencia, descuento y título, sin persi
  c.window.PropuestasComerciales.prepare(original,[{cod:'A',qty:1,punit:100,costoUnitarioCompra:70}],['PP-1','PP-2'],5,'Unificado');
  assert.equal(copied.moneda,'ARS');assert.equal(copied.descuentoGeneral,5);assert.equal(loaded.items[0].costoUnitarioCompra,70);assert.equal(nodes['pp-titulo-solucion'].value,'Unificado');assert.ok(nodes.obs.value.includes('PP-1, PP-2'));assert.equal(JSON.stringify(original),before);assert.equal(calculated,1);assert.deepEqual(events,['flush','begin','flush']);
 });
+test('propuesta desde editor conserva consumidor final y los ítems sin guardar el original',()=>{
+ const nodes={'pp-cli':{value:''},'pp-titulo-solucion':{value:''},obs:{value:''}};
+ let copied,loaded,writes=0;
+ const c={window:{tienePermiso:()=>true},tienePermiso:()=>true,setInterval(){},notify(){},
+  _svResolverClienteRegistro:()=>null,_cargarDuplicadoPresupuesto:r=>{copied=structuredClone(r);nodes['pp-cli'].value='';},
+  pptoCargarItemsEnEditor:r=>loaded=r,pptoPersistirActualizar:()=>writes++,
+  document:{getElementById:id=>nodes[id],querySelector:()=>nodes.obs},calcPpTotales(){}};
+ vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace(/window\.PropuestasComerciales=\{[^;]+\};/,'window.PropuestasComerciales={prepare:prepare};'),c);
+ const source={id:'PP-1',cliente:'CONSUMIDOR FINAL',items:[{cod:'A',qty:1,punit:100}],descuentoGeneral:5};
+ const next=[{cod:'A',qty:1,punit:90,costoUnitarioCompra:60,origenCompra:'Paraguay'}];
+ c.window.PropuestasComerciales.prepare(source,next,['PP-1'],5,'Compra Paraguay');
+ assert.equal(nodes['pp-cli'].value,'CONSUMIDOR FINAL');
+ assert.equal(copied.items[0].origenCompra,'Paraguay');
+ assert.equal(loaded.items[0].punit,90);
+ assert.equal(writes,0);
+ assert.equal(source.items[0].punit,100);
+});
 test('combinar limita al mismo cliente y presupuestos vigentes',()=>{
  const c={window:{},setInterval(){},_svResolverClienteRegistro:r=>r.clientResolved?{fbKey:r.clientResolved}:null,pptoEstaVencidoParaActualizar:p=>p.vence==='2020-01-01'};
  vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace(/window\.PropuestasComerciales=\{[^;]+\};/,'window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior,combinable:combinable};'),c);

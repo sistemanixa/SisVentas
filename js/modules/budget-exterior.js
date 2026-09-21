@@ -203,7 +203,21 @@
       var save=make('button',footer,'Guardar costo interno de traslado');save.className='btn';
       save.onclick=async function(){save.disabled=true;try{extraGuardado=await guardarCostoTraslado(record,input.value);render();}catch(e){notify(e.message);}finally{save.disabled=false;}};
     }
-    if(tienePermiso('presupuestos.crear') && record){var proposal=make('button',footer,'Crear presupuesto con estos costos');proposal.className='btn btn-primary';proposal.onclick=function(){d.close();crearPropuestaExterior(record,Number(input.value)||0);};}
+    if(tienePermiso('presupuestos.crear')){
+      var proposal=make('button',footer,record?'Crear presupuesto con estos costos':'Preparar nuevo presupuesto con estos costos');
+      proposal.className='btn btn-primary';
+      proposal.onclick=function(){
+        var source=record;
+        if(!source){
+          if(typeof _pptoRegistroFormularioImpresion!=='function'){notify('No se pudo leer el presupuesto en edición');return;}
+          source=_pptoRegistroFormularioImpresion();
+          source.moneda=currency;
+          if(!source.items||!source.items.length){notify('Agregá productos al presupuesto');return;}
+        }
+        d.close();
+        crearPropuestaExterior(source,Number(input.value)||0);
+      };
+    }
     close.className='btn';
     close.onclick=function(){d.close();};
     bodyWrap.appendChild(footer);

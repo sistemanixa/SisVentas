@@ -73,6 +73,10 @@
     var cliente=_svResolverClienteRegistro(source,true),copy=Object.assign({},source,{items:items,moneda:'ARS',descuentoGeneral:discount});
     if(window.svDrafts)svDrafts.flush();
     _cargarDuplicadoPresupuesto(copy,cliente);
+    if(!cliente&&source.cliente){
+      var clienteTexto=document.getElementById('pp-cli');
+      if(clienteTexto)clienteTexto.value=source.cliente;
+    }
     if(window.svDrafts)svDrafts.begin('presupuesto');
     if(typeof _pptoMonedaActual!=='undefined'&&_pptoMonedaActual==='USD')toggleMonedaPpto();
     // Reload ARS rows after resetting the editor currency, avoiding double conversion.
