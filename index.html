@@ -1345,7 +1345,7 @@
             </div>
             <div id="ot-productos-adicionales-box" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
               <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px"><i class="ti ti-package-plus"></i> Productos adicionales</div>
-              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Agregados durante la visita. Se incorporan a la venta al resolver el reclamo.</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Agregados durante la visita. Cada producto conserva si fue incorporado a la venta original o a una venta nueva.</div>
               <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th class="tr">Cant.</th></tr></thead><tbody id="ot-materiales-adicionales"></tbody></table></div>
             </div>
           </div>
@@ -1361,9 +1361,13 @@
                 <input type="text" class="search-input" placeholder="Buscar producto..." id="ot-sel-prod-buscar" oninput="otFiltrarSelectorProductos(this.value)" style="margin-bottom:12px">
                 <div id="ot-sel-prod-lista" style="max-height:280px;overflow-y:auto;margin-bottom:12px"></div>
                 <div id="ot-sel-prod-carrito" style="border-top:1px solid var(--border);padding-top:10px"></div>
+                <div style="margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg3);font-size:11px;color:var(--text3)">
+                  Elegí dónde facturar estos materiales. La opción principal los agrega a la venta que originó la OT.
+                </div>
                 <div class="flex-end" style="margin-top:10px">
                   <button class="btn" onclick="otCerrarSelectorProductos()">Cancelar</button>
-                  <button class="btn btn-primary" onclick="otConfirmarProductosAdicionales()"><i class="ti ti-check"></i> Agregar a la OT</button>
+                  <button class="btn" id="ot-btn-venta-nueva" onclick="otConfirmarVentaAdicional()"><i class="ti ti-file-plus"></i> Crear venta nueva</button>
+                  <button class="btn btn-primary" id="ot-btn-venta-original" onclick="otConfirmarProductosAdicionales()"><i class="ti ti-link-plus"></i> Agregar a venta original</button>
                 </div>
               </div>
             </div>

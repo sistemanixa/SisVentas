@@ -46082,8 +46082,11 @@ function otRenderProductosAdicionales(materiales) {
   if (!adicionales.length) { cuerpo.innerHTML = ''; return; }
   cuerpo.innerHTML = adicionales.map(function(material) {
     var cantidad = Number(material.vendida || material.qty || material.cantidad || 0);
+    var destino = material.destinoVenta === 'nueva'
+      ? 'Venta nueva ' + String(material.ventaDestinoId || '').trim()
+      : (material.destinoVenta === 'original' ? 'Venta original' : 'Destino anterior sin registrar');
     var origen = 'Agregado por ' + (material.agregadoPor || 'usuario no registrado') +
-      (material.agregadoEn ? ' · ' + material.agregadoEn : ' · fecha no registrada');
+      (material.agregadoEn ? ' · ' + material.agregadoEn : ' · fecha no registrada') + ' · ' + destino;
     return '<tr><td style="font-size:12px;color:var(--text3)">' + escapeHTML(material.cod || material.codigo || '') + '</td><td>' + escapeHTML(material.desc || material.nombre || material.descripcion || '') + '<div style="font-size:11px;color:var(--text3);margin-top:4px">' + escapeHTML(origen) + '</div></td><td class="tr">' + escapeHTML(String(cantidad)) + '</td></tr>';
   }).join('');
 }
@@ -46460,6 +46463,7 @@ function otToggleInstalado(chk, indice, vendida) {
     });
 }
 var _otCarritoAdicional = [];
+var _otGuardandoDestinoAdicional = false;
 
 function otAbrirSelectorProductos() {
   _otCarritoAdicional = [];
@@ -46467,7 +46471,22 @@ function otAbrirSelectorProductos() {
   if (modal) modal.style.display = 'flex';
   otFiltrarSelectorProductos('');
   otRenderCarritoAdicional();
+  otActualizarAccionesDestinoAdicional();
   setTimeout(function(){ var inp = document.getElementById('ot-sel-prod-buscar'); if(inp) inp.focus(); }, 100);
+}
+
+function otActualizarAccionesDestinoAdicional() {
+  var ot = (otData || []).find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
+  var ventaOrigen = ot ? (otBuscarVentaOrigen(ot) || _buscarVentaCanonicaReclamo({}, ot)) : null;
+  var botonOriginal = document.getElementById('ot-btn-venta-original');
+  var botonNueva = document.getElementById('ot-btn-venta-nueva');
+  if (botonOriginal) {
+    botonOriginal.disabled = _otGuardandoDestinoAdicional || !ventaOrigen;
+    botonOriginal.title = ventaOrigen
+      ? 'Agregar los productos a ' + String(ventaOrigen.id || ventaOrigen.numero || 'la venta original')
+      : 'Esta OT no tiene una venta original vinculada';
+  }
+  if (botonNueva) botonNueva.disabled = _otGuardandoDestinoAdicional;
 }
 
 function otCerrarSelectorProductos() {
@@ -46543,6 +46562,68 @@ function otPuedeCorregirProductos() {
   return typeof window.tienePermiso === 'function' && window.tienePermiso('ot.corregirMateriales');
 }
 
+function otValorEstable(valor) {
+  if (Array.isArray(valor)) return valor.map(otValorEstable);
+  if (valor && typeof valor === 'object') {
+    var ordenado = {};
+    Object.keys(valor).sort().forEach(function(k){ ordenado[k] = otValorEstable(valor[k]); });
+    return ordenado;
+  }
+  return valor;
+}
+
+async function otLeerSiMaterialesNoCambiaron(ot) {
+  var snap = await window.fbGet(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey));
+  var actual = snap.val();
+  if (!actual || JSON.stringify(otValorEstable(actual.materiales || [])) !== JSON.stringify(otValorEstable(ot.materiales || []))) {
+    throw new Error('La OT cambió. Volvé a abrirla antes de agregar productos.');
+  }
+  return actual;
+}
+
+function otMaterialesConAdicionales(ot, destino, ventaDestino) {
+  var fecha = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toLocaleDateString('en-CA');
+  var materiales = (ot && ot.materiales || []).map(function(m){ return Object.assign({}, m); });
+  var ventaKey = String(ventaDestino && ventaDestino.fbKey || '');
+  var ventaId = String(ventaDestino && (ventaDestino.id || ventaDestino.numero) || '');
+  _otCarritoAdicional.forEach(function(item) {
+    var existente = materiales.find(function(material) {
+      if (!material || material.adicionalOT !== true) return false;
+      if (String(material.cod || material.codigo || '') !== String(item.codigo || '')) return false;
+      if (String(material.destinoVenta || '') !== String(destino || '')) return false;
+      return destino !== 'nueva' || String(material.ventaDestinoFbKey || '') === ventaKey;
+    });
+    if (existente) {
+      existente.vendida = Number(existente.vendida || existente.qty || 0) + Number(item.cantidad || 0);
+      existente.qty = existente.vendida;
+      existente.cantidad = existente.vendida;
+      existente.sub = _redondearPrecioActual(existente.vendida * Number(existente.punit || 0));
+      return;
+    }
+    materiales.push({
+      cod:item.codigo || '', desc:item.nombre || '', vendida:Number(item.cantidad || 1), qty:Number(item.cantidad || 1), cantidad:Number(item.cantidad || 1), instalada:0,
+      punit:Number(item.precio || 0), sub:_redondearPrecioActual(Number(item.precio || 0) * Number(item.cantidad || 1)),
+      adicionalOT:true, origen:'adicional_ot', destinoVenta:destino, ventaDestinoFbKey:ventaKey, ventaDestinoId:ventaId,
+      agregadoEn:fecha, agregadoPor:currentUser || ''
+    });
+  });
+  return materiales;
+}
+
+function otDetalleCarritoAdicional() {
+  return _otCarritoAdicional.map(function(item){
+    return String(item.codigo || '') + ' × ' + Number(item.cantidad || 1);
+  }).join(', ');
+}
+
+function otFinalizarCargaAdicional(ot, mensaje) {
+  _otCarritoAdicional = [];
+  otCerrarSelectorProductos();
+  verOT(ot.fbKey);
+  if (typeof window.otWizardIr === 'function') window.otWizardIr('materiales');
+  notify(mensaje);
+}
+
 async function otGuardarCorreccionProductos(ot, materiales, accion, eliminado) {
   if (!otPuedeCorregirProductos()) throw new Error('No tenés permiso para corregir productos de la OT.');
   var actualSnap = await window.fbGet(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey));
@@ -46575,7 +46656,8 @@ async function otGuardarCorreccionProductos(ot, materiales, accion, eliminado) {
     }
     items = items.filter(function(i){return Number(i.qty)>0;});
   }
-  items = spIntegrarMaterialesOT(Object.assign({},venta,{items:items}),Object.assign({},ot,{materiales:materiales}));
+  var materialesVentaOriginal = materiales.filter(function(material){ return material && material.destinoVenta !== 'nueva'; });
+  items = spIntegrarMaterialesOT(Object.assign({},venta,{items:items}),Object.assign({},ot,{materiales:materialesVentaOriginal}));
   var bruto = _redondearPrecioActual(items.reduce(function(n,i){return n+Number(i.qty)*Number(i.punit);},0));
   var neto = _redondearPrecioActual(items.reduce(function(n,i){return n+Number(i.sub);},0));
   var descuentoGeneral = _redondearPrecioActual(neto * Number(venta.descuentoGeneral || 0)/100);
@@ -46594,6 +46676,7 @@ async function otEliminarProductoMaterial(indice) {
   var ot = (otData || []).find(function(o){return o.fbKey===otActualId || o.id===otActualId;});
   var material = ot && (ot.materiales || [])[indice];
   if (!material) return;
+  if (material.destinoVenta === 'nueva') { notify('Este producto pertenece a ' + (material.ventaDestinoId || 'una venta nueva') + '. Corregilo desde esa venta para conservar la trazabilidad.'); return; }
   if (Number(material.entregada || 0)>0 || Number(material.instalada || 0)>0) { notify('El material tiene entrega o instalación registrada. Corregí su rendición antes de quitarlo.'); return; }
   if (!await svConfirm('¿Quitar '+(material.desc || material.cod)+' de la OT y de su venta vinculada?')) return;
   try {
@@ -46605,68 +46688,53 @@ async function otEliminarProductoMaterial(indice) {
 
 async function otConfirmarProductosAdicionales() {
   if (!_otCarritoAdicional.length) { notify('Agregá al menos un producto'); return; }
+  if (_otGuardandoDestinoAdicional) return;
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !ot.fbKey || !window.fbDB) { notify('No se pudo identificar la OT'); return; }
-  var fecha = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toLocaleDateString('en-CA');
-  var materiales = (ot.materiales || []).map(function(m){return Object.assign({},m);});
-  _otCarritoAdicional.forEach(function(item) {
-    var existente = materiales.find(function(material) {
-      return material && material.adicionalOT === true && String(material.cod || material.codigo || '') === String(item.codigo || '');
-    });
-    if (existente) {
-      existente.vendida = Number(existente.vendida || existente.qty || 0) + Number(item.cantidad || 0);
-      existente.qty = existente.vendida;
-      existente.cantidad = existente.vendida;
-      existente.sub = _redondearPrecioActual(existente.vendida * Number(existente.punit || 0));
-      return;
-    }
-    materiales.push({
-      cod:item.codigo || '', desc:item.nombre || '', vendida:Number(item.cantidad || 1), qty:Number(item.cantidad || 1), cantidad:Number(item.cantidad || 1), instalada:0,
-      punit:Number(item.precio || 0), sub:Number(item.precio || 0) * Number(item.cantidad || 1),
-      adicionalOT:true, origen:'adicional_ot', agregadoEn:fecha, agregadoPor:currentUser || ''
-    });
-  });
-  var audit = Array.isArray(ot.audit) ? ot.audit.slice() : [];
-  var detalleAgregados = _otCarritoAdicional.map(function(item){return String(item.codigo || '') + ' × ' + Number(item.cantidad || 1);}).join(', ');
-  audit.push({ fecha:new Date().toLocaleDateString('es-AR'), usuario:currentUser || 'Sistema', accion:'Adicionales agregados: ' + detalleAgregados + ', sin generar venta.' });
+  var ventaOrigen = otBuscarVentaOrigen(ot) || _buscarVentaCanonicaReclamo({}, ot);
+  if (!ventaOrigen || !ventaOrigen.fbKey) { notify('Esta OT no tiene una venta original vinculada. Usá Crear venta nueva.'); return; }
+  var materiales = otMaterialesConAdicionales(ot, 'original', ventaOrigen);
+  var detalleAgregados = otDetalleCarritoAdicional();
+  _otGuardandoDestinoAdicional = true;
+  otActualizarAccionesDestinoAdicional();
   try {
-    if (otPuedeCorregirProductos()) {
-      await otGuardarCorreccionProductos(ot, materiales, 'Adicionales agregados: ' + detalleAgregados + ' y venta sincronizada');
-    } else {
-      if (otEstaCerrada(ot)) throw new Error('No tenés permiso para corregir una OT cerrada.');
-      await otPersistirActualizar(ot.fbKey, { materiales:materiales, audit:audit });
-      ot.audit = audit;
-    }
+    await otGuardarCorreccionProductos(ot, materiales, 'Adicionales agregados a la venta original: ' + detalleAgregados);
     ot.materiales = materiales;
-    _otCarritoAdicional = [];
-    otCerrarSelectorProductos();
-    verOT(ot.fbKey);
-    notify('✓ Productos adicionales agregados a la OT');
+    if (typeof registrarActividad === 'function') registrarActividad('Materiales OT a venta original', (ot.id || ot.fbKey) + ' · ' + detalleAgregados);
+    otFinalizarCargaAdicional(ot, '✓ Productos agregados a la OT y a la venta original');
   } catch (error) {
-    notify('No se pudieron agregar los productos: ' + error.message);
+    var sugerencia = /cobros|definición comercial|factura/i.test(String(error && error.message || '')) ? ' Creá una venta nueva para no alterar sus movimientos.' : '';
+    notify('No se pudo actualizar la venta original: ' + error.message + sugerencia);
+  } finally {
+    _otGuardandoDestinoAdicional = false;
+    otActualizarAccionesDestinoAdicional();
   }
 }
 
 async function otConfirmarVentaAdicional() {
-  return otConfirmarProductosAdicionales();
-}
-
-async function _otConfirmarVentaAdicionalLegacy() {
   if (!_otCarritoAdicional.length) { notify('Agregá al menos un producto'); return; }
+  if (_otGuardandoDestinoAdicional) return;
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
-  if (!ot || !window.fbDB) return;
+  if (!ot || !ot.fbKey || !window.fbDB) { notify('No se pudo identificar la OT'); return; }
+  if (!otPuedeCorregirProductos()) { notify('No tenés permiso para agregar productos a la OT.'); return; }
 
   var items = _otCarritoAdicional.map(function(c) {
-    return { cod: c.codigo, desc: c.nombre, qty: c.cantidad, punit: c.precio, sub: c.precio*c.cantidad };
+    return { cod:c.codigo, desc:c.nombre, qty:Number(c.cantidad || 1), punit:Number(c.precio || 0), sub:_redondearPrecioActual(Number(c.precio || 0) * Number(c.cantidad || 1)), adicionalOT:true, origenOTKey:ot.fbKey };
   });
-  var total = items.reduce(function(s,i){ return s+i.sub; }, 0);
+  var total = _redondearPrecioActual(items.reduce(function(s,i){ return s + Number(i.sub || 0); }, 0));
 
   var fechaVentaAdicional = svFechaLocalISO();
   var idVentaAdicional;
+  _otGuardandoDestinoAdicional = true;
+  otActualizarAccionesDestinoAdicional();
   try {
+    await otLeerSiMaterialesNoCambiaron(ot);
     idVentaAdicional = await reservarSiguienteVentaId();
   } catch (e) {
-    notify('No se pudo reservar el número de venta: ' + (e && e.message ? e.message : 'error desconocido'));
+    var errorPreparacion = e && e.message ? e.message : 'error desconocido';
+    notify(/La OT cambió/.test(errorPreparacion) ? errorPreparacion : 'No se pudo reservar el número de venta: ' + errorPreparacion);
+    _otGuardandoDestinoAdicional = false;
+    otActualizarAccionesDestinoAdicional();
     return;
   }
   var clienteRef = String(ot.clienteFbKey || ot.clienteKey || ot.clienteId || ot.idCliente || '').trim();
@@ -46679,6 +46747,8 @@ async function _otConfirmarVentaAdicionalLegacy() {
     cliente:      ot.cliente || '',
     idCliente:    clienteRef,
     clienteId:    clienteRef,
+    clienteFbKey: String(ot.clienteFbKey || ot.clienteKey || ''),
+    clienteKey:   String(ot.clienteFbKey || ot.clienteKey || ''),
     items:        items,
     subtotal:     Math.round(total*100)/100,
     iva:          0,
@@ -46689,6 +46759,9 @@ async function _otConfirmarVentaAdicionalLegacy() {
     estadoPago:   'pendiente_pago',
     estadoInst:   _estadoInstalacionVentaAdicionalOT(ot),
     empleado:     currentUser || '',
+    creadaPor:    currentUser || '',
+    creadaPorRol: currentRole || '',
+    usuario:      currentUser || '',
     otId:         ot.fbKey || ot.id,
     otNumero:     ot.id || '',
     origenOT:     true,
@@ -46697,25 +46770,30 @@ async function _otConfirmarVentaAdicionalLegacy() {
     observaciones:'Materiales adicionales de ' + (ot.id || 'OT'),
     fecha:        fechaVentaAdicional,
     fechaOrden:   fechaVentaAdicional,
+    pagos:        [],
     audit:        [{ fecha:new Date().toLocaleDateString('es-AR'), usuario:currentUser || 'Sistema', accion:'Venta adicional creada desde ' + (ot.id || 'OT') }],
     ts:           Date.now()
   };
-
-  ventasPagosPersistirGuardarVenta(venta).then(function(ventaGuardada) {
-    var ventaKey = ventaGuardada && ventaGuardada.fbKey || '';
-    var vinculos = {};
-    if (ventaKey && ot.fbKey) {
-      vinculos[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/ventasAdicionales/' + ventaKey] = {
-        ventaFbKey: ventaKey,
-        ventaId: venta.id,
-        total: venta.total,
-        ts: venta.ts
-      };
-    }
-    // Notificar al admin
-    var notificacion = window.fbPush(window.fbRef(window.fbDB, 'sisventas/notificaciones_admin'), {
+  try {
+    var ventaRef = window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas));
+    var ventaKey = ventaRef && ventaRef.key || '';
+    if (!ventaKey) throw new Error('No se pudo generar la clave de la venta');
+    var ventaDestino = Object.assign({}, venta, {fbKey:ventaKey});
+    var materiales = otMaterialesConAdicionales(ot, 'nueva', ventaDestino);
+    var detalleAgregados = otDetalleCarritoAdicional();
+    var audit = Array.isArray(ot.audit) ? ot.audit.slice() : [];
+    audit.push({fecha:svFechaLocalISO(), usuario:currentUser || 'Sistema', accion:'Adicionales enviados a la venta nueva ' + venta.id + ': ' + detalleAgregados});
+    var notificacionRef = window.fbPush(window.fbRef(window.fbDB, 'sisventas/notificaciones_admin'));
+    var updates = {};
+    updates[FB_PATHS.ventas + '/' + ventaKey] = venta;
+    updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/materiales'] = materiales;
+    updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/audit'] = audit;
+    updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/ventasAdicionales/' + ventaKey] = {
+      ventaFbKey:ventaKey, ventaId:venta.id, total:venta.total, ts:venta.ts
+    };
+    updates['sisventas/notificaciones_admin/' + notificacionRef.key] = {
       tipo:    'venta_adicional_ot',
-      otId:    ot.fbKey || ot.id,
+      otId:    ot.fbKey,
       ventaId: venta.id,
       ventaFbKey: ventaKey,
       cliente: ot.cliente || '',
@@ -46724,15 +46802,20 @@ async function _otConfirmarVentaAdicionalLegacy() {
       cantidadItems: items.length,
       ts:      Date.now(),
       leida:   false
-    });
-    return Promise.all([
-      notificacion,
-      Object.keys(vinculos).length ? window.fbUpdate(window.fbRef(window.fbDB), vinculos) : Promise.resolve()
-    ]).then(function() {
-      notify('✓ Venta ' + venta.id + ' generada por $' + Math.round(total).toLocaleString('es-AR') + ' — admin notificado');
-      otCerrarSelectorProductos();
-    });
-  }).catch(function(e){ notify('Error: ' + e.message); });
+    };
+    await window.fbUpdate(window.fbRef(window.fbDB), updates);
+    ot.materiales = materiales;
+    ot.audit = audit;
+    ot.ventasAdicionales = Object.assign({}, ot.ventasAdicionales || {});
+    ot.ventasAdicionales[ventaKey] = updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/ventasAdicionales/' + ventaKey];
+    if (typeof registrarActividad === 'function') registrarActividad('Materiales OT a venta nueva', (ot.id || ot.fbKey) + ' → ' + venta.id + ' · ' + detalleAgregados);
+    otFinalizarCargaAdicional(ot, '✓ Venta ' + venta.id + ' creada por $' + Math.round(total).toLocaleString('es-AR'));
+  } catch (e) {
+    notify('No se pudo crear la venta nueva: ' + e.message);
+  } finally {
+    _otGuardandoDestinoAdicional = false;
+    otActualizarAccionesDestinoAdicional();
+  }
 }
 // FIRMA DIGITAL EN OT
 var _firmaCtx    = null;
