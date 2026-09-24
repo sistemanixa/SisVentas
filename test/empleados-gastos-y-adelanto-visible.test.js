@@ -39,12 +39,13 @@ test('el filtro de Gastos separa empleados activos del historial de inactivos', 
 
 test('el formulario de adelanto se mueve al body y queda visible desde Empleados', () => {
   const paginaOculta = {};
-  const modal = { parentElement: paginaOculta, style: { display: 'none' } };
+  const modal = { parentElement: paginaOculta, style: { display: 'none' }, dataset: {} };
   const elementos = {
     'modal-movi-emp': modal,
     'movi-modal-titulo': { textContent: '' },
     'movi-fecha': { value: '' },
     'movi-tipo': { value: '', options: [{ value: 'adelanto' }, { value: 'sueldo' }] },
+    'movi-tipo-wrap': { style: {} },
     'movi-desc': { value: '' },
     'movi-monto': { value: '' },
     'movi-estado': { value: '' },
@@ -74,10 +75,58 @@ test('el formulario de adelanto se mueve al body y queda visible desde Empleados
     movEmpFotoBase64: 'anterior'
   };
   vm.createContext(contexto);
-  vm.runInContext(bloque('function abrirNuevoMovEmp(tipoInicial)', 'function cerrarModalMovEmp()'), contexto);
+  vm.runInContext(bloque('function abrirNuevoMovEmp(tipoInicial, opciones)', 'function cerrarModalMovEmp()'), contexto);
   contexto.abrirNuevoMovEmp('adelanto');
   assert.equal(modal.parentElement, body);
   assert.equal(modal.style.display, 'flex');
+  assert.equal(modal.dataset.modo, 'movimiento-general');
+  assert.equal(elementos['movi-tipo-wrap'].style.display, '');
+  assert.equal(elementos['movi-periodico-wrap'].style.display, '');
+});
+
+test('Cargar adelanto fija el tipo y oculta estado y repeticion mensual', () => {
+  const modal = { parentElement: null, style: { display: 'none' }, dataset: {} };
+  const guardar = { innerHTML: '', dataset: {} };
+  const elementos = {
+    'modal-movi-emp': modal,
+    'movi-modal-titulo': { textContent: '' },
+    'movi-fecha': { value: '' },
+    'movi-tipo': { value: '', options: [{ value: 'adelanto' }, { value: 'transporte' }, { value: 'otro' }] },
+    'movi-tipo-wrap': { style: {} },
+    'movi-desc': { value: '' },
+    'movi-monto': { value: '' },
+    'movi-estado': { value: '' },
+    'movi-medio': { value: '' },
+    'movi-estado-wrap': { style: {} },
+    'movi-periodico-wrap': { style: {} },
+    'movi-periodico': { checked: true },
+    'movi-foto-preview': { style: {} },
+    'movi-foto-nombre': { textContent: '' },
+    'movi-foto-input': { value: 'archivo' }
+  };
+  const body = { appendChild(el) { el.parentElement = body; } };
+  const contexto = {
+    ctaEmpActual: 'emp-osmar',
+    document: { body, getElementById: id => elementos[id] || null, querySelector: () => guardar },
+    window: { tienePermiso: () => true },
+    notify: () => {},
+    svFechaLocalISO: () => '2026-09-24',
+    _puedeGestionarAdelantos: () => true,
+    _setMontoInput: () => {},
+    onMoviPeriodicoChange: () => {},
+    onMoviTipoChange: () => {},
+    movEmpFotoBase64: null
+  };
+  vm.createContext(contexto);
+  vm.runInContext(bloque('function abrirNuevoMovEmp(tipoInicial, opciones)', 'function cerrarModalMovEmp()'), contexto);
+  contexto.abrirNuevoMovEmp('adelanto', { soloAdelanto: true });
+  assert.equal(modal.dataset.modo, 'adelanto-directo');
+  assert.equal(elementos['movi-tipo'].value, 'adelanto');
+  assert.equal(elementos['movi-tipo-wrap'].style.display, 'none');
+  assert.equal(elementos['movi-estado-wrap'].style.display, 'none');
+  assert.equal(elementos['movi-periodico-wrap'].style.display, 'none');
+  assert.equal(elementos['movi-periodico'].checked, false);
+  assert.match(guardar.innerHTML, /Registrar adelanto/);
 });
 
 test('Continuar resuelve el empleado real y abre el formulario aunque empleadosData no exista', () => {

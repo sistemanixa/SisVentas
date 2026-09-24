@@ -7,8 +7,14 @@ const app = activo.source;
 const html = activo.index;
 
 assert.match(html, /id="movi-modal-titulo"/, 'El modal debe tener un título identificable');
+assert.match(html, /id="movi-tipo-wrap"><label>Tipo<\/label>\s*<select id="movi-tipo"/, 'El contenedor ocultable debe pertenecer al selector del movimiento');
+assert.doesNotMatch(html, /id="movi-tipo-wrap"><label>Tipo<\/label>\s*<select id="g-tipo"/, 'El formulario de Gastos no debe reutilizar el identificador del modal');
 assert.match(app, /function abrirAdelantoEmpleadoDesdeEmpleados\(empFbKey\)/, 'Debe existir el acceso directo al adelanto');
-assert.match(app, /abrirNuevoMovEmp\('adelanto'\)/, 'Debe reutilizar el movimiento de tipo adelanto');
+assert.match(app, /abrirNuevoMovEmp\('adelanto', \{ soloAdelanto: true \}\)/, 'Debe reutilizar el movimiento en modo exclusivo de adelanto');
+assert.match(app, /modal\.dataset\.modo = soloAdelanto \? 'adelanto-directo' : 'movimiento-general'/, 'El modal compartido debe distinguir el flujo específico de adelantos');
+assert.match(app, /if \(tipoWrap\) tipoWrap\.style\.display = soloAdelanto \? 'none' : ''/, 'El adelanto directo no debe permitir cambiar el tipo');
+assert.match(app, /if \(periodicoWrap\) periodicoWrap\.style\.display = \(esAdmin && !soloAdelanto\) \? '' : 'none'/, 'El adelanto directo no debe ofrecer repetición mensual');
+assert.match(app, /soloAdelanto \? '<i class="ti ti-check"><\/i> Registrar adelanto'/, 'La acción final debe nombrar específicamente el adelanto');
 assert.match(app, /estado\.value = 'pagado';[\s\S]*?onMoviEstadoChange\(\)/, 'El adelanto entregado debe solicitar el medio de pago');
 assert.match(html, /onclick="abrirModalAdelantoGeneral\(\)"/, 'Empleados debe ofrecer una acción general para cargar adelantos');
 assert.doesNotMatch(app, /title="Cargar adelanto"/, 'La grilla no debe repetir una acción por cada empleado');
