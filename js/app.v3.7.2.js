@@ -7581,10 +7581,16 @@ function abrirEditorVenta(fbKey) {
     window._ventaEditandoOriginal = v;
     ['empleado','comisionado2'].forEach(function(campo) {
       var selector = document.getElementById('venta-' + campo);
-      var persona = Object.values(empData || {}).find(function(e){ return e.fbKey === v[campo+'FbKey'] || e.nombre === v[campo]; });
+      var identidadGuardada = campo === 'empleado'
+        ? ventaComisionadoPrincipalIdentidad(v)
+        : ventaComisionadoSecundarioIdentidad(v);
+      var persona = Object.values(empData || {}).find(function(e){
+        return (identidadGuardada.fbKey && String(e.fbKey || '') === String(identidadGuardada.fbKey)) ||
+          (identidadGuardada.nombre && String(e.nombre || '').trim().toLocaleLowerCase('es-AR') === String(identidadGuardada.nombre).trim().toLocaleLowerCase('es-AR'));
+      });
       if (selector) {
-        var clave = persona ? persona.fbKey : (v[campo+'FbKey'] || '');
-        if (clave && !Array.from(selector.options).some(function(o){return o.value === clave;})) selector.add(new Option(v[campo] || clave, clave));
+        var clave = persona ? persona.fbKey : (identidadGuardada.fbKey || '');
+        if (clave && !Array.from(selector.options).some(function(o){return o.value === clave;})) selector.add(new Option(identidadGuardada.nombre || clave, clave));
         selector.value = clave;
       }
     });
@@ -15194,6 +15200,14 @@ async function confirmarVenta() {
       return empEncontrado ? empEncontrado.nombre : sel.value;
     })(),
     empleadoFbKey: (function(){ var sel=document.querySelector('#venta-empleado'); return sel ? (sel.value||'') : ''; })(),
+    comisionadoPrincipal: (function(){
+      var sel = document.querySelector('#venta-empleado');
+      if (!sel || !sel.value) return '';
+      if (sel.value === '__admin__') return currentUser || 'Admin';
+      var empEncontrado = Object.values(empData||{}).find(function(e){ return e.fbKey === sel.value; });
+      return empEncontrado ? empEncontrado.nombre : sel.value;
+    })(),
+    comisionadoPrincipalFbKey: (function(){ var sel=document.querySelector('#venta-empleado'); return sel ? (sel.value||'') : ''; })(),
     comisionado2: (function(){
       var sel = document.querySelector('#venta-comisionado2');
       if (!sel || !sel.value) return '';
@@ -26640,7 +26654,7 @@ function _periodoActualReportes() {
 }
 
 function ventaResponsableComercialReporte(venta) {
-  return ventaResponsableComercialIdentidad(venta).nombre;
+  return ventaComisionadoPrincipalIdentidad(venta).nombre;
 }
 window.ventaResponsableComercialReporte = ventaResponsableComercialReporte;
 
@@ -26649,27 +26663,9 @@ function ventaEsTecnica(venta) {
   return String(venta.origen || '').toLowerCase() === 'reclamo' || !!(venta.reclamoKey || venta.reclamoFbKey || venta.reclamoId);
 }
 
-function ventaResponsableComercialIdentidad(venta) {
-  venta = venta || {};
-  var clavesExplicitas = [venta.responsableComercialFbKey, venta.vendedorFbKey, venta.vendedorId].filter(Boolean).map(String);
-  var nombresExplicitos = [venta.responsableComercial, venta.vendedor].filter(Boolean).map(function(v){ return String(v).trim(); });
-  var nombres = nombresExplicitos.slice();
-  var claves = clavesExplicitas.slice();
-  if (ventaEsTecnica(venta)) {
-    // Las ventas históricas de reclamos guardaban al técnico en `empleado`.
-    // En ellas el creador/auditor es la fuente comercial compatible y el
-    // técnico queda exclusivamente en sus campos técnicos.
-    nombres.push(venta.creadaPor, venta.usuario, venta.createdBy);
-    var auditoriaCreacion = (Array.isArray(venta.audit) ? venta.audit : []).find(function(registro) {
-      return registro && registro.usuario && /creada autom[aá]ticamente desde reclamo/i.test(String(registro.accion || ''));
-    });
-    if (auditoriaCreacion) nombres.push(auditoriaCreacion.usuario);
-  } else {
-    claves.push(venta.empleadoFbKey, venta.empleadoId);
-    nombres.push(venta.empleado, venta.creadaPor, venta.usuario, venta.createdBy);
-  }
-  claves = claves.filter(Boolean).map(function(v){ return String(v).trim(); });
-  nombres = nombres.filter(Boolean).map(function(v){ return String(v).trim(); });
+function _ventaResolverIdentidadEmpleado(claves, nombres) {
+  claves = (claves || []).filter(Boolean).map(function(v){ return String(v).trim(); });
+  nombres = (nombres || []).filter(Boolean).map(function(v){ return String(v).trim(); });
   var empleados = Object.values(empData || {});
   var empleado = empleados.find(function(emp) {
     return claves.indexOf(String(emp.fbKey || '')) >= 0 || nombres.some(function(nombre) {
@@ -26681,15 +26677,83 @@ function ventaResponsableComercialIdentidad(venta) {
     nombre: empleado ? String(empleado.nombre || '').trim() : (nombres[0] || '')
   };
 }
+
+function _ventaIdentidadesCoinciden(a, b) {
+  a = a || {}; b = b || {};
+  if (a.fbKey && b.fbKey && String(a.fbKey) === String(b.fbKey)) return true;
+  var nombreA = String(a.nombre || '').trim().toLocaleLowerCase('es-AR');
+  var nombreB = String(b.nombre || '').trim().toLocaleLowerCase('es-AR');
+  return !!nombreA && nombreA === nombreB;
+}
+
+function ventaComisionadoPrincipalIdentidad(venta) {
+  venta = venta || {};
+  var tieneCampoCanonico = !!(venta.comisionadoPrincipalFbKey || venta.comisionadoPrincipal);
+  if (tieneCampoCanonico) {
+    return _ventaResolverIdentidadEmpleado(
+      [venta.comisionadoPrincipalFbKey],
+      [venta.comisionadoPrincipal]
+    );
+  }
+
+  // Compatibilidad: `empleado` es el primer comisionado en las ventas
+  // históricas normales. Las ventas automáticas de reclamos antiguas guardaban
+  // allí al técnico; si ambas identidades coinciden no se infiere comisión.
+  var identidadEmpleado = _ventaResolverIdentidadEmpleado(
+    [venta.empleadoFbKey, venta.empleadoId],
+    [venta.empleado]
+  );
+  var identidadTecnico = _ventaResolverIdentidadEmpleado(
+    [venta.tecnicoFbKey, venta.tecnicoId],
+    [venta.tecnico, venta.tecnicoAsignado]
+  );
+  if (ventaEsTecnica(venta) && _ventaIdentidadesCoinciden(identidadEmpleado, identidadTecnico)) {
+    return { fbKey:'', nombre:'' };
+  }
+  if (identidadEmpleado.fbKey || identidadEmpleado.nombre) return identidadEmpleado;
+
+  // Alias comerciales previos, sólo para ventas no técnicas. No se usa nunca
+  // creador/usuario como reemplazo de un comisionado ausente.
+  if (!ventaEsTecnica(venta)) {
+    return _ventaResolverIdentidadEmpleado(
+      [venta.vendedorFbKey, venta.vendedorId],
+      [venta.vendedor]
+    );
+  }
+  return { fbKey:'', nombre:'' };
+}
+window.ventaComisionadoPrincipalIdentidad = ventaComisionadoPrincipalIdentidad;
+
+function ventaComisionadoSecundarioIdentidad(venta) {
+  venta = venta || {};
+  return _ventaResolverIdentidadEmpleado(
+    [venta.comisionado2FbKey, venta.empleado2FbKey],
+    [venta.comisionado2, venta.empleado2]
+  );
+}
+window.ventaComisionadoSecundarioIdentidad = ventaComisionadoSecundarioIdentidad;
+
+function ventaResponsableComercialIdentidad(venta) {
+  return ventaComisionadoPrincipalIdentidad(venta);
+}
 window.ventaResponsableComercialIdentidad = ventaResponsableComercialIdentidad;
 
 function ventaPerteneceResponsableComercial(venta, emp) {
   if (!emp) return false;
-  var responsable = ventaResponsableComercialIdentidad(venta);
+  var responsable = ventaComisionadoPrincipalIdentidad(venta);
   if (responsable.fbKey && emp.fbKey && String(responsable.fbKey) === String(emp.fbKey)) return true;
   return !!responsable.nombre && String(responsable.nombre).trim().toLocaleLowerCase('es-AR') === String(emp.nombre || '').trim().toLocaleLowerCase('es-AR');
 }
 window.ventaPerteneceResponsableComercial = ventaPerteneceResponsableComercial;
+
+function ventaEmpleadoEsComisionado(venta, emp) {
+  if (!emp) return false;
+  if (ventaPerteneceResponsableComercial(venta, emp)) return true;
+  var secundario = ventaComisionadoSecundarioIdentidad(venta);
+  if (secundario.fbKey && emp.fbKey && String(secundario.fbKey) === String(emp.fbKey)) return true;
+  return !!secundario.nombre && String(secundario.nombre).trim().toLocaleLowerCase('es-AR') === String(emp.nombre || '').trim().toLocaleLowerCase('es-AR');
+}
+window.ventaEmpleadoEsComisionado = ventaEmpleadoEsComisionado;
 
 function itemVentaEsManoDeObraReporte(item) {
   item = item || {};
@@ -30824,14 +30888,8 @@ function renderComisionesDelMes(emp) {
     });
   }
   var ventasDelVendedor = (ventasList||[]).filter(function(v) {
-    var esVendedorPrincipal = ventaPerteneceResponsableComercial(v, emp);
-    var esVendedorSecundario = [v.empleado2FbKey, v.comisionado2FbKey, v.empleado2, v.comisionado2].some(function(valor) {
-      var identidad = String(valor || '').trim().toLocaleLowerCase('es-AR');
-      return identidad === String(emp.fbKey || '').trim().toLocaleLowerCase('es-AR') ||
-        identidad === String(emp.nombre || '').trim().toLocaleLowerCase('es-AR');
-    });
     var visible = !idsComisionesVisibles || idsComisionesVisibles[String(v.id || '')] || idsComisionesVisibles[String(v.fbKey || '')];
-    return (esVendedorPrincipal || esVendedorSecundario) && visible && _fechaEnMes(v.fecha, mesCta);
+    return ventaEmpleadoEsComisionado(v, emp) && visible && _fechaEnMes(v.fecha, mesCta);
   });
 
   var totalGenerado = 0, totalCobrado = 0, totalPendiente = 0;
@@ -35393,7 +35451,8 @@ async function spGenerarOTLegacy() {
   var reclamoClienteId = r.clienteId || r.idCliente || (clienteRefReclamo && (clienteRefReclamo.id || clienteRefReclamo.numero || '')) || '';
   var reclamoClienteFbKey = r.clienteFbKey || r.clienteKey || (clienteRefReclamo && clienteRefReclamo.fbKey) || '';
   var ventaOrigenReclamo = _buscarVentaCanonicaReclamo(r, null);
-  var responsableComercial = ventaResponsableComercialIdentidad(ventaOrigenReclamo || { creadaPor:currentUser||'', usuario:currentUser||'' });
+  var responsableComercial = ventaComisionadoPrincipalIdentidad(ventaOrigenReclamo);
+  var segundoComisionado = ventaComisionadoSecundarioIdentidad(ventaOrigenReclamo);
 
   var nuevaVenta = {
     id:         ventaId,
@@ -35404,10 +35463,11 @@ async function spGenerarOTLegacy() {
     clienteKey:   reclamoClienteFbKey,
     empleado:   responsableComercial.nombre,
     empleadoFbKey: responsableComercial.fbKey,
-    vendedor:   responsableComercial.nombre,
-    vendedorFbKey: responsableComercial.fbKey,
-    responsableComercial: responsableComercial.nombre,
-    responsableComercialFbKey: responsableComercial.fbKey,
+    comisionadoPrincipal: responsableComercial.nombre,
+    comisionadoPrincipalFbKey: responsableComercial.fbKey,
+    comisionado2: segundoComisionado.nombre,
+    comisionado2FbKey: segundoComisionado.fbKey,
+    comisionHabilitada: !!(responsableComercial.nombre || responsableComercial.fbKey) && !!(ventaOrigenReclamo && ventaOrigenReclamo.comisionHabilitada === true),
     tecnico:    tecnico,
     tecnicoFbKey: tecnicoEmpleado ? String(tecnicoEmpleado.fbKey || '') : '',
     tecnicoAsignado: tecnico,
@@ -35679,7 +35739,8 @@ async function spGenerarOT(reclamoKey) {
   var reclamoClienteId = r.clienteId || r.idCliente || (clienteRefReclamo && (clienteRefReclamo.id || clienteRefReclamo.numero || '')) || '';
   var reclamoClienteFbKey = r.clienteFbKey || r.clienteKey || (clienteRefReclamo && clienteRefReclamo.fbKey) || '';
   var ventaOrigenReclamo = _buscarVentaCanonicaReclamo(r, null);
-  var responsableComercial = ventaResponsableComercialIdentidad(ventaOrigenReclamo || { creadaPor:currentUser||'', usuario:currentUser||'' });
+  var responsableComercial = ventaComisionadoPrincipalIdentidad(ventaOrigenReclamo);
+  var segundoComisionado = ventaComisionadoSecundarioIdentidad(ventaOrigenReclamo);
 
   var nuevaVenta = {
     id:         ventaId,
@@ -35691,10 +35752,11 @@ async function spGenerarOT(reclamoKey) {
     reclamoFbKey: rKey,
     empleado:   responsableComercial.nombre,
     empleadoFbKey: responsableComercial.fbKey,
-    vendedor:   responsableComercial.nombre,
-    vendedorFbKey: responsableComercial.fbKey,
-    responsableComercial: responsableComercial.nombre,
-    responsableComercialFbKey: responsableComercial.fbKey,
+    comisionadoPrincipal: responsableComercial.nombre,
+    comisionadoPrincipalFbKey: responsableComercial.fbKey,
+    comisionado2: segundoComisionado.nombre,
+    comisionado2FbKey: segundoComisionado.fbKey,
+    comisionHabilitada: !!(responsableComercial.nombre || responsableComercial.fbKey) && !!(ventaOrigenReclamo && ventaOrigenReclamo.comisionHabilitada === true),
     tecnico:    tecnico,
     tecnicoFbKey: String(tecnicoEmpleado.fbKey || ''),
     tecnicoAsignado: tecnico,
@@ -42624,8 +42686,10 @@ async function generarComisionesVenta(venta, montoCobrado) {
   }
 
   // Segundo comisionado
-  var empCom2 = (venta.comisionado2 || venta.comisionado2FbKey) ? Object.values(empData||{}).find(function(e){
-    return e.fbKey === venta.comisionado2FbKey || e.fbKey === venta.comisionado2 || e.nombre === venta.comisionado2;
+  var identidadCom2 = ventaComisionadoSecundarioIdentidad(venta);
+  var empCom2 = (identidadCom2.fbKey || identidadCom2.nombre) ? Object.values(empData||{}).find(function(e){
+    return (identidadCom2.fbKey && String(e.fbKey || '') === String(identidadCom2.fbKey)) ||
+      (identidadCom2.nombre && String(e.nombre || '').trim().toLocaleLowerCase('es-AR') === String(identidadCom2.nombre).trim().toLocaleLowerCase('es-AR'));
   }) : null;
   if (empCom2 && empCom2.fbKey !== (empPrincipal && empPrincipal.fbKey) && _pctComisionEmpleadoVenta(empCom2) > 0) {
     vendedores.push(empCom2);
@@ -44991,6 +45055,11 @@ async function pptoAccion(accion, opts) {
     var clienteFbKeyPpto = p.clienteFbKey || p.clienteKey || (clienteRefPpto && clienteRefPpto.fbKey) || '';
     var fechaVentaPpto = svFechaLocalISO();
     var datosVentaPpto = pptoDatosParaVenta(p);
+    var comisionadoPrincipalPpto = _ventaResolverIdentidadEmpleado(
+      [p.comisionadoPrincipalFbKey, p.empleadoFbKey],
+      [p.comisionadoPrincipal, p.empleado]
+    );
+    var comisionadoSecundarioPpto = ventaComisionadoSecundarioIdentidad(p);
     if (datosVentaPpto.v3Ready === false) {
       var conflictoPpto = (datosVentaPpto.v3Conflicts || [])[0] || {};
       var detalleConflictoPpto = conflictoPpto.path ? ' Diferencia detectada en ' + conflictoPpto.path + '.' : '';
@@ -45005,8 +45074,12 @@ async function pptoAccion(accion, opts) {
       clienteKey:   clienteFbKeyPpto,
       fecha:        fechaVentaPpto,
       fechaOrden:   fechaVentaPpto,
-      empleado:     p.empleado || currentUser || '',
-      comisionado2: (document.getElementById('venta-comisionado2')||{}).value || '',
+      empleado:     comisionadoPrincipalPpto.nombre || p.empleado || currentUser || '',
+      empleadoFbKey: comisionadoPrincipalPpto.fbKey || '',
+      comisionadoPrincipal: comisionadoPrincipalPpto.nombre || p.empleado || currentUser || '',
+      comisionadoPrincipalFbKey: comisionadoPrincipalPpto.fbKey || '',
+      comisionado2: comisionadoSecundarioPpto.nombre || '',
+      comisionado2FbKey: comisionadoSecundarioPpto.fbKey || '',
       conIva:       datosVentaPpto.conIva,
       usuario:      currentUser || '',
       items:        datosVentaPpto.items,
@@ -52636,7 +52709,7 @@ function obtenerCategoriaEmpleado(emp) {
 
 function calcularComisionEmpleado(emp, mesAMM) {
   var ventas = (ventasList||[]).filter(function(v){
-    return ventaPerteneceResponsableComercial(v, emp) &&
+    return ventaEmpleadoEsComisionado(v, emp) &&
            (v.fecha||'').slice(0,7) === (mesAMM||new Date().toISOString().slice(0,7));
   });
 
@@ -52647,7 +52720,30 @@ function calcularComisionEmpleado(emp, mesAMM) {
   }, 0);
   var detalle = obtenerDetalleComisionEmpleado(emp);
   var pct = parseFloat(detalle.pct) || 0;
-  var comisionFinal = gananciaBase * pct / 100;
+  var maxComisionPct = parseFloat(
+    (APROBACION_CONFIG && APROBACION_CONFIG.maxComisionPct != null)
+      ? APROBACION_CONFIG.maxComisionPct
+      : 10
+  );
+  var comisionFinal = ventas.reduce(function(s, venta) {
+    var comisionados = Object.values(empData || {}).filter(function(candidato) {
+      var detalleCandidato = obtenerDetalleComisionEmpleado(candidato);
+      return ventaEmpleadoEsComisionado(venta, candidato) && (parseFloat(detalleCandidato.pct) || 0) > 0;
+    });
+    var indice = comisionados.findIndex(function(candidato) {
+      return (emp.fbKey && candidato.fbKey && String(emp.fbKey) === String(candidato.fbKey)) ||
+        String(emp.nombre || '').trim().toLocaleLowerCase('es-AR') === String(candidato.nombre || '').trim().toLocaleLowerCase('es-AR');
+    });
+    if (indice < 0) return s;
+    var porcentajes = comisionados.map(function(candidato) {
+      return parseFloat(obtenerDetalleComisionEmpleado(candidato).pct) || 0;
+    });
+    var pctEfectivo = porcentajes[indice] || 0;
+    if (comisionados.length === 1) pctEfectivo = Math.min(pctEfectivo, maxComisionPct);
+    else if (porcentajes.reduce(function(total, valor){ return total + valor; }, 0) > maxComisionPct) pctEfectivo = maxComisionPct / comisionados.length;
+    var calculo = typeof _calcularBaseComisionVenta === 'function' ? _calcularBaseComisionVenta(venta) : { ganancia:0 };
+    return s + Math.max(parseFloat(calculo.ganancia)||0, 0) * pctEfectivo / 100;
+  }, 0);
 
   return {
     totalVentas: totalVentas,

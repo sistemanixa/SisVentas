@@ -28,7 +28,7 @@ function contextoIdentidades() {
   return context;
 }
 
-test('una venta técnica histórica pertenece al creador comercial y no al técnico guardado como empleado', () => {
+test('una venta técnica histórica no atribuye comisión al creador ni al técnico heredado en empleado', () => {
   const ctx = contextoIdentidades();
   const venta = {
     origen:'reclamo', reclamoKey:'r1',
@@ -36,41 +36,104 @@ test('una venta técnica histórica pertenece al creador comercial y no al técn
     empleado:'Mauro Bechir', empleadoFbKey:'e1005',
     tecnico:'Mauro Bechir', tecnicoFbKey:'e1005'
   };
-  assert.equal(ctx.ventaPerteneceResponsableComercial(venta, ctx.empData.ignacio), true);
+  assert.equal(ctx.ventaPerteneceResponsableComercial(venta, ctx.empData.ignacio), false);
   assert.equal(ctx.ventaPerteneceResponsableComercial(venta, ctx.empData.mauro), false);
-  assert.equal(ctx.ventaResponsableComercialIdentidad(venta).fbKey, 'e1007');
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.ventaResponsableComercialIdentidad(venta))), { fbKey:'', nombre:'' });
 });
 
-test('los campos comerciales explícitos tienen prioridad y el técnico permanece independiente', () => {
+test('los dos comisionados canónicos permanecen independientes del creador y del técnico', () => {
   const ctx = contextoIdentidades();
   const venta = {
     origen:'reclamo', reclamoKey:'r2',
-    vendedor:'Ignacio Pezzente', vendedorFbKey:'e1007',
-    responsableComercial:'Ignacio Pezzente', responsableComercialFbKey:'e1007',
-    tecnico:'Osmar Tello', tecnicoFbKey:'e1006', empleado:'Ignacio Pezzente', empleadoFbKey:'e1007'
+    creadaPor:'Osmar Tello', usuario:'Osmar Tello',
+    comisionadoPrincipal:'Ignacio Pezzente', comisionadoPrincipalFbKey:'e1007',
+    empleado:'Ignacio Pezzente', empleadoFbKey:'e1007',
+    comisionado2:'Mauro Bechir', comisionado2FbKey:'e1005',
+    tecnico:'Osmar Tello', tecnicoFbKey:'e1006'
   };
   assert.deepEqual(
     JSON.parse(JSON.stringify(ctx.ventaResponsableComercialIdentidad(venta))),
     { fbKey:'e1007', nombre:'Ignacio Pezzente' }
   );
+  assert.equal(ctx.ventaEmpleadoEsComisionado(venta, ctx.empData.ignacio), true);
+  assert.equal(ctx.ventaEmpleadoEsComisionado(venta, ctx.empData.mauro), true);
+  assert.equal(ctx.ventaEmpleadoEsComisionado(venta, ctx.empData.osmar), false);
   assert.equal(ctx.ventaPerteneceResponsableComercial(venta, ctx.empData.osmar), false);
 });
 
-test('el cálculo mensual filtra por responsable comercial y nunca por técnico de OT', () => {
+test('el cálculo mensual incluye primer y segundo comisionado, nunca creador o técnico', () => {
   const ctx = contextoIdentidades();
   Object.assign(ctx, {
     ventasList: [{
       id:'SP-1', fecha:'2026-09-20', origen:'reclamo', reclamoKey:'r1',
-      creadaPor:'Ignacio Pezzente', empleado:'Mauro Bechir', empleadoFbKey:'e1005', tecnico:'Mauro Bechir',
+      creadaPor:'Osmar Tello', usuario:'Osmar Tello',
+      comisionadoPrincipal:'Ignacio Pezzente', comisionadoPrincipalFbKey:'e1007',
+      empleado:'Ignacio Pezzente', empleadoFbKey:'e1007',
+      comisionado2:'Mauro Bechir', comisionado2FbKey:'e1005',
+      tecnico:'Osmar Tello', tecnicoFbKey:'e1006',
       total:1210
     }],
     _svTotalVentaCanonico: v => v.total,
     _calcularBaseComisionVenta: () => ({ ganancia:500 }),
-    obtenerDetalleComisionEmpleado: () => ({ pct:10, origen:'cargo' })
+    obtenerDetalleComisionEmpleado: () => ({ pct:10, origen:'cargo' }),
+    APROBACION_CONFIG:{ maxComisionPct:10 }
   });
   vm.runInContext(bloque('function calcularComisionEmpleado', '// Editar cliente'), ctx);
-  assert.equal(ctx.calcularComisionEmpleado(ctx.empData.ignacio, '2026-09').cantVentas, 1);
-  assert.equal(ctx.calcularComisionEmpleado(ctx.empData.mauro, '2026-09').cantVentas, 0);
+  const principal = ctx.calcularComisionEmpleado(ctx.empData.ignacio, '2026-09');
+  const segundo = ctx.calcularComisionEmpleado(ctx.empData.mauro, '2026-09');
+  assert.equal(principal.cantVentas, 1);
+  assert.equal(segundo.cantVentas, 1);
+  assert.equal(principal.comision, 25);
+  assert.equal(segundo.comision, 25);
+  assert.equal(ctx.calcularComisionEmpleado(ctx.empData.osmar, '2026-09').cantVentas, 0);
+});
+
+test('los cinco casos históricos quedan sin comisión inferida', () => {
+  const ctx = contextoIdentidades();
+  const casos = [
+    ['SP-67693','Yanina Plana','Mauro Bechir','e1005'],
+    ['SP-28822','Yanina Plana','Osmar Tello','e1006'],
+    ['SP-98492','Yanina Plana','Mauro Bechir','e1005'],
+    ['SP-45009','Ignacio Pezzente','Osmar Tello','e1006'],
+    ['SP-27388','Ignacio Pezzente','Mauro Bechir','e1005']
+  ];
+  casos.forEach(([id, creador, tecnico, tecnicoFbKey]) => {
+    const venta = {
+      id:'#' + id, origen:'reclamo', reclamoKey:'r-' + id,
+      creadaPor:creador, usuario:creador,
+      empleado:tecnico, empleadoFbKey:tecnicoFbKey,
+      tecnico, tecnicoFbKey
+    };
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(ctx.ventaComisionadoPrincipalIdentidad(venta))),
+      { fbKey:'', nombre:'' },
+      id
+    );
+    Object.values(ctx.empData).forEach(emp => assert.equal(ctx.ventaEmpleadoEsComisionado(venta, emp), false, `${id}: ${emp.nombre}`));
+  });
+});
+
+test('la generación efectiva crea movimientos sólo para los dos comisionados reales', async () => {
+  const ctx = contextoIdentidades();
+  Object.assign(ctx, {
+    fbDB:{},
+    APROBACION_CONFIG:{ maxComisionPct:10 },
+    _calcularBaseComisionVenta:() => ({ ganancia:1000 }),
+    _pctComisionEmpleadoVenta:() => 4,
+    _generarComisionVentaAtomica:async (emp, movimiento) => ({ empleado:emp.nombre, monto:movimiento.monto })
+  });
+  vm.runInContext(bloque('async function generarComisionesVenta', 'function _actualizarCtaEmpPorPagoGasto'), ctx);
+  const resultados = await ctx.generarComisionesVenta({
+    id:'#V-1', fbKey:'venta-1', fecha:'2026-09-24', cliente:'Cliente', comisionHabilitada:true,
+    creadaPor:'Osmar Tello', usuario:'Osmar Tello', tecnico:'Osmar Tello', tecnicoFbKey:'e1006',
+    comisionadoPrincipal:'Ignacio Pezzente', comisionadoPrincipalFbKey:'e1007',
+    empleado:'Ignacio Pezzente', empleadoFbKey:'e1007',
+    comisionado2:'Mauro Bechir', comisionado2FbKey:'e1005'
+  }, 1000);
+  assert.deepEqual(JSON.parse(JSON.stringify(resultados)), [
+    { empleado:'Ignacio Pezzente', monto:40 },
+    { empleado:'Mauro Bechir', monto:40 }
+  ]);
 });
 
 test('crear una visita descarta el fbKey anterior y clona los datos anidados', async () => {
@@ -151,10 +214,13 @@ test('dos visitas del mismo cliente se recargan como registros independientes', 
   assert.equal(guardadas[1].checks.preparacion[0], false);
 });
 
-test('las dos rutas de reclamos guardan vendedor y técnico en campos separados', () => {
-  const coincidencias = app.match(/empleado:\s+responsableComercial\.nombre[\s\S]{0,350}tecnico:\s+tecnico/g) || [];
+test('las dos rutas de reclamos copian comisionados reales y guardan al técnico por separado', () => {
+  const coincidencias = app.match(/empleado:\s+responsableComercial\.nombre[\s\S]{0,450}tecnico:\s+tecnico/g) || [];
   assert.equal(coincidencias.length, 2);
   assert.doesNotMatch(app, /empleado:\s+tecnico,[\s\S]{0,100}tecnicoAsignado:\s+tecnico/);
+  assert.equal((app.match(/comisionadoPrincipal:\s+responsableComercial\.nombre/g) || []).length >= 2, true);
+  assert.equal((app.match(/comisionado2:\s+segundoComisionado\.nombre/g) || []).length >= 2, true);
+  assert.doesNotMatch(app, /ventaComisionadoPrincipalIdentidad\(ventaOrigenReclamo\s*\|\|\s*\{\s*creadaPor/);
   assert.match(app, /var empPrincipal = Object\.values\(empData\|\|\{\}\)\.find\(function\(e\)\{\s*return ventaPerteneceResponsableComercial\(venta, e\)/);
 });
 
@@ -166,9 +232,9 @@ test('cambiar el técnico persiste sólo la OT y conserva una auditoría reversi
   assert.doesNotMatch(transferencia, /ventasPagosPersistir|fbGuardarVenta|sisventas\/ventas/);
 });
 
-test('cuenta del empleado y paneles personales usan el responsable comercial canónico', () => {
+test('cuenta del empleado usa ambos comisionados y paneles comerciales usan el principal', () => {
   const cuenta = bloque('function renderComisionesDelMes', 'function _movEmpPagosArray');
   const dashboard = bloque('function renderDashAdministrativo', 'function renderDashMisOTs');
-  assert.match(cuenta, /ventaPerteneceResponsableComercial\(v, emp\)/);
+  assert.match(cuenta, /ventaEmpleadoEsComisionado\(v, emp\)/);
   assert.match(dashboard, /ventaResponsableComercialReporte\(v\) === usuario/);
 });
