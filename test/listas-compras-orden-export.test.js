@@ -120,8 +120,25 @@ test('el pedido para WhatsApp conserva negritas, enlaces y crea un bloque por pr
     '*2 x B*\nProducto B\nhttps://proveedor.test/b'
   );
   assert.doesNotMatch(text, /Instalación remota|\/mo/);
+  assert.equal(purchases.buildWhatsAppOrderText({items:[
+    {productoKey:'prod-a',codigo:'A',descripcion:'Producto A',incluir:true,cantidadComprar:1,proveedor:'Proveedor Uno',proveedorKey:'p1',proveedorUrl:'https://proveedor.test/a'},
+    {productoKey:'prod-b',codigo:'B',descripcion:'Producto B',incluir:true,cantidadComprar:2,proveedor:'Proveedor Dos',proveedorKey:'p2',proveedorUrl:'https://proveedor.test/b'}
+  ]}, 'p2'), '*PEDIDO – PROVEEDOR DOS*\n\n*2 x B*\nProducto B\nhttps://proveedor.test/b');
   assert.match(source, /Copiar pedido para WhatsApp/);
+  assert.match(source, /Copiar para WhatsApp/);
   assert.match(source, /Pedido para WhatsApp copiado/);
+});
+
+test('el encabezado agrupado calcula productos, unidades y total de cada proveedor', () => {
+  const purchases = loadModule();
+  const list = {items:[
+    {productoKey:'prod-a',codigo:'A',incluir:true,cantidadComprar:2,proveedor:'Proveedor Uno',proveedorKey:'p1',costoUnitario:100},
+    {productoKey:'prod-a',codigo:'A2',incluir:true,cantidadComprar:3,proveedor:'Proveedor Uno',proveedorKey:'p1',costoUnitario:50},
+    {productoKey:'prod-b',codigo:'B',incluir:true,cantidadComprar:4,proveedor:'Proveedor Dos',proveedorKey:'p2',costoUnitario:200},
+    {productoKey:'servicio',codigo:'MO',incluir:true,cantidadComprar:8,proveedor:'Proveedor Uno',proveedorKey:'p1',costoUnitario:999}
+  ]};
+  assert.deepEqual(JSON.parse(JSON.stringify(purchases.purchaseSummaryForProvider(list, 'p1'))), {items:2,units:5,total:350});
+  assert.match(source, /productos · .* unidades · Total/);
 });
 
 test('el pedido para WhatsApp exige proveedor y URL en cada material seleccionado', () => {

@@ -136,6 +136,11 @@
     return safeProviderUrl((selected && selected.url) || (item && item.proveedorUrl) || '');
   }
 
+  function providerGroupKey(item) {
+    item = item || {};
+    return String(item.proveedorKey || item.proveedor || '').trim().toLowerCase();
+  }
+
   function orderProviderSummary(order) {
     order = order || {};
     var finals = Array.from(new Set((order.items || []).map(function(item) {
@@ -252,6 +257,18 @@
       });
     }
     return rows;
+  }
+
+  function purchaseSummaryForProvider(list, providerKey) {
+    var key = String(providerKey || '').trim().toLowerCase();
+    var items = ((list && list.items) || []).filter(function (item) {
+      return isPurchasableMaterialItem(item) && item.incluir && (parseFloat(item.cantidadComprar) || 0) > 0 && providerGroupKey(item) === key;
+    });
+    return {
+      items: items.length,
+      units: items.reduce(function (sum, item) { return sum + (parseFloat(item.cantidadComprar) || 0); }, 0),
+      total: items.reduce(function (sum, item) { return sum + (parseFloat(item.cantidadComprar) || 0) * (parseFloat(item.costoUnitario) || 0); }, 0)
+    };
   }
 
   function saleRef(value) {
@@ -446,7 +463,8 @@
         var groupHeader = '';
         if (state.groupMaterialsByProvider && providerGroup !== lastProviderGroup) {
           lastProviderGroup = providerGroup;
-          groupHeader = '<tr class="oc-provider-group"><td colspan="8" style="padding:8px 10px;background:var(--bg3);color:var(--blue);font-weight:700"><i class="ti ti-building-store"></i> ' + esc(providerGroup) + '</td></tr>';
+          var groupSummary = purchaseSummaryForProvider(list, providerGroupKey(item));
+          groupHeader = '<tr class="oc-provider-group"><td colspan="8" style="padding:8px 10px;background:var(--bg3);color:var(--blue);font-weight:700"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><span><i class="ti ti-building-store"></i> ' + esc(providerGroup) + '</span><span style="margin-left:10px;color:var(--text2);font-size:11px;font-weight:500">' + groupSummary.items + ' productos · ' + formatOrderQuantity(groupSummary.units) + ' unidades · Total ' + money(groupSummary.total) + '</span></div>' + (item.proveedor ? '<button class="btn btn-sm" type="button" onclick="event.stopPropagation();ocCopiarPedidoWhatsAppProveedor(' + index + ')"><i class="ti ti-brand-whatsapp"></i> Copiar para WhatsApp</button>' : '') + '</div></td></tr>';
         }
         return groupHeader + '<tr data-index="' + index + '">' +
           '<td><input type="checkbox" class="oc-li-include" ' + (item.incluir ? 'checked' : '') + ' ' + disabled + ' onchange="ocMaterialChanged(' + index + ')"></td>' +
@@ -542,9 +560,10 @@
     return Number.isInteger(quantity) ? String(quantity) : String(quantity).replace('.', ',');
   }
 
-  function buildWhatsAppOrderText(list) {
+  function buildWhatsAppOrderText(list, providerFilter) {
+    var filterKey = String(providerFilter || '').trim().toLowerCase();
     var items = ((list && list.items) || []).filter(function (item) {
-      return isPurchasableMaterialItem(item) && item.incluir && (parseFloat(item.cantidadComprar) || 0) > 0;
+      return isPurchasableMaterialItem(item) && item.incluir && (parseFloat(item.cantidadComprar) || 0) > 0 && (!filterKey || providerGroupKey(item) === filterKey);
     });
     if (!items.length) throw new Error('No hay materiales seleccionados para copiar');
     var missingProvider = items.find(function (item) { return !String(item.proveedor || '').trim(); });
@@ -555,7 +574,7 @@
     var groupByProvider = {};
     items.forEach(function (item) {
       var provider = String(item.proveedor || '').trim();
-      var key = String(item.proveedorKey || provider).toLowerCase();
+      var key = providerGroupKey(item);
       if (!groupByProvider[key]) {
         groupByProvider[key] = { provider: provider, items: [] };
         groups.push(groupByProvider[key]);
@@ -594,9 +613,9 @@
     });
   }
 
-  function copyWhatsAppOrder() {
+  function copyWhatsAppOrder(providerFilter) {
     try {
-      var text = buildWhatsAppOrderText(state.activeList);
+      var text = buildWhatsAppOrderText(state.activeList, providerFilter);
       return writeClipboardText(text).then(function () {
         if (typeof window.notify === 'function') window.notify('Pedido para WhatsApp copiado');
         return text;
@@ -608,6 +627,15 @@
       if (typeof window.notify === 'function') window.notify(error.message || 'No se pudo preparar el pedido');
       return Promise.resolve('');
     }
+  }
+
+  function copyWhatsAppOrderForItem(index) {
+    var item = state.activeList && state.activeList.items && state.activeList.items[index];
+    if (!item || !item.proveedor) {
+      if (typeof window.notify === 'function') window.notify('Elegí un proveedor antes de copiar el pedido');
+      return Promise.resolve('');
+    }
+    return copyWhatsAppOrder(providerGroupKey(item));
   }
 
   function exportMaterialListExcel() {
@@ -1607,6 +1635,7 @@
     syncListItemsWithSale: syncListItemsWithSale,
     isPurchasableMaterialItem: isPurchasableMaterialItem,
     materialRowsForDisplay: materialRowsForDisplay,
+    purchaseSummaryForProvider: purchaseSummaryForProvider,
     buildMaterialExportRows: buildMaterialExportRows,
     buildWhatsAppOrderText: buildWhatsAppOrderText,
     syncOTConsumption: syncOTConsumption,
@@ -1627,6 +1656,7 @@
   window.ocAlternarAgrupacionProveedores = toggleProviderGrouping;
   window.ocExportarListaExcel = exportMaterialListExcel;
   window.ocCopiarPedidoWhatsApp = copyWhatsAppOrder;
+  window.ocCopiarPedidoWhatsAppProveedor = copyWhatsAppOrderForItem;
   window.ocGenerarOrdenesDesdeLista = generateOrdersFromList;
   window.ocShowTab = showOrdersTab;
   window.ocAbrirOrden = openOrder;
