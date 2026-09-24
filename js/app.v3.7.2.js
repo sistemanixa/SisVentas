@@ -4059,6 +4059,7 @@ function fbCargarEmpleados() {
     if (!data) {
       empData = {};
       renderTablaEmpleados();
+      if (typeof _cargarFiltroEmpleadosGastos === 'function') _cargarFiltroEmpleadosGastos();
       actualizarCargosEmpleadosTooltip();
       renderAvisoProximasVacaciones();
       renderAvisoAumentoValorHora();
@@ -4096,6 +4097,7 @@ function fbCargarEmpleados() {
     });
 
     renderTablaEmpleados();
+    if (typeof _cargarFiltroEmpleadosGastos === 'function') _cargarFiltroEmpleadosGastos();
     actualizarCargosEmpleadosTooltip();
     renderAvisoProximasVacaciones();
     renderAvisoAumentoValorHora();
@@ -31534,6 +31536,10 @@ function abrirNuevoMovEmp(tipoInicial) {
   if (!ctaEmpActual) { notify('Seleccioná un empleado primero'); return; }
   var modal = document.getElementById('modal-movi-emp');
   if (!modal) return;
+  // El modal vive originalmente junto a Cuentas de empleados. Cuando se abre
+  // desde la grilla de Empleados, esa pagina esta oculta y ocultaba tambien el
+  // formulario aunque la accion Continuar se hubiera ejecutado correctamente.
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
   var titulo = document.getElementById('movi-modal-titulo');
   if (titulo) titulo.textContent = 'Nuevo movimiento';
   document.getElementById('movi-fecha').value = svFechaLocalISO();
@@ -42031,8 +42037,11 @@ function _cargarFiltroEmpleadosGastos() {
   var select = document.getElementById('gas-f-empleado');
   if (!select) return;
   var valor = select.value;
-  var empleados = Object.values(empData || {}).filter(function(e){ return e && e.activo !== false && String(e.estado || 'activo').toLowerCase() !== 'inactivo'; }).sort(function(a,b){ return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); });
-  select.innerHTML = '<option value="">Todos los empleados</option>' + empleados.map(function(e){ return '<option value="'+escapeHTML(e.fbKey || '')+'">'+escapeHTML(e.nombre || 'Sin nombre')+'</option>'; }).join('');
+  var empleados = Object.values(empData || {}).filter(Boolean).sort(function(a,b){ return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); });
+  select.innerHTML = '<option value="">Todos los empleados</option>' + empleados.map(function(e){
+    var inactivo = e.activo === false || String(e.estado || '').toLowerCase() === 'inactivo' || !!e.tipoBaja;
+    return '<option value="'+escapeHTML(e.fbKey || '')+'">'+escapeHTML(e.nombre || 'Sin nombre')+(inactivo ? ' (Inactivo)' : ' (Activo)')+'</option>';
+  }).join('');
   if (empleados.some(function(e){ return String(e.fbKey || '') === String(valor); })) select.value = valor;
 }
 
