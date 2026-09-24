@@ -1,0 +1,70 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+
+const source = fs.readFileSync('js/modules/purchase-orders.js', 'utf8');
+
+function loadModule() {
+  const products = [
+    { fbKey:'prod-a', codigo:'A', nombre:'Producto A', proveedores:[{nombre:'Proveedor Uno', proveedorKey:'p1', precio:100, sinIva:true, url:'https://proveedor.test/a'}] },
+    { fbKey:'prod-b', codigo:'B', nombre:'Producto B', proveedores:[{nombre:'Proveedor Dos', proveedorKey:'p2', precio:200, sinIva:true, url:'https://proveedor.test/b'}] }
+  ];
+  const window = {
+    prodData:Object.fromEntries(products.map(product => [product.fbKey, product])),
+    proveedoresData:[{fbKey:'p1',nombre:'Proveedor Uno'},{fbKey:'p2',nombre:'Proveedor Dos'}],
+    proveedoresVinculadosProducto:product => product.proveedores,
+    esProductoManoDeObra:() => false
+  };
+  const sandbox = {
+    window,
+    document:{addEventListener(){}},
+    console,
+    Date,
+    Object,
+    Array,
+    String,
+    Number,
+    Math,
+    JSON,
+    Promise,
+    setTimeout
+  };
+  vm.runInNewContext(source, sandbox);
+  return window.SisVentasCompras;
+}
+
+test('la lista vuelve al orden vigente de la venta y conserva decisiones por producto', () => {
+  const purchases = loadModule();
+  const list = {
+    estado:'preparacion',
+    ordenesIds:[],
+    items:[
+      {productoKey:'prod-b',codigo:'B',descripcion:'Producto B',cantidadNecesaria:1,incluir:true,usarExistente:0,cantidadComprar:1,proveedor:'Proveedor Dos',proveedorKey:'p2',costoUnitario:242},
+      {productoKey:'prod-a',codigo:'A',descripcion:'Producto A',cantidadNecesaria:1,incluir:true,usarExistente:1,cantidadComprar:0,proveedor:'Proveedor Uno',proveedorKey:'p1',costoUnitario:121}
+    ]
+  };
+  const sale = {items:[{productoKey:'prod-a',cod:'A',desc:'Producto A',qty:3},{productoKey:'prod-b',cod:'B',desc:'Producto B',qty:2}]};
+  assert.equal(purchases.syncListItemsWithSale(list, sale), true);
+  assert.deepEqual(list.items.map(item => item.codigo), ['A','B']);
+  assert.equal(list.items[0].usarExistente, 1);
+  assert.equal(list.items[0].cantidadComprar, 2);
+  assert.equal(list.items[0].proveedorKey, 'p1');
+  assert.equal(list.items[0].proveedorUrl, 'https://proveedor.test/a');
+});
+
+test('la interfaz permite agrupar sin reemplazar el orden y exporta un xlsx con hipervínculos', () => {
+  assert.match(source, /Agrupar por proveedor/);
+  assert.match(source, /Ver orden de venta/);
+  assert.match(source, /Exportar Excel/);
+  assert.match(source, /window\.XLSX\.utils\.aoa_to_sheet/);
+  assert.match(source, /linkCell\.l = \{ Target: linkCell\.v/);
+  assert.match(source, /\.xlsx'/);
+});
+
+test('cada proveedor seleccionado conserva su URL en la lista y en la orden generada', () => {
+  assert.match(source, /data-url=/);
+  assert.match(source, /item\.proveedorUrl = option \? safeProviderUrl\(option\.dataset\.url\)/);
+  assert.match(source, /proveedorUrl: providerUrlForItem\(item\)/);
+  assert.match(source, /Abrir link de compra/);
+});
