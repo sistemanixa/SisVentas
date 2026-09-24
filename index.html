@@ -2023,6 +2023,10 @@
                 <input type="number" id="cfg-dias-venc" value="15" min="1" max="90">
                 <div style="font-size:11px;color:var(--text3);margin-top:4px">Se usa para calcular la fecha de vencimiento al crear presupuestos</div>
               </div>
+              <div class="fg"><label>Avisar antes del vencimiento del presupuesto (días)</label>
+                <input type="number" id="cfg-dias-aviso-venc-ppto" value="1" min="0" max="30">
+                <div style="font-size:11px;color:var(--text3);margin-top:4px">1 = avisar el día anterior. 0 = avisar solamente el día del vencimiento.</div>
+              </div>
               <div class="fg"><label>Stock mínimo por defecto</label><input type="number" id="cfg-stock-min-def" value="5" min="0"></div>
               <div class="fg"><label>Vigencia de precios de proveedores (días)</label>
                 <input type="number" id="cfg-dias-vigencia-precios" value="5" min="1" max="365">
@@ -3223,6 +3227,7 @@ Listo para analizar.
           </div>
           <div style="display:flex;gap:6px">
             <button class="btn btn-sm" onclick="marcarTodasLeidas()"><i class="ti ti-checks"></i> Marcar leídas</button>
+            <button class="btn btn-sm" onclick="limpiarTodasNotificaciones()" title="Dejar para mañana las gestiones pendientes y desestimar los avisos informativos"><i class="ti ti-broom"></i> Limpiar todo</button>
             <button class="btn btn-sm btn-primary" onclick="generarNotificaciones()"><i class="ti ti-refresh"></i> Actualizar</button>
           </div>
         </div>
@@ -6062,7 +6067,7 @@ Listo para analizar.
 <script src="./js/modules/treasury.js?v=2.0.180"></script>
 
 <script src="./js/modules/ot-data-sync.js?v=2.0.154"></script>
-<script src="./js/modules/notifications.js?v=2.0.271"></script>
+<script src="./js/modules/notifications.js?v=2.0.272"></script>
 <script src="./js/modules/push-notifications.js?v=1.0.0"></script>
 <script src="./js/modules/finance-details.js?v=3.3.17"></script>
 

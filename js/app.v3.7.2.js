@@ -13757,8 +13757,7 @@ const titles = {dashboard:'Dashboard',asistente:'Asistente de ventas',presupuest
 let sessionTimer = null, sessionStart = null, tiempoUI = null;
 
 var NOTIF_CONFIG = {
-  ppto_vence_7:     { label:'Presupuesto vence en 7 días',sub:'Alerta preventiva para hacer seguimiento',    canales:['App','WhatsApp'], activo:true,  urgente:false },
-  ppto_vence_2:     { label:'Presupuesto vence en 2 días',sub:'Alerta urgente de vencimiento inminente',     canales:['App','WhatsApp'], activo:true,  urgente:true  },
+  ppto_vence_2:     { label:'Presupuesto próximo a vencer',sub:'La anticipación se define en Preferencias del sistema', canales:['App','WhatsApp'], activo:true, urgente:true },
   ppto_sin_resp:    { label:'Presupuesto sin respuesta',  sub:'Enviado hace más de 5 días sin respuesta',    canales:['App'],           activo:true,  urgente:false },
   deuda_30:         { label:'Deuda vencida +30 días',     sub:'Clientes con saldo pendiente hace más de 30d',canales:['App','Email'],   activo:true,  urgente:true  },
   deuda_15:         { label:'Deuda vencida +15 días',     sub:'Clientes con saldo pendiente hace más de 15d',canales:['App'],           activo:true,  urgente:false },
@@ -13767,6 +13766,7 @@ var NOTIF_CONFIG = {
   garantia_vence:   { label:'Garantía por vencer',        sub:'Garantías que vencen en los próximos 30 días',canales:['App'],           activo:true,  urgente:false },
   caja_abierta:     { label:'Caja sin cerrar',            sub:'La caja quedó abierta después de las 20hs',   canales:['App'],           activo:true,  urgente:false },
 };
+window._diasAvisoVencimientoPresupuesto = 1;
 var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Razón social',id:'nc-razon-social',t:'text',ph:'Nombre legal registrado en ARCA',full:true},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa / nombre comercial',id:'nc-empresa',t:'text',ph:'Nombre comercial si corresponde'},{l:'Categoría del domicilio inicial',id:'nc-sede',t:'text',ph:'Ej: Authogar, oficina, depósito'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
   producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'Moneda',id:'np-moneda',t:'select',opts:['ARS','USD']},{l:'P. compra',id:'np-pc',t:'number',ph:'0'},{l:'P. venta',id:'np-pv',t:'number',ph:'0'}]},
@@ -28811,6 +28811,7 @@ window.aplicarVisibilidadMonitorRecursos = aplicarVisibilidadMonitorRecursos;
 
 function guardarPreferenciasSistema(btn) {
   var diasVencEl = document.getElementById('cfg-dias-venc');
+  var diasAvisoVencPptoEl = document.getElementById('cfg-dias-aviso-venc-ppto');
   var diasVigenciaPreciosEl = document.getElementById('cfg-dias-vigencia-precios');
   var stockMinEl = document.getElementById('cfg-stock-min-def');
   var margenProdEl = document.getElementById('cfg-margen-prod-def');
@@ -28823,6 +28824,7 @@ function guardarPreferenciasSistema(btn) {
   if (!isFinite(margenDefaultIngresado) || margenDefaultIngresado < 0) margenDefaultIngresado = 30;
   var datos = {
     diasVencimiento: parseInt((diasVencEl||{}).value) || 15,
+    diasAvisoVencimientoPresupuesto: Math.max(0, Math.min(30, parseInt((diasAvisoVencPptoEl||{}).value, 10) || 0)),
     diasVigenciaPrecios: Math.max(1, Math.min(365, parseInt((diasVigenciaPreciosEl||{}).value, 10) || PRECIO_VIGENCIA_DIAS_DEFAULT)),
     stockMinDefault: parseInt((stockMinEl||{}).value) || 5,
     margenProductoDefault: margenDefaultIngresado,
@@ -28841,6 +28843,7 @@ function guardarPreferenciasSistema(btn) {
   window.fbUpdate(window.fbRef(window.fbDB,'sisventas/config/preferencias'), datos)
     .then(function(){
       window._diasVencimientoConfig = datos.diasVencimiento;
+      window._diasAvisoVencimientoPresupuesto = datos.diasAvisoVencimientoPresupuesto;
       window._diasVigenciaPrecios = datos.diasVigenciaPrecios;
       window._stockMinDefault = datos.stockMinDefault;
       window._margenProductoDefault = datos.margenProductoDefault;
@@ -28941,6 +28944,7 @@ function cargarConfigGeneral() {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/preferencias')).then(function(snap) {
     var d = snap.val(); if (!d) return;
     var dv = document.getElementById('cfg-dias-venc');
+    var davp = document.getElementById('cfg-dias-aviso-venc-ppto');
     var dvp = document.getElementById('cfg-dias-vigencia-precios');
     var sm = document.getElementById('cfg-stock-min-def');
     var mpd = document.getElementById('cfg-margen-prod-def');
@@ -28950,6 +28954,8 @@ function cargarConfigGeneral() {
     var ast = document.getElementById('cfg-admin-sin-timeout');
     var pvt = document.getElementById('cfg-producto-visita-tecnica');
     if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
+    var diasAvisoVencimiento = d.diasAvisoVencimientoPresupuesto !== undefined ? Math.max(0, Math.min(30, parseInt(d.diasAvisoVencimientoPresupuesto, 10) || 0)) : 1;
+    if (davp) davp.value = diasAvisoVencimiento;
     if (dvp) dvp.value = d.diasVigenciaPrecios !== undefined ? d.diasVigenciaPrecios : PRECIO_VIGENCIA_DIAS_DEFAULT;
     if (sm && d.stockMinDefault !== undefined) sm.value = d.stockMinDefault;
     if (mpd) mpd.value = d.margenProductoDefault !== undefined ? d.margenProductoDefault : 30;
@@ -28963,6 +28969,7 @@ function cargarConfigGeneral() {
     if (typeof resetSessionTimer === 'function' && isAuthenticated) resetSessionTimer();
     aplicarVisibilidadMonitorRecursos(d.mostrarMonitorRecursos !== false);
     window._diasVencimientoConfig = d.diasVencimiento || 15;
+    window._diasAvisoVencimientoPresupuesto = diasAvisoVencimiento;
     window._diasVigenciaPrecios = Math.max(1, Math.min(365, parseInt(d.diasVigenciaPrecios, 10) || PRECIO_VIGENCIA_DIAS_DEFAULT));
     window._stockMinDefault = d.stockMinDefault || 5;
     var margenDefaultCargado = parseFloat(d.margenProductoDefault);
@@ -51813,6 +51820,11 @@ function _pptoFechaEnvioNotificacion(p) {
   return envio ? parsear(envio.fecha) : null;
 }
 
+function _diasAvisoVencimientoPresupuestoConfig(){
+  var dias=parseInt(window._diasAvisoVencimientoPresupuesto,10);
+  return isFinite(dias)?Math.max(0,Math.min(30,dias)):1;
+}
+
 function generarNotificaciones() {
   try {
   todasNotifs = [];
@@ -51864,23 +51876,16 @@ function generarNotificaciones() {
         return;
       }
       if (isNaN(venc.getTime())) return;
-      var dias = Math.round((venc - ahora) / 86400000);
+      var inicioHoyVenc = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+      var dias = Math.round((venc - inicioHoyVenc) / 86400000);
+      var diasAvisoVencimiento = _diasAvisoVencimientoPresupuestoConfig();
 
-      if (dias <= 2 && dias >= 0 && NOTIF_CONFIG.ppto_vence_2.activo) {
+      if (dias <= diasAvisoVencimiento && dias >= 0 && NOTIF_CONFIG.ppto_vence_2.activo) {
         todasNotifs.push({
-          id: 'ppto_v2_' + p.id, tipo:'presupuesto', urgente:true,
+          id: 'ppto_vence_' + p.id, tipo:'presupuesto', urgente:dias <= 1,
           icono:'ti-file-description', color:'red',
-          titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' día(s)',
+          titulo: 'Presupuesto ' + p.id + (dias === 0 ? ' vence hoy' : ' vence en ' + dias + ' día' + (dias === 1 ? '' : 's')),
           sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Estado: ' + (pptoEstadoLabel(p.estado)) + '.',
-          tiempo: 'Hoy · Sistema',
-          accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
-        });
-      } else if (dias <= 7 && dias > 2 && NOTIF_CONFIG.ppto_vence_7.activo) {
-        todasNotifs.push({
-          id: 'ppto_v7_' + p.id, tipo:'presupuesto', urgente:false,
-          icono:'ti-file-description', color:'amber',
-          titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' días',
-          sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Sin respuesta del cliente.',
           tiempo: 'Hoy · Sistema',
           accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
         });

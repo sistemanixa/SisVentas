@@ -236,6 +236,31 @@
     }
     programarAvisoCriticoPresupuesto();
   }
+  function esNotificacionGestionable(n){
+    return !!(n&&n.accion&&String(n.accion.fn||'').trim());
+  }
+  function notificacionesPendientesParaLimpiar(){
+    return notifSource().filter(function(n){
+      var estado=getN(n.id).estado||'';
+      return estado===''||estado==='leida';
+    });
+  }
+  function guardarEstadosNotificacionesEnLote(cambios){
+    var ahora=new Date().toISOString(), usuario=svCurrentUserName(), remotos={};
+    cambios.forEach(function(cambio){
+      var k=nKey(cambio.id);
+      notifState[k]=Object.assign(notifState[k]||{},cambio.patch,{updatedAt:ahora,usuario:usuario});
+      remotos[k]=notifState[k];
+    });
+    saveState(notifState);
+    iniciarSyncNotificaciones();
+    var identity=currentIdentity();
+    if(global.fbDB&&global.fbUpdate&&identity&&identity!=='local'){
+      return global.fbUpdate(global.fbRef(global.fbDB,'sisventas/notificaciones_estado/'+nKey(identity)),remotos)
+        .catch(function(error){ console.error('[Notificaciones] Error guardando limpieza masiva',error); });
+    }
+    return Promise.resolve();
+  }
   function visibleNotif(n, filtro){
     var st = getN(n.id), estado = st.estado || '';
     if (filtro === 'pospuestas') return estado === 'pospuesta';
@@ -253,6 +278,23 @@
   window.marcarLeida = function(id){ setN(id,{estado:'leida'}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif(); };
   window.marcarNoLeida = function(id){ setN(id,{estado:'',reaparece:null}); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif(); if(typeof notify==='function') notify('Notificación marcada como no leída.'); };
   window.marcarTodasLeidas = function(){ notifSource().forEach(function(n){ if(visibleNotif(n,(document.getElementById('notif-filtro')||{}).value||'')) setN(n.id,{estado:'leida'}); }); renderNotificaciones((document.getElementById('notif-filtro')||{}).value||''); if(typeof actualizarBadgeNotif==='function') actualizarBadgeNotif(); if(typeof notify==='function') notify('Notificaciones visibles marcadas como leídas'); };
+  window.limpiarTodasNotificaciones = async function(){
+    var pendientes=notificacionesPendientesParaLimpiar();
+    if(!pendientes.length){ if(typeof notify==='function') notify('No hay notificaciones pendientes para limpiar.'); return; }
+    var paraManana=pendientes.filter(esNotificacionGestionable);
+    var paraDesestimar=pendientes.filter(function(n){ return !esNotificacionGestionable(n); });
+    var mensaje='Se limpiarán '+pendientes.length+' notificaciones. '+paraManana.length+' gestión'+(paraManana.length===1?'':'es')+' volverá'+(paraManana.length===1?'':'n')+' mañana y '+paraDesestimar.length+' aviso'+(paraDesestimar.length===1?'':'s')+' informativo'+(paraDesestimar.length===1?'':'s')+' se desestimará'+(paraDesestimar.length===1?'':'n')+'.';
+    if(typeof global.svConfirm==='function'&&!(await global.svConfirm(mensaje))) return;
+    var manana=new Date(); manana.setDate(manana.getDate()+1);
+    var reaparece=svLocalISO(manana), cambios=[];
+    paraManana.forEach(function(n){ cambios.push({id:n.id,patch:{estado:'pospuesta',reaparece:reaparece}}); });
+    paraDesestimar.forEach(function(n){ cambios.push({id:n.id,patch:{estado:'resuelta',reaparece:null}}); });
+    await guardarEstadosNotificacionesEnLote(cambios);
+    pendientes.forEach(function(n){ quitarTarjetaAvisoCritico(n.id); });
+    avisoCriticoLote=null;
+    refreshNotifUI();
+    if(typeof notify==='function') notify(paraManana.length+' para mañana · '+paraDesestimar.length+' desestimadas');
+  };
   window.notifAbrirAccion = function(id){
     var n=notifSource().find(function(x){return x.id===id;});
     if(!n) return;
