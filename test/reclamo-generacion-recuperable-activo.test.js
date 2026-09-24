@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const app = fs.readFileSync('js/app.v3.7.3.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.7.4.js', 'utf8');
 
 function funcion(firma) {
   const inicio = app.indexOf(firma);

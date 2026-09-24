@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const notifications = fs.readFileSync('js/modules/notifications.js', 'utf8');
-const app = fs.readFileSync('js/app.v3.7.3.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.7.4.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 
 assert(html.includes('onclick="limpiarTodasNotificaciones()"'), 'Debe existir Limpiar todo');

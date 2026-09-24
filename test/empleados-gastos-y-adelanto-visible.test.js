@@ -79,3 +79,37 @@ test('el formulario de adelanto se mueve al body y queda visible desde Empleados
   assert.equal(modal.parentElement, body);
   assert.equal(modal.style.display, 'flex');
 });
+
+test('Continuar resuelve el empleado real y abre el formulario aunque empleadosData no exista', () => {
+  let tipoAbierto = '';
+  let estadoActualizado = false;
+  const modalSelector = { remove() {} };
+  const elementos = {
+    'adelanto-general-empleado': { value: 'emp-mauro' },
+    'modal-adelanto-general': modalSelector,
+    'modal-nuevo': null,
+    'movi-modal-titulo': { textContent: '' },
+    'movi-desc': { value: '' },
+    'movi-estado': { value: '' },
+    'movi-monto': { focus() {}, select() {} }
+  };
+  const contexto = {
+    empData: { 'emp-mauro': { fbKey:'emp-mauro', nombre:'Mauro Bechir', activo:true } },
+    document: { getElementById: id => elementos[id] || null },
+    window: { tienePermiso: () => true },
+    _puedeGestionarAdelantos: () => true,
+    notify: mensaje => { throw new Error(mensaje); },
+    cerrarModalAdelantoGeneral: () => modalSelector.remove(),
+    abrirNuevoMovEmp: tipo => { tipoAbierto = tipo; },
+    onMoviEstadoChange: () => { estadoActualizado = true; },
+    setTimeout: fn => fn()
+  };
+  vm.createContext(contexto);
+  vm.runInContext(bloque('function continuarAdelantoGeneral()', 'function _movEmpTotalPagado'), contexto);
+  contexto.continuarAdelantoGeneral();
+  assert.equal(contexto.ctaEmpActual, 'emp-mauro');
+  assert.equal(tipoAbierto, 'adelanto');
+  assert.equal(elementos['movi-modal-titulo'].textContent, 'Cargar adelanto — Mauro Bechir');
+  assert.equal(elementos['movi-estado'].value, 'pagado');
+  assert.equal(estadoActualizado, true);
+});

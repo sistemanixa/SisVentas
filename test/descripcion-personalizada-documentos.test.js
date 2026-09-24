@@ -2,7 +2,7 @@ const assert = require('assert/strict');
 const fs = require('fs');
 const vm = require('vm');
 
-const app = fs.readFileSync('js/app.v3.7.3.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.7.4.js', 'utf8');
 const permissions = fs.readFileSync('js/modules/action-permissions.js', 'utf8');
 const budget = require('../js/v3/budget-read-model.js');
 const budgetIntegration = require('../js/v3/budget-integration.js');
