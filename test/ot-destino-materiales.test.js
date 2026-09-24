@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const app = fs.readFileSync(path.join(root, 'js', 'app.v3.7.1.js'), 'utf8');
+const app = fs.readFileSync(path.join(root, 'js', 'app.v3.7.2.js'), 'utf8');
 const permissions = fs.readFileSync(path.join(root, 'js', 'modules', 'action-permissions.js'), 'utf8');
 
 function sourceOfFunction(name) {

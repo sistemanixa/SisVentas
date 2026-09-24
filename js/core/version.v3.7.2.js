@@ -20,4 +20,3 @@ window.SISVENTAS_PWA_VERSION = 'v3.7.2';
   else aplicarVersionSisVentas(document);
 })();
 
-
