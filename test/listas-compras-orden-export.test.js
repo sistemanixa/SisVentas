@@ -103,3 +103,33 @@ test('la exportación agrupada replica los grupos visibles y mantiene el orden o
   assert.deepEqual(Array.from(exported.groupRows), [2,4]);
   assert.equal(exported.rows.some(row => row.includes('MO')), false);
 });
+
+test('el pedido para WhatsApp conserva negritas, enlaces y crea un bloque por proveedor', () => {
+  const purchases = loadModule();
+  const text = purchases.buildWhatsAppOrderText({items:[
+    {productoKey:'prod-a',codigo:'A',descripcion:'Producto A',incluir:true,cantidadComprar:1,proveedor:'Proveedor Uno',proveedorKey:'p1',proveedorUrl:'https://proveedor.test/a'},
+    {productoKey:'prod-b',codigo:'B',descripcion:'Producto B',incluir:true,cantidadComprar:2,proveedor:'Proveedor Dos',proveedorKey:'p2',proveedorUrl:'https://proveedor.test/b'},
+    {productoKey:'prod-a',codigo:'A2',descripcion:'Producto A dos',incluir:true,cantidadComprar:3,proveedor:'Proveedor Uno',proveedorKey:'p1',proveedorUrl:'https://proveedor.test/a2'},
+    {productoKey:'servicio',codigo:'MO',descripcion:'Instalación remota',incluir:true,cantidadComprar:1,proveedor:'Proveedor Uno',proveedorUrl:'https://proveedor.test/mo'}
+  ]});
+  assert.equal(text,
+    '*PEDIDO – PROVEEDOR UNO*\n\n' +
+    '*1 x A*\nProducto A\nhttps://proveedor.test/a\n\n' +
+    '*3 x A2*\nProducto A dos\nhttps://proveedor.test/a2\n\n\n' +
+    '*PEDIDO – PROVEEDOR DOS*\n\n' +
+    '*2 x B*\nProducto B\nhttps://proveedor.test/b'
+  );
+  assert.doesNotMatch(text, /Instalación remota|\/mo/);
+  assert.match(source, /Copiar pedido para WhatsApp/);
+  assert.match(source, /Pedido para WhatsApp copiado/);
+});
+
+test('el pedido para WhatsApp exige proveedor y URL en cada material seleccionado', () => {
+  const purchases = loadModule();
+  assert.throws(() => purchases.buildWhatsAppOrderText({items:[
+    {productoKey:'prod-a',codigo:'A',descripcion:'Producto A',incluir:true,cantidadComprar:1,proveedor:'',proveedorUrl:''}
+  ]}), /Elegí un proveedor/);
+  assert.throws(() => purchases.buildWhatsAppOrderText({items:[
+    {productoKey:'prod-a',codigo:'A',descripcion:'Producto A',incluir:true,cantidadComprar:1,proveedor:'Proveedor Uno',proveedorUrl:''}
+  ]}), /Falta el link de compra de A/);
+});

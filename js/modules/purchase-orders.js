@@ -429,7 +429,7 @@
         '<span class="badge b-blue">Venta ' + esc(list.ventaId || 'manual') + '</span>' +
         '<span class="badge ' + (generated ? 'b-green' : 'b-amber') + '">' + (generated ? 'Órdenes generadas' : 'En preparación') + '</span>' +
         '<span style="font-size:12px;color:var(--text3);align-self:center">El stock anterior es sólo informativo. Indicá manualmente qué cantidad ya tienen.</span></div>' +
-        '<div style="display:flex;gap:7px;flex-wrap:wrap"><button class="btn btn-sm ' + (state.groupMaterialsByProvider ? 'btn-primary' : '') + '" onclick="ocAlternarAgrupacionProveedores()"><i class="ti ti-category-2"></i> ' + (state.groupMaterialsByProvider ? 'Ver orden de venta' : 'Agrupar por proveedor') + '</button><button class="btn btn-sm" onclick="ocExportarListaExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button></div>' +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap"><button class="btn btn-sm ' + (state.groupMaterialsByProvider ? 'btn-primary' : '') + '" onclick="ocAlternarAgrupacionProveedores()"><i class="ti ti-category-2"></i> ' + (state.groupMaterialsByProvider ? 'Ver orden de venta' : 'Agrupar por proveedor') + '</button><button class="btn btn-sm" onclick="ocCopiarPedidoWhatsApp()"><i class="ti ti-brand-whatsapp"></i> Copiar pedido para WhatsApp</button><button class="btn btn-sm" onclick="ocExportarListaExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button></div>' +
       '</div>' +
       '<div class="table-wrap"><table style="min-width:930px"><thead><tr><th style="width:34px">Comprar</th><th>Material</th><th class="tr">Necesario</th><th class="tr">Ya tenemos</th><th class="tr">A comprar</th><th>Proveedor conveniente</th><th class="tr">Costo estimado</th><th>Referencia</th></tr></thead><tbody>' +
       displayItems.map(function (display) {
@@ -535,6 +535,79 @@
       ]);
     });
     return { rows: rows, groupRows: groupRows };
+  }
+
+  function formatOrderQuantity(value) {
+    var quantity = parseFloat(value) || 0;
+    return Number.isInteger(quantity) ? String(quantity) : String(quantity).replace('.', ',');
+  }
+
+  function buildWhatsAppOrderText(list) {
+    var items = ((list && list.items) || []).filter(function (item) {
+      return isPurchasableMaterialItem(item) && item.incluir && (parseFloat(item.cantidadComprar) || 0) > 0;
+    });
+    if (!items.length) throw new Error('No hay materiales seleccionados para copiar');
+    var missingProvider = items.find(function (item) { return !String(item.proveedor || '').trim(); });
+    if (missingProvider) throw new Error('Elegí un proveedor para todos los materiales antes de copiar el pedido');
+    var missingUrl = items.find(function (item) { return !providerUrlForItem(item); });
+    if (missingUrl) throw new Error('Falta el link de compra de ' + (missingUrl.codigo || missingUrl.descripcion || 'un material'));
+    var groups = [];
+    var groupByProvider = {};
+    items.forEach(function (item) {
+      var provider = String(item.proveedor || '').trim();
+      var key = String(item.proveedorKey || provider).toLowerCase();
+      if (!groupByProvider[key]) {
+        groupByProvider[key] = { provider: provider, items: [] };
+        groups.push(groupByProvider[key]);
+      }
+      groupByProvider[key].items.push(item);
+    });
+    return groups.map(function (group) {
+      var products = group.items.map(function (item) {
+        return '*' + formatOrderQuantity(item.cantidadComprar) + ' x ' + String(item.codigo || '').trim() + '*\n' +
+          String(item.descripcion || '').trim() + '\n' + providerUrlForItem(item);
+      }).join('\n\n');
+      return '*PEDIDO – ' + group.provider.toLocaleUpperCase('es') + '*\n\n' + products;
+    }).join('\n\n\n');
+  }
+
+  function writeClipboardText(text) {
+    if (window.navigator && window.navigator.clipboard && typeof window.navigator.clipboard.writeText === 'function') {
+      return window.navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      var textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        if (!document.execCommand('copy')) throw new Error('El navegador no permitió copiar');
+        resolve();
+      } catch (error) {
+        reject(error);
+      } finally {
+        textarea.remove();
+      }
+    });
+  }
+
+  function copyWhatsAppOrder() {
+    try {
+      var text = buildWhatsAppOrderText(state.activeList);
+      return writeClipboardText(text).then(function () {
+        if (typeof window.notify === 'function') window.notify('Pedido para WhatsApp copiado');
+        return text;
+      }).catch(function (error) {
+        if (typeof window.notify === 'function') window.notify('No se pudo copiar el pedido: ' + (error.message || error));
+        return '';
+      });
+    } catch (error) {
+      if (typeof window.notify === 'function') window.notify(error.message || 'No se pudo preparar el pedido');
+      return Promise.resolve('');
+    }
   }
 
   function exportMaterialListExcel() {
@@ -1535,6 +1608,7 @@
     isPurchasableMaterialItem: isPurchasableMaterialItem,
     materialRowsForDisplay: materialRowsForDisplay,
     buildMaterialExportRows: buildMaterialExportRows,
+    buildWhatsAppOrderText: buildWhatsAppOrderText,
     syncOTConsumption: syncOTConsumption,
     releaseOTLeftovers: releaseOTLeftovers,
     receiveOTReturns: receiveOTReturns,
@@ -1552,6 +1626,7 @@
   window.ocGuardarListaActual = function () { return saveCurrentList(false); };
   window.ocAlternarAgrupacionProveedores = toggleProviderGrouping;
   window.ocExportarListaExcel = exportMaterialListExcel;
+  window.ocCopiarPedidoWhatsApp = copyWhatsAppOrder;
   window.ocGenerarOrdenesDesdeLista = generateOrdersFromList;
   window.ocShowTab = showOrdersTab;
   window.ocAbrirOrden = openOrder;
