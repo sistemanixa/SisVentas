@@ -136,7 +136,7 @@
       index: index,
       source: source,
       code: String(firstDefined(source, ['cod', 'codigo', 'sku'], '') || '').trim(),
-      description: String(firstDefined(source, ['desc', 'descripcion', 'nombre', 'producto'], '') || '').trim(),
+      description: String(firstDefined(source, ['descripcionPersonalizada', 'desc', 'descripcion', 'nombre', 'producto'], '') || '').trim(),
       quantity: quantity,
       unitNet: roundMoney(unitNet),
       discountPct: discountPct,

@@ -7355,6 +7355,43 @@ function precioHistoricoItemVenta(item) {
   return parseFloat(item.punit || item.precio || item.precioUnitario || 0) || 0;
 }
 
+// La descripción comercial pertenece al renglón del documento. El producto
+// maestro sólo se consulta para completar el alta inicial y nunca se modifica.
+function descripcionVisibleItemDocumento(item) {
+  item = item || {};
+  return String(item.descripcionPersonalizada || item.desc || item.descripcion || item.nombre || item.producto || '').trim();
+}
+
+function puedeModificarDescripcionItemDocumento() {
+  return typeof window.tienePermiso === 'function' &&
+    window.tienePermiso('documentos.modificarDescripcionProductos');
+}
+
+async function editarDescripcionItemDocumento(boton) {
+  if (!puedeModificarDescripcionItemDocumento()) {
+    notify('No tenés permiso para modificar la descripción de este producto');
+    return;
+  }
+  var tr = boton && boton.closest ? boton.closest('tr') : null;
+  var destino = tr && (tr.querySelector('.desc-txt-clean') || tr.querySelector('.desc-txt'));
+  if (!tr || !destino) return;
+  var actual = String(destino.textContent || '').trim();
+  var nueva = await svPrompt('Descripción visible en esta venta o presupuesto:', actual, {
+    titulo:'Modificar descripción del ítem',
+    textoAceptar:'Aplicar'
+  });
+  if (nueva === null || nueva === undefined) return;
+  nueva = String(nueva).trim();
+  if (!nueva) {
+    notify('La descripción no puede quedar vacía');
+    return;
+  }
+  destino.textContent = nueva;
+  destino.title = nueva;
+  tr.dataset.descripcionPersonalizada = nueva;
+  notify('Descripción modificada para este documento');
+}
+
 function abrirEditorVenta(fbKey) {
   var v = (ventasList||[]).find(function(x){ return x.fbKey === fbKey; });
   if (!v) { notify('Venta no encontrada'); return; }
@@ -7378,7 +7415,8 @@ function abrirEditorVenta(fbKey) {
 
     var itemsVenta = ordenarItemsComerciales(v.items);
     itemsVenta.forEach(function(it) {
-      var tr = crearFilaProducto(it.cod||'', it.desc||it.nombre||'', precioHistoricoItemVenta(it), it.qty||1, it.disc||0);
+      var tr = crearFilaProducto(it.cod||'', descripcionVisibleItemDocumento(it), precioHistoricoItemVenta(it), it.qty||1, it.disc||0);
+      if (it.descripcionPersonalizada) tr.dataset.descripcionPersonalizada = it.descripcionPersonalizada;
       if (it.pid || it.productoFbKey || it.productoKey || it.fbKeyProducto) {
         tr.dataset.productoFbKey = it.pid || it.productoFbKey || it.productoKey || it.fbKeyProducto;
       }
@@ -7429,7 +7467,8 @@ function duplicarVenta(fbKey) {
 
     var items = ordenarItemsComerciales(original.items);
     items.forEach(function(item) {
-      var tr = crearFilaProducto(item.cod || '', item.desc || item.nombre || '', precioHistoricoItemVenta(item), parseFloat(item.qty || item.cantidad || 1) || 1, item.disc || 0);
+      var tr = crearFilaProducto(item.cod || '', descripcionVisibleItemDocumento(item), precioHistoricoItemVenta(item), parseFloat(item.qty || item.cantidad || 1) || 1, item.disc || 0);
+      if (item.descripcionPersonalizada) tr.dataset.descripcionPersonalizada = item.descripcionPersonalizada;
       if (item.pid || item.productoFbKey) tr.dataset.productoFbKey = item.pid || item.productoFbKey;
       if (item.imagenUrl) tr.dataset.imagenUrl = item.imagenUrl;
       if (item.unidad) tr.dataset.unidad = item.unidad;
@@ -15008,6 +15047,7 @@ async function confirmarVenta() {
       var disc  = parseFloat((tr.querySelector('.disc')||{}).value) || 0;
       var sub   = _redondearPrecioActual(qty * punit * (1 - disc/100));
       var item  = { cod:cod, desc:desc, qty:qty, punit:punit, disc:disc, sub:sub, orden:itemIndex + 1 };
+      if (tr.dataset.descripcionPersonalizada) item.descripcionPersonalizada = tr.dataset.descripcionPersonalizada;
       if (tr.dataset.creditoHistorico === '1') {
         item.creditoHistorico = true;
         item.creditoOrigen = {
@@ -24641,6 +24681,7 @@ function _renderTablaRolesUI() {
     'ventas.verTodas':'Ver ventas de todos',
     'ventas.verMargen':'Ver margen y costo de ventas',
     'presupuestos.verMargen':'Ver margen y costo de presupuestos',
+    'documentos.modificarDescripcionProductos':'Modificar descripción de productos en ventas/presupuestos',
     'credenciales.ver':'Ver credenciales',
     'credenciales.editar':'Editar credenciales',
     'credenciales.eliminar':'Eliminar credenciales'
@@ -27492,7 +27533,7 @@ function imprimirVentaActual(soloVista, ventanaExistente) {
     var itemVenta = (v.items || [])[indice] || {};
     return {
       cod: linea.codigo || itemVenta.cod || '',
-      desc: linea.descripcion,
+      desc: descripcionVisibleItemDocumento(itemVenta) || linea.descripcion,
       qty: linea.cantidad,
       punit: linea.precio_unitario,
       sub: linea.precio_total,
@@ -43531,7 +43572,8 @@ function pptoNormalizarItemGuardado(item) {
   return {
     ...(Number(item.costoUnitarioCompra)>0 ? {costoUnitarioCompra:Number(item.costoUnitarioCompra), origenCompra:item.origenCompra||'', porcentajeVentaCompra:item.porcentajeVentaCompra ?? null} : {}),
     cod: item.cod || item.codigo || item.sku || '',
-    desc: item.desc || item.descripcion || item.nombre || item.producto || '',
+    desc: descripcionVisibleItemDocumento(item),
+    descripcionPersonalizada: item.descripcionPersonalizada || '',
     qty: qty,
     punit: punit,
     disc: disc,
@@ -43607,6 +43649,7 @@ function pptoCargarItemsEnEditor(p) {
     return item.desc || item.cod || item.punit > 0;
   }).forEach(function(item) {
     var tr = crearFilaProducto(item.cod, item.desc, item.punit, item.qty, item.disc);
+    if (item.descripcionPersonalizada) tr.dataset.descripcionPersonalizada = item.descripcionPersonalizada;
     if (Number(item.costoUnitarioCompra) > 0) {
       tr.dataset.costoPropuesta = JSON.stringify({cod:item.cod, costoUnitarioCompra:Number(item.costoUnitarioCompra), origenCompra:item.origenCompra || '', porcentajeVentaCompra:item.porcentajeVentaCompra ?? null});
     }
@@ -52716,6 +52759,7 @@ function agregarVentaAnteriorAPpto(indice) {
   });
   items.map(pptoNormalizarItemGuardado).forEach(function(item){
     var tr = crearFilaProducto(item.cod, item.desc, item.punit, item.qty, item.disc);
+    if (item.descripcionPersonalizada) tr.dataset.descripcionPersonalizada = item.descripcionPersonalizada;
     if (item.pid || item.productoFbKey || item.productoKey) tr.dataset.productoFbKey = item.pid || item.productoFbKey || item.productoKey;
     if (item.monedaOriginal) tr.dataset.monedaOriginal = item.monedaOriginal;
     if (item.precioUsdOriginal) tr.dataset.precioUsdOriginal = item.precioUsdOriginal;
@@ -52808,6 +52852,9 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
   const stockBadge = stockBadgeHTML(cod, qty || 1);
   const dp = parseFloat(desc_pct) || 0;
   const precioFinal = dp > 0 ? Math.round((qty||1) * precio * (1 - dp/100)) : Math.round((qty||1) * (precio||0));
+  const botonEditarDescripcion = puedeModificarDescripcionItemDocumento()
+    ? `<button type="button" class="btn btn-sm btn-icon item-desc-edit" onclick="editarDescripcionItemDocumento(this)" title="Modificar sólo en esta venta o presupuesto" aria-label="Modificar descripción" style="flex:0 0 auto;width:27px;height:27px;padding:0;color:var(--blue)"><i class="ti ti-pencil"></i></button>`
+    : '';
   tr.innerHTML = `
     <td style="position:relative;min-width:100px">
       <div style="display:flex;align-items:center;gap:4px">
@@ -52831,9 +52878,10 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
       </div>
     </td>
     <td>
-      <div class="item-prod-cell">
+      <div class="item-prod-cell" style="gap:8px">
         <span class="item-prod-nav" onclick="navegarAProductoDesdeFila(event,this)" title="Ver ficha del producto" style="cursor:pointer;display:flex;align-items:center">${imagenProductoItemHTML({ pid: prodInicial && prodInicial.fbKey, cod: cod, desc: desc }, 'item-prod-img-edit')}</span>
-        <span class="desc-txt" onclick="navegarAProductoDesdeFila(event,this)" title="Ver ficha del producto" style="font-size:13px;color:var(--text2);cursor:pointer">${escapeHTML(desc)}</span>
+        <span class="desc-txt" onclick="navegarAProductoDesdeFila(event,this)" title="Ver ficha del producto" style="font-size:13px;color:var(--text2);cursor:pointer;min-width:0;flex:1">${escapeHTML(desc)}</span>
+        ${botonEditarDescripcion}
       </div>
     </td>
     <td><input type="number" value="${qty||1}" class="qty" oninput="calcRow(this);actualizarStockFila(this)" min="1" step="1" style="width:55px;text-align:right;background:var(--bg);color:var(--text);border:0.5px solid var(--border3);border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;outline:none"></td>
@@ -53013,6 +53061,7 @@ function _selProdGlobal(item) {
 
   if (_prodDropTR) {
     var tr = _prodDropTR;
+    delete tr.dataset.descripcionPersonalizada;
     if (prod && (prod.fbKey || prod.id)) tr.dataset.productoFbKey = prod.fbKey || prod.id;
     tr.dataset.unidad = (prod && prod.unidad) || 'Unidad';
     if (vigenciaPrecio) {
@@ -53448,6 +53497,7 @@ function getPpItems() {
       ...costoPropuesta,
       cod: cod,
       desc: desc,
+      ...(tr.dataset.descripcionPersonalizada ? { descripcionPersonalizada: tr.dataset.descripcionPersonalizada } : {}),
       qty: qty,
       punit: punit,
       disc: disc,
