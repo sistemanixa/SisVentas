@@ -411,8 +411,13 @@ tr:hover td{color:var(--text)}
 .search-input::placeholder{color:var(--text3)}
 
 /* ── LISTA DE COMPRAS ── */
-#oc-material-list-modal .modal{width:min(96vw,1120px)!important;max-width:1120px!important}
+#oc-material-list-modal .modal{width:min(96vw,1120px);max-width:1120px}
 #oc-material-list-modal .modal-body{min-width:0}
+#oc-material-list-modal .modal.sv-modal-manageable[data-sv-modal-maximizado="1"]{width:calc(100vw - 16px)!important;max-width:none!important}
+#oc-material-list-modal .modal.sv-modal-manageable[data-sv-modal-maximizado="1"] .modal-body{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:hidden}
+#oc-material-list-modal .modal.sv-modal-manageable[data-sv-modal-maximizado="1"] .oc-material-table-wrap{flex:1 1 auto;min-height:0;overflow:auto!important;border:1px solid var(--border);border-radius:12px}
+#oc-material-list-modal .modal.sv-modal-manageable[data-sv-modal-maximizado="1"] .oc-material-toolbar,
+#oc-material-list-modal .modal.sv-modal-manageable[data-sv-modal-maximizado="1"] .oc-material-footer-actions{flex:0 0 auto}
 .oc-material-toolbar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .oc-material-context,.oc-material-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .oc-material-context>span:not(.badge){font-size:12px;color:var(--text3)}
