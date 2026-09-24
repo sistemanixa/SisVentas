@@ -142,6 +142,25 @@ test('la lectura conserva compatibilidad con las dos rutas históricas',()=>{
   ]);
 });
 
+test('los pagos históricos de Cuenta Corriente muestran un comprobante compartido en Cobranzas',()=>{
+  const start=source.indexOf('function _cobroPagoPorKey(');
+  const end=source.indexOf('function _cobroMetaComprobante(',start);
+  const context=vm.createContext({window:{_historialPagosCompleto:[]}});
+  vm.runInContext(source.slice(start,end),context);
+  const rutasStart=source.indexOf('function _cobroRutasComprobante(');
+  const rutasEnd=source.indexOf('async function verOAdjuntarDocumentoCobro(',rutasStart);
+  vm.runInContext(source.slice(rutasStart,rutasEnd),context);
+  const grupo='cc_1789994996945_v8cryr';
+  const pagoVenta113={fbKey:'pago-113',venta:'#V-910113',origen:'cuenta_corriente',pagoCuentaGrupo:grupo,comprobanteCuenta:true};
+  const pagoVenta123={fbKey:'pago-123',venta:'#V-910123',origen:'cuenta_corriente',pagoCuentaGrupo:grupo,comprobanteCuenta:true};
+  assert.equal(context._cobroTieneComprobante(pagoVenta113),true);
+  assert.equal(context._cobroTieneComprobante(pagoVenta123),true);
+  const ruta113=Array.from(context._cobroRutasComprobante(pagoVenta113,pagoVenta113.fbKey));
+  const ruta123=Array.from(context._cobroRutasComprobante(pagoVenta123,pagoVenta123.fbKey));
+  assert.ok(ruta113.includes('sisventas/cobros_cuenta_adjuntos/'+grupo));
+  assert.ok(ruta123.includes('sisventas/cobros_cuenta_adjuntos/'+grupo));
+});
+
 test('anular conserva el comprobante y recalcula pago y venta en una sola escritura',async()=>{
   const start=source.indexOf('async function anularPago(');
   const end=source.indexOf('var _cobFiltroActual',start);
