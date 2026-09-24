@@ -71,7 +71,7 @@
     'facturas.recuperarDatos': {modulo:'facturas',label:'Recuperar datos fiscales',roles:['admin']},
     'comisiones.distribuir': {modulo:'comisiones',label:'Cambiar distribución de comisiones',roles:['admin']},
     'gastos.administrar': {modulo:'gastos',label:'Administrar gastos',roles:['admin','administrativo']},
-    'empleados.gestionarAdelantos': {modulo:'ctaemp',label:'Gestionar adelantos',roles:['admin','administrativo']},
+    'empleados.gestionarAdelantos': {modulo:'ctaemp',label:'Registrar adelantos de empleados',roles:['admin','administrativo']},
 
     "mantenimiento.estructuraClientes": {"modulo":"configuracion","label":"Migrar estructura de clientes","roles":["admin"]},
     "chat.limpiar": {"modulo":"notificaciones","label":"Limpiar conversaciones del chat","roles":["admin"]},
@@ -274,6 +274,9 @@
     ['rechazarComision','empleados.aprobarMovimiento'],
     ['aprobarMovEmp','empleados.aprobarMovimiento'],
     ['eliminarMovEmp','empleados.eliminarMovimiento'],
+    ['abrirModalAdelantoGeneral','empleados.gestionarAdelantos'],
+    ['continuarAdelantoGeneral','empleados.gestionarAdelantos'],
+    ['abrirAdelantoEmpleadoDesdeEmpleados','empleados.gestionarAdelantos'],
     ['abrirPagoGasto','gastos.pagar'],
     ['abrirPagoMultipleGastos','gastos.pagar'],
     ['confirmarPagoGasto','gastos.pagar'],

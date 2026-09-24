@@ -4477,7 +4477,7 @@ Listo para analizar.
               <span class="card-title">Empleados</span>
               <div class="emp-actions-358">
                 <button class="btn btn-sm emp-action-haberes admin-only" onclick="abrirModalHaberesMes()" title="Registrar los haberes del mes"><i class="ti ti-cash"></i> Haberes</button>
-                <button class="btn btn-sm admin-only" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
+                <button class="btn btn-sm" data-permiso="empleados.gestionarAdelantos" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
                 <button class="btn btn-sm admin-only" onclick="abrirModalComisionVenta()" style="color:var(--green);border-color:var(--green)" title="Registrar una comisión faltante y vincularla a su venta"><i class="ti ti-percentage"></i> Cargar comisión</button>
                 <button class="btn btn-sm" onclick="abrirModalHsExtra()" style="color:var(--amber);border-color:var(--amber)"><i class="ti ti-clock-plus"></i> Hs. extra <span id="badge-hsex-pendientes" style="display:none;background:var(--amber);color:#000;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
                 <button class="btn btn-sm emp-action-aguinaldo admin-only" onclick="abrirModalAguinaldo()"><i class="ti ti-gift"></i> Registrar aguinaldo</button>
@@ -4739,6 +4739,7 @@ Listo para analizar.
         <div class="gas-toolbar-buttons">
         <button class="btn btn-sm admin-only" onclick="abrirGestorGastosRecurrentes()" title="Administrar reglas que generan gastos cada mes"><i class="ti ti-repeat"></i> Recurrentes</button>
         <button class="btn btn-sm" id="btn-gastos-multiple" onclick="togglePagoMultipleGastos()"><i class="ti ti-checklist"></i> Pago múltiple</button>
+        <button class="btn btn-sm" data-permiso="empleados.gestionarAdelantos" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
         <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('gas-tbl')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
         <button class="btn btn-sm btn-primary" onclick="abrirFormGasto(null)"><i class="ti ti-plus"></i> Nuevo gasto</button>
         </div>
