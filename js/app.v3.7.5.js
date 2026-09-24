@@ -41177,11 +41177,18 @@ function _actualizarBadgeSolicitudesGastos() {
   var badge = document.getElementById('badge-nav-gastos');
   if (!badge) return;
   var cantidad = (gastosData || []).filter(function(g) {
-    var tipo = String(g.tipoPagable || g.origen || '').toLowerCase();
-    return tipo !== 'comision' && normalizarEstadoGasto(g) === 'pendiente_aprobacion';
+    var tipo = typeof _ctaEmpTipoDesdeGasto === 'function'
+      ? String(_ctaEmpTipoDesdeGasto(g) || '').toLowerCase()
+      : String(g.tipoPagable || g.origen || g.tipo || '').toLowerCase();
+    var descripcion = String(g.descripcion || g.desc || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    var esComision = tipo === 'comision' || !!(g.comisionId || g.comisionKey || g.ventaComisionId) || descripcion.indexOf('comision venta') >= 0;
+    if (esComision || restoGasto(g) <= 0) return false;
+    return ['pendiente_aprobacion','pendiente_pago','pagado_parcial'].includes(normalizarEstadoGasto(g));
   }).length;
-  var visible = window.tienePermiso('gastos.aprobar') && cantidad > 0;
+  var puedeAtender = window.tienePermiso('gastos.aprobar') || window.tienePermiso('gastos.pagar');
+  var visible = puedeAtender && cantidad > 0;
   badge.textContent = cantidad;
+  badge.title = cantidad + ' gasto' + (cantidad === 1 ? '' : 's') + ' pendiente' + (cantidad === 1 ? '' : 's') + ' de aprobación o pago';
   badge.style.display = visible ? '' : 'none';
 }
 
@@ -41204,9 +41211,8 @@ function fbCargarGastos() {
       _cargarFiltroEmpleadosGastos();
       renderTablaGastos();
       actualizarMetricasGastos();
-    } else {
-      _actualizarBadgeSolicitudesGastos();
     }
+    _actualizarBadgeSolicitudesGastos();
     _programarTareasSecundariasGastos();
     return _gastosUnsubscribe;
   }
@@ -41233,9 +41239,8 @@ function fbCargarGastos() {
       _cargarFiltroEmpleadosGastos();
       renderTablaGastos();
       actualizarMetricasGastos();
-    } else {
-      _actualizarBadgeSolicitudesGastos();
     }
+    _actualizarBadgeSolicitudesGastos();
     _programarTareasSecundariasGastos();
     if (typeof marcarDashboardDatosSucios === 'function') marcarDashboardDatosSucios();
     if (typeof solicitarRenderDashboard === 'function') solicitarRenderDashboard(false);
@@ -41581,16 +41586,7 @@ function actualizarMetricasGastos() {
   if (_e('gas-vencen-cant'))    _e('gas-vencen-cant').textContent    = vencenProx.length+' vence'+(vencenProx.length!==1?'n':'')+ ' esta semana';
   if (_e('gas-reembolso'))      _e('gas-reembolso').textContent      = '$'+Math.round(reembTotal).toLocaleString('es-AR');
   if (_e('gas-reembolso-cant')) _e('gas-reembolso-cant').textContent = reembolso.length+' sin reembolsar';
-  var solicitudesGasto = gastosMetricas.filter(function(g) {
-    var tipo = String(g.tipoPagable || g.origen || '').toLowerCase();
-    return normalizarEstadoGasto(g) === 'pendiente_aprobacion' && tipo !== 'comision';
-  });
-  var badgeGastos = _e('badge-nav-gastos');
-  if (badgeGastos) {
-    var mostrarBadgeGastos = window.tienePermiso('gastos.aprobar') && solicitudesGasto.length > 0;
-    badgeGastos.textContent = solicitudesGasto.length;
-    badgeGastos.style.display = mostrarBadgeGastos ? '' : 'none';
-  }
+  _actualizarBadgeSolicitudesGastos();
   var etiquetaReembolso = document.querySelector('#gas-reembolso') && document.querySelector('#gas-reembolso').closest('.metric').querySelector('.m-label');
   if (etiquetaReembolso) etiquetaReembolso.textContent = empleadoSeleccionado ? ('Falta pagar a ' + String(empleadoSeleccionado.nombre || 'empleado').split(' ')[0]) : 'A reembolsar a técnicos';
 
