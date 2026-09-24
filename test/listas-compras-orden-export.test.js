@@ -139,6 +139,9 @@ test('el encabezado agrupado calcula productos, unidades y total de cada proveed
   ]};
   assert.deepEqual(JSON.parse(JSON.stringify(purchases.purchaseSummaryForProvider(list, 'p1'))), {items:2,units:5,total:350});
   assert.match(source, /productos · .* unidades · Total/);
+  assert.match(source, /oc-material-table/);
+  assert.match(source, /data-label="Proveedor"/);
+  assert.match(source, /data-sv-mobile-cards="off"/);
 });
 
 test('el pedido para WhatsApp exige proveedor y URL en cada material seleccionado', () => {
