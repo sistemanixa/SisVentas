@@ -17,7 +17,7 @@ assert.doesNotMatch(app, /293[.\s]?100/, 'El monto informado por el usuario no d
 assert.doesNotMatch(app, /osmar tello/i, 'El empleado informado por el usuario no debe quedar fijo en el código');
 assert.match(html, /id="nav-label-ctaemp">Cuentas de empleados</, 'La cuenta del personal debe figurar como módulo separado');
 assert.match(html, /id="ctaemp-page-heading"[^>]*>Cuentas de empleados</, 'El módulo debe tener un encabezado propio');
-assert.match(app, /gestionaCuentasEmpleados \? 'Cuentas de empleados' : 'Mi cuenta'/, 'Los empleados deben conservar su acceso personal');
-assert.match(app, /navCtaEmp\.style\.display = \(isAdmin \|\| permisoConfiguradoParaRol\('ctaemp', currentRole\)\) \? '' : 'none'/, 'El módulo debe permanecer visible para el administrador');
+assert.match(app, /gestiona(?:CuentasEmpleados)?\s*\?\s*'Cuentas de empleados'\s*:\s*'Mi cuenta'/, 'Los empleados deben conservar su acceso personal');
+assert.match(app, /var gestiona = window\.tienePermiso\('empleados\.verCuentas'\)/, 'La vista completa debe depender del permiso vigente');
 
 console.log('OK empleados: carga directa de adelantos');

@@ -2379,8 +2379,10 @@ async function tecnicoTomarOT(otFbKey) {
     if (!await svConfirm('Esta OT ya está asignada a ' + ot.tecnico + '. ¿Reasignar a ' + currentUser + '?')) return;
   }
   var hoy = svFechaLocalISO();
+  var empleadoTecnicoActual = typeof _hsexEmpleadoActual === 'function' ? _hsexEmpleadoActual() : null;
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otFbKey), {
     tecnico: currentUser || '',
+    tecnicoFbKey: empleadoTecnicoActual ? String(empleadoTecnicoActual.fbKey || '') : '',
     estado: 'en_curso',
     fechaInicio: hoy,
     audit: (ot.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'', accion: 'OT tomada por técnico' }])
@@ -2444,8 +2446,11 @@ function asignarFechaInstalacion(ventaId, fecha, tecnico) {
 
   var ot = (otData||[]).find(function(o){ return _svRegistroPerteneceVenta(o, venta); });
   if (ot && ot.fbKey) {
+    var empleadoTecnico = Object.values(empData || {}).find(function(emp) {
+      return String(emp.nombre || '').trim().toLocaleLowerCase('es-AR') === String(tecnico || '').trim().toLocaleLowerCase('es-AR');
+    });
     otPersistirActualizar(ot.fbKey, {
-      fecha: fecha, tecnico: tecnico || '', estado: 'programada'
+      fecha: fecha, tecnico: tecnico || '', tecnicoFbKey: empleadoTecnico ? String(empleadoTecnico.fbKey || '') : '', estado: 'programada'
     });
     if (venta.agendaEventoId) {
       window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/agenda/' + venta.agendaEventoId), {
@@ -2812,7 +2817,7 @@ async function iaEnviar() {
     // Administrativo: solo sus propios datos, sin datos globales de la empresa
     var misMes = (ventasList||[]).filter(function(v){
       return (v.fecha||'').slice(0,7)===mesActual &&
-             (v.empleado||v.vendedor||v.usuario||'') === (currentUser||'');
+             ventaResponsableComercialReporte(v) === (currentUser||'');
     });
     systemPrompt +=
       '\n\n=== MIS DATOS ===' +
@@ -4054,6 +4059,7 @@ function fbCargarEmpleados() {
     if (!data) {
       empData = {};
       renderTablaEmpleados();
+      if (typeof _cargarFiltroEmpleadosGastos === 'function') _cargarFiltroEmpleadosGastos();
       actualizarCargosEmpleadosTooltip();
       renderAvisoProximasVacaciones();
       renderAvisoAumentoValorHora();
@@ -4091,6 +4097,7 @@ function fbCargarEmpleados() {
     });
 
     renderTablaEmpleados();
+    if (typeof _cargarFiltroEmpleadosGastos === 'function') _cargarFiltroEmpleadosGastos();
     actualizarCargosEmpleadosTooltip();
     renderAvisoProximasVacaciones();
     renderAvisoAumentoValorHora();
@@ -6987,6 +6994,154 @@ function ventasPagosPersistirEliminarPago(fbKey) {
   });
 }
 
+function _cobroNuevaClave(prefijo) {
+  return String(prefijo || 'cobro') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+}
+
+function _cobroPagoPorKey(fbKey) {
+  return (window._historialPagosCompleto || []).find(function(pago) {
+    return pago && String(pago.fbKey || '') === String(fbKey || '');
+  }) || null;
+}
+
+function _cobroTieneComprobante(pago) {
+  return !!(pago && (
+    pago.comprobanteAdjunto || pago.comprobanteRef ||
+    (pago.comprobanteCuenta && (pago.grupoPago || pago.pagoCuentaGrupo))
+  ));
+}
+
+function _cobroMetaComprobante(documento, refKey) {
+  if (!documento || !refKey) return null;
+  return {
+    nombre:String(documento.nombre || 'Comprobante'),
+    tipo:String(documento.tipo || ''),
+    ts:Number(documento.ts) || Date.now(),
+    refKey:String(refKey)
+  };
+}
+
+// Núcleo único de cobros. Todas las entradas escriben pagos en /pagos, el
+// resumen de cada venta y el comprobante en /cobros_adjuntos dentro de una
+// sola actualización multipath. `grupoPago` conserva una imputación única que
+// alcanza a varias ventas sin crear un segundo modelo contable.
+async function registrarCobrosCanonicos(opciones) {
+  opciones = opciones || {};
+  var solicitudes = Array.isArray(opciones.solicitudes) ? opciones.solicitudes : [];
+  if (!solicitudes.length) throw new Error('No hay ventas para imputar el cobro');
+  if (!window.fbDB || !window.fbGet || !window.fbUpdate || !window.fbRunTransaction) {
+    throw new Error('Sin conexión segura para registrar el cobro');
+  }
+  var grupo = String(opciones.grupoPago || opciones.operacionKey || _cobroNuevaClave('cobro')).replace(/[.#$\[\]\/]/g, '_');
+  var origen = String(opciones.origen || 'cobranzas');
+  var ref = function(path){ return window.fbRef(window.fbDB, 'sisventas/' + path); };
+  var leer = async function(path){ var snap = await window.fbGet(ref(path)); return snap && snap.val ? snap.val() : null; };
+  var cargarResultadoExistente = async function(cabecera) {
+    var pagoKeys = Object.keys(cabecera && cabecera.pagoKeys || {});
+    var resultados = [];
+    for (var i = 0; i < pagoKeys.length; i++) {
+      var pago = await leer('pagos/' + pagoKeys[i]);
+      if (!pago) continue;
+      var ventaKey = pago.ventaFbKey || pago.ventaKey || '';
+      var venta = ventaKey ? await leer('ventas/' + ventaKey) : null;
+      if (venta) resultados.push({ pago:Object.assign({fbKey:pagoKeys[i]},pago), venta:Object.assign({fbKey:ventaKey},venta) });
+    }
+    return resultados;
+  };
+
+  var yaGuardado = await leer('cobros_grupos/' + grupo);
+  if (yaGuardado) return cargarResultadoExistente(yaGuardado);
+
+  var token = grupo + '_' + Math.random().toString(36).slice(2);
+  var ahoraLock = Date.now();
+  var lockRef = ref('control_cobros');
+  var lock = await window.fbRunTransaction(lockRef, function(actual) {
+    var vencido = actual && ahoraLock - (Number(actual.ts) || 0) > 120000;
+    if (actual && !vencido) return;
+    return {token:token, grupoPago:grupo, origen:origen, ts:ahoraLock};
+  }, {applyLocally:false});
+  if (!lock || !lock.committed) throw new Error('Hay otro cobro en proceso. Esperá a que termine antes de reintentar.');
+  var desconexion = window.fbOnDisconnect ? window.fbOnDisconnect(lockRef) : null;
+  try {
+    if (desconexion && desconexion.remove) await desconexion.remove();
+    yaGuardado = await leer('cobros_grupos/' + grupo);
+    if (yaGuardado) return await cargarResultadoExistente(yaGuardado);
+
+    var ventas = await Promise.all(solicitudes.map(function(s){ return leer('ventas/' + s.ventaFbKey); }));
+    var pagosRaiz = await leer('pagos') || {};
+    var pagosExistentes = Object.keys(pagosRaiz).map(function(key){ return Object.assign({fbKey:key},pagosRaiz[key] || {}); });
+    var updates = {};
+    var confirmados = [];
+    var pagoKeysGuardados = {};
+    var adjuntoKey = opciones.comprobante ? String(opciones.adjuntoKey || grupo) : '';
+    var metaComprobante = _cobroMetaComprobante(opciones.comprobante, adjuntoKey);
+
+    solicitudes.forEach(function(s, indice) {
+      var venta = ventas[indice];
+      if (!venta || !ventaValidaParaMetricas(venta)) throw new Error('La venta ' + (s.ventaId || '') + ' ya no está disponible para cobrar');
+      var ventaConKey = Object.assign({}, venta, {fbKey:s.ventaFbKey});
+      var relacionados = pagosExistentes.filter(function(p){ return _svPagoValido(p) && _svRegistroPerteneceVenta(p, ventaConKey); });
+      var pagado = relacionados.length
+        ? relacionados.reduce(function(total,p){ return total + (parseFloat(p.monto) || 0); }, 0)
+        : _svResumenPagoLegacyVenta(venta);
+      var totalVenta = _svTotalVentaCanonico(ventaConKey);
+      var disponible = Math.max(0, Math.round((totalVenta - pagado) * 100) / 100);
+      var monto = Math.round((parseFloat(s.monto != null ? s.monto : s.pago && s.pago.monto) || 0) * 100) / 100;
+      if (!(monto > 0) || monto > disponible + 0.009) throw new Error('El saldo de ' + (s.ventaId || venta.id || '') + ' cambió. Revisá la imputación antes de reintentar.');
+      var pagoKey = String(s.pagoKey || s.pago && s.pago.fbKey || _cobroNuevaClave('pago'));
+      if (pagosRaiz[pagoKey]) throw new Error('La clave del cobro ya existe sin una operación confirmada');
+      var nuevoPagado = Math.round((pagado + monto) * 100) / 100;
+      var pago = Object.assign({}, s.pago || {}, {
+        fbKey:pagoKey,
+        venta:String(venta.id || s.ventaId || s.ventaFbKey),
+        ventaId:String(venta.id || s.ventaId || s.ventaFbKey),
+        ventaFbKey:String(s.ventaFbKey),
+        ventaKey:String(s.ventaFbKey),
+        monto:monto,
+        totalVenta:totalVenta,
+        saldoAnterior:disponible,
+        saldoRestante:Math.max(0, Math.round((totalVenta - nuevoPagado) * 100) / 100),
+        origen:origen,
+        grupoPago:grupo,
+        pagoGrupoTotal:parseFloat(opciones.montoTotal) || monto,
+        imputacionOrden:indice + 1,
+        imputacionesTotal:solicitudes.length
+      });
+      if (metaComprobante) {
+        pago.comprobanteAdjunto = metaComprobante;
+        pago.comprobanteRef = adjuntoKey;
+      }
+      updates['pagos/' + pagoKey] = pago;
+      updates['ventas/' + s.ventaFbKey + '/totalPagado'] = nuevoPagado;
+      updates['ventas/' + s.ventaFbKey + '/estadoPago'] = nuevoPagado >= totalVenta - 0.01 ? 'pago_total' : 'seniado';
+      pagoKeysGuardados[pagoKey] = true;
+      confirmados.push({pago:pago,venta:Object.assign({},ventaConKey,{totalPagado:nuevoPagado,estadoPago:updates['ventas/' + s.ventaFbKey + '/estadoPago']})});
+    });
+
+    var cabecera = Object.assign({}, opciones.cabecera || {}, {
+      grupoPago:grupo,
+      origen:origen,
+      monto:parseFloat(opciones.montoTotal) || confirmados.reduce(function(total,item){ return total + item.pago.monto; },0),
+      pagoKeys:pagoKeysGuardados,
+      adjuntoKey:adjuntoKey,
+      cantidadImputaciones:confirmados.length,
+      usuario:opciones.usuario || (typeof currentUser !== 'undefined' ? currentUser : '') || '',
+      ts:Number(opciones.ts) || Date.now()
+    });
+    updates['cobros_grupos/' + grupo] = cabecera;
+    if (opciones.comprobante) updates['cobros_adjuntos/' + adjuntoKey] = opciones.comprobante;
+    var propietario = await leer('control_cobros');
+    if (!propietario || propietario.token !== token) throw new Error('Se perdió la exclusividad del cobro. Reintentá la operación.');
+    await window.fbUpdate(ref(''), updates);
+    _svModeloVentasV3Cache = null;
+    return confirmados;
+  } finally {
+    if (desconexion && desconexion.cancel) await desconexion.cancel();
+    await window.fbRunTransaction(lockRef, function(actual){ return actual && actual.token === token ? null : undefined; }, {applyLocally:false});
+  }
+}
+window.registrarCobrosCanonicos = registrarCobrosCanonicos;
+
 function _svMontoPagadoVenta(venta) {
   if (!venta) return 0;
   var resumenV3 = _svResumenVentaCanonico(venta);
@@ -7428,10 +7583,16 @@ function abrirEditorVenta(fbKey) {
     window._ventaEditandoOriginal = v;
     ['empleado','comisionado2'].forEach(function(campo) {
       var selector = document.getElementById('venta-' + campo);
-      var persona = Object.values(empData || {}).find(function(e){ return e.fbKey === v[campo+'FbKey'] || e.nombre === v[campo]; });
+      var identidadGuardada = campo === 'empleado'
+        ? ventaComisionadoPrincipalIdentidad(v)
+        : ventaComisionadoSecundarioIdentidad(v);
+      var persona = Object.values(empData || {}).find(function(e){
+        return (identidadGuardada.fbKey && String(e.fbKey || '') === String(identidadGuardada.fbKey)) ||
+          (identidadGuardada.nombre && String(e.nombre || '').trim().toLocaleLowerCase('es-AR') === String(identidadGuardada.nombre).trim().toLocaleLowerCase('es-AR'));
+      });
       if (selector) {
-        var clave = persona ? persona.fbKey : (v[campo+'FbKey'] || '');
-        if (clave && !Array.from(selector.options).some(function(o){return o.value === clave;})) selector.add(new Option(v[campo] || clave, clave));
+        var clave = persona ? persona.fbKey : (identidadGuardada.fbKey || '');
+        if (clave && !Array.from(selector.options).some(function(o){return o.value === clave;})) selector.add(new Option(identidadGuardada.nombre || clave, clave));
         selector.value = clave;
       }
     });
@@ -7695,7 +7856,13 @@ function fbGuardarOT(ot) {
       'firma',
       'firmaStoragePath',
       'firmada',
-      'fechaFirma'
+      'fechaFirma',
+      'firmaTecnicoUrl',
+      'firmaTecnicoBase64',
+      'firmaTecnico',
+      'firmaTecnicoStoragePath',
+      'firmadaTecnico',
+      'fechaFirmaTecnico'
     ].forEach(function(campo) { delete cambiosOT[campo]; });
     cambiosOT.fbKey = ot.fbKey;
     prom = otPersistirGuardar(cambiosOT);
@@ -10534,10 +10701,11 @@ function applyRole() {
 // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
-  VERSION: 'v3.7.2-firebase',
-  RELEASE_NOTES: Object.freeze(["Cámara del chat a pantalla completa.", "Audio con envío al soltar, cancelación por gesto y reproductor propio."]),
-  RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Abrir Productos' }),
+  VERSION: 'v3.7.3-firebase',
+  RELEASE_NOTES: Object.freeze(['Cobros y comprobantes unificados entre Cobranzas y Cuenta corriente.','OT, comisiones y reclamos con vínculos históricos más seguros.','Notificaciones configurables y limpieza masiva.']),
+  RELEASE_FEATURE: Object.freeze({ page:'notificaciones', actionLabel:'Abrir Notificaciones' }),
   RELEASE_HISTORY: Object.freeze([
+    Object.freeze({version:'v3.7.3',date:'24/09/2026',title:'Cobros, OT y notificaciones más confiables',notes:Object.freeze(['Los cobros y sus comprobantes se consultan de forma consistente desde Cobranzas, incluso cuando fueron registrados desde Cuenta corriente.','Las comisiones respetan los comisionados reales de la venta y las visitas de OT conservan checklist, firma y estado independientes.','Los productos inactivos ya no pueden incorporarse a ventas nuevas y los reclamos con vínculos históricos rotos se recuperan sin mezclar registros.','Gastos permite consultar empleados inactivos como historial y la carga de adelantos vuelve a continuar correctamente.','Notificaciones incorpora Limpiar todo y la anticipación del vencimiento de presupuestos se configura con un día por defecto.']),feature:Object.freeze({page:'notificaciones',actionLabel:'Ver notificaciones'})}),
     Object.freeze({version:'v3.7.2',date:'24/09/2026',title:'Compras por proveedor y detalle personalizado',notes:Object.freeze(['Preparar compra conserva el orden de la venta, permite agrupar por proveedor y exporta Excel con los mismos grupos y enlaces de compra.','Los pedidos para WhatsApp se pueden copiar completos o por proveedor; cada grupo muestra productos, unidades y total.','La lista excluye mano de obra y mejora su uso en tablet y celular con tarjetas, controles táctiles y desplazamiento interno.','Ventas y presupuestos permiten guardar una descripción particular por renglón sin modificar el producto maestro.','Los materiales adicionales de una OT se pueden enviar a la venta original o a una venta nueva.']),feature:Object.freeze({page:'detalle',actionLabel:'Ver detalle de ventas'})}),
     Object.freeze({version:'v3.7.1',date:'21/09/2026',title:'Margen en su posición anterior',notes:Object.freeze(['El detalle del margen vuelve a desplegarse debajo de su botón en presupuestos, conservando el comportamiento anterior.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
     Object.freeze({version:'v3.7.0',date:'21/09/2026',title:'Presupuesto Paraguay desde edición',notes:Object.freeze(['La comparativa de Paraguay permite preparar un presupuesto nuevo con los ítems y precios que están en edición.','El cliente y los importes del formulario se conservan al abrir la propuesta; no se guarda el presupuesto original automáticamente.','El margen de ganancia se despliega hacia arriba sin mover la grilla ni los controles del presupuesto.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
@@ -13590,8 +13758,7 @@ const titles = {dashboard:'Dashboard',asistente:'Asistente de ventas',presupuest
 let sessionTimer = null, sessionStart = null, tiempoUI = null;
 
 var NOTIF_CONFIG = {
-  ppto_vence_7:     { label:'Presupuesto vence en 7 días',sub:'Alerta preventiva para hacer seguimiento',    canales:['App','WhatsApp'], activo:true,  urgente:false },
-  ppto_vence_2:     { label:'Presupuesto vence en 2 días',sub:'Alerta urgente de vencimiento inminente',     canales:['App','WhatsApp'], activo:true,  urgente:true  },
+  ppto_vence_2:     { label:'Presupuesto próximo a vencer',sub:'La anticipación se define en Preferencias del sistema', canales:['App','WhatsApp'], activo:true, urgente:true },
   ppto_sin_resp:    { label:'Presupuesto sin respuesta',  sub:'Enviado hace más de 5 días sin respuesta',    canales:['App'],           activo:true,  urgente:false },
   deuda_30:         { label:'Deuda vencida +30 días',     sub:'Clientes con saldo pendiente hace más de 30d',canales:['App','Email'],   activo:true,  urgente:true  },
   deuda_15:         { label:'Deuda vencida +15 días',     sub:'Clientes con saldo pendiente hace más de 15d',canales:['App'],           activo:true,  urgente:false },
@@ -13600,6 +13767,7 @@ var NOTIF_CONFIG = {
   garantia_vence:   { label:'Garantía por vencer',        sub:'Garantías que vencen en los próximos 30 días',canales:['App'],           activo:true,  urgente:false },
   caja_abierta:     { label:'Caja sin cerrar',            sub:'La caja quedó abierta después de las 20hs',   canales:['App'],           activo:true,  urgente:false },
 };
+window._diasAvisoVencimientoPresupuesto = 1;
 var FORMS_CFG = {
   cliente:   { title:'Nuevo cliente',   fields:[{l:'Apellido',id:'nc-ap',t:'text',ph:'Apellido'},{l:'Nombre',id:'nc-nm',t:'text',ph:'Nombre'},{l:'DNI',id:'nc-dni',t:'text',ph:'12.345.678'},{l:'CUIT',id:'nc-cuit',t:'text',ph:'20-12345678-9'},{l:'Razón social',id:'nc-razon-social',t:'text',ph:'Nombre legal registrado en ARCA',full:true},{l:'Teléfono',id:'nc-tel',t:'tel',ph:'223-xxxxxxx'},{l:'Email',id:'nc-em',t:'email',ph:'email@ejemplo.com'},{l:'Empresa / nombre comercial',id:'nc-empresa',t:'text',ph:'Nombre comercial si corresponde'},{l:'Categoría del domicilio inicial',id:'nc-sede',t:'text',ph:'Ej: Authogar, oficina, depósito'},{l:'Dirección',id:'nc-dir',t:'text',ph:'Calle y número',full:true}]},
   producto:  { title:'Nuevo producto',  fields:[{l:'Código',id:'np-cod',t:'text',ph:'P-001'},{l:'Categoría',id:'np-cat',t:'select',opts:['Alarmas Garnet','Cámaras Hikvision','Cámaras Ezvis','Domótica Sonoff','Redes TP-Link Omada','Control de acceso','Cables y conectores','Accesorios']},{l:'Descripción',id:'np-desc',t:'text',ph:'Nombre del producto',full:true},{l:'Proveedor',id:'np-prov',t:'text',ph:'Nombre del proveedor'},{l:'Marca',id:'np-marca',t:'text',ph:'Garnet, Hikvision, Ezvis, Sonoff...'},{l:'Moneda',id:'np-moneda',t:'select',opts:['ARS','USD']},{l:'P. compra',id:'np-pc',t:'number',ph:'0'},{l:'P. venta',id:'np-pv',t:'number',ph:'0'}]},
@@ -14470,6 +14638,36 @@ function obtenerProductoPorCodigoVenta(cod, item) {
   return prod || null;
 }
 
+function productosInactivosDocumento(items) {
+  var vistos = {};
+  return (items || []).map(function(item) {
+    return obtenerProductoPorCodigoVenta(item && (item.cod || item.codigo), item || {});
+  }).filter(function(producto) {
+    if (!producto || productoEstaActivo(producto)) return false;
+    var clave = String(producto.fbKey || producto.id || producto.codigo || producto.nombre || '');
+    if (vistos[clave]) return false;
+    vistos[clave] = true;
+    return true;
+  });
+}
+
+function validarProductosActivosDocumento(items, operacion) {
+  var inactivos = productosInactivosDocumento(items);
+  if (!inactivos.length) return true;
+  var nombres = inactivos.slice(0, 5).map(function(producto) {
+    return String(producto.codigo || '') + (producto.nombre || producto.descripcion ? ' — ' + String(producto.nombre || producto.descripcion) : '');
+  }).join(', ');
+  notify('No se puede ' + (operacion || 'continuar') + ': ' + nombres + ' ' + (inactivos.length === 1 ? 'está inactivo' : 'están inactivos') + '. Reemplazá o reactivá ' + (inactivos.length === 1 ? 'ese producto' : 'esos productos') + '.');
+  return false;
+}
+
+function referenciasProductoDesdeFilas(filas) {
+  return (filas || []).map(function(tr) {
+    var codigo = String(((tr.querySelector('.prod-sel-cod') || {}).textContent) || '').trim();
+    return { cod:codigo, productoFbKey:tr.dataset.productoFbKey || '' };
+  });
+}
+
 // Compatibilidad con botones o sesiones abiertas de versiones anteriores.
 function chatEnviarFoto(input) { chatEnviarArchivo(input); }
 
@@ -14943,7 +15141,9 @@ async function confirmarVenta() {
     return !!codigo || !!descripcion || precio > 0;
   });
   if (!filas.length) { notify('Seleccioná al menos un producto'); return; }
-  // El catálogo no es inventario: una venta puede incluir cualquier producto.
+  var filasNuevasVenta = window._ventaEditandoFbKey ? filas.filter(function(tr){ return tr.dataset.productoSeleccionNueva === '1'; }) : filas;
+  if (!validarProductosActivosDocumento(referenciasProductoDesdeFilas(filasNuevasVenta), 'guardar la venta')) return;
+  // El catálogo no es inventario: una venta puede incluir cualquier producto activo.
   // La disponibilidad se decide después, en la lista de materiales, donde el
   // administrativo elige qué sobrante utilizar y qué cantidad comprar.
 
@@ -15009,6 +15209,14 @@ async function confirmarVenta() {
       return empEncontrado ? empEncontrado.nombre : sel.value;
     })(),
     empleadoFbKey: (function(){ var sel=document.querySelector('#venta-empleado'); return sel ? (sel.value||'') : ''; })(),
+    comisionadoPrincipal: (function(){
+      var sel = document.querySelector('#venta-empleado');
+      if (!sel || !sel.value) return '';
+      if (sel.value === '__admin__') return currentUser || 'Admin';
+      var empEncontrado = Object.values(empData||{}).find(function(e){ return e.fbKey === sel.value; });
+      return empEncontrado ? empEncontrado.nombre : sel.value;
+    })(),
+    comisionadoPrincipalFbKey: (function(){ var sel=document.querySelector('#venta-empleado'); return sel ? (sel.value||'') : ''; })(),
     comisionado2: (function(){
       var sel = document.querySelector('#venta-comisionado2');
       if (!sel || !sel.value) return '';
@@ -15265,15 +15473,13 @@ function cerrarConfirmacionVenta() {
 
 // Abre el módulo de cobranzas con la venta precargada
 function abrirCobroRapido(ventaId, total, cliente) {
-  // Recordar la venta de origen para poder volver
-  window._cobOrigenVentaId = ventaId;
   // Mostrar botón de volver al entrar desde una venta
   setTimeout(function() {
     var btnVolver = document.getElementById('cob-volver-venta');
     if (btnVolver) btnVolver.style.display = '';
   }, 200);
   // Usar irACobranzasConVenta que precarga todos los campos correctamente
-  irACobranzasConVenta(ventaId);
+  irACobranzasConVenta(ventaId, 'venta');
 }
 
 function volverADetalleVenta() {
@@ -22920,7 +23126,7 @@ function selVentaCob(ventaId, cliente, total, cobrado, saldo) {
 
 // Navega a Cobranzas y precarga el formulario con los datos reales de la venta,
 // para no tener que volver a buscarla y tipear todo de nuevo.
-function irACobranzasConVenta(ventaId) {
+function irACobranzasConVenta(ventaId, origen) {
   var vid = String(ventaId||'').trim();
   var num = vid.replace(/[^0-9]/g,'');
   var venta = (ventasList||[]).find(function(v){
@@ -22928,6 +23134,7 @@ function irACobranzasConVenta(ventaId) {
       (num && (String(v.id).replace(/[^0-9]/g,'') === num || String(v.fbKey||'').replace(/[^0-9]/g,'') === num));
   });
   showPage('cobranzas', document.querySelector('[onclick*=cobranzas]'));
+  window._cobOrigenVentaId = origen === 'venta' ? vid : null;
   if (!venta) return;
   setTimeout(function() {
     var total   = _svTotalVentaCanonico(venta);
@@ -25256,7 +25463,11 @@ function verCuentaClienteReal(clienteRef) {
       var fecha = p.fecha || v.fecha || '';
       var claveGrupo = fecha + '|' + String(medio).toLowerCase();
       if (!grupos[claveGrupo]) grupos[claveGrupo] = { fecha:fecha, medio:medio, monto:0, ts:_ccFechaOrden(fecha, p.ts), comprobantes:[] };
-      if (p.comprobanteCuenta && p.pagoCuentaGrupo && grupos[claveGrupo].comprobantes.indexOf(p.pagoCuentaGrupo) < 0) grupos[claveGrupo].comprobantes.push(p.pagoCuentaGrupo);
+      var comprobanteId = p.comprobanteRef || p.grupoPago || p.pagoCuentaGrupo || p.fbKey || '';
+      var comprobanteRef = _cobroTieneComprobante(p) ? comprobanteId : '';
+      if (comprobanteRef && !grupos[claveGrupo].comprobantes.some(function(item){ return item && item.id === comprobanteId; })) {
+        grupos[claveGrupo].comprobantes.push({id:comprobanteId,ref:comprobanteRef});
+      }
       grupos[claveGrupo].monto += parseFloat(p.monto) || 0;
     });
     var restante = objetivoCobrado;
@@ -26231,13 +26442,11 @@ async function anularPago(fbKey) {
     return item && item.fbKey === fbKey ? Object.assign({}, item, cambiosAnulacion) : item;
   });
   var resumen = _svResumenPagoVentaDesdeLista(venta, pagosTrasAnulacion);
-  Promise.all([
-    ventasPagosPersistirActualizarPago(fbKey, cambiosAnulacion),
-    ventasPagosPersistirActualizarVenta(venta.fbKey, {
-      totalPagado: resumen.pagado,
-      estadoPago: resumen.estadoPago
-    })
-  ]).then(function(){
+  var updatesAnulacion = {};
+  Object.keys(cambiosAnulacion).forEach(function(campo) { updatesAnulacion['pagos/' + fbKey + '/' + campo] = cambiosAnulacion[campo]; });
+  updatesAnulacion['ventas/' + venta.fbKey + '/totalPagado'] = resumen.pagado;
+  updatesAnulacion['ventas/' + venta.fbKey + '/estadoPago'] = resumen.estadoPago;
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas'), updatesAnulacion).then(function(){
       _svModeloVentasV3Cache = null;
       notify('✓ Cobro anulado · saldo de la venta recalculado');
     })
@@ -26284,12 +26493,7 @@ function filtrarCobros(texto) {
 }
 
 async function elimPago(fbKey) {
-  if (typeof window.tienePermiso === 'function' && !window.tienePermiso('cobranzas.anular', { args:[fbKey] })) { notify('No tenés permiso para eliminar cobros'); return; }
-  if (typeof window.tienePermiso !== 'function') { notify('No tenés permiso para eliminar cobros'); return; }
-  if (!await svConfirm('Eliminar este pago?')) return;
-  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + fbKey))
-    .then(function(){ notify('Pago eliminado'); })
-    .catch(function(e){ notify('Error: '+e.message); });
+  return anularPago(fbKey);
 }
 
 function _cobroMontoHistorialHTML(p) {
@@ -26374,7 +26578,8 @@ function fbCargarPagos() {
         var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : _cobroMontoHistorialHTML(p);
         var saldoStr = _cobroSaldoRestanteHistorialHTML(p, lista, idx);
         var reciboBtn = p.anulado ? '' : '<button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>';
-        var docBtn = p.fbKey && (!p.anulado || p.comprobanteAdjunto) ? '<button class="btn btn-sm btn-icon" onclick="verOAdjuntarDocumentoCobro(\''+escapeHTML(p.fbKey)+'\','+(!!p.comprobanteAdjunto)+')" title="'+(p.comprobanteAdjunto?'Ver comprobante adjunto':'Adjuntar comprobante')+'"><i class="ti ti-paperclip" style="font-size:14px;color:'+(p.comprobanteAdjunto?'var(--green)':'var(--text3)')+'"></i></button>' : '';
+        var tieneComprobante = _cobroTieneComprobante(p);
+        var docBtn = p.fbKey && (!p.anulado || tieneComprobante) ? '<button class="btn btn-sm btn-icon" onclick="verOAdjuntarDocumentoCobro(\''+escapeHTML(p.fbKey)+'\','+tieneComprobante+')" title="'+(tieneComprobante?'Ver comprobante adjunto':'Adjuntar comprobante')+'"><i class="ti ti-paperclip" style="font-size:14px;color:'+(tieneComprobante?'var(--green)':'var(--text3)')+'"></i></button>' : '';
         return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" data-medio="'+escapeHTML(p.medio||'')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(nombreClienteVigente(p,'—'))+'</td><td style="color:var(--text3)">'+escapeHTML(_mostrarFecha(p.fecha||''))+'</td><td>'+escapeHTML(formatoMedioPago(p.medio||'—'))+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+saldoStr+'</td><td style="text-align:right;white-space:nowrap"><div style="display:flex;justify-content:flex-end;gap:4px">'+ventaLink+reciboBtn+docBtn+_ed+'</div></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
@@ -26458,19 +26663,106 @@ function _periodoActualReportes() {
 }
 
 function ventaResponsableComercialReporte(venta) {
-  venta = venta || {};
-  var explicito = venta.vendedor || venta.creadaPor || venta.usuario || venta.createdBy || '';
-  if (explicito) return String(explicito).trim();
-  var esVentaTecnica = venta.origen === 'reclamo' || !!(venta.reclamoKey || venta.reclamoFbKey || venta.reclamoId);
-  if (esVentaTecnica) {
-    var auditoriaCreacion = (Array.isArray(venta.audit) ? venta.audit : []).find(function(registro) {
-      return registro && registro.usuario && /creada autom[aá]ticamente desde reclamo/i.test(String(registro.accion || ''));
-    });
-    return auditoriaCreacion ? String(auditoriaCreacion.usuario).trim() : '';
-  }
-  return String(venta.empleado || '').trim();
+  return ventaComisionadoPrincipalIdentidad(venta).nombre;
 }
 window.ventaResponsableComercialReporte = ventaResponsableComercialReporte;
+
+function ventaEsTecnica(venta) {
+  venta = venta || {};
+  return String(venta.origen || '').toLowerCase() === 'reclamo' || !!(venta.reclamoKey || venta.reclamoFbKey || venta.reclamoId);
+}
+
+function _ventaResolverIdentidadEmpleado(claves, nombres) {
+  claves = (claves || []).filter(Boolean).map(function(v){ return String(v).trim(); });
+  nombres = (nombres || []).filter(Boolean).map(function(v){ return String(v).trim(); });
+  var empleados = Object.values(empData || {});
+  var empleado = empleados.find(function(emp) {
+    return claves.indexOf(String(emp.fbKey || '')) >= 0 || nombres.some(function(nombre) {
+      return String(emp.nombre || '').trim().toLocaleLowerCase('es-AR') === nombre.toLocaleLowerCase('es-AR');
+    });
+  }) || null;
+  return {
+    fbKey: empleado ? String(empleado.fbKey || '') : (claves[0] || ''),
+    nombre: empleado ? String(empleado.nombre || '').trim() : (nombres[0] || '')
+  };
+}
+
+function _ventaIdentidadesCoinciden(a, b) {
+  a = a || {}; b = b || {};
+  if (a.fbKey && b.fbKey && String(a.fbKey) === String(b.fbKey)) return true;
+  var nombreA = String(a.nombre || '').trim().toLocaleLowerCase('es-AR');
+  var nombreB = String(b.nombre || '').trim().toLocaleLowerCase('es-AR');
+  return !!nombreA && nombreA === nombreB;
+}
+
+function ventaComisionadoPrincipalIdentidad(venta) {
+  venta = venta || {};
+  var tieneCampoCanonico = !!(venta.comisionadoPrincipalFbKey || venta.comisionadoPrincipal);
+  if (tieneCampoCanonico) {
+    return _ventaResolverIdentidadEmpleado(
+      [venta.comisionadoPrincipalFbKey],
+      [venta.comisionadoPrincipal]
+    );
+  }
+
+  // Compatibilidad: `empleado` es el primer comisionado en las ventas
+  // históricas normales. Las ventas automáticas de reclamos antiguas guardaban
+  // allí al técnico; si ambas identidades coinciden no se infiere comisión.
+  var identidadEmpleado = _ventaResolverIdentidadEmpleado(
+    [venta.empleadoFbKey, venta.empleadoId],
+    [venta.empleado]
+  );
+  var identidadTecnico = _ventaResolverIdentidadEmpleado(
+    [venta.tecnicoFbKey, venta.tecnicoId],
+    [venta.tecnico, venta.tecnicoAsignado]
+  );
+  if (ventaEsTecnica(venta) && _ventaIdentidadesCoinciden(identidadEmpleado, identidadTecnico)) {
+    return { fbKey:'', nombre:'' };
+  }
+  if (identidadEmpleado.fbKey || identidadEmpleado.nombre) return identidadEmpleado;
+
+  // Alias comerciales previos, sólo para ventas no técnicas. No se usa nunca
+  // creador/usuario como reemplazo de un comisionado ausente.
+  if (!ventaEsTecnica(venta)) {
+    return _ventaResolverIdentidadEmpleado(
+      [venta.vendedorFbKey, venta.vendedorId],
+      [venta.vendedor]
+    );
+  }
+  return { fbKey:'', nombre:'' };
+}
+window.ventaComisionadoPrincipalIdentidad = ventaComisionadoPrincipalIdentidad;
+
+function ventaComisionadoSecundarioIdentidad(venta) {
+  venta = venta || {};
+  return _ventaResolverIdentidadEmpleado(
+    [venta.comisionado2FbKey, venta.empleado2FbKey],
+    [venta.comisionado2, venta.empleado2]
+  );
+}
+window.ventaComisionadoSecundarioIdentidad = ventaComisionadoSecundarioIdentidad;
+
+function ventaResponsableComercialIdentidad(venta) {
+  return ventaComisionadoPrincipalIdentidad(venta);
+}
+window.ventaResponsableComercialIdentidad = ventaResponsableComercialIdentidad;
+
+function ventaPerteneceResponsableComercial(venta, emp) {
+  if (!emp) return false;
+  var responsable = ventaComisionadoPrincipalIdentidad(venta);
+  if (responsable.fbKey && emp.fbKey && String(responsable.fbKey) === String(emp.fbKey)) return true;
+  return !!responsable.nombre && String(responsable.nombre).trim().toLocaleLowerCase('es-AR') === String(emp.nombre || '').trim().toLocaleLowerCase('es-AR');
+}
+window.ventaPerteneceResponsableComercial = ventaPerteneceResponsableComercial;
+
+function ventaEmpleadoEsComisionado(venta, emp) {
+  if (!emp) return false;
+  if (ventaPerteneceResponsableComercial(venta, emp)) return true;
+  var secundario = ventaComisionadoSecundarioIdentidad(venta);
+  if (secundario.fbKey && emp.fbKey && String(secundario.fbKey) === String(emp.fbKey)) return true;
+  return !!secundario.nombre && String(secundario.nombre).trim().toLocaleLowerCase('es-AR') === String(emp.nombre || '').trim().toLocaleLowerCase('es-AR');
+}
+window.ventaEmpleadoEsComisionado = ventaEmpleadoEsComisionado;
 
 function itemVentaEsManoDeObraReporte(item) {
   item = item || {};
@@ -26733,9 +27025,9 @@ function cerrarPagoCuentaCorriente() {
   if (typeof svSincronizarPilaModales === 'function') svSincronizarPilaModales();
 }
 
-function _ccBotonesComprobantes(grupos) {
-  return (grupos || []).filter(function(g){ return /^cc_[a-zA-Z0-9_]+$/.test(g); }).map(function(g) {
-    return ' <button class="btn btn-sm" onclick="event.stopPropagation();abrirComprobanteCuenta(\''+g+'\')"><i class="ti ti-paperclip"></i> Ver comprobante</button>';
+function _ccBotonesComprobantes(referencias) {
+  return (referencias || []).map(function(item){ return item && item.ref || item; }).filter(Boolean).map(function(ref) {
+    return ' <button class="btn btn-sm" onclick="event.stopPropagation();verOAdjuntarDocumentoCobro(\''+escapeHTML(ref)+'\',true)"><i class="ti ti-paperclip"></i> Ver comprobante</button>';
   }).join('');
 }
 
@@ -26786,50 +27078,17 @@ function abrirPagoCuentaCorriente() {
 }
 
 async function _ccGuardarPagoAcotado(grupo, solicitudes, cabecera, comprobante) {
-  var ref = function(path){ return window.fbRef(window.fbDB, 'sisventas/' + path); };
-  var leer = async function(path){ return (await window.fbGet(ref(path))).val(); };
-  var existente = await leer('cobros_cuenta/' + grupo);
-  if (existente) return [];
-  var lockRef = ref('control_cobro_cuenta');
-  var token = grupo + '_' + Math.random().toString(36).slice(2);
-  var lock = await window.fbRunTransaction(lockRef, function(actual) {
-    if (actual) return;
-    return {token:token, grupo:grupo, ts:Date.now()};
-  }, {applyLocally:false});
-  if (!lock.committed) throw new Error('Hay otro pago en proceso. Esperá a que termine antes de reintentar.');
-  var desconexion = window.fbOnDisconnect(lockRef);
-  try {
-    await desconexion.remove();
-    if (await leer('cobros_cuenta/' + grupo)) return [];
-    var ventas = await Promise.all(solicitudes.map(function(s){ return leer('ventas/' + s.ventaFbKey); }));
-    // Sólo comprobantes de cobro: nunca se descarga la raíz, productos, fotos o chat.
-    var pagos = Object.values(await leer('pagos') || {});
-    var updates = {}, confirmados = [];
-    solicitudes.forEach(function(s, i) {
-      var venta = ventas[i];
-      if (!venta || !ventaValidaParaMetricas(venta)) throw new Error('La venta ' + s.ventaId + ' ya no está disponible para cobrar');
-      var relacionados = pagos.filter(function(p){ return _svPagoValido(p) && _svRegistroPerteneceVenta(p, Object.assign({}, venta, {fbKey:s.ventaFbKey})); });
-      var pagado = relacionados.length ? relacionados.reduce(function(n,p){return n+(parseFloat(p.monto)||0);},0) : _svResumenPagoLegacyVenta(venta);
-      var total = _svTotalVentaCanonico(venta), disponible = Math.max(0, Math.round((total-pagado)*100)/100);
-      if (!(s.monto > 0) || s.monto > disponible + .009) throw new Error('El saldo de ' + s.ventaId + ' cambió. Revisá la imputación antes de reintentar.');
-      var nuevo = Math.round((pagado+s.monto)*100)/100;
-      var estado = nuevo >= total-.01 ? 'pago_total' : 'seniado';
-      var pago = Object.assign({},s.pago,{totalVenta:total,saldoAnterior:disponible,saldoRestante:Math.max(0,total-nuevo)});
-      updates['pagos/'+pago.fbKey] = pago;
-      updates['ventas/'+s.ventaFbKey+'/totalPagado'] = nuevo;
-      updates['ventas/'+s.ventaFbKey+'/estadoPago'] = estado;
-      confirmados.push({pago:pago,venta:Object.assign({},venta,{fbKey:s.ventaFbKey,totalPagado:nuevo,estadoPago:estado})});
-    });
-    updates['cobros_cuenta/'+grupo] = cabecera;
-    if (comprobante) updates['cobros_cuenta_adjuntos/'+grupo] = comprobante;
-    var propietario = await leer('control_cobro_cuenta');
-    if (!propietario || propietario.token !== token) throw new Error('Se perdió la conexión durante la preparación. Reintentá el mismo pago.');
-    await window.fbUpdate(ref(''), updates);
-    return confirmados;
-  } finally {
-    await desconexion.cancel();
-    await window.fbRunTransaction(lockRef, function(actual){ return actual && actual.token === token ? null : undefined; }, {applyLocally:false});
-  }
+  return registrarCobrosCanonicos({
+    grupoPago:grupo,
+    origen:'cuenta_corriente',
+    solicitudes:solicitudes,
+    cabecera:cabecera,
+    comprobante:comprobante,
+    adjuntoKey:grupo,
+    montoTotal:cabecera && cabecera.monto,
+    usuario:cabecera && cabecera.usuario,
+    ts:cabecera && cabecera.ts
+  });
 }
 
 async function confirmarPagoCuentaCorriente() {
@@ -26859,7 +27118,7 @@ async function confirmarPagoCuentaCorriente() {
       cliente:window._ccNombreActual||venta.cliente||'', clienteFbKey:venta.clienteFbKey||venta.clienteKey||window._ccClienteKeyActual||'',
       monto:item.monto, moneda:'ARS', montoOriginal:item.monto, tipoCambio:1, totalVenta:_svTotalVentaCanonico(venta),
       saldoAnterior:item.saldoAnterior, saldoRestante:item.saldoRestante, medio:medio, fecha:fecha, obs:referencia,
-      usuario:currentUser||'', ts:Date.now()+indice, origen:'cuenta_corriente', pagoCuentaGrupo:grupo,
+      usuario:currentUser||'', ts:Date.now()+indice, origen:'cuenta_corriente', grupoPago:grupo,
       pagoCuentaTotal:monto, imputacionOrden:indice+1, imputacionesTotal:resultado.plan.length
     };
     solicitudes.push({ ventaFbKey:venta.fbKey, ventaId:venta.id||venta.fbKey, monto:item.monto, pago:pago });
@@ -26875,12 +27134,12 @@ async function confirmarPagoCuentaCorriente() {
     var firmaIntento = JSON.stringify([window._ccClienteKeyActual, monto, fecha, medio, referencia, comprobanteCuenta]);
     if (window._ccPagoIntento && window._ccPagoIntento.firma === firmaIntento) grupo = window._ccPagoIntento.grupo;
     else window._ccPagoIntento = {firma:firmaIntento, grupo:grupo};
-    solicitudes.forEach(function(s){ s.pago.pagoCuentaGrupo = grupo; });
+    solicitudes.forEach(function(s){ s.pago.grupoPago = grupo; });
     if (comprobanteCuenta) {
       cabecera.comprobante = {nombre:comprobanteCuenta.nombre, tipo:comprobanteCuenta.tipo};
-      solicitudes.forEach(function(s){ s.pago.comprobanteCuenta = true; });
     }
     pagosGuardados = await _ccGuardarPagoAcotado(grupo, solicitudes, cabecera, comprobanteCuenta);
+    window._ccPagoIntento = null;
     pagosGuardados.forEach(function(item) {
       asegurarOTVentaConPago(item.venta, item.venta.totalPagado);
       if (item.venta.estadoPago === 'pago_total') {
@@ -28553,6 +28812,7 @@ window.aplicarVisibilidadMonitorRecursos = aplicarVisibilidadMonitorRecursos;
 
 function guardarPreferenciasSistema(btn) {
   var diasVencEl = document.getElementById('cfg-dias-venc');
+  var diasAvisoVencPptoEl = document.getElementById('cfg-dias-aviso-venc-ppto');
   var diasVigenciaPreciosEl = document.getElementById('cfg-dias-vigencia-precios');
   var stockMinEl = document.getElementById('cfg-stock-min-def');
   var margenProdEl = document.getElementById('cfg-margen-prod-def');
@@ -28565,6 +28825,7 @@ function guardarPreferenciasSistema(btn) {
   if (!isFinite(margenDefaultIngresado) || margenDefaultIngresado < 0) margenDefaultIngresado = 30;
   var datos = {
     diasVencimiento: parseInt((diasVencEl||{}).value) || 15,
+    diasAvisoVencimientoPresupuesto: Math.max(0, Math.min(30, parseInt((diasAvisoVencPptoEl||{}).value, 10) || 0)),
     diasVigenciaPrecios: Math.max(1, Math.min(365, parseInt((diasVigenciaPreciosEl||{}).value, 10) || PRECIO_VIGENCIA_DIAS_DEFAULT)),
     stockMinDefault: parseInt((stockMinEl||{}).value) || 5,
     margenProductoDefault: margenDefaultIngresado,
@@ -28583,6 +28844,7 @@ function guardarPreferenciasSistema(btn) {
   window.fbUpdate(window.fbRef(window.fbDB,'sisventas/config/preferencias'), datos)
     .then(function(){
       window._diasVencimientoConfig = datos.diasVencimiento;
+      window._diasAvisoVencimientoPresupuesto = datos.diasAvisoVencimientoPresupuesto;
       window._diasVigenciaPrecios = datos.diasVigenciaPrecios;
       window._stockMinDefault = datos.stockMinDefault;
       window._margenProductoDefault = datos.margenProductoDefault;
@@ -28683,6 +28945,7 @@ function cargarConfigGeneral() {
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/preferencias')).then(function(snap) {
     var d = snap.val(); if (!d) return;
     var dv = document.getElementById('cfg-dias-venc');
+    var davp = document.getElementById('cfg-dias-aviso-venc-ppto');
     var dvp = document.getElementById('cfg-dias-vigencia-precios');
     var sm = document.getElementById('cfg-stock-min-def');
     var mpd = document.getElementById('cfg-margen-prod-def');
@@ -28692,6 +28955,8 @@ function cargarConfigGeneral() {
     var ast = document.getElementById('cfg-admin-sin-timeout');
     var pvt = document.getElementById('cfg-producto-visita-tecnica');
     if (dv && d.diasVencimiento) dv.value = d.diasVencimiento;
+    var diasAvisoVencimiento = d.diasAvisoVencimientoPresupuesto !== undefined ? Math.max(0, Math.min(30, parseInt(d.diasAvisoVencimientoPresupuesto, 10) || 0)) : 1;
+    if (davp) davp.value = diasAvisoVencimiento;
     if (dvp) dvp.value = d.diasVigenciaPrecios !== undefined ? d.diasVigenciaPrecios : PRECIO_VIGENCIA_DIAS_DEFAULT;
     if (sm && d.stockMinDefault !== undefined) sm.value = d.stockMinDefault;
     if (mpd) mpd.value = d.margenProductoDefault !== undefined ? d.margenProductoDefault : 30;
@@ -28705,6 +28970,7 @@ function cargarConfigGeneral() {
     if (typeof resetSessionTimer === 'function' && isAuthenticated) resetSessionTimer();
     aplicarVisibilidadMonitorRecursos(d.mostrarMonitorRecursos !== false);
     window._diasVencimientoConfig = d.diasVencimiento || 15;
+    window._diasAvisoVencimientoPresupuesto = diasAvisoVencimiento;
     window._diasVigenciaPrecios = Math.max(1, Math.min(365, parseInt(d.diasVigenciaPrecios, 10) || PRECIO_VIGENCIA_DIAS_DEFAULT));
     window._stockMinDefault = d.stockMinDefault || 5;
     var margenDefaultCargado = parseFloat(d.margenProductoDefault);
@@ -30638,9 +30904,8 @@ function renderComisionesDelMes(emp) {
     });
   }
   var ventasDelVendedor = (ventasList||[]).filter(function(v) {
-    var esVendedor = (v.empleado === emp.nombre) || (v.vendedor === emp.nombre) || (v.empleado2 === emp.nombre) || (v.comisionado2 === emp.nombre);
     var visible = !idsComisionesVisibles || idsComisionesVisibles[String(v.id || '')] || idsComisionesVisibles[String(v.fbKey || '')];
-    return esVendedor && visible && _fechaEnMes(v.fecha, mesCta);
+    return ventaEmpleadoEsComisionado(v, emp) && visible && _fechaEnMes(v.fecha, mesCta);
   });
 
   var totalGenerado = 0, totalCobrado = 0, totalPendiente = 0;
@@ -31279,6 +31544,10 @@ function abrirNuevoMovEmp(tipoInicial) {
   if (!ctaEmpActual) { notify('Seleccioná un empleado primero'); return; }
   var modal = document.getElementById('modal-movi-emp');
   if (!modal) return;
+  // El modal vive originalmente junto a Cuentas de empleados. Cuando se abre
+  // desde la grilla de Empleados, esa pagina esta oculta y ocultaba tambien el
+  // formulario aunque la accion Continuar se hubiera ejecutado correctamente.
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
   var titulo = document.getElementById('movi-modal-titulo');
   if (titulo) titulo.textContent = 'Nuevo movimiento';
   document.getElementById('movi-fecha').value = svFechaLocalISO();
@@ -32957,19 +33226,56 @@ function previewDocumentoCobro(input) {
 
 function _guardarDocumentoCobro(fbKey, documento) {
   if (!fbKey || !window.fbDB) return Promise.reject(new Error('No se identificó el pago guardado'));
-  return window.fbSet(window.fbRef(window.fbDB, 'sisventas/cobros_adjuntos/' + fbKey), documento).then(function() {
-    return ventasPagosPersistirActualizarPago(fbKey, {
-      comprobanteAdjunto: {nombre:documento.nombre,tipo:documento.tipo,ts:documento.ts}
-    });
+  var pago = _cobroPagoPorKey(fbKey) || {fbKey:fbKey};
+  var grupo = String(pago.grupoPago || '');
+  var refKey = grupo || String(fbKey);
+  var meta = _cobroMetaComprobante(documento, refKey);
+  var pagosGrupo = grupo
+    ? (window._historialPagosCompleto || []).filter(function(item){ return item && String(item.grupoPago || '') === grupo && item.fbKey; })
+    : [pago];
+  if (!pagosGrupo.length) pagosGrupo = [pago];
+  var updates = {};
+  updates['cobros_adjuntos/' + refKey] = documento;
+  pagosGrupo.forEach(function(item) {
+    var key = String(item.fbKey || fbKey);
+    updates['pagos/' + key + '/comprobanteAdjunto'] = meta;
+    updates['pagos/' + key + '/comprobanteRef'] = refKey;
   });
+  if (grupo) updates['cobros_grupos/' + grupo + '/adjuntoKey'] = refKey;
+  return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas'), updates);
 }
 
-function verOAdjuntarDocumentoCobro(fbKey, tieneAdjunto) {
+function _cobroRutasComprobante(pago, referencia) {
+  var rutas = [];
+  function agregar(ruta) { if (ruta && rutas.indexOf(ruta) < 0) rutas.push(ruta); }
+  var refCanonica = pago && (pago.comprobanteRef || pago.comprobanteAdjunto && pago.comprobanteAdjunto.refKey);
+  agregar(refCanonica ? 'sisventas/cobros_adjuntos/' + refCanonica : '');
+  agregar(pago && pago.fbKey ? 'sisventas/cobros_adjuntos/' + pago.fbKey : '');
+  var grupoHistorico = pago && (pago.pagoCuentaGrupo || (pago.comprobanteCuenta && pago.grupoPago));
+  agregar(grupoHistorico ? 'sisventas/cobros_cuenta_adjuntos/' + grupoHistorico : '');
+  if (!pago && referencia) agregar('sisventas/cobros_adjuntos/' + referencia);
+  if (!pago && /^cc_[a-zA-Z0-9_]+$/.test(String(referencia || ''))) agregar('sisventas/cobros_cuenta_adjuntos/' + referencia);
+  return rutas;
+}
+
+async function verOAdjuntarDocumentoCobro(fbKey, tieneAdjunto) {
   if (!fbKey) return;
-  if (tieneAdjunto) {
-    _verDocumentoGestion('sisventas/cobros_adjuntos/' + fbKey, 'Comprobante de cobro');
+  var pago = _cobroPagoPorKey(fbKey);
+  var rutas = _cobroRutasComprobante(pago, fbKey);
+  try {
+    for (var i = 0; i < rutas.length; i++) {
+      var snap = await window.fbGet(window.fbRef(window.fbDB, rutas[i]));
+      var archivo = snap && snap.val ? snap.val() : null;
+      if (archivo && archivo.data) {
+        abrirVisorComprobanteSistema(archivo, 'Comprobante de cobro');
+        return;
+      }
+    }
+  } catch (errorLectura) {
+    notify('No se pudo abrir el comprobante: ' + errorLectura.message);
     return;
   }
+  if (tieneAdjunto) { notify('No se encontró el comprobante adjunto'); return; }
   var input = document.createElement('input');
   input.type = 'file';
   input.accept = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
@@ -33033,48 +33339,49 @@ function registrarPago() {
     fecha:    fecha,
     obs:      obs,
     usuario:  currentUser || '',
-    ts:       Date.now()
+    ts:       Date.now(),
+    origen:   window._cobOrigenVentaId ? 'venta' : 'cobranzas'
   };
 
-  // El comprobante se guarda en su ruta canónica /pagos y luego se actualiza
-  // el resumen de la venta concreta. No se usa una transacción sobre toda la
-  // raíz /sisventas: las reglas de Firebase entregan esa raíz incompleta y
-  // rechazaban cobros válidos aunque la venta estuviera visible en pantalla.
+  // El núcleo canónico confirma pago, resumen de venta, grupo y comprobante
+  // mediante una sola actualización multipath, luego de validar el saldo bajo
+  // el mismo bloqueo que usa Cuenta Corriente.
   if (!ventaObj || !ventaObj.fbKey) { notify('No se encontró la clave interna de la venta. Volvé a seleccionarla.'); return; }
-  var pagadoAntesDeGuardar = _svMontoPagadoVenta(ventaObj);
   window._cobroGuardadoEnCurso = true;
   _cobroBotonGuardar(true);
   var documentoCobro = null;
   _leerDocumentoGestion(archivoSeleccionado)
     .then(function(documento) {
       documentoCobro = documento;
-      return ventasPagosPersistirGuardarPago(pago);
-    })
-    .then(function(pagoGuardado) {
-      var totalVenta = _svTotalVentaCanonico(ventaObj);
-      var nuevoTotal = Math.min(totalVenta, Math.round((pagadoAntesDeGuardar + monto) * 100) / 100);
-      var nuevoEstado = nuevoTotal >= totalVenta - 0.01 ? 'pago_total' : nuevoTotal > 0 ? 'seniado' : 'pendiente_pago';
-      var ventaActualizada = Object.assign({}, ventaObj, { totalPagado:nuevoTotal, estadoPago:nuevoEstado });
-      // El pago global es la fuente canónica. Si el resumen auxiliar tardara
-      // en sincronizarse, el cobro ya queda registrado y no se duplica.
-      return ventasPagosPersistirActualizarVenta(ventaObj.fbKey, {
-        totalPagado: nuevoTotal,
-        estadoPago: nuevoEstado
-      }).catch(function(errorResumen) {
-        console.warn('[Resumen de pago]', errorResumen);
-      }).then(function() {
-        return { pago:pagoGuardado, venta:ventaActualizada };
+      var firmaIntento = JSON.stringify([
+        ventaObj.fbKey, monto, fecha, medio, obs, pago.moneda, pago.montoOriginal, pago.tipoCambio,
+        documento && documento.nombre || '', archivoSeleccionado && archivoSeleccionado.size || 0
+      ]);
+      if (!window._cobroIntento || window._cobroIntento.firma !== firmaIntento) {
+        window._cobroIntento = {
+          firma:firmaIntento,
+          grupoPago:_cobroNuevaClave('cobro'),
+          pagoKey:window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos')).key
+        };
+      }
+      pago.fbKey = window._cobroIntento.pagoKey;
+      pago.grupoPago = window._cobroIntento.grupoPago;
+      return registrarCobrosCanonicos({
+        grupoPago:window._cobroIntento.grupoPago,
+        origen:pago.origen,
+        solicitudes:[{ventaFbKey:ventaObj.fbKey,ventaId:ventaIdGuardar,monto:monto,pago:pago}],
+        comprobante:documentoCobro,
+        adjuntoKey:window._cobroIntento.grupoPago,
+        montoTotal:monto,
+        cabecera:{cliente:pago.cliente,clienteFbKey:pago.clienteFbKey,fecha:fecha,medio:medio,referencia:obs},
+        usuario:currentUser || '',
+        ts:pago.ts
       });
     })
-    .then(function(resultado) {
-      if (!documentoCobro) return resultado;
-      return _guardarDocumentoCobro(resultado.pago.fbKey, documentoCobro).then(function() {
-        resultado.pago.comprobanteAdjunto = {nombre:documentoCobro.nombre,tipo:documentoCobro.tipo,ts:documentoCobro.ts};
-        return resultado;
-      }).catch(function(error) {
-        notify('El cobro se guardó, pero el comprobante no: ' + error.message + '. Podés adjuntarlo desde el historial.');
-        return resultado;
-      });
+    .then(function(resultados) {
+      if (!resultados || !resultados.length) throw new Error('No se confirmó el cobro');
+      window._cobroIntento = null;
+      return resultados[0];
     })
     .then(function(resultado) {
       var pagoGuardado = resultado.pago;
@@ -34941,19 +35248,22 @@ function spAbrirModal(fbKey) {
   var otLinkEl = document.getElementById('sp-modal-ot-link');
   var otParaAbrir = _buscarOTCanonicaPorClave(r.otKey, r.otId || r.otNumero);
   var ventaParaAbrir = _buscarVentaCanonicaReclamo(r, otParaAbrir);
-  if (otParaAbrir || ventaParaAbrir || r.otKey || r.otId || r.otNumero || r.ventaKey || r.ventaFbKey || r.ventaId) {
+  if (otParaAbrir || ventaParaAbrir || r.otKey || r.otId || r.otNumero || r.ventaKey || r.ventaFbKey || r.ventaId || r.generacionOTError) {
     otLinkEl.style.display = '';
     var links = '';
     if (otParaAbrir) {
       var otRef = otParaAbrir.fbKey || otParaAbrir.id;
       links += '<button class="btn btn-sm" onclick="spVerOT(\''+escapeHTML(otRef)+'\')"><i class="ti ti-file-text" style="font-size:13px"></i> Ver OT ' + escapeHTML(otParaAbrir.id || otParaAbrir.numero || '') + '</button> ';
     } else if (r.otKey || r.otId || r.otNumero) {
-      links += '<span style="font-size:12px;color:var(--red)">Vínculo de OT roto</span> <button class="btn btn-sm" onclick="spRepararVinculoOT(\''+escapeHTML(fbKey)+'\')"><i class="ti ti-link"></i> Buscar / reparar OT</button> <button class="btn btn-sm" onclick="spPasarAVisitaYGenerarOT(\''+escapeHTML(fbKey)+'\')"><i class="ti ti-file-plus"></i> Crear OT</button> ';
+      links += '<span style="font-size:12px;color:var(--red)">Vínculo de OT roto</span> <button class="btn btn-sm" onclick="spRepararVinculoOT(\''+escapeHTML(fbKey)+'\')"><i class="ti ti-link"></i> Buscar / reparar OT</button> ';
     }
     if (ventaParaAbrir) {
       links += '<button class="btn btn-sm" onclick="spVerVenta(\''+escapeHTML(ventaParaAbrir.fbKey)+'\')"><i class="ti ti-receipt" style="font-size:13px"></i> Ver venta ' + escapeHTML(ventaParaAbrir.id || '') + '</button>';
     } else if (r.ventaKey || r.ventaFbKey || r.ventaId) {
       links += '<span style="font-size:12px;color:var(--red)">Vínculo de venta roto</span> <button class="btn btn-sm" onclick="spRepararVinculoVenta(\''+escapeHTML(fbKey)+'\')"><i class="ti ti-link"></i> Buscar / reparar venta</button>';
+    }
+    if (r.generacionOTError) {
+      links += '<div style="width:100%;margin-top:8px;font-size:12px;color:var(--red)"><i class="ti ti-alert-triangle"></i> Último intento: '+escapeHTML(r.generacionOTError)+'</div>';
     }
     otLinkEl.innerHTML = links;
   } else {
@@ -35030,7 +35340,9 @@ function spRenderAcciones(estado) {
     btns.push('<button class="btn btn-sm" onclick="spPasarAVisitaYGenerarOT()" style="color:var(--red)"><i class="ti ti-truck"></i> Pasar a visita técnica · generar OT</button>');
   }
   if (estado === 'visita') {
-    btns.push('<button class="btn btn-sm btn-primary" onclick="spGenerarOT()"><i class="ti ti-file-plus"></i> Generar OT y asignar técnico</button>');
+    var reclamoVisita = SP_MODAL_KEY && SP_DATA[SP_MODAL_KEY];
+    var requiereRecuperacion = reclamoVisita && (reclamoVisita.otKey || reclamoVisita.otId || reclamoVisita.ventaKey || reclamoVisita.ventaId || reclamoVisita.generacionOTError);
+    btns.push('<button class="btn btn-sm btn-primary" onclick="spPasarAVisitaYGenerarOT()"><i class="ti ti-file-plus"></i> '+(requiereRecuperacion?'Reintentar y reparar OT':'Generar OT y asignar técnico')+'</button>');
   }
   if (estado === 'ot_activa') {
     btns.push('<button class="btn btn-sm" onclick="spAbrirResolucionVisita()" style="color:var(--green)"><i class="ti ti-check"></i> Marcar resuelto por visita técnica</button>');
@@ -35081,6 +35393,22 @@ function spCambiarEstado(nuevoEstado, extraDatos, reclamoKey) {
       return true;
     })
     .catch(function(e){ notify('Error: '+e.message); return false; });
+}
+
+function spRegistrarFalloGeneracionOT(reclamoKey, error) {
+  var reclamo = SP_DATA[reclamoKey];
+  if (!reclamo || !window.fbDB) return Promise.resolve(false);
+  var mensaje = String(error && error.message || error || 'Error desconocido');
+  var historial = Array.isArray(reclamo.historial) ? reclamo.historial.slice() : [];
+  historial.push({ texto:'No se pudo generar la OT: ' + mensaje, autor:currentUser || 'sistema', ts:Date.now() });
+  var cambios = { historial:historial, generacionOTError:mensaje, generacionOTFalloEn:Date.now(), generacionOTPendiente:true };
+  return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/reclamos/' + reclamoKey), cambios).then(function() {
+    SP_DATA[reclamoKey] = Object.assign({}, reclamo, cambios, { fbKey:reclamoKey });
+    spRenderLista();
+    spActualizarMetricas();
+    if (SP_MODAL_KEY === reclamoKey) spAbrirModal(reclamoKey);
+    return true;
+  }).catch(function(){ return false; });
 }
 
 function spResolverRemoto() {
@@ -35149,7 +35477,8 @@ async function spGenerarOTLegacy() {
     : '(sin empleados cargados)';
   var selIdx = await svPrompt('Elegí el técnico asignado:\n' + opciones);
   if (selIdx === null) return; // canceló
-  var tecnico = (tecnicos[parseInt(selIdx)]) ? tecnicos[parseInt(selIdx)].nombre : 'Sin asignar';
+  var tecnicoEmpleado = tecnicos[parseInt(selIdx)] || null;
+  var tecnico = tecnicoEmpleado ? tecnicoEmpleado.nombre : 'Sin asignar';
 
   var punit = _redondearPrecioActual(precioVentaCanonicoProducto(prodVisita).precioARS);
   var sub = punit;
@@ -35162,6 +35491,9 @@ async function spGenerarOTLegacy() {
     : null;
   var reclamoClienteId = r.clienteId || r.idCliente || (clienteRefReclamo && (clienteRefReclamo.id || clienteRefReclamo.numero || '')) || '';
   var reclamoClienteFbKey = r.clienteFbKey || r.clienteKey || (clienteRefReclamo && clienteRefReclamo.fbKey) || '';
+  var ventaOrigenReclamo = _buscarVentaCanonicaReclamo(r, null);
+  var responsableComercial = ventaComisionadoPrincipalIdentidad(ventaOrigenReclamo);
+  var segundoComisionado = ventaComisionadoSecundarioIdentidad(ventaOrigenReclamo);
 
   var nuevaVenta = {
     id:         ventaId,
@@ -35170,8 +35502,15 @@ async function spGenerarOTLegacy() {
     idCliente:  reclamoClienteId,
     clienteFbKey: reclamoClienteFbKey,
     clienteKey:   reclamoClienteFbKey,
-    empleado:   tecnico,
+    empleado:   responsableComercial.nombre,
+    empleadoFbKey: responsableComercial.fbKey,
+    comisionadoPrincipal: responsableComercial.nombre,
+    comisionadoPrincipalFbKey: responsableComercial.fbKey,
+    comisionado2: segundoComisionado.nombre,
+    comisionado2FbKey: segundoComisionado.fbKey,
+    comisionHabilitada: !!(responsableComercial.nombre || responsableComercial.fbKey) && !!(ventaOrigenReclamo && ventaOrigenReclamo.comisionHabilitada === true),
     tecnico:    tecnico,
+    tecnicoFbKey: tecnicoEmpleado ? String(tecnicoEmpleado.fbKey || '') : '',
     tecnicoAsignado: tecnico,
     creadaPor:  currentUser||'',
     usuario:    currentUser||'',
@@ -35216,6 +35555,7 @@ async function spGenerarOTLegacy() {
         clienteKey:   reclamoClienteFbKey,
         estado:      'pendiente',
         tecnico:     tecnico,
+        tecnicoFbKey: tecnicoEmpleado ? String(tecnicoEmpleado.fbKey || '') : '',
         fecha:       fechaHoy,
         hora:        '09:00',
         duracion:    '4 horas',
@@ -35298,7 +35638,11 @@ function _candidatasOTReclamo(reclamo) {
 }
 
 function _candidatasVentaReclamo(reclamo, ot) {
-  var candidatas = (ventasList || []).filter(function(venta) { return _coincideReclamoExacto(venta, reclamo); });
+  var candidatas = (ventasList || []).filter(function(venta) {
+    if (!_coincideReclamoExacto(venta, reclamo)) return false;
+    var estado = String(venta && venta.estado || '').toLocaleLowerCase('es-AR');
+    return !(venta && venta.anulada) && estado !== 'anulado' && estado !== 'anulada';
+  });
   if (ot) {
     var deOT = _buscarVentaCanonicaReclamo({}, ot);
     if (deOT && candidatas.indexOf(deOT) < 0) candidatas.push(deOT);
@@ -35317,7 +35661,7 @@ function _elegirCandidataVinculo(titulo, candidatas, etiqueta) {
   });
 }
 
-function _guardarVinculoReclamoExistente(reclamo, ot, venta) {
+function _guardarVinculoReclamoExistente(reclamo, ot, venta, opciones) {
   if (!reclamo || !reclamo.fbKey || !window.fbDB) return Promise.reject(new Error('Reclamo no disponible'));
   var updates = {};
   var base = 'sisventas/reclamos/' + reclamo.fbKey;
@@ -35337,8 +35681,17 @@ function _guardarVinculoReclamoExistente(reclamo, ot, venta) {
     updates['sisventas/ventas/' + venta.fbKey + '/reclamoFbKey'] = reclamo.fbKey;
     updates['sisventas/ventas/' + venta.fbKey + '/reclamoId'] = reclamo.id || reclamo.numero || reclamo.fbKey;
   }
+  if (ot && venta) {
+    updates['sisventas/ordenes_trabajo/' + ot.fbKey + '/ventaId'] = venta.id || venta.numero || '';
+    updates['sisventas/ordenes_trabajo/' + ot.fbKey + '/venta'] = venta.id || venta.numero || '';
+    updates['sisventas/ordenes_trabajo/' + ot.fbKey + '/ventaFbKey'] = venta.fbKey || '';
+    updates['sisventas/ordenes_trabajo/' + ot.fbKey + '/ventaKey'] = venta.fbKey || '';
+    updates['sisventas/ventas/' + venta.fbKey + '/otId'] = ot.fbKey || ot.id || '';
+    updates['sisventas/ventas/' + venta.fbKey + '/otNumero'] = ot.id || ot.numero || '';
+    updates['sisventas/ventas/' + venta.fbKey + '/otGenerada'] = true;
+  }
   return window.fbUpdate(window.fbRef(window.fbDB), updates).then(function() {
-    notify('Vínculo reparado ✓');
+    if (!(opciones && opciones.silencioso)) notify('Vínculo reparado ✓');
   });
 }
 
@@ -35387,11 +35740,13 @@ function spPasarAVisitaYGenerarOT(reclamoKey) {
     return _spOTGeneracionPorReclamo[rKey];
   }
   var botonProcesoVisita = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
-  var progresoVisita = svCrearProgresoBoton(botonProcesoVisita, 'Registrando visita técnica…');
-  _spOTGeneracionPorReclamo[rKey] = spCambiarEstado('visita', { visitaSolicitadaEn:Date.now() }, rKey)
-    .then(function(actualizado){
-      if (!actualizado) return false;
-      progresoVisita.actualizar('Creando venta y orden de trabajo…');
+  var progresoVisita = svCrearProgresoBoton(botonProcesoVisita, 'Preparando visita técnica…');
+  // No cambiar el estado antes de validar producto y técnico. Si el usuario
+  // cancela o falta configuración, el reclamo debe conservar su estado real y
+  // no registrar una generación que nunca empezó.
+  _spOTGeneracionPorReclamo[rKey] = Promise.resolve()
+    .then(function(){
+      progresoVisita.actualizar('Creando o recuperando venta y orden de trabajo…');
       return spGenerarOT(rKey);
     })
     .finally(function(){ delete _spOTGeneracionPorReclamo[rKey]; progresoVisita.finalizar(); });
@@ -35403,43 +35758,91 @@ async function spGenerarOT(reclamoKey) {
   if (!rKey) return;
   var r = SP_DATA[rKey];
   if (!r) return;
-  if (_buscarOTCanonicaPorClave(r.otKey, r.otId || r.otNumero)) return;
+  var otVinculada = _buscarOTCanonicaPorClave(r.otKey, r.otId || r.otNumero);
+  if (otVinculada) return otVinculada;
 
-  var prodVisita = spProductoVisitaTecnicaConfigurado();
+  // Una escritura pudo completarse antes de que se actualizara el reclamo. En
+  // ese caso se recuperan los registros por la referencia exacta al reclamo en
+  // vez de crear otra venta u otra OT.
+  var candidatasOT = _candidatasOTReclamo(r);
+  var otRecuperable = await _elegirCandidataVinculo('Se encontraron varias OT creadas para este reclamo. Elegí cuál recuperar:', candidatasOT, function(item) {
+    return (item.id || item.numero || item.fbKey) + ' · ' + (item.fecha || '') + ' · ' + (item.tecnico || 'Sin técnico');
+  });
+  if (candidatasOT.length > 1 && !otRecuperable) return false;
+  if (otRecuperable) {
+    try {
+      var ventaRecuperableOT = _candidatasVentaReclamo(r, otRecuperable)[0] || _buscarVentaCanonicaReclamo(r, otRecuperable);
+      await _guardarVinculoReclamoExistente(r, otRecuperable, ventaRecuperableOT, { silencioso:true });
+      var reclamoRecuperado = await spCambiarEstado('ot_activa', {
+        otKey:otRecuperable.fbKey || '', otId:otRecuperable.id || otRecuperable.numero || '',
+        otNumero:otRecuperable.id || otRecuperable.numero || '',
+        ventaKey:ventaRecuperableOT && ventaRecuperableOT.fbKey || '',
+        ventaFbKey:ventaRecuperableOT && ventaRecuperableOT.fbKey || '',
+        ventaId:ventaRecuperableOT && (ventaRecuperableOT.id || ventaRecuperableOT.numero) || '',
+        tecnico:otRecuperable.tecnico || '', generacionOTPendiente:false, generacionOTError:null,
+        vinculoRecuperadoEn:Date.now()
+      }, rKey);
+      if (!reclamoRecuperado) throw new Error('No se pudo actualizar el reclamo con la OT recuperada');
+      notify('✓ Se recuperó y vinculó ' + (otRecuperable.id || 'la OT existente'));
+      return otRecuperable;
+    } catch (errorRecuperacion) {
+      await spRegistrarFalloGeneracionOT(rKey, errorRecuperacion);
+      notify('No se pudo recuperar la OT existente: ' + errorRecuperacion.message);
+      return false;
+    }
+  }
 
-  if (!prodVisita) {
+  var candidatasVenta = _candidatasVentaReclamo(r, null);
+  var ventaRecuperable = await _elegirCandidataVinculo('Se encontraron varias ventas creadas para este reclamo. Elegí cuál reutilizar:', candidatasVenta, function(item) {
+    return (item.id || item.fbKey) + ' · ' + (item.fecha || '') + ' · ' + (item.cliente || '');
+  });
+  if (candidatasVenta.length > 1 && !ventaRecuperable) return false;
+
+  var prodVisita = ventaRecuperable ? null : spProductoVisitaTecnicaConfigurado();
+
+  if (!ventaRecuperable && !prodVisita) {
     notify('Configurá el “Producto de visita técnica en reclamos” antes de generar la venta.');
-    return;
+    return false;
   }
 
   var tecnicos = Object.values(empData||{}).filter(spEmpleadoEsTecnico);
+  if (!tecnicos.length) {
+    notify('No hay técnicos activos disponibles para asignar la visita.');
+    return false;
+  }
   var opciones = tecnicos.length
     ? tecnicos.map(function(t,i){ return i+') '+t.nombre; }).join('\n')
     : '(sin empleados cargados)';
   var selIdx = await svPrompt('Elegí el técnico asignado:\n' + opciones);
-  if (selIdx === null) return; // canceló
+  if (selIdx === null) return false; // canceló
   var indiceTecnico = parseInt(selIdx, 10);
   if (!Number.isInteger(indiceTecnico) || !tecnicos[indiceTecnico]) {
     notify('Elegí uno de los técnicos de la lista');
-    return;
+    return false;
   }
-  var tecnico = tecnicos[indiceTecnico].nombre;
+  var tecnicoEmpleado = tecnicos[indiceTecnico];
+  var tecnico = tecnicoEmpleado.nombre;
   var procesoCreacionOT = spMostrarProcesoCreacionOT('Preparando la venta vinculada…');
   await new Promise(function(resolve) { requestAnimationFrame(function(){ requestAnimationFrame(resolve); }); });
 
-  var punit = _redondearPrecioActual(precioVentaCanonicoProducto(prodVisita).precioARS);
-  var sub = punit;
-  var iva = _redondearPrecioActual(sub * 0.21);
-  var total = sub + iva;
-  var ventaId = '#SP-' + String(Date.now()).slice(-5);
+  var punit = ventaRecuperable ? 0 : _redondearPrecioActual(precioVentaCanonicoProducto(prodVisita).precioARS);
+  var sub = ventaRecuperable ? Number(ventaRecuperable.subtotal || 0) : punit;
+  var iva = ventaRecuperable ? Number(ventaRecuperable.iva || 0) : _redondearPrecioActual(sub * 0.21);
+  var total = ventaRecuperable ? Number(ventaRecuperable.total || (sub + iva) || 0) : sub + iva;
+  var ventaId = ventaRecuperable
+    ? String(ventaRecuperable.id || ventaRecuperable.numero || '')
+    : '#SP-' + String(Date.now()).slice(-5);
   var fechaHoy = svFechaLocalISO();
   var clienteRefReclamo = (typeof window._svResolverClienteRegistro === 'function')
     ? window._svResolverClienteRegistro(r, true)
     : null;
   var reclamoClienteId = r.clienteId || r.idCliente || (clienteRefReclamo && (clienteRefReclamo.id || clienteRefReclamo.numero || '')) || '';
   var reclamoClienteFbKey = r.clienteFbKey || r.clienteKey || (clienteRefReclamo && clienteRefReclamo.fbKey) || '';
+  var ventaOrigenReclamo = ventaRecuperable || _buscarVentaCanonicaReclamo(r, null);
+  var responsableComercial = ventaComisionadoPrincipalIdentidad(ventaOrigenReclamo);
+  var segundoComisionado = ventaComisionadoSecundarioIdentidad(ventaOrigenReclamo);
 
-  var nuevaVenta = {
+  var nuevaVenta = ventaRecuperable || {
     id:         ventaId,
     cliente:    r.cliente||'',
     clienteId:  reclamoClienteId,
@@ -35447,8 +35850,15 @@ async function spGenerarOT(reclamoKey) {
     clienteFbKey: reclamoClienteFbKey,
     clienteKey:   reclamoClienteFbKey,
     reclamoFbKey: rKey,
-    empleado:   tecnico,
+    empleado:   responsableComercial.nombre,
+    empleadoFbKey: responsableComercial.fbKey,
+    comisionadoPrincipal: responsableComercial.nombre,
+    comisionadoPrincipalFbKey: responsableComercial.fbKey,
+    comisionado2: segundoComisionado.nombre,
+    comisionado2FbKey: segundoComisionado.fbKey,
+    comisionHabilitada: !!(responsableComercial.nombre || responsableComercial.fbKey) && !!(ventaOrigenReclamo && ventaOrigenReclamo.comisionHabilitada === true),
     tecnico:    tecnico,
+    tecnicoFbKey: String(tecnicoEmpleado.fbKey || ''),
     tecnicoAsignado: tecnico,
     creadaPor:  currentUser||'',
     usuario:    currentUser||'',
@@ -35478,8 +35888,21 @@ async function spGenerarOT(reclamoKey) {
 
   try {
     procesoCreacionOT.actualizar('Guardando la venta vinculada…');
-    var ventaGuardada = await ventasPagosPersistirGuardarVenta(nuevaVenta);
+    var ventaGuardada = ventaRecuperable || await ventasPagosPersistirGuardarVenta(nuevaVenta);
     var ventaFbKey = ventaGuardada && ventaGuardada.fbKey || '';
+    if (!ventaFbKey || !ventaId) throw new Error('La venta vinculada no tiene identificador canónico');
+
+    // Desde este punto la operación ya es recuperable: si la OT falla, la
+    // venta queda enlazada por reclamo y el próximo intento la reutiliza.
+    await _guardarVinculoReclamoExistente(r, null, ventaGuardada, { silencioso:true });
+    if (r.estado !== 'visita' || String(r.ventaKey || r.ventaFbKey || '') !== ventaFbKey) {
+      var visitaActualizada = await spCambiarEstado('visita', {
+        visitaSolicitadaEn:Date.now(), ventaKey:ventaFbKey, ventaFbKey:ventaFbKey,
+        ventaId:ventaId, generacionOTPendiente:true, generacionOTError:null
+      }, rKey);
+      if (!visitaActualizada) throw new Error('No se pudo vincular la venta al reclamo');
+      r = SP_DATA[rKey] || r;
+    }
     var ot = {
       id:          '',
       ventaId:     ventaId,
@@ -35493,6 +35916,7 @@ async function spGenerarOT(reclamoKey) {
       reclamoFbKey: rKey,
       estado:      'pendiente',
       tecnico:     tecnico,
+      tecnicoFbKey: String(tecnicoEmpleado.fbKey || ''),
       fecha:       fechaHoy,
       hora:        '09:00',
       duracion:    '4 horas',
@@ -35534,16 +35958,23 @@ async function spGenerarOT(reclamoKey) {
     }
 
     procesoCreacionOT.actualizar('Vinculando la OT con el reclamo…');
+    await _guardarVinculoReclamoExistente(r, otCanonica, ventaGuardada, { silencioso:true });
     var actualizado = await spCambiarEstado('ot_activa', {
       otKey:      otFbKey,
       otId:       otCanonica.id,
+      otNumero:   otCanonica.id,
       ventaKey:   ventaFbKey,
       ventaFbKey: ventaFbKey,
       ventaId:    ventaId,
       tecnico:    tecnico,
       reclamoKey: rKey,
-      reclamoId:  r.id || r.numero || rKey
+      reclamoId:  r.id || r.numero || rKey,
+      generacionOTPendiente:false,
+      generacionOTError:null,
+      generacionOTCompletadaEn:Date.now()
     }, rKey);
+
+    if (!actualizado) throw new Error('La OT se creó, pero no se pudo finalizar su vínculo con el reclamo');
 
     if (actualizado) {
       notify('✓ Venta y OT generadas. Técnico: ' + tecnico + ' · Total: $' + total.toLocaleString('es-AR'));
@@ -35561,8 +35992,11 @@ async function spGenerarOT(reclamoKey) {
         otData[idx].reclamoFbKey = rKey;
       }
     }
+    return otCanonica;
   } catch (e) {
+    await spRegistrarFalloGeneracionOT(rKey, e);
     notify('Error: '+e.message);
+    return false;
   } finally {
     procesoCreacionOT.finalizar();
   }
@@ -39467,6 +39901,11 @@ async function cambiarTecnicoOT(select) {
     notify('No se pudo localizar la OT para transferirla');
     return false;
   }
+  if (ventaDetalleOTFinalizada(ot)) {
+    select.value = anterior;
+    notify('La OT está finalizada y conserva el técnico, checklist y firmas de esa visita. Para otro responsable generá una OT nueva.');
+    return false;
+  }
   var mensaje = anterior
     ? 'Transferir esta OT de ' + anterior + ' a ' + (nuevo || 'Sin asignar') + '? El cambio quedara registrado en el historial.'
     : 'Asignar esta OT a ' + (nuevo || 'Sin asignar') + '? El cambio quedara registrado en el historial.';
@@ -39474,17 +39913,25 @@ async function cambiarTecnicoOT(select) {
   if (window._otTransferenciaEnCurso) { select.value = anterior; notify('La transferencia de esta OT ya se esta guardando'); return false; }
   window._otTransferenciaEnCurso = true;
   select.disabled = true;
+  var tecnicoFbKeyAnterior = ot.tecnicoFbKey || '';
+  var auditAnteriorLength = Array.isArray(ot.audit) ? ot.audit.length : 0;
   try {
     var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    var empleadoTecnicoNuevo = Object.values(empData || {}).find(function(emp) {
+      return String(emp.nombre || '').trim().toLocaleLowerCase('es-AR') === String(nuevo || '').trim().toLocaleLowerCase('es-AR');
+    });
     ot.tecnico = nuevo;
+    ot.tecnicoFbKey = empleadoTecnicoNuevo ? String(empleadoTecnicoNuevo.fbKey || '') : '';
     ot.audit = Array.isArray(ot.audit) ? ot.audit : [];
-    ot.audit.push({ fecha:ahora, usuario:currentUser || 'Admin', accion:'Titularidad de OT transferida: ' + (anterior || 'Sin asignar') + ' -> ' + (nuevo || 'Sin asignar'), tecnicoAnterior:anterior, tecnicoNuevo:nuevo });
+    ot.audit.push({ fecha:ahora, usuario:currentUser || 'Admin', accion:'Titularidad de OT transferida: ' + (anterior || 'Sin asignar') + ' -> ' + (nuevo || 'Sin asignar'), tecnicoAnterior:anterior, tecnicoAnteriorFbKey:tecnicoFbKeyAnterior, tecnicoNuevo:nuevo, tecnicoNuevoFbKey:ot.tecnicoFbKey });
     await fbGuardarOT(ot);
     select.dataset.previousValue = nuevo;
     window._otDetalleHuella = JSON.stringify(ot);
     notify('OT transferida a ' + (nuevo || 'Sin asignar'));
   } catch (e) {
     ot.tecnico = anterior;
+    ot.tecnicoFbKey = tecnicoFbKeyAnterior;
+    if (Array.isArray(ot.audit)) ot.audit.length = auditAnteriorLength;
     select.value = anterior;
     notify('No se pudo transferir la OT: ' + e.message);
     return false;
@@ -41598,9 +42045,24 @@ function _cargarFiltroEmpleadosGastos() {
   var select = document.getElementById('gas-f-empleado');
   if (!select) return;
   var valor = select.value;
-  var empleados = Object.values(empData || {}).filter(function(e){ return e && e.activo !== false && String(e.estado || 'activo').toLowerCase() !== 'inactivo'; }).sort(function(a,b){ return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); });
-  select.innerHTML = '<option value="">Todos los empleados</option>' + empleados.map(function(e){ return '<option value="'+escapeHTML(e.fbKey || '')+'">'+escapeHTML(e.nombre || 'Sin nombre')+'</option>'; }).join('');
+  var empleados = Object.values(empData || {}).filter(Boolean).sort(function(a,b){ return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); });
+  var activos = empleados.filter(function(e){ return !_empleadoEsInactivoParaHistorial(e); });
+  var inactivos = empleados.filter(_empleadoEsInactivoParaHistorial);
+  var opcionesActivos = activos.map(function(e){
+    return '<option value="'+escapeHTML(e.fbKey || '')+'">'+escapeHTML(e.nombre || 'Sin nombre')+'</option>';
+  }).join('');
+  var opcionesInactivos = inactivos.map(function(e){
+    return '<option value="'+escapeHTML(e.fbKey || '')+'">'+escapeHTML(e.nombre || 'Sin nombre')+' (Inactivo)</option>';
+  }).join('');
+  select.innerHTML = '<option value="">Todos los empleados</option>' +
+    (opcionesActivos ? '<optgroup label="Empleados activos">'+opcionesActivos+'</optgroup>' : '') +
+    (opcionesInactivos ? '<optgroup label="Historial de empleados inactivos">'+opcionesInactivos+'</optgroup>' : '');
   if (empleados.some(function(e){ return String(e.fbKey || '') === String(valor); })) select.value = valor;
+}
+
+function _empleadoEsInactivoParaHistorial(empleado) {
+  var estado = String((empleado || {}).estado || '').toLowerCase();
+  return !empleado || empleado.activo === false || estado === 'inactivo' || estado === 'despedido' || estado === 'renuncia' || !!empleado.tipoBaja;
 }
 
 function filtrarGastosPorEmpleado() {
@@ -42360,15 +42822,17 @@ async function generarComisionesVenta(venta, montoCobrado) {
 
   // Vendedor principal
   var empPrincipal = Object.values(empData||{}).find(function(e){
-    return e.fbKey === venta.empleadoFbKey || e.fbKey === venta.empleado || e.nombre === venta.empleado;
+    return ventaPerteneceResponsableComercial(venta, e);
   });
   if (empPrincipal && _pctComisionEmpleadoVenta(empPrincipal) > 0) {
     vendedores.push(empPrincipal);
   }
 
   // Segundo comisionado
-  var empCom2 = (venta.comisionado2 || venta.comisionado2FbKey) ? Object.values(empData||{}).find(function(e){
-    return e.fbKey === venta.comisionado2FbKey || e.fbKey === venta.comisionado2 || e.nombre === venta.comisionado2;
+  var identidadCom2 = ventaComisionadoSecundarioIdentidad(venta);
+  var empCom2 = (identidadCom2.fbKey || identidadCom2.nombre) ? Object.values(empData||{}).find(function(e){
+    return (identidadCom2.fbKey && String(e.fbKey || '') === String(identidadCom2.fbKey)) ||
+      (identidadCom2.nombre && String(e.nombre || '').trim().toLocaleLowerCase('es-AR') === String(identidadCom2.nombre).trim().toLocaleLowerCase('es-AR'));
   }) : null;
   if (empCom2 && empCom2.fbKey !== (empPrincipal && empPrincipal.fbKey) && _pctComisionEmpleadoVenta(empCom2) > 0) {
     vendedores.push(empCom2);
@@ -44723,6 +45187,7 @@ async function pptoAccion(accion, opts) {
   };
 
   if (accion === 'convertir_venta') {
+    if (!validarProductosActivosDocumento(p.items || p.detalle || p.productos || [], 'convertir el presupuesto en venta')) return;
     if (!opts.skipConfirm && !await svConfirm('¿Convertir este presupuesto en venta? El estado de pago inicial será Pendiente de pago.')) return;
     if (!window.fbDB) { notify('Sin conexión'); return; }
     if (window._pptoConversionEnCurso) { notify('Ya se está convirtiendo este presupuesto'); return; }
@@ -44733,6 +45198,11 @@ async function pptoAccion(accion, opts) {
     var clienteFbKeyPpto = p.clienteFbKey || p.clienteKey || (clienteRefPpto && clienteRefPpto.fbKey) || '';
     var fechaVentaPpto = svFechaLocalISO();
     var datosVentaPpto = pptoDatosParaVenta(p);
+    var comisionadoPrincipalPpto = _ventaResolverIdentidadEmpleado(
+      [p.comisionadoPrincipalFbKey, p.empleadoFbKey],
+      [p.comisionadoPrincipal, p.empleado]
+    );
+    var comisionadoSecundarioPpto = ventaComisionadoSecundarioIdentidad(p);
     if (datosVentaPpto.v3Ready === false) {
       var conflictoPpto = (datosVentaPpto.v3Conflicts || [])[0] || {};
       var detalleConflictoPpto = conflictoPpto.path ? ' Diferencia detectada en ' + conflictoPpto.path + '.' : '';
@@ -44747,8 +45217,12 @@ async function pptoAccion(accion, opts) {
       clienteKey:   clienteFbKeyPpto,
       fecha:        fechaVentaPpto,
       fechaOrden:   fechaVentaPpto,
-      empleado:     p.empleado || currentUser || '',
-      comisionado2: (document.getElementById('venta-comisionado2')||{}).value || '',
+      empleado:     comisionadoPrincipalPpto.nombre || p.empleado || currentUser || '',
+      empleadoFbKey: comisionadoPrincipalPpto.fbKey || '',
+      comisionadoPrincipal: comisionadoPrincipalPpto.nombre || p.empleado || currentUser || '',
+      comisionadoPrincipalFbKey: comisionadoPrincipalPpto.fbKey || '',
+      comisionado2: comisionadoSecundarioPpto.nombre || '',
+      comisionado2FbKey: comisionadoSecundarioPpto.fbKey || '',
       conIva:       datosVentaPpto.conIva,
       usuario:      currentUser || '',
       items:        datosVentaPpto.items,
@@ -45147,6 +45621,12 @@ async function guardarPresupuesto(modo) {
   var descAmt       = _redondearPrecioActual(subtotalBruto * desc / 100);
   var conIvaGuardar = typeof _pptoConIva !== 'undefined' ? _pptoConIva : true;
 
+  var filasPptoDocumento = Array.from(document.querySelectorAll('#pp-body tr')).filter(function(tr) {
+    if (window._pptoEditandoFbKey && tr.dataset.productoSeleccionNueva !== '1') return false;
+    var codigo = String(((tr.querySelector('.prod-sel-cod') || {}).textContent) || '').trim();
+    return !!codigo || !!tr.dataset.productoFbKey;
+  });
+  if (!validarProductosActivosDocumento(referenciasProductoDesdeFilas(filasPptoDocumento), 'guardar el presupuesto')) return;
   var items = getPpItems();
 
   if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
@@ -46294,7 +46774,7 @@ function verOT(id) {
   }
 
   // Visita repetida
-  var visitasPrev = _contarVisitasPrevias(ot.cliente, ot.dir, ot.id);
+  var visitasPrev = _contarVisitasPrevias(ot.cliente, ot.dir, ot.fbKey || ot.id);
   var repetidaBox = document.getElementById('ot-det-repetida-box');
   var repetidaLbl = document.getElementById('ot-det-repetida-lbl');
   if (visitasPrev > 0 && repetidaBox && repetidaLbl) {
@@ -48539,6 +49019,8 @@ function actualizarOT(direccionEditada) {
   var ventaInp = document.getElementById('ot-det-venta');
   var clienteInp = document.getElementById('ot-det-cliente');
   var dirInp = document.getElementById('ot-det-dir');
+  var fechaInp = document.getElementById('ot-det-fecha');
+  var horaInp = document.getElementById('ot-det-hora');
   var tipoVisitaPropuesto = tipoSel ? String(tipoSel.value || '').trim() : String(ot.tipoVisita || '').trim();
   var ventaIdPropuesta = ventaInp ? String(ventaInp.value || '').trim() : String(ot.ventaId || '').trim();
   var esPostVenta = tipoVisitaPropuesto.toLocaleLowerCase('es-AR').indexOf('post-venta') >= 0;
@@ -48556,6 +49038,22 @@ function actualizarOT(direccionEditada) {
     notify('Para guardar un reclamo post-venta abrilo primero desde Soporte / Reclamos. Así la OT conserva su reclamo original.');
     return Promise.resolve(null);
   }
+  var clienteSeleccionadoPropuesto = clienteInp && !clienteInp.readOnly
+    ? _otClientePorClave(clienteInp.dataset.clienteKey || '')
+    : null;
+  if (otCambioEstructuralEnFinalizada(ot, {
+    ventaId: ventaInp && !ventaInp.readOnly ? ventaIdPropuesta : undefined,
+    clienteKey: clienteSeleccionadoPropuesto
+      ? String(clienteSeleccionadoPropuesto.fbKey || clienteSeleccionadoPropuesto.id || clienteSeleccionadoPropuesto.codigo || '').trim()
+      : undefined,
+    tecnico: tecSel ? tecSel.value : undefined,
+    fecha: fechaInp ? fechaInp.value : undefined,
+    hora: horaInp ? horaInp.value : undefined,
+    tipoVisita: tipoSel ? tipoVisitaPropuesto : undefined
+  })) {
+    notify('Esta OT ya está finalizada y conserva checklist, firmas y cierre. No puede reutilizarse para otra visita; generá una OT nueva desde la venta o el reclamo.');
+    return Promise.resolve(null);
+  }
   if (ventaInp && !ventaInp.readOnly) {
     ot.ventaId = ventaPostVenta ? String(ventaPostVenta.id || ventaPostVenta.numero || ventaIdPropuesta).trim() : ventaIdPropuesta;
     ot.venta = ot.ventaId;
@@ -48564,7 +49062,7 @@ function actualizarOT(direccionEditada) {
     ot.origen = ventaPostVenta ? 'venta' : 'manual';
   }
   if (clienteInp && !clienteInp.readOnly) {
-    var clienteSeleccionado = _otClientePorClave(clienteInp.dataset.clienteKey || '');
+    var clienteSeleccionado = clienteSeleccionadoPropuesto;
     if (clienteSeleccionado) {
       var vinculoClienteOT = clienteVinculoOperacion(clienteSeleccionado);
       ot.cliente = String(clienteSeleccionado.nombre || clienteSeleccionado.razonSocial || '').trim();
@@ -48589,9 +49087,15 @@ function actualizarOT(direccionEditada) {
     var mapsBtn = document.getElementById('ot-det-dir-maps-btn');
     if (mapsBtn) mapsBtn.style.display = ot.dir ? '' : 'none';
   }
-  if (tecSel)  ot.tecnico    = tecSel.value;
-  ot.fecha      = document.getElementById('ot-det-fecha').value;
-  ot.hora       = document.getElementById('ot-det-hora').value;
+  if (tecSel) {
+    ot.tecnico = tecSel.value;
+    var tecnicoSeleccionado = Object.values(empData || {}).find(function(emp) {
+      return String(emp.nombre || '').trim().toLocaleLowerCase('es-AR') === String(tecSel.value || '').trim().toLocaleLowerCase('es-AR');
+    });
+    ot.tecnicoFbKey = tecnicoSeleccionado ? String(tecnicoSeleccionado.fbKey || '') : '';
+  }
+  ot.fecha      = fechaInp.value;
+  ot.hora       = horaInp.value;
   if (durSel)  ot.duracion   = durSel.value;
   if (tipoSel) ot.tipoVisita = tipoVisitaPropuesto;
   ot.obs        = document.getElementById('ot-det-obs').value;
@@ -48685,7 +49189,11 @@ function _claveInstalacion(cliente, dir) {
 function _contarVisitasPrevias(cliente, dir, otIdExcluir) {
   var clave = _claveInstalacion(cliente, dir);
   return (otData||[]).filter(function(o) {
-    return o.id !== otIdExcluir && _claveInstalacion(o.cliente, o.dir) === clave;
+    var excluir = String(otIdExcluir || '');
+    var esMismaVisita = excluir && [o.fbKey, o.id, o.otId, o.numero].some(function(valor) {
+      return String(valor || '') === excluir;
+    });
+    return !esMismaVisita && _claveInstalacion(o.cliente, o.dir) === clave;
   }).length;
 }
 
@@ -49079,7 +49587,7 @@ function renderDashAdministrativo() {
 
   // Mis ventas del mes
   var misVentas = (ventasList||[]).filter(function(v){
-    return (v.vendedor||v.empleado||v.usuario||'') === usuario && (v.fecha||'').slice(0,7) === mesActual;
+    return ventaResponsableComercialReporte(v) === usuario && (v.fecha||'').slice(0,7) === mesActual;
   });
 
   var el = function(id){ return document.getElementById(id); };
@@ -50372,6 +50880,33 @@ function ventaDetalleCoincidenciaCliente(venta, ot) {
   return nombreVenta && nombreOT && nombreVenta === nombreOT ? 55 : 0;
 }
 
+function ventaDetalleOTHuellaVenta(ot) {
+  if (!ot) return false;
+  var origen = _svTxtNombre(ot.origen || ot.origenOT || ot.tipoOrigen);
+  var referencias = [ot.ventaId, ot.venta, ot.ventaFbKey, ot.ventaKey]
+    .map(function(valor){ return String(valor || '').trim(); }).filter(Boolean);
+  var textos = [ot.descripcion, ot.obs, ot.observaciones]
+    .concat(Array.isArray(ot.audit) ? ot.audit.map(function(registro){ return registro && registro.accion; }) : [])
+    .map(function(valor){ return _svTxtNombre(valor); }).filter(Boolean).join(' ');
+  return origen === 'venta' || referencias.length > 0 || /(?:generad[ao]|cread[ao]|asociad[ao]).{0,35}venta/.test(textos);
+}
+
+function otCambioEstructuralEnFinalizada(ot, propuesta) {
+  if (!ventaDetalleOTFinalizada(ot) || !propuesta) return false;
+  var normalizar = function(valor){ return _svTxtClave(valor); };
+  var actual = {
+    ventaId: ot.ventaId || ot.venta || '',
+    clienteKey: ot.clienteFbKey || ot.clienteKey || ot.clienteId || ot.idCliente || '',
+    tecnico: ot.tecnico || ot.tecnicoNombre || '',
+    fecha: ot.fecha || ot.fechaProgramada || '',
+    hora: ot.hora || '',
+    tipoVisita: ot.tipoVisita || ''
+  };
+  return Object.keys(propuesta).some(function(campo) {
+    return propuesta[campo] !== undefined && normalizar(propuesta[campo]) !== normalizar(actual[campo]);
+  });
+}
+
 function ventaDetalleResolverOT(venta) {
   if (!venta) return null;
   var ots = window.otData || [];
@@ -50390,24 +50925,26 @@ function ventaDetalleResolverOT(venta) {
   }) || null;
   if (directa) return directa;
 
-  // Sólo considerar OT cuyo número de venta ya no resuelve a ninguna venta.
-  // Así una coincidencia de cliente nunca roba una OT correctamente vinculada.
+  // La reparación heurística sólo admite OT creadas desde una venta, con
+  // materiales coincidentes y fecha cercana. Coincidir solamente en el cliente
+  // no prueba una relación: una OT manual histórica puede pertenecer al mismo
+  // cliente y conservar checklist, firmas y cierre de otra visita.
   var codigosVenta = ventaDetalleCodigos(venta);
   var fechaVenta = fechaVentaTimestamp(venta.fechaOrden || venta.fecha, venta.ts);
   var candidatas = ots.map(function(ot) {
     if (!ot || _svResolverVentaRegistro(ot)) return null;
+    if (!ventaDetalleOTHuellaVenta(ot)) return null;
     var puntaje = ventaDetalleCoincidenciaCliente(venta, ot);
     if (!puntaje) return null;
     var codigosOT = ventaDetalleCodigos(ot);
-    if (codigosVenta.length && codigosOT.length) {
-      var comunes = codigosVenta.filter(function(codigo){ return codigosOT.indexOf(codigo) >= 0; }).length;
-      if (!comunes) return null; // materiales diferentes: contradicción fuerte
-      puntaje += 35 + Math.min(25, comunes * 5);
-    }
+    if (!codigosVenta.length || !codigosOT.length) return null;
+    var comunes = codigosVenta.filter(function(codigo){ return codigosOT.indexOf(codigo) >= 0; }).length;
+    if (!comunes) return null;
+    puntaje += 35 + Math.min(25, comunes * 5);
     var fechaOT = fechaVentaTimestamp(ot.fecha || ot.fechaProgramada || ot.fechaCreacion, ot.ts);
     var distanciaDias = fechaVenta && fechaOT ? Math.abs(fechaOT - fechaVenta) / 86400000 : 99999;
-    if (distanciaDias <= 90) puntaje += 20;
-    else if (distanciaDias <= 365) puntaje += 10;
+    if (distanciaDias > 90) return null;
+    puntaje += 20;
     return { ot:ot, puntaje:puntaje, distanciaDias:distanciaDias };
   }).filter(Boolean).sort(function(a,b) {
     return (b.puntaje - a.puntaje) || (a.distanciaDias - b.distanciaDias);
@@ -50433,10 +50970,7 @@ function ventaDetalleRepararVinculoOT(venta, opciones) {
     || (otKeyCanonica && String(venta.otId || '') !== otKeyCanonica);
   var estadoCambia = estadoInstalacion !== String(venta.estadoInst || '');
   if (!relacionCambia && !estadoCambia) return ot;
-  if (opciones.soloLectura) {
-    venta.estadoInst = estadoInstalacion;
-    return ot;
-  }
+  if (opciones.soloLectura) return ot;
 
   var ahora = Date.now();
   var fechaAudit = new Date(ahora).toLocaleDateString('es-AR') + ' ' + new Date(ahora).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
@@ -50911,18 +51445,22 @@ function renderDetalleVenta(v) {
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
         '<span style="font-weight:600">Historial de pagos</span>' +
         (saldo > 0
-          ? '<button class="btn btn-sm btn-primary" onclick="irACobranzasConVenta(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-plus"></i> Registrar pago</button>'
+          ? '<button class="btn btn-sm btn-primary" onclick="irACobranzasConVenta(this.dataset.vid,\'venta\')" data-vid="'+v.id+'"><i class="ti ti-plus"></i> Registrar pago</button>'
           : '<span style="font-size:12px;color:var(--green)"><i class="ti ' + (esSinCargoDetalle ? 'ti-gift' : 'ti-check') + '"></i> ' + (esSinCargoDetalle ? 'Trabajo sin cargo' : 'Saldo cancelado') + '</span>'
         ) +
       '</div>' +
       (pagos.length
         ? pagos.map(function(p) {
+            var tieneComprobantePago = _cobroTieneComprobante(p);
+            var comprobantePagoBtn = p.fbKey
+              ? '<button class="btn btn-sm btn-icon" onclick="verOAdjuntarDocumentoCobro(\''+escapeHTML(p.fbKey)+'\','+tieneComprobantePago+')" title="'+(tieneComprobantePago?'Ver comprobante':'Adjuntar comprobante')+'"><i class="ti ti-paperclip" style="color:'+(tieneComprobantePago?'var(--green)':'var(--text3)')+'"></i></button>'
+              : '';
             return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid var(--border)">' +
               '<div>' +
                 '<div style="font-size:13px;font-weight:500">$' + (parseFloat(p.monto)||0).toLocaleString('es-AR') + '</div>' +
                 '<div style="font-size:11px;color:var(--text3)">' + (p.fecha||'') + ' · ' + (p.medio||'Efectivo') + (p.nota?' · '+p.nota:'') + '</div>' +
               '</div>' +
-              '<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:var(--green-bg);color:var(--green)">✓</span>' +
+              '<div style="display:flex;align-items:center;gap:6px">'+comprobantePagoBtn+'<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:var(--green-bg);color:var(--green)">✓</span></div>' +
             '</div>';
           }).join('') +
           (saldo > 0
@@ -51283,6 +51821,11 @@ function _pptoFechaEnvioNotificacion(p) {
   return envio ? parsear(envio.fecha) : null;
 }
 
+function _diasAvisoVencimientoPresupuestoConfig(){
+  var dias=parseInt(window._diasAvisoVencimientoPresupuesto,10);
+  return isFinite(dias)?Math.max(0,Math.min(30,dias)):1;
+}
+
 function generarNotificaciones() {
   try {
   todasNotifs = [];
@@ -51334,23 +51877,16 @@ function generarNotificaciones() {
         return;
       }
       if (isNaN(venc.getTime())) return;
-      var dias = Math.round((venc - ahora) / 86400000);
+      var inicioHoyVenc = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+      var dias = Math.round((venc - inicioHoyVenc) / 86400000);
+      var diasAvisoVencimiento = _diasAvisoVencimientoPresupuestoConfig();
 
-      if (dias <= 2 && dias >= 0 && NOTIF_CONFIG.ppto_vence_2.activo) {
+      if (dias <= diasAvisoVencimiento && dias >= 0 && NOTIF_CONFIG.ppto_vence_2.activo) {
         todasNotifs.push({
-          id: 'ppto_v2_' + p.id, tipo:'presupuesto', urgente:true,
+          id: 'ppto_vence_' + p.id, tipo:'presupuesto', urgente:dias <= 1,
           icono:'ti-file-description', color:'red',
-          titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' día(s)',
+          titulo: 'Presupuesto ' + p.id + (dias === 0 ? ' vence hoy' : ' vence en ' + dias + ' día' + (dias === 1 ? '' : 's')),
           sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Estado: ' + (pptoEstadoLabel(p.estado)) + '.',
-          tiempo: 'Hoy · Sistema',
-          accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
-        });
-      } else if (dias <= 7 && dias > 2 && NOTIF_CONFIG.ppto_vence_7.activo) {
-        todasNotifs.push({
-          id: 'ppto_v7_' + p.id, tipo:'presupuesto', urgente:false,
-          icono:'ti-file-description', color:'amber',
-          titulo: 'Presupuesto ' + p.id + ' vence en ' + dias + ' días',
-          sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Sin respuesta del cliente.',
           tiempo: 'Hoy · Sistema',
           accion: { label:'Ver presupuesto', fn:"abrirPresupuestoDesdeNotificacion('" + p.id + "')" },
         });
@@ -52358,7 +52894,7 @@ function obtenerCategoriaEmpleado(emp) {
 
 function calcularComisionEmpleado(emp, mesAMM) {
   var ventas = (ventasList||[]).filter(function(v){
-    return (v.empleado===emp.nombre||v.empleadoId===emp.fbKey) &&
+    return ventaEmpleadoEsComisionado(v, emp) &&
            (v.fecha||'').slice(0,7) === (mesAMM||new Date().toISOString().slice(0,7));
   });
 
@@ -52369,7 +52905,30 @@ function calcularComisionEmpleado(emp, mesAMM) {
   }, 0);
   var detalle = obtenerDetalleComisionEmpleado(emp);
   var pct = parseFloat(detalle.pct) || 0;
-  var comisionFinal = gananciaBase * pct / 100;
+  var maxComisionPct = parseFloat(
+    (APROBACION_CONFIG && APROBACION_CONFIG.maxComisionPct != null)
+      ? APROBACION_CONFIG.maxComisionPct
+      : 10
+  );
+  var comisionFinal = ventas.reduce(function(s, venta) {
+    var comisionados = Object.values(empData || {}).filter(function(candidato) {
+      var detalleCandidato = obtenerDetalleComisionEmpleado(candidato);
+      return ventaEmpleadoEsComisionado(venta, candidato) && (parseFloat(detalleCandidato.pct) || 0) > 0;
+    });
+    var indice = comisionados.findIndex(function(candidato) {
+      return (emp.fbKey && candidato.fbKey && String(emp.fbKey) === String(candidato.fbKey)) ||
+        String(emp.nombre || '').trim().toLocaleLowerCase('es-AR') === String(candidato.nombre || '').trim().toLocaleLowerCase('es-AR');
+    });
+    if (indice < 0) return s;
+    var porcentajes = comisionados.map(function(candidato) {
+      return parseFloat(obtenerDetalleComisionEmpleado(candidato).pct) || 0;
+    });
+    var pctEfectivo = porcentajes[indice] || 0;
+    if (comisionados.length === 1) pctEfectivo = Math.min(pctEfectivo, maxComisionPct);
+    else if (porcentajes.reduce(function(total, valor){ return total + valor; }, 0) > maxComisionPct) pctEfectivo = maxComisionPct / comisionados.length;
+    var calculo = typeof _calcularBaseComisionVenta === 'function' ? _calcularBaseComisionVenta(venta) : { ganancia:0 };
+    return s + Math.max(parseFloat(calculo.ganancia)||0, 0) * pctEfectivo / 100;
+  }, 0);
 
   return {
     totalVentas: totalVentas,
@@ -52993,7 +53552,7 @@ function _renderDropGlobal(filtro) {
   var listEl = document.getElementById('prod-drop-list');
   if (!listEl || !prodData) return;
   var f = _prodNormalizarBusqueda(filtro);
-  var items = Object.values(prodData).filter(function(p) {
+  var items = Object.values(prodData).filter(productoEstaActivo).filter(function(p) {
     if (!f) return true;
     return _prodCoincideBusqueda(p, f, 'principales');
   }).slice(0, 80);
@@ -53013,7 +53572,7 @@ function _renderDropGlobal(filtro) {
     var vigenciaHtml = vigencia.vigente
       ? '<span class="badge b-green" style="font-size:9px;margin-left:4px">Precio vigente</span>'
       : '<span class="badge b-amber" style="font-size:9px;margin-left:4px">' + escapeHTML(vigencia.texto) + '</span>';
-    return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+precioProd+'" data-moneda="'+monedaProd+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
+    return '<div class="prod-drop-item" data-pid="'+escapeHTML(String(p.fbKey || p.id || ''))+'" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+precioProd+'" data-moneda="'+monedaProd+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
       imagenProductoItemHTML({ pid:p.fbKey || p.id, cod:p.codigo, imagenUrl:p.imagenUrl }, 'prod-drop-thumb') +
       '<div style="min-width:0;flex:1">' +
         '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' — '+escapeHTML(p.nombre||p.descripcion||'')+vigenciaHtml+'</div>' +
@@ -53034,7 +53593,12 @@ function _selProdGlobal(item) {
   var filaSeleccionada = _prodDropTR;
   var esFilaPpto = !!(filaSeleccionada && filaSeleccionada.closest('#pp-body'));
   var esFilaVenta = !!(filaSeleccionada && filaSeleccionada.closest('#det-body'));
-  var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod || p.nombre === desc; });
+  var pid = item.dataset.pid || '';
+  var prod = Object.values(prodData||{}).find(function(p){ return (pid && String(p.fbKey || p.id || '') === String(pid)) || (!pid && (p.codigo === cod || p.nombre === desc)); });
+  if (prod && !productoEstaActivo(prod)) {
+    notify('El producto ' + (prod.codigo || prod.nombre || '') + ' está inactivo y no puede agregarse a una venta o presupuesto');
+    return;
+  }
   var vigenciaPrecio = prod ? estadoVigenciaPrecioProducto(prod) : null;
   // La fuente del selector es siempre el precio canónico en ARS. USD es una
   // presentación temporal del formulario y nunca vuelve a convertirse dos
@@ -53063,6 +53627,7 @@ function _selProdGlobal(item) {
   if (_prodDropTR) {
     var tr = _prodDropTR;
     delete tr.dataset.descripcionPersonalizada;
+    tr.dataset.productoSeleccionNueva = '1';
     if (prod && (prod.fbKey || prod.id)) tr.dataset.productoFbKey = prod.fbKey || prod.id;
     tr.dataset.unidad = (prod && prod.unidad) || 'Unidad';
     if (vigenciaPrecio) {
@@ -53272,7 +53837,7 @@ function abrirBusquedaAvanzada(tr) {
   if (prev) prev.remove();
 
   // Construir listas únicas de categorías y marcas, normalizadas
-  var productos = Object.values(prodData || {}).filter(function(p){ return p.activo !== false; });
+  var productos = Object.values(prodData || {}).filter(productoEstaActivo);
   var cats  = [...new Set(productos.map(function(p){ return (p.categoria||'').trim().toUpperCase(); }).filter(Boolean))].sort();
   var marcas = [...new Set(productos.map(function(p){ return (p.marca||'').trim().toUpperCase(); }).filter(Boolean))].sort();
 
@@ -53343,7 +53908,7 @@ function renderBusqAvanz() {
   if (!lista) return;
 
   var productos = Object.values(prodData || {}).filter(function(p) {
-    if (p.activo === false) return false;
+    if (!productoEstaActivo(p)) return false;
     if (cat   && (p.categoria||'').trim().toUpperCase() !== cat)   return false;
     if (marca && (p.marca||'').trim().toUpperCase() !== marca)      return false;
     if (texto) {
@@ -53368,7 +53933,7 @@ function renderBusqAvanz() {
     var cotiz3 = parseFloat(tc3[tc3.dolarConversion || 'oficial']) || 0;
     var precioUSD = '$' + precio.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
     var equivARS3 = '';
-    return '<div onclick="seleccionarProdAvanz(\''+escapeHTML(p.codigo)+'\',\''+escapeHTML(p.nombre||p.descripcion||'')+'\','+precio+',\'ARS\')" ' +
+    return '<div onclick="seleccionarProdAvanz(\''+escapeHTML(String(p.fbKey || p.id || ''))+'\',\''+escapeHTML(p.codigo)+'\',\''+escapeHTML(p.nombre||p.descripcion||'')+'\','+precio+',\'ARS\')" ' +
       'style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:var(--radius);cursor:pointer;margin-bottom:4px;border:0.5px solid var(--border)"' +
       ' onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
       imagenProductoItemHTML({ pid:p.fbKey || p.id, cod:p.codigo, imagenUrl:p.imagenUrl }, 'prod-list-thumb') +
@@ -53388,10 +53953,10 @@ function renderBusqAvanz() {
   }).join('') + (productos.length > 120 ? '<div style="padding:10px;text-align:center;font-size:11px;color:var(--text3)">Mostrando los primeros 120 resultados — usá los filtros para acotar</div>' : '');
 }
 
-function seleccionarProdAvanz(cod, nombre, precio, moneda) {
+function seleccionarProdAvanz(pid, cod, nombre, precio, moneda) {
   if (!_busqAvanzTR) { cerrarBusquedaAvanzada(); return; }
   // Simular la selección como si viniera del dropdown normal
-  var fakeItem = { dataset: { cod: cod, desc: nombre, precio: precio, moneda: moneda } };
+  var fakeItem = { dataset: { pid:pid, cod:cod, desc:nombre, precio:precio, moneda:moneda } };
   _prodDropTR = _busqAvanzTR;
   _selProdGlobal(fakeItem);
   cerrarBusquedaAvanzada();
