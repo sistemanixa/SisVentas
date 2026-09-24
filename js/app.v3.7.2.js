@@ -2379,8 +2379,10 @@ async function tecnicoTomarOT(otFbKey) {
     if (!await svConfirm('Esta OT ya está asignada a ' + ot.tecnico + '. ¿Reasignar a ' + currentUser + '?')) return;
   }
   var hoy = svFechaLocalISO();
+  var empleadoTecnicoActual = typeof _hsexEmpleadoActual === 'function' ? _hsexEmpleadoActual() : null;
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + otFbKey), {
     tecnico: currentUser || '',
+    tecnicoFbKey: empleadoTecnicoActual ? String(empleadoTecnicoActual.fbKey || '') : '',
     estado: 'en_curso',
     fechaInicio: hoy,
     audit: (ot.audit||[]).concat([{ fecha: hoy, usuario: currentUser||'', accion: 'OT tomada por técnico' }])
@@ -2444,8 +2446,11 @@ function asignarFechaInstalacion(ventaId, fecha, tecnico) {
 
   var ot = (otData||[]).find(function(o){ return _svRegistroPerteneceVenta(o, venta); });
   if (ot && ot.fbKey) {
+    var empleadoTecnico = Object.values(empData || {}).find(function(emp) {
+      return String(emp.nombre || '').trim().toLocaleLowerCase('es-AR') === String(tecnico || '').trim().toLocaleLowerCase('es-AR');
+    });
     otPersistirActualizar(ot.fbKey, {
-      fecha: fecha, tecnico: tecnico || '', estado: 'programada'
+      fecha: fecha, tecnico: tecnico || '', tecnicoFbKey: empleadoTecnico ? String(empleadoTecnico.fbKey || '') : '', estado: 'programada'
     });
     if (venta.agendaEventoId) {
       window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/agenda/' + venta.agendaEventoId), {
@@ -2812,7 +2817,7 @@ async function iaEnviar() {
     // Administrativo: solo sus propios datos, sin datos globales de la empresa
     var misMes = (ventasList||[]).filter(function(v){
       return (v.fecha||'').slice(0,7)===mesActual &&
-             (v.empleado||v.vendedor||v.usuario||'') === (currentUser||'');
+             ventaResponsableComercialReporte(v) === (currentUser||'');
     });
     systemPrompt +=
       '\n\n=== MIS DATOS ===' +
@@ -26458,19 +26463,56 @@ function _periodoActualReportes() {
 }
 
 function ventaResponsableComercialReporte(venta) {
+  return ventaResponsableComercialIdentidad(venta).nombre;
+}
+window.ventaResponsableComercialReporte = ventaResponsableComercialReporte;
+
+function ventaEsTecnica(venta) {
   venta = venta || {};
-  var explicito = venta.vendedor || venta.creadaPor || venta.usuario || venta.createdBy || '';
-  if (explicito) return String(explicito).trim();
-  var esVentaTecnica = venta.origen === 'reclamo' || !!(venta.reclamoKey || venta.reclamoFbKey || venta.reclamoId);
-  if (esVentaTecnica) {
+  return String(venta.origen || '').toLowerCase() === 'reclamo' || !!(venta.reclamoKey || venta.reclamoFbKey || venta.reclamoId);
+}
+
+function ventaResponsableComercialIdentidad(venta) {
+  venta = venta || {};
+  var clavesExplicitas = [venta.responsableComercialFbKey, venta.vendedorFbKey, venta.vendedorId].filter(Boolean).map(String);
+  var nombresExplicitos = [venta.responsableComercial, venta.vendedor].filter(Boolean).map(function(v){ return String(v).trim(); });
+  var nombres = nombresExplicitos.slice();
+  var claves = clavesExplicitas.slice();
+  if (ventaEsTecnica(venta)) {
+    // Las ventas históricas de reclamos guardaban al técnico en `empleado`.
+    // En ellas el creador/auditor es la fuente comercial compatible y el
+    // técnico queda exclusivamente en sus campos técnicos.
+    nombres.push(venta.creadaPor, venta.usuario, venta.createdBy);
     var auditoriaCreacion = (Array.isArray(venta.audit) ? venta.audit : []).find(function(registro) {
       return registro && registro.usuario && /creada autom[aá]ticamente desde reclamo/i.test(String(registro.accion || ''));
     });
-    return auditoriaCreacion ? String(auditoriaCreacion.usuario).trim() : '';
+    if (auditoriaCreacion) nombres.push(auditoriaCreacion.usuario);
+  } else {
+    claves.push(venta.empleadoFbKey, venta.empleadoId);
+    nombres.push(venta.empleado, venta.creadaPor, venta.usuario, venta.createdBy);
   }
-  return String(venta.empleado || '').trim();
+  claves = claves.filter(Boolean).map(function(v){ return String(v).trim(); });
+  nombres = nombres.filter(Boolean).map(function(v){ return String(v).trim(); });
+  var empleados = Object.values(empData || {});
+  var empleado = empleados.find(function(emp) {
+    return claves.indexOf(String(emp.fbKey || '')) >= 0 || nombres.some(function(nombre) {
+      return String(emp.nombre || '').trim().toLocaleLowerCase('es-AR') === nombre.toLocaleLowerCase('es-AR');
+    });
+  }) || null;
+  return {
+    fbKey: empleado ? String(empleado.fbKey || '') : (claves[0] || ''),
+    nombre: empleado ? String(empleado.nombre || '').trim() : (nombres[0] || '')
+  };
 }
-window.ventaResponsableComercialReporte = ventaResponsableComercialReporte;
+window.ventaResponsableComercialIdentidad = ventaResponsableComercialIdentidad;
+
+function ventaPerteneceResponsableComercial(venta, emp) {
+  if (!emp) return false;
+  var responsable = ventaResponsableComercialIdentidad(venta);
+  if (responsable.fbKey && emp.fbKey && String(responsable.fbKey) === String(emp.fbKey)) return true;
+  return !!responsable.nombre && String(responsable.nombre).trim().toLocaleLowerCase('es-AR') === String(emp.nombre || '').trim().toLocaleLowerCase('es-AR');
+}
+window.ventaPerteneceResponsableComercial = ventaPerteneceResponsableComercial;
 
 function itemVentaEsManoDeObraReporte(item) {
   item = item || {};
@@ -30638,9 +30680,14 @@ function renderComisionesDelMes(emp) {
     });
   }
   var ventasDelVendedor = (ventasList||[]).filter(function(v) {
-    var esVendedor = (v.empleado === emp.nombre) || (v.vendedor === emp.nombre) || (v.empleado2 === emp.nombre) || (v.comisionado2 === emp.nombre);
+    var esVendedorPrincipal = ventaPerteneceResponsableComercial(v, emp);
+    var esVendedorSecundario = [v.empleado2FbKey, v.comisionado2FbKey, v.empleado2, v.comisionado2].some(function(valor) {
+      var identidad = String(valor || '').trim().toLocaleLowerCase('es-AR');
+      return identidad === String(emp.fbKey || '').trim().toLocaleLowerCase('es-AR') ||
+        identidad === String(emp.nombre || '').trim().toLocaleLowerCase('es-AR');
+    });
     var visible = !idsComisionesVisibles || idsComisionesVisibles[String(v.id || '')] || idsComisionesVisibles[String(v.fbKey || '')];
-    return esVendedor && visible && _fechaEnMes(v.fecha, mesCta);
+    return (esVendedorPrincipal || esVendedorSecundario) && visible && _fechaEnMes(v.fecha, mesCta);
   });
 
   var totalGenerado = 0, totalCobrado = 0, totalPendiente = 0;
@@ -35149,7 +35196,8 @@ async function spGenerarOTLegacy() {
     : '(sin empleados cargados)';
   var selIdx = await svPrompt('Elegí el técnico asignado:\n' + opciones);
   if (selIdx === null) return; // canceló
-  var tecnico = (tecnicos[parseInt(selIdx)]) ? tecnicos[parseInt(selIdx)].nombre : 'Sin asignar';
+  var tecnicoEmpleado = tecnicos[parseInt(selIdx)] || null;
+  var tecnico = tecnicoEmpleado ? tecnicoEmpleado.nombre : 'Sin asignar';
 
   var punit = _redondearPrecioActual(precioVentaCanonicoProducto(prodVisita).precioARS);
   var sub = punit;
@@ -35162,6 +35210,8 @@ async function spGenerarOTLegacy() {
     : null;
   var reclamoClienteId = r.clienteId || r.idCliente || (clienteRefReclamo && (clienteRefReclamo.id || clienteRefReclamo.numero || '')) || '';
   var reclamoClienteFbKey = r.clienteFbKey || r.clienteKey || (clienteRefReclamo && clienteRefReclamo.fbKey) || '';
+  var ventaOrigenReclamo = _buscarVentaCanonicaReclamo(r, null);
+  var responsableComercial = ventaResponsableComercialIdentidad(ventaOrigenReclamo || { creadaPor:currentUser||'', usuario:currentUser||'' });
 
   var nuevaVenta = {
     id:         ventaId,
@@ -35170,8 +35220,14 @@ async function spGenerarOTLegacy() {
     idCliente:  reclamoClienteId,
     clienteFbKey: reclamoClienteFbKey,
     clienteKey:   reclamoClienteFbKey,
-    empleado:   tecnico,
+    empleado:   responsableComercial.nombre,
+    empleadoFbKey: responsableComercial.fbKey,
+    vendedor:   responsableComercial.nombre,
+    vendedorFbKey: responsableComercial.fbKey,
+    responsableComercial: responsableComercial.nombre,
+    responsableComercialFbKey: responsableComercial.fbKey,
     tecnico:    tecnico,
+    tecnicoFbKey: tecnicoEmpleado ? String(tecnicoEmpleado.fbKey || '') : '',
     tecnicoAsignado: tecnico,
     creadaPor:  currentUser||'',
     usuario:    currentUser||'',
@@ -35216,6 +35272,7 @@ async function spGenerarOTLegacy() {
         clienteKey:   reclamoClienteFbKey,
         estado:      'pendiente',
         tecnico:     tecnico,
+        tecnicoFbKey: tecnicoEmpleado ? String(tecnicoEmpleado.fbKey || '') : '',
         fecha:       fechaHoy,
         hora:        '09:00',
         duracion:    '4 horas',
@@ -35423,7 +35480,8 @@ async function spGenerarOT(reclamoKey) {
     notify('Elegí uno de los técnicos de la lista');
     return;
   }
-  var tecnico = tecnicos[indiceTecnico].nombre;
+  var tecnicoEmpleado = tecnicos[indiceTecnico];
+  var tecnico = tecnicoEmpleado.nombre;
   var procesoCreacionOT = spMostrarProcesoCreacionOT('Preparando la venta vinculada…');
   await new Promise(function(resolve) { requestAnimationFrame(function(){ requestAnimationFrame(resolve); }); });
 
@@ -35438,6 +35496,8 @@ async function spGenerarOT(reclamoKey) {
     : null;
   var reclamoClienteId = r.clienteId || r.idCliente || (clienteRefReclamo && (clienteRefReclamo.id || clienteRefReclamo.numero || '')) || '';
   var reclamoClienteFbKey = r.clienteFbKey || r.clienteKey || (clienteRefReclamo && clienteRefReclamo.fbKey) || '';
+  var ventaOrigenReclamo = _buscarVentaCanonicaReclamo(r, null);
+  var responsableComercial = ventaResponsableComercialIdentidad(ventaOrigenReclamo || { creadaPor:currentUser||'', usuario:currentUser||'' });
 
   var nuevaVenta = {
     id:         ventaId,
@@ -35447,8 +35507,14 @@ async function spGenerarOT(reclamoKey) {
     clienteFbKey: reclamoClienteFbKey,
     clienteKey:   reclamoClienteFbKey,
     reclamoFbKey: rKey,
-    empleado:   tecnico,
+    empleado:   responsableComercial.nombre,
+    empleadoFbKey: responsableComercial.fbKey,
+    vendedor:   responsableComercial.nombre,
+    vendedorFbKey: responsableComercial.fbKey,
+    responsableComercial: responsableComercial.nombre,
+    responsableComercialFbKey: responsableComercial.fbKey,
     tecnico:    tecnico,
+    tecnicoFbKey: String(tecnicoEmpleado.fbKey || ''),
     tecnicoAsignado: tecnico,
     creadaPor:  currentUser||'',
     usuario:    currentUser||'',
@@ -35493,6 +35559,7 @@ async function spGenerarOT(reclamoKey) {
       reclamoFbKey: rKey,
       estado:      'pendiente',
       tecnico:     tecnico,
+      tecnicoFbKey: String(tecnicoEmpleado.fbKey || ''),
       fecha:       fechaHoy,
       hora:        '09:00',
       duracion:    '4 horas',
@@ -39474,17 +39541,25 @@ async function cambiarTecnicoOT(select) {
   if (window._otTransferenciaEnCurso) { select.value = anterior; notify('La transferencia de esta OT ya se esta guardando'); return false; }
   window._otTransferenciaEnCurso = true;
   select.disabled = true;
+  var tecnicoFbKeyAnterior = ot.tecnicoFbKey || '';
+  var auditAnteriorLength = Array.isArray(ot.audit) ? ot.audit.length : 0;
   try {
     var ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    var empleadoTecnicoNuevo = Object.values(empData || {}).find(function(emp) {
+      return String(emp.nombre || '').trim().toLocaleLowerCase('es-AR') === String(nuevo || '').trim().toLocaleLowerCase('es-AR');
+    });
     ot.tecnico = nuevo;
+    ot.tecnicoFbKey = empleadoTecnicoNuevo ? String(empleadoTecnicoNuevo.fbKey || '') : '';
     ot.audit = Array.isArray(ot.audit) ? ot.audit : [];
-    ot.audit.push({ fecha:ahora, usuario:currentUser || 'Admin', accion:'Titularidad de OT transferida: ' + (anterior || 'Sin asignar') + ' -> ' + (nuevo || 'Sin asignar'), tecnicoAnterior:anterior, tecnicoNuevo:nuevo });
+    ot.audit.push({ fecha:ahora, usuario:currentUser || 'Admin', accion:'Titularidad de OT transferida: ' + (anterior || 'Sin asignar') + ' -> ' + (nuevo || 'Sin asignar'), tecnicoAnterior:anterior, tecnicoAnteriorFbKey:tecnicoFbKeyAnterior, tecnicoNuevo:nuevo, tecnicoNuevoFbKey:ot.tecnicoFbKey });
     await fbGuardarOT(ot);
     select.dataset.previousValue = nuevo;
     window._otDetalleHuella = JSON.stringify(ot);
     notify('OT transferida a ' + (nuevo || 'Sin asignar'));
   } catch (e) {
     ot.tecnico = anterior;
+    ot.tecnicoFbKey = tecnicoFbKeyAnterior;
+    if (Array.isArray(ot.audit)) ot.audit.length = auditAnteriorLength;
     select.value = anterior;
     notify('No se pudo transferir la OT: ' + e.message);
     return false;
@@ -42360,7 +42435,7 @@ async function generarComisionesVenta(venta, montoCobrado) {
 
   // Vendedor principal
   var empPrincipal = Object.values(empData||{}).find(function(e){
-    return e.fbKey === venta.empleadoFbKey || e.fbKey === venta.empleado || e.nombre === venta.empleado;
+    return ventaPerteneceResponsableComercial(venta, e);
   });
   if (empPrincipal && _pctComisionEmpleadoVenta(empPrincipal) > 0) {
     vendedores.push(empPrincipal);
@@ -46294,7 +46369,7 @@ function verOT(id) {
   }
 
   // Visita repetida
-  var visitasPrev = _contarVisitasPrevias(ot.cliente, ot.dir, ot.id);
+  var visitasPrev = _contarVisitasPrevias(ot.cliente, ot.dir, ot.fbKey || ot.id);
   var repetidaBox = document.getElementById('ot-det-repetida-box');
   var repetidaLbl = document.getElementById('ot-det-repetida-lbl');
   if (visitasPrev > 0 && repetidaBox && repetidaLbl) {
@@ -48589,7 +48664,13 @@ function actualizarOT(direccionEditada) {
     var mapsBtn = document.getElementById('ot-det-dir-maps-btn');
     if (mapsBtn) mapsBtn.style.display = ot.dir ? '' : 'none';
   }
-  if (tecSel)  ot.tecnico    = tecSel.value;
+  if (tecSel) {
+    ot.tecnico = tecSel.value;
+    var tecnicoSeleccionado = Object.values(empData || {}).find(function(emp) {
+      return String(emp.nombre || '').trim().toLocaleLowerCase('es-AR') === String(tecSel.value || '').trim().toLocaleLowerCase('es-AR');
+    });
+    ot.tecnicoFbKey = tecnicoSeleccionado ? String(tecnicoSeleccionado.fbKey || '') : '';
+  }
   ot.fecha      = document.getElementById('ot-det-fecha').value;
   ot.hora       = document.getElementById('ot-det-hora').value;
   if (durSel)  ot.duracion   = durSel.value;
@@ -48685,7 +48766,11 @@ function _claveInstalacion(cliente, dir) {
 function _contarVisitasPrevias(cliente, dir, otIdExcluir) {
   var clave = _claveInstalacion(cliente, dir);
   return (otData||[]).filter(function(o) {
-    return o.id !== otIdExcluir && _claveInstalacion(o.cliente, o.dir) === clave;
+    var excluir = String(otIdExcluir || '');
+    var esMismaVisita = excluir && [o.fbKey, o.id, o.otId, o.numero].some(function(valor) {
+      return String(valor || '') === excluir;
+    });
+    return !esMismaVisita && _claveInstalacion(o.cliente, o.dir) === clave;
   }).length;
 }
 
@@ -49079,7 +49164,7 @@ function renderDashAdministrativo() {
 
   // Mis ventas del mes
   var misVentas = (ventasList||[]).filter(function(v){
-    return (v.vendedor||v.empleado||v.usuario||'') === usuario && (v.fecha||'').slice(0,7) === mesActual;
+    return ventaResponsableComercialReporte(v) === usuario && (v.fecha||'').slice(0,7) === mesActual;
   });
 
   var el = function(id){ return document.getElementById(id); };
@@ -52358,7 +52443,7 @@ function obtenerCategoriaEmpleado(emp) {
 
 function calcularComisionEmpleado(emp, mesAMM) {
   var ventas = (ventasList||[]).filter(function(v){
-    return (v.empleado===emp.nombre||v.empleadoId===emp.fbKey) &&
+    return ventaPerteneceResponsableComercial(v, emp) &&
            (v.fecha||'').slice(0,7) === (mesAMM||new Date().toISOString().slice(0,7));
   });
 

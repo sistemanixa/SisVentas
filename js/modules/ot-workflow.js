@@ -36,18 +36,50 @@
     });
   }
   window.reservarSiguienteOTId=reservarSiguienteOTId;
+  function clonarOTParaCreacion(ot){
+    var origen=ot&&typeof ot==='object'?ot:{};
+    var copia;
+    if(typeof structuredClone==='function'){
+      try{ copia=structuredClone(origen); }catch(_e){}
+    }
+    if(!copia){
+      try{ copia=JSON.parse(JSON.stringify(origen)); }
+      catch(_e2){ copia=Object.assign({},origen); }
+    }
+    // Una creación nunca puede heredar la identidad técnica de otra visita.
+    // También se clonan los datos anidados para que dos OT no compartan arrays
+    // u objetos que luego puedan modificarse desde una pantalla abierta.
+    ['fbKey','key','_firebaseKey','_arrayIndex'].forEach(function(campo){ delete copia[campo]; });
+    copia.id='';
+    return copia;
+  }
+  window.clonarOTParaCreacion=clonarOTParaCreacion;
   window.crearRegistroOTSeguro=function(ot,opciones){
     var evitarDoble=!!(opciones&&opciones.evitarDoble);
     if(evitarDoble&&window._otCreacionEnCurso) return window._otCreacionEnCurso;
+    var entradaEraNueva=!(ot&&typeof ot==='object'&&(ot.fbKey||ot.key||ot._firebaseKey));
+    var nuevaOT=clonarOTParaCreacion(ot);
     var promesa=reservarSiguienteOTId().then(function(id){
-      ot.id=id;
-      ot.ts=ot.ts||Date.now();
+      nuevaOT.id=id;
+      nuevaOT.ts=nuevaOT.ts||Date.now();
+      // Se conserva la compatibilidad de los flujos actuales, que crean un
+      // objeto nuevo y luego leen su número. Una visita existente nunca se muta.
+      if(entradaEraNueva&&ot&&typeof ot==='object'){
+        ot.id=nuevaOT.id;
+        ot.ts=nuevaOT.ts;
+      }
       if(typeof window.otPersistirGuardar==='function'){
-        return window.otPersistirGuardar(ot).then(function(guardada){
-          return { key:guardada&&guardada.fbKey||'' };
+        return window.otPersistirGuardar(nuevaOT).then(function(guardada){
+          var key=guardada&&guardada.fbKey||'';
+          if(!key) throw new Error('Firebase no devolvió la identidad de la nueva OT');
+          return { key:key, fbKey:key, id:nuevaOT.id, record:Object.assign({},nuevaOT,{fbKey:key}) };
         });
       }
-      return window.fbPush(window.fbRef(window.fbDB,FB_PATHS.ordenesTrabajo),ot);
+      return window.fbPush(window.fbRef(window.fbDB,FB_PATHS.ordenesTrabajo),nuevaOT).then(function(ref){
+        var key=ref&&ref.key||'';
+        if(!key) throw new Error('Firebase no devolvió la identidad de la nueva OT');
+        return { key:key, fbKey:key, id:nuevaOT.id, record:Object.assign({},nuevaOT,{fbKey:key}) };
+      });
     });
     if(evitarDoble){
       window._otCreacionEnCurso=promesa.finally(function(){ window._otCreacionEnCurso=null; });

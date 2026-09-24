@@ -134,7 +134,7 @@
         var esPrioridad = o.prioridad === true || o.prioridad === 'true';
         var esAtrasada = f && f < hoy && !esCompletada(o);
         var rowColor = esPrioridad || esAtrasada ? 'background:rgba(239,68,68,.06)' : f === hoy ? 'background:rgba(245,158,11,.04)' : '';
-        var visitasPrev = (typeof window._contarVisitasPrevias === 'function') ? window._contarVisitasPrevias(o.cliente, o.dir, o.id) : 0;
+        var visitasPrev = (typeof window._contarVisitasPrevias === 'function') ? window._contarVisitasPrevias(o.cliente, o.dir, o.fbKey || o.id) : 0;
         var iconoRep = visitasPrev > 0 ? '<i class="ti ti-repeat" style="font-size:12px;color:var(--amber);margin-right:4px" title="Visita N°'+(visitasPrev+1)+'"></i>' : '';
         var key = esc(o.fbKey || o.id || '');
         return '<tr style="'+rowColor+'">' +

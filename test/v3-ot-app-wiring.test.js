@@ -14,7 +14,8 @@ test('OT usa el puente reversible para modelo y persistencia', () => {
   assert.match(app, /function otPersistirActualizar\(/);
   assert.match(app, /function otPersistirEliminar\(/);
   assert.match(app, /prom = otPersistirGuardar\(cambiosOT\)/);
-  assert.match(workflow, /window\.otPersistirGuardar\(ot\)/);
+  assert.match(workflow, /window\.otPersistirGuardar\(nuevaOT\)/);
+  assert.match(workflow, /delete copia\[campo\]/);
 });
 
 test('la foto V3 es una tarea cancelable y guarda metadatos dentro de la OT', () => {
