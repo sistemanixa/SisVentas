@@ -41894,12 +41894,16 @@ async function rechazarComisionDesdeGasto(gastoFbKey) {
   var g = (gastosData||[]).find(function(x){ return x.fbKey === gastoFbKey; });
   if (!g) { notify('Gasto no encontrado'); return; }
   if (String(g.tipoPagable||'').toLowerCase() !== 'comision') { notify('No es una comisión'); return; }
+  var estadoActual = normalizarEstadoGasto(g);
+  if (estadoActual === 'pagado' || estadoActual === 'pagado_parcial') { notify('Una comisión con pagos registrados no se puede rechazar'); return; }
+  if (estadoActual === 'rechazado') { notify('La comisión ya está rechazada'); return; }
   var motivo = await svPrompt('Motivo del rechazo (opcional):', '', { sugerencias:['No corresponde'] });
   if (motivo === null) return;
   var fechaRech = new Date().toISOString().slice(0,10);
-  var prom = window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), { estado:'rechazado', rechazadoPor:currentUser||'', fechaRechazo:fechaRech, motivoRechazo:motivo });
+  var datosRechazo = { estado:'rechazado', requiereAprobacion:false, rechazadoPor:currentUser||'', fechaRechazo:fechaRech, rechazadoTs:Date.now(), motivoRechazo:motivo, aprobacionRevertida:estadoActual === 'pendiente_pago', aprobadoPor:null, fechaAprobacion:null, aprobadoTs:null };
+  var prom = window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), datosRechazo);
   prom = prom.then(function(){ return _buscarCtaempMovimientoPorLegacyKey(g.legacyKey); }).then(function(info){
-    if (info && info.ref) return window.fbUpdate(info.ref, { estado:'rechazado', rechazadoPor:currentUser||'', fechaRechazo:fechaRech, motivoRechazo:motivo, gastoFbKey:gastoFbKey, migradoAGastos:true });
+    if (info && info.ref) return window.fbUpdate(info.ref, Object.assign({}, datosRechazo, { gastoFbKey:gastoFbKey, migradoAGastos:true }));
   });
   prom.then(function(){ notify('Comisión rechazada'); if(typeof fbCargarGastos==='function') fbCargarGastos(); if(typeof cargarCtaEmp==='function') cargarCtaEmp(); })
       .catch(function(e){ notify('Error rechazando comisión: ' + e.message); });
