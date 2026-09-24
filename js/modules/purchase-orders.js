@@ -234,6 +234,26 @@
     };
   }
 
+  function isPurchasableMaterialItem(item) {
+    return !!item && !item.esManoDeObra && !isLabor(findProduct(item), item);
+  }
+
+  function materialRowsForDisplay(list) {
+    var rows = ((list && list.items) || []).map(function (item, index) {
+      return { item: item, index: index };
+    }).filter(function (display) {
+      return isPurchasableMaterialItem(display.item);
+    });
+    if (state.groupMaterialsByProvider) {
+      rows.sort(function (a, b) {
+        var providerA = String(a.item.proveedor || 'ZZZ Sin proveedor');
+        var providerB = String(b.item.proveedor || 'ZZZ Sin proveedor');
+        return providerA.localeCompare(providerB) || a.index - b.index;
+      });
+    }
+    return rows;
+  }
+
   function saleRef(value) {
     if (value && typeof value === 'object') return value;
     var ref = String(value || '');
@@ -263,7 +283,7 @@
     if (!list || !sale || materialListLocked(list) || !Array.isArray(sale.items)) return false;
     var previous = Array.isArray(list.items) ? list.items : [];
     var used = {};
-    var refreshed = sale.items.map(buildMaterialItem).filter(function (item) { return item.descripcion; }).map(function (base) {
+    var refreshed = sale.items.map(buildMaterialItem).filter(function (item) { return item.descripcion && isPurchasableMaterialItem(item); }).map(function (base) {
       var key = itemMaterialKey(base);
       var matchIndex = -1;
       for (var index = 0; index < previous.length; index++) {
@@ -324,7 +344,11 @@
       return Promise.resolve(existing);
     }
     if (!window.fbDB) return Promise.reject(new Error('Sin conexión'));
-    var items = sale.items.map(buildMaterialItem).filter(function (item) { return item.descripcion; });
+    var items = sale.items.map(buildMaterialItem).filter(function (item) { return item.descripcion && isPurchasableMaterialItem(item); });
+    if (!items.length) {
+      if (!options.silent && typeof window.notify === 'function') window.notify('La venta sólo contiene servicios o mano de obra; no hay materiales para comprar');
+      return Promise.reject(new Error('Venta sin materiales comprables'));
+    }
     var list = {
       numero: 'LM-' + String(Date.now()).slice(-7),
       origen: 'venta',
@@ -398,14 +422,7 @@
     var body = document.getElementById('oc-material-list-modal-body');
     var generated = Array.isArray(list.ordenesIds) && list.ordenesIds.length;
     var locked = !!generated || list.estado === 'reservada' || list.estado === 'recibida' || list.estado === 'cerrada';
-    var displayItems = (list.items || []).map(function (item, index) { return { item: item, index: index }; });
-    if (state.groupMaterialsByProvider) {
-      displayItems.sort(function (a, b) {
-        var providerA = String(a.item.proveedor || 'ZZZ Sin proveedor');
-        var providerB = String(b.item.proveedor || 'ZZZ Sin proveedor');
-        return providerA.localeCompare(providerB) || a.index - b.index;
-      });
-    }
+    var displayItems = materialRowsForDisplay(list);
     var lastProviderGroup = '';
     body.innerHTML =
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:12px"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
@@ -448,6 +465,9 @@
         (!locked ? '<button class="btn" onclick="ocGuardarListaActual()"><i class="ti ti-device-floppy"></i> Guardar decisiones</button><button class="btn btn-primary" onclick="ocGenerarOrdenesDesdeLista()"><i class="ti ti-shopping-cart"></i> Generar órdenes por proveedor</button>' : (generated ? '<button class="btn btn-primary" onclick="document.getElementById(\'oc-material-list-modal\').style.display=\'none\';ocShowTab(\'orders\')"><i class="ti ti-shopping-cart"></i> Ver órdenes generadas</button>' : '<span class="badge b-green">Lista cerrada sin compras</span>')) +
       '</div>';
     updateMaterialSummary();
+    setTimeout(function () {
+      if (window.SisVentas && typeof window.SisVentas.prepareResizablePage === 'function') window.SisVentas.prepareResizablePage(body);
+    }, 0);
   }
 
   function materialChanged(index) {
@@ -477,7 +497,7 @@
     var el = document.getElementById('oc-material-summary');
     var list = state.activeList;
     if (!el || !list) return;
-    var purchase = (list.items || []).filter(function (i) { return i.incluir && i.cantidadComprar > 0; });
+    var purchase = (list.items || []).filter(function (i) { return isPurchasableMaterialItem(i) && i.incluir && i.cantidadComprar > 0; });
     var groups = {};
     var missing = 0;
     purchase.forEach(function (i) {
@@ -494,10 +514,33 @@
     renderMaterialListBody();
   }
 
+  function buildMaterialExportRows(list) {
+    var rows = [['Orden venta', 'Comprar', 'Código', 'Material', 'Necesario', 'Ya tenemos', 'A comprar', 'Proveedor seleccionado', 'Costo unitario', 'Costo estimado', 'Link de compra']];
+    var groupRows = [];
+    var lastProvider = '';
+    materialRowsForDisplay(list).forEach(function (display) {
+      var item = display.item;
+      var provider = item.proveedor || 'Sin proveedor';
+      if (state.groupMaterialsByProvider && provider !== lastProvider) {
+        lastProvider = provider;
+        rows.push(['Proveedor: ' + provider, '', '', '', '', '', '', '', '', '', '']);
+        groupRows.push(rows.length);
+      }
+      var buy = parseFloat(item.cantidadComprar) || 0;
+      var unitCost = parseFloat(item.costoUnitario) || 0;
+      rows.push([
+        parseFloat(item.linea) >= 0 ? parseFloat(item.linea) + 1 : '', item.incluir ? 'Sí' : 'No', item.codigo || '', item.descripcion || '',
+        parseFloat(item.cantidadNecesaria) || 0, parseFloat(item.usarExistente) || 0, buy, provider, unitCost,
+        Math.round(buy * unitCost * 100) / 100, providerUrlForItem(item)
+      ]);
+    });
+    return { rows: rows, groupRows: groupRows };
+  }
+
   function exportMaterialListExcel() {
     var list = state.activeList;
     if (!list) return;
-    (list.items || []).forEach(function (_, index) { materialChanged(index); });
+    materialRowsForDisplay(list).forEach(function (display) { materialChanged(display.index); });
     var loader = window.cargarSheetJS;
     if (typeof loader !== 'function') {
       if (typeof window.notify === 'function') window.notify('No se pudo iniciar la exportación a Excel');
@@ -505,19 +548,16 @@
     }
     loader(function () {
       try {
-        var rows = [['Orden venta', 'Comprar', 'Código', 'Material', 'Necesario', 'Ya tenemos', 'A comprar', 'Proveedor seleccionado', 'Costo unitario', 'Costo estimado', 'Link de compra']];
-        (list.items || []).forEach(function (item) {
-          var buy = parseFloat(item.cantidadComprar) || 0;
-          var unitCost = parseFloat(item.costoUnitario) || 0;
-          rows.push([
-            parseFloat(item.linea) >= 0 ? parseFloat(item.linea) + 1 : '', item.incluir ? 'Sí' : 'No', item.codigo || '', item.descripcion || '',
-            parseFloat(item.cantidadNecesaria) || 0, parseFloat(item.usarExistente) || 0, buy, item.proveedor || '', unitCost,
-            Math.round(buy * unitCost * 100) / 100, providerUrlForItem(item)
-          ]);
-        });
+        var exportData = buildMaterialExportRows(list);
+        var rows = exportData.rows;
         var workbook = window.XLSX.utils.book_new();
         var sheet = window.XLSX.utils.aoa_to_sheet(rows);
         sheet['!cols'] = [{wch:12},{wch:10},{wch:15},{wch:48},{wch:12},{wch:14},{wch:12},{wch:28},{wch:16},{wch:17},{wch:55}];
+        if (exportData.groupRows.length) {
+          sheet['!merges'] = exportData.groupRows.map(function (rowNumber) {
+            return { s: { r: rowNumber - 1, c: 0 }, e: { r: rowNumber - 1, c: 10 } };
+          });
+        }
         for (var rowIndex = 2; rowIndex <= rows.length; rowIndex++) {
           ['I', 'J'].forEach(function (column) { if (sheet[column + rowIndex]) sheet[column + rowIndex].z = '$ #,##0.00'; });
           var linkCell = sheet['K' + rowIndex];
@@ -539,7 +579,8 @@
   function saveCurrentList(silent) {
     var list = state.activeList;
     if (!list || !list.fbKey || !window.fbDB) return Promise.reject(new Error('Lista no disponible'));
-    (list.items || []).forEach(function (_, index) { materialChanged(index); });
+    materialRowsForDisplay(list).forEach(function (display) { materialChanged(display.index); });
+    list.items = (list.items || []).filter(isPurchasableMaterialItem);
     return update(PATH_LISTS + '/' + list.fbKey, {
       items: list.items,
       actualizadoEn: Date.now(),
@@ -576,7 +617,7 @@
   function reserveDeclaredExisting(list) {
     if (!list || list.stockExistenteReservado) return Promise.resolve();
     var allocationKey = safeKey(list.ventaFbKey || list.ventaId || list.fbKey);
-    var declared = (list.items || []).filter(function (item) { return item.incluir && (parseFloat(item.usarExistente) || 0) > 0; });
+    var declared = (list.items || []).filter(function (item) { return isPurchasableMaterialItem(item) && item.incluir && (parseFloat(item.usarExistente) || 0) > 0; });
     return Promise.all(declared.map(function (item) {
       var qty = parseFloat(item.usarExistente) || 0;
       return transactionInventory(item.productoKey || item.codigo, function (inv) {
@@ -600,7 +641,7 @@
     var list = state.activeList;
     if (!list) return;
     saveCurrentList(true).then(async function () {
-      var purchase = list.items.filter(function (i) { return i.incluir && parseFloat(i.cantidadComprar) > 0; });
+      var purchase = list.items.filter(function (i) { return isPurchasableMaterialItem(i) && i.incluir && parseFloat(i.cantidadComprar) > 0; });
       var missing = purchase.filter(function (i) { return !i.proveedor; });
       if (missing.length) throw new Error('Elegí un proveedor para todos los materiales');
       if (list.ordenesIds && list.ordenesIds.length && !await window.svConfirm('Esta lista ya generó órdenes. ¿Generar un nuevo grupo con las decisiones actuales?')) return null;
@@ -1491,6 +1532,9 @@
     openOrder: openOrder,
     openManualOrder: openManualOrder,
     syncListItemsWithSale: syncListItemsWithSale,
+    isPurchasableMaterialItem: isPurchasableMaterialItem,
+    materialRowsForDisplay: materialRowsForDisplay,
+    buildMaterialExportRows: buildMaterialExportRows,
     syncOTConsumption: syncOTConsumption,
     releaseOTLeftovers: releaseOTLeftovers,
     receiveOTReturns: receiveOTReturns,

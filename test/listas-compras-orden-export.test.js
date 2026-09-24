@@ -8,7 +8,8 @@ const source = fs.readFileSync('js/modules/purchase-orders.js', 'utf8');
 function loadModule() {
   const products = [
     { fbKey:'prod-a', codigo:'A', nombre:'Producto A', proveedores:[{nombre:'Proveedor Uno', proveedorKey:'p1', precio:100, sinIva:true, url:'https://proveedor.test/a'}] },
-    { fbKey:'prod-b', codigo:'B', nombre:'Producto B', proveedores:[{nombre:'Proveedor Dos', proveedorKey:'p2', precio:200, sinIva:true, url:'https://proveedor.test/b'}] }
+    { fbKey:'prod-b', codigo:'B', nombre:'Producto B', proveedores:[{nombre:'Proveedor Dos', proveedorKey:'p2', precio:200, sinIva:true, url:'https://proveedor.test/b'}] },
+    { fbKey:'servicio', codigo:'MO', nombre:'Instalación y configuración remota', categoria:'Mano de obra', proveedores:[] }
   ];
   const window = {
     prodData:Object.fromEntries(products.map(product => [product.fbKey, product])),
@@ -59,6 +60,7 @@ test('la interfaz permite agrupar sin reemplazar el orden y exporta un xlsx con 
   assert.match(source, /Exportar Excel/);
   assert.match(source, /window\.XLSX\.utils\.aoa_to_sheet/);
   assert.match(source, /linkCell\.l = \{ Target: linkCell\.v/);
+  assert.match(source, /window\.SisVentas\.prepareResizablePage\(body\)/);
   assert.match(source, /\.xlsx'/);
 });
 
@@ -67,4 +69,37 @@ test('cada proveedor seleccionado conserva su URL en la lista y en la orden gene
   assert.match(source, /item\.proveedorUrl = option \? safeProviderUrl\(option\.dataset\.url\)/);
   assert.match(source, /proveedorUrl: providerUrlForItem\(item\)/);
   assert.match(source, /Abrir link de compra/);
+});
+
+test('la mano de obra se excluye de la lista aun cuando estaba guardada anteriormente', () => {
+  const purchases = loadModule();
+  const list = {
+    estado:'preparacion',
+    ordenesIds:[],
+    items:[
+      {productoKey:'servicio',codigo:'MO',descripcion:'Instalación y configuración remota',cantidadNecesaria:1,incluir:true,cantidadComprar:1},
+      {productoKey:'prod-a',codigo:'A',descripcion:'Producto A',cantidadNecesaria:2,incluir:true,cantidadComprar:2,proveedor:'Proveedor Uno',proveedorKey:'p1'}
+    ]
+  };
+  const sale = {items:[
+    {productoKey:'servicio',cod:'MO',desc:'Instalación y configuración remota',qty:1},
+    {productoKey:'prod-a',cod:'A',desc:'Producto A',qty:2}
+  ]};
+  assert.equal(purchases.syncListItemsWithSale(list, sale), true);
+  assert.deepEqual(Array.from(list.items, item => item.codigo), ['A']);
+  assert.equal(purchases.isPurchasableMaterialItem({productoKey:'servicio',codigo:'MO',descripcion:'Instalación y configuración remota'}), false);
+});
+
+test('la exportación agrupada replica los grupos visibles y mantiene el orden original dentro de cada proveedor', () => {
+  const purchases = loadModule();
+  purchases.state.groupMaterialsByProvider = true;
+  const list = {items:[
+    {linea:0,productoKey:'prod-b',codigo:'B',descripcion:'Producto B',cantidadNecesaria:1,incluir:true,cantidadComprar:1,proveedor:'Proveedor Dos',proveedorKey:'p2',costoUnitario:242},
+    {linea:1,productoKey:'servicio',codigo:'MO',descripcion:'Instalación remota',cantidadNecesaria:1,incluir:true,cantidadComprar:1},
+    {linea:2,productoKey:'prod-a',codigo:'A',descripcion:'Producto A',cantidadNecesaria:1,incluir:true,cantidadComprar:1,proveedor:'Proveedor Uno',proveedorKey:'p1',costoUnitario:121}
+  ]};
+  const exported = purchases.buildMaterialExportRows(list);
+  assert.deepEqual(Array.from(exported.rows, row => row[0]), ['Orden venta','Proveedor: Proveedor Dos',1,'Proveedor: Proveedor Uno',3]);
+  assert.deepEqual(Array.from(exported.groupRows), [2,4]);
+  assert.equal(exported.rows.some(row => row.includes('MO')), false);
 });
