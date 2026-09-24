@@ -42038,11 +42038,23 @@ function _cargarFiltroEmpleadosGastos() {
   if (!select) return;
   var valor = select.value;
   var empleados = Object.values(empData || {}).filter(Boolean).sort(function(a,b){ return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); });
-  select.innerHTML = '<option value="">Todos los empleados</option>' + empleados.map(function(e){
-    var inactivo = e.activo === false || String(e.estado || '').toLowerCase() === 'inactivo' || !!e.tipoBaja;
-    return '<option value="'+escapeHTML(e.fbKey || '')+'">'+escapeHTML(e.nombre || 'Sin nombre')+(inactivo ? ' (Inactivo)' : ' (Activo)')+'</option>';
+  var activos = empleados.filter(function(e){ return !_empleadoEsInactivoParaHistorial(e); });
+  var inactivos = empleados.filter(_empleadoEsInactivoParaHistorial);
+  var opcionesActivos = activos.map(function(e){
+    return '<option value="'+escapeHTML(e.fbKey || '')+'">'+escapeHTML(e.nombre || 'Sin nombre')+'</option>';
   }).join('');
+  var opcionesInactivos = inactivos.map(function(e){
+    return '<option value="'+escapeHTML(e.fbKey || '')+'">'+escapeHTML(e.nombre || 'Sin nombre')+' (Inactivo)</option>';
+  }).join('');
+  select.innerHTML = '<option value="">Todos los empleados</option>' +
+    (opcionesActivos ? '<optgroup label="Empleados activos">'+opcionesActivos+'</optgroup>' : '') +
+    (opcionesInactivos ? '<optgroup label="Historial de empleados inactivos">'+opcionesInactivos+'</optgroup>' : '');
   if (empleados.some(function(e){ return String(e.fbKey || '') === String(valor); })) select.value = valor;
+}
+
+function _empleadoEsInactivoParaHistorial(empleado) {
+  var estado = String((empleado || {}).estado || '').toLowerCase();
+  return !empleado || empleado.activo === false || estado === 'inactivo' || estado === 'despedido' || estado === 'renuncia' || !!empleado.tipoBaja;
 }
 
 function filtrarGastosPorEmpleado() {

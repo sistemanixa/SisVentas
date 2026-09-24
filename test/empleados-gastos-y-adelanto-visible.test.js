@@ -17,7 +17,7 @@ test('Gastos vuelve a poblar el filtro cuando finaliza la carga de empleados', (
   assert.ok((carga.match(/_cargarFiltroEmpleadosGastos\(\)/g) || []).length >= 2);
 });
 
-test('el filtro de Gastos incluye empleados activos e inactivos', () => {
+test('el filtro de Gastos separa empleados activos del historial de inactivos', () => {
   const select = { value: '', innerHTML: '' };
   const contexto = {
     empData: {
@@ -30,7 +30,10 @@ test('el filtro de Gastos incluye empleados activos e inactivos', () => {
   vm.createContext(contexto);
   vm.runInContext(bloque('function _cargarFiltroEmpleadosGastos()', 'function filtrarGastosPorEmpleado()'), contexto);
   contexto._cargarFiltroEmpleadosGastos();
-  assert.match(select.innerHTML, /Osmar Tello \(Activo\)/);
+  assert.match(select.innerHTML, /<optgroup label="Empleados activos">/);
+  assert.match(select.innerHTML, /Osmar Tello/);
+  assert.doesNotMatch(select.innerHTML, /Osmar Tello \(Inactivo\)/);
+  assert.match(select.innerHTML, /<optgroup label="Historial de empleados inactivos">/);
   assert.match(select.innerHTML, /Marcos Tello \(Inactivo\)/);
 });
 
@@ -76,4 +79,3 @@ test('el formulario de adelanto se mueve al body y queda visible desde Empleados
   assert.equal(modal.parentElement, body);
   assert.equal(modal.style.display, 'flex');
 });
-
