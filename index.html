@@ -34,7 +34,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=3.3.17"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.7.4">
+<link rel="stylesheet" href="./css/app.css?v=3.7.5-toolbar">
 <link rel="stylesheet" href="./css/surveys.css?v=1">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
@@ -4737,11 +4737,11 @@ Listo para analizar.
         </select>
         </div>
         <div class="gas-toolbar-buttons">
-        <button class="btn btn-sm admin-only" onclick="abrirGestorGastosRecurrentes()" title="Administrar reglas que generan gastos cada mes"><i class="ti ti-repeat"></i> Recurrentes</button>
-        <button class="btn btn-sm" id="btn-gastos-multiple" onclick="togglePagoMultipleGastos()"><i class="ti ti-checklist"></i> Pago múltiple</button>
-        <button class="btn btn-sm" data-permiso="empleados.gestionarAdelantos" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
+        <button class="btn btn-sm admin-only gas-action-recurring" onclick="abrirGestorGastosRecurrentes()" title="Administrar reglas que generan gastos cada mes"><i class="ti ti-repeat"></i> Recurrentes</button>
+        <button class="btn btn-sm gas-action-multi" id="btn-gastos-multiple" onclick="togglePagoMultipleGastos()"><i class="ti ti-checklist"></i> Pago múltiple</button>
+        <button class="btn btn-sm gas-action-advance" data-permiso="empleados.gestionarAdelantos" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
         <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('gas-tbl')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
-        <button class="btn btn-sm btn-primary" onclick="abrirFormGasto(null)"><i class="ti ti-plus"></i> Nuevo gasto</button>
+        <button class="btn btn-sm btn-primary gas-action-new" onclick="abrirFormGasto(null)"><i class="ti ti-plus"></i> Nuevo gasto</button>
         </div>
       </div>
     </div>

@@ -41838,7 +41838,7 @@ function actualizarResumenPagoMultiple() {
   if (el) el.textContent = keys.length + ' seleccionado' + (keys.length!==1?'s':'') + ' · $' + Math.round(total).toLocaleString('es-AR');
   var btn = document.getElementById('btn-gastos-multiple');
   if (btn) {
-    btn.className = _gastosPagoMultipleActivo ? 'btn btn-sm btn-primary' : 'btn btn-sm';
+    btn.className = _gastosPagoMultipleActivo ? 'btn btn-sm btn-primary gas-action-multi' : 'btn btn-sm gas-action-multi';
     btn.innerHTML = _gastosPagoMultipleActivo ? '<i class="ti ti-x"></i> Salir pago múltiple' : '<i class="ti ti-checklist"></i> Pago múltiple';
   }
 }
